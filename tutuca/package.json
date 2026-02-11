@@ -1,0 +1,28 @@
+{
+  "name": "tutuca",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marianoguerra/tutuca.git"
+  },
+  "author": "Mariano Guerra",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/marianoguerra/tutuca/issues"
+  },
+  "homepage": "https://github.com/marianoguerra/tutuca#readme",
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.14",
+    "jsdom": "^28.0.0",
+    "prettier": "^3.8.1"
+  }
+}

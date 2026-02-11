@@ -1,0 +1,390 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`Json Editor JsonSelector 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><div data-test-id="sel" class="join gap-3 font-mono" data-cid="0" data-vid="main"><button class="btn btn-sm btn-ghost btn-warning" data-eid="0">
+      null
+    </button><button class="btn btn-sm btn-ghost btn-success" data-eid="1">
+      bool
+    </button><button class="btn btn-sm btn-ghost btn-primary" data-eid="2">
+      0
+    </button><button class="btn btn-sm btn-ghost btn-accent" data-eid="3">
+      ""
+    </button><button class="btn btn-sm btn-ghost btn-info" data-eid="4">
+      []
+    </button><button class="btn btn-sm btn-ghost btn-info" data-eid="5">
+      {}
+    </button></div>"
+`;
+
+exports[`Json Editor JsonNull 1`] = `"<!--§{"nid":null,"$":"Comp"}§--><span data-test-id="JsonNull" class="text-warning text-xs font-mono p-3" data-cid="1" data-vid="main">null</span>"`;
+
+exports[`Json Editor JsonBool true 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><button data-test-id="JsonBool true" class="btn btn-sm btn-ghost btn-success font-mono" data-eid="0" data-cid="2" data-vid="main"><span>true</span>
+    </button>"
+`;
+
+exports[`Json Editor JsonBool false 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><button data-test-id="JsonBool false" class="btn btn-sm btn-ghost btn-error font-mono" data-eid="0" data-cid="2" data-vid="main">
+    <span>false</span></button>"
+`;
+
+exports[`Json Editor JsonString 1`] = `"<!--§{"nid":null,"$":"Comp"}§--><input data-test-id="JsonString" class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" data-cid="3" data-vid="main" value="hello">"`;
+
+exports[`Json Editor JsonNumber 1`] = `"<!--§{"nid":null,"$":"Comp"}§--><input data-test-id="JsonNumber" type="number" class="input input-sm input-ghost text-primary font-mono" title="0" data-eid="0" data-cid="4" data-vid="main" value="0">"`;
+
+exports[`Json Editor JsonArray > JsonNull 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><span data-test-id="JsonNull" class="text-warning text-xs font-mono p-3" data-cid="1" data-vid="main">null</span><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonNull 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><span data-test-id="JsonNull" class="text-warning text-xs font-mono p-3" data-cid="1" data-vid="main">null</span></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonBool true 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool true" class="btn btn-sm btn-ghost btn-success font-mono" data-eid="0" data-cid="2" data-vid="main"><span>true</span>
+    </button><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonBool true 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool true" class="btn btn-sm btn-ghost btn-success font-mono" data-eid="0" data-cid="2" data-vid="main"><span>true</span>
+    </button></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonBool false 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool false" class="btn btn-sm btn-ghost btn-error font-mono" data-eid="0" data-cid="2" data-vid="main">
+    <span>false</span></button><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonBool false 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool false" class="btn btn-sm btn-ghost btn-error font-mono" data-eid="0" data-cid="2" data-vid="main">
+    <span>false</span></button></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonString 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonString" class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" data-cid="3" data-vid="main" value="hello"><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonString 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonString" class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" data-cid="3" data-vid="main" value="hello"></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonNumber 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonNumber" type="number" class="input input-sm input-ghost text-primary font-mono" title="0" data-eid="0" data-cid="4" data-vid="main" value="0"><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonNumber 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonNumber" type="number" class="input input-sm input-ghost text-primary font-mono" title="0" data-eid="0" data-cid="4" data-vid="main" value="0"></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonArray > JsonNull 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><span data-test-id="JsonNull" class="text-warning text-xs font-mono p-3" data-cid="1" data-vid="main">null</span><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonObject > JsonNull 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><span data-test-id="JsonNull" class="text-warning text-xs font-mono p-3" data-cid="1" data-vid="main">null</span></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonArray > JsonNull 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><span data-test-id="JsonNull" class="text-warning text-xs font-mono p-3" data-cid="1" data-vid="main">null</span><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonObject > JsonNull 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-o" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-i" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="k2"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><span data-test-id="JsonNull" class="text-warning text-xs font-mono p-3" data-cid="1" data-vid="main">null</span></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonArray > JsonBool true 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool true" class="btn btn-sm btn-ghost btn-success font-mono" data-eid="0" data-cid="2" data-vid="main"><span>true</span>
+    </button><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonObject > JsonBool true 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool true" class="btn btn-sm btn-ghost btn-success font-mono" data-eid="0" data-cid="2" data-vid="main"><span>true</span>
+    </button></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonArray > JsonBool true 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool true" class="btn btn-sm btn-ghost btn-success font-mono" data-eid="0" data-cid="2" data-vid="main"><span>true</span>
+    </button><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonObject > JsonBool true 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-o" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-i" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="k2"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool true" class="btn btn-sm btn-ghost btn-success font-mono" data-eid="0" data-cid="2" data-vid="main"><span>true</span>
+    </button></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonArray > JsonBool false 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool false" class="btn btn-sm btn-ghost btn-error font-mono" data-eid="0" data-cid="2" data-vid="main">
+    <span>false</span></button><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonObject > JsonBool false 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool false" class="btn btn-sm btn-ghost btn-error font-mono" data-eid="0" data-cid="2" data-vid="main">
+    <span>false</span></button></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonArray > JsonBool false 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool false" class="btn btn-sm btn-ghost btn-error font-mono" data-eid="0" data-cid="2" data-vid="main">
+    <span>false</span></button><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonObject > JsonBool false 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-o" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-i" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="k2"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><button data-test-id="JsonBool false" class="btn btn-sm btn-ghost btn-error font-mono" data-eid="0" data-cid="2" data-vid="main">
+    <span>false</span></button></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonArray > JsonString 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonString" class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" data-cid="3" data-vid="main" value="hello"><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonObject > JsonString 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonString" class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" data-cid="3" data-vid="main" value="hello"></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonArray > JsonString 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonString" class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" data-cid="3" data-vid="main" value="hello"><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonObject > JsonString 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-o" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-i" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="k2"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonString" class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" data-cid="3" data-vid="main" value="hello"></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonArray > JsonNumber 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonNumber" type="number" class="input input-sm input-ghost text-primary font-mono" title="0" data-eid="0" data-cid="4" data-vid="main" value="0"><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonArray > JsonObject > JsonNumber 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="arr-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonNumber" type="number" class="input input-sm input-ghost text-primary font-mono" title="0" data-eid="0" data-cid="4" data-vid="main" value="0"></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonArray > JsonNumber 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="arr-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="5" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-list-item" data-droptarget="json-list-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonNumber" type="number" class="input input-sm input-ghost text-primary font-mono" title="0" data-eid="0" data-cid="4" data-vid="main" value="0"><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;
+
+exports[`Json Editor JsonObject > JsonObject > JsonNumber 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><section data-test-id="obj-o" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-o" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="key"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><section data-test-id="obj-i" class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500" data-cid="7" data-vid="main"><button class="btn btn-sm btn-ghost btn-primary" data-eid="0">
+      +
+    </button><div class="join join-vertical gap-3"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="join gap-3 justify-between items-center group" draggable="true" data-dragtype="json-kv-item" data-droptarget="json-kv-item" data-eid="2"><!--§{"nid":0,"$":"Comp"}§--><div data-test-id="kv-i" class="join gap-3 items-center justify-center" data-cid="6" data-vid="main"><input class="input input-sm input-ghost text-green-500 font-mono" data-eid="0" value="k2"><span class="text-xs font-mono text-gray-500">:</span>
+    <!--§{"nid":0,"$":"Comp"}§--><input data-test-id="JsonNumber" type="number" class="input input-sm input-ghost text-primary font-mono" title="0" data-eid="0" data-cid="4" data-vid="main" value="0"></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section></div><button class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100" data-eid="1">
+          \\u26D4
+        </button></div></div></section>"
+`;

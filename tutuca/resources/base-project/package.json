@@ -1,0 +1,11 @@
+{
+  "name": "tutuca-base",
+  "version": "0.1.0",
+  "description": "base tutuca project",
+  "scripts": {
+    "dev:setup": "npm install --save-dev tailwindcss@latest @tailwindcss/cli@latest daisyui@latest",
+    "build:css": "npx @tailwindcss/cli -i style/input.css -o style/style.css",
+    "watch:css": "npx @tailwindcss/cli -i style/input.css -o style/style.css --watch"
+  },
+  "devDependencies": {}
+}

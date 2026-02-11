@@ -1,0 +1,58 @@
+set shell := ["nu", "-c"]
+
+IMMUTABLE_VSN := "6.x"
+clean:
+    rm -rf dist
+
+clear: clean
+
+dist: clean
+    mkdir dist
+    just dist-mod "index.js" "tutuca"
+    just dist-mod "extra.js" "tutuca-extra"
+    just dist-mod "dev.js" "tutuca-dev"
+    cp -r resources/base-project dist/base-project
+    mkdir dist/base-project/deps
+
+dist-mod IN OUT:
+    bunx rolldown {{IN}} -f esm --no-esModule -o dist/{{OUT}}.js
+    bunx rolldown {{IN}} -f esm --no-esModule -o dist/{{OUT}}.min.js -m
+    brotli dist/{{OUT}}.min.js -o dist/{{OUT}}.min.js.br
+
+clean-deps:
+    rm -rf deps
+    mkdir deps
+
+fetch-deps: clean-deps setup-immutable
+
+setup-immutable:
+    git clone -b {{IMMUTABLE_VSN}} --single-branch git@github.com:immutable-js/immutable-js.git deps/immutable-js
+    cd deps/immutable-js; deno bundle src/Immutable.js | save -f ../immutable.js
+    rm -rf deps/immutable-js
+
+download-file URL PATH:
+	http get -r {{URL}} | save -fr {{PATH}}
+
+test FILES="test/*.test.js":
+    bun test {{FILES}}
+
+test-watch FILES="test/*.test.js":
+    bun test --watch {{FILES}}
+
+format FILES="src test/*.js":
+    bunx @biomejs/biome format --write {{FILES}}
+
+lint FILES="src test/*.js":
+    bunx @biomejs/biome lint {{FILES}}
+
+lint-fix FILES="src test/*.js":
+    bunx @biomejs/biome lint --write {{FILES}}
+
+fix FILES="src test/*.js":
+    bunx @biomejs/biome check --write {{FILES}}
+
+render-examples MODULE:
+    bun tools/render-examples.js {{MODULE}}
+
+smoke-test-cli-render-examples:
+    bun tools/render-examples.js ./test/todo.js

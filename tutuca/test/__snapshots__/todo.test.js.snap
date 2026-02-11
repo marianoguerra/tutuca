@@ -1,0 +1,47 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`Todo App Empty list 1`] = `"<!--§{"nid":null,"$":"Comp"}§--><div class="flex flex-col gap-3 " data-cid="0" data-vid="main"><button class="btn btn-outline btn-success" data-eid="0">Add Task</button><div class="flex flex-col gap-3 w-full"></div></div>"`;
+
+exports[`Todo App Single default item 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><div class="flex flex-col gap-3 " data-cid="0" data-vid="main"><button class="btn btn-outline btn-success" data-eid="0">Add Task</button><div class="flex flex-col gap-3 w-full"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on"><input class="input" data-eid="1" value="do the thing"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div></div></div>"
+`;
+
+exports[`Todo App Single item with custom text 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><div class="flex flex-col gap-3 " data-cid="0" data-vid="main"><button class="btn btn-outline btn-success" data-eid="0">Add Task</button><div class="flex flex-col gap-3 w-full"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on"><input class="input" data-eid="1" value="buy milk"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div></div></div>"
+`;
+
+exports[`Todo App Completed item 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><div class="flex flex-col gap-3 " data-cid="0" data-vid="main"><button class="btn btn-outline btn-success" data-eid="0">Add Task</button><div class="flex flex-col gap-3 w-full"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on" checked=""><input class="input" data-eid="1" disabled="" value="done task"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div></div></div>"
+`;
+
+exports[`Todo App Multiple items 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><div class="flex flex-col gap-3 " data-cid="0" data-vid="main"><button class="btn btn-outline btn-success" data-eid="0">Add Task</button><div class="flex flex-col gap-3 w-full"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on"><input class="input" data-eid="1" value="first"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div><!--§{"nid":1,"si":1,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on"><input class="input" data-eid="1" value="second"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div><!--§{"nid":1,"si":2,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on"><input class="input" data-eid="1" value="third"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div></div></div>"
+`;
+
+exports[`Todo App Mixed completed and incomplete items 1`] = `
+"<!--§{"nid":null,"$":"Comp"}§--><div class="flex flex-col gap-3 " data-cid="0" data-vid="main"><button class="btn btn-outline btn-success" data-eid="0">Add Task</button><div class="flex flex-col gap-3 w-full"><!--§{"nid":1,"si":0,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on" checked=""><input class="input" data-eid="1" disabled="" value="done"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div><!--§{"nid":1,"si":1,"$":"Each"}§--><div class="flex gap-3 justify-center items-center w-full"><!--§{"nid":0,"$":"Comp"}§--><div class="flex gap-3 items-center " data-cid="1" data-vid="main"><input type="checkbox" class="checkbox" data-eid="0" value="on"><input class="input" data-eid="1" value="pending"></div>
+        <button class="btn btn-ghost btn-sm btn-error btn-circle" data-eid="1">
+    x
+  </button></div></div></div>"
+`;
