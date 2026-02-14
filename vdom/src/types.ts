@@ -3,12 +3,6 @@ import type { VBase } from "./vdom.ts";
 // Type definitions
 export type Props = Record<string, unknown>;
 
-// setAttr return values
-export const SET_ATTR_NOT_SUPPORTED = 0;
-export const SET_ATTR_OK = 1;
-export const SET_ATTR_OVERRIDE = 2;
-export const SET_ATTR_OVERRIDE_SAME = 3;
-
 export interface DomOptions {
   document: Document;
 }

@@ -8,10 +8,6 @@ import {
   type PatchPlan,
   PatchProps,
   PatchReorder,
-  SET_ATTR_NOT_SUPPORTED,
-  SET_ATTR_OK,
-  SET_ATTR_OVERRIDE,
-  SET_ATTR_OVERRIDE_SAME,
   unmount,
   VBase,
   VComment,
@@ -2284,119 +2280,6 @@ describe("algorithm corner cases", () => {
       ]);
 
       assertPatchProduces(leftNode, rightNode);
-    });
-  });
-});
-
-// =============================================================================
-// setAttr tests
-// =============================================================================
-
-describe("setAttr", () => {
-  describe("VBase", () => {
-    it("returns SET_ATTR_NOT_SUPPORTED", () => {
-      const base = new VBase();
-      expect(base.setAttr("foo", "bar")).toBe(SET_ATTR_NOT_SUPPORTED);
-    });
-  });
-
-  describe("VText", () => {
-    it("returns SET_ATTR_NOT_SUPPORTED", () => {
-      const text = new VText("hello");
-      expect(text.setAttr("foo", "bar")).toBe(SET_ATTR_NOT_SUPPORTED);
-    });
-  });
-
-  describe("VComment", () => {
-    it("returns SET_ATTR_NOT_SUPPORTED", () => {
-      const comment = new VComment("comment");
-      expect(comment.setAttr("foo", "bar")).toBe(SET_ATTR_NOT_SUPPORTED);
-    });
-  });
-
-  describe("VNode", () => {
-    it("returns SET_ATTR_OK for new attribute", () => {
-      const node = h("div", null, []);
-      expect(node.setAttr("className", "test")).toBe(SET_ATTR_OK);
-      expect(node.attrs.className).toBe("test");
-    });
-
-    it("returns SET_ATTR_OVERRIDE for existing attribute with different value", () => {
-      const node = h("div", { className: "old" }, []);
-      expect(node.setAttr("className", "new")).toBe(SET_ATTR_OVERRIDE);
-      expect(node.attrs.className).toBe("new");
-    });
-
-    it("returns SET_ATTR_OVERRIDE_SAME for existing attribute with same value", () => {
-      const node = h("div", { className: "same" }, []);
-      expect(node.setAttr("className", "same")).toBe(SET_ATTR_OVERRIDE_SAME);
-      expect(node.attrs.className).toBe("same");
-    });
-
-    it("uses strict equality for SET_ATTR_OVERRIDE_SAME", () => {
-      const node = h("div", { value: 1 }, []);
-      // Different type, same loose value
-      expect(node.setAttr("value", "1")).toBe(SET_ATTR_OVERRIDE);
-      expect(node.attrs.value).toBe("1");
-    });
-
-    it("handles object references correctly", () => {
-      const obj = { a: 1 };
-      const node = h("div", { data: obj }, []);
-      // Same reference
-      expect(node.setAttr("data", obj)).toBe(SET_ATTR_OVERRIDE_SAME);
-      // Different object with same content
-      expect(node.setAttr("data", { a: 1 })).toBe(SET_ATTR_OVERRIDE);
-    });
-
-    it("handles undefined and null values", () => {
-      const node = h("div", { foo: undefined }, []);
-      expect(node.setAttr("foo", undefined)).toBe(SET_ATTR_OVERRIDE_SAME);
-      expect(node.setAttr("foo", null)).toBe(SET_ATTR_OVERRIDE);
-
-      const node2 = h("div", { bar: null }, []);
-      expect(node2.setAttr("bar", null)).toBe(SET_ATTR_OVERRIDE_SAME);
-    });
-  });
-
-  describe("VFragment", () => {
-    it("calls setAttr on all children and returns SET_ATTR_OK", () => {
-      const child1 = h("div", null, []);
-      const child2 = h("span", null, []);
-      const fragment = new VFragment([child1, child2]);
-
-      expect(fragment.setAttr("className", "shared")).toBe(SET_ATTR_OK);
-      expect(child1.attrs.className).toBe("shared");
-      expect(child2.attrs.className).toBe("shared");
-    });
-
-    it("sets attr on VNode children but not on VText/VComment", () => {
-      const vnode = h("div", null, []);
-      const vtext = new VText("text");
-      const vcomment = new VComment("comment");
-      const fragment = new VFragment([vnode, vtext, vcomment]);
-
-      expect(fragment.setAttr("id", "test")).toBe(SET_ATTR_OK);
-      expect(vnode.attrs.id).toBe("test");
-      // VText and VComment don't have attrs, their setAttr returns NOT_SUPPORTED
-    });
-
-    it("works with nested fragments", () => {
-      const innerNode1 = h("div", null, []);
-      const innerNode2 = h("span", null, []);
-      const innerFragment = new VFragment([innerNode1, innerNode2]);
-      const outerNode = h("p", null, []);
-      const outerFragment = new VFragment([innerFragment, outerNode]);
-
-      expect(outerFragment.setAttr("className", "nested")).toBe(SET_ATTR_OK);
-      expect(innerNode1.attrs.className).toBe("nested");
-      expect(innerNode2.attrs.className).toBe("nested");
-      expect(outerNode.attrs.className).toBe("nested");
-    });
-
-    it("returns SET_ATTR_OK even with empty fragment", () => {
-      const fragment = new VFragment([]);
-      expect(fragment.setAttr("foo", "bar")).toBe(SET_ATTR_OK);
     });
   });
 });

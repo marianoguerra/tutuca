@@ -9,10 +9,6 @@ import {
   Moves,
   NewKeyedNodeInReorderWarning,
   ReorderMove,
-  SET_ATTR_NOT_SUPPORTED,
-  SET_ATTR_OK,
-  SET_ATTR_OVERRIDE,
-  SET_ATTR_OVERRIDE_SAME,
   type Warning,
 } from "./types.ts";
 
@@ -36,9 +32,6 @@ export class VBase {
   toDom(_opts: DomOptions): Node | null {
     return null;
   }
-  setAttr(_k: string, _v: unknown): number {
-    return SET_ATTR_NOT_SUPPORTED;
-  }
   diff(other: VBase): PatchPlan {
     const plan = new PatchPlan(this);
     this._walkTo(other, plan, 0);
@@ -49,7 +42,7 @@ export class VBase {
       return;
     }
     if (other == null) {
-      plan.appendRemove(index);
+      plan.append(index, PATCH_REMOVE);
       return;
     }
     other._diffFrom(this, plan, index);
@@ -139,7 +132,7 @@ export class VText extends VBase {
   }
   _diffFrom(source: VBase, plan: PatchPlan, index: number): void {
     if (!source.isVText() || source.text !== this.text) {
-      plan.appendText(index, this);
+      plan.append(index, new PatchCharData(this));
     }
   }
 }
@@ -165,7 +158,7 @@ export class VComment extends VBase {
   }
   _diffFrom(source: VBase, plan: PatchPlan, index: number): void {
     if (!source.isVComment() || source.text !== this.text) {
-      plan.appendComment(index, this);
+      plan.append(index, new PatchCharData(this));
     }
   }
 }
@@ -176,9 +169,7 @@ export class VFragment extends VBase {
   constructor(childs: HChild[]) {
     super();
     const normalized: VBase[] = [];
-    for (const child of childs) {
-      addChild(normalized, child);
-    }
+    addChild(normalized, childs);
     this.childs = normalized;
   }
   get nodeType(): 11 {
@@ -208,17 +199,11 @@ export class VFragment extends VBase {
     }
     return fragment;
   }
-  setAttr(k: string, v: unknown): number {
-    for (const child of this.childs) {
-      child.setAttr(k, v);
-    }
-    return SET_ATTR_OK;
-  }
   _diffFrom(source: VBase, plan: PatchPlan, index: number): void {
     if (source.isVFragment()) {
       this._diffChildren(source, plan, index);
     } else {
-      plan.appendNode(index, this);
+      plan.append(index, new PatchNode(this));
     }
   }
   _diffChildren(source: VFragment, plan: PatchPlan, index: number): void {
@@ -247,9 +232,7 @@ export class VNode extends VBase {
     this.attrs = attrs || {};
     const normalized: VBase[] = [];
     if (childs) {
-      for (const child of childs) {
-        addChild(normalized, child);
-      }
+      addChild(normalized, childs);
     }
     this.childs = normalized;
     this.key = key != null ? String(key) : undefined;
@@ -321,18 +304,6 @@ export class VNode extends VBase {
 
     return node;
   }
-  setAttr(k: string, v: unknown): number {
-    if (k in this.attrs) {
-      if (this.attrs[k] === v) {
-        return SET_ATTR_OVERRIDE_SAME;
-      }
-      this.attrs[k] = v;
-      return SET_ATTR_OVERRIDE;
-    }
-    this.attrs[k] = v;
-    this.attrCount++;
-    return SET_ATTR_OK;
-  }
   _diffFrom(source: VBase, plan: PatchPlan, index: number): void {
     if (
       source.isVNode() &&
@@ -343,12 +314,12 @@ export class VNode extends VBase {
       // Same tag, diff props and children
       const propsDiff = diffProps(source.attrs, this.attrs);
       if (propsDiff) {
-        plan.appendProps(index, source.attrs, propsDiff);
+        plan.append(index, new PatchProps(source.attrs, propsDiff));
       }
       this._diffChildren(source, plan, index);
     } else {
       // Replace with this node
-      plan.appendNode(index, this);
+      plan.append(index, new PatchNode(this));
     }
   }
   _diffChildren(source: VNode, plan: PatchPlan, index: number): void {
@@ -386,7 +357,7 @@ function diffChildren(
 
     if (!leftNode) {
       if (rightNode) {
-        plan.appendInsert(rootIndex, rightNode);
+        plan.append(rootIndex, new PatchInsert(rightNode));
       }
     } else {
       leftNode._walkTo(rightNode, plan, index);
@@ -402,7 +373,7 @@ function diffChildren(
   }
 
   if (orderedSet.moves) {
-    plan.appendReorder(rootIndex, orderedSet.moves);
+    plan.append(rootIndex, new PatchReorder(orderedSet.moves));
   }
 }
 
@@ -449,34 +420,6 @@ export class PatchPlan {
       this._indices.push(index);
       this.size++;
     }
-  }
-
-  appendText(index: number, target: VText): void {
-    this.append(index, new PatchCharData(target));
-  }
-
-  appendComment(index: number, target: VComment): void {
-    this.append(index, new PatchCharData(target));
-  }
-
-  appendRemove(index: number): void {
-    this.append(index, PATCH_REMOVE);
-  }
-
-  appendInsert(index: number, vNode: VBase): void {
-    this.append(index, new PatchInsert(vNode));
-  }
-
-  appendReorder(index: number, moves: Moves): void {
-    this.append(index, new PatchReorder(moves));
-  }
-
-  appendNode(index: number, target: VBase): void {
-    this.append(index, new PatchNode(target));
-  }
-
-  appendProps(index: number, previousAttrs: Props, propsDiff: Props): void {
-    this.append(index, new PatchProps(previousAttrs, propsDiff));
   }
 
   get(index: number): PatchBase[] | undefined {
