@@ -54,5 +54,12 @@ fix FILES="src test/*.js":
 render-examples MODULE:
     bun tools/render-examples.js {{MODULE}}
 
+component-api-docs MODULE:
+    bun tools/component-api-docs.js {{MODULE}}
+
 smoke-test-cli-render-examples:
     bun tools/render-examples.js ./test/todo.js
+
+smoke-test-cli-component-api-docs:
+    bun tools/component-api-docs.js ./test/todo.js
+    bun tools/component-api-docs.js ./test/json.js
