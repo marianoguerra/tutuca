@@ -6,6 +6,7 @@ import {
   FragmentNode,
   HideNode,
   MacroNode,
+  PushViewNameNode,
   RenderEachNode,
   RenderItNode,
   RenderOnceNode,
@@ -307,26 +308,19 @@ test("dyn attr with non constant string template turns dynamic", () => {
   expect(r.attrs).toBeInstanceOf(DynAttrs);
 });
 
-function optimizeView(rawView) {
+function optimizeView(rawView, scope) {
   const v = new View("myView", rawView);
   const px = mpx();
-  const scope = new ScopeForMacros({});
+  scope = scope ?? new ScopeForMacros({});
   v.compile(px, scope, 0);
   return v;
 }
 
-test("optimize: whole root fragment not cached if all constant childs", () => {
+test("optimize: whole root fragment cached if all constant childs", () => {
   const r = optimizeView(
-    html`<x
-      ><p>a</p>
-      b
-      <ul>
-        <li>c</li>
-        <li>d</li>
-      </ul></x
-    >`,
+    html`<x><p>a</p> b <ul><li>c</li><li>d</li></ul></x>`,
   );
-  expect(r.anode).toBeInstanceOf(FragmentNode);
+  expect(r.anode).toBeInstanceOf(RenderOnceNode);
 });
 
 test("optimize: fragment caches only constant childs", () => {
@@ -361,16 +355,15 @@ test("optimize: doesn't optimize hide but it optimizes its child", () => {
   expect(r.anode).toBeInstanceOf(HideNode);
   expect(r.anode.node).toBeInstanceOf(RenderOnceNode);
 });
-test("optimize: doesn't optimize each nor its direct child", () => {
+test("optimize: each optimizes constant child", () => {
   const r = optimizeView(html`<div @each=".a">hi</div>`);
   expect(r.anode).toBeInstanceOf(EachNode);
-  expect(r.anode.node).toBeInstanceOf(DomNode);
+  expect(r.anode.node).toBeInstanceOf(RenderOnceNode);
 });
-test("optimize: doesn't optimize scope nor its direct child", () => {
+test("optimize: scope optimizes constant child", () => {
   const r = optimizeView(html`<div @enrich-with=".a">hi</div>`);
   expect(r.anode).toBeInstanceOf(ScopeNode);
-  // TODO: can it optimize tis one?
-  expect(r.anode.node).toBeInstanceOf(DomNode);
+  expect(r.anode.node).toBeInstanceOf(RenderOnceNode);
 });
 test("optimize: doesn't optimize render-it", () => {
   const r = optimizeView(html`<div><x render-it></x></div>`);
@@ -383,4 +376,23 @@ test("optimize: doesn't optimize render-each", () => {
 test("optimize: doesn't optimize x text", () => {
   const r = optimizeView(html`<div><x text=".a"></x></div>`);
   expect(r.anode.childs[0]).toBeInstanceOf(RenderTextNode);
+});
+test("optimize: push-view optimizes constant child", () => {
+  const r = optimizeView(html`<div @push-view="'myview'"><p>static</p></div>`);
+  expect(r.anode).toBeInstanceOf(PushViewNameNode);
+  expect(r.anode.node).toBeInstanceOf(RenderOnceNode);
+});
+test("optimize: constant macro child gets wrapped by parent", () => {
+  const card = macro({}, html`<div class="card"><p>static</p></div>`);
+  const scope = new ScopeForMacros({ card });
+  const r = optimizeView(html`<div><x:card></x:card><span :class=".cls">dyn</span></div>`, scope);
+  expect(r.anode.childs[0]).toBeInstanceOf(RenderOnceNode);
+});
+test("optimize: dynamic macro subtree gets optimized", () => {
+  const card = macro({}, html`<div><p>static</p><span :class=".cls">dyn</span></div>`);
+  const scope = new ScopeForMacros({ card });
+  const r = optimizeView(html`<div><x:card></x:card></div>`, scope);
+  const macroNode = r.anode.childs[0];
+  expect(macroNode).toBeInstanceOf(MacroNode);
+  expect(macroNode.node.childs[0]).toBeInstanceOf(RenderOnceNode);
 });

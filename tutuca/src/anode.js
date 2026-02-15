@@ -63,12 +63,30 @@ function optimizeChilds(childs) {
     }
   }
 }
-export class DomNode extends BaseNode {
-  constructor(tagName, attrs, childs) {
+function optimizeNode(node) {
+  if (node.isConstant()) {
+    return new RenderOnceNode(node);
+  }
+  node.optimize();
+  return node;
+}
+class ChildsNode extends BaseNode {
+  constructor(childs) {
     super();
+    this.childs = childs;
+  }
+  isConstant() {
+    return this.childs.every((v) => v.isConstant());
+  }
+  optimize() {
+    optimizeChilds(this.childs);
+  }
+}
+export class DomNode extends ChildsNode {
+  constructor(tagName, attrs, childs) {
+    super(childs);
     this.tagName = tagName;
     this.attrs = attrs;
-    this.childs = childs;
   }
   render(stack, rx) {
     const childNodes = new Array(this.childs.length);
@@ -81,17 +99,10 @@ export class DomNode extends BaseNode {
     this.attrs.setDataAttr(key, val);
   }
   isConstant() {
-    return this.attrs.isConstant() && this.childs.every((v, _i, _) => v.isConstant());
-  }
-  optimize() {
-    optimizeChilds(this.childs);
+    return this.attrs.isConstant() && super.isConstant();
   }
 }
-export class FragmentNode extends BaseNode {
-  constructor(childs) {
-    super();
-    this.childs = childs;
-  }
+export class FragmentNode extends ChildsNode {
   render(stack, rx) {
     return rx.renderFragment(this.childs.map((c) => c?.render(stack, rx)));
   }
@@ -99,12 +110,6 @@ export class FragmentNode extends BaseNode {
     for (const child of this.childs) {
       child.setDataAttr(key, val);
     }
-  }
-  isConstant() {
-    return this.childs.every((v, _i, _) => v.isConstant());
-  }
-  optimize() {
-    optimizeChilds(this.childs);
   }
 }
 const maybeFragment = (xs) => (xs.length === 1 ? xs[0] : new FragmentNode(xs));
@@ -229,6 +234,14 @@ export class MacroNode extends BaseNode {
   setDataAttr(key, val) {
     this.dataAttrs[key] = val;
   }
+  isConstant() {
+    return this.node !== null && this.node.isConstant();
+  }
+  optimize() {
+    if (this.node !== null) {
+      this.node = optimizeNode(this.node);
+    }
+  }
 }
 export class Macro {
   constructor(defaults, rawView) {
@@ -311,14 +324,7 @@ export class WrapperNode extends ANode {
     this.node.setDataAttr(key, val);
   }
   optimize() {
-    this.node.optimize();
-  }
-  _optimizeNode() {
-    if (this.node.isConstant()) {
-      this.node = new RenderOnceNode(this.node);
-    } else {
-      this.node.optimize();
-    }
+    this.node = optimizeNode(this.node);
   }
   static register = false;
 }
@@ -326,16 +332,10 @@ export class ShowNode extends WrapperNode {
   render(stack, rx) {
     return this.val.eval(stack) ? this.node.render(stack, rx) : rx.renderEmpty();
   }
-  optimize() {
-    this._optimizeNode();
-  }
 }
 export class HideNode extends WrapperNode {
   render(stack, rx) {
     return this.val.eval(stack) ? rx.renderEmpty() : this.node.render(stack, rx);
-  }
-  optimize() {
-    this._optimizeNode();
   }
 }
 export class PushViewNameNode extends WrapperNode {
@@ -343,7 +343,11 @@ export class PushViewNameNode extends WrapperNode {
     return this.node.render(stack.pushViewName(this.val.eval(stack)), rx);
   }
 }
-export class SlotNode extends WrapperNode {}
+export class SlotNode extends WrapperNode {
+  optimize() {
+    this.node.optimize();
+  }
+}
 export class ScopeNode extends WrapperNode {
   render(stack, rx) {
     const bindings = this.val.eval(stack)?.call(stack.it) ?? {};
@@ -517,7 +521,7 @@ export class View {
     this.anode.setDataAttr("data-vid", this.name);
     this.ctx.compile(scope);
     if (ctx.cacheConstNodes) {
-      this.anode.optimize();
+      this.anode = optimizeNode(this.anode);
     }
   }
   render(stack, rx) {
