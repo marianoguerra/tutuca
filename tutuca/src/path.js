@@ -139,14 +139,7 @@ export class Path {
     }
     return stack;
   }
-  static fromNodeAndEventName(
-    node,
-    eventName,
-    rootNode,
-    maxDepth,
-    comps,
-    stopOnNoEvent = true,
-  ) {
+  static fromNodeAndEventName(node, eventName, rootNode, maxDepth, comps, stopOnNoEvent = true) {
     const pathSteps = [];
     let depth = 0;
     let eventIds = [];

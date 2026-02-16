@@ -270,8 +270,7 @@ function extendProtoSeq(proto, name, defaultEmpty) {
   };
 }
 const EMPTY_SET = ISet();
-const isetCoercer = (v) =>
-  Array.isArray(v) ? ISet(v) : v instanceof Set ? ISet(v) : null;
+const isetCoercer = (v) => (Array.isArray(v) ? ISet(v) : v instanceof Set ? ISet(v) : null);
 export class FieldSet extends Field {
   constructor(name, defaultValue = EMPTY_SET) {
     super("set", name, CHECK_TYPE_SET, isetCoercer, defaultValue);

@@ -15,8 +15,7 @@ import {
 } from "./json.js";
 import { format } from "prettier";
 
-const { document } = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>")
-  .window;
+const { document } = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>").window;
 globalThis.document = document;
 
 const TARGET = "target-bool";
@@ -34,13 +33,7 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(target);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [path, events] = Path.fromNodeAndEventName(
-      node,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [path, events] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
     expect(path.steps.length).toBe(0);
     expect(events.length).toBe(1);
     expect(path.lookup(target)).toBe(target);
@@ -72,13 +65,7 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(rootValue);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [path, events] = Path.fromNodeAndEventName(
-      node,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [path, events] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
     console.log(path.steps);
     expect(path.steps.length).toBe(2);
     expect(events.length).toBe(1);
@@ -113,13 +100,7 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(rootValue);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [path, events] = Path.fromNodeAndEventName(
-      node,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [path, events] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
     console.log(await formatHTML(container.innerHTML));
     console.log(path.steps);
     expect(path.steps.length).toBe(3);

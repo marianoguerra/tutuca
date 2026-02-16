@@ -20,8 +20,7 @@ const mpx = () => new ParseContext();
 
 const domParser = new DOMParser();
 function parseAttrs(html, px = mpx()) {
-  const attrs = domParser.parseFromString(html, "text/html").body.childNodes[0]
-    .attributes;
+  const attrs = domParser.parseFromString(html, "text/html").body.childNodes[0].attributes;
   return getAttrParser(px).parse(attrs, true);
 }
 

@@ -283,9 +283,7 @@ test("parse mixed macro attrs", () => {
 });
 
 test("parse wrapper macro attrs", () => {
-  const [node] = parse(
-    html`<x:m class="foo" :name="foo" @slot="mySlot" @show=".loading"></x:m>`,
-  );
+  const [node] = parse(html`<x:m class="foo" :name="foo" @slot="mySlot" @show=".loading"></x:m>`);
   expect(node).toBeInstanceOf(SlotNode);
   expect(node.val.value).toBe("mySlot");
   expect(node.node).toBeInstanceOf(ShowNode);
@@ -317,9 +315,7 @@ function optimizeView(rawView, scope) {
 }
 
 test("optimize: whole root fragment cached if all constant childs", () => {
-  const r = optimizeView(
-    html`<x><p>a</p> b <ul><li>c</li><li>d</li></ul></x>`,
-  );
+  const r = optimizeView(html`<x><p>a</p> b <ul><li>c</li><li>d</li></ul></x>`);
   expect(r.anode).toBeInstanceOf(RenderOnceNode);
 });
 

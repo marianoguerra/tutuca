@@ -47,9 +47,7 @@ export class Renderer {
     if (cachedNode) {
       return cachedNode;
     }
-    const view = viewName
-      ? comp.getView(viewName)
-      : stack.lookupBestView(comp.views, "main");
+    const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
     const meta = this.renderMetadata("Comp", { nid });
     const dom = this.renderFragment([meta, view.render(stack, this)]);
     this.cache.set(val, cacheKey, dom);

@@ -16,13 +16,7 @@ import {
   ShowNode,
   TextNode,
 } from "../src/anode.js";
-import {
-  ConstAttrs,
-  DynAttrs,
-  EventHandler,
-  IfAttr,
-  NOT_SET_VAL,
-} from "../src/attribute.js";
+import { ConstAttrs, DynAttrs, EventHandler, IfAttr, NOT_SET_VAL } from "../src/attribute.js";
 import { Components } from "../src/components.js";
 import { Renderer } from "../src/renderer.js";
 import { Stack } from "../src/stack.js";
@@ -66,9 +60,7 @@ function domToData(node) {
 }
 
 function dh(tagName, attrs, childs) {
-  return tagName === DFragment
-    ? new DFragment(childs)
-    : new DNode(tagName, attrs, childs);
+  return tagName === DFragment ? new DFragment(childs) : new DNode(tagName, attrs, childs);
 }
 
 function rxs({ it = null, comps = new Components(), vars = {} }) {
@@ -413,9 +405,10 @@ describe("ANode", () => {
         });
         rx.comps.registerComponent(Items);
         const n = rx.renderIt(stack).childs[1];
-        expect(
-          n.childs[0].filter((c) => c != null).map(({ childs }) => childs[0]),
-        ).toEqual(["0 30 4", "2 36 4"]);
+        expect(n.childs[0].filter((c) => c != null).map(({ childs }) => childs[0])).toEqual([
+          "0 30 4",
+          "2 36 4",
+        ]);
       }
       {
         const [stack, rx] = rxs({
@@ -423,9 +416,10 @@ describe("ANode", () => {
         });
         rx.comps.registerComponent(Items);
         const n = rx.renderIt(stack).childs[1];
-        expect(
-          n.childs[0].filter((c) => c != null).map(({ childs }) => childs[0]),
-        ).toEqual(["1 33 5", "3 39 5"]);
+        expect(n.childs[0].filter((c) => c != null).map(({ childs }) => childs[0])).toEqual([
+          "1 33 5",
+          "3 39 5",
+        ]);
       }
     });
 
@@ -456,9 +450,7 @@ describe("ANode", () => {
     });
 
     test("@if.class @then @else", () => {
-      const [r] = parse(
-        "<div @if.class='@myCond' @then='@myThen' @else='@myElse'>hi</div>",
-      );
+      const [r] = parse("<div @if.class='@myCond' @then='@myThen' @else='@myElse'>hi</div>");
       expect(r).toBeInstanceOf(DomNode);
       expect(r.attrs).toBeInstanceOf(DynAttrs);
       expect(r.attrs.items.length).toBe(1);
@@ -592,8 +584,7 @@ describe("ANode", () => {
       expect(event).toBeInstanceOf(NodeEvents);
       expect(event.id).toBe(0);
       expect(event.handlers.length).toBe(2);
-      const [{ name: n1, handlerCall: h1 }, { name: n2, handlerCall: h2 }] =
-        event.handlers;
+      const [{ name: n1, handlerCall: h1 }, { name: n2, handlerCall: h2 }] = event.handlers;
       expect(n1).toBe("click");
       expect(h1).toBeInstanceOf(EventHandler);
       expect(h1.handlerVal).toBeInstanceOf(NameVal);
@@ -796,9 +787,7 @@ describe("ANode", () => {
     test("two modifier wraps", () => {
       const f1 = compileModifiers("keydown", ["send", "ctrl"]);
       expect(f1(f, mkKeyDown("Enter", { ctrlKey: true })).apply(3, [10, 5])).toBe(18);
-      expect(f1(f, mkKeyDown("Enter", { ctrlKey: false })).apply("nope", [10, 5])).toBe(
-        "nope",
-      );
+      expect(f1(f, mkKeyDown("Enter", { ctrlKey: false })).apply("nope", [10, 5])).toBe("nope");
       expect(f1(f, mkKeyDown("A", {})).apply(100, [10, 5])).toBe(100);
     });
   });

@@ -235,12 +235,10 @@ export class MacroNode extends BaseNode {
     this.dataAttrs[key] = val;
   }
   isConstant() {
-    return this.node !== null && this.node.isConstant();
+    return this.node.isConstant();
   }
   optimize() {
-    if (this.node !== null) {
-      this.node = optimizeNode(this.node);
-    }
+    this.node = optimizeNode(this.node);
   }
 }
 export class Macro {

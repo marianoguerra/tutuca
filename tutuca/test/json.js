@@ -45,9 +45,7 @@ export const JsonNumber = component({
   methods: {
     setRawValue(v) {
       const value = parseFloat(v);
-      return Number.isFinite(value)
-        ? this.setValue(value).setStrValue(v)
-        : this.setStrValue(v);
+      return Number.isFinite(value) ? this.setValue(value).setStrValue(v) : this.setStrValue(v);
     },
   },
   view: html`<input
@@ -116,9 +114,7 @@ export const JsonArray = component({
       return this.pushInItems(Comp.make());
     },
     onDropOnItem(key, dragInfo) {
-      return this.setItems(
-        this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key),
-      );
+      return this.setItems(this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key));
     },
   },
   style: css`
@@ -187,9 +183,7 @@ export const JsonObject = component({
       return this.pushInItems(KV.make({ value: JsonSelector.make() }));
     },
     onDropOnItem(key, dragInfo) {
-      return this.setItems(
-        this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key),
-      );
+      return this.setItems(this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key));
     },
   },
   style: css`
@@ -301,13 +295,7 @@ export function getExamples() {
       title: `JsonObject > JsonArray > ${leaf.title}`,
       value: JsonObject.make({
         uid: "obj-o",
-        items: [
-          kv(
-            "kv",
-            "key",
-            JsonArray.make({ uid: "arr-i", items: [leaf.make(leaf.title)] }),
-          ),
-        ],
+        items: [kv("kv", "key", JsonArray.make({ uid: "arr-i", items: [leaf.make(leaf.title)] }))],
       }),
     });
     examples.push({

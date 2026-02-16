@@ -61,9 +61,7 @@ describe("Components", () => {
     Comp.compile(ParseContext);
     const stack = setupStack(Comp);
     expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
-    expect(stack.enter(Comp.make({ message: "hey!" })).lookupDynamic("getMessage")).toBe(
-      "hey!",
-    );
+    expect(stack.enter(Comp.make({ message: "hey!" })).lookupDynamic("getMessage")).toBe("hey!");
   });
 
   test("DynamicAlias binding", () => {

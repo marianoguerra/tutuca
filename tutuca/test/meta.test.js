@@ -24,12 +24,11 @@ describe("datacomp", () => {
     expect(valToString(new NameVal("foo"))).toBe("foo");
   });
   test("dynamicToData", () => {
-    expect(dynamicToData(new Dynamic("foo", new FieldVal("foo"), Symbol("foo")))).toEqual(
-      ".foo",
-    );
-    expect(
-      dynamicToData(new DynamicAlias("foo", new FieldVal("foo"), "Foo", "bar")),
-    ).toEqual({ for: "Foo.bar", default: ".foo" });
+    expect(dynamicToData(new Dynamic("foo", new FieldVal("foo"), Symbol("foo")))).toEqual(".foo");
+    expect(dynamicToData(new DynamicAlias("foo", new FieldVal("foo"), "Foo", "bar"))).toEqual({
+      for: "Foo.bar",
+      default: ".foo",
+    });
   });
   test("dynamicsToData", () => {
     expect(

@@ -5,8 +5,7 @@ import { HeadlessParseContext } from "./dom.js";
 import { getComponents, getExamples, getMacros } from "./todo.js";
 
 // separate JSDOM for DOM rendering (vdom needs a real document)
-const { document } = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>")
-  .window;
+const { document } = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>").window;
 // app.js injectCss uses global document
 globalThis.document = document;
 

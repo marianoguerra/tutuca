@@ -212,9 +212,7 @@ export class StrTplVal extends VarVal {
       vals[i] = val;
       allConsts &&= val instanceof ConstVal;
     }
-    return allConsts
-      ? new ConstVal(vals.map((v) => v.value).join(""))
-      : new StrTplVal(vals);
+    return allConsts ? new ConstVal(vals.map((v) => v.value).join("")) : new StrTplVal(vals);
   }
 }
 export class NameVal extends VarVal {

@@ -109,8 +109,14 @@ export function getExamples() {
   return [
     { title: "Empty list", value: Items.make() },
     { title: "Single default item", value: Items.make({ items: [Item.make()] }) },
-    { title: "Single item with custom text", value: Items.make({ items: [Item.make({ text: "buy milk" })] }) },
-    { title: "Completed item", value: Items.make({ items: [Item.make({ completed: true, text: "done task" })] }) },
+    {
+      title: "Single item with custom text",
+      value: Items.make({ items: [Item.make({ text: "buy milk" })] }),
+    },
+    {
+      title: "Completed item",
+      value: Items.make({ items: [Item.make({ completed: true, text: "done task" })] }),
+    },
     {
       title: "Multiple items",
       value: Items.make({
