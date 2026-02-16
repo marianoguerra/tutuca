@@ -210,8 +210,9 @@ class NameArgsTransaction extends Transaction {
     this.args = args;
     this.opts = opts;
   }
-  getHandlerForName(_comp) {
-    return nullHandler;
+  handlerProp = null;
+  getHandlerForName(comp) {
+    return comp?.[this.handlerProp]?.[this.name] ?? nullHandler;
   }
   getHandlerAndArgs(_root, instance, comps) {
     const handler = this.getHandlerForName(comps.getCompFor(instance));
@@ -219,14 +220,10 @@ class NameArgsTransaction extends Transaction {
   }
 }
 class ResponseEvent extends NameArgsTransaction {
-  getHandlerForName(comp) {
-    return comp?.response?.[this.name] ?? nullHandler;
-  }
+  handlerProp = "response";
 }
 class LogicEvent extends NameArgsTransaction {
-  getHandlerForName(comp) {
-    return comp?.logic?.[this.name] ?? nullHandler;
-  }
+  handlerProp = "logic";
   run(rootVal, comps) {
     return this.opts.skipSelf ? rootVal : this.updateRootValue(rootVal, comps);
   }
@@ -238,9 +235,7 @@ class LogicEvent extends NameArgsTransaction {
   }
 }
 class BubbleEvent extends LogicEvent {
-  getHandlerForName(comp) {
-    return comp?.bubble?.[this.name] ?? nullHandler;
-  }
+  handlerProp = "bubble";
   stopPropagation() {
     this.opts.bubbles = false;
   }
