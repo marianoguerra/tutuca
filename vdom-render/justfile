@@ -1,0 +1,56 @@
+# Default recipe: run tests
+default: test
+
+# Run all tests
+test:
+    bun test
+
+# Run tests in watch mode
+test-watch:
+    bun test --watch
+
+# Run a specific test file
+test-file file:
+    bun test {{file}}
+
+# Lint source and test files
+lint:
+    npx @biomejs/biome lint src tests
+
+# Format source and test files
+fmt:
+    npx @biomejs/biome format --write src tests
+
+# Check (lint + format) source and test files
+check:
+    npx @biomejs/biome check --write src tests
+
+# Type-check TypeScript files
+typecheck:
+    bun tsc --noEmit
+
+# Run all checks (lint, format, typecheck, test) and build
+ci: check typecheck test dist
+
+# Install dependencies
+install:
+    bun install
+
+# Build distribution files (ESM, minified, and types)
+dist:
+    rm -rf dist
+    mkdir -p dist
+    bun build src/vdom.ts --outfile dist/vdom.js --format esm
+    bun build src/vdom.ts --outfile dist/vdom.min.js --format esm --minify
+    gzip -k -9 dist/vdom.min.js
+    brotli -k dist/vdom.min.js
+    bun tsc --project tsconfig.dist.json
+
+# Serve the playground (builds dist first)
+serve: dist
+    @echo "Serving at http://localhost:3000/tools/playground/"
+    bunx serve -l 3000
+
+# Run stress test (default 100000 iterations, random seed)
+stresstest iterations="100000" seed="":
+    bun tools/stresstest.js {{iterations}} {{seed}}

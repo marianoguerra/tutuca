@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VDOM Playground</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    h1 {
+      margin: 0 0 20px 0;
+      font-size: 24px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background: #007bff;
+      color: white;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    button.secondary {
+      background: #6c757d;
+    }
+
+    button.secondary:hover {
+      background: #545b62;
+    }
+
+    button.active {
+      background: #dc3545;
+    }
+
+    button.active:hover {
+      background: #c82333;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 14px;
+    }
+
+    input[type="number"] {
+      width: 60px;
+      padding: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 1200px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: #e9ecef;
+      padding: 10px 15px;
+      font-weight: 600;
+      border-bottom: 1px solid #dee2e6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-header .status {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: normal;
+    }
+
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .panel-content {
+      padding: 15px;
+      max-height: 400px;
+      overflow: auto;
+    }
+
+    .panel-content.tall {
+      max-height: 600px;
+    }
+
+    pre {
+      margin: 0;
+      font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .vdom-tree {
+      font-family: "SF Mono", Monaco, monospace;
+      font-size: 12px;
+    }
+
+    .vdom-node {
+      margin-left: 16px;
+    }
+
+    .vdom-tag {
+      color: #0550ae;
+    }
+
+    .vdom-key {
+      color: #6f42c1;
+    }
+
+    .vdom-text {
+      color: #0a3069;
+    }
+
+    .vdom-attr {
+      color: #953800;
+    }
+
+    .dom-render {
+      border: 1px dashed #ccc;
+      padding: 10px;
+      min-height: 50px;
+      background: #fafafa;
+    }
+
+    .mutation {
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: #fff3cd;
+      border-left: 3px solid #ffc107;
+      border-radius: 0 4px 4px 0;
+      font-size: 13px;
+    }
+
+    .mutation:last-child {
+      margin-bottom: 0;
+    }
+
+    .mutation-type {
+      font-weight: 600;
+      color: #856404;
+    }
+
+    .mutation-path {
+      color: #666;
+      font-family: monospace;
+    }
+
+    .patch {
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: #cce5ff;
+      border-left: 3px solid #007bff;
+      border-radius: 0 4px 4px 0;
+      font-size: 13px;
+    }
+
+    .patch:last-child {
+      margin-bottom: 0;
+    }
+
+    .patch-type {
+      font-weight: 600;
+      color: #004085;
+    }
+
+    .patch-index {
+      color: #666;
+      font-family: monospace;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .comparison-side {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+    }
+
+    .comparison-side.match {
+      border-color: #28a745;
+      background: #d4edda;
+    }
+
+    .comparison-side.mismatch {
+      border-color: #dc3545;
+      background: #f8d7da;
+    }
+
+    .comparison-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .full-width {
+      grid-column: 1 / -1;
+    }
+
+    .seed-display {
+      font-family: monospace;
+      color: #666;
+      font-size: 13px;
+    }
+
+    .empty-state {
+      color: #999;
+      font-style: italic;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .controls-separator {
+      width: 1px;
+      height: 24px;
+      background: #ccc;
+      margin: 0 5px;
+    }
+
+    .file-input-label {
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      background: #6c757d;
+      color: white;
+      transition: background 0.2s;
+    }
+
+    .file-input-label:hover {
+      background: #545b62;
+    }
+
+    .file-input-label input[type="file"] {
+      display: none;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      color: #666;
+      cursor: pointer;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>VDOM Playground</h1>
+
+  <div class="controls">
+    <button id="generate">Generate</button>
+    <button id="stressTest" class="secondary">Stress Test</button>
+    <label class="checkbox-label">
+      <input type="checkbox" id="continueWithWarnings">
+      Log warnings, don't stop
+    </label>
+    <button id="step" class="secondary">Step Mutation</button>
+    <label>
+      Mutations:
+      <input type="number" id="mutationCount" value="3" min="1" max="10">
+    </label>
+    <label>
+      Seed:
+      <input type="number" id="seed" value="" placeholder="random">
+    </label>
+    <span class="seed-display" id="seedDisplay"></span>
+    <div class="controls-separator"></div>
+    <button id="exportBtn" class="secondary">Export</button>
+    <label class="file-input-label">
+      Import
+      <input type="file" id="importFile" accept=".json">
+    </label>
+  </div>
+
+  <div class="grid">
+    <!-- Original Tree -->
+    <div class="panel">
+      <div class="panel-header">Original VDom Tree</div>
+      <div class="panel-content" id="originalVdom">
+        <div class="empty-state">Click "Generate" to create a random tree</div>
+      </div>
+    </div>
+
+    <!-- Mutated Tree -->
+    <div class="panel">
+      <div class="panel-header">Mutated VDom Tree</div>
+      <div class="panel-content" id="mutatedVdom">
+        <div class="empty-state">Click "Generate" to create mutations</div>
+      </div>
+    </div>
+
+    <!-- Original DOM -->
+    <div class="panel">
+      <div class="panel-header">Original DOM</div>
+      <div class="panel-content">
+        <div class="dom-render" id="originalDom"></div>
+      </div>
+    </div>
+
+    <!-- Expected DOM -->
+    <div class="panel">
+      <div class="panel-header">Expected DOM (from mutated tree)</div>
+      <div class="panel-content">
+        <div class="dom-render" id="expectedDom"></div>
+      </div>
+    </div>
+
+    <!-- Mutations Applied -->
+    <div class="panel">
+      <div class="panel-header">Mutations Applied</div>
+      <div class="panel-content tall" id="mutations">
+        <div class="empty-state">No mutations yet</div>
+      </div>
+    </div>
+
+    <!-- Patches Generated -->
+    <div class="panel">
+      <div class="panel-header">
+        Patches Generated
+        <span class="status" id="patchStatus"></span>
+      </div>
+      <div class="panel-content tall" id="patches">
+        <div class="empty-state">No patches yet</div>
+      </div>
+    </div>
+
+    <!-- Result Comparison -->
+    <div class="panel full-width">
+      <div class="panel-header">
+        Result Comparison
+        <span class="status" id="resultStatus"></span>
+      </div>
+      <div class="panel-content">
+        <div class="comparison" id="comparison">
+          <div class="empty-state" style="grid-column: 1 / -1;">Generate a tree to see comparison</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Debug Info -->
+    <div class="panel full-width">
+      <div class="panel-header">Debug Info (Patch Plan)</div>
+      <div class="panel-content">
+        <pre id="debugInfo">No debug info yet</pre>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    // Note: We import from genutil.js only - it bundles vdom internally.
+    // We avoid instanceof checks because genutil.js has its own bundled copy of classes.
+    import {
+      createRng,
+      generateTree,
+      generateMutation,
+      applyMutation,
+    } from "../../dist/genutil.js";
+
+    // Render VDom tree to HTML representation (uses nodeType to avoid instanceof issues)
+    function renderVdomTree(node, indent = 0) {
+      const pad = "  ".repeat(indent);
+
+      if (node.nodeType === 3) { // VText
+        return `${pad}<span class="vdom-text">VText("${escapeHtml(node.text)}")</span>`;
+      }
+
+      if (node.nodeType === 8) { // VComment
+        return `${pad}<span class="vdom-text" style="color:#6a9955">VComment("${escapeHtml(node.text)}")</span>`;
+      }
+
+      if (node.nodeType === 1) { // VNode
+        let html = `${pad}<span class="vdom-tag">&lt;${node.tag.toLowerCase()}</span>`;
+        if (node.key) {
+          html += ` <span class="vdom-key">key="${escapeHtml(node.key)}"</span>`;
+        }
+        for (const [k, v] of Object.entries(node.attrs)) {
+          if (k !== "key") {
+            html += ` <span class="vdom-attr">${k}="${escapeHtml(String(v))}"</span>`;
+          }
+        }
+        html += `<span class="vdom-tag">&gt;</span>`;
+
+        if (node.childs.length > 0) {
+          html += "\n";
+          for (const child of node.childs) {
+            html += renderVdomTree(child, indent + 1) + "\n";
+          }
+          html += `${pad}<span class="vdom-tag">&lt;/${node.tag.toLowerCase()}&gt;</span>`;
+        } else {
+          html += `<span class="vdom-tag">&lt;/${node.tag.toLowerCase()}&gt;</span>`;
+        }
+
+        return html;
+      }
+
+      return `${pad}[Unknown node type]`;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Helper to describe a node (uses nodeType to avoid instanceof issues with bundled modules)
+    function describeNode(node) {
+      if (node.nodeType === 3) return `VText("${node.text}")`;
+      if (node.nodeType === 8) return `VComment("${node.text}")`;
+      if (node.nodeType === 1) return `<${node.tag.toLowerCase()}>`;
+      return "[unknown]";
+    }
+
+    // Render mutation info
+    function renderMutation(mutation, index) {
+      let details = "";
+      switch (mutation.type) {
+        case "changeText":
+          details = `newText: "${mutation.newText}"`;
+          break;
+        case "changeTag":
+          details = `newTag: "${mutation.newTag}"`;
+          break;
+        case "addChild":
+          details = `index: ${mutation.index}, child: ${describeNode(mutation.child)}`;
+          break;
+        case "removeChild":
+          details = `index: ${mutation.index}`;
+          break;
+        case "replaceChild":
+          details = `index: ${mutation.index}, newChild: ${describeNode(mutation.newChild)}`;
+          break;
+        case "shuffleChildren":
+          details = "(random shuffle)";
+          break;
+        case "changeAttr":
+          details = `attr: "${mutation.attr}", value: ${mutation.value === undefined ? "undefined" : `"${mutation.value}"`}`;
+          break;
+      }
+
+      return `
+        <div class="mutation">
+          <span class="mutation-type">${index + 1}. ${mutation.type}</span>
+          <span class="mutation-path">path: [${mutation.path.join(", ")}]</span>
+          <div>${details}</div>
+        </div>
+      `;
+    }
+
+    // Render patch info (uses constructor.name and property checks to avoid instanceof issues)
+    function renderPatch(patch, index) {
+      let type = patch.constructor.name;
+      let details = "";
+
+      if (type === "PatchCharData") {
+        details = `text: "${patch.targetNode.text}"`;
+      } else if (type === "PatchInsert") {
+        details = describeNode(patch.nodeToInsert);
+      } else if (type === "PatchNode") {
+        details = describeNode(patch.newNode);
+      } else if (type === "PatchReorder") {
+        details = `removes: ${patch.moves.removes.length}, inserts: ${patch.moves.inserts.length}`;
+      } else if (type === "PatchProps") {
+        details = `props: ${JSON.stringify(patch.propsDiff)}`;
+      }
+
+      return `
+        <div class="patch">
+          <span class="patch-type">${type}</span>
+          <span class="patch-index">index: ${index}</span>
+          <div>${details}</div>
+        </div>
+      `;
+    }
+
+    // Compare DOM trees
+    function compareDom(a, b) {
+      if (a.nodeType !== b.nodeType) return false;
+      if (a.nodeType === 3) {
+        return a.data === b.data;
+      }
+      if (a.nodeType === 1) {
+        if (a.tagName !== b.tagName) return false;
+        if (a.childNodes.length !== b.childNodes.length) return false;
+        for (let i = 0; i < a.childNodes.length; i++) {
+          if (!compareDom(a.childNodes[i], b.childNodes[i])) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    // State
+    let state = {
+      seed: null,
+      originalTree: null,
+      mutations: [],
+      mutatedTree: null,
+      patches: null,
+      stepIndex: 0
+    };
+
+    // DOM elements
+    const els = {
+      generate: document.getElementById("generate"),
+      stressTest: document.getElementById("stressTest"),
+      step: document.getElementById("step"),
+      mutationCount: document.getElementById("mutationCount"),
+      seedInput: document.getElementById("seed"),
+      seedDisplay: document.getElementById("seedDisplay"),
+      originalVdom: document.getElementById("originalVdom"),
+      mutatedVdom: document.getElementById("mutatedVdom"),
+      originalDom: document.getElementById("originalDom"),
+      expectedDom: document.getElementById("expectedDom"),
+      mutations: document.getElementById("mutations"),
+      patches: document.getElementById("patches"),
+      patchStatus: document.getElementById("patchStatus"),
+      comparison: document.getElementById("comparison"),
+      resultStatus: document.getElementById("resultStatus"),
+      debugInfo: document.getElementById("debugInfo"),
+      exportBtn: document.getElementById("exportBtn"),
+      importFile: document.getElementById("importFile"),
+      continueWithWarnings: document.getElementById("continueWithWarnings")
+    };
+
+    function generate() {
+      const seedVal = els.seedInput.value.trim();
+      state.seed = seedVal ? parseInt(seedVal, 10) : Math.floor(Math.random() * 1000000);
+      els.seedDisplay.textContent = `Using seed: ${state.seed}`;
+
+      const rng = createRng(state.seed);
+
+      // Generate original tree
+      state.originalTree = generateTree(rng);
+
+      // Generate mutations
+      const mutationCount = parseInt(els.mutationCount.value, 10) || 3;
+      state.mutations = [];
+      for (let i = 0; i < mutationCount; i++) {
+        state.mutations.push(generateMutation(rng, state.originalTree));
+      }
+
+      // Apply all mutations
+      state.mutatedTree = state.originalTree;
+      const mutationRng = createRng(state.seed + 1000);
+      for (const mutation of state.mutations) {
+        state.mutatedTree = applyMutation(state.mutatedTree, mutation, mutationRng);
+      }
+
+      state.stepIndex = 0;
+
+      return updateUI();
+    }
+
+    function stepMutation() {
+      if (!state.originalTree || state.stepIndex >= state.mutations.length) {
+        return;
+      }
+
+      state.stepIndex++;
+      const mutationRng = createRng(state.seed + 1000);
+
+      // Apply mutations up to stepIndex
+      state.mutatedTree = state.originalTree;
+      for (let i = 0; i < state.stepIndex; i++) {
+        state.mutatedTree = applyMutation(state.mutatedTree, state.mutations[i], mutationRng);
+      }
+
+      updateUI();
+    }
+
+    function updateUI() {
+      // Original VDom
+      els.originalVdom.innerHTML = `<div class="vdom-tree"><pre>${renderVdomTree(state.originalTree)}</pre></div>`;
+
+      // Mutated VDom
+      els.mutatedVdom.innerHTML = `<div class="vdom-tree"><pre>${renderVdomTree(state.mutatedTree)}</pre></div>`;
+
+      // Original DOM
+      els.originalDom.innerHTML = "";
+      const originalDom = state.originalTree.toDom({ document });
+      els.originalDom.appendChild(originalDom.cloneNode(true));
+
+      // Expected DOM
+      els.expectedDom.innerHTML = "";
+      const expectedDom = state.mutatedTree.toDom({ document });
+      els.expectedDom.appendChild(expectedDom.cloneNode(true));
+
+      // Mutations
+      const activeMutations = state.mutations.slice(0, state.stepIndex || state.mutations.length);
+      if (activeMutations.length === 0) {
+        els.mutations.innerHTML = '<div class="empty-state">No mutations applied yet</div>';
+      } else {
+        els.mutations.innerHTML = activeMutations.map((m, i) => renderMutation(m, i)).join("");
+      }
+
+      // Generate patches
+      state.patches = state.originalTree.diff(state.mutatedTree);
+
+      // Patches
+      const patchIndices = state.patches.indices();
+      if (patchIndices.length === 0) {
+        els.patches.innerHTML = '<div class="empty-state">No patches needed (trees are equal)</div>';
+        els.patchStatus.textContent = "0 patches";
+        els.patchStatus.className = "status success";
+      } else {
+        let patchHtml = "";
+        for (const idx of patchIndices) {
+          const patchList = state.patches.get(idx);
+          for (const patch of patchList) {
+            patchHtml += renderPatch(patch, idx);
+          }
+        }
+        els.patches.innerHTML = patchHtml;
+        els.patchStatus.textContent = `${patchIndices.length} indices, ${patchIndices.reduce((sum, idx) => sum + state.patches.get(idx).length, 0)} patches`;
+        els.patchStatus.className = "status";
+      }
+
+      // Apply patches and compare
+      const rootDom = state.originalTree.toDom({ document });
+      const patchedDom = state.patches.applyTo(rootDom, { document });
+      const freshExpectedDom = state.mutatedTree.toDom({ document });
+
+      const isMatch = compareDom(patchedDom, freshExpectedDom);
+
+      els.comparison.innerHTML = `
+        <div class="comparison-side ${isMatch ? "match" : "mismatch"}">
+          <div class="comparison-label">Patched Result</div>
+          <div class="dom-render"></div>
+        </div>
+        <div class="comparison-side ${isMatch ? "match" : "mismatch"}">
+          <div class="comparison-label">Expected (fresh render)</div>
+          <div class="dom-render"></div>
+        </div>
+      `;
+
+      els.comparison.querySelector(".comparison-side:first-child .dom-render").appendChild(patchedDom.cloneNode(true));
+      els.comparison.querySelector(".comparison-side:last-child .dom-render").appendChild(freshExpectedDom.cloneNode(true));
+
+      // Check for warnings
+      const hasWarnings = state.patches.warnings && state.patches.warnings.length > 0;
+
+      if (isMatch) {
+        els.resultStatus.textContent = hasWarnings ? "MATCH (with warnings)" : "MATCH";
+        els.resultStatus.className = hasWarnings ? "status" : "status success";
+      } else {
+        els.resultStatus.textContent = hasWarnings ? "MISMATCH (with warnings)" : "MISMATCH";
+        els.resultStatus.className = "status error";
+      }
+
+      // Debug info
+      const debugData = {
+        seed: state.seed,
+        warnings: state.patches.warnings ? state.patches.warnings.map(w => ({
+          type: w.type,
+          message: w.message,
+          ...(w.duplicatedKeys ? { duplicatedKeys: [...w.duplicatedKeys] } : {}),
+          ...(w.parentTag ? { parentTag: w.parentTag } : {}),
+          ...(w.parentIndex !== undefined ? { parentIndex: w.parentIndex } : {})
+        })) : [],
+        patchPlan: {
+          size: state.patches.size,
+          indices: patchIndices,
+          patches: {}
+        },
+        originalTree: serializeTree(state.originalTree),
+        mutatedTree: serializeTree(state.mutatedTree),
+        mutations: state.mutations.map(m => ({
+          ...m,
+          child: m.child ? serializeTree(m.child) : undefined,
+          newChild: m.newChild ? serializeTree(m.newChild) : undefined
+        }))
+      };
+
+      for (const idx of patchIndices) {
+        debugData.patchPlan.patches[idx] = state.patches.get(idx).map(p => {
+          const patchType = p.constructor.name;
+          return {
+            type: patchType,
+            ...(patchType === "PatchCharData" ? { text: p.targetNode.text } : {}),
+            ...(patchType === "PatchReorder" ? { moves: p.moves } : {}),
+            ...(patchType === "PatchProps" ? { propsDiff: p.propsDiff } : {}),
+            ...(patchType === "PatchInsert" ? { node: serializeTree(p.nodeToInsert) } : {}),
+            ...(patchType === "PatchNode" ? { node: serializeTree(p.newNode) } : {})
+          };
+        });
+      }
+
+      els.debugInfo.textContent = JSON.stringify(debugData, null, 2);
+
+      return { isMatch, hasWarnings };
+    }
+
+    function serializeTree(node) {
+      if (node.nodeType === 3) { // VText
+        return { type: "VText", text: node.text };
+      }
+      if (node.nodeType === 8) { // VComment
+        return { type: "VComment", text: node.text };
+      }
+      if (node.nodeType === 1) { // VNode
+        return {
+          type: "VNode",
+          tag: node.tag,
+          key: node.key,
+          attrs: node.attrs,
+          childs: node.childs.map(c => serializeTree(c))
+        };
+      }
+      return { type: "unknown" };
+    }
+
+    // Stress test state
+    let stressTestInterval = null;
+
+    function toggleStressTest() {
+      if (stressTestInterval) {
+        clearInterval(stressTestInterval);
+        stressTestInterval = null;
+        els.stressTest.textContent = "Stress Test";
+        els.stressTest.classList.remove("active");
+        return;
+      }
+
+      els.stressTest.textContent = "Stop";
+      els.stressTest.classList.add("active");
+
+      stressTestInterval = setInterval(() => {
+        try {
+          const result = generate();
+          if (!result.isMatch) {
+            const continueOnWarnings = els.continueWithWarnings.checked;
+
+            // If mismatch has warnings and checkbox is checked, log and continue
+            if (continueOnWarnings && result.hasWarnings) {
+              console.warn(
+                "Mismatch with warnings (continuing):",
+                {
+                  seed: state.seed,
+                  mutationCount: state.mutations.length,
+                  warnings: state.patches.warnings.map(w => w.message),
+                  patchCount: state.patches.size
+                }
+              );
+              return; // Continue stress test
+            }
+
+            // Stop stress test
+            clearInterval(stressTestInterval);
+            stressTestInterval = null;
+            els.stressTest.textContent = "Stress Test";
+            els.stressTest.classList.remove("active");
+            console.error("Stress test stopped: result mismatch at seed", state.seed);
+
+            // Build alert message with warnings if present
+            let alertMsg = "Stress test stopped: result mismatch!\nSeed: " + state.seed;
+            if (result.hasWarnings && state.patches.warnings) {
+              alertMsg += "\n\nWarnings:";
+              for (const w of state.patches.warnings) {
+                alertMsg += "\n- " + w.message;
+              }
+            }
+            alert(alertMsg);
+          }
+        } catch (e) {
+          clearInterval(stressTestInterval);
+          stressTestInterval = null;
+          els.stressTest.textContent = "Stress Test";
+          els.stressTest.classList.remove("active");
+          console.error("Stress test stopped due to exception:", e);
+          alert("Stress test stopped due to exception:\n" + e.message);
+        }
+      }, 1000);
+    }
+
+    // Export state to JSON file
+    function exportState() {
+      if (!state.seed) {
+        alert("Nothing to export. Generate a tree first.");
+        return;
+      }
+
+      const exportData = {
+        version: 1,
+        timestamp: new Date().toISOString(),
+        seed: state.seed,
+        mutationCount: state.mutations.length,
+        stepIndex: state.stepIndex
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `vdom-playground-${state.seed}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Import state from JSON file
+    function importState(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const importData = JSON.parse(e.target.result);
+
+          // Validate the import data
+          if (!importData.seed || !importData.mutationCount) {
+            throw new Error("Invalid file format: missing seed or mutationCount");
+          }
+
+          // Set the seed and mutation count in the UI
+          els.seedInput.value = importData.seed;
+          els.mutationCount.value = importData.mutationCount;
+
+          // Generate the tree with the imported seed
+          state.seed = importData.seed;
+          els.seedDisplay.textContent = `Using seed: ${state.seed}`;
+
+          const rng = createRng(state.seed);
+
+          // Generate original tree
+          state.originalTree = generateTree(rng);
+
+          // Generate mutations
+          state.mutations = [];
+          for (let i = 0; i < importData.mutationCount; i++) {
+            state.mutations.push(generateMutation(rng, state.originalTree));
+          }
+
+          // Set step index (0 means all mutations applied)
+          state.stepIndex = importData.stepIndex || 0;
+
+          // Apply mutations up to stepIndex (or all if stepIndex is 0)
+          const mutationsToApply = state.stepIndex > 0 ? state.stepIndex : state.mutations.length;
+          state.mutatedTree = state.originalTree;
+          const mutationRng = createRng(state.seed + 1000);
+          for (let i = 0; i < mutationsToApply; i++) {
+            state.mutatedTree = applyMutation(state.mutatedTree, state.mutations[i], mutationRng);
+          }
+
+          // If stepIndex was 0, set it to show all mutations were applied
+          if (state.stepIndex === 0) {
+            state.stepIndex = 0; // Keep at 0 to indicate "all applied" mode
+          }
+
+          updateUI();
+          console.log("Imported state from file:", importData);
+        } catch (err) {
+          console.error("Import error:", err);
+          alert("Failed to import file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Event listeners
+    els.generate.addEventListener("click", generate);
+    els.stressTest.addEventListener("click", toggleStressTest);
+    els.step.addEventListener("click", stepMutation);
+    els.exportBtn.addEventListener("click", exportState);
+    els.importFile.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        importState(e.target.files[0]);
+        e.target.value = ""; // Reset to allow re-importing same file
+      }
+    });
+
+    // Initial message
+    console.log("VDOM Playground loaded. Click 'Generate' to start.");
+  </script>
+</body>
+</html>
