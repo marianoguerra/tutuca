@@ -5,7 +5,7 @@ export interface DomOptions {
   document: Document;
 }
 
-// Warning system for diff/patch diagnostics
+// Informational diagnostics for diff/patch operations
 export class Warning {
   type: string;
   message: string;
@@ -25,20 +25,7 @@ export class DuplicatedKeysWarning extends Warning {
     const keys = [...duplicatedKeys].join(", ");
     super(
       "DuplicatedKeys",
-      `Duplicate keys found: [${keys}] in ${parentTag || "fragment"} at index ${parentIndex}`,
-    );
-  }
-}
-
-export class NewKeyedNodeInReorderWarning extends Warning {
-  constructor(
-    public key: string,
-    public parentTag: string | null,
-    public parentIndex: number,
-  ) {
-    super(
-      "NewKeyedNodeInReorder",
-      `New keyed node "${key}" added during reorder in ${parentTag || "fragment"} at index ${parentIndex}. This is undefined behavior.`,
+      `Duplicate keys found: [${keys}] in ${parentTag || "fragment"} at index ${parentIndex}. Nodes with duplicated keys are matched positionally.`,
     );
   }
 }

@@ -3,11 +3,7 @@ export * from "./types.ts";
 
 import { applyProperties, isHtmlAttribute } from "./dom-props.ts";
 import type { DomOptions, Props } from "./types.ts";
-import {
-  DuplicatedKeysWarning,
-  NewKeyedNodeInReorderWarning,
-  type Warning,
-} from "./types.ts";
+import { DuplicatedKeysWarning, type Warning } from "./types.ts";
 
 // Extended options for render with warning callback
 export interface RenderOptions extends DomOptions {
@@ -35,7 +31,6 @@ interface ReorderResult {
   children: (VBase | null)[];
   moves: Moves | null;
   duplicatedKeys: Set<string> | null;
-  newKeyedNodes: string[] | null;
 }
 
 interface KeyIndex {
@@ -303,7 +298,6 @@ function reorder(oldChildren: VBase[], newChildren: VBase[]): ReorderResult {
       children: newChildren,
       moves: null,
       duplicatedKeys: rawNew.duplicatedKeys,
-      newKeyedNodes: null,
     };
   }
 
@@ -320,7 +314,6 @@ function reorder(oldChildren: VBase[], newChildren: VBase[]): ReorderResult {
       children: newChildren,
       moves: null,
       duplicatedKeys,
-      newKeyedNodes: null,
     };
   }
 
@@ -372,7 +365,6 @@ function reorder(oldChildren: VBase[], newChildren: VBase[]): ReorderResult {
     freeIndex >= newFree.length ? newChildren.length : newFree[freeIndex];
 
   // Append new items not present in old children
-  let newKeyedNodes: string[] | null = null;
   for (let j = 0; j < newChildren.length; j++) {
     const newItem = newChildren[j];
     const newKey = effectiveKey(newItem, duplicatedKeys);
@@ -380,8 +372,6 @@ function reorder(oldChildren: VBase[], newChildren: VBase[]): ReorderResult {
     if (newKey) {
       if (!Object.hasOwn(oldKeys, newKey)) {
         reordered.push(newItem);
-        if (!newKeyedNodes) newKeyedNodes = [];
-        newKeyedNodes.push(newKey);
       }
     } else if (j >= lastFreeIndex) {
       reordered.push(newItem);
@@ -396,7 +386,7 @@ function reorder(oldChildren: VBase[], newChildren: VBase[]): ReorderResult {
     deletedItems,
   );
 
-  return { children: reordered, moves, duplicatedKeys, newKeyedNodes };
+  return { children: reordered, moves, duplicatedKeys };
 }
 
 function computeMoves(
@@ -423,7 +413,8 @@ function computeMoves(
     let simulateKey = effectiveKey(simulateItem, duplicatedKeys);
 
     while (simulateItem === null && simulate.length) {
-      removes.push(removeFromArray(simulate, simulateIndex, null));
+      simulate.splice(simulateIndex, 1);
+      removes.push({ from: simulateIndex, key: null });
       simulateItem = simulate[simulateIndex];
       simulateKey = effectiveKey(simulateItem, duplicatedKeys);
     }
@@ -438,7 +429,8 @@ function computeMoves(
     // Wanted is keyed
     if (wantedKey) {
       if (simulateKey && newKeys[simulateKey] !== k + 1) {
-        removes.push(removeFromArray(simulate, simulateIndex, simulateKey));
+        simulate.splice(simulateIndex, 1);
+        removes.push({ from: simulateIndex, key: simulateKey });
         simulateItem = simulate[simulateIndex];
         simulateKey = effectiveKey(simulateItem, duplicatedKeys);
         if (simulateItem && simulateKey === wantedKey) {
@@ -454,7 +446,8 @@ function computeMoves(
 
     // Wanted unkeyed, simulate keyed — remove simulate
     if (simulateKey) {
-      removes.push(removeFromArray(simulate, simulateIndex, simulateKey));
+      simulate.splice(simulateIndex, 1);
+      removes.push({ from: simulateIndex, key: simulateKey });
       continue;
     }
 
@@ -464,13 +457,11 @@ function computeMoves(
 
   while (simulateIndex < simulate.length) {
     const simulateItem = simulate[simulateIndex];
-    removes.push(
-      removeFromArray(
-        simulate,
-        simulateIndex,
-        effectiveKey(simulateItem, duplicatedKeys),
-      ),
-    );
+    simulate.splice(simulateIndex, 1);
+    removes.push({
+      from: simulateIndex,
+      key: effectiveKey(simulateItem, duplicatedKeys),
+    });
   }
 
   if (removes.length === deletedItems && !inserts.length) {
@@ -478,15 +469,6 @@ function computeMoves(
   }
 
   return { removes, inserts };
-}
-
-function removeFromArray(
-  arr: (VBase | null)[],
-  index: number,
-  key: string | null | undefined,
-): ReorderMove {
-  arr.splice(index, 1);
-  return { from: index, key };
 }
 
 function keyIndex(children: VBase[], excludeKeys?: Set<string> | null): KeyIndex {
@@ -512,20 +494,6 @@ function keyIndex(children: VBase[], excludeKeys?: Set<string> | null): KeyIndex
 
 // ---- Morph functions ----
 
-function canMorph(source: VBase, target: VBase): boolean {
-  if (source instanceof VText && target instanceof VText) return true;
-  if (source instanceof VComment && target instanceof VComment) return true;
-  if (source instanceof VNode && target instanceof VNode) {
-    return (
-      source.tag === target.tag &&
-      source.namespace === target.namespace &&
-      source.key === target.key
-    );
-  }
-  if (source instanceof VFragment && target instanceof VFragment) return true;
-  return false;
-}
-
 function replaceNode(domNode: Node, vnode: VBase, options: DomOptions): Node {
   const parentNode = domNode.parentNode;
   const newNode = vnode.toDom(options);
@@ -543,11 +511,7 @@ function morphNode(
 ): Node {
   if (source === target || source.isEqualTo(target)) return domNode;
 
-  if (!canMorph(source, target)) {
-    return replaceNode(domNode, target, opts);
-  }
-
-  // Both VText or both VComment
+  // Both VText or both VComment — update text content
   if (
     (source instanceof VText && target instanceof VText) ||
     (source instanceof VComment && target instanceof VComment)
@@ -556,8 +520,14 @@ function morphNode(
     return domNode;
   }
 
-  // Both VNode same tag/ns/key
-  if (source instanceof VNode && target instanceof VNode) {
+  // Both VNode with same tag/ns/key — morph props + children
+  if (
+    source instanceof VNode &&
+    target instanceof VNode &&
+    source.tag === target.tag &&
+    source.namespace === target.namespace &&
+    source.key === target.key
+  ) {
     const propsDiff = diffProps(source.attrs, target.attrs);
     if (propsDiff) {
       applyProperties(domNode as Element, propsDiff, source.attrs);
@@ -566,12 +536,14 @@ function morphNode(
     return domNode;
   }
 
-  // Both VFragment
+  // Both VFragment — morph children
   if (source instanceof VFragment && target instanceof VFragment) {
     morphChildren(domNode, source.childs, target.childs, null, opts);
+    return domNode;
   }
 
-  return domNode;
+  // Incompatible types — replace
+  return replaceNode(domNode, target, opts);
 }
 
 function morphChildren(
@@ -602,11 +574,6 @@ function morphChildren(
   // Emit warnings
   if (orderedSet.duplicatedKeys && opts.onWarning) {
     opts.onWarning(new DuplicatedKeysWarning(orderedSet.duplicatedKeys, parentTag, 0));
-  }
-  if (orderedSet.newKeyedNodes && orderedSet.moves && opts.onWarning) {
-    for (const key of orderedSet.newKeyedNodes) {
-      opts.onWarning(new NewKeyedNodeInReorderWarning(key, parentTag, 0));
-    }
   }
 
   // Capture DOM children before mutations
@@ -667,7 +634,7 @@ function applyMoves(domNode: Node, moves: Moves): void {
   for (let j = 0; j < moves.inserts.length; j++) {
     const insert = moves.inserts[j];
     const node = keyMap[insert.key];
-    // Skip if node not found (undefined behavior - new keyed node during reorder)
+    // Skip if node not found — new keyed node created in Phase 1 already has its DOM node
     if (node) {
       domNode.insertBefore(node, insert.to >= length++ ? null : childNodes[insert.to]);
     }
@@ -684,32 +651,30 @@ export function render(
   options: RenderOptions,
 ): Node | null {
   const cached = renderCache.get(container);
+  const isFragment = vnode instanceof VFragment;
 
   if (cached) {
     const wasFragment = cached.vnode instanceof VFragment;
-    const isFragment = vnode instanceof VFragment;
 
-    if (wasFragment !== isFragment) {
-      // Root type changed between VFragment and non-VFragment — full re-render
-      renderCache.delete(container);
-      return render(vnode, container, options);
+    if (wasFragment === isFragment) {
+      const rootNode = wasFragment ? container : cached.dom;
+      const newDom = morphNode(rootNode, cached.vnode, vnode, options);
+      renderCache.set(container, {
+        vnode,
+        dom: isFragment ? container : newDom,
+      });
+      return newDom;
     }
 
-    const rootNode = wasFragment ? container : cached.dom;
-    const newDom = morphNode(rootNode, cached.vnode, vnode, options);
-    renderCache.set(container, {
-      vnode,
-      dom: isFragment ? container : newDom,
-    });
-    return newDom;
+    // Root type changed between VFragment and non-VFragment — full re-render
+    renderCache.delete(container);
   }
 
-  // Initial render
+  // Initial render (or type-change re-render)
   const domNode = vnode.toDom(options);
   if (domNode) {
     container.innerHTML = "";
     container.appendChild(domNode);
-    const isFragment = vnode instanceof VFragment;
     renderCache.set(container, {
       vnode,
       dom: isFragment ? container : domNode,

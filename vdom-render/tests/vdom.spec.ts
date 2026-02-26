@@ -4,7 +4,6 @@ import { JSDOM } from "jsdom";
 import {
   DuplicatedKeysWarning,
   h,
-  NewKeyedNodeInReorderWarning,
   unmount,
   VBase,
   VComment,
@@ -1201,10 +1200,10 @@ describe("aria-* and data-* attributes", () => {
 });
 
 // =============================================================================
-// Undefined Behavior Warnings (static tests)
+// Duplicate Key Diagnostics (static tests)
 // =============================================================================
 
-describe("undefined behavior warnings", () => {
+describe("duplicate key diagnostics", () => {
   it("warns on duplicate keys", () => {
     // Two children with the same key
     const leftTree = h("div", null, [
@@ -1229,7 +1228,7 @@ describe("undefined behavior warnings", () => {
     expect(warnings[0].type).toBe("DuplicatedKeys");
   });
 
-  it("warns on new keyed node added during reorder", () => {
+  it("new keyed node during reorder produces correct DOM", () => {
     // Original: two keyed nodes
     const leftTree = h("div", null, [
       h("div", { key: "a" }, "A"),
@@ -1239,21 +1238,23 @@ describe("undefined behavior warnings", () => {
     const rightTree = h("div", null, [
       h("div", { key: "b" }, "B"), // moved from position 1 to 0
       h("div", { key: "a" }, "A"), // moved from position 0 to 1
-      h("div", { key: "c" }, "C"), // NEW keyed node while reordering
+      h("div", { key: "c" }, "C"), // new keyed node during reorder
     ]);
 
-    const container = document.createElement("div");
+    const c1 = document.createElement("div");
+    const c2 = document.createElement("div");
     const warnings: Warning[] = [];
-    vdomRender(leftTree, container, { document });
-    vdomRender(rightTree, container, {
+    vdomRender(leftTree, c1, { document });
+    vdomRender(rightTree, c1, {
       document,
       onWarning: (w) => warnings.push(w),
     });
+    vdomRender(rightTree, c2, { document });
 
-    const warning = warnings.find((w) => w instanceof NewKeyedNodeInReorderWarning);
-    expect(warning).toBeDefined();
-    expect(warning?.type).toBe("NewKeyedNodeInReorder");
-    expect((warning as NewKeyedNodeInReorderWarning).key).toBe("c");
+    // No warnings — new keyed nodes during reorder are handled correctly
+    expect(warnings.length).toBe(0);
+    // DOM should match a fresh render
+    expect(c1.innerHTML).toBe(c2.innerHTML);
   });
 
   it("no warning when adding keyed node without reorder", () => {
@@ -1302,9 +1303,8 @@ describe("undefined behavior warnings", () => {
       onWarning: (w) => warnings.push(w),
     });
 
-    // Should not have NewKeyedNodeInReorder warning (non-keyed is fine)
-    const warning = warnings.find((w) => w instanceof NewKeyedNodeInReorderWarning);
-    expect(warning).toBeUndefined();
+    // No warnings — non-keyed nodes during reorder are fine
+    expect(warnings.length).toBe(0);
   });
 });
 
@@ -1764,7 +1764,7 @@ describe("seed-based regression tests", () => {
   it("seed 1591 - duplicate keys produces warning", () => {
     const result = testSeed(1591, 3);
 
-    // This seed generates a tree with duplicate keys, which causes incorrect patching.
+    // This seed generates a tree with duplicate keys.
     // The warning system should detect and report this.
     expect(result.warnings.length).toBeGreaterThan(0);
 
@@ -1773,12 +1773,8 @@ describe("seed-based regression tests", () => {
     expect(warning).toBeInstanceOf(DuplicatedKeysWarning);
     expect(warning.type).toBe("DuplicatedKeys");
 
-    // The mismatch is expected when there are duplicate keys
-    // (we don't fix it, we just warn about it)
-    if (!result.isMatch) {
-      // This is expected - duplicate keys cause incorrect behavior
-      expect(result.warnings.length).toBeGreaterThan(0);
-    }
+    // Duplicate keys use positional fallback — DOM should still match
+    expect(result.isMatch).toBe(true);
   });
 
   it("seed 161406 - render+re-render produces correct result or warns", () => {
