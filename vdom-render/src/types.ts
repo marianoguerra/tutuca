@@ -7,13 +7,10 @@ export interface DomOptions {
 
 // Informational diagnostics for diff/patch operations
 export class Warning {
-  type: string;
-  message: string;
-
-  constructor(type: string, message: string) {
-    this.type = type;
-    this.message = message;
-  }
+  constructor(
+    public type: string,
+    public message: string,
+  ) {}
 }
 
 export class DuplicatedKeysWarning extends Warning {

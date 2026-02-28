@@ -183,8 +183,8 @@ export class VNode extends VBase {
   ) {
     super();
     this.tag = tag;
-    this.attrs = attrs || {};
-    this.childs = childs || [];
+    this.attrs = attrs ?? {};
+    this.childs = childs ?? [];
     this.key = key != null ? String(key) : undefined;
     this.namespace = typeof namespace === "string" ? namespace : null;
 
@@ -246,7 +246,7 @@ function diffProps(a: Props, b: Props): Props | null {
 
   for (const aKey in a) {
     if (!Object.hasOwn(b, aKey)) {
-      diff = diff || {};
+      diff ??= {};
       diff[aKey] = undefined;
       continue;
     }
@@ -263,24 +263,24 @@ function diffProps(a: Props, b: Props): Props | null {
       bValue !== null
     ) {
       if (Object.getPrototypeOf(bValue) !== Object.getPrototypeOf(aValue)) {
-        diff = diff || {};
+        diff ??= {};
         diff[aKey] = bValue;
       } else {
         const objectDiff = diffProps(aValue as Props, bValue as Props);
         if (objectDiff) {
-          diff = diff || {};
+          diff ??= {};
           diff[aKey] = objectDiff;
         }
       }
     } else {
-      diff = diff || {};
+      diff ??= {};
       diff[aKey] = bValue;
     }
   }
 
   for (const bKey in b) {
     if (!Object.hasOwn(a, bKey)) {
-      diff = diff || {};
+      diff ??= {};
       diff[bKey] = b[bKey];
     }
   }
@@ -480,7 +480,7 @@ function keyIndex(children: VBase[], excludeKeys?: Set<string> | null): KeyIndex
     const key = getKey(children[i]);
     if (key && !excludeKeys?.has(key)) {
       if (key in keys) {
-        if (!duplicatedKeys) duplicatedKeys = new Set();
+        duplicatedKeys ??= new Set();
         duplicatedKeys.add(key);
       }
       keys[key] = i;
@@ -624,8 +624,7 @@ function morphChildren(
 function applyMoves(domNode: Node, moves: Moves): void {
   const childNodes = domNode.childNodes;
   const keyMap: Record<string, ChildNode> = {};
-  for (let i = 0; i < moves.removes.length; i++) {
-    const remove = moves.removes[i];
+  for (const remove of moves.removes) {
     const node = childNodes[remove.from];
     if (remove.key) keyMap[remove.key] = node;
     domNode.removeChild(node);

@@ -54,7 +54,7 @@ function patchObject(
   propName: string,
   propValue: Props,
 ): void {
-  const previousValue = previous ? previous[propName] : undefined;
+  const previousValue = previous?.[propName];
 
   if (
     previousValue &&
