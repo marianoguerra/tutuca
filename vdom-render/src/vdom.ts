@@ -245,7 +245,7 @@ function diffProps(a: Props, b: Props): Props | null {
   let diff: Props | null = null;
 
   for (const aKey in a) {
-    if (!(aKey in b)) {
+    if (!Object.hasOwn(b, aKey)) {
       diff = diff || {};
       diff[aKey] = undefined;
       continue;
@@ -279,7 +279,7 @@ function diffProps(a: Props, b: Props): Props | null {
   }
 
   for (const bKey in b) {
-    if (!(bKey in a)) {
+    if (!Object.hasOwn(a, bKey)) {
       diff = diff || {};
       diff[bKey] = b[bKey];
     }
