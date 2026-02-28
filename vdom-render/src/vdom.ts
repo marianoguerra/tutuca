@@ -714,6 +714,8 @@ export function h(
         namespace = properties[propName] as string | undefined;
       } else if (propName === "class") {
         props.className = properties[propName];
+      } else if (propName === "for") {
+        props.htmlFor = properties[propName];
       } else if (isHtmlAttribute(propName)) {
         // aria-* and data-* attributes have no boolean representation.
         // A `false` value is different from the attribute not being
