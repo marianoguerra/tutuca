@@ -31,12 +31,6 @@ function applyProperties(node: Element, props: Props, previous: Props): void {
   }
 }
 
-// Map DOM property names to their HTML attribute counterparts
-const PROP_TO_ATTR: Record<string, string> = {
-  className: "class",
-  htmlFor: "for",
-};
-
 function removeProperty(node: Element, propName: string, previous: Props): void {
   const previousValue = previous[propName];
 
@@ -46,7 +40,8 @@ function removeProperty(node: Element, propName: string, previous: Props): void 
   } else if (typeof previousValue === "string") {
     setDomProp(node, propName, "");
     // Remove the underlying HTML attribute so the DOM matches a fresh render
-    const attrName = PROP_TO_ATTR[propName] || propName;
+    const attrName =
+      propName === "className" ? "class" : propName === "htmlFor" ? "for" : propName;
     node.removeAttribute(attrName);
   } else {
     setDomProp(node, propName, null);
@@ -70,13 +65,15 @@ function patchObject(
     return;
   }
 
-  const current = getDomProp(node, propName);
+  let current = getDomProp(node, propName);
   if (typeof current !== "object" || current === null) {
     setDomProp(node, propName, {});
+    current = getDomProp(node, propName);
   }
 
+  const target = current as Record<string, unknown>;
   for (const k in propValue) {
-    (getDomProp(node, propName) as Record<string, unknown>)[k] = propValue[k];
+    target[k] = propValue[k];
   }
 }
 
