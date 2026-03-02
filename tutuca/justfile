@@ -15,8 +15,8 @@ dist: clean
     mkdir dist/base-project/deps
 
 dist-mod IN OUT:
-    bunx rolldown {{IN}} -f esm --no-esModule -o dist/{{OUT}}.js
-    bunx rolldown {{IN}} -f esm --no-esModule -o dist/{{OUT}}.min.js -m
+    bun build {{IN}} --outfile dist/{{OUT}}.js --format esm
+    bun build {{IN}} --outfile dist/{{OUT}}.min.js --format esm --minify
     brotli dist/{{OUT}}.min.js -o dist/{{OUT}}.min.js.br
 
 clean-deps:
