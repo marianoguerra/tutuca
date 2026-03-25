@@ -1,18 +1,38 @@
 {
   "name": "tutuca",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "type": "module",
-  "description": "",
-  "main": "index.js",
-  "directories": {
-    "test": "test"
+  "description": "Zero-dependency frontend framework with immutable state and virtual DOM",
+  "main": "./dist/tutuca.js",
+  "module": "./dist/tutuca.js",
+  "exports": {
+    ".": "./dist/tutuca.js",
+    "./dev": "./dist/tutuca-dev.js",
+    "./extra": "./dist/tutuca-extra.js",
+    "./package.json": "./package.json"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "sideEffects": false,
+  "files": [
+    "dist/tutuca.js",
+    "dist/tutuca.min.js",
+    "dist/tutuca-dev.js",
+    "dist/tutuca-dev.min.js",
+    "dist/tutuca-extra.js",
+    "dist/tutuca-extra.min.js"
+  ],
+  "keywords": [
+    "frontend",
+    "framework",
+    "immutable",
+    "virtual-dom"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marianoguerra/tutuca.git"
+    "url": "git+https://github.com/marianoguerra/tutuca.git",
+    "directory": "tutuca"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "author": "Mariano Guerra",
   "license": "MIT",
@@ -21,7 +41,7 @@
   },
   "homepage": "https://github.com/marianoguerra/tutuca#readme",
   "devDependencies": {
-    "@biomejs/biome": "^2.4.2",
+    "@biomejs/biome": "^2.4.9",
     "jsdom": "^28.1.0",
     "prettier": "^3.8.1"
   }
