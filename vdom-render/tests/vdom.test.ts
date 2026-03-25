@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { h } from "./vdom.ts";
+import { h } from "../src/vdom.ts";
 
 describe("h", () => {
   test("maps class to className", () => {
