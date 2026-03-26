@@ -21,6 +21,7 @@ export class App {
         this._scheduleNextTransactionBatchExecution();
       }
     };
+    this._compiled = false;
   }
   get state() {
     return this.transactor.state;
@@ -84,12 +85,12 @@ export class App {
         }
       }
     }
+    this._compiled = true;
   }
   start(opts) {
-    this.compile();
-    this.startNoCompile(opts);
-  }
-  startNoCompile(opts) {
+    if (!this._compiled) {
+      this.compile();
+    }
     for (const name of this._eventNames) {
       this.rootNode.addEventListener(name, this);
     }
@@ -136,14 +137,17 @@ export class App {
     this._transactNextBatchId = setTimeout(() => this._transactNextBatch(), 0);
   }
   startCacheEvictionInterval(intervalMs = 30000) {
-    this._evictCacheId = setInterval(() => this.renderer.cache.evict(), intervalMs);
+    this._evictCacheId = setInterval(
+      () => this.renderer.cache.evict(),
+      intervalMs,
+    );
   }
   stopCacheEvictionInterval() {
     clearInterval(this._evictCacheId);
     this._evictCacheId = null;
   }
 }
-function injectCss(nodeId, style) {
+export function injectCss(nodeId, style) {
   const styleNode = document.createElement("style");
   const currentNodeWithId = document.head.querySelector(`#${nodeId}`);
   if (currentNodeWithId) {
