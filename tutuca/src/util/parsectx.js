@@ -1,14 +1,30 @@
 import { ParseContext } from "../anode.js";
 
 export class ParseCtxClassSetCollector extends ParseContext {
-  constructor() {
-    super();
+  constructor(...args) {
+    super(...args);
     this.classes = new Set();
   }
   _addClasses(s) {
     for (const v of s.split(/\s+/)) {
       this.classes.add(v);
     }
+  }
+  enterMacro(macroName, macroVars, macroSlots) {
+    const { DOMParser: DP, Text, Comment, nodes, events, macroNodes } = this;
+    const frame = { macroName, macroVars, macroSlots };
+    const v = new ParseCtxClassSetCollector(
+      DP,
+      Text,
+      Comment,
+      nodes,
+      events,
+      macroNodes,
+      frame,
+      this,
+    );
+    v.classes = this.classes;
+    return v;
   }
   onAttributes(attrs, _wrapperAttrs, _textChild) {
     if (Array.isArray(attrs.items)) {
