@@ -122,12 +122,24 @@ export class TutucaPlayground extends HTMLElement {
       if (mod.getMacros) {
         scope.registerMacros(mod.getMacros());
       }
+      if (mod.getRequestHandlers) {
+        scope.registerRequestHandlers(mod.getRequestHandlers());
+      }
+      let extraCSSClasses = new Set();
+      if (mod.getExtraCSSClasses) {
+        extraCSSClasses = new Set(mod.getExtraCSSClasses());
+      }
       app.state.set(mod.getRoot());
-      const styleText = await compileClassesToStyleText(app, compile);
+      const styleText = await compileClassesToStyleText(
+        app,
+        compile,
+        extraCSSClasses,
+      );
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);
       app.start();
+      app.dispatchLogicAtRoot("init", []);
     } catch (e) {
       this.preview.textContent = `Error: ${e.message}`;
       console.error(e);
