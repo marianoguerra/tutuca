@@ -9,9 +9,16 @@ export async function compileClassesToStyle(
   compileClasses,
   styleId = "margaui-css",
 ) {
+  const t1 = performance.now();
+  const css = await compileClassesToStyleText(app, compileClasses);
+  const t2 = performance.now();
+  injectCss(styleId, css);
+  return t2 - t1;
+}
+
+export async function compileClassesToStyleText(app, compileClasses) {
   app.ParseContext = ParseCtxClassSetCollector;
   app.compile();
-  const t1 = performance.now();
   const classes = new Set();
   for (const Comp of app.comps.byId.values()) {
     for (const key in Comp.views) {
@@ -21,8 +28,5 @@ export async function compileClassesToStyle(
       }
     }
   }
-  const css = await compileClasses(Array.from(classes));
-  const t2 = performance.now();
-  injectCss(styleId, css);
-  return t2 - t1;
+  return await compileClasses(Array.from(classes));
 }
