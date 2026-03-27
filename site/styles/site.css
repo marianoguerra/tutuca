@@ -1,0 +1,35 @@
+body {
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Nimbus Sans L",
+    Roboto, "Noto Sans", "Segoe UI", Arial, Helvetica, "Helvetica Neue",
+    sans-serif;
+  display: block;
+  padding: 1em 2em;
+}
+
+h1,
+h2 {
+  text-align: center;
+}
+
+.middle {
+  width: fit-content;
+  margin-inline: auto;
+}
+
+tutuca-playground {
+  margin: 2em 0;
+}
+
+[data-theme="dark"] body {
+  background-color: #1a1a2e;
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] a {
+  color: #7eb8da;
+}
+
+[data-theme="dark"] a:visited {
+  color: #b8a9c9;
+}

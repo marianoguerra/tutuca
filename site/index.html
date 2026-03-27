@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tutuca: Zero-dependency complete frontend framework</title>
+    <link rel="stylesheet" href="./styles/site.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "tutuca": "https://esm.sh/tutuca@0.9.1/es2022/extra.mjs",
+          "margaui": "https://esm.sh/margaui@0.9.0/es2022/margaui.mjs"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Tutuca</h1>
+    <h2>Zero-dependency complete frontend framework</h2>
+    <div class="middle">
+      <ul>
+        <li>
+          Single file, no build, no dependencies, no setup: a script tag is all
+          you need
+          <ul>
+            <li>
+              Two files if you want tailwind and a
+              <a
+                href="https://marianoguerra.github.io/margaui/playground/"
+                target="_blank"
+                >complete set of UI components</a
+              >
+            </li>
+          </ul>
+        </li>
+        <li>
+          Batteries included: state management, side effects, automatic
+          memoization, drag and drop and more
+        </li>
+        <li>Fits in your head and the context window</li>
+        <li>View source friendly: step through (the whole stack)</li>
+        <li>As much HTML as possible, as little JS as needed</li>
+      </ul>
+    </div>
+    <div class="middle">
+      <h2>Examples</h2>
+      <p>
+        Edit the code and hit <kbd>Ctrl/Cmd + Enter</kbd> to reload the example
+        on the right.
+      </p>
+      <p>
+        Reload this page with <a href="/?vim">/?vim</a> in the URL to get vim
+        mode in the text editor.
+      </p>
+    </div>
+    <div class="demos">
+      <h3>Counter</h3>
+      <tutuca-playground src="./examples/counter.js"></tutuca-playground>
+      <h3>To-do</h3>
+      <tutuca-playground src="./examples/todo.js"></tutuca-playground>
+      <h3>JSON Editor</h3>
+      <tutuca-playground src="./examples/json.js"></tutuca-playground>
+      <h3>To-do (ab)using macros</h3>
+      <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>
+      <h3>Visual Wasm</h3>
+      <tutuca-playground src="./examples/visual-wasm.js"></tutuca-playground>
+    </div>
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
