@@ -4,10 +4,6 @@ import { JSDOM } from "jsdom";
 import {
   DuplicatedKeysWarning,
   h,
-  NewKeyedNodeInReorderWarning,
-  type PatchPlan,
-  PatchProps,
-  PatchReorder,
   unmount,
   VBase,
   VComment,
@@ -15,6 +11,7 @@ import {
   VNode,
   VText,
   render as vdomRender,
+  type Warning,
 } from "../src/vdom.ts";
 import {
   applyMutation,
@@ -35,7 +32,7 @@ beforeEach(() => {
   (globalThis as unknown as { document: Document }).document = document;
 });
 
-// Helper to render with our document
+// Helper to render with our document (basic toDom, for comparison purposes)
 function render(vnode: VNode | VText): Element | Text {
   return vnode.toDom({ document });
 }
@@ -96,35 +93,24 @@ function childNodesArray(node: Node): ChildNode[] {
   return arr;
 }
 
-// Helper: render old → diff → patch → assert equals fresh render of new
+// Helper: render old -> re-render new -> assert equals fresh render of new
 function assertPatchProduces(oldVNode: VNode | VText, newVNode: VNode | VText): void {
-  const rootNode = render(oldVNode);
-  const expectedNode = render(newVNode);
-  const patches = oldVNode.diff(newVNode);
-  const newRoot = patches.applyTo(rootNode, { document });
-  expect(assertEqualDom(newRoot, expectedNode)).toBe(true);
+  const c1 = document.createElement("div");
+  const c2 = document.createElement("div");
+  vdomRender(oldVNode, c1, { document });
+  vdomRender(newVNode, c1, { document }); // re-render with morphing
+  vdomRender(newVNode, c2, { document }); // fresh render
+  // Compare the child content
+  expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
 }
 
 // Props type for h() function
-type HProps = { key?: string; id?: string; className?: string; [key: string]: unknown };
-
-// Helper to get reorder patch
-function getReorderPatch(plan: PatchPlan): PatchReorder | null {
-  for (const index of plan.indices()) {
-    const p = plan.get(index);
-    if (p instanceof PatchReorder) {
-      return p;
-    }
-    if (Array.isArray(p)) {
-      for (const item of p) {
-        if (item instanceof PatchReorder) {
-          return item;
-        }
-      }
-    }
-  }
-  return null;
-}
+type HProps = {
+  key?: string;
+  id?: string;
+  className?: string;
+  [key: string]: unknown;
+};
 
 describe("VirtualNode", () => {
   it("VNode is a class", () => {
@@ -225,15 +211,14 @@ describe("isEqualTo", () => {
   });
 
   describe("VNode", () => {
-    it("flattens VFragment children", () => {
+    it("flattens VFragment children via h()", () => {
       const frag = new VFragment([new VText("a"), new VText("b")]);
-      const node = new VNode("DIV", null, [new VText("x"), frag, new VText("y")]);
+      const node = h("div", null, [new VText("x"), frag, new VText("y")]);
       expect(node.childs.length).toBe(4);
       expect((node.childs[0] as InstanceType<typeof VText>).text).toBe("x");
       expect((node.childs[1] as InstanceType<typeof VText>).text).toBe("a");
       expect((node.childs[2] as InstanceType<typeof VText>).text).toBe("b");
       expect((node.childs[3] as InstanceType<typeof VText>).text).toBe("y");
-      expect(node.count).toBe(4);
     });
 
     it("equal simple nodes are equal", () => {
@@ -333,20 +318,27 @@ describe("isEqualTo", () => {
   });
 
   describe("diff uses isEqualTo", () => {
-    it("equal trees produce no patches", () => {
+    it("equal trees produce no DOM changes on re-render", () => {
       const a = h("div", null, [h("span", null, "hello"), h("span", null, "world")]);
       const b = h("div", null, [h("span", null, "hello"), h("span", null, "world")]);
-      const patches = a.diff(b);
-      expect(patches.size).toBe(0);
+      const container = document.createElement("div");
+      vdomRender(a, container, { document });
+      const firstChild = container.childNodes[0];
+      vdomRender(b, container, { document });
+      // Same DOM node should be reused
+      expect(container.childNodes[0]).toBe(firstChild);
     });
 
-    it("structurally equal but different instances produce no patches", () => {
+    it("structurally equal but different instances preserve DOM reference", () => {
       const a = h("div", { className: "test" }, [h("p", null, "content")]);
       const b = h("div", { className: "test" }, [h("p", null, "content")]);
       expect(a).not.toBe(b); // Different instances
       expect(a.isEqualTo(b)).toBe(true); // But equal
-      const patches = a.diff(b);
-      expect(patches.size).toBe(0);
+      const container = document.createElement("div");
+      vdomRender(a, container, { document });
+      const firstChild = container.childNodes[0];
+      vdomRender(b, container, { document });
+      expect(container.childNodes[0]).toBe(firstChild);
     });
   });
 });
@@ -663,13 +655,14 @@ describe("diff and patch", () => {
     const leftNode = h("div", null, h("div", null, []));
     const rightNode = h("div", null, "text");
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     expect(rootNode.childNodes.length).toBe(1);
     expect(rootNode.childNodes[0].nodeType).toBe(1);
 
-    const patches = leftNode.diff(rightNode);
-    const newRoot = patches.applyTo(rootNode, { document });
-
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
     expect(newRoot).toBe(rootNode);
     expect(newRoot.childNodes.length).toBe(1);
     expect(newRoot.childNodes[0].nodeType).toBe(3);
@@ -681,35 +674,18 @@ describe("keyed reordering", () => {
     const leftNode = nodesFromArray(["1", "2", "3", "4", "test", "6", "good", "7"]);
     const rightNode = nodesFromArray(["7", "4", "3", "2", "6", "test", "good", "1"]);
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     const childNodes = childNodesArray(rootNode);
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
 
-    const reorderPatch = getReorderPatch(patches);
-    expect(reorderPatch).not.toBeNull();
-    expect(reorderPatch?.moves).toEqual({
-      removes: [
-        { from: 0, key: "1" },
-        { from: 0, key: "2" },
-        { from: 1, key: "4" },
-        { from: 2, key: "6" },
-        { from: 3, key: "7" },
-      ],
-      inserts: [
-        { to: 0, key: "7" },
-        { to: 1, key: "4" },
-        { to: 3, key: "2" },
-        { to: 4, key: "6" },
-        { to: 7, key: "1" },
-      ],
-    });
-
-    const newRoot = patches.applyTo(rootNode, { document });
     expect(newRoot).toBe(rootNode);
-    expect(newRoot.childNodes.length).toBe(rootNode.childNodes.length);
+    expect(newRoot.childNodes.length).toBe(8);
 
+    // Check DOM reference preservation
     expect(newRoot.childNodes[7]).toBe(childNodes[0]);
     expect(newRoot.childNodes[3]).toBe(childNodes[1]);
     expect(newRoot.childNodes[2]).toBe(childNodes[2]);
@@ -743,13 +719,14 @@ describe("keyed reordering", () => {
       h("div", { key: 1 }, []),
     ]);
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     const childNodes = childNodesArray(rootNode);
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
 
-    const newRoot = patches.applyTo(rootNode, { document });
     expect(newRoot).toBe(rootNode);
     expect(newRoot.childNodes.length).toBe(8);
 
@@ -770,15 +747,15 @@ describe("keyed reordering", () => {
       h("div", null, []),
     ]);
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     const childNodes = childNodesArray(rootNode);
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(0);
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
 
-    const newRoot = patches.applyTo(rootNode, { document });
     expect(newRoot).toBe(rootNode);
-
     expect(newRoot.childNodes[0]).toBe(childNodes[0]);
     expect(newRoot.childNodes[1]).toBe(childNodes[1]);
     expect(newRoot.childNodes[2]).toBe(childNodes[2]);
@@ -796,16 +773,16 @@ describe("keyed reordering", () => {
       h("div", { key: "c" }, "c"),
     ]);
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     const childNodes = childNodesArray(rootNode);
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
 
-    const newRoot = patches.applyTo(rootNode, { document });
     expect(newRoot).toBe(rootNode);
     expect(newRoot.childNodes.length).toBe(2);
-
     expect(newRoot.childNodes[0]).toBe(childNodes[1]);
     expect(newRoot.childNodes[1]).toBe(childNodes[2]);
   });
@@ -822,16 +799,16 @@ describe("keyed reordering", () => {
       h("div", { key: "c" }, "c"),
     ]);
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     const childNodes = childNodesArray(rootNode);
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
 
-    const newRoot = patches.applyTo(rootNode, { document });
     expect(newRoot).toBe(rootNode);
     expect(newRoot.childNodes.length).toBe(3);
-
     expect(newRoot.childNodes[1]).toBe(childNodes[0]);
     expect(newRoot.childNodes[2]).toBe(childNodes[1]);
   });
@@ -848,16 +825,16 @@ describe("keyed reordering", () => {
       h("div", { key: "b" }, "b"),
     ]);
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     const childNodes = childNodesArray(rootNode);
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
 
-    const newRoot = patches.applyTo(rootNode, { document });
     expect(newRoot).toBe(rootNode);
     expect(newRoot.childNodes.length).toBe(2);
-
     expect(newRoot.childNodes[0]).toBe(childNodes[0]);
     expect(newRoot.childNodes[1]).toBe(childNodes[1]);
   });
@@ -874,16 +851,16 @@ describe("keyed reordering", () => {
       h("div", { key: "c" }, "c"),
     ]);
 
-    const rootNode = render(leftNode);
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0];
     const childNodes = childNodesArray(rootNode);
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0];
 
-    const newRoot = patches.applyTo(rootNode, { document });
     expect(newRoot).toBe(rootNode);
     expect(newRoot.childNodes.length).toBe(3);
-
     expect(newRoot.childNodes[0]).toBe(childNodes[0]);
     expect(newRoot.childNodes[1]).toBe(childNodes[1]);
   });
@@ -907,11 +884,11 @@ describe("style patching", () => {
       [],
     );
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
-
-    const rootNode = render(leftNode) as HTMLElement;
-    const newRoot = patches.applyTo(rootNode, { document }) as HTMLElement;
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0] as HTMLElement;
+    vdomRender(rightNode, container, { document });
+    const newRoot = container.childNodes[0] as HTMLElement;
 
     expect(rootNode).toBe(newRoot);
     expect(newRoot.style.padding).toBe("5px");
@@ -926,32 +903,35 @@ describe("property-based tests", () => {
   // Arbitrary for generating simple text content
   const textArb = fc.string({ minLength: 0, maxLength: 20 });
 
-  it("diff then patch produces equivalent DOM", () => {
+  it("render then re-render produces equivalent DOM", () => {
     fc.assert(
       fc.property(tagNameArb, textArb, textArb, (tag, text1, text2) => {
         const vdom1 = h(tag, null, text1);
         const vdom2 = h(tag, null, text2);
 
-        const rootNode = render(vdom1);
-        const expectedNode = render(vdom2);
+        const c1 = document.createElement("div");
+        const c2 = document.createElement("div");
+        vdomRender(vdom1, c1, { document });
+        vdomRender(vdom2, c1, { document });
+        vdomRender(vdom2, c2, { document });
 
-        const patches = vdom1.diff(vdom2);
-        const newRoot = patches.applyTo(rootNode, { document });
-
-        return assertEqualDom(newRoot, expectedNode);
+        return assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
       }),
       { numRuns: 100 },
     );
   });
 
-  it("identical trees produce no patches", () => {
+  it("identical trees preserve DOM reference", () => {
     fc.assert(
       fc.property(tagNameArb, textArb, (tag, text) => {
         const vdom1 = h(tag, null, text);
         const vdom2 = h(tag, null, text);
 
-        const patches = vdom1.diff(vdom2);
-        return patches.size === 0;
+        const container = document.createElement("div");
+        vdomRender(vdom1, container, { document });
+        const ref = container.childNodes[0];
+        vdomRender(vdom2, container, { document });
+        return container.childNodes[0] === ref;
       }),
       { numRuns: 100 },
     );
@@ -983,9 +963,10 @@ describe("property-based tests", () => {
             shuffledKeys.map((k) => h("div", { key: k, id: k }, k)),
           );
 
-          const rootNode = render(leftNode);
-          const patches = leftNode.diff(rightNode);
-          const newRoot = patches.applyTo(rootNode, { document });
+          const container = document.createElement("div");
+          vdomRender(leftNode, container, { document });
+          vdomRender(rightNode, container, { document });
+          const newRoot = container.childNodes[0];
 
           // Check that all children are in correct order
           for (let i = 0; i < shuffledKeys.length; i++) {
@@ -1016,13 +997,13 @@ describe("property-based tests", () => {
           const leftNode = h("div", null, children1);
           const rightNode = h("div", null, children2);
 
-          const rootNode = render(leftNode);
-          const expectedNode = render(rightNode);
+          const c1 = document.createElement("div");
+          const c2 = document.createElement("div");
+          vdomRender(leftNode, c1, { document });
+          vdomRender(rightNode, c1, { document });
+          vdomRender(rightNode, c2, { document });
 
-          const patches = leftNode.diff(rightNode);
-          const newRoot = patches.applyTo(rootNode, { document });
-
-          return assertEqualDom(newRoot, expectedNode);
+          return assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
         },
       ),
       { numRuns: 50 },
@@ -1040,19 +1021,18 @@ describe("namespace support", () => {
     expect(node.namespaceURI).toBe(svgURI);
   });
 
-  it("different namespaces creates a patch", () => {
+  it("different namespaces produces a new element on re-render", () => {
     const leftNode = new VNode("div", {}, [], null, "testing");
     const rightNode = new VNode("div", {}, [], null, "undefined");
 
-    const rootNode = render(leftNode) as Element;
+    const container = document.createElement("div");
+    vdomRender(leftNode, container, { document });
+    const rootNode = container.childNodes[0] as Element;
     expect(rootNode.tagName).toBe("div");
     expect(rootNode.namespaceURI).toBe("testing");
 
-    const patches = leftNode.diff(rightNode);
-    expect(patches.size).toBe(1);
-
-    const newRootNode = patches.applyTo(rootNode, { document }) as Element;
-
+    vdomRender(rightNode, container, { document });
+    const newRootNode = container.childNodes[0] as Element;
     expect(newRootNode.tagName).toBe("div");
     expect(newRootNode.namespaceURI).toBe("undefined");
   });
@@ -1089,13 +1069,13 @@ describe("SVG support", () => {
     const htmlNode = h("div", null, "hello");
     const svgNode = new VNode("svg", {}, [], null, SVG_NS);
 
-    const rootNode = render(htmlNode) as Element;
+    const container = document.createElement("div");
+    vdomRender(htmlNode, container, { document });
+    const rootNode = container.childNodes[0] as Element;
     expect(rootNode.namespaceURI).toBe("http://www.w3.org/1999/xhtml");
 
-    const patches = htmlNode.diff(svgNode);
-    expect(patches.size).toBe(1);
-
-    const newRoot = patches.applyTo(rootNode, { document }) as Element;
+    vdomRender(svgNode, container, { document });
+    const newRoot = container.childNodes[0] as Element;
     expect(newRoot.tagName).toBe("svg");
     expect(newRoot.namespaceURI).toBe(SVG_NS);
   });
@@ -1104,13 +1084,13 @@ describe("SVG support", () => {
     const svgNode = new VNode("svg", {}, [], null, SVG_NS);
     const htmlNode = h("div", null, "hello");
 
-    const rootNode = render(svgNode) as Element;
+    const container = document.createElement("div");
+    vdomRender(svgNode, container, { document });
+    const rootNode = container.childNodes[0] as Element;
     expect(rootNode.namespaceURI).toBe(SVG_NS);
 
-    const patches = svgNode.diff(htmlNode);
-    expect(patches.size).toBe(1);
-
-    const newRoot = patches.applyTo(rootNode, { document }) as Element;
+    vdomRender(htmlNode, container, { document });
+    const newRoot = container.childNodes[0] as Element;
     expect(newRoot.tagName).toBe("DIV");
     expect(newRoot.namespaceURI).toBe("http://www.w3.org/1999/xhtml");
   });
@@ -1135,11 +1115,13 @@ describe("SVG support", () => {
       SVG_NS,
     );
 
-    const rootNode = render(leftSvg) as SVGSVGElement;
+    const container = document.createElement("div");
+    vdomRender(leftSvg, container, { document });
+    const rootNode = container.childNodes[0] as SVGSVGElement;
     expect(rootNode.childNodes.length).toBe(1);
 
-    const patches = leftSvg.diff(rightSvg);
-    const newRoot = patches.applyTo(rootNode, { document }) as SVGSVGElement;
+    vdomRender(rightSvg, container, { document });
+    const newRoot = container.childNodes[0] as SVGSVGElement;
 
     expect(newRoot.childNodes.length).toBe(2);
     expect((newRoot.childNodes[0] as Element).tagName).toBe("rect");
@@ -1174,54 +1156,54 @@ describe("aria-* and data-* attributes", () => {
     expect(node.getAttribute("aria-pressed")).toBe("false");
   });
 
-  it("data-* can be added via patching", () => {
+  it("data-* can be added via re-render", () => {
     const leftTree = h("div", null, []);
     const rightTree = h("div", { "data-id": 123 }, []);
 
-    const rootNode = render(leftTree) as HTMLElement;
-    expect(rootNode.dataset.id).toBeUndefined();
+    const container = document.createElement("div");
+    vdomRender(leftTree, container, { document });
+    expect((container.childNodes[0] as HTMLElement).dataset.id).toBeUndefined();
 
-    const patches = leftTree.diff(rightTree);
-    const newRoot = patches.applyTo(rootNode, { document }) as HTMLElement;
-
-    expect(newRoot.dataset.id).toBe("123");
+    vdomRender(rightTree, container, { document });
+    expect((container.childNodes[0] as HTMLElement).dataset.id).toBe("123");
   });
 
-  it("data-* can be removed via patching", () => {
+  it("data-* can be removed via re-render", () => {
     const leftTree = h("div", { "data-id": 123 }, []);
     const rightTree = h("div", null, []);
 
-    const rootNode = render(leftTree) as HTMLElement;
-    expect(rootNode.dataset.id).toBe("123");
+    const container = document.createElement("div");
+    vdomRender(leftTree, container, { document });
+    expect((container.childNodes[0] as HTMLElement).dataset.id).toBe("123");
 
-    const patches = leftTree.diff(rightTree);
-    const newRoot = patches.applyTo(rootNode, { document }) as HTMLElement;
-
-    expect(newRoot.dataset.id).toBeUndefined();
+    vdomRender(rightTree, container, { document });
+    expect((container.childNodes[0] as HTMLElement).dataset.id).toBeUndefined();
   });
 
-  it("aria-* can be toggled via patching", () => {
+  it("aria-* can be toggled via re-render", () => {
     const expanded = h("button", { "aria-expanded": true }, []);
     const collapsed = h("button", { "aria-expanded": false }, []);
 
-    let rootNode = render(expanded) as HTMLButtonElement;
+    const container = document.createElement("div");
+    vdomRender(expanded, container, { document });
+    let rootNode = container.childNodes[0] as HTMLButtonElement;
     expect(rootNode.getAttribute("aria-expanded")).toBe("true");
 
-    let patches = expanded.diff(collapsed);
-    rootNode = patches.applyTo(rootNode, { document }) as HTMLButtonElement;
+    vdomRender(collapsed, container, { document });
+    rootNode = container.childNodes[0] as HTMLButtonElement;
     expect(rootNode.getAttribute("aria-expanded")).toBe("false");
 
-    patches = collapsed.diff(expanded);
-    rootNode = patches.applyTo(rootNode, { document }) as HTMLButtonElement;
+    vdomRender(expanded, container, { document });
+    rootNode = container.childNodes[0] as HTMLButtonElement;
     expect(rootNode.getAttribute("aria-expanded")).toBe("true");
   });
 });
 
 // =============================================================================
-// Undefined Behavior Warnings (static tests)
+// Duplicate Key Diagnostics (static tests)
 // =============================================================================
 
-describe("undefined behavior warnings", () => {
+describe("duplicate key diagnostics", () => {
   it("warns on duplicate keys", () => {
     // Two children with the same key
     const leftTree = h("div", null, [
@@ -1233,13 +1215,20 @@ describe("undefined behavior warnings", () => {
       h("div", { key: "a" }, "duplicate"), // duplicate key
     ]);
 
-    const patches = leftTree.diff(rightTree);
-    expect(patches.hasWarnings()).toBe(true);
-    expect(patches.warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
-    expect(patches.warnings[0].type).toBe("DuplicatedKeys");
+    const container = document.createElement("div");
+    const warnings: Warning[] = [];
+    vdomRender(leftTree, container, { document });
+    vdomRender(rightTree, container, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
+    expect(warnings[0].type).toBe("DuplicatedKeys");
   });
 
-  it("warns on new keyed node added during reorder", () => {
+  it("new keyed node during reorder produces correct DOM", () => {
     // Original: two keyed nodes
     const leftTree = h("div", null, [
       h("div", { key: "a" }, "A"),
@@ -1249,18 +1238,23 @@ describe("undefined behavior warnings", () => {
     const rightTree = h("div", null, [
       h("div", { key: "b" }, "B"), // moved from position 1 to 0
       h("div", { key: "a" }, "A"), // moved from position 0 to 1
-      h("div", { key: "c" }, "C"), // NEW keyed node while reordering
+      h("div", { key: "c" }, "C"), // new keyed node during reorder
     ]);
 
-    const patches = leftTree.diff(rightTree);
-    expect(patches.hasWarnings()).toBe(true);
+    const c1 = document.createElement("div");
+    const c2 = document.createElement("div");
+    const warnings: Warning[] = [];
+    vdomRender(leftTree, c1, { document });
+    vdomRender(rightTree, c1, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+    vdomRender(rightTree, c2, { document });
 
-    const warning = patches.warnings.find(
-      (w) => w instanceof NewKeyedNodeInReorderWarning,
-    );
-    expect(warning).toBeDefined();
-    expect(warning?.type).toBe("NewKeyedNodeInReorder");
-    expect((warning as NewKeyedNodeInReorderWarning).key).toBe("c");
+    // No warnings — new keyed nodes during reorder are handled correctly
+    expect(warnings.length).toBe(0);
+    // DOM should match a fresh render
+    expect(c1.innerHTML).toBe(c2.innerHTML);
   });
 
   it("no warning when adding keyed node without reorder", () => {
@@ -1276,9 +1270,16 @@ describe("undefined behavior warnings", () => {
       h("div", { key: "c" }, "C"), // new keyed node, but no reordering
     ]);
 
-    const patches = leftTree.diff(rightTree);
+    const container = document.createElement("div");
+    const warnings: Warning[] = [];
+    vdomRender(leftTree, container, { document });
+    vdomRender(rightTree, container, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+
     // No warnings because there's no reordering happening
-    expect(patches.hasWarnings()).toBe(false);
+    expect(warnings.length).toBe(0);
   });
 
   it("no warning when adding non-keyed node during reorder", () => {
@@ -1294,12 +1295,16 @@ describe("undefined behavior warnings", () => {
       h("div", null, "no key"), // non-keyed, should be fine
     ]);
 
-    const patches = leftTree.diff(rightTree);
-    // Should not have NewKeyedNodeInReorder warning (non-keyed is fine)
-    const warning = patches.warnings.find(
-      (w) => w instanceof NewKeyedNodeInReorderWarning,
-    );
-    expect(warning).toBeUndefined();
+    const container = document.createElement("div");
+    const warnings: Warning[] = [];
+    vdomRender(leftTree, container, { document });
+    vdomRender(rightTree, container, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+
+    // No warnings — non-keyed nodes during reorder are fine
+    expect(warnings.length).toBe(0);
   });
 });
 
@@ -1314,7 +1319,9 @@ describe("property-based: random trees and mutations", () => {
 
   const tagArb = fc.constantFrom("div", "span", "p", "section", "ul", "li", "article");
   const textArb = fc.string({ minLength: 0, maxLength: 15 });
-  const keyArb = fc.option(fc.string({ minLength: 1, maxLength: 8 }), { nil: undefined });
+  const keyArb = fc.option(fc.string({ minLength: 1, maxLength: 8 }), {
+    nil: undefined,
+  });
 
   // Generate a VText node
   const vtextArb: fc.Arbitrary<VText> = textArb.map((text) => new VText(text));
@@ -1332,7 +1339,10 @@ describe("property-based: random trees and mutations", () => {
 
   // Generate a VFragment child (flattened at construction time by h())
   const vfragmentChildArb: fc.Arbitrary<VFragment> = fc
-    .array(fc.oneof(vtextArb, vcommentArb, leafVNodeArb), { minLength: 1, maxLength: 3 })
+    .array(fc.oneof(vtextArb, vcommentArb, leafVNodeArb), {
+      minLength: 1,
+      maxLength: 3,
+    })
     .map((childs) => new VFragment(childs));
 
   // Recursive arbitrary for VNode trees (including VComment and VFragment children)
@@ -1435,7 +1445,9 @@ describe("property-based: random trees and mutations", () => {
         .tuple(
           pathArb,
           fc.constantFrom("className", "id", "title", "data-test"),
-          fc.option(fc.string({ minLength: 1, maxLength: 10 }), { nil: undefined }),
+          fc.option(fc.string({ minLength: 1, maxLength: 10 }), {
+            nil: undefined,
+          }),
         )
         .map(([path, attr, value]) => ({
           type: "changeAttr" as const,
@@ -1450,42 +1462,42 @@ describe("property-based: random trees and mutations", () => {
   // Tests
   // ---------------------------------------------------------------------------
 
-  it("diff+patch on random tree produces equivalent DOM", () => {
+  it("render+re-render on random tree produces equivalent DOM", () => {
     fc.assert(
       fc.property(vnodeTreeArb, vnodeTreeArb, (tree1, tree2) => {
-        const rootNode = render(tree1);
-        const expectedNode = render(tree2);
+        const c1 = document.createElement("div");
+        const c2 = document.createElement("div");
+        vdomRender(tree1, c1, { document });
+        vdomRender(tree2, c1, { document });
+        vdomRender(tree2, c2, { document });
 
-        const patches = tree1.diff(tree2);
-        const newRoot = patches.applyTo(rootNode, { document });
-
-        return assertEqualDom(newRoot, expectedNode);
+        return assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
       }),
       { numRuns: 100 },
     );
   });
 
-  it("single mutation: diff+patch produces correct result", () => {
+  it("single mutation: render+re-render produces correct result", () => {
     fc.assert(
       fc.property(
         vnodeTreeArb.chain((tree) => fc.tuple(fc.constant(tree), mutationArb(tree))),
         ([originalTree, mutation]) => {
           const mutatedTree = applyMutationLocal(originalTree, mutation);
 
-          const rootNode = render(originalTree);
-          const expectedNode = render(mutatedTree);
+          const c1 = document.createElement("div");
+          const c2 = document.createElement("div");
+          vdomRender(originalTree, c1, { document });
+          vdomRender(mutatedTree, c1, { document });
+          vdomRender(mutatedTree, c2, { document });
 
-          const patches = originalTree.diff(mutatedTree);
-          const newRoot = patches.applyTo(rootNode, { document });
-
-          return assertEqualDom(newRoot, expectedNode);
+          return assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
         },
       ),
       { numRuns: 200 },
     );
   });
 
-  it("multiple mutations: diff+patch produces correct result", () => {
+  it("multiple mutations: render+re-render produces correct result", () => {
     fc.assert(
       fc.property(
         vnodeTreeArb.chain((tree) =>
@@ -1501,20 +1513,20 @@ describe("property-based: random trees and mutations", () => {
             mutatedTree = applyMutationLocal(mutatedTree, mutation);
           }
 
-          const rootNode = render(originalTree);
-          const expectedNode = render(mutatedTree);
+          const c1 = document.createElement("div");
+          const c2 = document.createElement("div");
+          vdomRender(originalTree, c1, { document });
+          vdomRender(mutatedTree, c1, { document });
+          vdomRender(mutatedTree, c2, { document });
 
-          const patches = originalTree.diff(mutatedTree);
-          const newRoot = patches.applyTo(rootNode, { document });
-
-          return assertEqualDom(newRoot, expectedNode);
+          return assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
         },
       ),
       { numRuns: 100 },
     );
   });
 
-  it("incremental patching: applying patches step by step", () => {
+  it("incremental re-rendering: applying step by step", () => {
     fc.assert(
       fc.property(
         vnodeTreeArb.chain((tree) =>
@@ -1525,17 +1537,19 @@ describe("property-based: random trees and mutations", () => {
         ),
         ([originalTree, mutations]) => {
           let currentTree = originalTree;
-          let currentDom: Element | Text = render(originalTree);
+          const container = document.createElement("div");
+          vdomRender(currentTree, container, { document });
 
           // Apply mutations one at a time
           for (const mutation of mutations) {
             const nextTree = applyMutationLocal(currentTree, mutation);
-            const expectedDom = render(nextTree);
 
-            const patches = currentTree.diff(nextTree);
-            currentDom = patches.applyTo(currentDom, { document }) as Element | Text;
+            vdomRender(nextTree, container, { document });
 
-            if (!assertEqualDom(currentDom, expectedDom)) {
+            const expected = document.createElement("div");
+            vdomRender(nextTree, expected, { document });
+
+            if (!assertEqualDom(container.childNodes[0], expected.childNodes[0])) {
               return false;
             }
 
@@ -1552,7 +1566,10 @@ describe("property-based: random trees and mutations", () => {
   it("keyed children: random insertions and deletions", () => {
     // Generate list of unique keys
     const uniqueKeysArb = fc
-      .array(fc.string({ minLength: 1, maxLength: 5 }), { minLength: 3, maxLength: 10 })
+      .array(fc.string({ minLength: 1, maxLength: 5 }), {
+        minLength: 3,
+        maxLength: 10,
+      })
       .map((keys) => [...new Set(keys)])
       .filter((keys) => keys.length >= 3);
 
@@ -1572,18 +1589,19 @@ describe("property-based: random trees and mutations", () => {
         const finalChildren = finalKeys.map((k) => h("div", { key: k, id: k }, k));
         const finalTree = h("div", null, finalChildren);
 
-        const rootNode = render(initialTree);
-        const expectedNode = render(finalTree);
-
-        const patches = initialTree.diff(finalTree);
-        const newRoot = patches.applyTo(rootNode, { document });
+        const c1 = document.createElement("div");
+        const c2 = document.createElement("div");
+        vdomRender(initialTree, c1, { document });
+        vdomRender(finalTree, c1, { document });
+        vdomRender(finalTree, c2, { document });
 
         // Verify structure
-        if (!assertEqualDom(newRoot, expectedNode)) {
+        if (!assertEqualDom(c1.childNodes[0], c2.childNodes[0])) {
           return false;
         }
 
         // Verify key order
+        const newRoot = c1.childNodes[0];
         for (let i = 0; i < finalKeys.length; i++) {
           const child = newRoot.childNodes[i] as HTMLElement;
           if (child.id !== finalKeys[i]) {
@@ -1678,13 +1696,13 @@ describe("property-based: random trees and mutations", () => {
 
     fc.assert(
       fc.property(deepTreeArb, deepTreeArb, (tree1, tree2) => {
-        const rootNode = render(tree1);
-        const expectedNode = render(tree2);
+        const c1 = document.createElement("div");
+        const c2 = document.createElement("div");
+        vdomRender(tree1, c1, { document });
+        vdomRender(tree2, c1, { document });
+        vdomRender(tree2, c2, { document });
 
-        const patches = tree1.diff(tree2);
-        const newRoot = patches.applyTo(rootNode, { document });
-
-        return assertEqualDom(newRoot, expectedNode);
+        return assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
       }),
       { numRuns: 50 },
     );
@@ -1719,56 +1737,52 @@ describe("seed-based regression tests", () => {
       mutatedTree = applyMutation(mutatedTree, mutation, mutationRng);
     }
 
-    // Render original and get expected
-    const rootNode = originalTree.toDom({ document });
-    const expectedNode = mutatedTree.toDom({ document });
+    // Render original, then re-render mutated
+    const c1 = document.createElement("div");
+    const c2 = document.createElement("div");
+    const warnings: Warning[] = [];
 
-    // Diff and patch
-    const patches = originalTree.diff(mutatedTree);
-    const patchedNode = patches.applyTo(rootNode, { document });
+    vdomRender(originalTree, c1, { document });
+    vdomRender(mutatedTree, c1, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+    vdomRender(mutatedTree, c2, { document });
 
     // Compare
-    const isMatch = assertEqualDom(patchedNode, expectedNode);
+    const isMatch = assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
 
     return {
       isMatch,
       originalTree,
       mutatedTree,
       mutations,
-      patches,
-      rootNode,
-      expectedNode,
-      patchedNode,
+      warnings,
     };
   }
 
   it("seed 1591 - duplicate keys produces warning", () => {
     const result = testSeed(1591, 3);
 
-    // This seed generates a tree with duplicate keys, which causes incorrect patching.
+    // This seed generates a tree with duplicate keys.
     // The warning system should detect and report this.
-    expect(result.patches.hasWarnings()).toBe(true);
-    expect(result.patches.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings.length).toBeGreaterThan(0);
 
     // Check that the warning is a DuplicatedKeysWarning
-    const warning = result.patches.warnings[0];
+    const warning = result.warnings[0];
     expect(warning).toBeInstanceOf(DuplicatedKeysWarning);
     expect(warning.type).toBe("DuplicatedKeys");
 
-    // The mismatch is expected when there are duplicate keys
-    // (we don't fix it, we just warn about it)
-    if (!result.isMatch) {
-      // This is expected - duplicate keys cause incorrect behavior
-      expect(result.patches.hasWarnings()).toBe(true);
-    }
+    // Duplicate keys use positional fallback — DOM should still match
+    expect(result.isMatch).toBe(true);
   });
 
-  it("seed 161406 - diff+patch produces correct result or warns", () => {
+  it("seed 161406 - render+re-render produces correct result or warns", () => {
     const result = testSeed(161406, 3);
 
-    // Either the patch matches, or warnings explain the mismatch
+    // Either the result matches, or warnings explain the mismatch
     if (!result.isMatch) {
-      expect(result.patches.hasWarnings()).toBe(true);
+      expect(result.warnings.length).toBeGreaterThan(0);
     }
   });
 
@@ -1792,19 +1806,24 @@ describe("seed-based regression tests", () => {
       new VNode("SECTION", {}, [], "key", null), // text removed, still duplicate key
     ]);
 
-    const rootNode = originalTree.toDom({ document });
-    const expectedNode = mutatedTree.toDom({ document });
+    const c1 = document.createElement("div");
+    const c2 = document.createElement("div");
+    const warnings: Warning[] = [];
 
-    const patches = originalTree.diff(mutatedTree);
-    const patchedNode = patches.applyTo(rootNode, { document });
+    vdomRender(originalTree, c1, { document });
+    vdomRender(mutatedTree, c1, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+    vdomRender(mutatedTree, c2, { document });
 
     // This has duplicate keys, so we expect a warning
-    expect(patches.hasWarnings()).toBe(true);
-    expect(patches.warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
 
     // With the fix, duplicate keys are treated as unkeyed (positional matching)
     // so patching should still produce the correct result
-    expect(assertEqualDom(patchedNode, expectedNode)).toBe(true);
+    expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
   });
 
   it("mixed unique and duplicate keys", () => {
@@ -1821,15 +1840,20 @@ describe("seed-based regression tests", () => {
       new VNode("SECTION", {}, [], "dup", null), // text removed
     ]);
 
-    const rootNode = originalTree.toDom({ document });
-    const expectedNode = mutatedTree.toDom({ document });
+    const c1 = document.createElement("div");
+    const c2 = document.createElement("div");
+    const warnings: Warning[] = [];
 
-    const patches = originalTree.diff(mutatedTree);
-    const patchedNode = patches.applyTo(rootNode, { document });
+    vdomRender(originalTree, c1, { document });
+    vdomRender(mutatedTree, c1, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+    vdomRender(mutatedTree, c2, { document });
 
-    expect(patches.hasWarnings()).toBe(true);
-    expect(patches.warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
-    expect(assertEqualDom(patchedNode, expectedNode)).toBe(true);
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
+    expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
   });
 
   it("duplicate keys with unique key reorder", () => {
@@ -1846,14 +1870,19 @@ describe("seed-based regression tests", () => {
       new VNode("A", {}, [], "unique", null), // moved to end
     ]);
 
-    const rootNode = originalTree.toDom({ document });
-    const expectedNode = mutatedTree.toDom({ document });
+    const c1 = document.createElement("div");
+    const c2 = document.createElement("div");
+    const warnings: Warning[] = [];
 
-    const patches = originalTree.diff(mutatedTree);
-    const patchedNode = patches.applyTo(rootNode, { document });
+    vdomRender(originalTree, c1, { document });
+    vdomRender(mutatedTree, c1, {
+      document,
+      onWarning: (w) => warnings.push(w),
+    });
+    vdomRender(mutatedTree, c2, { document });
 
-    expect(patches.hasWarnings()).toBe(true);
-    expect(assertEqualDom(patchedNode, expectedNode)).toBe(true);
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
   });
 });
 
@@ -1878,13 +1907,14 @@ describe("algorithm corner cases", () => {
         h("div", { key: "c" }, "c"),
       ]);
 
-      const rootNode = render(leftNode);
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      const rootNode = container.childNodes[0];
       const childNodes = childNodesArray(rootNode);
 
-      const patches = leftNode.diff(rightNode);
-      expect(patches.size).toBe(1);
+      vdomRender(rightNode, container, { document });
+      const newRoot = container.childNodes[0];
 
-      const newRoot = patches.applyTo(rootNode, { document });
       expect(newRoot).toBe(rootNode);
       expect(newRoot.childNodes.length).toBe(2);
       expect(newRoot.childNodes[0]).toBe(childNodes[0]); // a preserved
@@ -1917,14 +1947,6 @@ describe("algorithm corner cases", () => {
         h("div", { key: "a" }, "X2"),
         h("div", { key: "b" }, "Y2"),
       ]);
-
-      const patches = leftNode.diff(rightNode);
-
-      const reorderPatch = getReorderPatch(patches);
-      expect(reorderPatch).not.toBeNull();
-
-      // Both reorder and content patches should exist
-      expect(patches.size).toBeGreaterThan(1);
 
       assertPatchProduces(leftNode, rightNode);
     });
@@ -1960,9 +1982,16 @@ describe("algorithm corner cases", () => {
         h("div", { key: "b" }, "b"),
       ]);
 
-      const patches = leftNode.diff(rightNode);
-      expect(patches.hasWarnings()).toBe(true);
-      expect(patches.warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
+      const container = document.createElement("div");
+      const warnings: Warning[] = [];
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, {
+        document,
+        onWarning: (w) => warnings.push(w),
+      });
+
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
 
       assertPatchProduces(leftNode, rightNode);
     });
@@ -1978,9 +2007,16 @@ describe("algorithm corner cases", () => {
         h("div", { key: "b" }, "b"),
       ]);
 
-      const patches = leftNode.diff(rightNode);
-      expect(patches.hasWarnings()).toBe(true);
-      expect(patches.warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
+      const container = document.createElement("div");
+      const warnings: Warning[] = [];
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, {
+        document,
+        onWarning: (w) => warnings.push(w),
+      });
+
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings[0]).toBeInstanceOf(DuplicatedKeysWarning);
 
       assertPatchProduces(leftNode, rightNode);
     });
@@ -1997,11 +2033,12 @@ describe("algorithm corner cases", () => {
 
       assertPatchProduces(leftNode, rightNode);
 
-      const rootNode = render(leftNode);
-      const patches = leftNode.diff(rightNode);
-      const newRoot = patches.applyTo(rootNode, { document });
-      expect(newRoot.childNodes[0].nodeType).toBe(8);
-      expect((newRoot.childNodes[0] as Comment).data).toBe("hello");
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const root = container.childNodes[0];
+      expect(root.childNodes[0].nodeType).toBe(8);
+      expect((root.childNodes[0] as Comment).data).toBe("hello");
     });
 
     it("VComment to VText swap", () => {
@@ -2010,11 +2047,12 @@ describe("algorithm corner cases", () => {
 
       assertPatchProduces(leftNode, rightNode);
 
-      const rootNode = render(leftNode);
-      const patches = leftNode.diff(rightNode);
-      const newRoot = patches.applyTo(rootNode, { document });
-      expect(newRoot.childNodes[0].nodeType).toBe(3);
-      expect((newRoot.childNodes[0] as Text).data).toBe("hello");
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const root = container.childNodes[0];
+      expect(root.childNodes[0].nodeType).toBe(3);
+      expect((root.childNodes[0] as Text).data).toBe("hello");
     });
 
     it("VComment to VNode swap", () => {
@@ -2049,15 +2087,10 @@ describe("algorithm corner cases", () => {
         h("div", null, [h("p", null, "SHALLOW")]),
       ]);
 
-      // Verify count values to confirm tree depth
-      expect((leftNode.childs[0] as VNode).count).toBe(3);
-      expect((leftNode.childs[1] as VNode).count).toBe(1);
-      expect((leftNode.childs[2] as VNode).count).toBe(2);
-
       assertPatchProduces(leftNode, rightNode);
     });
 
-    it("mixed VText/VComment/VNode children — index skip verification", () => {
+    it("mixed VText/VComment/VNode children — render verification", () => {
       const leftNode = h("div", null, [
         new VText("text1"),
         h("div", null, [h("span", null, "inner")]),
@@ -2072,10 +2105,6 @@ describe("algorithm corner cases", () => {
       ]);
 
       assertPatchProduces(leftNode, rightNode);
-
-      // 4 patches at indices 1, 4, 5, 7 (accounting for VNode count skips)
-      const patches = leftNode.diff(rightNode);
-      expect(patches.size).toBe(4);
     });
   });
 
@@ -2096,11 +2125,10 @@ describe("algorithm corner cases", () => {
         [],
       );
 
-      const patches = leftNode.diff(rightNode);
-      expect(patches.size).toBe(1);
-
-      const rootNode = render(leftNode) as HTMLElement;
-      const newRoot = patches.applyTo(rootNode, { document }) as HTMLElement;
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const newRoot = container.childNodes[0] as HTMLElement;
 
       expect(newRoot.style.fontSize).toBe("16px");
       expect(newRoot.style.color).toBe("red");
@@ -2114,14 +2142,10 @@ describe("algorithm corner cases", () => {
       expect(a.attrCount).toBe(b.attrCount);
       expect(a.isEqualTo(b)).toBe(false);
 
-      const patches = a.diff(b);
-      expect(patches.size).toBe(1);
+      // Re-render should produce different result
+      assertPatchProduces(a, b);
     });
   });
-
-  // =========================================================================
-  // Multiple Patches & VComment in Lists
-  // =========================================================================
 
   // =========================================================================
   // VComment CRUD as children
@@ -2134,12 +2158,13 @@ describe("algorithm corner cases", () => {
 
       assertPatchProduces(leftNode, rightNode);
 
-      const rootNode = render(leftNode);
-      const patches = leftNode.diff(rightNode);
-      const newRoot = patches.applyTo(rootNode, { document });
-      expect(newRoot.childNodes.length).toBe(2);
-      expect(newRoot.childNodes[1].nodeType).toBe(8);
-      expect((newRoot.childNodes[1] as Comment).data).toBe("new");
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const root = container.childNodes[0];
+      expect(root.childNodes.length).toBe(2);
+      expect(root.childNodes[1].nodeType).toBe(8);
+      expect((root.childNodes[1] as Comment).data).toBe("new");
     });
 
     it("edit VComment text", () => {
@@ -2148,11 +2173,12 @@ describe("algorithm corner cases", () => {
 
       assertPatchProduces(leftNode, rightNode);
 
-      const rootNode = render(leftNode);
-      const patches = leftNode.diff(rightNode);
-      const newRoot = patches.applyTo(rootNode, { document });
-      expect(newRoot.childNodes[0].nodeType).toBe(8);
-      expect((newRoot.childNodes[0] as Comment).data).toBe("new");
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const root = container.childNodes[0];
+      expect(root.childNodes[0].nodeType).toBe(8);
+      expect((root.childNodes[0] as Comment).data).toBe("new");
     });
 
     it("remove VComment child", () => {
@@ -2161,22 +2187,25 @@ describe("algorithm corner cases", () => {
 
       assertPatchProduces(leftNode, rightNode);
 
-      const rootNode = render(leftNode);
-      const patches = leftNode.diff(rightNode);
-      const newRoot = patches.applyTo(rootNode, { document });
-      expect(newRoot.childNodes.length).toBe(1);
-      expect((newRoot.childNodes[0] as Element).tagName).toBe("SPAN");
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const root = container.childNodes[0];
+      expect(root.childNodes.length).toBe(1);
+      expect((root.childNodes[0] as Element).tagName).toBe("SPAN");
     });
 
     it("keep VComment unchanged — same DOM reference", () => {
       const leftNode = h("div", null, [new VComment("same"), h("span", null, "old")]);
       const rightNode = h("div", null, [new VComment("same"), h("span", null, "new")]);
 
-      const rootNode = render(leftNode);
-      const commentRef = rootNode.childNodes[0];
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      const root = container.childNodes[0];
+      const commentRef = root.childNodes[0];
 
-      const patches = leftNode.diff(rightNode);
-      const newRoot = patches.applyTo(rootNode, { document });
+      vdomRender(rightNode, container, { document });
+      const newRoot = container.childNodes[0];
 
       // Comment node should be the exact same DOM reference
       expect(newRoot.childNodes[0]).toBe(commentRef);
@@ -2189,14 +2218,14 @@ describe("algorithm corner cases", () => {
   // =========================================================================
 
   describe("key change and removal", () => {
-    it("change key — same tag but different key produces PatchNode", () => {
+    it("change key — same tag but different key replaces element", () => {
       const leftNode = h("div", null, [h("div", { key: "a" }, "text")]);
       const rightNode = h("div", null, [h("div", { key: "b" }, "text")]);
 
       assertPatchProduces(leftNode, rightNode);
     });
 
-    it("remove key — keyed to unkeyed produces PatchNode", () => {
+    it("remove key — keyed to unkeyed replaces element", () => {
       const leftNode = h("div", null, [h("div", { key: "a" }, "text")]);
       const rightNode = h("div", null, [h("div", null, "text")]);
 
@@ -2213,11 +2242,10 @@ describe("algorithm corner cases", () => {
       const leftNode = h("div", {}, []);
       const rightNode = h("div", { style: "color: red" }, []);
 
-      const patches = leftNode.diff(rightNode);
-      expect(patches.size).toBe(1);
-
-      const rootNode = render(leftNode) as HTMLElement;
-      const newRoot = patches.applyTo(rootNode, { document }) as HTMLElement;
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const newRoot = container.childNodes[0] as HTMLElement;
       expect(newRoot.style.color).toBe("red");
     });
 
@@ -2225,11 +2253,10 @@ describe("algorithm corner cases", () => {
       const leftNode = h("div", { style: "color: red; margin: 5px" }, []);
       const rightNode = h("div", {}, []);
 
-      const patches = leftNode.diff(rightNode);
-      expect(patches.size).toBe(1);
-
-      const rootNode = render(leftNode) as HTMLElement;
-      const newRoot = patches.applyTo(rootNode, { document }) as HTMLElement;
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const newRoot = container.childNodes[0] as HTMLElement;
       expect(newRoot.style.color).toBe("");
       expect(newRoot.style.margin).toBe("");
     });
@@ -2252,17 +2279,14 @@ describe("algorithm corner cases", () => {
         h("div", { key: "b" }, "b"),
       ]);
 
-      const patches = leftNode.diff(rightNode);
-      const rootPatches = patches.get(0);
-      expect(rootPatches).toBeDefined();
-      expect(rootPatches?.length).toBeGreaterThanOrEqual(2);
-
-      const hasProps = rootPatches?.some((p) => p instanceof PatchProps);
-      const hasReorder = rootPatches?.some((p) => p instanceof PatchReorder);
-      expect(hasProps).toBe(true);
-      expect(hasReorder).toBe(true);
-
       assertPatchProduces(leftNode, rightNode);
+
+      // Verify props were applied
+      const container = document.createElement("div");
+      vdomRender(leftNode, container, { document });
+      vdomRender(rightNode, container, { document });
+      const root = container.childNodes[0] as HTMLElement;
+      expect(root.className).toBe("new");
     });
 
     it("VComment siblings mixed with keyed VNode children", () => {

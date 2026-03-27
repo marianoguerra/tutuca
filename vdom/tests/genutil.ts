@@ -73,7 +73,7 @@ export function randClassName(rng: Rng, maxClasses = 3): string {
 
 /**
  * Convert a camelCase CSS property name to kebab-case.
- * e.g. "backgroundColor" → "background-color"
+ * e.g. "backgroundColor" -> "background-color"
  */
 function camelToKebab(prop: string): string {
   return prop.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -81,7 +81,7 @@ function camelToKebab(prop: string): string {
 
 /**
  * Convert a kebab-case CSS property name to camelCase.
- * e.g. "background-color" → "backgroundColor"
+ * e.g. "background-color" -> "backgroundColor"
  */
 function kebabToCamel(prop: string): string {
   return prop.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
@@ -89,7 +89,7 @@ function kebabToCamel(prop: string): string {
 
 /**
  * Serialize a style object to a CSS string.
- * e.g. { color: "red", backgroundColor: "blue" } → "color: red; background-color: blue"
+ * e.g. { color: "red", backgroundColor: "blue" } -> "color: red; background-color: blue"
  */
 function styleToCss(obj: Record<string, string>): string {
   return Object.entries(obj)
@@ -99,7 +99,7 @@ function styleToCss(obj: Record<string, string>): string {
 
 /**
  * Parse a CSS string into a camelCase style object.
- * e.g. "color: red; background-color: blue" → { color: "red", backgroundColor: "blue" }
+ * e.g. "color: red; background-color: blue" -> { color: "red", backgroundColor: "blue" }
  */
 function cssToStyleObj(css: string): Record<string, string> {
   const obj: Record<string, string> = {};
@@ -437,38 +437,6 @@ function recomputeAttrCount(node: VNode): void {
 }
 
 /**
- * Recompute VNode.count for a node and all its ancestors along a path.
- * count is set in the VNode constructor and becomes stale when childs
- * are mutated in-place (splice, assignment). This must be called after
- * any mutation that adds, removes, or replaces children.
- */
-function recomputeCounts(root: VNode, path: number[]): void {
-  const ancestors: VNode[] = [root];
-  let current: VNode = root;
-  for (const idx of path) {
-    const child = current.childs[idx];
-    if (child instanceof VNode) {
-      ancestors.push(child);
-      current = child;
-    } else {
-      break;
-    }
-  }
-  // Recompute bottom-up so parent sees updated child counts
-  for (let i = ancestors.length - 1; i >= 0; i--) {
-    const node = ancestors[i];
-    let count = 0;
-    for (const child of node.childs) {
-      count += 1;
-      if (child instanceof VNode) {
-        count += child.count || 0;
-      }
-    }
-    node.count = count;
-  }
-}
-
-/**
  * Apply a mutation to a tree, returning a new tree
  */
 export function applyMutation(root: VNode, mutation: Mutation, rng: Rng): VNode {
@@ -592,9 +560,6 @@ export function applyMutation(root: VNode, mutation: Mutation, rng: Rng): VNode 
       break;
     }
   }
-
-  // Recompute count along the mutation path to fix stale values
-  recomputeCounts(clone, mutation.path);
 
   return clone;
 }

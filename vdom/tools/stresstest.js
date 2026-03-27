@@ -2,7 +2,7 @@
 /**
  * VDOM Stress Test
  *
- * Runs N iterations of random tree generation, mutation, diff, and patch
+ * Runs N iterations of random tree generation, mutation, render, and morph
  * to verify the VDOM implementation correctness.
  *
  * Usage: bun tools/stresstest.js [iterations] [seed]
@@ -112,17 +112,20 @@ for (let i = 0; i < iterations; i++) {
     mutatedTree = applyMutation(mutatedTree, mutation, mutationRng);
   }
 
-  // Diff and patch
-  const patches = originalTree.diff(mutatedTree);
-  const rootDom = originalTree.toDom({ document });
-  const patchedDom = patches.applyTo(rootDom, { document });
+  // Render original, then morph to mutated
+  const container = document.createElement("div");
+  const warnings = [];
+  const opts = { document, onWarning: (w) => warnings.push(w) };
+  vdomRender(originalTree, container, opts);
+  vdomRender(mutatedTree, container, opts);
 
   // Fresh render for comparison
-  const expectedDom = mutatedTree.toDom({ document });
+  const expectedContainer = document.createElement("div");
+  vdomRender(mutatedTree, expectedContainer, { document });
 
   // Compare
-  const isMatch = compareDom(patchedDom, expectedDom);
-  const hasWarnings = patches.warnings && patches.warnings.length > 0;
+  const isMatch = compareDom(container, expectedContainer);
+  const hasWarnings = warnings.length > 0;
 
   if (hasWarnings) {
     warningsCount++;
@@ -134,10 +137,11 @@ for (let i = 0; i < iterations; i++) {
       console.error(`\nMISMATCH at iteration ${i + 1}`);
       console.error(`Seed: ${seed}`);
       console.error(`Mutations: ${mutationCount}`);
-      console.error(`Patch count: ${patches.size}`);
       console.error("\nOriginal tree:", JSON.stringify(serializeTree(originalTree), null, 2));
       console.error("\nMutated tree:", JSON.stringify(serializeTree(mutatedTree), null, 2));
       console.error("\nMutations:", JSON.stringify(mutations, null, 2));
+      console.error("\nExpected DOM:", expectedContainer.innerHTML);
+      console.error("Actual DOM:", container.innerHTML);
       process.exit(1);
     }
   }

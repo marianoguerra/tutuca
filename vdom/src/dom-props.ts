@@ -31,27 +31,20 @@ function applyProperties(node: Element, props: Props, previous: Props): void {
   }
 }
 
-// Map DOM property names to their HTML attribute counterparts
-const PROP_TO_ATTR: Record<string, string> = {
-  className: "class",
-  htmlFor: "for",
-};
-
 function removeProperty(node: Element, propName: string, previous: Props): void {
-  if (previous) {
-    const previousValue = previous[propName];
+  const previousValue = previous[propName];
 
-    if (isHtmlAttribute(propName)) {
-      // aria-* and data-* must use removeAttribute
-      node.removeAttribute(propName);
-    } else if (typeof previousValue === "string") {
-      setDomProp(node, propName, "");
-      // Remove the underlying HTML attribute so the DOM matches a fresh render
-      const attrName = PROP_TO_ATTR[propName] || propName;
-      node.removeAttribute(attrName);
-    } else {
-      setDomProp(node, propName, null);
-    }
+  if (isHtmlAttribute(propName)) {
+    // aria-* and data-* must use removeAttribute
+    node.removeAttribute(propName);
+  } else if (typeof previousValue === "string") {
+    setDomProp(node, propName, "");
+    // Remove the underlying HTML attribute so the DOM matches a fresh render
+    const attrName =
+      propName === "className" ? "class" : propName === "htmlFor" ? "for" : propName;
+    node.removeAttribute(attrName);
+  } else {
+    setDomProp(node, propName, null);
   }
 }
 
@@ -61,7 +54,7 @@ function patchObject(
   propName: string,
   propValue: Props,
 ): void {
-  const previousValue = previous ? previous[propName] : undefined;
+  const previousValue = previous?.[propName];
 
   if (
     previousValue &&
@@ -72,15 +65,15 @@ function patchObject(
     return;
   }
 
-  if (
-    typeof getDomProp(node, propName) !== "object" ||
-    getDomProp(node, propName) === null
-  ) {
+  let current = getDomProp(node, propName);
+  if (typeof current !== "object" || current === null) {
     setDomProp(node, propName, {});
+    current = getDomProp(node, propName);
   }
 
+  const target = current as Record<string, unknown>;
   for (const k in propValue) {
-    (getDomProp(node, propName) as Record<string, unknown>)[k] = propValue[k];
+    target[k] = propValue[k];
   }
 }
 

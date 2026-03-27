@@ -2,8 +2,8 @@ dist: dist-tutuca
   rm -rf dist
   cp -r tutuca/dist dist
 
-dist-vdom target="vdom-render":
-  cd {{target}} && just dist && cp dist/vdom.js ../tutuca/deps/vdom.js
+dist-vdom:
+  cd vdom && just dist && cp dist/vdom.js ../tutuca/deps/vdom.js
 
 dist-immutable repo="https://github.com/marianoguerra/immutable-js.git" branch="7.x":
   git clone --depth 1 --branch {{branch}} {{repo}}
@@ -12,3 +12,9 @@ dist-immutable repo="https://github.com/marianoguerra/immutable-js.git" branch="
 
 dist-tutuca: dist-vdom dist-immutable
   cd tutuca && just dist
+
+publish: dist
+  cd tutuca && npm publish --access public
+
+publish-dry: dist
+  cd tutuca && npm publish --dry-run
