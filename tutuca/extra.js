@@ -4,11 +4,7 @@ import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 export { KList } from "./extra/klist.js";
 export * from "./index.js";
 
-export async function compileClassesToStyle(
-  app,
-  compileClasses,
-  styleId = "margaui-css",
-) {
+export async function compileClassesToStyle(app, compileClasses, styleId = "margaui-css") {
   const t1 = performance.now();
   const css = await compileClassesToStyleText(app, compileClasses);
   const t2 = performance.now();
