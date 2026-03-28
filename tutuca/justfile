@@ -57,6 +57,9 @@ render-examples MODULE:
 component-api-docs MODULE:
     bun tools/component-api-docs.js {{MODULE}}
 
+vdom-stresstest iterations="100000" seed="":
+    bun tools/vdom-stresstest.js {{iterations}} {{seed}}
+
 smoke-test-cli-render-examples:
     bun tools/render-examples.js ./test/todo.js
 

@@ -1,4 +1,4 @@
-import { h, render, VComment, VFragment } from "./deps/vdom.js";
+import { h, render, VComment, VFragment } from "./src/vdom.js";
 import { Macro, ParseContext } from "./src/anode.js";
 import { App } from "./src/app.js";
 import { Components } from "./src/components.js";

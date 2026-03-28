@@ -1,4 +1,4 @@
-import { h, render, VComment, VFragment } from "../../deps/vdom.js";
+import { h, render, VComment, VFragment } from "../vdom.js";
 import { App } from "../app.js";
 import { Components } from "../components.js";
 import { Renderer } from "../renderer.js";
