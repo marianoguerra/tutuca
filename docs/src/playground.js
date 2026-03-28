@@ -32,6 +32,23 @@ export class TutucaPlayground extends HTMLElement {
       padding: 1rem;
       overflow: auto;
     }
+    @media (max-width: 768px) {
+      :host {
+        flex-direction: column;
+        max-height: none;
+      }
+      .editor {
+        height: 40vh;
+        flex: none;
+      }
+      .editor code-mirror {
+        min-height: 0;
+      }
+      .preview {
+        height: 40vh;
+        flex: none;
+      }
+    }
   `;
 
   constructor() {

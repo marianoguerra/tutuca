@@ -9,6 +9,12 @@ body {
   background-color: #fafaff;
 }
 
+@media (max-width: 768px) {
+  body {
+    padding: 1em 0.75em;
+  }
+}
+
 h1,
 h2 {
   text-align: center;
