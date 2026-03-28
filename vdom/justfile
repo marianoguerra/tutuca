@@ -25,12 +25,8 @@ fmt:
 check:
     npx @biomejs/biome check --write src tests
 
-# Type-check TypeScript files
-typecheck:
-    bunx tsc --noEmit
-
-# Run all checks (lint, format, typecheck, test) and build
-ci: check typecheck test dist
+# Run all checks (lint, format, test) and build
+ci: check test dist
 
 # Install dependencies
 install:
@@ -40,11 +36,10 @@ install:
 dist:
     rm -rf dist
     mkdir -p dist
-    bun build src/vdom.ts --outfile dist/vdom.js --format esm
-    bun build src/vdom.ts --outfile dist/vdom.min.js --format esm --minify
+    bun build src/vdom.js --outfile dist/vdom.js --format esm
+    bun build src/vdom.js --outfile dist/vdom.min.js --format esm --minify
     gzip -k -9 dist/vdom.min.js
     brotli -k dist/vdom.min.js
-    bunx tsc --project tsconfig.dist.json
 
 # Serve the playground (builds dist first)
 serve: dist
