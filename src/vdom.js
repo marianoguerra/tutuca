@@ -1,5 +1,4 @@
-// src/dom-props.ts
-function isHtmlAttribute(propName) {
+export function isHtmlAttribute(propName) {
   return propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
 }
 function getDomProp(node, propName) {
@@ -8,7 +7,7 @@ function getDomProp(node, propName) {
 function setDomProp(node, propName, value) {
   node[propName] = value;
 }
-function applyProperties(node, props, previous) {
+export function applyProperties(node, props, previous) {
   for (const propName in props) {
     const propValue = props[propName];
     if (propValue === undefined) {
@@ -38,7 +37,11 @@ function removeProperty(node, propName, previous) {
 }
 function patchObject(node, previous, propName, propValue) {
   const previousValue = previous?.[propName];
-  if (previousValue && typeof previousValue === "object" && Object.getPrototypeOf(previousValue) !== Object.getPrototypeOf(propValue)) {
+  if (
+    previousValue &&
+    typeof previousValue === "object" &&
+    Object.getPrototypeOf(previousValue) !== Object.getPrototypeOf(propValue)
+  ) {
     setDomProp(node, propName, propValue);
     return;
   }
@@ -52,30 +55,25 @@ function patchObject(node, previous, propName, propValue) {
     target[k] = propValue[k];
   }
 }
-// src/types.ts
-class Warning {
-  type;
-  message;
+export class Warning {
   constructor(type, message) {
     this.type = type;
     this.message = message;
   }
 }
-
-class DuplicatedKeysWarning extends Warning {
-  duplicatedKeys;
-  parentTag;
-  parentIndex;
+export class DuplicatedKeysWarning extends Warning {
   constructor(duplicatedKeys, parentTag, parentIndex) {
     const keys = [...duplicatedKeys].join(", ");
-    super("DuplicatedKeys", `Duplicate keys found: [${keys}] in ${parentTag || "fragment"} at index ${parentIndex}. Nodes with duplicated keys are matched positionally.`);
+    super(
+      "DuplicatedKeys",
+      `Duplicate keys found: [${keys}] in ${parentTag || "fragment"} at index ${parentIndex}. Nodes with duplicated keys are matched positionally.`,
+    );
     this.duplicatedKeys = duplicatedKeys;
     this.parentTag = parentTag;
     this.parentIndex = parentIndex;
   }
 }
-// src/vdom.ts
-class VBase {
+export class VBase {
   isEqualTo(other) {
     return this === other;
   }
@@ -111,9 +109,7 @@ function addChild(normalizedChildren, child) {
     normalizedChildren.push(new VText(child));
   }
 }
-
-class VText extends VBase {
-  text;
+export class VText extends VBase {
   constructor(text) {
     super();
     this.text = String(text);
@@ -128,9 +124,7 @@ class VText extends VBase {
     return opts.document.createTextNode(this.text);
   }
 }
-
-class VComment extends VBase {
-  text;
+export class VComment extends VBase {
   constructor(text) {
     super();
     this.text = text;
@@ -145,9 +139,7 @@ class VComment extends VBase {
     return opts.document.createComment(this.text);
   }
 }
-
-class VFragment extends VBase {
-  childs;
+export class VFragment extends VBase {
   constructor(childs) {
     super();
     const normalized = [];
@@ -161,7 +153,7 @@ class VFragment extends VBase {
     if (!(other instanceof VFragment) || this.childs.length !== other.childs.length) {
       return false;
     }
-    for (let i = 0;i < this.childs.length; i++) {
+    for (let i = 0; i < this.childs.length; i++) {
       if (!this.childs[i].isEqualTo(other.childs[i])) {
         return false;
       }
@@ -179,14 +171,7 @@ class VFragment extends VBase {
     return fragment;
   }
 }
-
-class VNode extends VBase {
-  tag;
-  attrs;
-  childs;
-  key;
-  namespace;
-  attrCount;
+export class VNode extends VBase {
   constructor(tag, attrs, childs, key, namespace) {
     super();
     this.tag = tag;
@@ -200,7 +185,14 @@ class VNode extends VBase {
     return 1;
   }
   isEqualTo(other) {
-    if (!(other instanceof VNode) || this.tag !== other.tag || this.key !== other.key || this.namespace !== other.namespace || this.attrCount !== other.attrCount || this.childs.length !== other.childs.length) {
+    if (
+      !(other instanceof VNode) ||
+      this.tag !== other.tag ||
+      this.key !== other.key ||
+      this.namespace !== other.namespace ||
+      this.attrCount !== other.attrCount ||
+      this.childs.length !== other.childs.length
+    ) {
       return false;
     }
     for (const key in this.attrs) {
@@ -208,7 +200,7 @@ class VNode extends VBase {
         return false;
       }
     }
-    for (let i = 0;i < this.childs.length; i++) {
+    for (let i = 0; i < this.childs.length; i++) {
       if (!this.childs[i].isEqualTo(other.childs[i])) {
         return false;
       }
@@ -217,7 +209,10 @@ class VNode extends VBase {
   }
   toDom(opts) {
     const doc = opts.document;
-    const node = this.namespace === null ? doc.createElement(this.tag) : doc.createElementNS(this.namespace, this.tag);
+    const node =
+      this.namespace === null
+        ? doc.createElement(this.tag)
+        : doc.createElementNS(this.namespace, this.tag);
     applyProperties(node, this.attrs, {});
     for (const child of this.childs) {
       const childNode = child.toDom(opts);
@@ -238,7 +233,13 @@ function diffProps(a, b) {
     }
     const aValue = a[aKey];
     const bValue = b[aKey];
-    if (aValue === bValue) {} else if (typeof aValue === "object" && aValue !== null && typeof bValue === "object" && bValue !== null) {
+    if (aValue === bValue) {
+    } else if (
+      typeof aValue === "object" &&
+      aValue !== null &&
+      typeof bValue === "object" &&
+      bValue !== null
+    ) {
       if (Object.getPrototypeOf(bValue) !== Object.getPrototypeOf(aValue)) {
         diff ??= {};
         diff[aKey] = bValue;
@@ -268,16 +269,19 @@ function reorder(oldChildren, newChildren) {
     return {
       children: newChildren,
       moves: null,
-      duplicatedKeys: rawNew.duplicatedKeys
+      duplicatedKeys: rawNew.duplicatedKeys,
     };
   }
   const rawOld = keyIndex(oldChildren);
-  const duplicatedKeys = rawNew.duplicatedKeys || rawOld.duplicatedKeys ? new Set([...rawNew.duplicatedKeys || [], ...rawOld.duplicatedKeys || []]) : null;
+  const duplicatedKeys =
+    rawNew.duplicatedKeys || rawOld.duplicatedKeys
+      ? new Set([...(rawNew.duplicatedKeys || []), ...(rawOld.duplicatedKeys || [])])
+      : null;
   if (rawOld.free.length === oldChildren.length) {
     return {
       children: newChildren,
       moves: null,
-      duplicatedKeys
+      duplicatedKeys,
     };
   }
   let newKeys;
@@ -297,7 +301,7 @@ function reorder(oldChildren, newChildren) {
   let freeIndex = 0;
   const freeCount = newFree.length;
   let deletedItems = 0;
-  for (let i = 0;i < oldChildren.length; i++) {
+  for (let i = 0; i < oldChildren.length; i++) {
     const oldItem = oldChildren[i];
     const oldKey = effectiveKey(oldItem, duplicatedKeys);
     if (oldKey) {
@@ -319,7 +323,7 @@ function reorder(oldChildren, newChildren) {
     }
   }
   const lastFreeIndex = freeIndex >= newFree.length ? newChildren.length : newFree[freeIndex];
-  for (let j = 0;j < newChildren.length; j++) {
+  for (let j = 0; j < newChildren.length; j++) {
     const newItem = newChildren[j];
     const newKey = effectiveKey(newItem, duplicatedKeys);
     if (newKey) {
@@ -339,10 +343,10 @@ function computeMoves(reordered, newChildren, newKeys, duplicatedKeys, deletedIt
   const removes = [];
   const inserts = [];
   const wantedKeys = new Array(newChildren.length);
-  for (let i = 0;i < newChildren.length; i++) {
+  for (let i = 0; i < newChildren.length; i++) {
     wantedKeys[i] = effectiveKey(newChildren[i], duplicatedKeys);
   }
-  for (let k = 0;k < newChildren.length; ) {
+  for (let k = 0; k < newChildren.length; ) {
     const wantedKey = wantedKeys[k];
     let simulateItem = simulate[simulateIndex];
     let simulateKey = effectiveKey(simulateItem, duplicatedKeys);
@@ -385,7 +389,7 @@ function computeMoves(reordered, newChildren, newKeys, duplicatedKeys, deletedIt
     simulate.splice(simulateIndex, 1);
     removes.push({
       from: simulateIndex,
-      key: effectiveKey(simulateItem, duplicatedKeys)
+      key: effectiveKey(simulateItem, duplicatedKeys),
     });
   }
   if (removes.length === deletedItems && !inserts.length) {
@@ -397,11 +401,11 @@ function keyIndex(children, excludeKeys) {
   const keys = {};
   const free = [];
   let duplicatedKeys = null;
-  for (let i = 0;i < children.length; i++) {
+  for (let i = 0; i < children.length; i++) {
     const key = getKey(children[i]);
     if (key && !excludeKeys?.has(key)) {
       if (key in keys) {
-        duplicatedKeys ??= new Set;
+        duplicatedKeys ??= new Set();
         duplicatedKeys.add(key);
       }
       keys[key] = i;
@@ -420,13 +424,21 @@ function replaceNode(domNode, vnode, options) {
   return newNode || domNode;
 }
 function morphNode(domNode, source, target, opts) {
-  if (source === target || source.isEqualTo(target))
-    return domNode;
-  if (source instanceof VText && target instanceof VText || source instanceof VComment && target instanceof VComment) {
+  if (source === target || source.isEqualTo(target)) return domNode;
+  if (
+    (source instanceof VText && target instanceof VText) ||
+    (source instanceof VComment && target instanceof VComment)
+  ) {
     domNode.data = target.text;
     return domNode;
   }
-  if (source instanceof VNode && target instanceof VNode && source.tag === target.tag && source.namespace === target.namespace && source.key === target.key) {
+  if (
+    source instanceof VNode &&
+    target instanceof VNode &&
+    source.tag === target.tag &&
+    source.namespace === target.namespace &&
+    source.key === target.key
+  ) {
     const propsDiff = diffProps(source.attrs, target.attrs);
     if (propsDiff) {
       applyProperties(domNode, propsDiff, source.attrs);
@@ -444,8 +456,7 @@ function morphChildren(parentDom, oldChilds, newChilds, parentTag, opts) {
   if (oldChilds.length === 0) {
     for (const child of newChilds) {
       const node = child.toDom(opts);
-      if (node)
-        parentDom.appendChild(node);
+      if (node) parentDom.appendChild(node);
     }
     return;
   }
@@ -465,13 +476,12 @@ function morphChildren(parentDom, oldChilds, newChilds, parentTag, opts) {
   const reorderedLen = reorderedChilds.length;
   const len = Math.max(oldLen, reorderedLen);
   const toRemove = [];
-  for (let i = 0;i < len; i++) {
+  for (let i = 0; i < len; i++) {
     const leftNode = oldChilds[i];
     const rightNode = reorderedChilds[i];
     if (!leftNode && rightNode) {
       const newNode = rightNode.toDom(opts);
-      if (newNode)
-        parentDom.appendChild(newNode);
+      if (newNode) parentDom.appendChild(newNode);
     } else if (leftNode && rightNode) {
       const domChild = domChildren[i];
       if (domChild) {
@@ -497,12 +507,11 @@ function applyMoves(domNode, moves) {
   const keyMap = {};
   for (const remove of moves.removes) {
     const node = childNodes[remove.from];
-    if (remove.key)
-      keyMap[remove.key] = node;
+    if (remove.key) keyMap[remove.key] = node;
     domNode.removeChild(node);
   }
   let length = childNodes.length;
-  for (let j = 0;j < moves.inserts.length; j++) {
+  for (let j = 0; j < moves.inserts.length; j++) {
     const insert = moves.inserts[j];
     const node = keyMap[insert.key];
     if (node) {
@@ -510,8 +519,8 @@ function applyMoves(domNode, moves) {
     }
   }
 }
-var renderCache = new WeakMap;
-function render(vnode, container, options) {
+var renderCache = new WeakMap();
+export function render(vnode, container, options) {
   const cached = renderCache.get(container);
   const isFragment = vnode instanceof VFragment;
   if (cached) {
@@ -521,7 +530,7 @@ function render(vnode, container, options) {
       const newDom = morphNode(rootNode, cached.vnode, vnode, options);
       renderCache.set(container, {
         vnode,
-        dom: isFragment ? container : newDom
+        dom: isFragment ? container : newDom,
       });
       return newDom;
     }
@@ -533,16 +542,16 @@ function render(vnode, container, options) {
     container.appendChild(domNode);
     renderCache.set(container, {
       vnode,
-      dom: isFragment ? container : domNode
+      dom: isFragment ? container : domNode,
     });
   }
   return domNode;
 }
-function unmount(container) {
+export function unmount(container) {
   renderCache.delete(container);
   container.innerHTML = "";
 }
-function h(tagName, properties, children) {
+export function h(tagName, properties, children) {
   const tag = tagName.toUpperCase();
   const props = {};
   let key;
@@ -568,17 +577,3 @@ function h(tagName, properties, children) {
   addChild(normalizedChildren, children);
   return new VNode(tag, props, normalizedChildren, key, namespace);
 }
-export {
-  unmount,
-  render,
-  isHtmlAttribute,
-  h,
-  applyProperties,
-  Warning,
-  VText,
-  VNode,
-  VFragment,
-  VComment,
-  VBase,
-  DuplicatedKeysWarning
-};
