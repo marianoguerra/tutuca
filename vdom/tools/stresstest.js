@@ -15,8 +15,8 @@ import {
   generateTree,
   generateMutation,
   applyMutation,
-} from "../tests/genutil.ts";
-import { VFragment, render as vdomRender, unmount } from "../src/vdom.ts";
+} from "../tests/genutil.js";
+import { VFragment, render as vdomRender, unmount } from "../src/vdom.js";
 
 // Parse CLI args
 const iterations = parseInt(process.argv[2], 10) || 100000;
