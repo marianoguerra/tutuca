@@ -28,8 +28,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/marianoguerra/tutuca.git",
-    "directory": "tutuca"
+    "url": "git+https://github.com/marianoguerra/tutuca.git"
   },
   "engines": {
     "node": ">=18"
