@@ -5,6 +5,8 @@ body {
     sans-serif;
   display: block;
   padding: 1em 2em;
+  color: #111115;
+  background-color: #fafaff;
 }
 
 h1,
@@ -22,8 +24,8 @@ tutuca-playground {
 }
 
 [data-theme="dark"] body {
-  background-color: #1a1a2e;
-  color: #e0e0e0;
+  background-color: #111115;
+  color: #f5f5fa;
 }
 
 [data-theme="dark"] a {
