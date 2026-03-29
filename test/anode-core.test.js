@@ -1,3 +1,4 @@
+import { describe, expect, test } from "bun:test";
 import { component, html } from "../index.js";
 import {
   ANode,
@@ -32,7 +33,6 @@ import {
   TypeVal,
   vp,
 } from "../src/value.js";
-import { describe, expect, test } from "bun:test";
 import { HeadlessParseContext, isTextNode, isTextNodeWithText } from "./dom.js";
 
 class DNode {

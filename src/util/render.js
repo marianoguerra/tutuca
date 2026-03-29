@@ -1,7 +1,7 @@
-import { h, render, VComment, VFragment } from "../vdom.js";
 import { App } from "../app.js";
 import { Components } from "../components.js";
 import { Renderer } from "../renderer.js";
+import { h, render, VComment, VFragment } from "../vdom.js";
 
 function reindexComponents(comps) {
   for (let i = 0; i < comps.length; i++) {

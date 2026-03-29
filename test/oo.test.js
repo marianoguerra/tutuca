@@ -1,6 +1,6 @@
+import { describe, expect, test } from "bun:test";
 import { IMap, List, OMap } from "../index.js";
 import { classFromData } from "../src/oo.js";
-import { describe, expect, test } from "bun:test";
 
 describe("OO", () => {
   test("from data: all types", () => {

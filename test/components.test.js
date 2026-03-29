@@ -1,7 +1,7 @@
+import { describe, expect, test } from "bun:test";
 import { component } from "../index.js";
 import { ComponentStack, Components, Dynamic, DynamicAlias } from "../src/components.js";
 import { Stack } from "../src/stack.js";
-import { describe, expect, test } from "bun:test";
 import { HeadlessParseContext as ParseContext } from "./dom.js";
 
 function setupStack(Comp) {

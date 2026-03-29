@@ -1,5 +1,5 @@
-import { BindFrame, ObjectFrame, NEXT, Pair, STOP } from "../src/stack.js";
 import { describe, expect, test } from "bun:test";
+import { BindFrame, NEXT, ObjectFrame, Pair, STOP } from "../src/stack.js";
 
 const pair = (a, b = null) => new Pair(a, b);
 const binds = (it, bindings = {}, isFrame = true) => new BindFrame(it, bindings, isFrame);

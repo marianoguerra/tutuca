@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { JSDOM } from "jsdom";
+import { format } from "prettier";
 import { Path } from "../src/path.js";
 import { renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext } from "./dom.js";
@@ -13,7 +14,6 @@ import {
   JsonObjectKeyVal,
   JsonString,
 } from "./json.js";
-import { format } from "prettier";
 
 const { document } = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>").window;
 globalThis.document = document;

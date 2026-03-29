@@ -22,4 +22,4 @@ export function parse(html) {
 export const isTextNode = (node) => node instanceof TextNode;
 export const isTextNodeWithText = (node, text) => node instanceof TextNode && node.v === text;
 
-export { DOMParser, Text, Comment };
+export { Comment, DOMParser, Text };

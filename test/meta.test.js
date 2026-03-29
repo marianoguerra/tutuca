@@ -1,3 +1,4 @@
+import { describe, expect, test } from "bun:test";
 import { Dynamic, DynamicAlias } from "../src/components.js";
 import { dynamicsToData, dynamicToData, valToString } from "../src/meta/datacomp.js";
 import {
@@ -10,7 +11,6 @@ import {
   RequestVal,
   TypeVal,
 } from "../src/value.js";
-import { describe, expect, test } from "bun:test";
 
 describe("datacomp", () => {
   test("valToString", () => {

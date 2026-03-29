@@ -1,6 +1,6 @@
+import { describe, expect, test } from "bun:test";
 import { Map as IMap, List } from "../deps/immutable.js";
 import { KList } from "../extra/klist.js";
-import { describe, expect, test } from "bun:test";
 
 describe("KList", () => {
   test("Constructor creates empty KList", () => {

@@ -137,10 +137,7 @@ export class App {
     this._transactNextBatchId = setTimeout(() => this._transactNextBatch(), 0);
   }
   startCacheEvictionInterval(intervalMs = 30000) {
-    this._evictCacheId = setInterval(
-      () => this.renderer.cache.evict(),
-      intervalMs,
-    );
+    this._evictCacheId = setInterval(() => this.renderer.cache.evict(), intervalMs);
   }
   stopCacheEvictionInterval() {
     clearInterval(this._evictCacheId);
