@@ -56,7 +56,10 @@ vdom-stresstest iterations="100000" seed="":
 
 smoke-test-cli-render-examples:
     bun tools/render-examples.js ./test/todo.js
+    bun tools/render-examples.js ./test/json.js
 
 smoke-test-cli-component-api-docs:
     bun tools/component-api-docs.js ./test/todo.js
     bun tools/component-api-docs.js ./test/json.js
+
+smoke-test: smoke-test-cli-render-examples smoke-test-cli-component-api-docs
