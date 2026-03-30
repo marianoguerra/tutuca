@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tutuca: Getting Started with MargaUI</title>
+    <link
+      rel="stylesheet"
+      href="https://marianoguerra.github.io/margaui/themes/theme.css"
+    />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { compile } from "https://esm.sh/margaui";
+      import {
+        compileClassesToStyleText,
+        component,
+        html,
+        injectCss,
+        tutuca,
+      } from "https://esm.sh/tutuca/es2022/extra.mjs";
+
+      const Counter = component({
+        name: "Counter",
+        fields: {
+          count: 0,
+        },
+        methods: {
+          inc() {
+            return this.setCount(this.count + 1);
+          },
+          dec() {
+            return this.setCount(this.count - 1);
+          },
+        },
+        view: html`<div class="p-3 join join-vertical">
+          <button class="btn btn-error" @on.click=".dec">-</button>
+          <div class="stats shadow">
+            <div class="stat text-center">
+              <div class="stat-title">Count</div>
+              <div class="stat-value" @text=".count"></div>
+              <div class="stat-desc">Current Count</div>
+            </div>
+          </div>
+          <button class="btn btn-success" @on.click=".inc">+</button>
+        </div>`,
+      });
+
+      async function main() {
+        const app = tutuca("#app");
+        app.state.set(Counter.make({}));
+        app.registerComponents([Counter]);
+
+        const style = await compileClassesToStyleText(app, compile);
+        injectCss("myapp", style);
+
+        app.start();
+      }
+
+      main();
+    </script>
+  </body>
+</html>

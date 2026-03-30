@@ -6,8 +6,6 @@ dist: clean
     just dist-mod "index.js" "tutuca"
     just dist-mod "extra.js" "tutuca-extra"
     just dist-mod "dev.js" "tutuca-dev"
-    cp -r resources/base-project dist/base-project
-    mkdir dist/base-project/deps
 
 dist-mod IN OUT:
     bun build {{IN}} --outfile dist/{{OUT}}.js --format esm
