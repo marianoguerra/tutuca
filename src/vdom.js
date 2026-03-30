@@ -1,12 +1,6 @@
 export function isHtmlAttribute(propName) {
   return propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
 }
-function getDomProp(node, propName) {
-  return node[propName];
-}
-function setDomProp(node, propName, value) {
-  node[propName] = value;
-}
 export function applyProperties(node, props, previous) {
   for (const propName in props) {
     const propValue = props[propName];
@@ -14,12 +8,12 @@ export function applyProperties(node, props, previous) {
       removeProperty(node, propName, previous);
     } else if (isHtmlAttribute(propName)) {
       node.setAttribute(propName, propValue);
+    } else if (typeof propValue === "object" && propValue !== null) {
+      patchObject(node, previous, propName, propValue);
+    } else if (propName === "className") {
+      node.setAttribute("class", propValue);
     } else {
-      if (typeof propValue === "object" && propValue !== null) {
-        patchObject(node, previous, propName, propValue);
-      } else {
-        setDomProp(node, propName, propValue);
-      }
+      node[propName] = propValue;
     }
   }
 }
@@ -28,11 +22,11 @@ function removeProperty(node, propName, previous) {
   if (isHtmlAttribute(propName)) {
     node.removeAttribute(propName);
   } else if (typeof previousValue === "string") {
-    setDomProp(node, propName, "");
+    if (propName !== "className") node[propName] = "";
     const attrName = propName === "className" ? "class" : propName === "htmlFor" ? "for" : propName;
     node.removeAttribute(attrName);
   } else {
-    setDomProp(node, propName, null);
+    node[propName] = null;
   }
 }
 function patchObject(node, previous, propName, propValue) {
@@ -42,36 +36,28 @@ function patchObject(node, previous, propName, propValue) {
     typeof previousValue === "object" &&
     Object.getPrototypeOf(previousValue) !== Object.getPrototypeOf(propValue)
   ) {
-    setDomProp(node, propName, propValue);
+    node[propName] = propValue;
     return;
   }
-  let current = getDomProp(node, propName);
+  let current = node[propName];
   if (typeof current !== "object" || current === null) {
-    setDomProp(node, propName, {});
-    current = getDomProp(node, propName);
+    node[propName] = {};
+    current = node[propName];
   }
   const target = current;
   for (const k in propValue) {
     target[k] = propValue[k];
   }
 }
-export class Warning {
-  constructor(type, message) {
-    this.type = type;
-    this.message = message;
-  }
-}
-export class DuplicatedKeysWarning extends Warning {
-  constructor(duplicatedKeys, parentTag, parentIndex) {
-    const keys = [...duplicatedKeys].join(", ");
-    super(
-      "DuplicatedKeys",
-      `Duplicate keys found: [${keys}] in ${parentTag || "fragment"} at index ${parentIndex}. Nodes with duplicated keys are matched positionally.`,
-    );
-    this.duplicatedKeys = duplicatedKeys;
-    this.parentTag = parentTag;
-    this.parentIndex = parentIndex;
-  }
+export function duplicatedKeysWarning(duplicatedKeys, parentTag, parentIndex) {
+  const keys = [...duplicatedKeys].join(", ");
+  return {
+    type: "DuplicatedKeys",
+    message: `Duplicate keys found: [${keys}] in ${parentTag || "fragment"} at index ${parentIndex}. Nodes with duplicated keys are matched positionally.`,
+    duplicatedKeys,
+    parentTag,
+    parentIndex,
+  };
 }
 export class VBase {
   isEqualTo(other) {
@@ -81,11 +67,8 @@ export class VBase {
     return null;
   }
 }
-function getKey(node) {
-  return node instanceof VNode ? node.key : undefined;
-}
 function effectiveKey(node, duplicatedKeys) {
-  const key = getKey(node);
+  const key = node instanceof VNode ? node.key : undefined;
   return key && duplicatedKeys?.has(key) ? undefined : key;
 }
 function isIterable(obj) {
@@ -179,7 +162,6 @@ export class VNode extends VBase {
     this.childs = childs ?? [];
     this.key = key != null ? String(key) : undefined;
     this.namespace = typeof namespace === "string" ? namespace : null;
-    this.attrCount = Object.keys(this.attrs).length;
   }
   get nodeType() {
     return 1;
@@ -190,13 +172,17 @@ export class VNode extends VBase {
       this.tag !== other.tag ||
       this.key !== other.key ||
       this.namespace !== other.namespace ||
-      this.attrCount !== other.attrCount ||
       this.childs.length !== other.childs.length
     ) {
       return false;
     }
     for (const key in this.attrs) {
       if (this.attrs[key] !== other.attrs[key]) {
+        return false;
+      }
+    }
+    for (const key in other.attrs) {
+      if (!Object.hasOwn(this.attrs, key)) {
         return false;
       }
     }
@@ -402,7 +388,7 @@ function keyIndex(children, excludeKeys) {
   const free = [];
   let duplicatedKeys = null;
   for (let i = 0; i < children.length; i++) {
-    const key = getKey(children[i]);
+    const key = children[i] instanceof VNode ? children[i].key : undefined;
     if (key && !excludeKeys?.has(key)) {
       if (key in keys) {
         duplicatedKeys ??= new Set();
@@ -469,7 +455,7 @@ function morphChildren(parentDom, oldChilds, newChilds, parentTag, opts) {
   const orderedSet = reorder(oldChilds, newChilds);
   const reorderedChilds = orderedSet.children;
   if (orderedSet.duplicatedKeys && opts.onWarning) {
-    opts.onWarning(new DuplicatedKeysWarning(orderedSet.duplicatedKeys, parentTag, 0));
+    opts.onWarning(duplicatedKeysWarning(orderedSet.duplicatedKeys, parentTag, 0));
   }
   const domChildren = Array.from(parentDom.childNodes);
   const oldLen = oldChilds.length;

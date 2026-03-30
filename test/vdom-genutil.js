@@ -137,9 +137,43 @@ export function getNodeAtPath(root, path) {
 // Tree generation
 // ---------------------------------------------------------------------------
 const TAGS = ["div", "span", "p", "section", "ul", "li", "article", "header", "footer"];
+export const SVG_NS = "http://www.w3.org/2000/svg";
+const SVG_TAGS = ["svg", "rect", "circle", "line", "path", "g", "text", "polygon"];
 /**
  * Generate a random VNode tree
  */
+/**
+ * Generate a random SVG subtree (always namespaced)
+ */
+function generateSvgTree(rng, depth = 0, options = {}) {
+  const {
+    maxDepth = 2,
+    includeSpacesInText = true,
+    includeNewlinesInText = true,
+  } = options;
+  const textOptions = {
+    includeSpaces: includeSpacesInText,
+    includeNewlines: includeNewlinesInText,
+  };
+  const isLeaf = depth >= maxDepth || rng() < 0.4;
+  // Inner SVG tags (not "svg" itself — that's only the root)
+  const innerTags = SVG_TAGS.filter((t) => t !== "svg");
+  if (isLeaf) {
+    const tag = pick(rng, innerTags);
+    const props = { namespace: SVG_NS };
+    if (rng() < 0.5) props.key = randString(rng, 5);
+    return h(tag, props, randString(rng, 10, textOptions));
+  }
+  const childCount = randInt(rng, 1, 3);
+  const children = [];
+  for (let i = 0; i < childCount; i++) {
+    children.push(generateSvgTree(rng, depth + 1, options));
+  }
+  const tag = pick(rng, innerTags);
+  const props = { namespace: SVG_NS };
+  if (rng() < 0.5) props.key = randString(rng, 5);
+  return h(tag, props, children);
+}
 export function generateTree(rng, depth = 0, options = {}) {
   const {
     maxDepth = 3,
@@ -187,6 +221,17 @@ export function generateTree(rng, depth = 0, options = {}) {
         includeNewlines: includeNewlinesInText,
       }),
     );
+  }
+  // Occasionally generate an SVG subtree instead of an HTML branch
+  if (depth > 0 && rng() < 0.15) {
+    const svgChildren = [];
+    const childCount = randInt(rng, 1, 3);
+    for (let i = 0; i < childCount; i++) {
+      svgChildren.push(generateSvgTree(rng, 0, options));
+    }
+    const props = { namespace: SVG_NS };
+    if (rng() < 0.5) props.key = randString(rng, 5);
+    return h("svg", props, svgChildren);
   }
   // Branch node
   const childCount = randInt(rng, 1, 4);
@@ -243,39 +288,54 @@ export function generateMutation(rng, tree, options = {}) {
       return { type, path, newText: randString(rng, 15, textOptions) };
     case "changeComment":
       return { type, path, newText: randString(rng, 15, textOptions) };
-    case "changeTag":
-      return { type, path, newTag: pick(rng, TAGS) };
+    case "changeTag": {
+      const target = getNodeAtPath(tree, path);
+      const tags = target && target.namespace === SVG_NS ? SVG_TAGS : TAGS;
+      return { type, path, newTag: pick(rng, tags) };
+    }
     case "addChild": {
+      const parent = getNodeAtPath(tree, path);
+      const isSvg = parent && parent.namespace === SVG_NS;
       let child;
       const r = rng();
-      if (r < 0.3) {
+      if (!isSvg && r < 0.3) {
         child = new VText(randString(rng, 10, textOptions));
-      } else if (r < 0.5) {
+      } else if (!isSvg && r < 0.5) {
         child = new VComment(randString(rng, 10, textOptions));
       } else if (r < 0.75) {
-        // Keyed node
-        child = h(pick(rng, TAGS), { key: randString(rng, 5) }, randString(rng, 8, textOptions));
+        const tags = isSvg ? SVG_TAGS : TAGS;
+        const props = isSvg
+          ? { key: randString(rng, 5), namespace: SVG_NS }
+          : { key: randString(rng, 5) };
+        child = h(pick(rng, tags), props, randString(rng, 8, textOptions));
       } else {
-        // Unkeyed node
-        child = h(pick(rng, TAGS), null, randString(rng, 8, textOptions));
+        const tags = isSvg ? SVG_TAGS : TAGS;
+        const props = isSvg ? { namespace: SVG_NS } : null;
+        child = h(pick(rng, tags), props, randString(rng, 8, textOptions));
       }
       return { type, path, child, index: randInt(rng, 0, 10) };
     }
     case "removeChild":
       return { type, path, index: randInt(rng, 0, 10) };
     case "replaceChild": {
+      const parent = getNodeAtPath(tree, path);
+      const isSvg = parent && parent.namespace === SVG_NS;
       let newChild;
       const r = rng();
-      if (r < 0.25) {
+      if (!isSvg && r < 0.25) {
         newChild = new VText(randString(rng, 10, textOptions));
-      } else if (r < 0.5) {
+      } else if (!isSvg && r < 0.5) {
         newChild = new VComment(randString(rng, 10, textOptions));
       } else if (r < 0.75) {
-        // Keyed node
-        newChild = h(pick(rng, TAGS), { key: randString(rng, 5) }, randString(rng, 8, textOptions));
+        const tags = isSvg ? SVG_TAGS : TAGS;
+        const props = isSvg
+          ? { key: randString(rng, 5), namespace: SVG_NS }
+          : { key: randString(rng, 5) };
+        newChild = h(pick(rng, tags), props, randString(rng, 8, textOptions));
       } else {
-        // Unkeyed node
-        newChild = h(pick(rng, TAGS), null, randString(rng, 8, textOptions));
+        const tags = isSvg ? SVG_TAGS : TAGS;
+        const props = isSvg ? { namespace: SVG_NS } : null;
+        newChild = h(pick(rng, tags), props, randString(rng, 8, textOptions));
       }
       return { type, path, index: randInt(rng, 0, 10), newChild };
     }
