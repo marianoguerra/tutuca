@@ -1,12 +1,11 @@
 body {
   font-family:
-    -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Nimbus Sans L",
-    Roboto, "Noto Sans", "Segoe UI", Arial, Helvetica, "Helvetica Neue",
-    sans-serif;
+    -apple-system, BlinkMacSystemFont, "Avenir Next", Avenir, "Nimbus Sans L", Roboto,
+    "Noto Sans", "Segoe UI", Arial, Helvetica, "Helvetica Neue", sans-serif;
   display: block;
   padding: 1em 2em;
   color: #111115;
-  background-color: #fafaff;
+  background-color: #ffffff;
 }
 
 @media (max-width: 768px) {

@@ -14,13 +14,13 @@ export class TutucaPlayground extends HTMLElement {
       flex-direction: column;
       gap: 0.5rem;
       overflow: auto;
+      border: 1px solid var(--b3, #2a323c);
+      border-radius: 0.5rem;
     }
     .editor code-mirror {
       width: 100%;
       flex: 1;
       min-height: 400px;
-      border: 1px solid var(--b3, #2a323c);
-      border-radius: 0.5rem;
       overflow: auto;
     }
     .editor kbd {
@@ -29,8 +29,10 @@ export class TutucaPlayground extends HTMLElement {
     }
     .preview {
       flex: 1;
-      padding: 1rem;
       overflow: auto;
+      border: 1px solid var(--b3, #2a323c);
+      border-radius: 0.5rem;
+      padding: 0.5rem;
     }
     @media (max-width: 768px) {
       :host {
@@ -60,11 +62,7 @@ export class TutucaPlayground extends HTMLElement {
   _adoptStyles(...extra) {
     const layout = new CSSStyleSheet();
     layout.replaceSync(TutucaPlayground.layoutSheet);
-    this.shadowRoot.adoptedStyleSheets = [
-      layout,
-      ...TutucaPlayground.styles,
-      ...extra,
-    ];
+    this.shadowRoot.adoptedStyleSheets = [layout, ...TutucaPlayground.styles, ...extra];
   }
 
   async connectedCallback() {
@@ -147,11 +145,7 @@ export class TutucaPlayground extends HTMLElement {
         extraCSSClasses = new Set(mod.getExtraCSSClasses());
       }
       app.state.set(mod.getRoot());
-      const styleText = await compileClassesToStyleText(
-        app,
-        compile,
-        extraCSSClasses,
-      );
+      const styleText = await compileClassesToStyleText(app, compile, extraCSSClasses);
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);

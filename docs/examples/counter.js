@@ -19,7 +19,7 @@ const Counter = component({
   },
   view: html`<div class="join join-vertical">
     <button class="btn btn-error" @on.click="dec">-</button>
-    <div class="stats shadow">
+    <div class="stats">
       <div class="stat text-center">
         <div class="stat-title">Count</div>
         <div class="stat-value" @text=".count"></div>

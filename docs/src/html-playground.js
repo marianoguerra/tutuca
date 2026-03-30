@@ -14,20 +14,19 @@ export class HtmlPlayground extends HTMLElement {
 
     const iframeSheet = new CSSStyleSheet();
     iframeSheet.replaceSync(`
+      .preview {
+        display: flex;
+      }
       .preview iframe {
         width: 100%;
-        height: 100%;
+        flex: 1;
         border: none;
-        border-radius: 0.5rem;
+        border-radius: 0.25rem;
         background: white;
       }
     `);
 
-    this.shadowRoot.adoptedStyleSheets = [
-      layout,
-      ...HtmlPlayground.styles,
-      iframeSheet,
-    ];
+    this.shadowRoot.adoptedStyleSheets = [layout, ...HtmlPlayground.styles, iframeSheet];
 
     this.shadowRoot.innerHTML = `
       <div class="editor">

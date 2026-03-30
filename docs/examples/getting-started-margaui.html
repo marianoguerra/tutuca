@@ -34,9 +34,9 @@
             return this.setCount(this.count - 1);
           },
         },
-        view: html`<div class="p-3 join join-vertical">
+        view: html`<div class="join join-vertical p-3">
           <button class="btn btn-error" @on.click=".dec">-</button>
-          <div class="stats shadow">
+          <div class="stats">
             <div class="stat text-center">
               <div class="stat-title">Count</div>
               <div class="stat-value" @text=".count"></div>
