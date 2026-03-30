@@ -1,8 +1,8 @@
-import { h, render, VComment, VFragment } from "./src/vdom.js";
 import { Macro, ParseContext } from "./src/anode.js";
 import { App } from "./src/app.js";
 import { Components } from "./src/components.js";
 import { Renderer } from "./src/renderer.js";
+import { h, render, VComment, VFragment } from "./src/vdom.js";
 
 export {
   isIndexed,
@@ -19,6 +19,7 @@ export {
   Set as ISet,
 } from "./deps/immutable.js";
 export { ParseContext } from "./src/anode.js";
+export { injectCss } from "./src/app.js";
 export { component, fieldsByClass } from "./src/oo.js";
 export { seqInfoByClass } from "./src/renderer.js";
 export const css = String.raw;
@@ -29,9 +30,7 @@ export function macro(defaults, rawView) {
 }
 
 const toNode = (nodeOrSelector) =>
-  typeof nodeOrSelector === "string"
-    ? document.querySelector(nodeOrSelector)
-    : nodeOrSelector;
+  typeof nodeOrSelector === "string" ? document.querySelector(nodeOrSelector) : nodeOrSelector;
 
 export function tutuca(nodeOrSelector) {
   const rootNode = toNode(nodeOrSelector);
