@@ -49,16 +49,6 @@ function patchObject(node, previous, propName, propValue) {
     target[k] = propValue[k];
   }
 }
-export function duplicatedKeysWarning(duplicatedKeys, parentTag, parentIndex) {
-  const keys = [...duplicatedKeys].join(", ");
-  return {
-    type: "DuplicatedKeys",
-    message: `Duplicate keys found: [${keys}] in ${parentTag || "fragment"} at index ${parentIndex}. Nodes with duplicated keys are matched positionally.`,
-    duplicatedKeys,
-    parentTag,
-    parentIndex,
-  };
-}
 export class VBase {
   isEqualTo(other) {
     return this === other;
@@ -67,9 +57,8 @@ export class VBase {
     return null;
   }
 }
-function effectiveKey(node, duplicatedKeys) {
-  const key = node instanceof VNode ? node.key : undefined;
-  return key && duplicatedKeys?.has(key) ? undefined : key;
+function getKey(child) {
+  return child instanceof VNode ? child.key : undefined;
 }
 function isIterable(obj) {
   return obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
@@ -249,158 +238,6 @@ function diffProps(a, b) {
   }
   return diff;
 }
-function reorder(oldChildren, newChildren) {
-  const rawNew = keyIndex(newChildren);
-  if (rawNew.free.length === newChildren.length) {
-    return {
-      children: newChildren,
-      moves: null,
-      duplicatedKeys: rawNew.duplicatedKeys,
-    };
-  }
-  const rawOld = keyIndex(oldChildren);
-  const duplicatedKeys =
-    rawNew.duplicatedKeys || rawOld.duplicatedKeys
-      ? new Set([...(rawNew.duplicatedKeys || []), ...(rawOld.duplicatedKeys || [])])
-      : null;
-  if (rawOld.free.length === oldChildren.length) {
-    return {
-      children: newChildren,
-      moves: null,
-      duplicatedKeys,
-    };
-  }
-  let newKeys;
-  let newFree;
-  let oldKeys;
-  if (duplicatedKeys) {
-    const updatedNew = keyIndex(newChildren, duplicatedKeys);
-    newKeys = updatedNew.keys;
-    newFree = updatedNew.free;
-    oldKeys = keyIndex(oldChildren, duplicatedKeys).keys;
-  } else {
-    newKeys = rawNew.keys;
-    newFree = rawNew.free;
-    oldKeys = rawOld.keys;
-  }
-  const reordered = [];
-  let freeIndex = 0;
-  const freeCount = newFree.length;
-  let deletedItems = 0;
-  for (let i = 0; i < oldChildren.length; i++) {
-    const oldItem = oldChildren[i];
-    const oldKey = effectiveKey(oldItem, duplicatedKeys);
-    if (oldKey) {
-      if (Object.hasOwn(newKeys, oldKey)) {
-        const itemIndex = newKeys[oldKey];
-        reordered.push(newChildren[itemIndex]);
-      } else {
-        deletedItems++;
-        reordered.push(null);
-      }
-    } else {
-      if (freeIndex < freeCount) {
-        const itemIndex = newFree[freeIndex++];
-        reordered.push(newChildren[itemIndex]);
-      } else {
-        deletedItems++;
-        reordered.push(null);
-      }
-    }
-  }
-  const lastFreeIndex = freeIndex >= newFree.length ? newChildren.length : newFree[freeIndex];
-  for (let j = 0; j < newChildren.length; j++) {
-    const newItem = newChildren[j];
-    const newKey = effectiveKey(newItem, duplicatedKeys);
-    if (newKey) {
-      if (!Object.hasOwn(oldKeys, newKey)) {
-        reordered.push(newItem);
-      }
-    } else if (j >= lastFreeIndex) {
-      reordered.push(newItem);
-    }
-  }
-  const moves = computeMoves(reordered, newChildren, newKeys, duplicatedKeys, deletedItems);
-  return { children: reordered, moves, duplicatedKeys };
-}
-function computeMoves(reordered, newChildren, newKeys, duplicatedKeys, deletedItems) {
-  const simulate = reordered.slice();
-  let simulateIndex = 0;
-  const removes = [];
-  const inserts = [];
-  const wantedKeys = new Array(newChildren.length);
-  for (let i = 0; i < newChildren.length; i++) {
-    wantedKeys[i] = effectiveKey(newChildren[i], duplicatedKeys);
-  }
-  for (let k = 0; k < newChildren.length; ) {
-    const wantedKey = wantedKeys[k];
-    let simulateItem = simulate[simulateIndex];
-    let simulateKey = effectiveKey(simulateItem, duplicatedKeys);
-    while (simulateItem === null && simulate.length) {
-      simulate.splice(simulateIndex, 1);
-      removes.push({ from: simulateIndex, key: null });
-      simulateItem = simulate[simulateIndex];
-      simulateKey = effectiveKey(simulateItem, duplicatedKeys);
-    }
-    if (simulateItem && simulateKey === wantedKey) {
-      simulateIndex++;
-      k++;
-      continue;
-    }
-    if (wantedKey) {
-      if (simulateKey && newKeys[simulateKey] !== k + 1) {
-        simulate.splice(simulateIndex, 1);
-        removes.push({ from: simulateIndex, key: simulateKey });
-        simulateItem = simulate[simulateIndex];
-        simulateKey = effectiveKey(simulateItem, duplicatedKeys);
-        if (simulateItem && simulateKey === wantedKey) {
-          simulateIndex++;
-          k++;
-          continue;
-        }
-      }
-      inserts.push({ key: wantedKey, to: k });
-      k++;
-      continue;
-    }
-    if (simulateKey) {
-      simulate.splice(simulateIndex, 1);
-      removes.push({ from: simulateIndex, key: simulateKey });
-      continue;
-    }
-    k++;
-  }
-  while (simulateIndex < simulate.length) {
-    const simulateItem = simulate[simulateIndex];
-    simulate.splice(simulateIndex, 1);
-    removes.push({
-      from: simulateIndex,
-      key: effectiveKey(simulateItem, duplicatedKeys),
-    });
-  }
-  if (removes.length === deletedItems && !inserts.length) {
-    return null;
-  }
-  return { removes, inserts };
-}
-function keyIndex(children, excludeKeys) {
-  const keys = {};
-  const free = [];
-  let duplicatedKeys = null;
-  for (let i = 0; i < children.length; i++) {
-    const key = children[i] instanceof VNode ? children[i].key : undefined;
-    if (key && !excludeKeys?.has(key)) {
-      if (key in keys) {
-        duplicatedKeys ??= new Set();
-        duplicatedKeys.add(key);
-      }
-      keys[key] = i;
-    } else {
-      free.push(i);
-    }
-  }
-  return { keys, free, duplicatedKeys };
-}
 function replaceNode(domNode, vnode, options) {
   const parentNode = domNode.parentNode;
   const newNode = vnode.toDom(options);
@@ -438,7 +275,7 @@ function morphNode(domNode, source, target, opts) {
   }
   return replaceNode(domNode, target, opts);
 }
-function morphChildren(parentDom, oldChilds, newChilds, parentTag, opts) {
+function morphChildren(parentDom, oldChilds, newChilds, _parentTag, opts) {
   if (oldChilds.length === 0) {
     for (const child of newChilds) {
       const node = child.toDom(opts);
@@ -452,56 +289,48 @@ function morphChildren(parentDom, oldChilds, newChilds, parentTag, opts) {
     }
     return;
   }
-  const orderedSet = reorder(oldChilds, newChilds);
-  const reorderedChilds = orderedSet.children;
-  if (orderedSet.duplicatedKeys && opts.onWarning) {
-    opts.onWarning(duplicatedKeysWarning(orderedSet.duplicatedKeys, parentTag, 0));
+  const domNodes = Array.from(parentDom.childNodes);
+  const oldKeyMap = {};
+  for (let i = 0; i < oldChilds.length; i++) {
+    const key = getKey(oldChilds[i]);
+    if (key != null) oldKeyMap[key] = i;
   }
-  const domChildren = Array.from(parentDom.childNodes);
-  const oldLen = oldChilds.length;
-  const reorderedLen = reorderedChilds.length;
-  const len = Math.max(oldLen, reorderedLen);
-  const toRemove = [];
-  for (let i = 0; i < len; i++) {
-    const leftNode = oldChilds[i];
-    const rightNode = reorderedChilds[i];
-    if (!leftNode && rightNode) {
-      const newNode = rightNode.toDom(opts);
-      if (newNode) parentDom.appendChild(newNode);
-    } else if (leftNode && rightNode) {
-      const domChild = domChildren[i];
-      if (domChild) {
-        morphNode(domChild, leftNode, rightNode, opts);
+  const used = new Uint8Array(oldChilds.length);
+  let unkeyedCursor = 0;
+  for (let j = 0; j < newChilds.length; j++) {
+    const newChild = newChilds[j];
+    const newKey = getKey(newChild);
+    let oldIdx = -1;
+    if (newKey != null) {
+      if (newKey in oldKeyMap && !used[oldKeyMap[newKey]]) {
+        oldIdx = oldKeyMap[newKey];
       }
-    } else if (leftNode && !rightNode) {
-      if (!orderedSet.moves && domChildren[i]) {
-        toRemove.push(domChildren[i]);
+    } else {
+      while (unkeyedCursor < oldChilds.length) {
+        if (!used[unkeyedCursor] && getKey(oldChilds[unkeyedCursor]) == null) {
+          oldIdx = unkeyedCursor++;
+          break;
+        }
+        unkeyedCursor++;
+      }
+    }
+    if (oldIdx >= 0) {
+      used[oldIdx] = 1;
+      const dom = domNodes[oldIdx];
+      const newDom = morphNode(dom, oldChilds[oldIdx], newChild, opts);
+      const ref = parentDom.childNodes[j] ?? null;
+      if (newDom !== ref) parentDom.insertBefore(newDom, ref);
+    } else {
+      const dom = newChild.toDom(opts);
+      if (dom) {
+        const ref = parentDom.childNodes[j] ?? null;
+        parentDom.insertBefore(dom, ref);
       }
     }
   }
-  for (const node of toRemove) {
-    if (node.parentNode === parentDom) {
-      parentDom.removeChild(node);
-    }
-  }
-  if (orderedSet.moves) {
-    applyMoves(parentDom, orderedSet.moves);
-  }
-}
-function applyMoves(domNode, moves) {
-  const childNodes = domNode.childNodes;
-  const keyMap = {};
-  for (const remove of moves.removes) {
-    const node = childNodes[remove.from];
-    if (remove.key) keyMap[remove.key] = node;
-    domNode.removeChild(node);
-  }
-  let length = childNodes.length;
-  for (let j = 0; j < moves.inserts.length; j++) {
-    const insert = moves.inserts[j];
-    const node = keyMap[insert.key];
-    if (node) {
-      domNode.insertBefore(node, insert.to >= length++ ? null : childNodes[insert.to]);
+  for (let i = oldChilds.length - 1; i >= 0; i--) {
+    if (!used[i] && domNodes[i].parentNode === parentDom) {
+      parentDom.removeChild(domNodes[i]);
     }
   }
 }

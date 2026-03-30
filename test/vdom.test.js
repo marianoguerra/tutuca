@@ -989,9 +989,8 @@ describe("aria-* and data-* attributes", () => {
 // =============================================================================
 // Duplicate Key Diagnostics (static tests)
 // =============================================================================
-describe("duplicate key diagnostics", () => {
-  it("warns on duplicate keys", () => {
-    // Two children with the same key
+describe("duplicate key behavior", () => {
+  it("duplicate keys produce correct DOM (last key wins in map)", () => {
     const leftTree = h("div", null, [
       h("div", { key: "a" }, "first"),
       h("div", { key: "b" }, "second"),
@@ -1000,77 +999,34 @@ describe("duplicate key diagnostics", () => {
       h("div", { key: "a" }, "first"),
       h("div", { key: "a" }, "duplicate"), // duplicate key
     ]);
-    const container = document.createElement("div");
-    const warnings = [];
-    vdomRender(leftTree, container, { document });
-    vdomRender(rightTree, container, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
-    expect(warnings.length).toBeGreaterThan(0);
-    expect(warnings[0].type).toBe("DuplicatedKeys");
-    expect(warnings[0].type).toBe("DuplicatedKeys");
+    assertPatchProduces(leftTree, rightTree);
   });
   it("new keyed node during reorder produces correct DOM", () => {
-    // Original: two keyed nodes
     const leftTree = h("div", null, [h("div", { key: "a" }, "A"), h("div", { key: "b" }, "B")]);
-    // New: reorder existing + add new keyed node
-    const rightTree = h("div", null, [
-      h("div", { key: "b" }, "B"), // moved from position 1 to 0
-      h("div", { key: "a" }, "A"), // moved from position 0 to 1
-      h("div", { key: "c" }, "C"), // new keyed node during reorder
-    ]);
-    const c1 = document.createElement("div");
-    const c2 = document.createElement("div");
-    const warnings = [];
-    vdomRender(leftTree, c1, { document });
-    vdomRender(rightTree, c1, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
-    vdomRender(rightTree, c2, { document });
-    // No warnings — new keyed nodes during reorder are handled correctly
-    expect(warnings.length).toBe(0);
-    // DOM should match a fresh render
-    expect(c1.innerHTML).toBe(c2.innerHTML);
-  });
-  it("no warning when adding keyed node without reorder", () => {
-    // Original: two keyed nodes
-    const leftTree = h("div", null, [h("div", { key: "a" }, "A"), h("div", { key: "b" }, "B")]);
-    // New: same order + add new keyed node (no reorder needed)
-    const rightTree = h("div", null, [
-      h("div", { key: "a" }, "A"),
-      h("div", { key: "b" }, "B"),
-      h("div", { key: "c" }, "C"), // new keyed node, but no reordering
-    ]);
-    const container = document.createElement("div");
-    const warnings = [];
-    vdomRender(leftTree, container, { document });
-    vdomRender(rightTree, container, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
-    // No warnings because there's no reordering happening
-    expect(warnings.length).toBe(0);
-  });
-  it("no warning when adding non-keyed node during reorder", () => {
-    // Original: two keyed nodes
-    const leftTree = h("div", null, [h("div", { key: "a" }, "A"), h("div", { key: "b" }, "B")]);
-    // New: reorder + add non-keyed node
     const rightTree = h("div", null, [
       h("div", { key: "b" }, "B"),
       h("div", { key: "a" }, "A"),
-      h("div", null, "no key"), // non-keyed, should be fine
+      h("div", { key: "c" }, "C"),
     ]);
-    const container = document.createElement("div");
-    const warnings = [];
-    vdomRender(leftTree, container, { document });
-    vdomRender(rightTree, container, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
-    // No warnings — non-keyed nodes during reorder are fine
-    expect(warnings.length).toBe(0);
+    assertPatchProduces(leftTree, rightTree);
+  });
+  it("adding keyed node without reorder produces correct DOM", () => {
+    const leftTree = h("div", null, [h("div", { key: "a" }, "A"), h("div", { key: "b" }, "B")]);
+    const rightTree = h("div", null, [
+      h("div", { key: "a" }, "A"),
+      h("div", { key: "b" }, "B"),
+      h("div", { key: "c" }, "C"),
+    ]);
+    assertPatchProduces(leftTree, rightTree);
+  });
+  it("adding non-keyed node during reorder produces correct DOM", () => {
+    const leftTree = h("div", null, [h("div", { key: "a" }, "A"), h("div", { key: "b" }, "B")]);
+    const rightTree = h("div", null, [
+      h("div", { key: "b" }, "B"),
+      h("div", { key: "a" }, "A"),
+      h("div", null, "no key"),
+    ]);
+    assertPatchProduces(leftTree, rightTree);
   });
 });
 // =============================================================================
@@ -1405,139 +1361,84 @@ describe("seed-based regression tests", () => {
    */
   function testSeed(seed, mutationCount = 3) {
     const rng = createRng(seed);
-    // Generate original tree (same as playground)
     const originalTree = generateTree(rng);
-    // Generate mutations (same as playground)
     const mutations = [];
     for (let i = 0; i < mutationCount; i++) {
       mutations.push(generateMutation(rng, originalTree));
     }
-    // Apply all mutations (same as playground)
     let mutatedTree = originalTree;
     const mutationRng = createRng(seed + 1000);
     for (const mutation of mutations) {
       mutatedTree = applyMutation(mutatedTree, mutation, mutationRng);
     }
-    // Render original, then re-render mutated
     const c1 = document.createElement("div");
     const c2 = document.createElement("div");
-    const warnings = [];
     vdomRender(originalTree, c1, { document });
-    vdomRender(mutatedTree, c1, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
+    vdomRender(mutatedTree, c1, { document });
     vdomRender(mutatedTree, c2, { document });
-    // Compare
     const isMatch = assertEqualDom(c1.childNodes[0], c2.childNodes[0]);
-    return {
-      isMatch,
-      originalTree,
-      mutatedTree,
-      mutations,
-      warnings,
-    };
+    return { isMatch, originalTree, mutatedTree, mutations };
   }
-  it("seed 1690 - duplicate keys produces warning", () => {
+  it("seed 1690 - duplicate keys produce correct DOM", () => {
     const result = testSeed(1690, 3);
-    // This seed generates a tree with duplicate keys.
-    // The warning system should detect and report this.
-    expect(result.warnings.length).toBeGreaterThan(0);
-    // Check that the warning is a duplicated keys warning
-    const warning = result.warnings[0];
-    expect(warning.type).toBe("DuplicatedKeys");
-    expect(warning.type).toBe("DuplicatedKeys");
-    // Duplicate keys use positional fallback — DOM should still match
     expect(result.isMatch).toBe(true);
   });
-  it("seed 161406 - render+re-render produces correct result or warns", () => {
+  it("seed 161406 - render+re-render produces correct result", () => {
     const result = testSeed(161406, 3);
-    // Either the result matches, or warnings explain the mismatch
-    if (!result.isMatch) {
-      expect(result.warnings.length).toBeGreaterThan(0);
-    }
+    expect(result.isMatch).toBe(true);
   });
   it("seed -1033623610 - duplicate keys with removeChild mutation", () => {
-    // Counterexample from property test:
-    // Original tree: DIV with 3 children:
-    //   - DIV with key="key" (empty)
-    //   - DIV without key, with text child ""
-    //   - SECTION with key="key" (duplicate!), with text child ""
-    // Mutation: removeChild at path [2], index 0 (remove text from SECTION)
     const originalTree = new VNode("DIV", {}, [
       new VNode("DIV", {}, [], "key", null),
       new VNode("DIV", {}, [new VText("")], undefined, null),
-      new VNode("SECTION", {}, [new VText("")], "key", null), // duplicate key
+      new VNode("SECTION", {}, [new VText("")], "key", null),
     ]);
-    // After mutation: remove child at index 0 from the SECTION (path [2])
     const mutatedTree = new VNode("DIV", {}, [
       new VNode("DIV", {}, [], "key", null),
       new VNode("DIV", {}, [new VText("")], undefined, null),
-      new VNode("SECTION", {}, [], "key", null), // text removed, still duplicate key
+      new VNode("SECTION", {}, [], "key", null),
     ]);
     const c1 = document.createElement("div");
     const c2 = document.createElement("div");
-    const warnings = [];
     vdomRender(originalTree, c1, { document });
-    vdomRender(mutatedTree, c1, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
+    vdomRender(mutatedTree, c1, { document });
     vdomRender(mutatedTree, c2, { document });
-    // This has duplicate keys, so we expect a warning
-    expect(warnings.length).toBeGreaterThan(0);
-    expect(warnings[0].type).toBe("DuplicatedKeys");
-    // With the fix, duplicate keys are treated as unkeyed (positional matching)
-    // so patching should still produce the correct result
     expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
   });
   it("mixed unique and duplicate keys", () => {
-    // Some unique keys, some duplicate keys
     const originalTree = new VNode("DIV", {}, [
       new VNode("DIV", {}, [], "unique", null),
       new VNode("DIV", {}, [], "dup", null),
-      new VNode("SECTION", {}, [new VText("text")], "dup", null), // duplicate
+      new VNode("SECTION", {}, [new VText("text")], "dup", null),
     ]);
     const mutatedTree = new VNode("DIV", {}, [
       new VNode("DIV", {}, [], "unique", null),
       new VNode("DIV", {}, [], "dup", null),
-      new VNode("SECTION", {}, [], "dup", null), // text removed
+      new VNode("SECTION", {}, [], "dup", null),
     ]);
     const c1 = document.createElement("div");
     const c2 = document.createElement("div");
-    const warnings = [];
     vdomRender(originalTree, c1, { document });
-    vdomRender(mutatedTree, c1, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
+    vdomRender(mutatedTree, c1, { document });
     vdomRender(mutatedTree, c2, { document });
-    expect(warnings.length).toBeGreaterThan(0);
-    expect(warnings[0].type).toBe("DuplicatedKeys");
     expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
   });
   it("duplicate keys with unique key reorder", () => {
-    // Unique key moves, duplicate keys should match positionally
     const originalTree = new VNode("DIV", {}, [
       new VNode("A", {}, [], "unique", null),
       new VNode("B", {}, [new VText("b1")], "dup", null),
       new VNode("C", {}, [new VText("c1")], "dup", null),
     ]);
     const mutatedTree = new VNode("DIV", {}, [
-      new VNode("B", {}, [new VText("b2")], "dup", null), // text changed
-      new VNode("C", {}, [new VText("c2")], "dup", null), // text changed
-      new VNode("A", {}, [], "unique", null), // moved to end
+      new VNode("B", {}, [new VText("b2")], "dup", null),
+      new VNode("C", {}, [new VText("c2")], "dup", null),
+      new VNode("A", {}, [], "unique", null),
     ]);
     const c1 = document.createElement("div");
     const c2 = document.createElement("div");
-    const warnings = [];
     vdomRender(originalTree, c1, { document });
-    vdomRender(mutatedTree, c1, {
-      document,
-      onWarning: (w) => warnings.push(w),
-    });
+    vdomRender(mutatedTree, c1, { document });
     vdomRender(mutatedTree, c2, { document });
-    expect(warnings.length).toBeGreaterThan(0);
     expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
   });
 });
@@ -1610,15 +1511,6 @@ describe("algorithm corner cases", () => {
         h("div", { key: "a" }, "a-dup"),
         h("div", { key: "b" }, "b"),
       ]);
-      const container = document.createElement("div");
-      const warnings = [];
-      vdomRender(leftNode, container, { document });
-      vdomRender(rightNode, container, {
-        document,
-        onWarning: (w) => warnings.push(w),
-      });
-      expect(warnings.length).toBeGreaterThan(0);
-      expect(warnings[0].type).toBe("DuplicatedKeys");
       assertPatchProduces(leftNode, rightNode);
     });
     it("one-sided duplicate keys — duplicates only in old children", () => {
@@ -1628,15 +1520,6 @@ describe("algorithm corner cases", () => {
         h("div", { key: "b" }, "b"),
       ]);
       const rightNode = h("div", null, [h("div", { key: "a" }, "a"), h("div", { key: "b" }, "b")]);
-      const container = document.createElement("div");
-      const warnings = [];
-      vdomRender(leftNode, container, { document });
-      vdomRender(rightNode, container, {
-        document,
-        onWarning: (w) => warnings.push(w),
-      });
-      expect(warnings.length).toBeGreaterThan(0);
-      expect(warnings[0].type).toBe("DuplicatedKeys");
       assertPatchProduces(leftNode, rightNode);
     });
   });

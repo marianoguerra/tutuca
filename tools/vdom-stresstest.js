@@ -83,7 +83,7 @@ console.log(`Running ${iterations.toLocaleString()} stress test iterations...`);
 const startTime = Date.now();
 let lastProgressTime = startTime;
 let passed = 0;
-let warningsCount = 0;
+
 
 for (let i = 0; i < iterations; i++) {
   if (i > 0 && i % JSDOM_REFRESH_INTERVAL === 0) {
@@ -114,36 +114,25 @@ for (let i = 0; i < iterations; i++) {
 
   // Render original, then morph to mutated
   const container = document.createElement("div");
-  const warnings = [];
-  const opts = { document, onWarning: (w) => warnings.push(w) };
+  const opts = { document };
   vdomRender(originalTree, container, opts);
   vdomRender(mutatedTree, container, opts);
 
   // Fresh render for comparison
   const expectedContainer = document.createElement("div");
-  vdomRender(mutatedTree, expectedContainer, { document });
+  vdomRender(mutatedTree, expectedContainer, opts);
 
   // Compare
-  const isMatch = compareDom(container, expectedContainer);
-  const hasWarnings = warnings.length > 0;
-
-  if (hasWarnings) {
-    warningsCount++;
-  }
-
-  if (!isMatch) {
-    // Only fail on mismatches without warnings (warnings indicate known edge cases)
-    if (!hasWarnings) {
-      console.error(`\nMISMATCH at iteration ${i + 1}`);
-      console.error(`Seed: ${seed}`);
-      console.error(`Mutations: ${mutationCount}`);
-      console.error("\nOriginal tree:", JSON.stringify(serializeTree(originalTree), null, 2));
-      console.error("\nMutated tree:", JSON.stringify(serializeTree(mutatedTree), null, 2));
-      console.error("\nMutations:", JSON.stringify(mutations, null, 2));
-      console.error("\nExpected DOM:", expectedContainer.innerHTML);
-      console.error("Actual DOM:", container.innerHTML);
-      process.exit(1);
-    }
+  if (!compareDom(container, expectedContainer)) {
+    console.error(`\nMISMATCH at iteration ${i + 1}`);
+    console.error(`Seed: ${seed}`);
+    console.error(`Mutations: ${mutationCount}`);
+    console.error("\nOriginal tree:", JSON.stringify(serializeTree(originalTree), null, 2));
+    console.error("\nMutated tree:", JSON.stringify(serializeTree(mutatedTree), null, 2));
+    console.error("\nMutations:", JSON.stringify(mutations, null, 2));
+    console.error("\nExpected DOM:", expectedContainer.innerHTML);
+    console.error("Actual DOM:", container.innerHTML);
+    process.exit(1);
   }
 
   // Also test VFragment root render cycle (20% of iterations)
@@ -154,16 +143,14 @@ for (let i = 0; i < iterations; i++) {
     const frag1 = new VFragment(originalTree.childs);
     const frag2 = new VFragment(mutatedTree.childs);
 
-    vdomRender(frag1, container1, { document });
-    vdomRender(frag2, container1, { document });
-    vdomRender(frag2, container2, { document });
+    vdomRender(frag1, container1, opts);
+    vdomRender(frag2, container1, opts);
+    vdomRender(frag2, container2, opts);
 
     if (!compareDom(container1, container2)) {
-      if (!hasWarnings) {
-        console.error(`\nVFRAGMENT RENDER MISMATCH at iteration ${i + 1}`);
-        console.error(`Seed: ${seed}`);
-        process.exit(1);
-      }
+      console.error(`\nVFRAGMENT RENDER MISMATCH at iteration ${i + 1}`);
+      console.error(`Seed: ${seed}`);
+      process.exit(1);
     }
 
     unmount(container1);
@@ -190,7 +177,4 @@ const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
 const rate = Math.round(iterations / (Date.now() - startTime) * 1000);
 
 console.log(`\nCompleted ${passed.toLocaleString()} iterations in ${totalTime}s (${rate}/s)`);
-if (warningsCount > 0) {
-  console.log(`Warnings encountered: ${warningsCount} (expected edge cases)`);
-}
 console.log("All tests passed!");

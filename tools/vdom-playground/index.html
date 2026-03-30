@@ -194,29 +194,6 @@
       font-family: monospace;
     }
 
-    .patch {
-      padding: 8px 12px;
-      margin-bottom: 8px;
-      background: #cce5ff;
-      border-left: 3px solid #007bff;
-      border-radius: 0 4px 4px 0;
-      font-size: 13px;
-    }
-
-    .patch:last-child {
-      margin-bottom: 0;
-    }
-
-    .patch-type {
-      font-weight: 600;
-      color: #004085;
-    }
-
-    .patch-index {
-      color: #666;
-      font-family: monospace;
-    }
-
     .comparison {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -288,19 +265,6 @@
     .file-input-label input[type="file"] {
       display: none;
     }
-
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 13px;
-      color: #666;
-      cursor: pointer;
-    }
-
-    .checkbox-label input[type="checkbox"] {
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
@@ -309,10 +273,6 @@
   <div class="controls">
     <button id="generate">Generate</button>
     <button id="stressTest" class="secondary">Stress Test</button>
-    <label class="checkbox-label">
-      <input type="checkbox" id="continueWithWarnings">
-      Log warnings, don't stop
-    </label>
     <button id="step" class="secondary">Step Mutation</button>
     <label>
       Mutations:
@@ -365,21 +325,10 @@
     </div>
 
     <!-- Mutations Applied -->
-    <div class="panel">
+    <div class="panel full-width">
       <div class="panel-header">Mutations Applied</div>
       <div class="panel-content tall" id="mutations">
         <div class="empty-state">No mutations yet</div>
-      </div>
-    </div>
-
-    <!-- Patches Generated -->
-    <div class="panel">
-      <div class="panel-header">
-        Patches Generated
-        <span class="status" id="patchStatus"></span>
-      </div>
-      <div class="panel-content tall" id="patches">
-        <div class="empty-state">No patches yet</div>
       </div>
     </div>
 
@@ -398,7 +347,7 @@
 
     <!-- Debug Info -->
     <div class="panel full-width">
-      <div class="panel-header">Debug Info (Patch Plan)</div>
+      <div class="panel-header">Debug Info</div>
       <div class="panel-content">
         <pre id="debugInfo">No debug info yet</pre>
       </div>
@@ -406,14 +355,13 @@
   </div>
 
   <script type="module">
-    // Note: We import from vdom-genutil.js only - it bundles vdom internally.
-    // We avoid instanceof checks because vdom-genutil.js has its own bundled copy of classes.
     import {
       createRng,
       generateTree,
       generateMutation,
       applyMutation,
     } from "../../test/vdom-genutil.js";
+    import { render, unmount } from "../../src/vdom.js";
 
     // Render VDom tree to HTML representation (uses nodeType to avoid instanceof issues)
     function renderVdomTree(node, indent = 0) {
@@ -492,6 +440,13 @@
         case "changeAttr":
           details = `attr: "${mutation.attr}", value: ${mutation.value === undefined ? "undefined" : `"${mutation.value}"`}`;
           break;
+        case "changeStyle": {
+          const entries = Object.entries(mutation.style)
+            .map(([k, v]) => `${k}: ${v === undefined ? "undefined" : `"${v}"`}`)
+            .join(", ");
+          details = `style: { ${entries} }`;
+          break;
+        }
       }
 
       return `
@@ -503,36 +458,10 @@
       `;
     }
 
-    // Render patch info (uses constructor.name and property checks to avoid instanceof issues)
-    function renderPatch(patch, index) {
-      let type = patch.constructor.name;
-      let details = "";
-
-      if (type === "PatchCharData") {
-        details = `text: "${patch.targetNode.text}"`;
-      } else if (type === "PatchInsert") {
-        details = describeNode(patch.nodeToInsert);
-      } else if (type === "PatchNode") {
-        details = describeNode(patch.newNode);
-      } else if (type === "PatchReorder") {
-        details = `removes: ${patch.moves.removes.length}, inserts: ${patch.moves.inserts.length}`;
-      } else if (type === "PatchProps") {
-        details = `props: ${JSON.stringify(patch.propsDiff)}`;
-      }
-
-      return `
-        <div class="patch">
-          <span class="patch-type">${type}</span>
-          <span class="patch-index">index: ${index}</span>
-          <div>${details}</div>
-        </div>
-      `;
-    }
-
     // Compare DOM trees
     function compareDom(a, b) {
       if (a.nodeType !== b.nodeType) return false;
-      if (a.nodeType === 3) {
+      if (a.nodeType === 3 || a.nodeType === 8) {
         return a.data === b.data;
       }
       if (a.nodeType === 1) {
@@ -547,13 +476,27 @@
       return true;
     }
 
+    function serializeTree(node) {
+      if (node.nodeType === 3) return { type: "VText", text: node.text };
+      if (node.nodeType === 8) return { type: "VComment", text: node.text };
+      if (node.nodeType === 1) {
+        return {
+          type: "VNode",
+          tag: node.tag,
+          key: node.key,
+          attrs: node.attrs,
+          childs: node.childs.map(c => serializeTree(c))
+        };
+      }
+      return { type: "unknown" };
+    }
+
     // State
     let state = {
       seed: null,
       originalTree: null,
       mutations: [],
       mutatedTree: null,
-      patches: null,
       stepIndex: 0
     };
 
@@ -570,15 +513,14 @@
       originalDom: document.getElementById("originalDom"),
       expectedDom: document.getElementById("expectedDom"),
       mutations: document.getElementById("mutations"),
-      patches: document.getElementById("patches"),
-      patchStatus: document.getElementById("patchStatus"),
       comparison: document.getElementById("comparison"),
       resultStatus: document.getElementById("resultStatus"),
       debugInfo: document.getElementById("debugInfo"),
       exportBtn: document.getElementById("exportBtn"),
       importFile: document.getElementById("importFile"),
-      continueWithWarnings: document.getElementById("continueWithWarnings")
     };
+
+    const opts = { document };
 
     function generate() {
       const seedVal = els.seedInput.value.trim();
@@ -635,12 +577,12 @@
 
       // Original DOM
       els.originalDom.innerHTML = "";
-      const originalDom = state.originalTree.toDom({ document });
+      const originalDom = state.originalTree.toDom(opts);
       els.originalDom.appendChild(originalDom.cloneNode(true));
 
       // Expected DOM
       els.expectedDom.innerHTML = "";
-      const expectedDom = state.mutatedTree.toDom({ document });
+      const expectedDom = state.mutatedTree.toDom(opts);
       els.expectedDom.appendChild(expectedDom.cloneNode(true));
 
       // Mutations
@@ -651,38 +593,20 @@
         els.mutations.innerHTML = activeMutations.map((m, i) => renderMutation(m, i)).join("");
       }
 
-      // Generate patches
-      state.patches = state.originalTree.diff(state.mutatedTree);
+      // Render original, then morph to mutated (the real test)
+      const morphContainer = document.createElement("div");
+      render(state.originalTree, morphContainer, opts);
+      render(state.mutatedTree, morphContainer, opts);
 
-      // Patches
-      const patchIndices = state.patches.indices();
-      if (patchIndices.length === 0) {
-        els.patches.innerHTML = '<div class="empty-state">No patches needed (trees are equal)</div>';
-        els.patchStatus.textContent = "0 patches";
-        els.patchStatus.className = "status success";
-      } else {
-        let patchHtml = "";
-        for (const idx of patchIndices) {
-          const patchList = state.patches.get(idx);
-          for (const patch of patchList) {
-            patchHtml += renderPatch(patch, idx);
-          }
-        }
-        els.patches.innerHTML = patchHtml;
-        els.patchStatus.textContent = `${patchIndices.length} indices, ${patchIndices.reduce((sum, idx) => sum + state.patches.get(idx).length, 0)} patches`;
-        els.patchStatus.className = "status";
-      }
+      // Fresh render for comparison
+      const freshContainer = document.createElement("div");
+      render(state.mutatedTree, freshContainer, opts);
 
-      // Apply patches and compare
-      const rootDom = state.originalTree.toDom({ document });
-      const patchedDom = state.patches.applyTo(rootDom, { document });
-      const freshExpectedDom = state.mutatedTree.toDom({ document });
-
-      const isMatch = compareDom(patchedDom, freshExpectedDom);
+      const isMatch = compareDom(morphContainer, freshContainer);
 
       els.comparison.innerHTML = `
         <div class="comparison-side ${isMatch ? "match" : "mismatch"}">
-          <div class="comparison-label">Patched Result</div>
+          <div class="comparison-label">Morphed Result (render + re-render)</div>
           <div class="dom-render"></div>
         </div>
         <div class="comparison-side ${isMatch ? "match" : "mismatch"}">
@@ -691,80 +615,32 @@
         </div>
       `;
 
-      els.comparison.querySelector(".comparison-side:first-child .dom-render").appendChild(patchedDom.cloneNode(true));
-      els.comparison.querySelector(".comparison-side:last-child .dom-render").appendChild(freshExpectedDom.cloneNode(true));
+      els.comparison.querySelector(".comparison-side:first-child .dom-render").appendChild(morphContainer.firstChild.cloneNode(true));
+      els.comparison.querySelector(".comparison-side:last-child .dom-render").appendChild(freshContainer.firstChild.cloneNode(true));
 
-      // Check for warnings
-      const hasWarnings = state.patches.warnings && state.patches.warnings.length > 0;
-
-      if (isMatch) {
-        els.resultStatus.textContent = hasWarnings ? "MATCH (with warnings)" : "MATCH";
-        els.resultStatus.className = hasWarnings ? "status" : "status success";
-      } else {
-        els.resultStatus.textContent = hasWarnings ? "MISMATCH (with warnings)" : "MISMATCH";
-        els.resultStatus.className = "status error";
-      }
+      els.resultStatus.textContent = isMatch ? "MATCH" : "MISMATCH";
+      els.resultStatus.className = isMatch ? "status success" : "status error";
 
       // Debug info
       const debugData = {
         seed: state.seed,
-        warnings: state.patches.warnings ? state.patches.warnings.map(w => ({
-          type: w.type,
-          message: w.message,
-          ...(w.duplicatedKeys ? { duplicatedKeys: [...w.duplicatedKeys] } : {}),
-          ...(w.parentTag ? { parentTag: w.parentTag } : {}),
-          ...(w.parentIndex !== undefined ? { parentIndex: w.parentIndex } : {})
-        })) : [],
-        patchPlan: {
-          size: state.patches.size,
-          indices: patchIndices,
-          patches: {}
-        },
         originalTree: serializeTree(state.originalTree),
         mutatedTree: serializeTree(state.mutatedTree),
         mutations: state.mutations.map(m => ({
           ...m,
           child: m.child ? serializeTree(m.child) : undefined,
           newChild: m.newChild ? serializeTree(m.newChild) : undefined
-        }))
+        })),
+        morphedHTML: morphContainer.innerHTML,
+        expectedHTML: freshContainer.innerHTML,
       };
-
-      for (const idx of patchIndices) {
-        debugData.patchPlan.patches[idx] = state.patches.get(idx).map(p => {
-          const patchType = p.constructor.name;
-          return {
-            type: patchType,
-            ...(patchType === "PatchCharData" ? { text: p.targetNode.text } : {}),
-            ...(patchType === "PatchReorder" ? { moves: p.moves } : {}),
-            ...(patchType === "PatchProps" ? { propsDiff: p.propsDiff } : {}),
-            ...(patchType === "PatchInsert" ? { node: serializeTree(p.nodeToInsert) } : {}),
-            ...(patchType === "PatchNode" ? { node: serializeTree(p.newNode) } : {})
-          };
-        });
-      }
 
       els.debugInfo.textContent = JSON.stringify(debugData, null, 2);
 
-      return { isMatch, hasWarnings };
-    }
+      unmount(morphContainer);
+      unmount(freshContainer);
 
-    function serializeTree(node) {
-      if (node.nodeType === 3) { // VText
-        return { type: "VText", text: node.text };
-      }
-      if (node.nodeType === 8) { // VComment
-        return { type: "VComment", text: node.text };
-      }
-      if (node.nodeType === 1) { // VNode
-        return {
-          type: "VNode",
-          tag: node.tag,
-          key: node.key,
-          attrs: node.attrs,
-          childs: node.childs.map(c => serializeTree(c))
-        };
-      }
-      return { type: "unknown" };
+      return { isMatch };
     }
 
     // Stress test state
@@ -786,38 +662,12 @@
         try {
           const result = generate();
           if (!result.isMatch) {
-            const continueOnWarnings = els.continueWithWarnings.checked;
-
-            // If mismatch has warnings and checkbox is checked, log and continue
-            if (continueOnWarnings && result.hasWarnings) {
-              console.warn(
-                "Mismatch with warnings (continuing):",
-                {
-                  seed: state.seed,
-                  mutationCount: state.mutations.length,
-                  warnings: state.patches.warnings.map(w => w.message),
-                  patchCount: state.patches.size
-                }
-              );
-              return; // Continue stress test
-            }
-
-            // Stop stress test
             clearInterval(stressTestInterval);
             stressTestInterval = null;
             els.stressTest.textContent = "Stress Test";
             els.stressTest.classList.remove("active");
             console.error("Stress test stopped: result mismatch at seed", state.seed);
-
-            // Build alert message with warnings if present
-            let alertMsg = "Stress test stopped: result mismatch!\nSeed: " + state.seed;
-            if (result.hasWarnings && state.patches.warnings) {
-              alertMsg += "\n\nWarnings:";
-              for (const w of state.patches.warnings) {
-                alertMsg += "\n- " + w.message;
-              }
-            }
-            alert(alertMsg);
+            alert("Stress test stopped: result mismatch!\nSeed: " + state.seed);
           }
         } catch (e) {
           clearInterval(stressTestInterval);
@@ -898,9 +748,8 @@
             state.mutatedTree = applyMutation(state.mutatedTree, state.mutations[i], mutationRng);
           }
 
-          // If stepIndex was 0, set it to show all mutations were applied
           if (state.stepIndex === 0) {
-            state.stepIndex = 0; // Keep at 0 to indicate "all applied" mode
+            state.stepIndex = 0;
           }
 
           updateUI();
@@ -921,11 +770,10 @@
     els.importFile.addEventListener("change", (e) => {
       if (e.target.files.length > 0) {
         importState(e.target.files[0]);
-        e.target.value = ""; // Reset to allow re-importing same file
+        e.target.value = "";
       }
     });
 
-    // Initial message
     console.log("VDOM Playground loaded. Click 'Generate' to start.");
   </script>
 </body>
