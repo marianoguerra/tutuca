@@ -1608,10 +1608,9 @@ describe("algorithm corner cases", () => {
       expect(newRoot.style.color).toBe("red");
       expect(newRoot.style.margin).toBe("10px");
     });
-    it("isEqualTo with same attrCount but different attr keys", () => {
+    it("isEqualTo with different attr keys", () => {
       const a = h("div", { foo: "1" }, []);
       const b = h("div", { bar: "1" }, []);
-      expect(a.attrCount).toBe(b.attrCount);
       expect(a.isEqualTo(b)).toBe(false);
       // Re-render should produce different result
       assertPatchProduces(a, b);

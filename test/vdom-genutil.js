@@ -213,6 +213,13 @@ export function generateTree(rng, depth = 0, options = {}) {
     if (rng() < 0.3) {
       props.id = randString(rng, 8);
     }
+    // Occasionally use dangerouslySetInnerHTML instead of text children
+    if (rng() < 0.15) {
+      props.dangerouslySetInnerHTML = {
+        __html: `<b>${randString(rng, 8)}</b>`,
+      };
+      return h(tag, props);
+    }
     return h(
       tag,
       props,
@@ -266,6 +273,7 @@ const MUTATION_TYPES = [
   "shuffleChildren",
   "changeAttr",
   "changeStyle",
+  "changeDangerousInnerHTML",
 ];
 /**
  * Generate a random mutation for a tree
@@ -363,17 +371,13 @@ export function generateMutation(rng, tree, options = {}) {
       }
       return { type, path, style };
     }
+    case "changeDangerousInnerHTML": {
+      // Either set or remove dangerouslySetInnerHTML
+      const value =
+        rng() < 0.3 ? undefined : { __html: `<em>${randString(rng, 8, textOptions)}</em>` };
+      return { type, path, value };
+    }
   }
-}
-/**
- * Recompute VNode.attrCount after mutating attrs in-place.
- */
-function recomputeAttrCount(node) {
-  let count = 0;
-  for (const _ in node.attrs) {
-    count++;
-  }
-  node.attrCount = count;
 }
 /**
  * Apply a mutation to a tree, returning a new tree
@@ -384,6 +388,9 @@ export function applyMutation(root, mutation, rng) {
   if (!parent || !(parent instanceof VNode)) return clone;
   switch (mutation.type) {
     case "changeText": {
+      if (parent.attrs.dangerouslySetInnerHTML) {
+        delete parent.attrs.dangerouslySetInnerHTML;
+      }
       let found = false;
       for (let i = 0; i < parent.childs.length; i++) {
         if (parent.childs[i] instanceof VText) {
@@ -398,6 +405,9 @@ export function applyMutation(root, mutation, rng) {
       break;
     }
     case "changeComment": {
+      if (parent.attrs.dangerouslySetInnerHTML) {
+        delete parent.attrs.dangerouslySetInnerHTML;
+      }
       let found = false;
       for (let i = 0; i < parent.childs.length; i++) {
         if (parent.childs[i] instanceof VComment) {
@@ -437,6 +447,9 @@ export function applyMutation(root, mutation, rng) {
       break;
     }
     case "addChild": {
+      if (parent.attrs.dangerouslySetInnerHTML) {
+        delete parent.attrs.dangerouslySetInnerHTML;
+      }
       const idx = Math.min(mutation.index, parent.childs.length);
       parent.childs.splice(idx, 0, mutation.child);
       break;
@@ -450,6 +463,9 @@ export function applyMutation(root, mutation, rng) {
     }
     case "replaceChild": {
       if (parent.childs.length > 0) {
+        if (parent.attrs.dangerouslySetInnerHTML) {
+          delete parent.attrs.dangerouslySetInnerHTML;
+        }
         const idx = Math.min(mutation.index, parent.childs.length - 1);
         parent.childs[idx] = mutation.newChild;
       }
@@ -471,7 +487,6 @@ export function applyMutation(root, mutation, rng) {
       } else {
         parent.attrs[mutation.attr] = mutation.value;
       }
-      recomputeAttrCount(parent);
       break;
     }
     case "changeStyle": {
@@ -490,7 +505,17 @@ export function applyMutation(root, mutation, rng) {
       } else {
         parent.attrs.style = styleToCss(merged);
       }
-      recomputeAttrCount(parent);
+      break;
+    }
+    case "changeDangerousInnerHTML": {
+      if (mutation.value === undefined) {
+        delete parent.attrs.dangerouslySetInnerHTML;
+      } else {
+        parent.attrs.dangerouslySetInnerHTML = mutation.value;
+        // Clear children since dangerouslySetInnerHTML replaces them
+        parent.childs.length = 0;
+      }
+
       break;
     }
   }
