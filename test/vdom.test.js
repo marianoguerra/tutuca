@@ -1982,6 +1982,47 @@ describe("render", () => {
       expect(result).toBe(root);
     });
   });
+  describe("dangerouslySetInnerHTML", () => {
+    it("sets innerHTML from __html property", () => {
+      const container = document.createElement("div");
+      const vnode = h("div", { dangerouslySetInnerHTML: { __html: "<b>bold</b>" } });
+      vdomRender(vnode, container, { document });
+      const root = container.childNodes[0];
+      expect(root.innerHTML).toBe("<b>bold</b>");
+    });
+    it("updates innerHTML on re-render", () => {
+      const container = document.createElement("div");
+      vdomRender(h("div", { dangerouslySetInnerHTML: { __html: "<em>first</em>" } }), container, { document });
+      vdomRender(h("div", { dangerouslySetInnerHTML: { __html: "<strong>second</strong>" } }), container, { document });
+      expect(container.childNodes[0].innerHTML).toBe("<strong>second</strong>");
+    });
+    it("clears innerHTML when attribute is removed", () => {
+      const container = document.createElement("div");
+      vdomRender(h("div", { dangerouslySetInnerHTML: { __html: "<p>content</p>" } }), container, { document });
+      vdomRender(h("div", null), container, { document });
+      expect(container.childNodes[0].innerHTML).toBe("");
+    });
+    it("handles null __html as empty string", () => {
+      const container = document.createElement("div");
+      const vnode = h("div", { dangerouslySetInnerHTML: { __html: null } });
+      vdomRender(vnode, container, { document });
+      expect(container.childNodes[0].innerHTML).toBe("");
+    });
+    it("switches from children to dangerouslySetInnerHTML", () => {
+      const container = document.createElement("div");
+      vdomRender(h("div", null, [h("span", null, "child")]), container, { document });
+      vdomRender(h("div", { dangerouslySetInnerHTML: { __html: "<b>raw</b>" } }), container, { document });
+      expect(container.childNodes[0].innerHTML).toBe("<b>raw</b>");
+    });
+    it("switches from dangerouslySetInnerHTML to children", () => {
+      const container = document.createElement("div");
+      vdomRender(h("div", { dangerouslySetInnerHTML: { __html: "<b>raw</b>" } }), container, { document });
+      vdomRender(h("div", null, [h("span", null, "child")]), container, { document });
+      const root = container.childNodes[0];
+      expect(root.childNodes.length).toBe(1);
+      expect(root.childNodes[0].tagName).toBe("SPAN");
+    });
+  });
   describe("unmount", () => {
     it("clears container and cache", () => {
       const container = document.createElement("div");

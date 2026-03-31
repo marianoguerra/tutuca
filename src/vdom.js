@@ -8,6 +8,8 @@ export function applyProperties(node, props, previous) {
       removeProperty(node, propName, previous);
     } else if (isHtmlAttribute(propName)) {
       node.setAttribute(propName, propValue);
+    } else if (propName === "dangerouslySetInnerHTML") {
+      node.innerHTML = propValue.__html ?? "";
     } else if (typeof propValue === "object" && propValue !== null) {
       patchObject(node, previous, propName, propValue);
     } else if (propName === "className") {
@@ -19,7 +21,9 @@ export function applyProperties(node, props, previous) {
 }
 function removeProperty(node, propName, previous) {
   const previousValue = previous[propName];
-  if (isHtmlAttribute(propName)) {
+  if (propName === "dangerouslySetInnerHTML") {
+    node.innerHTML = "";
+  } else if (isHtmlAttribute(propName)) {
     node.removeAttribute(propName);
   } else if (typeof previousValue === "string") {
     if (propName !== "className") node[propName] = "";
@@ -266,7 +270,9 @@ function morphNode(domNode, source, target, opts) {
     if (propsDiff) {
       applyProperties(domNode, propsDiff, source.attrs);
     }
-    morphChildren(domNode, source.childs, target.childs, source.tag, opts);
+    if (!target.attrs.dangerouslySetInnerHTML) {
+      morphChildren(domNode, source.childs, target.childs, source.tag, opts);
+    }
     return domNode;
   }
   if (source instanceof VFragment && target instanceof VFragment) {
