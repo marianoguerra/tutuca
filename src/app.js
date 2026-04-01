@@ -99,7 +99,7 @@ export class App {
         this.render();
       }
     });
-    injectCss("tutuca-app", this.comps.compileStyles());
+    injectCss("tutuca-app", this.comps.compileStyles(), opts?.head ?? document.head);
     if (opts?.noCache) {
       this.renderer.setNullCache();
       this.comps.setNullComputedCache();
@@ -144,15 +144,15 @@ export class App {
     this._evictCacheId = null;
   }
 }
-export function injectCss(nodeId, style) {
+export function injectCss(nodeId, style, styleTarget = document.head) {
   const styleNode = document.createElement("style");
-  const currentNodeWithId = document.head.querySelector(`#${nodeId}`);
+  const currentNodeWithId = styleTarget.querySelector(`#${nodeId}`);
   if (currentNodeWithId) {
-    document.head.removeChild(currentNodeWithId);
+    styleTarget.removeChild(currentNodeWithId);
   }
   styleNode.id = nodeId;
   styleNode.innerHTML = style;
-  document.head.appendChild(styleNode);
+  styleTarget.appendChild(styleNode);
 }
 function getClosestDropTarget(target, rootNode, count) {
   let node = target;
