@@ -149,7 +149,7 @@ export class TutucaPlayground extends HTMLElement {
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);
-      app.start();
+      app.start({ head: this.shadowRoot });
       app.dispatchLogicAtRoot("init", []);
     } catch (e) {
       this.preview.textContent = `Error: ${e.message}`;
