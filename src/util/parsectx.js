@@ -35,7 +35,7 @@ export class ParseCtxClassSetCollector extends ParseContext {
         const { value, thenVal, elseVal } = attr;
         if (thenVal !== undefined) {
           this._addClasses(thenVal.value);
-          if (elseVal) {
+          if (typeof elseVal?.value === "string") {
             this._addClasses(elseVal.value);
           }
         } else if (typeof value?.value === "string") {
