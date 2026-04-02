@@ -1,6 +1,6 @@
 {
   "name": "tutuca",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "type": "module",
   "description": "Zero-dependency frontend framework with immutable state and virtual DOM",
   "main": "./dist/tutuca.js",
