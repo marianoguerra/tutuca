@@ -80,6 +80,8 @@ function checkEventModifiers(lx, view) {
 function isKnownHandlerName(name) {
   switch (name) {
     case "value":
+    case "valueAsInt":
+    case "valueAsFloat":
     case "target":
     case "event":
     case "isAlt":

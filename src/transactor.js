@@ -138,6 +138,7 @@ class Transaction {
   }
 }
 const isMac = (globalThis.navigator?.userAgent ?? "").toLowerCase().includes("mac");
+const toNullIfNaN = (v) => (Number.isNaN(v) ? null : v);
 export function getValue(e) {
   return e.target.type === "checkbox"
     ? e.target.checked
@@ -170,6 +171,10 @@ class InputEvent extends Transaction {
     switch (name) {
       case "value":
         return getValue(e);
+      case "valueAsInt":
+        return toNullIfNaN(parseInt(getValue(e), 10));
+      case "valueAsFloat":
+        return toNullIfNaN(parseFloat(getValue(e)));
       case "target":
         return e.target;
       case "event":
