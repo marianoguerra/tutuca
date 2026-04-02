@@ -1,4 +1,4 @@
-import { component, html, css } from "tutuca";
+import { component, css, html, IMap } from "tutuca";
 
 const Tutorial = component({
   name: "Tutorial",
@@ -332,9 +332,6 @@ const ComputedProperties = component({
       class="input"
       placeholder="Filter entries"
     />
-    COMPUTED PROPERTY WORKS HERE BECAUSE IT SEEMS TO REFER TO IT:
-    <x text="$totalItemsChars"></x>
-    INSIDE THE LOOP IT USES THE STRING AS IT AND IT DOESN'T RESOLVE THE PROPERTY
     <ul>
       <li
         @each=".items"
@@ -583,9 +580,192 @@ const DnDExample = component({
   </section>`,
 });
 
-// styles
-// events
-// seq access val
+const StylesExample = component({
+  name: "StylesExample",
+  fields: {},
+  style: css`
+    .mine {
+      color: red;
+    }
+  `,
+  commonStyle: css`
+    .common {
+      color: yellow;
+    }
+  `,
+  globalStyle: css`
+    .styles-example-global-class {
+      color: green;
+    }
+  `,
+  view: html`<section>
+    <p>View: main</p>
+    <p class="mine">My Style</p>
+    <p class="common">Common Style</p>
+    <p class="styles-example-global-class">Global Style</p>
+  </section>`,
+  views: {
+    one: html`<section>
+      <p>View: one</p>
+      <p class="mine">My Style</p>
+      <p class="common">Common Style</p>
+      <p class="styles-example-global-class">Global Style</p>
+    </section>`,
+    two: {
+      view: html`<section>
+        <p>View: two</p>
+        <p class="mine">My Style</p>
+        <p class="common">Common Style</p>
+        <p class="styles-example-global-class">Global Style</p>
+      </section>`,
+      style: css`
+        .mine {
+          color: orange;
+          text-decoration: underline;
+        }
+      `,
+    },
+  },
+});
+
+const StylesExampleRoot = component({
+  name: "StylesExampleRoot",
+  fields: { value: StylesExample.make() },
+  view: html`<section class="flex flex-col gap-3">
+    <x render=".value"></x>
+    <x render=".value" as="one"></x>
+    <x render=".value" as="two"></x>
+  </section>`,
+});
+
+const SeqItemAccess = component({
+  name: "SeqItemAccess",
+  fields: { byKey: {}, byIndex: [], currentKey: null, currentIndex: 0 },
+  methods: {
+    getMaxIndex() {
+      return Math.max(0, this.byIndex.size - 1);
+    },
+    setRawCurrentIndex() {},
+  },
+  alter: {
+    enrichByKey(binds, _key, item) {
+      binds.label = item.title;
+    },
+  },
+  view: html`<section class="flex flex-col gap-3">
+    <input
+      type="range"
+      min="0"
+      :max=".getMaxIndex"
+      :value=".currentIndex"
+      @on.input=".setCurrentIndex valueAsInt"
+    />
+    <x render=".byIndex[.currentIndex]"></x>
+    <select
+      class="select"
+      :value=".currentKey"
+      @on.input=".setCurrentKey value"
+    >
+      <option
+        @each=".byKey"
+        @enrich-with="enrichByKey"
+        :value="@key"
+        @text="@label"
+      ></option>
+    </select>
+    <x render=".byKey[.currentKey]"></x>
+  </section>`,
+});
+
+const TreeRoot = component({
+  name: "TreeRoot",
+  fields: { items: [], log: [] },
+  statics: {
+    fromData(items) {
+      return TreeRoot.make({
+        items: items.map((v) => TreeItem.Class.fromData(v)),
+      });
+    },
+  },
+  bubble: {
+    treeItemSelected(selectedItem, ctx) {
+      console.log("..", ctx);
+      const msg = `Selected ${selectedItem.type}: ${selectedItem.label}`;
+      return this.insertInLogAt(0, msg);
+    },
+  },
+  view: html`<secction class="flex gap-2">
+    <div class="flex flex-col gap-2 flex-1">
+      <x render-each=".items"></x>
+    </div>
+    <div class="flex flex-col gap-2 max-h-[40vh] overflow-y-auto flex-1">
+      <p @each=".log" @text="@value"></p>
+    </div>
+  </secction>`,
+});
+
+const TreeItem = component({
+  name: "TreeItem",
+  fields: { type: "dir", label: "A Tree Item", isOpen: true, items: [] },
+  methods: {
+    areChildsVisible() {
+      return this.isOpen && this.items.size > 0;
+    },
+  },
+  statics: {
+    fromData({ type = "dir", label = "A Tree Item", isOpen = true, items = [] }) {
+      return TreeItem.make({
+        type,
+        label,
+        isOpen,
+        items: items.map((v) => TreeItem.Class.fromData(v)),
+      });
+    },
+  },
+  input: {
+    onItemClick(ctx) {
+      ctx.bubble("treeItemSelected", [this]);
+      return this.toggleIsOpen();
+    },
+  },
+  bubble: {
+    treeItemSelected(_selectedItem) {
+      return this;
+    },
+  },
+  style: css`
+    user-select: none;
+    .head {
+      cursor: pointer;
+    }
+    .head:before {
+      content: "⏺️";
+      margin-right: 0.25rem;
+    }
+    .head[data-type="file"]:before {
+      content: "📄️";
+    }
+    .head.open[data-type="dir"]:before {
+      content: "📂️";
+    }
+    .head.closed[data-type="dir"]:before {
+      content: "📁️";
+    }
+  `,
+  view: html`<secction>
+    <p
+      @if.class=".isOpen"
+      @then="'head open'"
+      @else="'head closed'"
+      @text=".label"
+      :data-type=".type"
+      @on.click="onItemClick ctx"
+    ></p>
+    <div class="pl-3 pt-1 flex flex-col gap-2" @show=".areChildsVisible">
+      <x render-each=".items"></x>
+    </div>
+  </secction>`,
+});
 
 export function getComponents() {
   return [
@@ -607,6 +787,11 @@ export function getComponents() {
     PushView,
     RequestExample,
     DnDExample,
+    StylesExample,
+    StylesExampleRoot,
+    SeqItemAccess,
+    TreeRoot,
+    TreeItem,
   ];
 }
 
@@ -641,14 +826,54 @@ export function getRoot() {
       ListFilterEnrich.make({ items: ITEMS }),
       ListFilterEnrichWith.make({ items: ITEMS }),
       RenderWithScope.make(),
-      ComputedProperties.make({ items: ITEMS }),
       DangerSetInnerHtml.make(),
       MultipleViews.make(),
       PushView.make({
         items: ENTRIES,
       }),
       RequestExample.make(),
+      ComputedProperties.make({ items: ITEMS }),
       DnDExample.make({ items: ITEMS }),
+      StylesExampleRoot.make(),
+      SeqItemAccess.make({
+        byIndex: ENTRIES,
+        currentKey: "key-0",
+        byKey: IMap(
+          ITEMS.map((v, i) => [
+            `key-${i}`,
+            Entry.make({ title: v, description: `Length: ${v.length}` }),
+          ]),
+        ),
+      }),
+      TreeRoot.Class.fromData([
+        {
+          label: "home",
+          items: [
+            {
+              label: "alice",
+              items: [
+                { type: "file", label: ".bashrc" },
+                { type: "file", label: ".profile" },
+              ],
+            },
+            {
+              label: "bob",
+              items: [
+                { type: "file", label: ".zrc" },
+                {
+                  label: "Desktop",
+
+                  items: [{ type: "file", label: ".DS_Store" }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          label: "etc",
+          items: [{ type: "file", label: "passwd" }],
+        },
+      ]),
     ],
   });
 }
