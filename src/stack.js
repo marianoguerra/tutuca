@@ -20,6 +20,14 @@ export class Pair {
       v = v.tail;
     }
   }
+  lookupNode(pred) {
+    for (const node of this) {
+      if (pred(node)) {
+        return node;
+      }
+    }
+    return null;
+  }
 }
 export class BindFrame {
   constructor(it, bindings, isFrame) {
@@ -107,7 +115,7 @@ export class Stack {
     return this.ctx.lookupName(name);
   }
   lookupComputed(name) {
-    return this.comps.lookupComputed(this.it, name);
+    return this.comps.lookupComputed(this.binds.lookupNode((v) => v.isFrame)?.it, name);
   }
   getInputHandler(name) {
     return this.comps.getInputHandlerFor(this.it, name);
