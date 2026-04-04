@@ -1,5 +1,6 @@
 export const isHtmlAttribute = (propName) =>
   propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
+const isObject = (v) => v !== null && typeof v === "object";
 export function applyProperties(node, props, previous) {
   for (const propName in props) {
     const propValue = props[propName];
@@ -9,7 +10,7 @@ export function applyProperties(node, props, previous) {
       node.setAttribute(propName, propValue);
     } else if (propName === "dangerouslySetInnerHTML") {
       node.innerHTML = propValue.__html ?? "";
-    } else if (typeof propValue === "object" && propValue !== null) {
+    } else if (isObject(propValue)) {
       patchObject(node, previous, propName, propValue);
     } else if (propName === "className") {
       node.setAttribute("class", propValue);
@@ -32,15 +33,14 @@ function removeProperty(node, propName, previous) {
 function patchObject(node, previous, propName, propValue) {
   const previousValue = previous?.[propName];
   if (
-    previousValue &&
-    typeof previousValue === "object" &&
+    isObject(previousValue) &&
     Object.getPrototypeOf(previousValue) !== Object.getPrototypeOf(propValue)
   ) {
     node[propName] = propValue;
     return;
   }
   let current = node[propName];
-  if (typeof current !== "object" || current === null) {
+  if (!isObject(current)) {
     node[propName] = {};
     current = node[propName];
   }
@@ -203,12 +203,7 @@ function diffProps(a, b) {
     const aValue = a[aKey];
     const bValue = b[aKey];
     if (aValue === bValue) {
-    } else if (
-      typeof aValue === "object" &&
-      aValue !== null &&
-      typeof bValue === "object" &&
-      bValue !== null
-    ) {
+    } else if (isObject(aValue) && isObject(bValue)) {
       if (Object.getPrototypeOf(bValue) !== Object.getPrototypeOf(aValue)) {
         diff ??= {};
         diff[aKey] = bValue;
