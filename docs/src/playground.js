@@ -103,11 +103,22 @@ export class TutucaPlayground extends HTMLElement {
     this.run();
   }
 
-  resolveImports(code) {
+  _getImportMap() {
     const importMapEl = document.querySelector('script[type="importmap"]');
-    if (!importMapEl) return code;
+    if (!importMapEl) return {};
     const { imports } = JSON.parse(importMapEl.textContent);
-    if (!imports) return code;
+    return imports || {};
+  }
+
+  _resolveSpecifier(specifier) {
+    const imports = this._getImportMap();
+    const url = imports[specifier];
+    if (!url) return specifier;
+    return new URL(url, location.href).href;
+  }
+
+  resolveImports(code) {
+    const imports = this._getImportMap();
     for (const [specifier, url] of Object.entries(imports)) {
       const resolved = new URL(url, location.href).href;
       const re = new RegExp(`(from\\s+)["']${specifier}["']`, "g");
@@ -129,8 +140,8 @@ export class TutucaPlayground extends HTMLElement {
 
     try {
       const mod = await import(this._blobUrl);
-      const { tutuca, compileClassesToStyleText } = await import("tutuca");
-      const { compile } = await import("margaui");
+      const { tutuca, compileClassesToStyleText } = await import(this._resolveSpecifier("tutuca"));
+      const { compile } = await import(this._resolveSpecifier("margaui"));
 
       const app = tutuca(appRoot);
       const scope = app.registerComponents(mod.getComponents());
