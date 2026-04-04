@@ -117,7 +117,7 @@ export class TutucaPlayground extends HTMLElement {
     return new URL(url, location.href).href;
   }
 
-  resolveImports(code) {
+  _resolveBareImports(code) {
     const imports = this._getImportMap();
     for (const [specifier, url] of Object.entries(imports)) {
       const resolved = new URL(url, location.href).href;
@@ -127,14 +127,48 @@ export class TutucaPlayground extends HTMLElement {
     return code;
   }
 
+  async _resolveRelativeImports(code, baseUrl, cache = new Map()) {
+    const matches = [...code.matchAll(/from\s+["'](\.\.?\/[^"']+)["']/g)];
+    for (const match of matches) {
+      const relPath = match[1];
+      const resolvedUrl = new URL(relPath, baseUrl).href;
+
+      if (!cache.has(resolvedUrl)) {
+        const resp = await fetch(resolvedUrl);
+        let depCode = await resp.text();
+        depCode = this._resolveBareImports(depCode);
+        depCode = await this._resolveRelativeImports(depCode, resolvedUrl, cache);
+        const blob = new Blob([depCode], { type: "text/javascript" });
+        cache.set(resolvedUrl, URL.createObjectURL(blob));
+      }
+
+      const escaped = relPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      code = code.replace(
+        new RegExp(`(from\\s+)["']${escaped}["']`, "g"),
+        `$1"${cache.get(resolvedUrl)}"`,
+      );
+    }
+    return code;
+  }
+
+  async resolveImports(code) {
+    const srcUrl = new URL(this.getAttribute("src"), location.href);
+    const cache = new Map();
+    code = this._resolveBareImports(code);
+    code = await this._resolveRelativeImports(code, srcUrl, cache);
+    this._depBlobUrls = [...cache.values()];
+    return code;
+  }
+
   async run() {
     if (this._blobUrl) URL.revokeObjectURL(this._blobUrl);
+    if (this._depBlobUrls) this._depBlobUrls.forEach(URL.revokeObjectURL);
 
     this.preview.innerHTML = "";
     const appRoot = document.createElement("div");
     this.preview.appendChild(appRoot);
 
-    const code = this.resolveImports(this.editor.code);
+    const code = await this.resolveImports(this.editor.code);
     const blob = new Blob([code], { type: "text/javascript" });
     this._blobUrl = URL.createObjectURL(blob);
 

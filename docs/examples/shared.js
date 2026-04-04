@@ -1,0 +1,16 @@
+export const ITEMS = [
+  "those belonging to the Emperor",
+  "embalmed ones",
+  "trained ones",
+  "suckling pigs",
+  "mermaids (or sirens)",
+  "fabled ones",
+  "stray dogs",
+  "those included in this classification",
+  "those that tremble as if they were mad",
+  "innumerable ones",
+  "those drawn with a very fine camel hair brush",
+  "et cetera",
+  "those that have just broken the vase",
+  "those that from afar look like flies",
+];
