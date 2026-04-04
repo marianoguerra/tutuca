@@ -59,11 +59,9 @@ test("parse text directive: const", () => {
   expect(r.val.value).toBe("hi");
 });
 
-test("parse text directive: parse error is empty string", () => {
+test("parse text directive: parse error is null", () => {
   const [r] = parse(`<x text="%a"></x>`);
-  expect(r).toBeInstanceOf(RenderTextNode);
-  expect(r.val).toBeInstanceOf(ConstVal);
-  expect(r.val.value).toBe("");
+  expect(r).toBe(null);
 });
 
 test("parse text attribute: const", () => {
@@ -74,12 +72,10 @@ test("parse text attribute: const", () => {
   expect(r.val.value).toBe("hi");
 });
 
-test("parse text directive: parse error is empty string", () => {
+test("parse text directive: parse error is no child text node", () => {
   const [node] = parse(`<span @text="%a"></span>`);
-  const r = node.childs[0];
-  expect(r).toBeInstanceOf(RenderTextNode);
-  expect(r.val).toBeInstanceOf(ConstVal);
-  expect(r.val.value).toBe("");
+  expect(node).toBeInstanceOf(DomNode);
+  expect(node.childs.length).toBe(0);
 });
 
 test("expand simple macro", () => {
@@ -315,7 +311,16 @@ function optimizeView(rawView, scope) {
 }
 
 test("optimize: whole root fragment cached if all constant childs", () => {
-  const r = optimizeView(html`<x><p>a</p> b <ul><li>c</li><li>d</li></ul></x>`);
+  const r = optimizeView(
+    html`<x
+      ><p>a</p>
+      b
+      <ul>
+        <li>c</li>
+        <li>d</li>
+      </ul></x
+    >`,
+  );
   expect(r.anode).toBeInstanceOf(RenderOnceNode);
 });
 
@@ -385,7 +390,13 @@ test("optimize: constant macro child gets wrapped by parent", () => {
   expect(r.anode.childs[0]).toBeInstanceOf(RenderOnceNode);
 });
 test("optimize: dynamic macro subtree gets optimized", () => {
-  const card = macro({}, html`<div><p>static</p><span :class=".cls">dyn</span></div>`);
+  const card = macro(
+    {},
+    html`<div>
+      <p>static</p>
+      <span :class=".cls">dyn</span>
+    </div>`,
+  );
   const scope = new ScopeForMacros({ card });
   const r = optimizeView(html`<div><x:card></x:card></div>`, scope);
   const macroNode = r.anode.childs[0];

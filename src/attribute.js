@@ -90,7 +90,7 @@ class AttrParser {
         this.pushWrapper("push-view", s, vp.parseText(s, this.px));
         return;
       case "text":
-        this.textChild = vp.parseText(s, this.px) ?? vp.const("");
+        this.textChild = vp.parseText(s, this.px);
         return;
       case "show":
         this.pushWrapper("show", s, vp.parseCondValue(s, this.px));

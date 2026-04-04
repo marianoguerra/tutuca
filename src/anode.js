@@ -149,8 +149,10 @@ export class ANode extends BaseNode {
       switch (name) {
         case "slot":
           return new SlotNode(null, vp.const(value), maybeFragment(childs));
-        case "text":
-          return new RenderTextNode(null, vp.parseText(value, px) ?? vp.const(""));
+        case "text": {
+          const v = vp.parseText(value, px);
+          return v !== null ? new RenderTextNode(null, v) : null;
+        }
         case "render":
           return px.addNodeIf(RenderNode, vp.parseRender(value, px), as);
         case "render-it":
@@ -194,13 +196,13 @@ function wrap(node, px, wrappers) {
 }
 function makeWrapperNode(data, px) {
   const Cls = WRAPPER_NODES[data.name];
-  const node = Cls.register ? px.addNodeIf(Cls, data.val) : new Cls(null, data.val);
-  if (data.name === "each") {
+  const node = Cls.register ? px.addNodeIf(Cls, data.val) : data.val && new Cls(null, data.val);
+  if (node !== null && data.name === "each") {
     node.iterInfo.enrichWithVal = data.enrichWithVal ?? null;
     node.iterInfo.whenVal = data.whenVal ?? null;
     node.iterInfo.loopWithVal = data.loopWithVal ?? null;
   }
-  return node;
+  return node; // TODO: surface info if node is null here
 }
 export class MacroNode extends BaseNode {
   constructor(name, attrs, slots, px) {

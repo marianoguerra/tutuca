@@ -791,4 +791,192 @@ describe("ANode", () => {
       expect(f1(f, mkKeyDown("A", {})).apply(100, [10, 5])).toBe(100);
     });
   });
+
+  describe("value type validation", () => {
+    // @each — parseEach: field, computed, dyn
+    describe("@each", () => {
+      test("valid field", () => {
+        const [r] = parse("<div @each='.foo'>hi</div>");
+        expect(r).toBeInstanceOf(EachNode);
+      });
+      test("valid computed", () => {
+        const [r] = parse("<div @each='$foo'>hi</div>");
+        expect(r).toBeInstanceOf(EachNode);
+      });
+      test("valid dyn", () => {
+        const [r] = parse("<div @each='*foo'>hi</div>");
+        expect(r).toBeInstanceOf(EachNode);
+      });
+      test("invalid bind falls back to DomNode", () => {
+        const [r] = parse("<div @each='@foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+      test("invalid const falls back to DomNode", () => {
+        const [r] = parse("<div @each='42'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+      test("invalid name falls back to DomNode", () => {
+        const [r] = parse("<div @each='foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+    });
+
+    // @show — parseCondValue: field, bind, computed, dyn, const
+    describe("@show", () => {
+      test("valid field", () => {
+        const [r] = parse("<div @show='.foo'>hi</div>");
+        expect(r).toBeInstanceOf(ShowNode);
+      });
+      test("valid bind", () => {
+        const [r] = parse("<div @show='@foo'>hi</div>");
+        expect(r).toBeInstanceOf(ShowNode);
+      });
+      test("valid computed", () => {
+        const [r] = parse("<div @show='$foo'>hi</div>");
+        expect(r).toBeInstanceOf(ShowNode);
+      });
+      test("valid dyn", () => {
+        const [r] = parse("<div @show='*foo'>hi</div>");
+        expect(r).toBeInstanceOf(ShowNode);
+      });
+      test("valid const bool", () => {
+        const [r] = parse("<div @show='true'>hi</div>");
+        expect(r).toBeInstanceOf(ShowNode);
+      });
+      test("invalid name falls back to DomNode", () => {
+        const [r] = parse("<div @show='foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+      test("invalid type falls back to DomNode", () => {
+        const [r] = parse("<div @show='Foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+    });
+
+    // @hide — parseCondValue: field, bind, computed, dyn, const
+    describe("@hide", () => {
+      test("valid field", () => {
+        const [r] = parse("<div @hide='.foo'>hi</div>");
+        expect(r).toBeInstanceOf(HideNode);
+      });
+      test("valid bind", () => {
+        const [r] = parse("<div @hide='@foo'>hi</div>");
+        expect(r).toBeInstanceOf(HideNode);
+      });
+      test("invalid name falls back to DomNode", () => {
+        const [r] = parse("<div @hide='foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+    });
+
+    // @enrich-with (standalone) — parseAlter: field, name
+    describe("@enrich-with", () => {
+      test("valid field", () => {
+        const [r] = parse("<div @enrich-with='.foo'>hi</div>");
+        expect(r).toBeInstanceOf(ScopeNode);
+      });
+      test("valid name", () => {
+        const [r] = parse("<div @enrich-with='foo'>hi</div>");
+        expect(r).toBeInstanceOf(ScopeNode);
+      });
+      test("invalid bind falls back to DomNode", () => {
+        const [r] = parse("<div @enrich-with='@foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+      test("invalid computed falls back to DomNode", () => {
+        const [r] = parse("<div @enrich-with='$foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
+    });
+
+    // @text — parseText: field, bind, computed, dyn, const, strTpl
+    describe("@text", () => {
+      test("valid field", () => {
+        const [r] = parse("<p @text='.foo'>x</p>");
+        expect(r).toBeInstanceOf(DomNode);
+        expect(r.childs[0]).toBeInstanceOf(RenderTextNode);
+        expect(r.childs[0].val).toBeInstanceOf(FieldVal);
+      });
+      test("valid bind", () => {
+        const [r] = parse("<p @text='@foo'>x</p>");
+        expect(r).toBeInstanceOf(DomNode);
+        expect(r.childs[0]).toBeInstanceOf(RenderTextNode);
+        expect(r.childs[0].val).toBeInstanceOf(BindVal);
+      });
+      test("valid computed", () => {
+        const [r] = parse("<p @text='$foo'>x</p>");
+        expect(r).toBeInstanceOf(DomNode);
+        expect(r.childs[0]).toBeInstanceOf(RenderTextNode);
+        expect(r.childs[0].val).toBeInstanceOf(ComputedVal);
+      });
+      test("invalid name adds no RenderTextNode", () => {
+        const [r] = parse("<p @text='foo'>x</p>");
+        expect(r.childs.every((c) => !(c instanceof RenderTextNode))).toBe(true);
+      });
+      test("invalid type adds no RenderTextNode", () => {
+        const [r] = parse("<p @text='Foo'>x</p>");
+        expect(r.childs.every((c) => !(c instanceof RenderTextNode))).toBe(true);
+      });
+    });
+
+    // :attr — parseAttr→parseText: field, bind, computed, dyn, const, strTpl
+    describe(":attr", () => {
+      test("valid field", () => {
+        const [r] = parse("<div :title='.foo'>hi</div>");
+        expect(r.attrs).toBeInstanceOf(DynAttrs);
+      });
+      test("valid bind", () => {
+        const [r] = parse("<div :title='@foo'>hi</div>");
+        expect(r.attrs).toBeInstanceOf(DynAttrs);
+      });
+      test("invalid name keeps ConstAttrs", () => {
+        const [r] = parse("<div :title='foo'>hi</div>");
+        expect(r.attrs).toBeInstanceOf(ConstAttrs);
+      });
+    });
+
+    // <x render=...> — parseRender: field, seqAccess
+    describe("x render", () => {
+      test("valid field", () => {
+        const [r] = parse("<x render='.foo'></x>");
+        expect(r).toBeInstanceOf(RenderNode);
+      });
+      test("invalid bind", () => {
+        const [r] = parse("<x render='@foo'></x>");
+        console.log("x render @foo:", r);
+      });
+      test("invalid computed", () => {
+        const [r] = parse("<x render='$foo'></x>");
+        console.log("x render $foo:", r);
+      });
+    });
+
+    // <x text=...> — parseText: field, bind, computed, dyn, const, strTpl
+    describe("x text", () => {
+      test("valid field", () => {
+        const [r] = parse("<x text='.foo'></x>");
+        expect(r).toBeInstanceOf(RenderTextNode);
+      });
+      test("valid bind", () => {
+        const [r] = parse("<x text='@foo'></x>");
+        expect(r).toBeInstanceOf(RenderTextNode);
+      });
+      test("invalid name returns no RenderTextNode", () => {
+        const [r] = parse("<x text='foo'></x>");
+        expect(r).not.toBeInstanceOf(RenderTextNode);
+      });
+    });
+
+    // <x render-each=...> — parseEach: field, computed, dyn
+    describe("x render-each", () => {
+      test("valid field", () => {
+        const [r] = parse("<x render-each='.foo'></x>");
+        expect(r).toBeInstanceOf(RenderEachNode);
+      });
+      test("invalid bind", () => {
+        const [r] = parse("<x render-each='@foo'></x>");
+        console.log("x render-each @foo:", r);
+      });
+    });
+  });
 });

@@ -121,8 +121,8 @@ export class ValParser {
   _parseHandler(s, px, HandlerClass) {
     this.allowFieldOnly();
     this.okName = true;
-    const val = this.parse(s, px);
-    return val.toRawFieldVal ? val.toRawFieldVal() : new HandlerClass(val.name);
+    const val = this.parse(s, px); // TODO: surface info if val is null
+    return val && (val.toRawFieldVal ? val.toRawFieldVal() : new HandlerClass(val.name));
   }
   parseHandlerName(s, px) {
     return this._parseHandler(s, px, InputHandlerNameVal);
