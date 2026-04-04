@@ -741,23 +741,22 @@ const TreeItem = component({
       content: "⏺️";
       margin-right: 0.25rem;
     }
-    .head[data-type="file"]:before {
+    .head.type-file:before {
       content: "📄️";
     }
-    .head.open[data-type="dir"]:before {
+    .head.open.type-dir:before {
       content: "📂️";
     }
-    .head.closed[data-type="dir"]:before {
+    .head.closed.type-dir:before {
       content: "📁️";
     }
   `,
   view: html`<secction>
     <p
       @if.class=".isOpen"
-      @then="'head open'"
-      @else="'head closed'"
+      @then="head open type-{.type}"
+      @else="head closed type-{.type}"
       @text=".label"
-      :data-type=".type"
       @on.click="onItemClick ctx"
     ></p>
     <div class="pl-3 pt-1 flex flex-col gap-2" @show=".areChildsVisible">
