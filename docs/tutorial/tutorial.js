@@ -688,8 +688,7 @@ const TreeRoot = component({
     },
   },
   bubble: {
-    treeItemSelected(selectedItem, ctx) {
-      console.log("..", ctx);
+    treeItemSelected(selectedItem) {
       const msg = `Selected ${selectedItem.type}: ${selectedItem.label}`;
       return this.insertInLogAt(0, msg);
     },

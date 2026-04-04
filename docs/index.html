@@ -16,12 +16,18 @@
     </script>
   </head>
   <body>
-    <h1>🚧️ Tutuca 🚧️</h1>
-    <h2>
-      Zero-dependency batteries included
-      <abbr title="Single Page Application">SPA</abbr> framework
-    </h2>
-    <div class="middle">
+    <nav style="display: flex; justify-content: flex-end; gap: 3em">
+      <a href="tutorial.html">🧑‍🏫️ Tutorial</a>
+      <a href="https://github.com/marianoguerra/tutuca"
+        >🧑‍💻️ github.com/marianoguerra/tutuca</a
+      >
+    </nav>
+    <header>
+      <h1>🚧️ Tutuca 🚧️</h1>
+      <h2>
+        Zero-dependency batteries included
+        <abbr title="Single Page Application">SPA</abbr> framework
+      </h2>
       <ul>
         <li>
           Single file, no build, no dependencies, no setup: a script tag is all
@@ -45,46 +51,63 @@
         <li>View source friendly: step through the whole stack</li>
         <li>As much HTML as possible, as little JS as needed</li>
       </ul>
-    </div>
-    <div class="section">
-      <h2>Quick Start</h2>
-      <p style="text-align: center">
-        Edit the code and hit <kbd>Ctrl/Cmd + Enter</kbd> to reload. Load page
-        with <a href="/?vim">/?vim</a> for vim mode in the text editor.
-      </p>
-      <h3>Basic</h3>
-      <html-playground src="./examples/getting-started.html"></html-playground>
-      <h3>
-        <a
-          href="https://marianoguerra.github.io/margaui/playground/"
-          target="_blank"
-          >MargaUI</a
-        >
-        Integration
-      </h3>
-      <html-playground
-        src="./examples/getting-started-margaui.html"
-      ></html-playground>
-    </div>
-    <div class="section">
-      <h2>Examples</h2>
-      <h3>Counter</h3>
-      <tutuca-playground src="./examples/counter.js"></tutuca-playground>
-      <h3>To-do</h3>
-      <tutuca-playground src="./examples/todo.js"></tutuca-playground>
-      <h3>JSON Editor</h3>
-      <tutuca-playground src="./examples/json.js"></tutuca-playground>
-      <h3>Personal Site</h3>
-      <tutuca-playground src="./examples/personal-site.js"></tutuca-playground>
-      <h3>To-do (ab)using macros</h3>
-      <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>
-      <h3>Visual Wasm</h3>
-      <tutuca-playground src="./examples/visual-wasm.js"></tutuca-playground>
-    </div>
-    <div class="section">
-      <h3>Tutorial</h3>
-      <tutuca-playground src="./tutorial/tutorial.js"></tutuca-playground>
-    </div>
+    </header>
+    <main>
+      <section>
+        <h2>Quick Start</h2>
+        <p style="text-align: center">
+          Edit the code and hit <kbd>Ctrl/Cmd + Enter</kbd> to reload. Load page
+          with <a href="/?vim">/?vim</a> for vim mode in the text editor.
+        </p>
+        <h3>Basic</h3>
+        <html-playground
+          src="./examples/getting-started.html"
+        ></html-playground>
+        <h3>
+          <a
+            href="https://marianoguerra.github.io/margaui/playground/"
+            target="_blank"
+            >MargaUI</a
+          >
+          Integration
+        </h3>
+        <html-playground
+          src="./examples/getting-started-margaui.html"
+        ></html-playground>
+      </section>
+      <section>
+        <h2>Examples</h2>
+        <h3>Counter</h3>
+        <tutuca-playground src="./examples/counter.js"></tutuca-playground>
+        <h3>To-do</h3>
+        <tutuca-playground src="./examples/todo.js"></tutuca-playground>
+        <h3>JSON Editor</h3>
+        <tutuca-playground src="./examples/json.js"></tutuca-playground>
+        <h3>Personal Site</h3>
+        <tutuca-playground
+          src="./examples/personal-site.js"
+        ></tutuca-playground>
+        <h3>To-do (ab)using macros</h3>
+        <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>
+        <h3>Visual Wasm</h3>
+        <tutuca-playground src="./examples/visual-wasm.js"></tutuca-playground>
+      </section>
+      <section>
+        <h3>Tutorial</h3>
+        <tutuca-playground src="./tutorial/tutorial.js"></tutuca-playground>
+      </section>
+    </main>
+    <footer style="display: flex; justify-content: center; gap: 3em">
+      <a href="https://github.com/marianoguerra/tutuca"
+        >🧑‍💻️ github.com/marianoguerra/tutuca</a
+      >
+      <a href="https://bsky.app/profile/marianoguerra.org"
+        >🦋️ @marianoguerra.org</a
+      >
+      <a href="https://hachyderm.io/@marianoguerra"
+        >🐘️ @marianoguerra@hachyderm.io</a
+      >
+    </footer>
     <script type="module" src="src/app.js"></script>
   </body>
 </html>
