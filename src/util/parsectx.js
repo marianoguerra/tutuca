@@ -1,4 +1,5 @@
 import { ParseContext } from "../anode.js";
+import { ConstVal } from "../value.js";
 
 export class ParseCtxClassSetCollector extends ParseContext {
   constructor(...args) {
@@ -40,6 +41,12 @@ export class ParseCtxClassSetCollector extends ParseContext {
           }
         } else if (typeof value?.value === "string") {
           this._addClasses(value.value);
+        } else if (value?.vals !== undefined) {
+          for (const val of value.vals) {
+            if (val instanceof ConstVal && val.value !== "") {
+              this._addClasses(val.value);
+            }
+          }
         }
       }
     } else {
