@@ -27,43 +27,383 @@
     </header>
     <main>
       <section>
-        <h3>Text Directive</h3>
-        <tutuca-playground src="./examples/text-directive.js"></tutuca-playground>
+        <h3>Text Rendering</h3>
+        <p>
+          Display component state as text in the DOM using the
+          <code>@text</code> directive and the <code>&lt;x text&gt;</code>
+          element. Covers: field binding, method calls, and handling of
+          different value types (strings, numbers, booleans, null).
+        </p>
+        <p>
+          The <code>.fieldName</code> syntax resolves a component field:
+          <code>@text=".str"</code> displays the value of the
+          <code>str</code> field. The same syntax calls methods:
+          <code>@text=".getStrUpper"</code> invokes the method and displays its
+          return value. Use <code>@text</code> as an attribute to prepend text
+          into an existing element (preserving its other children), or use
+          <code>&lt;x text=".field"&gt;&lt;/x&gt;</code> as a standalone text
+          node that adds no extra DOM element.
+        </p>
+        <tutuca-playground
+          src="./examples/text-directive.js"
+        ></tutuca-playground>
         <h3>Attribute Binding</h3>
-        <tutuca-playground src="./examples/attribute-binding.js"></tutuca-playground>
-        <h3>Counter</h3>
-        <tutuca-playground src="./examples/tutorial-counter.js"></tutuca-playground>
+        <p>
+          Bind component state to HTML attributes and handle user input with
+          two-way data flow. Covers: <code>:attr</code> binding,
+          <code>@on.input</code> events, auto-generated setters, and template
+          interpolation in attribute values.
+        </p>
+        <p>
+          <code>:value=".str"</code> binds the <code>str</code> field to the
+          input's <code>value</code> attribute. When the user types,
+          <code>@on.input=".setStr value"</code> calls the auto-generated
+          <code>setStr</code> setter with the input's current value. Template
+          interpolation works in attribute bindings too:
+          <code>:title="Content is {.str}"</code> builds a dynamic title string.
+          For the number input, a custom method <code>setRawNumber</code> parses
+          and validates before calling the auto-generated <code>setNum</code>.
+        </p>
+        <tutuca-playground
+          src="./examples/attribute-binding.js"
+        ></tutuca-playground>
+        <h3>Event Handling</h3>
+        <p>
+          A minimal stateful component: increment and decrement a counter.
+          Covers: <code>fields</code>, <code>methods</code> vs
+          <code>input</code> handlers, <code>@on.click</code>, and
+          auto-generated setters.
+        </p>
+        <p>
+          The <code>+</code> button uses <code>@on.click=".inc"</code> &mdash;
+          the dot prefix calls a <code>methods</code> function. The
+          <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no dot
+          means it calls an <code>input</code> handler. Both return new state
+          via the auto-generated <code>this.setCount()</code>. Methods and input
+          handlers both must return a new component instance; the difference is
+          that input handlers receive event-related arguments while methods are
+          general-purpose.
+        </p>
+        <tutuca-playground
+          src="./examples/tutorial-counter.js"
+        ></tutuca-playground>
         <h3>Event Modifiers</h3>
-        <tutuca-playground src="./examples/event-modifiers.js"></tutuca-playground>
+        <p>
+          Filter keyboard events so handlers only fire on specific keys. Covers:
+          <code>+send</code> (Enter key), <code>+cancel</code> (Escape key),
+          <code>@show</code> for conditional visibility, and auto-generated
+          null-check methods.
+        </p>
+        <p>
+          <code>@on.keydown+send=".setLastSentSearch value"</code> only fires
+          when the user presses Enter.
+          <code>@on.keydown+cancel=".resetQuery"</code> only fires on Escape.
+          Modifiers are appended with <code>+</code> and can be combined (e.g.
+          <code>+ctrl+send</code>).
+          <code>@show=".isLastSentSearchSet"</code> conditionally displays the
+          search result &mdash; <code>isLastSentSearchSet</code> is
+          auto-generated for nullable fields (those initialized with
+          <code>null</code>), returning <code>true</code> when the field has a
+          non-null value.
+        </p>
+        <tutuca-playground
+          src="./examples/event-modifiers.js"
+        ></tutuca-playground>
         <h3>Conditional Attributes</h3>
-        <tutuca-playground src="./examples/conditional-attributes.js"></tutuca-playground>
+        <p>
+          Dynamically set HTML attributes based on component state. Covers:
+          <code>@if.class</code> / <code>@then</code> / <code>@else</code> for
+          conditional attribute values, <code>@show</code> /
+          <code>@hide</code> for visibility, and auto-generated
+          <code>toggleIsActive</code>.
+        </p>
+        <p>
+          <code>@if.class=".isActive"</code> tests the boolean field, then
+          <code>@then="'btn btn-success'"</code> or
+          <code>@else="'btn btn-ghost'"</code> sets the class accordingly. The
+          same pattern works for any attribute: <code>@if.title</code> /
+          <code>@then.title</code> / <code>@else.title</code> conditionally sets
+          the title. Single quotes inside the value (<code>'...'</code>) denote
+          string literals. <code>@show</code> and <code>@hide</code> toggle
+          element visibility based on a field value.
+          <code>.toggleIsActive</code> is auto-generated for boolean fields.
+        </p>
+        <tutuca-playground
+          src="./examples/conditional-attributes.js"
+        ></tutuca-playground>
         <h3>List Iteration</h3>
-        <tutuca-playground src="./examples/list-iteration.js"></tutuca-playground>
-        <h3>List and Filter</h3>
-        <tutuca-playground src="./examples/list-and-filter.js"></tutuca-playground>
-        <h3>List Filter Enrich</h3>
-        <tutuca-playground src="./examples/list-filter-enrich.js"></tutuca-playground>
-        <h3>List Filter Enrich With</h3>
-        <tutuca-playground src="./examples/list-filter-enrich-with.js"></tutuca-playground>
-        <h3>Render With Scope</h3>
-        <tutuca-playground src="./examples/render-with-scope.js"></tutuca-playground>
+        <p>
+          Repeat an element for each item in a collection. Covers:
+          <code>@each</code> directive, <code>@key</code> and
+          <code>@value</code> iteration bindings.
+        </p>
+        <p>
+          <code>@each=".items"</code> iterates over the <code>items</code>
+          field and repeats the element for each entry. Inside the loop,
+          <code>@key</code> is the current index (for Lists) or key (for Maps),
+          and <code>@value</code> is the current item. These are local bindings
+          accessed with the <code>@</code> prefix: <code>@text="@key"</code> and
+          <code>&lt;x text="@value"&gt;</code>.
+        </p>
+        <tutuca-playground
+          src="./examples/list-iteration.js"
+        ></tutuca-playground>
+        <h3>List Filtering</h3>
+        <p>
+          Filter items during iteration so only matching entries are rendered.
+          Covers: <code>@when</code> directive and the <code>alter</code>
+          object for read-only iteration helpers.
+        </p>
+        <p>
+          Adding <code>@when="filterItem"</code> alongside
+          <code>@each</code> calls <code>alter.filterItem(_key, item)</code> for
+          each entry. If it returns <code>false</code>, the item is skipped.
+          Functions in the <code>alter</code> object have
+          <code>this</code> bound to the component state (read-only access)
+          &mdash; here it reads <code>this.query</code> to filter items by the
+          current search string.
+        </p>
+        <tutuca-playground
+          src="./examples/list-and-filter.js"
+        ></tutuca-playground>
+        <h3>Iteration Enrichment</h3>
+        <p>
+          Add extra computed bindings to each iteration item. Covers:
+          <code>@enrich-with</code> directive and custom <code>@</code>-prefixed
+          bindings inside loops.
+        </p>
+        <p>
+          <code>@enrich-with="enrichItem"</code> calls
+          <code>alter.enrichItem(binds, _key, item)</code> for each iteration
+          step. By mutating the <code>binds</code> object (e.g.
+          <code>binds.count = item.length</code>), you create new local bindings
+          accessible in the template as <code>@count</code>. This lets you
+          derive and display per-item values without adding them to the
+          component's state.
+        </p>
+        <tutuca-playground
+          src="./examples/list-filter-enrich.js"
+        ></tutuca-playground>
+        <h3>Shared Iteration Data</h3>
+        <p>
+          Pre-compute shared data once before iterating, then pass it to filter
+          and enrich functions. Covers: <code>@loop-with</code> directive and
+          the <code>iterData</code> parameter.
+        </p>
+        <p>
+          <code>@loop-with="getIterData"</code> calls
+          <code>alter.getIterData(seq)</code> once before the loop starts. Its
+          return value (here <code>{ totalChars, queryLower }</code>) is passed
+          as the third argument to both <code>filterItem</code> and
+          <code>enrichItem</code>. This avoids redundant computation &mdash;
+          <code>queryLower</code> is computed once instead of per-item, and
+          <code>totalChars</code> is calculated from the full sequence before
+          any filtering.
+        </p>
+        <tutuca-playground
+          src="./examples/list-filter-enrich-with.js"
+        ></tutuca-playground>
+        <h3>Scope Enrichment</h3>
+        <p>
+          Create local bindings for a subtree without iteration. Covers:
+          <code>@enrich-with</code> outside of <code>@each</code>, and using
+          <code>alter</code> functions that return binding objects.
+        </p>
+        <p>
+          When <code>@enrich-with="enrichScope"</code> is used on an element
+          without <code>@each</code>, the <code>alter</code> function returns an
+          object (here <code>{ len, upper }</code>) whose keys become
+          <code>@</code>-prefixed bindings for all children. Inside the enriched
+          <code>&lt;div&gt;</code>, <code>@len</code> and
+          <code>@upper</code> are available alongside the regular field
+          bindings. This is useful for injecting derived values into a section
+          of the template without storing them in component state.
+        </p>
+        <tutuca-playground
+          src="./examples/render-with-scope.js"
+        ></tutuca-playground>
         <h3>Computed Properties</h3>
-        <tutuca-playground src="./examples/computed-properties.js"></tutuca-playground>
-        <h3>Danger Set Inner HTML</h3>
-        <tutuca-playground src="./examples/danger-set-inner-html.js"></tutuca-playground>
+        <p>
+          Cache expensive derived values so they are only recalculated when the
+          component instance changes. Covers: the <code>computed</code> object
+          and the <code>$</code> prefix for referencing cached values.
+        </p>
+        <p>
+          <code>computed.totalItemsChars()</code> sums character counts across
+          all items. It is referenced in the template as
+          <code>$totalItemsChars</code> (note the <code>$</code> prefix). Unlike
+          <code>@loop-with</code> which runs on every render, computed values
+          are cached per component instance &mdash; the function only re-runs
+          when the instance itself changes (check the
+          <code>console.log</code> to verify). This makes computed properties
+          ideal for values needed in multiple places or across different parts
+          of the template.
+        </p>
+        <tutuca-playground
+          src="./examples/computed-properties.js"
+        ></tutuca-playground>
+        <h3>Raw HTML</h3>
+        <p>
+          Inject raw HTML into the DOM, bypassing text escaping. Covers: the
+          <code>@dangerouslysetinnerhtml</code> directive and its security
+          implications.
+        </p>
+        <p>
+          <code>@dangerouslysetinnerhtml=".content"</code> sets the element's
+          <code>innerHTML</code> from the field value. The intentionally scary
+          name (borrowed from React) warns that this bypasses all text escaping
+          &mdash; if the content comes from untrusted sources, it opens the door
+          to XSS attacks. Use it only when you control the HTML content or have
+          sanitized it. When this directive is active, the element's children in
+          the template are ignored.
+        </p>
+        <tutuca-playground
+          src="./examples/danger-set-inner-html.js"
+        ></tutuca-playground>
         <h3>Multiple Views</h3>
-        <tutuca-playground src="./examples/multiple-views.js"></tutuca-playground>
-        <h3>Push View</h3>
+        <p>
+          Render the same component data with different visual representations.
+          Covers: the <code>views</code> object, <code>&lt;x render&gt;</code>,
+          and the <code>as</code> attribute.
+        </p>
+        <p>
+          A component defines its default template in <code>view</code> and
+          alternate templates in <code>views: { name: html`...` }</code>.
+          <code>&lt;x render=".item"&gt;</code> renders the default (main) view.
+          Adding <code>as="edit"</code> selects the named "edit" view instead.
+          Both render the same <code>Entry</code> instance &mdash; the main view
+          shows read-only text, while the edit view shows input fields bound to
+          the same fields.
+        </p>
+        <tutuca-playground
+          src="./examples/multiple-views.js"
+        ></tutuca-playground>
+        <h3>Dynamic View Switching</h3>
+        <p>
+          Switch views for an entire subtree dynamically. Covers:
+          <code>@push-view</code>, <code>&lt;x render-each&gt;</code>, and the
+          <code>when</code> attribute on render-each.
+        </p>
+        <p>
+          <code>@push-view=".view"</code> pushes a view name onto the rendering
+          stack. All <code>&lt;x render-each&gt;</code> children inside that
+          element will use that view name when rendering their components.
+          Toggling the <code>view</code> field between <code>"main"</code> and
+          <code>"edit"</code> switches every <code>Entry</code> item between
+          read-only and editable mode at once. The
+          <code>when="filterItem"</code> attribute on
+          <code>&lt;x render-each&gt;</code> filters items the same way
+          <code>@when</code> does on <code>@each</code>.
+        </p>
         <tutuca-playground src="./examples/push-view.js"></tutuca-playground>
-        <h3>Request Example</h3>
-        <tutuca-playground src="./examples/request-example.js"></tutuca-playground>
+        <h3>Async Requests</h3>
+        <p>
+          Load data asynchronously with the request/response pattern. Covers:
+          <code>logic.init</code>, <code>ctx.request()</code>,
+          <code>response</code> handlers, <code>getRequestHandlers()</code>, and
+          loading state management.
+        </p>
+        <p>
+          <code>logic.init(ctx)</code> runs when the app starts and calls
+          <code>ctx.request("loadData", [])</code> to trigger the async function
+          registered in <code>getRequestHandlers()</code>. When the fetch
+          completes, tutuca calls <code>response.loadData(res, err)</code> with
+          the result. The component manages a loading state with
+          <code>@show=".isLoading"</code> and <code>@hide=".isLoading"</code>.
+          The "Load Another Way" button demonstrates
+          <code>ctx.request()</code> with custom callback names via
+          <code>onOkName</code> and <code>onErrorName</code> options, routing
+          the response to different handlers.
+        </p>
+        <tutuca-playground
+          src="./examples/request-example.js"
+        ></tutuca-playground>
+        <h3>Component Styles</h3>
+        <p>
+          Apply CSS at three scoping levels. Covers:
+          <code>style</code> (view-scoped),
+          <code>commonStyle</code> (component-scoped),
+          <code>globalStyle</code> (unscoped), and per-view style overrides.
+        </p>
+        <p>
+          <code>style: css`...`</code> is scoped to a specific component+view
+          combination &mdash; the same class name <code>.mine</code> can have
+          different styles in different views. <code>commonStyle</code> is
+          shared across all views of the same component.
+          <code>globalStyle</code> is injected globally without scoping. View
+          "two" defines its own <code>style</code> that overrides the default
+          &mdash; notice <code>.mine</code> is red in the main view but orange
+          and underlined in view two. The root component renders all three views
+          side by side using
+          <code>&lt;x render=".value" as="viewName"&gt;</code>.
+        </p>
+        <tutuca-playground
+          src="./examples/styles-example.js"
+        ></tutuca-playground>
         <h3>Drag and Drop</h3>
+        <p>
+          Reorder list items by dragging and dropping. Covers:
+          <code>data-dragtype</code> / <code>data-droptarget</code> attributes,
+          the <code>dragInfo</code> and <code>event</code> handler arguments,
+          and component-scoped <code>style</code>.
+        </p>
+        <p>
+          Setting <code>draggable="true"</code> enables HTML5 drag on each item.
+          Tutuca matches drag sources to drop targets via
+          <code>data-dragtype</code> and <code>data-droptarget</code> &mdash;
+          only items with matching types can be dropped on each other. The drop
+          handler receives <code>@key</code> (the target index),
+          <code>dragInfo</code> (metadata about the dragged item), and
+          <code>event</code> (the raw DOM event).
+          <code>dragInfo.lookupBind("key")</code> retrieves the source item's
+          iteration index. The component <code>style</code> (using
+          <code>css</code> tagged template) adds visual feedback for dragging
+          states, scoped to this component.
+        </p>
         <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
-        <h3>Styles</h3>
-        <tutuca-playground src="./examples/styles-example.js"></tutuca-playground>
-        <h3>Sequence Item Access</h3>
-        <tutuca-playground src="./examples/seq-item-access.js"></tutuca-playground>
-        <h3>Tree</h3>
+        <h3>Collection Item Access</h3>
+        <p>
+          Access individual items from collections by dynamic index or key.
+          Covers: bracket notation <code>.field[.otherField]</code>,
+          <code>IMap</code> for key-value storage, and dynamic
+          <code>&lt;x render&gt;</code>.
+        </p>
+        <p>
+          <code>&lt;x render=".byIndex[.currentIndex]"&gt;</code> renders the
+          component at position <code>.currentIndex</code> in the
+          <code>byIndex</code> list. The bracket syntax resolves the inner
+          expression as a key into the outer collection.
+          <code>.byKey[.currentKey]</code> does the same for an
+          <code>IMap</code> (immutable Map), looking up the entry by string key.
+          The range slider and select dropdown update
+          <code>currentIndex</code> and <code>currentKey</code> respectively,
+          and the rendered component updates in response.
+        </p>
+        <tutuca-playground
+          src="./examples/seq-item-access.js"
+        ></tutuca-playground>
+        <h3>Recursive Components</h3>
+        <p>
+          Build a recursive component that renders a hierarchical tree
+          structure. Covers: recursive <code>&lt;x render-each&gt;</code>,
+          <code>statics</code> for data constructors, event bubbling with
+          <code>ctx.bubble()</code> and <code>bubble</code> handlers, and
+          component CSS with pseudo-elements.
+        </p>
+        <p>
+          <code>TreeItem</code> renders its children with
+          <code>&lt;x render-each=".items"&gt;</code>, creating a recursive
+          tree. <code>statics.fromData</code> is a factory method on the
+          component class that recursively builds the tree from plain objects.
+          When a node is clicked,
+          <code>ctx.bubble("treeItemSelected", [this])</code> sends an event up
+          the component tree &mdash; each ancestor's
+          <code>bubble.treeItemSelected</code> handler can intercept or forward
+          it. The root <code>TreeRoot</code> catches the event and logs the
+          selection. Component <code>style</code> uses CSS pseudo-elements
+          (<code>:before</code>) to display folder/file icons based on class
+          names set with <code>@if.class</code>.
+        </p>
         <tutuca-playground src="./examples/tree.js"></tutuca-playground>
       </section>
     </main>

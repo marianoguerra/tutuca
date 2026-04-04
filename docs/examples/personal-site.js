@@ -1,4 +1,4 @@
-import { component, html, List, ISet } from "tutuca";
+import { component, html, ISet, List } from "tutuca";
 
 export const Root = component({
   name: "Root",
@@ -14,9 +14,9 @@ export const Root = component({
   },
   methods: {
     clearFilters() {
-      return this.setSelectedCategories(
-        ISet(this.allCategories),
-      ).setSelectedRoles(ISet(this.allRoles));
+      return this.setSelectedCategories(ISet(this.allCategories)).setSelectedRoles(
+        ISet(this.allRoles),
+      );
     },
     sortedEntries() {
       const byEnd = this.sortByEnd;
@@ -45,9 +45,7 @@ export const Root = component({
       if (isAlt) {
         if (this.hasInSelectedCategories(cat)) {
           // Inverse solo: select all except this one
-          return this.setSelectedCategories(
-            ISet(this.allCategories).delete(cat),
-          );
+          return this.setSelectedCategories(ISet(this.allCategories).delete(cat));
         } else {
           // Solo: select only this one
           return this.setSelectedCategories(ISet([cat]));
@@ -75,9 +73,7 @@ export const Root = component({
         if (!this.selectedRoles.has(entry.role)) return false;
       }
       if (this.selectedCategories.size > 0 && entry.categories.size > 0) {
-        const hasMatch = this.selectedCategories.some((c) =>
-          entry.categories.includes(c),
-        );
+        const hasMatch = this.selectedCategories.some((c) => entry.categories.includes(c));
         if (!hasMatch) return false;
       }
       return true;
@@ -257,7 +253,7 @@ export const Entry = component({
         role,
         featured: featured || false,
         url,
-        altUrls: (altUrls ?? []).map((l) => (console.log(l), AltUrl.make(l))),
+        altUrls: (altUrls ?? []).map((l) => AltUrl.make(l)),
         categories: (categories ?? []).sort(),
       });
     },
@@ -321,14 +317,10 @@ export const Entry = component({
 });
 
 const CATEGORY_COLORS = {
-  "Programming Languages":
-    "ring-1 ring-violet-500 text-violet-700 dark:text-violet-300",
-  "Distributed Systems":
-    "ring-1 ring-indigo-500 text-indigo-700 dark:text-indigo-300",
-  "End User Programming":
-    "ring-1 ring-orange-500 text-orange-700 dark:text-orange-300",
-  "Erlang / Elixir":
-    "ring-1 ring-purple-500 text-purple-700 dark:text-purple-300",
+  "Programming Languages": "ring-1 ring-violet-500 text-violet-700 dark:text-violet-300",
+  "Distributed Systems": "ring-1 ring-indigo-500 text-indigo-700 dark:text-indigo-300",
+  "End User Programming": "ring-1 ring-orange-500 text-orange-700 dark:text-orange-300",
+  "Erlang / Elixir": "ring-1 ring-purple-500 text-purple-700 dark:text-purple-300",
   WebAssembly: "ring-1 ring-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-300",
   Web: "ring-1 ring-cyan-500 text-cyan-700 dark:text-cyan-300",
   "Future of Coding": "ring-1 ring-rose-500 text-rose-700 dark:text-rose-300",
@@ -394,6 +386,5 @@ export function getExtraCSSClasses() {
       v.add(c);
     }
   }
-  console.log(v);
   return v;
 }

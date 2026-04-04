@@ -126,13 +126,36 @@ a:hover {
   text-decoration: none;
 }
 
-kbd {
+code,
+kbd,
+samp {
   font-family: Consolas, Menlo, Monaco, monospace;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: var(--standard-border-radius);
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+}
+
+kbd {
   color: var(--text);
   border: var(--border-width) solid var(--border);
   border-bottom: 3px solid var(--border);
+}
+
+pre {
+  padding: 1rem 1.4rem;
+  max-width: 100%;
+  overflow: auto;
+  background: var(--accent-bg);
+  border: var(--border-width) solid var(--border);
   border-radius: var(--standard-border-radius);
-  padding: 0.1rem 0.4rem;
+}
+
+pre code {
+  color: var(--text);
+  background: none;
+  padding: 0;
 }
 
 section {
