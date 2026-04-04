@@ -1,6 +1,5 @@
-export function isHtmlAttribute(propName) {
-  return propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
-}
+export const isHtmlAttribute = (propName) =>
+  propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
 export function applyProperties(node, props, previous) {
   for (const propName in props) {
     const propValue = props[propName];
@@ -23,10 +22,7 @@ function removeProperty(node, propName, previous) {
   const previousValue = previous[propName];
   if (propName === "dangerouslySetInnerHTML") {
     node.innerHTML = "";
-  } else if (isHtmlAttribute(propName)) {
-    node.removeAttribute(propName);
-  } else if (typeof previousValue === "string") {
-    if (propName !== "className") node[propName] = "";
+  } else if (typeof previousValue === "string" || isHtmlAttribute(propName)) {
     const attrName = propName === "className" ? "class" : propName === "htmlFor" ? "for" : propName;
     node.removeAttribute(attrName);
   } else {
@@ -61,16 +57,11 @@ export class VBase {
     return null;
   }
 }
-function getKey(child) {
-  return child instanceof VNode ? child.key : undefined;
-}
-function isIterable(obj) {
-  return obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
-}
+const getKey = (child) => (child instanceof VNode ? child.key : undefined);
+const isIterable = (obj) =>
+  obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
 function addChild(normalizedChildren, child) {
-  if (child == null) {
-    return;
-  }
+  if (child == null) return;
   if (isIterable(child)) {
     for (const c of child) {
       addChild(normalizedChildren, c);
@@ -118,9 +109,8 @@ export class VComment extends VBase {
 export class VFragment extends VBase {
   constructor(childs) {
     super();
-    const normalized = [];
-    addChild(normalized, childs);
-    this.childs = normalized;
+    this.childs = [];
+    addChild(this.childs, childs);
   }
   get nodeType() {
     return 11;
@@ -250,18 +240,15 @@ function replaceNode(domNode, vnode, options) {
   }
   return newNode || domNode;
 }
+const bothInstanceOf = (a, b, C) => a instanceof C && b instanceof C;
 function morphNode(domNode, source, target, opts) {
   if (source === target || source.isEqualTo(target)) return domNode;
-  if (
-    (source instanceof VText && target instanceof VText) ||
-    (source instanceof VComment && target instanceof VComment)
-  ) {
+  if (bothInstanceOf(source, target, VText) || bothInstanceOf(source, target, VComment)) {
     domNode.data = target.text;
     return domNode;
   }
   if (
-    source instanceof VNode &&
-    target instanceof VNode &&
+    bothInstanceOf(source, target, VNode) &&
     source.tag === target.tag &&
     source.namespace === target.namespace &&
     source.key === target.key
@@ -275,7 +262,7 @@ function morphNode(domNode, source, target, opts) {
     }
     return domNode;
   }
-  if (source instanceof VFragment && target instanceof VFragment) {
+  if (bothInstanceOf(source, target, VFragment)) {
     morphChildren(domNode, source.childs, target.childs, null, opts);
     return domNode;
   }
@@ -349,10 +336,8 @@ export function render(vnode, container, options) {
     if (wasFragment === isFragment) {
       const rootNode = wasFragment ? container : cached.dom;
       const newDom = morphNode(rootNode, cached.vnode, vnode, options);
-      renderCache.set(container, {
-        vnode,
-        dom: isFragment ? container : newDom,
-      });
+      const domToCache = isFragment ? container : newDom;
+      renderCache.set(container, { vnode, dom: domToCache });
       return newDom;
     }
     renderCache.delete(container);
@@ -361,10 +346,8 @@ export function render(vnode, container, options) {
   if (domNode) {
     container.innerHTML = "";
     container.appendChild(domNode);
-    renderCache.set(container, {
-      vnode,
-      dom: isFragment ? container : domNode,
-    });
+    const domToCache = isFragment ? container : domNode;
+    renderCache.set(container, { vnode, dom: domToCache });
   }
   return domNode;
 }
@@ -375,22 +358,25 @@ export function unmount(container) {
 export function h(tagName, properties, children) {
   const tag = tagName.toUpperCase();
   const props = {};
-  let key;
-  let namespace;
+  let key, namespace;
   if (properties) {
     for (const propName in properties) {
-      if (propName === "key") {
-        key = properties[propName];
-      } else if (propName === "namespace") {
-        namespace = properties[propName];
-      } else if (propName === "class") {
-        props.className = properties[propName];
-      } else if (propName === "for") {
-        props.htmlFor = properties[propName];
-      } else if (isHtmlAttribute(propName)) {
-        props[propName] = String(properties[propName]);
-      } else {
-        props[propName] = properties[propName];
+      const propVal = properties[propName];
+      switch (propName) {
+        case "key":
+          key = propVal;
+          break;
+        case "namespace":
+          namespace = propVal;
+          break;
+        case "class":
+          props.className = propVal;
+          break;
+        case "for":
+          props.htmlFor = propVal;
+          break;
+        default:
+          props[propName] = isHtmlAttribute(propName) ? String(propVal) : propVal;
       }
     }
   }
