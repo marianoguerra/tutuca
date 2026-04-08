@@ -14,10 +14,10 @@ export class HtmlPlayground extends HTMLElement {
 
     const iframeSheet = new CSSStyleSheet();
     iframeSheet.replaceSync(`
-      .preview {
+      .preview-container {
         display: flex;
       }
-      .preview iframe {
+      .preview-container iframe {
         width: 100%;
         flex: 1;
         border: none;
@@ -32,7 +32,7 @@ export class HtmlPlayground extends HTMLElement {
       <div class="editor">
         <code-mirror lang="html"></code-mirror>
       </div>
-      <div class="preview">
+      <div class="preview-container">
         <iframe sandbox="allow-scripts"></iframe>
       </div>
     `;

@@ -59,6 +59,43 @@
           Edit the code and hit <kbd>Ctrl/Cmd + Enter</kbd> to reload. Load page
           with <a href="/?vim">/?vim</a> for vim mode in the text editor.
         </p>
+        <h3>Builds</h3>
+        <p>
+          Each build is a superset of the previous one. All are available as
+          <code>.js</code> (readable), <code>.min.js</code> (minified), and
+          <code>.min.js.br</code> (brotli) in the <code>dist/</code> folder.
+        </p>
+        <p>
+          <strong><a href="https://esm.sh/tutuca">tutuca</a></strong> (~29 KB
+          min+brotli): Core with components, state, virtual DOM, macros, and
+          immutable data structures. <br /><code
+            >import {component} from "https://esm.sh/tutuca";</code
+          >
+        </p>
+        <p>
+          <strong
+            ><a href="https://esm.sh/tutuca/es2022/extra.mjs"
+              >tutuca-extra</a
+            ></strong
+          >
+          (~30 KB min+brotli): Adds KList (keyed ordered collection) and CSS
+          class compilation utilities. <br /><code
+            >import {component} from
+            "https://esm.sh/tutuca/es2022/extra.mjs";</code
+          >
+        </p>
+        <p>
+          <strong
+            ><a href="https://esm.sh/tutuca/es2022/dev.mjs"
+              >tutuca-dev</a
+            ></strong
+          >
+          (~31 KB min+brotli): Adds component linting and validation for
+          development. <br /><code
+            >import {component} from
+            "https://esm.sh/tutuca/es2022/dev.mjs";</code
+          >
+        </p>
         <h3>Basic</h3>
         <html-playground
           src="./examples/getting-started.html"

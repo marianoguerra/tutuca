@@ -169,7 +169,8 @@ section > h2,
 section > h3,
 section > p,
 section > ul,
-section > ol {
+section > ol,
+section > table {
   max-width: 45rem;
   margin-inline: auto;
 }
