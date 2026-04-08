@@ -11,6 +11,27 @@
     "./extra": "./dist/tutuca-extra.js",
     "./package.json": "./package.json"
   },
+  "scripts": {
+    "clean": "rm -rf dist",
+    "dist": "bun scripts/dist.js",
+    "dist-immutable": "bun scripts/dist-immutable.js",
+    "dist-all": "bun run dist-immutable && bun run dist",
+    "publish": "bun run dist-all && npm publish --access public",
+    "publish-dry": "bun run dist-all && npm publish --dry-run",
+    "test": "bun test test/*.test.js",
+    "test-watch": "bun test --watch test/*.test.js",
+    "format": "bunx @biomejs/biome format --write src test/*.js",
+    "lint": "bunx @biomejs/biome lint src test/*.js",
+    "lint-fix": "bunx @biomejs/biome lint --write src test/*.js",
+    "fix": "bunx @biomejs/biome check --write src test/*.js",
+    "render-examples": "bun tools/render-examples.js",
+    "component-api-docs": "bun tools/component-api-docs.js",
+    "vdom-stresstest": "bun tools/vdom-stresstest.js",
+    "smoke-test-cli-render-examples": "bun tools/render-examples.js ./test/todo.js && bun tools/render-examples.js ./test/json.js",
+    "smoke-test-cli-component-api-docs": "bun tools/component-api-docs.js ./test/todo.js && bun tools/component-api-docs.js ./test/json.js",
+    "smoke-test": "bun run smoke-test-cli-render-examples && bun run smoke-test-cli-component-api-docs",
+    "sync-playground": "cp src/util/docs.js docs/src/docs.js"
+  },
   "sideEffects": false,
   "files": [
     "dist/tutuca.js",
