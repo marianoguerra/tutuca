@@ -160,7 +160,7 @@ const Types = component({
         </button>
         <x render-it as="editor"></x>
         <button
-          class="btn btn-xs btn-soft btn-circle btn-error opacity-0 group-hover:opacity-100"
+          class="btn btn-xs btn-soft btn-circle btn-error max-sm:opacity-100 opacity-0 group-hover:opacity-100"
           @on.click=".removeInItemsAt @key"
         >
           ⛔
@@ -922,7 +922,7 @@ export function getMacros() {
       html`<button
         @if.class="^value"
         @then="'btn btn-xs btn-soft btn-primary btn-circle'"
-        @else="'btn btn-xs btn-soft btn-success btn-circle opacity-0 group-hover:opacity-100'"
+        @else="'btn btn-xs btn-soft btn-success btn-circle max-sm:opacity-100 opacity-0 group-hover:opacity-100'"
         @on.click="^handler"
       >
         <span @show="^value">🔒</span>
