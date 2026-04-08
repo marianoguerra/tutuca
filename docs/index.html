@@ -16,129 +16,196 @@
     </script>
   </head>
   <body>
-    <nav style="display: flex; justify-content: flex-end; gap: 3em">
-      <a href="tutorial.html">🧑‍🏫️ Tutorial</a>
-      <a href="https://github.com/marianoguerra/tutuca"
-        >🧑‍💻️ github.com/marianoguerra/tutuca</a
-      >
+    <nav>
+      <a href="#try-it">Try It</a>
+      <a href="#get-started">Get Started</a>
+      <a href="#examples">Examples</a>
+      <a href="tutorial.html">Tutorial</a>
+      <a href="https://github.com/marianoguerra/tutuca">GitHub</a>
     </nav>
     <header>
       <h1>🚧️ Tutuca 🚧️</h1>
       <h2>
-        Zero-dependency batteries included
+        Zero-dependency, batteries-included
         <abbr title="Single Page Application">SPA</abbr> framework
       </h2>
       <ul>
         <li>
-          Single file, no build, no dependencies, no setup: a script tag is all
-          you need
-          <ul>
-            <li>
-              Two files if you want Tailwind and a
-              <a
-                href="https://marianoguerra.github.io/margaui/playground/"
-                target="_blank"
-                >complete set of UI components</a
-              >
-            </li>
-          </ul>
+          One script tag to start — no build step, no dependencies, no setup
         </li>
         <li>
-          Batteries included: state management, side effects, automatic
-          memoization, drag and drop and more
+          Batteries included: state management, side effects, memoization, drag
+          and drop, and more
         </li>
-        <li>Fits in your head (and the context window)</li>
-        <li>View source friendly: step through the whole stack</li>
-        <li>As much HTML as possible, as little JS as needed</li>
+        <li>
+          Small enough to read in an afternoon — step through every line in your
+          debugger
+        </li>
+        <li>
+          HTML-first: write as much markup as possible, as little JavaScript as
+          needed
+        </li>
       </ul>
     </header>
     <main>
-      <section>
-        <h2>Quick Start</h2>
-        <p style="text-align: center">
-          Edit the code and hit <kbd>Ctrl/Cmd + Enter</kbd> to reload. Load page
-          with <a href="/?vim">/?vim</a> for vim mode in the text editor.
-        </p>
-        <h3>Builds</h3>
+      <section id="try-it">
+        <h2>Try It</h2>
         <p>
-          Each build is a superset of the previous one. All are available as
-          <code>.js</code> (readable), <code>.min.js</code> (minified), and
-          <code>.min.js.br</code> (brotli) in the <code>dist/</code> folder.
+          Edit any example below and press <kbd>Ctrl/Cmd + Enter</kbd> to see
+          your changes instantly.
         </p>
-        <p>
-          <strong><a href="https://esm.sh/tutuca">tutuca</a></strong> (~29 KB
-          min+brotli): Core with components, state, virtual DOM, macros, and
-          immutable data structures. <br /><code
-            >import {component} from "https://esm.sh/tutuca";</code
-          >
-        </p>
-        <p>
-          <strong
-            ><a href="https://esm.sh/tutuca/es2022/extra.mjs"
-              >tutuca-extra</a
-            ></strong
-          >
-          (~30 KB min+brotli): Adds KList (keyed ordered collection) and CSS
-          class compilation utilities. <br /><code
-            >import {component} from
-            "https://esm.sh/tutuca/es2022/extra.mjs";</code
-          >
-        </p>
-        <p>
-          <strong
-            ><a href="https://esm.sh/tutuca/es2022/dev.mjs"
-              >tutuca-dev</a
-            ></strong
-          >
-          (~31 KB min+brotli): Adds component linting and validation for
-          development. <br /><code
-            >import {component} from
-            "https://esm.sh/tutuca/es2022/dev.mjs";</code
-          >
-        </p>
-        <h3>Basic</h3>
+        <h3>Hello, Tutuca</h3>
         <html-playground
           src="./examples/getting-started.html"
         ></html-playground>
         <h3>
+          With
           <a
             href="https://marianoguerra.github.io/margaui/playground/"
             target="_blank"
             >MargaUI</a
           >
-          Integration
+          Components
         </h3>
         <html-playground
           src="./examples/getting-started-margaui.html"
         ></html-playground>
       </section>
-      <section>
+      <section id="get-started">
+        <h2>Get Started</h2>
+        <p>
+          Tutuca ships as three builds, each a superset of the previous one.
+          Pick the one that fits your needs:
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Build</th>
+              <th>Size</th>
+              <th>What it adds</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-release-build="tutuca">
+              <td>
+                <strong
+                  ><a href="https://esm.sh/tutuca" data-release-url
+                    >tutuca</a
+                  ></strong
+                >
+              </td>
+              <td><span data-release-size>~29 KB</span></td>
+              <td>
+                Core: components, state, virtual DOM, macros, and immutable data
+                structures
+              </td>
+            </tr>
+            <tr data-release-build="tutuca-extra">
+              <td>
+                <strong
+                  ><a
+                    href="https://esm.sh/tutuca/es2022/extra.mjs"
+                    data-release-url
+                    >tutuca-extra</a
+                  ></strong
+                >
+              </td>
+              <td><span data-release-size>~30 KB</span></td>
+              <td>
+                Adds KList (keyed ordered collection) and CSS class utilities
+              </td>
+            </tr>
+            <tr data-release-build="tutuca-dev">
+              <td>
+                <strong
+                  ><a
+                    href="https://esm.sh/tutuca/es2022/dev.mjs"
+                    data-release-url
+                    >tutuca-dev</a
+                  ></strong
+                >
+              </td>
+              <td><span data-release-size>~31 KB</span></td>
+              <td>Adds component linting and validation for development</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          All builds are available as <code>.js</code>, <code>.min.js</code>,
+          and <code>.min.js.br</code> from the
+          <a href="https://github.com/marianoguerra/tutuca/releases"
+            >releases page</a
+          >
+          or directly via <a href="https://esm.sh/">esm.sh</a>:
+        </p>
+        <pre><code>import { component } from "https://esm.sh/tutuca";</code></pre>
+      </section>
+      <section id="examples">
         <h2>Examples</h2>
-        <h3>Counter</h3>
+        <p>
+          Explore what you can build with Tutuca. Each playground is editable —
+          press <kbd>Ctrl/Cmd + Enter</kbd> to run your changes. For a
+          structured walkthrough, see the
+          <a href="./tutorial.html">tutorial</a>.
+        </p>
+        <h3>Basics</h3>
+        <h4>Counter</h4>
         <tutuca-playground src="./examples/counter.js"></tutuca-playground>
-        <h3>To-do</h3>
+        <h4>To-Do List</h4>
         <tutuca-playground src="./examples/todo.js"></tutuca-playground>
-        <h3>Tree</h3>
+        <h3>Interaction Patterns</h3>
+        <h4>Tree Navigation</h4>
+        <p>
+          Click folders to toggle them open or closed, and click files to
+          trigger a selected event.
+        </p>
         <tutuca-playground src="./examples/tree.js"></tutuca-playground>
-        <h3>Drag and Drop</h3>
+        <h4>Drag and Drop</h4>
+        <p>
+          Drag entries to reorder them, and use the input to filter the list.
+        </p>
         <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
-        <h3>JSON Editor</h3>
+        <h3>Full Applications</h3>
+        <h4>JSON Editor</h4>
         <tutuca-playground src="./examples/json.js"></tutuca-playground>
-        <h3>Personal Site</h3>
+        <h4>Personal Site</h4>
         <tutuca-playground
           src="./examples/personal-site.js"
         ></tutuca-playground>
-        <h3>To-do (ab)using macros</h3>
-        <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>
-        <h3>Visual Wasm</h3>
+        <h4>Visual WebAssembly</h4>
         <tutuca-playground src="./examples/visual-wasm.js"></tutuca-playground>
+        <h3>Composability</h3>
+        <h4>All Together Now</h4>
+        <p>
+          Each example above exports its components and root independently, with
+          no knowledge of being composed. The component below imports them all
+          and renders each one in its own tab — the glue code is minimal.
+        </p>
+        <tutuca-playground
+          src="./examples/composability.js"
+        ></tutuca-playground>
+        <h3>Advanced: Macros</h3>
+        <h4>To-Do with Macros</h4>
+        <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>
       </section>
-      <section class="roadmap">
-        <h2>Roadmap</h2>
-        <ol>
-          <li>Dev tools</li>
-          <li>Better testing support</li>
-          <li>Better LLM integration via CLI tools</li>
+      <section id="whats-next">
+        <h2>What's Next</h2>
+        <h3>Learn More</h3>
+        <ul>
+          <li>
+            <a href="./tutorial.html">Tutorial</a> — build your first Tutuca app
+            step by step
+          </li>
+          <li>
+            <a href="https://github.com/marianoguerra/tutuca">Source code</a>
+            — small enough to read end to end
+          </li>
+        </ul>
+        <h3>Roadmap</h3>
+        <ol class="roadmap">
+          <li>Dev tools for inspecting component state and updates</li>
+          <li>Built-in testing utilities for component behavior</li>
+          <li>CLI tools for LLM-assisted development</li>
         </ol>
       </section>
     </main>
@@ -153,6 +220,6 @@
         >🐘️ @marianoguerra@hachyderm.io</a
       >
     </footer>
-    <script type="module" src="src/app.js"></script>
+    <script type="module" src="src/index.js"></script>
   </body>
 </html>

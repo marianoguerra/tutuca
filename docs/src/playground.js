@@ -11,6 +11,7 @@ export class TutucaPlayground extends HTMLElement {
       overflow: hidden;
     }
     .editor {
+      font-size: initial;
       flex: 1;
       display: flex;
       flex-direction: column;

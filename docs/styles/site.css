@@ -60,7 +60,7 @@ body > header h1 {
 
 body > header p,
 body > header ul {
-  max-width: 40rem;
+  max-width: 72rem;
   margin: 1rem auto;
   text-align: left;
 }
@@ -92,16 +92,24 @@ h3 {
   text-align: center;
 }
 
+h4 {
+  font-size: 1.5rem;
+  margin-top: 2rem;
+  text-align: center;
+}
+
 h1,
 h2,
-h3 {
+h3,
+h4 {
   line-height: 1.1;
 }
 
 p,
 h1,
 h2,
-h3 {
+h3,
+h4 {
   overflow-wrap: break-word;
 }
 
@@ -114,6 +122,9 @@ h3 {
   }
   h3 {
     font-size: 1.75rem;
+  }
+  h4 {
+    font-size: 1.35rem;
   }
 }
 
@@ -167,16 +178,17 @@ section {
 
 section > h2,
 section > h3,
+section > h4,
 section > p,
 section > ul,
 section > ol,
+section > pre,
 section > table {
-  max-width: 45rem;
+  max-width: 72rem;
   margin-inline: auto;
 }
-
 main > nav {
-  max-width: 45rem;
+  max-width: 72rem;
   margin-inline: auto;
 }
 
@@ -195,15 +207,13 @@ section:last-child {
   padding-bottom: 0;
 }
 
-.roadmap ol {
-  max-width: 45rem;
-  margin-inline: auto;
+ol.roadmap {
   list-style: none;
   padding: 0;
   counter-reset: roadmap;
 }
 
-.roadmap li {
+ol.roadmap li {
   counter-increment: roadmap;
   padding: 0.75rem 1rem 0.75rem 3rem;
   margin-bottom: 0.75rem;
@@ -213,12 +223,30 @@ section:last-child {
   position: relative;
 }
 
-.roadmap li::before {
+ol.roadmap li::before {
   content: counter(roadmap);
   position: absolute;
   left: 0.75rem;
   font-weight: bold;
   color: var(--accent);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem auto;
+}
+
+th,
+td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: var(--border-width) solid var(--border);
+}
+
+th {
+  font-weight: bold;
+  background: var(--accent-bg);
 }
 
 tutuca-playground,
@@ -233,6 +261,10 @@ body > nav {
   font-size: 0.9rem;
   text-align: center;
   border-bottom: var(--border-width) solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 2em;
+  flex-wrap: wrap;
 }
 
 body > nav p {

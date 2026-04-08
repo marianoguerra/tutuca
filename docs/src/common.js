@@ -12,7 +12,7 @@ function detectTheme() {
   prefersDark.addEventListener("change", (e) => setTheme(e.matches ? "dark" : "light"));
 }
 
-async function main() {
+export async function init() {
   detectTheme();
   setCodeMirrorPath("../deps/codemirror.js");
   CodeMirror.isVimMode = new URLSearchParams(location.search).has("vim");
@@ -31,15 +31,13 @@ async function main() {
   customElements.define("html-playground", HtmlPlayground);
 }
 
-main().then(() => {
+export function scrollToHash() {
   if (location.hash) {
-    const scrollToHash = () => {
+    const scrollToEl = () => {
       const el = document.querySelector(location.hash);
       if (el) el.scrollIntoView();
     };
-    // Re-scroll after playgrounds finish loading and shifting layout
-    addEventListener("load", scrollToHash);
-    // Fallback for late-loading content
-    setTimeout(scrollToHash, 500);
+    addEventListener("load", scrollToEl);
+    setTimeout(scrollToEl, 500);
   }
-});
+}
