@@ -407,6 +407,82 @@
           names set with <code>@if.class</code>.
         </p>
         <tutuca-playground src="./examples/tree.js"></tutuca-playground>
+        <h3 id="macros-static">
+          <a href="#macros-static">Macros: Reusable Templates</a>
+        </h3>
+        <p>
+          Macros let you define reusable HTML fragments that expand in place.
+          <code>macro({}, html`...`)</code> takes a defaults object (empty
+          here) and a template. Export macros via
+          <code>getMacros()</code> and reference them in templates with the
+          <code>&lt;x:name&gt;</code> syntax. Unlike components, macros have
+          no state or lifecycle &mdash; they are pure template expansion,
+          making them ideal for repeated markup patterns.
+        </p>
+        <tutuca-playground
+          src="./examples/macro-static.js"
+        ></tutuca-playground>
+        <h3 id="macros-parameters">
+          <a href="#macros-parameters">Macros: Parameters</a>
+        </h3>
+        <p>
+          Macros accept parameters with default values. The first argument to
+          <code>macro()</code> defines the defaults:
+          <code>{ label: "'New'", kind: "'info'" }</code>. Inside the macro
+          template, <code>^param</code> references a parameter &mdash; e.g.
+          <code>@text="^label"</code> displays the label value. When using
+          the macro, a plain attribute like <code>label="Sale"</code> passes
+          a static string &mdash; no quotes needed, just like regular HTML
+          attributes. If the attribute is dynamic (prefixed with
+          <code>:</code>), the value is an expression, so string literals
+          must be single-quoted to distinguish them from field references:
+          <code>:label="'Sale'"</code> is the dynamic equivalent. Without
+          quotes, <code>:label=".status"</code> resolves the component's
+          <code>status</code> field instead.
+        </p>
+        <tutuca-playground
+          src="./examples/macro-params.js"
+        ></tutuca-playground>
+        <h3 id="macros-slots">
+          <a href="#macros-slots">Macros: Slots</a>
+        </h3>
+        <p>
+          <code>&lt;x:slot&gt;&lt;/x:slot&gt;</code> inside a macro template
+          acts as a placeholder for child content. Any children placed inside
+          the macro tag replace the slot when the macro expands. This enables
+          layout macros like cards, panels, and containers that wrap arbitrary
+          content while providing consistent structure and styling.
+        </p>
+        <p>
+          Because macros expand inline into the calling component's template,
+          <code>@on.click=".inc"</code> inside a macro calls
+          <code>inc</code> on the component where the macro is used &mdash;
+          not on the macro itself (macros have no state or methods). This is a
+          key difference from components: a component encapsulates its own
+          state and handlers, while a macro is just template expansion that
+          operates in the context of its host component.
+        </p>
+        <tutuca-playground
+          src="./examples/macro-slots.js"
+        ></tutuca-playground>
+        <h3 id="macros-named-slots">
+          <a href="#macros-named-slots">Macros: Named Slots</a>
+        </h3>
+        <p>
+          A macro can define multiple insertion points using named slots.
+          Inside the macro template,
+          <code>&lt;x:slot name="actions"&gt;</code> and
+          <code>&lt;x:slot name="footer"&gt;</code> mark named slots, while
+          <code>&lt;x:slot&gt;</code> (or equivalently
+          <code>&lt;x:slot name="_"&gt;</code>) is the default. When using
+          the macro, wrap content in <code>&lt;x slot="name"&gt;</code> to
+          target a specific named slot. Any children not wrapped in a named
+          <code>&lt;x slot&gt;</code> go to the default slot. This allows
+          macros to define complex layouts with multiple customizable regions.
+        </p>
+        <tutuca-playground
+          src="./examples/macro-named-slots.js"
+        ></tutuca-playground>
       </section>
     </main>
     <footer style="display: flex; justify-content: center; gap: 3em">
