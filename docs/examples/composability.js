@@ -10,6 +10,7 @@ import { getComponents as getTreeComponents, getRoot as getTreeRoot } from "./tr
 import {
   getComponents as getVisualWasmComponents,
   getRoot as getVisualWasmRoot,
+  getMacros as getMacrosVisualWasm,
 } from "./visual-wasm.js";
 import {
   getComponents as getDndComponents,
@@ -164,4 +165,8 @@ export function getRoot() {
 
 export function getRequestHandlers() {
   return { ...getRequestHandlersPersonalSite() };
+}
+
+export function getMacros() {
+  return { ...getMacrosVisualWasm() };
 }
