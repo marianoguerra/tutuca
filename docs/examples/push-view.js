@@ -40,10 +40,6 @@ export const PushView = component({
     >
       <x render-each=".items" when="filterItem"></x>
     </div>
-    <div class="alert alert-info justify-center">
-      Search to filter, toggle edit mode, edit content, filter some more, edit
-      again, toggle read only mode, filter some more.
-    </div>
   </section>`,
 });
 

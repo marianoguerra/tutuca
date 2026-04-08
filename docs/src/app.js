@@ -31,4 +31,15 @@ async function main() {
   customElements.define("html-playground", HtmlPlayground);
 }
 
-main();
+main().then(() => {
+  if (location.hash) {
+    const scrollToHash = () => {
+      const el = document.querySelector(location.hash);
+      if (el) el.scrollIntoView();
+    };
+    // Re-scroll after playgrounds finish loading and shifting layout
+    addEventListener("load", scrollToHash);
+    // Fallback for late-loading content
+    setTimeout(scrollToHash, 500);
+  }
+});
