@@ -6,7 +6,7 @@
   --accent-bg: #f5f7ff;
   --text: #212121;
   --text-light: #585858;
-  --border: #898ea4;
+  --border-color: #898ea4;
   --accent: #0d47a1;
   --accent-hover: #1266e2;
   --standard-border-radius: 5px;
@@ -20,7 +20,7 @@
     --accent-bg: #2b2b2b;
     --text: #dcdcdc;
     --text-light: #ababab;
-    --border: #898ea4;
+    --border-color: #898ea4;
     --accent: #ffb300;
     --accent-hover: #ffe099;
   }
@@ -47,7 +47,6 @@ body > * {
 
 body > header {
   background-color: var(--accent-bg);
-  border-bottom: var(--border-width) solid var(--border);
   text-align: center;
   padding: 2rem 0.5rem;
   grid-column: 1 / -1;
@@ -150,8 +149,7 @@ samp {
 
 kbd {
   color: var(--text);
-  border: var(--border-width) solid var(--border);
-  border-bottom: 3px solid var(--border);
+  border: var(--border-width) solid var(--border-color);
 }
 
 pre {
@@ -159,7 +157,7 @@ pre {
   max-width: 100%;
   overflow: auto;
   background: var(--accent-bg);
-  border: var(--border-width) solid var(--border);
+  border: var(--border-width) solid var(--border-color);
   border-radius: var(--standard-border-radius);
 }
 
@@ -170,8 +168,8 @@ pre code {
 }
 
 section {
-  border-top: var(--border-width) solid var(--border);
-  border-bottom: var(--border-width) solid var(--border);
+  border-top: var(--border-width) solid var(--border-color);
+  border-bottom: var(--border-width) solid var(--border-color);
   padding: 2rem 0;
   margin: 3rem 0;
 }
@@ -218,7 +216,7 @@ ol.roadmap li {
   padding: 0.75rem 1rem 0.75rem 3rem;
   margin-bottom: 0.75rem;
   background: var(--accent-bg);
-  border: var(--border-width) solid var(--border);
+  border: var(--border-width) solid var(--border-color);
   border-radius: var(--standard-border-radius);
   position: relative;
 }
@@ -241,7 +239,7 @@ th,
 td {
   padding: 0.75rem 1rem;
   text-align: left;
-  border-bottom: var(--border-width) solid var(--border);
+  border-bottom: var(--border-width) solid var(--border-color);
 }
 
 th {
@@ -260,7 +258,6 @@ body > nav {
   color: var(--text-light);
   font-size: 0.9rem;
   text-align: center;
-  border-bottom: var(--border-width) solid var(--border);
   display: flex;
   justify-content: flex-end;
   gap: 2em;
@@ -278,5 +275,17 @@ body > footer {
   color: var(--text-light);
   font-size: 0.9rem;
   text-align: center;
-  border-top: var(--border-width) solid var(--border);
+  border-top: var(--border-width) solid var(--border-color);
+  display: flex;
+  justify-content: center;
+  gap: 2em;
+  flex-wrap: wrap;
+}
+
+@media only screen and (max-width: 720px) {
+  body > nav,
+  body > footer {
+    justify-content: center;
+    gap: 1em;
+  }
 }

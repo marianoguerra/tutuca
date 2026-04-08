@@ -69,7 +69,10 @@ export class TutucaPlayground extends HTMLElement {
     .api-docs h4 { margin: 0.5rem 0 0.15rem; font-size: 0.95rem; }
     .api-docs ul { margin: 0.15rem 0 0.5rem 1.25rem; padding: 0; }
     .api-docs li { margin: 0.1rem 0; font-size: 0.85rem; }
-    .api-docs code { font-size: 0.85em; background: var(--b2, #1e2530); padding: 0.1em 0.3em; border-radius: 3px; }
+    .api-docs code { font-size: 0.85em; background: #e8eaf0; color: #212121; padding: 0.1em 0.3em; border-radius: 3px; }
+    @media (prefers-color-scheme: dark) {
+      .api-docs code { background: #1e2530; color: #dcdcdc; }
+    }
     @media (max-width: 768px) {
       :host {
         flex-direction: column;
