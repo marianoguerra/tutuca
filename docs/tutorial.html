@@ -17,16 +17,140 @@
   </head>
   <body>
     <nav style="display: flex; justify-content: flex-end; gap: 3em">
-      <a href="index.html">🏠️ Home</a>
+      <a href="index.html">&#x1F3E0;&#xFE0F; Home</a>
       <a href="https://github.com/marianoguerra/tutuca"
-        >🧑‍💻️ github.com/marianoguerra/tutuca</a
+        >&#x1F9D1;&#x200D;&#x1F4BB;&#xFE0F; github.com/marianoguerra/tutuca</a
       >
     </nav>
     <header>
-      <h1>🚧️ Tutuca Tutorial 🚧️</h1>
+      <h1>Tutuca Tutorial</h1>
     </header>
     <main>
       <section>
+        <p>
+          This tutorial walks you through tutuca's features step by step, from
+          the simplest possible component to macros and async requests. Each
+          section includes editable live code &mdash; modify the examples and
+          press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (or
+          <kbd>Cmd</kbd>+<kbd>Enter</kbd> on macOS) to see your changes
+          instantly. Concepts build on each other, so working through them in
+          order is recommended.
+        </p>
+        <h3>Notation Reference</h3>
+        <p>
+          Tutuca templates use prefix characters to distinguish different kinds
+          of references. You will encounter these throughout the tutorial:
+        </p>
+        <ul>
+          <li>
+            <code>.name</code> &mdash; component field or method (e.g.
+            <code>.count</code>, <code>.inc</code>)
+          </li>
+          <li>
+            <code>@name</code> &mdash; local binding from iteration or scope
+            enrichment (e.g. <code>@key</code>, <code>@value</code>)
+          </li>
+          <li>
+            <code>^name</code> &mdash; macro parameter (e.g.
+            <code>^label</code>)
+          </li>
+          <li>
+            <code>$name</code> &mdash; computed property (e.g.
+            <code>$totalItemsChars</code>)
+          </li>
+        </ul>
+      </section>
+
+      <nav>
+        <h2 id="contents"><a href="#contents">Contents</a></h2>
+        <ol>
+          <li>
+            <a href="#basics">Basics</a>
+            <ol>
+              <li>
+                <a href="#minimum-viable-component">Minimum Viable Component</a>
+              </li>
+              <li>
+                <a href="#static-view-component">Static View Component</a>
+              </li>
+              <li><a href="#text-rendering">Text Rendering</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#data-binding">Data Binding</a>
+            <ol>
+              <li><a href="#attribute-binding">Attribute Binding</a></li>
+              <li><a href="#event-handling">Event Handling</a></li>
+              <li><a href="#event-modifiers">Event Modifiers</a></li>
+              <li>
+                <a href="#conditional-attributes">Conditional Attributes</a>
+              </li>
+              <li><a href="#component-styles">Component Styles</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#collections">Collections</a>
+            <ol>
+              <li><a href="#list-iteration">List Iteration</a></li>
+              <li><a href="#list-filtering">List Filtering</a></li>
+              <li>
+                <a href="#iteration-enrichment">Iteration Enrichment</a>
+              </li>
+              <li>
+                <a href="#shared-iteration-data">Shared Iteration Data</a>
+              </li>
+              <li><a href="#scope-enrichment">Scope Enrichment</a></li>
+              <li><a href="#computed-properties">Computed Properties</a></li>
+              <li>
+                <a href="#collection-item-access">Collection Item Access</a>
+              </li>
+            </ol>
+          </li>
+          <li>
+            <a href="#views-and-rendering">Views &amp; Rendering</a>
+            <ol>
+              <li><a href="#multiple-views">Multiple Views</a></li>
+              <li>
+                <a href="#dynamic-view-switching">Dynamic View Switching</a>
+              </li>
+              <li>
+                <a href="#recursive-components">Recursive Components</a>
+              </li>
+            </ol>
+          </li>
+          <li>
+            <a href="#advanced-features">Advanced Features</a>
+            <ol>
+              <li><a href="#async-requests">Async Requests</a></li>
+              <li><a href="#drag-and-drop">Drag and Drop</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#macros">Macros</a>
+            <ol>
+              <li>
+                <a href="#macros-static">Macros: Reusable Templates</a>
+              </li>
+              <li><a href="#macros-parameters">Macros: Parameters</a></li>
+              <li><a href="#macros-slots">Macros: Slots</a></li>
+              <li>
+                <a href="#macros-named-slots">Macros: Named Slots</a>
+              </li>
+            </ol>
+          </li>
+          <li>
+            <a href="#escape-hatches">Escape Hatches</a>
+            <ol>
+              <li><a href="#raw-html">Raw HTML</a></li>
+            </ol>
+          </li>
+        </ol>
+      </nav>
+
+      <!-- Basics -->
+      <section>
+        <h2 id="basics"><a href="#basics">Basics</a></h2>
+
         <h3 id="minimum-viable-component">
           <a href="#minimum-viable-component">Minimum Viable Component</a>
         </h3>
@@ -40,6 +164,7 @@
         <tutuca-playground
           src="./examples/minimum-viable-component.js"
         ></tutuca-playground>
+
         <h3 id="static-view-component">
           <a href="#static-view-component">Static View Component</a>
         </h3>
@@ -59,6 +184,7 @@
         <tutuca-playground
           src="./examples/static-view-component.js"
         ></tutuca-playground>
+
         <h3 id="text-rendering">
           <a href="#text-rendering">Text Rendering</a>
         </h3>
@@ -76,15 +202,24 @@
         <tutuca-playground
           src="./examples/text-directive.js"
         ></tutuca-playground>
+      </section>
+
+      <!-- Data Binding -->
+      <section>
+        <h2 id="data-binding"><a href="#data-binding">Data Binding</a></h2>
+
         <h3 id="attribute-binding">
           <a href="#attribute-binding">Attribute Binding</a>
         </h3>
         <p>
           Use the <code>:attr</code> syntax to bind component state to any HTML
-          attribute. <code>:value=".str"</code> binds the <code>str</code> field
-          to the input's <code>value</code> attribute. Template interpolation
-          works in bindings too: <code>:title="Content is {.str}"</code> builds
-          a dynamic title string. When the user types,
+          attribute. For example, <code>:value=".str"</code> binds the
+          <code>str</code> field to the input's <code>value</code> attribute.
+          Template interpolation works in bindings too:
+          <code>:title="Content is {.str}"</code> builds a dynamic title string.
+        </p>
+        <p>
+          When the user types,
           <code>@on.input=".setStr value"</code> calls the auto-generated
           <code>setStr</code> setter with the input's current value. For the
           number input, a custom method <code>setRawNumber</code> parses and
@@ -93,6 +228,7 @@
         <tutuca-playground
           src="./examples/attribute-binding.js"
         ></tutuca-playground>
+
         <h3 id="event-handling">
           <a href="#event-handling">Event Handling</a>
         </h3>
@@ -101,13 +237,17 @@
           the dot prefix calls a <code>methods</code> function. The
           <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no dot
           means it calls an <code>input</code> handler. Both return new state
-          via the auto-generated <code>this.setCount()</code>. Methods and input
-          handlers both must return a new component instance. The input section
-          is just for organization purposes, you can use methods if you want.
+          via the auto-generated <code>this.setCount()</code>.
+        </p>
+        <p>
+          Methods and input handlers both must return a new component instance.
+          The input section is just for organization purposes, you can use
+          methods if you want.
         </p>
         <tutuca-playground
           src="./examples/tutorial-counter.js"
         ></tutuca-playground>
+
         <h3 id="event-modifiers">
           <a href="#event-modifiers">Event Modifiers</a>
         </h3>
@@ -118,15 +258,20 @@
           <code>@on.keydown+cancel=".resetQuery"</code> only fires on Escape.
           Modifiers are appended with <code>+</code> and can be combined (e.g.
           <code>+ctrl+send</code>).
-          <code>@show=".isLastSentSearchSet"</code> conditionally displays the
-          search result &mdash; <code>isLastSentSearchSet</code> is
-          auto-generated for nullable fields (those initialized with
-          <code>null</code>), returning <code>true</code> when the field has a
-          non-null value.
+        </p>
+        <p>
+          Also shown here: <code>@show=".isLastSentSearchSet"</code>
+          conditionally displays the search result.
+          <code>isLastSentSearchSet</code> is auto-generated for nullable fields
+          (those initialized with <code>null</code>), returning
+          <code>true</code> when the field has a non-null value.
+          <code>@show</code> and <code>@hide</code> are covered in more detail
+          in <a href="#conditional-attributes">Conditional Attributes</a>.
         </p>
         <tutuca-playground
           src="./examples/event-modifiers.js"
         ></tutuca-playground>
+
         <h3 id="conditional-attributes">
           <a href="#conditional-attributes">Conditional Attributes</a>
         </h3>
@@ -137,20 +282,52 @@
           same pattern works for any attribute: <code>@if.title</code> /
           <code>@then.title</code> / <code>@else.title</code> conditionally sets
           the title. Single quotes inside the value (<code>'...'</code>) denote
-          string literals. <code>@show</code> and <code>@hide</code> toggle
-          element visibility based on a field value.
-          <code>.toggleIsActive</code> is auto-generated for boolean fields.
+          string literals.
+        </p>
+        <p>
+          <code>@show</code> and <code>@hide</code> toggle element visibility
+          based on a field value. <code>.toggleIsActive</code> is auto-generated
+          for boolean fields.
+        </p>
+        <p>
           When there is a single <code>@if</code> directive,
           <code>@then</code> and <code>@else</code> don't need to specify the
-          attribute name, they infer it from context. If there are multiple
-          <code>@if</code> directives on the same element, the additional
-          <code>@then</code> and <code>@else</code> must specify the attribute
-          name explicitly (e.g. <code>@then.title</code>,
+          attribute name &mdash; they infer it from context. If there are
+          multiple <code>@if</code> directives on the same element, the
+          additional <code>@then</code> and <code>@else</code> must specify the
+          attribute name explicitly (e.g. <code>@then.title</code>,
           <code>@else.title</code>).
         </p>
         <tutuca-playground
           src="./examples/conditional-attributes.js"
         ></tutuca-playground>
+
+        <h3 id="component-styles">
+          <a href="#component-styles">Component Styles</a>
+        </h3>
+        <p>
+          <code>style: css`...`</code> is scoped to a specific component+view
+          combination &mdash; the same class name <code>.mine</code> can have
+          different styles in different views. <code>commonStyle</code> is
+          shared across all views of the same component.
+          <code>globalStyle</code> is injected globally without scoping.
+        </p>
+        <p>
+          View "two" defines its own <code>style</code> that overrides the
+          default &mdash; notice <code>.mine</code> is red in the main view but
+          orange and underlined in view two. The root component renders all
+          three views side by side using
+          <code>&lt;x render=".value" as="viewName"&gt;</code>.
+        </p>
+        <tutuca-playground
+          src="./examples/styles-example.js"
+        ></tutuca-playground>
+      </section>
+
+      <!-- Collections -->
+      <section>
+        <h2 id="collections"><a href="#collections">Collections</a></h2>
+
         <h3 id="list-iteration">
           <a href="#list-iteration">List Iteration</a>
         </h3>
@@ -165,6 +342,7 @@
         <tutuca-playground
           src="./examples/list-iteration.js"
         ></tutuca-playground>
+
         <h3 id="list-filtering">
           <a href="#list-filtering">List Filtering</a>
         </h3>
@@ -173,8 +351,10 @@
           <code>@each</code> calls <code>alter.filterItem(_key, item)</code> for
           each entry. If it returns <code>false</code>, the item is skipped.
           Functions in the <code>alter</code> object have
-          <code>this</code> bound to the component state, here it reads
+          <code>this</code> bound to the component state, so here it reads
           <code>this.query</code> to filter items by the current search string.
+        </p>
+        <p>
           If the value used the dot syntax (<code>@when=".filterItem"</code>),
           it would call a method instead. Like <code>input</code>, the
           <code>alter</code> section is for organizational purposes only.
@@ -182,6 +362,7 @@
         <tutuca-playground
           src="./examples/list-and-filter.js"
         ></tutuca-playground>
+
         <h3 id="iteration-enrichment">
           <a href="#iteration-enrichment">Iteration Enrichment</a>
         </h3>
@@ -197,6 +378,7 @@
         <tutuca-playground
           src="./examples/list-filter-enrich.js"
         ></tutuca-playground>
+
         <h3 id="shared-iteration-data">
           <a href="#shared-iteration-data">Shared Iteration Data</a>
         </h3>
@@ -213,6 +395,7 @@
         <tutuca-playground
           src="./examples/list-filter-enrich-with.js"
         ></tutuca-playground>
+
         <h3 id="scope-enrichment">
           <a href="#scope-enrichment">Scope Enrichment</a>
         </h3>
@@ -229,6 +412,7 @@
         <tutuca-playground
           src="./examples/render-with-scope.js"
         ></tutuca-playground>
+
         <h3 id="computed-properties">
           <a href="#computed-properties">Computed Properties</a>
         </h3>
@@ -246,19 +430,34 @@
         <tutuca-playground
           src="./examples/computed-properties.js"
         ></tutuca-playground>
-        <h3 id="raw-html"><a href="#raw-html">Raw HTML</a></h3>
+
+        <h3 id="collection-item-access">
+          <a href="#collection-item-access">Collection Item Access</a>
+        </h3>
         <p>
-          <code>@dangerouslysetinnerhtml=".content"</code> sets the element's
-          <code>innerHTML</code> from the field value. The intentionally scary
-          name (borrowed from React) warns that this bypasses all text escaping
-          &mdash; if the content comes from untrusted sources, it opens the door
-          to XSS attacks. Use it only when you control the HTML content or have
-          sanitized it. When this directive is active, the element's children in
-          the template are ignored.
+          <code>&lt;x render=".byIndex[.currentIndex]"&gt;</code> renders the
+          component at position <code>.currentIndex</code> in the
+          <code>byIndex</code> list. The bracket syntax resolves the inner
+          expression as a key into the outer collection.
+          <code>.byKey[.currentKey]</code> does the same for an
+          <code>IMap</code> (immutable Map), looking up the entry by string key.
+        </p>
+        <p>
+          The range slider and select dropdown update
+          <code>currentIndex</code> and <code>currentKey</code> respectively,
+          and the rendered component updates in response.
         </p>
         <tutuca-playground
-          src="./examples/danger-set-inner-html.js"
+          src="./examples/seq-item-access.js"
         ></tutuca-playground>
+      </section>
+
+      <!-- Views & Rendering -->
+      <section>
+        <h2 id="views-and-rendering">
+          <a href="#views-and-rendering">Views &amp; Rendering</a>
+        </h2>
+
         <h3 id="multiple-views">
           <a href="#multiple-views">Multiple Views</a>
         </h3>
@@ -274,6 +473,7 @@
         <tutuca-playground
           src="./examples/multiple-views.js"
         ></tutuca-playground>
+
         <h3 id="dynamic-view-switching">
           <a href="#dynamic-view-switching">Dynamic View Switching</a>
         </h3>
@@ -284,7 +484,10 @@
           first one that is defined; if none is found it renders the default
           <code>"main"</code> view. The view stack applies to any component
           rendered recursively under the <code>@push-view</code> directive, not
-          only direct children. Toggling the <code>view</code> field between
+          only direct children.
+        </p>
+        <p>
+          Toggling the <code>view</code> field between
           <code>"main"</code> and <code>"edit"</code> switches every
           <code>Entry</code> item between read-only and editable mode at once.
           The <code>when="filterItem"</code> attribute on
@@ -292,16 +495,48 @@
           <code>@when</code> does on <code>@each</code>.
         </p>
         <tutuca-playground src="./examples/push-view.js"></tutuca-playground>
+
+        <h3 id="recursive-components">
+          <a href="#recursive-components">Recursive Components</a>
+        </h3>
+        <p>
+          <code>TreeItem</code> renders its children with
+          <code>&lt;x render-each=".items"&gt;</code>, creating a recursive
+          tree. <code>statics.fromData</code> is a factory method on the
+          component class that recursively builds the tree from plain objects.
+        </p>
+        <p>
+          When a node is clicked,
+          <code>ctx.bubble("treeItemSelected", [this])</code> sends an event up
+          the component tree &mdash; each ancestor's
+          <code>bubble.treeItemSelected</code> handler can react to it (or not).
+          The root <code>TreeRoot</code> catches the event and logs the
+          selection. Component <code>style</code> uses CSS pseudo-elements
+          (<code>:before</code>) to display folder/file icons based on class
+          names set with <code>@if.class</code>.
+        </p>
+        <tutuca-playground src="./examples/tree.js"></tutuca-playground>
+      </section>
+
+      <!-- Advanced Features -->
+      <section>
+        <h2 id="advanced-features">
+          <a href="#advanced-features">Advanced Features</a>
+        </h2>
+
         <h3 id="async-requests">
           <a href="#async-requests">Async Requests</a>
         </h3>
         <p>
           The <code>init(ctx)</code> handler in the <code>logic</code> section
-          is called when the application starts, it calls
+          is called when the application starts. It calls
           <code>ctx.request("loadData", [])</code> to trigger the async function
           registered in <code>getRequestHandlers()</code>. When the fetch
           completes, tutuca calls <code>response.loadData(res, err)</code> with
-          the result. The component manages a loading state with
+          the result.
+        </p>
+        <p>
+          The component manages a loading state with
           <code>@show=".isLoading"</code> and <code>@hide=".isLoading"</code>.
           The "Load Another Way" button demonstrates
           <code>ctx.request()</code> with custom callback names via
@@ -325,31 +560,16 @@
         <tutuca-playground
           src="./examples/request-example.js"
         ></tutuca-playground>
-        <h3 id="component-styles">
-          <a href="#component-styles">Component Styles</a>
-        </h3>
-        <p>
-          <code>style: css`...`</code> is scoped to a specific component+view
-          combination &mdash; the same class name <code>.mine</code> can have
-          different styles in different views. <code>commonStyle</code> is
-          shared across all views of the same component.
-          <code>globalStyle</code> is injected globally without scoping. View
-          "two" defines its own <code>style</code> that overrides the default
-          &mdash; notice <code>.mine</code> is red in the main view but orange
-          and underlined in view two. The root component renders all three views
-          side by side using
-          <code>&lt;x render=".value" as="viewName"&gt;</code>.
-        </p>
-        <tutuca-playground
-          src="./examples/styles-example.js"
-        ></tutuca-playground>
+
         <h3 id="drag-and-drop"><a href="#drag-and-drop">Drag and Drop</a></h3>
         <p>
           Setting <code>draggable="true"</code> enables drag on each item.
           <code>data-dragtype</code> declares what type of draggable thing the
           element is (e.g. <code>"my-list-item"</code>), and
-          <code>data-droptarget</code> marks it as a valid drop zone. During a
-          drag, tutuca automatically manages two runtime attributes:
+          <code>data-droptarget</code> marks it as a valid drop zone.
+        </p>
+        <p>
+          During a drag, tutuca automatically manages two runtime attributes:
           <code>data-dragging="1"</code> is set on the source element while it's
           being dragged, and <code>data-draggingover</code> is set on the
           current drop target with the value of the source's
@@ -372,41 +592,12 @@
           states, scoped to this component.
         </p>
         <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
-        <h3 id="collection-item-access">
-          <a href="#collection-item-access">Collection Item Access</a>
-        </h3>
-        <p>
-          <code>&lt;x render=".byIndex[.currentIndex]"&gt;</code> renders the
-          component at position <code>.currentIndex</code> in the
-          <code>byIndex</code> list. The bracket syntax resolves the inner
-          expression as a key into the outer collection.
-          <code>.byKey[.currentKey]</code> does the same for an
-          <code>IMap</code> (immutable Map), looking up the entry by string key.
-          The range slider and select dropdown update
-          <code>currentIndex</code> and <code>currentKey</code> respectively,
-          and the rendered component updates in response.
-        </p>
-        <tutuca-playground
-          src="./examples/seq-item-access.js"
-        ></tutuca-playground>
-        <h3 id="recursive-components">
-          <a href="#recursive-components">Recursive Components</a>
-        </h3>
-        <p>
-          <code>TreeItem</code> renders its children with
-          <code>&lt;x render-each=".items"&gt;</code>, creating a recursive
-          tree. <code>statics.fromData</code> is a factory method on the
-          component class that recursively builds the tree from plain objects.
-          When a node is clicked,
-          <code>ctx.bubble("treeItemSelected", [this])</code> sends an event up
-          the component tree &mdash; each ancestor's
-          <code>bubble.treeItemSelected</code> handler can react to it (or not).
-          The root <code>TreeRoot</code> catches the event and logs the
-          selection. Component <code>style</code> uses CSS pseudo-elements
-          (<code>:before</code>) to display folder/file icons based on class
-          names set with <code>@if.class</code>.
-        </p>
-        <tutuca-playground src="./examples/tree.js"></tutuca-playground>
+      </section>
+
+      <!-- Macros -->
+      <section>
+        <h2 id="macros"><a href="#macros">Macros</a></h2>
+
         <h3 id="macros-static">
           <a href="#macros-static">Macros: Reusable Templates</a>
         </h3>
@@ -422,6 +613,7 @@
         <tutuca-playground
           src="./examples/macro-static.js"
         ></tutuca-playground>
+
         <h3 id="macros-parameters">
           <a href="#macros-parameters">Macros: Parameters</a>
         </h3>
@@ -430,19 +622,22 @@
           <code>macro()</code> defines the defaults:
           <code>{ label: "'New'", kind: "'info'" }</code>. Inside the macro
           template, <code>^param</code> references a parameter &mdash; e.g.
-          <code>@text="^label"</code> displays the label value. When using
-          the macro, a plain attribute like <code>label="Sale"</code> passes
-          a static string &mdash; no quotes needed, just like regular HTML
-          attributes. If the attribute is dynamic (prefixed with
-          <code>:</code>), the value is an expression, so string literals
-          must be single-quoted to distinguish them from field references:
-          <code>:label="'Sale'"</code> is the dynamic equivalent. Without
-          quotes, <code>:label=".status"</code> resolves the component's
-          <code>status</code> field instead.
+          <code>@text="^label"</code> displays the label value.
+        </p>
+        <p>
+          When using the macro, a plain attribute like
+          <code>label="Sale"</code> passes a static string &mdash; no quotes
+          needed, just like regular HTML attributes. If the attribute is dynamic
+          (prefixed with <code>:</code>), the value is an expression, so string
+          literals must be single-quoted to distinguish them from field
+          references: <code>:label="'Sale'"</code> is the dynamic equivalent.
+          Without quotes, <code>:label=".status"</code> resolves the
+          component's <code>status</code> field instead.
         </p>
         <tutuca-playground
           src="./examples/macro-params.js"
         ></tutuca-playground>
+
         <h3 id="macros-slots">
           <a href="#macros-slots">Macros: Slots</a>
         </h3>
@@ -465,6 +660,7 @@
         <tutuca-playground
           src="./examples/macro-slots.js"
         ></tutuca-playground>
+
         <h3 id="macros-named-slots">
           <a href="#macros-named-slots">Macros: Named Slots</a>
         </h3>
@@ -474,26 +670,63 @@
           <code>&lt;x:slot name="actions"&gt;</code> and
           <code>&lt;x:slot name="footer"&gt;</code> mark named slots, while
           <code>&lt;x:slot&gt;</code> (or equivalently
-          <code>&lt;x:slot name="_"&gt;</code>) is the default. When using
-          the macro, wrap content in <code>&lt;x slot="name"&gt;</code> to
-          target a specific named slot. Any children not wrapped in a named
-          <code>&lt;x slot&gt;</code> go to the default slot. This allows
-          macros to define complex layouts with multiple customizable regions.
+          <code>&lt;x:slot name="_"&gt;</code>) is the default.
+        </p>
+        <p>
+          When using the macro, wrap content in
+          <code>&lt;x slot="name"&gt;</code> to target a specific named slot.
+          Any children not wrapped in a named <code>&lt;x slot&gt;</code> go
+          to the default slot. This allows macros to define complex layouts
+          with multiple customizable regions.
         </p>
         <tutuca-playground
           src="./examples/macro-named-slots.js"
         ></tutuca-playground>
       </section>
+
+      <!-- Escape Hatches -->
+      <section>
+        <h2 id="escape-hatches">
+          <a href="#escape-hatches">Escape Hatches</a>
+        </h2>
+
+        <h3 id="raw-html"><a href="#raw-html">Raw HTML</a></h3>
+        <p>
+          <code>@dangerouslysetinnerhtml=".content"</code> sets the element's
+          <code>innerHTML</code> from the field value. The intentionally scary
+          name (borrowed from React) warns that this bypasses all text escaping
+          &mdash; if the content comes from untrusted sources, it opens the door
+          to XSS attacks. Use it only when you control the HTML content or have
+          sanitized it. When this directive is active, the element's children in
+          the template are ignored.
+        </p>
+        <tutuca-playground
+          src="./examples/danger-set-inner-html.js"
+        ></tutuca-playground>
+      </section>
+
+      <!-- What's Next -->
+      <section>
+        <h2 id="whats-next"><a href="#whats-next">What's Next</a></h2>
+        <p>
+          You've covered all of tutuca's core features. To see them working
+          together in more realistic scenarios, check out the
+          <a href="index.html">example apps</a> on the home page &mdash;
+          including a to-do list, a JSON editor, a recursive tree, and more.
+          For the full API and source code, visit the
+          <a href="https://github.com/marianoguerra/tutuca">GitHub repository</a>.
+        </p>
+      </section>
     </main>
     <footer style="display: flex; justify-content: center; gap: 3em">
       <a href="https://github.com/marianoguerra/tutuca"
-        >🧑‍💻️ github.com/marianoguerra/tutuca</a
+        >&#x1F9D1;&#x200D;&#x1F4BB;&#xFE0F; github.com/marianoguerra/tutuca</a
       >
       <a href="https://bsky.app/profile/marianoguerra.org"
-        >🦋️ @marianoguerra.org</a
+        >&#x1F98B;&#xFE0F; @marianoguerra.org</a
       >
       <a href="https://hachyderm.io/@marianoguerra"
-        >🐘️ @marianoguerra@hachyderm.io</a
+        >&#x1F418;&#xFE0F; @marianoguerra@hachyderm.io</a
       >
     </footer>
     <script type="module" src="src/app.js"></script>

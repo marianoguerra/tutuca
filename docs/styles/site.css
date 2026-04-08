@@ -167,7 +167,14 @@ section {
 
 section > h2,
 section > h3,
-section > p {
+section > p,
+section > ul,
+section > ol {
+  max-width: 45rem;
+  margin-inline: auto;
+}
+
+main > nav {
   max-width: 45rem;
   margin-inline: auto;
 }
@@ -185,6 +192,32 @@ section + section {
 section:last-child {
   border-bottom: 0;
   padding-bottom: 0;
+}
+
+.roadmap ol {
+  max-width: 45rem;
+  margin-inline: auto;
+  list-style: none;
+  padding: 0;
+  counter-reset: roadmap;
+}
+
+.roadmap li {
+  counter-increment: roadmap;
+  padding: 0.75rem 1rem 0.75rem 3rem;
+  margin-bottom: 0.75rem;
+  background: var(--accent-bg);
+  border: var(--border-width) solid var(--border);
+  border-radius: var(--standard-border-radius);
+  position: relative;
+}
+
+.roadmap li::before {
+  content: counter(roadmap);
+  position: absolute;
+  left: 0.75rem;
+  font-weight: bold;
+  color: var(--accent);
 }
 
 tutuca-playground,

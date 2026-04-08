@@ -8,13 +8,13 @@ const TextDirective = component({
       return this.str.toUpperCase();
     },
   },
-  view: html`<section>
-    <p>String: <span @text=".str"></span></p>
-    <p>Number: <span @text=".num"> &lt;- text directive is prepended</span></p>
-    <p>Boolean: <x text=".bool"></x></p>
-    <p>notSet: <span @text=".notSet"></span></p>
-    <p>Method Call: <span @text=".getStrUpper"></span></p>
-  </section>`,
+  view: html`<div class="grid grid-cols-[auto_auto] gap-x-4 gap-y-2 items-center">
+    <span>String:</span> <span @text=".str"></span>
+    <span>Number:</span> <span @text=".num"> &lt;- text directive is prepended</span>
+    <span>Boolean:</span> <x text=".bool"></x>
+    <span>notSet:</span> <span @text=".notSet"></span>
+    <span>Method Call:</span> <span @text=".getStrUpper"></span>
+  </div>`,
 });
 
 export { TextDirective };
