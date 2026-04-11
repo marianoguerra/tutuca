@@ -43,14 +43,14 @@ test("classFromData detects IMap and creates FieldMap", () => {
   expect(inst.get("data").get("x")).toBe(10);
 });
 
-test("proto: dataIsEmpty and dataLen", () => {
+test("proto: isDataEmpty and dataLen", () => {
   const Cls = classFromData("MapSize", { fields: { data: IMap() } });
   const empty = Cls();
-  expect(empty.dataIsEmpty()).toBe(true);
+  expect(empty.isDataEmpty()).toBe(true);
   expect(empty.dataLen()).toBe(0);
 
   const withData = empty.setData(IMap({ a: 1, b: 2 }));
-  expect(withData.dataIsEmpty()).toBe(false);
+  expect(withData.isDataEmpty()).toBe(false);
   expect(withData.dataLen()).toBe(2);
 });
 

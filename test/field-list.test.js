@@ -43,14 +43,14 @@ test("classFromData detects List and creates FieldList", () => {
   expect(inst.get("items").size).toBe(2);
 });
 
-test("proto: itemsIsEmpty and itemsLen", () => {
+test("proto: isItemsEmpty and itemsLen", () => {
   const Cls = classFromData("ListSize", { fields: { items: [] } });
   const empty = Cls();
-  expect(empty.itemsIsEmpty()).toBe(true);
+  expect(empty.isItemsEmpty()).toBe(true);
   expect(empty.itemsLen()).toBe(0);
 
   const withItems = empty.setItems(List([1, 2]));
-  expect(withItems.itemsIsEmpty()).toBe(false);
+  expect(withItems.isItemsEmpty()).toBe(false);
   expect(withItems.itemsLen()).toBe(2);
 });
 

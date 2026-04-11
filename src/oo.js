@@ -158,8 +158,8 @@ export class FieldString extends Field {
   constructor(name, defaultValue = "") {
     super("text", name, CHECK_TYPE_STRING, stringCoercer, defaultValue);
   }
-  extendProtoForType(proto, _uname) {
-    extendProtoSized(proto, this.name, "", "length");
+  extendProtoForType(proto, uname) {
+    extendProtoSized(proto, this.name, uname, "", "length");
   }
 }
 const intCoercer = (v) => (Number.isFinite(v) ? Math.trunc(v) : null);
@@ -198,7 +198,7 @@ export class FieldComp extends Field {
 }
 const NONE = Symbol("NONE");
 export function extendProtoForKeyed(proto, name, uname) {
-  extendProtoSized(proto, name, EMPTY_LIST);
+  extendProtoSized(proto, name, uname, EMPTY_LIST);
   proto[`setIn${uname}At`] = function (i, v) {
     return this.set(name, this.get(name).set(i, v));
   };
@@ -257,8 +257,8 @@ export class FieldOMap extends Field {
     extendProtoForKeyed(proto, this.name, uname);
   }
 }
-function extendProtoSized(proto, name, defaultEmpty, propName = "size") {
-  proto[`${name}IsEmpty`] = function () {
+function extendProtoSized(proto, name, uname, defaultEmpty, propName = "size") {
+  proto[`is${uname}Empty`] = function () {
     return this.get(name, defaultEmpty)[propName] === 0;
   };
   proto[`${name}Len`] = function () {
@@ -273,7 +273,7 @@ export class FieldSet extends Field {
   }
   extendProtoForType(proto, uname) {
     const { name } = this;
-    extendProtoSized(proto, name, EMPTY_SET);
+    extendProtoSized(proto, name, uname, EMPTY_SET);
     proto[`addIn${uname}`] = function (v) {
       return this.set(name, this.get(name).add(v));
     };

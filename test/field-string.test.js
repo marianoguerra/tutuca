@@ -30,14 +30,14 @@ test("classFromData detects string and creates FieldString", () => {
   expect(inst.get("label")).toBe("hi");
 });
 
-test("proto: labelIsEmpty and labelLen", () => {
+test("proto: isLabelEmpty and labelLen", () => {
   const Cls = classFromData("StrSize", { fields: { label: "" } });
   const empty = Cls();
-  expect(empty.labelIsEmpty()).toBe(true);
+  expect(empty.isLabelEmpty()).toBe(true);
   expect(empty.labelLen()).toBe(0);
 
   const withText = empty.setLabel("hello");
-  expect(withText.labelIsEmpty()).toBe(false);
+  expect(withText.isLabelEmpty()).toBe(false);
   expect(withText.labelLen()).toBe(5);
 });
 

@@ -62,14 +62,14 @@ test("classFromData with type descriptor for set", () => {
   expect(inst.get("tags").has("a")).toBe(true);
 });
 
-test("proto: tagsIsEmpty and tagsLen", () => {
+test("proto: isTagsEmpty and tagsLen", () => {
   const Cls = classFromData("SetSize", { fields: { tags: ISet() } });
   const empty = Cls();
-  expect(empty.tagsIsEmpty()).toBe(true);
+  expect(empty.isTagsEmpty()).toBe(true);
   expect(empty.tagsLen()).toBe(0);
 
   const withItems = empty.setTags(ISet([1, 2]));
-  expect(withItems.tagsIsEmpty()).toBe(false);
+  expect(withItems.isTagsEmpty()).toBe(false);
   expect(withItems.tagsLen()).toBe(2);
 });
 

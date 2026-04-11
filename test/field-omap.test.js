@@ -36,16 +36,16 @@ test("classFromData detects OrderedMap and creates FieldOMap", () => {
   expect(inst.get("data").get("x")).toBe(1);
 });
 
-test("proto: dataIsEmpty and dataLen", () => {
+test("proto: isDataEmpty and dataLen", () => {
   const Cls = classFromData("OMapSize", {
     fields: { data: OrderedMap() },
   });
   const empty = Cls();
-  expect(empty.dataIsEmpty()).toBe(true);
+  expect(empty.isDataEmpty()).toBe(true);
   expect(empty.dataLen()).toBe(0);
 
   const withData = empty.setData(OrderedMap({ a: 1 }));
-  expect(withData.dataIsEmpty()).toBe(false);
+  expect(withData.isDataEmpty()).toBe(false);
   expect(withData.dataLen()).toBe(1);
 });
 
