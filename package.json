@@ -1,6 +1,6 @@
 {
   "name": "tutuca",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "type": "module",
   "description": "Zero-dependency SPA framework with immutable state and virtual DOM",
   "main": "./dist/tutuca.js",
@@ -16,8 +16,8 @@
     "dist": "bun scripts/dist.js",
     "dist-immutable": "bun scripts/dist-immutable.js",
     "dist-all": "bun run dist-immutable && bun run dist",
-    "publish": "bun run dist-all && npm publish --access public",
-    "publish-dry": "bun run dist-all && npm publish --dry-run",
+    "release": "bun run dist-all && npm publish --access public",
+    "release-dry": "bun run dist-all && npm publish --dry-run",
     "test": "bun test test/*.test.js",
     "test-watch": "bun test --watch test/*.test.js",
     "format": "bunx @biomejs/biome format --write src test/*.js",

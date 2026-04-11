@@ -11,10 +11,10 @@ dist-all:
     npm run dist-all
 
 publish:
-    npm run publish
+    bun run release
 
 publish-dry:
-    npm run publish-dry
+    bun run release-dry
 
 test:
     npm run test
