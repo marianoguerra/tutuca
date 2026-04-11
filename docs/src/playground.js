@@ -1,4 +1,5 @@
 import { getComponentsDocs } from "./docs.js";
+import { ValueHistory } from "./undo.js";
 
 export class TutucaPlayground extends HTMLElement {
   static styles = [];
@@ -65,6 +66,12 @@ export class TutucaPlayground extends HTMLElement {
     .tab-panel.active {
       display: block;
     }
+    .undo-slider {
+      display: none;
+      width: 100%;
+      padding: 0.25rem 0.5rem;
+      box-sizing: border-box;
+    }
     .api-docs h3 { margin: 0.75rem 0 0.25rem; font-size: 1.1rem; }
     .api-docs h4 { margin: 0.5rem 0 0.15rem; font-size: 0.95rem; }
     .api-docs ul { margin: 0.15rem 0 0.5rem 1.25rem; padding: 0; }
@@ -117,6 +124,7 @@ export class TutucaPlayground extends HTMLElement {
           <button data-tab="api-docs">API Docs</button>
         </div>
         <div class="tab-panel active" data-panel="preview"></div>
+        <div class="undo-slider" data-panel="undo"></div>
         <div class="tab-panel api-docs" data-panel="api-docs"></div>
       </div>
     `;
@@ -254,9 +262,30 @@ export class TutucaPlayground extends HTMLElement {
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);
       app.start({ head: this.shadowRoot });
-      app.state.onChange((v) => console.log(v));
+
+      const undoContainer = this.shadowRoot.querySelector('[data-panel="undo"]');
+      undoContainer.innerHTML = "";
+      const undo = new ValueHistory(1000);
+      const slider = undo.mountSlider(undoContainer, ({ index, entry }) => {
+        app.state.set(entry.value, { isUndo: true, index });
+        slider.value = index;
+      });
+      slider.style.width = "100%";
+
       app.dispatchLogicAtRoot("init", []);
 
+      let changes = 0;
+      app.state.onChange((info) => {
+        changes += 1;
+        if (!info.info?.isUndo) {
+          undo.onChange(info);
+          if (changes > 1) {
+            undoContainer.style.display = "block";
+          }
+          slider.max = undo.size - 1;
+          slider.value = undo.size - 1;
+        }
+      });
       const docs = getComponentsDocs(components);
       this.apiDocsPanel.replaceChildren(this._docsToDOM(docs));
     } catch (e) {
