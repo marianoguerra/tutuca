@@ -159,13 +159,7 @@ export class FieldString extends Field {
     super("text", name, CHECK_TYPE_STRING, stringCoercer, defaultValue);
   }
   extendProtoForType(proto, _uname) {
-    const { name } = this;
-    proto[`${name}IsEmpty`] = function () {
-      return this.get(name, "").length === 0;
-    };
-    proto[`${name}Len`] = function () {
-      return this.get(name, "").length;
-    };
+    extendProtoSized(proto, this.name, "", "length");
   }
 }
 const intCoercer = (v) => (Number.isFinite(v) ? Math.trunc(v) : null);
@@ -204,7 +198,7 @@ export class FieldComp extends Field {
 }
 const NONE = Symbol("NONE");
 export function extendProtoForKeyed(proto, name, uname) {
-  extendProtoSeq(proto, name, EMPTY_LIST);
+  extendProtoSized(proto, name, EMPTY_LIST);
   proto[`setIn${uname}At`] = function (i, v) {
     return this.set(name, this.get(name).set(i, v));
   };
@@ -220,11 +214,13 @@ export function extendProtoForKeyed(proto, name, uname) {
     console.warn("key", i, "not found in", name, col);
     return this;
   };
-  function deleteInAt(i) {
-    return this.set(name, this.get(name).delete(i));
-  }
-  proto[`deleteIn${uname}At`] = deleteInAt;
-  proto[`removeIn${uname}At`] = deleteInAt;
+  extendDeleteInAt(proto, name, `${uname}At`);
+}
+function extendDeleteInAt(proto, name, uname) {
+  proto[`deleteIn${uname}`] = function (v) {
+    return this.set(name, this.get(name).delete(v));
+  };
+  proto[`removeIn${uname}`] = proto[`deleteIn${uname}`];
 }
 const EMPTY_LIST = List();
 const listCoercer = (v) => (Array.isArray(v) ? List(v) : null);
@@ -261,12 +257,12 @@ export class FieldOMap extends Field {
     extendProtoForKeyed(proto, this.name, uname);
   }
 }
-function extendProtoSeq(proto, name, defaultEmpty) {
+function extendProtoSized(proto, name, defaultEmpty, propName = "size") {
   proto[`${name}IsEmpty`] = function () {
-    return this.get(name, defaultEmpty).size === 0;
+    return this.get(name, defaultEmpty)[propName] === 0;
   };
   proto[`${name}Len`] = function () {
-    return this.get(name, defaultEmpty).size;
+    return this.get(name, defaultEmpty)[propName];
   };
 }
 const EMPTY_SET = ISet();
@@ -277,14 +273,11 @@ export class FieldSet extends Field {
   }
   extendProtoForType(proto, uname) {
     const { name } = this;
-    extendProtoSeq(proto, name, EMPTY_SET);
+    extendProtoSized(proto, name, EMPTY_SET);
     proto[`addIn${uname}`] = function (v) {
       return this.set(name, this.get(name).add(v));
     };
-    proto[`deleteIn${uname}`] = function (v) {
-      return this.set(name, this.get(name).delete(v));
-    };
-    proto[`removeIn${uname}`] = proto[`deleteIn${uname}`];
+    extendDeleteInAt(proto, name, uname);
     proto[`hasIn${uname}`] = function (v) {
       return this.get(name).has(v);
     };
