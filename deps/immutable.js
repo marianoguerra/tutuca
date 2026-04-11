@@ -3858,6 +3858,7 @@ const Record = (defaultValues, name) => {
       hasInitialized = true;
       const keys = Object.keys(defaultValues);
       const indices = RecordTypePrototype._indices = {};
+      RecordTypePrototype._name = name;
       RecordTypePrototype._keys = keys;
       RecordTypePrototype._defaultValues = defaultValues;
       for (let i = 0; i < keys.length; i++) {
@@ -4272,9 +4273,65 @@ function fromJSWith(stack, converter, value, key, keyPath, parentValue) {
   return value;
 }
 const defaultConverter = (k, v) => isIndexed(v) ? v.toList() : isKeyed(v) ? v.toMap() : v.toSet();
+const asValues = collection => isKeyed(collection) ? collection.valueSeq() : collection;
+function initCollectionConversions() {
+  CollectionImpl.prototype.toMap = function toMap() {
+    return Map(this.toKeyedSeq());
+  };
+  CollectionImpl.prototype.toOrderedMap = function toOrderedMap() {
+    return OrderedMap(this.toKeyedSeq());
+  };
+  CollectionImpl.prototype.toOrderedSet = function toOrderedSet() {
+    return OrderedSet(asValues(this));
+  };
+  CollectionImpl.prototype.toSet = function toSet() {
+    return Set(asValues(this));
+  };
+  CollectionImpl.prototype.toStack = function toStack() {
+    return Stack(asValues(this));
+  };
+  CollectionImpl.prototype.toList = function toList() {
+    return List(asValues(this));
+  };
+  CollectionImpl.prototype.countBy = function countBy(grouper, context) {
+    const groups = Map().asMutable();
+    this.__iterate((v, k) => {
+      groups.update(grouper.call(context, v, k, this), 0, a => a + 1);
+    });
+    return groups.asImmutable();
+  };
+  CollectionImpl.prototype.groupBy = function groupBy(grouper, context) {
+    const isKeyedIter = isKeyed(this);
+    const groups = (isOrdered(this) ? OrderedMap() : Map()).asMutable();
+    this.__iterate((v, k) => {
+      groups.update(grouper.call(context, v, k, this), a => {
+        a ??= [];
+        a.push(isKeyedIter ? [ k, v ] : v);
+        return a;
+      });
+    });
+    return groups.map(arr => reifyValues(this, arr)).asImmutable();
+  };
+  IndexedCollectionImpl.prototype.keySeq = function keySeq() {
+    return Range(0, this.size);
+  };
+  MapImpl.prototype.sort = function sort(comparator) {
+    return OrderedMap(sortFactory(this, comparator));
+  };
+  MapImpl.prototype.sortBy = function sortBy(mapper, comparator) {
+    return OrderedMap(sortFactory(this, comparator, mapper));
+  };
+  SetImpl.prototype.sort = function sort(comparator) {
+    return OrderedSet(sortFactory(this, comparator));
+  };
+  SetImpl.prototype.sortBy = function sortBy(mapper, comparator) {
+    return OrderedSet(sortFactory(this, comparator, mapper));
+  };
+}
 var version$1 = "7.0.0";
 var pkg = {
   version: version$1
 };
+initCollectionConversions();
 const {version} = pkg;
 export { Collection, List, Map, OrderedMap, OrderedSet, PairSorting, Range, Record, Repeat, Seq, Set, Stack, fromJS, get, getIn$1 as getIn, has, hasIn$1 as hasIn, hash, is, isAssociative, isCollection, isImmutable, isIndexed, isKeyed, isList, isMap, isOrdered, isOrderedMap, isOrderedSet, isPlainObject, isRecord, isSeq, isSet, isStack, isValueObject, merge$1 as merge, mergeDeep$1 as mergeDeep, mergeDeepWith$1 as mergeDeepWith, mergeWith$1 as mergeWith, remove, removeIn, set, setIn$1 as setIn, update$1 as update, updateIn$1 as updateIn, version };
