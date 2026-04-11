@@ -159,6 +159,10 @@ export class ANode extends BaseNode {
           return px.addNodeIf(RenderItNode, vp.bindValIt, as);
         case "render-each":
           return RenderEachNode.parse(px, vp, value, as, attrs);
+        case "show":
+          return px.addNodeIf(ShowNode, vp.parseCondValue(value, px), maybeFragment(childs));
+        case "hide":
+          return px.addNodeIf(HideNode, vp.parseCondValue(value, px), maybeFragment(childs));
       }
       return new CommentNode(`Error: InvalidSpecialTagOp ${name}=${value}`);
     } else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {

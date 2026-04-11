@@ -638,6 +638,26 @@ describe("ANode", () => {
       expect(px.nodes.length).toBe(1);
       expect(px.nodes[0]).toBe(r);
     });
+    test("x show", () => {
+      const [r, px] = parse(`<x show=".foo"><x render-it></x></x>`);
+      expect(r).toBeInstanceOf(ShowNode);
+      expect(r.nodeId).toBe(1);
+      expect(r.node).toBeInstanceOf(RenderItNode);
+      expect(r.node.nodeId).toBe(0);
+      expect(px.nodes.length).toBe(2);
+      expect(px.nodes[1]).toBe(r);
+      expect(px.nodes[0]).toBe(r.node);
+    });
+    test("x hide", () => {
+      const [r, px] = parse(`<x hide=".foo"><x render-it></x></x>`);
+      expect(r).toBeInstanceOf(HideNode);
+      expect(r.nodeId).toBe(1);
+      expect(r.node).toBeInstanceOf(RenderItNode);
+      expect(r.node.nodeId).toBe(0);
+      expect(px.nodes.length).toBe(2);
+      expect(px.nodes[1]).toBe(r);
+      expect(px.nodes[0]).toBe(r.node);
+    });
 
     // TODO: test px.error conditions
   });
