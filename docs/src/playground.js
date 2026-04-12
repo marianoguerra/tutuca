@@ -276,6 +276,7 @@ export class TutucaPlayground extends HTMLElement {
 
       let changes = 0;
       app.state.onChange((info) => {
+        console.log("transaction", info);
         changes += 1;
         if (!info.info?.isUndo) {
           undo.onChange(info);

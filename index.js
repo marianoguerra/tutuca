@@ -4,18 +4,12 @@ import { Components } from "./src/components.js";
 import { Renderer } from "./src/renderer.js";
 import { h, render, VComment, VFragment } from "./src/vdom.js";
 
+export * from "./deps/immutable.js";
 export {
-  isIndexed,
-  isKeyed,
-  isList,
   isMap as isIMap,
-  isMap,
   isOrderedMap as isOMap,
-  isOrderedMap,
-  List,
   Map as IMap,
   OrderedMap as OMap,
-  Record,
   Set as ISet,
 } from "./deps/immutable.js";
 export { ParseContext } from "./src/anode.js";
