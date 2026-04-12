@@ -5,8 +5,7 @@ export function setCodeMirrorPath(path) {
   return withCodeMirror;
 }
 
-const isDarkTheme = () =>
-  window.matchMedia("(prefers-color-scheme: dark)").matches;
+const isDarkTheme = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 export class CodeMirror extends HTMLElement {
   static isVimMode = false;
@@ -74,16 +73,7 @@ export class CodeMirror extends HTMLElement {
   }
 
   _getExtensionsForLang() {
-    const {
-      basicSetup,
-      css,
-      javascript,
-      html,
-      vim,
-      Vim,
-      darkTheme,
-      EditorView,
-    } = this._codemirror;
+    const { basicSetup, css, javascript, html, vim, Vim, darkTheme, EditorView } = this._codemirror;
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
         const code = update.view.state.doc.toString();
@@ -190,7 +180,6 @@ function lazyDynamicImportToPromise(path) {
   let prom = null;
   return async () => {
     if (prom === null) {
-      console.log("loading dynamic import", path);
       prom = import(path);
     }
 

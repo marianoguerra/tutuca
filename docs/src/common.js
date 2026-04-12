@@ -49,16 +49,18 @@ async function maybeAddImmutableDevTools() {
     return;
   }
 
-  console.info("Immutable DevTools not found, installing for your convenience");
+  console.group("Immutable DevTools not found, installing for your convenience");
   console.info("You may need to enable custom formatters in your browser");
-  console.log("https://firefox-source-docs.mozilla.org/devtools-user/custom_formatters/index.html");
-  console.log(
+  console.info(
+    "https://firefox-source-docs.mozilla.org/devtools-user/custom_formatters/index.html",
+  );
+  console.info(
     "https://docs.google.com/document/d/1FTascZXT9cxfetuPRT2eXPQKXui4nWFivUnS_335T3U/preview?tab=t.0#heading=h.xuvxhsd2bp05",
   );
+  console.groupEnd();
 
   const install = await import("https://esm.sh/@immutable/devtools");
   // tutuca exports the immutable data structures
-  console.log(tutuca);
   install.default(tutuca);
 }
 
