@@ -66,7 +66,6 @@ function hasImmutableDevTools() {
   const l = tutuca.List();
   const formatters = window.devtoolsFormatters ?? [];
   for (const formatter of formatters) {
-    console.log(formatter.header(l), formatter, l);
     if (typeof formatter?.header === "function" && formatter.header(l) !== null) {
       return true;
     }
