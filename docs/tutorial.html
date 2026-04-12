@@ -8,8 +8,8 @@
     <script type="importmap">
       {
         "imports": {
-          "tutuca-dev": "../extra.js",
-          "tutuca": "https://esm.sh/tutuca/es2022/extra.mjs",
+          "tutuca-dev": "../dev.js",
+          "tutuca": "https://esm.sh/tutuca/dev",
           "margaui": "https://esm.sh/margaui"
         }
       }
@@ -31,10 +31,11 @@
           This tutorial walks you through tutuca's features step by step, from
           the simplest possible component to macros and async requests. Each
           section includes editable live code &mdash; modify the examples and
-          press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (or
-          <kbd>Cmd</kbd>+<kbd>Enter</kbd> on macOS) to see your changes
-          instantly. Concepts build on each other, so working through them in
-          order is recommended.
+          press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (or <kbd>Cmd</kbd>+<kbd
+            >Enter</kbd
+          >
+          on macOS) to see your changes instantly. Concepts build on each other,
+          so working through them in order is recommended.
         </p>
         <h3>Notation Reference</h3>
         <p>
@@ -143,6 +144,9 @@
             <ol>
               <li><a href="#raw-html">Raw HTML</a></li>
             </ol>
+          </li>
+          <li>
+            <a href="#common-mistakes">Common Mistakes</a>
           </li>
         </ol>
       </nav>
@@ -487,10 +491,10 @@
           only direct children.
         </p>
         <p>
-          Toggling the <code>view</code> field between
-          <code>"main"</code> and <code>"edit"</code> switches every
-          <code>Entry</code> item between read-only and editable mode at once.
-          The <code>when="filterItem"</code> attribute on
+          Toggling the <code>view</code> field between <code>"main"</code> and
+          <code>"edit"</code> switches every <code>Entry</code> item between
+          read-only and editable mode at once. The
+          <code>when="filterItem"</code> attribute on
           <code>&lt;x render-each&gt;</code> filters items the same way
           <code>@when</code> does on <code>@each</code>.
         </p>
@@ -603,16 +607,14 @@
         </h3>
         <p>
           Macros let you define reusable HTML fragments that expand in place.
-          <code>macro({}, html`...`)</code> takes a defaults object (empty
-          here) and a template. Export macros via
-          <code>getMacros()</code> and reference them in templates with the
-          <code>&lt;x:name&gt;</code> syntax. Unlike components, macros have
-          no state or lifecycle &mdash; they are pure template expansion,
-          making them ideal for repeated markup patterns.
+          <code>macro({}, html`...`)</code> takes a defaults object (empty here)
+          and a template. Export macros via <code>getMacros()</code> and
+          reference them in templates with the
+          <code>&lt;x:name&gt;</code> syntax. Unlike components, macros have no
+          state or lifecycle &mdash; they are pure template expansion, making
+          them ideal for repeated markup patterns.
         </p>
-        <tutuca-playground
-          src="./examples/macro-static.js"
-        ></tutuca-playground>
+        <tutuca-playground src="./examples/macro-static.js"></tutuca-playground>
 
         <h3 id="macros-parameters">
           <a href="#macros-parameters">Macros: Parameters</a>
@@ -631,12 +633,10 @@
           (prefixed with <code>:</code>), the value is an expression, so string
           literals must be single-quoted to distinguish them from field
           references: <code>:label="'Sale'"</code> is the dynamic equivalent.
-          Without quotes, <code>:label=".status"</code> resolves the
-          component's <code>status</code> field instead.
+          Without quotes, <code>:label=".status"</code> resolves the component's
+          <code>status</code> field instead.
         </p>
-        <tutuca-playground
-          src="./examples/macro-params.js"
-        ></tutuca-playground>
+        <tutuca-playground src="./examples/macro-params.js"></tutuca-playground>
 
         <h3 id="macros-slots">
           <a href="#macros-slots">Macros: Slots</a>
@@ -650,23 +650,21 @@
         </p>
         <p>
           Because macros expand inline into the calling component's template,
-          <code>@on.click=".inc"</code> inside a macro calls
-          <code>inc</code> on the component where the macro is used &mdash;
-          not on the macro itself (macros have no state or methods). This is a
-          key difference from components: a component encapsulates its own
-          state and handlers, while a macro is just template expansion that
-          operates in the context of its host component.
+          <code>@on.click=".inc"</code> inside a macro calls <code>inc</code> on
+          the component where the macro is used &mdash; not on the macro itself
+          (macros have no state or methods). This is a key difference from
+          components: a component encapsulates its own state and handlers, while
+          a macro is just template expansion that operates in the context of its
+          host component.
         </p>
-        <tutuca-playground
-          src="./examples/macro-slots.js"
-        ></tutuca-playground>
+        <tutuca-playground src="./examples/macro-slots.js"></tutuca-playground>
 
         <h3 id="macros-named-slots">
           <a href="#macros-named-slots">Macros: Named Slots</a>
         </h3>
         <p>
-          A macro can define multiple insertion points using named slots.
-          Inside the macro template,
+          A macro can define multiple insertion points using named slots. Inside
+          the macro template,
           <code>&lt;x:slot name="actions"&gt;</code> and
           <code>&lt;x:slot name="footer"&gt;</code> mark named slots, while
           <code>&lt;x:slot&gt;</code> (or equivalently
@@ -675,9 +673,9 @@
         <p>
           When using the macro, wrap content in
           <code>&lt;x slot="name"&gt;</code> to target a specific named slot.
-          Any children not wrapped in a named <code>&lt;x slot&gt;</code> go
-          to the default slot. This allows macros to define complex layouts
-          with multiple customizable regions.
+          Any children not wrapped in a named <code>&lt;x slot&gt;</code> go to
+          the default slot. This allows macros to define complex layouts with
+          multiple customizable regions.
         </p>
         <tutuca-playground
           src="./examples/macro-named-slots.js"
@@ -705,6 +703,22 @@
         ></tutuca-playground>
       </section>
 
+      <!-- Common Mistakes -->
+      <section>
+        <h2 id="common-mistakes">
+          <a href="#common-mistakes">Common Mistakes</a>
+        </h2>
+        <p>
+          This example intentionally contains every kind of mistake the linter
+          can catch. Open the <strong>Lint</strong> tab on the right to see all
+          the issues detected &mdash; from referencing undefined fields and
+          computed properties, to mixing up input handlers and methods, to using
+          unknown event modifiers. Use this as a reference for the kinds of
+          errors to watch out for in your own components.
+        </p>
+        <tutuca-playground src="./examples/lint-errors.js"></tutuca-playground>
+      </section>
+
       <!-- What's Next -->
       <section>
         <h2 id="whats-next"><a href="#whats-next">What's Next</a></h2>
@@ -712,9 +726,10 @@
           You've covered all of tutuca's core features. To see them working
           together in more realistic scenarios, check out the
           <a href="index.html">example apps</a> on the home page &mdash;
-          including a to-do list, a JSON editor, a recursive tree, and more.
-          For the full API and source code, visit the
-          <a href="https://github.com/marianoguerra/tutuca">GitHub repository</a>.
+          including a to-do list, a JSON editor, a recursive tree, and more. For
+          the full API and source code, visit the
+          <a href="https://github.com/marianoguerra/tutuca">GitHub repository</a
+          >.
         </p>
       </section>
     </main>

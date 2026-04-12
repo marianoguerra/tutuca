@@ -12,8 +12,13 @@ export async function compileClassesToStyle(app, compileClasses, styleId = "marg
   return t2 - t1;
 }
 
-export async function compileClassesToStyleText(app, compileClasses, extraCSSClasses) {
-  app.ParseContext = ParseCtxClassSetCollector;
+export async function compileClassesToStyleText(
+  app,
+  compileClasses,
+  extraCSSClasses,
+  Ctx = ParseCtxClassSetCollector,
+) {
+  app.ParseContext = Ctx;
   app.compile();
   const classes = new Set(extraCSSClasses ?? []);
   for (const Comp of app.comps.byId.values()) {

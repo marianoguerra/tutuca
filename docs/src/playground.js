@@ -77,8 +77,33 @@ export class TutucaPlayground extends HTMLElement {
     .api-docs ul { margin: 0.15rem 0 0.5rem 1.25rem; padding: 0; }
     .api-docs li { margin: 0.1rem 0; font-size: 0.85rem; }
     .api-docs code { font-size: 0.85em; background: #e8eaf0; color: #212121; padding: 0.1em 0.3em; border-radius: 3px; }
+    .lint-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.1em;
+      height: 1.1em;
+      border-radius: 50%;
+      font-size: 0.7em;
+      line-height: 1;
+      padding: 0.1em;
+      background: var(--b3, #2a323c);
+      color: inherit;
+      margin-left: 0.3em;
+    }
+    .lint-badge.has-issues {
+      background: var(--error-color, #e53935);
+      color: #fff;
+    }
+    .lint-results h4 { margin: 0.75rem 0 0.25rem; font-size: 1rem; }
+    .lint-results ul { margin: 0.15rem 0 0.5rem 1.25rem; padding: 0; }
+    .lint-results li { margin: 0.2rem 0; font-size: 0.85rem; }
+    .lint-results .level-error { color: var(--error-color, #e53935); }
+    .lint-results .level-warn { color: var(--warn-color, #f9a825); }
+    .lint-results .level-hint { color: var(--hint-color, #888); }
+    .lint-results code { font-size: 0.85em; background: #e8eaf0; color: #212121; padding: 0.1em 0.3em; border-radius: 3px; }
     @media (prefers-color-scheme: dark) {
-      .api-docs code { background: #1e2530; color: #dcdcdc; }
+      .api-docs code, .lint-results code { background: #1e2530; color: #dcdcdc; }
     }
     @media (max-width: 768px) {
       :host {
@@ -122,16 +147,20 @@ export class TutucaPlayground extends HTMLElement {
         <div class="tab-bar">
           <button class="active" data-tab="preview">Preview</button>
           <button data-tab="api-docs">API Docs</button>
+          <button data-tab="lint">Lint <span class="lint-badge">0</span></button>
         </div>
         <div class="tab-panel active" data-panel="preview"></div>
         <div class="undo-slider" data-panel="undo"></div>
         <div class="tab-panel api-docs" data-panel="api-docs"></div>
+        <div class="tab-panel lint-results" data-panel="lint"></div>
       </div>
     `;
 
     this.editor = this.shadowRoot.querySelector("code-mirror");
     this.preview = this.shadowRoot.querySelector('[data-panel="preview"]');
     this.apiDocsPanel = this.shadowRoot.querySelector('[data-panel="api-docs"]');
+    this.lintPanel = this.shadowRoot.querySelector('[data-panel="lint"]');
+    this.lintBadge = this.shadowRoot.querySelector('.lint-badge');
 
     this.shadowRoot.querySelector(".tab-bar").addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-tab]");
@@ -240,7 +269,8 @@ export class TutucaPlayground extends HTMLElement {
 
     try {
       const mod = await import(this._blobUrl);
-      const { tutuca, compileClassesToStyleText } = await import(this._resolveSpecifier("tutuca"));
+      const { tutuca, compileClassesToStyleText, checkComponent, LintClassCollectorCtx } =
+        await import(this._resolveSpecifier("tutuca"));
       const { compile } = await import(this._resolveSpecifier("margaui"));
 
       const app = tutuca(appRoot);
@@ -257,10 +287,30 @@ export class TutucaPlayground extends HTMLElement {
         extraCSSClasses = new Set(mod.getExtraCSSClasses());
       }
       app.state.set(mod.getRoot());
-      const styleText = await compileClassesToStyleText(app, compile, extraCSSClasses);
+      const styleText = await compileClassesToStyleText(app, compile, extraCSSClasses, LintClassCollectorCtx);
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);
+
+      const lintResults = [];
+      for (const comp of components) {
+        try {
+          const lx = checkComponent(comp);
+          if (lx.reports.length > 0) {
+            lintResults.push({ name: comp.name, reports: lx.reports });
+          }
+        } catch (e) {
+          lintResults.push({
+            name: comp.name,
+            reports: [{ id: "LINT_ERROR", info: { message: e.message }, level: "error" }],
+          });
+        }
+      }
+      this._renderLintResults(lintResults);
+
+      const docs = getComponentsDocs(components);
+      this.apiDocsPanel.replaceChildren(this._docsToDOM(docs));
+
       app.start({ head: this.shadowRoot });
 
       const undoContainer = this.shadowRoot.querySelector('[data-panel="undo"]');
@@ -287,8 +337,6 @@ export class TutucaPlayground extends HTMLElement {
           slider.value = undo.size - 1;
         }
       });
-      const docs = getComponentsDocs(components);
-      this.apiDocsPanel.replaceChildren(this._docsToDOM(docs));
     } catch (e) {
       this.preview.textContent = `Error: ${e.message}`;
       console.error(e);
@@ -348,5 +396,62 @@ export class TutucaPlayground extends HTMLElement {
       ul.appendChild(li);
     }
     return ul;
+  }
+
+  _renderLintResults(results) {
+    const total = results.reduce((s, r) => s + r.reports.length, 0);
+    this.lintBadge.textContent = total;
+    this.lintBadge.classList.toggle("has-issues", total > 0);
+
+    const frag = document.createDocumentFragment();
+    for (const { name, reports } of results) {
+      const h4 = document.createElement("h4");
+      h4.textContent = name;
+      frag.appendChild(h4);
+
+      const ul = document.createElement("ul");
+      for (const report of reports) {
+        const li = document.createElement("li");
+        li.className = `level-${report.level}`;
+        const code = document.createElement("code");
+        code.textContent = report.level;
+        li.appendChild(code);
+        li.append(` ${_lintIdToMessage(report.id, report.info)}`);
+        ul.appendChild(li);
+      }
+      frag.appendChild(ul);
+    }
+    this.lintPanel.replaceChildren(frag);
+  }
+}
+
+function _lintIdToMessage(id, info) {
+  switch (id) {
+    case "RENDER_IT_OUTSIDE_OF_LOOP":
+      return "render-it used outside of a loop";
+    case "UNKNOWN_EVENT_MODIFIER":
+      return `Unknown modifier '${info.modifier}' on '${info.name}' event`;
+    case "UNKNOWN_HANDLER_ARG_NAME":
+      return `Unknown handler argument '${info.name}'`;
+    case "INPUT_HANDLER_NOT_IMPLEMENTED":
+      return `Input handler '${info.name}' is not implemented`;
+    case "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED":
+      return `Method '.${info.name}' is not implemented`;
+    case "INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD":
+      return `'${info.name}' exists as input handler — use without '.' prefix`;
+    case "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER":
+      return `'${info.name}' exists as method — use with '.' prefix`;
+    case "FIELD_VAL_NOT_DEFINED":
+      return `Field '.${info.name}' is not defined`;
+    case "COMPUTED_VAL_NOT_DEFINED":
+      return `Computed property '$${info.name}' is not defined`;
+    case "UNKNOWN_REQUEST_NAME":
+      return `Unknown request '!${info.name}'`;
+    case "UNKNOWN_COMPONENT_NAME":
+      return `Unknown component '${info.name}'`;
+    case "LINT_ERROR":
+      return info.message;
+    default:
+      return id;
   }
 }

@@ -16,6 +16,7 @@ import {
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_REQUEST_NAME,
 } from "../src/lint/index.js";
+import { LintClassCollectorCtx } from "../dev.js";
 import { Comment, DOMParser, Text } from "./dom.js";
 
 class HeadlessLintParseContext extends LintParseContext {
@@ -196,4 +197,127 @@ test("warn on Type/request not in scope", () => {
     expect(id).toBe(UNKNOWN_COMPONENT_NAME);
     expect(info.name).toBe("MyComp");
   }
+});
+
+test("lint-errors example catches all error types", () => {
+  const [lx] = defAndCheck({
+    name: "LintDemo",
+    fields: { count: 0 },
+    methods: {
+      doClick() {
+        return this;
+      },
+    },
+    input: {
+      doKeyDown() {},
+    },
+    computed: {
+      total() {
+        return 0;
+      },
+    },
+    view: html`<div>
+      <p>Lint Errors Demo - check the Lint tab</p>
+
+      <x render-it></x>
+
+      <button @on.click+badmod="doKeyDown">bad modifier</button>
+
+      <button @on.click="doKeyDown unknownArg event">unknown arg</button>
+
+      <button @on.click="doClick">method as handler</button>
+
+      <button @on.keydown=".doKeyDown">handler as method</button>
+
+      <p :title=".missing">undefined field</p>
+
+      <p :title="$missing">undefined computed</p>
+
+      <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
+        unknown req/comp
+      </button>
+
+      <p @text=".count">0</p>
+    </div>`,
+  });
+
+  const ids = lx.reports.map((r) => r.id);
+
+  expect(ids).toContain(RENDER_IT_OUTSIDE_OF_LOOP);
+  expect(ids).toContain(UNKNOWN_EVENT_MODIFIER);
+  expect(ids).toContain(UNKNOWN_HANDLER_ARG_NAME);
+  expect(ids).toContain(INPUT_HANDLER_NOT_IMPLEMENTED);
+  expect(ids).toContain(INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER);
+  expect(ids).toContain(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
+  expect(ids).toContain(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD);
+  expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
+  expect(ids).toContain(COMPUTED_VAL_NOT_DEFINED);
+  expect(ids).toContain(UNKNOWN_REQUEST_NAME);
+  expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
+});
+
+test("lint-errors example with LintClassCollectorCtx catches all error types", () => {
+  class HeadlessLintClassCollectorCtx extends LintClassCollectorCtx {
+    constructor() {
+      super(DOMParser, Text, Comment);
+    }
+  }
+
+  const Comp = component({
+    name: "LintDemo",
+    fields: { count: 0 },
+    methods: {
+      doClick() {
+        return this;
+      },
+    },
+    input: {
+      doKeyDown() {},
+    },
+    computed: {
+      total() {
+        return 0;
+      },
+    },
+    view: html`<div>
+      <p>Lint Errors Demo - check the Lint tab</p>
+
+      <x render-it></x>
+
+      <button @on.click+badmod="doKeyDown">bad modifier</button>
+
+      <button @on.click="doKeyDown unknownArg event">unknown arg</button>
+
+      <button @on.click="doClick">method as handler</button>
+
+      <button @on.keydown=".doKeyDown">handler as method</button>
+
+      <p :title=".missing">undefined field</p>
+
+      <p :title="$missing">undefined computed</p>
+
+      <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
+        unknown req/comp
+      </button>
+
+      <p @text=".count">0</p>
+    </div>`,
+  });
+  Comp.scope = new ComponentStack();
+  Comp.compile(HeadlessLintClassCollectorCtx);
+  const lx = checkComponent(Comp);
+
+  const ids = lx.reports.map((r) => r.id);
+
+  expect(ids).toContain(RENDER_IT_OUTSIDE_OF_LOOP);
+  expect(ids).toContain(UNKNOWN_EVENT_MODIFIER);
+  expect(ids).toContain(UNKNOWN_HANDLER_ARG_NAME);
+  expect(ids).toContain(INPUT_HANDLER_NOT_IMPLEMENTED);
+  expect(ids).toContain(INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER);
+  expect(ids).toContain(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
+  expect(ids).toContain(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD);
+  expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
+  expect(ids).toContain(COMPUTED_VAL_NOT_DEFINED);
+  expect(ids).toContain(UNKNOWN_REQUEST_NAME);
+  expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
 });
