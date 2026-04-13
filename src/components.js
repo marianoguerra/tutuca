@@ -26,18 +26,15 @@ export class Components {
     const comp = this.getCompFor(v);
     return comp ? comp.on.stackEnter : defaultOnStackEnter;
   }
-  getInputHandlerFor(v, name) {
-    return this.getCompFor(v)?.input[name] ?? null;
-  }
-  getAlterHandlerFor(v, name) {
-    return this.getCompFor(v)?.alter[name] ?? null;
+  getHandlerFor(v, name, key) {
+    return this.getCompFor(v)?.[key][name] ?? null;
   }
   getRequestFor(v, name) {
     const comp = this.getCompFor(v);
     return comp ? comp.scope.lookupRequest(name) : null;
   }
   lookupComputed(v, name) {
-    const fn = this.getCompFor(v)?.computed[name];
+    const fn = this.getHandlerFor(v, name, "computed");
     return fn ? this.computedCache.getKey(v, name, fn) : null;
   }
   compileStyles() {

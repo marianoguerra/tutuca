@@ -229,12 +229,12 @@ export class NameVal extends VarVal {
 }
 export class InputHandlerNameVal extends NameVal {
   eval(stack) {
-    return stack.getInputHandler(this.name) ?? mk404Handler("input", this.name);
+    return stack.getHandlerFor(this.name, "input") ?? mk404Handler("input", this.name);
   }
 }
 export class AlterHandlerNameVal extends NameVal {
   eval(stack) {
-    return stack.getAlterHandler(this.name) ?? mk404Handler("alter", this.name);
+    return stack.getHandlerFor(this.name, "alter") ?? mk404Handler("alter", this.name);
   }
 }
 const mk404Handler = (type, name) =>

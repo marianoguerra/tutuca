@@ -110,11 +110,8 @@ export class Stack {
     const node = this.binds.head.isFrame ? this.binds.head : this.binds.tail.head;
     return this.comps.lookupComputed(node.it, name);
   }
-  getInputHandler(name) {
-    return this.comps.getInputHandlerFor(this.it, name);
-  }
-  getAlterHandler(name) {
-    return this.comps.getAlterHandlerFor(this.it, name);
+  getHandlerFor(name, key) {
+    return this.comps.getHandlerFor(this.it, name, key);
   }
   lookupRequest(name) {
     return this.comps.getRequestFor(this.it, name);
