@@ -7,7 +7,7 @@ export class Renderer {
     this.comps = comps;
     this.h = h;
     this.fragment = fragment;
-    this.comment = comment;
+    this.renderComment = comment;
     this.renderFn = renderFn;
     this.getSeqInfo = getSeqInfo ?? basicGetSeqInfo;
     this.cache = cache ?? new WeakMapDomCache();
@@ -33,13 +33,13 @@ export class Renderer {
     return dom.innerHTML;
   }
   renderRoot(stack, val, viewName = null) {
-    const c = this.comps.getCompFor(val);
-    const nid = c.getView(viewName).anode.nodeId ?? null;
-    return c ? this._rValComp(stack, val, c, nid, "ROOT", viewName) : null;
+    const comp = this.comps.getCompFor(val);
+    const nid = comp.getView(viewName).anode.nodeId ?? null;
+    return comp ? this._rValComp(stack, val, comp, nid, "ROOT", viewName) : null;
   }
   renderIt(stack, nodeId, key, viewName) {
-    const c = this.comps.getCompFor(stack.it);
-    return c ? this._rValComp(stack, stack.it, c, nodeId, key, viewName) : null;
+    const comp = this.comps.getCompFor(stack.it);
+    return comp ? this._rValComp(stack, stack.it, comp, nodeId, key, viewName) : null;
   }
   _rValComp(stack, val, comp, nid, key, viewName) {
     const cacheKey = `${viewName ?? stack.viewsId ?? ""}${nid}-${key}`;
@@ -49,7 +49,7 @@ export class Renderer {
     }
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
     const meta = this.renderMetadata("Comp", { nid });
-    const dom = this.renderFragment([meta, view.render(stack, this)]);
+    const dom = this.renderFragment([meta, this.renderView(view, stack)]);
     this.cache.set(val, cacheKey, dom);
     return dom;
   }
@@ -62,16 +62,14 @@ export class Renderer {
       if (filter.call(stack.it, key, value, iterData)) {
         const newStack = stack.enter(value, { key }, true);
         const dom = this.renderIt(newStack, nodeId, key, viewName);
-        r.push(this.renderMetadata("Each", { nid: nodeId, [attrName]: key }));
-        r.push(dom);
+        r.push(this.renderMetadata("Each", { nid: nodeId, [attrName]: key }), dom); // 2 push
       }
     }
     return r;
   }
-  renderEachWhen(stack, iterInfo, node, nid) {
+  renderEachWhen(stack, iterInfo, view, nid) {
     const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
     const [attrName, gen] = this.getSeqInfo(seq);
-    const hasEnricher = !!enricher;
     const r = [];
     const iterData = loopWith.call(stack.it, seq);
     for (const [key, value] of gen(seq)) {
@@ -79,29 +77,30 @@ export class Renderer {
         const bindings = { key, value };
         const cacheKey = `${nid}-${key}`;
         let cachedNode;
-        if (hasEnricher) {
+        if (enricher) {
           enricher.call(stack.it, bindings, key, value, iterData);
           cachedNode = this.cache.get2(stack.it, value, cacheKey);
         } else {
           cachedNode = this.cache.get(value, cacheKey);
         }
         if (cachedNode) {
-          r.push(this.renderMetadata("Each", { nid, [attrName]: key }));
-          r.push(cachedNode);
+          r.push(this.renderMetadata("Each", { nid, [attrName]: key }), cachedNode); // 2
           continue;
         }
         const newStack = stack.enter(value, bindings, false);
-        const dom = node.render(newStack, this);
-        r.push(this.renderMetadata("Each", { nid, [attrName]: key }));
-        if (hasEnricher) {
+        const dom = this.renderView(view, newStack);
+        r.push(this.renderMetadata("Each", { nid, [attrName]: key }), dom); // 2 push
+        if (enricher) {
           this.cache.set2(stack.it, value, cacheKey, dom);
         } else {
           this.cache.set(value, cacheKey, dom);
         }
-        r.push(dom);
       }
     }
     return r;
+  }
+  renderView(view, stack) {
+    return view.render(stack, this);
   }
   renderText(text) {
     return text;
@@ -109,10 +108,6 @@ export class Renderer {
   renderMetadata(type, info) {
     info.$ = type; // MUT
     return this.renderComment(`§${JSON.stringify(info)}§`);
-  }
-
-  renderComment(text) {
-    return this.comment(text); // TODO: rename comment to renderComment
   }
   renderEmpty(_text) {
     return null;
