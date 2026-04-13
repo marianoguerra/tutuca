@@ -39,12 +39,10 @@ function patchObject(node, previous, propName, propValue) {
     node[propName] = propValue;
     return;
   }
-  let current = node[propName];
-  if (!isObject(current)) {
+  if (!isObject(node[propName])) {
     node[propName] = {};
-    current = node[propName];
   }
-  const target = current;
+  const target = node[propName];
   for (const k in propValue) {
     target[k] = propValue[k];
   }
@@ -227,14 +225,6 @@ function diffProps(a, b) {
   }
   return diff;
 }
-function replaceNode(domNode, vnode, options) {
-  const parentNode = domNode.parentNode;
-  const newNode = vnode.toDom(options);
-  if (parentNode && newNode && newNode !== domNode) {
-    parentNode.replaceChild(newNode, domNode);
-  }
-  return newNode || domNode;
-}
 const bothInstanceOf = (a, b, C) => a instanceof C && b instanceof C;
 function morphNode(domNode, source, target, opts) {
   if (source === target || source.isEqualTo(target)) return domNode;
@@ -253,17 +243,19 @@ function morphNode(domNode, source, target, opts) {
       applyProperties(domNode, propsDiff, source.attrs);
     }
     if (!target.attrs.dangerouslySetInnerHTML) {
-      morphChildren(domNode, source.childs, target.childs, source.tag, opts);
+      morphChildren(domNode, source.childs, target.childs, opts);
     }
     return domNode;
   }
   if (bothInstanceOf(source, target, VFragment)) {
-    morphChildren(domNode, source.childs, target.childs, null, opts);
+    morphChildren(domNode, source.childs, target.childs, opts);
     return domNode;
   }
-  return replaceNode(domNode, target, opts);
+  const newNode = target.toDom(opts);
+  domNode.parentNode?.replaceChild(newNode, domNode);
+  return newNode;
 }
-function morphChildren(parentDom, oldChilds, newChilds, _parentTag, opts) {
+function morphChildren(parentDom, oldChilds, newChilds, opts) {
   if (oldChilds.length === 0) {
     for (const child of newChilds) {
       const node = child.toDom(opts);
@@ -272,9 +264,7 @@ function morphChildren(parentDom, oldChilds, newChilds, _parentTag, opts) {
     return;
   }
   if (newChilds.length === 0) {
-    while (parentDom.firstChild) {
-      parentDom.removeChild(parentDom.firstChild);
-    }
+    parentDom.replaceChildren();
     return;
   }
   const domNodes = Array.from(parentDom.childNodes);
@@ -322,7 +312,7 @@ function morphChildren(parentDom, oldChilds, newChilds, _parentTag, opts) {
     }
   }
 }
-var renderCache = new WeakMap();
+const renderCache = new WeakMap();
 export function render(vnode, container, options) {
   const cached = renderCache.get(container);
   const isFragment = vnode instanceof VFragment;
@@ -339,8 +329,7 @@ export function render(vnode, container, options) {
   }
   const domNode = vnode.toDom(options);
   if (domNode) {
-    container.innerHTML = "";
-    container.appendChild(domNode);
+    container.replaceChildren(domNode);
     const domToCache = isFragment ? container : domNode;
     renderCache.set(container, { vnode, dom: domToCache });
   }
@@ -348,7 +337,7 @@ export function render(vnode, container, options) {
 }
 export function unmount(container) {
   renderCache.delete(container);
-  container.innerHTML = "";
+  container.replaceChildren();
 }
 export function h(tagName, properties, children) {
   const tag = tagName.toUpperCase();
