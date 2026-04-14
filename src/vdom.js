@@ -22,7 +22,7 @@ export function applyProperties(node, props, previous) {
 function removeProperty(node, propName, previous) {
   const previousValue = previous[propName];
   if (propName === "dangerouslySetInnerHTML") {
-    node.innerHTML = "";
+    node.replaceChildren();
   } else if (typeof previousValue === "string" || isHtmlAttribute(propName)) {
     const attrName = propName === "className" ? "class" : propName === "htmlFor" ? "for" : propName;
     node.removeAttribute(attrName);
@@ -58,6 +58,18 @@ export class VBase {
 const getKey = (child) => (child instanceof VNode ? child.key : undefined);
 const isIterable = (obj) =>
   obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
+function childsEqual(a, b) {
+  for (let i = 0; i < a.length; i++) {
+    if (!a[i].isEqualTo(b[i])) return false;
+  }
+  return true;
+}
+function appendChildNodes(parent, childs, opts) {
+  for (const child of childs) {
+    const childNode = child.toDom(opts);
+    if (childNode) parent.appendChild(childNode);
+  }
+}
 function addChild(normalizedChildren, child) {
   if (child == null) return;
   if (isIterable(child)) {
@@ -117,21 +129,11 @@ export class VFragment extends VBase {
     if (!(other instanceof VFragment) || this.childs.length !== other.childs.length) {
       return false;
     }
-    for (let i = 0; i < this.childs.length; i++) {
-      if (!this.childs[i].isEqualTo(other.childs[i])) {
-        return false;
-      }
-    }
-    return true;
+    return childsEqual(this.childs, other.childs);
   }
   toDom(opts) {
     const fragment = opts.document.createDocumentFragment();
-    for (const child of this.childs) {
-      const childNode = child.toDom(opts);
-      if (childNode) {
-        fragment.appendChild(childNode);
-      }
-    }
+    appendChildNodes(fragment, this.childs, opts);
     return fragment;
   }
 }
@@ -167,12 +169,7 @@ export class VNode extends VBase {
         return false;
       }
     }
-    for (let i = 0; i < this.childs.length; i++) {
-      if (!this.childs[i].isEqualTo(other.childs[i])) {
-        return false;
-      }
-    }
-    return true;
+    return childsEqual(this.childs, other.childs);
   }
   toDom(opts) {
     const doc = opts.document;
@@ -181,12 +178,7 @@ export class VNode extends VBase {
         ? doc.createElement(this.tag)
         : doc.createElementNS(this.namespace, this.tag);
     applyProperties(node, this.attrs, {});
-    for (const child of this.childs) {
-      const childNode = child.toDom(opts);
-      if (childNode) {
-        node.appendChild(childNode);
-      }
-    }
+    appendChildNodes(node, this.childs, opts);
     return node;
   }
 }
@@ -200,8 +192,8 @@ function diffProps(a, b) {
     }
     const aValue = a[aKey];
     const bValue = b[aKey];
-    if (aValue === bValue) {
-    } else if (isObject(aValue) && isObject(bValue)) {
+    if (aValue === bValue) continue;
+    if (isObject(aValue) && isObject(bValue)) {
       if (Object.getPrototypeOf(bValue) !== Object.getPrototypeOf(aValue)) {
         diff ??= {};
         diff[aKey] = bValue;
