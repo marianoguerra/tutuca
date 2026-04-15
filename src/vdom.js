@@ -1,6 +1,7 @@
 export const isHtmlAttribute = (propName) =>
   propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
 const isObject = (v) => v !== null && typeof v === "object";
+const prototypesDiffer = (a, b) => Object.getPrototypeOf(a) !== Object.getPrototypeOf(b);
 export function applyProperties(node, props, previous) {
   for (const propName in props) {
     const propValue = props[propName];
@@ -32,10 +33,7 @@ function removeProperty(node, propName, previous) {
 }
 function patchObject(node, previous, propName, propValue) {
   const previousValue = previous?.[propName];
-  if (
-    isObject(previousValue) &&
-    Object.getPrototypeOf(previousValue) !== Object.getPrototypeOf(propValue)
-  ) {
+  if (isObject(previousValue) && prototypesDiffer(previousValue, propValue)) {
     node[propName] = propValue;
     return;
   }
@@ -194,7 +192,7 @@ function diffProps(a, b) {
     const bValue = b[aKey];
     if (aValue === bValue) continue;
     if (isObject(aValue) && isObject(bValue)) {
-      if (Object.getPrototypeOf(bValue) !== Object.getPrototypeOf(aValue)) {
+      if (prototypesDiffer(bValue, aValue)) {
         diff ??= {};
         diff[aKey] = bValue;
       } else {
