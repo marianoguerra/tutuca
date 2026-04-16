@@ -24,9 +24,12 @@ function removeProperty(node, propName, previous) {
   const previousValue = previous[propName];
   if (propName === "dangerouslySetInnerHTML") {
     node.replaceChildren();
+  } else if (propName === "className") {
+    node.removeAttribute("class");
+  } else if (propName === "htmlFor") {
+    node.removeAttribute("for");
   } else if (typeof previousValue === "string" || isHtmlAttribute(propName)) {
-    const attrName = propName === "className" ? "class" : propName === "htmlFor" ? "for" : propName;
-    node.removeAttribute(attrName);
+    node.removeAttribute(propName);
   } else {
     node[propName] = null;
   }
@@ -45,14 +48,7 @@ function patchObject(node, previous, propName, propValue) {
     target[k] = propValue[k];
   }
 }
-export class VBase {
-  isEqualTo(other) {
-    return this === other;
-  }
-  toDom(_opts) {
-    return null;
-  }
-}
+export class VBase {}
 const getKey = (child) => (child instanceof VNode ? child.key : undefined);
 const isIterable = (obj) =>
   obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
@@ -64,8 +60,7 @@ function childsEqual(a, b) {
 }
 function appendChildNodes(parent, childs, opts) {
   for (const child of childs) {
-    const childNode = child.toDom(opts);
-    if (childNode) parent.appendChild(childNode);
+    parent.appendChild(child.toDom(opts));
   }
 }
 function addChild(normalizedChildren, child) {
@@ -215,31 +210,31 @@ function diffProps(a, b) {
   }
   return diff;
 }
-const bothInstanceOf = (a, b, C) => a instanceof C && b instanceof C;
 function morphNode(domNode, source, target, opts) {
   if (source === target || source.isEqualTo(target)) return domNode;
-  if (bothInstanceOf(source, target, VText) || bothInstanceOf(source, target, VComment)) {
-    domNode.data = target.text;
-    return domNode;
-  }
-  if (
-    bothInstanceOf(source, target, VNode) &&
-    source.tag === target.tag &&
-    source.namespace === target.namespace &&
-    source.key === target.key
-  ) {
-    const propsDiff = diffProps(source.attrs, target.attrs);
-    if (propsDiff) {
-      applyProperties(domNode, propsDiff, source.attrs);
+  const type = source.nodeType;
+  if (type === target.nodeType) {
+    if (type === 3 || type === 8) {
+      domNode.data = target.text;
+      return domNode;
     }
-    if (!target.attrs.dangerouslySetInnerHTML) {
+    if (
+      type === 1 &&
+      source.tag === target.tag &&
+      source.namespace === target.namespace &&
+      source.key === target.key
+    ) {
+      const propsDiff = diffProps(source.attrs, target.attrs);
+      if (propsDiff) applyProperties(domNode, propsDiff, source.attrs);
+      if (!target.attrs.dangerouslySetInnerHTML) {
+        morphChildren(domNode, source.childs, target.childs, opts);
+      }
+      return domNode;
+    }
+    if (type === 11) {
       morphChildren(domNode, source.childs, target.childs, opts);
+      return domNode;
     }
-    return domNode;
-  }
-  if (bothInstanceOf(source, target, VFragment)) {
-    morphChildren(domNode, source.childs, target.childs, opts);
-    return domNode;
   }
   const newNode = target.toDom(opts);
   domNode.parentNode?.replaceChild(newNode, domNode);
@@ -247,10 +242,7 @@ function morphNode(domNode, source, target, opts) {
 }
 function morphChildren(parentDom, oldChilds, newChilds, opts) {
   if (oldChilds.length === 0) {
-    for (const child of newChilds) {
-      const node = child.toDom(opts);
-      if (node) parentDom.appendChild(node);
-    }
+    appendChildNodes(parentDom, newChilds, opts);
     return;
   }
   if (newChilds.length === 0) {
@@ -258,7 +250,7 @@ function morphChildren(parentDom, oldChilds, newChilds, opts) {
     return;
   }
   const domNodes = Array.from(parentDom.childNodes);
-  const oldKeyMap = {};
+  const oldKeyMap = Object.create(null);
   for (let i = 0; i < oldChilds.length; i++) {
     const key = getKey(oldChilds[i]);
     if (key != null) oldKeyMap[key] = i;
@@ -284,16 +276,12 @@ function morphChildren(parentDom, oldChilds, newChilds, opts) {
     }
     if (oldIdx >= 0) {
       used[oldIdx] = 1;
-      const dom = domNodes[oldIdx];
-      const newDom = morphNode(dom, oldChilds[oldIdx], newChild, opts);
+      const newDom = morphNode(domNodes[oldIdx], oldChilds[oldIdx], newChild, opts);
       const ref = parentDom.childNodes[j] ?? null;
       if (newDom !== ref) parentDom.insertBefore(newDom, ref);
     } else {
-      const dom = newChild.toDom(opts);
-      if (dom) {
-        const ref = parentDom.childNodes[j] ?? null;
-        parentDom.insertBefore(dom, ref);
-      }
+      const ref = parentDom.childNodes[j] ?? null;
+      parentDom.insertBefore(newChild.toDom(opts), ref);
     }
   }
   for (let i = oldChilds.length - 1; i >= 0; i--) {
@@ -306,23 +294,16 @@ const renderCache = new WeakMap();
 export function render(vnode, container, options) {
   const cached = renderCache.get(container);
   const isFragment = vnode instanceof VFragment;
-  if (cached) {
-    const wasFragment = cached.vnode instanceof VFragment;
-    if (wasFragment === isFragment) {
-      const rootNode = wasFragment ? container : cached.dom;
-      const newDom = morphNode(rootNode, cached.vnode, vnode, options);
-      const domToCache = isFragment ? container : newDom;
-      renderCache.set(container, { vnode, dom: domToCache });
-      return newDom;
-    }
-    renderCache.delete(container);
+  if (cached && cached.vnode instanceof VFragment === isFragment) {
+    const oldDom = isFragment ? container : cached.dom;
+    const newDom = morphNode(oldDom, cached.vnode, vnode, options);
+    renderCache.set(container, { vnode, dom: isFragment ? container : newDom });
+    return newDom;
   }
+  renderCache.delete(container);
   const domNode = vnode.toDom(options);
-  if (domNode) {
-    container.replaceChildren(domNode);
-    const domToCache = isFragment ? container : domNode;
-    renderCache.set(container, { vnode, dom: domToCache });
-  }
+  container.replaceChildren(domNode);
+  renderCache.set(container, { vnode, dom: isFragment ? container : domNode });
   return domNode;
 }
 export function unmount(container) {

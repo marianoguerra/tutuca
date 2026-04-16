@@ -1808,13 +1808,6 @@ describe("render", () => {
     expect(container.childNodes[1].tagName).toBe("SPAN");
     expect(container.childNodes[2].data).toBe("three");
   });
-  it("returns null for empty VBase", () => {
-    const container = document.createElement("div");
-    const base = new VBase();
-    const result = vdomRender(base, container, { document });
-    expect(result).toBeNull();
-    expect(container.childNodes.length).toBe(0);
-  });
   describe("re-render", () => {
     it("re-renders with text change", () => {
       const container = document.createElement("div");
