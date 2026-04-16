@@ -92,10 +92,10 @@ function nullHandler() {
   return this;
 }
 class Transaction {
-  constructor(path, transactor) {
+  constructor(path, transactor, parentTransaction = null) {
     this.path = path;
     this.transactor = transactor;
-    this.parentTransaction = null;
+    this.parentTransaction = parentTransaction;
     this._task = null;
   }
   get task() {
