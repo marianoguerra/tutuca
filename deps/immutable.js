@@ -95,13 +95,13 @@ function hasIterator(maybeIterable) {
   }
   return !!getIteratorFn(maybeIterable);
 }
-const isIterator = maybeIterator => !!(maybeIterator && typeof maybeIterator.next === "function");
+const isIterator = maybeIterator => typeof maybeIterator?.next === "function";
 function getIterator(iterable) {
   const iteratorFn = getIteratorFn(iterable);
   return iteratorFn?.call(iterable);
 }
 function getIteratorFn(iterable) {
-  const iteratorFn = iterable && iterable[Symbol.iterator];
+  const iteratorFn = iterable?.[Symbol.iterator];
   if (typeof iteratorFn === "function") {
     return iteratorFn;
   }
@@ -194,12 +194,10 @@ function flipFactory(collection) {
   flipSequence.__iterate = function(fn, reverse) {
     return collection.__iterate((v, k) => fn(k, v, this), reverse);
   };
-  flipSequence.__iteratorUncached = function(reverse) {
-    return mapEntries(collection.__iterator(reverse), (k, v, entry) => {
-      entry[0] = v;
-      entry[1] = k;
-    });
-  };
+  flipSequence.__iteratorUncached = reverse => mapEntries(collection.__iterator(reverse), (k, v, entry) => {
+    entry[0] = v;
+    entry[1] = k;
+  });
   return flipSequence;
 }
 function mapFactory(collection, mapper, context) {
@@ -213,12 +211,10 @@ function mapFactory(collection, mapper, context) {
   mappedSequence.__iterate = function(fn, reverse) {
     return collection.__iterate((v, k) => fn(mapper.call(context, v, k, collection), k, this), reverse);
   };
-  mappedSequence.__iteratorUncached = function(reverse) {
-    return mapEntries(collection.__iterator(reverse), (k, v, entry) => {
-      entry[0] = k;
-      entry[1] = mapper.call(context, v, k, collection);
-    });
-  };
+  mappedSequence.__iteratorUncached = reverse => mapEntries(collection.__iterator(reverse), (k, v, entry) => {
+    entry[0] = k;
+    entry[1] = mapper.call(context, v, k, collection);
+  });
   return mappedSequence;
 }
 function reverseFactory(collection, useKeys) {
@@ -371,7 +367,7 @@ function maxFactory(collection, comparator, mapper) {
   }
   if (mapper) {
     const entry = collection.toSeq().map((v, k) => [ v, mapper(v, k, collection) ]).reduce((a, b) => maxCompare(comparator, a[1], b[1]) ? b : a);
-    return entry && entry[0];
+    return entry?.[0];
   }
   return collection.reduce((a, b) => maxCompare(comparator, a, b) ? b : a);
 }
@@ -975,7 +971,7 @@ class CollectionImpl {
   }
   findKey(predicate, context) {
     const entry = this.findEntry(predicate, context);
-    return entry && entry[0];
+    return entry?.[0];
   }
   findLast(predicate, context, notSetValue) {
     return this.toKeyedSeq().reverse().find(predicate, context, notSetValue);
@@ -2819,7 +2815,7 @@ class ListImpl extends IndexedCollectionImpl {
     if (index >= 0 && index < this.size) {
       index += this._origin;
       const node = listNodeFor(this, index);
-      return node && node.array[index & MASK];
+      return node?.array[index & MASK];
     }
     return notSetValue;
   }
@@ -3049,7 +3045,7 @@ function iterateList(list, reverse) {
   function pushFrame(node, level, offset) {
     if (level === 0) {
       const array = offset === tailPos ? tail?.array : node?.array;
-      let from = offset > left ? 0 : left - offset;
+      const from = offset > left ? 0 : left - offset;
       let to = right - offset;
       if (to > SIZE) {
         to = SIZE;
@@ -3064,7 +3060,7 @@ function iterateList(list, reverse) {
       }
     } else {
       const array = node?.array;
-      let from = offset > left ? 0 : left - offset >> level;
+      const from = offset > left ? 0 : left - offset >> level;
       let to = (right - offset >> level) + 1;
       if (to > SIZE) {
         to = SIZE;
@@ -3166,7 +3162,7 @@ function updateVNode(node, ownerID, level, index, value, didAlter) {
   }
   let newNode;
   if (level > 0) {
-    const lowerNode = node && node.array[idx];
+    const lowerNode = node?.array[idx];
     const newLowerNode = updateVNode(lowerNode, ownerID, level - SHIFT, index, value, didAlter);
     if (newLowerNode === lowerNode) {
       return node;
@@ -3259,14 +3255,14 @@ function setListBounds(list, begin, end) {
     node.array[oldTailOffset >>> SHIFT & MASK] = oldTail;
   }
   if (newCapacity < oldCapacity) {
-    newTail = newTail && newTail.removeAfter(owner, 0, newCapacity);
+    newTail = newTail?.removeAfter(owner, 0, newCapacity);
   }
   if (newOrigin >= newTailOffset) {
     newOrigin -= newTailOffset;
     newCapacity -= newTailOffset;
     newLevel = SHIFT;
     newRoot = null;
-    newTail = newTail && newTail.removeBefore(owner, 0, newOrigin);
+    newTail = newTail?.removeBefore(owner, 0, newOrigin);
   } else if (newOrigin > oldOrigin || newTailOffset < oldTailOffset) {
     offsetShift = 0;
     while (newRoot) {
@@ -4263,7 +4259,7 @@ function fromJSWith(stack, converter, value, key, keyPath, parentValue) {
     if (keyPath && key !== "") {
       keyPath.push(key);
     }
-    const converted = converter.call(parentValue, key, Seq(value).map((v, k) => fromJSWith(stack, converter, v, k, keyPath, value)), keyPath && keyPath.slice());
+    const converted = converter.call(parentValue, key, Seq(value).map((v, k) => fromJSWith(stack, converter, v, k, keyPath, value)), keyPath?.slice());
     stack.pop();
     if (keyPath) {
       keyPath.pop();
