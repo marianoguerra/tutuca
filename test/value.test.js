@@ -4,15 +4,15 @@ import { ConstVal, StrTplVal, vp } from "../src/value.js";
 test("parse empty string", () => {
   const r = vp.parseAttr("flex flex-col gap-3 {.foo}");
   expect(r).toBeInstanceOf(StrTplVal);
-  expect(r.vals[0].value).toBe("flex flex-col gap-3 ");
+  expect(r.vals[0].val).toBe("flex flex-col gap-3 ");
   expect(r.vals[1].name).toBe("foo");
-  expect(r.vals[2].value).toBe("");
+  expect(r.vals[2].val).toBe("");
 });
 
 test("if all constants then turn into a const", () => {
   const r = vp.parseAttr("flex flex-col gap-3 {'hi'}");
   expect(r).toBeInstanceOf(ConstVal);
-  expect(r.value).toBe("flex flex-col gap-3 hi");
+  expect(r.val).toBe("flex flex-col gap-3 hi");
 });
 
 describe("string template quote requirements", () => {
@@ -27,23 +27,23 @@ describe("string template quote requirements", () => {
     test("text with field interpolation", () => {
       const r = vp.parseAttr("flex gap-3 {.foo}");
       expect(r).toBeInstanceOf(StrTplVal);
-      expect(r.vals[0].value).toBe("flex gap-3 ");
+      expect(r.vals[0].val).toBe("flex gap-3 ");
       expect(r.vals[1].name).toBe("foo");
     });
 
     test("multiple interpolations", () => {
       const r = vp.parseAttr("{.a} between {.b}");
       expect(r).toBeInstanceOf(StrTplVal);
-      expect(r.vals[0].value).toBe("");
+      expect(r.vals[0].val).toBe("");
       expect(r.vals[1].name).toBe("a");
-      expect(r.vals[2].value).toBe(" between ");
+      expect(r.vals[2].val).toBe(" between ");
       expect(r.vals[3].name).toBe("b");
     });
 
     test("only interpolation, no surrounding text", () => {
       const r = vp.parseAttr("{.foo}");
       expect(r).toBeInstanceOf(StrTplVal);
-      expect(r.vals[0].value).toBe("");
+      expect(r.vals[0].val).toBe("");
       expect(r.vals[1].name).toBe("foo");
     });
 
@@ -61,13 +61,13 @@ describe("string template quote requirements", () => {
     test("quoted constant inside braces", () => {
       const r = vp.parseAttr("flex {'gap-3'}");
       expect(r).toBeInstanceOf(ConstVal);
-      expect(r.value).toBe("flex gap-3");
+      expect(r.val).toBe("flex gap-3");
     });
 
     test("numeric constant inside braces", () => {
       const r = vp.parseAttr("width: {42}px");
       expect(r).toBeInstanceOf(ConstVal);
-      expect(r.value).toBe("width: 42px");
+      expect(r.val).toBe("width: 42px");
     });
   });
 
@@ -81,13 +81,13 @@ describe("string template quote requirements", () => {
     test("quoted constant string with spaces", () => {
       const r = vp.parseAttr("'flex gap-3'");
       expect(r).toBeInstanceOf(ConstVal);
-      expect(r.value).toBe("flex gap-3");
+      expect(r.val).toBe("flex gap-3");
     });
 
     test("quoted single word", () => {
       const r = vp.parseAttr("'badge'");
       expect(r).toBeInstanceOf(ConstVal);
-      expect(r.value).toBe("badge");
+      expect(r.val).toBe("badge");
     });
 
     test("unquoted multi-word string without braces returns null", () => {
@@ -104,7 +104,7 @@ describe("string template quote requirements", () => {
     test("tilde constant", () => {
       const r = vp.parseAttr("~badge");
       expect(r).toBeInstanceOf(ConstVal);
-      expect(r.value).toBe("badge");
+      expect(r.val).toBe("badge");
     });
   });
 
@@ -137,14 +137,14 @@ describe("string template quote requirements", () => {
     test("string template works in parseAll", () => {
       const r = vp.parseAll("flex {.foo}");
       expect(r).toBeInstanceOf(StrTplVal);
-      expect(r.vals[0].value).toBe("flex ");
+      expect(r.vals[0].val).toBe("flex ");
       expect(r.vals[1].name).toBe("foo");
     });
 
     test("quoted constant works in parseAll", () => {
       const r = vp.parseAll("'flex gap-3'");
       expect(r).toBeInstanceOf(ConstVal);
-      expect(r.value).toBe("flex gap-3");
+      expect(r.val).toBe("flex gap-3");
     });
   });
 });

@@ -33,12 +33,12 @@ export class ParseCtxClassSetCollector extends ParseContext {
         if (attr.name !== "class") {
           continue;
         }
-        const { value, thenVal, elseVal } = attr;
+        const { val, thenVal, elseVal } = attr;
         if (thenVal !== undefined) {
           this._maybeAddVal(thenVal);
           this._maybeAddVal(elseVal);
         } else {
-          this._maybeAddVal(value);
+          this._maybeAddVal(val);
         }
       }
     } else {
@@ -49,15 +49,15 @@ export class ParseCtxClassSetCollector extends ParseContext {
     }
   }
   _maybeAddVal(value) {
-    if (!this._maybeAddStrTpl(value) && typeof value?.value === "string") {
-      this._addClasses(value.value);
+    if (!this._maybeAddStrTpl(value) && typeof value?.val === "string") {
+      this._addClasses(value.val);
     }
   }
   _maybeAddStrTpl(value) {
     if (value?.vals !== undefined) {
       for (const val of value.vals) {
-        if (val instanceof ConstVal && val.value !== "") {
-          this._addClasses(val.value);
+        if (val instanceof ConstVal && val.val !== "") {
+          this._addClasses(val.val);
         }
       }
       return true;

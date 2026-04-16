@@ -102,7 +102,7 @@ describe("ANode", () => {
       const [root] = parse("<p><!-- tutuca --></p>");
       const r = root.childs[0];
       expect(r).toBeInstanceOf(CommentNode);
-      expect(r.v).toBe(" tutuca ");
+      expect(r.val).toBe(" tutuca ");
     });
 
     test("parse node", () => {
@@ -112,8 +112,8 @@ describe("ANode", () => {
       expect(c).toBeInstanceOf(CommentNode);
       expect(n).toBeInstanceOf(DomNode);
       expect(t).toBeInstanceOf(TextNode);
-      expect(c.v).toBe(" tutuca ");
-      expect(t.v).toBe("bar");
+      expect(c.val).toBe(" tutuca ");
+      expect(t.val).toBe("bar");
     });
 
     test("parse node attributes", () => {
@@ -130,8 +130,8 @@ describe("ANode", () => {
       expect(c).toBeInstanceOf(CommentNode);
       expect(n).toBeInstanceOf(DomNode);
       expect(t).toBeInstanceOf(TextNode);
-      expect(c.v).toBe(" tutuca ");
-      expect(t.v).toBe("bar");
+      expect(c.val).toBe(" tutuca ");
+      expect(t.val).toBe("bar");
     });
   });
 
@@ -245,12 +245,12 @@ describe("ANode", () => {
       {
         const v = vp.parseHandlerArg("42", px);
         expect(v).toBeInstanceOf(ConstVal);
-        expect(v.value).toBe(42);
+        expect(v.val).toBe(42);
       }
       {
         const v = vp.parseHandlerArg("42.5", px);
         expect(v).toBeInstanceOf(ConstVal);
-        expect(v.value).toBe(42.5);
+        expect(v.val).toBe(42.5);
       }
       expect(vp.parseHandlerArg("42.", px)).toBe(null);
       expect(vp.parseHandlerArg("42f", px)).toBe(null);
@@ -260,10 +260,10 @@ describe("ANode", () => {
       const px = mpx();
       const v = vp.parseHandlerArg("true", px);
       expect(v).toBeInstanceOf(ConstVal);
-      expect(v.value).toBe(true);
+      expect(v.val).toBe(true);
       const v1 = vp.parseHandlerArg("false", px);
       expect(v1).toBeInstanceOf(ConstVal);
-      expect(v1.value).toBe(false);
+      expect(v1.val).toBe(false);
     });
 
     test("parse bad val", () => {
@@ -561,11 +561,11 @@ describe("ANode", () => {
       expect(c).toBeInstanceOf(ComputedVal);
       expect(c.name).toBe("c");
       expect(b).toBeInstanceOf(ConstVal);
-      expect(b.value).toBe(true);
+      expect(b.val).toBe(true);
       expect(i).toBeInstanceOf(ConstVal);
-      expect(i.value).toBe(42);
+      expect(i.val).toBe(42);
       expect(fl).toBeInstanceOf(ConstVal);
-      expect(fl.value).toBe(12.5);
+      expect(fl.val).toBe(12.5);
       expect(e).toBeInstanceOf(RequestVal);
       expect(e.name).toBe("myRequest");
       expect(t).toBeInstanceOf(TypeVal);

@@ -56,7 +56,7 @@ test("parse text directive: const", () => {
   const [r] = parse(`<x text="'hi'"></x>`);
   expect(r).toBeInstanceOf(RenderTextNode);
   expect(r.val).toBeInstanceOf(ConstVal);
-  expect(r.val.value).toBe("hi");
+  expect(r.val.val).toBe("hi");
 });
 
 test("parse text directive: parse error is null", () => {
@@ -69,7 +69,7 @@ test("parse text attribute: const", () => {
   const r = node.childs[0];
   expect(r).toBeInstanceOf(RenderTextNode);
   expect(r.val).toBeInstanceOf(ConstVal);
-  expect(r.val.value).toBe("hi");
+  expect(r.val.val).toBe("hi");
 });
 
 test("parse text directive: parse error is no child text node", () => {
@@ -86,13 +86,13 @@ test("expand simple macro", () => {
   {
     const px = mpx();
     const n = m.expand(px.enterMacro("m", { value: ".text", onInput: ".setText" }, {}));
-    expect(n.attrs.items[0].value.name).toBe("text");
+    expect(n.attrs.items[0].val.name).toBe("text");
     expect(px.events[0].handlers[0].handlerCall.handlerVal.name).toBe("setText");
   }
   {
     const px = mpx();
     const n = m.expand(px.enterMacro("m", { value: ".foo", onInput: ".setFoo" }, {}));
-    expect(n.attrs.items[0].value.name).toBe("foo");
+    expect(n.attrs.items[0].val.name).toBe("foo");
     expect(px.events[0].handlers[0].handlerCall.handlerVal.name).toBe("setFoo");
   }
 });
@@ -128,11 +128,11 @@ test("expand nested macro", () => {
   // so macro vars in px will have the correct values for inner macro
   // and for var with conflicting name (value) in node after inner macro
   // div title
-  expect(px.macroNodes[0].node.attrs.items[0].value.name).toBe("bar");
+  expect(px.macroNodes[0].node.attrs.items[0].val.name).toBe("bar");
   // p title
-  expect(px.macroNodes[0].node.childs[2].attrs.items[0].value.name).toBe("bar");
+  expect(px.macroNodes[0].node.childs[2].attrs.items[0].val.name).toBe("bar");
   // inner input
-  expect(px.macroNodes[0].node.childs[0].node.attrs.items[0].value.name).toBe("foo");
+  expect(px.macroNodes[0].node.childs[0].node.attrs.items[0].val.name).toBe("foo");
   expect(px.events[0].handlers[0].handlerCall.handlerVal.name).toBe("setFoo");
 });
 
@@ -209,7 +209,7 @@ test("expand macro slot", () => {
     const m = px.macroNodes[0];
     expect(m.name).toBe("post");
     expect(m.node.childs[0].tagName).toBe("h1");
-    expect(m.node.childs[0].childs[0].v).toBe("My Post");
+    expect(m.node.childs[0].childs[0].val).toBe("My Post");
   }
   {
     const v = new View(
@@ -226,7 +226,7 @@ test("expand macro slot", () => {
     const m = px.macroNodes[0];
     expect(m.name).toBe("post");
     expect(m.node.childs[0].tagName).toBe("h2");
-    expect(m.node.childs[0].childs[0].v).toBe("Hello");
+    expect(m.node.childs[0].childs[0].val).toBe("Hello");
   }
   {
     const v = new View(
@@ -241,7 +241,7 @@ test("expand macro slot", () => {
     const m = px.macroNodes[0];
     expect(m.name).toBe("post");
     expect(m.node.childs[0].tagName).toBe("h3");
-    expect(m.node.childs[0].childs[0].v).toBe("Hi there");
+    expect(m.node.childs[0].childs[0].val).toBe("Hi there");
   }
 });
 
@@ -281,7 +281,7 @@ test("parse mixed macro attrs", () => {
 test("parse wrapper macro attrs", () => {
   const [node] = parse(html`<x:m class="foo" :name="foo" @slot="mySlot" @show=".loading"></x:m>`);
   expect(node).toBeInstanceOf(SlotNode);
-  expect(node.val.value).toBe("mySlot");
+  expect(node.val.val).toBe("mySlot");
   expect(node.node).toBeInstanceOf(ShowNode);
   expect(node.node.val.name).toBe("loading");
   const n = node.node.node;

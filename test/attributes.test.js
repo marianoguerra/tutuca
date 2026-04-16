@@ -65,62 +65,62 @@ test("parse dyn attrs", () => {
   expect(nAttrs).toBeInstanceOf(DynAttrs);
   const [name, type, bool, num, str, field, bind, comp, req, seq, dyn] = nAttrs.items;
   expect(name.name).toBe("name");
-  expect(name.value).toBeInstanceOf(NameVal);
-  expect(name.value.name).toBe("foo");
-  expect(name.value.toString()).toBe("foo");
+  expect(name.val).toBeInstanceOf(NameVal);
+  expect(name.val.name).toBe("foo");
+  expect(name.val.toString()).toBe("foo");
 
   expect(type.name).toBe("type");
-  expect(type.value).toBeInstanceOf(TypeVal);
-  expect(type.value.name).toBe("Foo");
-  expect(type.value.toString()).toBe("Foo");
+  expect(type.val).toBeInstanceOf(TypeVal);
+  expect(type.val.name).toBe("Foo");
+  expect(type.val.toString()).toBe("Foo");
 
   expect(bool.name).toBe("bool");
-  expect(bool.value).toBeInstanceOf(ConstVal);
-  expect(bool.value.value).toBe(false);
-  expect(bool.value.toString()).toBe("false");
+  expect(bool.val).toBeInstanceOf(ConstVal);
+  expect(bool.val.val).toBe(false);
+  expect(bool.val.toString()).toBe("false");
 
   expect(num.name).toBe("num");
-  expect(num.value).toBeInstanceOf(ConstVal);
-  expect(num.value.value).toBe(42);
-  expect(num.value.toString()).toBe("42");
+  expect(num.val).toBeInstanceOf(ConstVal);
+  expect(num.val.val).toBe(42);
+  expect(num.val.toString()).toBe("42");
 
   expect(str.name).toBe("str");
-  expect(str.value).toBeInstanceOf(ConstVal);
-  expect(str.value.value).toBe("hi");
-  expect(str.value.toString()).toBe("'hi'");
+  expect(str.val).toBeInstanceOf(ConstVal);
+  expect(str.val.val).toBe("hi");
+  expect(str.val.toString()).toBe("'hi'");
   // TODO: test escaping
 
   expect(field.name).toBe("field");
-  expect(field.value).toBeInstanceOf(FieldVal);
-  expect(field.value.name).toBe("bar");
-  expect(field.value.toString()).toBe(".bar");
+  expect(field.val).toBeInstanceOf(FieldVal);
+  expect(field.val.name).toBe("bar");
+  expect(field.val.toString()).toBe(".bar");
 
   expect(bind.name).toBe("bind");
-  expect(bind.value).toBeInstanceOf(BindVal);
-  expect(bind.value.name).toBe("key");
-  expect(bind.value.toString()).toBe("@key");
+  expect(bind.val).toBeInstanceOf(BindVal);
+  expect(bind.val.name).toBe("key");
+  expect(bind.val.toString()).toBe("@key");
 
   expect(comp.name).toBe("comp");
-  expect(comp.value).toBeInstanceOf(ComputedVal);
-  expect(comp.value.name).toBe("slow");
-  expect(comp.value.toString()).toBe("$slow");
+  expect(comp.val).toBeInstanceOf(ComputedVal);
+  expect(comp.val.name).toBe("slow");
+  expect(comp.val.toString()).toBe("$slow");
 
   expect(req.name).toBe("req");
-  expect(req.value).toBeInstanceOf(RequestVal);
-  expect(req.value.name).toBe("do");
-  expect(req.value.toString()).toBe("!do");
+  expect(req.val).toBeInstanceOf(RequestVal);
+  expect(req.val.name).toBe("do");
+  expect(req.val.toString()).toBe("!do");
 
-  expect(seq.value).toBeInstanceOf(SeqAccessVal);
-  expect(seq.value.seqVal).toBeInstanceOf(FieldVal);
-  expect(seq.value.seqVal.name).toBe("a");
-  expect(seq.value.keyVal).toBeInstanceOf(FieldVal);
-  expect(seq.value.keyVal.name).toBe("b");
-  expect(seq.value.toString()).toBe(".a[.b]");
+  expect(seq.val).toBeInstanceOf(SeqAccessVal);
+  expect(seq.val.seqVal).toBeInstanceOf(FieldVal);
+  expect(seq.val.seqVal.name).toBe("a");
+  expect(seq.val.keyVal).toBeInstanceOf(FieldVal);
+  expect(seq.val.keyVal.name).toBe("b");
+  expect(seq.val.toString()).toBe(".a[.b]");
 
   expect(dyn.name).toBe("dyn");
-  expect(dyn.value).toBeInstanceOf(DynVal);
-  expect(dyn.value.name).toBe("dynamic");
-  expect(dyn.value.toString()).toBe("*dynamic");
+  expect(dyn.val).toBeInstanceOf(DynVal);
+  expect(dyn.val.name).toBe("dynamic");
+  expect(dyn.val.toString()).toBe("*dynamic");
 
   expect(nAttrs.toMacroVars()).toEqual({
     name: "foo",

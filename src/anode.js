@@ -15,16 +15,16 @@ export class BaseNode {
   optimize() {}
 }
 export class TextNode extends BaseNode {
-  constructor(v) {
+  constructor(val) {
     super();
-    this.v = v;
+    this.val = val;
   }
   render(_stack, rx) {
-    return rx.renderText(this.v);
+    return rx.renderText(this.val);
   }
   isWhiteSpace() {
-    for (let i = 0; i < this.v.length; i++) {
-      const c = this.v.charCodeAt(i);
+    for (let i = 0; i < this.val.length; i++) {
+      const c = this.val.charCodeAt(i);
       if (!(c === 32 || c === 10 || c === 9 || c === 13)) {
         return false;
       }
@@ -32,8 +32,8 @@ export class TextNode extends BaseNode {
     return true;
   }
   hasNewLine() {
-    for (let i = 0; i < this.v.length; i++) {
-      const c = this.v.charCodeAt(i);
+    for (let i = 0; i < this.val.length; i++) {
+      const c = this.val.charCodeAt(i);
       if (c === 10 || c === 13) {
         return true;
       }
@@ -41,7 +41,7 @@ export class TextNode extends BaseNode {
     return false;
   }
   condenseWhiteSpace() {
-    this.v = "";
+    this.val = "";
   }
   isConstant() {
     return true;
@@ -50,7 +50,7 @@ export class TextNode extends BaseNode {
 }
 export class CommentNode extends TextNode {
   render(_stack, rx) {
-    return rx.renderComment(this.v);
+    return rx.renderComment(this.val);
   }
 }
 function optimizeChilds(childs) {
@@ -453,7 +453,7 @@ export class ParseContext {
     const slots = { _: new FragmentNode(anySlot) };
     for (const child of childs) {
       if (child instanceof SlotNode) {
-        slots[child.val.value] = child.node;
+        slots[child.val.val] = child.node;
       } else if (!(child instanceof TextNode) || !child.isWhiteSpace()) {
         anySlot.push(child);
       }

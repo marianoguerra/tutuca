@@ -203,7 +203,7 @@ function checkConsistentAttrs(lx, Comp) {
       if (attrs instanceof DynAttrs) {
         for (const attr of attrs.items) {
           if (attr instanceof Attr) {
-            checkConsistentAttrVal(lx, attr.value, fields, proto, computed, scope);
+            checkConsistentAttrVal(lx, attr.val, fields, proto, computed, scope);
           }
         }
       }

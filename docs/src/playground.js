@@ -317,7 +317,7 @@ export class TutucaPlayground extends HTMLElement {
       undoContainer.innerHTML = "";
       const undo = new ValueHistory(1000);
       const slider = undo.mountSlider(undoContainer, ({ index, entry }) => {
-        app.state.set(entry.value, { isUndo: true, index });
+        app.state.set(entry.val, { isUndo: true, index });
         slider.value = index;
       });
       slider.style.width = "100%";

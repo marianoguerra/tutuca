@@ -146,11 +146,7 @@ const SVG_TAGS = ["svg", "rect", "circle", "line", "path", "g", "text", "polygon
  * Generate a random SVG subtree (always namespaced)
  */
 function generateSvgTree(rng, depth = 0, options = {}) {
-  const {
-    maxDepth = 2,
-    includeSpacesInText = true,
-    includeNewlinesInText = true,
-  } = options;
+  const { maxDepth = 2, includeSpacesInText = true, includeNewlinesInText = true } = options;
   const textOptions = {
     includeSpaces: includeSpacesInText,
     includeNewlines: includeNewlinesInText,

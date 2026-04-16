@@ -166,7 +166,7 @@ export class ConstAttrs extends Attributes {
   static fromAttrs(attrs) {
     const attrsObj = {};
     for (const attr of attrs) {
-      attrsObj[attr.name] = attr.value.eval(null);
+      attrsObj[attr.name] = attr.val.eval(null);
     }
     return new ConstAttrs(attrsObj);
   }
@@ -198,7 +198,7 @@ export class DynAttrs extends Attributes {
   toMacroVars() {
     const r = {};
     for (const attr of this.items) {
-      r[attr.name] = attr.value.toString();
+      r[attr.name] = attr.val.toString();
     }
     return r;
   }
@@ -209,22 +209,22 @@ export class BaseAttr {
   }
 }
 export class Attr extends BaseAttr {
-  constructor(name, value) {
+  constructor(name, val) {
     super(name);
-    this.value = value;
+    this.val = val;
   }
   eval(stack) {
-    return this.value.eval(stack);
+    return this.val.eval(stack);
   }
 }
 export class ConstAttr extends Attr {}
 export class DynAttr extends Attr {}
 export class RawHtmlAttr extends Attr {
-  constructor(value) {
-    super("dangerouslySetInnerHTML", value ?? vp.nullConstVal);
+  constructor(val) {
+    super("dangerouslySetInnerHTML", val ?? vp.nullConstVal);
   }
   eval(stack) {
-    return { __html: `${this.value.eval(stack)}` };
+    return { __html: `${this.val.eval(stack)}` };
   }
 }
 export const NOT_SET_VAL = vp.nullConstVal;

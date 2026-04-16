@@ -170,18 +170,18 @@ export class BaseVal {
   }
 }
 export class ConstVal extends BaseVal {
-  constructor(value) {
+  constructor(val) {
     super();
-    this.value = value;
+    this.val = val;
   }
   render(_stack, _rx) {
-    return this.value;
+    return this.val;
   }
   eval(_stack) {
-    return this.value;
+    return this.val;
   }
   toString() {
-    const v = this.value;
+    const v = this.val;
     return typeof v === "string" ? `'${v}'` : `${v}`;
   }
 }
@@ -212,7 +212,7 @@ export class StrTplVal extends VarVal {
       vals[i] = val;
       allConsts &&= val instanceof ConstVal;
     }
-    return allConsts ? new ConstVal(vals.map((v) => v.value).join("")) : new StrTplVal(vals);
+    return allConsts ? new ConstVal(vals.map((v) => v.val).join("")) : new StrTplVal(vals);
   }
 }
 export class NameVal extends VarVal {

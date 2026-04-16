@@ -43,7 +43,7 @@ export class App {
       }
     } else if (isDragStart) {
       e.target.dataset.dragging = 1;
-      const rootValue = this.state.value;
+      const rootValue = this.state.val;
       const value = path.lookup(rootValue);
       const type = e.target.dataset.dragtype ?? "?";
       const stack = path.buildStack(this.makeStack(rootValue));
@@ -69,7 +69,7 @@ export class App {
     }
   }
   render() {
-    const root = this.state.value;
+    const root = this.state.val;
     const stack = this.makeStack(root);
     return this.renderFn(this.renderer.renderRoot(stack, root), this.rootNode);
   }
@@ -95,7 +95,7 @@ export class App {
       this.rootNode.addEventListener(name, this);
     }
     this.onChange((info) => {
-      if (info.value !== info.old) {
+      if (info.val !== info.old) {
         this.render();
       }
     });
@@ -165,11 +165,11 @@ function getClosestDropTarget(target, rootNode, count) {
   return null;
 }
 class DragInfo {
-  constructor(path, stack, e, value, type, node) {
+  constructor(path, stack, e, val, type, node) {
     this.path = path;
     this.stack = stack;
     this.e = e;
-    this.value = value;
+    this.val = val;
     this.type = type;
     this.node = node;
   }

@@ -20,6 +20,6 @@ export function parse(html) {
 }
 
 export const isTextNode = (node) => node instanceof TextNode;
-export const isTextNodeWithText = (node, text) => node instanceof TextNode && node.v === text;
+export const isTextNodeWithText = (node, text) => node instanceof TextNode && node.val === text;
 
 export { Comment, DOMParser, Text };

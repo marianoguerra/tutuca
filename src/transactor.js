@@ -2,22 +2,22 @@ import { PathBuilder } from "./path.js";
 import { Stack } from "./stack.js";
 
 class State {
-  constructor(value) {
-    this.value = value;
+  constructor(val) {
+    this.val = val;
     this.changeSubs = [];
   }
   onChange(cb) {
     this.changeSubs.push(cb);
   }
-  set(value, info) {
-    const old = this.value;
-    this.value = value;
+  set(val, info) {
+    const old = this.val;
+    this.val = val;
     for (const sub of this.changeSubs) {
-      sub({ value, old, info, timestamp: Date.now() });
+      sub({ val, old, info, timestamp: Date.now() });
     }
   }
   update(fn, info) {
-    return this.set(fn(this.value), info);
+    return this.set(fn(this.val), info);
   }
 }
 export class Transactor {
@@ -40,7 +40,7 @@ export class Transactor {
     return this.pushTransaction(new BubbleEvent(path, this, name, args, parent, newOpts));
   }
   async pushRequest(path, name, args = [], opts = {}, parent = null) {
-    const curRoot = this.state.value;
+    const curRoot = this.state.val;
     const curLeaf = path.lookup(curRoot);
     const handler = this.comps.getRequestFor(curLeaf, name) ?? mkReq404(name);
     const resHandlerName = opts?.onResName ?? name;
@@ -70,7 +70,7 @@ export class Transactor {
     }
   }
   transact(transaction) {
-    const curState = this.state.value;
+    const curState = this.state.val;
     const newState = transaction.run(curState, this.comps);
     if (newState !== undefined) {
       this.state.set(newState, { transaction });
@@ -249,7 +249,7 @@ class Task {
   constructor(info) {
     this.info = info;
     this.deps = [];
-    this.value = this.resolve = this.reject = null;
+    this.val = this.resolve = this.reject = null;
     this.promise = new Promise((res, rej) => {
       this.resolve = res;
       this.reject = rej;
@@ -261,8 +261,8 @@ class Task {
     this.deps.push(task);
     task.promise.then((_) => this._check());
   }
-  complete(value) {
-    this.value = value;
+  complete(val) {
+    this.val = val;
     this._check();
   }
   _check() {
