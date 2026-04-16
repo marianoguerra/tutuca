@@ -1,4 +1,4 @@
-import { component, macro, html } from "tutuca";
+import { component, html } from "tutuca";
 
 const Item = component({
   name: "Item",
@@ -29,9 +29,7 @@ const Items = component({
   },
   input: {
     onAddItem(Item) {
-      return this.pushInItems(
-        Item.make({ completed: false, text: "do the thing" }),
-      );
+      return this.pushInItems(Item.make({ completed: false, text: "do the thing" }));
     },
   },
   view: html`<div class="flex flex-col gap-3">
