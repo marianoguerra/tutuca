@@ -77,30 +77,28 @@ function checkEventModifiers(lx, view) {
   }
 }
 
+const KNOWN_HANDLER_NAMES = new Set([
+  "value",
+  "valueAsInt",
+  "valueAsFloat",
+  "target",
+  "event",
+  "isAlt",
+  "isShift",
+  "isCtrl",
+  "isCmd",
+  "key",
+  "keyCode",
+  "isUpKey",
+  "isDownKey",
+  "isSend",
+  "isCancel",
+  "isTabKey",
+  "ctx",
+  "dragInfo",
+]);
 function isKnownHandlerName(name) {
-  switch (name) {
-    case "value":
-    case "valueAsInt":
-    case "valueAsFloat":
-    case "target":
-    case "event":
-    case "isAlt":
-    case "isShift":
-    case "isCtrl":
-    case "isCmd":
-    case "key":
-    case "keyCode":
-    case "isUpKey":
-    case "isDownKey":
-    case "isSend":
-    case "isCancel":
-    case "isTabKey":
-    case "ctx":
-    case "dragInfo":
-      return true;
-    default:
-      return false;
-  }
+  return KNOWN_HANDLER_NAMES.has(name);
 }
 
 function checkKnownHandlerNames(lx, view, Comp) {

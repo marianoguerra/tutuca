@@ -33,9 +33,6 @@ export class ValParser {
     this.okStrTpl = false;
     this.okSeqAccess = false;
   }
-  parseIfOk(s, px, isOk, parseFn) {
-    return isOk ? parseFn(s, px) : null;
-  }
   _parseSeqAccess(s, px) {
     if (!this.okSeqAccess) {
       return null;
@@ -49,13 +46,13 @@ export class ValParser {
   parse(s, px) {
     switch (getValSubType(s)) {
       case VAL_SUB_TYPE_STRING_TEMPLATE:
-        return this.parseIfOk(s, px, this.okStrTpl, parseStrTemplate);
+        return this.okStrTpl ? parseStrTemplate(s, px) : null;
       case VAL_SUB_TYPE_CONST_STRING:
-        return this.parseIfOk(s, px, this.okStrTpl, parseConst);
+        return this.okStrTpl ? parseConst(s, px) : null;
       case VAL_SUB_TYPE_SEQ_ACCESS:
         return this._parseSeqAccess(s, px);
       case VAL_SUB_TYPE_INVALID:
-        return this.parseIfOk(s, px, this.okStrTpl, parseStrTemplate);
+        return this.okStrTpl ? parseStrTemplate(s, px) : null;
     }
     const charCode = s.charCodeAt(0);
     switch (charCode) {
@@ -67,29 +64,29 @@ export class ValParser {
         return null;
       }
       case 126: // ~ constant string with no spaces must use this prefix
-        return this.parseIfOk(s.slice(1), px, this.okStrTpl, parseConst);
+        return this.okStrTpl ? parseConst(s.slice(1), px) : null;
       case 39: // ''
-        return this.parseIfOk(s.slice(1, -1), px, this.okStrTpl, parseConst);
+        return this.okStrTpl ? parseConst(s.slice(1, -1), px) : null;
       case 64: // @
-        return this.parseIfOk(s.slice(1), px, this.okBind, parseBind);
+        return this.okBind ? parseBind(s.slice(1), px) : null;
       case 42: // *
-        return this.parseIfOk(s.slice(1), px, this.okDyn, parseDyn);
+        return this.okDyn ? parseDyn(s.slice(1), px) : null;
       case 46: // .
-        return this.parseIfOk(s.slice(1), px, this.okField, parseField);
+        return this.okField ? parseField(s.slice(1), px) : null;
       case 36: // $
-        return this.parseIfOk(s.slice(1), px, this.okComputed, parseComp);
+        return this.okComputed ? parseComp(s.slice(1), px) : null;
       case 33: // !
-        return this.parseIfOk(s.slice(1), px, this.okRequest, parseReq);
+        return this.okRequest ? parseReq(s.slice(1), px) : null;
     }
     const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
     if (Number.isFinite(num)) {
-      return this.parseIfOk(num, px, this.okConst, parseConst);
+      return this.okConst ? parseConst(num, px) : null;
     } else if (s === "true" || s === "false") {
-      return this.parseIfOk(s === "true", px, this.okConst, parseConst);
+      return this.okConst ? parseConst(s === "true", px) : null;
     } else if (charCode >= 97 /* a */ && charCode <= 122 /* z */) {
-      return this.parseIfOk(s, px, this.okName, parseName);
+      return this.okName ? parseName(s, px) : null;
     } else if (charCode >= 65 /* A */ && charCode <= 90 /* Z */) {
-      return this.parseIfOk(s, px, this.okType, parseType);
+      return this.okType ? parseType(s, px) : null;
     }
     return null;
   }

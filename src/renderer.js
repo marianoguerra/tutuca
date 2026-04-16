@@ -53,6 +53,9 @@ export class Renderer {
     this.cache.set(val, cacheKey, dom);
     return dom;
   }
+  pushEachEntry(r, nid, attrName, key, dom) {
+    r.push(this.renderMetadata("Each", { nid, [attrName]: key }), dom);
+  }
   renderEach(stack, iterInfo, nodeId, viewName) {
     const { seq, filter, loopWith } = iterInfo.eval(stack);
     const [attrName, gen] = this.getSeqInfo(seq);
@@ -62,7 +65,7 @@ export class Renderer {
       if (filter.call(stack.it, key, value, iterData)) {
         const newStack = stack.enter(value, { key }, true);
         const dom = this.renderIt(newStack, nodeId, key, viewName);
-        r.push(this.renderMetadata("Each", { nid: nodeId, [attrName]: key }), dom); // 2 push
+        this.pushEachEntry(r, nodeId, attrName, key, dom);
       }
     }
     return r;
@@ -84,12 +87,12 @@ export class Renderer {
           cachedNode = this.cache.get(value, cacheKey);
         }
         if (cachedNode) {
-          r.push(this.renderMetadata("Each", { nid, [attrName]: key }), cachedNode); // 2
+          this.pushEachEntry(r, nid, attrName, key, cachedNode);
           continue;
         }
         const newStack = stack.enter(value, bindings, false);
         const dom = this.renderView(view, newStack);
-        r.push(this.renderMetadata("Each", { nid, [attrName]: key }), dom); // 2 push
+        this.pushEachEntry(r, nid, attrName, key, dom);
         if (enricher) {
           this.cache.set2(stack.it, value, cacheKey, dom);
         } else {
@@ -109,7 +112,7 @@ export class Renderer {
     info.$ = type; // MUT
     return this.renderComment(`§${JSON.stringify(info)}§`);
   }
-  renderEmpty(_text) {
+  renderEmpty() {
     return null;
   }
   renderTag(tagName, attrs, childs) {
