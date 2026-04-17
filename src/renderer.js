@@ -5,8 +5,8 @@ export const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
 export class Renderer {
   constructor(comps, h, fragment, comment, renderFn, getSeqInfo, cache) {
     this.comps = comps;
-    this.h = h;
-    this.fragment = fragment;
+    this.renderTag = h;
+    this.renderFragment = fragment;
     this.renderComment = comment;
     this.renderFn = renderFn;
     this.getSeqInfo = getSeqInfo ?? basicGetSeqInfo;
@@ -115,12 +115,6 @@ export class Renderer {
   }
   _renderMetadata(info) {
     return this.renderComment(`§${JSON.stringify(info)}§`);
-  }
-  renderTag(tagName, attrs, childs) {
-    return this.h(tagName, attrs, childs);
-  }
-  renderFragment(childs) {
-    return this.fragment(childs);
   }
 }
 function* imIndexedEntries(seq) {
