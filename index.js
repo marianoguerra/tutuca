@@ -2,7 +2,6 @@ import { Macro, ParseContext } from "./src/anode.js";
 import { App } from "./src/app.js";
 import { Components } from "./src/components.js";
 import { Renderer } from "./src/renderer.js";
-import { render } from "./src/vdom.js";
 
 export * from "./deps/immutable.js";
 export {
@@ -29,8 +28,6 @@ const toNode = (nodeOrSelector) =>
 export function tutuca(nodeOrSelector) {
   const rootNode = toNode(nodeOrSelector);
   const comps = new Components();
-  const ropts = { document };
-  const render1 = (vnode, cont) => render(vnode, cont, ropts);
   const renderer = new Renderer(comps);
-  return new App(rootNode, render1, comps, renderer, ParseContext);
+  return new App(rootNode, comps, renderer, ParseContext);
 }

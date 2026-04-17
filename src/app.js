@@ -2,16 +2,16 @@ import { ComponentStack } from "./components.js";
 import { Path } from "./path.js";
 import { Stack } from "./stack.js";
 import { Transactor } from "./transactor.js";
+import { render } from "./vdom.js";
 
 export class App {
-  constructor(rootNode, renderFn, comps, renderer, ParseContext) {
+  constructor(rootNode, comps, renderer, ParseContext) {
     this.rootNode = rootNode;
     this.comps = comps;
     this.compStack = new ComponentStack(comps);
     this.transactor = new Transactor(comps, null);
     this.ParseContext = ParseContext;
     this.renderer = renderer;
-    this.renderFn = renderFn;
     this.maxEventNodeDepth = Infinity;
     this._transactNextBatchId = this._evictCacheId = null;
     this._eventNames = new Set(["dragstart", "dragover", "dragend"]);
@@ -22,6 +22,7 @@ export class App {
       }
     };
     this._compiled = false;
+    this._renderOpts = { document: rootNode.ownerDocument };
   }
   get state() {
     return this.transactor.state;
@@ -71,7 +72,7 @@ export class App {
   render() {
     const root = this.state.val;
     const stack = this.makeStack(root);
-    return this.renderFn(this.renderer.renderRoot(stack, root), this.rootNode);
+    return render(this.renderer.renderRoot(stack, root), this.rootNode, this._renderOpts);
   }
   onChange(callback) {
     this.transactor.state.onChange(callback);

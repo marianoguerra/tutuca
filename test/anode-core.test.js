@@ -385,10 +385,7 @@ describe("ANode", () => {
         });
         rx.comps.registerComponent(Items);
         const n = toData(rx.renderIt(stack).childs[1]);
-        expect(n[2].filter(Array.isArray).map((span) => span[2][0])).toEqual([
-          "0 30 4",
-          "2 36 4",
-        ]);
+        expect(n[2].filter(Array.isArray).map((span) => span[2][0])).toEqual(["0 30 4", "2 36 4"]);
       }
       {
         const [stack, rx] = rxs({
@@ -396,10 +393,7 @@ describe("ANode", () => {
         });
         rx.comps.registerComponent(Items);
         const n = toData(rx.renderIt(stack).childs[1]);
-        expect(n[2].filter(Array.isArray).map((span) => span[2][0])).toEqual([
-          "1 33 5",
-          "3 39 5",
-        ]);
+        expect(n[2].filter(Array.isArray).map((span) => span[2][0])).toEqual(["1 33 5", "3 39 5"]);
       }
     });
 
