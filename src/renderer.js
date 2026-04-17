@@ -103,6 +103,14 @@ export class Renderer {
     return r;
   }
   renderView(view, stack) {
+    if (stack.binds.tail !== null) {
+      for (const binds of stack.binds.tail) {
+        if (!binds.isFrame) continue;
+        if (stack.it !== binds.it) break;
+        console.error("recursion detected", stack.it, binds.it);
+        return this.renderComment("RECURSION AVOIDED");
+      }
+    }
     return view.render(stack, this);
   }
   renderText(text) {

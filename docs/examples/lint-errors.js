@@ -20,7 +20,7 @@ const LintDemo = component({
     <p>Lint Errors Demo - check the Lint tab</p>
 
     <!-- RENDER_IT_OUTSIDE_OF_LOOP: render-it without @each -->
-    <!-- <x render-it></x> -->
+    <x render-it></x>
 
     <!-- UNKNOWN_EVENT_MODIFIER: +badmod is not a known modifier -->
     <button @on.click+badmod="doKeyDown">bad modifier</button>
