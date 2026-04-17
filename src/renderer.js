@@ -120,9 +120,6 @@ export class Renderer {
     info.$ = type; // MUT
     return this.renderComment(`§${JSON.stringify(info)}§`);
   }
-  renderEmpty() {
-    return null;
-  }
   renderTag(tagName, attrs, childs) {
     return this.h(tagName, attrs, childs);
   }

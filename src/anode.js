@@ -3,8 +3,8 @@ import { BindStep } from "./path.js";
 import { vp } from "./value.js";
 
 export class BaseNode {
-  render(_stack, rx) {
-    return rx.renderEmpty();
+  render(_stack, _rx) {
+    return null;
   }
   setDataAttr(key, val) {
     console.warn("setDataAttr not implemented for", this, { key, val });
@@ -335,12 +335,12 @@ export class WrapperNode extends ANode {
 }
 export class ShowNode extends WrapperNode {
   render(stack, rx) {
-    return this.val.eval(stack) ? this.node.render(stack, rx) : rx.renderEmpty();
+    return this.val.eval(stack) ? this.node.render(stack, rx) : null;
   }
 }
 export class HideNode extends WrapperNode {
   render(stack, rx) {
-    return this.val.eval(stack) ? rx.renderEmpty() : this.node.render(stack, rx);
+    return this.val.eval(stack) ? null : this.node.render(stack, rx);
   }
 }
 export class PushViewNameNode extends WrapperNode {
