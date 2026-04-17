@@ -1,16 +1,13 @@
 import { App } from "../app.js";
 import { Components } from "../components.js";
 import { Renderer } from "../renderer.js";
-import { h, render, VComment, VFragment } from "../vdom.js";
+import { render } from "../vdom.js";
 
 function reindexComponents(comps) {
   for (let i = 0; i < comps.length; i++) {
     comps[i].id = i;
   }
 }
-
-const fragment = (childs) => new VFragment(childs);
-const comment = (text) => new VComment(text);
 
 export function renderToHTMLNode(document, components, macros, rootState, ParseContext) {
   const container = document.createElement("div");
@@ -21,7 +18,7 @@ export function renderToHTMLNode(document, components, macros, rootState, ParseC
   const comps = new Components();
   const ropts = { document };
   const render1 = (vnode, cont) => render(vnode, cont, ropts);
-  const renderer = new Renderer(comps, h, fragment, comment, render1);
+  const renderer = new Renderer(comps);
   const app = new App(container, render1, comps, renderer, ParseContext);
   const scope = app.registerComponents(components);
   if (macros) scope.registerMacros(macros);

@@ -33,42 +33,24 @@ import {
   TypeVal,
   vp,
 } from "../src/value.js";
+import { VComment, VFragment, VNode, VText } from "../src/vdom.js";
 import { HeadlessParseContext, isTextNode, isTextNodeWithText } from "./dom.js";
 
-class DNode {
-  constructor(tagName, attrs, childs) {
-    this.tagName = tagName;
-    this.attrs = attrs;
-    this.childs = childs;
-  }
-  toData() {
-    return [this.tagName, this.attrs, this.childs.map((child) => domToData(child))];
-  }
-}
-
-class DFragment {
-  constructor(childs) {
-    this.childs = childs;
-  }
-  toData() {
-    return this.childs.map((child) => domToData(child));
-  }
-}
-
-function domToData(node) {
-  return node?.toData?.() ?? node;
-}
-
-function dh(tagName, attrs, childs) {
-  return tagName === DFragment ? new DFragment(childs) : new DNode(tagName, attrs, childs);
+function toData(node) {
+  if (node == null) return null;
+  if (typeof node === "string") return node;
+  if (node instanceof VText) return node.text;
+  if (node instanceof VComment) return null;
+  if (node instanceof VFragment) return node.childs.map(toData);
+  if (node instanceof VNode) return [node.tag.toLowerCase(), node.attrs, node.childs.map(toData)];
+  if (Array.isArray(node)) return node.map(toData);
+  return node;
 }
 
 function rxs({ it = null, comps = new Components(), vars = {} }) {
-  const fragment = (childs) => new DFragment(childs);
-  const comment = () => null;
   const stack = Stack.root(comps, it);
   Object.assign(stack.binds.head.bindings, vars);
-  return [stack, new Renderer(comps, dh, fragment, comment)];
+  return [stack, new Renderer(comps)];
 }
 
 const mpx = () => new HeadlessParseContext();
@@ -82,7 +64,7 @@ function parse(html) {
 function render(html) {
   const [root, px] = parse(html);
   const [stack, rx] = rxs({});
-  return [domToData(root.render(stack, rx)), px, rx];
+  return [toData(root.render(stack, rx)), px, rx];
 }
 
 describe("ANode", () => {
@@ -161,7 +143,7 @@ describe("ANode", () => {
 
     test("render attributes", () => {
       const [d] = render("<p id='foo' class='bar' open>tutuca</p>");
-      expect(d).toEqual(["p", { id: "foo", class: "bar", open: true }, ["tutuca"]]);
+      expect(d).toEqual(["p", { id: "foo", className: "bar", open: true }, ["tutuca"]]);
     });
 
     test("render fragment node", () => {
@@ -170,11 +152,9 @@ describe("ANode", () => {
         "p",
         {},
         [
-          [
-            null, //"<!-- tutuca -->"
-            ["span", {}, ["foo"]],
-            "bar",
-          ],
+          null, //"<!-- tutuca -->"
+          ["span", {}, ["foo"]],
+          "bar",
         ],
       ]);
     });
@@ -404,8 +384,8 @@ describe("ANode", () => {
           it: Items.make({ items: [10, 11, 12, 13] }),
         });
         rx.comps.registerComponent(Items);
-        const n = rx.renderIt(stack).childs[1];
-        expect(n.childs[0].filter((c) => c != null).map(({ childs }) => childs[0])).toEqual([
+        const n = toData(rx.renderIt(stack).childs[1]);
+        expect(n[2].filter(Array.isArray).map((span) => span[2][0])).toEqual([
           "0 30 4",
           "2 36 4",
         ]);
@@ -415,8 +395,8 @@ describe("ANode", () => {
           it: Items.make({ items: [10, 11, 12, 13, 14] }),
         });
         rx.comps.registerComponent(Items);
-        const n = rx.renderIt(stack).childs[1];
-        expect(n.childs[0].filter((c) => c != null).map(({ childs }) => childs[0])).toEqual([
+        const n = toData(rx.renderIt(stack).childs[1]);
+        expect(n[2].filter(Array.isArray).map((span) => span[2][0])).toEqual([
           "1 33 5",
           "3 39 5",
         ]);
@@ -673,7 +653,7 @@ describe("ANode", () => {
       const [r] = parse("<p @show=@v>hi</p>");
       {
         const [stack, rx] = rxs({ vars: { v: true } });
-        expect(r.render(stack, rx)?.tagName).toBe("p");
+        expect(r.render(stack, rx)?.tag).toBe("P");
       }
       {
         const [stack, rx] = rxs({ vars: { v: false } });
@@ -685,7 +665,7 @@ describe("ANode", () => {
       const [r] = parse("<p @hide=@v>hi</p>");
       {
         const [stack, rx] = rxs({ vars: { v: false } });
-        expect(r.render(stack, rx)?.tagName).toBe("p");
+        expect(r.render(stack, rx)?.tag).toBe("P");
       }
       {
         const [stack, rx] = rxs({ vars: { v: true } });
@@ -710,9 +690,9 @@ describe("ANode", () => {
       User.compile(HeadlessParseContext);
       const [stack, rx] = rxs({ it: User.make({ name: "bob" }) });
       rx.comps.registerComponent(User);
-      const n = rx.renderIt(stack).childs[1];
-      expect(n?.tagName).toBe("p");
-      expect(n?.childs).toEqual(["hi, I'm ", "bob"]);
+      const n = toData(rx.renderIt(stack).childs[1]);
+      expect(n[0]).toBe("p");
+      expect(n[2]).toEqual(["hi, I'm ", "bob"]);
     });
 
     test("x render", () => {
@@ -734,10 +714,10 @@ describe("ANode", () => {
       rx.comps.registerComponent(User);
       rx.comps.registerComponent(Parent);
       const userDiv = rx.renderIt(stack).childs[1];
-      const n = userDiv.childs[0].childs[1];
-      expect(n.tagName).toBe("p");
-      expect(n.attrs["data-cid"]).toBe(Parent.id);
-      expect(n?.childs).toEqual(["hi, I'm ", "sandy"]);
+      const n = userDiv.childs[1];
+      expect(n.tag).toBe("P");
+      expect(n.attrs["data-cid"]).toBe(String(Parent.id));
+      expect(toData(n)[2]).toEqual(["hi, I'm ", "sandy"]);
     });
 
     test("@enrich-with (scope)", () => {
@@ -757,9 +737,9 @@ describe("ANode", () => {
       const [stack, rx] = rxs({ it: User.make({ name: "bob" }) });
       rx.comps.registerComponent(User);
       const n = rx.renderIt(stack, 10).childs[1];
-      expect(n.toData()).toEqual([
+      expect(toData(n)).toEqual([
         "div",
-        { "data-cid": User.id, "data-nid": 0, "data-vid": "main" },
+        { "data-cid": String(User.id), "data-nid": "0", "data-vid": "main" },
         ["BOB"],
       ]);
     });
@@ -780,9 +760,9 @@ describe("ANode", () => {
       const [stack, rx] = rxs({ it: User.make({ name: "bob" }) });
       rx.comps.registerComponent(User);
       const n = rx.renderIt(stack, 10).childs[1];
-      expect(n.toData()).toEqual([
+      expect(toData(n)).toEqual([
         "div",
-        { "data-cid": User.id, "data-nid": 0, "data-vid": "main" },
+        { "data-cid": String(User.id), "data-nid": "0", "data-vid": "main" },
         ["BOB"],
       ]);
     });

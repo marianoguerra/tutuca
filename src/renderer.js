@@ -1,27 +1,33 @@
 import { isIndexed, isKeyed } from "../deps/immutable.js";
 import { NullDomCache, WeakMapDomCache } from "./cache.js";
+import { h, render, VComment, VFragment } from "./vdom.js";
 
 export const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
 export class Renderer {
-  constructor(comps, h, fragment, comment, renderFn, getSeqInfo, cache) {
+  constructor(comps, getSeqInfo, cache) {
     this.comps = comps;
-    this.renderTag = h;
-    this.renderFragment = fragment;
-    this.renderComment = comment;
-    this.renderFn = renderFn;
     this.getSeqInfo = getSeqInfo ?? basicGetSeqInfo;
     this.cache = cache ?? new WeakMapDomCache();
+  }
+  renderTag(tag, attrs, childs) {
+    return h(tag, attrs, childs);
+  }
+  renderFragment(childs) {
+    return new VFragment(childs);
+  }
+  renderComment(text) {
+    return new VComment(text);
   }
   setNullCache() {
     this.cache = new NullDomCache();
   }
   renderToDOM(stack, val) {
     const rootNode = document.createElement("div");
-    this.renderFn(this.h("div", null, [this.renderRoot(stack, val)]), rootNode);
+    render(h("div", null, [this.renderRoot(stack, val)]), rootNode, { document });
     return rootNode.childNodes[0];
   }
   renderToString(stack, val, cleanAttrs = true) {
-    const dom = this.renderToDOM(stack, val, this.renderFn);
+    const dom = this.renderToDOM(stack, val);
     if (cleanAttrs) {
       const nodes = dom.querySelectorAll("[data-nid],[data-cid],[data-eid]");
       for (const { dataset } of nodes) {
@@ -49,7 +55,7 @@ export class Renderer {
     }
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
     const meta = this._renderMetadata({ $: "Comp", nid });
-    const dom = this.renderFragment([meta, this.renderView(view, stack)]);
+    const dom = new VFragment([meta, this.renderView(view, stack)]);
     this.cache.set(val, cacheKey, dom);
     return dom;
   }
@@ -108,13 +114,13 @@ export class Renderer {
         if (!binds.isFrame) continue;
         if (stack.it !== binds.it) break;
         console.error("recursion detected", stack.it, binds.it);
-        return this.renderComment("RECURSION AVOIDED");
+        return new VComment("RECURSION AVOIDED");
       }
     }
     return view.render(stack, this);
   }
   _renderMetadata(info) {
-    return this.renderComment(`§${JSON.stringify(info)}§`);
+    return new VComment(`§${JSON.stringify(info)}§`);
   }
 }
 function* imIndexedEntries(seq) {
