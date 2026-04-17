@@ -4,10 +4,16 @@ import { h, render, VComment, VFragment } from "./vdom.js";
 
 export const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
 export class Renderer {
-  constructor(comps, getSeqInfo, cache) {
+  constructor(comps) {
     this.comps = comps;
-    this.getSeqInfo = getSeqInfo ?? basicGetSeqInfo;
-    this.cache = cache ?? new WeakMapDomCache();
+    this.cache = new WeakMapDomCache();
+  }
+  getSeqInfo(seq) {
+    return isIndexed(seq)
+      ? imIndexedIter
+      : isKeyed(seq)
+        ? imKeyedIter
+        : (seqInfoByClass.get(seq?.constructor) ?? unkIter);
   }
   renderTag(tag, attrs, childs) {
     return h(tag, attrs, childs);
@@ -23,18 +29,15 @@ export class Renderer {
   }
   renderToDOM(stack, val) {
     const rootNode = document.createElement("div");
-    render(h("div", null, [this.renderRoot(stack, val)]), rootNode, { document });
+    const rOpts = { document };
+    render(h("div", null, [this.renderRoot(stack, val)]), rootNode, rOpts);
     return rootNode.childNodes[0];
   }
   renderToString(stack, val, cleanAttrs = true) {
     const dom = this.renderToDOM(stack, val);
     if (cleanAttrs) {
       const nodes = dom.querySelectorAll("[data-nid],[data-cid],[data-eid]");
-      for (const { dataset } of nodes) {
-        for (const name of DATASET_ATTRS) {
-          delete dataset[name];
-        }
-      }
+      for (const { dataset } of nodes) for (const name of DATASET_ATTRS) delete dataset[name];
     }
     return dom.innerHTML;
   }
@@ -50,9 +53,7 @@ export class Renderer {
   _rValComp(stack, val, comp, nid, key, viewName) {
     const cacheKey = `${viewName ?? stack.viewsId ?? ""}${nid}-${key}`;
     const cachedNode = this.cache.get(val, cacheKey);
-    if (cachedNode) {
-      return cachedNode;
-    }
+    if (cachedNode) return cachedNode;
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
     const meta = this._renderMetadata({ $: "Comp", nid });
     const dom = new VFragment([meta, this.renderView(view, stack)]);
@@ -64,58 +65,59 @@ export class Renderer {
   }
   renderEach(stack, iterInfo, nodeId, viewName) {
     const { seq, filter, loopWith } = iterInfo.eval(stack);
-    const [attrName, gen] = this.getSeqInfo(seq);
     const r = [];
     const iterData = loopWith.call(stack.it, seq);
-    for (const [key, value] of gen(seq)) {
+    this.getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(stack.it, key, value, iterData)) {
         const newStack = stack.enter(value, { key }, true);
         const dom = this.renderIt(newStack, nodeId, key, viewName);
         this.pushEachEntry(r, nodeId, attrName, key, dom);
       }
-    }
+    });
     return r;
   }
   renderEachWhen(stack, iterInfo, view, nid) {
     const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
-    const [attrName, gen] = this.getSeqInfo(seq);
     const r = [];
     const iterData = loopWith.call(stack.it, seq);
-    for (const [key, value] of gen(seq)) {
-      if (filter.call(stack.it, key, value, iterData)) {
+    const it = stack.it;
+    this.getSeqInfo(seq)(seq, (key, value, attrName) => {
+      if (filter.call(it, key, value, iterData)) {
         const bindings = { key, value };
         const cacheKey = `${nid}-${key}`;
         let cachedNode;
         if (enricher) {
-          enricher.call(stack.it, bindings, key, value, iterData);
-          cachedNode = this.cache.get2(stack.it, value, cacheKey);
+          enricher.call(it, bindings, key, value, iterData);
+          cachedNode = this.cache.get2(it, value, cacheKey);
         } else {
           cachedNode = this.cache.get(value, cacheKey);
         }
         if (cachedNode) {
           this.pushEachEntry(r, nid, attrName, key, cachedNode);
-          continue;
+          return;
         }
         const newStack = stack.enter(value, bindings, false);
         const dom = this.renderView(view, newStack);
         this.pushEachEntry(r, nid, attrName, key, dom);
         if (enricher) {
-          this.cache.set2(stack.it, value, cacheKey, dom);
+          this.cache.set2(it, value, cacheKey, dom);
         } else {
           this.cache.set(value, cacheKey, dom);
         }
       }
-    }
+    });
     return r;
   }
   renderView(view, stack) {
-    if (stack.binds.tail !== null) {
-      for (const binds of stack.binds.tail) {
-        if (!binds.isFrame) continue;
-        if (stack.it !== binds.it) break;
-        console.error("recursion detected", stack.it, binds.it);
+    let n = stack.binds[1];
+    while (n !== null) {
+      const b = n[0];
+      if (b.isFrame) {
+        if (stack.it !== b.it) break;
+        console.error("recursion detected", stack.it, b.it);
         return new VComment("RECURSION AVOIDED");
       }
+      n = n[1];
     }
     return view.render(stack, this);
   }
@@ -123,21 +125,12 @@ export class Renderer {
     return new VComment(`§${JSON.stringify(info)}§`);
   }
 }
-function* imIndexedEntries(seq) {
+const imIndexedIter = (seq, visit) => {
   let i = 0;
-  for (const v of seq) yield [i++, v];
-}
-function* imKeyedEntries(obj) {
-  for (const [key, value] of obj.toSeq().entries()) yield [key, value];
-}
+  for (const v of seq) visit(i++, v, "si");
+};
+const imKeyedIter = (seq, visit) => {
+  for (const [k, v] of seq.toSeq().entries()) visit(k, v, "sk");
+};
+const unkIter = () => {};
 export const seqInfoByClass = new Map();
-const idxInfo = ["si", imIndexedEntries];
-const keyInfo = ["sk", imKeyedEntries];
-const unkInfo = ["si", function* nullEntries(_obj) {}];
-function basicGetSeqInfo(seq) {
-  return isIndexed(seq)
-    ? idxInfo
-    : isKeyed(seq)
-      ? keyInfo
-      : (seqInfoByClass.get(seq?.constructor) ?? unkInfo);
-}

@@ -187,7 +187,8 @@ export class ConstAttrs extends Attributes {
 export class DynAttrs extends Attributes {
   eval(stack) {
     const attrs = {};
-    for (const attr of this.items) {
+    for (let i = 0; i < this.items.length; i++) {
+      const attr = this.items[i];
       attrs[attr.name] = attr.eval(stack);
     }
     return attrs;
@@ -262,9 +263,7 @@ export class EventHandler {
   static parse(s, px) {
     const [handlerName, ...rawArgs] = s.trim().split(/\s+/);
     const handlerVal = vp.parseHandlerName(handlerName, px);
-    if (handlerVal === null) {
-      return null;
-    }
+    if (handlerVal === null) return null;
     const args = new Array(rawArgs.length);
     vp.allowHandlerArg();
     for (let i = 0; i < rawArgs.length; i++) {

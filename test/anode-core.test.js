@@ -49,7 +49,7 @@ function toData(node) {
 
 function rxs({ it = null, comps = new Components(), vars = {} }) {
   const stack = Stack.root(comps, it);
-  Object.assign(stack.binds.head.bindings, vars);
+  Object.assign(stack.binds[0].bindings, vars);
   return [stack, new Renderer(comps)];
 }
 
@@ -135,15 +135,7 @@ describe("ANode", () => {
 
     test("render node", () => {
       const [d] = render("<p><!-- tutuca --><span>foo</span>bar</p>");
-      expect(d).toEqual([
-        "p",
-        {},
-        [
-          { comment: " tutuca " },
-          ["span", {}, ["foo"]],
-          "bar",
-        ],
-      ]);
+      expect(d).toEqual(["p", {}, [{ comment: " tutuca " }, ["span", {}, ["foo"]], "bar"]]);
     });
 
     test("render attributes", () => {
@@ -153,15 +145,7 @@ describe("ANode", () => {
 
     test("render fragment node", () => {
       const [d] = render("<p><x><!-- tutuca --><span>foo</span>bar</x></p>");
-      expect(d).toEqual([
-        "p",
-        {},
-        [
-          { comment: " tutuca " },
-          ["span", {}, ["foo"]],
-          "bar",
-        ],
-      ]);
+      expect(d).toEqual(["p", {}, [{ comment: " tutuca " }, ["span", {}, ["foo"]], "bar"]]);
     });
   });
 

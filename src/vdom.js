@@ -53,6 +53,7 @@ const getKey = (child) => (child instanceof VNode ? child.key : undefined);
 const isIterable = (obj) =>
   obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
 function childsEqual(a, b) {
+  if (a === b) return true;
   for (let i = 0; i < a.length; i++) {
     if (!a[i].isEqualTo(b[i])) return false;
   }
@@ -119,9 +120,7 @@ export class VFragment extends VBase {
     return 11;
   }
   isEqualTo(other) {
-    if (!(other instanceof VFragment) || this.childs.length !== other.childs.length) {
-      return false;
-    }
+    if (!(other instanceof VFragment) || this.childs.length !== other.childs.length) return false;
     return childsEqual(this.childs, other.childs);
   }
   toDom(opts) {
@@ -143,6 +142,7 @@ export class VNode extends VBase {
     return 1;
   }
   isEqualTo(other) {
+    if (this === other) return true;
     if (
       !(other instanceof VNode) ||
       this.tag !== other.tag ||
@@ -152,15 +152,9 @@ export class VNode extends VBase {
     ) {
       return false;
     }
-    for (const key in this.attrs) {
-      if (this.attrs[key] !== other.attrs[key]) {
-        return false;
-      }
-    }
-    for (const key in other.attrs) {
-      if (!Object.hasOwn(this.attrs, key)) {
-        return false;
-      }
+    if (this.attrs !== other.attrs) {
+      for (const key in this.attrs) if (this.attrs[key] !== other.attrs[key]) return false;
+      for (const key in other.attrs) if (!Object.hasOwn(this.attrs, key)) return false;
     }
     return childsEqual(this.childs, other.childs);
   }
@@ -176,6 +170,7 @@ export class VNode extends VBase {
   }
 }
 function diffProps(a, b) {
+  if (a === b) return null;
   let diff = null;
   for (const aKey in a) {
     if (!Object.hasOwn(b, aKey)) {
@@ -248,6 +243,24 @@ function morphChildren(parentDom, oldChilds, newChilds, opts) {
   if (newChilds.length === 0) {
     parentDom.replaceChildren();
     return;
+  }
+  if (oldChilds.length === newChilds.length) {
+    let hasKey = false;
+    for (let i = 0; i < oldChilds.length; i++) {
+      if (getKey(oldChilds[i]) != null || getKey(newChilds[i]) != null) {
+        hasKey = true;
+        break;
+      }
+    }
+    if (!hasKey) {
+      let dom = parentDom.firstChild;
+      for (let i = 0; i < oldChilds.length; i++) {
+        const next = dom.nextSibling;
+        morphNode(dom, oldChilds[i], newChilds[i], opts);
+        dom = next;
+      }
+      return;
+    }
   }
   const domNodes = Array.from(parentDom.childNodes);
   const oldKeyMap = Object.create(null);

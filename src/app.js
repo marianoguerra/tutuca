@@ -28,31 +28,31 @@ export class App {
     return this.transactor.state;
   }
   handleEvent(e) {
-    const isDragStart = e.type === "dragstart";
-    const isDragOver = e.type === "dragover";
-    const isDragEnd = e.type === "dragend";
+    const { type } = e;
+    const isDrag = type === "dragstart" || type === "dragover" || type === "dragend";
     const { rootNode: root, maxEventNodeDepth: maxDepth, comps } = this;
-    const stopOnNoEvent = !(isDragOver || isDragStart || isDragEnd);
-    const [path, handlers] = Path.fromEvent(e, root, maxDepth, comps, stopOnNoEvent);
-    if (isDragOver) {
-      const dropTarget = getClosestDropTarget(e.target, this.rootNode, 50);
-      if (dropTarget !== null) {
-        e.preventDefault();
+    const [path, handlers] = Path.fromEvent(e, root, maxDepth, comps, !isDrag);
+    if (isDrag) {
+      if (type === "dragover") {
+        const dropTarget = getClosestDropTarget(e.target, this.rootNode, 50);
+        if (dropTarget !== null) {
+          e.preventDefault();
+          this._cleanDragOverAttrs();
+          this.curDragOver = dropTarget;
+          dropTarget.dataset.draggingover = this.dragInfo.type;
+        }
+      } else if (type === "dragstart") {
+        e.target.dataset.dragging = 1;
+        const rootValue = this.state.val;
+        const value = path.lookup(rootValue);
+        const dragType = e.target.dataset.dragtype ?? "?";
+        const stack = path.buildStack(this.makeStack(rootValue));
+        this.dragInfo = new DragInfo(path, stack, e, value, dragType, e.target);
+      } else {
+        delete this.dragInfo.node.dataset.dragging;
+        this.dragInfo = null;
         this._cleanDragOverAttrs();
-        this.curDragOver = dropTarget;
-        dropTarget.dataset.draggingover = this.dragInfo.type;
       }
-    } else if (isDragStart) {
-      e.target.dataset.dragging = 1;
-      const rootValue = this.state.val;
-      const value = path.lookup(rootValue);
-      const type = e.target.dataset.dragtype ?? "?";
-      const stack = path.buildStack(this.makeStack(rootValue));
-      this.dragInfo = new DragInfo(path, stack, e, value, type, e.target);
-    } else if (isDragEnd) {
-      delete this.dragInfo.node.dataset.dragging;
-      this.dragInfo = null;
-      this._cleanDragOverAttrs();
     }
     if (path !== null && handlers !== null) {
       for (const handler of handlers) {
@@ -80,11 +80,8 @@ export class App {
   compile() {
     for (const Comp of this.comps.byId.values()) {
       Comp.compile(this.ParseContext);
-      for (const key in Comp.views) {
-        for (const name of Comp.views[key].ctx.genEventNames()) {
-          this._eventNames.add(name);
-        }
-      }
+      for (const key in Comp.views)
+        for (const name of Comp.views[key].ctx.genEventNames()) this._eventNames.add(name);
     }
     this._compiled = true;
   }
@@ -96,9 +93,7 @@ export class App {
       this.rootNode.addEventListener(name, this);
     }
     this.onChange((info) => {
-      if (info.val !== info.old) {
-        this.render();
-      }
+      if (info.val !== info.old) this.render();
     });
     injectCss("tutuca-app", this.comps.compileStyles(), opts?.head ?? document.head);
     if (opts?.noCache) {
@@ -111,9 +106,7 @@ export class App {
   }
   stop() {
     this.stopCacheEvictionInterval();
-    for (const name of this._eventNames) {
-      this.rootNode.removeEventListener(name, this);
-    }
+    for (const name of this._eventNames) this.rootNode.removeEventListener(name, this);
   }
   dispatchLogicAtRoot(name, args, opts) {
     return this.transactor.pushLogic(new Path([]), name, args, opts);
@@ -127,12 +120,8 @@ export class App {
     this._transactNextBatchId = null;
     const startTs = Date.now();
     const t = this.transactor;
-    while (t.hasPendingTransactions && Date.now() - startTs < maxRunTimeMs) {
-      t.transactNext();
-    }
-    if (t.hasPendingTransactions) {
-      this._scheduleNextTransactionBatchExecution();
-    }
+    while (t.hasPendingTransactions && Date.now() - startTs < maxRunTimeMs) t.transactNext();
+    if (t.hasPendingTransactions) this._scheduleNextTransactionBatchExecution();
   }
   _scheduleNextTransactionBatchExecution() {
     this._transactNextBatchId = setTimeout(() => this._transactNextBatch(), 0);
@@ -148,9 +137,7 @@ export class App {
 export function injectCss(nodeId, style, styleTarget = document.head) {
   const styleNode = document.createElement("style");
   const currentNodeWithId = styleTarget.querySelector(`#${nodeId}`);
-  if (currentNodeWithId) {
-    styleTarget.removeChild(currentNodeWithId);
-  }
+  if (currentNodeWithId) styleTarget.removeChild(currentNodeWithId);
   styleNode.id = nodeId;
   styleNode.innerHTML = style;
   styleTarget.appendChild(styleNode);
@@ -158,9 +145,7 @@ export function injectCss(nodeId, style, styleTarget = document.head) {
 function getClosestDropTarget(target, rootNode, count) {
   let node = target;
   while (count-- > 0 && node !== rootNode) {
-    if (node.dataset?.droptarget !== undefined) {
-      return node;
-    }
+    if (node.dataset?.droptarget !== undefined) return node;
     node = node.parentNode;
   }
   return null;

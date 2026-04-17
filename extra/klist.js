@@ -91,9 +91,6 @@ export class FieldKList extends Field {
   }
 }
 fieldsByClass.set(KList, FieldKList);
-function* klistEntries(seq) {
-  for (const k of seq.order) {
-    yield [k, seq.items.get(k)];
-  }
-}
-seqInfoByClass.set(KList, ["data-sk", klistEntries]);
+seqInfoByClass.set(KList, (seq, visit) => {
+  for (const k of seq.order) visit(k, seq.items.get(k), "data-sk");
+});

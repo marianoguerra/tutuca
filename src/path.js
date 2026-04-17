@@ -102,9 +102,7 @@ export class Path {
     let curVal = v;
     for (const step of this.steps) {
       curVal = step.lookup(curVal, NONE);
-      if (curVal === NONE) {
-        return dval;
-      }
+      if (curVal === NONE) return dval;
     }
     return curVal;
   }
@@ -114,9 +112,7 @@ export class Path {
     for (let i = 0; i < this.steps.length; i++) {
       intermediates[i] = curVal;
       curVal = this.steps[i].lookup(curVal, NONE);
-      if (curVal === NONE) {
-        return root;
-      }
+      if (curVal === NONE) return root;
     }
     let newVal = v;
     for (let i = this.steps.length - 1; i >= 0; i--) {
@@ -134,7 +130,7 @@ export class Path {
         console.warn(`bad PathItem`, { root, curVal, step, path: this });
         return null;
       }
-      step.updateBindings(curVal, stack.binds.head.bindings);
+      step.updateBindings(curVal, stack.binds[0].bindings);
       stack = stack.enter(curVal, {}, step.isFrame);
     }
     return stack;
@@ -179,9 +175,7 @@ const EMPTY_META = {};
 function parseMetaComment(n) {
   if (n?.nodeType === 8 && n.textContent[0] === "§") {
     const m = parseMetaComment(n.previousSibling);
-    if (m !== EMPTY_META) {
-      return m;
-    }
+    if (m !== EMPTY_META) return m;
     try {
       return JSON.parse(n.textContent.slice(1, -1));
     } catch (err) {

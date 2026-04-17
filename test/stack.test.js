@@ -1,21 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { BindFrame, NEXT, ObjectFrame, Pair, STOP } from "../src/stack.js";
+import { BindFrame, lookup, NEXT, ObjectFrame, STOP } from "../src/stack.js";
 
-const pair = (a, b = null) => new Pair(a, b);
 const binds = (it, bindings = {}, isFrame = true) => new BindFrame(it, bindings, isFrame);
 const obinds = (bindings = {}) => new ObjectFrame(bindings);
-describe("Stack", () => {
-  test("single item pair iterates", () => {
-    const p = pair(10);
-    expect([...p]).toEqual([10]);
-  });
-
-  test("multi item pair iterates in the right order", () => {
-    const p = pair(10);
-    expect([...p.push(20)]).toEqual([20, 10]);
-    expect([...p.push(20).push(30)]).toEqual([30, 20, 10]);
-  });
-});
 describe("BindFrame", () => {
   test("lookup works for isFrame=true", () => {
     const b = binds(10, { count: 20 }, true);
@@ -32,14 +19,14 @@ describe("BindFrame", () => {
     expect(b.lookup("count")).toBe(20);
   });
   test("lookup works for isFrame=true in a pair", () => {
-    const p = pair(binds(1, { foo: 10 }, false)).push(binds(2, { bar: 20 }, true));
-    expect(p.lookup("bar")).toBe(20);
-    expect(p.lookup("foo")).toBe(null);
+    const p = [binds(2, { bar: 20 }, true), [binds(1, { foo: 10 }, false), null]];
+    expect(lookup(p, "bar")).toBe(20);
+    expect(lookup(p, "foo")).toBe(null);
   });
   test("lookup works for isFrame=false in a pair", () => {
-    const p = pair(binds(1, { foo: 10 }, false)).push(binds(2, { bar: 20 }, false));
-    expect(p.lookup("bar")).toBe(20);
-    expect(p.lookup("foo")).toBe(10);
+    const p = [binds(2, { bar: 20 }, false), [binds(1, { foo: 10 }, false), null]];
+    expect(lookup(p, "bar")).toBe(20);
+    expect(lookup(p, "foo")).toBe(10);
   });
 });
 describe("ObjectFrame", () => {
@@ -57,8 +44,8 @@ describe("ObjectFrame", () => {
     expect(b.lookup(count)).toBe(20);
   });
   test("lookup works in a pair", () => {
-    const p = pair(obinds({ foo: 10 })).push(obinds({ bar: 20 }));
-    expect(p.lookup("bar")).toBe(20);
-    expect(p.lookup("foo")).toBe(10);
+    const p = [obinds({ bar: 20 }), [obinds({ foo: 10 }), null]];
+    expect(lookup(p, "bar")).toBe(20);
+    expect(lookup(p, "foo")).toBe(10);
   });
 });
