@@ -40,7 +40,7 @@ function toData(node) {
   if (node == null) return null;
   if (typeof node === "string") return node;
   if (node instanceof VText) return node.text;
-  if (node instanceof VComment) return null;
+  if (node instanceof VComment) return { comment: node.text };
   if (node instanceof VFragment) return node.childs.map(toData);
   if (node instanceof VNode) return [node.tag.toLowerCase(), node.attrs, node.childs.map(toData)];
   if (Array.isArray(node)) return node.map(toData);
@@ -128,13 +128,18 @@ describe("ANode", () => {
       expect(d).toBe("tutuca");
     });
 
+    test("render comment", () => {
+      const [d] = render("<p><!-- hello --></p>");
+      expect(d).toEqual(["p", {}, [{ comment: " hello " }]]);
+    });
+
     test("render node", () => {
       const [d] = render("<p><!-- tutuca --><span>foo</span>bar</p>");
       expect(d).toEqual([
         "p",
         {},
         [
-          null, //"<!-- tutuca -->",
+          { comment: " tutuca " },
           ["span", {}, ["foo"]],
           "bar",
         ],
@@ -152,7 +157,7 @@ describe("ANode", () => {
         "p",
         {},
         [
-          null, //"<!-- tutuca -->"
+          { comment: " tutuca " },
           ["span", {}, ["foo"]],
           "bar",
         ],
