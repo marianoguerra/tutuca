@@ -270,7 +270,8 @@ export class RenderNode extends RenderViewId {
 }
 export class RenderItNode extends RenderViewId {
   render(stack, rx) {
-    return rx.renderIt(stack, this.nodeId, "", this.viewId);
+    const newStack = stack.enter(stack.it, {}, true);
+    return rx.renderIt(newStack, this.nodeId, "", this.viewId);
   }
   pathInNext = true;
 }
