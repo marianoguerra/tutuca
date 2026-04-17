@@ -1,9 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { JSDOM } from "jsdom";
 import { format } from "prettier";
 import { Path } from "../src/path.js";
 import { renderToHTMLNode } from "../src/util/render.js";
-import { HeadlessParseContext } from "./dom.js";
+import { HeadlessParseContext, setupJsdom } from "./dom.js";
 import {
   getComponents,
   JsonArray,
@@ -15,8 +14,7 @@ import {
   JsonString,
 } from "./json.js";
 
-const { document } = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>").window;
-globalThis.document = document;
+const document = setupJsdom();
 
 const TARGET = "target-bool";
 const SELECTOR = `[data-test-id="${TARGET}"]`;
