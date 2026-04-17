@@ -19,8 +19,8 @@ export class TextNode extends BaseNode {
     super();
     this.val = val;
   }
-  render(_stack, rx) {
-    return rx.renderText(this.val);
+  render(_stack, _rx) {
+    return this.val;
   }
   isWhiteSpace() {
     for (let i = 0; i < this.val.length; i++) {
@@ -299,8 +299,8 @@ export class RenderEachNode extends RenderViewId {
   }
 }
 export class RenderTextNode extends ANode {
-  render(stack, rx) {
-    return rx.renderText(this.val.eval(stack));
+  render(stack, _rx) {
+    return this.val.eval(stack);
   }
 }
 export class RenderOnceNode extends BaseNode {

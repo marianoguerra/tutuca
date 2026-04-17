@@ -48,13 +48,13 @@ export class Renderer {
       return cachedNode;
     }
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
-    const meta = this.renderMetadata("Comp", { nid });
+    const meta = this._renderMetadata({ $: "Comp", nid });
     const dom = this.renderFragment([meta, this.renderView(view, stack)]);
     this.cache.set(val, cacheKey, dom);
     return dom;
   }
   pushEachEntry(r, nid, attrName, key, dom) {
-    r.push(this.renderMetadata("Each", { nid, [attrName]: key }), dom);
+    r.push(this._renderMetadata({ $: "Each", nid, [attrName]: key }), dom);
   }
   renderEach(stack, iterInfo, nodeId, viewName) {
     const { seq, filter, loopWith } = iterInfo.eval(stack);
@@ -113,11 +113,7 @@ export class Renderer {
     }
     return view.render(stack, this);
   }
-  renderText(text) {
-    return text;
-  }
-  renderMetadata(type, info) {
-    info.$ = type; // MUT
+  _renderMetadata(info) {
     return this.renderComment(`§${JSON.stringify(info)}§`);
   }
   renderTag(tagName, attrs, childs) {
