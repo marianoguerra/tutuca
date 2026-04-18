@@ -17,9 +17,7 @@ export class App {
     this._eventNames = new Set(["dragstart", "dragover", "dragend"]);
     this.dragInfo = this.curDragOver = null;
     this.transactor.onTransactionPushed = (_transaction) => {
-      if (this._transactNextBatchId === null) {
-        this._scheduleNextTransactionBatchExecution();
-      }
+      if (this._transactNextBatchId === null) this._scheduleNextTransactionBatchExecution();
     };
     this._compiled = false;
     this._renderOpts = { document: rootNode.ownerDocument };

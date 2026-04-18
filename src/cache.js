@@ -13,11 +13,8 @@ export class WeakMapDomCache {
     this.map = new WeakMap();
   }
   _returnValue(r) {
-    if (r === undefined) {
-      this.miss += 1;
-    } else {
-      this.hit += 1;
-    }
+    if (r === undefined) this.miss += 1;
+    else this.hit += 1;
     return r;
   }
   get(k, cacheKey) {
@@ -25,13 +22,9 @@ export class WeakMapDomCache {
   }
   set(k, cacheKey, v) {
     const cur = this.map.get(k);
-    if (cur) {
-      cur[cacheKey] = v;
-    } else if (typeof k === "object") {
-      this.map.set(k, { [cacheKey]: v });
-    } else {
-      this.badKey += 1;
-    }
+    if (cur) cur[cacheKey] = v;
+    else if (typeof k === "object") this.map.set(k, { [cacheKey]: v });
+    else this.badKey += 1;
   }
   get2(k1, k2, cacheKey) {
     return this._returnValue(this.map.get(k1)?.get?.(k2)?.[cacheKey]);
@@ -40,11 +33,8 @@ export class WeakMapDomCache {
     const cur1 = this.map.get(k1);
     if (cur1) {
       const cur = cur1.get(k2);
-      if (cur) {
-        cur[cacheKey] = v;
-      } else {
-        cur1.set(k2, { [cacheKey]: v });
-      }
+      if (cur) cur[cacheKey] = v;
+      else cur1.set(k2, { [cacheKey]: v });
     } else if (typeof k1 === "object" && typeof k2 === "object") {
       const cur = new WeakMap();
       cur.set(k2, { [cacheKey]: v });
@@ -73,9 +63,7 @@ export class WeakMapComputedCache {
     const cur = this.map.get(v);
     if (cur) {
       const curValue = cur[key];
-      if (curValue !== undefined) {
-        return curValue;
-      }
+      if (curValue !== undefined) return curValue;
       const newValue = fn.call(v) ?? null; // don't allow undefined
       cur[key] = newValue;
       return newValue;

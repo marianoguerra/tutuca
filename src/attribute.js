@@ -55,14 +55,10 @@ class AttrParser {
     }
   }
   parseThen(s) {
-    if (this.ifAttr) {
-      this.ifAttr.thenVal = vp.parseAttr(s, this.px) ?? NOT_SET_VAL;
-    }
+    if (this.ifAttr) this.ifAttr.thenVal = vp.parseAttr(s, this.px) ?? NOT_SET_VAL;
   }
   parseElse(value) {
-    if (this.ifAttr) {
-      this.ifAttr.elseVal = vp.parseAttr(value, this.px) ?? NOT_SET_VAL;
-    }
+    if (this.ifAttr) this.ifAttr.elseVal = vp.parseAttr(value, this.px) ?? NOT_SET_VAL;
   }
   parseEvent(directiveName, value) {
     const [eventName, ...modifiers] = directiveName.slice(3).split("+");
@@ -121,25 +117,16 @@ class AttrParser {
         this.parseElse(s);
         return;
     }
-    if (directiveName.startsWith("on.")) {
-      this.parseEvent(directiveName, s);
-    } else if (directiveName.startsWith("if.")) {
-      this.parseIf(directiveName, s);
-    } else if (directiveName.startsWith("then.")) {
-      this.parseThen(s);
-    } else if (directiveName.startsWith("else.")) {
-      this.parseElse(s);
-    }
+    if (directiveName.startsWith("on.")) this.parseEvent(directiveName, s);
+    else if (directiveName.startsWith("if.")) this.parseIf(directiveName, s);
+    else if (directiveName.startsWith("then.")) this.parseThen(s);
+    else if (directiveName.startsWith("else.")) this.parseElse(s);
   }
   _parseWhen(s) {
-    if (this.eachAttr !== null) {
-      this.eachAttr.whenVal = vp.parseAlter(s, this.px);
-    }
+    if (this.eachAttr !== null) this.eachAttr.whenVal = vp.parseAlter(s, this.px);
   }
   _parseLoopWith(s) {
-    if (this.eachAttr !== null) {
-      this.eachAttr.loopWithVal = vp.parseAlter(s, this.px);
-    }
+    if (this.eachAttr !== null) this.eachAttr.loopWithVal = vp.parseAlter(s, this.px);
   }
   parse(attributes, parseAll = false) {
     for (const { name, value } of attributes) {
@@ -165,9 +152,7 @@ export class ConstAttrs extends Attributes {
   }
   static fromAttrs(attrs) {
     const attrsObj = {};
-    for (const attr of attrs) {
-      attrsObj[attr.name] = attr.val.eval(null);
-    }
+    for (const attr of attrs) attrsObj[attr.name] = attr.val.eval(null);
     return new ConstAttrs(attrsObj);
   }
   setDataAttr(key, val) {
@@ -175,9 +160,7 @@ export class ConstAttrs extends Attributes {
   }
   toMacroVars() {
     const r = {};
-    for (const name in this.items) {
-      r[name] = `'${this.items[name]}'`;
-    }
+    for (const name in this.items) r[name] = `'${this.items[name]}'`;
     return r;
   }
   isConstant() {
@@ -198,9 +181,7 @@ export class DynAttrs extends Attributes {
   }
   toMacroVars() {
     const r = {};
-    for (const attr of this.items) {
-      r[attr.name] = attr.val.toString();
-    }
+    for (const attr of this.items) r[attr.name] = attr.val.toString();
     return r;
   }
 }
@@ -255,9 +236,7 @@ export class EventHandler {
   }
   getHandlerAndArgs(stack, _event) {
     const argValues = new Array(this.args.length);
-    for (let i = 0; i < argValues.length; i++) {
-      argValues[i] = this.args[i].eval(stack);
-    }
+    for (let i = 0; i < argValues.length; i++) argValues[i] = this.args[i].eval(stack);
     return [this.handlerVal.eval(stack), argValues];
   }
   static parse(s, px) {

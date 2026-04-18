@@ -39,9 +39,7 @@ export class Components {
   }
   compileStyles() {
     const styles = [];
-    for (const comp of this.byId.values()) {
-      styles.push(comp.compileStyle());
-    }
+    for (const comp of this.byId.values()) styles.push(comp.compileStyle());
     return styles.join("\n");
   }
 }
@@ -63,9 +61,7 @@ export class ComponentStack {
       this.comps.registerComponent(comp);
       this.byName[comp.name] = comp;
       const alias = aliases[comp.name];
-      if (alias) {
-        this.byName[alias] = comp;
-      }
+      if (alias) this.byName[alias] = comp;
     }
   }
   registerMacros(macros) {
@@ -75,9 +71,7 @@ export class ComponentStack {
     return this.comps.getCompFor(v);
   }
   registerRequestHandlers(handlers) {
-    for (const name in handlers) {
-      this.reqsByName[name] = new RequestHandler(name, handlers[name]);
-    }
+    for (const name in handlers) this.reqsByName[name] = new RequestHandler(name, handlers[name]);
   }
   lookupRequest(name) {
     return this.reqsByName[name] ?? this.parent?.lookupRequest(name) ?? null;
@@ -173,9 +167,8 @@ export class Component {
         }
       }
     }
-    for (const name in this.views) {
+    for (const name in this.views)
       this.views[name].compile(new ParseContext(), this.scope, this.id);
-    }
   }
   make(args, opts) {
     return this.Class.make(args, opts);
@@ -192,14 +185,10 @@ export class Component {
   compileStyle() {
     const { id, commonStyle, globalStyle, views } = this;
     const styles = commonStyle ? [`[data-cid="${id}"]{${commonStyle}}`] : [];
-    if (globalStyle !== "") {
-      styles.push(globalStyle);
-    }
+    if (globalStyle !== "") styles.push(globalStyle);
     for (const name in views) {
       const { style } = views[name];
-      if (style !== "") {
-        styles.push(`[data-cid="${id}"][data-vid="${name}"]{${style}}`);
-      }
+      if (style !== "") styles.push(`[data-cid="${id}"][data-vid="${name}"]{${style}}`);
     }
     return styles.join("\n");
   }
