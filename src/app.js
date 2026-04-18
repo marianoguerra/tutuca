@@ -29,35 +29,38 @@ export class App {
   }
   handleEvent(e) {
     const { type } = e;
-    const isDrag = type === "dragstart" || type === "dragover" || type === "dragend";
+    const isDrag = type === "dragover" || type === "dragstart" || type === "dragend";
     const { rootNode: root, maxEventNodeDepth: maxDepth, comps } = this;
     const [path, handlers] = Path.fromEvent(e, root, maxDepth, comps, !isDrag);
-    if (isDrag) {
-      if (type === "dragover") {
-        const dropTarget = getClosestDropTarget(e.target, this.rootNode, 50);
-        if (dropTarget !== null) {
-          e.preventDefault();
-          this._cleanDragOverAttrs();
-          this.curDragOver = dropTarget;
-          dropTarget.dataset.draggingover = this.dragInfo.type;
-        }
-      } else if (type === "dragstart") {
-        e.target.dataset.dragging = 1;
-        const rootValue = this.state.val;
-        const value = path.lookup(rootValue);
-        const dragType = e.target.dataset.dragtype ?? "?";
-        const stack = path.buildStack(this.makeStack(rootValue));
-        this.dragInfo = new DragInfo(path, stack, e, value, dragType, e.target);
-      } else {
-        delete this.dragInfo.node.dataset.dragging;
-        this.dragInfo = null;
-        this._cleanDragOverAttrs();
-      }
-    }
+    if (isDrag) this._handleDragEvent();
     if (path !== null && handlers !== null) {
       for (const handler of handlers) {
         this.transactor.transactInputNow(path, e, handler, this.dragInfo);
       }
+    }
+  }
+  _handleDragEvent(e, type, path) {
+    if (type === "dragover") {
+      const dropTarget = getClosestDropTarget(e.target, this.rootNode, 50);
+      if (dropTarget !== null) {
+        e.preventDefault();
+        this._cleanDragOverAttrs();
+        this.curDragOver = dropTarget;
+        dropTarget.dataset.draggingover = this.dragInfo?.type ?? "_external";
+      }
+    } else if (type === "dragstart") {
+      e.target.dataset.dragging = 1;
+      const rootValue = this.state.val;
+      const value = path.lookup(rootValue);
+      const dragType = e.target.dataset.dragtype ?? "?";
+      const stack = path.buildStack(this.makeStack(rootValue));
+      this.dragInfo = new DragInfo(path, stack, e, value, dragType, e.target);
+    } else {
+      if (this.dragInfo !== null) {
+        delete this.dragInfo.node.dataset.dragging;
+        this.dragInfo = null;
+      }
+      this._cleanDragOverAttrs();
     }
   }
   makeStack(rootValue) {
@@ -86,12 +89,8 @@ export class App {
     this._compiled = true;
   }
   start(opts) {
-    if (!this._compiled) {
-      this.compile();
-    }
-    for (const name of this._eventNames) {
-      this.rootNode.addEventListener(name, this);
-    }
+    if (!this._compiled) this.compile();
+    for (const name of this._eventNames) this.rootNode.addEventListener(name, this);
     this.onChange((info) => {
       if (info.val !== info.old) this.render();
     });
