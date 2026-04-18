@@ -5,34 +5,22 @@ const prototypesDiffer = (a, b) => Object.getPrototypeOf(a) !== Object.getProtot
 export function applyProperties(node, props, previous) {
   for (const propName in props) {
     const propValue = props[propName];
-    if (propValue === undefined) {
-      removeProperty(node, propName, previous);
-    } else if (isHtmlAttribute(propName)) {
-      node.setAttribute(propName, propValue);
-    } else if (propName === "dangerouslySetInnerHTML") {
-      node.innerHTML = propValue.__html ?? "";
-    } else if (isObject(propValue)) {
-      patchObject(node, previous, propName, propValue);
-    } else if (propName === "className") {
-      node.setAttribute("class", propValue);
-    } else {
-      node[propName] = propValue;
-    }
+    if (propValue === undefined) removeProperty(node, propName, previous);
+    else if (isHtmlAttribute(propName)) node.setAttribute(propName, propValue);
+    else if (propName === "dangerouslySetInnerHTML") node.innerHTML = propValue.__html ?? "";
+    else if (isObject(propValue)) patchObject(node, previous, propName, propValue);
+    else if (propName === "className") node.setAttribute("class", propValue);
+    else node[propName] = propValue;
   }
 }
 function removeProperty(node, propName, previous) {
   const previousValue = previous[propName];
-  if (propName === "dangerouslySetInnerHTML") {
-    node.replaceChildren();
-  } else if (propName === "className") {
-    node.removeAttribute("class");
-  } else if (propName === "htmlFor") {
-    node.removeAttribute("for");
-  } else if (typeof previousValue === "string" || isHtmlAttribute(propName)) {
+  if (propName === "dangerouslySetInnerHTML") node.replaceChildren();
+  else if (propName === "className") node.removeAttribute("class");
+  else if (propName === "htmlFor") node.removeAttribute("for");
+  else if (typeof previousValue === "string" || isHtmlAttribute(propName))
     node.removeAttribute(propName);
-  } else {
-    node[propName] = null;
-  }
+  else node[propName] = null;
 }
 function patchObject(node, previous, propName, propValue) {
   const previousValue = previous?.[propName];
@@ -40,13 +28,9 @@ function patchObject(node, previous, propName, propValue) {
     node[propName] = propValue;
     return;
   }
-  if (!isObject(node[propName])) {
-    node[propName] = {};
-  }
+  if (!isObject(node[propName])) node[propName] = {};
   const target = node[propName];
-  for (const k in propValue) {
-    target[k] = propValue[k];
-  }
+  for (const k in propValue) target[k] = propValue[k];
 }
 export class VBase {}
 const getKey = (child) => (child instanceof VNode ? child.key : undefined);
@@ -54,31 +38,20 @@ const isIterable = (obj) =>
   obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
 function childsEqual(a, b) {
   if (a === b) return true;
-  for (let i = 0; i < a.length; i++) {
-    if (!a[i].isEqualTo(b[i])) return false;
-  }
+  for (let i = 0; i < a.length; i++) if (!a[i].isEqualTo(b[i])) return false;
   return true;
 }
 function appendChildNodes(parent, childs, opts) {
-  for (const child of childs) {
-    parent.appendChild(child.toDom(opts));
-  }
+  for (const child of childs) parent.appendChild(child.toDom(opts));
 }
 function addChild(normalizedChildren, child) {
   if (child == null) return;
   if (isIterable(child)) {
-    for (const c of child) {
-      addChild(normalizedChildren, c);
-    }
+    for (const c of child) addChild(normalizedChildren, c);
   } else if (child instanceof VBase) {
-    if (child instanceof VFragment) {
-      normalizedChildren.push(...child.childs);
-    } else {
-      normalizedChildren.push(child);
-    }
-  } else {
-    normalizedChildren.push(new VText(child));
-  }
+    if (child instanceof VFragment) normalizedChildren.push(...child.childs);
+    else normalizedChildren.push(child);
+  } else normalizedChildren.push(new VText(child));
 }
 export class VText extends VBase {
   constructor(text) {
@@ -275,9 +248,7 @@ function morphChildren(parentDom, oldChilds, newChilds, opts) {
     const newKey = getKey(newChild);
     let oldIdx = -1;
     if (newKey != null) {
-      if (newKey in oldKeyMap && !used[oldKeyMap[newKey]]) {
-        oldIdx = oldKeyMap[newKey];
-      }
+      if (newKey in oldKeyMap && !used[oldKeyMap[newKey]]) oldIdx = oldKeyMap[newKey];
     } else {
       while (unkeyedCursor < oldChilds.length) {
         if (!used[unkeyedCursor] && getKey(oldChilds[unkeyedCursor]) == null) {
@@ -297,11 +268,8 @@ function morphChildren(parentDom, oldChilds, newChilds, opts) {
       parentDom.insertBefore(newChild.toDom(opts), ref);
     }
   }
-  for (let i = oldChilds.length - 1; i >= 0; i--) {
-    if (!used[i] && domNodes[i].parentNode === parentDom) {
-      parentDom.removeChild(domNodes[i]);
-    }
-  }
+  for (let i = oldChilds.length - 1; i >= 0; i--)
+    if (!used[i] && domNodes[i].parentNode === parentDom) parentDom.removeChild(domNodes[i]);
 }
 const renderCache = new WeakMap();
 export function render(vnode, container, options) {

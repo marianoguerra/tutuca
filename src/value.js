@@ -23,20 +23,11 @@ export class ValParser {
   }
   allowFieldOnly() {
     this.okField = true;
-    this.okBind = false;
-    this.okComputed = false;
-    this.okDyn = false;
-    this.okType = false;
-    this.okRequest = false;
-    this.okName = false;
-    this.okConst = false;
-    this.okStrTpl = false;
-    this.okSeqAccess = false;
+    this.okBind = this.okComputed = this.okDyn = this.okType = this.okRequest = false;
+    this.okName = this.okConst = this.okStrTpl = this.okSeqAccess = false;
   }
   _parseSeqAccess(s, px) {
-    if (!this.okSeqAccess) {
-      return null;
-    }
+    if (!this.okSeqAccess) return null;
     const openSquareBracketIndex = s.indexOf("[");
     this.allowFieldOnly();
     const left = this.parse(s.slice(0, openSquareBracketIndex), px);
@@ -79,15 +70,13 @@ export class ValParser {
         return this.okRequest ? parseReq(s.slice(1), px) : null;
     }
     const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
-    if (Number.isFinite(num)) {
-      return this.okConst ? parseConst(num, px) : null;
-    } else if (s === "true" || s === "false") {
+    if (Number.isFinite(num)) return this.okConst ? parseConst(num, px) : null;
+    else if (s === "true" || s === "false")
       return this.okConst ? parseConst(s === "true", px) : null;
-    } else if (charCode >= 97 /* a */ && charCode <= 122 /* z */) {
+    else if (charCode >= 97 /* a */ && charCode <= 122 /* z */)
       return this.okName ? parseName(s, px) : null;
-    } else if (charCode >= 65 /* A */ && charCode <= 90 /* Z */) {
+    else if (charCode >= 65 /* A */ && charCode <= 90 /* Z */)
       return this.okType ? parseType(s, px) : null;
-    }
     return null;
   }
   parseDynamic(s, px) {
@@ -97,19 +86,13 @@ export class ValParser {
   }
   parseEach(s, px) {
     this.allowFieldOnly();
-    this.okComputed = true; // NOTE: both only useful for leaf subtrees (can't transact)
-    this.okDyn = true;
+    this.okComputed = this.okDyn = true; // NOTE: both only useful for leaf subtrees (can't transact)
     return this.parse(s, px);
   }
   allowHandlerArg() {
     this.allowFieldOnly();
-    this.okBind = true;
-    this.okComputed = true;
-    this.okDyn = true;
-    this.okType = true;
-    this.okRequest = true;
-    this.okName = true;
-    this.okConst = true;
+    this.okBind = this.okComputed = this.okDyn = this.okType = this.okRequest = true;
+    this.okName = this.okConst = true;
   }
   parseHandlerArg(s, px) {
     this.allowHandlerArg();
@@ -132,25 +115,17 @@ export class ValParser {
   }
   parseAll(s, px) {
     this.allowHandlerArg();
-    this.okStrTpl = true;
-    this.okSeqAccess = true;
+    this.okStrTpl = this.okSeqAccess = true;
     return this.parse(s, px);
   }
   parseCondValue(s, px) {
     this.allowFieldOnly();
-    this.okBind = true;
-    this.okComputed = true;
-    this.okDyn = true;
-    this.okConst = true;
+    this.okBind = this.okComputed = this.okDyn = this.okConst = true;
     return this.parse(s, px);
   }
   parseText(s, px) {
     this.allowFieldOnly();
-    this.okBind = true;
-    this.okComputed = true;
-    this.okDyn = true;
-    this.okConst = true;
-    this.okStrTpl = true;
+    this.okBind = this.okComputed = this.okDyn = this.okConst = this.okStrTpl = true;
     return this.parse(s, px);
   }
   parseRender(s, px) {
@@ -193,9 +168,7 @@ export class StrTplVal extends VarVal {
   }
   eval(stack) {
     const strs = new Array(this.vals.length);
-    for (let i = 0; i < this.vals.length; i++) {
-      strs[i] = this.vals[i]?.eval(stack, "");
-    }
+    for (let i = 0; i < this.vals.length; i++) strs[i] = this.vals[i]?.eval(stack, "");
     return strs.join("");
   }
   static parse(s, px) {
@@ -339,15 +312,11 @@ function getValSubType(s) {
   for (let i = 0; i < s.length; i++) {
     switch (s.charCodeAt(i)) {
       case 91: // [
-        if (open > 0) {
-          return VAL_SUB_TYPE_INVALID;
-        }
+        if (open > 0) return VAL_SUB_TYPE_INVALID;
         open += 1;
         break;
       case 93: // ]
-        if (close > 0 || open === 0) {
-          return VAL_SUB_TYPE_INVALID;
-        }
+        if (close > 0 || open === 0) return VAL_SUB_TYPE_INVALID;
         close += 1;
         break;
       case 123: // {
@@ -356,9 +325,8 @@ function getValSubType(s) {
         return VAL_SUB_TYPE_CONST_STRING;
     }
   }
-  if (open > 0 || close > 0) {
+  if (open > 0 || close > 0)
     return open === 1 && close === 1 ? VAL_SUB_TYPE_SEQ_ACCESS : VAL_SUB_TYPE_INVALID;
-  }
   return -1;
 }
 export const vp = new ValParser();

@@ -17,14 +17,8 @@ export class Field {
     return { type, defaultValue: dv?.toJS ? dv.toJS() : dv };
   }
   getFirstFailingCheck(v) {
-    if (!this.typeCheck.isValid(v)) {
-      return this.typeCheck;
-    }
-    for (const check of this.checks) {
-      if (!check.isValid(v)) {
-        return check;
-      }
-    }
+    if (!this.typeCheck.isValid(v)) return this.typeCheck;
+    for (const check of this.checks) if (!check.isValid(v)) return check;
     return null;
   }
   isValid(v) {
@@ -35,9 +29,7 @@ export class Field {
     return this;
   }
   coerceOr(v, defaultValue = null) {
-    if (this.isValid(v)) {
-      return v;
-    }
+    if (this.isValid(v)) return v;
     const v1 = this.coercer(v);
     return this.isValid(v1) ? v1 : defaultValue;
   }
@@ -208,9 +200,7 @@ export function extendProtoForKeyed(proto, name, uname) {
   proto[`updateIn${uname}At`] = function (i, fn) {
     const col = this.get(name);
     const v = col.get(i, NONE);
-    if (v !== NONE) {
-      return this.set(name, col.set(i, fn(v)));
-    }
+    if (v !== NONE) return this.set(name, col.set(i, fn(v)));
     console.warn("key", i, "not found in", name, col);
     return this;
   };
@@ -305,19 +295,16 @@ class ClassBuilder {
         const args = {};
         for (const key in inArgs) {
           const field = fields[key];
-          if (compFields.has(key)) {
-            args[key] = mkCompField(field, opts.scope, inArgs[key]);
-          } else if (field === undefined) {
+          if (compFields.has(key)) args[key] = mkCompField(field, opts.scope, inArgs[key]);
+          else if (field === undefined) {
             console.warn("extra argument to constructor:", name, key, inArgs);
             continue;
           }
           args[key] = field.coerceOrDefault(inArgs[key]);
         }
-        for (const key of compFields) {
-          if (args[key] === undefined) {
+        for (const key of compFields)
+          if (args[key] === undefined)
             args[key] = mkCompField(fields[key], opts.scope, inArgs[key]);
-          }
-        }
         return this(args);
       },
     };
@@ -344,9 +331,7 @@ class ClassBuilder {
     return this._mergeProto(this._statics, proto, "static");
   }
   _mergeProto(target, proto, _name) {
-    for (const k in proto) {
-      target[k] = proto[k];
-    }
+    for (const k in proto) target[k] = proto[k];
     return this;
   }
   addField(name, dval, FieldCls) {
@@ -378,53 +363,26 @@ export function classFromData(name, { fields = {}, methods, statics }) {
   for (const field in fields) {
     const value = fields[field];
     const type = typeof value;
-    if (type === "string") {
-      b.addField(field, value, FieldString);
-    } else if (type === "number") {
-      b.addField(field, value, FieldFloat);
-    } else if (type === "boolean") {
-      b.addField(field, value, FieldBool);
-    } else if (List.isList(value) || Array.isArray(value)) {
-      b.addField(field, List(value), FieldList);
-    } else if (ISet.isSet(value) || value instanceof Set) {
-      b.addField(field, ISet(value), FieldSet);
-    } else if (OrderedMap.isOrderedMap(value)) {
-      b.addField(field, value, FieldOMap);
-    } else if (value?.type && value?.defaultValue !== undefined) {
+    if (type === "string") b.addField(field, value, FieldString);
+    else if (type === "number") b.addField(field, value, FieldFloat);
+    else if (type === "boolean") b.addField(field, value, FieldBool);
+    else if (List.isList(value) || Array.isArray(value)) b.addField(field, List(value), FieldList);
+    else if (ISet.isSet(value) || value instanceof Set) b.addField(field, ISet(value), FieldSet);
+    else if (OrderedMap.isOrderedMap(value)) b.addField(field, value, FieldOMap);
+    else if (value?.type && value?.defaultValue !== undefined) {
       const Field = fieldsByTypeName[value.type] ?? FieldAny;
       b.addField(field, new Field().coerceOr(value.defaultValue), Field);
-    } else if (value?.component && value?.args !== undefined) {
+    } else if (value?.component && value?.args !== undefined)
       b.addCompField(field, value.component, value.args);
-    } else if (IMap.isMap(value) || value?.constructor === Object) {
+    else if (IMap.isMap(value) || value?.constructor === Object)
       b.addField(field, IMap(value), FieldMap);
-    } else {
+    else {
       const Field = fieldsByClass.get(value?.constructor) ?? FieldAny;
       b.addField(field, value, Field);
     }
   }
-  if (methods) {
-    b.methods(methods);
-  }
-  if (statics) {
-    b.statics(statics);
-  }
+  if (methods) b.methods(methods);
+  if (statics) b.statics(statics);
   return b.build();
 }
-export const component = (opts) =>
-  new Component(
-    opts.name ?? "Comp",
-    classFromData(opts.name, opts),
-    opts.view ?? "Not Defined",
-    opts.views,
-    opts.style,
-    opts.commonStyle ?? "",
-    opts.globalStyle ?? "",
-    opts.computed,
-    opts.input,
-    opts.logic,
-    opts.bubble,
-    opts.response,
-    opts.alter,
-    opts.dynamic,
-    opts.on,
-  );
+export const component = (opts) => new Component(classFromData(opts.name, opts), opts);

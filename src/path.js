@@ -199,9 +199,7 @@ function resolvePathStep(comp, nodeIds, vid) {
     const pi = node.pathInNext
       ? comp.getNodeForId(+nodeId, vid).val.toPathItem()
       : node.toPathItem();
-    if (pi !== null) {
-      return si !== undefined ? pi.withIndex(+si) : sk ? pi.withKey(sk) : pi;
-    }
+    if (pi !== null) return si !== undefined ? pi.withIndex(+si) : sk ? pi.withKey(sk) : pi;
   }
   return null;
 }

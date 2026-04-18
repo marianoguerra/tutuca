@@ -114,42 +114,26 @@ export class DynamicAlias extends Dynamic {
 const isString = (v) => typeof v === "string";
 let _compId = 0;
 export class Component {
-  constructor(
-    name,
-    Class,
-    view,
-    views = {},
-    style = "",
-    commonStyle = "",
-    globalStyle = "",
-    computed = {},
-    input = {},
-    logic = {},
-    bubble = {},
-    response = {},
-    alter = {},
-    dynamic = {},
-    on = {},
-  ) {
+  constructor(Class, o) {
     this.id = _compId++;
-    this.name = name;
+    this.name = o.name ?? "UnkComp";
     this.Class = Class;
-    this.views = { main: new View("main", view, style) };
-    this.commonStyle = commonStyle;
-    this.globalStyle = globalStyle;
-    this.computed = computed;
-    this.input = input;
-    this.logic = logic;
-    this.bubble = bubble;
-    this.response = response;
-    this.alter = alter;
-    this.on = { stackEnter: on?.stackEnter ?? defaultOnStackEnter };
-    for (const name in views) {
-      const v = views[name];
+    this.views = { main: new View("main", o.view, o.style) };
+    this.commonStyle = o.commonStyle ?? "";
+    this.globalStyle = o.globalStyle ?? "";
+    this.computed = o.computed ?? {};
+    this.input = o.input ?? {};
+    this.logic = o.logic ?? {};
+    this.bubble = o.bubble ?? {};
+    this.response = o.response ?? {};
+    this.alter = o.alter ?? {};
+    this.on = { stackEnter: o.on?.stackEnter ?? defaultOnStackEnter };
+    for (const name in o.views ?? {}) {
+      const v = o.views[name];
       const { view, style } = isString(v) ? { view: v } : v;
       this.views[name] = new View(name, view, style);
     }
-    this._rawDynamic = dynamic;
+    this._rawDynamic = o.dynamic ?? {};
     this.dynamic = {};
     this.scope = null;
   }

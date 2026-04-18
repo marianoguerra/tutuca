@@ -12,9 +12,7 @@ class State {
   set(val, info) {
     const old = this.val;
     this.val = val;
-    for (const sub of this.changeSubs) {
-      sub({ val, old, info, timestamp: Date.now() });
-    }
+    for (const sub of this.changeSubs) sub({ val, old, info, timestamp: Date.now() });
   }
   update(fn, info) {
     return this.set(fn(this.val), info);
@@ -60,14 +58,7 @@ export class Transactor {
     return this.transactions.length > 0;
   }
   transactNext() {
-    if (this.hasPendingTransactions) {
-      this.transact(this.transactions.shift());
-    }
-  }
-  transactAll() {
-    while (this.hasPendingTransactions) {
-      this.transact(this.transactions.shift());
-    }
+    if (this.hasPendingTransactions) this.transact(this.transactions.shift());
   }
   transact(transaction) {
     const curState = this.state.val;
@@ -75,9 +66,7 @@ export class Transactor {
     if (newState !== undefined) {
       this.state.set(newState, { transaction });
       transaction.afterTransaction();
-    } else {
-      console.warn("undefined new state", { curState, transaction });
-    }
+    } else console.warn("undefined new state", { curState, transaction });
   }
   transactInputNow(path, event, eventHandler, dragInfo) {
     this.transact(new InputEvent(path, event, eventHandler, this, dragInfo));
@@ -234,9 +223,8 @@ class LogicEvent extends NameArgsTransaction {
   }
   afterTransaction() {
     const { path, name, args, opts } = this;
-    if (opts.bubbles && path.steps.length > 0) {
+    if (opts.bubbles && path.steps.length > 0)
       this.transactor.pushBubble(path.popStep(), name, args, opts, this);
-    }
   }
 }
 class BubbleEvent extends LogicEvent {

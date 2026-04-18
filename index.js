@@ -17,16 +17,10 @@ export { component, fieldsByClass } from "./src/oo.js";
 export { seqInfoByClass } from "./src/renderer.js";
 export const css = String.raw;
 export const html = String.raw;
-
-export function macro(defaults, rawView) {
-  return new Macro(defaults, rawView);
-}
-
-const toNode = (nodeOrSelector) =>
-  typeof nodeOrSelector === "string" ? document.querySelector(nodeOrSelector) : nodeOrSelector;
-
+export const macro = (defaults, rawView) => new Macro(defaults, rawView);
 export function tutuca(nodeOrSelector) {
-  const rootNode = toNode(nodeOrSelector);
+  const rootNode =
+    typeof nodeOrSelector === "string" ? document.querySelector(nodeOrSelector) : nodeOrSelector;
   const comps = new Components();
   const renderer = new Renderer(comps);
   return new App(rootNode, comps, renderer, ParseContext);

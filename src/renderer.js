@@ -89,9 +89,7 @@ export class Renderer {
         if (enricher) {
           enricher.call(it, bindings, key, value, iterData);
           cachedNode = this.cache.get2(it, value, cacheKey);
-        } else {
-          cachedNode = this.cache.get(value, cacheKey);
-        }
+        } else cachedNode = this.cache.get(value, cacheKey);
         if (cachedNode) {
           this.pushEachEntry(r, nid, attrName, key, cachedNode);
           return;
@@ -99,11 +97,8 @@ export class Renderer {
         const newStack = stack.enter(value, bindings, false);
         const dom = this.renderView(view, newStack);
         this.pushEachEntry(r, nid, attrName, key, dom);
-        if (enricher) {
-          this.cache.set2(it, value, cacheKey, dom);
-        } else {
-          this.cache.set(value, cacheKey, dom);
-        }
+        if (enricher) this.cache.set2(it, value, cacheKey, dom);
+        else this.cache.set(value, cacheKey, dom);
       }
     });
     return r;

@@ -512,7 +512,7 @@ function condenseChildsWhites(childs) {
   return changed ? childs.slice(start, end) : childs;
 }
 export class View {
-  constructor(name, rawView, style = "", anode = null, ctx = null) {
+  constructor(name, rawView = "No View Defined", style = "", anode = null, ctx = null) {
     this.name = name;
     this.anode = anode;
     this.style = style;

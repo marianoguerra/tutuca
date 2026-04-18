@@ -77,9 +77,7 @@ export class Stack {
   withDynamicBindings(dynamics) {
     const dynObj = {};
     const comp = this.comps.getCompFor(this.it);
-    for (const dynName of dynamics) {
-      comp.dynamic[dynName].evalAndBind(this, dynObj);
-    }
+    for (const dynName of dynamics) comp.dynamic[dynName].evalAndBind(this, dynObj);
     const { comps, it, binds, views, viewsId, ctx } = this;
     const newDynBinds = [new ObjectFrame(dynObj), this.dynBinds];
     return new Stack(comps, it, binds, newDynBinds, views, viewsId, ctx);
