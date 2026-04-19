@@ -59,33 +59,31 @@ export class App {
     }
     if (this._touch === null) return;
     const touch = findTouch(e, this._touch.id);
+    if (touch === null) return;
     const { rootNode, _touch } = this;
+    const { clientX, clientY } = touch;
+    const fire = (type, target) => {
+      const e = { type, target, clientX, clientY, preventDefault: NOOP };
+      this._dispatchEvent(e);
+    };
     if (type === "touchmove") {
-      if (touch === null) return;
-      const { clientX, clientY } = touch;
       if (!_touch.active) {
         const dx = clientX - _touch.startX;
         const dy = clientY - _touch.startY;
         if (dx * dx + dy * dy < TOUCH_DRAG_THRESHOLD_SQ) return;
         _touch.active = true;
         e.preventDefault();
-        this._dispatchEvent(makeSyntheticDragEvent("dragstart", _touch.target, clientX, clientY));
+        fire("dragstart", _touch.target);
       } else {
         e.preventDefault();
-        const target = hitTest(rootNode, clientX, clientY);
-        this._dispatchEvent(makeSyntheticDragEvent("dragover", target, clientX, clientY));
+        fire("dragover", hitTest(rootNode, clientX, clientY));
       }
       return;
     }
     if (type === "touchend" || type === "touchcancel") {
-      if (touch === null) return;
       if (_touch.active) {
-        const { clientX, clientY } = touch;
-        if (type === "touchend") {
-          const target = hitTest(rootNode, clientX, clientY);
-          this._dispatchEvent(makeSyntheticDragEvent("drop", target, clientX, clientY));
-        }
-        this._dispatchEvent(makeSyntheticDragEvent("dragend", _touch.target, clientX, clientY));
+        if (type === "touchend") fire("drop", hitTest(rootNode, clientX, clientY));
+        fire("dragend", _touch.target);
       }
       this._touch = null;
     }
@@ -197,18 +195,15 @@ export function injectCss(nodeId, style, styleTarget = document.head) {
 const TOUCH_DRAG_THRESHOLD_PX = 10;
 const TOUCH_DRAG_THRESHOLD_SQ = TOUCH_DRAG_THRESHOLD_PX * TOUCH_DRAG_THRESHOLD_PX;
 const NOOP = () => {};
-function makeSyntheticDragEvent(type, target, clientX, clientY) {
-  return { type, target, clientX, clientY, preventDefault: NOOP };
-}
-function makeTouchInfo(id, startX, startY, target, active) {
-  return { id, startX, startY, target, active };
-}
 function findTouch(e, id) {
   for (const t of e.changedTouches) if (t.identifier === id) return t;
   for (const t of e.touches) if (t.identifier === id) return t;
   return null;
 }
 const listenerOpts = (name) => (name === "touchmove" ? { passive: false } : undefined);
+function makeTouchInfo(id, startX, startY, target, active) {
+  return { id, startX, startY, target, active };
+}
 function hitTest(rootNode, x, y) {
   const root = rootNode.getRootNode();
   let el = root.elementFromPoint?.(x, y) ?? null;
