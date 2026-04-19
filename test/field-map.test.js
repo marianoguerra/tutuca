@@ -91,7 +91,9 @@ describe("FieldMap", () => {
 
   test("proto: resetData", () => {
     const Cls = classFromData("MapReset", { fields: { data: IMap() } });
-    const r = Cls().setData(IMap({ a: 1 })).resetData();
+    const r = Cls()
+      .setData(IMap({ a: 1 }))
+      .resetData();
     expect(r.dataLen()).toBe(0);
   });
 });

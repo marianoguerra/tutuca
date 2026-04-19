@@ -1,13 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import fc from "fast-check";
-import {
-  h,
-  VComment,
-  VFragment,
-  VNode,
-  VText,
-  render as vdomRender,
-} from "../src/vdom.js";
+import { h, VComment, VFragment, VNode, VText, render as vdomRender } from "../src/vdom.js";
 import { assertEqualDom, setupJsdom } from "./dom.js";
 import {
   applyMutation,
@@ -21,10 +14,6 @@ let document;
 beforeEach(() => {
   document = setupJsdom();
 });
-
-function render(vnode) {
-  return vnode.toDom({ document });
-}
 
 describe("property-based tests", () => {
   // Arbitrary for generating valid tag names

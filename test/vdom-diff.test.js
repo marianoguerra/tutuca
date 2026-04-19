@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { h, VComment, VNode, VText, render as vdomRender } from "../src/vdom.js";
+import { h, VComment, VText, render as vdomRender } from "../src/vdom.js";
 import { assertEqualDom, childNodesArray, setupJsdom } from "./dom.js";
 
 let document;

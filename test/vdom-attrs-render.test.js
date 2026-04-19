@@ -8,7 +8,7 @@ import {
   VText,
   render as vdomRender,
 } from "../src/vdom.js";
-import { assertEqualDom, setupJsdom } from "./dom.js";
+import { setupJsdom } from "./dom.js";
 
 let document;
 beforeEach(() => {
@@ -17,15 +17,6 @@ beforeEach(() => {
 
 function render(vnode) {
   return vnode.toDom({ document });
-}
-
-function assertPatchProduces(oldVNode, newVNode) {
-  const c1 = document.createElement("div");
-  const c2 = document.createElement("div");
-  vdomRender(oldVNode, c1, { document });
-  vdomRender(newVNode, c1, { document });
-  vdomRender(newVNode, c2, { document });
-  expect(assertEqualDom(c1.childNodes[0], c2.childNodes[0])).toBe(true);
 }
 
 describe("namespace support", () => {

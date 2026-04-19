@@ -83,7 +83,9 @@ describe("FieldOMap", () => {
 
   test("proto: resetData", () => {
     const Cls = classFromData("OMapReset", { fields: { data: OrderedMap() } });
-    const r = Cls().setData(OrderedMap({ a: 1 })).resetData();
+    const r = Cls()
+      .setData(OrderedMap({ a: 1 }))
+      .resetData();
     expect(r.dataLen()).toBe(0);
   });
 });
