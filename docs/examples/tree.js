@@ -122,3 +122,34 @@ export function getRoot() {
     },
   ]);
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Tree",
+    description: "Recursive tree component with bubble events",
+    items: [
+      {
+        title: "Default Filesystem",
+        description: "Sample filesystem tree",
+        item: getRoot(),
+      },
+      {
+        title: "Single File",
+        description: "A single file leaf node",
+        item: TreeItem.Class.fromData({ type: "file", label: "README.md" }),
+      },
+      {
+        title: "Closed Folder",
+        description: "Folder with hidden children",
+        item: TreeItem.Class.fromData({
+          label: "src",
+          isOpen: false,
+          items: [
+            { type: "file", label: "index.js" },
+            { type: "file", label: "main.js" },
+          ],
+        }),
+      },
+    ],
+  };
+}

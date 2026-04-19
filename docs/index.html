@@ -4,24 +4,45 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tutuca: Zero-dependency batteries included SPA framework</title>
-    <meta name="description" content="Tutuca is a zero-dependency, batteries-included SPA framework. One script tag to start — no build step, no setup. State management, virtual DOM, drag and drop, and more." />
+    <meta
+      name="description"
+      content="Tutuca is a zero-dependency, batteries-included SPA framework. One script tag to start — no build step, no setup. State management, virtual DOM, drag and drop, and more."
+    />
     <meta name="author" content="Mariano Guerra" />
     <meta name="theme-color" content="#0d47a1" />
     <link rel="canonical" href="https://marianoguerra.github.io/tutuca/" />
 
     <!-- Open Graph -->
-    <meta property="og:title" content="Tutuca: Zero-dependency batteries included SPA framework" />
-    <meta property="og:description" content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, and more." />
+    <meta
+      property="og:title"
+      content="Tutuca: Zero-dependency batteries included SPA framework"
+    />
+    <meta
+      property="og:description"
+      content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, and more."
+    />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://marianoguerra.github.io/tutuca/" />
-    <meta property="og:image" content="https://marianoguerra.github.io/tutuca/og-image.webp" />
+    <meta
+      property="og:image"
+      content="https://marianoguerra.github.io/tutuca/og-image.webp"
+    />
     <meta property="og:site_name" content="Tutuca" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Tutuca: Zero-dependency batteries included SPA framework" />
-    <meta name="twitter:description" content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, and more." />
-    <meta name="twitter:image" content="https://marianoguerra.github.io/tutuca/og-image.webp" />
+    <meta
+      name="twitter:title"
+      content="Tutuca: Zero-dependency batteries included SPA framework"
+    />
+    <meta
+      name="twitter:description"
+      content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, and more."
+    />
+    <meta
+      name="twitter:image"
+      content="https://marianoguerra.github.io/tutuca/og-image.webp"
+    />
 
     <link rel="stylesheet" href="./styles/site.css" />
     <script type="importmap">
@@ -202,6 +223,14 @@
         <tutuca-playground
           src="./examples/composability.js"
         ></tutuca-playground>
+        <h4>Storybook</h4>
+        <p>
+          A storybook that aggregates every example on this page. Each example
+          file exports a <code>getStoryBookSection()</code> describing its
+          components in a few states; the storybook imports them and renders
+          them under a sidebar navigation.
+        </p>
+        <tutuca-playground src="./examples/storybook.js"></tutuca-playground>
         <h3>Advanced: Macros</h3>
         <h4>To-Do with Macros</h4>
         <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>

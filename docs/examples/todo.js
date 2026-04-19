@@ -57,3 +57,29 @@ export function getComponents() {
 export function getRoot() {
   return Items.make({ items: [Item.make({})] });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "To Do",
+    description: "...",
+    items: [
+      { title: "Default Item", description: "aka empty", item: Item.make() },
+      { title: "Completed Item", item: Item.make({ completed: true }) },
+      {
+        title: "Completed No Text",
+        item: Item.make({ completed: true, text: "" }),
+      },
+      { title: "Default Items", item: Items.make() },
+      {
+        title: "Some Items",
+        item: Items.make({
+          items: [
+            Item.make(),
+            Item.make({ completed: true }),
+            Item.make({ completed: true, text: "" }),
+          ],
+        }),
+      },
+    ],
+  };
+}

@@ -50,3 +50,22 @@ export function getComponents() {
 export function getRoot() {
   return ListFilterEnrichWith.make({ items: ITEMS });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "List Filter + Enrich With",
+    description: "@loop-with provides shared iteration data",
+    items: [
+      {
+        title: "Default",
+        description: "Full list, totals computed once per loop",
+        item: ListFilterEnrichWith.make({ items: ITEMS }),
+      },
+      {
+        title: "Pre-filtered",
+        description: "Initial query applied",
+        item: ListFilterEnrichWith.make({ items: ITEMS, query: "those" }),
+      },
+    ],
+  };
+}

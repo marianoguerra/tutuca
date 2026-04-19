@@ -370,6 +370,39 @@ export function getRequestHandlers() {
   };
 }
 
+export function getStoryBookSection() {
+  return {
+    title: "Personal Site",
+    description: "Filterable list of entries with categories and roles",
+    items: [
+      {
+        title: "Default (Loading)",
+        description: "Initial state, requests data on init",
+        item: Root.make(),
+      },
+      {
+        title: "Sample Entry",
+        description: "Single entry rendered standalone",
+        item: Entry.Class.fromData({
+          title: "Sample Project",
+          description: "An example entry",
+          startYear: 2020,
+          endYear: 2024,
+          role: "Author",
+          featured: true,
+          url: "#",
+          categories: ["Web", "AI"],
+        }),
+      },
+      {
+        title: "Alt URL",
+        description: "Auxiliary link badge",
+        item: AltUrl.make({ label: "GitHub", url: "#" }),
+      },
+    ],
+  };
+}
+
 export function getExtraCSSClasses() {
   const v = new Set(
     "btn btn-xs btn-neutral font-bold ring-1 ring-neutral-content/30 btn-ghost font-bold opacity-40".split(

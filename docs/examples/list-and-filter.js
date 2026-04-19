@@ -33,3 +33,27 @@ export function getComponents() {
 export function getRoot() {
   return ListAndFilter.make({ items: ITEMS });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "List and Filter",
+    description: "Render a list with a search filter",
+    items: [
+      {
+        title: "Default",
+        description: "Full list, no filter",
+        item: ListAndFilter.make({ items: ITEMS }),
+      },
+      {
+        title: "Pre-filtered",
+        description: "Initial query applied",
+        item: ListAndFilter.make({ items: ITEMS, query: "those" }),
+      },
+      {
+        title: "Empty",
+        description: "No items",
+        item: ListAndFilter.make({ items: [] }),
+      },
+    ],
+  };
+}

@@ -93,3 +93,37 @@ export function getRequestHandlers() {
     },
   };
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Request Example",
+    description: "Triggers a request on init and renders the response",
+    items: [
+      {
+        title: "Default (Loading)",
+        description: "Initial state, waiting for response",
+        item: RequestExample.make(),
+      },
+      {
+        title: "Loaded With Items",
+        description: "Pre-populated with sample entries",
+        item: RequestExample.make({
+          isLoading: false,
+          items: [
+            Entry.make({ title: "First", description: "Item one" }),
+            Entry.make({ title: "Second", description: "Item two" }),
+          ],
+        }),
+      },
+      {
+        title: "Edit View",
+        description: "Pushed view for editing",
+        item: RequestExample.make({
+          isLoading: false,
+          view: "edit",
+          items: [Entry.make({ title: "Edit me", description: "Then save" })],
+        }),
+      },
+    ],
+  };
+}

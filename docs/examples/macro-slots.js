@@ -40,3 +40,22 @@ export function getComponents() {
 export function getRoot() {
   return MacroSlots.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Macro Slots",
+    description: "Macros with default slots receive component content",
+    items: [
+      {
+        title: "Default",
+        description: "Two card macros side by side",
+        item: MacroSlots.make(),
+      },
+      {
+        title: "With Initial Count",
+        description: "Pre-populated counter",
+        item: MacroSlots.make({ count: 10 }),
+      },
+    ],
+  };
+}

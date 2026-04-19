@@ -51,3 +51,23 @@ export function getRoot() {
   const ENTRIES = ITEMS.map((v) => Entry.make({ title: v, description: `Length: ${v.length}` }));
   return PushView.make({ items: ENTRIES });
 }
+
+export function getStoryBookSection() {
+  const ENTRIES = ITEMS.map((v) => Entry.make({ title: v, description: `Length: ${v.length}` }));
+  return {
+    title: "Push View",
+    description: "@push-view forces children to render under a different view",
+    items: [
+      {
+        title: "Default (Read Only)",
+        description: "Default 'main' view",
+        item: PushView.make({ items: ENTRIES }),
+      },
+      {
+        title: "Edit View",
+        description: "Pushed 'edit' view",
+        item: PushView.make({ items: ENTRIES, view: "edit" }),
+      },
+    ],
+  };
+}

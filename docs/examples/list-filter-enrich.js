@@ -37,3 +37,22 @@ export function getComponents() {
 export function getRoot() {
   return ListFilterEnrich.make({ items: ITEMS });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "List Filter + Enrich",
+    description: "@when filter combined with @enrich-with bindings",
+    items: [
+      {
+        title: "Default",
+        description: "Full list, no filter",
+        item: ListFilterEnrich.make({ items: ITEMS }),
+      },
+      {
+        title: "Pre-filtered",
+        description: "Initial query applied",
+        item: ListFilterEnrich.make({ items: ITEMS, query: "ones" }),
+      },
+    ],
+  };
+}

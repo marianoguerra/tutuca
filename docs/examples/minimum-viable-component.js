@@ -9,3 +9,17 @@ export function getComponents() {
 export function getRoot() {
   return MinimumViableComponent.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Minimum Viable Component",
+    description: "Smallest possible component definition",
+    items: [
+      {
+        title: "Default",
+        description: "Renders nothing visible",
+        item: MinimumViableComponent.make(),
+      },
+    ],
+  };
+}

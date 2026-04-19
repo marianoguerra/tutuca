@@ -26,3 +26,22 @@ export function getComponents() {
 export function getRoot() {
   return ConditionalAttributes.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Conditional Attributes",
+    description: "@if/@then/@else for class and title attributes",
+    items: [
+      {
+        title: "Active",
+        description: "Initial state is enabled",
+        item: ConditionalAttributes.make({ isActive: true }),
+      },
+      {
+        title: "Inactive",
+        description: "Initial state is disabled",
+        item: ConditionalAttributes.make({ isActive: false }),
+      },
+    ],
+  };
+}

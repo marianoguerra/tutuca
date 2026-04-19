@@ -37,3 +37,22 @@ export function getComponents() {
 export function getRoot() {
   return Counter.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Counter",
+    description: "A counter component that can be increased and decreased",
+    items: [
+      {
+        title: "Basic Counter",
+        description: "A Basic Counter",
+        item: Counter.make(),
+      },
+      {
+        title: "Counter with negative initial value",
+        description: "Let's see how it handles negative values",
+        item: Counter.make({ count: -5 }),
+      },
+    ],
+  };
+}

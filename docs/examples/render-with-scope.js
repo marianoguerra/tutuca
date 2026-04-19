@@ -25,3 +25,22 @@ export function getComponents() {
 export function getRoot() {
   return RenderWithScope.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Render With Scope",
+    description: "@enrich-with adds derived bindings to a sub-tree",
+    items: [
+      {
+        title: "Default",
+        description: "Default text",
+        item: RenderWithScope.make(),
+      },
+      {
+        title: "Custom Text",
+        description: "Pre-populated with longer text",
+        item: RenderWithScope.make({ text: "Tutuca" }),
+      },
+    ],
+  };
+}

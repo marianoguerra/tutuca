@@ -58,3 +58,22 @@ export function getRoot() {
     ),
   });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Sequence Item Access",
+    description: "Render specific items by index or key into a sequence",
+    items: [
+      {
+        title: "Default (First Item)",
+        description: "Shows items at index 0 / key-0",
+        item: getRoot(),
+      },
+      {
+        title: "Different Selection",
+        description: "Pre-selects index 3 and key-3",
+        item: getRoot().setCurrentIndex(3).setCurrentKey("key-3"),
+      },
+    ],
+  };
+}

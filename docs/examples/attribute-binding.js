@@ -42,3 +42,22 @@ export function getComponents() {
 export function getRoot() {
   return AttributeBinding.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Attribute Binding",
+    description: "Two-way binding for string, number and boolean fields",
+    items: [
+      {
+        title: "Defaults",
+        description: "Initial field values",
+        item: AttributeBinding.make(),
+      },
+      {
+        title: "Custom Values",
+        description: "Pre-populated with non-default state",
+        item: AttributeBinding.make({ str: "world", num: 7, bool: false }),
+      },
+    ],
+  };
+}

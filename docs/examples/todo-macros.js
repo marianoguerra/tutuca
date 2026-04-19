@@ -114,3 +114,38 @@ export function getComponents() {
 export function getRoot() {
   return Items.make({ items: [Item.make({ text: "add another one" })] });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "To Do (Macros)",
+    description: "To-Do list built using reusable layout/control macros",
+    items: [
+      {
+        title: "Default Item",
+        description: "Single empty item",
+        item: Item.make(),
+      },
+      {
+        title: "Completed Item",
+        description: "Item flagged completed",
+        item: Item.make({ completed: true }),
+      },
+      {
+        title: "Empty List",
+        description: "List with no items",
+        item: Items.make(),
+      },
+      {
+        title: "Some Items",
+        description: "Mixed completion states",
+        item: Items.make({
+          items: [
+            Item.make(),
+            Item.make({ completed: true }),
+            Item.make({ completed: true, text: "" }),
+          ],
+        }),
+      },
+    ],
+  };
+}

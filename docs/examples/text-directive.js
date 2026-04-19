@@ -26,3 +26,22 @@ export function getComponents() {
 export function getRoot() {
   return TextDirective.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Text Directive",
+    description: "@text and <x text> render field, computed and method values",
+    items: [
+      {
+        title: "Defaults",
+        description: "Default field values",
+        item: TextDirective.make(),
+      },
+      {
+        title: "Custom Values",
+        description: "Pre-populated with custom values",
+        item: TextDirective.make({ str: "tutuca", num: 100, bool: false }),
+      },
+    ],
+  };
+}

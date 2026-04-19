@@ -76,3 +76,22 @@ export function getComponents() {
 export function getRoot() {
   return DnDExample.make({ items: ITEMS });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Drag and Drop",
+    description: "Reorder list items via drag and drop",
+    items: [
+      {
+        title: "Default",
+        description: "Full list, no filter",
+        item: DnDExample.make({ items: ITEMS }),
+      },
+      {
+        title: "Pre-filtered",
+        description: "Initial query applied",
+        item: DnDExample.make({ items: ITEMS, query: "ones" }),
+      },
+    ],
+  };
+}

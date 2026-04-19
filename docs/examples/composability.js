@@ -1,4 +1,5 @@
 import { component, html } from "tutuca";
+import { getComponents as getDndComponents, getRoot as getDndRoot } from "./dnd-example.js";
 import { getComponents as getJsonComponents, getRoot as getJsonRoot } from "./json.js";
 import {
   getComponents as getPersonalSiteComponents,
@@ -8,14 +9,10 @@ import {
 import { getComponents as getTodoComponents, getRoot as getTodoRoot } from "./todo.js";
 import { getComponents as getTreeComponents, getRoot as getTreeRoot } from "./tree.js";
 import {
+  getMacros as getMacrosVisualWasm,
   getComponents as getVisualWasmComponents,
   getRoot as getVisualWasmRoot,
-  getMacros as getMacrosVisualWasm,
 } from "./visual-wasm.js";
-import {
-  getComponents as getDndComponents,
-  getRoot as getDndRoot,
-} from "./dnd-example.js";
 
 const Composability = component({
   name: "Composability",
@@ -169,4 +166,28 @@ export function getRequestHandlers() {
 
 export function getMacros() {
   return { ...getMacrosVisualWasm() };
+}
+
+export function getStoryBookSection() {
+  return {
+    title: "Composability",
+    description: "Tabbed view that composes several independent example components",
+    items: [
+      {
+        title: "Default (To-Do tab)",
+        description: "All sub-apps wired up, To-Do tab selected",
+        item: getRoot(),
+      },
+      {
+        title: "JSON Editor Selected",
+        description: "Starts on the JSON Editor tab",
+        item: getRoot().setActiveSection("json"),
+      },
+      {
+        title: "Tree Selected",
+        description: "Starts on the Tree tab",
+        item: getRoot().setActiveSection("tree"),
+      },
+    ],
+  };
 }

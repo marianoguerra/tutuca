@@ -35,3 +35,25 @@ export function getComponents() {
 export function getRoot() {
   return Entry.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Entry",
+    description: "Card-style entry with a title and description",
+    items: [
+      {
+        title: "Default",
+        description: "Default field values",
+        item: Entry.make(),
+      },
+      {
+        title: "Custom",
+        description: "Custom title and description",
+        item: Entry.make({
+          title: "Hello",
+          description: "A custom entry description",
+        }),
+      },
+    ],
+  };
+}

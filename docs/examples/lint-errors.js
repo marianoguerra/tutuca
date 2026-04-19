@@ -58,3 +58,22 @@ export function getComponents() {
 export function getRoot() {
   return LintDemo.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Lint Errors",
+    description: "Component with intentional lint errors for the linter demo",
+    items: [
+      {
+        title: "Default",
+        description: "All lint errors triggered",
+        item: LintDemo.make(),
+      },
+      {
+        title: "With Count",
+        description: "Initialized with a non-zero count",
+        item: LintDemo.make({ count: 5 }),
+      },
+    ],
+  };
+}

@@ -18,3 +18,27 @@ export function getComponents() {
 export function getRoot() {
   return ListIteration.make({ items: ITEMS });
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "List Iteration",
+    description: "@each renders one element per item",
+    items: [
+      {
+        title: "Default",
+        description: "Iterating over the shared sample list",
+        item: ListIteration.make({ items: ITEMS }),
+      },
+      {
+        title: "Empty",
+        description: "No items",
+        item: ListIteration.make({ items: [] }),
+      },
+      {
+        title: "Custom Items",
+        description: "Custom small list",
+        item: ListIteration.make({ items: ["one", "two", "three"] }),
+      },
+    ],
+  };
+}

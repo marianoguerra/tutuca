@@ -25,3 +25,17 @@ export function getComponents() {
 export function getRoot() {
   return StaticMacro.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Macro Static",
+    description: "Macros without parameters expand to static markup",
+    items: [
+      {
+        title: "Default",
+        description: "Three feature rows with optional badges",
+        item: StaticMacro.make(),
+      },
+    ],
+  };
+}

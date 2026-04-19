@@ -28,3 +28,22 @@ export function getComponents() {
 export function getRoot() {
   return MacroParams.make({});
 }
+
+export function getStoryBookSection() {
+  return {
+    title: "Macro Params",
+    description: "Static and dynamic macro parameter passing",
+    items: [
+      {
+        title: "Default",
+        description: "Active status",
+        item: MacroParams.make(),
+      },
+      {
+        title: "Inactive",
+        description: "Inactive status binding",
+        item: MacroParams.make({ status: "inactive" }),
+      },
+    ],
+  };
+}
