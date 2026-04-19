@@ -261,7 +261,7 @@ class Task {
   }
 }
 class Dispatcher {
-  constructor(path, transactor, parentTransaction = null) {
+  constructor(path, transactor, parentTransaction) {
     this.path = path;
     this.transactor = transactor;
     this.parent = parentTransaction;
