@@ -4,6 +4,7 @@ import { Stack } from "./stack.js";
 import { Transactor } from "./transactor.js";
 import { render } from "./vdom.js";
 
+const _evs = "dragstart dragover dragend touchstart touchmove touchend touchcancel".split(" ");
 export class App {
   constructor(rootNode, comps, renderer, ParseContext) {
     this.rootNode = rootNode;
@@ -14,8 +15,9 @@ export class App {
     this.renderer = renderer;
     this.maxEventNodeDepth = Infinity;
     this._transactNextBatchId = this._evictCacheId = null;
-    this._eventNames = new Set(["dragstart", "dragover", "dragend"]);
+    this._eventNames = new Set(_evs);
     this.dragInfo = this.curDragOver = null;
+    this._touch = null;
     this.transactor.onTransactionPushed = (_transaction) => {
       if (this._transactNextBatchId === null) this._scheduleNextTransactionBatchExecution();
     };
@@ -27,14 +29,65 @@ export class App {
   }
   handleEvent(e) {
     const { type } = e;
+    if (type[0] === "t" && type.startsWith("touch")) {
+      this._handleTouchEvent(e);
+      return;
+    }
+    this._dispatchEvent(e);
+  }
+  _dispatchEvent(e) {
+    const { type } = e;
     const isDrag = type === "dragover" || type === "dragstart" || type === "dragend";
     const { rootNode: root, maxEventNodeDepth: maxDepth, comps } = this;
     const [path, handlers] = Path.fromEvent(e, root, maxDepth, comps, !isDrag);
-    if (isDrag) this._handleDragEvent();
+    if (isDrag) this._handleDragEvent(e, type, path);
     if (path !== null && handlers !== null) {
       for (const handler of handlers) {
         this.transactor.transactInputNow(path, e, handler, this.dragInfo);
       }
+    }
+  }
+  _handleTouchEvent(e) {
+    const { type } = e;
+    if (type === "touchstart") {
+      if (this._touch !== null || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const draggable = t.target?.closest?.('[draggable="true"]');
+      if (!draggable) return;
+      this._touch = makeTouchInfo(t.identifier, t.clientX, t.clientY, draggable, false);
+      return;
+    }
+    if (this._touch === null) return;
+    const touch = findTouch(e, this._touch.id);
+    const { rootNode, _touch } = this;
+    if (type === "touchmove") {
+      if (touch === null) return;
+      const { clientX, clientY } = touch;
+      if (!_touch.active) {
+        const dx = clientX - _touch.startX;
+        const dy = clientY - _touch.startY;
+        if (dx * dx + dy * dy < TOUCH_DRAG_THRESHOLD_SQ) return;
+        _touch.active = true;
+        e.preventDefault();
+        this._dispatchEvent(makeSyntheticDragEvent("dragstart", _touch.target, clientX, clientY));
+      } else {
+        e.preventDefault();
+        const target = hitTest(rootNode, clientX, clientY);
+        this._dispatchEvent(makeSyntheticDragEvent("dragover", target, clientX, clientY));
+      }
+      return;
+    }
+    if (type === "touchend" || type === "touchcancel") {
+      if (touch === null) return;
+      if (_touch.active) {
+        const { clientX, clientY } = touch;
+        if (type === "touchend") {
+          const target = hitTest(rootNode, clientX, clientY);
+          this._dispatchEvent(makeSyntheticDragEvent("drop", target, clientX, clientY));
+        }
+        this._dispatchEvent(makeSyntheticDragEvent("dragend", _touch.target, clientX, clientY));
+      }
+      this._touch = null;
     }
   }
   _handleDragEvent(e, type, path) {
@@ -88,7 +141,8 @@ export class App {
   }
   start(opts) {
     if (!this._compiled) this.compile();
-    for (const name of this._eventNames) this.rootNode.addEventListener(name, this);
+    for (const name of this._eventNames)
+      this.rootNode.addEventListener(name, this, listenerOpts(name));
     this.onChange((info) => {
       if (info.val !== info.old) this.render();
     });
@@ -103,7 +157,8 @@ export class App {
   }
   stop() {
     this.stopCacheEvictionInterval();
-    for (const name of this._eventNames) this.rootNode.removeEventListener(name, this);
+    for (const name of this._eventNames)
+      this.rootNode.removeEventListener(name, this, listenerOpts(name));
   }
   dispatchLogicAtRoot(name, args, opts) {
     return this.transactor.pushLogic(new Path([]), name, args, opts);
@@ -138,6 +193,31 @@ export function injectCss(nodeId, style, styleTarget = document.head) {
   styleNode.id = nodeId;
   styleNode.innerHTML = style;
   styleTarget.appendChild(styleNode);
+}
+const TOUCH_DRAG_THRESHOLD_PX = 10;
+const TOUCH_DRAG_THRESHOLD_SQ = TOUCH_DRAG_THRESHOLD_PX * TOUCH_DRAG_THRESHOLD_PX;
+const NOOP = () => {};
+function makeSyntheticDragEvent(type, target, clientX, clientY) {
+  return { type, target, clientX, clientY, preventDefault: NOOP };
+}
+function makeTouchInfo(id, startX, startY, target, active) {
+  return { id, startX, startY, target, active };
+}
+function findTouch(e, id) {
+  for (const t of e.changedTouches) if (t.identifier === id) return t;
+  for (const t of e.touches) if (t.identifier === id) return t;
+  return null;
+}
+const listenerOpts = (name) => (name === "touchmove" ? { passive: false } : undefined);
+function hitTest(rootNode, x, y) {
+  const root = rootNode.getRootNode();
+  let el = root.elementFromPoint?.(x, y) ?? null;
+  while (el?.shadowRoot) {
+    const next = el.shadowRoot.elementFromPoint(x, y);
+    if (next === null || next === el) break;
+    el = next;
+  }
+  return el ?? rootNode;
 }
 function getClosestDropTarget(target, rootNode, count) {
   let node = target;
