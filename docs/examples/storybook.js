@@ -188,6 +188,7 @@ export function getRoot() {
   const storyBookSections = getStoryBookSection();
   storyBookSections.items.push({
     title: "Inception",
+    description: "The outer storybook, as an example of itself 🐢️",
     item: Storybook.make({ sections }),
   });
   return Storybook.make({
