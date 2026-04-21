@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tutuca: Zero-dependency batteries included SPA framework</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "tutuca-dev": "../dev.js",
+          "tutuca": "https://esm.sh/tutuca/dev",
+          "margaui": "https://esm.sh/margaui"
+        }
+      }
+    </script>
     <meta
       name="description"
       content="Tutuca is a zero-dependency, batteries-included SPA framework. One script tag to start — no build step, no setup. State management, virtual DOM, drag and drop, and more."
@@ -43,16 +52,8 @@
       name="twitter:image"
       content="https://marianoguerra.github.io/tutuca/og-image.webp"
     />
-    <script type="importmap">
-      {
-        "imports": {
-          "tutuca-dev": "../dev.js",
-          "tutuca": "https://esm.sh/tutuca/dev",
-          "margaui": "https://esm.sh/margaui"
-        }
-      }
-    </script>
     <link rel="stylesheet" href="./styles/site.css" />
+    <script type="module" src="src/index.js"></script>
   </head>
   <body>
     <nav>
@@ -265,6 +266,5 @@
         >🐘️ @marianoguerra@hachyderm.io</a
       >
     </footer>
-    <script type="module" src="src/index.js"></script>
   </body>
 </html>

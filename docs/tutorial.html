@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tutuca Tutorial: Learn the framework step by step</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "tutuca-dev": "../dev.js",
+          "tutuca": "https://esm.sh/tutuca/dev",
+          "margaui": "https://esm.sh/margaui"
+        }
+      }
+    </script>
     <meta
       name="description"
       content="Interactive tutorial for Tutuca, a zero-dependency SPA framework. Learn components, state management, macros, drag and drop, and more with editable live examples."
@@ -50,16 +59,8 @@
       content="https://marianoguerra.github.io/tutuca/og-image.webp"
     />
 
-    <script type="importmap">
-      {
-        "imports": {
-          "tutuca-dev": "../dev.js",
-          "tutuca": "https://esm.sh/tutuca/dev",
-          "margaui": "https://esm.sh/margaui"
-        }
-      }
-    </script>
     <link rel="stylesheet" href="./styles/site.css" />
+    <script type="module" src="src/tutorial.js"></script>
   </head>
   <body>
     <nav>
@@ -790,6 +791,5 @@
         >&#x1F418;&#xFE0F; @marianoguerra@hachyderm.io</a
       >
     </footer>
-    <script type="module" src="src/tutorial.js"></script>
   </body>
 </html>
