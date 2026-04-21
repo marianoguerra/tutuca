@@ -57,6 +57,10 @@ export class TutucaPlayground extends HTMLElement {
       opacity: 1;
       border-bottom: 2px solid currentColor;
     }
+    .tab-bar .eject-btn {
+      flex: 0 0 auto;
+      margin-left: auto;
+    }
     .tab-panel {
       flex: 1;
       overflow: auto;
@@ -148,6 +152,7 @@ export class TutucaPlayground extends HTMLElement {
           <button class="active" data-tab="preview">Preview</button>
           <button data-tab="api-docs">API Docs</button>
           <button data-tab="lint">Lint <span class="lint-badge">0</span></button>
+          <button class="eject-btn" title="Eject to folder">&#x23CF;&#xFE0F;</button>
         </div>
         <div class="tab-panel active" data-panel="preview"></div>
         <div class="undo-slider" data-panel="undo"></div>
@@ -160,18 +165,20 @@ export class TutucaPlayground extends HTMLElement {
     this.preview = this.shadowRoot.querySelector('[data-panel="preview"]');
     this.apiDocsPanel = this.shadowRoot.querySelector('[data-panel="api-docs"]');
     this.lintPanel = this.shadowRoot.querySelector('[data-panel="lint"]');
-    this.lintBadge = this.shadowRoot.querySelector('.lint-badge');
+    this.lintBadge = this.shadowRoot.querySelector(".lint-badge");
 
     this.shadowRoot.querySelector(".tab-bar").addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-tab]");
       if (!btn) return;
-      for (const b of this.shadowRoot.querySelectorAll(".tab-bar button")) {
+      for (const b of this.shadowRoot.querySelectorAll(".tab-bar button[data-tab]")) {
         b.classList.toggle("active", b === btn);
       }
       for (const p of this.shadowRoot.querySelectorAll(".tab-panel")) {
         p.classList.toggle("active", p.dataset.panel === btn.dataset.tab);
       }
     });
+
+    this.shadowRoot.querySelector(".eject-btn").addEventListener("click", () => this._eject());
 
     this.editor.addEventListener("code-editor-update", (e) => {
       this.editor._code = e.detail.code;
@@ -196,6 +203,40 @@ export class TutucaPlayground extends HTMLElement {
     const resp = await fetch(src);
     this.editor.code = await resp.text();
     this.run();
+  }
+
+  async _eject() {
+    const btn = this.shadowRoot.querySelector(".eject-btn");
+    btn.disabled = true;
+    try {
+      const tutucaUrl = this._resolveSpecifier("tutuca");
+      const margauiUrl = this._resolveSpecifier("margaui");
+      const src = this.getAttribute("src") || "./src/counter.js";
+      const exampleName = src.split("/").pop().replace(/\.js$/, "");
+      const folder = `tutuca-${exampleName}`;
+      const { zipSync, strToU8 } = await import("https://esm.sh/fflate");
+      const zipped = zipSync({
+        [folder]: {
+          "index.html": strToU8(EJECT_INDEX_HTML(tutucaUrl, margauiUrl)),
+          "README.md": strToU8(EJECT_README_MD),
+          "src/app.js": strToU8(EJECT_APP_JS),
+          "src/components.js": strToU8(this.editor.code),
+        },
+      });
+
+      const blob = new Blob([zipped], { type: "application/zip" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${folder}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      alert(`Eject failed: ${e.message}`);
+    } finally {
+      btn.disabled = false;
+    }
   }
 
   _getImportMap() {
@@ -287,7 +328,12 @@ export class TutucaPlayground extends HTMLElement {
         extraCSSClasses = new Set(mod.getExtraCSSClasses());
       }
       app.state.set(mod.getRoot());
-      const styleText = await compileClassesToStyleText(app, compile, extraCSSClasses, LintClassCollectorCtx);
+      const styleText = await compileClassesToStyleText(
+        app,
+        compile,
+        extraCSSClasses,
+        LintClassCollectorCtx,
+      );
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);
@@ -424,6 +470,101 @@ export class TutucaPlayground extends HTMLElement {
     this.lintPanel.replaceChildren(frag);
   }
 }
+
+const EJECT_INDEX_HTML = (tutucaUrl, margauiUrl) => `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tutuca App</title>
+    <link
+      rel="stylesheet"
+      href="https://marianoguerra.github.io/margaui/themes/theme.css"
+    />
+    <script type="importmap">
+      {
+        "imports": {
+          "tutuca": "${tutucaUrl}",
+          "margaui": "${margauiUrl}"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./src/app.js"></script>
+  </body>
+</html>
+`;
+
+const EJECT_APP_JS = `import { compile } from "margaui";
+import { compileClassesToStyleText, tutuca } from "tutuca";
+import * as mod from "./components.js";
+
+function detectTheme() {
+  const setTheme = (t) => document.documentElement.setAttribute("data-theme", t);
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  setTheme(mq.matches ? "dark" : "light");
+  mq.addEventListener("change", (e) => setTheme(e.matches ? "dark" : "light"));
+}
+
+async function main() {
+  detectTheme();
+  const app = tutuca("#app");
+  const components = mod.getComponents();
+  const scope = app.registerComponents(components);
+  if (mod.getMacros) scope.registerMacros(mod.getMacros());
+  if (mod.getRequestHandlers) scope.registerRequestHandlers(mod.getRequestHandlers());
+  const extraCSSClasses = new Set(mod.getExtraCSSClasses?.() ?? []);
+  const styleText = await compileClassesToStyleText(app, compile, extraCSSClasses);
+  const style = document.createElement("style");
+  style.textContent = styleText;
+  document.head.appendChild(style);
+  app.state.set(mod.getRoot());
+  app.start();
+  app.dispatchLogicAtRoot("init", []);
+}
+
+main();
+`;
+
+const EJECT_README_MD = `# Ejected Tutuca App
+
+This folder is a Tutuca app ejected from the playground. No build step —
+open \`index.html\` through a static server.
+
+## Structure
+
+- \`index.html\` — entry point. Links the margaui theme stylesheet
+  (light + dark variables), declares an importmap that points
+  \`tutuca\` and \`margaui\` at their esm.sh URLs, and loads
+  \`src/app.js\` as a module.
+- \`src/app.js\` — bootstraps the app: creates the tutuca root, registers
+  the components exported by \`src/components.js\`, compiles margaui
+  classes into a \`<style>\`, and starts the app.
+- \`src/components.js\` — your component source. Edit this to change the
+  app. It imports \`tutuca\` and \`margaui\` by bare specifier; those
+  resolve through the importmap in \`index.html\`.
+
+## Running
+
+Serve the folder with any static server, e.g.:
+
+    python3 -m http.server 8000
+
+Then open http://localhost:8000/ in a browser. Opening \`index.html\`
+directly via \`file://\` will not work because the importmap needs an
+http(s) origin.
+
+## Notes
+
+- \`tutuca\` and \`margaui\` are loaded from esm.sh at runtime — the app
+  therefore needs network access the first time each module is
+  requested (the browser then caches them).
+- To pin versions, edit the URLs in the importmap inside \`index.html\`.
+- To go fully offline, download the modules, place them alongside the
+  app, and update the importmap to point at the local paths.
+`;
 
 function _lintIdToMessage(id, info) {
   switch (id) {
