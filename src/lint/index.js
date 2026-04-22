@@ -1,22 +1,4 @@
-import {
-  EachNode,
-  MOD_WRAPPERS_BY_EVENT,
-  ParseContext,
-  RenderEachNode,
-  RenderItNode,
-} from "../anode.js";
-import { Attr, DynAttrs } from "../attribute.js";
-import {
-  ComputedVal,
-  ConstVal,
-  FieldVal,
-  InputHandlerNameVal,
-  NameVal,
-  RawFieldVal,
-  RequestVal,
-  SeqAccessVal,
-  TypeVal,
-} from "../value.js";
+import { MOD_WRAPPERS_BY_EVENT, ParseContext } from "../anode.js";
 
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
 export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
@@ -53,9 +35,10 @@ function checkRenderItInLoop(lx, view) {
   const { nodes } = view.ctx;
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    if (node instanceof RenderItNode) {
+    if (node.constructor.name === "RenderItNode") {
       const next = nodes[i + 1];
-      if (!(next instanceof EachNode || next instanceof RenderEachNode)) {
+      const nextName = next?.constructor.name;
+      if (nextName !== "EachNode" && nextName !== "RenderEachNode") {
         lx.error(RENDER_IT_OUTSIDE_OF_LOOP, { node });
       }
     }
@@ -124,7 +107,8 @@ function checkEventHandlersHaveImpls(lx, Comp) {
     for (const event of view.ctx.events) {
       for (const handler of event.handlers) {
         const { handlerVal } = handler.handlerCall;
-        if (handlerVal instanceof InputHandlerNameVal) {
+        const hvName = handlerVal?.constructor.name;
+        if (hvName === "InputHandlerNameVal") {
           if (input[handlerVal.name] === undefined) {
             lx.warn(INPUT_HANDLER_NOT_IMPLEMENTED, {
               name: handlerVal.name,
@@ -139,7 +123,7 @@ function checkEventHandlersHaveImpls(lx, Comp) {
               });
             }
           }
-        } else if (handlerVal instanceof RawFieldVal) {
+        } else if (hvName === "RawFieldVal") {
           if (proto[handlerVal.name] === undefined) {
             lx.warn(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED, {
               name: handlerVal.name,
@@ -161,30 +145,33 @@ function checkEventHandlersHaveImpls(lx, Comp) {
 }
 
 function checkConsistentAttrVal(lx, val, fields, proto, computed, scope) {
-  if (val instanceof FieldVal || val instanceof RawFieldVal) {
+  const valName = val?.constructor.name;
+  if (valName === "FieldVal" || valName === "RawFieldVal") {
     const { name } = val;
     if (fields[name] === undefined && proto[name] === undefined) {
       lx.error(FIELD_VAL_NOT_DEFINED, { val, name });
     }
-  } else if (val instanceof ComputedVal) {
+  } else if (valName === "ComputedVal") {
     const { name } = val;
     if (computed[name] === undefined) {
       lx.error(COMPUTED_VAL_NOT_DEFINED, { val, name });
     }
-  } else if (val instanceof SeqAccessVal) {
+  } else if (valName === "SeqAccessVal") {
     checkConsistentAttrVal(lx, val.seqVal, fields, proto, computed, scope);
     checkConsistentAttrVal(lx, val.keyVal, fields, proto, computed, scope);
-  } else if (val instanceof RequestVal) {
+  } else if (valName === "RequestVal") {
     if (scope.lookupRequest(val.name) === null) {
       lx.warn(UNKNOWN_REQUEST_NAME, { name: val.name });
     }
-  } else if (val instanceof TypeVal) {
+  } else if (valName === "TypeVal") {
     if (scope.lookupComponent(val.name) === null) {
       lx.warn(UNKNOWN_COMPONENT_NAME, { name: val.name });
     }
-  } else if (val instanceof NameVal && !isKnownHandlerName(val.name)) {
-    lx.warn(UNKNOWN_HANDLER_ARG_NAME, { name: val.name });
-  } else if (!(val instanceof ConstVal)) {
+  } else if (valName === "NameVal") {
+    if (!isKnownHandlerName(val.name)) {
+      lx.warn(UNKNOWN_HANDLER_ARG_NAME, { name: val.name });
+    }
+  } else if (valName !== "ConstVal" && valName !== "BindVal") {
     console.log(val);
   }
 }
@@ -198,9 +185,9 @@ function checkConsistentAttrs(lx, Comp) {
     for (const attr of view.ctx.attrs) {
       const { attrs, wrapperAttrs, textChild } = attr;
 
-      if (attrs instanceof DynAttrs) {
+      if (attrs?.constructor.name === "DynAttrs") {
         for (const attr of attrs.items) {
-          if (attr instanceof Attr) {
+          if (attr?.constructor.name === "Attr") {
             checkConsistentAttrVal(lx, attr.val, fields, proto, computed, scope);
           }
         }
