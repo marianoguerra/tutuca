@@ -621,6 +621,12 @@ describe("ANode", () => {
       expect(px.nodes[1]).toBe(r);
       expect(px.nodes[0]).toBe(r.node);
     });
+    test("pseudo x", () => {
+      // https://hachyderm.io/@marianoguerra/116448570359438457
+      const [r] = parse(`<select><option @x render-each=".items" as="option"></x></select>`);
+      expect(r.childs[0]).toBeInstanceOf(RenderEachNode);
+      expect(r.childs[0].viewId).toBe("option");
+    });
 
     // TODO: test px.error conditions
   });

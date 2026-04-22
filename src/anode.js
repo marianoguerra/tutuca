@@ -130,21 +130,15 @@ export class ANode extends BaseNode {
     return ANode.fromDOM(nodes[0] ?? new px.Text(""), px);
   }
   static fromDOM(node, px) {
-    if (px.isTextNode(node)) {
-      return new TextNode(node.textContent);
-    } else if (px.isCommentNode(node)) {
-      return new CommentNode(node.textContent);
-    }
+    if (px.isTextNode(node)) return new TextNode(node.textContent);
+    else if (px.isCommentNode(node)) return new CommentNode(node.textContent);
     const { childNodes, attributes: attrs, tagName: tag } = node;
     const childs = new Array(childNodes.length);
-    for (let i = 0; i < childNodes.length; i++) {
-      childs[i] = ANode.fromDOM(childNodes[i], px);
-    }
-    if (tag === "X") {
-      if (attrs.length === 0) {
-        return maybeFragment(childs);
-      }
-      const { name, value } = attrs[0];
+    for (let i = 0; i < childNodes.length; i++) childs[i] = ANode.fromDOM(childNodes[i], px);
+    const isPseudoX = attrs[0]?.name === "@x";
+    if (tag === "X" || isPseudoX) {
+      if (attrs.length === 0) return maybeFragment(childs);
+      const { name, value } = attrs[isPseudoX ? 1 : 0];
       const as = attrs.getNamedItem("as")?.value ?? null;
       switch (name) {
         case "slot":
@@ -177,9 +171,7 @@ export class ANode extends BaseNode {
     } else if (VALID_NODE_RE.test(tag)) {
       const [nAttrs, wrappers, textChild] = Attributes.parse(attrs, px);
       px.onAttributes(nAttrs, wrappers, textChild);
-      if (textChild) {
-        childs.unshift(new RenderTextNode(null, textChild));
-      }
+      if (textChild) childs.unshift(new RenderTextNode(null, textChild));
       const domChilds = tag !== "PRE" ? condenseChildsWhites(childs) : childs;
       return wrap(new DomNode(tag.toLowerCase(), nAttrs, domChilds), px, wrappers);
     }
