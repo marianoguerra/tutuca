@@ -137,8 +137,15 @@ export class VNode extends VBase {
       this.namespace === null
         ? doc.createElement(this.tag)
         : doc.createElementNS(this.namespace, this.tag);
-    applyProperties(node, this.attrs, {});
-    appendChildNodes(node, this.childs, opts);
+    if (this.tag === "SELECT" && "value" in this.attrs) {
+      const { value, ...rest } = this.attrs;
+      applyProperties(node, rest, {});
+      appendChildNodes(node, this.childs, opts);
+      applyProperties(node, { value }, {});
+    } else {
+      applyProperties(node, this.attrs, {});
+      appendChildNodes(node, this.childs, opts);
+    }
     return node;
   }
 }
@@ -193,9 +200,20 @@ function morphNode(domNode, source, target, opts) {
       source.key === target.key
     ) {
       const propsDiff = diffProps(source.attrs, target.attrs);
-      if (propsDiff) applyProperties(domNode, propsDiff, source.attrs);
+      const isSelect = source.tag === "SELECT";
+      if (propsDiff) {
+        if (isSelect && "value" in propsDiff) {
+          const { value: _v, ...rest } = propsDiff;
+          applyProperties(domNode, rest, source.attrs);
+        } else {
+          applyProperties(domNode, propsDiff, source.attrs);
+        }
+      }
       if (!target.attrs.dangerouslySetInnerHTML) {
         morphChildren(domNode, source.childs, target.childs, opts);
+      }
+      if (isSelect && target.attrs.value !== undefined) {
+        applyProperties(domNode, { value: target.attrs.value }, source.attrs);
       }
       return domNode;
     }
