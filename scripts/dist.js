@@ -11,7 +11,7 @@ const modules = [
 
 for (const [input, output] of modules) {
   await $`bun build ${input} --outfile dist/${output}.js --format esm`;
-  await $`bun build ${input} --outfile dist/${output}.min.js --format esm --minify`;
+  await $`bun build ${input} --outfile dist/${output}.min.js --format esm --minify-whitespace --minify-syntax`;
   await $`brotli dist/${output}.min.js -o dist/${output}.min.js.br`;
 }
 
