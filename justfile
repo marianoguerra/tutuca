@@ -34,20 +34,32 @@ lint-fix:
 fix:
     npm run fix
 
-render-examples MODULE:
-    npm run render-examples -- {{MODULE}}
+tutuca *ARGS:
+    bun tools/tutuca.js {{ARGS}}
 
-component-api-docs MODULE:
-    npm run component-api-docs -- {{MODULE}}
+info MODULE:
+    bun tools/tutuca.js {{MODULE}} info
 
-vdom-stresstest iterations="100000" seed="":
-    npm run vdom-stresstest -- {{iterations}} {{seed}}
+list MODULE:
+    bun tools/tutuca.js {{MODULE}} list
 
-smoke-test-cli-render-examples:
-    npm run smoke-test-cli-render-examples
+examples MODULE:
+    bun tools/tutuca.js {{MODULE}} examples
 
-smoke-test-cli-component-api-docs:
-    npm run smoke-test-cli-component-api-docs
+docs MODULE NAME="":
+    bun tools/tutuca.js {{MODULE}} docs {{NAME}}
+
+lint-components MODULE NAME="":
+    bun tools/tutuca.js {{MODULE}} lint {{NAME}}
+
+render MODULE NAME="":
+    bun tools/tutuca.js {{MODULE}} render {{NAME}}
+
+doctor MODULE:
+    bun tools/tutuca.js {{MODULE}} doctor
+
+stresstest iterations="100000" seed="":
+    bun tools/tutuca.js stresstest --iterations {{iterations}} {{ if seed != "" { "--seed " + seed } else { "" } }}
 
 smoke-test:
     npm run smoke-test

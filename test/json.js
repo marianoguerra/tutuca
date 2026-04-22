@@ -250,10 +250,11 @@ export function getExamples() {
   ];
 
   // Level 1: scalar components + selector
-  const examples = [
+  const items = [
     { title: "JsonSelector", value: JsonSelector.make({ uid: "sel" }) },
     ...leaves.map((l) => ({ title: l.title, value: l.make(l.title) })),
   ];
+  const examples = items;
 
   // Level 2: container > leaf (all combinations)
   for (const leaf of leaves) {
@@ -316,5 +317,5 @@ export function getExamples() {
     });
   }
 
-  return examples;
+  return { title: "JSON", description: "Nested JSON editor components", items: examples };
 }

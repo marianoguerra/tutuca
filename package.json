@@ -9,7 +9,11 @@
     ".": "./dist/tutuca.js",
     "./dev": "./dist/tutuca-dev.js",
     "./extra": "./dist/tutuca-extra.js",
+    "./cli": "./dist/tutuca-cli.js",
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "tutuca": "./dist/tutuca-cli.js"
   },
   "scripts": {
     "clean": "rm -rf dist",
@@ -24,12 +28,8 @@
     "lint": "bunx @biomejs/biome lint src test/*.js",
     "lint-fix": "bunx @biomejs/biome lint --write src test/*.js",
     "fix": "bunx @biomejs/biome check --write src test/*.js",
-    "render-examples": "bun tools/render-examples.js",
-    "component-api-docs": "bun tools/component-api-docs.js",
-    "vdom-stresstest": "bun tools/vdom-stresstest.js",
-    "smoke-test-cli-render-examples": "bun tools/render-examples.js ./test/todo.js && bun tools/render-examples.js ./test/json.js",
-    "smoke-test-cli-component-api-docs": "bun tools/component-api-docs.js ./test/todo.js && bun tools/component-api-docs.js ./test/json.js",
-    "smoke-test": "bun run smoke-test-cli-render-examples && bun run smoke-test-cli-component-api-docs",
+    "tutuca": "bun tools/tutuca.js",
+    "smoke-test": "bun tools/tutuca.js ./test/todo.js doctor && bun tools/tutuca.js ./test/json.js doctor",
     "sync-playground": "cp src/util/docs.js docs/src/docs.js"
   },
   "sideEffects": false,
@@ -39,8 +39,17 @@
     "dist/tutuca-dev.js",
     "dist/tutuca-dev.min.js",
     "dist/tutuca-extra.js",
-    "dist/tutuca-extra.min.js"
+    "dist/tutuca-extra.min.js",
+    "dist/tutuca-cli.js"
   ],
+  "peerDependencies": {
+    "jsdom": "^28.0.0",
+    "prettier": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "jsdom": { "optional": true },
+    "prettier": { "optional": true }
+  },
   "keywords": [
     "frontend",
     "framework",

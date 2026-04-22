@@ -106,37 +106,41 @@ export function getMacros() {
 }
 
 export function getExamples() {
-  return [
-    { title: "Empty list", value: Items.make() },
-    { title: "Single default item", value: Items.make({ items: [Item.make()] }) },
-    {
-      title: "Single item with custom text",
-      value: Items.make({ items: [Item.make({ text: "buy milk" })] }),
-    },
-    {
-      title: "Completed item",
-      value: Items.make({ items: [Item.make({ completed: true, text: "done task" })] }),
-    },
-    {
-      title: "Multiple items",
-      value: Items.make({
-        items: [
-          Item.make({ text: "first" }),
-          Item.make({ text: "second" }),
-          Item.make({ text: "third" }),
-        ],
-      }),
-    },
-    {
-      title: "Mixed completed and incomplete items",
-      value: Items.make({
-        items: [
-          Item.make({ completed: true, text: "done" }),
-          Item.make({ completed: false, text: "pending" }),
-        ],
-      }),
-    },
-  ];
+  return {
+    title: "Todo",
+    description: "A todo list with add/remove/toggle",
+    items: [
+      { title: "Empty list", value: Items.make() },
+      { title: "Single default item", value: Items.make({ items: [Item.make()] }) },
+      {
+        title: "Single item with custom text",
+        value: Items.make({ items: [Item.make({ text: "buy milk" })] }),
+      },
+      {
+        title: "Completed item",
+        value: Items.make({ items: [Item.make({ completed: true, text: "done task" })] }),
+      },
+      {
+        title: "Multiple items",
+        value: Items.make({
+          items: [
+            Item.make({ text: "first" }),
+            Item.make({ text: "second" }),
+            Item.make({ text: "third" }),
+          ],
+        }),
+      },
+      {
+        title: "Mixed completed and incomplete items",
+        value: Items.make({
+          items: [
+            Item.make({ completed: true, text: "done" }),
+            Item.make({ completed: false, text: "pending" }),
+          ],
+        }),
+      },
+    ],
+  };
 }
 
 export function getComponents() {

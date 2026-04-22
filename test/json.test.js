@@ -9,7 +9,7 @@ const render = (rootState) =>
   renderToHTML(document, getComponents(), null, rootState, HeadlessParseContext);
 
 describe("Json Editor", () => {
-  for (const example of getExamples()) {
+  for (const example of getExamples().items) {
     test(example.title, () => {
       expect(render(example.value)).toMatchSnapshot();
     });

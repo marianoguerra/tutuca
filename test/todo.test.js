@@ -9,7 +9,7 @@ const render = (rootState) =>
   renderToHTML(document, getComponents(), getMacros(), rootState, HeadlessParseContext);
 
 describe("Todo App", () => {
-  for (const example of getExamples()) {
+  for (const example of getExamples().items) {
     test(example.title, () => {
       expect(render(example.value)).toMatchSnapshot();
     });
