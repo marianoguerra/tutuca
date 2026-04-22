@@ -8,7 +8,7 @@
       {
         "imports": {
           "tutuca-dev": "../dev.js",
-          "tutuca": "https://esm.sh/tutuca/dev",
+          "tutuca": "https://esm.sh/tutuca/dev?raw",
           "margaui": "https://esm.sh/margaui"
         }
       }
@@ -176,7 +176,8 @@
         </p>
         <pre><code>import { component } from "https://esm.sh/tutuca";<br>
           // or https://esm.sh/tutuca/extra<br>
-          // or https://esm.sh/tutuca/dev<br>
+          // or https://esm.sh/tutuca/dev?raw<br>
+          // or https://esm.sh/tutuca/dev?keep-names<br>
         </code></pre>
       </section>
       <section id="examples">
@@ -205,9 +206,7 @@
         </p>
         <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
         <h4>Web Component &amp; Custom Event</h4>
-        <p>
-          Embed a third-party web component and react to its custom events.
-        </p>
+        <p>Embed a third-party web component and react to its custom events.</p>
         <tutuca-playground
           src="./examples/web-component-custom-event.js"
         ></tutuca-playground>
