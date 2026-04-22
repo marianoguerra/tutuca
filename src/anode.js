@@ -25,18 +25,14 @@ export class TextNode extends BaseNode {
   isWhiteSpace() {
     for (let i = 0; i < this.val.length; i++) {
       const c = this.val.charCodeAt(i);
-      if (!(c === 32 || c === 10 || c === 9 || c === 13)) {
-        return false;
-      }
+      if (!(c === 32 || c === 10 || c === 9 || c === 13)) return false;
     }
     return true;
   }
   hasNewLine() {
     for (let i = 0; i < this.val.length; i++) {
       const c = this.val.charCodeAt(i);
-      if (c === 10 || c === 13) {
-        return true;
-      }
+      if (c === 10 || c === 13) return true;
     }
     return false;
   }
@@ -56,11 +52,8 @@ export class CommentNode extends TextNode {
 function optimizeChilds(childs) {
   for (let i = 0; i < childs.length; i++) {
     const child = childs[i];
-    if (child.isConstant()) {
-      childs[i] = new RenderOnceNode(child);
-    } else {
-      child.optimize();
-    }
+    if (child.isConstant()) childs[i] = new RenderOnceNode(child);
+    else child.optimize();
   }
 }
 function optimizeNode(node) {
@@ -107,9 +100,7 @@ export class FragmentNode extends ChildsNode {
     return rx.renderFragment(this.childs.map((c) => c?.render(stack, rx)));
   }
   setDataAttr(key, val) {
-    for (const child of this.childs) {
-      child.setDataAttr(key, val);
-    }
+    for (const child of this.childs) child.setDataAttr(key, val);
   }
 }
 const maybeFragment = (xs) => (xs.length === 1 ? xs[0] : new FragmentNode(xs));
@@ -212,18 +203,14 @@ export class MacroNode extends BaseNode {
   }
   compile(scope) {
     const { name, attrs, slots } = this;
-    if (this.px.isInsideMacro(name)) {
-      throw new Error(`Recursive macro expansion: ${name}`);
-    }
+    if (this.px.isInsideMacro(name)) throw new Error(`Recursive macro expansion: ${name}`);
     const macro = scope.lookupMacro(name);
     if (macro === null) {
       this.node = new CommentNode(`bad macro: ${name}`);
     } else {
       const vars = { ...macro.defaults, ...attrs };
       this.node = macro.expand(this.px.enterMacro(name, vars, slots));
-      for (const key in this.dataAttrs) {
-        this.node.setDataAttr(key, this.dataAttrs[key]);
-      }
+      for (const key in this.dataAttrs) this.node.setDataAttr(key, this.dataAttrs[key]);
     }
   }
   render(stack, rx) {
@@ -281,9 +268,9 @@ export class RenderEachNode extends RenderViewId {
       const attrParser = getAttrParser(px);
       attrParser.eachAttr = attrParser.pushWrapper("each", s, node.val);
       const when = attrs.getNamedItem("when");
-      when && attrParser._parseWhen(when.value);
+      if (when) attrParser._parseWhen(when.value);
       const lWith = attrs.getNamedItem("loop-with");
-      lWith && attrParser._parseLoopWith(lWith.value);
+      if (lWith) attrParser._parseLoopWith(lWith.value);
       node.iterInfo.whenVal = attrParser.eachAttr.whenVal ?? null;
       node.iterInfo.loopWithVal = attrParser.eachAttr.loopWithVal ?? null;
     }
@@ -477,9 +464,7 @@ const isFirstDomNode = (n) =>
   (n instanceof FragmentNode && n.childs[0] instanceof DomNode);
 function condenseChildsWhites(childs) {
   let end = childs.length; // adapted from vuejs compiler-core parser.ts
-  if (end === 0) {
-    return childs;
-  }
+  if (end === 0) return childs;
   let start = 0;
   let changed = false;
   if (isTextNodeAllBlanks(childs[0])) {
@@ -517,9 +502,7 @@ export class View {
     this.anode.setDataAttr("data-cid", cid);
     this.anode.setDataAttr("data-vid", this.name);
     this.ctx.compile(scope);
-    if (ctx.cacheConstNodes) {
-      this.anode = optimizeNode(this.anode);
-    }
+    if (ctx.cacheConstNodes) this.anode = optimizeNode(this.anode);
   }
   render(stack, rx) {
     return this.anode.render(stack, rx);
@@ -581,16 +564,12 @@ export const MOD_WRAPPERS_BY_EVENT = {
 };
 const identityModifierWrapper = (f, _ctx) => f;
 export function compileModifiers(eventName, names) {
-  if (names.length === 0) {
-    return identityModifierWrapper;
-  }
+  if (names.length === 0) return identityModifierWrapper;
   const wrappers = MOD_WRAPPERS_BY_EVENT[eventName] ?? {};
   let w = (that, f, args, _ctx) => f.apply(that, args);
   for (const name of names) {
     const wrapper = wrappers[name];
-    if (wrapper !== undefined) {
-      w = wrapper(w);
-    }
+    if (wrapper !== undefined) w = wrapper(w);
   }
   return (f, ctx) =>
     function (...args) {
