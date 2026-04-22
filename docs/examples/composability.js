@@ -168,7 +168,7 @@ export function getMacros() {
   return { ...getMacrosVisualWasm() };
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Composability",
     description: "Tabbed view that composes several independent example components",
@@ -176,17 +176,17 @@ export function getStoryBookSection() {
       {
         title: "Default (To-Do tab)",
         description: "All sub-apps wired up, To-Do tab selected",
-        item: getRoot(),
+        value: getRoot(),
       },
       {
         title: "JSON Editor Selected",
         description: "Starts on the JSON Editor tab",
-        item: getRoot().setActiveSection("json"),
+        value: getRoot().setActiveSection("json"),
       },
       {
         title: "Tree Selected",
         description: "Starts on the Tree tab",
-        item: getRoot().setActiveSection("tree"),
+        value: getRoot().setActiveSection("tree"),
       },
     ],
   };

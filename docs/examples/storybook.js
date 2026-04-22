@@ -94,13 +94,13 @@ const Section = component({
 
 const Example = component({
   name: "Example",
-  fields: { title: "?", description: "", item: null },
+  fields: { title: "?", description: "", value: null },
   statics: {
-    fromData({ title = "???", description = "", item = null }) {
+    fromData({ title = "???", description = "", value = null }) {
       return this.make({
         title,
         description,
-        item,
+        value,
       });
     },
   },
@@ -109,7 +109,7 @@ const Example = component({
       <h2 class="card-title" @text=".title"></h2>
       <p class="text-md italic opacity-60" @text=".description"></p>
       <div class="bg-base-100 p-3">
-        <x render=".item"></x>
+        <x render=".value"></x>
       </div>
     </div>
   </div>`,
@@ -182,22 +182,22 @@ export function getRequestHandlers() {
 }
 
 export function getRoot() {
-  const sections = SECTION_MODULES.map((mod) => mod.getStoryBookSection())
+  const sections = SECTION_MODULES.map((mod) => mod.getExamples())
     .map((data) => Section.Class.fromData(data))
     .sort((a, b) => a.title.localeCompare(b.title));
-  const storyBookSections = getStoryBookSection();
+  const storyBookSections = getExamples();
   storyBookSections.items.push({
     title: "Inception",
     description: "The outer storybook, as an example of itself 🐢️",
-    item: Storybook.make({ sections }),
+    value: Storybook.make({ sections }),
   });
   return Storybook.make({
     sections: [...sections, Section.Class.fromData(storyBookSections)],
   });
 }
 
-export function getStoryBookSection() {
-  const counterSection = Section.Class.fromData(counterMod.getStoryBookSection());
+export function getExamples() {
+  const counterSection = Section.Class.fromData(counterMod.getExamples());
   return {
     title: "Storybook",
     description: "The storybook itself, rendered as a section",
@@ -205,22 +205,22 @@ export function getStoryBookSection() {
       {
         title: "Storybook",
         description: "Storybook root with two sections",
-        item: Storybook.make({
-          sections: [counterSection, Section.Class.fromData(todoMod.getStoryBookSection())],
+        value: Storybook.make({
+          sections: [counterSection, Section.Class.fromData(todoMod.getExamples())],
         }),
       },
       {
         title: "Single Section",
         description: "A standalone Section rendered by itself",
-        item: counterSection,
+        value: counterSection,
       },
       {
         title: "Single Example",
         description: "A standalone Example card",
-        item: Example.Class.fromData({
+        value: Example.Class.fromData({
           title: "Example Title",
           description: "Example description",
-          item: counterSection.items.first()?.item ?? null,
+          value: counterSection.items.first()?.item ?? null,
         }),
       },
     ],

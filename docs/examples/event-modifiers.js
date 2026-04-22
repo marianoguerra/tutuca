@@ -32,7 +32,7 @@ export function getRoot() {
   return EventModifiers.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Event Modifiers",
     description: "Send/cancel keyboard modifiers on input events",
@@ -40,12 +40,12 @@ export function getStoryBookSection() {
       {
         title: "Empty",
         description: "Nothing typed yet",
-        item: EventModifiers.make(),
+        value: EventModifiers.make(),
       },
       {
         title: "With Sent Search",
         description: "Pre-populated with a previously sent query",
-        item: EventModifiers.make({
+        value: EventModifiers.make({
           query: "tutuca",
           lastSentSearch: "tutuca",
         }),

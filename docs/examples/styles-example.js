@@ -66,7 +66,7 @@ export function getRoot() {
   return StylesExampleRoot.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Styles",
     description: "Local, common, global and per-view styles",
@@ -74,12 +74,12 @@ export function getStoryBookSection() {
       {
         title: "All Views",
         description: "Renders main, one and two views together",
-        item: StylesExampleRoot.make(),
+        value: StylesExampleRoot.make(),
       },
       {
         title: "Main View Only",
         description: "Single component rendered standalone",
-        item: StylesExample.make(),
+        value: StylesExample.make(),
       },
     ],
   };

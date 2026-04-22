@@ -34,7 +34,7 @@ export function getRoot() {
   return EmojiPicker.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Web Component & Custom Event",
     description: "A Component that shows how to use web component and custom events",
@@ -42,7 +42,7 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Default instance",
-        item: EmojiPicker.make(),
+        value: EmojiPicker.make(),
       },
     ],
   };

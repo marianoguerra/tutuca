@@ -52,7 +52,7 @@ export function getRoot() {
   return PushView.make({ items: ENTRIES });
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   const ENTRIES = ITEMS.map((v) => Entry.make({ title: v, description: `Length: ${v.length}` }));
   return {
     title: "Push View",
@@ -61,12 +61,12 @@ export function getStoryBookSection() {
       {
         title: "Default (Read Only)",
         description: "Default 'main' view",
-        item: PushView.make({ items: ENTRIES }),
+        value: PushView.make({ items: ENTRIES }),
       },
       {
         title: "Edit View",
         description: "Pushed 'edit' view",
-        item: PushView.make({ items: ENTRIES, view: "edit" }),
+        value: PushView.make({ items: ENTRIES, view: "edit" }),
       },
     ],
   };

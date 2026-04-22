@@ -12,7 +12,7 @@ export function getRoot() {
   return StaticViewComponent.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Static View Component",
     description: "Component with only a static view",
@@ -20,7 +20,7 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Renders a simple greeting",
-        item: StaticViewComponent.make(),
+        value: StaticViewComponent.make(),
       },
     ],
   };

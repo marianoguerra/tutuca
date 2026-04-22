@@ -26,7 +26,7 @@ export function getRoot() {
   return RenderWithScope.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Render With Scope",
     description: "@enrich-with adds derived bindings to a sub-tree",
@@ -34,12 +34,12 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Default text",
-        item: RenderWithScope.make(),
+        value: RenderWithScope.make(),
       },
       {
         title: "Custom Text",
         description: "Pre-populated with longer text",
-        item: RenderWithScope.make({ text: "Tutuca" }),
+        value: RenderWithScope.make({ text: "Tutuca" }),
       },
     ],
   };

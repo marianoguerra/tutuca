@@ -36,7 +36,7 @@ export function getRoot() {
   return Counter.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Tutorial Counter",
     description: "Counter component used in the tutorial",
@@ -44,12 +44,12 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Starts at zero",
-        item: Counter.make(),
+        value: Counter.make(),
       },
       {
         title: "Negative Start",
         description: "Initial negative value",
-        item: Counter.make({ count: -3 }),
+        value: Counter.make({ count: -3 }),
       },
     ],
   };

@@ -57,7 +57,7 @@ export function getRoot() {
   return ComputedProperties.make({ items: ITEMS });
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Computed Properties",
     description: "Cached derived values exposed as $name",
@@ -65,17 +65,17 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Full list, no filter",
-        item: ComputedProperties.make({ items: ITEMS }),
+        value: ComputedProperties.make({ items: ITEMS }),
       },
       {
         title: "With Filter",
         description: "Pre-applied filter query",
-        item: ComputedProperties.make({ items: ITEMS, query: "those" }),
+        value: ComputedProperties.make({ items: ITEMS, query: "those" }),
       },
       {
         title: "Empty",
         description: "No items",
-        item: ComputedProperties.make({ items: [] }),
+        value: ComputedProperties.make({ items: [] }),
       },
     ],
   };

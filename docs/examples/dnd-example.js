@@ -77,7 +77,7 @@ export function getRoot() {
   return DnDExample.make({ items: ITEMS });
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Drag and Drop",
     description: "Reorder list items via drag and drop",
@@ -85,12 +85,12 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Full list, no filter",
-        item: DnDExample.make({ items: ITEMS }),
+        value: DnDExample.make({ items: ITEMS }),
       },
       {
         title: "Pre-filtered",
         description: "Initial query applied",
-        item: DnDExample.make({ items: ITEMS, query: "ones" }),
+        value: DnDExample.make({ items: ITEMS, query: "ones" }),
       },
     ],
   };

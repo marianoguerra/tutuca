@@ -34,7 +34,7 @@ export function getRoot() {
   return ListAndFilter.make({ items: ITEMS });
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "List and Filter",
     description: "Render a list with a search filter",
@@ -42,17 +42,17 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Full list, no filter",
-        item: ListAndFilter.make({ items: ITEMS }),
+        value: ListAndFilter.make({ items: ITEMS }),
       },
       {
         title: "Pre-filtered",
         description: "Initial query applied",
-        item: ListAndFilter.make({ items: ITEMS, query: "those" }),
+        value: ListAndFilter.make({ items: ITEMS, query: "those" }),
       },
       {
         title: "Empty",
         description: "No items",
-        item: ListAndFilter.make({ items: [] }),
+        value: ListAndFilter.make({ items: [] }),
       },
     ],
   };

@@ -231,7 +231,7 @@ export function getRoot() {
   return JsonArray.make().pushInItems(JsonSelector.make());
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "JSON Editor",
     description: "Composable JSON editor built from typed primitives",
@@ -239,32 +239,32 @@ export function getStoryBookSection() {
       {
         title: "Empty Array With Selector",
         description: "Default root: array containing one selector",
-        item: getRoot(),
+        value: getRoot(),
       },
       {
         title: "Object",
         description: "Empty JSON object editor",
-        item: JsonObject.make(),
+        value: JsonObject.make(),
       },
       {
         title: "Type Selector",
         description: "Buttons to choose a JSON value type",
-        item: JsonSelector.make(),
+        value: JsonSelector.make(),
       },
       {
         title: "String Value",
         description: "Editable string primitive",
-        item: JsonString.make({ value: "tutuca" }),
+        value: JsonString.make({ value: "tutuca" }),
       },
       {
         title: "Boolean True",
         description: "Boolean toggle in true state",
-        item: JsonBool.make({ value: true }),
+        value: JsonBool.make({ value: true }),
       },
       {
         title: "Number",
         description: "Editable number primitive",
-        item: JsonNumber.make({ value: 42, strValue: "42" }),
+        value: JsonNumber.make({ value: 42, strValue: "42" }),
       },
     ],
   };

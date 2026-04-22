@@ -27,7 +27,7 @@ export function getRoot() {
   return TextDirective.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Text Directive",
     description: "@text and <x text> render field, computed and method values",
@@ -35,12 +35,12 @@ export function getStoryBookSection() {
       {
         title: "Defaults",
         description: "Default field values",
-        item: TextDirective.make(),
+        value: TextDirective.make(),
       },
       {
         title: "Custom Values",
         description: "Pre-populated with custom values",
-        item: TextDirective.make({ str: "tutuca", num: 100, bool: false }),
+        value: TextDirective.make({ str: "tutuca", num: 100, bool: false }),
       },
     ],
   };

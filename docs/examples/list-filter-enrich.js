@@ -38,7 +38,7 @@ export function getRoot() {
   return ListFilterEnrich.make({ items: ITEMS });
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "List Filter + Enrich",
     description: "@when filter combined with @enrich-with bindings",
@@ -46,12 +46,12 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Full list, no filter",
-        item: ListFilterEnrich.make({ items: ITEMS }),
+        value: ListFilterEnrich.make({ items: ITEMS }),
       },
       {
         title: "Pre-filtered",
         description: "Initial query applied",
-        item: ListFilterEnrich.make({ items: ITEMS, query: "ones" }),
+        value: ListFilterEnrich.make({ items: ITEMS, query: "ones" }),
       },
     ],
   };

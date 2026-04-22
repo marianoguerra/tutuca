@@ -36,7 +36,7 @@ export function getRoot() {
   return Entry.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Entry",
     description: "Card-style entry with a title and description",
@@ -44,12 +44,12 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Default field values",
-        item: Entry.make(),
+        value: Entry.make(),
       },
       {
         title: "Custom",
         description: "Custom title and description",
-        item: Entry.make({
+        value: Entry.make({
           title: "Hello",
           description: "A custom entry description",
         }),

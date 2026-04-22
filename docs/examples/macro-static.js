@@ -26,7 +26,7 @@ export function getRoot() {
   return StaticMacro.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Macro Static",
     description: "Macros without parameters expand to static markup",
@@ -34,7 +34,7 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Three feature rows with optional badges",
-        item: StaticMacro.make(),
+        value: StaticMacro.make(),
       },
     ],
   };

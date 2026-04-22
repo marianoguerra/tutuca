@@ -94,7 +94,7 @@ export function getRequestHandlers() {
   };
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Request Example",
     description: "Triggers a request on init and renders the response",
@@ -102,12 +102,12 @@ export function getStoryBookSection() {
       {
         title: "Default (Loading)",
         description: "Initial state, waiting for response",
-        item: RequestExample.make(),
+        value: RequestExample.make(),
       },
       {
         title: "Loaded With Items",
         description: "Pre-populated with sample entries",
-        item: RequestExample.make({
+        value: RequestExample.make({
           isLoading: false,
           items: [
             Entry.make({ title: "First", description: "Item one" }),
@@ -118,7 +118,7 @@ export function getStoryBookSection() {
       {
         title: "Edit View",
         description: "Pushed view for editing",
-        item: RequestExample.make({
+        value: RequestExample.make({
           isLoading: false,
           view: "edit",
           items: [Entry.make({ title: "Edit me", description: "Then save" })],

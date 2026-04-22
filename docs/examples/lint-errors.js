@@ -59,7 +59,7 @@ export function getRoot() {
   return LintDemo.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Lint Errors",
     description: "Component with intentional lint errors for the linter demo",
@@ -67,12 +67,12 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "All lint errors triggered",
-        item: LintDemo.make(),
+        value: LintDemo.make(),
       },
       {
         title: "With Count",
         description: "Initialized with a non-zero count",
-        item: LintDemo.make({ count: 5 }),
+        value: LintDemo.make({ count: 5 }),
       },
     ],
   };

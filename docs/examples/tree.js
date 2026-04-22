@@ -123,7 +123,7 @@ export function getRoot() {
   ]);
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Tree",
     description: "Recursive tree component with bubble events",
@@ -131,17 +131,17 @@ export function getStoryBookSection() {
       {
         title: "Default Filesystem",
         description: "Sample filesystem tree",
-        item: getRoot(),
+        value: getRoot(),
       },
       {
         title: "Single File",
         description: "A single file leaf node",
-        item: TreeItem.Class.fromData({ type: "file", label: "README.md" }),
+        value: TreeItem.Class.fromData({ type: "file", label: "README.md" }),
       },
       {
         title: "Closed Folder",
         description: "Folder with hidden children",
-        item: TreeItem.Class.fromData({
+        value: TreeItem.Class.fromData({
           label: "src",
           isOpen: false,
           items: [

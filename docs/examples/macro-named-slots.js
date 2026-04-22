@@ -48,7 +48,7 @@ export function getRoot() {
   return MacroNamedSlots.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Macro Named Slots",
     description: "Macros with multiple named slots (header, body, footer)",
@@ -56,12 +56,12 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Panel macro with all slots filled",
-        item: MacroNamedSlots.make(),
+        value: MacroNamedSlots.make(),
       },
       {
         title: "With Initial Count",
         description: "Pre-populated counter",
-        item: MacroNamedSlots.make({ count: 7 }),
+        value: MacroNamedSlots.make({ count: 7 }),
       },
     ],
   };

@@ -3,7 +3,7 @@ import { Entry } from "./entry.js";
 
 export const MultipleViews = component({
   name: "MultipleViews",
-  fields: { item: Entry.make() },
+  fields: { value: Entry.make() },
   view: html`<section class="flex flex-col gap-3">
     <x render=".item"></x>
     <x render=".item" as="edit"></x>
@@ -18,7 +18,7 @@ export function getRoot() {
   return MultipleViews.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Multiple Views",
     description: "Render the same component twice using different views",
@@ -26,13 +26,13 @@ export function getStoryBookSection() {
       {
         title: "Default",
         description: "Default Entry rendered as main and edit",
-        item: MultipleViews.make(),
+        value: MultipleViews.make(),
       },
       {
         title: "Custom Entry",
         description: "Custom title and description",
-        item: MultipleViews.make({
-          item: Entry.make({ title: "Hello", description: "world" }),
+        value: MultipleViews.make({
+          value: Entry.make({ title: "Hello", description: "world" }),
         }),
       },
     ],

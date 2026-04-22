@@ -38,7 +38,7 @@ export function getRoot() {
   return Counter.make({});
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Counter",
     description: "A counter component that can be increased and decreased",
@@ -46,12 +46,12 @@ export function getStoryBookSection() {
       {
         title: "Basic Counter",
         description: "A Basic Counter",
-        item: Counter.make(),
+        value: Counter.make(),
       },
       {
         title: "Counter with negative initial value",
         description: "Let's see how it handles negative values",
-        item: Counter.make({ count: -5 }),
+        value: Counter.make({ count: -5 }),
       },
     ],
   };

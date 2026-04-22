@@ -370,7 +370,7 @@ export function getRequestHandlers() {
   };
 }
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Personal Site",
     description: "Filterable list of entries with categories and roles",
@@ -378,12 +378,12 @@ export function getStoryBookSection() {
       {
         title: "Default (Loading)",
         description: "Initial state, requests data on init",
-        item: Root.make(),
+        value: Root.make(),
       },
       {
         title: "Sample Entry",
         description: "Single entry rendered standalone",
-        item: Entry.Class.fromData({
+        value: Entry.Class.fromData({
           title: "Sample Project",
           description: "An example entry",
           startYear: 2020,
@@ -397,7 +397,7 @@ export function getStoryBookSection() {
       {
         title: "Alt URL",
         description: "Auxiliary link badge",
-        item: AltUrl.make({ label: "GitHub", url: "#" }),
+        value: AltUrl.make({ label: "GitHub", url: "#" }),
       },
     ],
   };

@@ -976,7 +976,7 @@ const blockType = (args, returns) =>
 
 const NOP = Nop.make();
 
-export function getStoryBookSection() {
+export function getExamples() {
   return {
     title: "Visual Wasm",
     description: "Visual editor for WebAssembly modules",
@@ -984,22 +984,22 @@ export function getStoryBookSection() {
       {
         title: "Empty Module",
         description: "Module with empty memory and functions sections",
-        item: Module.make(),
+        value: Module.make(),
       },
       {
         title: "Sample Module",
         description: "Module with a function containing nested control flow",
-        item: getRoot(),
+        value: getRoot(),
       },
       {
         title: "Instruction Picker",
         description: "Standalone instruction picker",
-        item: InstructionPicker.make(),
+        value: InstructionPicker.make(),
       },
       {
         title: "Block Type Editor",
         description: "Editing arg/return types",
-        item: BlockType.make({
+        value: BlockType.make({
           args: Types.make({ items: [TypeI32.make(), TypeI64.make()] }),
           returns: Types.make({ items: [TypeF32.make()] }),
         }),
