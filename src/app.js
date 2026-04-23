@@ -38,14 +38,11 @@ export class App {
   _dispatchEvent(e) {
     const { type } = e;
     const isDrag = type === "dragover" || type === "dragstart" || type === "dragend";
-    const { rootNode: root, maxEventNodeDepth: maxDepth, comps } = this;
+    const { rootNode: root, maxEventNodeDepth: maxDepth, comps, transactor } = this;
     const [path, handlers] = Path.fromEvent(e, root, maxDepth, comps, !isDrag);
     if (isDrag) this._handleDragEvent(e, type, path);
-    if (path !== null && handlers !== null) {
-      for (const handler of handlers) {
-        this.transactor.transactInputNow(path, e, handler, this.dragInfo);
-      }
-    }
+    if (path !== null && handlers !== null)
+      for (const handler of handlers) transactor.transactInputNow(path, e, handler, this.dragInfo);
   }
   _handleTouchEvent(e) {
     const { type } = e;
