@@ -94,7 +94,15 @@ tutuca help [command]
 | `doctor` | Lint + render smoke test over the whole module |
 
 Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `-h, --help`.
-Exit codes: `0` ok, `1` usage, `2` lint errors, `3` render crash.
+
+Exit codes:
+
+- `0` — success
+- `1` — usage error (bad args, missing module, bad module shape)
+- `2` — `lint` / `doctor` reported errors
+- `3` — `render` / `doctor` crashed while rendering
+
+All module-consuming commands (`info`, `list`, `examples`, `docs`, `lint`, `render`, `doctor`) follow this table.
 
 ### Usage examples
 
