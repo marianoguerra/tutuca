@@ -3,6 +3,7 @@ import { LintClassCollectorCtx } from "../dev.js";
 import { component, html } from "../index.js";
 import { ComponentStack } from "../src/components.js";
 import {
+  ALT_HANDLER_NOT_DEFINED,
   COMPUTED_VAL_NOT_DEFINED,
   checkComponent,
   FIELD_VAL_NOT_DEFINED,
@@ -222,6 +223,53 @@ test("warn on Type/request not in scope", () => {
     const { id, info } = lx.reports[1];
     expect(id).toBe(UNKNOWN_COMPONENT_NAME);
     expect(info.name).toBe("MyComp");
+  }
+});
+
+test("warn on undefined alt field for loop directives", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div>
+      <div
+        @each=".items"
+        @when="myWhen"
+        @enrich-with="myEnrich"
+        @loop-with="myLoopWith"
+      >
+        <x render-it></x>
+      </div>
+    </div>`,
+  });
+  expect(lx.reports.length).toBe(3);
+  {
+    const { id, info } = lx.reports[0];
+    expect(id).toBe(ALT_HANDLER_NOT_DEFINED);
+    expect(info.name).toBe("myWhen");
+  }
+  {
+    const { id, info } = lx.reports[1];
+    expect(id).toBe(ALT_HANDLER_NOT_DEFINED);
+    expect(info.name).toBe("myEnrich");
+  }
+  {
+    const { id, info } = lx.reports[2];
+    expect(id).toBe(ALT_HANDLER_NOT_DEFINED);
+    expect(info.name).toBe("myLoopWith");
+  }
+});
+
+test("warn on undefined alt field for scope enrich-with directives", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: {},
+    view: html`<div @enrich-with="myEnrich"></div>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  {
+    const { id, info } = lx.reports[0];
+    expect(id).toBe(ALT_HANDLER_NOT_DEFINED);
+    expect(info.name).toBe("myEnrich");
   }
 });
 
