@@ -6,7 +6,6 @@ export const supports = new Set([
   "LintReport",
   "RenderBatch",
   "DoctorReport",
-  "StresstestResult",
 ]);
 
 function fmtModuleInfo(info) {
@@ -133,23 +132,6 @@ function fmtDoctor(rep) {
   return lines.join("\n");
 }
 
-function fmtStresstest(r) {
-  const lines = [];
-  lines.push(`Seed: ${r.seed}`);
-  lines.push(`Iterations: ${r.iterations.toLocaleString()}`);
-  lines.push(`Passed: ${r.passed.toLocaleString()}`);
-  lines.push(`Duration: ${(r.durationMs / 1000).toFixed(2)}s`);
-  if (r.ok) {
-    lines.push("All tests passed!");
-  } else {
-    lines.push(`FAILED at iteration ${r.failedAt}`);
-    if (r.failureDetails) {
-      lines.push(JSON.stringify(r.failureDetails, null, 2));
-    }
-  }
-  return lines.join("\n");
-}
-
 const DISPATCH = {
   ModuleInfo: fmtModuleInfo,
   ComponentList: fmtComponentList,
@@ -158,7 +140,6 @@ const DISPATCH = {
   LintReport: fmtLintReport,
   RenderBatch: fmtRenderBatch,
   DoctorReport: fmtDoctor,
-  StresstestResult: fmtStresstest,
 };
 
 export function format(result) {

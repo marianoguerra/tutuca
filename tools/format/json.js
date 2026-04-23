@@ -6,7 +6,6 @@ export const supports = new Set([
   "LintReport",
   "RenderBatch",
   "DoctorReport",
-  "StresstestResult",
 ]);
 
 function replacer(_key, v) {

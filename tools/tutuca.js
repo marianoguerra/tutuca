@@ -7,10 +7,9 @@ import * as docs from "./cli/commands/docs.js";
 import * as lint from "./cli/commands/lint.js";
 import * as render from "./cli/commands/render.js";
 import * as doctor from "./cli/commands/doctor.js";
-import * as stresstest from "./cli/commands/stresstest.js";
 
-const COMMANDS = { help, info, list, examples, docs, lint, render, doctor, stresstest };
-const MODULELESS = new Set(["help", "stresstest"]);
+const COMMANDS = { help, info, list, examples, docs, lint, render, doctor };
+const MODULELESS = new Set(["help"]);
 
 function usageError(msg) {
   process.stderr.write(`tutuca: ${msg}\nRun \`tutuca help\` for usage.\n`);
@@ -19,7 +18,7 @@ function usageError(msg) {
 
 function extractGlobals(argv) {
   const rest = [];
-  const opts = { format: null, output: null, pretty: false, quiet: false, module: null, help: false };
+  const opts = { format: null, output: null, pretty: false, module: null, help: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "-f" || a === "--format") {
@@ -32,8 +31,6 @@ function extractGlobals(argv) {
       opts.output = a.slice("--output=".length);
     } else if (a === "--pretty") {
       opts.pretty = true;
-    } else if (a === "--quiet") {
-      opts.quiet = true;
     } else if (a === "--module") {
       opts.module = argv[++i];
     } else if (a.startsWith("--module=")) {

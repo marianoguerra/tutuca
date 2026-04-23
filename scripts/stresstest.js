@@ -1,11 +1,24 @@
+#!/usr/bin/env node
+// Dev-only VDOM fuzz harness. Generates random trees, applies random
+// mutations, renders original -> mutated, and compares against a fresh
+// render of the mutated tree.
+//
+// Usage: node scripts/stresstest.js [--iterations N] [--seed S] [--quiet]
+
+import { parseArgs } from "node:util";
+import { JSDOM } from "jsdom";
 import {
   applyMutation,
   createRng,
   generateMutation,
   generateTree,
-} from "../../test/vdom-genutil.js";
-import { VFragment, render as vdomRender, unmount } from "../../src/vdom.js";
-import { StresstestResult } from "./results.js";
+} from "../test/vdom-genutil.js";
+import { VFragment, render as vdomRender, unmount } from "../src/vdom.js";
+
+function makeDocument() {
+  const d = new JSDOM("<!DOCTYPE html><html><body></body></html>");
+  return d.window.document;
+}
 
 function compareDom(a, b) {
   if (a.nodeType !== b.nodeType) return false;
@@ -40,7 +53,7 @@ function serializeTree(node) {
   return { type: "unknown" };
 }
 
-export function stresstest({ iterations = 100000, seed = null, onProgress = null, makeDocument }) {
+function stresstest({ iterations, seed, onProgress }) {
   const baseSeed = seed ?? Math.floor(Math.random() * 1000000);
   const JSDOM_REFRESH_INTERVAL = 5000;
   let document = makeDocument();
@@ -78,7 +91,8 @@ export function stresstest({ iterations = 100000, seed = null, onProgress = null
     vdomRender(mutatedTree, expected, opts);
 
     if (!compareDom(container, expected)) {
-      return new StresstestResult({
+      return {
+        ok: false,
         iterations,
         seed: baseSeed,
         passed,
@@ -93,7 +107,7 @@ export function stresstest({ iterations = 100000, seed = null, onProgress = null
           actualHtml: container.innerHTML,
         },
         durationMs: Date.now() - startTime,
-      });
+      };
     }
 
     if (rng() < 0.2) {
@@ -105,14 +119,15 @@ export function stresstest({ iterations = 100000, seed = null, onProgress = null
       vdomRender(f2, c1, opts);
       vdomRender(f2, c2, opts);
       if (!compareDom(c1, c2)) {
-        return new StresstestResult({
+        return {
+          ok: false,
           iterations,
           seed: baseSeed,
           passed,
           failedAt: i + 1,
           failureDetails: { seed: s, kind: "vfragment-render-mismatch" },
           durationMs: Date.now() - startTime,
-        });
+        };
       }
       unmount(c1);
       unmount(c2);
@@ -124,12 +139,58 @@ export function stresstest({ iterations = 100000, seed = null, onProgress = null
     }
   }
 
-  return new StresstestResult({
+  return {
+    ok: true,
     iterations,
     seed: baseSeed,
     passed,
     failedAt: null,
     failureDetails: null,
     durationMs: Date.now() - startTime,
-  });
+  };
 }
+
+const { values } = parseArgs({
+  args: process.argv.slice(2),
+  options: {
+    iterations: { type: "string" },
+    seed: { type: "string" },
+    quiet: { type: "boolean" },
+  },
+  allowPositionals: false,
+});
+
+const iterations = values.iterations ? parseInt(values.iterations, 10) : 100000;
+const seed = values.seed ? parseInt(values.seed, 10) : null;
+const quiet = !!values.quiet;
+
+if (!quiet) {
+  process.stderr.write(`Running ${iterations.toLocaleString()} stress test iterations...\n`);
+}
+
+const result = stresstest({
+  iterations,
+  seed,
+  onProgress: quiet
+    ? null
+    : ({ i, total, elapsedMs }) => {
+        const rate = Math.round((i / elapsedMs) * 1000);
+        process.stderr.write(
+          `  ${i.toLocaleString()} / ${total.toLocaleString()} (${(elapsedMs / 1000).toFixed(1)}s, ${rate}/s)\n`,
+        );
+      },
+});
+
+const out = [];
+out.push(`Seed: ${result.seed}`);
+out.push(`Iterations: ${result.iterations.toLocaleString()}`);
+out.push(`Passed: ${result.passed.toLocaleString()}`);
+out.push(`Duration: ${(result.durationMs / 1000).toFixed(2)}s`);
+if (result.ok) {
+  out.push("All tests passed!");
+} else {
+  out.push(`FAILED at iteration ${result.failedAt}`);
+  if (result.failureDetails) out.push(JSON.stringify(result.failureDetails, null, 2));
+}
+process.stdout.write(`${out.join("\n")}\n`);
+if (!result.ok) process.exit(3);

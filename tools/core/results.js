@@ -100,17 +100,3 @@ export class DoctorReport {
     return !this.lint.hasErrors && !this.renders.hasErrors;
   }
 }
-
-export class StresstestResult {
-  constructor({ iterations, seed, passed, failedAt = null, failureDetails = null, durationMs = 0 }) {
-    this.iterations = iterations;
-    this.seed = seed;
-    this.passed = passed;
-    this.failedAt = failedAt;
-    this.failureDetails = failureDetails;
-    this.durationMs = durationMs;
-  }
-  get ok() {
-    return this.failedAt === null;
-  }
-}

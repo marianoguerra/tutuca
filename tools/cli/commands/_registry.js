@@ -7,5 +7,4 @@ export const COMMAND_NAMES = [
   "lint",
   "render",
   "doctor",
-  "stresstest",
 ];

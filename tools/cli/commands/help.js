@@ -5,7 +5,6 @@ components defined in an ES module.
 
 SYNOPSIS
   tutuca <module-path> <command> [name] [flags]
-  tutuca stresstest [--iterations N] [--seed S]
   tutuca help [command]
   tutuca {-h | --help}
 
@@ -16,7 +15,7 @@ INVOCATION SHAPE
     components; pass it to operate on exactly one (e.g. \`docs Button\`).
   - Flags may appear anywhere. Global flags and command flags share the
     same argv; unknown flags are rejected by the subcommand's parser.
-  - \`stresstest\` and \`help\` do NOT take a module path.
+  - \`help\` does NOT take a module path.
 
 MODULE CONVENTION
   A module passed to tutuca must export one or more of:
@@ -81,12 +80,6 @@ COMMANDS (require <module-path>)
       test invocation for CI. Exits 2 on lint errors, 3 on render crashes.
 
 COMMANDS (no module required)
-  stresstest [--iterations N] [--seed S]
-      Fuzz the VDOM engine: generates random trees, applies random
-      mutations, renders original -> mutated, and compares against a
-      fresh render of the mutated tree. Defaults: 100000 iterations,
-      random seed. Exits 3 on mismatch.
-
   help [command]
       Without [command]: prints this full reference.
       With [command]: prints that command's one-line description.
@@ -94,8 +87,8 @@ COMMANDS (no module required)
 GLOBAL FLAGS
   -f, --format <cli|md|json|html>
       Output format. Defaults per command:
-        info, list, examples, lint, doctor, stresstest -> cli
-        docs, render                                    -> md
+        info, list, examples, lint, doctor -> cli
+        docs, render                       -> md
       html is only supported by render.
       json is supported by every command and serializes the result
       class directly — useful for piping into other tools or agents.
@@ -104,7 +97,6 @@ GLOBAL FLAGS
       --pretty               Pretty-print HTML (md/html formats) via
                              prettier; JSON formatter uses indent 2.
                              Requires \`prettier\` to be installed.
-      --quiet                Suppress progress output (stresstest).
   -h, --help                 Show this help.
       --module <path>        Alternative to first-positional module path.
 
@@ -112,12 +104,11 @@ EXIT CODES
   0   success
   1   usage error (bad args, missing module, bad module shape)
   2   lint findings at error level
-  3   render crash or stresstest failure
+  3   render crash
 
 ENVIRONMENT
   \`jsdom\` is an optional peer dep. Required for commands that render or
-  lint (lint, render, doctor, stresstest). info/list/examples/docs work
-  without it.
+  lint (lint, render, doctor). info/list/examples/docs work without it.
   \`prettier\` is an optional peer dep, only used by --pretty.
 
 EXAMPLES
@@ -135,9 +126,6 @@ EXAMPLES
 
   # CI smoke test
   tutuca ./src/components.js doctor
-
-  # Reproducible fuzz run
-  tutuca stresstest --iterations 10000 --seed 42
 `;
 
 export async function run(argv) {

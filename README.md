@@ -74,13 +74,12 @@ npm install --save-dev tutuca jsdom
 npm install --save-dev prettier
 ```
 
-The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca jsdom`) just works. `jsdom` is a peer dep because it's only needed for `render`, `lint`, `doctor`, and `stresstest`.
+The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca jsdom`) just works. `jsdom` is a peer dep because it's only needed for `render`, `lint`, and `doctor`.
 
 ### Commands
 
 ```
 tutuca <module-path> <command> [args] [flags]
-tutuca stresstest [--iterations N] [--seed S]
 tutuca help [command]
 ```
 
@@ -93,9 +92,8 @@ tutuca help [command]
 | `lint [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
 | `render [name] [--title t] [--view v]` | Render examples to HTML |
 | `doctor` | Lint + render smoke test over the whole module |
-| `stresstest` | VDOM fuzz test, no module required |
 
-Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `--quiet`, `-h, --help`.
+Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `-h, --help`.
 Exit codes: `0` ok, `1` usage, `2` lint errors, `3` render crash.
 
 ### Usage examples
@@ -118,9 +116,6 @@ npx tutuca ./src/components.js lint Button
 
 # CI smoke test — lints and renders everything
 npx tutuca ./src/components.js doctor
-
-# Fuzz the VDOM engine
-npx tutuca stresstest --iterations 10000 --seed 42
 ```
 
 ### Wrapping
