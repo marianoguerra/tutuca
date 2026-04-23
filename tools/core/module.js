@@ -58,7 +58,9 @@ export class NormalizedModule {
 
 function parseExample(raw, index, components) {
   if (!raw || typeof raw !== "object") {
-    const err = new Error(`${EXAMPLES_SHAPE_MISMATCH}: example at index ${index} is not an object`);
+    const err = new Error(
+      `${EXAMPLES_SHAPE_MISMATCH}: example at index ${index} is not an object`,
+    );
     err.code = EXAMPLES_SHAPE_MISMATCH;
     throw err;
   }
@@ -104,18 +106,24 @@ function parseSection(raw, components) {
   if (Array.isArray(raw)) {
     const err = new Error(
       `${EXAMPLES_SHAPE_MISMATCH}: getExamples() returned a flat array; expected a section ` +
-        `object { title, description?, groups?, items }. See TODO.md for migration.`,
+        `object { title, description?, groups?, items }.`,
     );
     err.code = EXAMPLES_SHAPE_MISMATCH;
     throw err;
   }
   if (!raw || typeof raw !== "object") {
-    const err = new Error(`${EXAMPLES_SHAPE_MISMATCH}: getExamples() must return a section object`);
+    const err = new Error(
+      `${EXAMPLES_SHAPE_MISMATCH}: getExamples() must return a section object`,
+    );
     err.code = EXAMPLES_SHAPE_MISMATCH;
     throw err;
   }
-  const items = Array.isArray(raw.items) ? raw.items.map((e, i) => parseExample(e, i, components)) : [];
-  const groups = Array.isArray(raw.groups) ? raw.groups.map((g, i) => parseGroup(g, i, components)) : [];
+  const items = Array.isArray(raw.items)
+    ? raw.items.map((e, i) => parseExample(e, i, components))
+    : [];
+  const groups = Array.isArray(raw.groups)
+    ? raw.groups.map((g, i) => parseGroup(g, i, components))
+    : [];
   if (items.length === 0 && groups.length === 0) {
     const err = new Error(
       `${EXAMPLES_SHAPE_MISMATCH}: getExamples() returned a section with no items or groups`,
@@ -146,7 +154,7 @@ export function normalizeModule(mod, { path = null } = {}) {
 
   if (present.has("getStoryBookSection") && !present.has("getExamples")) {
     const err = new Error(
-      `${EXAMPLES_SHAPE_MISMATCH}: module exports getStoryBookSection; rename it to getExamples. See TODO.md.`,
+      `${EXAMPLES_SHAPE_MISMATCH}: module exports getStoryBookSection; rename it to getExamples.`,
     );
     err.code = EXAMPLES_SHAPE_MISMATCH;
     throw err;
@@ -154,9 +162,24 @@ export function normalizeModule(mod, { path = null } = {}) {
 
   const components = present.has("getComponents") ? mod.getComponents() : [];
   const macros = present.has("getMacros") ? mod.getMacros() : null;
-  const requestHandlers = present.has("getRequestHandlers") ? mod.getRequestHandlers() : null;
+  const requestHandlers = present.has("getRequestHandlers")
+    ? mod.getRequestHandlers()
+    : null;
   const root = present.has("getRoot") ? mod.getRoot() : null;
-  const section = present.has("getExamples") ? parseSection(mod.getExamples(), components) : null;
+  const section = present.has("getExamples")
+    ? parseSection(mod.getExamples(), components)
+    : null;
 
-  return { normalized: new NormalizedModule({ mod, path, components, macros, requestHandlers, section, root }), present };
+  return {
+    normalized: new NormalizedModule({
+      mod,
+      path,
+      components,
+      macros,
+      requestHandlers,
+      section,
+      root,
+    }),
+    present,
+  };
 }

@@ -142,5 +142,7 @@ export async function run(argv) {
   }
   const mod = await import(`./${target}.js`);
   process.stdout.write(`${target}: ${mod.describe}\n`);
-  process.stdout.write("Run `tutuca help` for the full reference including signatures and flags.\n");
+  process.stdout.write(
+    "Run `tutuca help` for the full reference including signatures and flags.\n",
+  );
 }

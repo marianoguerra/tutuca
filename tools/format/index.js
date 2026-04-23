@@ -8,7 +8,9 @@ const FORMATTERS = { cli, md, json, html };
 export function pickFormatter(name) {
   const f = FORMATTERS[name];
   if (!f) {
-    throw new Error(`Unknown format: ${name}. Available: ${Object.keys(FORMATTERS).join(", ")}`);
+    throw new Error(
+      `Unknown format: ${name}. Available: ${Object.keys(FORMATTERS).join(", ")}`,
+    );
   }
   return f;
 }

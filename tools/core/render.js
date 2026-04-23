@@ -1,7 +1,11 @@
 import { renderToHTML } from "../../src/util/render.js";
 import { RenderBatch, RenderedExample } from "./results.js";
 
-export function renderExamples(normalized, env, { name = null, title = null, view = null } = {}) {
+export function renderExamples(
+  normalized,
+  env,
+  { name = null, title = null, view = null } = {},
+) {
   const { section } = normalized;
   if (!section) {
     return new RenderBatch({ section: null, items: [] });

@@ -1,24 +1,26 @@
-import { parseArgs } from "node:util";
 import { renderExamples } from "../../core/render.js";
 import { createNodeEnv } from "../env.js";
-import { loadAndNormalize } from "../load.js";
-import { emit } from "../output.js";
+import { runWithModule } from "../with-module.js";
 
-export const describe = "Render examples to HTML (optional <name> to filter by component).";
+export const describe =
+  "Render examples to HTML (optional <name> to filter by component).";
 
 export async function run(argv, globalOpts) {
-  const { values, positionals } = parseArgs({
-    args: argv,
+  const env = createNodeEnv();
+  const result = await runWithModule({
+    argv,
     options: {
       title: { type: "string" },
       view: { type: "string" },
     },
-    allowPositionals: true,
+    globalOpts,
+    defaultFormat: "md",
+    run: (normalized, { values, positionals }) =>
+      renderExamples(normalized, env, {
+        name: positionals[0] ?? null,
+        title: values.title ?? null,
+        view: values.view ?? null,
+      }),
   });
-  const name = positionals[0] ?? null;
-  const env = createNodeEnv();
-  const normalized = await loadAndNormalize(globalOpts.module);
-  const result = renderExamples(normalized, env, { name, title: values.title ?? null, view: values.view ?? null });
-  await emit(result, { format: globalOpts.format ?? "md", pretty: globalOpts.pretty, output: globalOpts.output });
   if (result.hasErrors) process.exit(3);
 }

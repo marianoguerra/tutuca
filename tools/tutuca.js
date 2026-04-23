@@ -80,7 +80,10 @@ async function main() {
   try {
     await cmd.run(commandArgs, opts);
   } catch (e) {
-    if (e?.code === "EXAMPLES_SHAPE_MISMATCH") {
+    if (
+      e?.code === "EXAMPLES_SHAPE_MISMATCH" ||
+      e?.code?.startsWith?.("ERR_PARSE_ARGS_")
+    ) {
       process.stderr.write(`tutuca: ${e.message}\n`);
       process.exit(1);
     }

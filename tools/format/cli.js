@@ -41,12 +41,16 @@ function fmtExampleIndex(idx) {
   const s = idx.section;
   lines.push(`${s.title}${s.description ? ` — ${s.description}` : ""}`);
   for (const item of s.items) {
-    lines.push(`  - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`);
+    lines.push(
+      `  - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`,
+    );
   }
   for (const group of s.groups) {
     lines.push(`  [${group.title}]${group.description ? ` — ${group.description}` : ""}`);
     for (const item of group.items) {
-      lines.push(`    - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`);
+      lines.push(
+        `    - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`,
+      );
     }
   }
   return lines.join("\n");
@@ -67,7 +71,8 @@ function fmtComponentDocs(docs) {
     }
     if (c.fields.length) {
       lines.push("  fields:");
-      for (const f of c.fields) lines.push(`    ${f.name}: ${f.type} = ${JSON.stringify(f.default)}`);
+      for (const f of c.fields)
+        lines.push(`    ${f.name}: ${f.type} = ${JSON.stringify(f.default)}`);
     }
   }
   return lines.join("\n");
@@ -106,7 +111,9 @@ function fmtRenderBatch(batch) {
   if (batch.items.length === 0) return "(no examples rendered)";
   const lines = [];
   if (batch.section) {
-    lines.push(`${batch.section.title}${batch.section.description ? ` — ${batch.section.description}` : ""}`);
+    lines.push(
+      `${batch.section.title}${batch.section.description ? ` — ${batch.section.description}` : ""}`,
+    );
   }
   let currentGroup = undefined;
   for (const item of batch.items) {
@@ -114,7 +121,9 @@ function fmtRenderBatch(batch) {
       currentGroup = item.groupTitle;
       if (currentGroup) lines.push(`  [${currentGroup}]`);
     }
-    const status = item.error ? `ERROR: ${item.error.message}` : `${item.html.length} bytes`;
+    const status = item.error
+      ? `ERROR: ${item.error.message}`
+      : `${item.html.length} bytes`;
     lines.push(`  ${item.title} [${item.componentName}] — ${status}`);
   }
   return lines.join("\n");
@@ -144,6 +153,7 @@ const DISPATCH = {
 
 export function format(result) {
   const fn = DISPATCH[result.constructor.name];
-  if (!fn) throw new Error(`cli formatter missing dispatch for ${result.constructor.name}`);
+  if (!fn)
+    throw new Error(`cli formatter missing dispatch for ${result.constructor.name}`);
   return fn(result);
 }

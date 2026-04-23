@@ -6,7 +6,9 @@ export function describeModule(mod, { path = null } = {}) {
   const counts = {
     components: normalized.components.length,
     macros: normalized.macros ? Object.keys(normalized.macros).length : 0,
-    requestHandlers: normalized.requestHandlers ? Object.keys(normalized.requestHandlers).length : 0,
+    requestHandlers: normalized.requestHandlers
+      ? Object.keys(normalized.requestHandlers).length
+      : 0,
     examples: normalized.section
       ? normalized.section.items.length +
         normalized.section.groups.reduce((n, g) => n + g.items.length, 0)

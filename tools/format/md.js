@@ -59,7 +59,9 @@ function fmtExampleIndex(idx) {
   if (s.items.length) {
     lines.push("");
     for (const item of s.items) {
-      lines.push(`- **${item.title}** — \`${item.componentName}\`${item.description ? ` — ${item.description}` : ""}`);
+      lines.push(
+        `- **${item.title}** — \`${item.componentName}\`${item.description ? ` — ${item.description}` : ""}`,
+      );
     }
   }
   for (const group of s.groups) {
@@ -67,7 +69,9 @@ function fmtExampleIndex(idx) {
     if (group.description) lines.push("", group.description);
     lines.push("");
     for (const item of group.items) {
-      lines.push(`- **${item.title}** — \`${item.componentName}\`${item.description ? ` — ${item.description}` : ""}`);
+      lines.push(
+        `- **${item.title}** — \`${item.componentName}\`${item.description ? ` — ${item.description}` : ""}`,
+      );
     }
   }
   return lines.join("\n");
@@ -92,7 +96,9 @@ function fmtLintReport(rep) {
 
 function fmtModuleInfo(info) {
   const lines = [`# Module: ${info.path ?? "<in-memory>"}`, ""];
-  lines.push(`- Exports: ${[...info.present].map((k) => `\`${k}\``).join(", ") || "(none)"}`);
+  lines.push(
+    `- Exports: ${[...info.present].map((k) => `\`${k}\``).join(", ") || "(none)"}`,
+  );
   lines.push(`- Components: ${info.counts.components}`);
   lines.push(`- Macros: ${info.counts.macros}`);
   lines.push(`- Request handlers: ${info.counts.requestHandlers}`);
@@ -109,7 +115,8 @@ function fmtComponentList(list) {
   const lines = ["# Components", ""];
   for (const c of list.items) {
     lines.push(`## ${c.name}`, "");
-    if (c.views.length) lines.push(`Views: ${c.views.map((v) => `\`${v}\``).join(", ")}`, "");
+    if (c.views.length)
+      lines.push(`Views: ${c.views.map((v) => `\`${v}\``).join(", ")}`, "");
     if (c.fields.length) {
       lines.push("Fields:", "");
       for (const f of c.fields) lines.push(`- \`${f.name}\` (${f.type})`);
@@ -130,6 +137,7 @@ const DISPATCH = {
 
 export async function format(result, opts) {
   const fn = DISPATCH[result.constructor.name];
-  if (!fn) throw new Error(`md formatter missing dispatch for ${result.constructor.name}`);
+  if (!fn)
+    throw new Error(`md formatter missing dispatch for ${result.constructor.name}`);
   return await fn(result, opts);
 }
