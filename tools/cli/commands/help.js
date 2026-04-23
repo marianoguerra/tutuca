@@ -107,8 +107,6 @@ EXIT CODES
   3   render crash
 
 ENVIRONMENT
-  \`jsdom\` is an optional peer dep. Required for commands that render or
-  lint (lint, render, doctor). info/list/examples/docs work without it.
   \`prettier\` is an optional peer dep, only used by --pretty.
 
 EXAMPLES

@@ -4,18 +4,18 @@
   "workspaces": {
     "": {
       "name": "tutuca",
+      "dependencies": {
+        "jsdom": "^28.0.0 || ^29.0.0",
+      },
       "devDependencies": {
         "@biomejs/biome": "^2.4.12",
         "fast-check": "^4.7.0",
-        "jsdom": "^29.0.0",
         "prettier": "^3.8.3",
       },
       "peerDependencies": {
-        "jsdom": "^28.0.0",
         "prettier": "^3.0.0",
       },
       "optionalPeers": [
-        "jsdom",
         "prettier",
       ],
     },

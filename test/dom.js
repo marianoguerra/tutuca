@@ -1,9 +1,23 @@
 import { expect } from "bun:test";
-import { JSDOM } from "jsdom";
+import { JSDOM, VirtualConsole } from "jsdom";
 import { ANode, ParseContext, TextNode } from "../src/anode.js";
 import { fieldsByTypeName } from "../src/oo.js";
 
-const { window } = new JSDOM("");
+// rrweb-cssom (jsdom's CSS parser) doesn't support CSS Nesting, which we emit
+// via components.js when wrapping per-view rules. Swallow just that message;
+// forward everything else to the host console.
+function makeVirtualConsole() {
+  const vc = new VirtualConsole();
+  vc.on("jsdomError", (e) => {
+    if (!/Could not parse CSS stylesheet/.test(e?.message ?? "")) console.error(e);
+  });
+  for (const level of ["log", "info", "warn", "error", "debug"]) {
+    vc.on(level, (...args) => console[level](...args));
+  }
+  return vc;
+}
+
+const { window } = new JSDOM("", { virtualConsole: makeVirtualConsole() });
 const { DOMParser, Text, Comment } = window;
 
 export const mpx = () => new ParseContext(DOMParser, Text, Comment);
@@ -29,7 +43,7 @@ export { Comment, DOMParser, Text };
 // Install a fresh JSDOM document on globalThis and return it. The vdom
 // renderer reads `globalThis.document` when no explicit document is passed.
 export function setupJsdom(html = "<!DOCTYPE html><html><head></head><body></body></html>") {
-  const dom = new JSDOM(html);
+  const dom = new JSDOM(html, { virtualConsole: makeVirtualConsole() });
   globalThis.document = dom.window.document;
   return dom.window.document;
 }
