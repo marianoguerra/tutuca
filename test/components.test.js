@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { component } from "../index.js";
 import { ComponentStack, Components, Dynamic, DynamicAlias } from "../src/components.js";
 import { Stack } from "../src/stack.js";
@@ -121,6 +121,48 @@ describe("Components", () => {
       expect(stack.withDynamicBindings(["theMessage"]).lookupDynamic("theMessage")).toBe(
         "custom message",
       );
+    }
+  });
+
+  test("registerComponents with aliases", () => {
+    const CompA = component({
+      name: "CompA",
+      fields: { message: "hey there!" },
+    });
+    const comps = new Components();
+    const compStack = new ComponentStack(comps);
+    compStack.registerComponents([CompA], { AliasA: "CompA", AliasB: "CompA" });
+    expect(Object.keys(compStack.byName)).toEqual(["CompA", "AliasA", "AliasB"]);
+    expect(compStack.byName.CompA).toBe(CompA);
+    expect(compStack.byName.AliasA).toBe(CompA);
+    expect(compStack.byName.AliasB).toBe(CompA);
+  });
+
+  test("registerComponents alias overriding existing component triggers console.assert", () => {
+    const CompA = component({ name: "CompA", fields: {} });
+    const CompB = component({ name: "CompB", fields: {} });
+    const comps = new Components();
+    const compStack = new ComponentStack(comps);
+    const assertSpy = spyOn(console, "assert").mockImplementation(() => {});
+    try {
+      compStack.registerComponents([CompA, CompB], { CompA: "CompB" });
+      expect(assertSpy).toHaveBeenCalledWith(false, "alias overrides component", "CompA");
+    } finally {
+      assertSpy.mockRestore();
+    }
+  });
+
+  test("registerComponents alias to inexistent component triggers console.warn", () => {
+    const CompA = component({ name: "CompA", fields: {} });
+    const comps = new Components();
+    const compStack = new ComponentStack(comps);
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      compStack.registerComponents([CompA], { AliasX: "NotAComp" });
+      expect(warnSpy).toHaveBeenCalledWith("alias", "AliasX", "to inexistent component", "NotAComp");
+      expect(compStack.byName.AliasX).toBeUndefined();
+    } finally {
+      warnSpy.mockRestore();
     }
   });
 });

@@ -60,8 +60,12 @@ export class ComponentStack {
       comp.scope = this.enter();
       this.comps.registerComponent(comp);
       this.byName[comp.name] = comp;
-      const alias = aliases[comp.name];
-      if (alias) this.byName[alias] = comp;
+    }
+    for (const alias in aliases) {
+      const comp = this.byName[aliases[alias]];
+      console.assert(this.byName[alias] === undefined, "alias overrides component", alias);
+      if (comp !== undefined) this.byName[alias] = comp;
+      else console.warn("alias", alias, "to inexistent component", aliases[alias]);
     }
   }
   registerMacros(macros) {
