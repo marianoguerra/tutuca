@@ -171,6 +171,10 @@ function checkConsistentAttrVal(lx, val, fields, proto, computed, scope) {
     if (!isKnownHandlerName(val.name)) {
       lx.warn(UNKNOWN_HANDLER_ARG_NAME, { name: val.name });
     }
+  } else if (valName === "StrTplVal") {
+    for (const subVal of val.vals) {
+      checkConsistentAttrVal(lx, subVal, fields, proto, computed, scope);
+    }
   } else if (valName !== "ConstVal" && valName !== "BindVal") {
     console.log(val);
   }

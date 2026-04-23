@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { LintClassCollectorCtx } from "../dev.js";
 import { component, html } from "../index.js";
 import { ComponentStack } from "../src/components.js";
 import {
@@ -16,7 +17,6 @@ import {
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_REQUEST_NAME,
 } from "../src/lint/index.js";
-import { LintClassCollectorCtx } from "../dev.js";
 import { Comment, DOMParser, Text } from "./dom.js";
 
 class HeadlessLintParseContext extends LintParseContext {
@@ -36,7 +36,10 @@ function defAndCheck(opts) {
 }
 
 test("don't allow render-it outside a loop", () => {
-  const [lx] = defAndCheck({ name: "Comp", view: html`<div><x render-it></x></div>` });
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x render-it></x></div>`,
+  });
   expect(lx.reports.length).toBe(1);
   expect(lx.reports[0].id).toBe(RENDER_IT_OUTSIDE_OF_LOOP);
 });
@@ -87,7 +90,9 @@ test("warn on event handler in view with no impl", () => {
     input: {
       doKeyDown() {},
     },
-    view: html`<button @on.click="doClick" @on.keydown=".doKeyDown">do it</button>`,
+    view: html`<button @on.click="doClick" @on.keydown=".doKeyDown">
+      do it
+    </button>`,
   });
   expect(lx.reports.length).toBe(4);
   {
@@ -116,7 +121,9 @@ test("warn on undefined field attr (field)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { name: "" },
-    view: html`<p :title=".name" :id=".id" @text=".bar" @show=".isVisible">hi</p>`,
+    view: html`<p :title=".name" :id=".id" @text=".bar" @show=".isVisible">
+      hi
+    </p>`,
   });
   expect(lx.reports.length).toBe(3);
   {
@@ -133,6 +140,25 @@ test("warn on undefined field attr (field)", () => {
     const { id, info } = lx.reports[2];
     expect(id).toBe(FIELD_VAL_NOT_DEFINED);
     expect(info.name).toBe("bar");
+  }
+});
+
+test("warn on undefined field attr (string template)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { name: "" },
+    view: html`<p :title="title is {.title} and {$myComp}">hi</p>`,
+  });
+  expect(lx.reports.length).toBe(2);
+  {
+    const { id, info } = lx.reports[0];
+    expect(id).toBe(FIELD_VAL_NOT_DEFINED);
+    expect(info.name).toBe("title");
+  }
+  {
+    const { id, info } = lx.reports[1];
+    expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
+    expect(info.name).toBe("myComp");
   }
 });
 
