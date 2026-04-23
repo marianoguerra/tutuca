@@ -45,8 +45,8 @@ function getFieldMethods(field) {
     case "text":
       methods.push(
         {
-          name: `${name}IsEmpty`,
-          sig: `${name}IsEmpty()`,
+          name: `is${uname}Empty`,
+          sig: `is${uname}Empty()`,
           desc: "Check if string is empty",
         },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get string length" },
@@ -55,8 +55,8 @@ function getFieldMethods(field) {
     case "list":
       methods.push(
         {
-          name: `${name}IsEmpty`,
-          sig: `${name}IsEmpty()`,
+          name: `is${uname}Empty`,
+          sig: `is${uname}Empty()`,
           desc: "Check if list is empty",
         },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get list size" },
@@ -102,8 +102,8 @@ function getFieldMethods(field) {
       const label = type === "omap" ? "ordered map" : "map";
       methods.push(
         {
-          name: `${name}IsEmpty`,
-          sig: `${name}IsEmpty()`,
+          name: `is${uname}Empty`,
+          sig: `is${uname}Empty()`,
           desc: `Check if ${label} is empty`,
         },
         {
@@ -142,8 +142,8 @@ function getFieldMethods(field) {
     case "set":
       methods.push(
         {
-          name: `${name}IsEmpty`,
-          sig: `${name}IsEmpty()`,
+          name: `is${uname}Empty`,
+          sig: `is${uname}Empty()`,
           desc: "Check if set is empty",
         },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get set size" },
