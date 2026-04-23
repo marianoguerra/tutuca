@@ -6,7 +6,7 @@ export const describe =
   "Render examples to HTML (optional <name> to filter by component).";
 
 export async function run(argv, globalOpts) {
-  const env = createNodeEnv();
+  const env = await createNodeEnv();
   const result = await runWithModule({
     argv,
     options: {

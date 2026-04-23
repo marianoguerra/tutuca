@@ -5,7 +5,7 @@ import { runWithModule } from "../with-module.js";
 export const describe = "Run lint + render as a smoke test over the module.";
 
 export async function run(argv, globalOpts) {
-  const env = createNodeEnv();
+  const env = await createNodeEnv();
   const result = await runWithModule({
     argv,
     globalOpts,

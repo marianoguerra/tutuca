@@ -5,7 +5,7 @@ import { runWithModule } from "../with-module.js";
 export const describe = "Run the lint checks on components (optional <name> for one).";
 
 export async function run(argv, globalOpts) {
-  const env = createNodeEnv();
+  const env = await createNodeEnv();
   const result = await runWithModule({
     argv,
     globalOpts,
