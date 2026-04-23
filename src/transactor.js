@@ -73,9 +73,10 @@ export class Transactor {
   }
 }
 function mkReq404(name) {
-  return () => {
+  const fn = () => {
     throw new Error(`Request not found: ${name}`);
   };
+  return { fn };
 }
 function nullHandler() {
   return this;
