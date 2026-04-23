@@ -59,7 +59,7 @@ doctor MODULE:
     bun tools/tutuca.js {{MODULE}} doctor
 
 stresstest iterations="100000" seed="":
-    bun tools/tutuca.js stresstest --iterations {{iterations}} {{ if seed != "" { "--seed " + seed } else { "" } }}
+    bun scripts/stresstest.js --iterations {{iterations}} {{ if seed != "" { "--seed " + seed } else { "" } }}
 
 smoke-test:
     npm run smoke-test
