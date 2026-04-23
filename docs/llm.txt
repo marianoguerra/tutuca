@@ -1,10 +1,5 @@
 # Tutuca Cheatsheet
 
-A quick reference for tutuca's templating, state, and tooling. For a longer
-walkthrough see [`docs/tutorial.html`](docs/tutorial.html); for live example
-apps see [`docs/index.html`](docs/index.html). Each section is
-self-contained — skim the contents below and jump in.
-
 ## Contents
 
 - **Setup** — [Bootstrap](#bootstrap), [Notation Reference](#notation-reference), [Quoting & String Literals](#quoting--string-literals)
