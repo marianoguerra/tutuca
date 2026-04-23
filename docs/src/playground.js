@@ -590,6 +590,8 @@ function _lintIdToMessage(id, info) {
       return `Unknown request '!${info.name}'`;
     case "UNKNOWN_COMPONENT_NAME":
       return `Unknown component '${info.name}'`;
+    case "ALT_HANDLER_NOT_DEFINED":
+      return `Alter handler '${info.name}' is not defined`;
     case "LINT_ERROR":
       return info.message;
     default:

@@ -276,7 +276,7 @@ test("warn on undefined alt field for scope enrich-with directives", () => {
 test("lint-errors example catches all error types", () => {
   const [lx] = defAndCheck({
     name: "LintDemo",
-    fields: { count: 0 },
+    fields: { count: 0, items: [] },
     methods: {
       doClick() {
         return this;
@@ -310,6 +310,12 @@ test("lint-errors example catches all error types", () => {
       <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
         unknown req/comp
       </button>
+
+      <div @enrich-with="myEnrich">undefined alter handler</div>
+
+      <ul @each=".items" @when="myWhen" @enrich-with="myLoopEnrich" @loop-with="myLoopWith">
+        <li><x render-it></x></li>
+      </ul>
 
       <p @text=".count">0</p>
     </div>`,
@@ -328,6 +334,7 @@ test("lint-errors example catches all error types", () => {
   expect(ids).toContain(COMPUTED_VAL_NOT_DEFINED);
   expect(ids).toContain(UNKNOWN_REQUEST_NAME);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
+  expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
 });
 
 test("lint-errors example with LintClassCollectorCtx catches all error types", () => {
@@ -339,7 +346,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
   const Comp = component({
     name: "LintDemo",
-    fields: { count: 0 },
+    fields: { count: 0, items: [] },
     methods: {
       doClick() {
         return this;
@@ -373,6 +380,12 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
       <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
         unknown req/comp
       </button>
+
+      <div @enrich-with="myEnrich">undefined alter handler</div>
+
+      <ul @each=".items" @when="myWhen" @enrich-with="myLoopEnrich" @loop-with="myLoopWith">
+        <li><x render-it></x></li>
+      </ul>
 
       <p @text=".count">0</p>
     </div>`,
@@ -394,4 +407,5 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
   expect(ids).toContain(COMPUTED_VAL_NOT_DEFINED);
   expect(ids).toContain(UNKNOWN_REQUEST_NAME);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
+  expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
 });

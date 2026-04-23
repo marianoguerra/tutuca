@@ -2,7 +2,7 @@ import { component, html } from "tutuca";
 
 const LintDemo = component({
   name: "LintDemo",
-  fields: { count: 0 },
+  fields: { count: 0, items: [] },
   methods: {
     doClick() {
       return this;
@@ -46,6 +46,14 @@ const LintDemo = component({
     <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
       unknown req/comp
     </button>
+
+    <!-- ALT_HANDLER_NOT_DEFINED: myEnrich is not defined in alter -->
+    <div @enrich-with="myEnrich">undefined alter handler</div>
+
+    <!-- ALT_HANDLER_NOT_DEFINED x3: undefined @when / @enrich-with / @loop-with on a loop -->
+    <ul @each=".items" @when="myWhen" @enrich-with="myLoopEnrich" @loop-with="myLoopWith">
+      <li><x render-it></x></li>
+    </ul>
 
     <p @text=".count">0</p>
   </div>`,
