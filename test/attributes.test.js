@@ -88,7 +88,6 @@ test("parse dyn attrs", () => {
   expect(str.val).toBeInstanceOf(ConstVal);
   expect(str.val.val).toBe("hi");
   expect(str.val.toString()).toBe("'hi'");
-  // TODO: test escaping
 
   expect(field.name).toBe("field");
   expect(field.val).toBeInstanceOf(FieldVal);
@@ -168,3 +167,5 @@ test("parse const attrs", () => {
     dyn: "'*dynamic'",
   });
 });
+
+test.todo("parse string attribute with quote escaping");

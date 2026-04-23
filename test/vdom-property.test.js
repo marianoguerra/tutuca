@@ -411,7 +411,10 @@ describe("property-based: random trees and mutations", () => {
           .tuple(
             tagArb,
             keyArb,
-            fc.array(fc.oneof(tie("tree"), vtextArb, vcommentArb), { minLength: 1, maxLength: 3 }),
+            fc.array(fc.oneof(tie("tree"), vtextArb, vcommentArb), {
+              minLength: 1,
+              maxLength: 3,
+            }),
           )
           .map(([tag, key, children]) => {
             const props = key !== undefined ? { key } : null;

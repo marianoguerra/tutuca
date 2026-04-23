@@ -628,7 +628,7 @@ describe("ANode", () => {
       expect(r.childs[0].viewId).toBe("option");
     });
 
-    // TODO: test px.error conditions
+    test.todo("px.error conditions in render-each parsing");
   });
 
   describe("render", () => {

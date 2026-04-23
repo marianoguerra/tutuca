@@ -40,11 +40,12 @@ test("parse render-each", () => {
 
 test("parse render-each and when", () => {
   const [r] = parse(`<x render-each=".items" when=".whenH"></x>`);
-  // TODO: warn if loop-with and no when, unused result
-  // TODO: warn if enrich-with exists
   expect(r.iterInfo.whenVal.name).toBe("whenH");
   expect(r.iterInfo.loopWithVal).toBe(null);
 });
+
+test.todo("warn if loop-with without when (unused result)");
+test.todo("warn if enrich-with exists alongside render-each");
 
 test("parse render-each, when and loop-with", () => {
   const [r] = parse(`<x render-each=".items" when=".whenH" loop-with=".lwith"></x>`);

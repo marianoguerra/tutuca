@@ -48,7 +48,9 @@ describe("select value → matching option selected", () => {
 
   test("morph reapplies value when a newly-appended option matches the existing value", () => {
     const container = document.createElement("div");
-    vdomRender(h("select", { value: "c" }, [opt("a"), opt("b")]), container, { document });
+    vdomRender(h("select", { value: "c" }, [opt("a"), opt("b")]), container, {
+      document,
+    });
     const sel = container.firstChild;
     expect(sel.value).not.toBe("c");
     vdomRender(h("select", { value: "c" }, [opt("a"), opt("b"), opt("c")]), container, {
@@ -66,7 +68,9 @@ describe("select value → matching option selected", () => {
     });
     const sel = container.firstChild;
     expect(sel.value).toBe("b");
-    vdomRender(h("select", { value: "b" }, [opt("a"), opt("c")]), container, { document });
+    vdomRender(h("select", { value: "b" }, [opt("a"), opt("c")]), container, {
+      document,
+    });
     expect(container.firstChild).toBe(sel);
     expect(sel.value).toBe("");
     expect(sel.selectedIndex).toBe(-1);
