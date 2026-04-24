@@ -157,7 +157,7 @@ export class ANode extends BaseNode {
         return px.frame.macroSlots[slotName] ?? maybeFragment(childs);
       }
       const [nAttrs, wrappers] = Attributes.parse(attrs, px, true);
-      px.onAttributes(nAttrs, wrappers, null);
+      px.onAttributes(nAttrs, wrappers, null, true);
       return wrap(px.newMacroNode(macroName, nAttrs.toMacroVars(), childs), px, wrappers);
     } else if (VALID_NODE_RE.test(tag)) {
       const [nAttrs, wrappers, textChild] = Attributes.parse(attrs, px);
@@ -456,7 +456,7 @@ export class ParseContext {
   getNodeForId(id) {
     return this.nodes[id] ?? null;
   }
-  onAttributes(_attrs, _wrapperAttrs, _textChild) {}
+  onAttributes(_attrs, _wrapperAttrs, _textChild, _isMacroCall) {}
 }
 const isTextNodeAllBlanks = (n) => n instanceof TextNode && n.isWhiteSpace();
 const isFirstDomNode = (n) =>

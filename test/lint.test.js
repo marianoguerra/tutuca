@@ -632,7 +632,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
 });
 
-test("macro invocation :handler is NameVal, ^handler in body expands to InputHandlerNameVal", () => {
+test("macro invocation :handler NameVal does not warn; ^handler in body expands to InputHandlerNameVal", () => {
   const btn = macro(
     { handler: "onAction", arg: "event" },
     html`<button @on.click="^handler ^arg"></button>`,
@@ -673,7 +673,7 @@ test("macro invocation :handler is NameVal, ^handler in body expands to InputHan
   const unknownHandlerReports = lx.reports.filter(
     (r) => r.id === UNKNOWN_HANDLER_ARG_NAME && r.info.name === "onDo",
   );
-  expect(unknownHandlerReports.length).toBe(1);
+  expect(unknownHandlerReports.length).toBe(0);
 });
 
 test("x render-each with when referencing defined alter handler emits nothing", () => {

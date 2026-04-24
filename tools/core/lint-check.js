@@ -187,7 +187,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
   }
 }
 
-function checkConsistentAttrVal(lx, val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed) {
+function checkConsistentAttrVal(lx, val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal = false) {
   const valName = val?.constructor.name;
   if (valName === "FieldVal" || valName === "RawFieldVal") {
     const { name } = val;
@@ -201,8 +201,8 @@ function checkConsistentAttrVal(lx, val, fields, proto, computed, scope, alter, 
       lx.error(COMPUTED_VAL_NOT_DEFINED, { val, name });
     }
   } else if (valName === "SeqAccessVal") {
-    checkConsistentAttrVal(lx, val.seqVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
-    checkConsistentAttrVal(lx, val.keyVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+    checkConsistentAttrVal(lx, val.seqVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal);
+    checkConsistentAttrVal(lx, val.keyVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal);
   } else if (valName === "RequestVal") {
     if (scope.lookupRequest(val.name) === null) {
       lx.warn(UNKNOWN_REQUEST_NAME, { name: val.name });
@@ -212,12 +212,15 @@ function checkConsistentAttrVal(lx, val, fields, proto, computed, scope, alter, 
       lx.warn(UNKNOWN_COMPONENT_NAME, { name: val.name });
     }
   } else if (valName === "NameVal") {
-    if (!isKnownHandlerName(val.name)) {
+    // NameVals on a macro call-site attribute are macro-param bindings, not
+    // handler args — their role is determined inside the macro body after
+    // ^-substitution, where re-parsing handles validation.
+    if (!skipNameVal && !isKnownHandlerName(val.name)) {
       lx.warn(UNKNOWN_HANDLER_ARG_NAME, { name: val.name });
     }
   } else if (valName === "StrTplVal") {
     for (const subVal of val.vals) {
-      checkConsistentAttrVal(lx, subVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+      checkConsistentAttrVal(lx, subVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal);
     }
   } else if (valName === "AlterHandlerNameVal") {
     referencedAlters?.add(val.name);
@@ -237,12 +240,12 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
     lx.push({ viewName }, () => {
       const view = views[viewName];
       for (const attr of view.ctx.attrs) {
-        const { attrs, wrapperAttrs, textChild } = attr;
+        const { attrs, wrapperAttrs, textChild, isMacroCall } = attr;
 
         if (attrs?.constructor.name === "DynAttrs") {
           for (const attr of attrs.items) {
             if (attr?.constructor.name === "Attr") {
-              checkConsistentAttrVal(lx, attr.val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+              checkConsistentAttrVal(lx, attr.val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, isMacroCall);
             }
           }
         }
@@ -341,7 +344,7 @@ export class LintParseContext extends ParseContext {
     super(DOMParser, Text, Comment);
     this.attrs = [];
   }
-  onAttributes(attrs, wrapperAttrs, textChild) {
-    this.attrs.push({ attrs, wrapperAttrs, textChild });
+  onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false) {
+    this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall });
   }
 }

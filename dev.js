@@ -58,8 +58,8 @@ export class LintClassCollectorCtx extends ParseCtxClassSetCollector {
     v.attrs = this.attrs;
     return v;
   }
-  onAttributes(attrs, wrapperAttrs, textChild) {
-    super.onAttributes(attrs, wrapperAttrs, textChild);
-    this.attrs.push({ attrs, wrapperAttrs, textChild });
+  onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false) {
+    super.onAttributes(attrs, wrapperAttrs, textChild, isMacroCall);
+    this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall });
   }
 }
