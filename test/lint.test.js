@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { LintClassCollectorCtx } from "../dev.js";
-import { component, html } from "../index.js";
+import { component, html, macro } from "../index.js";
 import { ComponentStack } from "../src/components.js";
 import {
   ALT_HANDLER_NOT_DEFINED,
@@ -630,4 +630,74 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
   expect(ids).toContain(UNKNOWN_REQUEST_NAME);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
+});
+
+test("macro invocation :handler is NameVal, ^handler in body expands to InputHandlerNameVal", () => {
+  const btn = macro(
+    { handler: "onAction", arg: "event" },
+    html`<button @on.click="^handler ^arg"></button>`,
+  );
+  const Comp = component({
+    name: "Comp",
+    input: { onDo() {} },
+    view: html`<div><x:btn :handler="onDo" :arg="event"></x:btn></div>`,
+  });
+  Comp.scope = new ComponentStack();
+  Comp.scope.registerMacros({ btn });
+  Comp.compile(HeadlessLintParseContext);
+  const lx = checkComponent(Comp);
+
+  const view = Comp.views.main;
+
+  const clickEvents = view.ctx.events.filter((ev) =>
+    ev.handlers.some((h) => h.name === "click"),
+  );
+  expect(clickEvents.length).toBe(1);
+  const clickHandler = clickEvents[0].handlers.find((h) => h.name === "click");
+  const { handlerVal } = clickHandler.handlerCall;
+  expect(handlerVal.constructor.name).toBe("InputHandlerNameVal");
+  expect(handlerVal.name).toBe("onDo");
+
+  const outerAttrEntry = view.ctx.attrs.find(
+    (e) =>
+      e.attrs?.constructor.name === "DynAttrs" &&
+      e.attrs.items.some((a) => a?.constructor.name === "Attr" && a.name === "handler"),
+  );
+  expect(outerAttrEntry).toBeDefined();
+  const handlerAttr = outerAttrEntry.attrs.items.find(
+    (a) => a?.constructor.name === "Attr" && a.name === "handler",
+  );
+  expect(handlerAttr.val.constructor.name).toBe("NameVal");
+  expect(handlerAttr.val.name).toBe("onDo");
+
+  const unknownHandlerReports = lx.reports.filter(
+    (r) => r.id === UNKNOWN_HANDLER_ARG_NAME && r.info.name === "onDo",
+  );
+  expect(unknownHandlerReports.length).toBe(1);
+});
+
+test("x render-each with when referencing defined alter handler emits nothing", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: {
+      filterItem() {
+        return true;
+      },
+    },
+    view: html`<div><x render-each=".items" when="filterItem"></x></div>`,
+  });
+  expect(lx.reports.length).toBe(0);
+});
+
+test("x render-each with when referencing missing alter handler warns", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" when="filterItem"></x></div>`,
+  });
+  const altNotDefined = lx.reports.filter(
+    (r) => r.id === ALT_HANDLER_NOT_DEFINED && r.info.name === "filterItem",
+  );
+  expect(altNotDefined.length).toBe(1);
 });

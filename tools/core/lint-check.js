@@ -272,6 +272,13 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
         if (node.val) {
           checkConsistentAttrVal(lx, node.val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
         }
+        if (node.constructor.name === "RenderEachNode") {
+          const iter = node.iterInfo;
+          if (iter.whenVal)
+            checkConsistentAttrVal(lx, iter.whenVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+          if (iter.loopWithVal)
+            checkConsistentAttrVal(lx, iter.loopWithVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+        }
       }
     });
   }
