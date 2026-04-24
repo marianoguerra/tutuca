@@ -15,6 +15,7 @@ export const COMPUTED_VAL_NOT_DEFINED = "COMPUTED_VAL_NOT_DEFINED";
 export const COMPUTED_NOT_REFERENCED = "COMPUTED_NOT_REFERENCED";
 export const UNKNOWN_REQUEST_NAME = "UNKNOWN_REQUEST_NAME";
 export const UNKNOWN_COMPONENT_NAME = "UNKNOWN_COMPONENT_NAME";
+export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
 
 const LEVEL_WARN = "warn";
 const LEVEL_ERROR = "error";
@@ -43,6 +44,21 @@ function checkView(lx, view, Comp, referencedAlters, referencedComputed) {
   checkRenderItInLoop(lx, view);
   checkEventModifiers(lx, view);
   checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComputed);
+  checkMacroCallArgs(lx, view, Comp);
+}
+
+function checkMacroCallArgs(lx, view, Comp) {
+  const { scope } = Comp;
+  for (const macroNode of view.ctx.macroNodes) {
+    const macro = scope.lookupMacro(macroNode.name);
+    if (macro === null) continue;
+    const { defaults } = macro;
+    for (const argName in macroNode.attrs) {
+      if (!(argName in defaults)) {
+        lx.warn(UNKNOWN_MACRO_ARG, { name: argName, macroName: macroNode.name });
+      }
+    }
+  }
 }
 
 function checkRenderItInLoop(lx, view) {

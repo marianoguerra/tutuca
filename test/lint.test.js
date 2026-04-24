@@ -19,6 +19,7 @@ import {
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_EVENT_MODIFIER,
   UNKNOWN_HANDLER_ARG_NAME,
+  UNKNOWN_MACRO_ARG,
   UNKNOWN_REQUEST_NAME,
 } from "../tools/core/lint-check.js";
 import { Comment, DOMParser, Text } from "./dom.js";
@@ -686,6 +687,23 @@ test("x render-each with when referencing defined alter handler emits nothing", 
     view: html`<div><x render-each=".items" when="filterItem"></x></div>`,
   });
   expect(lx.reports.length).toBe(0);
+});
+
+test("warn on macro call with arg not declared in macro defaults", () => {
+  const btn = macro({ label: "click" }, html`<button>^label</button>`);
+  const Comp = component({
+    name: "Comp",
+    view: html`<div><x:btn :label="go" :extra="oops"></x:btn></div>`,
+  });
+  Comp.scope = new ComponentStack();
+  Comp.scope.registerMacros({ btn });
+  Comp.compile(HeadlessLintParseContext);
+  const lx = checkComponent(Comp);
+
+  const unknownArgs = lx.reports.filter((r) => r.id === UNKNOWN_MACRO_ARG);
+  expect(unknownArgs.length).toBe(1);
+  expect(unknownArgs[0].info.name).toBe("extra");
+  expect(unknownArgs[0].info.macroName).toBe("btn");
 });
 
 test("x render-each with when referencing missing alter handler warns", () => {

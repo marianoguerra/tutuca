@@ -1,4 +1,6 @@
-import { component, html } from "tutuca";
+import { component, html, macro } from "tutuca";
+
+const labeled = macro({ label: "'hi'" }, html`<span @text="^label"></span>`);
 
 const LintDemo = component({
   name: "LintDemo",
@@ -67,9 +69,16 @@ const LintDemo = component({
       <li><x render-it></x></li>
     </ul>
 
+    <!-- UNKNOWN_MACRO_ARG: extra is not declared in the macro defaults -->
+    <x:labeled label="ok" extra="oops"></x:labeled>
+
     <p @text=".count">0</p>
   </div>`,
 });
+
+export function getMacros() {
+  return { labeled };
+}
 
 export function getComponents() {
   return [LintDemo];
