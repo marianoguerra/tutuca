@@ -4,6 +4,8 @@ import { component, html } from "../index.js";
 import { ComponentStack } from "../src/components.js";
 import {
   ALT_HANDLER_NOT_DEFINED,
+  ALT_HANDLER_NOT_REFERENCED,
+  COMPUTED_NOT_REFERENCED,
   COMPUTED_VAL_NOT_DEFINED,
   checkComponent,
   FIELD_VAL_NOT_DEFINED,
@@ -11,6 +13,7 @@ import {
   INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
   INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
   INPUT_HANDLER_NOT_IMPLEMENTED,
+  INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
   RENDER_IT_OUTSIDE_OF_LOOP,
   UNKNOWN_COMPONENT_NAME,
@@ -257,6 +260,130 @@ test("warn on undefined alt field for loop directives", () => {
     expect(id).toBe(ALT_HANDLER_NOT_DEFINED);
     expect(info.name).toBe("myLoopWith");
   }
+});
+
+test("hint on computed property defined but not referenced", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    computed: {
+      usedTotal() {
+        return 1;
+      },
+      unusedTotal() {
+        return 2;
+      },
+    },
+    view: html`<p :title="$usedTotal">hi</p>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  const { id, info, level } = lx.reports[0];
+  expect(id).toBe(COMPUTED_NOT_REFERENCED);
+  expect(info.name).toBe("unusedTotal");
+  expect(level).toBe("hint");
+});
+
+test("no unreferenced computed hint when referenced", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    computed: {
+      total() {
+        return 0;
+      },
+    },
+    view: html`<p :title="$total">hi</p>`,
+  });
+  expect(lx.reports.length).toBe(0);
+});
+
+test("hint on input handler defined but not referenced", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: {
+      usedClick() {},
+      unusedInput() {},
+    },
+    view: html`<button @on.click="usedClick">ok</button>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  const { id, info, level } = lx.reports[0];
+  expect(id).toBe(INPUT_HANDLER_NOT_REFERENCED);
+  expect(info.name).toBe("unusedInput");
+  expect(level).toBe("hint");
+});
+
+test("no unreferenced input hint when handler is referenced", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: {
+      doClick() {},
+    },
+    view: html`<button @on.click="doClick">ok</button>`,
+  });
+  expect(lx.reports.length).toBe(0);
+});
+
+test("hint on alter handler defined but not referenced", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: {
+      usedEnrich(binds, k, v) {
+        binds.label = `${k}:${v}`;
+      },
+      unusedAlter(_k, v) {
+        return v;
+      },
+    },
+    view: html`<div>
+      <div @each=".items" @enrich-with="usedEnrich">
+        <x render-it></x>
+      </div>
+    </div>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  const { id, info, level } = lx.reports[0];
+  expect(id).toBe(ALT_HANDLER_NOT_REFERENCED);
+  expect(info.name).toBe("unusedAlter");
+  expect(level).toBe("hint");
+});
+
+test("no unreferenced hint when alter handlers are referenced via when/enrich-with/loop-with", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: {
+      myWhen() {
+        return true;
+      },
+      myEnrich() {},
+      myLoopWith() {},
+    },
+    view: html`<div>
+      <div
+        @each=".items"
+        @when="myWhen"
+        @enrich-with="myEnrich"
+        @loop-with="myLoopWith"
+      >
+        <x render-it></x>
+      </div>
+    </div>`,
+  });
+  expect(lx.reports.length).toBe(0);
+});
+
+test("no unreferenced hint when a misspelled reference still names the handler", () => {
+  // If a handler is referenced (even with a typo on the ref side), the defined
+  // handler with that name is considered "intended for use" — no hint.
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: {},
+    alter: {
+      myEnrich() {},
+    },
+    view: html`<div @enrich-with="myEnrich"></div>`,
+  });
+  expect(lx.reports.length).toBe(0);
 });
 
 test("warn on undefined alt field for scope enrich-with directives", () => {

@@ -10,10 +10,22 @@ const LintDemo = component({
   },
   input: {
     doKeyDown() {},
+    // INPUT_HANDLER_NOT_REFERENCED: defined here but never used in any view
+    unusedInput() {},
   },
   computed: {
     total() {
       return 0;
+    },
+    // COMPUTED_NOT_REFERENCED: defined here but never used in any view
+    unusedComputed() {
+      return 0;
+    },
+  },
+  alter: {
+    // ALT_HANDLER_NOT_REFERENCED: defined here but never used in any view
+    unusedAlter(_k, v) {
+      return v;
     },
   },
   view: html`<div>

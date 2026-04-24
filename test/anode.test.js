@@ -44,7 +44,6 @@ test("parse render-each and when", () => {
   expect(r.iterInfo.loopWithVal).toBe(null);
 });
 
-test.todo("warn if loop-with without when (unused result)");
 test.todo("warn if enrich-with exists alongside render-each");
 
 test("parse render-each, when and loop-with", () => {

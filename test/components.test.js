@@ -159,7 +159,12 @@ describe("Components", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
     try {
       compStack.registerComponents([CompA], { AliasX: "NotAComp" });
-      expect(warnSpy).toHaveBeenCalledWith("alias", "AliasX", "to inexistent component", "NotAComp");
+      expect(warnSpy).toHaveBeenCalledWith(
+        "alias",
+        "AliasX",
+        "to inexistent component",
+        "NotAComp",
+      );
       expect(compStack.byName.AliasX).toBeUndefined();
     } finally {
       warnSpy.mockRestore();
