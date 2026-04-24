@@ -18,6 +18,9 @@ export { seqInfoByClass } from "./src/renderer.js";
 export const css = String.raw;
 export const html = String.raw;
 export const macro = (defaults, rawView) => new Macro(defaults, rawView);
+export function check(_app) {
+  return { error: 0, warn: 0, hint: 0, dummyCheck: true };
+}
 export function tutuca(nodeOrSelector) {
   const rootNode =
     typeof nodeOrSelector === "string" ? document.querySelector(nodeOrSelector) : nodeOrSelector;

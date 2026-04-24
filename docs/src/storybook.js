@@ -1,5 +1,5 @@
 import { compile } from "margaui";
-import { compileClassesToStyleText, injectCss, tutuca } from "tutuca";
+import { check, compileClassesToStyleText, injectCss, tutuca } from "tutuca";
 import { getComponents, getMacros, getRequestHandlers, getRoot } from "../examples/storybook.js";
 
 async function main() {
@@ -13,6 +13,7 @@ async function main() {
   injectCss("myapp", style);
 
   app.start();
+  check(app);
 }
 
 main();
