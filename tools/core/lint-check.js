@@ -42,16 +42,41 @@ export function checkView(lx, view, Comp, referencedAlters, referencedComputed) 
 }
 
 function checkRenderItInLoop(lx, view) {
-  const { nodes } = view.ctx;
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
+  let hasRenderIt = false;
+  for (const node of view.ctx.nodes) {
     if (node.constructor.name === "RenderItNode") {
-      const next = nodes[i + 1];
-      const nextName = next?.constructor.name;
-      if (nextName !== "EachNode" && nextName !== "RenderEachNode") {
-        lx.error(RENDER_IT_OUTSIDE_OF_LOOP, { node });
-      }
+      hasRenderIt = true;
+      break;
     }
+  }
+  if (!hasRenderIt) return;
+  walkForRenderIt(lx, view.anode, 0);
+}
+
+function walkForRenderIt(lx, node, loopDepth) {
+  if (node === null || node === undefined) return;
+  switch (node.constructor.name) {
+    case "RenderItNode":
+      if (loopDepth === 0) lx.error(RENDER_IT_OUTSIDE_OF_LOOP, { node });
+      return;
+    case "EachNode":
+      walkForRenderIt(lx, node.node, loopDepth + 1);
+      return;
+    case "ShowNode":
+    case "HideNode":
+    case "ScopeNode":
+    case "SlotNode":
+    case "PushViewNameNode":
+    case "MacroNode":
+    case "RenderOnceNode":
+      walkForRenderIt(lx, node.node, loopDepth);
+      return;
+    case "DomNode":
+    case "FragmentNode":
+      for (const child of node.childs) walkForRenderIt(lx, child, loopDepth);
+      return;
+    default:
+      return;
   }
 }
 

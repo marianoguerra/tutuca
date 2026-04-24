@@ -48,6 +48,68 @@ test("don't allow render-it outside a loop", () => {
   expect(lx.reports[0].id).toBe(RENDER_IT_OUTSIDE_OF_LOOP);
 });
 
+test("allow two render-its inside the same loop", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div>
+      <div @each=".items">
+        <x render-it></x>
+        <x render-it></x>
+      </div>
+    </div>`,
+  });
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).not.toContain(RENDER_IT_OUTSIDE_OF_LOOP);
+});
+
+test("allow render-it with sibling x-show inside loop", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], enabled: true },
+    view: html`<div>
+      <div @each=".items">
+        <x render-it></x>
+        <x show=".enabled"><span>a</span></x>
+      </div>
+    </div>`,
+  });
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).not.toContain(RENDER_IT_OUTSIDE_OF_LOOP);
+});
+
+test("allow render-it deeply nested with sibling x-show inside loop", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], enabled: true },
+    view: html`<div>
+      <div @each=".items">
+        <section>
+          <div>
+            <x render-it></x>
+            <x show=".enabled"><span>a</span></x>
+          </div>
+        </section>
+      </div>
+    </div>`,
+  });
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).not.toContain(RENDER_IT_OUTSIDE_OF_LOOP);
+});
+
+test("flag render-it that is sibling of a loop (not inside it)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div>
+      <x render-it></x>
+      <div @each=".items"><span>x</span></div>
+    </div>`,
+  });
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).toContain(RENDER_IT_OUTSIDE_OF_LOOP);
+});
+
 test("warn on unknown event modifiers", () => {
   const [lx] = defAndCheck({
     name: "Comp",
