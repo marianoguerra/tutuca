@@ -22,9 +22,5 @@ export async function createNodeEnv() {
     document: dom.window.document,
     ParseContext: HeadlessParseContext,
     LintParseContext: HeadlessLintParseContext,
-    makeDocument() {
-      const d = new JSDOM("<!DOCTYPE html><html><body></body></html>");
-      return d.window.document;
-    },
   };
 }

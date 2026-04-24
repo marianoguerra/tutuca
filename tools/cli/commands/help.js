@@ -128,14 +128,18 @@ export async function run(argv) {
     process.stdout.write(OVERVIEW);
     return;
   }
-  const { COMMAND_NAMES } = await import("./_registry.js");
-  if (!COMMAND_NAMES.includes(target)) {
+  if (target === "help") {
+    process.stdout.write(`help: ${describe}\n`);
+    return;
+  }
+  const { COMMANDS } = await import("./_registry.js");
+  const cmd = COMMANDS[target];
+  if (!cmd) {
     process.stderr.write(`tutuca: unknown command: ${target}\n`);
     process.stderr.write("Run `tutuca help` for the full reference.\n");
     process.exit(1);
   }
-  const mod = await import(`./${target}.js`);
-  process.stdout.write(`${target}: ${mod.describe}\n`);
+  process.stdout.write(`${target}: ${cmd.describe}\n`);
   process.stdout.write(
     "Run `tutuca help` for the full reference including signatures and flags.\n",
   );

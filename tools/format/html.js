@@ -1,6 +1,6 @@
-export const supports = new Set(["RenderBatch"]);
+import { makeFormatter } from "./_dispatch.js";
 
-export async function format(result, { pretty = false } = {}) {
+async function fmtRenderBatch(result, { pretty = false } = {}) {
   const prettify = pretty ? (await import("prettier")).format : null;
   const parts = [];
   for (const section of result.sections) {
@@ -22,3 +22,7 @@ export async function format(result, { pretty = false } = {}) {
   }
   return parts.join("\n");
 }
+
+export const { supports, format } = makeFormatter("html", {
+  RenderBatch: fmtRenderBatch,
+});

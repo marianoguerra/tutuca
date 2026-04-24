@@ -1,12 +1,4 @@
-export const supports = new Set([
-  "ModuleInfo",
-  "ComponentList",
-  "ExampleIndex",
-  "ComponentDocs",
-  "LintReport",
-  "RenderBatch",
-  "DoctorReport",
-]);
+import { makeFormatter } from "./_dispatch.js";
 
 function fmtModuleInfo(info) {
   const lines = [];
@@ -133,7 +125,7 @@ function fmtDoctor(rep) {
   return lines.join("\n");
 }
 
-const DISPATCH = {
+export const { supports, format } = makeFormatter("cli", {
   ModuleInfo: fmtModuleInfo,
   ComponentList: fmtComponentList,
   ExampleIndex: fmtExampleIndex,
@@ -141,11 +133,4 @@ const DISPATCH = {
   LintReport: fmtLintReport,
   RenderBatch: fmtRenderBatch,
   DoctorReport: fmtDoctor,
-};
-
-export function format(result) {
-  const fn = DISPATCH[result.constructor.name];
-  if (!fn)
-    throw new Error(`cli formatter missing dispatch for ${result.constructor.name}`);
-  return fn(result);
-}
+});

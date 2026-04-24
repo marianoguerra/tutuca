@@ -1,4 +1,4 @@
-import { ComponentList, ComponentSummary } from "./results.js";
+import { ComponentList, ComponentSummary, ExampleIndex } from "./results.js";
 
 function summarize(comp) {
   const meta = comp.Class.getMetaClass();
@@ -18,4 +18,8 @@ export function listComponents(normalized, { name = null } = {}) {
   const comps = normalized.components;
   const picked = name === null ? comps : comps.filter((c) => c.name === name);
   return new ComponentList({ items: picked.map(summarize) });
+}
+
+export function listExamples(normalized) {
+  return new ExampleIndex({ sections: normalized.sections });
 }

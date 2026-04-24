@@ -1,19 +1,24 @@
 import { parseArgs } from "node:util";
+import { createNodeEnv } from "./env.js";
 import { loadAndNormalize } from "./load.js";
 import { emit } from "./output.js";
 
-export async function runWithModule({ argv, options, globalOpts, defaultFormat, run }) {
+export async function runCommand(cmd, argv, globalOpts) {
   const parsed = parseArgs({
     args: argv,
-    options: options ?? {},
+    options: cmd.parseOptions ?? {},
     allowPositionals: true,
   });
   const normalized = await loadAndNormalize(globalOpts.module);
-  const result = await run(normalized, parsed);
+  const env = cmd.needsEnv ? await createNodeEnv() : null;
+  const result = await cmd.run(normalized, parsed, env);
   await emit(result, {
-    format: globalOpts.format ?? defaultFormat,
+    format: globalOpts.format ?? cmd.defaultFormat,
     pretty: globalOpts.pretty,
     output: globalOpts.output,
   });
-  return result;
+  if (cmd.exitOn) {
+    const code = cmd.exitOn(result);
+    if (code) process.exit(code);
+  }
 }

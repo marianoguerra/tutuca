@@ -1,6 +1,6 @@
 export const EXAMPLES_SHAPE_MISMATCH = "EXAMPLES_SHAPE_MISMATCH";
 
-export class Example {
+class Example {
   constructor({ title, description = null, value, view = "main", componentName = null }) {
     this.title = title;
     this.description = description;
@@ -17,7 +17,7 @@ function resolveComponentName(value, components) {
   return null;
 }
 
-export class ExampleSection {
+class ExampleSection {
   constructor({ title, description = null, items = [] }) {
     this.title = title;
     this.description = description;
@@ -25,7 +25,7 @@ export class ExampleSection {
   }
 }
 
-export class NormalizedModule {
+class NormalizedModule {
   constructor({ mod, path = null, components, macros, requestHandlers, sections, root }) {
     this.mod = mod;
     this.path = path;

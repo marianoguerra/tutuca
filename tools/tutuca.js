@@ -1,15 +1,7 @@
 #!/usr/bin/env node
+import { COMMANDS } from "./cli/commands/_registry.js";
 import * as help from "./cli/commands/help.js";
-import * as info from "./cli/commands/info.js";
-import * as list from "./cli/commands/list.js";
-import * as examples from "./cli/commands/examples.js";
-import * as docs from "./cli/commands/docs.js";
-import * as lint from "./cli/commands/lint.js";
-import * as render from "./cli/commands/render.js";
-import * as doctor from "./cli/commands/doctor.js";
-
-const COMMANDS = { help, info, list, examples, docs, lint, render, doctor };
-const MODULELESS = new Set(["help"]);
+import { runCommand } from "./cli/with-module.js";
 
 function usageError(msg) {
   process.stderr.write(`tutuca: ${msg}\nRun \`tutuca help\` for usage.\n`);
@@ -55,11 +47,10 @@ async function main() {
   let command;
   let commandArgs;
 
-  if (rest.length >= 1 && COMMANDS[rest[0]] && MODULELESS.has(rest[0])) {
-    command = rest[0];
+  if (rest[0] === "help") {
+    command = "help";
     commandArgs = rest.slice(1);
   } else if (opts.module) {
-    if (rest.length === 0) return usageError("missing command");
     command = rest[0];
     commandArgs = rest.slice(1);
   } else {
@@ -69,16 +60,21 @@ async function main() {
     commandArgs = rest.slice(2);
   }
 
-  const cmd = COMMANDS[command];
-  if (!cmd) return usageError(`unknown command: ${command}`);
-
   if (opts.help) {
     await help.run([command], opts);
     return;
   }
 
+  if (command === "help") {
+    await help.run(commandArgs, opts);
+    return;
+  }
+
+  const cmd = COMMANDS[command];
+  if (!cmd) return usageError(`unknown command: ${command}`);
+
   try {
-    await cmd.run(commandArgs, opts);
+    await runCommand(cmd, commandArgs, opts);
   } catch (e) {
     if (e?.code === "EXAMPLES_SHAPE_MISMATCH") {
       const parts = [];

@@ -1,11 +1,4 @@
-export const supports = new Set([
-  "ComponentDocs",
-  "RenderBatch",
-  "ExampleIndex",
-  "LintReport",
-  "ModuleInfo",
-  "ComponentList",
-]);
+import { makeFormatter } from "./_dispatch.js";
 
 function fmtComponentDocs(docs) {
   const lines = [];
@@ -144,18 +137,11 @@ function fmtComponentList(list) {
   return lines.join("\n");
 }
 
-const DISPATCH = {
+export const { supports, format } = makeFormatter("md", {
   ComponentDocs: fmtComponentDocs,
   RenderBatch: fmtRenderBatch,
   ExampleIndex: fmtExampleIndex,
   LintReport: fmtLintReport,
   ModuleInfo: fmtModuleInfo,
   ComponentList: fmtComponentList,
-};
-
-export async function format(result, opts) {
-  const fn = DISPATCH[result.constructor.name];
-  if (!fn)
-    throw new Error(`md formatter missing dispatch for ${result.constructor.name}`);
-  return await fn(result, opts);
-}
+});
