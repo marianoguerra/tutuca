@@ -17,7 +17,7 @@ import {
   UNKNOWN_EVENT_MODIFIER,
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_REQUEST_NAME,
-} from "../src/lint/index.js";
+} from "../tools/core/lint-check.js";
 import { Comment, DOMParser, Text } from "./dom.js";
 
 class HeadlessLintParseContext extends LintParseContext {

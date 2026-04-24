@@ -1,4 +1,4 @@
-import { MOD_WRAPPERS_BY_EVENT, ParseContext } from "../anode.js";
+import { MOD_WRAPPERS_BY_EVENT, ParseContext } from "../../src/anode.js";
 
 export const ALT_HANDLER_NOT_DEFINED = "ALT_HANDLER_NOT_DEFINED";
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";

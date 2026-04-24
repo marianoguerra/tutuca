@@ -1,6 +1,6 @@
 {
   "name": "tutuca",
-  "version": "0.9.19",
+  "version": "0.9.20",
   "type": "module",
   "description": "Zero-dependency SPA framework with immutable state and virtual DOM",
   "main": "./dist/tutuca.js",
@@ -30,8 +30,7 @@
     "fix": "bunx @biomejs/biome check --write src test/*.js",
     "tutuca": "bun tools/tutuca.js",
     "stresstest": "bun scripts/stresstest.js",
-    "smoke-test": "bun tools/tutuca.js ./test/todo.js doctor && bun tools/tutuca.js ./test/json.js doctor",
-    "sync-playground": "cp src/util/docs.js docs/src/docs.js"
+    "smoke-test": "bun tools/tutuca.js ./test/todo.js doctor && bun tools/tutuca.js ./test/json.js doctor"
   },
   "sideEffects": false,
   "files": [

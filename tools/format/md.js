@@ -1,5 +1,3 @@
-import { docsToMarkdown } from "../../src/util/docs.js";
-
 export const supports = new Set([
   "ComponentDocs",
   "RenderBatch",
@@ -10,7 +8,37 @@ export const supports = new Set([
 ]);
 
 function fmtComponentDocs(docs) {
-  return docsToMarkdown(docs.items);
+  const lines = [];
+  for (const comp of docs.items) {
+    lines.push(`# ${comp.name}\n`);
+
+    if (comp.methods.length > 0) {
+      lines.push("## Methods\n");
+      for (const m of comp.methods) {
+        lines.push(`- \`${m.sig}\``);
+      }
+      lines.push("");
+    }
+
+    if (comp.input.length > 0) {
+      lines.push("## Input Handlers\n");
+      for (const m of comp.input) {
+        lines.push(`- \`${m.sig}\``);
+      }
+      lines.push("");
+    }
+
+    for (const field of comp.fields) {
+      lines.push(
+        `## Field: \`${field.name}\` (${field.type}, default: \`${JSON.stringify(field.default)}\`)\n`,
+      );
+      for (const m of field.methods) {
+        lines.push(`- \`${m.sig}\` — ${m.desc}`);
+      }
+      lines.push("");
+    }
+  }
+  return lines.join("\n");
 }
 
 async function fmtRenderBatch(batch, { pretty = false } = {}) {

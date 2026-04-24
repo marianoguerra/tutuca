@@ -1,5 +1,5 @@
 import { ComponentStack } from "../../src/components.js";
-import { checkComponent } from "../../src/lint/index.js";
+import { checkComponent } from "./lint-check.js";
 import { LintComponentResult, LintFinding, LintReport } from "./results.js";
 
 export function lintComponents(normalized, { name = null, LintParseContextClass }) {

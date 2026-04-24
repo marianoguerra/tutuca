@@ -1,7 +1,9 @@
 import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 
 export * from "./extra.js";
-export * from "./src/lint/index.js";
+export * from "./tools/core/lint-check.js";
+export * from "./tools/core/docs.js";
+export * from "./tools/format/lint.js";
 export class LintClassCollectorCtx extends ParseCtxClassSetCollector {
   constructor(...args) {
     super(...args);
