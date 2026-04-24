@@ -19,7 +19,7 @@ async function fetchLatestRelease() {
 }
 
 function updateBuildsFromRelease(release) {
-  if (!release || !release.assets) return;
+  if (!release?.assets) return;
   const assetsByName = Object.fromEntries(release.assets.map((a) => [a.name, a]));
 
   for (const el of document.querySelectorAll("[data-release-build]")) {

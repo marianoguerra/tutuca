@@ -16,7 +16,7 @@ export function pickFormatter(name) {
 export async function formatResult(formatName, result, options = {}) {
   const f = pickFormatter(formatName);
   const kind = result.constructor.name;
-  if (!f.supports || !f.supports.has(kind)) {
+  if (!f.supports?.has(kind)) {
     throw new Error(`Formatter "${formatName}" does not support ${kind}`);
   }
   return await f.format(result, options);
