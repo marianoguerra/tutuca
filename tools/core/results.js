@@ -71,14 +71,7 @@ export class LintReport {
 }
 
 export class RenderedExample {
-  constructor({
-    title,
-    description = null,
-    componentName,
-    view,
-    html,
-    error = null,
-  }) {
+  constructor({ title, description = null, componentName, view, html, error = null }) {
     this.title = title;
     this.description = description;
     this.componentName = componentName;

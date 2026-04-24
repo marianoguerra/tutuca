@@ -105,15 +105,11 @@ function fmtLintReport(rep) {
 
 function fmtModuleInfo(info) {
   const lines = [`# Module: ${info.path ?? "<in-memory>"}`, ""];
-  lines.push(
-    `- Exports: ${[...info.present].map((k) => `\`${k}\``).join(", ") || "(none)"}`,
-  );
+  lines.push(`- Exports: ${[...info.present].map((k) => `\`${k}\``).join(", ") || "(none)"}`);
   lines.push(`- Components: ${info.counts.components}`);
   lines.push(`- Macros: ${info.counts.macros}`);
   lines.push(`- Request handlers: ${info.counts.requestHandlers}`);
-  lines.push(
-    `- Examples: ${info.counts.examples} (sections: ${info.counts.sections})`,
-  );
+  lines.push(`- Examples: ${info.counts.examples} (sections: ${info.counts.sections})`);
   if (info.warnings.length) {
     lines.push("", "## Warnings", "");
     for (const w of info.warnings) lines.push(`- ${w}`);
@@ -126,8 +122,7 @@ function fmtComponentList(list) {
   const lines = ["# Components", ""];
   for (const c of list.items) {
     lines.push(`## ${c.name}`, "");
-    if (c.views.length)
-      lines.push(`Views: ${c.views.map((v) => `\`${v}\``).join(", ")}`, "");
+    if (c.views.length) lines.push(`Views: ${c.views.map((v) => `\`${v}\``).join(", ")}`, "");
     if (c.fields.length) {
       lines.push("Fields:", "");
       for (const f of c.fields) lines.push(`- \`${f.name}\` (${f.type})`);

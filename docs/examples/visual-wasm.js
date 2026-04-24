@@ -35,9 +35,7 @@ function instrImmInt(name, label, parse) {
     methods: {
       setFromRawValue(s) {
         const v = parse(s);
-        return Number.isNaN(v)
-          ? this.setRawValue(s)
-          : this.setRawValue(s).setValue(v);
+        return Number.isNaN(v) ? this.setRawValue(s) : this.setRawValue(s).setValue(v);
       },
       getInputWidth() {
         return `${this.rawValue.length + 2}em`;
@@ -666,9 +664,7 @@ const InstructionPicker = component({
   },
   methods: {
     selectSection(v) {
-      return this.setCurrentSection(v).setInstructions(
-        INSTRUCTIONS_BY_CATEGORY[v] ?? [],
-      );
+      return this.setCurrentSection(v).setInstructions(INSTRUCTIONS_BY_CATEGORY[v] ?? []);
     },
     setCurrentAll() {
       return this.selectSection("all");
@@ -1065,10 +1061,7 @@ export function getRoot() {
           locals: Types.make({ items: [TypeF32.make(), TypeF64.make()] }),
           items: [
             Block.make({
-              blockType: blockType(
-                [TypeI64.make()],
-                [TypeI32.make(), TypeI32.make()],
-              ),
+              blockType: blockType([TypeI64.make()], [TypeI32.make(), TypeI32.make()]),
               items: [
                 Loop.make({
                   blockType: blockType([TypeI64.make(), TypeI32.make()]),

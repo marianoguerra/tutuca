@@ -1,9 +1,6 @@
 import { component, macro, html } from "tutuca";
 
-const badge = macro(
-  {},
-  html`<span class="badge badge-info">New</span>`,
-);
+const badge = macro({}, html`<span class="badge badge-info">New</span>`);
 
 const StaticMacro = component({
   name: "StaticMacro",

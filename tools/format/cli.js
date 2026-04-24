@@ -7,9 +7,7 @@ function fmtModuleInfo(info) {
   lines.push(`Components: ${info.counts.components}`);
   lines.push(`Macros: ${info.counts.macros}`);
   lines.push(`Request handlers: ${info.counts.requestHandlers}`);
-  lines.push(
-    `Examples: ${info.counts.examples} (sections: ${info.counts.sections})`,
-  );
+  lines.push(`Examples: ${info.counts.examples} (sections: ${info.counts.sections})`);
   if (info.warnings.length) {
     lines.push("");
     lines.push("Warnings:");
@@ -100,13 +98,9 @@ function fmtRenderBatch(batch) {
   if (totalItems === 0) return "(no examples rendered)";
   const lines = [];
   for (const section of batch.sections) {
-    lines.push(
-      `${section.title}${section.description ? ` — ${section.description}` : ""}`,
-    );
+    lines.push(`${section.title}${section.description ? ` — ${section.description}` : ""}`);
     for (const item of section.items) {
-      const status = item.error
-        ? `ERROR: ${item.error.message}`
-        : `${item.html.length} bytes`;
+      const status = item.error ? `ERROR: ${item.error.message}` : `${item.html.length} bytes`;
       lines.push(`  ${item.title} [${item.componentName}] — ${status}`);
     }
   }

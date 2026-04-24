@@ -570,4 +570,3 @@ http(s) origin.
 - To go fully offline, download the modules, place them alongside the
   app, and update the importmap to point at the local paths.
 `;
-

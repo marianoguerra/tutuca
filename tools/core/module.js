@@ -50,10 +50,7 @@ function parseExample(raw, index, components, parentPath) {
     throw shapeError(`example at ${where} is not an object`, where);
   }
   if (raw.value === undefined && raw.item !== undefined) {
-    throw shapeError(
-      `example at ${where} uses legacy "item" key; rename to "value"`,
-      where,
-    );
+    throw shapeError(`example at ${where} uses legacy "item" key; rename to "value"`, where);
   }
   if (raw.value === undefined) {
     throw shapeError(`example at ${where} missing "value"`, where);
@@ -69,10 +66,7 @@ function parseExample(raw, index, components, parentPath) {
 
 function parseSection(raw, components, where) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw shapeError(
-      `section at ${where} must be an object { title, description?, items }`,
-      where,
-    );
+    throw shapeError(`section at ${where} must be an object { title, description?, items }`, where);
   }
   const items = Array.isArray(raw.items)
     ? raw.items.map((e, i) => parseExample(e, i, components, where))
@@ -90,9 +84,7 @@ function parseSection(raw, components, where) {
 function parseSections(raw, components) {
   const where = "examples";
   if (Array.isArray(raw)) {
-    return raw.map((r, i) =>
-      parseSection(r, components, `${where}[${i}]`),
-    );
+    return raw.map((r, i) => parseSection(r, components, `${where}[${i}]`));
   }
   if (!raw || typeof raw !== "object") {
     throw shapeError(
@@ -117,21 +109,14 @@ export function normalizeModule(mod, { path = null } = {}) {
   }
 
   if (present.has("getStoryBookSection") && !present.has("getExamples")) {
-    throw shapeError(
-      "module exports getStoryBookSection; rename it to getExamples.",
-      "module",
-    );
+    throw shapeError("module exports getStoryBookSection; rename it to getExamples.", "module");
   }
 
   const components = present.has("getComponents") ? mod.getComponents() : [];
   const macros = present.has("getMacros") ? mod.getMacros() : null;
-  const requestHandlers = present.has("getRequestHandlers")
-    ? mod.getRequestHandlers()
-    : null;
+  const requestHandlers = present.has("getRequestHandlers") ? mod.getRequestHandlers() : null;
   const root = present.has("getRoot") ? mod.getRoot() : null;
-  const sections = present.has("getExamples")
-    ? parseSections(mod.getExamples(), components)
-    : [];
+  const sections = present.has("getExamples") ? parseSections(mod.getExamples(), components) : [];
 
   return {
     normalized: new NormalizedModule({

@@ -132,7 +132,17 @@ function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComp
       const { args } = handler.handlerCall;
       for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-        checkConsistentAttrVal(lx, arg, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+        checkConsistentAttrVal(
+          lx,
+          arg,
+          fields,
+          proto,
+          computed,
+          scope,
+          alter,
+          referencedAlters,
+          referencedComputed,
+        );
       }
     }
   }
@@ -187,7 +197,18 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
   }
 }
 
-function checkConsistentAttrVal(lx, val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal = false) {
+function checkConsistentAttrVal(
+  lx,
+  val,
+  fields,
+  proto,
+  computed,
+  scope,
+  alter,
+  referencedAlters,
+  referencedComputed,
+  skipNameVal = false,
+) {
   const valName = val?.constructor.name;
   if (valName === "FieldVal" || valName === "RawFieldVal") {
     const { name } = val;
@@ -201,8 +222,30 @@ function checkConsistentAttrVal(lx, val, fields, proto, computed, scope, alter, 
       lx.error(COMPUTED_VAL_NOT_DEFINED, { val, name });
     }
   } else if (valName === "SeqAccessVal") {
-    checkConsistentAttrVal(lx, val.seqVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal);
-    checkConsistentAttrVal(lx, val.keyVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal);
+    checkConsistentAttrVal(
+      lx,
+      val.seqVal,
+      fields,
+      proto,
+      computed,
+      scope,
+      alter,
+      referencedAlters,
+      referencedComputed,
+      skipNameVal,
+    );
+    checkConsistentAttrVal(
+      lx,
+      val.keyVal,
+      fields,
+      proto,
+      computed,
+      scope,
+      alter,
+      referencedAlters,
+      referencedComputed,
+      skipNameVal,
+    );
   } else if (valName === "RequestVal") {
     if (scope.lookupRequest(val.name) === null) {
       lx.warn(UNKNOWN_REQUEST_NAME, { name: val.name });
@@ -220,7 +263,18 @@ function checkConsistentAttrVal(lx, val, fields, proto, computed, scope, alter, 
     }
   } else if (valName === "StrTplVal") {
     for (const subVal of val.vals) {
-      checkConsistentAttrVal(lx, subVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, skipNameVal);
+      checkConsistentAttrVal(
+        lx,
+        subVal,
+        fields,
+        proto,
+        computed,
+        scope,
+        alter,
+        referencedAlters,
+        referencedComputed,
+        skipNameVal,
+      );
     }
   } else if (valName === "AlterHandlerNameVal") {
     referencedAlters?.add(val.name);
@@ -245,7 +299,18 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
         if (attrs?.constructor.name === "DynAttrs") {
           for (const attr of attrs.items) {
             if (attr?.constructor.name === "Attr") {
-              checkConsistentAttrVal(lx, attr.val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed, isMacroCall);
+              checkConsistentAttrVal(
+                lx,
+                attr.val,
+                fields,
+                proto,
+                computed,
+                scope,
+                alter,
+                referencedAlters,
+                referencedComputed,
+                isMacroCall,
+              );
             }
           }
         }
@@ -254,33 +319,113 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
           for (const w of wrapperAttrs) {
             if (w.name === "each") {
               if (w.whenVal)
-                checkConsistentAttrVal(lx, w.whenVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+                checkConsistentAttrVal(
+                  lx,
+                  w.whenVal,
+                  fields,
+                  proto,
+                  computed,
+                  scope,
+                  alter,
+                  referencedAlters,
+                  referencedComputed,
+                );
               if (w.enrichWithVal)
-                checkConsistentAttrVal(lx, w.enrichWithVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+                checkConsistentAttrVal(
+                  lx,
+                  w.enrichWithVal,
+                  fields,
+                  proto,
+                  computed,
+                  scope,
+                  alter,
+                  referencedAlters,
+                  referencedComputed,
+                );
               if (w.loopWithVal)
-                checkConsistentAttrVal(lx, w.loopWithVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+                checkConsistentAttrVal(
+                  lx,
+                  w.loopWithVal,
+                  fields,
+                  proto,
+                  computed,
+                  scope,
+                  alter,
+                  referencedAlters,
+                  referencedComputed,
+                );
             } else if (w.name !== "scope") {
               // "scope" wrappers create a registered ScopeNode whose .val is the same
               // reference; it's already checked via the view.ctx.nodes loop below.
-              checkConsistentAttrVal(lx, w.val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+              checkConsistentAttrVal(
+                lx,
+                w.val,
+                fields,
+                proto,
+                computed,
+                scope,
+                alter,
+                referencedAlters,
+                referencedComputed,
+              );
             }
           }
         }
 
         if (textChild) {
-          checkConsistentAttrVal(lx, textChild, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+          checkConsistentAttrVal(
+            lx,
+            textChild,
+            fields,
+            proto,
+            computed,
+            scope,
+            alter,
+            referencedAlters,
+            referencedComputed,
+          );
         }
       }
       for (const node of view.ctx.nodes) {
         if (node.val) {
-          checkConsistentAttrVal(lx, node.val, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+          checkConsistentAttrVal(
+            lx,
+            node.val,
+            fields,
+            proto,
+            computed,
+            scope,
+            alter,
+            referencedAlters,
+            referencedComputed,
+          );
         }
         if (node.constructor.name === "RenderEachNode") {
           const iter = node.iterInfo;
           if (iter.whenVal)
-            checkConsistentAttrVal(lx, iter.whenVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+            checkConsistentAttrVal(
+              lx,
+              iter.whenVal,
+              fields,
+              proto,
+              computed,
+              scope,
+              alter,
+              referencedAlters,
+              referencedComputed,
+            );
           if (iter.loopWithVal)
-            checkConsistentAttrVal(lx, iter.loopWithVal, fields, proto, computed, scope, alter, referencedAlters, referencedComputed);
+            checkConsistentAttrVal(
+              lx,
+              iter.loopWithVal,
+              fields,
+              proto,
+              computed,
+              scope,
+              alter,
+              referencedAlters,
+              referencedComputed,
+            );
         }
       }
     });

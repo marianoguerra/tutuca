@@ -649,9 +649,7 @@ test("macro invocation :handler NameVal does not warn; ^handler in body expands 
 
   const view = Comp.views.main;
 
-  const clickEvents = view.ctx.events.filter((ev) =>
-    ev.handlers.some((h) => h.name === "click"),
-  );
+  const clickEvents = view.ctx.events.filter((ev) => ev.handlers.some((h) => h.name === "click"));
   expect(clickEvents.length).toBe(1);
   const clickHandler = clickEvents[0].handlers.find((h) => h.name === "click");
   const { handlerVal } = clickHandler.handlerCall;

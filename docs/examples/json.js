@@ -40,9 +40,7 @@ const JsonNumber = component({
   methods: {
     setRawValue(v) {
       const value = parseFloat(v);
-      return Number.isFinite(value)
-        ? this.setValue(value).setStrValue(v)
-        : this.setStrValue(v);
+      return Number.isFinite(value) ? this.setValue(value).setStrValue(v) : this.setStrValue(v);
     },
   },
   view: html`<input
@@ -105,9 +103,7 @@ const JsonArray = component({
       return this.pushInItems(Comp.make());
     },
     onDropOnItem(key, dragInfo) {
-      return this.setItems(
-        this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key),
-      );
+      return this.setItems(this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key));
     },
   },
   style: css`
@@ -173,9 +169,7 @@ const JsonObject = component({
       return this.pushInItems(KV.make({ value: JsonSelector.make() }));
     },
     onDropOnItem(key, dragInfo) {
-      return this.setItems(
-        this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key),
-      );
+      return this.setItems(this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key));
     },
   },
   style: css`

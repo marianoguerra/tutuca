@@ -13,18 +13,14 @@ const SIZE_ASSETS = {
 };
 
 async function fetchLatestRelease() {
-  const resp = await fetch(
-    "https://api.github.com/repos/marianoguerra/tutuca/releases/latest",
-  );
+  const resp = await fetch("https://api.github.com/repos/marianoguerra/tutuca/releases/latest");
   if (!resp.ok) return null;
   return resp.json();
 }
 
 function updateBuildsFromRelease(release) {
   if (!release || !release.assets) return;
-  const assetsByName = Object.fromEntries(
-    release.assets.map((a) => [a.name, a]),
-  );
+  const assetsByName = Object.fromEntries(release.assets.map((a) => [a.name, a]));
 
   for (const el of document.querySelectorAll("[data-release-build]")) {
     const build = el.dataset.releaseBuild;

@@ -4,9 +4,7 @@ export function makeFormatter(name, table) {
     async format(result, opts) {
       const fn = table[result.constructor.name];
       if (!fn) {
-        throw new Error(
-          `${name} formatter missing dispatch for ${result.constructor.name}`,
-        );
+        throw new Error(`${name} formatter missing dispatch for ${result.constructor.name}`);
       }
       return await fn(result, opts);
     },
