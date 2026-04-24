@@ -1004,6 +1004,51 @@ export function getExamples() {
           returns: Types.make({ items: [TypeF32.make()] }),
         }),
       },
+      {
+        title: "Block Type (editor view)",
+        description: "Same BlockType rendered under the 'editor' view",
+        view: "editor",
+        value: BlockType.make({
+          args: Types.make({ items: [TypeI32.make(), TypeI64.make()] }),
+          returns: Types.make({ items: [TypeF32.make()] }),
+        }),
+      },
+      {
+        title: "Types (editor view)",
+        description: "Type list rendered under the 'editor' view",
+        view: "editor",
+        value: Types.make({
+          items: [TypeI32.make(), TypeF64.make(), TypeI64.make()],
+        }),
+      },
+      {
+        title: "Block (compact view)",
+        description: "Block rendered under the 'compact' view",
+        view: "compact",
+        value: Block.make({
+          blockType: blockType([TypeI32.make()], [TypeI64.make()]),
+          items: [i32(1), i32(2), I32Add.make()],
+        }),
+      },
+      {
+        title: "Loop (compact view)",
+        description: "Loop rendered under the 'compact' view",
+        view: "compact",
+        value: Loop.make({
+          blockType: blockType([TypeI32.make()]),
+          items: [LocalGet.make(), Br.make()],
+        }),
+      },
+      {
+        title: "If (compact view)",
+        description: "If rendered under the 'compact' view",
+        view: "compact",
+        value: If.make({
+          blockType: blockType([], [TypeI32.make()]),
+          thn: [i32(1)],
+          else: [i32(0)],
+        }),
+      },
     ],
   };
 }

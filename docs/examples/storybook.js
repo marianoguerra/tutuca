@@ -94,13 +94,14 @@ const Section = component({
 
 const Example = component({
   name: "Example",
-  fields: { title: "?", description: "", value: null },
+  fields: { title: "?", description: "", value: null, view: "main" },
   statics: {
-    fromData({ title = "???", description = "", value = null }) {
+    fromData({ title = "???", description = "", value = null, view = "main" }) {
       return this.make({
         title,
         description,
         value,
+        view,
       });
     },
   },
@@ -108,7 +109,7 @@ const Example = component({
     <div class="card-body">
       <h2 class="card-title" @text=".title"></h2>
       <p class="text-md italic opacity-60" @text=".description"></p>
-      <div class="bg-base-100 p-3">
+      <div class="bg-base-100 p-3" @push-view=".view">
         <x render=".value"></x>
       </div>
     </div>
