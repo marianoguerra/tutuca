@@ -55,7 +55,7 @@ function checkMacroCallArgs(lx, view, Comp) {
     const { defaults } = macro;
     for (const argName in macroNode.attrs) {
       if (!(argName in defaults)) {
-        lx.warn(UNKNOWN_MACRO_ARG, { name: argName, macroName: macroNode.name });
+        lx.error(UNKNOWN_MACRO_ARG, { name: argName, macroName: macroNode.name });
       }
     }
   }
@@ -108,7 +108,7 @@ function checkEventModifiers(lx, view) {
       const modWrappers = MOD_WRAPPERS_BY_EVENT[name] ?? NO_WRAPPERS;
       for (const modifier of modifiers) {
         if (modWrappers[modifier] === undefined) {
-          lx.warn(UNKNOWN_EVENT_MODIFIER, { name, modifier, handler, event });
+          lx.error(UNKNOWN_EVENT_MODIFIER, { name, modifier, handler, event });
         }
       }
     }
@@ -177,7 +177,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
           if (hvName === "InputHandlerNameVal") {
             referencedInputs?.add(handlerVal.name);
             if (input[handlerVal.name] === undefined) {
-              lx.warn(INPUT_HANDLER_NOT_IMPLEMENTED, {
+              lx.error(INPUT_HANDLER_NOT_IMPLEMENTED, {
                 name: handlerVal.name,
                 handler,
                 event,
@@ -193,7 +193,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
           } else if (hvName === "RawFieldVal") {
             referencedInputs?.add(handlerVal.name);
             if (proto[handlerVal.name] === undefined) {
-              lx.warn(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED, {
+              lx.error(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED, {
                 name: handlerVal.name,
                 handler,
                 event,
@@ -264,18 +264,18 @@ function checkConsistentAttrVal(
     );
   } else if (valName === "RequestVal") {
     if (scope.lookupRequest(val.name) === null) {
-      lx.warn(UNKNOWN_REQUEST_NAME, { name: val.name });
+      lx.error(UNKNOWN_REQUEST_NAME, { name: val.name });
     }
   } else if (valName === "TypeVal") {
     if (scope.lookupComponent(val.name) === null) {
-      lx.warn(UNKNOWN_COMPONENT_NAME, { name: val.name });
+      lx.error(UNKNOWN_COMPONENT_NAME, { name: val.name });
     }
   } else if (valName === "NameVal") {
     // NameVals on a macro call-site attribute are macro-param bindings, not
     // handler args — their role is determined inside the macro body after
     // ^-substitution, where re-parsing handles validation.
     if (!skipNameVal && !isKnownHandlerName(val.name)) {
-      lx.warn(UNKNOWN_HANDLER_ARG_NAME, { name: val.name });
+      lx.error(UNKNOWN_HANDLER_ARG_NAME, { name: val.name });
     }
   } else if (valName === "StrTplVal") {
     for (const subVal of val.vals) {
@@ -295,7 +295,7 @@ function checkConsistentAttrVal(
   } else if (valName === "AlterHandlerNameVal") {
     referencedAlters?.add(val.name);
     if (alter[val.name] === undefined) {
-      lx.warn(ALT_HANDLER_NOT_DEFINED, { name: val.name });
+      lx.error(ALT_HANDLER_NOT_DEFINED, { name: val.name });
     }
   } else if (valName !== "ConstVal" && valName !== "BindVal") {
     console.log(val);
