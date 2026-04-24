@@ -9,16 +9,17 @@ export function describeModule(mod, { path = null } = {}) {
     requestHandlers: normalized.requestHandlers
       ? Object.keys(normalized.requestHandlers).length
       : 0,
-    examples: normalized.section
-      ? normalized.section.items.length +
-        normalized.section.groups.reduce((n, g) => n + g.items.length, 0)
-      : 0,
-    groups: normalized.section ? normalized.section.groups.length : 0,
+    examples: normalized.sections.reduce((n, s) => n + s.items.length, 0),
+    sections: normalized.sections.length,
   };
 
   const warnings = [];
   if (!normalized.components.length) warnings.push("module exports no components");
-  if (!normalized.section) warnings.push("module exports no getExamples()");
+  if (!present.has("getExamples")) {
+    warnings.push("module exports no getExamples()");
+  } else if (normalized.sections.length === 0) {
+    warnings.push("getExamples() returned no sections");
+  }
 
   return new ModuleInfo({ path, present, counts, warnings });
 }

@@ -526,6 +526,39 @@ test("lint-errors example catches all error types", () => {
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
 });
 
+test("findings carry componentName and viewName in context", () => {
+  const [lx] = defAndCheck({
+    name: "CtxComp",
+    fields: { name: "" },
+    views: {
+      detail: html`<p :title=".missingInDetail">hi</p>`,
+    },
+    view: html`<p :title=".missingInMain">hi</p>`,
+  });
+  const byView = {};
+  for (const r of lx.reports) {
+    if (r.id !== FIELD_VAL_NOT_DEFINED) continue;
+    expect(r.context.componentName).toBe("CtxComp");
+    byView[r.info.name] = r.context.viewName;
+  }
+  expect(byView.missingInMain).toBe("main");
+  expect(byView.missingInDetail).toBe("detail");
+});
+
+test("component-scoped findings carry componentName and no viewName", () => {
+  const [lx] = defAndCheck({
+    name: "UnrefComp",
+    alter: {
+      unusedAlter() {},
+    },
+    view: html`<p>hi</p>`,
+  });
+  const unused = lx.reports.find((r) => r.id === ALT_HANDLER_NOT_REFERENCED);
+  expect(unused).toBeDefined();
+  expect(unused.context.componentName).toBe("UnrefComp");
+  expect(unused.context.viewName).toBeUndefined();
+});
+
 test("lint-errors example with LintClassCollectorCtx catches all error types", () => {
   class HeadlessLintClassCollectorCtx extends LintClassCollectorCtx {
     constructor() {

@@ -44,63 +44,50 @@ function fmtComponentDocs(docs) {
 async function fmtRenderBatch(batch, { pretty = false } = {}) {
   const prettify = pretty ? (await import("prettier")).format : null;
   const lines = [];
-  if (batch.section) {
-    lines.push(`# ${batch.section.title}`);
-    if (batch.section.description) lines.push(`\n${batch.section.description}`);
+  for (const section of batch.sections) {
+    lines.push(`# ${section.title}`);
+    if (section.description) lines.push(`\n${section.description}`);
     lines.push("");
-  }
-  let currentGroup = undefined;
-  for (const item of batch.items) {
-    if (item.groupTitle !== currentGroup) {
-      currentGroup = item.groupTitle;
-      if (currentGroup) lines.push(`## ${currentGroup}\n`);
-    }
-    const depth = currentGroup ? "###" : "##";
-    lines.push(`${depth} ${item.title}\n`);
-    if (item.description) lines.push(`${item.description}\n`);
-    if (item.error) {
-      lines.push("```");
-      lines.push(`ERROR: ${item.error.message}`);
-      lines.push("```\n");
-      continue;
-    }
-    let html = item.html;
-    if (prettify) {
-      try {
-        html = (await prettify(html, { parser: "html" })).trimEnd();
-      } catch {
-        // fall back to raw html
+    for (const item of section.items) {
+      lines.push(`## ${item.title}\n`);
+      if (item.description) lines.push(`${item.description}\n`);
+      if (item.error) {
+        lines.push("```");
+        lines.push(`ERROR: ${item.error.message}`);
+        lines.push("```\n");
+        continue;
       }
+      let html = item.html;
+      if (prettify) {
+        try {
+          html = (await prettify(html, { parser: "html" })).trimEnd();
+        } catch {
+          // fall back to raw html
+        }
+      }
+      lines.push("```html");
+      lines.push(html);
+      lines.push("```\n");
     }
-    lines.push("```html");
-    lines.push(html);
-    lines.push("```\n");
   }
   return lines.join("\n");
 }
 
 function fmtExampleIndex(idx) {
-  if (!idx.section) return "_(no examples)_";
-  const s = idx.section;
-  const lines = [`# ${s.title}`];
-  if (s.description) lines.push("", s.description);
-  if (s.items.length) {
-    lines.push("");
-    for (const item of s.items) {
-      lines.push(
-        `- **${item.title}** — \`${item.componentName}\`${item.description ? ` — ${item.description}` : ""}`,
-      );
+  if (idx.sections.length === 0) return "_(no examples)_";
+  const lines = [];
+  for (const s of idx.sections) {
+    lines.push(`# ${s.title}`);
+    if (s.description) lines.push("", s.description);
+    if (s.items.length) {
+      lines.push("");
+      for (const item of s.items) {
+        lines.push(
+          `- **${item.title}** — \`${item.componentName}\`${item.description ? ` — ${item.description}` : ""}`,
+        );
+      }
     }
-  }
-  for (const group of s.groups) {
-    lines.push("", `## ${group.title}`);
-    if (group.description) lines.push("", group.description);
     lines.push("");
-    for (const item of group.items) {
-      lines.push(
-        `- **${item.title}** — \`${item.componentName}\`${item.description ? ` — ${item.description}` : ""}`,
-      );
-    }
   }
   return lines.join("\n");
 }
@@ -114,7 +101,8 @@ function fmtLintReport(rep) {
       continue;
     }
     for (const f of c.findings) {
-      lines.push(`- **${f.level.toUpperCase()}** \`${f.id}\``);
+      const view = f.context?.viewName ? ` — view: \`${f.context.viewName}\`` : "";
+      lines.push(`- **${f.level.toUpperCase()}** \`${f.id}\`${view}`);
     }
     lines.push("");
   }
@@ -130,7 +118,9 @@ function fmtModuleInfo(info) {
   lines.push(`- Components: ${info.counts.components}`);
   lines.push(`- Macros: ${info.counts.macros}`);
   lines.push(`- Request handlers: ${info.counts.requestHandlers}`);
-  lines.push(`- Examples: ${info.counts.examples} (groups: ${info.counts.groups})`);
+  lines.push(
+    `- Examples: ${info.counts.examples} (sections: ${info.counts.sections})`,
+  );
   if (info.warnings.length) {
     lines.push("", "## Warnings", "");
     for (const w of info.warnings) lines.push(`- ${w}`);

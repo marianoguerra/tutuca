@@ -15,7 +15,9 @@ function fmtModuleInfo(info) {
   lines.push(`Components: ${info.counts.components}`);
   lines.push(`Macros: ${info.counts.macros}`);
   lines.push(`Request handlers: ${info.counts.requestHandlers}`);
-  lines.push(`Examples: ${info.counts.examples} (groups: ${info.counts.groups})`);
+  lines.push(
+    `Examples: ${info.counts.examples} (sections: ${info.counts.sections})`,
+  );
   if (info.warnings.length) {
     lines.push("");
     lines.push("Warnings:");
@@ -36,20 +38,13 @@ function fmtComponentList(list) {
 }
 
 function fmtExampleIndex(idx) {
-  if (!idx.section) return "(no examples)";
+  if (idx.sections.length === 0) return "(no examples)";
   const lines = [];
-  const s = idx.section;
-  lines.push(`${s.title}${s.description ? ` — ${s.description}` : ""}`);
-  for (const item of s.items) {
-    lines.push(
-      `  - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`,
-    );
-  }
-  for (const group of s.groups) {
-    lines.push(`  [${group.title}]${group.description ? ` — ${group.description}` : ""}`);
-    for (const item of group.items) {
+  for (const s of idx.sections) {
+    lines.push(`${s.title}${s.description ? ` — ${s.description}` : ""}`);
+    for (const item of s.items) {
       lines.push(
-        `    - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`,
+        `  - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`,
       );
     }
   }
@@ -98,8 +93,9 @@ function fmtLintReport(rep) {
     lines.push(`${c.componentName}:`);
     for (const f of c.findings) {
       const tag = f.level.toUpperCase();
+      const view = f.context?.viewName ? ` view=${f.context.viewName}` : "";
       const extra = fmtFindingInfo(f.info);
-      lines.push(`  [${tag}] ${f.id}${extra ? ` (${extra})` : ""}`);
+      lines.push(`  [${tag}] ${f.id}${view}${extra ? ` (${extra})` : ""}`);
     }
   }
   lines.push("");
@@ -108,23 +104,19 @@ function fmtLintReport(rep) {
 }
 
 function fmtRenderBatch(batch) {
-  if (batch.items.length === 0) return "(no examples rendered)";
+  const totalItems = batch.sections.reduce((n, s) => n + s.items.length, 0);
+  if (totalItems === 0) return "(no examples rendered)";
   const lines = [];
-  if (batch.section) {
+  for (const section of batch.sections) {
     lines.push(
-      `${batch.section.title}${batch.section.description ? ` — ${batch.section.description}` : ""}`,
+      `${section.title}${section.description ? ` — ${section.description}` : ""}`,
     );
-  }
-  let currentGroup = undefined;
-  for (const item of batch.items) {
-    if (item.groupTitle !== currentGroup) {
-      currentGroup = item.groupTitle;
-      if (currentGroup) lines.push(`  [${currentGroup}]`);
+    for (const item of section.items) {
+      const status = item.error
+        ? `ERROR: ${item.error.message}`
+        : `${item.html.length} bytes`;
+      lines.push(`  ${item.title} [${item.componentName}] — ${status}`);
     }
-    const status = item.error
-      ? `ERROR: ${item.error.message}`
-      : `${item.html.length} bytes`;
-    lines.push(`  ${item.title} [${item.componentName}] — ${status}`);
   }
   return lines.join("\n");
 }

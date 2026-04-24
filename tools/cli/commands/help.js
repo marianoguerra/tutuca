@@ -24,13 +24,10 @@ MODULE CONVENTION
       -> Component[]                      // results of tutuca's component()
 
     export function getExamples()         // required for render/doctor
-      -> {
-           title: string,
-           description?: string,
-           groups?: [{ title, description?, items: Example[] }],
-           items:  Example[]              // at least one of items/groups
-         }
-      where Example = { title, description?, value, view? }
+      -> Section | Section[]              // single section or an array
+      where Section = { title: string, description?: string,
+                        items: Example[] }
+      and   Example = { title, description?, value, view? }
       and   value   = an instance returned by <Component>.make(...)
       and   view    = a view name (defaults to "main")
 
@@ -42,21 +39,20 @@ MODULE CONVENTION
 
     export function getRoot()             // optional; returned by info
 
-  The legacy flat \`getExamples() -> Example[]\` shape and the legacy
-  \`getStoryBookSection()\` name both fail fast with EXAMPLES_SHAPE_MISMATCH.
+  The legacy \`getStoryBookSection()\` name fails fast with
+  EXAMPLES_SHAPE_MISMATCH — rename it to \`getExamples\`.
 
 COMMANDS (require <module-path>)
   info
       Summarize which getX() exports are present and count components,
-      macros, request handlers, examples, and groups. Good first step.
+      macros, request handlers, examples, and sections. Good first step.
 
   list
       List each component with its declared views and fields (name, type).
 
   examples
-      Print the module's example section: title, description, flat items
-      and/or grouped items. Each item shows its resolved component name
-      and view.
+      Print the module's example sections: title, description, items.
+      Each item shows its resolved component name and view.
 
   docs [name]
       Generate API docs (methods, input handlers, fields with their

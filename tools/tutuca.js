@@ -80,10 +80,15 @@ async function main() {
   try {
     await cmd.run(commandArgs, opts);
   } catch (e) {
-    if (
-      e?.code === "EXAMPLES_SHAPE_MISMATCH" ||
-      e?.code?.startsWith?.("ERR_PARSE_ARGS_")
-    ) {
+    if (e?.code === "EXAMPLES_SHAPE_MISMATCH") {
+      const parts = [];
+      if (opts.module) parts.push(opts.module);
+      if (e.where) parts.push(`@ ${e.where}`);
+      const prefix = parts.length ? `[${parts.join(" ")}] ` : "";
+      process.stderr.write(`tutuca: ${prefix}${e.message}\n`);
+      process.exit(1);
+    }
+    if (e?.code?.startsWith?.("ERR_PARSE_ARGS_")) {
       process.stderr.write(`tutuca: ${e.message}\n`);
       process.exit(1);
     }

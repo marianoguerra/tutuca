@@ -778,11 +778,11 @@ export function getMacros()           { return { name: macro }; }     // optiona
 export function getRequestHandlers()  { return { name: async fn }; }   // optional
 export function getRoot()             { return Root.make({...}); }
 export function getExamples()         {
+  // Return one section, or an array of sections.
   return {
     title: "...",
     description: "...",
-    groups: [{ title, description, items: [/* ... */] }], // optional
-    items:  [{ title, description, value, view }],         // value = Comp.make(...)
+    items: [{ title, description, value, view }],         // value = Comp.make(...)
   };
 }
 ```
@@ -818,7 +818,7 @@ prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
 | --------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `info`          | Summarize which `getX()` exports are present and counts                                                                |
 | `list`          | List components with their views and fields (name + type)                                                              |
-| `examples`      | Print `getExamples()` content (title, items, groups)                                                                   |
+| `examples`      | Print `getExamples()` content (title, items, per section)                                                              |
 | `docs [name]`   | Generate API docs (methods, input handlers, fields with auto-generated accessors) — all or one                         |
 | `lint [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |

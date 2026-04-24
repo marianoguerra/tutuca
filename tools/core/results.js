@@ -22,8 +22,8 @@ export class ComponentList {
 }
 
 export class ExampleIndex {
-  constructor({ section }) {
-    this.section = section;
+  constructor({ sections }) {
+    this.sections = sections;
   }
 }
 
@@ -34,10 +34,11 @@ export class ComponentDocs {
 }
 
 export class LintFinding {
-  constructor({ id, level, info }) {
+  constructor({ id, level, info, context = {} }) {
     this.id = id;
     this.level = level;
     this.info = info;
+    this.context = context;
   }
 }
 
@@ -71,7 +72,6 @@ export class LintReport {
 
 export class RenderedExample {
   constructor({
-    groupTitle = null,
     title,
     description = null,
     componentName,
@@ -79,7 +79,6 @@ export class RenderedExample {
     html,
     error = null,
   }) {
-    this.groupTitle = groupTitle;
     this.title = title;
     this.description = description;
     this.componentName = componentName;
@@ -89,13 +88,20 @@ export class RenderedExample {
   }
 }
 
-export class RenderBatch {
-  constructor({ section, items }) {
-    this.section = section;
+export class RenderedSection {
+  constructor({ title, description = null, items }) {
+    this.title = title;
+    this.description = description;
     this.items = items;
   }
+}
+
+export class RenderBatch {
+  constructor({ sections }) {
+    this.sections = sections;
+  }
   get hasErrors() {
-    return this.items.some((i) => i.error !== null);
+    return this.sections.some((s) => s.items.some((i) => i.error !== null));
   }
 }
 
