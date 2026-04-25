@@ -57,9 +57,7 @@ function optimizeChilds(childs) {
   }
 }
 function optimizeNode(node) {
-  if (node.isConstant()) {
-    return new RenderOnceNode(node);
-  }
+  if (node.isConstant()) return new RenderOnceNode(node);
   node.optimize();
   return node;
 }
@@ -205,9 +203,8 @@ export class MacroNode extends BaseNode {
     const { name, attrs, slots } = this;
     if (this.px.isInsideMacro(name)) throw new Error(`Recursive macro expansion: ${name}`);
     const macro = scope.lookupMacro(name);
-    if (macro === null) {
-      this.node = new CommentNode(`bad macro: ${name}`);
-    } else {
+    if (macro === null) this.node = new CommentNode(`bad macro: ${name}`);
+    else {
       const vars = { ...macro.defaults, ...attrs };
       this.node = macro.expand(this.px.enterMacro(name, vars, slots));
       for (const key in this.dataAttrs) this.node.setDataAttr(key, this.dataAttrs[key]);
@@ -509,12 +506,11 @@ export class NodeEvents {
   }
   getHandlersFor(eventName) {
     let r = null;
-    for (const handler of this.handlers) {
+    for (const handler of this.handlers)
       if (handler.handlesEventName(eventName)) {
         r ??= [];
         r.push(handler);
       }
-    }
     return r;
   }
 }
