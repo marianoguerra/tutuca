@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import fc from "fast-check";
-import { h, VComment, VFragment, VNode, VText, render as vdomRender } from "../src/vdom.js";
-import { assertEqualDom, setupJsdom } from "./dom.js";
+import { h, VComment, VFragment, VNode, VText } from "../src/vdom.js";
+import { assertEqualDom, setupJsdom, vdomRender } from "./dom.js";
 import {
   applyMutation,
   collectPaths,

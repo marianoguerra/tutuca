@@ -86,8 +86,8 @@ function stresstest({ iterations, seed, onProgress, onStart }) {
 
       const container = document.createElement("div");
       const opts = { document };
-      vdomRender(originalTree, container, opts);
-      vdomRender(mutatedTree, container, opts);
+      const containerState = vdomRender(originalTree, container, opts);
+      vdomRender(mutatedTree, container, opts, containerState);
 
       const expected = document.createElement("div");
       vdomRender(mutatedTree, expected, opts);
@@ -117,8 +117,8 @@ function stresstest({ iterations, seed, onProgress, onStart }) {
         const c2 = document.createElement("div");
         const f1 = new VFragment(originalTree.childs);
         const f2 = new VFragment(mutatedTree.childs);
-        vdomRender(f1, c1, opts);
-        vdomRender(f2, c1, opts);
+        const c1State = vdomRender(f1, c1, opts);
+        vdomRender(f2, c1, opts, c1State);
         vdomRender(f2, c2, opts);
         if (!compareDom(c1, c2)) {
           return {

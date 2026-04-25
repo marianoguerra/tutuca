@@ -114,13 +114,14 @@ export class VNode extends VBase {
   get nodeType() {
     return 1;
   }
+  isSameKind(other) {
+    return this.tag === other.tag && this.namespace === other.namespace && this.key === other.key;
+  }
   isEqualTo(other) {
     if (this === other) return true;
     if (
       !(other instanceof VNode) ||
-      this.tag !== other.tag ||
-      this.key !== other.key ||
-      this.namespace !== other.namespace ||
+      !this.isSameKind(other) ||
       this.childs.length !== other.childs.length
     ) {
       return false;
@@ -193,28 +194,19 @@ function morphNode(domNode, source, target, opts) {
       domNode.data = target.text;
       return domNode;
     }
-    if (
-      type === 1 &&
-      source.tag === target.tag &&
-      source.namespace === target.namespace &&
-      source.key === target.key
-    ) {
+    if (type === 1 && source.isSameKind(target)) {
       const propsDiff = diffProps(source.attrs, target.attrs);
       const isSelect = source.tag === "SELECT";
       if (propsDiff) {
         if (isSelect && "value" in propsDiff) {
           const { value: _v, ...rest } = propsDiff;
           applyProperties(domNode, rest, source.attrs);
-        } else {
-          applyProperties(domNode, propsDiff, source.attrs);
-        }
+        } else applyProperties(domNode, propsDiff, source.attrs);
       }
-      if (!target.attrs.dangerouslySetInnerHTML) {
+      if (!target.attrs.dangerouslySetInnerHTML)
         morphChildren(domNode, source.childs, target.childs, opts);
-      }
-      if (isSelect && target.attrs.value !== undefined) {
+      if (isSelect && target.attrs.value !== undefined)
         applyProperties(domNode, { value: target.attrs.value }, source.attrs);
-      }
       return domNode;
     }
     if (type === 11) {
@@ -289,26 +281,18 @@ function morphChildren(parentDom, oldChilds, newChilds, opts) {
   for (let i = oldChilds.length - 1; i >= 0; i--)
     if (!used[i] && domNodes[i].parentNode === parentDom) parentDom.removeChild(domNodes[i]);
 }
-const renderCache = new WeakMap();
-export function render(vnode, container, options) {
-  const cached = renderCache.get(container);
+export function render(vnode, container, options, prev) {
   const isFragment = vnode instanceof VFragment;
-  if (cached && cached.vnode instanceof VFragment === isFragment) {
-    const oldDom = isFragment ? container : cached.dom;
-    const newDom = morphNode(oldDom, cached.vnode, vnode, options);
-    renderCache.set(container, { vnode, dom: isFragment ? container : newDom });
-    return newDom;
+  if (prev && prev.vnode instanceof VFragment === isFragment) {
+    const oldDom = isFragment ? container : prev.dom;
+    const newDom = morphNode(oldDom, prev.vnode, vnode, options);
+    return { vnode, dom: isFragment ? container : newDom };
   }
-  renderCache.delete(container);
   const domNode = vnode.toDom(options);
   container.replaceChildren(domNode);
-  renderCache.set(container, { vnode, dom: isFragment ? container : domNode });
-  return domNode;
+  return { vnode, dom: isFragment ? container : domNode };
 }
-export function unmount(container) {
-  renderCache.delete(container);
-  container.replaceChildren();
-}
+export const unmount = (container) => container.replaceChildren();
 export function h(tagName, properties, children) {
   const tag = tagName.toUpperCase();
   const props = {};

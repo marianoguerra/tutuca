@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { h, VComment, VFragment, VNode, VText, render as vdomRender } from "../src/vdom.js";
-import { setupJsdom } from "./dom.js";
+import { h, VComment, VFragment, VNode, VText } from "../src/vdom.js";
+import { setupJsdom, vdomRender } from "./dom.js";
 
 let document;
 beforeEach(() => {

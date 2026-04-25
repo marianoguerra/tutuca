@@ -595,8 +595,8 @@
 
       // Render original, then morph to mutated (the real test)
       const morphContainer = document.createElement("div");
-      render(state.originalTree, morphContainer, opts);
-      render(state.mutatedTree, morphContainer, opts);
+      const morphState = render(state.originalTree, morphContainer, opts);
+      render(state.mutatedTree, morphContainer, opts, morphState);
 
       // Fresh render for comparison
       const freshContainer = document.createElement("div");

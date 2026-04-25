@@ -23,6 +23,7 @@ export class App {
     };
     this._compiled = false;
     this._renderOpts = { document: rootNode.ownerDocument };
+    this._renderState = null;
   }
   get state() {
     return this.transactor.state;
@@ -121,7 +122,10 @@ export class App {
   render() {
     const root = this.state.val;
     const stack = this.makeStack(root);
-    return render(this.renderer.renderRoot(stack, root), this.rootNode, this._renderOpts);
+    const { renderer, rootNode, _renderOpts, _renderState } = this;
+    const newState = render(renderer.renderRoot(stack, root), rootNode, _renderOpts, _renderState);
+    this._renderState = newState;
+    return newState.dom;
   }
   onChange(callback) {
     this.transactor.state.onChange(callback);

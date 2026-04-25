@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { h, VComment, VText, render as vdomRender } from "../src/vdom.js";
-import { assertEqualDom, childNodesArray, setupJsdom } from "./dom.js";
+import { h, VComment, VText } from "../src/vdom.js";
+import { assertEqualDom, childNodesArray, setupJsdom, vdomRender } from "./dom.js";
 
 let document;
 beforeEach(() => {

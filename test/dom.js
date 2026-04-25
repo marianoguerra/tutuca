@@ -2,6 +2,17 @@ import { expect } from "bun:test";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { ANode, ParseContext, TextNode } from "../src/anode.js";
 import { fieldsByTypeName } from "../src/oo.js";
+import { render } from "../src/vdom.js";
+
+const renderStates = new WeakMap();
+export function vdomRender(vnode, container, options) {
+  const prev = renderStates.get(container);
+  // Container emptied externally (e.g. unmount); drop stale state.
+  const usable = prev && container.firstChild ? prev : undefined;
+  const next = render(vnode, container, options, usable);
+  renderStates.set(container, next);
+  return next.dom;
+}
 
 // rrweb-cssom (jsdom's CSS parser) doesn't support CSS Nesting, which we emit
 // via components.js when wrapping per-view rules. Swallow just that message;
