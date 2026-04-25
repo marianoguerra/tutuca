@@ -69,8 +69,7 @@ export class Renderer {
     const iterData = loopWith.call(stack.it, seq);
     this.getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(stack.it, key, value, iterData)) {
-        const newStack = stack.enter(value, { key }, true);
-        const dom = this.renderIt(newStack, nodeId, key, viewName);
+        const dom = this.renderIt(stack.enter(value, { key }, true), nodeId, key, viewName);
         this.pushEachEntry(r, nodeId, attrName, key, dom);
       }
     });
@@ -94,8 +93,7 @@ export class Renderer {
           this.pushEachEntry(r, nid, attrName, key, cachedNode);
           return;
         }
-        const newStack = stack.enter(value, bindings, false);
-        const dom = this.renderView(view, newStack);
+        const dom = this.renderView(view, stack.enter(value, bindings, false));
         this.pushEachEntry(r, nid, attrName, key, dom);
         if (enricher) this.cache.set2(it, value, cacheKey, dom);
         else this.cache.set(value, cacheKey, dom);
