@@ -1,7 +1,5 @@
-import { expect } from "bun:test";
 import { JSDOM, VirtualConsole } from "jsdom";
 import { ANode, ParseContext, TextNode } from "../src/anode.js";
-import { fieldsByTypeName } from "../src/oo.js";
 import { render } from "../src/vdom.js";
 
 const renderStates = new WeakMap();
@@ -83,15 +81,4 @@ export function childNodesArray(node) {
   const arr = [];
   for (let i = 0; i < node.childNodes.length; i++) arr.push(node.childNodes[i]);
   return arr;
-}
-
-export function expectFieldRegistered(typeName, FieldClass) {
-  expect(fieldsByTypeName[typeName]).toBe(FieldClass);
-}
-
-// For primitive defaults use `toBe`; for immutable collections pass an
-// `equals` fn (e.g. List.isList) and a size (usually 0 for empty).
-export function expectFieldDefault(FieldClass, fieldName, value) {
-  const f = new FieldClass(fieldName);
-  expect(f.defaultValue).toBe(value);
 }

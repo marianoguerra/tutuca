@@ -12,22 +12,13 @@ export function createRng(seed) {
     return seed / 0x7fffffff;
   };
 }
-/**
- * Pick a random element from an array
- */
-export function pick(rng, arr) {
+function pick(rng, arr) {
   return arr[Math.floor(rng() * arr.length)];
 }
-/**
- * Generate a random integer in range [min, max] (inclusive)
- */
-export function randInt(rng, min, max) {
+function randInt(rng, min, max) {
   return Math.floor(rng() * (max - min + 1)) + min;
 }
-/**
- * Generate a random string with optional spaces and newlines
- */
-export function randString(rng, maxLen = 10, options = {}) {
+function randString(rng, maxLen = 10, options = {}) {
   const { includeSpaces = false, includeNewlines = false } = options;
   let chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   if (includeSpaces) chars += "   "; // Add extra spaces to increase probability
@@ -39,10 +30,7 @@ export function randString(rng, maxLen = 10, options = {}) {
   }
   return str;
 }
-/**
- * Generate a random class name (multiple space-separated classes)
- */
-export function randClassName(rng, maxClasses = 3) {
+function randClassName(rng, maxClasses = 3) {
   const classCount = randInt(rng, 1, maxClasses);
   const classes = [];
   for (let i = 0; i < classCount; i++) {
@@ -91,10 +79,7 @@ function cssToStyleObj(css) {
   }
   return obj;
 }
-/**
- * Deep clone a VNode tree
- */
-export function cloneTree(node) {
+function cloneTree(node) {
   if (node instanceof VText) {
     return new VText(node.text);
   }
@@ -120,10 +105,7 @@ export function collectPaths(node, currentPath = []) {
   }
   return paths;
 }
-/**
- * Get a node at a given path
- */
-export function getNodeAtPath(root, path) {
+function getNodeAtPath(root, path) {
   let current = root;
   for (const idx of path) {
     if (!current.childs || idx >= current.childs.length) return null;
@@ -137,7 +119,7 @@ export function getNodeAtPath(root, path) {
 // Tree generation
 // ---------------------------------------------------------------------------
 const TAGS = ["div", "span", "p", "section", "ul", "li", "article", "header", "footer"];
-export const SVG_NS = "http://www.w3.org/2000/svg";
+const SVG_NS = "http://www.w3.org/2000/svg";
 const SVG_TAGS = ["svg", "rect", "circle", "line", "path", "g", "text", "polygon"];
 /**
  * Generate a random VNode tree
