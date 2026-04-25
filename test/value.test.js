@@ -1,4 +1,4 @@
-import { expect, test, describe } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { ConstVal, StrTplVal, vp } from "../src/value.js";
 
 test("parse empty string", () => {
@@ -94,17 +94,6 @@ describe("string template quote requirements", () => {
       // No prefix, not a valid identifier, no braces → null
       const r = vp.parseAttr("flex gap-3");
       expect(r).toBeNull();
-    });
-  });
-
-  describe("tilde prefix: single-word constant without quotes", () => {
-    // Tilde (charCode 126) strips the ~ and returns ConstVal.
-    // Alternative to quotes when the value has no spaces.
-
-    test("tilde constant", () => {
-      const r = vp.parseAttr("~badge");
-      expect(r).toBeInstanceOf(ConstVal);
-      expect(r.val).toBe("badge");
     });
   });
 

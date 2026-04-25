@@ -49,13 +49,9 @@ export class ValParser {
     switch (charCode) {
       case 94: {
         const newS = px.frame.macroVars?.[s.slice(1)];
-        if (newS !== undefined) {
-          return this.parse(newS, px);
-        }
+        if (newS !== undefined) return this.parse(newS, px);
         return null;
       }
-      case 126: // ~ constant string with no spaces must use this prefix
-        return this.okStrTpl ? parseConst(s.slice(1), px) : null;
       case 39: // ''
         return this.okStrTpl ? parseConst(s.slice(1, -1), px) : null;
       case 64: // @

@@ -54,8 +54,7 @@ The app exposes a few runtime hooks:
 | `*x`     | dynamic binding                           | `*theme`              |
 | `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
 | `name`   | bare identifier — meaning depends on slot | `dec`, `value`, `ctx` |
-| `'str'`  | string literal (with spaces ok)           | `'btn btn-success'`   |
-| `~str`   | string literal (single word)              | `~badge`              |
+| `'str'`  | string literal                            | `'btn btn-success'`   |
 | `{expr}` | interpolation in attr text                | `Hi {.name}`          |
 | `.s[.k]` | sequence/map item access                  | `.byKey[.currentKey]` |
 
@@ -84,8 +83,7 @@ do not. The rules:
 
 | Form                | Example                | Where it works                                   |
 | ------------------- | ---------------------- | ------------------------------------------------ |
-| `'multi word'`      | `@then="'btn ok'"`     | anywhere a value is allowed                      |
-| `~singleword`       | `:class="~badge"`      | anywhere a value is allowed                      |
+| `'string'`          | `@then="'btn ok'"`     | anywhere a value is allowed                      |
 | Bare with `{...}`   | `:class="btn {.kind}"` | `:attr=`, `@text`, `@title`, macro dynamic attrs |
 | Bare without quotes | `flex gap-3`           | **never** — returns `null`                       |
 | Bare identifier     | `dec`, `value`         | name slots only (handler/arg, not as a value)    |
@@ -98,7 +96,6 @@ to enable the string-template path.
 ```html
 <!-- ✅ all valid -->
 <p :class="'flex gap-3'">x</p>
-<p :class="~badge">x</p>
 <p :class="flex {.color}">x</p>
 <!-- {…} enables template -->
 <p :class="static-classes {''}">x</p>
