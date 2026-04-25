@@ -3,6 +3,7 @@ import { FieldStep, SeqAccessStep } from "./path.js";
 const VALID_VAL_ID_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 const isValidValId = (name) => VALID_VAL_ID_RE.test(name);
 const VALID_FLOAT_RE = /^-?[0-9]+(\.[0-9]+)?$/;
+const STR_TPL_SPLIT_RE = /(\{[^}]+\})/g; // Safe to share despite `g` flag: only used in split
 const parseStrTemplate = (v, px) => StrTplVal.parse(v, px);
 const parseConst = (v, _) => new ConstVal(v);
 const parseName = (v, _) => (isValidValId(v) ? new NameVal(v) : null);
@@ -168,7 +169,7 @@ export class StrTplVal extends VarVal {
     return strs.join("");
   }
   static parse(s, px) {
-    const parts = s.split(/(\{[^}]+\})/g);
+    const parts = s.split(STR_TPL_SPLIT_RE);
     const vals = new Array(parts.length);
     let allConsts = true;
     for (let i = 0; i < parts.length; i++) {
