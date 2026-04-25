@@ -7,7 +7,7 @@ Zero-dependency batteries included SPA framework.
 - **Fits in your head** (and the context window)
 - **View source friendly** — step through the whole stack
 - **As much HTML as possible, as little JS as needed**
-- ~107KB minified, ~29KB brotli compressed
+- ~169KB minified, ~37KB brotli compressed
 
 ## Quick Start
 
@@ -64,17 +64,17 @@ Zero-dependency batteries included SPA framework.
 Tutuca ships a single-file CLI (`dist/tutuca-cli.js`) for inspecting, linting,
 documenting, and rendering components defined in an ES module. The module just
 needs to export `getComponents()` and, for render-time commands, `getExamples()`
-in the storybook shape `{ title, description?, groups?, items: [{ title, description?, value, view? }] }`.
+in the storybook shape `{ title, description?, items: [{ title, description?, value, view? }] }` (a single section, or an array of sections).
 
 ### Setup
 
 ```sh
-npm install --save-dev tutuca jsdom
+npm install --save-dev tutuca
 # prettier is optional, only needed for --pretty
 npm install --save-dev prettier
 ```
 
-The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca jsdom`) just works. `jsdom` is a peer dep because it's only needed for `render`, `lint`, and `doctor`.
+The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca`) just works. `jsdom` ships as a regular dependency (it's needed by `render`, `lint`, and `doctor`) and is installed automatically.
 
 ### Commands
 
