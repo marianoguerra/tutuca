@@ -121,8 +121,8 @@ export class ANode extends BaseNode {
     return ANode.fromDOM(nodes[0] ?? new px.Text(""), px);
   }
   static fromDOM(node, px) {
-    if (px.isTextNode(node)) return new TextNode(node.textContent);
-    else if (px.isCommentNode(node)) return new CommentNode(node.textContent);
+    if (node instanceof px.Text) return new TextNode(node.textContent);
+    else if (node instanceof px.Comment) return new CommentNode(node.textContent);
     const { childNodes, attributes: attrs, tagName: tag } = node;
     const childs = new Array(childNodes.length);
     for (let i = 0; i < childNodes.length; i++) childs[i] = ANode.fromDOM(childNodes[i], px);
@@ -407,12 +407,6 @@ export class ParseContext {
   newDOMParser() {
     return new this.DOMParser();
   }
-  isTextNode(v) {
-    return v instanceof this.Text;
-  }
-  isCommentNode(v) {
-    return v instanceof this.Comment;
-  }
   addNodeIf(Class, val, extra) {
     if (val !== null) {
       const nodeId = this.nodes.length;
@@ -431,21 +425,15 @@ export class ParseContext {
   newMacroNode(macroName, mAttrs, childs) {
     const anySlot = [];
     const slots = { _: new FragmentNode(anySlot) };
-    for (const child of childs) {
-      if (child instanceof SlotNode) {
-        slots[child.val.val] = child.node;
-      } else if (!(child instanceof TextNode) || !child.isWhiteSpace()) {
-        anySlot.push(child);
-      }
-    }
+    for (const child of childs)
+      if (child instanceof SlotNode) slots[child.val.val] = child.node;
+      else if (!(child instanceof TextNode) || !child.isWhiteSpace()) anySlot.push(child);
     const node = new MacroNode(macroName, mAttrs, slots, this);
     this.macroNodes.push(node);
     return node;
   }
   compile(scope) {
-    for (let i = 0; i < this.macroNodes.length; i++) {
-      this.macroNodes[i].compile(scope); // macroNodes may grow w/nested macros
-    }
+    for (let i = 0; i < this.macroNodes.length; i++) this.macroNodes[i].compile(scope); // macroNodes may grow w/nested macros
   }
   *genEventNames() {
     for (const event of this.events) yield* event.genEventNames();
