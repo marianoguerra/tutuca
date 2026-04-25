@@ -53,8 +53,8 @@ describe("Components", () => {
         getMessage: ".message",
       },
       on: {
-        stackEnter(stack) {
-          return stack.withDynamicBindings(["getMessage"]);
+        stackEnter() {
+          return ["getMessage"];
         },
       },
     });

@@ -1,8 +1,6 @@
 export class NullDomCache {
-  get(_k, _cacheKey) {}
-  set(_k, _cacheKey, _v) {}
-  get2(_k1, _k2, _cacheKey) {}
-  set2(_k1, _k2, _cacheKey, _v) {}
+  get(_keys, _cacheKey) {}
+  set(_keys, _cacheKey, _v) {}
   evict() {
     return { hit: 0, miss: 0, badKey: 0 };
   }
@@ -10,43 +8,53 @@ export class NullDomCache {
 export class WeakMapDomCache {
   constructor() {
     this.hit = this.miss = this.badKey = 0;
-    this.map = new WeakMap();
+    this.keysByLen = new Map();
   }
   _returnValue(r) {
     if (r === undefined) this.miss += 1;
     else this.hit += 1;
     return r;
   }
-  get(k, cacheKey) {
-    return this._returnValue(this.map.get(k)?.[cacheKey]);
-  }
-  set(k, cacheKey, v) {
-    const cur = this.map.get(k);
-    if (cur) cur[cacheKey] = v;
-    else if (typeof k === "object") this.map.set(k, { [cacheKey]: v });
-    else this.badKey += 1;
-  }
-  get2(k1, k2, cacheKey) {
-    return this._returnValue(this.map.get(k1)?.get?.(k2)?.[cacheKey]);
-  }
-  set2(k1, k2, cacheKey, v) {
-    const cur1 = this.map.get(k1);
-    if (cur1) {
-      const cur = cur1.get(k2);
-      if (cur) cur[cacheKey] = v;
-      else cur1.set(k2, { [cacheKey]: v });
-    } else if (typeof k1 === "object" && typeof k2 === "object") {
-      const cur = new WeakMap();
-      cur.set(k2, { [cacheKey]: v });
-      this.map.set(k1, cur);
-    } else {
-      this.badKey += 1;
+  get(keys, cacheKey) {
+    const len = keys.length;
+    let cur = this.keysByLen.get(len);
+    if (!cur) return this._returnValue(undefined);
+    for (let i = 0; i < len - 1; i++) {
+      cur = cur.get(keys[i]);
+      if (!cur) return this._returnValue(undefined);
     }
+    return this._returnValue(cur.get(keys[len - 1])?.[cacheKey]);
+  }
+  set(keys, cacheKey, v) {
+    const len = keys.length;
+    let cur = this.keysByLen.get(len);
+    if (!cur) {
+      cur = new WeakMap();
+      this.keysByLen.set(len, cur);
+    }
+    for (let i = 0; i < len - 1; i++) {
+      const key = keys[i];
+      let next = cur.get(key);
+      if (!next) {
+        if (typeof key !== "object") {
+          this.badKey += 1;
+          return;
+        }
+        next = new WeakMap();
+        cur.set(key, next);
+      }
+      cur = next;
+    }
+    const lastKey = keys[len - 1];
+    const leaf = cur.get(lastKey);
+    if (leaf) leaf[cacheKey] = v;
+    else if (typeof lastKey === "object") cur.set(lastKey, { [cacheKey]: v });
+    else this.badKey += 1;
   }
   evict() {
     const { hit, miss, badKey } = this;
     this.hit = this.miss = this.badKey = 0;
-    this.map = new WeakMap();
+    this.keysByLen = new Map();
     return { hit, miss, badKey };
   }
 }

@@ -135,7 +135,7 @@ component({
   response: { name(res, err) { ... } }, // async request results
   statics: { fromData(d) { return this.make(...) } },
   dynamic: { theme: ".color" },
-  on: { stackEnter(stack) { return stack; } },
+  on: { stackEnter() { return []; } }, // only implement it if using dynamic bindings
 });
 ```
 
@@ -870,8 +870,8 @@ const Theme = component({
   fields: { color: "blue" },
   dynamic: { color: ".color" },
   on: {
-    stackEnter(stack) {
-      return stack.withDynamicBindings(["color"]);
+    stackEnter() {
+      return ["color"];
     },
   },
 });

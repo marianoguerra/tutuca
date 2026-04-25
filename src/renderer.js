@@ -52,12 +52,14 @@ export class Renderer {
   }
   _rValComp(stack, val, comp, nid, key, viewName) {
     const cacheKey = `${viewName ?? stack.viewsId ?? ""}${nid}-${key}`;
-    const cachedNode = this.cache.get(val, cacheKey);
+    const cachePath = [val];
+    stack._pushDynBindValuesToArray(cachePath, comp.dynamic);
+    const cachedNode = this.cache.get(cachePath, cacheKey);
     if (cachedNode) return cachedNode;
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
     const meta = this._renderMetadata({ $: "Comp", nid });
     const dom = new VFragment([meta, this.renderView(view, stack)]);
-    this.cache.set(val, cacheKey, dom);
+    this.cache.set(cachePath, cacheKey, dom);
     return dom;
   }
   pushEachEntry(r, nid, attrName, key, dom) {
@@ -82,21 +84,17 @@ export class Renderer {
     const it = stack.it;
     this.getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(it, key, value, iterData)) {
+        const cachePath = enricher ? [it, value] : [value];
         const bindings = { key, value };
         const cacheKey = `${nid}-${key}`;
-        let cachedNode;
-        if (enricher) {
-          enricher.call(it, bindings, key, value, iterData);
-          cachedNode = this.cache.get2(it, value, cacheKey);
-        } else cachedNode = this.cache.get(value, cacheKey);
-        if (cachedNode) {
-          this.pushEachEntry(r, nid, attrName, key, cachedNode);
-          return;
+        if (enricher) enricher.call(it, bindings, key, value, iterData);
+        const cachedNode = this.cache.get(cachePath, cacheKey);
+        if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
+        else {
+          const dom = this.renderView(view, stack.enter(value, bindings, false));
+          this.pushEachEntry(r, nid, attrName, key, dom);
+          this.cache.set(cachePath, cacheKey, dom);
         }
-        const dom = this.renderView(view, stack.enter(value, bindings, false));
-        this.pushEachEntry(r, nid, attrName, key, dom);
-        if (enricher) this.cache.set2(it, value, cacheKey, dom);
-        else this.cache.set(value, cacheKey, dom);
       }
     });
     return r;

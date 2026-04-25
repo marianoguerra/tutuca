@@ -50,7 +50,7 @@ export class Stack {
     this.ctx = ctx;
   }
   _enrichOnEnter() {
-    return this.comps.getOnEnterFor(this.it).call(this.it, this) ?? this;
+    return this.withDynamicBindings(this.comps.getOnEnterFor(this.it).call(this.it));
   }
   upToFrameBinds() {
     const { comps, binds, dynBinds, views, viewsId, ctx } = this;
@@ -67,7 +67,8 @@ export class Stack {
   enter(it, bindings = {}, isFrame = true) {
     const { comps, binds, dynBinds, views, viewsId, ctx } = this;
     const newBinds = [new BindFrame(it, bindings, isFrame), binds];
-    return new Stack(comps, it, newBinds, dynBinds, views, viewsId, ctx)._enrichOnEnter();
+    const stack = new Stack(comps, it, newBinds, dynBinds, views, viewsId, ctx);
+    return isFrame ? stack._enrichOnEnter() : stack;
   }
   pushViewName(name) {
     const { comps, it, binds, dynBinds, views, ctx } = this;
@@ -75,16 +76,23 @@ export class Stack {
     return new Stack(comps, it, binds, dynBinds, newViews, computeViewsId(newViews), ctx);
   }
   withDynamicBindings(dynamics) {
+    if (dynamics == null || dynamics.length === 0) return this;
     const dynObj = {};
     const comp = this.comps.getCompFor(this.it);
     for (const dynName of dynamics) comp.dynamic[dynName].evalAndBind(this, dynObj);
-    const { comps, it, binds, views, viewsId, ctx } = this;
     const newDynBinds = [new ObjectFrame(dynObj), this.dynBinds];
+    const { comps, it, binds, views, viewsId, ctx } = this;
     return new Stack(comps, it, binds, newDynBinds, views, viewsId, ctx);
+  }
+  _pushDynBindValuesToArray(arr, dyns) {
+    for (const k in dyns) arr.push(this._lookupDynamicWithDynVal(dyns[k]));
+  }
+  _lookupDynamicWithDynVal(d) {
+    return lookup(this.dynBinds, d.getSymbol(this)) ?? d.val.eval(this);
   }
   lookupDynamic(name) {
     const d = this.comps.getCompFor(this.it)?.dynamic[name];
-    return d ? (lookup(this.dynBinds, d.getSymbol(this)) ?? d.val.eval(this)) : null;
+    return d ? this._lookupDynamicWithDynVal(d) : null;
   }
   lookupBind(name) {
     return lookup(this.binds, name);

@@ -181,6 +181,6 @@ export class Component {
     return styles.join("\n");
   }
 }
-function defaultOnStackEnter(stack) {
-  return stack; // need function and not arrow fn to parse it to data
+function defaultOnStackEnter() {
+  return null; // need function and not arrow fn to parse it to data
 }
