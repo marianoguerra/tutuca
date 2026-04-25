@@ -53,8 +53,9 @@ function serializeTree(node) {
   return { type: "unknown" };
 }
 
-function stresstest({ iterations, seed, onProgress }) {
+function stresstest({ iterations, seed, onProgress, onStart }) {
   const baseSeed = seed ?? Math.floor(Math.random() * 1000000);
+  if (onStart) onStart({ seed: baseSeed });
   const JSDOM_REFRESH_INTERVAL = 5000;
   let document = makeDocument();
   const startTime = Date.now();
@@ -68,29 +69,72 @@ function stresstest({ iterations, seed, onProgress }) {
     }
 
     const s = baseSeed + i;
-    const rng = createRng(s);
-    const originalTree = generateTree(rng);
-    const mutationCount = Math.floor(rng() * 5) + 1;
-    const mutations = [];
-    for (let j = 0; j < mutationCount; j++) {
-      mutations.push(generateMutation(rng, originalTree));
-    }
+    try {
+      const rng = createRng(s);
+      const originalTree = generateTree(rng);
+      const mutationCount = Math.floor(rng() * 5) + 1;
+      const mutations = [];
+      for (let j = 0; j < mutationCount; j++) {
+        mutations.push(generateMutation(rng, originalTree));
+      }
 
-    let mutatedTree = originalTree;
-    const mutationRng = createRng(s + 1000);
-    for (const mutation of mutations) {
-      mutatedTree = applyMutation(mutatedTree, mutation, mutationRng);
-    }
+      let mutatedTree = originalTree;
+      const mutationRng = createRng(s + 1000);
+      for (const mutation of mutations) {
+        mutatedTree = applyMutation(mutatedTree, mutation, mutationRng);
+      }
 
-    const container = document.createElement("div");
-    const opts = { document };
-    vdomRender(originalTree, container, opts);
-    vdomRender(mutatedTree, container, opts);
+      const container = document.createElement("div");
+      const opts = { document };
+      vdomRender(originalTree, container, opts);
+      vdomRender(mutatedTree, container, opts);
 
-    const expected = document.createElement("div");
-    vdomRender(mutatedTree, expected, opts);
+      const expected = document.createElement("div");
+      vdomRender(mutatedTree, expected, opts);
 
-    if (!compareDom(container, expected)) {
+      if (!compareDom(container, expected)) {
+        return {
+          ok: false,
+          iterations,
+          seed: baseSeed,
+          passed,
+          failedAt: i + 1,
+          failureDetails: {
+            seed: s,
+            mutationCount,
+            originalTree: serializeTree(originalTree),
+            mutatedTree: serializeTree(mutatedTree),
+            mutations,
+            expectedHtml: expected.innerHTML,
+            actualHtml: container.innerHTML,
+          },
+          durationMs: Date.now() - startTime,
+        };
+      }
+
+      if (rng() < 0.2) {
+        const c1 = document.createElement("div");
+        const c2 = document.createElement("div");
+        const f1 = new VFragment(originalTree.childs);
+        const f2 = new VFragment(mutatedTree.childs);
+        vdomRender(f1, c1, opts);
+        vdomRender(f2, c1, opts);
+        vdomRender(f2, c2, opts);
+        if (!compareDom(c1, c2)) {
+          return {
+            ok: false,
+            iterations,
+            seed: baseSeed,
+            passed,
+            failedAt: i + 1,
+            failureDetails: { seed: s, kind: "vfragment-render-mismatch" },
+            durationMs: Date.now() - startTime,
+          };
+        }
+        unmount(c1);
+        unmount(c2);
+      }
+    } catch (err) {
       return {
         ok: false,
         iterations,
@@ -99,38 +143,12 @@ function stresstest({ iterations, seed, onProgress }) {
         failedAt: i + 1,
         failureDetails: {
           seed: s,
-          mutationCount,
-          originalTree: serializeTree(originalTree),
-          mutatedTree: serializeTree(mutatedTree),
-          mutations,
-          expectedHtml: expected.innerHTML,
-          actualHtml: container.innerHTML,
+          kind: "exception",
+          message: err && err.message,
+          stack: err && err.stack,
         },
         durationMs: Date.now() - startTime,
       };
-    }
-
-    if (rng() < 0.2) {
-      const c1 = document.createElement("div");
-      const c2 = document.createElement("div");
-      const f1 = new VFragment(originalTree.childs);
-      const f2 = new VFragment(mutatedTree.childs);
-      vdomRender(f1, c1, opts);
-      vdomRender(f2, c1, opts);
-      vdomRender(f2, c2, opts);
-      if (!compareDom(c1, c2)) {
-        return {
-          ok: false,
-          iterations,
-          seed: baseSeed,
-          passed,
-          failedAt: i + 1,
-          failureDetails: { seed: s, kind: "vfragment-render-mismatch" },
-          durationMs: Date.now() - startTime,
-        };
-      }
-      unmount(c1);
-      unmount(c2);
     }
 
     passed++;
@@ -171,6 +189,11 @@ if (!quiet) {
 const result = stresstest({
   iterations,
   seed,
+  onStart: quiet
+    ? null
+    : ({ seed: s }) => {
+        process.stderr.write(`Seed: ${s}\n`);
+      },
   onProgress: quiet
     ? null
     : ({ i, total, elapsedMs }) => {
