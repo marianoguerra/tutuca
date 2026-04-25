@@ -39,9 +39,6 @@ MODULE CONVENTION
 
     export function getRoot()             // optional; returned by info
 
-  The legacy \`getStoryBookSection()\` name fails fast with
-  EXAMPLES_SHAPE_MISMATCH — rename it to \`getExamples\`.
-
 COMMANDS (require <module-path>)
   info
       Summarize which getX() exports are present and count components,

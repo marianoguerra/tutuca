@@ -102,14 +102,9 @@ export function normalizeModule(mod, { path = null } = {}) {
     "getMacros",
     "getRequestHandlers",
     "getExamples",
-    "getStoryBookSection",
     "getRoot",
   ]) {
     if (typeof mod[key] === "function") present.add(key);
-  }
-
-  if (present.has("getStoryBookSection") && !present.has("getExamples")) {
-    throw shapeError("module exports getStoryBookSection; rename it to getExamples.", "module");
   }
 
   const components = present.has("getComponents") ? mod.getComponents() : [];
