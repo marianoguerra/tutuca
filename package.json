@@ -1,6 +1,6 @@
 {
   "name": "tutuca",
-  "version": "0.9.27",
+  "version": "0.9.28",
   "type": "module",
   "description": "Zero-dependency SPA framework with immutable state and virtual DOM",
   "main": "./dist/tutuca.js",
