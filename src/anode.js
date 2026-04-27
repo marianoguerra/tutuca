@@ -36,8 +36,8 @@ export class TextNode extends BaseNode {
     }
     return false;
   }
-  condenseWhiteSpace() {
-    this.val = "";
+  condenseWhiteSpace(replacement = "") {
+    this.val = replacement;
   }
   isConstant() {
     return true;
@@ -443,35 +443,34 @@ export class ParseContext {
   }
   onAttributes(_attrs, _wrapperAttrs, _textChild, _isMacroCall) {}
 }
-const isTextNodeAllBlanks = (n) => n instanceof TextNode && n.isWhiteSpace();
-const isFirstDomNode = (n) =>
-  n instanceof DomNode || // only checks first childs of first fragment
-  (n instanceof FragmentNode && n.childs[0] instanceof DomNode);
+const _htmlBlockTags =
+  "address,article,aside,blockquote,caption,col,colgroup,details,dialog,div,dd,dl,dt,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,legend,li,main,menu,nav,ol,p,pre,section,summary,table,tbody,td,tfoot,th,thead,tr,ul";
+const HTML_BLOCK_TAGS = new Set(_htmlBlockTags.split(","));
+const isBlockDomNode = (n) => {
+  const node = n instanceof FragmentNode ? n.childs[0] : n;
+  return node instanceof DomNode && HTML_BLOCK_TAGS.has(node.tagName);
+};
 function condenseChildsWhites(childs) {
-  let end = childs.length; // adapted from vuejs compiler-core parser.ts
-  if (end === 0) return childs;
-  let start = 0;
+  if (childs.length === 0) return childs;
   let changed = false;
-  if (isTextNodeAllBlanks(childs[0])) {
-    start = 1;
+  if (childs[0].isWhiteSpace?.()) {
+    childs[0].condenseWhiteSpace();
     changed = true;
   }
-  if (end > 1 && isTextNodeAllBlanks(childs[end - 1])) {
-    end -= 1;
+  const last = childs.length - 1;
+  if (last > 0 && childs[last].isWhiteSpace?.()) {
+    childs[last].condenseWhiteSpace();
     changed = true;
   }
-  for (let i = 1; i < end - 1; i++) {
+  for (let i = 1; i < last; i++) {
     const cur = childs[i];
-    if (
-      isTextNodeAllBlanks(cur) &&
-      isFirstDomNode(childs[i - 1]) &&
-      isFirstDomNode(childs[i + 1]) &&
-      cur.hasNewLine()
-    ) {
-      cur.condenseWhiteSpace();
+    if (cur.isWhiteSpace?.() && cur.hasNewLine()) {
+      const bothBlock = isBlockDomNode(childs[i - 1]) && isBlockDomNode(childs[i + 1]);
+      cur.condenseWhiteSpace(bothBlock ? "" : " ");
+      if (bothBlock) changed = true;
     }
   }
-  return changed ? childs.slice(start, end) : childs;
+  return changed ? childs.filter((c) => !(c instanceof TextNode && c.val === "")) : childs;
 }
 export class View {
   constructor(name, rawView = "No View Defined", style = "", anode = null, ctx = null) {

@@ -115,6 +115,115 @@ describe("ANode", () => {
       expect(c.val).toBe(" tutuca ");
       expect(t.val).toBe("bar");
     });
+
+    test("preserves whitespace between inline elements (HTML spec)", () => {
+      // Per HTML/CSS spec (white-space: normal), whitespace between inline
+      // elements collapses to a single space, not nothing. A browser renders
+      // `<span><b>A</b>\n      <b>B</b></span>` as "A B" (with space), so
+      // the parser must not strip the whitespace text node between the <b>s.
+      const [r] = parse(html`<span><b>A</b>
+      <b>B</b></span>`);
+      expect(r).toBeInstanceOf(DomNode);
+      expect(r.tagName).toBe("span");
+      expect(r.childs.length).toBe(3);
+      const [b1, ws, b2] = r.childs;
+      expect(b1).toBeInstanceOf(DomNode);
+      expect(b1.tagName).toBe("b");
+      expect(b2).toBeInstanceOf(DomNode);
+      expect(b2.tagName).toBe("b");
+      expect(ws).toBeInstanceOf(TextNode);
+      expect(ws.isWhiteSpace()).toBe(true);
+      expect(ws.val).toBe(" ");
+    });
+
+    test("drops whitespace between block elements", () => {
+      const [r] = parse(html`<div><p>A</p>
+        <p>B</p></div>`);
+      expect(r.childs.length).toBe(2);
+      expect(r.childs[0]).toBeInstanceOf(DomNode);
+      expect(r.childs[0].tagName).toBe("p");
+      expect(r.childs[1]).toBeInstanceOf(DomNode);
+      expect(r.childs[1].tagName).toBe("p");
+    });
+
+    test("drops whitespace between list items", () => {
+      const [r] = parse(html`<ul><li>A</li>
+        <li>B</li>
+        <li>C</li></ul>`);
+      expect(r.tagName).toBe("ul");
+      expect(r.childs.length).toBe(3);
+      for (const c of r.childs) {
+        expect(c).toBeInstanceOf(DomNode);
+        expect(c.tagName).toBe("li");
+      }
+    });
+
+    test("preserves whitespace between inline and block (mixed)", () => {
+      const [r] = parse(html`<div><span>A</span>
+        <p>B</p></div>`);
+      expect(r.childs.length).toBe(3);
+      const ws = r.childs[1];
+      expect(ws).toBeInstanceOf(TextNode);
+      expect(ws.val).toBe(" ");
+    });
+
+    test("preserves whitespace between block and inline (mixed)", () => {
+      const [r] = parse(html`<div><p>A</p>
+        <span>B</span></div>`);
+      expect(r.childs.length).toBe(3);
+      const ws = r.childs[1];
+      expect(ws).toBeInstanceOf(TextNode);
+      expect(ws.val).toBe(" ");
+    });
+
+    test("preserves single-space whitespace between inline elements", () => {
+      const [r] = parse(html`<span><b>A</b> <b>B</b></span>`);
+      expect(r.childs.length).toBe(3);
+      const ws = r.childs[1];
+      expect(ws).toBeInstanceOf(TextNode);
+      expect(ws.val).toBe(" ");
+    });
+
+    test("preserves whitespace between multiple inline siblings", () => {
+      const [r] = parse(html`<p><b>A</b>
+<i>B</i>
+<u>C</u></p>`);
+      expect(r.tagName).toBe("p");
+      expect(r.childs.length).toBe(5);
+      expect(r.childs[1]).toBeInstanceOf(TextNode);
+      expect(r.childs[1].val).toBe(" ");
+      expect(r.childs[3]).toBeInstanceOf(TextNode);
+      expect(r.childs[3].val).toBe(" ");
+    });
+
+    test("strips leading and trailing whitespace", () => {
+      const [r] = parse(html`<div>
+  <p>X</p>
+</div>`);
+      expect(r.tagName).toBe("div");
+      expect(r.childs.length).toBe(1);
+      expect(r.childs[0]).toBeInstanceOf(DomNode);
+      expect(r.childs[0].tagName).toBe("p");
+    });
+
+    test("preserves whitespace inside <pre>", () => {
+      const [r] = parse(html`<pre><b>A</b>
+  <b>B</b></pre>`);
+      expect(r.tagName).toBe("pre");
+      expect(r.childs.length).toBe(3);
+      const ws = r.childs[1];
+      expect(ws).toBeInstanceOf(TextNode);
+      expect(ws.val).toBe("\n  ");
+    });
+
+    test("treats custom elements as inline (preserves whitespace)", () => {
+      const [r] = parse(html`<div><my-comp></my-comp>
+        <my-comp></my-comp></div>`);
+      expect(r.childs.length).toBe(3);
+      const ws = r.childs[1];
+      expect(ws).toBeInstanceOf(TextNode);
+      expect(ws.val).toBe(" ");
+    });
   });
 
   describe("ANode.render", () => {
