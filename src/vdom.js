@@ -294,7 +294,8 @@ export function render(vnode, container, options, prev) {
 }
 export const unmount = (container) => container.replaceChildren();
 export function h(tagName, properties, children) {
-  const tag = tagName.toUpperCase();
+  const c = tagName.charCodeAt(0);
+  const tag = c >= 97 && c <= 122 ? tagName.toUpperCase() : tagName;
   const props = {};
   let key, namespace;
   if (properties) {

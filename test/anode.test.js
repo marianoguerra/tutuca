@@ -208,7 +208,7 @@ test("expand macro slot", () => {
     v.compile(px, scope);
     const m = px.macroNodes[0];
     expect(m.name).toBe("post");
-    expect(m.node.childs[0].tagName).toBe("h1");
+    expect(m.node.childs[0].tagName).toBe("H1");
     expect(m.node.childs[0].childs[0].val).toBe("My Post");
   }
   {
@@ -225,7 +225,7 @@ test("expand macro slot", () => {
     v.compile(px, scope);
     const m = px.macroNodes[0];
     expect(m.name).toBe("post");
-    expect(m.node.childs[0].tagName).toBe("h2");
+    expect(m.node.childs[0].tagName).toBe("H2");
     expect(m.node.childs[0].childs[0].val).toBe("Hello");
   }
   {
@@ -240,7 +240,7 @@ test("expand macro slot", () => {
     v.compile(px, scope);
     const m = px.macroNodes[0];
     expect(m.name).toBe("post");
-    expect(m.node.childs[0].tagName).toBe("h3");
+    expect(m.node.childs[0].tagName).toBe("H3");
     expect(m.node.childs[0].childs[0].val).toBe("Hi there");
   }
 });

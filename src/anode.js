@@ -162,7 +162,7 @@ export class ANode extends BaseNode {
       px.onAttributes(nAttrs, wrappers, textChild);
       if (textChild) childs.unshift(new RenderTextNode(null, textChild));
       const domChilds = tag !== "PRE" ? condenseChildsWhites(childs) : childs;
-      return wrap(new DomNode(tag.toLowerCase(), nAttrs, domChilds), px, wrappers);
+      return wrap(new DomNode(tag, nAttrs, domChilds), px, wrappers);
     }
     return new CommentNode(`Error: InvalidTagName ${tag}`);
   }
@@ -444,7 +444,7 @@ export class ParseContext {
   onAttributes(_attrs, _wrapperAttrs, _textChild, _isMacroCall) {}
 }
 const _htmlBlockTags =
-  "address,article,aside,blockquote,caption,col,colgroup,details,dialog,div,dd,dl,dt,fieldset,figcaption,figure,footer,form,h1,h2,h3,h4,h5,h6,header,hgroup,hr,legend,li,main,menu,nav,ol,p,pre,section,summary,table,tbody,td,tfoot,th,thead,tr,ul";
+  "ADDRESS,ARTICLE,ASIDE,BLOCKQUOTE,CAPTION,COL,COLGROUP,DETAILS,DIALOG,DIV,DD,DL,DT,FIELDSET,FIGCAPTION,FIGURE,FOOTER,FORM,H1,H2,H3,H4,H5,H6,HEADER,HGROUP,HR,LEGEND,LI,MAIN,MENU,NAV,OL,P,PRE,SECTION,SUMMARY,TABLE,TBODY,TD,TFOOT,TH,THEAD,TR,UL";
 const HTML_BLOCK_TAGS = new Set(_htmlBlockTags.split(","));
 const isBlockDomNode = (n) => {
   const node = n instanceof FragmentNode ? n.childs[0] : n;

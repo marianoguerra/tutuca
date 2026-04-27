@@ -30,7 +30,7 @@ export class Renderer {
   renderToDOM(stack, val) {
     const rootNode = document.createElement("div");
     const rOpts = { document };
-    render(h("div", null, [this.renderRoot(stack, val)]), rootNode, rOpts);
+    render(h("DIV", null, [this.renderRoot(stack, val)]), rootNode, rOpts);
     return rootNode.childNodes[0];
   }
   renderToString(stack, val, cleanAttrs = true) {
