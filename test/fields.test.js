@@ -85,7 +85,9 @@ const PRIMITIVES = [
     setSamples: [[123, "123"]],
     update: { fn: (v) => v.toUpperCase(), initial: "hello", expected: "HELLO" },
     resetSpec: { defaultValue: "default", mutateTo: "changed" },
-    specials: { sized: { propName: "length", emptyExpected: 0, populated: "hello", populatedSize: 5 } },
+    specials: {
+      sized: { propName: "length", emptyExpected: 0, populated: "hello", populatedSize: 5 },
+    },
   },
   {
     name: "FieldAny",
@@ -98,7 +100,11 @@ const PRIMITIVES = [
     descriptor: { type: "any", defaultValue: null, expected: null },
     setSamples: [["hello", "hello"]],
     update: { fn: (v) => v.toUpperCase(), initial: "hello", expected: "HELLO" },
-    resetSpec: { defaultValue: null, mutateTo: 42, descriptor: { type: "any", defaultValue: null } },
+    resetSpec: {
+      defaultValue: null,
+      mutateTo: 42,
+      descriptor: { type: "any", defaultValue: null },
+    },
     specials: { isSet: { unsetValue: null, setValue: "something" } },
   },
 ];
@@ -290,7 +296,8 @@ function describePrimitive(spec) {
     if (spec.update) {
       test(`proto: update${uname}`, () => {
         const Cls = classFromData(`${name}Upd`, mkFields(spec, spec.update.initial));
-        const initial = spec.update.initial !== undefined ? Cls() : Cls()[`set${uname}`](spec.setSamples[0][1]);
+        const initial =
+          spec.update.initial !== undefined ? Cls() : Cls()[`set${uname}`](spec.setSamples[0][1]);
         const r = initial[`update${uname}`](spec.update.fn);
         expect(r.get(fieldName)).toBe(spec.update.expected);
       });
@@ -347,20 +354,20 @@ function describePrimitive(spec) {
 function mkFields(spec, overrideDefault) {
   const { fieldName } = spec;
   if (spec.descriptor) {
-    return { fields: { [fieldName]: { type: spec.descriptor.type, defaultValue: overrideDefault ?? spec.descriptor.defaultValue } } };
+    return {
+      fields: {
+        [fieldName]: {
+          type: spec.descriptor.type,
+          defaultValue: overrideDefault ?? spec.descriptor.defaultValue,
+        },
+      },
+    };
   }
   return { fields: { [fieldName]: overrideDefault ?? spec.defaultValue } };
 }
 
 function describeCollection(spec) {
-  const {
-    name,
-    FieldCls,
-    typeName,
-    fieldName,
-    EmptyCtor,
-    isCollection,
-  } = spec;
+  const { name, FieldCls, typeName, fieldName, EmptyCtor, isCollection } = spec;
   const uname = ucfirst(fieldName);
 
   describe(name, () => {
@@ -484,9 +491,9 @@ function describeCollection(spec) {
             expect(after[`getIn${uname}At`](1)).toBe(k.afterDelete.getAt1);
           }
           if (k.afterDelete.missing) {
-            expect(after[`getIn${uname}At`](k.afterDelete.missing.key, k.afterDelete.missing.default)).toBe(
-              k.afterDelete.missing.default,
-            );
+            expect(
+              after[`getIn${uname}At`](k.afterDelete.missing.key, k.afterDelete.missing.default),
+            ).toBe(k.afterDelete.missing.default);
           }
         } else if (k.afterDeleteSize !== undefined) {
           expect(after[`${fieldName}Len`]()).toBe(k.afterDeleteSize);
@@ -506,7 +513,8 @@ function describeCollection(spec) {
         const Cls = classFromData(`${name}SetCoerce`, { fields: { [fieldName]: EmptyCtor() } });
         const r = Cls()[`set${uname}`](spec.setCoerce.input);
         expect(isCollection(r.get(fieldName))).toBe(true);
-        if (spec.setCoerce.size !== undefined) expect(r.get(fieldName).size).toBe(spec.setCoerce.size);
+        if (spec.setCoerce.size !== undefined)
+          expect(r.get(fieldName).size).toBe(spec.setCoerce.size);
         if (spec.setCoerce.sampleKey !== undefined) {
           expect(r[`getIn${uname}At`](spec.setCoerce.sampleKey)).toBe(spec.setCoerce.sampleValue);
         }

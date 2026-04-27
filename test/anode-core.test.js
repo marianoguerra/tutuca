@@ -143,7 +143,6 @@ describe("ANode", () => {
       expect(r.childs[0]).toBeInstanceOf(DomNode);
 
       expect(r.childs[1]).toBeInstanceOf(DomNode);
-
     });
 
     test("drops whitespace between list items", () => {
@@ -154,7 +153,6 @@ describe("ANode", () => {
       expect(r.childs.length).toBe(3);
       for (const c of r.childs) {
         expect(c).toBeInstanceOf(DomNode);
-
       }
     });
 
@@ -203,7 +201,6 @@ describe("ANode", () => {
 
       expect(r.childs.length).toBe(1);
       expect(r.childs[0]).toBeInstanceOf(DomNode);
-
     });
 
     test("preserves whitespace inside <pre>", () => {
