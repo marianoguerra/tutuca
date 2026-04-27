@@ -21,6 +21,7 @@ import { ConstAttrs, DynAttrs, EventHandler, IfAttr, NOT_SET_VAL } from "../src/
 import { Components } from "../src/components.js";
 import { Renderer } from "../src/renderer.js";
 import { Stack } from "../src/stack.js";
+import { renderToHTML } from "../src/util/render.js";
 import {
   AlterHandlerNameVal,
   BindVal,
@@ -34,7 +35,7 @@ import {
   vp,
 } from "../src/value.js";
 import { VComment, VFragment, VNode, VText } from "../src/vdom.js";
-import { HeadlessParseContext, isTextNode, isTextNodeWithText } from "./dom.js";
+import { HeadlessParseContext, isTextNode, isTextNodeWithText, setupJsdom } from "./dom.js";
 
 function toData(node) {
   if (node == null) return null;
@@ -1073,5 +1074,102 @@ describe("ANode", () => {
         console.log("x render-each @foo:", r);
       });
     });
+  });
+});
+
+describe("Table component", () => {
+  const document = setupJsdom();
+
+  const Row = component({
+    name: "Row",
+    fields: { cells: [] },
+    view: html`<tr><td @each=".cells" @text="@value"></td></tr>`,
+  });
+
+  const Table = component({
+    name: "Table",
+    fields: { rows: [] },
+    view: html`<table><tr @x render-each=".rows"></x></table>`,
+  });
+
+  function renderTable(state) {
+    const out = renderToHTML(document, [Table, Row], null, state, HeadlessParseContext);
+    return out
+      .replace(/<!--§[^§]*§-->/g, "")
+      .replace(/\s(data-(?:cid|nid|eid|vid|si|sk))="[^"]*"/g, "");
+  }
+
+  test("renders empty table", () => {
+    expect(renderTable(Table.make({ rows: [] }))).toBe("<table><tbody></tbody></table>");
+  });
+
+  test("renders single row with cells", () => {
+    const state = Table.make({
+      rows: [Row.make({ cells: ["a", "b", "c"] })],
+    });
+    expect(renderTable(state)).toBe(
+      "<table><tbody><tr><td>a</td><td>b</td><td>c</td></tr></tbody></table>",
+    );
+  });
+
+  test("renders multiple rows", () => {
+    const state = Table.make({
+      rows: [Row.make({ cells: ["1", "2"] }), Row.make({ cells: ["3", "4"] })],
+    });
+    expect(renderTable(state)).toBe(
+      "<table><tbody><tr><td>1</td><td>2</td></tr><tr><td>3</td><td>4</td></tr></tbody></table>",
+    );
+  });
+
+  test("renders row with no cells", () => {
+    const state = Table.make({ rows: [Row.make({ cells: [] })] });
+    expect(renderTable(state)).toBe("<table><tbody><tr></tr></tbody></table>");
+  });
+});
+
+describe("Select component", () => {
+  const document = setupJsdom();
+
+  const Option = component({
+    name: "Option",
+    fields: { label: "", value: "" },
+    view: html`<option :value=".value" @text=".label"></option>`,
+  });
+
+  const Select = component({
+    name: "Select",
+    fields: { options: [] },
+    view: html`<select><option @x render-each=".options"></x></select>`,
+  });
+
+  function renderSelect(state) {
+    const out = renderToHTML(document, [Select, Option], null, state, HeadlessParseContext);
+    return out
+      .replace(/<!--§[^§]*§-->/g, "")
+      .replace(/\s(data-(?:cid|nid|eid|vid|si|sk))="[^"]*"/g, "");
+  }
+
+  test("renders empty select", () => {
+    expect(renderSelect(Select.make({ options: [] }))).toBe("<select></select>");
+  });
+
+  test("renders single option", () => {
+    const state = Select.make({
+      options: [Option.make({ label: "One", value: "1" })],
+    });
+    expect(renderSelect(state)).toBe(`<select><option value="1">One</option></select>`);
+  });
+
+  test("renders multiple options", () => {
+    const state = Select.make({
+      options: [
+        Option.make({ label: "One", value: "1" }),
+        Option.make({ label: "Two", value: "2" }),
+        Option.make({ label: "Three", value: "3" }),
+      ],
+    });
+    expect(renderSelect(state)).toBe(
+      `<select><option value="1">One</option><option value="2">Two</option><option value="3">Three</option></select>`,
+    );
   });
 });

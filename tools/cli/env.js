@@ -4,17 +4,17 @@ import { LintParseContext } from "../core/lint-check.js";
 
 export async function createNodeEnv() {
   const dom = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>");
-  const { DOMParser, Text, Comment } = dom.window;
-  globalThis.document = dom.window.document;
+  const { document, Text, Comment } = dom.window;
+  globalThis.document = document;
 
   class HeadlessParseContext extends ParseContext {
     constructor() {
-      super(DOMParser, Text, Comment);
+      super(document, Text, Comment);
     }
   }
   class HeadlessLintParseContext extends LintParseContext {
     constructor() {
-      super(DOMParser, Text, Comment);
+      super(document, Text, Comment);
     }
   }
 

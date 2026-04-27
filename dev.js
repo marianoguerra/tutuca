@@ -51,9 +51,18 @@ export class LintClassCollectorCtx extends ParseCtxClassSetCollector {
     this.attrs = [];
   }
   enterMacro(macroName, macroVars, macroSlots) {
-    const { DOMParser: DP, Text, Comment, nodes, events, macroNodes } = this;
+    const { document, Text, Comment, nodes, events, macroNodes } = this;
     const frame = { macroName, macroVars, macroSlots };
-    const v = new LintClassCollectorCtx(DP, Text, Comment, nodes, events, macroNodes, frame, this);
+    const v = new LintClassCollectorCtx(
+      document,
+      Text,
+      Comment,
+      nodes,
+      events,
+      macroNodes,
+      frame,
+      this,
+    );
     v.classes = this.classes;
     v.attrs = this.attrs;
     return v;

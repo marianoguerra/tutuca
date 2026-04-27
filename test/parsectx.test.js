@@ -1,10 +1,10 @@
 import { expect, test } from "bun:test";
 import { ANode } from "../src/anode.js";
-import { DOMParser, Text, Comment } from "./dom.js";
+import { Comment, document, Text } from "./dom.js";
 import { ParseCtxClassSetCollector } from "../src/util/parsectx.js";
 
 function parse(html) {
-  const ctx = new ParseCtxClassSetCollector(DOMParser, Text, Comment);
+  const ctx = new ParseCtxClassSetCollector(document, Text, Comment);
   const r = ANode.parse(html, ctx);
   return [r, ctx];
 }

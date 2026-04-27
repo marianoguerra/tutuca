@@ -27,13 +27,13 @@ function makeVirtualConsole() {
 }
 
 const { window } = new JSDOM("", { virtualConsole: makeVirtualConsole() });
-const { DOMParser, Text, Comment } = window;
+const { DOMParser, Text, Comment, document } = window;
 
-export const mpx = () => new ParseContext(DOMParser, Text, Comment);
+export const mpx = () => new ParseContext(document, Text, Comment);
 
 export class HeadlessParseContext extends ParseContext {
   constructor() {
-    super(DOMParser, Text, Comment);
+    super(document, Text, Comment);
   }
 }
 
@@ -47,7 +47,7 @@ export function parse(html) {
 export const isTextNode = (node) => node instanceof TextNode;
 export const isTextNodeWithText = (node, text) => node instanceof TextNode && node.val === text;
 
-export { Comment, DOMParser, Text };
+export { Comment, document, DOMParser, Text };
 
 // Install a fresh JSDOM document on globalThis and return it. The vdom
 // renderer reads `globalThis.document` when no explicit document is passed.

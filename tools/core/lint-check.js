@@ -501,8 +501,8 @@ export class LintContext {
 }
 
 export class LintParseContext extends ParseContext {
-  constructor(DOMParser, Text, Comment) {
-    super(DOMParser, Text, Comment);
+  constructor(document, Text, Comment) {
+    super(document, Text, Comment);
     this.attrs = [];
   }
   onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false) {

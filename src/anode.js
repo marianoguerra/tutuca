@@ -103,7 +103,6 @@ export class FragmentNode extends ChildsNode {
 }
 const maybeFragment = (xs) => (xs.length === 1 ? xs[0] : new FragmentNode(xs));
 const VALID_NODE_RE = /^[a-zA-Z][a-zA-Z0-9-]*$/;
-let _parser = null;
 export class ANode extends BaseNode {
   constructor(nodeId, val) {
     super();
@@ -114,9 +113,7 @@ export class ANode extends BaseNode {
     return this.val.toPathItem();
   }
   static parse(html, px) {
-    _parser ??= px.newDOMParser();
-    const nodes = _parser.parseFromString(html, "text/html").body.childNodes;
-    return ANode.fromDOM(nodes[0] ?? new px.Text(""), px);
+    return ANode.fromDOM(px.parseHTML(html)[0] ?? new px.Text(""), px);
   }
   static fromDOM(node, px) {
     if (node instanceof px.Text) return new TextNode(node.textContent);
@@ -382,13 +379,13 @@ const WRAPPER_NODES = {
   "push-view": PushViewNameNode,
 };
 export class ParseContext {
-  constructor(DOMParser, Text, Comment, nodes, events, macroNodes, frame, parent) {
+  constructor(document, Text, Comment, nodes, events, macroNodes, frame, parent) {
     this.nodes = nodes ?? [];
     this.events = events ?? [];
     this.macroNodes = macroNodes ?? [];
     this.parent = parent ?? null;
     this.frame = frame ?? {};
-    this.DOMParser = DOMParser ?? globalThis.DOMParser;
+    this.document = document ?? globalThis.document;
     this.Text = Text ?? globalThis.Text;
     this.Comment = Comment ?? globalThis.Comment;
     this.cacheConstNodes = true;
@@ -397,12 +394,14 @@ export class ParseContext {
     return this.frame.macroName === name || this.parent?.isInsideMacro(name);
   }
   enterMacro(macroName, macroVars, macroSlots) {
-    const { DOMParser: DP, Text, Comment, nodes, events, macroNodes } = this;
+    const { document, Text, Comment, nodes, events, macroNodes } = this;
     const frame = { macroName, macroVars, macroSlots };
-    return new ParseContext(DP, Text, Comment, nodes, events, macroNodes, frame, this);
+    return new ParseContext(document, Text, Comment, nodes, events, macroNodes, frame, this);
   }
-  newDOMParser() {
-    return new this.DOMParser();
+  parseHTML(html) {
+    const t = this.document.createElement("template");
+    t.innerHTML = html;
+    return Array.from(t.content.childNodes);
   }
   addNodeIf(Class, val, extra) {
     if (val !== null) {

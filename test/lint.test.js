@@ -22,11 +22,11 @@ import {
   UNKNOWN_MACRO_ARG,
   UNKNOWN_REQUEST_NAME,
 } from "../tools/core/lint-check.js";
-import { Comment, DOMParser, Text } from "./dom.js";
+import { Comment, document, Text } from "./dom.js";
 
 class HeadlessLintParseContext extends LintParseContext {
   constructor() {
-    super(DOMParser, Text, Comment);
+    super(document, Text, Comment);
   }
 }
 
@@ -563,7 +563,7 @@ test("component-scoped findings carry componentName and no viewName", () => {
 test("lint-errors example with LintClassCollectorCtx catches all error types", () => {
   class HeadlessLintClassCollectorCtx extends LintClassCollectorCtx {
     constructor() {
-      super(DOMParser, Text, Comment);
+      super(document, Text, Comment);
     }
   }
 

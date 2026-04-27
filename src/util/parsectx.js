@@ -12,10 +12,10 @@ export class ParseCtxClassSetCollector extends ParseContext {
     }
   }
   enterMacro(macroName, macroVars, macroSlots) {
-    const { DOMParser: DP, Text, Comment, nodes, events, macroNodes } = this;
+    const { document, Text, Comment, nodes, events, macroNodes } = this;
     const frame = { macroName, macroVars, macroSlots };
     const v = new ParseCtxClassSetCollector(
-      DP,
+      document,
       Text,
       Comment,
       nodes,
