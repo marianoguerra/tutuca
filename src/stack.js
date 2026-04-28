@@ -110,10 +110,6 @@ export class Stack {
   lookupName(name) {
     return this.ctx.lookupName(name);
   }
-  lookupComputed(name) {
-    const node = this.binds[0].isFrame ? this.binds[0] : this.binds[1][0];
-    return this.comps.lookupComputed(node.it, name);
-  }
   getHandlerFor(name, key) {
     return this.comps.getHandlerFor(this.it, name, key);
   }

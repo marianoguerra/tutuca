@@ -11,8 +11,6 @@ export const INPUT_HANDLER_METHOD_NOT_IMPLEMENTED = "INPUT_HANDLER_METHOD_NOT_IM
 export const INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD = "INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD";
 export const INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER = "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER";
 export const FIELD_VAL_NOT_DEFINED = "FIELD_VAL_NOT_DEFINED";
-export const COMPUTED_VAL_NOT_DEFINED = "COMPUTED_VAL_NOT_DEFINED";
-export const COMPUTED_NOT_REFERENCED = "COMPUTED_NOT_REFERENCED";
 export const DUPLICATE_ATTR_DEFINITION = "DUPLICATE_ATTR_DEFINITION";
 export const IF_NO_BRANCH_SET = "IF_NO_BRANCH_SET";
 export const UNKNOWN_REQUEST_NAME = "UNKNOWN_REQUEST_NAME";
@@ -54,26 +52,22 @@ export function checkComponent(Comp, lx = new LintContext()) {
   return lx.push({ componentName: Comp.name }, () => {
     const referencedAlters = new Set();
     const referencedInputs = new Set();
-    const referencedComputed = new Set();
     checkEventHandlersHaveImpls(lx, Comp, referencedInputs);
-    checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed);
+    checkConsistentAttrs(lx, Comp, referencedAlters);
     for (const name in Comp.views) {
-      lx.push({ viewName: name }, () =>
-        checkView(lx, Comp.views[name], Comp, referencedAlters, referencedComputed),
-      );
+      lx.push({ viewName: name }, () => checkView(lx, Comp.views[name], Comp, referencedAlters));
     }
     checkUnreferencedAlterHandlers(lx, Comp, referencedAlters);
     checkUnreferencedInputHandlers(lx, Comp, referencedInputs);
-    checkUnreferencedComputed(lx, Comp, referencedComputed);
     return lx;
   });
 }
 
-function checkView(lx, view, Comp, referencedAlters, referencedComputed) {
+function checkView(lx, view, Comp, referencedAlters) {
   checkParseIssues(lx, view);
   checkRenderItInLoop(lx, view);
   checkEventModifiers(lx, view);
-  checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComputed);
+  checkKnownHandlerNames(lx, view, Comp, referencedAlters);
   checkMacroCallArgs(lx, view, Comp);
 }
 
@@ -194,8 +188,8 @@ function isKnownHandlerName(name) {
   return KNOWN_HANDLER_NAMES.has(name);
 }
 
-function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComputed) {
-  const { computed, scope, alter, Class } = Comp;
+function checkKnownHandlerNames(lx, view, Comp, referencedAlters) {
+  const { scope, alter, Class } = Comp;
   const { prototype: proto } = Class;
   const { fields } = Class.getMetaClass();
   for (const event of view.ctx.events) {
@@ -209,19 +203,10 @@ function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComp
         originAttr: `@on.${eventName}`,
       };
       for (let i = 0; i < args.length; i++) {
-        checkConsistentAttrVal(
-          lx,
-          args[i],
-          fields,
-          proto,
-          computed,
-          scope,
-          alter,
-          referencedAlters,
-          referencedComputed,
-          false,
-          { ...errCtx, argIndex: i },
-        );
+        checkConsistentAttrVal(lx, args[i], fields, proto, scope, alter, referencedAlters, false, {
+          ...errCtx,
+          argIndex: i,
+        });
       }
     }
   }
@@ -291,11 +276,9 @@ function checkConsistentAttrVal(
   val,
   fields,
   proto,
-  computed,
   scope,
   alter,
   referencedAlters,
-  referencedComputed,
   skipNameVal = false,
   errCtx = null,
 ) {
@@ -305,23 +288,15 @@ function checkConsistentAttrVal(
     if (fields[name] === undefined && proto[name] === undefined) {
       lx.error(FIELD_VAL_NOT_DEFINED, { ...errCtx, val, name });
     }
-  } else if (valName === "ComputedVal") {
-    const { name } = val;
-    referencedComputed?.add(name);
-    if (computed[name] === undefined) {
-      lx.error(COMPUTED_VAL_NOT_DEFINED, { ...errCtx, val, name });
-    }
   } else if (valName === "SeqAccessVal") {
     checkConsistentAttrVal(
       lx,
       val.seqVal,
       fields,
       proto,
-      computed,
       scope,
       alter,
       referencedAlters,
-      referencedComputed,
       skipNameVal,
       errCtx,
     );
@@ -330,11 +305,9 @@ function checkConsistentAttrVal(
       val.keyVal,
       fields,
       proto,
-      computed,
       scope,
       alter,
       referencedAlters,
-      referencedComputed,
       skipNameVal,
       errCtx,
     );
@@ -360,11 +333,9 @@ function checkConsistentAttrVal(
         subVal,
         fields,
         proto,
-        computed,
         scope,
         alter,
         referencedAlters,
-        referencedComputed,
         skipNameVal,
         errCtx,
       );
@@ -407,8 +378,8 @@ function attrOriginAttr(attr) {
   return `:${attr.name}`;
 }
 
-function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
-  const { computed, scope, views, alter, Class } = Comp;
+function checkConsistentAttrs(lx, Comp, referencedAlters) {
+  const { scope, views, alter, Class } = Comp;
   const { prototype: proto } = Class;
   const { fields } = Class.getMetaClass();
   for (const viewName in views) {
@@ -442,11 +413,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   subVal,
                   fields,
                   proto,
-                  computed,
                   scope,
                   alter,
                   referencedAlters,
-                  referencedComputed,
                   isMacroCall,
                   { tag, originAttr: `@if.${attr.name}`, branch },
                 );
@@ -457,11 +426,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                 attr.val,
                 fields,
                 proto,
-                computed,
                 scope,
                 alter,
                 referencedAlters,
-                referencedComputed,
                 isMacroCall,
                 { tag, originAttr: attrOriginAttr(attr) },
               );
@@ -483,11 +450,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   w.whenVal,
                   fields,
                   proto,
-                  computed,
                   scope,
                   alter,
                   referencedAlters,
-                  referencedComputed,
                   false,
                   { tag, originAttr: "@when" },
                 );
@@ -497,11 +462,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   w.enrichWithVal,
                   fields,
                   proto,
-                  computed,
                   scope,
                   alter,
                   referencedAlters,
-                  referencedComputed,
                   false,
                   { tag, originAttr: "@enrich-with" },
                 );
@@ -511,11 +474,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   w.loopWithVal,
                   fields,
                   proto,
-                  computed,
                   scope,
                   alter,
                   referencedAlters,
-                  referencedComputed,
                   false,
                   { tag, originAttr: "@loop-with" },
                 );
@@ -529,11 +490,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                 w.val,
                 fields,
                 proto,
-                computed,
                 scope,
                 alter,
                 referencedAlters,
-                referencedComputed,
                 false,
                 { tag, originAttr },
               );
@@ -547,11 +506,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
             textChild,
             fields,
             proto,
-            computed,
             scope,
             alter,
             referencedAlters,
-            referencedComputed,
             false,
             { tag, originAttr: "@text" },
           );
@@ -568,11 +525,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
             node.val,
             fields,
             proto,
-            computed,
             scope,
             alter,
             referencedAlters,
-            referencedComputed,
             false,
             baseCtx,
           );
@@ -585,11 +540,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
               iter.whenVal,
               fields,
               proto,
-              computed,
               scope,
               alter,
               referencedAlters,
-              referencedComputed,
               false,
               { originAttr: "<x render-each when>" },
             );
@@ -599,11 +552,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
               iter.loopWithVal,
               fields,
               proto,
-              computed,
               scope,
               alter,
               referencedAlters,
-              referencedComputed,
               false,
               { originAttr: "<x render-each loop-with>" },
             );
@@ -625,14 +576,6 @@ function checkUnreferencedInputHandlers(lx, Comp, referencedInputs) {
   for (const name in Comp.input) {
     if (!referencedInputs.has(name)) {
       lx.hint(INPUT_HANDLER_NOT_REFERENCED, { name });
-    }
-  }
-}
-
-function checkUnreferencedComputed(lx, Comp, referencedComputed) {
-  for (const name in Comp.computed) {
-    if (!referencedComputed.has(name)) {
-      lx.hint(COMPUTED_NOT_REFERENCED, { name });
     }
   }
 }

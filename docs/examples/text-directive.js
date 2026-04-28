@@ -30,7 +30,7 @@ export function getRoot() {
 export function getExamples() {
   return {
     title: "Text Directive",
-    description: "@text and <x text> render field, computed and method values",
+    description: "@text and <x text> render field and method values",
     items: [
       {
         title: "Defaults",

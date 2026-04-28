@@ -75,10 +75,6 @@ export function lintIdToMessage(id, info) {
       return `'${info.name}' exists as method — use with '.' prefix${fmtEventSuffix(info)}`;
     case "FIELD_VAL_NOT_DEFINED":
       return `Field '.${info.name}' is not defined${fmtOriginSuffix(info)}`;
-    case "COMPUTED_VAL_NOT_DEFINED":
-      return `Computed property '$${info.name}' is not defined${fmtOriginSuffix(info)}`;
-    case "COMPUTED_NOT_REFERENCED":
-      return `Computed property '$${info.name}' is defined but not referenced`;
     case "DUPLICATE_ATTR_DEFINITION": {
       const sources = info.sources?.length ? ` (${info.sources.join(", ")})` : "";
       const tag = info.tag ? ` on <${String(info.tag).toLowerCase()}>` : "";

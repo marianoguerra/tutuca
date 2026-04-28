@@ -1,16 +1,11 @@
 import { View } from "./anode.js";
 import { RequestHandler } from "./attribute.js";
-import { NullComputedCache, WeakMapComputedCache } from "./cache.js";
 import { vp } from "./value.js";
 
 export class Components {
   constructor() {
     this.getComponentSymbol = Symbol("getComponent");
     this.byId = new Map();
-    this.computedCache = new WeakMapComputedCache();
-  }
-  setNullComputedCache() {
-    this.computedCache = new NullComputedCache();
   }
   registerComponent(comp) {
     comp.Class.prototype[this.getComponentSymbol] = () => comp;
@@ -32,10 +27,6 @@ export class Components {
   getRequestFor(v, name) {
     const comp = this.getCompFor(v);
     return comp ? comp.scope.lookupRequest(name) : null;
-  }
-  lookupComputed(v, name) {
-    const fn = this.getHandlerFor(v, name, "computed");
-    return fn ? this.computedCache.getKey(v, name, fn) : null;
   }
   compileStyles() {
     const styles = [];
@@ -129,7 +120,6 @@ export class Component {
     this.views = { main: new View("main", o.view, o.style) };
     this.commonStyle = o.commonStyle ?? "";
     this.globalStyle = o.globalStyle ?? "";
-    this.computed = o.computed ?? {};
     this.input = o.input ?? {};
     this.logic = o.logic ?? {};
     this.bubble = o.bubble ?? {};

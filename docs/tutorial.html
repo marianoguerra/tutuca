@@ -103,10 +103,6 @@
             <code>^label</code>)
           </li>
           <li>
-            <code>$name</code> &mdash; computed property (e.g.
-            <code>$totalItemsChars</code>)
-          </li>
-          <li>
             <code>!name</code> &mdash; request handler (e.g.
             <code>!loadData</code>)
           </li>
@@ -161,7 +157,6 @@
                 <a href="#shared-iteration-data">Shared Iteration Data</a>
               </li>
               <li><a href="#scope-enrichment">Scope Enrichment</a></li>
-              <li><a href="#computed-properties">Computed Properties</a></li>
               <li>
                 <a href="#collection-item-access">Collection Item Access</a>
               </li>
@@ -541,24 +536,6 @@
         </p>
         <tutuca-playground
           src="./examples/render-with-scope.js"
-        ></tutuca-playground>
-
-        <h3 id="computed-properties">
-          <a href="#computed-properties">Computed Properties</a>
-        </h3>
-        <p>
-          <code>computed.totalItemsChars()</code> sums character counts across
-          all items. It is referenced in the template as
-          <code>$totalItemsChars</code> (note the <code>$</code> prefix). Unlike
-          <code>@loop-with</code> which runs on every render, computed values
-          are cached per component instance &mdash; the function only re-runs
-          when the instance itself changes (check the
-          <code>console.log</code> to verify). This makes computed properties
-          ideal for computation intensive values that should be calculated once
-          and lazily, on first view usage.
-        </p>
-        <tutuca-playground
-          src="./examples/computed-properties.js"
         ></tutuca-playground>
 
         <h3 id="collection-item-access">
@@ -992,7 +969,7 @@
         <ul>
           <li>
             <strong>Undefined references</strong> &mdash;
-            <code>.field</code>, <code>$computed</code>,
+            <code>.field</code>,
             <code>!request</code> or <code>Component</code> names that the
             module never declares.
           </li>
@@ -1058,8 +1035,7 @@
           </li>
           <li>
             <strong>Unreferenced declarations</strong> &mdash;
-            <code>input</code>, <code>alter</code>, or
-            <code>computed</code> entries that no view ever uses. These
+            <code>input</code> or <code>alter</code> entries that no view ever uses. These
             are warnings; useful for catching dead code after a refactor.
           </li>
         </ul>

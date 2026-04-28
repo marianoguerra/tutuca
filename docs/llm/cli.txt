@@ -77,11 +77,9 @@ tutuca ./src/components.js doctor                     # smoke test (CI + post-ed
 
 Codes emitted by `lint` / `doctor`. Source: `tools/core/lint-check.js`.
 
-### Field / computed references
+### Field references
 
 - `FIELD_VAL_NOT_DEFINED` — `.field` not declared in `fields`.
-- `COMPUTED_VAL_NOT_DEFINED` — `$name` not in `computed`.
-- `COMPUTED_NOT_REFERENCED` — `computed` entry never used in any view.
 
 ### Input-handler / method confusion
 

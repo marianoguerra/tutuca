@@ -7,8 +7,8 @@ import * as personalSiteMod from "./personal-site.js";
 import * as todoMod from "./todo.js";
 import * as treeMod from "./tree.js";
 import * as visualWasmMod from "./visual-wasm.js";
+
 // import * as attributeBindingMod from "./attribute-binding.js";
-// import * as computedPropertiesMod from "./computed-properties.js";
 // import * as conditionalAttributesMod from "./conditional-attributes.js";
 // import * as dangerSetInnerHtmlMod from "./danger-set-inner-html.js";
 // import * as entryMod from "./entry.js";
@@ -121,7 +121,6 @@ const SECTION_MODULES = [
   todoMod,
   //attributeBindingMod,
   //composabilityMod,
-  //computedPropertiesMod,
   //conditionalAttributesMod,
   //dangerSetInnerHtmlMod,
   dndMod,

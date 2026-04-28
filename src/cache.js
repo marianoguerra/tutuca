@@ -58,26 +58,3 @@ export class WeakMapDomCache {
     return { hit, miss, badKey };
   }
 }
-export class NullComputedCache {
-  getKey(v, _key, fn) {
-    return fn.call(v);
-  }
-}
-export class WeakMapComputedCache {
-  constructor() {
-    this.map = new WeakMap();
-  }
-  getKey(v, key, fn) {
-    const cur = this.map.get(v);
-    if (cur) {
-      const curValue = cur[key];
-      if (curValue !== undefined) return curValue;
-      const newValue = fn.call(v) ?? null; // don't allow undefined
-      cur[key] = newValue;
-      return newValue;
-    }
-    const newValue = fn.call(v) ?? null; // don't allow undefined
-    this.map.set(v, { [key]: newValue });
-    return newValue;
-  }
-}

@@ -46,12 +46,6 @@ describe("string template quote requirements", () => {
       expect(r.vals[0].val).toBe("");
       expect(r.vals[1].name).toBe("foo");
     });
-
-    test("computed value inside interpolation", () => {
-      const r = vp.parseAttr("prefix {$comp}");
-      expect(r).toBeInstanceOf(StrTplVal);
-      expect(r.vals[1].name).toBe("comp");
-    });
   });
 
   describe("all-const interpolations fold into ConstVal", () => {

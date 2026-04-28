@@ -30,7 +30,7 @@ After editing a tutuca module, run the smoke test:
 tutuca <module-path> doctor
 \`\`\`
 
-\`doctor\` runs \`lint\` (catches undefined fields/handlers/computed/macros/
+\`doctor\` runs \`lint\` (catches undefined fields/handlers/macros/
 events) and \`render\` (renders every example in a headless DOM) in one
 pass. Exit codes: \`0\` ok, \`2\` lint error, \`3\` render crash. **Run it
 before declaring an edit done.**

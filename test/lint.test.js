@@ -5,21 +5,19 @@ import { ComponentStack } from "../src/components.js";
 import {
   ALT_HANDLER_NOT_DEFINED,
   ALT_HANDLER_NOT_REFERENCED,
-  COMPUTED_NOT_REFERENCED,
-  COMPUTED_VAL_NOT_DEFINED,
+  BAD_VALUE,
   checkComponent,
   DUPLICATE_ATTR_DEFINITION,
-  IF_NO_BRANCH_SET,
   FIELD_VAL_NOT_DEFINED,
+  IF_NO_BRANCH_SET,
   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
   INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
   INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
   INPUT_HANDLER_NOT_IMPLEMENTED,
   INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
-  RENDER_IT_OUTSIDE_OF_LOOP,
-  BAD_VALUE,
   MAYBE_DROP_AT_PREFIX,
+  RENDER_IT_OUTSIDE_OF_LOOP,
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_DIRECTIVE,
   UNKNOWN_EVENT_MODIFIER,
@@ -221,61 +219,38 @@ test("warn on undefined field attr (string template)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { name: "" },
-    view: html`<p :title="title is {.title} and {$myComp}">hi</p>`,
+    view: html`<p :title="title is {.title}">hi</p>`,
   });
-  expect(lx.reports.length).toBe(2);
+  expect(lx.reports.length).toBe(1);
   {
     const { id, info } = lx.reports[0];
     expect(id).toBe(FIELD_VAL_NOT_DEFINED);
     expect(info.name).toBe("title");
   }
-  {
-    const { id, info } = lx.reports[1];
-    expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
-    expect(info.name).toBe("myComp");
-  }
 });
 
-test("warn on undefined computed attr", () => {
+test("warn on undefined field in @if.class condition", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    computed: {
-      foo() {
-        return 0;
-      },
-    },
-    view: html`<p :title="$foo" :id="$bar">hi</p>`,
-  });
-  expect(lx.reports.length).toBe(1);
-  {
-    const { id, info } = lx.reports[0];
-    expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
-    expect(info.name).toBe("bar");
-  }
-});
-
-test("warn on undefined computed in @if.class condition", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    view: html`<div @if.class="$myComputed" @then="'active'" @else="'inactive'">
+    view: html`<div @if.class=".myField" @then="'active'" @else="'inactive'">
       hi
     </div>`,
   });
   expect(lx.reports.length).toBe(1);
   const { id, info } = lx.reports[0];
-  expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
-  expect(info.name).toBe("myComputed");
+  expect(id).toBe(FIELD_VAL_NOT_DEFINED);
+  expect(info.name).toBe("myField");
 });
 
-test("warn on undefined computed in @dangerouslysetinnerhtml", () => {
+test("warn on undefined field in @dangerouslysetinnerhtml", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    view: html`<div @dangerouslysetinnerhtml="$myComputed">hi</div>`,
+    view: html`<div @dangerouslysetinnerhtml=".myField">hi</div>`,
   });
   expect(lx.reports.length).toBe(1);
   const { id, info } = lx.reports[0];
-  expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
-  expect(info.name).toBe("myComputed");
+  expect(id).toBe(FIELD_VAL_NOT_DEFINED);
+  expect(info.name).toBe("myField");
 });
 
 test("warn when attribute set by both literal and :attr (class)", () => {
@@ -434,55 +409,6 @@ test("warn on undefined alt field for loop directives", () => {
   }
 });
 
-test("hint on computed property defined but not referenced", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    computed: {
-      usedTotal() {
-        return 1;
-      },
-      unusedTotal() {
-        return 2;
-      },
-    },
-    view: html`<p :title="$usedTotal">hi</p>`,
-  });
-  expect(lx.reports.length).toBe(1);
-  const { id, info, level } = lx.reports[0];
-  expect(id).toBe(COMPUTED_NOT_REFERENCED);
-  expect(info.name).toBe("unusedTotal");
-  expect(level).toBe("hint");
-});
-
-test("no unreferenced computed hint when referenced", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    computed: {
-      total() {
-        return 0;
-      },
-    },
-    view: html`<p :title="$total">hi</p>`,
-  });
-  expect(lx.reports.length).toBe(0);
-});
-
-test("no unreferenced computed hint when referenced via <x text=$computed>", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    computed: {
-      totalItemsChars() {
-        return 0;
-      },
-    },
-    view: html`<div><x text="$totalItemsChars"></x></div>`,
-  });
-  const unref = lx.reports.filter(
-    (r) => r.id === COMPUTED_NOT_REFERENCED && r.info.name === "totalItemsChars",
-  );
-  expect(unref.length).toBe(0);
-});
-
 test("hint on input handler defined but not referenced", () => {
   const [lx] = defAndCheck({
     name: "Comp",
@@ -600,11 +526,6 @@ test("lint-errors example catches all error types", () => {
     input: {
       doKeyDown() {},
     },
-    computed: {
-      total() {
-        return 0;
-      },
-    },
     view: html`<div>
       <p>Lint Errors Demo - check the Lint tab</p>
 
@@ -619,8 +540,6 @@ test("lint-errors example catches all error types", () => {
       <button @on.keydown=".doKeyDown">handler as method</button>
 
       <p :title=".missing">undefined field</p>
-
-      <p :title="$missing">undefined computed</p>
 
       <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
         unknown req/comp
@@ -651,7 +570,6 @@ test("lint-errors example catches all error types", () => {
   expect(ids).toContain(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
   expect(ids).toContain(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
-  expect(ids).toContain(COMPUTED_VAL_NOT_DEFINED);
   expect(ids).toContain(UNKNOWN_REQUEST_NAME);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
@@ -708,11 +626,6 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
     input: {
       doKeyDown() {},
     },
-    computed: {
-      total() {
-        return 0;
-      },
-    },
     view: html`<div>
       <p>Lint Errors Demo - check the Lint tab</p>
 
@@ -727,8 +640,6 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
       <button @on.keydown=".doKeyDown">handler as method</button>
 
       <p :title=".missing">undefined field</p>
-
-      <p :title="$missing">undefined computed</p>
 
       <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
         unknown req/comp
@@ -762,7 +673,6 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
   expect(ids).toContain(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
   expect(ids).toContain(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
-  expect(ids).toContain(COMPUTED_VAL_NOT_DEFINED);
   expect(ids).toContain(UNKNOWN_REQUEST_NAME);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);

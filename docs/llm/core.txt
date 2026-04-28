@@ -19,7 +19,7 @@ After editing a Tutuca module, run the CLI smoke test:
 
     tutuca <module-path> doctor
 
-`doctor` runs `lint` (catches undefined fields/handlers/computed/macros/
+`doctor` runs `lint` (catches undefined fields/handlers/macros/
 events — all the `*_NOT_DEFINED` / `*_NOT_REFERENCED` codes) and `render`
 (renders every example in a headless DOM) in one pass. Exit codes: `0`
 ok, `2` lint error, `3` render crash. **Run it before declaring an edit
@@ -42,8 +42,6 @@ done.** Full reference: [cli.txt](./cli.txt).
   another handler.
 - **`app.state.set(...)` takes a component instance**, not plain data.
   Build with `Comp.make({...})`.
-- **`computed:` is template-only.** You can read `$x` from a view, but
-  `methods` / `input` / `bubble` cannot reference it.
 - **`html\`` templates must start with the opening tag.** A leading
   newline / indent before the first element renders blank silently.
   Use `view: html\`<el ...>` (or `html\`<el<newline>  attr<newline>>...`),
@@ -88,7 +86,6 @@ removes all listeners and cancels cache eviction; pair with
 | `.x`     | field or method on `this`                 | `.count`, `.inc`      |
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
-| `$x`     | computed property (cached)                | `$totalChars`         |
 | `!x`     | request handler                           | `!loadData`           |
 | `*x`     | dynamic binding — see `advanced.txt`      | `*theme`              |
 | `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
@@ -158,7 +155,6 @@ component({
   methods: { inc() { return this.setCount(this.count + 1); } },
   input:   { onClick(ctx) { return this.inc(); } },
   alter:   { filterItem(_k, item) { return item.length > 0; } },
-  computed:{ doubled() { return this.count * 2; } },
   logic:   { init(ctx) { ctx.request("loadData"); return this; } },
   bubble:  { itemPicked(item, ctx) { return this.setSelected(item); } },
   response:{ loadData(res, err, ctx) { return this.setItems(res); } },
@@ -225,7 +221,6 @@ statics: {
 <span @text=".str"></span>          <!-- prepend text into span -->
 <x text=".bool"></x>                <!-- text-only, no DOM element -->
 <x text=".getStrUpper"></x>         <!-- methods are called -->
-<x text="$totalChars"></x>          <!-- computed -->
 <x text="@value"></x>               <!-- loop binding -->
 ```
 
@@ -338,7 +333,7 @@ view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
 
 ## List Iteration
 
-`@each` accepts: `.field`, `$computed`, `*dynamic`.
+`@each` accepts: `.field`, `*dynamic`.
 
 ```html
 <!-- iterate plain values -->
@@ -419,26 +414,6 @@ alter: { enrichScope() { return { len: this.text.length }; } }
 
 ```html
 <div @enrich-with="enrichScope">Length: <x text="@len"></x></div>
-```
-
-## Computed Properties
-
-Computed properties are **template-only** — not callable from `methods`
-/ `input` / `bubble`. The `$` prefix marks any computed reference (attr,
-text, handler arg).
-
-```js
-computed: {
-  totalItemsChars() {
-    let n = 0;
-    for (const item of this.items) n += item.length;
-    return n;
-  },
-}
-```
-
-```html
-<x text="$totalItemsChars"></x>      <!-- cached per instance -->
 ```
 
 ## Rendering Components

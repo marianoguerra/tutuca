@@ -10,7 +10,6 @@ export function componentDataFromJson(o) {
   } = o;
   const methods = parseFnObj(o.methods ?? {});
   const statics = parseFnObj(o.statics ?? {});
-  const computed = parseFnObj(o.computed ?? {});
   const input = parseFnObj(o.input ?? {});
   const logic = parseFnObj(o.logic ?? {});
   const bubble = parseFnObj(o.bubble ?? {});
@@ -24,7 +23,6 @@ export function componentDataFromJson(o) {
     view,
     views,
     style,
-    computed,
     input,
     logic,
     bubble,
@@ -41,7 +39,6 @@ export function macroToJson(name, m) {
 
 export function componentToJson(Comp) {
   const { name, fields, methods } = Comp.Class.getMetaClass();
-  const computed = fnObjToData(Comp.computed);
   const input = fnObjToData(Comp.input);
   const logic = fnObjToData(Comp.logic);
   const bubble = fnObjToData(Comp.bubble);
@@ -63,7 +60,6 @@ export function componentToJson(Comp) {
     views: undefinedIfEmptyObj(views),
     style: style || undefined,
     view: rawView,
-    computed,
     input,
     logic,
     bubble,
@@ -140,8 +136,6 @@ export function valToString(v) {
       return `.${v.name}`;
     case "DynVal":
       return `^${v.name}`;
-    case "ComputedVal":
-      return `$${v.name}`;
     case "BindVal":
       return `@${v.name}`;
     case "RequestVal":

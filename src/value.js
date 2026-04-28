@@ -11,7 +11,6 @@ const parseType = (v, _) => (isValidValId(v) ? new TypeVal(v) : null);
 const parseBind = (v, _) => (isValidValId(v) ? new BindVal(v) : null);
 const parseDyn = (v, _) => (isValidValId(v) ? new DynVal(v) : null);
 const parseField = (v, _) => (isValidValId(v) ? new FieldVal(v) : null);
-const parseComp = (v, _) => (isValidValId(v) ? new ComputedVal(v) : null);
 const parseReq = (v, _) => (isValidValId(v) ? new RequestVal(v) : null);
 export class ValParser {
   constructor() {
@@ -24,7 +23,7 @@ export class ValParser {
   }
   allowFieldOnly() {
     this.okField = true;
-    this.okBind = this.okComputed = this.okDyn = this.okType = this.okRequest = false;
+    this.okBind = this.okDyn = this.okType = this.okRequest = false;
     this.okName = this.okConst = this.okStrTpl = this.okSeqAccess = false;
   }
   _parseSeqAccess(s, px) {
@@ -63,8 +62,6 @@ export class ValParser {
         return this.okDyn ? parseDyn(s.slice(1), px) : null;
       case 46: // .
         return this.okField ? parseField(s.slice(1), px) : null;
-      case 36: // $
-        return this.okComputed ? parseComp(s.slice(1), px) : null;
       case 33: // !
         return this.okRequest ? parseReq(s.slice(1), px) : null;
     }
@@ -80,17 +77,16 @@ export class ValParser {
   }
   parseDynamic(s, px) {
     this.allowFieldOnly();
-    this.okComputed = true;
     return this.parse(s, px);
   }
   parseEach(s, px) {
     this.allowFieldOnly();
-    this.okComputed = this.okDyn = true; // NOTE: both only useful for leaf subtrees (can't transact)
+    this.okDyn = true; // NOTE: both only useful for leaf subtrees (can't transact)
     return this.parse(s, px);
   }
   allowHandlerArg() {
     this.allowFieldOnly();
-    this.okBind = this.okComputed = this.okDyn = this.okType = this.okRequest = true;
+    this.okBind = this.okDyn = this.okType = this.okRequest = true;
     this.okName = this.okConst = true;
   }
   parseHandlerArg(s, px) {
@@ -119,12 +115,12 @@ export class ValParser {
   }
   parseCondValue(s, px) {
     this.allowFieldOnly();
-    this.okBind = this.okComputed = this.okDyn = this.okConst = true;
+    this.okBind = this.okDyn = this.okConst = true;
     return this.parse(s, px);
   }
   parseText(s, px) {
     this.allowFieldOnly();
-    this.okBind = this.okComputed = this.okDyn = this.okConst = this.okStrTpl = true;
+    this.okBind = this.okDyn = this.okConst = this.okStrTpl = true;
     return this.parse(s, px);
   }
   parseRender(s, px) {
@@ -274,14 +270,6 @@ export class FieldVal extends RenderNameVal {
   }
   toString() {
     return `.${this.name}`;
-  }
-}
-export class ComputedVal extends RenderNameVal {
-  eval(stack) {
-    return stack.lookupComputed(this.name);
-  }
-  toString() {
-    return `$${this.name}`;
   }
 }
 export class SeqAccessVal extends RenderVal {

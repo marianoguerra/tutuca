@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>parseHTML benchmark</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --fg: #111;
+        --muted: #666;
+        --bg: #fff;
+        --border: #ddd;
+        --winner-bg: #d4f7d4;
+        --warn: #b06000;
+        --code-bg: #f4f4f4;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --fg: #eee;
+          --muted: #999;
+          --bg: #161616;
+          --border: #333;
+          --winner-bg: #173e1a;
+          --warn: #ffb060;
+          --code-bg: #222;
+        }
+      }
+      html,
+      body {
+        background: var(--bg);
+        color: var(--fg);
+      }
+      body {
+        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+        max-width: 1100px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+      }
+      h1 {
+        margin-bottom: 0.25rem;
+      }
+      h1 + p {
+        color: var(--muted);
+        margin-top: 0;
+      }
+      h3 {
+        margin-bottom: 0.25rem;
+      }
+      #env {
+        font-size: 12px;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        margin: 1rem 0;
+      }
+      #env div {
+        word-break: break-word;
+      }
+      #controls {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin: 1rem 0;
+      }
+      #run {
+        font: inherit;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+      }
+      #run:disabled {
+        cursor: progress;
+        opacity: 0.7;
+      }
+      #progress {
+        color: var(--muted);
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 12px;
+      }
+      table {
+        border-collapse: collapse;
+        margin: 0.5rem 0;
+        font-size: 13px;
+      }
+      th,
+      td {
+        border: 1px solid var(--border);
+        padding: 0.25rem 0.6rem;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      th:first-child,
+      td:first-child {
+        text-align: left;
+      }
+      th {
+        background: var(--code-bg);
+      }
+      tr.winner {
+        background: var(--winner-bg);
+        font-weight: 600;
+      }
+      .ratios {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0.25rem 0 1.25rem;
+      }
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 1.5rem;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      .warn {
+        color: var(--warn);
+      }
+      details {
+        margin: 1rem 0;
+      }
+      details > summary {
+        cursor: pointer;
+        color: var(--muted);
+      }
+      details code,
+      details kbd {
+        background: var(--code-bg);
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>parseHTML strategy benchmark</h1>
+    <p>
+      Compares five HTML-parsing strategies in this browser. Click
+      <kbd>Run benchmark</kbd> to start. See the
+      <code>&lt;details&gt;</code> below for what is measured and why.
+    </p>
+
+    <details>
+      <summary>What this measures</summary>
+      <p>
+        Five implementations of <code>parseHTML(html) -&gt; Array&lt;Node&gt;</code>:
+      </p>
+      <ol>
+        <li>
+          <code>singletonDOMParser</code> — module-level
+          <code>new DOMParser()</code>, reused.
+        </li>
+        <li><code>perCallDOMParser</code> — fresh <code>DOMParser</code> per call.</li>
+        <li>
+          <code>singletonTemplateReplaceChildren</code> — module-level
+          <code>&lt;template&gt;</code>, set <code>innerHTML</code>, snapshot
+          children, then <code>tpl.content.replaceChildren()</code>.
+        </li>
+        <li>
+          <code>singletonTemplateInnerHTMLEmpty</code> — same template,
+          cleanup is <code>tpl.innerHTML = ""</code>.
+        </li>
+        <li><code>perCallTemplate</code> — fresh <code>&lt;template&gt;</code> per call.</li>
+      </ol>
+      <p>
+        Inputs rotate over a corpus of 32 distinct strings per size bucket so
+        we measure parsing, not warm caches around a single repeated string.
+        Equivalence of all five outputs is asserted before timing begins.
+      </p>
+    </details>
+
+    <div id="env"></div>
+
+    <div id="controls">
+      <button id="run" type="button">Run benchmark</button>
+      <span id="progress">idle</span>
+    </div>
+
+    <div id="results"></div>
+
+    <script type="module" src="./bench-parse-html.js"></script>
+  </body>
+</html>

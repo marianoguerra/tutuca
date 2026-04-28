@@ -3,7 +3,6 @@ import { ParseContext } from "../src/anode.js";
 import { ConstAttrs, DynAttrs, getAttrParser } from "../src/attribute.js";
 import {
   BindVal,
-  ComputedVal,
   ConstVal,
   DynVal,
   FieldVal,
@@ -56,14 +55,13 @@ test("parse dyn attrs", () => {
       :str="'hi'"
       :field=".bar"
       :bind="@key"
-      :comp="$slow"
       :req="!do"
       :seq=".a[.b]"
       :dyn="*dynamic"
     ></p>`,
   );
   expect(nAttrs).toBeInstanceOf(DynAttrs);
-  const [name, type, bool, num, str, field, bind, comp, req, seq, dyn] = nAttrs.items;
+  const [name, type, bool, num, str, field, bind, req, seq, dyn] = nAttrs.items;
   expect(name.name).toBe("name");
   expect(name.val).toBeInstanceOf(NameVal);
   expect(name.val.name).toBe("foo");
@@ -99,11 +97,6 @@ test("parse dyn attrs", () => {
   expect(bind.val.name).toBe("key");
   expect(bind.val.toString()).toBe("@key");
 
-  expect(comp.name).toBe("comp");
-  expect(comp.val).toBeInstanceOf(ComputedVal);
-  expect(comp.val.name).toBe("slow");
-  expect(comp.val.toString()).toBe("$slow");
-
   expect(req.name).toBe("req");
   expect(req.val).toBeInstanceOf(RequestVal);
   expect(req.val.name).toBe("do");
@@ -129,7 +122,6 @@ test("parse dyn attrs", () => {
     str: "'hi'",
     field: ".bar",
     bind: "@key",
-    comp: "$slow",
     req: "!do",
     seq: ".a[.b]",
     dyn: "*dynamic",
@@ -146,7 +138,6 @@ test("parse const attrs", () => {
       str="'hi'"
       field=".bar"
       bind="@key"
-      comp="$slow"
       req="!do"
       seq=".a[.b]"
       dyn="*dynamic"
@@ -161,7 +152,6 @@ test("parse const attrs", () => {
     str: "''hi''",
     field: "'.bar'",
     bind: "'@key'",
-    comp: "'$slow'",
     req: "'!do'",
     seq: "'.a[.b]'",
     dyn: "'*dynamic'",

@@ -15,15 +15,6 @@ const LintDemo = component({
     // INPUT_HANDLER_NOT_REFERENCED: defined here but never used in any view
     unusedInput() {},
   },
-  computed: {
-    total() {
-      return 0;
-    },
-    // COMPUTED_NOT_REFERENCED: defined here but never used in any view
-    unusedComputed() {
-      return 0;
-    },
-  },
   alter: {
     // ALT_HANDLER_NOT_REFERENCED: defined here but never used in any view
     unusedAlter(_k, v) {
@@ -52,9 +43,6 @@ const LintDemo = component({
 
     <!-- FIELD_VAL_NOT_DEFINED: .missing is not defined -->
     <p :title=".missing">undefined field</p>
-
-    <!-- COMPUTED_VAL_NOT_DEFINED: $missing is not defined -->
-    <p :title="$missing">undefined computed</p>
 
     <!-- UNKNOWN_REQUEST_NAME + UNKNOWN_COMPONENT_NAME -->
     <button @on.click="doKeyDown !unknownReq UnknownComp ctx">

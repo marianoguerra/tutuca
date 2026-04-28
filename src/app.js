@@ -146,12 +146,8 @@ export class App {
       if (info.val !== info.old) this.render();
     });
     injectCss("tutuca-app", this.comps.compileStyles(), opts?.head ?? document.head);
-    if (opts?.noCache) {
-      this.renderer.setNullCache();
-      this.comps.setNullComputedCache();
-    } else {
-      this.startCacheEvictionInterval();
-    }
+    if (opts?.noCache) this.renderer.setNullCache();
+    else this.startCacheEvictionInterval();
     this.render();
   }
   stop() {
