@@ -103,6 +103,7 @@ function checkMacroCallArgs(lx, view, Comp) {
         lx.error(UNKNOWN_MACRO_ARG, {
           name: argName,
           macroName: macroNode.name,
+          tag: `x:${macroNode.name}`,
         });
       }
     }
@@ -156,7 +157,13 @@ function checkEventModifiers(lx, view) {
       const modWrappers = MOD_WRAPPERS_BY_EVENT[name] ?? NO_WRAPPERS;
       for (const modifier of modifiers) {
         if (modWrappers[modifier] === undefined) {
-          lx.error(UNKNOWN_EVENT_MODIFIER, { name, modifier, handler, event });
+          lx.error(UNKNOWN_EVENT_MODIFIER, {
+            name,
+            modifier,
+            handler,
+            event,
+            originAttr: `@on.${name}+${modifiers.join("+")}`,
+          });
         }
       }
     }
@@ -193,12 +200,18 @@ function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComp
   const { fields } = Class.getMetaClass();
   for (const event of view.ctx.events) {
     for (const handler of event.handlers) {
-      const { args } = handler.handlerCall;
+      const { args, handlerVal } = handler.handlerCall;
+      const handlerName = handlerVal?.name;
+      const eventName = handler.name;
+      const errCtx = {
+        eventName,
+        handlerName,
+        originAttr: `@on.${eventName}`,
+      };
       for (let i = 0; i < args.length; i++) {
-        const arg = args[i];
         checkConsistentAttrVal(
           lx,
-          arg,
+          args[i],
           fields,
           proto,
           computed,
@@ -206,6 +219,8 @@ function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComp
           alter,
           referencedAlters,
           referencedComputed,
+          false,
+          { ...errCtx, argIndex: i },
         );
       }
     }
@@ -222,6 +237,8 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
         for (const handler of event.handlers) {
           const { handlerVal } = handler.handlerCall;
           const hvName = handlerVal?.constructor.name;
+          const eventName = handler.name;
+          const originAttr = `@on.${eventName}`;
           if (hvName === "InputHandlerNameVal") {
             referencedInputs?.add(handlerVal.name);
             if (input[handlerVal.name] === undefined) {
@@ -229,12 +246,16 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
                 name: handlerVal.name,
                 handler,
                 event,
+                eventName,
+                originAttr,
               });
               if (proto[handlerVal.name] !== undefined) {
                 lx.hint(INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER, {
                   name: handlerVal.name,
                   handler,
                   event,
+                  eventName,
+                  originAttr,
                 });
               }
             }
@@ -245,12 +266,16 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
                 name: handlerVal.name,
                 handler,
                 event,
+                eventName,
+                originAttr,
               });
               if (input[handlerVal.name] !== undefined) {
                 lx.hint(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD, {
                   name: handlerVal.name,
                   handler,
                   event,
+                  eventName,
+                  originAttr,
                 });
               }
             }
@@ -272,18 +297,19 @@ function checkConsistentAttrVal(
   referencedAlters,
   referencedComputed,
   skipNameVal = false,
+  errCtx = null,
 ) {
   const valName = val?.constructor.name;
   if (valName === "FieldVal" || valName === "RawFieldVal") {
     const { name } = val;
     if (fields[name] === undefined && proto[name] === undefined) {
-      lx.error(FIELD_VAL_NOT_DEFINED, { val, name });
+      lx.error(FIELD_VAL_NOT_DEFINED, { ...errCtx, val, name });
     }
   } else if (valName === "ComputedVal") {
     const { name } = val;
     referencedComputed?.add(name);
     if (computed[name] === undefined) {
-      lx.error(COMPUTED_VAL_NOT_DEFINED, { val, name });
+      lx.error(COMPUTED_VAL_NOT_DEFINED, { ...errCtx, val, name });
     }
   } else if (valName === "SeqAccessVal") {
     checkConsistentAttrVal(
@@ -297,6 +323,7 @@ function checkConsistentAttrVal(
       referencedAlters,
       referencedComputed,
       skipNameVal,
+      errCtx,
     );
     checkConsistentAttrVal(
       lx,
@@ -309,21 +336,22 @@ function checkConsistentAttrVal(
       referencedAlters,
       referencedComputed,
       skipNameVal,
+      errCtx,
     );
   } else if (valName === "RequestVal") {
     if (scope.lookupRequest(val.name) === null) {
-      lx.error(UNKNOWN_REQUEST_NAME, { name: val.name });
+      lx.error(UNKNOWN_REQUEST_NAME, { ...errCtx, name: val.name });
     }
   } else if (valName === "TypeVal") {
     if (scope.lookupComponent(val.name) === null) {
-      lx.error(UNKNOWN_COMPONENT_NAME, { name: val.name });
+      lx.error(UNKNOWN_COMPONENT_NAME, { ...errCtx, name: val.name });
     }
   } else if (valName === "NameVal") {
     // NameVals on a macro call-site attribute are macro-param bindings, not
     // handler args — their role is determined inside the macro body after
     // ^-substitution, where re-parsing handles validation.
     if (!skipNameVal && !isKnownHandlerName(val.name)) {
-      lx.error(UNKNOWN_HANDLER_ARG_NAME, { name: val.name });
+      lx.error(UNKNOWN_HANDLER_ARG_NAME, { ...errCtx, name: val.name });
     }
   } else if (valName === "StrTplVal") {
     for (const subVal of val.vals) {
@@ -338,16 +366,45 @@ function checkConsistentAttrVal(
         referencedAlters,
         referencedComputed,
         skipNameVal,
+        errCtx,
       );
     }
   } else if (valName === "AlterHandlerNameVal") {
     referencedAlters?.add(val.name);
     if (alter[val.name] === undefined) {
-      lx.error(ALT_HANDLER_NOT_DEFINED, { name: val.name });
+      lx.error(ALT_HANDLER_NOT_DEFINED, { ...errCtx, name: val.name });
     }
   } else if (valName !== "ConstVal" && valName !== "BindVal" && valName !== "DynVal") {
     console.log(val);
   }
+}
+
+const NODE_KIND_TO_CTX = {
+  RenderTextNode: { originAttr: "<x text>" },
+  RenderNode: { originAttr: "<x render>" },
+  RenderItNode: { originAttr: "<x render-it>" },
+  RenderEachNode: { originAttr: "<x render-each>" },
+  ShowNode: { originAttr: "<x show>" },
+  HideNode: { originAttr: "<x hide>" },
+  PushViewNameNode: { originAttr: "<x push-view>" },
+};
+function nodeCtxForNode(nodeKind) {
+  return NODE_KIND_TO_CTX[nodeKind] ?? null;
+}
+
+function attrSourceLabel(attr) {
+  const cn = attr.constructor.name;
+  if (cn === "ConstAttr") return "literal";
+  if (cn === "IfAttr") return `@if.${attr.name}`;
+  if (cn === "RawHtmlAttr") return "@dangerouslysetinnerhtml";
+  return `:${attr.name}`;
+}
+
+function attrOriginAttr(attr) {
+  const cn = attr.constructor.name;
+  if (cn === "IfAttr") return `@if.${attr.name}`;
+  if (cn === "RawHtmlAttr") return "@dangerouslysetinnerhtml";
+  return `:${attr.name}`;
 }
 
 function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
@@ -357,25 +414,29 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
   for (const viewName in views) {
     lx.push({ viewName }, () => {
       const view = views[viewName];
-      for (const attr of view.ctx.attrs) {
-        const { attrs, wrapperAttrs, textChild, isMacroCall } = attr;
+      for (const entry of view.ctx.attrs) {
+        const { attrs, wrapperAttrs, textChild, isMacroCall, tag } = entry;
 
         if (attrs?.constructor.name === "DynAttrs") {
-          const seenNames = new Set();
+          const sourcesByName = new Map();
           for (const attr of attrs.items) {
             const name = attr?.name;
             if (name !== undefined && name !== "data-eid") {
-              if (seenNames.has(name)) {
-                lx.error(DUPLICATE_ATTR_DEFINITION, { name });
-              } else {
-                seenNames.add(name);
-              }
+              const sources = sourcesByName.get(name);
+              const label = attrSourceLabel(attr);
+              if (sources) sources.push(label);
+              else sourcesByName.set(name, [label]);
             }
             if (attr?.constructor.name === "IfAttr") {
               if (!attr.anyBranchIsSet) {
-                lx.error(IF_NO_BRANCH_SET, { attr: attr.name });
+                lx.error(IF_NO_BRANCH_SET, { attr: attr.name, tag });
               }
-              for (const subVal of [attr.condVal, attr.thenVal, attr.elseVal]) {
+              const branches = [
+                ["@if", attr.condVal],
+                ["@then", attr.thenVal],
+                ["@else", attr.elseVal],
+              ];
+              for (const [branch, subVal] of branches) {
                 checkConsistentAttrVal(
                   lx,
                   subVal,
@@ -387,6 +448,7 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   referencedAlters,
                   referencedComputed,
                   isMacroCall,
+                  { tag, originAttr: `@if.${attr.name}`, branch },
                 );
               }
             } else if (attr?.val !== undefined) {
@@ -401,7 +463,13 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                 referencedAlters,
                 referencedComputed,
                 isMacroCall,
+                { tag, originAttr: attrOriginAttr(attr) },
               );
+            }
+          }
+          for (const [name, sources] of sourcesByName) {
+            if (sources.length > 1) {
+              lx.error(DUPLICATE_ATTR_DEFINITION, { name, sources, tag });
             }
           }
         }
@@ -420,6 +488,8 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   alter,
                   referencedAlters,
                   referencedComputed,
+                  false,
+                  { tag, originAttr: "@when" },
                 );
               if (w.enrichWithVal)
                 checkConsistentAttrVal(
@@ -432,6 +502,8 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   alter,
                   referencedAlters,
                   referencedComputed,
+                  false,
+                  { tag, originAttr: "@enrich-with" },
                 );
               if (w.loopWithVal)
                 checkConsistentAttrVal(
@@ -444,10 +516,14 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                   alter,
                   referencedAlters,
                   referencedComputed,
+                  false,
+                  { tag, originAttr: "@loop-with" },
                 );
-            } else if (w.name !== "scope") {
-              // "scope" wrappers create a registered ScopeNode whose .val is the same
-              // reference; it's already checked via the view.ctx.nodes loop below.
+            } else {
+              // "scope" wrappers come from `@enrich-with` outside `@each`; the
+              // ScopeNode in view.ctx.nodes references the same val, so we only
+              // check it here (with attr context) and skip in the node loop.
+              const originAttr = w.name === "scope" ? "@enrich-with" : `@${w.name}`;
               checkConsistentAttrVal(
                 lx,
                 w.val,
@@ -458,6 +534,8 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
                 alter,
                 referencedAlters,
                 referencedComputed,
+                false,
+                { tag, originAttr },
               );
             }
           }
@@ -474,10 +552,16 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
             alter,
             referencedAlters,
             referencedComputed,
+            false,
+            { tag, originAttr: "@text" },
           );
         }
       }
       for (const node of view.ctx.nodes) {
+        const nodeKind = node.constructor.name;
+        // ScopeNode.val is already checked via wrapperAttrs with @enrich-with context.
+        if (nodeKind === "ScopeNode") continue;
+        const baseCtx = nodeCtxForNode(nodeKind);
         if (node.val) {
           checkConsistentAttrVal(
             lx,
@@ -489,9 +573,11 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
             alter,
             referencedAlters,
             referencedComputed,
+            false,
+            baseCtx,
           );
         }
-        if (node.constructor.name === "RenderEachNode") {
+        if (nodeKind === "RenderEachNode") {
           const iter = node.iterInfo;
           if (iter.whenVal)
             checkConsistentAttrVal(
@@ -504,6 +590,8 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
               alter,
               referencedAlters,
               referencedComputed,
+              false,
+              { originAttr: "<x render-each when>" },
             );
           if (iter.loopWithVal)
             checkConsistentAttrVal(
@@ -516,6 +604,8 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
               alter,
               referencedAlters,
               referencedComputed,
+              false,
+              { originAttr: "<x render-each loop-with>" },
             );
         }
       }
@@ -581,10 +671,11 @@ export class LintParseContext extends ParseContext {
     this.attrs = [];
     this.parseIssues = [];
   }
-  onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false) {
-    this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall });
+  onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false, tag = null) {
+    this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall, tag });
   }
   onParseIssue(kind, info) {
-    this.parseIssues.push({ kind, info });
+    const tag = this.currentTag;
+    this.parseIssues.push({ kind, info: tag && info.tag === undefined ? { ...info, tag } : info });
   }
 }

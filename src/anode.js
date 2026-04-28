@@ -134,26 +134,32 @@ export class ANode extends BaseNode {
       const child = ANode.fromDOM(childNodes[i], px);
       if (child !== null) childs.push(child);
     }
-    const isPseudoX = attrs[0]?.name === "@x";
-    if (tag === "X" || isPseudoX) {
-      return parseXOp(attrs, childs, isPseudoX ? 1 : 0, px);
-    } else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
-      const macroName = tag.slice(2).toLowerCase();
-      if (macroName === "slot") {
-        const slotName = attrs.getNamedItem("name")?.value ?? "_";
-        return px.frame.macroSlots[slotName] ?? maybeFragment(childs);
+    const prevTag = px.currentTag;
+    px.currentTag = tag;
+    try {
+      const isPseudoX = attrs[0]?.name === "@x";
+      if (tag === "X" || isPseudoX) {
+        return parseXOp(attrs, childs, isPseudoX ? 1 : 0, px);
+      } else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
+        const macroName = tag.slice(2).toLowerCase();
+        if (macroName === "slot") {
+          const slotName = attrs.getNamedItem("name")?.value ?? "_";
+          return px.frame.macroSlots[slotName] ?? maybeFragment(childs);
+        }
+        const [nAttrs, wrappers] = Attributes.parse(attrs, px, true);
+        px.onAttributes(nAttrs, wrappers, null, true, tag);
+        return wrap(px.newMacroNode(macroName, nAttrs.toMacroVars(), childs), px, wrappers);
+      } else if (VALID_NODE_RE.test(tag)) {
+        const [nAttrs, wrappers, textChild] = Attributes.parse(attrs, px);
+        px.onAttributes(nAttrs, wrappers, textChild, false, tag);
+        if (textChild) childs.unshift(new RenderTextNode(null, textChild));
+        const domChilds = tag !== "PRE" ? condenseChildsWhites(childs) : childs;
+        return wrap(new DomNode(tag, nAttrs, domChilds), px, wrappers);
       }
-      const [nAttrs, wrappers] = Attributes.parse(attrs, px, true);
-      px.onAttributes(nAttrs, wrappers, null, true);
-      return wrap(px.newMacroNode(macroName, nAttrs.toMacroVars(), childs), px, wrappers);
-    } else if (VALID_NODE_RE.test(tag)) {
-      const [nAttrs, wrappers, textChild] = Attributes.parse(attrs, px);
-      px.onAttributes(nAttrs, wrappers, textChild);
-      if (textChild) childs.unshift(new RenderTextNode(null, textChild));
-      const domChilds = tag !== "PRE" ? condenseChildsWhites(childs) : childs;
-      return wrap(new DomNode(tag, nAttrs, domChilds), px, wrappers);
+      return new CommentNode(`Error: InvalidTagName ${tag}`);
+    } finally {
+      px.currentTag = prevTag;
     }
-    return new CommentNode(`Error: InvalidTagName ${tag}`);
   }
 }
 function parseXOp(attrs, childs, opIdx, px) {
@@ -456,6 +462,7 @@ export class ParseContext {
     this.Text = Text ?? globalThis.Text;
     this.Comment = Comment ?? globalThis.Comment;
     this.cacheConstNodes = true;
+    this.currentTag = null;
   }
   isInsideMacro(name) {
     return this.frame.macroName === name || this.parent?.isInsideMacro(name);
@@ -507,7 +514,7 @@ export class ParseContext {
   getNodeForId(id) {
     return this.nodes[id] ?? null;
   }
-  onAttributes(_attrs, _wrapperAttrs, _textChild, _isMacroCall) {}
+  onAttributes(_attrs, _wrapperAttrs, _textChild, _isMacroCall, _tag) {}
   onParseIssue(kind, info) {
     console.warn(`tutuca parse issue [${kind}]`, info);
   }

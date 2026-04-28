@@ -27,7 +27,7 @@ export class ParseCtxClassSetCollector extends ParseContext {
     v.classes = this.classes;
     return v;
   }
-  onAttributes(attrs, _wrapperAttrs, _textChild) {
+  onAttributes(attrs, _wrapperAttrs, _textChild, _isMacroCall, _tag) {
     if (Array.isArray(attrs.items)) {
       for (const attr of attrs.items) {
         if (attr.name !== "class") {

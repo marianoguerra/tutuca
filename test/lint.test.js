@@ -320,8 +320,9 @@ test("warn on triple definition: literal + :attr + @if.X", () => {
     </div>`,
   });
   const dupes = lx.reports.filter((r) => r.id === DUPLICATE_ATTR_DEFINITION);
-  expect(dupes.length).toBe(2);
-  expect(dupes.every((r) => r.info.name === "class")).toBe(true);
+  expect(dupes.length).toBe(1);
+  expect(dupes[0].info.name).toBe("class");
+  expect(dupes[0].info.sources).toEqual(["literal", ":class", "@if.class"]);
 });
 
 test("warn on @if.X with no @then or @else branch", () => {

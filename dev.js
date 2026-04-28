@@ -69,11 +69,12 @@ export class LintClassCollectorCtx extends ParseCtxClassSetCollector {
     v.parseIssues = this.parseIssues;
     return v;
   }
-  onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false) {
-    super.onAttributes(attrs, wrapperAttrs, textChild, isMacroCall);
-    this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall });
+  onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false, tag = null) {
+    super.onAttributes(attrs, wrapperAttrs, textChild, isMacroCall, tag);
+    this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall, tag });
   }
   onParseIssue(kind, info) {
-    this.parseIssues.push({ kind, info });
+    const tag = this.currentTag;
+    this.parseIssues.push({ kind, info: tag && info.tag === undefined ? { ...info, tag } : info });
   }
 }

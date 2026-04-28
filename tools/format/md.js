@@ -1,4 +1,5 @@
 import { makeFormatter } from "./_dispatch.js";
+import { lintIdToMessage } from "./lint.js";
 
 function fmtComponentDocs(docs) {
   const lines = [];
@@ -94,8 +95,8 @@ function fmtLintReport(rep) {
       continue;
     }
     for (const f of c.findings) {
-      const view = f.context?.viewName ? ` — view: \`${f.context.viewName}\`` : "";
-      lines.push(`- **${f.level.toUpperCase()}** \`${f.id}\`${view}`);
+      const view = f.context?.viewName ? ` _(view: \`${f.context.viewName}\`)_` : "";
+      lines.push(`- **${f.level.toUpperCase()}** ${lintIdToMessage(f.id, f.info)}${view}`);
     }
     lines.push("");
   }

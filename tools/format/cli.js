@@ -1,4 +1,5 @@
 import { makeFormatter } from "./_dispatch.js";
+import { lintIdToMessage } from "./lint.js";
 
 function fmtModuleInfo(info) {
   const lines = [];
@@ -63,15 +64,6 @@ function fmtComponentDocs(docs) {
   return lines.join("\n");
 }
 
-function fmtFindingInfo(info) {
-  const keys = ["name", "modifier", "id"];
-  const parts = [];
-  for (const k of keys) {
-    if (info?.[k] !== undefined) parts.push(`${k}=${info[k]}`);
-  }
-  return parts.join(" ");
-}
-
 function fmtLintReport(rep) {
   if (rep.components.length === 0) return "(no components)";
   const lines = [];
@@ -83,9 +75,8 @@ function fmtLintReport(rep) {
     lines.push(`${c.componentName}:`);
     for (const f of c.findings) {
       const tag = f.level.toUpperCase();
-      const view = f.context?.viewName ? ` view=${f.context.viewName}` : "";
-      const extra = fmtFindingInfo(f.info);
-      lines.push(`  [${tag}] ${f.id}${view}${extra ? ` (${extra})` : ""}`);
+      const view = f.context?.viewName ? ` [view=${f.context.viewName}]` : "";
+      lines.push(`  [${tag}]${view} ${lintIdToMessage(f.id, f.info)}`);
     }
   }
   lines.push("");
