@@ -22,6 +22,8 @@ export function lintIdToMessage(id, info) {
       return `Computed property '$${info.name}' is not defined`;
     case "COMPUTED_NOT_REFERENCED":
       return `Computed property '$${info.name}' is defined but not referenced`;
+    case "DUPLICATE_ATTR_DEFINITION":
+      return `Attribute '${info.name}' is defined more than once`;
     case "UNKNOWN_REQUEST_NAME":
       return `Unknown request '!${info.name}'`;
     case "UNKNOWN_COMPONENT_NAME":
