@@ -56,12 +56,6 @@ export class Field {
     proto[`reset${uname}`] = function () {
       return this.set(name, that.defaultValue);
     };
-    proto[`is${uname}NotSet`] = function () {
-      return this.get(name) == null;
-    };
-    proto[`is${uname}Set`] = function () {
-      return this.get(name) != null;
-    };
     this.extendProtoForType(proto, uname);
   }
 }
@@ -133,6 +127,7 @@ export class FieldBool extends Field {
     proto[`set${uname}`] = function (v) {
       return this.set(name, !!v);
     };
+    extendProtoTruthy(proto, name, uname);
   }
 }
 export class FieldAny extends Field {
@@ -143,6 +138,10 @@ export class FieldAny extends Field {
     const { defaultValue: dv } = this;
     const type = getTypeName(dv) ?? "any";
     return { type, defaultValue: dv?.toJS ? dv.toJS() : dv };
+  }
+  extendProtoForType(proto, uname) {
+    extendProtoNullable(proto, this.name, uname);
+    extendProtoTruthy(proto, this.name, uname);
   }
 }
 const stringCoercer = (v) => v?.toString?.() ?? "";
@@ -159,11 +158,17 @@ export class FieldInt extends Field {
   constructor(name, defaultValue = 0) {
     super("int", name, CHECK_TYPE_INT, intCoercer, defaultValue);
   }
+  extendProtoForType(proto, uname) {
+    extendProtoTruthy(proto, this.name, uname);
+  }
 }
 const floatCoercer = (_) => null;
 export class FieldFloat extends Field {
   constructor(name, defaultValue = 0) {
     super("float", name, CHECK_TYPE_FLOAT, floatCoercer, defaultValue);
+  }
+  extendProtoForType(proto, uname) {
+    extendProtoTruthy(proto, this.name, uname);
   }
 }
 export const getTypeName = (v) => v?.constructor?.getMetaClass?.()?.name;
@@ -186,6 +191,10 @@ export class FieldComp extends Field {
   }
   toDataDef() {
     return { component: this.typeName, args: this.args };
+  }
+  extendProtoForType(proto, uname) {
+    extendProtoNullable(proto, this.name, uname);
+    extendProtoTruthy(proto, this.name, uname);
   }
 }
 const NONE = Symbol("NONE");
@@ -253,6 +262,25 @@ function extendProtoSized(proto, name, uname, defaultEmpty, propName = "size") {
   };
   proto[`${name}Len`] = function () {
     return this.get(name, defaultEmpty)[propName];
+  };
+  proto[`is${uname}Truthy`] = function () {
+    return this.get(name, defaultEmpty)[propName] > 0;
+  };
+  proto[`is${uname}Falsy`] = function () {
+    return this.get(name, defaultEmpty)[propName] === 0;
+  };
+}
+function extendProtoNullable(proto, name, uname) {
+  proto[`is${uname}Null`] = function () {
+    return this.get(name) == null;
+  };
+}
+function extendProtoTruthy(proto, name, uname) {
+  proto[`is${uname}Truthy`] = function () {
+    return !!this.get(name);
+  };
+  proto[`is${uname}Falsy`] = function () {
+    return !this.get(name);
   };
 }
 const EMPTY_SET = ISet();
