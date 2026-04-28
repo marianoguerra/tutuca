@@ -40,6 +40,8 @@ export function lintIdToMessage(id, info) {
       return `Unknown <x> op '${info.name}=${JSON.stringify(info.value)}'`;
     case "UNKNOWN_X_ATTR":
       return `Unknown attribute '${info.name}=${JSON.stringify(info.value)}' on <x ${info.op}>`;
+    case "MAYBE_DROP_AT_PREFIX":
+      return `Did you mean '${info.suggestion}'? Drop the '@' prefix on <x>.`;
     case "LINT_ERROR":
       return info.message;
     default:

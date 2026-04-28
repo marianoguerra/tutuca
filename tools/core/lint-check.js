@@ -20,11 +20,27 @@ export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
 export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
 export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
 export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
+export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
   "unknown-directive": UNKNOWN_DIRECTIVE,
   "unknown-x-op": UNKNOWN_X_OP,
   "unknown-x-attr": UNKNOWN_X_ATTR,
+};
+
+const X_KNOWN_OP_NAMES = new Set([
+  "slot",
+  "text",
+  "render",
+  "render-it",
+  "render-each",
+  "show",
+  "hide",
+]);
+const X_KNOWN_ATTR_NAMES = new Set(["as", "when", "loop-with", "show", "hide"]);
+const AT_PREFIX_HINT_KNOWN_BY_KIND = {
+  "unknown-x-op": X_KNOWN_OP_NAMES,
+  "unknown-x-attr": X_KNOWN_ATTR_NAMES,
 };
 
 const LEVEL_WARN = "warn";
@@ -63,7 +79,13 @@ function checkParseIssues(lx, view) {
   if (!issues) return;
   for (const { kind, info } of issues) {
     const id = PARSE_ISSUE_KIND_TO_LINT_ID[kind];
-    if (id) lx.error(id, info);
+    if (!id) continue;
+    lx.error(id, info);
+    const known = AT_PREFIX_HINT_KNOWN_BY_KIND[kind];
+    if (known && info.name?.startsWith("@")) {
+      const suggestion = info.name.slice(1);
+      if (known.has(suggestion)) lx.hint(MAYBE_DROP_AT_PREFIX, { ...info, suggestion });
+    }
   }
 }
 

@@ -84,6 +84,14 @@ const LintDemo = component({
     <!-- UNKNOWN_X_ATTR: bogus is not a known attribute on <x render-each> -->
     <x render-each=".items" bogus="nope"></x>
 
+    <!-- UNKNOWN_X_ATTR + MAYBE_DROP_AT_PREFIX: @show on <x> is unknown;
+         hint suggests dropping the @ to use the wrapper attr 'show' -->
+    <ul @each=".items"><x render-it @show=".isOpen"></x></ul>
+
+    <!-- UNKNOWN_X_OP + MAYBE_DROP_AT_PREFIX: @text as the op is unknown;
+         hint suggests dropping the @ to use the op 'text' -->
+    <x @text=".count"></x>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

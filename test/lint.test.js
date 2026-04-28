@@ -17,6 +17,7 @@ import {
   INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
   RENDER_IT_OUTSIDE_OF_LOOP,
+  MAYBE_DROP_AT_PREFIX,
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_DIRECTIVE,
   UNKNOWN_EVENT_MODIFIER,
@@ -888,6 +889,148 @@ test("warn on unknown extra attr on x render-it", () => {
   expect(matched.length).toBe(1);
   expect(matched[0].info.op).toBe("render-it");
   expect(matched[0].info.name).toBe("bogus");
+});
+
+test("hint when unknown-x-attr name is @-prefixed wrapper (@show)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isOpen: false },
+    view: html`<div>
+      <div @each=".isOpen"><x render-it @show=".isOpen"></x></div>
+    </div>`,
+  });
+  const errors = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
+  expect(errors.length).toBe(1);
+  expect(errors[0].info.name).toBe("@show");
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].level).toBe("hint");
+  expect(hints[0].info.name).toBe("@show");
+  expect(hints[0].info.suggestion).toBe("show");
+  expect(hints[0].info.op).toBe("render-it");
+});
+
+test("hint when unknown-x-attr name is @-prefixed wrapper (@hide)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isOpen: false },
+    view: html`<div>
+      <div @each=".isOpen"><x render-it @hide=".isOpen"></x></div>
+    </div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("hide");
+});
+
+test("hint when unknown-x-attr name is @-prefixed consumed (@when)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" @when="filterItem"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("when");
+  expect(hints[0].info.op).toBe("render-each");
+});
+
+test("hint when unknown-x-attr name is @-prefixed consumed (@loop-with)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" @loop-with="getIter"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("loop-with");
+});
+
+test("hint when unknown-x-attr name is @-prefixed consumed (@as)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { item: null },
+    view: html`<div><x render=".item" @as="edit"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("as");
+});
+
+test("hint when unknown-x-op name is @-prefixed op (@text)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { name: "" },
+    view: html`<div><x @text=".name"></x></div>`,
+  });
+  const errors = lx.reports.filter((r) => r.id === UNKNOWN_X_OP);
+  expect(errors.length).toBe(1);
+  expect(errors[0].info.name).toBe("@text");
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("text");
+});
+
+test("hint when unknown-x-op name is @-prefixed op (@render-each)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x @render-each=".items"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("render-each");
+});
+
+test("hint when unknown-x-op via pseudo-x is @-prefixed (@show)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isOpen: false },
+    view: html`<div @x @show=".isOpen"></div>`,
+  });
+  const errors = lx.reports.filter((r) => r.id === UNKNOWN_X_OP);
+  expect(errors.length).toBe(1);
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("show");
+});
+
+test("no hint when unknown-x-attr has no @-prefix", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" bogus="x"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(0);
+});
+
+test("no hint when unknown-x-attr @-prefix tail is not a known name", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" @bogus="x"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(0);
+});
+
+test("no hint when unknown-x-op @-prefix tail is not a known op", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x @bogus="x"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(0);
+});
+
+test("no @-prefix hint on plain @directive (UNKNOWN_DIRECTIVE)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @bogus="x"></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
+  expect(hints.length).toBe(0);
 });
 
 test("known x render-each extras (as/when/loop-with) do not raise UNKNOWN_X_ATTR", () => {
