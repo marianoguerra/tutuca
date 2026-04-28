@@ -95,6 +95,7 @@ tutuca help [command]
 | `lint [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
 | `render [name] [--title t] [--view v]` | Render examples to HTML |
 | `doctor` | Lint + render smoke test over the whole module |
+| `install-skill [--user] [--force]` | Install the tutuca Claude Code skill (no module path needed) |
 
 Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `-h, --help`.
 
@@ -137,6 +138,27 @@ The invocation stays short even without wrapping, but common patterns:
 - **Shell alias** — `tut() { npx tutuca ./src/components.js "$@"; }`, then `tut render Button`
 - **`justfile` / `Makefile`** — one recipe per subcommand, passing through positionals
 - **Programmatic** — `import "tutuca/cli"` (the bundled entry) for custom build integration
+
+## Use with Claude Code
+
+Tutuca ships an LLM-facing reference (`SKILL.md` + `core.md` / `cli.md` /
+`advanced.md`) packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills).
+Once installed, Claude auto-loads it whenever a session touches tutuca
+components, views, macros, or the CLI.
+
+```sh
+# project-scoped: writes ./.claude/skills/tutuca/ (commit it for the team)
+npx tutuca install-skill
+
+# or user-scoped: writes ~/.claude/skills/tutuca/
+npx tutuca install-skill --user
+
+# overwrite an existing install
+npx tutuca install-skill --force
+```
+
+The skill content is generated from `docs/llm/`, so the same reference
+runs locally (`tutuca <module> doctor`) and inside Claude.
 
 ## License
 

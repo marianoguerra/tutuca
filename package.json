@@ -20,8 +20,9 @@
     "dist": "bun scripts/dist.js",
     "dist-immutable": "bun scripts/dist-immutable.js",
     "dist-all": "bun run dist-immutable && bun run dist",
-    "release": "bun run dist-all && npm publish --access public",
-    "release-dry": "bun run dist-all && npm publish --dry-run",
+    "release": "bun run dist-all && bun run build-skill && npm publish --access public",
+    "release-dry": "bun run dist-all && bun run build-skill && npm publish --dry-run",
+    "build-skill": "bun scripts/build-skill.js",
     "test": "bun test test/*.test.js",
     "test-watch": "bun test --watch test/*.test.js",
     "format": "bunx @biomejs/biome format --write src test/*.js docs/src/*.js docs/examples/*.js tools/*.js tools/*/*.js",
@@ -40,7 +41,11 @@
     "dist/tutuca-dev.min.js",
     "dist/tutuca-extra.js",
     "dist/tutuca-extra.min.js",
-    "dist/tutuca-cli.js"
+    "dist/tutuca-cli.js",
+    "skill/SKILL.md",
+    "skill/core.md",
+    "skill/cli.md",
+    "skill/advanced.md"
   ],
   "dependencies": {
     "jsdom": "^28.0.0 || ^29.0.0"

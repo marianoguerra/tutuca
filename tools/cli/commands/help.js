@@ -77,6 +77,11 @@ COMMANDS (no module required)
       Without [command]: prints this full reference.
       With [command]: prints that command's one-line description.
 
+  install-skill [--user | --project] [--force]
+      Copy the bundled Claude Code skill (SKILL.md + core/cli/advanced.md)
+      into .claude/skills/tutuca/. Default scope is --project (cwd);
+      --user installs at ~/.claude/skills/tutuca/. --force overwrites.
+
 GLOBAL FLAGS
   -f, --format <cli|md|json|html>
       Output format. Defaults per command:
@@ -130,7 +135,10 @@ export async function run(argv) {
     return;
   }
   const { COMMANDS } = await import("./_registry.js");
-  const cmd = COMMANDS[target];
+  const noModule = {
+    "install-skill": await import("./install-skill.js"),
+  };
+  const cmd = COMMANDS[target] ?? noModule[target];
   if (!cmd) {
     process.stderr.write(`tutuca: unknown command: ${target}\n`);
     process.stderr.write("Run `tutuca help` for the full reference.\n");

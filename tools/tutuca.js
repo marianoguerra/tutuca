@@ -1,7 +1,13 @@
 #!/usr/bin/env node
 import { COMMANDS } from "./cli/commands/_registry.js";
 import * as help from "./cli/commands/help.js";
+import * as installSkill from "./cli/commands/install-skill.js";
 import { runCommand } from "./cli/with-module.js";
+
+const NO_MODULE_COMMANDS = {
+  help: help,
+  "install-skill": installSkill,
+};
 
 function usageError(msg) {
   process.stderr.write(`tutuca: ${msg}\nRun \`tutuca help\` for usage.\n`);
@@ -47,8 +53,8 @@ async function main() {
   let command;
   let commandArgs;
 
-  if (rest[0] === "help") {
-    command = "help";
+  if (NO_MODULE_COMMANDS[rest[0]]) {
+    command = rest[0];
     commandArgs = rest.slice(1);
   } else if (opts.module) {
     command = rest[0];
@@ -60,13 +66,14 @@ async function main() {
     commandArgs = rest.slice(2);
   }
 
-  if (opts.help) {
-    await help.run([command], opts);
+  if (NO_MODULE_COMMANDS[command]) {
+    const args = opts.help ? [...commandArgs, "--help"] : commandArgs;
+    await NO_MODULE_COMMANDS[command].run(args, opts);
     return;
   }
 
-  if (command === "help") {
-    await help.run(commandArgs, opts);
+  if (opts.help) {
+    await help.run([command], opts);
     return;
   }
 

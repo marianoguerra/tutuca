@@ -1,4 +1,5 @@
 /node_modules/
 /dist/
+/skill/
 TODO.md
 .playwright-mcp
