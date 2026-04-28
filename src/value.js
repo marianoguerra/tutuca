@@ -49,8 +49,10 @@ export class ValParser {
     const charCode = s.charCodeAt(0);
     switch (charCode) {
       case 94: {
-        const newS = px.frame.macroVars?.[s.slice(1)];
+        const name = s.slice(1);
+        const newS = px.frame.macroVars?.[name];
         if (newS !== undefined) return this.parse(newS, px);
+        px.onParseIssue("bad-value", { role: "macro-var", name, value: s });
         return null;
       }
       case 39: // ''

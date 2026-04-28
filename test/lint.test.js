@@ -17,6 +17,7 @@ import {
   INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
   RENDER_IT_OUTSIDE_OF_LOOP,
+  BAD_VALUE,
   MAYBE_DROP_AT_PREFIX,
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_DIRECTIVE,
@@ -1079,6 +1080,153 @@ test("known <x> ops do not raise UNKNOWN_X_OP", () => {
   });
   const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_OP);
   expect(unknown.length).toBe(0);
+});
+
+test("BAD_VALUE on bad attr value (invalid identifier)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class=".123bad">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("attr");
+  expect(matched[0].info.attr).toBe("class");
+  expect(matched[0].info.value).toBe(".123bad");
+});
+
+test("BAD_VALUE on empty attr value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class="">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("attr");
+});
+
+test("BAD_VALUE on bad @text directive value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p @text=".123bad">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("directive");
+  expect(matched[0].info.directive).toBe("text");
+});
+
+test("BAD_VALUE on bad @show directive value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p @show=".123bad">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("directive");
+  expect(matched[0].info.directive).toBe("show");
+});
+
+test("BAD_VALUE on bad @each directive value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<li @each=".123bad">x</li>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("directive");
+  expect(matched[0].info.directive).toBe("each");
+});
+
+test("BAD_VALUE on bad @if condition value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p @if.class=".123bad" @then="'a'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("if");
+  expect(matched[0].info.attr).toBe("class");
+});
+
+test("BAD_VALUE on bad <x render> value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x render=".123bad"></x></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("x-op");
+  expect(matched[0].info.op).toBe("render");
+});
+
+test("BAD_VALUE on bad <x text> value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x text=".123bad"></x></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("x-op");
+  expect(matched[0].info.op).toBe("text");
+});
+
+test("BAD_VALUE on bad <x render-each> value", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x render-each=".123bad"></x></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("x-op");
+  expect(matched[0].info.op).toBe("render-each");
+});
+
+test("BAD_VALUE on bad event handler name", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<button @on.click="123bad">x</button>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("handler-name");
+});
+
+test("BAD_VALUE on bad event handler arg", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { doThing() {} },
+    view: html`<button @on.click="doThing 123bad">x</button>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("handler-arg");
+});
+
+test("BAD_VALUE on undefined macro var ^foo outside macro", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class="^undefined">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBeGreaterThan(0);
+  expect(matched.some((m) => m.info.role === "macro-var")).toBe(true);
+});
+
+test("good values do not raise BAD_VALUE", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], name: "x", isOpen: false },
+    input: { doThing() {} },
+    view: html`<div>
+      <p :class=".name" @text=".name" @show=".isOpen"></p>
+      <li @each=".items">x</li>
+      <p @if.class=".isOpen" @then="'a'" @else="'b'">x</p>
+      <button @on.click="doThing event">x</button>
+      <x render-each=".items"></x>
+    </div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
+  expect(matched.length).toBe(0);
 });
 
 test("x render-each with when referencing missing alter handler warns", () => {

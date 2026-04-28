@@ -92,6 +92,18 @@ const LintDemo = component({
          hint suggests dropping the @ to use the op 'text' -->
     <x @text=".count"></x>
 
+    <!-- BAD_VALUE on attr: '.123bad' is not a valid identifier -->
+    <p :title=".123bad">bad attr value</p>
+
+    <!-- BAD_VALUE on directive: '@text=""' has no parseable value -->
+    <p @text="">bad directive value</p>
+
+    <!-- BAD_VALUE on x-op: '<x render="...">' rejects bad expressions -->
+    <x render=".123bad"></x>
+
+    <!-- BAD_VALUE on macro var: '^undefined' isn't declared in any macro -->
+    <p :title="^undefined">bad macro var</p>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

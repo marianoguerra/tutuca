@@ -129,42 +129,14 @@ export class ANode extends BaseNode {
     if (node instanceof px.Text) return new TextNode(node.textContent);
     else if (node instanceof px.Comment) return new CommentNode(node.textContent);
     const { childNodes, attributes: attrs, tagName: tag } = node;
-    const childs = new Array(childNodes.length);
-    for (let i = 0; i < childNodes.length; i++) childs[i] = ANode.fromDOM(childNodes[i], px);
+    const childs = [];
+    for (let i = 0; i < childNodes.length; i++) {
+      const child = ANode.fromDOM(childNodes[i], px);
+      if (child !== null) childs.push(child);
+    }
     const isPseudoX = attrs[0]?.name === "@x";
     if (tag === "X" || isPseudoX) {
-      if (attrs.length === 0) return maybeFragment(childs);
-      const opIdx = isPseudoX ? 1 : 0;
-      const { name, value } = attrs[opIdx];
-      const as = attrs.getNamedItem("as")?.value ?? null;
-      let node;
-      switch (name) {
-        case "slot":
-          node = new SlotNode(null, vp.const(value), maybeFragment(childs));
-          break;
-        case "text":
-          node = px.addNodeIf(RenderTextNode, vp.parseText(value, px));
-          break;
-        case "render":
-          node = px.addNodeIf(RenderNode, vp.parseRender(value, px), as);
-          break;
-        case "render-it":
-          node = px.addNodeIf(RenderItNode, vp.bindValIt, as);
-          break;
-        case "render-each":
-          node = RenderEachNode.parse(px, vp, value, as, attrs);
-          break;
-        case "show":
-          node = px.addNodeIf(ShowNode, vp.parseCondValue(value, px), maybeFragment(childs));
-          break;
-        case "hide":
-          node = px.addNodeIf(HideNode, vp.parseCondValue(value, px), maybeFragment(childs));
-          break;
-        default:
-          px.onParseIssue("unknown-x-op", { name, value });
-          return new CommentNode(`Error: InvalidSpecialTagOp ${name}=${value}`);
-      }
-      return processXExtras(node, attrs, name, (isPseudoX ? 1 : 0) + 1, px);
+      return parseXOp(attrs, childs, isPseudoX ? 1 : 0, px);
     } else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
       const macroName = tag.slice(2).toLowerCase();
       if (macroName === "slot") {
@@ -183,6 +155,48 @@ export class ANode extends BaseNode {
     }
     return new CommentNode(`Error: InvalidTagName ${tag}`);
   }
+}
+function parseXOp(attrs, childs, opIdx, px) {
+  if (attrs.length === 0) return maybeFragment(childs);
+  const { name, value } = attrs[opIdx];
+  const as = attrs.getNamedItem("as")?.value ?? null;
+  let node;
+  switch (name) {
+    case "slot":
+      node = new SlotNode(null, vp.const(value), maybeFragment(childs));
+      break;
+    case "text":
+      node = px.addNodeIf(RenderTextNode, parseXOpVal(name, value, px, vp.parseText));
+      break;
+    case "render":
+      node = px.addNodeIf(RenderNode, parseXOpVal(name, value, px, vp.parseRender), as);
+      break;
+    case "render-it":
+      node = px.addNodeIf(RenderItNode, vp.bindValIt, as);
+      break;
+    case "render-each":
+      node = RenderEachNode.parse(px, vp, value, as, attrs);
+      break;
+    case "show": {
+      const val = parseXOpVal(name, value, px, vp.parseCondValue);
+      node = px.addNodeIf(ShowNode, val, maybeFragment(childs));
+      break;
+    }
+    case "hide": {
+      const val = parseXOpVal(name, value, px, vp.parseCondValue);
+      node = px.addNodeIf(HideNode, val, maybeFragment(childs));
+      break;
+    }
+    default:
+      px.onParseIssue("unknown-x-op", { name, value });
+      return new CommentNode(`Error: InvalidSpecialTagOp ${name}=${value}`);
+  }
+  return processXExtras(node, attrs, name, opIdx + 1, px);
+}
+function parseXOpVal(opName, value, px, parserFn) {
+  const val = parserFn.call(vp, value, px);
+  if (val === null) px.onParseIssue("bad-value", { role: "x-op", op: opName, value });
+  return val;
 }
 function processXExtras(node, attrs, opName, startIdx, px) {
   const consumed = X_OP_CONSUMED[opName];
@@ -299,7 +313,7 @@ export class RenderEachNode extends RenderViewId {
     return rx.renderEach(stack, this.iterInfo, this.nodeId, this.viewId);
   }
   static parse(px, vp, s, as, attrs) {
-    const node = px.addNodeIf(RenderEachNode, vp.parseEach(s, px), as);
+    const node = px.addNodeIf(RenderEachNode, parseXOpVal("render-each", s, px, vp.parseEach), as);
     if (node !== null) {
       const attrParser = getAttrParser(px);
       attrParser.eachAttr = attrParser.pushWrapper("each", s, node.val);

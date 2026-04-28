@@ -21,11 +21,13 @@ export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
 export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
 export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
 export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
+export const BAD_VALUE = "BAD_VALUE";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
   "unknown-directive": UNKNOWN_DIRECTIVE,
   "unknown-x-op": UNKNOWN_X_OP,
   "unknown-x-attr": UNKNOWN_X_ATTR,
+  "bad-value": BAD_VALUE,
 };
 
 const X_KNOWN_OP_NAMES = new Set([

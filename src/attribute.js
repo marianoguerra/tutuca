@@ -37,6 +37,8 @@ class AttrParser {
       this.attrs ??= [];
       this.attrs.push(new Attr(name, val));
       this.hasDynamic ||= !(val instanceof ConstVal); // macroVar constant
+    } else {
+      this.px.onParseIssue("bad-value", { role: "attr", attr: name, value });
     }
   }
   pushWrapper(name, raw, val) {
@@ -52,6 +54,9 @@ class AttrParser {
       this.attrs ??= [];
       this.attrs.push(this.ifAttr);
       this.hasDynamic = true;
+    } else {
+      const info = { role: "if", attr: directiveName.slice(3), value };
+      this.px.onParseIssue("bad-value", info);
     }
   }
   parseThen(s) {
@@ -72,36 +77,48 @@ class AttrParser {
       this.events.add(eventName, handler, modifiers);
     }
   }
+  _parseDirectiveValue(directiveName, s, parserFn) {
+    const val = parserFn.call(vp, s, this.px);
+    if (val === null) {
+      const info = { role: "directive", directive: directiveName, value: s };
+      this.px.onParseIssue("bad-value", info);
+    }
+    return val;
+  }
   parseDirective(s, directiveName) {
     switch (directiveName) {
       case "dangerouslysetinnerhtml":
         this.attrs ??= [];
-        this.attrs.push(new RawHtmlAttr(vp.parseText(s, this.px)));
+        this.attrs.push(new RawHtmlAttr(this._parseDirectiveValue(directiveName, s, vp.parseText)));
         this.hasDynamic = true;
         return;
       case "slot":
         this.pushWrapper("slot", s, vp.const(s));
         return;
       case "push-view":
-        this.pushWrapper("push-view", s, vp.parseText(s, this.px));
+        this.pushWrapper("push-view", s, this._parseDirectiveValue(directiveName, s, vp.parseText));
         return;
       case "text":
-        this.textChild = vp.parseText(s, this.px);
+        this.textChild = this._parseDirectiveValue(directiveName, s, vp.parseText);
         return;
       case "show":
-        this.pushWrapper("show", s, vp.parseCondValue(s, this.px));
+        this.pushWrapper("show", s, this._parseDirectiveValue(directiveName, s, vp.parseCondValue));
         return;
       case "hide":
-        this.pushWrapper("hide", s, vp.parseCondValue(s, this.px));
+        this.pushWrapper("hide", s, this._parseDirectiveValue(directiveName, s, vp.parseCondValue));
         return;
       case "each":
-        this.eachAttr = this.pushWrapper("each", s, vp.parseEach(s, this.px));
+        this.eachAttr = this.pushWrapper(
+          "each",
+          s,
+          this._parseDirectiveValue(directiveName, s, vp.parseEach),
+        );
         return;
       case "enrich-with":
         if (this.eachAttr !== null) {
-          this.eachAttr.enrichWithVal = vp.parseAlter(s, this.px);
+          this.eachAttr.enrichWithVal = this._parseDirectiveValue(directiveName, s, vp.parseAlter);
         } else {
-          this.pushWrapper("scope", s, vp.parseAlter(s, this.px));
+          this.pushWrapper("scope", s, this._parseDirectiveValue(directiveName, s, vp.parseAlter));
         }
         return;
       case "when":
@@ -121,13 +138,18 @@ class AttrParser {
     else if (directiveName.startsWith("if.")) this.parseIf(directiveName, s);
     else if (directiveName.startsWith("then.")) this.parseThen(s);
     else if (directiveName.startsWith("else.")) this.parseElse(s);
-    else this.px.onParseIssue("unknown-directive", { name: directiveName, value: s });
+    else {
+      const info = { name: directiveName, value: s };
+      this.px.onParseIssue("unknown-directive", info);
+    }
   }
   _parseWhen(s) {
-    if (this.eachAttr !== null) this.eachAttr.whenVal = vp.parseAlter(s, this.px);
+    if (this.eachAttr !== null)
+      this.eachAttr.whenVal = this._parseDirectiveValue("when", s, vp.parseAlter);
   }
   _parseLoopWith(s) {
-    if (this.eachAttr !== null) this.eachAttr.loopWithVal = vp.parseAlter(s, this.px);
+    if (this.eachAttr !== null)
+      this.eachAttr.loopWithVal = this._parseDirectiveValue("loop-with", s, vp.parseAlter);
   }
   parse(attributes, parseAll = false) {
     for (const { name, value } of attributes) {
@@ -242,12 +264,22 @@ export class EventHandler {
   static parse(s, px) {
     const [handlerName, ...rawArgs] = s.trim().split(/\s+/);
     const handlerVal = vp.parseHandlerName(handlerName, px);
-    if (handlerVal === null) return null;
+    if (handlerVal === null) {
+      const info = { role: "handler-name", value: handlerName };
+      px.onParseIssue("bad-value", info);
+      return null;
+    }
     const args = new Array(rawArgs.length);
     vp.allowHandlerArg();
     for (let i = 0; i < rawArgs.length; i++) {
       const val = vp.parse(rawArgs[i], px);
-      args[i] = val !== null ? val : vp.nullConstVal;
+      if (val !== null) {
+        args[i] = val;
+      } else {
+        const info = { role: "handler-arg", value: rawArgs[i] };
+        px.onParseIssue("bad-value", info);
+        args[i] = vp.nullConstVal;
+      }
     }
     return new EventHandler(handlerVal, args);
   }

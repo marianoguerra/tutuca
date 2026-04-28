@@ -1,3 +1,25 @@
+function badValueMessage(info) {
+  const v = JSON.stringify(info.value);
+  switch (info.role) {
+    case "attr":
+      return `Cannot parse value ${v} for attribute ':${info.attr}'`;
+    case "directive":
+      return `Cannot parse value ${v} for directive '@${info.directive}'`;
+    case "if":
+      return `Cannot parse condition ${v} for '@if.${info.attr}'`;
+    case "x-op":
+      return `Cannot parse value ${v} for <x ${info.op}>`;
+    case "handler-name":
+      return `Cannot parse handler name ${v}`;
+    case "handler-arg":
+      return `Cannot parse handler argument ${v}`;
+    case "macro-var":
+      return `Macro variable '^${info.name}' is not defined`;
+    default:
+      return `Cannot parse value ${v}`;
+  }
+}
+
 export function lintIdToMessage(id, info) {
   switch (id) {
     case "RENDER_IT_OUTSIDE_OF_LOOP":
@@ -42,6 +64,8 @@ export function lintIdToMessage(id, info) {
       return `Unknown attribute '${info.name}=${JSON.stringify(info.value)}' on <x ${info.op}>`;
     case "MAYBE_DROP_AT_PREFIX":
       return `Did you mean '${info.suggestion}'? Drop the '@' prefix on <x>.`;
+    case "BAD_VALUE":
+      return badValueMessage(info);
     case "LINT_ERROR":
       return info.message;
     default:
