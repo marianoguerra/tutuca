@@ -314,7 +314,22 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
 
         if (attrs?.constructor.name === "DynAttrs") {
           for (const attr of attrs.items) {
-            if (attr?.constructor.name === "Attr") {
+            if (attr?.constructor.name === "IfAttr") {
+              for (const subVal of [attr.condVal, attr.thenVal, attr.elseVal]) {
+                checkConsistentAttrVal(
+                  lx,
+                  subVal,
+                  fields,
+                  proto,
+                  computed,
+                  scope,
+                  alter,
+                  referencedAlters,
+                  referencedComputed,
+                  isMacroCall,
+                );
+              }
+            } else if (attr?.val !== undefined) {
               checkConsistentAttrVal(
                 lx,
                 attr.val,

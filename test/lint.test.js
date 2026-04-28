@@ -247,6 +247,28 @@ test("warn on undefined computed attr", () => {
   }
 });
 
+test("warn on undefined computed in @if.class condition", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @if.class="$myComputed" @then="'active'" @else="'inactive'">hi</div>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  const { id, info } = lx.reports[0];
+  expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
+  expect(info.name).toBe("myComputed");
+});
+
+test("warn on undefined computed in @dangerouslysetinnerhtml", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @dangerouslysetinnerhtml="$myComputed">hi</div>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  const { id, info } = lx.reports[0];
+  expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
+  expect(info.name).toBe("myComputed");
+});
+
 test("warn on undefined seq and key", () => {
   const [lx] = defAndCheck({
     name: "Comp",

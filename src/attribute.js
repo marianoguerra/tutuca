@@ -200,7 +200,6 @@ export class Attr extends BaseAttr {
   }
 }
 export class ConstAttr extends Attr {}
-export class DynAttr extends Attr {}
 export class RawHtmlAttr extends Attr {
   constructor(val) {
     super("dangerouslySetInnerHTML", val ?? vp.nullConstVal);
