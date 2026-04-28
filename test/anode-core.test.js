@@ -1173,3 +1173,32 @@ describe("Select component", () => {
     );
   });
 });
+
+describe("view template leading whitespace", () => {
+  function makeAndRender(view, name) {
+    const C = component({ name, fields: { msg: "hello" }, view });
+    C.compile(HeadlessParseContext);
+    const [stack, rx] = rxs({ it: C.make({ msg: "hello" }) });
+    rx.comps.registerComponent(C);
+    return rx.renderIt(stack).childs[1];
+  }
+
+  test("baseline: no leading whitespace renders the element", () => {
+    const node = makeAndRender(html`<p><x text=".msg"></x></p>`, "Baseline");
+    expect(node.tag).toBe("P");
+  });
+
+  test("leading newline + indent should still render the element", () => {
+    const node = makeAndRender(
+      html`
+        <p><x text=".msg"></x></p>`,
+      "LeadingNewline",
+    );
+    expect(node.tag).toBe("P");
+  });
+
+  test("leading spaces (no newline) should still render the element", () => {
+    const node = makeAndRender(html`  <p><x text=".msg"></x></p>`, "LeadingSpaces");
+    expect(node.tag).toBe("P");
+  });
+});

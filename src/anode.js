@@ -113,7 +113,15 @@ export class ANode extends BaseNode {
     return this.val.toPathItem();
   }
   static parse(html, px) {
-    return ANode.fromDOM(px.parseHTML(html)[0] ?? new px.Text(""), px);
+    const nodes = px.parseHTML(html);
+    if (nodes.length === 0) return new TextNode("");
+    if (nodes.length === 1) return ANode.fromDOM(nodes[0], px);
+    const childs = new Array(nodes.length);
+    for (let i = 0; i < nodes.length; i++) childs[i] = ANode.fromDOM(nodes[i], px);
+    const trimmed = condenseChildsWhites(childs);
+    if (trimmed.length === 0) return new TextNode("");
+    if (trimmed.length === 1) return trimmed[0];
+    return new FragmentNode(trimmed);
   }
   static fromDOM(node, px) {
     if (node instanceof px.Text) return new TextNode(node.textContent);
