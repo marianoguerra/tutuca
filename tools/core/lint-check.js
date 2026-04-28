@@ -17,6 +17,13 @@ export const DUPLICATE_ATTR_DEFINITION = "DUPLICATE_ATTR_DEFINITION";
 export const UNKNOWN_REQUEST_NAME = "UNKNOWN_REQUEST_NAME";
 export const UNKNOWN_COMPONENT_NAME = "UNKNOWN_COMPONENT_NAME";
 export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
+export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
+export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
+
+const PARSE_ISSUE_KIND_TO_LINT_ID = {
+  "unknown-directive": UNKNOWN_DIRECTIVE,
+  "unknown-x-op": UNKNOWN_X_OP,
+};
 
 const LEVEL_WARN = "warn";
 const LEVEL_ERROR = "error";
@@ -42,10 +49,20 @@ export function checkComponent(Comp, lx = new LintContext()) {
 }
 
 function checkView(lx, view, Comp, referencedAlters, referencedComputed) {
+  checkParseIssues(lx, view);
   checkRenderItInLoop(lx, view);
   checkEventModifiers(lx, view);
   checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedComputed);
   checkMacroCallArgs(lx, view, Comp);
+}
+
+function checkParseIssues(lx, view) {
+  const issues = view.ctx.parseIssues;
+  if (!issues) return;
+  for (const { kind, info } of issues) {
+    const id = PARSE_ISSUE_KIND_TO_LINT_ID[kind];
+    if (id) lx.error(id, info);
+  }
 }
 
 function checkMacroCallArgs(lx, view, Comp) {
@@ -532,8 +549,12 @@ export class LintParseContext extends ParseContext {
   constructor(document, Text, Comment) {
     super(document, Text, Comment);
     this.attrs = [];
+    this.parseIssues = [];
   }
   onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false) {
     this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall });
+  }
+  onParseIssue(kind, info) {
+    this.parseIssues.push({ kind, info });
   }
 }

@@ -18,10 +18,12 @@ import {
   LintParseContext,
   RENDER_IT_OUTSIDE_OF_LOOP,
   UNKNOWN_COMPONENT_NAME,
+  UNKNOWN_DIRECTIVE,
   UNKNOWN_EVENT_MODIFIER,
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
   UNKNOWN_REQUEST_NAME,
+  UNKNOWN_X_OP,
 } from "../tools/core/lint-check.js";
 import { Comment, document, Text } from "./dom.js";
 
@@ -801,6 +803,77 @@ test("warn on macro call with arg not declared in macro defaults", () => {
   expect(unknownArgs.length).toBe(1);
   expect(unknownArgs[0].info.name).toBe("extra");
   expect(unknownArgs[0].info.macroName).toBe("btn");
+});
+
+test("warn on unknown @directive", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @bogus="hello">hi</div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNKNOWN_DIRECTIVE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.name).toBe("bogus");
+  expect(matched[0].info.value).toBe("hello");
+});
+
+test("warn on unknown @directive with prefix-like name (no dot)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @on="oops">hi</div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNKNOWN_DIRECTIVE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.name).toBe("on");
+  expect(matched[0].info.value).toBe("oops");
+});
+
+test("known @directives do not raise UNKNOWN_DIRECTIVE", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { name: "x", isOpen: false },
+    input: { do() {} },
+    view: html`<div @show=".isOpen" @text=".name" @on.click="do" @if.class=".isOpen" @then="'a'">
+      hi
+    </div>`,
+  });
+  const unknown = lx.reports.filter((r) => r.id === UNKNOWN_DIRECTIVE);
+  expect(unknown.length).toBe(0);
+});
+
+test("warn on unknown <x> op", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x bogus="hello"></x></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNKNOWN_X_OP);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.name).toBe("bogus");
+  expect(matched[0].info.value).toBe("hello");
+});
+
+test("warn on unknown pseudo-x op", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @x bogus="hello"></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNKNOWN_X_OP);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.name).toBe("bogus");
+  expect(matched[0].info.value).toBe("hello");
+});
+
+test("known <x> ops do not raise UNKNOWN_X_OP", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], name: "x", isOpen: false },
+    view: html`<div>
+      <x text=".name"></x>
+      <x show=".isOpen"><span>a</span></x>
+      <x render-each=".items"></x>
+    </div>`,
+  });
+  const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_OP);
+  expect(unknown.length).toBe(0);
 });
 
 test("x render-each with when referencing missing alter handler warns", () => {

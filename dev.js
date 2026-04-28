@@ -49,6 +49,7 @@ export class LintClassCollectorCtx extends ParseCtxClassSetCollector {
   constructor(...args) {
     super(...args);
     this.attrs = [];
+    this.parseIssues = [];
   }
   enterMacro(macroName, macroVars, macroSlots) {
     const { document, Text, Comment, nodes, events, macroNodes } = this;
@@ -65,10 +66,14 @@ export class LintClassCollectorCtx extends ParseCtxClassSetCollector {
     );
     v.classes = this.classes;
     v.attrs = this.attrs;
+    v.parseIssues = this.parseIssues;
     return v;
   }
   onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false) {
     super.onAttributes(attrs, wrapperAttrs, textChild, isMacroCall);
     this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall });
+  }
+  onParseIssue(kind, info) {
+    this.parseIssues.push({ kind, info });
   }
 }

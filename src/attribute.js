@@ -121,6 +121,7 @@ class AttrParser {
     else if (directiveName.startsWith("if.")) this.parseIf(directiveName, s);
     else if (directiveName.startsWith("then.")) this.parseThen(s);
     else if (directiveName.startsWith("else.")) this.parseElse(s);
+    else this.px.onParseIssue("unknown-directive", { name: directiveName, value: s });
   }
   _parseWhen(s) {
     if (this.eachAttr !== null) this.eachAttr.whenVal = vp.parseAlter(s, this.px);

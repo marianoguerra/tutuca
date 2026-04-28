@@ -72,6 +72,15 @@ const LintDemo = component({
     <!-- UNKNOWN_MACRO_ARG: extra is not declared in the macro defaults -->
     <x:labeled label="ok" extra="oops"></x:labeled>
 
+    <!-- UNKNOWN_DIRECTIVE: @bogus is not a known directive -->
+    <div @bogus="oops">unknown directive</div>
+
+    <!-- UNKNOWN_X_OP: bogus is not a known <x> op -->
+    <x bogus="oops"></x>
+
+    <!-- UNKNOWN_X_OP via pseudo-x: same diagnostic on a host tag -->
+    <div @x bogus="oops"></div>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

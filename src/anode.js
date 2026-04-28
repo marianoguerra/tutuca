@@ -152,6 +152,7 @@ export class ANode extends BaseNode {
         case "hide":
           return px.addNodeIf(HideNode, vp.parseCondValue(value, px), maybeFragment(childs));
       }
+      px.onParseIssue("unknown-x-op", { name, value });
       return new CommentNode(`Error: InvalidSpecialTagOp ${name}=${value}`);
     } else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
       const macroName = tag.slice(2).toLowerCase();
@@ -449,6 +450,9 @@ export class ParseContext {
     return this.nodes[id] ?? null;
   }
   onAttributes(_attrs, _wrapperAttrs, _textChild, _isMacroCall) {}
+  onParseIssue(kind, info) {
+    console.warn(`tutuca parse issue [${kind}]`, info);
+  }
 }
 const _htmlBlockTags =
   "ADDRESS,ARTICLE,ASIDE,BLOCKQUOTE,CAPTION,COL,COLGROUP,DETAILS,DIALOG,DIV,DD,DL,DT,FIELDSET,FIGCAPTION,FIGURE,FOOTER,FORM,H1,H2,H3,H4,H5,H6,HEADER,HGROUP,HR,LEGEND,LI,MAIN,MENU,NAV,OL,P,PRE,SECTION,SUMMARY,TABLE,TBODY,TD,TFOOT,TH,THEAD,TR,UL";

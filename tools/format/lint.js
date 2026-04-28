@@ -34,6 +34,10 @@ export function lintIdToMessage(id, info) {
       return `Alter handler '${info.name}' is defined but not referenced`;
     case "UNKNOWN_MACRO_ARG":
       return `Argument '${info.name}' is not declared in macro '${info.macroName}'`;
+    case "UNKNOWN_DIRECTIVE":
+      return `Unknown directive '@${info.name}=${JSON.stringify(info.value)}'`;
+    case "UNKNOWN_X_OP":
+      return `Unknown <x> op '${info.name}=${JSON.stringify(info.value)}'`;
     case "LINT_ERROR":
       return info.message;
     default:
