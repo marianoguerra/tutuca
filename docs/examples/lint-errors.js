@@ -4,7 +4,7 @@ const labeled = macro({ label: "'hi'" }, html`<span @text="^label"></span>`);
 
 const LintDemo = component({
   name: "LintDemo",
-  fields: { count: 0, items: [] },
+  fields: { count: 0, items: [], kind: "", isOpen: false },
   methods: {
     doClick() {
       return this;
@@ -71,6 +71,11 @@ const LintDemo = component({
 
     <!-- UNKNOWN_MACRO_ARG: extra is not declared in the macro defaults -->
     <x:labeled label="ok" extra="oops"></x:labeled>
+
+    <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
+    <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
+      duplicate class
+    </div>
 
     <p @text=".count">0</p>
   </div>`,
