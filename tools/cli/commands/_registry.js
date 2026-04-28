@@ -1,6 +1,5 @@
 import { describeModule } from "../../core/describe.js";
 import { docComponents } from "../../core/docs.js";
-import { runDoctor } from "../../core/doctor.js";
 import { listComponents, listExamples } from "../../core/list.js";
 import { lintComponents } from "../../core/lint.js";
 import { renderExamples } from "../../core/render.js";
@@ -55,16 +54,5 @@ export const COMMANDS = {
         view: values.view ?? null,
       }),
     exitOn: (result) => (result.hasErrors ? 3 : 0),
-  },
-  doctor: {
-    describe: "Run lint + render as a smoke test over the module.",
-    defaultFormat: "cli",
-    needsEnv: true,
-    run: (normalized, _parsed, env) => runDoctor(normalized, env),
-    exitOn: (result) => {
-      if (result.lint.hasErrors) return 2;
-      if (result.renders.hasErrors) return 3;
-      return 0;
-    },
   },
 };

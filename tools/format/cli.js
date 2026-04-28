@@ -98,18 +98,6 @@ function fmtRenderBatch(batch) {
   return lines.join("\n");
 }
 
-function fmtDoctor(rep) {
-  const lines = [];
-  lines.push("== lint ==");
-  lines.push(fmtLintReport(rep.lint));
-  lines.push("");
-  lines.push("== renders ==");
-  lines.push(fmtRenderBatch(rep.renders));
-  lines.push("");
-  lines.push(`Result: ${rep.ok ? "OK" : "FAIL"}`);
-  return lines.join("\n");
-}
-
 export const { supports, format } = makeFormatter("cli", {
   ModuleInfo: fmtModuleInfo,
   ComponentList: fmtComponentList,
@@ -117,5 +105,4 @@ export const { supports, format } = makeFormatter("cli", {
   ComponentDocs: fmtComponentDocs,
   LintReport: fmtLintReport,
   RenderBatch: fmtRenderBatch,
-  DoctorReport: fmtDoctor,
 });

@@ -3,8 +3,9 @@
 The `tutuca` CLI inspects, documents, lints, and renders any module that
 follows the *Conventional Module Exports* shape (see `core.txt`). Reach
 this file when you need command/flag/exit-code details, or when reading
-a lint code out of `doctor` output. Otherwise the one-liner in `core.txt`
-("run `tutuca <module-path> doctor` after edits") is enough.
+a lint code out of `lint` output. Otherwise the post-edit recipe in
+`core.txt` (run `lint`, then `render --title "<your example>"`) is
+enough.
 
 ## Install / invoke
 
@@ -35,15 +36,14 @@ prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
 | `docs [name]`   | Generate API docs (methods, input handlers, fields with auto-generated accessors) — all or one                         |
 | `lint [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
-| `doctor`        | `lint` + `render` in one pass — the smoke-test invocation for CI and post-edit verification                            |
 | `help [cmd]`    | Show usage; the only command that does **not** need a module path                                                      |
 
 ## Global flags
 
 ```
 -f, --format <cli|md|json|html>  output format
-                                 defaults: info/list/examples/lint/doctor → cli
-                                           docs/render                    → md
+                                 defaults: info/list/examples/lint → cli
+                                           docs/render             → md
                                  html only valid for render
                                  json works for every command
 -o, --output <file>              write to file instead of stdout
@@ -70,12 +70,16 @@ tutuca ./src/components.js list                       # components, views, field
 tutuca ./src/components.js docs Button -f json        # one component, JSON
 tutuca ./src/components.js render -f html --pretty -o out/examples.html
 tutuca ./src/components.js render Button --title "Disabled state"
-tutuca ./src/components.js doctor                     # smoke test (CI + post-edit)
+
+# Post-edit verification: lint, then render the example for the feature
+# you just changed (add the example first if none covers it).
+tutuca ./src/components.js lint
+tutuca ./src/components.js render --title "Disabled state"
 ```
 
 ## Linter Rules
 
-Codes emitted by `lint` / `doctor`. Source: `tools/core/lint-check.js`.
+Codes emitted by `lint`. Source: `tools/core/lint-check.js`.
 
 ### Field references
 

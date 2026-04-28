@@ -77,7 +77,7 @@ npm install --save-dev tutuca
 npm install --save-dev prettier
 ```
 
-The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca`) just works. `jsdom` ships as a regular dependency (it's needed by `render`, `lint`, and `doctor`) and is installed automatically.
+The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca`) just works. `jsdom` ships as a regular dependency (it's needed by `render` and `lint`) and is installed automatically.
 
 ### Commands
 
@@ -94,7 +94,6 @@ tutuca help [command]
 | `docs [name]` | Component API docs — all, or one by name |
 | `lint [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
 | `render [name] [--title t] [--view v]` | Render examples to HTML |
-| `doctor` | Lint + render smoke test over the whole module |
 | `install-skill [--user] [--force]` | Install the tutuca Claude Code skill (no module path needed) |
 
 Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `-h, --help`.
@@ -103,10 +102,10 @@ Exit codes:
 
 - `0` — success
 - `1` — usage error (bad args, missing module, bad module shape)
-- `2` — `lint` / `doctor` reported errors
-- `3` — `render` / `doctor` crashed while rendering
+- `2` — `lint` reported errors
+- `3` — `render` crashed while rendering
 
-All module-consuming commands (`info`, `list`, `examples`, `docs`, `lint`, `render`, `doctor`) follow this table.
+All module-consuming commands (`info`, `list`, `examples`, `docs`, `lint`, `render`) follow this table.
 
 ### Usage examples
 
@@ -126,8 +125,10 @@ npx tutuca ./src/components.js render Button --title "Disabled state"
 # Lint just one component (exit 2 if findings)
 npx tutuca ./src/components.js lint Button
 
-# CI smoke test — lints and renders everything
-npx tutuca ./src/components.js doctor
+# Post-edit verification: lint, then render the example covering the
+# feature you just changed.
+npx tutuca ./src/components.js lint
+npx tutuca ./src/components.js render --title "Disabled state"
 ```
 
 ### Wrapping
@@ -158,7 +159,8 @@ npx tutuca install-skill --force
 ```
 
 The skill content is generated from `docs/llm/`, so the same reference
-runs locally (`tutuca <module> doctor`) and inside Claude.
+runs locally (`tutuca <module> lint` + `tutuca <module> render --title …`)
+and inside Claude.
 
 ## License
 

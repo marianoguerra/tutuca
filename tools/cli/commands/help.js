@@ -23,7 +23,7 @@ MODULE CONVENTION
     export function getComponents()       // required for all module commands
       -> Component[]                      // results of tutuca's component()
 
-    export function getExamples()         // required for render/doctor
+    export function getExamples()         // required for render
       -> Section | Section[]              // single section or an array
       where Section = { title: string, description?: string,
                         items: Example[] }
@@ -68,10 +68,6 @@ COMMANDS (require <module-path>)
         --view <v>   override the example's view name
       Exits 3 if any render crashes.
 
-  doctor
-      lint + render in one pass, producing a combined report. The smoke
-      test invocation for CI. Exits 2 on lint errors, 3 on render crashes.
-
 COMMANDS (no module required)
   help [command]
       Without [command]: prints this full reference.
@@ -85,8 +81,8 @@ COMMANDS (no module required)
 GLOBAL FLAGS
   -f, --format <cli|md|json|html>
       Output format. Defaults per command:
-        info, list, examples, lint, doctor -> cli
-        docs, render                       -> md
+        info, list, examples, lint -> cli
+        docs, render               -> md
       html is only supported by render.
       json is supported by every command and serializes the result
       class directly — useful for piping into other tools or agents.
@@ -120,8 +116,9 @@ EXAMPLES
   # Render a single example
   tutuca ./src/components.js render Button --title "Disabled state"
 
-  # CI smoke test
-  tutuca ./src/components.js doctor
+  # Post-edit verification: lint, then render the example you changed
+  tutuca ./src/components.js lint
+  tutuca ./src/components.js render --title "Disabled state"
 `;
 
 export async function run(argv) {

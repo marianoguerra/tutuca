@@ -97,13 +97,3 @@ export class RenderBatch {
     return this.sections.some((s) => s.items.some((i) => i.error !== null));
   }
 }
-
-export class DoctorReport {
-  constructor({ lint, renders }) {
-    this.lint = lint;
-    this.renders = renders;
-  }
-  get ok() {
-    return !this.lint.hasErrors && !this.renders.hasErrors;
-  }
-}

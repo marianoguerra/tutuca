@@ -10,7 +10,7 @@ const outDir = resolve(repo, "skill");
 
 const SKILL_FRONTMATTER = `---
 name: tutuca
-description: Authoring or reviewing tutuca components, html\`\` views, macros, or running the \`tutuca\` CLI. Covers field types, @-directives, bubble/logic/response handlers, and the post-edit \`tutuca <module> doctor\` smoke test.
+description: Authoring or reviewing tutuca components, html\`\` views, macros, or running the \`tutuca\` CLI. Covers field types, @-directives, bubble/logic/response handlers, and the post-edit \`tutuca <module> lint\` + \`tutuca <module> render --title …\` verification recipe.
 ---
 
 `;
@@ -24,16 +24,26 @@ Tutuca is an immutable-state SPA framework: components have typed
 
 ## Verifying changes
 
-After editing a tutuca module, run the smoke test:
+After editing a tutuca module, run two checks before declaring the edit
+done:
 
-\`\`\`sh
-tutuca <module-path> doctor
-\`\`\`
+1. **Lint** — catches undefined fields/handlers/macros/events. Exits
+   \`2\` on any error-level finding.
 
-\`doctor\` runs \`lint\` (catches undefined fields/handlers/macros/
-events) and \`render\` (renders every example in a headless DOM) in one
-pass. Exit codes: \`0\` ok, \`2\` lint error, \`3\` render crash. **Run it
-before declaring an edit done.**
+   \`\`\`sh
+   tutuca <module-path> lint
+   \`\`\`
+
+2. **Render the example that exercises the feature you changed** —
+   confirms the component mounts in a headless DOM with the new
+   behavior. Exits \`3\` on render crash.
+
+   \`\`\`sh
+   tutuca <module-path> render --title "<example title>"
+   \`\`\`
+
+   If no example covers the feature, add one to \`getExamples()\` first —
+   that's how the feature becomes verifiable.
 
 ## Routing
 

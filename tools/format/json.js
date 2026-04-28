@@ -16,5 +16,4 @@ export const { supports, format } = makeFormatter("json", {
   ComponentDocs: fmtJson,
   LintReport: fmtJson,
   RenderBatch: fmtJson,
-  DoctorReport: fmtJson,
 });

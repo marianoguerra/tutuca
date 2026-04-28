@@ -15,15 +15,30 @@ the `tutuca` CLI.
 
 ## Verifying changes
 
-After editing a Tutuca module, run the CLI smoke test:
+After editing a Tutuca module, run two checks before declaring the edit
+done:
 
-    tutuca <module-path> doctor
+1. **Lint the module** — catches undefined fields/handlers/macros/events
+   (all the `*_NOT_DEFINED` / `*_NOT_REFERENCED` codes):
 
-`doctor` runs `lint` (catches undefined fields/handlers/macros/
-events — all the `*_NOT_DEFINED` / `*_NOT_REFERENCED` codes) and `render`
-(renders every example in a headless DOM) in one pass. Exit codes: `0`
-ok, `2` lint error, `3` render crash. **Run it before declaring an edit
-done.** Full reference: [cli.txt](./cli.txt).
+        tutuca <module-path> lint
+
+   Exits `2` on any error-level finding. Pass a component name to scope
+   it: `tutuca <module-path> lint Button`.
+
+2. **Render the example(s) that exercise the feature you changed** —
+   confirms the component actually mounts in a headless DOM with the new
+   behavior. Pick the example whose `title` matches the feature, or
+   filter by component:
+
+        tutuca <module-path> render --title "Disabled state"
+        tutuca <module-path> render Button
+
+   Exits `3` if any render crashes. If no example covers the feature
+   you're adding, add one to `getExamples()` first — that's how the
+   feature becomes verifiable.
+
+Full reference: [cli.txt](./cli.txt).
 
 ## Common pitfalls
 

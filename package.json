@@ -31,7 +31,7 @@
     "fix": "bunx @biomejs/biome check --write src test/*.js",
     "tutuca": "bun tools/tutuca.js",
     "stresstest": "bun scripts/stresstest.js",
-    "smoke-test": "bun tools/tutuca.js ./test/todo.js doctor && bun tools/tutuca.js ./test/json.js doctor"
+    "smoke-test": "bun tools/tutuca.js ./test/todo.js lint && bun tools/tutuca.js ./test/todo.js render && bun tools/tutuca.js ./test/json.js lint && bun tools/tutuca.js ./test/json.js render"
   },
   "sideEffects": false,
   "files": [
