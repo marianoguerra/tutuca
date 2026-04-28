@@ -1,0 +1,110 @@
+# Tutuca CLI Reference
+
+The `tutuca` CLI inspects, documents, lints, and renders any module that
+follows the *Conventional Module Exports* shape (see `core.txt`). Reach
+this file when you need command/flag/exit-code details, or when reading
+a lint code out of `doctor` output. Otherwise the one-liner in `core.txt`
+("run `tutuca <module-path> doctor` after edits") is enough.
+
+## Install / invoke
+
+```sh
+# project local
+npm i --save-dev tutuca
+npx tutuca <module-path> <command> [name] [flags]
+
+# global
+npm i -g tutuca
+tutuca <module-path> <command> [name] [flags]
+
+# from a checkout of this repo
+bun tools/tutuca.js <module-path> <command> [name] [flags]
+```
+
+The module path comes **first**, the command second, an optional component
+name third. `tutuca help` prints the full reference; `tutuca help <command>`
+prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
+
+## Commands
+
+| Command         | Purpose                                                                                                                |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `info`          | Summarize which `getX()` exports are present and counts                                                                |
+| `list`          | List components with their views and fields (name + type)                                                              |
+| `examples`      | Print `getExamples()` content (title, items, per section)                                                              |
+| `docs [name]`   | Generate API docs (methods, input handlers, fields with auto-generated accessors) — all or one                         |
+| `lint [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
+| `render [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
+| `doctor`        | `lint` + `render` in one pass — the smoke-test invocation for CI and post-edit verification                            |
+| `help [cmd]`    | Show usage; the only command that does **not** need a module path                                                      |
+
+## Global flags
+
+```
+-f, --format <cli|md|json|html>  output format
+                                 defaults: info/list/examples/lint/doctor → cli
+                                           docs/render                    → md
+                                 html only valid for render
+                                 json works for every command
+-o, --output <file>              write to file instead of stdout
+    --pretty                     pretty-print HTML (md/html) via prettier;
+                                 JSON formatter uses indent 2
+    --module <path>              alternative to first-positional module path
+-h, --help                       show help (overview, or for one command)
+```
+
+## Exit codes
+
+| Code | Meaning                                                  |
+| ---- | -------------------------------------------------------- |
+| `0`  | success                                                  |
+| `1`  | usage error (bad args, missing module, bad module shape) |
+| `2`  | lint findings at error level                             |
+| `3`  | render crash                                             |
+
+## Examples
+
+```sh
+tutuca ./src/components.js info                       # quick overview
+tutuca ./src/components.js list                       # components, views, fields
+tutuca ./src/components.js docs Button -f json        # one component, JSON
+tutuca ./src/components.js render -f html --pretty -o out/examples.html
+tutuca ./src/components.js render Button --title "Disabled state"
+tutuca ./src/components.js doctor                     # smoke test (CI + post-edit)
+```
+
+## Linter Rules
+
+Codes emitted by `lint` / `doctor`. Source: `tools/core/lint-check.js`.
+
+### Field / computed references
+
+- `FIELD_VAL_NOT_DEFINED` — `.field` not declared in `fields`.
+- `COMPUTED_VAL_NOT_DEFINED` — `$name` not in `computed`.
+- `COMPUTED_NOT_REFERENCED` — `computed` entry never used in any view.
+
+### Input-handler / method confusion
+
+- `INPUT_HANDLER_NOT_IMPLEMENTED` — bare handler name not in `input`.
+- `INPUT_HANDLER_NOT_REFERENCED` — `input` entry never used.
+- `INPUT_HANDLER_METHOD_NOT_IMPLEMENTED` — `.handler` not in `methods`.
+- `INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD` — bare name resolves to `methods` (use `.name`).
+- `INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER` — `.name` resolves to `input` (drop the dot).
+
+### Iteration helpers (`alter`)
+
+- `ALT_HANDLER_NOT_DEFINED` — `@when` / `@enrich-with` / `@loop-with` name not in `alter`.
+- `ALT_HANDLER_NOT_REFERENCED` — `alter` entry never used.
+
+### Templates / events
+
+- `RENDER_IT_OUTSIDE_OF_LOOP` — `<x render-it>` outside `@each` / `render-each`.
+- `UNKNOWN_EVENT_MODIFIER` — `+mod` not in the recognized modifier set.
+- `UNKNOWN_HANDLER_ARG_NAME` — handler arg name not a built-in / declared component.
+- `DUPLICATE_ATTR_DEFINITION` — same attr set by literal + `:attr` + `@if.attr` on one element.
+
+### Names registered with the app
+
+- `UNKNOWN_REQUEST_NAME` — `!name` not registered.
+- `UNKNOWN_COMPONENT_NAME` — component type not registered.
+- `UNKNOWN_MACRO_ARG` — macro attr not declared in defaults.

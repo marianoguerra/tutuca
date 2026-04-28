@@ -1,0 +1,677 @@
+# Tutuca Cheatsheet — Core
+
+Tutuca is an immutable-state web framework: components have typed `fields`,
+auto-generated mutators (`setX`, `pushInX`, …), HTML-template `view`s with
+`@`-prefixed directives, and `bubble` / `logic` / `response` handlers for
+orchestration. Read this file when authoring or reviewing
+`component({...})` definitions, `view: html\`...\`` templates, macros, or
+the `tutuca` CLI.
+
+> Advanced topics (drag & drop, dynamic bindings `*x`, pseudo-`x` for
+> `<select>`/`<table>`/`<tr>`, `KList`, custom seq types, Tailwind/MargaUI
+> compilation): see [advanced.txt](./advanced.txt). CLI commands, flags,
+> exit codes, and full linter rule list: see [cli.txt](./cli.txt). Read
+> those only when the task touches them.
+
+## Verifying changes
+
+After editing a Tutuca module, run the CLI smoke test:
+
+    tutuca <module-path> doctor
+
+`doctor` runs `lint` (catches undefined fields/handlers/computed/macros/
+events — all the `*_NOT_DEFINED` / `*_NOT_REFERENCED` codes) and `render`
+(renders every example in a headless DOM) in one pass. Exit codes: `0`
+ok, `2` lint error, `3` render crash. **Run it before declaring an edit
+done.** Full reference: [cli.txt](./cli.txt).
+
+## Common pitfalls
+
+- **Coercion is shallow.** `setItems([{a:1}])` stores plain objects inside
+  the `List`. Wrap each item in `Comp.make({...})` or run inputs through
+  immutable's `fromJS` if you need deep coercion. See *Component Skeleton*.
+- **Multiple `@if.<attr>` on one element.** Every `@then`/`@else` after
+  the first must name the attr (`@then.title`, `@else.title`) — HTML
+  disallows duplicate attrs, so the second `@then=` is dropped silently.
+- **Bare unquoted multi-word strings outside `{…}` return `null`.** Either
+  quote (`'flex gap-3'`) or use template form (`flex gap-3 {.color}`).
+- **`<x>` is stripped inside `<select>` / `<table>` / `<tr>`.** Use the
+  `@x` pseudo-x trick (see [advanced.txt](./advanced.txt)).
+- **`logic.init` is a convention, not a lifecycle hook.** Nothing calls it
+  automatically — dispatch via `app.dispatchLogicAtRoot("init")` or from
+  another handler.
+- **`app.state.set(...)` takes a component instance**, not plain data.
+  Build with `Comp.make({...})`.
+- **`computed:` is template-only.** You can read `$x` from a view, but
+  `methods` / `input` / `bubble` cannot reference it.
+- **`html\`` templates must start with the opening tag.** A leading
+  newline / indent before the first element renders blank silently.
+  Use `view: html\`<el ...>` (or `html\`<el<newline>  attr<newline>>...`),
+  never `view: html\`<newline>  <el ...>`. Same applies to macro bodies.
+- **Macro registry keys are normalized to lowercase.** The HTML parser
+  lowercases custom tag names, so `<x:Card>` is read as `<x:card>`.
+  `registerMacros({ Card })` is fine — the key is stored as `card`.
+  Registering two different macros under the same lowercased name (e.g.
+  `Card` and `card`) warns via `console.assert`; the later one wins.
+
+## Bootstrap
+
+```js
+import { component, html, tutuca } from "tutuca";
+
+const Counter = component({
+  name: "Counter",
+  fields: { count: 0 },
+  methods: {
+    inc() {
+      return this.setCount(this.count + 1);
+    },
+  },
+  view: html`<button @on.click=".inc" @text=".count"></button>`,
+});
+
+const app = tutuca("#app");
+app.registerComponents([Counter]);
+app.state.set(Counter.make({}));
+app.start();
+```
+
+`app.onChange((info) => ...)` fires after every state change with
+`{ val, old, info, timestamp }` (logging, persistence). `app.stop()`
+removes all listeners and cancels cache eviction; pair with
+`app.start()` for teardown in tests or SPA navigation.
+
+## Notation Reference
+
+| Prefix   | Means                                     | Example               |
+| -------- | ----------------------------------------- | --------------------- |
+| `.x`     | field or method on `this`                 | `.count`, `.inc`      |
+| `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
+| `^x`     | macro parameter                           | `^label`              |
+| `$x`     | computed property (cached)                | `$totalChars`         |
+| `!x`     | request handler                           | `!loadData`           |
+| `*x`     | dynamic binding — see `advanced.txt`      | `*theme`              |
+| `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
+| `name`   | bare identifier — meaning depends on slot | `dec`, `value`, `ctx` |
+| `'str'`  | string literal                            | `'btn btn-success'`   |
+| `{expr}` | interpolation in attr text                | `Hi {.name}`          |
+| `.s[.k]` | sequence/map item access                  | `.byKey[.currentKey]` |
+
+A bare `name` (no prefix) in `@on.<event>="<handler> <arg> <arg>..."`
+resolves by slot:
+
+- **First slot** — handler name looked up in `input` / `alter` (use
+  `.name` for `methods`).
+- **Subsequent slots** — built-in handler arg name (full list in
+  *Event Handling*); anything else triggers a lint warning.
+
+```html
+<button @on.click="addItem JsonSelector ctx">+</button>
+<!--                ↑ handler ↑ Type      ↑ built-in arg -->
+```
+
+## Quoting & String Literals
+
+Tutuca's expression parser is context-sensitive. `:attr=` and
+interpolation `{...}` accept string templates; `@if`, `@each`,
+`<x render=>` do not.
+
+| Form                | Example                | Where it works                                   |
+| ------------------- | ---------------------- | ------------------------------------------------ |
+| `'string'`          | `@then="'btn ok'"`     | anywhere a value is allowed                      |
+| Bare with `{...}`   | `:class="btn {.kind}"` | `:attr=`, `@text`, `@title`, macro dynamic attrs |
+| Bare without quotes | `flex gap-3`           | **never** — returns `null`                       |
+| Bare identifier     | `dec`, `value`         | name slots only (handler/arg, not as a value)    |
+
+```html
+<!-- ✅ -->
+<p :class="'flex gap-3'">x</p>
+<p :class="flex {.color}">x</p>            <!-- {…} enables template -->
+<p :class="static-classes {''}">x</p>      <!-- folds to a const -->
+
+<!-- ❌ -->
+<p :class="flex gap-3">x</p>               <!-- null: no quotes, no braces -->
+<x render="'foo bar'"></x>                 <!-- @render rejects string templates -->
+```
+
+## Component Skeleton
+
+```js
+component({
+  name: "MyComp",
+  fields: {                    // see "Field Types"
+    count: 0,
+    items: [],
+    nullable: null,
+  },
+  view: html`<p @text=".count"></p>`,    // default view (named "main")
+  views: {                                // additional views
+    edit: html`<input :value=".count" @on.input=".setCount valueAsInt" />`,
+    big: {
+      view: html`<h1 @text=".count"></h1>`,
+      style: css`h1 { font-size: 4rem; }`,
+    },
+  },
+  style:        css`p { color: blue; }`,         // scoped to main view
+  commonStyle:  css`p { font-family: sans-serif; }`, // scoped to all views of this component
+  globalStyle:  css`body { margin: 0; }`,        // injected globally, no scoping
+  methods: { inc() { return this.setCount(this.count + 1); } },
+  input:   { onClick(ctx) { return this.inc(); } },
+  alter:   { filterItem(_k, item) { return item.length > 0; } },
+  computed:{ doubled() { return this.count * 2; } },
+  logic:   { init(ctx) { ctx.request("loadData"); return this; } },
+  bubble:  { itemPicked(item, ctx) { return this.setSelected(item); } },
+  response:{ loadData(res, err, ctx) { return this.setItems(res); } },
+  statics: { fromData(d) { return this.make({ count: d.n ?? 0 }); } },
+  // dynamic: { ... }, on: { stackEnter() {...} }   // see advanced.txt
+});
+```
+
+`Comp.make({...})` builds an instance. Coercion is automatic but
+**shallow**: arrays become `List`, plain objects become `IMap`, native
+`Set` becomes `ISet`. Items inside a list/map field stay as-is —
+`setItems([{a:1}])` gives `List<plainObject>`; access with `item.a`, not
+`item.get("a")`. For deep coercion, run inputs through immutable's
+`fromJS`, or wrap each item in `Comp.make({...})`.
+
+## Field Types & Auto-generated API
+
+`fields: { name: defaultValue }` — type inferred from the default.
+
+| Default              | Field type | Auto-generated methods (for field `x`)                                                                                             |
+| -------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `"hi"`               | text       | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`, `isXEmpty`, `xLen`                                                           |
+| `42`                 | float      | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`                                                                               |
+| (`{type:"int"}`)     | int        | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy` (no default-value form — declare explicitly via `classFromData`)              |
+| `true`               | bool       | `setX`, `toggleX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`                                                                    |
+| `null`               | any        | `setX`, `updateX`, `resetX`, `isXNull`, `isXTruthy`, `isXFalsy`                                                                    |
+| `[]`/`List()`        | list       | `setX`, `pushInX`, `insertInXAt`, `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`/`removeInXAt`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `xLen`, `resetX` |
+| `{}`/`IMap()`        | map        | `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `xLen`, `resetX`                        |
+| `OMap()`             | omap       | same as map (preserves insertion order)                                                                                            |
+| `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `resetX`                                |
+| `new KList()`        | KList      | (extra build) `pushInX`, `setInXAt`, `getInXAt`, `deleteInXAt`, `moveKeyBeforeKey`/`AfterKey` — see `advanced.txt`                 |
+
+Explicit field types via `classFromData`:
+
+```js
+fields: {
+  count: { type: "int", defaultValue: 10 },     // text/int/float/bool/list/map/omap/set/any
+  child: { component: "Item", args: { ... } },  // nested component instance
+}
+```
+
+## Statics
+
+`statics: {...}` adds methods to the component **class**, not instances.
+Available as `Comp.Class.<name>(...)` alongside the auto-generated
+`Comp.Class.make(...)` (which `Comp.make(...)` aliases). Inside a static,
+`this` is the class itself.
+
+Common use: a `fromData` factory that recursively builds instances from
+plain JS data:
+
+```js
+statics: {
+  fromData({ items = [] }) {
+    return this.make({ items: items.map((v) => Item.Class.fromData(v)) });
+  },
+}
+// usage: TreeRoot.Class.fromData([...])
+```
+
+## Text Rendering
+
+```html
+<span @text=".str"></span>          <!-- prepend text into span -->
+<x text=".bool"></x>                <!-- text-only, no DOM element -->
+<x text=".getStrUpper"></x>         <!-- methods are called -->
+<x text="$totalChars"></x>          <!-- computed -->
+<x text="@value"></x>               <!-- loop binding -->
+```
+
+## Attribute Binding
+
+```html
+<input :value=".str" @on.input=".setStr value" />
+<a :href=".url" :title="Hi {.name}">link</a>          <!-- string template -->
+<button class="btn" :class="btn {.color}">x</button>
+```
+
+Plain attrs are static. `:attr="..."` is a dynamic expression. Boolean
+HTML attributes (`disabled`, `checked`, `hidden`, …) are auto-recognized;
+pass a boolean field.
+
+SVG attributes are case-sensitive but the HTML parser lowercases them.
+Tutuca special-cases `:viewbox` → `viewBox` so SVG roots work; for other
+camelCased SVG attrs, wrap them in components that emit raw markup.
+
+## Event Handling
+
+```html
+<!-- method (`.`) vs input handler (no dot) -->
+<button @on.click=".inc">+</button>
+<button @on.click="dec">-</button>
+
+<!-- pass args by name -->
+<input @on.input=".setStr value" />
+<input @on.input=".setN valueAsInt" />
+<button @on.click=".pick @key isAlt">pick</button>
+<button @on.click=".addItem JsonSelector">+</button>     <!-- type as arg -->
+<button @on.click=".loadAnotherWay ctx">load</button>    <!-- ctx -->
+```
+
+Built-in handler arg names: `value`, `valueAsInt`, `valueAsFloat`,
+`target`, `event`, `isAlt`, `isShift`, `isCtrl`/`isCmd`, `key`, `keyCode`,
+`isUpKey`, `isDownKey`, `isSend`, `isCancel`, `isTabKey`, `ctx`,
+`dragInfo`.
+
+The content of `value` depends on the event source:
+
+| Source                      | What `value` resolves to                         |
+|-----------------------------|--------------------------------------------------|
+| `<input type="checkbox">`   | `event.target.checked` (boolean)                 |
+| `CustomEvent`               | `event.detail`                                   |
+| anything else               | `event.target.value` (string), or null if absent |
+
+For numeric inputs, prefer `valueAsInt` / `valueAsFloat` to skip the
+string parse.
+
+### Event Modifiers
+
+`@on.<event>+<mod>+<mod>=...`
+
+- All events: `+ctrl`, `+cmd`/`+meta`, `+alt`
+- `keydown` only: `+send` (Enter), `+cancel` (Escape)
+
+```html
+<input @on.keydown+send=".submit value" @on.keydown+cancel=".reset" />
+<button @on.click+ctrl=".soloOnly">ctrl-click</button>
+```
+
+### Web Components & Custom Events
+
+Custom elements just work, and any `CustomEvent` they fire is reachable
+via `@on.<event-name>`. The event's `detail` surfaces as `value`:
+
+```js
+import "https://esm.sh/emoji-picker-element";
+
+input: { onPick(detail) { return this.setCurrent(detail.unicode); } }
+view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
+```
+
+## Conditional Display
+
+```html
+<div @show=".isLoading">Loading...</div>
+<div @hide=".isLoading">content</div>
+
+<!-- Single @if: shorthand @then/@else (attr inferred) -->
+<button @if.class=".isActive" @then="'btn btn-success'" @else="'btn btn-ghost'">
+  ...
+</button>
+
+<!-- Multiple @if on same element: name the attr explicitly -->
+<button
+  @if.class=".isActive"
+  @then="'on'"
+  @else="'off'"
+  @if.title=".isActive"
+  @then.title="'On'"
+  @else.title="'Off'"
+>
+  ...
+</button>
+```
+
+> HTML disallows duplicate attrs, so with multiple `@if.<attr>` on one
+> element every `@then`/`@else` after the first **must** include the attr
+> name — otherwise the parser drops it before tutuca sees it.
+
+## List Iteration
+
+`@each` accepts: `.field`, `$computed`, `*dynamic`.
+
+```html
+<!-- iterate plain values -->
+<li @each=".items"><span @text="@key"></span>: <x text="@value"></x></li>
+
+<!-- filter -->
+<li @each=".items" @when="filterItem">...</li>
+
+<!-- per-item enrichment (binds.X => @X in template) -->
+<li @each=".items" @enrich-with="enrichItem">
+  <x text="@count"></x>
+</li>
+
+<!-- shared per-loop data (computed once before iteration) -->
+<li @each=".items" @loop-with="getIterData" @when="filterItem">...</li>
+
+<!-- render a list of components -->
+<x render-each=".items"></x>
+<x render-each=".items" as="edit"></x>                          <!-- specific view -->
+<x render-each=".items" when="filterItem"></x>                  <!-- with filter -->
+<x render-each=".items" loop-with="getIterData" when="filterItem"></x>
+```
+
+On `<li @each>` / `<div @each>` and other host-element loops the
+filters are written `@when` / `@enrich-with` / `@loop-with` (the `@`
+prefix is the element-directive convention). On `<x render-each>` the
+same filters drop the prefix — `when=` / `enrich-with=` / `loop-with=`
+— because `<x>` carries plain attributes, not directives. Both forms
+share the handler-name resolution rules below.
+
+```js
+alter: {
+  filterItem(_key, item, iterData) { return item.includes(iterData.q); },
+  enrichItem(binds, _key, item, iterData) { binds.count = item.length; },
+  getIterData(seq) { return { q: this.query.toLowerCase() }; },
+}
+```
+
+### Lifecycle of `@each`
+
+For each render of an element with `@each=".items"`:
+
+1. **Resolve sequence** — evaluate `.items`. Lists, IMaps, OMaps, ISets,
+   and any class declaring a `SEQ_INFO` walker (e.g. `KList`) are
+   recognized.
+2. **`@loop-with`** (once per render) — `getIterData.call(this, seq)` is
+   called and its return becomes `iterData`. Skipped if no `@loop-with`;
+   in that case `iterData` is `{ seq }` from the default.
+3. For each `(key, value)` pair in the sequence:
+   1. **`@when`** — `filterItem.call(this, key, value, iterData)`; if it
+      returns `false`, the item is skipped.
+   2. **`@enrich-with`** — `enrichItem.call(this, binds, key, value, iterData)`.
+      `binds` is a **mutable object** seeded with `{ key, value }`;
+      mutating it (`binds.count = ...`) creates `@`-prefixed bindings
+      available in the templated children. The return value is ignored.
+   3. **Render** the element with the new bindings on the stack.
+
+Auto-bound names inside the loop are always `@key` and `@value` (or
+whatever you wrote into `binds`).
+
+### Handler resolution
+
+`@when` / `@enrich-with` / `@loop-with` resolve like event handler names:
+bare `filterItem` → `alter.filterItem` (idiomatic); `.filterItem` →
+method on `this` (works, not idiomatic — `alter` keeps iteration helpers
+grouped).
+
+## Scope Enrichment
+
+Without an `@each` on the same element, `@enrich-with` becomes a scope
+enricher: it takes no `binds` arg, and its **return value** is the
+bindings object whose keys become `@`-prefixed bindings for descendants.
+
+```js
+alter: { enrichScope() { return { len: this.text.length }; } }
+```
+
+```html
+<div @enrich-with="enrichScope">Length: <x text="@len"></x></div>
+```
+
+## Computed Properties
+
+Computed properties are **template-only** — not callable from `methods`
+/ `input` / `bubble`. The `$` prefix marks any computed reference (attr,
+text, handler arg).
+
+```js
+computed: {
+  totalItemsChars() {
+    let n = 0;
+    for (const item of this.items) n += item.length;
+    return n;
+  },
+}
+```
+
+```html
+<x text="$totalItemsChars"></x>      <!-- cached per instance -->
+```
+
+## Rendering Components
+
+```html
+<x render=".item"></x>                          <!-- default ("main") view -->
+<x render=".item" as="edit"></x>                <!-- specific view -->
+<x render-it></x>                               <!-- only inside @each / render-each -->
+<x render=".byIndex[.currentIndex]"></x>        <!-- list item access -->
+<x render=".byKey[.currentKey]"></x>            <!-- map item access -->
+```
+
+The top-level `view` is registered under `"main"` (the default); extras
+go under `views: { name: html\`...\` }`. `as="edit"` selects the `edit`
+view of the rendered component, falling back to `main` if absent. `as`
+only applies to the **direct** component — for whole-subtree control,
+use `@push-view` (next section).
+
+## Multiple Views & View Stack
+
+```js
+component({
+  view:  html`<p @text=".title"></p>`,                              // "main"
+  views: { edit: html`<input :value=".title" @on.input=".setTitle value" />` },
+});
+```
+
+```html
+<!-- @push-view pushes a name onto the rendering stack;
+     descendants resolve to first matching view, falling back to "main" -->
+<div @push-view=".view"><x render-each=".items"></x></div>
+```
+
+| Directive          | Scope                                                                    |
+|--------------------|--------------------------------------------------------------------------|
+| `as="edit"`        | One `<x render>` element only.                                           |
+| `@push-view=".v"`  | Every component rendered recursively under the host (children + descendants). Each picks the first stack entry it has a matching view for; falls back to `"main"`. Inner `@push-view`s nest, extending the outer ones. |
+
+## Styles
+
+```js
+component({
+  style:       css`.mine { color: red; }`,        // scoped to main view
+  commonStyle: css`.shared { color: yellow; }`,   // scoped to all views of this component
+  globalStyle: css`.app-thing { color: green; }`, // global, no scoping
+  views: {
+    two: { view: html`...`, style: css`.mine { color: orange; }` },
+  },
+});
+```
+
+Tagged templates `html` and `css` are just `String.raw` (editor hinting
+only). Plain strings work too.
+
+## Bubble Events
+
+```js
+input:  { onClick(ctx) { ctx.bubble("treeItemSelected", [this]); return this; } },
+bubble: {
+  treeItemSelected(selected, ctx) {  // ctx.stopPropagation() to halt
+    return this.insertInLogAt(0, `selected ${selected.label}`);
+  },
+}
+```
+
+`ctx.bubble("name", args)` walks the dispatch path back toward the root
+state. Each ancestor whose component defines `bubble.<name>(...args, ctx)`
+runs it (others are skipped silently); bubbling stops at the root or when
+a handler calls `ctx.stopPropagation()`. Each handler returns a
+(possibly updated) instance of itself, like `input` / `methods` / `logic`.
+Ancestors see the event *after* descendants have transacted, so bubble
+handlers are the place for aggregate state (logs, selections, totals).
+
+## Logic / Lifecycle
+
+`logic` is invoked explicitly — **no built-in lifecycle**. `logic.init`
+is a convention; the host must dispatch it (typically after
+`app.start()`) for it to run.
+
+```js
+logic: { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } }
+```
+
+Dispatch from anywhere:
+
+```js
+app.dispatchLogicAtRoot("init");                            // host code, top-level
+ctx.at.field("personalSite").logic("init");                 // child by field name
+ctx.at.index("items", 3).logic("init");                     // list element at index 3
+ctx.at.key("byKey", "k1").logic("init");                    // map / KList entry by key
+ctx.at.field("a").field("b").index("xs", 0).logic("ping");  // chain freely
+ctx.logic("name");                                          // self
+ctx.bubble("name", [arg]);                                  // bubble up
+```
+
+`ctx.at` returns a `PathBuilder` with `.field(name)`, `.index(name, i)`,
+and `.key(name, k)`. Each call appends a step to the path before
+`.logic(...)` / `.bubble(...)` fires; the handler runs inside the child
+instance with `this` bound to it.
+
+## Async Requests
+
+```js
+export function getRequestHandlers() {
+  return {
+    async loadData() {
+      const r = await fetch("https://example.com/data.json");
+      return await r.json();
+    },
+  };
+}
+
+// register at the same scope where you registerComponents
+const scope = app.registerComponents([Comp]);
+scope.registerRequestHandlers(getRequestHandlers());
+```
+
+In a component:
+
+```js
+logic:    { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } },
+response: { loadData(res, err, ctx) { return this.setIsLoading(false).setItems(res); } },
+// override response handler names per-call:
+// ctx.request("loadData", [], { onOkName: "loadDataOk", onErrorName: "loadDataErr" });
+```
+
+The `ctx` arg is the last argument of every `response` / `bubble` /
+`logic` handler.
+
+## Macros
+
+Pure template expansion — no state, no methods. Calls inside a macro
+resolve against the *host* component.
+
+```js
+import { macro, html } from "tutuca";
+
+const badge = macro(
+  { label: "'New'", kind: "'info'" },     // defaults are *expressions*
+  html`<span :class="badge badge-{^kind}" @text="^label"></span>`,
+);
+
+export function getMacros() {
+  return { badge };
+}
+```
+
+```html
+<x:badge></x:badge>                       <!-- defaults -->
+<x:badge label="Sale"></x:badge>          <!-- static string (no quotes needed) -->
+<x:badge :label="'Sale'"></x:badge>       <!-- dynamic literal -->
+<x:badge :label=".status"></x:badge>      <!-- field reference -->
+```
+
+Register macros at the same scope as components:
+
+```js
+const scope = app.registerComponents([Comp]);
+scope.registerMacros(getMacros());
+```
+
+Registry keys are lowercased on insert because the HTML parser already
+lowercases `<x:Tag>` to `<x:tag>`. `{ Card }` and `{ card }` both register
+under `card`; registering two *different* macros under the same lowercased
+name warns via `console.assert`.
+
+### Slots
+
+```js
+const card = macro(
+  { title: "'Card'" },
+  html`<div class="card">
+    <h2 @text="^title"></h2>
+    <x:slot></x:slot>
+  </div>`,
+);
+```
+
+```html
+<x:card title="Hi"><p>body</p></x:card>   <!-- default slot -->
+```
+
+### Named Slots
+
+```js
+const panel = macro(
+  {},
+  html`<div>
+    <header><x:slot name="actions"></x:slot></header>
+    <main><x:slot></x:slot></main>                      <!-- default == name="_" -->
+    <footer><x:slot name="footer"></x:slot></footer>
+  </div>`,
+);
+```
+
+```html
+<x:panel>
+  <x slot="actions"><button @on.click=".inc">+</button></x>
+  <p>default slot content</p>
+  <x slot="footer">© 2026</x>
+</x:panel>
+```
+
+## Raw HTML (escape hatch)
+
+```html
+<div @dangerouslysetinnerhtml=".trustedHtml"></div>
+```
+
+Bypasses all escaping; children of the element are ignored when active.
+
+## Immutable Re-exports
+
+`tutuca` re-exports **everything** from
+[`immutable`](https://immutable-js.com/) (`List`, `OrderedMap`, `Record`,
+`Seq`, `is`, `fromJS`, ...), plus short aliases to avoid clashes with
+the host runtime's `Map` / `Set`:
+
+```js
+import {
+  IMap, OMap, ISet,         // aliases for Map, OrderedMap, Set
+  isIMap, isOMap,           // aliases for isMap, isOrderedMap
+  List, Record, Seq, fromJS, is,    // ...everything else immutable exports
+} from "tutuca";
+```
+
+## Conventional Module Exports
+
+Examples and the storybook glue follow this shape so files compose freely
+and the `tutuca` CLI can introspect any module without per-app glue:
+
+```js
+export function getComponents()       { return [Comp, ...]; }
+export function getMacros()           { return { name: macro }; }      // optional
+export function getRequestHandlers()  { return { name: async fn }; }    // optional
+export function getRoot()             { return Root.make({...}); }
+export function getExamples()         {
+  // Return one section, or an array of sections.
+  return {
+    title: "...",
+    description: "...",
+    items: [{ title, description, value, view }],         // value = Comp.make(...)
+  };
+}
+```

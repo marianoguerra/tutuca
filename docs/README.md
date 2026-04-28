@@ -10,7 +10,7 @@
 
 # Resources
 
-- [Live, Rich, and Composable: Qualities for Live, Rich, and Composable: Qualities for Programming Beyond Static TextProgramming Beyond Static Text](arxiv.org/pdf/2303.06777)
+- [Live, Rich, and Composable: Qualities for Programming Beyond Static Text](https://arxiv.org/pdf/2303.06777)
 - [Definitions and Dimensions of Liveness](https://joshuahhh.com/liveness-paper-live-2024/)
 
 # Demos

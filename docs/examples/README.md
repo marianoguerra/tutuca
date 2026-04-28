@@ -7,7 +7,8 @@ Every example follows the same conventional shape (`getComponents`,
 `getRoot`, optional `getMacros` / `getRequestHandlers` / `getExamples`) so
 the playground, the storybook, and the `tutuca` CLI can all consume them
 without per-file glue. See the "Conventional Module Exports" section in
-`docs/llm.txt` for the contract.
+`docs/llm/core.txt` for the contract (with `docs/llm/advanced.txt` for
+drag&drop, dynamic bindings, etc., and `docs/llm/cli.txt` for the CLI).
 
 ## Categories
 
