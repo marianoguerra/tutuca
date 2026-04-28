@@ -8,6 +8,7 @@ import {
   COMPUTED_NOT_REFERENCED,
   COMPUTED_VAL_NOT_DEFINED,
   checkComponent,
+  DUPLICATE_ATTR_DEFINITION,
   FIELD_VAL_NOT_DEFINED,
   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
   INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
@@ -250,7 +251,9 @@ test("warn on undefined computed attr", () => {
 test("warn on undefined computed in @if.class condition", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    view: html`<div @if.class="$myComputed" @then="'active'" @else="'inactive'">hi</div>`,
+    view: html`<div @if.class="$myComputed" @then="'active'" @else="'inactive'">
+      hi
+    </div>`,
   });
   expect(lx.reports.length).toBe(1);
   const { id, info } = lx.reports[0];
@@ -267,6 +270,52 @@ test("warn on undefined computed in @dangerouslysetinnerhtml", () => {
   const { id, info } = lx.reports[0];
   expect(id).toBe(COMPUTED_VAL_NOT_DEFINED);
   expect(info.name).toBe("myComputed");
+});
+
+test("warn when attribute set by both literal and :attr (class)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { kind: "" },
+    view: html`<div class="foo" :class=".kind">hi</div>`,
+  });
+  const dupes = lx.reports.filter((r) => r.id === DUPLICATE_ATTR_DEFINITION);
+  expect(dupes.length).toBe(1);
+  expect(dupes[0].info.name).toBe("class");
+});
+
+test("warn when attribute set by both literal and @if.X", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isOpen: false },
+    view: html`<div class="foo" @if.class=".isOpen" @then="'bar'">hi</div>`,
+  });
+  const dupes = lx.reports.filter((r) => r.id === DUPLICATE_ATTR_DEFINITION);
+  expect(dupes.length).toBe(1);
+  expect(dupes[0].info.name).toBe("class");
+});
+
+test("warn when attribute set by both :attr and @if.X", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { kind: "", isOpen: false },
+    view: html`<div :class=".kind" @if.class=".isOpen" @then="'bar'">hi</div>`,
+  });
+  const dupes = lx.reports.filter((r) => r.id === DUPLICATE_ATTR_DEFINITION);
+  expect(dupes.length).toBe(1);
+  expect(dupes[0].info.name).toBe("class");
+});
+
+test("warn on triple definition: literal + :attr + @if.X", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { kind: "", isOpen: false },
+    view: html`<div class="x" :class=".kind" @if.class=".isOpen" @then="'bar'">
+      hi
+    </div>`,
+  });
+  const dupes = lx.reports.filter((r) => r.id === DUPLICATE_ATTR_DEFINITION);
+  expect(dupes.length).toBe(2);
+  expect(dupes.every((r) => r.info.name === "class")).toBe(true);
 });
 
 test("warn on undefined seq and key", () => {
@@ -525,7 +574,12 @@ test("lint-errors example catches all error types", () => {
 
       <div @enrich-with="myEnrich">undefined alter handler</div>
 
-      <ul @each=".items" @when="myWhen" @enrich-with="myLoopEnrich" @loop-with="myLoopWith">
+      <ul
+        @each=".items"
+        @when="myWhen"
+        @enrich-with="myLoopEnrich"
+        @loop-with="myLoopWith"
+      >
         <li><x render-it></x></li>
       </ul>
 
@@ -628,7 +682,12 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
       <div @enrich-with="myEnrich">undefined alter handler</div>
 
-      <ul @each=".items" @when="myWhen" @enrich-with="myLoopEnrich" @loop-with="myLoopWith">
+      <ul
+        @each=".items"
+        @when="myWhen"
+        @enrich-with="myLoopEnrich"
+        @loop-with="myLoopWith"
+      >
         <li><x render-it></x></li>
       </ul>
 

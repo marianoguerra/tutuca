@@ -13,6 +13,7 @@ export const INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER = "INPUT_HANDLER_METHOD_FOR_
 export const FIELD_VAL_NOT_DEFINED = "FIELD_VAL_NOT_DEFINED";
 export const COMPUTED_VAL_NOT_DEFINED = "COMPUTED_VAL_NOT_DEFINED";
 export const COMPUTED_NOT_REFERENCED = "COMPUTED_NOT_REFERENCED";
+export const DUPLICATE_ATTR_DEFINITION = "DUPLICATE_ATTR_DEFINITION";
 export const UNKNOWN_REQUEST_NAME = "UNKNOWN_REQUEST_NAME";
 export const UNKNOWN_COMPONENT_NAME = "UNKNOWN_COMPONENT_NAME";
 export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
@@ -313,7 +314,16 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
         const { attrs, wrapperAttrs, textChild, isMacroCall } = attr;
 
         if (attrs?.constructor.name === "DynAttrs") {
+          const seenNames = new Set();
           for (const attr of attrs.items) {
+            const name = attr?.name;
+            if (name !== undefined && name !== "data-eid") {
+              if (seenNames.has(name)) {
+                lx.error(DUPLICATE_ATTR_DEFINITION, { name });
+              } else {
+                seenNames.add(name);
+              }
+            }
             if (attr?.constructor.name === "IfAttr") {
               for (const subVal of [attr.condVal, attr.thenVal, attr.elseVal]) {
                 checkConsistentAttrVal(
