@@ -41,17 +41,36 @@ const ItemSelect = component({
   </select>`,
 });
 
+const PseudoXDemo = component({
+  name: "PseudoXDemo",
+  fields: { table: null, select: null },
+  view: html`<div>
+    <x render=".table"></x>
+    <x render=".select"></x>
+  </div>`,
+});
+
 export function getComponents() {
-  return [ItemTable, TableRow, ItemSelect, SelectOption];
+  return [PseudoXDemo, ItemTable, TableRow, ItemSelect, SelectOption];
 }
 
 export function getRoot() {
-  return ItemTable.make({
-    rows: [
-      TableRow.make({ name: "Apple", qty: 3, price: 1.5 }),
-      TableRow.make({ name: "Bread", qty: 1, price: 2.25 }),
-      TableRow.make({ name: "Cheese", qty: 2, price: 4.0 }),
-    ],
+  return PseudoXDemo.make({
+    table: ItemTable.make({
+      rows: [
+        TableRow.make({ name: "Apple", qty: 3, price: 1.5 }),
+        TableRow.make({ name: "Bread", qty: 1, price: 2.25 }),
+        TableRow.make({ name: "Cheese", qty: 2, price: 4.0 }),
+      ],
+    }),
+    select: ItemSelect.make({
+      current: "b",
+      options: [
+        SelectOption.make({ value: "a", label: "Alpha" }),
+        SelectOption.make({ value: "b", label: "Beta" }),
+        SelectOption.make({ value: "c", label: "Gamma" }),
+      ],
+    }),
   });
 }
 
