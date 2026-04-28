@@ -109,6 +109,9 @@ const LintDemo = component({
       duplicate class
     </div>
 
+    <!-- IF_NO_BRANCH_SET: @if.class without @then or @else -->
+    <div @if.class=".isOpen">if without then or else</div>
+
     <p @text=".count">0</p>
   </div>`,
 });

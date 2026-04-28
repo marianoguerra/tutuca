@@ -9,6 +9,7 @@ import {
   COMPUTED_VAL_NOT_DEFINED,
   checkComponent,
   DUPLICATE_ATTR_DEFINITION,
+  IF_NO_BRANCH_SET,
   FIELD_VAL_NOT_DEFINED,
   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
   INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
@@ -321,6 +322,37 @@ test("warn on triple definition: literal + :attr + @if.X", () => {
   const dupes = lx.reports.filter((r) => r.id === DUPLICATE_ATTR_DEFINITION);
   expect(dupes.length).toBe(2);
   expect(dupes.every((r) => r.info.name === "class")).toBe(true);
+});
+
+test("warn on @if.X with no @then or @else branch", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isEnabled: false },
+    view: html`<div @if.class=".isEnabled">hi</div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === IF_NO_BRANCH_SET);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.attr).toBe("class");
+});
+
+test("no IF_NO_BRANCH_SET when @then is set", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isEnabled: false },
+    view: html`<div @if.class=".isEnabled" @then="'on'">hi</div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === IF_NO_BRANCH_SET);
+  expect(matched.length).toBe(0);
+});
+
+test("no IF_NO_BRANCH_SET when @else is set", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isEnabled: false },
+    view: html`<div @if.class=".isEnabled" @else="'off'">hi</div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === IF_NO_BRANCH_SET);
+  expect(matched.length).toBe(0);
 });
 
 test("warn on undefined seq and key", () => {

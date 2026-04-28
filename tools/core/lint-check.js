@@ -14,6 +14,7 @@ export const FIELD_VAL_NOT_DEFINED = "FIELD_VAL_NOT_DEFINED";
 export const COMPUTED_VAL_NOT_DEFINED = "COMPUTED_VAL_NOT_DEFINED";
 export const COMPUTED_NOT_REFERENCED = "COMPUTED_NOT_REFERENCED";
 export const DUPLICATE_ATTR_DEFINITION = "DUPLICATE_ATTR_DEFINITION";
+export const IF_NO_BRANCH_SET = "IF_NO_BRANCH_SET";
 export const UNKNOWN_REQUEST_NAME = "UNKNOWN_REQUEST_NAME";
 export const UNKNOWN_COMPONENT_NAME = "UNKNOWN_COMPONENT_NAME";
 export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
@@ -371,6 +372,9 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedComputed) {
               }
             }
             if (attr?.constructor.name === "IfAttr") {
+              if (!attr.anyBranchIsSet) {
+                lx.error(IF_NO_BRANCH_SET, { attr: attr.name });
+              }
               for (const subVal of [attr.condVal, attr.thenVal, attr.elseVal]) {
                 checkConsistentAttrVal(
                   lx,
