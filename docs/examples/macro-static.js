@@ -11,6 +11,8 @@ const StaticMacro = component({
   </div>`,
 });
 
+// Registry keys are lowercased on insert (HTML lowercases <x:Tag>),
+// so a capitalized const like `{ Badge }` would also register as `badge`.
 export function getMacros() {
   return { badge };
 }

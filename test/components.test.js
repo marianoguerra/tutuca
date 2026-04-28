@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { component } from "../index.js";
+import { component, html, macro } from "../index.js";
 import { ComponentStack, Components, Dynamic, DynamicAlias } from "../src/components.js";
 import { Stack } from "../src/stack.js";
 import { HeadlessParseContext as ParseContext } from "./dom.js";
@@ -150,6 +150,33 @@ describe("Components", () => {
     } finally {
       assertSpy.mockRestore();
     }
+  });
+
+  test("registerMacros lowercases keys so capitalized const names work", () => {
+    const Card = macro({}, html`<div class="card"></div>`);
+    const stack = new ComponentStack();
+    stack.registerMacros({ Card });
+    expect(stack.lookupMacro("card")).toBe(Card);
+    expect(stack.lookupMacro("Card")).toBeNull();
+  });
+
+  test("registerMacros warns via console.assert on case-collision", () => {
+    const a = macro({}, html`<span></span>`);
+    const b = macro({}, html`<em></em>`);
+    const stack = new ComponentStack();
+    stack.registerMacros({ Card: a });
+    const assertSpy = spyOn(console, "assert").mockImplementation(() => {});
+    try {
+      stack.registerMacros({ card: b });
+      const collisionCall = assertSpy.mock.calls.find(
+        (args) => args[0] === false && args[1] === "macro key collision",
+      );
+      expect(collisionCall).toBeDefined();
+      expect(collisionCall[2]).toBe("card");
+    } finally {
+      assertSpy.mockRestore();
+    }
+    expect(stack.lookupMacro("card")).toBe(b);
   });
 
   test("registerComponents alias to inexistent component triggers console.warn", () => {

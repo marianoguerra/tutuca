@@ -824,6 +824,15 @@
           state or lifecycle &mdash; they are pure template expansion, making
           them ideal for repeated markup patterns.
         </p>
+        <p>
+          The HTML parser lowercases custom tag names, so
+          <code>&lt;x:Card&gt;</code> is read as <code>&lt;x:card&gt;</code>.
+          Registry keys are normalized to lowercase on
+          <code>registerMacros</code>, so a capitalized const like
+          <code>{ Card }</code> works fine &mdash; it registers under
+          <code>card</code>. Registering two different macros under the same
+          lowercased name warns via <code>console.assert</code>.
+        </p>
         <tutuca-playground src="./examples/macro-static.js"></tutuca-playground>
 
         <h3 id="macros-parameters">

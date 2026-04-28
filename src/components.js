@@ -69,7 +69,11 @@ export class ComponentStack {
     }
   }
   registerMacros(macros) {
-    Object.assign(this.macros, macros);
+    for (const key in macros) {
+      const lower = key.toLowerCase();
+      console.assert(this.macros[lower] === undefined, "macro key collision", lower);
+      this.macros[lower] = macros[key];
+    }
   }
   getCompFor(v) {
     return this.comps.getCompFor(v);
