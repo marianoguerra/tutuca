@@ -429,6 +429,22 @@ test("no unreferenced computed hint when referenced", () => {
   expect(lx.reports.length).toBe(0);
 });
 
+test("no unreferenced computed hint when referenced via <x text=$computed>", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    computed: {
+      totalItemsChars() {
+        return 0;
+      },
+    },
+    view: html`<div><x text="$totalItemsChars"></x></div>`,
+  });
+  const unref = lx.reports.filter(
+    (r) => r.id === COMPUTED_NOT_REFERENCED && r.info.name === "totalItemsChars",
+  );
+  expect(unref.length).toBe(0);
+});
+
 test("hint on input handler defined but not referenced", () => {
   const [lx] = defAndCheck({
     name: "Comp",

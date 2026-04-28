@@ -677,9 +677,10 @@ describe("ANode", () => {
     test("x text", () => {
       const [r, px] = parse("<x text=@title></x>");
       expect(r).toBeInstanceOf(RenderTextNode);
-      expect(r.nodeId).toBe(null);
+      expect(r.nodeId).toBe(0);
       expect(r.val.name).toBe("title");
-      expect(px.nodes.length).toBe(0);
+      expect(px.nodes.length).toBe(1);
+      expect(px.nodes[0]).toBe(r);
     });
 
     test("x render", () => {
@@ -835,7 +836,7 @@ describe("ANode", () => {
       const n = rx.renderIt(stack, 10).childs[1];
       expect(toData(n)).toEqual([
         "div",
-        { "data-cid": String(User.id), "data-nid": "0", "data-vid": "main" },
+        { "data-cid": String(User.id), "data-nid": "1", "data-vid": "main" },
         ["BOB"],
       ]);
     });
@@ -858,7 +859,7 @@ describe("ANode", () => {
       const n = rx.renderIt(stack, 10).childs[1];
       expect(toData(n)).toEqual([
         "div",
-        { "data-cid": String(User.id), "data-nid": "0", "data-vid": "main" },
+        { "data-cid": String(User.id), "data-nid": "1", "data-vid": "main" },
         ["BOB"],
       ]);
     });

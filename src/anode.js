@@ -137,10 +137,8 @@ export class ANode extends BaseNode {
       switch (name) {
         case "slot":
           return new SlotNode(null, vp.const(value), maybeFragment(childs));
-        case "text": {
-          const v = vp.parseText(value, px);
-          return v !== null ? new RenderTextNode(null, v) : null;
-        }
+        case "text":
+          return px.addNodeIf(RenderTextNode, vp.parseText(value, px));
         case "render":
           return px.addNodeIf(RenderNode, vp.parseRender(value, px), as);
         case "render-it":
