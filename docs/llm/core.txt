@@ -196,6 +196,33 @@ fields: {
 }
 ```
 
+## Methods as Predicates & Computed Values
+
+A method called via field syntax (`.name`, no args) is invoked and its
+return value is used. Works anywhere a value is read — `@text`, `:attr`,
+`@show` / `@hide`, `@if.<attr>`, and `{…}` interpolation.
+
+```js
+methods: {
+  canSubmit()   { return this.title.length > 0 && !this.isLoading; },
+  buttonClass() { return this.isActive ? "btn btn-primary" : "btn"; },
+  fullName()    { return `${this.first} ${this.last}`; },
+}
+```
+
+```html
+<button @show=".canSubmit" :class=".buttonClass">Save</button>
+<p :title="Hello, {.fullName}" @text=".fullName"></p>
+```
+
+Auto-generated `isXTruthy` / `isXEmpty` / `isXNull` cover single-field
+checks; reach for a method when the predicate spans multiple fields or
+needs derivation. The method takes no args.
+
+Exceptions: `@each` / `render-each` accept `.field` or `*dynamic` only
+(not a method call), and `<x render>` expects a component instance — for
+a derived list, store it in a field or use `@when` with `alter`.
+
 ## Statics
 
 `statics: {...}` adds methods to the component **class**, not instances.

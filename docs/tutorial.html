@@ -402,6 +402,19 @@
           for boolean fields.
         </p>
         <p>
+          The value passed to <code>@show</code>, <code>@hide</code>, and
+          <code>@if</code> can also be a method call &mdash;
+          <code>@show=".canSubmit"</code> invokes
+          <code>methods.canSubmit</code> with no arguments and uses its
+          return value. Reach for this when a predicate combines multiple
+          fields (the auto-generated <code>isXTruthy</code> /
+          <code>isXEmpty</code> / <code>isXNull</code> only cover
+          single-field checks). The same pattern works wherever a value is
+          read &mdash; <code>@text=".fullName"</code>,
+          <code>:title=".tooltip"</code>,
+          <code>:class="badge {.kindClass}"</code>.
+        </p>
+        <p>
           <code>show</code> and <code>hide</code> can also appear as extra
           attributes on the <code>&lt;x&gt;</code> render ops
           (<code>text</code>, <code>render</code>, <code>render-it</code>,
