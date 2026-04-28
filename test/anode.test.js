@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { html, macro } from "../index.js";
 import {
+  CommentNode,
   DomNode,
   EachNode,
   FragmentNode,
@@ -22,8 +23,8 @@ import { isTextNode, isTextNodeWithText, mpx, parse } from "./dom.js";
 
 test("parse empty string", () => {
   const [r] = parse("");
-  expect(isTextNode(r)).toBe(true);
-  expect(isTextNodeWithText(r, "")).toBe(true);
+  expect(r).toBeInstanceOf(CommentNode);
+  expect(r.val).toBe("Empty View in ANode.parse");
 });
 
 test("parse non empty string", () => {

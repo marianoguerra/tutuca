@@ -114,14 +114,16 @@ export class ANode extends BaseNode {
   }
   static parse(html, px) {
     const nodes = px.parseHTML(html);
-    if (nodes.length === 0) return new TextNode("");
+    if (nodes.length === 0) return new CommentNode("Empty View in ANode.parse");
     if (nodes.length === 1) return ANode.fromDOM(nodes[0], px);
-    const childs = new Array(nodes.length);
-    for (let i = 0; i < nodes.length; i++) childs[i] = ANode.fromDOM(nodes[i], px);
+    const childs = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const child = ANode.fromDOM(nodes[i], px);
+      if (child !== null) childs.push(child);
+    }
     const trimmed = condenseChildsWhites(childs);
-    if (trimmed.length === 0) return new TextNode("");
-    if (trimmed.length === 1) return trimmed[0];
-    return new FragmentNode(trimmed);
+    if (trimmed.length === 0) return new CommentNode("Empty View in ANode.parse");
+    return maybeFragment(trimmed);
   }
   static fromDOM(node, px) {
     if (node instanceof px.Text) return new TextNode(node.textContent);

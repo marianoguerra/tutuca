@@ -72,8 +72,8 @@ describe("ANode", () => {
   describe("ANode.parse", () => {
     test("parse empty string", () => {
       const [r] = parse("");
-      expect(isTextNode(r)).toBeTruthy();
-      expect(isTextNodeWithText(r, "")).toBeTruthy();
+      expect(r).toBeInstanceOf(CommentNode);
+      expect(r.val).toBe("Empty View in ANode.parse");
     });
 
     test("parse non empty string", () => {
@@ -227,7 +227,7 @@ describe("ANode", () => {
   describe("ANode.render", () => {
     test("render empty string", () => {
       const [d] = render("");
-      expect(d).toBe("");
+      expect(d).toEqual({ comment: "Empty View in ANode.parse" });
     });
 
     test("render string", () => {
