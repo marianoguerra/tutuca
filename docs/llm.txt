@@ -10,7 +10,7 @@
 - **State plumbing** — [Bubble Events](#bubble-events), [Logic / Lifecycle](#logic--lifecycle), [Async Requests](#async-requests), [Drag and Drop](#drag-and-drop)
 - **Reuse** — [Macros](#macros), [Raw HTML](#raw-html-escape-hatch)
 - **Stdlib** — [Immutable Re-exports](#immutable-re-exports), [Tailwind / MargaUI Class Compilation](#tailwind--margaui-class-compilation-extra-build), [KList](#klist-extra-build)
-- **Tooling** — [Conventional Module Exports](#conventional-module-exports), [CLI](#cli-tutuca)
+- **Tooling** — [Conventional Module Exports](#conventional-module-exports), [CLI](#cli-tutuca), [Linter Rules](#linter-rules)
 - **Advanced** — [Dynamic Bindings](#dynamic-bindings), [Pseudo-`x`](#pseudo-x-x)
 
 ## Bootstrap
@@ -141,6 +141,10 @@ component({
 
 `Comp.make({...})` builds an instance. Coercion is automatic: arrays become
 `List`, plain objects become `IMap`, native `Set` becomes `ISet` from immutablejs.
+**Coercion does not recurse** — items inside a list/map field are stored as-is.
+`setItems([{a:1}, {a:2}])`` gives you `List<plainObject>``; access with `item.a`, not `item.get("a")`.
+If you want deep coercion, run inputs through immutable's `fromJS` first,
+or wrap each item in `Comp.make({...})`.
 
 ## Field Types & Auto-generated API
 
@@ -148,14 +152,15 @@ component({
 
 | Default              | Field type | Auto-generated methods (for field `x`)                                                                                             |
 | -------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `"hi"`               | text       | `setX`, `updateX`, `resetX`, `isXSet`, `isXNotSet`, `isXEmpty`, `xLen`                                                             |
-| `42`                 | float      | `setX`, `updateX`, `resetX`, `isXSet`, `isXNotSet`                                                                                 |
-| `true`               | bool       | `setX`, `toggleX`, `updateX`, `resetX`, `isXSet`, `isXNotSet`                                                                      |
-| `null`               | any        | `setX`, `updateX`, `resetX`, `isXSet`, `isXNotSet`                                                                                 |
-| `[]`/`List()`        | list       | `setX`, `pushInX`, `insertInXAt`, `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`/`removeInXAt`, `isXEmpty`, `xLen`, `resetX` |
-| `{}`/`IMap()`        | map        | `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`, `isXEmpty`, `xLen`, `resetX`                                                 |
+| `"hi"`               | text       | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`, `isXEmpty`, `xLen`                                                           |
+| `42`                 | float      | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`                                                                               |
+| (`{type:"int"}`)     | int        | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy` (no default-value form — declare explicitly via `classFromData`)              |
+| `true`               | bool       | `setX`, `toggleX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`                                                                    |
+| `null`               | any        | `setX`, `updateX`, `resetX`, `isXNull`, `isXTruthy`, `isXFalsy`                                                                    |
+| `[]`/`List()`        | list       | `setX`, `pushInX`, `insertInXAt`, `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`/`removeInXAt`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `xLen`, `resetX` |
+| `{}`/`IMap()`        | map        | `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `xLen`, `resetX`                        |
 | `OMap()`             | omap       | same as map (preserves insertion order)                                                                                            |
-| `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `isXEmpty`, `resetX`                                                         |
+| `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `resetX`                                |
 | `KList`              | KList      | (extra build) `pushInX`, `setInXAt`, `getInXAt`, `deleteInXAt`, `moveKeyBeforeKey`/`AfterKey`                                      |
 
 Explicit field types via `classFromData`:
@@ -242,6 +247,16 @@ Built-in handler arg names: `value`, `valueAsInt`, `valueAsFloat`, `target`,
 `event`, `isAlt`, `isShift`, `isCtrl`/`isCmd`, `key`, `keyCode`, `isUpKey`,
 `isDownKey`, `isSend`, `isCancel`, `isTabKey`, `ctx`, `dragInfo`.
 
+The content of `value` depends on the event source:
+
+| Source                      | What `value` resolves to                         |
+|-----------------------------|--------------------------------------------------|
+| `<input type="checkbox">`   | `event.target.checked` (boolean)                 |
+| `CustomEvent`               | `event.detail`                                   |
+| anything else               | `event.target.value` (string), or null if absent |
+
+For numeric inputs, prefer valueAsInt / valueAsFloat to skip the string parse.
+
 ### Event Modifiers
 
 `@on.<event>+<mod>+<mod>=...`
@@ -300,6 +315,8 @@ view: html`
 > way to recover which `@if` it was meant to pair with.
 
 ## List Iteration
+
+`@each` accepts the following types: `.field`, `$computed`, `*dynamic`.
 
 ```html
 <!-- iterate plain values -->
@@ -386,6 +403,8 @@ alter: { enrichScope() { return { len: this.text.length }; } }
 ```
 
 ## Computed Properties
+
+Computed properties are only available in views, they are not available as methods.
 
 ```js
 computed: {
@@ -568,7 +587,7 @@ In a component:
 
 ```js
 logic:    { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } },
-response: { loadData(res, err) { return this.setIsLoading(false).setItems(res); } },
+response: { loadData(res, err, ctx) { return this.setIsLoading(false).setItems(res); } },
 methods:  {
   loadAlt(ctx) {
     ctx.request("loadData", [], { onOkName: "loadDataOk", onErrorName: "loadDataErr" });
@@ -576,6 +595,8 @@ methods:  {
   },
 }
 ```
+
+Note: The `ctx` arg is the last argument of every response, bubble and logic handler.
 
 ## Drag and Drop
 
@@ -856,6 +877,28 @@ tutuca ./src/components.js render -f html --pretty -o out/examples.html
 tutuca ./src/components.js render Button --title "Disabled state"
 tutuca ./src/components.js doctor                     # CI smoke test
 ```
+
+### Linter Rules
+
+The codes `lint` / `doctor` emit. Source: `tools/core/lint-check.js`.
+
+- `FIELD_VAL_NOT_DEFINED` — `.field` not declared in `fields`.
+- `COMPUTED_VAL_NOT_DEFINED` — `$name` not in `computed`.
+- `COMPUTED_NOT_REFERENCED` — `computed` entry never used in any view.
+- `INPUT_HANDLER_NOT_IMPLEMENTED` — bare handler name not in `input`.
+- `INPUT_HANDLER_NOT_REFERENCED` — `input` entry never used.
+- `INPUT_HANDLER_METHOD_NOT_IMPLEMENTED` — `.handler` not in `methods`.
+- `INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD` — bare name resolves to `methods` (use `.name`).
+- `INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER` — `.name` resolves to `input` (drop the dot).
+- `ALT_HANDLER_NOT_DEFINED` — `@when` / `@enrich-with` / `@loop-with` name not in `alter`.
+- `ALT_HANDLER_NOT_REFERENCED` — `alter` entry never used.
+- `RENDER_IT_OUTSIDE_OF_LOOP` — `<x render-it>` outside `@each` / `render-each`.
+- `UNKNOWN_EVENT_MODIFIER` — `+mod` not in the recognized modifier set.
+- `UNKNOWN_HANDLER_ARG_NAME` — handler arg name not a built-in / declared component.
+- `UNKNOWN_REQUEST_NAME` — `!name` not registered.
+- `UNKNOWN_COMPONENT_NAME` — component type not registered.
+- `UNKNOWN_MACRO_ARG` — macro attr not declared in defaults.
+- `DUPLICATE_ATTR_DEFINITION` — same attr set by literal + `:attr` + `@if.attr` on one element.
 
 ## Advanced
 

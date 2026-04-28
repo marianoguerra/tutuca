@@ -1,5 +1,5 @@
 import { component, css, html } from "tutuca";
-import { ITEMS } from "./shared.js";
+import { ITEMS } from "./_shared-data.js";
 
 function moveKeyIndexToIndex(list, source, target, offset = 0) {
   if (source === -1 || target === -1 || source === target) {

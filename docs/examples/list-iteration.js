@@ -1,5 +1,5 @@
 import { component, html } from "tutuca";
-import { ITEMS } from "./shared.js";
+import { ITEMS } from "./_shared-data.js";
 
 export const ListIteration = component({
   name: "ListIteration",

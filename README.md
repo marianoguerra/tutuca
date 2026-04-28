@@ -11,6 +11,9 @@ Zero-dependency batteries included SPA framework.
 
 ## Quick Start
 
+For an interactive walk-through with editable examples, see the
+[tutorial](https://marianoguerra.github.io/tutuca/tutorial.html).
+
 ### CDN (no install)
 
 ```html

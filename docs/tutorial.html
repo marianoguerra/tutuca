@@ -106,6 +106,14 @@
             <code>$name</code> &mdash; computed property (e.g.
             <code>$totalItemsChars</code>)
           </li>
+          <li>
+            <code>!name</code> &mdash; request handler (e.g.
+            <code>!loadData</code>)
+          </li>
+          <li>
+            <code>*name</code> &mdash; dynamic binding (e.g.
+            <code>*theme</code>, <code>*entries</code>)
+          </li>
         </ul>
       </section>
 
@@ -128,6 +136,11 @@
             <a href="#data-binding">Data Binding</a>
             <ol>
               <li><a href="#attribute-binding">Attribute Binding</a></li>
+              <li>
+                <a href="#quoting-string-literals"
+                  >Quoting &amp; String Literals</a
+                >
+              </li>
               <li><a href="#event-handling">Event Handling</a></li>
               <li><a href="#event-modifiers">Event Modifiers</a></li>
               <li>
@@ -164,6 +177,8 @@
               <li>
                 <a href="#recursive-components">Recursive Components</a>
               </li>
+              <li><a href="#bubble-events">Bubble Events</a></li>
+              <li><a href="#statics">Statics</a></li>
             </ol>
           </li>
           <li>
@@ -171,6 +186,8 @@
             <ol>
               <li><a href="#async-requests">Async Requests</a></li>
               <li><a href="#drag-and-drop">Drag and Drop</a></li>
+              <li><a href="#web-components">Web Components</a></li>
+              <li><a href="#dynamic-bindings">Dynamic Bindings</a></li>
             </ol>
           </li>
           <li>
@@ -190,6 +207,7 @@
             <a href="#escape-hatches">Escape Hatches</a>
             <ol>
               <li><a href="#raw-html">Raw HTML</a></li>
+              <li><a href="#pseudo-x">Pseudo-x (@x)</a></li>
             </ol>
           </li>
           <li>
@@ -280,6 +298,52 @@
           src="./examples/attribute-binding.js"
         ></tutuca-playground>
 
+        <h3 id="quoting-string-literals">
+          <a href="#quoting-string-literals"
+            >Quoting &amp; String Literals</a
+          >
+        </h3>
+        <p>
+          Tutuca's expression parser is context-sensitive, and the rules
+          for static strings differ from the ones for dynamic expressions.
+          This is the most-tripped-over piece of the syntax, so it is worth
+          understanding once.
+        </p>
+        <ul>
+          <li>
+            <code>'string'</code> &mdash; single-quoted string literal.
+            Works anywhere a value is allowed (<code>@then="'btn ok'"</code>,
+            <code>:label="'Sale'"</code>).
+          </li>
+          <li>
+            Bare with interpolation: <code>:class="btn {.kind}"</code>
+            &mdash; works in <code>:attr=</code>, <code>@text</code>,
+            macro dynamic attrs, anywhere a string template is allowed.
+            The presence of <code>{...}</code> turns the whole value into
+            a template.
+          </li>
+          <li>
+            Bare without quotes or braces:
+            <code>:class="flex gap-3"</code> &mdash; <strong>does not
+            work</strong>, the parser returns <code>null</code>. Either
+            single-quote it or add a <code>{...}</code> piece.
+          </li>
+          <li>
+            Bare identifier: <code>dec</code>, <code>value</code> &mdash;
+            valid only in name slots (event handler name, handler arg
+            name), never as a value.
+          </li>
+        </ul>
+        <p>
+          Plain HTML attributes are static strings as written
+          (<code>class="card"</code>). Macro parameters passed without
+          <code>:</code> are static strings too (<code>label="Sale"</code>).
+          The quoting rules only apply when the prefix
+          <code>:</code> turns the value into an expression, or inside
+          <code>@if</code> / <code>@then</code> / <code>@else</code> /
+          <code>@text</code> / event handler args.
+        </p>
+
         <h3 id="event-handling">
           <a href="#event-handling">Event Handling</a>
         </h3>
@@ -296,7 +360,7 @@
           methods if you want.
         </p>
         <tutuca-playground
-          src="./examples/tutorial-counter.js"
+          src="./examples/counter.js"
         ></tutuca-playground>
 
         <h3 id="event-modifiers">
@@ -311,11 +375,13 @@
           <code>+ctrl+send</code>).
         </p>
         <p>
-          Also shown here: <code>@show=".isLastSentSearchSet"</code>
+          Also shown here: <code>@show=".isLastSentSearchTruthy"</code>
           conditionally displays the search result.
-          <code>isLastSentSearchSet</code> is auto-generated for nullable fields
-          (those initialized with <code>null</code>), returning
-          <code>true</code> when the field has a non-null value.
+          <code>isLastSentSearchTruthy</code> is auto-generated for primitive
+          and nullable fields, returning <code>true</code> when the field's
+          value is JS-truthy. Nullable fields (those initialized with
+          <code>null</code>) also get <code>isLastSentSearchNull</code> for
+          when you specifically need a null check.
           <code>@show</code> and <code>@hide</code> are covered in more detail
           in <a href="#conditional-attributes">Conditional Attributes</a>.
         </p>
@@ -552,21 +618,64 @@
         </h3>
         <p>
           <code>TreeItem</code> renders its children with
-          <code>&lt;x render-each=".items"&gt;</code>, creating a recursive
-          tree. <code>statics.fromData</code> is a factory method on the
-          component class that recursively builds the tree from plain objects.
-        </p>
-        <p>
-          When a node is clicked,
-          <code>ctx.bubble("treeItemSelected", [this])</code> sends an event up
-          the component tree &mdash; each ancestor's
-          <code>bubble.treeItemSelected</code> handler can react to it (or not).
-          The root <code>TreeRoot</code> catches the event and logs the
-          selection. Component <code>style</code> uses CSS pseudo-elements
-          (<code>:before</code>) to display folder/file icons based on class
-          names set with <code>@if.class</code>.
+          <code>&lt;x render-each=".items"&gt;</code>, where
+          <code>.items</code> is a list of more <code>TreeItem</code>
+          instances &mdash; the component renders itself, recursively. Each
+          render creates a new VDOM subtree for that branch and tutuca
+          stops descending when an item has an empty
+          <code>items</code> list. The component <code>style</code> uses
+          CSS pseudo-elements (<code>:before</code>) to show folder / file
+          icons based on class names set with <code>@if.class</code>.
         </p>
         <tutuca-playground src="./examples/tree.js"></tutuca-playground>
+
+        <h3 id="bubble-events">
+          <a href="#bubble-events">Bubble Events</a>
+        </h3>
+        <p>
+          The same <code>tree.js</code> example also demonstrates
+          <code>ctx.bubble</code>. When a node is clicked,
+          <code>onItemClick</code> calls
+          <code>ctx.bubble("treeItemSelected", [this])</code>. Tutuca walks
+          the component path from the source up toward the root and, at
+          each ancestor, looks for a matching
+          <code>bubble.treeItemSelected</code> handler. Ancestors without a
+          handler are skipped silently; in the tree example the
+          <code>TreeRoot</code> at the top of the chain catches the event
+          and prepends a log entry.
+        </p>
+        <p>
+          Bubble handlers return a (possibly updated) instance of their
+          own component, just like <code>methods</code> /
+          <code>input</code> / <code>logic</code> handlers. Walking stops
+          when the root state value is reached or when a handler calls
+          <code>ctx.stopPropagation()</code>. This is how aggregate state
+          (logs, selections, totals) is maintained without prop-drilling
+          callbacks down the tree.
+        </p>
+
+        <h3 id="statics"><a href="#statics">Statics</a></h3>
+        <p>
+          <code>statics: { ... }</code> attaches methods to the component
+          <em>class</em> rather than to instances. They are called as
+          <code>Comp.Class.fromData(...)</code>. Inside a static,
+          <code>this</code> is the class itself, so
+          <code>this.make({...})</code> calls the auto-generated
+          constructor that
+          <code>component({...})</code> generates for every component.
+        </p>
+        <p>
+          The most common use is a <code>fromData</code> factory that
+          builds an instance from plain JS data (e.g. JSON loaded from
+          disk), recursively constructing children. In
+          <code>tree.js</code>, <code>TreeItem.Class.fromData</code> maps
+          each child object back through itself, so an entire nested
+          object literal becomes a fully constructed
+          <code>TreeItem</code> instance with
+          <code>List&lt;TreeItem&gt;</code> children. Statics are not part
+          of any lifecycle &mdash; they are plain class methods, called by
+          the host application or by another static.
+        </p>
       </section>
 
       <!-- Advanced Features -->
@@ -578,6 +687,16 @@
         <h3 id="async-requests">
           <a href="#async-requests">Async Requests</a>
         </h3>
+        <p>
+          <strong>Lifecycle note:</strong> tutuca has no built-in lifecycle.
+          The <code>logic</code> section is just a place to register named
+          handlers; nothing in the framework calls
+          <code>logic.init</code> automatically. The host application has
+          to dispatch it (the tutorial harness calls
+          <code>app.dispatchLogicAtRoot("init")</code> after
+          <code>app.start()</code> &mdash; that is what makes
+          <code>init</code> run in these playgrounds).
+        </p>
         <p>
           The <code>init(ctx)</code> handler in the <code>logic</code> section
           is called when the application starts. It calls
@@ -600,13 +719,6 @@
           component can behave differently in production, in different test
           cases, or even in different apps &mdash; just by changing the request
           handler.
-        </p>
-        <p>
-          <small
-            >Note: <code>logic.init</code> is called by the tutorial setup code
-            when the app starts. This is not a built-in behavior of the library
-            &mdash; you can do something else or nothing on init.</small
-          >
         </p>
         <tutuca-playground
           src="./examples/request-example.js"
@@ -643,6 +755,57 @@
           states, scoped to this component.
         </p>
         <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
+
+        <h3 id="web-components">
+          <a href="#web-components">Web Components</a>
+        </h3>
+        <p>
+          Custom elements work as drop-in tags inside a component view, and
+          any <code>CustomEvent</code> they fire is reachable via
+          <code>@on.&lt;event-name&gt;</code>. The event's
+          <code>detail</code> is what the built-in
+          <code>value</code> handler arg resolves to &mdash; so an
+          input handler signature like
+          <code>onEmojiClick(detail)</code> receives the picker's
+          <code>detail</code> object directly.
+        </p>
+        <p>
+          The example below imports
+          <code>emoji-picker-element</code> from a CDN and listens for its
+          <code>emoji-click</code> custom event. Hyphenated event names go
+          straight into the <code>@on.</code> attribute, no special
+          quoting needed.
+        </p>
+        <tutuca-playground
+          src="./examples/web-component-custom-event.js"
+        ></tutuca-playground>
+
+        <h3 id="dynamic-bindings">
+          <a href="#dynamic-bindings">Dynamic Bindings</a>
+        </h3>
+        <p>
+          Dynamic bindings are tutuca's prop-drilling escape hatch: a
+          producer component publishes a value, and any descendant can
+          read it as <code>*name</code> without the value being passed
+          through every component in between.
+        </p>
+        <p>
+          A producer declares
+          <code>dynamic: { entries: ".items" }</code> &mdash; the field
+          (or expression) it wants to expose &mdash; and lists the names
+          it publishes via
+          <code>on: { stackEnter() { return ["entries"]; } }</code>. A
+          consumer declares
+          <code>dynamic: { entries: { for: "EntryEditorAndSelector.entries", default: ".items" } }</code>
+          to alias the producer's name into its own scope, then reads it
+          as <code>*entries</code> in the template (e.g.
+          <code>@each="*entries"</code>). When no producer is in the
+          render stack, the
+          <code>default</code> expression is used.
+        </p>
+        <tutuca-playground
+          src="./examples/dynamic-bindings.js"
+        ></tutuca-playground>
       </section>
 
       <!-- Macros -->
@@ -748,6 +911,46 @@
         <tutuca-playground
           src="./examples/danger-set-inner-html.js"
         ></tutuca-playground>
+
+        <h3 id="pseudo-x"><a href="#pseudo-x">Pseudo-x (@x)</a></h3>
+        <p>
+          Tutuca's special operations
+          (<code>render</code>, <code>render-each</code>,
+          <code>render-it</code>, <code>text</code>, <code>show</code>,
+          <code>hide</code>, <code>slot</code>) live on the
+          <code>&lt;x&gt;</code> tag. That works almost everywhere &mdash;
+          but the browser's HTML parser refuses to keep
+          <code>&lt;x&gt;</code> (or any unknown tag) as a child of certain
+          elements. <code>&lt;select&gt;</code> only accepts
+          <code>&lt;option&gt;</code>, <code>&lt;table&gt;</code> only
+          accepts <code>&lt;tr&gt;</code> / <code>&lt;tbody&gt;</code> /
+          etc., <code>&lt;tr&gt;</code> only accepts
+          <code>&lt;th&gt;</code> / <code>&lt;td&gt;</code>. Drop a
+          <code>&lt;x render-each&gt;</code> in any of those and the
+          parser silently strips it.
+        </p>
+        <p>
+          The escape hatch: prefix the <strong>first</strong> attribute on
+          a <em>legal</em> child tag with <code>@x</code>. Tutuca treats
+          that tag as if it were <code>&lt;x&gt;</code> and reads the next
+          attribute as the special op &mdash; the host element itself is
+          ignored, only the special op runs.
+        </p>
+        <p>
+          The example below demonstrates both common cases. The first
+          parent renders a <code>&lt;table&gt;</code> whose rows are
+          themselves components: inside <code>&lt;tbody&gt;</code>,
+          <code>&lt;tr @x render-each=".rows"&gt;</code> tells tutuca to
+          render one <code>TableRow</code> component per item. The second
+          parent renders a <code>&lt;select&gt;</code> whose options are
+          components: <code>&lt;option @x render-each=".options"&gt;</code>
+          renders one <code>SelectOption</code> per item. The same trick
+          works inside <code>&lt;tr&gt;</code>,
+          <code>&lt;colgroup&gt;</code>, <code>&lt;dl&gt;</code>,
+          <code>&lt;details&gt;</code>, or anywhere else the parser would
+          otherwise discard a <code>&lt;x&gt;</code> tag.
+        </p>
+        <tutuca-playground src="./examples/pseudo-x.js"></tutuca-playground>
       </section>
 
       <!-- Common Mistakes -->
@@ -756,13 +959,67 @@
           <a href="#common-mistakes">Common Mistakes</a>
         </h2>
         <p>
-          This example intentionally contains every kind of mistake the linter
-          can catch. Open the <strong>Lint</strong> tab on the right to see all
-          the issues detected &mdash; from referencing undefined fields and
-          computed properties, to mixing up input handlers and methods, to using
-          unknown event modifiers. Use this as a reference for the kinds of
-          errors to watch out for in your own components.
+          The example below intentionally triggers every category the linter
+          can catch. Open the <strong>Lint</strong> tab on the right to see
+          all of the issues detected. The
+          <code>tutuca</code> CLI's
+          <code>lint</code> and <code>doctor</code> commands run the same
+          checks from the command line.
         </p>
+        <p>The categories the linter reports:</p>
+        <ul>
+          <li>
+            <strong>Undefined references</strong> &mdash;
+            <code>.field</code>, <code>$computed</code>,
+            <code>!request</code> or <code>Component</code> names that the
+            module never declares.
+          </li>
+          <li>
+            <strong>Method vs input handler mix-ups</strong> &mdash;
+            calling a <code>methods</code> entry without the
+            <code>.</code> prefix, or calling an
+            <code>input</code> handler with one. The linter knows which
+            section each name lives in.
+          </li>
+          <li>
+            <strong>Unknown event modifiers</strong> &mdash; e.g.
+            <code>@on.click+badmod</code> when only
+            <code>+ctrl</code> / <code>+cmd</code> / <code>+meta</code> /
+            <code>+alt</code> (and on
+            <code>keydown</code>: <code>+send</code> / <code>+cancel</code>)
+            are recognized.
+          </li>
+          <li>
+            <strong>Unknown handler arg names</strong> &mdash; only the
+            built-in arg names (<code>value</code>,
+            <code>valueAsInt</code>, <code>event</code>,
+            <code>ctx</code>, ...) are accepted in handler argument
+            slots.
+          </li>
+          <li>
+            <strong><code>render-it</code> outside a loop</strong> &mdash;
+            <code>&lt;x render-it&gt;</code> only works inside
+            <code>@each</code> / <code>render-each</code>.
+          </li>
+          <li>
+            <strong>Unknown macro arg</strong> &mdash; passing an attribute
+            to a macro that wasn't declared in its
+            <code>defaults</code> object.
+          </li>
+          <li>
+            <strong>Duplicate attribute definitions</strong> &mdash;
+            setting the same attribute (e.g.
+            <code>class</code>) via a literal,
+            <code>:class</code>, and <code>@if.class</code> on the same
+            element. Only one wins; the linter flags the conflict.
+          </li>
+          <li>
+            <strong>Unreferenced declarations</strong> &mdash;
+            <code>input</code>, <code>alter</code>, or
+            <code>computed</code> entries that no view ever uses. These
+            are warnings; useful for catching dead code after a refactor.
+          </li>
+        </ul>
         <tutuca-playground src="./examples/lint-errors.js"></tutuca-playground>
       </section>
 
