@@ -56,7 +56,10 @@ function checkMacroCallArgs(lx, view, Comp) {
     const { defaults } = macro;
     for (const argName in macroNode.attrs) {
       if (!(argName in defaults)) {
-        lx.error(UNKNOWN_MACRO_ARG, { name: argName, macroName: macroNode.name });
+        lx.error(UNKNOWN_MACRO_ARG, {
+          name: argName,
+          macroName: macroNode.name,
+        });
       }
     }
   }
@@ -298,7 +301,7 @@ function checkConsistentAttrVal(
     if (alter[val.name] === undefined) {
       lx.error(ALT_HANDLER_NOT_DEFINED, { name: val.name });
     }
-  } else if (valName !== "ConstVal" && valName !== "BindVal") {
+  } else if (valName !== "ConstVal" && valName !== "BindVal" && valName !== "DynVal") {
     console.log(val);
   }
 }
