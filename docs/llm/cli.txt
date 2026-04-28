@@ -102,6 +102,9 @@ Codes emitted by `lint` / `doctor`. Source: `tools/core/lint-check.js`.
 - `UNKNOWN_EVENT_MODIFIER` — `+mod` not in the recognized modifier set.
 - `UNKNOWN_HANDLER_ARG_NAME` — handler arg name not a built-in / declared component.
 - `DUPLICATE_ATTR_DEFINITION` — same attr set by literal + `:attr` + `@if.attr` on one element.
+- `UNKNOWN_DIRECTIVE` — `@name` directive not recognized (typo or unsupported).
+- `UNKNOWN_X_OP` — first attribute on `<x>` (or pseudo-`@x`) is not a known op.
+- `UNKNOWN_X_ATTR` — extra attribute on `<x op>` not consumed by the op and not a known wrapper (`show`/`hide`).
 
 ### Names registered with the app
 

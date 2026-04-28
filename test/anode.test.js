@@ -65,6 +65,44 @@ test("parse text directive: parse error is null", () => {
   expect(r).toBe(null);
 });
 
+test("x render-it with show wraps in ShowNode", () => {
+  const [r] = parse(`<x render-it show=".isOpen"></x>`);
+  expect(r).toBeInstanceOf(ShowNode);
+  expect(r.node).toBeInstanceOf(RenderItNode);
+});
+
+test("x render-it with hide wraps in HideNode", () => {
+  const [r] = parse(`<x render-it hide=".closed"></x>`);
+  expect(r).toBeInstanceOf(HideNode);
+  expect(r.node).toBeInstanceOf(RenderItNode);
+});
+
+test("x text with show wraps in ShowNode", () => {
+  const [r] = parse(`<x text="'hi'" show=".isOpen"></x>`);
+  expect(r).toBeInstanceOf(ShowNode);
+  expect(r.node).toBeInstanceOf(RenderTextNode);
+});
+
+test("x render with show wraps in ShowNode", () => {
+  const [r] = parse(`<x render=".v" show=".isOpen"></x>`);
+  expect(r).toBeInstanceOf(ShowNode);
+});
+
+test("x render-each with show wraps in ShowNode and keeps when/loop-with", () => {
+  const [r] = parse(`<x render-each=".items" when=".whenH" loop-with=".lwith" show=".isOpen"></x>`);
+  expect(r).toBeInstanceOf(ShowNode);
+  expect(r.node).toBeInstanceOf(RenderEachNode);
+  expect(r.node.iterInfo.whenVal.name).toBe("whenH");
+  expect(r.node.iterInfo.loopWithVal.name).toBe("lwith");
+});
+
+test("x render-it with show then hide: first attr is outermost", () => {
+  const [r] = parse(`<x render-it show=".a" hide=".b"></x>`);
+  expect(r).toBeInstanceOf(ShowNode);
+  expect(r.node).toBeInstanceOf(HideNode);
+  expect(r.node.node).toBeInstanceOf(RenderItNode);
+});
+
 test("parse text attribute: const", () => {
   const [node] = parse(`<span @text="'hi'"></span>`);
   const r = node.childs[0];

@@ -19,10 +19,12 @@ export const UNKNOWN_COMPONENT_NAME = "UNKNOWN_COMPONENT_NAME";
 export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
 export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
 export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
+export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
   "unknown-directive": UNKNOWN_DIRECTIVE,
   "unknown-x-op": UNKNOWN_X_OP,
+  "unknown-x-attr": UNKNOWN_X_ATTR,
 };
 
 const LEVEL_WARN = "warn";

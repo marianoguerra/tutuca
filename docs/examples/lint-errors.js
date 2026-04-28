@@ -81,6 +81,9 @@ const LintDemo = component({
     <!-- UNKNOWN_X_OP via pseudo-x: same diagnostic on a host tag -->
     <div @x bogus="oops"></div>
 
+    <!-- UNKNOWN_X_ATTR: bogus is not a known attribute on <x render-each> -->
+    <x render-each=".items" bogus="nope"></x>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

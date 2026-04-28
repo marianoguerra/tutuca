@@ -134,26 +134,37 @@ export class ANode extends BaseNode {
     const isPseudoX = attrs[0]?.name === "@x";
     if (tag === "X" || isPseudoX) {
       if (attrs.length === 0) return maybeFragment(childs);
-      const { name, value } = attrs[isPseudoX ? 1 : 0];
+      const opIdx = isPseudoX ? 1 : 0;
+      const { name, value } = attrs[opIdx];
       const as = attrs.getNamedItem("as")?.value ?? null;
+      let node;
       switch (name) {
         case "slot":
-          return new SlotNode(null, vp.const(value), maybeFragment(childs));
+          node = new SlotNode(null, vp.const(value), maybeFragment(childs));
+          break;
         case "text":
-          return px.addNodeIf(RenderTextNode, vp.parseText(value, px));
+          node = px.addNodeIf(RenderTextNode, vp.parseText(value, px));
+          break;
         case "render":
-          return px.addNodeIf(RenderNode, vp.parseRender(value, px), as);
+          node = px.addNodeIf(RenderNode, vp.parseRender(value, px), as);
+          break;
         case "render-it":
-          return px.addNodeIf(RenderItNode, vp.bindValIt, as);
+          node = px.addNodeIf(RenderItNode, vp.bindValIt, as);
+          break;
         case "render-each":
-          return RenderEachNode.parse(px, vp, value, as, attrs);
+          node = RenderEachNode.parse(px, vp, value, as, attrs);
+          break;
         case "show":
-          return px.addNodeIf(ShowNode, vp.parseCondValue(value, px), maybeFragment(childs));
+          node = px.addNodeIf(ShowNode, vp.parseCondValue(value, px), maybeFragment(childs));
+          break;
         case "hide":
-          return px.addNodeIf(HideNode, vp.parseCondValue(value, px), maybeFragment(childs));
+          node = px.addNodeIf(HideNode, vp.parseCondValue(value, px), maybeFragment(childs));
+          break;
+        default:
+          px.onParseIssue("unknown-x-op", { name, value });
+          return new CommentNode(`Error: InvalidSpecialTagOp ${name}=${value}`);
       }
-      px.onParseIssue("unknown-x-op", { name, value });
-      return new CommentNode(`Error: InvalidSpecialTagOp ${name}=${value}`);
+      return processXExtras(node, attrs, name, (isPseudoX ? 1 : 0) + 1, px);
     } else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
       const macroName = tag.slice(2).toLowerCase();
       if (macroName === "slot") {
@@ -172,6 +183,28 @@ export class ANode extends BaseNode {
     }
     return new CommentNode(`Error: InvalidTagName ${tag}`);
   }
+}
+function processXExtras(node, attrs, opName, startIdx, px) {
+  const consumed = X_OP_CONSUMED[opName];
+  const wrappable = X_OP_WRAPPABLE.has(opName);
+  const wrappers = [];
+  for (let i = startIdx; i < attrs.length; i++) {
+    const a = attrs[i];
+    const aName = a.name;
+    if (consumed.has(aName)) continue;
+    if (wrappable && X_ATTR_WRAPPERS[aName]) {
+      wrappers.push([X_ATTR_WRAPPERS[aName], vp.parseCondValue(a.value, px)]);
+      continue;
+    }
+    const issueInfo = { op: opName, name: aName, value: a.value };
+    px.onParseIssue("unknown-x-attr", issueInfo);
+  }
+  for (let i = wrappers.length - 1; i >= 0; i--) {
+    const [Cls, val] = wrappers[i];
+    const wrapper = px.addNodeIf(Cls, val, node);
+    if (wrapper !== null) node = wrapper;
+  }
+  return node;
 }
 function wrap(node, px, wrappers) {
   if (wrappers) {
@@ -379,6 +412,17 @@ export class IterInfo {
 }
 const filterAlwaysTrue = (_v, _k, _seq) => true;
 const nullLoopWith = (seq) => ({ seq });
+const X_OP_CONSUMED = {
+  slot: new Set(),
+  text: new Set(),
+  render: new Set(["as"]),
+  "render-it": new Set(["as"]),
+  "render-each": new Set(["as", "when", "loop-with"]),
+  show: new Set(),
+  hide: new Set(),
+};
+const X_OP_WRAPPABLE = new Set(["text", "render", "render-it", "render-each"]);
+const X_ATTR_WRAPPERS = { show: ShowNode, hide: HideNode };
 const WRAPPER_NODES = {
   slot: SlotNode,
   show: ShowNode,

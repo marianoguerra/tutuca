@@ -38,6 +38,8 @@ export function lintIdToMessage(id, info) {
       return `Unknown directive '@${info.name}=${JSON.stringify(info.value)}'`;
     case "UNKNOWN_X_OP":
       return `Unknown <x> op '${info.name}=${JSON.stringify(info.value)}'`;
+    case "UNKNOWN_X_ATTR":
+      return `Unknown attribute '${info.name}=${JSON.stringify(info.value)}' on <x ${info.op}>`;
     case "LINT_ERROR":
       return info.message;
     default:

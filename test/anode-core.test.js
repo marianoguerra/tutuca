@@ -35,7 +35,7 @@ import {
   vp,
 } from "../src/value.js";
 import { VComment, VFragment, VNode, VText } from "../src/vdom.js";
-import { HeadlessParseContext, isTextNode, isTextNodeWithText, setupJsdom } from "./dom.js";
+import { HeadlessParseContext, isTextNodeWithText, setupJsdom } from "./dom.js";
 
 function toData(node) {
   if (node == null) return null;

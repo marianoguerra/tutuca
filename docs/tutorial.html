@@ -407,6 +407,19 @@
           for boolean fields.
         </p>
         <p>
+          <code>show</code> and <code>hide</code> can also appear as extra
+          attributes on the <code>&lt;x&gt;</code> render ops
+          (<code>text</code>, <code>render</code>, <code>render-it</code>,
+          <code>render-each</code>) &mdash; instead of toggling a host
+          element, they wrap the produced node in the equivalent
+          conditional, so you get a guard with no extra DOM. For example,
+          <code>&lt;x render-it show=".isOpen"&gt;&lt;/x&gt;</code> is the
+          equivalent of <code>render-it</code> wrapped in
+          <code>@show=".isOpen"</code>. When both appear on the same
+          element, the first attribute in source order becomes the
+          outermost wrapper.
+        </p>
+        <p>
           When there is a single <code>@if</code> directive,
           <code>@then</code> and <code>@else</code> don't need to specify the
           attribute name &mdash; they infer it from context. If there are
@@ -1014,6 +1027,27 @@
             <strong>Unknown macro arg</strong> &mdash; passing an attribute
             to a macro that wasn't declared in its
             <code>defaults</code> object.
+          </li>
+          <li>
+            <strong>Unknown <code>@directive</code></strong> &mdash; e.g.
+            <code>@bogus="..."</code> on an element. Catches typos in
+            directive names like <code>@show</code>, <code>@text</code>,
+            <code>@on.<em>event</em></code>, <code>@if.<em>attr</em></code>,
+            etc.
+          </li>
+          <li>
+            <strong>Unknown <code>&lt;x&gt;</code> op</strong> &mdash; the
+            first attribute on <code>&lt;x&gt;</code> (or pseudo-<code>@x</code>)
+            is not a recognized op (<code>render</code>, <code>render-it</code>,
+            <code>render-each</code>, <code>text</code>, <code>show</code>,
+            <code>hide</code>, <code>slot</code>).
+          </li>
+          <li>
+            <strong>Unknown <code>&lt;x&gt;</code> attribute</strong> &mdash;
+            extra attribute on a <code>&lt;x op&gt;</code> that the op
+            doesn't consume (e.g. <code>as</code>, <code>when</code>,
+            <code>loop-with</code>) and isn't a known wrapper
+            (<code>show</code>, <code>hide</code>).
           </li>
           <li>
             <strong>Duplicate attribute definitions</strong> &mdash;

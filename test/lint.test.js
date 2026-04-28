@@ -23,6 +23,7 @@ import {
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
   UNKNOWN_REQUEST_NAME,
+  UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
 } from "../tools/core/lint-check.js";
 import { Comment, document, Text } from "./dom.js";
@@ -860,6 +861,67 @@ test("warn on unknown pseudo-x op", () => {
   expect(matched.length).toBe(1);
   expect(matched[0].info.name).toBe("bogus");
   expect(matched[0].info.value).toBe("hello");
+});
+
+test("warn on unknown extra attr on x render-each", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" bogus="nope"></x></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.op).toBe("render-each");
+  expect(matched[0].info.name).toBe("bogus");
+  expect(matched[0].info.value).toBe("nope");
+});
+
+test("warn on unknown extra attr on x render-it", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div>
+      <div @each=".items"><x render-it bogus="nope"></x></div>
+    </div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.op).toBe("render-it");
+  expect(matched[0].info.name).toBe("bogus");
+});
+
+test("known x render-each extras (as/when/loop-with) do not raise UNKNOWN_X_ATTR", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: {
+      myWhen() {
+        return true;
+      },
+      myLoopWith(seq) {
+        return { seq };
+      },
+    },
+    view: html`<div>
+      <x render-each=".items" as="row" when="myWhen" loop-with="myLoopWith"></x>
+    </div>`,
+  });
+  const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
+  expect(unknown.length).toBe(0);
+});
+
+test("show/hide on render* and text x ops do not raise UNKNOWN_X_ATTR", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], isOpen: false, name: "" },
+    view: html`<div>
+      <x text=".name" show=".isOpen"></x>
+      <div @each=".items"><x render-it hide=".isOpen"></x></div>
+      <x render-each=".items" show=".isOpen"></x>
+    </div>`,
+  });
+  const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
+  expect(unknown.length).toBe(0);
 });
 
 test("known <x> ops do not raise UNKNOWN_X_OP", () => {

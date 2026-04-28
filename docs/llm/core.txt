@@ -306,6 +306,14 @@ view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
 <div @show=".isLoading">Loading...</div>
 <div @hide=".isLoading">content</div>
 
+<!-- show / hide also work as wrapper attrs on `<x>` render ops:
+     wraps the produced node, no extra DOM element. Allowed on
+     text / render / render-it / render-each. First attr in
+     source order becomes the outermost wrapper. -->
+<x text=".name" show=".isOpen"></x>
+<x render-it hide=".isHidden"></x>
+<x render-each=".items" when="filter" show=".isOpen"></x>
+
 <!-- Single @if: shorthand @then/@else (attr inferred) -->
 <button @if.class=".isActive" @then="'btn btn-success'" @else="'btn btn-ghost'">
   ...
@@ -352,6 +360,7 @@ view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
 <x render-each=".items" as="edit"></x>                          <!-- specific view -->
 <x render-each=".items" when="filterItem"></x>                  <!-- with filter -->
 <x render-each=".items" loop-with="getIterData" when="filterItem"></x>
+<x render-each=".items" show=".isOpen"></x>                     <!-- wrap in show -->
 ```
 
 On `<li @each>` / `<div @each>` and other host-element loops the
@@ -440,6 +449,7 @@ computed: {
 <x render-it></x>                               <!-- only inside @each / render-each -->
 <x render=".byIndex[.currentIndex]"></x>        <!-- list item access -->
 <x render=".byKey[.currentKey]"></x>            <!-- map item access -->
+<x render=".item" show=".isOpen"></x>           <!-- conditional wrap, see "Conditional Display" -->
 ```
 
 The top-level `view` is registered under `"main"` (the default); extras
