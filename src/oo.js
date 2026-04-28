@@ -374,7 +374,7 @@ class ClassBuilder {
     return field;
   }
 }
-export const fieldsByClass = new Map();
+export const FIELD_CLASS = Symbol.for("tutuca.fieldClass");
 export const fieldsByTypeName = {
   text: FieldString,
   int: FieldInt,
@@ -405,7 +405,7 @@ export function classFromData(name, { fields = {}, methods, statics }) {
     else if (IMap.isMap(value) || value?.constructor === Object)
       b.addField(field, IMap(value), FieldMap);
     else {
-      const Field = fieldsByClass.get(value?.constructor) ?? FieldAny;
+      const Field = value?.[FIELD_CLASS] ?? FieldAny;
       b.addField(field, value, Field);
     }
   }

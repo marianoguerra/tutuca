@@ -1,6 +1,6 @@
 import { Map as IMap, List } from "../deps/immutable.js";
-import { extendProtoForKeyed, Field, fieldsByClass } from "../src/oo.js";
-import { seqInfoByClass } from "../src/renderer.js";
+import { extendProtoForKeyed, Field, FIELD_CLASS } from "../src/oo.js";
+import { SEQ_INFO } from "../src/renderer.js";
 
 export class KList {
   constructor(items = IMap(), order = List()) {
@@ -90,7 +90,7 @@ export class FieldKList extends Field {
     };
   }
 }
-fieldsByClass.set(KList, FieldKList);
-seqInfoByClass.set(KList, (seq, visit) => {
+KList.prototype[FIELD_CLASS] = FieldKList;
+KList.prototype[SEQ_INFO] = (seq, visit) => {
   for (const k of seq.order) visit(k, seq.items.get(k), "data-sk");
-});
+};

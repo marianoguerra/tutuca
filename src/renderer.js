@@ -13,7 +13,7 @@ export class Renderer {
       ? imIndexedIter
       : isKeyed(seq)
         ? imKeyedIter
-        : (seqInfoByClass.get(seq?.constructor) ?? unkIter);
+        : (seq?.[SEQ_INFO] ?? unkIter);
   }
   renderTag(tag, attrs, childs) {
     return h(tag, attrs, childs);
@@ -124,4 +124,4 @@ const imKeyedIter = (seq, visit) => {
   for (const [k, v] of seq.toSeq().entries()) visit(k, v, "sk");
 };
 const unkIter = () => {};
-export const seqInfoByClass = new Map();
+export const SEQ_INFO = Symbol.for("tutuca.seqInfo");

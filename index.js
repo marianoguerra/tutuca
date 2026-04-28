@@ -13,8 +13,8 @@ export {
 } from "./deps/immutable.js";
 export { ParseContext } from "./src/anode.js";
 export { injectCss } from "./src/app.js";
-export { component, fieldsByClass } from "./src/oo.js";
-export { seqInfoByClass } from "./src/renderer.js";
+export { component, FIELD_CLASS } from "./src/oo.js";
+export { SEQ_INFO } from "./src/renderer.js";
 export const css = String.raw;
 export const html = String.raw;
 export const macro = (defaults, rawView) => new Macro(defaults, rawView);
