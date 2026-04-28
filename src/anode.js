@@ -401,7 +401,7 @@ export class ParseContext {
   parseHTML(html) {
     const t = this.document.createElement("template");
     t.innerHTML = html;
-    return Array.from(t.content.childNodes);
+    return t.content.childNodes;
   }
   addNodeIf(Class, val, extra) {
     if (val !== null) {
