@@ -72,9 +72,11 @@ tutuca ./src/components.js render -f html --pretty -o out/examples.html
 tutuca ./src/components.js render Button --title "Disabled state"
 
 # Post-edit verification: lint, then render the example for the feature
-# you just changed (add the example first if none covers it).
+# you just changed (add the example first if none covers it). Add
+# --pretty when you need to read the HTML to verify structure.
 tutuca ./src/components.js lint
 tutuca ./src/components.js render --title "Disabled state"
+tutuca ./src/components.js render --title "Disabled state" --pretty
 ```
 
 ## Linter Rules

@@ -36,7 +36,9 @@ done:
 
    Exits `3` if any render crashes. If no example covers the feature
    you're adding, add one to `getExamples()` first — that's how the
-   feature becomes verifiable.
+   feature becomes verifiable. Add `--pretty` when you need to read the
+   emitted HTML to verify structure (attributes, nesting, text); omit it
+   when you only care that the render didn't crash.
 
 Full reference: [cli.txt](./cli.txt).
 
