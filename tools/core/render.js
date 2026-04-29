@@ -36,6 +36,7 @@ export function renderExamples(normalized, env, { name = null, title = null, vie
         }),
       );
     }
+    if (items.length === 0) continue;
     sections.push(
       new RenderedSection({
         title: section.title,
