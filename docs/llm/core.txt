@@ -42,6 +42,12 @@ Full reference: [cli.txt](./cli.txt).
 
 ## Common pitfalls
 
+- **Paths are not allowed in values.** `.foo` resolves a single field or
+  method on `this` — `@text=".foo.bar"`, `:value=".user.name"`,
+  `@show=".item.isOpen"` all fail. To reach into nested data: render the
+  child as a component (`<x render=".foo">` then `@text=".bar"` inside),
+  add a method (`fullName() { return this.user.name; }` and use
+  `.fullName`), or use `@enrich-with` for scope-level derivation.
 - **Coercion is shallow.** `setItems([{a:1}])` stores plain objects inside
   the `List`. Wrap each item in `Comp.make({...})` or run inputs through
   immutable's `fromJS` if you need deep coercion. See *Component Skeleton*.
@@ -98,7 +104,7 @@ removes all listeners and cancels cache eviction; pair with
 
 | Prefix   | Means                                     | Example               |
 | -------- | ----------------------------------------- | --------------------- |
-| `.x`     | field or method on `this`                 | `.count`, `.inc`      |
+| `.x`     | field or method on `this` (single-level — no `.foo.bar` paths) | `.count`, `.inc`      |
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
 | `!x`     | request handler                           | `!loadData`           |
@@ -233,6 +239,18 @@ methods: {
 Auto-generated `isXTruthy` / `isXEmpty` / `isXNull` cover single-field
 checks; reach for a method when the predicate spans multiple fields or
 needs derivation. The method takes no args.
+
+Tutuca expressions resolve a **single** name on `this` — there is no
+path syntax. `@text=".user.name"` does not navigate; it fails. When the
+value lives behind a field, your options are:
+
+- **Render the child as a component** — `<x render=".user">` then
+  `@text=".name"` inside the child's view. Best when the nested thing is
+  already (or could be) a component.
+- **Add a method** — `userName() { return this.user.name; }` then
+  `@text=".userName"`. Best for one-off derivations or formatting.
+- **Use `@enrich-with`** — exposes computed values as `@`-bindings to a
+  subtree without putting them on the component. See *Scope Enrichment*.
 
 Exceptions: `@each` / `render-each` accept `.field` or `*dynamic` only
 (not a method call), and `<x render>` expects a component instance — for

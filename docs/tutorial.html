@@ -92,7 +92,12 @@
         <ul>
           <li>
             <code>.name</code> &mdash; component field or method (e.g.
-            <code>.count</code>, <code>.inc</code>)
+            <code>.count</code>, <code>.inc</code>). Single-level only
+            &mdash; paths like <code>.user.name</code> are not supported
+            anywhere. To reach a nested value, render the child as a
+            component (<code>&lt;x render=".user"&gt;</code> then
+            <code>@text=".name"</code> inside), add a method that returns
+            it, or expose it via <code>@enrich-with</code>.
           </li>
           <li>
             <code>@name</code> &mdash; local binding from iteration or scope
@@ -414,6 +419,35 @@
           <code>:title=".tooltip"</code>,
           <code>:class="badge {.kindClass}"</code>.
         </p>
+        <p>
+          Tutuca expressions resolve a <strong>single</strong> name on
+          <code>this</code> &mdash; there is no path syntax. Writing
+          <code>@text=".user.name"</code> or
+          <code>:value=".item.title"</code> does not navigate into the
+          field; the parser will not walk a dotted path anywhere a value
+          is read. When the value you want lives one level deeper, you
+          have three options:
+        </p>
+        <ul>
+          <li>
+            <strong>Render the child as a component</strong> &mdash;
+            <code>&lt;x render=".user"&gt;</code> and then read
+            <code>.name</code> from inside the child's view. Best when
+            the nested thing is already (or could be) its own component.
+          </li>
+          <li>
+            <strong>Add a method that returns it</strong> &mdash;
+            <code>userName() { return this.user.name; }</code>, then use
+            <code>@text=".userName"</code>. Best for one-off derivations
+            or formatting.
+          </li>
+          <li>
+            <strong>Use <code>@enrich-with</code></strong> &mdash; expose
+            computed values as <code>@</code>-prefixed bindings to a
+            subtree without putting them on the component. See
+            <a href="#scope-enrichment">Scope Enrichment</a>.
+          </li>
+        </ul>
         <p>
           <code>show</code> and <code>hide</code> can also appear as extra
           attributes on the <code>&lt;x&gt;</code> render ops
