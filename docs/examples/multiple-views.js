@@ -5,8 +5,8 @@ export const MultipleViews = component({
   name: "MultipleViews",
   fields: { value: Entry.make() },
   view: html`<section class="flex flex-col gap-3">
-    <x render=".item"></x>
-    <x render=".item" as="edit"></x>
+    <x render=".value"></x>
+    <x render=".value" as="edit"></x>
   </section>`,
 });
 
