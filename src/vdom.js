@@ -1,14 +1,11 @@
 export const isHtmlAttribute = (propName) =>
   propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
-const isObject = (v) => v !== null && typeof v === "object";
-const prototypesDiffer = (a, b) => Object.getPrototypeOf(a) !== Object.getPrototypeOf(b);
 export function applyProperties(node, props, previous) {
   for (const propName in props) {
     const propValue = props[propName];
     if (propValue === undefined) removeProperty(node, propName, previous);
     else if (isHtmlAttribute(propName)) node.setAttribute(propName, propValue);
     else if (propName === "dangerouslySetInnerHTML") node.innerHTML = propValue.__html ?? "";
-    else if (isObject(propValue)) patchObject(node, previous, propName, propValue);
     else if (propName === "className") node.setAttribute("class", propValue);
     else node[propName] = propValue;
   }
@@ -21,16 +18,6 @@ function removeProperty(node, propName, previous) {
   else if (typeof previousValue === "string" || isHtmlAttribute(propName))
     node.removeAttribute(propName);
   else node[propName] = null;
-}
-function patchObject(node, previous, propName, propValue) {
-  const previousValue = previous?.[propName];
-  if (isObject(previousValue) && prototypesDiffer(previousValue, propValue)) {
-    node[propName] = propValue;
-    return;
-  }
-  if (!isObject(node[propName])) node[propName] = {};
-  const target = node[propName];
-  for (const k in propValue) target[k] = propValue[k];
 }
 export class VBase {}
 const getKey = (child) => (child instanceof VNode ? child.key : undefined);
@@ -157,25 +144,9 @@ function diffProps(a, b) {
     if (!Object.hasOwn(b, aKey)) {
       diff ??= {};
       diff[aKey] = undefined;
-      continue;
-    }
-    const aValue = a[aKey];
-    const bValue = b[aKey];
-    if (aValue === bValue) continue;
-    if (isObject(aValue) && isObject(bValue)) {
-      if (prototypesDiffer(bValue, aValue)) {
-        diff ??= {};
-        diff[aKey] = bValue;
-      } else {
-        const objectDiff = diffProps(aValue, bValue);
-        if (objectDiff) {
-          diff ??= {};
-          diff[aKey] = objectDiff;
-        }
-      }
-    } else {
+    } else if (a[aKey] !== b[aKey]) {
       diff ??= {};
-      diff[aKey] = bValue;
+      diff[aKey] = b[aKey];
     }
   }
   for (const bKey in b) {

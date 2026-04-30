@@ -9,7 +9,9 @@ export async function createNodeEnv() {
     if (err?.message?.includes("Could not parse CSS stylesheet")) return;
     console.error(err.message);
   });
-  const dom = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>", { virtualConsole });
+  const dom = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>", {
+    virtualConsole,
+  });
   const { document, Text, Comment } = dom.window;
   globalThis.document = document;
 
