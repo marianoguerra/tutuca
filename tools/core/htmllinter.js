@@ -10,7 +10,7 @@
 // modes, form pointer, framesetOk) and emit a finding wherever the spec says
 // "parse error" or describes a silent reparenting.
 
-import { Tokenizer } from "htmlparser2";
+import { HtmlTokenizer } from "./html-tokenizer.js";
 import {
   FORMATTING_ELEMENTS,
   FOREIGN_BREAKOUT_TAGS,
@@ -57,8 +57,9 @@ const TABLE_SCOPE_TAGS = new Set([
 const TABLE_BODY_CELL_TAGS = new Set(["td", "th"]);
 
 export function lintHtml(html, onFinding, opts = {}) {
+  const TokenizerClass = opts.TokenizerClass ?? HtmlTokenizer;
   const ctx = new LinterCtx(html, onFinding, opts);
-  const tokenizer = new Tokenizer(
+  const tokenizer = new TokenizerClass(
     { xmlMode: false, decodeEntities: false, recognizeSelfClosing: true },
     ctx,
   );

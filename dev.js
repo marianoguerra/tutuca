@@ -14,10 +14,11 @@ export function check(app) {
   for (const Comp of app.comps.byId.values()) {
     const shadowViews = {};
     for (const name in Comp.views) {
+      const rawView = Comp.views[name].rawView;
       const ctx = new LintParseContext();
-      ANode.parse(Comp.views[name].rawView, ctx);
+      ANode.parse(rawView, ctx);
       ctx.compile(Comp.scope);
-      shadowViews[name] = { name, ctx };
+      shadowViews[name] = { name, ctx, rawView };
     }
 
     const shadowComp = Object.create(Comp);

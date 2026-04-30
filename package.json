@@ -48,7 +48,6 @@
     "skill/advanced.md"
   ],
   "dependencies": {
-    "htmlparser2": "^12.0.0",
     "jsdom": "^28.0.0 || ^29.0.0"
   },
   "peerDependencies": {
@@ -81,6 +80,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.4.12",
     "fast-check": "^4.7.0",
+    "htmlparser2": "^12.0.0",
     "prettier": "^3.8.3"
   }
 }
