@@ -107,7 +107,7 @@ export const JsonArray = component({
   name: "JsonArray",
   fields: {
     uid: "",
-    items: [], // TODO: new KList()
+    items: [],
   },
   input: {
     addItem(Comp) {
@@ -176,7 +176,7 @@ export const JsonObject = component({
   name: "JsonObject",
   fields: {
     uid: "",
-    items: [], // TODO: new KList()
+    items: [],
   },
   input: {
     addItem(KV, JsonSelector) {

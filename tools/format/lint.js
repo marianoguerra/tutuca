@@ -105,9 +105,33 @@ export function lintIdToMessage(id, info) {
     }
     case "BAD_VALUE":
       return `${badValueMessage(info)}${fmtTagSuffix(info)}`;
+    case "HTML_TAG_NAME_HAS_UPPERCASE":
+      return `Tag <${info.raw}> will be lowercased to <${info.lowercased}>${fmtLocationSuffix(info)}`;
+    case "HTML_SVG_TAG_WILL_LOWERCASE":
+      return `SVG tag <${info.raw}> is not in the WHATWG case-correction list — will be lowercased to <${info.lowercased}>${fmtLocationSuffix(info)}`;
+    case "HTML_TAG_NOT_ALLOWED_IN_PARENT":
+      return `<${info.tag}> not allowed under <${info.parent ?? "?"}> in ${info.mode} (action: ${info.action})${fmtLocationSuffix(info)}`;
+    case "HTML_TEXT_NOT_ALLOWED_IN_PARENT":
+      return `Non-whitespace text not allowed in ${info.mode}: ${JSON.stringify(info.snippet)}${fmtLocationSuffix(info)}`;
+    case "HTML_VOID_ELEMENT_HAS_CLOSE_TAG":
+      return `Void element <${info.tag}> has an explicit close tag${fmtLocationSuffix(info)}`;
+    case "HTML_DUPLICATE_FORM":
+      return `Nested <form> — the inner form will be dropped by the parser${fmtLocationSuffix(info)}`;
+    case "HTML_NESTED_INTERACTIVE":
+      return `<${info.tag}> nested inside another <${info.tag}> — adoption agency will reorder${fmtLocationSuffix(info)}`;
+    case "HTML_MISNESTED_FORMATTING":
+      return `Misnested formatting tag </${info.tag}> — adoption agency will reorder nodes${fmtLocationSuffix(info)}`;
+    case "HTML_UNEXPECTED_END_TAG":
+      return `Unexpected end tag </${info.tag}>${fmtLocationSuffix(info)}`;
     case "LINT_ERROR":
       return info.message;
     default:
       return id;
   }
+}
+
+function fmtLocationSuffix(info) {
+  const loc = info?.location;
+  if (!loc) return "";
+  return ` at L${loc.line}:C${loc.column}`;
 }

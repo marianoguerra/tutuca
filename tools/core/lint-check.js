@@ -1,4 +1,5 @@
 import { MOD_WRAPPERS_BY_EVENT, ParseContext } from "../../src/anode.js";
+import { lintHtml } from "./htmllinter.js";
 
 export const ALT_HANDLER_NOT_DEFINED = "ALT_HANDLER_NOT_DEFINED";
 export const ALT_HANDLER_NOT_REFERENCED = "ALT_HANDLER_NOT_REFERENCED";
@@ -69,6 +70,23 @@ function checkView(lx, view, Comp, referencedAlters) {
   checkEventModifiers(lx, view);
   checkKnownHandlerNames(lx, view, Comp, referencedAlters);
   checkMacroCallArgs(lx, view, Comp);
+  checkHtmlStructure(lx, view);
+}
+
+const HTML_LINT_OPTS = {
+  fragmentContext: "template",
+  // Tutuca's <x> and <x:macroname> tags are replaced at render time. Treat as
+  // phantom — case checks still apply, but don't enforce parent rules.
+  transparentTagPrefixes: ["x"],
+};
+
+function checkHtmlStructure(lx, view) {
+  if (typeof view.rawView !== "string" || !view.rawView) return;
+  lintHtml(
+    view.rawView,
+    (f) => lx.report(f.id, { ...f.info, location: f.location }, f.level),
+    HTML_LINT_OPTS,
+  );
 }
 
 function checkParseIssues(lx, view) {

@@ -51,7 +51,7 @@ done:
 | ---------------------------------------------------------------------------------------------- | ------------------------------- |
 | Authoring \`component({...})\`, \`html\\\`...\\\`\` views, macros, fields, events, lists, styles | [core.md](./core.md)           |
 | CLI commands, flags, exit codes, full linter rule list                                         | [cli.md](./cli.md)             |
-| Drag & drop, dynamic bindings (\`*x\`), pseudo-\`x\`, \`KList\`, custom seq types, Tailwind/MargaUI | [advanced.md](./advanced.md)   |
+| Drag & drop, dynamic bindings (\`*x\`), pseudo-\`x\`, custom seq types, Tailwind/MargaUI | [advanced.md](./advanced.md)   |
 
 Read \`core.md\` first. Reach for \`cli.md\` or \`advanced.md\` only when the
 task touches them — both files are referenced inline from \`core.md\` so

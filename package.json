@@ -48,6 +48,7 @@
     "skill/advanced.md"
   ],
   "dependencies": {
+    "htmlparser2": "^12.0.0",
     "jsdom": "^28.0.0 || ^29.0.0"
   },
   "peerDependencies": {

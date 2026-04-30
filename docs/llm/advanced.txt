@@ -2,9 +2,9 @@
 
 Reach this file only when the task touches drag & drop, context-style
 "dynamic bindings", pseudo-`x` (the `<x>`-stripping workaround inside
-`<select>`/`<table>`/`<tr>`), the keyed-ordered `KList` collection,
-registering a custom seq type, or compiling Tailwind / MargaUI classes.
-For everything else, `core.txt` is the right place.
+`<select>`/`<table>`/`<tr>`), registering a custom seq type, or
+compiling Tailwind / MargaUI classes. For everything else, `core.txt`
+is the right place.
 
 ## Drag and Drop
 
@@ -103,34 +103,10 @@ Notes:
 - Same trick works inside `<tr>`, `<table>`, `<colgroup>`, `<dl>`,
   `<details>`, or anywhere else the parser would discard `<x>`.
 
-## KList (extra build)
-
-Ordered, keyed, immutable collection — like a `Map` whose insertion order
-you can rearrange. Useful when items have stable keys but their position
-in the list also matters (drag-and-drop reorder, ranked lists).
-
-```js
-import { KList } from "tutuca/extra";
-
-let kl = new KList();
-kl = kl.push("a");                                // auto key
-kl = kl.set("custom", "b");
-kl = kl.moveKeyBeforeKey("custom", kl.order.first());
-kl = kl.delete("custom");
-kl.size;
-kl.get(k);
-kl.toJS();
-```
-
-Auto-generated field methods when used as a field default
-(`fields: { items: new KList() }`): `pushInX`, `setInXAt`, `getInXAt`,
-`deleteInXAt`, `moveKeyBeforeKey`, `moveKeyAfterKey`.
-
 ## Registering a custom seq type
 
-`KList` installs a `SEQ_INFO` walker on its prototype so `@each`
-walks it correctly. To make `@each` recognize your own collection
-class, do the same:
+To make `@each` recognize your own collection class, install a
+`SEQ_INFO` walker on its prototype:
 
 ```js
 import { SEQ_INFO } from "tutuca";

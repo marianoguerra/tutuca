@@ -104,12 +104,52 @@ const LintDemo = component({
   </div>`,
 });
 
+const HtmlLintDemo = component({
+  name: "HtmlLintDemo",
+  fields: { count: 0 },
+  view: html`<div>
+    <p>HTML structural lint errors — check the Lint tab</p>
+
+    <!-- HTML_TAG_NAME_HAS_UPPERCASE: parser lowercases <MyTag> to <mytag> -->
+    <MyTag>camelcase tag</MyTag>
+
+    <!-- HTML_SVG_TAG_WILL_LOWERCASE: <myShape> not in the WHATWG SVG list -->
+    <svg width="20" height="20"><myShape></myShape></svg>
+
+    <!-- HTML_TAG_NOT_ALLOWED_IN_PARENT (foster-parent):
+         <div> directly inside <table> gets reparented OUT of the table -->
+    <table><div>foster-parented</div></table>
+
+    <!-- HTML_TEXT_NOT_ALLOWED_IN_PARENT:
+         non-whitespace text directly inside <table> gets foster-parented -->
+    <table>plain text inside table</table>
+
+    <!-- HTML_TAG_NOT_ALLOWED_IN_PARENT (ignored):
+         <li> inside <select> is dropped by the parser -->
+    <select><li>not allowed</li></select>
+
+    <!-- HTML_VOID_ELEMENT_HAS_CLOSE_TAG: void <br> with an explicit </br> -->
+    <br></br>
+
+    <!-- HTML_DUPLICATE_FORM: inner <form> dropped per HTML5 form-pointer rule -->
+    <form><input><form><input></form></form>
+
+    <!-- HTML_NESTED_INTERACTIVE: <a> nested in <a> triggers adoption agency -->
+    <a href="#"><a href="#">nested anchor</a></a>
+
+    <!-- HTML_MISNESTED_FORMATTING: <b><i></b></i> — adoption agency reorders -->
+    <p><b><i>misnested</b></i></p>
+
+    <p @text=".count">0</p>
+  </div>`,
+});
+
 export function getMacros() {
   return { labeled };
 }
 
 export function getComponents() {
-  return [LintDemo];
+  return [LintDemo, HtmlLintDemo];
 }
 
 export function getRoot() {
@@ -119,17 +159,22 @@ export function getRoot() {
 export function getExamples() {
   return {
     title: "Lint Errors",
-    description: "Component with intentional lint errors for the linter demo",
+    description: "Components with intentional lint errors for the linter demo",
     items: [
       {
-        title: "Default",
-        description: "All lint errors triggered",
+        title: "AST lint errors",
+        description: "All AST-level lint errors triggered",
         value: LintDemo.make(),
       },
       {
-        title: "With Count",
+        title: "AST lint errors (with count)",
         description: "Initialized with a non-zero count",
         value: LintDemo.make({ count: 5 }),
+      },
+      {
+        title: "HTML structural lint errors",
+        description: "All HTML structural lint errors triggered",
+        value: HtmlLintDemo.make(),
       },
     ],
   };

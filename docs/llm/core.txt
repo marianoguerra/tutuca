@@ -8,7 +8,7 @@ orchestration. Read this file when authoring or reviewing
 the `tutuca` CLI.
 
 > Advanced topics (drag & drop, dynamic bindings `*x`, pseudo-`x` for
-> `<select>`/`<table>`/`<tr>`, `KList`, custom seq types, Tailwind/MargaUI
+> `<select>`/`<table>`/`<tr>`, custom seq types, Tailwind/MargaUI
 > compilation): see [advanced.txt](./advanced.txt). CLI commands, flags,
 > exit codes, and full linter rule list: see [cli.txt](./cli.txt). Read
 > those only when the task touches them.
@@ -208,7 +208,6 @@ component({
 | `{}`/`IMap()`        | map        | `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `xLen`, `resetX`                        |
 | `OMap()`             | omap       | same as map (preserves insertion order)                                                                                            |
 | `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `resetX`                                |
-| `new KList()`        | KList      | (extra build) `pushInX`, `setInXAt`, `getInXAt`, `deleteInXAt`, `moveKeyBeforeKey`/`AfterKey` — see `advanced.txt`                 |
 
 Explicit field types via `classFromData`:
 
@@ -298,9 +297,22 @@ Plain attrs are static. `:attr="..."` is a dynamic expression. Boolean
 HTML attributes (`disabled`, `checked`, `hidden`, …) are auto-recognized;
 pass a boolean field.
 
-SVG attributes are case-sensitive but the HTML parser lowercases them.
-Tutuca special-cases `:viewbox` → `viewBox` so SVG roots work; for other
-camelCased SVG attrs, wrap them in components that emit raw markup.
+The HTML parser lowercases attribute names before Tutuca sees them, so
+`:mapId` arrives as `:mapid` and `<x:Card>` becomes `<x:card>`. Three
+consequences:
+
+- SVG attributes are case-sensitive. Tutuca special-cases `:viewbox` →
+  `viewBox` so SVG roots work; for other camelCased SVG attrs, wrap them
+  in components that emit raw markup.
+- Custom-element property setters defined in camelCase **will not fire**.
+  `:mapId=".mapId"` runs `node.mapid = value`; if the
+  element defined `set mapId(...)`, the lookup misses and JS silently
+  creates an own data property `mapid` on the element instead of invoking
+  the setter — no error, no warning, the bound state stays null. Author
+  custom elements with kebab-case attributes plus lowercased property
+  setters (or aliases), and bind via `:kebab-name` from Tutuca templates.
+- Macro registry keys are lowercased on insert for the same reason
+  (see "Macros" section below).
 
 ## Event Handling
 
@@ -356,6 +368,13 @@ import "https://esm.sh/emoji-picker-element";
 input: { onPick(detail) { return this.setCurrent(detail.unicode); } }
 view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
 ```
+
+Pitfall: binding camelCase JS properties on a custom element silently
+fails. `:mapId=".id"` does *not* invoke a `set mapId` setter
+— the HTML parser lowercased the attribute name, so the framework assigns
+to `node.mapid` instead, creating an own property and bypassing the
+setter. Use kebab-case attributes / lowercased setters when authoring
+custom elements for use with Tutuca. See "Attribute Binding" above.
 
 ## Conditional Display
 
@@ -440,8 +459,7 @@ alter: {
 For each render of an element with `@each=".items"`:
 
 1. **Resolve sequence** — evaluate `.items`. Lists, IMaps, OMaps, ISets,
-   and any class declaring a `SEQ_INFO` walker (e.g. `KList`) are
-   recognized.
+   and any class declaring a `SEQ_INFO` walker are recognized.
 2. **`@loop-with`** (once per render) — `getIterData.call(this, seq)` is
    called and its return becomes `iterData`. Skipped if no `@loop-with`;
    in that case `iterData` is `{ seq }` from the default.
@@ -566,7 +584,7 @@ Dispatch from anywhere:
 app.dispatchLogicAtRoot("init");                            // host code, top-level
 ctx.at.field("personalSite").logic("init");                 // child by field name
 ctx.at.index("items", 3).logic("init");                     // list element at index 3
-ctx.at.key("byKey", "k1").logic("init");                    // map / KList entry by key
+ctx.at.key("byKey", "k1").logic("init");                    // map entry by key
 ctx.at.field("a").field("b").index("xs", 0).logic("ping");  // chain freely
 ctx.logic("name");                                          // self
 ctx.bubble("name", [arg]);                                  // bubble up
