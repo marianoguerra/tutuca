@@ -123,6 +123,24 @@ export function lintIdToMessage(id, info) {
       return `Misnested formatting tag </${info.tag}> — adoption agency will reorder nodes${fmtLocationSuffix(info)}`;
     case "HTML_UNEXPECTED_END_TAG":
       return `Unexpected end tag </${info.tag}>${fmtLocationSuffix(info)}`;
+    case "HTML_UNCLOSED_BEFORE_END":
+      return `<${info.unclosed}> still open when </${info.tag}> was seen — implicitly closed${fmtLocationSuffix(info)}`;
+    case "HTML_DUPLICATE_ATTRIBUTE":
+      return `Duplicate attribute '${info.name}' — second occurrence dropped${fmtLocationSuffix(info)}`;
+    case "HTML_ATTRIBUTES_ON_END_TAG":
+      return `Attributes on end tag </${info.tag}> — dropped by the parser${fmtLocationSuffix(info)}`;
+    case "HTML_SELF_CLOSING_END_TAG":
+      return `Self-closing end tag </${info.tag}/> — trailing '/' is meaningless${fmtLocationSuffix(info)}`;
+    case "HTML_MISSING_ATTRIBUTE_VALUE":
+      return `Attribute '${info.name}' is missing a value${fmtLocationSuffix(info)}`;
+    case "HTML_CDATA_IN_HTML_NAMESPACE":
+      return `CDATA section in HTML namespace — reinterpreted as a bogus comment${fmtLocationSuffix(info)}`;
+    case "HTML_BOGUS_COMMENT":
+      return `Bogus comment — content dropped by the parser${fmtLocationSuffix(info)}`;
+    case "HTML_SVG_ATTR_WILL_LOWERCASE":
+      return `SVG attribute '${info.raw}' will be rewritten to '${info.canonical}'${fmtLocationSuffix(info)}`;
+    case "HTML_MATHML_ATTR_WILL_LOWERCASE":
+      return `MathML attribute '${info.raw}' will be rewritten to '${info.canonical}'${fmtLocationSuffix(info)}`;
     case "LINT_ERROR":
       return info.message;
     default:
