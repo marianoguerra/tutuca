@@ -721,6 +721,11 @@ import {
 } from "tutuca";
 ```
 
+Because every `immutable` export is reachable through `tutuca`, if an
+`immutable-js` skill is installed in this project (e.g.
+`.claude/skills/immutable-js/`) load it alongside this one — its guidance
+applies directly to the values you'll be reading and writing.
+
 ## Conventional Module Exports
 
 Examples and the storybook glue follow this shape so files compose freely

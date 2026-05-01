@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "..");
 const srcDir = resolve(repo, "docs/llm");
-const outDir = resolve(repo, "skill");
+const outDir = resolve(repo, "skill/tutuca");
 
 const SKILL_FRONTMATTER = `---
 name: tutuca

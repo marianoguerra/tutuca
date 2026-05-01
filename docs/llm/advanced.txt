@@ -144,3 +144,8 @@ app.start();
 collects the `class=` and `:class=` literals, hands them to a `compile`
 function (any margaui-compatible signature), and returns CSS text. Pair
 with `injectCss(scopeName, css)` to install the result before `start()`.
+
+If a margaui skill is installed in this project (e.g.
+`.claude/skills/margaui/`) load it alongside this one when authoring
+class lists — it lists the available components and their canonical
+class strings, which is what the `compile` step expects.

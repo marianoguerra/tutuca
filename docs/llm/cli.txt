@@ -79,6 +79,23 @@ tutuca ./src/components.js render --title "Disabled state"
 tutuca ./src/components.js render --title "Disabled state" --pretty
 ```
 
+## Install skill assets
+
+`tutuca install-skill` copies bundled Claude Code skill files into
+`.claude/skills/<name>/` so a session in this directory picks them up.
+
+```sh
+tutuca install-skill                   # tutuca skill (default), into ./.claude/skills/tutuca/
+tutuca install-skill --user            # ~/.claude/skills/tutuca/
+tutuca install-skill --margaui-skill   # margaui skill instead of tutuca
+tutuca install-skill --immutable-skill # immutable-js skill instead of tutuca
+tutuca install-skill --all             # all bundled skills (tutuca + margaui + immutable-js)
+tutuca install-skill --all --force     # overwrite existing files
+```
+
+`--user`/`--project` choose scope (default `--project`).
+`--margaui-skill`, `--immutable-skill`, and `--all` are mutually exclusive.
+
 ## Linter Rules
 
 Codes emitted by `lint`. Source: `tools/core/lint-check.js`.

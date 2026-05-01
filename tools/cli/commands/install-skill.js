@@ -1,26 +1,59 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
-import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 
-export const describe = "Install the tutuca Claude Code skill into .claude/skills/tutuca/.";
+export const describe =
+  "Install Claude Code skills (tutuca, margaui, immutable-js) into .claude/skills/.";
 
-const SKILL_FILES = ["SKILL.md", "core.md", "cli.md", "advanced.md"];
+const SKILLS = [
+  { name: "tutuca", srcSubdir: "tutuca", flag: null },
+  { name: "margaui", srcSubdir: "margaui", flag: "margaui-skill" },
+  { name: "immutable-js", srcSubdir: "immutable-js", flag: "immutable-skill" },
+];
 
-function findSkillDir() {
+function findSkillsRoot() {
   // tools/tutuca.js (dev) → ../skill, dist/tutuca-cli.js (released) → ../skill.
   const here = dirname(fileURLToPath(import.meta.url));
   const candidates = [resolve(here, "..", "..", "..", "skill"), resolve(here, "..", "skill")];
   for (const c of candidates) {
-    if (existsSync(resolve(c, "SKILL.md"))) return c;
+    if (existsSync(resolve(c, "tutuca", "SKILL.md"))) return c;
   }
   return null;
 }
 
-function targetDir(scope) {
-  if (scope === "user") return resolve(homedir(), ".claude/skills/tutuca");
-  return resolve(process.cwd(), ".claude/skills/tutuca");
+function targetDir(scope, name) {
+  const base = scope === "user" ? homedir() : process.cwd();
+  return resolve(base, ".claude/skills", name);
+}
+
+function targetHasSkillFiles(dir) {
+  if (!existsSync(dir)) return false;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isFile() && entry.name.endsWith(".md")) return true;
+    if (entry.isDirectory() && targetHasSkillFiles(resolve(dir, entry.name))) return true;
+  }
+  return false;
+}
+
+function installSkill(skill, root, scope, force) {
+  const src = resolve(root, skill.srcSubdir);
+  if (!existsSync(resolve(src, "SKILL.md"))) {
+    process.stderr.write(`tutuca: missing skill assets for ${skill.name} at ${src}\n`);
+    process.exit(1);
+  }
+  const target = targetDir(scope, skill.name);
+  if (targetHasSkillFiles(target) && !force) {
+    process.stderr.write(
+      `tutuca: ${target} already contains skill files. Re-run with --force to overwrite.\n`,
+    );
+    process.exit(1);
+  }
+  mkdirSync(target, { recursive: true });
+  cpSync(src, target, { recursive: true });
+  const rel = scope === "project" ? `.claude/skills/${skill.name}` : target;
+  process.stdout.write(`installed ${skill.name} skill → ${rel}\n`);
 }
 
 export async function run(argv) {
@@ -29,6 +62,9 @@ export async function run(argv) {
     options: {
       user: { type: "boolean", default: false },
       project: { type: "boolean", default: false },
+      "margaui-skill": { type: "boolean", default: false },
+      "immutable-skill": { type: "boolean", default: false },
+      all: { type: "boolean", default: false },
       force: { type: "boolean", short: "f", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -37,11 +73,17 @@ export async function run(argv) {
 
   if (parsed.values.help) {
     process.stdout.write(
-      "tutuca install-skill [--user | --project] [--force]\n" +
+      "tutuca install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--force]\n" +
         "\n" +
-        "  Copies SKILL.md + core.md + cli.md + advanced.md into\n" +
-        "  .claude/skills/tutuca/. Defaults to --project (cwd).\n" +
-        "  --user installs at ~/.claude/skills/tutuca/.\n" +
+        "  Installs Claude Code skill assets into .claude/skills/<name>/.\n" +
+        "  Defaults to --project (cwd); --user installs at ~/.claude/skills/.\n" +
+        "\n" +
+        "  Selection:\n" +
+        "    (default)         install the tutuca skill\n" +
+        "    --margaui-skill   install the margaui skill instead\n" +
+        "    --immutable-skill install the immutable-js skill instead\n" +
+        "    --all             install every bundled skill (tutuca + margaui + immutable-js)\n" +
+        "\n" +
         "  --force overwrites existing files.\n",
     );
     return;
@@ -51,11 +93,19 @@ export async function run(argv) {
     process.stderr.write("tutuca: --user and --project are mutually exclusive\n");
     process.exit(1);
   }
-  const scope = parsed.values.user ? "user" : "project";
-  const target = targetDir(scope);
-  const src = findSkillDir();
+  const selectionFlags = ["margaui-skill", "immutable-skill", "all"].filter(
+    (k) => parsed.values[k],
+  );
+  if (selectionFlags.length > 1) {
+    process.stderr.write(
+      `tutuca: ${selectionFlags.map((f) => `--${f}`).join(", ")} are mutually exclusive\n`,
+    );
+    process.exit(1);
+  }
 
-  if (!src) {
+  const scope = parsed.values.user ? "user" : "project";
+  const root = findSkillsRoot();
+  if (!root) {
     process.stderr.write(
       "tutuca: skill assets not found alongside this CLI.\n" +
         "If you're running from a checkout, run `bun scripts/build-skill.js` first.\n",
@@ -63,28 +113,17 @@ export async function run(argv) {
     process.exit(1);
   }
 
-  if (existsSync(target) && !parsed.values.force) {
-    const existing = readdirSync(target).filter((n) => SKILL_FILES.includes(n));
-    if (existing.length > 0) {
-      process.stderr.write(
-        `tutuca: ${target} already contains skill files. Re-run with --force to overwrite.\n`,
-      );
-      process.exit(1);
-    }
+  let selected;
+  if (parsed.values.all) {
+    selected = SKILLS;
+  } else {
+    const selFlag = SKILLS.find((s) => s.flag && parsed.values[s.flag]);
+    selected = selFlag ? [selFlag] : SKILLS.filter((s) => s.name === "tutuca");
   }
 
-  mkdirSync(target, { recursive: true });
-  for (const name of SKILL_FILES) {
-    const from = resolve(src, name);
-    if (!existsSync(from)) {
-      process.stderr.write(`tutuca: missing skill asset: ${from}\n`);
-      process.exit(1);
-    }
-    const buf = readFileSync(from);
-    writeFileSync(resolve(target, name), buf);
+  for (const skill of selected) {
+    installSkill(skill, root, scope, parsed.values.force);
   }
 
-  const rel = scope === "project" ? ".claude/skills/tutuca" : target;
-  process.stdout.write(`installed tutuca skill → ${rel}\n`);
   process.stdout.write("Open a Claude Code session in this directory to use it.\n");
 }
