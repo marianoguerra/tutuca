@@ -84,7 +84,7 @@ const Section = component({
   views: {
     listEntry: html`<div
       class="list-row cursor-pointer hover:bg-base-200"
-      @on.click="onListItemClick ctx"
+      @on.click="onListItemClick"
     >
       <div @text=".title" class="list-col-grow"></div>
       <p class="text-xs opacity-60 list-col-wrap" @text=".description"></p>

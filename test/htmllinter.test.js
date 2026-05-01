@@ -723,10 +723,10 @@ const LLM_DOC_FIXTURES = [
     label: "llm/core.txt: <x:panel> with named slots",
     html: `<x:panel><x slot="actions"><button @on.click=".inc">+</button></x><p>default slot content</p><x slot="footer">© 2026</x></x:panel>`,
   },
-  // core.txt — handler with type as arg + ctx
+  // core.txt — handler with type as arg (ctx is auto-appended, not passed in template)
   {
-    label: "llm/core.txt: handler with Type and ctx args",
-    html: `<button @on.click=".addItem JsonSelector ctx">+</button>`,
+    label: "llm/core.txt: handler with Type arg",
+    html: `<button @on.click=".addItem JsonSelector">+</button>`,
   },
   // core.txt — keydown modifiers (+send / +cancel)
   {

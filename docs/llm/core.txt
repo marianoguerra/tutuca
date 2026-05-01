@@ -112,7 +112,7 @@ removes all listeners and cancels cache eviction; pair with
 | `!x`     | request handler                           | `!loadData`           |
 | `*x`     | dynamic binding — see `advanced.txt`      | `*theme`              |
 | `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
-| `name`   | bare identifier — meaning depends on slot | `dec`, `value`, `ctx` |
+| `name`   | bare identifier — meaning depends on slot | `dec`, `value`        |
 | `'str'`  | string literal                            | `'btn btn-success'`   |
 | `{expr}` | interpolation in attr text                | `Hi {.name}`          |
 | `.s[.k]` | sequence/map item access                  | `.byKey[.currentKey]` |
@@ -126,9 +126,13 @@ resolves by slot:
   *Event Handling*); anything else triggers a lint warning.
 
 ```html
-<button @on.click="addItem JsonSelector ctx">+</button>
-<!--                ↑ handler ↑ Type      ↑ built-in arg -->
+<button @on.click="addItem JsonSelector">+</button>
+<!--                ↑ handler ↑ Type -->
 ```
+
+`ctx` (an `EventContext`) is auto-appended as the trailing arg, so the
+handler is called as `addItem(JsonSelector, ctx)`. Don't list `ctx` in
+the template — it's always passed.
 
 ## Quoting & String Literals
 
@@ -326,8 +330,14 @@ consequences:
 <input @on.input=".setN valueAsInt" />
 <button @on.click=".pick @key isAlt">pick</button>
 <button @on.click=".addItem JsonSelector">+</button>     <!-- type as arg -->
-<button @on.click=".loadAnotherWay ctx">load</button>    <!-- ctx -->
+<button @on.click=".loadAnotherWay">load</button>        <!-- ctx auto-appended -->
 ```
+
+Every `@on.<event>` handler receives an `EventContext` as its trailing
+arg automatically — written args come first, `ctx` last. So
+`.loadAnotherWay` is called as `loadAnotherWay(ctx)`, and `.pick @key isAlt`
+is called as `pick(key, isAlt, ctx)`. You can still write `ctx` in the
+template (it resolves to a fresh `EventContext`), but it is redundant.
 
 Built-in handler arg names: `value`, `valueAsInt`, `valueAsFloat`,
 `target`, `event`, `isAlt`, `isShift`, `isCtrl`/`isCmd`, `key`, `keyCode`,
@@ -568,6 +578,13 @@ a handler calls `ctx.stopPropagation()`. Each handler returns a
 Ancestors see the event *after* descendants have transacted, so bubble
 handlers are the place for aggregate state (logs, selections, totals).
 
+When to bubble: handle the event locally if the current component owns
+the state needed to respond. Bubble when the action belongs to an
+ancestor (a list item's "remove" must reach the list that owns the
+items), or when an ancestor may want to react to or record something
+that happened (selection, logging, analytics). Don't bubble events
+with no consumer.
+
 ## Logic / Lifecycle
 
 `logic` is invoked explicitly — **no built-in lifecycle**. `logic.init`
@@ -594,6 +611,18 @@ ctx.bubble("name", [arg]);                                  // bubble up
 and `.key(name, k)`. Each call appends a step to the path before
 `.logic(...)` / `.bubble(...)` fires; the handler runs inside the child
 instance with `this` bound to it.
+
+When to use logic: it's the mirror of `bubble`, going *down* the tree
+instead of up. Reach for `ctx.at.…logic("name")` when an ancestor needs
+to trigger something owned by a specific descendant (the inverse of a
+list item bubbling "remove" to its parent list) — e.g. a form telling
+its email field to focus after a failed submit
+(`ctx.at.field("email").logic("focus")`), or a list telling item 3 to
+enter edit mode (`ctx.at.index("items", 3).logic("startEditing")`).
+Reach for `ctx.logic("name")` on self to reuse a handler from multiple
+call sites without duplicating its body — e.g. a "Reload" button and
+`logic.init` both calling `ctx.logic("loadData")`. Don't dispatch a
+`logic` event when a direct method call on the same component would do.
 
 ## Async Requests
 

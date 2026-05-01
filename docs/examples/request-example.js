@@ -57,7 +57,7 @@ export const RequestExample = component({
       />
       <button
         class="btn bnt-sm btn-primary btn-outline"
-        @on.click=".loadAnotherWay ctx"
+        @on.click=".loadAnotherWay"
       >
         Load Another Way
       </button>

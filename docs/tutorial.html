@@ -670,6 +670,15 @@
           <a href="#bubble-events">Bubble Events</a>
         </h3>
         <p>
+          <strong>When to bubble:</strong> handle the event locally if the
+          current component owns the state needed to respond. Bubble when
+          the action belongs to an ancestor (a list item's
+          <code>remove</code> must reach the list that owns the items), or
+          when an ancestor may want to react to or record something that
+          happened (selection, logging, analytics). Don't bubble events
+          with no consumer.
+        </p>
+        <p>
           The same <code>tree.js</code> example also demonstrates
           <code>ctx.bubble</code>. When a node is clicked,
           <code>onItemClick</code> calls

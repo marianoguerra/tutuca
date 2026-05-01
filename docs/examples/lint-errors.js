@@ -45,7 +45,7 @@ const LintDemo = component({
     <p :title=".missing">undefined field</p>
 
     <!-- UNKNOWN_REQUEST_NAME + UNKNOWN_COMPONENT_NAME -->
-    <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
+    <button @on.click="doKeyDown !unknownReq UnknownComp">
       unknown req/comp
     </button>
 

@@ -54,7 +54,7 @@ export const TreeItem = component({
       @then="head open type-{.type}"
       @else="head closed type-{.type}"
       @text=".label"
-      @on.click="onItemClick ctx"
+      @on.click="onItemClick"
     ></p>
     <div class="pl-3 pt-1 flex flex-col gap-2" @show=".areChildsVisible">
       <x render-each=".items"></x>

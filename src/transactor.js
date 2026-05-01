@@ -154,6 +154,7 @@ class InputEvent extends Transaction {
         args[i] = args[i].toHandlerArg(dispatcher);
       }
     }
+    args.push(new EventContext(this.path, this.transactor, this));
     return [handler, args];
   }
   lookupName(name) {
