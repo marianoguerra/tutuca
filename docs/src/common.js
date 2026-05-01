@@ -59,7 +59,7 @@ async function maybeAddImmutableDevTools() {
   );
   console.groupEnd();
 
-  const install = await import("https://esm.sh/@immutable/devtools");
+  const install = await import("https://cdn.jsdelivr.net/npm/@immutable/devtools/+esm");
   // tutuca exports the immutable data structures
   install.default(tutuca);
 }

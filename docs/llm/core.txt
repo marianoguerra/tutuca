@@ -373,7 +373,7 @@ Custom elements just work, and any `CustomEvent` they fire is reachable
 via `@on.<event-name>`. The event's `detail` surfaces as `value`:
 
 ```js
-import "https://esm.sh/emoji-picker-element";
+import "https://cdn.jsdelivr.net/npm/emoji-picker-element/+esm";
 
 input: { onPick(detail) { return this.setCurrent(detail.unicode); } }
 view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,

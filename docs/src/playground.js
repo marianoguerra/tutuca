@@ -213,13 +213,16 @@ export class TutucaPlayground extends HTMLElement {
       const src = this.getAttribute("src") || "./src/counter.js";
       const exampleName = src.split("/").pop().replace(/\.js$/, "");
       const folder = `tutuca-${exampleName}`;
-      const { zipSync, strToU8 } = await import("https://esm.sh/fflate");
+      const { zipSync, strToU8 } = await import("https://cdn.jsdelivr.net/npm/fflate/+esm");
+      const skills = await this._fetchSkillBundle();
       const zipped = zipSync({
         [folder]: {
           "index.html": strToU8(EJECT_INDEX_HTML(tutucaUrl, margauiUrl)),
           "README.md": strToU8(EJECT_README_MD),
+          "package.json": strToU8(EJECT_PACKAGE_JSON(folder)),
           "src/app.js": strToU8(EJECT_APP_JS),
           "src/components.js": strToU8(this.editor.code),
+          ...skills,
         },
       });
 
@@ -236,6 +239,26 @@ export class TutucaPlayground extends HTMLElement {
     } finally {
       btn.disabled = false;
     }
+  }
+
+  async _fetchSkillBundle() {
+    const { version } = await fetch(
+      "https://data.jsdelivr.com/v1/package/resolve/npm/tutuca",
+    ).then((r) => r.json());
+    const base = `https://cdn.jsdelivr.net/npm/tutuca@${version}`;
+    const idx = await fetch(
+      `https://data.jsdelivr.com/v1/package/npm/tutuca@${version}/flat`,
+    ).then((r) => r.json());
+    const entries = idx.files.filter((f) => f.name.startsWith("/skill/"));
+    const out = {};
+    await Promise.all(
+      entries.map(async (f) => {
+        const buf = await fetch(base + f.name).then((r) => r.arrayBuffer());
+        const rel = f.name.replace(/^\/skill\//, ".claude/skills/");
+        out[rel] = new Uint8Array(buf);
+      }),
+    );
+    return out;
   }
 
   _getImportMap() {
@@ -542,7 +565,7 @@ open \`index.html\` through a static server.
 
 - \`index.html\` — entry point. Links the margaui theme stylesheet
   (light + dark variables), declares an importmap that points
-  \`tutuca\` and \`margaui\` at their esm.sh URLs, and loads
+  \`tutuca\` and \`margaui\` at their jsDelivr URLs, and loads
   \`src/app.js\` as a module.
 - \`src/app.js\` — bootstraps the app: creates the tutuca root, registers
   the components exported by \`src/components.js\`, compiles margaui
@@ -550,6 +573,12 @@ open \`index.html\` through a static server.
 - \`src/components.js\` — your component source. Edit this to change the
   app. It imports \`tutuca\` and \`margaui\` by bare specifier; those
   resolve through the importmap in \`index.html\`.
+- \`package.json\` — declares \`tutuca\` + \`margaui\` as devDependencies
+  so the \`tutuca\` CLI can resolve those bare imports when run from
+  Node. Also wires \`npm run lint\` / \`npm run render\` shortcuts.
+- \`.claude/skills/\` — bundled Claude Code skills (\`tutuca\`,
+  \`margaui\`, \`immutable-js\`). Auto-discovered when this folder is
+  opened in Claude Code.
 
 ## Running
 
@@ -561,12 +590,54 @@ Then open http://localhost:8000/ in a browser. Opening \`index.html\`
 directly via \`file://\` will not work because the importmap needs an
 http(s) origin.
 
+## Running the Tutuca CLI
+
+The \`tutuca\` CLI runs the post-edit verification recipe (lint +
+render an example) against \`src/components.js\`. Install once, then:
+
+    npm install
+    npm run lint
+    npm run render -- --title "<example title>"
+
+\`npm run lint\` exits \`2\` on error-level findings; \`npm run render\`
+exits \`3\` on a render crash. For the full reference (other commands,
+flags like \`--view\`, \`-f html --pretty -o out.html\`, etc.), run:
+
+    npx tutuca help
+
+## Claude Code skills
+
+\`.claude/skills/\` contains the \`tutuca\`, \`margaui\`, and
+\`immutable-js\` skill assets. When you open this folder in Claude
+Code, those skills are picked up automatically and the assistant can
+reference them. To refresh them later from the installed CLI:
+
+    npm run install-skills
+
 ## Notes
 
-- \`tutuca\` and \`margaui\` are loaded from esm.sh at runtime — the app
-  therefore needs network access the first time each module is
+- \`tutuca\` and \`margaui\` are loaded from jsDelivr at runtime — the
+  app therefore needs network access the first time each module is
   requested (the browser then caches them).
-- To pin versions, edit the URLs in the importmap inside \`index.html\`.
+- To pin versions, edit the URLs in the importmap inside \`index.html\`
+  (and the matching \`devDependencies\` in \`package.json\`).
 - To go fully offline, download the modules, place them alongside the
   app, and update the importmap to point at the local paths.
 `;
+
+const EJECT_PACKAGE_JSON = (name) =>
+  `${JSON.stringify(
+    {
+      name,
+      private: true,
+      type: "module",
+      scripts: {
+        lint: "tutuca ./src/components.js lint",
+        render: "tutuca ./src/components.js render",
+        "install-skills": "tutuca install-skill --all --force",
+      },
+      devDependencies: { tutuca: "latest", margaui: "latest" },
+    },
+    null,
+    2,
+  )}\n`;

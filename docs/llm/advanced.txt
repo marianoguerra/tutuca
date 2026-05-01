@@ -131,7 +131,7 @@ diffing (typically `"data-sk"` for "sequence key").
 
 ```js
 import { compileClassesToStyleText, injectCss, tutuca } from "tutuca/extra";
-import { compile } from "https://esm.sh/margaui";
+import { compile } from "https://cdn.jsdelivr.net/npm/margaui/+esm";
 
 const app = tutuca("#app");
 app.registerComponents([Comp]);

@@ -27,7 +27,7 @@ For an interactive walk-through with editable examples, see the
   <body>
     <div id="app"></div>
     <script type="module">
-      import { component, html, tutuca } from "https://esm.sh/tutuca";
+      import { component, html, tutuca } from "https://cdn.jsdelivr.net/npm/tutuca/+esm";
 
       const Counter = component({
         name: "Counter",

@@ -1,5 +1,5 @@
 import { component, html } from "tutuca";
-import "https://esm.sh/emoji-picker-element";
+import "https://cdn.jsdelivr.net/npm/emoji-picker-element/+esm";
 
 const EmojiPicker = component({
   name: "EmojiPicker",
