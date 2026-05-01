@@ -10,12 +10,13 @@
 // modes, form pointer, framesetOk) and emit a finding wherever the spec says
 // "parse error" or describes a silent reparenting.
 
-import { HtmlTokenizer } from "./html-tokenizer.js";
+import { HtmlTokenizer, QuoteType } from "./html-tokenizer.js";
 import {
   FORMATTING_ELEMENTS,
   FOREIGN_BREAKOUT_TAGS,
   FRAGMENT_CONTEXT_MODES,
   MATHML_TEXT_INTEGRATION_POINTS,
+  MATHML_TEXT_INTEGRATION_POINT_NAMES,
   MODES,
   NS,
   RAW_TEXT_ELEMENTS,
@@ -25,12 +26,17 @@ import {
   SCOPE_TABLE,
   SELECT_BREAKOUT_TAGS,
   SPECIAL_ELEMENTS,
+  MATHML_ATTR_LOWERCASE_TO_CAMEL,
   STANDARD_SVG_CAMEL_ELEMENTS,
+  SVG_ATTR_LOWERCASE_TO_CAMEL,
+  SVG_HTML_INTEGRATION_POINT_NAMES,
   VOID_ELEMENTS,
 } from "./htmllinter-tables.js";
 
 export const HTML_TAG_NAME_HAS_UPPERCASE = "HTML_TAG_NAME_HAS_UPPERCASE";
 export const HTML_SVG_TAG_WILL_LOWERCASE = "HTML_SVG_TAG_WILL_LOWERCASE";
+export const HTML_SVG_ATTR_WILL_LOWERCASE = "HTML_SVG_ATTR_WILL_LOWERCASE";
+export const HTML_MATHML_ATTR_WILL_LOWERCASE = "HTML_MATHML_ATTR_WILL_LOWERCASE";
 export const HTML_TAG_NOT_ALLOWED_IN_PARENT = "HTML_TAG_NOT_ALLOWED_IN_PARENT";
 export const HTML_TEXT_NOT_ALLOWED_IN_PARENT = "HTML_TEXT_NOT_ALLOWED_IN_PARENT";
 export const HTML_VOID_ELEMENT_HAS_CLOSE_TAG = "HTML_VOID_ELEMENT_HAS_CLOSE_TAG";
@@ -38,6 +44,13 @@ export const HTML_DUPLICATE_FORM = "HTML_DUPLICATE_FORM";
 export const HTML_NESTED_INTERACTIVE = "HTML_NESTED_INTERACTIVE";
 export const HTML_MISNESTED_FORMATTING = "HTML_MISNESTED_FORMATTING";
 export const HTML_UNEXPECTED_END_TAG = "HTML_UNEXPECTED_END_TAG";
+export const HTML_DUPLICATE_ATTRIBUTE = "HTML_DUPLICATE_ATTRIBUTE";
+export const HTML_ATTRIBUTES_ON_END_TAG = "HTML_ATTRIBUTES_ON_END_TAG";
+export const HTML_SELF_CLOSING_END_TAG = "HTML_SELF_CLOSING_END_TAG";
+export const HTML_MISSING_ATTRIBUTE_VALUE = "HTML_MISSING_ATTRIBUTE_VALUE";
+export const HTML_CDATA_IN_HTML_NAMESPACE = "HTML_CDATA_IN_HTML_NAMESPACE";
+export const HTML_BOGUS_COMMENT = "HTML_BOGUS_COMMENT";
+export const HTML_UNCLOSED_BEFORE_END = "HTML_UNCLOSED_BEFORE_END";
 
 const LEVEL_ERROR = "error";
 const LEVEL_WARN = "warn";
@@ -55,6 +68,21 @@ const TABLE_SCOPE_TAGS = new Set([
 ]);
 
 const TABLE_BODY_CELL_TAGS = new Set(["td", "th"]);
+
+// §13.2.6.4.7 "generate implied end tags". Frames with these names can be
+// silently popped without emitting HTML_UNCLOSED_BEFORE_END.
+const IMPLIED_END_TAGS = new Set([
+  "dd",
+  "dt",
+  "li",
+  "optgroup",
+  "option",
+  "p",
+  "rb",
+  "rp",
+  "rt",
+  "rtc",
+]);
 
 export function lintHtml(html, onFinding, opts = {}) {
   const TokenizerClass = opts.TokenizerClass ?? HtmlTokenizer;
@@ -102,26 +130,25 @@ class LinterCtx {
     }
 
     this.insertionMode = ctxInfo.mode;
-    this.originalInsertionMode = MODES.inBody;
     this.templateInsertionModes = ctxName === "template" ? [MODES.inTemplate] : [];
     this.activeFormatting = []; // entries: frame ref or null marker
-    this.formPointer = null;
     this.framesetOk = true;
 
     this.svgCamelElements = opts.svgCamelElements ?? STANDARD_SVG_CAMEL_ELEMENTS;
     // Tags treated as phantom (skipped from stack/dispatch). Used for Tutuca's
     // <x> and <x:macroname> templating tags, whose actual rendered output
     // can't be predicted at lint time. Matched as `name === prefix` or
-    // `name.startsWith(prefix + ":")`.
-    this.transparentTagPrefixes = opts.transparentTagPrefixes ?? [];
+    // `name.startsWith(prefix + ":")`. Lowercased once because the comparison
+    // is against the lowercased tag name.
+    this.transparentTagPrefixes = (opts.transparentTagPrefixes ?? []).map((p) => p.toLowerCase());
 
     // Per-token scratch.
     this.currentTagName = "";
     this.currentTagRawName = "";
     this.currentTagStart = 0;
+    this.currentAttrs = []; // [{ name, rawName, nameStart, value, valueStart, valueEnd, quote }]
+    this.currentAttr = null; // partial attribute being built
     this.tokenizer = null;
-    // For text mode: track the element we're inside so end-tag matches.
-    this.textRestoreMode = null;
   }
 
   // ─── Tokenizer.Callbacks ──────────────────────────────────────────────────
@@ -133,16 +160,67 @@ class LinterCtx {
     // for case-violation reporting.
     this.currentTagName = raw.toLowerCase();
     this.currentTagStart = start;
+    this.currentAttrs = [];
+    this.currentAttr = null;
   }
 
-  onattribname(_start, _end) {
-    // Attributes aren't used for the rules we currently emit. Kept as stub
-    // so future attribute-casing rule can hook here.
+  onattribname(start, end) {
+    const rawName = this.html.slice(start, end);
+    this.currentAttr = {
+      name: rawName.toLowerCase(),
+      rawName,
+      nameStart: start,
+      value: null,
+      valueStart: -1,
+      valueEnd: -1,
+      quote: QuoteType.NoValue,
+    };
   }
-  onattribdata(_start, _end) {}
+
+  onattribdata(start, end) {
+    if (!this.currentAttr) return;
+    this.currentAttr.valueStart = start;
+    this.currentAttr.valueEnd = end;
+    this.currentAttr.value = this.html.slice(start, end);
+  }
+
+  onattribend(quote, _end) {
+    const a = this.currentAttr;
+    if (!a) return;
+    a.quote = quote;
+    // Drop duplicates per spec but report — matches html5ever
+    // tokenizer/mod.rs:555 ("Duplicate attribute").
+    const dup = this.currentAttrs.find((x) => x.name === a.name);
+    if (dup) {
+      this.report(HTML_DUPLICATE_ATTRIBUTE, LEVEL_WARN, a.nameStart, {
+        name: a.name,
+        firstAt: dup.nameStart,
+      });
+    } else {
+      this.currentAttrs.push(a);
+    }
+    // <input value=> with `>` immediately after `=` produces a zero-length
+    // unquoted value (html-tokenizer.js:519-527). A real empty value would
+    // be quoted (`value=""`) — flag the unquoted case as missing-value.
+    if (a.quote === QuoteType.Unquoted && a.value === "") {
+      this.report(HTML_MISSING_ATTRIBUTE_VALUE, LEVEL_WARN, a.nameStart, {
+        name: a.name,
+      });
+    }
+    this.currentAttr = null;
+  }
+
   onattribentity(_cp) {}
-  onattribend(_quote, _end) {}
   ontextentity(_cp, _end) {}
+
+  getAttr(name) {
+    const a = this.currentAttrs.find((x) => x.name === name);
+    return a ? a.value : null;
+  }
+
+  hasAttr(name) {
+    return this.currentAttrs.some((x) => x.name === name);
+  }
 
   onopentagend(endIndex) {
     this.handleStartTag(false, endIndex);
@@ -155,25 +233,73 @@ class LinterCtx {
   onclosetag(start, end) {
     const raw = this.html.slice(start, end);
     const name = raw.toLowerCase();
+    // Tokenizer doesn't expose attributes/self-close on end tags — scan
+    // forward from the name end to the next `>` ourselves. html5ever flags
+    // both as parse errors (tokenizer/mod.rs:455 "Attributes on an end
+    // tag", :458 "Self-closing end tag").
+    let i = end;
+    let lastNonWs = -1;
+    while (i < this.html.length) {
+      const c = this.html.charCodeAt(i);
+      if (c === 62 /* > */) break;
+      if (c !== 32 && c !== 9 && c !== 10 && c !== 13 && c !== 12) lastNonWs = i;
+      i++;
+    }
+    if (lastNonWs >= 0) {
+      // Self-closing end tag: the only non-whitespace content is a single
+      // `/` immediately before `>`. Anything else means attributes.
+      if (this.html.charCodeAt(lastNonWs) === 47 /* / */ && lastNonWs === i - 1) {
+        // Disambiguate `</div/>` from `</div foo/>` by checking whether
+        // there's any non-whitespace content before the trailing slash.
+        let firstNonWs = -1;
+        for (let j = end; j < lastNonWs; j++) {
+          const c2 = this.html.charCodeAt(j);
+          if (c2 !== 32 && c2 !== 9 && c2 !== 10 && c2 !== 13 && c2 !== 12) {
+            firstNonWs = j;
+            break;
+          }
+        }
+        if (firstNonWs < 0) {
+          this.report(HTML_SELF_CLOSING_END_TAG, LEVEL_WARN, start, { tag: name });
+        } else {
+          this.report(HTML_ATTRIBUTES_ON_END_TAG, LEVEL_WARN, start, { tag: name });
+        }
+      } else {
+        this.report(HTML_ATTRIBUTES_ON_END_TAG, LEVEL_WARN, start, { tag: name });
+      }
+    }
     this.handleEndTag(name, start);
   }
 
   ontext(start, end) {
     if (start >= end) return;
+    // Inside a foreign frame that isn't an integration point, text is always
+    // allowed (foreign content's insertion-mode rules ignore text-in-table
+    // and similar HTML-mode constraints). Integration points fall through to
+    // HTML-mode handling.
+    const top = this.currentNode();
+    if (top && top.ns !== NS.html && !this.isIntegrationPoint(top)) return;
     this.handleText(start, end);
   }
 
-  oncomment(_start, _end, _endOffset) {
-    // Comments are valid in every insertion mode we care about.
+  oncomment(start, _end, endOffset) {
+    // The vendored Tokenizer encodes the closing-sequence length in
+    // endOffset: 3 for a real `<!-- … -->` (html-tokenizer.js:306), 0 for a
+    // bogus declaration like `<!foo>` or `</1foo>` reinterpreted as a
+    // comment (html-tokenizer.js:540, 605).
+    if (endOffset === 0) {
+      this.report(HTML_BOGUS_COMMENT, LEVEL_WARN, start, {
+        mode: this.insertionMode,
+      });
+    }
   }
 
   oncdata(start, _end, _endOffset) {
-    // CDATA outside foreign content is reinterpreted as a bogus comment.
+    // CDATA is only valid in foreign content; in HTML it's reinterpreted
+    // as a bogus comment (html5ever tokenizer/mod.rs:1654-1659).
     if (this.currentNamespace() === NS.html) {
-      this.report(HTML_TAG_NOT_ALLOWED_IN_PARENT, LEVEL_WARN, start, {
-        tag: "[CDATA[",
+      this.report(HTML_CDATA_IN_HTML_NAMESPACE, LEVEL_WARN, start, {
         mode: this.insertionMode,
-        action: "ignored",
       });
     }
   }
@@ -223,11 +349,44 @@ class LinterCtx {
     for (let i = this.openElements.length - 1; i >= 0; i--) {
       const f = this.openElements[i];
       if (f.name === target && f.ns === NS.html) return true;
-      if (f.ns === NS.html && scopeSet.has(f.name)) return false;
-      if (f.ns !== NS.html) {
-        // SVG/MathML are scope boundaries except integration points.
+      if (f.ns === NS.html) {
+        if (scopeSet.has(f.name)) return false;
+      } else if (this.isScopeBoundary(f)) {
+        // Integration points + MathML annotation-xml are listed in the
+        // default scope (WHATWG §13.2.4.2). Other foreign frames (svg/g/
+        // circle/etc.) are *walked past* — the original "all foreign →
+        // boundary" was over-restrictive vs. the spec.
         return false;
       }
+    }
+    return false;
+  }
+
+  // Foreign frame names that bound scope walks per spec (§13.2.4.2 default
+  // scope list). This is broader than isHtmlIntegrationPoint: every MathML
+  // annotation-xml is a boundary regardless of encoding, even though only
+  // those with encoding=text/html dispatch as HTML.
+  isScopeBoundary(frame) {
+    if (frame.ns === NS.math) {
+      return MATHML_TEXT_INTEGRATION_POINT_NAMES.has(frame.name) || frame.name === "annotation-xml";
+    }
+    if (frame.ns === NS.svg) {
+      return SVG_HTML_INTEGRATION_POINT_NAMES.has(frame.name);
+    }
+    return false;
+  }
+
+  // Frames that re-enter HTML token dispatch (not the same as scope
+  // boundaries — annotation-xml only re-enters HTML when its encoding is
+  // text/html or application/xhtml+xml; html5ever rules.rs:1649-1665).
+  isIntegrationPoint(frame) {
+    if (frame.ns === NS.math) {
+      if (MATHML_TEXT_INTEGRATION_POINT_NAMES.has(frame.name)) return true;
+      if (frame.name === "annotation-xml" && frame.htmlIntegration) return true;
+      return false;
+    }
+    if (frame.ns === NS.svg) {
+      return SVG_HTML_INTEGRATION_POINT_NAMES.has(frame.name);
     }
     return false;
   }
@@ -305,22 +464,61 @@ class LinterCtx {
       }
     }
 
+    // Per-attribute case correction for foreign content. Applies when the
+    // element being opened is in (or about to enter) the SVG / MathML
+    // namespace — html5ever mod.rs:1755-1817 (SVG), :1819-1824 (MathML).
+    // Root <svg>/<math> tags themselves get adjusted, so check the target
+    // namespace, not just the parent's.
+    const targetNs = ns !== NS.html ? ns : name === "svg" ? NS.svg : name === "math" ? NS.math : NS.html;
+    if (targetNs === NS.svg) {
+      for (const a of this.currentAttrs) {
+        const canonical = SVG_ATTR_LOWERCASE_TO_CAMEL.get(a.name);
+        if (canonical && a.rawName !== canonical) {
+          this.report(HTML_SVG_ATTR_WILL_LOWERCASE, LEVEL_ERROR, a.nameStart, {
+            raw: a.rawName,
+            canonical,
+          });
+        }
+      }
+    } else if (targetNs === NS.math) {
+      for (const a of this.currentAttrs) {
+        const canonical = MATHML_ATTR_LOWERCASE_TO_CAMEL.get(a.name);
+        if (canonical && a.rawName !== canonical) {
+          this.report(HTML_MATHML_ATTR_WILL_LOWERCASE, LEVEL_ERROR, a.nameStart, {
+            raw: a.rawName,
+            canonical,
+          });
+        }
+      }
+    }
+
     // Phantom tags (e.g. Tutuca's <x>, <x:macroname>) are skipped: they're
     // replaced at render time, so their position in the parent is whatever
     // their expansion produces. Case checks above still applied.
     if (this.isTransparentTag(name)) return;
 
-    // Foreign content has its own algorithm.
-    if (ns !== NS.html && !this.shouldBreakoutFromForeign(name)) {
+    // Foreign content has its own algorithm — but integration points
+    // dispatch with HTML rules instead (html5ever rules.rs gates
+    // step_foreign on the current node not being an integration point).
+    const top = this.currentNode();
+    const inForeign = ns !== NS.html && !(top && this.isIntegrationPoint(top));
+    if (inForeign && !this.shouldBreakoutFromForeign(name)) {
       this.startTagInForeign(name, raw, selfClosing, start);
       return;
     }
-    if (ns !== NS.html && this.shouldBreakoutFromForeign(name)) {
-      // Pop foreign nodes until current is HTML.
+    if (inForeign && this.shouldBreakoutFromForeign(name)) {
+      // Foreign-breakout: pop until current is HTML. Surface the silent
+      // reparenting as a finding (html5ever rules.rs:1631 emits
+      // unexpected_start_tag_in_foreign_content here).
+      this.report(HTML_TAG_NOT_ALLOWED_IN_PARENT, LEVEL_WARN, start, {
+        tag: raw,
+        parent: this.currentNode()?.name ?? "(root)",
+        mode: this.insertionMode,
+        action: "foreign-breakout",
+      });
       while (this.openElements.length && this.currentNode()?.ns !== NS.html) {
         this.openElements.pop();
       }
-      // Fall through to normal HTML processing.
     }
 
     this.dispatchStartTag(name, raw, selfClosing, start, endIndex);
@@ -328,7 +526,11 @@ class LinterCtx {
 
   shouldBreakoutFromForeign(name) {
     if (FOREIGN_BREAKOUT_TAGS.has(name)) return true;
-    if (name === "font") return true; // covered by attr check in spec; flag conservatively
+    if (name === "font") {
+      // §13.2.6.5 / html5ever rules.rs:1633-1647 — only <font> with one of
+      // color/face/size escapes foreign content; bare <font> stays.
+      return this.hasAttr("color") || this.hasAttr("face") || this.hasAttr("size");
+    }
     return false;
   }
 
@@ -336,22 +538,30 @@ class LinterCtx {
     // Adjust namespace transitions: <svg> stays svg, nested <math> inside svg.
     const ns = name === "svg" ? NS.svg : name === "math" ? NS.math : this.currentNamespace();
 
-    // MathML text integration points re-enter HTML.
+    // Integration points re-enter HTML (MathML text + SVG html integration
+    // points + annotation-xml with an html encoding). mglyph/malignmark are
+    // excluded per WHATWG §13.2.6.5.
     const top = this.currentNode();
-    if (
-      top &&
-      top.ns === NS.math &&
-      MATHML_TEXT_INTEGRATION_POINTS.has(top.name) &&
-      name !== "mglyph" &&
-      name !== "malignmark"
-    ) {
-      // Treat as HTML.
+    if (top && this.isIntegrationPoint(top) && name !== "mglyph" && name !== "malignmark") {
       this.dispatchStartTag(name, raw, selfClosing, start, start + raw.length);
       return;
     }
 
     if (selfClosing) return; // don't push
-    this.push(raw, ns, start);
+    // Store the lowercased form. The HTML_SVG_TAG_WILL_LOWERCASE finding
+    // emitted earlier already preserved the source case for reporting; the
+    // stack only needs the canonical name for subsequent lookups.
+    const frame = { name, ns, start };
+    // annotation-xml acts as an HTML integration point if encoding is
+    // text/html or application/xhtml+xml (html5ever rules.rs:1649-1665).
+    // Capture the flag at push time so isIntegrationPoint can read it.
+    if (ns === NS.math && name === "annotation-xml") {
+      const enc = (this.getAttr("encoding") ?? "").toLowerCase();
+      if (enc === "text/html" || enc === "application/xhtml+xml") {
+        frame.htmlIntegration = true;
+      }
+    }
+    this.openElements.push(frame);
   }
 
   dispatchStartTag(name, raw, selfClosing, start, endIndex) {
@@ -362,10 +572,6 @@ class LinterCtx {
         return this.startInBody(name, raw, selfClosing, start, endIndex);
       case MODES.inTable:
         return this.startInTable(name, raw, selfClosing, start, endIndex);
-      case MODES.inTableText:
-        this.flushTableText();
-        this.insertionMode = this.originalInsertionMode;
-        return this.dispatchStartTag(name, raw, selfClosing, start, endIndex);
       case MODES.inCaption:
         return this.startInCaption(name, raw, selfClosing, start, endIndex);
       case MODES.inColumnGroup:
@@ -380,9 +586,6 @@ class LinterCtx {
         return this.startInSelect(name, raw, selfClosing, start, endIndex);
       case MODES.inSelectInTable:
         return this.startInSelectInTable(name, raw, selfClosing, start, endIndex);
-      case MODES.text:
-        // Tokenizer keeps us out of tag mode while in raw text. Should not happen.
-        return;
     }
   }
 
@@ -469,7 +672,10 @@ class LinterCtx {
     }
 
     if (name === "form") {
-      if (this.formPointer !== null && !this.openElementsHas("template")) {
+      // A form inside a template is fine because templates have their own
+      // scope; outside a template, a still-open <form> on the stack means
+      // this <form> would be silently dropped by the real parser.
+      if (this.openElementsHas("form") && !this.openElementsHas("template")) {
         this.report(HTML_DUPLICATE_FORM, LEVEL_ERROR, start, {
           tag: raw,
           mode: this.insertionMode,
@@ -478,7 +684,6 @@ class LinterCtx {
       }
       if (this.hasInButtonScope("p")) this.implicitlyClose("p", start, raw);
       this.push(raw, NS.html, start);
-      this.formPointer = this.currentNode();
       return;
     }
 
@@ -561,8 +766,9 @@ class LinterCtx {
     }
 
     if (name === "a") {
-      // Adoption-agency precondition: an existing <a> in active formatting list.
-      if (this.openElementsHas("a") || this.activeFormattingHas("a")) {
+      // §13.2.6.4.7 "in body" — only the *active formatting list* triggers
+      // adoption-agency for <a>; the open-elements stack alone doesn't.
+      if (this.activeFormattingHas("a")) {
         this.report(HTML_NESTED_INTERACTIVE, LEVEL_WARN, start, {
           tag: raw,
           mode: this.insertionMode,
@@ -581,7 +787,9 @@ class LinterCtx {
     }
 
     if (name === "nobr") {
-      if (this.hasInDefaultScope("nobr")) {
+      // Same precondition shape as <a>: html5ever's <nobr> handler runs the
+      // adoption agency only when nobr is in the active formatting list.
+      if (this.activeFormattingHas("nobr")) {
         this.report(HTML_NESTED_INTERACTIVE, LEVEL_WARN, start, {
           tag: raw,
           mode: this.insertionMode,
@@ -696,15 +904,18 @@ class LinterCtx {
     return false;
   }
 
-  // Simplified adoption agency: just remove the entry from active formatting
-  // and from open elements stack. Real algorithm reorders nodes; we only need
-  // bookkeeping integrity to keep tracking subsequent tags.
+  // Simplified adoption agency. The real algorithm clones the formatting
+  // element, splices it after the furthest block, and *keeps* the entry on
+  // the active formatting list (replaced via bookmark — html5ever
+  // mod.rs:713-921). We don't build a DOM, but we mirror the bookkeeping
+  // shape: pop the open-elements entry and leave the active-formatting
+  // entry in place so a subsequent same-name tag still sees it (which is
+  // what triggers the next adoption-agency run / nested-interactive lint).
   runAdoptionAgency(name) {
     for (let i = this.activeFormatting.length - 1; i >= 0; i--) {
       const e = this.activeFormatting[i];
       if (e === null) break;
       if (e.name === name) {
-        this.activeFormatting.splice(i, 1);
         const idx = this.openElements.indexOf(e);
         if (idx >= 0) this.openElements.splice(idx, 1);
         return;
@@ -809,7 +1020,11 @@ class LinterCtx {
       return this.startInBody(name, raw, selfClosing, start, endIndex);
     }
     if (name === "input") {
-      // Per spec, type=hidden is allowed; otherwise foster-parent.
+      // §"in table" — <input type=hidden> is the one input allowed inside a
+      // table without foster-parenting (html5ever rules.rs handles this in
+      // the inTable arm). Any other type triggers foster-parent.
+      const type = (this.getAttr("type") ?? "").toLowerCase();
+      if (type === "hidden") return;
       this.report(HTML_TAG_NOT_ALLOWED_IN_PARENT, LEVEL_WARN, start, {
         tag: raw,
         parent: "table",
@@ -848,20 +1063,6 @@ class LinterCtx {
       if (top.name === "table" || top.name === "template") break;
       this.openElements.pop();
     }
-  }
-
-  // ─── inTableText ──────────────────────────────────────────────────────────
-
-  flushTableText() {
-    if (!this.pendingTableText) return;
-    const { hasNonWhitespace, start, snippet } = this.pendingTableText;
-    if (hasNonWhitespace) {
-      this.report(HTML_TEXT_NOT_ALLOWED_IN_PARENT, LEVEL_ERROR, start, {
-        mode: this.originalInsertionMode,
-        snippet,
-      });
-    }
-    this.pendingTableText = null;
   }
 
   // ─── inCaption ────────────────────────────────────────────────────────────
@@ -1172,18 +1373,31 @@ class LinterCtx {
     if (this.isTransparentTag(name)) return;
     const ns = this.currentNamespace();
 
-    // Foreign-content end tags.
+    // Foreign-content end tag (html5ever rules.rs:1652-1683): walk down,
+    // case-insensitive match against foreign frames; on the first HTML
+    // frame *after* a non-matching foreign top, dispatch in HTML mode
+    // without popping anything. Emit HTML_UNEXPECTED_END_TAG once if the
+    // top foreign frame doesn't match.
     if (ns !== NS.html) {
-      // Pop matching foreign element (case-insensitive).
-      for (let i = this.openElements.length - 1; i >= 0; i--) {
-        const f = this.openElements[i];
-        if (f.ns === NS.html) break;
-        if (f.name.toLowerCase() === name) {
-          this.openElements.length = i;
+      let stackIdx = this.openElements.length - 1;
+      let first = true;
+      while (stackIdx > 0) {
+        const f = this.openElements[stackIdx];
+        if (!first && f.ns === NS.html) break; // fall through to HTML dispatch
+        if (f.ns !== NS.html && f.name.toLowerCase() === name) {
+          this.openElements.length = stackIdx;
           return;
         }
+        if (first) {
+          this.report(HTML_UNEXPECTED_END_TAG, LEVEL_WARN, start, {
+            tag: name,
+            mode: this.insertionMode,
+          });
+          first = false;
+        }
+        stackIdx--;
       }
-      // Unknown — try HTML rules.
+      // Fall through: HTML mode dispatch.
     }
 
     if (VOID_ELEMENTS.has(name)) {
@@ -1218,24 +1432,58 @@ class LinterCtx {
       return;
     }
 
-    // Generic close: pop until match.
+    // §"any other end tag" in body: walk the stack; if we hit a special
+    // element before finding the match, emit a parse error and ignore the
+    // tag (html5ever mod.rs:1340+).
+    const endIsTableStructural = TABLE_SCOPE_TAGS.has(name);
     for (let i = this.openElements.length - 1; i >= 0; i--) {
       const f = this.openElements[i];
       if (f.ns === NS.html && f.name === name) {
+        // Anything between i+1 and the top is being implicitly closed by
+        // this end tag. The spec emits a parse error if those frames
+        // aren't in the implied-end-tags set (dd/dt/li/option/optgroup/p/
+        // rb/rp/rt/rtc). html5ever mod.rs:1311-1316 "expected to close <X>
+        // with cell" has the same shape. Table-structural end tags
+        // additionally close cells/rows/sections silently.
+        for (let j = this.openElements.length - 1; j > i; j--) {
+          const popped = this.openElements[j];
+          if (
+            popped.ns === NS.html &&
+            popped.name !== name &&
+            !IMPLIED_END_TAGS.has(popped.name) &&
+            !(endIsTableStructural && TABLE_SCOPE_TAGS.has(popped.name))
+          ) {
+            this.report(HTML_UNCLOSED_BEFORE_END, LEVEL_WARN, start, {
+              tag: name,
+              unclosed: popped.name,
+              mode: this.insertionMode,
+            });
+            break;
+          }
+        }
         this.openElements.length = i;
-        if (name === "form") this.formPointer = null;
-        // Reset mode if we closed a structural element.
         if (TABLE_SCOPE_TAGS.has(name) || name === "select" || name === "template") {
           this.resetInsertionModeAppropriately();
         }
         return;
       }
-      if (f.ns === NS.html && SPECIAL_ELEMENTS.has(f.name)) {
-        // Close-tag for non-special is parse-error per spec — we leave silent.
-        break;
+      if (
+        f.ns === NS.html &&
+        SPECIAL_ELEMENTS.has(f.name) &&
+        !IMPLIED_END_TAGS.has(f.name) &&
+        !(endIsTableStructural && TABLE_SCOPE_TAGS.has(f.name))
+      ) {
+        // Implied-end-tag frames (li/p/etc.) and table-structural frames
+        // closed by table-structural end tags are silently popped; only
+        // non-implied special elements trigger the parse error.
+        this.report(HTML_UNEXPECTED_END_TAG, LEVEL_WARN, start, {
+          tag: name,
+          mode: this.insertionMode,
+        });
+        return;
       }
     }
-    // Unmatched — silently ignore (browsers do).
+    // No match anywhere in the stack — silently ignore (browsers do).
   }
 
   removeFromActiveFormattingByRef(ref) {
@@ -1251,7 +1499,6 @@ class LinterCtx {
       this.insertionMode === MODES.inTableBody ||
       this.insertionMode === MODES.inRow
     ) {
-      // Per spec, switch to inTableText, batch chars, then on flush detect non-whitespace.
       const slice = this.html.slice(start, end);
       const hasNonWhitespace = /\S/.test(slice);
       if (hasNonWhitespace) {

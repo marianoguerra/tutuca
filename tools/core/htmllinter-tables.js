@@ -144,9 +144,15 @@ const DEFAULT_SCOPE_BOUNDARIES = new Set([
   "th",
   "marquee",
   "object",
+  "select",
   "template",
   // Foreign-content boundaries: svg, math foreign roots; tracked via ns.
 ]);
+
+// Lowercased form of the integration-point names — foreign frames store the
+// lowercased element name so these lookups don't depend on the source case.
+export const MATHML_TEXT_INTEGRATION_POINT_NAMES = new Set(["mi", "mo", "mn", "ms", "mtext"]);
+export const SVG_HTML_INTEGRATION_POINT_NAMES = new Set(["foreignobject", "desc", "title"]);
 
 export const SCOPE_LIST_ITEM = new Set([...DEFAULT_SCOPE_BOUNDARIES, "ol", "ul"]);
 export const SCOPE_BUTTON = new Set([...DEFAULT_SCOPE_BOUNDARIES, "button"]);
@@ -260,6 +266,15 @@ export const STANDARD_SVG_CAMEL_ATTRS = new Set([
 // MathML adjustment list — only one per spec.
 export const MATHML_CAMEL_ATTRS = new Set(["definitionURL"]);
 
+// Reverse maps from lowercased name → canonical camelCase form. Built once
+// at module load. Used to fire HTML_SVG_ATTR_WILL_LOWERCASE /
+// HTML_MATHML_ATTR_WILL_LOWERCASE when authored attribute case doesn't
+// match the canonical form the parser would case-correct to.
+export const SVG_ATTR_LOWERCASE_TO_CAMEL = new Map();
+for (const camel of STANDARD_SVG_CAMEL_ATTRS) SVG_ATTR_LOWERCASE_TO_CAMEL.set(camel.toLowerCase(), camel);
+export const MATHML_ATTR_LOWERCASE_TO_CAMEL = new Map();
+for (const camel of MATHML_CAMEL_ATTRS) MATHML_ATTR_LOWERCASE_TO_CAMEL.set(camel.toLowerCase(), camel);
+
 // HTML breakout from foreign content (§13.2.6.5 "If the parser was originally
 // created as part of the HTML fragment parsing algorithm").
 export const FOREIGN_BREAKOUT_TAGS = new Set([
@@ -362,11 +377,11 @@ export const SELECT_VALID_CHILDREN = new Set(["option", "optgroup", "hr", "scrip
 // Tags that close a <select> when opened in select mode.
 export const SELECT_BREAKOUT_TAGS = new Set(["input", "keygen", "textarea", "select"]);
 
-// Insertion-mode names.
+// Insertion-mode names. (Tutuca lints fragments only — document modes
+// like Initial/BeforeHtml/InHead are intentionally absent.)
 export const MODES = Object.freeze({
   inBody: "inBody",
   inTable: "inTable",
-  inTableText: "inTableText",
   inCaption: "inCaption",
   inColumnGroup: "inColumnGroup",
   inTableBody: "inTableBody",
@@ -375,7 +390,6 @@ export const MODES = Object.freeze({
   inSelect: "inSelect",
   inSelectInTable: "inSelectInTable",
   inTemplate: "inTemplate",
-  text: "text",
 });
 
 // Namespace constants.

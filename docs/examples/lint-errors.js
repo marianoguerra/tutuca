@@ -140,6 +140,44 @@ const HtmlLintDemo = component({
     <!-- HTML_MISNESTED_FORMATTING: <b><i></b></i> — adoption agency reorders -->
     <p><b><i>misnested</b></i></p>
 
+    <!-- HTML_UNEXPECTED_END_TAG: </span> with no matching span; walker
+         hits the surrounding <article> (special) and bails. -->
+    <article>oops</span></article>
+
+    <!-- HTML_UNCLOSED_BEFORE_END: <span> still open when </section> is seen;
+         span gets implicitly closed (and is "unclosed before end"). -->
+    <section><span>still open</section>
+
+    <!-- HTML_DUPLICATE_ATTRIBUTE: same attr name twice on one tag;
+         second is silently dropped per WHATWG. -->
+    <div class="a" class="b">duplicate attr</div>
+
+    <!-- HTML_ATTRIBUTES_ON_END_TAG: </div class="foo"> drops the attrs. -->
+    <div></div class="foo">
+
+    <!-- HTML_SELF_CLOSING_END_TAG: trailing /> on a close tag is meaningless. -->
+    <div></div/>
+
+    <!-- HTML_MISSING_ATTRIBUTE_VALUE: <input value=> has no value at all
+         (zero-length unquoted) — likely a typo. -->
+    <input value=>
+
+    <!-- HTML_CDATA_IN_HTML_NAMESPACE: CDATA outside SVG/MathML is silently
+         reinterpreted as a bogus comment. -->
+    <![CDATA[unexpected]]>
+
+    <!-- HTML_BOGUS_COMMENT: <!foo> isn't a real declaration; parser turns
+         it into a bogus comment, dropping the content. -->
+    <!badmarkup>
+
+    <!-- HTML_SVG_ATTR_WILL_LOWERCASE: viewbox would be silently rewritten
+         to viewBox during SVG attribute case correction. -->
+    <svg viewbox="0 0 10 10"></svg>
+
+    <!-- HTML_MATHML_ATTR_WILL_LOWERCASE: definitionurl rewritten to
+         definitionURL — the only MathML attribute that case-corrects. -->
+    <math definitionurl="x"></math>
+
     <p @text=".count">0</p>
   </div>`,
 });
