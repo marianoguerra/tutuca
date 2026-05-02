@@ -73,10 +73,15 @@ COMMANDS (no module required)
       Without [command]: prints this full reference.
       With [command]: prints that command's one-line description.
 
-  install-skill [--user | --project] [--force]
-      Copy the bundled Claude Code skill (SKILL.md + core/cli/advanced.md)
-      into .claude/skills/tutuca/. Default scope is --project (cwd);
-      --user installs at ~/.claude/skills/tutuca/. --force overwrites.
+  install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--dot-agents] [--force]
+      Copy bundled Claude Code skill assets into .claude/skills/<name>/.
+      Scope: --project (cwd, default) or --user (~/.claude/skills/).
+      Selection (default is the tutuca skill):
+        --margaui-skill    install the margaui skill instead
+        --immutable-skill  install the immutable-js skill instead
+        --all              install every bundled skill
+      --dot-agents installs into .agents/skills/ instead of .claude/skills/.
+      --force overwrites existing files.
 
 GLOBAL FLAGS
   -f, --format <cli|md|json|html>

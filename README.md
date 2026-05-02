@@ -94,7 +94,7 @@ tutuca help [command]
 | `docs [name]` | Component API docs — all, or one by name |
 | `lint [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
 | `render [name] [--title t] [--view v]` | Render examples to HTML |
-| `install-skill [--user] [--force]` | Install the tutuca Claude Code skill (no module path needed) |
+| `install-skill [--user\|--project] [--margaui-skill\|--immutable-skill\|--all] [--dot-agents] [--force]` | Install bundled Claude Code skills (no module path needed) |
 
 Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `-h, --help`.
 
@@ -153,6 +153,14 @@ npx tutuca install-skill
 
 # or user-scoped: writes ~/.claude/skills/tutuca/
 npx tutuca install-skill --user
+
+# pick a different bundled skill, or install all three
+npx tutuca install-skill --margaui-skill
+npx tutuca install-skill --immutable-skill
+npx tutuca install-skill --all
+
+# install into ./.agents/skills/ instead of ./.claude/skills/
+npx tutuca install-skill --dot-agents
 
 # overwrite an existing install
 npx tutuca install-skill --force
