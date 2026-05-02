@@ -19,6 +19,7 @@ export class TutucaPlayground extends HTMLElement {
       overflow: auto;
       border: 1px solid var(--b3, #2a323c);
       border-radius: 0.5rem;
+      position: relative;
     }
     .editor code-mirror {
       width: 100%;
@@ -29,6 +30,33 @@ export class TutucaPlayground extends HTMLElement {
     .editor kbd {
       font-size: 0.75em;
       opacity: 0.6;
+    }
+    .collapse-btn {
+      position: absolute;
+      top: 0.25rem;
+      right: 1.25rem;
+      z-index: 1;
+      width: 1.5rem;
+      height: 1.5rem;
+      padding: 0;
+      border: 1px solid var(--b3, #2a323c);
+      border-radius: 0.25rem;
+      background: var(--bg-content-100, #aaaaaa);
+      color: #212121;
+      cursor: pointer;
+      font-size: 0.85rem;
+      line-height: 1;
+    }
+    .editor.collapsed {
+      flex: 0 0 auto;
+      width: 2rem;
+      min-height: 2rem;
+    }
+    .editor.collapsed code-mirror {
+      display: none;
+    }
+    .editor.collapsed .collapse-btn {
+      right: 0.25rem;
     }
     .preview-container {
       flex: 1;
@@ -75,21 +103,38 @@ export class TutucaPlayground extends HTMLElement {
       padding: 0.25rem 0.5rem;
       box-sizing: border-box;
     }
-    .api-docs h3 { margin: 0.75rem 0 0.25rem; font-size: 1.1rem; }
-    .api-docs h4 { margin: 0.5rem 0 0.15rem; font-size: 0.95rem; }
-    .api-docs ul { margin: 0.15rem 0 0.5rem 1.25rem; padding: 0; }
-    .api-docs li { margin: 0.1rem 0; font-size: 0.85rem; }
-    .api-docs code { font-size: 0.85em; background: #e8eaf0; color: #212121; padding: 0.1em 0.3em; border-radius: 3px; }
+    .api-docs h3 {
+      margin: 0.75rem 0 0.25rem;
+      font-size: 1.1rem;
+    }
+    .api-docs h4 {
+      margin: 0.5rem 0 0.15rem;
+      font-size: 0.95rem;
+    }
+    .api-docs ul {
+      margin: 0.15rem 0 0.5rem 1.25rem;
+      padding: 0;
+    }
+    .api-docs li {
+      margin: 0.1rem 0;
+      font-size: 0.85rem;
+    }
+    .api-docs code {
+      font-size: 0.85em;
+      background: #e8eaf0;
+      color: #212121;
+      padding: 0.1em 0.3em;
+      border-radius: 3px;
+    }
     .lint-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 1.1em;
-      height: 1.1em;
       border-radius: 50%;
-      font-size: 0.7em;
+      font-size: 0.8em;
+      font-weight: bold;
       line-height: 1;
-      padding: 0.1em;
+      padding: 0.5em;
       background: var(--b3, #2a323c);
       color: inherit;
       margin-left: 0.3em;
@@ -98,15 +143,43 @@ export class TutucaPlayground extends HTMLElement {
       background: var(--error-color, #e53935);
       color: #fff;
     }
-    .lint-results h4 { margin: 0.75rem 0 0.25rem; font-size: 1rem; }
-    .lint-results ul { margin: 0.15rem 0 0.5rem 1.25rem; padding: 0; }
-    .lint-results li { margin: 0.2rem 0; font-size: 0.85rem; }
-    .lint-results .level-error { color: var(--error-color, #e53935); }
-    .lint-results .level-warn { color: var(--warn-color, #f9a825); }
-    .lint-results .level-hint { color: var(--hint-color, #888); }
-    .lint-results code { font-size: 0.85em; background: #e8eaf0; color: #212121; padding: 0.1em 0.3em; border-radius: 3px; }
+    .lint-badge[hidden] {
+      display: none;
+    }
+    .lint-results h4 {
+      margin: 0.75rem 0 0.25rem;
+      font-size: 1rem;
+    }
+    .lint-results ul {
+      margin: 0.15rem 0 0.5rem 1.25rem;
+      padding: 0;
+    }
+    .lint-results li {
+      margin: 0.2rem 0;
+      font-size: 0.85rem;
+    }
+    .lint-results .level-error {
+      color: var(--error-color, #e53935);
+    }
+    .lint-results .level-warn {
+      color: var(--warn-color, #f9a825);
+    }
+    .lint-results .level-hint {
+      color: var(--hint-color, #888);
+    }
+    .lint-results code {
+      font-size: 0.85em;
+      background: #e8eaf0;
+      color: #212121;
+      padding: 0.1em 0.3em;
+      border-radius: 3px;
+    }
     @media (prefers-color-scheme: dark) {
-      .api-docs code, .lint-results code { background: #1e2530; color: #dcdcdc; }
+      .api-docs code,
+      .lint-results code {
+        background: #1e2530;
+        color: #dcdcdc;
+      }
     }
     @media (max-width: 768px) {
       :host {
@@ -119,6 +192,11 @@ export class TutucaPlayground extends HTMLElement {
       }
       .editor code-mirror {
         min-height: 0;
+      }
+      .editor.collapsed {
+        height: 2rem;
+        width: auto;
+        min-height: 2rem;
       }
       .preview-container {
         height: 40vh;
@@ -144,13 +222,14 @@ export class TutucaPlayground extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <div class="editor">
+        <button class="collapse-btn" title="Collapse code">&#x2039;</button>
         <code-mirror lang="javascript"></code-mirror>
       </div>
       <div class="preview-container">
         <div class="tab-bar">
           <button class="active" data-tab="preview">Preview</button>
           <button data-tab="api-docs">API Docs</button>
-          <button data-tab="lint">Lint <span class="lint-badge">0</span></button>
+          <button data-tab="lint">Lint <span class="lint-badge" hidden>0</span></button>
           <button class="eject-btn" title="Eject to folder">&#x23CF;&#xFE0F;</button>
         </div>
         <div class="tab-panel active" data-panel="preview"></div>
@@ -179,6 +258,14 @@ export class TutucaPlayground extends HTMLElement {
 
     this.shadowRoot.querySelector(".eject-btn").addEventListener("click", () => this._eject());
 
+    const editorEl = this.shadowRoot.querySelector(".editor");
+    const collapseBtn = this.shadowRoot.querySelector(".collapse-btn");
+    collapseBtn.addEventListener("click", () => {
+      const collapsed = editorEl.classList.toggle("collapsed");
+      collapseBtn.innerHTML = collapsed ? "&#x203A;" : "&#x2039;";
+      collapseBtn.title = collapsed ? "Expand code" : "Collapse code";
+    });
+
     this.editor.addEventListener("code-editor-update", (e) => {
       this.editor._code = e.detail.code;
     });
@@ -206,7 +293,11 @@ export class TutucaPlayground extends HTMLElement {
 
   async _eject() {
     const btn = this.shadowRoot.querySelector(".eject-btn");
+    const originalHTML = btn.innerHTML;
+    const originalTitle = btn.title;
     btn.disabled = true;
+    btn.textContent = "⏳ Ejecting…";
+    btn.title = "Ejecting…";
     try {
       const tutucaUrl = this._resolveSpecifier("tutuca");
       const margauiUrl = this._resolveSpecifier("margaui");
@@ -238,17 +329,19 @@ export class TutucaPlayground extends HTMLElement {
       alert(`Eject failed: ${e.message}`);
     } finally {
       btn.disabled = false;
+      btn.innerHTML = originalHTML;
+      btn.title = originalTitle;
     }
   }
 
   async _fetchSkillBundle() {
-    const { version } = await fetch(
-      "https://data.jsdelivr.com/v1/package/resolve/npm/tutuca",
-    ).then((r) => r.json());
+    const { version } = await fetch("https://data.jsdelivr.com/v1/package/resolve/npm/tutuca").then(
+      (r) => r.json(),
+    );
     const base = `https://cdn.jsdelivr.net/npm/tutuca@${version}`;
-    const idx = await fetch(
-      `https://data.jsdelivr.com/v1/package/npm/tutuca@${version}/flat`,
-    ).then((r) => r.json());
+    const idx = await fetch(`https://data.jsdelivr.com/v1/package/npm/tutuca@${version}/flat`).then(
+      (r) => r.json(),
+    );
     const entries = idx.files.filter((f) => f.name.startsWith("/skill/"));
     const out = {};
     await Promise.all(
@@ -376,7 +469,13 @@ export class TutucaPlayground extends HTMLElement {
         } catch (e) {
           lintResults.push({
             name: comp.name,
-            reports: [{ id: "LINT_ERROR", info: { message: e.message }, level: "error" }],
+            reports: [
+              {
+                id: "LINT_ERROR",
+                info: { message: e.message },
+                level: "error",
+              },
+            ],
           });
         }
       }
@@ -476,6 +575,7 @@ export class TutucaPlayground extends HTMLElement {
     const total = results.reduce((s, r) => s + r.reports.length, 0);
     this.lintBadge.textContent = total;
     this.lintBadge.classList.toggle("has-issues", total > 0);
+    this.lintBadge.hidden = total === 0;
 
     const frag = document.createDocumentFragment();
     for (const { name, reports } of results) {
