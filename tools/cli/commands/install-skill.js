@@ -23,9 +23,10 @@ function findSkillsRoot() {
   return null;
 }
 
-function targetDir(scope, name) {
+function targetDir(scope, name, dotAgents) {
   const base = scope === "user" ? homedir() : process.cwd();
-  return resolve(base, ".claude/skills", name);
+  const dir = dotAgents ? ".agents/skills" : ".claude/skills";
+  return resolve(base, dir, name);
 }
 
 function targetHasSkillFiles(dir) {
@@ -37,13 +38,13 @@ function targetHasSkillFiles(dir) {
   return false;
 }
 
-function installSkill(skill, root, scope, force) {
+function installSkill(skill, root, scope, force, dotAgents) {
   const src = resolve(root, skill.srcSubdir);
   if (!existsSync(resolve(src, "SKILL.md"))) {
     process.stderr.write(`tutuca: missing skill assets for ${skill.name} at ${src}\n`);
     process.exit(1);
   }
-  const target = targetDir(scope, skill.name);
+  const target = targetDir(scope, skill.name, dotAgents);
   if (targetHasSkillFiles(target) && !force) {
     process.stderr.write(
       `tutuca: ${target} already contains skill files. Re-run with --force to overwrite.\n`,
@@ -52,7 +53,8 @@ function installSkill(skill, root, scope, force) {
   }
   mkdirSync(target, { recursive: true });
   cpSync(src, target, { recursive: true });
-  const rel = scope === "project" ? `.claude/skills/${skill.name}` : target;
+  const baseDir = dotAgents ? ".agents/skills" : ".claude/skills";
+  const rel = scope === "project" ? `${baseDir}/${skill.name}` : target;
   process.stdout.write(`installed ${skill.name} skill → ${rel}\n`);
 }
 
@@ -65,6 +67,7 @@ export async function run(argv) {
       "margaui-skill": { type: "boolean", default: false },
       "immutable-skill": { type: "boolean", default: false },
       all: { type: "boolean", default: false },
+      "dot-agents": { type: "boolean", default: false },
       force: { type: "boolean", short: "f", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -73,7 +76,7 @@ export async function run(argv) {
 
   if (parsed.values.help) {
     process.stdout.write(
-      "tutuca install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--force]\n" +
+      "tutuca install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--dot-agents] [--force]\n" +
         "\n" +
         "  Installs Claude Code skill assets into .claude/skills/<name>/.\n" +
         "  Defaults to --project (cwd); --user installs at ~/.claude/skills/.\n" +
@@ -84,6 +87,7 @@ export async function run(argv) {
         "    --immutable-skill install the immutable-js skill instead\n" +
         "    --all             install every bundled skill (tutuca + margaui + immutable-js)\n" +
         "\n" +
+        "  --dot-agents installs into .agents/skills/ instead of .claude/skills/.\n" +
         "  --force overwrites existing files.\n",
     );
     return;
@@ -122,7 +126,7 @@ export async function run(argv) {
   }
 
   for (const skill of selected) {
-    installSkill(skill, root, scope, parsed.values.force);
+    installSkill(skill, root, scope, parsed.values.force, parsed.values["dot-agents"]);
   }
 
   process.stdout.write("Open a Claude Code session in this directory to use it.\n");

@@ -90,11 +90,13 @@ tutuca install-skill --user            # ~/.claude/skills/tutuca/
 tutuca install-skill --margaui-skill   # margaui skill instead of tutuca
 tutuca install-skill --immutable-skill # immutable-js skill instead of tutuca
 tutuca install-skill --all             # all bundled skills (tutuca + margaui + immutable-js)
+tutuca install-skill --dot-agents      # install into ./.agents/skills/ instead of ./.claude/skills/
 tutuca install-skill --all --force     # overwrite existing files
 ```
 
 `--user`/`--project` choose scope (default `--project`).
 `--margaui-skill`, `--immutable-skill`, and `--all` are mutually exclusive.
+`--dot-agents` swaps the `.claude` base for `.agents` (combines with any scope/selection).
 
 ## Linter Rules
 
