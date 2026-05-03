@@ -21,6 +21,9 @@ export const macro = (defaults, rawView) => new Macro(defaults, rawView);
 export function check(_app) {
   return { error: 0, warn: 0, hint: 0, dummyCheck: true };
 }
+export async function test(_opts) {
+  return null;
+}
 export function tutuca(nodeOrSelector) {
   const rootNode =
     typeof nodeOrSelector === "string" ? document.querySelector(nodeOrSelector) : nodeOrSelector;

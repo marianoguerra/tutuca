@@ -601,8 +601,7 @@ const examplesDir = join(here, "..", "docs", "examples");
 function extractHtmlTemplates(src) {
   const out = [];
   const re = /\bhtml`/g;
-  let m;
-  while ((m = re.exec(src)) !== null) {
+  for (let m = re.exec(src); m !== null; m = re.exec(src)) {
     const start = m.index + m[0].length;
     let i = start;
     let dollarBrace = false;
@@ -626,9 +625,7 @@ function extractHtmlTemplates(src) {
 }
 
 function harvestExampleTemplates() {
-  const files = readdirSync(examplesDir).filter(
-    (f) => f.endsWith(".js") && f !== "lint-errors.js",
-  );
+  const files = readdirSync(examplesDir).filter((f) => f.endsWith(".js") && f !== "lint-errors.js");
   const fixtures = [];
   for (const file of files) {
     const src = readFileSync(join(examplesDir, file), "utf8");

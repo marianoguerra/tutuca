@@ -174,11 +174,98 @@ export class TutucaPlayground extends HTMLElement {
       padding: 0.1em 0.3em;
       border-radius: 3px;
     }
+    .test-results .test-toolbar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .test-results .run-tests-btn {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: 1px solid var(--b3, #2a323c);
+      border-radius: 0.25rem;
+      background: var(--bg-content-100, #aaaaaa);
+      color: #212121;
+    }
+    .test-results .run-tests-btn:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+    .test-results .test-suite {
+      margin: 0.5rem 0;
+      padding-left: 0.75rem;
+      border-left: 2px solid var(--b3, #2a323c);
+    }
+    .test-results h4 {
+      margin: 0.5rem 0 0.25rem;
+      font-size: 0.95rem;
+    }
+    .test-results ul {
+      margin: 0.15rem 0 0.5rem 0;
+      padding: 0;
+      list-style: none;
+    }
+    .test-results li {
+      margin: 0.2rem 0;
+      font-size: 0.85rem;
+    }
+    .test-results .status-pass {
+      color: var(--success-color, #2e7d32);
+    }
+    .test-results .status-fail {
+      color: var(--error-color, #e53935);
+      font-weight: bold;
+    }
+    .test-results .status-skip {
+      color: var(--hint-color, #888);
+    }
+    .test-results .test-error {
+      font-family: monospace;
+      font-size: 0.8em;
+      background: #fdecea;
+      color: #b71c1c;
+      padding: 0.4rem 0.5rem;
+      border-radius: 3px;
+      margin: 0.25rem 0 0.5rem 1rem;
+      white-space: pre-wrap;
+    }
+    .test-results .test-summary {
+      margin-top: 0.75rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--b3, #2a323c);
+      font-weight: bold;
+    }
+    .test-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-size: 0.8em;
+      font-weight: bold;
+      line-height: 1;
+      padding: 0.5em;
+      background: var(--b3, #2a323c);
+      color: inherit;
+      margin-left: 0.3em;
+    }
+    .test-badge.has-failures {
+      background: var(--error-color, #e53935);
+      color: #fff;
+    }
+    .test-badge[hidden] {
+      display: none;
+    }
     @media (prefers-color-scheme: dark) {
       .api-docs code,
       .lint-results code {
         background: #1e2530;
         color: #dcdcdc;
+      }
+      .test-results .test-error {
+        background: #3a1414;
+        color: #ff8a80;
       }
     }
     @media (max-width: 768px) {
@@ -230,12 +317,19 @@ export class TutucaPlayground extends HTMLElement {
           <button class="active" data-tab="preview">Preview</button>
           <button data-tab="api-docs">API Docs</button>
           <button data-tab="lint">Lint <span class="lint-badge" hidden>0</span></button>
+          <button data-tab="test">Test <span class="test-badge" hidden>0</span></button>
           <button class="eject-btn" title="Eject to folder">&#x23CF;&#xFE0F;</button>
         </div>
         <div class="tab-panel active" data-panel="preview"></div>
         <div class="undo-slider" data-panel="undo"></div>
         <div class="tab-panel api-docs" data-panel="api-docs"></div>
         <div class="tab-panel lint-results" data-panel="lint"></div>
+        <div class="tab-panel test-results" data-panel="test">
+          <div class="test-toolbar">
+            <button class="run-tests-btn">Run Tests</button>
+          </div>
+          <div class="test-results-content"></div>
+        </div>
       </div>
     `;
 
@@ -244,6 +338,11 @@ export class TutucaPlayground extends HTMLElement {
     this.apiDocsPanel = this.shadowRoot.querySelector('[data-panel="api-docs"]');
     this.lintPanel = this.shadowRoot.querySelector('[data-panel="lint"]');
     this.lintBadge = this.shadowRoot.querySelector(".lint-badge");
+    this.testPanel = this.shadowRoot.querySelector('[data-panel="test"]');
+    this.testResultsContent = this.shadowRoot.querySelector(".test-results-content");
+    this.testBadge = this.shadowRoot.querySelector(".test-badge");
+    this.runTestsBtn = this.shadowRoot.querySelector(".run-tests-btn");
+    this.runTestsBtn.addEventListener("click", () => this._runTests());
 
     this.shadowRoot.querySelector(".tab-bar").addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-tab]");
@@ -419,12 +518,18 @@ export class TutucaPlayground extends HTMLElement {
     const appRoot = document.createElement("div");
     this.preview.appendChild(appRoot);
 
+    this._currentModule = null;
+    this.testResultsContent.replaceChildren();
+    this.testBadge.hidden = true;
+    this.testBadge.classList.remove("has-failures");
+
     const code = await this.resolveImports(this.editor.code);
     const blob = new Blob([code], { type: "text/javascript" });
     this._blobUrl = URL.createObjectURL(blob);
 
     try {
       const mod = await import(this._blobUrl);
+      const tutucaApi = await import(this._resolveSpecifier("tutuca"));
       const {
         tutuca,
         compileClassesToStyleText,
@@ -432,11 +537,12 @@ export class TutucaPlayground extends HTMLElement {
         LintClassCollectorCtx,
         lintIdToMessage,
         getComponentsDocs,
-      } = await import(this._resolveSpecifier("tutuca"));
+      } = tutucaApi;
       const { compile } = await import(this._resolveSpecifier("margaui"));
 
       const app = tutuca(appRoot);
       const components = mod.getComponents();
+      this._currentModule = { mod, components, tutucaApi, path: this.getAttribute("src") };
       const scope = app.registerComponents(components);
       if (mod.getMacros) {
         scope.registerMacros(mod.getMacros());
@@ -514,6 +620,116 @@ export class TutucaPlayground extends HTMLElement {
       this.preview.textContent = `Error: ${e.message}`;
       console.error(e);
     }
+  }
+
+  async _runTests() {
+    if (!this._currentModule) {
+      this.testResultsContent.textContent = "Run the module first (Ctrl+Enter).";
+      return;
+    }
+    const { mod, components, tutucaApi, path } = this._currentModule;
+    if (typeof tutucaApi.test !== "function") {
+      this.testResultsContent.textContent = "tutuca/test is not available in the loaded build.";
+      return;
+    }
+    this.runTestsBtn.disabled = true;
+    this.runTestsBtn.textContent = "Running…";
+    this.testResultsContent.textContent = "";
+    try {
+      const report = await tutucaApi.test({
+        getTests: mod.getTests,
+        components,
+        path,
+      });
+      this._renderTestReport(report);
+    } catch (e) {
+      console.error(e);
+      this.testResultsContent.textContent = `Test runner crashed: ${e.message}`;
+    } finally {
+      this.runTestsBtn.disabled = false;
+      this.runTestsBtn.textContent = "Run Tests";
+    }
+  }
+
+  _renderTestReport(report) {
+    const frag = document.createDocumentFragment();
+    let totalsAccum = { pass: 0, fail: 0, skip: 0, total: 0 };
+    for (const m of report.modules) {
+      if (m.suites.length === 0) {
+        const p = document.createElement("p");
+        p.className = "status-skip";
+        p.textContent = "(no tests)";
+        frag.appendChild(p);
+      } else {
+        for (const s of m.suites) frag.appendChild(this._testNodeToDOM(s));
+      }
+      const c = m.counts;
+      totalsAccum = {
+        pass: totalsAccum.pass + c.pass,
+        fail: totalsAccum.fail + c.fail,
+        skip: totalsAccum.skip + c.skip,
+        total: totalsAccum.total + c.total,
+      };
+      const summary = document.createElement("div");
+      summary.className = "test-summary";
+      const cls = c.fail > 0 ? "status-fail" : c.total === 0 ? "status-skip" : "status-pass";
+      summary.classList.add(cls);
+      summary.textContent = `${c.pass} passed, ${c.fail} failed, ${c.skip} skipped (${c.total} total)`;
+      frag.appendChild(summary);
+    }
+    this.testResultsContent.replaceChildren(frag);
+
+    if (totalsAccum.total === 0) {
+      this.testBadge.hidden = true;
+      this.testBadge.classList.remove("has-failures");
+    } else {
+      this.testBadge.hidden = false;
+      this.testBadge.textContent =
+        totalsAccum.fail > 0 ? `${totalsAccum.fail}` : `${totalsAccum.total}`;
+      this.testBadge.classList.toggle("has-failures", totalsAccum.fail > 0);
+    }
+  }
+
+  _testNodeToDOM(node) {
+    if (node.children) {
+      const wrap = document.createElement("div");
+      wrap.className = "test-suite";
+      const heading = document.createElement("h4");
+      heading.textContent = node.componentName
+        ? `${node.title} [${node.componentName}]`
+        : node.title;
+      wrap.appendChild(heading);
+      const ul = document.createElement("ul");
+      for (const child of node.children) {
+        const li = document.createElement("li");
+        const childDOM = this._testNodeToDOM(child);
+        li.appendChild(childDOM);
+        ul.appendChild(li);
+      }
+      wrap.appendChild(ul);
+      return wrap;
+    }
+
+    const wrap = document.createElement("div");
+    const line = document.createElement("span");
+    line.className = `status-${node.status}`;
+    const mark = node.status === "pass" ? "✓" : node.status === "fail" ? "✗" : "○";
+    const dur = node.status === "skip" ? " (skipped)" : ` (${Math.round(node.durationMs)}ms)`;
+    line.textContent = `${mark} ${node.title}${dur}`;
+    wrap.appendChild(line);
+
+    if (node.status === "fail" && node.error) {
+      const pre = document.createElement("pre");
+      pre.className = "test-error";
+      const parts = [node.error.message ?? "(no message)"];
+      if ("expected" in node.error || "actual" in node.error) {
+        parts.push(`expected: ${JSON.stringify(node.error.expected)}`);
+        parts.push(`actual:   ${JSON.stringify(node.error.actual)}`);
+      }
+      pre.textContent = parts.join("\n");
+      wrap.appendChild(pre);
+    }
+    return wrap;
   }
 
   _docsToDOM(docs) {

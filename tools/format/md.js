@@ -133,6 +133,46 @@ function fmtComponentList(list) {
   return lines.join("\n");
 }
 
+function fmtTestSubtree(node, depth, lines) {
+  if (node.children) {
+    const headerLevel = Math.min(depth + 2, 6);
+    lines.push(`${"#".repeat(headerLevel)} ${node.title}`, "");
+    for (const child of node.children) fmtTestSubtree(child, depth + 1, lines);
+    return;
+  }
+  const mark = node.status === "pass" ? "✓" : node.status === "fail" ? "✗" : "○";
+  const dur = node.status === "skip" ? "" : ` _(${Math.round(node.durationMs)}ms)_`;
+  lines.push(`- ${mark} **${node.title}**${dur}`);
+  if (node.status === "fail" && node.error) {
+    lines.push("", "```");
+    lines.push(node.error.message);
+    if ("expected" in node.error || "actual" in node.error) {
+      lines.push(`expected: ${JSON.stringify(node.error.expected)}`);
+      lines.push(`actual:   ${JSON.stringify(node.error.actual)}`);
+    }
+    if (node.error.stack) lines.push(node.error.stack);
+    lines.push("```", "");
+  }
+}
+
+function fmtTestReport(report) {
+  const lines = [];
+  for (const m of report.modules) {
+    lines.push(`# Test report${m.path ? ` — ${m.path}` : ""}`, "");
+    if (m.suites.length === 0) {
+      lines.push("_(no tests)_", "");
+    } else {
+      for (const s of m.suites) fmtTestSubtree(s, 0, lines);
+    }
+    const c = m.counts;
+    lines.push("");
+    lines.push(
+      `**Total:** ${c.pass} passed, ${c.fail} failed, ${c.skip} skipped (${c.total} total)`,
+    );
+  }
+  return lines.join("\n");
+}
+
 export const { supports, format } = makeFormatter("md", {
   ComponentDocs: fmtComponentDocs,
   RenderBatch: fmtRenderBatch,
@@ -140,4 +180,5 @@ export const { supports, format } = makeFormatter("md", {
   LintReport: fmtLintReport,
   ModuleInfo: fmtModuleInfo,
   ComponentList: fmtComponentList,
+  TestReport: fmtTestReport,
 });

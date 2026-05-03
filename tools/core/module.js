@@ -102,6 +102,7 @@ export function normalizeModule(mod, { path = null } = {}) {
     "getMacros",
     "getRequestHandlers",
     "getExamples",
+    "getTests",
     "getRoot",
   ]) {
     if (typeof mod[key] === "function") present.add(key);

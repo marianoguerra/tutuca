@@ -271,9 +271,11 @@ export const MATHML_CAMEL_ATTRS = new Set(["definitionURL"]);
 // HTML_MATHML_ATTR_WILL_LOWERCASE when authored attribute case doesn't
 // match the canonical form the parser would case-correct to.
 export const SVG_ATTR_LOWERCASE_TO_CAMEL = new Map();
-for (const camel of STANDARD_SVG_CAMEL_ATTRS) SVG_ATTR_LOWERCASE_TO_CAMEL.set(camel.toLowerCase(), camel);
+for (const camel of STANDARD_SVG_CAMEL_ATTRS)
+  SVG_ATTR_LOWERCASE_TO_CAMEL.set(camel.toLowerCase(), camel);
 export const MATHML_ATTR_LOWERCASE_TO_CAMEL = new Map();
-for (const camel of MATHML_CAMEL_ATTRS) MATHML_ATTR_LOWERCASE_TO_CAMEL.set(camel.toLowerCase(), camel);
+for (const camel of MATHML_CAMEL_ATTRS)
+  MATHML_ATTR_LOWERCASE_TO_CAMEL.set(camel.toLowerCase(), camel);
 
 // HTML breakout from foreign content (§13.2.6.5 "If the parser was originally
 // created as part of the HTML fragment parsing algorithm").

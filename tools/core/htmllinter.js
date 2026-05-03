@@ -15,7 +15,6 @@ import {
   FORMATTING_ELEMENTS,
   FOREIGN_BREAKOUT_TAGS,
   FRAGMENT_CONTEXT_MODES,
-  MATHML_TEXT_INTEGRATION_POINTS,
   MATHML_TEXT_INTEGRATION_POINT_NAMES,
   MODES,
   NS,
@@ -469,7 +468,8 @@ class LinterCtx {
     // namespace — html5ever mod.rs:1755-1817 (SVG), :1819-1824 (MathML).
     // Root <svg>/<math> tags themselves get adjusted, so check the target
     // namespace, not just the parent's.
-    const targetNs = ns !== NS.html ? ns : name === "svg" ? NS.svg : name === "math" ? NS.math : NS.html;
+    const targetNs =
+      ns !== NS.html ? ns : name === "svg" ? NS.svg : name === "math" ? NS.math : NS.html;
     if (targetNs === NS.svg) {
       for (const a of this.currentAttrs) {
         const canonical = SVG_ATTR_LOWERCASE_TO_CAMEL.get(a.name);

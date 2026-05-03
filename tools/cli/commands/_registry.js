@@ -1,8 +1,10 @@
+import { expect } from "chai";
 import { describeModule } from "../../core/describe.js";
 import { docComponents } from "../../core/docs.js";
 import { listComponents, listExamples } from "../../core/list.js";
 import { lintComponents } from "../../core/lint.js";
 import { renderExamples } from "../../core/render.js";
+import { runTests } from "../../core/test.js";
 
 export const COMMANDS = {
   info: {
@@ -54,5 +56,26 @@ export const COMMANDS = {
         view: values.view ?? null,
       }),
     exitOn: (result) => (result.hasErrors ? 3 : 0),
+  },
+  test: {
+    describe:
+      "Run tests defined by getTests() (optional <name> to filter by component).",
+    defaultFormat: "cli",
+    needsEnv: true,
+    parseOptions: {
+      grep: { type: "string" },
+      bail: { type: "boolean" },
+    },
+    run: (normalized, { values, positionals }) =>
+      runTests({
+        getTests: normalized.mod.getTests,
+        components: normalized.components,
+        path: normalized.path,
+        expect,
+        name: positionals[0] ?? null,
+        grep: values.grep ?? null,
+        bail: values.bail ?? false,
+      }),
+    exitOn: (result) => (result.hasFailures ? 4 : 0),
   },
 };

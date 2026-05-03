@@ -1,12 +1,25 @@
+import { expect } from "chai";
 import { ANode } from "./src/anode.js";
 import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 import { LintParseContext, checkComponent } from "./tools/core/lint-check.js";
+import { reportTestReportToConsole } from "./tools/core/test-console.js";
+import { runTests } from "./tools/core/test.js";
 import { lintIdToMessage } from "./tools/format/lint.js";
 
 export * from "./extra.js";
 export * from "./tools/core/lint-check.js";
 export * from "./tools/core/docs.js";
+export * from "./tools/core/results.js";
+export * from "./tools/core/test.js";
+export * from "./tools/core/test-console.js";
+export * from "./tools/core/tests.js";
 export * from "./tools/format/lint.js";
+
+export async function test(opts = {}) {
+  const report = await runTests({ expect, ...opts });
+  reportTestReportToConsole(report);
+  return report;
+}
 
 export function check(app) {
   const counts = { error: 0, warn: 0, hint: 0 };

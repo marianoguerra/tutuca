@@ -37,6 +37,15 @@ MODULE CONVENTION
     export function getRequestHandlers()  // optional
       -> Record<string, Function>
 
+    export function getTests({ describe, test, expect })   // required for test
+      -> void                             // imperative collector
+      where describe is one of:
+        describe(Component, fn)           // tags suite with Component.name
+        describe(title, fn)               // untagged
+        describe(title, { component }, fn)// explicit tag with custom title
+      and   test(title, fn)               // fn may be async
+      and   expect comes from chai
+
     export function getRoot()             // optional; returned by info
 
 COMMANDS (require <module-path>)
@@ -67,6 +76,14 @@ COMMANDS (require <module-path>)
         --title <t>  only the example with that title
         --view <v>   override the example's view name
       Exits 3 if any render crashes.
+
+  test [name] [--grep <pattern>] [--bail]
+      Run tests defined by getTests({ describe, test, expect }). Filters:
+        [name]       only tests whose tagged componentName equals <name>
+        --grep <p>   substring match against the full test path
+                     (e.g. "MyComp > nested describe > test name")
+        --bail       stop on first failure; remaining tests reported as skip
+      Exits 4 if any test fails.
 
 COMMANDS (no module required)
   help [command]
@@ -104,6 +121,7 @@ EXIT CODES
   1   usage error (bad args, missing module, bad module shape)
   2   lint findings at error level
   3   render crash
+  4   test failures
 
 ENVIRONMENT
   \`prettier\` is an optional peer dep, only used by --pretty.

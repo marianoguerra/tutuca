@@ -33,7 +33,7 @@
     "fix": "bunx @biomejs/biome check --write src test/*.js",
     "tutuca": "bun tools/tutuca.js",
     "stresstest": "bun scripts/stresstest.js",
-    "smoke-test": "bun tools/tutuca.js ./test/todo.js lint && bun tools/tutuca.js ./test/todo.js render && bun tools/tutuca.js ./test/json.js lint && bun tools/tutuca.js ./test/json.js render"
+    "smoke-test": "bun tools/tutuca.js ./test/todo.js lint && bun tools/tutuca.js ./test/todo.js render && bun tools/tutuca.js ./test/todo.js test && bun tools/tutuca.js ./test/json.js lint && bun tools/tutuca.js ./test/json.js render"
   },
   "sideEffects": false,
   "files": [
@@ -47,6 +47,7 @@
     "skill"
   ],
   "dependencies": {
+    "chai": "^6.2.2",
     "jsdom": "^28.0.0 || ^29.0.0"
   },
   "peerDependencies": {

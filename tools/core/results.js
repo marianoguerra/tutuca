@@ -97,3 +97,50 @@ export class RenderBatch {
     return this.sections.some((s) => s.items.some((i) => i.error !== null));
   }
 }
+
+export class TestResult {
+  constructor({ title, fullPath, componentName = null, status, durationMs = 0, error = null }) {
+    this.title = title;
+    this.fullPath = fullPath;
+    this.componentName = componentName;
+    this.status = status;
+    this.durationMs = durationMs;
+    this.error = error;
+  }
+}
+
+export class DescribeResult {
+  constructor({ title, componentName = null, children = [] }) {
+    this.title = title;
+    this.componentName = componentName;
+    this.children = children;
+  }
+}
+
+export class ModuleTestReport {
+  constructor({ path = null, suites = [], counts = { pass: 0, fail: 0, skip: 0, total: 0 } }) {
+    this.path = path;
+    this.suites = suites;
+    this.counts = counts;
+  }
+}
+
+export class TestReport {
+  constructor({ modules = [] }) {
+    this.modules = modules;
+  }
+  get totals() {
+    return this.modules.reduce(
+      (acc, m) => ({
+        pass: acc.pass + m.counts.pass,
+        fail: acc.fail + m.counts.fail,
+        skip: acc.skip + m.counts.skip,
+        total: acc.total + m.counts.total,
+      }),
+      { pass: 0, fail: 0, skip: 0, total: 0 },
+    );
+  }
+  get hasFailures() {
+    return this.modules.some((m) => m.counts.fail > 0);
+  }
+}

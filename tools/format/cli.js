@@ -84,6 +84,50 @@ function fmtLintReport(rep) {
   return lines.join("\n");
 }
 
+function fmtTestNode(node, depth, lines) {
+  const pad = "  ".repeat(depth);
+  if (node.children) {
+    lines.push(`${pad}${node.title}`);
+    for (const child of node.children) fmtTestNode(child, depth + 1, lines);
+    return;
+  }
+  const mark = node.status === "pass" ? "✓" : node.status === "fail" ? "✗" : "○";
+  const dur = node.status === "skip" ? "" : ` (${Math.round(node.durationMs)}ms)`;
+  lines.push(`${pad}${mark} ${node.title}${dur}`);
+  if (node.status === "fail" && node.error) {
+    const errPad = "  ".repeat(depth + 1);
+    lines.push(`${errPad}${node.error.message}`);
+    if ("expected" in node.error || "actual" in node.error) {
+      lines.push(`${errPad}  expected: ${JSON.stringify(node.error.expected)}`);
+      lines.push(`${errPad}  actual:   ${JSON.stringify(node.error.actual)}`);
+    }
+    if (node.error.stack) {
+      const trimmed = node.error.stack
+        .split("\n")
+        .slice(1, 4)
+        .map((l) => `${errPad}${l.trim()}`)
+        .join("\n");
+      if (trimmed) lines.push(trimmed);
+    }
+  }
+}
+
+function fmtTestReport(report) {
+  const lines = [];
+  for (const m of report.modules) {
+    if (m.path) lines.push(`Module: ${m.path}`);
+    if (m.suites.length === 0) {
+      lines.push("(no tests)");
+    } else {
+      for (const s of m.suites) fmtTestNode(s, 0, lines);
+    }
+    const c = m.counts;
+    lines.push("");
+    lines.push(`Total: ${c.pass} passed, ${c.fail} failed, ${c.skip} skipped (${c.total} total)`);
+  }
+  return lines.join("\n");
+}
+
 function fmtRenderBatch(batch) {
   const totalItems = batch.sections.reduce((n, s) => n + s.items.length, 0);
   if (totalItems === 0) return "(no examples rendered)";
@@ -105,4 +149,5 @@ export const { supports, format } = makeFormatter("cli", {
   ComponentDocs: fmtComponentDocs,
   LintReport: fmtLintReport,
   RenderBatch: fmtRenderBatch,
+  TestReport: fmtTestReport,
 });

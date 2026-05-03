@@ -146,3 +146,38 @@ export function getExamples() {
 export function getComponents() {
   return [Items, Item];
 }
+
+export function getTests({ describe, test, expect }) {
+  describe(Item, () => {
+    test("defaults", () => {
+      const it = Item.make();
+      expect(it.completed).to.equal(false);
+      expect(it.text).to.equal("do the thing");
+    });
+    test("custom values", () => {
+      const it = Item.make({ completed: true, text: "buy milk" });
+      expect(it.completed).to.equal(true);
+      expect(it.text).to.equal("buy milk");
+    });
+    describe("setCompleted", () => {
+      test("flips completed flag", () => {
+        const it = Item.make();
+        const next = it.setCompleted(true);
+        expect(next.completed).to.equal(true);
+        expect(it.completed).to.equal(false);
+      });
+    });
+  });
+
+  describe(Items, () => {
+    test("starts empty", () => {
+      expect(Items.make().items.size).to.equal(0);
+    });
+    test("holds added items", async () => {
+      await Promise.resolve();
+      const list = Items.make({ items: [Item.make({ text: "first" })] });
+      expect(list.items.size).to.equal(1);
+      expect(list.items.get(0).text).to.equal("first");
+    });
+  });
+}
