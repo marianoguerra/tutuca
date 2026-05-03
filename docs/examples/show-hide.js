@@ -51,8 +51,7 @@ export function getRoot() {
 export function getExamples() {
   return {
     title: "Show / Hide",
-    description:
-      "Conditional display with @show, @hide, and the <x> wrapper form",
+    description: "Conditional display with @show, @hide, and the <x> wrapper form",
     items: [
       {
         title: "Default (closed)",
