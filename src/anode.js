@@ -109,8 +109,8 @@ export class ANode extends BaseNode {
     this.nodeId = nodeId;
     this.val = val;
   }
-  toPathItem() {
-    return this.val.toPathItem();
+  toPathStep(ctx) {
+    return ctx.applyKey(this.val?.toPathItem?.() ?? null);
   }
   static parse(html, px) {
     const nodes = px.parseHTML(html);
@@ -308,7 +308,14 @@ export class RenderItNode extends RenderViewId {
     const newStack = stack.enter(stack.it, {}, true);
     return rx.renderIt(newStack, this.nodeId, "", this.viewId);
   }
-  pathInNext = true;
+  toPathStep(ctx) {
+    const next = ctx.next();
+    if (next === null) return null;
+    const nextNode = next.resolveNode();
+    if (nextNode instanceof EachNode && next.hasKey)
+      return new EachRenderItStep(nextNode.val.name, next.key);
+    return next.applyKey(nextNode.val?.toPathItem?.() ?? null);
+  }
 }
 export class RenderEachNode extends RenderViewId {
   constructor(nodeId, val, viewId) {
@@ -393,7 +400,7 @@ export class ScopeNode extends WrapperNode {
     const binds = this.val.eval(stack)?.call(stack.it) ?? {};
     return this.node.render(stack.enter(stack.it, binds, false), rx);
   }
-  toPathItem() {
+  toPathStep(_ctx) {
     return new BindStep({});
   }
   wrapNode(node) {
@@ -410,14 +417,8 @@ export class EachNode extends WrapperNode {
   render(stack, rx) {
     return rx.renderEachWhen(stack, this.iterInfo, this.node, this.nodeId);
   }
-  toPathItem() {
-    return new BindStep({});
-  }
-  toPathItemRenderIt(key) {
-    return new EachRenderItStep(this.val.name, key);
-  }
-  toPathItemEachBind(key) {
-    return new EachBindStep(this.val, key);
+  toPathStep(ctx) {
+    return ctx.hasKey ? new EachBindStep(this.val, ctx.key) : null;
   }
   static register = true;
 }

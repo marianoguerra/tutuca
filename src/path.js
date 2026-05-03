@@ -223,27 +223,45 @@ function findHandlers(comp, eventIds, vid, eventName) {
   }
   return null;
 }
+class StepCtx {
+  constructor(comp, nodeIds, idx, vid) {
+    this.comp = comp;
+    this.nodeIds = nodeIds;
+    this.idx = idx;
+    this.vid = vid;
+  }
+  get meta() {
+    return this.nodeIds[this.idx];
+  }
+  get key() {
+    const m = this.meta;
+    return m.si !== undefined ? +m.si : m.sk;
+  }
+  get hasKey() {
+    const m = this.meta;
+    return m.si !== undefined || m.sk !== undefined;
+  }
+  next() {
+    return this.idx + 1 < this.nodeIds.length
+      ? new StepCtx(this.comp, this.nodeIds, this.idx + 1, this.vid)
+      : null;
+  }
+  resolveNode() {
+    return this.comp.getNodeForId(+this.meta.nid, this.vid);
+  }
+  applyKey(pi) {
+    if (pi === null) return null;
+    const m = this.meta;
+    if (m.si !== undefined) return pi.withIndex(+m.si);
+    if (m.sk !== undefined) return pi.withKey(m.sk);
+    return pi;
+  }
+}
 function resolvePathStep(comp, nodeIds, vid) {
   for (let i = 0; i < nodeIds.length; i++) {
-    const meta = nodeIds[i];
-    const node = comp.getNodeForId(+meta.nid, vid);
-    const key = meta.si !== undefined ? +meta.si : meta.sk;
-    if (node.pathInNext) {
-      const next = nodeIds[i + 1];
-      if (!next) continue;
-      const nextNode = comp.getNodeForId(+next.nid, vid);
-      const nKey = next.si !== undefined ? +next.si : next.sk;
-      if (nextNode.toPathItemRenderIt && nKey !== undefined)
-        return nextNode.toPathItemRenderIt(nKey);
-      const pi = nextNode.val.toPathItem();
-      if (pi !== null)
-        return next.si !== undefined ? pi.withIndex(nKey) : next.sk ? pi.withKey(nKey) : pi;
-      continue;
-    }
-    if (key !== undefined && node.toPathItemEachBind) return node.toPathItemEachBind(key);
-    const pi = node.toPathItem();
-    if (pi !== null)
-      return meta.si !== undefined ? pi.withIndex(+meta.si) : meta.sk ? pi.withKey(meta.sk) : pi;
+    const ctx = new StepCtx(comp, nodeIds, i, vid);
+    const step = ctx.resolveNode().toPathStep(ctx);
+    if (step !== null) return step;
   }
   return null;
 }
