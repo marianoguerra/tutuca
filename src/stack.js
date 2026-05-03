@@ -11,22 +11,22 @@ export function lookup(chain, name, dv = null) {
   return dv;
 }
 export class BindFrame {
-  constructor(it, bindings, isFrame) {
+  constructor(it, binds, isFrame) {
     this.it = it;
-    this.bindings = bindings;
+    this.binds = binds;
     this.isFrame = isFrame;
   }
   lookup(name) {
-    const v = this.bindings[name];
+    const v = this.binds[name];
     return v === undefined ? (this.isFrame ? STOP : NEXT) : v;
   }
 }
 export class ObjectFrame {
-  constructor(bindings) {
-    this.bindings = bindings;
+  constructor(binds) {
+    this.binds = binds;
   }
   lookup(key) {
-    const v = this.bindings[key];
+    const v = this.binds[key];
     return v === undefined ? NEXT : v;
   }
 }
@@ -50,13 +50,12 @@ export class Stack {
     this.ctx = ctx;
   }
   _enrichOnEnter() {
-    return this.withDynamicBindings(this.comps.getOnEnterFor(this.it).call(this.it));
+    return this.withDynamicBinds(this.comps.getOnEnterFor(this.it).call(this.it));
   }
   upToFrameBinds() {
     const { comps, binds, dynBinds, views, viewsId, ctx } = this;
-    return binds[0].isFrame // only one !isFrame node possible, next isFrame
-      ? this
-      : new Stack(comps, binds[1][0].it, binds[1], dynBinds, views, viewsId, ctx);
+    const [head, tail] = binds; // only one !isFrame node possible, next should be isFrame
+    return head.isFrame ? this : new Stack(comps, tail[0].it, tail, dynBinds, views, viewsId, ctx);
   }
   static root(comps, it, ctx) {
     const binds = [new BindFrame(it, { it }, true), null];
@@ -75,7 +74,7 @@ export class Stack {
     const newViews = [name, views];
     return new Stack(comps, it, binds, dynBinds, newViews, computeViewsId(newViews), ctx);
   }
-  withDynamicBindings(dynamics) {
+  withDynamicBinds(dynamics) {
     if (dynamics == null || dynamics.length === 0) return this;
     const dynObj = {};
     const comp = this.comps.getCompFor(this.it);

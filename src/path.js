@@ -5,7 +5,7 @@ export class Step {
   setValue(root, _v) {
     return root;
   }
-  updateBindings(_v, _o) {}
+  updateBinds(_v, _o) {}
   isFrame = true;
 }
 export class BindStep extends Step {
@@ -25,7 +25,7 @@ export class BindStep extends Step {
   withKey(key) {
     return new BindStep({ ...this.binds, key });
   }
-  updateBindings(_v, o) {
+  updateBinds(_v, o) {
     Object.assign(o, this.binds);
   }
   isFrame = false;
@@ -61,7 +61,7 @@ export class FieldSeqStep extends Step {
   setValue(root, v) {
     return root.set(this.field, root.get(this.field).set(this.key, v));
   }
-  updateBindings(_v, o) {
+  updateBinds(_v, o) {
     o.key = this.key;
   }
 }
@@ -84,7 +84,7 @@ export class SeqAccessStep extends Step {
     const key = root?.get(this.keyField, NONE);
     return seq === NONE || key === NONE ? root : root.set(this.seqField, seq.set(key, v));
   }
-  updateBindings(v, o) {
+  updateBinds(v, o) {
     o.key = v?.get(this.keyField, null);
   }
 }
@@ -130,7 +130,7 @@ export class Path {
         console.warn(`bad PathItem`, { root, curVal, step, path: this });
         return null;
       }
-      step.updateBindings(curVal, stack.binds[0].bindings);
+      step.updateBinds(curVal, stack.binds[0].binds);
       stack = stack.enter(curVal, {}, step.isFrame);
     }
     return stack;

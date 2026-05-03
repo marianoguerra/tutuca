@@ -108,17 +108,17 @@ describe("Components", () => {
         CompB.make({ message: "custom message" }),
       );
       expect(stack.lookupDynamic("theMessage")).toBe("custom message");
-      expect(stack.withDynamicBindings(["theMessage"]).lookupDynamic("theMessage")).toBe(
+      expect(stack.withDynamicBinds(["theMessage"]).lookupDynamic("theMessage")).toBe(
         "custom message",
       );
     }
 
     {
       const stack = setupStackComps([CompA, CompB], CompA.make({ message: "hallo" }))
-        .withDynamicBindings(["getMessage"])
+        .withDynamicBinds(["getMessage"])
         .enter(CompB.make({ message: "custom message" }));
       expect(stack.lookupDynamic("theMessage")).toBe("hallo");
-      expect(stack.withDynamicBindings(["theMessage"]).lookupDynamic("theMessage")).toBe(
+      expect(stack.withDynamicBinds(["theMessage"]).lookupDynamic("theMessage")).toBe(
         "custom message",
       );
     }

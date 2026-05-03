@@ -49,7 +49,7 @@ function toData(node) {
 
 function rxs({ it = null, comps = new Components(), vars = {} }) {
   const stack = Stack.root(comps, it);
-  Object.assign(stack.binds[0].bindings, vars);
+  Object.assign(stack.binds[0].binds, vars);
   return [stack, new Renderer(comps)];
 }
 

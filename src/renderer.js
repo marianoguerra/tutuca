@@ -85,13 +85,13 @@ export class Renderer {
     this.getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(it, key, value, iterData)) {
         const cachePath = enricher ? [it, value] : [value];
-        const bindings = { key, value };
+        const binds = { key, value };
         const cacheKey = `${nid}-${key}`;
-        if (enricher) enricher.call(it, bindings, key, value, iterData);
+        if (enricher) enricher.call(it, binds, key, value, iterData);
         const cachedNode = this.cache.get(cachePath, cacheKey);
         if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
         else {
-          const dom = this.renderView(view, stack.enter(value, bindings, false));
+          const dom = this.renderView(view, stack.enter(value, binds, false));
           this.pushEachEntry(r, nid, attrName, key, dom);
           this.cache.set(cachePath, cacheKey, dom);
         }

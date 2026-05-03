@@ -390,8 +390,8 @@ export class SlotNode extends WrapperNode {
 }
 export class ScopeNode extends WrapperNode {
   render(stack, rx) {
-    const bindings = this.val.eval(stack)?.call(stack.it) ?? {};
-    return this.node.render(stack.enter(stack.it, bindings, false), rx);
+    const binds = this.val.eval(stack)?.call(stack.it) ?? {};
+    return this.node.render(stack.enter(stack.it, binds, false), rx);
   }
   toPathItem() {
     return new BindStep({});
