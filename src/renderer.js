@@ -80,8 +80,8 @@ export class Renderer {
   renderEachWhen(stack, iterInfo, view, nid) {
     const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
     const r = [];
-    const iterData = loopWith.call(stack.it, seq);
     const it = stack.it;
+    const iterData = loopWith.call(it, seq);
     this.getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(it, key, value, iterData)) {
         const cachePath = enricher ? [it, value] : [value];
