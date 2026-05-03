@@ -1,5 +1,47 @@
 import { component, html, ISet, List } from "tutuca";
 
+const CATEGORY_COLORS = {
+  "Programming Languages": "ring-1 ring-violet-500 text-violet-700 dark:text-violet-300",
+  "Distributed Systems": "ring-1 ring-indigo-500 text-indigo-700 dark:text-indigo-300",
+  "End User Programming": "ring-1 ring-orange-500 text-orange-700 dark:text-orange-300",
+  "Erlang / Elixir": "ring-1 ring-purple-500 text-purple-700 dark:text-purple-300",
+  WebAssembly: "ring-1 ring-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-300",
+  Web: "ring-1 ring-cyan-500 text-cyan-700 dark:text-cyan-300",
+  "Future of Coding": "ring-1 ring-rose-500 text-rose-700 dark:text-rose-300",
+  Startup: "ring-1 ring-amber-500 text-amber-700 dark:text-amber-300",
+  AI: "ring-1 ring-emerald-500 text-emerald-700 dark:text-emerald-300",
+  Python: "ring-1 ring-sky-500 text-sky-700 dark:text-sky-300",
+  Education: "ring-1 ring-teal-500 text-teal-700 dark:text-teal-300",
+  Rust: "ring-1 ring-red-500 text-red-700 dark:text-red-300",
+};
+
+const CATEGORY_COLORS_SELECTED = {
+  "Programming Languages": "bg-violet-700 text-white",
+  "Distributed Systems": "bg-indigo-700 text-white",
+  "End User Programming": "bg-orange-700 text-white",
+  "Erlang / Elixir": "bg-purple-700 text-white",
+  WebAssembly: "bg-fuchsia-700 text-white",
+  Web: "bg-cyan-700 text-white",
+  "Future of Coding": "bg-rose-700 text-white",
+  Startup: "bg-amber-700 text-white",
+  AI: "bg-emerald-700 text-white",
+  Python: "bg-sky-700 text-white",
+  Education: "bg-teal-700 text-white",
+  Rust: "bg-red-700 text-white",
+};
+
+function getCategoryColor(cat, isSelected) {
+  if (isSelected) {
+    return CATEGORY_COLORS_SELECTED[cat] || "bg-primary text-primary-content";
+  }
+  return CATEGORY_COLORS[cat] || "bg-base-300 text-base-content";
+}
+
+// Joined into a literal `class=` below so the margaui scanner picks them up.
+const CATEGORY_DECOY_CLASSES = Object.values(CATEGORY_COLORS)
+  .concat(Object.values(CATEGORY_COLORS_SELECTED))
+  .join(" ");
+
 export const Root = component({
   name: "Root",
   fields: {
@@ -200,6 +242,17 @@ export const Root = component({
       </div>
     </div>
   </section>`,
+  views: {
+    // Decoy view: every class assembled at runtime in `enrichCategoryBindings`
+    // / `enrichRoleBindings` / `enrichCategoryBadge` lives here as a literal
+    // so the margaui scanner picks it up. Never rendered. Per-category colors
+    // are interpolated from CATEGORY_COLORS{,_SELECTED} (single source of
+    // truth); the rest are static wrapper classes used by those handlers.
+    _margauiClasses: html`<p
+      class="btn btn-xs btn-neutral btn-ghost border-0 badge badge-sm font-bold opacity-40
+        ring-1 ring-neutral-content/30 ${CATEGORY_DECOY_CLASSES}"
+    ></p>`,
+  },
 });
 
 export const AltUrl = component({
@@ -316,43 +369,6 @@ export const Entry = component({
   </div>`,
 });
 
-const CATEGORY_COLORS = {
-  "Programming Languages": "ring-1 ring-violet-500 text-violet-700 dark:text-violet-300",
-  "Distributed Systems": "ring-1 ring-indigo-500 text-indigo-700 dark:text-indigo-300",
-  "End User Programming": "ring-1 ring-orange-500 text-orange-700 dark:text-orange-300",
-  "Erlang / Elixir": "ring-1 ring-purple-500 text-purple-700 dark:text-purple-300",
-  WebAssembly: "ring-1 ring-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-300",
-  Web: "ring-1 ring-cyan-500 text-cyan-700 dark:text-cyan-300",
-  "Future of Coding": "ring-1 ring-rose-500 text-rose-700 dark:text-rose-300",
-  Startup: "ring-1 ring-amber-500 text-amber-700 dark:text-amber-300",
-  AI: "ring-1 ring-emerald-500 text-emerald-700 dark:text-emerald-300",
-  Python: "ring-1 ring-sky-500 text-sky-700 dark:text-sky-300",
-  Education: "ring-1 ring-teal-500 text-teal-700 dark:text-teal-300",
-  Rust: "ring-1 ring-red-500 text-red-700 dark:text-red-300",
-};
-
-const CATEGORY_COLORS_SELECTED = {
-  "Programming Languages": "bg-violet-700 text-white",
-  "Distributed Systems": "bg-indigo-700 text-white",
-  "End User Programming": "bg-orange-700 text-white",
-  "Erlang / Elixir": "bg-purple-700 text-white",
-  WebAssembly: "bg-fuchsia-700 text-white",
-  Web: "bg-cyan-700 text-white",
-  "Future of Coding": "bg-rose-700 text-white",
-  Startup: "bg-amber-700 text-white",
-  AI: "bg-emerald-700 text-white",
-  Python: "bg-sky-700 text-white",
-  Education: "bg-teal-700 text-white",
-  Rust: "bg-red-700 text-white",
-};
-
-function getCategoryColor(cat, isSelected) {
-  if (isSelected) {
-    return CATEGORY_COLORS_SELECTED[cat] || "bg-primary text-primary-content";
-  }
-  return CATEGORY_COLORS[cat] || "bg-base-300 text-base-content";
-}
-
 export function getComponents() {
   return [Root, Entry, AltUrl];
 }
@@ -401,23 +417,4 @@ export function getExamples() {
       },
     ],
   };
-}
-
-export function getExtraCSSClasses() {
-  const v = new Set(
-    "btn btn-xs btn-neutral font-bold ring-1 ring-neutral-content/30 btn-ghost font-bold opacity-40".split(
-      /\s+/,
-    ),
-  );
-  for (const classes of Object.values(CATEGORY_COLORS)) {
-    for (const c of classes.split(/\s+/)) {
-      v.add(c);
-    }
-  }
-  for (const classes of Object.values(CATEGORY_COLORS_SELECTED)) {
-    for (const c of classes.split(/\s+/)) {
-      v.add(c);
-    }
-  }
-  return v;
 }

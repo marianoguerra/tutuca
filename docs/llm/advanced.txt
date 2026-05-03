@@ -148,3 +148,18 @@ with `injectCss(scopeName, css)` to install the result before `start()`.
 If a margaui skill is available, load it alongside this one when
 authoring class lists — it lists the available components and their
 canonical class strings, which is what the `compile` step expects.
+
+**Pitfall: `@if.class` payloads are invisible to the scanner.** Classes
+inside `@then` / `@else` (e.g. `@if.class=".active" @then="'btn-success'"
+@else="'btn-ghost'"`) are not literals in `class=` / `:class=`, so
+`compileClassesToStyleText` skips them and the margaui CSS for those
+classes is never emitted — the conditional class renders unstyled.
+Workaround: add a hidden "decoy" view on the component that lists every
+conditional class as a real literal, so the walker picks them up:
+
+```js
+_margauiClasses: html`<p class="btn-success btn-ghost on off"></p>`,
+```
+
+The view does not need to be rendered anywhere — registration is enough
+for the template walker to find it.

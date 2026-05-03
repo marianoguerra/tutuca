@@ -13,12 +13,11 @@ export async function compileClassesToStyle(app, compileClasses, styleId = "marg
 export async function compileClassesToStyleText(
   app,
   compileClasses,
-  extraCSSClasses,
   Ctx = ParseCtxClassSetCollector,
 ) {
   app.ParseContext = Ctx;
   app.compile();
-  const classes = new Set(extraCSSClasses ?? []);
+  const classes = new Set();
   for (const Comp of app.comps.byId.values()) {
     for (const key in Comp.views) {
       const view = Comp.views[key];

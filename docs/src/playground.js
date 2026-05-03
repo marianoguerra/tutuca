@@ -550,15 +550,10 @@ export class TutucaPlayground extends HTMLElement {
       if (mod.getRequestHandlers) {
         scope.registerRequestHandlers(mod.getRequestHandlers());
       }
-      let extraCSSClasses = new Set();
-      if (mod.getExtraCSSClasses) {
-        extraCSSClasses = new Set(mod.getExtraCSSClasses());
-      }
       app.state.set(mod.getRoot());
       const styleText = await compileClassesToStyleText(
         app,
         compile,
-        extraCSSClasses,
         LintClassCollectorCtx,
       );
       const margauiSheet = new CSSStyleSheet();
@@ -859,8 +854,7 @@ async function main() {
   const scope = app.registerComponents(components);
   if (mod.getMacros) scope.registerMacros(mod.getMacros());
   if (mod.getRequestHandlers) scope.registerRequestHandlers(mod.getRequestHandlers());
-  const extraCSSClasses = new Set(mod.getExtraCSSClasses?.() ?? []);
-  const styleText = await compileClassesToStyleText(app, compile, extraCSSClasses);
+  const styleText = await compileClassesToStyleText(app, compile);
   const style = document.createElement("style");
   style.textContent = styleText;
   document.head.appendChild(style);
