@@ -314,7 +314,7 @@ export class RenderItNode extends RenderViewId {
     const nextNode = next.resolveNode();
     if (nextNode instanceof EachNode && next.hasKey)
       return new EachRenderItStep(nextNode.val.name, next.key);
-    return next.applyKey(nextNode.val?.toPathItem?.() ?? null);
+    return null;
   }
 }
 export class RenderEachNode extends RenderViewId {
