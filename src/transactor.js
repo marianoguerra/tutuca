@@ -28,14 +28,13 @@ export class Transactor {
   pushTransaction(t) {
     this.transactions.push(t);
     this.onTransactionPushed(t);
-    return t;
   }
   pushLogic(path, name, args = [], opts = {}, parent = null) {
-    return this.pushTransaction(new LogicEvent(path, this, name, args, parent, opts));
+    this.pushTransaction(new LogicEvent(path, this, name, args, parent, opts));
   }
   pushBubble(path, name, args = [], opts = {}, parent = null) {
     const newOpts = opts.skipSelf ? { ...opts, skipSelf: false } : opts;
-    return this.pushTransaction(new BubbleEvent(path, this, name, args, parent, newOpts));
+    this.pushTransaction(new BubbleEvent(path, this, name, args, parent, newOpts));
   }
   async pushRequest(path, name, args = [], opts = {}, parent = null) {
     const curRoot = this.state.val;
@@ -45,13 +44,13 @@ export class Transactor {
     const push = (specificName, baseName, singleArg, result, error) => {
       const resArgs = specificName ? [singleArg] : [result, error];
       const t = new ResponseEvent(path, this, specificName ?? baseName, resArgs, parent);
-      return this.pushTransaction(t);
+      this.pushTransaction(t);
     };
     try {
       const result = await handler.fn.apply(null, args);
-      return push(opts?.onOkName, resHandlerName, result, result, null);
+      push(opts?.onOkName, resHandlerName, result, result, null);
     } catch (error) {
-      return push(opts?.onErrorName, resHandlerName, error, null, error);
+      push(opts?.onErrorName, resHandlerName, error, null, error);
     }
   }
   get hasPendingTransactions() {

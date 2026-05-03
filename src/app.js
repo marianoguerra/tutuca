@@ -156,7 +156,7 @@ export class App {
       this.rootNode.removeEventListener(name, this, listenerOpts(name));
   }
   dispatchLogicAtRoot(name, args, opts) {
-    return this.transactor.pushLogic(new Path([]), name, args, opts);
+    this.transactor.pushLogic(new Path([]), name, args, opts);
   }
   registerComponents(comps, aliases) {
     const scope = this.compStack.enter();
