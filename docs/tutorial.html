@@ -133,23 +133,28 @@
                 <a href="#static-view-component">Static View Component</a>
               </li>
               <li><a href="#text-rendering">Text Rendering</a></li>
+              <li><a href="#mental-model">Mental Model</a></li>
             </ol>
           </li>
           <li>
-            <a href="#data-binding">Data Binding</a>
+            <a href="#state-and-updates">State and Updates</a>
             <ol>
+              <li><a href="#methods-vs-input">Methods vs Input Handlers</a></li>
               <li><a href="#attribute-binding">Attribute Binding</a></li>
+              <li><a href="#event-handling">Event Handling</a></li>
+              <li><a href="#conditional-display">Conditional Display</a></li>
+              <li><a href="#event-modifiers">Event Modifiers</a></li>
+              <li>
+                <a href="#conditional-attributes">Conditional Attributes</a>
+              </li>
+              <li>
+                <a href="#no-dotted-paths">No Dotted Paths in Values</a>
+              </li>
               <li>
                 <a href="#quoting-string-literals"
                   >Quoting &amp; String Literals</a
                 >
               </li>
-              <li><a href="#event-handling">Event Handling</a></li>
-              <li><a href="#event-modifiers">Event Modifiers</a></li>
-              <li>
-                <a href="#conditional-attributes">Conditional Attributes</a>
-              </li>
-              <li><a href="#component-styles">Component Styles</a></li>
             </ol>
           </li>
           <li>
@@ -164,31 +169,32 @@
                 <a href="#shared-iteration-data">Shared Iteration Data</a>
               </li>
               <li><a href="#scope-enrichment">Scope Enrichment</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#rendering-components">Rendering Components</a>
+            <ol>
+              <li><a href="#rendering-a-child">Rendering a Child</a></li>
+              <li><a href="#multiple-views">Multiple Views</a></li>
               <li>
                 <a href="#collection-item-access">Collection Item Access</a>
               </li>
-            </ol>
-          </li>
-          <li>
-            <a href="#views-and-rendering">Views &amp; Rendering</a>
-            <ol>
-              <li><a href="#multiple-views">Multiple Views</a></li>
               <li>
                 <a href="#dynamic-view-switching">Dynamic View Switching</a>
               </li>
+              <li><a href="#component-styles">Component Styles</a></li>
+              <li><a href="#statics">Statics</a></li>
               <li>
                 <a href="#recursive-components">Recursive Components</a>
               </li>
-              <li><a href="#bubble-events">Bubble Events</a></li>
-              <li><a href="#statics">Statics</a></li>
             </ol>
           </li>
           <li>
-            <a href="#advanced-features">Advanced Features</a>
+            <a href="#component-communication">Component Communication</a>
             <ol>
+              <li><a href="#send-receive">Send / Receive</a></li>
+              <li><a href="#bubble-events">Bubble Events</a></li>
               <li><a href="#async-requests">Async Requests</a></li>
-              <li><a href="#drag-and-drop">Drag and Drop</a></li>
-              <li><a href="#web-components">Web Components</a></li>
               <li><a href="#dynamic-bindings">Dynamic Bindings</a></li>
             </ol>
           </li>
@@ -208,12 +214,14 @@
           <li>
             <a href="#escape-hatches">Escape Hatches</a>
             <ol>
-              <li><a href="#raw-html">Raw HTML</a></li>
+              <li><a href="#drag-and-drop">Drag and Drop</a></li>
+              <li><a href="#web-components">Web Components</a></li>
               <li><a href="#pseudo-x">Pseudo-x (@x)</a></li>
+              <li><a href="#raw-html">Raw HTML</a></li>
             </ol>
           </li>
           <li>
-            <a href="#common-mistakes">Common Mistakes</a>
+            <a href="#linter-reference">Linter Reference</a>
           </li>
         </ol>
       </nav>
@@ -243,8 +251,8 @@
           Adding a <code>view</code> gives the component something to render.
           Here the view contains no dynamic content &mdash; just static HTML
           wrapped in the <code>html</code> tagged template. This works, but for
-          purely static content with no state or interactivity, macros are a
-          better fit.
+          purely static content with no state or interactivity,
+          <a href="#macros">macros</a> are a better fit.
         </p>
         <p>
           The <code>html</code> tag is just a hint for editors to syntax
@@ -273,11 +281,67 @@
         <tutuca-playground
           src="./examples/text-directive.js"
         ></tutuca-playground>
+
+        <h3 id="mental-model">
+          <a href="#mental-model">Mental Model</a>
+        </h3>
+        <p>
+          Before diving into more syntax, three rules anchor everything that
+          follows. The application state is a
+          <strong>single immutable root value</strong> &mdash; every component
+          instance is a node in that tree. The view is a
+          <strong>pure function of the value</strong>: render the same value,
+          get the same DOM. Every event handler takes the old self and
+          <strong>returns a new self</strong>; the framework swaps the new value
+          into the tree and the renderer reuses cached subtrees by
+          <code>===</code> identity.
+        </p>
+        <p>
+          In practice a click flows like this:
+          <em
+            >click &rarr; handler receives the old instance and returns a new
+            one &rarr; the framework swaps the root in &rarr; the renderer diffs
+            against the previous frame and patches the DOM</em
+          >. There is no explicit subscribe / unsubscribe step, no central
+          store, no mutation in place. The rest of this tutorial introduces the
+          syntax for describing those handlers and views; the model under all of
+          it is what you just read.
+        </p>
       </section>
 
-      <!-- Data Binding -->
+      <!-- State and Updates -->
       <section>
-        <h2 id="data-binding"><a href="#data-binding">Data Binding</a></h2>
+        <h2 id="state-and-updates">
+          <a href="#state-and-updates">State and Updates</a>
+        </h2>
+
+        <h3 id="methods-vs-input">
+          <a href="#methods-vs-input">Methods vs Input Handlers</a>
+        </h3>
+        <p>
+          Tutuca splits handler-style functions across two tables:
+          <code>methods</code> and <code>input</code>. Both are called on the
+          component instance and both return a new instance &mdash; the only
+          difference is <em>how a template references them</em>:
+        </p>
+        <ul>
+          <li>
+            <code>.name</code> (with a leading dot) calls
+            <code>methods.name</code> or any auto-generated mutator
+            (<code>.setX</code>, <code>.toggleX</code>, &hellip;).
+          </li>
+          <li><code>name</code> (bare) calls <code>input.name</code>.</li>
+        </ul>
+        <p>
+          By convention, <code>methods</code> holds anything reasonable to call
+          from JS (computed values, predicates, derivations);
+          <code>input</code> holds names that only make sense as
+          template-attached event handlers. Pick the table that reads best where
+          the handler will be called from &mdash; the linter flags mismatches in
+          either direction (<code>INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER</code>,
+          <code>INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD</code>) so the choice is
+          recoverable.
+        </p>
 
         <h3 id="attribute-binding">
           <a href="#attribute-binding">Attribute Binding</a>
@@ -299,6 +363,158 @@
         <tutuca-playground
           src="./examples/attribute-binding.js"
         ></tutuca-playground>
+
+        <h3 id="event-handling">
+          <a href="#event-handling">Event Handling</a>
+        </h3>
+        <p>
+          The <code>+</code> button uses <code>@on.click=".inc"</code> &mdash;
+          the dot prefix calls a <code>methods</code> function. The
+          <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no dot
+          means it calls an <code>input</code> handler. Both return new state
+          via the auto-generated <code>this.setCount()</code>.
+        </p>
+        <p>
+          Methods and input handlers both must return a new component instance.
+          The input section is just for organization purposes, you can use
+          methods if you want.
+        </p>
+        <tutuca-playground src="./examples/counter.js"></tutuca-playground>
+
+        <h3 id="conditional-display">
+          <a href="#conditional-display">Conditional Display</a>
+        </h3>
+        <p>
+          <code>@show=".field"</code> hides the host element when the field is
+          falsy; <code>@hide=".field"</code> hides it when truthy. The element
+          still renders in the DOM &mdash; only its visibility is toggled
+          &mdash; so prefer this for fast-toggling regions where mounting cost
+          isn't a concern.
+        </p>
+        <p>
+          The same <code>show</code> and <code>hide</code> can also appear as
+          wrapper attributes on the <code>&lt;x&gt;</code> render ops
+          (<code>render</code>, <code>render-it</code>,
+          <code>render-each</code>, <code>text</code>) &mdash; instead of
+          toggling a host element, they wrap the produced node in the equivalent
+          guard with no extra DOM. For example,
+          <code>&lt;x render-it show=".isOpen"&gt;&lt;/x&gt;</code> is the
+          equivalent of <code>render-it</code> wrapped in
+          <code>@show=".isOpen"</code>. When both appear on the same element,
+          the first attribute in source order becomes the outermost wrapper.
+        </p>
+        <p>
+          The value can be a field, an auto-generated predicate
+          (<code>.isXTruthy</code>, <code>.isXEmpty</code>,
+          <code>.isXNull</code> &mdash; only the matching ones for the field's
+          type), or a <code>methods</code> entry &mdash;
+          <code>@show=".canSubmit"</code> calls
+          <code>methods.canSubmit()</code> with no arguments and uses its return
+          value. Reach for a method when a predicate combines multiple fields;
+          the auto-generated predicates only cover single-field checks.
+        </p>
+        <tutuca-playground src="./examples/show-hide.js"></tutuca-playground>
+
+        <h3 id="event-modifiers">
+          <a href="#event-modifiers">Event Modifiers</a>
+        </h3>
+        <p>
+          Modifiers filter events so handlers only fire under specific
+          conditions. <code>@on.keydown+send=".setLastSentSearch value"</code>
+          only fires when the user presses Enter.
+          <code>@on.keydown+cancel=".resetQuery"</code> only fires on Escape.
+          Modifiers are appended with <code>+</code> and can be combined (e.g.
+          <code>+ctrl+send</code>).
+        </p>
+        <p>
+          The example below also uses
+          <code>@show=".isLastSentSearchTruthy"</code> to conditionally display
+          the search result &mdash; <code>isXTruthy</code> is auto-generated for
+          primitive and nullable fields, returning <code>true</code> when the
+          field's value is JS-truthy. Nullable fields (those initialized with
+          <code>null</code>) also get <code>isXNull</code> for explicit null
+          checks. <code>@show</code> and <code>@hide</code> were introduced in
+          <a href="#conditional-display">Conditional Display</a>
+          above.
+        </p>
+        <tutuca-playground
+          src="./examples/event-modifiers.js"
+        ></tutuca-playground>
+
+        <h3 id="conditional-attributes">
+          <a href="#conditional-attributes">Conditional Attributes</a>
+        </h3>
+        <p>
+          <code>@if.class=".isActive"</code> tests the boolean field, then
+          <code>@then="'btn btn-success'"</code> or
+          <code>@else="'btn btn-ghost'"</code> sets the class accordingly. The
+          same pattern works for any attribute: <code>@if.title</code> /
+          <code>@then.title</code> / <code>@else.title</code> conditionally sets
+          the title. Single quotes inside the value (<code>'...'</code>) denote
+          string literals.
+        </p>
+        <p>
+          <code>.toggleIsActive</code> in the example is auto-generated for
+          boolean fields. The value passed to <code>@if</code> can also be a
+          method &mdash; same rule as <code>@show</code>, useful when the
+          predicate combines multiple fields.
+        </p>
+        <p>
+          When there is a single <code>@if</code> directive,
+          <code>@then</code> and <code>@else</code> don't need to specify the
+          attribute name &mdash; they infer it from
+          <code>@if.&lt;attr&gt;</code>. If there are multiple
+          <code>@if</code> directives on the same element, the additional
+          <code>@then</code> and <code>@else</code> must specify the attribute
+          name explicitly (e.g. <code>@then.title</code>,
+          <code>@else.title</code>) &mdash; HTML disallows duplicate attribute
+          names, so the second unsuffixed <code>@then=</code> would be silently
+          dropped by the parser before tutuca sees it.
+        </p>
+        <tutuca-playground
+          src="./examples/conditional-attributes.js"
+        ></tutuca-playground>
+
+        <h3 id="no-dotted-paths">
+          <a href="#no-dotted-paths">No Dotted Paths in Values</a>
+        </h3>
+        <p>
+          Tutuca expressions resolve a <strong>single</strong> name on
+          <code>this</code>. Writing <code>@text=".user.name"</code>,
+          <code>:value=".item.title"</code>, or
+          <code>@show=".item.isOpen"</code> does <em>not</em> navigate &mdash;
+          the parser will not walk a dotted path anywhere a value is read. This
+          is the most common gotcha in the language; it's worth remembering once
+          and never tripping on again. When the value lives one level deeper,
+          you have three options:
+        </p>
+        <ul>
+          <li>
+            <strong>Render the child as a component</strong> &mdash;
+            <code>&lt;x render=".user"&gt;</code> and read
+            <code>.name</code> from inside the child's view. Best when the
+            nested thing is already (or could be) its own component.
+          </li>
+          <li>
+            <strong>Add a method that returns it</strong> &mdash;
+            <code>userName() { return this.user.name; }</code>, then use
+            <code>@text=".userName"</code>. Best for one-off derivations or
+            formatting.
+          </li>
+          <li>
+            <strong>Use <code>@enrich-with</code></strong> &mdash; expose
+            computed values as <code>@</code>-prefixed bindings to a subtree
+            without putting them on the component. See
+            <a href="#scope-enrichment">Scope Enrichment</a>.
+          </li>
+        </ul>
+        <p>
+          Exceptions: <code>@each</code> / <code>render-each</code> accept
+          <code>.field</code> or <code>*dynamic</code> only (not a method call),
+          and <code>&lt;x render&gt;</code> expects a component instance &mdash;
+          for a derived list, store it in a field or use <code>@when</code> with
+          <code>alter</code>.
+        </p>
 
         <h3 id="quoting-string-literals">
           <a href="#quoting-string-literals">Quoting &amp; String Literals</a>
@@ -343,152 +559,6 @@
           <code>@then</code> / <code>@else</code> / <code>@text</code> / event
           handler args.
         </p>
-
-        <h3 id="event-handling">
-          <a href="#event-handling">Event Handling</a>
-        </h3>
-        <p>
-          The <code>+</code> button uses <code>@on.click=".inc"</code> &mdash;
-          the dot prefix calls a <code>methods</code> function. The
-          <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no dot
-          means it calls an <code>input</code> handler. Both return new state
-          via the auto-generated <code>this.setCount()</code>.
-        </p>
-        <p>
-          Methods and input handlers both must return a new component instance.
-          The input section is just for organization purposes, you can use
-          methods if you want.
-        </p>
-        <tutuca-playground src="./examples/counter.js"></tutuca-playground>
-
-        <h3 id="event-modifiers">
-          <a href="#event-modifiers">Event Modifiers</a>
-        </h3>
-        <p>
-          Modifiers filter events so handlers only fire under specific
-          conditions. <code>@on.keydown+send=".setLastSentSearch value"</code>
-          only fires when the user presses Enter.
-          <code>@on.keydown+cancel=".resetQuery"</code> only fires on Escape.
-          Modifiers are appended with <code>+</code> and can be combined (e.g.
-          <code>+ctrl+send</code>).
-        </p>
-        <p>
-          Also shown here: <code>@show=".isLastSentSearchTruthy"</code>
-          conditionally displays the search result.
-          <code>isLastSentSearchTruthy</code> is auto-generated for primitive
-          and nullable fields, returning <code>true</code> when the field's
-          value is JS-truthy. Nullable fields (those initialized with
-          <code>null</code>) also get <code>isLastSentSearchNull</code> for when
-          you specifically need a null check. <code>@show</code> and
-          <code>@hide</code> are covered in more detail in
-          <a href="#conditional-attributes">Conditional Attributes</a>.
-        </p>
-        <tutuca-playground
-          src="./examples/event-modifiers.js"
-        ></tutuca-playground>
-
-        <h3 id="conditional-attributes">
-          <a href="#conditional-attributes">Conditional Attributes</a>
-        </h3>
-        <p>
-          <code>@if.class=".isActive"</code> tests the boolean field, then
-          <code>@then="'btn btn-success'"</code> or
-          <code>@else="'btn btn-ghost'"</code> sets the class accordingly. The
-          same pattern works for any attribute: <code>@if.title</code> /
-          <code>@then.title</code> / <code>@else.title</code> conditionally sets
-          the title. Single quotes inside the value (<code>'...'</code>) denote
-          string literals.
-        </p>
-        <p>
-          <code>@show</code> and <code>@hide</code> toggle element visibility
-          based on a field value. <code>.toggleIsActive</code> is auto-generated
-          for boolean fields.
-        </p>
-        <p>
-          The value passed to <code>@show</code>, <code>@hide</code>, and
-          <code>@if</code> can also be a method call &mdash;
-          <code>@show=".canSubmit"</code> invokes
-          <code>methods.canSubmit</code> with no arguments and uses its return
-          value. Reach for this when a predicate combines multiple fields (the
-          auto-generated <code>isXTruthy</code> / <code>isXEmpty</code> /
-          <code>isXNull</code> only cover single-field checks). The same pattern
-          works wherever a value is read &mdash; <code>@text=".fullName"</code>,
-          <code>:title=".tooltip"</code>,
-          <code>:class="badge {.kindClass}"</code>.
-        </p>
-        <p>
-          Tutuca expressions resolve a <strong>single</strong> name on
-          <code>this</code> &mdash; there is no path syntax. Writing
-          <code>@text=".user.name"</code> or
-          <code>:value=".item.title"</code> does not navigate into the field;
-          the parser will not walk a dotted path anywhere a value is read. When
-          the value you want lives one level deeper, you have three options:
-        </p>
-        <ul>
-          <li>
-            <strong>Render the child as a component</strong> &mdash;
-            <code>&lt;x render=".user"&gt;</code> and then read
-            <code>.name</code> from inside the child's view. Best when the
-            nested thing is already (or could be) its own component.
-          </li>
-          <li>
-            <strong>Add a method that returns it</strong> &mdash;
-            <code>userName() { return this.user.name; }</code>, then use
-            <code>@text=".userName"</code>. Best for one-off derivations or
-            formatting.
-          </li>
-          <li>
-            <strong>Use <code>@enrich-with</code></strong> &mdash; expose
-            computed values as <code>@</code>-prefixed bindings to a subtree
-            without putting them on the component. See
-            <a href="#scope-enrichment">Scope Enrichment</a>.
-          </li>
-        </ul>
-        <p>
-          <code>show</code> and <code>hide</code> can also appear as extra
-          attributes on the <code>&lt;x&gt;</code> render ops
-          (<code>text</code>, <code>render</code>, <code>render-it</code>,
-          <code>render-each</code>) &mdash; instead of toggling a host element,
-          they wrap the produced node in the equivalent conditional, so you get
-          a guard with no extra DOM. For example,
-          <code>&lt;x render-it show=".isOpen"&gt;&lt;/x&gt;</code> is the
-          equivalent of <code>render-it</code> wrapped in
-          <code>@show=".isOpen"</code>. When both appear on the same element,
-          the first attribute in source order becomes the outermost wrapper.
-        </p>
-        <p>
-          When there is a single <code>@if</code> directive,
-          <code>@then</code> and <code>@else</code> don't need to specify the
-          attribute name &mdash; they infer it from context. If there are
-          multiple <code>@if</code> directives on the same element, the
-          additional <code>@then</code> and <code>@else</code> must specify the
-          attribute name explicitly (e.g. <code>@then.title</code>,
-          <code>@else.title</code>).
-        </p>
-        <tutuca-playground
-          src="./examples/conditional-attributes.js"
-        ></tutuca-playground>
-
-        <h3 id="component-styles">
-          <a href="#component-styles">Component Styles</a>
-        </h3>
-        <p>
-          <code>style: css`...`</code> is scoped to a specific component+view
-          combination &mdash; the same class name <code>.mine</code> can have
-          different styles in different views. <code>commonStyle</code> is
-          shared across all views of the same component.
-          <code>globalStyle</code> is injected globally without scoping.
-        </p>
-        <p>
-          View "two" defines its own <code>style</code> that overrides the
-          default &mdash; notice <code>.mine</code> is red in the main view but
-          orange and underlined in view two. The root component renders all
-          three views side by side using
-          <code>&lt;x render=".value" as="viewName"&gt;</code>.
-        </p>
-        <tutuca-playground
-          src="./examples/styles-example.js"
-        ></tutuca-playground>
       </section>
 
       <!-- Collections -->
@@ -579,6 +649,52 @@
         <tutuca-playground
           src="./examples/render-with-scope.js"
         ></tutuca-playground>
+      </section>
+
+      <!-- Rendering Components -->
+      <section>
+        <h2 id="rendering-components">
+          <a href="#rendering-components">Rendering Components</a>
+        </h2>
+
+        <h3 id="rendering-a-child">
+          <a href="#rendering-a-child">Rendering a Child Component</a>
+        </h3>
+        <p>
+          Up to this point components have been self-contained &mdash; their
+          views render only their own fields.
+          <code>&lt;x render=".field"&gt;</code> renders a child component held
+          in a field of the current component. The child draws its own view from
+          its own state, scoped to its field.
+          <code>&lt;x render-it&gt;</code> is the same idea but for use
+          <em>inside</em> an iteration (<code>@each</code> or
+          <code>render-each</code>) &mdash; it renders whatever component
+          instance is currently iterated.
+        </p>
+        <p>
+          Once you can render children, the value tree starts to look like a
+          real tree: each <code>&lt;x render&gt;</code> is a parent &rarr; child
+          edge, and a click inside the grandchild produces a new grandchild,
+          which produces a new child, which produces a new root (recall
+          <a href="#mental-model">Mental Model</a>).
+        </p>
+        <tutuca-playground src="./examples/render-child.js"></tutuca-playground>
+
+        <h3 id="multiple-views">
+          <a href="#multiple-views">Multiple Views</a>
+        </h3>
+        <p>
+          A component defines its default template in <code>view</code> and
+          alternate templates in <code>views: { name: html`...` }</code>.
+          <code>&lt;x render=".item"&gt;</code> renders the default
+          (<code>"main"</code>) view. Adding <code>as="edit"</code> selects the
+          named "edit" view instead. Both render the same
+          <code>Entry</code> instance &mdash; the main view shows read-only
+          text, while the edit view shows input fields bound to the same fields.
+        </p>
+        <tutuca-playground
+          src="./examples/multiple-views.js"
+        ></tutuca-playground>
 
         <h3 id="collection-item-access">
           <a href="#collection-item-access">Collection Item Access</a>
@@ -598,29 +714,6 @@
         </p>
         <tutuca-playground
           src="./examples/seq-item-access.js"
-        ></tutuca-playground>
-      </section>
-
-      <!-- Views & Rendering -->
-      <section>
-        <h2 id="views-and-rendering">
-          <a href="#views-and-rendering">Views &amp; Rendering</a>
-        </h2>
-
-        <h3 id="multiple-views">
-          <a href="#multiple-views">Multiple Views</a>
-        </h3>
-        <p>
-          A component defines its default template in <code>view</code> and
-          alternate templates in <code>views: { name: html`...` }</code>.
-          <code>&lt;x render=".item"&gt;</code> renders the default
-          (<code>"main"</code>) view. Adding <code>as="edit"</code> selects the
-          named "edit" view instead. Both render the same
-          <code>Entry</code> instance &mdash; the main view shows read-only
-          text, while the edit view shows input fields bound to the same fields.
-        </p>
-        <tutuca-playground
-          src="./examples/multiple-views.js"
         ></tutuca-playground>
 
         <h3 id="dynamic-view-switching">
@@ -645,6 +738,47 @@
         </p>
         <tutuca-playground src="./examples/push-view.js"></tutuca-playground>
 
+        <h3 id="component-styles">
+          <a href="#component-styles">Component Styles</a>
+        </h3>
+        <p>
+          <code>style: css`...`</code> is scoped to a specific component+view
+          combination &mdash; the same class name <code>.mine</code> can have
+          different styles in different views. <code>commonStyle</code> is
+          shared across all views of the same component.
+          <code>globalStyle</code> is injected globally without scoping.
+        </p>
+        <p>
+          View "two" defines its own <code>style</code> that overrides the
+          default &mdash; notice <code>.mine</code> is red in the main view but
+          orange and underlined in view two. The root component renders all
+          three views side by side using
+          <code>&lt;x render=".value" as="viewName"&gt;</code>.
+        </p>
+        <tutuca-playground
+          src="./examples/styles-example.js"
+        ></tutuca-playground>
+
+        <h3 id="statics"><a href="#statics">Statics</a></h3>
+        <p>
+          <code>statics: { ... }</code> attaches methods to the component
+          <em>class</em> rather than to instances. They are called as
+          <code>Comp.Class.fromData(...)</code>. Inside a static,
+          <code>this</code> is the class itself, so
+          <code>this.make({...})</code> calls the auto-generated constructor
+          that <code>component({...})</code> generates for every component.
+        </p>
+        <p>
+          The most common use is a <code>fromData</code> factory that builds an
+          instance from plain JS data (e.g. JSON loaded from disk), recursively
+          constructing children &mdash; exactly what the recursive-tree example
+          in the next section uses to turn a nested object literal into a fully
+          constructed <code>TreeItem</code> with
+          <code>List&lt;TreeItem&gt;</code> children. Statics are not part of
+          any lifecycle &mdash; they are plain class methods, called by the host
+          application or by another static.
+        </p>
+
         <h3 id="recursive-components">
           <a href="#recursive-components">Recursive Components</a>
         </h3>
@@ -655,11 +789,63 @@
           instances &mdash; the component renders itself, recursively. Each
           render creates a new VDOM subtree for that branch and tutuca stops
           descending when an item has an empty
-          <code>items</code> list. The component <code>style</code> uses CSS
-          pseudo-elements (<code>:before</code>) to show folder / file icons
-          based on class names set with <code>@if.class</code>.
+          <code>items</code> list. <code>TreeItem.Class.fromData</code> (a
+          static, see previous section) is what builds the nested structure from
+          plain data. The component <code>style</code> uses CSS pseudo-elements
+          (<code>:before</code>) to show folder / file icons based on class
+          names set with <code>@if.class</code>.
         </p>
         <tutuca-playground src="./examples/tree.js"></tutuca-playground>
+      </section>
+
+      <!-- Component Communication -->
+      <section>
+        <h2 id="component-communication">
+          <a href="#component-communication">Component Communication</a>
+        </h2>
+        <p>
+          Components don't have to talk to each other &mdash; many apps just let
+          parents read children's state directly. But once you want one
+          component to <em>tell</em> another to do something, tutuca offers
+          three channels: <strong>send</strong> (targeted message),
+          <strong>bubble</strong> (event observed by ancestors), and
+          <strong>request</strong> (async, with a response). Plus
+          <strong>dynamic bindings</strong> for the prop-drilling case where a
+          descendant needs read-only access to an ancestor's value.
+        </p>
+
+        <h3 id="send-receive">
+          <a href="#send-receive">Send / Receive</a>
+        </h3>
+        <p>
+          <code>ctx.send(name, args)</code> dispatches a named handler in
+          <code>receive: { ... }</code> &mdash; on the current component when
+          called bare, or on any component reachable by path when prefixed with
+          <code>ctx.at</code>. <code>ctx.at</code> returns a path builder with
+          <code>.field(name)</code>, <code>.index(name, i)</code>, and
+          <code>.key(name, k)</code>; chain calls to descend further, then end
+          with <code>.send(name, args)</code>.
+        </p>
+        <p>
+          <strong>When to send (vs bubble vs request).</strong>
+          <em>Send</em> delivers a message to a specific target by path &mdash;
+          use it when one component needs to address another by name (a form
+          telling its email field to focus, a list telling item 3 to enter edit
+          mode), or to call a <code>receive</code> handler on self from multiple
+          call sites without duplicating its body. <em>Bubble</em> emits an
+          event upward that any ancestor can observe (next section).
+          <em>Request</em> is the async counterpart (covered after that).
+        </p>
+        <p>
+          In the example below, the form sends
+          <code>ctx.at.field("status").send("flash", [text])</code> to its
+          sibling <code>Status</code> child on submit, and
+          <code>ctx.send("clearDraft")</code> to itself to reuse the same reset
+          handler from a hypothetical second call site. The
+          <code>Status</code> component owns its own state and knows nothing
+          about who sent the message &mdash; the path is the only coupling.
+        </p>
+        <tutuca-playground src="./examples/send-receive.js"></tutuca-playground>
 
         <h3 id="bubble-events">
           <a href="#bubble-events">Bubble Events</a>
@@ -673,8 +859,9 @@
           analytics). Don't bubble events with no consumer.
         </p>
         <p>
-          The same <code>tree.js</code> example also demonstrates
-          <code>ctx.bubble</code>. When a node is clicked,
+          The recursive <code>tree.js</code> example from
+          <a href="#recursive-components">Recursive Components</a> also
+          demonstrates <code>ctx.bubble</code>. When a node is clicked,
           <code>onItemClick</code> calls
           <code>ctx.bubble("treeItemSelected", [this])</code>. Tutuca walks the
           component path from the source up toward the root and, at each
@@ -692,34 +879,6 @@
           This is how aggregate state (logs, selections, totals) is maintained
           without prop-drilling callbacks down the tree.
         </p>
-
-        <h3 id="statics"><a href="#statics">Statics</a></h3>
-        <p>
-          <code>statics: { ... }</code> attaches methods to the component
-          <em>class</em> rather than to instances. They are called as
-          <code>Comp.Class.fromData(...)</code>. Inside a static,
-          <code>this</code> is the class itself, so
-          <code>this.make({...})</code> calls the auto-generated constructor
-          that <code>component({...})</code> generates for every component.
-        </p>
-        <p>
-          The most common use is a <code>fromData</code> factory that builds an
-          instance from plain JS data (e.g. JSON loaded from disk), recursively
-          constructing children. In <code>tree.js</code>,
-          <code>TreeItem.Class.fromData</code> maps each child object back
-          through itself, so an entire nested object literal becomes a fully
-          constructed <code>TreeItem</code> instance with
-          <code>List&lt;TreeItem&gt;</code> children. Statics are not part of
-          any lifecycle &mdash; they are plain class methods, called by the host
-          application or by another static.
-        </p>
-      </section>
-
-      <!-- Advanced Features -->
-      <section>
-        <h2 id="advanced-features">
-          <a href="#advanced-features">Advanced Features</a>
-        </h2>
 
         <h3 id="async-requests">
           <a href="#async-requests">Async Requests</a>
@@ -759,61 +918,6 @@
         </p>
         <tutuca-playground
           src="./examples/request-example.js"
-        ></tutuca-playground>
-
-        <h3 id="drag-and-drop"><a href="#drag-and-drop">Drag and Drop</a></h3>
-        <p>
-          Setting <code>draggable="true"</code> enables drag on each item.
-          <code>data-dragtype</code> declares what type of draggable thing the
-          element is (e.g. <code>"my-list-item"</code>), and
-          <code>data-droptarget</code> marks it as a valid drop zone.
-        </p>
-        <p>
-          During a drag, tutuca automatically manages two runtime attributes:
-          <code>data-dragging="1"</code> is set on the source element while it's
-          being dragged, and <code>data-draggingover</code> is set on the
-          current drop target with the value of the source's
-          <code>data-dragtype</code>. You can use these as CSS attribute
-          selectors to style drag states, for example,
-          <code>[data-dragging="1"]</code> to fade the source and
-          <code>[data-draggingover="my-list-item"]</code> to highlight the
-          target. Both runtime attributes are cleaned up automatically when the
-          drag ends.
-        </p>
-        <p>
-          The drop handler receives <code>@key</code> (the target index),
-          <code>dragInfo</code>, and <code>event</code> (the raw DOM event).
-          <code>dragInfo</code> captures the rendering stack from when the
-          dragged element was rendered, so
-          <code>dragInfo.lookupBind("key")</code> can retrieve the source item's
-          iteration index &mdash; or any other binding that was available at
-          that point. The component <code>style</code> (using the
-          <code>css</code> tagged template) adds visual feedback for dragging
-          states, scoped to this component.
-        </p>
-        <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
-
-        <h3 id="web-components">
-          <a href="#web-components">Web Components</a>
-        </h3>
-        <p>
-          Custom elements work as drop-in tags inside a component view, and any
-          <code>CustomEvent</code> they fire is reachable via
-          <code>@on.&lt;event-name&gt;</code>. The event's
-          <code>detail</code> is what the built-in <code>value</code> handler
-          arg resolves to &mdash; so an input handler signature like
-          <code>onEmojiClick(detail)</code> receives the picker's
-          <code>detail</code> object directly.
-        </p>
-        <p>
-          The example below imports
-          <code>emoji-picker-element</code> from a CDN and listens for its
-          <code>emoji-click</code> custom event. Hyphenated event names go
-          straight into the <code>@on.</code> attribute, no special quoting
-          needed.
-        </p>
-        <tutuca-playground
-          src="./examples/web-component-custom-event.js"
         ></tutuca-playground>
 
         <h3 id="dynamic-bindings">
@@ -945,18 +1049,61 @@
           <a href="#escape-hatches">Escape Hatches</a>
         </h2>
 
-        <h3 id="raw-html"><a href="#raw-html">Raw HTML</a></h3>
+        <h3 id="drag-and-drop"><a href="#drag-and-drop">Drag and Drop</a></h3>
         <p>
-          <code>@dangerouslysetinnerhtml=".content"</code> sets the element's
-          <code>innerHTML</code> from the field value. The intentionally scary
-          name (borrowed from React) warns that this bypasses all text escaping
-          &mdash; if the content comes from untrusted sources, it opens the door
-          to XSS attacks. Use it only when you control the HTML content or have
-          sanitized it. When this directive is active, the element's children in
-          the template are ignored.
+          Setting <code>draggable="true"</code> enables drag on each item.
+          <code>data-dragtype</code> declares what type of draggable thing the
+          element is (e.g. <code>"my-list-item"</code>), and
+          <code>data-droptarget</code> marks it as a valid drop zone.
+        </p>
+        <p>
+          During a drag, tutuca automatically manages two runtime attributes:
+          <code>data-dragging="1"</code> is set on the source element while it's
+          being dragged, and <code>data-draggingover</code> is set on the
+          current drop target with the value of the source's
+          <code>data-dragtype</code>. You can use these as CSS attribute
+          selectors to style drag states, for example,
+          <code>[data-dragging="1"]</code> to fade the source and
+          <code>[data-draggingover="my-list-item"]</code> to highlight the
+          target. Both runtime attributes are cleaned up automatically when the
+          drag ends.
+        </p>
+        <p>
+          The drop handler receives <code>@key</code> (the target index),
+          <code>dragInfo</code>, and <code>event</code> (the raw DOM event).
+          <code>dragInfo</code> captures the rendering stack from when the
+          dragged element was rendered, so
+          <code>dragInfo.lookupBind("key")</code> can retrieve the source item's
+          iteration index &mdash; or any other binding that was available at
+          that point (recall <a href="#mental-model">Mental Model</a> &mdash;
+          this is the same stack that resolves <code>@key</code> /
+          <code>@value</code> during render). The component
+          <code>style</code> (using the <code>css</code> tagged template) adds
+          visual feedback for dragging states, scoped to this component.
+        </p>
+        <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
+
+        <h3 id="web-components">
+          <a href="#web-components">Web Components</a>
+        </h3>
+        <p>
+          Custom elements work as drop-in tags inside a component view, and any
+          <code>CustomEvent</code> they fire is reachable via
+          <code>@on.&lt;event-name&gt;</code>. The event's
+          <code>detail</code> is what the built-in <code>value</code> handler
+          arg resolves to &mdash; so an input handler signature like
+          <code>onEmojiClick(detail)</code> receives the picker's
+          <code>detail</code> object directly.
+        </p>
+        <p>
+          The example below imports
+          <code>emoji-picker-element</code> from a CDN and listens for its
+          <code>emoji-click</code> custom event. Hyphenated event names go
+          straight into the <code>@on.</code> attribute, no special quoting
+          needed.
         </p>
         <tutuca-playground
-          src="./examples/danger-set-inner-html.js"
+          src="./examples/web-component-custom-event.js"
         ></tutuca-playground>
 
         <h3 id="pseudo-x"><a href="#pseudo-x">Pseudo-x (@x)</a></h3>
@@ -995,53 +1142,89 @@
           else the parser would otherwise discard a <code>&lt;x&gt;</code> tag.
         </p>
         <tutuca-playground src="./examples/pseudo-x.js"></tutuca-playground>
+
+        <h3 id="raw-html"><a href="#raw-html">Raw HTML</a></h3>
+        <p>
+          <code>@dangerouslysetinnerhtml=".content"</code> sets the element's
+          <code>innerHTML</code> from the field value. The intentionally scary
+          name (borrowed from React) warns that this bypasses all text escaping
+          &mdash; if the content comes from untrusted sources, it opens the door
+          to XSS attacks. Use it only when you control the HTML content or have
+          sanitized it. When this directive is active, the element's children in
+          the template are ignored.
+        </p>
+        <tutuca-playground
+          src="./examples/danger-set-inner-html.js"
+        ></tutuca-playground>
       </section>
 
-      <!-- Common Mistakes -->
+      <!-- Linter Reference -->
       <section>
-        <h2 id="common-mistakes">
-          <a href="#common-mistakes">Common Mistakes</a>
+        <h2 id="linter-reference">
+          <a href="#linter-reference">Linter Reference</a>
         </h2>
         <p>
-          The example below intentionally triggers every category the linter can
-          catch. Open the <strong>Lint</strong> tab on the right to see all of
-          the issues detected. The <code>tutuca</code> CLI's
-          <code>lint</code> command runs the same checks from the command line.
+          The <code>tutuca</code> CLI's <code>lint</code> command emits codes
+          for the categories below. Running it after each edit (the post-edit
+          recipe in the skill's <code>core.txt</code> &rarr;
+          <em>Verifying changes</em>) catches typos and broken references before
+          they hit a render. The example below intentionally triggers every
+          category &mdash; open the <strong>Lint</strong> tab on the right to
+          see them all detected.
         </p>
-        <p>The categories the linter reports:</p>
+        <p>
+          The categories the linter reports, grouped as in the CLI reference:
+        </p>
         <ul>
           <li>
-            <strong>Undefined references</strong> &mdash; <code>.field</code>,
-            <code>!request</code> or <code>Component</code> names that the
-            module never declares.
+            <strong>Field references</strong> &mdash; <code>.field</code> not
+            declared in <code>fields</code>
+            (<code>FIELD_VAL_NOT_DEFINED</code>).
           </li>
           <li>
-            <strong>Method vs input handler mix-ups</strong> &mdash; calling a
-            <code>methods</code> entry without the <code>.</code> prefix, or
-            calling an <code>input</code> handler with one. The linter knows
-            which section each name lives in.
+            <strong>Method &harr; input handler confusion</strong> &mdash;
+            calling a <code>methods</code> entry without the
+            <code>.</code> prefix (or an <code>input</code> handler with one),
+            and <code>input</code> / <code>methods</code> entries referenced but
+            not declared (<code>INPUT_HANDLER_NOT_IMPLEMENTED</code>,
+            <code>INPUT_HANDLER_METHOD_NOT_IMPLEMENTED</code>,
+            <code>INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD</code>,
+            <code>INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER</code>). The linter
+            knows which section each name lives in.
+          </li>
+          <li>
+            <strong>Iteration helpers (<code>alter</code>)</strong> &mdash;
+            <code>@when</code> / <code>@enrich-with</code> /
+            <code>@loop-with</code> name not in <code>alter</code>, or an
+            <code>alter</code> entry never used
+            (<code>ALT_HANDLER_NOT_DEFINED</code>,
+            <code>ALT_HANDLER_NOT_REFERENCED</code>).
+          </li>
+          <li>
+            <strong><code>render-it</code> outside a loop</strong> &mdash;
+            <code>&lt;x render-it&gt;</code> only works inside
+            <code>@each</code> / <code>render-each</code>
+            (<code>RENDER_IT_OUTSIDE_OF_LOOP</code>).
           </li>
           <li>
             <strong>Unknown event modifiers</strong> &mdash; e.g.
             <code>@on.click+badmod</code> when only <code>+ctrl</code> /
             <code>+cmd</code> / <code>+meta</code> / <code>+alt</code> (and on
             <code>keydown</code>: <code>+send</code> / <code>+cancel</code>) are
-            recognized.
+            recognized (<code>UNKNOWN_EVENT_MODIFIER</code>).
           </li>
           <li>
             <strong>Unknown handler arg names</strong> &mdash; only the built-in
             arg names (<code>value</code>, <code>valueAsInt</code>,
-            <code>event</code>, <code>ctx</code>, ...) are accepted in handler
-            argument slots.
+            <code>event</code>, <code>ctx</code>, &hellip;) are accepted in
+            handler argument slots (<code>UNKNOWN_HANDLER_ARG_NAME</code>).
           </li>
           <li>
-            <strong><code>render-it</code> outside a loop</strong> &mdash;
-            <code>&lt;x render-it&gt;</code> only works inside
-            <code>@each</code> / <code>render-each</code>.
-          </li>
-          <li>
-            <strong>Unknown macro arg</strong> &mdash; passing an attribute to a
-            macro that wasn't declared in its <code>defaults</code> object.
+            <strong>Duplicate attribute definitions</strong> &mdash; setting the
+            same attribute (e.g. <code>class</code>) via a literal,
+            <code>:class</code>, and <code>@if.class</code> on the same element.
+            Only one wins; the linter flags the conflict
+            (<code>DUPLICATE_ATTR_DEFINITION</code>).
           </li>
           <li>
             <strong>Unknown <code>@directive</code></strong> &mdash; e.g.
@@ -1049,33 +1232,35 @@
             names like <code>@show</code>, <code>@text</code>,
             <code>@on.<em>event</em></code
             >, <code>@if.<em>attr</em></code
-            >, etc.
+            >, etc. (<code>UNKNOWN_DIRECTIVE</code>).
           </li>
           <li>
             <strong>Unknown <code>&lt;x&gt;</code> op</strong> &mdash; the first
             attribute on <code>&lt;x&gt;</code> (or pseudo-<code>@x</code>) is
             not a recognized op (<code>render</code>, <code>render-it</code>,
             <code>render-each</code>, <code>text</code>, <code>show</code>,
-            <code>hide</code>, <code>slot</code>).
+            <code>hide</code>, <code>slot</code>) (<code>UNKNOWN_X_OP</code>).
           </li>
           <li>
             <strong>Unknown <code>&lt;x&gt;</code> attribute</strong> &mdash;
             extra attribute on a <code>&lt;x op&gt;</code> that the op doesn't
-            consume (e.g. <code>as</code>, <code>when</code>,
-            <code>loop-with</code>) and isn't a known wrapper
-            (<code>show</code>, <code>hide</code>).
+            consume and isn't a known wrapper (<code>show</code>,
+            <code>hide</code>) (<code>UNKNOWN_X_ATTR</code>).
           </li>
           <li>
-            <strong>Duplicate attribute definitions</strong> &mdash; setting the
-            same attribute (e.g. <code>class</code>) via a literal,
-            <code>:class</code>, and <code>@if.class</code> on the same element.
-            Only one wins; the linter flags the conflict.
+            <strong>Names registered with the app</strong> &mdash;
+            <code>!request</code> name not registered, component type not
+            registered, or macro attribute not declared in defaults
+            (<code>UNKNOWN_REQUEST_NAME</code>,
+            <code>UNKNOWN_COMPONENT_NAME</code>,
+            <code>UNKNOWN_MACRO_ARG</code>).
           </li>
           <li>
             <strong>Unreferenced declarations</strong> &mdash;
             <code>input</code> or <code>alter</code> entries that no view ever
-            uses. These are warnings; useful for catching dead code after a
-            refactor.
+            uses (<code>INPUT_HANDLER_NOT_REFERENCED</code>,
+            <code>ALT_HANDLER_NOT_REFERENCED</code>). Warning level; useful for
+            catching dead code after a refactor.
           </li>
         </ul>
         <tutuca-playground src="./examples/lint-errors.js"></tutuca-playground>

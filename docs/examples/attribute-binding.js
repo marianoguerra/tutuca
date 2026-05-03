@@ -23,7 +23,7 @@ export const AttributeBinding = component({
       class="input"
     />
     <input
-      :value=".bool"
+      :checked=".bool"
       type="checkbox"
       @on.input=".setBool value"
       class="checkbox"
