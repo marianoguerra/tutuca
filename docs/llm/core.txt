@@ -15,8 +15,8 @@ the `tutuca` CLI.
 
 ## Verifying changes
 
-After editing a Tutuca module, run two checks before declaring the edit
-done:
+After editing a Tutuca module, run these checks before declaring the
+edit done:
 
 1. **Lint the module** — catches undefined fields/handlers/macros/events
    (all the `*_NOT_DEFINED` / `*_NOT_REFERENCED` codes):
@@ -26,7 +26,21 @@ done:
    Exits `2` on any error-level finding. Pass a component name to scope
    it: `tutuca <module-path> lint Button`.
 
-2. **Render the example(s) that exercise the feature you changed** —
+2. **Test component behavior** — when the edit changes attributes,
+   instance methods, input handlers, or static factories (anything
+   observable from JS, not just the rendered HTML), run the test
+   suite. The module opts in by exporting
+   `getTests({ describe, test, expect })`:
+
+        tutuca <module-path> test
+        tutuca <module-path> test Counter           # one component
+        tutuca <module-path> test --grep "inc()"    # one path
+
+   Exits `4` on any failure. Skip this step when the change is purely
+   templates/styling — `render` already covers that. Full reference,
+   including a worked `getTests()` export, in [cli.txt](./cli.txt).
+
+3. **Render the example(s) that exercise the feature you changed** —
    confirms the component actually mounts in a headless DOM with the new
    behavior. Pick the example whose `title` matches the feature, or
    filter by component:
@@ -775,9 +789,8 @@ import {
 ```
 
 Because every `immutable` export is reachable through `tutuca`, if an
-`immutable-js` skill is installed in this project (e.g.
-`.claude/skills/immutable-js/`) load it alongside this one — its guidance
-applies directly to the values you'll be reading and writing.
+`immutable-js` skill is available, load it alongside this one — its
+guidance applies directly to the values you'll be reading and writing.
 
 ## Conventional Module Exports
 

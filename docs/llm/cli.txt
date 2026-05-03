@@ -1,11 +1,11 @@
 # Tutuca CLI Reference
 
-The `tutuca` CLI inspects, documents, lints, and renders any module that
-follows the *Conventional Module Exports* shape (see `core.txt`). Reach
-this file when you need command/flag/exit-code details, or when reading
-a lint code out of `lint` output. Otherwise the post-edit recipe in
-`core.txt` (run `lint`, then `render --title "<your example>"`) is
-enough.
+The `tutuca` CLI inspects, documents, lints, tests, and renders any
+module that follows the *Conventional Module Exports* shape (see
+`core.txt`). Reach this file when you need command/flag/exit-code
+details, or when reading a lint code out of `lint` output. Otherwise
+the post-edit recipe in `core.txt` (run `lint`, then `test` for
+behavior changes, then `render --title "<your example>"`) is enough.
 
 ## Install / invoke
 
@@ -36,6 +36,7 @@ prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
 | `docs [name]`   | Generate API docs (methods, input handlers, fields with auto-generated accessors) — all or one                         |
 | `lint [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
+| `test [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
 | `help [cmd]`    | Show usage; the only command that does **not** need a module path                                                      |
 
 ## Global flags
@@ -61,6 +62,7 @@ prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
 | `1`  | usage error (bad args, missing module, bad module shape) |
 | `2`  | lint findings at error level                             |
 | `3`  | render crash                                             |
+| `4`  | one or more tests failed                                 |
 
 ## Examples
 
@@ -77,7 +79,76 @@ tutuca ./src/components.js render Button --title "Disabled state"
 tutuca ./src/components.js lint
 tutuca ./src/components.js render --title "Disabled state"
 tutuca ./src/components.js render --title "Disabled state" --pretty
+
+# Component-behavior verification: run the suite for one component, or
+# narrow further with --grep. Add tests next to the component (the
+# getTests() export) when the change isn't observable from render alone.
+tutuca ./src/components.js test Counter
+tutuca ./src/components.js test Counter --grep "inc()"
+tutuca ./src/components.js test --bail
 ```
+
+## `test` — running component tests
+
+Use `test` after edits that change attributes, instance methods, input
+handlers, or static factories — anything observable from JS rather than
+from rendered HTML. The module opts in by exporting
+`getTests({ describe, test, expect })`:
+
+- `describe(Component, fn)` tags the suite with `Component.name` so
+  the positional `[name]` filter can pick it.
+- `describe(title, fn)` is untagged; reachable only via `--grep`.
+- `describe(title, { component }, fn)` tags an explicit title with a
+  custom component name.
+- `test(title, fn)` — `fn` may be async; assertions use the injected
+  chai `expect`.
+
+Filters:
+
+- `[name]` — only tests whose tagged `componentName` equals `<name>`.
+- `--grep <p>` — substring match against the full path
+  (e.g. `"Counter > inc() > works on a negative counter"`).
+- `--bail` — stop on first failure; remaining tests reported as `skip`.
+
+Default format is `cli` (a tree with ✓/✗/○ and per-test durations);
+`-f md` and `-f json` work too.
+
+A worked `getTests()` export covering methods, input handlers (called
+via `Comp.input.x.call(inst)`), and immutability:
+
+```js
+export function getTests({ describe, test, expect }) {
+  describe(Counter, () => {
+    describe("inc()", () => {                           // method
+      test("returns a Counter with count + 1", () => {
+        const next = Counter.make().inc();
+        expect(next).to.be.instanceOf(Counter.Class);
+        expect(next.count).to.equal(1);
+      });
+      test("does not mutate the original instance", () => {
+        const c = Counter.make({ count: 7 });
+        c.inc();
+        expect(c.count).to.equal(7);                    // immutability
+      });
+    });
+
+    describe("dec()", () => {                           // input handler
+      test("returns a Counter with count - 1", () => {
+        const next = Counter.input.dec.call(Counter.make());
+        expect(next.count).to.equal(-1);
+      });
+    });
+
+    test("inc and dec round-trip", () => {              // untagged path
+      expect(Counter.input.dec.call(Counter.make().inc()).count).to.equal(0);
+    });
+  });
+}
+```
+
+`describe(Counter, fn)` auto-tags the suite path with `Counter.name`, so
+`tutuca <module> test Counter` picks it up. Untagged `test(...)` at the
+top of a tagged `describe` inherits the tag.
 
 ## Install skill assets
 
@@ -100,7 +171,7 @@ tutuca install-skill --all --force     # overwrite existing files
 
 ## Linter Rules
 
-Codes emitted by `lint`. Source: `tools/core/lint-check.js`.
+Codes emitted by `lint`.
 
 ### Field references
 
