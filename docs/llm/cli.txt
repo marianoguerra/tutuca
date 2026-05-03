@@ -4,7 +4,7 @@ The `tutuca` CLI inspects, documents, lints, tests, and renders any
 module that follows the *Conventional Module Exports* shape (see
 `core.txt`). Reach this file when you need command/flag/exit-code
 details, or when reading a lint code out of `lint` output. Otherwise
-the post-edit recipe in `core.txt` (run `lint`, then `test` for
+*Verifying changes* in `core.txt` (run `lint`, then `test` for
 behavior changes, then `render --title "<your example>"`) is enough.
 
 ## Install / invoke

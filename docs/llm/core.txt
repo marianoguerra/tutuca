@@ -83,11 +83,7 @@ Full reference: [cli.txt](./cli.txt).
   newline / indent before the first element renders blank silently.
   Use `view: html\`<el ...>` (or `html\`<el<newline>  attr<newline>>...`),
   never `view: html\`<newline>  <el ...>`. Same applies to macro bodies.
-- **Macro registry keys are normalized to lowercase.** The HTML parser
-  lowercases custom tag names, so `<x:Card>` is read as `<x:card>`.
-  `registerMacros({ Card })` is fine — the key is stored as `card`.
-  Registering two different macros under the same lowercased name (e.g.
-  `Card` and `card`) warns via `console.assert`; the later one wins.
+- **Macro registry keys are lowercased.** `<x:Card>` becomes `<x:card>` — see *Macros*.
 
 ## Bootstrap
 
@@ -114,7 +110,63 @@ app.start();
 `app.onChange((info) => ...)` fires after every state change with
 `{ val, old, info, timestamp }` (logging, persistence). `app.stop()`
 removes all listeners and cancels cache eviction; pair with
-`app.start()` for teardown in tests or SPA navigation.
+`app.start()` to remount cleanly in tests or SPA navigation.
+
+## Mental model
+
+Tutuca rests on three invariants: the application state is a single
+immutable root value; the view is a pure function of it; every handler
+takes the old self and returns a new self. The transactor swaps the
+root atomically. Identity-based caching, time-travel-style debugging,
+and the entire dispatch model fall out of these three properties.
+
+**The value tree.** Components are nested immutable Records. Children
+live in fields — a list of `Item`, a map of `User`, a scalar `count`.
+"Updating a deep child" means producing a new root that shares
+structure with the old one along the unchanged spine; the renderer
+keys its cache on `===` identity, so unchanged subtrees skip work.
+Every value carries a hidden tag back to its component class, so the
+runtime never needs `instanceof` — it asks the value what it is.
+
+**Stack: frames vs scopes.** As the renderer walks the AST it pushes
+`BindFrame`s. A *frame* is a barrier: name lookups (`@x`) stop at it,
+so a child component view sees a clean namespace. A *scope* is
+transparent: iteration `key` / `value` and `@enrich-with` binds layer
+onto the surrounding frame and remain visible to handlers attached to
+the same iteration. `it` (the target of `.field` lookups) is set on
+both.
+
+| pushed by                           | kind  | shape                                |
+| ----------------------------------- | ----- | ------------------------------------ |
+| `<x render=".f">` / `<x render-it>` | frame | `it` = child, fresh binds            |
+| `<x render-each>` per iter          | frame | `it` = item, binds `{ key }`         |
+| `<div @each>` per iter              | scope | `it` = item, binds `{ key, value }`  |
+| `<x:scope @enrich-with=…>`          | scope | `it` unchanged, binds = alter result |
+
+For full mechanics see *List Iteration* and *Scope Enrichment*.
+This is why a handler attached to `<div @each>` runs against the
+*parent* component (the scope is transparent — the surrounding frame
+still owns dispatch), while one inside `<x render-it>` runs against
+the *item* (render-it pushed a fresh frame for the child).
+
+**Paths, not references.** The DOM is the only thing that survives
+between render and click, so the renderer leaves breadcrumbs:
+`data-cid` / `data-nid` / `data-eid` on rendered elements, and `§…§`
+HTML comments adjacent to iteration entries. On a DOM event the
+runtime walks from the target up to the root, reads those breadcrumbs,
+and rebuilds a *positional* `Path` — an array of steps from the root
+to the value the handler should run against. The same `Path` is reused
+verbatim for `ctx.send`, `ctx.bubble`, and `ctx.request` /
+response: because it's positional rather than a captured reference, an
+async response still lands at the right slot even after intervening
+transactions have rebuilt the root. See *Bubble Events*, *Send /
+Receive*, *Async Requests* for the dispatch APIs.
+
+**Why `alter` is its own table.** Alter handlers are pure, evaluated
+on every render, and produce binds (no state change). `input` /
+`receive` / `bubble` / `response` are transactional and produce new
+values. Same lookup mechanism, different contracts — keep them
+separate.
 
 ## Notation Reference
 
@@ -330,7 +382,7 @@ consequences:
   custom elements with kebab-case attributes plus lowercased property
   setters (or aliases), and bind via `:kebab-name` from Tutuca templates.
 - Macro registry keys are lowercased on insert for the same reason
-  (see "Macros" section below).
+  (see *Macros* below).
 
 ## Event Handling
 
@@ -398,7 +450,7 @@ fails. `:mapId=".id"` does *not* invoke a `set mapId` setter
 — the HTML parser lowercased the attribute name, so the framework assigns
 to `node.mapid` instead, creating an own property and bypassing the
 setter. Use kebab-case attributes / lowercased setters when authoring
-custom elements for use with Tutuca. See "Attribute Binding" above.
+custom elements for use with Tutuca. See *Attribute Binding* above.
 
 ## Conditional Display
 
@@ -590,6 +642,10 @@ Every handler is called as `handler(...args, ctx)` and returns a
 returned value into the dispatch path. The four sections below cover
 each channel in turn.
 
+`alter` is a fifth handler block, but unlike the four above it isn't
+event-triggered — the renderer invokes alter handlers to produce
+binds, not to update state. See *Mental model* and *Scope Enrichment*.
+
 ## Bubble Events
 
 ```js
@@ -643,7 +699,8 @@ ctx.bubble("name", [arg]);                                 // bubble up
 `ctx.at` returns a `PathBuilder` with `.field(name)`, `.index(name, i)`,
 and `.key(name, k)`. Each call appends a step to the path before
 `.send(...)` / `.bubble(...)` fires; the handler runs inside the child
-instance with `this` bound to it.
+instance with `this` bound to it. Paths are positional, not references —
+see *Mental model* for why this matters across async boundaries.
 
 When to send: bubble emits an *event* that any ancestor with a
 matching handler can observe; send delivers a *message* to one
@@ -810,4 +867,5 @@ export function getExamples()         {
     items: [{ title, description, value, view }],         // value = Comp.make(...)
   };
 }
+export function getTests({ describe, test, expect }) { /*...*/ }      // optional — see cli.txt
 ```
