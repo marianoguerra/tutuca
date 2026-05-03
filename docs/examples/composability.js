@@ -65,9 +65,9 @@ const Composability = component({
       return this.setActiveSection("dnd");
     },
   },
-  logic: {
+  receive: {
     init(ctx) {
-      ctx.at.field("personalSite").logic("init");
+      ctx.at.field("personalSite").send("init");
       return this;
     },
   },

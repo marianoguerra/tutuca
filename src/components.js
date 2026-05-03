@@ -121,7 +121,7 @@ export class Component {
     this.commonStyle = o.commonStyle ?? "";
     this.globalStyle = o.globalStyle ?? "";
     this.input = o.input ?? {};
-    this.logic = o.logic ?? {};
+    this.receive = o.receive ?? {};
     this.bubble = o.bubble ?? {};
     this.response = o.response ?? {};
     this.alter = o.alter ?? {};

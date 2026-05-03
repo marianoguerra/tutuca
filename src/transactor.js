@@ -29,8 +29,8 @@ export class Transactor {
     this.transactions.push(t);
     this.onTransactionPushed(t);
   }
-  pushLogic(path, name, args = [], opts = {}, parent = null) {
-    this.pushTransaction(new LogicEvent(path, this, name, args, parent, opts));
+  pushSend(path, name, args = [], opts = {}, parent = null) {
+    this.pushTransaction(new SendEvent(path, this, name, args, parent, opts));
   }
   pushBubble(path, name, args = [], opts = {}, parent = null) {
     const newOpts = opts.skipSelf ? { ...opts, skipSelf: false } : opts;
@@ -217,8 +217,8 @@ class NameArgsTransaction extends Transaction {
 class ResponseEvent extends NameArgsTransaction {
   handlerProp = "response";
 }
-class LogicEvent extends NameArgsTransaction {
-  handlerProp = "logic";
+class SendEvent extends NameArgsTransaction {
+  handlerProp = "receive";
   run(rootVal, comps) {
     return this.opts.skipSelf ? rootVal : this.updateRootValue(rootVal, comps);
   }
@@ -228,7 +228,7 @@ class LogicEvent extends NameArgsTransaction {
       this.transactor.pushBubble(path.popStep(), name, args, opts, this);
   }
 }
-class BubbleEvent extends LogicEvent {
+class BubbleEvent extends SendEvent {
   handlerProp = "bubble";
   stopPropagation() {
     this.opts.bubbles = false;
@@ -270,14 +270,14 @@ class Dispatcher {
   get at() {
     return new PathChanges(this);
   }
-  logic(name, args, opts) {
-    return this.logicAtPath(this.path, name, args, opts);
+  send(name, args, opts) {
+    return this.sendAtPath(this.path, name, args, opts);
   }
   bubble(name, args, opts) {
-    return this.logic(name, args, { skipSelf: true, bubbles: true, ...opts });
+    return this.send(name, args, { skipSelf: true, bubbles: true, ...opts });
   }
-  logicAtPath(path, name, args, opts) {
-    return this.transactor.pushLogic(path, name, args, opts, this.parent);
+  sendAtPath(path, name, args, opts) {
+    return this.transactor.pushSend(path, name, args, opts, this.parent);
   }
   request(name, args, opts) {
     return this.requestAtPath(this.path, name, args, opts);
@@ -299,11 +299,11 @@ class PathChanges extends PathBuilder {
     super();
     this.dispatcher = dispatcher;
   }
-  logic(name, args, opts) {
-    return this.dispatcher.logicAtPath(this.buildPath(), name, args, opts);
+  send(name, args, opts) {
+    return this.dispatcher.sendAtPath(this.buildPath(), name, args, opts);
   }
   bubble(name, args, opts) {
-    return this.logic(name, args, { skipSelf: true, bubbles: true, ...opts });
+    return this.send(name, args, { skipSelf: true, bubbles: true, ...opts });
   }
   buildPath() {
     return this.dispatcher.path.concat(this.pathChanges);

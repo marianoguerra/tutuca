@@ -495,7 +495,7 @@ export class TutucaPlayground extends HTMLElement {
       });
       slider.style.width = "100%";
 
-      app.dispatchLogicAtRoot("init", []);
+      app.dispatchSendAtRoot("init", []);
 
       let changes = 0;
       app.state.onChange((info) => {
@@ -650,7 +650,7 @@ async function main() {
   document.head.appendChild(style);
   app.state.set(mod.getRoot());
   app.start();
-  app.dispatchLogicAtRoot("init", []);
+  app.dispatchSendAtRoot("init", []);
 }
 
 main();

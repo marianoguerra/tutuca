@@ -10,7 +10,7 @@ const outDir = resolve(repo, "skill/tutuca");
 
 const SKILL_FRONTMATTER = `---
 name: tutuca
-description: Authoring or reviewing tutuca components, html\`\` views, macros, or running the \`tutuca\` CLI. Covers field types, @-directives, bubble/logic/response handlers, and the post-edit \`tutuca <module> lint\` + \`tutuca <module> render --title …\` verification recipe.
+description: Authoring or reviewing tutuca components, html\`\` views, macros, or running the \`tutuca\` CLI. Covers field types, @-directives, bubble/receive/response handlers, and the post-edit \`tutuca <module> lint\` + \`tutuca <module> render --title …\` verification recipe.
 ---
 
 `;
@@ -19,7 +19,7 @@ const SKILL_BODY = `# Tutuca
 
 Tutuca is an immutable-state SPA framework: components have typed
 \`fields\`, auto-generated mutators (\`setX\`, \`pushInX\`, …), HTML-template
-\`view\`s with \`@\`-prefixed directives, and \`bubble\` / \`logic\` /
+\`view\`s with \`@\`-prefixed directives, and \`bubble\` / \`receive\` /
 \`response\` handlers for orchestration.
 
 ## Verifying changes

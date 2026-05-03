@@ -11,7 +11,7 @@ export function componentDataFromJson(o) {
   const methods = parseFnObj(o.methods ?? {});
   const statics = parseFnObj(o.statics ?? {});
   const input = parseFnObj(o.input ?? {});
-  const logic = parseFnObj(o.logic ?? {});
+  const receive = parseFnObj(o.receive ?? {});
   const bubble = parseFnObj(o.bubble ?? {});
   const response = parseFnObj(o.response ?? {});
   const alter = parseFnObj(o.alter ?? {});
@@ -24,7 +24,7 @@ export function componentDataFromJson(o) {
     views,
     style,
     input,
-    logic,
+    receive,
     bubble,
     response,
     alter,
@@ -40,7 +40,7 @@ export function macroToJson(name, m) {
 export function componentToJson(Comp) {
   const { name, fields, methods } = Comp.Class.getMetaClass();
   const input = fnObjToData(Comp.input);
-  const logic = fnObjToData(Comp.logic);
+  const receive = fnObjToData(Comp.receive);
   const bubble = fnObjToData(Comp.bubble);
   const response = fnObjToData(Comp.response);
   const alter = fnObjToData(Comp.alter);
@@ -61,7 +61,7 @@ export function componentToJson(Comp) {
     style: style || undefined,
     view: rawView,
     input,
-    logic,
+    receive,
     bubble,
     response,
     alter,

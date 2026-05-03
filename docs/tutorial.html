@@ -693,7 +693,7 @@
         <p>
           Bubble handlers return a (possibly updated) instance of their
           own component, just like <code>methods</code> /
-          <code>input</code> / <code>logic</code> handlers. Walking stops
+          <code>input</code> / <code>receive</code> handlers. Walking stops
           when the root state value is reached or when a handler calls
           <code>ctx.stopPropagation()</code>. This is how aggregate state
           (logs, selections, totals) is maintained without prop-drilling
@@ -735,16 +735,16 @@
         </h3>
         <p>
           <strong>Lifecycle note:</strong> tutuca has no built-in lifecycle.
-          The <code>logic</code> section is just a place to register named
+          The <code>receive</code> section is just a place to register named
           handlers; nothing in the framework calls
-          <code>logic.init</code> automatically. The host application has
+          <code>receive.init</code> automatically. The host application has
           to dispatch it (the tutorial harness calls
-          <code>app.dispatchLogicAtRoot("init")</code> after
+          <code>app.dispatchSendAtRoot("init")</code> after
           <code>app.start()</code> &mdash; that is what makes
           <code>init</code> run in these playgrounds).
         </p>
         <p>
-          The <code>init(ctx)</code> handler in the <code>logic</code> section
+          The <code>init(ctx)</code> handler in the <code>receive</code> section
           is called when the application starts. It calls
           <code>ctx.request("loadData", [])</code> to trigger the async function
           registered in <code>getRequestHandlers()</code>. When the fetch

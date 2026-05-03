@@ -54,7 +54,7 @@ async function main() {
   document.head.appendChild(style);
   app.state.set(mod.getRoot());
   app.start({ noCache: disableCache });
-  app.dispatchLogicAtRoot("init", []);
+  app.dispatchSendAtRoot("init", []);
 }
 
 main();

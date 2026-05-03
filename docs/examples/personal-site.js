@@ -113,7 +113,7 @@ export const Root = component({
         .setSelectedRoles(ISet(allRolesList));
     },
   },
-  logic: {
+  receive: {
     init(ctx) {
       ctx.request("loadData");
       return this;

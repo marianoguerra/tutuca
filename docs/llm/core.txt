@@ -2,7 +2,7 @@
 
 Tutuca is an immutable-state web framework: components have typed `fields`,
 auto-generated mutators (`setX`, `pushInX`, …), HTML-template `view`s with
-`@`-prefixed directives, and `bubble` / `logic` / `response` handlers for
+`@`-prefixed directives, and `bubble` / `receive` / `response` handlers for
 orchestration. Read this file when authoring or reviewing
 `component({...})` definitions, `view: html\`...\`` templates, macros, or
 the `tutuca` CLI.
@@ -60,8 +60,8 @@ Full reference: [cli.txt](./cli.txt).
   quote (`'flex gap-3'`) or use template form (`flex gap-3 {.color}`).
 - **`<x>` is stripped inside `<select>` / `<table>` / `<tr>`.** Use the
   `@x` pseudo-x trick (see [advanced.txt](./advanced.txt)).
-- **`logic.init` is a convention, not a lifecycle hook.** Nothing calls it
-  automatically — dispatch via `app.dispatchLogicAtRoot("init")` or from
+- **`receive.init` is a convention, not a lifecycle hook.** Nothing calls it
+  automatically — dispatch via `app.dispatchSendAtRoot("init")` or from
   another handler.
 - **`app.state.set(...)` takes a component instance**, not plain data.
   Build with `Comp.make({...})`.
@@ -182,7 +182,7 @@ component({
   methods: { inc() { return this.setCount(this.count + 1); } },
   input:   { onClick(ctx) { return this.inc(); } },
   alter:   { filterItem(_k, item) { return item.length > 0; } },
-  logic:   { init(ctx) { ctx.request("loadData"); return this; } },
+  receive: { init(ctx) { ctx.request("loadData"); return this; } },
   bubble:  { itemPicked(item, ctx) { return this.setSelected(item); } },
   response:{ loadData(res, err, ctx) { return this.setItems(res); } },
   statics: { fromData(d) { return this.make({ count: d.n ?? 0 }); } },
@@ -559,6 +559,23 @@ component({
 Tagged templates `html` and `css` are just `String.raw` (editor hinting
 only). Plain strings work too.
 
+## Triggers and Handlers
+
+Tutuca has four orchestration channels. Each one pairs a trigger with
+a same-shape handler block:
+
+| Triggered by                                | Handler block       |
+| ------------------------------------------- | ------------------- |
+| DOM event (`click`, `input`, …)             | `input:    { ... }` |
+| `ctx.send(name)` — message to a target path | `receive:  { ... }` |
+| `ctx.request(name)` — async request         | `response: { ... }` |
+| `ctx.bubble(name)` — event up the tree      | `bubble:   { ... }` |
+
+Every handler is called as `handler(...args, ctx)` and returns a
+(possibly updated) instance of `this`; the framework swaps the
+returned value into the dispatch path. The four sections below cover
+each channel in turn.
+
 ## Bubble Events
 
 ```js
@@ -570,13 +587,13 @@ bubble: {
 }
 ```
 
-`ctx.bubble("name", args)` walks the dispatch path back toward the root
-state. Each ancestor whose component defines `bubble.<name>(...args, ctx)`
-runs it (others are skipped silently); bubbling stops at the root or when
-a handler calls `ctx.stopPropagation()`. Each handler returns a
-(possibly updated) instance of itself, like `input` / `methods` / `logic`.
-Ancestors see the event *after* descendants have transacted, so bubble
-handlers are the place for aggregate state (logs, selections, totals).
+`ctx.bubble("name", args)` emits an event that walks the dispatch path
+back toward the root. Each ancestor whose component defines
+`bubble.<name>(...args, ctx)` runs it (others are skipped silently);
+bubbling stops at the root or when a handler calls
+`ctx.stopPropagation()`. Ancestors see the event *after* descendants
+have transacted, so bubble handlers are the place for aggregate state
+(logs, selections, totals).
 
 When to bubble: handle the event locally if the current component owns
 the state needed to respond. Bubble when the action belongs to an
@@ -585,46 +602,53 @@ items), or when an ancestor may want to react to or record something
 that happened (selection, logging, analytics). Don't bubble events
 with no consumer.
 
-## Logic / Lifecycle
+## Send / Receive
 
-`logic` is invoked explicitly — **no built-in lifecycle**. `logic.init`
-is a convention; the host must dispatch it (typically after
-`app.start()`) for it to run.
+`ctx.send(name, args)` delivers a message to a specific target
+component (addressed by path; on its own `ctx.send` targets `this`).
+The target's `receive.<name>(...args, ctx)` handler runs. There is
+**no built-in lifecycle** — `receive.init` is just a convention; the
+host must dispatch it (typically after `app.start()`) for it to run.
 
 ```js
-logic: { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } }
+receive: { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } }
 ```
 
 Dispatch from anywhere:
 
 ```js
-app.dispatchLogicAtRoot("init");                            // host code, top-level
-ctx.at.field("personalSite").logic("init");                 // child by field name
-ctx.at.index("items", 3).logic("init");                     // list element at index 3
-ctx.at.key("byKey", "k1").logic("init");                    // map entry by key
-ctx.at.field("a").field("b").index("xs", 0).logic("ping");  // chain freely
-ctx.logic("name");                                          // self
-ctx.bubble("name", [arg]);                                  // bubble up
+app.dispatchSendAtRoot("init");                            // host code, top-level
+ctx.at.field("personalSite").send("init");                 // child by field name
+ctx.at.index("items", 3).send("init");                     // list element at index 3
+ctx.at.key("byKey", "k1").send("init");                    // map entry by key
+ctx.at.field("a").field("b").index("xs", 0).send("ping");  // chain freely
+ctx.send("name");                                          // self
+ctx.bubble("name", [arg]);                                 // bubble up
 ```
 
 `ctx.at` returns a `PathBuilder` with `.field(name)`, `.index(name, i)`,
 and `.key(name, k)`. Each call appends a step to the path before
-`.logic(...)` / `.bubble(...)` fires; the handler runs inside the child
+`.send(...)` / `.bubble(...)` fires; the handler runs inside the child
 instance with `this` bound to it.
 
-When to use logic: it's the mirror of `bubble`, going *down* the tree
-instead of up. Reach for `ctx.at.…logic("name")` when an ancestor needs
-to trigger something owned by a specific descendant (the inverse of a
-list item bubbling "remove" to its parent list) — e.g. a form telling
+When to send: bubble emits an *event* that any ancestor with a
+matching handler can observe; send delivers a *message* to one
+specific target (or to self). Reach for `ctx.at.…send("name")` when
+one component needs to address another by path — e.g. a form telling
 its email field to focus after a failed submit
-(`ctx.at.field("email").logic("focus")`), or a list telling item 3 to
-enter edit mode (`ctx.at.index("items", 3).logic("startEditing")`).
-Reach for `ctx.logic("name")` on self to reuse a handler from multiple
+(`ctx.at.field("email").send("focus")`), or a list telling item 3 to
+enter edit mode (`ctx.at.index("items", 3).send("startEditing")`).
+Reach for `ctx.send("name")` on self to reuse a handler from multiple
 call sites without duplicating its body — e.g. a "Reload" button and
-`logic.init` both calling `ctx.logic("loadData")`. Don't dispatch a
-`logic` event when a direct method call on the same component would do.
+`receive.init` both calling `ctx.send("loadData")`. Don't `send` to
+self when a direct method call on the same component would do.
 
 ## Async Requests
+
+`ctx.request("name", args)` triggers a host-registered async handler
+and routes the result back to the issuing component's
+`response.<name>(res, err, ctx)`. Use it for fetch / timer / IndexedDB
+work that should land back in component state.
 
 ```js
 export function getRequestHandlers() {
@@ -644,14 +668,14 @@ scope.registerRequestHandlers(getRequestHandlers());
 In a component:
 
 ```js
-logic:    { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } },
+receive:  { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } },
 response: { loadData(res, err, ctx) { return this.setIsLoading(false).setItems(res); } },
 // override response handler names per-call:
 // ctx.request("loadData", [], { onOkName: "loadDataOk", onErrorName: "loadDataErr" });
 ```
 
 The `ctx` arg is the last argument of every `response` / `bubble` /
-`logic` handler.
+`receive` handler.
 
 ## Macros
 

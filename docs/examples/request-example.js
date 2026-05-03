@@ -20,7 +20,7 @@ export const RequestExample = component({
       return this.setIsLoading(false).setItems(items);
     },
   },
-  logic: {
+  receive: {
     init(ctx) {
       ctx.request("loadData", []);
       return this.setIsLoading(true);
