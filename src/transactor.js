@@ -106,8 +106,7 @@ class Transaction {
     return Stack.root(comps, root);
   }
   buildStack(root, comps) {
-    const stack = this.path.buildStack(this.buildRootStack(root, comps));
-    return stack ? stack.upToFrameBinds() : null;
+    return this.path.buildStack(this.buildRootStack(root, comps));
   }
   callHandler(root, instance, comps) {
     const [handler, args] = this.getHandlerAndArgs(root, instance, comps);

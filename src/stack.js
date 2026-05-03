@@ -52,11 +52,6 @@ export class Stack {
   _enrichOnEnter() {
     return this.withDynamicBinds(this.comps.getOnEnterFor(this.it).call(this.it));
   }
-  upToFrameBinds() {
-    const { comps, binds, dynBinds, views, viewsId, ctx } = this;
-    const [head, tail] = binds; // only one !isFrame node possible, next should be isFrame
-    return head.isFrame ? this : new Stack(comps, tail[0].it, tail, dynBinds, views, viewsId, ctx);
-  }
   static root(comps, it, ctx) {
     const binds = [new BindFrame(it, { it }, true), null];
     const dynBinds = [new ObjectFrame({}), null];

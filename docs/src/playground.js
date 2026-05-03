@@ -551,11 +551,7 @@ export class TutucaPlayground extends HTMLElement {
         scope.registerRequestHandlers(mod.getRequestHandlers());
       }
       app.state.set(mod.getRoot());
-      const styleText = await compileClassesToStyleText(
-        app,
-        compile,
-        LintClassCollectorCtx,
-      );
+      const styleText = await compileClassesToStyleText(app, compile, LintClassCollectorCtx);
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);

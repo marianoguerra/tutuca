@@ -1,5 +1,5 @@
 import { Attributes, getAttrParser } from "./attribute.js";
-import { BindStep } from "./path.js";
+import { BindStep, EachBindStep, EachRenderItStep } from "./path.js";
 import { vp } from "./value.js";
 
 export class BaseNode {
@@ -412,6 +412,12 @@ export class EachNode extends WrapperNode {
   }
   toPathItem() {
     return new BindStep({});
+  }
+  toPathItemRenderIt(key) {
+    return new EachRenderItStep(this.val.name, key);
+  }
+  toPathItemEachBind(key) {
+    return new EachBindStep(this.val, key);
   }
   static register = true;
 }

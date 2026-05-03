@@ -1,3 +1,5 @@
+const NONE = Symbol("NONE");
+
 export class Step {
   lookup(_v, dval = null) {
     return dval;
@@ -5,8 +7,9 @@ export class Step {
   setValue(root, _v) {
     return root;
   }
-  updateBinds(_v, _o) {}
-  isFrame = true;
+  enterFrame(stack, _prev, next) {
+    return stack.enter(next, {}, true);
+  }
 }
 export class BindStep extends Step {
   constructor(binds) {
@@ -19,16 +22,15 @@ export class BindStep extends Step {
   setValue(_root, v) {
     return v;
   }
+  enterFrame(stack, _prev, next) {
+    return stack.enter(next, { ...this.binds }, false);
+  }
   withIndex(i) {
     return new BindStep({ ...this.binds, key: i });
   }
   withKey(key) {
     return new BindStep({ ...this.binds, key });
   }
-  updateBinds(_v, o) {
-    Object.assign(o, this.binds);
-  }
-  isFrame = false;
 }
 export class FieldStep extends Step {
   constructor(field) {
@@ -48,7 +50,7 @@ export class FieldStep extends Step {
     return new SeqKeyStep(this.field, k);
   }
 }
-export class FieldSeqStep extends Step {
+class FieldSeqStep extends Step {
   constructor(field, key) {
     super();
     this.field = field;
@@ -61,13 +63,12 @@ export class FieldSeqStep extends Step {
   setValue(root, v) {
     return root.set(this.field, root.get(this.field).set(this.key, v));
   }
-  updateBinds(_v, o) {
-    o.key = this.key;
+  enterFrame(stack, _prev, next) {
+    return stack.enter(next, { key: this.key }, true);
   }
 }
 export class SeqKeyStep extends FieldSeqStep {}
 export class SeqIndexStep extends FieldSeqStep {}
-const NONE = Symbol("NONE");
 export class SeqAccessStep extends Step {
   constructor(seqField, keyField) {
     super();
@@ -84,8 +85,40 @@ export class SeqAccessStep extends Step {
     const key = root?.get(this.keyField, NONE);
     return seq === NONE || key === NONE ? root : root.set(this.seqField, seq.set(key, v));
   }
-  updateBinds(v, o) {
-    o.key = v?.get(this.keyField, null);
+}
+export class EachBindStep extends Step {
+  constructor(seqVal, key) {
+    super();
+    this.seqVal = seqVal;
+    this.key = key;
+  }
+  lookup(v, _dval) {
+    return v;
+  }
+  setValue(_root, v) {
+    return v;
+  }
+  enterFrame(stack, _prev, next) {
+    const item = this.seqVal.eval(stack)?.get(this.key, null);
+    return stack.enter(next, { key: this.key, value: item }, false);
+  }
+}
+export class EachRenderItStep extends Step {
+  constructor(seqField, key) {
+    super();
+    this.seqField = seqField;
+    this.key = key;
+  }
+  lookup(v, dval = null) {
+    const seq = v?.get(this.seqField, null);
+    return seq?.get ? seq.get(this.key, dval) : dval;
+  }
+  setValue(root, v) {
+    const seq = root?.get(this.seqField, null);
+    return seq ? root.set(this.seqField, seq.set(this.key, v)) : root;
+  }
+  enterFrame(stack, _prev, next) {
+    return stack.enter(next, { key: this.key, value: next }, false).enter(next, {}, true);
   }
 }
 export class Path {
@@ -122,16 +155,15 @@ export class Path {
     return newVal;
   }
   buildStack(stack) {
-    const root = stack.it;
-    let curVal = root;
+    let prev = stack.it;
     for (const step of this.steps) {
-      curVal = step.lookup(curVal, NONE);
-      if (curVal === NONE) {
-        console.warn(`bad PathItem`, { root, curVal, step, path: this });
+      const next = step.lookup(prev, NONE);
+      if (next === NONE) {
+        console.warn("bad PathItem", { root: stack.it, step, path: this });
         return null;
       }
-      step.updateBinds(curVal, stack.binds[0].binds);
-      stack = stack.enter(curVal, {}, step.isFrame);
+      stack = step.enterFrame(stack, prev, next);
+      prev = next;
     }
     return stack;
   }
@@ -193,13 +225,25 @@ function findHandlers(comp, eventIds, vid, eventName) {
 }
 function resolvePathStep(comp, nodeIds, vid) {
   for (let i = 0; i < nodeIds.length; i++) {
-    const node = comp.getNodeForId(+nodeIds[i].nid, vid);
-    const j = node.pathInNext ? i + 1 : i;
-    const { si, sk, nid: nodeId } = nodeIds[j];
-    const pi = node.pathInNext
-      ? comp.getNodeForId(+nodeId, vid).val.toPathItem()
-      : node.toPathItem();
-    if (pi !== null) return si !== undefined ? pi.withIndex(+si) : sk ? pi.withKey(sk) : pi;
+    const meta = nodeIds[i];
+    const node = comp.getNodeForId(+meta.nid, vid);
+    const key = meta.si !== undefined ? +meta.si : meta.sk;
+    if (node.pathInNext) {
+      const next = nodeIds[i + 1];
+      if (!next) continue;
+      const nextNode = comp.getNodeForId(+next.nid, vid);
+      const nKey = next.si !== undefined ? +next.si : next.sk;
+      if (nextNode.toPathItemRenderIt && nKey !== undefined)
+        return nextNode.toPathItemRenderIt(nKey);
+      const pi = nextNode.val.toPathItem();
+      if (pi !== null)
+        return next.si !== undefined ? pi.withIndex(nKey) : next.sk ? pi.withKey(nKey) : pi;
+      continue;
+    }
+    if (key !== undefined && node.toPathItemEachBind) return node.toPathItemEachBind(key);
+    const pi = node.toPathItem();
+    if (pi !== null)
+      return meta.si !== undefined ? pi.withIndex(+meta.si) : meta.sk ? pi.withKey(meta.sk) : pi;
   }
   return null;
 }

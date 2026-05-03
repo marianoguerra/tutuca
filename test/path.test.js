@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { format } from "prettier";
+import { component, html, IMap } from "../index.js";
 import { Path } from "../src/path.js";
 import { renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";
@@ -104,6 +105,156 @@ describe("Path - find JsonBool by uid", () => {
     expect(path.steps.length).toBe(3);
     expect(events.length).toBe(1);
     expect(path.lookup(rootValue)).toBe(target);
+    cleanup();
+  });
+});
+
+describe("@value inside @each click handler", () => {
+  test("button beside <x render-it> with @value arg — list", () => {
+    let received = "<not-called>";
+    const Item = component({ name: "Item", fields: { uid: "" } });
+    const List = component({
+      name: "List",
+      fields: { items: [] },
+      input: {
+        noteClicked(item) {
+          received = item;
+          return this;
+        },
+      },
+      view: html`<div>
+        <div @each=".items">
+          <x render-it></x>
+          <button :data-uid=".uid" @on.click="noteClicked @value">x</button>
+        </div>
+      </div>`,
+    });
+    const root = List.make({ items: [Item.make({ uid: "a" }), Item.make({ uid: "b" })] });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [List, Item],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+
+    expect(received).not.toBe("<not-called>");
+    expect(received?.uid).toBe("b");
+    cleanup();
+  });
+
+  test("remove-item handler in @each updates root state (todo regression)", () => {
+    const Item = component({ name: "Item", fields: { uid: "" } });
+    const List = component({
+      name: "List",
+      fields: { items: [] },
+      view: html`<div>
+        <div @each=".items">
+          <x render-it></x>
+          <button :data-uid=".uid" @on.click=".removeInItemsAt @key">x</button>
+        </div>
+      </div>`,
+    });
+    const root = List.make({ items: [Item.make({ uid: "a" }), Item.make({ uid: "b" })] });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [List, Item],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    expect(app.state.val.items.size).toBe(2);
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.items.size).toBe(1);
+    expect(app.state.val.items.get(0).uid).toBe("a");
+    cleanup();
+  });
+
+  test("frame boundary: @key/@value bound by @each are NOT visible inside a render-it child", () => {
+    let receivedKey = "<not-set>";
+    let receivedValue = "<not-set>";
+    const Item = component({
+      name: "Item",
+      fields: { uid: "" },
+      input: {
+        // Handler is on Item (the rendered child). It tries to read @key/@value
+        // which the surrounding @each scope binds. The render-it pushes a frame
+        // between that scope and the child view, so the lookup must STOP at the
+        // frame and return null — NOT walk through to the iteration's binds.
+        recordIt(k, v) {
+          receivedKey = k;
+          receivedValue = v;
+          return this;
+        },
+      },
+      view: html`<button :data-uid=".uid" @on.click="recordIt @key @value">x</button>`,
+    });
+    const List = component({
+      name: "List",
+      fields: { items: [] },
+      view: html`<div>
+        <div @each=".items">
+          <x render-it></x>
+        </div>
+      </div>`,
+    });
+    const root = List.make({ items: [Item.make({ uid: "a" }), Item.make({ uid: "b" })] });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [List, Item],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+
+    // Frame boundary held: lookup hit the empty frame pushed by RenderItNode and
+    // returned null instead of falling through to the iteration scope below it.
+    expect(receivedKey).toBeNull();
+    expect(receivedValue).toBeNull();
+    cleanup();
+  });
+
+  test("button beside <x render-it> with @key + @value args — map", () => {
+    let receivedKey = null;
+    let receivedValue = null;
+    const Item = component({ name: "Item", fields: { uid: "" } });
+    const Bag = component({
+      name: "Bag",
+      fields: { items: IMap() },
+      input: {
+        noteClicked(k, v) {
+          receivedKey = k;
+          receivedValue = v;
+          return this;
+        },
+      },
+      view: html`<div>
+        <div @each=".items">
+          <x render-it></x>
+          <button :data-uid=".uid" @on.click="noteClicked @key @value">x</button>
+        </div>
+      </div>`,
+    });
+    const root = Bag.make({
+      items: IMap({ alpha: Item.make({ uid: "alpha" }), beta: Item.make({ uid: "beta" }) }),
+    });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Bag, Item],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="beta"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+
+    expect(receivedKey).toBe("beta");
+    expect(receivedValue?.uid).toBe("beta");
     cleanup();
   });
 });
