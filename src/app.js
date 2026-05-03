@@ -155,7 +155,7 @@ export class App {
     for (const name of this._eventNames)
       this.rootNode.removeEventListener(name, this, listenerOpts(name));
   }
-  dispatchSendAtRoot(name, args, opts) {
+  sendAtRoot(name, args, opts) {
     this.transactor.pushSend(new Path([]), name, args, opts);
   }
   registerComponents(comps, aliases) {

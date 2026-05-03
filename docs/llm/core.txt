@@ -61,7 +61,7 @@ Full reference: [cli.txt](./cli.txt).
 - **`<x>` is stripped inside `<select>` / `<table>` / `<tr>`.** Use the
   `@x` pseudo-x trick (see [advanced.txt](./advanced.txt)).
 - **`receive.init` is a convention, not a lifecycle hook.** Nothing calls it
-  automatically — dispatch via `app.dispatchSendAtRoot("init")` or from
+  automatically — dispatch via `app.sendAtRoot("init")` or from
   another handler.
 - **`app.state.set(...)` takes a component instance**, not plain data.
   Build with `Comp.make({...})`.
@@ -617,7 +617,7 @@ receive: { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); 
 Dispatch from anywhere:
 
 ```js
-app.dispatchSendAtRoot("init");                            // host code, top-level
+app.sendAtRoot("init");                            // host code, top-level
 ctx.at.field("personalSite").send("init");                 // child by field name
 ctx.at.index("items", 3).send("init");                     // list element at index 3
 ctx.at.key("byKey", "k1").send("init");                    // map entry by key

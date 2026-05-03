@@ -739,7 +739,7 @@
           handlers; nothing in the framework calls
           <code>receive.init</code> automatically. The host application has
           to dispatch it (the tutorial harness calls
-          <code>app.dispatchSendAtRoot("init")</code> after
+          <code>app.sendAtRoot("init")</code> after
           <code>app.start()</code> &mdash; that is what makes
           <code>init</code> run in these playgrounds).
         </p>
