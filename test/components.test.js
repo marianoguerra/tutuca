@@ -131,7 +131,7 @@ describe("Components", () => {
     });
     const comps = new Components();
     const compStack = new ComponentStack(comps);
-    compStack.registerComponents([CompA], { AliasA: "CompA", AliasB: "CompA" });
+    compStack.registerComponents([CompA], { aliases: { AliasA: "CompA", AliasB: "CompA" } });
     expect(Object.keys(compStack.byName)).toEqual(["CompA", "AliasA", "AliasB"]);
     expect(compStack.byName.CompA).toBe(CompA);
     expect(compStack.byName.AliasA).toBe(CompA);
@@ -145,7 +145,7 @@ describe("Components", () => {
     const compStack = new ComponentStack(comps);
     const assertSpy = spyOn(console, "assert").mockImplementation(() => {});
     try {
-      compStack.registerComponents([CompA, CompB], { CompA: "CompB" });
+      compStack.registerComponents([CompA, CompB], { aliases: { CompA: "CompB" } });
       expect(assertSpy).toHaveBeenCalledWith(false, "alias overrides component", "CompA");
     } finally {
       assertSpy.mockRestore();
@@ -185,7 +185,7 @@ describe("Components", () => {
     const compStack = new ComponentStack(comps);
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
     try {
-      compStack.registerComponents([CompA], { AliasX: "NotAComp" });
+      compStack.registerComponents([CompA], { aliases: { AliasX: "NotAComp" } });
       expect(warnSpy).toHaveBeenCalledWith(
         "alias",
         "AliasX",

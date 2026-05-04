@@ -45,7 +45,8 @@ export class ComponentStack {
   enter() {
     return new ComponentStack(this.comps, this);
   }
-  registerComponents(comps, aliases = {}) {
+  registerComponents(comps, opts) {
+    const { aliases = {} } = opts ?? {};
     for (let i = 0; i < comps.length; i++) {
       const comp = comps[i];
       comp.scope = this.enter();

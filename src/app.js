@@ -158,9 +158,9 @@ export class App {
   sendAtRoot(name, args, opts) {
     this.transactor.pushSend(new Path([]), name, args, opts);
   }
-  registerComponents(comps, aliases) {
+  registerComponents(comps, opts) {
     const scope = this.compStack.enter();
-    scope.registerComponents(comps, aliases);
+    scope.registerComponents(comps, opts);
     return scope;
   }
   _transactNextBatch(maxRunTimeMs = 10) {
