@@ -170,6 +170,16 @@ separate.
 
 ## Notation Reference
 
+Views are name-based: there is no conditional / boolean / arithmetic
+expression syntax in values, and no Vue- or Mustache-style `{{ … }}`
+placeholders. Every value slot — conditions (`@show`, `@if`, `@when`),
+iteration (`@each`, `render-each`), enrichment (`@enrich-with`,
+`@loop-with`), template expansion (`{…}`, `:attr`, `@text`) — names a
+field, method, macro, or handler defined on the component (or
+registered with the app). Logic lives in `methods` / `alter` / `input`
+/ `bubble` / `receive` / `response` and is referenced by name; the
+template itself only routes data and events.
+
 | Prefix   | Means                                     | Example               |
 | -------- | ----------------------------------------- | --------------------- |
 | `.x`     | field or method on `this` (single-level — no `.foo.bar` paths) | `.count`, `.inc`      |
