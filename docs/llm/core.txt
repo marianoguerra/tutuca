@@ -56,6 +56,11 @@ edit done:
 
 Full reference: [cli.txt](./cli.txt).
 
+The Tutuca CLI only catches Tutuca-specific issues. For generic JS
+problems, pair it with a general linter/formatter — e.g. set up Biome
+once with `npx -y @biomejs/biome init` and use its `lint`, `check`,
+and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
+
 ## Common pitfalls
 
 - **Paths are not allowed in values.** `.foo` resolves a single field or
