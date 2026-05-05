@@ -1,5 +1,5 @@
 import { makeFormatter } from "./_dispatch.js";
-import { lintIdToMessage } from "./lint.js";
+import { lintIdToMessage, suggestionToMessage } from "./lint.js";
 
 function fmtComponentDocs(docs) {
   const lines = [];
@@ -96,7 +96,9 @@ function fmtLintReport(rep) {
     }
     for (const f of c.findings) {
       const view = f.context?.viewName ? ` _(view: \`${f.context.viewName}\`)_` : "";
-      lines.push(`- **${f.level.toUpperCase()}** ${lintIdToMessage(f.id, f.info)}${view}`);
+      const tail = suggestionToMessage(f.suggestion);
+      const suffix = tail ? ` — ${tail}` : "";
+      lines.push(`- **${f.level.toUpperCase()}** ${lintIdToMessage(f.id, f.info)}${suffix}${view}`);
     }
     lines.push("");
   }

@@ -1,5 +1,29 @@
 import { MOD_WRAPPERS_BY_EVENT, ParseContext } from "../../src/anode.js";
 import { lintHtml } from "./htmllinter.js";
+import { closestName } from "./util/closest-name.js";
+
+// Literal directive names accepted by `AttrParser.parseDirective` in
+// src/attribute.js. Lives here (not in src/) because the linter is the
+// only consumer — adding it to the runtime would expand the core API
+// surface for tooling-only reasons. If the parser's switch grows, this
+// list must grow with it; the test "warn on unknown @directive" + a few
+// "known @directives do not raise UNKNOWN_DIRECTIVE" cases catch drift.
+// Does not include dotted-prefix forms (on.*, if.*, then.*, else.*) —
+// those have their own parsing branch and never produce UNKNOWN_DIRECTIVE.
+const KNOWN_DIRECTIVE_NAMES = new Set([
+  "dangerouslysetinnerhtml",
+  "slot",
+  "push-view",
+  "text",
+  "show",
+  "hide",
+  "each",
+  "enrich-with",
+  "when",
+  "loop-with",
+  "then",
+  "else",
+]);
 
 export const ALT_HANDLER_NOT_DEFINED = "ALT_HANDLER_NOT_DEFINED";
 export const ALT_HANDLER_NOT_REFERENCED = "ALT_HANDLER_NOT_REFERENCED";
@@ -49,6 +73,46 @@ const LEVEL_WARN = "warn";
 const LEVEL_ERROR = "error";
 const LEVEL_HINT = "hint";
 
+const PARSE_ISSUE_KIND_TO_KNOWN_NAMES = {
+  "unknown-directive": KNOWN_DIRECTIVE_NAMES,
+  "unknown-x-op": X_KNOWN_OP_NAMES,
+  "unknown-x-attr": X_KNOWN_ATTR_NAMES,
+};
+
+// Walk the prototype chain and collect own keys from every level except
+// Object.prototype. Used as the candidate set for "did you mean" against a
+// component's instance methods.
+function collectProtoMethodNames(proto) {
+  const out = [];
+  let cursor = proto;
+  while (cursor && cursor !== Object.prototype) {
+    for (const key of Object.getOwnPropertyNames(cursor)) {
+      if (key === "constructor") continue;
+      out.push(key);
+    }
+    cursor = Object.getPrototypeOf(cursor);
+  }
+  return out;
+}
+
+// Walk a ComponentStack chain (parent → root) and union all keys from each
+// frame's `mapKey` map. Inline here, not on the runtime class — the linter
+// is the only consumer.
+function scopeKeysAlong(scope, mapKey) {
+  const out = [];
+  for (let cursor = scope; cursor; cursor = cursor.parent) {
+    const map = cursor[mapKey];
+    if (!map) continue;
+    for (const key of Object.keys(map)) out.push(key);
+  }
+  return out;
+}
+
+function replaceNameSuggestion(name, candidates) {
+  const close = closestName(name, candidates);
+  return close ? { kind: "replace-name", from: name, to: close } : null;
+}
+
 export function checkComponent(Comp, lx = new LintContext()) {
   return lx.push({ componentName: Comp.name }, () => {
     const referencedAlters = new Set();
@@ -84,7 +148,7 @@ function checkHtmlStructure(lx, view) {
   if (typeof view.rawView !== "string" || !view.rawView) return;
   lintHtml(
     view.rawView,
-    (f) => lx.report(f.id, { ...f.info, location: f.location }, f.level),
+    (f) => lx.report(f.id, { ...f.info, location: f.location }, f.level, f.suggestion ?? null),
     HTML_LINT_OPTS,
   );
 }
@@ -95,11 +159,23 @@ function checkParseIssues(lx, view) {
   for (const { kind, info } of issues) {
     const id = PARSE_ISSUE_KIND_TO_LINT_ID[kind];
     if (!id) continue;
-    lx.error(id, info);
-    const known = AT_PREFIX_HINT_KNOWN_BY_KIND[kind];
-    if (known && info.name?.startsWith("@")) {
-      const suggestion = info.name.slice(1);
-      if (known.has(suggestion)) lx.hint(MAYBE_DROP_AT_PREFIX, { ...info, suggestion });
+    const atPrefixKnown = AT_PREFIX_HINT_KNOWN_BY_KIND[kind];
+    const isAtPrefixedTypo =
+      atPrefixKnown && info.name?.startsWith("@") && atPrefixKnown.has(info.name.slice(1));
+    let suggestion = null;
+    if (isAtPrefixedTypo) {
+      suggestion = { kind: "drop-prefix", from: info.name, to: info.name.slice(1) };
+    } else {
+      const candidates = PARSE_ISSUE_KIND_TO_KNOWN_NAMES[kind];
+      if (candidates) suggestion = replaceNameSuggestion(info.name, candidates);
+    }
+    lx.error(id, info, suggestion);
+    if (isAtPrefixedTypo) {
+      lx.hint(
+        MAYBE_DROP_AT_PREFIX,
+        { ...info, suggestion: info.name.slice(1) },
+        { kind: "drop-prefix", from: info.name, to: info.name.slice(1) },
+      );
     }
   }
 }
@@ -112,11 +188,11 @@ function checkMacroCallArgs(lx, view, Comp) {
     const { defaults } = macro;
     for (const argName in macroNode.attrs) {
       if (!(argName in defaults)) {
-        lx.error(UNKNOWN_MACRO_ARG, {
-          name: argName,
-          macroName: macroNode.name,
-          tag: `x:${macroNode.name}`,
-        });
+        lx.error(
+          UNKNOWN_MACRO_ARG,
+          { name: argName, macroName: macroNode.name, tag: `x:${macroNode.name}` },
+          replaceNameSuggestion(argName, Object.keys(defaults)),
+        );
       }
     }
   }
@@ -138,7 +214,13 @@ function walkForRenderIt(lx, node, loopDepth) {
   if (node === null || node === undefined) return;
   switch (node.constructor.name) {
     case "RenderItNode":
-      if (loopDepth === 0) lx.error(RENDER_IT_OUTSIDE_OF_LOOP, { node });
+      if (loopDepth === 0) {
+        lx.error(
+          RENDER_IT_OUTSIDE_OF_LOOP,
+          { node },
+          { kind: "wrap", from: "<x render-it>", to: "<x render-each>" },
+        );
+      }
       return;
     case "EachNode":
       walkForRenderIt(lx, node.node, loopDepth + 1);
@@ -169,13 +251,18 @@ function checkEventModifiers(lx, view) {
       const modWrappers = MOD_WRAPPERS_BY_EVENT[name] ?? NO_WRAPPERS;
       for (const modifier of modifiers) {
         if (modWrappers[modifier] === undefined) {
-          lx.error(UNKNOWN_EVENT_MODIFIER, {
-            name,
-            modifier,
-            handler,
-            event,
-            originAttr: `@on.${name}+${modifiers.join("+")}`,
-          });
+          const close = closestName(modifier, Object.keys(modWrappers));
+          lx.error(
+            UNKNOWN_EVENT_MODIFIER,
+            {
+              name,
+              modifier,
+              handler,
+              event,
+              originAttr: `@on.${name}+${modifiers.join("+")}`,
+            },
+            close ? { kind: "replace-name", from: `+${modifier}`, to: `+${close}` } : null,
+          );
         }
       }
     }
@@ -244,42 +331,42 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
           const originAttr = `@on.${eventName}`;
           if (hvName === "InputHandlerNameVal") {
             referencedInputs?.add(handlerVal.name);
-            if (input[handlerVal.name] === undefined) {
-              lx.error(INPUT_HANDLER_NOT_IMPLEMENTED, {
-                name: handlerVal.name,
-                handler,
-                event,
-                eventName,
-                originAttr,
-              });
-              if (proto[handlerVal.name] !== undefined) {
-                lx.hint(INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER, {
-                  name: handlerVal.name,
-                  handler,
-                  event,
-                  eventName,
-                  originAttr,
-                });
+            const { name } = handlerVal;
+            if (input[name] === undefined) {
+              const isMethodFix = proto[name] !== undefined;
+              lx.error(
+                INPUT_HANDLER_NOT_IMPLEMENTED,
+                { name, handler, event, eventName, originAttr },
+                isMethodFix
+                  ? { kind: "add-prefix", from: name, to: `.${name}` }
+                  : replaceNameSuggestion(name, Object.keys(input)),
+              );
+              if (isMethodFix) {
+                lx.hint(
+                  INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
+                  { name, handler, event, eventName, originAttr },
+                  { kind: "add-prefix", from: name, to: `.${name}` },
+                );
               }
             }
           } else if (hvName === "RawFieldVal") {
             referencedInputs?.add(handlerVal.name);
-            if (proto[handlerVal.name] === undefined) {
-              lx.error(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED, {
-                name: handlerVal.name,
-                handler,
-                event,
-                eventName,
-                originAttr,
-              });
-              if (input[handlerVal.name] !== undefined) {
-                lx.hint(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD, {
-                  name: handlerVal.name,
-                  handler,
-                  event,
-                  eventName,
-                  originAttr,
-                });
+            const { name } = handlerVal;
+            if (proto[name] === undefined) {
+              const isInputFix = input[name] !== undefined;
+              lx.error(
+                INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
+                { name, handler, event, eventName, originAttr },
+                isInputFix
+                  ? { kind: "drop-prefix", from: `.${name}`, to: name }
+                  : replaceNameSuggestion(name, collectProtoMethodNames(proto)),
+              );
+              if (isInputFix) {
+                lx.hint(
+                  INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
+                  { name, handler, event, eventName, originAttr },
+                  { kind: "drop-prefix", from: `.${name}`, to: name },
+                );
               }
             }
           }
@@ -304,7 +391,12 @@ function checkConsistentAttrVal(
   if (valName === "FieldVal" || valName === "RawFieldVal") {
     const { name } = val;
     if (fields[name] === undefined && proto[name] === undefined) {
-      lx.error(FIELD_VAL_NOT_DEFINED, { ...errCtx, val, name });
+      const candidates = [...Object.keys(fields), ...collectProtoMethodNames(proto)];
+      lx.error(
+        FIELD_VAL_NOT_DEFINED,
+        { ...errCtx, val, name },
+        replaceNameSuggestion(name, candidates),
+      );
     }
   } else if (valName === "SeqAccessVal") {
     checkConsistentAttrVal(
@@ -331,18 +423,30 @@ function checkConsistentAttrVal(
     );
   } else if (valName === "RequestVal") {
     if (scope.lookupRequest(val.name) === null) {
-      lx.error(UNKNOWN_REQUEST_NAME, { ...errCtx, name: val.name });
+      lx.error(
+        UNKNOWN_REQUEST_NAME,
+        { ...errCtx, name: val.name },
+        replaceNameSuggestion(val.name, scopeKeysAlong(scope, "reqsByName")),
+      );
     }
   } else if (valName === "TypeVal") {
     if (scope.lookupComponent(val.name) === null) {
-      lx.error(UNKNOWN_COMPONENT_NAME, { ...errCtx, name: val.name });
+      lx.error(
+        UNKNOWN_COMPONENT_NAME,
+        { ...errCtx, name: val.name },
+        replaceNameSuggestion(val.name, scopeKeysAlong(scope, "byName")),
+      );
     }
   } else if (valName === "NameVal") {
     // NameVals on a macro call-site attribute are macro-param bindings, not
     // handler args — their role is determined inside the macro body after
     // ^-substitution, where re-parsing handles validation.
     if (!skipNameVal && !isKnownHandlerName(val.name)) {
-      lx.error(UNKNOWN_HANDLER_ARG_NAME, { ...errCtx, name: val.name });
+      lx.error(
+        UNKNOWN_HANDLER_ARG_NAME,
+        { ...errCtx, name: val.name },
+        replaceNameSuggestion(val.name, KNOWN_HANDLER_NAMES),
+      );
     }
   } else if (valName === "StrTplVal") {
     for (const subVal of val.vals) {
@@ -361,7 +465,11 @@ function checkConsistentAttrVal(
   } else if (valName === "AlterHandlerNameVal") {
     referencedAlters?.add(val.name);
     if (alter[val.name] === undefined) {
-      lx.error(ALT_HANDLER_NOT_DEFINED, { ...errCtx, name: val.name });
+      lx.error(
+        ALT_HANDLER_NOT_DEFINED,
+        { ...errCtx, name: val.name },
+        replaceNameSuggestion(val.name, Object.keys(alter)),
+      );
     }
   } else if (valName !== "ConstVal" && valName !== "BindVal" && valName !== "DynVal") {
     console.log(val);
@@ -612,17 +720,17 @@ export class LintContext {
       this.frame = prev;
     }
   }
-  error(id, info) {
-    this.report(id, info, LEVEL_ERROR);
+  error(id, info, suggestion = null) {
+    this.report(id, info, LEVEL_ERROR, suggestion);
   }
-  warn(id, info) {
-    this.report(id, info, LEVEL_WARN);
+  warn(id, info, suggestion = null) {
+    this.report(id, info, LEVEL_WARN, suggestion);
   }
-  hint(id, info) {
-    this.report(id, info, LEVEL_HINT);
+  hint(id, info, suggestion = null) {
+    this.report(id, info, LEVEL_HINT, suggestion);
   }
-  report(id, info = {}, level = LEVEL_ERROR) {
-    this.reports.push({ id, info, level, context: { ...this.frame } });
+  report(id, info = {}, level = LEVEL_ERROR, suggestion = null) {
+    this.reports.push({ id, info, level, context: { ...this.frame }, suggestion });
   }
 }
 

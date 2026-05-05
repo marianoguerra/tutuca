@@ -34,11 +34,12 @@ export class ComponentDocs {
 }
 
 export class LintFinding {
-  constructor({ id, level, info, context = {} }) {
+  constructor({ id, level, info, context = {}, suggestion = null }) {
     this.id = id;
     this.level = level;
     this.info = info;
     this.context = context;
+    this.suggestion = suggestion;
   }
 }
 

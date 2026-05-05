@@ -1,14 +1,14 @@
 import { expect } from "chai";
 import { ANode } from "./src/anode.js";
 import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
-import { LintParseContext, checkComponent } from "./tools/core/lint-check.js";
-import { reportTestReportToConsole } from "./tools/core/test-console.js";
+import { checkComponent, LintParseContext } from "./tools/core/lint-check.js";
 import { runTests } from "./tools/core/test.js";
-import { lintIdToMessage } from "./tools/format/lint.js";
+import { reportTestReportToConsole } from "./tools/core/test-console.js";
+import { lintIdToMessage, suggestionToMessage } from "./tools/format/lint.js";
 
 export * from "./extra.js";
-export * from "./tools/core/lint-check.js";
 export * from "./tools/core/docs.js";
+export * from "./tools/core/lint-check.js";
 export * from "./tools/core/results.js";
 export * from "./tools/core/test.js";
 export * from "./tools/core/test-console.js";
@@ -43,7 +43,9 @@ export function check(app) {
     console.group(Comp.name);
     for (const r of reports) {
       counts[r.level]++;
-      const line = `[${r.level}] ${lintIdToMessage(r.id, r.info)}`;
+      const tail = suggestionToMessage(r.suggestion);
+      const suffix = tail ? ` — ${tail}` : "";
+      const line = `[${r.level}] ${lintIdToMessage(r.id, r.info)}${suffix}`;
       if (r.level === "error") console.error(line);
       else if (r.level === "warn") console.warn(line);
       else console.log(line);

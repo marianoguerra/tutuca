@@ -12,9 +12,10 @@
 
 import { HtmlTokenizer, QuoteType } from "./html-tokenizer.js";
 import {
-  FORMATTING_ELEMENTS,
   FOREIGN_BREAKOUT_TAGS,
+  FORMATTING_ELEMENTS,
   FRAGMENT_CONTEXT_MODES,
+  MATHML_ATTR_LOWERCASE_TO_CAMEL,
   MATHML_TEXT_INTEGRATION_POINT_NAMES,
   MODES,
   NS,
@@ -25,7 +26,6 @@ import {
   SCOPE_TABLE,
   SELECT_BREAKOUT_TAGS,
   SPECIAL_ELEMENTS,
-  MATHML_ATTR_LOWERCASE_TO_CAMEL,
   STANDARD_SVG_CAMEL_ELEMENTS,
   SVG_ATTR_LOWERCASE_TO_CAMEL,
   SVG_HTML_INTEGRATION_POINT_NAMES,
@@ -191,10 +191,13 @@ class LinterCtx {
     // tokenizer/mod.rs:555 ("Duplicate attribute").
     const dup = this.currentAttrs.find((x) => x.name === a.name);
     if (dup) {
-      this.report(HTML_DUPLICATE_ATTRIBUTE, LEVEL_WARN, a.nameStart, {
-        name: a.name,
-        firstAt: dup.nameStart,
-      });
+      this.report(
+        HTML_DUPLICATE_ATTRIBUTE,
+        LEVEL_WARN,
+        a.nameStart,
+        { name: a.name, firstAt: dup.nameStart },
+        { kind: "remove", what: `the duplicate '${a.name}' attribute` },
+      );
     } else {
       this.currentAttrs.push(a);
     }
@@ -259,12 +262,30 @@ class LinterCtx {
           }
         }
         if (firstNonWs < 0) {
-          this.report(HTML_SELF_CLOSING_END_TAG, LEVEL_WARN, start, { tag: name });
+          this.report(
+            HTML_SELF_CLOSING_END_TAG,
+            LEVEL_WARN,
+            start,
+            { tag: name },
+            { kind: "rewrite", from: `</${name}/>`, to: `</${name}>` },
+          );
         } else {
-          this.report(HTML_ATTRIBUTES_ON_END_TAG, LEVEL_WARN, start, { tag: name });
+          this.report(
+            HTML_ATTRIBUTES_ON_END_TAG,
+            LEVEL_WARN,
+            start,
+            { tag: name },
+            { kind: "remove", what: `attributes from </${name}>` },
+          );
         }
       } else {
-        this.report(HTML_ATTRIBUTES_ON_END_TAG, LEVEL_WARN, start, { tag: name });
+        this.report(
+          HTML_ATTRIBUTES_ON_END_TAG,
+          LEVEL_WARN,
+          start,
+          { tag: name },
+          { kind: "remove", what: `attributes from </${name}>` },
+        );
       }
     }
     this.handleEndTag(name, start);
@@ -316,7 +337,7 @@ class LinterCtx {
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
 
-  report(id, level, offset, info) {
+  report(id, level, offset, info, suggestion = null) {
     this.findingCount++;
     const { line, column } = offsetToLineCol(this.lineStarts, offset);
     this.onFinding({
@@ -324,6 +345,7 @@ class LinterCtx {
       level,
       info,
       location: { start: offset, end: offset + (info.tag?.length ?? 0), line, column },
+      suggestion,
     });
   }
 
@@ -449,17 +471,23 @@ class LinterCtx {
     // Case-violation checks happen on every open tag.
     if (ns === NS.html) {
       if (raw !== name) {
-        this.report(HTML_TAG_NAME_HAS_UPPERCASE, LEVEL_ERROR, start, {
-          raw,
-          lowercased: name,
-        });
+        this.report(
+          HTML_TAG_NAME_HAS_UPPERCASE,
+          LEVEL_ERROR,
+          start,
+          { raw, lowercased: name },
+          { kind: "rewrite", from: `<${raw}>`, to: `<${name}>` },
+        );
       }
     } else if (ns === NS.svg) {
       if (raw !== raw.toLowerCase() && !this.svgCamelElements.has(raw)) {
-        this.report(HTML_SVG_TAG_WILL_LOWERCASE, LEVEL_ERROR, start, {
-          raw,
-          lowercased: name,
-        });
+        this.report(
+          HTML_SVG_TAG_WILL_LOWERCASE,
+          LEVEL_ERROR,
+          start,
+          { raw, lowercased: name },
+          { kind: "rewrite", from: `<${raw}>`, to: `<${name}>` },
+        );
       }
     }
 
@@ -474,20 +502,26 @@ class LinterCtx {
       for (const a of this.currentAttrs) {
         const canonical = SVG_ATTR_LOWERCASE_TO_CAMEL.get(a.name);
         if (canonical && a.rawName !== canonical) {
-          this.report(HTML_SVG_ATTR_WILL_LOWERCASE, LEVEL_ERROR, a.nameStart, {
-            raw: a.rawName,
-            canonical,
-          });
+          this.report(
+            HTML_SVG_ATTR_WILL_LOWERCASE,
+            LEVEL_ERROR,
+            a.nameStart,
+            { raw: a.rawName, canonical },
+            { kind: "rewrite", from: a.rawName, to: canonical },
+          );
         }
       }
     } else if (targetNs === NS.math) {
       for (const a of this.currentAttrs) {
         const canonical = MATHML_ATTR_LOWERCASE_TO_CAMEL.get(a.name);
         if (canonical && a.rawName !== canonical) {
-          this.report(HTML_MATHML_ATTR_WILL_LOWERCASE, LEVEL_ERROR, a.nameStart, {
-            raw: a.rawName,
-            canonical,
-          });
+          this.report(
+            HTML_MATHML_ATTR_WILL_LOWERCASE,
+            LEVEL_ERROR,
+            a.nameStart,
+            { raw: a.rawName, canonical },
+            { kind: "rewrite", from: a.rawName, to: canonical },
+          );
         }
       }
     }
@@ -676,10 +710,13 @@ class LinterCtx {
       // scope; outside a template, a still-open <form> on the stack means
       // this <form> would be silently dropped by the real parser.
       if (this.openElementsHas("form") && !this.openElementsHas("template")) {
-        this.report(HTML_DUPLICATE_FORM, LEVEL_ERROR, start, {
-          tag: raw,
-          mode: this.insertionMode,
-        });
+        this.report(
+          HTML_DUPLICATE_FORM,
+          LEVEL_ERROR,
+          start,
+          { tag: raw, mode: this.insertionMode },
+          { kind: "remove", what: "the inner <form>" },
+        );
         return;
       }
       if (this.hasInButtonScope("p")) this.implicitlyClose("p", start, raw);
@@ -1401,10 +1438,13 @@ class LinterCtx {
     }
 
     if (VOID_ELEMENTS.has(name)) {
-      this.report(HTML_VOID_ELEMENT_HAS_CLOSE_TAG, LEVEL_WARN, start, {
-        tag: name,
-        mode: this.insertionMode,
-      });
+      this.report(
+        HTML_VOID_ELEMENT_HAS_CLOSE_TAG,
+        LEVEL_WARN,
+        start,
+        { tag: name, mode: this.insertionMode },
+        { kind: "remove", what: `the </${name}>` },
+      );
       return;
     }
 

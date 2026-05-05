@@ -1172,6 +1172,179 @@ test("good values do not raise BAD_VALUE", () => {
   expect(matched.length).toBe(0);
 });
 
+// ─────────────────────────────────────────────────────────────────────────
+// suggestion field — "did you mean" / mechanical-fix hints attached to the
+// finding rather than embedded in the message.
+// ─────────────────────────────────────────────────────────────────────────
+
+test("UNKNOWN_HANDLER_ARG_NAME suggests closest known handler arg", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { do() {} },
+    view: html`<button @on.click="do valueAsint">x</button>`,
+  });
+  const r = lx.reports.find((x) => x.id === UNKNOWN_HANDLER_ARG_NAME);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "valueAsint", to: "valueAsInt" });
+});
+
+test("UNKNOWN_HANDLER_ARG_NAME has no suggestion when nothing is close", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { do() {} },
+    view: html`<button @on.click="do completelyUnrelatedXyz">x</button>`,
+  });
+  const r = lx.reports.find((x) => x.id === UNKNOWN_HANDLER_ARG_NAME);
+  expect(r.suggestion).toBeNull();
+});
+
+test("FIELD_VAL_NOT_DEFINED suggests closest field", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { userName: "" },
+    view: html`<p :title=".usrName">x</p>`,
+  });
+  const r = lx.reports.find((x) => x.id === FIELD_VAL_NOT_DEFINED);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "usrName", to: "userName" });
+});
+
+test("INPUT_HANDLER_NOT_IMPLEMENTED suggests add-prefix when method exists", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    methods: { doClick() {} },
+    view: html`<button @on.click="doClick">x</button>`,
+  });
+  const r = lx.reports.find((x) => x.id === INPUT_HANDLER_NOT_IMPLEMENTED);
+  expect(r.suggestion).toEqual({ kind: "add-prefix", from: "doClick", to: ".doClick" });
+});
+
+test("INPUT_HANDLER_METHOD_NOT_IMPLEMENTED suggests drop-prefix when input handler exists", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { doKeyDown() {} },
+    view: html`<button @on.keydown=".doKeyDown">x</button>`,
+  });
+  const r = lx.reports.find((x) => x.id === INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
+  expect(r.suggestion).toEqual({ kind: "drop-prefix", from: ".doKeyDown", to: "doKeyDown" });
+});
+
+test("INPUT_HANDLER_NOT_IMPLEMENTED suggests closest input handler on typo", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { doSubmit() {} },
+    view: html`<button @on.click="doSumbit">x</button>`,
+  });
+  const r = lx.reports.find((x) => x.id === INPUT_HANDLER_NOT_IMPLEMENTED);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "doSumbit", to: "doSubmit" });
+});
+
+test("MAYBE_DROP_AT_PREFIX hint carries drop-prefix suggestion on the finding", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isOpen: false },
+    view: html`<div>
+      <div @each=".isOpen"><x render-it @show=".isOpen"></x></div>
+    </div>`,
+  });
+  const hint = lx.reports.find((x) => x.id === MAYBE_DROP_AT_PREFIX);
+  expect(hint.suggestion).toEqual({ kind: "drop-prefix", from: "@show", to: "show" });
+});
+
+test("UNKNOWN_X_OP carries the same drop-prefix suggestion as its hint", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { name: "" },
+    view: html`<div><x @text=".name"></x></div>`,
+  });
+  const err = lx.reports.find((x) => x.id === UNKNOWN_X_OP);
+  expect(err.suggestion).toEqual({ kind: "drop-prefix", from: "@text", to: "text" });
+});
+
+test("UNKNOWN_DIRECTIVE suggests closest known directive", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @enrichwith="x">hi</div>`,
+  });
+  const r = lx.reports.find((x) => x.id === UNKNOWN_DIRECTIVE);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "enrichwith", to: "enrich-with" });
+});
+
+test("UNKNOWN_X_OP suggests closest x op on plain typo", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x redner-each=".items"></x></div>`,
+  });
+  const r = lx.reports.find((x) => x.id === UNKNOWN_X_OP);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "redner-each", to: "render-each" });
+});
+
+test("UNKNOWN_EVENT_MODIFIER suggests closest known modifier for the event", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { do() {} },
+    view: html`<button @on.click+ctl="do">x</button>`,
+  });
+  const r = lx.reports.find((x) => x.id === UNKNOWN_EVENT_MODIFIER);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "+ctl", to: "+ctrl" });
+});
+
+test("ALT_HANDLER_NOT_DEFINED suggests closest alter handler", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: { myEnrich() {} },
+    view: html`<div><div @each=".items" @enrich-with="myEnrch"><x render-it></x></div></div>`,
+  });
+  const r = lx.reports.find((x) => x.id === ALT_HANDLER_NOT_DEFINED);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "myEnrch", to: "myEnrich" });
+});
+
+test("UNKNOWN_REQUEST_NAME suggests closest scope-known request", () => {
+  const Comp = component({
+    name: "Comp",
+    input: { do() {} },
+    view: html`<button @on.click="do !geItems">x</button>`,
+  });
+  Comp.scope = new ComponentStack();
+  Comp.scope.registerRequestHandlers({ getItems: () => ({}) });
+  Comp.compile(HeadlessLintParseContext);
+  const lx = checkComponent(Comp);
+  const r = lx.reports.find((x) => x.id === UNKNOWN_REQUEST_NAME);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "geItems", to: "getItems" });
+});
+
+test("UNKNOWN_MACRO_ARG suggests closest declared arg", () => {
+  const btn = macro({ label: "click" }, html`<button>^label</button>`);
+  const Comp = component({
+    name: "Comp",
+    view: html`<div><x:btn :lable="go"></x:btn></div>`,
+  });
+  Comp.scope = new ComponentStack();
+  Comp.scope.registerMacros({ btn });
+  Comp.compile(HeadlessLintParseContext);
+  const lx = checkComponent(Comp);
+  const r = lx.reports.find((x) => x.id === UNKNOWN_MACRO_ARG);
+  expect(r.suggestion).toEqual({ kind: "replace-name", from: "lable", to: "label" });
+});
+
+test("RENDER_IT_OUTSIDE_OF_LOOP suggests wrapping in render-each", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x render-it></x></div>`,
+  });
+  const r = lx.reports.find((x) => x.id === RENDER_IT_OUTSIDE_OF_LOOP);
+  expect(r.suggestion).toEqual({ kind: "wrap", from: "<x render-it>", to: "<x render-each>" });
+});
+
+test("plain unrelated names produce no false-positive suggestions", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div><x totallybogus="x"></x></div>`,
+  });
+  const r = lx.reports.find((x) => x.id === UNKNOWN_X_OP);
+  expect(r.suggestion).toBeNull();
+});
+
 test("x render-each with when referencing missing alter handler warns", () => {
   const [lx] = defAndCheck({
     name: "Comp",

@@ -55,7 +55,7 @@ function fmtEventSuffix(info) {
 export function lintIdToMessage(id, info) {
   switch (id) {
     case "RENDER_IT_OUTSIDE_OF_LOOP":
-      return "render-it used outside of a loop";
+      return "<x render-it> used outside of a loop";
     case "UNKNOWN_EVENT_MODIFIER": {
       const mods = info.handler?.modifiers ?? [info.modifier];
       const written = `@on.${info.name}+${mods.join("+")}`;
@@ -66,13 +66,13 @@ export function lintIdToMessage(id, info) {
     case "INPUT_HANDLER_NOT_IMPLEMENTED":
       return `Input handler '${info.name}' is not implemented${fmtEventSuffix(info)}`;
     case "INPUT_HANDLER_NOT_REFERENCED":
-      return `Input handler '${info.name}' is defined but not referenced`;
+      return `Input handler '${info.name}' is defined but never used — remove it or wire it to an @on.* event`;
     case "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED":
       return `Method '.${info.name}' is not implemented${fmtEventSuffix(info)}`;
     case "INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD":
-      return `'${info.name}' exists as input handler — use without '.' prefix${fmtEventSuffix(info)}`;
+      return `'.${info.name}' is a method reference, but '${info.name}' is defined as an input handler${fmtEventSuffix(info)}`;
     case "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER":
-      return `'${info.name}' exists as method — use with '.' prefix${fmtEventSuffix(info)}`;
+      return `'${info.name}' is an input handler reference, but '${info.name}' is defined as a method${fmtEventSuffix(info)}`;
     case "FIELD_VAL_NOT_DEFINED":
       return `Field '.${info.name}' is not defined${fmtOriginSuffix(info)}`;
     case "DUPLICATE_ATTR_DEFINITION": {
@@ -81,7 +81,7 @@ export function lintIdToMessage(id, info) {
       return `Attribute '${info.name}' is set ${info.sources?.length ?? "multiple"} times${sources}${tag}`;
     }
     case "IF_NO_BRANCH_SET":
-      return `'@if.${info.attr}' has no '@then' or '@else' branch — at least one must be set${fmtTagSuffix(info)}`;
+      return `'@if.${info.attr}' has no '@then' or '@else' branch — add '@then="…"' or '@else="…"' (or both)${fmtTagSuffix(info)}`;
     case "UNKNOWN_REQUEST_NAME":
       return `Unknown request '!${info.name}'${fmtOriginSuffix(info)}`;
     case "UNKNOWN_COMPONENT_NAME":
@@ -89,7 +89,7 @@ export function lintIdToMessage(id, info) {
     case "ALT_HANDLER_NOT_DEFINED":
       return `Alter handler '${info.name}' is not defined${fmtOriginSuffix(info)}`;
     case "ALT_HANDLER_NOT_REFERENCED":
-      return `Alter handler '${info.name}' is defined but not referenced`;
+      return `Alter handler '${info.name}' is defined but never used — remove it or reference it from @when, @enrich-with, or @loop-with`;
     case "UNKNOWN_MACRO_ARG":
       return `Argument '${info.name}' is not declared in macro '${info.macroName}'`;
     case "UNKNOWN_DIRECTIVE":
@@ -101,7 +101,7 @@ export function lintIdToMessage(id, info) {
     case "MAYBE_DROP_AT_PREFIX": {
       const written =
         info.value !== undefined ? `${info.name}=${JSON.stringify(info.value)}` : info.name;
-      return `Did you mean '${info.suggestion}'? Drop the '@' from '${written}' on <x>.`;
+      return `'${written}' on <x> looks like a directive but is actually an x op/attr written with a leading '@'`;
     }
     case "BAD_VALUE":
       return `${badValueMessage(info)}${fmtTagSuffix(info)}`;
@@ -110,7 +110,7 @@ export function lintIdToMessage(id, info) {
     case "HTML_SVG_TAG_WILL_LOWERCASE":
       return `SVG tag <${info.raw}> is not in the WHATWG case-correction list — will be lowercased to <${info.lowercased}>${fmtLocationSuffix(info)}`;
     case "HTML_TAG_NOT_ALLOWED_IN_PARENT":
-      return `<${info.tag}> not allowed under <${info.parent ?? "?"}> in ${info.mode} (action: ${info.action})${fmtLocationSuffix(info)}`;
+      return `<${info.tag}> not allowed under <${info.parent ?? "?"}> in ${info.mode} — ${htmlActionPhrase(info.action, info.tag, info.parent)}${fmtLocationSuffix(info)}`;
     case "HTML_TEXT_NOT_ALLOWED_IN_PARENT":
       return `Non-whitespace text not allowed in ${info.mode}: ${JSON.stringify(info.snippet)}${fmtLocationSuffix(info)}`;
     case "HTML_VOID_ELEMENT_HAS_CLOSE_TAG":
@@ -148,8 +148,48 @@ export function lintIdToMessage(id, info) {
   }
 }
 
+// Render a structured suggestion as a one-line tail. Returns null if the
+// suggestion is missing or has no human-readable form for its kind. Callers
+// concatenate this onto the message with " — " when non-null.
+export function suggestionToMessage(suggestion) {
+  if (!suggestion) return null;
+  switch (suggestion.kind) {
+    case "replace-name":
+      return `did you mean '${suggestion.to}'?`;
+    case "drop-prefix":
+      return `did you mean '${suggestion.to}'? (drop the leading '${suggestion.from.slice(0, suggestion.from.length - suggestion.to.length)}')`;
+    case "add-prefix":
+      return `did you mean '${suggestion.to}'? (add the leading '${suggestion.to.slice(0, suggestion.to.length - suggestion.from.length)}')`;
+    case "remove":
+      return `remove ${suggestion.what}`;
+    case "rewrite":
+      return `use '${suggestion.to}' instead of '${suggestion.from}'`;
+    case "wrap":
+      return `wrap it in ${suggestion.to}`;
+    default:
+      return null;
+  }
+}
+
 function fmtLocationSuffix(info) {
   const loc = info?.location;
   if (!loc) return "";
-  return ` at L${loc.line}:C${loc.column}`;
+  return ` at line ${loc.line}, col ${loc.column}`;
+}
+
+function htmlActionPhrase(action, tag, parent) {
+  switch (action) {
+    case "ignored":
+      return `the parser will drop this <${tag}>`;
+    case "drop":
+      return `the parser will drop this <${tag}>`;
+    case "auto-close-implicit":
+      return `the parser will close <${parent ?? "?"}> first, then place <${tag}> as a sibling`;
+    case "foster-parent":
+      return `the parser will move <${tag}> outside <${parent ?? "?"}> (foster-parenting)`;
+    case "foreign-breakout":
+      return `the parser will exit foreign content and re-process <${tag}> in HTML mode`;
+    default:
+      return `parser action: ${action}`;
+  }
 }
