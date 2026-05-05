@@ -46,6 +46,7 @@ export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
 export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
 export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
 export const BAD_VALUE = "BAD_VALUE";
+export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
   "unknown-directive": UNKNOWN_DIRECTIVE,
@@ -113,6 +114,35 @@ function replaceNameSuggestion(name, candidates) {
   return close ? { kind: "replace-name", from: name, to: close } : null;
 }
 
+// Heuristic classifier for raw value strings the value parser rejected.
+// Returns one of "ternary" | "comparison" | "logical" | "call-with-args"
+// when the input looks like a JS-style expression that tutuca doesn't
+// support in dynamic attributes / directives, or null otherwise.
+//
+// Order matters: ternary first (its `:` would also confuse adjacent
+// checks), then comparison, then logical, then call-with-args.
+function classifyBadValue(value) {
+  if (typeof value !== "string") return null;
+  const s = value.trim();
+  if (s === "") return null;
+  if (/\s\?\s.+\s:\s/.test(s)) return "ternary";
+  if (/===|!==|==|!=|<=|>=|\s<\s|\s>\s/.test(s)) return "comparison";
+  if (/&&|\|\|/.test(s)) return "logical";
+  if (/^\.[A-Za-z_]\w*\s+\S/.test(s)) return "call-with-args";
+  return null;
+}
+
+const UNSUPPORTED_EXPR_GUIDANCE = {
+  ternary:
+    "Ternary expressions aren't supported in dynamic attributes. Define a method or computed field on the component that returns the value, then reference it as '.methodName'.",
+  comparison:
+    "Comparisons aren't supported in dynamic attributes. Define a method like '.isFooSelected' that returns the boolean, then reference it as '.isFooSelected'.",
+  logical:
+    "Logical operators aren't supported in dynamic attributes. Combine the conditions in a method on the component and reference it as '.methodName'.",
+  "call-with-args":
+    "Method calls with arguments aren't supported here. Reference a no-arg method ('.methodName') and read what you need from component state, or split into per-case methods.",
+};
+
 export function checkComponent(Comp, lx = new LintContext()) {
   return lx.push({ componentName: Comp.name }, () => {
     const referencedAlters = new Set();
@@ -159,6 +189,17 @@ function checkParseIssues(lx, view) {
   for (const { kind, info } of issues) {
     const id = PARSE_ISSUE_KIND_TO_LINT_ID[kind];
     if (!id) continue;
+    if (kind === "bad-value") {
+      const detected = classifyBadValue(info.value);
+      if (detected) {
+        lx.error(
+          UNSUPPORTED_EXPR_SYNTAX,
+          { ...info, detected },
+          { kind: "rephrase", from: info.value, text: UNSUPPORTED_EXPR_GUIDANCE[detected] },
+        );
+        continue;
+      }
+    }
     const atPrefixKnown = AT_PREFIX_HINT_KNOWN_BY_KIND[kind];
     const isAtPrefixedTypo =
       atPrefixKnown && info.name?.startsWith("@") && atPrefixKnown.has(info.name.slice(1));

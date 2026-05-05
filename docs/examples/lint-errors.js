@@ -92,6 +92,21 @@ const LintDemo = component({
     <!-- BAD_VALUE on macro var: '^undefined' isn't declared in any macro -->
     <p :title="^undefined">bad macro var</p>
 
+    <!-- UNSUPPORTED_EXPR_SYNTAX (ternary): tutuca doesn't evaluate ternaries
+         in dynamic attributes - move the choice into a method/computed field -->
+    <p :class=".isOpen ? 'on' : 'off'">ternary in :class</p>
+
+    <!-- UNSUPPORTED_EXPR_SYNTAX (comparison): no comparison operators -
+         define a method like .isFooSelected that returns a boolean -->
+    <p :class=".kind === 'foo'">comparison in :class</p>
+
+    <!-- UNSUPPORTED_EXPR_SYNTAX (logical): no &&/|| - combine in a method -->
+    <p :class=".isOpen && .kind">logical in :class</p>
+
+    <!-- UNSUPPORTED_EXPR_SYNTAX (call-with-args): method calls can't take
+         arguments - reference a no-arg method instead -->
+    <p :class=".doClick 'foo'">call-with-args in :class</p>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

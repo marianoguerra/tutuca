@@ -1,3 +1,27 @@
+const UNSUPPORTED_EXPR_LABEL = {
+  ternary: "ternary expression",
+  comparison: "comparison",
+  logical: "logical expression",
+  "call-with-args": "method call with arguments",
+};
+
+function unsupportedExprMessage(info) {
+  const v = JSON.stringify(info.value);
+  const label = UNSUPPORTED_EXPR_LABEL[info.detected] ?? "expression";
+  switch (info.role) {
+    case "attr":
+      return `Unsupported ${label} ${v} in dynamic attribute ':${info.attr}'`;
+    case "directive":
+      return `Unsupported ${label} ${v} in directive '@${info.directive}'`;
+    case "if":
+      return `Unsupported ${label} ${v} in '@if.${info.attr}' condition`;
+    case "x-op":
+      return `Unsupported ${label} ${v} in <x ${info.op}>`;
+    default:
+      return `Unsupported ${label} ${v}`;
+  }
+}
+
 function badValueMessage(info) {
   const v = JSON.stringify(info.value);
   switch (info.role) {
@@ -105,6 +129,8 @@ export function lintIdToMessage(id, info) {
     }
     case "BAD_VALUE":
       return `${badValueMessage(info)}${fmtTagSuffix(info)}`;
+    case "UNSUPPORTED_EXPR_SYNTAX":
+      return `${unsupportedExprMessage(info)}${fmtTagSuffix(info)}`;
     case "HTML_TAG_NAME_HAS_UPPERCASE":
       return `Tag <${info.raw}> will be lowercased to <${info.lowercased}>${fmtLocationSuffix(info)}`;
     case "HTML_SVG_TAG_WILL_LOWERCASE":
@@ -166,6 +192,8 @@ export function suggestionToMessage(suggestion) {
       return `use '${suggestion.to}' instead of '${suggestion.from}'`;
     case "wrap":
       return `wrap it in ${suggestion.to}`;
+    case "rephrase":
+      return suggestion.text ?? null;
     default:
       return null;
   }

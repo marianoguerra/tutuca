@@ -26,6 +26,7 @@ import {
   UNKNOWN_REQUEST_NAME,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
+  UNSUPPORTED_EXPR_SYNTAX,
 } from "../tools/core/lint-check.js";
 import { Comment, document, Text } from "./dom.js";
 
@@ -1153,6 +1154,74 @@ test("BAD_VALUE on undefined macro var ^foo outside macro", () => {
   const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
   expect(matched.length).toBeGreaterThan(0);
   expect(matched.some((m) => m.info.role === "macro-var")).toBe(true);
+});
+
+test("UNSUPPORTED_EXPR_SYNTAX on ternary in :class", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class=".isSelected ? 'a' : 'b'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNSUPPORTED_EXPR_SYNTAX);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("attr");
+  expect(matched[0].info.attr).toBe("class");
+  expect(matched[0].info.detected).toBe("ternary");
+  expect(matched[0].suggestion.kind).toBe("rephrase");
+  expect(matched[0].suggestion.from).toBe(".isSelected ? 'a' : 'b'");
+  expect(typeof matched[0].suggestion.text).toBe("string");
+  expect(matched[0].suggestion.text.length).toBeGreaterThan(0);
+  expect(lx.reports.filter((r) => r.id === BAD_VALUE).length).toBe(0);
+});
+
+test("UNSUPPORTED_EXPR_SYNTAX on comparison in :class", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class=".view === 'foo'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNSUPPORTED_EXPR_SYNTAX);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.detected).toBe("comparison");
+  expect(matched[0].info.value).toBe(".view === 'foo'");
+});
+
+test("UNSUPPORTED_EXPR_SYNTAX on logical operator in :class", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class=".a && .b">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNSUPPORTED_EXPR_SYNTAX);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.detected).toBe("logical");
+});
+
+test("UNSUPPORTED_EXPR_SYNTAX on method call with arguments in :class", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class=".isViewSelected 'foo'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNSUPPORTED_EXPR_SYNTAX);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.detected).toBe("call-with-args");
+});
+
+test("UNSUPPORTED_EXPR_SYNTAX also fires for directive values", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p @show=".a === 'b'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNSUPPORTED_EXPR_SYNTAX);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.role).toBe("directive");
+  expect(matched[0].info.detected).toBe("comparison");
+});
+
+test("BAD_VALUE still fires for unrecognized invalid expressions", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p :class=".123bad">x</p>`,
+  });
+  expect(lx.reports.filter((r) => r.id === BAD_VALUE).length).toBe(1);
+  expect(lx.reports.filter((r) => r.id === UNSUPPORTED_EXPR_SYNTAX).length).toBe(0);
 });
 
 test("good values do not raise BAD_VALUE", () => {
