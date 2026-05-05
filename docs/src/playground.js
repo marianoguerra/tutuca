@@ -103,76 +103,95 @@ export class TutucaPlayground extends HTMLElement {
       padding: 0.25rem 0.5rem;
       box-sizing: border-box;
     }
+    .api-docs,
+    .lint-results,
+    .test-results {
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    .api-docs h3,
+    .api-docs h4,
+    .lint-results h4,
+    .test-results h4 {
+      margin: 0.6rem 0 0.2rem;
+      text-align: left;
+      line-height: 1.2;
+    }
     .api-docs h3 {
-      margin: 0.75rem 0 0.25rem;
-      font-size: 1.1rem;
+      font-size: 1rem;
+      color: var(--accent, #0d47a1);
     }
-    .api-docs h4 {
-      margin: 0.5rem 0 0.15rem;
-      font-size: 0.95rem;
+    .api-docs h4,
+    .lint-results h4,
+    .test-results h4 {
+      font-size: 0.9rem;
     }
-    .api-docs ul {
-      margin: 0.15rem 0 0.5rem 1.25rem;
+    .api-docs ul,
+    .lint-results ul,
+    .test-results ul {
+      margin: 0.15rem 0 0.4rem 1.1rem;
       padding: 0;
     }
-    .api-docs li {
+    .api-docs li,
+    .lint-results li,
+    .test-results li {
       margin: 0.1rem 0;
-      font-size: 0.85rem;
     }
-    .api-docs code {
+    .test-results ul {
+      margin-left: 0;
+      list-style: none;
+    }
+    .api-docs code,
+    .lint-results code,
+    .test-results code {
+      font-family: Consolas, Menlo, Monaco, monospace;
       font-size: 0.85em;
-      background: #e8eaf0;
-      color: #212121;
-      padding: 0.1em 0.3em;
-      border-radius: 3px;
+      color: var(--accent, #0d47a1);
+      background: var(--accent-bg, #f5f7ff);
+      border-radius: var(--standard-radius, 5px);
+      padding: 0.1em 0.35em;
+      white-space: nowrap;
     }
-    .lint-badge {
+    .lint-badge,
+    .test-badge {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      font-size: 0.8em;
+      font-size: 0.75em;
       font-weight: bold;
       line-height: 1;
-      padding: 0.5em;
-      background: var(--b3, #2a323c);
-      color: inherit;
+      padding: 0.45em;
+      min-width: 1.4em;
+      background: var(--accent-bg, #f5f7ff);
+      color: var(--text, inherit);
+      border: 1px solid var(--border-color, #898ea4);
       margin-left: 0.3em;
     }
-    .lint-badge.has-issues {
+    .lint-badge.has-issues,
+    .test-badge.has-failures {
       background: var(--error-color, #e53935);
       color: #fff;
+      border-color: var(--error-color, #e53935);
     }
-    .lint-badge[hidden] {
+    .lint-badge[hidden],
+    .test-badge[hidden] {
       display: none;
     }
-    .lint-results h4 {
-      margin: 0.75rem 0 0.25rem;
-      font-size: 1rem;
-    }
-    .lint-results ul {
-      margin: 0.15rem 0 0.5rem 1.25rem;
-      padding: 0;
-    }
-    .lint-results li {
-      margin: 0.2rem 0;
-      font-size: 0.85rem;
-    }
-    .lint-results .level-error {
+    .lint-results .level-error,
+    .test-results .status-fail {
       color: var(--error-color, #e53935);
+      font-weight: bold;
     }
     .lint-results .level-warn {
       color: var(--warn-color, #f9a825);
     }
-    .lint-results .level-hint {
-      color: var(--hint-color, #888);
+    .lint-results .level-hint,
+    .test-results .status-skip {
+      color: var(--text-light, #585858);
     }
-    .lint-results code {
-      font-size: 0.85em;
-      background: #e8eaf0;
-      color: #212121;
-      padding: 0.1em 0.3em;
-      border-radius: 3px;
+    .test-results .status-pass {
+      color: var(--success-color, #2e7d32);
     }
     .test-results .test-toolbar {
       display: flex;
@@ -181,90 +200,67 @@ export class TutucaPlayground extends HTMLElement {
       margin-bottom: 0.5rem;
     }
     .test-results .run-tests-btn {
-      padding: 0.4rem 0.75rem;
+      padding: 0.3rem 0.7rem;
       font-size: 0.85rem;
+      font-family: inherit;
       cursor: pointer;
-      border: 1px solid var(--b3, #2a323c);
-      border-radius: 0.25rem;
-      background: var(--bg-content-100, #aaaaaa);
-      color: #212121;
+      border: 1px solid var(--border-color, #898ea4);
+      border-radius: var(--standard-radius, 5px);
+      background: var(--accent-bg, #f5f7ff);
+      color: var(--accent, #0d47a1);
+    }
+    .test-results .run-tests-btn:hover:not(:disabled) {
+      background: var(--bg, #fff);
     }
     .test-results .run-tests-btn:disabled {
       opacity: 0.5;
       cursor: wait;
     }
     .test-results .test-suite {
-      margin: 0.5rem 0;
-      padding-left: 0.75rem;
-      border-left: 2px solid var(--b3, #2a323c);
+      margin: 0.4rem 0;
+      padding-left: 0.6rem;
+      border-left: 2px solid var(--border-color, #898ea4);
     }
-    .test-results h4 {
-      margin: 0.5rem 0 0.25rem;
-      font-size: 0.95rem;
+    .test-results .test-suite > h4 {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin: 0.3rem 0 0.25rem;
     }
-    .test-results ul {
-      margin: 0.15rem 0 0.5rem 0;
-      padding: 0;
-      list-style: none;
+    .test-results .test-leaf {
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
     }
-    .test-results li {
-      margin: 0.2rem 0;
-      font-size: 0.85rem;
-    }
-    .test-results .status-pass {
-      color: var(--success-color, #2e7d32);
-    }
-    .test-results .status-fail {
-      color: var(--error-color, #e53935);
+    .test-results .test-mark {
+      display: inline-block;
+      width: 1em;
       font-weight: bold;
+      text-align: center;
     }
-    .test-results .status-skip {
-      color: var(--hint-color, #888);
+    .test-results .test-meta {
+      color: var(--text-light, #585858);
+      font-size: 0.85em;
     }
     .test-results .test-error {
-      font-family: monospace;
+      font-family: Consolas, Menlo, Monaco, monospace;
       font-size: 0.8em;
-      background: #fdecea;
-      color: #b71c1c;
-      padding: 0.4rem 0.5rem;
-      border-radius: 3px;
-      margin: 0.25rem 0 0.5rem 1rem;
+      background: var(--accent-bg, #f5f7ff);
+      color: var(--error-color, #b71c1c);
+      border: 1px solid var(--error-color, #e53935);
+      padding: 0.35rem 0.5rem;
+      border-radius: var(--standard-radius, 5px);
+      margin: 0.25rem 0 0.4rem 1rem;
       white-space: pre-wrap;
     }
     .test-results .test-summary {
-      margin-top: 0.75rem;
-      padding-top: 0.5rem;
-      border-top: 1px solid var(--b3, #2a323c);
+      margin-top: 0.6rem;
+      padding-top: 0.4rem;
+      border-top: 1px solid var(--border-color, #898ea4);
       font-weight: bold;
-    }
-    .test-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      font-size: 0.8em;
-      font-weight: bold;
-      line-height: 1;
-      padding: 0.5em;
-      background: var(--b3, #2a323c);
-      color: inherit;
-      margin-left: 0.3em;
-    }
-    .test-badge.has-failures {
-      background: var(--error-color, #e53935);
-      color: #fff;
-    }
-    .test-badge[hidden] {
-      display: none;
     }
     @media (prefers-color-scheme: dark) {
-      .api-docs code,
-      .lint-results code {
-        background: #1e2530;
-        color: #dcdcdc;
-      }
       .test-results .test-error {
-        background: #3a1414;
         color: #ff8a80;
       }
     }
@@ -686,15 +682,18 @@ export class TutucaPlayground extends HTMLElement {
       const wrap = document.createElement("div");
       wrap.className = "test-suite";
       const heading = document.createElement("h4");
-      heading.textContent = node.componentName
-        ? `${node.title} [${node.componentName}]`
-        : node.title;
+      heading.textContent = node.title;
+      if (node.componentName) {
+        heading.append(" ");
+        const code = document.createElement("code");
+        code.textContent = node.componentName;
+        heading.appendChild(code);
+      }
       wrap.appendChild(heading);
       const ul = document.createElement("ul");
       for (const child of node.children) {
         const li = document.createElement("li");
-        const childDOM = this._testNodeToDOM(child);
-        li.appendChild(childDOM);
+        li.appendChild(this._testNodeToDOM(child));
         ul.appendChild(li);
       }
       wrap.appendChild(ul);
@@ -702,11 +701,18 @@ export class TutucaPlayground extends HTMLElement {
     }
 
     const wrap = document.createElement("div");
+    wrap.className = "test-leaf";
     const line = document.createElement("span");
     line.className = `status-${node.status}`;
-    const mark = node.status === "pass" ? "✓" : node.status === "fail" ? "✗" : "○";
-    const dur = node.status === "skip" ? " (skipped)" : ` (${Math.round(node.durationMs)}ms)`;
-    line.textContent = `${mark} ${node.title}${dur}`;
+    const mark = document.createElement("span");
+    mark.className = "test-mark";
+    mark.textContent = node.status === "pass" ? "✓" : node.status === "fail" ? "✗" : "○";
+    line.appendChild(mark);
+    line.append(` ${node.title} `);
+    const meta = document.createElement("span");
+    meta.className = "test-meta";
+    meta.textContent = node.status === "skip" ? "(skipped)" : `(${Math.round(node.durationMs)}ms)`;
+    line.appendChild(meta);
     wrap.appendChild(line);
 
     if (node.status === "fail" && node.error) {
