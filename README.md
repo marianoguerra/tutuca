@@ -73,11 +73,9 @@ in the storybook shape `{ title, description?, items: [{ title, description?, va
 
 ```sh
 npm install --save-dev tutuca
-# prettier is optional, only needed for --pretty
-npm install --save-dev prettier
 ```
 
-The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca`) just works. `jsdom` ships as a regular dependency (it's needed by `render` and `lint`) and is installed automatically.
+The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g tutuca`) just works. `jsdom` (needed by `render` and `lint`) and `prettier` (used by `--pretty`) ship as regular dependencies and are installed automatically.
 
 ### Commands
 

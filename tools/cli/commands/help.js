@@ -112,7 +112,6 @@ GLOBAL FLAGS
   -o, --output <file>        Write to <file> instead of stdout.
       --pretty               Pretty-print HTML (md/html formats) via
                              prettier; JSON formatter uses indent 2.
-                             Requires \`prettier\` to be installed.
   -h, --help                 Show this help.
       --module <path>        Alternative to first-positional module path.
 
@@ -122,9 +121,6 @@ EXIT CODES
   2   lint findings at error level
   3   render crash
   4   test failures
-
-ENVIRONMENT
-  \`prettier\` is an optional peer dep, only used by --pretty.
 
 EXAMPLES
   # Inspect a module
