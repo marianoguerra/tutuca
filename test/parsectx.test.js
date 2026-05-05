@@ -44,3 +44,12 @@ test("collects classes from literal @then and string template in @else", () => {
   expect(ctx.classes.has("closed")).toBe(true);
   expect(ctx.classes.has("type-")).toBe(true);
 });
+
+test("collects classes from string literals in both @then and @else", () => {
+  const [_r, ctx] = parse(
+    `<p @if.class=".isOpen" @then="'head open'" @else="'head closed'"></p>`,
+  );
+  expect(ctx.classes.has("head")).toBe(true);
+  expect(ctx.classes.has("open")).toBe(true);
+  expect(ctx.classes.has("closed")).toBe(true);
+});
