@@ -177,7 +177,12 @@ export class StrTplVal extends VarVal {
       vals[i] = val;
       allConsts &&= val instanceof ConstVal;
     }
-    return allConsts ? new ConstVal(vals.map((v) => v.val).join("")) : new StrTplVal(vals);
+    if (allConsts) return new ConstVal(vals.map((v) => v.val).join(""));
+    let lo = 0;
+    let hi = vals.length;
+    while (lo < hi && vals[lo] instanceof ConstVal && vals[lo].val === "") lo++;
+    while (hi > lo && vals[hi - 1] instanceof ConstVal && vals[hi - 1].val === "") hi--;
+    return new StrTplVal(lo === 0 && hi === vals.length ? vals : vals.slice(lo, hi));
   }
 }
 export class NameVal extends VarVal {

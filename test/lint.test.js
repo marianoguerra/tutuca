@@ -27,6 +27,7 @@ import {
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
   UNSUPPORTED_EXPR_SYNTAX,
+  REDUNDANT_TEMPLATE_STRING,
 } from "../tools/core/lint-check.js";
 import { Comment, document, Text } from "./dom.js";
 
@@ -228,6 +229,97 @@ test("warn on undefined field attr (string template)", () => {
     expect(id).toBe(FIELD_VAL_NOT_DEFINED);
     expect(info.name).toBe("title");
   }
+});
+
+test("warn on redundant single-placeholder template in :class (FieldVal)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { foo: "" },
+    view: html`<p :class="{.foo}">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
+  expect(matched.length).toBe(1);
+  const r = matched[0];
+  expect(r.info.simpler).toBe(".foo");
+  expect(r.info.originAttr).toBe(":class");
+  expect(r.level).toBe("warn");
+  expect(r.suggestion).toEqual({ kind: "rewrite", from: "{.foo}", to: ".foo" });
+});
+
+test("warn on redundant template in :title", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { count: 0 },
+    view: html`<p :title="{.count}">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.simpler).toBe(".count");
+  expect(matched[0].info.originAttr).toBe(":title");
+});
+
+test("warn on redundant template in @text directive", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { msg: "" },
+    view: html`<p @text="{.msg}">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.simpler).toBe(".msg");
+});
+
+test("no redundant-template warning when surrounding text is present", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { name: "" },
+    view: html`<p :title="hello {.name}">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
+  expect(matched.length).toBe(0);
+});
+
+test("no redundant-template warning when multiple placeholders concatenate", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { a: "", b: "" },
+    view: html`<p :class="{.a}{.b}">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
+  expect(matched.length).toBe(0);
+});
+
+test("no redundant-template warning for direct value reference", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { foo: "" },
+    view: html`<p :class=".foo">x</p>`,
+  });
+  expect(lx.reports.length).toBe(0);
+});
+
+test("no redundant-template warning when bookends are whitespace, not empty", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { foo: "" },
+    view: html`<p :class=" {.foo} ">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
+  expect(matched.length).toBe(0);
+});
+
+test("redundant-template warning still recurses into the inner expression", () => {
+  // Confirms the `for (const subVal of vs)` recursion was preserved — a
+  // single-placeholder template referring to an undefined field should fire
+  // BOTH REDUNDANT_TEMPLATE_STRING and FIELD_VAL_NOT_DEFINED.
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: {},
+    view: html`<p :class="{.unknownField}">x</p>`,
+  });
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).toContain(REDUNDANT_TEMPLATE_STRING);
+  expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
 });
 
 test("warn on undefined field in @if.class condition", () => {

@@ -4,9 +4,9 @@ import { ConstVal, StrTplVal, vp } from "../src/value.js";
 test("parse empty string", () => {
   const r = vp.parseAttr("flex flex-col gap-3 {.foo}");
   expect(r).toBeInstanceOf(StrTplVal);
+  expect(r.vals.length).toBe(2);
   expect(r.vals[0].val).toBe("flex flex-col gap-3 ");
   expect(r.vals[1].name).toBe("foo");
-  expect(r.vals[2].val).toBe("");
 });
 
 test("if all constants then turn into a const", () => {
@@ -32,19 +32,32 @@ describe("string template quote requirements", () => {
     });
 
     test("multiple interpolations", () => {
+      // Empty ConstVal bookends are trimmed by StrTplVal.parse, so the
+      // leading/trailing "" segments produced by the split don't appear in vals.
       const r = vp.parseAttr("{.a} between {.b}");
       expect(r).toBeInstanceOf(StrTplVal);
-      expect(r.vals[0].val).toBe("");
-      expect(r.vals[1].name).toBe("a");
-      expect(r.vals[2].val).toBe(" between ");
-      expect(r.vals[3].name).toBe("b");
+      expect(r.vals.length).toBe(3);
+      expect(r.vals[0].name).toBe("a");
+      expect(r.vals[1].val).toBe(" between ");
+      expect(r.vals[2].name).toBe("b");
     });
 
     test("only interpolation, no surrounding text", () => {
+      // After trimming, a single-placeholder template collapses to one entry —
+      // this is the shape the REDUNDANT_TEMPLATE_STRING lint rule keys off.
       const r = vp.parseAttr("{.foo}");
       expect(r).toBeInstanceOf(StrTplVal);
-      expect(r.vals[0].val).toBe("");
+      expect(r.vals.length).toBe(1);
+      expect(r.vals[0].name).toBe("foo");
+    });
+
+    test("whitespace bookends are preserved (non-empty ConstVal)", () => {
+      const r = vp.parseAttr(" {.foo} ");
+      expect(r).toBeInstanceOf(StrTplVal);
+      expect(r.vals.length).toBe(3);
+      expect(r.vals[0].val).toBe(" ");
       expect(r.vals[1].name).toBe("foo");
+      expect(r.vals[2].val).toBe(" ");
     });
   });
 

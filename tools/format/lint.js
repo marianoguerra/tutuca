@@ -131,6 +131,8 @@ export function lintIdToMessage(id, info) {
       return `${badValueMessage(info)}${fmtTagSuffix(info)}`;
     case "UNSUPPORTED_EXPR_SYNTAX":
       return `${unsupportedExprMessage(info)}${fmtTagSuffix(info)}`;
+    case "REDUNDANT_TEMPLATE_STRING":
+      return `Redundant template string — '{${info.simpler}}' should be just '${info.simpler}'${fmtOriginSuffix(info)}`;
     case "HTML_TAG_NAME_HAS_UPPERCASE":
       return `Tag <${info.raw}> will be lowercased to <${info.lowercased}>${fmtLocationSuffix(info)}`;
     case "HTML_SVG_TAG_WILL_LOWERCASE":

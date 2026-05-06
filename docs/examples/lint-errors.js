@@ -107,6 +107,11 @@ const LintDemo = component({
          arguments - reference a no-arg method instead -->
     <p :class=".doClick 'foo'">call-with-args in :class</p>
 
+    <!-- REDUNDANT_TEMPLATE_STRING: a single {expr} with no surrounding text
+         is just the expression — drop the braces. -->
+    <p :title="{.count}">redundant template in :title</p>
+    <p :class="{.kind}">redundant template in :class</p>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

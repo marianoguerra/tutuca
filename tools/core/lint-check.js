@@ -47,6 +47,7 @@ export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
 export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
 export const BAD_VALUE = "BAD_VALUE";
 export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
+export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
   "unknown-directive": UNKNOWN_DIRECTIVE,
@@ -490,7 +491,19 @@ function checkConsistentAttrVal(
       );
     }
   } else if (valName === "StrTplVal") {
-    for (const subVal of val.vals) {
+    const vs = val.vals;
+    // Single-element StrTplVal === single `{expr}` with no surrounding text,
+    // since StrTplVal.parse trims empty ConstVal bookends. The wrapper is
+    // redundant: `:class="{.foo}"` should just be `:class=".foo"`.
+    if (vs.length === 1) {
+      const simpler = String(vs[0]);
+      lx.warn(
+        REDUNDANT_TEMPLATE_STRING,
+        { ...errCtx, simpler },
+        { kind: "rewrite", from: `{${simpler}}`, to: simpler },
+      );
+    }
+    for (const subVal of vs) {
       checkConsistentAttrVal(
         lx,
         subVal,
