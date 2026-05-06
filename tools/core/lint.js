@@ -2,7 +2,10 @@ import { ComponentStack } from "../../src/components.js";
 import { checkComponent } from "./lint-check.js";
 import { LintComponentResult, LintFinding, LintReport } from "./results.js";
 
-export function lintComponents(normalized, { name = null, LintParseContextClass }) {
+export function lintComponents(
+  normalized,
+  { name = null, LintParseContextClass, wellKnownExtras = new Set() },
+) {
   const comps = normalized.components;
   const picked = name === null ? comps : comps.filter((c) => c.name === name);
 
@@ -14,7 +17,7 @@ export function lintComponents(normalized, { name = null, LintParseContextClass 
   const results = [];
   for (const comp of picked) {
     comp.compile(LintParseContextClass);
-    const lx = checkComponent(comp);
+    const lx = checkComponent(comp, undefined, { wellKnownExtras });
     results.push(
       new LintComponentResult({
         componentName: comp.name,

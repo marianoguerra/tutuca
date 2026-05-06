@@ -23,6 +23,7 @@ import {
   UNKNOWN_EVENT_MODIFIER,
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
+  UNKNOWN_COMPONENT_SPEC_KEY,
   UNKNOWN_REQUEST_NAME,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
@@ -46,6 +47,62 @@ function defAndCheck(opts) {
   const lx = checkComponent(Comp);
   return [lx, Comp];
 }
+
+function defAndCheckWithExtras(opts, wellKnownExtras) {
+  const Comp = component(opts);
+  Comp.scope = new ComponentStack();
+  Comp.compile(HeadlessLintParseContext);
+  const lx = checkComponent(Comp, undefined, { wellKnownExtras });
+  return [lx, Comp];
+}
+
+test("warn on unknown component spec key with did-you-mean suggestion", () => {
+  const [lx, Comp] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    viw: "<span></span>",
+  });
+  expect(Comp.extra.viw).toBe("<span></span>");
+  const matched = lx.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.key).toBe("viw");
+  expect(matched[0].level).toBe("warn");
+  expect(matched[0].suggestion).toEqual({ kind: "replace-name", from: "viw", to: "view" });
+});
+
+test("wellKnownExtras suppresses unknown spec key warning", () => {
+  const opts = { name: "Comp", view: html`<div></div>`, customAttr: { foo: 1 } };
+  const [lxWithout] = defAndCheck(opts);
+  expect(
+    lxWithout.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length,
+  ).toBe(1);
+
+  const [lxWith] = defAndCheckWithExtras(opts, new Set(["customAttr"]));
+  expect(lxWith.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length).toBe(0);
+});
+
+test("no UNKNOWN_COMPONENT_SPEC_KEY on a maximal legit spec", () => {
+  const [lx, Comp] = defAndCheck({
+    name: "MaxComp",
+    view: html`<div></div>`,
+    style: "",
+    commonStyle: "",
+    globalStyle: "",
+    input: {},
+    receive: {},
+    bubble: {},
+    response: {},
+    alter: {},
+    on: { stackEnter() {} },
+    views: { other: "<i></i>" },
+    dynamic: {},
+    fields: {},
+    methods: {},
+    statics: {},
+  });
+  expect(Object.keys(Comp.extra).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length).toBe(0);
+});
 
 test("don't allow render-it outside a loop", () => {
   const [lx] = defAndCheck({

@@ -10,6 +10,19 @@ import { closestName } from "./util/closest-name.js";
 // "known @directives do not raise UNKNOWN_DIRECTIVE" cases catch drift.
 // Does not include dotted-prefix forms (on.*, if.*, then.*, else.*) —
 // those have their own parsing branch and never produce UNKNOWN_DIRECTIVE.
+// Mirror of `KNOWN_SPEC_KEYS` in src/components.js. Lives here, not
+// imported from src/, so the tooling-only consumer doesn't expand the
+// runtime API surface. If the runtime list changes, update this set —
+// the "no false positives on legit spec" test in lint.test.js exercises
+// every key and catches drift.
+const KNOWN_COMPONENT_SPEC_KEYS = new Set(
+  "name view style commonStyle globalStyle input receive bubble response alter on views dynamic fields methods statics".split(
+    " ",
+  ),
+);
+
+const EMPTY_SET = new Set();
+
 const KNOWN_DIRECTIVE_NAMES = new Set([
   "dangerouslysetinnerhtml",
   "slot",
@@ -48,6 +61,7 @@ export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
 export const BAD_VALUE = "BAD_VALUE";
 export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
 export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
+export const UNKNOWN_COMPONENT_SPEC_KEY = "UNKNOWN_COMPONENT_SPEC_KEY";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
   "unknown-directive": UNKNOWN_DIRECTIVE,
@@ -144,8 +158,9 @@ const UNSUPPORTED_EXPR_GUIDANCE = {
     "Method calls with arguments aren't supported here. Reference a no-arg method ('.methodName') and read what you need from component state, or split into per-case methods.",
 };
 
-export function checkComponent(Comp, lx = new LintContext()) {
+export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras = EMPTY_SET } = {}) {
   return lx.push({ componentName: Comp.name }, () => {
+    checkUnknownSpecKeys(lx, Comp, wellKnownExtras);
     const referencedAlters = new Set();
     const referencedInputs = new Set();
     checkEventHandlersHaveImpls(lx, Comp, referencedInputs);
@@ -741,6 +756,17 @@ function checkConsistentAttrs(lx, Comp, referencedAlters) {
         }
       }
     });
+  }
+}
+
+function checkUnknownSpecKeys(lx, Comp, wellKnownExtras) {
+  const extra = Comp.extra;
+  if (!extra) return;
+  let candidates = null;
+  for (const key of Object.keys(extra)) {
+    if (wellKnownExtras.has(key)) continue;
+    candidates ??= [...KNOWN_COMPONENT_SPEC_KEYS, ...wellKnownExtras];
+    lx.warn(UNKNOWN_COMPONENT_SPEC_KEY, { key }, replaceNameSuggestion(key, candidates));
   }
 }
 

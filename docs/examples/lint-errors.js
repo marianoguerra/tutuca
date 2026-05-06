@@ -4,6 +4,9 @@ const labeled = macro({ label: "'hi'" }, html`<span @text="^label"></span>`);
 
 const LintDemo = component({
   name: "LintDemo",
+  // UNKNOWN_COMPONENT_SPEC_KEY: 'viw' isn't a recognized spec key;
+  // suggestion points at the closest known key ('view').
+  viw: "<span></span>",
   fields: { count: 0, items: [], kind: "", isOpen: false },
   methods: {
     doClick() {

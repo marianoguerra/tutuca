@@ -112,6 +112,9 @@ export class DynamicAlias extends Dynamic {
   }
 }
 const isString = (v) => typeof v === "string";
+const _rawSpecKeys =
+  "name view style commonStyle globalStyle input receive bubble response alter on views dynamic fields methods statics";
+const KNOWN_SPEC_KEYS = new Set(_rawSpecKeys.split(" "));
 let _compId = 0;
 export class Component {
   constructor(Class, o) {
@@ -135,6 +138,8 @@ export class Component {
     this._rawDynamic = o.dynamic ?? {};
     this.dynamic = {};
     this.scope = null;
+    this.extra = {};
+    for (const key of Object.keys(o)) if (!KNOWN_SPEC_KEYS.has(key)) this.extra[key] = o[key];
   }
   compile(ParseContext) {
     for (const key in this._rawDynamic) {
