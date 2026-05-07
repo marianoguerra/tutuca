@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -52,23 +52,20 @@ done:
 | Authoring \`component({...})\`, \`html\\\`...\\\`\` views, macros, fields, events, lists, styles | [core.md](./core.md)           |
 | CLI commands, flags, exit codes, full linter rule list                                         | [cli.md](./cli.md)             |
 | Drag & drop, dynamic bindings (\`*x\`), pseudo-\`x\`, custom seq types, Tailwind/MargaUI | [advanced.md](./advanced.md)   |
+| Authoring tests — \`getTests\` shape, calling methods/input/receive/bubble/response/alter handlers, designing handlers for testability | [testing.md](./testing.md) |
 
-Read \`core.md\` first. Reach for \`cli.md\` or \`advanced.md\` only when the
-task touches them — both files are referenced inline from \`core.md\` so
-you'll be pointed there when relevant.
+Read \`core.md\` first. Reach for \`cli.md\`, \`advanced.md\`, or
+\`testing.md\` only when the task touches them — all three are
+referenced inline from \`core.md\` so you'll be pointed there when
+relevant.
 `;
 
 function build() {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
-  for (const name of ["core", "cli", "advanced"]) {
-    const src = readFileSync(resolve(srcDir, `${name}.txt`), "utf8");
-    // Rewrite cross-references: every `core.txt` / `cli.txt` / `advanced.txt`
-    // mention (link href, link text, prose) becomes the .md equivalent so the
-    // skill is internally consistent.
-    const rewritten = src.replace(/\b(core|cli|advanced)\.txt\b/g, "$1.md");
-    writeFileSync(resolve(outDir, `${name}.md`), rewritten);
+  for (const name of ["core", "cli", "advanced", "testing"]) {
+    cpSync(resolve(srcDir, `${name}.md`), resolve(outDir, `${name}.md`));
   }
 
   writeFileSync(resolve(outDir, "SKILL.md"), SKILL_FRONTMATTER + SKILL_BODY);

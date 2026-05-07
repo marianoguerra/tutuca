@@ -3,7 +3,7 @@
 Reach this file only when the task touches drag & drop, context-style
 "dynamic bindings", pseudo-`x` (the `<x>`-stripping workaround inside
 `<select>`/`<table>`/`<tr>`), registering a custom seq type, or
-compiling Tailwind / MargaUI classes. For everything else, `core.txt`
+compiling Tailwind / MargaUI classes. For everything else, `core.md`
 is the right place.
 
 ## Drag and Drop

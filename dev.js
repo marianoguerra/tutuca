@@ -14,6 +14,7 @@ export * from "./tools/core/test.js";
 export * from "./tools/core/test-console.js";
 export * from "./tools/core/tests.js";
 export * from "./tools/format/lint.js";
+export * from "./src/util/testing.js";
 
 export async function test(opts = {}) {
   const report = await runTests({ expect, ...opts });

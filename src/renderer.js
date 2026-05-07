@@ -8,13 +8,6 @@ export class Renderer {
     this.comps = comps;
     this.cache = new WeakMapDomCache();
   }
-  getSeqInfo(seq) {
-    return isIndexed(seq)
-      ? imIndexedIter
-      : isKeyed(seq)
-        ? imKeyedIter
-        : (seq?.[SEQ_INFO] ?? unkIter);
-  }
   renderTag(tag, attrs, childs) {
     return h(tag, attrs, childs);
   }
@@ -69,7 +62,7 @@ export class Renderer {
     const { seq, filter, loopWith } = iterInfo.eval(stack);
     const r = [];
     const iterData = loopWith.call(stack.it, seq);
-    this.getSeqInfo(seq)(seq, (key, value, attrName) => {
+    getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(stack.it, key, value, iterData)) {
         const dom = this.renderIt(stack.enter(value, { key }, true), nodeId, key, viewName);
         this.pushEachEntry(r, nodeId, attrName, key, dom);
@@ -82,7 +75,7 @@ export class Renderer {
     const r = [];
     const it = stack.it;
     const iterData = loopWith.call(it, seq);
-    this.getSeqInfo(seq)(seq, (key, value, attrName) => {
+    getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(it, key, value, iterData)) {
         const cachePath = enricher ? [it, value] : [value];
         const binds = { key, value };
@@ -116,6 +109,8 @@ export class Renderer {
     return new VComment(`§${JSON.stringify(info)}§`);
   }
 }
+export const getSeqInfo = (seq) =>
+  isIndexed(seq) ? imIndexedIter : isKeyed(seq) ? imKeyedIter : (seq?.[SEQ_INFO] ?? unkIter);
 const imIndexedIter = (seq, visit) => {
   let i = 0;
   for (const v of seq) visit(i++, v, "si");

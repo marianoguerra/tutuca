@@ -9,9 +9,12 @@ the `tutuca` CLI.
 
 > Advanced topics (drag & drop, dynamic bindings `*x`, pseudo-`x` for
 > `<select>`/`<table>`/`<tr>`, custom seq types, Tailwind/MargaUI
-> compilation): see [advanced.txt](./advanced.txt). CLI commands, flags,
-> exit codes, and full linter rule list: see [cli.txt](./cli.txt). Read
-> those only when the task touches them.
+> compilation): see [advanced.md](./advanced.md). CLI commands, flags,
+> exit codes, and full linter rule list: see [cli.md](./cli.md).
+> Authoring tests — `getTests` shape, calling methods/input/receive/
+> bubble/response/alter handlers, designing for testability: see
+> [testing.md](./testing.md). Read those only when the task touches
+> them.
 
 ## Verifying changes
 
@@ -37,8 +40,10 @@ edit done:
         tutuca <module-path> test --grep "inc()"    # one path
 
    Exits `4` on any failure. Skip this step when the change is purely
-   templates/styling — `render` already covers that. Full reference,
-   including a worked `getTests()` export, in [cli.txt](./cli.txt).
+   templates/styling — `render` already covers that. Authoring patterns
+   (handler calling convention, designing handlers for testability,
+   worked `getTests` export) in [testing.md](./testing.md); CLI flags
+   and exit codes in [cli.md](./cli.md).
 
 3. **Render the example(s) that exercise the feature you changed** —
    confirms the component actually mounts in a headless DOM with the new
@@ -54,7 +59,7 @@ edit done:
    emitted HTML to verify structure (attributes, nesting, text); omit it
    when you only care that the render didn't crash.
 
-Full reference: [cli.txt](./cli.txt).
+Full reference: [cli.md](./cli.md).
 
 The Tutuca CLI only catches Tutuca-specific issues. For generic JS
 problems, pair it with a general linter/formatter — e.g. set up Biome
@@ -78,7 +83,7 @@ and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
 - **Bare unquoted multi-word strings outside `{…}` return `null`.** Either
   quote (`'flex gap-3'`) or use template form (`flex gap-3 {.color}`).
 - **`<x>` is stripped inside `<select>` / `<table>` / `<tr>`.** Use the
-  `@x` pseudo-x trick (see [advanced.txt](./advanced.txt)).
+  `@x` pseudo-x trick (see [advanced.md](./advanced.md)).
 - **`receive.init` is a convention, not a lifecycle hook.** Nothing calls it
   automatically — dispatch via `app.sendAtRoot("init")` or from
   another handler.
@@ -191,7 +196,7 @@ template itself only routes data and events.
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
 | `!x`     | request handler                           | `!loadData`           |
-| `*x`     | dynamic binding — see `advanced.txt`      | `*theme`              |
+| `*x`     | dynamic binding — see `advanced.md`      | `*theme`              |
 | `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
 | `name`   | bare identifier — meaning depends on slot | `dec`, `value`        |
 | `'str'`  | string literal                            | `'btn btn-success'`   |
@@ -267,7 +272,7 @@ component({
   bubble:  { itemPicked(item, ctx) { return this.setSelected(item); } },
   response:{ loadData(res, err, ctx) { return this.setItems(res); } },
   statics: { fromData(d) { return this.make({ count: d.n ?? 0 }); } },
-  // dynamic: { ... }, on: { stackEnter() {...} }   // see advanced.txt
+  // dynamic: { ... }, on: { stackEnter() {...} }   // see advanced.md
 });
 ```
 
@@ -882,5 +887,5 @@ export function getExamples()         {
     items: [{ title, description, value, view }],         // value = Comp.make(...)
   };
 }
-export function getTests({ describe, test, expect }) { /*...*/ }      // optional — see cli.txt
+export function getTests({ describe, test, expect }) { /*...*/ }      // optional — see cli.md
 ```
