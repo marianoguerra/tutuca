@@ -799,6 +799,13 @@ export class TutucaPlayground extends HTMLElement {
     this.lintBadge.classList.toggle("has-issues", total > 0);
     this.lintBadge.hidden = total === 0;
 
+    if (total === 0) {
+      const p = document.createElement("p");
+      p.textContent = "No lint issues found.";
+      this.lintPanel.replaceChildren(p);
+      return;
+    }
+
     const frag = document.createDocumentFragment();
     for (const { name, reports } of results) {
       const h4 = document.createElement("h4");
