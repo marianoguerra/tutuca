@@ -1,5 +1,5 @@
 import { component, html } from "tutuca";
-import { collectIterBindings } from "tutuca/dev";
+import { collectIterBindings } from "tutuca";
 
 const Greeter = component({
   name: "Greeter",
