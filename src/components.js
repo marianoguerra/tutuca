@@ -18,15 +18,13 @@ export class Components {
     return v?.[this.getComponentSymbol]?.() ?? null;
   }
   getOnEnterFor(v) {
-    const comp = this.getCompFor(v);
-    return comp ? comp.on.stackEnter : defaultOnStackEnter;
+    return this.getCompFor(v)?.on.stackEnter ?? defaultOnStackEnter;
   }
   getHandlerFor(v, name, key) {
     return this.getCompFor(v)?.[key][name] ?? null;
   }
   getRequestFor(v, name) {
-    const comp = this.getCompFor(v);
-    return comp ? comp.scope.lookupRequest(name) : null;
+    return this.getCompFor(v)?.scope.lookupRequest(name) ?? null;
   }
   compileStyles() {
     const styles = [];
@@ -103,8 +101,7 @@ export class DynamicAlias extends Dynamic {
     this.dynName = dynName;
   }
   _resolveSymbol(stack) {
-    const t = stack.lookupType(this.compName);
-    return t?.dynamic[this.dynName]?.symbol ?? null;
+    return stack.lookupType(this.compName)?.dynamic[this.dynName]?.symbol ?? null;
   }
   getSymbol(stack) {
     this.symbol ??= this._resolveSymbol(stack); // invalidated on scope change
@@ -150,9 +147,8 @@ export class Component {
       } else if (isString(dinfo?.default) && isString(dinfo?.for)) {
         const val = vp.parseDynamic(dinfo.default, this.views.main.ctx);
         const [compName, dynName] = dinfo.for.split(".");
-        if (isString(compName) && isString(dynName)) {
+        if (isString(compName) && isString(dynName))
           this.dynamic[key] = new DynamicAlias(key, val, compName, dynName);
-        }
       }
     }
     for (const name in this.views)
