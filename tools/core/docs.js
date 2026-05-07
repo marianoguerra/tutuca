@@ -23,26 +23,46 @@ function getFieldMethods(field) {
       sig: `reset${uname}()`,
       desc: "Reset to default value",
     },
+  ];
+
+  const truthy = [
     {
-      name: `is${uname}NotSet`,
-      sig: `is${uname}NotSet()`,
-      desc: "Check if null/undefined",
+      name: `is${uname}Truthy`,
+      sig: `is${uname}Truthy()`,
+      desc: "Check if value is truthy",
     },
     {
-      name: `is${uname}Set`,
-      sig: `is${uname}Set()`,
-      desc: "Check if not null/undefined",
+      name: `is${uname}Falsy`,
+      sig: `is${uname}Falsy()`,
+      desc: "Check if value is falsy",
+    },
+  ];
+  const nullable = [
+    {
+      name: `is${uname}Null`,
+      sig: `is${uname}Null()`,
+      desc: "Check if value is null/undefined",
     },
   ];
 
   switch (type) {
     case "bool":
       methods[0].desc = "Set value (coerces to boolean)";
-      methods.push({
-        name: `toggle${uname}`,
-        sig: `toggle${uname}()`,
-        desc: "Toggle boolean value",
-      });
+      methods.push(
+        {
+          name: `toggle${uname}`,
+          sig: `toggle${uname}()`,
+          desc: "Toggle boolean value",
+        },
+        ...truthy,
+      );
+      break;
+    case "int":
+    case "float":
+      methods.push(...truthy);
+      break;
+    case "any":
+      methods.push(...nullable, ...truthy);
       break;
     case "text":
       methods.push(
@@ -52,6 +72,7 @@ function getFieldMethods(field) {
           desc: "Check if string is empty",
         },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get string length" },
+        ...truthy,
       );
       break;
     case "list":
@@ -62,6 +83,7 @@ function getFieldMethods(field) {
           desc: "Check if list is empty",
         },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get list size" },
+        ...truthy,
         {
           name: `setIn${uname}At`,
           sig: `setIn${uname}At(i, v)`,
@@ -113,6 +135,7 @@ function getFieldMethods(field) {
           sig: `${name}Len()`,
           desc: `Get ${label} size`,
         },
+        ...truthy,
         {
           name: `setIn${uname}At`,
           sig: `setIn${uname}At(key, v)`,
@@ -149,6 +172,7 @@ function getFieldMethods(field) {
           desc: "Check if set is empty",
         },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get set size" },
+        ...truthy,
         {
           name: `addIn${uname}`,
           sig: `addIn${uname}(v)`,
@@ -175,6 +199,9 @@ function getFieldMethods(field) {
           desc: "Toggle value in set",
         },
       );
+      break;
+    default:
+      methods.push(...nullable, ...truthy);
       break;
   }
 
