@@ -16,7 +16,7 @@
     </script>
     <meta
       name="description"
-      content="Tutuca is a zero-dependency, batteries-included SPA framework. One script tag to start — no build step, no setup. State management, virtual DOM, drag and drop, and more."
+      content="Tutuca is a zero-dependency, batteries-included SPA framework. One script tag to start — no build step, no setup. State management, virtual DOM, drag and drop, testing, CLI tooling, LLM skills, and more."
     />
     <meta name="author" content="Mariano Guerra" />
     <meta name="theme-color" content="#0d47a1" />
@@ -29,7 +29,7 @@
     />
     <meta
       property="og:description"
-      content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, and more."
+      content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, testing, CLI tooling, LLM skills, and more."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://marianoguerra.github.io/tutuca/" />
@@ -47,7 +47,7 @@
     />
     <meta
       name="twitter:description"
-      content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, and more."
+      content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, testing, CLI tooling, LLM skills, and more."
     />
     <meta
       name="twitter:image"
@@ -76,7 +76,7 @@
         </li>
         <li>
           Batteries included: state management, side effects, memoization, drag
-          and drop, and more
+          and drop, testing, CLI tooling, LLM skills, and more
         </li>
         <li>
           Small enough to read in an afternoon — step through every line in your
@@ -197,6 +197,15 @@
         <tutuca-playground src="./examples/counter.js"></tutuca-playground>
         <h4>To-Do List</h4>
         <tutuca-playground src="./examples/todo.js"></tutuca-playground>
+        <h4>Testing Components</h4>
+        <p>
+          Methods, input handlers, and iteration logic under unit test &mdash;
+          the Test tab runs automatically.
+        </p>
+        <tutuca-playground
+          src="./examples/testing-example.js"
+          auto-run-tests
+        ></tutuca-playground>
         <h3>Interaction Patterns</h3>
         <h4>Tree Navigation</h4>
         <p>
@@ -264,8 +273,6 @@
         <h3>Roadmap</h3>
         <ol class="roadmap">
           <li>Dev tools for inspecting component state and updates</li>
-          <li>Built-in testing utilities for component behavior</li>
-          <li>CLI tools for LLM-assisted development</li>
         </ol>
       </section>
     </main>

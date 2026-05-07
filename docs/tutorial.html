@@ -16,7 +16,7 @@
     </script>
     <meta
       name="description"
-      content="Interactive tutorial for Tutuca, a zero-dependency SPA framework. Learn components, state management, macros, drag and drop, and more with editable live examples."
+      content="Interactive tutorial for Tutuca, a zero-dependency SPA framework. Learn components, state management, macros, drag and drop, testing, and more with editable live examples."
     />
     <meta name="author" content="Mariano Guerra" />
     <meta name="theme-color" content="#0d47a1" />
@@ -32,7 +32,7 @@
     />
     <meta
       property="og:description"
-      content="Interactive tutorial for Tutuca. Learn components, state management, macros, drag and drop, and more with editable live examples."
+      content="Interactive tutorial for Tutuca. Learn components, state management, macros, drag and drop, testing, and more with editable live examples."
     />
     <meta property="og:type" content="article" />
     <meta
@@ -53,7 +53,7 @@
     />
     <meta
       name="twitter:description"
-      content="Interactive tutorial for Tutuca. Learn components, state management, macros, drag and drop, and more with editable live examples."
+      content="Interactive tutorial for Tutuca. Learn components, state management, macros, drag and drop, testing, and more with editable live examples."
     />
     <meta
       name="twitter:image"
@@ -218,6 +218,20 @@
               <li><a href="#web-components">Web Components</a></li>
               <li><a href="#pseudo-x">Pseudo-x (@x)</a></li>
               <li><a href="#raw-html">Raw HTML</a></li>
+            </ol>
+          </li>
+          <li>
+            <a href="#testing">Testing</a>
+            <ol>
+              <li><a href="#testing-setup">Test Setup</a></li>
+              <li>
+                <a href="#testing-methods-input"
+                  >Calling Methods and Input Handlers</a
+                >
+              </li>
+              <li>
+                <a href="#testing-iteration">Testing Iteration Handlers</a>
+              </li>
             </ol>
           </li>
           <li>
@@ -1155,6 +1169,91 @@
         </p>
         <tutuca-playground
           src="./examples/danger-set-inner-html.js"
+        ></tutuca-playground>
+      </section>
+
+      <!-- Testing -->
+      <section>
+        <h2 id="testing"><a href="#testing">Testing</a></h2>
+        <p>
+          Components have three layers worth testing: <strong>methods</strong>
+          (called directly from JS), <strong>input handlers</strong>
+          (template-attached event handlers), and <strong>iteration
+          handlers</strong> in the <code>alter</code> block (used by
+          <code>@when</code>, <code>@loop-with</code>, and
+          <code>@enrich-with</code>). The testing tab in this playground runs
+          tests written in the same module as the component &mdash; the same
+          tests <code>tutuca &lt;module&gt; test</code> picks up from the CLI.
+        </p>
+
+        <h3 id="testing-setup">
+          <a href="#testing-setup">Test Setup</a>
+        </h3>
+        <p>
+          A module opts into testing by exporting <code>getTests({ describe,
+          test, expect })</code>. <code>expect</code> is chai;
+          <code>describe</code> and <code>test</code> are tutuca's own subset
+          of the common Mocha/Bun-style API (no <code>before</code> /
+          <code>after</code> / <code>beforeEach</code>). Tests can be grouped
+          by component with <code>describe(MyComp, () =&gt; { ... })</code>,
+          which auto-tags the suite so
+          <code>tutuca &lt;module&gt; test MyComp</code> picks it up.
+        </p>
+
+        <h3 id="testing-methods-input">
+          <a href="#testing-methods-input"
+            >Calling Methods and Input Handlers</a
+          >
+        </h3>
+        <p>
+          Methods are bound to the instance &mdash; call them directly:
+          <code>MyComp.make().inc()</code> returns the next instance. Input
+          handlers are plain functions stored on the component descriptor with
+          no <code>this</code> bound, so use <code>.call</code> to bind the
+          instance explicitly: <code>MyComp.input.dec.call(MyComp.make())</code>.
+          The arguments after the instance are exactly what the template would
+          have passed (e.g. the resolved <code>value</code> /
+          <code>valueAsInt</code> handler args).
+        </p>
+
+        <h3 id="testing-iteration">
+          <a href="#testing-iteration">Testing Iteration Handlers</a>
+        </h3>
+        <p>
+          The three iteration handlers in <code>alter</code> have distinct
+          signatures: <code>when(key, value, iterData)</code> filters,
+          <code>loopWith(seq)</code> runs once and produces shared
+          <code>iterData</code>, and
+          <code>enrichWith(binds, key, value, iterData)</code> mutates each
+          kept item's bindings. <code>this</code> is the parent component
+          instance in all three.
+        </p>
+        <p>
+          To test these as a pipeline (filter + loop-data + enrichment) use
+          <code>collectIterBindings</code> from <code>tutuca/dev</code>:
+        </p>
+        <pre><code>import { collectIterBindings } from "tutuca/dev";
+
+const c = MyComp.make({ items: [...] });
+const r = collectIterBindings(MyComp, c, c.items, {
+  loopWith: "loopHandlerName",     // optional
+  when: "whenHandlerName",         // optional
+  enrichWith: "enrichHandlerName", // optional
+});
+// r is Array&lt;{ key, value, ...enrichments }&gt; — one entry per kept
+// item, in iteration order.
+</code></pre>
+        <p>
+          Handler names refer to entries in <code>MyComp.alter</code>;
+          unknown names throw. The example below has methods, an input
+          handler, and an iteration pipeline &mdash; all three are exercised
+          by <code>getTests</code>. The <strong>Test</strong> tab is selected
+          automatically (<code>auto-run-tests</code>) so you see the result on
+          load and after every <kbd>Ctrl/Cmd</kbd>+<kbd>Enter</kbd>.
+        </p>
+        <tutuca-playground
+          src="./examples/testing-example.js"
+          auto-run-tests
         ></tutuca-playground>
       </section>
 

@@ -190,7 +190,7 @@ export class TutucaPlayground extends HTMLElement {
     .test-results .status-skip {
       color: var(--text-light, #585858);
     }
-    .test-results .status-pass {
+    .test-results .status-pass .test-mark {
       color: var(--success-color, #2e7d32);
     }
     .test-results .test-toolbar {
@@ -343,12 +343,7 @@ export class TutucaPlayground extends HTMLElement {
     this.shadowRoot.querySelector(".tab-bar").addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-tab]");
       if (!btn) return;
-      for (const b of this.shadowRoot.querySelectorAll(".tab-bar button[data-tab]")) {
-        b.classList.toggle("active", b === btn);
-      }
-      for (const p of this.shadowRoot.querySelectorAll(".tab-panel")) {
-        p.classList.toggle("active", p.dataset.panel === btn.dataset.tab);
-      }
+      this._activateTab(btn.dataset.tab);
     });
 
     this.shadowRoot.querySelector(".eject-btn").addEventListener("click", () => this._eject());
@@ -377,6 +372,15 @@ export class TutucaPlayground extends HTMLElement {
     );
 
     this.loadDefaultContent();
+  }
+
+  _activateTab(name) {
+    for (const b of this.shadowRoot.querySelectorAll(".tab-bar button[data-tab]")) {
+      b.classList.toggle("active", b.dataset.tab === name);
+    }
+    for (const p of this.shadowRoot.querySelectorAll(".tab-panel")) {
+      p.classList.toggle("active", p.dataset.panel === name);
+    }
   }
 
   async loadDefaultContent() {
@@ -603,6 +607,11 @@ export class TutucaPlayground extends HTMLElement {
           slider.value = undo.size - 1;
         }
       });
+
+      if (this.hasAttribute("auto-run-tests") && typeof mod.getTests === "function") {
+        this._activateTab("test");
+        await this._runTests();
+      }
     } catch (e) {
       this.preview.textContent = `Error: ${e.message}`;
       console.error(e);

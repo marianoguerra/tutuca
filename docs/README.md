@@ -2,7 +2,7 @@
 
 - Single file, no build, no dependencies, no setup: a script tag is all you need
   - No hooks, no [weird semantics](https://arxiv.org/abs/2507.05234)
-- Batteries included: state management, side effects, automatic memoization, drag and drop and more
+- Batteries included: state management, side effects, automatic memoization, drag and drop, testing, CLI tooling, LLM skills and more
 - Fits in your head and the context window
 - View source friendly: step through (the whole stack)
 - As much HTML as possible, as little JS as needed
