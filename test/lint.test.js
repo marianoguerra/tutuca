@@ -73,9 +73,7 @@ test("warn on unknown component spec key with did-you-mean suggestion", () => {
 test("wellKnownExtras suppresses unknown spec key warning", () => {
   const opts = { name: "Comp", view: html`<div></div>`, customAttr: { foo: 1 } };
   const [lxWithout] = defAndCheck(opts);
-  expect(
-    lxWithout.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length,
-  ).toBe(1);
+  expect(lxWithout.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length).toBe(1);
 
   const [lxWith] = defAndCheckWithExtras(opts, new Set(["customAttr"]));
   expect(lxWith.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length).toBe(0);
