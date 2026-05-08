@@ -1,0 +1,210 @@
+import { spawnSync } from "node:child_process";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { describe, expect, test } from "bun:test";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const cli = resolve(here, "..", "tools", "tutuca.js");
+const todoModule = resolve(here, "todo.js");
+
+function run(args) {
+  const r = spawnSync("bun", [cli, ...args], { encoding: "utf8" });
+  return { code: r.status, stdout: r.stdout, stderr: r.stderr };
+}
+
+describe("CLI: --json flag", () => {
+  test("--json on get emits JSON to stdout", () => {
+    const { code, stdout } = run(["get", todoModule, "--json"]);
+    expect(code).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.path).toBe(todoModule);
+    expect(parsed.present).toBeInstanceOf(Array);
+  });
+
+  test("--json is equivalent to -f json", () => {
+    const a = run(["get", todoModule, "--json"]);
+    const b = run(["get", todoModule, "-f", "json"]);
+    expect(a.code).toBe(0);
+    expect(b.code).toBe(0);
+    expect(a.stdout).toBe(b.stdout);
+  });
+});
+
+describe("CLI: error envelope under --json", () => {
+  test("unknown command emits JSON envelope on stderr", () => {
+    const { code, stderr, stdout } = run(["renderr", todoModule, "--json"]);
+    expect(code).toBe(1);
+    expect(stdout).toBe("");
+    const env = JSON.parse(stderr);
+    expect(env.error.code).toBe("ERR_USAGE_UNKNOWN_COMMAND");
+    expect(env.error.suggestion).toEqual({
+      kind: "replace-name",
+      from: "renderr",
+      to: "render",
+    });
+  });
+
+  test("unknown flag emits JSON envelope with did-you-mean", () => {
+    const { code, stderr } = run(["render", todoModule, "--titel", "x", "--json"]);
+    expect(code).toBe(1);
+    const env = JSON.parse(stderr);
+    expect(env.error.code).toBe("ERR_USAGE_UNKNOWN_FLAG");
+    expect(env.error.suggestion).toEqual({
+      kind: "replace-name",
+      from: "--titel",
+      to: "--title",
+    });
+  });
+
+  test("bad --format value rejects with did-you-mean", () => {
+    const { code, stderr } = run(["get", todoModule, "-f", "jzon"]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("Unknown format 'jzon'");
+    expect(stderr).toContain("did you mean 'json'?");
+  });
+
+  test("--json overrides an earlier --format (last-wins)", () => {
+    // Order is left-to-right; --json simply sets format=json.
+    const { code, stdout } = run(["get", todoModule, "-f", "cli", "--json"]);
+    expect(code).toBe(0);
+    expect(() => JSON.parse(stdout)).not.toThrow();
+  });
+});
+
+describe("CLI: human-readable error format", () => {
+  test("unknown command shows did-you-mean line", () => {
+    const { code, stderr } = run(["renderr", todoModule]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("Unknown command 'renderr'");
+    expect(stderr).toContain("did you mean 'render'?");
+    expect(stderr).toContain("hint:");
+  });
+
+  test("missing module shows hint when command is given alone", () => {
+    const { code, stderr } = run(["lint"]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("'lint' requires a module path");
+  });
+
+  test("feedback without message shows usage example", () => {
+    // Pipe an empty stdin to force the no-message path even when
+    // the test runner attaches a TTY.
+    const r = spawnSync("bun", [cli, "feedback"], { encoding: "utf8", input: "" });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("feedback requires a message");
+    expect(r.stderr).toContain("hint:");
+  });
+});
+
+describe("CLI: command-first invocation", () => {
+  test("module as second positional works", () => {
+    const { code } = run(["lint", todoModule]);
+    expect(code).toBe(0);
+  });
+
+  test("--module=<path> overrides positional", () => {
+    const { code, stdout } = run(["get", `--module=${todoModule}`, "--json"]);
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout).path).toBe(todoModule);
+  });
+
+  test("legacy module-first invocation errors with did-you-mean", () => {
+    // ./test/todo.js is parsed as the command; it doesn't match anything.
+    const { code, stderr } = run([todoModule, "lint"]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("Unknown command");
+  });
+});
+
+describe("CLI: rename info → get, docs → show", () => {
+  test("'info' is no longer a command", () => {
+    const { code, stderr } = run(["info", todoModule]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("Unknown command 'info'");
+  });
+
+  test("'docs' is no longer a command", () => {
+    const { code, stderr } = run(["docs", todoModule]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("Unknown command 'docs'");
+  });
+
+  test("'show' produces API docs", () => {
+    const { code, stdout } = run(["show", todoModule]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("# ");
+  });
+});
+
+describe("CLI: agent-context", () => {
+  test("emits a versioned schema with every command", () => {
+    const { code, stdout } = run(["agent-context"]);
+    expect(code).toBe(0);
+    const schema = JSON.parse(stdout);
+    expect(schema.schemaVersion).toBe(1);
+    expect(schema.cli).toBe("tutuca");
+    const names = schema.commands.map((c) => c.name).sort();
+    expect(names).toEqual(
+      [
+        "agent-context",
+        "examples",
+        "feedback",
+        "get",
+        "help",
+        "install-skill",
+        "lint",
+        "list",
+        "render",
+        "show",
+        "test",
+      ].sort(),
+    );
+    expect(schema.formats).toEqual(["cli", "md", "json", "html"]);
+    expect(schema.errorCodes).toContain("ERR_USAGE_UNKNOWN_COMMAND");
+    expect(schema.invocation.moduleFirst).toBe(false);
+  });
+});
+
+describe("CLI: --limit on list/examples", () => {
+  test("list --limit 1 caps output and reports truncation in JSON", () => {
+    const { code, stdout } = run(["list", todoModule, "--limit", "1", "--json"]);
+    expect(code).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.items).toHaveLength(1);
+    expect(parsed.truncated).toBe(true);
+    expect(parsed.total).toBeGreaterThan(1);
+  });
+
+  test("examples --limit 1 caps and reports total in JSON", () => {
+    const { code, stdout } = run(["examples", todoModule, "--limit", "1", "--json"]);
+    expect(code).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.truncated).toBe(true);
+    expect(parsed.total).toBeGreaterThan(1);
+    const shown = parsed.sections.reduce((n, s) => n + s.items.length, 0);
+    expect(shown).toBe(1);
+  });
+
+  test("list with no --limit emits all and not truncated", () => {
+    const { code, stdout } = run(["list", todoModule, "--json"]);
+    expect(code).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.truncated).toBe(false);
+    expect(parsed.items.length).toBe(parsed.total);
+  });
+
+  test("cli format shows '… N more' footer when truncated", () => {
+    const { code, stdout } = run(["list", todoModule, "--limit", "1"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("more component");
+  });
+});
+
+describe("CLI: install-skill --dry-run", () => {
+  test("prints would-install lines and does not exit nonzero", () => {
+    const { code, stdout } = run(["install-skill", "--dry-run", "--user"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("would install tutuca skill");
+    expect(stdout).toContain("SKILL.md");
+  });
+});

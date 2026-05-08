@@ -6,8 +6,14 @@ import { lintComponents } from "../../core/lint.js";
 import { renderExamples } from "../../core/render.js";
 import { runTests } from "../../core/test.js";
 
+function parseLimit(raw) {
+  if (raw === undefined || raw === null) return 0;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 export const COMMANDS = {
-  info: {
+  get: {
     describe: "Summarize the module's exports and counts.",
     defaultFormat: "cli",
     run: (normalized) =>
@@ -16,15 +22,22 @@ export const COMMANDS = {
   list: {
     describe: "List components in the module.",
     defaultFormat: "cli",
-    run: (normalized) => listComponents(normalized),
+    parseOptions: { limit: { type: "string" } },
+    run: (normalized, { values, positionals }) =>
+      listComponents(normalized, {
+        name: positionals[0] ?? null,
+        limit: parseLimit(values.limit),
+      }),
   },
   examples: {
     describe: "List examples in the module.",
     defaultFormat: "cli",
-    run: (normalized) => listExamples(normalized),
+    parseOptions: { limit: { type: "string" } },
+    run: (normalized, { values }) =>
+      listExamples(normalized, { limit: parseLimit(values.limit) }),
   },
-  docs: {
-    describe: "Produce API docs for components (optional <name> for one).",
+  show: {
+    describe: "Show API docs for components (optional <name> for one).",
     defaultFormat: "md",
     run: (normalized, { positionals }) =>
       docComponents(normalized, { name: positionals[0] ?? null }),

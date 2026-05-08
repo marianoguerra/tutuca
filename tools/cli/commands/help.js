@@ -4,18 +4,20 @@ const OVERVIEW = `tutuca — CLI for inspecting, documenting, linting and render
 components defined in an ES module.
 
 SYNOPSIS
-  tutuca <module-path> <command> [name] [flags]
+  tutuca <command> <module-path> [name] [flags]
   tutuca help [command]
   tutuca {-h | --help}
 
 INVOCATION SHAPE
-  - <module-path> comes FIRST (before the command). It is a path to an ES
-    module resolvable by Node (absolute, or relative to cwd).
+  - <command> comes FIRST. <module-path> is the second positional — a path
+    to an ES module resolvable by Node (absolute, or relative to cwd).
+    Use --module=<path> as an alternative if the path conflicts.
   - [name] is an OPTIONAL component-name filter. Omit it to operate on all
-    components; pass it to operate on exactly one (e.g. \`docs Button\`).
-  - Flags may appear anywhere. Global flags and command flags share the
-    same argv; unknown flags are rejected by the subcommand's parser.
-  - \`help\` does NOT take a module path.
+    components; pass it to operate on exactly one (e.g. \`show Button\`).
+  - Per-command flags follow the module path; global flags can appear
+    anywhere. Unknown flags are rejected by the subcommand's parser.
+  - \`help\`, \`feedback\`, \`install-skill\`, \`agent-context\` do NOT take a
+    module path.
 
 MODULE CONVENTION
   A module passed to tutuca must export one or more of:
@@ -49,27 +51,31 @@ MODULE CONVENTION
     export function getRoot()             // optional; returned by info
 
 COMMANDS (require <module-path>)
-  info
+  get <module>
       Summarize which getX() exports are present and count components,
       macros, request handlers, examples, and sections. Good first step.
 
-  list
+  list <module> [name] [--limit <n>]
       List each component with its declared views and fields (name, type).
+      --limit caps the number of components emitted (0 = all). Truncated
+      output ends with a "… N more" footer in cli/md, or \`truncated:true\`
+      in JSON.
 
-  examples
+  examples <module> [--limit <n>]
       Print the module's example sections: title, description, items.
       Each item shows its resolved component name and view.
+      --limit caps the total number of items emitted (0 = all).
 
-  docs [name]
-      Generate API docs (methods, input handlers, fields with their
+  show <module> [name]
+      Show API docs (methods, input handlers, fields with their
       auto-generated accessor/mutator methods) for every component, or
       for the single component whose name matches [name].
 
-  lint [name]
+  lint <module> [name]
       Run the built-in component linter. Reports at levels error / warn
       / hint. Exits 2 if ANY finding is at error level.
 
-  render [name] [--title <t>] [--view <v>]
+  render <module> [name] [--title <t>] [--view <v>]
       Render examples to HTML by running each example value through the
       component tree in a headless DOM. Filters:
         [name]       only examples whose value is an instance of <name>
@@ -77,7 +83,7 @@ COMMANDS (require <module-path>)
         --view <v>   override the example's view name
       Exits 3 if any render crashes.
 
-  test [name] [--grep <pattern>] [--bail]
+  test <module> [name] [--grep <pattern>] [--bail]
       Run tests defined by getTests({ describe, test, expect }). Filters:
         [name]       only tests whose tagged componentName equals <name>
         --grep <p>   substring match against the full test path
@@ -96,7 +102,12 @@ COMMANDS (no module required)
       or suggestions about the CLI, skills, docs, or the library.
       Message comes from the positional arg or piped stdin.
 
-  install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--dot-agents] [--force]
+  agent-context
+      Print a machine-readable schema of every command, flag, exit code,
+      and error code as JSON on stdout. Use this once to teach an agent the
+      shape of the CLI; the schema is versioned (schemaVersion field).
+
+  install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--dot-agents] [--dry-run] [--force]
       Copy bundled Claude Code skill assets into .claude/skills/<name>/.
       Scope: --project (cwd, default) or --user (~/.claude/skills/).
       Selection (default is the tutuca skill):
@@ -104,9 +115,13 @@ COMMANDS (no module required)
         --immutable-skill  install the immutable-js skill instead
         --all              install every bundled skill
       --dot-agents installs into .agents/skills/ instead of .claude/skills/.
+      --dry-run prints the files that would be written without touching disk.
       --force overwrites existing files.
 
 GLOBAL FLAGS
+      --json                 Shorthand for \`--format=json\`. Recommended for
+                             agent/script consumers — error envelopes are
+                             also emitted as JSON on stderr.
   -f, --format <cli|md|json|html>
       Output format. Defaults per command:
         info, list, examples, lint -> cli
@@ -128,25 +143,32 @@ EXIT CODES
   3   render crash
   4   test failures
 
+ERROR FORMAT
+  Diagnostics go to stderr; structured output goes to stdout. Under
+  \`--json\`, errors are emitted as a single-line JSON envelope on stderr:
+    {"error":{"code":"ERR_...","message":"...","suggestion":{...},"hint":"..."}}
+  Errors include "did you mean" suggestions for unknown commands and flags
+  in the same shape as lint suggestions.
+
 EXAMPLES
   # Inspect a module
-  tutuca ./src/components.js info
+  tutuca get ./src/components.js
 
   # Machine-readable docs for one component
-  tutuca ./src/components.js docs Button -f json -o docs/button.json
+  tutuca show ./src/components.js Button --json -o docs/button.json
 
   # Render every example, pretty-printed HTML to a file
-  tutuca ./src/components.js render -f html --pretty -o out/examples.html
+  tutuca render ./src/components.js -f html --pretty -o out/examples.html
 
   # Render a single example
-  tutuca ./src/components.js render Button --title "Disabled state"
+  tutuca render ./src/components.js Button --title "Disabled state"
 
   # Post-edit verification: lint, then render the example you changed
-  tutuca ./src/components.js lint
-  tutuca ./src/components.js render --title "Disabled state"
+  tutuca lint ./src/components.js
+  tutuca render ./src/components.js --title "Disabled state"
 `;
 
-export async function run(argv) {
+export async function run(argv, opts = {}) {
   const target = argv?.[0];
   if (!target) {
     process.stdout.write(OVERVIEW);
@@ -163,9 +185,14 @@ export async function run(argv) {
   };
   const cmd = COMMANDS[target] ?? noModule[target];
   if (!cmd) {
-    process.stderr.write(`tutuca: unknown command: ${target}\n`);
-    process.stderr.write("Run `tutuca help` for the full reference.\n");
-    process.exit(1);
+    const { CODES, didYouMean, emitError } = await import("../errors.js");
+    const known = [...Object.keys(COMMANDS), ...Object.keys(noModule), "help"];
+    emitError(opts, {
+      code: CODES.USAGE_UNKNOWN_COMMAND,
+      message: `Unknown command '${target}'`,
+      suggestion: didYouMean(target, known),
+      hint: "Run `tutuca help` for the full reference.",
+    });
   }
   process.stdout.write(`${target}: ${cmd.describe}\n`);
   process.stdout.write(

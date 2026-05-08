@@ -80,22 +80,24 @@ The package exposes `tutuca` via `bin`, so `npx tutuca` (or a global `npm i -g t
 ### Commands
 
 ```
-tutuca <module-path> <command> [args] [flags]
+tutuca <command> <module-path> [args] [flags]
 tutuca help [command]
 ```
 
 | Command | What it does |
 |---|---|
-| `info` | Export inventory and counts for the module |
-| `list` | List components and their fields/views |
-| `examples` | List the examples defined in the module's section |
-| `docs [name]` | Component API docs — all, or one by name |
-| `lint [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
-| `render [name] [--title t] [--view v]` | Render examples to HTML |
+| `get <module>` | Export inventory and counts for the module |
+| `list <module>` | List components and their fields/views |
+| `examples <module>` | List the examples defined in the module's section |
+| `show <module> [name]` | Component API docs — all, or one by name |
+| `lint <module> [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
+| `render <module> [name] [--title t] [--view v]` | Render examples to HTML |
+| `test <module> [name] [--grep p] [--bail]` | Run `getTests()` (exit 4 on failures) |
 | `feedback [message]` | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl` (no module path needed) |
-| `install-skill [--user\|--project] [--margaui-skill\|--immutable-skill\|--all] [--dot-agents] [--force]` | Install bundled Claude Code skills (no module path needed) |
+| `install-skill [--user\|--project] [--margaui-skill\|--immutable-skill\|--all] [--dot-agents] [--dry-run] [--force]` | Install bundled Claude Code skills (no module path needed) |
+| `agent-context` | Print a versioned JSON schema of the entire CLI surface (no module path needed) |
 
-Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `-h, --help`.
+Global flags: `--json`, `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `--module <path>`, `-h, --help`.
 
 Exit codes:
 
@@ -103,39 +105,40 @@ Exit codes:
 - `1` — usage error (bad args, missing module, bad module shape)
 - `2` — `lint` reported errors
 - `3` — `render` crashed while rendering
+- `4` — `test` reported failures
 
-All module-consuming commands (`info`, `list`, `examples`, `docs`, `lint`, `render`) follow this table.
+Errors carry stable codes (`ERR_USAGE_*`, `ERR_FORMAT_*`, `ERR_SKILL_*`) and "did you mean" suggestions for unknown commands and flags. Under `--json`, errors are emitted as a single-line JSON envelope on stderr.
 
 ### Usage examples
 
 ```sh
 # Summary of what the module exports
-npx tutuca ./src/components.js info
+npx tutuca get ./src/components.js
 
 # API docs for one component, as markdown
-npx tutuca ./src/components.js docs Button --format md -o docs/button.md
+npx tutuca show ./src/components.js Button --format md -o docs/button.md
 
 # Render every example to HTML, pretty-printed
-npx tutuca ./src/components.js render --format html --pretty -o dist/examples.html
+npx tutuca render ./src/components.js --format html --pretty -o dist/examples.html
 
 # Render a single named example
-npx tutuca ./src/components.js render Button --title "Disabled state"
+npx tutuca render ./src/components.js Button --title "Disabled state"
 
 # Lint just one component (exit 2 if findings)
-npx tutuca ./src/components.js lint Button
+npx tutuca lint ./src/components.js Button
 
 # Post-edit verification: lint, then render the example covering the
 # feature you just changed.
-npx tutuca ./src/components.js lint
-npx tutuca ./src/components.js render --title "Disabled state"
+npx tutuca lint ./src/components.js
+npx tutuca render ./src/components.js --title "Disabled state"
 ```
 
 ### Wrapping
 
 The invocation stays short even without wrapping, but common patterns:
 
-- **`package.json` scripts** — `"docs": "tutuca ./src/components.js docs"`
-- **Shell alias** — `tut() { npx tutuca ./src/components.js "$@"; }`, then `tut render Button`
+- **`package.json` scripts** — `"docs": "tutuca show ./src/components.js"`
+- **Shell alias** — `tut() { npx tutuca "$1" ./src/components.js "${@:2}"; }`, then `tut render Button`
 - **`justfile` / `Makefile`** — one recipe per subcommand, passing through positionals
 - **Programmatic** — `import "tutuca/cli"` (the bundled entry) for custom build integration
 
@@ -166,7 +169,7 @@ npx tutuca install-skill --force
 ```
 
 The skill content is generated from `docs/llm/`, so the same reference
-runs locally (`tutuca <module> lint` + `tutuca <module> render --title …`)
+runs locally (`tutuca lint <module>` + `tutuca render <module> --title …`)
 and inside Claude.
 
 ## License

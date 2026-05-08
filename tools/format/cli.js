@@ -25,19 +25,31 @@ function fmtComponentList(list) {
     lines.push(`${c.name}${views}`);
     for (const f of c.fields) lines.push(`  - ${f.name}: ${f.type}`);
   }
+  if (list.truncated) {
+    const remaining = list.total - list.items.length;
+    lines.push(
+      `… ${remaining} more component(s) — re-run with \`--limit 0\` for all, or pass [name] to filter.`,
+    );
+  }
   return lines.join("\n");
 }
 
 function fmtExampleIndex(idx) {
   if (idx.sections.length === 0) return "(no examples)";
   const lines = [];
+  let shown = 0;
   for (const s of idx.sections) {
     lines.push(`${s.title}${s.description ? ` — ${s.description}` : ""}`);
     for (const item of s.items) {
       lines.push(
         `  - ${item.title}${item.description ? ` — ${item.description}` : ""} [${item.componentName}${item.view !== "main" ? `/${item.view}` : ""}]`,
       );
+      shown += 1;
     }
+  }
+  if (idx.truncated) {
+    const remaining = idx.total - shown;
+    lines.push(`… ${remaining} more example(s) — re-run with \`--limit 0\` for all.`);
   }
   return lines.join("\n");
 }

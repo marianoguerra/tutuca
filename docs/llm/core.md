@@ -24,10 +24,10 @@ edit done:
 1. **Lint the module** — catches undefined fields/handlers/macros/events
    (all the `*_NOT_DEFINED` / `*_NOT_REFERENCED` codes):
 
-        tutuca <module-path> lint
+        tutuca lint <module-path>
 
    Exits `2` on any error-level finding. Pass a component name to scope
-   it: `tutuca <module-path> lint Button`.
+   it: `tutuca lint <module-path> Button`.
 
 2. **Test component behavior** — when the edit changes attributes,
    instance methods, input handlers, or static factories (anything
@@ -35,9 +35,9 @@ edit done:
    suite. The module opts in by exporting
    `getTests({ describe, test, expect })`:
 
-        tutuca <module-path> test
-        tutuca <module-path> test Counter           # one component
-        tutuca <module-path> test --grep "inc()"    # one path
+        tutuca test <module-path>
+        tutuca test <module-path> Counter           # one component
+        tutuca test <module-path> --grep "inc()"    # one path
 
    Exits `4` on any failure. Skip this step when the change is purely
    templates/styling — `render` already covers that. Authoring patterns
@@ -50,8 +50,8 @@ edit done:
    behavior. Pick the example whose `title` matches the feature, or
    filter by component:
 
-        tutuca <module-path> render --title "Disabled state"
-        tutuca <module-path> render Button
+        tutuca render <module-path> --title "Disabled state"
+        tutuca render <module-path> Button
 
    Exits `3` if any render crashes. If no example covers the feature
    you're adding, add one to `getExamples()` first — that's how the

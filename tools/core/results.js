@@ -16,14 +16,18 @@ export class ComponentSummary {
 }
 
 export class ComponentList {
-  constructor({ items }) {
+  constructor({ items, total = null, truncated = false }) {
     this.items = items;
+    this.total = total ?? items.length;
+    this.truncated = truncated;
   }
 }
 
 export class ExampleIndex {
-  constructor({ sections }) {
+  constructor({ sections, total = null, truncated = false }) {
     this.sections = sections;
+    this.total = total ?? sections.reduce((n, s) => n + (s.items?.length ?? 0), 0);
+    this.truncated = truncated;
   }
 }
 

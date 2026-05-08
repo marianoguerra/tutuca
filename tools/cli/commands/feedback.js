@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { CODES, emitError } from "../errors.js";
 
 export const describe =
   "Record freeform feedback (bug, confusion, suggestion) to ~/.tutuca/feedback.jsonl.";
@@ -50,7 +51,7 @@ function readStdinSync() {
   }
 }
 
-export async function run(argv) {
+export async function run(argv, opts = {}) {
   const parsed = parseArgs({
     args: argv,
     options: { help: { type: "boolean", short: "h", default: false } },
@@ -66,11 +67,13 @@ export async function run(argv) {
   const message = positional || readStdinSync().trim();
 
   if (!message) {
-    process.stderr.write(
-      "tutuca: feedback requires a message (positional arg or piped stdin).\n" +
-        "Run `tutuca help feedback` for usage.\n",
-    );
-    process.exit(1);
+    emitError(opts, {
+      code: CODES.USAGE_MISSING_ARGUMENT,
+      message: "feedback requires a message (positional arg or piped stdin)",
+      hint:
+        'Example: `tutuca feedback "the lint code FIELD_VAL_NOT_DEFINED was confusing"` ' +
+        "or `echo ... | tutuca feedback`.",
+    });
   }
 
   const record = {

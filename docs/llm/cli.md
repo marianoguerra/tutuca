@@ -12,46 +12,51 @@ behavior changes, then `render --title "<your example>"`) is enough.
 ```sh
 # project local
 npm i --save-dev tutuca
-npx tutuca <module-path> <command> [name] [flags]
+npx tutuca <command> <module-path> [name] [flags]
 
 # global
 npm i -g tutuca
-tutuca <module-path> <command> [name] [flags]
+tutuca <command> <module-path> [name] [flags]
 
 # from a checkout of this repo
-bun tools/tutuca.js <module-path> <command> [name] [flags]
+bun tools/tutuca.js <command> <module-path> [name] [flags]
 ```
 
-The module path comes **first**, the command second, an optional component
+The command comes **first**, the module path second, an optional component
 name third. `tutuca help` prints the full reference; `tutuca help <command>`
 prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
+Use `--module=<path>` if the path conflicts with positional parsing.
 
 ## Commands
 
-| Command         | Purpose                                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `info`          | Summarize which `getX()` exports are present and counts                                                                |
-| `list`          | List components with their views and fields (name + type)                                                              |
-| `examples`      | Print `getExamples()` content (title, items, per section)                                                              |
-| `docs [name]`   | Generate API docs (methods, input handlers, fields with auto-generated accessors) — all or one                         |
-| `lint [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
-| `render [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
-| `test [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
-| `help [cmd]`    | Show usage. No module path needed                                                                                      |
-| `feedback [message]` | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl`. No module path needed                 |
+| Command                  | Purpose                                                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| `get <module>`           | Summarize which `getX()` exports are present and counts                                                                |
+| `list <module> [name] [--limit n]` | List components with their views and fields (name + type). `--limit n` caps; `0` = all                  |
+| `examples <module> [--limit n]` | Print `getExamples()` content (title, items, per section). `--limit n` caps total items; `0` = all                                          |
+| `show <module> [name]`   | Show API docs (methods, input handlers, fields with auto-generated accessors) — all or one                             |
+| `lint <module> [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
+| `render <module> [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
+| `test <module> [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
+| `help [cmd]`             | Show usage. No module path needed                                                                                      |
+| `feedback [message]`     | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl`. No module path needed                      |
+| `agent-context`          | Print a versioned JSON schema of every command, flag, exit code, and error code. No module path needed                 |
 
 ## Global flags
 
 ```
+    --json                       shorthand for `--format=json`. Recommended
+                                 for agent/script callers — error envelopes
+                                 are also JSON on stderr (see "Errors" below)
 -f, --format <cli|md|json|html>  output format
-                                 defaults: info/list/examples/lint → cli
-                                           docs/render             → md
+                                 defaults: get/list/examples/lint → cli
+                                           show/render            → md
                                  html only valid for render
                                  json works for every command
 -o, --output <file>              write to file instead of stdout
     --pretty                     pretty-print HTML (md/html) via prettier;
                                  JSON formatter uses indent 2
-    --module <path>              alternative to first-positional module path
+    --module <path>              alternative to second-positional module path
 -h, --help                       show help (overview, or for one command)
 ```
 
@@ -65,28 +70,56 @@ prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
 | `3`  | render crash                                             |
 | `4`  | one or more tests failed                                 |
 
+## Errors
+
+Diagnostics go to **stderr**; structured output goes to **stdout**. Errors
+include "did you mean" suggestions for unknown commands and unknown flags
+(same shape as lint suggestions).
+
+Under `--json`, errors are emitted as a single-line JSON envelope on stderr:
+
+```json
+{"error":{"code":"ERR_USAGE_UNKNOWN_FLAG","message":"Unknown flag '--titel'","suggestion":{"kind":"replace-name","from":"--titel","to":"--title"},"hint":"Valid flags: ..."}}
+```
+
+Stable error codes:
+
+| Code                          | When                                          |
+| ----------------------------- | --------------------------------------------- |
+| `ERR_USAGE_UNKNOWN_COMMAND`   | command name not recognized                   |
+| `ERR_USAGE_UNKNOWN_FLAG`      | flag not recognized for the command           |
+| `ERR_USAGE_BAD_FLAG_VALUE`    | flag rejected the value (e.g. wrong type)     |
+| `ERR_USAGE_MISSING_MODULE`    | command needs a module path but none was given |
+| `ERR_USAGE_MISSING_ARGUMENT`  | required positional/stdin missing             |
+| `ERR_USAGE_MUTUALLY_EXCLUSIVE`| conflicting flags                             |
+| `ERR_FORMAT_UNKNOWN`          | `--format` value not in {cli,md,json,html}    |
+| `ERR_FORMAT_UNSUPPORTED`      | format chosen doesn't support the result kind |
+| `EXAMPLES_SHAPE_MISMATCH`     | module returned a non-conforming shape        |
+| `ERR_SKILL_ASSETS_MISSING`    | bundled skill assets not found                |
+| `ERR_SKILL_TARGET_EXISTS`     | install-skill target exists; use `--force`    |
+
 ## Examples
 
 ```sh
-tutuca ./src/components.js info                       # quick overview
-tutuca ./src/components.js list                       # components, views, fields
-tutuca ./src/components.js docs Button -f json        # one component, JSON
-tutuca ./src/components.js render -f html --pretty -o out/examples.html
-tutuca ./src/components.js render Button --title "Disabled state"
+tutuca get ./src/components.js                        # quick overview
+tutuca list ./src/components.js                       # components, views, fields
+tutuca show ./src/components.js Button --json         # one component, JSON
+tutuca render ./src/components.js -f html --pretty -o out/examples.html
+tutuca render ./src/components.js Button --title "Disabled state"
 
 # Post-edit verification: lint, then render the example for the feature
 # you just changed (add the example first if none covers it). Add
 # --pretty when you need to read the HTML to verify structure.
-tutuca ./src/components.js lint
-tutuca ./src/components.js render --title "Disabled state"
-tutuca ./src/components.js render --title "Disabled state" --pretty
+tutuca lint ./src/components.js
+tutuca render ./src/components.js --title "Disabled state"
+tutuca render ./src/components.js --title "Disabled state" --pretty
 
 # Component-behavior verification: run the suite for one component, or
 # narrow further with --grep. Add tests next to the component (the
 # getTests() export) when the change isn't observable from render alone.
-tutuca ./src/components.js test Counter
-tutuca ./src/components.js test Counter --grep "inc()"
-tutuca ./src/components.js test --bail
+tutuca test ./src/components.js Counter
+tutuca test ./src/components.js Counter --grep "inc()"
+tutuca test ./src/components.js --bail
 ```
 
 ## `test` — running component tests
@@ -148,7 +181,7 @@ export function getTests({ describe, test, expect }) {
 ```
 
 `describe(Counter, fn)` auto-tags the suite path with `Counter.name`, so
-`tutuca <module> test Counter` picks it up. Untagged `test(...)` at the
+`tutuca test <module> Counter` picks it up. Untagged `test(...)` at the
 top of a tagged `describe` inherits the tag.
 
 ## Install skill assets
@@ -164,6 +197,7 @@ tutuca install-skill --immutable-skill # immutable-js skill instead of tutuca
 tutuca install-skill --all             # all bundled skills (tutuca + margaui + immutable-js)
 tutuca install-skill --dot-agents      # install into ./.agents/skills/ instead of ./.claude/skills/
 tutuca install-skill --all --force     # overwrite existing files
+tutuca install-skill --dry-run         # print files that would be written, don't touch disk
 ```
 
 `--user`/`--project` choose scope (default `--project`).

@@ -4,7 +4,7 @@ How to author component tests in Tutuca: the `getTests` export shape,
 the calling conventions for methods and handler blocks (`input`,
 `receive`, `bubble`, `response`, `alter`), and the view-handler design
 rule that keeps tests free of fake DOM events. Run them with
-`tutuca <module-path> test` — flags and exit codes are in
+`tutuca test <module-path>` — flags and exit codes are in
 [cli.md](./cli.md). General authoring lives in
 [core.md](./core.md).
 
@@ -30,17 +30,17 @@ export function getTests({ describe, test, expect }) {
   no `before` / `after` / `beforeEach` / `it` / skip-flag — don't reach
   for them.
 - `describe(Component, fn)` auto-tags the suite with `Component.name`,
-  so `tutuca <module> test Component` picks it up. Untagged `test(...)`
+  so `tutuca test <module> Component` picks it up. Untagged `test(...)`
   inside a tagged `describe` inherits the tag.
 
-Run with `tutuca <module-path> test [name] [--grep <pattern>] [--bail]`.
+Run with `tutuca test <module-path> [name] [--grep <pattern>] [--bail]`.
 Full flag/format/exit-code reference in [cli.md](./cli.md).
 
 ## What to test
 
 Run tests when the change is observable from JS — methods, handlers,
 factories, coercion in `make({...})`. Skip them for pure
-template/styling tweaks; `tutuca <module> render` covers those.
+template/styling tweaks; `tutuca render <module>` covers those.
 
 - **Methods** — call directly: `Comp.make({...}).method(args)`. Assert
   on the *returned* instance (Tutuca state is immutable).
@@ -148,7 +148,7 @@ test("filters and enriches", () => {
 Use this whenever the iteration logic is the subject under test —
 no DOM, no view, no Stack/Renderer needed. For end-to-end checks that
 the view actually wires these handlers correctly, use
-`tutuca <module> render` instead.
+`tutuca render <module>` instead.
 
 ## Designing handlers so tests stay simple
 
