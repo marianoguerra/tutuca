@@ -68,7 +68,7 @@ export class App {
       if (!_touch.active) {
         const dx = clientX - _touch.startX;
         const dy = clientY - _touch.startY;
-        if (dx * dx + dy * dy < TOUCH_DRAG_THRESHOLD_SQ) return;
+        if (dx * dx + dy * dy < 100) return;
         _touch.active = true;
         e.preventDefault();
         fire("dragstart", _touch.target);
@@ -189,8 +189,6 @@ export function injectCss(nodeId, style, styleTarget = document.head) {
   styleNode.innerHTML = style;
   styleTarget.appendChild(styleNode);
 }
-const TOUCH_DRAG_THRESHOLD_PX = 10;
-const TOUCH_DRAG_THRESHOLD_SQ = TOUCH_DRAG_THRESHOLD_PX * TOUCH_DRAG_THRESHOLD_PX;
 const NOOP = () => {};
 function findTouch(e, id) {
   for (const t of e.changedTouches) if (t.identifier === id) return t;
