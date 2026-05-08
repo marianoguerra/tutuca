@@ -92,6 +92,7 @@ tutuca help [command]
 | `docs [name]` | Component API docs — all, or one by name |
 | `lint [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
 | `render [name] [--title t] [--view v]` | Render examples to HTML |
+| `feedback [message]` | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl` (no module path needed) |
 | `install-skill [--user\|--project] [--margaui-skill\|--immutable-skill\|--all] [--dot-agents] [--force]` | Install bundled Claude Code skills (no module path needed) |
 
 Global flags: `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `-h, --help`.

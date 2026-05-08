@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { COMMANDS } from "./cli/commands/_registry.js";
+import * as feedback from "./cli/commands/feedback.js";
 import * as help from "./cli/commands/help.js";
 import * as installSkill from "./cli/commands/install-skill.js";
 import { runCommand } from "./cli/with-module.js";
 
 const NO_MODULE_COMMANDS = {
   help: help,
+  feedback: feedback,
   "install-skill": installSkill,
 };
 

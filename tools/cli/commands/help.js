@@ -90,6 +90,12 @@ COMMANDS (no module required)
       Without [command]: prints this full reference.
       With [command]: prints that command's one-line description.
 
+  feedback [message]
+      Append a feedback record (one JSON object per line) to
+      ~/.tutuca/feedback.jsonl. Use for bugs, confusing messages,
+      or suggestions about the CLI, skills, docs, or the library.
+      Message comes from the positional arg or piped stdin.
+
   install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--dot-agents] [--force]
       Copy bundled Claude Code skill assets into .claude/skills/<name>/.
       Scope: --project (cwd, default) or --user (~/.claude/skills/).
@@ -152,6 +158,7 @@ export async function run(argv) {
   }
   const { COMMANDS } = await import("./_registry.js");
   const noModule = {
+    feedback: await import("./feedback.js"),
     "install-skill": await import("./install-skill.js"),
   };
   const cmd = COMMANDS[target] ?? noModule[target];

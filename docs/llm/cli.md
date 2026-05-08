@@ -37,7 +37,8 @@ prints a one-liner. `tutuca` ↔ `tutuca -h` prints overview.
 | `lint [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
 | `test [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
-| `help [cmd]`    | Show usage; the only command that does **not** need a module path                                                      |
+| `help [cmd]`    | Show usage. No module path needed                                                                                      |
+| `feedback [message]` | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl`. No module path needed                 |
 
 ## Global flags
 
@@ -168,6 +169,24 @@ tutuca install-skill --all --force     # overwrite existing files
 `--user`/`--project` choose scope (default `--project`).
 `--margaui-skill`, `--immutable-skill`, and `--all` are mutually exclusive.
 `--dot-agents` swaps the `.claude` base for `.agents` (combines with any scope/selection).
+
+## Record feedback
+
+`tutuca feedback` appends a freeform feedback record to
+`~/.tutuca/feedback.jsonl` (created on first use). Reach for it when
+the CLI, the bundled skills, this reference, or the library itself
+was confusing, broken, or surprising — capturing it in the moment
+beats reconstructing it later.
+
+```sh
+tutuca feedback "lint code FIELD_VAL_NOT_DEFINED didn't suggest the missing field"
+echo "render --pretty produced different output than -f html --pretty" | tutuca feedback
+tutuca feedback < notes.txt
+```
+
+Each record is one JSON object per line: `{ts, version, message}`.
+No module path is required. Empty input (no positional, no piped
+stdin) exits **1** with a usage error.
 
 ## Linter Rules
 
