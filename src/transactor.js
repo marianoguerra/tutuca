@@ -206,7 +206,8 @@ class NameArgsTransaction extends Transaction {
   }
   handlerProp = null;
   getHandlerForName(comp) {
-    return comp?.[this.handlerProp]?.[this.name] ?? nullHandler;
+    const handlers = comp?.[this.handlerProp];
+    return handlers?.[this.name] ?? handlers?.$unknown ?? nullHandler;
   }
   getHandlerAndArgs(_root, instance, comps) {
     const handler = this.getHandlerForName(comps.getCompFor(instance));
@@ -289,6 +290,9 @@ class Dispatcher {
   }
 }
 class EventContext extends Dispatcher {
+  get name() {
+    return this.parent?.name ?? null;
+  }
   stopPropagation() {
     return this.parent.stopPropagation();
   }
