@@ -1,14 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { format } from "prettier";
 import { component, html, IMap } from "../index.js";
-import {
-  BindStep,
-  EachBindStep,
-  EachRenderItStep,
-  FieldStep,
-  Path,
-  SeqStep,
-} from "../src/path.js";
+import { BindStep, EachBindStep, EachRenderItStep, FieldStep, Path, SeqStep } from "../src/path.js";
 import { renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";
 import {
@@ -172,11 +165,7 @@ describe("Path.compact", () => {
 
   test("preserves SeqStep (traverses through field+key)", () => {
     const root = IMap({ items: IMap({ k: IMap({ v: 7 }) }) });
-    const original = new Path([
-      new BindStep({}),
-      new SeqStep("items", "k"),
-      new FieldStep("v"),
-    ]);
+    const original = new Path([new BindStep({}), new SeqStep("items", "k"), new FieldStep("v")]);
     const compact = original.compact();
 
     expect(compact.steps.length).toBe(2);

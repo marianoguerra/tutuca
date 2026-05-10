@@ -32,9 +32,9 @@ export class Transactor {
   pushSend(path, name, args = [], opts = {}, parent = null) {
     this.pushTransaction(new SendEvent(path, this, name, args, parent, opts));
   }
-  pushBubble(path, name, args = [], opts = {}, parent = null) {
+  pushBubble(path, name, args = [], opts = {}, parent = null, targetPath = null) {
     const newOpts = opts.skipSelf ? { ...opts, skipSelf: false } : opts;
-    this.pushTransaction(new BubbleEvent(path, this, name, args, parent, newOpts));
+    this.pushTransaction(new BubbleEvent(path, this, name, args, parent, newOpts, targetPath));
   }
   async pushRequest(path, name, args = [], opts = {}, parent = null) {
     const curRoot = this.state.val;
@@ -145,14 +145,15 @@ class InputEvent extends Transaction {
   getHandlerAndArgs(root, _instance, comps) {
     const stack = this.buildStack(root, comps);
     const [handler, args] = this.handler.getHandlerAndArgs(stack, this);
+    const path = this.path.compact();
     let dispatcher;
     for (let i = 0; i < args.length; i++) {
       if (args[i]?.toHandlerArg) {
-        dispatcher ??= new Dispatcher(this.path, this.transactor, this);
+        dispatcher ??= new Dispatcher(path, this.transactor, this);
         args[i] = args[i].toHandlerArg(dispatcher);
       }
     }
-    args.push(new EventContext(this.path, this.transactor, this));
+    args.push(new EventContext(path, this.transactor, this));
     return [handler, args];
   }
   lookupName(name) {
@@ -203,6 +204,7 @@ class NameArgsTransaction extends Transaction {
     this.name = name;
     this.args = args;
     this.opts = opts;
+    this.targetPath = path;
   }
   handlerProp = null;
   getHandlerForName(comp) {
@@ -223,13 +225,17 @@ class SendEvent extends NameArgsTransaction {
     return this.opts.skipSelf ? rootVal : this.updateRootValue(rootVal, comps);
   }
   afterTransaction() {
-    const { path, name, args, opts } = this;
+    const { path, name, args, opts, targetPath } = this;
     if (opts.bubbles && path.steps.length > 0)
-      this.transactor.pushBubble(path.popStep(), name, args, opts, this);
+      this.transactor.pushBubble(path.popStep(), name, args, opts, this, targetPath);
   }
 }
 class BubbleEvent extends SendEvent {
   handlerProp = "bubble";
+  constructor(path, transactor, name, args, parent, opts, targetPath) {
+    super(path, transactor, name, args, parent, opts);
+    this.targetPath = targetPath ?? path;
+  }
   stopPropagation() {
     this.opts.bubbles = false;
   }
@@ -292,6 +298,9 @@ class Dispatcher {
 class EventContext extends Dispatcher {
   get name() {
     return this.parent?.name ?? null;
+  }
+  get targetPath() {
+    return this.parent.targetPath;
   }
   stopPropagation() {
     return this.parent.stopPropagation();

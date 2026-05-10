@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { Path } from "../src/path.js";
+import { IMap } from "../index.js";
+import { FieldStep, Path } from "../src/path.js";
 import { Transactor } from "../src/transactor.js";
 
 function makeComps({ receive = {}, bubble = {}, response = {}, request = null } = {}) {
@@ -120,5 +121,162 @@ describe("$unknown fallback handler", () => {
     t.pushSend(new Path([]), "hello", []);
     runAll(t);
     expect(seen).toEqual(["hello"]);
+  });
+});
+
+describe("ctx.targetPath (DOM-style origin reference)", () => {
+  test("bubble: targetPath is the originating leaf path on every hop while path shrinks", () => {
+    const hops = [];
+    const t = new Transactor(
+      makeComps({
+        bubble: {
+          foo(...args) {
+            const ctx = args[args.length - 1];
+            hops.push({ pathLen: ctx.path.steps.length, targetLen: ctx.targetPath.steps.length });
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+    );
+    const leafPath = new Path([new FieldStep("a"), new FieldStep("b")]);
+    t.pushBubble(leafPath, "foo", [], { bubbles: true });
+    runAll(t);
+    expect(hops).toEqual([
+      { pathLen: 2, targetLen: 2 },
+      { pathLen: 1, targetLen: 2 },
+      { pathLen: 0, targetLen: 2 },
+    ]);
+  });
+
+  test("bubble: targetPath reference is identical (immutable) across hops", () => {
+    const seenTargets = [];
+    const t = new Transactor(
+      makeComps({
+        bubble: {
+          foo(...args) {
+            seenTargets.push(args[args.length - 1].targetPath);
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+    );
+    const leafPath = new Path([new FieldStep("a"), new FieldStep("b")]);
+    t.pushBubble(leafPath, "foo", [], { bubbles: true });
+    runAll(t);
+    expect(seenTargets.length).toBe(3);
+    expect(seenTargets[0]).toBe(seenTargets[1]);
+    expect(seenTargets[1]).toBe(seenTargets[2]);
+    expect(seenTargets[0]).toBe(leafPath);
+  });
+
+  test("bubble: ctx.targetPath !== ctx.path at mid and root, equal at leaf", () => {
+    const hops = [];
+    const t = new Transactor(
+      makeComps({
+        bubble: {
+          foo(...args) {
+            const ctx = args[args.length - 1];
+            hops.push(ctx.targetPath === ctx.path);
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+    );
+    t.pushBubble(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], { bubbles: true });
+    runAll(t);
+    expect(hops).toEqual([true, false, false]);
+  });
+
+  test("stopPropagation halts further hops but doesn't change observed targetPath", () => {
+    const hops = [];
+    const t = new Transactor(
+      makeComps({
+        bubble: {
+          foo(...args) {
+            const ctx = args[args.length - 1];
+            hops.push({ pathLen: ctx.path.steps.length, targetLen: ctx.targetPath.steps.length });
+            if (ctx.path.steps.length === 1) ctx.stopPropagation();
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+    );
+    t.pushBubble(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], { bubbles: true });
+    runAll(t);
+    expect(hops).toEqual([
+      { pathLen: 2, targetLen: 2 },
+      { pathLen: 1, targetLen: 2 },
+    ]);
+  });
+
+  test("receive: ctx.targetPath === ctx.path (single-hop, origin == current)", () => {
+    const seen = [];
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          ping(...args) {
+            const ctx = args[args.length - 1];
+            seen.push({ same: ctx.targetPath === ctx.path, len: ctx.targetPath.steps.length });
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ tag: "leaf" }) }),
+    );
+    t.pushSend(new Path([new FieldStep("a")]), "ping", []);
+    runAll(t);
+    expect(seen).toEqual([{ same: true, len: 1 }]);
+  });
+
+  test("response: ctx.targetPath === ctx.path", async () => {
+    const seen = [];
+    const t = new Transactor(
+      makeComps({
+        response: {
+          loadX(...args) {
+            const ctx = args[args.length - 1];
+            seen.push({ same: ctx.targetPath === ctx.path });
+            return this;
+          },
+        },
+        request: { fn: async () => "ok" },
+      }),
+      IMap({ a: IMap({ tag: "leaf" }) }),
+    );
+    await t.pushRequest(new Path([new FieldStep("a")]), "loadX", []);
+    runAll(t);
+    expect(seen).toEqual([{ same: true }]);
+  });
+
+  test("ctx.sendAtPath(ctx.targetPath, ...) from a root bubble handler dispatches back to the originator", () => {
+    const replies = [];
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          ack(...args) {
+            const ctx = args[args.length - 1];
+            replies.push({ name: ctx.name, pathLen: ctx.path.steps.length });
+            return this;
+          },
+        },
+        bubble: {
+          foo(...args) {
+            const ctx = args[args.length - 1];
+            if (ctx.path.steps.length === 0) {
+              ctx.sendAtPath(ctx.targetPath, "ack", []);
+            }
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+    );
+    t.pushBubble(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], { bubbles: true });
+    runAll(t);
+    expect(replies).toEqual([{ name: "ack", pathLen: 2 }]);
   });
 });
