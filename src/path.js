@@ -44,13 +44,13 @@ export class FieldStep extends Step {
     return root.set(this.field, v);
   }
   withIndex(i) {
-    return new SeqIndexStep(this.field, i);
+    return new SeqStep(this.field, i);
   }
   withKey(k) {
-    return new SeqKeyStep(this.field, k);
+    return new SeqStep(this.field, k);
   }
 }
-class FieldSeqStep extends Step {
+export class SeqStep extends Step {
   constructor(field, key) {
     super();
     this.field = field;
@@ -61,14 +61,13 @@ class FieldSeqStep extends Step {
     return o?.get ? o.get(this.key, dval) : dval;
   }
   setValue(root, v) {
-    return root.set(this.field, root.get(this.field).set(this.key, v));
+    const seq = root?.get(this.field, null);
+    return seq ? root.set(this.field, seq.set(this.key, v)) : root;
   }
   enterFrame(stack, _prev, next) {
     return stack.enter(next, { key: this.key }, true);
   }
 }
-export class SeqKeyStep extends FieldSeqStep {}
-export class SeqIndexStep extends FieldSeqStep {}
 export class SeqAccessStep extends Step {
   constructor(seqField, keyField) {
     super();
@@ -103,20 +102,7 @@ export class EachBindStep extends Step {
     return stack.enter(next, { key: this.key, value: item }, false);
   }
 }
-export class EachRenderItStep extends Step {
-  constructor(seqField, key) {
-    super();
-    this.seqField = seqField;
-    this.key = key;
-  }
-  lookup(v, dval = null) {
-    const seq = v?.get(this.seqField, null);
-    return seq?.get ? seq.get(this.key, dval) : dval;
-  }
-  setValue(root, v) {
-    const seq = root?.get(this.seqField, null);
-    return seq ? root.set(this.seqField, seq.set(this.key, v)) : root;
-  }
+export class EachRenderItStep extends SeqStep {
   enterFrame(stack, _prev, next) {
     return stack.enter(next, { key: this.key, value: next }, false).enter(next, {}, true);
   }
@@ -278,9 +264,9 @@ export class PathBuilder {
     return this.add(new FieldStep(name));
   }
   index(name, index) {
-    return this.add(new SeqIndexStep(name, index));
+    return this.add(new SeqStep(name, index));
   }
   key(name, key) {
-    return this.add(new SeqKeyStep(name, key));
+    return this.add(new SeqStep(name, key));
   }
 }
