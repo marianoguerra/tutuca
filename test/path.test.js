@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { format } from "prettier";
 import { component, html, IMap } from "../index.js";
-import { Path } from "../src/path.js";
+import {
+  BindStep,
+  EachBindStep,
+  EachRenderItStep,
+  FieldStep,
+  Path,
+  SeqStep,
+} from "../src/path.js";
 import { renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";
 import {
@@ -106,6 +113,75 @@ describe("Path - find JsonBool by uid", () => {
     expect(events.length).toBe(1);
     expect(path.lookup(rootValue)).toBe(target);
     cleanup();
+  });
+});
+
+describe("Path.compact", () => {
+  test("drops BindStep and EachBindStep, preserves lookup and setValue", () => {
+    const root = IMap({ a: IMap({ b: 42 }) });
+    const original = new Path([
+      new BindStep({}),
+      new FieldStep("a"),
+      new EachBindStep(null, "k"),
+      new FieldStep("b"),
+    ]);
+    const compact = original.compact();
+
+    expect(compact.steps.length).toBe(2);
+    expect(compact.steps[0]).toBeInstanceOf(FieldStep);
+    expect(compact.steps[1]).toBeInstanceOf(FieldStep);
+
+    expect(original.lookup(root)).toBe(42);
+    expect(compact.lookup(root)).toBe(42);
+
+    const updated = original.setValue(root, 100);
+    const updatedCompact = compact.setValue(root, 100);
+    expect(updated.get("a").get("b")).toBe(100);
+    expect(updatedCompact.get("a").get("b")).toBe(100);
+  });
+
+  test("path of only frame-only steps compacts to empty path", () => {
+    const root = IMap({ x: 1 });
+    const original = new Path([new BindStep({}), new EachBindStep(null, "k")]);
+    const compact = original.compact();
+
+    expect(compact.steps.length).toBe(0);
+    expect(original.lookup(root)).toBe(root);
+    expect(compact.lookup(root)).toBe(root);
+  });
+
+  test("abstracts EachRenderItStep to a SeqStep, preserving lookup/setValue", () => {
+    const root = IMap({ items: IMap({ k: IMap({ v: 7 }) }) });
+    const original = new Path([new EachRenderItStep("items", "k"), new FieldStep("v")]);
+    const compact = original.compact();
+
+    expect(compact.steps.length).toBe(2);
+    expect(compact.steps[0]).toBeInstanceOf(SeqStep);
+    expect(compact.steps[0]).not.toBeInstanceOf(EachRenderItStep);
+    expect(compact.steps[0].field).toBe("items");
+    expect(compact.steps[0].key).toBe("k");
+
+    expect(original.lookup(root)).toBe(7);
+    expect(compact.lookup(root)).toBe(7);
+
+    const updated = original.setValue(root, 99);
+    const updatedCompact = compact.setValue(root, 99);
+    expect(updated.get("items").get("k").get("v")).toBe(99);
+    expect(updatedCompact.get("items").get("k").get("v")).toBe(99);
+  });
+
+  test("preserves SeqStep (traverses through field+key)", () => {
+    const root = IMap({ items: IMap({ k: IMap({ v: 7 }) }) });
+    const original = new Path([
+      new BindStep({}),
+      new SeqStep("items", "k"),
+      new FieldStep("v"),
+    ]);
+    const compact = original.compact();
+
+    expect(compact.steps.length).toBe(2);
+    expect(original.lookup(root)).toBe(7);
+    expect(compact.lookup(root)).toBe(7);
   });
 });
 

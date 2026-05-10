@@ -10,6 +10,9 @@ export class Step {
   enterFrame(stack, _prev, next) {
     return stack.enter(next, {}, true);
   }
+  toAbstractPathStep() {
+    return this;
+  }
 }
 export class BindStep extends Step {
   constructor(binds) {
@@ -30,6 +33,9 @@ export class BindStep extends Step {
   }
   withKey(key) {
     return new BindStep({ ...this.binds, key });
+  }
+  toAbstractPathStep() {
+    return null;
   }
 }
 export class FieldStep extends Step {
@@ -101,10 +107,16 @@ export class EachBindStep extends Step {
     const item = this.seqVal.eval(stack)?.get(this.key, null);
     return stack.enter(next, { key: this.key, value: item }, false);
   }
+  toAbstractPathStep() {
+    return null;
+  }
 }
 export class EachRenderItStep extends SeqStep {
   enterFrame(stack, _prev, next) {
     return stack.enter(next, { key: this.key, value: next }, false).enter(next, {}, true);
+  }
+  toAbstractPathStep() {
+    return new SeqStep(this.field, this.key);
   }
 }
 export class Path {
@@ -116,6 +128,14 @@ export class Path {
   }
   popStep() {
     return new Path(this.steps.slice(0, -1));
+  }
+  compact() {
+    const out = [];
+    for (const step of this.steps) {
+      const s = step.toAbstractPathStep();
+      if (s !== null) out.push(s);
+    }
+    return new Path(out);
   }
   lookup(v, dval = null) {
     let curVal = v;
