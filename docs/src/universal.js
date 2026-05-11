@@ -239,6 +239,7 @@ async function registerModuleFromDropEvent(e, rootScope) {
     const blob = new Blob([text], { type: "text/javascript" });
     const url = URL.createObjectURL(blob);
     const mod = await import(url);
+    URL.revokeObjectURL(url);
     const components = mod.getComponents();
     const examples = mod?.getExamples() ?? [];
     const scope = rootScope.enter();
