@@ -38,7 +38,8 @@ export class App {
   }
   _dispatchEvent(e) {
     const { type } = e;
-    const isDrag = type === "dragover" || type === "dragstart" || type === "dragend";
+    const isDrag =
+      type === "dragover" || type === "dragstart" || type === "dragend" || type === "drop";
     const { rootNode: root, maxEventNodeDepth: maxDepth, comps, transactor } = this;
     const [path, handlers] = Path.fromEvent(e, root, maxDepth, comps, !isDrag);
     if (isDrag) this._handleDragEvent(e, type, path);
@@ -102,6 +103,9 @@ export class App {
       const dragType = e.target.dataset.dragtype ?? "?";
       const stack = path.buildStack(this.makeStack(rootValue));
       this.dragInfo = new DragInfo(path, stack, e, value, dragType, e.target);
+    } else if (type === "drop") {
+      e.preventDefault();
+      this._cleanDragOverAttrs();
     } else {
       if (this.dragInfo !== null) {
         delete this.dragInfo.node.dataset.dragging;

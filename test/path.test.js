@@ -323,3 +323,83 @@ describe("@value inside @each click handler", () => {
     cleanup();
   });
 });
+
+describe("@on.drop bubbles to ancestor components", () => {
+  function makeApp() {
+    const captured = { type: "<not-called>", self: null };
+    const Child = component({
+      name: "Child",
+      fields: { uid: "" },
+      view: html`<div :data-uid=".uid"><span class="inner">drop here</span></div>`,
+    });
+    const Parent = component({
+      name: "Parent",
+      fields: { child: Child.make({ uid: "c1" }) },
+      input: {
+        onDrop(e) {
+          captured.type = e.type;
+          captured.self = this;
+          return this;
+        },
+      },
+      view: html`<section @on.drop="onDrop event" data-droptarget="x">
+        <x render=".child"></x>
+      </section>`,
+    });
+    const ctx = renderToHTMLNode(
+      document,
+      [Parent, Child],
+      null,
+      Parent.make(),
+      HeadlessParseContext,
+    );
+    return { ...ctx, captured };
+  }
+
+  test("Path.fromNodeAndEventName finds the ancestor @on.drop and resolves to its value", () => {
+    const { container, app, cleanup } = makeApp();
+    const inner = container.querySelector(".inner");
+    expect(inner).not.toBeNull();
+    const [path, handlers] = Path.fromNodeAndEventName(
+      inner,
+      "drop",
+      container,
+      Infinity,
+      app.comps,
+    );
+    expect(handlers).not.toBeNull();
+    expect(handlers.length).toBe(1);
+    // Parent is the app root, so the path is empty and resolves to the Parent value.
+    expect(path.steps.length).toBe(0);
+    expect(path.lookup(app.state.val)).toBe(app.state.val);
+    cleanup();
+  });
+
+  test("non-bubbling event (click) still bails at the leaf component", () => {
+    const { container, app, cleanup } = makeApp();
+    const inner = container.querySelector(".inner");
+    const [path, handlers] = Path.fromNodeAndEventName(
+      inner,
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    expect(path).toBeNull();
+    expect(handlers).toBeNull();
+    cleanup();
+  });
+
+  test("dispatching a drop event inside a nested component invokes the ancestor handler", () => {
+    const { container, app, captured, cleanup } = makeApp();
+    const inner = container.querySelector(".inner");
+    const Event = container.ownerDocument.defaultView.Event;
+    const ev = new Event("drop", { bubbles: true, cancelable: true });
+    inner.dispatchEvent(ev);
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(ev.defaultPrevented).toBe(true);
+    expect(captured.type).toBe("drop");
+    expect(captured.self).toBe(app.state.val);
+    cleanup();
+  });
+});

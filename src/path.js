@@ -175,6 +175,7 @@ export class Path {
   }
   static fromNodeAndEventName(node, eventName, rootNode, maxDepth, comps, stopOnNoEvent = true) {
     const pathSteps = [];
+    const bubbles = BUBBLING_EVENTS.has(eventName);
     let depth = 0;
     let eventIds = [];
     let handlers = null;
@@ -187,13 +188,21 @@ export class Path {
         if (eid !== undefined) eventIds.push(eid);
         if (cid !== undefined) {
           const comp = comps.getComponentForId(+cid);
-          if (isLeafComponent) {
+          let pushStep = true;
+          if (handlers === null && (isLeafComponent || bubbles)) {
             handlers = findHandlers(comp, eventIds, vid, eventName);
-            if (handlers === null && stopOnNoEvent) return NO_EVENT_INFO;
-            isLeafComponent = false;
+            if (handlers === null) {
+              if (isLeafComponent && stopOnNoEvent && !bubbles) return NO_EVENT_INFO;
+            } else if (!isLeafComponent) {
+              pathSteps.length = 0; // handler bubbled up to an ancestor component: the returned path must
+              pushStep = false; // resolve to that component's value, so drop the steps that descend below it
+            }
           }
-          const step = resolvePathStep(comp, nodeIds, vid);
-          if (step) pathSteps.push(step);
+          isLeafComponent = false;
+          if (pushStep) {
+            const step = resolvePathStep(comp, nodeIds, vid);
+            if (step) pathSteps.push(step);
+          }
           eventIds = [];
           nodeIds = [];
         }
@@ -272,6 +281,7 @@ function resolvePathStep(comp, nodeIds, vid) {
   return null;
 }
 const NO_EVENT_INFO = [null, null];
+const BUBBLING_EVENTS = new Set(["drop"]); // Events whose handlers bubble across component boundaries to ancestor components
 export class PathBuilder {
   constructor() {
     this.pathChanges = [];
