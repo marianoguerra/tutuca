@@ -142,10 +142,12 @@ export class App {
     }
     this._compiled = true;
   }
+  subscribeToEvents(eventNames) {
+    for (const name of eventNames) this.rootNode.addEventListener(name, this, listenerOpts(name));
+  }
   start(opts) {
     if (!this._compiled) this.compile();
-    for (const name of this._eventNames)
-      this.rootNode.addEventListener(name, this, listenerOpts(name));
+    this.subscribeToEvents(this._eventNames);
     this.onChange((info) => {
       if (info.val !== info.old) this.render();
     });

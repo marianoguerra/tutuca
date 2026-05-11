@@ -155,7 +155,7 @@ export class Component {
     }
   }
   make(args, opts) {
-    return this.Class.make(args, opts);
+    return this.Class.make(args, opts ?? { scope: this.scope });
   }
   getView(name) {
     return this.views[name] ?? this.views.main;
