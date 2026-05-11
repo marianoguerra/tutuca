@@ -241,8 +241,7 @@ class BubbleEvent extends SendEvent {
   }
 }
 class Task {
-  constructor(info) {
-    this.info = info;
+  constructor() {
     this.deps = [];
     this.val = this.resolve = this.reject = null;
     this.promise = new Promise((res, rej) => {

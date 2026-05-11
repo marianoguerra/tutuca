@@ -186,7 +186,7 @@ export class Path {
         const { eid, cid, vid } = node.dataset;
         if (eid !== undefined) eventIds.push(eid);
         if (cid !== undefined) {
-          const comp = comps.getComponentForId(+cid, vid);
+          const comp = comps.getComponentForId(+cid);
           if (isLeafComponent) {
             handlers = findHandlers(comp, eventIds, vid, eventName);
             if (handlers === null && stopOnNoEvent) return NO_EVENT_INFO;

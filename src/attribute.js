@@ -183,7 +183,7 @@ export class ConstAttrs extends Attributes {
   }
   toMacroVars() {
     const r = {};
-    for (const name in this.items) r[name] = `'${this.items[name]}'`;
+    for (const name in this.items) r[name] = `'${this.items[name]}'`; // TODO: escape \'
     return r;
   }
   isConstant() {

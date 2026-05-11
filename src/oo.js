@@ -324,11 +324,9 @@ class ClassBuilder {
         for (const key in inArgs) {
           const field = fields[key];
           if (compFields.has(key)) args[key] = mkCompField(field, opts.scope, inArgs[key]);
-          else if (field === undefined) {
+          else if (field === undefined)
             console.warn("extra argument to constructor:", name, key, inArgs);
-            continue;
-          }
-          args[key] = field.coerceOrDefault(inArgs[key]);
+          else args[key] = field.coerceOrDefault(inArgs[key]);
         }
         for (const key of compFields)
           if (args[key] === undefined)
@@ -353,14 +351,10 @@ class ClassBuilder {
     return Class;
   }
   methods(proto) {
-    return this._mergeProto(this._methods, proto, "method");
+    for (const k in proto) this._methods[k] = proto[k];
   }
   statics(proto) {
-    return this._mergeProto(this._statics, proto, "static");
-  }
-  _mergeProto(target, proto, _name) {
-    for (const k in proto) target[k] = proto[k];
-    return this;
+    for (const k in proto) this._statics[k] = proto[k];
   }
   addField(name, dval, FieldCls) {
     const field = new FieldCls(name, dval);

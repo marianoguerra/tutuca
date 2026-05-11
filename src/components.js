@@ -139,6 +139,8 @@ export class Component {
     for (const key of Object.keys(o)) if (!KNOWN_SPEC_KEYS.has(key)) this.extra[key] = o[key];
   }
   compile(ParseContext) {
+    for (const name in this.views)
+      this.views[name].compile(new ParseContext(), this.scope, this.id);
     for (const key in this._rawDynamic) {
       const dinfo = this._rawDynamic[key];
       if (isString(dinfo)) {
@@ -151,8 +153,6 @@ export class Component {
           this.dynamic[key] = new DynamicAlias(key, val, compName, dynName);
       }
     }
-    for (const name in this.views)
-      this.views[name].compile(new ParseContext(), this.scope, this.id);
   }
   make(args, opts) {
     return this.Class.make(args, opts);

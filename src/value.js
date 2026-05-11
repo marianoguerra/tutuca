@@ -288,7 +288,7 @@ export class SeqAccessVal extends RenderVal {
   }
   eval(stack) {
     const key = this.keyVal.eval(stack);
-    return this.seqVal.eval(stack).get(key, null);
+    return this.seqVal.eval(stack)?.get(key, null);
   }
   toString() {
     return `${this.seqVal}[${this.keyVal}]`;

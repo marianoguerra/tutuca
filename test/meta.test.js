@@ -16,7 +16,7 @@ describe("datacomp", () => {
     expect(valToString(new FieldVal("foo"))).toBe(".foo");
     expect(valToString(new RawFieldVal("foo"))).toBe(".foo");
     expect(valToString(new BindVal("foo"))).toBe("@foo");
-    expect(valToString(new DynVal("foo"))).toBe("^foo");
+    expect(valToString(new DynVal("foo"))).toBe("*foo");
     expect(valToString(new RequestVal("foo"))).toBe("!foo");
     expect(valToString(new TypeVal("Foo"))).toBe("Foo");
     expect(valToString(new NameVal("foo"))).toBe("foo");

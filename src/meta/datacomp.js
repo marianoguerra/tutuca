@@ -135,7 +135,7 @@ export function valToString(v) {
     case "FieldVal":
       return `.${v.name}`;
     case "DynVal":
-      return `^${v.name}`;
+      return `*${v.name}`;
     case "BindVal":
       return `@${v.name}`;
     case "RequestVal":

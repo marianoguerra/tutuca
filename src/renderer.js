@@ -36,7 +36,7 @@ export class Renderer {
   }
   renderRoot(stack, val, viewName = null) {
     const comp = this.comps.getCompFor(val);
-    const nid = comp.getView(viewName).anode.nodeId ?? null;
+    const nid = comp?.getView(viewName).anode.nodeId ?? null;
     return comp ? this._rValComp(stack, val, comp, nid, "ROOT", viewName) : null;
   }
   renderIt(stack, nodeId, key, viewName) {
@@ -44,7 +44,7 @@ export class Renderer {
     return comp ? this._rValComp(stack, stack.it, comp, nodeId, key, viewName) : null;
   }
   _rValComp(stack, val, comp, nid, key, viewName) {
-    const cacheKey = `${viewName ?? stack.viewsId ?? ""}${nid}-${key}`;
+    const cacheKey = `${viewName ?? stack.viewsId ?? ""}-${nid}-${key}`;
     const cachePath = [val];
     stack._pushDynBindValuesToArray(cachePath, comp.dynamic);
     const cachedNode = this.cache.get(cachePath, cacheKey);
