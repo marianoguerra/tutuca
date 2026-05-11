@@ -21,8 +21,8 @@ async function main() {
   const scope = app.registerComponents(components);
   const examples = [];
   scope.registerRequestHandlers({
-    async registerModuleFromDropEvent(e) {
-      const res = await registerModuleFromDropEvent(e, scope, app.ParseContext);
+    async registerModuleFromCode(code) {
+      const res = await registerModuleFromCode(code, scope, app.ParseContext);
       if (res?.examples?.items) {
         for (const v of res.examples.items) {
           examples.push(v);
@@ -145,7 +145,8 @@ const Universal = component({
   fields: { value: ComponentSelector.make() },
   input: {
     onDrop(e, ctx) {
-      ctx.request("registerModuleFromDropEvent", [e]);
+      const file = e.dataTransfer?.files?.[0];
+      if (file) file.text().then((code) => ctx.request("registerModuleFromCode", [code]));
       return this;
     },
   },
@@ -156,7 +157,7 @@ const Universal = component({
     },
   },
   response: {
-    registerModuleFromDropEvent(res, err) {
+    registerModuleFromCode(res, err) {
       console.log({ res, err });
       return this;
     },
@@ -232,14 +233,11 @@ const Example = component({
   },
 });
 
-async function registerModuleFromDropEvent(e, rootScope) {
-  const file = e.dataTransfer?.files?.[0];
-  if (file) {
-    const text = await file.text();
-    const blob = new Blob([text], { type: "text/javascript" });
-    const url = URL.createObjectURL(blob);
+async function registerModuleFromCode(code, rootScope) {
+  const blob = new Blob([code], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  try {
     const mod = await import(url);
-    URL.revokeObjectURL(url);
     const components = mod.getComponents();
     const examples = mod?.getExamples() ?? [];
     const scope = rootScope.enter();
@@ -251,8 +249,8 @@ async function registerModuleFromDropEvent(e, rootScope) {
       scope.registerRequestHandlers(mod.getRequestHandlers());
     }
     return { mod, components, examples, scope };
-  } else {
-    return null;
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
