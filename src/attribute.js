@@ -37,9 +37,7 @@ class AttrParser {
       this.attrs ??= [];
       this.attrs.push(new Attr(name, val));
       this.hasDynamic ||= !(val instanceof ConstVal); // macroVar constant
-    } else {
-      this.px.onParseIssue("bad-value", { role: "attr", attr: name, value });
-    }
+    } else this.px.onParseIssue("bad-value", { role: "attr", attr: name, value });
   }
   pushWrapper(name, raw, val) {
     const node = { name, val, raw };
@@ -107,19 +105,16 @@ class AttrParser {
       case "hide":
         this.pushWrapper("hide", s, this._parseDirectiveValue(directiveName, s, vp.parseCondValue));
         return;
-      case "each":
-        this.eachAttr = this.pushWrapper(
-          "each",
-          s,
-          this._parseDirectiveValue(directiveName, s, vp.parseEach),
-        );
+      case "each": {
+        const val = this._parseDirectiveValue(directiveName, s, vp.parseEach);
+        this.eachAttr = this.pushWrapper("each", s, val);
         return;
+      }
       case "enrich-with":
-        if (this.eachAttr !== null) {
+        if (this.eachAttr !== null)
           this.eachAttr.enrichWithVal = this._parseDirectiveValue(directiveName, s, vp.parseAlter);
-        } else {
+        else
           this.pushWrapper("scope", s, this._parseDirectiveValue(directiveName, s, vp.parseAlter));
-        }
         return;
       case "when":
         this._parseWhen(s);
@@ -154,11 +149,10 @@ class AttrParser {
   parse(attributes, parseAll = false) {
     for (const { name, value } of attributes) {
       const charCode = name.charCodeAt(0); // 58 = ":", 64 = "@"
-      if (charCode === 58) {
+      if (charCode === 58)
         this.parseAttr(name === ":viewbox" ? "viewBox" : name.slice(1), value, parseAll);
-      } else if (charCode === 64) {
-        this.parseDirective(value, name.slice(1));
-      } else {
+      else if (charCode === 64) this.parseDirective(value, name.slice(1));
+      else {
         this.attrs ??= [];
         const constVal = value === "" && booleanAttrs.has(name) ? true : value;
         this.attrs.push(new ConstAttr(name, vp.const(constVal)));
@@ -273,9 +267,8 @@ export class EventHandler {
     vp.allowHandlerArg();
     for (let i = 0; i < rawArgs.length; i++) {
       const val = vp.parse(rawArgs[i], px);
-      if (val !== null) {
-        args[i] = val;
-      } else {
+      if (val !== null) args[i] = val;
+      else {
         const info = { role: "handler-arg", value: rawArgs[i] };
         px.onParseIssue("bad-value", info);
         args[i] = vp.nullConstVal;

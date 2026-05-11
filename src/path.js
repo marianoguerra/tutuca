@@ -1,5 +1,4 @@
 const NONE = Symbol("NONE");
-
 export class Step {
   lookup(_v, dval = null) {
     return dval;
@@ -257,9 +256,8 @@ class StepCtx {
     return m.si !== undefined || m.sk !== undefined;
   }
   next() {
-    return this.idx + 1 < this.nodeIds.length
-      ? new StepCtx(this.comp, this.nodeIds, this.idx + 1, this.vid)
-      : null;
+    const { idx, nodeIds } = this;
+    return idx + 1 < nodeIds.length ? new StepCtx(this.comp, nodeIds, idx + 1, this.vid) : null;
   }
   resolveNode() {
     return this.comp.getNodeForId(+this.meta.nid, this.vid);

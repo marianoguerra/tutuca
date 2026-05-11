@@ -7,9 +7,7 @@ export class Renderer {
   constructor(comps) {
     this.comps = comps;
     this.cache = new WeakMapDomCache();
-  }
-  renderTag(tag, attrs, childs) {
-    return h(tag, attrs, childs);
+    this.renderTag = h;
   }
   renderFragment(childs) {
     return new VFragment(childs);

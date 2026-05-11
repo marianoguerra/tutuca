@@ -81,9 +81,8 @@ export class DomNode extends ChildsNode {
   }
   render(stack, rx) {
     const childNodes = new Array(this.childs.length);
-    for (let i = 0; i < childNodes.length; i++) {
+    for (let i = 0; i < childNodes.length; i++)
       childNodes[i] = this.childs[i]?.render?.(stack, rx) ?? null;
-    }
     return rx.renderTag(this.tagName, this.attrs.eval(stack), childNodes);
   }
   setDataAttr(key, val) {
@@ -138,9 +137,8 @@ export class ANode extends BaseNode {
     px.currentTag = tag;
     try {
       const isPseudoX = attrs[0]?.name === "@x";
-      if (tag === "X" || isPseudoX) {
-        return parseXOp(attrs, childs, isPseudoX ? 1 : 0, px);
-      } else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
+      if (tag === "X" || isPseudoX) return parseXOp(attrs, childs, isPseudoX ? 1 : 0, px);
+      else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
         const macroName = tag.slice(2).toLowerCase();
         if (macroName === "slot") {
           const slotName = attrs.getNamedItem("name")?.value ?? "_";
