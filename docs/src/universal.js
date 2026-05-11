@@ -49,6 +49,7 @@ async function main() {
         }
       }
       compileStyle();
+      app.recompileStyles();
       app.sendAtRoot("newComponentsLoaded", [res]);
       return res;
     },

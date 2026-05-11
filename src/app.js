@@ -145,13 +145,16 @@ export class App {
   subscribeToEvents(eventNames) {
     for (const name of eventNames) this.rootNode.addEventListener(name, this, listenerOpts(name));
   }
+  recompileStyles(opts) {
+    injectCss("tutuca-app", this.comps.compileStyles(), opts?.head ?? document.head);
+  }
   start(opts) {
     if (!this._compiled) this.compile();
     this.subscribeToEvents(this._eventNames);
     this.onChange((info) => {
       if (info.val !== info.old) this.render();
     });
-    injectCss("tutuca-app", this.comps.compileStyles(), opts?.head ?? document.head);
+    this.recompileStyles(opts);
     if (opts?.noCache) this.renderer.setNullCache();
     else this.startCacheEvictionInterval();
     this.render();
