@@ -89,7 +89,7 @@ export class App {
   }
   _handleDragEvent(e, type, path) {
     if (type === "dragover") {
-      const dropTarget = getClosestDropTarget(e.target, this.rootNode, 50);
+      const dropTarget = getClosestDropTarget(e.target, this.rootNode, Infinity);
       if (dropTarget !== null) {
         e.preventDefault();
         this._cleanDragOverAttrs();
