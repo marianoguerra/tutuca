@@ -21,37 +21,39 @@ async function main() {
   const scope = app.registerComponents(components);
   const examples = [];
   scope.registerRequestHandlers({
-    async registerModuleFromCode(code) {
-      const res = await registerModuleFromCode(code, scope, app.ParseContext);
-      if (res?.examples?.items) {
-        for (const v of res.examples.items) {
-          examples.push(v);
+    async registerModuleFromCode(codes) {
+      const results = await registerModuleFromCode(codes, scope, app.ParseContext);
+      const eventNames = new Set();
+      const curEventNames = app._eventNames;
+      for (const res of results) {
+        if (res?.examples?.items) {
+          for (const v of res.examples.items) {
+            examples.push(v);
+          }
         }
-      }
-      const components = res?.components;
-      if (components) {
-        const eventNames = new Set();
-        const curEventNames = app._eventNames;
-        for (const Comp of components) {
-          Comp.compile(app.ParseContext);
-          for (const key in Comp.views) {
-            for (const name of Comp.views[key].ctx.genEventNames()) {
-              console.log(name);
-              if (!curEventNames.has(name)) {
-                eventNames.add(name);
+        const components = res?.components;
+        if (components) {
+          for (const Comp of components) {
+            Comp.compile(app.ParseContext);
+            for (const key in Comp.views) {
+              for (const name of Comp.views[key].ctx.genEventNames()) {
+                console.log(name);
+                if (!curEventNames.has(name)) {
+                  eventNames.add(name);
+                }
               }
             }
           }
         }
-        app.subscribeToEvents(eventNames);
-        for (const name of eventNames) {
-          curEventNames.add(name);
-        }
+      }
+      app.subscribeToEvents(eventNames);
+      for (const name of eventNames) {
+        curEventNames.add(name);
       }
       compileStyle();
       app.recompileStyles();
-      app.sendAtRoot("newComponentsLoaded", [res]);
-      return res;
+      app.sendAtRoot("newComponentsLoaded", [results]);
+      return results;
     },
     loadAvailableComponents() {
       return examples;
@@ -114,6 +116,15 @@ const ComponentSelector = component({
       return this.setItems(items);
     },
   },
+  alter: {
+    matchesFilter(_key, item) {
+      const q = this.filterText.toLowerCase().trim();
+      if (q === "") return true;
+      return (
+        item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
+      );
+    },
+  },
   view: html`<section class="flex flex-col gap-3">
     <div
       class="alert alert-soft alert-info justify-center gap-3"
@@ -136,7 +147,7 @@ const ComponentSelector = component({
       </button>
     </div>
     <div class="list" @hide=".isItemsEmpty">
-      <x render-each=".items" as="listItem"></x>
+      <x render-each=".items" as="listItem" when="matchesFilter"></x>
     </div>
   </section>`,
 });
@@ -146,8 +157,12 @@ const Universal = component({
   fields: { value: ComponentSelector.make() },
   input: {
     onDrop(e, ctx) {
-      const file = e.dataTransfer?.files?.[0];
-      if (file) file.text().then((code) => ctx.request("registerModuleFromCode", [code]));
+      const files = e.dataTransfer?.files;
+      if (files?.length) {
+        Promise.all(Array.from(files, (file) => file.text())).then((codes) =>
+          ctx.request("registerModuleFromCode", [codes]),
+        );
+      }
       return this;
     },
   },
@@ -234,25 +249,29 @@ const Example = component({
   },
 });
 
-async function registerModuleFromCode(code, rootScope) {
-  const blob = new Blob([code], { type: "text/javascript" });
-  const url = URL.createObjectURL(blob);
-  try {
-    const mod = await import(url);
-    const components = mod.getComponents();
-    const examples = mod?.getExamples() ?? [];
-    const scope = rootScope.enter();
-    scope.registerComponents(components);
-    if (mod.getMacros) {
-      scope.registerMacros(mod.getMacros());
+async function registerModuleFromCode(codes, rootScope) {
+  const results = [];
+  for (const code of codes) {
+    const blob = new Blob([code], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    try {
+      const mod = await import(url);
+      const components = mod.getComponents();
+      const examples = mod?.getExamples() ?? [];
+      const scope = rootScope.enter();
+      scope.registerComponents(components);
+      if (mod.getMacros) {
+        scope.registerMacros(mod.getMacros());
+      }
+      if (mod.getRequestHandlers) {
+        scope.registerRequestHandlers(mod.getRequestHandlers());
+      }
+      results.push({ mod, components, examples, scope });
+    } finally {
+      URL.revokeObjectURL(url);
     }
-    if (mod.getRequestHandlers) {
-      scope.registerRequestHandlers(mod.getRequestHandlers());
-    }
-    return { mod, components, examples, scope };
-  } finally {
-    URL.revokeObjectURL(url);
   }
+  return results;
 }
 
 function slugify(str) {
