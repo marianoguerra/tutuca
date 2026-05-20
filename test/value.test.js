@@ -7,15 +7,15 @@ import {
   MethodVal,
   PredicateVal,
   StrTplVal,
-  tokenizeArgs,
+  tokenizeValue,
   vp,
 } from "../src/value.js";
 
 // Minimal parse context: predicate parsing reports issues via px.onParseIssue.
 const px = { frame: {}, onParseIssue() {} };
 
-test("parse empty string", () => {
-  const r = vp.parseText("flex flex-col gap-3 {.foo}");
+test("string template with interpolation", () => {
+  const r = vp.parseText("$'flex flex-col gap-3 {.foo}'");
   expect(r).toBeInstanceOf(StrTplVal);
   expect(r.vals.length).toBe(2);
   expect(r.vals[0].val).toBe("flex flex-col gap-3 ");
@@ -23,22 +23,22 @@ test("parse empty string", () => {
 });
 
 test("if all constants then turn into a const", () => {
-  const r = vp.parseText("flex flex-col gap-3 {'hi'}");
+  const r = vp.parseText("$'flex flex-col gap-3 {\\'hi\\'}'");
   expect(r).toBeInstanceOf(ConstVal);
   expect(r.val).toBe("flex flex-col gap-3 hi");
 });
 
-describe("string template quote requirements", () => {
-  // parseText and parseMacroAttr accept the string-template kind, so templates
-  // work there. parseBool, parseSequence and parseComponent do not.
+describe("string template syntax", () => {
+  // parseText and parseMacroAttr accept the string-template kind, so `$'…'`
+  // templates work there. parseBool, parseSequence and parseComponent do not.
 
-  describe("no quotes needed: value contains {…} interpolation", () => {
-    // The presence of { triggers VAL_SUB_TYPE_STRING_TEMPLATE in getValSubType.
-    // StrTplVal.parse splits on {…} groups: text between them becomes ConstVal,
-    // expressions inside braces are parsed via parseText.
+  describe("$'…' templates with {…} interpolation", () => {
+    // A `$'…'` token is parsed by StrTplVal.parse: it splits the interior on
+    // {…} groups — text between them becomes ConstVal, expressions inside
+    // braces are parsed via parseText.
 
     test("text with field interpolation", () => {
-      const r = vp.parseText("flex gap-3 {.foo}");
+      const r = vp.parseText("$'flex gap-3 {.foo}'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals[0].val).toBe("flex gap-3 ");
       expect(r.vals[1].name).toBe("foo");
@@ -47,7 +47,7 @@ describe("string template quote requirements", () => {
     test("multiple interpolations", () => {
       // Empty ConstVal bookends are trimmed by StrTplVal.parse, so the
       // leading/trailing "" segments produced by the split don't appear in vals.
-      const r = vp.parseText("{.a} between {.b}");
+      const r = vp.parseText("$'{.a} between {.b}'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(3);
       expect(r.vals[0].name).toBe("a");
@@ -58,14 +58,14 @@ describe("string template quote requirements", () => {
     test("only interpolation, no surrounding text", () => {
       // After trimming, a single-placeholder template collapses to one entry —
       // this is the shape the REDUNDANT_TEMPLATE_STRING lint rule keys off.
-      const r = vp.parseText("{.foo}");
+      const r = vp.parseText("$'{.foo}'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(1);
       expect(r.vals[0].name).toBe("foo");
     });
 
     test("whitespace bookends are preserved (non-empty ConstVal)", () => {
-      const r = vp.parseText(" {.foo} ");
+      const r = vp.parseText("$' {.foo} '");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(3);
       expect(r.vals[0].val).toBe(" ");
@@ -79,24 +79,21 @@ describe("string template quote requirements", () => {
     // folds the whole thing into a single ConstVal (join of all parts).
 
     test("quoted constant inside braces", () => {
-      const r = vp.parseText("flex {'gap-3'}");
+      const r = vp.parseText("$'flex {\\'gap-3\\'}'");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
 
     test("numeric constant inside braces", () => {
-      const r = vp.parseText("width: {42}px");
+      const r = vp.parseText("$'width: {42}px'");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("width: 42px");
     });
   });
 
-  describe("single quotes required: constant string without {…}", () => {
-    // Without braces, getValSubType returns -1 (no match) and the parser
-    // falls through to the charCode switch. A plain multi-word string like
-    // "flex gap-3" doesn't start with a recognized prefix (./$/@/*/etc.)
-    // and isn't a valid identifier, so it returns null.
-    // Single quotes (charCode 39) tell the parser to treat it as ConstVal.
+  describe("plain '…' string literals", () => {
+    // A bare multi-word run like `flex gap-3` is two tokens, not a value, so
+    // it returns null. A single-quoted `'…'` literal carries spaces verbatim.
 
     test("quoted constant string with spaces", () => {
       const r = vp.parseText("'flex gap-3'");
@@ -110,19 +107,23 @@ describe("string template quote requirements", () => {
       expect(r.val).toBe("badge");
     });
 
-    test("unquoted multi-word string without braces returns null", () => {
-      // No prefix, not a valid identifier, no braces → null
+    test("unquoted multi-word string returns null", () => {
       const r = vp.parseText("flex gap-3");
       expect(r).toBeNull();
+    });
+
+    test("legacy unquoted {…} template returns null", () => {
+      expect(vp.parseText("flex {.foo}", px)).toBeNull();
+      expect(vp.parseText("{.foo}", px)).toBeNull();
     });
   });
 
   describe("string-template kind absent: parse methods that reject templates", () => {
     // parseBool, parseSequence and parseComponent groups omit the
-    // string-template kind, so template values return null in those contexts.
+    // string-template kind, so `$'…'` values return null in those contexts.
 
     test("parseBool rejects string template", () => {
-      const r = vp.parseBool("flex {.foo}", px);
+      const r = vp.parseBool("$'flex {.foo}'", px);
       expect(r).toBeNull();
     });
 
@@ -132,26 +133,26 @@ describe("string template quote requirements", () => {
     });
 
     test("parseSequence rejects string template", () => {
-      const r = vp.parseSequence("items {.foo}");
+      const r = vp.parseSequence("$'items {.foo}'", px);
       expect(r).toBeNull();
     });
 
     test("parseComponent rejects string template", () => {
-      const r = vp.parseComponent("child {.foo}");
+      const r = vp.parseComponent("$'child {.foo}'", px);
       expect(r).toBeNull();
     });
   });
 
   describe("parseMacroAttr accepts the string-template kind (macro dynamic attrs)", () => {
     test("string template works in parseMacroAttr", () => {
-      const r = vp.parseMacroAttr("flex {.foo}");
+      const r = vp.parseMacroAttr("$'flex {.foo}'", px);
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals[0].val).toBe("flex ");
       expect(r.vals[1].name).toBe("foo");
     });
 
     test("quoted constant works in parseMacroAttr", () => {
-      const r = vp.parseMacroAttr("'flex gap-3'");
+      const r = vp.parseMacroAttr("'flex gap-3'", px);
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
@@ -159,8 +160,8 @@ describe("string template quote requirements", () => {
 });
 
 describe("boolean predicates in parseBool", () => {
-  // A space-less value still parses as a plain G_BOOL value.
-  test("space-less value is not a predicate", () => {
+  // A single-token value still parses as a plain G_BOOL value.
+  test("single-token value is not a predicate", () => {
     const r = vp.parseBool(".items", px);
     expect(r).not.toBeInstanceOf(PredicateVal);
     expect(r.name).toBe("items");
@@ -185,7 +186,7 @@ describe("boolean predicates in parseBool", () => {
   });
 
   test("bad predicate arg returns null", () => {
-    // `Foo` is a type name — not allowed in the G_BOOL group used for args.
+    // `Foo` is a type name — not allowed in the G_PRED_ARG group used for args.
     expect(vp.parseBool("empty? Foo", px)).toBeNull();
   });
 
@@ -220,6 +221,12 @@ describe("$ method prefix vs . field prefix", () => {
     expect(r.toString()).toBe("$fullName");
   });
 
+  test("$' is a string template, not a method", () => {
+    const r = vp.parseText("$'hi {.name}'");
+    expect(r).toBeInstanceOf(StrTplVal);
+    expect(vp.parseText("$name")).toBeInstanceOf(MethodVal);
+  });
+
   test("$ works as a conditional-slot value", () => {
     expect(vp.parseBool("$canSubmit", px)).toBeInstanceOf(MethodVal);
   });
@@ -251,8 +258,8 @@ describe("$ method prefix vs . field prefix", () => {
   });
 
   test("$ is a method handler, a bare name is an input handler", () => {
-    expect(vp.parseInputHandler("$inc", px)).toBeInstanceOf(MethodVal);
-    expect(vp.parseInputHandler("dec", px)).toBeInstanceOf(HandlerNameVal);
+    expect(vp.parseInputHandler("$inc", px).handlerVal).toBeInstanceOf(MethodVal);
+    expect(vp.parseInputHandler("dec", px).handlerVal).toBeInstanceOf(HandlerNameVal);
   });
 
   test(". cannot be used in handler position", () => {
@@ -267,29 +274,29 @@ describe("$ method prefix vs . field prefix", () => {
   });
 });
 
-describe("tokenizeArgs", () => {
+describe("tokenizeValue", () => {
   test("splits on whitespace", () => {
-    expect(tokenizeArgs("equals? .view detail")).toEqual(["equals?", ".view", "detail"]);
+    expect(tokenizeValue("equals? .view detail")).toEqual(["equals?", ".view", "detail"]);
   });
 
   test("keeps a quoted literal with spaces as one token", () => {
-    expect(tokenizeArgs("equals? .name 'John Doe'")).toEqual([
-      "equals?",
-      ".name",
-      "'John Doe'",
-    ]);
+    expect(tokenizeValue("equals? .name 'John Doe'")).toEqual(["equals?", ".name", "'John Doe'"]);
   });
 
   test("keeps an escaped quote inside the token", () => {
-    expect(tokenizeArgs("equals? .name 'it\\'s here'")).toEqual([
+    expect(tokenizeValue("equals? .name 'it\\'s here'")).toEqual([
       "equals?",
       ".name",
       "'it\\'s here'",
     ]);
   });
 
+  test("keeps a $'…' template as a single token", () => {
+    expect(tokenizeValue("$'a {.b} c' .d")).toEqual(["$'a {.b} c'", ".d"]);
+  });
+
   test("empty string yields no tokens", () => {
-    expect(tokenizeArgs("")).toEqual([]);
+    expect(tokenizeValue("")).toEqual([]);
   });
 });
 
@@ -328,9 +335,7 @@ describe("equals? predicate with string literals", () => {
   });
 
   test("toString round-trips a quoted literal", () => {
-    expect(vp.parseBool("equals? .view 'detail'", px).toString()).toBe(
-      "equals? .view 'detail'",
-    );
+    expect(vp.parseBool("equals? .view 'detail'", px).toString()).toBe("equals? .view 'detail'");
   });
 
   // String literals are still rejected in a plain conditional slot (G_BOOL):

@@ -372,7 +372,7 @@
           attribute. For example, <code>:value=".str"</code> binds the
           <code>str</code> field to the input's <code>value</code> attribute.
           Template interpolation works in bindings too:
-          <code>:title="Content is {.str}"</code> builds a dynamic title string.
+          <code>:title="$'Content is {.str}'"</code> builds a dynamic title string.
         </p>
         <p>
           When the user types,
@@ -588,10 +588,10 @@
             <code>:label="'Sale'"</code>).
           </li>
           <li>
-            Bare with interpolation: <code>:class="btn {.kind}"</code> &mdash;
+            String template: <code>:class="$'btn {.kind}'"</code> &mdash;
             works in <code>:attr=</code>, <code>@text</code>, macro dynamic
-            attrs, anywhere a string template is allowed. The presence of
-            <code>{...}</code> turns the whole value into a template.
+            attrs, anywhere a string template is allowed. The <code>$'…'</code>
+            prefix marks a template; <code>{...}</code> holds interpolations.
           </li>
           <li>
             Bare without quotes or braces:

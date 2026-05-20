@@ -2,7 +2,7 @@ import { component, html, macro } from "tutuca";
 
 const badge = macro(
   { label: "'New'", kind: "'info'" },
-  html`<span :class="badge badge-{^kind}" @text="^label"></span>`,
+  html`<span :class="$'badge badge-{^kind}'" @text="^label"></span>`,
 );
 
 const MacroParams = component({

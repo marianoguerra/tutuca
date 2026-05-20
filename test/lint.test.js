@@ -317,7 +317,7 @@ test("warn on undefined field attr (string template)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { name: "" },
-    view: html`<p :title="title is {.title}">hi</p>`,
+    view: html`<p :title="$'title is {.title}'">hi</p>`,
   });
   expect(lx.reports.length).toBe(1);
   {
@@ -371,7 +371,7 @@ test("warn on redundant single-placeholder template in :class (FieldVal)", () =>
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { foo: "" },
-    view: html`<p :class="{.foo}">x</p>`,
+    view: html`<p :class="$'{.foo}'">x</p>`,
   });
   const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
   expect(matched.length).toBe(1);
@@ -379,14 +379,14 @@ test("warn on redundant single-placeholder template in :class (FieldVal)", () =>
   expect(r.info.simpler).toBe(".foo");
   expect(r.info.originAttr).toBe(":class");
   expect(r.level).toBe("warn");
-  expect(r.suggestion).toEqual({ kind: "rewrite", from: "{.foo}", to: ".foo" });
+  expect(r.suggestion).toEqual({ kind: "rewrite", from: "$'{.foo}'", to: ".foo" });
 });
 
 test("warn on redundant template in :title", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { count: 0 },
-    view: html`<p :title="{.count}">x</p>`,
+    view: html`<p :title="$'{.count}'">x</p>`,
   });
   const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
   expect(matched.length).toBe(1);
@@ -398,7 +398,7 @@ test("warn on redundant template in @text directive", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { msg: "" },
-    view: html`<p @text="{.msg}">x</p>`,
+    view: html`<p @text="$'{.msg}'">x</p>`,
   });
   const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
   expect(matched.length).toBe(1);
@@ -409,7 +409,7 @@ test("no redundant-template warning when surrounding text is present", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { name: "" },
-    view: html`<p :title="hello {.name}">x</p>`,
+    view: html`<p :title="$'hello {.name}'">x</p>`,
   });
   const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
   expect(matched.length).toBe(0);
@@ -419,7 +419,7 @@ test("no redundant-template warning when multiple placeholders concatenate", () 
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { a: "", b: "" },
-    view: html`<p :class="{.a}{.b}">x</p>`,
+    view: html`<p :class="$'{.a}{.b}'">x</p>`,
   });
   const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
   expect(matched.length).toBe(0);
@@ -438,7 +438,7 @@ test("no redundant-template warning when bookends are whitespace, not empty", ()
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { foo: "" },
-    view: html`<p :class=" {.foo} ">x</p>`,
+    view: html`<p :class="$' {.foo} '">x</p>`,
   });
   const matched = lx.reports.filter((r) => r.id === REDUNDANT_TEMPLATE_STRING);
   expect(matched.length).toBe(0);
@@ -451,7 +451,7 @@ test("redundant-template warning still recurses into the inner expression", () =
   const [lx] = defAndCheck({
     name: "Comp",
     fields: {},
-    view: html`<p :class="{.unknownField}">x</p>`,
+    view: html`<p :class="$'{.unknownField}'">x</p>`,
   });
   const ids = lx.reports.map((r) => r.id);
   expect(ids).toContain(REDUNDANT_TEMPLATE_STRING);

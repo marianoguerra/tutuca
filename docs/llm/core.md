@@ -84,8 +84,8 @@ and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
 - **Multiple `@if.<attr>` on one element.** Every `@then`/`@else` after
   the first must name the attr (`@then.title`, `@else.title`) — HTML
   disallows duplicate attrs, so the second `@then=` is dropped silently.
-- **Bare unquoted multi-word strings outside `{…}` return `null`.** Either
-  quote (`'flex gap-3'`) or use template form (`flex gap-3 {.color}`).
+- **Bare unquoted multi-word strings return `null`.** Either quote
+  (`'flex gap-3'`) or use a `$'…'` string template (`$'flex gap-3 {.color}'`).
 - **`<x>` is stripped inside `<select>` / `<table>` / `<tr>`.** Use the
   `@x` pseudo-x trick (see [advanced.md](./advanced.md)).
 - **`receive.init` is a convention, not a lifecycle hook.** Nothing calls it
@@ -218,7 +218,7 @@ literal with spaces (escape an interior quote as `\'`).
 | `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
 | `name`   | bare identifier — meaning depends on slot | `dec`, `value`        |
 | `'str'`  | string literal                            | `'btn btn-success'`   |
-| `{expr}` | interpolation in attr text                | `Hi {.name}`          |
+| `$'…'`   | string template (`{expr}` interpolation)  | `$'Hi {.name}'`       |
 | `.s[.k]` | sequence/map item access                  | `.byKey[.currentKey]` |
 | `pred? .x` | boolean predicate in a conditional slot | `empty? .items`, `equals? .view 'detail'` |
 
@@ -245,25 +245,26 @@ the template — it's always passed.
 
 ## Quoting & String Literals
 
-Tutuca's expression parser is context-sensitive. `:attr=` and
-interpolation `{...}` accept string templates; `@if`, `@each`,
-`<x render=>` do not.
+A string template is written `$'…'` — a single-quoted run with a leading
+`$`, holding `{expr}` interpolations. `:attr=` and other text slots accept
+`$'…'` templates; `@if`, `@each`, `<x render=>` do not.
 
-| Form                | Example                | Where it works                                   |
-| ------------------- | ---------------------- | ------------------------------------------------ |
-| `'string'`          | `@then="'btn ok'"`     | anywhere a value is allowed                      |
-| Bare with `{...}`   | `:class="btn {.kind}"` | `:attr=`, `@text`, `@title`, macro dynamic attrs |
-| Bare without quotes | `flex gap-3`           | **never** — returns `null`                       |
-| Bare identifier     | `dec`, `value`         | name slots only (handler/arg, not as a value)    |
+| Form                | Example                   | Where it works                                   |
+| ------------------- | ------------------------- | ------------------------------------------------ |
+| `'string'`          | `@then="'btn ok'"`        | anywhere a value is allowed                      |
+| `$'…'` template     | `:class="$'btn {.kind}'"` | `:attr=`, `@text`, `@title`, macro dynamic attrs |
+| Bare without quotes | `flex gap-3`              | **never** — returns `null`                       |
+| Bare identifier     | `dec`, `value`            | name slots only (handler/arg, not as a value)    |
 
 ```html
 <!-- ✅ -->
 <p :class="'flex gap-3'">x</p>
-<p :class="flex {.color}">x</p>            <!-- {…} enables template -->
-<p :class="static-classes {''}">x</p>      <!-- folds to a const -->
+<p :class="$'flex {.color}'">x</p>         <!-- $'…' string template -->
+<p :class="$'static-classes {\'\'}'">x</p> <!-- folds to a const -->
 
 <!-- ❌ -->
-<p :class="flex gap-3">x</p>               <!-- null: no quotes, no braces -->
+<p :class="flex gap-3">x</p>               <!-- null: no quotes -->
+<p :class="flex {.color}">x</p>            <!-- null: unquoted {…} is not a template -->
 <x render="'foo bar'"></x>                 <!-- @render rejects string templates -->
 ```
 
@@ -353,7 +354,7 @@ methods: {
 
 ```html
 <button @show="$canSubmit" :class="$buttonClass">Save</button>
-<p :title="Hello, {$fullName}" @text="$fullName"></p>
+<p :title="$'Hello, {$fullName}'" @text="$fullName"></p>
 ```
 
 The boolean predicates (`empty?`, `truthy?`, `falsy?`, `null?`,
@@ -411,8 +412,8 @@ statics: {
 
 ```html
 <input :value=".str" @on.input="$setStr value" />
-<a :href=".url" :title="Hi {.name}">link</a>          <!-- string template -->
-<button class="btn" :class="btn {.color}">x</button>
+<a :href=".url" :title="$'Hi {.name}'">link</a>       <!-- string template -->
+<button class="btn" :class="$'btn {.color}'">x</button>
 ```
 
 Plain attrs are static. `:attr="..."` is a dynamic expression. Boolean
@@ -813,7 +814,7 @@ import { macro, html } from "tutuca";
 
 const badge = macro(
   { label: "'New'", kind: "'info'" },     // defaults are *expressions*
-  html`<span :class="badge badge-{^kind}" @text="^label"></span>`,
+  html`<span :class="$'badge badge-{^kind}'" @text="^label"></span>`,
 );
 
 export function getMacros() {

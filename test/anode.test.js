@@ -330,12 +330,12 @@ test("parse wrapper macro attrs", () => {
 });
 
 test("dyn attr with constant string template turns constant", () => {
-  const [r] = parse(`<p :class="flex {'gap-3'}"></p>`);
+  const [r] = parse(`<p :class="$'flex {\\'gap-3\\'}'"></p>`);
   expect(r.attrs).toBeInstanceOf(ConstAttrs);
 });
 
 test("dyn attr with non constant string template turns dynamic", () => {
-  const [r] = parse(`<p :class="flex {.foo}"></p>`);
+  const [r] = parse(`<p :class="$'flex {.foo}'"></p>`);
   expect(r.attrs).toBeInstanceOf(DynAttrs);
 });
 

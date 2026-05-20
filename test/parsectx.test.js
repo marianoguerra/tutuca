@@ -10,14 +10,14 @@ function parse(html) {
 }
 
 test("collects literal class names from string template", () => {
-  const [_r, ctx] = parse(`<div :class="foo bar type-{.type}"></div>`);
+  const [_r, ctx] = parse(`<div :class="$'foo bar type-{.type}'"></div>`);
   expect(ctx.classes.has("foo")).toBe(true);
   expect(ctx.classes.has("bar")).toBe(true);
 });
 
 test("collects classes from string templates in both @then and @else", () => {
   const [_r, ctx] = parse(
-    `<p @if.class=".isOpen" @then="head open type-{.type}" @else="head closed type-{.type}"></p>`,
+    `<p @if.class=".isOpen" @then="$'head open type-{.type}'" @else="$'head closed type-{.type}'"></p>`,
   );
   expect(ctx.classes.has("head")).toBe(true);
   expect(ctx.classes.has("open")).toBe(true);
@@ -27,7 +27,7 @@ test("collects classes from string templates in both @then and @else", () => {
 
 test("collects classes from string template in @then and literal @else", () => {
   const [_r, ctx] = parse(
-    `<p @if.class=".isOpen" @then="head open type-{.type}" @else="'head closed'"></p>`,
+    `<p @if.class=".isOpen" @then="$'head open type-{.type}'" @else="'head closed'"></p>`,
   );
   expect(ctx.classes.has("head")).toBe(true);
   expect(ctx.classes.has("open")).toBe(true);
@@ -37,7 +37,7 @@ test("collects classes from string template in @then and literal @else", () => {
 
 test("collects classes from literal @then and string template in @else", () => {
   const [_r, ctx] = parse(
-    `<p @if.class=".isOpen" @then="'head open'" @else="head closed type-{.type}"></p>`,
+    `<p @if.class=".isOpen" @then="'head open'" @else="$'head closed type-{.type}'"></p>`,
   );
   expect(ctx.classes.has("head")).toBe(true);
   expect(ctx.classes.has("open")).toBe(true);

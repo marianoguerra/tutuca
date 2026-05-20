@@ -119,8 +119,8 @@ const LintDemo = component({
 
     <!-- REDUNDANT_TEMPLATE_STRING: a single {expr} with no surrounding text
          is just the expression — drop the braces. -->
-    <p :title="{.count}">redundant template in :title</p>
-    <p :class="{.kind}">redundant template in :class</p>
+    <p :title="$'{.count}'">redundant template in :title</p>
+    <p :class="$'{.kind}'">redundant template in :class</p>
 
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">

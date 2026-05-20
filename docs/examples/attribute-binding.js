@@ -13,7 +13,7 @@ export const AttributeBinding = component({
     <input
       :value=".str"
       @on.input="$setStr value"
-      :title="Content is {.str}"
+      :title="$'Content is {.str}'"
       class="input"
     />
     <input

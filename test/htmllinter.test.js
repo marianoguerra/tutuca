@@ -643,7 +643,7 @@ const LLM_DOC_FIXTURES = [
   // core.txt — dynamic bindings (consumer reads `*name` value)
   {
     label: "llm/core.md: dynamic bindings consumer",
-    html: `<p :style="color: {*color}"></p>`,
+    html: `<p :style="$'color: {*color}'"></p>`,
   },
   // core.txt — emoji-picker custom element with hyphenated CustomEvent
   {
@@ -663,7 +663,7 @@ const LLM_DOC_FIXTURES = [
   // core.txt — :class with interpolation
   {
     label: "llm/core.md: :class string template",
-    html: `<button class="btn" :class="btn {.color}">x</button>`,
+    html: `<button class="btn" :class="$'btn {.color}'">x</button>`,
   },
   // core.txt — bracket sequence/map item access
   {

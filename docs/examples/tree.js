@@ -51,8 +51,8 @@ export const TreeItem = component({
   view: html`<secction>
     <p
       @if.class=".isOpen"
-      @then="head open type-{.type}"
-      @else="head closed type-{.type}"
+      @then="$'head open type-{.type}'"
+      @else="$'head closed type-{.type}'"
       @text=".label"
       @on.click="onItemClick"
     ></p>

@@ -215,7 +215,7 @@ export const Example = component({
   view: html`<div class="card card-border bg-base-100 shadow-md">
     <div class="card-body">
       <h2 class="card-title flex justify-between">
-        <a :href="#example-{.id}" :id="example-{.id}" @text=".title"></a>
+        <a :href="$'#example-{.id}'" :id="$'example-{.id}'" @text=".title"></a>
         <div class="flex gap-2">
           <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected ctx">
             focus

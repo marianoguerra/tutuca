@@ -1,4 +1,5 @@
 const UNSUPPORTED_EXPR_LABEL = {
+  "legacy-template": "string template",
   ternary: "ternary expression",
   comparison: "comparison",
   logical: "logical expression",

@@ -1,18 +1,23 @@
 import { is } from "../deps/immutable.js";
 import { FieldStep, SeqAccessStep } from "./path.js";
 
-const VALID_VAL_ID_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
+// An identifier: a letter then letters/digits/underscores, with an optional
+// trailing `?`. The `?` lets predicate names (`empty?`, `equals?`) parse as
+// ordinary `NameVal` tokens, so a predicate call is just a token sequence.
+const VALID_VAL_ID_RE = /^[a-zA-Z][a-zA-Z0-9_]*\??$/;
 const isValidValId = (name) => VALID_VAL_ID_RE.test(name);
 const VALID_FLOAT_RE = /^-?[0-9]+(\.[0-9]+)?$/;
 const STR_TPL_SPLIT_RE = /(\{[^}]+\})/g; // Safe to share despite `g` flag: only used in split
 const mkVal = (name, Cls) => (isValidValId(name) ? new Cls(name) : null);
 
-// Argument tokenizer for predicate calls and event handlers: a single-quoted
-// run (escaped `\'` and `\\` kept inside the token via `\\.`) or a
-// whitespace-free run. Safe to share despite `g`: only used via String.match.
-const ARG_TOKEN_RE = /'(?:[^'\\]|\\.)*'|\S+/g;
-export const tokenizeArgs = (s) => s.match(ARG_TOKEN_RE) ?? [];
-// Within a `'...'` literal only the delimiter and the escape char are
+// The single value tokenizer: a `$'…'` template run, a plain `'…'` string
+// literal, or a whitespace-free run. Alternation order matters — the quoted
+// alternatives must precede `\S+` so it never swallows `$'foo` up to the next
+// space. Inside a quoted run `\\.` keeps escaped `\'`/`\\` in the token. Safe
+// to share despite the `g` flag: only used via String.match.
+const VAL_TOKEN_RE = /\$'(?:[^'\\]|\\.)*'|'(?:[^'\\]|\\.)*'|\S+/g;
+export const tokenizeValue = (s) => s.match(VAL_TOKEN_RE) ?? [];
+// Within a `'…'` literal only the delimiter and the escape char are
 // escapable; every other backslash stays literal.
 const unescapeStr = (s) => s.replace(/\\(['\\])/g, "$1");
 
@@ -26,7 +31,7 @@ const K_NAME = 32;
 const K_TYPE = 64;
 const K_REQUEST = 128;
 const K_SEQ = 256;
-const K_STR = 512; // plain `'...'` string literal (no `{…}` interpolation)
+const K_STR = 512; // plain `'…'` string literal (no `{…}` interpolation)
 const K_METHOD = 1024; // `$name` no-arg method call
 
 // Value groups, one per parsing context. Kept private: callers use the named
@@ -74,127 +79,194 @@ export class ValParser {
   const(v) {
     return new ConstVal(v);
   }
+  // Parse a single token into the richest `BaseVal` it can be, with no
+  // context/kind filtering — that is the validators' job. Returns null when
+  // the token is not a well-formed value.
+  parseToken(s, px) {
+    const c0 = s.charCodeAt(0);
+    // Quoted tokens first: their `[` `]` `{` `}` are literal content, so they
+    // must be handled before the bracket checks below.
+    if (c0 === 39)
+      // '…' string literal
+      return s.length >= 2 && s.charCodeAt(s.length - 1) === 39
+        ? new ConstVal(unescapeStr(s.slice(1, -1)), K_STR | K_STRTPL)
+        : null;
+    if (c0 === 36 && s.charCodeAt(1) === 39)
+      // $'…' string template
+      return s.length >= 3 && s.charCodeAt(s.length - 1) === 39
+        ? StrTplVal.parse(s.slice(2, -1), px)
+        : null;
+    // Sequence access `.seq[.key]` — checked before the prefix switch since
+    // the token starts with the `.` of its left-hand `FieldVal`.
+    if (s.indexOf("[") !== -1 || s.indexOf("]") !== -1) return this._parseSeqAccess(s, px);
+    // A bare `{…}` is a legacy unquoted template — no longer supported; it now
+    // fails to parse (use `$'…'`). The linter turns this into a hint.
+    if (s.indexOf("{") !== -1 || s.indexOf("}") !== -1) return null;
+    switch (c0) {
+      case 94: {
+        // ^name macro variable
+        const name = s.slice(1);
+        const newS = px.frame.macroVars?.[name];
+        if (newS !== undefined) {
+          const tokens = tokenizeValue(newS.trim());
+          return tokens.length === 1 ? this.parseToken(tokens[0], px) : null;
+        }
+        px.onParseIssue("bad-value", { role: "macro-var", name, value: s });
+        return null;
+      }
+      case 36: // $name method call (a `$'…'` template was handled above)
+        return mkVal(s.slice(1), MethodVal);
+      case 64: // @name bind
+        return mkVal(s.slice(1), BindVal);
+      case 42: // *name dynamic
+        return mkVal(s.slice(1), DynVal);
+      case 46: // .name field
+        return mkVal(s.slice(1), FieldVal);
+      case 33: // !name request
+        return mkVal(s.slice(1), RequestVal);
+    }
+    const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
+    if (Number.isFinite(num)) return new ConstVal(num);
+    if (s === "true" || s === "false") return new ConstVal(s === "true");
+    if (c0 >= 97 /* a */ && c0 <= 122 /* z */) return mkVal(s, NameVal);
+    if (c0 >= 65 /* A */ && c0 <= 90 /* Z */) return mkVal(s, TypeVal);
+    return null;
+  }
+  // `seq[key]`: exactly one `[`, a closing `]` as the last char, both sides
+  // plain `FieldVal`s. Anything else (nested/unbalanced brackets) is rejected.
+  _parseSeqAccess(s, px) {
+    const open = s.indexOf("[");
+    const close = s.indexOf("]");
+    if (open < 1 || close !== s.length - 1 || close < open || s.indexOf("[", open + 1) !== -1)
+      return null;
+    const left = this.parseToken(s.slice(0, open), px);
+    const right = this.parseToken(s.slice(open + 1, close), px);
+    return left instanceof FieldVal && right instanceof FieldVal
+      ? new SeqAccessVal(left, right)
+      : null;
+  }
+  // Parse `s` as a single value and accept it only if its kind is in `group`.
+  _parseSingle(s, px, group) {
+    const tokens = tokenizeValue(s.trim());
+    if (tokens.length !== 1) return null;
+    const val = this.parseToken(tokens[0], px);
+    return val !== null && kindOf(val) & group ? val : null;
+  }
   // Conditionals: @show, @hide, @if.<attr>, x-op show/hide, x-wrapper attrs.
-  // A space-less value is a plain G_BOOL value; an interior space means a
-  // predicate call like `empty? .items` (G_BOOL values never contain spaces).
+  // A single token is a plain G_BOOL value; multiple whitespace-separated
+  // tokens are a predicate call like `empty? .items`.
   parseBool(s, px) {
     const t = s.trim();
-    return t.indexOf(" ") === -1 ? this.parse(t, px, G_BOOL) : this._parsePredicate(t, px);
+    const tokens = tokenizeValue(t);
+    if (tokens.length !== 1)
+      return tokens.length === 0 ? null : this._parsePredicate(t, tokens, px);
+    const val = this.parseToken(tokens[0], px);
+    return val !== null && kindOf(val) & G_BOOL ? val : null;
   }
   // Text values: :attr, @text, <x text>, @then/@else, @push-view, @html.
   parseText(s, px) {
-    return this.parse(s, px, G_TEXT);
+    return this._parseSingle(s, px, G_TEXT);
   }
   // A single component to render: <x render>.
   parseComponent(s, px) {
-    return this.parse(s, px, G_COMPONENT);
+    return this._parseSingle(s, px, G_COMPONENT);
   }
   // A sequence to iterate: @each, <x render-each>.
   parseSequence(s, px) {
-    return this.parse(s, px, G_SEQUENCE);
+    return this._parseSingle(s, px, G_SEQUENCE);
   }
   // A plain field reference: component `dynamic:` field definitions.
   parseField(s, px) {
-    return this.parse(s, px, G_FIELD);
+    return this._parseSingle(s, px, G_FIELD);
   }
-  // Arguments passed to an event handler.
+  // A single argument passed to an event handler.
   parseHandlerArg(s, px) {
-    return this.parse(s, px, G_HANDLER_ARG);
+    return this._parseSingle(s, px, G_HANDLER_ARG);
   }
   // Pass-through values on a macro-call element (:attr on a macro).
   parseMacroAttr(s, px) {
-    return this.parse(s, px, G_ALL);
+    return this._parseSingle(s, px, G_ALL);
   }
-  // Handler reference for @on.<event>.
+  // Handler reference + args for @on.<event>. Returns `{handlerVal, args}` so
+  // `EventHandler.parse` is a thin wrapper, or null on a bad handler name.
   parseInputHandler(s, px) {
-    return this._parseHandler(s, px, "input");
+    return this._parseHandler(s, px, "input", true, true);
   }
-  // Handler reference for @when, @enrich-with/@scope, @loop-with.
+  // Handler reference for @when, @enrich-with/@scope, @loop-with. No args, and
+  // silent on failure — the directive caller reports the issue.
   parseAlterHandler(s, px) {
-    return this._parseHandler(s, px, "alter");
+    const r = this._parseHandler(s, px, "alter", false, false);
+    return r === null ? null : r.handlerVal;
   }
-  // `$name` -> a `MethodVal` (used via `evalAsHandler`, see below); a bare
-  // name -> a `HandlerNameVal`. No field syntax: a `.field` cannot be a
-  // handler. TODO: surface info if val is null.
-  _parseHandler(s, px, namespace) {
-    const val = this.parse(s, px, K_METHOD | K_NAME);
-    if (val === null) return null;
-    return val instanceof NameVal ? new HandlerNameVal(val.name, namespace) : val;
+  // `$name` -> a `MethodVal` (used via `evalAsHandler`); a bare name -> a
+  // `HandlerNameVal`. No field syntax: a `.field` cannot be a handler.
+  _parseHandler(s, px, namespace, allowArgs, report) {
+    const tokens = tokenizeValue(s.trim());
+    const headTok = tokens[0] ?? "";
+    const head = headTok === "" ? null : this.parseToken(headTok, px);
+    const hk = kindOf(head);
+    let handlerVal;
+    if (hk & K_METHOD) handlerVal = head;
+    else if (hk & K_NAME) handlerVal = new HandlerNameVal(head.name, namespace);
+    else {
+      if (report) px.onParseIssue("bad-value", { role: "handler-name", value: headTok });
+      return null;
+    }
+    if (!allowArgs) return tokens.length === 1 ? { handlerVal, args: [] } : null;
+    const args = new Array(tokens.length - 1);
+    for (let i = 1; i < tokens.length; i++) {
+      const val = this.parseToken(tokens[i], px);
+      if (val !== null && kindOf(val) & G_HANDLER_ARG) args[i - 1] = val;
+      else {
+        if (report) px.onParseIssue("bad-value", { role: "handler-arg", value: tokens[i] });
+        args[i - 1] = this.nullConstVal;
+      }
+    }
+    return { handlerVal, args };
   }
-  _parseSeqAccess(s, px, group) {
-    if (!(group & K_SEQ)) return null;
-    const openSquareBracketIndex = s.indexOf("[");
-    const left = this.parse(s.slice(0, openSquareBracketIndex), px, K_FIELD);
-    const right = this.parse(s.slice(openSquareBracketIndex + 1, -1), px, K_FIELD);
-    return left && right ? new SeqAccessVal(left, right) : null;
-  }
-  // Mirrors EventHandler.parse: tokenize on whitespace, head is the operation,
-  // tail are args parsed individually as G_BOOL values.
-  _parsePredicate(s, px) {
-    const [predName, ...rawArgs] = tokenizeArgs(s);
+  // Mirrors EventHandler.parse: head token is the predicate, tail are its
+  // args parsed individually as G_PRED_ARG values. `tokens.length > 1` here.
+  _parsePredicate(s, tokens, px) {
+    const predName = tokens[0];
     const pred = PREDICATES[predName];
     if (pred === undefined) {
       px.onParseIssue("bad-value", { role: "predicate", value: predName });
       return null;
     }
-    if (rawArgs.length !== pred.arity) {
+    const arity = tokens.length - 1;
+    if (arity !== pred.arity) {
       px.onParseIssue("bad-value", { role: "predicate-arity", value: s, predicate: predName });
       return null;
     }
-    const args = new Array(rawArgs.length);
-    for (let i = 0; i < rawArgs.length; i++) {
-      const val = this.parse(rawArgs[i], px, G_PRED_ARG);
-      if (val === null) {
-        px.onParseIssue("bad-value", { role: "predicate-arg", value: rawArgs[i] });
+    const args = new Array(arity);
+    for (let i = 0; i < arity; i++) {
+      const tok = tokens[i + 1];
+      const val = this.parseToken(tok, px);
+      if (val === null || !(kindOf(val) & G_PRED_ARG)) {
+        px.onParseIssue("bad-value", { role: "predicate-arg", value: tok });
         return null;
       }
       args[i] = val;
     }
     return new PredicateVal(pred, args);
   }
-  parse(s, px, group) {
-    switch (getValSubType(s)) {
-      case VAL_SUB_TYPE_STRING_TEMPLATE:
-        return group & K_STRTPL ? StrTplVal.parse(s, px) : null;
-      case VAL_SUB_TYPE_CONST_STRING:
-        return group & K_STRTPL ? new ConstVal(s) : null;
-      case VAL_SUB_TYPE_SEQ_ACCESS:
-        return this._parseSeqAccess(s, px, group);
-      case VAL_SUB_TYPE_INVALID:
-        return group & K_STRTPL ? StrTplVal.parse(s, px) : null;
-    }
-    const charCode = s.charCodeAt(0);
-    switch (charCode) {
-      case 94: {
-        const name = s.slice(1);
-        const newS = px.frame.macroVars?.[name];
-        if (newS !== undefined) return this.parse(newS, px, group);
-        px.onParseIssue("bad-value", { role: "macro-var", name, value: s });
-        return null;
-      }
-      case 39: // ''
-        return group & (K_STRTPL | K_STR) ? new ConstVal(unescapeStr(s.slice(1, -1))) : null;
-      case 64: // @
-        return group & K_BIND ? mkVal(s.slice(1), BindVal) : null;
-      case 42: // *
-        return group & K_DYN ? mkVal(s.slice(1), DynVal) : null;
-      case 46: // .
-        return group & K_FIELD ? mkVal(s.slice(1), FieldVal) : null;
-      case 36: // $
-        return group & K_METHOD ? mkVal(s.slice(1), MethodVal) : null;
-      case 33: // !
-        return group & K_REQUEST ? mkVal(s.slice(1), RequestVal) : null;
-    }
-    const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
-    if (Number.isFinite(num)) return group & K_CONST ? new ConstVal(num) : null;
-    else if (s === "true" || s === "false")
-      return group & K_CONST ? new ConstVal(s === "true") : null;
-    else if (charCode >= 97 /* a */ && charCode <= 122 /* z */)
-      return group & K_NAME ? mkVal(s, NameVal) : null;
-    else if (charCode >= 65 /* A */ && charCode <= 90 /* Z */)
-      return group & K_TYPE ? mkVal(s, TypeVal) : null;
-    return null;
-  }
+}
+// The kind bit of a parsed value, used by the validators to check it against
+// a context's group mask. `ConstVal` carries its own kind (a literal differs
+// from a number); the rest are fixed per class.
+function kindOf(val) {
+  if (val === null) return 0;
+  if (val instanceof ConstVal) return val.kind;
+  if (val instanceof StrTplVal) return K_STRTPL;
+  if (val instanceof SeqAccessVal) return K_SEQ;
+  if (val instanceof FieldVal) return K_FIELD;
+  if (val instanceof MethodVal) return K_METHOD;
+  if (val instanceof BindVal) return K_BIND;
+  if (val instanceof DynVal) return K_DYN;
+  if (val instanceof RequestVal) return K_REQUEST;
+  if (val instanceof TypeVal) return K_TYPE;
+  if (val instanceof NameVal) return K_NAME;
+  return 0;
 }
 export class BaseVal {
   render(_stack, _rx) {}
@@ -211,9 +283,10 @@ export class BaseVal {
   }
 }
 export class ConstVal extends BaseVal {
-  constructor(val) {
+  constructor(val, kind = K_CONST) {
     super();
     this.val = val;
+    this.kind = kind;
   }
   render(_stack, _rx) {
     return this.val;
@@ -256,18 +329,22 @@ export class StrTplVal extends VarVal {
     for (let i = 0; i < this.vals.length; i++) strs[i] = this.vals[i]?.eval(stack, "");
     return strs.join("");
   }
+  // `s` is the interior of a `$'…'` template (the text between `$'` and `'`).
+  // The interior is unescaped once (`\'`, `\\`) then split on `{…}` groups:
+  // text between them becomes a `ConstVal`, expressions inside braces are
+  // parsed via `parseText`.
   static parse(s, px) {
-    const parts = s.split(STR_TPL_SPLIT_RE);
+    const parts = unescapeStr(s).split(STR_TPL_SPLIT_RE);
     const vals = new Array(parts.length);
     let allConsts = true;
     for (let i = 0; i < parts.length; i++) {
-      const s = parts[i];
-      const isExpr = s[0] === "{" && s.at(-1) === "}";
-      const val = isExpr ? vp.parseText(s.slice(1, -1), px) : new ConstVal(s);
+      const part = parts[i];
+      const isExpr = part[0] === "{" && part.at(-1) === "}";
+      const val = isExpr ? vp.parseText(part.slice(1, -1), px) : new ConstVal(part);
       vals[i] = val;
       allConsts &&= val instanceof ConstVal;
     }
-    if (allConsts) return new ConstVal(vals.map((v) => v.val).join(""));
+    if (allConsts) return new ConstVal(vals.map((v) => v.val).join(""), K_STRTPL);
     let lo = 0;
     let hi = vals.length;
     while (lo < hi && vals[lo] instanceof ConstVal && vals[lo].val === "") lo++;
@@ -390,32 +467,5 @@ export class SeqAccessVal extends RenderVal {
   toString() {
     return `${this.seqVal}[${this.keyVal}]`;
   }
-}
-const VAL_SUB_TYPE_STRING_TEMPLATE = 0;
-const VAL_SUB_TYPE_SEQ_ACCESS = 1;
-const VAL_SUB_TYPE_INVALID = 2;
-const VAL_SUB_TYPE_CONST_STRING = 3;
-function getValSubType(s) {
-  let open = 0;
-  let close = 0;
-  for (let i = 0; i < s.length; i++) {
-    switch (s.charCodeAt(i)) {
-      case 91: // [
-        if (open > 0) return VAL_SUB_TYPE_INVALID;
-        open += 1;
-        break;
-      case 93: // ]
-        if (close > 0 || open === 0) return VAL_SUB_TYPE_INVALID;
-        close += 1;
-        break;
-      case 123: // {
-        return VAL_SUB_TYPE_STRING_TEMPLATE;
-      case 125: // } (may be an invalid template, treat it like a string constant)
-        return VAL_SUB_TYPE_CONST_STRING;
-    }
-  }
-  if (open > 0 || close > 0)
-    return open === 1 && close === 1 ? VAL_SUB_TYPE_SEQ_ACCESS : VAL_SUB_TYPE_INVALID;
-  return -1;
 }
 export const vp = new ValParser();

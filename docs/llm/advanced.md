@@ -58,7 +58,7 @@ const Theme = component({
 });
 const Child = component({
   dynamic: { color: { for: "Theme.color", default: "'gray'" } },
-  view: html`<p :style="color: {*color}"></p>`,
+  view: html`<p :style="$'color: {*color}'"></p>`,
 });
 ```
 

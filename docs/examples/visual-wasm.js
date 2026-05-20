@@ -46,7 +46,7 @@ function instrImmInt(name, label, parse) {
       <input
         class="input px-1 py-0 m-0 h-auto input-ghost font-mono text-blue-400"
         :value=".value"
-        :style="width: {$getInputWidth}; outline: none"
+        :style="$'width: {$getInputWidth}; outline: none'"
         @on.input="$setFromRawValue value"
       />
     </div>`,

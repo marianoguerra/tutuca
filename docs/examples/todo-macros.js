@@ -82,14 +82,14 @@ const btnAction = macro(
 
 const hbox = macro(
   { class: "''" },
-  html`<div :class="flex gap-3 items-center {^class}">
+  html`<div :class="$'flex gap-3 items-center {^class}'">
     <x:slot></x:slot>
   </div>`,
 );
 
 const vbox = macro(
   { class: "''" },
-  html`<div :class="flex flex-col gap-3 {^class}">
+  html`<div :class="$'flex flex-col gap-3 {^class}'">
     <x:slot name="_"></x:slot>
   </div>`,
 );

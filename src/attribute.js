@@ -1,4 +1,4 @@
-import { ConstVal, tokenizeArgs, vp } from "./value.js";
+import { ConstVal, vp } from "./value.js";
 
 export class Attributes {
   constructor(items) {
@@ -264,24 +264,8 @@ export class EventHandler {
     return [this.handlerVal.evalAsHandler(stack), argValues];
   }
   static parse(s, px) {
-    const [handlerName = "", ...rawArgs] = tokenizeArgs(s.trim());
-    const handlerVal = vp.parseInputHandler(handlerName, px);
-    if (handlerVal === null) {
-      const info = { role: "handler-name", value: handlerName };
-      px.onParseIssue("bad-value", info);
-      return null;
-    }
-    const args = new Array(rawArgs.length);
-    for (let i = 0; i < rawArgs.length; i++) {
-      const val = vp.parseHandlerArg(rawArgs[i], px);
-      if (val !== null) args[i] = val;
-      else {
-        const info = { role: "handler-arg", value: rawArgs[i] };
-        px.onParseIssue("bad-value", info);
-        args[i] = vp.nullConstVal;
-      }
-    }
-    return new EventHandler(handlerVal, args);
+    const r = vp.parseInputHandler(s, px);
+    return r === null ? null : new EventHandler(r.handlerVal, r.args);
   }
 }
 export class RequestHandler {

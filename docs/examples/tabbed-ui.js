@@ -60,8 +60,7 @@ export function getRoot() {
 export function getExamples() {
   return {
     title: "Tabbed UI",
-    description:
-      "Switch tabs with the equals? predicate, @show and @if.class",
+    description: "Switch tabs with the equals? predicate, @show and @if.class",
     items: [
       {
         title: "Overview",
