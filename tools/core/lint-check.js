@@ -40,6 +40,8 @@ const KNOWN_DIRECTIVE_NAMES = new Set([
 
 export const ALT_HANDLER_NOT_DEFINED = "ALT_HANDLER_NOT_DEFINED";
 export const ALT_HANDLER_NOT_REFERENCED = "ALT_HANDLER_NOT_REFERENCED";
+export const DYN_VAL_NOT_DEFINED = "DYN_VAL_NOT_DEFINED";
+export const DYN_ALIAS_NOT_REFERENCED = "DYN_ALIAS_NOT_REFERENCED";
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
 export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
 export const UNKNOWN_HANDLER_ARG_NAME = "UNKNOWN_HANDLER_ARG_NAME";
@@ -163,22 +165,26 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
     checkUnknownSpecKeys(lx, Comp, wellKnownExtras);
     const referencedAlters = new Set();
     const referencedInputs = new Set();
+    const referencedDynamics = new Set();
     checkEventHandlersHaveImpls(lx, Comp, referencedInputs);
-    checkConsistentAttrs(lx, Comp, referencedAlters);
+    checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics);
     for (const name in Comp.views) {
-      lx.push({ viewName: name }, () => checkView(lx, Comp.views[name], Comp, referencedAlters));
+      lx.push({ viewName: name }, () =>
+        checkView(lx, Comp.views[name], Comp, referencedAlters, referencedDynamics),
+      );
     }
     checkUnreferencedAlterHandlers(lx, Comp, referencedAlters);
     checkUnreferencedInputHandlers(lx, Comp, referencedInputs);
+    checkUnreferencedDynamics(lx, Comp, referencedDynamics);
     return lx;
   });
 }
 
-function checkView(lx, view, Comp, referencedAlters) {
+function checkView(lx, view, Comp, referencedAlters, referencedDynamics) {
   checkParseIssues(lx, view);
   checkRenderItInLoop(lx, view);
   checkEventModifiers(lx, view);
-  checkKnownHandlerNames(lx, view, Comp, referencedAlters);
+  checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedDynamics);
   checkMacroCallArgs(lx, view, Comp);
   checkHtmlStructure(lx, view);
 }
@@ -350,10 +356,8 @@ function isKnownHandlerName(name) {
   return KNOWN_HANDLER_NAMES.has(name);
 }
 
-function checkKnownHandlerNames(lx, view, Comp, referencedAlters) {
-  const { scope, alter, Class } = Comp;
-  const { prototype: proto } = Class;
-  const { fields } = Class.getMetaClass();
+function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedDynamics) {
+  const env = mkAttrValEnv(Comp, referencedAlters, referencedDynamics);
   for (const event of view.ctx.events) {
     for (const handler of event.handlers) {
       const { args, handlerVal } = handler.handlerCall;
@@ -365,13 +369,19 @@ function checkKnownHandlerNames(lx, view, Comp, referencedAlters) {
         originAttr: `@on.${eventName}`,
       };
       for (let i = 0; i < args.length; i++) {
-        checkConsistentAttrVal(lx, args[i], fields, proto, scope, alter, referencedAlters, false, {
-          ...errCtx,
-          argIndex: i,
-        });
+        checkConsistentAttrVal(lx, args[i], env, false, { ...errCtx, argIndex: i });
       }
     }
   }
+}
+
+// Bundles the per-component context threaded through checkConsistentAttrVal: the
+// recursive value walk passes this object through unchanged.
+function mkAttrValEnv(Comp, referencedAlters, referencedDynamics) {
+  const { scope, alter, dynamic, Class } = Comp;
+  const { prototype: proto } = Class;
+  const { fields } = Class.getMetaClass();
+  return { fields, proto, scope, alter, referencedAlters, dynamicMap: dynamic, referencedDynamics };
 }
 
 function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
@@ -433,17 +443,8 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
   }
 }
 
-function checkConsistentAttrVal(
-  lx,
-  val,
-  fields,
-  proto,
-  scope,
-  alter,
-  referencedAlters,
-  skipNameVal = false,
-  errCtx = null,
-) {
+function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null) {
+  const { fields, proto, scope, alter } = env;
   const valName = val?.constructor.name;
   if (valName === "FieldVal" || valName === "RawFieldVal") {
     const { name } = val;
@@ -456,28 +457,8 @@ function checkConsistentAttrVal(
       );
     }
   } else if (valName === "SeqAccessVal") {
-    checkConsistentAttrVal(
-      lx,
-      val.seqVal,
-      fields,
-      proto,
-      scope,
-      alter,
-      referencedAlters,
-      skipNameVal,
-      errCtx,
-    );
-    checkConsistentAttrVal(
-      lx,
-      val.keyVal,
-      fields,
-      proto,
-      scope,
-      alter,
-      referencedAlters,
-      skipNameVal,
-      errCtx,
-    );
+    checkConsistentAttrVal(lx, val.seqVal, env, skipNameVal, errCtx);
+    checkConsistentAttrVal(lx, val.keyVal, env, skipNameVal, errCtx);
   } else if (valName === "RequestVal") {
     if (scope.lookupRequest(val.name) === null) {
       lx.error(
@@ -519,20 +500,10 @@ function checkConsistentAttrVal(
       );
     }
     for (const subVal of vs) {
-      checkConsistentAttrVal(
-        lx,
-        subVal,
-        fields,
-        proto,
-        scope,
-        alter,
-        referencedAlters,
-        skipNameVal,
-        errCtx,
-      );
+      checkConsistentAttrVal(lx, subVal, env, skipNameVal, errCtx);
     }
   } else if (valName === "HandlerNameVal") {
-    referencedAlters?.add(val.name);
+    env.referencedAlters?.add(val.name);
     if (alter[val.name] === undefined) {
       lx.error(
         ALT_HANDLER_NOT_DEFINED,
@@ -541,19 +512,17 @@ function checkConsistentAttrVal(
       );
     }
   } else if (valName === "PredicateVal") {
-    for (const arg of val.args)
-      checkConsistentAttrVal(
-        lx,
-        arg,
-        fields,
-        proto,
-        scope,
-        alter,
-        referencedAlters,
-        skipNameVal,
-        errCtx,
+    for (const arg of val.args) checkConsistentAttrVal(lx, arg, env, skipNameVal, errCtx);
+  } else if (valName === "DynVal") {
+    env.referencedDynamics?.add(val.name);
+    if (env.dynamicMap[val.name] === undefined) {
+      lx.error(
+        DYN_VAL_NOT_DEFINED,
+        { ...errCtx, name: val.name },
+        replaceNameSuggestion(val.name, Object.keys(env.dynamicMap)),
       );
-  } else if (valName !== "ConstVal" && valName !== "BindVal" && valName !== "DynVal") {
+    }
+  } else if (valName !== "ConstVal" && valName !== "BindVal") {
     console.log(val);
   }
 }
@@ -586,10 +555,9 @@ function attrOriginAttr(attr) {
   return `:${attr.name}`;
 }
 
-function checkConsistentAttrs(lx, Comp, referencedAlters) {
-  const { scope, views, alter, Class } = Comp;
-  const { prototype: proto } = Class;
-  const { fields } = Class.getMetaClass();
+function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
+  const { views } = Comp;
+  const env = mkAttrValEnv(Comp, referencedAlters, referencedDynamics);
   for (const viewName in views) {
     lx.push({ viewName }, () => {
       const view = views[viewName];
@@ -616,30 +584,17 @@ function checkConsistentAttrs(lx, Comp, referencedAlters) {
                 ["@else", attr.elseVal],
               ];
               for (const [branch, subVal] of branches) {
-                checkConsistentAttrVal(
-                  lx,
-                  subVal,
-                  fields,
-                  proto,
-                  scope,
-                  alter,
-                  referencedAlters,
-                  isMacroCall,
-                  { tag, originAttr: `@if.${attr.name}`, branch },
-                );
+                checkConsistentAttrVal(lx, subVal, env, isMacroCall, {
+                  tag,
+                  originAttr: `@if.${attr.name}`,
+                  branch,
+                });
               }
             } else if (attr?.val !== undefined) {
-              checkConsistentAttrVal(
-                lx,
-                attr.val,
-                fields,
-                proto,
-                scope,
-                alter,
-                referencedAlters,
-                isMacroCall,
-                { tag, originAttr: attrOriginAttr(attr) },
-              );
+              checkConsistentAttrVal(lx, attr.val, env, isMacroCall, {
+                tag,
+                originAttr: attrOriginAttr(attr),
+              });
             }
           }
           for (const [name, sources] of sourcesByName) {
@@ -653,73 +608,29 @@ function checkConsistentAttrs(lx, Comp, referencedAlters) {
           for (const w of wrapperAttrs) {
             if (w.name === "each") {
               if (w.whenVal)
-                checkConsistentAttrVal(
-                  lx,
-                  w.whenVal,
-                  fields,
-                  proto,
-                  scope,
-                  alter,
-                  referencedAlters,
-                  false,
-                  { tag, originAttr: "@when" },
-                );
+                checkConsistentAttrVal(lx, w.whenVal, env, false, { tag, originAttr: "@when" });
               if (w.enrichWithVal)
-                checkConsistentAttrVal(
-                  lx,
-                  w.enrichWithVal,
-                  fields,
-                  proto,
-                  scope,
-                  alter,
-                  referencedAlters,
-                  false,
-                  { tag, originAttr: "@enrich-with" },
-                );
+                checkConsistentAttrVal(lx, w.enrichWithVal, env, false, {
+                  tag,
+                  originAttr: "@enrich-with",
+                });
               if (w.loopWithVal)
-                checkConsistentAttrVal(
-                  lx,
-                  w.loopWithVal,
-                  fields,
-                  proto,
-                  scope,
-                  alter,
-                  referencedAlters,
-                  false,
-                  { tag, originAttr: "@loop-with" },
-                );
+                checkConsistentAttrVal(lx, w.loopWithVal, env, false, {
+                  tag,
+                  originAttr: "@loop-with",
+                });
             } else {
               // "scope" wrappers come from `@enrich-with` outside `@each`; the
               // ScopeNode in view.ctx.nodes references the same val, so we only
               // check it here (with attr context) and skip in the node loop.
               const originAttr = w.name === "scope" ? "@enrich-with" : `@${w.name}`;
-              checkConsistentAttrVal(
-                lx,
-                w.val,
-                fields,
-                proto,
-                scope,
-                alter,
-                referencedAlters,
-                false,
-                { tag, originAttr },
-              );
+              checkConsistentAttrVal(lx, w.val, env, false, { tag, originAttr });
             }
           }
         }
 
         if (textChild) {
-          checkConsistentAttrVal(
-            lx,
-            textChild,
-            fields,
-            proto,
-            scope,
-            alter,
-            referencedAlters,
-            false,
-            { tag, originAttr: "@text" },
-          );
+          checkConsistentAttrVal(lx, textChild, env, false, { tag, originAttr: "@text" });
         }
       }
       for (const node of view.ctx.nodes) {
@@ -728,44 +639,18 @@ function checkConsistentAttrs(lx, Comp, referencedAlters) {
         if (nodeKind === "ScopeNode") continue;
         const baseCtx = nodeCtxForNode(nodeKind);
         if (node.val) {
-          checkConsistentAttrVal(
-            lx,
-            node.val,
-            fields,
-            proto,
-            scope,
-            alter,
-            referencedAlters,
-            false,
-            baseCtx,
-          );
+          checkConsistentAttrVal(lx, node.val, env, false, baseCtx);
         }
         if (nodeKind === "RenderEachNode") {
           const iter = node.iterInfo;
           if (iter.whenVal)
-            checkConsistentAttrVal(
-              lx,
-              iter.whenVal,
-              fields,
-              proto,
-              scope,
-              alter,
-              referencedAlters,
-              false,
-              { originAttr: "<x render-each when>" },
-            );
+            checkConsistentAttrVal(lx, iter.whenVal, env, false, {
+              originAttr: "<x render-each when>",
+            });
           if (iter.loopWithVal)
-            checkConsistentAttrVal(
-              lx,
-              iter.loopWithVal,
-              fields,
-              proto,
-              scope,
-              alter,
-              referencedAlters,
-              false,
-              { originAttr: "<x render-each loop-with>" },
-            );
+            checkConsistentAttrVal(lx, iter.loopWithVal, env, false, {
+              originAttr: "<x render-each loop-with>",
+            });
         }
       }
     });
@@ -795,6 +680,18 @@ function checkUnreferencedInputHandlers(lx, Comp, referencedInputs) {
   for (const name in Comp.input) {
     if (!referencedInputs.has(name)) {
       lx.hint(INPUT_HANDLER_NOT_REFERENCED, { name });
+    }
+  }
+}
+
+// Only flags DynamicAlias entries: a plain Dynamic is a producer pushed down the
+// render stack and consumed by *child* components, so it legitimately need not
+// appear in this component's own views.
+function checkUnreferencedDynamics(lx, Comp, referencedDynamics) {
+  for (const name in Comp.dynamic) {
+    const dyn = Comp.dynamic[name];
+    if (dyn.constructor.name === "DynamicAlias" && !referencedDynamics.has(name)) {
+      lx.hint(DYN_ALIAS_NOT_REFERENCED, { name });
     }
   }
 }

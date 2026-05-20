@@ -24,6 +24,10 @@ const LintDemo = component({
       return v;
     },
   },
+  dynamic: {
+    // DYN_ALIAS_NOT_REFERENCED: alias declared but never used as *unusedDyn in a view
+    unusedDyn: { for: "Theme.color", default: "'gray'" },
+  },
   view: html`<div>
     <p>Lint Errors Demo - check the Lint tab</p>
 
@@ -46,6 +50,9 @@ const LintDemo = component({
 
     <!-- FIELD_VAL_NOT_DEFINED: .missing is not defined -->
     <p :title=".missing">undefined field</p>
+
+    <!-- DYN_VAL_NOT_DEFINED: *missingDyn is not in the component's dynamic map -->
+    <p :title="*missingDyn">undefined dynamic</p>
 
     <!-- UNKNOWN_REQUEST_NAME + UNKNOWN_COMPONENT_NAME -->
     <button @on.click="doKeyDown !unknownReq UnknownComp">

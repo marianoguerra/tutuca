@@ -8,6 +8,8 @@ import {
   BAD_VALUE,
   checkComponent,
   DUPLICATE_ATTR_DEFINITION,
+  DYN_ALIAS_NOT_REFERENCED,
+  DYN_VAL_NOT_DEFINED,
   FIELD_VAL_NOT_DEFINED,
   IF_NO_BRANCH_SET,
   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
@@ -1611,4 +1613,62 @@ test("x render-each with when referencing missing alter handler warns", () => {
     (r) => r.id === ALT_HANDLER_NOT_DEFINED && r.info.name === "filterItem",
   );
   expect(altNotDefined.length).toBe(1);
+});
+
+test("no report when *dynamic reference matches a defined dynamic", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { color: "blue" },
+    dynamic: { color: ".color" },
+    view: html`<p :title="*color">hi</p>`,
+  });
+  const dynReports = lx.reports.filter(
+    (r) => r.id === DYN_VAL_NOT_DEFINED || r.id === DYN_ALIAS_NOT_REFERENCED,
+  );
+  expect(dynReports.length).toBe(0);
+});
+
+test("error on *dynamic reference with no matching dynamic definition", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { color: "blue" },
+    view: html`<p :title="*missing">hi</p>`,
+  });
+  const notDefined = lx.reports.filter((r) => r.id === DYN_VAL_NOT_DEFINED);
+  expect(notDefined.length).toBe(1);
+  expect(notDefined[0].info.name).toBe("missing");
+});
+
+test("no report when a DynamicAlias is referenced in a view", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    dynamic: { color: { for: "Theme.color", default: "'gray'" } },
+    view: html`<p :title="*color">hi</p>`,
+  });
+  const dynReports = lx.reports.filter(
+    (r) => r.id === DYN_VAL_NOT_DEFINED || r.id === DYN_ALIAS_NOT_REFERENCED,
+  );
+  expect(dynReports.length).toBe(0);
+});
+
+test("hint when a DynamicAlias is never referenced in any view", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    dynamic: { color: { for: "Theme.color", default: "'gray'" } },
+    view: html`<p>hi</p>`,
+  });
+  const unused = lx.reports.filter((r) => r.id === DYN_ALIAS_NOT_REFERENCED);
+  expect(unused.length).toBe(1);
+  expect(unused[0].info.name).toBe("color");
+});
+
+test("no unused-dynamic hint for a producer Dynamic absent from its own views", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { color: "blue" },
+    dynamic: { color: ".color" },
+    view: html`<p>hi</p>`,
+  });
+  const unused = lx.reports.filter((r) => r.id === DYN_ALIAS_NOT_REFERENCED);
+  expect(unused.length).toBe(0);
 });

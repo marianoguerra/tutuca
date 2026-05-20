@@ -114,6 +114,10 @@ export function lintIdToMessage(id, info) {
       return `Alter handler '${info.name}' is not defined${fmtOriginSuffix(info)}`;
     case "ALT_HANDLER_NOT_REFERENCED":
       return `Alter handler '${info.name}' is defined but never used — remove it or reference it from @when, @enrich-with, or @loop-with`;
+    case "DYN_VAL_NOT_DEFINED":
+      return `Dynamic variable '*${info.name}' is not defined${fmtOriginSuffix(info)}`;
+    case "DYN_ALIAS_NOT_REFERENCED":
+      return `Dynamic '${info.name}' is defined but never used — remove it or reference it as '*${info.name}' in a view`;
     case "UNKNOWN_MACRO_ARG":
       return `Argument '${info.name}' is not declared in macro '${info.macroName}'`;
     case "UNKNOWN_DIRECTIVE":
