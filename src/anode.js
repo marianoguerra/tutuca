@@ -173,7 +173,7 @@ function parseXOp(attrs, childs, opIdx, px) {
       node = px.addNodeIf(RenderTextNode, parseXOpVal(name, value, px, vp.parseText));
       break;
     case "render":
-      node = px.addNodeIf(RenderNode, parseXOpVal(name, value, px, vp.parseRender), as);
+      node = px.addNodeIf(RenderNode, parseXOpVal(name, value, px, vp.parseComponent), as);
       break;
     case "render-it":
       node = px.addNodeIf(RenderItNode, vp.bindValIt, as);
@@ -182,12 +182,12 @@ function parseXOp(attrs, childs, opIdx, px) {
       node = RenderEachNode.parse(px, vp, value, as, attrs);
       break;
     case "show": {
-      const val = parseXOpVal(name, value, px, vp.parseCondValue);
+      const val = parseXOpVal(name, value, px, vp.parseBool);
       node = px.addNodeIf(ShowNode, val, maybeFragment(childs));
       break;
     }
     case "hide": {
-      const val = parseXOpVal(name, value, px, vp.parseCondValue);
+      const val = parseXOpVal(name, value, px, vp.parseBool);
       node = px.addNodeIf(HideNode, val, maybeFragment(childs));
       break;
     }
@@ -211,7 +211,7 @@ function processXExtras(node, attrs, opName, startIdx, px) {
     const aName = a.name;
     if (consumed.has(aName)) continue;
     if (wrappable && X_ATTR_WRAPPERS[aName]) {
-      wrappers.push([X_ATTR_WRAPPERS[aName], vp.parseCondValue(a.value, px)]);
+      wrappers.push([X_ATTR_WRAPPERS[aName], vp.parseBool(a.value, px)]);
       continue;
     }
     const issueInfo = { op: opName, name: aName, value: a.value };
@@ -324,7 +324,11 @@ export class RenderEachNode extends RenderViewId {
     return rx.renderEach(stack, this.iterInfo, this.nodeId, this.viewId);
   }
   static parse(px, vp, s, as, attrs) {
-    const node = px.addNodeIf(RenderEachNode, parseXOpVal("render-each", s, px, vp.parseEach), as);
+    const node = px.addNodeIf(
+      RenderEachNode,
+      parseXOpVal("render-each", s, px, vp.parseSequence),
+      as,
+    );
     if (node !== null) {
       const attrParser = getAttrParser(px);
       attrParser.eachAttr = attrParser.pushWrapper("each", s, node.val);

@@ -17,18 +17,18 @@ import {
   INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
   MAYBE_DROP_AT_PREFIX,
+  REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
   UNKNOWN_COMPONENT_NAME,
+  UNKNOWN_COMPONENT_SPEC_KEY,
   UNKNOWN_DIRECTIVE,
   UNKNOWN_EVENT_MODIFIER,
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
-  UNKNOWN_COMPONENT_SPEC_KEY,
   UNKNOWN_REQUEST_NAME,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
   UNSUPPORTED_EXPR_SYNTAX,
-  REDUNDANT_TEMPLATE_STRING,
 } from "../tools/core/lint-check.js";
 import { Comment, document, Text } from "./dom.js";
 
@@ -826,7 +826,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
 });
 
-test("macro invocation :handler NameVal does not warn; ^handler in body expands to InputHandlerNameVal", () => {
+test("macro invocation :handler NameVal does not warn; ^handler in body expands to HandlerNameVal", () => {
   const btn = macro(
     { handler: "onAction", arg: "event" },
     html`<button @on.click="^handler ^arg"></button>`,
@@ -847,7 +847,7 @@ test("macro invocation :handler NameVal does not warn; ^handler in body expands 
   expect(clickEvents.length).toBe(1);
   const clickHandler = clickEvents[0].handlers.find((h) => h.name === "click");
   const { handlerVal } = clickHandler.handlerCall;
-  expect(handlerVal.constructor.name).toBe("InputHandlerNameVal");
+  expect(handlerVal.constructor.name).toBe("HandlerNameVal");
   expect(handlerVal.name).toBe("onDo");
 
   const outerAttrEntry = view.ctx.attrs.find(

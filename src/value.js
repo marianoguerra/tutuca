@@ -4,129 +4,126 @@ const VALID_VAL_ID_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
 const isValidValId = (name) => VALID_VAL_ID_RE.test(name);
 const VALID_FLOAT_RE = /^-?[0-9]+(\.[0-9]+)?$/;
 const STR_TPL_SPLIT_RE = /(\{[^}]+\})/g; // Safe to share despite `g` flag: only used in split
-const parseStrTemplate = (v, px) => StrTplVal.parse(v, px);
-const parseConst = (v, _) => new ConstVal(v);
-const parseName = (v, _) => (isValidValId(v) ? new NameVal(v) : null);
-const parseType = (v, _) => (isValidValId(v) ? new TypeVal(v) : null);
-const parseBind = (v, _) => (isValidValId(v) ? new BindVal(v) : null);
-const parseDyn = (v, _) => (isValidValId(v) ? new DynVal(v) : null);
-const parseField = (v, _) => (isValidValId(v) ? new FieldVal(v) : null);
-const parseReq = (v, _) => (isValidValId(v) ? new RequestVal(v) : null);
+const mkVal = (name, Cls) => (isValidValId(name) ? new Cls(name) : null);
+
+// Value kinds: a parse group is the bitwise-or of the kinds it accepts.
+const K_CONST = 1;
+const K_STRTPL = 2;
+const K_FIELD = 4;
+const K_BIND = 8;
+const K_DYN = 16;
+const K_NAME = 32;
+const K_TYPE = 64;
+const K_REQUEST = 128;
+const K_SEQ = 256;
+
+// Value groups, one per parsing context. Kept private: callers use the named
+// `parseX` methods below so they never have to know about the bitmasks.
+const G_BOOL = K_FIELD | K_BIND | K_DYN | K_CONST;
+const G_TEXT = G_BOOL | K_STRTPL;
+const G_COMPONENT = K_FIELD | K_SEQ;
+const G_SEQUENCE = K_FIELD | K_DYN;
+const G_FIELD = K_FIELD;
+const G_VALUE = K_FIELD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
+const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
+
 export class ValParser {
   constructor() {
-    this.allowFieldOnly();
     this.bindValIt = new BindVal("it");
     this.nullConstVal = new ConstVal(null);
   }
   const(v) {
     return new ConstVal(v);
   }
-  allowFieldOnly() {
-    this.okField = true;
-    this.okBind = this.okDyn = this.okType = this.okRequest = false;
-    this.okName = this.okConst = this.okStrTpl = this.okSeqAccess = false;
+  // Conditionals: @show, @hide, @if.<attr>, x-op show/hide, x-wrapper attrs.
+  parseBool(s, px) {
+    return this.parse(s, px, G_BOOL);
   }
-  _parseSeqAccess(s, px) {
-    if (!this.okSeqAccess) return null;
+  // Text values: :attr, @text, <x text>, @then/@else, @push-view, @html.
+  parseText(s, px) {
+    return this.parse(s, px, G_TEXT);
+  }
+  // A single component to render: <x render>.
+  parseComponent(s, px) {
+    return this.parse(s, px, G_COMPONENT);
+  }
+  // A sequence to iterate: @each, <x render-each>.
+  parseSequence(s, px) {
+    return this.parse(s, px, G_SEQUENCE);
+  }
+  // A plain field reference: component `dynamic:` field definitions.
+  parseField(s, px) {
+    return this.parse(s, px, G_FIELD);
+  }
+  // Arguments passed to an event handler.
+  parseHandlerArg(s, px) {
+    return this.parse(s, px, G_VALUE);
+  }
+  // Pass-through values on a macro-call element (:attr on a macro).
+  parseMacroAttr(s, px) {
+    return this.parse(s, px, G_ALL);
+  }
+  // Handler reference for @on.<event>.
+  parseInputHandler(s, px) {
+    return this._parseHandler(s, px, "input");
+  }
+  // Handler reference for @when, @enrich-with/@scope, @loop-with.
+  parseAlterHandler(s, px) {
+    return this._parseHandler(s, px, "alter");
+  }
+  _parseHandler(s, px, namespace) {
+    const val = this.parse(s, px, K_FIELD | K_NAME); // TODO: surface info if val is null
+    return (
+      val && (val.toRawFieldVal ? val.toRawFieldVal() : new HandlerNameVal(val.name, namespace))
+    );
+  }
+  _parseSeqAccess(s, px, group) {
+    if (!(group & K_SEQ)) return null;
     const openSquareBracketIndex = s.indexOf("[");
-    this.allowFieldOnly();
-    const left = this.parse(s.slice(0, openSquareBracketIndex), px);
-    const right = this.parse(s.slice(openSquareBracketIndex + 1, -1), px);
+    const left = this.parse(s.slice(0, openSquareBracketIndex), px, K_FIELD);
+    const right = this.parse(s.slice(openSquareBracketIndex + 1, -1), px, K_FIELD);
     return left && right ? new SeqAccessVal(left, right) : null;
   }
-  parse(s, px) {
+  parse(s, px, group) {
     switch (getValSubType(s)) {
       case VAL_SUB_TYPE_STRING_TEMPLATE:
-        return this.okStrTpl ? parseStrTemplate(s, px) : null;
+        return group & K_STRTPL ? StrTplVal.parse(s, px) : null;
       case VAL_SUB_TYPE_CONST_STRING:
-        return this.okStrTpl ? parseConst(s, px) : null;
+        return group & K_STRTPL ? new ConstVal(s) : null;
       case VAL_SUB_TYPE_SEQ_ACCESS:
-        return this._parseSeqAccess(s, px);
+        return this._parseSeqAccess(s, px, group);
       case VAL_SUB_TYPE_INVALID:
-        return this.okStrTpl ? parseStrTemplate(s, px) : null;
+        return group & K_STRTPL ? StrTplVal.parse(s, px) : null;
     }
     const charCode = s.charCodeAt(0);
     switch (charCode) {
       case 94: {
         const name = s.slice(1);
         const newS = px.frame.macroVars?.[name];
-        if (newS !== undefined) return this.parse(newS, px);
+        if (newS !== undefined) return this.parse(newS, px, group);
         px.onParseIssue("bad-value", { role: "macro-var", name, value: s });
         return null;
       }
       case 39: // ''
-        return this.okStrTpl ? parseConst(s.slice(1, -1), px) : null;
+        return group & K_STRTPL ? new ConstVal(s.slice(1, -1)) : null;
       case 64: // @
-        return this.okBind ? parseBind(s.slice(1), px) : null;
+        return group & K_BIND ? mkVal(s.slice(1), BindVal) : null;
       case 42: // *
-        return this.okDyn ? parseDyn(s.slice(1), px) : null;
+        return group & K_DYN ? mkVal(s.slice(1), DynVal) : null;
       case 46: // .
-        return this.okField ? parseField(s.slice(1), px) : null;
+        return group & K_FIELD ? mkVal(s.slice(1), FieldVal) : null;
       case 33: // !
-        return this.okRequest ? parseReq(s.slice(1), px) : null;
+        return group & K_REQUEST ? mkVal(s.slice(1), RequestVal) : null;
     }
     const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
-    if (Number.isFinite(num)) return this.okConst ? parseConst(num, px) : null;
+    if (Number.isFinite(num)) return group & K_CONST ? new ConstVal(num) : null;
     else if (s === "true" || s === "false")
-      return this.okConst ? parseConst(s === "true", px) : null;
+      return group & K_CONST ? new ConstVal(s === "true") : null;
     else if (charCode >= 97 /* a */ && charCode <= 122 /* z */)
-      return this.okName ? parseName(s, px) : null;
+      return group & K_NAME ? mkVal(s, NameVal) : null;
     else if (charCode >= 65 /* A */ && charCode <= 90 /* Z */)
-      return this.okType ? parseType(s, px) : null;
+      return group & K_TYPE ? mkVal(s, TypeVal) : null;
     return null;
-  }
-  parseDynamic(s, px) {
-    this.allowFieldOnly();
-    return this.parse(s, px);
-  }
-  parseEach(s, px) {
-    this.allowFieldOnly();
-    this.okDyn = true; // NOTE: both only useful for leaf subtrees (can't transact)
-    return this.parse(s, px);
-  }
-  allowHandlerArg() {
-    this.allowFieldOnly();
-    this.okBind = this.okDyn = this.okType = this.okRequest = true;
-    this.okName = this.okConst = true;
-  }
-  parseHandlerArg(s, px) {
-    this.allowHandlerArg();
-    return this.parse(s, px);
-  }
-  _parseHandler(s, px, HandlerClass) {
-    this.allowFieldOnly();
-    this.okName = true;
-    const val = this.parse(s, px); // TODO: surface info if val is null
-    return val && (val.toRawFieldVal ? val.toRawFieldVal() : new HandlerClass(val.name));
-  }
-  parseHandlerName(s, px) {
-    return this._parseHandler(s, px, InputHandlerNameVal);
-  }
-  parseAlter(s, px) {
-    return this._parseHandler(s, px, AlterHandlerNameVal);
-  }
-  parseAttr(s, px) {
-    return this.parseText(s, px);
-  }
-  parseAll(s, px) {
-    this.allowHandlerArg();
-    this.okStrTpl = this.okSeqAccess = true;
-    return this.parse(s, px);
-  }
-  parseCondValue(s, px) {
-    this.allowFieldOnly();
-    this.okBind = this.okDyn = this.okConst = true;
-    return this.parse(s, px);
-  }
-  parseText(s, px) {
-    this.allowFieldOnly();
-    this.okBind = this.okDyn = this.okConst = this.okStrTpl = true;
-    return this.parse(s, px);
-  }
-  parseRender(s, px) {
-    this.allowFieldOnly();
-    this.okSeqAccess = true;
-    return this.parse(s, px);
   }
 }
 export class BaseVal {
@@ -197,14 +194,15 @@ export class NameVal extends VarVal {
     return this.name;
   }
 }
-export class InputHandlerNameVal extends NameVal {
-  eval(stack) {
-    return stack.getHandlerFor(this.name, "input") ?? mk404Handler("input", this.name);
+export class HandlerNameVal extends NameVal {
+  constructor(name, namespace) {
+    super(name);
+    this.namespace = namespace;
   }
-}
-export class AlterHandlerNameVal extends NameVal {
   eval(stack) {
-    return stack.getHandlerFor(this.name, "alter") ?? mk404Handler("alter", this.name);
+    return (
+      stack.getHandlerFor(this.name, this.namespace) ?? mk404Handler(this.namespace, this.name)
+    );
   }
 }
 const mk404Handler = (type, name) =>

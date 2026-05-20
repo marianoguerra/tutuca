@@ -23,10 +23,10 @@ import { Renderer } from "../src/renderer.js";
 import { Stack } from "../src/stack.js";
 import { renderToHTML } from "../src/util/render.js";
 import {
-  AlterHandlerNameVal,
   BindVal,
   ConstVal,
   FieldVal,
+  HandlerNameVal,
   NameVal,
   RawFieldVal,
   RequestVal,
@@ -258,22 +258,22 @@ describe("ANode", () => {
   describe("VarVal", () => {
     test("parse BindVal", () => {
       const px = mpx();
-      const v = vp.parseAttr("@foo", px);
+      const v = vp.parseText("@foo", px);
       expect(v).toBeInstanceOf(BindVal);
       expect(v.name).toBe("foo");
 
-      expect(vp.parseAttr("@9foo", px)).toBe(null);
-      expect(vp.parseAttr("@f-oo", px)).toBe(null);
+      expect(vp.parseText("@9foo", px)).toBe(null);
+      expect(vp.parseText("@f-oo", px)).toBe(null);
     });
 
     test("parse FieldVal", () => {
       const px = mpx();
-      const v = vp.parseAttr(".foo", px);
+      const v = vp.parseText(".foo", px);
       expect(v).toBeInstanceOf(FieldVal);
       expect(v.name).toBe("foo");
 
-      expect(vp.parseAttr(".9foo", px)).toBe(null);
-      expect(vp.parseAttr(".f-oo", px)).toBe(null);
+      expect(vp.parseText(".9foo", px)).toBe(null);
+      expect(vp.parseText(".f-oo", px)).toBe(null);
     });
 
     test("parse NameVal", () => {
@@ -368,7 +368,7 @@ describe("ANode", () => {
     test("@enrich-with (scope) alter", () => {
       const [r, px] = parse("<div @enrich-with='myScope'>hi</div>");
       expect(r).toBeInstanceOf(ScopeNode);
-      expect(r.val).toBeInstanceOf(AlterHandlerNameVal);
+      expect(r.val).toBeInstanceOf(HandlerNameVal);
       expect(r.node).toBeInstanceOf(DomNode);
       expect(r.nodeId).toBe(0);
       expect(px.nodes.length).toBe(1);
@@ -399,7 +399,7 @@ describe("ANode", () => {
     test("@each @when iter handler", () => {
       const [r, px] = parse("<div @each='.mySeq' @when='myFilter'>hi</div>");
       expect(r).toBeInstanceOf(EachNode);
-      expect(r.iterInfo.whenVal).toBeInstanceOf(AlterHandlerNameVal);
+      expect(r.iterInfo.whenVal).toBeInstanceOf(HandlerNameVal);
       expect(r.node).toBeInstanceOf(DomNode);
       expect(r.iterInfo.enrichWithVal).toBe(null);
       expect(r.nodeId).toBe(0);
@@ -423,9 +423,9 @@ describe("ANode", () => {
         "<div @each='.mySeq' @enrich-with='myEnrich' @when='myWhen' @loop-with='myWhenWith'>hi</div>",
       );
       expect(r).toBeInstanceOf(EachNode);
-      expect(r.iterInfo.enrichWithVal).toBeInstanceOf(AlterHandlerNameVal);
-      expect(r.iterInfo.whenVal).toBeInstanceOf(AlterHandlerNameVal);
-      expect(r.iterInfo.loopWithVal).toBeInstanceOf(AlterHandlerNameVal);
+      expect(r.iterInfo.enrichWithVal).toBeInstanceOf(HandlerNameVal);
+      expect(r.iterInfo.whenVal).toBeInstanceOf(HandlerNameVal);
+      expect(r.iterInfo.loopWithVal).toBeInstanceOf(HandlerNameVal);
       expect(r.node).toBeInstanceOf(DomNode);
       expect(r.nodeId).toBe(0);
       expect(px.nodes.length).toBe(1);
@@ -485,7 +485,7 @@ describe("ANode", () => {
     test("@each @enrich-with iter handler", () => {
       const [r, px] = parse("<div @each='.mySeq' @enrich-with='myEnrich'>hi</div>");
       expect(r).toBeInstanceOf(EachNode);
-      expect(r.iterInfo.enrichWithVal).toBeInstanceOf(AlterHandlerNameVal);
+      expect(r.iterInfo.enrichWithVal).toBeInstanceOf(HandlerNameVal);
       expect(r.node).toBeInstanceOf(DomNode);
       expect(r.iterInfo.whenVal).toBe(null);
       expect(r.nodeId).toBe(0);
@@ -877,7 +877,7 @@ describe("ANode", () => {
   });
 
   describe("value type validation", () => {
-    // @each — parseEach: field, dyn
+    // @each — parseSequence: field, dyn
     describe("@each", () => {
       test("valid field", () => {
         const [r] = parse("<div @each='.foo'>hi</div>");
@@ -901,7 +901,7 @@ describe("ANode", () => {
       });
     });
 
-    // @show — parseCondValue: field, bind, dyn, const
+    // @show — parseBool: field, bind, dyn, const
     describe("@show", () => {
       test("valid field", () => {
         const [r] = parse("<div @show='.foo'>hi</div>");
@@ -929,7 +929,7 @@ describe("ANode", () => {
       });
     });
 
-    // @hide — parseCondValue: field, bind, dyn, const
+    // @hide — parseBool: field, bind, dyn, const
     describe("@hide", () => {
       test("valid field", () => {
         const [r] = parse("<div @hide='.foo'>hi</div>");
@@ -945,7 +945,7 @@ describe("ANode", () => {
       });
     });
 
-    // @enrich-with (standalone) — parseAlter: field, name
+    // @enrich-with (standalone) — parseAlterHandler: field, name
     describe("@enrich-with", () => {
       test("valid field", () => {
         const [r] = parse("<div @enrich-with='.foo'>hi</div>");
@@ -985,7 +985,7 @@ describe("ANode", () => {
       });
     });
 
-    // :attr — parseAttr→parseText: field, bind, dyn, const, strTpl
+    // :attr — parseText: field, bind, dyn, const, strTpl
     describe(":attr", () => {
       test("valid field", () => {
         const [r] = parse("<div :title='.foo'>hi</div>");
@@ -1001,7 +1001,7 @@ describe("ANode", () => {
       });
     });
 
-    // <x render=...> — parseRender: field, seqAccess
+    // <x render=...> — parseComponent: field, seqAccess
     describe("x render", () => {
       test("valid field", () => {
         const [r] = parse("<x render='.foo'></x>");
@@ -1029,7 +1029,7 @@ describe("ANode", () => {
       });
     });
 
-    // <x render-each=...> — parseEach: field, dyn
+    // <x render-each=...> — parseSequence: field, dyn
     describe("x render-each", () => {
       test("valid field", () => {
         const [r] = parse("<x render-each='.foo'></x>");

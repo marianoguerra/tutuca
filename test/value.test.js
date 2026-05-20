@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { ConstVal, StrTplVal, vp } from "../src/value.js";
 
 test("parse empty string", () => {
-  const r = vp.parseAttr("flex flex-col gap-3 {.foo}");
+  const r = vp.parseText("flex flex-col gap-3 {.foo}");
   expect(r).toBeInstanceOf(StrTplVal);
   expect(r.vals.length).toBe(2);
   expect(r.vals[0].val).toBe("flex flex-col gap-3 ");
@@ -10,14 +10,14 @@ test("parse empty string", () => {
 });
 
 test("if all constants then turn into a const", () => {
-  const r = vp.parseAttr("flex flex-col gap-3 {'hi'}");
+  const r = vp.parseText("flex flex-col gap-3 {'hi'}");
   expect(r).toBeInstanceOf(ConstVal);
   expect(r.val).toBe("flex flex-col gap-3 hi");
 });
 
 describe("string template quote requirements", () => {
-  // parseText/parseAttr enable okStrTpl, so string templates work there.
-  // parseCondValue, parseEach, parseRender do NOT enable okStrTpl.
+  // parseText and parseMacroAttr accept the string-template kind, so templates
+  // work there. parseBool, parseSequence and parseComponent do not.
 
   describe("no quotes needed: value contains {…} interpolation", () => {
     // The presence of { triggers VAL_SUB_TYPE_STRING_TEMPLATE in getValSubType.
@@ -25,7 +25,7 @@ describe("string template quote requirements", () => {
     // expressions inside braces are parsed via parseText.
 
     test("text with field interpolation", () => {
-      const r = vp.parseAttr("flex gap-3 {.foo}");
+      const r = vp.parseText("flex gap-3 {.foo}");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals[0].val).toBe("flex gap-3 ");
       expect(r.vals[1].name).toBe("foo");
@@ -34,7 +34,7 @@ describe("string template quote requirements", () => {
     test("multiple interpolations", () => {
       // Empty ConstVal bookends are trimmed by StrTplVal.parse, so the
       // leading/trailing "" segments produced by the split don't appear in vals.
-      const r = vp.parseAttr("{.a} between {.b}");
+      const r = vp.parseText("{.a} between {.b}");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(3);
       expect(r.vals[0].name).toBe("a");
@@ -45,14 +45,14 @@ describe("string template quote requirements", () => {
     test("only interpolation, no surrounding text", () => {
       // After trimming, a single-placeholder template collapses to one entry —
       // this is the shape the REDUNDANT_TEMPLATE_STRING lint rule keys off.
-      const r = vp.parseAttr("{.foo}");
+      const r = vp.parseText("{.foo}");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(1);
       expect(r.vals[0].name).toBe("foo");
     });
 
     test("whitespace bookends are preserved (non-empty ConstVal)", () => {
-      const r = vp.parseAttr(" {.foo} ");
+      const r = vp.parseText(" {.foo} ");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(3);
       expect(r.vals[0].val).toBe(" ");
@@ -66,13 +66,13 @@ describe("string template quote requirements", () => {
     // folds the whole thing into a single ConstVal (join of all parts).
 
     test("quoted constant inside braces", () => {
-      const r = vp.parseAttr("flex {'gap-3'}");
+      const r = vp.parseText("flex {'gap-3'}");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
 
     test("numeric constant inside braces", () => {
-      const r = vp.parseAttr("width: {42}px");
+      const r = vp.parseText("width: {42}px");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("width: 42px");
     });
@@ -86,59 +86,59 @@ describe("string template quote requirements", () => {
     // Single quotes (charCode 39) tell the parser to treat it as ConstVal.
 
     test("quoted constant string with spaces", () => {
-      const r = vp.parseAttr("'flex gap-3'");
+      const r = vp.parseText("'flex gap-3'");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
 
     test("quoted single word", () => {
-      const r = vp.parseAttr("'badge'");
+      const r = vp.parseText("'badge'");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("badge");
     });
 
     test("unquoted multi-word string without braces returns null", () => {
       // No prefix, not a valid identifier, no braces → null
-      const r = vp.parseAttr("flex gap-3");
+      const r = vp.parseText("flex gap-3");
       expect(r).toBeNull();
     });
   });
 
-  describe("okStrTpl disabled: parse methods that reject string templates", () => {
-    // parseCondValue, parseEach, parseRender never set okStrTpl = true,
-    // so string template values return null in those contexts.
+  describe("string-template kind absent: parse methods that reject templates", () => {
+    // parseBool, parseSequence and parseComponent groups omit the
+    // string-template kind, so template values return null in those contexts.
 
-    test("parseCondValue rejects string template", () => {
-      const r = vp.parseCondValue("flex {.foo}");
+    test("parseBool rejects string template", () => {
+      const r = vp.parseBool("flex {.foo}");
       expect(r).toBeNull();
     });
 
-    test("parseCondValue rejects quoted constant", () => {
-      const r = vp.parseCondValue("'flex gap-3'");
+    test("parseBool rejects quoted constant", () => {
+      const r = vp.parseBool("'flex gap-3'");
       expect(r).toBeNull();
     });
 
-    test("parseEach rejects string template", () => {
-      const r = vp.parseEach("items {.foo}");
+    test("parseSequence rejects string template", () => {
+      const r = vp.parseSequence("items {.foo}");
       expect(r).toBeNull();
     });
 
-    test("parseRender rejects string template", () => {
-      const r = vp.parseRender("child {.foo}");
+    test("parseComponent rejects string template", () => {
+      const r = vp.parseComponent("child {.foo}");
       expect(r).toBeNull();
     });
   });
 
-  describe("parseAll enables okStrTpl (macro dynamic attrs)", () => {
-    test("string template works in parseAll", () => {
-      const r = vp.parseAll("flex {.foo}");
+  describe("parseMacroAttr accepts the string-template kind (macro dynamic attrs)", () => {
+    test("string template works in parseMacroAttr", () => {
+      const r = vp.parseMacroAttr("flex {.foo}");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals[0].val).toBe("flex ");
       expect(r.vals[1].name).toBe("foo");
     });
 
-    test("quoted constant works in parseAll", () => {
-      const r = vp.parseAll("'flex gap-3'");
+    test("quoted constant works in parseMacroAttr", () => {
+      const r = vp.parseMacroAttr("'flex gap-3'");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });

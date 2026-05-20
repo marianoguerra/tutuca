@@ -144,10 +144,10 @@ export class Component {
     for (const key in this._rawDynamic) {
       const dinfo = this._rawDynamic[key];
       if (isString(dinfo)) {
-        const val = vp.parseDynamic(dinfo, this.views.main.ctx);
+        const val = vp.parseField(dinfo, this.views.main.ctx);
         this.dynamic[key] = new Dynamic(key, val, Symbol(key));
       } else if (isString(dinfo?.default) && isString(dinfo?.for)) {
-        const val = vp.parseDynamic(dinfo.default, this.views.main.ctx);
+        const val = vp.parseField(dinfo.default, this.views.main.ctx);
         const [compName, dynName] = dinfo.for.split(".");
         if (isString(compName) && isString(dynName))
           this.dynamic[key] = new DynamicAlias(key, val, compName, dynName);

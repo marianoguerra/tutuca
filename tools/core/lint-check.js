@@ -386,7 +386,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
           const hvName = handlerVal?.constructor.name;
           const eventName = handler.name;
           const originAttr = `@on.${eventName}`;
-          if (hvName === "InputHandlerNameVal") {
+          if (hvName === "HandlerNameVal") {
             referencedInputs?.add(handlerVal.name);
             const { name } = handlerVal;
             if (input[name] === undefined) {
@@ -531,7 +531,7 @@ function checkConsistentAttrVal(
         errCtx,
       );
     }
-  } else if (valName === "AlterHandlerNameVal") {
+  } else if (valName === "HandlerNameVal") {
     referencedAlters?.add(val.name);
     if (alter[val.name] === undefined) {
       lx.error(
