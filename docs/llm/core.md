@@ -180,15 +180,22 @@ separate.
 
 ## Notation Reference
 
-Views are name-based: there is no conditional / boolean / arithmetic
-expression syntax in values, and no Vue- or Mustache-style `{{ … }}`
-placeholders. Every value slot — conditions (`@show`, `@if`, `@when`),
-iteration (`@each`, `render-each`), enrichment (`@enrich-with`,
-`@loop-with`), template expansion (`{…}`, `:attr`, `@text`) — names a
-field, method, macro, or handler defined on the component (or
-registered with the app). Logic lives in `methods` / `alter` / `input`
-/ `bubble` / `receive` / `response` and is referenced by name; the
-template itself only routes data and events.
+Views are name-based: there is no arithmetic expression syntax in
+values, and no Vue- or Mustache-style `{{ … }}` placeholders. Every
+value slot — conditions (`@show`, `@if`, `@when`), iteration (`@each`,
+`render-each`), enrichment (`@enrich-with`, `@loop-with`), template
+expansion (`{…}`, `:attr`, `@text`) — names a field, method, macro, or
+handler defined on the component (or registered with the app). Logic
+lives in `methods` / `alter` / `input` / `bubble` / `receive` /
+`response` and is referenced by name; the template itself only routes
+data and events.
+
+The one exception is **boolean predicates** in conditional slots
+(`@show`, `@hide`, `@if.<attr>`): a closed set of operators applied to
+a value, written predicate-first like a handler call —
+`empty?`, `truthy?`, `falsy?`, `null?`. E.g. `@hide="empty? .items"`,
+`@show="truthy? .query"`. A conditional slot still accepts a plain
+field/method name too (`@show=".isOpen"`).
 
 | Prefix   | Means                                     | Example               |
 | -------- | ----------------------------------------- | --------------------- |
@@ -202,6 +209,7 @@ template itself only routes data and events.
 | `'str'`  | string literal                            | `'btn btn-success'`   |
 | `{expr}` | interpolation in attr text                | `Hi {.name}`          |
 | `.s[.k]` | sequence/map item access                  | `.byKey[.currentKey]` |
+| `pred? .x` | boolean predicate in a conditional slot | `empty? .items`       |
 
 A bare `name` (no prefix) in `@on.<event>="<handler> <arg> <arg>..."`
 resolves by slot:
@@ -289,15 +297,19 @@ component({
 
 | Default              | Field type | Auto-generated methods (for field `x`)                                                                                             |
 | -------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `"hi"`               | text       | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`, `isXEmpty`, `xLen`                                                           |
-| `42`                 | float      | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`                                                                               |
-| (`{type:"int"}`)     | int        | `setX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy` (no default-value form — declare explicitly via `classFromData`)              |
-| `true`               | bool       | `setX`, `toggleX`, `updateX`, `resetX`, `isXTruthy`, `isXFalsy`                                                                    |
-| `null`               | any        | `setX`, `updateX`, `resetX`, `isXNull`, `isXTruthy`, `isXFalsy`                                                                    |
-| `[]`/`List()`        | list       | `setX`, `pushInX`, `insertInXAt`, `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`/`removeInXAt`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `xLen`, `resetX` |
-| `{}`/`IMap()`        | map        | `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `xLen`, `resetX`                        |
+| `"hi"`               | text       | `setX`, `updateX`, `resetX`, `xLen`                                                                                                |
+| `42`                 | float      | `setX`, `updateX`, `resetX`                                                                                                        |
+| (`{type:"int"}`)     | int        | `setX`, `updateX`, `resetX` (no default-value form — declare explicitly via `classFromData`)                                       |
+| `true`               | bool       | `setX`, `toggleX`, `updateX`, `resetX`                                                                                             |
+| `null`               | any        | `setX`, `updateX`, `resetX`                                                                                                        |
+| `[]`/`List()`        | list       | `setX`, `pushInX`, `insertInXAt`, `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`/`removeInXAt`, `xLen`, `resetX`             |
+| `{}`/`IMap()`        | map        | `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`, `xLen`, `resetX`                                                             |
 | `OMap()`             | omap       | same as map (preserves insertion order)                                                                                            |
-| `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `isXEmpty`, `isXTruthy`, `isXFalsy`, `resetX`                                |
+| `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `resetX`                                                                     |
+
+Emptiness / truthiness / null checks are not generated as methods — use
+the boolean predicates `empty?`, `truthy?`, `falsy?`, `null?` in a
+conditional slot instead (e.g. `@hide="empty? .x"`).
 
 Explicit field types via `classFromData`:
 
@@ -327,9 +339,10 @@ methods: {
 <p :title="Hello, {.fullName}" @text=".fullName"></p>
 ```
 
-Auto-generated `isXTruthy` / `isXEmpty` / `isXNull` cover single-field
-checks; reach for a method when the predicate spans multiple fields or
-needs derivation. The method takes no args.
+The boolean predicates (`empty?`, `truthy?`, `falsy?`, `null?`) cover
+single-field checks in conditional slots; reach for a method when the
+condition spans multiple fields or needs derivation. The method takes
+no args.
 
 Tutuca expressions resolve a **single** name on `this` — there is no
 path syntax. `@text=".user.name"` does not navigate; it fails. When the

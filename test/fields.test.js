@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { List, Map as IMap, OrderedMap, Set as ISet } from "../deps/immutable.js";
+import { Map as IMap, Set as ISet, List, OrderedMap } from "../deps/immutable.js";
 import {
   classFromData,
   FieldAny,
   FieldBool,
-  fieldsByTypeName,
   FieldFloat,
   FieldInt,
   FieldList,
@@ -12,6 +11,7 @@ import {
   FieldOMap,
   FieldSet,
   FieldString,
+  fieldsByTypeName,
 } from "../src/oo.js";
 
 const PRIMITIVES = [
@@ -330,39 +330,12 @@ function describePrimitive(spec) {
 
     if (spec.specials?.sized) {
       const { propName, emptyExpected, populated, populatedSize } = spec.specials.sized;
-      test(`proto: is${uname}Empty and ${fieldName}Len (${propName})`, () => {
+      test(`proto: ${fieldName}Len (${propName})`, () => {
         const Cls = classFromData(`${name}Sized`, { fields: { [fieldName]: defaultValue } });
         const empty = Cls();
-        expect(empty[`is${uname}Empty`]()).toBe(true);
         expect(empty[`${fieldName}Len`]()).toBe(emptyExpected);
         const filled = empty[`set${uname}`](populated);
-        expect(filled[`is${uname}Empty`]()).toBe(false);
         expect(filled[`${fieldName}Len`]()).toBe(populatedSize);
-      });
-    }
-
-    if (spec.specials?.isNull) {
-      const { unsetValue, setValue } = spec.specials.isNull;
-      test(`proto: is${uname}Null`, () => {
-        const Cls = classFromData(`${name}IsNull`, mkFields(spec));
-        const inst = Cls();
-        expect(inst.get(fieldName)).toBe(unsetValue);
-        expect(inst[`is${uname}Null`]()).toBe(true);
-        const r = inst[`set${uname}`](setValue);
-        expect(r[`is${uname}Null`]()).toBe(false);
-      });
-    }
-
-    if (spec.specials?.truthy) {
-      const { truthyValue } = spec.specials.truthy;
-      test(`proto: is${uname}Truthy / is${uname}Falsy`, () => {
-        const Cls = classFromData(`${name}Truthy`, mkFields(spec, spec.defaultValue));
-        const inst = Cls();
-        expect(inst[`is${uname}Truthy`]()).toBe(false);
-        expect(inst[`is${uname}Falsy`]()).toBe(true);
-        const r = inst[`set${uname}`](truthyValue);
-        expect(r[`is${uname}Truthy`]()).toBe(true);
-        expect(r[`is${uname}Falsy`]()).toBe(false);
       });
     }
   });
@@ -468,24 +441,12 @@ function describeCollection(spec) {
     }
 
     if (spec.sized) {
-      test(`proto: is${uname}Empty and ${fieldName}Len`, () => {
+      test(`proto: ${fieldName}Len`, () => {
         const Cls = classFromData(`${name}Sized`, { fields: { [fieldName]: EmptyCtor() } });
         const empty = Cls();
-        expect(empty[`is${uname}Empty`]()).toBe(true);
         expect(empty[`${fieldName}Len`]()).toBe(0);
         const filled = empty[`set${uname}`](spec.sized.initial);
-        expect(filled[`is${uname}Empty`]()).toBe(false);
         expect(filled[`${fieldName}Len`]()).toBe(spec.sized.populatedSize);
-      });
-
-      test(`proto: is${uname}Truthy / is${uname}Falsy (size-based)`, () => {
-        const Cls = classFromData(`${name}Truthy`, { fields: { [fieldName]: EmptyCtor() } });
-        const empty = Cls();
-        expect(empty[`is${uname}Truthy`]()).toBe(false);
-        expect(empty[`is${uname}Falsy`]()).toBe(true);
-        const filled = empty[`set${uname}`](spec.sized.initial);
-        expect(filled[`is${uname}Truthy`]()).toBe(true);
-        expect(filled[`is${uname}Falsy`]()).toBe(false);
       });
     }
 

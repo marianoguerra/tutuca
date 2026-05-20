@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { ConstVal, StrTplVal, vp } from "../src/value.js";
+import { ConstVal, PredicateVal, StrTplVal, vp } from "../src/value.js";
+
+// Minimal parse context: predicate parsing reports issues via px.onParseIssue.
+const px = { frame: {}, onParseIssue() {} };
 
 test("parse empty string", () => {
   const r = vp.parseText("flex flex-col gap-3 {.foo}");
@@ -109,12 +112,12 @@ describe("string template quote requirements", () => {
     // string-template kind, so template values return null in those contexts.
 
     test("parseBool rejects string template", () => {
-      const r = vp.parseBool("flex {.foo}");
+      const r = vp.parseBool("flex {.foo}", px);
       expect(r).toBeNull();
     });
 
     test("parseBool rejects quoted constant", () => {
-      const r = vp.parseBool("'flex gap-3'");
+      const r = vp.parseBool("'flex gap-3'", px);
       expect(r).toBeNull();
     });
 
@@ -142,5 +145,52 @@ describe("string template quote requirements", () => {
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
+  });
+});
+
+describe("boolean predicates in parseBool", () => {
+  // A space-less value still parses as a plain G_BOOL value.
+  test("space-less value is not a predicate", () => {
+    const r = vp.parseBool(".items", px);
+    expect(r).not.toBeInstanceOf(PredicateVal);
+    expect(r.name).toBe("items");
+  });
+
+  for (const name of ["empty?", "truthy?", "falsy?", "null?"]) {
+    test(`${name} parses to a PredicateVal`, () => {
+      const r = vp.parseBool(`${name} .items`, px);
+      expect(r).toBeInstanceOf(PredicateVal);
+      expect(r.pred.name).toBe(name);
+      expect(r.args.length).toBe(1);
+      expect(r.args[0].name).toBe("items");
+    });
+  }
+
+  test("unknown predicate returns null", () => {
+    expect(vp.parseBool("present? .items", px)).toBeNull();
+  });
+
+  test("arity mismatch returns null", () => {
+    expect(vp.parseBool("empty? .a .b", px)).toBeNull();
+  });
+
+  test("bad predicate arg returns null", () => {
+    // `Foo` is a type name — not allowed in the G_BOOL group used for args.
+    expect(vp.parseBool("empty? Foo", px)).toBeNull();
+  });
+
+  test("predicate args accept bind values", () => {
+    const r = vp.parseBool("truthy? @flag", px);
+    expect(r).toBeInstanceOf(PredicateVal);
+    expect(r.args[0].name).toBe("flag");
+  });
+
+  test("predicate eval applies the function", () => {
+    const stack = { lookupField: (n) => ({ items: [], name: "hi" })[n] };
+    expect(vp.parseBool("empty? .items", px).eval(stack)).toBe(true);
+    expect(vp.parseBool("empty? .name", px).eval(stack)).toBe(false);
+    expect(vp.parseBool("truthy? .name", px).eval(stack)).toBe(true);
+    expect(vp.parseBool("falsy? .items", px).eval(stack)).toBe(true);
+    expect(vp.parseBool("null? .items", px).eval(stack)).toBe(false);
   });
 });

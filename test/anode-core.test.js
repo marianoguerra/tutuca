@@ -927,6 +927,14 @@ describe("ANode", () => {
         const [r] = parse("<div @show='Foo'>hi</div>");
         expect(r).toBeInstanceOf(DomNode);
       });
+      test("valid boolean predicate", () => {
+        const [r] = parse("<div @show='empty? .foo'>hi</div>");
+        expect(r).toBeInstanceOf(ShowNode);
+      });
+      test("unknown predicate falls back to DomNode", () => {
+        const [r] = parse("<div @show='nope? .foo'>hi</div>");
+        expect(r).toBeInstanceOf(DomNode);
+      });
     });
 
     // @hide — parseBool: field, bind, dyn, const
@@ -1166,5 +1174,27 @@ describe("view template leading whitespace", () => {
   test("leading spaces (no newline) should still render the element", () => {
     const node = makeAndRender(html`  <p><x text=".msg"></x></p>`, "LeadingSpaces");
     expect(node.tag).toBe("P");
+  });
+});
+
+describe("boolean predicate rendering", () => {
+  const document = setupJsdom();
+  const Box = component({
+    name: "Box",
+    fields: { items: [] },
+    view: html`<div><p @show="empty? .items">empty</p></div>`,
+  });
+  function renderBox(state) {
+    return renderToHTML(document, [Box], null, state, HeadlessParseContext)
+      .replace(/<!--§[^§]*§-->/g, "")
+      .replace(/\s(data-(?:cid|nid|eid|vid|si|sk))="[^"]*"/g, "");
+  }
+
+  test("@show empty? renders the node when the list is empty", () => {
+    expect(renderBox(Box.make({ items: [] }))).toContain("<p>empty</p>");
+  });
+
+  test("@show empty? omits the node when the list is non-empty", () => {
+    expect(renderBox(Box.make({ items: [1] }))).not.toContain("<p>empty</p>");
   });
 });

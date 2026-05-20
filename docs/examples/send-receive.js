@@ -13,7 +13,7 @@ const Status = component({
   },
   view: html`<div
     class="alert alert-info"
-    @show=".isMessageTruthy"
+    @show="truthy? .message"
   >
     <span @text=".message"></span>
     <small>(flashed <x text=".count"></x> times)</small>

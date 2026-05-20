@@ -418,14 +418,14 @@
           the first attribute in source order becomes the outermost wrapper.
         </p>
         <p>
-          The value can be a field, an auto-generated predicate
-          (<code>.isXTruthy</code>, <code>.isXEmpty</code>,
-          <code>.isXNull</code> &mdash; only the matching ones for the field's
-          type), or a <code>methods</code> entry &mdash;
-          <code>@show=".canSubmit"</code> calls
+          The value can be a field, a built-in boolean predicate applied to
+          one (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
+          <code>null?</code> &mdash; written predicate-first, e.g.
+          <code>@hide="empty? .items"</code>), or a <code>methods</code> entry
+          &mdash; <code>@show=".canSubmit"</code> calls
           <code>methods.canSubmit()</code> with no arguments and uses its return
-          value. Reach for a method when a predicate combines multiple fields;
-          the auto-generated predicates only cover single-field checks.
+          value. Reach for a method when a condition combines multiple fields;
+          the predicates only cover single-field checks.
         </p>
         <tutuca-playground src="./examples/show-hide.js"></tutuca-playground>
 
@@ -442,12 +442,13 @@
         </p>
         <p>
           The example below also uses
-          <code>@show=".isLastSentSearchTruthy"</code> to conditionally display
-          the search result &mdash; <code>isXTruthy</code> is auto-generated for
-          primitive and nullable fields, returning <code>true</code> when the
-          field's value is JS-truthy. Nullable fields (those initialized with
-          <code>null</code>) also get <code>isXNull</code> for explicit null
-          checks. <code>@show</code> and <code>@hide</code> were introduced in
+          <code>@show="truthy? .lastSentSearch"</code> to conditionally display
+          the search result &mdash; <code>truthy?</code> is a built-in boolean
+          predicate. A conditional slot can name a field directly or apply a
+          predicate to one: <code>empty?</code>, <code>truthy?</code>,
+          <code>falsy?</code> and <code>null?</code>, written predicate-first
+          like a handler call. <code>@show</code> and <code>@hide</code> were
+          introduced in
           <a href="#conditional-display">Conditional Display</a>
           above.
         </p>

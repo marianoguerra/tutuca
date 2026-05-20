@@ -13,12 +13,12 @@ const EmojiPicker = component({
     @on.emoji-click="onEmojiClick value"
     class="join join-vertical gap-3 items-center"
   >
-    <p @hide=".isCurrentTruthy">
+    <p @hide="truthy? .current">
       Select the <em>Toggle Picker</em> button and select an emoji, it will be
       displayed here
     </p>
-    <p @show=".isCurrentTruthy">Selected emoji:</p>
-    <span @show=".isCurrentTruthy" @text=".current" class="text-9xl"></span>
+    <p @show="truthy? .current">Selected emoji:</p>
+    <span @show="truthy? .current" @text=".current" class="text-9xl"></span>
     <button class="btn btn-sm" @on.click=".toggleIsPickerVisible">
       Toggle Picker
     </button>

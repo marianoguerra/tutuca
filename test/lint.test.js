@@ -286,6 +286,46 @@ test("warn on undefined field attr (string template)", () => {
   }
 });
 
+test("boolean predicate: valid field emits no report", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div @hide="empty? .items">hi</div>`,
+  });
+  expect(lx.reports.length).toBe(0);
+});
+
+test("boolean predicate: undefined field arg warns", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div @hide="empty? .missing">hi</div>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  {
+    const { id, info } = lx.reports[0];
+    expect(id).toBe(FIELD_VAL_NOT_DEFINED);
+    expect(info.name).toBe("missing");
+  }
+});
+
+test("boolean predicate: old generated predicate method usage warns", () => {
+  // oo.js no longer generates is<Field>Empty/Truthy/Falsy/Null — a view still
+  // naming one (e.g. `.isItemsEmpty`) must be flagged so it gets migrated to a
+  // predicate (`empty? .items`).
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div @hide=".isItemsEmpty">hi</div>`,
+  });
+  expect(lx.reports.length).toBe(1);
+  {
+    const { id, info } = lx.reports[0];
+    expect(id).toBe(FIELD_VAL_NOT_DEFINED);
+    expect(info.name).toBe("isItemsEmpty");
+  }
+});
+
 test("warn on redundant single-placeholder template in :class (FieldVal)", () => {
   const [lx] = defAndCheck({
     name: "Comp",

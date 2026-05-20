@@ -120,22 +120,20 @@ const ComponentSelector = component({
     matchesFilter(_key, item) {
       const q = this.filterText.toLowerCase().trim();
       if (q === "") return true;
-      return (
-        item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
-      );
+      return item.title.toLowerCase().includes(q) || item.description.toLowerCase().includes(q);
     },
   },
   view: html`<section class="flex flex-col gap-3">
     <div
       class="alert alert-soft alert-info justify-center gap-3"
-      @show=".isItemsEmpty"
+      @show="empty? .items"
     >
       No components available, drop a component module to register
       <button class="btn btn-sm btn-soft btn-success" @on.click="reload">
         Reload
       </button>
     </div>
-    <div class="flex gap-3 justify-between" @hide=".isItemsEmpty">
+    <div class="flex gap-3 justify-between" @hide="empty? .items">
       <input
         class="input input-m"
         placeholder="Filter entries"
@@ -146,7 +144,7 @@ const ComponentSelector = component({
         Reload
       </button>
     </div>
-    <div class="list" @hide=".isItemsEmpty">
+    <div class="list" @hide="empty? .items">
       <x render-each=".items" as="listItem" when="matchesFilter"></x>
     </div>
   </section>`,

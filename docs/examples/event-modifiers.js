@@ -18,7 +18,7 @@ export const EventModifiers = component({
       @on.keydown+cancel=".resetQuery"
       placeholder="Search Query (Enter to send, Esc to clear)"
     />
-    <p @show=".isLastSentSearchTruthy">
+    <p @show="truthy? .lastSentSearch">
       Search: "<span @text=".lastSentSearch"></span>"
     </p>
   </section>`,

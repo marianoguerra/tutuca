@@ -25,65 +25,29 @@ function getFieldMethods(field) {
     },
   ];
 
-  const truthy = [
-    {
-      name: `is${uname}Truthy`,
-      sig: `is${uname}Truthy()`,
-      desc: "Check if value is truthy",
-    },
-    {
-      name: `is${uname}Falsy`,
-      sig: `is${uname}Falsy()`,
-      desc: "Check if value is falsy",
-    },
-  ];
-  const nullable = [
-    {
-      name: `is${uname}Null`,
-      sig: `is${uname}Null()`,
-      desc: "Check if value is null/undefined",
-    },
-  ];
-
   switch (type) {
     case "bool":
       methods[0].desc = "Set value (coerces to boolean)";
-      methods.push(
-        {
-          name: `toggle${uname}`,
-          sig: `toggle${uname}()`,
-          desc: "Toggle boolean value",
-        },
-        ...truthy,
-      );
+      methods.push({
+        name: `toggle${uname}`,
+        sig: `toggle${uname}()`,
+        desc: "Toggle boolean value",
+      });
       break;
     case "int":
     case "float":
-      methods.push(...truthy);
-      break;
     case "any":
-      methods.push(...nullable, ...truthy);
       break;
     case "text":
-      methods.push(
-        {
-          name: `is${uname}Empty`,
-          sig: `is${uname}Empty()`,
-          desc: "Check if string is empty",
-        },
-        { name: `${name}Len`, sig: `${name}Len()`, desc: "Get string length" },
-        ...truthy,
-      );
+      methods.push({
+        name: `${name}Len`,
+        sig: `${name}Len()`,
+        desc: "Get string length",
+      });
       break;
     case "list":
       methods.push(
-        {
-          name: `is${uname}Empty`,
-          sig: `is${uname}Empty()`,
-          desc: "Check if list is empty",
-        },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get list size" },
-        ...truthy,
         {
           name: `setIn${uname}At`,
           sig: `setIn${uname}At(i, v)`,
@@ -126,16 +90,10 @@ function getFieldMethods(field) {
       const label = type === "omap" ? "ordered map" : "map";
       methods.push(
         {
-          name: `is${uname}Empty`,
-          sig: `is${uname}Empty()`,
-          desc: `Check if ${label} is empty`,
-        },
-        {
           name: `${name}Len`,
           sig: `${name}Len()`,
           desc: `Get ${label} size`,
         },
-        ...truthy,
         {
           name: `setIn${uname}At`,
           sig: `setIn${uname}At(key, v)`,
@@ -166,13 +124,7 @@ function getFieldMethods(field) {
     }
     case "set":
       methods.push(
-        {
-          name: `is${uname}Empty`,
-          sig: `is${uname}Empty()`,
-          desc: "Check if set is empty",
-        },
         { name: `${name}Len`, sig: `${name}Len()`, desc: "Get set size" },
-        ...truthy,
         {
           name: `addIn${uname}`,
           sig: `addIn${uname}(v)`,
@@ -201,7 +153,6 @@ function getFieldMethods(field) {
       );
       break;
     default:
-      methods.push(...nullable, ...truthy);
       break;
   }
 

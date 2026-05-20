@@ -540,6 +540,19 @@ function checkConsistentAttrVal(
         replaceNameSuggestion(val.name, Object.keys(alter)),
       );
     }
+  } else if (valName === "PredicateVal") {
+    for (const arg of val.args)
+      checkConsistentAttrVal(
+        lx,
+        arg,
+        fields,
+        proto,
+        scope,
+        alter,
+        referencedAlters,
+        skipNameVal,
+        errCtx,
+      );
   } else if (valName !== "ConstVal" && valName !== "BindVal" && valName !== "DynVal") {
     console.log(val);
   }

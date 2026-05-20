@@ -361,7 +361,7 @@ export const Entry = component({
         @text="@value"
       ></span>
     </div>
-    <div @hide=".isAltUrlsEmpty">
+    <div @hide="empty? .altUrls">
       <ul>
         <li @each=".altUrls"><x render-it></x></li>
       </ul>

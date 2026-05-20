@@ -27,6 +27,27 @@ const G_FIELD = K_FIELD;
 const G_VALUE = K_FIELD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
 
+// Boolean predicates usable in conditional slots, e.g. `@show="empty? .items"`.
+// `sizeOf` reads `.size` (immutable List/Map/Set/OrderedMap/Record) or
+// `.length` (string/array), so predicates need no field-type info.
+function sizeOf(v) {
+  if (v == null) return null;
+  const s = v.size;
+  if (typeof s === "number") return s;
+  const l = v.length;
+  return typeof l === "number" ? l : null;
+}
+const predTruthy = (v) => {
+  const n = sizeOf(v);
+  return n === null ? !!v : n > 0;
+};
+const PREDICATES = {
+  "empty?": { name: "empty?", arity: 1, fn: (v) => v == null || sizeOf(v) === 0 },
+  "truthy?": { name: "truthy?", arity: 1, fn: predTruthy },
+  "falsy?": { name: "falsy?", arity: 1, fn: (v) => !predTruthy(v) },
+  "null?": { name: "null?", arity: 1, fn: (v) => v == null },
+};
+
 export class ValParser {
   constructor() {
     this.bindValIt = new BindVal("it");
@@ -36,8 +57,11 @@ export class ValParser {
     return new ConstVal(v);
   }
   // Conditionals: @show, @hide, @if.<attr>, x-op show/hide, x-wrapper attrs.
+  // A space-less value is a plain G_BOOL value; an interior space means a
+  // predicate call like `empty? .items` (G_BOOL values never contain spaces).
   parseBool(s, px) {
-    return this.parse(s, px, G_BOOL);
+    const t = s.trim();
+    return t.indexOf(" ") === -1 ? this.parse(t, px, G_BOOL) : this._parsePredicate(t, px);
   }
   // Text values: :attr, @text, <x text>, @then/@else, @push-view, @html.
   parseText(s, px) {
@@ -83,6 +107,30 @@ export class ValParser {
     const left = this.parse(s.slice(0, openSquareBracketIndex), px, K_FIELD);
     const right = this.parse(s.slice(openSquareBracketIndex + 1, -1), px, K_FIELD);
     return left && right ? new SeqAccessVal(left, right) : null;
+  }
+  // Mirrors EventHandler.parse: tokenize on whitespace, head is the operation,
+  // tail are args parsed individually as G_BOOL values.
+  _parsePredicate(s, px) {
+    const [predName, ...rawArgs] = s.split(/\s+/);
+    const pred = PREDICATES[predName];
+    if (pred === undefined) {
+      px.onParseIssue("bad-value", { role: "predicate", value: predName });
+      return null;
+    }
+    if (rawArgs.length !== pred.arity) {
+      px.onParseIssue("bad-value", { role: "predicate-arity", value: s, predicate: predName });
+      return null;
+    }
+    const args = new Array(rawArgs.length);
+    for (let i = 0; i < rawArgs.length; i++) {
+      const val = this.parse(rawArgs[i], px, G_BOOL);
+      if (val === null) {
+        px.onParseIssue("bad-value", { role: "predicate-arg", value: rawArgs[i] });
+        return null;
+      }
+      args[i] = val;
+    }
+    return new PredicateVal(pred, args);
   }
   parse(s, px, group) {
     switch (getValSubType(s)) {
@@ -147,6 +195,22 @@ export class ConstVal extends BaseVal {
   toString() {
     const v = this.val;
     return typeof v === "string" ? `'${v}'` : `${v}`;
+  }
+}
+export class PredicateVal extends BaseVal {
+  constructor(pred, args) {
+    super();
+    this.pred = pred;
+    this.args = args;
+  }
+  eval(stack) {
+    const n = this.args.length;
+    const vals = new Array(n);
+    for (let i = 0; i < n; i++) vals[i] = this.args[i].eval(stack);
+    return this.pred.fn(...vals);
+  }
+  toString() {
+    return `${this.pred.name} ${this.args.map(String).join(" ")}`;
   }
 }
 export class VarVal extends BaseVal {}
