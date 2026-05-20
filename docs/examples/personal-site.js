@@ -37,6 +37,23 @@ function getCategoryColor(cat, isSelected) {
   return CATEGORY_COLORS[cat] || "bg-base-300 text-base-content";
 }
 
+// Sort entries: featured first (optional), then by year. `entries` may be a
+// plain array (load time) or an immutable List (re-sort); `.sort` returns the
+// same kind, so callers store the result back into the `allEntries` field —
+// `@each` iterates that field directly (a method result has no path for
+// event dispatch, so a `$method` is rejected in `@each`).
+function sortEntries(entries, byEnd, asc, feat) {
+  return entries.sort((a, b) => {
+    if (feat) {
+      if (a.featured && !b.featured) return -1;
+      if (!a.featured && b.featured) return 1;
+    }
+    const aYear = (byEnd ? (a.endYear ?? a.startYear) : a.startYear) || 0;
+    const bYear = (byEnd ? (b.endYear ?? b.startYear) : b.startYear) || 0;
+    return asc ? aYear - bYear : bYear - aYear;
+  });
+}
+
 // Joined into a literal `class=` below so the margaui scanner picks them up.
 const CATEGORY_DECOY_CLASSES = Object.values(CATEGORY_COLORS)
   .concat(Object.values(CATEGORY_COLORS_SELECTED))
@@ -60,19 +77,10 @@ export const Root = component({
         ISet(this.allRoles),
       );
     },
-    sortedEntries() {
-      const byEnd = this.sortByEnd;
-      const asc = this.sortAsc;
-      const feat = this.featuredFirst;
-      return this.allEntries.sort((a, b) => {
-        if (feat) {
-          if (a.featured && !b.featured) return -1;
-          if (!a.featured && b.featured) return 1;
-        }
-        const aYear = (byEnd ? (a.endYear ?? a.startYear) : a.startYear) || 0;
-        const bYear = (byEnd ? (b.endYear ?? b.startYear) : b.startYear) || 0;
-        return asc ? aYear - bYear : bYear - aYear;
-      });
+    resort() {
+      return this.setAllEntries(
+        sortEntries(this.allEntries, this.sortByEnd, this.sortAsc, this.featuredFirst),
+      );
     },
     hasActiveFilters() {
       return (
@@ -107,6 +115,15 @@ export const Root = component({
         }
       }
       return this.toggleInSelectedRoles(role);
+    },
+    onToggleSortByEnd() {
+      return this.toggleSortByEnd().resort();
+    },
+    onToggleSortAsc() {
+      return this.toggleSortAsc().resort();
+    },
+    onToggleFeaturedFirst() {
+      return this.toggleFeaturedFirst().resort();
     },
   },
   alter: {
@@ -148,7 +165,9 @@ export const Root = component({
       }
       const allCatList = List([...allCats].sort());
       const allRolesList = List([...allRoles].sort());
-      return this.setAllEntries(entries)
+      return this.setAllEntries(
+        sortEntries(entries, this.sortByEnd, this.sortAsc, this.featuredFirst),
+      )
         .setAllCategories(allCatList)
         .setSelectedCategories(ISet(allCatList))
         .setAllRoles(allRolesList)
@@ -197,7 +216,7 @@ export const Root = component({
             <input
               type="checkbox"
               :checked=".sortByEnd"
-              @on.change="$toggleSortByEnd"
+              @on.change="onToggleSortByEnd"
             />
             <span class="swap-on">End Year</span>
             <span class="swap-off">Start Year</span>
@@ -207,7 +226,7 @@ export const Root = component({
             <input
               type="checkbox"
               :checked=".sortAsc"
-              @on.change="$toggleSortAsc"
+              @on.change="onToggleSortAsc"
             />
             <span class="swap-on">↑ Oldest first</span>
             <span class="swap-off">↓ Newest first</span>
@@ -218,7 +237,7 @@ export const Root = component({
               type="checkbox"
               class="toggle toggle-sm"
               :checked=".featuredFirst"
-              @on.change="$toggleFeaturedFirst"
+              @on.change="onToggleFeaturedFirst"
             />
             <span class="text-sm">Featured first</span>
           </label>
@@ -237,7 +256,7 @@ export const Root = component({
     </div>
 
     <div class="flex flex-col gap-3">
-      <div @each="$sortedEntries" @when="filterEntry">
+      <div @each=".allEntries" @when="filterEntry">
         <x render-it></x>
       </div>
     </div>

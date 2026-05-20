@@ -914,7 +914,7 @@ export function getMacros() {
       </button>`,
     ),
     "btn-toggle-edit": macro(
-      { value: ".editing", handler: ".toggleEditing" },
+      { value: ".editing", handler: "$toggleEditing" },
       html`<button
         @if.class="^value"
         @then="'btn btn-xs btn-soft btn-primary btn-circle'"
@@ -927,11 +927,11 @@ export function getMacros() {
     ),
     "items-editing": macro(
       {
-        showval: ".expandedAndEditing",
+        showval: "$expandedAndEditing",
         items: ".items",
-        onadd: ".addItemAt",
-        onremove: ".removeInItemsAt",
-        onappend: ".appendItem",
+        onadd: "$addItemAt",
+        onremove: "$removeInItemsAt",
+        onappend: "$appendItem",
       },
       html` <div @show="^showval" class="flex flex-col gap-3">
         <div @each="^items" class="flex flex-col gap-3">

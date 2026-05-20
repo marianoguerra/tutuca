@@ -42,7 +42,7 @@ const Items = component({
 });
 
 const checkbox = macro(
-  { value: ".value", handler: ".setValue" },
+  { value: ".value", handler: "$setValue" },
   html`<input
     type="checkbox"
     class="checkbox"
@@ -52,7 +52,7 @@ const checkbox = macro(
 );
 
 const input = macro(
-  { value: ".value", handler: ".setValue", disabled: "false" },
+  { value: ".value", handler: "$setValue", disabled: "false" },
   html`<input
     class="input"
     :value="^value"
