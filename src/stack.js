@@ -82,7 +82,7 @@ export class Stack {
     for (const k in dyns) arr.push(this._lookupDynamicWithDynVal(dyns[k]));
   }
   _lookupDynamicWithDynVal(d) {
-    return lookup(this.dynBinds, d.getSymbol(this)) ?? d.val.eval(this);
+    return lookup(this.dynBinds, d.getSymbol(this)) ?? d.val?.eval(this) ?? null;
   }
   lookupDynamic(name) {
     const d = this.comps.getCompFor(this.it)?.dynamic[name];

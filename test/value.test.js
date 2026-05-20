@@ -345,6 +345,28 @@ describe("equals? predicate with string literals", () => {
   });
 });
 
+describe("parseField (dynamic field definitions and defaults)", () => {
+  test("accepts a field reference", () => {
+    expect(vp.parseField(".color", px)).toBeInstanceOf(FieldVal);
+  });
+
+  test("accepts a method reference", () => {
+    expect(vp.parseField("$color", px)).toBeInstanceOf(MethodVal);
+  });
+
+  test("accepts a string-literal constant (dynamic alias default)", () => {
+    const r = vp.parseField("'gray'", px);
+    expect(r).toBeInstanceOf(ConstVal);
+    expect(r.val).toBe("gray");
+  });
+
+  test("accepts a numeric constant", () => {
+    const r = vp.parseField("42", px);
+    expect(r).toBeInstanceOf(ConstVal);
+    expect(r.val).toBe(42);
+  });
+});
+
 describe("string literals as event-handler args", () => {
   test("handler arg accepts a quoted literal with spaces", () => {
     const handler = EventHandler.parse("showView 'detail mode'", px);
