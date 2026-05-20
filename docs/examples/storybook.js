@@ -30,9 +30,6 @@ const Storybook = component({
       const index = this.sections.findIndex((s) => s.id === id);
       return this.selectSectionAtIndex(index);
     },
-    hasFocusExample() {
-      return this.focusExample !== null;
-    },
     focusExampleByIds(sectionId, exampleId) {
       if (!sectionId || !exampleId) {
         return this;
@@ -83,7 +80,7 @@ const Storybook = component({
     },
   },
   view: html`<div>
-    <div class="flex flex-col gap-3 p-3 h-screen" @show="$hasFocusExample">
+    <div class="flex flex-col gap-3 p-3 h-screen" @show="truthy? .focusExample">
       <div class="flex justify-end">
         <button class="btn btn-ghost btn-sm" @on.click="onFocusClose ctx">
           close
@@ -93,7 +90,7 @@ const Storybook = component({
         <x render=".focusExample"></x>
       </div>
     </div>
-    <div class="flex gap-3 p-3 h-screen" @hide="$hasFocusExample">
+    <div class="flex gap-3 p-3 h-screen" @hide="truthy? .focusExample">
       <div
         class="w-1/4 flex flex-col gap-3 bg-base-100 shadow-md h-full overflow-hidden"
       >

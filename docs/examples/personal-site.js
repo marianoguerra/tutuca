@@ -342,9 +342,6 @@ export const Entry = component({
       if (this.endYear !== null) return `${this.startYear}-${this.endYear}`;
       return `${this.startYear}`;
     },
-    hasYear() {
-      return this.startYear !== null;
-    },
   },
   alter: {
     enrichCategoryBadge(binds, _key, cat) {
@@ -359,7 +356,7 @@ export const Entry = component({
       <span @show="$isSpanish" @text="$langFlag"></span>
       <span
         class="badge badge-ghost badge-sm border-0 font-bold"
-        @show="$hasYear"
+        @show="truthy? .startYear"
         @text="$yearDisplay"
       ></span>
       <span
