@@ -1,4 +1,4 @@
-import { ConstVal, vp } from "./value.js";
+import { ConstVal, tokenizeArgs, vp } from "./value.js";
 
 export class Attributes {
   constructor(items) {
@@ -264,7 +264,7 @@ export class EventHandler {
     return [this.handlerVal.eval(stack), argValues];
   }
   static parse(s, px) {
-    const [handlerName, ...rawArgs] = s.trim().split(/\s+/);
+    const [handlerName = "", ...rawArgs] = tokenizeArgs(s.trim());
     const handlerVal = vp.parseInputHandler(handlerName, px);
     if (handlerVal === null) {
       const info = { role: "handler-name", value: handlerName };

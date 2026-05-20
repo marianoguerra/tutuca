@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { ConstVal, PredicateVal, StrTplVal, vp } from "../src/value.js";
+import { EventHandler } from "../src/attribute.js";
+import { ConstVal, PredicateVal, StrTplVal, tokenizeArgs, vp } from "../src/value.js";
 
 // Minimal parse context: predicate parsing reports issues via px.onParseIssue.
 const px = { frame: {}, onParseIssue() {} };
@@ -192,5 +193,88 @@ describe("boolean predicates in parseBool", () => {
     expect(vp.parseBool("truthy? .name", px).eval(stack)).toBe(true);
     expect(vp.parseBool("falsy? .items", px).eval(stack)).toBe(true);
     expect(vp.parseBool("null? .items", px).eval(stack)).toBe(false);
+  });
+});
+
+describe("tokenizeArgs", () => {
+  test("splits on whitespace", () => {
+    expect(tokenizeArgs("equals? .view detail")).toEqual(["equals?", ".view", "detail"]);
+  });
+
+  test("keeps a quoted literal with spaces as one token", () => {
+    expect(tokenizeArgs("equals? .name 'John Doe'")).toEqual([
+      "equals?",
+      ".name",
+      "'John Doe'",
+    ]);
+  });
+
+  test("keeps an escaped quote inside the token", () => {
+    expect(tokenizeArgs("equals? .name 'it\\'s here'")).toEqual([
+      "equals?",
+      ".name",
+      "'it\\'s here'",
+    ]);
+  });
+
+  test("empty string yields no tokens", () => {
+    expect(tokenizeArgs("")).toEqual([]);
+  });
+});
+
+describe("equals? predicate with string literals", () => {
+  test("parses to a PredicateVal with a ConstVal string arg", () => {
+    const r = vp.parseBool("equals? .view 'detail'", px);
+    expect(r).toBeInstanceOf(PredicateVal);
+    expect(r.pred.name).toBe("equals?");
+    expect(r.args.length).toBe(2);
+    expect(r.args[0].name).toBe("view");
+    expect(r.args[1]).toBeInstanceOf(ConstVal);
+    expect(r.args[1].val).toBe("detail");
+  });
+
+  test("string literal arg preserves interior spaces", () => {
+    const r = vp.parseBool("equals? .name 'John Doe'", px);
+    expect(r.args.length).toBe(2);
+    expect(r.args[1]).toBeInstanceOf(ConstVal);
+    expect(r.args[1].val).toBe("John Doe");
+  });
+
+  test("escaped quote in a string literal arg", () => {
+    const r = vp.parseBool("equals? .name 'it\\'s'", px);
+    expect(r.args[1]).toBeInstanceOf(ConstVal);
+    expect(r.args[1].val).toBe("it's");
+  });
+
+  test("eval compares the field value against the literal", () => {
+    const stack = { lookupField: (n) => ({ view: "detail" })[n] };
+    expect(vp.parseBool("equals? .view 'detail'", px).eval(stack)).toBe(true);
+    expect(vp.parseBool("equals? .view 'list'", px).eval(stack)).toBe(false);
+  });
+
+  test("arity mismatch returns null", () => {
+    expect(vp.parseBool("equals? .view", px)).toBeNull();
+  });
+
+  test("toString round-trips a quoted literal", () => {
+    expect(vp.parseBool("equals? .view 'detail'", px).toString()).toBe(
+      "equals? .view 'detail'",
+    );
+  });
+
+  // String literals are still rejected in a plain conditional slot (G_BOOL):
+  // only predicate args (and handler args) accept them.
+  test("bare string literal in parseBool still returns null", () => {
+    expect(vp.parseBool("'detail'", px)).toBeNull();
+  });
+});
+
+describe("string literals as event-handler args", () => {
+  test("handler arg accepts a quoted literal with spaces", () => {
+    const handler = EventHandler.parse("showView 'detail mode'", px);
+    expect(handler).not.toBeNull();
+    expect(handler.args.length).toBe(1);
+    expect(handler.args[0]).toBeInstanceOf(ConstVal);
+    expect(handler.args[0].val).toBe("detail mode");
   });
 });

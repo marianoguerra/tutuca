@@ -193,9 +193,14 @@ data and events.
 The one exception is **boolean predicates** in conditional slots
 (`@show`, `@hide`, `@if.<attr>`): a closed set of operators applied to
 a value, written predicate-first like a handler call —
-`empty?`, `truthy?`, `falsy?`, `null?`. E.g. `@hide="empty? .items"`,
-`@show="truthy? .query"`. A conditional slot still accepts a plain
-field/method name too (`@show=".isOpen"`).
+`empty?`, `truthy?`, `falsy?`, `null?`, `equals?`. E.g.
+`@hide="empty? .items"`, `@show="truthy? .query"`. A conditional slot
+still accepts a plain field/method name too (`@show=".isOpen"`).
+
+`equals?` takes two args and is the idiomatic way to show/hide by name,
+e.g. `@show="equals? .view 'detail'"`. Predicate args (and handler
+args) accept string literals: `'detail'`, or `'two words'` for a
+literal with spaces (escape an interior quote as `\'`).
 
 | Prefix   | Means                                     | Example               |
 | -------- | ----------------------------------------- | --------------------- |
@@ -209,7 +214,7 @@ field/method name too (`@show=".isOpen"`).
 | `'str'`  | string literal                            | `'btn btn-success'`   |
 | `{expr}` | interpolation in attr text                | `Hi {.name}`          |
 | `.s[.k]` | sequence/map item access                  | `.byKey[.currentKey]` |
-| `pred? .x` | boolean predicate in a conditional slot | `empty? .items`       |
+| `pred? .x` | boolean predicate in a conditional slot | `empty? .items`, `equals? .view 'detail'` |
 
 A bare `name` (no prefix) in `@on.<event>="<handler> <arg> <arg>..."`
 resolves by slot:
@@ -308,8 +313,9 @@ component({
 | `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `resetX`                                                                     |
 
 Emptiness / truthiness / null checks are not generated as methods — use
-the boolean predicates `empty?`, `truthy?`, `falsy?`, `null?` in a
-conditional slot instead (e.g. `@hide="empty? .x"`).
+the boolean predicates `empty?`, `truthy?`, `falsy?`, `null?`, `equals?`
+in a conditional slot instead (e.g. `@hide="empty? .x"`,
+`@show="equals? .view 'detail'"`).
 
 Explicit field types via `classFromData`:
 
@@ -339,10 +345,10 @@ methods: {
 <p :title="Hello, {.fullName}" @text=".fullName"></p>
 ```
 
-The boolean predicates (`empty?`, `truthy?`, `falsy?`, `null?`) cover
-single-field checks in conditional slots; reach for a method when the
-condition spans multiple fields or needs derivation. The method takes
-no args.
+The boolean predicates (`empty?`, `truthy?`, `falsy?`, `null?`,
+`equals?`) cover single-field checks in conditional slots; reach for a
+method when the condition spans multiple fields or needs derivation. The
+method takes no args.
 
 Tutuca expressions resolve a **single** name on `this` — there is no
 path syntax. `@text=".user.name"` does not navigate; it fails. When the
@@ -490,6 +496,9 @@ custom elements for use with Tutuca. See *Attribute Binding* above.
 ```html
 <div @show=".isLoading">Loading...</div>
 <div @hide=".isLoading">content</div>
+
+<!-- boolean predicates; equals? compares against a string literal -->
+<div @show="equals? .view 'detail'">detail view</div>
 
 <!-- show / hide also work as wrapper attrs on `<x>` render ops:
      wraps the produced node, no extra DOM element. Allowed on

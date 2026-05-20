@@ -1,3 +1,4 @@
+import { is } from "../deps/immutable.js";
 import { FieldStep, SeqAccessStep } from "./path.js";
 
 const VALID_VAL_ID_RE = /^[a-zA-Z][a-zA-Z0-9_]*$/;
@@ -5,6 +6,15 @@ const isValidValId = (name) => VALID_VAL_ID_RE.test(name);
 const VALID_FLOAT_RE = /^-?[0-9]+(\.[0-9]+)?$/;
 const STR_TPL_SPLIT_RE = /(\{[^}]+\})/g; // Safe to share despite `g` flag: only used in split
 const mkVal = (name, Cls) => (isValidValId(name) ? new Cls(name) : null);
+
+// Argument tokenizer for predicate calls and event handlers: a single-quoted
+// run (escaped `\'` and `\\` kept inside the token via `\\.`) or a
+// whitespace-free run. Safe to share despite `g`: only used via String.match.
+const ARG_TOKEN_RE = /'(?:[^'\\]|\\.)*'|\S+/g;
+export const tokenizeArgs = (s) => s.match(ARG_TOKEN_RE) ?? [];
+// Within a `'...'` literal only the delimiter and the escape char are
+// escapable; every other backslash stays literal.
+const unescapeStr = (s) => s.replace(/\\(['\\])/g, "$1");
 
 // Value kinds: a parse group is the bitwise-or of the kinds it accepts.
 const K_CONST = 1;
@@ -16,6 +26,7 @@ const K_NAME = 32;
 const K_TYPE = 64;
 const K_REQUEST = 128;
 const K_SEQ = 256;
+const K_STR = 512; // plain `'...'` string literal (no `{…}` interpolation)
 
 // Value groups, one per parsing context. Kept private: callers use the named
 // `parseX` methods below so they never have to know about the bitmasks.
@@ -25,6 +36,8 @@ const G_COMPONENT = K_FIELD | K_SEQ;
 const G_SEQUENCE = K_FIELD | K_DYN;
 const G_FIELD = K_FIELD;
 const G_VALUE = K_FIELD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
+const G_PRED_ARG = G_BOOL | K_STR; // boolean-predicate arguments
+const G_HANDLER_ARG = G_VALUE | K_STR; // event-handler arguments
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
 
 // Boolean predicates usable in conditional slots, e.g. `@show="empty? .items"`.
@@ -46,6 +59,7 @@ const PREDICATES = {
   "truthy?": { name: "truthy?", arity: 1, fn: predTruthy },
   "falsy?": { name: "falsy?", arity: 1, fn: (v) => !predTruthy(v) },
   "null?": { name: "null?", arity: 1, fn: (v) => v == null },
+  "equals?": { name: "equals?", arity: 2, fn: (a, b) => is(a, b) },
 };
 
 export class ValParser {
@@ -81,7 +95,7 @@ export class ValParser {
   }
   // Arguments passed to an event handler.
   parseHandlerArg(s, px) {
-    return this.parse(s, px, G_VALUE);
+    return this.parse(s, px, G_HANDLER_ARG);
   }
   // Pass-through values on a macro-call element (:attr on a macro).
   parseMacroAttr(s, px) {
@@ -111,7 +125,7 @@ export class ValParser {
   // Mirrors EventHandler.parse: tokenize on whitespace, head is the operation,
   // tail are args parsed individually as G_BOOL values.
   _parsePredicate(s, px) {
-    const [predName, ...rawArgs] = s.split(/\s+/);
+    const [predName, ...rawArgs] = tokenizeArgs(s);
     const pred = PREDICATES[predName];
     if (pred === undefined) {
       px.onParseIssue("bad-value", { role: "predicate", value: predName });
@@ -123,7 +137,7 @@ export class ValParser {
     }
     const args = new Array(rawArgs.length);
     for (let i = 0; i < rawArgs.length; i++) {
-      const val = this.parse(rawArgs[i], px, G_BOOL);
+      const val = this.parse(rawArgs[i], px, G_PRED_ARG);
       if (val === null) {
         px.onParseIssue("bad-value", { role: "predicate-arg", value: rawArgs[i] });
         return null;
@@ -153,7 +167,7 @@ export class ValParser {
         return null;
       }
       case 39: // ''
-        return group & K_STRTPL ? new ConstVal(s.slice(1, -1)) : null;
+        return group & (K_STRTPL | K_STR) ? new ConstVal(unescapeStr(s.slice(1, -1))) : null;
       case 64: // @
         return group & K_BIND ? mkVal(s.slice(1), BindVal) : null;
       case 42: // *
@@ -194,7 +208,7 @@ export class ConstVal extends BaseVal {
   }
   toString() {
     const v = this.val;
-    return typeof v === "string" ? `'${v}'` : `${v}`;
+    return typeof v === "string" ? `'${v.replace(/(['\\])/g, "\\$1")}'` : `${v}`;
   }
 }
 export class PredicateVal extends BaseVal {
