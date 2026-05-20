@@ -51,6 +51,9 @@ export const INPUT_HANDLER_METHOD_NOT_IMPLEMENTED = "INPUT_HANDLER_METHOD_NOT_IM
 export const INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD = "INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD";
 export const INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER = "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER";
 export const FIELD_VAL_NOT_DEFINED = "FIELD_VAL_NOT_DEFINED";
+export const FIELD_VAL_IS_METHOD = "FIELD_VAL_IS_METHOD";
+export const METHOD_VAL_NOT_DEFINED = "METHOD_VAL_NOT_DEFINED";
+export const METHOD_VAL_IS_FIELD = "METHOD_VAL_IS_FIELD";
 export const DUPLICATE_ATTR_DEFINITION = "DUPLICATE_ATTR_DEFINITION";
 export const IF_NO_BRANCH_SET = "IF_NO_BRANCH_SET";
 export const UNKNOWN_REQUEST_NAME = "UNKNOWN_REQUEST_NAME";
@@ -145,19 +148,19 @@ function classifyBadValue(value) {
   if (/\s\?\s.+\s:\s/.test(s)) return "ternary";
   if (/===|!==|==|!=|<=|>=|\s<\s|\s>\s/.test(s)) return "comparison";
   if (/&&|\|\|/.test(s)) return "logical";
-  if (/^\.[A-Za-z_]\w*\s+\S/.test(s)) return "call-with-args";
+  if (/^[.$][A-Za-z_]\w*\s+\S/.test(s)) return "call-with-args";
   return null;
 }
 
 const UNSUPPORTED_EXPR_GUIDANCE = {
   ternary:
-    "Ternary expressions aren't supported in dynamic attributes. Define a method or computed field on the component that returns the value, then reference it as '.methodName'.",
+    "Ternary expressions aren't supported in dynamic attributes. Define a method or computed field on the component that returns the value, then reference it as '$methodName'.",
   comparison:
-    "Comparisons aren't supported in dynamic attributes. Define a method like '.isFooSelected' that returns the boolean, then reference it as '.isFooSelected'.",
+    "Comparisons aren't supported in dynamic attributes. Define a method like 'isFooSelected' that returns the boolean, then reference it as '$isFooSelected'.",
   logical:
-    "Logical operators aren't supported in dynamic attributes. Combine the conditions in a method on the component and reference it as '.methodName'.",
+    "Logical operators aren't supported in dynamic attributes. Combine the conditions in a method on the component and reference it as '$methodName'.",
   "call-with-args":
-    "Method calls with arguments aren't supported here. Reference a no-arg method ('.methodName') and read what you need from component state, or split into per-case methods.",
+    "Method calls with arguments aren't supported here. Reference a no-arg method ('$methodName') and read what you need from component state, or split into per-case methods.",
 };
 
 export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras = EMPTY_SET } = {}) {
@@ -405,18 +408,18 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
                 INPUT_HANDLER_NOT_IMPLEMENTED,
                 { name, handler, event, eventName, originAttr },
                 isMethodFix
-                  ? { kind: "add-prefix", from: name, to: `.${name}` }
+                  ? { kind: "add-prefix", from: name, to: `$${name}` }
                   : replaceNameSuggestion(name, Object.keys(input)),
               );
               if (isMethodFix) {
                 lx.hint(
                   INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
                   { name, handler, event, eventName, originAttr },
-                  { kind: "add-prefix", from: name, to: `.${name}` },
+                  { kind: "add-prefix", from: name, to: `$${name}` },
                 );
               }
             }
-          } else if (hvName === "RawFieldVal") {
+          } else if (hvName === "MethodVal") {
             referencedInputs?.add(handlerVal.name);
             const { name } = handlerVal;
             if (proto[name] === undefined) {
@@ -425,14 +428,14 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
                 INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
                 { name, handler, event, eventName, originAttr },
                 isInputFix
-                  ? { kind: "drop-prefix", from: `.${name}`, to: name }
+                  ? { kind: "drop-prefix", from: `$${name}`, to: name }
                   : replaceNameSuggestion(name, collectProtoMethodNames(proto)),
               );
               if (isInputFix) {
                 lx.hint(
                   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
                   { name, handler, event, eventName, originAttr },
-                  { kind: "drop-prefix", from: `.${name}`, to: name },
+                  { kind: "drop-prefix", from: `$${name}`, to: name },
                 );
               }
             }
@@ -446,15 +449,41 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
 function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null) {
   const { fields, proto, scope, alter } = env;
   const valName = val?.constructor.name;
-  if (valName === "FieldVal" || valName === "RawFieldVal") {
+  if (valName === "FieldVal") {
+    // `.name` must be a field. If it names a method, the fix is `$name`.
     const { name } = val;
-    if (fields[name] === undefined && proto[name] === undefined) {
-      const candidates = [...Object.keys(fields), ...collectProtoMethodNames(proto)];
-      lx.error(
-        FIELD_VAL_NOT_DEFINED,
-        { ...errCtx, val, name },
-        replaceNameSuggestion(name, candidates),
-      );
+    if (fields[name] === undefined) {
+      if (proto[name] !== undefined) {
+        lx.error(
+          FIELD_VAL_IS_METHOD,
+          { ...errCtx, val, name },
+          { kind: "rewrite", from: `.${name}`, to: `$${name}` },
+        );
+      } else {
+        lx.error(
+          FIELD_VAL_NOT_DEFINED,
+          { ...errCtx, val, name },
+          replaceNameSuggestion(name, Object.keys(fields)),
+        );
+      }
+    }
+  } else if (valName === "MethodVal") {
+    // `$name` must be a method. If it names a field, the fix is `.name`.
+    const { name } = val;
+    if (proto[name] === undefined) {
+      if (fields[name] !== undefined) {
+        lx.error(
+          METHOD_VAL_IS_FIELD,
+          { ...errCtx, val, name },
+          { kind: "rewrite", from: `$${name}`, to: `.${name}` },
+        );
+      } else {
+        lx.error(
+          METHOD_VAL_NOT_DEFINED,
+          { ...errCtx, val, name },
+          replaceNameSuggestion(name, collectProtoMethodNames(proto)),
+        );
+      }
     }
   } else if (valName === "SeqAccessVal") {
     checkConsistentAttrVal(lx, val.seqVal, env, skipNameVal, errCtx);

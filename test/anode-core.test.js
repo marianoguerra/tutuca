@@ -28,7 +28,7 @@ import {
   FieldVal,
   HandlerNameVal,
   NameVal,
-  RawFieldVal,
+  MethodVal,
   RequestVal,
   TypeVal,
   vp,
@@ -356,9 +356,9 @@ describe("ANode", () => {
     });
 
     test("@enrich-with (scope)", () => {
-      const [r, px] = parse("<div @enrich-with='.myScope'>hi</div>");
+      const [r, px] = parse("<div @enrich-with='$myScope'>hi</div>");
       expect(r).toBeInstanceOf(ScopeNode);
-      expect(r.val).toBeInstanceOf(RawFieldVal);
+      expect(r.val).toBeInstanceOf(MethodVal);
       expect(r.node).toBeInstanceOf(DomNode);
       expect(r.nodeId).toBe(0);
       expect(px.nodes.length).toBe(1);
@@ -386,9 +386,9 @@ describe("ANode", () => {
     });
 
     test("@each @when", () => {
-      const [r, px] = parse("<div @each='.mySeq' @when='.myFilter'>hi</div>");
+      const [r, px] = parse("<div @each='.mySeq' @when='$myFilter'>hi</div>");
       expect(r).toBeInstanceOf(EachNode);
-      expect(r.iterInfo.whenVal).toBeInstanceOf(RawFieldVal);
+      expect(r.iterInfo.whenVal).toBeInstanceOf(MethodVal);
       expect(r.node).toBeInstanceOf(DomNode);
       expect(r.iterInfo.enrichWithVal).toBe(null);
       expect(r.nodeId).toBe(0);
@@ -408,9 +408,9 @@ describe("ANode", () => {
     });
 
     test("@each @enrich-with", () => {
-      const [r, px] = parse("<div @each='.mySeq' @enrich-with='.myEnrich'>hi</div>");
+      const [r, px] = parse("<div @each='.mySeq' @enrich-with='$myEnrich'>hi</div>");
       expect(r).toBeInstanceOf(EachNode);
-      expect(r.iterInfo.enrichWithVal).toBeInstanceOf(RawFieldVal);
+      expect(r.iterInfo.enrichWithVal).toBeInstanceOf(MethodVal);
       expect(r.node).toBeInstanceOf(DomNode);
       expect(r.iterInfo.whenVal).toBe(null);
       expect(r.nodeId).toBe(0);
@@ -496,7 +496,7 @@ describe("ANode", () => {
     test("wrap order", () => {
       // if enrich-with comes before each it's a scope wrapper attr
       const [r, px] = parse(
-        "<div @show='@a' @hide='@b' @enrich-with='.myScope' @each='.mySeq'>hi</div>",
+        "<div @show='@a' @hide='@b' @enrich-with='$myScope' @each='.mySeq'>hi</div>",
       );
       expect(r).toBeInstanceOf(ShowNode);
       expect(r.node).toBeInstanceOf(HideNode);
@@ -632,7 +632,7 @@ describe("ANode", () => {
     });
 
     test("@on.twoevents", () => {
-      const [r, px] = parse("<div @on.click='h @v' @on.hover='.f @v'>hi</div>");
+      const [r, px] = parse("<div @on.click='h @v' @on.hover='$f @v'>hi</div>");
       expect(r).toBeInstanceOf(DomNode);
       expect(r.attrs).toBeInstanceOf(ConstAttrs);
       expect(r.attrs.items["data-eid"]).toBe(0);
@@ -653,7 +653,7 @@ describe("ANode", () => {
       //
       expect(n2).toBe("hover");
       expect(h2).toBeInstanceOf(EventHandler);
-      expect(h2.handlerVal).toBeInstanceOf(RawFieldVal);
+      expect(h2.handlerVal).toBeInstanceOf(MethodVal);
       expect(h2.handlerVal.name).toBe("f");
       expect(h2.args.length).toBe(1);
       const [v1] = h2.args;
@@ -813,7 +813,7 @@ describe("ANode", () => {
             return { nameUpper: this.name.toUpperCase() };
           },
         },
-        view: html`<div @enrich-with=".getScopeBinds">
+        view: html`<div @enrich-with="$getScopeBinds">
           <x text="@nameUpper"></x>
         </div>`,
       });
@@ -956,7 +956,7 @@ describe("ANode", () => {
     // @enrich-with (standalone) — parseAlterHandler: field, name
     describe("@enrich-with", () => {
       test("valid field", () => {
-        const [r] = parse("<div @enrich-with='.foo'>hi</div>");
+        const [r] = parse("<div @enrich-with='$foo'>hi</div>");
         expect(r).toBeInstanceOf(ScopeNode);
       });
       test("valid name", () => {

@@ -14,7 +14,7 @@ export const JsonBool = component({
     @if.class=".value"
     @then="'btn btn-sm btn-ghost btn-success font-mono'"
     @else="'btn btn-sm btn-ghost btn-error font-mono'"
-    @on.click=".toggleValue"
+    @on.click="$toggleValue"
   >
     <span @show=".value">true</span>
     <span @hide=".value">false</span>
@@ -31,7 +31,7 @@ export const JsonString = component({
     :data-test-id=".uid"
     class="input input-sm input-ghost text-green-500 font-mono"
     :value=".value"
-    @on.input=".setValue value"
+    @on.input="$setValue value"
   />`,
 });
 
@@ -54,7 +54,7 @@ export const JsonNumber = component({
     class="input input-sm input-ghost text-primary font-mono"
     :title=".value"
     :value=".strValue"
-    @on.input=".setRawValue value"
+    @on.input="$setRawValue value"
   />`,
 });
 
@@ -72,32 +72,32 @@ export const JsonSelector = component({
   view: html`<div :data-test-id=".uid" class="join gap-3 font-mono">
     <button
       class="btn btn-sm btn-ghost btn-warning"
-      @on.click=".setTo JsonNull"
+      @on.click="$setTo JsonNull"
     >
       null
     </button>
     <button
       class="btn btn-sm btn-ghost btn-success"
-      @on.click=".setToBool JsonBool isCtrl"
+      @on.click="$setToBool JsonBool isCtrl"
     >
       bool
     </button>
     <button
       class="btn btn-sm btn-ghost btn-primary"
-      @on.click=".setTo JsonNumber"
+      @on.click="$setTo JsonNumber"
     >
       0
     </button>
     <button
       class="btn btn-sm btn-ghost btn-accent"
-      @on.click=".setTo JsonString"
+      @on.click="$setTo JsonString"
     >
       ""
     </button>
-    <button class="btn btn-sm btn-ghost btn-info" @on.click=".setTo JsonArray">
+    <button class="btn btn-sm btn-ghost btn-info" @on.click="$setTo JsonArray">
       []
     </button>
-    <button class="btn btn-sm btn-ghost btn-info" @on.click=".setTo JsonObject">
+    <button class="btn btn-sm btn-ghost btn-info" @on.click="$setTo JsonObject">
       {}
     </button>
   </div>`,
@@ -145,7 +145,7 @@ export const JsonArray = component({
         <x render-it></x
         ><button
           class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100"
-          @on.click=".removeInItemsAt @key"
+          @on.click="$removeInItemsAt @key"
         >
           ⛔
         </button>
@@ -165,7 +165,7 @@ export const JsonObjectKeyVal = component({
     <input
       class="input input-sm input-ghost text-green-500 font-mono"
       :value=".key"
-      @on.input=".setKey value"
+      @on.input="$setKey value"
     />
     <span class="text-xs font-mono text-gray-500">:</span>
     <x render=".value"></x>
@@ -214,7 +214,7 @@ export const JsonObject = component({
         <x render-it></x
         ><button
           class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100"
-          @on.click=".removeInItemsAt @key"
+          @on.click="$removeInItemsAt @key"
         >
           ⛔
         </button>

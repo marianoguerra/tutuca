@@ -46,15 +46,15 @@ const SendReceive = component({
     <input
       class="input"
       :value=".draft"
-      @on.input=".setDraft value"
-      @on.keydown+send=".submit"
+      @on.input="$setDraft value"
+      @on.keydown+send="$submit"
       placeholder="Type a message and press Enter"
     />
     <div class="flex gap-2">
-      <button class="btn btn-primary" @on.click=".submit">
+      <button class="btn btn-primary" @on.click="$submit">
         Send
       </button>
-      <button class="btn btn-ghost" @on.click=".clearStatus">
+      <button class="btn btn-ghost" @on.click="$clearStatus">
         Clear status
       </button>
     </div>

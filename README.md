@@ -43,9 +43,9 @@ For an interactive walk-through with editable examples, see the
           },
         },
         view: html`<div>
-          <button @on.click=".dec">-</button>
+          <button @on.click="$dec">-</button>
           <div @text=".count"></div>
-          <button @on.click=".inc">+</button>
+          <button @on.click="$inc">+</button>
         </div>`,
       });
 

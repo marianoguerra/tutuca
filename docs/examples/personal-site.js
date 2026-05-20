@@ -197,7 +197,7 @@ export const Root = component({
             <input
               type="checkbox"
               :checked=".sortByEnd"
-              @on.change=".toggleSortByEnd"
+              @on.change="$toggleSortByEnd"
             />
             <span class="swap-on">End Year</span>
             <span class="swap-off">Start Year</span>
@@ -207,7 +207,7 @@ export const Root = component({
             <input
               type="checkbox"
               :checked=".sortAsc"
-              @on.change=".toggleSortAsc"
+              @on.change="$toggleSortAsc"
             />
             <span class="swap-on">↑ Oldest first</span>
             <span class="swap-off">↓ Newest first</span>
@@ -218,7 +218,7 @@ export const Root = component({
               type="checkbox"
               class="toggle toggle-sm"
               :checked=".featuredFirst"
-              @on.change=".toggleFeaturedFirst"
+              @on.change="$toggleFeaturedFirst"
             />
             <span class="text-sm">Featured first</span>
           </label>
@@ -228,8 +228,8 @@ export const Root = component({
       <div class="flex flex-wrap items-center gap-4 mt-4">
         <button
           class="btn btn-outline btn-sm"
-          @on.click=".clearFilters"
-          @show=".hasActiveFilters"
+          @on.click="$clearFilters"
+          @show="$hasActiveFilters"
         >
           Clear Filters
         </button>
@@ -237,7 +237,7 @@ export const Root = component({
     </div>
 
     <div class="flex flex-col gap-3">
-      <div @each=".sortedEntries" @when="filterEntry">
+      <div @each="$sortedEntries" @when="filterEntry">
         <x render-it></x>
       </div>
     </div>
@@ -337,11 +337,11 @@ export const Entry = component({
   >
     <div class="flex gap-1 sm:gap-2 flex-wrap items-center">
       <span @show=".featured">⭐</span>
-      <span @show=".isSpanish" @text=".langFlag"></span>
+      <span @show="$isSpanish" @text="$langFlag"></span>
       <span
         class="badge badge-ghost badge-sm border-0 font-bold"
-        @show=".hasYear"
-        @text=".yearDisplay"
+        @show="$hasYear"
+        @text="$yearDisplay"
       ></span>
       <span
         class="badge badge-neutral badge-sm border-0 font-bold"

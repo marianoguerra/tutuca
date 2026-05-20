@@ -138,7 +138,7 @@ const ComponentSelector = component({
         class="input input-m"
         placeholder="Filter entries"
         :value=".filterText"
-        @on.input=".setFilterText value"
+        @on.input="$setFilterText value"
       />
       <button class="btn btn-sm btn-soft btn-success" @on.click="reload">
         Reload

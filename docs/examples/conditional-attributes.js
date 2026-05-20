@@ -11,7 +11,7 @@ export const ConditionalAttributes = component({
       @if.title=".isActive"
       @then.title="'Click to disable'"
       @else.title="'Click to enable'"
-      @on.click=".toggleIsActive"
+      @on.click="$toggleIsActive"
     >
       <span @show=".isActive">Enabled</span>
       <span @hide=".isActive">Disabled</span>

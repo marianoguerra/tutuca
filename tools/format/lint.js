@@ -92,13 +92,19 @@ export function lintIdToMessage(id, info) {
     case "INPUT_HANDLER_NOT_REFERENCED":
       return `Input handler '${info.name}' is defined but never used — remove it or wire it to an @on.* event`;
     case "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED":
-      return `Method '.${info.name}' is not implemented${fmtEventSuffix(info)}`;
+      return `Method '$${info.name}' is not implemented${fmtEventSuffix(info)}`;
     case "INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD":
-      return `'.${info.name}' is a method reference, but '${info.name}' is defined as an input handler${fmtEventSuffix(info)}`;
+      return `'$${info.name}' is a method reference, but '${info.name}' is defined as an input handler${fmtEventSuffix(info)}`;
     case "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER":
       return `'${info.name}' is an input handler reference, but '${info.name}' is defined as a method${fmtEventSuffix(info)}`;
     case "FIELD_VAL_NOT_DEFINED":
       return `Field '.${info.name}' is not defined${fmtOriginSuffix(info)}`;
+    case "FIELD_VAL_IS_METHOD":
+      return `'.${info.name}' reads a field, but '${info.name}' is defined as a method — use '$${info.name}'${fmtOriginSuffix(info)}`;
+    case "METHOD_VAL_NOT_DEFINED":
+      return `Method '$${info.name}' is not defined${fmtOriginSuffix(info)}`;
+    case "METHOD_VAL_IS_FIELD":
+      return `'$${info.name}' calls a method, but '${info.name}' is defined as a field — use '.${info.name}'${fmtOriginSuffix(info)}`;
     case "DUPLICATE_ATTR_DEFINITION": {
       const sources = info.sources?.length ? ` (${info.sources.join(", ")})` : "";
       const tag = info.tag ? ` on <${String(info.tag).toLowerCase()}>` : "";

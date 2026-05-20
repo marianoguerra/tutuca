@@ -11,12 +11,12 @@ const Item = component({
       type="checkbox"
       class="checkbox"
       :checked=".completed"
-      @on.input=".setCompleted value"
+      @on.input="$setCompleted value"
     />
     <input
       class="input"
       :value=".text"
-      @on.input=".setText value"
+      @on.input="$setText value"
       :disabled=".completed"
     />
   </div>`,
@@ -41,7 +41,7 @@ const Items = component({
         <x render-it></x>
         <button
           class="btn btn-soft btn-sm btn-error btn-circle font-mono"
-          @on.click=".removeInItemsAt @key"
+          @on.click="$removeInItemsAt @key"
         >
           x
         </button>

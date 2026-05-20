@@ -40,7 +40,7 @@ test("parse render-each", () => {
 });
 
 test("parse render-each and when", () => {
-  const [r] = parse(`<x render-each=".items" when=".whenH"></x>`);
+  const [r] = parse(`<x render-each=".items" when="$whenH"></x>`);
   expect(r.iterInfo.whenVal.name).toBe("whenH");
   expect(r.iterInfo.loopWithVal).toBe(null);
 });
@@ -48,7 +48,7 @@ test("parse render-each and when", () => {
 test.todo("warn if enrich-with exists alongside render-each");
 
 test("parse render-each, when and loop-with", () => {
-  const [r] = parse(`<x render-each=".items" when=".whenH" loop-with=".lwith"></x>`);
+  const [r] = parse(`<x render-each=".items" when="$whenH" loop-with="$lwith"></x>`);
   expect(r.iterInfo.whenVal.name).toBe("whenH");
   expect(r.iterInfo.loopWithVal.name).toBe("lwith");
 });
@@ -89,7 +89,7 @@ test("x render with show wraps in ShowNode", () => {
 });
 
 test("x render-each with show wraps in ShowNode and keeps when/loop-with", () => {
-  const [r] = parse(`<x render-each=".items" when=".whenH" loop-with=".lwith" show=".isOpen"></x>`);
+  const [r] = parse(`<x render-each=".items" when="$whenH" loop-with="$lwith" show=".isOpen"></x>`);
   expect(r).toBeInstanceOf(ShowNode);
   expect(r.node).toBeInstanceOf(RenderEachNode);
   expect(r.node.iterInfo.whenVal.name).toBe("whenH");
@@ -119,18 +119,18 @@ test("parse text directive: parse error is no child text node", () => {
 
 test("expand simple macro", () => {
   const m = macro(
-    { value: ".text", onInput: ".setText" },
+    { value: ".text", onInput: "$setText" },
     html`<input :value="^value" @on.input="^onInput value" />`,
   );
   {
     const px = mpx();
-    const n = m.expand(px.enterMacro("m", { value: ".text", onInput: ".setText" }, {}));
+    const n = m.expand(px.enterMacro("m", { value: ".text", onInput: "$setText" }, {}));
     expect(n.attrs.items[0].val.name).toBe("text");
     expect(px.events[0].handlers[0].handlerCall.handlerVal.name).toBe("setText");
   }
   {
     const px = mpx();
-    const n = m.expand(px.enterMacro("m", { value: ".foo", onInput: ".setFoo" }, {}));
+    const n = m.expand(px.enterMacro("m", { value: ".foo", onInput: "$setFoo" }, {}));
     expect(n.attrs.items[0].val.name).toBe("foo");
     expect(px.events[0].handlers[0].handlerCall.handlerVal.name).toBe("setFoo");
   }
@@ -147,14 +147,14 @@ class ScopeForMacros {
 
 test("expand nested macro", () => {
   const inputMacro = macro(
-    { value: ".text", oninput: ".setText" },
+    { value: ".text", oninput: "$setText" },
     html`<input :value="^value" @on.input="^oninput value" />`,
   );
 
   const outerMacro = macro(
     { value: ".title" },
     html`<div :title="^value">
-      <x:input :value=".foo" :oninput=".setFoo"></x:input>
+      <x:input :value=".foo" :oninput="$setFoo"></x:input>
       <p :title="^value"></p>
     </div>`,
   );
@@ -399,7 +399,7 @@ test("optimize: each optimizes constant child", () => {
   expect(r.anode.node).toBeInstanceOf(RenderOnceNode);
 });
 test("optimize: scope optimizes constant child", () => {
-  const r = optimizeView(html`<div @enrich-with=".a">hi</div>`);
+  const r = optimizeView(html`<div @enrich-with="$a">hi</div>`);
   expect(r.anode).toBeInstanceOf(ScopeNode);
   expect(r.anode.node).toBeInstanceOf(RenderOnceNode);
 });

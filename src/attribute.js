@@ -261,7 +261,7 @@ export class EventHandler {
   getHandlerAndArgs(stack, _event) {
     const argValues = new Array(this.args.length);
     for (let i = 0; i < argValues.length; i++) argValues[i] = this.args[i].eval(stack);
-    return [this.handlerVal.eval(stack), argValues];
+    return [this.handlerVal.evalAsHandler(stack), argValues];
   }
   static parse(s, px) {
     const [handlerName = "", ...rawArgs] = tokenizeArgs(s.trim());

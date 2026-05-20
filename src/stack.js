@@ -97,9 +97,9 @@ export class Stack {
   lookupFieldRaw(name) {
     return this.it[name] ?? null;
   }
-  lookupField(name) {
-    const v = this.lookupFieldRaw(name);
-    return v instanceof Function ? v.call(this.it) : v;
+  lookupMethod(name) {
+    const fn = this.it[name];
+    return fn instanceof Function ? fn.call(this.it) : null;
   }
   lookupName(name) {
     return this.ctx.lookupName(name);

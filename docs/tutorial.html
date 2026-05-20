@@ -92,14 +92,20 @@
         </p>
         <ul>
           <li>
-            <code>.name</code> &mdash; component field or method (e.g.
-            <code>.count</code>, <code>.inc</code>). Single-level only &mdash;
-            paths like <code>.user.name</code> are not supported anywhere. To
-            reach a nested value, render the child as a component (<code
+            <code>.name</code> &mdash; a component field (e.g.
+            <code>.count</code>). Single-level only &mdash; paths like
+            <code>.user.name</code> are not supported anywhere. To reach a
+            nested value, render the child as a component (<code
               >&lt;x render=".user"&gt;</code
             >
             then <code>@text=".name"</code> inside), add a method that returns
             it, or expose it via <code>@enrich-with</code>.
+          </li>
+          <li>
+            <code>$name</code> &mdash; a no-arg method call (e.g.
+            <code>$inc</code>). It invokes the method and uses its return
+            value. <code>.name</code> and <code>$name</code> are not
+            interchangeable; the linter flags a mismatch.
           </li>
           <li>
             <code>@name</code> &mdash; local binding from iteration or scope
@@ -288,7 +294,7 @@
           node that adds no extra DOM element. The value can be a field
           reference like <code>.str</code>, which resolves the
           <code>str</code> field, or a method call like
-          <code>.getStrUpper</code>, which invokes the method and displays its
+          <code>$getStrUpper</code>, which invokes the method and displays its
           return value. All value types are supported: strings, numbers,
           booleans, and null.
         </p>
@@ -340,9 +346,9 @@
         </p>
         <ul>
           <li>
-            <code>.name</code> (with a leading dot) calls
+            <code>$name</code> (with a leading <code>$</code>) calls
             <code>methods.name</code> or any auto-generated mutator
-            (<code>.setX</code>, <code>.toggleX</code>, &hellip;).
+            (<code>$setX</code>, <code>$toggleX</code>, &hellip;).
           </li>
           <li><code>name</code> (bare) calls <code>input.name</code>.</li>
         </ul>
@@ -369,7 +375,7 @@
         </p>
         <p>
           When the user types,
-          <code>@on.input=".setStr value"</code> calls the auto-generated
+          <code>@on.input="$setStr value"</code> calls the auto-generated
           <code>setStr</code> setter with the input's current value. For the
           number input, a custom method <code>setRawNumber</code> parses and
           validates before calling the auto-generated <code>setNum</code>.
@@ -382,10 +388,10 @@
           <a href="#event-handling">Event Handling</a>
         </h3>
         <p>
-          The <code>+</code> button uses <code>@on.click=".inc"</code> &mdash;
-          the dot prefix calls a <code>methods</code> function. The
-          <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no dot
-          means it calls an <code>input</code> handler. Both return new state
+          The <code>+</code> button uses <code>@on.click="$inc"</code> &mdash;
+          the <code>$</code> prefix calls a <code>methods</code> function. The
+          <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no
+          prefix means it calls an <code>input</code> handler. Both return new state
           via the auto-generated <code>this.setCount()</code>.
         </p>
         <p>
@@ -422,7 +428,7 @@
           one (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
           <code>null?</code> &mdash; written predicate-first, e.g.
           <code>@hide="empty? .items"</code>), or a <code>methods</code> entry
-          &mdash; <code>@show=".canSubmit"</code> calls
+          &mdash; <code>@show="$canSubmit"</code> calls
           <code>methods.canSubmit()</code> with no arguments and uses its return
           value. Reach for a method when a condition combines multiple fields;
           the predicates only cover single-field checks.
@@ -434,9 +440,9 @@
         </h3>
         <p>
           Modifiers filter events so handlers only fire under specific
-          conditions. <code>@on.keydown+send=".setLastSentSearch value"</code>
+          conditions. <code>@on.keydown+send="$setLastSentSearch value"</code>
           only fires when the user presses Enter.
-          <code>@on.keydown+cancel=".resetQuery"</code> only fires on Escape.
+          <code>@on.keydown+cancel="$resetQuery"</code> only fires on Escape.
           Modifiers are appended with <code>+</code> and can be combined (e.g.
           <code>+ctrl+send</code>).
         </p>
@@ -469,7 +475,7 @@
           string literals.
         </p>
         <p>
-          <code>.toggleIsActive</code> in the example is auto-generated for
+          <code>$toggleIsActive</code> in the example is auto-generated for
           boolean fields. The value passed to <code>@if</code> can also be a
           method &mdash; same rule as <code>@show</code>, useful when the
           predicate combines multiple fields.
@@ -513,7 +519,7 @@
           <li>
             <strong>Add a method that returns it</strong> &mdash;
             <code>userName() { return this.user.name; }</code>, then use
-            <code>@text=".userName"</code>. Best for one-off derivations or
+            <code>@text="$userName"</code>. Best for one-off derivations or
             formatting.
           </li>
           <li>
@@ -525,7 +531,8 @@
         </ul>
         <p>
           Exceptions: <code>@each</code> / <code>render-each</code> accept
-          <code>.field</code> or <code>*dynamic</code> only (not a method call),
+          <code>.field</code> or <code>*dynamic</code> only (not a
+          <code>$method</code>),
           and <code>&lt;x render&gt;</code> expects a component instance &mdash;
           for a derived list, store it in a field or use <code>@when</code> with
           <code>alter</code>.
@@ -607,7 +614,7 @@
           <code>this.query</code> to filter items by the current search string.
         </p>
         <p>
-          If the value used the dot syntax (<code>@when=".filterItem"</code>),
+          If the value used the method syntax (<code>@when="$filterItem"</code>),
           it would call a method instead. Like <code>input</code>, the
           <code>alter</code> section is for organizational purposes only.
         </p>
@@ -1026,7 +1033,7 @@
         </p>
         <p>
           Because macros expand inline into the calling component's template,
-          <code>@on.click=".inc"</code> inside a macro calls <code>inc</code> on
+          <code>@on.click="$inc"</code> inside a macro calls <code>inc</code> on
           the component where the macro is used &mdash; not on the macro itself
           (macros have no state or methods). This is a key difference from
           components: a component encapsulates its own state and handlers, while

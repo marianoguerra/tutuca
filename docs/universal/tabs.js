@@ -72,7 +72,7 @@ const Tabs = component({
         @if.class="@isSelected"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click=".setSelectedIndex @key"
+        @on.click="$setSelectedIndex @key"
         @on.click+ctrl="onEditTabSelected @key"
       >
         <x text="@label" hide="@isEditing"></x>

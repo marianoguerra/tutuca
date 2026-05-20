@@ -6,7 +6,7 @@ const Counter = component({
     count: 0,
   },
   methods: {
-    // event handlers can call methods directly with a `.` prefix `@on.click=".inc"`
+    // event handlers can call methods with a `$` prefix `@on.click="$inc"`
     inc() {
       return this.setCount(this.count + 1);
     },
@@ -26,7 +26,7 @@ const Counter = component({
         <div class="stat-desc">Current Count</div>
       </div>
     </div>
-    <button class="btn btn-success" @on.click=".inc">+</button>
+    <button class="btn btn-success" @on.click="$inc">+</button>
   </div>`,
 });
 

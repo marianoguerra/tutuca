@@ -45,8 +45,8 @@ const LintDemo = component({
     <button @on.click="doClick">method as handler</button>
 
     <!-- INPUT_HANDLER_METHOD_NOT_IMPLEMENTED + INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD:
-         doKeyDown is input but referenced as method (with dot) -->
-    <button @on.keydown=".doKeyDown">handler as method</button>
+         doKeyDown is input but referenced as method (with $) -->
+    <button @on.keydown="$doKeyDown">handler as method</button>
 
     <!-- FIELD_VAL_NOT_DEFINED: .missing is not defined -->
     <p :title=".missing">undefined field</p>
@@ -115,7 +115,7 @@ const LintDemo = component({
 
     <!-- UNSUPPORTED_EXPR_SYNTAX (call-with-args): method calls can't take
          arguments - reference a no-arg method instead -->
-    <p :class=".doClick 'foo'">call-with-args in :class</p>
+    <p :class="$doClick 'foo'">call-with-args in :class</p>
 
     <!-- REDUNDANT_TEMPLATE_STRING: a single {expr} with no surrounding text
          is just the expression — drop the braces. -->

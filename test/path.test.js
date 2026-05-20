@@ -218,7 +218,7 @@ describe("@value inside @each click handler", () => {
       view: html`<div>
         <div @each=".items">
           <x render-it></x>
-          <button :data-uid=".uid" @on.click=".removeInItemsAt @key">x</button>
+          <button :data-uid=".uid" @on.click="$removeInItemsAt @key">x</button>
         </div>
       </div>`,
     });

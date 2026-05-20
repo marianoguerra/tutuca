@@ -14,8 +14,8 @@ const ShowHide = component({
   view: html`<section class="flex flex-col gap-2">
     <button
       class="btn btn-primary"
-      @on.click=".toggleIsOpen"
-      @text=".label"
+      @on.click="$toggleIsOpen"
+      @text="$label"
     ></button>
 
     <!-- @show on a host element: visibility on the element itself -->
@@ -24,7 +24,7 @@ const ShowHide = component({
         Details panel &mdash; only visible when
         <code>isOpen</code> is true.
       </p>
-      <button class="btn btn-sm" @on.click=".incCount">Click me</button>
+      <button class="btn btn-sm" @on.click="$incCount">Click me</button>
       <p>Clicked <x text=".count"></x> times.</p>
     </div>
 

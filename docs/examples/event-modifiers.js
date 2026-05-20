@@ -14,8 +14,8 @@ export const EventModifiers = component({
       class="input"
       :value=".query"
       @on.input="onInput value"
-      @on.keydown+send=".setLastSentSearch value"
-      @on.keydown+cancel=".resetQuery"
+      @on.keydown+send="$setLastSentSearch value"
+      @on.keydown+cancel="$resetQuery"
       placeholder="Search Query (Enter to send, Esc to clear)"
     />
     <p @show="truthy? .lastSentSearch">

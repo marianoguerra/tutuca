@@ -75,7 +75,7 @@ const Composability = component({
     <div role="tablist" class="tabs tabs-border">
       <button
         role="tab"
-        @if.class=".isTodoSelected"
+        @if.class="$isTodoSelected"
         @then="'tab tab-active'"
         @else="'tab'"
         @on.click="selectTodo"
@@ -84,7 +84,7 @@ const Composability = component({
       </button>
       <button
         role="tab"
-        @if.class=".isJsonSelected"
+        @if.class="$isJsonSelected"
         @then="'tab tab-active'"
         @else="'tab'"
         @on.click="selectJson"
@@ -93,7 +93,7 @@ const Composability = component({
       </button>
       <button
         role="tab"
-        @if.class=".isTreeSelected"
+        @if.class="$isTreeSelected"
         @then="'tab tab-active'"
         @else="'tab'"
         @on.click="selectTree"
@@ -102,7 +102,7 @@ const Composability = component({
       </button>
       <button
         role="tab"
-        @if.class=".isPersonalSiteSelected"
+        @if.class="$isPersonalSiteSelected"
         @then="'tab tab-active'"
         @else="'tab'"
         @on.click="selectPersonalSite"
@@ -111,7 +111,7 @@ const Composability = component({
       </button>
       <button
         role="tab"
-        @if.class=".isDndSelected"
+        @if.class="$isDndSelected"
         @then="'tab tab-active'"
         @else="'tab'"
         @on.click="selectDnd"
@@ -120,7 +120,7 @@ const Composability = component({
       </button>
       <button
         role="tab"
-        @if.class=".isVisualWasmSelected"
+        @if.class="$isVisualWasmSelected"
         @then="'tab tab-active'"
         @else="'tab'"
         @on.click="selectVisualWasm"
@@ -128,12 +128,12 @@ const Composability = component({
         Visual Wasm
       </button>
     </div>
-    <div @show=".isTodoSelected"><x render=".todo"></x></div>
-    <div @show=".isJsonSelected"><x render=".json"></x></div>
-    <div @show=".isTreeSelected"><x render=".tree"></x></div>
-    <div @show=".isPersonalSiteSelected"><x render=".personalSite"></x></div>
-    <div @show=".isDndSelected"><x render=".dnd"></x></div>
-    <div @show=".isVisualWasmSelected"><x render=".visualWasm"></x></div>
+    <div @show="$isTodoSelected"><x render=".todo"></x></div>
+    <div @show="$isJsonSelected"><x render=".json"></x></div>
+    <div @show="$isTreeSelected"><x render=".tree"></x></div>
+    <div @show="$isPersonalSiteSelected"><x render=".personalSite"></x></div>
+    <div @show="$isDndSelected"><x render=".dnd"></x></div>
+    <div @show="$isVisualWasmSelected"><x render=".visualWasm"></x></div>
   </section>`,
 });
 

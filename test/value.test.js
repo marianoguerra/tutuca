@@ -1,6 +1,15 @@
 import { describe, expect, test } from "bun:test";
 import { EventHandler } from "../src/attribute.js";
-import { ConstVal, PredicateVal, StrTplVal, tokenizeArgs, vp } from "../src/value.js";
+import {
+  ConstVal,
+  FieldVal,
+  HandlerNameVal,
+  MethodVal,
+  PredicateVal,
+  StrTplVal,
+  tokenizeArgs,
+  vp,
+} from "../src/value.js";
 
 // Minimal parse context: predicate parsing reports issues via px.onParseIssue.
 const px = { frame: {}, onParseIssue() {} };
@@ -187,12 +196,74 @@ describe("boolean predicates in parseBool", () => {
   });
 
   test("predicate eval applies the function", () => {
-    const stack = { lookupField: (n) => ({ items: [], name: "hi" })[n] };
+    const stack = { lookupFieldRaw: (n) => ({ items: [], name: "hi" })[n] };
     expect(vp.parseBool("empty? .items", px).eval(stack)).toBe(true);
     expect(vp.parseBool("empty? .name", px).eval(stack)).toBe(false);
     expect(vp.parseBool("truthy? .name", px).eval(stack)).toBe(true);
     expect(vp.parseBool("falsy? .items", px).eval(stack)).toBe(true);
     expect(vp.parseBool("null? .items", px).eval(stack)).toBe(false);
+  });
+});
+
+describe("$ method prefix vs . field prefix", () => {
+  test(". parses to a FieldVal", () => {
+    const r = vp.parseText(".count");
+    expect(r).toBeInstanceOf(FieldVal);
+    expect(r.name).toBe("count");
+    expect(r.toString()).toBe(".count");
+  });
+
+  test("$ parses to a MethodVal", () => {
+    const r = vp.parseText("$fullName");
+    expect(r).toBeInstanceOf(MethodVal);
+    expect(r.name).toBe("fullName");
+    expect(r.toString()).toBe("$fullName");
+  });
+
+  test("$ works as a conditional-slot value", () => {
+    expect(vp.parseBool("$canSubmit", px)).toBeInstanceOf(MethodVal);
+  });
+
+  test("$ is rejected in path-bearing slots (@each, <x render>)", () => {
+    // A method result has no addressable path, so it cannot be iterated or
+    // rendered as a child — `.field` stays valid there.
+    expect(vp.parseSequence("$items", px)).toBeNull();
+    expect(vp.parseComponent("$child", px)).toBeNull();
+    expect(vp.parseSequence(".items", px)).toBeInstanceOf(FieldVal);
+  });
+
+  test("FieldVal.eval reads the raw field without invoking", () => {
+    const fn = () => "called";
+    const stack = { lookupFieldRaw: (n) => ({ count: 7, m: fn })[n] };
+    expect(vp.parseText(".count").eval(stack)).toBe(7);
+    expect(vp.parseText(".m").eval(stack)).toBe(fn);
+  });
+
+  test("MethodVal.eval invokes the method", () => {
+    const stack = { lookupMethod: (n) => ({ fullName: "Ada L" })[n] };
+    expect(vp.parseText("$fullName").eval(stack)).toBe("Ada L");
+  });
+
+  test("MethodVal.evalAsHandler hands back the raw function", () => {
+    const fn = function () {};
+    const stack = { lookupFieldRaw: (n) => ({ inc: fn })[n] };
+    expect(vp.parseText("$inc").evalAsHandler(stack)).toBe(fn);
+  });
+
+  test("$ is a method handler, a bare name is an input handler", () => {
+    expect(vp.parseInputHandler("$inc", px)).toBeInstanceOf(MethodVal);
+    expect(vp.parseInputHandler("dec", px)).toBeInstanceOf(HandlerNameVal);
+  });
+
+  test(". cannot be used in handler position", () => {
+    expect(vp.parseInputHandler(".inc", px)).toBeNull();
+  });
+
+  test("$ method handler keeps its args", () => {
+    const h = EventHandler.parse("$setStr value", px);
+    expect(h.handlerVal).toBeInstanceOf(MethodVal);
+    expect(h.handlerVal.name).toBe("setStr");
+    expect(h.args.length).toBe(1);
   });
 });
 
@@ -247,7 +318,7 @@ describe("equals? predicate with string literals", () => {
   });
 
   test("eval compares the field value against the literal", () => {
-    const stack = { lookupField: (n) => ({ view: "detail" })[n] };
+    const stack = { lookupFieldRaw: (n) => ({ view: "detail" })[n] };
     expect(vp.parseBool("equals? .view 'detail'", px).eval(stack)).toBe(true);
     expect(vp.parseBool("equals? .view 'list'", px).eval(stack)).toBe(false);
   });

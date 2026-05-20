@@ -10,6 +10,7 @@ import {
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
+  FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   IF_NO_BRANCH_SET,
   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
@@ -19,6 +20,8 @@ import {
   INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
   MAYBE_DROP_AT_PREFIX,
+  METHOD_VAL_IS_FIELD,
+  METHOD_VAL_NOT_DEFINED,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
   UNKNOWN_COMPONENT_NAME,
@@ -221,7 +224,7 @@ test("warn on event handler in view with no impl", () => {
     input: {
       doKeyDown() {},
     },
-    view: html`<button @on.click="doClick" @on.keydown=".doKeyDown">
+    view: html`<button @on.click="doClick" @on.keydown="$doKeyDown">
       do it
     </button>`,
   });
@@ -246,6 +249,42 @@ test("warn on event handler in view with no impl", () => {
     expect(id).toBe(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD);
     expect(info.name).toBe("doKeyDown");
   }
+});
+
+test("error when . reads a method, suggesting $", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { count: 0 },
+    methods: { isReady() {} },
+    view: html`<p @show=".isReady">hi</p>`,
+  });
+  const r = lx.reports.find((x) => x.id === FIELD_VAL_IS_METHOD);
+  expect(r).toBeDefined();
+  expect(r.info.name).toBe("isReady");
+  expect(r.suggestion).toEqual({ kind: "rewrite", from: ".isReady", to: "$isReady" });
+});
+
+test("error when $ calls a field, suggesting .", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { count: 0 },
+    view: html`<p @text="$count">hi</p>`,
+  });
+  const r = lx.reports.find((x) => x.id === METHOD_VAL_IS_FIELD);
+  expect(r).toBeDefined();
+  expect(r.info.name).toBe("count");
+  expect(r.suggestion).toEqual({ kind: "rewrite", from: "$count", to: ".count" });
+});
+
+test("error when $ names nothing defined", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { count: 0 },
+    view: html`<p @text="$nope">hi</p>`,
+  });
+  const r = lx.reports.find((x) => x.id === METHOD_VAL_NOT_DEFINED);
+  expect(r).toBeDefined();
+  expect(r.info.name).toBe("nope");
 });
 
 test("warn on undefined field attr (field)", () => {
@@ -727,7 +766,7 @@ test("lint-errors example catches all error types", () => {
 
       <button @on.click="doClick">method as handler</button>
 
-      <button @on.keydown=".doKeyDown">handler as method</button>
+      <button @on.keydown="$doKeyDown">handler as method</button>
 
       <p :title=".missing">undefined field</p>
 
@@ -827,7 +866,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
       <button @on.click="doClick">method as handler</button>
 
-      <button @on.keydown=".doKeyDown">handler as method</button>
+      <button @on.keydown="$doKeyDown">handler as method</button>
 
       <p :title=".missing">undefined field</p>
 
@@ -1472,17 +1511,17 @@ test("INPUT_HANDLER_NOT_IMPLEMENTED suggests add-prefix when method exists", () 
     view: html`<button @on.click="doClick">x</button>`,
   });
   const r = lx.reports.find((x) => x.id === INPUT_HANDLER_NOT_IMPLEMENTED);
-  expect(r.suggestion).toEqual({ kind: "add-prefix", from: "doClick", to: ".doClick" });
+  expect(r.suggestion).toEqual({ kind: "add-prefix", from: "doClick", to: "$doClick" });
 });
 
 test("INPUT_HANDLER_METHOD_NOT_IMPLEMENTED suggests drop-prefix when input handler exists", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     input: { doKeyDown() {} },
-    view: html`<button @on.keydown=".doKeyDown">x</button>`,
+    view: html`<button @on.keydown="$doKeyDown">x</button>`,
   });
   const r = lx.reports.find((x) => x.id === INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
-  expect(r.suggestion).toEqual({ kind: "drop-prefix", from: ".doKeyDown", to: "doKeyDown" });
+  expect(r.suggestion).toEqual({ kind: "drop-prefix", from: "$doKeyDown", to: "doKeyDown" });
 });
 
 test("INPUT_HANDLER_NOT_IMPLEMENTED suggests closest input handler on typo", () => {

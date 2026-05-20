@@ -68,12 +68,16 @@ and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
 
 ## Common pitfalls
 
-- **Paths are not allowed in values.** `.foo` resolves a single field or
-  method on `this` — `@text=".foo.bar"`, `:value=".user.name"`,
-  `@show=".item.isOpen"` all fail. To reach into nested data: render the
-  child as a component (`<x render=".foo">` then `@text=".bar"` inside),
-  add a method (`fullName() { return this.user.name; }` and use
-  `.fullName`), or use `@enrich-with` for scope-level derivation.
+- **`.field` reads a field, `$method` calls a no-arg method.** The two are
+  distinct prefixes: `.count` reads field `count`, `$inc` calls method
+  `inc`. Using the wrong one is a lint error that tells you to swap the
+  prefix.
+- **Paths are not allowed in values.** `.foo` resolves a single field on
+  `this` — `@text=".foo.bar"`, `:value=".user.name"`, `@show=".item.isOpen"`
+  all fail. To reach into nested data: render the child as a component
+  (`<x render=".foo">` then `@text=".bar"` inside), add a method
+  (`fullName() { return this.user.name; }` and use `$fullName`), or use
+  `@enrich-with` for scope-level derivation.
 - **Coercion is shallow.** `setItems([{a:1}])` stores plain objects inside
   the `List`. Wrap each item in `Comp.make({...})` or run inputs through
   immutable's `fromJS` if you need deep coercion. See *Component Skeleton*.
@@ -108,7 +112,7 @@ const Counter = component({
       return this.setCount(this.count + 1);
     },
   },
-  view: html`<button @on.click=".inc" @text=".count"></button>`,
+  view: html`<button @on.click="$inc" @text=".count"></button>`,
 });
 
 const app = tutuca("#app");
@@ -143,8 +147,8 @@ runtime never needs `instanceof` — it asks the value what it is.
 so a child component view sees a clean namespace. A *scope* is
 transparent: iteration `key` / `value` and `@enrich-with` binds layer
 onto the surrounding frame and remain visible to handlers attached to
-the same iteration. `it` (the target of `.field` lookups) is set on
-both.
+the same iteration. `it` (the target of `.field` reads and `$method`
+calls) is set on both.
 
 | pushed by                           | kind  | shape                                |
 | ----------------------------------- | ----- | ------------------------------------ |
@@ -195,7 +199,8 @@ The one exception is **boolean predicates** in conditional slots
 a value, written predicate-first like a handler call —
 `empty?`, `truthy?`, `falsy?`, `null?`, `equals?`. E.g.
 `@hide="empty? .items"`, `@show="truthy? .query"`. A conditional slot
-still accepts a plain field/method name too (`@show=".isOpen"`).
+still accepts a plain field (`@show=".isOpen"`) or no-arg method
+(`@show="$canSubmit"`) name too.
 
 `equals?` takes two args and is the idiomatic way to show/hide by name,
 e.g. `@show="equals? .view 'detail'"`. Predicate args (and handler
@@ -204,7 +209,8 @@ literal with spaces (escape an interior quote as `\'`).
 
 | Prefix   | Means                                     | Example               |
 | -------- | ----------------------------------------- | --------------------- |
-| `.x`     | field or method on `this` (single-level — no `.foo.bar` paths) | `.count`, `.inc`      |
+| `.x`     | field on `this` (single-level — no `.foo.bar` paths) | `.count`, `.title` |
+| `$x`     | no-arg method call on `this`              | `$inc`, `$canSubmit`  |
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
 | `!x`     | request handler                           | `!loadData`           |
@@ -216,11 +222,15 @@ literal with spaces (escape an interior quote as `\'`).
 | `.s[.k]` | sequence/map item access                  | `.byKey[.currentKey]` |
 | `pred? .x` | boolean predicate in a conditional slot | `empty? .items`, `equals? .view 'detail'` |
 
+`.x` and `$x` are not interchangeable: `.x` only reads a field, `$x`
+only calls a method. The linter flags a mismatch and tells you which
+prefix to use.
+
 A bare `name` (no prefix) in `@on.<event>="<handler> <arg> <arg>..."`
 resolves by slot:
 
 - **First slot** — handler name looked up in `input` / `alter` (use
-  `.name` for `methods`).
+  `$name` for `methods`).
 - **Subsequent slots** — built-in handler arg name (full list in
   *Event Handling*); anything else triggers a lint warning.
 
@@ -269,7 +279,7 @@ component({
   },
   view: html`<p @text=".count"></p>`,    // default view (named "main")
   views: {                                // additional views
-    edit: html`<input :value=".count" @on.input=".setCount valueAsInt" />`,
+    edit: html`<input :value=".count" @on.input="$setCount valueAsInt" />`,
     big: {
       view: html`<h1 @text=".count"></h1>`,
       style: css`h1 { font-size: 4rem; }`,
@@ -328,9 +338,10 @@ fields: {
 
 ## Methods as Predicates & Computed Values
 
-A method called via field syntax (`.name`, no args) is invoked and its
-return value is used. Works anywhere a value is read — `@text`, `:attr`,
-`@show` / `@hide`, `@if.<attr>`, and `{…}` interpolation.
+A no-arg method called via `$name` is invoked and its return value is
+used. Works anywhere a value is read — `@text`, `:attr`, `@show` /
+`@hide`, `@if.<attr>`, and `{…}` interpolation. (`.name` is a field
+read and never invokes; `$name` is the method call.)
 
 ```js
 methods: {
@@ -341,8 +352,8 @@ methods: {
 ```
 
 ```html
-<button @show=".canSubmit" :class=".buttonClass">Save</button>
-<p :title="Hello, {.fullName}" @text=".fullName"></p>
+<button @show="$canSubmit" :class="$buttonClass">Save</button>
+<p :title="Hello, {$fullName}" @text="$fullName"></p>
 ```
 
 The boolean predicates (`empty?`, `truthy?`, `falsy?`, `null?`,
@@ -358,13 +369,15 @@ value lives behind a field, your options are:
   `@text=".name"` inside the child's view. Best when the nested thing is
   already (or could be) a component.
 - **Add a method** — `userName() { return this.user.name; }` then
-  `@text=".userName"`. Best for one-off derivations or formatting.
+  `@text="$userName"`. Best for one-off derivations or formatting.
 - **Use `@enrich-with`** — exposes computed values as `@`-bindings to a
   subtree without putting them on the component. See *Scope Enrichment*.
 
 Exceptions: `@each` / `render-each` accept `.field` or `*dynamic` only
-(not a method call), and `<x render>` expects a component instance — for
-a derived list, store it in a field or use `@when` with `alter`.
+(not a `$method` — a method result has no addressable path for event
+dispatch, so `$m` is rejected there at parse time), and `<x render>`
+expects a component instance — for a derived list, store it in a field
+or use `@when` with `alter`.
 
 ## Statics
 
@@ -390,14 +403,14 @@ statics: {
 ```html
 <span @text=".str"></span>          <!-- prepend text into span -->
 <x text=".bool"></x>                <!-- text-only, no DOM element -->
-<x text=".getStrUpper"></x>         <!-- methods are called -->
+<x text="$getStrUpper"></x>         <!-- $ calls a method -->
 <x text="@value"></x>               <!-- loop binding -->
 ```
 
 ## Attribute Binding
 
 ```html
-<input :value=".str" @on.input=".setStr value" />
+<input :value=".str" @on.input="$setStr value" />
 <a :href=".url" :title="Hi {.name}">link</a>          <!-- string template -->
 <button class="btn" :class="btn {.color}">x</button>
 ```
@@ -426,21 +439,21 @@ consequences:
 ## Event Handling
 
 ```html
-<!-- method (`.`) vs input handler (no dot) -->
-<button @on.click=".inc">+</button>
+<!-- method (`$`) vs input handler (no prefix) -->
+<button @on.click="$inc">+</button>
 <button @on.click="dec">-</button>
 
 <!-- pass args by name -->
-<input @on.input=".setStr value" />
-<input @on.input=".setN valueAsInt" />
-<button @on.click=".pick @key isAlt">pick</button>
-<button @on.click=".addItem JsonSelector">+</button>     <!-- type as arg -->
-<button @on.click=".loadAnotherWay">load</button>        <!-- ctx auto-appended -->
+<input @on.input="$setStr value" />
+<input @on.input="$setN valueAsInt" />
+<button @on.click="$pick @key isAlt">pick</button>
+<button @on.click="$addItem JsonSelector">+</button>     <!-- type as arg -->
+<button @on.click="$loadAnotherWay">load</button>        <!-- ctx auto-appended -->
 ```
 
 Every `@on.<event>` handler receives an `EventContext` as its trailing
 arg automatically — written args come first, `ctx` last. So
-`.loadAnotherWay` is called as `loadAnotherWay(ctx)`, and `.pick @key isAlt`
+`$loadAnotherWay` is called as `loadAnotherWay(ctx)`, and `$pick @key isAlt`
 is called as `pick(key, isAlt, ctx)`. You can still write `ctx` in the
 template (it resolves to a fresh `EventContext`), but it is redundant.
 
@@ -468,8 +481,8 @@ string parse.
 - `keydown` only: `+send` (Enter), `+cancel` (Escape)
 
 ```html
-<input @on.keydown+send=".submit value" @on.keydown+cancel=".reset" />
-<button @on.click+ctrl=".soloOnly">ctrl-click</button>
+<input @on.keydown+send="$submit value" @on.keydown+cancel="$reset" />
+<button @on.click+ctrl="$soloOnly">ctrl-click</button>
 ```
 
 ### Web Components & Custom Events
@@ -596,7 +609,7 @@ whatever you wrote into `binds`).
 ### Handler resolution
 
 `@when` / `@enrich-with` / `@loop-with` resolve like event handler names:
-bare `filterItem` → `alter.filterItem` (idiomatic); `.filterItem` →
+bare `filterItem` → `alter.filterItem` (idiomatic); `$filterItem` →
 method on `this` (works, not idiomatic — `alter` keeps iteration helpers
 grouped).
 
@@ -636,7 +649,7 @@ use `@push-view` (next section).
 ```js
 component({
   view:  html`<p @text=".title"></p>`,                              // "main"
-  views: { edit: html`<input :value=".title" @on.input=".setTitle value" />` },
+  views: { edit: html`<input :value=".title" @on.input="$setTitle value" />` },
 });
 ```
 
@@ -858,7 +871,7 @@ const panel = macro(
 
 ```html
 <x:panel>
-  <x slot="actions"><button @on.click=".inc">+</button></x>
+  <x slot="actions"><button @on.click="$inc">+</button></x>
   <p>default slot content</p>
   <x slot="footer">© 2026</x>
 </x:panel>

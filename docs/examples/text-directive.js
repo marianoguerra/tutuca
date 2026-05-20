@@ -13,7 +13,7 @@ const TextDirective = component({
     <span>Number:</span> <span @text=".num"> &lt;- text directive is prepended</span>
     <span>Boolean:</span> <x text=".bool"></x>
     <span>notSet:</span> <span @text=".notSet"></span>
-    <span>Method Call:</span> <span @text=".getStrUpper"></span>
+    <span>Method Call:</span> <span @text="$getStrUpper"></span>
   </div>`,
 });
 

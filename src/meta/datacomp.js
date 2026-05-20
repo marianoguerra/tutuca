@@ -131,9 +131,10 @@ export function dynamicToData(dyn) {
 
 export function valToString(v) {
   switch (v.constructor.name) {
-    case "RawFieldVal":
     case "FieldVal":
       return `.${v.name}`;
+    case "MethodVal":
+      return `$${v.name}`;
     case "DynVal":
       return `*${v.name}`;
     case "BindVal":

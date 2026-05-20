@@ -399,7 +399,7 @@ export class SlotNode extends WrapperNode {
 }
 export class ScopeNode extends WrapperNode {
   render(stack, rx) {
-    const binds = this.val.eval(stack)?.call(stack.it) ?? {};
+    const binds = this.val.evalAsHandler(stack)?.call(stack.it) ?? {};
     return this.node.render(stack.enter(stack.it, binds, false), rx);
   }
   toPathStep(_ctx) {
@@ -433,9 +433,9 @@ export class IterInfo {
   }
   eval(stack) {
     const seq = this.val.eval(stack) ?? [];
-    const filter = this.whenVal?.eval(stack) ?? filterAlwaysTrue;
-    const loopWith = this.loopWithVal?.eval(stack) ?? nullLoopWith;
-    const enricher = this.enrichWithVal?.eval(stack) ?? null;
+    const filter = this.whenVal?.evalAsHandler(stack) ?? filterAlwaysTrue;
+    const loopWith = this.loopWithVal?.evalAsHandler(stack) ?? nullLoopWith;
+    const enricher = this.enrichWithVal?.evalAsHandler(stack) ?? null;
     return { seq, filter, loopWith, enricher };
   }
 }

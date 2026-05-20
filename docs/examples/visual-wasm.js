@@ -46,8 +46,8 @@ function instrImmInt(name, label, parse) {
       <input
         class="input px-1 py-0 m-0 h-auto input-ghost font-mono text-blue-400"
         :value=".value"
-        :style="width: {.getInputWidth}; outline: none"
-        @on.input=".setFromRawValue value"
+        :style="width: {$getInputWidth}; outline: none"
+        @on.input="$setFromRawValue value"
       />
     </div>`,
   });
@@ -152,21 +152,21 @@ const Types = component({
       <div @each=".items" class="flex items-center group">
         <button
           class="btn btn-xs btn-soft btn-circle btn-success mx-3"
-          @on.click=".addItemAt @key TypeI32"
+          @on.click="$addItemAt @key TypeI32"
         >
           +
         </button>
         <x render-it as="editor"></x>
         <button
           class="btn btn-xs btn-soft btn-circle btn-error max-sm:opacity-100 opacity-0 group-hover:opacity-100"
-          @on.click=".removeInItemsAt @key"
+          @on.click="$removeInItemsAt @key"
         >
           ⛔
         </button>
       </div>
       <button
         class="btn btn-xs btn-soft btn-circle btn-success mx-3"
-        @on.click=".appendItem TypeI32"
+        @on.click="$appendItem TypeI32"
       >
         +
       </button>
@@ -244,7 +244,7 @@ const Block = component({
     <div @show=".editing">
       <x render=".blockType" as="editor"></x>
     </div>
-    <div @show=".expandedAndReadOnly" class="flex flex-col gap-3">
+    <div @show="$expandedAndReadOnly" class="flex flex-col gap-3">
       <x render-each=".items"></x>
     </div>
     <x:items-editing></x:items-editing>
@@ -290,7 +290,7 @@ const Loop = component({
     <div @show=".editing">
       <x render=".blockType" as="editor"></x>
     </div>
-    <div @show=".expandedAndReadOnly" class="flex flex-col gap-3">
+    <div @show="$expandedAndReadOnly" class="flex flex-col gap-3">
       <x render-each=".items"></x>
     </div>
     <x:items-editing></x:items-editing>
@@ -336,7 +336,7 @@ const If = component({
       </div>
       <x:btn-toggle-edit
         :value=".editingIf"
-        :handler=".toggleEditingIf"
+        :handler="$toggleEditingIf"
       ></x:btn-toggle-edit>
     </div>
     <div @show=".editingIf">
@@ -347,7 +347,7 @@ const If = component({
         <span class="text-sm text-slate-400">then</span>
         <x:btn-toggle-edit
           :value=".editingThn"
-          :handler=".toggleEditingThn"
+          :handler="$toggleEditingThn"
         ></x:btn-toggle-edit>
       </div>
       <div class="my-3 pl-3 flex flex-col gap-3" @hide=".editingThn">
@@ -356,15 +356,15 @@ const If = component({
       <x:items-editing
         :showval=".editingThn"
         :items=".thn"
-        :onadd=".addThnAt"
-        :onremove=".removeInThnAt"
-        :onappend=".appendInThn"
+        :onadd="$addThnAt"
+        :onremove="$removeInThnAt"
+        :onappend="$appendInThn"
       ></x:items-editing>
       <div class="flex gap-3 items-center group">
         <span class="text-sm text-slate-400">else</span>
         <x:btn-toggle-edit
           :value=".editingElse"
-          :handler=".toggleEditingElse"
+          :handler="$toggleEditingElse"
         ></x:btn-toggle-edit>
       </div>
       <div class="my-3 pl-3 flex flex-col gap-3" @hide=".editingElse">
@@ -373,9 +373,9 @@ const If = component({
       <x:items-editing
         :showval=".editingElse"
         :items=".else"
-        :onadd=".addElseAt"
-        :onremove=".removeInElseAt"
-        :onappend=".appendInElse"
+        :onadd="$addElseAt"
+        :onremove="$removeInElseAt"
+        :onappend="$appendInElse"
       ></x:items-editing>
       <span class="text-sm text-slate-400">end</span>
     </div>
@@ -431,7 +431,7 @@ const Func = component({
         <x render=".locals" as="editor"></x>
       </div>
     </div>
-    <div @show=".expandedAndReadOnly" class="flex flex-col gap-3">
+    <div @show="$expandedAndReadOnly" class="flex flex-col gap-3">
       <x render-each=".items"></x>
     </div>
     <x:items-editing></x:items-editing>
@@ -459,7 +459,7 @@ const Section = component({
       <span @text=".name"></span>
       <button
         class="btn btn-xs btn-soft btn-primary"
-        @on.click=".addDefaultItem"
+        @on.click="$addDefaultItem"
       >
         +
       </button>
@@ -491,7 +491,7 @@ const Memory = component({
         class="px-1 py-0 m-0 h-auto w-auto font-mono text-blue-400"
         type="number"
         :value=".n"
-        @on.input=".setNFromString value"
+        @on.input="$setNFromString value"
       />
     </label>
     <label class="input input-ghost outline-0 items-baseline h-auto"
@@ -500,7 +500,7 @@ const Memory = component({
         class="px-1 py-0 m-0 h-auto w-auto font-mono text-blue-400"
         type="number"
         :value=".m"
-        @on.input=".setMFromString value"
+        @on.input="$setMFromString value"
       />
     </label>
   </div>`,
@@ -734,15 +734,15 @@ const InstructionPicker = component({
       class="input w-full outline-0"
       placeholder="Filter instructions"
       :value=".filter"
-      @on.input=".setFilter value"
+      @on.input="$setFilter value"
     />
     <div class="flex gap-3 text-xs justify-between">
       <label class="flex gap-2">
         <input
           type="radio"
           class="radio radio-success radio-xs"
-          @on.input=".setCurrentAll"
-          :checked=".currentIsAll"
+          @on.input="$setCurrentAll"
+          :checked="$currentIsAll"
         />
         all
       </label>
@@ -750,8 +750,8 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-info radio-xs"
-          @on.input=".setCurrentI32"
-          :checked=".currentIsI32"
+          @on.input="$setCurrentI32"
+          :checked="$currentIsI32"
         />
         i32
       </label>
@@ -759,8 +759,8 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-info radio-xs"
-          @on.input=".setCurrentI64"
-          :checked=".currentIsI64"
+          @on.input="$setCurrentI64"
+          :checked="$currentIsI64"
         />
         i64
       </label>
@@ -768,8 +768,8 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-primary radio-xs"
-          @on.input=".setCurrentF32"
-          :checked=".currentIsF32"
+          @on.input="$setCurrentF32"
+          :checked="$currentIsF32"
         />
         f32
       </label>
@@ -777,8 +777,8 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-primary radio-xs"
-          @on.input=".setCurrentF64"
-          :checked=".currentIsF64"
+          @on.input="$setCurrentF64"
+          :checked="$currentIsF64"
         />
         f64
       </label>
@@ -786,8 +786,8 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-error radio-xs"
-          @on.input=".setCurrentControl"
-          :checked=".currentIsControl"
+          @on.input="$setCurrentControl"
+          :checked="$currentIsControl"
         />
         control
       </label>
@@ -795,8 +795,8 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-warning radio-xs"
-          @on.input=".setCurrentVars"
-          :checked=".currentIsVars"
+          @on.input="$setCurrentVars"
+          :checked="$currentIsVars"
         />
         vars
       </label>
@@ -907,7 +907,7 @@ export function getMacros() {
         @if.class=".expanded"
         @then="'btn btn-xs btn-soft btn-primary btn-circle'"
         @else="'btn btn-xs btn-soft btn-success btn-circle'"
-        @on.click=".toggleExpanded"
+        @on.click="$toggleExpanded"
       >
         <span @show=".expanded">▽</span>
         <span @hide=".expanded">▷</span>

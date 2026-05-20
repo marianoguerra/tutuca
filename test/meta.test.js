@@ -6,7 +6,7 @@ import {
   DynVal,
   FieldVal,
   NameVal,
-  RawFieldVal,
+  MethodVal,
   RequestVal,
   TypeVal,
 } from "../src/value.js";
@@ -14,7 +14,7 @@ import {
 describe("datacomp", () => {
   test("valToString", () => {
     expect(valToString(new FieldVal("foo"))).toBe(".foo");
-    expect(valToString(new RawFieldVal("foo"))).toBe(".foo");
+    expect(valToString(new MethodVal("foo"))).toBe("$foo");
     expect(valToString(new BindVal("foo"))).toBe("@foo");
     expect(valToString(new DynVal("foo"))).toBe("*foo");
     expect(valToString(new RequestVal("foo"))).toBe("!foo");

@@ -50,21 +50,21 @@ export const RequestExample = component({
       <input
         type="search"
         :value=".query"
-        @on.input=".setQuery value"
-        @on.keydown+cancel=".resetQuery"
+        @on.input="$setQuery value"
+        @on.keydown+cancel="$resetQuery"
         class="input"
         placeholder="Filter entries"
       />
       <button
         class="btn bnt-sm btn-primary btn-outline"
-        @on.click=".loadAnotherWay"
+        @on.click="$loadAnotherWay"
       >
         Load Another Way
       </button>
       <button
         class="btn bnt-sm btn-primary"
         @text=".view"
-        @on.click=".toggleView"
+        @on.click="$toggleView"
       ></button>
     </div>
     <div

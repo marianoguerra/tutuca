@@ -23,15 +23,15 @@ export const PushView = component({
       <input
         type="search"
         :value=".query"
-        @on.input=".setQuery value"
-        @on.keydown+cancel=".resetQuery"
+        @on.input="$setQuery value"
+        @on.keydown+cancel="$resetQuery"
         class="input"
         placeholder="Filter entries"
       />
       <button
         class="btn bnt-sm btn-primary"
-        @text=".getToggleLabel"
-        @on.click=".toggleView"
+        @text="$getToggleLabel"
+        @on.click="$toggleView"
       ></button>
     </div>
     <div

@@ -7,10 +7,10 @@ const Item = component({
     text: "do the thing",
   },
   view: html`<x:hbox>
-    <x:checkbox :value=".completed" :handler=".setCompleted"></x:checkbox>
+    <x:checkbox :value=".completed" :handler="$setCompleted"></x:checkbox>
     <x:input
       :value=".text"
-      :handler=".setText"
+      :handler="$setText"
       :disabled=".completed"
     ></x:input>
   </x:hbox>`,
@@ -35,7 +35,7 @@ const Items = component({
     <x:vbox class="w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>
-        <x:btn-rm :handler=".removeInItemsAt" :arg="@key"></x:btn-rm>
+        <x:btn-rm :handler="$removeInItemsAt" :arg="@key"></x:btn-rm>
       </div>
     </x:vbox>
   </x:vbox>`,

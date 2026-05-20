@@ -31,7 +31,7 @@ const Greeter = component({
         @on.input="submitName value"
         placeholder="Name"
       />
-      <button class="btn btn-primary join-item" @on.click=".addGreeting">
+      <button class="btn btn-primary join-item" @on.click="$addGreeting">
         Greet
       </button>
     </div>
@@ -39,7 +39,7 @@ const Greeter = component({
       type="search"
       class="input"
       :value=".filter"
-      @on.input=".setFilter value"
+      @on.input="$setFilter value"
       placeholder="Filter greetings"
     />
     <ul>

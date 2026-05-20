@@ -20,15 +20,15 @@ export const SeqItemAccess = component({
     <input
       type="range"
       min="0"
-      :max=".getMaxIndex"
+      :max="$getMaxIndex"
       :value=".currentIndex"
-      @on.input=".setCurrentIndex valueAsInt"
+      @on.input="$setCurrentIndex valueAsInt"
     />
     <x render=".byIndex[.currentIndex]"></x>
     <select
       class="select"
       :value=".currentKey"
-      @on.input=".setCurrentKey value"
+      @on.input="$setCurrentKey value"
     >
       <option
         @each=".byKey"

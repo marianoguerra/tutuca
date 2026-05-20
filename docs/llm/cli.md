@@ -229,14 +229,17 @@ Codes emitted by `lint`.
 ### Field references
 
 - `FIELD_VAL_NOT_DEFINED` — `.field` not declared in `fields`.
+- `FIELD_VAL_IS_METHOD` — `.name` reads a field but `name` is a method (use `$name`).
+- `METHOD_VAL_NOT_DEFINED` — `$method` not declared in `methods`.
+- `METHOD_VAL_IS_FIELD` — `$name` calls a method but `name` is a field (use `.name`).
 
 ### Input-handler / method confusion
 
 - `INPUT_HANDLER_NOT_IMPLEMENTED` — bare handler name not in `input`.
 - `INPUT_HANDLER_NOT_REFERENCED` — `input` entry never used.
-- `INPUT_HANDLER_METHOD_NOT_IMPLEMENTED` — `.handler` not in `methods`.
-- `INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD` — bare name resolves to `methods` (use `.name`).
-- `INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER` — `.name` resolves to `input` (drop the dot).
+- `INPUT_HANDLER_METHOD_NOT_IMPLEMENTED` — `$handler` not in `methods`.
+- `INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD` — bare name resolves to `methods` (use `$name`).
+- `INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER` — `$name` resolves to `input` (drop the `$`).
 
 ### Iteration helpers (`alter`)
 

@@ -4,8 +4,8 @@ const SelectorEntry = component({
   name: "SelectorEntry",
   fields: { value: "entry-value", label: "Entry Label" },
   view: html`<div class="flex gap-3">
-        <input class="input" :value=".value" @on.input=".setValue value" />
-        <input class="input" :value=".label" @on.input=".setLabel value" />
+        <input class="input" :value=".value" @on.input="$setValue value" />
+        <input class="input" :value=".label" @on.input="$setLabel value" />
     </div>`,
 });
 
@@ -21,7 +21,7 @@ const Selector = component({
       binds.label = item.label;
     },
   },
-  view: html`<select class="select" :value=".selectedValue" @on.input=".setSelectedValue value">
+  view: html`<select class="select" :value=".selectedValue" @on.input="$setSelectedValue value">
     <option
       @each="*entries"
       @enrich-with="enrichOption"
@@ -63,7 +63,7 @@ const EntryEditorAndSelector = component({
         <x render-it></x>
         <button
           class="btn btn-soft btn-sm btn-error btn-circle font-mono"
-          @on.click=".removeInItemsAt @key"
+          @on.click="$removeInItemsAt @key"
         >
           x
         </button>

@@ -27,15 +27,19 @@ const K_TYPE = 64;
 const K_REQUEST = 128;
 const K_SEQ = 256;
 const K_STR = 512; // plain `'...'` string literal (no `{…}` interpolation)
+const K_METHOD = 1024; // `$name` no-arg method call
 
 // Value groups, one per parsing context. Kept private: callers use the named
 // `parseX` methods below so they never have to know about the bitmasks.
-const G_BOOL = K_FIELD | K_BIND | K_DYN | K_CONST;
+// `K_METHOD` is in every value-read group but never in a path-bearing one
+// (`G_COMPONENT`, `G_SEQUENCE`): a method result has no addressable path, so
+// `$m` in `@each`/`<x render>` is a parse error rather than a silent failure.
+const G_BOOL = K_FIELD | K_METHOD | K_BIND | K_DYN | K_CONST;
 const G_TEXT = G_BOOL | K_STRTPL;
 const G_COMPONENT = K_FIELD | K_SEQ;
 const G_SEQUENCE = K_FIELD | K_DYN;
-const G_FIELD = K_FIELD;
-const G_VALUE = K_FIELD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
+const G_FIELD = K_FIELD | K_METHOD;
+const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
 const G_PRED_ARG = G_BOOL | K_STR; // boolean-predicate arguments
 const G_HANDLER_ARG = G_VALUE | K_STR; // event-handler arguments
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
@@ -109,11 +113,13 @@ export class ValParser {
   parseAlterHandler(s, px) {
     return this._parseHandler(s, px, "alter");
   }
+  // `$name` -> a `MethodVal` (used via `evalAsHandler`, see below); a bare
+  // name -> a `HandlerNameVal`. No field syntax: a `.field` cannot be a
+  // handler. TODO: surface info if val is null.
   _parseHandler(s, px, namespace) {
-    const val = this.parse(s, px, K_FIELD | K_NAME); // TODO: surface info if val is null
-    return (
-      val && (val.toRawFieldVal ? val.toRawFieldVal() : new HandlerNameVal(val.name, namespace))
-    );
+    const val = this.parse(s, px, K_METHOD | K_NAME);
+    if (val === null) return null;
+    return val instanceof NameVal ? new HandlerNameVal(val.name, namespace) : val;
   }
   _parseSeqAccess(s, px, group) {
     if (!(group & K_SEQ)) return null;
@@ -174,6 +180,8 @@ export class ValParser {
         return group & K_DYN ? mkVal(s.slice(1), DynVal) : null;
       case 46: // .
         return group & K_FIELD ? mkVal(s.slice(1), FieldVal) : null;
+      case 36: // $
+        return group & K_METHOD ? mkVal(s.slice(1), MethodVal) : null;
       case 33: // !
         return group & K_REQUEST ? mkVal(s.slice(1), RequestVal) : null;
     }
@@ -193,6 +201,13 @@ export class BaseVal {
   eval(_stack) {}
   toPathItem() {
     return null;
+  }
+  // Value of this expression when it sits in handler position (`@on.<event>`,
+  // `@when`, `@enrich-with`, `@loop-with`): the dispatch machinery calls the
+  // result with the event args. Defaults to `eval`; `MethodVal` overrides it
+  // to hand back the raw function instead of invoking it.
+  evalAsHandler(stack) {
+    return this.eval(stack);
   }
 }
 export class ConstVal extends BaseVal {
@@ -301,14 +316,6 @@ export class RequestVal extends NameVal {
     return `!${this.name}`;
   }
 }
-export class RawFieldVal extends NameVal {
-  eval(stack) {
-    return stack.lookupFieldRaw(this.name);
-  }
-  toString() {
-    return `.${this.name}`;
-  }
-}
 export class RenderVal extends BaseVal {
   render(stack, _rx) {
     return this.eval(stack);
@@ -339,18 +346,32 @@ export class DynVal extends RenderNameVal {
     return `*${this.name}`;
   }
 }
+// `.name`: a plain field read on `this`. Never invokes — a method referenced
+// via `.name` is a lint error; use `$name` instead.
 export class FieldVal extends RenderNameVal {
   eval(stack) {
-    return stack.lookupField(this.name);
+    return stack.lookupFieldRaw(this.name);
   }
   toPathItem() {
     return new FieldStep(this.name);
   }
-  toRawFieldVal() {
-    return new RawFieldVal(this.name);
-  }
   toString() {
     return `.${this.name}`;
+  }
+}
+// `$name`: a no-arg method call on `this`. Has no `toPathItem` (inherits
+// `BaseVal`'s `null`), so it cannot reach a path-bearing slot. In a value
+// slot `eval` invokes the method; in handler position `evalAsHandler` hands
+// back the raw function for the dispatch machinery to call with event args.
+export class MethodVal extends RenderNameVal {
+  eval(stack) {
+    return stack.lookupMethod(this.name);
+  }
+  evalAsHandler(stack) {
+    return stack.lookupFieldRaw(this.name);
+  }
+  toString() {
+    return `$${this.name}`;
   }
 }
 export class SeqAccessVal extends RenderVal {

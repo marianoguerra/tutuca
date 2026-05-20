@@ -158,15 +158,15 @@ Tutuca templates resolve handler args by name (see
 event**. With named args, the test passes a literal; with `event`,
 the test must fabricate a DOM-event-shaped object.
 
-The dot-prefix in the template picks the handler block: a leading `.`
-means "method on `this`", no dot means an input handler. The same
+The prefix in the template picks the handler block: a leading `$`
+means "method on `this`", no prefix means an input handler. The same
 named-arg rule applies to both. Both forms below are correct
 placements — what matters is what argument the handler asks for.
 
 **Bad — method:**
 
 ```html
-<input @on.input=".setName event" />
+<input @on.input="$setName event" />
 ```
 ```js
 methods: { setName(event) { return this.setName(event.target.value); } }
@@ -175,7 +175,7 @@ methods: { setName(event) { return this.setName(event.target.value); } }
 **Good — method:**
 
 ```html
-<input @on.input=".setName value" />
+<input @on.input="$setName value" />
 ```
 ```js
 methods: { setName(value) { return this.setName(value); } }

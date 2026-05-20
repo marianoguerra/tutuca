@@ -19,7 +19,7 @@ const EmojiPicker = component({
     </p>
     <p @show="truthy? .current">Selected emoji:</p>
     <span @show="truthy? .current" @text=".current" class="text-9xl"></span>
-    <button class="btn btn-sm" @on.click=".toggleIsPickerVisible">
+    <button class="btn btn-sm" @on.click="$toggleIsPickerVisible">
       Toggle Picker
     </button>
     <emoji-picker @show=".isPickerVisible"></emoji-picker>
