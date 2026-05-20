@@ -153,6 +153,7 @@
               <li>
                 <a href="#conditional-attributes">Conditional Attributes</a>
               </li>
+              <li><a href="#tabbed-ui">Tabbed UI</a></li>
               <li>
                 <a href="#no-dotted-paths">No Dotted Paths in Values</a>
               </li>
@@ -494,6 +495,39 @@
         </p>
         <tutuca-playground
           src="./examples/conditional-attributes.js"
+        ></tutuca-playground>
+
+        <h3 id="tabbed-ui">
+          <a href="#tabbed-ui">Tabbed UI</a>
+        </h3>
+        <p>
+          A tabbed UI puts the previous two sections to work together. The
+          active tab is just a single string field &mdash;
+          <code>tab</code> &mdash; and everything else derives from it. No
+          per-tab boolean flags, no separate component per tab.
+        </p>
+        <p>
+          The comparison is done with <code>equals?</code>, a built-in boolean
+          predicate. Unlike the unary predicates from
+          <a href="#conditional-display">Conditional Display</a>
+          (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
+          <code>null?</code>), <code>equals?</code> is binary: written
+          predicate-first, it takes two values &mdash; here a field and a
+          string literal, as in <code>equals? .tab 'overview'</code>. Each tab
+          panel uses it in <code>@show</code> so only the matching panel is
+          visible, and each tab button uses it in
+          <code>@if.class</code> &mdash; <code>@then="'tab tab-active'"</code>
+          highlights the active button, <code>@else="'tab'"</code> styles the
+          rest.
+        </p>
+        <p>
+          Clicking a button calls <code>$setTab 'overview'</code> &mdash; the
+          auto-generated setter for the <code>tab</code> field, passed a string
+          literal as its argument. Single quotes mark string literals both in
+          the <code>equals?</code> comparisons and in the handler argument.
+        </p>
+        <tutuca-playground
+          src="./examples/tabbed-ui.js"
         ></tutuca-playground>
 
         <h3 id="no-dotted-paths">
