@@ -1,12 +1,21 @@
 export const isHtmlAttribute = (propName) =>
   propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
+export const HTML_NS = "http://www.w3.org/1999/xhtml";
+// SVG / MathML elements expose their attributes as read-only IDL properties
+// (`cx`, `viewBox`, …), so on a namespaced node every attribute must go
+// through setAttribute rather than the `node[prop] = val` property path.
+const isNamespaced = (node) => {
+  const ns = node.namespaceURI;
+  return ns !== null && ns !== HTML_NS;
+};
 export function applyProperties(node, props, previous) {
+  const namespaced = isNamespaced(node);
   for (const propName in props) {
     const propValue = props[propName];
     if (propValue === undefined) removeProperty(node, propName, previous);
-    else if (isHtmlAttribute(propName)) node.setAttribute(propName, propValue);
     else if (propName === "dangerouslySetInnerHTML") node.innerHTML = propValue.__html ?? "";
     else if (propName === "className") node.setAttribute("class", propValue);
+    else if (namespaced || isHtmlAttribute(propName)) node.setAttribute(propName, propValue);
     else node[propName] = propValue;
   }
 }
@@ -15,7 +24,7 @@ function removeProperty(node, propName, previous) {
   if (propName === "dangerouslySetInnerHTML") node.replaceChildren();
   else if (propName === "className") node.removeAttribute("class");
   else if (propName === "htmlFor") node.removeAttribute("for");
-  else if (typeof previousValue === "string" || isHtmlAttribute(propName))
+  else if (isNamespaced(node) || typeof previousValue === "string" || isHtmlAttribute(propName))
     node.removeAttribute(propName);
   else node[propName] = null;
 }
@@ -264,11 +273,9 @@ export function render(vnode, container, options, prev) {
   return { vnode, dom: isFragment ? container : domNode };
 }
 export const unmount = (container) => container.replaceChildren();
-export function h(tagName, properties, children) {
-  const c = tagName.charCodeAt(0);
-  const tag = c >= 97 && c <= 122 ? tagName.toUpperCase() : tagName;
+export function h(tagName, properties, children, namespace) {
   const props = {};
-  let key, namespace;
+  let key;
   if (properties) {
     for (const propName in properties) {
       const propVal = properties[propName];
@@ -277,7 +284,7 @@ export function h(tagName, properties, children) {
           key = propVal;
           break;
         case "namespace":
-          namespace = propVal;
+          namespace = namespace ?? propVal;
           break;
         case "class":
           props.className = propVal;
@@ -290,6 +297,11 @@ export function h(tagName, properties, children) {
       }
     }
   }
+  // HTML tag names are case-insensitive, so they are normalized to uppercase
+  // for cheap identity comparisons. Namespaced (SVG / MathML) tags are
+  // case-sensitive (`linearGradient`, `clipPath`, …) and kept verbatim.
+  const c = tagName.charCodeAt(0);
+  const tag = namespace == null && c >= 97 && c <= 122 ? tagName.toUpperCase() : tagName;
   const normalizedChildren = [];
   addChild(normalizedChildren, children);
   return new VNode(tag, props, normalizedChildren, key, namespace);

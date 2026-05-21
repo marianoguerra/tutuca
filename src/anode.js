@@ -1,6 +1,7 @@
 import { Attributes, getAttrParser } from "./attribute.js";
 import { BindStep, DynEachStep, DynStep, EachBindStep, EachRenderItStep } from "./path.js";
 import { DynVal, vp } from "./value.js";
+import { HTML_NS } from "./vdom.js";
 
 // Resolve the producer of a dynamic variable `dynName` declared on component
 // `comp`: walk a DynamicAlias (`dynamic: { x: { for: "Producer.y" } }`) to the
@@ -96,16 +97,17 @@ class ChildsNode extends BaseNode {
   }
 }
 export class DomNode extends ChildsNode {
-  constructor(tagName, attrs, childs) {
+  constructor(tagName, attrs, childs, namespace = null) {
     super(childs);
     this.tagName = tagName;
     this.attrs = attrs;
+    this.namespace = namespace;
   }
   render(stack, rx) {
     const childNodes = new Array(this.childs.length);
     for (let i = 0; i < childNodes.length; i++)
       childNodes[i] = this.childs[i]?.render?.(stack, rx) ?? null;
-    return rx.renderTag(this.tagName, this.attrs.eval(stack), childNodes);
+    return rx.renderTag(this.tagName, this.attrs.eval(stack), childNodes, this.namespace);
   }
   setDataAttr(key, val) {
     this.attrs.setDataAttr(key, val);
@@ -174,7 +176,11 @@ export class ANode extends BaseNode {
         px.onAttributes(nAttrs, wrappers, textChild, false, tag);
         if (textChild) childs.unshift(new RenderTextNode(null, textChild));
         const domChilds = tag !== "PRE" ? condenseChildsWhites(childs) : childs;
-        return wrap(new DomNode(tag, nAttrs, domChilds), px, wrappers);
+        // The template parser already namespaces SVG / MathML subtrees; carry
+        // a non-HTML namespace through so the renderer uses createElementNS.
+        const ns = node.namespaceURI;
+        const namespace = ns && ns !== HTML_NS ? ns : null;
+        return wrap(new DomNode(tag, nAttrs, domChilds, namespace), px, wrappers);
       }
       return new CommentNode(`Error: InvalidTagName ${tag}`);
     } finally {

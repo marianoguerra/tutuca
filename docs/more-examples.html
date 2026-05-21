@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tutuca: More Examples</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "tutuca-dev": "../dev.js",
+          "tutuca": "https://cdn.jsdelivr.net/npm/tutuca@latest/dist/tutuca-dev.js",
+          "margaui": "https://cdn.jsdelivr.net/npm/margaui@latest/+esm",
+          "chai": "https://cdn.jsdelivr.net/npm/chai/index.js"
+        }
+      }
+    </script>
+    <meta
+      name="description"
+      content="More Tutuca examples: reactive SVG graphics, MathML formulas, and advanced macro and dynamic-binding playgrounds."
+    />
+    <meta name="author" content="Mariano Guerra" />
+    <meta name="theme-color" content="#0d47a1" />
+    <link
+      rel="canonical"
+      href="https://marianoguerra.github.io/tutuca/more-examples.html"
+    />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Tutuca: More Examples" />
+    <meta
+      property="og:description"
+      content="More Tutuca examples: reactive SVG graphics, MathML formulas, and advanced macro and dynamic-binding playgrounds."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://marianoguerra.github.io/tutuca/more-examples.html"
+    />
+    <meta
+      property="og:image"
+      content="https://marianoguerra.github.io/tutuca/og-image.webp"
+    />
+    <meta property="og:site_name" content="Tutuca" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tutuca: More Examples" />
+    <meta
+      name="twitter:description"
+      content="More Tutuca examples: reactive SVG graphics, MathML formulas, and advanced macro and dynamic-binding playgrounds."
+    />
+    <meta
+      name="twitter:image"
+      content="https://marianoguerra.github.io/tutuca/og-image.webp"
+    />
+
+    <link rel="stylesheet" href="./styles/site.css" />
+    <script type="module" src="src/more-examples.js"></script>
+  </head>
+  <body>
+    <nav>
+      <a href="index.html">&#x1F3E0;&#xFE0F; Home</a>
+      <a href="tutorial.html">Tutorial</a>
+      <a href="https://github.com/marianoguerra/tutuca"
+        >&#x1F9D1;&#x200D;&#x1F4BB;&#xFE0F; github.com/marianoguerra/tutuca</a
+      >
+    </nav>
+    <header>
+      <h1>More Examples</h1>
+    </header>
+    <main>
+      <section>
+        <p>
+          A gallery of less common Tutuca use cases. Each playground is editable
+          &mdash; press <kbd>Ctrl/Cmd + Enter</kbd> to run your changes. For the
+          core features, see the <a href="./tutorial.html">tutorial</a>; for the
+          showcase apps, see the <a href="./index.html#examples">home page</a>.
+        </p>
+      </section>
+
+      <section id="svg">
+        <h2><a href="#svg">SVG</a></h2>
+        <p>
+          A tutuca template renders SVG directly: the <code>&lt;svg&gt;</code>
+          subtree keeps its namespace, so the usual directives
+          (<code>@each</code>, <code>:attr</code> bindings,
+          <code>@on.click</code>, <code>@if</code>, macros) all work on real SVG
+          elements.
+        </p>
+
+        <h3 id="svg-bar-chart">
+          <a href="#svg-bar-chart">Reactive Bar Chart</a>
+        </h3>
+        <p>
+          A bar chart driven by a list field. <code>@loop-with</code> computes
+          the shared layout once, <code>@enrich-with</code> derives each bar's
+          geometry, and the buttons mutate the data &mdash; the
+          <code>&lt;rect&gt;</code> and <code>&lt;text&gt;</code> elements
+          re-render in response.
+        </p>
+        <tutuca-playground
+          src="./examples/svg-bar-chart.js"
+        ></tutuca-playground>
+
+        <h3 id="svg-interactive">
+          <a href="#svg-interactive">Interactive SVG</a>
+        </h3>
+        <p>
+          Clickable <code>&lt;circle&gt;</code> swatches. Each uses
+          <code>@on.click</code> to set the selected color, <code>:fill</code>
+          binds the preview, and <code>@if</code> / <code>@then</code> /
+          <code>@else</code> draws a ring around the active swatch.
+        </p>
+        <tutuca-playground
+          src="./examples/svg-interactive.js"
+        ></tutuca-playground>
+
+        <h3 id="svg-icon-macro">
+          <a href="#svg-icon-macro">SVG Icon Macro</a>
+        </h3>
+        <p>
+          Macros can expand to an <code>&lt;svg&gt;</code> subtree, so an icon
+          set is just a few parametrized macros. <code>^size</code> and
+          <code>^color</code> are macro parameters; passing them dynamically
+          makes every icon react to state.
+        </p>
+        <tutuca-playground
+          src="./examples/svg-icon-macro.js"
+        ></tutuca-playground>
+      </section>
+
+      <section id="mathml">
+        <h2><a href="#mathml">MathML</a></h2>
+        <h3 id="mathml-formula">
+          <a href="#mathml-formula">Reactive Formula</a>
+        </h3>
+        <p>
+          MathML renders from a template just like SVG. The
+          <code>&lt;math&gt;</code> subtree keeps its namespace, so
+          <code>&lt;msup&gt;</code>, <code>&lt;mfrac&gt;</code>, and
+          <code>&lt;mn&gt;</code> become real MathML elements &mdash; and
+          <code>@text</code> on an <code>&lt;mn&gt;</code> makes the displayed
+          number reactive.
+        </p>
+        <tutuca-playground
+          src="./examples/mathml-formula.js"
+        ></tutuca-playground>
+      </section>
+
+      <section id="macros-dynamic">
+        <h2><a href="#macros-dynamic">Macros &amp; Dynamic Bindings</a></h2>
+        <p>
+          Advanced composition patterns. The
+          <a href="./tutorial.html#macros">tutorial</a> introduces macros and
+          dynamic bindings step by step; these playgrounds put them to work in
+          larger examples.
+        </p>
+
+        <h3 id="todo-macros">
+          <a href="#todo-macros">To-Do with Macros</a>
+        </h3>
+        <p>
+          The to-do app rebuilt with macros for its repeated markup &mdash;
+          checkbox, input, and button fragments factored into reusable
+          templates.
+        </p>
+        <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>
+
+        <h3 id="dynamic-bindings">
+          <a href="#dynamic-bindings">Dynamic Bindings</a>
+        </h3>
+        <p>
+          A producer publishes a value and any descendant reads it as
+          <code>*name</code>, skipping the prop-drilling in between.
+        </p>
+        <tutuca-playground
+          src="./examples/dynamic-bindings.js"
+        ></tutuca-playground>
+
+        <h3 id="dynamic-path">
+          <a href="#dynamic-path">Dynamic Variable in a Path</a>
+        </h3>
+        <p>
+          A dynamic var used as a render target: editing the rendered component
+          teleports the mutation back to where the value actually lives.
+        </p>
+        <tutuca-playground src="./examples/dynamic-path.js"></tutuca-playground>
+
+        <h3 id="dynamic-selected-edit">
+          <a href="#dynamic-selected-edit"
+            >Dynamic Selected Entry &mdash; Edit in a Child</a
+          >
+        </h3>
+        <p>
+          A producer exposes a single selected entry; a distant child renders
+          and edits it through a dynamic binding.
+        </p>
+        <tutuca-playground
+          src="./examples/dynamic-selected-edit.js"
+        ></tutuca-playground>
+      </section>
+    </main>
+    <footer>
+      <a href="https://github.com/marianoguerra/tutuca"
+        >&#x1F9D1;&#x200D;&#x1F4BB;&#xFE0F; github.com/marianoguerra/tutuca</a
+      >
+      <a href="https://bsky.app/profile/marianoguerra.org"
+        >&#x1F98B;&#xFE0F; @marianoguerra.org</a
+      >
+      <a href="https://hachyderm.io/@marianoguerra"
+        >&#x1F418;&#xFE0F; @marianoguerra@hachyderm.io</a
+      >
+    </footer>
+  </body>
+</html>
