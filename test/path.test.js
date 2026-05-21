@@ -870,3 +870,61 @@ describe("dynamic variable as a path segment", () => {
     cleanup();
   });
 });
+
+describe("passthrough component (bare <x render> as the whole view)", () => {
+  // A component whose view is just `<x render=".child">` produces no DOM
+  // element of its own to carry `data-cid`; its boundary is recorded only in
+  // the `Comp` meta comment. Path reconstruction must still cross it.
+  function passthroughApp(parentView) {
+    const Child = component({
+      name: "Child",
+      fields: { title: "untitled" },
+      input: {
+        rename() {
+          return this.setTitle("renamed");
+        },
+      },
+      view: html`<button class="rename" @on.click="rename">x</button>`,
+    });
+    const Parent = component({
+      name: "Parent",
+      fields: { child: null },
+      view: parentView,
+    });
+    const root = Parent.make({ child: Child.make() });
+    return renderToHTMLNode(document, [Parent, Child], null, root, HeadlessParseContext);
+  }
+
+  test("reconstructs the path through a bare-render parent", () => {
+    const { container, app, cleanup } = passthroughApp(html`<x render=".child"></x>`);
+    const [path] = Path.fromNodeAndEventName(
+      container.querySelector(".rename"),
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    expect(path.steps.length).toBe(1);
+    expect(path.steps[0]).toBeInstanceOf(FieldStep);
+    expect(path.steps[0].field).toBe("child");
+    cleanup();
+  });
+
+  test("dispatch mutates the child through a bare-render parent", () => {
+    const { container, app, cleanup } = passthroughApp(html`<x render=".child"></x>`);
+    container.querySelector(".rename").click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.child.title).toBe("renamed");
+    cleanup();
+  });
+
+  test("still works when the parent wraps the child in an element", () => {
+    const { container, app, cleanup } = passthroughApp(
+      html`<div class="wrap"><x render=".child"></x></div>`,
+    );
+    container.querySelector(".rename").click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.child.title).toBe("renamed");
+    cleanup();
+  });
+});

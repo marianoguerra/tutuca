@@ -265,44 +265,75 @@ export class Path {
     let handlers = null;
     let nodeIds = [];
     let isLeafComponent = true;
+    // Cross one component boundary `cidNum`: resolve the event handlers (once)
+    // and the path step that leaves this component. Returns false to signal
+    // "no handler on the leaf component" — caller aborts with NO_EVENT_INFO.
+    const crossComponent = (cidNum, vid) => {
+      const comp = comps.getComponentForId(cidNum);
+      let pushStep = true;
+      if (handlers === null && (isLeafComponent || bubbles)) {
+        handlers = findHandlers(comp, eventIds, vid, eventName);
+        if (handlers === null) {
+          if (isLeafComponent && stopOnNoEvent && !bubbles) return false;
+        } else if (!isLeafComponent) {
+          pathSteps.length = 0; // handler bubbled up to an ancestor component: the returned path must
+          pendingDyns.length = 0; // resolve to that component's value, so drop the steps that descend below it
+          pushStep = false;
+        }
+      }
+      isLeafComponent = false;
+      for (const dyn of pendingDyns) dyn.interiorCids.add(cidNum); // crossed below a teleport's producer
+      if (pushStep) {
+        const step = resolvePathStep(comp, nodeIds, vid);
+        if (step) {
+          step._originCid = cidNum;
+          pathSteps.push(step);
+          if (step instanceof DynStep) {
+            step.interiorCids.add(cidNum);
+            pendingDyns.push(step);
+          }
+        }
+      }
+      for (let i = pendingDyns.length - 1; i >= 0; i--)
+        if (pendingDyns[i].producerCompId === cidNum) pendingDyns.splice(i, 1); // reached the producer
+      eventIds = [];
+      nodeIds = [];
+      return true;
+    };
     while (node && node !== rootNode && depth < maxDepth) {
       if (node?.dataset) {
-        const { nid, si, sk } = parseMetaComment(node.previousSibling);
         const { eid, cid, vid } = node.dataset;
         if (eid !== undefined) eventIds.push(eid);
-        if (cid !== undefined) {
-          const cidNum = +cid;
-          const comp = comps.getComponentForId(cidNum);
-          let pushStep = true;
-          if (handlers === null && (isLeafComponent || bubbles)) {
-            handlers = findHandlers(comp, eventIds, vid, eventName);
-            if (handlers === null) {
-              if (isLeafComponent && stopOnNoEvent && !bubbles) return NO_EVENT_INFO;
-            } else if (!isLeafComponent) {
-              pathSteps.length = 0; // handler bubbled up to an ancestor component: the returned path must
-              pendingDyns.length = 0; // resolve to that component's value, so drop the steps that descend below it
-              pushStep = false;
+        // Meta comments before the element, innermost-first. A `Comp` meta is
+        // a component boundary — there is one per rendered component even when
+        // its view is a bare `<x render>` that contributes no DOM element of
+        // its own (a "passthrough" component). An `Each` meta is an iteration
+        // step. A `Comp` directly wrapped by an outer `Each` of the same node
+        // is a `render-each` item: the `Each` carries that boundary's keyed
+        // render site, so the `Comp` does not also push a (keyless) one.
+        const metas = metaChain(node.previousSibling);
+        let sawComp = false;
+        for (let i = 0; i < metas.length; i++) {
+          const m = metas[i];
+          if (m.$ === "Comp") {
+            sawComp = true;
+            if (!crossComponent(m.cid, m.vid)) return NO_EVENT_INFO;
+            const outer = metas[i + 1];
+            if (outer?.$ === "Each" && outer.nid === m.nid) {
+              nodeIds.push({ nid: outer.nid, si: outer.si, sk: outer.sk });
+              i += 1;
+            } else {
+              nodeIds.push({ nid: m.nid });
             }
+          } else {
+            nodeIds.push({ nid: m.nid, si: m.si, sk: m.sk });
           }
-          isLeafComponent = false;
-          for (const dyn of pendingDyns) dyn.interiorCids.add(cidNum); // crossed below a teleport's producer
-          if (pushStep) {
-            const step = resolvePathStep(comp, nodeIds, vid);
-            if (step) {
-              step._originCid = cidNum;
-              pathSteps.push(step);
-              if (step instanceof DynStep) {
-                step.interiorCids.add(cidNum);
-                pendingDyns.push(step);
-              }
-            }
-          }
-          for (let i = pendingDyns.length - 1; i >= 0; i--)
-            if (pendingDyns[i].producerCompId === cidNum) pendingDyns.splice(i, 1); // reached the producer
-          eventIds = [];
-          nodeIds = [];
         }
-        if (nid !== undefined) nodeIds.push({ nid, si, sk });
+        // A fragment-rooted component stamps `data-cid` on every child but
+        // emits a single `Comp` meta (before the first child); later children
+        // carry the boundary only on the element itself.
+        if (!sawComp && cid !== undefined && !crossComponent(+cid, vid))
+          return NO_EVENT_INFO;
       }
       depth += 1;
       node = node.parentNode;
@@ -316,18 +347,20 @@ export class Path {
     return Path.fromNodeAndEventName(target, type, rNode, maxDepth, comps, stopOnNoEvent);
   }
 }
-const EMPTY_META = {};
-function parseMetaComment(n) {
-  if (n?.nodeType === 8 && n.textContent[0] === "§") {
-    const m = parseMetaComment(n.previousSibling);
-    if (m !== EMPTY_META) return m;
+// Collect the run of `§…§` meta comments immediately preceding an element,
+// innermost-first (closest sibling first). The renderer emits them adjacently,
+// one stream entry per crossed component / iteration.
+function metaChain(n) {
+  const out = [];
+  while (n?.nodeType === 8 && n.textContent[0] === "§") {
     try {
-      return JSON.parse(n.textContent.slice(1, -1));
+      out.push(JSON.parse(n.textContent.slice(1, -1)));
     } catch (err) {
       console.warn(err, n);
     }
+    n = n.previousSibling;
   }
-  return EMPTY_META;
+  return out;
 }
 function findHandlers(comp, eventIds, vid, eventName) {
   for (const eid of eventIds) {

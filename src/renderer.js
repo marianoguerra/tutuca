@@ -53,7 +53,16 @@ export class Renderer {
     const cachedNode = this.cache.get(cachePath, cacheKey);
     if (cachedNode) return cachedNode;
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
-    const meta = this._renderMetadata({ $: "Comp", nid: node?.nodeId ?? null });
+    // `cid`/`vid` mirror the `data-cid`/`data-vid` baked onto the view's root
+    // element, but live in the meta comment so a component whose view is a
+    // bare `<x render>` (no DOM element of its own to stamp) still marks its
+    // boundary for event-path reconstruction.
+    const meta = this._renderMetadata({
+      $: "Comp",
+      nid: node?.nodeId ?? null,
+      cid: comp.id,
+      vid: view.name,
+    });
     const dom = new VFragment([meta, this.renderView(view, stack)]);
     this.cache.set(cachePath, cacheKey, dom);
     return dom;

@@ -322,6 +322,10 @@ class RenderViewId extends ANode {
     super(nodeId, val);
     this.viewId = viewId;
   }
+  // A `<x render*>` produces no DOM element of its own to carry `data-cid`;
+  // when it is a view's root the component boundary is recorded in the `Comp`
+  // meta comment instead (see Renderer._rValComp), so this is a no-op.
+  setDataAttr(_key, _val) {}
 }
 export class RenderNode extends RenderViewId {
   render(stack, rx) {
@@ -394,6 +398,8 @@ export class RenderTextNode extends ANode {
   render(stack, _rx) {
     return this.val.eval(stack);
   }
+  // Renders to a text node, which can't carry `data-cid`.
+  setDataAttr(_key, _val) {}
 }
 export class RenderOnceNode extends BaseNode {
   constructor(node) {
