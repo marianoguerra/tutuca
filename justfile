@@ -4,6 +4,9 @@ clean:
 dist:
     npm run dist
 
+dist-ext:
+    npm run dist-ext
+
 dist-immutable:
     npm run dist-immutable
 

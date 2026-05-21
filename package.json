@@ -10,6 +10,9 @@
     "./dev": "./dist/tutuca-dev.js",
     "./extra": "./dist/tutuca-extra.js",
     "./cli": "./dist/tutuca-cli.js",
+    "./ext": "./dist/tutuca.ext.js",
+    "./extra-ext": "./dist/tutuca-extra.ext.js",
+    "./dev-ext": "./dist/tutuca-dev.ext.js",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -18,8 +21,9 @@
   "scripts": {
     "clean": "rm -rf dist",
     "dist": "bun scripts/dist.js",
+    "dist-ext": "bun scripts/dist-ext.js",
     "dist-immutable": "bun scripts/dist-immutable.js",
-    "dist-all": "bun run dist-immutable && bun run dist",
+    "dist-all": "bun run dist-immutable && bun run dist && bun run dist-ext",
     "release": "bun run dist-all && bun run build-skill && npm publish --access public",
     "release-dry": "bun run dist-all && bun run build-skill && npm publish --dry-run",
     "build-skill": "bun scripts/build-skill.js",
@@ -42,11 +46,22 @@
     "dist/tutuca-extra.js",
     "dist/tutuca-extra.min.js",
     "dist/tutuca-cli.js",
+    "dist/tutuca.ext.js",
+    "dist/tutuca-extra.ext.js",
+    "dist/tutuca-dev.ext.js",
     "skill"
   ],
   "dependencies": {
     "jsdom": "^28.0.0 || ^29.0.0",
     "prettier": "^3.0.0"
+  },
+  "peerDependencies": {
+    "immutable": "*"
+  },
+  "peerDependenciesMeta": {
+    "immutable": {
+      "optional": true
+    }
   },
   "keywords": [
     "frontend",
