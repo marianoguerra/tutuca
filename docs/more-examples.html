@@ -78,6 +78,30 @@
         </p>
       </section>
 
+      <section id="iteration">
+        <h2><a href="#iteration">Iteration</a></h2>
+        <p>
+          <code>@loop-with</code> runs once per render and returns
+          <code>{ iterData, start, end }</code>. The <code>start</code>/<code
+            >end</code
+          >
+          keys slice the iteration with
+          <code>Array.prototype.slice</code> semantics, so <code>@each</code>
+          skips the off-page prefix and suffix instead of walking and
+          discarding them. Slicing keeps each item's original key.
+        </p>
+
+        <h3 id="pagination">
+          <a href="#pagination">Pagination</a>
+        </h3>
+        <p>
+          A paged list: <code>@loop-with</code> turns the current page into a
+          slice range. Off-page items are never iterated, and the index badges
+          show that keys stay original across pages.
+        </p>
+        <tutuca-playground src="./examples/pagination.js"></tutuca-playground>
+      </section>
+
       <section id="svg">
         <h2><a href="#svg">SVG</a></h2>
         <p>

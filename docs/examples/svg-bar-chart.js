@@ -15,7 +15,7 @@ const BarChart = component({
     // among however many bars there currently are
     layout(seq) {
       const step = 300 / seq.size;
-      return { step, barW: step * 0.62 };
+      return { iterData: { step, barW: step * 0.62 } };
     },
     // runs per bar: turn an index + value into pixel geometry
     bar(binds, key, value, { step, barW }) {

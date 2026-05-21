@@ -560,7 +560,7 @@ custom elements for use with Tutuca. See *Attribute Binding* above.
   <x text="@count"></x>
 </li>
 
-<!-- shared per-loop data (computed once before iteration) -->
+<!-- shared per-loop data + slicing (computed once before iteration) -->
 <li @each=".items" @loop-with="getIterData" @when="filterItem">...</li>
 
 <!-- render a list of components -->
@@ -582,9 +582,30 @@ share the handler-name resolution rules below.
 alter: {
   filterItem(_key, item, iterData) { return item.includes(iterData.q); },
   enrichItem(binds, _key, item, iterData) { binds.count = item.length; },
-  getIterData(seq) { return { q: this.query.toLowerCase() }; },
+  // `@loop-with` returns { iterData?, start?, end? } — all optional.
+  getIterData(seq) {
+    const start = this.page * this.pageSize;
+    return { iterData: { q: this.query.toLowerCase() }, start, end: start + this.pageSize };
+  },
 }
 ```
+
+#### `@loop-with` return shape — `iterData` + slicing
+
+A `@loop-with` handler returns an object with up to three optional keys:
+
+- **`iterData`** — the shared per-loop value handed to `@when` /
+  `@enrich-with`. Defaults to `{ seq }` when omitted.
+- **`start`, `end`** — a positional slice of the iteration, with
+  `Array.prototype.slice` semantics: `end` is exclusive, negatives count
+  from the end (`end: -3` drops the last 3), `undefined` means the
+  natural bound. Use this to **paginate** — skip a prefix and/or suffix
+  without iterating or rendering it.
+
+Slicing is positional but **preserves each item's original key**: a List
+sliced to `start: 2` still binds `@key` to `2, 3, …`, so events, drag,
+and two-way binding keep their identity. `@when` then filters *within*
+the window, so a page may yield fewer than `end - start` items.
 
 ### Lifecycle of `@each`
 
@@ -593,9 +614,11 @@ For each render of an element with `@each=".items"`:
 1. **Resolve sequence** — evaluate `.items`. Lists, IMaps, OMaps, ISets,
    and any class declaring a `SEQ_INFO` walker are recognized.
 2. **`@loop-with`** (once per render) — `getIterData.call(this, seq)` is
-   called and its return becomes `iterData`. Skipped if no `@loop-with`;
-   in that case `iterData` is `{ seq }` from the default.
-3. For each `(key, value)` pair in the sequence:
+   called with the full sequence; its `iterData` becomes the shared
+   per-loop value and its `start`/`end` slice the iteration. Skipped if
+   no `@loop-with`; then `iterData` is `{ seq }` and the whole sequence
+   is iterated.
+3. For each `(key, value)` pair in the sliced sequence:
    1. **`@when`** — `filterItem.call(this, key, value, iterData)`; if it
       returns `false`, the item is skipped.
    2. **`@enrich-with`** — `enrichItem.call(this, binds, key, value, iterData)`.

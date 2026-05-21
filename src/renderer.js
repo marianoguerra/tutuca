@@ -64,35 +64,45 @@ export class Renderer {
   renderEach(stack, iterInfo, node, viewName) {
     const { seq, filter, loopWith } = iterInfo.eval(stack);
     const r = [];
-    const iterData = loopWith.call(stack.it, seq);
-    getSeqInfo(seq)(seq, (key, value, attrName) => {
-      if (filter.call(stack.it, key, value, iterData)) {
-        const dom = this.renderIt(stack.enter(value, { key }, true), node, key, viewName);
-        this.pushEachEntry(r, node.nodeId, attrName, key, dom);
-      }
-    });
+    const { iterData, start, end } = unpackLoopResult(loopWith.call(stack.it, seq), seq);
+    getSeqInfo(seq)(
+      seq,
+      (key, value, attrName) => {
+        if (filter.call(stack.it, key, value, iterData)) {
+          const dom = this.renderIt(stack.enter(value, { key }, true), node, key, viewName);
+          this.pushEachEntry(r, node.nodeId, attrName, key, dom);
+        }
+      },
+      start,
+      end,
+    );
     return r;
   }
   renderEachWhen(stack, iterInfo, view, nid) {
     const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
     const r = [];
     const it = stack.it;
-    const iterData = loopWith.call(it, seq);
-    getSeqInfo(seq)(seq, (key, value, attrName) => {
-      if (filter.call(it, key, value, iterData)) {
-        const cachePath = enricher ? [view, it, value] : [view, value];
-        const binds = { key, value };
-        const cacheKey = `${nid}-${key}`;
-        if (enricher) enricher.call(it, binds, key, value, iterData);
-        const cachedNode = this.cache.get(cachePath, cacheKey);
-        if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
-        else {
-          const dom = this.renderView(view, stack.enter(value, binds, false));
-          this.pushEachEntry(r, nid, attrName, key, dom);
-          this.cache.set(cachePath, cacheKey, dom);
+    const { iterData, start, end } = unpackLoopResult(loopWith.call(it, seq), seq);
+    getSeqInfo(seq)(
+      seq,
+      (key, value, attrName) => {
+        if (filter.call(it, key, value, iterData)) {
+          const cachePath = enricher ? [view, it, value] : [view, value];
+          const binds = { key, value };
+          const cacheKey = `${nid}-${key}`;
+          if (enricher) enricher.call(it, binds, key, value, iterData);
+          const cachedNode = this.cache.get(cachePath, cacheKey);
+          if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
+          else {
+            const dom = this.renderView(view, stack.enter(value, binds, false));
+            this.pushEachEntry(r, nid, attrName, key, dom);
+            this.cache.set(cachePath, cacheKey, dom);
+          }
         }
-      }
-    });
+      },
+      start,
+      end,
+    );
     return r;
   }
   renderView(view, stack) {
@@ -114,12 +124,43 @@ export class Renderer {
 }
 export const getSeqInfo = (seq) =>
   isIndexed(seq) ? imIndexedIter : isKeyed(seq) ? imKeyedIter : (seq?.[SEQ_INFO] ?? unkIter);
-const imIndexedIter = (seq, visit) => {
-  let i = 0;
-  for (const v of seq) visit(i++, v, "si");
+// Clamp a `@loop-with` `{ start, end }` range to `[0, size]` using
+// `Array.prototype.slice` semantics: end-exclusive, negatives count from the
+// end, `undefined` means the natural bound. `start`/`end` are positional.
+export const normalizeRange = (start, end, size) => {
+  let s = start == null ? 0 : start < 0 ? size + start : start;
+  let e = end == null ? size : end < 0 ? size + end : end;
+  s = s < 0 ? 0 : s > size ? size : s;
+  e = e < 0 ? 0 : e > size ? size : e;
+  return [s, e < s ? s : e];
 };
-const imKeyedIter = (seq, visit) => {
-  for (const [k, v] of seq.toSeq().entries()) visit(k, v, "sk");
+// Read a `@loop-with` handler's result: `{ iterData, start, end }`, all
+// optional. `iterData` defaults to `{ seq }` so `@when`/`@enrich-with` can
+// still reach the sequence when a handler omits it.
+export const unpackLoopResult = (result, seq) => {
+  const r = result ?? {};
+  return { iterData: r.iterData ?? { seq }, start: r.start, end: r.end };
+};
+const imIndexedIter = (seq, visit, start, end) => {
+  // Random access skips the prefix/suffix entirely; `i` stays the original
+  // index so `data-si` and path lookups (`EachBindStep`) keep their identity.
+  const [s, e] = normalizeRange(start, end, seq.size);
+  for (let i = s; i < e; i++) visit(i, seq.get(i), "si");
+};
+const imKeyedIter = (seq, visit, start, end) => {
+  // Keyed maps have no positional random access; the prefix is counted but
+  // not visited/rendered, and iteration breaks once past `end`.
+  const [s, e] = normalizeRange(start, end, seq.size);
+  let i = 0;
+  for (const [k, v] of seq.toSeq().entries()) {
+    if (i >= e) break;
+    if (i >= s) visit(k, v, "sk");
+    i++;
+  }
 };
 const unkIter = () => {};
+// A `SEQ_INFO` walker is `(seq, visit, start, end) => void`: it must honor the
+// positional `[start, end)` range (see `normalizeRange`) and preserve each
+// item's original key. Walkers may ignore the range, in which case the slice
+// simply does not apply for that sequence type.
 export const SEQ_INFO = Symbol.for("tutuca.seqInfo");

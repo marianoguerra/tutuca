@@ -84,8 +84,11 @@ Comp.input.handlerName.call(comp, arg1, arg2, /* … */);
 `alter` handlers run inside `@each` / `@when` / `@loop-with` /
 `@enrich-with` and have three distinct shapes:
 
-- `loopWith(seq)` — called once with the collection, returns an
-  `iterData` object. `this` is the parent component instance.
+- `loopWith(seq)` — called once with the full collection, returns
+  `{ iterData?, start?, end? }`: `iterData` is the shared per-loop value
+  (defaults to `{ seq }`); `start`/`end` slice the iteration
+  (`Array.prototype.slice` semantics, original keys preserved). `this`
+  is the parent component instance.
 - `when(key, value, iterData)` — called per element, returns truthy to
   keep. `this` is the parent component instance.
 - `enrichWith(binds, key, value, iterData)` — called per kept element;
@@ -125,7 +128,7 @@ const Items = component({
   name: "Items",
   fields: { items: [], multiplier: 1 },
   alter: {
-    loopMeta(seq) { return { len: seq.length, doubled: seq.length * 2 }; },
+    loopMeta(seq) { return { iterData: { len: seq.length, doubled: seq.length * 2 } }; },
     keepEven(k) { return k % 2 === 0; },
     addLabel(binds, k, v, { len }) { binds.label = `${k}/${len}: ${v}`; },
   },

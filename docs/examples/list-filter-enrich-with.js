@@ -17,7 +17,7 @@ export const ListFilterEnrichWith = component({
       for (const item of seq) {
         totalChars += item.length;
       }
-      return { totalChars, queryLower: this.query.toLowerCase() };
+      return { iterData: { totalChars, queryLower: this.query.toLowerCase() } };
     },
   },
   view: html`<section class="flex flex-col gap-3">

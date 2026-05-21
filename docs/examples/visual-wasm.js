@@ -722,7 +722,7 @@ const InstructionPicker = component({
   },
   alter: {
     loopWith(_seq) {
-      return { filter: this.filter.toLowerCase() };
+      return { iterData: { filter: this.filter.toLowerCase() } };
     },
     when(_key, val, { filter }) {
       return val.toLowerCase().includes(filter);

@@ -488,7 +488,7 @@ export class IterInfo {
   }
 }
 const filterAlwaysTrue = (_v, _k, _seq) => true;
-const nullLoopWith = (seq) => ({ seq });
+const nullLoopWith = (seq) => ({ iterData: { seq } });
 const X_OP_CONSUMED = {
   slot: new Set(),
   text: new Set(),

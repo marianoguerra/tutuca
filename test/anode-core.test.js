@@ -446,9 +446,11 @@ describe("ANode", () => {
           },
           loopWith(seq) {
             return {
-              evens: seq.size % 2 === 0,
-              multiplier: 3,
-              len: seq.size,
+              iterData: {
+                evens: seq.size % 2 === 0,
+                multiplier: 3,
+                len: seq.size,
+              },
             };
           },
         },
@@ -480,6 +482,44 @@ describe("ANode", () => {
         const n = toData(rx.renderIt(stack).childs[1]);
         expect(n[2].filter(Array.isArray).map((span) => span[2][0])).toEqual(["1 33 5", "3 39 5"]);
       }
+    });
+
+    test("@loop-with start/end slices iteration, keeps original keys", () => {
+      const alter = {
+        page() {
+          return { start: 1, end: 3 };
+        },
+        dropLast() {
+          return { end: -1 };
+        },
+        label(binds, k, v) {
+          binds.label = `${k}:${v}`;
+        },
+      };
+      const texts = (loopHandler) => {
+        const View = component({
+          name: "Sliced",
+          fields: { items: [] },
+          alter,
+          view: html`<p>
+            <span
+              @each=".items"
+              @loop-with="${loopHandler}"
+              @enrich-with="label"
+              @text="@label"
+            ></span>
+          </p>`,
+        });
+        View.compile(HeadlessParseContext);
+        const [stack, rx] = rxs({ it: View.make({ items: [10, 11, 12, 13, 14] }) });
+        rx.comps.registerComponent(View);
+        const n = toData(rx.renderIt(stack).childs[1]);
+        return n[2].filter(Array.isArray).map((span) => span[2][0]);
+      };
+      // start:1,end:3 -> indices 1,2; keys stay original (1, 2)
+      expect(texts("page")).toEqual(["1:11", "2:12"]);
+      // negative end drops the suffix; keys stay original
+      expect(texts("dropLast")).toEqual(["0:10", "1:11", "2:12", "3:13"]);
     });
 
     test("@each @enrich-with iter handler", () => {

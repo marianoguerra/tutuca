@@ -38,6 +38,13 @@ sometimes load remote data, and may pull in external libraries.
 `todo.js`, `todo-macros.js`, `json.js`, `personal-site.js`,
 `visual-wasm.js`, `composability.js`, `storybook.js`.
 
+### More-examples gallery (feature showcases)
+
+Embedded in `more-examples.html`.
+
+`pagination.js` — `@loop-with` returns `{ iterData, start, end }`; the
+`start`/`end` slice paginates `@each` without iterating off-page items.
+
 ### Building blocks
 
 Components reused across other examples — not standalone demos.
