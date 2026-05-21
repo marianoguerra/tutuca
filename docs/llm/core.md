@@ -636,6 +636,7 @@ alter: { enrichScope() { return { len: this.text.length }; } }
 <x render-it></x>                               <!-- only inside @each / render-each -->
 <x render=".byIndex[.currentIndex]"></x>        <!-- list item access -->
 <x render=".byKey[.currentKey]"></x>            <!-- map item access -->
+<x render="*active"></x>                        <!-- dynamic binding — see advanced.md -->
 <x render=".item" show=".isOpen"></x>           <!-- conditional wrap, see "Conditional Display" -->
 ```
 

@@ -224,40 +224,25 @@ stdin) exits **1** with a usage error.
 
 ## Linter Rules
 
-Codes emitted by `lint`.
+`lint` reports findings at three levels — **error**, **warn**, **hint** —
+and exits `2` if any finding is at error level.
 
-### Field references
+The codes are not duplicated here, to keep this file from drifting out of
+sync with the implementation. The authoritative, always-current list of
+component-linter codes (code, level, one-line description, grouped by
+category) is available straight from the CLI:
 
-- `FIELD_VAL_NOT_DEFINED` — `.field` not declared in `fields`.
-- `FIELD_VAL_IS_METHOD` — `.name` reads a field but `name` is a method (use `$name`).
-- `METHOD_VAL_NOT_DEFINED` — `$method` not declared in `methods`.
-- `METHOD_VAL_IS_FIELD` — `$name` calls a method but `name` is a field (use `.name`).
+- `tutuca help lint` — human-readable table.
+- `tutuca agent-context` — machine-readable: the `lintCodes` array, each
+  entry `{ code, level, group, summary }`.
 
-### Input-handler / method confusion
+Categories include field/method references, input-handler ↔ method
+confusion, iteration helpers (`alter`), dynamic bindings (`*name`),
+template/event issues, value-expression errors, and unregistered names.
+Representative codes: `FIELD_VAL_NOT_DEFINED`, `METHOD_VAL_IS_FIELD`,
+`ALT_HANDLER_NOT_DEFINED`, `DYN_VAL_NOT_DEFINED`, `UNKNOWN_DIRECTIVE`,
+`UNSUPPORTED_EXPR_SYNTAX`.
 
-- `INPUT_HANDLER_NOT_IMPLEMENTED` — bare handler name not in `input`.
-- `INPUT_HANDLER_NOT_REFERENCED` — `input` entry never used.
-- `INPUT_HANDLER_METHOD_NOT_IMPLEMENTED` — `$handler` not in `methods`.
-- `INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD` — bare name resolves to `methods` (use `$name`).
-- `INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER` — `$name` resolves to `input` (drop the `$`).
-
-### Iteration helpers (`alter`)
-
-- `ALT_HANDLER_NOT_DEFINED` — `@when` / `@enrich-with` / `@loop-with` name not in `alter`.
-- `ALT_HANDLER_NOT_REFERENCED` — `alter` entry never used.
-
-### Templates / events
-
-- `RENDER_IT_OUTSIDE_OF_LOOP` — `<x render-it>` outside `@each` / `render-each`.
-- `UNKNOWN_EVENT_MODIFIER` — `+mod` not in the recognized modifier set.
-- `UNKNOWN_HANDLER_ARG_NAME` — handler arg name not a built-in / declared component.
-- `DUPLICATE_ATTR_DEFINITION` — same attr set by literal + `:attr` + `@if.attr` on one element.
-- `UNKNOWN_DIRECTIVE` — `@name` directive not recognized (typo or unsupported).
-- `UNKNOWN_X_OP` — first attribute on `<x>` (or pseudo-`@x`) is not a known op.
-- `UNKNOWN_X_ATTR` — extra attribute on `<x op>` not consumed by the op and not a known wrapper (`show`/`hide`).
-
-### Names registered with the app
-
-- `UNKNOWN_REQUEST_NAME` — `!name` not registered.
-- `UNKNOWN_COMPONENT_NAME` — component type not registered.
-- `UNKNOWN_MACRO_ARG` — macro attr not declared in defaults.
+`lint` also runs an HTML structural linter (fragment mode) that emits
+`HTML_*` codes for malformed or misnested template markup; those are
+reported through the same channel.

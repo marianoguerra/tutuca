@@ -195,7 +195,30 @@ export async function run(argv, opts = {}) {
     });
   }
   process.stdout.write(`${target}: ${cmd.describe}\n`);
+  if (target === "lint") {
+    process.stdout.write(await lintRulesText());
+    return;
+  }
   process.stdout.write(
     "Run `tutuca help` for the full reference including signatures and flags.\n",
   );
+}
+
+// Human-readable dump of every component-linter code, grouped. The same
+// table is emitted as JSON by `agent-context` (lintCodes). Source of
+// truth: tools/core/lint-rules.js.
+async function lintRulesText() {
+  const { LINT_RULES, lintRulesByGroup } = await import("../../core/lint-rules.js");
+  const codeWidth = Math.max(...LINT_RULES.map((r) => r.code.length));
+  let out =
+    "\nReports findings at levels error / warn / hint; exits 2 if ANY finding\n" +
+    "is at error level. lint also runs an HTML structural linter that emits\n" +
+    "HTML_* codes. Component-linter codes:\n";
+  for (const [group, rules] of lintRulesByGroup()) {
+    out += `\n${group}\n`;
+    for (const { code, level, summary } of rules) {
+      out += `  ${code.padEnd(codeWidth)}  ${level.padEnd(5)}  ${summary}\n`;
+    }
+  }
+  return out;
 }

@@ -145,7 +145,7 @@ The invocation stays short even without wrapping, but common patterns:
 ## Use with Claude Code
 
 Tutuca ships an LLM-facing reference (`SKILL.md` + `core.md` / `cli.md` /
-`advanced.md`) packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills).
+`advanced.md` / `testing.md`) packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills).
 Once installed, Claude auto-loads it whenever a session touches tutuca
 components, views, macros, or the CLI.
 

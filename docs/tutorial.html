@@ -123,6 +123,11 @@
             <code>*name</code> &mdash; dynamic binding (e.g.
             <code>*theme</code>, <code>*entries</code>)
           </li>
+          <li>
+            <code>.seq[.key]</code> &mdash; sequence / map item access:
+            resolve the inner expression as a key into the outer
+            collection (e.g. <code>.byKey[.currentKey]</code>)
+          </li>
         </ul>
       </section>
 
@@ -145,6 +150,7 @@
           <li>
             <a href="#state-and-updates">State and Updates</a>
             <ol>
+              <li><a href="#field-types">Field Types</a></li>
               <li><a href="#methods-vs-input">Methods vs Input Handlers</a></li>
               <li><a href="#attribute-binding">Attribute Binding</a></li>
               <li><a href="#event-handling">Event Handling</a></li>
@@ -203,6 +209,9 @@
               <li><a href="#bubble-events">Bubble Events</a></li>
               <li><a href="#async-requests">Async Requests</a></li>
               <li><a href="#dynamic-bindings">Dynamic Bindings</a></li>
+              <li>
+                <a href="#dynamic-render-targets">Dynamic Render Targets</a>
+              </li>
             </ol>
           </li>
           <li>
@@ -335,6 +344,62 @@
         <h2 id="state-and-updates">
           <a href="#state-and-updates">State and Updates</a>
         </h2>
+
+        <h3 id="field-types">
+          <a href="#field-types">Field Types</a>
+        </h3>
+        <p>
+          A component declares its state in <code>fields</code>, as a map of
+          name to default value. Tutuca infers the field's
+          <em>type</em> from that default &mdash; <code>0</code> is a number,
+          <code>"hi"</code> a string, <code>true</code> a boolean,
+          <code>[]</code> a list, <code>{}</code> a map,
+          <code>new Set()</code> a set, and <code>null</code> the catch-all
+          <code>any</code>. Every field you have seen mutated so far
+          (<code>setCount</code>, <code>setStr</code>, <code>toggleIsActive</code>,
+          <code>pushInItems</code>&hellip;) is an <strong>auto-generated
+          method</strong>: tutuca derives a small API from each field's type so
+          you rarely write a setter by hand.
+        </p>
+        <ul>
+          <li>
+            Every type gets <code>setX</code>, <code>updateX</code> (apply a
+            function to the current value), and <code>resetX</code> (back to the
+            default).
+          </li>
+          <li>
+            Booleans also get <code>toggleX</code>; strings and lists/maps/sets
+            also get <code>xLen</code>.
+          </li>
+          <li>
+            Lists add <code>pushInX</code>, <code>insertInXAt</code>,
+            <code>setInXAt</code>, <code>getInXAt</code>,
+            <code>updateInXAt</code>, and <code>removeInXAt</code> /
+            <code>deleteInXAt</code>.
+          </li>
+          <li>
+            Maps add <code>setInXAt</code>, <code>getInXAt</code>,
+            <code>updateInXAt</code>, <code>deleteInXAt</code>; sets add
+            <code>addInX</code>, <code>deleteInX</code>, <code>hasInX</code>,
+            <code>toggleInX</code>.
+          </li>
+        </ul>
+        <p>
+          Like every handler, these mutators return a <em>new</em> component
+          instance &mdash; they never modify the existing one. Coercion is
+          <strong>shallow</strong>: <code>setItems([{ a: 1 }])</code> stores
+          plain objects inside the list, so to keep nested data immutable, wrap
+          each item in its own <code>Comp.make({ ... })</code>.
+        </p>
+        <pre><code>component({
+  name: "Profile",
+  fields: {
+    name: "",        // string  -> setName, updateName, resetName, nameLen
+    age: 0,          // number  -> setAge, updateAge, resetAge
+    active: true,    // boolean -> setActive, toggleActive, ...
+    tags: [],        // list    -> pushInTags, removeInTagsAt, tagsLen, ...
+  },
+});</code></pre>
 
         <h3 id="methods-vs-input">
           <a href="#methods-vs-input">Methods vs Input Handlers</a>
@@ -1004,6 +1069,43 @@
         <tutuca-playground
           src="./examples/dynamic-bindings.js"
         ></tutuca-playground>
+
+        <h3 id="dynamic-render-targets">
+          <a href="#dynamic-render-targets">Dynamic Render Targets</a>
+        </h3>
+        <p>
+          A <code>*name</code> dynamic var resolves to a value, so it works
+          anywhere a value is read &mdash; not just inside
+          <code>:style</code> / <code>:class</code>. In particular it can be a
+          component-render target: <code>&lt;x render="*name"&gt;</code> renders
+          the component the dynamic points at, <code>as="edit"</code> picks one
+          of its views, and <code>@each="*name"</code> iterates it when the
+          dynamic resolves to a sequence.
+        </p>
+        <p>
+          The producer side is an <em>expression</em>, not only a bare field
+          &mdash; it can be a sequence/map item access, so a producer can
+          expose a single selected entry with
+          <code>dynamic: { selected: ".items[.selectedKey]" }</code>. There is
+          no <code>*name[.key]</code> form: the consumer never indexes a
+          dynamic var, it just reads the resolved value as <code>*name</code>.
+        </p>
+        <p>
+          In the example below, <code>Workspace</code> exposes its
+          <code>.sheet</code> field as the dynamic <code>active</code> and
+          renders a deep tree (<code>Workspace &rarr; Panel &rarr; Toolbar</code>).
+          <code>Toolbar</code>, far from the producer, consumes
+          <code>active</code> and does <code>&lt;x render="*active"&gt;</code>.
+          The rendered <code>Sheet</code> physically lives at
+          <code>Workspace.sheet</code> &mdash; so when you edit its title the
+          mutation is <strong>teleported</strong>: the render path is expanded
+          to reconstruct the handler, but the transaction skips the
+          intermediate components and lands on <code>Workspace.sheet</code>.
+          The proof is the title echoed at the top, which updates in lock-step.
+        </p>
+        <tutuca-playground
+          src="./examples/dynamic-path.js"
+        ></tutuca-playground>
       </section>
 
       <!-- Macros -->
@@ -1225,7 +1327,7 @@
           <code>@when</code>, <code>@loop-with</code>, and
           <code>@enrich-with</code>). The testing tab in this playground runs
           tests written in the same module as the component &mdash; the same
-          tests <code>tutuca &lt;module&gt; test</code> picks up from the CLI.
+          tests <code>tutuca test &lt;module&gt;</code> picks up from the CLI.
         </p>
 
         <h3 id="testing-setup">
@@ -1239,7 +1341,7 @@
           <code>after</code> / <code>beforeEach</code>). Tests can be grouped
           by component with <code>describe(MyComp, () =&gt; { ... })</code>,
           which auto-tags the suite so
-          <code>tutuca &lt;module&gt; test MyComp</code> picks it up.
+          <code>tutuca test &lt;module&gt; MyComp</code> picks it up.
         </p>
 
         <h3 id="testing-methods-input">
@@ -1312,7 +1414,7 @@ const r = collectIterBindings(MyComp, c, c.items, {
         <p>
           The <code>tutuca</code> CLI's <code>lint</code> command emits codes
           for the categories below. Running it after each edit (the post-edit
-          recipe in the skill's <code>core.txt</code> &rarr;
+          recipe in the skill's <code>core.md</code> &rarr;
           <em>Verifying changes</em>) catches typos and broken references before
           they hit a render. The example below intentionally triggers every
           category &mdash; open the <strong>Lint</strong> tab on the right to

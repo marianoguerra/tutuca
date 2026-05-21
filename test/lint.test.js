@@ -1759,3 +1759,25 @@ test("no unused-dynamic hint for a producer Dynamic absent from its own views", 
   const unused = lx.reports.filter((r) => r.id === DYN_ALIAS_NOT_REFERENCED);
   expect(unused.length).toBe(0);
 });
+
+test("LINT_RULES covers every component-linter code, and only those", async () => {
+  const LINT_CHECK = await import("../tools/core/lint-check.js");
+  const { LINT_RULES } = await import("../tools/core/lint-rules.js");
+
+  // A "code" export is a SCREAMING_SNAKE string whose value equals its name.
+  const codeExports = Object.entries(LINT_CHECK)
+    .filter(([k, v]) => typeof v === "string" && v === k && /^[A-Z][A-Z0-9_]+$/.test(k))
+    .map(([k]) => k)
+    .sort();
+
+  const ruleCodes = LINT_RULES.map((r) => r.code).sort();
+  expect(ruleCodes).toEqual(codeExports);
+  // No duplicate entries.
+  expect(new Set(ruleCodes).size).toBe(ruleCodes.length);
+  // Every rule is well-formed.
+  for (const r of LINT_RULES) {
+    expect(["error", "warn", "hint"]).toContain(r.level);
+    expect(r.summary.length).toBeGreaterThan(0);
+    expect(r.group.length).toBeGreaterThan(0);
+  }
+});

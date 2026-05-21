@@ -141,7 +141,7 @@ describe("CLI: agent-context", () => {
     const { code, stdout } = run(["agent-context"]);
     expect(code).toBe(0);
     const schema = JSON.parse(stdout);
-    expect(schema.schemaVersion).toBe(1);
+    expect(schema.schemaVersion).toBe(2);
     expect(schema.cli).toBe("tutuca");
     const names = schema.commands.map((c) => c.name).sort();
     expect(names).toEqual(
@@ -162,6 +162,17 @@ describe("CLI: agent-context", () => {
     expect(schema.formats).toEqual(["cli", "md", "json", "html"]);
     expect(schema.errorCodes).toContain("ERR_USAGE_UNKNOWN_COMMAND");
     expect(schema.invocation.moduleFirst).toBe(false);
+  });
+
+  test("emits the lint-code table", () => {
+    const { code, stdout } = run(["agent-context"]);
+    expect(code).toBe(0);
+    const schema = JSON.parse(stdout);
+    expect(Array.isArray(schema.lintCodes)).toBe(true);
+    const rule = schema.lintCodes.find((r) => r.code === "FIELD_VAL_NOT_DEFINED");
+    expect(rule).toBeDefined();
+    expect(rule.level).toBe("error");
+    expect(typeof rule.summary).toBe("string");
   });
 });
 

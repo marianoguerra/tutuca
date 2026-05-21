@@ -1,12 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LINT_RULES } from "../../core/lint-rules.js";
 import { COMMANDS } from "./_registry.js";
 
 export const describe =
   "Print a machine-readable schema (commands, flags, exit codes) as JSON.";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 const GLOBAL_FLAGS = [
   {
@@ -218,6 +219,7 @@ export async function run() {
     formats: ["cli", "md", "json", "html"],
     exitCodes: EXIT_CODES,
     errorCodes: ERROR_CODES,
+    lintCodes: LINT_RULES,
     commands: [...moduleCmds, ...noModuleCmds],
   };
 

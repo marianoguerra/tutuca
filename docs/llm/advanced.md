@@ -68,6 +68,46 @@ the list of dynamic-binding names this component pushes onto the stack
 when entering its render. Consumers (which only alias via
 `{ for: "Producer.name", default: ... }`) don't need it.
 
+### Dynamic vars as render targets
+
+A `*name` dynamic var resolves to a value, so it works anywhere a value
+is read — not just in `:style` / `:class`. In particular it can be a
+component-render target and an iteration source:
+
+```html
+<x render="*selected"></x>           <!-- render the dynamic's component -->
+<x render="*selected" as="edit"></x> <!-- a specific view of it -->
+<div @each="*items"><x render-it></x></div>  <!-- iterate a dynamic seq -->
+```
+
+The producer's `dynamic` value is an **expression**, not only a bare
+field — it can be a sequence/map item access:
+
+```js
+const Root = component({
+  name: "Root",
+  fields: { items: IMap(), selectedKey: "" },
+  dynamic: {
+    items: ".items",                  // the whole sequence
+    selected: ".items[.selectedKey]", // seq-access to one entry
+  },
+  on: { stackEnter() { return ["items", "selected"]; } },
+});
+```
+
+There is **no `*name[.key]` form** — a consumer never indexes a dynamic
+var. The seq-access lives in the producer's `dynamic` declaration; the
+consumer just reads the resolved value as `*name`.
+
+**Teleporting.** The component rendered via `<x render="*selected">`
+physically lives at the producer (e.g. `Root.items`), not under the
+consumer. When an event fires inside that dynamically-rendered subtree,
+the runtime expands the *render* path (consumer → … → the rendered
+node) to reconstruct the handler, but the *transaction* is teleported:
+the mutation skips the intermediate components and lands on the
+producer's data. Editing the entry in the consumer and the same entry
+in the producer's own view update in lock-step.
+
 ## Pseudo-`x` (`@x`)
 
 Tutuca's special operations (`render`, `render-it`, `render-each`, `text`,
