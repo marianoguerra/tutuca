@@ -17,7 +17,7 @@ import {
   SlotNode,
   View,
 } from "../src/anode.js";
-import { ConstAttrs, DynAttrs } from "../src/attribute.js";
+import { DynAttrs } from "../src/attribute.js";
 import { ConstVal } from "../src/value.js";
 import { isTextNode, isTextNodeWithText, mpx, parse } from "./dom.js";
 
@@ -329,9 +329,12 @@ test("parse wrapper macro attrs", () => {
   });
 });
 
-test("dyn attr with constant string template turns constant", () => {
+test("dyn attr with constant-only string template turns dynamic", () => {
+  // A constant-only `$'…'` is no longer folded to a ConstVal at parse time, so
+  // it stays a StrTplVal and the attr counts as dynamic. The linter flags such
+  // templates (PLACEHOLDERLESS_TEMPLATE_STRING) to nudge using a `'…'` literal.
   const [r] = parse(`<p :class="$'flex {\\'gap-3\\'}'"></p>`);
-  expect(r.attrs).toBeInstanceOf(ConstAttrs);
+  expect(r.attrs).toBeInstanceOf(DynAttrs);
 });
 
 test("dyn attr with non constant string template turns dynamic", () => {

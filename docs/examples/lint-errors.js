@@ -122,6 +122,10 @@ const LintDemo = component({
     <p :title="$'{.count}'">redundant template in :title</p>
     <p :class="$'{.kind}'">redundant template in :class</p>
 
+    <!-- PLACEHOLDERLESS_TEMPLATE_STRING: a $'…' with no dynamic parts is just
+         a string literal — drop the leading $. -->
+    <p :title="$'plain text'">placeholderless template</p>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

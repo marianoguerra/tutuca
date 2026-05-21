@@ -66,6 +66,7 @@ export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
 export const BAD_VALUE = "BAD_VALUE";
 export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
 export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
+export const PLACEHOLDERLESS_TEMPLATE_STRING = "PLACEHOLDERLESS_TEMPLATE_STRING";
 export const UNKNOWN_COMPONENT_SPEC_KEY = "UNKNOWN_COMPONENT_SPEC_KEY";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
@@ -520,10 +521,19 @@ function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null
     }
   } else if (valName === "StrTplVal") {
     const vs = val.vals;
-    // Single-element StrTplVal === single `{expr}` with no surrounding text,
-    // since StrTplVal.parse trims empty ConstVal bookends. The wrapper is
-    // redundant: `:class="{.foo}"` should just be `:class=".foo"`.
-    if (vs.length === 1) {
+    const literal = val.toLiteralSource();
+    if (literal !== null) {
+      // Every part is constant — the `$'…'` template has no dynamic placeholder
+      // and is just a string literal written the long way: `$'foo'` → `'foo'`.
+      lx.hint(
+        PLACEHOLDERLESS_TEMPLATE_STRING,
+        { ...errCtx, literal },
+        { kind: "rewrite", from: `$${literal}`, to: literal },
+      );
+    } else if (vs.length === 1) {
+      // Single-element StrTplVal === single `{expr}` with no surrounding text,
+      // since StrTplVal.parse trims empty ConstVal bookends. The wrapper is
+      // redundant: `:class="{.foo}"` should just be `:class=".foo"`.
       const simpler = String(vs[0]);
       lx.warn(
         REDUNDANT_TEMPLATE_STRING,

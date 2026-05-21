@@ -330,22 +330,31 @@ export class StrTplVal extends VarVal {
     for (let i = 0; i < this.vals.length; i++) strs[i] = this.vals[i]?.eval(stack, "");
     return strs.join("");
   }
+  // When every part is a constant — no `{…}` placeholder is dynamic — this
+  // template is just a string literal written the long way. Returns that
+  // literal in `'…'` source form, or null if any part is dynamic.
+  toLiteralSource() {
+    let out = "";
+    for (const v of this.vals) {
+      if (!(v instanceof ConstVal)) return null;
+      out += v.val;
+    }
+    return new ConstVal(out).toString(); // reuse ConstVal's quoting/escaping
+  }
   // `s` is the interior of a `$'…'` template (the text between `$'` and `'`).
   // The interior is unescaped once (`\'`, `\\`) then split on `{…}` groups:
   // text between them becomes a `ConstVal`, expressions inside braces are
-  // parsed via `parseText`.
+  // parsed via `parseText`. A constant-only template is left as a `StrTplVal`
+  // (not folded to a `ConstVal`) so the linter can flag it — see
+  // `toLiteralSource` and the PLACEHOLDERLESS_TEMPLATE_STRING lint rule.
   static parse(s, px) {
     const parts = unescapeStr(s).split(STR_TPL_SPLIT_RE);
     const vals = new Array(parts.length);
-    let allConsts = true;
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const isExpr = part[0] === "{" && part.at(-1) === "}";
-      const val = isExpr ? vp.parseText(part.slice(1, -1), px) : new ConstVal(part);
-      vals[i] = val;
-      allConsts &&= val instanceof ConstVal;
+      vals[i] = isExpr ? vp.parseText(part.slice(1, -1), px) : new ConstVal(part);
     }
-    if (allConsts) return new ConstVal(vals.map((v) => v.val).join(""), K_STRTPL);
     let lo = 0;
     let hi = vals.length;
     while (lo < hi && vals[lo] instanceof ConstVal && vals[lo].val === "") lo++;

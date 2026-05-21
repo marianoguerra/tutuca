@@ -144,6 +144,8 @@ export function lintIdToMessage(id, info) {
       return `${unsupportedExprMessage(info)}${fmtTagSuffix(info)}`;
     case "REDUNDANT_TEMPLATE_STRING":
       return `Redundant template string — '{${info.simpler}}' should be just '${info.simpler}'${fmtOriginSuffix(info)}`;
+    case "PLACEHOLDERLESS_TEMPLATE_STRING":
+      return `Template string has no dynamic parts — use the string literal ${info.literal} instead${fmtOriginSuffix(info)}`;
     case "UNKNOWN_COMPONENT_SPEC_KEY":
       return `Unknown component spec key '${info.key}' — value will be ignored at runtime`;
     case "HTML_TAG_NAME_HAS_UPPERCASE":

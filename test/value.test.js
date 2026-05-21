@@ -22,10 +22,14 @@ test("string template with interpolation", () => {
   expect(r.vals[1].name).toBe("foo");
 });
 
-test("if all constants then turn into a const", () => {
+test("constant-only template stays a StrTplVal", () => {
+  // A `$'…'` whose every part is constant is no longer folded to a ConstVal —
+  // it stays a StrTplVal so the linter can flag it. toLiteralSource() gives
+  // the equivalent plain string literal.
   const r = vp.parseText("$'flex flex-col gap-3 {\\'hi\\'}'");
-  expect(r).toBeInstanceOf(ConstVal);
-  expect(r.val).toBe("flex flex-col gap-3 hi");
+  expect(r).toBeInstanceOf(StrTplVal);
+  expect(r.toLiteralSource()).toBe("'flex flex-col gap-3 hi'");
+  expect(r.eval(null)).toBe("flex flex-col gap-3 hi");
 });
 
 describe("string template syntax", () => {
@@ -74,20 +78,24 @@ describe("string template syntax", () => {
     });
   });
 
-  describe("all-const interpolations fold into ConstVal", () => {
-    // When every part inside {…} resolves to a ConstVal, StrTplVal.parse
-    // folds the whole thing into a single ConstVal (join of all parts).
+  describe("constant-only templates stay StrTplVal", () => {
+    // When every part inside {…} resolves to a ConstVal the template is just a
+    // string literal written the long way, but StrTplVal.parse keeps it a
+    // StrTplVal (not folded) so the linter can flag it. toLiteralSource()
+    // returns the equivalent plain string literal.
 
     test("quoted constant inside braces", () => {
       const r = vp.parseText("$'flex {\\'gap-3\\'}'");
-      expect(r).toBeInstanceOf(ConstVal);
-      expect(r.val).toBe("flex gap-3");
+      expect(r).toBeInstanceOf(StrTplVal);
+      expect(r.toLiteralSource()).toBe("'flex gap-3'");
+      expect(r.eval(null)).toBe("flex gap-3");
     });
 
     test("numeric constant inside braces", () => {
       const r = vp.parseText("$'width: {42}px'");
-      expect(r).toBeInstanceOf(ConstVal);
-      expect(r.val).toBe("width: 42px");
+      expect(r).toBeInstanceOf(StrTplVal);
+      expect(r.toLiteralSource()).toBe("'width: 42px'");
+      expect(r.eval(null)).toBe("width: 42px");
     });
   });
 

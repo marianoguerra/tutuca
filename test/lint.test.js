@@ -22,6 +22,7 @@ import {
   MAYBE_DROP_AT_PREFIX,
   METHOD_VAL_IS_FIELD,
   METHOD_VAL_NOT_DEFINED,
+  PLACEHOLDERLESS_TEMPLATE_STRING,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
   UNKNOWN_COMPONENT_NAME,
@@ -456,6 +457,53 @@ test("redundant-template warning still recurses into the inner expression", () =
   const ids = lx.reports.map((r) => r.id);
   expect(ids).toContain(REDUNDANT_TEMPLATE_STRING);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
+});
+
+test("hint on placeholderless template string in :title", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: {},
+    view: html`<p :title="$'hello'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === PLACEHOLDERLESS_TEMPLATE_STRING);
+  expect(matched.length).toBe(1);
+  const r = matched[0];
+  expect(r.level).toBe("hint");
+  expect(r.info.literal).toBe("'hello'");
+  expect(r.info.originAttr).toBe(":title");
+  expect(r.suggestion).toEqual({ kind: "rewrite", from: "$'hello'", to: "'hello'" });
+});
+
+test("hint on template whose only placeholder is a constant", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: {},
+    view: html`<p :title="$'width: {42}px'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === PLACEHOLDERLESS_TEMPLATE_STRING);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.literal).toBe("'width: 42px'");
+});
+
+test("no placeholderless hint when a placeholder is dynamic", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { name: "" },
+    view: html`<p :title="$'hello {.name} bye'">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === PLACEHOLDERLESS_TEMPLATE_STRING);
+  expect(matched.length).toBe(0);
+});
+
+test("dynamic single-placeholder template stays REDUNDANT, not placeholderless", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { foo: "" },
+    view: html`<p :class="$'{.foo}'">x</p>`,
+  });
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).toContain(REDUNDANT_TEMPLATE_STRING);
+  expect(ids).not.toContain(PLACEHOLDERLESS_TEMPLATE_STRING);
 });
 
 test("warn on undefined field in @if.class condition", () => {
