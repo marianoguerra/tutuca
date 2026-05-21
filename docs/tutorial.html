@@ -1279,7 +1279,7 @@
           <code>tutuca</code> or <code>tutuca-extra</code> production builds,
           import test helpers from <code>"tutuca/dev"</code> instead:
         </p>
-        <pre><code>import { collectIterBindings } from "tutuca";
+        <pre><code>import { collectIterBindings } from "tutuca/dev";
 
 const c = MyComp.make({ items: [...] });
 const r = collectIterBindings(MyComp, c, c.items, {

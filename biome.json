@@ -6,7 +6,15 @@
     "useIgnoreFile": false
   },
   "files": {
-    "ignoreUnknown": false
+    "ignoreUnknown": false,
+    "includes": [
+      "src/**",
+      "test/*.js",
+      "docs/src/*.js",
+      "docs/examples/*.js",
+      "tools/*.js",
+      "tools/*/*.js"
+    ]
   },
   "formatter": {
     "enabled": true,

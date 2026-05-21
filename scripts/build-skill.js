@@ -1,14 +1,60 @@
 #!/usr/bin/env bun
-import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+// Builds the Claude Code skills published under skill/:
+//   - tutuca       — generated locally from docs/llm/
+//   - margaui      — cloned + generated from the margaui repo
+//   - immutable-js — cloned from the immutable-js repo's prebuilt skill
+//
+// Run with no args to build all; pass names to build a subset, e.g.
+//   bun scripts/build-skill.js tutuca
+import { execFileSync } from "node:child_process";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "..");
-const srcDir = resolve(repo, "docs/llm");
-const outDir = resolve(repo, "skill/tutuca");
+const skillDir = resolve(repo, "skill");
 
-const SKILL_FRONTMATTER = `---
+function run(cmd, args, opts = {}) {
+  execFileSync(cmd, args, { stdio: "inherit", ...opts });
+}
+
+function requireBin(cmd) {
+  try {
+    execFileSync(cmd, ["--version"], { stdio: "ignore" });
+  } catch {
+    process.stderr.write(`build-skill: required binary not found: ${cmd}\n`);
+    process.exit(1);
+  }
+}
+
+// Shallow-clone `repoUrl` into a temp dir, hand it to `fn(checkout, sha)`,
+// then clean the temp dir up regardless of outcome.
+function withClone(repoUrl, { branch } = {}, fn) {
+  requireBin("git");
+  const tmp = mkdtempSync(join(tmpdir(), "tutuca-skill-"));
+  try {
+    const cloneArgs = ["clone", "--depth", "1"];
+    if (branch) cloneArgs.push("--branch", branch);
+    cloneArgs.push(repoUrl, tmp);
+    process.stdout.write(`cloning ${repoUrl}${branch ? ` (${branch})` : ""} → ${tmp}\n`);
+    run("git", cloneArgs);
+
+    const sha = execFileSync("git", ["-C", tmp, "rev-parse", "HEAD"], {
+      encoding: "utf8",
+    }).trim();
+    process.stdout.write(`${repoUrl} commit: ${sha}\n`);
+
+    return fn(tmp, sha);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+// --- tutuca: generated locally from docs/llm/ ------------------------------
+
+const TUTUCA_FRONTMATTER = `---
 name: tutuca
 description: Use when authoring or reviewing tutuca modules — \`component({...})\` definitions, \`html\\\`...\\\`\` views, \`@\`-directives, \`input\` / \`bubble\` / \`receive\` / \`response\` / \`alter\` handlers, macros, or \`getTests\` exports — or when running the \`tutuca\` CLI (\`lint\` / \`test\` / \`render\` / \`docs\`). Covers the post-edit \`tutuca <module> lint\` → \`test\` → \`render --title "<example>"\` verification recipe.
 ---
@@ -17,7 +63,7 @@ description: Use when authoring or reviewing tutuca modules — \`component({...
 
 `;
 
-const SKILL_BODY = `# Tutuca
+const TUTUCA_BODY = `# Tutuca
 
 Tutuca is an immutable-state SPA framework. See [core.md](./core.md)
 for the framework primer and the post-edit verification recipe
@@ -50,7 +96,10 @@ referenced inline from \`core.md\` so you'll be pointed there when
 relevant.
 `;
 
-function build() {
+function buildTutuca() {
+  const srcDir = resolve(repo, "docs/llm");
+  const outDir = resolve(skillDir, "tutuca");
+
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
@@ -58,9 +107,77 @@ function build() {
     cpSync(resolve(srcDir, `${name}.md`), resolve(outDir, `${name}.md`));
   }
 
-  writeFileSync(resolve(outDir, "SKILL.md"), SKILL_FRONTMATTER + SKILL_BODY);
-
-  process.stdout.write(`built skill/ from docs/llm/ → ${outDir}\n`);
+  writeFileSync(resolve(outDir, "SKILL.md"), TUTUCA_FRONTMATTER + TUTUCA_BODY);
+  process.stdout.write(`built skill/tutuca/ from docs/llm/ → ${outDir}\n`);
 }
 
-build();
+// --- margaui: cloned + generated from the margaui repo ---------------------
+
+function buildMargaui() {
+  const REPO_URL = "https://github.com/marianoguerra/margaui.git";
+  const outDir = resolve(skillDir, "margaui");
+
+  requireBin("npm");
+  requireBin("python3");
+
+  withClone(REPO_URL, {}, (tmp, sha) => {
+    run("npm", ["install"], { cwd: tmp });
+    run("npm", ["run", "playground"], { cwd: tmp });
+    run("npm", ["run", "gen-skill"], { cwd: tmp });
+
+    const generated = resolve(tmp, ".claude/skills/margaui");
+    if (!existsSync(generated)) {
+      process.stderr.write(`build-skill: gen-skill produced no output at ${generated}\n`);
+      process.exit(1);
+    }
+
+    rmSync(outDir, { recursive: true, force: true });
+    cpSync(generated, outDir, { recursive: true });
+    process.stdout.write(`built skill/margaui/ from ${REPO_URL}@${sha} → ${outDir}\n`);
+  });
+}
+
+// --- immutable-js: cloned from the immutable-js repo's prebuilt skill ------
+
+function buildImmutable() {
+  const REPO_URL = "https://github.com/marianoguerra/immutable-js.git";
+  const BRANCH = "7.x";
+  const UPSTREAM_SKILL = ".claude/skills/immutable-js";
+  const outDir = resolve(skillDir, "immutable-js");
+
+  withClone(REPO_URL, { branch: BRANCH }, (tmp, sha) => {
+    const src = resolve(tmp, UPSTREAM_SKILL);
+    if (!existsSync(resolve(src, "SKILL.md"))) {
+      process.stderr.write(`build-skill: ${UPSTREAM_SKILL}/SKILL.md missing in clone\n`);
+      process.exit(1);
+    }
+
+    rmSync(outDir, { recursive: true, force: true });
+    cpSync(src, outDir, { recursive: true });
+    process.stdout.write(
+      `built skill/immutable-js/ from ${REPO_URL}@${sha} (${BRANCH}) → ${outDir}\n`,
+    );
+  });
+}
+
+// --- entry point -----------------------------------------------------------
+
+const builders = {
+  tutuca: buildTutuca,
+  margaui: buildMargaui,
+  "immutable-js": buildImmutable,
+};
+
+const selected = process.argv.slice(2);
+const names = selected.length > 0 ? selected : Object.keys(builders);
+
+for (const name of names) {
+  const builder = builders[name];
+  if (!builder) {
+    process.stderr.write(
+      `build-skill: unknown skill "${name}" (known: ${Object.keys(builders).join(", ")})\n`,
+    );
+    process.exit(1);
+  }
+  builder();
+}
