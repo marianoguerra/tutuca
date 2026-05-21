@@ -128,12 +128,12 @@ const F64Ge = instr("F64Ge", "f64.ge");
 const F64Lt = instr("F64Lt", "f64.lt");
 const F64Le = instr("F64Le", "f64.le");
 
-const LocalGet = instrImmInt("LocalGet", "local.get");
-const LocalSet = instrImmInt("LocalSet", "local.set");
-const LocalTee = instrImmInt("LocalTee", "local.tee");
+const LocalGet = instrImmInt("LocalGet", "local.get", parseInteger);
+const LocalSet = instrImmInt("LocalSet", "local.set", parseInteger);
+const LocalTee = instrImmInt("LocalTee", "local.tee", parseInteger);
 
-const GlobalGet = instrImmInt("GlobalGet", "global.get");
-const GlobalSet = instrImmInt("GlobalSet", "global.set");
+const GlobalGet = instrImmInt("GlobalGet", "global.get", parseInteger);
+const GlobalSet = instrImmInt("GlobalSet", "global.set", parseInteger);
 
 const Types = component({
   name: "Types",
