@@ -34,21 +34,26 @@ export class Renderer {
   }
   renderRoot(stack, val, viewName = null) {
     const comp = this.comps.getCompFor(val);
-    const nid = comp?.getView(viewName).anode.nodeId ?? null;
-    return comp ? this._rValComp(stack, val, comp, nid, "ROOT", viewName) : null;
+    if (comp === null) return null;
+    return this._rValComp(stack, val, comp, comp.getView(viewName).anode, "ROOT", viewName);
   }
-  renderIt(stack, nodeId, key, viewName) {
+  renderIt(stack, node, key, viewName) {
     const comp = this.comps.getCompFor(stack.it);
-    return comp ? this._rValComp(stack, stack.it, comp, nodeId, key, viewName) : null;
+    return comp ? this._rValComp(stack, stack.it, comp, node, key, viewName) : null;
   }
-  _rValComp(stack, val, comp, nid, key, viewName) {
-    const cacheKey = `${viewName ?? stack.viewsId ?? ""}-${nid}-${key}`;
-    const cachePath = [val];
+  // `node` is the parse node of the render site (`<x render>` / `render-it` /
+  // `render-each`, or the view's root anode for the app root). It keys the
+  // cache as a globally-unique object: node ids alone are unique only within a
+  // single view, so the same value rendered by two components (e.g. through a
+  // shared dynamic-var sequence) would otherwise collide in the cache.
+  _rValComp(stack, val, comp, node, key, viewName) {
+    const cacheKey = `${viewName ?? stack.viewsId ?? ""}-${key}`;
+    const cachePath = [node, val];
     stack._pushDynBindValuesToArray(cachePath, comp.dynamic);
     const cachedNode = this.cache.get(cachePath, cacheKey);
     if (cachedNode) return cachedNode;
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
-    const meta = this._renderMetadata({ $: "Comp", nid });
+    const meta = this._renderMetadata({ $: "Comp", nid: node?.nodeId ?? null });
     const dom = new VFragment([meta, this.renderView(view, stack)]);
     this.cache.set(cachePath, cacheKey, dom);
     return dom;
@@ -56,14 +61,14 @@ export class Renderer {
   pushEachEntry(r, nid, attrName, key, dom) {
     r.push(this._renderMetadata({ $: "Each", nid, [attrName]: key }), dom);
   }
-  renderEach(stack, iterInfo, nodeId, viewName) {
+  renderEach(stack, iterInfo, node, viewName) {
     const { seq, filter, loopWith } = iterInfo.eval(stack);
     const r = [];
     const iterData = loopWith.call(stack.it, seq);
     getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(stack.it, key, value, iterData)) {
-        const dom = this.renderIt(stack.enter(value, { key }, true), nodeId, key, viewName);
-        this.pushEachEntry(r, nodeId, attrName, key, dom);
+        const dom = this.renderIt(stack.enter(value, { key }, true), node, key, viewName);
+        this.pushEachEntry(r, node.nodeId, attrName, key, dom);
       }
     });
     return r;
@@ -75,7 +80,7 @@ export class Renderer {
     const iterData = loopWith.call(it, seq);
     getSeqInfo(seq)(seq, (key, value, attrName) => {
       if (filter.call(it, key, value, iterData)) {
-        const cachePath = enricher ? [it, value] : [value];
+        const cachePath = enricher ? [view, it, value] : [view, value];
         const binds = { key, value };
         const cacheKey = `${nid}-${key}`;
         if (enricher) enricher.call(it, binds, key, value, iterData);

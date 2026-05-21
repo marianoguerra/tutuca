@@ -6,6 +6,7 @@ import {
   HandlerNameVal,
   MethodVal,
   PredicateVal,
+  SeqAccessVal,
   StrTplVal,
   tokenizeValue,
   vp,
@@ -372,6 +373,19 @@ describe("parseField (dynamic field definitions and defaults)", () => {
     const r = vp.parseField("42", px);
     expect(r).toBeInstanceOf(ConstVal);
     expect(r.val).toBe(42);
+  });
+
+  test("accepts a .seq[.key] seq-access", () => {
+    const r = vp.parseField(".sheets[.selId]", px);
+    expect(r).toBeInstanceOf(SeqAccessVal);
+    expect(r.seqVal.name).toBe("sheets");
+    expect(r.keyVal.name).toBe("selId");
+  });
+
+  test("seq-access toPathItem yields a SeqAccessStep", () => {
+    const step = vp.parseField(".sheets[.selId]", px).toPathItem();
+    expect(step.seqField).toBe("sheets");
+    expect(step.keyField).toBe("selId");
   });
 });
 

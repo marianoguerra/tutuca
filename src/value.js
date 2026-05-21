@@ -43,7 +43,7 @@ const G_BOOL = K_FIELD | K_METHOD | K_BIND | K_DYN | K_CONST;
 const G_TEXT = G_BOOL | K_STRTPL;
 const G_COMPONENT = K_FIELD | K_SEQ | K_DYN;
 const G_SEQUENCE = K_FIELD | K_DYN;
-const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_STR;
+const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_STR | K_SEQ;
 const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
 const G_PRED_ARG = G_BOOL | K_STR; // boolean-predicate arguments
 const G_HANDLER_ARG = G_VALUE | K_STR; // event-handler arguments
@@ -176,7 +176,8 @@ export class ValParser {
     return this._parseSingle(s, px, G_SEQUENCE);
   }
   // A `dynamic:` field definition (and the `default` of a `dynamic` alias):
-  // a field/method reference or a constant value.
+  // a field reference, a `.seq[.key]` seq-access, a method reference, or a
+  // constant value.
   parseField(s, px) {
     return this._parseSingle(s, px, G_FIELD);
   }

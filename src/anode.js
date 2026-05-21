@@ -320,7 +320,7 @@ class RenderViewId extends ANode {
 export class RenderNode extends RenderViewId {
   render(stack, rx) {
     const newStack = stack.enter(this.val.eval(stack), {}, true);
-    return rx.renderIt(newStack, this.nodeId, "", this.viewId);
+    return rx.renderIt(newStack, this, "", this.viewId);
   }
   toPathStep(ctx) {
     if (this.val instanceof DynVal) {
@@ -333,7 +333,7 @@ export class RenderNode extends RenderViewId {
 export class RenderItNode extends RenderViewId {
   render(stack, rx) {
     const newStack = stack.enter(stack.it, {}, true);
-    return rx.renderIt(newStack, this.nodeId, "", this.viewId);
+    return rx.renderIt(newStack, this, "", this.viewId);
   }
   toPathStep(ctx) {
     const next = ctx.next();
@@ -355,7 +355,7 @@ export class RenderEachNode extends RenderViewId {
     this.iterInfo = new IterInfo(val, null, null, null);
   }
   render(stack, rx) {
-    return rx.renderEach(stack, this.iterInfo, this.nodeId, this.viewId);
+    return rx.renderEach(stack, this.iterInfo, this, this.viewId);
   }
   toPathStep(ctx) {
     if (this.val instanceof DynVal) {

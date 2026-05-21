@@ -694,4 +694,131 @@ describe("dynamic variable as a path segment", () => {
     expect(visited).toEqual(["Toolbar", "Panel", "Workspace"]);
     cleanup();
   });
+
+  test("a seq-access dynamic (.a[.b]) teleports to the producer's keyed item", () => {
+    const Sheet = component({
+      name: "Sheet",
+      fields: { title: "untitled" },
+      input: {
+        rename() {
+          return this.setTitle("renamed");
+        },
+      },
+      view: html`<button class="rename" @on.click="rename">x</button>`,
+    });
+    const Toolbar = component({
+      name: "Toolbar",
+      fields: {},
+      dynamic: { active: { for: "Workspace.active", default: ".missing" } },
+      view: html`<div class="toolbar"><x render="*active"></x></div>`,
+    });
+    const Workspace = component({
+      name: "Workspace",
+      fields: { sheets: IMap(), selId: "", toolbar: null },
+      dynamic: { active: ".sheets[.selId]" },
+      on: {
+        stackEnter() {
+          return ["active"];
+        },
+      },
+      view: html`<div class="workspace"><x render=".toolbar"></x></div>`,
+    });
+    const root = Workspace.make({
+      sheets: IMap({ a: Sheet.make({ title: "a" }), b: Sheet.make({ title: "b" }) }),
+      selId: "b",
+      toolbar: Toolbar.make(),
+    });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Workspace, Toolbar, Sheet],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    const [path] = Path.fromNodeAndEventName(
+      container.querySelector(".rename"),
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    const txn = path.toTransactionPath();
+    // Teleports straight to the producer's `.sheets[.selId]` seq-access.
+    expect(txn.steps.length).toBe(1);
+    expect(txn.steps[0].seqField).toBe("sheets");
+    expect(txn.steps[0].keyField).toBe("selId");
+    expect(txn.lookup(app.state.val)).toBe(app.state.val.sheets.get("b"));
+    container.querySelector(".rename").click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.sheets.get("b").title).toBe("renamed");
+    expect(app.state.val.sheets.get("a").title).toBe("a");
+    cleanup();
+  });
+
+  test("two components rendering the same *items sequence do not alias in the cache", () => {
+    const Entry = component({
+      name: "Entry",
+      fields: { name: "" },
+      view: html`<span class="entry" @text=".name"></span>`,
+    });
+    const Child = component({
+      name: "Child",
+      fields: {},
+      dynamic: { items: { for: "Owner.items", default: ".missing" } },
+      view: html`<div class="child">
+        <div @each="*items" class="child-row"><x render-it></x></div>
+      </div>`,
+    });
+    const Owner = component({
+      name: "Owner",
+      fields: { items: IMap(), child: null, picked: "" },
+      dynamic: { items: ".items" },
+      on: {
+        stackEnter() {
+          return ["items"];
+        },
+      },
+      input: {
+        pick(k) {
+          return this.setPicked(k);
+        },
+      },
+      view: html`<div class="owner">
+        <div @each="*items" class="owner-row">
+          <x render-it></x>
+          <button class="pick" :data-k="@key" @on.click="pick @key">pick</button>
+        </div>
+        <x render=".child"></x>
+      </div>`,
+    });
+    const root = Owner.make({
+      items: IMap({ a: Entry.make({ name: "A" }), b: Entry.make({ name: "B" }) }),
+      child: Child.make(),
+    });
+    // Render with the DOM cache ON (the bug only surfaces with caching): the
+    // owner and child both iterate the *same* `*items` values, and per-view node
+    // ids collide, so the child's @each used to alias the owner's rows.
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Owner, Child, Entry],
+      null,
+      root,
+      HeadlessParseContext,
+      { noCache: false },
+    );
+    expect(container.querySelectorAll(".owner > .owner-row").length).toBe(2);
+    expect(container.querySelectorAll(".child .child-row").length).toBe(2);
+    // The child list must NOT inherit the owner's select buttons.
+    expect(container.querySelectorAll(".child .pick").length).toBe(0);
+    // Reconstructing an event path from a child entry must not crash.
+    const childEntry = container.querySelector(".child .entry");
+    expect(() =>
+      Path.fromNodeAndEventName(childEntry, "click", container, Infinity, app.comps, false),
+    ).not.toThrow();
+    // The owner's own select button still works.
+    container.querySelector('.owner > .owner-row .pick[data-k="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.picked).toBe("b");
+    cleanup();
+  });
 });

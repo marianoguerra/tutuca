@@ -28,7 +28,7 @@ dependencies, no business logic beyond what the section is teaching.
 `macro-static.js`, `macro-params.js`, `macro-slots.js`,
 `macro-named-slots.js`, `danger-set-inner-html.js`, `pseudo-x.js`,
 `web-component-custom-event.js`, `dynamic-bindings.js`,
-`dynamic-path.js`, `lint-errors.js`.
+`dynamic-path.js`, `dynamic-selected-edit.js`, `lint-errors.js`.
 
 ### Index-page demo apps (multi-component, integrated)
 

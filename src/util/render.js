@@ -8,7 +8,14 @@ function reindexComponents(comps) {
   }
 }
 
-export function renderToHTMLNode(document, components, macros, rootState, ParseContext) {
+export function renderToHTMLNode(
+  document,
+  components,
+  macros,
+  rootState,
+  ParseContext,
+  opts = { noCache: true },
+) {
   const container = document.createElement("div");
   document.body.appendChild(container);
 
@@ -20,7 +27,7 @@ export function renderToHTMLNode(document, components, macros, rootState, ParseC
   const scope = app.registerComponents(components);
   if (macros) scope.registerMacros(macros);
   app.transactor.state.set(rootState);
-  app.start({ noCache: true });
+  app.start(opts);
 
   for (const input of container.querySelectorAll("input")) {
     if (input.value) input.setAttribute("value", input.value);

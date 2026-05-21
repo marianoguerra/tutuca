@@ -163,6 +163,13 @@ export class DynEachStep extends DynStep {
     const { producerSteps, key } = this;
     if (producerSteps.length === 0) return producerSteps;
     const last = producerSteps[producerSteps.length - 1];
+    if (!(last instanceof FieldStep)) {
+      // A seq-access dynamic (`.a[.b]`) under `@each`/`render-each` would need a
+      // key-only step to address the item; not supported — fail loud, don't
+      // silently build a broken `SeqStep(undefined, key)`.
+      console.warn("DynEachStep: seq-access dynamic cannot be iterated", this);
+      return producerSteps;
+    }
     return producerSteps.slice(0, -1).concat(new SeqStep(last.field, key));
   }
 }
@@ -204,8 +211,7 @@ export class Path {
     const out = [];
     for (const step of this.steps) {
       if (step instanceof DynStep) {
-        while (out.length > 0 && step.interiorCids.has(out[out.length - 1]._originCid))
-          out.pop();
+        while (out.length > 0 && step.interiorCids.has(out[out.length - 1]._originCid)) out.pop();
         for (const ts of step.teleportSteps()) {
           ts._originCid = step.producerCompId;
           out.push(ts);
