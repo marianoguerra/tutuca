@@ -413,6 +413,54 @@ describe("@on.drop bubbles to ancestor components", () => {
   });
 });
 
+describe("dragInfo.lookupBind for @each items", () => {
+  // A drag that starts inside an `@each` must keep the row's frame-only binds
+  // (`key`/`value`) reachable from the drop handler — `compact()` strips them
+  // from the dispatch path, so the DragInfo stack is built from a path that
+  // retains them.
+  test("drop handler resolves the source row's key bind", () => {
+    let sourceKey = "<not-called>";
+    const Reorder = component({
+      name: "Reorder",
+      fields: { items: ["a", "b", "c"] },
+      input: {
+        onDropOnItem(_targetKey, dragInfo) {
+          sourceKey = dragInfo.lookupBind("key");
+          return this;
+        },
+      },
+      view: html`<div>
+        <div
+          class="row"
+          @each=".items"
+          draggable="true"
+          data-dragtype="x"
+          data-droptarget="x"
+          @on.drop="onDropOnItem @key dragInfo"
+        >
+          <x text="@value"></x>
+        </div>
+      </div>`,
+    });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Reorder],
+      null,
+      Reorder.make(),
+      HeadlessParseContext,
+    );
+    const rows = container.querySelectorAll(".row");
+    const Event = container.ownerDocument.defaultView.Event;
+    const dragStart = new Event("dragstart", { bubbles: true, cancelable: true });
+    rows[1].dispatchEvent(dragStart);
+    const drop = new Event("drop", { bubbles: true, cancelable: true });
+    rows[2].dispatchEvent(drop);
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(sourceKey).toBe(1);
+    cleanup();
+  });
+});
+
 describe("dynamic variable as a path segment", () => {
   // Workspace (producer of *active = .sheet) -> Panel -> Toolbar (consumer that
   // does `<x render="*active">`) -> Sheet. The Sheet's data physically lives at

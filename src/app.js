@@ -104,7 +104,10 @@ export class App {
       const txnPath = path.compact().toTransactionPath();
       const value = txnPath.lookup(rootValue);
       const dragType = e.target.dataset.dragtype ?? "?";
-      const stack = txnPath.buildStack(this.makeStack(rootValue));
+      // The drag stack keeps frame-only steps (e.g. `@each` binds) so handlers
+      // can read the source render's binds via `dragInfo.lookupBind(...)`;
+      // `compact()` would strip them. DynSteps are still teleported.
+      const stack = path.toTransactionPath().buildStack(this.makeStack(rootValue));
       this.dragInfo = new DragInfo(txnPath, stack, e, value, dragType, e.target);
     } else if (type === "drop") {
       e.preventDefault();
