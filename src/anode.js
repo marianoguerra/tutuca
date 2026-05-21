@@ -1,6 +1,28 @@
 import { Attributes, getAttrParser } from "./attribute.js";
-import { BindStep, EachBindStep, EachRenderItStep } from "./path.js";
-import { vp } from "./value.js";
+import { BindStep, DynEachStep, DynStep, EachBindStep, EachRenderItStep } from "./path.js";
+import { DynVal, vp } from "./value.js";
+
+// Resolve the producer of a dynamic variable `dynName` declared on component
+// `comp`: walk a DynamicAlias (`dynamic: { x: { for: "Producer.y" } }`) to the
+// producing component, then read that dynamic's own field path. Returns the
+// producer component id plus the steps (normally one FieldStep) that locate the
+// dynamic's value in the producer, or null when it cannot be resolved.
+function resolveDynProducer(comp, dynName) {
+  const dyn = comp?.dynamic?.[dynName];
+  if (dyn == null) return null;
+  let producerComp, producerDyn;
+  if (dyn.compName != null) {
+    // DynamicAlias: forwards to another component's dynamic.
+    producerComp = comp.scope?.lookupComponent(dyn.compName);
+    producerDyn = producerComp?.dynamic?.[dyn.dynName];
+  } else {
+    producerComp = comp;
+    producerDyn = dyn;
+  }
+  if (producerComp == null || producerDyn == null) return null;
+  const pi = producerDyn.val?.toPathItem?.() ?? null;
+  return { producerCompId: producerComp.id, producerSteps: pi ? [pi] : [] };
+}
 
 export class BaseNode {
   render(_stack, _rx) {
@@ -300,6 +322,13 @@ export class RenderNode extends RenderViewId {
     const newStack = stack.enter(this.val.eval(stack), {}, true);
     return rx.renderIt(newStack, this.nodeId, "", this.viewId);
   }
+  toPathStep(ctx) {
+    if (this.val instanceof DynVal) {
+      const p = resolveDynProducer(ctx.comp, this.val.name);
+      return p ? new DynStep(p.producerCompId, p.producerSteps) : null;
+    }
+    return super.toPathStep(ctx);
+  }
 }
 export class RenderItNode extends RenderViewId {
   render(stack, rx) {
@@ -310,8 +339,13 @@ export class RenderItNode extends RenderViewId {
     const next = ctx.next();
     if (next === null) return null;
     const nextNode = next.resolveNode();
-    if (nextNode instanceof EachNode && next.hasKey)
+    if (nextNode instanceof EachNode && next.hasKey) {
+      if (nextNode.val instanceof DynVal) {
+        const p = resolveDynProducer(ctx.comp, nextNode.val.name);
+        return p ? new DynEachStep(p.producerCompId, p.producerSteps, next.key) : null;
+      }
       return new EachRenderItStep(nextNode.val.name, next.key);
+    }
     return null;
   }
 }
@@ -322,6 +356,14 @@ export class RenderEachNode extends RenderViewId {
   }
   render(stack, rx) {
     return rx.renderEach(stack, this.iterInfo, this.nodeId, this.viewId);
+  }
+  toPathStep(ctx) {
+    if (this.val instanceof DynVal) {
+      if (!ctx.hasKey) return null;
+      const p = resolveDynProducer(ctx.comp, this.val.name);
+      return p ? new DynEachStep(p.producerCompId, p.producerSteps, ctx.key) : null;
+    }
+    return super.toPathStep(ctx);
   }
   static parse(px, vp, s, as, attrs) {
     const node = px.addNodeIf(

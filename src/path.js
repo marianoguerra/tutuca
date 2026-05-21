@@ -118,6 +118,54 @@ export class EachRenderItStep extends SeqStep {
     return new SeqStep(this.field, this.key);
   }
 }
+function warnRawDynStep(op, step) {
+  console.warn(`Path.${op} reached a DynStep: call toTransactionPath() first`, step);
+}
+// A dynamic variable (`*dyn`) used as a render target. The rendered component's
+// data lives at the *producer* component (where the dynamic was defined), not at
+// the consumer that wrote `<x render="*dyn">`. A DynStep is a marker: it survives
+// `compact()` so the dispatch path still walks every intermediate component for
+// bubbling, while `Path.toTransactionPath()` teleports it — dropping every step
+// interior to the producer..consumer span and splicing in the producer's path.
+export class DynStep extends Step {
+  constructor(producerCompId, producerSteps) {
+    super();
+    this.producerCompId = producerCompId;
+    this.producerSteps = producerSteps;
+    this.interiorCids = new Set(); // component ids crossed from producer..consumer
+  }
+  // Steps spliced into the transaction path in place of this marker.
+  teleportSteps() {
+    return this.producerSteps;
+  }
+  lookup(_v, dval = null) {
+    warnRawDynStep("lookup", this);
+    return dval;
+  }
+  setValue(root, _v) {
+    warnRawDynStep("setValue", this);
+    return root;
+  }
+  enterFrame(stack, _prev, _next) {
+    warnRawDynStep("enterFrame", this);
+    return stack;
+  }
+}
+// A dynamic variable used as an *iterated* render target (`@each="*dyn"` with
+// `<x render-it>`, or `<x render-each="*dyn">`): the item lives at the producer's
+// sequence field, keyed by `key`.
+export class DynEachStep extends DynStep {
+  constructor(producerCompId, producerSteps, key) {
+    super(producerCompId, producerSteps);
+    this.key = key;
+  }
+  teleportSteps() {
+    const { producerSteps, key } = this;
+    if (producerSteps.length === 0) return producerSteps;
+    const last = producerSteps[producerSteps.length - 1];
+    return producerSteps.slice(0, -1).concat(new SeqStep(last.field, key));
+  }
+}
 export class Path {
   constructor(steps = []) {
     this.steps = steps;
@@ -128,11 +176,41 @@ export class Path {
   popStep() {
     return new Path(this.steps.slice(0, -1));
   }
+  // The dispatch path: frame-only steps removed, one step per crossed component
+  // (DynStep included). `popStep` over it bubbles through every component.
   compact() {
     const out = [];
     for (const step of this.steps) {
       const s = step.toAbstractPathStep();
-      if (s !== null) out.push(s);
+      if (s !== null) {
+        if (s !== step) s._originCid = step._originCid; // keep provenance for teleport
+        out.push(s);
+      }
+    }
+    return new Path(out);
+  }
+  // The abstract path used to apply a transaction: every DynStep is teleported —
+  // the steps interior to its producer..consumer span are dropped and the
+  // producer's own path spliced in — so a mutation lands on the data's real
+  // location. A path with no DynStep is returned unchanged.
+  toTransactionPath() {
+    let hasDyn = false;
+    for (const step of this.steps)
+      if (step instanceof DynStep) {
+        hasDyn = true;
+        break;
+      }
+    if (!hasDyn) return this;
+    const out = [];
+    for (const step of this.steps) {
+      if (step instanceof DynStep) {
+        while (out.length > 0 && step.interiorCids.has(out[out.length - 1]._originCid))
+          out.pop();
+        for (const ts of step.teleportSteps()) {
+          ts._originCid = step.producerCompId;
+          out.push(ts);
+        }
+      } else out.push(step);
     }
     return new Path(out);
   }
@@ -174,6 +252,7 @@ export class Path {
   }
   static fromNodeAndEventName(node, eventName, rootNode, maxDepth, comps, stopOnNoEvent = true) {
     const pathSteps = [];
+    const pendingDyns = []; // DynSteps still walking up toward their producer
     const bubbles = BUBBLING_EVENTS.has(eventName);
     let depth = 0;
     let eventIds = [];
@@ -186,7 +265,8 @@ export class Path {
         const { eid, cid, vid } = node.dataset;
         if (eid !== undefined) eventIds.push(eid);
         if (cid !== undefined) {
-          const comp = comps.getComponentForId(+cid);
+          const cidNum = +cid;
+          const comp = comps.getComponentForId(cidNum);
           let pushStep = true;
           if (handlers === null && (isLeafComponent || bubbles)) {
             handlers = findHandlers(comp, eventIds, vid, eventName);
@@ -194,14 +274,25 @@ export class Path {
               if (isLeafComponent && stopOnNoEvent && !bubbles) return NO_EVENT_INFO;
             } else if (!isLeafComponent) {
               pathSteps.length = 0; // handler bubbled up to an ancestor component: the returned path must
-              pushStep = false; // resolve to that component's value, so drop the steps that descend below it
+              pendingDyns.length = 0; // resolve to that component's value, so drop the steps that descend below it
+              pushStep = false;
             }
           }
           isLeafComponent = false;
+          for (const dyn of pendingDyns) dyn.interiorCids.add(cidNum); // crossed below a teleport's producer
           if (pushStep) {
             const step = resolvePathStep(comp, nodeIds, vid);
-            if (step) pathSteps.push(step);
+            if (step) {
+              step._originCid = cidNum;
+              pathSteps.push(step);
+              if (step instanceof DynStep) {
+                step.interiorCids.add(cidNum);
+                pendingDyns.push(step);
+              }
+            }
           }
+          for (let i = pendingDyns.length - 1; i >= 0; i--)
+            if (pendingDyns[i].producerCompId === cidNum) pendingDyns.splice(i, 1); // reached the producer
           eventIds = [];
           nodeIds = [];
         }
@@ -210,6 +301,8 @@ export class Path {
       depth += 1;
       node = node.parentNode;
     }
+    if (pendingDyns.length > 0)
+      console.warn("event reconstruction: dynamic-var producer not found", pendingDyns);
     return [new Path(pathSteps.reverse()), handlers];
   }
   static fromEvent(e, rNode, maxDepth, comps, stopOnNoEvent = true) {

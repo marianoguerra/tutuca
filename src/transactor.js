@@ -38,7 +38,7 @@ export class Transactor {
   }
   async pushRequest(path, name, args = [], opts = {}, parent = null) {
     const curRoot = this.state.val;
-    const curLeaf = path.lookup(curRoot);
+    const curLeaf = path.toTransactionPath().lookup(curRoot);
     const handler = this.comps.getRequestFor(curLeaf, name) ?? mkReq404(name);
     const resHandlerName = opts?.onResName ?? name;
     const push = (specificName, baseName, singleArg, result, error) => {
@@ -106,7 +106,7 @@ class Transaction {
     return Stack.root(comps, root);
   }
   buildStack(root, comps) {
-    return this.path.buildStack(this.buildRootStack(root, comps));
+    return this.path.toTransactionPath().buildStack(this.buildRootStack(root, comps));
   }
   callHandler(root, instance, comps) {
     const [handler, args] = this.getHandlerAndArgs(root, instance, comps);
@@ -116,10 +116,13 @@ class Transaction {
     return null;
   }
   updateRootValue(curRoot, comps) {
-    const curLeaf = this.path.lookup(curRoot);
+    // The transaction path teleports dynamic-var renders so the mutation lands
+    // on the data's real location (the dispatch `this.path` keeps intermediates).
+    const txnPath = this.path.toTransactionPath();
+    const curLeaf = txnPath.lookup(curRoot);
     const newLeaf = this.callHandler(curRoot, curLeaf, comps);
     this._task?.complete?.({ value: newLeaf, old: curLeaf });
-    return curLeaf !== newLeaf ? this.path.setValue(curRoot, newLeaf) : curRoot;
+    return curLeaf !== newLeaf ? txnPath.setValue(curRoot, newLeaf) : curRoot;
   }
   lookupName(_name) {
     return null;
@@ -134,10 +137,20 @@ export function getValue(e) {
 }
 class InputEvent extends Transaction {
   constructor(path, e, handler, transactor, dragInfo) {
+    // Keep the raw reconstructed path: buildStack needs its frame steps intact.
+    // `dispatchPath` (compacted) drives ctx dispatch + bubbling; `buildStack` /
+    // lookup / setValue teleport it via toTransactionPath().
     super(path, transactor);
     this.e = e;
     this.handler = handler;
     this.dragInfo = dragInfo;
+    this._dispatchPath = null;
+  }
+  // Frame steps removed, DynStep + one step per crossed component kept: bubbling
+  // it visits every component (including intermediates of a dynamic-var render).
+  get dispatchPath() {
+    this._dispatchPath ??= this.path.compact();
+    return this._dispatchPath;
   }
   buildRootStack(root, comps) {
     return Stack.root(comps, root, this);
@@ -145,7 +158,7 @@ class InputEvent extends Transaction {
   getHandlerAndArgs(root, _instance, comps) {
     const stack = this.buildStack(root, comps);
     const [handler, args] = this.handler.getHandlerAndArgs(stack, this);
-    const path = this.path.compact();
+    const path = this.dispatchPath; // ctx.bubble visits intermediate components
     let dispatcher;
     for (let i = 0; i < args.length; i++) {
       if (args[i]?.toHandlerArg) {
@@ -191,7 +204,7 @@ class InputEvent extends Transaction {
       case "isTabKey":
         return e.key === "Tab";
       case "ctx":
-        return new EventContext(this.path, this.transactor, this);
+        return new EventContext(this.dispatchPath, this.transactor, this);
       case "dragInfo":
         return this.dragInfo;
     }

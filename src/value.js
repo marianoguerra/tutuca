@@ -41,7 +41,7 @@ const K_METHOD = 1024; // `$name` no-arg method call
 // `$m` in `@each`/`<x render>` is a parse error rather than a silent failure.
 const G_BOOL = K_FIELD | K_METHOD | K_BIND | K_DYN | K_CONST;
 const G_TEXT = G_BOOL | K_STRTPL;
-const G_COMPONENT = K_FIELD | K_SEQ;
+const G_COMPONENT = K_FIELD | K_SEQ | K_DYN;
 const G_SEQUENCE = K_FIELD | K_DYN;
 const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_STR;
 const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;

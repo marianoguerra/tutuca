@@ -99,10 +99,13 @@ export class App {
     } else if (type === "dragstart") {
       e.target.dataset.dragging = 1;
       const rootValue = this.state.val;
-      const value = path.lookup(rootValue);
+      // Teleport dynamic-var renders so the dragged value resolves to its real
+      // location (and bubbling-frame-only steps are dropped).
+      const txnPath = path.compact().toTransactionPath();
+      const value = txnPath.lookup(rootValue);
       const dragType = e.target.dataset.dragtype ?? "?";
-      const stack = path.buildStack(this.makeStack(rootValue));
-      this.dragInfo = new DragInfo(path, stack, e, value, dragType, e.target);
+      const stack = txnPath.buildStack(this.makeStack(rootValue));
+      this.dragInfo = new DragInfo(txnPath, stack, e, value, dragType, e.target);
     } else if (type === "drop") {
       e.preventDefault();
       this._cleanDragOverAttrs();
