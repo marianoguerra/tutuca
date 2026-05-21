@@ -109,7 +109,14 @@ export class ValParser {
         const newS = px.frame.macroVars?.[name];
         if (newS !== undefined) {
           const tokens = tokenizeValue(newS.trim());
-          return tokens.length === 1 ? this.parseToken(tokens[0], px) : null;
+          if (tokens.length !== 1) return null;
+          const val = this.parseToken(tokens[0], px);
+          // `^name` is a real placeholder in the macro body. If a call site
+          // binds it to a constant, mark the resulting `ConstVal` so a
+          // macro-expanded `$'…{^name}…'` isn't mistaken for a hand-written
+          // placeholderless literal — see `StrTplVal.toLiteralSource`.
+          if (val instanceof ConstVal) val.fromMacroVar = true;
+          return val;
         }
         px.onParseIssue("bad-value", { role: "macro-var", name, value: s });
         return null;
@@ -333,11 +340,14 @@ export class StrTplVal extends VarVal {
   }
   // When every part is a constant — no `{…}` placeholder is dynamic — this
   // template is just a string literal written the long way. Returns that
-  // literal in `'…'` source form, or null if any part is dynamic.
+  // literal in `'…'` source form, or null if any part is dynamic. A part bound
+  // from a macro variable (`fromMacroVar`) counts as dynamic even when it
+  // resolved to a constant: the placeholder is real in the macro body, so a
+  // macro-expanded template must not be flagged as a hand-written literal.
   toLiteralSource() {
     let out = "";
     for (const v of this.vals) {
-      if (!(v instanceof ConstVal)) return null;
+      if (!(v instanceof ConstVal) || v.fromMacroVar) return null;
       out += v.val;
     }
     return new ConstVal(out).toString(); // reuse ConstVal's quoting/escaping
@@ -358,8 +368,11 @@ export class StrTplVal extends VarVal {
     }
     let lo = 0;
     let hi = vals.length;
-    while (lo < hi && vals[lo] instanceof ConstVal && vals[lo].val === "") lo++;
-    while (hi > lo && vals[hi - 1] instanceof ConstVal && vals[hi - 1].val === "") hi--;
+    // Trim empty `ConstVal` bookends left by the split, but keep an empty part
+    // bound from a macro variable: it's a real placeholder the linter must see.
+    const isTrimmable = (v) => v instanceof ConstVal && v.val === "" && !v.fromMacroVar;
+    while (lo < hi && isTrimmable(vals[lo])) lo++;
+    while (hi > lo && isTrimmable(vals[hi - 1])) hi--;
     return new StrTplVal(lo === 0 && hi === vals.length ? vals : vals.slice(lo, hi));
   }
 }

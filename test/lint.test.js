@@ -506,6 +506,46 @@ test("dynamic single-placeholder template stays REDUNDANT, not placeholderless",
   expect(ids).not.toContain(PLACEHOLDERLESS_TEMPLATE_STRING);
 });
 
+function defAndCheckWithMacros(opts, macros) {
+  const Comp = component(opts);
+  Comp.scope = new ComponentStack();
+  Comp.scope.registerMacros(macros);
+  Comp.compile(HeadlessLintParseContext);
+  const lx = checkComponent(Comp);
+  return [lx, Comp];
+}
+
+test("no placeholderless hint when a macro template's ^var resolves to a constant", () => {
+  // The macro body `$'box {^class}'` has a real placeholder; binding it to a
+  // constant at the call site must not make it look like a hand-written
+  // literal — the call site cannot rewrite it without dropping the macro.
+  const box = macro({ class: "''" }, html`<div :class="$'box {^class}'"><x:slot></x:slot></div>`);
+  const [lx] = defAndCheckWithMacros(
+    {
+      name: "Comp",
+      fields: {},
+      view: html`<x:box class="wide">x</x:box>`,
+    },
+    { box },
+  );
+  expect(lx.reports.filter((r) => r.id === PLACEHOLDERLESS_TEMPLATE_STRING).length).toBe(0);
+});
+
+test("no placeholderless hint when a macro ^var defaults to an empty constant", () => {
+  // `^class` defaults to `''`; the trailing placeholder still counts as
+  // dynamic even though it resolved to an empty string and was the last part.
+  const box = macro({ class: "''" }, html`<div :class="$'box {^class}'"><x:slot></x:slot></div>`);
+  const [lx] = defAndCheckWithMacros(
+    {
+      name: "Comp",
+      fields: {},
+      view: html`<x:box>x</x:box>`,
+    },
+    { box },
+  );
+  expect(lx.reports.filter((r) => r.id === PLACEHOLDERLESS_TEMPLATE_STRING).length).toBe(0);
+});
+
 test("warn on undefined field in @if.class condition", () => {
   const [lx] = defAndCheck({
     name: "Comp",
