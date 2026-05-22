@@ -98,10 +98,11 @@ Comp.input.handlerName.call(comp, arg1, arg2, /* … */);
 You can call each one directly with `.call(comp, ...)`, but in practice
 you want to test them as a pipeline: filter + loop-data + enrichment
 together produce a list of bindings the view sees. Use
-`collectIterBindings` from `tutuca/dev` for that:
+`collectIterBindings` for that — a functional implementation only ships
+in the `tutuca-dev` build; the core `tutuca` build exports a no-op stub:
 
 ```js
-import { collectIterBindings } from "tutuca/dev";
+import { collectIterBindings } from "tutuca";
 
 const c = MyComp.make({ items: [...] });
 const r = collectIterBindings(MyComp, c, c.items, {

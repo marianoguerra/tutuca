@@ -24,6 +24,12 @@ export function check(_app) {
 export async function test(_opts) {
   return null;
 }
+export function collectIterBindings() {
+  console.warn(
+    "collectIterBindings is a no-op in the core tutuca build; use the tutuca-dev build for a functional implementation",
+  );
+  return [];
+}
 export function tutuca(nodeOrSelector) {
   const rootNode =
     typeof nodeOrSelector === "string" ? document.querySelector(nodeOrSelector) : nodeOrSelector;

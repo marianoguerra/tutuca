@@ -171,6 +171,14 @@ const builders = {
 const selected = process.argv.slice(2);
 const names = selected.length > 0 ? selected : Object.keys(builders);
 
+// A full build (no args) regenerates every skill — wipe skill/ first so stale
+// files from older skill layouts can't linger at its root. A subset build
+// leaves siblings intact; each builder still cleans its own subdirectory.
+if (selected.length === 0) {
+  rmSync(skillDir, { recursive: true, force: true });
+  mkdirSync(skillDir, { recursive: true });
+}
+
 for (const name of names) {
   const builder = builders[name];
   if (!builder) {

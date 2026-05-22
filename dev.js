@@ -14,7 +14,9 @@ export * from "./tools/core/test.js";
 export * from "./tools/core/test-console.js";
 export * from "./tools/core/tests.js";
 export * from "./tools/format/lint.js";
-export * from "./src/util/testing.js";
+// explicit (not `export *`) so the real impl shadows the no-op stub
+// re-exported from index.js via extra.js
+export { collectIterBindings } from "./src/util/testing.js";
 
 export async function test(opts = {}) {
   const report = await runTests({ expect, ...opts });

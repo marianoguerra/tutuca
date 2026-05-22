@@ -1375,14 +1375,13 @@
         </p>
         <p>
           To test these as a pipeline (filter + loop-data + enrichment) use
-          <code>collectIterBindings</code>. It is only exposed by the
-          <code>tutuca-dev</code> build &mdash; the playgrounds on this page
-          import it from <code>"tutuca"</code> because their import map points
-          that specifier at <code>tutuca-dev</code>. In an app that uses the
-          <code>tutuca</code> or <code>tutuca-extra</code> production builds,
-          import test helpers from <code>"tutuca/dev"</code> instead:
+          <code>collectIterBindings</code>. A functional implementation only
+          ships in the <code>tutuca-dev</code> build; the core
+          <code>tutuca</code> build exports a no-op stub. The playgrounds on
+          this page import it from <code>"tutuca"</code> because their import
+          map points that specifier at <code>tutuca-dev</code>:
         </p>
-        <pre><code>import { collectIterBindings } from "tutuca/dev";
+        <pre><code>import { collectIterBindings } from "tutuca";
 
 const c = MyComp.make({ items: [...] });
 const r = collectIterBindings(MyComp, c, c.items, {
