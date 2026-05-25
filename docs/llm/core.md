@@ -332,10 +332,18 @@ Explicit field types via `classFromData`:
 
 ```js
 fields: {
-  count: { type: "int", defaultValue: 10 },     // text/int/float/bool/list/map/omap/set/any
-  child: { component: "Item", args: { ... } },  // nested component instance
+  count: { type: "int", defaultValue: 10 },       // text/int/float/bool/list/map/omap/set/any
+  child: { component: "Item", args: { ... } },    // deferred reference by name
+  child2: Item.make({ name: "" }),                // direct default if Item is in scope
 }
 ```
+
+The `{ component, args }` form is for when the referenced component is **not
+available** at field-definition time (forward reference, circular import).
+`component` must be the component **name as a string** — passing the class
+itself is a common mistake and is flagged by lint code
+`COMP_FIELD_BAD_SHAPE`. When the component class **is** in scope, prefer
+`ComponentName.make({...})` as the default value — no string indirection.
 
 ## Methods as Predicates & Computed Values
 

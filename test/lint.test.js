@@ -7,6 +7,7 @@ import {
   ALT_HANDLER_NOT_REFERENCED,
   BAD_VALUE,
   checkComponent,
+  COMP_FIELD_BAD_SHAPE,
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
@@ -335,6 +336,43 @@ test("boolean predicate: valid field emits no report", () => {
     view: html`<div @hide="empty? .items">hi</div>`,
   });
   expect(lx.reports.length).toBe(0);
+});
+
+test("error on component-field declaration with class instead of string", () => {
+  class FakeNode {}
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { root: { component: FakeNode, args: { keyName: "root" } } },
+    view: html`<div></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === COMP_FIELD_BAD_SHAPE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].level).toBe("error");
+  expect(matched[0].info.fieldName).toBe("root");
+  expect(matched[0].info.kind).toBe("component-not-string");
+  expect(matched[0].info.gotName).toBe("FakeNode");
+});
+
+test("error on component-field declaration with non-object args", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { child: { component: "Item", args: 42 } },
+    view: html`<div></div>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === COMP_FIELD_BAD_SHAPE);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.fieldName).toBe("child");
+  expect(matched[0].info.kind).toBe("args-not-object");
+  expect(matched[0].info.got).toBe("number");
+});
+
+test("no COMP_FIELD_BAD_SHAPE on a well-formed component field", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { child: { component: "Item", args: { name: "" } } },
+    view: html`<div></div>`,
+  });
+  expect(lx.reports.filter((r) => r.id === COMP_FIELD_BAD_SHAPE).length).toBe(0);
 });
 
 test("boolean predicate: undefined field arg warns", () => {

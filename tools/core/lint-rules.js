@@ -17,6 +17,7 @@ import {
   ALT_HANDLER_NOT_DEFINED,
   ALT_HANDLER_NOT_REFERENCED,
   BAD_VALUE,
+  COMP_FIELD_BAD_SHAPE,
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
@@ -248,6 +249,15 @@ export const LINT_RULES = [
     level: "warn",
     group: "Component spec",
     summary: "`component({...})` has an unrecognized key; its value is ignored at runtime.",
+  },
+
+  // Component field declarations
+  {
+    code: COMP_FIELD_BAD_SHAPE,
+    level: "error",
+    group: "Component field declarations",
+    summary:
+      "`fields: { x: { component, args } }` shape is wrong: `component` must be a string and `args` must be a plain object.",
   },
 ];
 

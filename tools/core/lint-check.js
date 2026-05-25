@@ -68,6 +68,7 @@ export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
 export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
 export const PLACEHOLDERLESS_TEMPLATE_STRING = "PLACEHOLDERLESS_TEMPLATE_STRING";
 export const UNKNOWN_COMPONENT_SPEC_KEY = "UNKNOWN_COMPONENT_SPEC_KEY";
+export const COMP_FIELD_BAD_SHAPE = "COMP_FIELD_BAD_SHAPE";
 
 const PARSE_ISSUE_KIND_TO_LINT_ID = {
   "unknown-directive": UNKNOWN_DIRECTIVE,
@@ -170,6 +171,7 @@ const UNSUPPORTED_EXPR_GUIDANCE = {
 export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras = EMPTY_SET } = {}) {
   return lx.push({ componentName: Comp.name }, () => {
     checkUnknownSpecKeys(lx, Comp, wellKnownExtras);
+    checkFieldDeclarations(lx, Comp);
     const referencedAlters = new Set();
     const referencedInputs = new Set();
     const referencedDynamics = new Set();
@@ -707,6 +709,35 @@ function checkUnknownSpecKeys(lx, Comp, wellKnownExtras) {
     if (wellKnownExtras.has(key)) continue;
     candidates ??= [...KNOWN_COMPONENT_SPEC_KEYS, ...wellKnownExtras];
     lx.warn(UNKNOWN_COMPONENT_SPEC_KEY, { key }, replaceNameSuggestion(key, candidates));
+  }
+}
+
+function checkFieldDeclarations(lx, Comp) {
+  const fields = Comp.Class?.getMetaClass?.().fields;
+  if (!fields) return;
+  for (const fieldName in fields) {
+    const field = fields[fieldName];
+    // FieldComp is the only Field subclass that owns an `args` property
+    // (set in its constructor). Structural check — `instanceof FieldComp`
+    // breaks when the linter and the spec under lint resolve `src/oo.js`
+    // through different module instances (e.g. `"tutuca"` package import vs
+    // direct path).
+    if (!Object.hasOwn(field, "args")) continue;
+    if (typeof field.type !== "string") {
+      lx.error(COMP_FIELD_BAD_SHAPE, {
+        fieldName,
+        kind: "component-not-string",
+        got: typeof field.type,
+        gotName: field.type?.name ?? null,
+      });
+    }
+    if (field.args == null || field.args.constructor !== Object) {
+      lx.error(COMP_FIELD_BAD_SHAPE, {
+        fieldName,
+        kind: "args-not-object",
+        got: field.args === null ? "null" : typeof field.args,
+      });
+    }
   }
 }
 

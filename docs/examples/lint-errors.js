@@ -216,12 +216,38 @@ const HtmlLintDemo = component({
   </div>`,
 });
 
+// Real component used as the target of the bad declarations below — the
+// mistake the lint catches is passing this Component reference where a name
+// string is required.
+const JsonNode = component({
+  name: "JsonNode",
+  fields: { keyName: "" },
+  view: html`<span @text=".keyName"></span>`,
+});
+
+const CompFieldShapeDemo = component({
+  name: "CompFieldShapeDemo",
+  fields: {
+    // COMP_FIELD_BAD_SHAPE (kind: "component-not-string"): the Component
+    // reference was passed where the component's name as a string is
+    // required. Either use the string form `{ component: "JsonNode", args }`
+    // when the class isn't in scope yet, or — since JsonNode IS in scope
+    // here — just write `JsonNode.make({ keyName: "root" })` as the default.
+    badRef: { component: JsonNode, args: { keyName: "root" } },
+
+    // COMP_FIELD_BAD_SHAPE (kind: "args-not-object"): args must be a plain
+    // object so it can be spread into the child component's constructor.
+    badArgs: { component: "JsonNode", args: 42 },
+  },
+  view: html`<p>Component-field declaration shape errors — check the Lint tab</p>`,
+});
+
 export function getMacros() {
   return { labeled };
 }
 
 export function getComponents() {
-  return [LintDemo, HtmlLintDemo];
+  return [LintDemo, HtmlLintDemo, JsonNode, CompFieldShapeDemo];
 }
 
 export function getRoot() {
@@ -247,6 +273,11 @@ export function getExamples() {
         title: "HTML structural lint errors",
         description: "All HTML structural lint errors triggered",
         value: HtmlLintDemo.make(),
+      },
+      {
+        title: "Component field shape errors",
+        description: "Field declarations with the wrong {component, args} shape",
+        value: CompFieldShapeDemo.make(),
       },
     ],
   };
