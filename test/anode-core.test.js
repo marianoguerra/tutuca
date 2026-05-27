@@ -246,7 +246,7 @@ describe("ANode", () => {
 
     test("render attributes", () => {
       const [d] = render("<p id='foo' class='bar' open>tutuca</p>");
-      expect(d).toEqual(["p", { id: "foo", className: "bar", open: true }, ["tutuca"]]);
+      expect(d).toEqual(["p", { id: "foo", class: "bar", open: true }, ["tutuca"]]);
     });
 
     test("render fragment node", () => {
@@ -840,7 +840,7 @@ describe("ANode", () => {
       const userDiv = rx.renderIt(stack).childs[1];
       const n = userDiv.childs[1];
       expect(n.tag).toBe("P");
-      expect(n.attrs["data-cid"]).toBe(String(Parent.id));
+      expect(n.attrs["data-cid"]).toBe(Parent.id);
       expect(toData(n)[2]).toEqual(["hi, I'm ", "sandy"]);
     });
 
@@ -863,7 +863,7 @@ describe("ANode", () => {
       const n = rx.renderIt(stack, 10).childs[1];
       expect(toData(n)).toEqual([
         "div",
-        { "data-cid": String(User.id), "data-nid": "1", "data-vid": "main" },
+        { "data-cid": User.id, "data-nid": 1, "data-vid": "main" },
         ["BOB"],
       ]);
     });
@@ -886,7 +886,7 @@ describe("ANode", () => {
       const n = rx.renderIt(stack, 10).childs[1];
       expect(toData(n)).toEqual([
         "div",
-        { "data-cid": String(User.id), "data-nid": "1", "data-vid": "main" },
+        { "data-cid": User.id, "data-nid": 1, "data-vid": "main" },
         ["BOB"],
       ]);
     });

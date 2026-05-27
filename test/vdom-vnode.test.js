@@ -238,30 +238,30 @@ describe("h (hyperscript)", () => {
     expect(node.tag).toBe("DIV");
     expect(node.attrs.id).toBe("important");
   });
-  test("class prop is converted to className", () => {
+  test("class prop is passed through verbatim", () => {
     const node = h("div", { class: "foo" }, []);
-    expect(node.attrs.className).toBe("foo");
-    expect(node.attrs.class).toBeUndefined();
+    expect(node.attrs.class).toBe("foo");
+    expect(node.attrs.className).toBeUndefined();
   });
-  test("for prop is converted to htmlFor", () => {
+  test("for prop is passed through verbatim", () => {
     const node = h("label", { for: "input-id" }, []);
-    expect(node.attrs.htmlFor).toBe("input-id");
-    expect(node.attrs.for).toBeUndefined();
+    expect(node.attrs.for).toBe("input-id");
+    expect(node.attrs.htmlFor).toBeUndefined();
   });
-  test("data-* props are kept as stringified top-level attrs", () => {
+  test("data-* props are kept as top-level attrs without coercion", () => {
     const node = h("div", { "data-foo": "bar", "data-user-id": 123 }, []);
     expect(node.attrs["data-foo"]).toBe("bar");
-    expect(node.attrs["data-user-id"]).toBe("123");
+    expect(node.attrs["data-user-id"]).toBe(123);
   });
-  test("aria-* props are kept as stringified top-level attrs", () => {
+  test("aria-* props are kept as top-level attrs without coercion", () => {
     const node = h("div", { "aria-label": "Close", "aria-hidden": true }, []);
     expect(node.attrs["aria-label"]).toBe("Close");
-    expect(node.attrs["aria-hidden"]).toBe("true");
+    expect(node.attrs["aria-hidden"]).toBe(true);
   });
-  test("data-* and aria-* with false are stringified, not removed", () => {
+  test("data-* and aria-* with false are kept as boolean (stringified at render)", () => {
     const node = h("div", { "data-active": false, "aria-expanded": false }, []);
-    expect(node.attrs["data-active"]).toBe("false");
-    expect(node.attrs["aria-expanded"]).toBe("false");
+    expect(node.attrs["data-active"]).toBe(false);
+    expect(node.attrs["aria-expanded"]).toBe(false);
   });
   test("creates element with empty props and empty children array", () => {
     const node = h("div", {}, []);

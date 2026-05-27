@@ -163,6 +163,101 @@ describe("aria-* and data-* attributes", () => {
     expect(rootNode.getAttribute("aria-expanded")).toBe("true");
   });
 });
+describe("tabindex attribute", () => {
+  test("tabindex=0 reflects to the DOM attribute and IDL property", () => {
+    const vnode = h("div", { tabindex: 0 }, []);
+    const node = render(vnode);
+    expect(node.getAttribute("tabindex")).toBe("0");
+    expect(node.tabIndex).toBe(0);
+  });
+  test("negative tabindex is preserved", () => {
+    const vnode = h("div", { tabindex: -1 }, []);
+    const node = render(vnode);
+    expect(node.getAttribute("tabindex")).toBe("-1");
+    expect(node.tabIndex).toBe(-1);
+  });
+  test("tabindex can be added via re-render", () => {
+    const leftTree = h("div", null, []);
+    const rightTree = h("div", { tabindex: 0 }, []);
+    const container = document.createElement("div");
+    vdomRender(leftTree, container, { document });
+    expect(container.childNodes[0].getAttribute("tabindex")).toBe(null);
+    vdomRender(rightTree, container, { document });
+    expect(container.childNodes[0].getAttribute("tabindex")).toBe("0");
+  });
+  test("tabindex can be removed via re-render", () => {
+    const leftTree = h("div", { tabindex: 0 }, []);
+    const rightTree = h("div", null, []);
+    const container = document.createElement("div");
+    vdomRender(leftTree, container, { document });
+    expect(container.childNodes[0].getAttribute("tabindex")).toBe("0");
+    vdomRender(rightTree, container, { document });
+    expect(container.childNodes[0].getAttribute("tabindex")).toBe(null);
+  });
+});
+describe("lowercase attributes with camelCase IDL properties", () => {
+  test("readonly reflects to readOnly IDL on input", () => {
+    const node = render(h("input", { readonly: true }, []));
+    expect(node.readOnly).toBe(true);
+    expect(node.hasAttribute("readonly")).toBe(true);
+  });
+  test("readonly can be removed via re-render", () => {
+    const container = document.createElement("div");
+    vdomRender(h("input", { readonly: true }, []), container, { document });
+    expect(container.childNodes[0].hasAttribute("readonly")).toBe(true);
+    vdomRender(h("input", null, []), container, { document });
+    expect(container.childNodes[0].hasAttribute("readonly")).toBe(false);
+  });
+  test("maxlength reflects to maxLength IDL on input", () => {
+    const node = render(h("input", { maxlength: 10 }, []));
+    expect(node.maxLength).toBe(10);
+    expect(node.getAttribute("maxlength")).toBe("10");
+  });
+  test("minlength reflects to minLength IDL on input", () => {
+    const node = render(h("input", { minlength: 3 }, []));
+    expect(node.minLength).toBe(3);
+    expect(node.getAttribute("minlength")).toBe("3");
+  });
+  test("colspan reflects to colSpan IDL on td", () => {
+    const node = render(h("td", { colspan: 3 }, []));
+    expect(node.colSpan).toBe(3);
+    expect(node.getAttribute("colspan")).toBe("3");
+  });
+  test("rowspan reflects to rowSpan IDL on td", () => {
+    const node = render(h("td", { rowspan: 2 }, []));
+    expect(node.rowSpan).toBe(2);
+    expect(node.getAttribute("rowspan")).toBe("2");
+  });
+  test("accesskey reflects to accessKey IDL", () => {
+    const node = render(h("button", { accesskey: "s" }, []));
+    expect(node.accessKey).toBe("s");
+    expect(node.getAttribute("accesskey")).toBe("s");
+  });
+  test("contenteditable sets the content attribute", () => {
+    // JSDOM does not expose the `contentEditable` IDL property, so we
+    // assert only the content attribute. In real browsers the IDL property
+    // reflects the attribute and would also read back "true".
+    const node = render(h("div", { contenteditable: "true" }, []));
+    expect(node.getAttribute("contenteditable")).toBe("true");
+  });
+  test("inputmode reflects to inputMode IDL on input", () => {
+    const node = render(h("input", { inputmode: "numeric" }, []));
+    expect(node.inputMode).toBe("numeric");
+    expect(node.getAttribute("inputmode")).toBe("numeric");
+  });
+  test("novalidate reflects to noValidate IDL on form", () => {
+    const node = render(h("form", { novalidate: true }, []));
+    expect(node.noValidate).toBe(true);
+    expect(node.hasAttribute("novalidate")).toBe(true);
+  });
+  test("aliased prop is removed cleanly across re-render", () => {
+    const container = document.createElement("div");
+    vdomRender(h("td", { colspan: 3 }, []), container, { document });
+    expect(container.childNodes[0].getAttribute("colspan")).toBe("3");
+    vdomRender(h("td", null, []), container, { document });
+    expect(container.childNodes[0].getAttribute("colspan")).toBe(null);
+  });
+});
 describe("render", () => {
   test("renders vnode into container", () => {
     const container = document.createElement("div");

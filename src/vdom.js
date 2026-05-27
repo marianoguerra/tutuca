@@ -1,5 +1,3 @@
-export const isHtmlAttribute = (propName) =>
-  propName[4] === "-" && (propName[0] === "d" || propName[0] === "a");
 export const HTML_NS = "http://www.w3.org/1999/xhtml";
 // SVG / MathML elements expose their attributes as read-only IDL properties
 // (`cx`, `viewBox`, …), so on a namespaced node every attribute must go
@@ -8,25 +6,48 @@ const isNamespaced = (node) => {
   const ns = node.namespaceURI;
   return ns !== null && ns !== HTML_NS;
 };
-export function applyProperties(node, props, previous) {
+// Property names that exist on DOM nodes but whose setters misbehave for our
+// purposes (mirrors preact/src/diff/props.js setProperty). Forces setAttribute.
+const NEVER_ASSIGN = new Set([
+  "width",
+  "height",
+  "href",
+  "list",
+  "form",
+  "tabIndex",
+  "download",
+  "rowSpan",
+  "colSpan",
+  "role",
+  "popover",
+]);
+export function applyProperties(node, props, _previous) {
   const namespaced = isNamespaced(node);
-  for (const propName in props) {
-    const propValue = props[propName];
-    if (propValue === undefined) removeProperty(node, propName, previous);
-    else if (propName === "dangerouslySetInnerHTML") node.innerHTML = propValue.__html ?? "";
-    else if (propName === "className") node.setAttribute("class", propValue);
-    else if (namespaced || isHtmlAttribute(propName)) node.setAttribute(propName, propValue);
-    else node[propName] = propValue;
-  }
+  for (const name in props) setProp(node, name, props[name], namespaced);
 }
-function removeProperty(node, propName, previous) {
-  const previousValue = previous[propName];
-  if (propName === "dangerouslySetInnerHTML") node.replaceChildren();
-  else if (propName === "className") node.removeAttribute("class");
-  else if (propName === "htmlFor") node.removeAttribute("for");
-  else if (isNamespaced(node) || typeof previousValue === "string" || isHtmlAttribute(propName))
-    node.removeAttribute(propName);
-  else node[propName] = null;
+// Route a single attribute. Borrowed from preact: prefer IDL property
+// assignment when the name exists on the node (it reflects to the attribute),
+// otherwise use setAttribute. Lowercase HTML attributes whose IDL property is
+// camelCase (`tabindex` → `tabIndex`, `readonly` → `readOnly`, …) fail the
+// `in` check and fall through to setAttribute, which is the correct path.
+function setProp(node, name, value, namespaced) {
+  if (name === "dangerouslySetInnerHTML") {
+    if (value === undefined) node.replaceChildren();
+    else node.innerHTML = value.__html ?? "";
+    return;
+  }
+  if (typeof value === "function") return;
+  if (!namespaced && !NEVER_ASSIGN.has(name) && name in node) {
+    try {
+      node[name] = value == null ? "" : value;
+      return;
+    } catch {}
+  }
+  // `data-*` / `aria-*` preserve a literal "false" since it's semantically
+  // distinct from the attribute being absent; everything else removes.
+  if (value == null || (value === false && name[4] !== "-"))
+    node.removeAttribute(name);
+  else node.setAttribute(name, value);
 }
 export class VBase {}
 const getKey = (child) => (child instanceof VNode ? child.key : undefined);
@@ -279,22 +300,9 @@ export function h(tagName, properties, children, namespace) {
   if (properties) {
     for (const propName in properties) {
       const propVal = properties[propName];
-      switch (propName) {
-        case "key":
-          key = propVal;
-          break;
-        case "namespace":
-          namespace = namespace ?? propVal;
-          break;
-        case "class":
-          props.className = propVal;
-          break;
-        case "for":
-          props.htmlFor = propVal;
-          break;
-        default:
-          props[propName] = isHtmlAttribute(propName) ? String(propVal) : propVal;
-      }
+      if (propName === "key") key = propVal;
+      else if (propName === "namespace") namespace = namespace ?? propVal;
+      else props[propName] = propVal;
     }
   }
   // HTML tag names are case-insensitive, so they are normalized to uppercase
