@@ -21,7 +21,7 @@ const NEVER_ASSIGN = new Set([
   "role",
   "popover",
 ]);
-export function applyProperties(node, props, _previous) {
+export function applyProperties(node, props) {
   const namespaced = isNamespaced(node);
   for (const name in props) setProp(node, name, props[name], namespaced);
 }
@@ -33,7 +33,11 @@ export function applyProperties(node, props, _previous) {
 function setProp(node, name, value, namespaced) {
   if (name === "dangerouslySetInnerHTML") {
     if (value === undefined) node.replaceChildren();
-    else node.innerHTML = value.__html ?? "";
+    else {
+      const html = value.__html ?? "";
+      // Skip the re-parse when the markup is identical (preact does the same).
+      if (html !== node.innerHTML) node.innerHTML = html;
+    }
     return;
   }
   if (typeof value === "function") return;
@@ -48,6 +52,19 @@ function setProp(node, name, value, namespaced) {
   if (value == null || (value === false && name[4] !== "-"))
     node.removeAttribute(name);
   else node.setAttribute(name, value);
+}
+// `value` and `checked` must be applied AFTER siblings/children, so that
+// (a) <input min=… max=… value=…> clamps the value against the final range,
+// (b) <select><option> diff completes before we tell the select which option
+//     should be selected. Mirrors preact/src/diff/index.js end-of-diffElementNodes.
+function applyValueLast(node, value) {
+  // <progress value=0> via the IDL setter is treated as indeterminate;
+  // force the attribute path so the bar shows 0% instead of unknown.
+  if (node.tagName === "PROGRESS" && (value == null || value === 0)) {
+    node.removeAttribute("value");
+  } else {
+    setProp(node, "value", value, isNamespaced(node));
+  }
 }
 export class VBase {}
 const getKey = (child) => (child instanceof VNode ? child.key : undefined);
@@ -155,13 +172,15 @@ export class VNode extends VBase {
       this.namespace === null
         ? doc.createElement(this.tag)
         : doc.createElementNS(this.namespace, this.tag);
-    if (this.tag === "SELECT" && "value" in this.attrs) {
-      const { value, ...rest } = this.attrs;
-      applyProperties(node, rest, {});
+    const attrs = this.attrs;
+    if ("value" in attrs || "checked" in attrs) {
+      const { value, checked, ...rest } = attrs;
+      applyProperties(node, rest);
       appendChildNodes(node, this.childs, opts);
-      applyProperties(node, { value }, {});
+      if (value !== undefined) applyValueLast(node, value);
+      if (checked !== undefined) setProp(node, "checked", checked, false);
     } else {
-      applyProperties(node, this.attrs, {});
+      applyProperties(node, attrs);
       appendChildNodes(node, this.childs, opts);
     }
     return node;
@@ -197,17 +216,34 @@ function morphNode(domNode, source, target, opts) {
     }
     if (type === 1 && source.isSameKind(target)) {
       const propsDiff = diffProps(source.attrs, target.attrs);
-      const isSelect = source.tag === "SELECT";
+      let pendingValue;
+      let pendingChecked;
+      let applyValue = false;
+      let applyChecked = false;
       if (propsDiff) {
-        if (isSelect && "value" in propsDiff) {
-          const { value: _v, ...rest } = propsDiff;
-          applyProperties(domNode, rest, source.attrs);
-        } else applyProperties(domNode, propsDiff, source.attrs);
+        if ("value" in propsDiff || "checked" in propsDiff) {
+          const { value, checked, ...rest } = propsDiff;
+          applyProperties(domNode, rest);
+          if ("value" in propsDiff) {
+            pendingValue = value;
+            applyValue = true;
+          }
+          if ("checked" in propsDiff) {
+            pendingChecked = checked;
+            applyChecked = true;
+          }
+        } else applyProperties(domNode, propsDiff);
       }
       if (!target.attrs.dangerouslySetInnerHTML)
         morphChildren(domNode, source.childs, target.childs, opts);
-      if (isSelect && target.attrs.value !== undefined)
-        applyProperties(domNode, { value: target.attrs.value }, source.attrs);
+      // For <select>, re-apply value even when not in the diff: changing the
+      // <option> children can silently shift dom.value to "".
+      if (!applyValue && source.tag === "SELECT" && target.attrs.value !== undefined) {
+        pendingValue = target.attrs.value;
+        applyValue = true;
+      }
+      if (applyValue) applyValueLast(domNode, pendingValue);
+      if (applyChecked) setProp(domNode, "checked", pendingChecked, false);
       return domNode;
     }
     if (type === 11) {

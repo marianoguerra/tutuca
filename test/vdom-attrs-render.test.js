@@ -258,6 +258,41 @@ describe("lowercase attributes with camelCase IDL properties", () => {
     expect(container.childNodes[0].getAttribute("colspan")).toBe(null);
   });
 });
+describe("order-sensitive attributes (value, checked)", () => {
+  test("input[type=range] value is applied after min/max regardless of prop order", () => {
+    // If `value` were applied before `max`, the IDL setter would clamp 50 → 0.
+    const node = render(h("input", { type: "range", value: 50, min: 0, max: 100 }, []));
+    expect(node.value).toBe("50");
+  });
+  test("input[type=checkbox] checked is applied after other props", () => {
+    const node = render(h("input", { type: "checkbox", checked: true }, []));
+    expect(node.checked).toBe(true);
+  });
+  test("progress with value=0 keeps the attribute (not indeterminate)", () => {
+    const node = render(h("progress", { value: 0, max: 100 }, []));
+    // progress.value via IDL with 0 is treated as indeterminate; the
+    // applyValueLast helper forces removeAttribute, so the bar reads "0%".
+    expect(node.getAttribute("value")).toBe(null);
+    expect(node.value).toBe(0);
+  });
+  test("dangerouslySetInnerHTML preserves interior nodes on identical rerender", () => {
+    const container = document.createElement("div");
+    vdomRender(
+      h("div", { dangerouslySetInnerHTML: { __html: "<span>hi</span>" } }, []),
+      container,
+      { document },
+    );
+    const innerBefore = container.childNodes[0].firstChild;
+    vdomRender(
+      h("div", { dangerouslySetInnerHTML: { __html: "<span>hi</span>" } }, []),
+      container,
+      { document },
+    );
+    const innerAfter = container.childNodes[0].firstChild;
+    // Identical __html string should not retrigger innerHTML parsing.
+    expect(innerAfter).toBe(innerBefore);
+  });
+});
 describe("render", () => {
   test("renders vnode into container", () => {
     const container = document.createElement("div");
