@@ -1,4 +1,6 @@
 export const HTML_NS = "http://www.w3.org/1999/xhtml";
+export const SVG_NS = "http://www.w3.org/2000/svg";
+export const MATH_NS = "http://www.w3.org/1998/Math/MathML";
 // SVG / MathML elements expose their attributes as read-only IDL properties
 // (`cx`, `viewBox`, …), so on a namespaced node every attribute must go
 // through setAttribute rather than the `node[prop] = val` property path.
@@ -6,6 +8,20 @@ const isNamespaced = (node) => {
   const ns = node.namespaceURI;
   return ns !== null && ns !== HTML_NS;
 };
+// Per SVG spec, <foreignObject> is itself an SVG element but its children
+// are HTML — every descent into a foreignObject must switch the inherited
+// namespace back to null (HTML).
+const isForeignObject = (tag) => tag.length === 13 && tag.toLowerCase() === "foreignobject";
+// Namespace inherited from the nearest namespaced ancestor: VNodes get their
+// own namespace from h() or the template parser, but children created via
+// the `h()` API don't know about their parent. opts.namespace threads the
+// inherited value through toDom and morphChildren.
+const effectiveNs = (vnode, opts) => vnode.namespace ?? opts.namespace ?? null;
+// Compute the namespace to pass to this vnode's children.
+function childOpts(vnode, ns, opts) {
+  const target = ns === SVG_NS && isForeignObject(vnode.tag) ? null : ns;
+  return target === (opts.namespace ?? null) ? opts : { ...opts, namespace: target };
+}
 // Property names that exist on DOM nodes but whose setters misbehave for our
 // purposes (mirrors preact/src/diff/props.js setProperty). Forces setAttribute.
 const NEVER_ASSIGN = new Set([
@@ -168,20 +184,32 @@ export class VNode extends VBase {
   }
   toDom(opts) {
     const doc = opts.document;
-    const node =
-      this.namespace === null
-        ? doc.createElement(this.tag)
-        : doc.createElementNS(this.namespace, this.tag);
+    const ns = effectiveNs(this, opts);
+    // h() uppercases all-lowercase HTML tags for cheap identity comparisons.
+    // When the inherited namespace says we're really inside SVG/MathML, undo
+    // that normalization so createElementNS uses the spec-cased local name
+    // (`rect`, not `RECT`). Mixed-case tags (linearGradient, foreignObject)
+    // are already preserved by h() and pass through here untouched.
+    const tag = ns !== null && this.tag === this.tag.toUpperCase()
+      ? this.tag.toLowerCase()
+      : this.tag;
+    // `is` opts customised built-in elements (e.g. <button is="x-cool">).
+    // Must be passed at construction time; setAttribute later does NOT upgrade.
     const attrs = this.attrs;
+    const createOpts = attrs.is != null ? { is: attrs.is } : undefined;
+    const node = ns === null
+      ? doc.createElement(tag, createOpts)
+      : doc.createElementNS(ns, tag, createOpts);
+    const cOpts = childOpts(this, ns, opts);
     if ("value" in attrs || "checked" in attrs) {
       const { value, checked, ...rest } = attrs;
       applyProperties(node, rest);
-      appendChildNodes(node, this.childs, opts);
+      appendChildNodes(node, this.childs, cOpts);
       if (value !== undefined) applyValueLast(node, value);
       if (checked !== undefined) setProp(node, "checked", checked, false);
     } else {
       applyProperties(node, attrs);
-      appendChildNodes(node, this.childs, opts);
+      appendChildNodes(node, this.childs, cOpts);
     }
     return node;
   }
@@ -234,8 +262,10 @@ function morphNode(domNode, source, target, opts) {
           }
         } else applyProperties(domNode, propsDiff);
       }
-      if (!target.attrs.dangerouslySetInnerHTML)
-        morphChildren(domNode, source.childs, target.childs, opts);
+      if (!target.attrs.dangerouslySetInnerHTML) {
+        const ns = effectiveNs(target, opts);
+        morphChildren(domNode, source.childs, target.childs, childOpts(target, ns, opts));
+      }
       // For <select>, re-apply value even when not in the diff: changing the
       // <option> children can silently shift dom.value to "".
       if (!applyValue && source.tag === "SELECT" && target.attrs.value !== undefined) {
@@ -341,11 +371,28 @@ export function h(tagName, properties, children, namespace) {
       else props[propName] = propVal;
     }
   }
-  // HTML tag names are case-insensitive, so they are normalized to uppercase
-  // for cheap identity comparisons. Namespaced (SVG / MathML) tags are
-  // case-sensitive (`linearGradient`, `clipPath`, …) and kept verbatim.
+  // Auto-detect SVG / MathML root tags so callers can write
+  // `h("svg", null, [h("rect")])` without threading namespace by hand;
+  // children inherit at render time via opts.namespace (see toDom).
+  if (namespace == null) {
+    const lower = tagName.toLowerCase();
+    if (lower === "svg") {
+      namespace = SVG_NS;
+      tagName = "svg";
+    } else if (lower === "math") {
+      namespace = MATH_NS;
+      tagName = "math";
+    }
+  }
+  // HTML tag names are case-insensitive; normalize ALL-lowercase tags to
+  // uppercase for cheap identity comparisons. Mixed-case tags (SVG / MathML
+  // localnames like `linearGradient`, `foreignObject`) are preserved so they
+  // render with the right case in their namespace.
   const c = tagName.charCodeAt(0);
-  const tag = namespace == null && c >= 97 && c <= 122 ? tagName.toUpperCase() : tagName;
+  const tag =
+    namespace == null && c >= 97 && c <= 122 && tagName === tagName.toLowerCase()
+      ? tagName.toUpperCase()
+      : tagName;
   const normalizedChildren = [];
   addChild(normalizedChildren, children);
   return new VNode(tag, props, normalizedChildren, key, namespace);

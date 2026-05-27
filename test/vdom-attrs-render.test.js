@@ -258,6 +258,59 @@ describe("lowercase attributes with camelCase IDL properties", () => {
     expect(container.childNodes[0].getAttribute("colspan")).toBe(null);
   });
 });
+describe("auto namespace, foreignObject, is=", () => {
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const MATH_NS = "http://www.w3.org/1998/Math/MathML";
+  const HTML_NS = "http://www.w3.org/1999/xhtml";
+  test("h('svg', ...) auto-detects SVG namespace and propagates to children", () => {
+    const node = render(h("svg", null, [h("rect", null, [])]));
+    expect(node.namespaceURI).toBe(SVG_NS);
+    expect(node.tagName).toBe("svg");
+    expect(node.firstChild.namespaceURI).toBe(SVG_NS);
+    expect(node.firstChild.tagName).toBe("rect");
+  });
+  test("h('math', ...) auto-detects MathML namespace and propagates", () => {
+    const node = render(h("math", null, [h("mi", null, "x")]));
+    expect(node.namespaceURI).toBe(MATH_NS);
+    expect(node.firstChild.namespaceURI).toBe(MATH_NS);
+    expect(node.firstChild.tagName).toBe("mi");
+  });
+  test("nested SVG inheritance through <g> deep into descendants", () => {
+    const node = render(h("svg", null, [h("g", null, [h("circle", null, [])])]));
+    expect(node.namespaceURI).toBe(SVG_NS);
+    expect(node.firstChild.namespaceURI).toBe(SVG_NS);
+    expect(node.firstChild.firstChild.namespaceURI).toBe(SVG_NS);
+    expect(node.firstChild.firstChild.tagName).toBe("circle");
+  });
+  test("<foreignObject> inside <svg> switches children back to HTML", () => {
+    const node = render(
+      h("svg", null, [h("foreignObject", null, [h("div", null, "html")])]),
+    );
+    expect(node.namespaceURI).toBe(SVG_NS);
+    const fo = node.firstChild;
+    expect(fo.namespaceURI).toBe(SVG_NS);
+    // foreignObject is camelCase in the SVG spec; tutuca preserves the
+    // mixed case the caller supplied.
+    expect(fo.localName).toBe("foreignObject");
+    const div = fo.firstChild;
+    expect(div.namespaceURI).toBe(HTML_NS);
+    expect(div.tagName).toBe("DIV");
+    expect(div.textContent).toBe("html");
+  });
+  test("re-render preserves SVG namespace for descendants", () => {
+    const container = document.createElement("div");
+    vdomRender(h("svg", null, [h("rect", null, [])]), container, { document });
+    expect(container.firstChild.firstChild.namespaceURI).toBe(SVG_NS);
+    vdomRender(h("svg", null, [h("rect", { x: 10 }, [])]), container, { document });
+    expect(container.firstChild.firstChild.namespaceURI).toBe(SVG_NS);
+    expect(container.firstChild.firstChild.getAttribute("x")).toBe("10");
+  });
+  test("is= passes through to createElement so the attribute is set", () => {
+    const node = render(h("button", { is: "x-cool" }, "click"));
+    expect(node.tagName).toBe("BUTTON");
+    expect(node.getAttribute("is")).toBe("x-cool");
+  });
+});
 describe("order-sensitive attributes (value, checked)", () => {
   test("input[type=range] value is applied after min/max regardless of prop order", () => {
     // If `value` were applied before `max`, the IDL setter would clamp 50 → 0.
