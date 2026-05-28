@@ -450,76 +450,74 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
   }
 }
 
-function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null) {
-  const { fields, proto, scope, alter } = env;
-  const valName = val?.constructor.name;
-  if (valName === "FieldVal") {
-    // `.name` must be a field. If it names a method, the fix is `$name`.
+// A "rewrite this to that" lint suggestion.
+const fixTo = (from, to) => ({ kind: "rewrite", from, to });
+
+// Report `code` for an undefined `name`, suggesting the closest `candidates` match.
+function reportUnknownName(lx, code, name, candidates, info) {
+  lx.error(code, { ...info, name }, replaceNameSuggestion(name, candidates));
+}
+
+// Per value-kind consistency checks, keyed by the value AST node's constructor
+// name. Each receives a context `c` bundling the linter, the value, the lint
+// `env`, the `errCtx` location, `skipNameVal`, and `recurse` (to descend into
+// sub-values). Kinds with no entry (ConstVal, BindVal, …) are inert.
+const ATTR_VAL_CHECKERS = {
+  // `.name` must be a field. If it names a method, the fix is `$name`.
+  FieldVal({ lx, val, env, errCtx }) {
+    const { fields, proto } = env;
     const { name } = val;
-    if (fields[name] === undefined) {
-      if (proto[name] !== undefined) {
-        lx.error(
-          FIELD_VAL_IS_METHOD,
-          { ...errCtx, val, name },
-          { kind: "rewrite", from: `.${name}`, to: `$${name}` },
-        );
-      } else {
-        lx.error(
-          FIELD_VAL_NOT_DEFINED,
-          { ...errCtx, val, name },
-          replaceNameSuggestion(name, Object.keys(fields)),
-        );
-      }
-    }
-  } else if (valName === "MethodVal") {
-    // `$name` must be a method. If it names a field, the fix is `.name`.
+    if (fields[name] !== undefined) return;
+    if (proto[name] !== undefined)
+      lx.error(FIELD_VAL_IS_METHOD, { ...errCtx, val, name }, fixTo(`.${name}`, `$${name}`));
+    else
+      reportUnknownName(lx, FIELD_VAL_NOT_DEFINED, name, Object.keys(fields), { ...errCtx, val });
+  },
+  // `$name` must be a method. If it names a field, the fix is `.name`.
+  MethodVal({ lx, val, env, errCtx }) {
+    const { fields, proto } = env;
     const { name } = val;
-    if (proto[name] === undefined) {
-      if (fields[name] !== undefined) {
-        lx.error(
-          METHOD_VAL_IS_FIELD,
-          { ...errCtx, val, name },
-          { kind: "rewrite", from: `$${name}`, to: `.${name}` },
-        );
-      } else {
-        lx.error(
-          METHOD_VAL_NOT_DEFINED,
-          { ...errCtx, val, name },
-          replaceNameSuggestion(name, collectProtoMethodNames(proto)),
-        );
-      }
-    }
-  } else if (valName === "SeqAccessVal") {
-    checkConsistentAttrVal(lx, val.seqVal, env, skipNameVal, errCtx);
-    checkConsistentAttrVal(lx, val.keyVal, env, skipNameVal, errCtx);
-  } else if (valName === "RequestVal") {
-    if (scope.lookupRequest(val.name) === null) {
-      lx.error(
+    if (proto[name] !== undefined) return;
+    if (fields[name] !== undefined)
+      lx.error(METHOD_VAL_IS_FIELD, { ...errCtx, val, name }, fixTo(`$${name}`, `.${name}`));
+    else
+      reportUnknownName(lx, METHOD_VAL_NOT_DEFINED, name, collectProtoMethodNames(proto), {
+        ...errCtx,
+        val,
+      });
+  },
+  SeqAccessVal({ val, recurse }) {
+    recurse(val.seqVal);
+    recurse(val.keyVal);
+  },
+  RequestVal({ lx, val, env, errCtx }) {
+    if (env.scope.lookupRequest(val.name) === null)
+      reportUnknownName(
+        lx,
         UNKNOWN_REQUEST_NAME,
-        { ...errCtx, name: val.name },
-        replaceNameSuggestion(val.name, scopeKeysAlong(scope, "reqsByName")),
+        val.name,
+        scopeKeysAlong(env.scope, "reqsByName"),
+        errCtx,
       );
-    }
-  } else if (valName === "TypeVal") {
-    if (scope.lookupComponent(val.name) === null) {
-      lx.error(
+  },
+  TypeVal({ lx, val, env, errCtx }) {
+    if (env.scope.lookupComponent(val.name) === null)
+      reportUnknownName(
+        lx,
         UNKNOWN_COMPONENT_NAME,
-        { ...errCtx, name: val.name },
-        replaceNameSuggestion(val.name, scopeKeysAlong(scope, "byName")),
+        val.name,
+        scopeKeysAlong(env.scope, "byName"),
+        errCtx,
       );
-    }
-  } else if (valName === "NameVal") {
+  },
+  NameVal({ lx, val, errCtx, skipNameVal }) {
     // NameVals on a macro call-site attribute are macro-param bindings, not
     // handler args — their role is determined inside the macro body after
     // ^-substitution, where re-parsing handles validation.
-    if (!skipNameVal && !isKnownHandlerName(val.name)) {
-      lx.error(
-        UNKNOWN_HANDLER_ARG_NAME,
-        { ...errCtx, name: val.name },
-        replaceNameSuggestion(val.name, KNOWN_HANDLER_NAMES),
-      );
-    }
-  } else if (valName === "StrTplVal") {
+    if (!skipNameVal && !isKnownHandlerName(val.name))
+      reportUnknownName(lx, UNKNOWN_HANDLER_ARG_NAME, val.name, KNOWN_HANDLER_NAMES, errCtx);
+  },
+  StrTplVal({ lx, val, errCtx, recurse }) {
     const vs = val.vals;
     const literal = val.toLiteralSource();
     if (literal !== null) {
@@ -528,45 +526,37 @@ function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null
       lx.hint(
         PLACEHOLDERLESS_TEMPLATE_STRING,
         { ...errCtx, literal },
-        { kind: "rewrite", from: `$${literal}`, to: literal },
+        fixTo(`$${literal}`, literal),
       );
     } else if (vs.length === 1) {
       // Single-element StrTplVal === single `{expr}` with no surrounding text,
       // since StrTplVal.parse trims empty ConstVal bookends. The wrapper is
       // redundant: `:class="{.foo}"` should just be `:class=".foo"`.
       const simpler = String(vs[0]);
-      lx.warn(
-        REDUNDANT_TEMPLATE_STRING,
-        { ...errCtx, simpler },
-        { kind: "rewrite", from: `$'{${simpler}}'`, to: simpler },
-      );
+      lx.warn(REDUNDANT_TEMPLATE_STRING, { ...errCtx, simpler }, fixTo(`$'{${simpler}}'`, simpler));
     }
-    for (const subVal of vs) {
-      checkConsistentAttrVal(lx, subVal, env, skipNameVal, errCtx);
-    }
-  } else if (valName === "HandlerNameVal") {
+    for (const subVal of vs) recurse(subVal);
+  },
+  HandlerNameVal({ lx, val, env, errCtx }) {
     env.referencedAlters?.add(val.name);
-    if (alter[val.name] === undefined) {
-      lx.error(
-        ALT_HANDLER_NOT_DEFINED,
-        { ...errCtx, name: val.name },
-        replaceNameSuggestion(val.name, Object.keys(alter)),
-      );
-    }
-  } else if (valName === "PredicateVal") {
-    for (const arg of val.args) checkConsistentAttrVal(lx, arg, env, skipNameVal, errCtx);
-  } else if (valName === "DynVal") {
+    if (env.alter[val.name] === undefined)
+      reportUnknownName(lx, ALT_HANDLER_NOT_DEFINED, val.name, Object.keys(env.alter), errCtx);
+  },
+  PredicateVal({ val, recurse }) {
+    for (const arg of val.args) recurse(arg);
+  },
+  DynVal({ lx, val, env, errCtx }) {
     env.referencedDynamics?.add(val.name);
-    if (env.dynamicMap[val.name] === undefined) {
-      lx.error(
-        DYN_VAL_NOT_DEFINED,
-        { ...errCtx, name: val.name },
-        replaceNameSuggestion(val.name, Object.keys(env.dynamicMap)),
-      );
-    }
-  } else if (valName !== "ConstVal" && valName !== "BindVal") {
-    console.log(val);
-  }
+    if (env.dynamicMap[val.name] === undefined)
+      reportUnknownName(lx, DYN_VAL_NOT_DEFINED, val.name, Object.keys(env.dynamicMap), errCtx);
+  },
+};
+
+function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null) {
+  const check = ATTR_VAL_CHECKERS[val?.constructor.name];
+  if (check === undefined) return;
+  const recurse = (sub) => checkConsistentAttrVal(lx, sub, env, skipNameVal, errCtx);
+  check({ lx, val, env, errCtx, skipNameVal, recurse });
 }
 
 const NODE_KIND_TO_CTX = {
