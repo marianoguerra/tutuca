@@ -231,15 +231,15 @@ function parseXOpVal(opName, value, px, parserFn) {
   return val;
 }
 function processXExtras(node, attrs, opName, startIdx, px) {
-  const consumed = X_OP_CONSUMED[opName];
-  const wrappable = X_OP_WRAPPABLE.has(opName);
+  const { consumed, wrappable } = X_OPS[opName];
   const wrappers = [];
   for (let i = startIdx; i < attrs.length; i++) {
     const a = attrs[i];
     const aName = a.name;
     if (consumed.has(aName)) continue;
-    if (wrappable && X_ATTR_WRAPPERS[aName]) {
-      wrappers.push([X_ATTR_WRAPPERS[aName], vp.parseBool(a.value, px)]);
+    const wrapper = wrappable ? X_OPS[aName]?.wrapper : null;
+    if (wrapper) {
+      wrappers.push([wrapper, vp.parseBool(a.value, px)]);
       continue;
     }
     const issueInfo = { op: opName, name: aName, value: a.value };
@@ -495,17 +495,20 @@ export class IterInfo {
 }
 const filterAlwaysTrue = (_v, _k, _seq) => true;
 const nullLoopWith = (seq) => ({ iterData: { seq } });
-const X_OP_CONSUMED = {
-  slot: new Set(),
-  text: new Set(),
-  render: new Set(["as"]),
-  "render-it": new Set(["as"]),
-  "render-each": new Set(["as", "when", "loop-with"]),
-  show: new Set(),
-  hide: new Set(),
+// consumed: attr names this op handles itself; wrappable: accepts show/hide wrapper
+// attrs; wrapper: the node class to wrap with when this op's name is used as a wrapper attr
+function xOp(consumed = [], { wrappable = false, wrapper = null } = {}) {
+  return { consumed: new Set(consumed), wrappable, wrapper };
+}
+const X_OPS = {
+  slot: xOp(),
+  text: xOp([], { wrappable: true }),
+  render: xOp(["as"], { wrappable: true }),
+  "render-it": xOp(["as"], { wrappable: true }),
+  "render-each": xOp(["as", "when", "loop-with"], { wrappable: true }),
+  show: xOp([], { wrapper: ShowNode }),
+  hide: xOp([], { wrapper: HideNode }),
 };
-const X_OP_WRAPPABLE = new Set(["text", "render", "render-it", "render-each"]);
-const X_ATTR_WRAPPERS = { show: ShowNode, hide: HideNode };
 const WRAPPER_NODES = {
   slot: SlotNode,
   show: ShowNode,
