@@ -63,6 +63,7 @@ export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
 export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
 export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
 export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
+export const MAYBE_ADD_AT_PREFIX = "MAYBE_ADD_AT_PREFIX";
 export const BAD_VALUE = "BAD_VALUE";
 export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
 export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
@@ -80,6 +81,16 @@ const X_KNOWN_OP_NAMES = new Set([
   "hide",
 ]);
 const X_KNOWN_ATTR_NAMES = new Set(["as", "when", "loop-with", "show", "hide"]);
+
+// Directive-only names that require a leading `@` on a host element (the
+// iteration filters and conditional wrappers). On `<x>` they are written
+// bare (`when=`, `show=`, …); on a host element the same name without `@` is
+// silently swallowed as a plain HTML attribute, so flag it as a probable
+// dropped `@`. Symmetric to MAYBE_DROP_AT_PREFIX, which catches the reverse
+// mistake (`@when` written on `<x>`). `slot`/`as` are excluded on purpose:
+// `slot` is a real global HTML attribute and `as` is `<x>`-only with no `@`
+// form, so neither is ever a dropped-`@` typo.
+const HOST_DIRECTIVE_ONLY_NAMES = new Set(["when", "enrich-with", "loop-with", "show", "hide"]);
 
 const LEVEL_WARN = "warn";
 const LEVEL_ERROR = "error";
@@ -587,6 +598,30 @@ function attrOriginAttr(attr) {
   return `:${attr.name}`;
 }
 
+// Flag a directive-only name (`when`, `@enrich-with`, …) written as a plain
+// attribute on a host element — almost always a dropped `@`. `<x>` ops never
+// reach `onAttributes` (they go through parseXOp), and macro calls carry macro
+// args rather than directives, so both are skipped. The `@`-prefixed forms are
+// parsed into `wrapperAttrs`/`eachAttr`, so any directive name reaching `attrs`
+// here is necessarily the bare form.
+function checkHostBareDirectives(lx, attrs, tag, isMacroCall) {
+  if (isMacroCall || !attrs) return;
+  const kind = attrs.constructor.name;
+  let names;
+  if (kind === "ConstAttrs") names = Object.keys(attrs.items);
+  else if (kind === "DynAttrs") names = attrs.items.map((a) => a?.name);
+  else return;
+  for (const name of names) {
+    if (HOST_DIRECTIVE_ONLY_NAMES.has(name)) {
+      lx.hint(
+        MAYBE_ADD_AT_PREFIX,
+        { name, tag, suggestion: `@${name}` },
+        { kind: "add-prefix", from: name, to: `@${name}` },
+      );
+    }
+  }
+}
+
 function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
   const { views } = Comp;
   const env = mkAttrValEnv(Comp, referencedAlters, referencedDynamics);
@@ -595,6 +630,8 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
       const view = views[viewName];
       for (const entry of view.ctx.attrs) {
         const { attrs, wrapperAttrs, textChild, isMacroCall, tag } = entry;
+
+        checkHostBareDirectives(lx, attrs, tag, isMacroCall);
 
         if (attrs?.constructor.name === "DynAttrs") {
           const sourcesByName = new Map();

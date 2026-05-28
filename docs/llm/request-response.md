@@ -254,3 +254,12 @@ position changed meaning while the request was in flight — e.g. a list
 re-sorted so index 3 is now a different item — the response lands on
 whatever currently occupies the slot. Anchor on stable keys (map entries
 by key, not list index) when an async result must reach a specific item.
+
+## See also
+
+- [core.md](./core.md) — the core mental model, `view` directives, handler
+  blocks overview, and *Conventional Module Exports*.
+- [testing.md](./testing.md) — calling `bubble` / `receive` / `response`
+  handlers from tests.
+- [cli.md](./cli.md) — `UNKNOWN_REQUEST_NAME` and the full linter rule list,
+  exit codes, and `render` / `test` flags.

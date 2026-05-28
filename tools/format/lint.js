@@ -138,6 +138,8 @@ export function lintIdToMessage(id, info) {
         info.value !== undefined ? `${info.name}=${JSON.stringify(info.value)}` : info.name;
       return `'${written}' on <x> looks like a directive but is actually an x op/attr written with a leading '@'`;
     }
+    case "MAYBE_ADD_AT_PREFIX":
+      return `'${info.name}' on <${(info.tag ?? "").toLowerCase()}> is a plain attribute, but '@${info.name}' is a directive — add the leading '@'`;
     case "BAD_VALUE":
       return `${badValueMessage(info)}${fmtTagSuffix(info)}`;
     case "UNSUPPORTED_EXPR_SYNTAX":
@@ -148,6 +150,10 @@ export function lintIdToMessage(id, info) {
       return `Template string has no dynamic parts — use the string literal ${info.literal} instead${fmtOriginSuffix(info)}`;
     case "UNKNOWN_COMPONENT_SPEC_KEY":
       return `Unknown component spec key '${info.key}' — value will be ignored at runtime`;
+    case "COMP_FIELD_BAD_SHAPE":
+      return info.kind === "args-not-object"
+        ? `Field '${info.fieldName}': in { component, args }, 'args' must be a plain object, got ${info.got}`
+        : `Field '${info.fieldName}': in { component, args }, 'component' must be the component name as a string, got ${info.gotName ? `the ${info.gotName} class` : info.got}`;
     case "HTML_TAG_NAME_HAS_UPPERCASE":
       return `Tag <${info.raw}> will be lowercased to <${info.lowercased}>${fmtLocationSuffix(info)}`;
     case "HTML_SVG_TAG_WILL_LOWERCASE":

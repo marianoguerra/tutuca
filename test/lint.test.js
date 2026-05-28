@@ -20,6 +20,7 @@ import {
   INPUT_HANDLER_NOT_IMPLEMENTED,
   INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
+  MAYBE_ADD_AT_PREFIX,
   MAYBE_DROP_AT_PREFIX,
   METHOD_VAL_IS_FIELD,
   METHOD_VAL_NOT_DEFINED,
@@ -1323,6 +1324,76 @@ test("no hint when unknown-x-op @-prefix tail is not a known op", () => {
   expect(hints.length).toBe(0);
 });
 
+test("hint when iteration filter is written bare on a host element (when)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: { filterItem: (_k, v) => Boolean(v) },
+    view: html`<ul><li @each=".items" when="filterItem"><x text="@value"></x></li></ul>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_ADD_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].level).toBe("hint");
+  expect(hints[0].info.name).toBe("when");
+  expect(hints[0].info.tag).toBe("LI");
+  expect(hints[0].info.suggestion).toBe("@when");
+  expect(hints[0].suggestion).toEqual({ kind: "add-prefix", from: "when", to: "@when" });
+});
+
+test("hint when conditional wrapper is written bare on a host element (show)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isOpen: false },
+    view: html`<div show=".isOpen">content</div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_ADD_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.suggestion).toBe("@show");
+});
+
+test("hint for bare host directive fires alongside a dynamic attribute (DynAttrs)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], title: "" },
+    alter: { filterItem: (_k, v) => Boolean(v) },
+    view: html`<ul :title=".title"><li @each=".items" when="filterItem"><x text="@value"></x></li></ul>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_ADD_AT_PREFIX);
+  expect(hints.length).toBe(1);
+  expect(hints[0].info.name).toBe("when");
+});
+
+test("no MAYBE_ADD_AT_PREFIX hint for the correct @-prefixed host directive", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: { filterItem: (_k, v) => Boolean(v) },
+    view: html`<ul><li @each=".items" @when="filterItem"><x text="@value"></x></li></ul>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_ADD_AT_PREFIX);
+  expect(hints.length).toBe(0);
+});
+
+test("no MAYBE_ADD_AT_PREFIX hint for the bare form on <x render-each>", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: { filterItem: (_k, v) => Boolean(v) },
+    view: html`<div><x render-each=".items" when="filterItem"></x></div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_ADD_AT_PREFIX);
+  expect(hints.length).toBe(0);
+});
+
+test("no MAYBE_ADD_AT_PREFIX hint for `slot` (a real global HTML attribute)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div slot="actions">x</div>`,
+  });
+  const hints = lx.reports.filter((r) => r.id === MAYBE_ADD_AT_PREFIX);
+  expect(hints.length).toBe(0);
+});
+
 test("no @-prefix hint on plain @directive (UNKNOWN_DIRECTIVE)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
@@ -1857,5 +1928,22 @@ test("LINT_RULES covers every component-linter code, and only those", async () =
     expect(["error", "warn", "hint"]).toContain(r.level);
     expect(r.summary.length).toBeGreaterThan(0);
     expect(r.group.length).toBeGreaterThan(0);
+  }
+});
+
+test("every LINT_RULES code has a formatter (no fall-through to the bare code)", async () => {
+  const { LINT_RULES } = await import("../tools/core/lint-rules.js");
+  const { lintIdToMessage } = await import("../tools/format/lint.js");
+
+  // `lintIdToMessage` ends in `default: return id`, so a code with no `case`
+  // renders as its bare SCREAMING_SNAKE name. The suffix helpers all guard on
+  // optional fields, so an empty `info` is safe — a real case still produces
+  // human prose (with "undefined" filled in for missing fields), never the
+  // code verbatim.
+  for (const { code } of LINT_RULES) {
+    const msg = lintIdToMessage(code, {});
+    expect(typeof msg).toBe("string");
+    expect(msg.length).toBeGreaterThan(0);
+    expect(msg).not.toBe(code);
   }
 });

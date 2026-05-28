@@ -29,6 +29,7 @@ import {
   INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
   INPUT_HANDLER_NOT_IMPLEMENTED,
   INPUT_HANDLER_NOT_REFERENCED,
+  MAYBE_ADD_AT_PREFIX,
   MAYBE_DROP_AT_PREFIX,
   METHOD_VAL_IS_FIELD,
   METHOD_VAL_NOT_DEFINED,
@@ -194,6 +195,13 @@ export const LINT_RULES = [
     level: "hint",
     group: "Templates / events",
     summary: "An `<x>` op/attr was written with a leading `@` like a directive.",
+  },
+  {
+    code: MAYBE_ADD_AT_PREFIX,
+    level: "hint",
+    group: "Templates / events",
+    summary:
+      "A directive name (`when`/`enrich-with`/`loop-with`/`show`/`hide`) was written as a plain attribute on a host element — add the `@` prefix.",
   },
 
   // Value expressions

@@ -189,8 +189,8 @@ separate.
 
 Views are name-based: there is no arithmetic expression syntax in
 values, and no Vue- or Mustache-style `{{ … }}` placeholders. Every
-value slot — conditions (`@show`, `@if`, `@when`), iteration (`@each`,
-`render-each`), enrichment (`@enrich-with`, `@loop-with`), template
+value slot — conditions (`@show`, `@if`), iteration (`@each`,
+`render-each`, `@when`), enrichment (`@enrich-with`, `@loop-with`), template
 expansion (`{…}`, `:attr`, `@text`) — names a field, method, macro, or
 handler defined on the component (or registered with the app). Logic
 lives in `methods` / `alter` / `input` / `bubble` / `receive` /
@@ -217,7 +217,7 @@ literal with spaces (escape an interior quote as `\'`).
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
 | `!x`     | request handler                           | `!loadData`           |
-| `*x`     | dynamic binding — see `advanced.md`      | `*theme`              |
+| `*x`     | dynamic binding — see [advanced.md](./advanced.md) | `*theme`          |
 | `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
 | `name`   | bare identifier — meaning depends on slot | `dec`, `value`        |
 | `'str'`  | string literal                            | `'btn btn-success'`   |
@@ -418,6 +418,11 @@ statics: {
 <x text="$getStrUpper"></x>         <!-- $ calls a method -->
 <x text="@value"></x>               <!-- loop binding -->
 ```
+
+Use `@text` when you already have a host element to put the text in; use
+`<x text=…>` for bare text with no wrapping element (e.g. text interleaved with
+other inline content, or a loop binding). Both take the same value forms
+(`.field`, `$method`, `@binding`).
 
 ## Attribute Binding
 
@@ -899,3 +904,16 @@ export function getExamples()         {
 }
 export function getTests({ describe, test, expect }) { /*...*/ }      // optional — see cli.md
 ```
+
+## See also
+
+- [request-response.md](./request-response.md) — `bubble` / `send`-`receive` /
+  `request`-`response` channels, the `ctx.at` `PathBuilder`, `$unknown`, and
+  request-handler registration.
+- [advanced.md](./advanced.md) — dynamic bindings (`*x`), pseudo-`@x` for
+  `<select>` / `<table>` / `<tr>`, drag & drop, custom seq types, Tailwind /
+  MargaUI compilation.
+- [testing.md](./testing.md) — `getTests` shape and the handler calling
+  convention for tests.
+- [cli.md](./cli.md) — commands, flags, exit codes, and the full linter rule
+  list.

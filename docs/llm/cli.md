@@ -1,11 +1,13 @@
 # Tutuca CLI Reference
 
 The `tutuca` CLI inspects, documents, lints, tests, and renders any
-module that follows the *Conventional Module Exports* shape (see
-`core.md`). Reach this file when you need command/flag/exit-code
+module that follows the
+[Conventional Module Exports](./core.md#conventional-module-exports)
+shape. Reach this file when you need command/flag/exit-code
 details, or when reading a lint code out of `lint` output. Otherwise
-*Verifying changes* in `core.md` (run `lint`, then `test` for
-behavior changes, then `render --title "<your example>"`) is enough.
+[Verifying changes](./core.md#verifying-changes) in `core.md` (run
+`lint`, then `test` for behavior changes, then
+`render --title "<your example>"`) is enough.
 
 ## Install / invoke
 

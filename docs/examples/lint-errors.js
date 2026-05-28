@@ -90,6 +90,11 @@ const LintDemo = component({
          hint suggests dropping the @ to use the op 'text' -->
     <x @text=".count"></x>
 
+    <!-- MAYBE_ADD_AT_PREFIX: 'show' is a directive written as a plain attribute
+         on a host element; hint suggests adding the @ to get '@show'. The
+         mirror of MAYBE_DROP_AT_PREFIX above. -->
+    <div show=".isOpen">missing @ on host directive</div>
+
     <!-- BAD_VALUE on attr: '.123bad' is not a valid identifier -->
     <p :title=".123bad">bad attr value</p>
 

@@ -43,7 +43,7 @@ const Storybook = component({
     },
   },
   input: {
-    onApplyFilter(ctx, value) {
+    onApplyFilter(value, ctx) {
       ctx.request("persistState", [{ key: "sectionFilter", value }]);
       return this.setFilter(value);
     },
@@ -82,7 +82,7 @@ const Storybook = component({
   view: html`<div>
     <div class="flex flex-col gap-3 p-3 h-screen" @show="truthy? .focusExample">
       <div class="flex justify-end">
-        <button class="btn btn-ghost btn-sm" @on.click="onFocusClose ctx">
+        <button class="btn btn-ghost btn-sm" @on.click="onFocusClose">
           close
         </button>
       </div>
@@ -99,8 +99,8 @@ const Storybook = component({
           type="search"
           placeholder="Filter sections"
           :value=".filter"
-          @on.input="onApplyFilter ctx value"
-          @on.keydown.cancel="onClearFilter ctx"
+          @on.input="onApplyFilter value"
+          @on.keydown.cancel="onClearFilter"
         />
         <div class="list h-full flex-1 overflow-y-auto">
           <x render-each=".sections" as="listEntry" when="filterSection"></x>
@@ -140,7 +140,7 @@ const Section = component({
     },
   },
   input: {
-    onApplyFilter(ctx, value) {
+    onApplyFilter(value, ctx) {
       ctx.request("persistState", [{ key: "exampleFilter", value }]);
       return this.setFilter(value);
     },
@@ -163,8 +163,8 @@ const Section = component({
       type="search"
       placeholder="Filter examples"
       :value=".filter"
-      @on.input="onApplyFilter ctx value"
-      @on.keydown.cancel="onClearFilter ctx"
+      @on.input="onApplyFilter value"
+      @on.keydown.cancel="onClearFilter"
     />
     <div class="flex flex-col gap-3">
       <x render-each=".items" when="filterItem"></x>
@@ -176,7 +176,7 @@ const Section = component({
       @then="'list-row cursor-pointer text-blue-400 hover:text-blue-500 font-semibold'"
       @else="'list-row cursor-pointer hover:bg-base-200'"
       :title=".description"
-      @on.click="onListItemClick ctx"
+      @on.click="onListItemClick"
     >
       <div @text=".title" class="list-col-grow"></div>
       <p
@@ -217,7 +217,7 @@ export const Example = component({
       <h2 class="card-title flex justify-between">
         <a :href="$'#example-{.id}'" :id="$'example-{.id}'" @text=".title"></a>
         <div class="flex gap-2">
-          <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected ctx">
+          <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected">
             focus
           </button>
           <button class="btn btn-ghost btn-sm" @on.click="onLogSelected">
