@@ -53,7 +53,12 @@ template/styling tweaks; `tutuca render <module>` covers those.
   arguments the handler receives differ:
     - `receive.<name>(ctx)` — `ctx` carries `send` / `request` / `bubble`.
     - `bubble.<name>(payload, ctx)` — `payload` is whatever the child sent.
-    - `response.<name>(res, err, ctx)` — async result + error.
+    - `response.<name>(res, err, ctx)` — async result + error. But a
+      handler reached via a request's `onOkName` / `onErrorName`
+      override takes a **single** payload arg, not `(res, err)`:
+      `Comp.response.loadDataOk.call(comp, res)` /
+      `Comp.response.loadDataErr.call(comp, err)`. See
+      [request-response.md](./request-response.md).
     - `alter.<name>(...)` — iteration handlers used by `@when`,
       `@loop-with`, `@enrich-with`. Each kind has its own signature; see
       *Testing iteration handlers* below.
@@ -266,5 +271,7 @@ export function getTests({ describe, test, expect }) {
 
 - [core.md](./core.md) — *Verifying changes*, *Event Handling*,
   *Component Skeleton*.
+- [request-response.md](./request-response.md) — handler signatures for
+  `bubble` / `receive` / `response`, override forms, `$unknown`.
 - [cli.md](./cli.md) — `test` flags, exit codes, output formats,
   `--grep` syntax.

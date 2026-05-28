@@ -7,6 +7,9 @@ orchestration. Read this file when authoring or reviewing
 `component({...})` definitions, `view: html\`...\`` templates, macros, or
 the `tutuca` CLI.
 
+> Orchestration channels — `bubble`, `send`/`receive`, async
+> `request`/`response`, the `$unknown` fallback, and request-handler
+> registration: see [request-response.md](./request-response.md).
 > Advanced topics (drag & drop, dynamic bindings `*x`, pseudo-`x` for
 > `<select>`/`<table>`/`<tr>`, custom seq types, Tailwind/MargaUI
 > compilation): see [advanced.md](./advanced.md). CLI commands, flags,
@@ -173,8 +176,8 @@ to the value the handler should run against. The same `Path` is reused
 verbatim for `ctx.send`, `ctx.bubble`, and `ctx.request` /
 response: because it's positional rather than a captured reference, an
 async response still lands at the right slot even after intervening
-transactions have rebuilt the root. See *Bubble Events*, *Send /
-Receive*, *Async Requests* for the dispatch APIs.
+transactions have rebuilt the root. See
+[request-response.md](./request-response.md) for the dispatch APIs.
 
 **Why `alter` is its own table.** Alter handlers are pure, evaluated
 on every render, and produce binds (no state change). `input` /
@@ -727,114 +730,53 @@ a same-shape handler block:
 
 Every handler is called as `handler(...args, ctx)` and returns a
 (possibly updated) instance of `this`; the framework swaps the
-returned value into the dispatch path. The four sections below cover
-each channel in turn.
+returned value into the dispatch path. The three event-driven channels
+beyond `input` — `bubble`, `send`/`receive`, async `request`/`response`
+— plus the shared `$unknown` fallback and request-handler registration
+are documented in [request-response.md](./request-response.md); the
+brief anchors below cover the essentials.
 
 `alter` is a fifth handler block, but unlike the four above it isn't
 event-triggered — the renderer invokes alter handlers to produce
 binds, not to update state. See *Mental model* and *Scope Enrichment*.
 
-## Bubble Events
+## Orchestration channels (bubble / send-receive / request-response)
 
-```js
-input:  { onClick(ctx) { ctx.bubble("treeItemSelected", [this]); return this; } },
-bubble: {
-  treeItemSelected(selected, ctx) {  // ctx.stopPropagation() to halt
-    return this.insertInLogAt(0, `selected ${selected.label}`);
-  },
-}
-```
+Beyond local `input` handlers, three channels move state between
+components. Full mechanics — when-to-use guidance, the `ctx.at`
+`PathBuilder`, error handling, per-call handler-name overrides, the
+`$unknown` fallback, and request-handler registration — are in
+[request-response.md](./request-response.md). The essentials:
 
-`ctx.bubble("name", args)` emits an event that walks the dispatch path
-back toward the root. Each ancestor whose component defines
-`bubble.<name>(...args, ctx)` runs it (others are skipped silently);
-bubbling stops at the root or when a handler calls
-`ctx.stopPropagation()`. Ancestors see the event *after* descendants
-have transacted, so bubble handlers are the place for aggregate state
-(logs, selections, totals).
+- **`bubble`** — `ctx.bubble("name", args)` walks the dispatch path
+  toward the root; each ancestor with `bubble.<name>(...args, ctx)`
+  runs (after descendants transact); `ctx.stopPropagation()` halts it.
+  Use for aggregate state owned by an ancestor (logs, selections).
 
-When to bubble: handle the event locally if the current component owns
-the state needed to respond. Bubble when the action belongs to an
-ancestor (a list item's "remove" must reach the list that owns the
-items), or when an ancestor may want to react to or record something
-that happened (selection, logging, analytics). Don't bubble events
-with no consumer.
+  ```js
+  input:  { onClick(ctx) { ctx.bubble("itemSelected", [this]); return this; } },
+  bubble: { itemSelected(item, ctx) { return this.insertInLogAt(0, item.label); } },
+  ```
 
-## Send / Receive
+- **`send` / `receive`** — `ctx.send("name", args)` delivers a message
+  to one target (self by default, or `ctx.at.field("x").send(...)` /
+  `.index(name, i)` / `.key(name, k)` for another); the target's
+  `receive.<name>(...args, ctx)` runs. `receive.init` is a convention,
+  not a lifecycle hook — dispatch it via `app.sendAtRoot("init")`.
 
-`ctx.send(name, args)` delivers a message to a specific target
-component (addressed by path; on its own `ctx.send` targets `this`).
-The target's `receive.<name>(...args, ctx)` handler runs. There is
-**no built-in lifecycle** — `receive.init` is just a convention; the
-host must dispatch it (typically after `app.start()`) for it to run.
+- **`request` / `response`** — `ctx.request("name", args)` runs a
+  host-registered async handler (registered with
+  `scope.registerRequestHandlers({...})`) and routes the result to
+  `response.<name>(res, err, ctx)` — `res` set on success, `err` on
+  failure. Use for fetch / timer / IndexedDB work.
 
-```js
-receive: { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } }
-```
+  ```js
+  receive:  { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } },
+  response: { loadData(res, err, ctx) { return this.setIsLoading(false).setItems(res); } },
+  ```
 
-Dispatch from anywhere:
-
-```js
-app.sendAtRoot("init");                            // host code, top-level
-ctx.at.field("personalSite").send("init");                 // child by field name
-ctx.at.index("items", 3).send("init");                     // list element at index 3
-ctx.at.key("byKey", "k1").send("init");                    // map entry by key
-ctx.at.field("a").field("b").index("xs", 0).send("ping");  // chain freely
-ctx.send("name");                                          // self
-ctx.bubble("name", [arg]);                                 // bubble up
-```
-
-`ctx.at` returns a `PathBuilder` with `.field(name)`, `.index(name, i)`,
-and `.key(name, k)`. Each call appends a step to the path before
-`.send(...)` / `.bubble(...)` fires; the handler runs inside the child
-instance with `this` bound to it. Paths are positional, not references —
-see *Mental model* for why this matters across async boundaries.
-
-When to send: bubble emits an *event* that any ancestor with a
-matching handler can observe; send delivers a *message* to one
-specific target (or to self). Reach for `ctx.at.…send("name")` when
-one component needs to address another by path — e.g. a form telling
-its email field to focus after a failed submit
-(`ctx.at.field("email").send("focus")`), or a list telling item 3 to
-enter edit mode (`ctx.at.index("items", 3).send("startEditing")`).
-Reach for `ctx.send("name")` on self to reuse a handler from multiple
-call sites without duplicating its body — e.g. a "Reload" button and
-`receive.init` both calling `ctx.send("loadData")`. Don't `send` to
-self when a direct method call on the same component would do.
-
-## Async Requests
-
-`ctx.request("name", args)` triggers a host-registered async handler
-and routes the result back to the issuing component's
-`response.<name>(res, err, ctx)`. Use it for fetch / timer / IndexedDB
-work that should land back in component state.
-
-```js
-export function getRequestHandlers() {
-  return {
-    async loadData() {
-      const r = await fetch("https://example.com/data.json");
-      return await r.json();
-    },
-  };
-}
-
-// register at the same scope where you registerComponents
-const scope = app.registerComponents([Comp]);
-scope.registerRequestHandlers(getRequestHandlers());
-```
-
-In a component:
-
-```js
-receive:  { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } },
-response: { loadData(res, err, ctx) { return this.setIsLoading(false).setItems(res); } },
-// override response handler names per-call:
-// ctx.request("loadData", [], { onOkName: "loadDataOk", onErrorName: "loadDataErr" });
-```
-
-The `ctx` arg is the last argument of every `response` / `bubble` /
-`receive` handler.
+`ctx` is always the last argument of every `bubble` / `receive` /
+`response` handler.
 
 ## Macros
 

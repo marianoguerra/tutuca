@@ -11,7 +11,7 @@ export const RequestExample = component({
     loadAnotherWay(ctx) {
       ctx.request("loadData", [], {
         onOkName: "loadDataOk",
-        onErrorName: "loadDataError",
+        onErrorName: "loadDataErr",
       });
       return this.setIsLoading(true);
     },
