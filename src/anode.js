@@ -327,16 +327,23 @@ class RenderViewId extends ANode {
   // meta comment instead (see Renderer._rValComp), so this is a no-op.
   setDataAttr(_key, _val) {}
 }
+// Build the teleporting step for a dynamic render target `name` produced
+// relative to `comp`: a DynStep, or a keyed DynEachStep when `key` is given.
+// Returns null when the producer can't be resolved.
+function dynRenderStep(comp, name, key) {
+  const p = resolveDynProducer(comp, name);
+  if (!p) return null;
+  return key === undefined
+    ? new DynStep(p.producerCompId, p.producerSteps)
+    : new DynEachStep(p.producerCompId, p.producerSteps, key);
+}
 export class RenderNode extends RenderViewId {
   render(stack, rx) {
     const newStack = stack.enter(this.val.eval(stack), {}, true);
     return rx.renderIt(newStack, this, "", this.viewId);
   }
   toPathStep(ctx) {
-    if (this.val instanceof DynVal) {
-      const p = resolveDynProducer(ctx.comp, this.val.name);
-      return p ? new DynStep(p.producerCompId, p.producerSteps) : null;
-    }
+    if (this.val instanceof DynVal) return dynRenderStep(ctx.comp, this.val.name);
     return super.toPathStep(ctx);
   }
 }
@@ -350,10 +357,8 @@ export class RenderItNode extends RenderViewId {
     if (next === null) return null;
     const nextNode = next.resolveNode();
     if (nextNode instanceof EachNode && next.hasKey) {
-      if (nextNode.val instanceof DynVal) {
-        const p = resolveDynProducer(ctx.comp, nextNode.val.name);
-        return p ? new DynEachStep(p.producerCompId, p.producerSteps, next.key) : null;
-      }
+      if (nextNode.val instanceof DynVal)
+        return dynRenderStep(ctx.comp, nextNode.val.name, next.key);
       return new EachRenderItStep(nextNode.val.name, next.key);
     }
     return null;
@@ -368,11 +373,8 @@ export class RenderEachNode extends RenderViewId {
     return rx.renderEach(stack, this.iterInfo, this, this.viewId);
   }
   toPathStep(ctx) {
-    if (this.val instanceof DynVal) {
-      if (!ctx.hasKey) return null;
-      const p = resolveDynProducer(ctx.comp, this.val.name);
-      return p ? new DynEachStep(p.producerCompId, p.producerSteps, ctx.key) : null;
-    }
+    if (this.val instanceof DynVal)
+      return ctx.hasKey ? dynRenderStep(ctx.comp, this.val.name, ctx.key) : null;
     return super.toPathStep(ctx);
   }
   static parse(px, vp, s, as, attrs) {
