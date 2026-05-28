@@ -70,13 +70,6 @@ export const PLACEHOLDERLESS_TEMPLATE_STRING = "PLACEHOLDERLESS_TEMPLATE_STRING"
 export const UNKNOWN_COMPONENT_SPEC_KEY = "UNKNOWN_COMPONENT_SPEC_KEY";
 export const COMP_FIELD_BAD_SHAPE = "COMP_FIELD_BAD_SHAPE";
 
-const PARSE_ISSUE_KIND_TO_LINT_ID = {
-  "unknown-directive": UNKNOWN_DIRECTIVE,
-  "unknown-x-op": UNKNOWN_X_OP,
-  "unknown-x-attr": UNKNOWN_X_ATTR,
-  "bad-value": BAD_VALUE,
-};
-
 const X_KNOWN_OP_NAMES = new Set([
   "slot",
   "text",
@@ -87,19 +80,24 @@ const X_KNOWN_OP_NAMES = new Set([
   "hide",
 ]);
 const X_KNOWN_ATTR_NAMES = new Set(["as", "when", "loop-with", "show", "hide"]);
-const AT_PREFIX_HINT_KNOWN_BY_KIND = {
-  "unknown-x-op": X_KNOWN_OP_NAMES,
-  "unknown-x-attr": X_KNOWN_ATTR_NAMES,
-};
 
 const LEVEL_WARN = "warn";
 const LEVEL_ERROR = "error";
 const LEVEL_HINT = "hint";
 
-const PARSE_ISSUE_KIND_TO_KNOWN_NAMES = {
-  "unknown-directive": KNOWN_DIRECTIVE_NAMES,
-  "unknown-x-op": X_KNOWN_OP_NAMES,
-  "unknown-x-attr": X_KNOWN_ATTR_NAMES,
+// Parse-issue diagnostics keyed by the issue `kind` emitted during parsing.
+// `id`: lint code to report. `candidates`: name set for a "did you mean"
+// suggestion. `atPrefix`: name set for detecting a leading-`@` typo (e.g.
+// `@render` for `render`) that triggers a drop-prefix hint.
+const PARSE_ISSUES = {
+  "unknown-directive": { id: UNKNOWN_DIRECTIVE, candidates: KNOWN_DIRECTIVE_NAMES },
+  "unknown-x-op": { id: UNKNOWN_X_OP, candidates: X_KNOWN_OP_NAMES, atPrefix: X_KNOWN_OP_NAMES },
+  "unknown-x-attr": {
+    id: UNKNOWN_X_ATTR,
+    candidates: X_KNOWN_ATTR_NAMES,
+    atPrefix: X_KNOWN_ATTR_NAMES,
+  },
+  "bad-value": { id: BAD_VALUE },
 };
 
 // Walk the prototype chain and collect own keys from every level except
@@ -218,8 +216,9 @@ function checkParseIssues(lx, view) {
   const issues = view.ctx.parseIssues;
   if (!issues) return;
   for (const { kind, info } of issues) {
-    const id = PARSE_ISSUE_KIND_TO_LINT_ID[kind];
-    if (!id) continue;
+    const rule = PARSE_ISSUES[kind];
+    if (!rule) continue;
+    const id = rule.id;
     if (kind === "bad-value") {
       const detected = classifyBadValue(info.value);
       if (detected) {
@@ -231,15 +230,14 @@ function checkParseIssues(lx, view) {
         continue;
       }
     }
-    const atPrefixKnown = AT_PREFIX_HINT_KNOWN_BY_KIND[kind];
+    const atPrefixKnown = rule.atPrefix;
     const isAtPrefixedTypo =
       atPrefixKnown && info.name?.startsWith("@") && atPrefixKnown.has(info.name.slice(1));
     let suggestion = null;
     if (isAtPrefixedTypo) {
       suggestion = { kind: "drop-prefix", from: info.name, to: info.name.slice(1) };
-    } else {
-      const candidates = PARSE_ISSUE_KIND_TO_KNOWN_NAMES[kind];
-      if (candidates) suggestion = replaceNameSuggestion(info.name, candidates);
+    } else if (rule.candidates) {
+      suggestion = replaceNameSuggestion(info.name, rule.candidates);
     }
     lx.error(id, info, suggestion);
     if (isAtPrefixedTypo) {
