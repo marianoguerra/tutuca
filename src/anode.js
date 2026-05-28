@@ -594,27 +594,36 @@ const isBlockDomNode = (n) => {
   const node = n instanceof FragmentNode ? n.childs[0] : n;
   return node instanceof DomNode && HTML_BLOCK_TAGS.has(node.tagName);
 };
+const isEmptyText = (c) => c instanceof TextNode && c.val === "";
+// Collapse a leading/trailing whitespace child to nothing; returns whether it
+// became an empty node that the final filter should drop.
+function trimEdgeWhite(node) {
+  if (!node.isWhiteSpace?.()) return false;
+  node.condenseWhiteSpace();
+  return true;
+}
+// Normalize insignificant whitespace between an element's children:
+//  - leading/trailing whitespace is dropped
+//  - an interior whitespace run with a newline collapses to a single space,
+//    or to nothing when it sits between two block-level elements
+// Empty text nodes produced this way are filtered out (allocating a new array
+// only when something actually changed).
 function condenseChildsWhites(childs) {
   if (childs.length === 0) return childs;
-  let changed = false;
-  if (childs[0].isWhiteSpace?.()) {
-    childs[0].condenseWhiteSpace();
-    changed = true;
-  }
   const last = childs.length - 1;
-  if (last > 0 && childs[last].isWhiteSpace?.()) {
-    childs[last].condenseWhiteSpace();
-    changed = true;
-  }
+
+  let emptied = trimEdgeWhite(childs[0]);
+  if (last > 0 && trimEdgeWhite(childs[last])) emptied = true;
+
   for (let i = 1; i < last; i++) {
     const cur = childs[i];
-    if (cur.isWhiteSpace?.() && cur.hasNewLine()) {
-      const bothBlock = isBlockDomNode(childs[i - 1]) && isBlockDomNode(childs[i + 1]);
-      cur.condenseWhiteSpace(bothBlock ? "" : " ");
-      if (bothBlock) changed = true;
-    }
+    if (!(cur.isWhiteSpace?.() && cur.hasNewLine())) continue;
+    const bothBlock = isBlockDomNode(childs[i - 1]) && isBlockDomNode(childs[i + 1]);
+    cur.condenseWhiteSpace(bothBlock ? "" : " ");
+    if (bothBlock) emptied = true;
   }
-  return changed ? childs.filter((c) => !(c instanceof TextNode && c.val === "")) : childs;
+
+  return emptied ? childs.filter((c) => !isEmptyText(c)) : childs;
 }
 export class View {
   constructor(name, rawView = "No View Defined", style = "", anode = null, ctx = null) {
