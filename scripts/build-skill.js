@@ -88,13 +88,14 @@ When authoring tutuca code, also load these if available:
 | ---------------------------------------------------------------------------------------------- | ------------------------------- |
 | Authoring \`component({...})\`, \`html\\\`...\\\`\` views, macros, fields, events, lists, styles | [core.md](./core.md)           |
 | CLI commands, flags, exit codes, full linter rule list                                         | [cli.md](./cli.md)             |
+| \`bubble\` / \`send\`-\`receive\` / async \`request\`-\`response\` channels, \`$unknown\`, request-handler registration | [request-response.md](./request-response.md) |
 | Drag & drop, dynamic bindings (\`*x\`), pseudo-\`x\`, custom seq types, Tailwind/MargaUI | [advanced.md](./advanced.md)   |
+| Runtime semantics — path steps, transaction lifecycle, dyn-var teleporting, async key pinning (\`livePath\`) | [semantics.md](./semantics.md) |
 | Authoring tests — \`getTests\` shape, calling methods/input/receive/bubble/response/alter handlers, designing handlers for testability | [testing.md](./testing.md) |
 
-Read \`core.md\` first. Reach for \`cli.md\`, \`advanced.md\`, or
-\`testing.md\` only when the task touches them — all three are
-referenced inline from \`core.md\` so you'll be pointed there when
-relevant.
+Read \`core.md\` first. Reach for the others only when the task touches
+them — each is referenced inline from \`core.md\` so you'll be pointed
+there when relevant.
 `;
 
 function buildTutuca() {
@@ -104,7 +105,7 @@ function buildTutuca() {
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
 
-  for (const name of ["core", "cli", "advanced", "testing"]) {
+  for (const name of ["core", "cli", "advanced", "testing", "request-response", "semantics"]) {
     cpSync(resolve(srcDir, `${name}.md`), resolve(outDir, `${name}.md`));
   }
 

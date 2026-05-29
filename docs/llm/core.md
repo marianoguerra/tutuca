@@ -16,8 +16,10 @@ the `tutuca` CLI.
 > exit codes, and full linter rule list: see [cli.md](./cli.md).
 > Authoring tests — `getTests` shape, calling methods/input/receive/
 > bubble/response/alter handlers, designing for testability: see
-> [testing.md](./testing.md). Read those only when the task touches
-> them.
+> [testing.md](./testing.md). Runtime semantics — path steps, the
+> transaction lifecycle, dyn-var teleporting, and async key pinning
+> (`livePath`): see [semantics.md](./semantics.md). Read those only when
+> the task touches them.
 
 ## Verifying changes
 
@@ -175,9 +177,13 @@ and rebuilds a *positional* `Path` — an array of steps from the root
 to the value the handler should run against. The same `Path` is reused
 verbatim for `ctx.send`, `ctx.bubble`, and `ctx.request` /
 response: because it's positional rather than a captured reference, an
-async response still lands at the right slot even after intervening
-transactions have rebuilt the root. See
-[request-response.md](./request-response.md) for the dispatch APIs.
+async response survives intervening transactions that rebuild the root.
+"The right slot" is exact for named fields and for map entries by key
+(seq-access keys like `.sheets[.selId]` are *pinned* to their
+request-time value by default); a bare list **index** still slides if the
+list reordered. See [request-response.md](./request-response.md) for the
+dispatch APIs and [semantics.md](./semantics.md) for the path/transaction
+model and key pinning.
 
 **Why `alter` is its own table.** Alter handlers are pure, evaluated
 on every render, and produce binds (no state change). `input` /
@@ -924,6 +930,9 @@ export function getTests({ describe, test, expect }) { /*...*/ }      // optiona
 - [advanced.md](./advanced.md) — dynamic bindings (`*x`), pseudo-`@x` for
   `<select>` / `<table>` / `<tr>`, drag & drop, custom seq types, Tailwind /
   MargaUI compilation.
+- [semantics.md](./semantics.md) — runtime semantics: path steps, the
+  transaction lifecycle, dyn-var teleporting, and async key pinning
+  (`livePath`).
 - [testing.md](./testing.md) — `getTests` shape and the handler calling
   convention for tests.
 - [cli.md](./cli.md) — commands, flags, exit codes, and the full linter rule

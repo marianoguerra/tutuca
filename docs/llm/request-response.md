@@ -229,6 +229,25 @@ The combined `(res, err, ctx)` shape is only for the default /
 — means the second param is `ctx`, a common bug. (See
 [testing.md](./testing.md) for how this changes the test call.)
 
+### `livePath` — pinning vs following a moving key
+
+The same opts object takes `livePath`. It controls where the response
+lands when the request path addresses a seq-access entry
+(`.sheets[.selId]`): by **default** the resolved key is *pinned* at
+request time, so the response updates the item that issued the request
+even if `.selId` moved while the request was in flight (e.g. the user
+switched tabs). Set `livePath: true` to opt out and re-resolve the key
+live, delivering to whatever the key now points at:
+
+```js
+ctx.request("save", [payload]);                    // pinned: lands on the originating sheet
+ctx.request("refresh", [], { livePath: true });    // live: lands on the currently selected sheet
+```
+
+Pinning only affects field-resolved keys; named fields are already stable
+and list **indices** are not pinned (a reorder still slides them). Full
+model in [semantics.md](./semantics.md) (*Key resolution & async races*).
+
 ### Fire-and-forget requests
 
 A request whose result you don't need can omit the `response` handler
@@ -292,18 +311,27 @@ router); rely on the silent drop for fire-and-forget requests.
 
 The path a response (or `send` / `bubble`) is delivered to is
 **positional** — an array of steps from the root, not a captured
-reference. This is why an async response still lands at the right slot
-after intervening transactions have rebuilt the root (see *Mental
-model* in [core.md](./core.md)). The flip side: if the tree at that
-position changed meaning while the request was in flight — e.g. a list
-re-sorted so index 3 is now a different item — the response lands on
-whatever currently occupies the slot. Anchor on stable keys (map entries
-by key, not list index) when an async result must reach a specific item.
+reference. This is why an async response survives intervening
+transactions that rebuilt the root (see *Mental model* in
+[core.md](./core.md)). Per step kind:
+
+- **Map entry by key** (`.sheets[.selId]`) — the resolved key is *pinned*
+  at request time by default, so the response reaches the originating
+  entry even if the key field moved. `livePath: true` opts out (above).
+- **List index** (`.items[3]`) — not pinned: if the list re-sorted so
+  index 3 is now a different item, the response lands on whatever occupies
+  the slot. Anchor on map keys, not list indices, when an async result
+  must reach a specific item.
+
+Full model in [semantics.md](./semantics.md).
 
 ## See also
 
 - [core.md](./core.md) — the core mental model, `view` directives, handler
   blocks overview, and *Conventional Module Exports*.
+- [semantics.md](./semantics.md) — the path/transaction model behind these
+  channels: path steps, the transaction lifecycle, teleporting, and the
+  key-pinning rules `livePath` toggles.
 - [testing.md](./testing.md) — calling `bubble` / `receive` / `response`
   handlers from tests.
 - [cli.md](./cli.md) — `UNKNOWN_REQUEST_NAME` and the full linter rule list,
