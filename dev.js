@@ -1,5 +1,6 @@
-import { expect } from "chai";
+import { expect, use } from "chai";
 import { ANode } from "./src/anode.js";
+import { jestMatchers } from "./src/chai-jest.js";
 import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 import { checkComponent, LintParseContext } from "./tools/core/lint-check.js";
 import { runTests } from "./tools/core/test.js";
@@ -17,6 +18,11 @@ export * from "./tools/format/lint.js";
 // explicit (not `export *`) so the real impl shadows the no-op stub
 // re-exported from index.js via extra.js
 export { collectIterBindings } from "./src/util/testing.js";
+
+// Add jest-style matchers (toBe, toEqual, …) to the `expect` injected into
+// `getTests`, matching the CLI runner (see tools/cli/commands/_registry.js);
+// chai's BDD chain (`.to.equal`) keeps working too.
+use(jestMatchers);
 
 export async function test(opts = {}) {
   const report = await runTests({ expect, ...opts });
