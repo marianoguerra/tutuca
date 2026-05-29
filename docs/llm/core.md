@@ -514,6 +514,17 @@ input: { onPick(detail) { return this.setCurrent(detail.unicode); } }
 view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
 ```
 
+Handle these events declaratively with `@on.<event-name>` in the view —
+don't grab the node from host/glue code and `addEventListener` on it. A
+listener attached from outside the component runs outside the handler
+model: no `return this.set…()`, no transactor batching, and the mutation
+is invisible to the component that owns the state (the same hazard as
+reaching into `app.state` directly). For any event with a real element in
+the tree, `@on.` is the only entry point you need. Genuinely external
+inbound sources (WebSocket, `postMessage`, timers) have no element to bind
+— route those through `app.sendAtRoot` instead (see
+[request-response.md](./request-response.md)).
+
 Pitfall: binding camelCase JS properties on a custom element silently
 fails. `:mapId=".id"` does *not* invoke a `set mapId` setter
 — the HTML parser lowercased the attribute name, so the framework assigns

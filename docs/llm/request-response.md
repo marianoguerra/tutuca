@@ -101,6 +101,51 @@ call sites without duplicating its body — e.g. a "Reload" button and
 `receive.init` both calling `ctx.send("loadData")`. Don't `send` to
 self when a direct method call on the same component would do.
 
+## Integrating with the outside world
+
+A tutuca app talks to the outside world in two directions, and both go
+through handlers — never around them.
+
+- **Outbound** — the app reaches out (fetch, timers, IndexedDB, external
+  SDKs). Use `ctx.request("name", args)`; the host-registered handler does
+  the async work and the result lands back in component state via
+  `response.<name>`. See *Async Requests* below.
+- **Inbound** — the outside world pushes an event in (a WebSocket message,
+  a DOM event fired outside the app, a `postMessage`, a timer, a
+  third-party callback). Use `app.sendAtRoot("name", args)` from the host /
+  glue code. It dispatches a `send` to the **root component**, running its
+  `receive.<name>(...args, ctx)` handler under the same immutable
+  `return this.set…()` contract as every other handler.
+
+```js
+// host / glue code, outside the component tree
+ws.onmessage = (e) => app.sendAtRoot("serverPushed", [JSON.parse(e.data)]);
+
+// root component
+receive: {
+  serverPushed(msg, ctx) { return this.prependEvent(msg); },
+}
+```
+
+This keeps the root component the single owner of how external inbound
+events mutate state — the logic lives in one `receive` block, in the same
+place and shape as the rest of the app's handlers, and is testable like
+any other (see [testing.md](./testing.md)).
+
+⚠️ **Do not** reach into `app.state` and call the raw `State.set(val)` /
+`State.update(fn)` methods to inject external data. That bypasses the
+component handler model, the immutable `return this.set…()` discipline,
+scope enrichment, and the transactor's batching — state mutated that way is
+invisible to the components that own it and easily clobbered by the next
+transaction. Route every inbound event through `app.sendAtRoot` instead.
+
+`sendAtRoot` only targets the root (`Path([])`). To land an inbound event
+on nested state, let the root's `receive` handler forward it with
+`ctx.at.field(...).send(...)` (see *Send / Receive* above) — one entry
+point, still reaching deep. For async/external delivery, anchor on stable
+map keys rather than list indices (see *Positional delivery across async*
+below).
+
 ## Async Requests
 
 `ctx.request("name", args)` triggers a host-registered async handler
