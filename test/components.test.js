@@ -138,6 +138,20 @@ describe("Components", () => {
     expect(compStack.byName.AliasB).toBe(CompA);
   });
 
+  test("registerComponents binds scope to Class so direct Class.make resolves comp fields", () => {
+    const Chat = component({ name: "Chat", fields: { message: "hi" } });
+    const Shell = component({
+      name: "Shell",
+      fields: { chat: { component: "Chat", args: { message: "hi" } } },
+    });
+    const comps = new Components();
+    const compStack = new ComponentStack(comps);
+    compStack.registerComponents([Chat, Shell]);
+    // direct Class.make (e.g. from a deserialization path) without a threaded scope
+    const shell = Shell.Class.make({ chat: { message: "from data" } });
+    expect(shell.get("chat").get("message")).toBe("from data");
+  });
+
   test("registerComponents alias overriding existing component triggers console.assert", () => {
     const CompA = component({ name: "CompA", fields: {} });
     const CompB = component({ name: "CompB", fields: {} });

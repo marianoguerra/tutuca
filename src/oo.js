@@ -284,16 +284,18 @@ class ClassBuilder {
     this._statics = {
       make: function (inArgs = {}, opts = {}) {
         const args = {};
+        // fall back to the scope bound at registration so direct Class.make()
+        // calls (e.g. deserialization) can resolve comp fields without a caller-threaded scope
+        const scope = opts.scope ?? this.scope;
         for (const key in inArgs) {
           const field = fields[key];
-          if (compFields.has(key)) args[key] = mkCompField(field, opts.scope, inArgs[key]);
+          if (compFields.has(key)) args[key] = mkCompField(field, scope, inArgs[key]);
           else if (field === undefined)
             console.warn("extra argument to constructor:", name, key, inArgs);
           else args[key] = field.coerceOrDefault(inArgs[key]);
         }
         for (const key of compFields)
-          if (args[key] === undefined)
-            args[key] = mkCompField(fields[key], opts.scope, inArgs[key]);
+          if (args[key] === undefined) args[key] = mkCompField(fields[key], scope, inArgs[key]);
         return this(args);
       },
     };

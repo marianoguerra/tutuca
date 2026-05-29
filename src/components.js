@@ -48,6 +48,9 @@ export class ComponentStack {
     for (let i = 0; i < comps.length; i++) {
       const comp = comps[i];
       comp.scope = this.enter();
+      // bind the scope onto the Class so direct Class.make()/fromData() calls
+      // can resolve comp fields without the caller threading a scope through
+      comp.Class.scope = comp.scope;
       this.comps.registerComponent(comp);
       this.byName[comp.name] = comp;
     }
