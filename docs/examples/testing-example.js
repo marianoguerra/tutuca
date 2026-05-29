@@ -71,19 +71,19 @@ export function getTests({ describe, test, expect }) {
     describe("addGreeting() — method", () => {
       test("appends a personalized greeting", () => {
         const next = Greeter.make({ name: "Linus", greetings: [] }).addGreeting();
-        expect(next.greetings.toArray()).to.deep.equal(["hello, Linus!"]);
+        expect(next.greetings.toArray()).toEqual(["hello, Linus!"]);
       });
       test("does not mutate the original instance", () => {
         const g = Greeter.make({ name: "Ada", greetings: [] });
         g.addGreeting();
-        expect(g.greetings.size).to.equal(0);
+        expect(g.greetings.size).toBe(0);
       });
     });
 
     describe("submitName() — input handler", () => {
       test("sets the name from the input value", () => {
         const next = Greeter.input.submitName.call(Greeter.make(), "Grace");
-        expect(next.name).to.equal("Grace");
+        expect(next.name).toBe("Grace");
       });
     });
 
@@ -97,7 +97,7 @@ export function getTests({ describe, test, expect }) {
           when: "matchesFilter",
           enrichWith: "enrichLength",
         });
-        expect(r).to.deep.equal([{ key: 0, value: "hello, Ada!", len: 11 }]);
+        expect(r).toEqual([{ key: 0, value: "hello, Ada!", len: 11 }]);
       });
 
       test("empty filter keeps every item", () => {
@@ -106,7 +106,7 @@ export function getTests({ describe, test, expect }) {
           when: "matchesFilter",
           enrichWith: "enrichLength",
         });
-        expect(r.map((b) => b.len)).to.deep.equal([1, 2, 3]);
+        expect(r.map((b) => b.len)).toEqual([1, 2, 3]);
       });
     });
   });

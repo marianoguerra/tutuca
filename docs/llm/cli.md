@@ -158,25 +158,25 @@ export function getTests({ describe, test, expect }) {
     describe("inc()", () => {                           // method
       test("returns a Counter with count + 1", () => {
         const next = Counter.make().inc();
-        expect(next).to.be.instanceOf(Counter.Class);
-        expect(next.count).to.equal(1);
+        expect(next).toBeInstanceOf(Counter.Class);
+        expect(next.count).toBe(1);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
         c.inc();
-        expect(c.count).to.equal(7);                    // immutability
+        expect(c.count).toBe(7);                    // immutability
       });
     });
 
     describe("dec()", () => {                           // input handler
       test("returns a Counter with count - 1", () => {
         const next = Counter.input.dec.call(Counter.make());
-        expect(next.count).to.equal(-1);
+        expect(next.count).toBe(-1);
       });
     });
 
     test("inc and dec round-trip", () => {              // untagged path
-      expect(Counter.input.dec.call(Counter.make().inc()).count).to.equal(0);
+      expect(Counter.input.dec.call(Counter.make().inc()).count).toBe(0);
     });
   });
 }

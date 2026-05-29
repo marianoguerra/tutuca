@@ -1,3 +1,5 @@
+import { JEST_MATCHERS } from "../../../src/chai-jest.js";
+
 export const describe = "Show usage. `help <command>` for per-command detail.";
 
 const OVERVIEW = `tutuca — CLI for inspecting, documenting, linting and rendering tutuca
@@ -46,7 +48,9 @@ MODULE CONVENTION
         describe(title, fn)               // untagged
         describe(title, { component }, fn)// explicit tag with custom title
       and   test(title, fn)               // fn may be async
-      and   expect comes from chai
+      and   expect is chai, with jest-style matchers added:
+            ${JEST_MATCHERS.join(", ")}
+            (chai's BDD chain like .to.equal also works; use .not to negate)
 
     export function getRoot()             // optional; returned by info
 

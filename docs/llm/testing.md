@@ -16,13 +16,19 @@ A module opts into `tutuca test` by exporting `getTests`:
 export function getTests({ describe, test, expect }) {
   describe(MyComp, () => {
     test("does the thing", () => {
-      expect(MyComp.make().doTheThing().count).to.equal(1);
+      expect(MyComp.make().doTheThing().count).toBe(1);
     });
   });
 }
 ```
 
-- `expect` is chai.
+- `expect` is chai, extended with **jest-style matchers** (`toBe`,
+  `toEqual`, `toContain`, `toThrow`, `.not.toBe`, …) — the recommended
+  style. Chai's BDD chain (`expect(x).to.equal(1)`) still works for those
+  who prefer it. Run `tutuca help` for the full matcher list (it's
+  surfaced from code). Asymmetric/mock matchers
+  (`expect.objectContaining`, `toHaveBeenCalled…`, `toMatchSnapshot`) are
+  **not** available — tutuca has no mocking layer.
 - `test` and `describe` are **Tutuca's own** subset of the common
   Mocha/Bun-style API, injected by `tutuca test` — not Bun's built-ins.
   Available calls: `describe(title, fn)`, `describe(Component, fn)`,
@@ -147,7 +153,7 @@ test("filters and enriches", () => {
     when: "keepEven",
     enrichWith: "addLabel",
   });
-  expect(r).to.deep.equal([
+  expect(r).toEqual([
     { key: 0, value: 10, label: "0/4: 10" },
     { key: 2, value: 30, label: "2/4: 30" },
   ]);
@@ -211,8 +217,8 @@ input: { setCount(n) { return this.setCount(n); } }
 At test time, the "good" forms become trivial:
 
 ```js
-expect(MyComp.make().setName("Ada").name).to.equal("Ada");
-expect(MyComp.input.setCount.call(MyComp.make(), 42).count).to.equal(42);
+expect(MyComp.make().setName("Ada").name).toBe("Ada");
+expect(MyComp.input.setCount.call(MyComp.make(), 42).count).toBe(42);
 ```
 
 The "bad" forms force every test to construct
@@ -237,31 +243,31 @@ export function getTests({ describe, test, expect }) {
   describe(Counter, () => {
     describe("inc()", () => {                         // method
       test("returns a Counter with count + 1", () => {
-        expect(Counter.make().inc().count).to.equal(1);
+        expect(Counter.make().inc().count).toBe(1);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
         c.inc();
-        expect(c.count).to.equal(7);
+        expect(c.count).toBe(7);
       });
     });
 
     describe("dec()", () => {                         // input handler, no args
       test("returns a Counter with count - 1", () => {
         const next = Counter.input.dec.call(Counter.make());
-        expect(next.count).to.equal(-1);
+        expect(next.count).toBe(-1);
       });
     });
 
     describe("setCount()", () => {                    // input handler, valueAsInt
       test("sets the count from a parsed int", () => {
         const next = Counter.input.setCount.call(Counter.make(), 42);
-        expect(next.count).to.equal(42);
+        expect(next.count).toBe(42);
       });
     });
 
     test("inc and dec round-trip", () => {            // untagged, inherits Counter
-      expect(Counter.input.dec.call(Counter.make().inc()).count).to.equal(0);
+      expect(Counter.input.dec.call(Counter.make().inc()).count).toBe(0);
     });
   });
 }

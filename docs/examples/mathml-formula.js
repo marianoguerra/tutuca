@@ -85,16 +85,16 @@ export function getExamples() {
 export function getTests({ describe, test, expect }) {
   describe(Quadratic, () => {
     test("discriminant of x² − 3x + 2 is positive", () => {
-      expect(Quadratic.make().discriminant()).to.equal(1);
+      expect(Quadratic.make().discriminant()).toBe(1);
     });
     test("discriminant of x² + x + 1 is negative", () => {
-      expect(Quadratic.make({ a: 1, b: 1, c: 1 }).discriminant()).to.equal(-3);
+      expect(Quadratic.make({ a: 1, b: 1, c: 1 }).discriminant()).toBe(-3);
     });
     test("classify reports a repeated root for x² − 2x + 1", () => {
-      expect(Quadratic.make({ a: 1, b: -2, c: 1 }).classify()).to.equal("one repeated real root");
+      expect(Quadratic.make({ a: 1, b: -2, c: 1 }).classify()).toBe("one repeated real root");
     });
     test("classify reports two roots for the default equation", () => {
-      expect(Quadratic.make().classify()).to.equal("two distinct real roots");
+      expect(Quadratic.make().classify()).toBe("two distinct real roots");
     });
   });
 }

@@ -88,21 +88,21 @@ export function getTests({ describe, test, expect }) {
     test("paginate returns the slice range for the current page", () => {
       const c = Pagination.make({ items: ITEMS, page: 2, pageSize: 5 });
       const r = Pagination.alter.paginate.call(c, c.items);
-      expect(r.start).to.equal(10);
-      expect(r.end).to.equal(15);
-      expect(r.iterData.total).to.equal(ITEMS.length);
+      expect(r.start).toBe(10);
+      expect(r.end).toBe(15);
+      expect(r.iterData.total).toBe(ITEMS.length);
     });
 
     test("next() advances the page but stops at the last one", () => {
       const c = Pagination.make({ items: ITEMS, pageSize: 5 });
-      expect(Pagination.input.next.call(c).page).to.equal(1);
+      expect(Pagination.input.next.call(c).page).toBe(1);
       const last = Pagination.make({ items: ITEMS, page: 99, pageSize: 5 });
-      expect(Pagination.input.next.call(last).page).to.equal(last.pageCount() - 1);
+      expect(Pagination.input.next.call(last).page).toBe(last.pageCount() - 1);
     });
 
     test("prev() never goes below the first page", () => {
       const c = Pagination.make({ items: ITEMS, page: 0 });
-      expect(Pagination.input.prev.call(c).page).to.equal(0);
+      expect(Pagination.input.prev.call(c).page).toBe(0);
     });
   });
 }

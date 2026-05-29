@@ -62,43 +62,43 @@ export function getTests({ describe, test, expect }) {
     describe("inc()", () => {
       test("returns a Counter with count + 1", () => {
         const next = Counter.make().inc();
-        expect(next).to.be.instanceOf(Counter.Class);
-        expect(next.count).to.equal(1);
+        expect(next).toBeInstanceOf(Counter.Class);
+        expect(next.count).toBe(1);
       });
       test("works on a non-zero counter", () => {
-        expect(Counter.make({ count: 4 }).inc().count).to.equal(5);
+        expect(Counter.make({ count: 4 }).inc().count).toBe(5);
       });
       test("works on a negative counter", () => {
-        expect(Counter.make({ count: -3 }).inc().count).to.equal(-2);
+        expect(Counter.make({ count: -3 }).inc().count).toBe(-2);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
         c.inc();
-        expect(c.count).to.equal(7);
+        expect(c.count).toBe(7);
       });
     });
 
     describe("dec()", () => {
       test("returns a Counter with count - 1", () => {
         const next = Counter.input.dec.call(Counter.make());
-        expect(next).to.be.instanceOf(Counter.Class);
-        expect(next.count).to.equal(-1);
+        expect(next).toBeInstanceOf(Counter.Class);
+        expect(next.count).toBe(-1);
       });
       test("works on a non-zero counter", () => {
-        expect(Counter.input.dec.call(Counter.make({ count: 4 })).count).to.equal(3);
+        expect(Counter.input.dec.call(Counter.make({ count: 4 })).count).toBe(3);
       });
       test("works on a negative counter", () => {
-        expect(Counter.input.dec.call(Counter.make({ count: -3 })).count).to.equal(-4);
+        expect(Counter.input.dec.call(Counter.make({ count: -3 })).count).toBe(-4);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
         Counter.input.dec.call(c);
-        expect(c.count).to.equal(7);
+        expect(c.count).toBe(7);
       });
     });
 
     test("inc and dec round-trip back to the original count", () => {
-      expect(Counter.input.dec.call(Counter.make({ count: 10 }).inc()).count).to.equal(10);
+      expect(Counter.input.dec.call(Counter.make({ count: 10 }).inc()).count).toBe(10);
     });
   });
 }

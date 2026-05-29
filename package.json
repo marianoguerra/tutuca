@@ -13,6 +13,8 @@
     "./ext": "./dist/tutuca.ext.js",
     "./extra-ext": "./dist/tutuca-extra.ext.js",
     "./dev-ext": "./dist/tutuca-dev.ext.js",
+    "./immutable": "./dist/immutable.js",
+    "./chai": "./dist/chai.js",
     "./package.json": "./package.json"
   },
   "bin": {
@@ -49,6 +51,8 @@
     "dist/tutuca.ext.js",
     "dist/tutuca-extra.ext.js",
     "dist/tutuca-dev.ext.js",
+    "dist/immutable.js",
+    "dist/chai.js",
     "skill"
   ],
   "dependencies": {
@@ -56,9 +60,13 @@
     "prettier": "^3.0.0"
   },
   "peerDependencies": {
+    "chai": "^6.2.2",
     "immutable": "*"
   },
   "peerDependenciesMeta": {
+    "chai": {
+      "optional": true
+    },
     "immutable": {
       "optional": true
     }

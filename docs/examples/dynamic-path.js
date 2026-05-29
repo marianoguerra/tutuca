@@ -104,7 +104,7 @@ export function getTests({ describe, test, expect }) {
   describe(Sheet, () => {
     test("$setTitle updates the title", () => {
       const next = Sheet.make({ title: "a" }).setTitle("b");
-      expect(next.title).to.equal("b");
+      expect(next.title).toBe("b");
     });
   });
 }

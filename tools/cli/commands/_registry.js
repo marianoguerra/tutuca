@@ -1,10 +1,15 @@
-import { expect } from "chai";
+import { expect, use } from "chai";
+import { jestMatchers } from "../../../src/chai-jest.js";
 import { describeModule } from "../../core/describe.js";
 import { docComponents } from "../../core/docs.js";
 import { listComponents, listExamples } from "../../core/list.js";
 import { lintComponents } from "../../core/lint.js";
 import { renderExamples } from "../../core/render.js";
 import { runTests } from "../../core/test.js";
+
+// Add jest-style matchers (toBe, toEqual, …) to the `expect` injected into
+// `getTests`; chai's BDD chain (`.to.equal`) keeps working too.
+use(jestMatchers);
 
 function parseLimit(raw) {
   if (raw === undefined || raw === null) return 0;

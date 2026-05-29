@@ -100,26 +100,26 @@ export function getTests({ describe, test, expect }) {
   describe(BarChart, () => {
     test("randomize keeps the bar count", () => {
       const next = BarChart.input.randomize.call(BarChart.make());
-      expect(next.values.size).to.equal(6);
+      expect(next.values.size).toBe(6);
     });
     test("addBar appends one bar", () => {
-      expect(BarChart.input.addBar.call(BarChart.make({ values: [10] })).values.size).to.equal(2);
+      expect(BarChart.input.addBar.call(BarChart.make({ values: [10] })).values.size).toBe(2);
     });
     test("addBar is capped at 9 bars", () => {
       const full = BarChart.make({ values: [1, 2, 3, 4, 5, 6, 7, 8, 9] });
-      expect(BarChart.input.addBar.call(full)).to.equal(full);
+      expect(BarChart.input.addBar.call(full)).toBe(full);
     });
     test("removeBar drops the last bar", () => {
       expect(
         BarChart.input.removeBar.call(BarChart.make({ values: [10, 20] })).values.size,
-      ).to.equal(1);
+      ).toBe(1);
     });
     test("removeBar keeps at least one bar", () => {
       const one = BarChart.make({ values: [10] });
-      expect(BarChart.input.removeBar.call(one)).to.equal(one);
+      expect(BarChart.input.removeBar.call(one)).toBe(one);
     });
     test("layout splits the width evenly", () => {
-      expect(BarChart.alter.layout(BarChart.make({ values: [1, 2, 3, 4] }).values).step).to.equal(
+      expect(BarChart.alter.layout(BarChart.make({ values: [1, 2, 3, 4] }).values).step).toBe(
         75,
       );
     });

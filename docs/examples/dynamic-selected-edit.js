@@ -122,12 +122,12 @@ export function getTests({ describe, test, expect }) {
   describe(Root, () => {
     test("selectItem changes the selected key", () => {
       const next = Root.input.selectItem.call(makeRoot("a"), "c");
-      expect(next.selectedKey).to.equal("c");
+      expect(next.selectedKey).toBe("c");
     });
   });
   describe(Entry, () => {
     test("$setName updates the entry name", () => {
-      expect(Entry.make({ name: "x" }).setName("y").name).to.equal("y");
+      expect(Entry.make({ name: "x" }).setName("y").name).toBe("y");
     });
   });
 }
