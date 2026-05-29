@@ -38,12 +38,17 @@ export class Transactor {
   }
   async pushRequest(path, name, args = [], opts = {}, parent = null) {
     const curRoot = this.state.val;
-    const curLeaf = path.toTransactionPath().lookup(curRoot);
+    const txnPath = path.toTransactionPath();
+    const curLeaf = txnPath.lookup(curRoot);
     const handler = this.comps.getRequestFor(curLeaf, name) ?? mkReq404(name);
     const resHandlerName = opts?.onResName ?? name;
+    // Pin field-resolved keys (e.g. `.sheets[.selId]`) to their value *now*, so the
+    // response updates the item that issued the request even if the key changed while
+    // the request was in flight. `livePath: true` opts out and re-evaluates live.
+    const resPath = opts?.livePath ? null : txnPath.pinKeys(curRoot);
     const push = (specificName, baseName, singleArg, result, error) => {
       const resArgs = specificName ? [singleArg] : [result, error];
-      const t = new ResponseEvent(path, this, specificName ?? baseName, resArgs, parent);
+      const t = new ResponseEvent(path, this, specificName ?? baseName, resArgs, parent, resPath);
       this.pushTransaction(t);
     };
     try {
@@ -115,10 +120,14 @@ class Transaction {
   getHandlerAndArgs(_root, _instance, _comps) {
     return null;
   }
+  // The path used to apply the mutation. Teleports dynamic-var renders so it lands on
+  // the data's real location (the dispatch `this.path` keeps intermediates). A subclass
+  // may override to supply a pre-resolved path (see ResponseEvent's pinned keys).
+  getTransactionPath() {
+    return this.path.toTransactionPath();
+  }
   updateRootValue(curRoot, comps) {
-    // The transaction path teleports dynamic-var renders so the mutation lands
-    // on the data's real location (the dispatch `this.path` keeps intermediates).
-    const txnPath = this.path.toTransactionPath();
+    const txnPath = this.getTransactionPath();
     const curLeaf = txnPath.lookup(curRoot);
     const newLeaf = this.callHandler(curRoot, curLeaf, comps);
     this._task?.complete?.({ value: newLeaf, old: curLeaf });
@@ -231,6 +240,15 @@ class NameArgsTransaction extends Transaction {
 }
 class ResponseEvent extends NameArgsTransaction {
   handlerProp = "response";
+  constructor(path, transactor, name, args, parent, txnPath = null) {
+    super(path, transactor, name, args, parent);
+    // Pre-pinned transaction path captured at request time; null re-evaluates live.
+    // `this.path` stays the dispatch path so ctx.path/targetPath are unaffected.
+    this._txnPath = txnPath;
+  }
+  getTransactionPath() {
+    return this._txnPath ?? super.getTransactionPath();
+  }
 }
 class SendEvent extends NameArgsTransaction {
   handlerProp = "receive";

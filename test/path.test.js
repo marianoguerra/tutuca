@@ -9,6 +9,7 @@ import {
   EachRenderItStep,
   FieldStep,
   Path,
+  SeqAccessStep,
   SeqStep,
 } from "../src/path.js";
 import { renderToHTMLNode } from "../src/util/render.js";
@@ -801,6 +802,24 @@ describe("dynamic variable as a path segment", () => {
     expect(app.state.val.sheets.get("b").title).toBe("renamed");
     expect(app.state.val.sheets.get("a").title).toBe("a");
     cleanup();
+  });
+
+  test("pinKeys freezes a SeqAccessStep's key into a literal SeqStep", () => {
+    const root = IMap({ sheets: IMap({ a: 1, b: 2 }), selId: "b" });
+    const path = new Path([new SeqAccessStep("sheets", "selId")]);
+    const pinned = path.pinKeys(root);
+    expect(pinned).not.toBe(path);
+    expect(pinned.steps[0]).toBeInstanceOf(SeqStep);
+    expect(pinned.steps[0].field).toBe("sheets");
+    expect(pinned.steps[0].key).toBe("b");
+    // Frozen: a later key change no longer moves where the pinned path resolves.
+    expect(pinned.lookup(root.set("selId", "a"))).toBe(2);
+  });
+
+  test("pinKeys returns the same Path when there is nothing to pin", () => {
+    const root = IMap({ a: IMap({ b: 1 }) });
+    const path = new Path([new FieldStep("a"), new FieldStep("b")]);
+    expect(path.pinKeys(root)).toBe(path);
   });
 
   test("two components rendering the same *items sequence do not alias in the cache", () => {

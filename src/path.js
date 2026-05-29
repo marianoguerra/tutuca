@@ -12,6 +12,11 @@ export class Step {
   toAbstractPathStep() {
     return this;
   }
+  // Freeze any field-resolved key against the value `v` entering this step (see
+  // `Path.pinKeys`). Most steps carry no live key and pin to themselves.
+  pinKey(_v) {
+    return this;
+  }
 }
 export class BindStep extends Step {
   constructor(binds) {
@@ -88,6 +93,12 @@ export class SeqAccessStep extends Step {
     const seq = root?.get(this.seqField, NONE);
     const key = root?.get(this.keyField, NONE);
     return seq === NONE || key === NONE ? root : root.set(this.seqField, seq.set(key, v));
+  }
+  // Resolve `keyField` against `v` now and freeze it as a literal-key `SeqStep`, so a
+  // later lookup/setValue lands on this same item even if `keyField` changes meanwhile.
+  pinKey(v) {
+    const key = v?.get(this.keyField, NONE);
+    return key === NONE ? this : new SeqStep(this.seqField, key);
   }
 }
 export class EachBindStep extends Step {
@@ -219,6 +230,23 @@ export class Path {
       } else out.push(step);
     }
     return new Path(out);
+  }
+  // Resolve every field-keyed step (e.g. `SeqAccessStep`) against `root`, freezing the
+  // key as it is *now* so a later lookup/setValue lands on the same item even if the
+  // keyField changed meanwhile (e.g. the selected tab moved while a request was in
+  // flight). Returns a new Path with those steps replaced; `this` if nothing pinned.
+  // Must be called on a transaction path (no DynSteps — call toTransactionPath first).
+  pinKeys(root) {
+    let curVal = root;
+    let out = null;
+    for (let i = 0; i < this.steps.length; i++) {
+      const step = this.steps[i];
+      const pinned = step.pinKey(curVal);
+      if (pinned !== step) (out ??= this.steps.slice())[i] = pinned;
+      curVal = step.lookup(curVal, NONE);
+      if (curVal === NONE) break;
+    }
+    return out ? new Path(out) : this;
   }
   lookup(v, dval = null) {
     let curVal = v;

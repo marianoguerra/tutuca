@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { IMap } from "../index.js";
-import { FieldStep, Path } from "../src/path.js";
+import { FieldStep, Path, SeqAccessStep } from "../src/path.js";
 import { Transactor } from "../src/transactor.js";
 
 function makeComps({ receive = {}, bubble = {}, response = {}, request = null } = {}) {
@@ -250,6 +250,55 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
     await t.pushRequest(new Path([new FieldStep("a")]), "loadX", []);
     runAll(t);
     expect(seen).toEqual([{ same: true }]);
+  });
+
+  describe("a SeqAccessStep response pins its key to request time", () => {
+    function deferredRequestTransactor(response, root) {
+      let resolveReq;
+      const t = new Transactor(
+        makeComps({ response, request: { fn: () => new Promise((res) => (resolveReq = res)) } }),
+        root,
+      );
+      return { t, resolve: (v) => resolveReq(v) };
+    }
+    const makeRoot = () =>
+      IMap({ sheets: IMap({ a: IMap({ title: "a" }), b: IMap({ title: "b" }) }), selId: "b" });
+    const seqAccessPath = () => new Path([new SeqAccessStep("sheets", "selId")]);
+    const markLoaded = { load(res) { return this.set("loaded", res); } };
+
+    test("by default the response lands on the request-time item, not the current one", async () => {
+      const { t, resolve } = deferredRequestTransactor(markLoaded, makeRoot());
+      const done = t.pushRequest(seqAccessPath(), "load", []);
+      t.state.val = t.state.val.set("selId", "a"); // user switches tab mid-flight
+      resolve("ok");
+      await done;
+      runAll(t);
+      expect(t.state.val.getIn(["sheets", "b", "loaded"])).toBe("ok");
+      expect(t.state.val.getIn(["sheets", "a"]).get("loaded", null)).toBe(null);
+    });
+
+    test("livePath: true re-evaluates the key live and lands on the current item", async () => {
+      const { t, resolve } = deferredRequestTransactor(markLoaded, makeRoot());
+      const done = t.pushRequest(seqAccessPath(), "load", [], { livePath: true });
+      t.state.val = t.state.val.set("selId", "a");
+      resolve("ok");
+      await done;
+      runAll(t);
+      expect(t.state.val.getIn(["sheets", "a", "loaded"])).toBe("ok");
+      expect(t.state.val.getIn(["sheets", "b"]).get("loaded", null)).toBe(null);
+    });
+
+    test("a pinned target deleted before the response arrives is a no-op", async () => {
+      const tolerant = { load(res) { return this?.set ? this.set("loaded", res) : this; } };
+      const { t, resolve } = deferredRequestTransactor(tolerant, makeRoot());
+      const done = t.pushRequest(seqAccessPath(), "load", []);
+      t.state.val = t.state.val.set("sheets", t.state.val.get("sheets").delete("b"));
+      const before = t.state.val;
+      resolve("ok");
+      await done;
+      runAll(t);
+      expect(t.state.val).toBe(before);
+    });
   });
 
   test("ctx.sendAtPath(ctx.targetPath, ...) from a root bubble handler dispatches back to the originator", () => {
