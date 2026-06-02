@@ -130,6 +130,63 @@ describe("Components", () => {
     expect(shell.get("chat").get("message")).toBe("from data");
   });
 
+  test("clone() lets one definition live in two independent scopes", () => {
+    const comps = new Components();
+    const Widget = component({ name: "Widget", fields: { message: "hi" } });
+    const WidgetB = Widget.clone();
+    const scopeA = new ComponentStack(comps);
+    const scopeB = new ComponentStack(comps);
+    scopeA.registerComponents([Widget]);
+    scopeB.registerComponents([WidgetB]);
+
+    // clone is a distinct Component with a distinct id and Class
+    expect(WidgetB).not.toBe(Widget);
+    expect(WidgetB.id).not.toBe(Widget.id);
+    expect(WidgetB.Class).not.toBe(Widget.Class);
+    expect(Widget.scope).not.toBe(WidgetB.scope);
+    // rebuilt as a named Record so getTypeName/datacomp keep seeing the component name
+    expect(WidgetB.Class.getMetaClass().name).toBe("Widget");
+
+    const a = Widget.make({ message: "from A" });
+    const b = WidgetB.make({ message: "from B" });
+    // reverse lookup resolves each instance to its own Component/scope
+    expect(comps.getCompFor(a)).toBe(Widget);
+    expect(comps.getCompFor(b)).toBe(WidgetB);
+    expect(comps.getCompFor(a).scope).toBe(Widget.scope);
+    expect(comps.getCompFor(b).scope).toBe(WidgetB.scope);
+
+    // a .set()-derived instance (new object identity) still resolves correctly,
+    // proving the binding lives on the prototype and survives Immutable updates
+    const a2 = a.set("message", "edited");
+    expect(a2).not.toBe(a);
+    expect(comps.getCompFor(a2)).toBe(Widget);
+  });
+
+  test("fromData static using this.make resolves its own scope per clone", () => {
+    const comps = new Components();
+    const Widget = component({
+      name: "Widget",
+      fields: { message: "hi" },
+      statics: {
+        fromData(d) {
+          return this.make({ message: d.msg });
+        },
+      },
+    });
+    const WidgetB = Widget.clone();
+    const scopeA = new ComponentStack(comps);
+    const scopeB = new ComponentStack(comps);
+    scopeA.registerComponents([Widget]);
+    scopeB.registerComponents([WidgetB]);
+
+    const a = Widget.Class.fromData({ msg: "A" });
+    const b = WidgetB.Class.fromData({ msg: "B" });
+    expect(a.get("message")).toBe("A");
+    expect(b.get("message")).toBe("B");
+    expect(comps.getCompFor(a)).toBe(Widget);
+    expect(comps.getCompFor(b)).toBe(WidgetB);
+  });
+
   test("registerComponents alias overriding existing component triggers console.assert", () => {
     const CompA = component({ name: "CompA", fields: {} });
     const CompB = component({ name: "CompB", fields: {} });

@@ -416,6 +416,48 @@ statics: {
 // usage: TreeRoot.Class.fromData([...])
 ```
 
+### One definition, multiple scopes (`clone`)
+
+A component is built once and bound to a scope at `registerComponents`
+time: that scope owns the component's `Class`, the per-instance
+component tag, and the scope-bound `make`/statics. Re-registering the
+*same* component object into another scope rebinds it (last wins) —
+fine for a fresh re-setup, but it means a single definition can't be
+live in two scopes at once.
+
+To register the same definition into a second scope simultaneously, use
+`Comp.clone()` — it returns a fresh, fully independent `Component` (new
+id, its own `Class`) built from the same spec:
+
+```js
+scopeA.registerComponents([Widget]);
+scopeB.registerComponents([Widget.clone()]); // independent Class + scope
+```
+
+Each clone has its own `Class`, so `getCompFor(instance)` and a static's
+`this.scope` / `this.make` resolve unambiguously to the scope that
+instance belongs to — even after immutable `.set()` updates, since the
+component tag lives on the (per-scope) prototype.
+
+**Caveat — statics that reach a child by its module-level const.** A
+static like `fromData` that builds a *different* child type by naming the
+imported const directly (`Item.Class.fromData(v)` above) hardcodes the
+child's *original* scope. In a single-scope app that's the only scope, so
+it's fine. But once you `clone()` either component into another scope, the
+parent clone still deserializes children through the original `Item` —
+wrong scope. For multi-scope safety, resolve the child through the
+caller's scope instead of the module-level const:
+
+```js
+fromData({ items = [] }) {
+  const Item = this.scope.lookupComponent("Item");
+  return this.make({ items: items.map((v) => Item.Class.fromData(v)) });
+}
+```
+
+Recursion into the *same* type needs no lookup — use `this.fromData(v)`
+(or `this.make`), which already targets the caller's scope.
+
 ## Text Rendering
 
 ```html
