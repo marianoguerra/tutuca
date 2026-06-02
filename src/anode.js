@@ -3,25 +3,27 @@ import { BindStep, DynEachStep, DynStep, EachBindStep, EachRenderItStep } from "
 import { DynVal, vp } from "./value.js";
 import { HTML_NS } from "./vdom.js";
 
-// Resolve the producer of a dynamic variable `dynName` declared on component
-// `comp`: walk a DynamicAlias (`dynamic: { x: { for: "Producer.y" } }`) to the
-// producing component, then read that dynamic's own field path. Returns the
-// producer component id plus the steps (normally one FieldStep) that locate the
-// dynamic's value in the producer, or null when it cannot be resolved.
-function resolveDynProducer(comp, dynName) {
-  const dyn = comp?.dynamic?.[dynName];
-  if (dyn == null) return null;
-  let producerComp, producerDyn;
-  if (dyn.compName != null) {
-    // DynamicAlias: forwards to another component's dynamic.
-    producerComp = comp.scope?.lookupComponent(dyn.compName);
-    producerDyn = producerComp?.dynamic?.[dyn.dynName];
+// Resolve the producer of a dynamic variable `name` declared on component
+// `comp`: walk a LookupInfo (`lookup: { x: { for: "Producer.y" } }`) to the
+// producing component and read that provide's own field path; a `provide`
+// resolves to `comp` itself. Returns the producer component id plus the steps
+// (normally one FieldStep) that locate the value in the producer, or null when
+// it cannot be resolved.
+function resolveDynProducer(comp, name) {
+  let producerComp, producerProvide;
+  const lk = comp?.lookup?.[name];
+  if (lk != null) {
+    // LookupInfo: forwards to another component's provide.
+    producerComp = comp.scope?.lookupComponent(lk.compName);
+    producerProvide = producerComp?.provide?.[lk.provideName];
   } else {
+    const p = comp?.provide?.[name];
+    if (p == null) return null;
     producerComp = comp;
-    producerDyn = dyn;
+    producerProvide = p;
   }
-  if (producerComp == null || producerDyn == null) return null;
-  const pi = producerDyn.val?.toPathItem?.() ?? null;
+  if (producerComp == null || producerProvide == null) return null;
+  const pi = producerProvide.val?.toPathItem?.() ?? null;
   return { producerCompId: producerComp.id, producerSteps: pi ? [pi] : [] };
 }
 

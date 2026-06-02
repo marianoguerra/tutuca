@@ -32,7 +32,7 @@ const Toolbar = component({
   fields: {},
   // Consumer: forwards to Workspace's `active` dynamic. The default is only used
   // when no producer is in scope.
-  dynamic: { active: { for: "Workspace.active", default: ".missing" } },
+  lookup: { active: { for: "Workspace.active", default: ".missing" } },
   view: html`<div class="border border-dashed border-warning rounded p-3 gap-2">
     <span class="text-xs opacity-60">Toolbar (consumer)</span>
     <x render="*active"></x>
@@ -52,15 +52,10 @@ const Workspace = component({
   name: "Workspace",
   fields: { sheet: null, panel: null },
   // Producer: exposes its `.sheet` field as the dynamic `active`.
-  dynamic: { active: ".sheet" },
+  provide: { active: ".sheet" },
   methods: {
     sheetTitle() {
       return this.sheet?.title ?? "";
-    },
-  },
-  on: {
-    stackEnter() {
-      return ["active"];
     },
   },
   view: html`<div class="flex flex-col gap-3 p-3">

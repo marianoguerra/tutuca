@@ -24,9 +24,19 @@ const LintDemo = component({
       return v;
     },
   },
-  dynamic: {
-    // DYN_ALIAS_NOT_REFERENCED: alias declared but never used as *unusedDyn in a view
+  provide: {
+    // PROVIDE_NOT_ADDRESSABLE: a provide value must be a field (.f) or seq-access
+    // (.s[.k]) path — it doubles as a render-target / teleport path, so a method
+    // ($doClick) or constant, which has no path, is rejected.
+    badProvide: "$doClick",
+  },
+  lookup: {
+    // DYN_ALIAS_NOT_REFERENCED: lookup declared but never used as *unusedDyn in a view
     unusedDyn: { for: "Theme.color", default: "'gray'" },
+    // LOOKUP_TARGET_MALFORMED: target must be "Producer.provideName" (needs a dot)
+    badTarget: "NoDotHere",
+    // LOOKUP_BAD_SHAPE: the object form requires a string 'for' key (missing here)
+    badShape: { default: "'gray'" },
   },
   view: html`<div>
     <p>Lint Errors Demo - check the Lint tab</p>
@@ -51,7 +61,16 @@ const LintDemo = component({
     <!-- FIELD_VAL_NOT_DEFINED: .missing is not defined -->
     <p :title=".missing">undefined field</p>
 
-    <!-- DYN_VAL_NOT_DEFINED: *missingDyn is not in the component's dynamic map -->
+    <!-- FIELD_VAL_IS_METHOD: .doClick names a method — reference it as $doClick -->
+    <p :title=".doClick">field is a method</p>
+
+    <!-- METHOD_VAL_IS_FIELD: $count names a field — reference it as .count -->
+    <p :title="$count">method is a field</p>
+
+    <!-- METHOD_VAL_NOT_DEFINED: $noSuchMethod is neither a method nor a field -->
+    <p :title="$noSuchMethod">undefined method</p>
+
+    <!-- DYN_VAL_NOT_DEFINED: *missingDyn is not in the component's provide/lookup -->
     <p :title="*missingDyn">undefined dynamic</p>
 
     <!-- UNKNOWN_REQUEST_NAME + UNKNOWN_COMPONENT_NAME -->

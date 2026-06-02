@@ -482,7 +482,7 @@ describe("dynamic variable as a path segment", () => {
     const Toolbar = component({
       name: "Toolbar",
       fields: {},
-      dynamic: { active: { for: "Workspace.active", default: ".missing" } },
+      lookup: { active: { for: "Workspace.active", default: ".missing" } },
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
     const Panel = component({
@@ -493,12 +493,7 @@ describe("dynamic variable as a path segment", () => {
     const Workspace = component({
       name: "Workspace",
       fields: { sheet: null, panel: null },
-      dynamic: { active: ".sheet" },
-      on: {
-        stackEnter() {
-          return ["active"];
-        },
-      },
+      provide: { active: ".sheet" },
       view: html`<div class="workspace"><x render=".panel"></x></div>`,
     });
     const root = Workspace.make({
@@ -547,7 +542,7 @@ describe("dynamic variable as a path segment", () => {
     cleanup();
   });
 
-  test("producer is also the consumer (plain Dynamic): interiorCids is just itself", () => {
+  test("producer is also the consumer (own provide): interiorCids is just itself", () => {
     const Doc = component({
       name: "Doc",
       fields: { title: "untitled" },
@@ -561,12 +556,7 @@ describe("dynamic variable as a path segment", () => {
     const Solo = component({
       name: "Solo",
       fields: { doc: null },
-      dynamic: { d: ".doc" },
-      on: {
-        stackEnter() {
-          return ["d"];
-        },
-      },
+      provide: { d: ".doc" },
       view: html`<div class="solo"><x render="*d"></x></div>`,
     });
     const root = Solo.make({ doc: Doc.make() });
@@ -607,7 +597,7 @@ describe("dynamic variable as a path segment", () => {
     const Inner = component({
       name: "Inner",
       fields: {},
-      dynamic: { rows: { for: "Grid.rows", default: ".missing" } },
+      lookup: { rows: { for: "Grid.rows", default: ".missing" } },
       view: html`<div class="inner">
         <div @each="*rows"><x render-it></x></div>
       </div>`,
@@ -615,12 +605,7 @@ describe("dynamic variable as a path segment", () => {
     const Grid = component({
       name: "Grid",
       fields: { rows: IMap(), inner: null },
-      dynamic: { rows: ".rows" },
-      on: {
-        stackEnter() {
-          return ["rows"];
-        },
-      },
+      provide: { rows: ".rows" },
       view: html`<div class="grid"><x render=".inner"></x></div>`,
     });
     const root = Grid.make({
@@ -703,7 +688,7 @@ describe("dynamic variable as a path segment", () => {
     const Toolbar = component({
       name: "Toolbar",
       fields: {},
-      dynamic: { active: { for: "Workspace.active", default: ".missing" } },
+      lookup: { active: { for: "Workspace.active", default: ".missing" } },
       bubble: mkBubble("Toolbar"),
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
@@ -716,13 +701,8 @@ describe("dynamic variable as a path segment", () => {
     const Workspace = component({
       name: "Workspace",
       fields: { sheet: null, panel: null },
-      dynamic: { active: ".sheet" },
+      provide: { active: ".sheet" },
       bubble: mkBubble("Workspace"),
-      on: {
-        stackEnter() {
-          return ["active"];
-        },
-      },
       view: html`<div class="workspace"><x render=".panel"></x></div>`,
     });
     const root = Workspace.make({
@@ -758,18 +738,13 @@ describe("dynamic variable as a path segment", () => {
     const Toolbar = component({
       name: "Toolbar",
       fields: {},
-      dynamic: { active: { for: "Workspace.active", default: ".missing" } },
+      lookup: { active: { for: "Workspace.active", default: ".missing" } },
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
     const Workspace = component({
       name: "Workspace",
       fields: { sheets: IMap(), selId: "", toolbar: null },
-      dynamic: { active: ".sheets[.selId]" },
-      on: {
-        stackEnter() {
-          return ["active"];
-        },
-      },
+      provide: { active: ".sheets[.selId]" },
       view: html`<div class="workspace"><x render=".toolbar"></x></div>`,
     });
     const root = Workspace.make({
@@ -831,7 +806,7 @@ describe("dynamic variable as a path segment", () => {
     const Child = component({
       name: "Child",
       fields: {},
-      dynamic: { items: { for: "Owner.items", default: ".missing" } },
+      lookup: { items: { for: "Owner.items", default: ".missing" } },
       view: html`<div class="child">
         <div @each="*items" class="child-row"><x render-it></x></div>
       </div>`,
@@ -839,12 +814,7 @@ describe("dynamic variable as a path segment", () => {
     const Owner = component({
       name: "Owner",
       fields: { items: IMap(), child: null, picked: "" },
-      dynamic: { items: ".items" },
-      on: {
-        stackEnter() {
-          return ["items"];
-        },
-      },
+      provide: { items: ".items" },
       input: {
         pick(k) {
           return this.setPicked(k);

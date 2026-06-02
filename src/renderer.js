@@ -49,7 +49,7 @@ export class Renderer {
   _rValComp(stack, val, comp, node, key, viewName) {
     const cacheKey = `${viewName ?? stack.viewsId ?? ""}-${key}`;
     const cachePath = [node, val];
-    stack._pushDynBindValuesToArray(cachePath, comp.dynamic);
+    stack._pushDynBindValuesToArray(cachePath, comp);
     const cachedNode = this.cache.get(cachePath, cacheKey);
     if (cachedNode) return cachedNode;
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");

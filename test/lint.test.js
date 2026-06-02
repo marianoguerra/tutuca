@@ -11,6 +11,9 @@ import {
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
+  PROVIDE_NOT_ADDRESSABLE,
+  LOOKUP_BAD_SHAPE,
+  LOOKUP_TARGET_MALFORMED,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   IF_NO_BRANCH_SET,
@@ -99,9 +102,9 @@ test("no UNKNOWN_COMPONENT_SPEC_KEY on a maximal legit spec", () => {
     bubble: {},
     response: {},
     alter: {},
-    on: { stackEnter() {} },
     views: { other: "<i></i>" },
-    dynamic: {},
+    provide: {},
+    lookup: {},
     fields: {},
     methods: {},
     statics: {},
@@ -1851,11 +1854,11 @@ test("x render-each with when referencing missing alter handler warns", () => {
   expect(altNotDefined.length).toBe(1);
 });
 
-test("no report when *dynamic reference matches a defined dynamic", () => {
+test("no report when *dynamic reference matches a defined provide", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { color: "blue" },
-    dynamic: { color: ".color" },
+    provide: { color: ".color" },
     view: html`<p :title="*color">hi</p>`,
   });
   const dynReports = lx.reports.filter(
@@ -1875,10 +1878,10 @@ test("error on *dynamic reference with no matching dynamic definition", () => {
   expect(notDefined[0].info.name).toBe("missing");
 });
 
-test("no report when a DynamicAlias is referenced in a view", () => {
+test("no report when a lookup is referenced in a view", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    dynamic: { color: { for: "Theme.color", default: "'gray'" } },
+    lookup: { color: { for: "Theme.color", default: "'gray'" } },
     view: html`<p :title="*color">hi</p>`,
   });
   const dynReports = lx.reports.filter(
@@ -1887,10 +1890,10 @@ test("no report when a DynamicAlias is referenced in a view", () => {
   expect(dynReports.length).toBe(0);
 });
 
-test("hint when a DynamicAlias is never referenced in any view", () => {
+test("hint when a lookup is never referenced in any view", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    dynamic: { color: { for: "Theme.color", default: "'gray'" } },
+    lookup: { color: { for: "Theme.color", default: "'gray'" } },
     view: html`<p>hi</p>`,
   });
   const unused = lx.reports.filter((r) => r.id === DYN_ALIAS_NOT_REFERENCED);
@@ -1898,15 +1901,85 @@ test("hint when a DynamicAlias is never referenced in any view", () => {
   expect(unused[0].info.name).toBe("color");
 });
 
-test("no unused-dynamic hint for a producer Dynamic absent from its own views", () => {
+test("no unused-dynamic hint for a producer provide absent from its own views", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { color: "blue" },
-    dynamic: { color: ".color" },
+    provide: { color: ".color" },
     view: html`<p>hi</p>`,
   });
   const unused = lx.reports.filter((r) => r.id === DYN_ALIAS_NOT_REFERENCED);
   expect(unused.length).toBe(0);
+});
+
+test("no PROVIDE_NOT_ADDRESSABLE for a field or seq-access provide", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], selectedKey: "" },
+    provide: { all: ".items", selected: ".items[.selectedKey]" },
+    view: html`<p>hi</p>`,
+  });
+  expect(lx.reports.filter((r) => r.id === PROVIDE_NOT_ADDRESSABLE).length).toBe(0);
+});
+
+test("error on a provide whose value is not a path (method/constant)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { color: "blue" },
+    methods: { themeColor() {} },
+    provide: { computed: "$themeColor", literal: "'beta'" },
+    view: html`<p>hi</p>`,
+  });
+  const bad = lx.reports.filter((r) => r.id === PROVIDE_NOT_ADDRESSABLE);
+  expect(bad.map((r) => r.info.name).sort()).toEqual(["computed", "literal"]);
+});
+
+test("no lookup shape/target reports for well-formed lookups", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    lookup: { a: "Theme.color", b: { for: "Theme.bg", default: "'gray'" } },
+    view: html`<p :title="*a" :data-bg="*b">hi</p>`,
+  });
+  const bad = lx.reports.filter(
+    (r) => r.id === LOOKUP_TARGET_MALFORMED || r.id === LOOKUP_BAD_SHAPE,
+  );
+  expect(bad.length).toBe(0);
+});
+
+test("error on a lookup whose target string is not Producer.provideName", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    lookup: { noDot: "ThemeColor", tooManyDots: "A.b.c", emptyHalf: "Theme." },
+    view: html`<p>hi</p>`,
+  });
+  const bad = lx.reports.filter((r) => r.id === LOOKUP_TARGET_MALFORMED);
+  expect(bad.map((r) => r.info.name).sort()).toEqual(["emptyHalf", "noDot", "tooManyDots"]);
+  // a wrong target string is not a shape error
+  expect(lx.reports.filter((r) => r.id === LOOKUP_BAD_SHAPE).length).toBe(0);
+});
+
+test("error on a lookup with an invalid object shape", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    lookup: {
+      missingFor: { default: "'gray'" },
+      unknownKey: { for: "Theme.color", deafult: "'gray'" },
+      forNotString: { for: 123 },
+      defaultNotString: { for: "Theme.color", default: 5 },
+      notStringOrObject: 42,
+    },
+    view: html`<p>hi</p>`,
+  });
+  const bad = lx.reports.filter((r) => r.id === LOOKUP_BAD_SHAPE);
+  expect(bad.map((r) => r.info.name).sort()).toEqual([
+    "defaultNotString",
+    "forNotString",
+    "missingFor",
+    "notStringOrObject",
+    "unknownKey",
+  ]);
+  // a shape error short-circuits the target check (no double report)
+  expect(lx.reports.filter((r) => r.id === LOOKUP_TARGET_MALFORMED).length).toBe(0);
 });
 
 test("LINT_RULES covers every component-linter code, and only those", async () => {
@@ -1929,6 +2002,22 @@ test("LINT_RULES covers every component-linter code, and only those", async () =
     expect(r.summary.length).toBeGreaterThan(0);
     expect(r.group.length).toBeGreaterThan(0);
   }
+});
+
+test("lint-errors.js demo triggers every non-HTML lint code (drift guard)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join, dirname } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const { LINT_RULES } = await import("../tools/core/lint-rules.js");
+  const dir = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(dir, "..", "docs", "examples", "lint-errors.js"), "utf8");
+  // `HTML_*` codes come from the separate htmllinter (exercised by HtmlLintDemo);
+  // every other code must be demonstrated. Each case is tagged with a `// CODE: …`
+  // comment, so a non-HTML code absent from the source text is an uncovered rule.
+  const missing = LINT_RULES.map((r) => r.code)
+    .filter((c) => !c.startsWith("HTML_") && !src.includes(c))
+    .sort();
+  expect(missing).toEqual([]);
 });
 
 test("every LINT_RULES code has a formatter (no fall-through to the bare code)", async () => {

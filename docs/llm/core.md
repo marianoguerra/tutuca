@@ -305,7 +305,7 @@ component({
   bubble:  { itemPicked(item, ctx) { return this.setSelected(item); } },
   response:{ loadData(res, err, ctx) { return this.setItems(res); } },
   statics: { fromData(d) { return this.make({ count: d.n ?? 0 }); } },
-  // dynamic: { ... }, on: { stackEnter() {...} }   // see advanced.md
+  // provide: { ... }, lookup: { ... }   // see advanced.md
 });
 ```
 

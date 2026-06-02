@@ -32,8 +32,8 @@ const Entry = component({
 const Editor = component({
   name: "Editor",
   fields: {},
-  // Consumer: forwards to Root's dynamics — a sequence and a single item.
-  dynamic: {
+  // Consumer: forwards to Root's provides — a sequence and a single item.
+  lookup: {
     items: { for: "Root.items", default: ".missing" },
     selected: { for: "Root.selected", default: ".missing" },
   },
@@ -54,14 +54,9 @@ const Root = component({
   name: "Root",
   fields: { items: IMap(), selectedKey: "", editor: null },
   // Producer: the whole sequence, plus a seq-access to the selected entry.
-  dynamic: {
+  provide: {
     items: ".items",
     selected: ".items[.selectedKey]",
-  },
-  on: {
-    stackEnter() {
-      return ["items", "selected"];
-    },
   },
   input: {
     selectItem(key) {

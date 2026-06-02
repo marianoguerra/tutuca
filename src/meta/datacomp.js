@@ -5,8 +5,8 @@ export function componentDataFromJson(o) {
     view = "...",
     views = {},
     style = "",
-    dynamic = {},
-    on = {},
+    provide = {},
+    lookup = {},
   } = o;
   const methods = parseFnObj(o.methods ?? {});
   const statics = parseFnObj(o.statics ?? {});
@@ -28,8 +28,8 @@ export function componentDataFromJson(o) {
     bubble,
     response,
     alter,
-    dynamic,
-    on,
+    provide,
+    lookup,
   };
 }
 
@@ -44,7 +44,8 @@ export function componentToJson(Comp) {
   const bubble = fnObjToData(Comp.bubble);
   const response = fnObjToData(Comp.response);
   const alter = fnObjToData(Comp.alter);
-  const dynamic = dynamicsToData(Comp.dynamic);
+  const provide = provideToData(Comp.provide);
+  const lookup = lookupToData(Comp.lookup);
   const views = {};
   for (const key in Comp.views) {
     const { style = "", rawView = "" } = Comp.views[key] ?? {};
@@ -65,8 +66,8 @@ export function componentToJson(Comp) {
     bubble,
     response,
     alter,
-    dynamic,
-    on: fnObjToData(Comp.on),
+    provide: undefinedIfEmptyObj(provide),
+    lookup: undefinedIfEmptyObj(lookup),
   };
   return data;
 }
@@ -112,21 +113,20 @@ function toFieldsJson(fields) {
   return undefinedIfEmptyObj(r);
 }
 
-export function dynamicsToData(dyns) {
+export function provideToData(provs) {
   const r = {};
-  for (const name in dyns) {
-    r[name] = dynamicToData(dyns[name]);
-  }
+  for (const name in provs) r[name] = valToString(provs[name].val);
   return r;
 }
 
-export function dynamicToData(dyn) {
-  if (dyn.compName) {
-    const { compName, dynName, val } = dyn;
-    return { for: `${compName}.${dynName}`, default: valToString(val) };
-  } else {
-    return valToString(dyn.val);
+export function lookupToData(lks) {
+  const r = {};
+  for (const name in lks) {
+    const lk = lks[name];
+    const forStr = `${lk.compName}.${lk.provideName}`;
+    r[name] = lk.val ? { for: forStr, default: valToString(lk.val) } : forStr;
   }
+  return r;
 }
 
 export function valToString(v) {

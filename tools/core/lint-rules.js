@@ -21,6 +21,9 @@ import {
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
+  PROVIDE_NOT_ADDRESSABLE,
+  LOOKUP_BAD_SHAPE,
+  LOOKUP_TARGET_MALFORMED,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   IF_NO_BRANCH_SET,
@@ -132,13 +135,31 @@ export const LINT_RULES = [
     code: DYN_VAL_NOT_DEFINED,
     level: "error",
     group: "Dynamic bindings",
-    summary: "`*name` references a dynamic binding not declared in `dynamic`.",
+    summary: "`*name` references a binding not declared in `provide` or `lookup`.",
   },
   {
     code: DYN_ALIAS_NOT_REFERENCED,
     level: "hint",
     group: "Dynamic bindings",
-    summary: "`dynamic` alias is defined but never read as `*name` in a view.",
+    summary: "`lookup` entry is defined but never read as `*name` in a view.",
+  },
+  {
+    code: PROVIDE_NOT_ADDRESSABLE,
+    level: "error",
+    group: "Dynamic bindings",
+    summary: "`provide` value must be a field (`.f`) or seq-access (`.s[.k]`) path.",
+  },
+  {
+    code: LOOKUP_BAD_SHAPE,
+    level: "error",
+    group: "Dynamic bindings",
+    summary: "`lookup` entry must be a string or `{ for, default }` (known keys, string values).",
+  },
+  {
+    code: LOOKUP_TARGET_MALFORMED,
+    level: "error",
+    group: "Dynamic bindings",
+    summary: "`lookup` target must be `\"Producer.provideName\"` (string or `for`).",
   },
 
   // Templates / events

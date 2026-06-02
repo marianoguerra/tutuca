@@ -16,7 +16,7 @@ import { closestName } from "./util/closest-name.js";
 // the "no false positives on legit spec" test in lint.test.js exercises
 // every key and catches drift.
 const KNOWN_COMPONENT_SPEC_KEYS = new Set(
-  "name view style commonStyle globalStyle input receive bubble response alter on views dynamic fields methods statics".split(
+  "name view style commonStyle globalStyle input receive bubble response alter views provide lookup fields methods statics".split(
     " ",
   ),
 );
@@ -42,6 +42,9 @@ export const ALT_HANDLER_NOT_DEFINED = "ALT_HANDLER_NOT_DEFINED";
 export const ALT_HANDLER_NOT_REFERENCED = "ALT_HANDLER_NOT_REFERENCED";
 export const DYN_VAL_NOT_DEFINED = "DYN_VAL_NOT_DEFINED";
 export const DYN_ALIAS_NOT_REFERENCED = "DYN_ALIAS_NOT_REFERENCED";
+export const PROVIDE_NOT_ADDRESSABLE = "PROVIDE_NOT_ADDRESSABLE";
+export const LOOKUP_BAD_SHAPE = "LOOKUP_BAD_SHAPE";
+export const LOOKUP_TARGET_MALFORMED = "LOOKUP_TARGET_MALFORMED";
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
 export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
 export const UNKNOWN_HANDLER_ARG_NAME = "UNKNOWN_HANDLER_ARG_NAME";
@@ -181,6 +184,8 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
   return lx.push({ componentName: Comp.name }, () => {
     checkUnknownSpecKeys(lx, Comp, wellKnownExtras);
     checkFieldDeclarations(lx, Comp);
+    checkProvidesAreAddressable(lx, Comp);
+    checkLookupShapes(lx, Comp);
     const referencedAlters = new Set();
     const referencedInputs = new Set();
     const referencedDynamics = new Set();
@@ -396,10 +401,12 @@ function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedDyna
 // Bundles the per-component context threaded through checkConsistentAttrVal: the
 // recursive value walk passes this object through unchanged.
 function mkAttrValEnv(Comp, referencedAlters, referencedDynamics) {
-  const { scope, alter, dynamic, Class } = Comp;
+  const { scope, alter, provide, lookup, Class } = Comp;
   const { prototype: proto } = Class;
   const { fields } = Class.getMetaClass();
-  return { fields, proto, scope, alter, referencedAlters, dynamicMap: dynamic, referencedDynamics };
+  // `*name` resolves either a lookup or the component's own provide.
+  const dynamicMap = { ...provide, ...lookup };
+  return { fields, proto, scope, alter, referencedAlters, dynamicMap, referencedDynamics };
 }
 
 function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
@@ -782,13 +789,68 @@ function checkUnreferencedInputHandlers(lx, Comp, referencedInputs) {
   }
 }
 
-// Only flags DynamicAlias entries: a plain Dynamic is a producer pushed down the
-// render stack and consumed by *child* components, so it legitimately need not
-// appear in this component's own views.
+// A `provide` value must be addressable (a `.field` or `.seq[.key]`): it is used
+// as a render-target / teleport path, not only read as a value. `compile()` drops
+// any raw provide that fails to parse as such, so a key present in `_rawProvide`
+// but absent from `provide` is a non-path value (e.g. `$method`, a constant).
+function checkProvidesAreAddressable(lx, Comp) {
+  for (const name in Comp._rawProvide) {
+    if (Comp.provide[name] === undefined) {
+      lx.error(PROVIDE_NOT_ADDRESSABLE, { name, value: Comp._rawProvide[name] });
+    }
+  }
+}
+
+// Validates each raw `lookup` entry against its two legal shapes, inspecting the
+// authored spec directly (not the compiled result, which silently tolerates
+// unknown keys and wrong-typed `default`):
+//   - a bare `"Producer.provideName"` string, or
+//   - `{ for: "Producer.provideName", default?: "<value expr>" }` — only those
+//     two keys, both string-valued.
+// A malformed container emits LOOKUP_BAD_SHAPE; a well-shaped entry whose target
+// string isn't exactly `Producer.provideName` emits LOOKUP_TARGET_MALFORMED.
+const KNOWN_LOOKUP_KEYS = new Set(["for", "default"]);
+function checkLookupShapes(lx, Comp) {
+  for (const name in Comp._rawLookup) {
+    const raw = Comp._rawLookup[name];
+    let target;
+    if (typeof raw === "string") {
+      target = raw;
+    } else if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      lx.error(LOOKUP_BAD_SHAPE, {
+        name,
+        problem: 'must be a "Producer.provideName" string or a { for, default } object',
+      });
+      continue;
+    } else {
+      const extra = Object.keys(raw).filter((k) => !KNOWN_LOOKUP_KEYS.has(k));
+      if (extra.length > 0) {
+        lx.error(LOOKUP_BAD_SHAPE, { name, problem: `unknown key(s): ${extra.join(", ")}` });
+        continue;
+      }
+      if (typeof raw.for !== "string") {
+        lx.error(LOOKUP_BAD_SHAPE, { name, problem: "'for' is required and must be a string" });
+        continue;
+      }
+      if (raw.default !== undefined && typeof raw.default !== "string") {
+        lx.error(LOOKUP_BAD_SHAPE, { name, problem: "'default' must be a string" });
+        continue;
+      }
+      target = raw.for;
+    }
+    const parts = target.split(".");
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      lx.error(LOOKUP_TARGET_MALFORMED, { name, target });
+    }
+  }
+}
+
+// Only flags `lookup` entries: a `provide` is a producer pushed down the render
+// stack and consumed by *child* components, so it legitimately need not appear in
+// this component's own views.
 function checkUnreferencedDynamics(lx, Comp, referencedDynamics) {
-  for (const name in Comp.dynamic) {
-    const dyn = Comp.dynamic[name];
-    if (dyn.constructor.name === "DynamicAlias" && !referencedDynamics.has(name)) {
+  for (const name in Comp.lookup) {
+    if (!referencedDynamics.has(name)) {
       lx.hint(DYN_ALIAS_NOT_REFERENCED, { name });
     }
   }

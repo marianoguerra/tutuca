@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { Dynamic, DynamicAlias } from "../src/components.js";
-import { dynamicsToData, dynamicToData, valToString } from "../src/meta/datacomp.js";
+import { LookupInfo, ProvideInfo } from "../src/components.js";
+import { lookupToData, provideToData, valToString } from "../src/meta/datacomp.js";
 import {
   BindVal,
   DynVal,
@@ -21,19 +21,20 @@ describe("datacomp", () => {
     expect(valToString(new TypeVal("Foo"))).toBe("Foo");
     expect(valToString(new NameVal("foo"))).toBe("foo");
   });
-  test("dynamicToData", () => {
-    expect(dynamicToData(new Dynamic("foo", new FieldVal("foo"), Symbol("foo")))).toEqual(".foo");
-    expect(dynamicToData(new DynamicAlias("foo", new FieldVal("foo"), "Foo", "bar"))).toEqual({
-      for: "Foo.bar",
-      default: ".foo",
-    });
-  });
-  test("dynamicsToData", () => {
+  test("provideToData", () => {
     expect(
-      dynamicsToData({
-        foo: new Dynamic("foo", new FieldVal("foo"), Symbol("foo")),
-        bar: new DynamicAlias("bar", new FieldVal("argh"), "Bar", "baz"),
+      provideToData({
+        foo: new ProvideInfo("foo", new FieldVal("foo"), Symbol("foo")),
+        bar: new ProvideInfo("bar", new MethodVal("baz"), Symbol("bar")),
       }),
-    ).toEqual({ foo: ".foo", bar: { for: "Bar.baz", default: ".argh" } });
+    ).toEqual({ foo: ".foo", bar: "$baz" });
+  });
+  test("lookupToData", () => {
+    expect(
+      lookupToData({
+        withDefault: new LookupInfo("withDefault", "Foo", "bar", new FieldVal("foo")),
+        noDefault: new LookupInfo("noDefault", "Bar", "baz", null),
+      }),
+    ).toEqual({ withDefault: { for: "Foo.bar", default: ".foo" }, noDefault: "Bar.baz" });
   });
 });

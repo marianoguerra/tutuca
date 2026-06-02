@@ -106,7 +106,7 @@ bubble handler can reply to the originator via `ctx.sendAtPath(ctx.targetPath, �
 ## Dynamic-var teleporting
 
 A component rendered through `<x render="*sel">` *physically lives* at the
-producer that declared `dynamic: { sel: … }`, not under the consumer that
+producer that declared `provide: { sel: … }`, not under the consumer that
 wrote the render. The reconstructed dispatch path keeps every intermediate
 component (so bubbling visits them), but `toTransactionPath()` teleports
 the `DynStep`: it pops the steps tagged with the marker's `interiorCids`
@@ -115,7 +115,7 @@ mutation therefore lands on the producer's data, and the consumer's view
 of it updates in lock-step. Authoring view: *Teleporting* in
 [advanced.md](./advanced.md).
 
-When the producer's `dynamic` value is a seq-access (`.sheets[.selId]`),
+When the producer's `provide` value is a seq-access (`.sheets[.selId]`),
 the teleported steps include a `SeqAccessStep` — which is where async key
 races come from.
 

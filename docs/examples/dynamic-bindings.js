@@ -12,7 +12,7 @@ const SelectorEntry = component({
 const Selector = component({
   name: "Selector",
   fields: { items: [], selectedValue: null },
-  dynamic: {
+  lookup: {
     entries: { for: "EntryEditorAndSelector.entries", default: ".items" },
   },
   alter: {
@@ -37,12 +37,7 @@ const EntryEditorAndSelector = component({
     items: [],
     selector: null,
   },
-  dynamic: { entries: ".items" },
-  on: {
-    stackEnter() {
-      return ["entries"];
-    },
-  },
+  provide: { entries: ".items" },
   input: {
     onAddItem(SelectorEntry) {
       const num = this.items.size + 1;

@@ -43,6 +43,10 @@ const G_BOOL = K_FIELD | K_METHOD | K_BIND | K_DYN | K_CONST;
 const G_TEXT = G_BOOL | K_STRTPL;
 const G_COMPONENT = K_FIELD | K_SEQ | K_DYN;
 const G_SEQUENCE = K_FIELD | K_DYN;
+// A `provide:` value must be addressable: it is both read as `*name` and used
+// as a render-target / teleport path, so only path-bearing kinds are allowed
+// (a method/const/string has no `toPathItem()` and could never teleport).
+const G_PROVIDE = K_FIELD | K_SEQ;
 const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_STR | K_SEQ;
 const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
 const G_PRED_ARG = G_BOOL | K_STR; // boolean-predicate arguments
@@ -182,11 +186,15 @@ export class ValParser {
   parseSequence(s, px) {
     return this._parseSingle(s, px, G_SEQUENCE);
   }
-  // A `dynamic:` field definition (and the `default` of a `dynamic` alias):
+  // A `provide:` field definition (and the `default` of a `lookup`):
   // a field reference, a `.seq[.key]` seq-access, a method reference, or a
   // constant value.
   parseField(s, px) {
     return this._parseSingle(s, px, G_FIELD);
+  }
+  // A `provide:` value — a field or `.seq[.key]` seq-access only (see G_PROVIDE).
+  parseProvide(s, px) {
+    return this._parseSingle(s, px, G_PROVIDE);
   }
   // A single argument passed to an event handler.
   parseHandlerArg(s, px) {

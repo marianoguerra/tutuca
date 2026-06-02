@@ -49,44 +49,57 @@ export class Stack {
     this.viewsId = viewsId;
     this.ctx = ctx;
   }
-  _enrichOnEnter() {
-    return this.withDynamicBinds(this.comps.getOnEnterFor(this.it).call(this.it));
+  // Evaluate every provide the entered component publishes and push them as one
+  // dynBinds frame (keyed by each provide's symbol). No-op when there are no provides.
+  _pushProvides() {
+    const provide = this.comps.getCompFor(this.it)?.provide;
+    if (provide == null) return this;
+    const dynObj = {};
+    let has = false;
+    for (const k in provide) {
+      dynObj[provide[k].symbol] = provide[k].val.eval(this);
+      has = true;
+    }
+    if (!has) return this;
+    const newDynBinds = [new ObjectFrame(dynObj), this.dynBinds];
+    const { comps, it, binds, views, viewsId, ctx } = this;
+    return new Stack(comps, it, binds, newDynBinds, views, viewsId, ctx);
   }
   static root(comps, it, ctx) {
     const binds = [new BindFrame(it, { it }, true), null];
     const dynBinds = [new ObjectFrame({}), null];
     const views = ["main", null];
-    return new Stack(comps, it, binds, dynBinds, views, "", ctx)._enrichOnEnter();
+    return new Stack(comps, it, binds, dynBinds, views, "", ctx)._pushProvides();
   }
   enter(it, bindings = {}, isFrame = true) {
     const { comps, binds, dynBinds, views, viewsId, ctx } = this;
     const newBinds = [new BindFrame(it, bindings, isFrame), binds];
     const stack = new Stack(comps, it, newBinds, dynBinds, views, viewsId, ctx);
-    return isFrame ? stack._enrichOnEnter() : stack;
+    return isFrame ? stack._pushProvides() : stack;
   }
   pushViewName(name) {
     const { comps, it, binds, dynBinds, views, ctx } = this;
     const newViews = [name, views];
     return new Stack(comps, it, binds, dynBinds, newViews, computeViewsId(newViews), ctx);
   }
-  withDynamicBinds(dynamics) {
-    if (dynamics == null || dynamics.length === 0) return this;
-    const dynObj = {};
-    const comp = this.comps.getCompFor(this.it);
-    for (const dynName of dynamics) comp.dynamic[dynName].evalAndBind(this, dynObj);
-    const newDynBinds = [new ObjectFrame(dynObj), this.dynBinds];
-    const { comps, it, binds, views, viewsId, ctx } = this;
-    return new Stack(comps, it, binds, newDynBinds, views, viewsId, ctx);
+  _pushDynBindValuesToArray(arr, comp) {
+    for (const k in comp.provide) arr.push(this._lookupProvide(comp.provide[k]));
+    for (const k in comp.lookup) arr.push(this._lookupAlias(comp.lookup[k]));
   }
-  _pushDynBindValuesToArray(arr, dyns) {
-    for (const k in dyns) arr.push(this._lookupDynamicWithDynVal(dyns[k]));
+  _lookupProvide(p) {
+    return lookup(this.dynBinds, p.symbol) ?? p.val.eval(this) ?? null;
   }
-  _lookupDynamicWithDynVal(d) {
-    return lookup(this.dynBinds, d.getSymbol(this)) ?? d.val?.eval(this) ?? null;
+  _lookupAlias(lk) {
+    const sym = lk.getProducerSymbol(this);
+    return (sym != null ? lookup(this.dynBinds, sym) : null) ?? lk.val?.eval(this) ?? null;
   }
   lookupDynamic(name) {
-    const d = this.comps.getCompFor(this.it)?.dynamic[name];
-    return d ? this._lookupDynamicWithDynVal(d) : null;
+    const comp = this.comps.getCompFor(this.it);
+    if (comp == null) return null;
+    const lk = comp.lookup[name];
+    if (lk !== undefined) return this._lookupAlias(lk);
+    const p = comp.provide[name];
+    return p !== undefined ? this._lookupProvide(p) : null;
   }
   lookupBind(name) {
     return lookup(this.binds, name);

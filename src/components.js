@@ -17,9 +17,6 @@ export class Components {
   getCompFor(v) {
     return v?.[this.getComponentSymbol]?.() ?? null;
   }
-  getOnEnterFor(v) {
-    return this.getCompFor(v)?.on.stackEnter ?? defaultOnStackEnter;
-  }
   getHandlerFor(v, name, key) {
     return this.getCompFor(v)?.[key][name] ?? null;
   }
@@ -84,36 +81,34 @@ export class ComponentStack {
     return this.macros[name] ?? this.parent?.lookupMacro(name) ?? null;
   }
 }
-export class Dynamic {
+// What a component publishes: an expression evaluated and pushed onto the dynBinds
+// stack (keyed by `symbol`) when the component is entered.
+export class ProvideInfo {
   constructor(name, val, symbol) {
     this.name = name;
     this.val = val;
     this.symbol = symbol;
   }
-  getSymbol(_stack) {
-    return this.symbol;
-  }
-  evalAndBind(stack, binds) {
-    binds[this.getSymbol(stack)] = this.val.eval(stack);
-  }
 }
-export class DynamicAlias extends Dynamic {
-  constructor(name, val, compName, dynName) {
-    super(name, val, null);
+// What a component reads "context-style": resolves through the *producer's* provide
+// symbol on the dynBinds stack, falling back to `val` (the default expression, or null).
+export class LookupInfo {
+  constructor(name, compName, provideName, val) {
+    this.name = name;
     this.compName = compName;
-    this.dynName = dynName;
+    this.provideName = provideName;
+    this.val = val; // default expression or null
+    this._sym = undefined; // memoized producer provide symbol
   }
-  _resolveSymbol(stack) {
-    return stack.lookupType(this.compName)?.dynamic[this.dynName]?.symbol ?? null;
-  }
-  getSymbol(stack) {
-    this.symbol ??= this._resolveSymbol(stack); // invalidated on scope change
-    return this.symbol;
+  getProducerSymbol(stack) {
+    if (this._sym === undefined)
+      this._sym = stack.lookupType(this.compName)?.provide?.[this.provideName]?.symbol ?? null;
+    return this._sym; // invalidated on scope change
   }
 }
 const isString = (v) => typeof v === "string";
 const _rawSpecKeys =
-  "name view style commonStyle globalStyle input receive bubble response alter on views dynamic fields methods statics";
+  "name view style commonStyle globalStyle input receive bubble response alter views provide lookup fields methods statics";
 const KNOWN_SPEC_KEYS = new Set(_rawSpecKeys.split(" "));
 let _compId = 0;
 export class Component {
@@ -129,14 +124,15 @@ export class Component {
     this.bubble = o.bubble ?? {};
     this.response = o.response ?? {};
     this.alter = o.alter ?? {};
-    this.on = { stackEnter: o.on?.stackEnter ?? defaultOnStackEnter };
     for (const name in o.views ?? {}) {
       const v = o.views[name];
       const { view, style } = isString(v) ? { view: v } : v;
       this.views[name] = new View(name, view, style);
     }
-    this._rawDynamic = o.dynamic ?? {};
-    this.dynamic = {};
+    this._rawProvide = o.provide ?? {};
+    this._rawLookup = o.lookup ?? {};
+    this.provide = {};
+    this.lookup = {};
     this.scope = null;
     this.extra = {};
     for (const key of Object.keys(o)) if (!KNOWN_SPEC_KEYS.has(key)) this.extra[key] = o[key];
@@ -144,18 +140,26 @@ export class Component {
   compile(ParseContext) {
     for (const name in this.views)
       this.views[name].compile(new ParseContext(), this.scope, this.id);
-    for (const key in this._rawDynamic) {
-      const dinfo = this._rawDynamic[key];
-      if (isString(dinfo)) {
-        const val = vp.parseField(dinfo, this.views.main.ctx);
-        this.dynamic[key] = new Dynamic(key, val, Symbol(key));
-      } else if (isString(dinfo?.default) && isString(dinfo?.for)) {
-        const val = vp.parseField(dinfo.default, this.views.main.ctx);
-        const [compName, dynName] = dinfo.for.split(".");
-        if (isString(compName) && isString(dynName))
-          this.dynamic[key] = new DynamicAlias(key, val, compName, dynName);
-      }
+    const ctx = this.views.main.ctx;
+    // Invalid provide/lookup specs are dropped silently here; the linter reports
+    // them at authoring time (PROVIDE_NOT_ADDRESSABLE, LOOKUP_BAD_SHAPE,
+    // LOOKUP_TARGET_MALFORMED) so the runtime needn't duplicate the warning.
+    for (const key in this._rawProvide) {
+      const val = vp.parseProvide(this._rawProvide[key], ctx);
+      if (val) this.provide[key] = new ProvideInfo(key, val, Symbol(key));
     }
+    for (const key in this._rawLookup) {
+      const linfo = this._rawLookup[key];
+      const forStr = isString(linfo) ? linfo : isString(linfo?.for) ? linfo.for : null;
+      const [compName, provideName] = forStr === null ? [] : forStr.split(".");
+      if (!isString(compName) || !isString(provideName)) continue;
+      const defStr = isString(linfo?.default) ? linfo.default : null;
+      const val = defStr === null ? null : vp.parseField(defStr, ctx);
+      this.lookup[key] = new LookupInfo(key, compName, provideName, val);
+    }
+    for (const key in this.lookup)
+      if (this.provide[key] !== undefined)
+        console.warn("name declared in both provide and lookup", this.name, key);
   }
   make(args, opts) {
     return this.Class.make(args, opts ?? { scope: this.scope });
@@ -179,7 +183,4 @@ export class Component {
     }
     return styles.join("\n");
   }
-}
-function defaultOnStackEnter() {
-  return null; // need function and not arrow fn to parse it to data
 }

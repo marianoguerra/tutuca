@@ -43,30 +43,31 @@ Touch is wired up too (drag fires after a small move threshold).
 ## Dynamic Bindings
 
 For passing values "context-style" through nested components without prop
-drilling. Define on the producer; alias on consumers; resolve as `*name`.
+drilling. **`provide`** on the producer; **`lookup`** on consumers;
+resolve as `*name`.
 
 ```js
 const Theme = component({
   name: "Theme",
   fields: { color: "blue" },
-  dynamic: { color: ".color" },
-  on: {
-    stackEnter() {
-      return ["color"];
-    },
-  },
+  provide: { color: ".color" },
 });
 const Child = component({
-  dynamic: { color: { for: "Theme.color", default: "'gray'" } },
+  lookup: { color: { for: "Theme.color", default: "'gray'" } },
   view: html`<p :style="$'color: {*color}'"></p>`,
 });
 ```
 
-`on.stackEnter()` is required only on the **producer** (the component
-declaring `dynamic: { name: ".field" }` to expose a value). It returns
-the list of dynamic-binding names this component pushes onto the stack
-when entering its render. Consumers (which only alias via
-`{ for: "Producer.name", default: ... }`) don't need it.
+A **`provide`** maps an exported name to a field expression. Every
+provide is evaluated and pushed onto the dynamic stack automatically
+when the producer is entered during render — there is no hook to opt in.
+
+A **`lookup`** reads a value the `*name` way: the key is the name used
+in views (`*color`), the value is `"Producer.provideName"`, or
+`{ for: "Producer.provideName", default: ".field" }` to supply a
+fallback when no producer is in scope (default is optional — without it
+a miss resolves to `null`). A `*name` that names the component's own
+`provide` resolves to the nearest provided value (including its own).
 
 ### Dynamic vars as render targets
 
@@ -80,23 +81,26 @@ component-render target and an iteration source:
 <div @each="*items"><x render-it></x></div>  <!-- iterate a dynamic seq -->
 ```
 
-The producer's `dynamic` value is an **expression**, not only a bare
-field — it can be a sequence/map item access:
+A `provide` value must be **addressable** — a `.field` or a `.seq[.key]`
+seq-access, nothing else. (It is both read as `*name` *and* used as a
+render-target / teleport path, so a method or constant — which has no
+path — is a lint error.) A `lookup` `default`, by contrast, is only a
+value fallback and accepts the full grammar, including constants like
+`'gray'`. A `provide` can be a sequence/map item access:
 
 ```js
 const Root = component({
   name: "Root",
   fields: { items: IMap(), selectedKey: "" },
-  dynamic: {
+  provide: {
     items: ".items",                  // the whole sequence
     selected: ".items[.selectedKey]", // seq-access to one entry
   },
-  on: { stackEnter() { return ["items", "selected"]; } },
 });
 ```
 
 There is **no `*name[.key]` form** — a consumer never indexes a dynamic
-var. The seq-access lives in the producer's `dynamic` declaration; the
+var. The seq-access lives in the producer's `provide` declaration; the
 consumer just reads the resolved value as `*name`.
 
 **Teleporting.** The component rendered via `<x render="*selected">`

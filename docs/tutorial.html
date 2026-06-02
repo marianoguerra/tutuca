@@ -1053,19 +1053,20 @@
         </p>
         <p>
           A producer declares
-          <code>dynamic: { entries: ".items" }</code> &mdash; the field (or
-          expression) it wants to expose &mdash; and lists the names it
-          publishes via
-          <code>on: { stackEnter() { return ["entries"]; } }</code>. A consumer
+          <code>provide: { entries: ".items" }</code> &mdash; the field (or
+          seq-access) it wants to expose. Every <code>provide</code> is
+          evaluated and pushed onto the stack automatically when the producer
+          is entered during render; there is no hook to opt in. A consumer
           declares
           <code
-            >dynamic: { entries: { for: "EntryEditorAndSelector.entries",
+            >lookup: { entries: { for: "EntryEditorAndSelector.entries",
             default: ".items" } }</code
           >
-          to alias the producer's name into its own scope, then reads it as
+          to bind the producer's name into its own scope, then reads it as
           <code>*entries</code> in the template (e.g.
           <code>@each="*entries"</code>). When no producer is in the render
-          stack, the <code>default</code> expression is used.
+          stack, the <code>default</code> expression is used (omit it to get
+          <code>null</code>).
         </p>
         <tutuca-playground
           src="./examples/dynamic-bindings.js"
@@ -1084,12 +1085,15 @@
           dynamic resolves to a sequence.
         </p>
         <p>
-          The producer side is an <em>expression</em>, not only a bare field
-          &mdash; it can be a sequence/map item access, so a producer can
-          expose a single selected entry with
-          <code>dynamic: { selected: ".items[.selectedKey]" }</code>. There is
+          A <code>provide</code> value must be <em>addressable</em> &mdash; a
+          field or a <code>.seq[.key]</code> seq-access (it doubles as the
+          render-target / teleport path, so a method or constant is a lint
+          error). It can therefore expose a single selected entry with
+          <code>provide: { selected: ".items[.selectedKey]" }</code>. There is
           no <code>*name[.key]</code> form: the consumer never indexes a
           dynamic var, it just reads the resolved value as <code>*name</code>.
+          (A <code>lookup</code> <code>default</code>, by contrast, is only a
+          value fallback and may be any expression, including a constant.)
         </p>
         <p>
           In the example below, <code>Workspace</code> exposes its

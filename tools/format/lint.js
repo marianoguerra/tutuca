@@ -124,7 +124,13 @@ export function lintIdToMessage(id, info) {
     case "DYN_VAL_NOT_DEFINED":
       return `Dynamic variable '*${info.name}' is not defined${fmtOriginSuffix(info)}`;
     case "DYN_ALIAS_NOT_REFERENCED":
-      return `Dynamic '${info.name}' is defined but never used — remove it or reference it as '*${info.name}' in a view`;
+      return `Lookup '${info.name}' is defined but never used — remove it or reference it as '*${info.name}' in a view`;
+    case "PROVIDE_NOT_ADDRESSABLE":
+      return `Provide '${info.name}' value '${info.value}' must be a field ('.f') or seq-access ('.s[.k]') — a method/constant can't be a render target`;
+    case "LOOKUP_BAD_SHAPE":
+      return `Lookup '${info.name}' has an invalid shape: ${info.problem}`;
+    case "LOOKUP_TARGET_MALFORMED":
+      return `Lookup '${info.name}' target '${info.target}' must be 'Producer.provideName' (a string, or the 'for' of { for, default })`;
     case "UNKNOWN_MACRO_ARG":
       return `Argument '${info.name}' is not declared in macro '${info.macroName}'`;
     case "UNKNOWN_DIRECTIVE":
