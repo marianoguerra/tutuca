@@ -103,8 +103,7 @@ export class ValParser {
     // Sequence access `.seq[.key]` — checked before the prefix switch since
     // the token starts with the `.` of its left-hand `FieldVal`.
     if (s.indexOf("[") !== -1 || s.indexOf("]") !== -1) return this._parseSeqAccess(s, px);
-    // A bare `{…}` is a legacy unquoted template — no longer supported; it now
-    // fails to parse (use `$'…'`). The linter turns this into a hint.
+    // A bare `{…}` is not a template; use `$'…'`. It fails to parse here.
     if (s.indexOf("{") !== -1 || s.indexOf("}") !== -1) return null;
     switch (c0) {
       case 94: {

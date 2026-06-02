@@ -40,7 +40,7 @@ const Editor = component({
   view: html`<div class="card bg-base-200 p-3 gap-3">
     <span class="text-xs opacity-60">Editor (child component)</span>
     <div class="flex flex-col gap-1">
-      <span class="text-xs opacity-60">All entries — rendered from the *items dynamic:</span>
+      <span class="text-xs opacity-60">All entries — rendered from the *items lookup:</span>
       <div @each="*items" class="flex gap-3 flex-wrap"><x render-it></x></div>
     </div>
     <div class="flex flex-col gap-1">

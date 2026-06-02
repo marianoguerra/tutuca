@@ -121,7 +121,7 @@ describe("string template syntax", () => {
       expect(r).toBeNull();
     });
 
-    test("legacy unquoted {…} template returns null", () => {
+    test("unquoted {…} is not a template, returns null", () => {
       expect(vp.parseText("flex {.foo}", px)).toBeNull();
       expect(vp.parseText("{.foo}", px)).toBeNull();
     });

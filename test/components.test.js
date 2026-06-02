@@ -40,8 +40,8 @@ describe("Components", () => {
     });
     Comp.compile(ParseContext);
     const stack = setupStack(Comp);
-    // no `on.stackEnter`: entering the producer pushes its provides automatically,
-    // and the nearest frame wins.
+    // entering the producer pushes its provides automatically, and the
+    // nearest frame wins.
     expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
     expect(stack.enter(Comp.make({ message: "hey!" })).lookupDynamic("getMessage")).toBe("hey!");
   });

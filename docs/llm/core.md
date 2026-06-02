@@ -501,6 +501,14 @@ consequences:
 - Macro registry keys are lowercased on insert for the same reason
   (see *Macros* below).
 
+Tutuca auto-namespaces by subtree: elements inside `<svg>` get the SVG
+namespace and elements inside `<math>` get MathML, with spec-cased local
+names preserved (`linearGradient`, `viewBox`). A `<foreignObject>` switches
+its children back to the HTML namespace. Customised built-in elements work
+via `is="..."` (e.g. `<button is="x-fancy">`); `is` is applied when the
+element is created, so it must be a static attribute — setting it later
+does not upgrade the element.
+
 ## Event Handling
 
 ```html

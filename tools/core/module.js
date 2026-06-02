@@ -49,9 +49,6 @@ function parseExample(raw, index, components, parentPath) {
   if (!raw || typeof raw !== "object") {
     throw shapeError(`example at ${where} is not an object`, where);
   }
-  if (raw.value === undefined && raw.item !== undefined) {
-    throw shapeError(`example at ${where} uses legacy "item" key; rename to "value"`, where);
-  }
   if (raw.value === undefined) {
     throw shapeError(`example at ${where} missing "value"`, where);
   }

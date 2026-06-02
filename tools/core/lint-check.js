@@ -159,7 +159,6 @@ function classifyBadValue(value) {
   if (typeof value !== "string") return null;
   const s = value.trim();
   if (s === "") return null;
-  if (/\{[^}]*\}/.test(s) && !s.startsWith("$'")) return "legacy-template";
   if (/\s\?\s.+\s:\s/.test(s)) return "ternary";
   if (/===|!==|==|!=|<=|>=|\s<\s|\s>\s/.test(s)) return "comparison";
   if (/&&|\|\|/.test(s)) return "logical";
@@ -168,8 +167,6 @@ function classifyBadValue(value) {
 }
 
 const UNSUPPORTED_EXPR_GUIDANCE = {
-  "legacy-template":
-    "Unquoted {...} string templates are no longer supported. Wrap the value in $'...', e.g. $'flex {.color}'.",
   ternary:
     "Ternary expressions aren't supported in dynamic attributes. Define a method or computed field on the component that returns the value, then reference it as '$methodName'.",
   comparison:
