@@ -19,7 +19,9 @@ the `tutuca` CLI.
 > [testing.md](./testing.md). Runtime semantics — path steps, the
 > transaction lifecycle, dyn-var teleporting, and async key pinning
 > (`livePath`): see [semantics.md](./semantics.md). Read those only when
-> the task touches them.
+> the task touches them. Task-oriented "how do I do X" recipes (iteration,
+> filtering, slicing, conditional content, conditional attributes, dynamic
+> vars, composition, events, …): see [patterns/README.md](./patterns/README.md).
 
 ## Verifying changes
 
@@ -987,3 +989,6 @@ export function getTests({ describe, test, expect }) { /*...*/ }      // optiona
   convention for tests.
 - [cli.md](./cli.md) — commands, flags, exit codes, and the full linter rule
   list.
+- [patterns/README.md](./patterns/README.md) — task-oriented recipes ("how do I
+  iterate / filter / paginate / show-hide / build tabs / share state / …"),
+  each linking back here and to a runnable example.
