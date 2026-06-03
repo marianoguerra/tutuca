@@ -21,6 +21,3 @@ alter: {
 return `false` to skip. It filters *after* any `@loop-with` slice, so a page
 can yield fewer than its window. Filtering reads other fields off `this`
 directly (`this.query`) — there are no paths in the template.
-
-**Reference:** [core.md#list-iteration](../core.md#list-iteration) ·
-**Runnable:** [examples/list-and-filter.js](../../examples/list-and-filter.js)

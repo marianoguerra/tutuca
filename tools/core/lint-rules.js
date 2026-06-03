@@ -2,7 +2,7 @@
 //
 // Single source of truth for documentation: `tutuca help lint` prints it
 // for humans, `tutuca agent-context` emits it as JSON (`lintCodes`), and
-// `docs/llm/cli.md` points at both instead of duplicating the list.
+// `docs/skill/cli.md` points at both instead of duplicating the list.
 //
 // Codes are imported from lint-check.js (where they are emitted), so the
 // string values never drift. `level` mirrors the `lx.error|warn|hint`

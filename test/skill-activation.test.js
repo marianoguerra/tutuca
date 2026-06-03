@@ -4,12 +4,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "bun:test";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const buildScript = resolve(here, "..", "scripts", "build-skill.js");
+const skillManifest = resolve(here, "..", "docs", "skill", "SKILL.md");
 
 function tutucaSkillDescription() {
-  const src = readFileSync(buildScript, "utf8");
+  const src = readFileSync(skillManifest, "utf8");
   const desc = src.match(/^description:\s*([\s\S]*?)\n---/m);
-  if (!desc) throw new Error("description field not found in build-skill.js");
+  if (!desc) throw new Error("description field not found in docs/skill/SKILL.md");
   return desc[1].toLowerCase();
 }
 

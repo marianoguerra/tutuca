@@ -25,7 +25,3 @@ from the end). Slicing is positional but **preserves each item's original
 key** — `@key` is the index in the full list, so events and two-way binding
 keep their identity across pages. `iterData` is the shared per-loop value
 handed to `@when` / `@enrich-with`.
-
-**Reference:** [core.md#loop-with-return-shape--iterdata--slicing](../core.md#list-iteration) ·
-**Runnable:** [examples/pagination.js](../../examples/pagination.js),
-[examples/list-filter-enrich-with.js](../../examples/list-filter-enrich-with.js)

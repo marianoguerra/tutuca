@@ -1,10 +1,9 @@
 # Tutuca Patterns
 
-Task-oriented recipes: "how do I do X" with a minimal working snippet, the
-one pitfall worth knowing, and links to the canonical reference in
-[core.md](../core.md) (or a spoke) plus a runnable example under
-[`docs/examples/`](../../examples/). For the directive *semantics* behind any
-recipe, follow its **Reference** link — these files don't re-explain them.
+Task-oriented recipes: "how do I do X" with a minimal working snippet and the
+one pitfall worth knowing. Each recipe is self-contained and brief; for the
+full directive *semantics* behind a pattern, see [core.md](../core.md) and its
+spokes.
 
 New to Tutuca? Read [core.md](../core.md) first, then reach here for a specific
 task.

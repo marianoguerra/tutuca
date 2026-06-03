@@ -31,10 +31,5 @@ read as `^name`; calls inside the body (`$method`, `.field`) resolve against
 the *host* component. `<x:slot>` (or `<x:slot name="…">` for named slots)
 receives the caller's children. Register with `scope.registerMacros(...)`;
 registry keys are lowercased (`<x:Card>` → `card`). For repeated markup that
-*does* need state, use a child component instead
-([render-a-child-component.md](render-a-child-component.md)).
-
-**Reference:** [core.md#macros](../core.md#macros) ·
-**Runnable:** [examples/macro-static.js](../../examples/macro-static.js),
-[examples/macro-params.js](../../examples/macro-params.js),
-[examples/macro-slots.js](../../examples/macro-slots.js)
+*does* need state, use a child component instead (see the render-a-child-component
+recipe).

@@ -23,8 +23,4 @@ component({
 the view is absent. `@push-view` pushes a view name onto the render stack so
 every descendant picks the first matching view (else `main`) — use it to flip a
 whole subtree (e.g. a list) into edit mode at once. To toggle *sibling panels*
-by a field instead, see [tabbed-interface.md](tabbed-interface.md).
-
-**Reference:** [core.md#multiple-views--view-stack](../core.md#multiple-views--view-stack) ·
-**Runnable:** [examples/multiple-views.js](../../examples/multiple-views.js),
-[examples/push-view.js](../../examples/push-view.js)
+by a field instead, see the tabbed-interface recipe.

@@ -584,7 +584,7 @@ describe.each(TOKENIZERS)("htmllinter (%s tokenizer)", (_label, TokenizerClass) 
 //
 // 1. Auto-harvested `html\`…\`` templates from docs/examples/*.js (excluding
 //    lint-errors.js, which intentionally triggers findings).
-// 2. Hand-curated snippets from docs/llm/{core,advanced}.md covering
+// 2. Hand-curated snippets from docs/skill/{core,advanced}.md covering
 //    patterns not present in the example files (dynamic bindings,
 //    emoji-picker custom event, etc.).
 const HTML_LINT_OPTS = {
@@ -637,107 +637,107 @@ function harvestExampleTemplates() {
   return fixtures;
 }
 
-// Hand-curated snippets from docs/llm/. Each entry pins a specific Tutuca
+// Hand-curated snippets from docs/skill/. Each entry pins a specific Tutuca
 // feature so a regression points back to the exact pattern that broke.
 const LLM_DOC_FIXTURES = [
   // core.txt — dynamic bindings (consumer reads `*name` value)
   {
-    label: "llm/core.md: dynamic bindings consumer",
+    label: "skill/core.md: dynamic bindings consumer",
     html: `<p :style="$'color: {*color}'"></p>`,
   },
   // core.txt — emoji-picker custom element with hyphenated CustomEvent
   {
-    label: "llm/core.md: web component custom event",
+    label: "skill/core.md: web component custom event",
     html: `<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
   },
   // core.txt — single-quoted string literals in @then/@else
   {
-    label: "llm/core.md: @if/@then/@else string literal branches",
+    label: "skill/core.md: @if/@then/@else string literal branches",
     html: `<button @if.class=".isActive" @then="'btn btn-success'" @else="'btn btn-ghost'"></button>`,
   },
   // core.txt — multiple @if on one element with explicit attr names
   {
-    label: "llm/core.md: multiple @if directives on one element",
+    label: "skill/core.md: multiple @if directives on one element",
     html: `<button @if.class=".a" @then="'on'" @else="'off'" @if.title=".a" @then.title="'On'" @else.title="'Off'"></button>`,
   },
   // core.txt — :class with interpolation
   {
-    label: "llm/core.md: :class string template",
+    label: "skill/core.md: :class string template",
     html: `<button class="btn" :class="$'btn {.color}'">x</button>`,
   },
   // core.txt — bracket sequence/map item access
   {
-    label: "llm/core.md: <x render=...> with bracket key access",
+    label: "skill/core.md: <x render=...> with bracket key access",
     html: `<x render=".byKey[.currentKey]"></x>`,
   },
   // core.txt — render-each with as=
   {
-    label: "llm/core.md: <x render-each as=...>",
+    label: "skill/core.md: <x render-each as=...>",
     html: `<x render-each=".items" as="edit"></x>`,
   },
   // core.txt — @push-view
   {
-    label: "llm/core.md: @push-view",
+    label: "skill/core.md: @push-view",
     html: `<div @push-view=".view"><x render-each=".items"></x></div>`,
   },
   // core.txt — @loop-with on an element loop
   {
-    label: "llm/core.md: @each with @loop-with + @when",
+    label: "skill/core.md: @each with @loop-with + @when",
     html: `<li @each=".items" @loop-with="getIterData" @when="filterItem"></li>`,
   },
   // core.txt — scope enrichment without @each
   {
-    label: "llm/core.md: scope enrichment",
+    label: "skill/core.md: scope enrichment",
     html: `<div @enrich-with="enrichScope">Length: <x text="@len"></x></div>`,
   },
   // core.txt — @dangerouslysetinnerhtml escape hatch
   {
-    label: "llm/core.md: @dangerouslysetinnerhtml",
+    label: "skill/core.md: @dangerouslysetinnerhtml",
     html: `<div @dangerouslysetinnerhtml=".trustedHtml"></div>`,
   },
   // core.txt — show/hide as wrapper attrs on <x>
   {
-    label: "llm/core.md: show/hide on <x render-it> wrappers",
+    label: "skill/core.md: show/hide on <x render-it> wrappers",
     html: `<x render-it show=".isOpen"></x>`,
   },
   // core.txt — <x text=...> inside @each loop
   {
-    label: "llm/core.md: <x text='@value'> inside loop",
+    label: "skill/core.md: <x text='@value'> inside loop",
     html: `<li @each=".items"><span @text="@key"></span>: <x text="@value"></x></li>`,
   },
   // core.txt — macro invocation with default + dynamic + field-ref params
   {
-    label: "llm/core.md: <x:badge> with defaults / static / dynamic",
+    label: "skill/core.md: <x:badge> with defaults / static / dynamic",
     html: `<x:badge></x:badge><x:badge label="Sale"></x:badge><x:badge :label=".status"></x:badge>`,
   },
   // core.txt — macro slots
   {
-    label: "llm/core.md: <x:card> with default slot",
+    label: "skill/core.md: <x:card> with default slot",
     html: `<x:card title="Hi"><p>body</p></x:card>`,
   },
   // core.txt — macro named slots usage
   {
-    label: "llm/core.md: <x:panel> with named slots",
+    label: "skill/core.md: <x:panel> with named slots",
     html: `<x:panel><x slot="actions"><button @on.click="$inc">+</button></x><p>default slot content</p><x slot="footer">© 2026</x></x:panel>`,
   },
   // core.txt — handler with type as arg (ctx is auto-appended, not passed in template)
   {
-    label: "llm/core.md: handler with Type arg",
+    label: "skill/core.md: handler with Type arg",
     html: `<button @on.click="$addItem JsonSelector">+</button>`,
   },
   // core.txt — keydown modifiers (+send / +cancel)
   {
-    label: "llm/core.md: @on.keydown+send / +cancel modifiers",
+    label: "skill/core.md: @on.keydown+send / +cancel modifiers",
     html: `<input @on.keydown+send="$submit value" @on.keydown+cancel="$reset" />`,
   },
   // advanced.txt — pseudo-x inside a <select>
   {
-    label: "llm/advanced.md: pseudo-x inside <select>",
+    label: "skill/advanced.md: pseudo-x inside <select>",
     html: `<select><option @x render-each=".items" as="option"></option></select>`,
   },
   // advanced.txt — drag-and-drop attrs on a loop element
   {
-    label: "llm/advanced.md: draggable + data-* attrs",
+    label: "skill/advanced.md: draggable + data-* attrs",
     html: `<div @each=".items" draggable="true" data-dragtype="my-item" data-droptarget="my-item" @on.drop="onDrop @key dragInfo event"></div>`,
   },
 ];

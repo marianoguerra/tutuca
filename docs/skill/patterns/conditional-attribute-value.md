@@ -27,6 +27,3 @@ unnamed second `@then` is dropped silently.
   @if.title=".isActive" @then.title="'On'" @else.title="'Off'"
 ></button>
 ```
-
-**Reference:** [core.md#conditional-display](../core.md#conditional-display) ·
-**Runnable:** [examples/conditional-attributes.js](../../examples/conditional-attributes.js)

@@ -24,11 +24,3 @@ selections); **send/receive** to address one known component
 `scope.registerRequestHandlers({...})`, and `response` gets `(res, err)`. `ctx`
 is always the trailing arg. `receive.init` is a convention, not a lifecycle
 hook — dispatch it with `app.sendAtRoot("init")`.
-
-**Reference:** [request-response.md](../request-response.md)
-([bubble](../request-response.md#bubble-events),
-[send/receive](../request-response.md#send--receive),
-[request/response](../request-response.md#async-requests)) ·
-**Runnable:** [examples/tree.js](../../examples/tree.js) (bubble),
-[examples/send-receive.js](../../examples/send-receive.js),
-[examples/request-example.js](../../examples/request-example.js)

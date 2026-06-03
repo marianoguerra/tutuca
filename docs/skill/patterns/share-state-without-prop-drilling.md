@@ -27,7 +27,4 @@ const Consumer = component({
 `*name` to the nearest matching producer, falling back to `default` when none
 is in scope. `*name` works wherever a `.field` does for iteration/rendering.
 This is the **read** side; to edit the producer's value through the dynamic,
-see [edit-through-a-dynamic-target.md](edit-through-a-dynamic-target.md).
-
-**Reference:** [advanced.md#dynamic-bindings](../advanced.md#dynamic-bindings) ·
-**Runnable:** [examples/dynamic-bindings.js](../../examples/dynamic-bindings.js)
+see the edit-through-a-dynamic-target recipe.

@@ -28,10 +28,3 @@ written as a `$'…'` template (`$'btn {.kind}'`); a bare unquoted string return
 `null`. Boolean HTML attributes (`disabled`, `checked`, …) are auto-recognized
 — pass a boolean field. Scope `@enrich-with` (no `@each` on the element) is the
 path-free way to expose derived values to a subtree.
-
-**Reference:** [core.md#text-rendering](../core.md#text-rendering),
-[core.md#attribute-binding](../core.md#attribute-binding),
-[core.md#quoting--string-literals](../core.md#quoting--string-literals) ·
-**Runnable:** [examples/text-directive.js](../../examples/text-directive.js),
-[examples/attribute-binding.js](../../examples/attribute-binding.js),
-[examples/render-with-scope.js](../../examples/render-with-scope.js)

@@ -20,9 +20,6 @@ alter: {
 `@enrich-with` receives a **mutable** `binds` object (seeded with `{ key,
 value }`); every key you set becomes an `@`-prefixed binding for that item's
 subtree. The return value is ignored. Combine freely with `@when` and
-`@loop-with` on the same element. (Without an `@each` on the same element,
-`@enrich-with` enriches the whole scope instead — see
-[bind-text-and-attributes.md](bind-text-and-attributes.md).)
-
-**Reference:** [core.md#list-iteration](../core.md#list-iteration) ·
-**Runnable:** [examples/list-filter-enrich.js](../../examples/list-filter-enrich.js)
+`@loop-with` on the same element. Without an `@each` on the same element,
+`@enrich-with` enriches the whole scope instead (see the bind-text-and-attributes
+recipe).

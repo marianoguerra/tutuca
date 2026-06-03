@@ -168,7 +168,7 @@ npx tutuca install-skill --dot-agents
 npx tutuca install-skill --force
 ```
 
-The skill content is generated from `docs/llm/`, so the same reference
+The skill content is generated from `docs/skill/`, so the same reference
 runs locally (`tutuca lint <module>` + `tutuca render <module> --title …`)
 and inside Claude.
 

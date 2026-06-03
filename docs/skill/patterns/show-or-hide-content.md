@@ -20,6 +20,3 @@ The closed set of predicates is `empty?`, `truthy?`, `falsy?`, `null?`,
 method instead (`@show="$canSubmit"`). `@show`/`@hide` toggle visibility on a
 host element; the wrapper form (`show=` / `hide=` on `<x>`) conditionally
 emits the node with no surrounding element.
-
-**Reference:** [core.md#conditional-display](../core.md#conditional-display) ·
-**Runnable:** [examples/show-hide.js](../../examples/show-hide.js)

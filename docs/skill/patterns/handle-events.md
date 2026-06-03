@@ -25,8 +25,3 @@ names — `value`, `valueAsInt`/`valueAsFloat`, `event`, `key`, `isAlt`,
 `event.target.value` (or `.checked` for a checkbox, or `event.detail` for a
 `CustomEvent`). Bind events declaratively with `@on.` rather than reaching for
 the node and `addEventListener` — an outside listener bypasses the transactor.
-
-**Reference:** [core.md#event-handling](../core.md#event-handling) ·
-**Runnable:** [examples/counter.js](../../examples/counter.js),
-[examples/event-modifiers.js](../../examples/event-modifiers.js),
-[examples/web-component-custom-event.js](../../examples/web-component-custom-event.js)

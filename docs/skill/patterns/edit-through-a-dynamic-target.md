@@ -24,10 +24,4 @@ fired inside the rendered child is *teleported*: the mutation skips the
 intermediate components and lands on `Workspace.sheet`, so the owner and any
 other view of the same value update in lock-step. A `provide` can even point at
 a seq-access (`.items[.selectedKey]`) to expose "the selected item". This is
-the **edit** counterpart of
-[share-state-without-prop-drilling.md](share-state-without-prop-drilling.md).
-
-**Reference:** [advanced.md#dynamic-vars-as-render-targets](../advanced.md#dynamic-vars-as-render-targets),
-[semantics.md#dynamic-var-teleporting](../semantics.md#dynamic-var-teleporting) ·
-**Runnable:** [examples/dynamic-path.js](../../examples/dynamic-path.js),
-[examples/dynamic-selected-edit.js](../../examples/dynamic-selected-edit.js)
+the **edit** counterpart of the share-state-without-prop-drilling recipe.
