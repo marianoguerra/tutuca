@@ -42,16 +42,16 @@ Touch is wired up too (drag fires after a small move threshold).
 
 ## Dynamic Bindings
 
-For passing values "context-style" through nested components without prop
-drilling. **`provide`** on the producer; **`lookup`** on consumers;
-resolve as `*name`.
+For passing values "context-style" to a deep descendant without threading
+them through every component in between. **`provide`** on the producer;
+**`lookup`** on consumers; resolve as `*name`.
 
 > **Best practice:** keep state local to the component and reach for
 > `provide` / `lookup` only when it is genuinely the only solution. Dynamic
 > bindings couple a consumer to a producer that may not be in scope — prefer
-> keeping components as self-contained as possible: pass props down explicitly
-> when the chain is short, and lift state only as far as it actually needs to
-> live.
+> keeping components as self-contained as possible: let a child render the
+> field it needs from its owner, and lift state only as far up the tree as it
+> actually needs to live.
 
 ```js
 const Theme = component({

@@ -955,8 +955,9 @@
           three channels: <strong>send</strong> (targeted message),
           <strong>bubble</strong> (event observed by ancestors), and
           <strong>request</strong> (async, with a response). Plus
-          <strong>dynamic bindings</strong> for the prop-drilling case where a
-          descendant needs read-only access to an ancestor's value.
+          <strong>dynamic bindings</strong> for the case where a descendant
+          needs read-only access to an ancestor's value without threading it
+          through every component in between.
         </p>
 
         <h3 id="send-receive">
@@ -1022,7 +1023,7 @@
           <code>receive</code> handlers. Walking stops when the root state value
           is reached or when a handler calls <code>ctx.stopPropagation()</code>.
           This is how aggregate state (logs, selections, totals) is maintained
-          without prop-drilling callbacks down the tree.
+          without threading callbacks down the tree.
         </p>
 
         <h3 id="async-requests">
@@ -1069,8 +1070,9 @@
           <a href="#dynamic-bindings">Dynamic Bindings</a>
         </h3>
         <p>
-          Dynamic bindings are tutuca's prop-drilling escape hatch: a producer
-          component publishes a value, and any descendant can read it as
+          Dynamic bindings are tutuca's escape hatch for reaching across the
+          tree: a producer component publishes a value, and any descendant can
+          read it as
           <code>*name</code> without the value being passed through every
           component in between.
         </p>
@@ -1080,9 +1082,9 @@
           genuinely the only solution &mdash; a value owned far away that a deep
           descendant needs and nothing in between should know about. Dynamic
           bindings couple a consumer to a producer that may not be in scope, so
-          prefer keeping components as self-contained as possible: pass props
-          down explicitly when the chain is short, and lift state only as far as
-          it actually needs to live.
+          prefer keeping components as self-contained as possible: let a child
+          render the field it needs from its owner, and lift state only as far
+          up the tree as it actually needs to live.
         </p>
         <p>
           A producer declares

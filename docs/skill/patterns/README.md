@@ -24,7 +24,7 @@ task.
 
 ## Context & dynamic variables
 
-- [Share state without prop-drilling](share-state-without-prop-drilling.md) — `provide` / `lookup` and reading `*name`.
+- [Share state across the tree](share-state-across-the-tree.md) — `provide` / `lookup` and reading `*name`.
 - [Edit through a dynamic target](edit-through-a-dynamic-target.md) — render `*name` and teleport edits back to the owner.
 
 ## Composition

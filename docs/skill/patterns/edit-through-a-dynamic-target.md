@@ -24,4 +24,4 @@ fired inside the rendered child is *teleported*: the mutation skips the
 intermediate components and lands on `Workspace.sheet`, so the owner and any
 other view of the same value update in lock-step. A `provide` can even point at
 a seq-access (`.items[.selectedKey]`) to expose "the selected item". This is
-the **edit** counterpart of the share-state-without-prop-drilling recipe.
+the **edit** counterpart of the share-state-across-the-tree recipe.
