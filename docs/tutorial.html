@@ -1075,6 +1075,16 @@
           component in between.
         </p>
         <p>
+          <strong>Best practice:</strong> keep state local to the component and
+          reach for <code>provide</code> / <code>lookup</code> only when it is
+          genuinely the only solution &mdash; a value owned far away that a deep
+          descendant needs and nothing in between should know about. Dynamic
+          bindings couple a consumer to a producer that may not be in scope, so
+          prefer keeping components as self-contained as possible: pass props
+          down explicitly when the chain is short, and lift state only as far as
+          it actually needs to live.
+        </p>
+        <p>
           A producer declares
           <code>provide: { entries: ".items" }</code> &mdash; the field (or
           seq-access) it wants to expose. Every <code>provide</code> is

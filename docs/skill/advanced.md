@@ -46,6 +46,13 @@ For passing values "context-style" through nested components without prop
 drilling. **`provide`** on the producer; **`lookup`** on consumers;
 resolve as `*name`.
 
+> **Best practice:** keep state local to the component and reach for
+> `provide` / `lookup` only when it is genuinely the only solution. Dynamic
+> bindings couple a consumer to a producer that may not be in scope — prefer
+> keeping components as self-contained as possible: pass props down explicitly
+> when the chain is short, and lift state only as far as it actually needs to
+> live.
+
 ```js
 const Theme = component({
   name: "Theme",

@@ -3,6 +3,14 @@
 **Problem:** a deep descendant needs a value owned by a distant ancestor, and
 you don't want to thread it through every component in between.
 
+> **Reach for this last.** Keep state local to the component and use
+> `provide` / `lookup` only when it is genuinely the only solution — a value
+> owned far away that a deep descendant needs and nothing in between should
+> know about. Dynamic bindings couple a consumer to a producer that may not be
+> in scope, so keep components as self-contained as possible: pass props down
+> explicitly when the chain is short, and lift state only as far as it needs to
+> live.
+
 ```js
 // producer — exposes one of its fields under a name
 const Producer = component({
