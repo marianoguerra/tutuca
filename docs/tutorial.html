@@ -762,7 +762,10 @@
           When <code>@enrich-with="enrichScope"</code> is used on an element
           without <code>@each</code>, the <code>alter</code> function returns an
           object (here <code>{ len, upper }</code>) whose keys become
-          <code>@</code>-prefixed bindings for all children. Inside the enriched
+          <code>@</code>-prefixed bindings for all child elements in this view.
+          (They reach plain DOM descendants, not a rendered child component
+          &mdash; a <code>&lt;x render&gt;</code> boundary starts a clean
+          namespace.) Inside the enriched
           <code>&lt;div&gt;</code>, <code>@len</code> and
           <code>@upper</code> are available alongside the regular field
           bindings. This is useful for injecting derived values into a section
@@ -792,6 +795,14 @@
           <em>inside</em> an iteration (<code>@each</code> or
           <code>render-each</code>) &mdash; it renders whatever component
           instance is currently iterated.
+        </p>
+        <p>
+          A rendered child gets a <strong>clean namespace</strong>: the
+          parent's <code>@</code> bindings (from <code>@each</code> iteration or
+          <code>@enrich-with</code>) and scope enrichments do <strong>not</strong>
+          cross into it &mdash; the child sees only its own fields. To pass a
+          value across that boundary, use a
+          <a href="#dynamic-bindings">dynamic binding</a> (<code>*name</code>).
         </p>
         <p>
           Once you can render children, the value tree starts to look like a
