@@ -25,46 +25,6 @@ const Composability = component({
     visualWasm: null,
     dnd: null,
   },
-  methods: {
-    isTodoSelected() {
-      return this.activeSection === "todo";
-    },
-    isJsonSelected() {
-      return this.activeSection === "json";
-    },
-    isTreeSelected() {
-      return this.activeSection === "tree";
-    },
-    isPersonalSiteSelected() {
-      return this.activeSection === "personalSite";
-    },
-    isVisualWasmSelected() {
-      return this.activeSection === "visualWasm";
-    },
-    isDndSelected() {
-      return this.activeSection === "dnd";
-    },
-  },
-  input: {
-    selectTodo() {
-      return this.setActiveSection("todo");
-    },
-    selectJson() {
-      return this.setActiveSection("json");
-    },
-    selectTree() {
-      return this.setActiveSection("tree");
-    },
-    selectPersonalSite() {
-      return this.setActiveSection("personalSite");
-    },
-    selectVisualWasm() {
-      return this.setActiveSection("visualWasm");
-    },
-    selectDnd() {
-      return this.setActiveSection("dnd");
-    },
-  },
   receive: {
     init(ctx) {
       ctx.at.field("personalSite").send("init");
@@ -75,65 +35,65 @@ const Composability = component({
     <div role="tablist" class="tabs tabs-border">
       <button
         role="tab"
-        @if.class="$isTodoSelected"
+        @if.class="equals? .activeSection 'todo'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="selectTodo"
+        @on.click="$setActiveSection 'todo'"
       >
         To-Do
       </button>
       <button
         role="tab"
-        @if.class="$isJsonSelected"
+        @if.class="equals? .activeSection 'json'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="selectJson"
+        @on.click="$setActiveSection 'json'"
       >
         JSON Editor
       </button>
       <button
         role="tab"
-        @if.class="$isTreeSelected"
+        @if.class="equals? .activeSection 'tree'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="selectTree"
+        @on.click="$setActiveSection 'tree'"
       >
         Tree
       </button>
       <button
         role="tab"
-        @if.class="$isPersonalSiteSelected"
+        @if.class="equals? .activeSection 'personalSite'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="selectPersonalSite"
+        @on.click="$setActiveSection 'personalSite'"
       >
         Personal Site
       </button>
       <button
         role="tab"
-        @if.class="$isDndSelected"
+        @if.class="equals? .activeSection 'dnd'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="selectDnd"
+        @on.click="$setActiveSection 'dnd'"
       >
         Drag and Drop
       </button>
       <button
         role="tab"
-        @if.class="$isVisualWasmSelected"
+        @if.class="equals? .activeSection 'visualWasm'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="selectVisualWasm"
+        @on.click="$setActiveSection 'visualWasm'"
       >
         Visual Wasm
       </button>
     </div>
-    <div @show="$isTodoSelected"><x render=".todo"></x></div>
-    <div @show="$isJsonSelected"><x render=".json"></x></div>
-    <div @show="$isTreeSelected"><x render=".tree"></x></div>
-    <div @show="$isPersonalSiteSelected"><x render=".personalSite"></x></div>
-    <div @show="$isDndSelected"><x render=".dnd"></x></div>
-    <div @show="$isVisualWasmSelected"><x render=".visualWasm"></x></div>
+    <div @show="equals? .activeSection 'todo'"><x render=".todo"></x></div>
+    <div @show="equals? .activeSection 'json'"><x render=".json"></x></div>
+    <div @show="equals? .activeSection 'tree'"><x render=".tree"></x></div>
+    <div @show="equals? .activeSection 'personalSite'"><x render=".personalSite"></x></div>
+    <div @show="equals? .activeSection 'dnd'"><x render=".dnd"></x></div>
+    <div @show="equals? .activeSection 'visualWasm'"><x render=".visualWasm"></x></div>
   </section>`,
 });
 
