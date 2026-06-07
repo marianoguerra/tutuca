@@ -22,6 +22,9 @@ the `tutuca` CLI.
 > the task touches them. Task-oriented "how do I do X" recipes (iteration,
 > filtering, slicing, conditional content, conditional attributes, dynamic
 > vars, composition, events, …): see [patterns/README.md](./patterns/README.md).
+> Design judgment — shaping a feature into components, where state lives, which
+> channel to reach for, and a do's & don'ts list: see
+> [component-design.md](./component-design.md).
 
 ## Verifying changes
 
@@ -976,6 +979,9 @@ export function getTests({ describe, test, expect }) { /*...*/ }      // optiona
 
 ## See also
 
+- [component-design.md](./component-design.md) — design judgment for shaping a
+  feature into components: responsibilities, where state lives, which channel to
+  reach for, and a curated do's & don'ts list.
 - [request-response.md](./request-response.md) — `bubble` / `send`-`receive` /
   `request`-`response` channels, the `ctx.at` `PathBuilder`, `$unknown`, and
   request-handler registration.
