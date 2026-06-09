@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { h, VComment, VText } from "../src/vdom.js";
-import { assertEqualDom, childNodesArray, setupJsdom, vdomRender } from "./dom.js";
+import {
+  assertEqualDom,
+  childNodesArray,
+  renderVNode as render,
+  setupJsdom,
+  vdomRender,
+} from "./dom.js";
 
 let document;
 beforeEach(() => {
   document = setupJsdom();
 });
-
-function render(vnode) {
-  return vnode.toDom({ document });
-}
 
 function assertPatchProduces(oldVNode, newVNode) {
   const c1 = document.createElement("div");

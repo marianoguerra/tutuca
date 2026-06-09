@@ -119,7 +119,7 @@ A compact worked version of the first four (`method`, `bubble`, `send`/`receive`
   → [advanced.md](./advanced.md) "Pitfall: `@if.class` payloads are invisible to
   the scanner", and the worked decoy view in `personal-site.js`.
 
-- **Do close the loop after every change** with `tutuca <module> lint` → `test` →
+- **Do close the loop after every change** with `tutuca lint <module>` → `test` →
   `render`. → [core.md](./core.md) "Verifying changes"
 
 ## Smells & refactors

@@ -45,6 +45,11 @@ Embedded in `more-examples.html`.
 `pagination.js` — `@loop-with` returns `{ iterData, start, end }`; the
 `start`/`end` slice paginates `@each` without iterating off-page items.
 
+`custom-collection.js` — registers a custom keyed collection with a
+`SEQ_INFO` walker so `@each`, `@key` event paths, and `@loop-with`
+slicing all work on it (see "Registering a custom seq type" in
+`docs/skill/advanced.md`).
+
 ### Building blocks
 
 Components reused across other examples — not standalone demos.

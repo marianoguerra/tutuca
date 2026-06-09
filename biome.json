@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.12/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -8,12 +8,13 @@
   "files": {
     "ignoreUnknown": false,
     "includes": [
+      "*.js",
       "src/**",
       "test/*.js",
       "docs/src/*.js",
       "docs/examples/*.js",
-      "tools/*.js",
-      "tools/*/*.js"
+      "scripts/**",
+      "tools/**/*.js"
     ]
   },
   "formatter": {
@@ -33,7 +34,8 @@
   "javascript": {
     "formatter": {
       "quoteStyle": "double"
-    }
+    },
+    "globals": ["Bun"]
   },
   "assist": {
     "enabled": true,

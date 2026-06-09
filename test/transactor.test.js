@@ -264,7 +264,11 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
     const makeRoot = () =>
       IMap({ sheets: IMap({ a: IMap({ title: "a" }), b: IMap({ title: "b" }) }), selId: "b" });
     const seqAccessPath = () => new Path([new SeqAccessStep("sheets", "selId")]);
-    const markLoaded = { load(res) { return this.set("loaded", res); } };
+    const markLoaded = {
+      load(res) {
+        return this.set("loaded", res);
+      },
+    };
 
     test("by default the response lands on the request-time item, not the current one", async () => {
       const { t, resolve } = deferredRequestTransactor(markLoaded, makeRoot());
@@ -289,7 +293,11 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
     });
 
     test("a pinned target deleted before the response arrives is a no-op", async () => {
-      const tolerant = { load(res) { return this?.set ? this.set("loaded", res) : this; } };
+      const tolerant = {
+        load(res) {
+          return this?.set ? this.set("loaded", res) : this;
+        },
+      };
       const { t, resolve } = deferredRequestTransactor(tolerant, makeRoot());
       const done = t.pushRequest(seqAccessPath(), "load", []);
       t.state.val = t.state.val.set("sheets", t.state.val.get("sheets").delete("b"));

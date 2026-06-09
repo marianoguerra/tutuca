@@ -1,7 +1,10 @@
-import { getSeqInfo, normalizeRange, unpackLoopResult } from "../renderer.js";
-
-const filterAlwaysTrue = () => true;
-const nullLoopWith = (seq) => ({ iterData: { seq } });
+import {
+  filterAlwaysTrue,
+  getSeqInfo,
+  normalizeRange,
+  nullLoopWith,
+  unpackLoopResult,
+} from "../renderer.js";
 
 const plainArrayIter = (seq, visit, start, end) => {
   const [s, e] = normalizeRange(start, end, seq.length);

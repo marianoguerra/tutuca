@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import * as agentContext from "./cli/commands/agent-context.js";
 import { COMMANDS } from "./cli/commands/_registry.js";
+import * as agentContext from "./cli/commands/agent-context.js";
 import * as feedback from "./cli/commands/feedback.js";
 import * as help from "./cli/commands/help.js";
 import * as installSkill from "./cli/commands/install-skill.js";
@@ -68,7 +68,7 @@ function dispatchKnownCommands() {
 async function main() {
   const { opts, rest } = extractGlobals(process.argv.slice(2));
 
-  if (rest.length === 0 || (opts.help && rest.length === 0)) {
+  if (rest.length === 0) {
     await help.run([], opts);
     return;
   }
@@ -165,7 +165,6 @@ main().catch((e) => {
   const wantsJson =
     process.argv.includes("--json") ||
     process.argv.includes("--format=json") ||
-    process.argv.includes("-f=json") ||
     (() => {
       const i = process.argv.findIndex((a) => a === "-f" || a === "--format");
       return i >= 0 && process.argv[i + 1] === "json";

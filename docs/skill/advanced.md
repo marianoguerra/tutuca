@@ -165,8 +165,8 @@ import { SEQ_INFO } from "tutuca";
 class MyClass {
   // ...
 }
-MyClass.prototype[SEQ_INFO] = (seq, visit) => {
-  for (const [k, v] of seq.entries()) visit(k, v, "data-sk");
+MyClass.prototype[SEQ_INFO] = (seq, visit, start, end) => {
+  for (const [k, v] of seq.entries()) visit(k, v, "sk");
 };
 ```
 
@@ -175,8 +175,18 @@ is shared across module graphs (source vs. bundled tutuca). The
 renderer reads `seq[SEQ_INFO]` directly (no `.constructor` lookup),
 which is why the walker goes on the prototype, not as a static.
 
-The third arg to `visit` is the data attribute used for stable-key
-diffing (typically `"data-sk"` for "sequence key").
+The third arg to `visit` must be `"sk"` (keyed entries) or `"si"`
+(positional indexes): it is the meta key event-path reconstruction
+reads to resolve an event back to its entry — any other value means
+`@key` and keyed steps silently stop resolving inside `@each`.
+
+`start`/`end` are an optional `[start, end)` slice produced by
+`@loop-with` (Array.slice semantics). Walkers may ignore them, in
+which case `@loop-with` ranges simply don't apply to that type.
+
+See `docs/examples/custom-collection.js` for a complete worked
+example: an immutable keyed list whose walker supports slicing and
+whose entries resolve `@key` in event handlers.
 
 ## Tailwind / MargaUI Class Compilation (extra build)
 

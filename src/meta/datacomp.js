@@ -115,7 +115,7 @@ function toFieldsJson(fields) {
 
 export function provideToData(provs) {
   const r = {};
-  for (const name in provs) r[name] = valToString(provs[name].val);
+  for (const name in provs) r[name] = String(provs[name].val);
   return r;
 }
 
@@ -124,28 +124,7 @@ export function lookupToData(lks) {
   for (const name in lks) {
     const lk = lks[name];
     const forStr = `${lk.compName}.${lk.provideName}`;
-    r[name] = lk.val ? { for: forStr, default: valToString(lk.val) } : forStr;
+    r[name] = lk.val ? { for: forStr, default: String(lk.val) } : forStr;
   }
   return r;
-}
-
-export function valToString(v) {
-  switch (v.constructor.name) {
-    case "FieldVal":
-      return `.${v.name}`;
-    case "MethodVal":
-      return `$${v.name}`;
-    case "DynVal":
-      return `*${v.name}`;
-    case "BindVal":
-      return `@${v.name}`;
-    case "RequestVal":
-      return `!${v.name}`;
-    case "NameVal":
-    case "TypeVal":
-      return v.name;
-    default:
-      console.warn("unknown val type", v);
-      return null;
-  }
 }

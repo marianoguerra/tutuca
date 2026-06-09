@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { component, html } from "../index.js";
 import {
-  ANode,
   CommentNode,
   compileModifiers,
   DomNode,
@@ -27,14 +26,14 @@ import {
   ConstVal,
   FieldVal,
   HandlerNameVal,
-  NameVal,
   MethodVal,
+  NameVal,
   RequestVal,
   TypeVal,
   vp,
 } from "../src/value.js";
 import { VComment, VFragment, VNode, VText } from "../src/vdom.js";
-import { HeadlessParseContext, isTextNodeWithText, setupJsdom } from "./dom.js";
+import { HeadlessParseContext, isTextNodeWithText, mpx, parse, setupJsdom } from "./dom.js";
 
 function toData(node) {
   if (node == null) return null;
@@ -51,14 +50,6 @@ function rxs({ it = null, comps = new Components(), vars = {} }) {
   const stack = Stack.root(comps, it);
   Object.assign(stack.binds[0].binds, vars);
   return [stack, new Renderer(comps)];
-}
-
-const mpx = () => new HeadlessParseContext();
-
-function parse(html) {
-  const px = mpx();
-  const r = ANode.parse(html, px);
-  return [r, px];
 }
 
 function render(html) {
@@ -114,6 +105,22 @@ describe("ANode", () => {
       expect(t).toBeInstanceOf(TextNode);
       expect(c.val).toBe(" tutuca ");
       expect(t.val).toBe("bar");
+    });
+
+    test("parse bare @x with no op attribute renders children as fragment", () => {
+      const [r] = parse("<div @x><!-- tutuca --><span>foo</span>bar</div>");
+      expect(r.constructor).toBe(FragmentNode);
+      expect(r.childs.length).toBe(3);
+      const [c, n, t] = r.childs;
+      expect(c).toBeInstanceOf(CommentNode);
+      expect(n).toBeInstanceOf(DomNode);
+      expect(t).toBeInstanceOf(TextNode);
+    });
+
+    test("parse bare @x with a single child returns the child", () => {
+      const [r] = parse("<div @x><span>foo</span></div>");
+      expect(r).toBeInstanceOf(DomNode);
+      expect(r.tagName).toBe("SPAN");
     });
 
     test("preserves whitespace between inline elements (HTML spec)", () => {

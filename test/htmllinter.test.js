@@ -1,7 +1,7 @@
+import { describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, test } from "bun:test";
 import { Tokenizer as Htmlparser2Tokenizer } from "htmlparser2";
 import { HtmlTokenizer } from "../tools/core/html-tokenizer.js";
 import {

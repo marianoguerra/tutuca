@@ -42,6 +42,7 @@ Use `--module=<path>` if the path conflicts with positional parsing.
 | `test <module> [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
 | `help [cmd]`             | Show usage. No module path needed                                                                                      |
 | `feedback [message]`     | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl`. No module path needed                      |
+| `install-skill [name]`   | Copy a bundled skill (`tutuca`, `margaui`, `immutable-js`, or `--all`) into `.claude/skills/`. No module path needed   |
 | `agent-context`          | Print a versioned JSON schema of every command, flag, exit code, and error code. No module path needed                 |
 
 ## Global flags

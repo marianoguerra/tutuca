@@ -1,5 +1,5 @@
-import { $ } from "bun";
 import { chmodSync } from "node:fs";
+import { $ } from "bun";
 
 await $`rm -rf dist && mkdir dist`;
 

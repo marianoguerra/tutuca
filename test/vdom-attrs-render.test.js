@@ -1,15 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { h, unmount, VComment, VFragment, VNode, VText } from "../src/vdom.js";
-import { setupJsdom, vdomRender } from "./dom.js";
+import { renderVNode as render, setupJsdom, vdomRender } from "./dom.js";
 
 let document;
 beforeEach(() => {
   document = setupJsdom();
 });
-
-function render(vnode) {
-  return vnode.toDom({ document });
-}
 
 describe("namespace support", () => {
   test("create element respects namespace", () => {
@@ -283,9 +279,7 @@ describe("auto namespace, foreignObject, is=", () => {
     expect(node.firstChild.firstChild.tagName).toBe("circle");
   });
   test("<foreignObject> inside <svg> switches children back to HTML", () => {
-    const node = render(
-      h("svg", null, [h("foreignObject", null, [h("div", null, "html")])]),
-    );
+    const node = render(h("svg", null, [h("foreignObject", null, [h("div", null, "html")])]));
     expect(node.namespaceURI).toBe(SVG_NS);
     const fo = node.firstChild;
     expect(fo.namespaceURI).toBe(SVG_NS);

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { ANode } from "../src/anode.js";
-import { Comment, document, Text } from "./dom.js";
 import { ParseCtxClassSetCollector } from "../src/util/parsectx.js";
+import { Comment, document, Text } from "./dom.js";
 
 function parse(html) {
   const ctx = new ParseCtxClassSetCollector(document, Text, Comment);

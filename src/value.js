@@ -447,9 +447,6 @@ export class DynVal extends RenderNameVal {
   eval(stack) {
     return stack.lookupDynamic(this.name);
   }
-  toPathItem() {
-    return null;
-  }
   toString() {
     return `*${this.name}`;
   }

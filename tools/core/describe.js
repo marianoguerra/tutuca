@@ -1,5 +1,5 @@
-import { ModuleInfo } from "./results.js";
 import { normalizeModule } from "./module.js";
+import { ModuleInfo } from "./results.js";
 
 export function describeModule(mod, { path = null } = {}) {
   const { normalized, present } = normalizeModule(mod, { path });

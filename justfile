@@ -58,14 +58,8 @@ lint-components MODULE NAME="":
 render MODULE NAME="":
     bun tools/tutuca.js render {{MODULE}} {{NAME}}
 
-doctor MODULE:
-    bun tools/tutuca.js doctor {{MODULE}}
-
 stresstest iterations="100000" seed="":
     bun scripts/stresstest.js --iterations {{iterations}} {{ if seed != "" { "--seed " + seed } else { "" } }}
 
 smoke-test:
     npm run smoke-test
-
-sync-playground:
-    npm run sync-playground

@@ -4,8 +4,7 @@ import { fileURLToPath } from "node:url";
 import { LINT_RULES } from "../../core/lint-rules.js";
 import { COMMANDS } from "./_registry.js";
 
-export const describe =
-  "Print a machine-readable schema (commands, flags, exit codes) as JSON.";
+export const describe = "Print a machine-readable schema (commands, flags, exit codes) as JSON.";
 
 const SCHEMA_VERSION = 2;
 
@@ -114,8 +113,7 @@ const NO_MODULE_COMMANDS_META = {
     ],
   },
   "install-skill": {
-    describe:
-      "Copy bundled Claude Code skill assets into .claude/skills/<name>/.",
+    describe: "Copy bundled Claude Code skill assets into .claude/skills/<name>/.",
     needsModule: false,
     flags: [
       { name: "user", type: "boolean", description: "Install at ~/.claude/skills/." },
@@ -197,9 +195,7 @@ function moduleCommandSchema(name, cmd) {
 }
 
 export async function run() {
-  const moduleCmds = Object.entries(COMMANDS).map(([name, cmd]) =>
-    moduleCommandSchema(name, cmd),
-  );
+  const moduleCmds = Object.entries(COMMANDS).map(([name, cmd]) => moduleCommandSchema(name, cmd));
   const noModuleCmds = Object.entries(NO_MODULE_COMMANDS_META).map(([name, meta]) => ({
     name,
     ...meta,

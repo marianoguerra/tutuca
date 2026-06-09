@@ -110,18 +110,16 @@ export function getTests({ describe, test, expect }) {
       expect(BarChart.input.addBar.call(full)).toBe(full);
     });
     test("removeBar drops the last bar", () => {
-      expect(
-        BarChart.input.removeBar.call(BarChart.make({ values: [10, 20] })).values.size,
-      ).toBe(1);
+      expect(BarChart.input.removeBar.call(BarChart.make({ values: [10, 20] })).values.size).toBe(
+        1,
+      );
     });
     test("removeBar keeps at least one bar", () => {
       const one = BarChart.make({ values: [10] });
       expect(BarChart.input.removeBar.call(one)).toBe(one);
     });
     test("layout splits the width evenly", () => {
-      expect(BarChart.alter.layout(BarChart.make({ values: [1, 2, 3, 4] }).values).step).toBe(
-        75,
-      );
+      expect(BarChart.alter.layout(BarChart.make({ values: [1, 2, 3, 4] }).values).step).toBe(75);
     });
   });
 }

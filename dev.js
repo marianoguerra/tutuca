@@ -1,6 +1,8 @@
-import { expect, use } from "chai";
+// deps/chai.js re-exports chai with the jest-style matchers (toBe, toEqual,
+// …) pre-applied, so the `expect` injected into `getTests` matches the CLI
+// runner (see tools/cli/commands/_registry.js); the BDD chain keeps working.
+import { expect } from "./deps/chai.js";
 import { ANode } from "./src/anode.js";
-import { jestMatchers } from "./src/chai-jest.js";
 import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 import { checkComponent, LintParseContext } from "./tools/core/lint-check.js";
 import { runTests } from "./tools/core/test.js";
@@ -8,6 +10,9 @@ import { reportTestReportToConsole } from "./tools/core/test-console.js";
 import { lintIdToMessage, suggestionToMessage } from "./tools/format/lint.js";
 
 export * from "./extra.js";
+// explicit (not `export *`) so the real impl shadows the no-op stub
+// re-exported from index.js via extra.js
+export { collectIterBindings } from "./src/util/testing.js";
 export * from "./tools/core/docs.js";
 export * from "./tools/core/lint-check.js";
 export * from "./tools/core/results.js";
@@ -15,14 +20,6 @@ export * from "./tools/core/test.js";
 export * from "./tools/core/test-console.js";
 export * from "./tools/core/tests.js";
 export * from "./tools/format/lint.js";
-// explicit (not `export *`) so the real impl shadows the no-op stub
-// re-exported from index.js via extra.js
-export { collectIterBindings } from "./src/util/testing.js";
-
-// Add jest-style matchers (toBe, toEqual, …) to the `expect` injected into
-// `getTests`, matching the CLI runner (see tools/cli/commands/_registry.js);
-// chai's BDD chain (`.to.equal`) keeps working too.
-use(jestMatchers);
 
 export async function test(opts = {}) {
   const report = await runTests({ expect, ...opts });

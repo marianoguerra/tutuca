@@ -6,14 +6,11 @@ import {
   ALT_HANDLER_NOT_DEFINED,
   ALT_HANDLER_NOT_REFERENCED,
   BAD_VALUE,
-  checkComponent,
   COMP_FIELD_BAD_SHAPE,
+  checkComponent,
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
-  PROVIDE_NOT_ADDRESSABLE,
-  LOOKUP_BAD_SHAPE,
-  LOOKUP_TARGET_MALFORMED,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   IF_NO_BRANCH_SET,
@@ -23,11 +20,14 @@ import {
   INPUT_HANDLER_NOT_IMPLEMENTED,
   INPUT_HANDLER_NOT_REFERENCED,
   LintParseContext,
+  LOOKUP_BAD_SHAPE,
+  LOOKUP_TARGET_MALFORMED,
   MAYBE_ADD_AT_PREFIX,
   MAYBE_DROP_AT_PREFIX,
   METHOD_VAL_IS_FIELD,
   METHOD_VAL_NOT_DEFINED,
   PLACEHOLDERLESS_TEMPLATE_STRING,
+  PROVIDE_NOT_ADDRESSABLE,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
   UNKNOWN_COMPONENT_NAME,
@@ -51,21 +51,17 @@ class HeadlessLintParseContext extends LintParseContext {
 
 export const mpx = () => new HeadlessLintParseContext();
 
-function defAndCheck(opts) {
+function defAndCheck(opts, { macros, wellKnownExtras } = {}) {
   const Comp = component(opts);
   Comp.scope = new ComponentStack();
+  if (macros) Comp.scope.registerMacros(macros);
   Comp.compile(HeadlessLintParseContext);
-  const lx = checkComponent(Comp);
+  const lx = checkComponent(Comp, undefined, wellKnownExtras ? { wellKnownExtras } : undefined);
   return [lx, Comp];
 }
 
-function defAndCheckWithExtras(opts, wellKnownExtras) {
-  const Comp = component(opts);
-  Comp.scope = new ComponentStack();
-  Comp.compile(HeadlessLintParseContext);
-  const lx = checkComponent(Comp, undefined, { wellKnownExtras });
-  return [lx, Comp];
-}
+const defAndCheckWithExtras = (opts, wellKnownExtras) => defAndCheck(opts, { wellKnownExtras });
+const defAndCheckWithMacros = (opts, macros) => defAndCheck(opts, { macros });
 
 test("warn on unknown component spec key with did-you-mean suggestion", () => {
   const [lx, Comp] = defAndCheck({
@@ -547,15 +543,6 @@ test("dynamic single-placeholder template stays REDUNDANT, not placeholderless",
   expect(ids).toContain(REDUNDANT_TEMPLATE_STRING);
   expect(ids).not.toContain(PLACEHOLDERLESS_TEMPLATE_STRING);
 });
-
-function defAndCheckWithMacros(opts, macros) {
-  const Comp = component(opts);
-  Comp.scope = new ComponentStack();
-  Comp.scope.registerMacros(macros);
-  Comp.compile(HeadlessLintParseContext);
-  const lx = checkComponent(Comp);
-  return [lx, Comp];
-}
 
 test("no placeholderless hint when a macro template's ^var resolves to a constant", () => {
   // The macro body `$'box {^class}'` has a real placeholder; binding it to a

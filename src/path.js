@@ -242,6 +242,7 @@ export class Path {
     for (let i = 0; i < this.steps.length; i++) {
       const step = this.steps[i];
       const pinned = step.pinKey(curVal);
+      // biome-ignore lint/suspicious/noAssignInExpressions: lazy-clone steps on first change
       if (pinned !== step) (out ??= this.steps.slice())[i] = pinned;
       curVal = step.lookup(curVal, NONE);
       if (curVal === NONE) break;
@@ -360,8 +361,7 @@ export class Path {
         // A fragment-rooted component stamps `data-cid` on every child but
         // emits a single `Comp` meta (before the first child); later children
         // carry the boundary only on the element itself.
-        if (!sawComp && cid !== undefined && !crossComponent(+cid, vid))
-          return NO_EVENT_INFO;
+        if (!sawComp && cid !== undefined && !crossComponent(+cid, vid)) return NO_EVENT_INFO;
       }
       depth += 1;
       node = node.parentNode;

@@ -65,8 +65,7 @@ function setProp(node, name, value, namespaced) {
   }
   // `data-*` / `aria-*` preserve a literal "false" since it's semantically
   // distinct from the attribute being absent; everything else removes.
-  if (value == null || (value === false && name[4] !== "-"))
-    node.removeAttribute(name);
+  if (value == null || (value === false && name[4] !== "-")) node.removeAttribute(name);
   else node.setAttribute(name, value);
 }
 // `value` and `checked` must be applied AFTER siblings/children, so that
@@ -190,16 +189,14 @@ export class VNode extends VBase {
     // that normalization so createElementNS uses the spec-cased local name
     // (`rect`, not `RECT`). Mixed-case tags (linearGradient, foreignObject)
     // are already preserved by h() and pass through here untouched.
-    const tag = ns !== null && this.tag === this.tag.toUpperCase()
-      ? this.tag.toLowerCase()
-      : this.tag;
+    const tag =
+      ns !== null && this.tag === this.tag.toUpperCase() ? this.tag.toLowerCase() : this.tag;
     // `is` opts customised built-in elements (e.g. <button is="x-cool">).
     // Must be passed at construction time; setAttribute later does NOT upgrade.
     const attrs = this.attrs;
     const createOpts = attrs.is != null ? { is: attrs.is } : undefined;
-    const node = ns === null
-      ? doc.createElement(tag, createOpts)
-      : doc.createElementNS(ns, tag, createOpts);
+    const node =
+      ns === null ? doc.createElement(tag, createOpts) : doc.createElementNS(ns, tag, createOpts);
     const cOpts = childOpts(this, ns, opts);
     if ("value" in attrs || "checked" in attrs) {
       const { value, checked, ...rest } = attrs;

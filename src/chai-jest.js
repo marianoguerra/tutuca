@@ -69,11 +69,7 @@ export function jestMatchers(chai, utils) {
   });
 
   m("toBeFalsy", function () {
-    this.assert(
-      !this._obj,
-      "expected #{this} to be falsy",
-      "expected #{this} not to be falsy",
-    );
+    this.assert(!this._obj, "expected #{this} to be falsy", "expected #{this} not to be falsy");
   });
 
   m("toBeNull", function () {
@@ -134,8 +130,7 @@ export function jestMatchers(chai, utils) {
 
   m("toContain", function (item) {
     const obj = this._obj;
-    const ok =
-      typeof obj === "string" ? obj.includes(item) : Array.from(obj).includes(item);
+    const ok = typeof obj === "string" ? obj.includes(item) : Array.from(obj).includes(item);
     this.assert(
       ok,
       "expected #{this} to contain #{exp}",
@@ -157,8 +152,7 @@ export function jestMatchers(chai, utils) {
 
   m("toMatch", function (expected) {
     const obj = this._obj;
-    const ok =
-      expected instanceof RegExp ? expected.test(obj) : String(obj).includes(expected);
+    const ok = expected instanceof RegExp ? expected.test(obj) : String(obj).includes(expected);
     this.assert(
       ok,
       "expected #{this} to match #{exp}",

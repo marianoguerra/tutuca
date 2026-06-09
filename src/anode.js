@@ -1,5 +1,7 @@
 import { Attributes, getAttrParser } from "./attribute.js";
 import { BindStep, DynEachStep, DynStep, EachBindStep, EachRenderItStep } from "./path.js";
+import { filterAlwaysTrue, nullLoopWith } from "./renderer.js";
+import { isMac } from "./util/env.js";
 import { DynVal, vp } from "./value.js";
 import { HTML_NS } from "./vdom.js";
 
@@ -191,7 +193,8 @@ export class ANode extends BaseNode {
   }
 }
 function parseXOp(attrs, childs, opIdx, px) {
-  if (attrs.length === 0) return maybeFragment(childs);
+  // `<X>` with no attrs or a bare `@x` with no op attr: plain fragment.
+  if (attrs.length <= opIdx) return maybeFragment(childs);
   const { name, value } = attrs[opIdx];
   const as = attrs.getNamedItem("as")?.value ?? null;
   let node;
@@ -497,8 +500,6 @@ export class IterInfo {
     return { seq, filter, loopWith, enricher };
   }
 }
-const filterAlwaysTrue = (_v, _k, _seq) => true;
-const nullLoopWith = (seq) => ({ iterData: { seq } });
 // consumed: attr names this op handles itself; wrappable: accepts show/hide wrapper
 // attrs; wrapper: the node class to wrap with when this op's name is used as a wrapper attr
 function xOp(consumed = [], { wrappable = false, wrapper = null } = {}) {
@@ -684,7 +685,6 @@ class NodeEvent {
     return r;
   }
 }
-const isMac = (globalThis.navigator?.userAgent ?? "").toLowerCase().includes("mac");
 const fwdIfCtxPred = (pred) => (w) => (that, f, args, ctx) =>
   pred(ctx) ? w(that, f, args, ctx) : that;
 const fwdIfKey = (keyName) => fwdIfCtxPred((ctx) => ctx.e.key === keyName);

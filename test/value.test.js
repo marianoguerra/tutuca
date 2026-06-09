@@ -261,7 +261,7 @@ describe("$ method prefix vs . field prefix", () => {
   });
 
   test("MethodVal.evalAsHandler hands back the raw function", () => {
-    const fn = function () {};
+    const fn = () => {};
     const stack = { lookupFieldRaw: (n) => ({ inc: fn })[n] };
     expect(vp.parseText("$inc").evalAsHandler(stack)).toBe(fn);
   });

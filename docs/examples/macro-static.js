@@ -1,4 +1,4 @@
-import { component, macro, html } from "tutuca";
+import { component, html, macro } from "tutuca";
 
 const badge = macro({}, html`<span class="badge badge-info">New</span>`);
 

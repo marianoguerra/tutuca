@@ -1,5 +1,6 @@
 import { PathBuilder } from "./path.js";
 import { Stack } from "./stack.js";
+import { isMac } from "./util/env.js";
 
 class State {
   constructor(val) {
@@ -137,7 +138,6 @@ class Transaction {
     return null;
   }
 }
-const isMac = (globalThis.navigator?.userAgent ?? "").toLowerCase().includes("mac");
 const toNullIfNaN = (v) => (Number.isNaN(v) ? null : v);
 export function getValue(e) {
   return e.target.type === "checkbox"

@@ -7,7 +7,7 @@ Zero-dependency batteries included SPA framework.
 - **Fits in your head** (and the context window)
 - **View source friendly** — step through the whole stack
 - **As much HTML as possible, as little JS as needed**
-- ~169KB minified, ~37KB brotli compressed
+- ~177KB minified, ~40KB brotli compressed
 
 ## Quick Start
 
@@ -87,8 +87,8 @@ tutuca help [command]
 | Command | What it does |
 |---|---|
 | `get <module>` | Export inventory and counts for the module |
-| `list <module>` | List components and their fields/views |
-| `examples <module>` | List the examples defined in the module's section |
+| `list <module> [name] [--limit n]` | List components and their fields/views (`--limit n` caps, `0` = all) |
+| `examples <module> [--limit n]` | List the examples defined in the module's section (`--limit n` caps, `0` = all) |
 | `show <module> [name]` | Component API docs — all, or one by name |
 | `lint <module> [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
 | `render <module> [name] [--title t] [--view v]` | Render examples to HTML |

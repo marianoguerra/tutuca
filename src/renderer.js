@@ -143,6 +143,9 @@ export const normalizeRange = (start, end, size) => {
   e = e < 0 ? 0 : e > size ? size : e;
   return [s, e < s ? s : e];
 };
+// Defaults when `@each` has no `@when` / `@loop-with` attr.
+export const filterAlwaysTrue = (_v, _k, _seq) => true;
+export const nullLoopWith = (seq) => ({ iterData: { seq } });
 // Read a `@loop-with` handler's result: `{ iterData, start, end }`, all
 // optional. `iterData` defaults to `{ seq }` so `@when`/`@enrich-with` can
 // still reach the sequence when a handler omits it.

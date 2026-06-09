@@ -47,7 +47,12 @@ export function parse(html) {
 export const isTextNode = (node) => node instanceof TextNode;
 export const isTextNodeWithText = (node, text) => node instanceof TextNode && node.val === text;
 
-export { Comment, document, DOMParser, Text };
+export { Comment, DOMParser, document, Text };
+
+// Render a vnode straight to DOM using the jsdom installed by setupJsdom.
+export function renderVNode(vnode) {
+  return vnode.toDom({ document: globalThis.document });
+}
 
 // Install a fresh JSDOM document on globalThis and return it. The vdom
 // renderer reads `globalThis.document` when no explicit document is passed.

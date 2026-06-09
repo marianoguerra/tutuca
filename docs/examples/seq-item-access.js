@@ -1,6 +1,6 @@
 import { component, html, IMap } from "tutuca";
-import { Entry } from "./entry.js";
 import { ITEMS } from "./_shared-data.js";
+import { Entry } from "./entry.js";
 
 export const SeqItemAccess = component({
   name: "SeqItemAccess",

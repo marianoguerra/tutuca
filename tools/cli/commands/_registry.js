@@ -1,15 +1,13 @@
-import { expect, use } from "chai";
-import { jestMatchers } from "../../../src/chai-jest.js";
+// deps/chai.js re-exports chai with the jest-style matchers (toBe, toEqual,
+// …) pre-applied for the `expect` injected into `getTests`; chai's BDD chain
+// (`.to.equal`) keeps working too.
+import { expect } from "../../../deps/chai.js";
 import { describeModule } from "../../core/describe.js";
 import { docComponents } from "../../core/docs.js";
-import { listComponents, listExamples } from "../../core/list.js";
 import { lintComponents } from "../../core/lint.js";
+import { listComponents, listExamples } from "../../core/list.js";
 import { renderExamples } from "../../core/render.js";
 import { runTests } from "../../core/test.js";
-
-// Add jest-style matchers (toBe, toEqual, …) to the `expect` injected into
-// `getTests`; chai's BDD chain (`.to.equal`) keeps working too.
-use(jestMatchers);
 
 function parseLimit(raw) {
   if (raw === undefined || raw === null) return 0;
@@ -21,8 +19,7 @@ export const COMMANDS = {
   get: {
     describe: "Summarize the module's exports and counts.",
     defaultFormat: "cli",
-    run: (normalized) =>
-      describeModule(normalized.mod, { path: normalized.path }),
+    run: (normalized) => describeModule(normalized.mod, { path: normalized.path }),
   },
   list: {
     describe: "List components in the module.",
@@ -38,8 +35,7 @@ export const COMMANDS = {
     describe: "List examples in the module.",
     defaultFormat: "cli",
     parseOptions: { limit: { type: "string" } },
-    run: (normalized, { values }) =>
-      listExamples(normalized, { limit: parseLimit(values.limit) }),
+    run: (normalized, { values }) => listExamples(normalized, { limit: parseLimit(values.limit) }),
   },
   show: {
     describe: "Show API docs for components (optional <name> for one).",
@@ -59,8 +55,7 @@ export const COMMANDS = {
     exitOn: (result) => (result.hasErrors ? 2 : 0),
   },
   render: {
-    describe:
-      "Render examples to HTML (optional <name> to filter by component).",
+    describe: "Render examples to HTML (optional <name> to filter by component).",
     defaultFormat: "md",
     needsEnv: true,
     parseOptions: {
@@ -76,8 +71,7 @@ export const COMMANDS = {
     exitOn: (result) => (result.hasErrors ? 3 : 0),
   },
   test: {
-    describe:
-      "Run tests defined by getTests() (optional <name> to filter by component).",
+    describe: "Run tests defined by getTests() (optional <name> to filter by component).",
     defaultFormat: "cli",
     needsEnv: true,
     parseOptions: {

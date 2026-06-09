@@ -10,6 +10,7 @@ import {
   RequestVal,
   SeqAccessVal,
   TypeVal,
+  vp,
 } from "../src/value.js";
 import { DOMParser } from "./dom.js";
 
@@ -149,7 +150,7 @@ test("parse const attrs", () => {
     type: "'Foo'",
     bool: "'false'",
     num: "'42'",
-    str: "''hi''",
+    str: "'\\'hi\\''",
     field: "'.bar'",
     bind: "'@key'",
     req: "'!do'",
@@ -158,4 +159,21 @@ test("parse const attrs", () => {
   });
 });
 
-test.todo("parse string attribute with quote escaping");
+test("parse string attribute with quote escaping", () => {
+  const [nAttrs] = parseAttrs(html`<p :str="'it\'s'"></p>`);
+  expect(nAttrs).toBeInstanceOf(ConstAttrs);
+  expect(nAttrs.items).toEqual({ str: "it's" });
+});
+
+test("const attrs toMacroVars escapes quotes", () => {
+  const [nAttrs] = parseAttrs(html`<p msg="it's fine"></p>`);
+  expect(nAttrs.toMacroVars()).toEqual({ msg: "'it\\'s fine'" });
+});
+
+test("const attr with quote round-trips through a macro var", () => {
+  const [nAttrs] = parseAttrs(html`<p msg="it's"></p>`);
+  const px = mpx().enterMacro("m", nAttrs.toMacroVars(), {});
+  const val = vp.parseToken("^msg", px);
+  expect(val).toBeInstanceOf(ConstVal);
+  expect(val.val).toBe("it's");
+});

@@ -97,9 +97,18 @@ try {
       return false;
     }
   };
-  check("chai: expect(1).toBe(1)", tryExpect((e) => e(1).toBe(1)));
-  check("chai: expect(1).to.equal(1) (BDD still works)", tryExpect((e) => e(1).to.equal(1)));
-  check("chai: expect(2).not.toBe(3)", tryExpect((e) => e(2).not.toBe(3)));
+  check(
+    "chai: expect(1).toBe(1)",
+    tryExpect((e) => e(1).toBe(1)),
+  );
+  check(
+    "chai: expect(1).to.equal(1) (BDD still works)",
+    tryExpect((e) => e(1).to.equal(1)),
+  );
+  check(
+    "chai: expect(2).not.toBe(3)",
+    tryExpect((e) => e(2).not.toBe(3)),
+  );
   check("chai: a wrong assertion throws", !tryExpect((e) => e(1).toBe(2)));
 } catch (e) {
   check("load chai.js", false, `${e.constructor.name}: ${e.message}`);

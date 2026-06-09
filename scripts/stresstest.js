@@ -7,13 +7,8 @@
 
 import { parseArgs } from "node:util";
 import { JSDOM } from "jsdom";
-import {
-  applyMutation,
-  createRng,
-  generateMutation,
-  generateTree,
-} from "../test/vdom-genutil.js";
-import { VFragment, render as vdomRender, unmount } from "../src/vdom.js";
+import { unmount, VFragment, render as vdomRender } from "../src/vdom.js";
+import { applyMutation, createRng, generateMutation, generateTree } from "../test/vdom-genutil.js";
 
 function makeDocument() {
   const d = new JSDOM("<!DOCTYPE html><html><body></body></html>");
@@ -144,8 +139,8 @@ function stresstest({ iterations, seed, onProgress, onStart }) {
         failureDetails: {
           seed: s,
           kind: "exception",
-          message: err && err.message,
-          stack: err && err.stack,
+          message: err?.message,
+          stack: err?.stack,
         },
         durationMs: Date.now() - startTime,
       };

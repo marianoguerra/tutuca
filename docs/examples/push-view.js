@@ -1,6 +1,6 @@
 import { component, html } from "tutuca";
-import { Entry } from "./entry.js";
 import { ITEMS } from "./_shared-data.js";
+import { Entry } from "./entry.js";
 
 export const PushView = component({
   name: "PushView",
