@@ -28,7 +28,7 @@ async function main() {
       for (const res of results) {
         if (res?.examples?.items) {
           for (const v of res.examples.items) {
-            examples.push(v);
+            examples.push(Example.Class.fromData(v));
           }
         }
         const components = res?.components;
@@ -52,11 +52,8 @@ async function main() {
       }
       compileStyle();
       app.recompileStyles();
-      app.sendAtRoot("newComponentsLoaded", [results]);
+      app.state.update((v) => v.setComponents(examples));
       return results;
-    },
-    loadAvailableComponents() {
-      return examples;
     },
   });
   let style = null;
@@ -71,7 +68,6 @@ async function main() {
   compileStyle();
   app.state.set(getRoot());
   app.start();
-  app.sendAtRoot("init", []);
 }
 
 function getComponents() {
@@ -84,36 +80,14 @@ function getRoot() {
 
 const ComponentSelector = component({
   name: "ComponentSelector",
-  fields: { filterText: "", items: [] },
-  receive: {
-    init(ctx) {
-      ctx.request("loadAvailableComponents");
-      return this;
-    },
-    newComponentsLoaded(_res, ctx) {
-      ctx.request("loadAvailableComponents");
-      return this;
-    },
-  },
-  input: {
-    reload(ctx) {
-      ctx.request("loadAvailableComponents");
-      return this;
-    },
+  fields: { filterText: "" },
+  lookup: {
+    components: { for: "Universal.components", default: ".items" },
   },
   bubble: {
     listItemSelected(entry, ctx) {
       ctx.stopPropagation();
-      ctx.send("init", []);
       return entry.value;
-    },
-  },
-  response: {
-    loadAvailableComponents(res, err) {
-      console.assert(err === null);
-      const items = res.map((v) => Example.Class.fromData(v));
-      console.log({ items });
-      return this.setItems(items);
     },
   },
   alter: {
@@ -124,35 +98,24 @@ const ComponentSelector = component({
     },
   },
   view: html`<section class="flex flex-col gap-3">
-    <div
-      class="alert alert-soft alert-info justify-center gap-3"
-      @show="empty? .items"
-    >
-      No components available, drop a component module to register
-      <button class="btn btn-sm btn-soft btn-success" @on.click="reload">
-        Reload
-      </button>
-    </div>
-    <div class="flex gap-3 justify-between" @hide="empty? .items">
+    <div class="flex gap-3 justify-between" @hide="empty? *components">
       <input
         class="input input-m"
         placeholder="Filter entries"
         :value=".filterText"
         @on.input="$setFilterText value"
       />
-      <button class="btn btn-sm btn-soft btn-success" @on.click="reload">
-        Reload
-      </button>
     </div>
-    <div class="list" @hide="empty? .items">
-      <x render-each=".items" as="listItem" when="matchesFilter"></x>
+    <div class="list" @hide="empty? *components">
+      <x render-each="*components" as="listItem" when="matchesFilter"></x>
     </div>
   </section>`,
 });
 
 const Universal = component({
   name: "Universal",
-  fields: { value: ComponentSelector.make() },
+  fields: { value: ComponentSelector.make(), components: [] },
+  provide: { components: ".components" },
   input: {
     onDrop(e, ctx) {
       const files = e.dataTransfer?.files;
@@ -161,12 +124,6 @@ const Universal = component({
           ctx.request("registerModuleFromCode", [codes]),
         );
       }
-      return this;
-    },
-  },
-  receive: {
-    newComponentsLoaded(res, ctx) {
-      ctx.at.field("value").send("newComponentsLoaded", [res]);
       return this;
     },
   },
