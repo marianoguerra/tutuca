@@ -1,6 +1,6 @@
 export const HTML_NS = "http://www.w3.org/1999/xhtml";
-export const SVG_NS = "http://www.w3.org/2000/svg";
-export const MATH_NS = "http://www.w3.org/1998/Math/MathML";
+const SVG_NS = "http://www.w3.org/2000/svg";
+const MATH_NS = "http://www.w3.org/1998/Math/MathML";
 // SVG / MathML elements expose their attributes as read-only IDL properties
 // (`cx`, `viewBox`, …), so on a namespaced node every attribute must go
 // through setAttribute rather than the `node[prop] = val` property path.
@@ -23,7 +23,8 @@ function childOpts(vnode, ns, opts) {
   return target === (opts.namespace ?? null) ? opts : { ...opts, namespace: target };
 }
 // Property names that exist on DOM nodes but whose setters misbehave for our
-// purposes (mirrors preact/src/diff/props.js setProperty). Forces setAttribute.
+// purposes (mirrors preact/src/diff/props.js setProperty; verified identical
+// to preact main as of 2026-06). Forces setAttribute.
 const NEVER_ASSIGN = new Set([
   "width",
   "height",
@@ -37,7 +38,10 @@ const NEVER_ASSIGN = new Set([
   "role",
   "popover",
 ]);
-export function applyProperties(node, props) {
+// IDL property names whose reflected attribute is named differently; needed
+// when removal goes through the property path so the attribute is dropped too.
+const PROP_ATTR_NAME = { className: "class", htmlFor: "for" };
+function applyProperties(node, props) {
   const namespaced = isNamespaced(node);
   for (const name in props) setProp(node, name, props[name], namespaced);
 }
@@ -57,16 +61,28 @@ function setProp(node, name, value, namespaced) {
     return;
   }
   if (typeof value === "function") return;
-  if (!namespaced && !NEVER_ASSIGN.has(name) && name in node) {
+  const usesProp = !namespaced && !NEVER_ASSIGN.has(name) && name in node;
+  if (usesProp && value != null) {
     try {
-      node[name] = value == null ? "" : value;
+      node[name] = value;
       return;
     } catch {}
   }
   // `data-*` / `aria-*` preserve a literal "false" since it's semantically
   // distinct from the attribute being absent; everything else removes.
-  if (value == null || (value === false && name[4] !== "-")) node.removeAttribute(name);
-  else node.setAttribute(name, value);
+  if (value == null || (value === false && name[4] !== "-")) {
+    if (usesProp) {
+      // Reset the live IDL state first — removeAttribute alone can't clear
+      // non-reflected properties like `value` / `checked` — then drop the
+      // attribute too, since reflected properties (`className`, `id`, …)
+      // would otherwise keep an empty attribute that a fresh render of the
+      // same vnode never creates.
+      try {
+        node[name] = "";
+      } catch {}
+      node.removeAttribute(PROP_ATTR_NAME[name] ?? name);
+    } else node.removeAttribute(name);
+  } else node.setAttribute(name, value);
 }
 // `value` and `checked` must be applied AFTER siblings/children, so that
 // (a) <input min=… max=… value=…> clamps the value against the final range,
@@ -81,7 +97,7 @@ function applyValueLast(node, value) {
     setProp(node, "value", value, isNamespaced(node));
   }
 }
-export class VBase {}
+class VBase {}
 const getKey = (child) => (child instanceof VNode ? child.key : undefined);
 const isIterable = (obj) =>
   obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
@@ -241,36 +257,24 @@ function morphNode(domNode, source, target, opts) {
     }
     if (type === 1 && source.isSameKind(target)) {
       const propsDiff = diffProps(source.attrs, target.attrs);
-      let pendingValue;
-      let pendingChecked;
-      let applyValue = false;
-      let applyChecked = false;
+      const hasValue = propsDiff != null && "value" in propsDiff;
+      const hasChecked = propsDiff != null && "checked" in propsDiff;
       if (propsDiff) {
-        if ("value" in propsDiff || "checked" in propsDiff) {
-          const { value, checked, ...rest } = propsDiff;
+        if (hasValue || hasChecked) {
+          const { value: _v, checked: _c, ...rest } = propsDiff;
           applyProperties(domNode, rest);
-          if ("value" in propsDiff) {
-            pendingValue = value;
-            applyValue = true;
-          }
-          if ("checked" in propsDiff) {
-            pendingChecked = checked;
-            applyChecked = true;
-          }
         } else applyProperties(domNode, propsDiff);
       }
       if (!target.attrs.dangerouslySetInnerHTML) {
         const ns = effectiveNs(target, opts);
         morphChildren(domNode, source.childs, target.childs, childOpts(target, ns, opts));
       }
+      if (hasValue) applyValueLast(domNode, propsDiff.value);
       // For <select>, re-apply value even when not in the diff: changing the
       // <option> children can silently shift dom.value to "".
-      if (!applyValue && source.tag === "SELECT" && target.attrs.value !== undefined) {
-        pendingValue = target.attrs.value;
-        applyValue = true;
-      }
-      if (applyValue) applyValueLast(domNode, pendingValue);
-      if (applyChecked) setProp(domNode, "checked", pendingChecked, false);
+      else if (source.tag === "SELECT" && target.attrs.value !== undefined)
+        applyValueLast(domNode, target.attrs.value);
+      if (hasChecked) setProp(domNode, "checked", propsDiff.checked, false);
       return domNode;
     }
     if (type === 11) {
