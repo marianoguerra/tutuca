@@ -16,7 +16,7 @@
     </script>
     <meta
       name="description"
-      content="More Tutuca examples: reactive SVG graphics, MathML formulas, and advanced macro and dynamic-binding playgrounds."
+      content="More Tutuca examples: reactive SVG graphics, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
     />
     <meta name="author" content="Mariano Guerra" />
     <meta name="theme-color" content="#0d47a1" />
@@ -29,7 +29,7 @@
     <meta property="og:title" content="Tutuca: More Examples" />
     <meta
       property="og:description"
-      content="More Tutuca examples: reactive SVG graphics, MathML formulas, and advanced macro and dynamic-binding playgrounds."
+      content="More Tutuca examples: reactive SVG graphics, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
     />
     <meta property="og:type" content="website" />
     <meta
@@ -47,7 +47,7 @@
     <meta name="twitter:title" content="Tutuca: More Examples" />
     <meta
       name="twitter:description"
-      content="More Tutuca examples: reactive SVG graphics, MathML formulas, and advanced macro and dynamic-binding playgrounds."
+      content="More Tutuca examples: reactive SVG graphics, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
     />
     <meta
       name="twitter:image"
@@ -87,8 +87,8 @@
           >
           keys slice the iteration with
           <code>Array.prototype.slice</code> semantics, so <code>@each</code>
-          skips the off-page prefix and suffix instead of walking and
-          discarding them. Slicing keeps each item's original key.
+          skips the off-page prefix and suffix instead of walking and discarding
+          them. Slicing keeps each item's original key.
         </p>
 
         <h3 id="pagination">
@@ -123,9 +123,9 @@
       <section id="svg">
         <h2><a href="#svg">SVG</a></h2>
         <p>
-          A tutuca template renders SVG directly: the <code>&lt;svg&gt;</code>
-          subtree keeps its namespace, so the usual directives
-          (<code>@each</code>, <code>:attr</code> bindings,
+          A tutuca template renders SVG directly: the
+          <code>&lt;svg&gt;</code> subtree keeps its namespace, so the usual
+          directives (<code>@each</code>, <code>:attr</code> bindings,
           <code>@on.click</code>, <code>@if</code>, macros) all work on real SVG
           elements.
         </p>
@@ -149,9 +149,10 @@
         </h3>
         <p>
           Clickable <code>&lt;circle&gt;</code> swatches. Each uses
-          <code>@on.click</code> to set the selected color, <code>:fill</code>
-          binds the preview, and <code>@if</code> / <code>@then</code> /
-          <code>@else</code> draws a ring around the active swatch.
+          <code>@on.click</code> to set the selected color,
+          <code>:fill</code> binds the preview, and <code>@if</code> /
+          <code>@then</code> / <code>@else</code> draws a ring around the active
+          swatch.
         </p>
         <tutuca-playground
           src="./examples/svg-interactive.js"
@@ -187,6 +188,23 @@
         <tutuca-playground
           src="./examples/mathml-formula.js"
         ></tutuca-playground>
+      </section>
+
+      <section id="forms">
+        <h2><a href="#forms">Forms &amp; Input</a></h2>
+        <h3 id="file-picker">
+          <a href="#file-picker">File Picker</a>
+        </h3>
+        <p>
+          A <code>&lt;input type="file"&gt;</code> wired with
+          <code>@on.change="onPickFile event"</code>. The handler reads the
+          chosen <code>File</code> off <code>event.target.files</code> and
+          copies its metadata into fields, so the name, formatted size, MIME
+          type, and last-modified date render reactively &mdash;
+          <code>@show</code>/<code>@hide</code> on the <code>hasFile</code> flag
+          swap between the summary table and the empty state.
+        </p>
+        <tutuca-playground src="./examples/file-picker.js"></tutuca-playground>
       </section>
 
       <section id="macros-dynamic">

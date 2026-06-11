@@ -104,9 +104,9 @@
           </li>
           <li>
             <code>$name</code> &mdash; a no-arg method call (e.g.
-            <code>$inc</code>). It invokes the method and uses its return
-            value. <code>.name</code> and <code>$name</code> are not
-            interchangeable; the linter flags a mismatch.
+            <code>$inc</code>). It invokes the method and uses its return value.
+            <code>.name</code> and <code>$name</code> are not interchangeable;
+            the linter flags a mismatch.
           </li>
           <li>
             <code>@name</code> &mdash; local binding from iteration or scope
@@ -125,9 +125,9 @@
             <code>*theme</code>, <code>*entries</code>)
           </li>
           <li>
-            <code>.seq[.key]</code> &mdash; sequence / map item access:
-            resolve the inner expression as a key into the outer
-            collection (e.g. <code>.byKey[.currentKey]</code>)
+            <code>.seq[.key]</code> &mdash; sequence / map item access: resolve
+            the inner expression as a key into the outer collection (e.g.
+            <code>.byKey[.currentKey]</code>)
           </li>
         </ul>
       </section>
@@ -351,16 +351,15 @@
         </h3>
         <p>
           A component declares its state in <code>fields</code>, as a map of
-          name to default value. Tutuca infers the field's
-          <em>type</em> from that default &mdash; <code>0</code> is a number,
-          <code>"hi"</code> a string, <code>true</code> a boolean,
-          <code>[]</code> a list, <code>{}</code> a map,
-          <code>new Set()</code> a set, and <code>null</code> the catch-all
-          <code>any</code>. Every field you have seen mutated so far
-          (<code>setCount</code>, <code>setStr</code>, <code>toggleIsActive</code>,
-          <code>pushInItems</code>&hellip;) is an <strong>auto-generated
-          method</strong>: tutuca derives a small API from each field's type so
-          you rarely write a setter by hand.
+          name to default value. Tutuca infers the field's <em>type</em> from
+          that default &mdash; <code>0</code> is a number, <code>"hi"</code> a
+          string, <code>true</code> a boolean, <code>[]</code> a list,
+          <code>{}</code> a map, <code>new Set()</code> a set, and
+          <code>null</code> the catch-all <code>any</code>. Every field you have
+          seen mutated so far (<code>setCount</code>, <code>setStr</code>,
+          <code>toggleIsActive</code>, <code>pushInItems</code>&hellip;) is an
+          <strong>auto-generated method</strong>: tutuca derives a small API
+          from each field's type so you rarely write a setter by hand.
         </p>
         <ul>
           <li>
@@ -438,7 +437,8 @@
           attribute. For example, <code>:value=".str"</code> binds the
           <code>str</code> field to the input's <code>value</code> attribute.
           Template interpolation works in bindings too:
-          <code>:title="$'Content is {.str}'"</code> builds a dynamic title string.
+          <code>:title="$'Content is {.str}'"</code> builds a dynamic title
+          string.
         </p>
         <p>
           When the user types,
@@ -458,8 +458,8 @@
           The <code>+</code> button uses <code>@on.click="$inc"</code> &mdash;
           the <code>$</code> prefix calls a <code>methods</code> function. The
           <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no
-          prefix means it calls an <code>input</code> handler. Both return new state
-          via the auto-generated <code>this.setCount()</code>.
+          prefix means it calls an <code>input</code> handler. Both return new
+          state via the auto-generated <code>this.setCount()</code>.
         </p>
         <p>
           Methods and input handlers both must return a new component instance.
@@ -491,8 +491,8 @@
           the first attribute in source order becomes the outermost wrapper.
         </p>
         <p>
-          The value can be a field, a built-in boolean predicate applied to
-          one (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
+          The value can be a field, a built-in boolean predicate applied to one
+          (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
           <code>null?</code> &mdash; written predicate-first, e.g.
           <code>@hide="empty? .items"</code>), or a <code>methods</code> entry
           &mdash; <code>@show="$canSubmit"</code> calls
@@ -578,13 +578,12 @@
           <a href="#conditional-display">Conditional Display</a>
           (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
           <code>null?</code>), <code>equals?</code> is binary: written
-          predicate-first, it takes two values &mdash; here a field and a
-          string literal, as in <code>equals? .tab 'overview'</code>. Each tab
-          panel uses it in <code>@show</code> so only the matching panel is
-          visible, and each tab button uses it in
-          <code>@if.class</code> &mdash; <code>@then="'tab tab-active'"</code>
-          highlights the active button, <code>@else="'tab'"</code> styles the
-          rest.
+          predicate-first, it takes two values &mdash; here a field and a string
+          literal, as in <code>equals? .tab 'overview'</code>. Each tab panel
+          uses it in <code>@show</code> so only the matching panel is visible,
+          and each tab button uses it in <code>@if.class</code> &mdash;
+          <code>@then="'tab tab-active'"</code> highlights the active button,
+          <code>@else="'tab'"</code> styles the rest.
         </p>
         <p>
           Clicking a button calls <code>$setTab 'overview'</code> &mdash; the
@@ -592,9 +591,7 @@
           literal as its argument. Single quotes mark string literals both in
           the <code>equals?</code> comparisons and in the handler argument.
         </p>
-        <tutuca-playground
-          src="./examples/tabbed-ui.js"
-        ></tutuca-playground>
+        <tutuca-playground src="./examples/tabbed-ui.js"></tutuca-playground>
 
         <h3 id="no-dotted-paths">
           <a href="#no-dotted-paths">No Dotted Paths in Values</a>
@@ -632,10 +629,9 @@
         <p>
           Exceptions: <code>@each</code> / <code>render-each</code> accept
           <code>.field</code> or <code>*dynamic</code> only (not a
-          <code>$method</code>),
-          and <code>&lt;x render&gt;</code> expects a component instance &mdash;
-          for a derived list, store it in a field or use <code>@when</code> with
-          <code>alter</code>.
+          <code>$method</code>), and <code>&lt;x render&gt;</code> expects a
+          component instance &mdash; for a derived list, store it in a field or
+          use <code>@when</code> with <code>alter</code>.
         </p>
 
         <h3 id="quoting-string-literals">
@@ -654,10 +650,10 @@
             <code>:label="'Sale'"</code>).
           </li>
           <li>
-            String template: <code>:class="$'btn {.kind}'"</code> &mdash;
-            works in <code>:attr=</code>, <code>@text</code>, macro dynamic
-            attrs, anywhere a string template is allowed. The <code>$'…'</code>
-            prefix marks a template; <code>{...}</code> holds interpolations.
+            String template: <code>:class="$'btn {.kind}'"</code> &mdash; works
+            in <code>:attr=</code>, <code>@text</code>, macro dynamic attrs,
+            anywhere a string template is allowed. The <code>$'…'</code> prefix
+            marks a template; <code>{...}</code> holds interpolations.
           </li>
           <li>
             Bare without quotes or braces:
@@ -714,9 +710,10 @@
           <code>this.query</code> to filter items by the current search string.
         </p>
         <p>
-          If the value used the method syntax (<code>@when="$filterItem"</code>),
-          it would call a method instead. Like <code>input</code>, the
-          <code>alter</code> section is for organizational purposes only.
+          If the value used the method syntax
+          (<code>@when="$filterItem"</code>), it would call a method instead.
+          Like <code>input</code>, the <code>alter</code> section is for
+          organizational purposes only.
         </p>
         <tutuca-playground
           src="./examples/list-and-filter.js"
@@ -765,11 +762,11 @@
           <code>@</code>-prefixed bindings for all child elements in this view.
           (They reach plain DOM descendants, not a rendered child component
           &mdash; a <code>&lt;x render&gt;</code> boundary starts a clean
-          namespace.) Inside the enriched
-          <code>&lt;div&gt;</code>, <code>@len</code> and
-          <code>@upper</code> are available alongside the regular field
-          bindings. This is useful for injecting derived values into a section
-          of the template without storing them in component state.
+          namespace.) Inside the enriched <code>&lt;div&gt;</code>,
+          <code>@len</code> and <code>@upper</code> are available alongside the
+          regular field bindings. This is useful for injecting derived values
+          into a section of the template without storing them in component
+          state.
         </p>
         <tutuca-playground
           src="./examples/render-with-scope.js"
@@ -797,9 +794,10 @@
           instance is currently iterated.
         </p>
         <p>
-          A rendered child gets a <strong>clean namespace</strong>: the
-          parent's <code>@</code> bindings (from <code>@each</code> iteration or
-          <code>@enrich-with</code>) and scope enrichments do <strong>not</strong>
+          A rendered child gets a <strong>clean namespace</strong>: the parent's
+          <code>@</code> bindings (from <code>@each</code> iteration or
+          <code>@enrich-with</code>) and scope enrichments do
+          <strong>not</strong>
           cross into it &mdash; the child sees only its own fields. To pass a
           value across that boundary, use a
           <a href="#dynamic-bindings">dynamic binding</a> (<code>*name</code>).
@@ -914,12 +912,12 @@
         <p>
           A component is bound to a scope at
           <code>registerComponents</code> time, and that scope owns its
-          <code>Class</code> (and therefore its scope-bound
-          <code>make</code> / statics). To register the <em>same</em>
+          <code>Class</code> (and therefore its scope-bound <code>make</code> /
+          statics). To register the <em>same</em>
           definition into a second scope at the same time, use
-          <code>Comp.clone()</code> &mdash; a fresh, independent component
-          (new id, its own <code>Class</code>) built from the same spec, so
-          each instance resolves back to its own scope.
+          <code>Comp.clone()</code> &mdash; a fresh, independent component (new
+          id, its own <code>Class</code>) built from the same spec, so each
+          instance resolves back to its own scope.
         </p>
         <p>
           <strong>Caveat:</strong> a static that builds a <em>different</em>
@@ -1101,9 +1099,8 @@
           A producer declares
           <code>provide: { entries: ".items" }</code> &mdash; the field (or
           seq-access) it wants to expose. Every <code>provide</code> is
-          evaluated and pushed onto the stack automatically when the producer
-          is entered during render; there is no hook to opt in. A consumer
-          declares
+          evaluated and pushed onto the stack automatically when the producer is
+          entered during render; there is no hook to opt in. A consumer declares
           <code
             >lookup: { entries: { for: "EntryEditorAndSelector.entries",
             default: ".items" } }</code
@@ -1123,12 +1120,12 @@
         </h3>
         <p>
           A <code>*name</code> dynamic var resolves to a value, so it works
-          anywhere a value is read &mdash; not just inside
-          <code>:style</code> / <code>:class</code>. In particular it can be a
-          component-render target: <code>&lt;x render="*name"&gt;</code> renders
-          the component the dynamic points at, <code>as="edit"</code> picks one
-          of its views, and <code>@each="*name"</code> iterates it when the
-          dynamic resolves to a sequence.
+          anywhere a value is read &mdash; not just inside <code>:style</code> /
+          <code>:class</code>. In particular it can be a component-render
+          target: <code>&lt;x render="*name"&gt;</code> renders the component
+          the dynamic points at, <code>as="edit"</code> picks one of its views,
+          and <code>@each="*name"</code> iterates it when the dynamic resolves
+          to a sequence.
         </p>
         <p>
           A <code>provide</code> value must be <em>addressable</em> &mdash; a
@@ -1136,27 +1133,25 @@
           render-target / teleport path, so a method or constant is a lint
           error). It can therefore expose a single selected entry with
           <code>provide: { selected: ".items[.selectedKey]" }</code>. There is
-          no <code>*name[.key]</code> form: the consumer never indexes a
-          dynamic var, it just reads the resolved value as <code>*name</code>.
-          (A <code>lookup</code> <code>default</code>, by contrast, is only a
-          value fallback and may be any expression, including a constant.)
+          no <code>*name[.key]</code> form: the consumer never indexes a dynamic
+          var, it just reads the resolved value as <code>*name</code>. (A
+          <code>lookup</code> <code>default</code>, by contrast, is only a value
+          fallback and may be any expression, including a constant.)
         </p>
         <p>
           In the example below, <code>Workspace</code> exposes its
           <code>.sheet</code> field as the dynamic <code>active</code> and
-          renders a deep tree (<code>Workspace &rarr; Panel &rarr; Toolbar</code>).
-          <code>Toolbar</code>, far from the producer, consumes
+          renders a deep tree (<code>Workspace &rarr; Panel &rarr; Toolbar</code
+          >). <code>Toolbar</code>, far from the producer, consumes
           <code>active</code> and does <code>&lt;x render="*active"&gt;</code>.
           The rendered <code>Sheet</code> physically lives at
           <code>Workspace.sheet</code> &mdash; so when you edit its title the
           mutation is <strong>teleported</strong>: the render path is expanded
-          to reconstruct the handler, but the transaction skips the
-          intermediate components and lands on <code>Workspace.sheet</code>.
-          The proof is the title echoed at the top, which updates in lock-step.
+          to reconstruct the handler, but the transaction skips the intermediate
+          components and lands on <code>Workspace.sheet</code>. The proof is the
+          title echoed at the top, which updates in lock-step.
         </p>
-        <tutuca-playground
-          src="./examples/dynamic-path.js"
-        ></tutuca-playground>
+        <tutuca-playground src="./examples/dynamic-path.js"></tutuca-playground>
       </section>
 
       <!-- Macros -->
@@ -1371,28 +1366,29 @@
       <section>
         <h2 id="testing"><a href="#testing">Testing</a></h2>
         <p>
-          Components have three layers worth testing: <strong>methods</strong>
-          (called directly from JS), <strong>input handlers</strong>
-          (template-attached event handlers), and <strong>iteration
-          handlers</strong> in the <code>alter</code> block (used by
-          <code>@when</code>, <code>@loop-with</code>, and
-          <code>@enrich-with</code>). The testing tab in this playground runs
-          tests written in the same module as the component &mdash; the same
-          tests <code>tutuca test &lt;module&gt;</code> picks up from the CLI.
+          Components have three layers worth testing:
+          <strong>methods</strong> (called directly from JS),
+          <strong>input handlers</strong> (template-attached event handlers),
+          and <strong>iteration handlers</strong> in the
+          <code>alter</code> block (used by <code>@when</code>,
+          <code>@loop-with</code>, and <code>@enrich-with</code>). The testing
+          tab in this playground runs tests written in the same module as the
+          component &mdash; the same tests
+          <code>tutuca test &lt;module&gt;</code> picks up from the CLI.
         </p>
 
         <h3 id="testing-setup">
           <a href="#testing-setup">Test Setup</a>
         </h3>
         <p>
-          A module opts into testing by exporting <code>getTests({ describe,
-          test, expect })</code>. <code>expect</code> is chai;
-          <code>describe</code> and <code>test</code> are tutuca's own subset
-          of the common Mocha/Bun-style API (no <code>before</code> /
-          <code>after</code> / <code>beforeEach</code>). Tests can be grouped
-          by component with <code>describe(MyComp, () =&gt; { ... })</code>,
-          which auto-tags the suite so
-          <code>tutuca test &lt;module&gt; MyComp</code> picks it up.
+          A module opts into testing by exporting
+          <code>getTests({ describe, test, expect })</code>.
+          <code>expect</code> is chai; <code>describe</code> and
+          <code>test</code> are tutuca's own subset of the common
+          Mocha/Bun-style API (no <code>before</code> / <code>after</code> /
+          <code>beforeEach</code>). Tests can be grouped by component with
+          <code>describe(MyComp, () =&gt; { ... })</code>, which auto-tags the
+          suite so <code>tutuca test &lt;module&gt; MyComp</code> picks it up.
         </p>
 
         <h3 id="testing-methods-input">
@@ -1405,10 +1401,10 @@
           <code>MyComp.make().inc()</code> returns the next instance. Input
           handlers are plain functions stored on the component descriptor with
           no <code>this</code> bound, so use <code>.call</code> to bind the
-          instance explicitly: <code>MyComp.input.dec.call(MyComp.make())</code>.
-          The arguments after the instance are exactly what the template would
-          have passed (e.g. the resolved <code>value</code> /
-          <code>valueAsInt</code> handler args).
+          instance explicitly:
+          <code>MyComp.input.dec.call(MyComp.make())</code>. The arguments after
+          the instance are exactly what the template would have passed (e.g. the
+          resolved <code>value</code> / <code>valueAsInt</code> handler args).
         </p>
 
         <h3 id="testing-iteration">
@@ -1419,9 +1415,9 @@
           signatures: <code>when(key, value, iterData)</code> filters,
           <code>loopWith(seq)</code> runs once and produces shared
           <code>iterData</code>, and
-          <code>enrichWith(binds, key, value, iterData)</code> mutates each
-          kept item's bindings. <code>this</code> is the parent component
-          instance in all three.
+          <code>enrichWith(binds, key, value, iterData)</code> mutates each kept
+          item's bindings. <code>this</code> is the parent component instance in
+          all three.
         </p>
         <p>
           To test these as a pipeline (filter + loop-data + enrichment) use
@@ -1443,10 +1439,10 @@ const r = collectIterBindings(MyComp, c, c.items, {
 // item, in iteration order.
 </code></pre>
         <p>
-          Handler names refer to entries in <code>MyComp.alter</code>;
-          unknown names throw. The example below has methods, an input
-          handler, and an iteration pipeline &mdash; all three are exercised
-          by <code>getTests</code>. The <strong>Test</strong> tab is selected
+          Handler names refer to entries in <code>MyComp.alter</code>; unknown
+          names throw. The example below has methods, an input handler, and an
+          iteration pipeline &mdash; all three are exercised by
+          <code>getTests</code>. The <strong>Test</strong> tab is selected
           automatically (<code>auto-run-tests</code>) so you see the result on
           load and after every <kbd>Ctrl/Cmd</kbd>+<kbd>Enter</kbd>.
         </p>

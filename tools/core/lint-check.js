@@ -114,6 +114,21 @@ const PARSE_ISSUES = {
   "bad-value": { id: BAD_VALUE },
 };
 
+// True only when `name` is an actual method: a function-valued data property
+// somewhere on the prototype chain. The prototype also carries field accessors
+// (getters added by extendProto), so a plain `proto[name]` lookup would *invoke*
+// the getter against the bare prototype (which is not a Record instance) and
+// throw on `this._values`. Reading the descriptor avoids triggering the getter.
+function protoHasMethod(proto, name) {
+  let cursor = proto;
+  while (cursor && cursor !== Object.prototype) {
+    const desc = Object.getOwnPropertyDescriptor(cursor, name);
+    if (desc !== undefined) return typeof desc.value === "function";
+    cursor = Object.getPrototypeOf(cursor);
+  }
+  return false;
+}
+
 // Walk the prototype chain and collect own keys from every level except
 // Object.prototype. Used as the candidate set for "did you mean" against a
 // component's instance methods.
@@ -422,7 +437,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
             referencedInputs?.add(handlerVal.name);
             const { name } = handlerVal;
             if (input[name] === undefined) {
-              const isMethodFix = proto[name] !== undefined;
+              const isMethodFix = protoHasMethod(proto, name);
               lx.error(
                 INPUT_HANDLER_NOT_IMPLEMENTED,
                 { name, handler, event, eventName, originAttr },
@@ -441,7 +456,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
           } else if (hvName === "MethodVal") {
             referencedInputs?.add(handlerVal.name);
             const { name } = handlerVal;
-            if (proto[name] === undefined) {
+            if (!protoHasMethod(proto, name)) {
               const isInputFix = input[name] !== undefined;
               lx.error(
                 INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
@@ -483,7 +498,7 @@ const ATTR_VAL_CHECKERS = {
     const { fields, proto } = env;
     const { name } = val;
     if (fields[name] !== undefined) return;
-    if (proto[name] !== undefined)
+    if (protoHasMethod(proto, name))
       lx.error(FIELD_VAL_IS_METHOD, { ...errCtx, val, name }, fixTo(`.${name}`, `$${name}`));
     else
       reportUnknownName(lx, FIELD_VAL_NOT_DEFINED, name, Object.keys(fields), { ...errCtx, val });
@@ -492,7 +507,7 @@ const ATTR_VAL_CHECKERS = {
   MethodVal({ lx, val, env, errCtx }) {
     const { fields, proto } = env;
     const { name } = val;
-    if (proto[name] !== undefined) return;
+    if (protoHasMethod(proto, name)) return;
     if (fields[name] !== undefined)
       lx.error(METHOD_VAL_IS_FIELD, { ...errCtx, val, name }, fixTo(`$${name}`, `.${name}`));
     else
