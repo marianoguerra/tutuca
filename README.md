@@ -68,6 +68,8 @@ Tutuca ships a single-file CLI (`dist/tutuca-cli.js`) for inspecting, linting,
 documenting, and rendering components defined in an ES module. The module just
 needs to export `getComponents()` and, for render-time commands, `getExamples()`
 in the storybook shape `{ title, description?, items: [{ title, description?, value, view? }] }` (a single section, or an array of sections).
+Expose **all** of your app's components through `getComponents()` — components
+left out are invisible to `lint`/`render`/`test` and silently lose coverage.
 
 ### Setup
 

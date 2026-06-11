@@ -977,6 +977,17 @@ export function getExamples()         {
 export function getTests({ describe, test, expect }) { /*...*/ }      // optional — see cli.md
 ```
 
+Best practice: have `getComponents()` return **every** component the module
+defines — child and helper components included — and give each one at least
+one item in `getExamples()`. A component left out of `getComponents()` is
+invisible to `tutuca lint`/`render`/`test`, so it silently loses linting and
+render coverage. If your components already live behind a differently named
+export, alias it instead of teaching tools a new name:
+
+```js
+export { allMyComponents as getComponents } from "./app.js";
+```
+
 ## See also
 
 - [component-design.md](./component-design.md) — design judgment for shaping a
