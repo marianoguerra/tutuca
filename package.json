@@ -40,7 +40,9 @@
     "stresstest": "bun scripts/stresstest.js",
     "smoke-test": "bun tools/tutuca.js lint ./test/todo.js && bun tools/tutuca.js render ./test/todo.js && bun tools/tutuca.js test ./test/todo.js && bun tools/tutuca.js lint ./test/json.js && bun tools/tutuca.js render ./test/json.js"
   },
-  "sideEffects": false,
+  "sideEffects": [
+    "./deps/chai.js"
+  ],
   "files": [
     "dist/tutuca.js",
     "dist/tutuca.min.js",
