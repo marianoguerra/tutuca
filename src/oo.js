@@ -269,8 +269,12 @@ export class FieldSet extends Field {
   }
 }
 function mkCompField(field, scope, args) {
-  const Comp = scope.lookupComponent(field.type);
-  console.assert(Comp !== null, "component not found", { field });
+  // scope can be null when a component with comp-field defaults is .make()'d
+  // before it's registered (e.g. tooling that inspects a module without
+  // building an app). Degrade to null rather than crashing — same graceful
+  // path already taken when the component name can't be resolved.
+  const Comp = scope?.lookupComponent(field.type) ?? null;
+  console.assert(!scope || Comp !== null, "component not found", { field });
   return Comp?.make({ ...field.args, ...args }, { scope }) ?? null;
 }
 class ClassBuilder {
