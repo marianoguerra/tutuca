@@ -988,6 +988,12 @@ export, alias it instead of teaching tools a new name:
 export { allMyComponents as getComponents } from "./app.js";
 ```
 
+Put these exports in a co-located **`*.dev.js`** file (a dev-only module
+holding stories + tests, never shipped) and `tutuca storybook` auto-discovers
+and renders them with no setup — see [cli.md](./cli.md). The same shape is
+consumed by the shipped `tutuca/storybook` library (`mountStorybook`,
+`buildStorybook`) if you want to embed a storybook in your own page.
+
 ## See also
 
 - [component-design.md](./component-design.md) — design judgment for shaping a

@@ -6,7 +6,7 @@ import { COMMANDS } from "./_registry.js";
 
 export const describe = "Print a machine-readable schema (commands, flags, exit codes) as JSON.";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 const GLOBAL_FLAGS = [
   {
@@ -144,6 +144,46 @@ const NO_MODULE_COMMANDS_META = {
       { name: "help", short: "h", type: "boolean" },
     ],
     positionals: [],
+  },
+  storybook: {
+    describe:
+      "Serve a live storybook for the project, auto-discovering co-located *.dev.js modules.",
+    needsModule: false,
+    flags: [
+      {
+        name: "port",
+        type: "string",
+        description: "Preferred port (default 4321; falls back to a free port).",
+      },
+      {
+        name: "out",
+        type: "string",
+        description: "Write a static index.html + bootstrap (CDN import map) instead of serving.",
+      },
+      {
+        name: "no-margaui",
+        type: "boolean",
+        description: "Render unstyled (skip margaui).",
+      },
+      {
+        name: "no-check",
+        type: "boolean",
+        description: "Skip the in-browser check(app).",
+      },
+      {
+        name: "no-tests",
+        type: "boolean",
+        description: "Skip running the modules' getTests() before serving.",
+      },
+      { name: "help", short: "h", type: "boolean" },
+    ],
+    positionals: [
+      {
+        name: "dir",
+        required: false,
+        description: "Project root to scan and serve (default: cwd).",
+      },
+    ],
   },
   "agent-context": {
     describe: "Print this schema as JSON.",

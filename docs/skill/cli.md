@@ -40,6 +40,7 @@ Use `--module=<path>` if the path conflicts with positional parsing.
 | `lint <module> [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render <module> [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
 | `test <module> [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
+| `storybook [dir]`        | Serve a live storybook for the project, auto-discovering co-located `*.dev.js` modules. Flags: `--port`, `--out`, `--no-margaui`, `--no-check`, `--no-tests`. No module path needed |
 | `help [cmd]`             | Show usage. No module path needed                                                                                      |
 | `feedback [message]`     | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl`. No module path needed                      |
 | `install-skill [name]`   | Copy a bundled skill (`tutuca`, `margaui`, `immutable-js`, or `--all`) into `.claude/skills/`. No module path needed   |
@@ -186,6 +187,61 @@ export function getTests({ describe, test, expect }) {
 `describe(Counter, fn)` auto-tags the suite path with `Counter.name`, so
 `tutuca test <module> Counter` picks it up. Untagged `test(...)` at the
 top of a tagged `describe` inherits the tag.
+
+## storybook — live component catalog
+
+`tutuca storybook [dir]` serves a browser storybook for a project with no
+setup. It recursively discovers co-located `*.dev.js` modules (see the
+`.dev.js` convention below), mounts them via the shipped `tutuca/storybook`
+library, and serves an ephemeral page — no config, no HTML to write.
+
+```sh
+tutuca storybook                 # scan + serve the current directory
+tutuca storybook ./packages/ui   # scan + serve another directory
+tutuca storybook --port 4321     # preferred port (falls back to a free one if taken)
+tutuca storybook --out ./_site   # write a static index.html + bootstrap instead of serving
+tutuca storybook --no-tests      # skip the pre-serve getTests() run
+tutuca storybook --no-margaui    # render unstyled (skip margaui)
+tutuca storybook --no-check      # skip the in-browser check(app)
+```
+
+It is **batteries-included by default**: before serving it runs each module's
+`getTests()` in the terminal, the page wires margaui styling, and the browser
+runs `check(app)`. Each is individually disablable with the `--no-*` flags.
+
+How tutuca itself is resolved (convention over configuration): a local
+`node_modules/tutuca` install if present, else the CLI's own `dist`, else the
+version-pinned CDN. All tutuca specifiers resolve to a single runtime, which
+component scope/identity requires. `--out` always pins the CDN so the static
+artifact is portable (host it from the project root so `/*.dev.js` paths resolve).
+
+### The `.dev.js` convention
+
+A `*.dev.js` file is a **dev-only module**: it holds stories
+(`getComponents()` + `getExamples()`), tests (`getTests()`), and any other
+development-time helpers for nearby components, and is **never shipped to
+production or the UI**. The `.dev.js` suffix is the contract — your app imports
+its real components directly and never a `.dev.js`, and a production build glob
+can exclude `**/*.dev.js`. Because they follow the full module convention, the
+same files are valid targets for `tutuca test`/`lint`/`render` too.
+
+```js
+// counter.dev.js — lives next to counter.js
+import { component, html } from "tutuca";
+import { Counter } from "./counter.js";
+
+export function getComponents() {
+  return [Counter];
+}
+export function getExamples() {
+  return { title: "Counter", items: [{ title: "Basic", value: Counter.make({}) }] };
+}
+export function getTests({ describe, test, expect }) {
+  describe(Counter, () => {
+    test("starts at zero", () => expect(Counter.make({}).count).toBe(0));
+  });
+}
+```
 
 ## Install skill assets
 
