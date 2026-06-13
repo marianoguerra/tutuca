@@ -7,6 +7,9 @@ const DIST = new URL("../dist/", import.meta.url);
 const MAP = {
   immutable: new URL("immutable.js", DIST).href,
   chai: new URL("chai.js", DIST).href,
+  // dist/tutuca-storybook.js keeps `tutuca` external; map it to the base build,
+  // mirroring the consumer import map.
+  tutuca: new URL("tutuca.js", DIST).href,
 };
 
 export async function resolve(specifier, context, next) {

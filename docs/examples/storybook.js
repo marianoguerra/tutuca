@@ -1,4 +1,9 @@
-import { component, html } from "tutuca";
+// The docs storybook is now CONTENT only — the engine (Storybook/Section/Example
+// + aggregation) lives in the shipped tutuca/storybook library. This file picks
+// which example modules to aggregate and adds the self-referential "Inception"
+// demo. In dev the import map (docs/storybook.html) maps tutuca/storybook to
+// ../storybook.js and tutuca to ../dev.js.
+import { buildStorybook, Example, Section, Storybook } from "tutuca/storybook";
 import * as composabilityMod from "./composability.js";
 import * as counterMod from "./counter.js";
 import * as dndMod from "./dnd-example.js";
@@ -7,251 +12,6 @@ import * as personalSiteMod from "./personal-site.js";
 import * as todoMod from "./todo.js";
 import * as treeMod from "./tree.js";
 import * as visualWasmMod from "./visual-wasm.js";
-
-const Storybook = component({
-  name: "Storybook",
-  fields: {
-    selectedSectionIndex: 0,
-    sections: [],
-    filter: "",
-    sectionId: null,
-    exampleId: null,
-    focusExample: null,
-  },
-  methods: {
-    selectSectionAtIndex(index) {
-      if (this.sections.size === 0) return this;
-      const safeIndex = index >= 0 && index < this.sections.size ? index : 0;
-      const sections = this.sections.map((s, i) => s.setSelected(i === safeIndex));
-      return this.setSelectedSectionIndex(safeIndex).setSections(sections);
-    },
-    selectSectionWithId(id) {
-      if (!id) return this.selectSectionAtIndex(this.selectedSectionIndex);
-      const index = this.sections.findIndex((s) => s.id === id);
-      return this.selectSectionAtIndex(index);
-    },
-    focusExampleByIds(sectionId, exampleId) {
-      if (!sectionId || !exampleId) {
-        return this;
-      }
-      const section = this.sections.find((s) => s.id === sectionId);
-      const example = section?.items.find((e) => e.id === exampleId);
-      if (!example) {
-        return this;
-      }
-      return this.setSectionId(sectionId).setExampleId(exampleId).setFocusExample(example.value);
-    },
-  },
-  input: {
-    onApplyFilter(value, ctx) {
-      ctx.request("persistState", [{ key: "sectionFilter", value }]);
-      return this.setFilter(value);
-    },
-    onClearFilter(ctx) {
-      ctx.request("persistState", [{ key: "sectionFilter", value: "" }]);
-      return this.resetFilter();
-    },
-    onFocusClose(ctx) {
-      ctx.request("persistState", [{ key: "sectionId", value: "" }]);
-      ctx.request("persistState", [{ key: "exampleId", value: "" }]);
-      return this.setSectionId(null).setExampleId(null).setFocusExample(null);
-    },
-  },
-  alter: {
-    filterSection(_key, section) {
-      return (
-        this.filter === "" || fuzzyMatch(this.filter, `${section.title} ${section.description}`)
-      );
-    },
-  },
-  bubble: {
-    sectionSelected(section, ctx) {
-      ctx.stopPropagation();
-      ctx.request("persistState", [{ key: "section", value: section.id }]);
-      return this.selectSectionAtIndex(this.sections.indexOf(section));
-    },
-    exampleFocusRequested(example, ctx) {
-      ctx.stopPropagation();
-      const section = this.sections.get(this.selectedSectionIndex);
-      const sectionId = section?.id ?? null;
-      ctx.request("persistState", [{ key: "sectionId", value: sectionId }]);
-      ctx.request("persistState", [{ key: "exampleId", value: example.id }]);
-      return this.setSectionId(sectionId).setExampleId(example.id).setFocusExample(example.value);
-    },
-  },
-  view: html`<div>
-    <div class="flex flex-col gap-3 p-3 h-screen" @show="truthy? .focusExample">
-      <div class="flex justify-end">
-        <button class="btn btn-ghost btn-sm" @on.click="onFocusClose">
-          close
-        </button>
-      </div>
-      <div class="flex-1 overflow-y-auto">
-        <x render=".focusExample"></x>
-      </div>
-    </div>
-    <div class="flex gap-3 p-3 h-screen" @hide="truthy? .focusExample">
-      <div
-        class="w-1/4 flex flex-col gap-3 bg-base-100 shadow-md h-full overflow-hidden"
-      >
-        <input
-          class="input w-full outline-0 focus:bg-base-200"
-          type="search"
-          placeholder="Filter sections"
-          :value=".filter"
-          @on.input="onApplyFilter value"
-          @on.keydown.cancel="onClearFilter"
-        />
-        <div class="list h-full flex-1 overflow-y-auto">
-          <x render-each=".sections" as="listEntry" when="filterSection"></x>
-        </div>
-      </div>
-      <div class="w-full h-full overflow-y-auto">
-        <x render=".sections[.selectedSectionIndex]"></x>
-      </div>
-    </div>
-  </div>`,
-});
-
-const Section = component({
-  name: "Section",
-  fields: {
-    id: "?",
-    title: "No Title Section",
-    description: "",
-    items: [],
-    filter: "",
-    selected: false,
-  },
-  statics: {
-    fromData({ id, title = "???", description = "", items = [] }) {
-      id ??= slugify(title);
-      return this.make({
-        id,
-        title,
-        description,
-        items: items.map((v) => Example.Class.fromData(v)),
-      });
-    },
-  },
-  alter: {
-    filterItem(_key, item) {
-      return this.filter === "" || fuzzyMatch(this.filter, `${item.title} ${item.description}`);
-    },
-  },
-  input: {
-    onApplyFilter(value, ctx) {
-      ctx.request("persistState", [{ key: "exampleFilter", value }]);
-      return this.setFilter(value);
-    },
-    onClearFilter(ctx) {
-      ctx.request("persistState", [{ key: "exampleFilter", value: "" }]);
-      return this.resetFilter();
-    },
-    onListItemClick(ctx) {
-      ctx.bubble("sectionSelected", [this]);
-      return this;
-    },
-  },
-  view: html`<section class="flex flex-col gap-3">
-    <div class="sticky top-0 z-10 bg-base-100 pt-1 pb-2 shadow-sm">
-      <h2 class="text-lg font-bold" @text=".title"></h2>
-      <p class="text-md italic opacity-60" @text=".description"></p>
-    </div>
-    <input
-      class="input w-full outline-0 focus:bg-base-200"
-      type="search"
-      placeholder="Filter examples"
-      :value=".filter"
-      @on.input="onApplyFilter value"
-      @on.keydown.cancel="onClearFilter"
-    />
-    <div class="flex flex-col gap-3">
-      <x render-each=".items" when="filterItem"></x>
-    </div>
-  </section>`,
-  views: {
-    listEntry: html`<div
-      @if.class=".selected"
-      @then="'list-row cursor-pointer text-blue-400 hover:text-blue-500 font-semibold'"
-      @else="'list-row cursor-pointer hover:bg-base-200'"
-      :title=".description"
-      @on.click="onListItemClick"
-    >
-      <div @text=".title" class="list-col-grow"></div>
-      <p
-        class="text-xs opacity-60 list-col-wrap truncate"
-        @text=".description"
-      ></p>
-    </div> `,
-  },
-});
-
-export const Example = component({
-  name: "Example",
-  fields: { id: "?", title: "?", description: "", value: null, view: "main" },
-  statics: {
-    fromData({ id, title = "No Title Example", description = "", value = null, view = "main" }) {
-      id ??= slugify(title);
-      return this.make({
-        id,
-        title,
-        description,
-        value,
-        view,
-      });
-    },
-  },
-  input: {
-    onLogSelected() {
-      console.log(this.value);
-      return this;
-    },
-    onFocusSelected(ctx) {
-      ctx.bubble("exampleFocusRequested", [this]);
-      return this;
-    },
-  },
-  view: html`<div class="card card-border bg-base-100 shadow-md">
-    <div class="card-body">
-      <h2 class="card-title flex justify-between">
-        <a :href="$'#example-{.id}'" :id="$'example-{.id}'" @text=".title"></a>
-        <div class="flex gap-2">
-          <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected">
-            focus
-          </button>
-          <button class="btn btn-ghost btn-sm" @on.click="onLogSelected">
-            log
-          </button>
-        </div>
-      </h2>
-      <p class="text-md italic opacity-60" @text=".description"></p>
-      <div class="bg-base-100 p-3" @push-view=".view">
-        <x render=".value"></x>
-      </div>
-    </div>
-  </div>`,
-});
-
-function fuzzyMatch(query, target) {
-  const q = query.toLowerCase(),
-    t = target.toLowerCase();
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++;
-  }
-  return qi === q.length;
-}
-
-function slugify(str) {
-  return String(str)
-    .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 const SECTION_MODULES = [
   counterMod,
@@ -264,34 +24,22 @@ const SECTION_MODULES = [
   composabilityMod,
 ];
 
+// The modules this storybook aggregates (consumed by mountStorybook in the
+// bootstrap, and by buildStorybook below).
+export function getModules() {
+  return SECTION_MODULES;
+}
+
 export function getComponents() {
-  const seen = new Set([Storybook, Section, Example]);
-  for (const mod of SECTION_MODULES) {
-    for (const c of mod.getComponents()) {
-      seen.add(c);
-    }
-  }
-  return [...seen];
+  return buildStorybook(SECTION_MODULES).components;
 }
 
 export function getMacros() {
-  const macros = {};
-  for (const mod of SECTION_MODULES) {
-    if (mod.getMacros) {
-      Object.assign(macros, mod.getMacros());
-    }
-  }
-  return macros;
+  return buildStorybook(SECTION_MODULES).macros;
 }
 
 export function getRequestHandlers() {
-  const handlers = {};
-  for (const mod of SECTION_MODULES) {
-    if (mod.getRequestHandlers) {
-      Object.assign(handlers, mod.getRequestHandlers());
-    }
-  }
-  return handlers;
+  return buildStorybook(SECTION_MODULES).requestHandlers;
 }
 
 export function getRoot() {

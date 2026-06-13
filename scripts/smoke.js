@@ -126,6 +126,21 @@ try {
   check("load immutable.js", false, `${e.constructor.name}: ${e.message}`);
 }
 
+// Storybook library: external `tutuca` import (resolved by smoke-resolve.mjs)
+// loads, and the public surface is present.
+console.log("smoke: storybook bundle…");
+try {
+  const sb = await import(dist("tutuca-storybook.js"));
+  check("storybook: mountStorybook() is a function", typeof sb.mountStorybook === "function");
+  check("storybook: buildStorybook() is a function", typeof sb.buildStorybook === "function");
+  check(
+    "storybook: getComponents() returns the 3 engine components",
+    typeof sb.getComponents === "function" && sb.getComponents().length === 3,
+  );
+} catch (e) {
+  check("load tutuca-storybook.js", false, `${e.constructor.name}: ${e.message}`);
+}
+
 // Export-surface parity: every variant of a tier exports the same names.
 console.log("smoke: export parity across variants…");
 for (const tier of Object.keys(TIERS)) {

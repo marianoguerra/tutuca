@@ -4,6 +4,7 @@ import * as agentContext from "./cli/commands/agent-context.js";
 import * as feedback from "./cli/commands/feedback.js";
 import * as help from "./cli/commands/help.js";
 import * as installSkill from "./cli/commands/install-skill.js";
+import * as storybook from "./cli/commands/storybook.js";
 import { CODES, didYouMean, emitError, parseArgsErrorShape } from "./cli/errors.js";
 import { runCommand } from "./cli/with-module.js";
 
@@ -11,6 +12,7 @@ const NO_MODULE_COMMANDS = {
   help: help,
   feedback: feedback,
   "install-skill": installSkill,
+  storybook: storybook,
   "agent-context": agentContext,
 };
 

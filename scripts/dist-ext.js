@@ -41,6 +41,21 @@ for (const [input, output] of modules) {
   await Bun.write(`dist/${output}`, text);
 }
 
+// Storybook library: bundled with `tutuca` kept external (packages:"external")
+// so the consumer's import map points "tutuca" at the same runtime their story
+// modules use — one tutuca instance, which component scope/identity requires.
+const sb = await Bun.build({
+  entrypoints: ["storybook.js"],
+  format: "esm",
+  packages: "external",
+  plugins: [externalizeImmutable],
+});
+if (!sb.success) {
+  for (const log of sb.logs) console.error(log);
+  process.exit(1);
+}
+await Bun.write("dist/tutuca-storybook.js", await sb.outputs[0].text());
+
 // Ship standalone ESM bundles of the externalized deps so consumers can point an
 // import map at tutuca's own copies (tutuca/immutable, tutuca/chai) and switch
 // between the full and ext builds without installing immutable/chai separately.

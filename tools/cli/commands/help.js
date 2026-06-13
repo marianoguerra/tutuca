@@ -18,8 +18,8 @@ INVOCATION SHAPE
     components; pass it to operate on exactly one (e.g. \`show Button\`).
   - Per-command flags follow the module path; global flags can appear
     anywhere. Unknown flags are rejected by the subcommand's parser.
-  - \`help\`, \`feedback\`, \`install-skill\`, \`agent-context\` do NOT take a
-    module path.
+  - \`help\`, \`feedback\`, \`install-skill\`, \`storybook\`, \`agent-context\` do NOT
+    take a module path.
 
 MODULE CONVENTION
   A module passed to tutuca must export one or more of:
@@ -106,6 +106,20 @@ COMMANDS (no module required)
       or suggestions about the CLI, skills, docs, or the library.
       Message comes from the positional arg or piped stdin.
 
+  storybook [dir] [--port <n>] [--out <dir>] [--no-margaui] [--no-check] [--no-tests]
+      Serve a live storybook for the project. Recursively auto-discovers
+      co-located *.dev.js modules (dev-only modules holding stories + tests
+      + helpers, never shipped) and mounts them via the tutuca/storybook
+      library — zero setup. By default also runs their getTests() in the
+      terminal and wires margaui styling + an in-browser check(app).
+        [dir]         project root to scan/serve (default: cwd)
+        --port <n>    preferred port (default 4321; else a free port)
+        --out <dir>   write a static index.html + bootstrap (CDN import map)
+                      instead of serving; host from the project root
+        --no-margaui  render unstyled (skip margaui)
+        --no-check    skip the in-browser check(app)
+        --no-tests    skip the pre-serve getTests() run
+
   agent-context
       Print a machine-readable schema of every command, flag, exit code,
       and error code as JSON on stdout. Use this once to teach an agent the
@@ -186,6 +200,7 @@ export async function run(argv, opts = {}) {
   const noModule = {
     feedback: await import("./feedback.js"),
     "install-skill": await import("./install-skill.js"),
+    storybook: await import("./storybook.js"),
   };
   const cmd = COMMANDS[target] ?? noModule[target];
   if (!cmd) {
