@@ -101,6 +101,13 @@ function resolveTutucaBase(projectDir, self, forCdn) {
   return { base: `https://cdn.jsdelivr.net/npm/tutuca@${self.version}/dist`, serveDist: null };
 }
 
+// Human label for where the tutuca runtime is loaded from, given a resolved base.
+function tutucaSource(base) {
+  if (base.startsWith("http")) return "CDN";
+  if (base.startsWith("/node_modules")) return "node_modules";
+  return "local dist";
+}
+
 function buildImports(base, { margaui }) {
   const dev = `${base}/tutuca-dev.js`;
   const imports = {
@@ -189,6 +196,44 @@ async function runDevTests(projectDir, devModuleUrls) {
   return { totalTests, failedTests, withTests, failures, importErrors };
 }
 
+// Import + normalize each dev module in Node (no browser bundle). Mirrors what
+// buildStorybook does in the browser, but returns plain data and captures any
+// import/shape error per module instead of throwing — the core of the dry-run.
+async function discoverModules(projectDir, devModuleUrls) {
+  await createNodeEnv();
+  const modules = [];
+  for (const url of devModuleUrls) {
+    const abs = resolve(projectDir, url.slice(1));
+    try {
+      const mod = await import(abs);
+      const { normalized, present } = normalizeModule(mod, { path: abs });
+      modules.push({
+        url,
+        present: [...present],
+        components: normalized.components.map((c) => c.name),
+        sections: normalized.sections.map((s) => ({
+          title: s.title,
+          description: s.description,
+          items: s.items.map((it) => ({
+            title: it.title,
+            view: it.view,
+            componentName: it.componentName,
+          })),
+        })),
+        macros: normalized.macros ? Object.keys(normalized.macros) : [],
+        requestHandlers: normalized.requestHandlers ? Object.keys(normalized.requestHandlers) : [],
+        error: null,
+      });
+    } catch (e) {
+      modules.push({
+        url,
+        error: { code: e.code ?? null, message: e.message, where: e.where ?? null },
+      });
+    }
+  }
+  return modules;
+}
+
 function collectFailures(node, acc) {
   if (node.children) {
     for (const child of node.children) collectFailures(child, acc);
@@ -225,6 +270,7 @@ export async function run(argv, opts = {}) {
       "no-margaui": { type: "boolean", default: false },
       "no-check": { type: "boolean", default: false },
       "no-tests": { type: "boolean", default: false },
+      "dry-run": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
     allowPositionals: true,
@@ -232,7 +278,7 @@ export async function run(argv, opts = {}) {
 
   if (parsed.values.help) {
     process.stdout.write(
-      "tutuca storybook [dir] [--port <n>] [--out <dir>]\n" +
+      "tutuca storybook [dir] [--port <n>] [--out <dir>] [--dry-run]\n" +
         "                 [--no-margaui] [--no-check] [--no-tests]\n" +
         "\n" +
         "  Auto-discovers co-located *.dev.js modules (recursively, skipping\n" +
@@ -243,6 +289,9 @@ export async function run(argv, opts = {}) {
         "  --port <n>     preferred port (default 4321; falls back to a free port)\n" +
         "  --out <dir>    write a static index.html + bootstrap (CDN import map)\n" +
         "                 instead of serving; host it from the project root\n" +
+        "  --dry-run      do all the prep (discover, import and normalize modules,\n" +
+        "                 resolve the runtime, run tests) and print what would be\n" +
+        "                 shown instead of serving; pass --json for structured output\n" +
         "  --no-margaui   skip margaui styling (renders functional but unstyled)\n" +
         "  --no-check     skip the in-browser check(app) dev validation\n" +
         "  --no-tests     skip running the modules' getTests() before serving\n",
@@ -292,6 +341,70 @@ export async function run(argv, opts = {}) {
         `  index.html + ${bootstrapName} (${devModuleUrls.length} dev modules, CDN import map)\n` +
         "  Host it from the project root so /*.dev.js paths resolve.\n",
     );
+    return;
+  }
+
+  // --dry-run: do all the Node-side prep the server would do (discover, import
+  // and normalize modules, resolve the runtime, run tests) and print what would
+  // be shown instead of serving — lets agents verify setup without a browser.
+  if (parsed.values["dry-run"]) {
+    const { base } = resolveTutucaBase(projectDir, self, false);
+    const imports = buildImports(base, { margaui });
+    const modules = await discoverModules(projectDir, devModuleUrls);
+    const tests = parsed.values["no-tests"]
+      ? null
+      : await runDevTests(projectDir, devModuleUrls);
+    const source = tutucaSource(base);
+    const result = {
+      projectDir,
+      tutuca: { source, base, version: self.version },
+      options: { margaui, check, runTests: !parsed.values["no-tests"] },
+      imports,
+      modules,
+      tests,
+    };
+
+    if (opts.format === "json") {
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+      return;
+    }
+
+    process.stdout.write(
+      `tutuca storybook dry run (no server started)\n` +
+        `  project: ${projectDir}\n` +
+        `  tutuca runtime: ${source} (${base}, version ${self.version})\n` +
+        `  margaui: ${margaui ? "on" : "off"}, in-browser check: ${check ? "on" : "off"}\n` +
+        `  ${modules.length} dev module(s):\n`,
+    );
+    for (const m of modules) {
+      if (m.error) {
+        process.stdout.write(`    error ${m.url} — ${m.error.message}\n`);
+        continue;
+      }
+      const sectionItems = m.sections.reduce((n, s) => n + s.items.length, 0);
+      process.stdout.write(
+        `    ok ${m.url} — ${m.components.length} component(s), ` +
+          `${m.sections.length} section(s), ${sectionItems} example(s)\n`,
+      );
+    }
+    if (tests) {
+      for (const ie of tests.importErrors) {
+        process.stdout.write(`  ! skipped tests for ${ie.url}: ${ie.message}\n`);
+      }
+      if (tests.withTests === 0) {
+        process.stdout.write("  tests: no getTests() in any dev module\n");
+      } else {
+        process.stdout.write(
+          `  tests: ${tests.totalTests - tests.failedTests}/${tests.totalTests} passed ` +
+            `across ${tests.withTests} module(s)\n`,
+        );
+        for (const f of tests.failures) {
+          process.stdout.write(`    failed ${f.fullPath}: ${f.error?.message ?? "failed"}\n`);
+        }
+      }
+    } else {
+      process.stdout.write("  tests: skipped (--no-tests)\n");
+    }
     return;
   }
 
@@ -347,11 +460,7 @@ export async function run(argv, opts = {}) {
   });
   server.on("listening", () => {
     const actual = server.address().port;
-    const where = base.startsWith("http")
-      ? "CDN"
-      : base.startsWith("/node_modules")
-        ? "node_modules"
-        : "local dist";
+    const where = tutucaSource(base);
     process.stdout.write(
       `tutuca storybook: http://localhost:${actual}/  ` +
         `(${devModuleUrls.length} dev modules, tutuca from ${where})\n`,

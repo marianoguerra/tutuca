@@ -175,6 +175,12 @@ const NO_MODULE_COMMANDS_META = {
         type: "boolean",
         description: "Skip running the modules' getTests() before serving.",
       },
+      {
+        name: "dry-run",
+        type: "boolean",
+        description:
+          "Do all prep (discover + import + normalize modules, resolve runtime, run tests) and print what would be shown instead of serving. Pass --json for structured output.",
+      },
       { name: "help", short: "h", type: "boolean" },
     ],
     positionals: [
