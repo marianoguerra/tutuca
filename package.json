@@ -39,6 +39,7 @@
     "lint-fix": "bunx @biomejs/biome lint --write",
     "fix": "bunx @biomejs/biome check --write",
     "tutuca": "bun tools/tutuca.js",
+    "storybook:examples": "bun scripts/storybook-examples.js",
     "stresstest": "bun scripts/stresstest.js",
     "smoke-test": "bun tools/tutuca.js lint ./test/todo.js && bun tools/tutuca.js render ./test/todo.js && bun tools/tutuca.js test ./test/todo.js && bun tools/tutuca.js lint ./test/json.js && bun tools/tutuca.js render ./test/json.js"
   },

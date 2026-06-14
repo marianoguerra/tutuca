@@ -42,19 +42,37 @@ const Storybook = component({
       }
       return this.setSectionId(sectionId).setExampleId(exampleId).setFocusExample(example.value);
     },
+    setSelectedSectionFilter(value) {
+      if (this.sections.size === 0) return this;
+      const i = this.selectedSectionIndex;
+      const sections = this.sections.map((s, idx) => (idx === i ? s.setFilter(value ?? "") : s));
+      return this.setSections(sections);
+    },
+    // Assemble the full URL snapshot from current state. `overrides` carries the
+    // change the calling handler is about to make, since `this` is still the
+    // pre-change state when the persistState request is issued.
+    toUrlState(overrides = {}) {
+      const section = this.sections.get(this.selectedSectionIndex);
+      return {
+        section: section?.id ?? "",
+        example: this.exampleId ?? "",
+        sectionFilter: this.filter ?? "",
+        exampleFilter: section?.filter ?? "",
+        ...overrides,
+      };
+    },
   },
   input: {
     onApplyFilter(value, ctx) {
-      ctx.request("persistState", [{ key: "sectionFilter", value }]);
+      ctx.request("persistState", [this.toUrlState({ sectionFilter: value }), this, false]);
       return this.setFilter(value);
     },
     onClearFilter(ctx) {
-      ctx.request("persistState", [{ key: "sectionFilter", value: "" }]);
+      ctx.request("persistState", [this.toUrlState({ sectionFilter: "" }), this, false]);
       return this.resetFilter();
     },
     onFocusClose(ctx) {
-      ctx.request("persistState", [{ key: "sectionId", value: "" }]);
-      ctx.request("persistState", [{ key: "exampleId", value: "" }]);
+      ctx.request("persistState", [this.toUrlState({ example: "" }), this, true]);
       return this.setSectionId(null).setExampleId(null).setFocusExample(null);
     },
   },
@@ -68,16 +86,41 @@ const Storybook = component({
   bubble: {
     sectionSelected(section, ctx) {
       ctx.stopPropagation();
-      ctx.request("persistState", [{ key: "section", value: section.id }]);
+      ctx.request("persistState", [
+        this.toUrlState({ section: section.id, exampleFilter: section.filter }),
+        this,
+        true,
+      ]);
       return this.selectSectionAtIndex(this.sections.indexOf(section));
     },
     exampleFocusRequested(example, ctx) {
       ctx.stopPropagation();
       const section = this.sections.get(this.selectedSectionIndex);
       const sectionId = section?.id ?? null;
-      ctx.request("persistState", [{ key: "sectionId", value: sectionId }]);
-      ctx.request("persistState", [{ key: "exampleId", value: example.id }]);
+      ctx.request("persistState", [this.toUrlState({ example: example.id }), this, true]);
       return this.setSectionId(sectionId).setExampleId(example.id).setFocusExample(example.value);
+    },
+    exampleFilterChanged(value, ctx) {
+      ctx.stopPropagation();
+      ctx.request("persistState", [this.toUrlState({ exampleFilter: value }), this, false]);
+      return this;
+    },
+  },
+  receive: {
+    init(ctx) {
+      ctx.request("loadState", []);
+      return this;
+    },
+  },
+  response: {
+    loadState(state, err) {
+      if (err || !state) return this;
+      const next = this.selectSectionWithId(state.section)
+        .setFilter(state.sectionFilter ?? "")
+        .setSelectedSectionFilter(state.exampleFilter ?? "");
+      return state.example
+        ? next.focusExampleByIds(state.section, state.example)
+        : next.setSectionId(null).setExampleId(null).setFocusExample(null);
     },
   },
   view: html`<div>
@@ -148,11 +191,11 @@ const Section = component({
   },
   input: {
     onApplyFilter(value, ctx) {
-      ctx.request("persistState", [{ key: "exampleFilter", value }]);
+      ctx.bubble("exampleFilterChanged", [value]);
       return this.setFilter(value);
     },
     onClearFilter(ctx) {
-      ctx.request("persistState", [{ key: "exampleFilter", value: "" }]);
+      ctx.bubble("exampleFilterChanged", [""]);
       return this.resetFilter();
     },
     onListItemClick(ctx) {
@@ -297,18 +340,55 @@ export function buildStorybook(modules) {
 // optionally compile CSS via the provided callback, and start the app.
 //   compileCss: (app) => Promise<string>  // e.g. compileClassesToStyleText(app, compile)
 //   root:       override the aggregated root (escape hatch for custom roots)
-export async function mountStorybook(selector, modules, { compileCss, root } = {}) {
+export async function mountStorybook(
+  selector,
+  modules,
+  { compileCss, root, persistUrl = true } = {},
+) {
   const app = tutuca(selector);
   const built = buildStorybook(modules);
   app.state.set(root ?? built.root);
   const scope = app.registerComponents(built.components);
   scope.registerMacros(built.macros);
   scope.registerRequestHandlers(built.requestHandlers);
+  if (persistUrl) {
+    // The storybook owns these request names; register last so they win over any
+    // module-provided handler of the same name.
+    scope.registerRequestHandlers({ persistState, loadState });
+  }
   if (compileCss) {
     injectCss("tutuca-storybook", await compileCss(app));
   }
   app.start();
+  if (persistUrl) {
+    // Restore state from the URL, and re-restore on Back/Forward. Programmatic
+    // push/replaceState don't fire popstate, so this only runs on real navigation.
+    app.sendAtRoot("init", []);
+    window.addEventListener("popstate", () => app.sendAtRoot("init", []));
+  }
   return app;
+
+  // The root storybook is the only instance whose `this` is identical to
+  // app.state.val while a handler runs (state commits only after the handler
+  // returns). The check must happen before any await; the body is synchronous.
+  function persistState(state, instance, push) {
+    if (instance !== app.state.val) return; // ignore nested (Inception) storybooks
+    const url = new URL(window.location.href);
+    for (const [k, v] of Object.entries(state)) {
+      if (v === "" || v == null) url.searchParams.delete(k);
+      else url.searchParams.set(k, String(v));
+    }
+    window.history[push ? "pushState" : "replaceState"](null, "", url);
+  }
+  function loadState() {
+    const p = new URLSearchParams(window.location.search);
+    return {
+      section: p.get("section"),
+      example: p.get("example"),
+      sectionFilter: p.get("sectionFilter") ?? "",
+      exampleFilter: p.get("exampleFilter") ?? "",
+    };
+  }
 }
 
 // Follow the module convention so the storybook engine can be inspected by the
