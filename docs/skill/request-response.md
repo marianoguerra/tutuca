@@ -56,7 +56,11 @@ the state needed to respond. Bubble when the action belongs to an
 ancestor (a list item's "remove" must reach the list that owns the
 items), or when an ancestor may want to react to or record something
 that happened (selection, logging, analytics). Don't bubble events
-with no consumer.
+with no consumer — and don't bubble merely so an ancestor can *read* a
+child's state: the ancestor already holds the child as a field and can
+read it directly in its own handler (`this.items.get(i).done`). Bubble
+when the ancestor must **act on** or **record** the event, not to learn
+state it already owns.
 
 ## Send / Receive
 

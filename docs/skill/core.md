@@ -169,6 +169,23 @@ keys its cache on `===` identity, so unchanged subtrees skip work.
 Every value carries a hidden tag back to its component class, so the
 runtime never needs `instanceof` — it asks the value what it is.
 
+Because children are just immutable Records held in fields, **handlers
+and methods are ordinary JS with full read access to nested child
+state** — `this.child.count`, `this.items.get(i).done`,
+`this.byKey.get(k).label`. Reading *down* the tree is direct and needs
+no channel: an ancestor that owns a list already holds every child's
+state and can read it for an aggregate decision. The single-level
+`.field` restriction (no `.foo.bar`) is a **view-template** rule, not a
+JS one — it's why a derivation like `userName() { return this.user.name; }`
+is written as a method (see *Methods as Predicates & Computed Values*).
+Reading is free; **mutating** a child still flows through the model —
+the owner returns a new self (`setInItemsAt`, …) or messages the child
+with `ctx.send`. Don't reach in to mutate around the handler discipline,
+and prefer letting a child own and render its own state — reach down to
+read only when the ancestor genuinely needs it. See
+[component-design.md](./component-design.md) and "When to bubble" in
+[request-response.md](./request-response.md).
+
 **Stack: frames vs scopes.** As the renderer walks the AST it pushes
 `BindFrame`s. A *frame* is a barrier: name lookups (`@x`) stop at it,
 so a child component view sees a clean namespace. A *scope* is

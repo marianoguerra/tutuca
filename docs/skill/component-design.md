@@ -28,6 +28,13 @@ Walk these top-down whenever you add or reshape a component:
 
 ## Communication decision ladder
 
+This ladder is about *acting across* a component boundary — reaching up,
+messaging a target, doing async work, or mutating state someone else owns. It is
+**not** about merely *reading* a child's state: an ancestor already holds its
+children as immutable fields and can read them directly in any handler or method
+(`this.items.get(i).done`) — no channel needed. See [core.md](./core.md) "The
+value tree".
+
 Reach for the *narrowest* channel that does the job, and only move further down
 the ladder when the one above can't express it:
 
@@ -71,6 +78,16 @@ A compact worked version of the first four (`method`, `bubble`, `send`/`receive`
   up the tree as it needs to live. Don't thread a value through every component in
   between** (the React "prop drilling" reflex) — let a child render the field it
   needs from its owner. → [patterns/share-state-across-the-tree.md](./patterns/share-state-across-the-tree.md)
+
+- **Do read a child's state directly when an ancestor needs it for an aggregate
+  decision.** A parent holds its children as immutable fields, so a handler or
+  method can read `this.items.get(i).done` straight off — children don't have to
+  `bubble` their state up just to be *read*. **Don't reach for a channel to read
+  downward**; `bubble` / `send` are for reaching *up*, messaging a target, or
+  mutating — not for inspecting state you already own. (And don't reach in to
+  mutate a child around the model — that still goes through the owner returning a
+  new self or `ctx.send`.) → [core.md](./core.md) "The value tree" and
+  [request-response.md](./request-response.md) "When to bubble"
 
 - **Do reach for `provide` / `lookup` (`*name`) last** — only when a deep
   descendant needs a value owned far away and nothing in between should know about
