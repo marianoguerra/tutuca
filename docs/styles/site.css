@@ -64,6 +64,88 @@ body > header ul {
   text-align: left;
 }
 
+.hero-tagline {
+  font-size: 1.3rem;
+  color: var(--text-light);
+  text-align: center;
+  margin: 0.5rem auto 1.5rem auto;
+}
+
+.hero-actions {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 1.5rem auto;
+}
+
+.btn {
+  display: inline-block;
+  padding: 0.6rem 1.3rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent);
+  background: var(--bg);
+  border: var(--border-width) solid var(--accent);
+  border-radius: var(--standard-border-radius);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.btn:hover {
+  border-color: var(--accent-hover);
+  color: var(--accent-hover);
+}
+
+.btn-primary {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+.btn-primary:hover {
+  color: var(--bg);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.hero-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem auto 0 auto;
+  color: var(--text-light);
+  text-align: center;
+}
+
+.hero-highlights li {
+  position: relative;
+}
+
+.hero-highlights li + li::before {
+  content: "·";
+  position: absolute;
+  left: -0.9rem;
+  color: var(--border-color);
+}
+
+.hero-teaser {
+  max-width: 48rem;
+  margin: 1.5rem auto 0 auto;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.hero-teaser code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 body > nav a,
 body > footer a {
   text-decoration: none;
@@ -124,6 +206,12 @@ h4 {
   }
   h4 {
     font-size: 1.35rem;
+  }
+  .hero-tagline {
+    font-size: 1.15rem;
+  }
+  .hero-teaser {
+    font-size: 0.8rem;
   }
 }
 
