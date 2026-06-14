@@ -125,10 +125,16 @@ const Section = component({
     selected: false,
   },
   statics: {
-    fromData({ id, title = "???", description = "", items = [] }) {
-      id ??= slugify(title);
+    fromData(raw) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw) || raw.title == null) {
+        throw new Error(
+          `Section.fromData: expected a section object { title, items }, got ${JSON.stringify(raw)}. ` +
+            `getExamples() must return a section object or an array of section objects.`,
+        );
+      }
+      const { id, title, description = "", items = [] } = raw;
       return this.make({
-        id,
+        id: id ?? slugify(title),
         title,
         description,
         items: items.map((v) => Example.Class.fromData(v)),
@@ -256,11 +262,18 @@ function slugify(str) {
 
 // Aggregate an array of dev/story modules into the data a storybook needs.
 // Each module follows the convention: getComponents() (required) and
-// getExamples() -> { title, description?, items: [...] } (raw shape consumed by
-// Section.fromData), plus optional getMacros()/getRequestHandlers().
+// getExamples() -> a section object { title, description?, items: [...] } OR an
+// array of such section objects (a module contributing several sidebar sections).
+// Both forms are consumed by Section.fromData. Plus optional
+// getMacros()/getRequestHandlers().
 export function buildStorybook(modules) {
   const sections = modules
-    .map((m) => Section.Class.fromData(m.getExamples()))
+    .flatMap((m) => {
+      const raw = m.getExamples?.();
+      if (raw == null) return [];
+      return Array.isArray(raw) ? raw : [raw];
+    })
+    .map((s) => Section.Class.fromData(s))
     .sort((a, b) => a.title.localeCompare(b.title));
   const components = new Set([Storybook, Section, Example]);
   const macros = {};
