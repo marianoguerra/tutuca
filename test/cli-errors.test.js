@@ -1,10 +1,12 @@
-import { describe, expect, test } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const cli = resolve(here, "..", "tools", "tutuca.js");
+const repo = resolve(here, "..");
 const todoModule = resolve(here, "todo.js");
 
 function run(args) {
@@ -141,7 +143,7 @@ describe("CLI: agent-context", () => {
     const { code, stdout } = run(["agent-context"]);
     expect(code).toBe(0);
     const schema = JSON.parse(stdout);
-    expect(schema.schemaVersion).toBe(2);
+    expect(schema.schemaVersion).toBe(3);
     expect(schema.cli).toBe("tutuca");
     const names = schema.commands.map((c) => c.name).sort();
     expect(names).toEqual(
@@ -156,6 +158,7 @@ describe("CLI: agent-context", () => {
         "list",
         "render",
         "show",
+        "storybook",
         "test",
       ].sort(),
     );
@@ -212,6 +215,17 @@ describe("CLI: --limit on list/examples", () => {
 });
 
 describe("CLI: install-skill --dry-run", () => {
+  // skill/ is a gitignored build artifact; install-skill reads real files from it.
+  // Build the tutuca skill (a local copy of docs/skill/, no network) if it's absent.
+  beforeAll(() => {
+    if (existsSync(resolve(repo, "skill", "tutuca", "SKILL.md"))) return;
+    const r = spawnSync("bun", [resolve(repo, "scripts", "build-skill.js"), "tutuca"], {
+      cwd: repo,
+      encoding: "utf8",
+    });
+    if (r.status !== 0) throw new Error(`build-skill failed: ${r.stderr}`);
+  });
+
   test("prints would-install lines and does not exit nonzero", () => {
     const { code, stdout } = run(["install-skill", "--dry-run", "--user"]);
     expect(code).toBe(0);
