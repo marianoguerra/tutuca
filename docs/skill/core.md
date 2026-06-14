@@ -69,6 +69,23 @@ edit done:
    emitted HTML to verify structure (attributes, nesting, text); omit it
    when you only care that the render didn't crash.
 
+4. **Smoke-test the whole project** — when you've touched several
+   `*.dev.js` modules, or are about to launch the storybook, do a
+   project-wide dry run instead of opening a browser:
+
+        tutuca storybook --dry-run
+        tutuca storybook --dry-run --json    # machine-readable for agents
+
+   It does everything the server would do up front — discovers every
+   co-located `*.dev.js`, imports and normalizes each (catching a missing
+   `getComponents()` or a malformed `getExamples()` shape), runs their
+   `getTests()`, and resolves the runtime import map — then prints what
+   it *would* show instead of serving. A broken module is reported in
+   place (an `error` line, or `modules[].error` in `--json`) while the
+   others still report, so one bad module never hides the rest. This is
+   the fast "is the whole catalog wired up correctly?" check; steps 1–3
+   stay the per-module loop.
+
 Full reference: [cli.md](./cli.md).
 
 The Tutuca CLI only catches Tutuca-specific issues. For generic JS

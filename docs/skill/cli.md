@@ -40,7 +40,7 @@ Use `--module=<path>` if the path conflicts with positional parsing.
 | `lint <module> [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render <module> [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
 | `test <module> [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
-| `storybook [dir]`        | Serve a live storybook for the project, auto-discovering co-located `*.dev.js` modules. Flags: `--port`, `--out`, `--no-margaui`, `--no-check`, `--no-tests`. No module path needed |
+| `storybook [dir]`        | Serve a live storybook for the project, auto-discovering co-located `*.dev.js` modules. Flags: `--port`, `--out`, `--dry-run` (prep + print, don't serve), `--no-margaui`, `--no-check`, `--no-tests`. No module path needed |
 | `help [cmd]`             | Show usage. No module path needed                                                                                      |
 | `feedback [message]`     | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl`. No module path needed                      |
 | `install-skill [name]`   | Copy a bundled skill (`tutuca`, `margaui`, `immutable-js`, or `--all`) into `.claude/skills/`. No module path needed   |
@@ -200,6 +200,8 @@ tutuca storybook                 # scan + serve the current directory
 tutuca storybook ./packages/ui   # scan + serve another directory
 tutuca storybook --port 4321     # preferred port (falls back to a free one if taken)
 tutuca storybook --out ./_site   # write a static index.html + bootstrap instead of serving
+tutuca storybook --dry-run       # do all the prep + print what would be shown, don't serve (smoke test)
+tutuca storybook --dry-run --json # same, machine-readable for agents
 tutuca storybook --no-tests      # skip the pre-serve getTests() run
 tutuca storybook --no-margaui    # render unstyled (skip margaui)
 tutuca storybook --no-check      # skip the in-browser check(app)

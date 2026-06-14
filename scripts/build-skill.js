@@ -7,6 +7,12 @@
 //
 // Run with no args to build all; pass names to build a subset, e.g.
 //   bun scripts/build-skill.js tutuca
+//
+// skill/ is a generated artifact (gitignored, packed into the npm tarball via
+// package.json "files"). It is NOT a source tree — edit docs/skill/, not
+// skill/tutuca/. The `release`/`release-dry` scripts remove skill/ again right
+// after publishing (`npm run clean-skill`) so a stale copy can't linger in the
+// working tree and get mistaken for the source.
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
