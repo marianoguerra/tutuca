@@ -195,6 +195,8 @@ export function lintIdToMessage(id, info) {
       return `SVG attribute '${info.raw}' will be rewritten to '${info.canonical}'${fmtLocationSuffix(info)}`;
     case "HTML_MATHML_ATTR_WILL_LOWERCASE":
       return `MathML attribute '${info.raw}' will be rewritten to '${info.canonical}'${fmtLocationSuffix(info)}`;
+    case "ASYNC_HANDLER":
+      return `Handler '${info.name}' in '${info.channel}' is an async function — handlers must be synchronous and return the updated state (an async function returns a Promise the framework won't await)`;
     case "LINT_ERROR":
       return info.message;
     default:

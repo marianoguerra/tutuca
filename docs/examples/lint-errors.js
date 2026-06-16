@@ -18,6 +18,12 @@ const LintDemo = component({
     // INPUT_HANDLER_NOT_REFERENCED: defined here but never used in any view
     unusedInput() {},
   },
+  receive: {
+    // ASYNC_HANDLER: a handler must be synchronous and return the updated state —
+    // an async handler returns a Promise the framework won't await. Move the async
+    // work into a request handler (ctx.request) or use ctx.send / ctx.bubble.
+    async loadStuff() {},
+  },
   alter: {
     // ALT_HANDLER_NOT_REFERENCED: defined here but never used in any view
     unusedAlter(_k, v) {

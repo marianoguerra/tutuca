@@ -5,6 +5,7 @@ import { ComponentStack } from "../src/components.js";
 import {
   ALT_HANDLER_NOT_DEFINED,
   ALT_HANDLER_NOT_REFERENCED,
+  ASYNC_HANDLER,
   BAD_VALUE,
   COMP_FIELD_BAD_SHAPE,
   checkComponent,
@@ -62,6 +63,51 @@ function defAndCheck(opts, { macros, wellKnownExtras } = {}) {
 
 const defAndCheckWithExtras = (opts, wellKnownExtras) => defAndCheck(opts, { wellKnownExtras });
 const defAndCheckWithMacros = (opts, macros) => defAndCheck(opts, { macros });
+
+test("ASYNC_HANDLER flags an async input handler with the fix help", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<button @on.click="go">go</button>`,
+    input: {
+      async go() {},
+    },
+  });
+  const found = lx.reports.filter((r) => r.id === ASYNC_HANDLER);
+  expect(found.length).toBe(1);
+  expect(found[0].level).toBe("error");
+  expect(found[0].info).toEqual({ name: "go", channel: "input" });
+  expect(found[0].suggestion.kind).toBe("rephrase");
+  expect(found[0].suggestion.text).toContain("ctx.request");
+});
+
+test("ASYNC_HANDLER flags async handlers across receive/bubble/response/alter", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    receive: { async onMsg() {} },
+    bubble: { async onEvt() {} },
+    response: { async onRes() {} },
+    alter: { async onAlt(_k, v) { return v; } },
+  });
+  const channels = lx.reports
+    .filter((r) => r.id === ASYNC_HANDLER)
+    .map((r) => r.info.channel)
+    .sort();
+  expect(channels).toEqual(["alter", "bubble", "receive", "response"]);
+});
+
+test("ASYNC_HANDLER does not flag synchronous handlers", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<button @on.click="go">go</button>`,
+    input: { go() { return this; } },
+    receive: { onMsg() { return this; } },
+    bubble: { onEvt() { return this; } },
+    response: { onRes() { return this; } },
+    alter: { onAlt(_k, v) { return v; } },
+  });
+  expect(lx.reports.filter((r) => r.id === ASYNC_HANDLER).length).toBe(0);
+});
 
 test("warn on unknown component spec key with did-you-mean suggestion", () => {
   const [lx, Comp] = defAndCheck({

@@ -73,6 +73,7 @@ export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
 export const PLACEHOLDERLESS_TEMPLATE_STRING = "PLACEHOLDERLESS_TEMPLATE_STRING";
 export const UNKNOWN_COMPONENT_SPEC_KEY = "UNKNOWN_COMPONENT_SPEC_KEY";
 export const COMP_FIELD_BAD_SHAPE = "COMP_FIELD_BAD_SHAPE";
+export const ASYNC_HANDLER = "ASYNC_HANDLER";
 
 const X_KNOWN_OP_NAMES = new Set([
   "slot",
@@ -198,6 +199,7 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
     checkFieldDeclarations(lx, Comp);
     checkProvidesAreAddressable(lx, Comp);
     checkLookupShapes(lx, Comp);
+    checkHandlersNotAsync(lx, Comp);
     const referencedAlters = new Set();
     const referencedInputs = new Set();
     const referencedDynamics = new Set();
@@ -797,6 +799,38 @@ function checkUnreferencedInputHandlers(lx, Comp, referencedInputs) {
   for (const name in Comp.input) {
     if (!referencedInputs.has(name)) {
       lx.hint(INPUT_HANDLER_NOT_REFERENCED, { name });
+    }
+  }
+}
+
+// The five handler blocks are invoked synchronously: the transactor treats a
+// handler's return value as the new state leaf without awaiting it. An async
+// handler returns a Promise instead of an updated `this`, so the update is lost.
+// Async work belongs in a request handler (which the transactor does await),
+// never in these blocks. Detect async-ness on the raw function object — it isn't
+// represented in the value AST. Request handlers live in `scope.reqsByName`, not
+// on the component, so they're never reached here.
+const HANDLER_CHANNELS = ["input", "receive", "bubble", "response", "alter"];
+const ASYNC_HANDLER_HELP =
+  "Handlers must be synchronous and return the updated state. Move the async " +
+  "work into a request handler and trigger it with ctx.request('name', args), " +
+  "then handle the result in a synchronous response handler. To coordinate other " +
+  "components, keep the handler synchronous and use ctx.send to deliver a message " +
+  "or ctx.bubble to raise an event.";
+
+function checkHandlersNotAsync(lx, Comp) {
+  for (const channel of HANDLER_CHANNELS) {
+    const block = Comp[channel];
+    if (!block) continue;
+    for (const name in block) {
+      const fn = block[name];
+      if (typeof fn === "function" && fn.constructor?.name === "AsyncFunction") {
+        lx.error(
+          ASYNC_HANDLER,
+          { name, channel },
+          { kind: "rephrase", from: name, text: ASYNC_HANDLER_HELP },
+        );
+      }
     }
   }
 }

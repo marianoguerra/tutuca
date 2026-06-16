@@ -16,6 +16,7 @@
 import {
   ALT_HANDLER_NOT_DEFINED,
   ALT_HANDLER_NOT_REFERENCED,
+  ASYNC_HANDLER,
   BAD_VALUE,
   COMP_FIELD_BAD_SHAPE,
   DUPLICATE_ATTR_DEFINITION,
@@ -278,6 +279,17 @@ export const LINT_RULES = [
     level: "warn",
     group: "Component spec",
     summary: "`component({...})` has an unrecognized key; its value is ignored at runtime.",
+  },
+
+  // Handler effects
+  {
+    code: ASYNC_HANDLER,
+    level: "error",
+    group: "Handler effects",
+    summary:
+      "A handler in `input`/`receive`/`bubble`/`response`/`alter` is an async " +
+      "function — handlers must be synchronous; use a request handler, `ctx.send`, " +
+      "or `ctx.bubble` instead.",
   },
 
   // Component field declarations
