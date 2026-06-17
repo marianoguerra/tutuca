@@ -812,11 +812,10 @@ function checkUnreferencedInputHandlers(lx, Comp, referencedInputs) {
 // on the component, so they're never reached here.
 const HANDLER_CHANNELS = ["input", "receive", "bubble", "response", "alter"];
 const ASYNC_HANDLER_HELP =
-  "Handlers must be synchronous and return the updated state. Move the async " +
-  "work into a request handler and trigger it with ctx.request('name', args), " +
-  "then handle the result in a synchronous response handler. To coordinate other " +
-  "components, keep the handler synchronous and use ctx.send to deliver a message " +
-  "or ctx.bubble to raise an event.";
+  "Move the async work into a request handler and trigger it with " +
+  "ctx.request('name', args), then handle the result in a synchronous response " +
+  "handler. To coordinate other components, keep the handler synchronous and use " +
+  "ctx.send to deliver a message or ctx.bubble to raise an event.";
 
 function checkHandlersNotAsync(lx, Comp) {
   for (const channel of HANDLER_CHANNELS) {
