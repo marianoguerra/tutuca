@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { component, html } from "../index.js";
+import { component, html, macro } from "../index.js";
 import { renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";
 
@@ -7,11 +7,11 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const MATHML_NS = "http://www.w3.org/1998/Math/MathML";
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 
-function renderState(document, components, state) {
+function renderState(document, components, state, macros = null) {
   const { container, cleanup } = renderToHTMLNode(
     document,
     components,
-    null,
+    macros,
     state,
     HeadlessParseContext,
   );
@@ -72,6 +72,55 @@ describe("SVG namespace from templates", () => {
     const short = renderState(document, [Comp], Comp.make({ h: 5 }));
     expect(short.container.querySelector("rect").getAttribute("height")).toBe("5");
     short.cleanup();
+  });
+});
+
+describe("macro calls inside the SVG namespace", () => {
+  const document = setupJsdom();
+
+  // The HTML parser lowercases tag names inside SVG/MathML foreign content, so
+  // a `<x:bar>` macro call arrives as `x:bar` (not the `X:BAR` it would be in an
+  // HTML context). The macro dispatch must recognize the lowercase prefix or the
+  // call is dropped as `<!--Error: InvalidTagName x:bar-->`.
+  const macros = {
+    bar: macro({}, html`<rect x="1" y="1"></rect>`),
+    group: macro({}, html`<g><circle></circle></g>`),
+  };
+
+  test("a macro call inside <svg> is expanded, not dropped (lowercase x:)", () => {
+    const Comp = component({
+      name: "SvgMacroComp",
+      fields: {},
+      view: html`<svg viewBox="0 0 10 10"><x:bar></x:bar></svg>`,
+    });
+    const { container, cleanup } = renderState(document, [Comp], Comp.make(), macros);
+    expect(container.innerHTML).not.toContain("InvalidTagName");
+    expect(container.querySelector("rect")).not.toBe(null);
+    cleanup();
+  });
+
+  test("a macro call inside <svg> works when authored uppercase (X:)", () => {
+    const Comp = component({
+      name: "SvgMacroUpperComp",
+      fields: {},
+      view: html`<svg viewBox="0 0 10 10"><X:bar></X:bar></svg>`,
+    });
+    const { container, cleanup } = renderState(document, [Comp], Comp.make(), macros);
+    expect(container.innerHTML).not.toContain("InvalidTagName");
+    expect(container.querySelector("rect")).not.toBe(null);
+    cleanup();
+  });
+
+  test("expanded macro children inherit the SVG namespace at render", () => {
+    const Comp = component({
+      name: "SvgMacroNsComp",
+      fields: {},
+      view: html`<svg viewBox="0 0 10 10"><x:group></x:group></svg>`,
+    });
+    const { container, cleanup } = renderState(document, [Comp], Comp.make(), macros);
+    expect(container.querySelector("g").namespaceURI).toBe(SVG_NS);
+    expect(container.querySelector("circle").namespaceURI).toBe(SVG_NS);
+    cleanup();
   });
 });
 

@@ -166,7 +166,10 @@ export class ANode extends BaseNode {
     try {
       const isPseudoX = attrs[0]?.name === "@x";
       if (tag === "X" || isPseudoX) return parseXOp(attrs, childs, isPseudoX ? 1 : 0, px);
-      else if (tag.charCodeAt(1) === 58 && tag.charCodeAt(0) === 88) {
+      else if (
+        tag.charCodeAt(1) === 58 &&
+        (tag.charCodeAt(0) === 88 || tag.charCodeAt(0) === 120)
+      ) {
         const macroName = tag.slice(2).toLowerCase();
         if (macroName === "slot") {
           const slotName = attrs.getNamedItem("name")?.value ?? "_";
