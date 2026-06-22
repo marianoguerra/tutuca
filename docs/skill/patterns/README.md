@@ -41,3 +41,7 @@ task.
 ## Component communication
 
 - [Coordinate components](coordinate-components.md) — `bubble`, `send`/`receive`, async `request`/`response`.
+
+## Stories & catalog
+
+- [Add a story for a component](add-a-story.md) — a `*.dev.js` with `getComponents()` + `getExamples()`, optional per-example request mocks.

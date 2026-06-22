@@ -30,6 +30,7 @@ When authoring tutuca code, also load these if available:
 | Authoring `component({...})`, `html`...`` views, macros, fields, events, lists, styles | [core.md](./core.md)           |
 | Designing components — responsibilities, state ownership, channel choice, do's & don'ts | [component-design.md](./component-design.md) |
 | CLI commands, flags, exit codes, full linter rule list                                         | [cli.md](./cli.md)             |
+| Authoring `*.dev.js` story modules, `getExamples()` sections, per-example request mocking, running `tutuca storybook` | [storybook.md](./storybook.md) |
 | `bubble` / `send`-`receive` / async `request`-`response` channels, `$unknown`, request-handler registration | [request-response.md](./request-response.md) |
 | Drag & drop, dynamic bindings (`*x`), pseudo-`x`, custom seq types, Tailwind/MargaUI | [advanced.md](./advanced.md)   |
 | Runtime semantics — path steps, transaction lifecycle, dyn-var teleporting, async key pinning (`livePath`) | [semantics.md](./semantics.md) |

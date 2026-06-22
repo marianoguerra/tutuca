@@ -217,41 +217,11 @@ version-pinned CDN. All tutuca specifiers resolve to a single runtime, which
 component scope/identity requires. `--out` always pins the CDN so the static
 artifact is portable (host it from the project root so `/*.dev.js` paths resolve).
 
-### The `.dev.js` convention
+### Authoring `.dev.js` story modules
 
-A `*.dev.js` file is a **dev-only module**: it holds stories
-(`getComponents()` + `getExamples()`), tests (`getTests()`), and any other
-development-time helpers for nearby components, and is **never shipped to
-production or the UI**. The `.dev.js` suffix is the contract — your app imports
-its real components directly and never a `.dev.js`, and a production build glob
-can exclude `**/*.dev.js`. Because they follow the full module convention, the
-same files are valid targets for `tutuca test`/`lint`/`render` too.
-
-```js
-// counter.dev.js — lives next to counter.js
-import { component, html } from "tutuca";
-import { Counter } from "./counter.js";
-
-export function getComponents() {
-  return [Counter];
-}
-export function getExamples() {
-  return { title: "Counter", items: [{ title: "Basic", value: Counter.make({}) }] };
-}
-export function getTests({ describe, test, expect }) {
-  describe(Counter, () => {
-    test("starts at zero", () => expect(Counter.make({}).count).toBe(0));
-  });
-}
-```
-
-An example item may also include a `requestHandlers` map to **mock request
-handlers per example** (storybook only) — async functions keyed by request name
-that override the module's real handler for that one example instance, so each
-example can demonstrate a specific response (fixture, `throw` for the error path,
-or never-resolve for a loading state). See the module convention in
-[core.md](./core.md). `tutuca storybook --dry-run --json` lists each example's
-mocked names.
+The `*.dev.js` convention (a dev-only module holding `getComponents()` +
+`getExamples()` + `getTests()`, never shipped), the example/section shape, and
+per-example request mocking are covered in [storybook.md](./storybook.md).
 
 ## Install skill assets
 
