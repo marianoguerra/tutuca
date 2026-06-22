@@ -245,6 +245,14 @@ export function getTests({ describe, test, expect }) {
 }
 ```
 
+An example item may also include a `requestHandlers` map to **mock request
+handlers per example** (storybook only) — async functions keyed by request name
+that override the module's real handler for that one example instance, so each
+example can demonstrate a specific response (fixture, `throw` for the error path,
+or never-resolve for a loading state). See the module convention in
+[core.md](./core.md). `tutuca storybook --dry-run --json` lists each example's
+mocked names.
+
 ## Install skill assets
 
 `tutuca install-skill` copies bundled Claude Code skill files into

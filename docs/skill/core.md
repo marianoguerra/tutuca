@@ -1005,10 +1005,29 @@ export function getExamples()         {
   return {
     title: "...",
     description: "...",
-    items: [{ title, description, value, view }],         // value = Comp.make(...)
+    // value = Comp.make(...); requestHandlers (optional) mocks this example's requests
+    items: [{ title, description, value, view, requestHandlers }],
   };
 }
 export function getTests({ describe, test, expect }) { /*...*/ }      // optional — see cli.md
+```
+
+An example item may carry an optional **`requestHandlers`** map — per-example
+mocks for the request handlers its component triggers, used by the storybook
+only. Each is a plain async function keyed by request name; it overrides the
+module's real `getRequestHandlers()` handler **for that example instance only**,
+so two examples of the same component can show different responses side by side.
+Return a fixture, `throw` to exercise the error path, or never resolve to hold a
+loading state:
+
+```js
+items: [
+  { title: "Loaded", value: Widget.make(),
+    requestHandlers: { async load() { return [{ id: 1, name: "Ada" }]; } } },
+  { title: "Error", value: Widget.make(),
+    requestHandlers: { async load() { throw new Error("boom"); } } },
+  { title: "Default", value: Widget.make() },   // no mock → real handler / 404
+]
 ```
 
 Best practice: have `getComponents()` return **every** component the module
