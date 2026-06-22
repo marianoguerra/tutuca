@@ -218,6 +218,7 @@ async function discoverModules(projectDir, devModuleUrls) {
             title: it.title,
             view: it.view,
             componentName: it.componentName,
+            requestHandlers: it.requestHandlerNames,
           })),
         })),
         macros: normalized.macros ? Object.keys(normalized.macros) : [],
@@ -351,9 +352,7 @@ export async function run(argv, opts = {}) {
     const { base } = resolveTutucaBase(projectDir, self, false);
     const imports = buildImports(base, { margaui });
     const modules = await discoverModules(projectDir, devModuleUrls);
-    const tests = parsed.values["no-tests"]
-      ? null
-      : await runDevTests(projectDir, devModuleUrls);
+    const tests = parsed.values["no-tests"] ? null : await runDevTests(projectDir, devModuleUrls);
     const source = tutucaSource(base);
     const result = {
       projectDir,

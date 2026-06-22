@@ -1,12 +1,22 @@
 export const EXAMPLES_SHAPE_MISMATCH = "EXAMPLES_SHAPE_MISMATCH";
 
 class Example {
-  constructor({ title, description = null, value, view = "main", componentName = null }) {
+  constructor({
+    title,
+    description = null,
+    value,
+    view = "main",
+    componentName = null,
+    requestHandlerNames = [],
+  }) {
     this.title = title;
     this.description = description;
     this.value = value;
     this.view = view;
     this.componentName = componentName;
+    // Names of request handlers this example mocks (the keys of its requestHandlers
+    // map). Surfaced by `tutuca storybook --dry-run` for inspection.
+    this.requestHandlerNames = requestHandlerNames;
   }
 }
 
@@ -52,12 +62,17 @@ function parseExample(raw, index, components, parentPath) {
   if (raw.value === undefined) {
     throw shapeError(`example at ${where} missing "value"`, where);
   }
+  const rh = raw.requestHandlers;
+  if (rh != null && (typeof rh !== "object" || Array.isArray(rh))) {
+    throw shapeError(`example at ${where} "requestHandlers" must be an object of functions`, where);
+  }
   return new Example({
     title: raw.title ?? `Example ${index + 1}`,
     description: raw.description ?? null,
     value: raw.value,
     view: raw.view ?? "main",
     componentName: resolveComponentName(raw.value, components),
+    requestHandlerNames: rh ? Object.keys(rh) : [],
   });
 }
 

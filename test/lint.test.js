@@ -87,7 +87,11 @@ test("ASYNC_HANDLER flags async handlers across receive/bubble/response/alter", 
     receive: { async onMsg() {} },
     bubble: { async onEvt() {} },
     response: { async onRes() {} },
-    alter: { async onAlt(_k, v) { return v; } },
+    alter: {
+      async onAlt(_k, v) {
+        return v;
+      },
+    },
   });
   const channels = lx.reports
     .filter((r) => r.id === ASYNC_HANDLER)
@@ -100,11 +104,31 @@ test("ASYNC_HANDLER does not flag synchronous handlers", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     view: html`<button @on.click="go">go</button>`,
-    input: { go() { return this; } },
-    receive: { onMsg() { return this; } },
-    bubble: { onEvt() { return this; } },
-    response: { onRes() { return this; } },
-    alter: { onAlt(_k, v) { return v; } },
+    input: {
+      go() {
+        return this;
+      },
+    },
+    receive: {
+      onMsg() {
+        return this;
+      },
+    },
+    bubble: {
+      onEvt() {
+        return this;
+      },
+    },
+    response: {
+      onRes() {
+        return this;
+      },
+    },
+    alter: {
+      onAlt(_k, v) {
+        return v;
+      },
+    },
   });
   expect(lx.reports.filter((r) => r.id === ASYNC_HANDLER).length).toBe(0);
 });
@@ -130,6 +154,16 @@ test("wellKnownExtras suppresses unknown spec key warning", () => {
 
   const [lxWith] = defAndCheckWithExtras(opts, new Set(["customAttr"]));
   expect(lxWith.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length).toBe(0);
+});
+
+test("framework well-known extras (requestOverridesField) never warn", () => {
+  const [lx, Comp] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    requestOverridesField: "requestHandlers",
+  });
+  expect(Comp.extra.requestOverridesField).toBe("requestHandlers");
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_COMPONENT_SPEC_KEY).length).toBe(0);
 });
 
 test("no UNKNOWN_COMPONENT_SPEC_KEY on a maximal legit spec", () => {

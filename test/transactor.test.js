@@ -337,3 +337,92 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
     expect(replies).toEqual([{ name: "ack", pathLen: 2 }]);
   });
 });
+
+describe("request ctx (walkPath)", () => {
+  // Components keyed by an IMap "kind" field; only "mid" opts into overrides via extra.
+  const compByKind = {
+    root: { name: "Root" },
+    mid: { name: "Mid", extra: { requestOverridesField: "x" } },
+    leaf: { name: "Leaf" },
+  };
+  function makeReqComps(fn) {
+    return {
+      getCompFor: (v) => (v?.get ? (compByKind[v.get("kind", null)] ?? null) : null),
+      getRequestFor: () => ({ fn }),
+    };
+  }
+  const rootVal = IMap({
+    kind: "root",
+    child: IMap({ kind: "mid", value: IMap({ kind: "leaf" }) }),
+  });
+  const leafPath = new Path([new FieldStep("child"), new FieldStep("value")]);
+
+  test("handler receives a ctx as its final arg, after the request args", async () => {
+    let received;
+    const t = new Transactor(
+      makeReqComps((...args) => {
+        received = args;
+        return "ok";
+      }),
+      rootVal,
+    );
+    await t.pushRequest(leafPath, "load", [1, 2]);
+    expect(received.slice(0, -1)).toEqual([1, 2]);
+    const ctx = received.at(-1);
+    expect(typeof ctx.walkPath).toBe("function");
+    expect(ctx.root).toBe(rootVal);
+  });
+
+  test("walkPath visits the component instances leaf->root", async () => {
+    const seen = [];
+    const t = new Transactor(
+      makeReqComps((...args) => {
+        args.at(-1).walkPath((C, inst) => seen.push([C.name, inst.get("kind", null)]));
+        return "ok";
+      }),
+      rootVal,
+    );
+    await t.pushRequest(leafPath, "load", []);
+    expect(seen).toEqual([
+      ["Leaf", "leaf"],
+      ["Mid", "mid"],
+      ["Root", "root"],
+    ]);
+  });
+
+  test("walkPath stops early when the callback returns false", async () => {
+    const seen = [];
+    const t = new Transactor(
+      makeReqComps((...args) => {
+        args.at(-1).walkPath((C) => {
+          seen.push(C.name);
+          if (C.name === "Mid") return false;
+        });
+        return "ok";
+      }),
+      rootVal,
+    );
+    await t.pushRequest(leafPath, "load", []);
+    expect(seen).toEqual(["Leaf", "Mid"]);
+  });
+
+  test("walkPath yields the same chain after an await (immutable capture)", async () => {
+    const runs = [];
+    const t = new Transactor(
+      makeReqComps(async (...args) => {
+        const ctx = args.at(-1);
+        const before = [];
+        ctx.walkPath((C) => before.push(C.name));
+        await Promise.resolve();
+        const after = [];
+        ctx.walkPath((C) => after.push(C.name));
+        runs.push(before, after);
+        return "ok";
+      }),
+      rootVal,
+    );
+    await t.pushRequest(leafPath, "load", []);
+    expect(runs[0]).toEqual(["Leaf", "Mid", "Root"]);
+    expect(runs[1]).toEqual(["Leaf", "Mid", "Root"]);
+  });
+});

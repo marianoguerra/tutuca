@@ -257,6 +257,20 @@ export class Path {
     }
     return curVal;
   }
+  // The values entered along the path, root→leaf (root included): index 0 is `root`,
+  // the last entry is the leaf this path resolves to. Stops early at the first
+  // unresolvable step. Call on a transaction path (no DynSteps). Used to walk the
+  // component instances on a dispatch path (filter via Components.getCompFor).
+  resolveChain(root) {
+    const out = [root];
+    let curVal = root;
+    for (const step of this.steps) {
+      curVal = step.lookup(curVal, NONE);
+      if (curVal === NONE) break;
+      out.push(curVal);
+    }
+    return out;
+  }
   setValue(root, v) {
     const intermediates = new Array(this.steps.length);
     let curVal = root;

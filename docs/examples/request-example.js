@@ -124,6 +124,29 @@ export function getExamples() {
           items: [Entry.make({ title: "Edit me", description: "Then save" })],
         }),
       },
+      {
+        title: "Mocked response",
+        description: "loadData mocked to return fixtures (per-example)",
+        value: RequestExample.make({ isLoading: true }),
+        requestHandlers: {
+          async loadData() {
+            return [
+              { title: "Mocked A", description: "from a per-example mock" },
+              { title: "Mocked B", description: "from a per-example mock" },
+            ];
+          },
+        },
+      },
+      {
+        title: "Mocked error",
+        description: "loadData mocked to throw (exercises the error path)",
+        value: RequestExample.make({ isLoading: true }),
+        requestHandlers: {
+          async loadData() {
+            throw new Error("mocked failure");
+          },
+        },
+      },
     ],
   };
 }

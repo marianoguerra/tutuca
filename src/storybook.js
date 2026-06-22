@@ -239,9 +239,26 @@ const Section = component({
 
 const Example = component({
   name: "Example",
-  fields: { id: "?", title: "?", description: "", value: null, view: "main" },
+  fields: {
+    id: "?",
+    title: "?",
+    description: "",
+    value: null,
+    view: "main",
+    requestHandlers: null,
+  },
+  // Storybook-only convention (read in mountStorybook, never by core): names the
+  // field on an example instance that holds its per-example request-handler mocks.
+  requestOverridesField: "requestHandlers",
   statics: {
-    fromData({ id, title = "No Title Example", description = "", value = null, view = "main" }) {
+    fromData({
+      id,
+      title = "No Title Example",
+      description = "",
+      value = null,
+      view = "main",
+      requestHandlers = null,
+    }) {
       id ??= slugify(title);
       return this.make({
         id,
@@ -249,6 +266,7 @@ const Example = component({
         description,
         value,
         view,
+        requestHandlers,
       });
     },
   },
@@ -310,17 +328,25 @@ function slugify(str) {
 // Both forms are consumed by Section.fromData. Plus optional
 // getMacros()/getRequestHandlers().
 export function buildStorybook(modules) {
-  const sections = modules
-    .flatMap((m) => {
-      const raw = m.getExamples?.();
-      if (raw == null) return [];
-      return Array.isArray(raw) ? raw : [raw];
-    })
+  const rawSections = modules.flatMap((m) => {
+    const raw = m.getExamples?.();
+    if (raw == null) return [];
+    return Array.isArray(raw) ? raw : [raw];
+  });
+  const sections = rawSections
     .map((s) => Section.Class.fromData(s))
     .sort((a, b) => a.title.localeCompare(b.title));
   const components = new Set([Storybook, Section, Example]);
   const macros = {};
   const requestHandlers = {};
+  // Request names any example overrides via its `requestHandlers` map (read from the
+  // raw section data — the Example component's requestOverridesField convention).
+  const overrideNames = new Set();
+  for (const s of rawSections) {
+    for (const it of s?.items ?? []) {
+      for (const name in it?.requestHandlers ?? {}) overrideNames.add(name);
+    }
+  }
   for (const m of modules) {
     for (const c of m.getComponents?.() ?? []) {
       components.add(c);
@@ -333,7 +359,39 @@ export function buildStorybook(modules) {
     components: [...components],
     macros,
     requestHandlers,
+    overrideNames,
   };
+}
+
+// Storybook request mocking. One meta handler per request name (module handlers ∪
+// per-example overrides). Each walks the request ctx's component path to the nearest
+// example (a component declaring `requestOverridesField` in its `extra`) and uses
+// that example's mock for the name when present, else the module's real handler. The
+// handler signature matches the framework's — the RequestContext is the final arg.
+export function buildExampleRequestHandlers({ requestHandlers: reals, overrideNames }) {
+  const names = new Set([...Object.keys(reals), ...overrideNames]);
+  const makeMeta =
+    (name) =>
+    async (...rest) => {
+      const ctx = rest.at(-1);
+      const args = rest.slice(0, -1);
+      let override = null;
+      ctx.walkPath((Comp, inst) => {
+        const field = Comp.extra?.requestOverridesField;
+        if (!field) return;
+        const map = inst.get(field, null);
+        if (map && name in map) {
+          override = map[name];
+          return false; // nearest example wins
+        }
+      });
+      const fn = override ?? reals[name];
+      if (!fn) throw new Error(`Request not found: ${name}`);
+      return await fn(...args, ctx);
+    };
+  const handlers = {};
+  for (const name of names) handlers[name] = makeMeta(name);
+  return handlers;
 }
 
 // High-level bootstrap: aggregate modules, mount the storybook at selector,
@@ -350,7 +408,10 @@ export async function mountStorybook(
   app.state.set(root ?? built.root);
   const scope = app.registerComponents(built.components);
   scope.registerMacros(built.macros);
-  scope.registerRequestHandlers(built.requestHandlers);
+  // Register one meta handler per request name (module handlers ∪ per-example
+  // overrides). Each resolves the issuing example via the request ctx's walkPath and
+  // uses that example's mock when present, else the module's real handler.
+  scope.registerRequestHandlers(buildExampleRequestHandlers(built));
   if (persistUrl) {
     // The storybook owns these request names; register last so they win over any
     // module-provided handler of the same name.

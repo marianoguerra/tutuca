@@ -23,6 +23,13 @@ const KNOWN_COMPONENT_SPEC_KEYS = new Set(
 
 const EMPTY_SET = new Set();
 
+// Extra component-spec keys the framework itself recognizes (collected into
+// comp.extra by src/components.js but consumed at runtime), so they are never
+// flagged as unknown regardless of the caller-supplied wellKnownExtras.
+// `requestOverridesField`: the storybook Example uses it to mark the field holding
+// per-example request-handler mocks (see src/storybook.js).
+const FRAMEWORK_WELL_KNOWN_EXTRAS = new Set(["requestOverridesField"]);
+
 const KNOWN_DIRECTIVE_NAMES = new Set([
   "dangerouslysetinnerhtml",
   "slot",
@@ -752,8 +759,12 @@ function checkUnknownSpecKeys(lx, Comp, wellKnownExtras) {
   if (!extra) return;
   let candidates = null;
   for (const key of Object.keys(extra)) {
-    if (wellKnownExtras.has(key)) continue;
-    candidates ??= [...KNOWN_COMPONENT_SPEC_KEYS, ...wellKnownExtras];
+    if (FRAMEWORK_WELL_KNOWN_EXTRAS.has(key) || wellKnownExtras.has(key)) continue;
+    candidates ??= [
+      ...KNOWN_COMPONENT_SPEC_KEYS,
+      ...FRAMEWORK_WELL_KNOWN_EXTRAS,
+      ...wellKnownExtras,
+    ];
     lx.warn(UNKNOWN_COMPONENT_SPEC_KEY, { key }, replaceNameSuggestion(key, candidates));
   }
 }

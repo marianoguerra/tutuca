@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { Section, Storybook } from "../src/storybook.js";
+import { component, html } from "../index.js";
+import { ComponentStack, Components } from "../src/components.js";
+import { FieldStep, Path } from "../src/path.js";
+import { buildExampleRequestHandlers, Example, Section, Storybook } from "../src/storybook.js";
+import { Transactor } from "../src/transactor.js";
 
 // Two sections, each with a couple of examples, mirroring buildStorybook's shape.
 function makeBook() {
@@ -89,5 +93,85 @@ describe("Storybook URL state", () => {
   test("restore with unknown section clamps to the first section", () => {
     const book = restore(makeBook(), { section: "nope" });
     expect(book.selectedSectionIndex).toBe(0);
+  });
+});
+
+describe("per-example request mocks", () => {
+  // A leaf component that issues requests, plus a container holding two examples so
+  // both render at once under a single shared meta-handler registry.
+  const Widget = component({ name: "Widget", fields: { loaded: "?" }, view: html`<i></i>` });
+  const Book = component({
+    name: "Book",
+    fields: { a: null, b: null },
+    view: html`<div><x render=".a"></x><x render=".b"></x></div>`,
+  });
+
+  function mount({ reals = {}, overrideNames = new Set() }, root) {
+    const comps = new Components();
+    const scope = new ComponentStack(comps);
+    scope.registerComponents([Book, Example, Widget]);
+    // Meta handlers live on the parent scope; each component's own scope chains up to it.
+    scope.registerRequestHandlers(
+      buildExampleRequestHandlers({ requestHandlers: reals, overrideNames }),
+    );
+    return new Transactor(comps, root);
+  }
+
+  const exWith = (handlers) => Example.make({ value: Widget.make({}), requestHandlers: handlers });
+  // Inside Book: a is at .a, its Widget at .a.value; b at .b, Widget at .b.value.
+  const widgetPath = (slot) => new Path([new FieldStep(slot), new FieldStep("value")]);
+
+  test("two examples of the same component each get their own mock (per-instance)", async () => {
+    const calls = [];
+    const root = Book.make({
+      a: exWith({
+        load: async () => {
+          calls.push("A");
+          return "A";
+        },
+      }),
+      b: exWith({
+        load: async () => {
+          calls.push("B");
+          return "B";
+        },
+      }),
+    });
+    const t = mount({ overrideNames: new Set(["load"]) }, root);
+    await t.pushRequest(widgetPath("a"), "load", []);
+    await t.pushRequest(widgetPath("b"), "load", []);
+    expect(calls).toEqual(["A", "B"]);
+  });
+
+  test("an example with no mock for the name falls back to the real handler", async () => {
+    const calls = [];
+    const root = Book.make({
+      a: exWith({
+        load: async () => {
+          calls.push("mockA");
+          return "A";
+        },
+      }),
+      b: exWith({}), // no override
+    });
+    const reals = {
+      load: async () => {
+        calls.push("real");
+        return "R";
+      },
+    };
+    const t = mount({ reals, overrideNames: new Set(["load"]) }, root);
+    await t.pushRequest(widgetPath("a"), "load", []);
+    await t.pushRequest(widgetPath("b"), "load", []);
+    expect(calls).toEqual(["mockA", "real"]);
+  });
+
+  test("the meta handler throws Request not found when neither override nor real exists", async () => {
+    const handlers = buildExampleRequestHandlers({
+      requestHandlers: {},
+      overrideNames: new Set(["load"]),
+    });
+    const ctx = { walkPath() {} }; // walks nothing → no override
+    await expect(handlers.load(ctx)).rejects.toThrow("Request not found: load");
   });
 });

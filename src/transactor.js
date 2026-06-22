@@ -42,6 +42,9 @@ export class Transactor {
     const txnPath = path.toTransactionPath();
     const curLeaf = txnPath.lookup(curRoot);
     const handler = this.comps.getRequestFor(curLeaf, name) ?? mkReq404(name);
+    // Request handlers run with no `this`, and receive a RequestContext as their
+    // final argument (consistent with receive/input/response, where ctx is last).
+    const reqCtx = new RequestContext(path, this, parent, curRoot);
     const resHandlerName = opts?.onResName ?? name;
     // Pin field-resolved keys (e.g. `.sheets[.selId]`) to their value *now*, so the
     // response updates the item that issued the request even if the key changed while
@@ -53,7 +56,7 @@ export class Transactor {
       this.pushTransaction(t);
     };
     try {
-      const result = await handler.fn.apply(null, args);
+      const result = await handler.fn.apply(null, [...args, reqCtx]);
       push(opts?.onOkName, resHandlerName, result, result, null);
     } catch (error) {
       push(opts?.onErrorName, resHandlerName, error, null, error);
@@ -298,10 +301,23 @@ class Task {
   }
 }
 class Dispatcher {
-  constructor(path, transactor, parentTransaction) {
+  constructor(path, transactor, parentTransaction, root = transactor.state.val) {
     this.path = path;
     this.transactor = transactor;
     this.parent = parentTransaction;
+    // The state tree this ctx's `path` indexes into, captured at dispatch. Immutable,
+    // so `walkPath` can be called any time (before or after an await).
+    this.root = root;
+  }
+  // Walk the component instances on this ctx's path, leaf→root, calling
+  // callback(Component, instance). Return false from the callback to stop early.
+  walkPath(callback) {
+    const comps = this.transactor.comps;
+    const chain = this.path.toTransactionPath().resolveChain(this.root);
+    for (let i = chain.length - 1; i >= 0; i--) {
+      const comp = comps.getCompFor(chain[i]);
+      if (comp && callback(comp, chain[i]) === false) return;
+    }
   }
   get at() {
     return new PathChanges(this);
@@ -336,6 +352,9 @@ class EventContext extends Dispatcher {
     return this.parent.stopPropagation();
   }
 }
+// The ctx handed to a request handler as its final argument. A distinct type (and a
+// home for any request-only helpers later); `walkPath` lives on Dispatcher.
+class RequestContext extends Dispatcher {}
 class PathChanges extends PathBuilder {
   constructor(dispatcher) {
     super();

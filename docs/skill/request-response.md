@@ -274,7 +274,7 @@ You can also fire several in one handler
 ### The request-handler contract
 
 Registered request handlers run with **no `this`** (they're invoked as
-`fn.apply(null, args)`), so they can't read component state — pass
+`fn.apply(null, [...args, ctx])`), so they can't read component state — pass
 everything they need through `args`
 (`ctx.request("persistState", [{ key, value }])`). They're plain async
 functions or closures. Aggregate handlers from sub-modules with spread:
@@ -284,6 +284,15 @@ export function getRequestHandlers() {
   return { ...getRequestHandlersA(), ...getRequestHandlersB() };
 }
 ```
+
+The handler also receives a request context as its **final argument**
+(consistent with `receive`/`input`/`response`, where `ctx` is last) — usually
+ignored, but available when needed. Like every ctx it exposes
+`ctx.walkPath(callback)`, which walks the component instances on the issuing
+path **leaf→root**, calling `callback(Component, instance)` (return `false` to
+stop early). It captures the immutable dispatch root/path, so it may be called
+before or after an `await`. (The storybook uses this to let an example mock the
+request handlers its component triggers — per example, in isolation.)
 
 ### Chaining from a response handler
 
