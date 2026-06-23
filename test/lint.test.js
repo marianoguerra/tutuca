@@ -14,6 +14,7 @@ import {
   DYN_VAL_NOT_DEFINED,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
+  GLOBAL_SELECTOR_IN_SCOPED_STYLE,
   IF_NO_BRANCH_SET,
   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
   INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
@@ -31,6 +32,7 @@ import {
   PROVIDE_NOT_ADDRESSABLE,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
+  TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE,
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_COMPONENT_SPEC_KEY,
   UNKNOWN_DIRECTIVE,
@@ -131,6 +133,111 @@ test("ASYNC_HANDLER does not flag synchronous handlers", () => {
     },
   });
   expect(lx.reports.filter((r) => r.id === ASYNC_HANDLER).length).toBe(0);
+});
+
+const atRuleReports = (lx) => lx.reports.filter((r) => r.id === TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE);
+const selectorReports = (lx) => lx.reports.filter((r) => r.id === GLOBAL_SELECTOR_IN_SCOPED_STYLE);
+
+test("TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE flags non-nestable at-rules in commonStyle", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    commonStyle: `@import url("x.css");\n@font-face { font-family: F; }\n@keyframes spin { to { opacity: 0; } }`,
+  });
+  const found = atRuleReports(lx);
+  expect(found.map((r) => r.info.atRule).sort()).toEqual(["font-face", "import", "keyframes"]);
+  expect(found[0].level).toBe("error");
+  expect(found[0].info.key).toBe("commonStyle");
+  expect(found[0].suggestion.kind).toBe("rephrase");
+  expect(found[0].suggestion.text).toContain("globalStyle");
+});
+
+test("TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE reports location and view context for a per-view style", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    // line 1 is blank, the at-rule sits on line 2
+    style: `\n  @keyframes spin { to { opacity: 0; } }`,
+  });
+  const found = atRuleReports(lx);
+  expect(found.length).toBe(1);
+  expect(found[0].info.key).toBe("style");
+  expect(found[0].context.viewName).toBe("main");
+  expect(found[0].info.location).toEqual({ line: 2, column: 3 });
+});
+
+test("TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE matches vendor-prefixed keyframes", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    commonStyle: `@-webkit-keyframes spin { to { opacity: 0; } }`,
+  });
+  expect(atRuleReports(lx).length).toBe(1);
+});
+
+test("nestable group rules in scoped style are not flagged", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    commonStyle: `
+      @media (min-width: 40em) { p { color: red; } }
+      @supports (display: grid) { p { display: grid; } }
+      @container (min-width: 10em) { p { color: blue; } }
+      @layer base { p { margin: 0; } }
+      @scope (p) { a { color: green; } }
+      @starting-style { p { opacity: 0; } }
+    `,
+  });
+  expect(atRuleReports(lx).length).toBe(0);
+});
+
+test("at-rules inside comments or strings are not flagged", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    commonStyle: `/* @import should be ignored */ p::before { content: "@keyframes x"; }`,
+  });
+  expect(atRuleReports(lx).length).toBe(0);
+});
+
+test("globalStyle is never checked", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    globalStyle: `@import url("x.css"); body { margin: 0; } @keyframes spin { to { opacity: 0; } }`,
+  });
+  expect(atRuleReports(lx).length).toBe(0);
+  expect(selectorReports(lx).length).toBe(0);
+});
+
+test("tutuca-lint-ignore on the same line suppresses the finding", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    commonStyle: `@import url("x.css"); /* tutuca-lint-ignore */`,
+  });
+  expect(atRuleReports(lx).length).toBe(0);
+});
+
+test("GLOBAL_SELECTOR_IN_SCOPED_STYLE flags a leading body/:root selector", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    commonStyle: `body { margin: 0; }\n:root { --c: red; }`,
+  });
+  const found = selectorReports(lx);
+  expect(found.map((r) => r.info.selector).sort()).toEqual([":root", "body"]);
+  expect(found[0].level).toBe("error");
+  expect(found[0].suggestion.text).toContain("globalStyle");
+});
+
+test("GLOBAL_SELECTOR_IN_SCOPED_STYLE ignores non-leading and :scope selectors", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div></div>`,
+    commonStyle: `& body { color: red; }\ndiv body { color: red; }\n:scope p { color: red; }\np { color: body; }`,
+  });
+  expect(selectorReports(lx).length).toBe(0);
 });
 
 test("warn on unknown component spec key with did-you-mean suggestion", () => {

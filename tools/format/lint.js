@@ -197,6 +197,10 @@ export function lintIdToMessage(id, info) {
       return `MathML attribute '${info.raw}' will be rewritten to '${info.canonical}'${fmtLocationSuffix(info)}`;
     case "ASYNC_HANDLER":
       return `Handler '${info.name}' in '${info.channel}' is an async function — handlers must be synchronous and return the updated state (an async function returns a Promise the framework won't await)`;
+    case "TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE":
+      return `'@${info.atRule}' is a top-level-only at-rule, but '${info.key}' is wrapped in a component-scoped selector ([data-cid=…]{…}) where it is invalid and silently dropped — move it to 'globalStyle'${fmtLocationSuffix(info)}`;
+    case "GLOBAL_SELECTOR_IN_SCOPED_STYLE":
+      return `Selector '${info.selector}' targets the document root, but '${info.key}' is wrapped in a component-scoped selector, so it becomes a descendant selector that never matches — move it to 'globalStyle'${fmtLocationSuffix(info)}`;
     case "LINT_ERROR":
       return info.message;
     default:

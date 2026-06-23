@@ -81,6 +81,8 @@ export const PLACEHOLDERLESS_TEMPLATE_STRING = "PLACEHOLDERLESS_TEMPLATE_STRING"
 export const UNKNOWN_COMPONENT_SPEC_KEY = "UNKNOWN_COMPONENT_SPEC_KEY";
 export const COMP_FIELD_BAD_SHAPE = "COMP_FIELD_BAD_SHAPE";
 export const ASYNC_HANDLER = "ASYNC_HANDLER";
+export const TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE = "TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE";
+export const GLOBAL_SELECTOR_IN_SCOPED_STYLE = "GLOBAL_SELECTOR_IN_SCOPED_STYLE";
 
 const X_KNOWN_OP_NAMES = new Set([
   "slot",
@@ -207,6 +209,7 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
     checkProvidesAreAddressable(lx, Comp);
     checkLookupShapes(lx, Comp);
     checkHandlersNotAsync(lx, Comp);
+    checkScopedStyleTopLevel(lx, Comp);
     const referencedAlters = new Set();
     const referencedInputs = new Set();
     const referencedDynamics = new Set();
@@ -842,6 +845,114 @@ function checkHandlersNotAsync(lx, Comp) {
         );
       }
     }
+  }
+}
+
+// `style`/`commonStyle` are wrapped by Component.compileStyle in a
+// component-scoped selector (`[data-cid="N"]{ … }` / `…[data-vid="V"]{ … }`),
+// so their CSS lands *inside* a style-rule block. Top-level-only at-rules
+// (@import, @keyframes, @font-face, …) and rules whose leading selector targets
+// the document root (html/body/:root) are invalid or dead once nested there —
+// the browser silently drops them. `globalStyle` is injected verbatim with no
+// wrapper, so it is the correct home and is never checked here.
+//
+// CSS is a raw string with no parser in the project; we scan with regexes after
+// blanking out comments and string literals so @-tokens inside `content: "@x"`
+// or `/* @x */` don't trip the rule. A `/* tutuca-lint-ignore */` comment on the
+// same line as a finding suppresses it (the only inline lint-suppression in
+// tutuca, intentionally scoped to this CSS scan).
+
+// Only these names — the nestable conditional-group rules (@media, @supports,
+// @container, @layer, @scope, @starting-style) are deliberately absent, so they
+// never match. Optional vendor prefix covers @-webkit-keyframes etc. The
+// leading [\s;{}] (or string start) ensures it's a real at-rule, and \b stops
+// @importx / @pages from matching.
+const NON_NESTABLE_AT_RULE =
+  /(?:^|[\s;{}])@(?:-[a-z]+-)?(charset|import|namespace|font-face|keyframes|page|property|counter-style|font-feature-values|font-palette-values|view-transition)\b/gi;
+
+// A rule whose leading compound selector is html/body/:root and which opens a
+// block (`{`) before any `;` (so declarations can't match). Anchored on
+// start/`{`/`}` so only the *leading* selector counts — `& body` / `div body`
+// descendant selectors are left alone. `:scope` is excluded: nested, it
+// correctly refers to the component root.
+const GLOBAL_LEADING_SELECTOR = /(?:^|[{}])\s*(html|body|:root)\b[^{};]*\{/gi;
+
+const IGNORE_DIRECTIVE = /\/\*\s*tutuca-lint-ignore\s*\*\//g;
+
+// Replace every non-newline character of a match with a space, preserving both
+// byte offsets and line numbers so match positions stay accurate.
+const blankRun = (m) => m.replace(/[^\n]/g, " ");
+function blankCssNoise(css) {
+  return css
+    .replace(/\/\*[\s\S]*?\*\//g, blankRun) // block comments
+    .replace(/"(?:[^"\\\n]|\\.)*"/g, blankRun) // double-quoted strings
+    .replace(/'(?:[^'\\\n]|\\.)*'/g, blankRun); // single-quoted strings
+}
+
+// 1-based line/column of `index` within `str`.
+function offsetToLineCol(str, index) {
+  let line = 1;
+  let lineStart = 0;
+  for (let i = 0; i < index; i++) {
+    if (str[i] === "\n") {
+      line++;
+      lineStart = i + 1;
+    }
+  }
+  return { line, column: index - lineStart + 1 };
+}
+
+// Set of 1-based line numbers carrying a `/* tutuca-lint-ignore */` directive.
+function suppressedLines(css) {
+  const lines = new Set();
+  IGNORE_DIRECTIVE.lastIndex = 0;
+  for (let m = IGNORE_DIRECTIVE.exec(css); m !== null; m = IGNORE_DIRECTIVE.exec(css)) {
+    lines.add(offsetToLineCol(css, m.index).line);
+  }
+  return lines;
+}
+
+const STYLE_TO_GLOBAL_HELP =
+  "Move it to the component's 'globalStyle' key, which is injected without the " +
+  "component-scoping wrapper. To suppress a false positive, put a " +
+  "/* tutuca-lint-ignore */ comment on the same line.";
+
+function scanScopedCss(lx, css, key) {
+  if (!css) return;
+  const ignore = suppressedLines(css);
+  const clean = blankCssNoise(css);
+  const report = (id, info) => {
+    if (ignore.has(info.location.line)) return;
+    lx.error(id, { key, ...info }, { kind: "rephrase", text: STYLE_TO_GLOBAL_HELP });
+  };
+  NON_NESTABLE_AT_RULE.lastIndex = 0;
+  for (let m = NON_NESTABLE_AT_RULE.exec(clean); m !== null; m = NON_NESTABLE_AT_RULE.exec(clean)) {
+    // The atRule keyword starts at the `@`, after the optional leading separator.
+    const at = m.index + m[0].indexOf("@");
+    report(TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE, {
+      atRule: m[1].toLowerCase(),
+      location: offsetToLineCol(clean, at),
+    });
+  }
+  GLOBAL_LEADING_SELECTOR.lastIndex = 0;
+  for (
+    let m = GLOBAL_LEADING_SELECTOR.exec(clean);
+    m !== null;
+    m = GLOBAL_LEADING_SELECTOR.exec(clean)
+  ) {
+    const at = m.index + m[0].indexOf(m[1]);
+    report(GLOBAL_SELECTOR_IN_SCOPED_STYLE, {
+      selector: m[1].toLowerCase(),
+      location: offsetToLineCol(clean, at),
+    });
+  }
+}
+
+function checkScopedStyleTopLevel(lx, Comp) {
+  scanScopedCss(lx, Comp.commonStyle, "commonStyle");
+  for (const name in Comp.views) {
+    const { style } = Comp.views[name];
+    if (style) lx.push({ viewName: name }, () => scanScopedCss(lx, style, "style"));
   }
 }
 

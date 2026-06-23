@@ -24,6 +24,7 @@ import {
   DYN_VAL_NOT_DEFINED,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
+  GLOBAL_SELECTOR_IN_SCOPED_STYLE,
   IF_NO_BRANCH_SET,
   INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
   INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
@@ -40,6 +41,7 @@ import {
   PROVIDE_NOT_ADDRESSABLE,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
+  TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE,
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_COMPONENT_SPEC_KEY,
   UNKNOWN_DIRECTIVE,
@@ -290,6 +292,26 @@ export const LINT_RULES = [
       "A handler in `input`/`receive`/`bubble`/`response`/`alter` is an async " +
       "function — handlers must be synchronous; use a request handler, `ctx.send`, " +
       "or `ctx.bubble` instead.",
+  },
+
+  // Component styles
+  {
+    code: TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE,
+    level: "error",
+    group: "Component styles",
+    summary:
+      "A top-level-only at-rule (`@import`, `@keyframes`, `@font-face`, …) appears " +
+      "in `style`/`commonStyle`, which is wrapped in a component-scoped selector " +
+      "where it is invalid and dropped — move it to `globalStyle`.",
+  },
+  {
+    code: GLOBAL_SELECTOR_IN_SCOPED_STYLE,
+    level: "error",
+    group: "Component styles",
+    summary:
+      "A rule whose leading selector is `html`/`body`/`:root` appears in " +
+      "`style`/`commonStyle`; once scoped it becomes a descendant selector that " +
+      "never matches — move it to `globalStyle`.",
   },
 
   // Component field declarations

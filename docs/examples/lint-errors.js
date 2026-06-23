@@ -272,12 +272,27 @@ const CompFieldShapeDemo = component({
   view: html`<p>Component-field declaration shape errors — check the Lint tab</p>`,
 });
 
+const ScopedStyleDemo = component({
+  name: "ScopedStyleDemo",
+  fields: { count: 0 },
+  // commonStyle/style are wrapped in a component-scoped selector, so top-level
+  // CSS lands inside a style-rule block where it is invalid or dead. Both belong
+  // in globalStyle (which is injected verbatim).
+  commonStyle: `
+    /* TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE: @keyframes can't be nested */
+    @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+    /* GLOBAL_SELECTOR_IN_SCOPED_STYLE: leading body becomes a dead descendant */
+    body { margin: 0; }
+  `,
+  view: html`<p @text=".count">0</p>`,
+});
+
 export function getMacros() {
   return { labeled };
 }
 
 export function getComponents() {
-  return [LintDemo, HtmlLintDemo, JsonNode, CompFieldShapeDemo];
+  return [LintDemo, HtmlLintDemo, JsonNode, CompFieldShapeDemo, ScopedStyleDemo];
 }
 
 export function getRoot() {
@@ -308,6 +323,11 @@ export function getExamples() {
         title: "Component field shape errors",
         description: "Field declarations with the wrong {component, args} shape",
         value: CompFieldShapeDemo.make(),
+      },
+      {
+        title: "Scoped-style top-level CSS errors",
+        description: "Top-level-only CSS in scoped style/commonStyle",
+        value: ScopedStyleDemo.make(),
       },
     ],
   };
