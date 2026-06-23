@@ -11,8 +11,9 @@ the `tutuca` CLI.
 > `request`/`response`, the `$unknown` fallback, and request-handler
 > registration: see [request-response.md](./request-response.md).
 > Advanced topics (drag & drop, dynamic bindings `*x`, pseudo-`x` for
-> `<select>`/`<table>`/`<tr>`, custom seq types, Tailwind/MargaUI
-> compilation): see [advanced.md](./advanced.md). CLI commands, flags,
+> `<select>`/`<table>`/`<tr>`, custom seq types): see
+> [advanced.md](./advanced.md). Setting up Tailwind/MargaUI styling: see
+> [margaui.md](./margaui.md). CLI commands, flags,
 > exit codes, and full linter rule list: see [cli.md](./cli.md).
 > Authoring tests — `getTests` shape, calling methods/input/receive/
 > bubble/response/alter handlers, designing for testability: see
@@ -827,6 +828,9 @@ component({
 Tagged templates `html` and `css` are just `String.raw` (editor hinting
 only). Plain strings work too.
 
+For Tailwind / MargaUI utility classes (compiling `class=` literals into
+CSS via the extra build), see [margaui.md](./margaui.md).
+
 ## Triggers and Handlers
 
 Tutuca has four orchestration channels. Each one pairs a trigger with
@@ -1056,8 +1060,9 @@ consumed by the shipped `tutuca/storybook` library (`mountStorybook`,
   `request`-`response` channels, the `ctx.at` `PathBuilder`, `$unknown`, and
   request-handler registration.
 - [advanced.md](./advanced.md) — dynamic bindings (`*x`), pseudo-`@x` for
-  `<select>` / `<table>` / `<tr>`, drag & drop, custom seq types, Tailwind /
-  MargaUI compilation.
+  `<select>` / `<table>` / `<tr>`, drag & drop, custom seq types.
+- [margaui.md](./margaui.md) — setting up MargaUI styling: install
+  (CDN / npm / vendoring), theme CSS, and `compileClassesToStyleText`.
 - [semantics.md](./semantics.md) — runtime semantics: path steps, the
   transaction lifecycle, dyn-var teleporting, and async key pinning
   (`livePath`).

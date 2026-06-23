@@ -2,9 +2,9 @@
 
 Reach this file only when the task touches drag & drop, context-style
 "dynamic bindings", pseudo-`x` (the `<x>`-stripping workaround inside
-`<select>`/`<table>`/`<tr>`), registering a custom seq type, or
-compiling Tailwind / MargaUI classes. For everything else, `core.md`
-is the right place.
+`<select>`/`<table>`/`<tr>`), or registering a custom seq type. For
+compiling Tailwind / MargaUI classes see [margaui.md](./margaui.md); for
+everything else, `core.md` is the right place.
 
 ## Drag and Drop
 
@@ -190,37 +190,6 @@ whose entries resolve `@key` in event handlers.
 
 ## Tailwind / MargaUI Class Compilation (extra build)
 
-```js
-import { compileClassesToStyleText, injectCss, tutuca } from "tutuca/extra";
-import { compile } from "https://cdn.jsdelivr.net/npm/margaui/+esm";
-
-const app = tutuca("#app");
-app.registerComponents([Comp]);
-const css = await compileClassesToStyleText(app, compile);
-injectCss("myapp", css);
-app.start();
-```
-
-`compileClassesToStyleText` walks every registered component's templates,
-collects the `class=` and `:class=` literals, hands them to a `compile`
-function (any margaui-compatible signature), and returns CSS text. Pair
-with `injectCss(scopeName, css)` to install the result before `start()`.
-
-If a margaui skill is available, load it alongside this one when
-authoring class lists — it lists the available components and their
-canonical class strings, which is what the `compile` step expects.
-
-**Pitfall: `@if.class` payloads are invisible to the scanner.** Classes
-inside `@then` / `@else` (e.g. `@if.class=".active" @then="'btn-success'"
-@else="'btn-ghost'"`) are not literals in `class=` / `:class=`, so
-`compileClassesToStyleText` skips them and the margaui CSS for those
-classes is never emitted — the conditional class renders unstyled.
-Workaround: add a hidden "decoy" view on the component that lists every
-conditional class as a real literal, so the walker picks them up:
-
-```js
-_margauiClasses: html`<p class="btn-success btn-ghost on off"></p>`,
-```
-
-The view does not need to be rendered anywhere — registration is enough
-for the template walker to find it.
+Moved to [margaui.md](./margaui.md) — installing margaui (CDN / npm /
+vendoring), the theme CSS, the `compileClassesToStyleText` + `injectCss`
+wiring, and the `@if.class` decoy-view pitfall.
