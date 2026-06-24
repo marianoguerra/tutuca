@@ -187,6 +187,8 @@ async function runDevTests(projectDir, devModuleUrls) {
       components: normalized.components,
       path: abs,
       expect,
+      requestHandlers: normalized.requestHandlers,
+      macros: normalized.macros,
     });
     const m = report.modules[0];
     totalTests += m.counts.total;

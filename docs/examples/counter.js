@@ -53,12 +53,27 @@ export function getExamples() {
         description: "Let's see how it handles negative values",
         value: Counter.make({ count: -5 }),
       },
+      {
+        title: "Counter that decrements when first shown",
+        description: "Lifecycle hook: on.init runs the `dec` input handler",
+        value: Counter.make({ count: 3 }),
+        on: { init: { input: [{ name: "dec", args: [] }] } },
+      },
     ],
   };
 }
 
-export function getTests({ describe, test, expect }) {
+export function getTests({ describe, test, expect, drive }) {
   describe(Counter, () => {
+    describe("lifecycle via drive()", () => {
+      test("on.init's `dec` input handler decrements once when shown", async () => {
+        const settled = await drive(Counter.make({ count: 3 }), {
+          input: [{ name: "dec", args: [] }],
+        });
+        expect(settled.count).toBe(2);
+      });
+    });
+
     describe("inc()", () => {
       test("returns a Counter with count + 1", () => {
         const next = Counter.make().inc();

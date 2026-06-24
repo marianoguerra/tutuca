@@ -65,6 +65,8 @@ Item fields:
 - `value` — required, the instance to render, usually `Comp.make({...})`.
 - `view?` — selects a pushed named view, rendered via `@push-view` in the card.
 - `requestHandlers?` — per-example request mocks (next section).
+- `on?` — lifecycle hooks; messages sent to `value` as sections are navigated
+  ([Lifecycle hooks](#lifecycle-hooks-on)).
 
 The storybook sorts sections by title and renders a sidebar with a filter, so
 one example item per meaningful state reads as a state matrix.
@@ -96,6 +98,50 @@ This is **storybook-only** — at runtime your real `getRequestHandlers()` apply
 See [request-response.md](./request-response.md) for the handler contract (the
 `ctx` is the handler's final argument). `tutuca storybook --dry-run --json`
 lists each example's mocked names.
+
+## Lifecycle hooks (`on`)
+
+An item's optional `on` field declares messages dispatched to the example's
+component (`value`) as the user navigates sections — for examples that need to be
+"kicked" into a state (load data, open a panel, focus an input) rather than
+constructed in it. Three phases:
+
+- **`init`** — the first time a section is displayed, sent to each of its examples.
+- **`resume`** — each subsequent time that section is re-displayed.
+- **`suspend`** — when a section is navigated away from.
+
+```js
+items: [
+  { title: "Loaded", value: Grid.make({}),
+    on: {
+      init:    { request: [{ name: "load", args: [] }] },     // fetch on first show
+      resume:  { send:    [{ name: "refresh", args: [] }] },  // re-poll on return
+      suspend: { send:    [{ name: "pause", args: [] }] },    // stop work when hidden
+    } },
+]
+```
+
+Each phase holds **action buckets** — `send` (→ a `receive` handler), `bubble`,
+`request` (→ a `response` handler), `input` — each an array of
+`{ name, args?, opts? }`. `args` is a plain array, or a **function** `(self) =>
+[...]` called with the example's component instance:
+
+```js
+on: { init: { send: [{ name: "select", args: (self) => [self.firstId()] }] } }
+```
+
+For ordering **across** kinds, use `do` — an explicit sequence where each item
+carries its own `type`:
+
+```js
+on: { init: { do: [
+  { type: "send",    name: "reset", args: [] },
+  { type: "request", name: "load",  args: [] },   // runs after reset
+] } }
+```
+
+`request` actions honor the example's `requestHandlers` mocks. A phase message
+with no matching handler on the component is a silent no-op.
 
 ## Stories as tests (`getTests`)
 

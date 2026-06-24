@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { component, html } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
-import { FieldStep, Path } from "../src/path.js";
+import { FieldStep, Path, SeqStep } from "../src/path.js";
 import { buildExampleRequestHandlers, Example, Section, Storybook } from "../src/storybook.js";
-import { Transactor } from "../src/transactor.js";
+import { rootDispatcher, Transactor } from "../src/transactor.js";
 
 // Two sections, each with a couple of examples, mirroring buildStorybook's shape.
 function makeBook() {
@@ -173,5 +173,131 @@ describe("per-example request mocks", () => {
     });
     const ctx = { walkPath() {} }; // walks nothing → no override
     await expect(handlers.load(ctx)).rejects.toThrow("Request not found: load");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Lifecycle hooks: section navigation drives init/resume/suspend down to each
+// example's component (`.value`) via its `on` config.
+// ---------------------------------------------------------------------------
+
+// A stand-in "component under test" that counts the lifecycle messages it gets.
+const Probe = component({
+  name: "Probe",
+  fields: { init: 0, resume: 0, suspend: 0, last: null },
+  receive: {
+    onInit(arg, _ctx) {
+      return this.setInit(this.init + 1).setLast(arg ?? null);
+    },
+    onResume(_ctx) {
+      return this.setResume(this.resume + 1);
+    },
+    onSuspend(_ctx) {
+      return this.setSuspend(this.suspend + 1);
+    },
+  },
+  view: html`<div></div>`,
+});
+
+const LIFECYCLE_ON = {
+  init: { send: [{ name: "onInit" }] },
+  resume: { send: [{ name: "onResume" }] },
+  suspend: { send: [{ name: "onSuspend" }] },
+};
+
+function probeBook(sectionCount = 2) {
+  const sections = [];
+  for (let i = 0; i < sectionCount; i++) {
+    sections.push(
+      Section.Class.fromData({
+        title: `S${i}`,
+        items: [{ title: `E${i}`, value: Probe.make({}), on: LIFECYCLE_ON }],
+      }),
+    );
+  }
+  return Storybook.make({ sections });
+}
+
+function lifecycleTransactor(book) {
+  const stack = new ComponentStack();
+  stack.registerComponents([Storybook, Section, Example, Probe]);
+  return new Transactor(stack.comps, book);
+}
+
+function runAll(t) {
+  while (t.hasPendingTransactions) t.transactNext();
+}
+
+const probeAt = (book, section, item = 0) => book.sections.get(section).items.get(item).value;
+
+describe("Storybook lifecycle: section -> example -> value cascade", () => {
+  test("sending init to a section runs each example's on.init and marks it initialized", () => {
+    const t = lifecycleTransactor(probeBook(1));
+    rootDispatcher(t).sendAtPath(new Path([new SeqStep("sections", 0)]), "init", []);
+    runAll(t);
+    expect(t.state.val.sections.get(0).initialized).toBe(true);
+    expect(probeAt(t.state.val, 0).init).toBe(1);
+  });
+
+  test("examples without `on` receive nothing on init (no error)", () => {
+    const book = Storybook.make({
+      sections: [
+        Section.Class.fromData({ title: "S", items: [{ title: "E", value: Probe.make({}) }] }),
+      ],
+    });
+    const t = lifecycleTransactor(book);
+    rootDispatcher(t).sendAtPath(new Path([new SeqStep("sections", 0)]), "init", []);
+    runAll(t);
+    expect(probeAt(t.state.val, 0).init).toBe(0);
+    expect(t.state.val.sections.get(0).initialized).toBe(true);
+  });
+
+  test("resume/suspend forward without flipping initialized", () => {
+    const t = lifecycleTransactor(probeBook(1));
+    const d = rootDispatcher(t);
+    const sec0 = new Path([new SeqStep("sections", 0)]);
+    d.sendAtPath(sec0, "resume", []);
+    d.sendAtPath(sec0, "suspend", []);
+    runAll(t);
+    const p = probeAt(t.state.val, 0);
+    expect([p.resume, p.suspend, p.init]).toEqual([1, 1, 0]);
+    expect(t.state.val.sections.get(0).initialized).toBe(false);
+  });
+});
+
+describe("Storybook lifecycle: section-switch transitions (bubble.sectionSelected)", () => {
+  // Drives the real bubble.sectionSelected handler -> transitionSections. The
+  // persistState request it issues 404s harmlessly (no handler registered here).
+  function selectSection(t, index) {
+    t.pushBubble(new Path([]), "sectionSelected", [t.state.val.sections.get(index)]);
+    runAll(t);
+  }
+
+  test("first select inits only the chosen section; switch suspends old + inits new; return resumes", () => {
+    const t = lifecycleTransactor(probeBook(2));
+
+    selectSection(t, 0); // first display of S0
+    let s = t.state.val;
+    expect(probeAt(s, 0).init).toBe(1);
+    expect(probeAt(s, 1).init).toBe(0); // S1 untouched
+
+    selectSection(t, 1); // away from S0, first display of S1
+    s = t.state.val;
+    expect(probeAt(s, 0).suspend).toBe(1);
+    expect(probeAt(s, 1).init).toBe(1);
+
+    selectSection(t, 0); // back to S0 (already initialized -> resume)
+    s = t.state.val;
+    expect(probeAt(s, 0).resume).toBe(1);
+    expect(probeAt(s, 0).init).toBe(1); // not re-initialized
+    expect(probeAt(s, 1).suspend).toBe(1);
+  });
+
+  test("re-selecting the already-current section is a no-op", () => {
+    const t = lifecycleTransactor(probeBook(2));
+    selectSection(t, 0);
+    selectSection(t, 0); // same section again
+    const p = probeAt(t.state.val, 0);
+    expect([p.init, p.resume, p.suspend]).toEqual([1, 0, 0]);
   });
 });

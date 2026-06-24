@@ -3,8 +3,8 @@ import { IMap } from "../index.js";
 import { FieldStep, Path, SeqAccessStep } from "../src/path.js";
 import { Transactor } from "../src/transactor.js";
 
-function makeComps({ receive = {}, bubble = {}, response = {}, request = null } = {}) {
-  const compMeta = { receive, bubble, response };
+function makeComps({ receive = {}, bubble = {}, response = {}, input = {}, request = null } = {}) {
+  const compMeta = { receive, bubble, response, input };
   return {
     getCompFor: () => compMeta,
     getRequestFor: (_inst, _name) => request,
@@ -338,6 +338,188 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
   });
 });
 
+describe("Transaction.getCompletionPromise (async completion)", () => {
+  // Drain enough microtasks for any settled promise's .then callbacks to fire.
+  const flush = async () => {
+    for (let i = 0; i < 8; i++) await Promise.resolve();
+  };
+  // Observe a promise without awaiting it (so we can assert "still pending").
+  function tracked(p) {
+    const o = { settled: false, value: undefined };
+    p.then((v) => {
+      o.settled = true;
+      o.value = v;
+    });
+    return o;
+  }
+
+  test("is pending until the transaction is transacted, then resolves with {value, old}", async () => {
+    const t = setup({
+      receive: {
+        ping() {
+          return { ...this, pinged: true };
+        },
+      },
+    });
+    t.pushSend(new Path([]), "ping", []);
+    const txn = t.transactions[0];
+    const done = tracked(txn.getCompletionPromise());
+    await flush();
+    expect(done.settled).toBe(false); // queued but not run yet
+
+    runAll(t);
+    const task = await txn.getCompletionPromise();
+    expect(task.val).toEqual({ old: { tag: "root" }, value: { tag: "root", pinged: true } });
+  });
+
+  test("a completion promise first requested AFTER the transaction ran never resolves", async () => {
+    // updateRootValue completes the task with `this._task?.complete?.()`: if no task
+    // existed at run time, completion is silently skipped and a later .task is dead.
+    const t = setup({
+      receive: {
+        ping() {
+          return { ...this, ok: true };
+        },
+      },
+    });
+    t.pushSend(new Path([]), "ping", []);
+    const txn = t.transactions[0];
+    runAll(t); // runs before anyone touches .task
+    const done = tracked(txn.getCompletionPromise());
+    await flush();
+    expect(done.settled).toBe(false);
+  });
+
+  test("setParent gates a parent's completion on an explicitly-wired child", async () => {
+    const t = setup({
+      receive: {
+        ping() {
+          return this;
+        },
+      },
+    });
+    t.pushSend(new Path([]), "ping", []);
+    t.pushSend(new Path([]), "ping", []);
+    const [parent, child] = t.transactions;
+    child.setParent(parent);
+    const parentDone = tracked(parent.getCompletionPromise());
+
+    t.transactNext(); // run only the parent
+    await flush();
+    expect(parentDone.settled).toBe(false); // still blocked on the child dep
+
+    t.transactNext(); // run the child
+    await flush();
+    expect(parentDone.settled).toBe(true);
+  });
+
+  test("the dependency gate holds across a real awaited boundary", async () => {
+    // Proves the Task graph is genuinely async: the parent stays pending across awaits
+    // until the child completes, not merely within one synchronous drain.
+    const t = setup({
+      receive: {
+        ping() {
+          return this;
+        },
+      },
+    });
+    t.pushSend(new Path([]), "ping", []);
+    t.pushSend(new Path([]), "ping", []);
+    const [parent, child] = t.transactions;
+    child.setParent(parent);
+    const parentDone = tracked(parent.getCompletionPromise());
+
+    t.transactNext();
+    await flush();
+    await flush();
+    expect(parentDone.settled).toBe(false);
+
+    t.transactNext();
+    await flush();
+    expect(parentDone.settled).toBe(true);
+  });
+
+  // The actual question: completion does NOT automatically span a request/response.
+  test("the transaction that fires a request completes immediately, NOT when the response runs", async () => {
+    let resolveReq;
+    let responseRan = false;
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          start(ctx) {
+            ctx.request("load", []);
+            return this;
+          },
+        },
+        response: {
+          load(result, _error) {
+            responseRan = true;
+            return { ...this, loaded: result };
+          },
+        },
+        request: { fn: () => new Promise((res) => (resolveReq = res)) },
+      }),
+      { tag: "root" },
+    );
+    t.pushSend(new Path([]), "start", []);
+    const startTxn = t.transactions[0];
+    const startDone = tracked(startTxn.getCompletionPromise());
+
+    runAll(t); // runs start -> ctx.request -> request fn suspended on the unresolved promise
+    await flush();
+    // start already completed while the request is still in flight and before any response:
+    expect(startDone.settled).toBe(true);
+    expect(responseRan).toBe(false);
+    expect(t.hasPendingTransactions).toBe(false); // no response queued yet
+
+    resolveReq("DATA");
+    await flush(); // pushRequest resumes and enqueues the ResponseEvent
+    expect(t.hasPendingTransactions).toBe(true);
+    runAll(t);
+    expect(responseRan).toBe(true);
+    expect(t.state.val).toEqual({ tag: "root", loaded: "DATA" });
+    // start's task never gained the response as a dependency:
+    expect(startTxn.task.deps).toEqual([]);
+  });
+
+  test("the ResponseEvent has its own completion promise, settling only once it is transacted", async () => {
+    let resolveReq;
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          start(ctx) {
+            ctx.request("load", []);
+            return this;
+          },
+        },
+        response: {
+          load(result) {
+            return { ...this, loaded: result };
+          },
+        },
+        request: { fn: () => new Promise((res) => (resolveReq = res)) },
+      }),
+      { tag: "root" },
+    );
+    const pushed = [];
+    t.onTransactionPushed = (txn) => pushed.push(txn);
+
+    t.pushSend(new Path([]), "start", []);
+    runAll(t); // fire the request
+    resolveReq("DATA");
+    await flush(); // ResponseEvent now enqueued (and captured in `pushed`)
+
+    const responseTxn = pushed.at(-1);
+    const responseDone = tracked(responseTxn.getCompletionPromise());
+    await flush();
+    expect(responseDone.settled).toBe(false); // queued, not yet transacted
+
+    runAll(t);
+    const task = await responseTxn.getCompletionPromise();
+    expect(task.val.value).toEqual({ tag: "root", loaded: "DATA" });
+  });
+});
+
 describe("request ctx (walkPath)", () => {
   // Components keyed by an IMap "kind" field; only "mid" opts into overrides via extra.
   const compByKind = {
@@ -424,5 +606,71 @@ describe("request ctx (walkPath)", () => {
     await t.pushRequest(leafPath, "load", []);
     expect(runs[0]).toEqual(["Leaf", "Mid", "Root"]);
     expect(runs[1]).toEqual(["Leaf", "Mid", "Root"]);
+  });
+});
+
+describe("pushInput", () => {
+  test("dispatches a named input handler with explicit args (no DOM event)", () => {
+    const calls = [];
+    const t = setup({
+      input: {
+        setName(value, _ctx) {
+          calls.push(value);
+          return { ...this, name: value };
+        },
+      },
+    });
+    t.pushInput(new Path([]), "setName", ["Ada"]);
+    runAll(t);
+    expect(calls).toEqual(["Ada"]);
+    expect(t.state.val.name).toBe("Ada");
+  });
+
+  test("inputAtPath targets a child instance", () => {
+    const t = setup(
+      {
+        input: {
+          bump(_ctx) {
+            return this.set("n", this.get("n") + 1);
+          },
+        },
+      },
+      IMap({ child: IMap({ n: 0 }) }),
+    );
+    t.pushInput(new Path([new FieldStep("child")]), "bump", []);
+    runAll(t);
+    expect(t.state.val.get("child").get("n")).toBe(1);
+  });
+});
+
+describe("settle", () => {
+  test("drains queued sync transactions", async () => {
+    const t = setup({
+      receive: {
+        inc(_ctx) {
+          return { ...this, n: (this.n ?? 0) + 1 };
+        },
+      },
+    });
+    t.pushSend(new Path([]), "inc", []);
+    t.pushSend(new Path([]), "inc", []);
+    await t.settle();
+    expect(t.hasPendingTransactions).toBe(false);
+    expect(t.state.val.n).toBe(2);
+  });
+
+  test("awaits async requests and the chained response work", async () => {
+    const t = setup({
+      response: {
+        load(result, _err, _ctx) {
+          return { ...this, loaded: result };
+        },
+      },
+      request: { fn: async () => "data" },
+    });
+    // fire-and-forget like dispatchPhase does (not awaited directly)
+    t.pushRequest(new Path([]), "load", []);
+    await t.settle();
+    expect(t.state.val.loaded).toBe("data");
   });
 });

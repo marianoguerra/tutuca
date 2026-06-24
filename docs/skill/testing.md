@@ -90,6 +90,39 @@ Comp.input.handlerName.call(comp, arg1, arg2, /* … */);
   it does.
 - Returned value is the next instance.
 
+## Driving a full cascade (`drive`)
+
+Direct `.call(comp, ...)` tests one handler in isolation. When you need a message
+to fan out through real dispatch — a `request` that resolves and feeds its
+`response`, a `send` that triggers more sends — `getTests` also injects an async
+`drive` helper (alongside `describe`, `test`, `expect`):
+
+```js
+export function getTests({ describe, test, expect, drive }) {
+  describe(Grid, () => {
+    test("init loads rows", async () => {
+      const settled = await drive(
+        Grid.make({ rows: [] }),
+        { request: [{ name: "load", args: [] }] }, // an `on`-phase config
+      );
+      expect(settled.rows.size).toBe(3);
+    });
+  });
+}
+```
+
+- `drive(value, phase, opts?)` builds a transactor over `value`, dispatches the
+  phase's actions at the root, awaits the whole cascade (including async
+  requests), and returns the **settled** instance.
+- `phase` is the same shape as an example's `on.init`
+  (`{ send, bubble, request, input, do }`; see
+  [storybook.md](./storybook.md#lifecycle-hooks-on)). `args` may be a function
+  `(self) => [...]`.
+- `request` actions resolve against the module's `getRequestHandlers()`.
+- `opts.onMessage(message, before, after)` observes every committed transaction —
+  `message` is `{ kind, name, args, path }`, `before`/`after` are the root values
+  around its commit — handy for asserting the message/state trace.
+
 ## Testing iteration handlers
 
 `alter` handlers run inside `@each` / `@when` / `@loop-with` /

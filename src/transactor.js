@@ -1,4 +1,4 @@
-import { PathBuilder } from "./path.js";
+import { Path, PathBuilder } from "./path.js";
 import { Stack } from "./stack.js";
 import { isMac } from "./util/env.js";
 
@@ -25,6 +25,10 @@ export class Transactor {
     this.transactions = [];
     this.state = new State(rootValue);
     this.onTransactionPushed = () => {};
+    // In-flight request promises, so `settle()` can await async requests (the
+    // dead Task tree can't: a request's parent transaction completes before its
+    // ResponseEvent exists, so addDep would assert on an already-completed task).
+    this._inflight = new Set();
   }
   pushTransaction(t) {
     this.transactions.push(t);
@@ -33,11 +37,29 @@ export class Transactor {
   pushSend(path, name, args = [], opts = {}, parent = null) {
     this.pushTransaction(new SendEvent(path, this, name, args, parent, opts));
   }
+  pushInput(path, name, args = [], opts = {}, parent = null) {
+    this.pushTransaction(new InputDispatchEvent(path, this, name, args, parent, opts));
+  }
   pushBubble(path, name, args = [], opts = {}, parent = null, targetPath = null) {
     const newOpts = opts.skipSelf ? { ...opts, skipSelf: false } : opts;
     this.pushTransaction(new BubbleEvent(path, this, name, args, parent, newOpts, targetPath));
   }
-  async pushRequest(path, name, args = [], opts = {}, parent = null) {
+  pushRequest(path, name, args = [], opts = {}, parent = null) {
+    const p = this._runRequest(path, name, args, opts, parent);
+    this._inflight.add(p);
+    p.finally(() => this._inflight.delete(p));
+    return p;
+  }
+  // Drain queued transactions and await in-flight requests until quiescent. Each
+  // awaited request enqueues a ResponseEvent, which may dispatch more work, so we
+  // loop. `maxTurns` backstops a pathological non-terminating cascade.
+  async settle(maxTurns = 10000) {
+    while ((this.hasPendingTransactions || this._inflight.size) && maxTurns-- > 0) {
+      while (this.hasPendingTransactions) this.transactNext();
+      if (this._inflight.size) await Promise.allSettled([...this._inflight]);
+    }
+  }
+  async _runRequest(path, name, args = [], opts = {}, parent = null) {
     const curRoot = this.state.val;
     const txnPath = path.toTransactionPath();
     const curLeaf = txnPath.lookup(curRoot);
@@ -274,6 +296,12 @@ class BubbleEvent extends SendEvent {
     this.opts.bubbles = false;
   }
 }
+// Dispatch a named `input` handler by name with explicit args (no DOM event).
+// Mirrors SendEvent/ResponseEvent: NameArgsTransaction resolves comp.input[name]
+// and appends an EventContext. Used by ctx.inputAtPath / Transactor.pushInput.
+class InputDispatchEvent extends NameArgsTransaction {
+  handlerProp = "input";
+}
 class Task {
   constructor() {
     this.deps = [];
@@ -337,6 +365,9 @@ class Dispatcher {
   requestAtPath(path, name, args, opts) {
     return this.transactor.pushRequest(path, name, args, opts, this.parent);
   }
+  inputAtPath(path, name, args, opts) {
+    return this.transactor.pushInput(path, name, args, opts, this.parent);
+  }
   lookupTypeFor(name, inst) {
     return this.transactor.comps.getCompFor(inst).scope.lookupComponent(name);
   }
@@ -369,4 +400,9 @@ class PathChanges extends PathBuilder {
   buildPath() {
     return this.dispatcher.path.concat(this.pathChanges);
   }
+}
+// A Dispatcher rooted at the empty path, so code outside a handler (e.g. a test
+// harness) can send/request/input at an absolute path without a DOM event.
+export function rootDispatcher(transactor) {
+  return new Dispatcher(new Path([]), transactor, null);
 }

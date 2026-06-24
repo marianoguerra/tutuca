@@ -87,6 +87,8 @@ export const COMMANDS = {
         name: positionals[0] ?? null,
         grep: values.grep ?? null,
         bail: values.bail ?? false,
+        requestHandlers: normalized.requestHandlers,
+        macros: normalized.macros,
       }),
     exitOn: (result) => (result.hasFailures ? 4 : 0),
   },

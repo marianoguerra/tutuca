@@ -7,7 +7,7 @@
 // CSS is decoupled: mountStorybook takes a compileCss(app) callback instead of
 // importing margaui or the extra tier. When omitted the storybook renders
 // functional but unstyled.
-import { component, html, injectCss, tutuca } from "tutuca";
+import { component, dispatchPhase, html, injectCss, tutuca } from "tutuca";
 
 const Storybook = component({
   name: "Storybook",
@@ -91,7 +91,10 @@ const Storybook = component({
         this,
         true,
       ]);
-      return this.selectSectionAtIndex(this.sections.indexOf(section));
+      const oldIndex = this.selectedSectionIndex;
+      const next = this.selectSectionAtIndex(this.sections.indexOf(section));
+      transitionSections(ctx, next, oldIndex, next.selectedSectionIndex);
+      return next;
     },
     exampleFocusRequested(example, ctx) {
       ctx.stopPropagation();
@@ -113,14 +116,16 @@ const Storybook = component({
     },
   },
   response: {
-    loadState(state, err) {
+    loadState(state, err, ctx) {
       if (err || !state) return this;
-      const next = this.selectSectionWithId(state.section)
+      const selected = this.selectSectionWithId(state.section)
         .setFilter(state.sectionFilter ?? "")
         .setSelectedSectionFilter(state.exampleFilter ?? "");
-      return state.example
-        ? next.focusExampleByIds(state.section, state.example)
-        : next.setSectionId(null).setExampleId(null).setFocusExample(null);
+      const next = state.example
+        ? selected.focusExampleByIds(state.section, state.example)
+        : selected.setSectionId(null).setExampleId(null).setFocusExample(null);
+      transitionSections(ctx, next, this.selectedSectionIndex, next.selectedSectionIndex);
+      return next;
     },
   },
   view: html`<div>
@@ -166,6 +171,7 @@ const Section = component({
     items: [],
     filter: "",
     selected: false,
+    initialized: false,
   },
   statics: {
     fromData(raw) {
@@ -200,6 +206,21 @@ const Section = component({
     },
     onListItemClick(ctx) {
       ctx.bubble("sectionSelected", [this]);
+      return this;
+    },
+  },
+  receive: {
+    // First display of this section: run each example's `on.init`, mark shown.
+    init(ctx) {
+      fanoutLifecycle(ctx, this.items, "init");
+      return this.setInitialized(true);
+    },
+    resume(ctx) {
+      fanoutLifecycle(ctx, this.items, "resume");
+      return this;
+    },
+    suspend(ctx) {
+      fanoutLifecycle(ctx, this.items, "suspend");
       return this;
     },
   },
@@ -246,6 +267,7 @@ const Example = component({
     value: null,
     view: "main",
     requestHandlers: null,
+    on: null,
   },
   // Storybook-only convention (read in mountStorybook, never by core): names the
   // field on an example instance that holds its per-example request-handler mocks.
@@ -258,6 +280,7 @@ const Example = component({
       value = null,
       view = "main",
       requestHandlers = null,
+      on = null,
     }) {
       id ??= slugify(title);
       return this.make({
@@ -267,7 +290,24 @@ const Example = component({
         value,
         view,
         requestHandlers,
+        on,
       });
+    },
+  },
+  // Lifecycle hooks: the section forwards init/resume/suspend here; each runs the
+  // matching `on` phase's actions against this example's component (`.value`).
+  receive: {
+    init(ctx) {
+      dispatchPhase(ctx, ctx.at.field("value").buildPath(), this.on?.init, this.value);
+      return this;
+    },
+    resume(ctx) {
+      dispatchPhase(ctx, ctx.at.field("value").buildPath(), this.on?.resume, this.value);
+      return this;
+    },
+    suspend(ctx) {
+      dispatchPhase(ctx, ctx.at.field("value").buildPath(), this.on?.suspend, this.value);
+      return this;
     },
   },
   input: {
@@ -300,6 +340,28 @@ const Example = component({
     </div>
   </div>`,
 });
+
+// Drive section lifecycle on a selection change. ctx.path is the root Storybook
+// for both call sites (response.loadState + bubble.sectionSelected), so
+// ctx.at.index("sections", i) addresses a section. Exactly one of init/resume
+// fires for the new section; suspend fires for the old one if it was shown.
+function transitionSections(ctx, sb, oldIndex, newIndex) {
+  const changed = oldIndex !== newIndex;
+  if (changed && sb.sections.get(oldIndex)?.initialized)
+    ctx.at.index("sections", oldIndex).send("suspend", []);
+  const target = sb.sections.get(newIndex);
+  if (!target) return;
+  if (!target.initialized) ctx.at.index("sections", newIndex).send("init", []);
+  else if (changed) ctx.at.index("sections", newIndex).send("resume", []);
+}
+
+// Forward a lifecycle name to every example in a section. Each item's Example
+// receive handler interprets its own `on` config (src/on.js).
+function fanoutLifecycle(ctx, items, name) {
+  items.forEach((_item, j) => {
+    ctx.at.index("items", j).send(name, []);
+  });
+}
 
 function fuzzyMatch(query, target) {
   const q = query.toLowerCase(),
@@ -412,19 +474,24 @@ export async function mountStorybook(
   // overrides). Each resolves the issuing example via the request ctx's walkPath and
   // uses that example's mock when present, else the module's real handler.
   scope.registerRequestHandlers(buildExampleRequestHandlers(built));
+  // The storybook owns these request names; register last so they win over any
+  // module-provided handler of the same name. `loadState` is registered even when
+  // not persisting (returning a blank state) so `response.loadState` still selects
+  // and inits the default section — it just never touches the URL. `persistState`
+  // (the writer) stays gated; unregistered, its requests no-op via the 404 path.
+  scope.registerRequestHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
   if (persistUrl) {
-    // The storybook owns these request names; register last so they win over any
-    // module-provided handler of the same name.
-    scope.registerRequestHandlers({ persistState, loadState });
+    scope.registerRequestHandlers({ persistState });
   }
   if (compileCss) {
     injectCss("tutuca-storybook", await compileCss(app));
   }
   app.start();
+  // Drive the section lifecycle (and, when persisting, restore section/example
+  // from the URL). Re-restore on Back/Forward only when persisting. Programmatic
+  // push/replaceState don't fire popstate, so this only runs on real navigation.
+  app.sendAtRoot("init", []);
   if (persistUrl) {
-    // Restore state from the URL, and re-restore on Back/Forward. Programmatic
-    // push/replaceState don't fire popstate, so this only runs on real navigation.
-    app.sendAtRoot("init", []);
     window.addEventListener("popstate", () => app.sendAtRoot("init", []));
   }
   return app;
@@ -449,6 +516,10 @@ export async function mountStorybook(
       sectionFilter: p.get("sectionFilter") ?? "",
       exampleFilter: p.get("exampleFilter") ?? "",
     };
+  }
+  // Non-persisting variant: ignore the URL, just select+init the default section.
+  function loadStateBlank() {
+    return { section: null, example: null, sectionFilter: "", exampleFilter: "" };
   }
 }
 

@@ -1,3 +1,7 @@
+import { ComponentStack } from "../../src/components.js";
+import { dispatchPhase } from "../../src/on.js";
+import { Path } from "../../src/path.js";
+import { rootDispatcher, Transactor } from "../../src/transactor.js";
 import { DescribeResult, ModuleTestReport, TestReport, TestResult } from "./results.js";
 import { makeCollector, Test } from "./tests.js";
 
@@ -26,6 +30,8 @@ export async function runTests({
   name = null,
   grep = null,
   bail = false,
+  requestHandlers = null,
+  macros = null,
 } = {}) {
   const counts = { pass: 0, fail: 0, skip: 0, total: 0 };
 
@@ -39,7 +45,41 @@ export async function runTests({
   }
 
   const { describe, test, moduleTests } = makeCollector({ path, components });
-  await getTests({ describe, test, expect });
+  await getTests({ describe, test, expect, drive });
+
+  // Lazily build one registered scope (components + request handlers + macros) the
+  // first time `drive` is used, mirroring tools/core/lint.js. Lazy so an unused
+  // `drive` never mutates the shared Component objects' `.scope`.
+  let _stack = null;
+  function getStack() {
+    if (_stack) return _stack;
+    _stack = new ComponentStack();
+    _stack.registerComponents(components);
+    if (macros) _stack.registerMacros(macros);
+    if (requestHandlers) _stack.registerRequestHandlers(requestHandlers);
+    return _stack;
+  }
+
+  // Drive `value` (a component instance) through one `on`-phase config
+  // ({ send, bubble, request, input, do } — same shape as an example's on.init),
+  // dispatching every action at the root and awaiting the full cascade. Returns
+  // the settled root value. `opts.onMessage(message, before, after)` observes each
+  // committed transaction (message = { kind, name, args, path }).
+  async function drive(value, phase, opts = {}) {
+    const transactor = new Transactor(getStack().comps, value);
+    if (opts.onMessage)
+      transactor.state.onChange(({ val, old, info }) => {
+        const t = info?.transaction;
+        opts.onMessage(
+          { kind: t?.handlerProp ?? "input", name: t?.name, args: t?.args, path: t?.path },
+          old,
+          val,
+        );
+      });
+    dispatchPhase(rootDispatcher(transactor), new Path([]), phase, value);
+    await transactor.settle();
+    return transactor.state.val;
+  }
 
   let bailed = false;
 
