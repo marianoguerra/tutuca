@@ -338,7 +338,7 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
   });
 });
 
-describe("Transaction.getCompletionPromise (async completion)", () => {
+describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
   // Drain enough microtasks for any settled promise's .then callbacks to fire.
   const flush = async () => {
     for (let i = 0; i < 8; i++) await Promise.resolve();
@@ -353,7 +353,7 @@ describe("Transaction.getCompletionPromise (async completion)", () => {
     return o;
   }
 
-  test("is pending until the transaction is transacted, then resolves with {value, old}", async () => {
+  test("whenSettled is pending until the transaction runs, then resolves with {value, old}", async () => {
     const t = setup({
       receive: {
         ping() {
@@ -361,86 +361,47 @@ describe("Transaction.getCompletionPromise (async completion)", () => {
         },
       },
     });
-    t.pushSend(new Path([]), "ping", []);
-    const txn = t.transactions[0];
-    const done = tracked(txn.getCompletionPromise());
+    const txn = t.pushSend(new Path([]), "ping", []);
+    const done = tracked(txn.whenSettled());
     await flush();
     expect(done.settled).toBe(false); // queued but not run yet
 
     runAll(t);
-    const task = await txn.getCompletionPromise();
-    expect(task.val).toEqual({ old: { tag: "root" }, value: { tag: "root", pinged: true } });
+    const val = await txn.whenSettled();
+    expect(val).toEqual({ old: { tag: "root" }, value: { tag: "root", pinged: true } });
   });
 
-  test("a completion promise first requested AFTER the transaction ran never resolves", async () => {
-    // updateRootValue completes the task with `this._task?.complete?.()`: if no task
-    // existed at run time, completion is silently skipped and a later .task is dead.
-    const t = setup({
-      receive: {
-        ping() {
-          return { ...this, ok: true };
+  test("whenSettled resolves as soon as the handler runs, NOT waiting for derived work", async () => {
+    let resolveReq;
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          start(ctx) {
+            ctx.request("load", []); // fire async work, don't await it
+            return this;
+          },
         },
-      },
-    });
-    t.pushSend(new Path([]), "ping", []);
-    const txn = t.transactions[0];
-    runAll(t); // runs before anyone touches .task
-    const done = tracked(txn.getCompletionPromise());
+        response: { load(result) { return { ...this, loaded: result }; } },
+        request: { fn: () => new Promise((res) => (resolveReq = res)) },
+      }),
+      { tag: "root" },
+    );
+    const start = t.pushSend(new Path([]), "start", []);
+    const self = tracked(start.whenSettled());
+    const subtree = tracked(start.whenSubtreeSettled());
+
+    runAll(t); // start handler runs and fires the request, which stays in flight
     await flush();
-    expect(done.settled).toBe(false);
+    expect(self.settled).toBe(true); // own handler ran
+    expect(subtree.settled).toBe(false); // request still in flight
+
+    resolveReq("DATA");
+    await t.settle();
+    await flush();
+    expect(subtree.settled).toBe(true);
   });
 
-  test("setParent gates a parent's completion on an explicitly-wired child", async () => {
-    const t = setup({
-      receive: {
-        ping() {
-          return this;
-        },
-      },
-    });
-    t.pushSend(new Path([]), "ping", []);
-    t.pushSend(new Path([]), "ping", []);
-    const [parent, child] = t.transactions;
-    child.setParent(parent);
-    const parentDone = tracked(parent.getCompletionPromise());
-
-    t.transactNext(); // run only the parent
-    await flush();
-    expect(parentDone.settled).toBe(false); // still blocked on the child dep
-
-    t.transactNext(); // run the child
-    await flush();
-    expect(parentDone.settled).toBe(true);
-  });
-
-  test("the dependency gate holds across a real awaited boundary", async () => {
-    // Proves the Task graph is genuinely async: the parent stays pending across awaits
-    // until the child completes, not merely within one synchronous drain.
-    const t = setup({
-      receive: {
-        ping() {
-          return this;
-        },
-      },
-    });
-    t.pushSend(new Path([]), "ping", []);
-    t.pushSend(new Path([]), "ping", []);
-    const [parent, child] = t.transactions;
-    child.setParent(parent);
-    const parentDone = tracked(parent.getCompletionPromise());
-
-    t.transactNext();
-    await flush();
-    await flush();
-    expect(parentDone.settled).toBe(false);
-
-    t.transactNext();
-    await flush();
-    expect(parentDone.settled).toBe(true);
-  });
-
-  // The actual question: completion does NOT automatically span a request/response.
-  test("the transaction that fires a request completes immediately, NOT when the response runs", async () => {
+  test("whenSubtreeSettled waits for a fired request's response to run", async () => {
     let resolveReq;
     let responseRan = false;
     const t = new Transactor(
@@ -452,7 +413,7 @@ describe("Transaction.getCompletionPromise (async completion)", () => {
           },
         },
         response: {
-          load(result, _error) {
+          load(result) {
             responseRan = true;
             return { ...this, loaded: result };
           },
@@ -461,29 +422,24 @@ describe("Transaction.getCompletionPromise (async completion)", () => {
       }),
       { tag: "root" },
     );
-    t.pushSend(new Path([]), "start", []);
-    const startTxn = t.transactions[0];
-    const startDone = tracked(startTxn.getCompletionPromise());
+    const start = t.pushSend(new Path([]), "start", []);
+    const subtree = tracked(start.whenSubtreeSettled());
 
-    runAll(t); // runs start -> ctx.request -> request fn suspended on the unresolved promise
+    runAll(t);
     await flush();
-    // start already completed while the request is still in flight and before any response:
-    expect(startDone.settled).toBe(true);
-    expect(responseRan).toBe(false);
-    expect(t.hasPendingTransactions).toBe(false); // no response queued yet
+    expect(subtree.settled).toBe(false); // request in flight, response not created yet
 
     resolveReq("DATA");
-    await flush(); // pushRequest resumes and enqueues the ResponseEvent
-    expect(t.hasPendingTransactions).toBe(true);
-    runAll(t);
+    await t.settle(); // resumes the request, enqueues + drains the ResponseEvent
+    const val = await start.whenSubtreeSettled();
     expect(responseRan).toBe(true);
+    expect(subtree.settled).toBe(true);
+    expect(val).toEqual({ old: { tag: "root" }, value: { tag: "root" } }); // start's own {value, old}
     expect(t.state.val).toEqual({ tag: "root", loaded: "DATA" });
-    // start's task never gained the response as a dependency:
-    expect(startTxn.task.deps).toEqual([]);
   });
 
-  test("the ResponseEvent has its own completion promise, settling only once it is transacted", async () => {
-    let resolveReq;
+  test("whenSubtreeSettled waits for a NESTED request fired by the response handler", async () => {
+    let calls = 0;
     const t = new Transactor(
       makeComps({
         receive: {
@@ -493,30 +449,176 @@ describe("Transaction.getCompletionPromise (async completion)", () => {
           },
         },
         response: {
-          load(result) {
-            return { ...this, loaded: result };
+          load(result, _error, ctx) {
+            calls++;
+            ctx.request("load2", []); // response dispatches another request
+            return { ...this, a: result };
+          },
+          load2(result) {
+            calls++;
+            return { ...this, b: result };
           },
         },
-        request: { fn: () => new Promise((res) => (resolveReq = res)) },
+        request: { fn: async () => "ok" },
       }),
       { tag: "root" },
     );
-    const pushed = [];
-    t.onTransactionPushed = (txn) => pushed.push(txn);
+    const start = t.pushSend(new Path([]), "start", []);
+    const subtree = tracked(start.whenSubtreeSettled());
 
-    t.pushSend(new Path([]), "start", []);
-    runAll(t); // fire the request
-    resolveReq("DATA");
-    await flush(); // ResponseEvent now enqueued (and captured in `pushed`)
-
-    const responseTxn = pushed.at(-1);
-    const responseDone = tracked(responseTxn.getCompletionPromise());
+    await t.settle();
     await flush();
-    expect(responseDone.settled).toBe(false); // queued, not yet transacted
+    expect(calls).toBe(2); // both the response and the nested response ran
+    expect(subtree.settled).toBe(true);
+    expect(t.state.val).toEqual({ tag: "root", a: "ok", b: "ok" });
+  });
+
+  test("whenSubtreeSettled waits for a derived ctx.send", async () => {
+    const order = [];
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          start(ctx) {
+            ctx.sendAtPath(new Path([]), "next", []);
+            order.push("start");
+            return this;
+          },
+          next() {
+            order.push("next");
+            return this;
+          },
+        },
+      }),
+      { tag: "root" },
+    );
+    const start = t.pushSend(new Path([]), "start", []);
+    const subtree = tracked(start.whenSubtreeSettled());
+
+    t.transactNext(); // run only start
+    await flush();
+    expect(order).toEqual(["start"]);
+    expect(subtree.settled).toBe(false); // derived "next" still queued
+
+    t.transactNext(); // run next
+    await flush();
+    expect(order).toEqual(["start", "next"]);
+    expect(subtree.settled).toBe(true);
+  });
+
+  test("subtree counter holds for a bubble pushed in afterTransaction (runs after the handler)", async () => {
+    const ran = [];
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          start(ctx) {
+            ctx.sendAtPath(new Path([]), "sib", []); // sync child
+            ran.push("start");
+            return this;
+          },
+          sib() {
+            ran.push("sib");
+            return this;
+          },
+        },
+        bubble: {
+          start() {
+            ran.push("bubble");
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ tag: "leaf" }) }),
+    );
+    // bubbles:true at a non-root path -> afterTransaction pushes a bubble (a child created
+    // AFTER the handler ran); the subtree must not settle until it too has run.
+    const start = t.pushSend(new Path([new FieldStep("a")]), "start", [], { bubbles: true });
+    const subtree = tracked(start.whenSubtreeSettled());
+
+    t.transactNext(); // run start: dispatches sib (sync) and queues the bubble (afterTransaction)
+    await flush();
+    expect(subtree.settled).toBe(false); // sib + bubble still pending
 
     runAll(t);
-    const task = await responseTxn.getCompletionPromise();
-    expect(task.val.value).toEqual({ tag: "root", loaded: "DATA" });
+    await flush();
+    expect(subtree.settled).toBe(true);
+    expect(ran).toEqual(["start", "sib", "bubble"]);
+  });
+
+  describe("robustness: every transacted transaction settles its subtree (no hang)", () => {
+    test("skipSelf send", async () => {
+      const t = setup({ receive: { ping() { return this; } } });
+      const txn = t.pushSend(new Path([]), "ping", [], { skipSelf: true });
+      const subtree = tracked(txn.whenSubtreeSettled());
+      runAll(t);
+      await flush();
+      expect(subtree.settled).toBe(true);
+    });
+
+    test("undefined-returning handler (the console.warn branch)", async () => {
+      const t = setup({ receive: { ping() { return undefined; } } });
+      const txn = t.pushSend(new Path([]), "ping", []);
+      const subtree = tracked(txn.whenSubtreeSettled());
+      runAll(t);
+      await flush();
+      expect(subtree.settled).toBe(true);
+    });
+
+    test("throwing handler", async () => {
+      const t = setup({
+        receive: {
+          ping() {
+            throw new Error("boom");
+          },
+        },
+      });
+      const txn = t.pushSend(new Path([]), "ping", []);
+      const subtree = tracked(txn.whenSubtreeSettled());
+      expect(() => runAll(t)).toThrow("boom");
+      await flush();
+      expect(subtree.settled).toBe(true); // finally released the self-unit despite the throw
+    });
+
+    test("a request handler that throws still settles via the error response", async () => {
+      const t = new Transactor(
+        makeComps({
+          receive: {
+            start(ctx) {
+              ctx.request("load", []);
+              return this;
+            },
+          },
+          response: {
+            load(_result, error) {
+              return { ...this, failed: error?.message ?? null };
+            },
+          },
+          request: {
+            fn: async () => {
+              throw new Error("nope");
+            },
+          },
+        }),
+        { tag: "root" },
+      );
+      const start = t.pushSend(new Path([]), "start", []);
+      const subtree = tracked(start.whenSubtreeSettled());
+      await t.settle();
+      await flush();
+      expect(subtree.settled).toBe(true);
+      expect(t.state.val).toEqual({ tag: "root", failed: "nope" });
+    });
+  });
+
+  test("completion must be observed before the transaction runs (lazy allocation)", async () => {
+    // `_completion` is created lazily; a top-level transaction that nobody tracked or
+    // awaited before it ran has no completion to settle, so a handle taken afterwards
+    // stays pending. Intended usage is to grab the handle from the dispatch, up front.
+    const t = setup({ receive: { ping() { return { ...this, ok: true }; } } });
+    const txn = t.pushSend(new Path([]), "ping", []);
+    runAll(t); // ran without anyone observing its completion
+    const late = tracked(txn.whenSettled());
+    await flush();
+    expect(late.settled).toBe(false);
   });
 });
 

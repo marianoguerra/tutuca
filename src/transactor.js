@@ -25,27 +25,48 @@ export class Transactor {
     this.transactions = [];
     this.state = new State(rootValue);
     this.onTransactionPushed = () => {};
-    // In-flight request promises, so `settle()` can await async requests (the
-    // dead Task tree can't: a request's parent transaction completes before its
-    // ResponseEvent exists, so addDep would assert on an already-completed task).
+    // In-flight request promises, so the global `settle()` drain can await async
+    // requests. (Per-dispatch completion is tracked separately via `Completion`; this
+    // set is the thing `settle()` actually awaits to make progress on pending requests.)
     this._inflight = new Set();
   }
   pushTransaction(t) {
     this.transactions.push(t);
     this.onTransactionPushed(t);
   }
+  // Make `child` a tracked unit of `parent`'s subtree: the parent's completion stays open
+  // until the child's *whole* subtree settles. Tracking happens at dispatch time — during
+  // the parent's handler or afterTransaction — while the parent's self-unit is still held,
+  // so the parent counter can't reach zero before the child is registered. Returns `child`.
+  _link(child, parent) {
+    if (parent) {
+      const release = parent.completion.track();
+      child.completion.whenSubtreeSettled().then(release);
+    }
+    return child;
+  }
   pushSend(path, name, args = [], opts = {}, parent = null) {
-    this.pushTransaction(new SendEvent(path, this, name, args, parent, opts));
+    const t = new SendEvent(path, this, name, args, parent, opts);
+    this.pushTransaction(t);
+    return this._link(t, parent);
   }
   pushInput(path, name, args = [], opts = {}, parent = null) {
-    this.pushTransaction(new InputDispatchEvent(path, this, name, args, parent, opts));
+    const t = new InputDispatchEvent(path, this, name, args, parent, opts);
+    this.pushTransaction(t);
+    return this._link(t, parent);
   }
   pushBubble(path, name, args = [], opts = {}, parent = null, targetPath = null) {
     const newOpts = opts.skipSelf ? { ...opts, skipSelf: false } : opts;
-    this.pushTransaction(new BubbleEvent(path, this, name, args, parent, newOpts, targetPath));
+    const t = new BubbleEvent(path, this, name, args, parent, newOpts, targetPath);
+    this.pushTransaction(t);
+    return this._link(t, parent);
   }
   pushRequest(path, name, args = [], opts = {}, parent = null) {
-    const p = this._runRequest(path, name, args, opts, parent);
+    // Track on the parent synchronously, before any await, so the parent's subtree can't
+    // settle while the request is in flight. The unit is later transferred onto the
+    // ResponseEvent's subtree (see _runRequest), so it follows the whole response chain.
+    const release = parent ? parent.completion.track() : null;
+    const p = this._runRequest(path, name, args, opts, parent, release);
     this._inflight.add(p);
     p.finally(() => this._inflight.delete(p));
     return p;
@@ -59,29 +80,46 @@ export class Transactor {
       if (this._inflight.size) await Promise.allSettled([...this._inflight]);
     }
   }
-  async _runRequest(path, name, args = [], opts = {}, parent = null) {
-    const curRoot = this.state.val;
-    const txnPath = path.toTransactionPath();
-    const curLeaf = txnPath.lookup(curRoot);
-    const handler = this.comps.getRequestFor(curLeaf, name) ?? mkReq404(name);
-    // Request handlers run with no `this`, and receive a RequestContext as their
-    // final argument (consistent with receive/input/response, where ctx is last).
-    const reqCtx = new RequestContext(path, this, parent, curRoot);
-    const resHandlerName = opts?.onResName ?? name;
-    // Pin field-resolved keys (e.g. `.sheets[.selId]`) to their value *now*, so the
-    // response updates the item that issued the request even if the key changed while
-    // the request was in flight. `livePath: true` opts out and re-evaluates live.
-    const resPath = opts?.livePath ? null : txnPath.pinKeys(curRoot);
-    const push = (specificName, baseName, singleArg, result, error) => {
-      const resArgs = specificName ? [singleArg] : [result, error];
-      const t = new ResponseEvent(path, this, specificName ?? baseName, resArgs, parent, resPath);
-      this.pushTransaction(t);
+  async _runRequest(path, name, args = [], opts = {}, parent = null, release = null) {
+    // Transfer the parent's request-unit (see pushRequest) onto the ResponseEvent's
+    // subtree, so the parent stays open until the whole response chain settles. The
+    // response is pushed via pushTransaction directly (not _link), so it is not counted
+    // twice. `released` guards the error path below so the unit is never lost or doubled.
+    let released = false;
+    const transfer = (t) => {
+      if (release) {
+        released = true;
+        t.completion.whenSubtreeSettled().then(release);
+      }
     };
     try {
-      const result = await handler.fn.apply(null, [...args, reqCtx]);
-      push(opts?.onOkName, resHandlerName, result, result, null);
-    } catch (error) {
-      push(opts?.onErrorName, resHandlerName, error, null, error);
+      const curRoot = this.state.val;
+      const txnPath = path.toTransactionPath();
+      const curLeaf = txnPath.lookup(curRoot);
+      const handler = this.comps.getRequestFor(curLeaf, name) ?? mkReq404(name);
+      // Request handlers run with no `this`, and receive a RequestContext as their
+      // final argument (consistent with receive/input/response, where ctx is last).
+      const reqCtx = new RequestContext(path, this, parent, curRoot);
+      const resHandlerName = opts?.onResName ?? name;
+      // Pin field-resolved keys (e.g. `.sheets[.selId]`) to their value *now*, so the
+      // response updates the item that issued the request even if the key changed while
+      // the request was in flight. `livePath: true` opts out and re-evaluates live.
+      const resPath = opts?.livePath ? null : txnPath.pinKeys(curRoot);
+      const push = (specificName, baseName, singleArg, result, error) => {
+        const resArgs = specificName ? [singleArg] : [result, error];
+        const t = new ResponseEvent(path, this, specificName ?? baseName, resArgs, parent, resPath);
+        transfer(t);
+        this.pushTransaction(t);
+      };
+      try {
+        const result = await handler.fn.apply(null, [...args, reqCtx]);
+        push(opts?.onOkName, resHandlerName, result, result, null);
+      } catch (error) {
+        push(opts?.onErrorName, resHandlerName, error, null, error);
+      }
+    } finally {
+      // If we threw before any ResponseEvent was created, the parent would otherwise hang.
+      if (release && !released) release();
     }
   }
   get hasPendingTransactions() {
@@ -91,12 +129,22 @@ export class Transactor {
     if (this.hasPendingTransactions) this.transact(this.transactions.shift());
   }
   transact(transaction) {
-    const curState = this.state.val;
-    const newState = transaction.run(curState, this.comps);
-    if (newState !== undefined) {
-      this.state.set(newState, { transaction });
-      transaction.afterTransaction();
-    } else console.warn("undefined new state", { curState, transaction });
+    // `finally` guarantees the self-unit is released and self is settled on every exit:
+    // the undefined-state branch, the skipSelf path, and a throwing handler. Otherwise an
+    // un-released unit would hang this transaction's (and its parent's) subtree forever.
+    // afterTransaction() stays inside `try`, before the release, so a bubble it pushes is
+    // counted before the subtree counter can reach zero.
+    try {
+      const curState = this.state.val;
+      const newState = transaction.run(curState, this.comps);
+      if (newState !== undefined) {
+        this.state.set(newState, { transaction });
+        transaction.afterTransaction();
+      } else console.warn("undefined new state", { curState, transaction });
+    } finally {
+      transaction._completion?.ensureSelfSettled();
+      transaction._completion?.releaseSelf();
+    }
   }
   transactInputNow(path, event, eventHandler, dragInfo) {
     this.transact(new InputEvent(path, event, eventHandler, this, dragInfo));
@@ -116,18 +164,22 @@ class Transaction {
     this.path = path;
     this.transactor = transactor;
     this.parentTransaction = parentTransaction;
-    this._task = null;
+    this._completion = null;
   }
-  get task() {
-    this._task ??= new Task();
-    return this._task;
+  // Lazily created (like the rest of the per-transaction state): a leaf event that
+  // nobody tracks or awaits never allocates one. See `class Completion`.
+  get completion() {
+    this._completion ??= new Completion();
+    return this._completion;
   }
-  getCompletionPromise() {
-    return this.task.promise;
+  // Resolves once this transaction's own handler has run.
+  whenSettled() {
+    return this.completion.whenSettled();
   }
-  setParent(parentTransaction) {
-    this.parentTransaction = parentTransaction;
-    parentTransaction.task.addDep(this.task);
+  // Resolves once this transaction AND all transitively-derived work (sends, bubbles,
+  // requests and the responses they produce, recursively) have settled.
+  whenSubtreeSettled() {
+    return this.completion.whenSubtreeSettled();
   }
   run(rootValue, comps) {
     return this.updateRootValue(rootValue, comps);
@@ -156,7 +208,7 @@ class Transaction {
     const txnPath = this.getTransactionPath();
     const curLeaf = txnPath.lookup(curRoot);
     const newLeaf = this.callHandler(curRoot, curLeaf, comps);
-    this._task?.complete?.({ value: newLeaf, old: curLeaf });
+    this._completion?.markSelfSettled({ value: newLeaf, old: curLeaf });
     return curLeaf !== newLeaf ? txnPath.setValue(curRoot, newLeaf) : curRoot;
   }
   lookupName(_name) {
@@ -302,29 +354,67 @@ class BubbleEvent extends SendEvent {
 class InputDispatchEvent extends NameArgsTransaction {
   handlerProp = "input";
 }
-class Task {
+// Per-transaction completion scope (structured-concurrency / WaitGroup style). A counter
+// of outstanding "units": one self-unit (the transaction's own processing) plus one per
+// derived child or in-flight request. Self settles when the handler runs; the subtree
+// settles when the counter reaches zero — i.e. this transaction and everything it spawned,
+// recursively, are done. Promises are allocated lazily, only when actually awaited.
+class Completion {
   constructor() {
-    this.deps = [];
-    this.val = this.resolve = this.reject = null;
-    this.promise = new Promise((res, rej) => {
-      this.resolve = res;
-      this.reject = rej;
+    this.val = undefined;
+    this.selfSettled = false;
+    this.subtreeSettled = false;
+    this.pending = 1; // the self-unit, released after handler + afterTransaction
+    this._selfResolve = null;
+    this._selfPromise = null;
+    this._subtreeResolve = null;
+    this._subtreePromise = null;
+    this._selfReleased = false;
+  }
+  whenSettled() {
+    if (this.selfSettled) return Promise.resolve(this.val);
+    this._selfPromise ??= new Promise((res) => {
+      this._selfResolve = res;
     });
-    this.isCompleted = false;
+    return this._selfPromise;
   }
-  addDep(task) {
-    console.assert(!this.isCompleted, "addDep for completed task", this, task);
-    this.deps.push(task);
-    task.promise.then((_) => this._check());
+  whenSubtreeSettled() {
+    if (this.subtreeSettled) return Promise.resolve(this.val);
+    this._subtreePromise ??= new Promise((res) => {
+      this._subtreeResolve = res;
+    });
+    return this._subtreePromise;
   }
-  complete(val) {
+  // The transaction's own handler ran (records its {value, old}). Does not touch the counter.
+  markSelfSettled(val) {
+    if (this.selfSettled) return;
+    this.selfSettled = true;
     this.val = val;
-    this._check();
+    this._selfResolve?.(val);
   }
-  _check() {
-    if (this.deps.every((task) => task.isCompleted)) {
-      this.isCompleted = true;
-      this.resolve(this);
+  // Settle self even when no handler produced a value (skipSelf / undefined / throw paths).
+  ensureSelfSettled() {
+    if (!this.selfSettled) this.markSelfSettled(this.val);
+  }
+  // Register an outstanding unit; returns a one-shot release.
+  track() {
+    this.pending++;
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      this._release();
+    };
+  }
+  releaseSelf() {
+    if (this._selfReleased) return;
+    this._selfReleased = true;
+    this._release();
+  }
+  _release() {
+    if (--this.pending === 0) {
+      this.subtreeSettled = true;
+      this._subtreeResolve?.(this.val);
     }
   }
 }
