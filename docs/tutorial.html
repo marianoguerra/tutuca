@@ -880,6 +880,15 @@
           <code>globalStyle</code> is injected globally without scoping.
         </p>
         <p>
+          Both <code>style</code> and <code>commonStyle</code> are wrapped in a
+          component-scoped selector (<code>[data-cid="N"]{ … }</code>). A handy
+          consequence: <strong>bare declarations with no selector</strong>
+          (e.g. <code>color: red;</code>) land directly inside that wrapper, so
+          they style the component's <strong>root element</strong> &mdash; no
+          extra wrapper selector needed. Rules written with a selector
+          (<code>.mine { … }</code>) target descendants instead.
+        </p>
+        <p>
           View "two" defines its own <code>style</code> that overrides the
           default &mdash; notice <code>.mine</code> is red in the main view but
           orange and underlined in view two. The root component renders all

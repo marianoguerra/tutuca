@@ -9,6 +9,10 @@ export const StylesExample = component({
     }
   `,
   commonStyle: css`
+    /* bare declarations (no selector) style the component's root element */
+    padding: 0.75rem;
+    border: 1px solid currentColor;
+    border-radius: 0.5rem;
     .common {
       color: yellow;
     }

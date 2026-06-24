@@ -830,7 +830,16 @@ only). Plain strings work too.
 
 `style` and `commonStyle` are wrapped in a component-scoped selector
 (`[data-cid="N"]{ … }`), so their CSS lands *inside* a style-rule block.
-Top-level-only constructs break there and the browser silently drops them —
+
+A useful consequence: **bare declarations with no selector** (e.g.
+`color: red; padding: 1rem;`) land directly inside that wrapper, so they style
+the component's **root element** — the host node carrying `data-cid` (plus
+`data-vid` for a per-view `style`). Reach for this to style a component's own
+outer element without adding a wrapper selector; nested rules with a selector
+(`.mine { … }`) target descendants instead.
+
+Because the CSS sits inside a style-rule block,
+top-level-only constructs break there and the browser silently drops them —
 put them in `globalStyle` (injected verbatim, no wrapper) instead:
 
 - Non-nestable at-rules: `@import`, `@charset`, `@namespace`, `@font-face`,
