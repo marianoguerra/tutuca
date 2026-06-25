@@ -79,7 +79,8 @@ body > header ul {
   margin: 1.5rem auto;
 }
 
-.btn {
+.btn,
+.btn:visited {
   display: inline-block;
   padding: 0.6rem 1.3rem;
   font-size: 1.05rem;
@@ -100,7 +101,8 @@ body > header ul {
   color: var(--accent-hover);
 }
 
-.btn-primary {
+.btn-primary,
+.btn-primary:visited {
   color: var(--bg);
   background: var(--accent);
 }
