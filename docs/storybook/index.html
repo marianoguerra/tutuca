@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tutuca Storybook</title>
+    <link
+      rel="stylesheet"
+      href="https://marianoguerra.github.io/margaui/themes/theme.css"
+    />
+    <!--
+      Published page (GitHub Pages → /storybook/). Everything resolves from the CDN
+      and from this folder, so it works at the docs site root. All tutuca specifiers
+      map to ONE runtime (tutuca-dev.js); tutuca/storybook keeps `tutuca` external so
+      it shares that same runtime — required for component scope/identity.
+
+      NOTE: the CDN `@latest` build may predate the `on` lifecycle + `drive` features.
+      When it does, those demos are inert here (no crash — unknown example fields are
+      ignored; getTests/drive only run in the terminal). Run `bun run storybook`
+      locally to exercise the full set against the freshly built local runtime.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "tutuca": "https://cdn.jsdelivr.net/npm/tutuca@latest/dist/tutuca-dev.js",
+          "tutuca/extra": "https://cdn.jsdelivr.net/npm/tutuca@latest/dist/tutuca-dev.js",
+          "tutuca/storybook": "https://cdn.jsdelivr.net/npm/tutuca@latest/dist/tutuca-storybook.js",
+          "margaui": "https://cdn.jsdelivr.net/npm/margaui/+esm"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div
+      id="cdn-note"
+      style="position: fixed; bottom: 0; right: 0; z-index: 9999; max-width: 28rem; font: 12px/1.4 system-ui, sans-serif; background: rgba(0, 0, 0, 0.78); color: #fff; padding: 6px 10px; border-top-left-radius: 8px"
+    >
+      Served from CDN <code>tutuca@latest</code>. The <code>on</code> lifecycle and
+      <code>drive</code> demos require the next release; until then they are inert
+      here. Run <code>bun run storybook</code> locally for the full set.
+    </div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
