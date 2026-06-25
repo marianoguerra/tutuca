@@ -89,6 +89,46 @@ describe("WeakMapDomCache get/set", () => {
         expect(c.evict().badKey).toBe(1);
       });
 
+      // `typeof null === "object"`, so `null` used to slip past the primitive
+      // guard and crash `WeakMap.set(null, …)`. It must be treated like any
+      // other non-weakly-holdable key: counted as a badKey, never thrown.
+      for (const [label, prim] of [
+        ["null", null],
+        ["undefined", undefined],
+        ["false", false],
+        ["zero", 0],
+      ]) {
+        test(`${label} last key is a badKey, not a throw`, () => {
+          const c = new WeakMapDomCache();
+          const keys = makeKeys();
+          keys[n - 1] = prim;
+          expect(() => c.set(keys, "ck", 42)).not.toThrow();
+          expect(c.get(keys, "ck")).toBeUndefined();
+          expect(c.evict()).toEqual({ hit: 0, miss: 1, badKey: 1 });
+        });
+
+        if (n > 1) {
+          test(`${label} first key is a badKey, not a throw`, () => {
+            const c = new WeakMapDomCache();
+            const keys = makeKeys();
+            keys[0] = prim;
+            expect(() => c.set(keys, "ck", 42)).not.toThrow();
+            expect(c.get(keys, "ck")).toBeUndefined();
+            expect(c.evict()).toEqual({ hit: 0, miss: 1, badKey: 1 });
+          });
+        }
+      }
+
+      test("function keys are weakly holdable and round-trip", () => {
+        const c = new WeakMapDomCache();
+        const keys = makeKeys();
+        keys[n - 1] = () => {};
+        if (n > 1) keys[0] = () => {};
+        c.set(keys, "ck", 42);
+        expect(c.get(keys, "ck")).toBe(42);
+        expect(c.evict()).toEqual({ hit: 1, miss: 0, badKey: 0 });
+      });
+
       if (n > 1) {
         test("primitive first key counts a badKey", () => {
           const c = new WeakMapDomCache();

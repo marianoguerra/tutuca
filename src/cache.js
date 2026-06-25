@@ -1,3 +1,9 @@
+// A value can key a WeakMap only if it is a non-null object or a function.
+// `typeof null === "object"`, so a plain `typeof k === "object"` check lets
+// `null` through and `WeakMap.set(null, …)` then throws; primitives (strings,
+// numbers, booleans, `undefined`, `null`) are not weakly holdable and are
+// counted as `badKey` instead — the entry simply goes uncached.
+const isWeakKey = (k) => k !== null && (typeof k === "object" || typeof k === "function");
 export class NullDomCache {
   get(_keys, _cacheKey) {}
   set(_keys, _cacheKey, _v) {}
@@ -36,7 +42,7 @@ export class WeakMapDomCache {
       const key = keys[i];
       let next = cur.get(key);
       if (!next) {
-        if (typeof key !== "object") {
+        if (!isWeakKey(key)) {
           this.badKey += 1;
           return;
         }
@@ -48,7 +54,7 @@ export class WeakMapDomCache {
     const lastKey = keys[len - 1];
     const leaf = cur.get(lastKey);
     if (leaf) leaf[cacheKey] = v;
-    else if (typeof lastKey === "object") cur.set(lastKey, { [cacheKey]: v });
+    else if (isWeakKey(lastKey)) cur.set(lastKey, { [cacheKey]: v });
     else this.badKey += 1;
   }
   evict() {
