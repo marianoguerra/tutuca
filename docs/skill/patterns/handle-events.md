@@ -25,3 +25,10 @@ names — `value`, `valueAsInt`/`valueAsFloat`, `event`, `key`, `isAlt`,
 `event.target.value` (or `.checked` for a checkbox, or `event.detail` for a
 `CustomEvent`). Bind events declaratively with `@on.` rather than reaching for
 the node and `addEventListener` — an outside listener bypasses the transactor.
+
+Pass the most granular arg the handler needs — `value`/`valueAsInt`/`key`, not
+the raw `event` — when the specific value is all the handler uses. The args
+become plain literals, so the same call is trivial to reproduce in tests and
+storybook stories (no need to stub a `{ target: { value: … } }` event). Reach
+for `event` only when you truly need it (e.g. a file input reading
+`event.target.files`).

@@ -586,6 +586,15 @@ The content of `value` depends on the event source:
 For numeric inputs, prefer `valueAsInt` / `valueAsFloat` to skip the
 string parse.
 
+Ask for the most granular arg the handler actually uses — `value` /
+`valueAsInt` / `key`, not the raw `event` — when the specific value is
+all you need. A handler that takes `event` forces every test and
+storybook story to fabricate a DOM-event-shaped object
+(`{ target: { value: … } }`); one that takes `value` is called with a
+plain literal. (Genuine exceptions exist — e.g. a file input needs
+`event` to reach `event.target.files`.) See
+[testing.md](./testing.md) *Designing handlers so tests stay simple*.
+
 ### Event Modifiers
 
 `@on.<event>+<mod>+<mod>=...`

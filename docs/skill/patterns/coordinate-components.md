@@ -24,3 +24,8 @@ selections); **send/receive** to address one known component
 `scope.registerRequestHandlers({...})`, and `response` gets `(res, err)`. `ctx`
 is always the trailing arg. `receive.init` is a convention, not a lifecycle
 hook — dispatch it with `app.sendAtRoot("init")`.
+
+Carry the most granular payload across the channel, not whole objects you
+won't use — `ctx.bubble("itemSelected", [item.label])` over passing the entire
+component. The handler then receives plain values that are easy to reproduce in
+tests and storybook stories.
