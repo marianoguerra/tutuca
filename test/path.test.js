@@ -334,6 +334,125 @@ describe("@value inside @each click handler", () => {
   });
 });
 
+describe("@enrich-with / @scope binds survive path rebuild", () => {
+  // The rebuilt stack must replay the same binds the renderer pushed, including
+  // custom @enrich-with binds — otherwise a handler arg reading one resolves to
+  // null after dispatch (EachBindStep / ScopeBindStep enterFrame).
+  test("@each @enrich-with: handler reads enriched bind after click", () => {
+    let received = "<not-called>";
+    const List = component({
+      name: "List",
+      fields: { items: [] },
+      alter: {
+        enrichItem(binds, _key, item) {
+          binds.label = `L:${item}`;
+        },
+      },
+      input: {
+        noteClicked(label) {
+          received = label;
+          return this;
+        },
+      },
+      view: html`<div>
+        <div @each=".items" @enrich-with="enrichItem">
+          <button :data-uid="@value" @on.click="noteClicked @label">x</button>
+        </div>
+      </div>`,
+    });
+    const root = List.make({ items: ["a", "b"] });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [List],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+
+    expect(received).toBe("L:b");
+    cleanup();
+  });
+
+  test("@each @enrich-with + @loop-with: iterData-derived bind survives rebuild", () => {
+    let received = null;
+    const List = component({
+      name: "List",
+      fields: { items: [] },
+      alter: {
+        getIterData(seq) {
+          let total = 0;
+          for (const item of seq) total += item.length;
+          return { iterData: { total } };
+        },
+        enrichItem(binds, _key, _item, iterData) {
+          binds.total = iterData.total;
+        },
+      },
+      input: {
+        noteClicked(total) {
+          received = total;
+          return this;
+        },
+      },
+      view: html`<div>
+        <div @each=".items" @enrich-with="enrichItem" @loop-with="getIterData">
+          <button :data-uid="@value" @on.click="noteClicked @total">x</button>
+        </div>
+      </div>`,
+    });
+    const root = List.make({ items: ["ab", "cde"] }); // total chars = 5
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [List],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="cde"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+
+    expect(received).toBe(5);
+    cleanup();
+  });
+
+  test("@enrich-with (scope, no @each): handler reads scoped bind after click", () => {
+    let received = "<not-called>";
+    const Box = component({
+      name: "Box",
+      fields: { name: "x" },
+      alter: {
+        scopeBinds() {
+          return { greeting: `hi ${this.name}` };
+        },
+      },
+      input: {
+        noteClicked(greeting) {
+          received = greeting;
+          return this;
+        },
+      },
+      view: html`<div @enrich-with="scopeBinds">
+        <button data-uid="b" @on.click="noteClicked @greeting">x</button>
+      </div>`,
+    });
+    const root = Box.make({ name: "bob" });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Box],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+
+    expect(received).toBe("hi bob");
+    cleanup();
+  });
+});
+
 describe("@on.drop bubbles to ancestor components", () => {
   function makeApp() {
     const captured = { type: "<not-called>", self: null };

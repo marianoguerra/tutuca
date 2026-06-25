@@ -1,6 +1,12 @@
 import { Attributes, getAttrParser } from "./attribute.js";
-import { BindStep, DynEachStep, DynStep, EachBindStep, EachRenderItStep } from "./path.js";
-import { filterAlwaysTrue, nullLoopWith } from "./renderer.js";
+import {
+  DynEachStep,
+  DynStep,
+  EachBindStep,
+  EachRenderItStep,
+  ScopeBindStep,
+} from "./path.js";
+import { filterAlwaysTrue, nullLoopWith, unpackLoopResult } from "./renderer.js";
 import { isMac } from "./util/env.js";
 import { DynVal, vp } from "./value.js";
 import { HTML_NS } from "./vdom.js";
@@ -464,10 +470,13 @@ export class SlotNode extends WrapperNode {
 export class ScopeNode extends WrapperNode {
   render(stack, rx) {
     const binds = this.val.evalAsHandler(stack)?.call(stack.it) ?? {};
-    return this.node.render(stack.enter(stack.it, binds, false), rx);
+    const dom = this.node.render(stack.enter(stack.it, binds, false), rx);
+    // Emit a meta comment so event-path reconstruction can replay this scope's
+    // binds (matches the §Each§ meta @each emits); see ScopeBindStep.
+    return rx.renderScopeMeta(this.nodeId, dom);
   }
   toPathStep(_ctx) {
-    return new BindStep({});
+    return new ScopeBindStep(this.val);
   }
   wrapNode(node) {
     this.node = node;
@@ -484,7 +493,7 @@ export class EachNode extends WrapperNode {
     return rx.renderEachWhen(stack, this.iterInfo, this.node, this.nodeId);
   }
   toPathStep(ctx) {
-    return ctx.hasKey ? new EachBindStep(this.val, ctx.key) : null;
+    return ctx.hasKey ? new EachBindStep(this.iterInfo, ctx.key) : null;
   }
   static register = true;
 }
@@ -501,6 +510,18 @@ export class IterInfo {
     const loopWith = this.loopWithVal?.evalAsHandler(stack) ?? nullLoopWith;
     const enricher = this.enrichWithVal?.evalAsHandler(stack) ?? null;
     return { seq, filter, loopWith, enricher };
+  }
+  // Rebuild the per-item binds for `key`, mirroring renderEachWhen: seed
+  // { key, value }, then run @enrich-with (with @loop-with's iterData) if any.
+  enrichBinds(stack, key) {
+    const { seq, loopWith, enricher } = this.eval(stack);
+    const value = seq?.get ? seq.get(key, null) : null;
+    const binds = { key, value };
+    if (enricher) {
+      const { iterData } = unpackLoopResult(loopWith.call(stack.it, seq), seq);
+      enricher.call(stack.it, binds, key, value, iterData);
+    }
+    return binds;
   }
 }
 // consumed: attr names this op handles itself; wrappable: accepts show/hide wrapper

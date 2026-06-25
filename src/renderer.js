@@ -130,6 +130,11 @@ export class Renderer {
   _renderMetadata(info) {
     return new VComment(`§${JSON.stringify(info)}§`);
   }
+  // Prefix a @scope/@enrich-with subtree with a boundary meta so event-path
+  // reconstruction replays its binds (mirrors the §Each§ / §Comp§ metas).
+  renderScopeMeta(nid, dom) {
+    return new VFragment([this._renderMetadata({ $: "Scope", nid }), dom]);
+  }
 }
 export const getSeqInfo = (seq) =>
   isIndexed(seq) ? imIndexedIter : isKeyed(seq) ? imKeyedIter : (seq?.[SEQ_INFO] ?? unkIter);

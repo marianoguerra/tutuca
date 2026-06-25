@@ -867,7 +867,8 @@ describe("ANode", () => {
       User.compile(HeadlessParseContext);
       const [stack, rx] = rxs({ it: User.make({ name: "bob" }) });
       rx.comps.registerComponent(User);
-      const n = rx.renderIt(stack, 10).childs[1];
+      // childs: [0] §Comp§ meta, [1] §Scope§ meta (from @enrich-with), [2] div
+      const n = rx.renderIt(stack, 10).childs[2];
       expect(toData(n)).toEqual([
         "div",
         { "data-cid": User.id, "data-nid": 1, "data-vid": "main" },
@@ -890,7 +891,8 @@ describe("ANode", () => {
       User.compile(HeadlessParseContext);
       const [stack, rx] = rxs({ it: User.make({ name: "bob" }) });
       rx.comps.registerComponent(User);
-      const n = rx.renderIt(stack, 10).childs[1];
+      // childs: [0] §Comp§ meta, [1] §Scope§ meta (from @enrich-with), [2] div
+      const n = rx.renderIt(stack, 10).childs[2];
       expect(toData(n)).toEqual([
         "div",
         { "data-cid": User.id, "data-nid": 1, "data-vid": "main" },

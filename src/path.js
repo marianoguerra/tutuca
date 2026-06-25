@@ -42,6 +42,24 @@ export class BindStep extends Step {
     return null;
   }
 }
+// Like BindStep, but re-evaluates a @scope/@enrich-with handler against the
+// rebuilt stack so its custom binds are present when a path is rebuilt.
+export class ScopeBindStep extends BindStep {
+  constructor(val, binds = {}) {
+    super(binds);
+    this.val = val;
+  }
+  enterFrame(stack, _prev, next) {
+    const dyn = this.val.evalAsHandler(stack)?.call(stack.it) ?? {};
+    return stack.enter(next, { ...this.binds, ...dyn }, false);
+  }
+  withIndex(i) {
+    return new ScopeBindStep(this.val, { ...this.binds, key: i });
+  }
+  withKey(key) {
+    return new ScopeBindStep(this.val, { ...this.binds, key });
+  }
+}
 export class FieldStep extends Step {
   constructor(field) {
     super();
@@ -102,9 +120,9 @@ export class SeqAccessStep extends Step {
   }
 }
 export class EachBindStep extends Step {
-  constructor(seqVal, key) {
+  constructor(iterInfo, key) {
     super();
-    this.seqVal = seqVal;
+    this.iterInfo = iterInfo;
     this.key = key;
   }
   lookup(v, _dval) {
@@ -113,9 +131,10 @@ export class EachBindStep extends Step {
   setValue(_root, v) {
     return v;
   }
+  // Replay the renderer's per-item binds (key, value + any @enrich-with binds)
+  // so a rebuilt stack matches the one @each rendered with.
   enterFrame(stack, _prev, next) {
-    const item = this.seqVal.eval(stack)?.get(this.key, null);
-    return stack.enter(next, { key: this.key, value: item }, false);
+    return stack.enter(next, this.iterInfo.enrichBinds(stack, this.key), false);
   }
   toAbstractPathStep() {
     return null;
