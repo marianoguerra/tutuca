@@ -22,6 +22,42 @@ function captureError(e) {
   return out;
 }
 
+function buildStack({ components = [], macros = null, requestHandlers = null } = {}) {
+  const stack = new ComponentStack();
+  stack.registerComponents(components);
+  if (macros) stack.registerMacros(macros);
+  if (requestHandlers) stack.registerRequestHandlers(requestHandlers);
+  return stack;
+}
+
+// Dispatch one `on`-phase config ({ send, bubble, request, input, do } — same
+// shape as an example's on.init) at the root over `stack`, awaiting the full
+// cascade. Returns the settled root value. `opts.onMessage(message, before,
+// after)` observes each committed transaction (message = { kind, name, args, path }).
+async function driveStack(stack, value, phase, opts = {}) {
+  const transactor = new Transactor(stack.comps, value);
+  if (opts.onMessage)
+    transactor.state.onChange(({ val, old, info }) => {
+      const t = info?.transaction;
+      opts.onMessage(
+        { kind: t?.handlerProp ?? "input", name: t?.name, args: t?.args, path: t?.path },
+        old,
+        val,
+      );
+    });
+  dispatchPhase(rootDispatcher(transactor), new Path([]), phase, value);
+  await transactor.settle();
+  return transactor.state.val;
+}
+
+// Drive `value` (a component instance) through one `on`-phase config against a
+// freshly-registered scope. `cfg = { components, macros, requestHandlers }`.
+// Returns the settled root value. For repeated drives prefer one
+// runTests/getTests scope; each call here re-registers the components.
+export async function drive(cfg, value, phase, opts = {}) {
+  return driveStack(buildStack(cfg), value, phase, opts);
+}
+
 export async function runTests({
   getTests,
   components = [],
@@ -45,41 +81,16 @@ export async function runTests({
   }
 
   const { describe, test, moduleTests } = makeCollector({ path, components });
-  await getTests({ describe, test, expect, drive });
 
   // Lazily build one registered scope (components + request handlers + macros) the
   // first time `drive` is used, mirroring tools/core/lint.js. Lazy so an unused
-  // `drive` never mutates the shared Component objects' `.scope`.
+  // `drive` never mutates the shared Component objects' `.scope`. The injected
+  // `drive` is bound to this scope, so it takes just (value, phase, opts).
   let _stack = null;
-  function getStack() {
-    if (_stack) return _stack;
-    _stack = new ComponentStack();
-    _stack.registerComponents(components);
-    if (macros) _stack.registerMacros(macros);
-    if (requestHandlers) _stack.registerRequestHandlers(requestHandlers);
-    return _stack;
-  }
+  const getStack = () => (_stack ??= buildStack({ components, macros, requestHandlers }));
+  const driveLocal = (value, phase, opts = {}) => driveStack(getStack(), value, phase, opts);
 
-  // Drive `value` (a component instance) through one `on`-phase config
-  // ({ send, bubble, request, input, do } — same shape as an example's on.init),
-  // dispatching every action at the root and awaiting the full cascade. Returns
-  // the settled root value. `opts.onMessage(message, before, after)` observes each
-  // committed transaction (message = { kind, name, args, path }).
-  async function drive(value, phase, opts = {}) {
-    const transactor = new Transactor(getStack().comps, value);
-    if (opts.onMessage)
-      transactor.state.onChange(({ val, old, info }) => {
-        const t = info?.transaction;
-        opts.onMessage(
-          { kind: t?.handlerProp ?? "input", name: t?.name, args: t?.args, path: t?.path },
-          old,
-          val,
-        );
-      });
-    dispatchPhase(rootDispatcher(transactor), new Path([]), phase, value);
-    await transactor.settle();
-    return transactor.state.val;
-  }
+  await getTests({ describe, test, expect, drive: driveLocal });
 
   let bailed = false;
 
