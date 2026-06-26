@@ -95,24 +95,36 @@ available (`npx tutuca install-skill --margaui-skill`) — it lists the
 available components and their canonical class strings, which is what the
 `compile` step expects.
 
-## Pitfall: @if.class is invisible to the scanner
+## Pitfall: assembled class names are invisible to the scanner
 
-Classes inside `@then` / `@else` (e.g.
-`@if.class=".active" @then="'btn-success'" @else="'btn-ghost'"`) are not
-literals in `class=` / `:class=`, so `compileClassesToStyleText` skips
-them and the margaui CSS for those classes is never emitted — the
-conditional class renders unstyled. Workaround: add a hidden "decoy" view
-on the component that lists every conditional class as a real literal, so
-the walker picks them up:
+The scanner only reads **constant** class literals out of parsed templates. It
+cannot see a class name that is assembled rather than written out verbatim, so
+the margaui CSS for that class is never emitted and it renders unstyled. Two
+cases:
+
+- **Interpolated templates** — `:class="$'bg-{.color}'"` contributes only the
+  constant prefix `bg-`, never `bg-red` / `bg-blue`. Same for any `${…}` segment.
+- **Classes built in a method** — anything a method returns (e.g. a `headerClass()`
+  that builds `` `progress-${this.color}` ``) is never scanned at all; the walker
+  only reads view templates, not JS bodies.
+
+(Literal `@then` / `@else` strings on `@if.class` — e.g.
+`@if.class=".active" @then="'btn-success'" @else="'btn-ghost'"` — **are** now
+collected, so those don't need the workaround.)
+
+Workaround: add a hidden "decoy"/palette view on the component that lists every
+possible assembled class as a real literal, so the walker picks them up:
 
 ```js
-_margauiClasses: html`<p class="btn-success btn-ghost on off"></p>`,
+// enumerate color × utility so each full class name appears verbatim
+_margauiClasses: html`<p class="bg-red bg-blue progress-red progress-blue"></p>`,
 ```
 
-The view does not need to be rendered anywhere — registration is enough
-for the template walker to find it. (This is the same rule
-[component-design.md](./component-design.md) gives for runtime-assembled
-margaui classes.)
+The view does not need to be rendered anywhere — registration is enough for the
+template walker to find it. (This is the same rule
+[component-design.md](./component-design.md) gives for runtime-assembled margaui
+classes.) The cost is that the palette and the methods can drift apart with no
+check catching it; keep them adjacent and update both together.
 
 ## See also
 

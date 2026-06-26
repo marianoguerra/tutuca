@@ -114,10 +114,21 @@ export function getTests({ describe, test, expect, drive }) {
 - `drive(value, phase, opts?)` builds a transactor over `value`, dispatches the
   phase's actions at the root, awaits the whole cascade (including async
   requests), and returns the **settled** instance.
+- `drive` **always originates at the root** — there is no `at:`/path option. To
+  exercise a handler on a nested child, call it directly with `.call(child, …)`.
 - `phase` is the same shape as an example's `on.init`
   (`{ send, bubble, request, input, do }`; see
   [storybook.md](./storybook.md#lifecycle-hooks-on)). `args` may be a function
   `(self) => [...]`.
+- A `bubble` action is a **no-op under `drive`**: bubbles travel child→parent, and
+  at the root there is no ancestor to receive it (the root's own `bubble` handler
+  is skipped too). To test a `bubble` handler, call it directly. (`drive` warns
+  when a phase contains a `bubble`.)
+- These are *action kinds*, not methods. `$`-prefixed **methods** (auto setters/
+  togglers, `$foo`) are not an action kind — `on`/`drive` can only reach state
+  through `input`/`receive`/`response` handlers. To put a component into a method-
+  driven state for a test, call the method directly or route it through an `input`
+  handler.
 - `request` actions resolve against the module's `getRequestHandlers()`.
 - `opts.onMessage(message, before, after)` observes every committed transaction —
   `message` is `{ kind, name, args, path }`, `before`/`after` are the root values

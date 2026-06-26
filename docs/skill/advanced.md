@@ -124,10 +124,19 @@ in the producer's own view update in lock-step.
 Tutuca's special operations (`render`, `render-it`, `render-each`, `text`,
 `show`, `hide`, `slot`) live on the `<x>` tag. That works almost
 everywhere, but the browser's HTML parser refuses to keep `<x>` (or any
-unknown tag) as a child of certain elements: `<select>` only allows
-`<option>` / `<optgroup>`, `<table>` only allows `<thead>` / `<tbody>` /
-`<tr>`, `<tr>` only allows `<th>` / `<td>`, etc. Drop `<x render-each>`
+unknown tag) as a child of certain elements. Drop `<x render-each>`
 inside one of those and the parser silently strips it.
+
+The parser strips `<x>` only inside the **table family** and **`<select>`**.
+Use pseudo-`@x` when the parent is one of:
+
+`table`, `thead`, `tbody`, `tfoot`, `tr`, `colgroup`, `select`, `optgroup`.
+
+Everywhere else `<x>` is kept and needs no workaround — including `ul`, `ol`,
+`li`, `dl`, `dt`, `dd`, `details`, `summary`, `caption`, `td`, `th`. So
+`<ul><x render-each=".items">…</x></ul>` is fine. (When in doubt, the rule of
+thumb is: any element whose HTML content model only permits *specific* child
+tags — table sections and `<select>` — strips `<x>`.)
 
 The escape hatch: prefix the **first** attribute on a *legal* tag with
 `@x`. Tutuca treats that tag as if it were `<x>` and reads the next
@@ -151,8 +160,8 @@ Notes:
   `render`, `text`, `show`, ...) is the second.
 - The host tag (here `<option>`) is otherwise ignored — only the special
   op runs. Tutuca produces the rendered children directly.
-- Same trick works inside `<tr>`, `<table>`, `<colgroup>`, `<dl>`,
-  `<details>`, or anywhere else the parser would discard `<x>`.
+- Same trick works inside any of the stripping parents listed above
+  (`<table>`/`<tr>`/`<colgroup>`/`<select>`/…).
 
 ## Registering a custom seq type
 

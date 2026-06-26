@@ -517,12 +517,20 @@ other inline content, or a loop binding). Both take the same value forms
 ```html
 <input :value=".str" @on.input="$setStr value" />
 <a :href=".url" :title="$'Hi {.name}'">link</a>       <!-- string template -->
-<button class="btn" :class="$'btn {.color}'">x</button>
+<button :class="$'btn {.color}'">x</button>
 ```
 
 Plain attrs are static. `:attr="..."` is a dynamic expression. Boolean
 HTML attributes (`disabled`, `checked`, `hidden`, …) are auto-recognized;
 pass a boolean field.
+
+A static `class="…"` and a dynamic `:class`/`@if.class` **cannot coexist on the
+same element** — setting one attribute two ways is a lint error
+(`DUPLICATE_ATTR_DEFINITION`), and at runtime the dynamic value wins and the
+static class is dropped. Fold any structural classes into the bound expression,
+e.g. `:class="$'btn {.color}'"` (note `btn` is part of the template, not a
+separate `class="btn"`). The same applies to other attributes — see the
+duplicate-attribute note below.
 
 The HTML parser lowercases attribute names before Tutuca sees them, so
 `:mapId` arrives as `:mapid` and `<x:Card>` becomes `<x:card>`. Three
