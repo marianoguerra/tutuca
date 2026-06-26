@@ -269,12 +269,9 @@ The "bad" forms force every test to construct
 `{ target: { value: "42" } }` (or a fuller stub when more fields are
 read), which is brittle and obscures intent.
 
-Built-in named args (full list in [core.md](./core.md) *Event
-Handling*): `value`, `valueAsInt`, `valueAsFloat`, `target`, `event`,
-`isAlt`, `isShift`, `isCtrl` / `isCmd`, `key`, `keyCode`, `isUpKey`,
-`isDownKey`, `isSend`, `isCancel`, `isTabKey`, `ctx`, `dragInfo`.
-`ctx` is auto-appended last. Reach for `event` only when no narrower
-arg fits.
+The built-in named args are listed in [core.md](./core.md) *Event
+Handling*; `ctx` is auto-appended last. Reach for `event` only when no
+narrower arg fits.
 
 ## Worked example
 

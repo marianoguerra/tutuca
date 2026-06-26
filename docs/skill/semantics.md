@@ -83,9 +83,10 @@ return curLeaf !== newLeaf ? txnPath.setValue(curRoot, newLeaf) : curRoot;
 ```
 
 The root swap is atomic and identity-cheap: unchanged subtrees keep their
-references, so re-render is incremental. Cross-transaction ordering and
-fan-out completion are tracked by `Task` (a transaction's `task` resolves
-once its dependency tasks do).
+references, so re-render is incremental. Per-dispatch completion is tracked
+by `Completion` (counter-based): `whenSettled()` resolves once a
+transaction's own work finishes, `whenSubtreeSettled()` once the subtree it
+spawned (requests, follow-on sends) settles too.
 
 ## Dispatch channels, semantically
 

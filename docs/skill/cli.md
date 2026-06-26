@@ -151,77 +151,19 @@ Filters:
 Default format is `cli` (a tree with ✓/✗/○ and per-test durations);
 `-f md` and `-f json` work too.
 
-A worked `getTests()` export covering methods, input handlers (called
-via `Comp.input.x.call(inst)`), and immutability:
-
-```js
-export function getTests({ describe, test, expect }) {
-  describe(Counter, () => {
-    describe("inc()", () => {                           // method
-      test("returns a Counter with count + 1", () => {
-        const next = Counter.make().inc();
-        expect(next).toBeInstanceOf(Counter.Class);
-        expect(next.count).toBe(1);
-      });
-      test("does not mutate the original instance", () => {
-        const c = Counter.make({ count: 7 });
-        c.inc();
-        expect(c.count).toBe(7);                    // immutability
-      });
-    });
-
-    describe("dec()", () => {                           // input handler
-      test("returns a Counter with count - 1", () => {
-        const next = Counter.input.dec.call(Counter.make());
-        expect(next.count).toBe(-1);
-      });
-    });
-
-    test("inc and dec round-trip", () => {              // untagged path
-      expect(Counter.input.dec.call(Counter.make().inc()).count).toBe(0);
-    });
-  });
-}
-```
-
-`describe(Counter, fn)` auto-tags the suite path with `Counter.name`, so
-`tutuca test <module> Counter` picks it up. Untagged `test(...)` at the
-top of a tagged `describe` inherits the tag.
+The `getTests` shape and the handler calling conventions (`Comp.method()`,
+`Comp.input.x.call(inst, …)`, the `drive` cascade helper, iteration
+handlers) are in [testing.md](./testing.md).
 
 ## storybook — live component catalog
 
-`tutuca storybook [dir]` serves a browser storybook for a project with no
-setup. It recursively discovers co-located `*.dev.js` modules (see the
-`.dev.js` convention below), mounts them via the shipped `tutuca/storybook`
-library, and serves an ephemeral page — no config, no HTML to write.
-
-```sh
-tutuca storybook                 # scan + serve the current directory
-tutuca storybook ./packages/ui   # scan + serve another directory
-tutuca storybook --port 4321     # preferred port (falls back to a free one if taken)
-tutuca storybook --out ./_site   # write a static index.html + bootstrap instead of serving
-tutuca storybook --dry-run       # do all the prep + print what would be shown, don't serve (smoke test)
-tutuca storybook --dry-run --json # same, machine-readable for agents
-tutuca storybook --no-tests      # skip the pre-serve getTests() run
-tutuca storybook --no-margaui    # render unstyled (skip margaui)
-tutuca storybook --no-check      # skip the in-browser check(app)
-```
-
-It is **batteries-included by default**: before serving it runs each module's
-`getTests()` in the terminal, the page wires margaui styling, and the browser
-runs `check(app)`. Each is individually disablable with the `--no-*` flags.
-
-How tutuca itself is resolved (convention over configuration): a local
-`node_modules/tutuca` install if present, else the CLI's own `dist`, else the
-version-pinned CDN. All tutuca specifiers resolve to a single runtime, which
-component scope/identity requires. `--out` always pins the CDN so the static
-artifact is portable (host it from the project root so `/*.dev.js` paths resolve).
-
-### Authoring `.dev.js` story modules
-
-The `*.dev.js` convention (a dev-only module holding `getComponents()` +
-`getExamples()` + `getTests()`, never shipped), the example/section shape, and
-per-example request mocking are covered in [storybook.md](./storybook.md).
+`tutuca storybook [dir]` serves a browser storybook with no setup — it
+discovers co-located `*.dev.js` modules, runs their `getTests()`, wires
+margaui, and serves an ephemeral page. Its flags (`--port`, `--out`,
+`--dry-run`, `--no-margaui`, `--no-check`, `--no-tests`) are in the
+Commands table above. Authoring `.dev.js` modules, the example/section shape,
+per-example request mocking, and runtime resolution are all in
+[storybook.md](./storybook.md).
 
 ## Install skill assets
 

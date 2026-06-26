@@ -657,12 +657,11 @@ inbound sources (WebSocket, `postMessage`, timers) have no element to bind
 — route those through `app.sendAtRoot` instead (see
 [request-response.md](./request-response.md)).
 
-Pitfall: binding camelCase JS properties on a custom element silently
-fails. `:mapId=".id"` does *not* invoke a `set mapId` setter
-— the HTML parser lowercased the attribute name, so the framework assigns
-to `node.mapid` instead, creating an own property and bypassing the
-setter. Use kebab-case attributes / lowercased setters when authoring
-custom elements for use with Tutuca. See *Attribute Binding* above.
+Pitfall: binding a camelCase JS property on a custom element silently
+fails — `:mapId=".id"` assigns to `node.mapid`, never invoking
+`set mapId`. Author custom elements with kebab-case attributes /
+lowercased setters and bind via `:kebab-name`. See *Attribute Binding*
+above for the full explanation.
 
 ## Conditional Display
 
@@ -931,65 +930,28 @@ CSS via the extra build), see [margaui.md](./margaui.md).
 
 ## Triggers and Handlers
 
-Tutuca has four orchestration channels. Each one pairs a trigger with
-a same-shape handler block:
+Tutuca has four orchestration channels. Each pairs a trigger with a
+same-shape handler block:
 
-| Triggered by                                | Handler block       |
-| ------------------------------------------- | ------------------- |
-| DOM event (`click`, `input`, …)             | `input:    { ... }` |
-| `ctx.send(name)` — message to a target path | `receive:  { ... }` |
-| `ctx.request(name)` — async request         | `response: { ... }` |
-| `ctx.bubble(name)` — event up the tree      | `bubble:   { ... }` |
+| Triggered by                                | Handler block       | Use for                                             |
+| ------------------------------------------- | ------------------- | --------------------------------------------------- |
+| DOM event (`click`, `input`, …)             | `input:    { ... }` | the component handling its own events               |
+| `ctx.bubble(name)` — event up the tree      | `bubble:   { ... }` | aggregate state an ancestor owns (logs, selections) |
+| `ctx.send(name)` — message to a target path | `receive:  { ... }` | addressing one known component (or self)            |
+| `ctx.request(name)` — async request         | `response: { ... }` | fetch / timer / IndexedDB, result routed back       |
 
 Every handler is called as `handler(...args, ctx)` and returns a
-(possibly updated) instance of `this`; the framework swaps the
-returned value into the dispatch path. The three event-driven channels
-beyond `input` — `bubble`, `send`/`receive`, async `request`/`response`
-— plus the shared `$unknown` fallback and request-handler registration
-are documented in [request-response.md](./request-response.md); the
-brief anchors below cover the essentials.
+(possibly updated) instance of `this`, which the framework swaps into
+the dispatch path; `ctx` is always the trailing argument. The three
+channels beyond `input` — plus `ctx.at`, the `$unknown` fallback,
+per-call handler-name overrides, error handling, and request-handler
+registration — are in [request-response.md](./request-response.md);
+worked snippets in
+[patterns/coordinate-components.md](./patterns/coordinate-components.md).
 
 `alter` is a fifth handler block, but unlike the four above it isn't
 event-triggered — the renderer invokes alter handlers to produce
 binds, not to update state. See *Mental model* and *Scope Enrichment*.
-
-## Orchestration channels (bubble / send-receive / request-response)
-
-Beyond local `input` handlers, three channels move state between
-components. Full mechanics — when-to-use guidance, the `ctx.at`
-`PathBuilder`, error handling, per-call handler-name overrides, the
-`$unknown` fallback, and request-handler registration — are in
-[request-response.md](./request-response.md). The essentials:
-
-- **`bubble`** — `ctx.bubble("name", args)` walks the dispatch path
-  toward the root; each ancestor with `bubble.<name>(...args, ctx)`
-  runs (after descendants transact); `ctx.stopPropagation()` halts it.
-  Use for aggregate state owned by an ancestor (logs, selections).
-
-  ```js
-  input:  { onClick(ctx) { ctx.bubble("itemSelected", [this]); return this; } },
-  bubble: { itemSelected(item, ctx) { return this.insertInLogAt(0, item.label); } },
-  ```
-
-- **`send` / `receive`** — `ctx.send("name", args)` delivers a message
-  to one target (self by default, or `ctx.at.field("x").send(...)` /
-  `.index(name, i)` / `.key(name, k)` for another); the target's
-  `receive.<name>(...args, ctx)` runs. `receive.init` is a convention,
-  not a lifecycle hook — dispatch it via `app.sendAtRoot("init")`.
-
-- **`request` / `response`** — `ctx.request("name", args)` runs a
-  host-registered async handler (registered with
-  `scope.registerRequestHandlers({...})`) and routes the result to
-  `response.<name>(res, err, ctx)` — `res` set on success, `err` on
-  failure. Use for fetch / timer / IndexedDB work.
-
-  ```js
-  receive:  { init(ctx) { ctx.request("loadData"); return this.setIsLoading(true); } },
-  response: { loadData(res, err, ctx) { return this.setIsLoading(false).setItems(res); } },
-  ```
-
-`ctx` is always the last argument of every `bubble` / `receive` /
-`response` handler.
 
 ## Macros
 
@@ -1115,22 +1077,11 @@ export function getTests({ describe, test, expect }) { /*...*/ }      // optiona
 ```
 
 An example item may carry an optional **`requestHandlers`** map — per-example
-mocks for the request handlers its component triggers, used by the storybook
-only. Each is a plain async function keyed by request name; it overrides the
-module's real `getRequestHandlers()` handler **for that example instance only**,
-so two examples of the same component can show different responses side by side.
-Return a fixture, `throw` to exercise the error path, or never resolve to hold a
-loading state:
-
-```js
-items: [
-  { title: "Loaded", value: Widget.make(),
-    requestHandlers: { async load() { return [{ id: 1, name: "Ada" }]; } } },
-  { title: "Error", value: Widget.make(),
-    requestHandlers: { async load() { throw new Error("boom"); } } },
-  { title: "Default", value: Widget.make() },   // no mock → real handler / 404
-]
-```
+mocks (keyed by request name) that override the module's real
+`getRequestHandlers()` for that one instance, so two examples of the same
+component show different responses side by side. Return a fixture, `throw` for
+the error path, or never resolve to hold a loading state. Full treatment, plus
+the `on` lifecycle hooks, in [storybook.md](./storybook.md).
 
 Best practice: have `getComponents()` return **every** component the module
 defines — child and helper components included — and give each one at least
