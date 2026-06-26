@@ -341,8 +341,9 @@ export function getTests({ describe, test, expect }) {
   //   • `loopWith`   → the `@loop-with` handler name
   //   • `scopeEnrich`→ the ancestor scope `@enrich-with` whose result the
   //                    loop-with reads via `ctx.lookup`
-  // Each strategy wires these differently, yet all render the same page. (This
-  // helper ships in the dev build — these run in the playground's Test tab.)
+  // Each strategy wires these differently, yet all render the same page.
+  // (`collectIterBindings` lives in the dev build; `tutuca test` and the
+  // playground's Test tab both resolve "tutuca" to it.)
   describe(NaivePeople, () => {
     test("naive: @when + @loop-with (the loop does its own scan)", () => {
       const c = makeOne(NaivePeople, { query: "a", page: 1, pageSize: 5 });

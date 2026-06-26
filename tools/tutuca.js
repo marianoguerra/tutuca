@@ -5,6 +5,7 @@ import * as feedback from "./cli/commands/feedback.js";
 import * as help from "./cli/commands/help.js";
 import * as installSkill from "./cli/commands/install-skill.js";
 import * as storybook from "./cli/commands/storybook.js";
+import { installDevBuildResolveHook } from "./cli/dev-build-hook.js";
 import { CODES, didYouMean, emitError, parseArgsErrorShape } from "./cli/errors.js";
 import { runCommand } from "./cli/with-module.js";
 
@@ -118,6 +119,12 @@ async function main() {
     opts.module = rest[1];
     commandArgs = rest.slice(2);
   }
+
+  // The `test` command loads the module under test, which imports "tutuca".
+  // Redirect that to the dev build so dev-only helpers (e.g. collectIterBindings)
+  // used inside getTests resolve to their real implementations instead of the
+  // core build's no-op stubs — matching the browser playground's import map.
+  if (command === "test") installDevBuildResolveHook();
 
   try {
     await runCommand(cmd, commandArgs, opts);

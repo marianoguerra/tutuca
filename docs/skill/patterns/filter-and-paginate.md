@@ -109,7 +109,8 @@ keys(Coupled, c, { loopWith: "loopJustForwardsTheEnrichsKeys",
 
 A `keys` return is honored as-is (no `@when` re-applied), and `scopeEnrich` runs
 the named scope handler so a `lookup("currentPage")` / `lookup("__keys__")`
-resolves in the test. `collectIterBindings` ships in the **dev build**, so these
-run in the playground's Test tab (and via `tutuca test` with the dev build), not
-the core CLI. See [filter-a-list.md](filter-a-list.md) and
+resolves in the test. `collectIterBindings` lives in the **dev build**; both the
+playground's Test tab (via its import map) and `tutuca test` (which redirects the
+`"tutuca"` import to the dev build under Node) resolve it to the real
+implementation. See [filter-a-list.md](filter-a-list.md) and
 [paginate-a-list.md](paginate-a-list.md) for each half on its own.
