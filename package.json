@@ -99,9 +99,9 @@
   },
   "homepage": "https://github.com/marianoguerra/tutuca#readme",
   "devDependencies": {
-    "@biomejs/biome": "^2.4.12",
+    "@biomejs/biome": "^2.5.1",
     "chai": "^6.2.2",
-    "fast-check": "^4.7.0",
+    "fast-check": "^4.8.0",
     "htmlparser2": "^12.0.0"
   }
 }
