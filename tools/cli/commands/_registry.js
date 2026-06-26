@@ -7,6 +7,7 @@ import { docComponents } from "../../core/docs.js";
 import { lintComponents } from "../../core/lint.js";
 import { listComponents, listExamples } from "../../core/list.js";
 import { renderExamples } from "../../core/render.js";
+import { TestReport } from "../../core/results.js";
 import { runTests } from "../../core/test.js";
 
 function parseLimit(raw) {
@@ -71,13 +72,20 @@ export const COMMANDS = {
     exitOn: (result) => (result.hasErrors ? 3 : 0),
   },
   test: {
-    describe: "Run tests defined by getTests() (optional <name> to filter by component).",
+    describe:
+      "Run tests defined by getTests() (optional <name> to filter by component). Pass a directory to run every *.test.js / *.dev.js under it.",
     defaultFormat: "cli",
     needsEnv: true,
     parseOptions: {
       grep: { type: "string" },
       bail: { type: "boolean" },
     },
+    // Directory support: walk for test modules, keep those exporting getTests(),
+    // and merge their per-module reports into one TestReport.
+    acceptsDir: true,
+    dirMatch: (name) => name.endsWith(".test.js") || name.endsWith(".dev.js"),
+    dirFilter: (normalized) => typeof normalized.mod.getTests === "function",
+    mergeResults: (reports) => new TestReport({ modules: reports.flatMap((r) => r.modules) }),
     run: (normalized, { values, positionals }) =>
       runTests({
         getTests: normalized.mod.getTests,

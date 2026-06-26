@@ -8,6 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const cli = resolve(here, "..", "tools", "tutuca.js");
 const repo = resolve(here, "..");
 const todoModule = resolve(here, "todo.js");
+const storyset = resolve(here, "fixtures", "storyset");
 
 function run(args) {
   const r = spawnSync("bun", [cli, ...args], { encoding: "utf8" });
@@ -211,6 +212,38 @@ describe("CLI: --limit on list/examples", () => {
     const { code, stdout } = run(["list", todoModule, "--limit", "1"]);
     expect(code).toBe(0);
     expect(stdout).toContain("more component");
+  });
+});
+
+describe("CLI: test <dir> and module-load errors", () => {
+  test("test on a directory walks and runs every test module", () => {
+    const { code, stdout } = run(["test", storyset]);
+    expect(code).toBe(0);
+    // Both the top-level and the nested *.dev.js modules ran.
+    expect(stdout).toContain("bump increments n");
+    expect(stdout).toContain("label default");
+  });
+
+  test("a non-directory-aware command on a directory errors cleanly", () => {
+    const { code, stderr } = run(["lint", storyset]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("expected a module file, got a directory");
+    // Not a raw Node ESM resolver stack.
+    expect(stderr).not.toContain("ERR_UNSUPPORTED_DIR_IMPORT");
+  });
+
+  test("a directory error emits a JSON envelope under --json", () => {
+    const { code, stderr } = run(["lint", storyset, "--json"]);
+    expect(code).toBe(1);
+    const env = JSON.parse(stderr);
+    expect(env.error.code).toBe("ERR_MODULE_LOAD_FAILED");
+  });
+
+  test("a missing module file errors cleanly, not with a raw stack", () => {
+    const { code, stderr } = run(["test", resolve(here, "does-not-exist.js")]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("module not found");
+    expect(stderr).not.toContain("ERR_MODULE_NOT_FOUND");
   });
 });
 

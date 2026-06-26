@@ -1,6 +1,6 @@
-import { expect, test } from "bun:test";
+import { expect, spyOn, test } from "bun:test";
 import { expect as chaiExpect } from "../deps/chai.js";
-import { component, html } from "../index.js";
+import { component, html, phaseHasBubble } from "../index.js";
 import { runTests } from "../tools/core/test.js";
 
 // A component with a receive handler and a request/response pair, so `drive` can
@@ -64,4 +64,38 @@ test("drive args function receives the instance (self)", async () => {
     },
   });
   expect(settled.count).toBe(20);
+});
+
+test("phaseHasBubble detects bubble in a bucket or a do item", () => {
+  expect(phaseHasBubble({ send: [{ name: "inc" }] })).toBe(false);
+  expect(phaseHasBubble({ bubble: [{ name: "x" }] })).toBe(true);
+  expect(phaseHasBubble({ do: [{ type: "bubble", name: "x" }] })).toBe(true);
+  expect(phaseHasBubble(null)).toBe(false);
+});
+
+test("drive warns that a bubble action is a no-op at the root", async () => {
+  const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  let settled = null;
+  try {
+    await runTests({
+      expect: chaiExpect,
+      components: [Counter],
+      getTests: ({ describe, test, drive }) => {
+        describe(Counter, () => {
+          test("bubble phase", async () => {
+            settled = await drive(Counter.make({ count: 5 }), {
+              bubble: [{ name: "inc", args: [1] }],
+            });
+          });
+        });
+      },
+    });
+    const msg = warnSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+    expect(msg).toContain("bubble");
+    expect(msg).toContain("no-op");
+  } finally {
+    warnSpy.mockRestore();
+  }
+  // The bubble didn't reach the root's own handler — count unchanged.
+  expect(settled.count).toBe(5);
 });

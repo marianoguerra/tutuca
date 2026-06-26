@@ -247,3 +247,48 @@ describe("Components", () => {
     }
   });
 });
+
+describe("component-typed field defaults", () => {
+  // `{ component: "Name", args }` is a string-deferred component field: the name
+  // is resolved against a scope at make() time. Built without a registered scope
+  // (e.g. bare Class.make() in tooling/tests) it degrades to null — but warns
+  // instead of failing far away as `expected null to be an instance of Record`.
+  const Parent = component({
+    name: "Parent",
+    fields: { sidebar: { component: "Sidebar", args: {} } },
+    view: html`<div></div>`,
+  });
+
+  test("warns and yields null when built without a registered scope", () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const p = Parent.make({});
+      expect(p.sidebar).toBeNull();
+      const msg = warnSpy.mock.calls.map((c) => c.join(" ")).join("\n");
+      expect(msg).toContain('component field "sidebar"');
+      expect(msg).toContain("Sidebar");
+      expect(msg).toContain("without a registered scope");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("resolves the component when built via a registered scope", () => {
+    const Sidebar = component({
+      name: "Sidebar",
+      fields: { title: "?" },
+      view: html`<aside @text=".title"></aside>`,
+    });
+    const stack = new ComponentStack();
+    stack.registerComponents([Parent, Sidebar]);
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const p = stack.lookupComponent("Parent").make({});
+      expect(p.sidebar).not.toBeNull();
+      expect(p.sidebar.title).toBe("?");
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});

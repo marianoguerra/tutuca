@@ -29,6 +29,16 @@ export function resolveArgs(args, self) {
   return typeof args === "function" ? (args(self) ?? []) : (args ?? []);
 }
 
+// True if a phase config contains any `bubble` op (shorthand bucket or a `do`
+// item of type "bubble"). Pure predicate — dev surfaces (the test harness and
+// the storybook engine) use it to warn that a bubble dispatched where the target
+// has no author-controlled ancestor can't reach any author handler.
+export function phaseHasBubble(phase) {
+  if (!phase) return false;
+  if (phase.bubble?.length) return true;
+  return (phase.do ?? []).some((op) => op.type === "bubble");
+}
+
 // Dispatch every op of a phase onto `targetPath`. `self` feeds args functions.
 // Dispatches are queued transactions, so op-list order is the execution order.
 export function dispatchPhase(dispatcher, targetPath, phase, self) {

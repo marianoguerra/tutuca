@@ -274,7 +274,12 @@ function mkCompField(field, scope, args) {
   // building an app). Degrade to null rather than crashing — same graceful
   // path already taken when the component name can't be resolved.
   const Comp = scope?.lookupComponent(field.type) ?? null;
-  console.assert(!scope || Comp !== null, "component not found", { field });
+  if (Comp === null)
+    console.warn(
+      scope
+        ? `component field "${field.name}": component "${field.type}" not found in scope`
+        : `component field "${field.name}": cannot resolve component "${field.type}" — built without a registered scope (use ${field.type}.make({}) as the default, or build via a registered component)`,
+    );
   return Comp?.make({ ...field.args, ...args }, { scope }) ?? null;
 }
 class ClassBuilder {

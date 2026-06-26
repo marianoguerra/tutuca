@@ -7,7 +7,7 @@
 // CSS is decoupled: mountStorybook takes a compileCss(app) callback instead of
 // importing margaui or the extra tier. When omitted the storybook renders
 // functional but unstyled.
-import { component, dispatchPhase, html, injectCss, tutuca } from "tutuca";
+import { component, dispatchPhase, html, injectCss, phaseHasBubble, tutuca } from "tutuca";
 
 const Storybook = component({
   name: "Storybook",
@@ -298,16 +298,28 @@ const Example = component({
   // matching `on` phase's actions against this example's component (`.value`).
   receive: {
     init(ctx) {
-      dispatchPhase(ctx, ctx.at.field("value").buildPath(), this.on?.init, this.value);
+      this.runPhase(ctx, "init", this.on?.init);
       return this;
     },
     resume(ctx) {
-      dispatchPhase(ctx, ctx.at.field("value").buildPath(), this.on?.resume, this.value);
+      this.runPhase(ctx, "resume", this.on?.resume);
       return this;
     },
     suspend(ctx) {
-      dispatchPhase(ctx, ctx.at.field("value").buildPath(), this.on?.suspend, this.value);
+      this.runPhase(ctx, "suspend", this.on?.suspend);
       return this;
+    },
+  },
+  methods: {
+    runPhase(ctx, name, phase) {
+      // A lifecycle `bubble` leaves the example's value and travels up into the
+      // storybook engine's own components, so no author bubble handler runs.
+      // Warn rather than silently no-op (dev-only surface).
+      if (phaseHasBubble(phase))
+        console.warn(
+          `storybook on.${name}: a \`bubble\` action leaves this example and is received by the storybook engine, so your component's bubble handler won't run. Use send/request/input to drive a preset state.`,
+        );
+      dispatchPhase(ctx, ctx.at.field("value").buildPath(), phase, this.value);
     },
   },
   input: {

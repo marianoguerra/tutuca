@@ -12,7 +12,6 @@ import {
   createReadStream,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   statSync,
   writeFileSync,
@@ -28,6 +27,7 @@ import { normalizeModule } from "../../core/module.js";
 import { runTests } from "../../core/test.js";
 import { createNodeEnv } from "../env.js";
 import { CODES, emitError } from "../errors.js";
+import { walkFiles } from "../walk.js";
 
 export const describe =
   "Serve a storybook for the project's co-located *.dev.js modules (auto-discovered).";
@@ -55,19 +55,12 @@ const MIME = {
 const MARGAUI_CDN = "https://cdn.jsdelivr.net/npm/margaui/+esm";
 const MARGAUI_THEME = "https://marianoguerra.github.io/margaui/themes/theme.css";
 
-// Recursively collect *.dev.js as server-absolute, forward-slashed URL paths,
-// skipping node_modules and dotdirs. Mirrors install-skill.js listFiles.
-function findDevModules(root, dir, acc) {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (e.name.startsWith(".") || e.name === "node_modules") continue;
-    const full = resolve(dir, e.name);
-    if (e.isDirectory()) {
-      findDevModules(root, full, acc);
-    } else if (e.isFile() && e.name.endsWith(".dev.js")) {
-      acc.push(`/${relative(root, full).split(sep).join("/")}`);
-    }
-  }
-  return acc;
+// Discover *.dev.js modules under `root` as server-absolute, forward-slashed URL
+// paths (skipping node_modules and dotdirs, via the shared walker).
+function findDevModules(root) {
+  return walkFiles(root, { match: (name) => name.endsWith(".dev.js") }).map(
+    (full) => `/${relative(root, full).split(sep).join("/")}`,
+  );
 }
 
 // Resolve the CLI's own package.json + dist dir from both dev (tools/cli/
@@ -311,7 +304,7 @@ export async function run(argv, opts = {}) {
     });
   }
 
-  const devModuleUrls = findDevModules(projectDir, projectDir, []);
+  const devModuleUrls = findDevModules(projectDir);
   if (devModuleUrls.length === 0) {
     emitError(opts, {
       code: CODES.USAGE_MISSING_ARGUMENT,

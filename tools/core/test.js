@@ -1,5 +1,5 @@
 import { ComponentStack } from "../../src/components.js";
-import { dispatchPhase } from "../../src/on.js";
+import { dispatchPhase, phaseHasBubble } from "../../src/on.js";
 import { Path } from "../../src/path.js";
 import { rootDispatcher, Transactor } from "../../src/transactor.js";
 import { DescribeResult, ModuleTestReport, TestReport, TestResult } from "./results.js";
@@ -45,6 +45,10 @@ async function driveStack(stack, value, phase, opts = {}) {
         val,
       );
     });
+  if (phaseHasBubble(phase))
+    console.warn(
+      "drive(): a `bubble` action is a no-op here — drive originates at the root and bubbles travel child→parent, so there is no ancestor to receive it (and the root's own bubble handler is skipped). To exercise a bubble handler, call it directly.",
+    );
   dispatchPhase(rootDispatcher(transactor), new Path([]), phase, value);
   await transactor.settle();
   return transactor.state.val;

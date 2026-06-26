@@ -156,6 +156,13 @@ async function main() {
         hint: shape.hint ?? `Run \`tutuca help ${command}\` for valid flags.`,
       });
     }
+    if (e?.code === "ERR_MODULE_LOAD_FAILED") {
+      emitError(opts, {
+        code: CODES.MODULE_LOAD_FAILED,
+        message: e.message,
+        hint: "Pass a module file path. `tutuca test` also accepts a directory to run every test module under it.",
+      });
+    }
     throw e;
   }
 }
