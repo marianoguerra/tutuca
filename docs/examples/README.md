@@ -22,7 +22,7 @@ dependencies, no business logic beyond what the section is teaching.
 `text-directive.js`, `attribute-binding.js`, `counter.js`,
 `event-modifiers.js`, `conditional-attributes.js`, `styles-example.js`,
 `list-iteration.js`, `list-and-filter.js`, `list-filter-enrich.js`,
-`list-filter-enrich-with.js`, `render-with-scope.js`,
+`list-filter-enrich-with.js`, `filter-paginate.js`, `render-with-scope.js`,
 `seq-item-access.js`, `multiple-views.js`,
 `push-view.js`, `tree.js`, `request-example.js`, `dnd-example.js`,
 `macro-static.js`, `macro-params.js`, `macro-slots.js`,

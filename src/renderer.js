@@ -73,45 +73,61 @@ export class Renderer {
   renderEach(stack, iterInfo, node, viewName) {
     const { seq, filter, loopWith } = iterInfo.eval(stack);
     const r = [];
-    const { iterData, start, end } = unpackLoopResult(loopWith.call(stack.it, seq), seq);
-    getSeqInfo(seq)(
+    const { iterData, start, end, keys } = unpackLoopResult(
+      loopWith.call(stack.it, seq, makeLoopCtx(stack, filter)),
       seq,
-      (key, value, attrName) => {
-        if (filter.call(stack.it, key, value, iterData)) {
-          const dom = this.renderIt(stack.enter(value, { key }, true), node, key, viewName);
-          this.pushEachEntry(r, node.nodeId, attrName, key, dom);
-        }
-      },
-      start,
-      end,
     );
+    const renderOne = (key, value, attrName) => {
+      const dom = this.renderIt(stack.enter(value, { key }, true), node, key, viewName);
+      this.pushEachEntry(r, node.nodeId, attrName, key, dom);
+    };
+    // A `keys` return is authoritative — the handler already filtered, so we
+    // render those keys directly and skip `@when`. The positional path keeps
+    // the slice-then-filter behavior.
+    if (keys) imKeysIter(seq, renderOne, keys);
+    else
+      getSeqInfo(seq)(
+        seq,
+        (key, value, attrName) => {
+          if (filter.call(stack.it, key, value, iterData)) renderOne(key, value, attrName);
+        },
+        start,
+        end,
+      );
     return r;
   }
   renderEachWhen(stack, iterInfo, view, nid) {
     const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
     const r = [];
     const it = stack.it;
-    const { iterData, start, end } = unpackLoopResult(loopWith.call(it, seq), seq);
-    getSeqInfo(seq)(
+    const { iterData, start, end, keys } = unpackLoopResult(
+      loopWith.call(it, seq, makeLoopCtx(stack, filter)),
       seq,
-      (key, value, attrName) => {
-        if (filter.call(it, key, value, iterData)) {
-          const cachePath = enricher ? [view, it, value] : [view, value];
-          const binds = { key, value };
-          const cacheKey = `${nid}-${key}`;
-          if (enricher) enricher.call(it, binds, key, value, iterData);
-          const cachedNode = this.cache.get(cachePath, cacheKey);
-          if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
-          else {
-            const dom = this.renderView(view, stack.enter(value, binds, false));
-            this.pushEachEntry(r, nid, attrName, key, dom);
-            this.cache.set(cachePath, cacheKey, dom);
-          }
-        }
-      },
-      start,
-      end,
     );
+    const renderOne = (key, value, attrName) => {
+      const cachePath = enricher ? [view, it, value] : [view, value];
+      const binds = { key, value };
+      const cacheKey = `${nid}-${key}`;
+      if (enricher) enricher.call(it, binds, key, value, iterData);
+      const cachedNode = this.cache.get(cachePath, cacheKey);
+      if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
+      else {
+        const dom = this.renderView(view, stack.enter(value, binds, false));
+        this.pushEachEntry(r, nid, attrName, key, dom);
+        this.cache.set(cachePath, cacheKey, dom);
+      }
+    };
+    // A `keys` return is authoritative — see renderEach.
+    if (keys) imKeysIter(seq, renderOne, keys);
+    else
+      getSeqInfo(seq)(
+        seq,
+        (key, value, attrName) => {
+          if (filter.call(it, key, value, iterData)) renderOne(key, value, attrName);
+        },
+        start,
+        end,
+      );
     return r;
   }
   renderView(view, stack) {
@@ -151,13 +167,37 @@ export const normalizeRange = (start, end, size) => {
 // Defaults when `@each` has no `@when` / `@loop-with` attr.
 export const filterAlwaysTrue = (_v, _k, _seq) => true;
 export const nullLoopWith = (seq) => ({ iterData: { seq } });
-// Read a `@loop-with` handler's result: `{ iterData, start, end }`, all
+// Read a `@loop-with` handler's result: `{ iterData, start, end, keys }`, all
 // optional. `iterData` defaults to `{ seq }` so `@when`/`@enrich-with` can
-// still reach the sequence when a handler omits it.
+// still reach the sequence when a handler omits it. `keys` (an explicit,
+// ordered list of original keys to visit) takes precedence over `start`/`end`:
+// the handler has already filtered/sorted/sliced, so the renderer visits
+// exactly those keys — binding `@key` to each original key, which keeps event
+// dispatch and two-way binding identity intact across filtering and paging.
 export const unpackLoopResult = (result, seq) => {
   const r = result ?? {};
-  return { iterData: r.iterData ?? { seq }, start: r.start, end: r.end };
+  return { iterData: r.iterData ?? { seq }, start: r.start, end: r.end, keys: r.keys };
 };
+// Walk an explicit, ordered list of original `keys`, visiting `seq.get(key)`
+// for each. The meta-key attr matches the positional walkers (`si` for indexed
+// sequences, `sk` otherwise) so event-path reconstruction resolves the key.
+// `@when` is NOT applied here — a `keys` return means the handler already
+// decided exactly what renders.
+const imKeysIter = (seq, visit, keys) => {
+  const attrName = isIndexed(seq) ? "si" : "sk";
+  for (const key of keys) visit(key, seq.get(key), attrName);
+};
+// The context object passed to a `@loop-with` handler as its 2nd argument:
+//   loopWith.call(it, seq, { lookup, filter })
+// `lookup(name)` reads a scope `@`-binding (e.g. one published by an ancestor
+// `@enrich-with`), so the handler can reuse already-computed values instead of
+// recomputing them. `filter(key, value, iterData)` wraps the resolved `@when`
+// predicate (always-true when there is no `@when`), so the handler can apply
+// the declared filter while building its key slice. An object so it can grow.
+export const makeLoopCtx = (stack, filter) => ({
+  lookup: (name) => stack.lookupBind(name),
+  filter: (key, value, iterData) => filter.call(stack.it, key, value, iterData),
+});
 const imIndexedIter = (seq, visit, start, end) => {
   // Random access skips the prefix/suffix entirely; `i` stays the original
   // index so `data-si` and path lookups (`EachBindStep`) keep their identity.

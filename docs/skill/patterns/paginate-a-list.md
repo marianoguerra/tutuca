@@ -24,4 +24,6 @@ slice with `Array.prototype.slice` semantics (`end` exclusive, negatives count
 from the end). Slicing is positional but **preserves each item's original
 key** — `@key` is the index in the full list, so events and two-way binding
 keep their identity across pages. `iterData` is the shared per-loop value
-handed to `@when` / `@enrich-with`.
+handed to `@when` / `@enrich-with`. To paginate a *filtered* list, return
+`keys` instead of `start`/`end` — see
+[filter-and-paginate.md](filter-and-paginate.md).

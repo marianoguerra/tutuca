@@ -89,7 +89,9 @@
         <li>View-source friendly</li>
         <li>HTML-first</li>
       </ul>
-      <pre class="hero-teaser"><code>import { component, html, tutuca } from "https://cdn.jsdelivr.net/npm/tutuca/+esm";</code></pre>
+      <pre
+        class="hero-teaser"
+      ><code>import { component, html, tutuca } from "https://cdn.jsdelivr.net/npm/tutuca/+esm";</code></pre>
     </header>
     <main>
       <section id="try-it">
@@ -223,6 +225,16 @@
           Drag entries to reorder them, and use the input to filter the list.
         </p>
         <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
+        <h4>Filter and Paginate</h4>
+        <p>
+          Search narrows the list, pages slice the matches, and editing or
+          deleting a row works on the right item even on page 2 of a filtered
+          view &mdash; <code>@loop-with</code> returns the matching rows'
+          original <code>keys</code>, so identity survives filtering and paging.
+        </p>
+        <tutuca-playground
+          src="./examples/filter-paginate.js"
+        ></tutuca-playground>
         <h4>Web Component &amp; Custom Event</h4>
         <p>Embed a third-party web component and react to its custom events.</p>
         <tutuca-playground

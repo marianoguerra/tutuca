@@ -248,8 +248,9 @@ The one exception is **boolean predicates** in conditional slots
 a value, written predicate-first like a handler call —
 `empty?`, `truthy?`, `falsy?`, `null?`, `equals?`. E.g.
 `@hide="empty? .items"`, `@show="truthy? .query"`. A conditional slot
-still accepts a plain field (`@show=".isOpen"`) or no-arg method
-(`@show="$canSubmit"`) name too.
+otherwise accepts the same value forms as `@text` — a plain field
+(`@show=".isOpen"`), a no-arg method (`@show="$canSubmit"`), or a loop/scope
+`@binding` (`@show="@isSelected"`, `@hide="@hasDesc"`) — read as a boolean.
 
 `equals?` takes two args and is the idiomatic way to show/hide by name,
 e.g. `@show="equals? .view 'detail'"`. Predicate args (and handler
@@ -557,6 +558,24 @@ via `is="..."` (e.g. `<button is="x-fancy">`); `is` is applied when the
 element is created, so it must be a static attribute — setting it later
 does not upgrade the element.
 
+### When nothing renders (or renders unstyled)
+
+A few mistakes fail quietly — no error, just a blank or unstyled result, which
+is the slowest kind to debug. **Run `tutuca lint <module>` first**: it catches
+several of these. The usual suspects:
+
+- **Unparseable attribute value** → the attribute is silently dropped. A bare
+  multi-word value isn't a string — quote it (`:label="'two words'"`) or make it
+  a template (`:label="$'{.a} {.b}'"`). Lint flags this as `BAD_VALUE`.
+- **camelCase attribute on a custom element** → setter no-op (see the lowercasing
+  note above). Use kebab-case attributes. Not lintable — the HTML parser
+  lowercases the name before either Tutuca or the linter sees it.
+- **Forgotten margaui `_palette`/decoy view** → classes assembled in methods or
+  interpolations render unstyled. See [margaui.md](./margaui.md). Not lintable.
+- **A whitespace-only `html\`\``** → blank render. A *leading* newline before the
+  root element is fine (the parser trims it); a template with no element at all
+  is not.
+
 ## Event Handling
 
 ```html
@@ -722,8 +741,8 @@ share the handler-name resolution rules below.
 alter: {
   filterItem(_key, item, iterData) { return item.includes(iterData.q); },
   enrichItem(binds, _key, item, iterData) { binds.count = item.length; },
-  // `@loop-with` returns { iterData?, start?, end? } — all optional.
-  getIterData(seq) {
+  // `@loop-with` is `(seq, ctx)` and returns { iterData?, start?, end?, keys? }.
+  getIterData(seq, ctx) {
     const start = this.page * this.pageSize;
     return { iterData: { q: this.query.toLowerCase() }, start, end: start + this.pageSize };
   },
@@ -732,7 +751,7 @@ alter: {
 
 #### `@loop-with` return shape — `iterData` + slicing
 
-A `@loop-with` handler returns an object with up to three optional keys:
+A `@loop-with` handler returns an object with up to four optional keys:
 
 - **`iterData`** — the shared per-loop value handed to `@when` /
   `@enrich-with`. Defaults to `{ seq }` when omitted.
@@ -741,11 +760,43 @@ A `@loop-with` handler returns an object with up to three optional keys:
   from the end (`end: -3` drops the last 3), `undefined` means the
   natural bound. Use this to **paginate** — skip a prefix and/or suffix
   without iterating or rendering it.
+- **`keys`** — an explicit, ordered array of **original keys** to visit,
+  for **filter-then-paginate**. The handler filters/sorts/slices the full
+  sequence itself and returns the current page's slice of original keys;
+  the renderer visits exactly those (`seq.get(key)`), in order. Takes
+  precedence over `start`/`end` when both are present.
 
 Slicing is positional but **preserves each item's original key**: a List
 sliced to `start: 2` still binds `@key` to `2, 3, …`, so events, drag,
-and two-way binding keep their identity. `@when` then filters *within*
-the window, so a page may yield fewer than `end - start` items.
+and two-way binding keep their identity. With `start`/`end`, `@when` then
+filters *within* the window, so a page may yield fewer than `end - start`
+items — to filter *before* paging (so the page count reflects the filtered
+total), return `keys` instead. `keys` are original keys, so identity is
+preserved there too: editing or deleting a row on page 2 of a filtered view
+hits the right item. A `keys` return is **authoritative** — the renderer
+visits exactly those keys and does **not** re-apply `@when` (the handler has
+already decided what renders).
+
+#### `@loop-with` handler context — `(seq, ctx)`
+
+The handler's second argument is `ctx = { lookup, filter }` (an object so it
+can grow):
+
+- **`ctx.lookup(name)`** — reads a scope `@`-binding, e.g. one published by an
+  ancestor scope `@enrich-with`. Lets the handler **reuse a value the enrich
+  already computed** instead of recomputing it.
+- **`ctx.filter(key, value, iterData)`** — wraps the declared `@when` predicate
+  (always callable; a no-op that returns `true` when there is no `@when`). Lets
+  the handler apply the *declared* filter while building its `keys` slice,
+  rather than re-implementing the match test.
+
+This is the **filter-then-paginate, minimal-work** pattern: a scope
+`@enrich-with` on an ancestor does **one** counting scan and publishes the
+clamped page + pager labels (which the page controls, sitting outside the loop,
+read as `@`-bindings); the `@loop-with` handler then reads the clamped page via
+`ctx.lookup`, reuses the predicate via `ctx.filter`, and collects only the
+current page's keys — early-exiting once the page is full. See
+[patterns/filter-and-paginate.md](patterns/filter-and-paginate.md).
 
 ### Lifecycle of `@each`
 
@@ -753,14 +804,18 @@ For each render of an element with `@each=".items"`:
 
 1. **Resolve sequence** — evaluate `.items`. Lists, IMaps, OMaps, ISets,
    and any class declaring a `SEQ_INFO` walker are recognized.
-2. **`@loop-with`** (once per render) — `getIterData.call(this, seq)` is
-   called with the full sequence; its `iterData` becomes the shared
-   per-loop value and its `start`/`end` slice the iteration. Skipped if
-   no `@loop-with`; then `iterData` is `{ seq }` and the whole sequence
-   is iterated.
-3. For each `(key, value)` pair in the sliced sequence:
+2. **`@loop-with`** (once per render) — `getIterData.call(this, seq, ctx)`
+   is called with the full sequence and the `{ lookup, filter }` context;
+   its `iterData` becomes the shared per-loop value and its `start`/`end`
+   slice the iteration. Skipped if no `@loop-with`; then `iterData` is
+   `{ seq }` and the whole sequence is iterated. If it returns `keys`,
+   those exact keys are visited in order (filter-then-paginate) and
+   `start`/`end` are ignored.
+3. For each `(key, value)` pair in the sliced sequence (or each `key` in
+   `keys`):
    1. **`@when`** — `filterItem.call(this, key, value, iterData)`; if it
-      returns `false`, the item is skipped.
+      returns `false`, the item is skipped. **Not applied** when the
+      handler returned `keys` (those are authoritative).
    2. **`@enrich-with`** — `enrichItem.call(this, binds, key, value, iterData)`.
       `binds` is a **mutable object** seeded with `{ key, value }`;
       mutating it (`binds.count = ...`) creates `@`-prefixed bindings

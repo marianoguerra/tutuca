@@ -183,6 +183,9 @@
               <li>
                 <a href="#shared-iteration-data">Shared Iteration Data</a>
               </li>
+              <li>
+                <a href="#filter-and-paginate">Filter and Paginate</a>
+              </li>
               <li><a href="#scope-enrichment">Scope Enrichment</a></li>
             </ol>
           </li>
@@ -751,6 +754,43 @@
         </p>
         <tutuca-playground
           src="./examples/list-filter-enrich-with.js"
+        ></tutuca-playground>
+
+        <h3 id="filter-and-paginate">
+          <a href="#filter-and-paginate">Filter and Paginate</a>
+        </h3>
+        <p>
+          Combining a filter and pagination is the common case, but it has an
+          order problem: <code>@when</code> filters <em>within</em> the slice
+          <code>@loop-with</code> already cut, so a page would show fewer than
+          its size and the page count would reflect the unfiltered total. To
+          filter <em>before</em> paging, return <code>keys</code> from
+          <code>@loop-with</code>: an ordered list of the matching rows'
+          <em>original</em> keys for the current page.
+        </p>
+        <p>
+          The handler owns the whole pipeline &mdash; filter, sort, then slice
+          &mdash; and because <code>keys</code> are the original indices,
+          <code>@key</code> keeps each row's identity: editing or deleting a row
+          on page 2 of a filtered view hits the right item. A <code>keys</code>
+          return is authoritative, so the renderer does not re-apply
+          <code>@when</code>. Each row here is its own
+          <code>&lt;x render-it&gt;</code> component, so its fields are
+          self-contained two-way bindings.
+        </p>
+        <p>
+          The page controls sit outside the loop, so they can't see its
+          per-loop data. The pattern below splits the work in two: a scope
+          <code>@enrich-with</code> on the <code>&lt;section&gt;</code> does one
+          counting scan and publishes the clamped page and labels as
+          <code>@</code>-bindings the controls read; the <code>@loop-with</code>
+          handler then takes a context, <code>(seq, &#123; lookup, filter &#125;)</code>,
+          reads that clamped page via <code>lookup</code>, reuses the declared
+          <code>@when</code> via <code>filter</code>, and collects just the
+          current page's keys &mdash; scanning only as far as needed.
+        </p>
+        <tutuca-playground
+          src="./examples/filter-paginate.js"
         ></tutuca-playground>
 
         <h3 id="scope-enrichment">

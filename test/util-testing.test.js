@@ -51,6 +51,27 @@ const Items = component({
     sliceWithData(seq) {
       return { iterData: { len: seq.length ?? seq.size }, start: 1, end: 3 };
     },
+    // returns an explicit (reordered) keys slice
+    pickKeys() {
+      return { keys: [3, 1] };
+    },
+    // uses ctx.filter (wraps @when) to build a keys slice
+    pickKeysViaFilter(seq, { filter }) {
+      const keys = [];
+      for (let i = 0; i < (seq.length ?? seq.size); i++) {
+        const v = Array.isArray(seq) ? seq[i] : seq.get(i);
+        if (filter(i, v)) keys.push(i);
+      }
+      return { keys };
+    },
+    // uses ctx.lookup to forward keys a scope enrich already built
+    forwardScopeKeys(_seq, { lookup }) {
+      return { keys: lookup("__keys__") };
+    },
+    // a scope @enrich-with that publishes the keys (no per-item binds args)
+    buildScopeKeys() {
+      return { __keys__: [2, 0] };
+    },
   },
 });
 
@@ -231,5 +252,62 @@ describe("collectIterBindings — @loop-with slicing", () => {
       { key: "b", value: 2 },
       { key: "c", value: 3 },
     ]);
+  });
+});
+
+describe("collectIterBindings — @loop-with keys + ctx", () => {
+  test("a keys return visits exactly those keys, in order", () => {
+    const it = Items.make();
+    const r = collectIterBindings(Items, it, [10, 20, 30, 40], { loopWith: "pickKeys" });
+    expect(r).toEqual([
+      { key: 3, value: 40 },
+      { key: 1, value: 20 },
+    ]);
+  });
+
+  test("a keys return is authoritative — @when is NOT re-applied", () => {
+    const it = Items.make();
+    // keepNone would drop everything, but the keys return bypasses it
+    const r = collectIterBindings(Items, it, [10, 20, 30, 40], {
+      loopWith: "pickKeys",
+      when: "keepNone",
+    });
+    expect(r).toEqual([
+      { key: 3, value: 40 },
+      { key: 1, value: 20 },
+    ]);
+  });
+
+  test("ctx.filter wraps @when so the handler can reuse the predicate", () => {
+    const it = Items.make();
+    const r = collectIterBindings(Items, it, [10, 20, 30, 40], {
+      loopWith: "pickKeysViaFilter",
+      when: "keepEvenKeys",
+    });
+    expect(r).toEqual([
+      { key: 0, value: 10 },
+      { key: 2, value: 30 },
+    ]);
+  });
+
+  test("ctx.lookup reads a scope @enrich-with's published bindings", () => {
+    const it = Items.make();
+    const r = collectIterBindings(Items, it, [10, 20, 30, 40], {
+      loopWith: "forwardScopeKeys",
+      scopeEnrich: "buildScopeKeys",
+    });
+    expect(r).toEqual([
+      { key: 2, value: 30 },
+      { key: 0, value: 10 },
+    ]);
+  });
+
+  test("ctx.lookup can also be supplied via opts.scope", () => {
+    const it = Items.make();
+    const r = collectIterBindings(Items, it, [10, 20, 30, 40], {
+      loopWith: "forwardScopeKeys",
+      scope: { __keys__: [1] },
+    });
+    expect(r).toEqual([{ key: 1, value: 20 }]);
   });
 });

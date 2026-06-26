@@ -410,6 +410,9 @@ export function buildStorybook(modules) {
   const sections = rawSections
     .map((s) => Section.Class.fromData(s))
     .sort((a, b) => a.title.localeCompare(b.title));
+  // Components dedup by identity (object reference): a leaf listed in several
+  // modules' getComponents() is added once. This is the contract that lets a
+  // composition module re-list every leaf it uses without conflict.
   const components = new Set([Storybook, Section, Example]);
   const macros = {};
   const requestHandlers = {};

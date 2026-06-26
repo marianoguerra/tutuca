@@ -6,7 +6,7 @@ import {
   EachRenderItStep,
   ScopeBindStep,
 } from "./path.js";
-import { filterAlwaysTrue, nullLoopWith, unpackLoopResult } from "./renderer.js";
+import { filterAlwaysTrue, makeLoopCtx, nullLoopWith, unpackLoopResult } from "./renderer.js";
 import { isMac } from "./util/env.js";
 import { DynVal, vp } from "./value.js";
 import { HTML_NS } from "./vdom.js";
@@ -514,11 +514,14 @@ export class IterInfo {
   // Rebuild the per-item binds for `key`, mirroring renderEachWhen: seed
   // { key, value }, then run @enrich-with (with @loop-with's iterData) if any.
   enrichBinds(stack, key) {
-    const { seq, loopWith, enricher } = this.eval(stack);
+    const { seq, filter, loopWith, enricher } = this.eval(stack);
     const value = seq?.get ? seq.get(key, null) : null;
     const binds = { key, value };
     if (enricher) {
-      const { iterData } = unpackLoopResult(loopWith.call(stack.it, seq), seq);
+      const { iterData } = unpackLoopResult(
+        loopWith.call(stack.it, seq, makeLoopCtx(stack, filter)),
+        seq,
+      );
       enricher.call(stack.it, binds, key, value, iterData);
     }
     return binds;

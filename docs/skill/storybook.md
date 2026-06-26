@@ -27,7 +27,7 @@ same file is a valid target for `tutuca lint` / `test` / `render` too.
 
 | Export | Returns | Used for |
 | ------ | ------- | -------- |
-| `getComponents()` | `[Comp, ...]` | stories — return **every** component the module defines, children and helpers included |
+| `getComponents()` | `[Comp, ...]` | stories — return **every** component the module defines, children and helpers included. Components dedup by identity, so re-listing a leaf that another module also lists is safe (a composition module can re-list every leaf it uses). |
 | `getExamples()` | one section, or an array of sections | the catalog cards |
 | `getTests({ describe, test, expect })` | tests | the pre-serve test run (optional) |
 | `getMacros()` | `{ name: macro }` | macros referenced in views (optional) |
@@ -37,7 +37,12 @@ same file is a valid target for `tutuca lint` / `test` / `render` too.
 ## Authoring stories (`getExamples`)
 
 Return one section, or an array of sections to group examples under multiple
-headings. A section is `{ title, description?, items: [...] }`:
+headings. A section is `{ title, description?, items: [...] }`. An array of one
+section behaves exactly like returning that section directly — both go through
+the same `Section.fromData`, which **throws** on a malformed section (missing
+`title`, not an object) rather than rendering a placeholder title. (If you saw
+broken titles from a one-element array in an older build, that predates array
+support — it has shipped since well before 0.9.88.)
 
 ```js
 import { component, html } from "tutuca";

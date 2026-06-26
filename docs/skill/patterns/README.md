@@ -14,6 +14,7 @@ task.
 - [Filter a list](filter-a-list.md) — keep only matching items with `@when`.
 - [Enrich each item](enrich-each-item.md) — expose derived per-item values as `@`-bindings.
 - [Paginate a list](paginate-a-list.md) — slice the iteration with `@loop-with` `start`/`end`.
+- [Filter and paginate a list](filter-and-paginate.md) — do both with `@loop-with` `keys` (filter-then-slice, identity preserved).
 
 ## Conditional content & attributes
 
