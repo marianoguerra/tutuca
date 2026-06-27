@@ -7,7 +7,7 @@ Zero-dependency batteries included SPA framework.
 - **Fits in your head** (and the context window)
 - **View source friendly** — step through the whole stack
 - **As much HTML as possible, as little JS as needed**
-- ~177KB minified, ~40KB brotli compressed
+- ~182KB minified, ~41KB brotli compressed
 
 ## Quick Start
 
@@ -95,6 +95,7 @@ tutuca help [command]
 | `lint <module> [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
 | `render <module> [name] [--title t] [--view v]` | Render examples to HTML |
 | `test <module> [name] [--grep p] [--bail]` | Run `getTests()` (exit 4 on failures) |
+| `storybook [dir]` | Serve a live storybook, auto-discovering co-located `*.dev.js` modules (`--port`, `--out`, `--dry-run`, `--no-margaui`, `--no-check`, `--no-tests`; no module path needed) |
 | `feedback [message]` | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl` (no module path needed) |
 | `install-skill [--user\|--project] [--margaui-skill\|--immutable-skill\|--all] [--dot-agents] [--dry-run] [--force]` | Install bundled Claude Code skills (no module path needed) |
 | `agent-context` | Print a versioned JSON schema of the entire CLI surface (no module path needed) |
@@ -146,8 +147,9 @@ The invocation stays short even without wrapping, but common patterns:
 
 ## Use with Claude Code
 
-Tutuca ships an LLM-facing reference (`SKILL.md` + `core.md` / `cli.md` /
-`advanced.md` / `testing.md`) packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills).
+Tutuca ships an LLM-facing reference (`SKILL.md` plus topic files such as
+`core.md`, `cli.md`, `advanced.md`, `testing.md`, `storybook.md`, and more)
+packaged as a [Claude Code skill](https://docs.claude.com/en/docs/claude-code/skills).
 Once installed, Claude auto-loads it whenever a session touches tutuca
 components, views, macros, or the CLI.
 

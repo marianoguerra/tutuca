@@ -35,7 +35,7 @@ function resolveDynProducer(comp, name) {
   return { producerCompId: producerComp.id, producerSteps: pi ? [pi] : [] };
 }
 
-export class BaseNode {
+class BaseNode {
   render(_stack, _rx) {
     return null;
   }
@@ -431,7 +431,7 @@ export class RenderOnceNode extends BaseNode {
     return this._render(stack, rx);
   }
 }
-export class WrapperNode extends ANode {
+class WrapperNode extends ANode {
   constructor(nodeId, val, node = null) {
     super(nodeId, val);
     this.node = node;
@@ -497,7 +497,7 @@ export class EachNode extends WrapperNode {
   }
   static register = true;
 }
-export class IterInfo {
+class IterInfo {
   constructor(val, whenVal, loopWithVal, enrichWithVal) {
     this.val = val;
     this.whenVal = whenVal;

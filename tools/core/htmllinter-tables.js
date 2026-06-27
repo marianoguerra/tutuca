@@ -29,8 +29,6 @@ export const RAW_TEXT_ELEMENTS = new Set([
   "plaintext",
 ]);
 
-export const RCDATA_ELEMENTS = new Set(["textarea", "title"]);
-
 // §13.2.4.2 "Special" — elements that affect scope tests and parser behavior.
 // Trimmed of document-only entries (html, head, body, frame, frameset).
 export const SPECIAL_ELEMENTS = new Set([
@@ -158,7 +156,6 @@ export const SCOPE_LIST_ITEM = new Set([...DEFAULT_SCOPE_BOUNDARIES, "ol", "ul"]
 export const SCOPE_BUTTON = new Set([...DEFAULT_SCOPE_BOUNDARIES, "button"]);
 export const SCOPE_DEFAULT = DEFAULT_SCOPE_BOUNDARIES;
 export const SCOPE_TABLE = new Set(["html", "table", "template"]);
-export const SCOPE_SELECT = new Set(); // inverted in helper
 
 // Names mandated by the WHATWG spec to be case-corrected when seen inside
 // SVG foreign content. Anything else with uppercase will be lowercased.
@@ -326,9 +323,6 @@ export const FOREIGN_BREAKOUT_TAGS = new Set([
   "var",
 ]);
 
-// MathML text integration points — HTML can be re-entered through these.
-export const MATHML_TEXT_INTEGRATION_POINTS = new Set(["mi", "mo", "mn", "ms", "mtext"]);
-
 // Tags that close the currently-open <p> when opened (§13.2.6.4.7 "in body").
 export const BLOCK_LEVEL_AUTO_CLOSE_P = new Set([
   "address",
@@ -372,9 +366,6 @@ export const BLOCK_LEVEL_AUTO_CLOSE_P = new Set([
   "dd",
   "dt",
 ]);
-
-// "in select" mode start tags that are ignored.
-export const SELECT_VALID_CHILDREN = new Set(["option", "optgroup", "hr", "script", "template"]);
 
 // Tags that close a <select> when opened in select mode.
 export const SELECT_BREAKOUT_TAGS = new Set(["input", "keygen", "textarea", "select"]);

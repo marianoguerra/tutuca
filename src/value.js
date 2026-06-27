@@ -75,7 +75,7 @@ const PREDICATES = {
   "equals?": { name: "equals?", arity: 2, fn: (a, b) => is(a, b) },
 };
 
-export class ValParser {
+class ValParser {
   constructor() {
     this.bindValIt = new BindVal("it");
     this.nullConstVal = new ConstVal(null);
@@ -284,7 +284,7 @@ function kindOf(val) {
   if (val instanceof NameVal) return K_NAME;
   return 0;
 }
-export class BaseVal {
+class BaseVal {
   render(_stack, _rx) {}
   eval(_stack) {}
   toPathItem() {
@@ -424,12 +424,12 @@ export class RequestVal extends NameVal {
     return `!${this.name}`;
   }
 }
-export class RenderVal extends BaseVal {
+class RenderVal extends BaseVal {
   render(stack, _rx) {
     return this.eval(stack);
   }
 }
-export class RenderNameVal extends RenderVal {
+class RenderNameVal extends RenderVal {
   constructor(name) {
     super();
     this.name = name;

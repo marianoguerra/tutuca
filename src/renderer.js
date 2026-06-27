@@ -2,7 +2,7 @@ import { isIndexed, isKeyed } from "../deps/immutable.js";
 import { NullDomCache, WeakMapDomCache } from "./cache.js";
 import { h, render, VComment, VFragment } from "./vdom.js";
 
-export const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
+const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
 export class Renderer {
   constructor(comps) {
     this.comps = comps;

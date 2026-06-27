@@ -2,7 +2,7 @@
 // edit. Used for "did you mean" suggestions on lint findings — small inputs
 // (identifier-shaped strings, candidate sets in the tens), so no need for a
 // banded variant.
-export function editDistance(a, b) {
+function editDistance(a, b) {
   if (a === b) return 0;
   const la = a.length;
   const lb = b.length;

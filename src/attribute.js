@@ -210,7 +210,7 @@ export class DynAttrs extends Attributes {
     return r;
   }
 }
-export class BaseAttr {
+class BaseAttr {
   constructor(name) {
     this.name = name;
   }

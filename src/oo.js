@@ -183,7 +183,7 @@ export class FieldComp extends Field {
   }
 }
 const NONE = Symbol("NONE");
-export function extendProtoForKeyed(proto, name, uname) {
+function extendProtoForKeyed(proto, name, uname) {
   extendProtoSized(proto, name, EMPTY_LIST);
   proto[`setIn${uname}At`] = function (i, v) {
     return this.set(name, this.get(name).set(i, v));

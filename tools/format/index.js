@@ -5,7 +5,7 @@ import * as md from "./md.js";
 
 const FORMATTERS = { cli, md, json, html };
 
-export function pickFormatter(name) {
+function pickFormatter(name) {
   const f = FORMATTERS[name];
   if (!f) {
     const err = new Error(
