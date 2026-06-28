@@ -20,8 +20,10 @@ import * as m05 from "./05-requests.dev.js";
 import * as m06 from "./06-lifecycle-on.dev.js";
 import * as m07 from "./07-tests-drive.dev.js";
 import * as m08 from "./08-getroot-inception.dev.js";
+import * as m09 from "./09-data-inspectors.dev.js";
+import * as m10 from "./10-tutuca-inspectors.dev.js";
 
-const modules = [m01, m02, m03, m04, m05, m06, m07, m08];
+const modules = [m01, m02, m03, m04, m05, m06, m07, m08, m09, m10];
 
 const app = await mountStorybook("#app", modules, {
   compileCss: (a) => compileClassesToStyleText(a, compile),

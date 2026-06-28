@@ -227,12 +227,13 @@ export function getTests({ describe, test, expect }) {
           .items.toArray();
       expect(views(insp.expandAllViews()).every((v) => v.isExpanded)).toBe(true);
       expect(views(insp.collapseAllViews()).some((v) => v.isExpanded)).toBe(false);
-      // other sections are left untouched by the views-only toggle
-      const fields = insp
+      // a section that starts collapsed is left untouched by the views-only toggle
+      // (Fields starts expanded via fromData, so check Methods instead)
+      const methods = insp
         .expandAllViews()
         .sections.toArray()
-        .find((s) => s.label === "Fields");
-      expect(fields.isExpanded).toBe(false);
+        .find((s) => s.label === "Methods");
+      expect(methods.isExpanded).toBe(false);
     });
 
     test("toggleAllSections bubble expands every section", () => {

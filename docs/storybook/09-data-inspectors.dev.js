@@ -1,0 +1,830 @@
+// 09 — DATA INSPECTORS: the real value/data renderers shipped as `tutuca/components`.
+//
+// Unlike 01–08 (which define throwaway demo components inline), this module pulls
+// the ACTUAL in-repo components from the "tutuca/components" package export and
+// shows them rendering real values. The published page resolves that specifier via
+// the import map in index.html (→ the CDN tutuca-components bundle); `bun run
+// storybook` resolves it to the freshly built local dist.
+//
+// getExamples() here returns an ARRAY of sections — one per component — so the four
+// data inspectors stay grouped together under the "09" prefix. The galleries are
+// ported from the components' own co-located *.dev.js files (src/components/data/*),
+// swapping their relative `./foo.js` imports for the single bare specifier below.
+import { IMap, ISet, List, OMap, OrderedSet, Range, Record, Stack } from "tutuca";
+import {
+  classifySchema,
+  DataInspector,
+  ImInspector,
+  JsonViewer,
+  SchemaArray,
+  SchemaBoolean,
+  SchemaBranch,
+  SchemaCombinator,
+  SchemaConst,
+  SchemaEnum,
+  SchemaObject,
+  SchemaProperty,
+  SchemaRef,
+  SchemaScalar,
+  SchemaViewer,
+} from "tutuca/components";
+
+// Registers the full deduped inspector component set (the shared JSON/Immutable
+// leaves are listed by several modules; buildStorybook dedups by name).
+export { getComponents } from "tutuca/components";
+
+// ── JsonViewer ────────────────────────────────────────────────────────────────
+function jsonSection() {
+  const longArray = Array.from({ length: 25 }, (_, i) => i + 1);
+  const longObject = Object.fromEntries(
+    Array.from({ length: 15 }, (_, i) => [`key_${i + 1}`, (i + 1) * 10]),
+  );
+  const apiResponseShape = {
+    id: "user_42",
+    active: true,
+    score: 99.5,
+    tags: ["admin", "early-access", null],
+    profile: {
+      name: "Alice",
+      email: "alice@example.com",
+      meta: { joined: "2026-01-15", verified: true },
+    },
+  };
+
+  const allTypesThreeLevels = {
+    name: "demo",
+    active: true,
+    count: 42,
+    ratio: -3.14,
+    empty: null,
+    tags: ["alpha", "beta", null, true, 7],
+    config: {
+      enabled: false,
+      threshold: 0.5,
+      label: "level-2",
+      nested: {
+        ratio: 1.5,
+        label: "level-3",
+        flags: [true, false, null],
+        notes: "deepest string",
+        count: 0,
+        empty_arr: [],
+        empty_obj: {},
+      },
+      items: [
+        { id: 1, value: "first", active: true },
+        { id: 2, value: "second", active: false, child: null },
+      ],
+    },
+  };
+
+  return {
+    title: "09 · JsonViewer",
+    description:
+      "Chrome devtools–style display of a JSON value. Wraps a per-type component (JsonNull, JsonBoolean, JsonNumber, JsonString, JsonArray, JsonObject); composites support collapse/expand and pagination (default 10 items per page).",
+    items: [
+      { title: "null", value: JsonViewer.Class.fromData(null) },
+      { title: "true", value: JsonViewer.Class.fromData(true) },
+      { title: "false", value: JsonViewer.Class.fromData(false) },
+      { title: "integer", value: JsonViewer.Class.fromData(42) },
+      { title: "negative integer", value: JsonViewer.Class.fromData(-7) },
+      { title: "float", value: JsonViewer.Class.fromData(3.14159) },
+      { title: "zero", value: JsonViewer.Class.fromData(0) },
+      { title: "string", value: JsonViewer.Class.fromData("hello, world") },
+      { title: "empty string", value: JsonViewer.Class.fromData("") },
+      { title: "string with quotes", value: JsonViewer.Class.fromData('she said "hi"') },
+      {
+        title: "very long string",
+        value: JsonViewer.Class.fromData(
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+        ),
+      },
+      { title: "empty array", value: JsonViewer.Class.fromData([]) },
+      { title: "empty object", value: JsonViewer.Class.fromData({}) },
+      { title: "small array (collapsed)", value: JsonViewer.Class.fromData([1, "two", true, null]) },
+      {
+        title: "small array (expanded)",
+        value: JsonViewer.Class.fromData([1, "two", true, null]).toggleIsExpanded(),
+      },
+      {
+        title: "nested array",
+        value: JsonViewer.Class.fromData([
+          [1, 2],
+          [3, 4],
+        ]),
+      },
+      {
+        title: "small object",
+        value: JsonViewer.Class.fromData({ name: "Alice", active: true, score: 99.5 }),
+      },
+      {
+        title: "API response shape (expanded)",
+        value: JsonViewer.Class.fromData(apiResponseShape).toggleIsExpanded(),
+      },
+      {
+        title: "3-level nested, all types (expanded)",
+        value: JsonViewer.Class.fromData(allTypesThreeLevels).toggleIsExpanded(),
+      },
+      {
+        title: "paginated array (25 items, expanded)",
+        value: JsonViewer.Class.fromData(longArray).toggleIsExpanded(),
+      },
+      { title: "paginated object (15 keys)", value: JsonViewer.Class.fromData(longObject) },
+      {
+        title: "function (rendered as null)",
+        value: JsonViewer.Class.fromData(function namedFn() {}),
+      },
+      { title: "arrow function (rendered as null)", value: JsonViewer.Class.fromData(() => 42) },
+      { title: "symbol (rendered as null)", value: JsonViewer.Class.fromData(Symbol("sym")) },
+      {
+        title: "Map (rendered as empty object)",
+        value: JsonViewer.Class.fromData(
+          new Map([
+            ["a", 1],
+            ["b", 2],
+          ]),
+        ),
+      },
+      { title: "Set (rendered as empty object)", value: JsonViewer.Class.fromData(new Set([1, 2, 3])) },
+      {
+        title: "object with non-JSON values (expanded)",
+        value: JsonViewer.Class.fromData({
+          fn: function namedFn() {},
+          arrow: () => 1,
+          sym: Symbol("x"),
+          map: new Map([["k", "v"]]),
+          set: new Set([1, 2]),
+          ok: "string is fine",
+        }).toggleIsExpanded(),
+      },
+    ],
+  };
+}
+
+// ── DataInspector ───────────────────────────────────────────────────────────────
+function dataSection() {
+  const DI = DataInspector.Class;
+
+  class Person {
+    constructor(name, age) {
+      this.name = name;
+      this.age = age;
+    }
+  }
+
+  const fnNamed = function greet(_who) {
+    return null;
+  };
+  const fnArrow = (x) => x + 1;
+  class Greeter {
+    hi() {
+      return "hi";
+    }
+  }
+
+  const nativeMap = new Map([
+    ["alpha", 1],
+    ["beta", 2],
+    ["gamma", 3],
+  ]);
+  const nativeSet = new Set(["red", "green", "blue"]);
+  const mapWithObjectKeys = new Map([
+    [{ id: 1 }, "first"],
+    [[1, 2], "second"],
+  ]);
+  const date = new Date("2026-01-15T12:00:00.000Z");
+  const regex = /hello\s+world/gi;
+  const err = new TypeError("expected a number");
+  const sym = Symbol("user-id");
+  const big = 9007199254740993n;
+  const inst = new Person("Alice", 30);
+
+  const deepZoo = {
+    owner: new Person("Bob", 40),
+    stats: new Map([
+      ["calls", 12],
+      ["fails", new Set(["timeout", "auth"])],
+    ]),
+    fn: fnArrow,
+    when: date,
+    pattern: regex,
+    err,
+    uid: sym,
+    bigCount: big,
+    nothing: undefined,
+    json: { ok: true, n: 1 },
+    immutable: List([1, 2, IMap({ x: 99 })]),
+  };
+
+  const deepExpand = (c) => {
+    if (c == null || typeof c !== "object") return c;
+    let n = c;
+    if (typeof n.setIsExpanded === "function") {
+      n = n.setIsExpanded(true);
+    }
+    if (typeof n.setValue === "function" && n.value && typeof n.value === "object") {
+      return n.setValue(deepExpand(n.value));
+    }
+    if (typeof n.setItems === "function" && n.items?.map) {
+      return n.setItems(
+        n.items.map((item) =>
+          item && typeof item.setChild === "function"
+            ? item.setChild(deepExpand(item.child))
+            : item,
+        ),
+      );
+    }
+    return n;
+  };
+
+  return {
+    title: "09 · DataInspector",
+    description:
+      "Inspect any JS value: composes Immutable.js detection, JS extras (Symbol, BigInt, function, Date, RegExp, Error, native Map/Set, class instances), and plain JSON. Built on the chain(classifyImmutable, classifyJsExtra, classifyJson) dispatcher.",
+    items: [
+      { title: "undefined", value: DI.fromData(undefined) },
+      { title: "null", value: DI.fromData(null) },
+      { title: "bigint", value: DI.fromData(big) },
+      { title: "symbol", value: DI.fromData(sym) },
+      { title: "named function", value: DI.fromData(fnNamed) },
+      { title: "arrow function", value: DI.fromData(fnArrow) },
+      {
+        title: "anonymous function",
+        value: DI.fromData(function () {
+          return null;
+        }),
+      },
+      { title: "class declaration", value: DI.fromData(Greeter) },
+      { title: "Date", value: DI.fromData(date) },
+      { title: "RegExp", value: DI.fromData(regex) },
+      { title: "Error", value: DI.fromData(err) },
+      { title: "native Map (expanded)", value: DI.fromData(nativeMap).toggleIsExpanded() },
+      { title: "native Set (expanded)", value: DI.fromData(nativeSet).toggleIsExpanded() },
+      {
+        title: "native Map with object keys (expanded)",
+        value: DI.fromData(mapWithObjectKeys).toggleIsExpanded(),
+      },
+      { title: "class instance (Person, expanded)", value: DI.fromData(inst).toggleIsExpanded() },
+      {
+        title: "deeply mixed: Immutable + JS extras + JSON (expanded)",
+        description:
+          "Plain object containing a class instance, native Map (with a Set inside), function, Date, RegExp, Error, Symbol, BigInt, undefined, JSON, and an Immutable List with a nested IMap.",
+        value: deepExpand(DI.fromData(deepZoo)),
+      },
+    ],
+  };
+}
+
+// ── ImmutableInspector ────────────────────────────────────────────────────────
+function immutableSection() {
+  const II = ImInspector.Class;
+
+  const longList = List(Array.from({ length: 25 }, (_, i) => i + 1));
+  const personMap = IMap({ name: "Alice", age: 30, active: true });
+  const orderedMap = OMap([
+    ["first", 1],
+    ["second", 2],
+    ["third", 3],
+  ]);
+  const tagSet = ISet(["admin", "early-access", "beta"]);
+  const orderedTags = OrderedSet(["a", "b", "c", "a"]);
+  const stackTrace = Stack(["frame3", "frame2", "frame1"]);
+  const Person = Record({ name: "", age: 0, email: "" }, "Person");
+  const alice = Person({ name: "Alice", age: 30 });
+  const range10 = Range(0, 10);
+  const mixed = IMap({
+    users: List([
+      { id: 1, name: "Alice" },
+      { id: 2, name: "Bob" },
+    ]),
+    count: 2,
+    active: ISet(["admin"]),
+  });
+  const nested = List([IMap({ a: 1 }), IMap({ a: 2 })]);
+  const deepMixed = List([
+    { label: "first", stats: IMap({ score: 99, active: true, name: "Alice" }) },
+    { label: "second", stats: IMap({ score: 42, active: false, name: "Bob" }) },
+  ]);
+
+  const deepExpand = (c) => {
+    if (c == null || typeof c !== "object") return c;
+    let n = c;
+    if (typeof n.setIsExpanded === "function") {
+      n = n.setIsExpanded(true);
+    }
+    if (typeof n.setValue === "function" && n.value && typeof n.value === "object") {
+      return n.setValue(deepExpand(n.value));
+    }
+    if (typeof n.setItems === "function" && n.items?.map) {
+      return n.setItems(
+        n.items.map((item) =>
+          item && typeof item.setChild === "function"
+            ? item.setChild(deepExpand(item.child))
+            : item,
+        ),
+      );
+    }
+    return n;
+  };
+
+  return {
+    title: "09 · ImmutableInspector",
+    description:
+      "Chrome devtools-style display for Immutable.js values. Detects List, Stack, Map, OrderedMap, Set, OrderedSet, Record, and Range; falls back to JsonViewer's per-type components for plain JS values. Composites support collapse/expand and pagination (10 items per page).",
+    items: [
+      { title: "null", value: II.fromData(null) },
+      { title: "true", value: II.fromData(true) },
+      { title: "integer", value: II.fromData(42) },
+      { title: "string", value: II.fromData("hello, world") },
+      { title: "plain array", value: II.fromData([1, 2, 3]) },
+      { title: "plain object", value: II.fromData({ a: 1, b: 2 }) },
+      { title: "empty List", value: II.fromData(List()) },
+      { title: "List of primitives", value: II.fromData(List([1, "two", true, null])) },
+      { title: "List 25 (expanded, paginated)", value: II.fromData(longList).toggleIsExpanded() },
+      { title: "Stack", value: II.fromData(stackTrace) },
+      { title: "small Map", value: II.fromData(personMap) },
+      { title: "Map (expanded)", value: II.fromData(personMap).toggleIsExpanded() },
+      { title: "OrderedMap", value: II.fromData(orderedMap) },
+      { title: "Set", value: II.fromData(tagSet) },
+      { title: "OrderedSet (with dup removed)", value: II.fromData(orderedTags) },
+      { title: "Record (Person, expanded)", value: II.fromData(alice).toggleIsExpanded() },
+      { title: "Range 0…10", value: II.fromData(range10) },
+      { title: "mixed Immutable + JSON (expanded)", value: II.fromData(mixed).toggleIsExpanded() },
+      {
+        title: "nested Immutable in Immutable (expanded)",
+        value: II.fromData(nested).toggleIsExpanded(),
+      },
+      {
+        title: "List → JS object → IMap → JS scalars (deeply expanded)",
+        description:
+          "Demonstrates the full dispatch chain: an Immutable List whose items are plain JS objects, each containing an Immutable Map of plain JS scalars.",
+        value: deepExpand(II.fromData(deepMixed)),
+      },
+    ],
+  };
+}
+
+// ── SchemaViewer ──────────────────────────────────────────────────────────────
+// Recursively expand a classified schema tree so an example renders open.
+const expandSchema = (c) => {
+  if (c == null || typeof c !== "object") return c;
+  let n = c;
+  if (typeof n.setIsExpanded === "function") {
+    n = n.setIsExpanded(true);
+  }
+  for (const k of ["value", "raw", "child", "ifNode", "thenNode", "elseNode"]) {
+    const setter = `set${k[0].toUpperCase()}${k.slice(1)}`;
+    if (typeof n[setter] === "function" && n[k] && typeof n[k] === "object") {
+      n = n[setter](expandSchema(n[k]));
+    }
+  }
+  if (typeof n.setItems === "function" && n.items?.map) {
+    n = n.setItems(
+      n.items.map((item) =>
+        item && typeof item.setChild === "function"
+          ? item.setChild(expandSchema(item.child))
+          : expandSchema(item),
+      ),
+    );
+  }
+  return n;
+};
+
+function schemaSection() {
+  const SV = SchemaViewer.Class;
+
+  const objOfArrayOfObjects = {
+    type: "object",
+    properties: {
+      users: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "integer", minimum: 1 },
+            name: { type: "string", minLength: 1 },
+          },
+          required: ["id", "name"],
+        },
+      },
+    },
+    required: ["users"],
+  };
+
+  const arrayOfConstrainedObjects = {
+    type: "array",
+    minItems: 1,
+    uniqueItems: true,
+    items: {
+      type: "object",
+      properties: {
+        sku: { type: "string", pattern: "^[A-Z]{3}-\\d+$" },
+        price: { type: "number", exclusiveMinimum: 0 },
+      },
+      required: ["sku", "price"],
+    },
+  };
+
+  const combinatorInCombinator = {
+    anyOf: [{ allOf: [{ type: "object" }, { required: ["id"] }] }, { type: "null" }],
+  };
+
+  const refToDefs = {
+    type: "object",
+    properties: {
+      home: { $ref: "#/$defs/address" },
+      work: { $ref: "#/$defs/address" },
+    },
+    $defs: {
+      address: {
+        type: "object",
+        properties: { street: { type: "string" }, city: { type: "string" } },
+        required: ["street", "city"],
+      },
+    },
+  };
+
+  const conditional = {
+    type: "object",
+    properties: { kind: { type: "string" } },
+    if: { properties: { kind: { const: "card" } } },
+    then: {
+      type: "object",
+      properties: { cardNumber: { type: "string", pattern: "^\\d{16}$" } },
+      required: ["cardNumber"],
+    },
+    else: { type: "object", properties: { account: { type: "string" } }, required: ["account"] },
+  };
+
+  const enumOfObjects = {
+    title: "Preset",
+    enum: [
+      { name: "small", size: 1 },
+      { name: "large", size: 100 },
+    ],
+  };
+
+  const kitchenSink = {
+    title: "User",
+    description: "A registered user account.",
+    type: "object",
+    deprecated: false,
+    additionalProperties: false,
+    minProperties: 2,
+    properties: {
+      id: { type: "integer", minimum: 1, readOnly: true },
+      email: { type: "string", format: "email", maxLength: 254 },
+      role: { enum: ["admin", "editor", "viewer"] },
+      status: { const: "active" },
+      age: { type: "integer", minimum: 0, maximum: 150, default: 18 },
+      tags: { type: "array", items: { type: "string" }, uniqueItems: true, maxItems: 10 },
+      score: { allOf: [{ type: "number", minimum: 0 }, { multipleOf: 0.5 }] },
+      contact: {
+        anyOf: [
+          { type: "string", format: "email" },
+          { type: "string", format: "uri" },
+        ],
+      },
+      address: { $ref: "#/$defs/address" },
+      metadata: {
+        type: "object",
+        patternProperties: { "^x-": { type: "string" } },
+        propertyNames: { pattern: "^[a-z]" },
+      },
+      coords: { type: "array", prefixItems: [{ type: "number" }, { type: "number" }], items: false },
+    },
+    required: ["id", "email"],
+    if: { properties: { role: { const: "admin" } } },
+    then: { required: ["email"] },
+    else: { properties: { age: { type: "integer" } } },
+    not: { required: ["password"] },
+    examples: [{ id: 1, email: "a@b.com" }],
+    $defs: {
+      address: {
+        type: "object",
+        properties: { street: { type: "string" }, city: { type: "string" } },
+        required: ["city"],
+      },
+    },
+  };
+
+  return {
+    title: "09 · SchemaViewer",
+    description:
+      "High-level, human-readable view of a JSON Schema (2020-12, tolerant of draft-07): type labels, constraint badges, required markers, and a collapsible tree of properties / applicators / combinators / conditionals. Embedded literal values (const, enum members, default, examples) are rendered with JsonViewer. Toggle the button to switch to the raw schema (the original is retained on the viewer).",
+    items: [
+      { title: "string", value: SV.fromData({ type: "string" }) },
+      { title: "number", value: SV.fromData({ type: "number" }) },
+      { title: "integer", value: SV.fromData({ type: "integer" }) },
+      { title: "boolean", value: SV.fromData({ type: "boolean" }) },
+      { title: "null", value: SV.fromData({ type: "null" }) },
+      { title: "multi-type (string | null)", value: SV.fromData({ type: ["string", "null"] }) },
+      {
+        title: "string with minLength / maxLength",
+        value: SV.fromData({ type: "string", minLength: 3, maxLength: 20 }),
+      },
+      { title: "string with pattern", value: SV.fromData({ type: "string", pattern: "^[a-z]+$" }) },
+      { title: "string with format (email)", value: SV.fromData({ type: "string", format: "email" }) },
+      {
+        title: "string with format (date-time)",
+        value: SV.fromData({ type: "string", format: "date-time" }),
+      },
+      {
+        title: "number with minimum / maximum",
+        value: SV.fromData({ type: "number", minimum: 0, maximum: 100 }),
+      },
+      {
+        title: "number with exclusive bounds",
+        value: SV.fromData({ type: "number", exclusiveMinimum: 0, exclusiveMaximum: 1 }),
+      },
+      { title: "integer with multipleOf", value: SV.fromData({ type: "integer", multipleOf: 5 }) },
+      {
+        title: "object with required (expanded)",
+        value: expandSchema(
+          SV.fromData({
+            type: "object",
+            properties: { id: { type: "integer" }, name: { type: "string" } },
+            required: ["id"],
+          }),
+        ),
+      },
+      {
+        title: "object, no additional properties (expanded)",
+        value: expandSchema(
+          SV.fromData({
+            type: "object",
+            properties: { a: { type: "string" } },
+            additionalProperties: false,
+          }),
+        ),
+      },
+      {
+        title: "object with additionalProperties schema (expanded)",
+        value: expandSchema(SV.fromData({ type: "object", additionalProperties: { type: "number" } })),
+      },
+      {
+        title: "object with patternProperties (expanded)",
+        value: expandSchema(
+          SV.fromData({ type: "object", patternProperties: { "^x-": { type: "string" } } }),
+        ),
+      },
+      {
+        title: "object with propertyNames (expanded)",
+        value: expandSchema(SV.fromData({ type: "object", propertyNames: { pattern: "^[a-z]+$" } })),
+      },
+      {
+        title: "object with min/maxProperties",
+        value: SV.fromData({ type: "object", minProperties: 1, maxProperties: 5 }),
+      },
+      {
+        title: "array with items (expanded)",
+        value: expandSchema(SV.fromData({ type: "array", items: { type: "string" } })),
+      },
+      {
+        title: "tuple via prefixItems (expanded)",
+        value: expandSchema(
+          SV.fromData({ type: "array", prefixItems: [{ type: "number" }, { type: "string" }], items: false }),
+        ),
+      },
+      {
+        title: "draft-07 tuple via array items (expanded)",
+        value: expandSchema(SV.fromData({ type: "array", items: [{ type: "number" }, { type: "boolean" }] })),
+      },
+      {
+        title: "array with min/maxItems + uniqueItems",
+        value: SV.fromData({ type: "array", minItems: 1, maxItems: 10, uniqueItems: true }),
+      },
+      {
+        title: "array with contains (expanded)",
+        value: expandSchema(SV.fromData({ type: "array", contains: { type: "integer" } })),
+      },
+      { title: "enum (expanded)", value: expandSchema(SV.fromData({ enum: ["red", "green", "blue"] })) },
+      { title: "const (expanded)", value: expandSchema(SV.fromData({ const: 42 })) },
+      {
+        title: "default (expanded)",
+        value: expandSchema(SV.fromData({ type: "string", default: "anonymous" })),
+      },
+      {
+        title: "examples (expanded)",
+        value: expandSchema(SV.fromData({ type: "integer", examples: [1, 2, 3] })),
+      },
+      {
+        title: "allOf (expanded)",
+        value: expandSchema(SV.fromData({ allOf: [{ type: "object" }, { required: ["id"] }] })),
+      },
+      {
+        title: "anyOf (expanded)",
+        value: expandSchema(SV.fromData({ anyOf: [{ type: "string" }, { type: "number" }] })),
+      },
+      {
+        title: "oneOf (expanded)",
+        value: expandSchema(
+          SV.fromData({
+            oneOf: [
+              { type: "string", format: "email" },
+              { type: "string", format: "uri" },
+            ],
+          }),
+        ),
+      },
+      { title: "not (expanded)", value: expandSchema(SV.fromData({ not: { type: "null" } })) },
+      {
+        title: "if / then / else (expanded)",
+        value: expandSchema(
+          SV.fromData({
+            if: { properties: { kind: { const: "a" } } },
+            then: { required: ["x"] },
+            else: { required: ["y"] },
+          }),
+        ),
+      },
+      { title: "$ref", value: SV.fromData({ $ref: "#/$defs/address" }) },
+      { title: "cyclic $ref is safe (does not loop)", value: SV.fromData({ $ref: "#" }) },
+      {
+        title: "draft-07 definitions (expanded)",
+        value: expandSchema(
+          SV.fromData({
+            type: "object",
+            properties: { a: { $ref: "#/definitions/x" } },
+            definitions: { x: { type: "string" } },
+          }),
+        ),
+      },
+      {
+        title: "metadata (title / description / deprecated / readOnly)",
+        value: SV.fromData({
+          type: "string",
+          title: "Legacy field",
+          description: "No longer used; kept for compatibility.",
+          deprecated: true,
+          readOnly: true,
+        }),
+      },
+      { title: "boolean schema (true = any)", value: SV.fromData(true) },
+      { title: "boolean schema (false = none)", value: SV.fromData(false) },
+      { title: "empty schema {}", value: SV.fromData({}) },
+      {
+        title: "object → array of objects (expanded)",
+        value: expandSchema(SV.fromData(objOfArrayOfObjects)),
+      },
+      {
+        title: "array of constrained objects (expanded)",
+        value: expandSchema(SV.fromData(arrayOfConstrainedObjects)),
+      },
+      {
+        title: "anyOf containing allOf (expanded)",
+        description:
+          "A combinator branch that is itself a combinator — exercises recursion through SchemaBranch.",
+        value: expandSchema(SV.fromData(combinatorInCombinator)),
+      },
+      { title: "$ref + $defs (expanded)", value: expandSchema(SV.fromData(refToDefs)) },
+      {
+        title: "if/then/else with object branches (expanded)",
+        value: expandSchema(SV.fromData(conditional)),
+      },
+      {
+        title: "enum of objects (expanded)",
+        description: "Embedded enum members are arbitrary JSON, rendered via JsonViewer.",
+        value: expandSchema(SV.fromData(enumOfObjects)),
+      },
+      {
+        title: "kitchen sink (expanded)",
+        description:
+          "One object schema exercising every supported construct: metadata, string/numeric/array/nested-object properties, required, additionalProperties:false, patternProperties, propertyNames, prefixItems tuple, allOf/anyOf, if/then/else, not, const/default/examples, $ref, and $defs.",
+        value: expandSchema(SV.fromData(kitchenSink)),
+      },
+      {
+        title: "raw schema view (toggled, expanded)",
+        description:
+          "Same schema with the raw view toggled on — the original JSON Schema rendered with JsonViewer. Click the button to switch back to the high-level view.",
+        value: expandSchema(SV.fromData(kitchenSink).toggleShowRaw()),
+      },
+    ],
+  };
+}
+
+export function getExamples() {
+  return [jsonSection(), dataSection(), immutableSection(), schemaSection()];
+}
+
+// Among the data inspectors, SchemaViewer ships its own unit tests; ported verbatim
+// from src/components/data/json-schema.dev.js.
+export function getTests({ describe, test, expect }) {
+  describe(SchemaViewer, () => {
+    describe("fromData()", () => {
+      test("boolean true schema → SchemaBoolean", () => {
+        const v = SchemaViewer.Class.fromData(true);
+        expect(v.value).toBeInstanceOf(SchemaBoolean.Class);
+        expect(v.value.value).toBe(true);
+      });
+
+      test("boolean false schema → SchemaBoolean", () => {
+        const v = SchemaViewer.Class.fromData(false);
+        expect(v.value).toBeInstanceOf(SchemaBoolean.Class);
+        expect(v.value.value).toBe(false);
+      });
+
+      test("$ref → SchemaRef (label only, not resolved)", () => {
+        const v = SchemaViewer.Class.fromData({ $ref: "#/$defs/x" });
+        expect(v.value).toBeInstanceOf(SchemaRef.Class);
+        expect(v.value.target).toBe("#/$defs/x");
+      });
+
+      test("cyclic $ref does not loop", () => {
+        const v = SchemaViewer.Class.fromData({ $ref: "#" });
+        expect(v.value).toBeInstanceOf(SchemaRef.Class);
+      });
+
+      test("typed object → SchemaObject", () => {
+        const v = SchemaViewer.Class.fromData({ type: "object" });
+        expect(v.value).toBeInstanceOf(SchemaObject.Class);
+        expect(v.value.typeLabel).toBe("object");
+      });
+
+      test("empty schema {} → childless SchemaScalar (any)", () => {
+        const v = SchemaViewer.Class.fromData({});
+        expect(v.value).toBeInstanceOf(SchemaScalar.Class);
+        expect(v.value.typeLabel).toBe("any");
+        expect(v.value.isItemsEmpty()).toBe(true);
+      });
+
+      test("retains the original schema in rawSchema", () => {
+        const v = SchemaViewer.Class.fromData({ type: "string" });
+        expect(v.rawSchema.type).toBe("string");
+      });
+    });
+
+    describe("classifySchema()", () => {
+      test("required array marks matching property", () => {
+        const node = classifySchema({
+          type: "object",
+          properties: { id: { type: "integer" }, name: { type: "string" } },
+          required: ["id"],
+        });
+        const id = node.items.find((p) => p.key === "id");
+        const name = node.items.find((p) => p.key === "name");
+        expect(id).toBeInstanceOf(SchemaProperty.Class);
+        expect(id.required).toBe(true);
+        expect(name.required).toBe(false);
+      });
+
+      test("enum → SchemaEnum whose members render via JsonViewer", () => {
+        const node = classifySchema({ enum: [1, 2, 3] });
+        expect(node).toBeInstanceOf(SchemaEnum.Class);
+        expect(node.items.size).toBe(3);
+        expect(node.items.first()).toBeInstanceOf(JsonViewer.Class);
+      });
+
+      test("const → SchemaConst whose value renders via JsonViewer", () => {
+        const node = classifySchema({ const: 42 });
+        expect(node).toBeInstanceOf(SchemaConst.Class);
+        expect(node.value).toBeInstanceOf(JsonViewer.Class);
+      });
+
+      test("string constraints become badges", () => {
+        const node = classifySchema({ type: "string", minLength: 3, format: "email" });
+        expect(node).toBeInstanceOf(SchemaScalar.Class);
+        expect(node.badges.toArray()).toContain("format: email");
+        expect(node.badges.toArray()).toContain("min length: 3");
+      });
+
+      test("multi-type joins with ' | '", () => {
+        const node = classifySchema({ type: ["string", "null"] });
+        expect(node).toBeInstanceOf(SchemaScalar.Class);
+        expect(node.typeLabel).toBe("string | null");
+      });
+
+      test("combinator phrases its kind and lists members without keys", () => {
+        const node = classifySchema({ anyOf: [{ allOf: [{ type: "object" }] }] });
+        expect(node).toBeInstanceOf(SchemaCombinator.Class);
+        expect(node.typeLabel).toBe("any of");
+        const inner = node.items.first();
+        expect(inner).toBeInstanceOf(SchemaCombinator.Class);
+        expect(inner.typeLabel).toBe("all of");
+      });
+
+      test("array of a bare primitive type is inlined", () => {
+        const node = classifySchema({ type: "array", items: { type: "string" } });
+        expect(node).toBeInstanceOf(SchemaArray.Class);
+        expect(node.typeLabel).toBe("array of string");
+        expect(node.isItemsEmpty()).toBe(true);
+      });
+
+      test("array of a complex item keeps an expandable items row", () => {
+        const node = classifySchema({
+          type: "array",
+          items: { type: "object", properties: { a: { type: "string" } } },
+        });
+        expect(node.typeLabel).toBe("array");
+        expect(node.items.find((b) => b.label === "items")).toBeTruthy();
+      });
+
+      test("draft-07 definitions are surfaced like $defs", () => {
+        const node = classifySchema({ type: "object", definitions: { x: { type: "string" } } });
+        const branch = node.items.find((b) => b.label === "$defs/x");
+        expect(branch).toBeInstanceOf(SchemaBranch.Class);
+        expect(branch.child).toBeInstanceOf(SchemaScalar.Class);
+      });
+    });
+  });
+}
