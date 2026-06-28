@@ -103,167 +103,6 @@ export class TutucaPlayground extends HTMLElement {
       padding: 0.25rem 0.5rem;
       box-sizing: border-box;
     }
-    .api-docs,
-    .lint-results,
-    .test-results {
-      font-size: 0.85rem;
-      line-height: 1.4;
-    }
-    .api-docs h3,
-    .api-docs h4,
-    .lint-results h4,
-    .test-results h4 {
-      margin: 0.6rem 0 0.2rem;
-      text-align: left;
-      line-height: 1.2;
-    }
-    .api-docs h3 {
-      font-size: 1rem;
-      color: var(--accent, #0d47a1);
-    }
-    .api-docs h4,
-    .lint-results h4,
-    .test-results h4 {
-      font-size: 0.9rem;
-    }
-    .api-docs ul,
-    .lint-results ul,
-    .test-results ul {
-      margin: 0.15rem 0 0.4rem 1.1rem;
-      padding: 0;
-    }
-    .api-docs li,
-    .lint-results li,
-    .test-results li {
-      margin: 0.1rem 0;
-    }
-    .test-results ul {
-      margin-left: 0;
-      list-style: none;
-    }
-    .api-docs code,
-    .lint-results code,
-    .test-results code {
-      font-family: Consolas, Menlo, Monaco, monospace;
-      font-size: 0.85em;
-      color: var(--accent, #0d47a1);
-      background: var(--accent-bg, #f5f7ff);
-      border-radius: var(--standard-radius, 5px);
-      padding: 0.1em 0.35em;
-      white-space: nowrap;
-    }
-    .lint-badge,
-    .test-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 50%;
-      font-size: 0.75em;
-      font-weight: bold;
-      line-height: 1;
-      padding: 0.45em;
-      min-width: 1.4em;
-      background: var(--accent-bg, #f5f7ff);
-      color: var(--text, inherit);
-      border: 1px solid var(--border-color, #898ea4);
-      margin-left: 0.3em;
-    }
-    .lint-badge.has-issues,
-    .test-badge.has-failures {
-      background: var(--error-color, #e53935);
-      color: #fff;
-      border-color: var(--error-color, #e53935);
-    }
-    .lint-badge[hidden],
-    .test-badge[hidden] {
-      display: none;
-    }
-    .lint-results .level-error,
-    .test-results .status-fail {
-      color: var(--error-color, #e53935);
-      font-weight: bold;
-    }
-    .lint-results .level-warn {
-      color: var(--warn-color, #f9a825);
-    }
-    .lint-results .level-hint,
-    .test-results .status-skip {
-      color: var(--text-light, #585858);
-    }
-    .test-results .status-pass .test-mark {
-      color: var(--success-color, #2e7d32);
-    }
-    .test-results .test-toolbar {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .test-results .run-tests-btn {
-      padding: 0.3rem 0.7rem;
-      font-size: 0.85rem;
-      font-family: inherit;
-      cursor: pointer;
-      border: 1px solid var(--border-color, #898ea4);
-      border-radius: var(--standard-radius, 5px);
-      background: var(--accent-bg, #f5f7ff);
-      color: var(--accent, #0d47a1);
-    }
-    .test-results .run-tests-btn:hover:not(:disabled) {
-      background: var(--bg, #fff);
-    }
-    .test-results .run-tests-btn:disabled {
-      opacity: 0.5;
-      cursor: wait;
-    }
-    .test-results .test-suite {
-      margin: 0.4rem 0;
-      padding-left: 0.6rem;
-      border-left: 2px solid var(--border-color, #898ea4);
-    }
-    .test-results .test-suite > h4 {
-      display: flex;
-      align-items: baseline;
-      gap: 0.4rem;
-      margin: 0.3rem 0 0.25rem;
-    }
-    .test-results .test-leaf {
-      display: flex;
-      flex-direction: column;
-      gap: 0.15rem;
-    }
-    .test-results .test-mark {
-      display: inline-block;
-      width: 1em;
-      font-weight: bold;
-      text-align: center;
-    }
-    .test-results .test-meta {
-      color: var(--text-light, #585858);
-      font-size: 0.85em;
-    }
-    .test-results .test-error {
-      font-family: Consolas, Menlo, Monaco, monospace;
-      font-size: 0.8em;
-      background: var(--accent-bg, #f5f7ff);
-      color: var(--error-color, #b71c1c);
-      border: 1px solid var(--error-color, #e53935);
-      padding: 0.35rem 0.5rem;
-      border-radius: var(--standard-radius, 5px);
-      margin: 0.25rem 0 0.4rem 1rem;
-      white-space: pre-wrap;
-    }
-    .test-results .test-summary {
-      margin-top: 0.6rem;
-      padding-top: 0.4rem;
-      border-top: 1px solid var(--border-color, #898ea4);
-      font-weight: bold;
-    }
-    @media (prefers-color-scheme: dark) {
-      .test-results .test-error {
-        color: #ff8a80;
-      }
-    }
     @media (max-width: 768px) {
       :host {
         flex-direction: column;
@@ -311,34 +150,32 @@ export class TutucaPlayground extends HTMLElement {
       <div class="preview-container">
         <div class="tab-bar">
           <button class="active" data-tab="preview">Preview</button>
-          <button data-tab="api-docs">API Docs</button>
-          <button data-tab="lint">Lint <span class="lint-badge" hidden>0</span></button>
-          <button data-tab="test">Test <span class="test-badge" hidden>0</span></button>
+          <button data-tab="component" hidden>Component</button>
+          <button data-tab="instance" hidden>Instance</button>
+          <button data-tab="lint" hidden>Lint</button>
+          <button data-tab="test" hidden>Test</button>
           <button class="eject-btn" title="Eject to folder">&#x23CF;&#xFE0F;</button>
         </div>
         <div class="tab-panel active" data-panel="preview"></div>
         <div class="undo-slider" data-panel="undo"></div>
-        <div class="tab-panel api-docs" data-panel="api-docs"></div>
-        <div class="tab-panel lint-results" data-panel="lint"></div>
-        <div class="tab-panel test-results" data-panel="test">
-          <div class="test-toolbar">
-            <button class="run-tests-btn">Run Tests</button>
-          </div>
-          <div class="test-results-content"></div>
-        </div>
+        <div class="tab-panel" data-panel="component"></div>
+        <div class="tab-panel" data-panel="instance"></div>
+        <div class="tab-panel" data-panel="lint"></div>
+        <div class="tab-panel" data-panel="test"></div>
       </div>
     `;
 
     this.editor = this.shadowRoot.querySelector("code-mirror");
     this.preview = this.shadowRoot.querySelector('[data-panel="preview"]');
-    this.apiDocsPanel = this.shadowRoot.querySelector('[data-panel="api-docs"]');
-    this.lintPanel = this.shadowRoot.querySelector('[data-panel="lint"]');
-    this.lintBadge = this.shadowRoot.querySelector(".lint-badge");
-    this.testPanel = this.shadowRoot.querySelector('[data-panel="test"]');
-    this.testResultsContent = this.shadowRoot.querySelector(".test-results-content");
-    this.testBadge = this.shadowRoot.querySelector(".test-badge");
-    this.runTestsBtn = this.shadowRoot.querySelector(".run-tests-btn");
-    this.runTestsBtn.addEventListener("click", () => this._runTests());
+    // Inspector tabs (Component/Instance/Lint/Test) render tutuca/components
+    // inspector view instances built by buildInspectorViews — same as the storybook.
+    this._inspectorTabs = ["component", "instance", "lint", "test"];
+    this._inspectorApp = null;
+    this._inspectorRoot = null;
+    this._inspectorViews = null;
+    // Per-tab live state, so expansions survive switching tabs (one app, root swapped).
+    this._liveViews = {};
+    this._activeInspector = null;
 
     this.shadowRoot.querySelector(".tab-bar").addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-tab]");
@@ -381,6 +218,71 @@ export class TutucaPlayground extends HTMLElement {
     for (const p of this.shadowRoot.querySelectorAll(".tab-panel")) {
       p.classList.toggle("active", p.dataset.panel === name);
     }
+    if (this._inspectorTabs.includes(name)) this._showInspector(name);
+    this._syncUndoVisibility();
+  }
+
+  // The history slider belongs to the live preview only — show it on the Preview
+  // tab once there's history, hide it on every inspector tab.
+  _syncUndoVisibility() {
+    if (!this._undoContainer) return;
+    const onPreview =
+      this.shadowRoot.querySelector(".tab-bar button.active")?.dataset.tab === "preview";
+    this._undoContainer.style.display = this._undoActive && onPreview ? "block" : "none";
+  }
+
+  // Reveal the inspector tab buttons whose view is available, hide the rest.
+  _updateInspectorTabs(views) {
+    const has = {
+      component: views.hasComponent,
+      instance: views.hasInspect,
+      lint: views.hasLint,
+      test: views.hasTest,
+    };
+    for (const name of this._inspectorTabs) {
+      const btn = this.shadowRoot.querySelector(`.tab-bar button[data-tab="${name}"]`);
+      if (btn) btn.hidden = !has[name];
+    }
+    // If the previously-active inspector tab is gone, fall back to Preview.
+    const active = this.shadowRoot.querySelector(".tab-bar button.active");
+    if (active?.hidden) this._activateTab("preview");
+    else if (active && this._inspectorTabs.includes(active.dataset.tab)) {
+      this._showInspector(active.dataset.tab);
+    }
+  }
+
+  // Render an inspector view instance in its panel via a single persistent tutuca
+  // app whose root is swapped per tab (the playground's own tab shell). Each tab's
+  // live state is snapshotted on the way out and restored on the way back in, so
+  // expansions survive switching tabs.
+  _showInspector(name) {
+    // The instance view tracks live preview state: rebuild it from the current
+    // root on each show (and drop any stale cached expand state for it).
+    if (name === "instance" && this._rebuildInstanceView && this._inspectorViews) {
+      this._inspectorViews.instanceView = this._rebuildInstanceView();
+      delete this._liveViews.instance;
+    }
+    // tab name (e.g. "component") → view key ("componentView")
+    const pristine = this._inspectorViews?.[`${name}View`];
+    if (!pristine) return;
+    // Persist the outgoing tab's current (possibly-expanded) state.
+    if (this._activeInspector && this._activeInspector !== name && this._inspectorApp) {
+      this._liveViews[this._activeInspector] = this._inspectorApp.state.val;
+    }
+    const view = this._liveViews[name] ?? pristine;
+    if (!this._inspectorApp) {
+      this._inspectorRoot = document.createElement("div");
+      const app = this._tutuca(this._inspectorRoot);
+      app.registerComponents(this._inspectorComponents);
+      app.state.set(view);
+      app.start({ head: this.shadowRoot });
+      app.sendAtRoot("init", []);
+      this._inspectorApp = app;
+    } else {
+      this._inspectorApp.state.set(view);
+    }
+    this._activeInspector = name;
+    this.shadowRoot.querySelector(`[data-panel="${name}"]`).replaceChildren(this._inspectorRoot);
   }
 
   async loadDefaultContent() {
@@ -519,9 +421,19 @@ export class TutucaPlayground extends HTMLElement {
     this.preview.appendChild(appRoot);
 
     this._currentModule = null;
-    this.testResultsContent.replaceChildren();
-    this.testBadge.hidden = true;
-    this.testBadge.classList.remove("has-failures");
+    // Tear down the previous inspector app + views (and per-tab live state).
+    this._inspectorApp?.stop();
+    this._inspectorApp = null;
+    this._inspectorRoot = null;
+    this._inspectorViews = null;
+    this._liveViews = {};
+    this._activeInspector = null;
+    this._rebuildInstanceView = null;
+    this._undoActive = false;
+    this._syncUndoVisibility();
+    for (const name of this._inspectorTabs) {
+      this.shadowRoot.querySelector(`[data-panel="${name}"]`)?.replaceChildren();
+    }
 
     const code = await this.resolveImports(this.editor.code);
     const blob = new Blob([code], { type: "text/javascript" });
@@ -530,15 +442,16 @@ export class TutucaPlayground extends HTMLElement {
     try {
       const mod = await import(this._blobUrl);
       const tutucaApi = await import(this._resolveSpecifier("tutuca"));
-      const {
-        tutuca,
-        compileClassesToStyleText,
-        checkComponent,
-        LintClassCollectorCtx,
-        lintIdToMessage,
-        getComponentsDocs,
-      } = tutucaApi;
+      const { tutuca, compileClassesToStyleText, LintClassCollectorCtx } = tutucaApi;
       const { compile } = await import(this._resolveSpecifier("margaui"));
+      // The inspector tabs are the SAME ones the storybook renders: built by
+      // buildInspectorViews from tutuca/components, with lint/test data produced
+      // by the dev build (already loaded as tutucaApi via the "tutuca" specifier).
+      const {
+        buildInspectorViews,
+        getComponents: getInspectorComponents,
+        InstanceInspector,
+      } = await import(this._resolveSpecifier("tutuca/components"));
 
       const app = tutuca(appRoot);
       const components = mod.getComponents();
@@ -550,40 +463,23 @@ export class TutucaPlayground extends HTMLElement {
       if (mod.getRequestHandlers) {
         scope.registerRequestHandlers(mod.getRequestHandlers());
       }
+      // Register the inspector components into the app too, so the single compiled
+      // margaui sheet covers their classes (collectAppClassesInSet scans every
+      // registered component). They render in a separate inspector app (below).
+      this._inspectorComponents = getInspectorComponents();
+      this._tutuca = tutuca;
+      app.registerComponents(this._inspectorComponents);
+
       app.state.set(mod.getRoot());
       const styleText = await compileClassesToStyleText(app, compile, LintClassCollectorCtx);
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);
 
-      const lintResults = [];
-      for (const comp of components) {
-        try {
-          const lx = checkComponent(comp);
-          if (lx.reports.length > 0) {
-            lintResults.push({ name: comp.name, reports: lx.reports });
-          }
-        } catch (e) {
-          lintResults.push({
-            name: comp.name,
-            reports: [
-              {
-                id: "LINT_ERROR",
-                info: { message: e.message },
-                level: "error",
-              },
-            ],
-          });
-        }
-      }
-      this._renderLintResults(lintResults, lintIdToMessage);
-
-      const docs = getComponentsDocs(components);
-      this.apiDocsPanel.replaceChildren(this._docsToDOM(docs));
-
       app.start({ head: this.shadowRoot });
 
       const undoContainer = this.shadowRoot.querySelector('[data-panel="undo"]');
+      this._undoContainer = undoContainer;
       undoContainer.innerHTML = "";
       const undo = new ValueHistory(1000);
       const slider = undo.mountSlider(undoContainer, ({ index, entry }) => {
@@ -601,230 +497,42 @@ export class TutucaPlayground extends HTMLElement {
         if (!info.info?.isUndo) {
           undo.onChange(info);
           if (changes > 1) {
-            undoContainer.style.display = "block";
+            this._undoActive = true;
+            this._syncUndoVisibility();
           }
           slider.max = undo.size - 1;
           slider.value = undo.size - 1;
         }
       });
 
-      if (this.hasAttribute("auto-run-tests") && typeof mod.getTests === "function") {
+      // Build the inspector views for the running root (snapshot, like the
+      // storybook). `name: null` runs the whole module's tests, not just the
+      // root component's. Lint uses the non-mutating shadowCheckComponent.
+      const dev = {
+        shadowCheckComponent: tutucaApi.shadowCheckComponent,
+        runTests: tutucaApi.runTests,
+        expect: tutucaApi.expect,
+      };
+      this._inspectorViews = await buildInspectorViews(app.state.val, scope, {
+        getTests: typeof mod.getTests === "function" ? mod.getTests : null,
+        components,
+        dev,
+        name: null,
+      });
+      // The instance view reflects LIVE state: rebuilt from the preview app's
+      // current root each time the Instance tab is shown (Component/Lint/Test are
+      // definition-based and stay snapshots).
+      this._rebuildInstanceView = () =>
+        InstanceInspector.Class.fromData(app.state.val, scope.getCompFor(app.state.val));
+      this._updateInspectorTabs(this._inspectorViews);
+
+      if (this.hasAttribute("auto-run-tests") && this._inspectorViews.hasTest) {
         this._activateTab("test");
-        await this._runTests();
       }
     } catch (e) {
       this.preview.textContent = `Error: ${e.message}`;
       console.error(e);
     }
-  }
-
-  async _runTests() {
-    if (!this._currentModule) {
-      this.testResultsContent.textContent = "Run the module first (Ctrl+Enter).";
-      return;
-    }
-    const { mod, components, tutucaApi, path } = this._currentModule;
-    if (typeof tutucaApi.test !== "function") {
-      this.testResultsContent.textContent = "tutuca/test is not available in the loaded build.";
-      return;
-    }
-    this.runTestsBtn.disabled = true;
-    this.runTestsBtn.textContent = "Running…";
-    this.testResultsContent.textContent = "";
-    try {
-      const report = await tutucaApi.test({
-        getTests: mod.getTests,
-        components,
-        path,
-      });
-      this._renderTestReport(report);
-    } catch (e) {
-      console.error(e);
-      this.testResultsContent.textContent = `Test runner crashed: ${e.message}`;
-    } finally {
-      this.runTestsBtn.disabled = false;
-      this.runTestsBtn.textContent = "Run Tests";
-    }
-  }
-
-  _renderTestReport(report) {
-    const frag = document.createDocumentFragment();
-    let totalsAccum = { pass: 0, fail: 0, skip: 0, total: 0 };
-    for (const m of report.modules) {
-      if (m.suites.length === 0) {
-        const p = document.createElement("p");
-        p.className = "status-skip";
-        p.textContent = "(no tests)";
-        frag.appendChild(p);
-      } else {
-        for (const s of m.suites) frag.appendChild(this._testNodeToDOM(s));
-      }
-      const c = m.counts;
-      totalsAccum = {
-        pass: totalsAccum.pass + c.pass,
-        fail: totalsAccum.fail + c.fail,
-        skip: totalsAccum.skip + c.skip,
-        total: totalsAccum.total + c.total,
-      };
-      const summary = document.createElement("div");
-      summary.className = "test-summary";
-      const cls = c.fail > 0 ? "status-fail" : c.total === 0 ? "status-skip" : "status-pass";
-      summary.classList.add(cls);
-      summary.textContent = `${c.pass} passed, ${c.fail} failed, ${c.skip} skipped (${c.total} total)`;
-      frag.appendChild(summary);
-    }
-    this.testResultsContent.replaceChildren(frag);
-
-    if (totalsAccum.total === 0) {
-      this.testBadge.hidden = true;
-      this.testBadge.classList.remove("has-failures");
-    } else {
-      this.testBadge.hidden = false;
-      this.testBadge.textContent =
-        totalsAccum.fail > 0 ? `${totalsAccum.fail}` : `${totalsAccum.total}`;
-      this.testBadge.classList.toggle("has-failures", totalsAccum.fail > 0);
-    }
-  }
-
-  _testNodeToDOM(node) {
-    if (node.children) {
-      const wrap = document.createElement("div");
-      wrap.className = "test-suite";
-      const heading = document.createElement("h4");
-      heading.textContent = node.title;
-      if (node.componentName) {
-        heading.append(" ");
-        const code = document.createElement("code");
-        code.textContent = node.componentName;
-        heading.appendChild(code);
-      }
-      wrap.appendChild(heading);
-      const ul = document.createElement("ul");
-      for (const child of node.children) {
-        const li = document.createElement("li");
-        li.appendChild(this._testNodeToDOM(child));
-        ul.appendChild(li);
-      }
-      wrap.appendChild(ul);
-      return wrap;
-    }
-
-    const wrap = document.createElement("div");
-    wrap.className = "test-leaf";
-    const line = document.createElement("span");
-    line.className = `status-${node.status}`;
-    const mark = document.createElement("span");
-    mark.className = "test-mark";
-    mark.textContent = node.status === "pass" ? "✓" : node.status === "fail" ? "✗" : "○";
-    line.appendChild(mark);
-    line.append(` ${node.title} `);
-    const meta = document.createElement("span");
-    meta.className = "test-meta";
-    meta.textContent = node.status === "skip" ? "(skipped)" : `(${Math.round(node.durationMs)}ms)`;
-    line.appendChild(meta);
-    wrap.appendChild(line);
-
-    if (node.status === "fail" && node.error) {
-      const pre = document.createElement("pre");
-      pre.className = "test-error";
-      const parts = [node.error.message ?? "(no message)"];
-      if ("expected" in node.error || "actual" in node.error) {
-        parts.push(`expected: ${JSON.stringify(node.error.expected)}`);
-        parts.push(`actual:   ${JSON.stringify(node.error.actual)}`);
-      }
-      pre.textContent = parts.join("\n");
-      wrap.appendChild(pre);
-    }
-    return wrap;
-  }
-
-  _docsToDOM(docs) {
-    const frag = document.createDocumentFragment();
-
-    for (const comp of docs) {
-      const h3 = document.createElement("h3");
-      h3.textContent = comp.name;
-      frag.appendChild(h3);
-
-      if (comp.methods.length > 0) {
-        const h4 = document.createElement("h4");
-        h4.textContent = "Methods";
-        frag.appendChild(h4);
-        frag.appendChild(this._sigList(comp.methods));
-      }
-
-      if (comp.input.length > 0) {
-        const h4 = document.createElement("h4");
-        h4.textContent = "Input Handlers";
-        frag.appendChild(h4);
-        frag.appendChild(this._sigList(comp.input));
-      }
-
-      for (const field of comp.fields) {
-        const h4 = document.createElement("h4");
-        h4.innerHTML = `Field: <code>${field.name}</code> (${field.type}, default: <code>${JSON.stringify(field.default)}</code>)`;
-        frag.appendChild(h4);
-
-        const ul = document.createElement("ul");
-        for (const m of field.methods) {
-          const li = document.createElement("li");
-          const code = document.createElement("code");
-          code.textContent = m.sig;
-          li.appendChild(code);
-          li.append(` — ${m.desc}`);
-          ul.appendChild(li);
-        }
-        frag.appendChild(ul);
-      }
-    }
-
-    return frag;
-  }
-
-  _sigList(items) {
-    const ul = document.createElement("ul");
-    for (const item of items) {
-      const li = document.createElement("li");
-      const code = document.createElement("code");
-      code.textContent = item.sig;
-      li.appendChild(code);
-      ul.appendChild(li);
-    }
-    return ul;
-  }
-
-  _renderLintResults(results, lintIdToMessage) {
-    const total = results.reduce((s, r) => s + r.reports.length, 0);
-    this.lintBadge.textContent = total;
-    this.lintBadge.classList.toggle("has-issues", total > 0);
-    this.lintBadge.hidden = total === 0;
-
-    if (total === 0) {
-      const p = document.createElement("p");
-      p.textContent = "No lint issues found.";
-      this.lintPanel.replaceChildren(p);
-      return;
-    }
-
-    const frag = document.createDocumentFragment();
-    for (const { name, reports } of results) {
-      const h4 = document.createElement("h4");
-      h4.textContent = name;
-      frag.appendChild(h4);
-
-      const ul = document.createElement("ul");
-      for (const report of reports) {
-        const li = document.createElement("li");
-        li.className = `level-${report.level}`;
-        const code = document.createElement("code");
-        code.textContent = report.level;
-        li.appendChild(code);
-        li.append(` ${lintIdToMessage(report.id, report.info)}`);
-        ul.appendChild(li);
-      }
-      frag.appendChild(ul);
-    }
-    this.lintPanel.replaceChildren(frag);
   }
 }
 

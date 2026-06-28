@@ -6,8 +6,11 @@
 //
 // CSS is decoupled: mountStorybook takes a compileCss(app) callback instead of
 // importing margaui or the extra tier. When omitted the storybook renders
-// functional but unstyled.
+// functional but unstyled. The inspector tab views are decoupled the same way:
+// rendering comes from tutuca/components, lint/test DATA from the injected `dev`.
 import { component, dispatchPhase, html, injectCss, phaseHasBubble, tutuca } from "tutuca";
+import { getComponents as getInspectorComponents } from "tutuca/components";
+import { attachInspectorViews } from "./inspect.js";
 
 const Storybook = component({
   name: "Storybook",
@@ -268,6 +271,18 @@ const Example = component({
     view: "main",
     requestHandlers: null,
     on: null,
+    // Inspector tabs. activeTab selects which body renders; the *View fields hold
+    // prebuilt inspector instances (attached by mountStorybook before start, via
+    // src/storybook/inspect.js); the has* flags gate which tabs appear.
+    activeTab: "preview",
+    hasInspect: false,
+    hasComponent: false,
+    hasLint: false,
+    hasTest: false,
+    componentView: null,
+    instanceView: null,
+    lintView: null,
+    testView: null,
   },
   // Storybook-only convention (read in mountStorybook, never by core): names the
   // field on an example instance that holds its per-example request-handler mocks.
@@ -346,8 +361,72 @@ const Example = component({
         </div>
       </h2>
       <p class="text-md italic opacity-60" @text=".description"></p>
-      <div class="bg-base-100 p-3" @push-view=".view">
-        <x render=".value"></x>
+      <div role="tablist" class="tabs tabs-border" @show=".hasInspect">
+        <a
+          role="tab"
+          @if.class="equals? .activeTab 'preview'"
+          @then="'tab tab-active'"
+          @else="'tab'"
+          @on.click="$setActiveTab 'preview'"
+        >
+          Preview
+        </a>
+        <a
+          role="tab"
+          @show=".hasComponent"
+          @if.class="equals? .activeTab 'component'"
+          @then="'tab tab-active'"
+          @else="'tab'"
+          @on.click="$setActiveTab 'component'"
+        >
+          Component
+        </a>
+        <a
+          role="tab"
+          @if.class="equals? .activeTab 'instance'"
+          @then="'tab tab-active'"
+          @else="'tab'"
+          @on.click="$setActiveTab 'instance'"
+        >
+          Instance
+        </a>
+        <a
+          role="tab"
+          @show=".hasLint"
+          @if.class="equals? .activeTab 'lint'"
+          @then="'tab tab-active'"
+          @else="'tab'"
+          @on.click="$setActiveTab 'lint'"
+        >
+          Lint
+        </a>
+        <a
+          role="tab"
+          @show=".hasTest"
+          @if.class="equals? .activeTab 'test'"
+          @then="'tab tab-active'"
+          @else="'tab'"
+          @on.click="$setActiveTab 'test'"
+        >
+          Test
+        </a>
+      </div>
+      <div @show="equals? .activeTab 'preview'">
+        <div class="bg-base-100 p-3" @push-view=".view">
+          <x render=".value"></x>
+        </div>
+      </div>
+      <div class="p-3" @show="equals? .activeTab 'component'">
+        <x render=".componentView"></x>
+      </div>
+      <div class="p-3" @show="equals? .activeTab 'instance'">
+        <x render=".instanceView"></x>
+      </div>
+      <div class="p-3" @show="equals? .activeTab 'lint'">
+        <x render=".lintView"></x>
+      </div>
+      <div class="p-3" @show="equals? .activeTab 'test'">
+        <x render=".testView"></x>
       </div>
     </div>
   </div>`,
@@ -413,7 +492,7 @@ export function buildStorybook(modules) {
   // Components dedup by identity (object reference): a leaf listed in several
   // modules' getComponents() is added once. This is the contract that lets a
   // composition module re-list every leaf it uses without conflict.
-  const components = new Set([Storybook, Section, Example]);
+  const components = new Set([Storybook, Section, Example, ...getInspectorComponents()]);
   const macros = {};
   const requestHandlers = {};
   // Request names any example overrides via its `requestHandlers` map (read from the
@@ -475,10 +554,13 @@ export function buildExampleRequestHandlers({ requestHandlers: reals, overrideNa
 // optionally compile CSS via the provided callback, and start the app.
 //   compileCss: (app) => Promise<string>  // e.g. compileClassesToStyleText(app, compile)
 //   root:       override the aggregated root (escape hatch for custom roots)
+//   dev:        { shadowCheckComponent, runTests, expect } from tutuca/dev — when
+//               provided, each example gets Component/Instance/Data/Lint/Test
+//               inspector tabs. Omit (e.g. --no-inspect) for preview-only.
 export async function mountStorybook(
   selector,
   modules,
-  { compileCss, root, persistUrl = true } = {},
+  { compileCss, root, persistUrl = true, dev = null } = {},
 ) {
   const app = tutuca(selector);
   const built = buildStorybook(modules);
@@ -497,6 +579,12 @@ export async function mountStorybook(
   scope.registerRequestHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
   if (persistUrl) {
     scope.registerRequestHandlers({ persistState });
+  }
+  // Build the per-example inspector views (Component/Instance/Data, plus Lint/Test
+  // from the injected dev producers) and bake them onto the examples before the
+  // first render. Only when `dev` is wired and the root is the standard storybook.
+  if (dev && app.state.val?.sections) {
+    app.state.set(await attachInspectorViews(app.state.val, scope, modules, dev));
   }
   if (compileCss) {
     injectCss("tutuca-storybook", await compileCss(app));

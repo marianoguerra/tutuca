@@ -108,6 +108,7 @@ function buildImports(base, { margaui }) {
     "tutuca/extra": dev,
     "tutuca/dev": dev,
     "tutuca/storybook": `${base}/tutuca-storybook.js`,
+    "tutuca/components": `${base}/tutuca-components.js`,
   };
   if (margaui) imports.margaui = MARGAUI_CDN;
   return imports;
@@ -133,18 +134,26 @@ ${JSON.stringify({ imports }, null, 6)}
 `;
 }
 
-function renderBootstrap(devModuleUrls, { margaui, check }) {
+function renderBootstrap(devModuleUrls, { margaui, check, inspect }) {
   const lines = ['import { mountStorybook } from "tutuca/storybook";'];
   if (margaui) {
     lines.push('import { compileClassesToStyleText } from "tutuca/extra";');
     lines.push('import { compile } from "margaui";');
+  }
+  // The inspector tabs render via tutuca/components (resolved by the import map);
+  // their lint/test DATA producers are injected from tutuca/dev.
+  if (inspect) {
+    lines.push('import { shadowCheckComponent, runTests, expect } from "tutuca/dev";');
   }
   if (check) lines.push('import { check } from "tutuca/dev";');
   devModuleUrls.forEach((url, i) => {
     lines.push(`import * as m${i} from ${JSON.stringify(url)};`);
   });
   const modules = devModuleUrls.map((_, i) => `m${i}`).join(", ");
-  const opts = margaui ? "{ compileCss: (app) => compileClassesToStyleText(app, compile) }" : "{}";
+  const optParts = [];
+  if (margaui) optParts.push("compileCss: (app) => compileClassesToStyleText(app, compile)");
+  if (inspect) optParts.push("dev: { shadowCheckComponent, runTests, expect }");
+  const opts = optParts.length ? `{ ${optParts.join(", ")} }` : "{}";
   lines.push("");
   lines.push(`const app = await mountStorybook("#app", [${modules}], ${opts});`);
   if (check) lines.push("check(app);");
@@ -265,6 +274,7 @@ export async function run(argv, opts = {}) {
       out: { type: "string" },
       "no-margaui": { type: "boolean", default: false },
       "no-check": { type: "boolean", default: false },
+      "no-inspect": { type: "boolean", default: false },
       "no-tests": { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -275,7 +285,7 @@ export async function run(argv, opts = {}) {
   if (parsed.values.help) {
     process.stdout.write(
       "tutuca storybook [dir] [--port <n>] [--out <dir>] [--dry-run]\n" +
-        "                 [--no-margaui] [--no-check] [--no-tests]\n" +
+        "                 [--no-margaui] [--no-check] [--no-inspect] [--no-tests]\n" +
         "\n" +
         "  Auto-discovers co-located *.dev.js modules (recursively, skipping\n" +
         "  node_modules/dotdirs) and serves a live storybook that mounts them via\n" +
@@ -290,6 +300,7 @@ export async function run(argv, opts = {}) {
         "                 shown instead of serving; pass --json for structured output\n" +
         "  --no-margaui   skip margaui styling (renders functional but unstyled)\n" +
         "  --no-check     skip the in-browser check(app) dev validation\n" +
+        "  --no-inspect   skip the per-example Component/Instance/Data/Lint/Test tabs\n" +
         "  --no-tests     skip running the modules' getTests() before serving\n",
     );
     return;
@@ -315,6 +326,7 @@ export async function run(argv, opts = {}) {
 
   const margaui = !parsed.values["no-margaui"];
   const check = !parsed.values["no-check"];
+  const inspect = !parsed.values["no-inspect"];
   const self = findSelf();
 
   // --out: emit a portable static artifact (CDN import map), no server.
@@ -330,7 +342,7 @@ export async function run(argv, opts = {}) {
     );
     writeFileSync(
       resolve(outDir, bootstrapName),
-      renderBootstrap(devModuleUrls, { margaui, check }),
+      renderBootstrap(devModuleUrls, { margaui, check, inspect }),
     );
     process.stdout.write(
       `wrote static storybook → ${relative(process.cwd(), outDir) || "."}/\n` +
@@ -423,7 +435,7 @@ export async function run(argv, opts = {}) {
   const { base, serveDist } = resolveTutucaBase(projectDir, self, false);
   const imports = buildImports(base, { margaui });
   const indexHtml = renderIndexHtml(imports, { margaui, bootstrapUrl: BOOTSTRAP_URL });
-  const bootstrapJs = renderBootstrap(devModuleUrls, { margaui, check });
+  const bootstrapJs = renderBootstrap(devModuleUrls, { margaui, check, inspect });
 
   const server = createServer((req, res) => {
     const path = req.url.split("?")[0];

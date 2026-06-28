@@ -7,7 +7,9 @@
 // The live CLI serve (`bun run storybook`) does NOT use this file — it generates its
 // own bootstrap pointing at the local dist. This file is what GitHub Pages serves.
 import { compile } from "margaui";
-import { check, compileClassesToStyleText } from "tutuca";
+// "tutuca" maps to tutuca-dev.js here (see index.html import map), so the dev
+// helpers (check, shadowCheckComponent, runTests, expect) resolve from it.
+import { check, compileClassesToStyleText, expect, runTests, shadowCheckComponent } from "tutuca";
 import { mountStorybook } from "tutuca/storybook";
 
 import * as m01 from "./01-basics.dev.js";
@@ -23,5 +25,6 @@ const modules = [m01, m02, m03, m04, m05, m06, m07, m08];
 
 const app = await mountStorybook("#app", modules, {
   compileCss: (a) => compileClassesToStyleText(a, compile),
+  dev: { shadowCheckComponent, runTests, expect },
 });
 check(app);

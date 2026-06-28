@@ -2,6 +2,11 @@
 // …) pre-applied, so the `expect` injected into `getTests` matches the CLI
 // runner (see tools/cli/commands/_registry.js); the BDD chain keeps working.
 import { expect } from "./deps/chai.js";
+
+// Re-exported so the storybook bootstrap can inject the test runner's `expect`
+// (the inspector test tab runs getTests through runTests, which requires it).
+export { expect } from "./deps/chai.js";
+
 import { ANode } from "./src/anode.js";
 import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 import { checkComponent, LintParseContext } from "./tools/core/lint-check.js";
@@ -27,23 +32,32 @@ export async function test(opts = {}) {
   return report;
 }
 
+// Lint a registered component WITHOUT mutating it: re-parse each view's source
+// into a fresh shadow ParseContext (never touching the live View/Component) and
+// check a throwaway shadow component. Returns the structured findings
+// ({ id, info, level, context, suggestion }) — exactly the per-finding shape the
+// LintReport inspector consumes. Shared by check() and the storybook lint tab.
+export function shadowCheckComponent(Comp) {
+  const shadowViews = {};
+  for (const name in Comp.views) {
+    const rawView = Comp.views[name].rawView;
+    const ctx = new LintParseContext();
+    ANode.parse(rawView, ctx);
+    ctx.compile(Comp.scope);
+    shadowViews[name] = { name, ctx, rawView };
+  }
+
+  const shadowComp = Object.create(Comp);
+  shadowComp.views = shadowViews;
+
+  return checkComponent(shadowComp).reports;
+}
+
 export function check(app) {
   const counts = { error: 0, warn: 0, hint: 0 };
 
   for (const Comp of app.comps.byId.values()) {
-    const shadowViews = {};
-    for (const name in Comp.views) {
-      const rawView = Comp.views[name].rawView;
-      const ctx = new LintParseContext();
-      ANode.parse(rawView, ctx);
-      ctx.compile(Comp.scope);
-      shadowViews[name] = { name, ctx, rawView };
-    }
-
-    const shadowComp = Object.create(Comp);
-    shadowComp.views = shadowViews;
-
-    const { reports } = checkComponent(shadowComp);
+    const reports = shadowCheckComponent(Comp);
     if (reports.length === 0) continue;
 
     console.group(Comp.name);

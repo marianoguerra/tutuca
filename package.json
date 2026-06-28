@@ -14,6 +14,7 @@
     "./extra-ext": "./dist/tutuca-extra.ext.js",
     "./dev-ext": "./dist/tutuca-dev.ext.js",
     "./storybook": "./dist/tutuca-storybook.js",
+    "./components": "./dist/tutuca-components.js",
     "./immutable": "./dist/immutable.js",
     "./chai": "./dist/chai.js",
     "./package.json": "./package.json"
@@ -59,6 +60,7 @@
     "dist/tutuca-extra.ext.js",
     "dist/tutuca-dev.ext.js",
     "dist/tutuca-storybook.js",
+    "dist/tutuca-components.js",
     "dist/immutable.js",
     "dist/chai.js",
     "skill"

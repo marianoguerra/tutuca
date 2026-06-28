@@ -56,6 +56,21 @@ if (!sb.success) {
 }
 await Bun.write("dist/tutuca-storybook.js", await sb.outputs[0].text());
 
+// Inspector component library: same contract as the storybook bundle — `tutuca`
+// kept external (packages:"external") so the consumer's import map points
+// "tutuca" at the same runtime, and immutable externalized to the bare package.
+const comps = await Bun.build({
+  entrypoints: ["components.js"],
+  format: "esm",
+  packages: "external",
+  plugins: [externalizeImmutable],
+});
+if (!comps.success) {
+  for (const log of comps.logs) console.error(log);
+  process.exit(1);
+}
+await Bun.write("dist/tutuca-components.js", await comps.outputs[0].text());
+
 // Ship standalone ESM bundles of the externalized deps so consumers can point an
 // import map at tutuca's own copies (tutuca/immutable, tutuca/chai) and switch
 // between the full and ext builds without installing immutable/chai separately.

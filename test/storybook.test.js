@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { component, html } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
 import { FieldStep, Path, SeqStep } from "../src/path.js";
-import { buildExampleRequestHandlers, Example, Section, Storybook } from "../src/storybook.js";
+import { buildExampleRequestHandlers, Example, Section, Storybook } from "../src/storybook/index.js";
 import { rootDispatcher, Transactor } from "../src/transactor.js";
 
 // Two sections, each with a couple of examples, mirroring buildStorybook's shape.
