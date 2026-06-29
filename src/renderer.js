@@ -47,7 +47,13 @@ export class Renderer {
   // single view, so the same value rendered by two components (e.g. through a
   // shared dynamic-var sequence) would otherwise collide in the cache.
   _rValComp(stack, val, comp, node, key, viewName) {
-    const cacheKey = `${viewName ?? stack.viewsId ?? ""}-${key}`;
+    // The cached subtree depends on the FULL effective view context: the
+    // explicit per-site selector (`viewName`, from `as=`) AND the inherited
+    // pushed-view stack (`stack.viewsId`, from `@push-view`) — descendants
+    // without their own `as=` resolve against the latter even when this site
+    // set one. Keep both; `\x1f` can't appear in a view name or key, so the
+    // three fields can't ambiguously merge.
+    const cacheKey = `${viewName ?? ""}\x1f${stack.viewsId ?? ""}\x1f${key}`;
     const cachePath = [node, val];
     stack._pushDynBindValuesToArray(cachePath, comp);
     const cachedNode = this.cache.get(cachePath, cacheKey);
@@ -107,7 +113,9 @@ export class Renderer {
     const renderOne = (key, value, attrName) => {
       const cachePath = enricher ? [view, it, value] : [view, value];
       const binds = { key, value };
-      const cacheKey = `${nid}-${key}`;
+      // Include the inherited pushed-view stack: this repeated subtree may hold
+      // `<x render>` descendants that resolve against it (see _rValComp).
+      const cacheKey = `${stack.viewsId ?? ""}\x1f${nid}\x1f${key}`;
       if (enricher) enricher.call(it, binds, key, value, iterData);
       const cachedNode = this.cache.get(cachePath, cacheKey);
       if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
