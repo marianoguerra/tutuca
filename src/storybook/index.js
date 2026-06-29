@@ -21,6 +21,7 @@ const Storybook = component({
     sectionId: null,
     exampleId: null,
     focusExample: null,
+    sidebarCollapsed: false,
   },
   methods: {
     selectSectionAtIndex(index) {
@@ -143,17 +144,35 @@ const Storybook = component({
       </div>
     </div>
     <div class="flex gap-3 p-3 h-screen" @hide="truthy? .focusExample">
+      <button
+        class="btn btn-ghost btn-sm self-start"
+        title="Show sections"
+        @show=".sidebarCollapsed"
+        @on.click="$toggleSidebarCollapsed"
+      >
+        »
+      </button>
       <div
         class="w-1/4 flex flex-col gap-3 bg-base-100 shadow-md h-full overflow-hidden"
+        @hide=".sidebarCollapsed"
       >
-        <input
-          class="input w-full outline-0 focus:bg-base-200"
-          type="search"
-          placeholder="Filter sections"
-          :value=".filter"
-          @on.input="onApplyFilter value"
-          @on.keydown.cancel="onClearFilter"
-        />
+        <div class="flex gap-2 items-center">
+          <button
+            class="btn btn-ghost btn-sm"
+            title="Hide sections"
+            @on.click="$toggleSidebarCollapsed"
+          >
+            «
+          </button>
+          <input
+            class="input flex-1 outline-0 focus:bg-base-200"
+            type="search"
+            placeholder="Filter sections"
+            :value=".filter"
+            @on.input="onApplyFilter value"
+            @on.keydown.cancel="onClearFilter"
+          />
+        </div>
         <div class="list h-full flex-1 overflow-y-auto">
           <x render-each=".sections" as="listEntry" when="filterSection"></x>
         </div>
