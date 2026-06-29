@@ -134,7 +134,7 @@ ${JSON.stringify({ imports }, null, 6)}
 `;
 }
 
-function renderBootstrap(devModuleUrls, { margaui, check, inspect }) {
+function renderBootstrap(devModuleUrls, { margaui, check, inspect, noCache }) {
   const lines = ['import { mountStorybook } from "tutuca/storybook";'];
   if (margaui) {
     lines.push('import { compileClassesToStyleText } from "tutuca/extra";');
@@ -153,6 +153,7 @@ function renderBootstrap(devModuleUrls, { margaui, check, inspect }) {
   const optParts = [];
   if (margaui) optParts.push("compileCss: (app) => compileClassesToStyleText(app, compile)");
   if (inspect) optParts.push("dev: { shadowCheckComponent, runTests, expect }");
+  if (noCache) optParts.push("noCache: true");
   const opts = optParts.length ? `{ ${optParts.join(", ")} }` : "{}";
   lines.push("");
   lines.push(`const app = await mountStorybook("#app", [${modules}], ${opts});`);
@@ -276,6 +277,7 @@ export async function run(argv, opts = {}) {
       "no-check": { type: "boolean", default: false },
       "no-inspect": { type: "boolean", default: false },
       "no-tests": { type: "boolean", default: false },
+      "no-cache": { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -286,6 +288,7 @@ export async function run(argv, opts = {}) {
     process.stdout.write(
       "tutuca storybook [dir] [--port <n>] [--out <dir>] [--dry-run]\n" +
         "                 [--no-margaui] [--no-check] [--no-inspect] [--no-tests]\n" +
+        "                 [--no-cache]\n" +
         "\n" +
         "  Auto-discovers co-located *.dev.js modules (recursively, skipping\n" +
         "  node_modules/dotdirs) and serves a live storybook that mounts them via\n" +
@@ -301,7 +304,8 @@ export async function run(argv, opts = {}) {
         "  --no-margaui   skip margaui styling (renders functional but unstyled)\n" +
         "  --no-check     skip the in-browser check(app) dev validation\n" +
         "  --no-inspect   skip the per-example Component/Instance/Data/Lint/Test tabs\n" +
-        "  --no-tests     skip running the modules' getTests() before serving\n",
+        "  --no-tests     skip running the modules' getTests() before serving\n" +
+        "  --no-cache     disable the render cache (NullDomCache); see every re-render\n",
     );
     return;
   }
@@ -327,6 +331,7 @@ export async function run(argv, opts = {}) {
   const margaui = !parsed.values["no-margaui"];
   const check = !parsed.values["no-check"];
   const inspect = !parsed.values["no-inspect"];
+  const noCache = parsed.values["no-cache"];
   const self = findSelf();
 
   // --out: emit a portable static artifact (CDN import map), no server.
@@ -342,7 +347,7 @@ export async function run(argv, opts = {}) {
     );
     writeFileSync(
       resolve(outDir, bootstrapName),
-      renderBootstrap(devModuleUrls, { margaui, check, inspect }),
+      renderBootstrap(devModuleUrls, { margaui, check, inspect, noCache }),
     );
     process.stdout.write(
       `wrote static storybook → ${relative(process.cwd(), outDir) || "."}/\n` +
@@ -364,7 +369,7 @@ export async function run(argv, opts = {}) {
     const result = {
       projectDir,
       tutuca: { source, base, version: self.version },
-      options: { margaui, check, runTests: !parsed.values["no-tests"] },
+      options: { margaui, check, noCache, runTests: !parsed.values["no-tests"] },
       imports,
       modules,
       tests,
@@ -379,7 +384,8 @@ export async function run(argv, opts = {}) {
       `tutuca storybook dry run (no server started)\n` +
         `  project: ${projectDir}\n` +
         `  tutuca runtime: ${source} (${base}, version ${self.version})\n` +
-        `  margaui: ${margaui ? "on" : "off"}, in-browser check: ${check ? "on" : "off"}\n` +
+        `  margaui: ${margaui ? "on" : "off"}, in-browser check: ${check ? "on" : "off"}, ` +
+        `cache: ${noCache ? "off" : "on"}\n` +
         `  ${modules.length} dev module(s):\n`,
     );
     for (const m of modules) {
@@ -435,7 +441,7 @@ export async function run(argv, opts = {}) {
   const { base, serveDist } = resolveTutucaBase(projectDir, self, false);
   const imports = buildImports(base, { margaui });
   const indexHtml = renderIndexHtml(imports, { margaui, bootstrapUrl: BOOTSTRAP_URL });
-  const bootstrapJs = renderBootstrap(devModuleUrls, { margaui, check, inspect });
+  const bootstrapJs = renderBootstrap(devModuleUrls, { margaui, check, inspect, noCache });
 
   const server = createServer((req, res) => {
     const path = req.url.split("?")[0];

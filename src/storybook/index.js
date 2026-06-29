@@ -576,10 +576,12 @@ export function buildExampleRequestHandlers({ requestHandlers: reals, overrideNa
 //   dev:        { shadowCheckComponent, runTests, expect } from tutuca/dev — when
 //               provided, each example gets Component/Instance/Data/Lint/Test
 //               inspector tabs. Omit (e.g. --no-inspect) for preview-only.
+//   noCache:    start the app with the render cache disabled (NullDomCache) so
+//               every example re-renders fresh — useful while developing.
 export async function mountStorybook(
   selector,
   modules,
-  { compileCss, root, persistUrl = true, dev = null } = {},
+  { compileCss, root, persistUrl = true, dev = null, noCache = false } = {},
 ) {
   const app = tutuca(selector);
   const built = buildStorybook(modules);
@@ -608,7 +610,7 @@ export async function mountStorybook(
   if (compileCss) {
     injectCss("tutuca-storybook", await compileCss(app));
   }
-  app.start();
+  app.start({ noCache });
   // Drive the section lifecycle (and, when persisting, restore section/example
   // from the URL). Re-restore on Back/Forward only when persisting. Programmatic
   // push/replaceState don't fire popstate, so this only runs on real navigation.
