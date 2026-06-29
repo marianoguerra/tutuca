@@ -767,7 +767,9 @@ describe("ANode", () => {
       // https://hachyderm.io/@marianoguerra/116448570359438457
       const [r] = parse(`<select><option @x render-each=".items" as="option"></x></select>`);
       expect(r.childs[0]).toBeInstanceOf(RenderEachNode);
-      expect(r.childs[0].viewId).toBe("option");
+      // `as=` is now a Val (a literal name becomes a ConstVal); evaluating it
+      // against the stack yields the view name.
+      expect(r.childs[0].evalViewName(null)).toBe("option");
     });
 
     test.todo("px.error conditions in render-each parsing");

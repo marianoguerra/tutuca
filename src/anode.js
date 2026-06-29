@@ -205,7 +205,8 @@ function parseXOp(attrs, childs, opIdx, px) {
   // `<X>` with no attrs or a bare `@x` with no op attr: plain fragment.
   if (attrs.length <= opIdx) return maybeFragment(childs);
   const { name, value } = attrs[opIdx];
-  const as = attrs.getNamedItem("as")?.value ?? null;
+  const asAttr = attrs.getNamedItem("as")?.value ?? null;
+  const as = asAttr === null ? null : parseViewName(asAttr, px);
   let node;
   switch (name) {
     case "slot":
@@ -243,6 +244,12 @@ function parseXOpVal(opName, value, px, parserFn) {
   const val = parserFn.call(vp, value, px);
   if (val === null) px.onParseIssue("bad-value", { role: "x-op", op: opName, value });
   return val;
+}
+// `as=` view selector: a dynamic text value like `@push-view`, but a bare
+// identifier (e.g. `as="edit"`, which parses as a NameVal outside G_TEXT and so
+// yields null) falls back to a literal const view name for backward compat.
+function parseViewName(s, px) {
+  return vp.parseText(s, px) ?? vp.const(s);
 }
 function processXExtras(node, attrs, opName, startIdx, px) {
   const { consumed, wrappable } = X_OPS[opName];
@@ -332,9 +339,15 @@ export class Macro {
   }
 }
 class RenderViewId extends ANode {
-  constructor(nodeId, val, viewId) {
+  constructor(nodeId, val, viewVal) {
     super(nodeId, val);
-    this.viewId = viewId;
+    this.viewVal = viewVal;
+  }
+  // The `as=` view selector, evaluated against the host (enclosing) stack like
+  // `@push-view`. Null when `as=` is absent, so the renderer falls through to
+  // `stack.lookupBestView`.
+  evalViewName(stack) {
+    return this.viewVal ? this.viewVal.eval(stack) : null;
   }
   // A `<x render*>` produces no DOM element of its own to carry `data-cid`;
   // when it is a view's root the component boundary is recorded in the `Comp`
@@ -354,7 +367,7 @@ function dynRenderStep(comp, name, key) {
 export class RenderNode extends RenderViewId {
   render(stack, rx) {
     const newStack = stack.enter(this.val.eval(stack), {}, true);
-    return rx.renderIt(newStack, this, "", this.viewId);
+    return rx.renderIt(newStack, this, "", this.evalViewName(stack));
   }
   toPathStep(ctx) {
     if (this.val instanceof DynVal) return dynRenderStep(ctx.comp, this.val.name);
@@ -364,7 +377,7 @@ export class RenderNode extends RenderViewId {
 export class RenderItNode extends RenderViewId {
   render(stack, rx) {
     const newStack = stack.enter(stack.it, {}, true);
-    return rx.renderIt(newStack, this, "", this.viewId);
+    return rx.renderIt(newStack, this, "", this.evalViewName(stack));
   }
   toPathStep(ctx) {
     const next = ctx.next();
@@ -379,12 +392,12 @@ export class RenderItNode extends RenderViewId {
   }
 }
 export class RenderEachNode extends RenderViewId {
-  constructor(nodeId, val, viewId) {
-    super(nodeId, val, viewId);
+  constructor(nodeId, val, viewVal) {
+    super(nodeId, val, viewVal);
     this.iterInfo = new IterInfo(val, null, null, null);
   }
   render(stack, rx) {
-    return rx.renderEach(stack, this.iterInfo, this, this.viewId);
+    return rx.renderEach(stack, this.iterInfo, this, this.evalViewName(stack));
   }
   toPathStep(ctx) {
     if (this.val instanceof DynVal)

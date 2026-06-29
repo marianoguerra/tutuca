@@ -10,6 +10,7 @@ fields: { greeting: Greeting.make({ name: "world" }) },
 ```html
 <x render=".greeting"></x>           <!-- default ("main") view -->
 <x render=".greeting" as="edit"></x> <!-- a named view -->
+<x render=".greeting" as=".mode"></x> <!-- view chosen by a field at runtime -->
 ```
 
 The child draws its own view from its own fields, so inside `Greeting`'s view

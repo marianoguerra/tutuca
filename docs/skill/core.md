@@ -849,7 +849,8 @@ alter: { enrichScope() { return { len: this.text.length }; } }
 
 ```html
 <x render=".item"></x>                          <!-- default ("main") view -->
-<x render=".item" as="edit"></x>                <!-- specific view -->
+<x render=".item" as="edit"></x>                <!-- specific view (literal) -->
+<x render=".item" as=".mode"></x>               <!-- view chosen by a field at runtime -->
 <x render-it></x>                               <!-- only inside @each / render-each -->
 <x render=".byIndex[.currentIndex]"></x>        <!-- list item access -->
 <x render=".byKey[.currentKey]"></x>            <!-- map item access -->
@@ -858,10 +859,13 @@ alter: { enrichScope() { return { len: this.text.length }; } }
 ```
 
 The top-level `view` is registered under `"main"` (the default); extras
-go under `views: { name: html\`...\` }`. `as="edit"` selects the `edit`
-view of the rendered component, falling back to `main` if absent. `as`
-only applies to the **direct** component — for whole-subtree control,
-use `@push-view` (next section).
+go under `views: { name: html\`...\` }`. `as` selects which view of the
+rendered component to use, falling back to `main` if absent. It accepts the
+same dynamic values as `@push-view` (a literal name like `edit`, or `.field`,
+`*dyn`, `@bind`, `$method`, `$'…{x}…'`), evaluated against the **host**
+component at render time. `as` only applies to the **direct** component — for
+whole-subtree control, use `@push-view` (next section). For `render-each` the
+selector is evaluated once against the host, so every item gets the same view.
 
 ## Multiple Views & View Stack
 
@@ -880,7 +884,7 @@ component({
 
 | Directive          | Scope                                                                    |
 |--------------------|--------------------------------------------------------------------------|
-| `as="edit"`        | One `<x render>` element only.                                           |
+| `as="edit"` / `as=".mode"` | One `<x render>` element only. Literal or dynamic (like `@push-view`), evaluated against the host. |
 | `@push-view=".v"`  | Every component rendered recursively under the host (children + descendants). Each picks the first stack entry it has a matching view for; falls back to `"main"`. Inner `@push-view`s nest, extending the outer ones. |
 
 ## Styles
