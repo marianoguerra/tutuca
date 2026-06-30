@@ -685,6 +685,17 @@ export class View {
     if (ctx.cacheConstNodes) this.anode = optimizeNode(this.anode);
   }
   render(stack, rx) {
+    // A null anode means this view was never compiled — i.e. a value whose component
+    // is not registered in the rendering scope was rendered (getCompFor resolves the
+    // component off the value itself, bypassing the registry). Fail loud, but name the
+    // view and show a snippet instead of the cryptic `null.render` TypeError.
+    if (this.anode === null) {
+      throw new Error(
+        `tutuca: view "${this.name}" was rendered before it was compiled — its ` +
+          `component is not registered in this app/scope. Source: ` +
+          `${String(this.rawView).slice(0, 80).replace(/\s+/g, " ")}…`,
+      );
+    }
     return this.anode.render(stack, rx);
   }
 }

@@ -1036,3 +1036,113 @@ describe("passthrough component (bare <x render> as the whole view)", () => {
     cleanup();
   });
 });
+
+describe("@show-hidden items in a render-each list (path rebuild regression)", () => {
+  // Reproduces a null-pointer crash in resolvePathStep. A `render-each` whose
+  // item component's root carries `@show` renders *null* for a hidden item, but
+  // the renderer still emits that item's `§Each§`+`§Comp§` meta comments (only
+  // the DOM is null, not the metas). Those dangling metas sit immediately before
+  // the next *visible* item, so walking up from a click crosses the hidden
+  // item's `Comp` boundary a second time; resolvePathStep then looks up the
+  // render-each's node id inside the (node-less) item component, where
+  // getNodeForId returns null and `null.toPathStep` throws:
+  //   TypeError: ... (evaluating 'ctx.resolveNode().toPathStep')
+  // Both `@show @on.click` and `@on.click @show` orderings hit it identically,
+  // so the attribute order does NOT change the result.
+  const makeItem = (itemView) =>
+    component({
+      name: "Item",
+      fields: { uid: "", visible: true },
+      input: {
+        tap() {
+          return this.setUid(`${this.uid}!`);
+        },
+      },
+      view: itemView,
+    });
+  const List = component({
+    name: "List",
+    fields: { items: [] },
+    view: html`<ul>
+      <x render-each=".items"></x>
+    </ul>`,
+  });
+  // items: array of [uid, visible]
+  function appWith(itemView, items) {
+    const Item = makeItem(itemView);
+    const root = List.make({
+      items: items.map(([uid, visible]) => Item.make({ uid, visible })),
+    });
+    return renderToHTMLNode(document, [List, Item], null, root, HeadlessParseContext);
+  }
+
+  const SHOW_THEN_CLICK = html`<button @show=".visible" @on.click="tap" :data-uid=".uid">x</button>`;
+  const CLICK_THEN_SHOW = html`<button @on.click="tap" @show=".visible" :data-uid=".uid">x</button>`;
+
+  test("reconstructs the path for a visible item preceded by a hidden one", () => {
+    const { container, app, cleanup } = appWith(SHOW_THEN_CLICK, [
+      ["a", false],
+      ["b", true],
+    ]);
+    const node = container.querySelector('[data-uid="b"]');
+    expect(node).not.toBeNull();
+    // The dangling `§Each§`/`§Comp§` metas of the hidden "a" precede "b".
+    let result;
+    expect(() => {
+      result = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+    }).not.toThrow();
+    const [path, handlers] = result;
+    expect(handlers).not.toBeNull();
+    // The path must resolve to item "b" (the second render-each entry), not the
+    // hidden "a" whose dangling metas come first.
+    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items.get(1));
+    cleanup();
+  });
+
+  test("attribute order does not change the result (@on.click before @show)", () => {
+    const { container, app, cleanup } = appWith(CLICK_THEN_SHOW, [
+      ["a", false],
+      ["b", true],
+    ]);
+    const node = container.querySelector('[data-uid="b"]');
+    let result;
+    expect(() => {
+      result = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+    }).not.toThrow();
+    const [path, handlers] = result;
+    expect(handlers).not.toBeNull();
+    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items.get(1));
+    cleanup();
+  });
+
+  test("survives multiple consecutive hidden items before the clicked one", () => {
+    const { container, app, cleanup } = appWith(SHOW_THEN_CLICK, [
+      ["a", false],
+      ["b", false],
+      ["c", true],
+    ]);
+    const node = container.querySelector('[data-uid="c"]');
+    let path;
+    expect(() => {
+      [path] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+    }).not.toThrow();
+    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items.get(2));
+    cleanup();
+  });
+
+  test("clicking the visible item dispatches to its handler (end-to-end)", () => {
+    // The crash happens inside the delegated DOM listener, where the host
+    // swallows it — so the click() call itself does not surface the error, the
+    // handler simply never runs. The user-visible symptom is a dead click.
+    const { container, app, cleanup } = appWith(SHOW_THEN_CLICK, [
+      ["a", false],
+      ["b", true],
+    ]);
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    // Only the clicked, visible item should be mutated.
+    expect(app.state.val.items.get(1).uid).toBe("b!");
+    expect(app.state.val.items.get(0).uid).toBe("a");
+    cleanup();
+  });
+});

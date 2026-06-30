@@ -59,6 +59,14 @@ export class Renderer {
     const cachedNode = this.cache.get(cachePath, cacheKey);
     if (cachedNode) return cachedNode;
     const view = viewName ? comp.getView(viewName) : stack.lookupBestView(comp.views, "main");
+    const body = this.renderView(view, stack);
+    // A component that renders nothing (e.g. its view root is `@show`-hidden)
+    // has no DOM to carry events or two-way binds, so it needs no boundary.
+    // Emitting a `§Comp§` meta anyway leaves it dangling before the next
+    // sibling: event-path reconstruction would then cross this absent component
+    // and resolve the sibling's node id inside this (node-less) view, crashing
+    // with a null `getNodeForId` — see resolvePathStep in path.js.
+    if (body == null) return null;
     // `cid`/`vid` mirror the `data-cid`/`data-vid` baked onto the view's root
     // element, but live in the meta comment so a component whose view is a
     // bare `<x render>` (no DOM element of its own to stamp) still marks its
@@ -69,7 +77,7 @@ export class Renderer {
       cid: comp.id,
       vid: view.name,
     });
-    const dom = new VFragment([meta, this.renderView(view, stack)]);
+    const dom = new VFragment([meta, body]);
     this.cache.set(cachePath, cacheKey, dom);
     return dom;
   }
@@ -85,7 +93,9 @@ export class Renderer {
     );
     const renderOne = (key, value, attrName) => {
       const dom = this.renderIt(stack.enter(value, { key }, true), node, key, viewName);
-      this.pushEachEntry(r, node.nodeId, attrName, key, dom);
+      // An item that renders nothing (no matching component, or an
+      // `@show`-hidden root) contributes no boundary — see _rValComp.
+      if (dom != null) this.pushEachEntry(r, node.nodeId, attrName, key, dom);
     };
     // A `keys` return is authoritative — the handler already filtered, so we
     // render those keys directly and skip `@when`. The positional path keeps
@@ -121,7 +131,9 @@ export class Renderer {
       if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
       else {
         const dom = this.renderView(view, stack.enter(value, binds, false));
-        this.pushEachEntry(r, nid, attrName, key, dom);
+        // A `@show`-hidden item view renders null: skip its boundary so it
+        // leaves no dangling `§Each§` meta before the next visible sibling.
+        if (dom != null) this.pushEachEntry(r, nid, attrName, key, dom);
         this.cache.set(cachePath, cacheKey, dom);
       }
     };
