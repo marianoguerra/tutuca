@@ -37,12 +37,18 @@ same file is a valid target for `tutuca lint` / `test` / `render` too.
 ## Authoring stories (`getExamples`)
 
 Return one section, or an array of sections to group examples under multiple
-headings. A section is `{ title, description?, items: [...] }`. An array of one
-section behaves exactly like returning that section directly — both go through
-the same `Section.fromData`, which **throws** on a malformed section (missing
-`title`, not an object) rather than rendering a placeholder title. (If you saw
-broken titles from a one-element array in an older build, that predates array
-support — it has shipped since well before 0.9.88.)
+headings. A section is `{ title, description?, group?, items: [...] }`. An array
+of one section behaves exactly like returning that section directly — both go
+through the same `Section.fromData`, which **throws** on a malformed section
+(missing `title`, not an object) rather than rendering a placeholder title. (If
+you saw broken titles from a one-element array in an older build, that predates
+array support — it has shipped since well before 0.9.88.)
+
+The optional `group` is a string that clusters sidebar sections under one
+collapsible header: sections sharing a `group` name nest beneath it (across
+modules too), while groups and ungrouped sections interleave alphabetically by
+display key. Omit it (or pass `""`) for a flat top-level section — the default
+and backward-compatible behavior. A non-string `group` is a shape error.
 
 ```js
 import { component, html } from "tutuca";
@@ -62,6 +68,24 @@ export function getExamples() {
   };
 }
 ```
+
+To cluster sections in the sidebar, return an array and give related sections
+the same `group`:
+
+```js
+export function getExamples() {
+  return [
+    { group: "Inputs", title: "Counter",  items: [{ title: "Basic", value: Counter.make({ count: 0 }) }] },
+    { group: "Inputs", title: "Slider",   items: [{ title: "Basic", value: Slider.make({ value: 50 }) }] },
+    { group: "Layout", title: "Grid",     items: [{ title: "Basic", value: Grid.make({}) }] },
+    { title: "Misc",                      items: [{ title: "Basic", value: Misc.make({}) }] }, // ungrouped → flat
+  ];
+}
+```
+
+`Counter` and `Slider` nest under a collapsible **Inputs** header, `Grid` under
+**Layout**, and the ungrouped `Misc` sits flat at the top level; headers and
+loose sections interleave alphabetically.
 
 Item fields:
 
