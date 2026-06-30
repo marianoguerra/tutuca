@@ -38,12 +38,14 @@ export function getRoot() {
 export function getExamples() {
   return [
     {
-      title: "02 · Warm Colors",
+      group: "Authoring · Basics",
+      title: "Sections · Warm Colors",
       description: "Section B (defined first, but sorts after 'Cool')",
       items: toItems(WARM_COLORS),
     },
     {
-      title: "02 · Cool Colors",
+      group: "Authoring · Basics",
+      title: "Sections · Cool Colors",
       description: "Section A (defined second, sorts before 'Warm')",
       items: toItems(COOL_COLORS),
     },

@@ -295,7 +295,8 @@ const testRunReport = {
 function componentSection() {
   const CI = ComponentInspector.Class;
   return {
-    title: "10 · ComponentInspector",
+    group: "Tutuca Inspectors",
+    title: "ComponentInspector",
     description:
       "Inspects a tutuca Component descriptor — the object returned by `component({...})`. Lays out the component's name, fields (with default values rendered via ImInspector), methods, the input/receive/bubble/response/alter handler channels, statics, and view source. Each section collapses/expands and paginates (10 items per page). Ctrl/Cmd-click a section header to expand or collapse every section at once; ctrl/cmd-click a view's arrow to do the same for all view sources.",
     items: [
@@ -336,7 +337,8 @@ function instanceSection() {
   const explore = (inst) => InstanceExplorer.Class.fromData(inst, compFor(inst));
 
   return {
-    title: "10 · InstanceInspector / InstanceExplorer",
+    group: "Tutuca Inspectors",
+    title: "InstanceInspector / InstanceExplorer",
     description:
       "InstanceInspector renders a component instance's field → value pairs (field names/types from the descriptor, values from the instance), reusing the data-inspector components. InstanceExplorer wraps an instance in up to four tabs — its values (Instance), its definition (Component), and, when provided, its test-run (Tests) and lint (Lint) results. A tab only appears when it has content. The instance and descriptor are passed in; tests/lint come as raw --json data or prebuilt inspectors.",
     items: [
@@ -379,7 +381,8 @@ function instanceSection() {
 
 function lintSection() {
   return {
-    title: "10 · LintReport",
+    group: "Tutuca Inspectors",
+    title: "LintReport",
     description:
       "LintReport renders `tutuca lint --json`: a neutral title with soft severity tallies over per-component groups. Each finding shows a soft level badge, a human-readable message (mirroring the CLI's own wording), an optional fix suggestion, and the full id/info/context via ImInspector. Colour is reserved for severity; structure stays neutral. Clean components are omitted; a fully clean run shows a soft 'clean' badge.",
     items: [
@@ -394,7 +397,8 @@ function lintSection() {
 
 function testSection() {
   return {
-    title: "10 · TestReport (definitions + run)",
+    group: "Tutuca Inspectors",
+    title: "TestReport (definitions + run)",
     description:
       "TestReport renders either the test tree a module declares (TestReport.fromTests + collectTests, which walks getTests without running it) or a run report (TestReport.fromResults, the `tutuca test --json` shape). Suites collapse/paginate; failing suites auto-expand and show the message plus an expected/actual diff.",
     items: [

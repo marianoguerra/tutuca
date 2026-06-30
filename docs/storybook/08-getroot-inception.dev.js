@@ -47,7 +47,8 @@ export function getRoot() {
 
 export function getExamples() {
   return {
-    title: "08 · getRoot & Inception",
+    group: "Authoring · Roots & Tests",
+    title: "getRoot & Inception",
     description: "getRoot returns standalone root state; the engine renders itself",
     items: [
       {

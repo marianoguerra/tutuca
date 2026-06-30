@@ -41,7 +41,8 @@ export function getRoot() {
 
 export function getExamples() {
   return {
-    title: "01 · Basics",
+    group: "Authoring · Basics",
+    title: "Basics",
     description:
       "getComponents + getExamples (single section). One item per state = a state matrix.",
     items: [

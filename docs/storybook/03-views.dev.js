@@ -53,7 +53,8 @@ export function getRoot() {
 
 export function getExamples() {
   return {
-    title: "03 · Views",
+    group: "Authoring · Basics",
+    title: "Views",
     description: "Named views selected via the example `view` field and <x render as>",
     items: [
       {

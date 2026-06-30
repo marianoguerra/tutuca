@@ -89,7 +89,8 @@ export function getRoot() {
 
 export function getExamples() {
   return {
-    title: "04 · Macros",
+    group: "Authoring · Behavior",
+    title: "Macros",
     description: "getMacros: static, params (static + dynamic), default slot, named slots",
     items: [
       {

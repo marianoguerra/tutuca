@@ -77,7 +77,8 @@ const autoLoad = { init: { send: [{ name: "load", args: [] }] } };
 
 export function getExamples() {
   return {
-    title: "05 · Requests",
+    group: "Authoring · Behavior",
+    title: "Requests",
     description: "Real getRequestHandlers + per-example mocks (fixture / error / loading / real)",
     items: [
       {

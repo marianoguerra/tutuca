@@ -6,8 +6,9 @@
 // the import map in index.html (→ the CDN tutuca-components bundle); `bun run
 // storybook` resolves it to the freshly built local dist.
 //
-// getExamples() here returns an ARRAY of sections — one per component — so the four
-// data inspectors stay grouped together under the "09" prefix. The galleries are
+// getExamples() here returns an ARRAY of sections — one per component — each tagged
+// with `group: "Data Inspectors"` so the four cluster under one collapsible sidebar
+// header (the 2-level `group` field, replacing the old "09 ·" title prefix). The galleries are
 // ported from the components' own co-located *.dev.js files (src/components/data/*),
 // swapping their relative `./foo.js` imports for the single bare specifier below.
 import { IMap, ISet, List, OMap, OrderedSet, Range, Record, Stack } from "tutuca";
@@ -79,7 +80,8 @@ function jsonSection() {
   };
 
   return {
-    title: "09 · JsonViewer",
+    group: "Data Inspectors",
+    title: "JsonViewer",
     description:
       "Chrome devtools–style display of a JSON value. Wraps a per-type component (JsonNull, JsonBoolean, JsonNumber, JsonString, JsonArray, JsonObject); composites support collapse/expand and pagination (default 10 items per page).",
     items: [
@@ -238,7 +240,8 @@ function dataSection() {
   };
 
   return {
-    title: "09 · DataInspector",
+    group: "Data Inspectors",
+    title: "DataInspector",
     description:
       "Inspect any JS value: composes Immutable.js detection, JS extras (Symbol, BigInt, function, Date, RegExp, Error, native Map/Set, class instances), and plain JSON. Built on the chain(classifyImmutable, classifyJsExtra, classifyJson) dispatcher.",
     items: [
@@ -328,7 +331,8 @@ function immutableSection() {
   };
 
   return {
-    title: "09 · ImmutableInspector",
+    group: "Data Inspectors",
+    title: "ImmutableInspector",
     description:
       "Chrome devtools-style display for Immutable.js values. Detects List, Stack, Map, OrderedMap, Set, OrderedSet, Record, and Range; falls back to JsonViewer's per-type components for plain JS values. Composites support collapse/expand and pagination (10 items per page).",
     items: [
@@ -509,7 +513,8 @@ function schemaSection() {
   };
 
   return {
-    title: "09 · SchemaViewer",
+    group: "Data Inspectors",
+    title: "SchemaViewer",
     description:
       "High-level, human-readable view of a JSON Schema (2020-12, tolerant of draft-07): type labels, constraint badges, required markers, and a collapsible tree of properties / applicators / combinators / conditionals. Embedded literal values (const, enum members, default, examples) are rendered with JsonViewer. Toggle the button to switch to the raw schema (the original is retained on the viewer).",
     items: [

@@ -91,7 +91,8 @@ const probe = (title) => LifecycleProbe.make({ title });
 
 export function getExamples() {
   return {
-    title: "06 · Lifecycle (on)",
+    group: "Authoring · Behavior",
+    title: "Lifecycle (on)",
     description:
       "on.init/resume/suspend dispatching send/request/input/do to the example's component",
     items: [

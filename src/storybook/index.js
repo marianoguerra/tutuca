@@ -52,33 +52,43 @@ const Storybook = component({
         this.sidebar.map((g) => g.setRows(g.rows.map((e) => e.setSelected(e.sectionId === id)))),
       );
     },
-    // Walk the tree setting each row's `visible` from the filter. With no filter a row
-    // is visible iff its group is open; with a filter it is visible iff it matches
-    // (force-expanding past `collapsed` so matches in collapsed groups show). A group
-    // is hidden when filtering leaves it with no matching row.
+    // Walk the tree setting each row's `visible` from the filter AND the group's
+    // collapse: a row is visible iff it passes the filter (every row passes when the
+    // filter is empty) AND its group is open — collapse always wins, so a collapsed
+    // group shows no rows even while filtering. The group's own `visible` is set from
+    // whether any row MATCHES (ignoring collapse), so a collapsed group that still
+    // contains matches keeps its header and stays expandable; with no filter every
+    // group shows.
     applyFilterToSidebar(filter) {
       const active = (filter ?? "") !== "";
       return this.setSidebar(
         this.sidebar.map((g) => {
-          let anyVisible = false;
+          let anyMatch = false;
           const rows = g.rows.map((e) => {
-            const vis = active ? fuzzyMatch(filter, `${e.title} ${e.description}`) : !g.collapsed;
-            if (vis) anyVisible = true;
-            return e.setVisible(vis);
+            const match = !active || fuzzyMatch(filter, `${e.title} ${e.description}`);
+            if (match) anyMatch = true;
+            return e.setVisible(match && !g.collapsed);
           });
-          return g.setRows(rows).setVisible(active ? anyVisible : true);
+          return g.setRows(rows).setVisible(active ? anyMatch : true);
         }),
       );
     },
-    // Flip a named group's `collapsed`. Collapse only drives row visibility when not
-    // filtering; while filtering, rows stay force-expanded by their match state.
+    // Flip a named group's `collapsed`, recomputing its rows' visibility for the new
+    // state against the current filter. Collapsing always hides the rows (even while a
+    // filter is active — the reported chevron-flips-but-content-stays case); expanding
+    // re-reveals the rows that pass the filter. The group header's own `visible` is left
+    // as-is, so a collapsed group that matched the filter stays visible to be reopened.
     toggleSidebarGroup(name) {
-      const active = this.filter !== "";
+      const filter = this.filter;
+      const active = filter !== "";
       return this.setSidebar(
         this.sidebar.map((g) => {
           if (g.name !== name) return g;
           const collapsed = !g.collapsed;
-          const rows = active ? g.rows : g.rows.map((e) => e.setVisible(!collapsed));
+          const rows = g.rows.map((e) => {
+            const match = !active || fuzzyMatch(filter, `${e.title} ${e.description}`);
+            return e.setVisible(match && !collapsed);
+          });
           return g.setCollapsed(collapsed).setRows(rows);
         }),
       );
@@ -646,17 +656,34 @@ export function buildStorybook(modules) {
   const sections = rawSections
     .map((s) => Section.Class.fromData(s))
     .sort((a, b) => a.title.localeCompare(b.title));
-  // Components dedup by identity (object reference): a leaf listed in several
-  // modules' getComponents() is added once. This is the contract that lets a
-  // composition module re-list every leaf it uses without conflict.
-  const components = new Set([
+  // The engine + inspector components own the shared root scope (mountStorybook
+  // registers them there). Module components are grouped per module instead (below)
+  // so two modules can define *different* components that happen to share a `name`
+  // without colliding — each name lands in its own module scope's table.
+  const engineComponents = [
     Storybook,
     Section,
     Example,
     SidebarGroup,
     SidebarEntry,
     ...getInspectorComponents(),
-  ]);
+  ];
+  const engineSet = new Set(engineComponents);
+  // One component list per module (positional with `modules`), de-duped within the
+  // module by identity. Engine/inspector components are dropped — a module that
+  // re-lists them (e.g. `export { getComponents } from "tutuca/components"`) keeps
+  // them owned by the root scope and still sees them via parent chaining, rather
+  // than re-registering (and rebinding their `.scope`) into the module scope.
+  const moduleComponents = modules.map((m) => {
+    const seen = new Set();
+    const out = [];
+    for (const c of m.getComponents?.() ?? []) {
+      if (!c || engineSet.has(c) || seen.has(c)) continue;
+      seen.add(c);
+      out.push(c);
+    }
+    return out;
+  });
   const macros = {};
   const requestHandlers = {};
   // Request names any example overrides via its `requestHandlers` map (read from the
@@ -668,15 +695,18 @@ export function buildStorybook(modules) {
     }
   }
   for (const m of modules) {
-    for (const c of m.getComponents?.() ?? []) {
-      components.add(c);
-    }
     if (m.getMacros) Object.assign(macros, m.getMacros());
     if (m.getRequestHandlers) Object.assign(requestHandlers, m.getRequestHandlers());
   }
+  // Flat union (engine ∪ every module's components), kept for consumers that embed a
+  // whole storybook as a single value and so must register everything in one scope
+  // — e.g. the Inception demo's getComponents() (docs/examples/storybook.js).
+  const components = [...new Set([...engineComponents, ...moduleComponents.flat()])];
   return {
     root: Storybook.Class.withSections(sections),
-    components: [...components],
+    components,
+    engineComponents,
+    moduleComponents,
     macros,
     requestHandlers,
     overrideNames,
@@ -763,6 +793,10 @@ export function buildExampleRequestHandlers({ requestHandlers: reals, overrideNa
 //               inspector tabs. Omit (e.g. --no-inspect) for preview-only.
 //   noCache:    start the app with the render cache disabled (NullDomCache) so
 //               every example re-renders fresh — useful while developing.
+// Returns the started `app`, with the registered scopes attached as
+// `app.scopes = { root, modules }`: `root` owns the engine/inspector components +
+// macros + request handlers; `modules` is one isolated child scope per input module
+// (positional), so same-named components in different modules don't collide.
 export async function mountStorybook(
   selector,
   modules,
@@ -771,26 +805,42 @@ export async function mountStorybook(
   const app = tutuca(selector);
   const built = buildStorybook(modules);
   app.state.set(root ?? built.root);
-  const scope = app.registerComponents(built.components);
-  scope.registerMacros(built.macros);
+  // The root scope owns the engine + inspector components, the shared macros, and
+  // all request handlers. Each module then gets its OWN child scope (below): module
+  // components resolve their own names locally and inherit everything here via parent
+  // chaining (lookupComponent/lookupMacro/lookupRequest all walk to the parent), so
+  // two modules can define different components with the same name without colliding.
+  const rootScope = app.registerComponents(built.engineComponents);
+  rootScope.registerMacros(built.macros);
   // Register one meta handler per request name (module handlers ∪ per-example
   // overrides). Each resolves the issuing example via the request ctx's walkPath and
   // uses that example's mock when present, else the module's real handler.
-  scope.registerRequestHandlers(buildExampleRequestHandlers(built));
+  rootScope.registerRequestHandlers(buildExampleRequestHandlers(built));
   // The storybook owns these request names; register last so they win over any
   // module-provided handler of the same name. `loadState` is registered even when
   // not persisting (returning a blank state) so `response.loadState` still selects
   // and inits the default section — it just never touches the URL. `persistState`
   // (the writer) stays gated; unregistered, its requests no-op via the 404 path.
-  scope.registerRequestHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
+  rootScope.registerRequestHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
   if (persistUrl) {
-    scope.registerRequestHandlers({ persistState });
+    rootScope.registerRequestHandlers({ persistState });
   }
+  // One isolated scope per module, as a child of rootScope. `registerComponents`
+  // writes each component's name into the scope it is called on, so a fresh child
+  // per module keeps the modules' name tables disjoint while still inheriting the
+  // engine components, macros, and request handlers above. Positional with `modules`.
+  const moduleScopes = built.moduleComponents.map((comps) => {
+    const scope = rootScope.enter();
+    scope.registerComponents(comps);
+    return scope;
+  });
   // Build the per-example inspector views (Component/Instance/Data, plus Lint/Test
   // from the injected dev producers) and bake them onto the examples before the
   // first render. Only when `dev` is wired and the root is the standard storybook.
+  // attachInspectorViews resolves each value's component by identity (scope.getCompFor
+  // delegates to the shared registry), so the root scope works for every module.
   if (dev && app.state.val?.sections) {
-    app.state.set(await attachInspectorViews(app.state.val, scope, modules, dev));
+    app.state.set(await attachInspectorViews(app.state.val, rootScope, modules, dev));
   }
   if (compileCss) {
     injectCss("tutuca-storybook", await compileCss(app));
@@ -803,6 +853,11 @@ export async function mountStorybook(
   if (persistUrl) {
     window.addEventListener("popstate", () => app.sendAtRoot("init", []));
   }
+  // Expose the registered scopes for callers that want to introspect or register
+  // more against them. `app` stays the return value so `const app = await
+  // mountStorybook(...)` and `check(app)` keep working; the scopes ride along on it.
+  // `moduleScopes` is positional with the `modules` argument.
+  app.scopes = { root: rootScope, modules: moduleScopes };
   return app;
 
   // The root storybook is the only instance whose `this` is identical to

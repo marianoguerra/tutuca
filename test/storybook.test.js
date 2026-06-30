@@ -379,7 +379,7 @@ describe("Storybook retained sidebar", () => {
     expect(selected).toEqual(["todo"]);
   });
 
-  test("collapse hides a group's entries in place; intent persists; filter force-expands", () => {
+  test("collapse hides a group's entries in place; collapse wins over an active filter", () => {
     const { root } = buildStorybook([
       mod({ group: "Margaui", title: "Controls", items: [{ title: "a", value: 1 }] }),
       mod({ group: "Margaui", title: "Layout", items: [{ title: "b", value: 2 }] }),
@@ -390,14 +390,36 @@ describe("Storybook retained sidebar", () => {
     expect(visibleTitles(collapsed.sidebar.get(0))).toEqual([]);
     expect(entryTitles(collapsed.sidebar.get(0))).toEqual(["Controls", "Layout"]); // still present
 
-    // Filter force-expands past the collapse: only the match is visible, collapse kept.
+    // A filter does NOT force-expand a collapsed group: the header stays visible (it
+    // still has a match) but its rows stay hidden until the group is expanded.
     const filtered = collapsed.setFilter("layout").applyFilterToSidebar("layout");
     expect(filtered.sidebar.get(0).collapsed).toBe(true);
-    expect(visibleTitles(filtered.sidebar.get(0))).toEqual(["Layout"]);
+    expect(filtered.sidebar.get(0).visible).toBe(true); // has a match → header shown
+    expect(visibleTitles(filtered.sidebar.get(0))).toEqual([]); // collapsed → rows hidden
 
-    // Clearing the filter restores the remembered collapse.
-    const cleared = filtered.setFilter("").applyFilterToSidebar("");
-    expect(visibleTitles(cleared.sidebar.get(0))).toEqual([]);
+    // Expanding while the filter is active reveals only the matching row.
+    const expanded = filtered.toggleSidebarGroup("Margaui");
+    expect(expanded.sidebar.get(0).collapsed).toBe(false);
+    expect(visibleTitles(expanded.sidebar.get(0))).toEqual(["Layout"]);
+
+    // Clearing the filter while expanded shows all rows again.
+    const cleared = expanded.setFilter("").applyFilterToSidebar("");
+    expect(visibleTitles(cleared.sidebar.get(0))).toEqual(["Controls", "Layout"]);
+  });
+
+  test("collapsing while a filter is active hides the matching rows (not just the chevron)", () => {
+    const { root } = buildStorybook([
+      mod({ group: "G", title: "Alpha", items: [{ title: "a", value: 1 }] }),
+      mod({ group: "G", title: "Alphabet", items: [{ title: "b", value: 2 }] }),
+    ]);
+    // Filter (expanded): both rows match and show.
+    const filtered = root.setFilter("alph").applyFilterToSidebar("alph");
+    expect(visibleTitles(filtered.sidebar.get(0))).toEqual(["Alpha", "Alphabet"]);
+    // Collapse while the filter is active: chevron collapses AND the rows hide.
+    const collapsed = filtered.toggleSidebarGroup("G");
+    expect(collapsed.sidebar.get(0).collapsed).toBe(true);
+    expect(visibleTitles(collapsed.sidebar.get(0))).toEqual([]);
+    expect(collapsed.sidebar.get(0).visible).toBe(true); // still has matches → reopenable
   });
 
   test("filtering to zero matches hides the group (kept in tree, visible=false)", () => {
@@ -407,6 +429,62 @@ describe("Storybook retained sidebar", () => {
     const filtered = root.setFilter("nomatch").applyFilterToSidebar("nomatch");
     expect(filtered.sidebar.size).toBe(1);
     expect(filtered.sidebar.get(0).visible).toBe(false);
+  });
+});
+
+describe("buildStorybook per-module component scoping", () => {
+  // Two DIFFERENT components that share a name — the exact collision case.
+  const FooA = component({ name: "Foo", fields: { v: "a" }, view: html`<i @text=".v"></i>` });
+  const FooB = component({ name: "Foo", fields: { v: "b" }, view: html`<b @text=".v"></b>` });
+  const example = (value) => ({ title: "t", items: [{ title: "i", value }] });
+  const modA = { getComponents: () => [FooA], getExamples: () => example(FooA.make({})) };
+  const modB = { getComponents: () => [FooB], getExamples: () => example(FooB.make({})) };
+
+  test("groups components per module; engine components stay out of the module lists", () => {
+    const built = buildStorybook([modA, modB]);
+    expect(built.moduleComponents).toHaveLength(2);
+    expect(built.moduleComponents[0][0]).toBe(FooA);
+    expect(built.moduleComponents[1][0]).toBe(FooB);
+    expect(built.engineComponents).toContain(Storybook);
+    // The flat union still carries everything (Inception-style embedders rely on it).
+    expect(built.components).toContain(FooA);
+    expect(built.components).toContain(FooB);
+    expect(built.components).toContain(Storybook);
+  });
+
+  test("a module re-listing engine components or duplicates is de-duped out of its list", () => {
+    const Dup = component({ name: "Dup", fields: {}, view: html`<i></i>` });
+    const m = {
+      getComponents: () => [Example, Dup, Dup, Storybook],
+      getExamples: () => example(Dup.make({})),
+    };
+    const built = buildStorybook([m]);
+    expect(built.moduleComponents[0]).toHaveLength(1);
+    expect(built.moduleComponents[0][0]).toBe(Dup);
+  });
+
+  test("same name in two modules resolves to each module's own component (no collision)", () => {
+    // Replicate mountStorybook's scope wiring without a DOM: engine on the root
+    // scope, one isolated child scope per module.
+    const built = buildStorybook([modA, modB]);
+    const comps = new Components();
+    const rootScope = new ComponentStack(comps);
+    rootScope.registerComponents(built.engineComponents);
+    const moduleScopes = built.moduleComponents.map((cs) => {
+      const s = rootScope.enter();
+      s.registerComponents(cs);
+      return s;
+    });
+    // Each module scope resolves "Foo" to ITS OWN definition...
+    expect(moduleScopes[0].lookupComponent("Foo")).toBe(FooA);
+    expect(moduleScopes[1].lookupComponent("Foo")).toBe(FooB);
+    // ...the shared root never learns the module-local name (so it can't collide)...
+    expect(rootScope.lookupComponent("Foo")).toBe(null);
+    // ...engine names stay visible from each module scope via parent chaining...
+    expect(moduleScopes[0].lookupComponent("Example")).toBe(Example);
+    // ...and instances always resolve to their own definition by identity.
+    expect(comps.getCompFor(FooA.make({}))).toBe(FooA);
+    expect(comps.getCompFor(FooB.make({}))).toBe(FooB);
   });
 });
 

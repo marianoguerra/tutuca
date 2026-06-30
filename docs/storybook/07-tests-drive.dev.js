@@ -79,7 +79,8 @@ export function getRequestHandlers() {
 
 export function getExamples() {
   return {
-    title: "07 · Tests (drive)",
+    group: "Authoring · Roots & Tests",
+    title: "Tests (drive)",
     description: "getTests with the injected drive() helper + direct alter-handler tests",
     items: [
       {
