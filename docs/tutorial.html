@@ -964,23 +964,15 @@
           A component is bound to a scope at
           <code>registerComponents</code> time, and that scope owns its
           <code>Class</code> (and therefore its scope-bound <code>make</code> /
-          statics). To register the <em>same</em>
-          definition into a second scope at the same time, use
-          <code>Comp.clone()</code> &mdash; a fresh, independent component (new
-          id, its own <code>Class</code>) built from the same spec, so each
-          instance resolves back to its own scope.
-        </p>
-        <p>
-          <strong>Caveat:</strong> a static that builds a <em>different</em>
-          child type by naming the imported const directly (e.g.
-          <code>TreeItem.Class.fromData(v)</code>) hardcodes that child's
-          <em>original</em> scope. That's fine in a single-scope app, but once
-          you <code>clone()</code> into another scope the parent clone would
-          still build children in the original scope. For multi-scope safety,
-          resolve the child through the caller's scope &mdash;
-          <code>this.scope.lookupComponent("TreeItem").Class.fromData(v)</code>
-          &mdash; instead of the module-level const. Recursing into the
-          <em>same</em> type needs no lookup: just call
+          statics) &mdash; so a given component object is live in one scope at
+          a time. The relevant case here: a static that builds a
+          <em>different</em> child type by naming the imported const directly
+          (e.g. <code>TreeItem.Class.fromData(v)</code>) hardcodes that child's
+          <em>original</em> scope. That's fine in a single-scope app; if you
+          ever run the same definition in separate registries, resolve the
+          child through the caller's scope instead &mdash;
+          <code>this.scope.lookupComponent("TreeItem").Class.fromData(v)</code>.
+          Recursing into the <em>same</em> type needs no lookup: just call
           <code>this.fromData(v)</code> / <code>this.make(...)</code>.
         </p>
 

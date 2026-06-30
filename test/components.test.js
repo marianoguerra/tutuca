@@ -130,16 +130,16 @@ describe("Components", () => {
     expect(shell.get("chat").get("message")).toBe("from data");
   });
 
-  test("clone() lets one definition live in two independent scopes", () => {
+  test("one spec registered into two scopes yields independent Components", () => {
     const comps = new Components();
     const Widget = component({ name: "Widget", fields: { message: "hi" } });
-    const WidgetB = Widget.clone();
+    const WidgetB = component(Widget.spec);
     const scopeA = new ComponentStack(comps);
     const scopeB = new ComponentStack(comps);
     scopeA.registerComponents([Widget]);
     scopeB.registerComponents([WidgetB]);
 
-    // clone is a distinct Component with a distinct id and Class
+    // WidgetB is a distinct Component with a distinct id and Class
     expect(WidgetB).not.toBe(Widget);
     expect(WidgetB.id).not.toBe(Widget.id);
     expect(WidgetB.Class).not.toBe(Widget.Class);
@@ -162,7 +162,7 @@ describe("Components", () => {
     expect(comps.getCompFor(a2)).toBe(Widget);
   });
 
-  test("fromData static using this.make resolves its own scope per clone", () => {
+  test("fromData static using this.make resolves its own scope per spec instance", () => {
     const comps = new Components();
     const Widget = component({
       name: "Widget",
@@ -173,7 +173,7 @@ describe("Components", () => {
         },
       },
     });
-    const WidgetB = Widget.clone();
+    const WidgetB = component(Widget.spec);
     const scopeA = new ComponentStack(comps);
     const scopeB = new ComponentStack(comps);
     scopeA.registerComponents([Widget]);

@@ -46,7 +46,7 @@ export class ComponentStack {
       const comp = comps[i];
       // each scope owns its Class. Re-registering the same Component rebinds it to this
       // scope (last wins) — fine for fresh re-setup. To keep a Component live in *two*
-      // scopes at once, register comp.clone() (a fresh independent Component+Class).
+      // scopes at once, build a fresh one from its spec: component(comp.spec).
       comp.scope = this.enter();
       // bind the scope onto the Class so direct Class.make()/fromData() calls
       // can resolve comp fields without the caller threading a scope through
@@ -140,11 +140,6 @@ export class Component {
     this.spec = o;
     this.extra = {};
     for (const key of Object.keys(o)) if (!KNOWN_SPEC_KEYS.has(key)) this.extra[key] = o[key];
-  }
-  clone() {
-    // fresh, fully independent Component+Class (new id, scope=null) so the same
-    // definition can be registered into another scope without sharing the Class
-    return Component.fromSpec(this.spec);
   }
   compile(ParseContext) {
     for (const name in this.views)

@@ -382,6 +382,6 @@ export function classFromData(name, { fields = {}, methods, statics }) {
   return b.build();
 }
 // injected here (not in components.js) to avoid a components.js -> oo.js import cycle;
-// Component.clone() rebuilds a fresh, fully independent Component+Class from its spec
+// component()/fromSpec build a fresh, fully independent Component+Class from a spec
 Component.fromSpec = (opts) => new Component(classFromData(opts.name, opts), opts);
 export const component = (opts) => Component.fromSpec(opts);
