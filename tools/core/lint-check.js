@@ -83,6 +83,18 @@ export const COMP_FIELD_BAD_SHAPE = "COMP_FIELD_BAD_SHAPE";
 export const ASYNC_HANDLER = "ASYNC_HANDLER";
 export const TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE = "TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE";
 export const GLOBAL_SELECTOR_IN_SCOPED_STYLE = "GLOBAL_SELECTOR_IN_SCOPED_STYLE";
+export const FIELD_NAME_RESERVED_BY_RECORD = "FIELD_NAME_RESERVED_BY_RECORD";
+
+// Component classes are Immutable.js Records, so a field whose name matches a
+// Record-API member loses its `.field` accessor — the value is then only
+// reachable via `instance.get("name")`. Most API names are verbs (`get`,
+// `set`, `merge`, …) that nobody picks as a field name; this list is the
+// noun-like members that read as plausible field names. Verified against
+// `deps/immutable.js`: defining a field with one of these triggers Immutable's
+// "part of the Record API" warning and drops the accessor. (Note `size`,
+// `keys`, `values` are NOT here — in this build the field accessor wins and
+// they work fine.)
+const RECORD_FIELD_NAME_COLLISIONS = new Set(["entries", "hashCode"]);
 
 const X_KNOWN_OP_NAMES = new Set([
   "slot",
@@ -206,6 +218,7 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
   return lx.push({ componentName: Comp.name }, () => {
     checkUnknownSpecKeys(lx, Comp, wellKnownExtras);
     checkFieldDeclarations(lx, Comp);
+    checkRecordFieldNameCollisions(lx, Comp);
     checkProvidesAreAddressable(lx, Comp);
     checkLookupShapes(lx, Comp);
     checkHandlersNotAsync(lx, Comp);
@@ -797,6 +810,16 @@ function checkFieldDeclarations(lx, Comp) {
         kind: "args-not-object",
         got: field.args === null ? "null" : typeof field.args,
       });
+    }
+  }
+}
+
+function checkRecordFieldNameCollisions(lx, Comp) {
+  const fields = Comp.Class?.getMetaClass?.().fields;
+  if (!fields) return;
+  for (const name in fields) {
+    if (RECORD_FIELD_NAME_COLLISIONS.has(name)) {
+      lx.error(FIELD_NAME_RESERVED_BY_RECORD, { name });
     }
   }
 }

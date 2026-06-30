@@ -97,6 +97,8 @@ export function lintIdToMessage(id, info) {
       return `'$${info.name}' is a method reference, but '${info.name}' is defined as an input handler${fmtEventSuffix(info)}`;
     case "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER":
       return `'${info.name}' is an input handler reference, but '${info.name}' is defined as a method${fmtEventSuffix(info)}`;
+    case "FIELD_NAME_RESERVED_BY_RECORD":
+      return `Field '${info.name}' collides with the Immutable Record API: '.${info.name}' reads the Record member, not your value — rename the field (its value is only reachable via .get('${info.name}'))`;
     case "FIELD_VAL_NOT_DEFINED":
       return `Field '.${info.name}' is not defined${fmtOriginSuffix(info)}`;
     case "FIELD_VAL_IS_METHOD":

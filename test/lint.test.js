@@ -12,6 +12,7 @@ import {
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
+  FIELD_NAME_RESERVED_BY_RECORD,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   GLOBAL_SELECTOR_IN_SCOPED_STYLE,
@@ -451,6 +452,25 @@ test("error when . reads a method, suggesting $", () => {
   expect(r).toBeDefined();
   expect(r.info.name).toBe("isReady");
   expect(r.suggestion).toEqual({ kind: "rewrite", from: ".isReady", to: "$isReady" });
+});
+
+test("error when a field name collides with the Immutable Record API", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { entries: [], hashCode: 0, count: 0 },
+    view: html`<p>hi</p>`,
+  });
+  const reports = lx.reports.filter((x) => x.id === FIELD_NAME_RESERVED_BY_RECORD);
+  expect(reports.map((r) => r.info.name).sort()).toEqual(["entries", "hashCode"]);
+});
+
+test("no Record API collision for safe field names (size, keys, values)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { size: 0, keys: [], values: [], name: "" },
+    view: html`<p>hi</p>`,
+  });
+  expect(lx.reports.some((x) => x.id === FIELD_NAME_RESERVED_BY_RECORD)).toBe(false);
 });
 
 test("error when $ calls a field, suggesting .", () => {

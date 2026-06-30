@@ -268,6 +268,12 @@ const CompFieldShapeDemo = component({
     // COMP_FIELD_BAD_SHAPE (kind: "args-not-object"): args must be a plain
     // object so it can be spread into the child component's constructor.
     badArgs: { component: "JsonNode", args: 42 },
+
+    // FIELD_NAME_RESERVED_BY_RECORD: component classes are Immutable Records,
+    // and 'entries' is a Record-API member — defining it as a field means
+    // `.entries` reads the API member, not the value (reachable only via
+    // .get("entries")). Rename the field.
+    entries: [],
   },
   view: html`<p>Component-field declaration shape errors — check the Lint tab</p>`,
 });

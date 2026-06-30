@@ -22,6 +22,7 @@ import {
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
+  FIELD_NAME_RESERVED_BY_RECORD,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   GLOBAL_SELECTOR_IN_SCOPED_STYLE,
@@ -321,6 +322,13 @@ export const LINT_RULES = [
     group: "Component field declarations",
     summary:
       "`fields: { x: { component, args } }` shape is wrong: `component` must be a string and `args` must be a plain object.",
+  },
+  {
+    code: FIELD_NAME_RESERVED_BY_RECORD,
+    level: "error",
+    group: "Component field declarations",
+    summary:
+      "Field name matches an Immutable Record API member, so `.field` reads the API member instead of the value.",
   },
 ];
 
