@@ -134,8 +134,10 @@ try {
   check("storybook: mountStorybook() is a function", typeof sb.mountStorybook === "function");
   check("storybook: buildStorybook() is a function", typeof sb.buildStorybook === "function");
   check(
-    "storybook: getComponents() returns the 3 engine components",
-    typeof sb.getComponents === "function" && sb.getComponents().length === 3,
+    "storybook: getComponents() returns the engine components",
+    typeof sb.getComponents === "function" &&
+      sb.getComponents().map((c) => c.name).join(",") ===
+        "Storybook,Section,Example,SidebarGroup,SidebarEntry",
   );
 } catch (e) {
   check("load tutuca-storybook.js", false, `${e.constructor.name}: ${e.message}`);
