@@ -28,9 +28,10 @@ function resolveComponentName(value, components) {
 }
 
 class ExampleSection {
-  constructor({ title, description = null, items = [] }) {
+  constructor({ title, description = null, group = "", items = [] }) {
     this.title = title;
     this.description = description;
+    this.group = group;
     this.items = items;
   }
 }
@@ -86,9 +87,17 @@ function parseSection(raw, components, where) {
   if (items.length === 0) {
     throw shapeError(`section at ${where} has no items`, where);
   }
+  if (raw.group != null && typeof raw.group !== "string") {
+    throw shapeError(
+      `section at ${where} has a non-string "group" (got ${typeof raw.group}); ` +
+        `group must be a string naming the sidebar group, or be omitted`,
+      where,
+    );
+  }
   return new ExampleSection({
     title: raw.title ?? "Examples",
     description: raw.description ?? null,
+    group: raw.group ?? "",
     items,
   });
 }
@@ -138,4 +147,35 @@ export function normalizeModule(mod, { path = null } = {}) {
     }),
     present,
   };
+}
+
+// Detect component-name clashes across modules: the same `name` defined by two or
+// more *distinct* component objects (identity). The storybook registers components
+// by name, so such a clash leaves one definition uncompiled and it throws when
+// rendered. (A single component object listed by several modules' getComponents() is
+// fine — that is the shared-leaf contract and dedupes by identity.)
+//
+// `entries` is `[{ path, components }]` where `components` is exactly what a module's
+// getComponents() returned. Returns `[{ name, paths }]`, one per clashing name, with
+// the sorted list of module paths that define it.
+export function findComponentNameConflicts(entries) {
+  const byName = new Map(); // name -> Map<componentObject, Set<path>>
+  for (const { path, components } of entries) {
+    for (const comp of components ?? []) {
+      if (!comp || typeof comp.name !== "string") continue;
+      let objs = byName.get(comp.name);
+      if (!objs) byName.set(comp.name, (objs = new Map()));
+      let paths = objs.get(comp);
+      if (!paths) objs.set(comp, (paths = new Set()));
+      if (path != null) paths.add(path);
+    }
+  }
+  const conflicts = [];
+  for (const [name, objs] of byName) {
+    if (objs.size < 2) continue; // one distinct object for this name → no clash
+    const paths = new Set();
+    for (const set of objs.values()) for (const p of set) paths.add(p);
+    conflicts.push({ name, paths: [...paths].sort() });
+  }
+  return conflicts.sort((a, b) => a.name.localeCompare(b.name));
 }

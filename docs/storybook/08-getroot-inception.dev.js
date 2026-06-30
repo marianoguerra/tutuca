@@ -40,7 +40,9 @@ export function getComponents() {
 
 // A module whose standalone root is an entire Storybook.
 export function getRoot() {
-  return Storybook.make({ sections: demoSections() });
+  // withSections derives the sidebar tree from the sections — a raw `Storybook.make`
+  // leaves it empty (buildStorybook is the usual builder).
+  return Storybook.Class.withSections(demoSections());
 }
 
 export function getExamples() {
@@ -51,7 +53,7 @@ export function getExamples() {
       {
         title: "Inception 🐢",
         description: "a whole Storybook rendered inside one example card",
-        value: Storybook.make({ sections: demoSections() }),
+        value: Storybook.Class.withSections(demoSections()),
       },
       {
         title: "A standalone Section",

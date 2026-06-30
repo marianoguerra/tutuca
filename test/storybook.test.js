@@ -2,7 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { component, html } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
 import { FieldStep, Path, SeqStep } from "../src/path.js";
-import { buildExampleRequestHandlers, Example, Section, Storybook } from "../src/storybook/index.js";
+import {
+  buildExampleRequestHandlers,
+  buildStorybook,
+  Example,
+  fuzzyMatch,
+  Section,
+  Storybook,
+} from "../src/storybook/index.js";
 import { rootDispatcher, Transactor } from "../src/transactor.js";
 
 // Two sections, each with a couple of examples, mirroring buildStorybook's shape.
@@ -269,7 +276,8 @@ describe("Storybook lifecycle: section-switch transitions (bubble.sectionSelecte
   // Drives the real bubble.sectionSelected handler -> transitionSections. The
   // persistState request it issues 404s harmlessly (no handler registered here).
   function selectSection(t, index) {
-    t.pushBubble(new Path([]), "sectionSelected", [t.state.val.sections.get(index)]);
+    // sectionSelected bubbles the clicked entry's section id (a string).
+    t.pushBubble(new Path([]), "sectionSelected", [t.state.val.sections.get(index).id]);
     runAll(t);
   }
 
@@ -299,5 +307,132 @@ describe("Storybook lifecycle: section-switch transitions (bubble.sectionSelecte
     selectSection(t, 0); // same section again
     const p = probeAt(t.state.val, 0);
     expect([p.init, p.resume, p.suspend]).toEqual([1, 0, 0]);
+  });
+});
+
+// A fake dev/story module: just the getExamples() the aggregator reads.
+function mod(...rawSections) {
+  return { getExamples: () => (rawSections.length === 1 ? rawSections[0] : rawSections) };
+}
+// Flatten the sidebar tree into [groupName, [entryTitles]] for terse assertions.
+function shape(book) {
+  return book.sidebar.toArray().map((g) => [g.name, g.rows.toArray().map((e) => e.title)]);
+}
+const entryTitles = (g) => g.rows.toArray().map((e) => e.title);
+const visibleTitles = (g) =>
+  g.rows
+    .toArray()
+    .filter((e) => e.visible)
+    .map((e) => e.title);
+
+describe("Storybook retained sidebar", () => {
+  test("ungrouped sections each become a headerless singleton, alphabetical (flat compat)", () => {
+    const { root } = buildStorybook([
+      mod({ title: "Todo", items: [{ title: "x", value: 1 }] }),
+      mod({ title: "Counter", items: [{ title: "y", value: 2 }] }),
+    ]);
+    expect(shape(root)).toEqual([
+      ["", ["Counter"]],
+      ["", ["Todo"]],
+    ]);
+  });
+
+  test("sections sharing a group cluster under one entry, across modules", () => {
+    const { root } = buildStorybook([
+      mod({ group: "Margaui", title: "Controls", items: [{ title: "a", value: 1 }] }),
+      mod({ group: "Margaui", title: "Layout", items: [{ title: "b", value: 2 }] }),
+    ]);
+    expect(shape(root)).toEqual([["Margaui", ["Controls", "Layout"]]]);
+  });
+
+  test("groups and loose sections interleave alphabetically by display key", () => {
+    const { root } = buildStorybook([
+      mod({ title: "Zebra", items: [{ title: "a", value: 1 }] }),
+      mod({ group: "Margaui", title: "Controls", items: [{ title: "b", value: 2 }] }),
+      mod({ title: "Apple", items: [{ title: "c", value: 3 }] }),
+    ]);
+    expect(shape(root).map(([name, titles]) => name || titles[0])).toEqual([
+      "Apple",
+      "Margaui",
+      "Zebra",
+    ]);
+  });
+
+  test("a non-string `group` is ignored at runtime (rendered ungrouped)", () => {
+    const { root } = buildStorybook([
+      mod({ group: ["Margaui"], title: "Controls", items: [{ title: "a", value: 1 }] }),
+    ]);
+    expect(root.sidebar.get(0).name).toBe("");
+  });
+
+  test("clicking a sidebar entry highlights it (and only it) by section id", () => {
+    const { root } = buildStorybook([
+      mod({ title: "Counter", items: [{ title: "y", value: 1 }] }),
+      mod({ title: "Todo", items: [{ title: "x", value: 2 }] }),
+    ]);
+    const sel = root.markSidebarSelected("todo");
+    const selected = sel.sidebar
+      .toArray()
+      .flatMap((g) => g.rows.toArray())
+      .filter((e) => e.selected)
+      .map((e) => e.sectionId);
+    expect(selected).toEqual(["todo"]);
+  });
+
+  test("collapse hides a group's entries in place; intent persists; filter force-expands", () => {
+    const { root } = buildStorybook([
+      mod({ group: "Margaui", title: "Controls", items: [{ title: "a", value: 1 }] }),
+      mod({ group: "Margaui", title: "Layout", items: [{ title: "b", value: 2 }] }),
+    ]);
+    // Collapse (no filter): the group stays but its entries go invisible.
+    const collapsed = root.toggleSidebarGroup("Margaui");
+    expect(collapsed.sidebar.get(0).collapsed).toBe(true);
+    expect(visibleTitles(collapsed.sidebar.get(0))).toEqual([]);
+    expect(entryTitles(collapsed.sidebar.get(0))).toEqual(["Controls", "Layout"]); // still present
+
+    // Filter force-expands past the collapse: only the match is visible, collapse kept.
+    const filtered = collapsed.setFilter("layout").applyFilterToSidebar("layout");
+    expect(filtered.sidebar.get(0).collapsed).toBe(true);
+    expect(visibleTitles(filtered.sidebar.get(0))).toEqual(["Layout"]);
+
+    // Clearing the filter restores the remembered collapse.
+    const cleared = filtered.setFilter("").applyFilterToSidebar("");
+    expect(visibleTitles(cleared.sidebar.get(0))).toEqual([]);
+  });
+
+  test("filtering to zero matches hides the group (kept in tree, visible=false)", () => {
+    const { root } = buildStorybook([
+      mod({ group: "Margaui", title: "Controls", items: [{ title: "a", value: 1 }] }),
+    ]);
+    const filtered = root.setFilter("nomatch").applyFilterToSidebar("nomatch");
+    expect(filtered.sidebar.size).toBe(1);
+    expect(filtered.sidebar.get(0).visible).toBe(false);
+  });
+});
+
+describe("fuzzyMatch permissiveness", () => {
+  test("empty query matches everything", () => {
+    expect(fuzzyMatch("", "anything at all")).toBe(true);
+  });
+
+  test("substring and contiguous matches are accepted (case-insensitive)", () => {
+    expect(fuzzyMatch("layout", "Layoutx (join / stack / mask)")).toBe(true);
+    expect(fuzzyMatch("tab", "Data table")).toBe(true);
+    expect(fuzzyMatch("JSON", "JsonViewer")).toBe(true);
+  });
+
+  test("near-contiguous matches within the gap budget still pass", () => {
+    // "tabs" as a subsequence of "ta_bs" — one gap, within budget for len 4.
+    expect(fuzzyMatch("tabs", "ta bs")).toBe(true);
+  });
+
+  test("a long query scattered across an unrelated string is rejected", () => {
+    expect(fuzzyMatch("layout", "Data display (table, list, timeline, countdown)")).toBe(false);
+    expect(fuzzyMatch("selection", "Each card shows a live preview and an editor")).toBe(false);
+    expect(fuzzyMatch("countdown", "Controls (form & action builders)")).toBe(false);
+  });
+
+  test("a query whose chars are not all present in order is rejected", () => {
+    expect(fuzzyMatch("xyz", "Layout")).toBe(false);
   });
 });

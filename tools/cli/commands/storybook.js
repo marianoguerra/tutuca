@@ -23,7 +23,7 @@ import { parseArgs } from "node:util";
 // deps/chai.js re-exports chai with tutuca's jest-style matchers, matching the
 // `tutuca test` runner (see commands/_registry.js).
 import { expect } from "../../../deps/chai.js";
-import { normalizeModule } from "../../core/module.js";
+import { findComponentNameConflicts, normalizeModule } from "../../core/module.js";
 import { runTests } from "../../core/test.js";
 import { createNodeEnv } from "../env.js";
 import { CODES, emitError } from "../errors.js";
@@ -201,6 +201,38 @@ async function runDevTests(projectDir, devModuleUrls) {
   return { totalTests, failedTests, withTests, failures, importErrors };
 }
 
+// Import each module's getComponents() and report names defined by two or more
+// distinct component objects across modules (e.g. one module imports a component from
+// `tutuca/components` while another imports the same-named one relative — different
+// objects). They clash at registration and one renders uncompiled. Import errors are
+// ignored here (surfaced by the test/discover passes); imports are ES-cached so this
+// re-import is cheap.
+async function checkComponentNameConflicts(projectDir, devModuleUrls) {
+  await createNodeEnv();
+  const entries = [];
+  for (const url of devModuleUrls) {
+    const abs = resolve(projectDir, url.slice(1));
+    try {
+      const mod = await import(abs);
+      const components = typeof mod.getComponents === "function" ? mod.getComponents() : [];
+      entries.push({ path: url, components });
+    } catch {
+      // import failure reported elsewhere
+    }
+  }
+  return findComponentNameConflicts(entries);
+}
+
+function formatComponentNameConflict(c) {
+  return (
+    `  ! component name conflict: "${c.name}" is defined by different component objects in ` +
+    `${c.paths.length} modules (${c.paths.join(", ")}). They share a name but are distinct ` +
+    `objects, so the storybook registers one and the other renders uncompiled (throws on ` +
+    `render). Make those modules import the same definition — e.g. all from "tutuca/components" ` +
+    `rather than a relative path.\n`
+  );
+}
+
 // Import + normalize each dev module in Node (no browser bundle). Mirrors what
 // buildStorybook does in the browser, but returns plain data and captures any
 // import/shape error per module instead of throwing — the core of the dry-run.
@@ -365,6 +397,7 @@ export async function run(argv, opts = {}) {
     const imports = buildImports(base, { margaui });
     const modules = await discoverModules(projectDir, devModuleUrls);
     const tests = parsed.values["no-tests"] ? null : await runDevTests(projectDir, devModuleUrls);
+    const componentNameConflicts = await checkComponentNameConflicts(projectDir, devModuleUrls);
     const source = tutucaSource(base);
     const result = {
       projectDir,
@@ -373,6 +406,7 @@ export async function run(argv, opts = {}) {
       imports,
       modules,
       tests,
+      componentNameConflicts,
     };
 
     if (opts.format === "json") {
@@ -417,6 +451,9 @@ export async function run(argv, opts = {}) {
     } else {
       process.stdout.write("  tests: skipped (--no-tests)\n");
     }
+    for (const c of componentNameConflicts) {
+      process.stdout.write(formatComponentNameConflict(c));
+    }
     return;
   }
 
@@ -436,6 +473,10 @@ export async function run(argv, opts = {}) {
         process.stdout.write(`  ✗ ${f.fullPath}: ${f.error?.message ?? "failed"}\n`);
       }
     }
+  }
+
+  for (const c of await checkComponentNameConflicts(projectDir, devModuleUrls)) {
+    process.stdout.write(formatComponentNameConflict(c));
   }
 
   const { base, serveDist } = resolveTutucaBase(projectDir, self, false);

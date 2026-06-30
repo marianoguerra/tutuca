@@ -17,18 +17,71 @@ const Storybook = component({
   fields: {
     selectedSectionIndex: 0,
     sections: [],
+    // Retained navigation tree (SidebarGroup → SidebarEntry), built once from
+    // `sections` and then mutated in place: selection flips entry `selected`, the
+    // filter walk sets entry/group `visible`, a header click flips group `collapsed`.
+    // It owns its own UI state — never rebuilt or projected from `sections`.
+    sidebar: [],
     filter: "",
     sectionId: null,
     exampleId: null,
     focusExample: null,
     sidebarCollapsed: false,
   },
+  statics: {
+    // Build a storybook whose sidebar tree is derived from `sections` once. Use this
+    // instead of a bare `make` anywhere a Storybook is constructed by hand (the
+    // engine itself, the getRoot/Inception demo) so the sidebar is never empty.
+    withSections(sections) {
+      return this.make({ sections, sidebar: buildSidebar(sections) });
+    },
+  },
   methods: {
     selectSectionAtIndex(index) {
       if (this.sections.size === 0) return this;
       const safeIndex = index >= 0 && index < this.sections.size ? index : 0;
-      const sections = this.sections.map((s, i) => s.setSelected(i === safeIndex));
-      return this.setSelectedSectionIndex(safeIndex).setSections(sections);
+      // Selection only moves the content index and flips the sidebar highlight — the
+      // `sections` list is left untouched (no per-selection instance churn).
+      return this.setSelectedSectionIndex(safeIndex).markSidebarSelected(
+        this.sections.get(safeIndex)?.id,
+      );
+    },
+    // Flip the `selected` highlight to the entry for `id`, clearing the rest.
+    markSidebarSelected(id) {
+      return this.setSidebar(
+        this.sidebar.map((g) => g.setRows(g.rows.map((e) => e.setSelected(e.sectionId === id)))),
+      );
+    },
+    // Walk the tree setting each row's `visible` from the filter. With no filter a row
+    // is visible iff its group is open; with a filter it is visible iff it matches
+    // (force-expanding past `collapsed` so matches in collapsed groups show). A group
+    // is hidden when filtering leaves it with no matching row.
+    applyFilterToSidebar(filter) {
+      const active = (filter ?? "") !== "";
+      return this.setSidebar(
+        this.sidebar.map((g) => {
+          let anyVisible = false;
+          const rows = g.rows.map((e) => {
+            const vis = active ? fuzzyMatch(filter, `${e.title} ${e.description}`) : !g.collapsed;
+            if (vis) anyVisible = true;
+            return e.setVisible(vis);
+          });
+          return g.setRows(rows).setVisible(active ? anyVisible : true);
+        }),
+      );
+    },
+    // Flip a named group's `collapsed`. Collapse only drives row visibility when not
+    // filtering; while filtering, rows stay force-expanded by their match state.
+    toggleSidebarGroup(name) {
+      const active = this.filter !== "";
+      return this.setSidebar(
+        this.sidebar.map((g) => {
+          if (g.name !== name) return g;
+          const collapsed = !g.collapsed;
+          const rows = active ? g.rows : g.rows.map((e) => e.setVisible(!collapsed));
+          return g.setCollapsed(collapsed).setRows(rows);
+        }),
+      );
     },
     selectSectionWithId(id) {
       if (!id) return this.selectSectionAtIndex(this.selectedSectionIndex);
@@ -66,39 +119,47 @@ const Storybook = component({
       };
     },
   },
+  alter: {
+    // The sidebar render-each shows only visible groups (kept positional via `when`
+    // so a click resolves to the right group — see SidebarGroup.rowVisible).
+    groupVisible(_key, group) {
+      return group.visible;
+    },
+  },
   input: {
     onApplyFilter(value, ctx) {
       ctx.request("persistState", [this.toUrlState({ sectionFilter: value }), this, false]);
-      return this.setFilter(value);
+      return this.setFilter(value).applyFilterToSidebar(value);
     },
     onClearFilter(ctx) {
       ctx.request("persistState", [this.toUrlState({ sectionFilter: "" }), this, false]);
-      return this.resetFilter();
+      return this.resetFilter().applyFilterToSidebar("");
     },
     onFocusClose(ctx) {
       ctx.request("persistState", [this.toUrlState({ example: "" }), this, true]);
       return this.setSectionId(null).setExampleId(null).setFocusExample(null);
     },
   },
-  alter: {
-    filterSection(_key, section) {
-      return (
-        this.filter === "" || fuzzyMatch(this.filter, `${section.title} ${section.description}`)
-      );
-    },
-  },
   bubble: {
-    sectionSelected(section, ctx) {
+    // A sidebar entry was clicked; it bubbles its section id. Resolve to the content
+    // index and select. Sidebar highlight is updated by selectSectionAtIndex.
+    sectionSelected(sectionId, ctx) {
       ctx.stopPropagation();
+      const section = this.sections.find((s) => s.id === sectionId);
       ctx.request("persistState", [
-        this.toUrlState({ section: section.id, exampleFilter: section.filter }),
+        this.toUrlState({ section: sectionId, exampleFilter: section?.filter ?? "" }),
         this,
         true,
       ]);
       const oldIndex = this.selectedSectionIndex;
-      const next = this.selectSectionAtIndex(this.sections.indexOf(section));
+      const next = this.selectSectionAtIndex(this.sections.findIndex((s) => s.id === sectionId));
       transitionSections(ctx, next, oldIndex, next.selectedSectionIndex);
       return next;
+    },
+    // Toggle a group open/closed in place — the collapse lives on the SidebarGroup.
+    groupToggled(name, ctx) {
+      ctx.stopPropagation();
+      return this.toggleSidebarGroup(name);
     },
     exampleFocusRequested(example, ctx) {
       ctx.stopPropagation();
@@ -122,8 +183,11 @@ const Storybook = component({
   response: {
     loadState(state, err, ctx) {
       if (err || !state) return this;
+      // selectSectionWithId marks the sidebar highlight; applyFilterToSidebar then
+      // applies the restored section filter to the tree's visibility.
       const selected = this.selectSectionWithId(state.section)
         .setFilter(state.sectionFilter ?? "")
+        .applyFilterToSidebar(state.sectionFilter ?? "")
         .setSelectedSectionFilter(state.exampleFilter ?? "");
       const next = state.example
         ? selected.focusExampleByIds(state.section, state.example)
@@ -165,7 +229,7 @@ const Storybook = component({
             «
           </button>
           <input
-            class="input flex-1 outline-0 focus:bg-base-200"
+            class="input flex-1 focus:outline-none focus-within:outline-none focus:bg-base-200"
             type="search"
             placeholder="Filter sections"
             :value=".filter"
@@ -174,7 +238,7 @@ const Storybook = component({
           />
         </div>
         <div class="list h-full flex-1 overflow-y-auto">
-          <x render-each=".sections" as="listEntry" when="filterSection"></x>
+          <x render-each=".sidebar" when="groupVisible"></x>
         </div>
       </div>
       <div class="w-full h-full overflow-y-auto">
@@ -190,9 +254,12 @@ const Section = component({
     id: "?",
     title: "No Title Section",
     description: "",
+    // Optional 2-level grouping: sections sharing a `group` name cluster under one
+    // collapsible sidebar header. Empty string = ungrouped (top-level, flat — the
+    // default and the backward-compatible behavior).
+    group: "",
     items: [],
     filter: "",
-    selected: false,
     initialized: false,
   },
   statics: {
@@ -203,11 +270,15 @@ const Section = component({
             `getExamples() must return a section object or an array of section objects.`,
         );
       }
-      const { id, title, description = "", items = [] } = raw;
+      const { id, title, description = "", group, items = [] } = raw;
       return this.make({
         id: id ?? slugify(title),
         title,
         description,
+        // `group` is an optional string (single 2-level grouping). A non-string is
+        // ignored here (rendered ungrouped) rather than coerced; the normalize layer
+        // (tools/core/module.js) reports it as a shape error.
+        group: typeof group === "string" ? group : "",
         items: items.map((v) => Example.Class.fromData(v)),
       });
     },
@@ -225,10 +296,6 @@ const Section = component({
     onClearFilter(ctx) {
       ctx.bubble("exampleFilterChanged", [""]);
       return this.resetFilter();
-    },
-    onListItemClick(ctx) {
-      ctx.bubble("sectionSelected", [this]);
-      return this;
     },
   },
   receive: {
@@ -263,21 +330,75 @@ const Section = component({
       <x render-each=".items" when="filterItem"></x>
     </div>
   </section>`,
-  views: {
-    listEntry: html`<div
-      @if.class=".selected"
-      @then="'list-row cursor-pointer text-blue-400 hover:text-blue-500 font-semibold'"
-      @else="'list-row cursor-pointer hover:bg-base-200'"
-      :title=".description"
-      @on.click="onListItemClick"
-    >
-      <div @text=".title" class="list-col-grow"></div>
-      <p
-        class="text-xs opacity-60 list-col-wrap truncate"
-        @text=".description"
-      ></p>
-    </div> `,
+});
+
+// The retained sidebar tree. A SidebarEntry is one clickable section row carrying its
+// own UI state — `selected` (highlight) and `visible` (filter result) — plus the id it
+// selects. It is built once and only its fields are flipped; it never re-derives from
+// the content `sections`.
+const SidebarEntry = component({
+  name: "SidebarEntry",
+  fields: { sectionId: "?", title: "", description: "", selected: false, visible: true },
+  input: {
+    onClick(ctx) {
+      ctx.bubble("sectionSelected", [this.sectionId]);
+      return this;
+    },
   },
+  view: html`<div
+    @if.class=".selected"
+    @then="'list-row cursor-pointer text-blue-400 hover:text-blue-500 font-semibold'"
+    @else="'list-row cursor-pointer hover:bg-base-200'"
+    :title=".description"
+    @on.click="onClick"
+  >
+    <div @text=".title" class="list-col-grow"></div>
+    <p class="text-xs opacity-60 list-col-wrap truncate" @text=".description"></p>
+  </div>`,
+});
+
+// A SidebarGroup is a (possibly unnamed) bucket of rows with its own `collapsed`
+// state. `visible` hides the whole group when filtering leaves it empty. An unnamed
+// group (`name === ""`) is a single ungrouped section rendered headerless. Collapse is
+// expressed through each row's `visible` (set by the engine's walks), so the render
+// just shows what is visible — no collapse logic in the template. (`rows`, not
+// `entries`: `entries` collides with Immutable's built-in `.entries()` accessor.)
+const SidebarGroup = component({
+  name: "SidebarGroup",
+  fields: { name: "", collapsed: false, visible: true, rows: [] },
+  // Visibility drives the render-each `when` predicates (not `@show` on the items):
+  // a `when` filter renders only visible rows while keeping each row's positional key,
+  // so an event's path resolves to the right row. `@show` on a render-each item would
+  // shift the rendered set and mis-map the click.
+  alter: {
+    rowVisible(_key, row) {
+      return row.visible;
+    },
+  },
+  input: {
+    onToggle(ctx) {
+      ctx.bubble("groupToggled", [this.name]);
+      return this;
+    },
+  },
+  view: html`<div class="flex flex-col">
+    <div
+      class="list-row cursor-pointer hover:bg-base-200 font-semibold flex items-center gap-1"
+      @show="truthy? .name"
+      @on.click="onToggle"
+    >
+      <span @show=".collapsed">▸</span>
+      <span @hide=".collapsed">▾</span>
+      <span @text=".name" class="list-col-grow"></span>
+    </div>
+    <div
+      @if.class="truthy? .name"
+      @then="'flex flex-col pl-3'"
+      @else="'flex flex-col'"
+    >
+      <x render-each=".rows" when="rowVisible"></x>
+    </div>
+  </div>`,
 });
 
 const Example = component({
@@ -473,14 +594,31 @@ function fanoutLifecycle(ctx, items, name) {
   });
 }
 
+// Subsequence match, but bounded so a long query can't match by scattering its
+// characters across an unrelated (often long) string — the old behavior, where any
+// query whose letters merely appeared in order would match, made long queries match
+// far too much (titles + descriptions are long). A direct substring always matches;
+// otherwise we find the SHORTEST window of the target that contains the query as a
+// subsequence and require it to fit a small, query-scaled gap budget. Short queries
+// stay forgiving; long ones must be near-contiguous.
 function fuzzyMatch(query, target) {
-  const q = query.toLowerCase(),
-    t = target.toLowerCase();
-  let qi = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] === q[qi]) qi++;
+  const q = query.toLowerCase().trim();
+  if (q === "") return true;
+  const t = target.toLowerCase();
+  if (t.includes(q)) return true;
+  // Allowed total gap grows slowly with length: len 3 -> +1, len 6 -> +3, len 10 -> +5.
+  const budget = q.length + Math.max(1, Math.floor(q.length / 2));
+  // Try each occurrence of the first char as a window start; keep the tightest span.
+  for (let start = 0; start < t.length; start++) {
+    if (t[start] !== q[0]) continue;
+    let qi = 1;
+    let ti = start + 1;
+    for (; ti < t.length && qi < q.length; ti++) {
+      if (t[ti] === q[qi]) qi++;
+    }
+    if (qi === q.length && ti - start <= budget) return true;
   }
-  return qi === q.length;
+  return false;
 }
 
 function slugify(str) {
@@ -511,7 +649,14 @@ export function buildStorybook(modules) {
   // Components dedup by identity (object reference): a leaf listed in several
   // modules' getComponents() is added once. This is the contract that lets a
   // composition module re-list every leaf it uses without conflict.
-  const components = new Set([Storybook, Section, Example, ...getInspectorComponents()]);
+  const components = new Set([
+    Storybook,
+    Section,
+    Example,
+    SidebarGroup,
+    SidebarEntry,
+    ...getInspectorComponents(),
+  ]);
   const macros = {};
   const requestHandlers = {};
   // Request names any example overrides via its `requestHandlers` map (read from the
@@ -530,12 +675,52 @@ export function buildStorybook(modules) {
     if (m.getRequestHandlers) Object.assign(requestHandlers, m.getRequestHandlers());
   }
   return {
-    root: Storybook.make({ sections }),
+    root: Storybook.Class.withSections(sections),
     components: [...components],
     macros,
     requestHandlers,
     overrideNames,
   };
+}
+
+// Build the retained sidebar tree from the flat section list — once. Sections sharing a
+// non-empty `group` cluster under one named SidebarGroup; ungrouped sections become
+// their own headerless single-entry group. Buckets interleave alphabetically by display
+// key (group name, or the lone section's title) so that with nothing grouped the tree
+// reproduces the flat alphabetical order. The tree starts fully visible and unselected;
+// the engine's walks (markSidebarSelected / applyFilterToSidebar / toggleSidebarGroup)
+// own all later mutation — this never runs again.
+function buildSidebar(sections) {
+  const groups = new Map(); // name -> [Section]
+  const singles = []; // ungrouped sections, one entry each
+  sections.forEach((s) => {
+    const name = s.group ?? "";
+    if (name === "") singles.push(s);
+    else {
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(s);
+    }
+  });
+  const buckets = [];
+  for (const [name, secs] of groups) buckets.push({ key: name.toLowerCase(), name, sections: secs });
+  for (const s of singles) buckets.push({ key: s.title.toLowerCase(), name: "", sections: [s] });
+  buckets.sort((a, b) => a.key.localeCompare(b.key));
+  return buckets.map((b) =>
+    SidebarGroup.make({
+      name: b.name,
+      collapsed: false,
+      visible: true,
+      rows: b.sections.map((s) =>
+        SidebarEntry.make({
+          sectionId: s.id,
+          title: s.title,
+          description: s.description,
+          selected: false,
+          visible: true,
+        }),
+      ),
+    }),
+  );
 }
 
 // Storybook request mocking. One meta handler per request name (module handlers ∪
@@ -650,7 +835,7 @@ export async function mountStorybook(
 // Follow the module convention so the storybook engine can be inspected by the
 // CLI like any other module.
 export function getComponents() {
-  return [Storybook, Section, Example];
+  return [Storybook, Section, Example, SidebarGroup, SidebarEntry];
 }
 
 export { Example, fuzzyMatch, Section, Storybook, slugify };
