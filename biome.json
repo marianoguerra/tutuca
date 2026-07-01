@@ -10,9 +10,9 @@
     "includes": [
       "*.js",
       "src/**",
-      "test/*.js",
-      "docs/src/*.js",
-      "docs/examples/*.js",
+      "test/**/*.js",
+      "docs/src/**/*.js",
+      "docs/examples/**/*.js",
       "scripts/**",
       "tools/**/*.js"
     ]

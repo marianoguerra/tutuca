@@ -381,7 +381,11 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
             return this;
           },
         },
-        response: { load(result) { return { ...this, loaded: result }; } },
+        response: {
+          load(result) {
+            return { ...this, loaded: result };
+          },
+        },
         request: { fn: () => new Promise((res) => (resolveReq = res)) },
       }),
       { tag: "root" },
@@ -546,7 +550,13 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
 
   describe("robustness: every transacted transaction settles its subtree (no hang)", () => {
     test("skipSelf send", async () => {
-      const t = setup({ receive: { ping() { return this; } } });
+      const t = setup({
+        receive: {
+          ping() {
+            return this;
+          },
+        },
+      });
       const txn = t.pushSend(new Path([]), "ping", [], { skipSelf: true });
       const subtree = tracked(txn.whenSubtreeSettled());
       runAll(t);
@@ -555,7 +565,13 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     });
 
     test("undefined-returning handler (the console.warn branch)", async () => {
-      const t = setup({ receive: { ping() { return undefined; } } });
+      const t = setup({
+        receive: {
+          ping() {
+            return undefined;
+          },
+        },
+      });
       const txn = t.pushSend(new Path([]), "ping", []);
       const subtree = tracked(txn.whenSubtreeSettled());
       runAll(t);
@@ -613,7 +629,13 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     // `_completion` is created lazily; a top-level transaction that nobody tracked or
     // awaited before it ran has no completion to settle, so a handle taken afterwards
     // stays pending. Intended usage is to grab the handle from the dispatch, up front.
-    const t = setup({ receive: { ping() { return { ...this, ok: true }; } } });
+    const t = setup({
+      receive: {
+        ping() {
+          return { ...this, ok: true };
+        },
+      },
+    });
     const txn = t.pushSend(new Path([]), "ping", []);
     runAll(t); // ran without anyone observing its completion
     const late = tracked(txn.whenSettled());

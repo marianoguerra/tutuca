@@ -7,6 +7,7 @@ import {
   compositeMethods,
   getComponents as getJsonComponents,
   makeCompositeView,
+  makeValueInspector,
 } from "./json.js";
 
 const immutableContainerView = makeCompositeView({
@@ -14,17 +15,57 @@ const immutableContainerView = makeCompositeView({
   borderClass: "border-accent",
 });
 
-export function fmtMapKey(k) {
-  if (k === null || k === undefined) return String(k);
+// Short label for any value used as a map/entry key — JS natives, containers,
+// Immutable containers, class instances. Used for ImMap/ImOMap keys here and
+// JsMap keys in data.js.
+export function fmtAnyKey(k) {
+  if (k === null) return "null";
+  if (k === undefined) return "undefined";
   const t = typeof k;
-  if (t === "string" || t === "number" || t === "boolean") return String(k);
+  if (t === "string" || t === "number" || t === "boolean" || t === "bigint") return String(k);
+  if (t === "symbol") return String(k);
+  if (t === "function") return `ƒ ${k.name || "(anonymous)"}()`;
+  if (Array.isArray(k)) return `Array(${k.length})`;
+  if (k instanceof Map) return `Map(${k.size})`;
+  if (k instanceof Set) return `Set(${k.size})`;
+  if (k instanceof Date) return k.toISOString();
   if (List.isList(k)) return `List[${k.size}]`;
   if (OMap.isOrderedMap(k)) return `OrderedMap[${k.size}]`;
   if (IMap.isMap(k)) return `Map[${k.size}]`;
   if (OrderedSet.isOrderedSet(k)) return `OrderedSet[${k.size}]`;
   if (ISet.isSet(k)) return `Set[${k.size}]`;
-  return String(k);
+  const ctor = k.constructor?.name;
+  return ctor && ctor !== "Object" ? `${ctor} {…}` : Object.prototype.toString.call(k);
 }
+
+// Shared fromData statics for the Immutable container components: indexed
+// (List/Stack), keyed (Map/OrderedMap) and set-like (Set/OrderedSet) all build
+// the same ImEntry rows, differing only in how keys are derived.
+const fromIndexedData = {
+  fromData(coll, recurse) {
+    const items = coll.toArray().map((v, i) => ImEntry.make({ key: String(i), child: recurse(v) }));
+    return this.make({ items });
+  },
+};
+
+const fromKeyedData = {
+  fromData(map, recurse) {
+    const items = [];
+    map.forEach((v, k) => {
+      items.push(ImEntry.make({ key: fmtAnyKey(k), child: recurse(v) }));
+    });
+    return this.make({ items });
+  },
+};
+
+const fromSetData = {
+  fromData(set, recurse) {
+    const items = set
+      .toArray()
+      .map((v) => ImEntry.make({ key: "", showKey: false, child: recurse(v) }));
+    return this.make({ items });
+  },
+};
 
 export const ImEntry = component({
   name: "ImEntry",
@@ -53,14 +94,7 @@ export const ImList = component({
     },
   },
   alter: compositeAlter,
-  statics: {
-    fromData(list, recurse) {
-      const items = list
-        .toArray()
-        .map((v, i) => ImEntry.make({ key: String(i), child: recurse(v) }));
-      return this.make({ items });
-    },
-  },
+  statics: fromIndexedData,
   view: immutableContainerView,
 });
 
@@ -77,14 +111,7 @@ export const ImStack = component({
     },
   },
   alter: compositeAlter,
-  statics: {
-    fromData(stack, recurse) {
-      const items = stack
-        .toArray()
-        .map((v, i) => ImEntry.make({ key: String(i), child: recurse(v) }));
-      return this.make({ items });
-    },
-  },
+  statics: fromIndexedData,
   view: immutableContainerView,
 });
 
@@ -101,15 +128,7 @@ export const ImMap = component({
     },
   },
   alter: compositeAlter,
-  statics: {
-    fromData(map, recurse) {
-      const items = [];
-      map.forEach((v, k) => {
-        items.push(ImEntry.make({ key: fmtMapKey(k), child: recurse(v) }));
-      });
-      return this.make({ items });
-    },
-  },
+  statics: fromKeyedData,
   view: immutableContainerView,
 });
 
@@ -126,15 +145,7 @@ export const ImOMap = component({
     },
   },
   alter: compositeAlter,
-  statics: {
-    fromData(map, recurse) {
-      const items = [];
-      map.forEach((v, k) => {
-        items.push(ImEntry.make({ key: fmtMapKey(k), child: recurse(v) }));
-      });
-      return this.make({ items });
-    },
-  },
+  statics: fromKeyedData,
   view: immutableContainerView,
 });
 
@@ -151,14 +162,7 @@ export const ImSet = component({
     },
   },
   alter: compositeAlter,
-  statics: {
-    fromData(set, recurse) {
-      const items = set
-        .toArray()
-        .map((v) => ImEntry.make({ key: "", showKey: false, child: recurse(v) }));
-      return this.make({ items });
-    },
-  },
+  statics: fromSetData,
   view: immutableContainerView,
 });
 
@@ -175,14 +179,7 @@ export const ImOSet = component({
     },
   },
   alter: compositeAlter,
-  statics: {
-    fromData(set, recurse) {
-      const items = set
-        .toArray()
-        .map((v) => ImEntry.make({ key: "", showKey: false, child: recurse(v) }));
-      return this.make({ items });
-    },
-  },
+  statics: fromSetData,
   view: immutableContainerView,
 });
 
@@ -230,22 +227,11 @@ export const ImRange = component({
   </span>`,
 });
 
-export const ImInspector = component({
+export const ImInspector = makeValueInspector({
   name: "ImInspector",
-  fields: { value: null },
-  methods: {
-    toggleIsExpanded() {
-      return typeof this.value?.toggleIsExpanded === "function"
-        ? this.setValue(this.value.toggleIsExpanded())
-        : this;
-    },
+  fromData(data) {
+    return this.make({ value: dispatch(data) });
   },
-  statics: {
-    fromData(data) {
-      return this.make({ value: dispatch(data) });
-    },
-  },
-  view: html`<span class="contents"><x render=".value"></x></span>`,
 });
 
 export function classifyImmutable(data, recurse) {

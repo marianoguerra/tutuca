@@ -23,12 +23,6 @@ export class ModuleTests {
   }
 }
 
-export class TestIndex {
-  constructor({ modules = [] } = {}) {
-    this.modules = modules;
-  }
-}
-
 function isComponentObject(x) {
   return (
     x !== null &&

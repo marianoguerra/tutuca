@@ -1,9 +1,9 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { CODES, emitError } from "../errors.js";
+import { readPackageVersion } from "../pkg.js";
 
 export const describe =
   "Record freeform feedback (bug, confusion, suggestion) to ~/.tutuca/feedback.jsonl.";
@@ -23,24 +23,6 @@ const HELP =
   "    tutuca feedback < notes.txt\n" +
   "\n" +
   "  Each record is one JSON object per line: {ts, version, message}.\n";
-
-function readPackageVersion() {
-  const here = dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    resolve(here, "..", "..", "..", "package.json"),
-    resolve(here, "..", "package.json"),
-  ];
-  for (const p of candidates) {
-    if (existsSync(p)) {
-      try {
-        return JSON.parse(readFileSync(p, "utf8")).version ?? null;
-      } catch {
-        // fall through to next candidate
-      }
-    }
-  }
-  return null;
-}
 
 function readStdinSync() {
   if (process.stdin.isTTY) return "";
@@ -78,7 +60,7 @@ export async function run(argv, opts = {}) {
 
   const record = {
     ts: new Date().toISOString(),
-    version: readPackageVersion(),
+    version: readPackageVersion(import.meta.url),
     message,
   };
 

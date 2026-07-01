@@ -5,6 +5,7 @@ import {
   compositeFields,
   compositeMethods,
   makeCompositeView,
+  makeValueInspector,
 } from "../data/json.js";
 import {
   ComponentInspector,
@@ -61,26 +62,15 @@ export const InstanceFields = component({
 // Thin wrapper around the rendered value, mirroring ImInspector/JsonViewer.
 // Given an instance and its descriptor it shows the field → value rows; with
 // no descriptor (or a non-instance) it falls back to the plain data inspector.
-export const InstanceInspector = component({
+export const InstanceInspector = makeValueInspector({
   name: "InstanceInspector",
-  fields: { value: null },
-  methods: {
-    toggleIsExpanded() {
-      return typeof this.value?.toggleIsExpanded === "function"
-        ? this.setValue(this.value.toggleIsExpanded())
-        : this;
-    },
+  fromData(instance, comp) {
+    const value =
+      comp && isComponentInstance(instance)
+        ? InstanceFields.Class.fromData(instance, comp)
+        : ImInspector.Class.fromData(instance);
+    return this.make({ value });
   },
-  statics: {
-    fromData(instance, comp) {
-      const value =
-        comp && isComponentInstance(instance)
-          ? InstanceFields.Class.fromData(instance, comp)
-          : ImInspector.Class.fromData(instance);
-      return this.make({ value });
-    },
-  },
-  view: html`<span class="contents"><x render=".value"></x></span>`,
 });
 
 // Coerce a tab input that may be raw report data OR an already-built inspector

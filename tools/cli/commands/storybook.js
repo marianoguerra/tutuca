@@ -8,14 +8,7 @@
 //
 // This command runs in Node and only globs files, runs tests, and generates/
 // serves text — it NEVER imports the browser storybook bundle.
-import {
-  createReadStream,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, join, normalize, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,6 +20,7 @@ import { findComponentNameConflicts, normalizeModule } from "../../core/module.j
 import { runTests } from "../../core/test.js";
 import { createNodeEnv } from "../env.js";
 import { CODES, emitError } from "../errors.js";
+import { readPackageVersion } from "../pkg.js";
 import { walkFiles } from "../walk.js";
 
 export const describe =
@@ -68,12 +62,7 @@ function findDevModules(root) {
 // commands/storybook.js) and released (dist/tutuca-cli.js) locations.
 function findSelf() {
   const here = dirname(fileURLToPath(import.meta.url));
-  const pkgCandidates = [
-    resolve(here, "..", "..", "..", "package.json"),
-    resolve(here, "..", "package.json"),
-  ];
-  const pkgPath = pkgCandidates.find(existsSync);
-  const version = pkgPath ? JSON.parse(readFileSync(pkgPath, "utf8")).version : "latest";
+  const version = readPackageVersion(import.meta.url) ?? "latest";
   const distCandidates = [resolve(here, "..", "..", "..", "dist"), resolve(here, ".")];
   const distRoot =
     distCandidates.find((d) => existsSync(resolve(d, "tutuca-storybook.js"))) ?? null;

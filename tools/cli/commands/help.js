@@ -142,8 +142,8 @@ GLOBAL FLAGS
                              also emitted as JSON on stderr.
   -f, --format <cli|md|json|html>
       Output format. Defaults per command:
-        info, list, examples, lint -> cli
-        docs, render               -> md
+        get, list, examples, lint, test -> cli
+        show, render                    -> md
       html is only supported by render.
       json is supported by every command and serializes the result
       class directly — useful for piping into other tools or agents.
@@ -197,15 +197,11 @@ export async function run(argv, opts = {}) {
     return;
   }
   const { COMMANDS } = await import("./_registry.js");
-  const noModule = {
-    feedback: await import("./feedback.js"),
-    "install-skill": await import("./install-skill.js"),
-    storybook: await import("./storybook.js"),
-  };
-  const cmd = COMMANDS[target] ?? noModule[target];
+  const { NO_MODULE_COMMANDS } = await import("./_no-module.js");
+  const cmd = COMMANDS[target] ?? NO_MODULE_COMMANDS[target]?.mod;
   if (!cmd) {
     const { CODES, didYouMean, emitError } = await import("../errors.js");
-    const known = [...Object.keys(COMMANDS), ...Object.keys(noModule), "help"];
+    const known = [...Object.keys(COMMANDS), ...Object.keys(NO_MODULE_COMMANDS)];
     emitError(opts, {
       code: CODES.USAGE_UNKNOWN_COMMAND,
       message: `Unknown command '${target}'`,

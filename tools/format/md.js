@@ -1,5 +1,6 @@
 import { makeFormatter } from "./_dispatch.js";
 import { lintIdToMessage, suggestionToMessage } from "./lint.js";
+import { makeHtmlPrettifier } from "./prettify.js";
 
 function fmtComponentDocs(docs) {
   const lines = [];
@@ -36,7 +37,7 @@ function fmtComponentDocs(docs) {
 }
 
 async function fmtRenderBatch(batch, { pretty = false } = {}) {
-  const prettify = pretty ? (await import("prettier")).format : null;
+  const prettify = await makeHtmlPrettifier(pretty);
   const lines = [];
   for (const section of batch.sections) {
     lines.push(`# ${section.title}`);
@@ -51,16 +52,8 @@ async function fmtRenderBatch(batch, { pretty = false } = {}) {
         lines.push("```\n");
         continue;
       }
-      let html = item.html;
-      if (prettify) {
-        try {
-          html = (await prettify(html, { parser: "html" })).trimEnd();
-        } catch {
-          // fall back to raw html
-        }
-      }
       lines.push("```html");
-      lines.push(html);
+      lines.push(await prettify(item.html));
       lines.push("```\n");
     }
   }

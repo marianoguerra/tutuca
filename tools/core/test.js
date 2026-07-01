@@ -34,7 +34,9 @@ function buildStack({ components = [], macros = null, requestHandlers = null } =
 // shape as an example's on.init) at the root over `stack`, awaiting the full
 // cascade. Returns the settled root value. `opts.onMessage(message, before,
 // after)` observes each committed transaction (message = { kind, name, args, path }).
+// `opts.warn` redirects diagnostics away from console.warn (e.g. for a CLI host).
 async function driveStack(stack, value, phase, opts = {}) {
+  const warn = opts.warn ?? console.warn;
   const transactor = new Transactor(stack.comps, value);
   if (opts.onMessage)
     transactor.state.onChange(({ val, old, info }) => {
@@ -46,7 +48,7 @@ async function driveStack(stack, value, phase, opts = {}) {
       );
     });
   if (phaseHasBubble(phase))
-    console.warn(
+    warn(
       "drive(): a `bubble` action is a no-op here — drive originates at the root and bubbles travel child→parent, so there is no ancestor to receive it (and the root's own bubble handler is skipped). To exercise a bubble handler, call it directly.",
     );
   dispatchPhase(rootDispatcher(transactor), new Path([]), phase, value);

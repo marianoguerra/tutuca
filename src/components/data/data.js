@@ -1,6 +1,7 @@
-import { component, html, IMap, ISet, List, OMap, OrderedSet } from "tutuca";
+import { component, html } from "tutuca";
 import {
   classifyImmutable,
+  fmtAnyKey,
   getComponents as getImmutableComponents,
 } from "./immutable-inspector.js";
 import {
@@ -11,6 +12,7 @@ import {
   compositeMethods,
   compositeView,
   JsonProperty,
+  makeValueInspector,
 } from "./json.js";
 
 export const JsUndefined = component({
@@ -118,26 +120,6 @@ export const JsSetItem = component({
     <x render=".child"></x>
   </div>`,
 });
-
-export function fmtAnyKey(k) {
-  if (k === null) return "null";
-  if (k === undefined) return "undefined";
-  const t = typeof k;
-  if (t === "string" || t === "number" || t === "boolean" || t === "bigint") return String(k);
-  if (t === "symbol") return String(k);
-  if (t === "function") return `ƒ ${k.name || "(anonymous)"}()`;
-  if (Array.isArray(k)) return `Array(${k.length})`;
-  if (k instanceof Map) return `Map(${k.size})`;
-  if (k instanceof Set) return `Set(${k.size})`;
-  if (k instanceof Date) return k.toISOString();
-  if (List.isList(k)) return `List[${k.size}]`;
-  if (OMap.isOrderedMap(k)) return `OrderedMap[${k.size}]`;
-  if (IMap.isMap(k)) return `Map[${k.size}]`;
-  if (OrderedSet.isOrderedSet(k)) return `OrderedSet[${k.size}]`;
-  if (ISet.isSet(k)) return `Set[${k.size}]`;
-  const ctor = k.constructor?.name;
-  return ctor && ctor !== "Object" ? `${ctor} {…}` : Object.prototype.toString.call(k);
-}
 
 export const JsMap = component({
   name: "JsMap",
@@ -247,22 +229,11 @@ export function classifyJsExtra(data, recurse) {
 
 const dispatch = chain(classifyImmutable, classifyJsExtra, classifyJson);
 
-export const DataInspector = component({
+export const DataInspector = makeValueInspector({
   name: "DataInspector",
-  fields: { value: null },
-  methods: {
-    toggleIsExpanded() {
-      return typeof this.value?.toggleIsExpanded === "function"
-        ? this.setValue(this.value.toggleIsExpanded())
-        : this;
-    },
+  fromData(data) {
+    return this.make({ value: dispatch(data) });
   },
-  statics: {
-    fromData(data) {
-      return this.make({ value: dispatch(data) });
-    },
-  },
-  view: html`<span class="contents"><x render=".value"></x></span>`,
 });
 
 export function getComponents() {

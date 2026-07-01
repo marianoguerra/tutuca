@@ -209,27 +209,45 @@ export const JsonProperty = component({
   </div>`,
 });
 
-export const JsonViewer = component({
+// Delegate an expand/collapse toggle to the wrapped `value` when it supports
+// one; leaf values (JsonNull, …) have no toggle so the wrapper stays as-is.
+// Shared by every top-level inspector wrapper (JsonViewer, DataInspector,
+// ImInspector, InstanceInspector, SchemaViewer).
+export const valueWrapperMethods = {
+  toggleIsExpanded() {
+    return typeof this.value?.toggleIsExpanded === "function"
+      ? this.setValue(this.value.toggleIsExpanded())
+      : this;
+  },
+};
+
+const valueWrapperView = html`<span class="contents"><x render=".value"></x></span>`;
+
+// Build a thin top-level inspector wrapper: one `value` field holding the
+// classified tree, the delegating toggle above, and a pass-through view.
+// `fromData` runs as a static (`this` is the component class) and classifies
+// the raw input into `value`.
+export function makeValueInspector({ name, fromData }) {
+  return component({
+    name,
+    fields: { value: null },
+    methods: valueWrapperMethods,
+    statics: { fromData },
+    view: valueWrapperView,
+  });
+}
+
+export const JsonViewer = makeValueInspector({
   name: "JsonViewer",
-  fields: {
-    value: null,
+  fromData(data) {
+    return this.make({ value: classifyData(data) });
   },
-  methods: {
-    toggleIsExpanded() {
-      return typeof this.value?.toggleIsExpanded === "function"
-        ? this.setValue(this.value.toggleIsExpanded())
-        : this;
-    },
-  },
-  statics: {
-    fromData(data) {
-      return this.make({ value: classifyData(data) });
-    },
-  },
-  view: html`<span class="contents"><x render=".value"></x></span>`,
 });
 
-export function classifyJson(data, recurse = classifyJson) {
+// Shared type dispatch behind classifyJson (strict: only plain objects, null
+// result so a `chain` can hand unknown values to the next classifier) and
+// classifyData (lenient: any object, always renders something).
+function classifyJsonValue(data, recurse, anyObject) {
   if (data === null || data === undefined) return JsonNull.make({});
   const t = typeof data;
   if (t === "boolean") return JsonBoolean.make({ value: data });
@@ -241,7 +259,7 @@ export function classifyJson(data, recurse = classifyJson) {
   }
   if (t === "object") {
     const proto = Object.getPrototypeOf(data);
-    if (proto === Object.prototype || proto === null) {
+    if (anyObject || proto === Object.prototype || proto === null) {
       const items = Object.entries(data).map(([k, v]) =>
         JsonProperty.make({ key: k, child: recurse(v) }),
       );
@@ -251,23 +269,12 @@ export function classifyJson(data, recurse = classifyJson) {
   return null;
 }
 
+export function classifyJson(data, recurse = classifyJson) {
+  return classifyJsonValue(data, recurse, false);
+}
+
 export function classifyData(data, recurse = classifyData) {
-  if (data === null || data === undefined) return JsonNull.make({});
-  const t = typeof data;
-  if (t === "boolean") return JsonBoolean.make({ value: data });
-  if (t === "number") return JsonNumber.make({ value: data });
-  if (t === "string") return JsonString.make({ value: data });
-  if (Array.isArray(data)) {
-    const items = data.map((v, i) => JsonProperty.make({ key: String(i), child: recurse(v) }));
-    return JsonArray.make({ items });
-  }
-  if (t === "object") {
-    const items = Object.entries(data).map(([k, v]) =>
-      JsonProperty.make({ key: k, child: recurse(v) }),
-    );
-    return JsonObject.make({ items });
-  }
-  return JsonNull.make({});
+  return classifyJsonValue(data, recurse, true) ?? JsonNull.make({});
 }
 
 export function chain(...classifiers) {

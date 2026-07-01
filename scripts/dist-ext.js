@@ -14,13 +14,10 @@ const externalizeImmutable = {
   },
 };
 
-const modules = [
-  ["index.js", "tutuca.ext.js"],
-  ["extra.js", "tutuca-extra.ext.js"],
-  ["dev.js", "tutuca-dev.ext.js"],
-];
+import { TIERS } from "./tiers.js";
 
-for (const [input, output] of modules) {
+for (const [input, name] of TIERS) {
+  const output = `${name}.ext.js`;
   const result = await Bun.build({
     entrypoints: [input],
     format: "esm",

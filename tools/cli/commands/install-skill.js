@@ -1,9 +1,10 @@
-import { cpSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { CODES, emitError } from "../errors.js";
+import { walkFiles } from "../walk.js";
 
 export const describe =
   "Install Claude Code skills (tutuca, margaui, immutable-js) into .claude/skills/.";
@@ -32,20 +33,7 @@ function targetDir(scope, name, dotAgents) {
 
 function targetHasSkillFiles(dir) {
   if (!existsSync(dir)) return false;
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.isFile() && entry.name.endsWith(".md")) return true;
-    if (entry.isDirectory() && targetHasSkillFiles(resolve(dir, entry.name))) return true;
-  }
-  return false;
-}
-
-function listFiles(srcRoot, srcDir, acc) {
-  for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
-    const full = resolve(srcDir, entry.name);
-    if (entry.isDirectory()) listFiles(srcRoot, full, acc);
-    else if (entry.isFile()) acc.push(relative(srcRoot, full));
-  }
-  return acc;
+  return walkFiles(dir, { match: (name) => name.endsWith(".md") }).length > 0;
 }
 
 function installSkill(skill, root, scope, force, dotAgents, dryRun, opts) {
@@ -69,7 +57,7 @@ function installSkill(skill, root, scope, force, dotAgents, dryRun, opts) {
   const rel = scope === "project" ? `${baseDir}/${skill.name}` : target;
 
   if (dryRun) {
-    const files = listFiles(src, src, []);
+    const files = walkFiles(src, { match: () => true }).map((f) => relative(src, f));
     process.stdout.write(`would install ${skill.name} skill → ${rel}\n`);
     for (const f of files) process.stdout.write(`  + ${f}\n`);
     return;

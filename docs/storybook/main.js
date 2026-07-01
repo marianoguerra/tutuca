@@ -2,7 +2,7 @@
 //
 // Imports every demo module in this folder via RELATIVE paths (so it works at the
 // site root /storybook/) and mounts them. margaui CSS is compiled into the page via
-// the compileCss callback, exactly like docs/src/storybook.js.
+// the compileCss callback.
 //
 // The live CLI serve (`bun run storybook`) does NOT use this file — it generates its
 // own bootstrap pointing at the local dist. This file is what GitHub Pages serves.

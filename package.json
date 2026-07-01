@@ -2,7 +2,7 @@
   "name": "tutuca",
   "version": "0.9.105",
   "type": "module",
-  "description": "Zero-dependency SPA framework with immutable state and virtual DOM",
+  "description": "SPA framework with immutable state and virtual DOM; dependency-free browser bundle",
   "main": "./dist/tutuca.js",
   "module": "./dist/tutuca.js",
   "exports": {
@@ -29,8 +29,9 @@
     "dist-immutable": "bun scripts/dist-immutable.js",
     "dist-all": "bun run dist-immutable && bun run dist && bun run dist-ext && bun run smoke",
     "smoke": "node scripts/smoke.js",
-    "release": "bun run dist-all && bun run build-skill && (npm publish --access public; bun run clean-skill)",
-    "release-dry": "bun run dist-all && bun run build-skill && (npm publish --dry-run; bun run clean-skill)",
+    "release": "bun run dist-all && bun run sync-docs-storybook && bun run build-skill && (npm publish --access public; bun run clean-skill)",
+    "release-dry": "bun run dist-all && bun run sync-docs-storybook && bun run build-skill && (npm publish --dry-run; bun run clean-skill)",
+    "sync-docs-storybook": "bun scripts/sync-docs-storybook.js",
     "build-skill": "bun scripts/build-skill.js",
     "clean-skill": "rm -rf skill",
     "test": "bun test test/*.test.js",
@@ -49,20 +50,8 @@
     "./deps/chai.js"
   ],
   "files": [
-    "dist/tutuca.js",
-    "dist/tutuca.min.js",
-    "dist/tutuca-dev.js",
-    "dist/tutuca-dev.min.js",
-    "dist/tutuca-extra.js",
-    "dist/tutuca-extra.min.js",
-    "dist/tutuca-cli.js",
-    "dist/tutuca.ext.js",
-    "dist/tutuca-extra.ext.js",
-    "dist/tutuca-dev.ext.js",
-    "dist/tutuca-storybook.js",
-    "dist/tutuca-components.js",
-    "dist/immutable.js",
-    "dist/chai.js",
+    "dist/",
+    "!dist/*.br",
     "skill"
   ],
   "dependencies": {

@@ -164,9 +164,15 @@ export function findComponentNameConflicts(entries) {
     for (const comp of components ?? []) {
       if (!comp || typeof comp.name !== "string") continue;
       let objs = byName.get(comp.name);
-      if (!objs) byName.set(comp.name, (objs = new Map()));
+      if (!objs) {
+        objs = new Map();
+        byName.set(comp.name, objs);
+      }
       let paths = objs.get(comp);
-      if (!paths) objs.set(comp, (paths = new Set()));
+      if (!paths) {
+        paths = new Set();
+        objs.set(comp, paths);
+      }
       if (path != null) paths.add(path);
     }
   }

@@ -1,6 +1,6 @@
 # Tutuca
 
-Zero-dependency batteries included SPA framework.
+Batteries included SPA framework with a dependency-free browser bundle.
 
 - **Single file, no build, no dependencies, no setup** — a script tag is all you need
 - **Batteries included** — state management, side effects, automatic memoization, drag and drop, testing, CLI tooling, LLM skills and more

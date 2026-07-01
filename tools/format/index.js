@@ -5,6 +5,10 @@ import * as md from "./md.js";
 
 const FORMATTERS = { cli, md, json, html };
 
+// The valid --format values, in display order. Single source of truth for
+// CLI validation (tools/tutuca.js) and the agent-context schema.
+export const FORMAT_NAMES = Object.keys(FORMATTERS);
+
 function pickFormatter(name) {
   const f = FORMATTERS[name];
   if (!f) {

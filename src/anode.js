@@ -1,11 +1,5 @@
 import { Attributes, getAttrParser } from "./attribute.js";
-import {
-  DynEachStep,
-  DynStep,
-  EachBindStep,
-  EachRenderItStep,
-  ScopeBindStep,
-} from "./path.js";
+import { DynEachStep, DynStep, EachBindStep, EachRenderItStep, ScopeBindStep } from "./path.js";
 import { filterAlwaysTrue, makeLoopCtx, nullLoopWith, unpackLoopResult } from "./renderer.js";
 import { isMac } from "./util/env.js";
 import { DynVal, vp } from "./value.js";

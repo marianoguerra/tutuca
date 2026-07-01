@@ -1,41 +1,8 @@
-clean:
-    npm run clean
-
-dist:
-    npm run dist
-
-dist-ext:
-    npm run dist-ext
-
-dist-immutable:
-    npm run dist-immutable
-
-dist-all:
-    npm run dist-all
-
 publish:
     bun run release
 
 publish-dry:
     bun run release-dry
-
-test:
-    npm run test
-
-test-watch:
-    npm run test-watch
-
-format:
-    npm run format
-
-lint:
-    npm run lint
-
-lint-fix:
-    npm run lint-fix
-
-fix:
-    npm run fix
 
 tutuca *ARGS:
     bun tools/tutuca.js {{ARGS}}
@@ -60,6 +27,3 @@ render MODULE NAME="":
 
 stresstest iterations="100000" seed="":
     bun scripts/stresstest.js --iterations {{iterations}} {{ if seed != "" { "--seed " + seed } else { "" } }}
-
-smoke-test:
-    npm run smoke-test

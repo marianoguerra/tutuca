@@ -1,23 +1,12 @@
 #!/usr/bin/env node
+import { NO_MODULE_COMMANDS } from "./cli/commands/_no-module.js";
 import { COMMANDS } from "./cli/commands/_registry.js";
-import * as agentContext from "./cli/commands/agent-context.js";
-import * as feedback from "./cli/commands/feedback.js";
 import * as help from "./cli/commands/help.js";
-import * as installSkill from "./cli/commands/install-skill.js";
-import * as storybook from "./cli/commands/storybook.js";
 import { installDevBuildResolveHook } from "./cli/dev-build-hook.js";
 import { CODES, didYouMean, emitError, parseArgsErrorShape } from "./cli/errors.js";
 import { runCommand } from "./cli/with-module.js";
+import { FORMAT_NAMES } from "./format/index.js";
 
-const NO_MODULE_COMMANDS = {
-  help: help,
-  feedback: feedback,
-  "install-skill": installSkill,
-  storybook: storybook,
-  "agent-context": agentContext,
-};
-
-const VALID_FORMATS = ["cli", "md", "json", "html"];
 const GLOBAL_FLAGS = ["format", "output", "pretty", "module", "json", "help", "no-color"];
 
 function extractGlobals(argv) {
@@ -53,12 +42,12 @@ function extractGlobals(argv) {
       rest.push(a);
     }
   }
-  if (opts.format != null && !VALID_FORMATS.includes(opts.format)) {
+  if (opts.format != null && !FORMAT_NAMES.includes(opts.format)) {
     emitError(opts, {
       code: CODES.FORMAT_UNKNOWN,
       message: `Unknown format '${opts.format}'`,
-      suggestion: didYouMean(opts.format, VALID_FORMATS),
-      hint: `Valid formats: ${VALID_FORMATS.join(", ")}`,
+      suggestion: didYouMean(opts.format, FORMAT_NAMES),
+      hint: `Valid formats: ${FORMAT_NAMES.join(", ")}`,
     });
   }
   return { opts, rest };
@@ -84,7 +73,7 @@ async function main() {
   if (NO_MODULE_COMMANDS[command]) {
     const commandArgs = rest.slice(1);
     const args = opts.help ? [...commandArgs, "--help"] : commandArgs;
-    await NO_MODULE_COMMANDS[command].run(args, opts);
+    await NO_MODULE_COMMANDS[command].mod.run(args, opts);
     return;
   }
 
@@ -129,49 +118,56 @@ async function main() {
   try {
     await runCommand(cmd, commandArgs, opts);
   } catch (e) {
-    if (e?.code === "EXAMPLES_SHAPE_MISMATCH") {
-      const parts = [];
-      if (opts.module) parts.push(opts.module);
-      if (e.where) parts.push(`@ ${e.where}`);
-      emitError(opts, {
-        code: CODES.MODULE_SHAPE_MISMATCH,
-        message: e.message,
-        where: parts.length ? parts.join(" ") : null,
-      });
-    }
-    if (e?.code === "ERR_FORMAT_UNKNOWN") {
-      emitError(opts, {
-        code: CODES.FORMAT_UNKNOWN,
-        message: e.message,
-        suggestion: didYouMean(e.formatName, e.validFormats ?? VALID_FORMATS),
-      });
-    }
-    if (e?.code === "ERR_FORMAT_UNSUPPORTED") {
-      emitError(opts, {
-        code: CODES.FORMAT_UNSUPPORTED,
-        message: e.message,
-        suggestion: e.supportedFormats?.length
-          ? { kind: "rewrite", from: e.formatName, to: e.supportedFormats[0] }
-          : null,
-      });
-    }
-    if (e?.code?.startsWith?.("ERR_PARSE_ARGS_")) {
-      const validFlags = [...Object.keys(cmd.parseOptions ?? {}), ...GLOBAL_FLAGS];
-      const shape = parseArgsErrorShape(e, validFlags);
-      emitError(opts, {
-        ...shape,
-        hint: shape.hint ?? `Run \`tutuca help ${command}\` for valid flags.`,
-      });
-    }
-    if (e?.code === "ERR_MODULE_LOAD_FAILED") {
-      emitError(opts, {
-        code: CODES.MODULE_LOAD_FAILED,
-        message: e.message,
-        hint: "Pass a module file path. `tutuca test` also accepts a directory to run every test module under it.",
-      });
-    }
+    const shape = translateCommandError(e, { opts, cmd, command });
+    if (shape) emitError(opts, shape);
     throw e;
   }
+}
+
+// Translate errors thrown by command execution into emitError shapes.
+// Returns null for errors we don't recognize (the caller rethrows).
+const ERROR_TRANSLATORS = {
+  EXAMPLES_SHAPE_MISMATCH: (e, { opts }) => {
+    const parts = [];
+    if (opts.module) parts.push(opts.module);
+    if (e.where) parts.push(`@ ${e.where}`);
+    return {
+      code: CODES.MODULE_SHAPE_MISMATCH,
+      message: e.message,
+      where: parts.length ? parts.join(" ") : null,
+    };
+  },
+  ERR_FORMAT_UNKNOWN: (e) => ({
+    code: CODES.FORMAT_UNKNOWN,
+    message: e.message,
+    suggestion: didYouMean(e.formatName, e.validFormats ?? FORMAT_NAMES),
+  }),
+  ERR_FORMAT_UNSUPPORTED: (e) => ({
+    code: CODES.FORMAT_UNSUPPORTED,
+    message: e.message,
+    suggestion: e.supportedFormats?.length
+      ? { kind: "rewrite", from: e.formatName, to: e.supportedFormats[0] }
+      : null,
+  }),
+  ERR_MODULE_LOAD_FAILED: (e) => ({
+    code: CODES.MODULE_LOAD_FAILED,
+    message: e.message,
+    hint: "Pass a module file path. `tutuca test` also accepts a directory to run every test module under it.",
+  }),
+};
+
+function translateCommandError(e, ctx) {
+  const translate = ERROR_TRANSLATORS[e?.code];
+  if (translate) return translate(e, ctx);
+  if (e?.code?.startsWith?.("ERR_PARSE_ARGS_")) {
+    const validFlags = [...Object.keys(ctx.cmd.parseOptions ?? {}), ...GLOBAL_FLAGS];
+    const shape = parseArgsErrorShape(e, validFlags);
+    return {
+      ...shape,
+      hint: shape.hint ?? `Run \`tutuca help ${ctx.command}\` for valid flags.`,
+    };
+  }
+  return null;
 }
 
 main().catch((e) => {

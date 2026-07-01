@@ -1,7 +1,8 @@
 import { makeFormatter } from "./_dispatch.js";
+import { makeHtmlPrettifier } from "./prettify.js";
 
 async function fmtRenderBatch(result, { pretty = false } = {}) {
-  const prettify = pretty ? (await import("prettier")).format : null;
+  const prettify = await makeHtmlPrettifier(pretty);
   const parts = [];
   for (const section of result.sections) {
     parts.push(`<!-- === ${section.title} === -->`);
@@ -10,14 +11,8 @@ async function fmtRenderBatch(result, { pretty = false } = {}) {
         parts.push(`<!-- ERROR ${item.title}: ${item.error.message} -->`);
         continue;
       }
-      let html = item.html;
-      if (prettify) {
-        try {
-          html = (await prettify(html, { parser: "html" })).trimEnd();
-        } catch {}
-      }
       parts.push(`<!-- ${item.title} -->`);
-      parts.push(html);
+      parts.push(await prettify(item.html));
     }
   }
   return parts.join("\n");

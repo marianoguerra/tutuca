@@ -6,6 +6,7 @@ import {
   compositeMethods,
   getComponents as getJsonComponents,
   JsonViewer,
+  valueWrapperMethods,
 } from "./json.js";
 
 // ---------------------------------------------------------------------------
@@ -654,11 +655,7 @@ export const SchemaViewer = component({
     showRaw: false,
   },
   methods: {
-    toggleIsExpanded() {
-      return typeof this.value?.toggleIsExpanded === "function"
-        ? this.setValue(this.value.toggleIsExpanded())
-        : this;
-    },
+    ...valueWrapperMethods,
     toggleLabel() {
       return this.showRaw ? "high-level view" : "raw schema";
     },

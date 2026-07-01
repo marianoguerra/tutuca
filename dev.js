@@ -11,7 +11,7 @@ import { ANode } from "./src/anode.js";
 import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 import { checkComponent, LintParseContext } from "./tools/core/lint-check.js";
 import { runTests } from "./tools/core/test.js";
-import { reportTestReportToConsole } from "./tools/core/test-console.js";
+import { reportTestReportToConsole } from "./tools/format/console.js";
 import { lintIdToMessage, suggestionToMessage } from "./tools/format/lint.js";
 
 export * from "./extra.js";
@@ -22,8 +22,8 @@ export * from "./tools/core/docs.js";
 export * from "./tools/core/lint-check.js";
 export * from "./tools/core/results.js";
 export * from "./tools/core/test.js";
-export * from "./tools/core/test-console.js";
 export * from "./tools/core/tests.js";
+export * from "./tools/format/console.js";
 export * from "./tools/format/lint.js";
 
 export async function test(opts = {}) {

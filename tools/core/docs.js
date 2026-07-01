@@ -193,12 +193,8 @@ function getComponentDoc(comp) {
   return { name, methods: userMethods, input: inputHandlers, fields: fieldDocs };
 }
 
-export function getComponentsDocs(components) {
-  return components.map((comp) => getComponentDoc(comp));
-}
-
 export function docComponents(normalized, { name = null } = {}) {
   const comps = normalized.components;
   const picked = name === null ? comps : comps.filter((c) => c.name === name);
-  return new ComponentDocs({ items: getComponentsDocs(picked) });
+  return new ComponentDocs({ items: picked.map((comp) => getComponentDoc(comp)) });
 }
