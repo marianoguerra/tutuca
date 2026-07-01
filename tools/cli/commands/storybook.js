@@ -101,7 +101,32 @@ function tutucaSource(base) {
   return "local dist";
 }
 
-function buildImports(base, { margaui }) {
+// Local-first margaui resolution, mirroring resolveTutucaBase:
+// explicit override → project node_modules/margaui → CDN.
+// Returns server-absolute or CDN URLs for BOTH the JS module and the theme CSS.
+function resolveMargaui(projectDir, { forCdn, override }) {
+  if (override) {
+    // Override targets the JS module (a URL, or a path INSIDE projectDir so the
+    // static server can reach it). No reliable co-located theme → keep CDN theme.
+    const jsUrl = override.startsWith("http")
+      ? override
+      : `/${relative(projectDir, resolve(projectDir, override)).split(sep).join("/")}`;
+    return { jsUrl, themeUrl: MARGAUI_THEME, source: "override" };
+  }
+  if (!forCdn) {
+    const localJs = resolve(projectDir, "node_modules", "margaui", "dist", "margaui.min.js");
+    if (existsSync(localJs)) {
+      return {
+        jsUrl: "/node_modules/margaui/dist/margaui.min.js",
+        themeUrl: "/node_modules/margaui/dist/themes/theme.css",
+        source: "node_modules",
+      };
+    }
+  }
+  return { jsUrl: MARGAUI_CDN, themeUrl: MARGAUI_THEME, source: "CDN" };
+}
+
+function buildImports(base, { margauiEnabled, margauiJsUrl }) {
   const dev = `${base}/tutuca-dev.js`;
   const imports = {
     tutuca: dev,
@@ -110,12 +135,12 @@ function buildImports(base, { margaui }) {
     "tutuca/storybook": `${base}/tutuca-storybook.js`,
     "tutuca/components": `${base}/tutuca-components.js`,
   };
-  if (margaui) imports.margaui = MARGAUI_CDN;
+  if (margauiEnabled) imports.margaui = margauiJsUrl;
   return imports;
 }
 
-function renderIndexHtml(imports, { margaui, bootstrapUrl }) {
-  const theme = margaui ? `\n    <link rel="stylesheet" href="${MARGAUI_THEME}" />` : "";
+function renderIndexHtml(imports, { margauiEnabled, margauiThemeUrl, bootstrapUrl }) {
+  const theme = margauiEnabled ? `\n    <link rel="stylesheet" href="${margauiThemeUrl}" />` : "";
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -134,9 +159,9 @@ ${JSON.stringify({ imports }, null, 6)}
 `;
 }
 
-function renderBootstrap(devModuleUrls, { margaui, check, inspect, noCache }) {
+function renderBootstrap(devModuleUrls, { margauiEnabled, check, inspect, noCache }) {
   const lines = ['import { mountStorybook } from "tutuca/storybook";'];
-  if (margaui) {
+  if (margauiEnabled) {
     lines.push('import { compileClassesToStyleText } from "tutuca/extra";');
     lines.push('import { compile } from "margaui";');
   }
@@ -151,7 +176,7 @@ function renderBootstrap(devModuleUrls, { margaui, check, inspect, noCache }) {
   });
   const modules = devModuleUrls.map((_, i) => `m${i}`).join(", ");
   const optParts = [];
-  if (margaui) optParts.push("compileCss: (app) => compileClassesToStyleText(app, compile)");
+  if (margauiEnabled) optParts.push("compileCss: (app) => compileClassesToStyleText(app, compile)");
   if (inspect) optParts.push("dev: { shadowCheckComponent, runTests, expect }");
   if (noCache) optParts.push("noCache: true");
   const opts = optParts.length ? `{ ${optParts.join(", ")} }` : "{}";
@@ -305,6 +330,8 @@ export async function run(argv, opts = {}) {
     options: {
       port: { type: "string" },
       out: { type: "string" },
+      margaui: { type: "string" },
+      "margaui-cdn": { type: "boolean", default: false },
       "no-margaui": { type: "boolean", default: false },
       "no-check": { type: "boolean", default: false },
       "no-inspect": { type: "boolean", default: false },
@@ -319,20 +346,27 @@ export async function run(argv, opts = {}) {
   if (parsed.values.help) {
     process.stdout.write(
       "tutuca storybook [dir] [--port <n>] [--out <dir>] [--dry-run]\n" +
-        "                 [--no-margaui] [--no-check] [--no-inspect] [--no-tests]\n" +
-        "                 [--no-cache]\n" +
+        "                 [--margaui <url|path>] [--margaui-cdn] [--no-margaui]\n" +
+        "                 [--no-check] [--no-inspect] [--no-tests] [--no-cache]\n" +
         "\n" +
         "  Auto-discovers co-located *.dev.js modules (recursively, skipping\n" +
         "  node_modules/dotdirs) and serves a live storybook that mounts them via\n" +
         "  the tutuca/storybook library. Zero setup.\n" +
         "\n" +
+        "  margaui styling loads local-first: it's used from node_modules/margaui\n" +
+        "  when installed (offline-capable), else from the CDN.\n" +
+        "\n" +
         "  [dir]          project root to scan and serve (default: cwd)\n" +
         "  --port <n>     preferred port (default 4321; falls back to a free port)\n" +
-        "  --out <dir>    write a static index.html + bootstrap (CDN import map)\n" +
-        "                 instead of serving; host it from the project root\n" +
+        "  --out <dir>    write a static index.html + bootstrap (CDN import map for\n" +
+        "                 both tutuca and margaui) instead of serving; host it from\n" +
+        "                 the project root\n" +
         "  --dry-run      do all the prep (discover, import and normalize modules,\n" +
         "                 resolve the runtime, run tests) and print what would be\n" +
         "                 shown instead of serving; pass --json for structured output\n" +
+        "  --margaui <url|path>  use a specific margaui build (URL, or path inside\n" +
+        "                 the project) instead of auto-detecting / the CDN\n" +
+        "  --margaui-cdn  force the margaui CDN even if node_modules/margaui exists\n" +
         "  --no-margaui   skip margaui styling (renders functional but unstyled)\n" +
         "  --no-check     skip the in-browser check(app) dev validation\n" +
         "  --no-inspect   skip the per-example Component/Instance/Data/Lint/Test tabs\n" +
@@ -360,7 +394,9 @@ export async function run(argv, opts = {}) {
     });
   }
 
-  const margaui = !parsed.values["no-margaui"];
+  const margauiEnabled = !parsed.values["no-margaui"];
+  const margauiOverride = parsed.values.margaui; // undefined → auto-detect
+  const forceMargauiCdn = parsed.values["margaui-cdn"]; // skip node_modules auto-detect
   const check = !parsed.values["no-check"];
   const inspect = !parsed.values["no-inspect"];
   const noCache = parsed.values["no-cache"];
@@ -371,15 +407,20 @@ export async function run(argv, opts = {}) {
     const outDir = resolve(parsed.values.out);
     mkdirSync(outDir, { recursive: true });
     const { base } = resolveTutucaBase(projectDir, self, true);
-    const imports = buildImports(base, { margaui });
+    const mg = resolveMargaui(projectDir, { forCdn: true, override: margauiOverride });
+    const imports = buildImports(base, { margauiEnabled, margauiJsUrl: mg.jsUrl });
     const bootstrapName = "tutuca-storybook.bootstrap.js";
     writeFileSync(
       resolve(outDir, "index.html"),
-      renderIndexHtml(imports, { margaui, bootstrapUrl: `./${bootstrapName}` }),
+      renderIndexHtml(imports, {
+        margauiEnabled,
+        margauiThemeUrl: mg.themeUrl,
+        bootstrapUrl: `./${bootstrapName}`,
+      }),
     );
     writeFileSync(
       resolve(outDir, bootstrapName),
-      renderBootstrap(devModuleUrls, { margaui, check, inspect, noCache }),
+      renderBootstrap(devModuleUrls, { margauiEnabled, check, inspect, noCache }),
     );
     process.stdout.write(
       `wrote static storybook → ${relative(process.cwd(), outDir) || "."}/\n` +
@@ -394,7 +435,8 @@ export async function run(argv, opts = {}) {
   // be shown instead of serving — lets agents verify setup without a browser.
   if (parsed.values["dry-run"]) {
     const { base } = resolveTutucaBase(projectDir, self, false);
-    const imports = buildImports(base, { margaui });
+    const mg = resolveMargaui(projectDir, { forCdn: forceMargauiCdn, override: margauiOverride });
+    const imports = buildImports(base, { margauiEnabled, margauiJsUrl: mg.jsUrl });
     const modules = await discoverModules(projectDir, devModuleUrls);
     const tests = parsed.values["no-tests"] ? null : await runDevTests(projectDir, devModuleUrls);
     const componentNameConflicts = await checkComponentNameConflicts(projectDir, devModuleUrls);
@@ -402,7 +444,10 @@ export async function run(argv, opts = {}) {
     const result = {
       projectDir,
       tutuca: { source, base, version: self.version },
-      options: { margaui, check, noCache, runTests: !parsed.values["no-tests"] },
+      margaui: margauiEnabled
+        ? { source: mg.source, jsUrl: mg.jsUrl, themeUrl: mg.themeUrl }
+        : null,
+      options: { margaui: margauiEnabled, check, noCache, runTests: !parsed.values["no-tests"] },
       imports,
       modules,
       tests,
@@ -418,7 +463,8 @@ export async function run(argv, opts = {}) {
       `tutuca storybook dry run (no server started)\n` +
         `  project: ${projectDir}\n` +
         `  tutuca runtime: ${source} (${base}, version ${self.version})\n` +
-        `  margaui: ${margaui ? "on" : "off"}, in-browser check: ${check ? "on" : "off"}, ` +
+        `  margaui: ${margauiEnabled ? `on (${mg.source})` : "off"}, ` +
+        `in-browser check: ${check ? "on" : "off"}, ` +
         `cache: ${noCache ? "off" : "on"}\n` +
         `  ${modules.length} dev module(s):\n`,
     );
@@ -480,9 +526,14 @@ export async function run(argv, opts = {}) {
   }
 
   const { base, serveDist } = resolveTutucaBase(projectDir, self, false);
-  const imports = buildImports(base, { margaui });
-  const indexHtml = renderIndexHtml(imports, { margaui, bootstrapUrl: BOOTSTRAP_URL });
-  const bootstrapJs = renderBootstrap(devModuleUrls, { margaui, check, inspect, noCache });
+  const mg = resolveMargaui(projectDir, { forCdn: forceMargauiCdn, override: margauiOverride });
+  const imports = buildImports(base, { margauiEnabled, margauiJsUrl: mg.jsUrl });
+  const indexHtml = renderIndexHtml(imports, {
+    margauiEnabled,
+    margauiThemeUrl: mg.themeUrl,
+    bootstrapUrl: BOOTSTRAP_URL,
+  });
+  const bootstrapJs = renderBootstrap(devModuleUrls, { margauiEnabled, check, inspect, noCache });
 
   const server = createServer((req, res) => {
     const path = req.url.split("?")[0];
@@ -514,9 +565,10 @@ export async function run(argv, opts = {}) {
   server.on("listening", () => {
     const actual = server.address().port;
     const where = tutucaSource(base);
+    const margauiFrom = margauiEnabled ? `, margaui from ${mg.source}` : "";
     process.stdout.write(
       `tutuca storybook: http://localhost:${actual}/  ` +
-        `(${devModuleUrls.length} dev modules, tutuca from ${where})\n`,
+        `(${devModuleUrls.length} dev modules, tutuca from ${where}${margauiFrom})\n`,
     );
   });
   server.listen(preferred);

@@ -1,7 +1,8 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -264,5 +265,75 @@ describe("CLI: install-skill --dry-run", () => {
     expect(code).toBe(0);
     expect(stdout).toContain("would install tutuca skill");
     expect(stdout).toContain("SKILL.md");
+  });
+});
+
+describe("CLI: storybook margaui resolution", () => {
+  const CDN_JS = "https://cdn.jsdelivr.net/npm/margaui/+esm";
+
+  function dryRun(dir, ...extra) {
+    const { code, stdout } = run(["storybook", dir, "--dry-run", "--json", "--no-tests", ...extra]);
+    expect(code).toBe(0);
+    return JSON.parse(stdout);
+  }
+
+  test("defaults to the CDN when no node_modules/margaui is present", () => {
+    const r = dryRun(storyset);
+    expect(r.margaui.source).toBe("CDN");
+    expect(r.margaui.jsUrl).toBe(CDN_JS);
+    expect(r.imports.margaui).toBe(CDN_JS);
+  });
+
+  test("--no-margaui drops margaui entirely", () => {
+    const r = dryRun(storyset, "--no-margaui");
+    expect(r.margaui).toBe(null);
+    expect(r.imports.margaui).toBeUndefined();
+    expect(r.options.margaui).toBe(false);
+  });
+
+  test("--margaui <url> overrides the source", () => {
+    const url = "https://cdn.jsdelivr.net/npm/margaui@0.5606.1/+esm";
+    const r = dryRun(storyset, "--margaui", url);
+    expect(r.margaui.source).toBe("override");
+    expect(r.margaui.jsUrl).toBe(url);
+    expect(r.imports.margaui).toBe(url);
+  });
+
+  describe("with a local node_modules/margaui", () => {
+    let dir;
+    beforeAll(() => {
+      // A throwaway project that installs margaui: a *.dev.js plus the two files
+      // resolveMargaui probes for (JS entry + theme CSS). Contents are irrelevant
+      // to the Node-side dry run — only existence/paths are resolved.
+      dir = mkdtempSync(join(tmpdir(), "tutuca-sb-margaui-"));
+      writeFileSync(
+        join(dir, "x.dev.js"),
+        "export function getComponents() { return []; }\nexport function getExamples() { return []; }\n",
+      );
+      const md = join(dir, "node_modules", "margaui", "dist");
+      mkdirSync(join(md, "themes"), { recursive: true });
+      writeFileSync(join(md, "margaui.min.js"), "export const compile = () => ({});\n");
+      writeFileSync(join(md, "themes", "theme.css"), "/* theme */\n");
+    });
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+    test("auto-detects the local install (offline path)", () => {
+      const r = dryRun(dir);
+      expect(r.margaui.source).toBe("node_modules");
+      expect(r.margaui.jsUrl).toBe("/node_modules/margaui/dist/margaui.min.js");
+      expect(r.margaui.themeUrl).toBe("/node_modules/margaui/dist/themes/theme.css");
+    });
+
+    test("--margaui-cdn forces the CDN even when local is present", () => {
+      const r = dryRun(dir, "--margaui-cdn");
+      expect(r.margaui.source).toBe("CDN");
+      expect(r.margaui.jsUrl).toBe(CDN_JS);
+    });
+
+    test("--margaui override wins over the local install", () => {
+      const r = dryRun(dir, "--margaui", "./vendor.js");
+      expect(r.margaui.source).toBe("override");
+      expect(r.margaui.jsUrl).toBe("/vendor.js");
+    });
   });
 });
