@@ -300,38 +300,59 @@ describe("CLI: storybook margaui resolution", () => {
   });
 
   describe("with a local node_modules/margaui", () => {
-    let dir;
+    // Local margaui resolves to a dedicated virtual route (not /node_modules/...)
+    // so the whole dist/ — including themes/{theme,light,dark}.css reached via
+    // theme.css's relative @imports — is served even when the install lives above
+    // the served projectDir.
+    const JS = "/__margaui__/margaui.min.js";
+    const THEME = "/__margaui__/themes/theme.css";
+    let root;
     beforeAll(() => {
-      // A throwaway project that installs margaui: a *.dev.js plus the two files
-      // resolveMargaui probes for (JS entry + theme CSS). Contents are irrelevant
-      // to the Node-side dry run — only existence/paths are resolved.
-      dir = mkdtempSync(join(tmpdir(), "tutuca-sb-margaui-"));
+      // A throwaway project that installs margaui: a *.dev.js plus the files
+      // resolveMargaui probes for. Contents are irrelevant to the Node-side dry
+      // run — only existence/paths are resolved.
+      root = mkdtempSync(join(tmpdir(), "tutuca-sb-margaui-"));
       writeFileSync(
-        join(dir, "x.dev.js"),
+        join(root, "x.dev.js"),
         "export function getComponents() { return []; }\nexport function getExamples() { return []; }\n",
       );
-      const md = join(dir, "node_modules", "margaui", "dist");
+      const md = join(root, "node_modules", "margaui", "dist");
       mkdirSync(join(md, "themes"), { recursive: true });
       writeFileSync(join(md, "margaui.min.js"), "export const compile = () => ({});\n");
-      writeFileSync(join(md, "themes", "theme.css"), "/* theme */\n");
+      writeFileSync(join(md, "themes", "theme.css"), '@import"./light.css";@import"./dark.css";');
+      // A served subdirectory: node_modules lives at the root above it. Mirrors
+      // `tutuca storybook src`, the case where a plain projectDir check misses it.
+      mkdirSync(join(root, "src"));
+      writeFileSync(
+        join(root, "src", "y.dev.js"),
+        "export function getComponents() { return []; }\nexport function getExamples() { return []; }\n",
+      );
     });
-    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+    afterAll(() => rmSync(root, { recursive: true, force: true }));
 
     test("auto-detects the local install (offline path)", () => {
-      const r = dryRun(dir);
+      const r = dryRun(root);
       expect(r.margaui.source).toBe("node_modules");
-      expect(r.margaui.jsUrl).toBe("/node_modules/margaui/dist/margaui.min.js");
-      expect(r.margaui.themeUrl).toBe("/node_modules/margaui/dist/themes/theme.css");
+      expect(r.margaui.jsUrl).toBe(JS);
+      expect(r.margaui.themeUrl).toBe(THEME);
+      expect(r.imports.margaui).toBe(JS);
+    });
+
+    test("finds node_modules above the served subdirectory (tutuca storybook src)", () => {
+      const r = dryRun(join(root, "src"));
+      expect(r.margaui.source).toBe("node_modules");
+      expect(r.margaui.jsUrl).toBe(JS);
+      expect(r.margaui.themeUrl).toBe(THEME);
     });
 
     test("--margaui-cdn forces the CDN even when local is present", () => {
-      const r = dryRun(dir, "--margaui-cdn");
+      const r = dryRun(root, "--margaui-cdn");
       expect(r.margaui.source).toBe("CDN");
       expect(r.margaui.jsUrl).toBe(CDN_JS);
     });
 
     test("--margaui override wins over the local install", () => {
-      const r = dryRun(dir, "--margaui", "./vendor.js");
+      const r = dryRun(root, "--margaui", "./vendor.js");
       expect(r.margaui.source).toBe("override");
       expect(r.margaui.jsUrl).toBe("/vendor.js");
     });

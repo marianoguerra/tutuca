@@ -34,6 +34,7 @@ export const describe =
 
 const BOOTSTRAP_URL = "/__tutuca_storybook__.js";
 const DIST_PREFIX = "/__tutuca__/"; // virtual route serving the CLI's own dist/
+const MARGAUI_PREFIX = "/__margaui__/"; // virtual route serving a resolved node_modules/margaui/dist/
 
 const MIME = {
   ".js": "text/javascript",
@@ -101,9 +102,26 @@ function tutucaSource(base) {
   return "local dist";
 }
 
+// Walk up from startDir (node-style) to the nearest node_modules/<pkg> whose
+// `probe` file exists; return that package's abs dir, else null. The served dir
+// is often a subfolder (`tutuca storybook src`), so a plain projectDir check
+// misses a dependency installed at the package root above it.
+function findInstalledPackage(startDir, pkg, probe) {
+  let dir = resolve(startDir);
+  for (;;) {
+    const candidate = resolve(dir, "node_modules", pkg);
+    if (existsSync(resolve(candidate, probe))) return candidate;
+    const parent = dirname(dir);
+    if (parent === dir) return null;
+    dir = parent;
+  }
+}
+
 // Local-first margaui resolution, mirroring resolveTutucaBase:
-// explicit override → project node_modules/margaui → CDN.
-// Returns server-absolute or CDN URLs for BOTH the JS module and the theme CSS.
+// explicit override → installed node_modules/margaui → CDN. Returns URLs for
+// BOTH the JS module and the theme CSS (theme.css @imports ./light.css +
+// ./dark.css relatively, so serving the whole dist/ keeps those local too),
+// plus `serveDir`: the local dir to mount at MARGAUI_PREFIX (null when remote).
 function resolveMargaui(projectDir, { forCdn, override }) {
   if (override) {
     // Override targets the JS module (a URL, or a path INSIDE projectDir so the
@@ -111,19 +129,22 @@ function resolveMargaui(projectDir, { forCdn, override }) {
     const jsUrl = override.startsWith("http")
       ? override
       : `/${relative(projectDir, resolve(projectDir, override)).split(sep).join("/")}`;
-    return { jsUrl, themeUrl: MARGAUI_THEME, source: "override" };
+    return { jsUrl, themeUrl: MARGAUI_THEME, source: "override", serveDir: null };
   }
   if (!forCdn) {
-    const localJs = resolve(projectDir, "node_modules", "margaui", "dist", "margaui.min.js");
-    if (existsSync(localJs)) {
+    // Resolved via a dedicated virtual route, not /node_modules/..., because the
+    // install may live above the served projectDir (outside the static root).
+    const pkgDir = findInstalledPackage(projectDir, "margaui", "dist/margaui.min.js");
+    if (pkgDir) {
       return {
-        jsUrl: "/node_modules/margaui/dist/margaui.min.js",
-        themeUrl: "/node_modules/margaui/dist/themes/theme.css",
+        jsUrl: `${MARGAUI_PREFIX}margaui.min.js`,
+        themeUrl: `${MARGAUI_PREFIX}themes/theme.css`,
         source: "node_modules",
+        serveDir: resolve(pkgDir, "dist"),
       };
     }
   }
-  return { jsUrl: MARGAUI_CDN, themeUrl: MARGAUI_THEME, source: "CDN" };
+  return { jsUrl: MARGAUI_CDN, themeUrl: MARGAUI_THEME, source: "CDN", serveDir: null };
 }
 
 function buildImports(base, { margauiEnabled, margauiJsUrl }) {
@@ -549,6 +570,10 @@ export async function run(argv, opts = {}) {
     }
     if (serveDist && path.startsWith(DIST_PREFIX)) {
       serveFile(res, safeJoin(serveDist, `/${path.slice(DIST_PREFIX.length)}`));
+      return;
+    }
+    if (mg.serveDir && path.startsWith(MARGAUI_PREFIX)) {
+      serveFile(res, safeJoin(mg.serveDir, `/${path.slice(MARGAUI_PREFIX.length)}`));
       return;
     }
     serveFile(res, safeJoin(projectDir, path));
