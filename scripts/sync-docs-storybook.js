@@ -109,10 +109,14 @@ try {
     // Bun keeps the ORIGINAL specifier for external imports (same quirk
     // scripts/dist-ext.js works around), so rewrite the relative component
     // specifiers to the bare package export after the build.
-    const text = (await result.outputs[0].text()).replaceAll(
-      /(["'])(?:\.\.?\/)+(?:[\w-]+\/)*(?!.*\.dev\.js)[\w-]+\.js\1/g,
-      '"tutuca/components"',
-    );
+    const text = (await result.outputs[0].text())
+      // Drop Bun's module-path comment for the aggregator entry: it points at
+      // the random mkdtemp dir, so it would churn the output on every run.
+      .replace(/^\/\/ .*tutuca-gallery-.*\n/m, "")
+      .replaceAll(
+        /(["'])(?:\.\.?\/)+(?:[\w-]+\/)*(?!.*\.dev\.js)[\w-]+\.js\1/g,
+        '"tutuca/components"',
+      );
     const outPath = resolve(ROOT, gallery.out);
     writeFileSync(outPath, banner(gallery) + text);
     console.log(`wrote ${gallery.out}`);

@@ -968,7 +968,6 @@ function getTests({ describe, test, expect }) {
   });
 }
 
-// ../../../../tmp/tutuca-gallery-L3Jc0u/09-data-inspectors.dev.js
 import { getComponents as getComponents5 } from "tutuca/components";
 var MODULES = [exports_json_dev, exports_data_dev, exports_immutable_inspector_dev, exports_json_schema_dev];
 var GROUP = "Data Inspectors";

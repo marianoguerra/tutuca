@@ -791,7 +791,6 @@ function getTests4({ describe, test, expect }) {
   });
 }
 
-// ../../../../tmp/tutuca-gallery-L3Jc0u/10-tutuca-inspectors.dev.js
 import { getComponents as getComponents5 } from "tutuca/components";
 var MODULES = [exports_component_inspector_dev, exports_instance_inspector_dev, exports_lint_inspector_dev, exports_test_inspector_dev];
 var GROUP = "Tutuca Inspectors";
