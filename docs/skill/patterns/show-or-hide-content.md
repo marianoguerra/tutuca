@@ -16,7 +16,8 @@
 ```
 
 The closed set of predicates is `empty?`, `truthy?`, `falsy?`, `null?`,
-`equals?` (binary). For a condition spanning multiple fields, use a no-arg
-method instead (`@show="$canSubmit"`). `@show`/`@hide` toggle visibility on a
-host element; the wrapper form (`show=` / `hide=` on `<x>`) conditionally
-emits the node with no surrounding element.
+`equals?` (binary) — semantics in [core.md](../core.md) *Conditional Display*.
+For a condition spanning multiple fields, use a no-arg method instead
+(`@show="$canSubmit"`). `@show`/`@hide` toggle visibility on a host element;
+the wrapper form (`show=` / `hide=` on `<x>`) conditionally emits the node
+with no surrounding element.

@@ -50,67 +50,11 @@ clamped page the enrich already computed, and `ctx.filter` reuses the declared
 `@when` predicate — so the collect pass scans just far enough to fill the page.
 Reset `page` to 0 when the query changes.
 
-## Three ways to wire it
-
-The block above is the **shared** strategy. There are three, trading simplicity
-for scans-per-render (all return `keys`, so all keep identity):
-
-**1. Naive — two independent scans.** The loop scans + slices the whole list
-itself; a separate `@enrich-with` scans again for the labels. Simplest, nothing
-shared:
-
-```js
-naiveTablePage(seq, { filter }) {            // builds the WHOLE matching list…
-  const all = [];
-  for (let i = 0; i < seq.size; i++) if (filter(i, seq.get(i))) all.push(i);
-  const start = clamp(this.page, all.length, this.pageSize).currentPage * this.pageSize;
-  return { keys: all.slice(start, start + this.pageSize) };   // …just to slice it
-},
-```
-
-**2. Shared — one count + one partial collect** (the block above). The enrich
-counts and publishes `@currentPage`; the loop reuses it via `lookup` and stops
-once the page is full.
-
-**3. Coupled — one scan.** The enrich does *everything*, including the page keys,
-and stashes them in a binding only the loop reads. Fastest, but the two handlers
-are welded together — name them so it shows:
-
-```js
-enrichBuildsKeysForTheLoopBelow() {          // the only scan: count + labels + keys
-  const all = []; /* …collect matching indices… */
-  const { pageCount, currentPage } = clamp(this.page, all.length, this.pageSize);
-  const start = currentPage * this.pageSize;
-  return { __keys__: all.slice(start, start + this.pageSize), /* …labels… */ };
-},
-loopJustForwardsTheEnrichsKeys(_seq, { lookup }) {  // useless without the enrich
-  return { keys: lookup("__keys__") };
-},
-```
-
-## Testing each strategy
-
-`collectIterBindings(Comp, instance, seq, opts)` drives a loop exactly like the
-renderer and returns the `{ key, value }` binds it would render. Map the
-template's directives to `opts` — `when` → `@when`, `loopWith` → `@loop-with`,
-`scopeEnrich` → the ancestor scope `@enrich-with` whose result the loop reads via
-`ctx.lookup`:
-
-```js
-import { collectIterBindings } from "tutuca";
-const keys = (Comp, c, opts) => collectIterBindings(Comp, c, c.items, opts).map((b) => b.key);
-
-// each strategy wires the directives differently, yet renders the same page:
-keys(Naive,   c, { when: "onlyMatches", loopWith: "naiveTablePage" });
-keys(Shared,  c, { when: "onlyMatches", loopWith: "page", scopeEnrich: "pageInfo" });
-keys(Coupled, c, { loopWith: "loopJustForwardsTheEnrichsKeys",
-                   scopeEnrich: "enrichBuildsKeysForTheLoopBelow" });
-```
-
-A `keys` return is honored as-is (no `@when` re-applied), and `scopeEnrich` runs
-the named scope handler so a `lookup("currentPage")` / `lookup("__keys__")`
-resolves in the test. `collectIterBindings` lives in the **dev build**; both the
-playground's Test tab (via its import map) and `tutuca test` (which redirects the
-`"tutuca"` import to the dev build under Node) resolve it to the real
-implementation. See [filter-a-list.md](filter-a-list.md) and
+This is one of three wiring strategies (naive two-scan, shared, coupled
+one-scan) — the trade-offs and the other two are in
+[iteration.md](../iteration.md) *Filter-then-paginate strategies*. Test
+whichever wiring with `collectIterBindings` — pass
+`{ when, loopWith, scopeEnrich }` and assert on the returned keys; see
+[testing.md](../testing.md) *Testing iteration handlers*. See
+[filter-a-list.md](filter-a-list.md) and
 [paginate-a-list.md](paginate-a-list.md) for each half on its own.

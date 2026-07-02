@@ -30,6 +30,7 @@ A macro is pure template expansion — no fields, no handlers. Parameters are
 read as `^name`; calls inside the body (`$method`, `.field`) resolve against
 the *host* component. `<x:slot>` (or `<x:slot name="…">` for named slots)
 receives the caller's children. Register with `scope.registerMacros(...)`;
-registry keys are lowercased (`<x:Card>` → `card`). For repeated markup that
-*does* need state, use a child component instead (see the render-a-child-component
-recipe).
+registry keys are lowercased (`<x:Card>` → `card`). Full semantics (named
+slots, quoting of parameter values) in [macros.md](../macros.md). For repeated
+markup that *does* need state, use a child component instead (see the
+render-a-child-component recipe).

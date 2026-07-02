@@ -201,4 +201,4 @@ whose entries resolve `@key` in event handlers.
 
 Moved to [margaui.md](./margaui.md) — installing margaui (CDN / npm /
 vendoring), the theme CSS, the `compileClassesToStyleText` + `injectCss`
-wiring, and the `@if.class` decoy-view pitfall.
+wiring, and the assembled-class-names decoy-view pitfall.

@@ -1,4 +1,4 @@
-# Tutuca Patterns
+# Tutuca — Patterns
 
 Task-oriented recipes: "how do I do X" with a minimal working snippet and the
 one pitfall worth knowing. Each recipe is self-contained and brief; for the

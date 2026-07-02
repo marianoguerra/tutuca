@@ -1,13 +1,12 @@
-# Tutuca CLI Reference
+# Tutuca — CLI Reference
 
 The `tutuca` CLI inspects, documents, lints, tests, and renders any
 module that follows the
 [Conventional Module Exports](./core.md#conventional-module-exports)
 shape. Reach this file when you need command/flag/exit-code
-details, or when reading a lint code out of `lint` output. Otherwise
-[Verifying changes](./core.md#verifying-changes) in `core.md` (run
-`lint`, then `test` for behavior changes, then
-`render --title "<your example>"`) is enough.
+details, or when reading a lint code out of `lint` output. The
+post-edit verification recipe is in
+[Verifying changes](./core.md#verifying-changes).
 
 ## Install / invoke
 
@@ -188,10 +187,10 @@ tutuca install-skill --dry-run         # print files that would be written, don'
 ## Record feedback
 
 `tutuca feedback` appends a freeform feedback record to
-`~/.tutuca/feedback.jsonl` (created on first use). Reach for it when
-the CLI, the bundled skills, this reference, or the library itself
-was confusing, broken, or surprising — capturing it in the moment
-beats reconstructing it later.
+`~/.tutuca/feedback.jsonl` (created on first use). Record a note
+whenever the CLI, the bundled skills, this reference, or the library
+itself was confusing, broken, or surprising — capture it in the
+moment instead of reconstructing it later.
 
 ```sh
 tutuca feedback "lint code FIELD_VAL_NOT_DEFINED didn't suggest the missing field"

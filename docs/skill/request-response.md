@@ -30,7 +30,8 @@ inside bubble handlers — `ctx.stopPropagation()`.
 
 `alter` is a fifth handler block, but it isn't event-triggered — the
 renderer invokes alter handlers to produce binds, not to update state.
-See *Mental model* and *Scope Enrichment* in [core.md](./core.md).
+See *Mental model* in [core.md](./core.md) and *Scope Enrichment* in
+[iteration.md](./iteration.md).
 
 ## Bubble Events
 
@@ -248,9 +249,8 @@ ctx.request("save", [payload]);                    // pinned: lands on the origi
 ctx.request("refresh", [], { livePath: true });    // live: lands on the currently selected sheet
 ```
 
-Pinning only affects field-resolved keys; named fields are already stable
-and list **indices** are not pinned (a reorder still slides them). Full
-model in [semantics.md](./semantics.md) (*Key resolution & async races*).
+The pinning rules per step kind (and why list indices still slide) are
+in [semantics.md](./semantics.md) (*Key resolution & async races*).
 
 ### Fire-and-forget requests
 
@@ -268,7 +268,7 @@ input: {
 }
 ```
 
-You can also fire several in one handler
+Fire several in one handler when needed
 (`ctx.request(...); ctx.request(...); return ...;`).
 
 ### The request-handler contract
@@ -326,17 +326,9 @@ The path a response (or `send` / `bubble`) is delivered to is
 **positional** — an array of steps from the root, not a captured
 reference. This is why an async response survives intervening
 transactions that rebuilt the root (see *Mental model* in
-[core.md](./core.md)). Per step kind:
-
-- **Map entry by key** (`.sheets[.selId]`) — the resolved key is *pinned*
-  at request time by default, so the response reaches the originating
-  entry even if the key field moved. `livePath: true` opts out (above).
-- **List index** (`.items[3]`) — not pinned: if the list re-sorted so
-  index 3 is now a different item, the response lands on whatever occupies
-  the slot. Anchor on map keys, not list indices, when an async result
-  must reach a specific item.
-
-Full model in [semantics.md](./semantics.md).
+[core.md](./core.md)). Practical rule: anchor on map keys, not list
+indices, when an async result must reach a specific item — the
+per-step-kind pinning rules are in [semantics.md](./semantics.md).
 
 ## See also
 

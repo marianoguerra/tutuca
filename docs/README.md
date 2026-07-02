@@ -1,20 +1,22 @@
-# tutuca
+# Tutuca docs
 
-- Single file, no build, no dependencies, no setup: a script tag is all you need
-  - No hooks, no [weird semantics](https://arxiv.org/abs/2507.05234)
-- Batteries included: state management, side effects, automatic memoization, drag and drop, testing, CLI tooling, LLM skills and more
-- Fits in your head and the context window
-- View source friendly: step through (the whole stack)
-- As much HTML as possible, as little JS as needed
-- Testable and (actually) reusable components
+Documentation site for [Tutuca](https://github.com/marianoguerra/tutuca),
+a batteries-included SPA framework with a dependency-free browser bundle
+(overview and feature list in the
+[project README](https://github.com/marianoguerra/tutuca#readme)).
 
-# Resources
+This directory is served as the web root at
+<https://marianoguerra.github.io/tutuca/>.
+
+## Pages
+
+- [Playground](https://marianoguerra.github.io/tutuca/) (`index.html`) — live editable examples
+- [Tutorial](https://marianoguerra.github.io/tutuca/tutorial.html) — learn the framework step by step
+- [Storybook](https://marianoguerra.github.io/tutuca/storybook/) — the component catalog
+- [More examples](https://marianoguerra.github.io/tutuca/more-examples.html) — including a todo app (`examples/todo.js`) and component reuse
+- [Universal rendering](https://marianoguerra.github.io/tutuca/universal.html) — the same components on server and client
+
+## Background reading
 
 - [Live, Rich, and Composable: Qualities for Programming Beyond Static Text](https://arxiv.org/pdf/2303.06777)
 - [Definitions and Dimensions of Liveness](https://joshuahhh.com/liveness-paper-live-2024/)
-
-# Demos
-
-- Storybook
-- Todo
-- reuse components

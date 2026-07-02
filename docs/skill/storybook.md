@@ -1,4 +1,4 @@
-# Storybook
+# Tutuca — Storybook
 
 Reach this file when authoring `*.dev.js` story modules or running
 `tutuca storybook` — defining `getExamples()` sections, mocking requests per
@@ -12,9 +12,17 @@ example, or rendering a live component catalog. For the framework primer see
 mounts them via the shipped `tutuca/storybook` library, and serves an ephemeral
 page — no config, no HTML to write. It is **batteries-included by default**:
 before serving it runs each module's `getTests()` in the terminal, the page
-wires margaui styling, and the browser runs `check(app)`. Each is individually
+wires margaui styling, and the browser runs `check(app)` — the dev-build lint
+runner, which lints every registered component and logs findings to the
+console (a no-op stub in the core build). Each is individually
 disablable with a `--no-*` flag. All tutuca specifiers resolve to **one
 runtime** — component scope and identity require it.
+
+To embed the same catalog in your own page, use the shipped
+`tutuca/storybook` library: `buildStorybook(modules)` assembles the
+sections from conventional modules, and
+`mountStorybook(selector, modules, opts)` builds, mounts, and starts the
+app in one call.
 
 ## The `.dev.js` module
 
@@ -23,7 +31,10 @@ development-time helpers for nearby components, and is **never shipped to
 production or the UI**. The `.dev.js` suffix is the contract — your app imports
 its real components directly and never a `.dev.js`, and a production build glob
 can exclude `**/*.dev.js`. Because it follows the full module convention, the
-same file is a valid target for `tutuca lint` / `test` / `render` too.
+same file is a valid target for `tutuca lint` / `test` / `render` too. (The
+export shape itself is
+[Conventional Module Exports](./core.md#conventional-module-exports) —
+this table adds what the storybook does with each.)
 
 | Export | Returns | Used for |
 | ------ | ------- | -------- |
@@ -40,9 +51,7 @@ Return one section, or an array of sections to group examples under multiple
 headings. A section is `{ title, description?, group?, items: [...] }`. An array
 of one section behaves exactly like returning that section directly — both go
 through the same `Section.fromData`, which **throws** on a malformed section
-(missing `title`, not an object) rather than rendering a placeholder title. (If
-you saw broken titles from a one-element array in an older build, that predates
-array support — it has shipped since well before 0.9.88.)
+(missing `title`, not an object) rather than rendering a placeholder title.
 
 The optional `group` is a string that clusters sidebar sections under one
 collapsible header: sections sharing a `group` name nest beneath it (across
@@ -220,7 +229,9 @@ for the exhaustive flag list and exit codes.
 
 ## Verify
 
-After editing a `*.dev.js`: `tutuca lint <module>.dev.js` →
-`tutuca test <module>.dev.js` → `tutuca storybook --dry-run --json <dir>`
-(smoke-test discovery, counts, and mocked names without serving), then
-`tutuca storybook <dir>` to view it live.
+The standard recipe
+([Verifying changes](./core.md#verifying-changes)) plus a storybook
+dry run: `tutuca lint <module>.dev.js` → `tutuca test <module>.dev.js` →
+`tutuca storybook --dry-run --json <dir>` (smoke-test discovery, counts,
+and mocked names without serving), then `tutuca storybook <dir>` to view
+it live.

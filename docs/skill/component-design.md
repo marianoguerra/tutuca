@@ -1,4 +1,4 @@
-# Tutuca Cheatsheet — Component Design
+# Tutuca — Component Design
 
 How to *shape* a feature into one or more tutuca components — responsibilities,
 where state lives, which channel to reach for — before you reach for syntax. The
@@ -128,13 +128,10 @@ A compact worked version of the first four (`method`, `bubble`, `send`/`receive`
   across it with `*name`, not by assuming the binding leaks in. → [advanced.md](./advanced.md)
 
 - **Do add a decoy view when a margaui class is assembled at runtime.** The margaui
-  compiler only scans `class=` / `:class=` *literals*, so classes that appear only
-  in `@if.class` `@then`/`@else` payloads or are composed dynamically in an
-  `@enrich-with` / `:class` handler emit no CSS and render unstyled. Add a hidden,
-  never-rendered view (e.g. `_margauiClasses: html\`<p class="btn-success btn-ghost
-  …"></p>\``) listing each such class as a real literal so the scanner picks it up.
-  → [advanced.md](./advanced.md) "Pitfall: `@if.class` payloads are invisible to
-  the scanner", and the worked decoy view in `personal-site.js`.
+  compiler only scans constant class literals — a class built by interpolation or
+  in a method emits no CSS and renders unstyled. → the workaround in
+  [margaui.md](./margaui.md) "Pitfall: assembled class names are invisible to the
+  scanner", and the worked decoy view in `personal-site.js`.
 
 - **Do close the loop after every change** with `tutuca lint <module>` → `test` →
   `render`. → [core.md](./core.md) "Verifying changes"

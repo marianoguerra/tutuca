@@ -1,4 +1,4 @@
-# Tutuca Cheatsheet — Core
+# Tutuca — Core
 
 Tutuca is an immutable-state web framework: components have typed `fields`,
 auto-generated mutators (`setX`, `pushInX`, …), HTML-template `view`s with
@@ -7,25 +7,14 @@ orchestration. Read this file when authoring or reviewing
 `component({...})` definitions, `view: html\`...\`` templates, macros, or
 the `tutuca` CLI.
 
-> Orchestration channels — `bubble`, `send`/`receive`, async
-> `request`/`response`, the `$unknown` fallback, and request-handler
-> registration: see [request-response.md](./request-response.md).
-> Advanced topics (drag & drop, dynamic bindings `*x`, pseudo-`x` for
-> `<select>`/`<table>`/`<tr>`, custom seq types): see
-> [advanced.md](./advanced.md). Setting up Tailwind/MargaUI styling: see
-> [margaui.md](./margaui.md). CLI commands, flags,
-> exit codes, and full linter rule list: see [cli.md](./cli.md).
-> Authoring tests — `getTests` shape, calling methods/input/receive/
-> bubble/response/alter handlers, designing for testability: see
-> [testing.md](./testing.md). Runtime semantics — path steps, the
-> transaction lifecycle, dyn-var teleporting, and async key pinning
-> (`livePath`): see [semantics.md](./semantics.md). Read those only when
-> the task touches them. Task-oriented "how do I do X" recipes (iteration,
-> filtering, slicing, conditional content, conditional attributes, dynamic
-> vars, composition, events, …): see [patterns/README.md](./patterns/README.md).
-> Design judgment — shaping a feature into components, where state lives, which
-> channel to reach for, and a do's & don'ts list: see
-> [component-design.md](./component-design.md).
+> Load the topic files only when the task touches them (the routing
+> table in [SKILL.md](./SKILL.md) has the full descriptions):
+> [iteration.md](./iteration.md) · [macros.md](./macros.md) ·
+> [styles.md](./styles.md) · [request-response.md](./request-response.md) ·
+> [component-design.md](./component-design.md) · [testing.md](./testing.md) ·
+> [storybook.md](./storybook.md) · [cli.md](./cli.md) ·
+> [semantics.md](./semantics.md) · [advanced.md](./advanced.md) ·
+> [margaui.md](./margaui.md) · [patterns/README.md](./patterns/README.md).
 
 ## Verifying changes
 
@@ -125,7 +114,7 @@ and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
   newline / indent before the first element renders blank silently.
   Use `view: html\`<el ...>` (or `html\`<el<newline>  attr<newline>>...`),
   never `view: html\`<newline>  <el ...>`. Same applies to macro bodies.
-- **Macro registry keys are lowercased.** `<x:Card>` becomes `<x:card>` — see *Macros*.
+- **Macro registry keys are lowercased.** `<x:Card>` becomes `<x:card>` — see [macros.md](./macros.md).
 
 ## Bootstrap
 
@@ -202,7 +191,7 @@ calls) is set on both.
 | `<div @each>` per iter              | scope | `it` = item, binds `{ key, value }`  |
 | `<x:scope @enrich-with=…>`          | scope | `it` unchanged, binds = alter result |
 
-For full mechanics see *List Iteration* and *Scope Enrichment*.
+For full mechanics see [iteration.md](./iteration.md).
 This is why a handler attached to `<div @each>` runs against the
 *parent* component (the scope is transparent — the surrounding frame
 still owns dispatch), while one inside `<x render-it>` runs against
@@ -430,7 +419,8 @@ value lives behind a field, your options are:
 - **Add a method** — `userName() { return this.user.name; }` then
   `@text="$userName"`. Best for one-off derivations or formatting.
 - **Use `@enrich-with`** — exposes computed values as `@`-bindings to a
-  subtree without putting them on the component. See *Scope Enrichment*.
+  subtree without putting them on the component. See *Scope Enrichment*
+  in [iteration.md](./iteration.md).
 
 Exceptions: `@each` / `render-each` accept `.field` or `*dynamic` only
 (not a `$method` — a method result has no addressable path for event
@@ -525,7 +515,7 @@ consequences:
   custom elements with kebab-case attributes plus lowercased property
   setters (or aliases), and bind via `:kebab-name` from Tutuca templates.
 - Macro registry keys are lowercased on insert for the same reason
-  (see *Macros* below).
+  (see [macros.md](./macros.md)).
 
 Tutuca auto-namespaces by subtree: elements inside `<svg>` get the SVG
 namespace and elements inside `<math>` get MathML, with spec-cased local
@@ -635,10 +625,7 @@ inbound sources (WebSocket, `postMessage`, timers) have no element to bind
 [request-response.md](./request-response.md)).
 
 Pitfall: binding a camelCase JS property on a custom element silently
-fails — `:mapId=".id"` assigns to `node.mapid`, never invoking
-`set mapId`. Author custom elements with kebab-case attributes /
-lowercased setters and bind via `:kebab-name`. See *Attribute Binding*
-above for the full explanation.
+fails — see the lowercasing rules in *Attribute Binding* above.
 
 ## Conditional Display
 
@@ -679,148 +666,17 @@ above for the full explanation.
 > element every `@then`/`@else` after the first **must** include the attr
 > name — otherwise the parser drops it before tutuca sees it.
 
-## List Iteration
-
-`@each` accepts: `.field`, `*dynamic`.
+## List Iteration & Scope Enrichment
 
 ```html
-<!-- iterate plain values -->
 <li @each=".items"><span @text="@key"></span>: <x text="@value"></x></li>
-
-<!-- filter -->
-<li @each=".items" @when="filterItem">...</li>
-
-<!-- per-item enrichment (binds.X => @X in template) -->
-<li @each=".items" @enrich-with="enrichItem">
-  <x text="@count"></x>
-</li>
-
-<!-- shared per-loop data + slicing (computed once before iteration) -->
-<li @each=".items" @loop-with="getIterData" @when="filterItem">...</li>
-
-<!-- render a list of components -->
 <x render-each=".items"></x>
-<x render-each=".items" as="edit"></x>                          <!-- specific view -->
-<x render-each=".items" when="filterItem"></x>                  <!-- with filter -->
-<x render-each=".items" loop-with="getIterData" when="filterItem"></x>
-<x render-each=".items" show=".isOpen"></x>                     <!-- wrap in show -->
 ```
 
-On `<li @each>` / `<div @each>` and other host-element loops the
-filters are written `@when` / `@enrich-with` / `@loop-with` (the `@`
-prefix is the element-directive convention). On `<x render-each>` the
-same filters drop the prefix — `when=` / `enrich-with=` / `loop-with=`
-— because `<x>` carries plain attributes, not directives. Both forms
-share the handler-name resolution rules below.
-
-```js
-alter: {
-  filterItem(_key, item, iterData) { return item.includes(iterData.q); },
-  enrichItem(binds, _key, item, iterData) { binds.count = item.length; },
-  // `@loop-with` is `(seq, ctx)` and returns { iterData?, start?, end?, keys? }.
-  getIterData(seq, ctx) {
-    const start = this.page * this.pageSize;
-    return { iterData: { q: this.query.toLowerCase() }, start, end: start + this.pageSize };
-  },
-}
-```
-
-#### `@loop-with` return shape — `iterData` + slicing
-
-A `@loop-with` handler returns an object with up to four optional keys:
-
-- **`iterData`** — the shared per-loop value handed to `@when` /
-  `@enrich-with`. Defaults to `{ seq }` when omitted.
-- **`start`, `end`** — a positional slice of the iteration, with
-  `Array.prototype.slice` semantics: `end` is exclusive, negatives count
-  from the end (`end: -3` drops the last 3), `undefined` means the
-  natural bound. Use this to **paginate** — skip a prefix and/or suffix
-  without iterating or rendering it.
-- **`keys`** — an explicit, ordered array of **original keys** to visit,
-  for **filter-then-paginate**. The handler filters/sorts/slices the full
-  sequence itself and returns the current page's slice of original keys;
-  the renderer visits exactly those (`seq.get(key)`), in order. Takes
-  precedence over `start`/`end` when both are present.
-
-Slicing is positional but **preserves each item's original key**: a List
-sliced to `start: 2` still binds `@key` to `2, 3, …`, so events, drag,
-and two-way binding keep their identity. With `start`/`end`, `@when` then
-filters *within* the window, so a page may yield fewer than `end - start`
-items — to filter *before* paging (so the page count reflects the filtered
-total), return `keys` instead. `keys` are original keys, so identity is
-preserved there too: editing or deleting a row on page 2 of a filtered view
-hits the right item. A `keys` return is **authoritative** — the renderer
-visits exactly those keys and does **not** re-apply `@when` (the handler has
-already decided what renders).
-
-#### `@loop-with` handler context — `(seq, ctx)`
-
-The handler's second argument is `ctx = { lookup, filter }` (an object so it
-can grow):
-
-- **`ctx.lookup(name)`** — reads a scope `@`-binding, e.g. one published by an
-  ancestor scope `@enrich-with`. Lets the handler **reuse a value the enrich
-  already computed** instead of recomputing it.
-- **`ctx.filter(key, value, iterData)`** — wraps the declared `@when` predicate
-  (always callable; a no-op that returns `true` when there is no `@when`). Lets
-  the handler apply the *declared* filter while building its `keys` slice,
-  rather than re-implementing the match test.
-
-This is the **filter-then-paginate, minimal-work** pattern: a scope
-`@enrich-with` on an ancestor does **one** counting scan and publishes the
-clamped page + pager labels (which the page controls, sitting outside the loop,
-read as `@`-bindings); the `@loop-with` handler then reads the clamped page via
-`ctx.lookup`, reuses the predicate via `ctx.filter`, and collects only the
-current page's keys — early-exiting once the page is full. See
-[patterns/filter-and-paginate.md](patterns/filter-and-paginate.md).
-
-### Lifecycle of `@each`
-
-For each render of an element with `@each=".items"`:
-
-1. **Resolve sequence** — evaluate `.items`. Lists, IMaps, OMaps, ISets,
-   and any class declaring a `SEQ_INFO` walker are recognized.
-2. **`@loop-with`** (once per render) — `getIterData.call(this, seq, ctx)`
-   is called with the full sequence and the `{ lookup, filter }` context;
-   its `iterData` becomes the shared per-loop value and its `start`/`end`
-   slice the iteration. Skipped if no `@loop-with`; then `iterData` is
-   `{ seq }` and the whole sequence is iterated. If it returns `keys`,
-   those exact keys are visited in order (filter-then-paginate) and
-   `start`/`end` are ignored.
-3. For each `(key, value)` pair in the sliced sequence (or each `key` in
-   `keys`):
-   1. **`@when`** — `filterItem.call(this, key, value, iterData)`; if it
-      returns `false`, the item is skipped. **Not applied** when the
-      handler returned `keys` (those are authoritative).
-   2. **`@enrich-with`** — `enrichItem.call(this, binds, key, value, iterData)`.
-      `binds` is a **mutable object** seeded with `{ key, value }`;
-      mutating it (`binds.count = ...`) creates `@`-prefixed bindings
-      available in the templated children. The return value is ignored.
-   3. **Render** the element with the new bindings on the stack.
-
-Auto-bound names inside the loop are always `@key` and `@value` (or
-whatever you wrote into `binds`).
-
-### Handler resolution
-
-`@when` / `@enrich-with` / `@loop-with` resolve like event handler names:
-bare `filterItem` → `alter.filterItem` (idiomatic); `$filterItem` →
-method on `this` (works, not idiomatic — `alter` keeps iteration helpers
-grouped).
-
-## Scope Enrichment
-
-Without an `@each` on the same element, `@enrich-with` becomes a scope
-enricher: it takes no `binds` arg, and its **return value** is the
-bindings object whose keys become `@`-prefixed bindings for descendants.
-
-```js
-alter: { enrichScope() { return { len: this.text.length }; } }
-```
-
-```html
-<div @enrich-with="enrichScope">Length: <x text="@len"></x></div>
-```
+Auto-bound names inside a loop are `@key` and `@value`. Iteration
+(`@each` / `render-each`), filtering (`@when`), item and scope
+enrichment (`@enrich-with`), pagination and the `@loop-with` return
+shape, and the `@each` lifecycle: see [iteration.md](./iteration.md).
 
 ## Rendering Components
 
@@ -866,48 +722,12 @@ component({
 
 ## Styles
 
-```js
-component({
-  style:       css`.mine { color: red; }`,        // scoped to main view
-  commonStyle: css`.shared { color: yellow; }`,   // scoped to all views of this component
-  globalStyle: css`.app-thing { color: green; }`, // global, no scoping
-  views: {
-    two: { view: html`...`, style: css`.mine { color: orange; }` },
-  },
-});
-```
-
-Tagged templates `html` and `css` are just `String.raw` (editor hinting
-only). Plain strings work too.
-
-`style` and `commonStyle` are wrapped in a component-scoped selector
-(`[data-cid="N"]{ … }`), so their CSS lands *inside* a style-rule block.
-
-A useful consequence: **bare declarations with no selector** (e.g.
-`color: red; padding: 1rem;`) land directly inside that wrapper, so they style
-the component's **root element** — the host node carrying `data-cid` (plus
-`data-vid` for a per-view `style`). Reach for this to style a component's own
-outer element without adding a wrapper selector; nested rules with a selector
-(`.mine { … }`) target descendants instead.
-
-Because the CSS sits inside a style-rule block,
-top-level-only constructs break there and the browser silently drops them —
-put them in `globalStyle` (injected verbatim, no wrapper) instead:
-
-- Non-nestable at-rules: `@import`, `@charset`, `@namespace`, `@font-face`,
-  `@keyframes`, `@page`, `@property`, `@counter-style`, `@font-feature-values`,
-  `@font-palette-values`, `@view-transition`. (Conditional group rules —
-  `@media`, `@supports`, `@container`, `@layer`, `@scope`, `@starting-style` —
-  *do* nest and stay in `style`/`commonStyle`.)
-- Rules whose leading selector is `html`, `body`, or `:root`: once scoped they
-  become descendant selectors that never match.
-
-The linter flags both (`TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE`,
-`GLOBAL_SELECTOR_IN_SCOPED_STYLE`). For a genuine false positive, put a
-`/* tutuca-lint-ignore */` comment on the same line as the flagged construct.
-
-For Tailwind / MargaUI utility classes (compiling `class=` literals into
-CSS via the extra build), see [margaui.md](./margaui.md).
+`style` is scoped to the main view, `commonStyle` to all views of the
+component, `globalStyle` is injected unscoped (see the *Component
+Skeleton* above). Scoping mechanics, styling the root element with bare
+declarations, and the at-rules that must live in `globalStyle`: see
+[styles.md](./styles.md). Tailwind / MargaUI utility classes:
+[margaui.md](./margaui.md).
 
 ## Triggers and Handlers
 
@@ -930,83 +750,17 @@ registration — are in [request-response.md](./request-response.md);
 worked snippets in
 [patterns/coordinate-components.md](./patterns/coordinate-components.md).
 
-`alter` is a fifth handler block, but unlike the four above it isn't
-event-triggered — the renderer invokes alter handlers to produce
-binds, not to update state. See *Mental model* and *Scope Enrichment*.
+`alter` is a fifth handler block, but it isn't event-triggered — the
+renderer invokes alter handlers to produce binds, not state changes
+(see *Mental model*, and *Scope Enrichment* in
+[iteration.md](./iteration.md)).
 
 ## Macros
 
-Pure template expansion — no state, no methods. Calls inside a macro
-resolve against the *host* component.
-
-```js
-import { macro, html } from "tutuca";
-
-const badge = macro(
-  { label: "'New'", kind: "'info'" },     // defaults are *expressions*
-  html`<span :class="$'badge badge-{^kind}'" @text="^label"></span>`,
-);
-
-export function getMacros() {
-  return { badge };
-}
-```
-
-```html
-<x:badge></x:badge>                       <!-- defaults -->
-<x:badge label="Sale"></x:badge>          <!-- static string (no quotes needed) -->
-<x:badge :label="'Sale'"></x:badge>       <!-- dynamic literal -->
-<x:badge :label=".status"></x:badge>      <!-- field reference -->
-```
-
-Register macros at the same scope as components:
-
-```js
-const scope = app.registerComponents([Comp]);
-scope.registerMacros(getMacros());
-```
-
-Registry keys are lowercased on insert because the HTML parser already
-lowercases `<x:Tag>` to `<x:tag>`. `{ Card }` and `{ card }` both register
-under `card`; registering two *different* macros under the same lowercased
-name warns via `console.assert`.
-
-### Slots
-
-```js
-const card = macro(
-  { title: "'Card'" },
-  html`<div class="card">
-    <h2 @text="^title"></h2>
-    <x:slot></x:slot>
-  </div>`,
-);
-```
-
-```html
-<x:card title="Hi"><p>body</p></x:card>   <!-- default slot -->
-```
-
-### Named Slots
-
-```js
-const panel = macro(
-  {},
-  html`<div>
-    <header><x:slot name="actions"></x:slot></header>
-    <main><x:slot></x:slot></main>                      <!-- default == name="_" -->
-    <footer><x:slot name="footer"></x:slot></footer>
-  </div>`,
-);
-```
-
-```html
-<x:panel>
-  <x slot="actions"><button @on.click="$inc">+</button></x>
-  <p>default slot content</p>
-  <x slot="footer">© 2026</x>
-</x:panel>
-```
+Pure template expansion — `macro({ params }, html\`...\`)` definitions
+called as `<x:name>`, with `^param` references, slots, and named slots:
+see [macros.md](./macros.md). Registry keys are lowercased —
+`<x:Card>` resolves as `<x:card>`.
 
 ## Raw HTML (escape hatch)
 
@@ -1078,11 +832,17 @@ export { allMyComponents as getComponents } from "./app.js";
 Put these exports in a co-located **`*.dev.js`** file (a dev-only module
 holding stories + tests, never shipped) and `tutuca storybook` auto-discovers
 and renders them with no setup — see [cli.md](./cli.md). The same shape is
-consumed by the shipped `tutuca/storybook` library (`mountStorybook`,
-`buildStorybook`) if you want to embed a storybook in your own page.
+consumed by the shipped `tutuca/storybook` library if you want to embed a
+storybook in your own page — see [storybook.md](./storybook.md).
 
 ## See also
 
+- [iteration.md](./iteration.md) — `@each` / `render-each`, `@when`,
+  `@enrich-with`, `@loop-with` pagination, and the loop lifecycle.
+- [macros.md](./macros.md) — `macro()` definitions, `<x:name>` calls,
+  slots, and registration.
+- [styles.md](./styles.md) — `style` / `commonStyle` / `globalStyle`
+  scoping mechanics and pitfalls.
 - [component-design.md](./component-design.md) — design judgment for shaping a
   feature into components: responsibilities, where state lives, which channel to
   reach for, and a curated do's & don'ts list.
@@ -1098,6 +858,8 @@ consumed by the shipped `tutuca/storybook` library (`mountStorybook`,
   (`livePath`).
 - [testing.md](./testing.md) — `getTests` shape and the handler calling
   convention for tests.
+- [storybook.md](./storybook.md) — authoring `*.dev.js` story modules and
+  running / embedding the storybook.
 - [cli.md](./cli.md) — commands, flags, exit codes, and the full linter rule
   list.
 - [patterns/README.md](./patterns/README.md) — task-oriented recipes ("how do I

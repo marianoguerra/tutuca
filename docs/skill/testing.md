@@ -1,4 +1,4 @@
-# Tutuca Cheatsheet — Testing
+# Tutuca — Testing
 
 How to author component tests in Tutuca: the `getTests` export shape,
 the calling conventions for methods and handler blocks (`input`,
@@ -139,11 +139,13 @@ export function getTests({ describe, test, expect, drive }) {
 `alter` handlers run inside `@each` / `@when` / `@loop-with` /
 `@enrich-with` and have three distinct shapes:
 
-- `loopWith(seq)` — called once with the full collection, returns
-  `{ iterData?, start?, end? }`: `iterData` is the shared per-loop value
-  (defaults to `{ seq }`); `start`/`end` slice the iteration
-  (`Array.prototype.slice` semantics, original keys preserved). `this`
-  is the parent component instance.
+- `loopWith(seq, ctx)` — called once with the full collection, returns
+  `{ iterData?, start?, end?, keys? }`: `iterData` is the shared per-loop
+  value (defaults to `{ seq }`); `start`/`end` slice the iteration
+  (`Array.prototype.slice` semantics, original keys preserved); `keys`
+  is an authoritative list of original keys to visit. `this` is the
+  parent component instance. Full return-shape and `ctx` semantics in
+  [iteration.md](./iteration.md).
 - `when(key, value, iterData)` — called per element, returns truthy to
   keep. `this` is the parent component instance.
 - `enrichWith(binds, key, value, iterData)` — called per kept element;
@@ -154,7 +156,9 @@ You can call each one directly with `.call(comp, ...)`, but in practice
 you want to test them as a pipeline: filter + loop-data + enrichment
 together produce a list of bindings the view sees. Use
 `collectIterBindings` for that — a functional implementation only ships
-in the `tutuca-dev` build; the core `tutuca` build exports a no-op stub:
+in the dev build (`tutuca/dev`); the core `tutuca` build exports a no-op
+stub. `tutuca test` redirects the bare `tutuca` import to the dev build
+automatically, so test modules can import it as below:
 
 ```js
 import { collectIterBindings } from "tutuca";

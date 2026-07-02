@@ -7,7 +7,7 @@ Batteries included SPA framework with a dependency-free browser bundle.
 - **Fits in your head** (and the context window)
 - **View source friendly** — step through the whole stack
 - **As much HTML as possible, as little JS as needed**
-- ~182KB minified, ~41KB brotli compressed
+- ~182KB minified, ~41KB brotli compressed (the core browser bundle; the dev build adds linting and test helpers)
 
 ## Quick Start
 
@@ -62,6 +62,30 @@ For an interactive walk-through with editable examples, see the
 </html>
 ```
 
+## Concepts at a Glance
+
+Each concept has a tutorial section with editable live examples:
+
+- **[Components & state](https://marianoguerra.github.io/tutuca/tutorial.html#basics)** —
+  typed `fields` with auto-generated mutators (`setCount`, `toggleOpen`, …),
+  views as pure functions of a single immutable state tree
+  ([state & updates](https://marianoguerra.github.io/tutuca/tutorial.html#state-and-updates))
+- **[Collections](https://marianoguerra.github.io/tutuca/tutorial.html#collections)** —
+  iterate with `@each`, filter with `@when`, paginate with `@loop-with`
+- **[Rendering components](https://marianoguerra.github.io/tutuca/tutorial.html#rendering-components)** —
+  compose with `<x render>`, multiple views per component, scoped styles
+- **[Component communication](https://marianoguerra.github.io/tutuca/tutorial.html#component-communication)** —
+  bubble events up the tree, send messages to a target, run async work with
+  request/response
+- **[Macros](https://marianoguerra.github.io/tutuca/tutorial.html#macros)** —
+  reusable markup fragments with parameters and slots
+- **[Escape hatches](https://marianoguerra.github.io/tutuca/tutorial.html#escape-hatches)** —
+  drag and drop, web components, raw HTML
+- **[Testing](https://marianoguerra.github.io/tutuca/tutorial.html#testing)** —
+  `getTests()` suites run by the CLI or in the browser, plus a
+  [linter](https://marianoguerra.github.io/tutuca/tutorial.html#linter-reference)
+  that catches template mistakes before they render blank
+
 ## CLI
 
 Tutuca ships a single-file CLI (`dist/tutuca-cli.js`) for inspecting, linting,
@@ -92,9 +116,9 @@ tutuca help [command]
 | `list <module> [name] [--limit n]` | List components and their fields/views (`--limit n` caps, `0` = all) |
 | `examples <module> [--limit n]` | List the examples defined in the module's section (`--limit n` caps, `0` = all) |
 | `show <module> [name]` | Component API docs — all, or one by name |
-| `lint <module> [name]` | Run lint checks — all, or one by name (exit 2 on errors) |
-| `render <module> [name] [--title t] [--view v]` | Render examples to HTML |
-| `test <module> [name] [--grep p] [--bail]` | Run `getTests()` (exit 4 on failures) |
+| `lint <module> [name]` | Run lint checks — all, or one by name (exit `2` on errors) |
+| `render <module> [name] [--title t] [--view v]` | Render examples to HTML (exit `3` on render crash) |
+| `test <module> [name] [--grep p] [--bail]` | Run `getTests()` (exit `4` on failures) |
 | `storybook [dir]` | Serve a live storybook, auto-discovering co-located `*.dev.js` modules (`--port`, `--out`, `--dry-run`, `--no-margaui`, `--no-check`, `--no-tests`; no module path needed) |
 | `feedback [message]` | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl` (no module path needed) |
 | `install-skill [--user\|--project] [--margaui-skill\|--immutable-skill\|--all] [--dot-agents] [--dry-run] [--force]` | Install bundled Claude Code skills (no module path needed) |
@@ -102,15 +126,11 @@ tutuca help [command]
 
 Global flags: `--json`, `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `--module <path>`, `-h, --help`.
 
-Exit codes:
-
-- `0` — success
-- `1` — usage error (bad args, missing module, bad module shape)
-- `2` — `lint` reported errors
-- `3` — `render` crashed while rendering
-- `4` — `test` reported failures
-
-Errors carry stable codes (`ERR_USAGE_*`, `ERR_FORMAT_*`, `ERR_SKILL_*`) and "did you mean" suggestions for unknown commands and flags. Under `--json`, errors are emitted as a single-line JSON envelope on stderr.
+`storybook` wires [MargaUI](https://github.com/marianoguerra/margaui) — a
+Tailwind v4 / daisyUI-compatible class library — by default; `--no-margaui`
+skips it. For the full flag reference, error codes, and "did you mean"
+behavior, run `tutuca help <command>`, or `tutuca agent-context` for a
+machine-readable schema of the whole surface.
 
 ### Usage examples
 
@@ -124,26 +144,11 @@ npx tutuca show ./src/components.js Button --format md -o docs/button.md
 # Render every example to HTML, pretty-printed
 npx tutuca render ./src/components.js --format html --pretty -o dist/examples.html
 
-# Render a single named example
-npx tutuca render ./src/components.js Button --title "Disabled state"
-
-# Lint just one component (exit 2 if findings)
-npx tutuca lint ./src/components.js Button
-
 # Post-edit verification: lint, then render the example covering the
 # feature you just changed.
 npx tutuca lint ./src/components.js
 npx tutuca render ./src/components.js --title "Disabled state"
 ```
-
-### Wrapping
-
-The invocation stays short even without wrapping, but common patterns:
-
-- **`package.json` scripts** — `"docs": "tutuca show ./src/components.js"`
-- **Shell alias** — `tut() { npx tutuca "$1" ./src/components.js "${@:2}"; }`, then `tut render Button`
-- **`justfile` / `Makefile`** — one recipe per subcommand, passing through positionals
-- **Programmatic** — `import "tutuca/cli"` (the bundled entry) for custom build integration
 
 ## Use with Claude Code
 
@@ -160,7 +165,8 @@ npx tutuca install-skill
 # or user-scoped: writes ~/.claude/skills/tutuca/
 npx tutuca install-skill --user
 
-# pick a different bundled skill, or install all three
+# companion skills: MargaUI class lists, or Immutable.js (the values
+# tutuca state is made of) — or install all three
 npx tutuca install-skill --margaui-skill
 npx tutuca install-skill --immutable-skill
 npx tutuca install-skill --all
@@ -176,12 +182,12 @@ The skill content is generated from `docs/skill/`, so the same reference
 runs locally (`tutuca lint <module>` + `tutuca render <module> --title …`)
 and inside Claude.
 
-## License
-
-MIT
-
 ## Links
 
 - [Documentation & Playground](https://marianoguerra.github.io/tutuca/)
 - [Tutorial](https://marianoguerra.github.io/tutuca/tutorial.html)
 - [GitHub](https://github.com/marianoguerra/tutuca)
+
+## License
+
+MIT

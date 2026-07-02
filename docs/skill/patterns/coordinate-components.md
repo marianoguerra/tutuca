@@ -27,5 +27,5 @@ hook — dispatch it with `app.sendAtRoot("init")`.
 
 Carry the most granular payload across the channel, not whole objects you
 won't use — `ctx.bubble("itemSelected", [item.label])` over passing the entire
-component. The handler then receives plain values that are easy to reproduce in
-tests and storybook stories.
+component (same reasoning as handler args: [testing.md](../testing.md)
+*Designing handlers so tests stay simple*).

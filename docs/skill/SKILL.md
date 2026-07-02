@@ -7,9 +7,22 @@ description: Use when authoring or reviewing tutuca modules — `component({...}
 
 # Tutuca
 
-Tutuca is an immutable-state SPA framework. See [core.md](./core.md)
-for the framework primer and the post-edit verification recipe
-(`tutuca lint <module>` → `test` → `render --title "<example>"`).
+Tutuca is an immutable-state SPA framework. Read [core.md](./core.md)
+first for the framework primer.
+
+## Verifying changes
+
+After editing a tutuca module, run these before declaring the edit done:
+
+```sh
+tutuca lint <module>                       # undefined fields/handlers/macros (exit 2 on errors)
+tutuca test <module>                       # getTests() behavior checks (exit 4 on failures)
+tutuca render <module> --title "<example>" # mount the example covering the change (exit 3 on crash)
+```
+
+Full recipe — when to skip `test`, adding a covering example, the
+project-wide `storybook --dry-run` smoke test — in
+[core.md](./core.md#verifying-changes).
 
 ## Companion skills
 
@@ -28,7 +41,10 @@ When authoring tutuca code, also load these if available:
 
 | Task                                                                                           | File                            |
 | ---------------------------------------------------------------------------------------------- | ------------------------------- |
-| Authoring `component({...})`, `html`...`` views, macros, fields, events, lists, styles | [core.md](./core.md)           |
+| Authoring `component({...})`, `html`...`` views, fields, events, conditional display | [core.md](./core.md)           |
+| Iterating lists — `@each` / `render-each`, `@when` filtering, `@enrich-with`, `@loop-with` pagination | [iteration.md](./iteration.md) |
+| Macros — `macro({...}, html)` definitions, `<x:name>` calls, slots, registration | [macros.md](./macros.md) |
+| Component CSS — `style` / `commonStyle` / `globalStyle` scoping and pitfalls | [styles.md](./styles.md) |
 | Designing components — responsibilities, state ownership, channel choice, do's & don'ts | [component-design.md](./component-design.md) |
 | CLI commands, flags, exit codes, full linter rule list                                         | [cli.md](./cli.md)             |
 | Authoring `*.dev.js` story modules, `getExamples()` sections, per-example request mocking, running `tutuca storybook` | [storybook.md](./storybook.md) |

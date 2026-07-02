@@ -7,7 +7,6 @@
     <script type="importmap">
       {
         "imports": {
-          "tutuca-dev": "../dev.js",
           "tutuca": "https://cdn.jsdelivr.net/npm/tutuca@latest/dist/tutuca-dev.js",
           "tutuca/components": "https://cdn.jsdelivr.net/npm/tutuca@latest/dist/tutuca-components.js",
           "margaui": "https://cdn.jsdelivr.net/npm/margaui@latest/+esm",
@@ -469,7 +468,9 @@
         <p>
           Methods and input handlers both must return a new component instance.
           The input section is just for organization purposes, you can use
-          methods if you want.
+          methods if you want &mdash; this example splits the two on purpose to
+          show both forms side by side (the README's Counter uses
+          <code>methods</code> for both, which works just as well).
         </p>
         <tutuca-playground src="./examples/counter.js"></tutuca-playground>
 
@@ -521,12 +522,8 @@
         <p>
           The example below also uses
           <code>@show="truthy? .lastSentSearch"</code> to conditionally display
-          the search result &mdash; <code>truthy?</code> is a built-in boolean
-          predicate. A conditional slot can name a field directly or apply a
-          predicate to one: <code>empty?</code>, <code>truthy?</code>,
-          <code>falsy?</code> and <code>null?</code>, written predicate-first
-          like a handler call. <code>@show</code> and <code>@hide</code> were
-          introduced in
+          the search result &mdash; <code>truthy?</code> is one of the boolean
+          predicates introduced in
           <a href="#conditional-display">Conditional Display</a>
           above.
         </p>
@@ -1189,10 +1186,13 @@
           <code>active</code> and does <code>&lt;x render="*active"&gt;</code>.
           The rendered <code>Sheet</code> physically lives at
           <code>Workspace.sheet</code> &mdash; so when you edit its title the
-          mutation is <strong>teleported</strong>: the render path is expanded
-          to reconstruct the handler, but the transaction skips the intermediate
-          components and lands on <code>Workspace.sheet</code>. The proof is the
-          title echoed at the top, which updates in lock-step.
+          mutation is <strong>teleported</strong>. Every state update in tutuca
+          runs as a <em>transaction</em> &mdash; a dispatched handler call that
+          swaps the new state tree in for the old one. Here the render path is
+          expanded to reconstruct the handler, but the transaction skips the
+          intermediate components and lands on <code>Workspace.sheet</code>
+          (that jump is the teleport). The proof is the title echoed at the
+          top, which updates in lock-step.
         </p>
         <tutuca-playground src="./examples/dynamic-path.js"></tutuca-playground>
       </section>
@@ -1237,12 +1237,12 @@
         <p>
           When using the macro, a plain attribute like
           <code>label="Sale"</code> passes a static string &mdash; no quotes
-          needed, just like regular HTML attributes. If the attribute is dynamic
-          (prefixed with <code>:</code>), the value is an expression, so string
-          literals must be single-quoted to distinguish them from field
-          references: <code>:label="'Sale'"</code> is the dynamic equivalent.
-          Without quotes, <code>:label=".status"</code> resolves the component's
-          <code>status</code> field instead.
+          needed, just like regular HTML attributes. A dynamic attribute
+          (prefixed with <code>:</code>) takes an expression instead, following
+          the usual rules from
+          <a href="#quoting-string-literals">Quoting &amp; String Literals</a>:
+          <code>:label="'Sale'"</code> is a string literal,
+          <code>:label=".status"</code> a field reference.
         </p>
         <tutuca-playground src="./examples/macro-params.js"></tutuca-playground>
 
@@ -1465,10 +1465,13 @@
         <p>
           To test these as a pipeline (filter + loop-data + enrichment) use
           <code>collectIterBindings</code>. A functional implementation only
-          ships in the <code>tutuca-dev</code> build; the core
-          <code>tutuca</code> build exports a no-op stub. The playgrounds on
-          this page import it from <code>"tutuca"</code> because their import
-          map points that specifier at <code>tutuca-dev</code>:
+          ships in the dev build; the core <code>tutuca</code> build (the one
+          the README's CDN quick start imports) exports a no-op stub. In your
+          own project import it from <code>"tutuca/dev"</code>, or run tests
+          through <code>tutuca test</code>, which redirects the bare
+          <code>"tutuca"</code> import to the dev build automatically. The
+          playgrounds on this page import it from <code>"tutuca"</code>
+          because their import map points that specifier at the dev build:
         </p>
         <pre><code>import { collectIterBindings } from "tutuca";
 
@@ -1610,11 +1613,17 @@ const r = collectIterBindings(MyComp, c, c.items, {
           You've covered all of tutuca's core features. To see them working
           together in more realistic scenarios, check out the
           <a href="index.html">example apps</a> on the home page &mdash;
-          including a to-do list, a JSON editor, a recursive tree, and more. The
-          <a href="storybook/">Storybook</a> is a living reference that exercises
-          every storybook feature &mdash; sections, named views, macros,
-          per-example request mocks, lifecycle <code>on</code> hooks, and
-          <code>drive</code> tests. For the full API and source code, visit the
+          including a to-do list, a JSON editor, a recursive tree, and more.
+          The next step beyond this page is the storybook: put your components
+          and examples in a co-located <code>*.dev.js</code> module (a dev-only
+          file exporting <code>getComponents()</code> and
+          <code>getExamples()</code>) and <code>tutuca storybook</code> serves
+          a live catalog of them with no setup. The
+          <a href="storybook/">Storybook</a> here is a living reference that
+          exercises every feature of that format &mdash; sections, named views,
+          macros, per-example request mocks, lifecycle <code>on</code> hooks,
+          and <code>drive</code> tests. For the full API and source code, visit
+          the
           <a href="https://github.com/marianoguerra/tutuca">GitHub repository</a
           >.
         </p>

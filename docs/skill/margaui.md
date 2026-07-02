@@ -4,7 +4,7 @@ Reach this file to add **MargaUI** (the Tailwind v4 / daisyUI-compatible
 class library) styling to a tutuca app: get margaui into the project,
 link its theme, and let tutuca's extra build compile the utility classes
 it finds in your views into CSS. If you only need scoped/global component
-CSS, the `## Styles` section in [core.md](./core.md) is enough.
+CSS, [styles.md](./styles.md) is enough.
 
 ## Get margaui
 
@@ -128,7 +128,7 @@ check catching it; keep them adjacent and update both together.
 
 ## See also
 
-- [core.md](./core.md) — `## Styles` for scoped/global component CSS.
+- [styles.md](./styles.md) — scoped/global component CSS.
 - [advanced.md](./advanced.md) — dynamic bindings, drag & drop, custom
   seq types, and other advanced view features.
 - [cli.md](./cli.md) — `tutuca storybook` wires margaui by default
