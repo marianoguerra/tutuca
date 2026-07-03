@@ -139,7 +139,7 @@ try {
       sb
         .getComponents()
         .map((c) => c.name)
-        .join(",") === "Storybook,Section,Example,SidebarGroup,SidebarEntry,ActivityEntry",
+        .join(",") === "Storybook,Section,Example,SidebarGroup,SidebarEntry",
   );
 } catch (e) {
   check("load tutuca-storybook.js", false, `${e.constructor.name}: ${e.message}`);

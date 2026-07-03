@@ -154,6 +154,7 @@ export class TutucaPlayground extends HTMLElement {
           <button data-tab="instance" hidden>Instance</button>
           <button data-tab="lint" hidden>Lint</button>
           <button data-tab="test" hidden>Test</button>
+          <button data-tab="activity" hidden>Activity</button>
           <button class="eject-btn" title="Eject to folder">&#x23CF;&#xFE0F;</button>
         </div>
         <div class="tab-panel active" data-panel="preview"></div>
@@ -162,6 +163,7 @@ export class TutucaPlayground extends HTMLElement {
         <div class="tab-panel" data-panel="instance"></div>
         <div class="tab-panel" data-panel="lint"></div>
         <div class="tab-panel" data-panel="test"></div>
+        <div class="tab-panel" data-panel="activity"></div>
       </div>
     `;
 
@@ -169,7 +171,7 @@ export class TutucaPlayground extends HTMLElement {
     this.preview = this.shadowRoot.querySelector('[data-panel="preview"]');
     // Inspector tabs (Component/Instance/Lint/Test) render tutuca/components
     // inspector view instances built by buildInspectorViews — same as the storybook.
-    this._inspectorTabs = ["component", "instance", "lint", "test"];
+    this._inspectorTabs = ["component", "instance", "lint", "test", "activity"];
     this._inspectorApp = null;
     this._inspectorRoot = null;
     this._inspectorViews = null;
@@ -238,6 +240,8 @@ export class TutucaPlayground extends HTMLElement {
       instance: views.hasInspect,
       lint: views.hasLint,
       test: views.hasTest,
+      // Activity is always available: it fills as you interact with the preview.
+      activity: true,
     };
     for (const name of this._inspectorTabs) {
       const btn = this.shadowRoot.querySelector(`.tab-bar button[data-tab="${name}"]`);
@@ -261,6 +265,12 @@ export class TutucaPlayground extends HTMLElement {
     if (name === "instance" && this._rebuildInstanceView && this._inspectorViews) {
       this._inspectorViews.instanceView = this._rebuildInstanceView();
       delete this._liveViews.instance;
+    }
+    // Activity grows live as you interact; always show the latest accumulated log
+    // (drop any stale per-tab snapshot with expand state).
+    if (name === "activity" && this._activityLog && this._inspectorViews) {
+      this._inspectorViews.activityView = this._activityLog;
+      delete this._liveViews.activity;
     }
     // tab name (e.g. "component") → view key ("componentView")
     const pristine = this._inspectorViews?.[`${name}View`];
@@ -429,6 +439,10 @@ export class TutucaPlayground extends HTMLElement {
     this._liveViews = {};
     this._activeInspector = null;
     this._rebuildInstanceView = null;
+    // Stop the previous activity subscription and reset its log.
+    this._activitySub?.();
+    this._activitySub = null;
+    this._activityLog = null;
     this._undoActive = false;
     this._syncUndoVisibility();
     for (const name of this._inspectorTabs) {
@@ -448,9 +462,12 @@ export class TutucaPlayground extends HTMLElement {
       // buildInspectorViews from tutuca/components, with lint/test data produced
       // by the dev build (already loaded as tutucaApi via the "tutuca" specifier).
       const {
+        ActivityLog,
         buildInspectorViews,
         getComponents: getInspectorComponents,
         InstanceInspector,
+        makeInspect,
+        recordToEntry,
       } = await import(this._resolveSpecifier("tutuca/components"));
 
       const app = tutuca(appRoot);
@@ -524,6 +541,22 @@ export class TutucaPlayground extends HTMLElement {
       // definition-based and stay snapshots).
       this._rebuildInstanceView = () =>
         InstanceInspector.Class.fromData(app.state.val, scope.getCompFor(app.state.val));
+
+      // Live Activity tab: subscribe to the transaction observer and accumulate a
+      // shared ActivityLog. Reuses the same recordToEntry/makeInspect/ActivityLog as
+      // the storybook (tutuca/components) — no reimplemented display here. The root is
+      // the whole component, so no path routing is needed; every record is logged.
+      const inspect = makeInspect(app);
+      this._activityLog = ActivityLog.make({});
+      this._inspectorViews.activityView = this._activityLog;
+      this._activitySub = app.observe((record) => {
+        this._activityLog = this._activityLog.appendEntry(recordToEntry(record, { inspect }));
+        this._inspectorViews.activityView = this._activityLog;
+        if (this._activeInspector === "activity" && this._inspectorApp) {
+          this._inspectorApp.state.set(this._activityLog);
+        }
+      });
+
       this._updateInspectorTabs(this._inspectorViews);
 
       if (this.hasAttribute("auto-run-tests") && this._inspectorViews.hasTest) {

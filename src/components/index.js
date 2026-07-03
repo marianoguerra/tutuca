@@ -11,6 +11,7 @@ import { getComponents as getDataComponents } from "./data/data.js";
 import { getComponents as getImComponents } from "./data/immutable-inspector.js";
 import { getComponents as getJsonComponents } from "./data/json.js";
 import { getComponents as getSchemaComponents } from "./data/json-schema.js";
+import { getComponents as getActivityComponents } from "./tutuca/activity-inspector.js";
 import { getComponents as getComponentInspectorComponents } from "./tutuca/component-inspector.js";
 import { getComponents as getInstanceInspectorComponents } from "./tutuca/instance-inspector.js";
 import { getComponents as getLintComponents } from "./tutuca/lint-inspector.js";
@@ -22,6 +23,7 @@ export * from "./data/data.js";
 export * from "./data/immutable-inspector.js";
 export * from "./data/json.js";
 export * from "./data/json-schema.js";
+export * from "./tutuca/activity-inspector.js";
 export * from "./tutuca/component-inspector.js";
 export * from "./tutuca/instance-inspector.js";
 export * from "./tutuca/lint-inspector.js";
@@ -32,6 +34,7 @@ export * from "./tutuca/test-inspector.js";
 // dedup-by-name union in tutuca/instance-inspector.js.
 export function getComponents() {
   const all = [
+    ...getActivityComponents(),
     ...getComponentInspectorComponents(),
     ...getInstanceInspectorComponents(),
     ...getLintComponents(),

@@ -8,7 +8,7 @@
 // returned views onto each Example. The lint/test DATA producers are injected via
 // `dev` (from tutuca/dev) so this engine stays free of the heavy core/lint/test
 // deps — mirroring how mountStorybook takes a compileCss callback for margaui.
-import { buildInspectorViews, isComponentInstance } from "tutuca/components";
+import { ActivityLog, buildInspectorViews, isComponentInstance } from "tutuca/components";
 
 // compName -> { getTests, components } from the modules that define tests, so
 // the test tab can run just that component's suites (runTests filters by name).
@@ -39,6 +39,7 @@ async function buildExampleInspectors(example, scope, testIndex, dev) {
     .setComponentView(views.componentView)
     .setLintView(views.lintView)
     .setTestView(views.testView)
+    .setActivityLog(ActivityLog.make({}))
     .setHasInspect(views.hasInspect)
     .setHasComponent(views.hasComponent)
     .setHasLint(views.hasLint)

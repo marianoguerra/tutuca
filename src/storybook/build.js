@@ -2,14 +2,7 @@
 // storybook needs (buildStorybook) and wire per-example request-handler mocks
 // (buildExampleRequestHandlers). No DOM — everything here is unit-testable.
 import { getComponents as getInspectorComponents } from "tutuca/components";
-import {
-  ActivityEntry,
-  Example,
-  Section,
-  SidebarEntry,
-  SidebarGroup,
-  Storybook,
-} from "./components.js";
+import { Example, Section, SidebarEntry, SidebarGroup, Storybook } from "./components.js";
 
 // Aggregate an array of dev/story modules into the data a storybook needs.
 // Each module follows the convention: getComponents() (required) and
@@ -36,7 +29,7 @@ export function buildStorybook(modules) {
     Example,
     SidebarGroup,
     SidebarEntry,
-    ActivityEntry,
+    // ActivityLog + ActivityEntry arrive via getInspectorComponents() (tutuca/components).
     ...getInspectorComponents(),
   ];
   const engineSet = new Set(engineComponents);

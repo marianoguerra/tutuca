@@ -426,11 +426,11 @@ export const Example = component({
     instanceView: null,
     lintView: null,
     testView: null,
-    // Live dispatch activity for this example's component (`.value`): a bounded,
-    // newest-first list of ActivityEntry rows appended by the storybook's core
-    // observer (src/storybook/activity.js). `hasActivity` gates the Activity tab
-    // so it only appears once something has actually happened.
-    events: [],
+    // Live dispatch activity for this example's component (`.value`): an ActivityLog
+    // (baked empty by src/storybook/inspect.js) the core observer appends to via
+    // logActivity. `hasActivity` gates the Activity tab so it only appears once
+    // something has actually happened.
+    activityLog: null,
     hasActivity: false,
   },
   // Storybook-only convention (read in mountStorybook, never by core): names the
@@ -473,11 +473,11 @@ export const Example = component({
       this.runPhase(ctx, "suspend", this.on?.suspend);
       return this;
     },
-    // Append one activity row (newest-first, capped). Dispatched by the storybook
-    // observer at this example's node — a path OUTSIDE `.value`, so the observer's
-    // own filter ignores it and this append is never itself logged (no loop).
+    // Append one activity row to the example's ActivityLog. Dispatched by the storybook
+    // observer at this example's node — a path OUTSIDE `.value`, so the observer's own
+    // filter ignores it and this append is never itself logged (no loop).
     logActivity(entry) {
-      return this.setEvents(this.events.unshift(entry).slice(0, ACTIVITY_CAP)).setHasActivity(true);
+      return this.setActivityLog(this.activityLog.appendEntry(entry)).setHasActivity(true);
     },
   },
   methods: {
@@ -593,82 +593,8 @@ export const Example = component({
       <div class="p-3" @show="equals? .activeTab 'test'">
         <x render=".testView"></x>
       </div>
-      <div
-        class="p-3 flex flex-col gap-2 max-h-[60vh] overflow-y-auto"
-        @show="equals? .activeTab 'activity'"
-      >
-        <x render-each=".events"></x>
-      </div>
-    </div>
-  </div>`,
-});
-
-// Newest-first cap for an example's activity log (see Example.logActivity).
-const ACTIVITY_CAP = 50;
-
-// One row of an example's dispatch activity log. Pure display: the storybook's
-// core observer (src/storybook/activity.js) builds these from normalized
-// transaction records, prebuilding the `before`/`after` value inspectors so no
-// functions, Paths, or transactions are ever stored in state. `after` is null
-// (and hidden) for the outgoing side of a request.
-export const ActivityEntry = component({
-  name: "ActivityEntry",
-  fields: {
-    kind: "",
-    name: "",
-    handlerName: "",
-    matched: "",
-    pathLabel: "",
-    time: "",
-    before: null,
-    after: null,
-    hasAfter: true,
-  },
-  view: html`<div
-    class="rounded border border-base-content/15 p-2 text-sm flex flex-col gap-1"
-  >
-    <div class="flex items-center gap-2 flex-wrap">
-      <span
-        title="How this was dispatched: receive (send), bubble, response, input, or request"
-        class="badge badge-sm badge-neutral"
-        @text=".kind"
-      ></span>
-      <span
-        title="Message name dispatched — for a DOM input, the event type (click, input, change, keydown, …)"
-        class="font-mono font-semibold"
-        @text=".name"
-      ></span>
-      <span
-        title="Actual handler that ran — shown only when it differs from the name (e.g. a $unknown fallback)"
-        class="text-xs opacity-60 font-mono"
-        @show="truthy? .handlerName"
-        @text=".handlerName"
-      ></span>
-      <span
-        title="Path to the target component within this example"
-        class="text-xs opacity-40 font-mono"
-        @text=".pathLabel"
-      ></span>
-      <span
-        title="Handler resolution — exact: matched by name · unknown: $unknown fallback · none: no handler (no-op)"
-        class="badge badge-xs badge-ghost"
-        @show="truthy? .matched"
-        @text=".matched"
-      ></span>
-      <span
-        title="Time this event ran (HH:MM:SS.mmm)"
-        class="ml-auto text-xs opacity-40 font-mono tabular-nums"
-        @text=".time"
-      ></span>
-    </div>
-    <div class="flex gap-3 items-start font-mono text-xs">
-      <div class="flex-1 min-w-0">
-        <div class="opacity-50" title="Target state before the handler ran">before</div>
-        <x render=".before"></x>
-      </div>
-      <div class="flex-1 min-w-0" @show=".hasAfter">
-        <div class="opacity-50" title="Target state after the handler ran">after</div>
-        <x render=".after"></x>
+      <div class="p-3" @show="equals? .activeTab 'activity'">
+        <x render=".activityLog"></x>
       </div>
     </div>
   </div>`,
