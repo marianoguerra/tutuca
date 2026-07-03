@@ -28,6 +28,13 @@ export async function init() {
   const themeSheet = new CSSStyleSheet();
   await themeSheet.replace(`${lightCss}\n${darkCss}`);
   document.adoptedStyleSheets.push(themeSheet);
+
+  // The [data-theme=dark] palette above is adopted at the document level, so it
+  // also matches a playground host that mirrors the page theme (see
+  // TutucaPlayground._syncTheme); the vars it sets on the host inherit across
+  // the shadow boundary into margaui's preview. margaui no longer pins its
+  // theme defaults to :host, so no shadow-scoped override is needed.
+
   customElements.define("tutuca-playground", TutucaPlayground);
   customElements.define("html-playground", HtmlPlayground);
   maybeAddImmutableDevTools();

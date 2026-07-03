@@ -139,7 +139,26 @@ export class TutucaPlayground extends HTMLElement {
     this.shadowRoot.adoptedStyleSheets = [layout, ...TutucaPlayground.styles, ...extra];
   }
 
+  // Mirror the page theme onto the host. The document-level [data-theme=dark]
+  // palette then matches the host and its vars inherit across the shadow
+  // boundary into margaui's preview (margaui no longer pins theme defaults to
+  // :host, so the inherited values win).
+  _syncTheme() {
+    const t = document.documentElement.getAttribute("data-theme") || "light";
+    this.setAttribute("data-theme", t);
+  }
+
+  disconnectedCallback() {
+    this._themeObserver?.disconnect();
+  }
+
   async connectedCallback() {
+    this._syncTheme();
+    this._themeObserver = new MutationObserver(() => this._syncTheme());
+    this._themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
     this._adoptStyles();
 
     this.shadowRoot.innerHTML = `
