@@ -4,6 +4,7 @@
 // functional but unstyled. The inspector tab views are decoupled the same way:
 // rendering comes from tutuca/components, lint/test DATA from the injected `dev`.
 import { injectCss, tutuca } from "tutuca";
+import { subscribeExampleActivity } from "./activity.js";
 import { buildExampleRequestHandlers, buildStorybook } from "./build.js";
 import { attachInspectorViews } from "./inspect.js";
 
@@ -69,6 +70,10 @@ export async function mountStorybook(
     injectCss("tutuca-storybook", await compileCss(app));
   }
   app.start({ noCache });
+  // Trace per-example dispatch activity into each example's Activity tab. Gated on
+  // `dev` (same as the inspector tabs): the Activity tab lives in the inspector tab
+  // bar, so it is only reachable when dev is wired.
+  if (dev) subscribeExampleActivity(app);
   // Drive the section lifecycle (and, when persisting, restore section/example
   // from the URL). Re-restore on Back/Forward only when persisting. Programmatic
   // push/replaceState don't fire popstate, so this only runs on real navigation.

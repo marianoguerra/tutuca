@@ -17,6 +17,12 @@ export class Step {
   pinKey(_v) {
     return this;
   }
+  // A generic `{ field, key? }` descriptor for this step, or null for frame-only
+  // steps (binds) that address no field. Used by `Path.toKeys()` so tooling can
+  // introspect a path without reaching into Step subclasses.
+  toKey() {
+    return null;
+  }
 }
 export class BindStep extends Step {
   constructor(binds) {
@@ -77,6 +83,9 @@ export class FieldStep extends Step {
   withKey(k) {
     return new SeqStep(this.field, k);
   }
+  toKey() {
+    return { field: this.field };
+  }
 }
 export class SeqStep extends Step {
   constructor(field, key) {
@@ -94,6 +103,9 @@ export class SeqStep extends Step {
   }
   enterFrame(stack, _prev, next) {
     return stack.enter(next, { key: this.key }, true);
+  }
+  toKey() {
+    return { field: this.field, key: this.key };
   }
 }
 export class SeqAccessStep extends Step {
@@ -117,6 +129,12 @@ export class SeqAccessStep extends Step {
   pinKey(v) {
     const key = v?.get(this.keyField, NONE);
     return key === NONE ? this : new SeqStep(this.seqField, key);
+  }
+  // The key is a *field reference* resolved live, so it is unknown without a value;
+  // report the seq field (no key) rather than dropping the step, which would shift
+  // the indices of later keys. Call `Path.pinKeys(root)` first to get a concrete key.
+  toKey() {
+    return { field: this.seqField };
   }
 }
 export class EachBindStep extends Step {
@@ -287,6 +305,18 @@ export class Path {
       curVal = step.lookup(curVal, NONE);
       if (curVal === NONE) break;
       out.push(curVal);
+    }
+    return out;
+  }
+  // A flat `[{ field, key? }]` list of the addressing steps, skipping frame-only
+  // steps (binds). Generic path introspection so tooling (e.g. the storybook
+  // activity log) can identify which subtree a transaction touched without
+  // depending on Step internals. Call on a transaction path (no DynSteps).
+  toKeys() {
+    const out = [];
+    for (const step of this.steps) {
+      const k = step.toKey();
+      if (k !== null) out.push(k);
     }
     return out;
   }

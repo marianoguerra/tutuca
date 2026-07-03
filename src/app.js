@@ -140,6 +140,11 @@ export class App {
   onChange(callback) {
     this.transactor.state.onChange(callback);
   }
+  // Subscribe to a normalized record for every handler invocation. Returns an
+  // unsubscribe function. See Transactor.observe.
+  observe(callback) {
+    return this.transactor.observe(callback);
+  }
   compile() {
     for (const Comp of this.comps.byId.values()) {
       Comp.compile(this.ParseContext);

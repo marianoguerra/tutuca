@@ -25,6 +25,10 @@ export class Transactor {
     this.transactions = [];
     this.state = new State(rootValue);
     this.onTransactionPushed = () => {};
+    // Observers notified once per handler invocation with a normalized record
+    // (see `_emitTransaction`). Multi-subscriber, generic; a dev tool subscribes
+    // via `observe()` to trace dispatch activity. Empty by default: zero overhead.
+    this._observers = [];
     // In-flight request promises, so the global `settle()` drain can await async
     // requests. (Per-dispatch completion is tracked separately via `Completion`; this
     // set is the thing `settle()` actually awaits to make progress on pending requests.)
@@ -33,6 +37,49 @@ export class Transactor {
   pushTransaction(t) {
     this.transactions.push(t);
     this.onTransactionPushed(t);
+  }
+  // Subscribe to a normalized record for every handler invocation (send/receive,
+  // bubble, request/response, input). Returns an unsubscribe function. Records
+  // carry: kind, name, args, path, pathKeys, targetPath, handler, handlerName,
+  // matched, before, after, parent, timestamp. Purely observational.
+  observe(cb) {
+    this._observers.push(cb);
+    return () => {
+      const i = this._observers.indexOf(cb);
+      if (i !== -1) this._observers.splice(i, 1);
+    };
+  }
+  _emit(record) {
+    for (const cb of this._observers) cb(record);
+  }
+  // Build and dispatch the observer record for a settled transaction. The
+  // resolved handler (`_resolvedHandler`/`_matched`) and per-leaf before/after
+  // (`_before`/`_after`) were captured while the handler ran (see callHandler /
+  // updateRootValue). No-op when nobody is observing.
+  _emitTransaction(transaction, root) {
+    if (this._observers.length === 0) return;
+    // No handler ran (a skipSelf send — the no-op first hop of ctx.bubble): nothing
+    // to report. The bubble it spawns emits its own record when it runs.
+    if (transaction._resolvedHandler === undefined) return;
+    // Pin field-resolved keys (e.g. a `.a[.selId]` render target reconstructed from a
+    // DOM event) against the root the handler read, so pathKeys carries concrete keys
+    // instead of dropping the dynamic step.
+    const path = transaction.getTransactionPath().pinKeys(root);
+    this._emit({
+      kind: transaction.observeKind,
+      name: transaction.observeName,
+      args: transaction.args ?? null,
+      path,
+      pathKeys: path.toKeys(),
+      targetPath: transaction.targetPath ?? transaction.path,
+      handler: transaction._resolvedHandler ?? null,
+      handlerName: transaction._resolvedHandler?.name || null,
+      matched: transaction._matched ?? null,
+      before: transaction._before,
+      after: transaction._after,
+      parent: transaction.parentTransaction,
+      timestamp: Date.now(),
+    });
   }
   // Make `child` a tracked unit of `parent`'s subtree: the parent's completion stays open
   // until the child's *whole* subtree settles. Tracking happens at dispatch time — during
@@ -96,7 +143,28 @@ export class Transactor {
       const curRoot = this.state.val;
       const txnPath = path.toTransactionPath();
       const curLeaf = txnPath.lookup(curRoot);
-      const handler = this.comps.getRequestFor(curLeaf, name) ?? mkReq404(name);
+      const found = this.comps.getRequestFor(curLeaf, name);
+      const handler = found ?? mkReq404(name);
+      // Observe the outgoing request (name + args + before-state). The response
+      // side is observed later when its ResponseEvent flows through transact().
+      if (this._observers.length > 0) {
+        const reqPath = txnPath.pinKeys(curRoot);
+        this._emit({
+          kind: "request",
+          name,
+          args,
+          path: reqPath,
+          pathKeys: reqPath.toKeys(),
+          targetPath: path,
+          handler: found?.fn ?? null,
+          handlerName: found?.fn?.name || name,
+          matched: found ? "exact" : "none",
+          before: curLeaf,
+          after: undefined,
+          parent,
+          timestamp: Date.now(),
+        });
+      }
       // Request handlers run with no `this`, and receive a RequestContext as their
       // final argument (consistent with receive/input/response, where ctx is last).
       const reqCtx = new RequestContext(path, this, parent, curRoot);
@@ -140,6 +208,7 @@ export class Transactor {
       if (newState !== undefined) {
         this.state.set(newState, { transaction });
         transaction.afterTransaction();
+        this._emitTransaction(transaction, curState);
       } else console.warn("undefined new state", { curState, transaction });
     } finally {
       transaction._completion?.ensureSelfSettled();
@@ -191,8 +260,19 @@ class Transaction {
   buildStack(root, comps) {
     return this.path.toTransactionPath().buildStack(this.buildRootStack(root, comps));
   }
+  // The kind reported to observers (see Transactor.observe); null on the base.
+  get observeKind() {
+    return null;
+  }
+  // The name reported to observers; null on the base. Overridden by NameArgs (the
+  // dispatched message name) and InputEvent (the DOM event type). Kept separate from
+  // `name`/`ctx.name` so it can't change handler-visible behavior.
+  get observeName() {
+    return null;
+  }
   callHandler(root, instance, comps) {
     const [handler, args] = this.getHandlerAndArgs(root, instance, comps);
+    this._resolvedHandler = handler; // captured for observers
     return handler.apply(instance, args);
   }
   getHandlerAndArgs(_root, _instance, _comps) {
@@ -208,6 +288,8 @@ class Transaction {
     const txnPath = this.getTransactionPath();
     const curLeaf = txnPath.lookup(curRoot);
     const newLeaf = this.callHandler(curRoot, curLeaf, comps);
+    this._before = curLeaf; // captured for observers (see _emitTransaction)
+    this._after = newLeaf;
     this._completion?.markSelfSettled({ value: newLeaf, old: curLeaf });
     return curLeaf !== newLeaf ? txnPath.setValue(curRoot, newLeaf) : curRoot;
   }
@@ -237,6 +319,12 @@ class InputEvent extends Transaction {
   get dispatchPath() {
     this._dispatchPath ??= this.path.compact();
     return this._dispatchPath;
+  }
+  get observeKind() {
+    return "input";
+  }
+  get observeName() {
+    return this.e?.type ?? null;
   }
   buildRootStack(root, comps) {
     return Stack.root(comps, root, this);
@@ -306,9 +394,28 @@ class NameArgsTransaction extends Transaction {
     this.targetPath = path;
   }
   handlerProp = null;
+  // NameArgs verbs map their handler bucket straight to the observed kind:
+  // receive / bubble / response / input.
+  get observeKind() {
+    return this.handlerProp;
+  }
+  get observeName() {
+    return this.name;
+  }
   getHandlerForName(comp) {
     const handlers = comp?.[this.handlerProp];
-    return handlers?.[this.name] ?? handlers?.$unknown ?? nullHandler;
+    const exact = handlers?.[this.name];
+    if (exact) {
+      this._matched = "exact";
+      return exact;
+    }
+    const unknown = handlers?.$unknown;
+    if (unknown) {
+      this._matched = "unknown";
+      return unknown;
+    }
+    this._matched = "none";
+    return nullHandler;
   }
   getHandlerAndArgs(_root, instance, comps) {
     const handler = this.getHandlerForName(comps.getCompFor(instance));

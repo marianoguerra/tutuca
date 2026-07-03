@@ -798,3 +798,189 @@ describe("settle", () => {
     expect(t.state.val.loaded).toBe("data");
   });
 });
+
+describe("observe (transaction observer)", () => {
+  test("emits a normalized record for a receive send", () => {
+    const recs = [];
+    const t = setup({
+      receive: {
+        ping() {
+          return { ...this, pinged: true };
+        },
+      },
+    });
+    t.observe((r) => recs.push(r));
+    t.pushSend(new Path([]), "ping", [1, 2]);
+    runAll(t);
+    expect(recs.length).toBe(1);
+    const r = recs[0];
+    expect(r.kind).toBe("receive");
+    expect(r.name).toBe("ping");
+    expect(r.args).toEqual([1, 2]);
+    expect(r.matched).toBe("exact");
+    expect(r.handlerName).toBe("ping");
+    expect(r.before).toEqual({ tag: "root" });
+    expect(r.after).toEqual({ tag: "root", pinged: true });
+    expect(r.pathKeys).toEqual([]);
+  });
+
+  test("matched is 'unknown' when only $unknown handles, 'none' when nothing does", () => {
+    const recs = [];
+    const t = setup({
+      receive: {
+        $unknown() {
+          return this;
+        },
+      },
+    });
+    t.observe((r) => recs.push(r));
+    t.pushSend(new Path([]), "anything", []);
+    runAll(t);
+    expect(recs[0].matched).toBe("unknown");
+
+    const recs2 = [];
+    const t2 = setup({});
+    t2.observe((r) => recs2.push(r));
+    t2.pushSend(new Path([]), "anything", []);
+    runAll(t2);
+    expect(recs2[0].matched).toBe("none");
+  });
+
+  test("emits kind 'bubble' on every hop", () => {
+    const recs = [];
+    const t = new Transactor(
+      makeComps({
+        bubble: {
+          foo() {
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ tag: "leaf" }) }),
+    );
+    t.observe((r) => recs.push(r));
+    t.pushBubble(new Path([new FieldStep("a")]), "foo", [], { bubbles: true });
+    runAll(t);
+    expect(recs.map((r) => r.kind)).toEqual(["bubble", "bubble"]);
+    expect(recs[0].name).toBe("foo");
+  });
+
+  test("emits kind 'input' for pushInput, with before/after", () => {
+    const recs = [];
+    const t = setup({
+      input: {
+        setName(v) {
+          return { ...this, name: v };
+        },
+      },
+    });
+    t.observe((r) => recs.push(r));
+    t.pushInput(new Path([]), "setName", ["Ada"]);
+    runAll(t);
+    expect(recs.length).toBe(1);
+    expect(recs[0].kind).toBe("input");
+    expect(recs[0].name).toBe("setName");
+    expect(recs[0].after).toEqual({ tag: "root", name: "Ada" });
+  });
+
+  test("emits an outgoing 'request' record (no after) and a 'response' record (before→after)", async () => {
+    const recs = [];
+    const t = new Transactor(
+      makeComps({
+        response: {
+          load(result) {
+            return { ...this, loaded: result };
+          },
+        },
+        request: { fn: async () => "data" },
+      }),
+      { tag: "root" },
+    );
+    t.observe((r) => recs.push(r));
+    t.pushRequest(new Path([]), "load", [7]);
+    await t.settle();
+    const req = recs.find((r) => r.kind === "request");
+    const res = recs.find((r) => r.kind === "response");
+    expect(req).toBeTruthy();
+    expect(req.name).toBe("load");
+    expect(req.args).toEqual([7]);
+    expect(req.matched).toBe("exact");
+    expect(req.before).toEqual({ tag: "root" });
+    expect(req.after).toBe(undefined);
+    expect(res).toBeTruthy();
+    expect(res.before).toEqual({ tag: "root" });
+    expect(res.after).toEqual({ tag: "root", loaded: "data" });
+  });
+
+  test("pathKeys reflects the transaction path", () => {
+    const recs = [];
+    const t = setup(
+      {
+        receive: {
+          bump() {
+            return this.set("n", this.get("n") + 1);
+          },
+        },
+      },
+      IMap({ child: IMap({ n: 0 }) }),
+    );
+    t.observe((r) => recs.push(r));
+    t.pushSend(new Path([new FieldStep("child")]), "bump", []);
+    runAll(t);
+    expect(recs[0].pathKeys).toEqual([{ field: "child" }]);
+  });
+
+  test("pathKeys pins a dynamic SeqAccessStep to a concrete key", () => {
+    // A DOM event inside a `render=".a[.selId]"` reconstructs a SeqAccessStep whose key
+    // is a live field reference. pathKeys must resolve it to the concrete key (else a
+    // consumer routing by key can't identify the subtree).
+    const recs = [];
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          bump() {
+            return this.set("n", (this.get("n") ?? 0) + 1);
+          },
+        },
+      }),
+      IMap({ sheets: IMap({ a: IMap({ n: 0 }), b: IMap({ n: 0 }) }), selId: "b" }),
+    );
+    t.observe((r) => recs.push(r));
+    t.pushSend(new Path([new SeqAccessStep("sheets", "selId")]), "bump", []);
+    runAll(t);
+    expect(recs[0].pathKeys).toEqual([{ field: "sheets", key: "b" }]);
+  });
+
+  test("a skipSelf send (no handler ran) is not emitted", () => {
+    const recs = [];
+    const t = setup({
+      receive: {
+        ping() {
+          return this;
+        },
+      },
+    });
+    t.observe((r) => recs.push(r));
+    t.pushSend(new Path([]), "ping", [], { skipSelf: true });
+    runAll(t);
+    expect(recs).toEqual([]);
+  });
+
+  test("unsubscribe stops delivery", () => {
+    const recs = [];
+    const t = setup({
+      receive: {
+        ping() {
+          return this;
+        },
+      },
+    });
+    const off = t.observe((r) => recs.push(r));
+    t.pushSend(new Path([]), "ping", []);
+    runAll(t);
+    off();
+    t.pushSend(new Path([]), "ping", []);
+    runAll(t);
+    expect(recs.length).toBe(1);
+  });
+});
