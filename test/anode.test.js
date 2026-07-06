@@ -295,7 +295,6 @@ test("parse mixed macro attrs", () => {
       :str="'hi'"
       :field=".bar"
       :bind="@key"
-      :req="!do"
       :seq=".a[.b]"
       :dyn="*dynamic"
     ></x:m>`,
@@ -309,7 +308,6 @@ test("parse mixed macro attrs", () => {
     str: "'hi'",
     field: ".bar",
     bind: "@key",
-    req: "!do",
     seq: ".a[.b]",
     dyn: "*dynamic",
   });

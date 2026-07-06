@@ -40,7 +40,6 @@ import {
   UNKNOWN_EVENT_MODIFIER,
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
-  UNKNOWN_REQUEST_NAME,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
   UNSUPPORTED_EXPR_SYNTAX,
@@ -909,21 +908,16 @@ test("warn on undefined seq and key", () => {
   }
 });
 
-test("warn on Type/request not in scope", () => {
+test("warn on Type not in scope", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { name: "" },
     input: { do() {} },
-    view: html`<button @on.click="do !req MyComp ctx">do it</button>`,
+    view: html`<button @on.click="do MyComp ctx">do it</button>`,
   });
-  expect(lx.reports.length).toBe(2);
+  expect(lx.reports.length).toBe(1);
   {
     const { id, info } = lx.reports[0];
-    expect(id).toBe(UNKNOWN_REQUEST_NAME);
-    expect(info.name).toBe("req");
-  }
-  {
-    const { id, info } = lx.reports[1];
     expect(id).toBe(UNKNOWN_COMPONENT_NAME);
     expect(info.name).toBe("MyComp");
   }
@@ -1094,8 +1088,8 @@ test("lint-errors example catches all error types", () => {
 
       <p :title=".missing">undefined field</p>
 
-      <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
-        unknown req/comp
+      <button @on.click="doKeyDown UnknownComp ctx">
+        unknown comp
       </button>
 
       <div @enrich-with="myEnrich">undefined alter handler</div>
@@ -1123,7 +1117,6 @@ test("lint-errors example catches all error types", () => {
   expect(ids).toContain(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
   expect(ids).toContain(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
-  expect(ids).toContain(UNKNOWN_REQUEST_NAME);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
 });
@@ -1194,8 +1187,8 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
       <p :title=".missing">undefined field</p>
 
-      <button @on.click="doKeyDown !unknownReq UnknownComp ctx">
-        unknown req/comp
+      <button @on.click="doKeyDown UnknownComp ctx">
+        unknown comp
       </button>
 
       <div @enrich-with="myEnrich">undefined alter handler</div>
@@ -1226,7 +1219,6 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
   expect(ids).toContain(INPUT_HANDLER_METHOD_NOT_IMPLEMENTED);
   expect(ids).toContain(INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
-  expect(ids).toContain(UNKNOWN_REQUEST_NAME);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
 });
@@ -1988,20 +1980,6 @@ test("ALT_HANDLER_NOT_DEFINED suggests closest alter handler", () => {
   });
   const r = lx.reports.find((x) => x.id === ALT_HANDLER_NOT_DEFINED);
   expect(r.suggestion).toEqual({ kind: "replace-name", from: "myEnrch", to: "myEnrich" });
-});
-
-test("UNKNOWN_REQUEST_NAME suggests closest scope-known request", () => {
-  const Comp = component({
-    name: "Comp",
-    input: { do() {} },
-    view: html`<button @on.click="do !geItems">x</button>`,
-  });
-  Comp.scope = new ComponentStack();
-  Comp.scope.registerRequestHandlers({ getItems: () => ({}) });
-  Comp.compile(HeadlessLintParseContext);
-  const lx = checkComponent(Comp);
-  const r = lx.reports.find((x) => x.id === UNKNOWN_REQUEST_NAME);
-  expect(r.suggestion).toEqual({ kind: "replace-name", from: "geItems", to: "getItems" });
 });
 
 test("UNKNOWN_MACRO_ARG suggests closest declared arg", () => {

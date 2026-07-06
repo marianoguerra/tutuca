@@ -66,7 +66,6 @@ export const METHOD_VAL_NOT_DEFINED = "METHOD_VAL_NOT_DEFINED";
 export const METHOD_VAL_IS_FIELD = "METHOD_VAL_IS_FIELD";
 export const DUPLICATE_ATTR_DEFINITION = "DUPLICATE_ATTR_DEFINITION";
 export const IF_NO_BRANCH_SET = "IF_NO_BRANCH_SET";
-export const UNKNOWN_REQUEST_NAME = "UNKNOWN_REQUEST_NAME";
 export const UNKNOWN_COMPONENT_NAME = "UNKNOWN_COMPONENT_NAME";
 export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
 export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
@@ -544,16 +543,6 @@ const ATTR_VAL_CHECKERS = {
   SeqAccessVal({ val, recurse }) {
     recurse(val.seqVal);
     recurse(val.keyVal);
-  },
-  RequestVal({ lx, val, env, errCtx }) {
-    if (env.scope.lookupRequest(val.name) === null)
-      reportUnknownName(
-        lx,
-        UNKNOWN_REQUEST_NAME,
-        val.name,
-        scopeKeysAlong(env.scope, "reqsByName"),
-        errCtx,
-      );
   },
   TypeVal({ lx, val, env, errCtx }) {
     if (env.scope.lookupComponent(val.name) === null)

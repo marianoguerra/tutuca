@@ -252,7 +252,6 @@ literal with spaces (escape an interior quote as `\'`).
 | `$x`     | no-arg method call on `this`              | `$inc`, `$canSubmit`  |
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
-| `!x`     | request handler                           | `!loadData`           |
 | `*x`     | dynamic binding — see [advanced.md](./advanced.md) | `*theme`          |
 | `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
 | `name`   | bare identifier — meaning depends on slot | `dec`, `value`        |

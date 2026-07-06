@@ -28,7 +28,6 @@ import {
   HandlerNameVal,
   MethodVal,
   NameVal,
-  RequestVal,
   TypeVal,
   vp,
 } from "../src/value.js";
@@ -300,16 +299,6 @@ describe("ANode", () => {
       expect(v.name).toBe("Foo");
 
       expect(vp.parseHandlerArg("F-oo", px)).toBe(null);
-    });
-
-    test("parse RequestVal", () => {
-      const px = mpx();
-      const v = vp.parseHandlerArg("!foo", px);
-      expect(v).toBeInstanceOf(RequestVal);
-      expect(v.name).toBe("foo");
-
-      expect(vp.parseHandlerArg("!9foo", px)).toBe(null);
-      expect(vp.parseHandlerArg("!f-oo", px)).toBe(null);
     });
 
     test("parse ConstVal Number", () => {
@@ -643,7 +632,7 @@ describe("ANode", () => {
 
     test("@on.oneevent", () => {
       const [r, px] = parse(
-        "<div @on.click='myHandler @v .f true 42 12.5 !myRequest MyType value'>hi</div>",
+        "<div @on.click='myHandler @v .f true 42 12.5 MyType value'>hi</div>",
       );
       expect(r).toBeInstanceOf(DomNode);
       expect(r.attrs).toBeInstanceOf(ConstAttrs);
@@ -658,8 +647,8 @@ describe("ANode", () => {
       expect(handler).toBeInstanceOf(EventHandler);
       expect(handler.handlerVal).toBeInstanceOf(NameVal);
       expect(handler.handlerVal.name).toBe("myHandler");
-      expect(handler.args.length).toBe(8);
-      const [v, f, b, i, fl, e, t, n] = handler.args;
+      expect(handler.args.length).toBe(7);
+      const [v, f, b, i, fl, t, n] = handler.args;
       expect(v).toBeInstanceOf(BindVal);
       expect(v.name).toBe("v");
       expect(f).toBeInstanceOf(FieldVal);
@@ -670,8 +659,6 @@ describe("ANode", () => {
       expect(i.val).toBe(42);
       expect(fl).toBeInstanceOf(ConstVal);
       expect(fl.val).toBe(12.5);
-      expect(e).toBeInstanceOf(RequestVal);
-      expect(e.name).toBe("myRequest");
       expect(t).toBeInstanceOf(TypeVal);
       expect(t.name).toBe("MyType");
       expect(n).toBeInstanceOf(NameVal);

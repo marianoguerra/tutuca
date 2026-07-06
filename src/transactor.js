@@ -333,13 +333,6 @@ class InputEvent extends Transaction {
     const stack = this.buildStack(root, comps);
     const [handler, args] = this.handler.getHandlerAndArgs(stack, this);
     const path = this.dispatchPath; // ctx.bubble visits intermediate components
-    let dispatcher;
-    for (let i = 0; i < args.length; i++) {
-      if (args[i]?.toHandlerArg) {
-        dispatcher ??= new Dispatcher(path, this.transactor, this);
-        args[i] = args[i].toHandlerArg(dispatcher);
-      }
-    }
     args.push(new EventContext(path, this.transactor, this));
     return [handler, args];
   }

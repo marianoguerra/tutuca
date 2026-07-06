@@ -79,9 +79,9 @@ const LintDemo = component({
     <!-- DYN_VAL_NOT_DEFINED: *missingDyn is not in the component's provide/lookup -->
     <p :title="*missingDyn">undefined dynamic</p>
 
-    <!-- UNKNOWN_REQUEST_NAME + UNKNOWN_COMPONENT_NAME -->
-    <button @on.click="doKeyDown !unknownReq UnknownComp">
-      unknown req/comp
+    <!-- UNKNOWN_COMPONENT_NAME -->
+    <button @on.click="doKeyDown UnknownComp">
+      unknown comp
     </button>
 
     <!-- ALT_HANDLER_NOT_DEFINED: myEnrich is not defined in alter -->

@@ -273,9 +273,4 @@ export class RequestHandler {
     this.name = name;
     this.fn = fn;
   }
-  toHandlerArg(disp) {
-    const f = (...args) => disp.request(this.name, args);
-    f.withOpts = (...args) => disp.request(this.name, args.slice(0, -1), args.at(-1));
-    return f;
-  }
 }

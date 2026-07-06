@@ -7,7 +7,6 @@ import {
   DynVal,
   FieldVal,
   NameVal,
-  RequestVal,
   SeqAccessVal,
   TypeVal,
   vp,
@@ -56,13 +55,12 @@ test("parse dyn attrs", () => {
       :str="'hi'"
       :field=".bar"
       :bind="@key"
-      :req="!do"
       :seq=".a[.b]"
       :dyn="*dynamic"
     ></p>`,
   );
   expect(nAttrs).toBeInstanceOf(DynAttrs);
-  const [name, type, bool, num, str, field, bind, req, seq, dyn] = nAttrs.items;
+  const [name, type, bool, num, str, field, bind, seq, dyn] = nAttrs.items;
   expect(name.name).toBe("name");
   expect(name.val).toBeInstanceOf(NameVal);
   expect(name.val.name).toBe("foo");
@@ -98,11 +96,6 @@ test("parse dyn attrs", () => {
   expect(bind.val.name).toBe("key");
   expect(bind.val.toString()).toBe("@key");
 
-  expect(req.name).toBe("req");
-  expect(req.val).toBeInstanceOf(RequestVal);
-  expect(req.val.name).toBe("do");
-  expect(req.val.toString()).toBe("!do");
-
   expect(seq.val).toBeInstanceOf(SeqAccessVal);
   expect(seq.val.seqVal).toBeInstanceOf(FieldVal);
   expect(seq.val.seqVal.name).toBe("a");
@@ -123,7 +116,6 @@ test("parse dyn attrs", () => {
     str: "'hi'",
     field: ".bar",
     bind: "@key",
-    req: "!do",
     seq: ".a[.b]",
     dyn: "*dynamic",
   });
@@ -139,7 +131,6 @@ test("parse const attrs", () => {
       str="'hi'"
       field=".bar"
       bind="@key"
-      req="!do"
       seq=".a[.b]"
       dyn="*dynamic"
     ></p>`,
@@ -153,7 +144,6 @@ test("parse const attrs", () => {
     str: "'\\'hi\\''",
     field: "'.bar'",
     bind: "'@key'",
-    req: "'!do'",
     seq: "'.a[.b]'",
     dyn: "'*dynamic'",
   });

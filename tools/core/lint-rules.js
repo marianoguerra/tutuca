@@ -49,7 +49,6 @@ import {
   UNKNOWN_EVENT_MODIFIER,
   UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
-  UNKNOWN_REQUEST_NAME,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
   UNSUPPORTED_EXPR_SYNTAX,
@@ -257,12 +256,6 @@ export const LINT_RULES = [
   },
 
   // Names registered with the app
-  {
-    code: UNKNOWN_REQUEST_NAME,
-    level: "error",
-    group: "Names registered with the app",
-    summary: "`!name` references a request handler not registered with the app.",
-  },
   {
     code: UNKNOWN_COMPONENT_NAME,
     level: "error",

@@ -29,7 +29,6 @@ const K_BIND = 8;
 const K_DYN = 16;
 const K_NAME = 32;
 const K_TYPE = 64;
-const K_REQUEST = 128;
 const K_SEQ = 256;
 const K_STR = 512; // plain `'…'` string literal (no `{…}` interpolation)
 const K_METHOD = 1024; // `$name` no-arg method call
@@ -48,7 +47,7 @@ const G_SEQUENCE = K_FIELD | K_DYN;
 // (a method/const/string has no `toPathItem()` and could never teleport).
 const G_PROVIDE = K_FIELD | K_SEQ;
 const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_STR | K_SEQ;
-const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_REQUEST | K_CONST;
+const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_CONST;
 const G_PRED_ARG = G_BOOL | K_STR; // boolean-predicate arguments
 const G_HANDLER_ARG = G_VALUE | K_STR; // event-handler arguments
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
@@ -132,8 +131,6 @@ class ValParser {
         return mkVal(s.slice(1), DynVal);
       case 46: // .name field
         return mkVal(s.slice(1), FieldVal);
-      case 33: // !name request
-        return mkVal(s.slice(1), RequestVal);
     }
     const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
     if (Number.isFinite(num)) return new ConstVal(num);
@@ -279,7 +276,6 @@ function kindOf(val) {
   if (val instanceof MethodVal) return K_METHOD;
   if (val instanceof BindVal) return K_BIND;
   if (val instanceof DynVal) return K_DYN;
-  if (val instanceof RequestVal) return K_REQUEST;
   if (val instanceof TypeVal) return K_TYPE;
   if (val instanceof NameVal) return K_NAME;
   return 0;
@@ -414,14 +410,6 @@ const mk404Handler = (type, name) =>
 export class TypeVal extends NameVal {
   eval(stack) {
     return stack.lookupType(this.name);
-  }
-}
-export class RequestVal extends NameVal {
-  eval(stack) {
-    return stack.lookupRequest(this.name);
-  }
-  toString() {
-    return `!${this.name}`;
   }
 }
 class RenderVal extends BaseVal {

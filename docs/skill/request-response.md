@@ -198,10 +198,8 @@ response: {
 
 A **request name that isn't registered** doesn't crash — the runtime
 throws `Request not found: <name>` internally and routes it to the same
-error path, so it arrives as `err`. (A `!name` reference written in a
-*template* is caught earlier by the `UNKNOWN_REQUEST_NAME` lint; a
-`ctx.request("name")` string call is not, so a typo there surfaces only
-at runtime as an `err`.)
+error path, so it arrives as `err`. A `ctx.request("name")` string call
+with a typo surfaces only at runtime as an `err`.
 
 ### Per-call handler-name overrides — and their signature
 
@@ -339,5 +337,5 @@ per-step-kind pinning rules are in [semantics.md](./semantics.md).
   key-pinning rules `livePath` toggles.
 - [testing.md](./testing.md) — calling `bubble` / `receive` / `response`
   handlers from tests.
-- [cli.md](./cli.md) — `UNKNOWN_REQUEST_NAME` and the full linter rule list,
+- [cli.md](./cli.md) — the full linter rule list,
   exit codes, and `render` / `test` flags.

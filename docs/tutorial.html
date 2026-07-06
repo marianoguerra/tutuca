@@ -118,10 +118,6 @@
             <code>^label</code>)
           </li>
           <li>
-            <code>!name</code> &mdash; request handler (e.g.
-            <code>!loadData</code>)
-          </li>
-          <li>
             <code>*name</code> &mdash; dynamic binding (e.g.
             <code>*theme</code>, <code>*entries</code>)
           </li>
@@ -1589,10 +1585,9 @@ const r = collectIterBindings(MyComp, c, c.items, {
           </li>
           <li>
             <strong>Names registered with the app</strong> &mdash;
-            <code>!request</code> name not registered, component type not
-            registered, or macro attribute not declared in defaults
-            (<code>UNKNOWN_REQUEST_NAME</code>,
-            <code>UNKNOWN_COMPONENT_NAME</code>,
+            component type not registered, or macro attribute not
+            declared in defaults
+            (<code>UNKNOWN_COMPONENT_NAME</code>,
             <code>UNKNOWN_MACRO_ARG</code>).
           </li>
           <li>

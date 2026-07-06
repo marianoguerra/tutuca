@@ -114,8 +114,6 @@ export function lintIdToMessage(id, info) {
     }
     case "IF_NO_BRANCH_SET":
       return `'@if.${info.attr}' has no '@then' or '@else' branch — add '@then="…"' or '@else="…"' (or both)${fmtTagSuffix(info)}`;
-    case "UNKNOWN_REQUEST_NAME":
-      return `Unknown request '!${info.name}'${fmtOriginSuffix(info)}`;
     case "UNKNOWN_COMPONENT_NAME":
       return `Unknown component '${info.name}'${fmtOriginSuffix(info)}`;
     case "ALT_HANDLER_NOT_DEFINED":
