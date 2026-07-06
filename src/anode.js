@@ -39,6 +39,9 @@ class BaseNode {
   isConstant() {
     return false;
   }
+  isWhiteSpace() {
+    return false;
+  }
   optimize() {}
 }
 export class TextNode extends BaseNode {
@@ -470,6 +473,11 @@ export class PushViewNameNode extends WrapperNode {
   }
 }
 export class SlotNode extends WrapperNode {
+  // Marker instead of `instanceof`: newMacroNode receives nodes that may come
+  // from a different copy of this module (CLI tools import src/ while the
+  // module under render imports the dist bundle), and cross-copy instanceof
+  // is always false.
+  isSlotNode = true;
   optimize() {
     this.node.optimize();
   }
@@ -601,8 +609,8 @@ export class ParseContext {
     const anySlot = [];
     const slots = { _: new FragmentNode(anySlot) };
     for (const child of childs)
-      if (child instanceof SlotNode) slots[child.val.val] = child.node;
-      else if (!(child instanceof TextNode) || !child.isWhiteSpace()) anySlot.push(child);
+      if (child.isSlotNode) slots[child.val.val] = child.node;
+      else if (!child.isWhiteSpace()) anySlot.push(child);
     const node = new MacroNode(macroName, mAttrs, slots, this);
     this.macroNodes.push(node);
     return node;
