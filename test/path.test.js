@@ -334,7 +334,7 @@ describe("@value inside @each click handler", () => {
   });
 });
 
-describe("@enrich-with / @scope binds survive path rebuild", () => {
+describe("@enrich-with binds survive path rebuild", () => {
   // The rebuilt stack must replay the same binds the renderer pushed, including
   // custom @enrich-with binds — otherwise a handler arg reading one resolves to
   // null after dispatch (EachBindStep / ScopeBindStep enterFrame).

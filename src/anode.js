@@ -287,7 +287,7 @@ function processXExtras(node, attrs, opName, startIdx, px) {
 // TEMPORARY (added 2026-07-08): the bare `show`/`hide`/`when` attrs on `<x>` ops
 // are the legacy spelling of the `@show`/`@hide`/`@when` directives, which now
 // work directly on `<x>` ops too. Bare forms still parse, but the linter nudges
-// authors to the `@`-prefixed form (see docs/spec/simplification-plan.md item 3).
+// authors to the `@`-prefixed form.
 // Once the corpus is migrated, drop bare support entirely and remove this helper
 // plus the DEPRECATED_BARE_X_DIRECTIVE lint rule. Reported via `onDeprecatedSyntax`
 // (a lint-only hook) so the live app's base ParseContext stays silent.

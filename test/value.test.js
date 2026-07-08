@@ -208,7 +208,7 @@ describe("boolean predicates in parseBool", () => {
   });
 
   test("bad predicate arg returns null", () => {
-    // `Foo` is a type name — not allowed in the G_PRED_ARG group used for args.
+    // `Foo` is a type name — not allowed in the G_BOOL group used for args.
     expect(vp.parseBool("empty? Foo", px)).toBeNull();
   });
 

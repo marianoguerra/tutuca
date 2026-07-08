@@ -553,6 +553,13 @@ var lintReport2 = {
           suggestion: { kind: "rewrite", from: "$'btn'", to: "'btn'" }
         },
         {
+          id: "CONSTANT_CONDITION",
+          level: "warn",
+          info: { tag: "DIV", originAttr: "@show", literal: "'open'" },
+          context: { componentName: "Broken", viewName: "main" },
+          suggestion: null
+        },
+        {
           id: "FIELD_VAL_IS_METHOD",
           level: "error",
           info: { tag: "EM", originAttr: "@text", val: { name: "label" }, name: "label" },
@@ -600,7 +607,7 @@ function getTests3({ describe, test, expect }) {
     test("aggregates totals and omits clean components", () => {
       const r = LintReport2.Class.fromData(lintReport2);
       expect(r.errors).toBe(3);
-      expect(r.warnings).toBe(1);
+      expect(r.warnings).toBe(2);
       expect(r.hints).toBe(1);
       expect(r.clean).toBe(false);
       expect(r.components.size).toBe(1);
@@ -616,9 +623,9 @@ function getTests3({ describe, test, expect }) {
       const broken = LintReport2.Class.fromData(lintReport2).components.first();
       expect(broken).toBeInstanceOf(LintComponent.Class);
       expect(broken.componentName).toBe("Broken");
-      expect(broken.countText()).toBe("3 errors, 1 warning, 1 hint");
+      expect(broken.countText()).toBe("3 errors, 2 warnings, 1 hint");
       expect(broken.isExpanded).toBe(true);
-      expect(broken.items.size).toBe(5);
+      expect(broken.items.size).toBe(6);
     });
   });
   describe(LintFinding, () => {

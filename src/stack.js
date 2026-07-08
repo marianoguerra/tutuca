@@ -120,9 +120,6 @@ export class Stack {
   getHandlerFor(name, key) {
     return this.comps.getHandlerFor(this.it, name, key);
   }
-  lookupRequest(name) {
-    return this.comps.getRequestFor(this.it, name);
-  }
   lookupBestView(views, defaultViewName) {
     let n = this.views;
     while (n !== null) {

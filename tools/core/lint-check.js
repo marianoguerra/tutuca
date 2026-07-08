@@ -76,7 +76,7 @@ export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
 export const MAYBE_ADD_AT_PREFIX = "MAYBE_ADD_AT_PREFIX";
 // TEMPORARY (added 2026-07-08): nudges legacy bare `show`/`hide`/`when` on `<x>`
 // ops toward the `@`-prefixed directive form. Remove when the bare spelling is
-// dropped — see docs/spec/simplification-plan.md item 3.
+// dropped.
 export const DEPRECATED_BARE_X_DIRECTIVE = "DEPRECATED_BARE_X_DIRECTIVE";
 export const BAD_VALUE = "BAD_VALUE";
 export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
@@ -292,7 +292,7 @@ function checkParseIssues(lx, view) {
   for (const { kind, info } of issues) {
     // TEMPORARY (2026-07-08): bare `show`/`hide`/`when` on `<x>` ops still parse,
     // but nudge authors to the `@`-prefixed directive form. Remove with the bare
-    // spelling — see docs/spec/simplification-plan.md item 3.
+    // spelling.
     if (kind === "deprecated:bare-x-directive") {
       lx.warn(DEPRECATED_BARE_X_DIRECTIVE, info, {
         kind: "add-prefix",
@@ -1208,7 +1208,7 @@ export class LintParseContext extends ParseContext {
   }
   // TEMPORARY (2026-07-08): record deprecation nudges on the same channel as
   // parse issues so checkParseIssues can surface them as warnings. Remove with
-  // the bare `show`/`hide`/`when` spelling — see simplification-plan.md item 3.
+  // the bare `show`/`hide`/`when` spelling.
   onDeprecatedSyntax(kind, info) {
     const tag = this.currentTag;
     this.parseIssues.push({

@@ -246,7 +246,7 @@ export const LINT_RULES = [
       "A directive name (`when`/`enrich-with`/`loop-with`/`show`/`hide`) was written as a plain attribute on a host element — add the `@` prefix.",
   },
   // TEMPORARY (added 2026-07-08): remove together with the bare `show`/`hide`/`when`
-  // spelling on `<x>` ops — see docs/spec/simplification-plan.md item 3.
+  // spelling on `<x>` ops.
   {
     code: DEPRECATED_BARE_X_DIRECTIVE,
     level: "warn",
