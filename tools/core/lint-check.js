@@ -632,11 +632,13 @@ const isBoolConditionCtx = (errCtx) =>
 // `env`, the `errCtx` location, `skipNameVal`, and `recurse` (to descend into
 // sub-values). Kinds with no entry (BindVal, …) are inert.
 const ATTR_VAL_CHECKERS = {
-  // A literal is legal in most slots, but a *non-boolean* literal in a boolean
-  // condition (`@show="'x'"`, `@if.class="1"`) is a constant that never varies —
-  // almost always a mistyped field/method. `true`/`false` are left alone.
-  ConstVal({ lx, val, errCtx }) {
-    if (isBoolConditionCtx(errCtx) && typeof val.val !== "boolean")
+  // A literal is legal in most slots, but a *non-boolean* literal as the whole
+  // boolean condition (`@show="'x'"`, `@if.class="1"`) is a constant that never
+  // varies — almost always a mistyped field/method. `true`/`false` are left
+  // alone, and so is a literal nested as a predicate argument
+  // (`@show="equals? .status 'idle'"`) — only the root value is the condition.
+  ConstVal({ lx, val, errCtx, isRoot }) {
+    if (isRoot && isBoolConditionCtx(errCtx) && typeof val.val !== "boolean")
       lx.warn(CONSTANT_CONDITION, { ...errCtx, literal: String(val) });
   },
   // `.name` must be a field. If it names a method, the fix is `$name`.
@@ -683,14 +685,15 @@ const ATTR_VAL_CHECKERS = {
     if (!skipNameVal && !isKnownHandlerName(val.name))
       reportUnknownName(lx, UNKNOWN_HANDLER_ARG_NAME, val.name, KNOWN_HANDLER_NAMES, errCtx);
   },
-  StrTplVal({ lx, val, errCtx, recurse }) {
+  StrTplVal({ lx, val, errCtx, recurse, isRoot }) {
     const vs = val.vals;
     const literal = val.toLiteralSource();
     if (literal !== null) {
       // Every part is constant — the `$'…'` template has no dynamic placeholder.
-      // In a boolean condition that makes it a constant condition; elsewhere it
-      // is just a string literal written the long way: `$'foo'` → `'foo'`.
-      if (isBoolConditionCtx(errCtx)) lx.warn(CONSTANT_CONDITION, { ...errCtx, literal });
+      // As the whole boolean condition that makes it a constant condition;
+      // elsewhere (including as a predicate argument) it is just a string
+      // literal written the long way: `$'foo'` → `'foo'`.
+      if (isRoot && isBoolConditionCtx(errCtx)) lx.warn(CONSTANT_CONDITION, { ...errCtx, literal });
       else
         lx.hint(
           PLACEHOLDERLESS_TEMPLATE_STRING,
@@ -714,7 +717,15 @@ const ATTR_VAL_CHECKERS = {
     if (env.alter[val.name] === undefined)
       reportUnknownName(lx, ALT_HANDLER_NOT_DEFINED, val.name, Object.keys(env.alter), errCtx);
   },
-  PredicateVal({ val, recurse }) {
+  // Predicate args recurse as non-root: a literal arg (`equals? .status 'idle'`)
+  // is normal usage, not a constant condition. But a predicate whose args are
+  // ALL literals never changes, so the whole call is flagged as one.
+  PredicateVal({ lx, val, errCtx, recurse }) {
+    const isConstArg = (a) =>
+      a.constructor.name === "ConstVal" ||
+      (a.constructor.name === "StrTplVal" && a.toLiteralSource() !== null);
+    if (isBoolConditionCtx(errCtx) && val.args.every(isConstArg))
+      lx.warn(CONSTANT_CONDITION, { ...errCtx, literal: String(val) });
     for (const arg of val.args) recurse(arg);
   },
   DynVal({ lx, val, env, errCtx }) {
@@ -724,11 +735,11 @@ const ATTR_VAL_CHECKERS = {
   },
 };
 
-function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null) {
+function checkConsistentAttrVal(lx, val, env, skipNameVal = false, errCtx = null, isRoot = true) {
   const check = ATTR_VAL_CHECKERS[val?.constructor.name];
   if (check === undefined) return;
-  const recurse = (sub) => checkConsistentAttrVal(lx, sub, env, skipNameVal, errCtx);
-  check({ lx, val, env, errCtx, skipNameVal, recurse });
+  const recurse = (sub) => checkConsistentAttrVal(lx, sub, env, skipNameVal, errCtx, false);
+  check({ lx, val, env, errCtx, skipNameVal, recurse, isRoot });
 }
 
 const NODE_KIND_TO_CTX = {

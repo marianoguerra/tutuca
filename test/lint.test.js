@@ -129,6 +129,37 @@ test("CONSTANT_CONDITION warns on a placeholderless template in a @hide conditio
   expect(found[0].info.originAttr).toBe("@hide");
 });
 
+test("CONSTANT_CONDITION does not warn on a literal predicate argument", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { status: "idle" },
+    view: html`<div @show="equals? .status 'idle'" @hide="equals? .status $'busy'">x</div>`,
+  });
+  expect(lx.reports.filter((r) => r.id === CONSTANT_CONDITION).length).toBe(0);
+});
+
+test("CONSTANT_CONDITION warns on a predicate whose arguments are all literals", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @show="equals? 'a' 'b'">x</div>`,
+  });
+  const found = lx.reports.filter((r) => r.id === CONSTANT_CONDITION);
+  expect(found.length).toBe(1);
+  expect(found[0].info.literal).toBe("equals? 'a' 'b'");
+  expect(found[0].info.originAttr).toBe("@show");
+});
+
+test("a bad field inside a predicate argument is still reported", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { status: "idle" },
+    view: html`<div @show="equals? .statsu 'idle'">x</div>`,
+  });
+  const found = lx.reports.filter((r) => r.id === FIELD_VAL_NOT_DEFINED);
+  expect(found.length).toBe(1);
+  expect(found[0].info.name).toBe("statsu");
+});
+
 test("CONSTANT_CONDITION does not warn on a boolean literal or a string in a text slot", () => {
   const [lx] = defAndCheck({
     name: "Comp",
