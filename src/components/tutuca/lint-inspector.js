@@ -79,6 +79,8 @@ export function lintMessage(id, info = {}) {
       return `Redundant template string — '{${info.simpler}}' should be just '${info.simpler}'${originSuffix(info)}`;
     case "PLACEHOLDERLESS_TEMPLATE_STRING":
       return `Template string has no dynamic parts — use the literal ${info.literal} instead${originSuffix(info)}`;
+    case "CONSTANT_CONDITION":
+      return `Constant condition ${info.literal} — reference a field ('.name') or method ('$name')${originSuffix(info)}`;
     case "ASYNC_HANDLER":
       return `Handler '${info.name}' in '${info.channel}' is async — handlers must be synchronous`;
     case "UNKNOWN_COMPONENT_SPEC_KEY":

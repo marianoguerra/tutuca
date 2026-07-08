@@ -19,6 +19,7 @@ import {
   ASYNC_HANDLER,
   BAD_VALUE,
   COMP_FIELD_BAD_SHAPE,
+  CONSTANT_CONDITION,
   DEPRECATED_BARE_X_DIRECTIVE,
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
@@ -263,6 +264,13 @@ export const LINT_RULES = [
     level: "hint",
     group: "Value expressions",
     summary: "`$'…'` template has no `{}` placeholder — use a plain string literal.",
+  },
+  {
+    code: CONSTANT_CONDITION,
+    level: "warn",
+    group: "Value expressions",
+    summary:
+      "A non-boolean literal in a boolean condition (`@show`, `@hide`, `@if`) never changes — reference a field or method instead.",
   },
 
   // Names registered with the app

@@ -22,6 +22,11 @@ export const tokenizeValue = (s) => s.match(VAL_TOKEN_RE) ?? [];
 const unescapeStr = (s) => s.replace(/\\(['\\])/g, "$1");
 
 // Value kinds: a parse group is the bitwise-or of the kinds it accepts.
+// `K_CONST` is the single literal kind: numbers, booleans, plain `'…'` strings,
+// and placeholderless `$'…'` templates all carry it, so any literal is accepted
+// wherever any other literal is. `K_STRTPL` is *only* a dynamic template — one
+// with a real `{expr}` placeholder — which is not a literal and stays confined
+// to text/all contexts.
 const K_CONST = 1;
 const K_STRTPL = 2;
 const K_FIELD = 4;
@@ -30,7 +35,6 @@ const K_DYN = 16;
 const K_NAME = 32;
 const K_TYPE = 64;
 const K_SEQ = 256;
-const K_STR = 512; // plain `'…'` string literal (no `{…}` interpolation)
 const K_METHOD = 1024; // `$name` no-arg method call
 
 // Value groups, one per parsing context. Kept private: callers use the named
@@ -46,10 +50,8 @@ const G_SEQUENCE = K_FIELD | K_DYN;
 // as a render-target / teleport path, so only path-bearing kinds are allowed
 // (a method/const/string has no `toPathItem()` and could never teleport).
 const G_PROVIDE = K_FIELD | K_SEQ;
-const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_STR | K_SEQ;
+const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_SEQ;
 const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_CONST;
-const G_PRED_ARG = G_BOOL | K_STR; // boolean-predicate arguments
-const G_HANDLER_ARG = G_VALUE | K_STR; // event-handler arguments
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
 
 // Boolean predicates usable in conditional slots, e.g. `@show="empty? .items"`.
@@ -92,7 +94,7 @@ class ValParser {
     if (c0 === 39)
       // '…' string literal
       return s.length >= 2 && s.charCodeAt(s.length - 1) === 39
-        ? new ConstVal(unescapeStr(s.slice(1, -1)), K_STR | K_STRTPL)
+        ? new ConstVal(unescapeStr(s.slice(1, -1)))
         : null;
     if (c0 === 36 && s.charCodeAt(1) === 39)
       // $'…' string template
@@ -194,7 +196,7 @@ class ValParser {
   }
   // A single argument passed to an event handler.
   parseHandlerArg(s, px) {
-    return this._parseSingle(s, px, G_HANDLER_ARG);
+    return this._parseSingle(s, px, G_VALUE);
   }
   // Pass-through values on a macro-call element (:attr on a macro).
   parseMacroAttr(s, px) {
@@ -229,7 +231,7 @@ class ValParser {
     const args = new Array(tokens.length - 1);
     for (let i = 1; i < tokens.length; i++) {
       const val = this.parseToken(tokens[i], px);
-      if (val !== null && kindOf(val) & G_HANDLER_ARG) args[i - 1] = val;
+      if (val !== null && kindOf(val) & G_VALUE) args[i - 1] = val;
       else {
         if (report) px.onParseIssue("bad-value", { role: "handler-arg", value: tokens[i] });
         args[i - 1] = this.nullConstVal;
@@ -238,7 +240,7 @@ class ValParser {
     return { handlerVal, args };
   }
   // Mirrors EventHandler.parse: head token is the predicate, tail are its
-  // args parsed individually as G_PRED_ARG values. `tokens.length > 1` here.
+  // args parsed individually as G_BOOL values. `tokens.length > 1` here.
   _parsePredicate(s, tokens, px) {
     const predName = tokens[0];
     const pred = PREDICATES[predName];
@@ -255,7 +257,7 @@ class ValParser {
     for (let i = 0; i < arity; i++) {
       const tok = tokens[i + 1];
       const val = this.parseToken(tok, px);
-      if (val === null || !(kindOf(val) & G_PRED_ARG)) {
+      if (val === null || !(kindOf(val) & G_BOOL)) {
         px.onParseIssue("bad-value", { role: "predicate-arg", value: tok });
         return null;
       }
@@ -270,7 +272,7 @@ class ValParser {
 function kindOf(val) {
   if (val === null) return 0;
   if (val instanceof ConstVal) return val.kind;
-  if (val instanceof StrTplVal) return K_STRTPL;
+  if (val instanceof StrTplVal) return val.kind;
   if (val instanceof SeqAccessVal) return K_SEQ;
   if (val instanceof FieldVal) return K_FIELD;
   if (val instanceof MethodVal) return K_METHOD;
@@ -332,6 +334,19 @@ export class StrTplVal extends VarVal {
   constructor(vals) {
     super();
     this.vals = vals;
+    // A placeholderless template (every part a plain, non-macro constant) is a
+    // literal written the long way, so it takes the single literal kind
+    // `K_CONST` — accepted wherever any literal is. A real `{expr}` placeholder
+    // (or a macro-var-derived part, `fromMacroVar`) makes it a dynamic
+    // `K_STRTPL`, confined to text/all contexts. See `isLiteral`.
+    this.kind = this.isLiteral() ? K_CONST : K_STRTPL;
+  }
+  // True when this template carries no dynamic placeholder: every part is a
+  // plain `ConstVal` and none was bound from a macro variable (the macro
+  // placeholder is real in the body even when it resolved to a constant).
+  isLiteral() {
+    for (const v of this.vals) if (!(v instanceof ConstVal) || v.fromMacroVar) return false;
+    return true;
   }
   render(stack, _rx) {
     return this.eval(stack);
@@ -341,18 +356,13 @@ export class StrTplVal extends VarVal {
     for (let i = 0; i < this.vals.length; i++) strs[i] = this.vals[i]?.eval(stack, "");
     return strs.join("");
   }
-  // When every part is a constant — no `{…}` placeholder is dynamic — this
-  // template is just a string literal written the long way. Returns that
-  // literal in `'…'` source form, or null if any part is dynamic. A part bound
-  // from a macro variable (`fromMacroVar`) counts as dynamic even when it
-  // resolved to a constant: the placeholder is real in the macro body, so a
-  // macro-expanded template must not be flagged as a hand-written literal.
+  // When this is a placeholderless literal (see `isLiteral`), returns the
+  // string it spells out, in `'…'` source form; otherwise null. The linter
+  // uses this to nudge `$'foo'` → `'foo'` (PLACEHOLDERLESS_TEMPLATE_STRING).
   toLiteralSource() {
+    if (!this.isLiteral()) return null;
     let out = "";
-    for (const v of this.vals) {
-      if (!(v instanceof ConstVal) || v.fromMacroVar) return null;
-      out += v.val;
-    }
+    for (const v of this.vals) out += v.val;
     return new ConstVal(out).toString(); // reuse ConstVal's quoting/escaping
   }
   // `s` is the interior of a `$'…'` template (the text between `$'` and `'`).

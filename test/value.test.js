@@ -136,9 +136,21 @@ describe("string template syntax", () => {
       expect(r).toBeNull();
     });
 
-    test("parseBool rejects quoted constant", () => {
+    // A dynamic template is rejected above, but a *literal* — a plain quoted
+    // string or a placeholderless `$'…'` template — is accepted in a boolean
+    // slot: all literals share the one `K_CONST` kind, so any literal parses
+    // wherever `true`/`false` do (the linter, not the parser, flags a
+    // suspicious literal condition).
+    test("parseBool accepts a quoted constant (single literal kind)", () => {
       const r = vp.parseBool("'flex gap-3'", px);
-      expect(r).toBeNull();
+      expect(r).toBeInstanceOf(ConstVal);
+      expect(r.val).toBe("flex gap-3");
+    });
+
+    test("parseBool accepts a placeholderless string template", () => {
+      const r = vp.parseBool("$'flex'", px);
+      expect(r).toBeInstanceOf(StrTplVal);
+      expect(r.eval({})).toBe("flex");
     });
 
     test("parseSequence rejects string template", () => {
@@ -347,10 +359,13 @@ describe("equals? predicate with string literals", () => {
     expect(vp.parseBool("equals? .view 'detail'", px).toString()).toBe("equals? .view 'detail'");
   });
 
-  // String literals are still rejected in a plain conditional slot (G_BOOL):
-  // only predicate args (and handler args) accept them.
-  test("bare string literal in parseBool still returns null", () => {
-    expect(vp.parseBool("'detail'", px)).toBeNull();
+  // A bare string literal now parses in a plain conditional slot: every literal
+  // shares the one `K_CONST` kind, so `'detail'` is accepted wherever `true` is
+  // (a suspicious literal condition is a lint concern, not a parse error).
+  test("bare string literal in parseBool parses as a literal", () => {
+    const r = vp.parseBool("'detail'", px);
+    expect(r).toBeInstanceOf(ConstVal);
+    expect(r.val).toBe("detail");
   });
 });
 

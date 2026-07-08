@@ -81,6 +81,7 @@ export const BAD_VALUE = "BAD_VALUE";
 export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
 export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
 export const PLACEHOLDERLESS_TEMPLATE_STRING = "PLACEHOLDERLESS_TEMPLATE_STRING";
+export const CONSTANT_CONDITION = "CONSTANT_CONDITION";
 export const UNKNOWN_COMPONENT_SPEC_KEY = "UNKNOWN_COMPONENT_SPEC_KEY";
 export const COMP_FIELD_BAD_SHAPE = "COMP_FIELD_BAD_SHAPE";
 export const ASYNC_HANDLER = "ASYNC_HANDLER";
@@ -527,11 +528,25 @@ function reportUnknownName(lx, code, name, candidates, info) {
   lx.error(code, { ...info, name }, replaceNameSuggestion(name, candidates));
 }
 
+// Boolean-condition slots (parsed via `parseBool`): a literal here is a
+// constant condition that never changes. Now that every literal shares the one
+// `K_CONST` kind it parses fine, so the linter — not the parser — flags it.
+const BOOL_CONDITION_ORIGINS = new Set(["@show", "@hide", "<x show>", "<x hide>"]);
+const isBoolConditionCtx = (errCtx) =>
+  errCtx != null && (BOOL_CONDITION_ORIGINS.has(errCtx.originAttr) || errCtx.branch === "@if");
+
 // Per value-kind consistency checks, keyed by the value AST node's constructor
 // name. Each receives a context `c` bundling the linter, the value, the lint
 // `env`, the `errCtx` location, `skipNameVal`, and `recurse` (to descend into
-// sub-values). Kinds with no entry (ConstVal, BindVal, …) are inert.
+// sub-values). Kinds with no entry (BindVal, …) are inert.
 const ATTR_VAL_CHECKERS = {
+  // A literal is legal in most slots, but a *non-boolean* literal in a boolean
+  // condition (`@show="'x'"`, `@if.class="1"`) is a constant that never varies —
+  // almost always a mistyped field/method. `true`/`false` are left alone.
+  ConstVal({ lx, val, errCtx }) {
+    if (isBoolConditionCtx(errCtx) && typeof val.val !== "boolean")
+      lx.warn(CONSTANT_CONDITION, { ...errCtx, literal: String(val) });
+  },
   // `.name` must be a field. If it names a method, the fix is `$name`.
   FieldVal({ lx, val, env, errCtx }) {
     const { fields, proto } = env;
@@ -580,13 +595,20 @@ const ATTR_VAL_CHECKERS = {
     const vs = val.vals;
     const literal = val.toLiteralSource();
     if (literal !== null) {
-      // Every part is constant — the `$'…'` template has no dynamic placeholder
-      // and is just a string literal written the long way: `$'foo'` → `'foo'`.
-      lx.hint(
-        PLACEHOLDERLESS_TEMPLATE_STRING,
-        { ...errCtx, literal },
-        fixTo(`$${literal}`, literal),
-      );
+      // Every part is constant — the `$'…'` template has no dynamic placeholder.
+      // In a boolean condition that makes it a constant condition; elsewhere it
+      // is just a string literal written the long way: `$'foo'` → `'foo'`.
+      if (isBoolConditionCtx(errCtx))
+        lx.warn(CONSTANT_CONDITION, { ...errCtx, literal });
+      else
+        lx.hint(
+          PLACEHOLDERLESS_TEMPLATE_STRING,
+          { ...errCtx, literal },
+          fixTo(`$${literal}`, literal),
+        );
+      // Parts are all plain constants — nothing to recurse into (and recursing
+      // would re-flag them via the ConstVal checker in a boolean slot).
+      return;
     } else if (vs.length === 1) {
       // Single-element StrTplVal === single `{expr}` with no surrounding text,
       // since StrTplVal.parse trims empty ConstVal bookends. The wrapper is

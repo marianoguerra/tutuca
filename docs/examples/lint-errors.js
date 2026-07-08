@@ -157,6 +157,10 @@ const LintDemo = component({
          a string literal — drop the leading $. -->
     <p :title="$'plain text'">placeholderless template</p>
 
+    <!-- CONSTANT_CONDITION: a non-boolean literal in a boolean condition never
+         changes — reference a field ('.name') or method ('$name') instead. -->
+    <p @show="'yes'">constant string condition</p>
+
     <!-- DUPLICATE_ATTR_DEFINITION x2: "class" is set by literal, :class, and @if.class -->
     <div class="literal" :class=".kind" @if.class=".isOpen" @then="'on'" @else="'off'">
       duplicate class

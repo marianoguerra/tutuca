@@ -43,6 +43,7 @@ import {
   UNKNOWN_MACRO_ARG,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
+  CONSTANT_CONDITION,
   UNSUPPORTED_EXPR_SYNTAX,
 } from "../tools/core/lint-check.js";
 import { Comment, document, Text } from "./dom.js";
@@ -101,6 +102,37 @@ test("ASYNC_HANDLER flags async handlers across receive/bubble/response/alter", 
     .map((r) => r.info.channel)
     .sort();
   expect(channels).toEqual(["alter", "bubble", "receive", "response"]);
+});
+
+test("CONSTANT_CONDITION warns on a string literal in @show", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @show="'open'">x</div>`,
+  });
+  const found = lx.reports.filter((r) => r.id === CONSTANT_CONDITION);
+  expect(found.length).toBe(1);
+  expect(found[0].level).toBe("warn");
+  expect(found[0].info.literal).toBe("'open'");
+  expect(found[0].info.originAttr).toBe("@show");
+});
+
+test("CONSTANT_CONDITION warns on a placeholderless template in a @hide condition", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<div @hide="$'busy'">x</div>`,
+  });
+  const found = lx.reports.filter((r) => r.id === CONSTANT_CONDITION);
+  expect(found.length).toBe(1);
+  expect(found[0].info.originAttr).toBe("@hide");
+});
+
+test("CONSTANT_CONDITION does not warn on a boolean literal or a string in a text slot", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    // `true` is a deliberate constant; `'x'` in @text is a legit string literal.
+    view: html`<div @show="true" @text="'x'">y</div>`,
+  });
+  expect(lx.reports.filter((r) => r.id === CONSTANT_CONDITION).length).toBe(0);
 });
 
 test("ASYNC_HANDLER does not flag synchronous handlers", () => {
@@ -2234,3 +2266,5 @@ test("every LINT_RULES code has a formatter (no fall-through to the bare code)",
     expect(msg).not.toBe(code);
   }
 });
+
+

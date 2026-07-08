@@ -156,6 +156,8 @@ export function lintIdToMessage(id, info) {
       return `Redundant template string — '{${info.simpler}}' should be just '${info.simpler}'${fmtOriginSuffix(info)}`;
     case "PLACEHOLDERLESS_TEMPLATE_STRING":
       return `Template string has no dynamic parts — use the string literal ${info.literal} instead${fmtOriginSuffix(info)}`;
+    case "CONSTANT_CONDITION":
+      return `Condition is the constant literal ${info.literal} — it never changes; reference a field ('.name') or a method ('$name') instead${fmtOriginSuffix(info)}`;
     case "UNKNOWN_COMPONENT_SPEC_KEY":
       return `Unknown component spec key '${info.key}' — value will be ignored at runtime`;
     case "COMP_FIELD_BAD_SHAPE":

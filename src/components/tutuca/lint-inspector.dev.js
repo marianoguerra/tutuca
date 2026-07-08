@@ -39,6 +39,13 @@ const lintReport = {
           suggestion: { kind: "rewrite", from: "$'btn'", to: "'btn'" },
         },
         {
+          id: "CONSTANT_CONDITION",
+          level: "warn",
+          info: { tag: "DIV", originAttr: "@show", literal: "'open'" },
+          context: { componentName: "Broken", viewName: "main" },
+          suggestion: null,
+        },
+        {
           id: "FIELD_VAL_IS_METHOD",
           level: "error",
           info: { tag: "EM", originAttr: "@text", val: { name: "label" }, name: "label" },
