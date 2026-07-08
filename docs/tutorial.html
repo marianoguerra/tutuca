@@ -481,13 +481,13 @@
           isn't a concern.
         </p>
         <p>
-          The same <code>show</code> and <code>hide</code> can also appear as
-          wrapper attributes on the <code>&lt;x&gt;</code> render ops
+          The same <code>@show</code> and <code>@hide</code> can also appear
+          directly on the <code>&lt;x&gt;</code> render ops
           (<code>render</code>, <code>render-it</code>,
           <code>render-each</code>, <code>text</code>) &mdash; instead of
           toggling a host element, they wrap the produced node in the equivalent
           guard with no extra DOM. For example,
-          <code>&lt;x render-it show=".isOpen"&gt;&lt;/x&gt;</code> is the
+          <code>&lt;x render-it @show=".isOpen"&gt;&lt;/x&gt;</code> is the
           equivalent of <code>render-it</code> wrapped in
           <code>@show=".isOpen"</code>. When both appear on the same element,
           the first attribute in source order becomes the outermost wrapper.

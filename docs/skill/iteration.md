@@ -26,9 +26,9 @@ Read this file when a view iterates a sequence (`@each`,
 <!-- render a list of components -->
 <x render-each=".items"></x>
 <x render-each=".items" as="edit"></x>                          <!-- specific view -->
-<x render-each=".items" when="filterItem"></x>                  <!-- with filter -->
-<x render-each=".items" loop-with="getIterData" when="filterItem"></x>
-<x render-each=".items" show=".isOpen"></x>                     <!-- wrap in show -->
+<x render-each=".items" @when="filterItem"></x>                 <!-- with filter -->
+<x render-each=".items" loop-with="getIterData" @when="filterItem"></x>
+<x render-each=".items" @show=".isOpen"></x>                    <!-- wrap in show -->
 ```
 
 On `<li @each>` / `<div @each>` and other host-element loops the

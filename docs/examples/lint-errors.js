@@ -107,9 +107,10 @@ const LintDemo = component({
     <!-- UNKNOWN_X_ATTR: bogus is not a known attribute on <x render-each> -->
     <x render-each=".items" bogus="nope"></x>
 
-    <!-- UNKNOWN_X_ATTR + MAYBE_DROP_AT_PREFIX: @show on <x> is unknown;
-         hint suggests dropping the @ to use the wrapper attr 'show' -->
-    <ul @each=".items"><x render-it @show=".isOpen"></x></ul>
+    <!-- DEPRECATED_BARE_X_DIRECTIVE: bare 'show' on an <x> op is the legacy
+         spelling of the '@show' directive; the warning steers to '@show'.
+         TEMPORARY — see docs/spec/simplification-plan.md item 3. -->
+    <ul @each=".items"><x render-it show=".isOpen"></x></ul>
 
     <!-- UNKNOWN_X_OP + MAYBE_DROP_AT_PREFIX: @text as the op is unknown;
          hint suggests dropping the @ to use the op 'text' -->

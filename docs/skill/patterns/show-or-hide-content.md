@@ -12,7 +12,7 @@
 <div @show="equals? .view 'detail'">detail view</div>
 
 <!-- on an <x> render op: wraps the produced node, no extra DOM element -->
-<x text=".count" show=".isOpen"></x>
+<x text=".count" @show=".isOpen"></x>
 ```
 
 The closed set of predicates is `empty?`, `truthy?`, `falsy?`, `null?`,

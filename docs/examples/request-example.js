@@ -72,7 +72,7 @@ export const RequestExample = component({
       @hide=".isLoading"
       @push-view=".view"
     >
-      <x render-each=".items" when="filterItem"></x>
+      <x render-each=".items" @when="filterItem"></x>
     </div>
   </section>`,
 });

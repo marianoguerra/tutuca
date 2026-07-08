@@ -145,6 +145,9 @@ export function lintIdToMessage(id, info) {
     }
     case "MAYBE_ADD_AT_PREFIX":
       return `'${info.name}' on <${(info.tag ?? "").toLowerCase()}> is a plain attribute, but '@${info.name}' is a directive — add the leading '@'`;
+    // TEMPORARY (2026-07-08): remove with the bare `show`/`hide`/`when` spelling.
+    case "DEPRECATED_BARE_X_DIRECTIVE":
+      return `'${info.name}' on <x ${info.op}> is deprecated — write '@${info.name}' instead${fmtTagSuffix(info)}`;
     case "BAD_VALUE":
       return `${badValueMessage(info)}${fmtTagSuffix(info)}`;
     case "UNSUPPORTED_EXPR_SYNTAX":

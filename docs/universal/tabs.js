@@ -75,7 +75,7 @@ const Tabs = component({
         @on.click="$setSelectedIndex @key"
         @on.click+ctrl="onEditTabSelected @key"
       >
-        <x text="@label" hide="@isEditing"></x>
+        <x text="@label" @hide="@isEditing"></x>
         <div @show="@isEditing" class="flex gap-3 justify-between pb-2">
           <input
             class="input input-sm"

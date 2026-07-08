@@ -241,7 +241,7 @@ export const Storybook = component({
           />
         </div>
         <div class="list h-full flex-1 overflow-y-auto">
-          <x render-each=".sidebar" when="groupVisible"></x>
+          <x render-each=".sidebar" @when="groupVisible"></x>
         </div>
       </div>
       <div class="w-full h-full overflow-y-auto">
@@ -330,7 +330,7 @@ export const Section = component({
       @on.keydown.cancel="onClearFilter"
     />
     <div class="flex flex-col gap-3">
-      <x render-each=".items" when="filterItem"></x>
+      <x render-each=".items" @when="filterItem"></x>
     </div>
   </section>`,
 });
@@ -399,7 +399,7 @@ export const SidebarGroup = component({
       @then="'flex flex-col pl-3'"
       @else="'flex flex-col'"
     >
-      <x render-each=".rows" when="rowVisible"></x>
+      <x render-each=".rows" @when="rowVisible"></x>
     </div>
   </div>`,
 });

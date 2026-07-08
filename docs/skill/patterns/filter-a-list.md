@@ -6,7 +6,7 @@
 <li @each=".items" @when="filterItem">
   <span @text="@key"></span>: <x text="@value"></x>
 </li>
-<!-- on <x render-each> the prefix drops: when="filterItem" -->
+<!-- on <x render-each> the same directive applies: @when="filterItem" -->
 ```
 
 ```js

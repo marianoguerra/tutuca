@@ -635,13 +635,13 @@ fails — see the lowercasing rules in *Attribute Binding* above.
 <!-- boolean predicates; equals? compares against a string literal -->
 <div @show="equals? .view 'detail'">detail view</div>
 
-<!-- show / hide also work as wrapper attrs on `<x>` render ops:
+<!-- @show / @hide also work as directives on `<x>` render ops:
      wraps the produced node, no extra DOM element. Allowed on
      text / render / render-it / render-each. First attr in
      source order becomes the outermost wrapper. -->
-<x text=".name" show=".isOpen"></x>
-<x render-it hide=".isHidden"></x>
-<x render-each=".items" when="filter" show=".isOpen"></x>
+<x text=".name" @show=".isOpen"></x>
+<x render-it @hide=".isHidden"></x>
+<x render-each=".items" @when="filter" @show=".isOpen"></x>
 
 <!-- Single @if: shorthand @then/@else (attr inferred) -->
 <button @if.class=".isActive" @then="'btn btn-success'" @else="'btn btn-ghost'">
@@ -687,7 +687,7 @@ shape, and the `@each` lifecycle: see [iteration.md](./iteration.md).
 <x render=".byIndex[.currentIndex]"></x>        <!-- list item access -->
 <x render=".byKey[.currentKey]"></x>            <!-- map item access -->
 <x render="*active"></x>                        <!-- dynamic binding — see advanced.md -->
-<x render=".item" show=".isOpen"></x>           <!-- conditional wrap, see "Conditional Display" -->
+<x render=".item" @show=".isOpen"></x>          <!-- conditional wrap, see "Conditional Display" -->
 ```
 
 The top-level `view` is registered under `"main"` (the default); extras

@@ -19,6 +19,7 @@ import {
   ASYNC_HANDLER,
   BAD_VALUE,
   COMP_FIELD_BAD_SHAPE,
+  DEPRECATED_BARE_X_DIRECTIVE,
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
@@ -226,6 +227,15 @@ export const LINT_RULES = [
     group: "Templates / events",
     summary:
       "A directive name (`when`/`enrich-with`/`loop-with`/`show`/`hide`) was written as a plain attribute on a host element — add the `@` prefix.",
+  },
+  // TEMPORARY (added 2026-07-08): remove together with the bare `show`/`hide`/`when`
+  // spelling on `<x>` ops — see docs/spec/simplification-plan.md item 3.
+  {
+    code: DEPRECATED_BARE_X_DIRECTIVE,
+    level: "warn",
+    group: "Templates / events",
+    summary:
+      "Bare `show`/`hide`/`when` on an `<x>` op is deprecated — use the `@`-prefixed directive (`@show`/`@hide`/`@when`).",
   },
 
   // Value expressions

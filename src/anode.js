@@ -255,8 +255,14 @@ function processXExtras(node, attrs, opName, startIdx, px) {
     const a = attrs[i];
     const aName = a.name;
     if (consumed.has(aName)) continue;
-    const wrapper = wrappable ? X_OPS[aName]?.wrapper : null;
+    // `@show`/`@hide` directives — and their legacy bare `show`/`hide` spelling —
+    // wrap the op's output node. The bare form gets a deprecation nudge (see
+    // maybeDeprecateBareXDirective).
+    const atPrefixed = aName.charCodeAt(0) === 64;
+    const baseName = atPrefixed ? aName.slice(1) : aName;
+    const wrapper = wrappable ? X_OPS[baseName]?.wrapper : null;
     if (wrapper) {
+      if (!atPrefixed) maybeDeprecateBareXDirective(px, opName, baseName);
       wrappers.push([wrapper, vp.parseBool(a.value, px)]);
       continue;
     }
@@ -269,6 +275,16 @@ function processXExtras(node, attrs, opName, startIdx, px) {
     if (wrapper !== null) node = wrapper;
   }
   return node;
+}
+// TEMPORARY (added 2026-07-08): the bare `show`/`hide`/`when` attrs on `<x>` ops
+// are the legacy spelling of the `@show`/`@hide`/`@when` directives, which now
+// work directly on `<x>` ops too. Bare forms still parse, but the linter nudges
+// authors to the `@`-prefixed form (see docs/spec/simplification-plan.md item 3).
+// Once the corpus is migrated, drop bare support entirely and remove this helper
+// plus the DEPRECATED_BARE_X_DIRECTIVE lint rule. Reported via `onDeprecatedSyntax`
+// (a lint-only hook) so the live app's base ParseContext stays silent.
+function maybeDeprecateBareXDirective(px, opName, name) {
+  px.onDeprecatedSyntax("bare-x-directive", { op: opName, name });
 }
 function wrap(node, px, wrappers) {
   if (wrappers) {
@@ -410,8 +426,12 @@ export class RenderEachNode extends RenderViewId {
     if (node !== null) {
       const attrParser = getAttrParser(px);
       attrParser.eachAttr = attrParser.pushWrapper("each", s, node.val);
-      const when = attrs.getNamedItem("when");
-      if (when) attrParser._parseWhen(when.value);
+      const when = attrs.getNamedItem("@when") ?? attrs.getNamedItem("when");
+      if (when) {
+        if (when.name.charCodeAt(0) !== 64)
+          maybeDeprecateBareXDirective(px, "render-each", "when");
+        attrParser._parseWhen(when.value);
+      }
       const lWith = attrs.getNamedItem("loop-with");
       if (lWith) attrParser._parseLoopWith(lWith.value);
       node.iterInfo.whenVal = attrParser.eachAttr.whenVal ?? null;
@@ -552,7 +572,10 @@ const X_OPS = {
   text: xOp([], { wrappable: true }),
   render: xOp(["as"], { wrappable: true }),
   "render-it": xOp(["as"], { wrappable: true }),
-  "render-each": xOp(["as", "when", "loop-with"], { wrappable: true }),
+  // `@when` is consumed here (handled in RenderEachNode.parse) so `processXExtras`
+  // does not flag it as an unknown attr. TEMPORARY: bare `when` is deprecated in
+  // favor of `@when` — see maybeDeprecateBareXDirective (added 2026-07-08).
+  "render-each": xOp(["as", "when", "loop-with", "@when"], { wrappable: true }),
   show: xOp([], { wrapper: ShowNode }),
   hide: xOp([], { wrapper: HideNode }),
 };
@@ -631,6 +654,9 @@ export class ParseContext {
   onParseIssue(kind, info) {
     console.warn(`tutuca parse issue [${kind}]`, info);
   }
+  // Lint-only channel for deprecation nudges on still-valid syntax; the base
+  // (runtime) context ignores them so live apps stay quiet. See LintParseContext.
+  onDeprecatedSyntax(_kind, _info) {}
 }
 const _htmlBlockTags =
   "ADDRESS,ARTICLE,ASIDE,BLOCKQUOTE,CAPTION,COL,COLGROUP,DETAILS,DIALOG,DIV,DD,DL,DT,FIELDSET,FIGCAPTION,FIGURE,FOOTER,FORM,H1,H2,H3,H4,H5,H6,HEADER,HGROUP,HR,LEGEND,LI,MAIN,MENU,NAV,OL,P,PRE,SECTION,SUMMARY,TABLE,TBODY,TD,TFOOT,TH,THEAD,TR,UL";

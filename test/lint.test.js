@@ -9,6 +9,7 @@ import {
   BAD_VALUE,
   COMP_FIELD_BAD_SHAPE,
   checkComponent,
+  DEPRECATED_BARE_X_DIRECTIVE,
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
@@ -1274,7 +1275,7 @@ test("x render-each with when referencing defined alter handler emits nothing", 
         return true;
       },
     },
-    view: html`<div><x render-each=".items" when="filterItem"></x></div>`,
+    view: html`<div><x render-each=".items" @when="filterItem"></x></div>`,
   });
   expect(lx.reports.length).toBe(0);
 });
@@ -1380,7 +1381,7 @@ test("warn on unknown extra attr on x render-it", () => {
   expect(matched[0].info.name).toBe("bogus");
 });
 
-test("hint when unknown-x-attr name is @-prefixed wrapper (@show)", () => {
+test("@show directive is accepted on an <x> op (no drop-@ hint)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { isOpen: false },
@@ -1388,18 +1389,12 @@ test("hint when unknown-x-attr name is @-prefixed wrapper (@show)", () => {
       <div @each=".isOpen"><x render-it @show=".isOpen"></x></div>
     </div>`,
   });
-  const errors = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
-  expect(errors.length).toBe(1);
-  expect(errors[0].info.name).toBe("@show");
-  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
-  expect(hints.length).toBe(1);
-  expect(hints[0].level).toBe("hint");
-  expect(hints[0].info.name).toBe("@show");
-  expect(hints[0].info.suggestion).toBe("show");
-  expect(hints[0].info.op).toBe("render-it");
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
 });
 
-test("hint when unknown-x-attr name is @-prefixed wrapper (@hide)", () => {
+test("@hide directive is accepted on an <x> op (no drop-@ hint)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { isOpen: false },
@@ -1407,21 +1402,54 @@ test("hint when unknown-x-attr name is @-prefixed wrapper (@hide)", () => {
       <div @each=".isOpen"><x render-it @hide=".isOpen"></x></div>
     </div>`,
   });
-  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
-  expect(hints.length).toBe(1);
-  expect(hints[0].info.suggestion).toBe("hide");
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
 });
 
-test("hint when unknown-x-attr name is @-prefixed consumed (@when)", () => {
+test("@when directive is accepted on <x render-each> (no drop-@ hint)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [] },
+    alter: {
+      filterItem() {
+        return true;
+      },
+    },
     view: html`<div><x render-each=".items" @when="filterItem"></x></div>`,
   });
-  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
-  expect(hints.length).toBe(1);
-  expect(hints[0].info.suggestion).toBe("when");
-  expect(hints[0].info.op).toBe("render-each");
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
+});
+
+// TEMPORARY (2026-07-08): bare `show`/`hide`/`when` on `<x>` ops parse but warn.
+// Remove with the bare spelling — see docs/spec/simplification-plan.md item 3.
+test("DEPRECATED_BARE_X_DIRECTIVE warns on bare show/hide/when on <x> ops", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], isOpen: false, name: "" },
+    alter: {
+      filterItem() {
+        return true;
+      },
+    },
+    view: html`<div>
+      <x text=".name" show=".isOpen"></x>
+      <div @each=".items"><x render-it hide=".isOpen"></x></div>
+      <x render-each=".items" when="filterItem"></x>
+    </div>`,
+  });
+  const warns = lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE);
+  expect(warns.length).toBe(3);
+  expect(warns.every((w) => w.level === "warn")).toBe(true);
+  expect(warns.map((w) => w.info.name).sort()).toEqual(["hide", "show", "when"]);
+  const showWarn = warns.find((w) => w.info.name === "show");
+  expect(showWarn.info.op).toBe("text");
+  expect(showWarn.suggestion).toEqual({ kind: "add-prefix", from: "show", to: "@show" });
+  // no drop-@ hint or unknown-attr error for the bare form
+  expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
 });
 
 test("hint when unknown-x-attr name is @-prefixed consumed (@loop-with)", () => {
@@ -1923,13 +1951,11 @@ test("INPUT_HANDLER_NOT_IMPLEMENTED suggests closest input handler on typo", () 
 test("MAYBE_DROP_AT_PREFIX hint carries drop-prefix suggestion on the finding", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    fields: { isOpen: false },
-    view: html`<div>
-      <div @each=".isOpen"><x render-it @show=".isOpen"></x></div>
-    </div>`,
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" @loop-with="getIter"></x></div>`,
   });
   const hint = lx.reports.find((x) => x.id === MAYBE_DROP_AT_PREFIX);
-  expect(hint.suggestion).toEqual({ kind: "drop-prefix", from: "@show", to: "show" });
+  expect(hint.suggestion).toEqual({ kind: "drop-prefix", from: "@loop-with", to: "loop-with" });
 });
 
 test("UNKNOWN_X_OP carries the same drop-prefix suggestion as its hint", () => {

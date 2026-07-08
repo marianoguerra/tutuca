@@ -33,9 +33,9 @@ const ShowHide = component({
       (details are hidden)
     </p>
 
-    <!-- show as a wrapper attribute on <x> render ops: no extra DOM -->
+    <!-- @show directive on an <x> render op: no extra DOM -->
     <p>
-      Count, only when open: <x text=".count" show=".isOpen"></x>
+      Count, only when open: <x text=".count" @show=".isOpen"></x>
     </p>
   </section>`,
 });

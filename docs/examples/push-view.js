@@ -38,7 +38,7 @@ export const PushView = component({
       class="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-3"
       @push-view=".view"
     >
-      <x render-each=".items" when="filterItem"></x>
+      <x render-each=".items" @when="filterItem"></x>
     </div>
   </section>`,
 });

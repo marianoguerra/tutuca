@@ -676,8 +676,8 @@ export const SchemaViewer = component({
       @on.click="$toggleShowRaw"
       @text="$toggleLabel"
     ></button>
-    <x render=".value" hide=".showRaw"></x>
-    <x render=".raw" show=".showRaw"></x>
+    <x render=".value" @hide=".showRaw"></x>
+    <x render=".raw" @show=".showRaw"></x>
   </div>`,
 });
 

@@ -107,7 +107,7 @@ const ComponentSelector = component({
       />
     </div>
     <div class="list" @hide="empty? *components">
-      <x render-each="*components" as="listItem" when="matchesFilter"></x>
+      <x render-each="*components" as="listItem" @when="matchesFilter"></x>
     </div>
   </section>`,
 });
