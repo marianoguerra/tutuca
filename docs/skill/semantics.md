@@ -57,7 +57,7 @@ The reconstructed path is transformed two ways depending on use:
 The DOM is the only thing that survives between render and click, so the
 renderer leaves breadcrumbs: `data-cid` / `data-nid` / `data-eid` on
 elements, and `§…§` comment "metas" adjacent to component boundaries,
-iteration entries, and scope boundaries (`@scope` / `@enrich-with`, so
+iteration entries, and scope boundaries (loop-less `@enrich-with`, so
 their custom binds can be replayed). On an event, `Path.fromNodeAndEventName` walks from the
 target up to the root, reads the breadcrumbs, and rebuilds the path. Along
 the way it resolves the handler: normally on the **leaf** component, but

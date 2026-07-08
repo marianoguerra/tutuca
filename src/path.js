@@ -48,7 +48,7 @@ export class BindStep extends Step {
     return null;
   }
 }
-// Like BindStep, but re-evaluates a @scope/@enrich-with handler against the
+// Like BindStep, but re-evaluates a loop-less @enrich-with handler against the
 // rebuilt stack so its custom binds are present when a path is rebuilt.
 export class ScopeBindStep extends BindStep {
   constructor(val, binds = {}) {

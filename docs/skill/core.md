@@ -189,7 +189,7 @@ calls) is set on both.
 | `<x render=".f">` / `<x render-it>` | frame | `it` = child, fresh binds            |
 | `<x render-each>` per iter          | frame | `it` = item, binds `{ key }`         |
 | `<div @each>` per iter              | scope | `it` = item, binds `{ key, value }`  |
-| `<x:scope @enrich-with=…>`          | scope | `it` unchanged, binds = alter result |
+| `<div @enrich-with=…>` (no `@each`) | scope | `it` unchanged, binds = alter result |
 
 For full mechanics see [iteration.md](./iteration.md).
 This is why a handler attached to `<div @each>` runs against the

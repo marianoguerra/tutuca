@@ -205,7 +205,7 @@ class ValParser {
   parseInputHandler(s, px) {
     return this._parseHandler(s, px, "input", true, true);
   }
-  // Handler reference for @when, @enrich-with/@scope, @loop-with. No args, and
+  // Handler reference for @when, @enrich-with, @loop-with. No args, and
   // silent on failure — the directive caller reports the issue.
   parseAlterHandler(s, px) {
     const r = this._parseHandler(s, px, "alter", false, false);

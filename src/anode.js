@@ -584,6 +584,7 @@ const WRAPPER_NODES = {
   show: ShowNode,
   hide: HideNode,
   each: EachNode,
+  // internal wrapper produced by a loop-less @enrich-with (no surface @scope directive)
   scope: ScopeNode,
   "push-view": PushViewNameNode,
 };
