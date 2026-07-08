@@ -90,9 +90,6 @@ class AttrParser {
         this.attrs.push(new RawHtmlAttr(this._parseDirectiveValue(directiveName, s, vp.parseText)));
         this.hasDynamic = true;
         return;
-      case "slot":
-        this.pushWrapper("slot", s, vp.const(s));
-        return;
       case "push-view":
         this.pushWrapper("push-view", s, this._parseDirectiveValue(directiveName, s, vp.parseText));
         return;

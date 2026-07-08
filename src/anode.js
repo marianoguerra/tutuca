@@ -575,7 +575,6 @@ const X_OPS = {
   hide: xOp([], { wrapper: HideNode }),
 };
 const WRAPPER_NODES = {
-  slot: SlotNode,
   show: ShowNode,
   hide: HideNode,
   each: EachNode,

@@ -13,7 +13,6 @@ import {
   RenderTextNode,
   ScopeNode,
   ShowNode,
-  SlotNode,
   View,
 } from "../src/anode.js";
 import { DynAttrs } from "../src/attribute.js";
@@ -229,7 +228,7 @@ test("parse macro slots", () => {
         <p>hello</p>
         <em>bye</em>
       </x>
-      <footer @slot="b">Footer</footer>
+      <x slot="b"><footer>Footer</footer></x>
     </x:m>`,
   );
   expect(node.slots.a).toBeInstanceOf(FragmentNode);
@@ -268,21 +267,6 @@ test("expand macro slot", () => {
     expect(m.node.childs[0].tagName).toBe("H2");
     expect(m.node.childs[0].childs[0].val).toBe("Hello");
   }
-  {
-    const v = new View(
-      "main",
-      html`<div>
-        <x:post><h3 @slot="title">Hi there</h3></x:post>
-      </div>`,
-    );
-    const px = mpx();
-    const scope = new ScopeForMacros({ post });
-    v.compile(px, scope);
-    const m = px.macroNodes[0];
-    expect(m.name).toBe("post");
-    expect(m.node.childs[0].tagName).toBe("H3");
-    expect(m.node.childs[0].childs[0].val).toBe("Hi there");
-  }
 });
 
 test("parse mixed macro attrs", () => {
@@ -315,12 +299,10 @@ test("parse mixed macro attrs", () => {
 });
 
 test("parse wrapper macro attrs", () => {
-  const [node] = parse(html`<x:m class="foo" :name="foo" @slot="mySlot" @show=".loading"></x:m>`);
-  expect(node).toBeInstanceOf(SlotNode);
-  expect(node.val.val).toBe("mySlot");
-  expect(node.node).toBeInstanceOf(ShowNode);
-  expect(node.node.val.name).toBe("loading");
-  const n = node.node.node;
+  const [node] = parse(html`<x:m class="foo" :name="foo" @show=".loading"></x:m>`);
+  expect(node).toBeInstanceOf(ShowNode);
+  expect(node.val.name).toBe("loading");
+  const n = node.node;
   expect(n).toBeInstanceOf(MacroNode);
   expect(n.attrs).toEqual({
     class: "'foo'",
