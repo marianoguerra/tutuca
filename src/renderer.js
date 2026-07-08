@@ -98,7 +98,7 @@ export class Renderer {
       // Include the inherited pushed-view stack: this repeated subtree may hold
       // `<x render>` descendants that resolve against it (see _rValComp).
       const cacheKey = `${stack.viewsId ?? ""}\x1f${nid}\x1f${key}`;
-      if (enricher) enricher.call(it, binds, key, value, iterData);
+      if (enricher) callEnricher(enricher, it, binds, key, value, iterData);
       const cachedNode = this.cache.get(cachePath, cacheKey);
       if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
       else {
@@ -156,6 +156,19 @@ export const normalizeRange = (start, end, size) => {
   s = s < 0 ? 0 : s > size ? size : s;
   e = e < 0 ? 0 : e > size ? size : e;
   return [s, e < s ? s : e];
+};
+// Run `@enrich-with` over the seeded per-item binds. `key`/`value` are
+// protected: the handler may add binds but not replace the loop's own —
+// `@value`/`@key` must always be the sequence item, so member reads
+// (`@value.title`) and event-path replay stay meaningful. Warn and restore.
+export const callEnricher = (enricher, it, binds, key, value, iterData) => {
+  enricher.call(it, binds, key, value, iterData);
+  console.assert(
+    binds.key === key && binds.value === value,
+    "@enrich-with handlers must not overwrite binds.key or binds.value",
+  );
+  binds.key = key;
+  binds.value = value;
 };
 // Defaults when `@each` has no `@when` / `@loop-with` attr.
 export const filterAlwaysTrue = (_v, _k, _seq) => true;

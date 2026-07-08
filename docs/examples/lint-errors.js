@@ -29,6 +29,12 @@ const LintDemo = component({
     unusedAlter(_k, v) {
       return v;
     },
+    // SUGGEST_BINDING_MEMBER (with the @enrich-with below): the body only
+    // copies members of the loop value, so each bind could be a direct
+    // `@value.member` read and the enrich deleted.
+    projectTitle(binds, key, value) {
+      binds.label = value.title;
+    },
   },
   provide: {
     // PROVIDE_NOT_ADDRESSABLE: a provide value must be a field (.f) or seq-access
@@ -107,6 +113,10 @@ const LintDemo = component({
     <!-- UNKNOWN_X_ATTR: bogus is not a known attribute on <x render-each> -->
     <x render-each=".items" bogus="nope"></x>
 
+    <!-- X_OP_IGNORES_CHILDREN: <x render> ignores its children, so <p>hi</p>
+         is silently dropped at parse time -->
+    <x render=".child"><p>hi</p></x>
+
     <!-- DEPRECATED_BARE_X_DIRECTIVE: bare 'show' on an <x> op is the legacy
          spelling of the '@show' directive; the warning steers to '@show'.
          TEMPORARY — see docs/spec/simplification-plan.md item 3. -->
@@ -132,6 +142,18 @@ const LintDemo = component({
 
     <!-- BAD_VALUE on macro var: '^undefined' isn't declared in any macro -->
     <p :title="^undefined">bad macro var</p>
+
+    <!-- BINDING_MEMBER_TOO_DEEP: only one member read is allowed on a binding
+         ('@value.a'); deeper access belongs in a method or @enrich-with -->
+    <ul>
+      <li @each=".items" @text="@value.a.b"></li>
+    </ul>
+
+    <!-- SUGGEST_BINDING_MEMBER: 'projectTitle' only copies value.title into
+         @label — read it directly as '@value.title' and drop the enrich -->
+    <ul>
+      <li @each=".items" @enrich-with="projectTitle" @text="@label"></li>
+    </ul>
 
     <!-- UNSUPPORTED_EXPR_SYNTAX (ternary): tutuca doesn't evaluate ternaries
          in dynamic attributes - move the choice into a method/computed field -->

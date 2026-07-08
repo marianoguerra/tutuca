@@ -3,6 +3,7 @@ const UNSUPPORTED_EXPR_LABEL = {
   comparison: "comparison",
   logical: "logical expression",
   "call-with-args": "method call with arguments",
+  "field-path": "dotted field path",
 };
 
 function unsupportedExprMessage(info) {
@@ -138,6 +139,8 @@ export function lintIdToMessage(id, info) {
       return `Unknown <x> op '${info.name}=${JSON.stringify(info.value)}'${fmtTagSuffix(info)}`;
     case "UNKNOWN_X_ATTR":
       return `Unknown attribute '${info.name}=${JSON.stringify(info.value)}' on <x ${info.op}>${fmtTagSuffix(info)}`;
+    case "X_OP_IGNORES_CHILDREN":
+      return `<x ${info.op}> has child content, but the '${info.op}' op ignores its children — they are silently dropped when the template is parsed; remove them${fmtTagSuffix(info)}`;
     case "MAYBE_DROP_AT_PREFIX": {
       const written =
         info.value !== undefined ? `${info.name}=${JSON.stringify(info.value)}` : info.name;
@@ -152,6 +155,12 @@ export function lintIdToMessage(id, info) {
       return `${badValueMessage(info)}${fmtTagSuffix(info)}`;
     case "UNSUPPORTED_EXPR_SYNTAX":
       return `${unsupportedExprMessage(info)}${fmtTagSuffix(info)}`;
+    case "BINDING_MEMBER_TOO_DEEP":
+      return `Binding member read ${JSON.stringify(info.value)} goes more than one level deep — only one member is allowed (like '@value.title')${fmtTagSuffix(info)}`;
+    case "SUGGEST_BINDING_MEMBER": {
+      const reads = (info.members ?? []).map(({ member }) => `'@value.${member}'`).join(", ");
+      return `Enrich handler '${info.name}' only copies members of the loop value — read them directly${reads ? ` (${reads})` : ""} and remove the '@enrich-with'`;
+    }
     case "REDUNDANT_TEMPLATE_STRING":
       return `Redundant template string — '{${info.simpler}}' should be just '${info.simpler}'${fmtOriginSuffix(info)}`;
     case "PLACEHOLDERLESS_TEMPLATE_STRING":

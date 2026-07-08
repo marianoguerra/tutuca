@@ -71,6 +71,7 @@ export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
 export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
 export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
 export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
+export const X_OP_IGNORES_CHILDREN = "X_OP_IGNORES_CHILDREN";
 export const MAYBE_DROP_AT_PREFIX = "MAYBE_DROP_AT_PREFIX";
 export const MAYBE_ADD_AT_PREFIX = "MAYBE_ADD_AT_PREFIX";
 // TEMPORARY (added 2026-07-08): nudges legacy bare `show`/`hide`/`when` on `<x>`
@@ -79,6 +80,8 @@ export const MAYBE_ADD_AT_PREFIX = "MAYBE_ADD_AT_PREFIX";
 export const DEPRECATED_BARE_X_DIRECTIVE = "DEPRECATED_BARE_X_DIRECTIVE";
 export const BAD_VALUE = "BAD_VALUE";
 export const UNSUPPORTED_EXPR_SYNTAX = "UNSUPPORTED_EXPR_SYNTAX";
+export const BINDING_MEMBER_TOO_DEEP = "BINDING_MEMBER_TOO_DEEP";
+export const SUGGEST_BINDING_MEMBER = "SUGGEST_BINDING_MEMBER";
 export const REDUNDANT_TEMPLATE_STRING = "REDUNDANT_TEMPLATE_STRING";
 export const PLACEHOLDERLESS_TEMPLATE_STRING = "PLACEHOLDERLESS_TEMPLATE_STRING";
 export const CONSTANT_CONDITION = "CONSTANT_CONDITION";
@@ -146,13 +149,18 @@ const PARSE_ISSUES = {
 // the getter against the bare prototype (which is not a Record instance) and
 // throw on `this._values`. Reading the descriptor avoids triggering the getter.
 function protoHasMethod(proto, name) {
+  return protoMethodValue(proto, name) !== null;
+}
+
+// The method function itself, found the same descriptor-walking way (or null).
+function protoMethodValue(proto, name) {
   let cursor = proto;
   while (cursor && cursor !== Object.prototype) {
     const desc = Object.getOwnPropertyDescriptor(cursor, name);
-    if (desc !== undefined) return typeof desc.value === "function";
+    if (desc !== undefined) return typeof desc.value === "function" ? desc.value : null;
     cursor = Object.getPrototypeOf(cursor);
   }
-  return false;
+  return null;
 }
 
 // Walk the prototype chain and collect own keys from every level except
@@ -204,8 +212,14 @@ function classifyBadValue(value) {
   if (/===|!==|==|!=|<=|>=|\s<\s|\s>\s/.test(s)) return "comparison";
   if (/&&|\|\|/.test(s)) return "logical";
   if (/^[.$][A-Za-z_]\w*\s+\S/.test(s)) return "call-with-args";
+  if (/^\.[A-Za-z_]\w*\??(\.[A-Za-z_]\w*\??)+$/.test(s)) return "field-path";
   return null;
 }
+
+// `@name.member.member…`: a binding member read with more than one member.
+// One level is legal (`@value.title`, parsed as `BindMemberVal`); deeper reads
+// fail to parse and land here as a bad-value issue.
+const BINDING_MEMBER_TOO_DEEP_RE = /^@[a-zA-Z]\w*\??(\.[a-zA-Z]\w*\??){2,}$/;
 
 const UNSUPPORTED_EXPR_GUIDANCE = {
   ternary:
@@ -216,6 +230,8 @@ const UNSUPPORTED_EXPR_GUIDANCE = {
     "Logical operators aren't supported in dynamic attributes. Combine the conditions in a method on the component and reference it as '$methodName'.",
   "call-with-args":
     "Method calls with arguments aren't supported here. Reference a no-arg method ('$methodName') and read what you need from component state, or split into per-case methods.",
+  "field-path":
+    "Fields can't be read through a dotted path. Define a method that returns the value, render a child component for the nested data, or — inside a loop — read one member off a binding ('@value.member').",
 };
 
 export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras = EMPTY_SET } = {}) {
@@ -247,6 +263,7 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
 function checkView(lx, view, Comp, referencedAlters, referencedDynamics) {
   checkParseIssues(lx, view);
   checkRenderItInLoop(lx, view);
+  checkEnrichProjection(lx, view, Comp);
   checkEventModifiers(lx, view);
   checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedDynamics);
   checkMacroCallArgs(lx, view, Comp);
@@ -284,10 +301,22 @@ function checkParseIssues(lx, view) {
       });
       continue;
     }
+    if (kind === "x-op-ignores-children") {
+      lx.warn(X_OP_IGNORES_CHILDREN, info, { kind: "remove", what: "the ignored children" });
+      continue;
+    }
     const rule = PARSE_ISSUES[kind];
     if (!rule) continue;
     const id = rule.id;
     if (kind === "bad-value") {
+      if (typeof info.value === "string" && BINDING_MEMBER_TOO_DEEP_RE.test(info.value.trim())) {
+        lx.error(BINDING_MEMBER_TOO_DEEP, info, {
+          kind: "rephrase",
+          from: info.value,
+          text: "Read one level off the binding and compute the rest in a method or an '@enrich-with' handler.",
+        });
+        continue;
+      }
       const detected = classifyBadValue(info.value);
       if (detected) {
         lx.error(
@@ -346,6 +375,69 @@ function checkRenderItInLoop(lx, view) {
   }
   if (!hasRenderIt) return;
   walkForRenderIt(lx, view.anode, 0);
+}
+
+// Best-effort source inspection of an `@enrich-with` handler: when every
+// statement in its body is a plain projection of the loop value
+// (`binds.x = value.y` or `binds.x = value.get('y')`), the enrich is
+// boilerplate — each `@x` read could be a `@value.y` member read instead.
+// Returns the `{ bind, member }` pairs, or null when the body does anything
+// else (or has a shape this heuristic doesn't understand).
+function pureProjectionBinds(fn) {
+  const src = Function.prototype.toString.call(fn);
+  const head = src.match(/^[^(]*\(([^)]*)\)\s*(?:=>)?\s*/);
+  if (!head) return null;
+  const params = head[1].split(",").map((p) => p.trim());
+  const [bindsName, , valueName] = params;
+  if (!/^\w+$/.test(bindsName ?? "") || !/^\w+$/.test(valueName ?? "")) return null;
+  // Body: either a `{…}` block or a single-expression arrow.
+  let body = src.slice(head[0].length).trim();
+  if (body.startsWith("{")) {
+    if (!body.endsWith("}")) return null;
+    body = body.slice(1, -1);
+  }
+  const statements = body
+    .split(/[;\n]/)
+    .map((s) => s.trim())
+    .filter((s) => s !== "" && !s.startsWith("//"));
+  if (statements.length === 0) return null;
+  const projectionRe = new RegExp(
+    `^${bindsName}\\.(\\w+)\\s*=\\s*${valueName}(?:\\.(\\w+)|\\.get\\((['"])(\\w+)\\3\\))$`,
+  );
+  const members = [];
+  for (const statement of statements) {
+    const m = statement.match(projectionRe);
+    if (!m) return null;
+    members.push({ bind: m[1], member: m[2] ?? m[4] });
+  }
+  return members;
+}
+
+// Hint when an `@each`'s `@enrich-with` handler only projects members of the
+// loop value: the same reads are available directly as `@value.member`.
+function checkEnrichProjection(lx, view, Comp) {
+  for (const node of view.ctx.nodes) {
+    if (node.constructor.name !== "EachNode") continue;
+    const enrich = node.iterInfo?.enrichWithVal;
+    if (!enrich?.name) continue;
+    // Bare names resolve in the `alter` namespace, `$name` on the instance.
+    const fn =
+      enrich.constructor.name === "MethodVal"
+        ? protoMethodValue(Comp.Class?.prototype, enrich.name)
+        : Comp.alter?.[enrich.name];
+    if (typeof fn !== "function") continue;
+    const members = pureProjectionBinds(fn);
+    if (members === null) continue;
+    const rewrites = members.map(({ bind, member }) => `'@${bind}' -> '@value.${member}'`);
+    lx.hint(
+      SUGGEST_BINDING_MEMBER,
+      { name: enrich.name, members },
+      {
+        kind: "rephrase",
+        text: `Replace ${rewrites.join(", ")} in the view, then remove the '@enrich-with' and the '${enrich.name}' alter handler.`,
+      },
+    );
+  }
 }
 
 function walkForRenderIt(lx, node, loopDepth) {
@@ -598,8 +690,7 @@ const ATTR_VAL_CHECKERS = {
       // Every part is constant — the `$'…'` template has no dynamic placeholder.
       // In a boolean condition that makes it a constant condition; elsewhere it
       // is just a string literal written the long way: `$'foo'` → `'foo'`.
-      if (isBoolConditionCtx(errCtx))
-        lx.warn(CONSTANT_CONDITION, { ...errCtx, literal });
+      if (isBoolConditionCtx(errCtx)) lx.warn(CONSTANT_CONDITION, { ...errCtx, literal });
       else
         lx.hint(
           PLACEHOLDERLESS_TEMPLATE_STRING,

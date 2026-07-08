@@ -1,6 +1,12 @@
 import { Attributes, getAttrParser } from "./attribute.js";
 import { DynEachStep, DynStep, EachBindStep, EachRenderItStep, ScopeBindStep } from "./path.js";
-import { filterAlwaysTrue, makeLoopCtx, nullLoopWith, unpackLoopResult } from "./renderer.js";
+import {
+  callEnricher,
+  filterAlwaysTrue,
+  makeLoopCtx,
+  nullLoopWith,
+  unpackLoopResult,
+} from "./renderer.js";
 import { isMac } from "./util/env.js";
 import { DynVal, vp } from "./value.js";
 import { HTML_NS } from "./vdom.js";
@@ -202,6 +208,8 @@ function parseXOp(attrs, childs, opIdx, px) {
   // `<X>` with no attrs or a bare `@x` with no op attr: plain fragment.
   if (attrs.length <= opIdx) return maybeFragment(childs);
   const { name, value } = attrs[opIdx];
+  if (X_OPS[name]?.ignoresChildren && hasMeaningfulChilds(childs))
+    px.onParseIssue("x-op-ignores-children", { op: name });
   const asAttr = attrs.getNamedItem("as")?.value ?? null;
   const as = asAttr === null ? null : parseViewName(asAttr, px);
   let node;
@@ -552,25 +560,28 @@ class IterInfo {
         loopWith.call(stack.it, seq, makeLoopCtx(stack, filter)),
         seq,
       );
-      enricher.call(stack.it, binds, key, value, iterData);
+      callEnricher(enricher, stack.it, binds, key, value, iterData);
     }
     return binds;
   }
 }
 // consumed: attr names this op handles itself; wrappable: accepts show/hide wrapper
 // attrs; wrapper: the node class to wrap with when this op's name is used as a wrapper attr
-function xOp(consumed = [], { wrappable = false, wrapper = null } = {}) {
-  return { consumed: new Set(consumed), wrappable, wrapper };
+function xOp(consumed = [], { wrappable = false, wrapper = null, ignoresChildren = false } = {}) {
+  return { consumed: new Set(consumed), wrappable, wrapper, ignoresChildren };
 }
 const X_OPS = {
   slot: xOp(),
-  text: xOp([], { wrappable: true }),
-  render: xOp(["as"], { wrappable: true }),
-  "render-it": xOp(["as"], { wrappable: true }),
+  text: xOp([], { wrappable: true, ignoresChildren: true }),
+  render: xOp(["as"], { wrappable: true, ignoresChildren: true }),
+  "render-it": xOp(["as"], { wrappable: true, ignoresChildren: true }),
   // `@when` is consumed here (handled in parseRenderEach) so `processXExtras`
   // does not flag it as an unknown attr. TEMPORARY: bare `when` is deprecated in
   // favor of `@when` — see maybeDeprecateBareXDirective (added 2026-07-08).
-  "render-each": xOp(["as", "when", "loop-with", "@when"], { wrappable: true }),
+  "render-each": xOp(["as", "when", "loop-with", "@when"], {
+    wrappable: true,
+    ignoresChildren: true,
+  }),
   show: xOp([], { wrapper: ShowNode }),
   hide: xOp([], { wrapper: HideNode }),
 };
@@ -661,6 +672,12 @@ const isBlockDomNode = (n) => {
   return node instanceof DomNode && HTML_BLOCK_TAGS.has(node.tagName);
 };
 const isEmptyText = (c) => c instanceof TextNode && c.val === "";
+// A child an `<x>` op may legitimately carry even when the op ignores its body:
+// insignificant whitespace (childs here aren't run through condenseChildsWhites,
+// so whitespace TextNodes survive) and comments (CommentNode extends TextNode but
+// its text isn't whitespace, so exclude it by type, not by isWhiteSpace).
+const isIgnorableXChild = (c) => c instanceof CommentNode || (c.isWhiteSpace?.() ?? false);
+const hasMeaningfulChilds = (childs) => childs.some((c) => !isIgnorableXChild(c));
 // Collapse a leading/trailing whitespace child to nothing; returns whether it
 // became an empty node that the final filter should drop.
 function trimEdgeWhite(node) {

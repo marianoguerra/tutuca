@@ -94,7 +94,10 @@ and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
   all fail. To reach into nested data: render the child as a component
   (`<x render=".foo">` then `@text=".bar"` inside), add a method
   (`fullName() { return this.user.name; }` and use `$fullName`), or use
-  `@enrich-with` for scope-level derivation.
+  `@enrich-with` for scope-level derivation. The one exception: a
+  **binding** may read exactly one member — `@text="@value.title"` inside
+  `@each` works (any `@`-binding, one level only; `@value.a.b` is a lint
+  error, and render targets still reject it).
 - **Coercion is shallow.** `setItems([{a:1}])` stores plain objects inside
   the `List`. Wrap each item in `Comp.make({...})` or run inputs through
   immutable's `fromJS` if you need deep coercion. See *Component Skeleton*.

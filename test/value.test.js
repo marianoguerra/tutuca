@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { EventHandler } from "../src/attribute.js";
 import {
+  BindMemberVal,
   ConstVal,
   FieldVal,
   HandlerNameVal,
@@ -401,6 +402,47 @@ describe("parseField (dynamic field definitions and defaults)", () => {
     const step = vp.parseField(".sheets[.selId]", px).toPathItem();
     expect(step.seqField).toBe("sheets");
     expect(step.keyField).toBe("selId");
+  });
+});
+
+describe("binding member reads (@name.member)", () => {
+  test("one-level member read parses where bindings are accepted", () => {
+    const r = vp.parseText("@value.title", px);
+    expect(r).toBeInstanceOf(BindMemberVal);
+    expect(r.name).toBe("value");
+    expect(r.member).toBe("title");
+    expect(String(r)).toBe("@value.title");
+    // any binding name, not just `value`; predicate-style `?` members parse too
+    expect(vp.parseBool("@item.done?", px)).toBeInstanceOf(BindMemberVal);
+  });
+
+  test("two or more members fail to parse", () => {
+    expect(vp.parseText("@value.a.b", px)).toBeNull();
+    expect(vp.parseBool("@value.a.b.c", px)).toBeNull();
+  });
+
+  test("dotted field reads still fail to parse", () => {
+    expect(vp.parseText(".a.b", px)).toBeNull();
+    expect(vp.parseBool(".a.b", px)).toBeNull();
+  });
+
+  test("member reads are not addressable: no path item, no path-bearing slots", () => {
+    expect(vp.parseComponent("@value.child", px)).toBeNull();
+    expect(vp.parseSequence("@value.items", px)).toBeNull();
+    expect(vp.parseText("@value.title", px).toPathItem()).toBeNull();
+  });
+
+  test("eval reads the member off the resolved binding", () => {
+    // immutable-style value: read via .get(member, null)
+    const im = { get: (k, d) => (k === "title" ? "alpha" : d) };
+    expect(new BindMemberVal("value", "title").eval({ lookupBind: () => im })).toBe("alpha");
+    expect(new BindMemberVal("value", "missing").eval({ lookupBind: () => im })).toBeNull();
+    // plain-object value (e.g. set by @enrich-with): property access
+    const plain = { lookupBind: () => ({ color: "red" }) };
+    expect(new BindMemberVal("meta", "color").eval(plain)).toBe("red");
+    expect(new BindMemberVal("meta", "missing").eval(plain)).toBeNull();
+    // unresolved binding
+    expect(new BindMemberVal("nope", "x").eval({ lookupBind: () => null })).toBeNull();
   });
 });
 

@@ -15,19 +15,8 @@ const Selector = component({
   lookup: {
     entries: { for: "EntryEditorAndSelector.entries", default: ".items" },
   },
-  alter: {
-    enrichOption(binds, _key, item) {
-      binds.value = item.value;
-      binds.label = item.label;
-    },
-  },
   view: html`<select class="select" :value=".selectedValue" @on.input="$setSelectedValue value">
-    <option
-      @each="*entries"
-      @enrich-with="enrichOption"
-      :value="@value"
-      @text="@label"
-    ></option>
+    <option @each="*entries" :value="@value.value" @text="@value.label"></option>
   </select>`,
 });
 

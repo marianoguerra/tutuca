@@ -127,8 +127,17 @@ class ValParser {
       }
       case 36: // $name method call (a `$'…'` template was handled above)
         return mkVal(s.slice(1), MethodVal);
-      case 64: // @name bind
-        return mkVal(s.slice(1), BindVal);
+      case 64: {
+        // @name bind, or @name.member — a single-level member read on a
+        // binding. Deeper reads (`@x.a.b`) fail: the member must be a plain id.
+        const dot = s.indexOf(".", 1);
+        if (dot === -1) return mkVal(s.slice(1), BindVal);
+        const name = s.slice(1, dot);
+        const member = s.slice(dot + 1);
+        return isValidValId(name) && isValidValId(member)
+          ? new BindMemberVal(name, member)
+          : null;
+      }
       case 42: // *name dynamic
         return mkVal(s.slice(1), DynVal);
       case 46: // .name field
@@ -439,6 +448,25 @@ export class BindVal extends RenderNameVal {
   }
   toString() {
     return `@${this.name}`;
+  }
+}
+// `@name.member`: a one-level member read on a binding. Display-only — it
+// keeps `BaseVal`'s null `toPathItem`, so like the bare binding it never
+// reaches a path-bearing slot; addressability is not required where bindings
+// are legal (`G_TEXT`/`G_BOOL`/`G_VALUE`).
+export class BindMemberVal extends BindVal {
+  constructor(name, member) {
+    super(name);
+    this.member = member;
+  }
+  eval(stack) {
+    const v = stack.lookupBind(this.name);
+    // Bindings hold immutable values (`@value`) or whatever `@enrich-with`
+    // set — possibly a plain object, hence the property-access fallback.
+    return typeof v?.get === "function" ? v.get(this.member, null) : (v?.[this.member] ?? null);
+  }
+  toString() {
+    return `@${this.name}.${this.member}`;
   }
 }
 export class DynVal extends RenderNameVal {

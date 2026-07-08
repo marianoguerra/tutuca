@@ -11,11 +11,6 @@ export const SeqItemAccess = component({
     },
     setRawCurrentIndex() {},
   },
-  alter: {
-    enrichByKey(binds, _key, item) {
-      binds.label = item.title;
-    },
-  },
   view: html`<section class="flex flex-col gap-3">
     <input
       type="range"
@@ -30,12 +25,7 @@ export const SeqItemAccess = component({
       :value=".currentKey"
       @on.input="$setCurrentKey value"
     >
-      <option
-        @each=".byKey"
-        @enrich-with="enrichByKey"
-        :value="@key"
-        @text="@label"
-      ></option>
+      <option @each=".byKey" :value="@key" @text="@value.title"></option>
     </select>
     <x render=".byKey[.currentKey]"></x>
   </section>`,

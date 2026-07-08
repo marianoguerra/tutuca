@@ -7,7 +7,9 @@ import {
   ALT_HANDLER_NOT_REFERENCED,
   ASYNC_HANDLER,
   BAD_VALUE,
+  BINDING_MEMBER_TOO_DEEP,
   COMP_FIELD_BAD_SHAPE,
+  CONSTANT_CONDITION,
   checkComponent,
   DEPRECATED_BARE_X_DIRECTIVE,
   DUPLICATE_ATTR_DEFINITION,
@@ -34,6 +36,7 @@ import {
   PROVIDE_NOT_ADDRESSABLE,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
+  SUGGEST_BINDING_MEMBER,
   TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE,
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_COMPONENT_SPEC_KEY,
@@ -43,8 +46,8 @@ import {
   UNKNOWN_MACRO_ARG,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
-  CONSTANT_CONDITION,
   UNSUPPORTED_EXPR_SYNTAX,
+  X_OP_IGNORES_CHILDREN,
 } from "../tools/core/lint-check.js";
 import { Comment, document, Text } from "./dom.js";
 
@@ -1318,7 +1321,9 @@ test("x render-each with undefined when/loop-with handlers is flagged (sugar Eac
     fields: { items: [] },
     view: html`<div><x render-each=".items" @when="missingWhen" loop-with="missingLoop"></x></div>`,
   });
-  const flagged = lx.reports.filter((r) => r.id === ALT_HANDLER_NOT_DEFINED).map((r) => r.info.name);
+  const flagged = lx.reports
+    .filter((r) => r.id === ALT_HANDLER_NOT_DEFINED)
+    .map((r) => r.info.name);
   expect(flagged).toContain("missingWhen");
   expect(flagged).toContain("missingLoop");
 });
@@ -1373,6 +1378,71 @@ test("known @directives do not raise UNKNOWN_DIRECTIVE", () => {
   });
   const unknown = lx.reports.filter((r) => r.id === UNKNOWN_DIRECTIVE);
   expect(unknown.length).toBe(0);
+});
+
+test("X_OP_IGNORES_CHILDREN warns when render/render-it/render-each/text carry children", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], obj: null, name: "" },
+    view: html`<div>
+      <x render=".obj"><p>hi</p></x>
+      <x text=".name">dropped</x>
+      <x render-each=".items"><span>row</span></x>
+      <div @each=".items"><x render-it><b>item</b></x></div>
+    </div>`,
+  });
+  const warns = lx.reports.filter((r) => r.id === X_OP_IGNORES_CHILDREN);
+  expect(warns.length).toBe(4);
+  expect(warns.every((w) => w.level === "warn")).toBe(true);
+  expect(warns.map((w) => w.info.op).sort()).toEqual([
+    "render",
+    "render-each",
+    "render-it",
+    "text",
+  ]);
+  expect(warns[0].suggestion).toEqual({ kind: "remove", what: "the ignored children" });
+});
+
+test("no X_OP_IGNORES_CHILDREN when the child-ignoring ops are empty", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [], obj: null, name: "" },
+    view: html`<div>
+      <x render=".obj"></x>
+      <x text=".name"></x>
+      <x render-each=".items"></x>
+      <div @each=".items"><x render-it></x></div>
+    </div>`,
+  });
+  expect(lx.reports.filter((r) => r.id === X_OP_IGNORES_CHILDREN).length).toBe(0);
+});
+
+test("no X_OP_IGNORES_CHILDREN for whitespace-only or comment-only children", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { obj: null },
+    // <x> children are NOT whitespace-condensed, so the newline/indent between the
+    // tags is a real whitespace TextNode child; a comment must be ignored by type.
+    view: html`<div>
+      <x render=".obj">
+      </x>
+      <x render=".obj"><!-- just a note --></x>
+    </div>`,
+  });
+  expect(lx.reports.filter((r) => r.id === X_OP_IGNORES_CHILDREN).length).toBe(0);
+});
+
+test("no X_OP_IGNORES_CHILDREN for child-using ops (show/slot) or bare <x> fragment", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { isOpen: false },
+    view: html`<div>
+      <x show=".isOpen"><p>shown</p></x>
+      <x slot="body"><p>slotted</p></x>
+      <x><p>fragment child</p></x>
+    </div>`,
+  });
+  expect(lx.reports.filter((r) => r.id === X_OP_IGNORES_CHILDREN).length).toBe(0);
 });
 
 test("warn on unknown <x> op", () => {
@@ -1841,6 +1911,86 @@ test("BAD_VALUE on undefined macro var ^foo outside macro", () => {
   expect(matched.some((m) => m.info.role === "macro-var")).toBe(true);
 });
 
+test("one-level binding member read lints clean", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<ul>
+      <li @each=".items" @text="@value.title"></li>
+    </ul>`,
+  });
+  const ids = new Set([BAD_VALUE, BINDING_MEMBER_TOO_DEEP, UNSUPPORTED_EXPR_SYNTAX]);
+  expect(lx.reports.filter((r) => ids.has(r.id)).length).toBe(0);
+});
+
+test("BINDING_MEMBER_TOO_DEEP on a two-level binding read", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<ul>
+      <li @each=".items" @text="@value.a.b"></li>
+    </ul>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === BINDING_MEMBER_TOO_DEEP);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.value).toBe("@value.a.b");
+  expect(matched[0].suggestion.kind).toBe("rephrase");
+  expect(matched[0].suggestion.text).toContain("one level");
+  expect(lx.reports.filter((r) => r.id === BAD_VALUE).length).toBe(0);
+});
+
+test("UNSUPPORTED_EXPR_SYNTAX field-path on a dotted field read", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    view: html`<p @text=".user.name">x</p>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === UNSUPPORTED_EXPR_SYNTAX);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.detected).toBe("field-path");
+  expect(matched[0].suggestion.text).toContain("@value.member");
+  expect(lx.reports.filter((r) => r.id === BAD_VALUE).length).toBe(0);
+});
+
+test("SUGGEST_BINDING_MEMBER on a pure-projection @enrich-with handler", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: {
+      project(binds, key, value) {
+        binds.label = value.title;
+        binds.tone = value.get("color");
+      },
+    },
+    view: html`<ul>
+      <li @each=".items" @enrich-with="project" :data-tone="@tone" @text="@label"></li>
+    </ul>`,
+  });
+  const matched = lx.reports.filter((r) => r.id === SUGGEST_BINDING_MEMBER);
+  expect(matched.length).toBe(1);
+  expect(matched[0].info.name).toBe("project");
+  expect(matched[0].info.members).toEqual([
+    { bind: "label", member: "title" },
+    { bind: "tone", member: "color" },
+  ]);
+  expect(matched[0].suggestion.text).toContain("'@label' -> '@value.title'");
+});
+
+test("no SUGGEST_BINDING_MEMBER when the enrich handler derives data", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: {
+      derive(binds, key, value) {
+        binds.total = value.a + value.b;
+      },
+    },
+    view: html`<ul>
+      <li @each=".items" @enrich-with="derive" @text="@total"></li>
+    </ul>`,
+  });
+  expect(lx.reports.filter((r) => r.id === SUGGEST_BINDING_MEMBER).length).toBe(0);
+});
+
 test("UNSUPPORTED_EXPR_SYNTAX on ternary in :class", () => {
   const [lx] = defAndCheck({
     name: "Comp",
@@ -2277,5 +2427,3 @@ test("every LINT_RULES code has a formatter (no fall-through to the bare code)",
     expect(msg).not.toBe(code);
   }
 });
-
-

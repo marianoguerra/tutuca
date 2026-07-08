@@ -18,6 +18,7 @@ import {
   ALT_HANDLER_NOT_REFERENCED,
   ASYNC_HANDLER,
   BAD_VALUE,
+  BINDING_MEMBER_TOO_DEEP,
   COMP_FIELD_BAD_SHAPE,
   CONSTANT_CONDITION,
   DEPRECATED_BARE_X_DIRECTIVE,
@@ -44,6 +45,7 @@ import {
   PROVIDE_NOT_ADDRESSABLE,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
+  SUGGEST_BINDING_MEMBER,
   TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE,
   UNKNOWN_COMPONENT_NAME,
   UNKNOWN_COMPONENT_SPEC_KEY,
@@ -54,6 +56,7 @@ import {
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
   UNSUPPORTED_EXPR_SYNTAX,
+  X_OP_IGNORES_CHILDREN,
 } from "./lint-check.js";
 
 /**
@@ -133,6 +136,13 @@ export const LINT_RULES = [
     level: "hint",
     group: "Iteration helpers (`alter`)",
     summary: "`alter` entry is defined but never used.",
+  },
+  {
+    code: SUGGEST_BINDING_MEMBER,
+    level: "hint",
+    group: "Iteration helpers (`alter`)",
+    summary:
+      "`@enrich-with` handler only copies members of the loop value — read them directly as `@value.member` and drop the enrich.",
   },
 
   // Dynamic bindings
@@ -217,6 +227,12 @@ export const LINT_RULES = [
     summary: "Extra attribute on `<x op>` not consumed by the op and not a known wrapper.",
   },
   {
+    code: X_OP_IGNORES_CHILDREN,
+    level: "warn",
+    group: "Templates / events",
+    summary: "`<x text/render/render-it/render-each>` has child content the op silently drops.",
+  },
+  {
     code: MAYBE_DROP_AT_PREFIX,
     level: "hint",
     group: "Templates / events",
@@ -251,7 +267,14 @@ export const LINT_RULES = [
     level: "error",
     group: "Value expressions",
     summary:
-      "Value uses JS-style syntax (ternary, comparison, logical, call-with-args) tutuca does not support — move the logic into a method.",
+      "Value uses JS-style syntax (ternary, comparison, logical, call-with-args, dotted field path) tutuca does not support — move the logic into a method.",
+  },
+  {
+    code: BINDING_MEMBER_TOO_DEEP,
+    level: "error",
+    group: "Value expressions",
+    summary:
+      "A binding member read goes more than one level deep (`@x.a.b`) — only one member is allowed.",
   },
   {
     code: REDUNDANT_TEMPLATE_STRING,
