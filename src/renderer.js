@@ -84,34 +84,6 @@ export class Renderer {
   pushEachEntry(r, nid, attrName, key, dom) {
     r.push(this._renderMetadata({ $: "Each", nid, [attrName]: key }), dom);
   }
-  renderEach(stack, iterInfo, node, viewName) {
-    const { seq, filter, loopWith } = iterInfo.eval(stack);
-    const r = [];
-    const { iterData, start, end, keys } = unpackLoopResult(
-      loopWith.call(stack.it, seq, makeLoopCtx(stack, filter)),
-      seq,
-    );
-    const renderOne = (key, value, attrName) => {
-      const dom = this.renderIt(stack.enter(value, { key }, true), node, key, viewName);
-      // An item that renders nothing (no matching component, or an
-      // `@show`-hidden root) contributes no boundary — see _rValComp.
-      if (dom != null) this.pushEachEntry(r, node.nodeId, attrName, key, dom);
-    };
-    // A `keys` return is authoritative — the handler already filtered, so we
-    // render those keys directly and skip `@when`. The positional path keeps
-    // the slice-then-filter behavior.
-    if (keys) imKeysIter(seq, renderOne, keys);
-    else
-      getSeqInfo(seq)(
-        seq,
-        (key, value, attrName) => {
-          if (filter.call(stack.it, key, value, iterData)) renderOne(key, value, attrName);
-        },
-        start,
-        end,
-      );
-    return r;
-  }
   renderEachWhen(stack, iterInfo, view, nid) {
     const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
     const r = [];
@@ -137,7 +109,8 @@ export class Renderer {
         this.cache.set(cachePath, cacheKey, dom);
       }
     };
-    // A `keys` return is authoritative — see renderEach.
+    // A `keys` return is authoritative: the handler already filtered/paged, so
+    // render exactly those keys in order and skip `@when`.
     if (keys) imKeysIter(seq, renderOne, keys);
     else
       getSeqInfo(seq)(

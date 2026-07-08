@@ -1146,3 +1146,81 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     cleanup();
   });
 });
+
+describe("render-each is @each + <x render-it>: @key/@value semantics", () => {
+  // render-each is sugar for @each + <x render-it>, so it inherits the frame
+  // boundary: @key/@value bound by the iteration live in the surrounding scope
+  // and are NOT visible inside the item component's own view (the render-it
+  // pushes a clean frame). This pins that render output and event-path
+  // reconstruction AGREE — the asymmetry the unification removes.
+  test("item view reading @key/@value inside the child resolves to null (frame barrier)", () => {
+    let receivedKey = "<not-set>";
+    let receivedValue = "<not-set>";
+    const Item = component({
+      name: "REItem",
+      fields: { uid: "" },
+      input: {
+        recordIt(k, v) {
+          receivedKey = k;
+          receivedValue = v;
+          return this;
+        },
+      },
+      view: html`<button :data-uid=".uid" @on.click="recordIt @key @value">x</button>`,
+    });
+    const List = component({
+      name: "REList",
+      fields: { items: [] },
+      view: html`<ul>
+        <x render-each=".items"></x>
+      </ul>`,
+    });
+    const root = List.make({ items: [Item.make({ uid: "a" }), Item.make({ uid: "b" })] });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [List, Item],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    // Same result render-side and rebuild-side: the frame barrier held.
+    expect(receivedKey).toBeNull();
+    expect(receivedValue).toBeNull();
+    cleanup();
+  });
+
+  test("clicking a render-each item dispatches to that item (reconstruction is keyed)", () => {
+    const Item = component({
+      name: "REItem2",
+      fields: { uid: "" },
+      input: {
+        tap() {
+          return this.setUid(`${this.uid}!`);
+        },
+      },
+      view: html`<button :data-uid=".uid" @on.click="tap">x</button>`,
+    });
+    const List = component({
+      name: "REList2",
+      fields: { items: [] },
+      view: html`<ul>
+        <x render-each=".items"></x>
+      </ul>`,
+    });
+    const root = List.make({ items: [Item.make({ uid: "a" }), Item.make({ uid: "b" })] });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [List, Item],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    container.querySelector('[data-uid="b"]').click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.items.get(1).uid).toBe("b!");
+    expect(app.state.val.items.get(0).uid).toBe("a");
+    cleanup();
+  });
+});

@@ -219,7 +219,7 @@ function parseXOp(attrs, childs, opIdx, px) {
       node = px.addNodeIf(RenderItNode, vp.bindValIt, as);
       break;
     case "render-each":
-      node = RenderEachNode.parse(px, vp, value, as, attrs);
+      node = parseRenderEach(px, value, as, attrs);
       break;
     case "show": {
       const val = parseXOpVal(name, value, px, vp.parseBool);
@@ -404,41 +404,36 @@ export class RenderItNode extends RenderViewId {
     return null;
   }
 }
-export class RenderEachNode extends RenderViewId {
-  constructor(nodeId, val, viewVal) {
-    super(nodeId, val, viewVal);
-    this.iterInfo = new IterInfo(val, null, null, null);
+// `<x render-each="seq">` is syntactic sugar for `@each="seq"` wrapping a
+// `<x render-it>`: it builds exactly that node pair so there is one iteration
+// mechanism (EachNode + renderEachWhen) end to end — no dedicated render path or
+// Step class. `@key`/`@value` therefore follow `@each` semantics: they live in
+// the surrounding scope, and the `render-it` child sees a clean frame (they are
+// NOT visible inside the item component's own view).
+function parseRenderEach(px, value, as, attrs) {
+  const seqVal = parseXOpVal("render-each", value, px, vp.parseSequence);
+  if (seqVal === null) return null;
+  const renderIt = px.addNodeIf(RenderItNode, vp.bindValIt, as);
+  // Reuse the directive parser to read @when / @loop-with into an each wrapper,
+  // then lift them onto the EachNode's iterInfo (there is no host element whose
+  // attribute parse would otherwise carry them).
+  const attrParser = getAttrParser(px);
+  const eachAttr = (attrParser.eachAttr = attrParser.pushWrapper("each", value, seqVal));
+  const when = attrs.getNamedItem("@when") ?? attrs.getNamedItem("when");
+  if (when) {
+    if (when.name.charCodeAt(0) !== 64) maybeDeprecateBareXDirective(px, "render-each", "when");
+    attrParser._parseWhen(when.value);
   }
-  render(stack, rx) {
-    return rx.renderEach(stack, this.iterInfo, this, this.evalViewName(stack));
-  }
-  toPathStep(ctx) {
-    if (this.val instanceof DynVal)
-      return ctx.hasKey ? dynRenderStep(ctx.comp, this.val.name, ctx.key) : null;
-    return super.toPathStep(ctx);
-  }
-  static parse(px, vp, s, as, attrs) {
-    const node = px.addNodeIf(
-      RenderEachNode,
-      parseXOpVal("render-each", s, px, vp.parseSequence),
-      as,
-    );
-    if (node !== null) {
-      const attrParser = getAttrParser(px);
-      attrParser.eachAttr = attrParser.pushWrapper("each", s, node.val);
-      const when = attrs.getNamedItem("@when") ?? attrs.getNamedItem("when");
-      if (when) {
-        if (when.name.charCodeAt(0) !== 64)
-          maybeDeprecateBareXDirective(px, "render-each", "when");
-        attrParser._parseWhen(when.value);
-      }
-      const lWith = attrs.getNamedItem("loop-with");
-      if (lWith) attrParser._parseLoopWith(lWith.value);
-      node.iterInfo.whenVal = attrParser.eachAttr.whenVal ?? null;
-      node.iterInfo.loopWithVal = attrParser.eachAttr.loopWithVal ?? null;
-    }
-    return node;
-  }
+  const lWith = attrs.getNamedItem("loop-with");
+  if (lWith) attrParser._parseLoopWith(lWith.value);
+  const each = px.addNodeIf(EachNode, seqVal);
+  each.iterInfo.whenVal = eachAttr.whenVal ?? null;
+  each.iterInfo.loopWithVal = eachAttr.loopWithVal ?? null;
+  // Marker so the linter checks this EachNode's @when/@loop-with in the node
+  // loop — a render-each sugar node has no wrapperAttr entry to check instead.
+  each.fromRenderEach = true;
+  each.wrapNode(renderIt);
+  return each;
 }
 export class RenderTextNode extends ANode {
   render(stack, _rx) {
@@ -572,7 +567,7 @@ const X_OPS = {
   text: xOp([], { wrappable: true }),
   render: xOp(["as"], { wrappable: true }),
   "render-it": xOp(["as"], { wrappable: true }),
-  // `@when` is consumed here (handled in RenderEachNode.parse) so `processXExtras`
+  // `@when` is consumed here (handled in parseRenderEach) so `processXExtras`
   // does not flag it as an unknown attr. TEMPORARY: bare `when` is deprecated in
   // favor of `@when` — see maybeDeprecateBareXDirective (added 2026-07-08).
   "render-each": xOp(["as", "when", "loop-with", "@when"], { wrappable: true }),

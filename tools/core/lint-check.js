@@ -644,7 +644,6 @@ const NODE_KIND_TO_CTX = {
   RenderTextNode: { originAttr: "<x text>" },
   RenderNode: { originAttr: "<x render>" },
   RenderItNode: { originAttr: "<x render-it>" },
-  RenderEachNode: { originAttr: "<x render-each>" },
   ShowNode: { originAttr: "<x show>" },
   HideNode: { originAttr: "<x hide>" },
   PushViewNameNode: { originAttr: "<x push-view>" },
@@ -780,7 +779,10 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
         if (node.val) {
           checkConsistentAttrVal(lx, node.val, env, false, baseCtx);
         }
-        if (nodeKind === "RenderEachNode") {
+        // `<x render-each>` is sugar for `@each` + `<x render-it>`, so its
+        // EachNode carries @when/@loop-with on iterInfo but has no wrapperAttr
+        // entry to check them through — do it here (marked by `fromRenderEach`).
+        if (nodeKind === "EachNode" && node.fromRenderEach) {
           const iter = node.iterInfo;
           if (iter.whenVal)
             checkConsistentAttrVal(lx, iter.whenVal, env, false, {

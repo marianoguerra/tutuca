@@ -101,7 +101,7 @@ export function getTests({ describe, test, expect }) {
     test("aggregates totals and omits clean components", () => {
       const r = LintReport.Class.fromData(lintReport);
       expect(r.errors).toBe(3);
-      expect(r.warnings).toBe(1);
+      expect(r.warnings).toBe(2);
       expect(r.hints).toBe(1);
       expect(r.clean).toBe(false);
       expect(r.components.size).toBe(1); // Good (no findings) omitted
@@ -119,9 +119,9 @@ export function getTests({ describe, test, expect }) {
       const broken = LintReport.Class.fromData(lintReport).components.first();
       expect(broken).toBeInstanceOf(LintComponent.Class);
       expect(broken.componentName).toBe("Broken");
-      expect(broken.countText()).toBe("3 errors, 1 warning, 1 hint");
+      expect(broken.countText()).toBe("3 errors, 2 warnings, 1 hint");
       expect(broken.isExpanded).toBe(true);
-      expect(broken.items.size).toBe(5);
+      expect(broken.items.size).toBe(6);
     });
   });
 

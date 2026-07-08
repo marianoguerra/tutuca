@@ -8,7 +8,6 @@ import {
   HideNode,
   MacroNode,
   PushViewNameNode,
-  RenderEachNode,
   RenderItNode,
   RenderOnceNode,
   RenderTextNode,
@@ -91,7 +90,9 @@ test("x render with show wraps in ShowNode", () => {
 test("x render-each with show wraps in ShowNode and keeps when/loop-with", () => {
   const [r] = parse(`<x render-each=".items" when="$whenH" loop-with="$lwith" show=".isOpen"></x>`);
   expect(r).toBeInstanceOf(ShowNode);
-  expect(r.node).toBeInstanceOf(RenderEachNode);
+  // render-each is sugar for @each + <x render-it>: an EachNode wrapping a RenderItNode.
+  expect(r.node).toBeInstanceOf(EachNode);
+  expect(r.node.node).toBeInstanceOf(RenderItNode);
   expect(r.node.iterInfo.whenVal.name).toBe("whenH");
   expect(r.node.iterInfo.loopWithVal.name).toBe("lwith");
 });
@@ -410,7 +411,9 @@ test("optimize: doesn't optimize render-it", () => {
 });
 test("optimize: doesn't optimize render-each", () => {
   const r = optimizeView(html`<div><x render-each=".a"></x></div>`);
-  expect(r.anode.childs[0]).toBeInstanceOf(RenderEachNode);
+  // render-each expands to an EachNode (sugar for @each + <x render-it>).
+  expect(r.anode.childs[0]).toBeInstanceOf(EachNode);
+  expect(r.anode.childs[0].node).toBeInstanceOf(RenderItNode);
 });
 test("optimize: doesn't optimize x text", () => {
   const r = optimizeView(html`<div><x text=".a"></x></div>`);

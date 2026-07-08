@@ -400,23 +400,16 @@ export class Path {
         // a component boundary — there is one per rendered component even when
         // its view is a bare `<x render>` that contributes no DOM element of
         // its own (a "passthrough" component). An `Each` meta is an iteration
-        // step. A `Comp` directly wrapped by an outer `Each` of the same node
-        // is a `render-each` item: the `Each` carries that boundary's keyed
-        // render site, so the `Comp` does not also push a (keyless) one.
+        // step; an iterated component (`@each`/`render-each` over `<x render-it>`)
+        // emits both — the keyless `Comp` for the boundary, then the keyed `Each`
+        // outside it — and `RenderItNode.toPathStep` pairs them back up.
         const metas = metaChain(node.previousSibling);
         let sawComp = false;
-        for (let i = 0; i < metas.length; i++) {
-          const m = metas[i];
+        for (const m of metas) {
           if (m.$ === "Comp") {
             sawComp = true;
             if (!crossComponent(m.cid, m.vid)) return NO_EVENT_INFO;
-            const outer = metas[i + 1];
-            if (outer?.$ === "Each" && outer.nid === m.nid) {
-              nodeIds.push({ nid: outer.nid, si: outer.si, sk: outer.sk });
-              i += 1;
-            } else {
-              nodeIds.push({ nid: m.nid });
-            }
+            nodeIds.push({ nid: m.nid });
           } else {
             nodeIds.push({ nid: m.nid, si: m.si, sk: m.sk });
           }

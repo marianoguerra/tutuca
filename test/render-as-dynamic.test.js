@@ -1,9 +1,10 @@
 // `as=` accepts dynamic values (like `@push-view`): a `.field` / `*dyn` / etc.
 // is evaluated against the host (enclosing) stack at render time to pick the
 // view for that one render site. A bare literal (`as="edit"`) still works, and
-// an evaluated name with no matching view falls back to `main`. For
-// `render-each` the selector is evaluated ONCE against the parent, so every
-// item gets the same view.
+// an evaluated name with no matching view falls back to `main`. `render-each`
+// is sugar for `@each` + `<x render-it>`, so its `as=` is evaluated per item
+// inside the iteration scope — each item can select its own view from its own
+// fields.
 import { describe, expect, test } from "bun:test";
 import { component, html } from "../index.js";
 import { Components } from "../src/components.js";
@@ -103,30 +104,35 @@ describe("dynamic as= view selection", () => {
     expect(out).not.toContain("marker-edit");
   });
 
-  test("render-each as= is evaluated once against the parent for every item", () => {
+  test("render-each as= is evaluated per item against the item's own field", () => {
     const comps = new Components();
-    const Item = makeChild(comps, "ItemEach");
+    // Item carries its own `mode` field, since render-each's `as=` now resolves
+    // inside the iteration scope (render-each === @each + <x render-it>).
+    const Item = registered(
+      comps,
+      component({
+        name: "ItemEach",
+        fields: { mode: "main" },
+        view: html`<span>marker-main</span>`,
+        views: { edit: html`<span>marker-edit</span>` },
+      }),
+    );
     const List = registered(
       comps,
       component({
         name: "ListEach",
-        fields: { mode: "main", items: [] },
+        fields: { items: [] },
         view: html`<div><x render-each=".items" as=".mode"></x></div>`,
       }),
     );
     const rx = new Renderer(comps);
-    const items = [Item.make({}), Item.make({})];
-    const lEdit = List.make({ mode: "edit", items });
-    const lMain = List.make({ mode: "main", items });
+    const list = List.make({ items: [Item.make({ mode: "edit" }), Item.make({ mode: "main" })] });
 
-    const outEdit = textOf(rx.renderRoot(Stack.root(comps, lEdit), lEdit));
-    const outMain = textOf(rx.renderRoot(Stack.root(comps, lMain), lMain));
+    const out = textOf(rx.renderRoot(Stack.root(comps, list), list));
 
-    // both items use the parent's mode
-    expect(outEdit.match(/marker-edit/g)?.length).toBe(2);
-    expect(outEdit).not.toContain("marker-main");
-    expect(outMain.match(/marker-main/g)?.length).toBe(2);
-    expect(outMain).not.toContain("marker-edit");
+    // each item picks its own view from its own `mode` field
+    expect(out.match(/marker-edit/g)?.length).toBe(1);
+    expect(out.match(/marker-main/g)?.length).toBe(1);
   });
 
   test("absent as= still resolves via lookupBestView (main)", () => {

@@ -8,7 +8,6 @@ import {
   FragmentNode,
   HideNode,
   NodeEvents,
-  RenderEachNode,
   RenderItNode,
   RenderNode,
   RenderTextNode,
@@ -715,11 +714,15 @@ describe("ANode", () => {
 
     test("x render-each", () => {
       const [r, px] = parse("<x render-each=.title></x>");
-      expect(r).toBeInstanceOf(RenderEachNode);
-      expect(r.nodeId).toBe(0);
+      // Sugar for @each + <x render-it>: the RenderItNode is created first
+      // (node 0), then the wrapping EachNode (node 1) returned as the root.
+      expect(r).toBeInstanceOf(EachNode);
+      expect(r.node).toBeInstanceOf(RenderItNode);
+      expect(r.nodeId).toBe(1);
       expect(r.val.name).toBe("title");
-      expect(px.nodes.length).toBe(1);
-      expect(px.nodes[0]).toBe(r);
+      expect(px.nodes.length).toBe(2);
+      expect(px.nodes[0]).toBe(r.node);
+      expect(px.nodes[1]).toBe(r);
     });
 
     test("x render-it", () => {
@@ -753,10 +756,11 @@ describe("ANode", () => {
     test("pseudo x", () => {
       // https://hachyderm.io/@marianoguerra/116448570359438457
       const [r] = parse(`<select><option @x render-each=".items" as="option"></x></select>`);
-      expect(r.childs[0]).toBeInstanceOf(RenderEachNode);
-      // `as=` is now a Val (a literal name becomes a ConstVal); evaluating it
-      // against the stack yields the view name.
-      expect(r.childs[0].evalViewName(null)).toBe("option");
+      expect(r.childs[0]).toBeInstanceOf(EachNode);
+      // `as=` now lives on the wrapped RenderItNode. It is a Val (a literal name
+      // becomes a ConstVal); evaluating it against the stack yields the view name.
+      expect(r.childs[0].node).toBeInstanceOf(RenderItNode);
+      expect(r.childs[0].node.evalViewName(null)).toBe("option");
     });
 
     test.todo("px.error conditions in render-each parsing");
@@ -1079,7 +1083,8 @@ describe("ANode", () => {
     describe("x render-each", () => {
       test("valid field", () => {
         const [r] = parse("<x render-each='.foo'></x>");
-        expect(r).toBeInstanceOf(RenderEachNode);
+        expect(r).toBeInstanceOf(EachNode);
+        expect(r.node).toBeInstanceOf(RenderItNode);
       });
       test("invalid bind", () => {
         const [r] = parse("<x render-each='@foo'></x>");

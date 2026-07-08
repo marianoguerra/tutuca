@@ -1312,6 +1312,17 @@ test("x render-each with when referencing defined alter handler emits nothing", 
   expect(lx.reports.length).toBe(0);
 });
 
+test("x render-each with undefined when/loop-with handlers is flagged (sugar EachNode still checked)", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    view: html`<div><x render-each=".items" @when="missingWhen" loop-with="missingLoop"></x></div>`,
+  });
+  const flagged = lx.reports.filter((r) => r.id === ALT_HANDLER_NOT_DEFINED).map((r) => r.info.name);
+  expect(flagged).toContain("missingWhen");
+  expect(flagged).toContain("missingLoop");
+});
+
 test("warn on macro call with arg not declared in macro defaults", () => {
   const btn = macro({ label: "click" }, html`<button>^label</button>`);
   const Comp = component({
