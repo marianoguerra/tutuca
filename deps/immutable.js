@@ -1952,21 +1952,10 @@ const Map = value => value === undefined || value === null ? emptyMap() : isMap(
 class MapImpl extends KeyedCollectionImpl {
   static {
     mixin(this, {
-      asImmutable,
-      asMutable,
-      deleteIn,
-      merge,
-      mergeWith,
-      mergeDeep,
-      mergeDeepWith,
-      mergeDeepIn,
-      mergeIn,
-      setIn,
-      update,
-      updateIn,
+      ...mutatorMethods(),
+      ...deepPathMethods(),
+      ...keyedMergeMethods(),
       wasAltered,
-      withMutations,
-      removeIn: deleteIn,
       concat: merge,
       [IS_MAP_SYMBOL]: true,
       [DELETE]: this.prototype.remove,
@@ -2748,6 +2737,32 @@ function mergeDeepIn(keyPath, ...iters) {
 function mixin(Class, methods) {
   Object.assign(Class.prototype, methods);
 }
+function mutatorMethods() {
+  return {
+    asImmutable,
+    asMutable,
+    withMutations
+  };
+}
+function deepPathMethods() {
+  return {
+    deleteIn,
+    removeIn: deleteIn,
+    mergeDeepIn,
+    mergeIn,
+    setIn,
+    update,
+    updateIn
+  };
+}
+function keyedMergeMethods() {
+  return {
+    merge,
+    mergeWith,
+    mergeDeep,
+    mergeDeepWith
+  };
+}
 const List = value => {
   const empty = emptyList();
   if (value === undefined || value === null) {
@@ -2774,17 +2789,9 @@ List.of = (...values) => List(values);
 class ListImpl extends IndexedCollectionImpl {
   static {
     mixin(this, {
-      asImmutable,
-      asMutable,
-      deleteIn,
-      mergeDeepIn,
-      mergeIn,
-      setIn,
-      update,
-      updateIn,
+      ...mutatorMethods(),
+      ...deepPathMethods(),
       wasAltered,
-      withMutations,
-      removeIn: deleteIn,
       [IS_LIST_SYMBOL]: true,
       [DELETE]: this.prototype.remove,
       merge: this.prototype.concat,
@@ -3319,6 +3326,8 @@ class OrderedMapImpl extends MapImpl {
       __iterate: CollectionImpl.prototype.__iterate
     });
   }
+  _map;
+  _list;
   constructor(map, list, ownerID, hash) {
     super(map ? map.size : 0, undefined, ownerID, hash);
     this._map = map;
@@ -3455,10 +3464,8 @@ Stack.of = (...values) => Stack(values);
 class StackImpl extends IndexedCollectionImpl {
   static {
     mixin(this, {
-      asImmutable,
-      asMutable,
+      ...mutatorMethods(),
       wasAltered,
-      withMutations,
       [IS_STACK_SYMBOL]: true,
       shift: this.prototype.pop,
       unshift: this.prototype.push,
@@ -3467,6 +3474,9 @@ class StackImpl extends IndexedCollectionImpl {
       [Symbol.iterator]: this.prototype.values
     });
   }
+  _head;
+  __ownerID;
+  __altered;
   constructor(size, head, ownerID, hash) {
     super();
     this.size = size;
@@ -3507,17 +3517,17 @@ class StackImpl extends IndexedCollectionImpl {
     return returnStack(this, newSize, head);
   }
   pushAll(iter) {
-    iter = IndexedCollection(iter);
-    if (iter.size === 0) {
+    const collection = IndexedCollection(iter);
+    if (collection.size === 0) {
       return this;
     }
-    if (this.size === 0 && isStack(iter)) {
-      return iter;
+    if (this.size === 0 && isStack(collection)) {
+      return collection;
     }
-    assertNotInfinite(iter.size);
+    assertNotInfinite(collection.size);
     let newSize = this.size;
     let head = this._head;
-    iter.__iterate(value => {
+    collection.__iterate(value => {
       newSize++;
       head = {
         value,
@@ -3554,7 +3564,7 @@ class StackImpl extends IndexedCollectionImpl {
     const newSize = this.size - resolvedBegin;
     let head = this._head;
     while (resolvedBegin--) {
-      head = head.next;
+      head = head?.next;
     }
     return returnStack(this, newSize, head);
   }
@@ -3572,7 +3582,7 @@ class StackImpl extends IndexedCollectionImpl {
     }
     return makeStack(this.size, this._head, ownerID, this.__hash);
   }
-  __iterate(fn, reverse) {
+  __iterate(fn, reverse = false) {
     if (reverse) {
       const arr = this.toArray();
       const size = arr.length;
@@ -3594,7 +3604,7 @@ class StackImpl extends IndexedCollectionImpl {
     }
     return iterations;
   }
-  __iterator(reverse) {
+  __iterator(reverse = false) {
     if (reverse) {
       const arr = this.toArray();
       const size = arr.length;
@@ -3660,8 +3670,8 @@ const Set = value => value === undefined || value === null ? emptySet() : isSet(
 Set.of = (...values) => Set(values);
 Set.fromKeys = value => Set(KeyedCollection(value).keySeq());
 Set.intersect = sets => {
-  sets = Collection(sets).toArray();
-  return sets.length ? Set(sets.pop()).intersect(...sets) : emptySet();
+  const setArray = Collection(sets).toArray();
+  return setArray.length ? Set(setArray.pop()).intersect(...setArray) : emptySet();
 };
 Set.union = sets => {
   const setArray = Collection(sets).toArray();
@@ -3670,9 +3680,7 @@ Set.union = sets => {
 class SetImpl extends SetCollectionImpl {
   static {
     mixin(this, {
-      withMutations,
-      asImmutable,
-      asMutable,
+      ...mutatorMethods(),
       [IS_SET_SYMBOL]: true,
       [DELETE]: this.prototype.remove,
       merge: this.prototype.union,
@@ -3680,6 +3688,8 @@ class SetImpl extends SetCollectionImpl {
       [Symbol.toStringTag]: "Immutable.Set"
     });
   }
+  _map;
+  __ownerID;
   constructor(map, ownerID) {
     super();
     this.size = map ? map.size : 0;
@@ -3720,7 +3730,7 @@ class SetImpl extends SetCollectionImpl {
     if (iters.length === 0) {
       return this;
     }
-    if (this.size === 0 && !this.__ownerID && iters.length === 1) {
+    if (this.size === 0 && !this.__ownerID && iters.length === 1 && !isOrdered(this)) {
       return Set(iters[0]);
     }
     return this.withMutations(set => {
@@ -3775,10 +3785,10 @@ function filterByIters(set, iters, shouldRemove) {
   if (iters.length === 0) {
     return set;
   }
-  iters = iters.map(iter => SetCollection(iter));
+  const sets = iters.map(iter => SetCollection(iter));
   return set.withMutations(s => {
     set.forEach(value => {
-      if (shouldRemove(value, iters)) {
+      if (shouldRemove(value, sets)) {
         s.remove(value);
       }
     });
@@ -3887,23 +3897,12 @@ const Record = (defaultValues, name) => {
 class RecordImpl {
   static {
     mixin(this, {
-      asImmutable,
-      asMutable,
-      deleteIn,
+      ...mutatorMethods(),
+      ...deepPathMethods(),
+      ...keyedMergeMethods(),
       getIn,
       hasIn,
-      merge,
-      mergeWith,
-      mergeDeep,
-      mergeDeepWith,
-      mergeDeepIn,
-      mergeIn,
-      setIn,
       toObject,
-      update,
-      updateIn,
-      withMutations,
-      removeIn: deleteIn,
       toJSON: toObject,
       [IS_RECORD_SYMBOL]: true,
       [DELETE]: this.prototype.remove,
@@ -4163,6 +4162,7 @@ const Repeat = (value, times) => {
   return new RepeatImpl(value, size);
 };
 class RepeatImpl extends IndexedSeqImpl {
+  _value;
   constructor(value, size) {
     super();
     this._value = value;
@@ -4199,7 +4199,7 @@ class RepeatImpl extends IndexedSeqImpl {
     }
     return -1;
   }
-  __iterateUncached(fn, reverse) {
+  __iterateUncached(fn, reverse = false) {
     const size = this.size;
     let i = 0;
     while (i !== size) {
@@ -4209,7 +4209,7 @@ class RepeatImpl extends IndexedSeqImpl {
     }
     return i;
   }
-  __iteratorUncached(reverse) {
+  __iteratorUncached(reverse = false) {
     const size = this.size;
     const val = this._value;
     let i = 0;
@@ -4247,7 +4247,7 @@ class RepeatImpl extends IndexedSeqImpl {
     this.prototype[Symbol.iterator] = this.prototype.values;
   }
 }
-const fromJS = (value, converter) => fromJSWith([], converter ?? defaultConverter, value, "", converter?.length > 2 ? [] : undefined, {
+const fromJS = (value, converter) => fromJSWith([], converter ?? defaultConverter, value, "", converter && converter.length > 2 ? [] : undefined, {
   "": value
 });
 function fromJSWith(stack, converter, value, key, keyPath, parentValue) {
@@ -4311,18 +4311,16 @@ function initCollectionConversions() {
   IndexedCollectionImpl.prototype.keySeq = function keySeq() {
     return Range(0, this.size);
   };
-  MapImpl.prototype.sort = function sort(comparator) {
-    return OrderedMap(sortFactory(this, comparator));
+  const patchSort = (Impl, OrderedCtor) => {
+    Impl.prototype.sort = function sort(comparator) {
+      return OrderedCtor(sortFactory(this, comparator));
+    };
+    Impl.prototype.sortBy = function sortBy(mapper, comparator) {
+      return OrderedCtor(sortFactory(this, comparator, mapper));
+    };
   };
-  MapImpl.prototype.sortBy = function sortBy(mapper, comparator) {
-    return OrderedMap(sortFactory(this, comparator, mapper));
-  };
-  SetImpl.prototype.sort = function sort(comparator) {
-    return OrderedSet(sortFactory(this, comparator));
-  };
-  SetImpl.prototype.sortBy = function sortBy(mapper, comparator) {
-    return OrderedSet(sortFactory(this, comparator, mapper));
-  };
+  patchSort(MapImpl, OrderedMap);
+  patchSort(SetImpl, OrderedSet);
 }
 var version$1 = "7.0.0";
 var pkg = {
