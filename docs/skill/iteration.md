@@ -15,7 +15,7 @@ Read this file when a view iterates a sequence (`@each`,
 <!-- filter -->
 <li @each=".items" @when="filterItem">...</li>
 
-<!-- per-item enrichment (binds.X => @X in template) -->
+<!-- per-item enrichment via the enrich handler (binds.X => @X in template) -->
 <li @each=".items" @enrich-with="enrichItem">
   <x text="@count"></x>
 </li>
@@ -55,7 +55,10 @@ alter: {
 A `@loop-with` handler returns an object with up to four optional keys:
 
 - **`iterData`** — the shared per-loop value handed to `@when` /
-  `@enrich-with`. Defaults to `{ seq }` when omitted.
+  `@enrich-with`. Defaults to `{ seq }` when omitted. Inside the loop a
+  binding may read one **binding member** directly (`@value.title`) — if
+  an enrich handler only copies members of the loop value, the linter
+  hints to drop it and read the members instead.
 - **`start`, `end`** — a positional slice of the iteration, with
   `Array.prototype.slice` semantics: `end` is exclusive, negatives count
   from the end (`end: -3` drops the last 3), `undefined` means the

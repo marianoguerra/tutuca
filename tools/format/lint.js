@@ -39,7 +39,7 @@ function badValueMessage(info) {
     case "handler-arg":
       return `Cannot parse handler argument ${v}`;
     case "macro-var":
-      return `Macro variable '^${info.name}' is not defined`;
+      return `Macro parameter '^${info.name}' is not defined`;
     default:
       return `Cannot parse value ${v}`;
   }
@@ -122,7 +122,7 @@ export function lintIdToMessage(id, info) {
     case "ALT_HANDLER_NOT_REFERENCED":
       return `Alter handler '${info.name}' is defined but never used — remove it or reference it from @when, @enrich-with, or @loop-with`;
     case "DYN_VAL_NOT_DEFINED":
-      return `Dynamic variable '*${info.name}' is not defined${fmtOriginSuffix(info)}`;
+      return `Dynamic binding '*${info.name}' is not defined${fmtOriginSuffix(info)}`;
     case "DYN_ALIAS_NOT_REFERENCED":
       return `Lookup '${info.name}' is defined but never used — remove it or reference it as '*${info.name}' in a view`;
     case "PROVIDE_NOT_ADDRESSABLE":
@@ -162,9 +162,9 @@ export function lintIdToMessage(id, info) {
       return `Enrich handler '${info.name}' only copies members of the loop value — read them directly${reads ? ` (${reads})` : ""} and remove the '@enrich-with'`;
     }
     case "REDUNDANT_TEMPLATE_STRING":
-      return `Redundant template string — '{${info.simpler}}' should be just '${info.simpler}'${fmtOriginSuffix(info)}`;
+      return `Redundant string template — '{${info.simpler}}' should be just '${info.simpler}'${fmtOriginSuffix(info)}`;
     case "PLACEHOLDERLESS_TEMPLATE_STRING":
-      return `Template string has no dynamic parts — use the string literal ${info.literal} instead${fmtOriginSuffix(info)}`;
+      return `String template has no dynamic parts — use the string literal ${info.literal} instead${fmtOriginSuffix(info)}`;
     case "CONSTANT_CONDITION":
       return `Condition is the constant literal ${info.literal} — it never changes; reference a field ('.name') or a method ('$name') instead${fmtOriginSuffix(info)}`;
     case "UNKNOWN_COMPONENT_SPEC_KEY":

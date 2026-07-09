@@ -223,7 +223,7 @@ const BINDING_MEMBER_TOO_DEEP_RE = /^@[a-zA-Z]\w*\??(\.[a-zA-Z]\w*\??){2,}$/;
 
 const UNSUPPORTED_EXPR_GUIDANCE = {
   ternary:
-    "Ternary expressions aren't supported in dynamic attributes. Define a method or computed field on the component that returns the value, then reference it as '$methodName'.",
+    "Ternary expressions aren't supported in dynamic attributes. Define a method or computed value on the component that returns the value, then reference it as '$methodName'.",
   comparison:
     "Comparisons aren't supported in dynamic attributes. Define a method like 'isFooSelected' that returns the boolean, then reference it as '$isFooSelected'.",
   logical:

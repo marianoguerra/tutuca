@@ -1,6 +1,6 @@
 import { component, html, IMap } from "tutuca";
 
-// Dynamic variables used as render targets — a single item and a whole sequence.
+// Dynamic bindings used as render targets — a single item and a whole sequence.
 //
 // `Root` owns a keyed list of entries and a `selectedKey`. It *produces* two
 // dynamics:

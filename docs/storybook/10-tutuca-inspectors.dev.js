@@ -641,7 +641,7 @@ function getTests3({ describe, test, expect }) {
       const items = LintReport2.Class.fromData(lintReport2).components.first().items;
       const warn = items.get(2);
       expect(warn.level).toBe("warn");
-      expect(warn.message).toContain("Redundant template string");
+      expect(warn.message).toContain("Redundant string template");
       expect(warn.suggestion).toBe("$'{.title}' → .title");
       expect(warn.levelBadgeClass()).toContain("badge-warning");
     });

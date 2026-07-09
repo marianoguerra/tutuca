@@ -225,4 +225,16 @@ Representative codes: `FIELD_VAL_NOT_DEFINED`, `METHOD_VAL_IS_FIELD`,
 
 `lint` also runs an HTML structural linter (fragment mode) that emits
 `HTML_*` codes for malformed or misnested template markup; those are
-reported through the same channel.
+reported through the same channel. Its messages use WHATWG parser
+vocabulary:
+
+- **foster-parenting** — the parser moves content that isn't allowed
+  inside a table out in front of it.
+- **adoption agency** — the algorithm that reorders misnested formatting
+  tags (`<b><i></b></i>`).
+- **void element** — an element with no close tag (`<br>`, `<img>`); an
+  explicit `</br>` is flagged.
+- **insertion mode** — the parser context named in "not allowed in …"
+  messages (e.g. "in table body").
+- **bogus comment** — malformed markup the parser reinterprets as a
+  comment, dropping its content.

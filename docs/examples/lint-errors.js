@@ -156,7 +156,7 @@ const LintDemo = component({
     </ul>
 
     <!-- UNSUPPORTED_EXPR_SYNTAX (ternary): tutuca doesn't evaluate ternaries
-         in dynamic attributes - move the choice into a method/computed field -->
+         in dynamic attributes - move the choice into a method/computed value -->
     <p :class=".isOpen ? 'on' : 'off'">ternary in :class</p>
 
     <!-- UNSUPPORTED_EXPR_SYNTAX (comparison): no comparison operators -

@@ -68,7 +68,7 @@ export function lintMessage(id, info = {}) {
     case "ALT_HANDLER_NOT_DEFINED":
       return `Alter handler '${info.name}' is not defined${originSuffix(info)}`;
     case "DYN_VAL_NOT_DEFINED":
-      return `Dynamic variable '*${info.name}' is not defined${originSuffix(info)}`;
+      return `Dynamic binding '*${info.name}' is not defined${originSuffix(info)}`;
     case "UNKNOWN_COMPONENT_NAME":
       return `Unknown component '${info.name}'${originSuffix(info)}`;
     case "UNKNOWN_DIRECTIVE":
@@ -76,9 +76,9 @@ export function lintMessage(id, info = {}) {
     case "IF_NO_BRANCH_SET":
       return `'@if.${info.attr}' has no '@then' or '@else' branch${tagSuffix(info)}`;
     case "REDUNDANT_TEMPLATE_STRING":
-      return `Redundant template string — '{${info.simpler}}' should be just '${info.simpler}'${originSuffix(info)}`;
+      return `Redundant string template — '{${info.simpler}}' should be just '${info.simpler}'${originSuffix(info)}`;
     case "PLACEHOLDERLESS_TEMPLATE_STRING":
-      return `Template string has no dynamic parts — use the literal ${info.literal} instead${originSuffix(info)}`;
+      return `String template has no dynamic parts — use the literal ${info.literal} instead${originSuffix(info)}`;
     case "CONSTANT_CONDITION":
       return `Constant condition ${info.literal} — reference a field ('.name') or method ('$name')${originSuffix(info)}`;
     case "ASYNC_HANDLER":

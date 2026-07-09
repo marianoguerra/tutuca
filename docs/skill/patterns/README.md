@@ -23,7 +23,7 @@ task.
 - [Conditional attribute value](conditional-attribute-value.md) — set a class/title by condition with `@if` / `@then` / `@else`.
 - [Tabbed interface](tabbed-interface.md) — a `currentView` field + predicates to show the panel and highlight the active tab.
 
-## Context & dynamic variables
+## Context & dynamic bindings
 
 - [Share state across the tree](share-state-across-the-tree.md) — `provide` / `lookup` and reading `*name`.
 - [Edit through a dynamic target](edit-through-a-dynamic-target.md) — render `*name` and teleport edits back to the owner.

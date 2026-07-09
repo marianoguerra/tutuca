@@ -770,7 +770,7 @@ test("redundant-template warning still recurses into the inner expression", () =
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
 });
 
-test("hint on placeholderless template string in :title", () => {
+test("hint on placeholderless string template in :title", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: {},

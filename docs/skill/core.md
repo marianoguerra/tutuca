@@ -95,9 +95,10 @@ and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
   (`<x render=".foo">` then `@text=".bar"` inside), add a method
   (`fullName() { return this.user.name; }` and use `$fullName`), or use
   `@enrich-with` for scope-level derivation. The one exception: a
-  **binding** may read exactly one member — `@text="@value.title"` inside
-  `@each` works (any `@`-binding, one level only; `@value.a.b` is a lint
-  error, and render targets still reject it).
+  **binding** may read exactly one **binding member** —
+  `@text="@value.title"` inside `@each` works (any `@`-binding, one level
+  only; a binding member read like `@value.a.b` is a lint error, and
+  render targets still reject it).
 - **Coercion is shallow.** `setItems([{a:1}])` stores plain objects inside
   the `List`. Wrap each item in `Comp.make({...})` or run inputs through
   immutable's `fromJS` if you need deep coercion. See *Component Skeleton*.
@@ -252,7 +253,7 @@ literal with spaces (escape an interior quote as `\'`).
 | Prefix   | Means                                     | Example               |
 | -------- | ----------------------------------------- | --------------------- |
 | `.x`     | field on `this` (single-level — no `.foo.bar` paths) | `.count`, `.title` |
-| `$x`     | no-arg method call on `this`              | `$inc`, `$canSubmit`  |
+| `$x`     | no-arg method call on `this` (a method reference) | `$inc`, `$canSubmit` |
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
 | `*x`     | dynamic binding — see [advanced.md](./advanced.md) | `*theme`          |
@@ -272,7 +273,7 @@ resolves by slot:
 
 - **First slot** — handler name looked up in `input` / `alter` (use
   `$name` for `methods`).
-- **Subsequent slots** — built-in handler arg name (full list in
+- **Subsequent slots** — built-in handler argument name (full list in
   *Event Handling*); anything else triggers a lint warning.
 
 ```html
@@ -310,6 +311,9 @@ A string template is written `$'…'` — a single-quoted run with a leading
 ```
 
 ## Component Skeleton
+
+The object passed to `component({...})` is the **component spec** — the
+linter warns on unknown spec keys. The full shape:
 
 ```js
 component({
@@ -566,7 +570,7 @@ arg automatically — written args come first, `ctx` last. So
 is called as `pick(key, isAlt, ctx)`. You can still write `ctx` in the
 template (it resolves to a fresh `EventContext`), but it is redundant.
 
-Built-in handler arg names: `value`, `valueAsInt`, `valueAsFloat`,
+Built-in handler argument names: `value`, `valueAsInt`, `valueAsFloat`,
 `target`, `event`, `isAlt`, `isShift`, `isCtrl`/`isCmd`, `key`, `keyCode`,
 `isUpKey`, `isDownKey`, `isSend`, `isCancel`, `isTabKey`, `ctx`,
 `dragInfo`.
