@@ -115,13 +115,13 @@ const X_KNOWN_OP_NAMES = new Set([
 const X_KNOWN_ATTR_NAMES = new Set(["as", "when", "loop-with", "show", "hide"]);
 
 // Directive-only names that require a leading `@` on a host element (the
-// iteration filters and conditional wrappers). On `<x>` they are written
-// bare (`when=`, `show=`, …); on a host element the same name without `@` is
-// silently swallowed as a plain HTML attribute, so flag it as a probable
-// dropped `@`. Symmetric to MAYBE_DROP_AT_PREFIX, which catches the reverse
-// mistake (`@when` written on `<x>`). `slot`/`as` are excluded on purpose:
-// `slot` is a real global HTML attribute and `as` is `<x>`-only with no `@`
-// form, so neither is ever a dropped-`@` typo.
+// iteration filters and conditional wrappers). On a host element the same
+// name without `@` is silently swallowed as a plain HTML attribute, so flag
+// it as a probable dropped `@`. Symmetric to MAYBE_DROP_AT_PREFIX, which
+// catches the reverse mistake (an `@`-prefixed name where `<x>` wants it
+// bare, e.g. `@as`). `slot`/`as` are excluded on purpose: `slot` is a real
+// global HTML attribute and `as` is `<x>`-only with no `@` form, so neither
+// is ever a dropped-`@` typo.
 const HOST_DIRECTIVE_ONLY_NAMES = new Set(["when", "enrich-with", "loop-with", "show", "hide"]);
 
 const LEVEL_WARN = "warn";
@@ -888,7 +888,7 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
           const iter = node.iterInfo;
           if (iter.whenVal)
             checkConsistentAttrVal(lx, iter.whenVal, env, false, {
-              originAttr: "<x render-each when>",
+              originAttr: "<x render-each @when>",
             });
           if (iter.loopWithVal)
             checkConsistentAttrVal(lx, iter.loopWithVal, env, false, {

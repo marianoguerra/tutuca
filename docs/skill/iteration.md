@@ -31,12 +31,16 @@ Read this file when a view iterates a sequence (`@each`,
 <x render-each=".items" @show=".isOpen"></x>                    <!-- wrap in show -->
 ```
 
-On `<li @each>` / `<div @each>` and other host-element loops the
-filters are written `@when` / `@enrich-with` / `@loop-with` (the `@`
-prefix is the element-directive convention). On `<x render-each>` the
-same filters drop the prefix — `when=` / `enrich-with=` / `loop-with=`
-— because `<x>` carries plain attributes, not directives. Both forms
-share the handler-name resolution rules below.
+On `<li @each>` / `<div @each>` and other host-element loops the filters
+are written `@when` / `@enrich-with` / `@loop-with`. On `<x render-each>`
+write `@when` the same way; `loop-with` is still spelled bare (it slices
+the sequence before iteration, so it applies to the rendered list). Both
+forms share the handler-name resolution rules below.
+
+`@enrich-with` is **not** supported on `<x render-each>`: the op renders
+each item as a component in its own frame and drops child content, so
+nothing is left to read the `@X` binds an enricher would set. Reach for a
+host-element `@each` loop when you need enrichment.
 
 ```js
 alter: {
