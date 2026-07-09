@@ -117,6 +117,50 @@ describe("@loop-with keys", () => {
   });
 });
 
+// `<x render-each>` desugars to `@each` wrapping a `<x render-it>`, so a
+// `@loop-with` slice must reach the sequence the same way it does on a host
+// element loop. Both spellings are exercised: `@loop-with` is the preferred
+// form, bare `loop-with` still parses (deprecated, see DEPRECATED_BARE_X_DIRECTIVE).
+describe("@loop-with on <x render-each>", () => {
+  const makePaged = (attr) =>
+    component({
+      name: `Paged${attr.replace(/\W/g, "")}`,
+      fields: { rows: [] },
+      alter: {
+        page() {
+          return { start: 1, end: 3 };
+        },
+      },
+      view: html`<ul>
+        <x render-each=".rows" ${attr}="page"></x>
+      </ul>`,
+    });
+
+  const rows = [
+    Row.make({ label: "zero" }),
+    Row.make({ label: "one" }),
+    Row.make({ label: "two" }),
+    Row.make({ label: "three" }),
+  ];
+
+  for (const attr of ["@loop-with", "loop-with"]) {
+    test(`${attr} slices the rendered list to [start, end)`, () => {
+      const Paged = makePaged(attr);
+      const out = renderToHTML(
+        document,
+        [Paged, Row],
+        null,
+        Paged.make({ rows }),
+        HeadlessParseContext,
+      );
+      expect(out).toContain("one");
+      expect(out).toContain("two");
+      expect(out).not.toContain("zero");
+      expect(out).not.toContain("three");
+    });
+  }
+});
+
 // The `@loop-with` handler's 2nd argument is a context object { lookup, filter }.
 const fourRows = [
   Row.make({ label: "zero" }),

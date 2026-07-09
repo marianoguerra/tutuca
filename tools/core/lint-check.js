@@ -290,9 +290,9 @@ function checkParseIssues(lx, view) {
   const issues = view.ctx.parseIssues;
   if (!issues) return;
   for (const { kind, info } of issues) {
-    // TEMPORARY (2026-07-08): bare `show`/`hide`/`when` on `<x>` ops still parse,
-    // but nudge authors to the `@`-prefixed directive form. Remove with the bare
-    // spelling.
+    // TEMPORARY (2026-07-08): bare `show`/`hide`/`when`/`loop-with` on `<x>` ops
+    // still parse, but nudge authors to the `@`-prefixed directive form. Remove
+    // with the bare spelling.
     if (kind === "deprecated:bare-x-directive") {
       lx.warn(DEPRECATED_BARE_X_DIRECTIVE, info, {
         kind: "add-prefix",
@@ -892,7 +892,7 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
             });
           if (iter.loopWithVal)
             checkConsistentAttrVal(lx, iter.loopWithVal, env, false, {
-              originAttr: "<x render-each loop-with>",
+              originAttr: "<x render-each @loop-with>",
             });
         }
       }

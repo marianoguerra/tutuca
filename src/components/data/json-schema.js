@@ -44,14 +44,14 @@ const GRID_BODY = html`<div
   class="ml-1 grid gap-x-2 gap-y-0.5 items-baseline border-l border-base-content/10 pl-2 mt-0.5"
   style="grid-template-columns: auto 1fr"
 >
-  <x render-each=".items" loop-with="getPageRange"></x>
+  <x render-each=".items" @loop-with="getPageRange"></x>
 </div>`;
 
 const LIST_BODY = html`<div
   @show=".isExpanded"
   class="ml-1 flex flex-col gap-0.5 border-l border-base-content/10 pl-2 mt-0.5"
 >
-  <x render-each=".items" loop-with="getPageRange"></x>
+  <x render-each=".items" @loop-with="getPageRange"></x>
 </div>`;
 
 // The shared collapsible chrome: chevron + type label + count + badges +

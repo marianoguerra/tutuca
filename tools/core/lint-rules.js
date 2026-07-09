@@ -245,14 +245,14 @@ export const LINT_RULES = [
     summary:
       "A directive name (`when`/`enrich-with`/`loop-with`/`show`/`hide`) was written as a plain attribute on a host element — add the `@` prefix.",
   },
-  // TEMPORARY (added 2026-07-08): remove together with the bare `show`/`hide`/`when`
-  // spelling on `<x>` ops.
+  // TEMPORARY (added 2026-07-08): remove together with the bare
+  // `show`/`hide`/`when`/`loop-with` spelling on `<x>` ops.
   {
     code: DEPRECATED_BARE_X_DIRECTIVE,
     level: "warn",
     group: "Templates / events",
     summary:
-      "Bare `show`/`hide`/`when` on an `<x>` op is deprecated — use the `@`-prefixed directive (`@show`/`@hide`/`@when`).",
+      "Bare `show`/`hide`/`when`/`loop-with` on an `<x>` op is deprecated — use the `@`-prefixed directive (`@show`/`@hide`/`@when`/`@loop-with`).",
   },
 
   // Value expressions

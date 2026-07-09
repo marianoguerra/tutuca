@@ -27,15 +27,14 @@ Read this file when a view iterates a sequence (`@each`,
 <x render-each=".items"></x>
 <x render-each=".items" as="edit"></x>                          <!-- specific view -->
 <x render-each=".items" @when="filterItem"></x>                 <!-- with filter -->
-<x render-each=".items" loop-with="getIterData" @when="filterItem"></x>
+<x render-each=".items" @loop-with="getIterData" @when="filterItem"></x>
 <x render-each=".items" @show=".isOpen"></x>                    <!-- wrap in show -->
 ```
 
-On `<li @each>` / `<div @each>` and other host-element loops the filters
-are written `@when` / `@enrich-with` / `@loop-with`. On `<x render-each>`
-write `@when` the same way; `loop-with` is still spelled bare (it slices
-the sequence before iteration, so it applies to the rendered list). Both
-forms share the handler-name resolution rules below.
+Directives carry the `@` prefix everywhere — on `<li @each>` / `<div @each>`
+host-element loops and on `<x render-each>` alike. Only `as=` is bare, because
+it is an argument to the op rather than a directive. Both forms share the
+handler-name resolution rules below.
 
 `@enrich-with` is **not** supported on `<x render-each>`: the op renders
 each item as a component in its own frame and drops child content, so

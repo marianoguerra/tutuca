@@ -284,10 +284,10 @@ function processXExtras(node, attrs, opName, startIdx, px) {
   }
   return node;
 }
-// TEMPORARY (added 2026-07-08): the bare `show`/`hide`/`when` attrs on `<x>` ops
-// are the legacy spelling of the `@show`/`@hide`/`@when` directives, which now
-// work directly on `<x>` ops too. Bare forms still parse, but the linter nudges
-// authors to the `@`-prefixed form.
+// TEMPORARY (added 2026-07-08): the bare `show`/`hide`/`when`/`loop-with` attrs
+// on `<x>` ops are the legacy spelling of the `@show`/`@hide`/`@when`/`@loop-with`
+// directives, which now work directly on `<x>` ops too. Bare forms still parse,
+// but the linter nudges authors to the `@`-prefixed form.
 // Once the corpus is migrated, drop bare support entirely and remove this helper
 // plus the DEPRECATED_BARE_X_DIRECTIVE lint rule. Reported via `onDeprecatedSyntax`
 // (a lint-only hook) so the live app's base ParseContext stays silent.
@@ -432,8 +432,11 @@ function parseRenderEach(px, value, as, attrs) {
     if (when.name.charCodeAt(0) !== 64) maybeDeprecateBareXDirective(px, "render-each", "when");
     attrParser._parseWhen(when.value);
   }
-  const lWith = attrs.getNamedItem("loop-with");
-  if (lWith) attrParser._parseLoopWith(lWith.value);
+  const lWith = attrs.getNamedItem("@loop-with") ?? attrs.getNamedItem("loop-with");
+  if (lWith) {
+    if (lWith.name.charCodeAt(0) !== 64) maybeDeprecateBareXDirective(px, "render-each", "loop-with");
+    attrParser._parseLoopWith(lWith.value);
+  }
   const each = px.addNodeIf(EachNode, seqVal);
   each.iterInfo.whenVal = eachAttr.whenVal ?? null;
   each.iterInfo.loopWithVal = eachAttr.loopWithVal ?? null;
@@ -575,10 +578,11 @@ const X_OPS = {
   text: xOp([], { wrappable: true, ignoresChildren: true }),
   render: xOp(["as"], { wrappable: true, ignoresChildren: true }),
   "render-it": xOp(["as"], { wrappable: true, ignoresChildren: true }),
-  // `@when` is consumed here (handled in parseRenderEach) so `processXExtras`
-  // does not flag it as an unknown attr. TEMPORARY: bare `when` is deprecated in
-  // favor of `@when` — see maybeDeprecateBareXDirective (added 2026-07-08).
-  "render-each": xOp(["as", "when", "loop-with", "@when"], {
+  // `@when`/`@loop-with` are consumed here (handled in parseRenderEach) so
+  // `processXExtras` does not flag them as unknown attrs. TEMPORARY: the bare
+  // `when`/`loop-with` spellings are deprecated in favor of the `@` form — see
+  // maybeDeprecateBareXDirective (added 2026-07-08).
+  "render-each": xOp(["as", "when", "loop-with", "@when", "@loop-with"], {
     wrappable: true,
     ignoresChildren: true,
   }),

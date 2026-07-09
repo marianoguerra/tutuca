@@ -1577,17 +1577,23 @@ test("DEPRECATED_BARE_X_DIRECTIVE warns on bare show/hide/when on <x> ops", () =
       filterItem() {
         return true;
       },
+      getIterData() {
+        return { start: 0, end: 1 };
+      },
     },
     view: html`<div>
       <x text=".name" show=".isOpen"></x>
       <div @each=".items"><x render-it hide=".isOpen"></x></div>
       <x render-each=".items" when="filterItem"></x>
+      <x render-each=".items" loop-with="getIterData"></x>
     </div>`,
   });
   const warns = lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE);
-  expect(warns.length).toBe(3);
+  expect(warns.length).toBe(4);
   expect(warns.every((w) => w.level === "warn")).toBe(true);
-  expect(warns.map((w) => w.info.name).sort()).toEqual(["hide", "show", "when"]);
+  expect(warns.map((w) => w.info.name).sort()).toEqual(["hide", "loop-with", "show", "when"]);
+  const loopWarn = warns.find((w) => w.info.name === "loop-with");
+  expect(loopWarn.suggestion).toEqual({ kind: "add-prefix", from: "loop-with", to: "@loop-with" });
   const showWarn = warns.find((w) => w.info.name === "show");
   expect(showWarn.info.op).toBe("text");
   expect(showWarn.suggestion).toEqual({ kind: "add-prefix", from: "show", to: "@show" });
@@ -1596,15 +1602,20 @@ test("DEPRECATED_BARE_X_DIRECTIVE warns on bare show/hide/when on <x> ops", () =
   expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
 });
 
-test("hint when unknown-x-attr name is @-prefixed consumed (@loop-with)", () => {
+test("@loop-with on <x render-each> is the preferred spelling (no attr error, no nudge)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [] },
+    alter: {
+      getIter() {
+        return { start: 0, end: 1 };
+      },
+    },
     view: html`<div><x render-each=".items" @loop-with="getIter"></x></div>`,
   });
-  const hints = lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX);
-  expect(hints.length).toBe(1);
-  expect(hints[0].info.suggestion).toBe("loop-with");
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
+  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
 });
 
 test("hint when unknown-x-attr name is @-prefixed consumed (@as)", () => {
@@ -2176,10 +2187,10 @@ test("MAYBE_DROP_AT_PREFIX hint carries drop-prefix suggestion on the finding", 
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [] },
-    view: html`<div><x render-each=".items" @loop-with="getIter"></x></div>`,
+    view: html`<div><x render-each=".items" @as="edit"></x></div>`,
   });
   const hint = lx.reports.find((x) => x.id === MAYBE_DROP_AT_PREFIX);
-  expect(hint.suggestion).toEqual({ kind: "drop-prefix", from: "@loop-with", to: "loop-with" });
+  expect(hint.suggestion).toEqual({ kind: "drop-prefix", from: "@as", to: "as" });
 });
 
 test("UNKNOWN_X_OP carries the same drop-prefix suggestion as its hint", () => {
