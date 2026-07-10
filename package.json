@@ -34,7 +34,7 @@
     "sync-docs-storybook": "bun scripts/sync-docs-storybook.js",
     "build-skill": "bun scripts/build-skill.js",
     "clean-skill": "rm -rf skill",
-    "test": "bun test test/*.test.js",
+    "test": "bun run dist && bun run dist-ext && bun test test/*.test.js",
     "test-watch": "bun test --watch test/*.test.js",
     "format": "bunx @biomejs/biome format --write",
     "lint": "bunx @biomejs/biome lint",
