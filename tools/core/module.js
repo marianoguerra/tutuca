@@ -7,17 +7,30 @@ class Example {
     value,
     view = "main",
     componentName = null,
+    requestHandlers = null,
     requestHandlerNames = [],
+    on = null,
   }) {
     this.title = title;
     this.description = description;
     this.value = value;
     this.view = view;
     this.componentName = componentName;
-    // Names of request handlers this example mocks (the keys of its requestHandlers
-    // map). Surfaced by `tutuca storybook --dry-run` for inspection.
+    // This example's request-handler mocks, and their names. The names are surfaced
+    // by `tutuca storybook --dry-run` for inspection; the functions themselves are
+    // what `tutuca render` layers over the module's real handlers when driving.
+    this.requestHandlers = requestHandlers;
     this.requestHandlerNames = requestHandlerNames;
+    // Lifecycle phases ({ init, resume, suspend }, each an `on`-phase config — see
+    // src/on.js). The storybook runs these on display; `tutuca render` runs `init`.
+    this.on = on;
   }
+}
+
+const PHASE_NAMES = ["init", "resume", "suspend"];
+
+function isPlainObject(v) {
+  return v != null && typeof v === "object" && !Array.isArray(v);
 }
 
 function resolveComponentName(value, components) {
@@ -67,13 +80,40 @@ function parseExample(raw, index, components, parentPath) {
   if (rh != null && (typeof rh !== "object" || Array.isArray(rh))) {
     throw shapeError(`example at ${where} "requestHandlers" must be an object of functions`, where);
   }
+  const on = raw.on;
+  if (on != null) {
+    if (!isPlainObject(on)) {
+      throw shapeError(
+        `example at ${where} "on" must be an object of lifecycle phases (${PHASE_NAMES.join(", ")})`,
+        where,
+      );
+    }
+    // A misspelled phase key would silently never run — the very failure mode the
+    // driven render exists to catch. Reject it instead.
+    for (const key in on) {
+      if (!PHASE_NAMES.includes(key)) {
+        throw shapeError(
+          `example at ${where} has unknown lifecycle phase "on.${key}"; expected one of ${PHASE_NAMES.join(", ")}`,
+          where,
+        );
+      }
+      if (!isPlainObject(on[key])) {
+        throw shapeError(
+          `example at ${where} "on.${key}" must be an object of actions (send, bubble, request, input, do)`,
+          where,
+        );
+      }
+    }
+  }
   return new Example({
     title: raw.title ?? `Example ${index + 1}`,
     description: raw.description ?? null,
     value: raw.value,
     view: raw.view ?? "main",
     componentName: resolveComponentName(raw.value, components),
+    requestHandlers: rh ?? null,
     requestHandlerNames: rh ? Object.keys(rh) : [],
+    on: on ?? null,
   });
 }
 

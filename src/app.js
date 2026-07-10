@@ -24,6 +24,8 @@ export class App {
     this._compiled = false;
     this._renderOpts = { document: rootNode.ownerDocument };
     this._renderState = null;
+    // Which of the root component's views to mount. `null` means `main`.
+    this.rootViewName = null;
   }
   get state() {
     return this.transactor.state;
@@ -133,7 +135,12 @@ export class App {
     const root = this.state.val;
     const stack = this.makeStack(root);
     const { renderer, rootNode, _renderOpts, _renderState } = this;
-    const newState = render(renderer.renderRoot(stack, root), rootNode, _renderOpts, _renderState);
+    const newState = render(
+      renderer.renderRoot(stack, root, this.rootViewName),
+      rootNode,
+      _renderOpts,
+      _renderState,
+    );
     this._renderState = newState;
     return newState.dom;
   }
