@@ -729,7 +729,7 @@ describe("ANode", () => {
       const [r, px] = parse("<x render-it></x>");
       expect(r).toBeInstanceOf(RenderItNode);
       expect(r.nodeId).toBe(0);
-      expect(r.val.name).toBe("it");
+      expect(r.val).toBe(null);
       expect(px.nodes.length).toBe(1);
       expect(px.nodes[0]).toBe(r);
     });

@@ -78,7 +78,6 @@ const PREDICATES = {
 
 class ValParser {
   constructor() {
-    this.bindValIt = new BindVal("it");
     this.nullConstVal = new ConstVal(null);
   }
   const(v) {

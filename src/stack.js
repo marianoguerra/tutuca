@@ -66,7 +66,7 @@ export class Stack {
     return new Stack(comps, it, binds, newDynBinds, views, viewsId, ctx);
   }
   static root(comps, it, ctx) {
-    const binds = [new BindFrame(it, { it }, true), null];
+    const binds = [new BindFrame(it, {}, true), null];
     const dynBinds = [new ObjectFrame({}), null];
     const views = ["main", null];
     return new Stack(comps, it, binds, dynBinds, views, "", ctx)._pushProvides();

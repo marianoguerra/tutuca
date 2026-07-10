@@ -224,7 +224,7 @@ function parseXOp(attrs, childs, opIdx, px) {
       node = px.addNodeIf(RenderNode, parseXOpVal(name, value, px, vp.parseComponent), as);
       break;
     case "render-it":
-      node = px.addNodeIf(RenderItNode, vp.bindValIt, as);
+      node = px.addNode(RenderItNode, as);
       break;
     case "render-each":
       node = parseRenderEach(px, value, as, attrs);
@@ -421,7 +421,7 @@ export class RenderItNode extends RenderViewId {
 function parseRenderEach(px, value, as, attrs) {
   const seqVal = parseXOpVal("render-each", value, px, vp.parseSequence);
   if (seqVal === null) return null;
-  const renderIt = px.addNodeIf(RenderItNode, vp.bindValIt, as);
+  const renderIt = px.addNode(RenderItNode, as);
   // Reuse the directive parser to read @when / @loop-with into an each wrapper,
   // then lift them onto the EachNode's iterInfo (there is no host element whose
   // attribute parse would otherwise carry them).
@@ -631,6 +631,14 @@ export class ParseContext {
       return node;
     }
     return null;
+  }
+  // For nodes that carry no value (e.g. RenderItNode, which reads stack.it at
+  // render time); addNodeIf treats a null val as a failed parse.
+  addNode(Class, extra) {
+    const nodeId = this.nodes.length;
+    const node = new Class(nodeId, null, extra);
+    this.nodes.push(node);
+    return node;
   }
   registerEvents() {
     const id = this.events.length;
