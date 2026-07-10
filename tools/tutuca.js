@@ -57,6 +57,14 @@ function dispatchKnownCommands() {
   return [...Object.keys(COMMANDS), ...Object.keys(NO_MODULE_COMMANDS)];
 }
 
+// Commands that import the user's modules and run their getTests(). Those
+// modules import "tutuca", which resolves to the CORE build, where dev-only
+// test helpers (e.g. collectIterBindings) are no-op stubs. Redirect the bare
+// specifier to the dev build so the helpers resolve to their real
+// implementations — matching the browser playground's import map, which points
+// "tutuca" at the same dev bundle.
+const DEV_BUILD_COMMANDS = new Set(["test", "storybook"]);
+
 async function main() {
   const { opts, rest } = extractGlobals(process.argv.slice(2));
 
@@ -69,6 +77,11 @@ async function main() {
   // Module path is the second positional for module-required commands,
   // unless --module=<path> was supplied.
   const command = rest[0];
+
+  // Before any dispatch: the hook only affects imports resolved after it is
+  // registered, and `storybook` dispatches below without reaching the
+  // module-path parse that `test` falls through to.
+  if (DEV_BUILD_COMMANDS.has(command)) installDevBuildResolveHook();
 
   if (NO_MODULE_COMMANDS[command]) {
     const commandArgs = rest.slice(1);
@@ -108,12 +121,6 @@ async function main() {
     opts.module = rest[1];
     commandArgs = rest.slice(2);
   }
-
-  // The `test` command loads the module under test, which imports "tutuca".
-  // Redirect that to the dev build so dev-only helpers (e.g. collectIterBindings)
-  // used inside getTests resolve to their real implementations instead of the
-  // core build's no-op stubs — matching the browser playground's import map.
-  if (command === "test") installDevBuildResolveHook();
 
   try {
     await runCommand(cmd, commandArgs, opts);

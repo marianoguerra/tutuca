@@ -157,8 +157,10 @@ you want to test them as a pipeline: filter + loop-data + enrichment
 together produce a list of bindings the view sees. Use
 `collectIterBindings` for that — a functional implementation only ships
 in the dev build (`tutuca/dev`); the core `tutuca` build exports a no-op
-stub. `tutuca test` redirects the bare `tutuca` import to the dev build
-automatically, so test modules can import it as below:
+stub that returns `[]`. Both commands that run `getTests()` in the
+terminal — `tutuca test` and `tutuca storybook` (including `--dry-run`) —
+redirect the bare `tutuca` import to the dev build automatically, as does
+the browser storybook's import map. So test modules can import it as below:
 
 ```js
 import { collectIterBindings } from "tutuca";
@@ -180,6 +182,10 @@ const r = collectIterBindings(MyComp, c, c.items, {
 - The `compInstance` is `this` for every handler. Pass
   `MyComp.make({ field: ... })` so handlers that read `this.field` see
   the value you want.
+- The redirect uses Node's `module.register`, which is how the `tutuca`
+  bin runs. Under a Bun-driven CLI it degrades to the no-op stub — if you
+  see `collectIterBindings` return `[]`, import it from `tutuca/dev`
+  explicitly.
 
 Example:
 

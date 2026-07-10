@@ -4,9 +4,11 @@ import { register } from "node:module";
 // CORE build (package exports "."), where dev-only test helpers such as
 // `collectIterBindings` are no-op stubs (see index.js). The browser playground
 // sidesteps this with an import map that points "tutuca" at the dev build; this
-// hook does the equivalent for `tutuca test`, redirecting the bare "tutuca"
-// specifier (and only that) to the dev build — a strict superset of core that
-// carries the real helper implementations.
+// hook does the equivalent for the commands that import user modules and run
+// their getTests() in Node (`tutuca test` and `tutuca storybook`, including
+// `--dry-run`), redirecting the bare "tutuca" specifier (and only that) to the
+// dev build — a strict superset of core that carries the real helper
+// implementations. See DEV_BUILD_COMMANDS in tools/tutuca.js.
 //
 // Notes:
 //   • Inline `data:` URL hook so it survives bundling into the single-file

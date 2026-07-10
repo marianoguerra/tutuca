@@ -7,9 +7,10 @@
 //     and returns the settled instance. opts.onMessage(message, before, after)
 //     observes each committed transaction.
 //   - `alter` iteration handlers (@when / @enrich-with / @loop-with) — call them
-//     directly with .call(inst, ...). (For a higher-level pipeline helper there is
-//     `collectIterBindings`, but it only works in the dev/browser build; the core
-//     build `tutuca test` resolves to stubs it, so we unit-test the handler here.)
+//     directly with .call(inst, ...). Enough when the handler is the whole subject,
+//     as here. `collectIterBindings` is the higher-level helper that drives the
+//     @loop-with + @when + @enrich-with pipeline end to end; it lives in the dev
+//     build, which `tutuca test` and `tutuca storybook` both resolve "tutuca" to.
 import { component, html } from "tutuca";
 import { SAMPLE_ROWS } from "./_shared.js";
 

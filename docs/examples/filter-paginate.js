@@ -342,8 +342,8 @@ export function getTests({ describe, test, expect }) {
   //   • `scopeEnrich`→ the ancestor scope `@enrich-with` whose result the
   //                    loop-with reads via `ctx.lookup`
   // Each strategy wires these differently, yet all render the same page.
-  // (`collectIterBindings` lives in the dev build; `tutuca test` and the
-  // playground's Test tab both resolve "tutuca" to it.)
+  // (`collectIterBindings` lives in the dev build; `tutuca test`, `tutuca
+  // storybook` and the playground's Test tab all resolve "tutuca" to it.)
   describe(NaivePeople, () => {
     test("naive: @when + @loop-with (the loop does its own scan)", () => {
       const c = makeOne(NaivePeople, { query: "a", page: 1, pageSize: 5 });
