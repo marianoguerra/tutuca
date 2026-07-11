@@ -149,8 +149,44 @@ function buildImports(base, { margauiEnabled, margauiJsUrl }) {
   return imports;
 }
 
+// The directory margaui's theme.css sits in. Every palette (dracula, nord, …) is a
+// sibling file there — true of all three sources, since theme.css @imports light/dark
+// relatively and so is always shipped alongside the rest of themes/.
+function themesBaseUrl(themeUrl) {
+  return themeUrl.slice(0, themeUrl.lastIndexOf("/") + 1);
+}
+
+// Put the theme on <html> before first paint. Without it a dark-preferring machine
+// flashes light while the module graph loads: margaui's dark.css is keyed on
+// [data-theme="dark"] alone, so its theme.css renders light until something sets the
+// attribute. mountStorybook re-resolves the same way, and skips a palette whose <link>
+// this already added (matched by id), so the two never duplicate work.
+function renderNoFlashScript(themesUrl) {
+  return `
+    <script>
+      (() => {
+        const want = new URLSearchParams(location.search).get("theme");
+        const name = /^[a-z]+$/.test(want ?? "")
+          ? want
+          : matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        document.documentElement.dataset.theme = name;
+        if (name !== "light" && name !== "dark") {
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.id = "tutuca-theme-" + name;
+          link.href = ${JSON.stringify(themesUrl)} + name + ".css";
+          document.head.append(link);
+        }
+      })();
+    </script>`;
+}
+
 function renderIndexHtml(imports, { margauiEnabled, margauiThemeUrl, bootstrapUrl }) {
-  const theme = margauiEnabled ? `\n    <link rel="stylesheet" href="${margauiThemeUrl}" />` : "";
+  const theme = margauiEnabled
+    ? `\n    <link rel="stylesheet" href="${margauiThemeUrl}" />${renderNoFlashScript(themesBaseUrl(margauiThemeUrl))}`
+    : "";
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -169,7 +205,10 @@ ${JSON.stringify({ imports }, null, 6)}
 `;
 }
 
-function renderBootstrap(devModuleUrls, { margauiEnabled, check, inspect, noCache }) {
+function renderBootstrap(
+  devModuleUrls,
+  { margauiEnabled, margauiThemeUrl, check, inspect, noCache },
+) {
   const lines = ['import { mountStorybook } from "tutuca/storybook";'];
   if (margauiEnabled) {
     lines.push('import { compileClassesToStyleText } from "tutuca/extra";');
@@ -186,7 +225,12 @@ function renderBootstrap(devModuleUrls, { margauiEnabled, check, inspect, noCach
   });
   const modules = devModuleUrls.map((_, i) => `m${i}`).join(", ");
   const optParts = [];
-  if (margauiEnabled) optParts.push("compileCss: (app) => compileClassesToStyleText(app, compile)");
+  if (margauiEnabled) {
+    optParts.push("compileCss: (app) => compileClassesToStyleText(app, compile)");
+    // Enables the theme switcher. Without margaui there is no theme CSS to switch to,
+    // so the option is omitted and the switcher stays hidden.
+    optParts.push(`themes: { baseUrl: ${JSON.stringify(themesBaseUrl(margauiThemeUrl))} }`);
+  }
   if (inspect) optParts.push("dev: { shadowCheckComponent, runTests, expect }");
   if (noCache) optParts.push("noCache: true");
   const opts = optParts.length ? `{ ${optParts.join(", ")} }` : "{}";
@@ -430,7 +474,13 @@ export async function run(argv, opts = {}) {
     );
     writeFileSync(
       resolve(outDir, bootstrapName),
-      renderBootstrap(devModuleUrls, { margauiEnabled, check, inspect, noCache }),
+      renderBootstrap(devModuleUrls, {
+        margauiEnabled,
+        margauiThemeUrl: mg.themeUrl,
+        check,
+        inspect,
+        noCache,
+      }),
     );
     process.stdout.write(
       `wrote static storybook → ${relative(process.cwd(), outDir) || "."}/\n` +
@@ -543,7 +593,13 @@ export async function run(argv, opts = {}) {
     margauiThemeUrl: mg.themeUrl,
     bootstrapUrl: BOOTSTRAP_URL,
   });
-  const bootstrapJs = renderBootstrap(devModuleUrls, { margauiEnabled, check, inspect, noCache });
+  const bootstrapJs = renderBootstrap(devModuleUrls, {
+    margauiEnabled,
+    margauiThemeUrl: mg.themeUrl,
+    check,
+    inspect,
+    noCache,
+  });
 
   const server = createServer((req, res) => {
     const path = req.url.split("?")[0];

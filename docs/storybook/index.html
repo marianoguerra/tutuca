@@ -9,6 +9,31 @@
       href="https://marianoguerra.github.io/margaui/themes/theme.css"
     />
     <!--
+      Theme before first paint. margaui's dark.css is keyed on [data-theme="dark"]
+      alone (no prefers-color-scheme), so without this the page flashes light on a
+      dark-preferring machine while the module graph loads. main.js re-resolves the
+      same way on mount, and skips a palette whose <link> this already added.
+    -->
+    <script>
+      (() => {
+        const want = new URLSearchParams(location.search).get("theme");
+        const name = /^[a-z]+$/.test(want ?? "")
+          ? want
+          : matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        document.documentElement.dataset.theme = name;
+        if (name !== "light" && name !== "dark") {
+          const link = document.createElement("link");
+          link.rel = "stylesheet";
+          link.id = "tutuca-theme-" + name;
+          link.href =
+            "https://marianoguerra.github.io/margaui/themes/" + name + ".css";
+          document.head.append(link);
+        }
+      })();
+    </script>
+    <!--
       Published page (GitHub Pages → /storybook/). Everything resolves from the CDN
       and from this folder, so it works at the docs site root. All tutuca specifiers
       map to ONE runtime (tutuca-dev.js); tutuca/storybook keeps `tutuca` external so

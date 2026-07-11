@@ -215,6 +215,32 @@ version-pinned CDN. `--out` always pins the CDN so the artifact is portable —
 host it from the project root so `/*.dev.js` paths resolve. See [cli.md](./cli.md)
 for the exhaustive flag list and exit codes.
 
+## Themes
+
+The page starts in the theme the URL asks for (`?theme=dracula`), else the one
+the OS prefers, and the sidebar has a switcher for margaui's palettes. Picking
+one sets `?theme=`, so a themed storybook is shareable and survives a reload.
+That OS step is on us, not margaui: its `dark.css` is keyed on
+`[data-theme="dark"]` alone, with **no** `prefers-color-scheme` fallback, so a
+page that only links `theme.css` renders light forever. See
+[margaui.md](./margaui.md).
+
+Embedding the storybook yourself? The switcher is opt-in through the `themes`
+option, which — like `compileCss` — is injected, so the library still never
+imports margaui:
+
+```js
+mountStorybook("#app", modules, {
+  compileCss: (app) => compileClassesToStyleText(app, compile),
+  // The directory your theme.css lives in. Every other palette is a sibling
+  // file there; only the one selected is fetched, and only the first time.
+  themes: { baseUrl: "https://marianoguerra.github.io/margaui/themes/" },
+});
+```
+
+Omit `themes` (what `--no-margaui` does) and no switcher renders — there would
+be no theme CSS to switch to.
+
 ## Footguns
 
 - ⚠️ `value` must be a real instance (`Comp.make(...)`), not a plain object or

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,19 @@ const storyset = resolve(here, "fixtures", "storyset");
 function run(args) {
   const r = spawnSync("bun", [cli, ...args], { encoding: "utf8" });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
+}
+
+// `storybook --out`: the static export path, and the only way to read the generated
+// index.html + bootstrap (the live server holds both in memory). Clears `out` first so
+// one run can't read the previous run's files.
+function staticExport(projectDir, out, ...extra) {
+  rmSync(out, { recursive: true, force: true });
+  const { code } = run(["storybook", projectDir, "--out", out, "--no-tests", ...extra]);
+  expect(code).toBe(0);
+  return {
+    index: readFileSync(join(out, "index.html"), "utf8"),
+    bootstrap: readFileSync(join(out, "tutuca-storybook.bootstrap.js"), "utf8"),
+  };
 }
 
 describe("CLI: --json flag", () => {
@@ -303,7 +316,8 @@ describe("CLI: storybook margaui resolution", () => {
     // Local margaui resolves to a dedicated virtual route (not /node_modules/...)
     // so the whole dist/ — including themes/{theme,light,dark}.css reached via
     // theme.css's relative @imports — is served even when the install lives above
-    // the served projectDir.
+    // the served projectDir. The theme switcher loads its palettes by name from that
+    // same themes/ directory, so it stays offline here too.
     const JS = "/__margaui__/margaui.min.js";
     const THEME = "/__margaui__/themes/theme.css";
     let root;
@@ -356,5 +370,36 @@ describe("CLI: storybook margaui resolution", () => {
       expect(r.margaui.source).toBe("override");
       expect(r.margaui.jsUrl).toBe("/vendor.js");
     });
+  });
+});
+
+describe("CLI: storybook theme switcher wiring", () => {
+  let out;
+  beforeAll(() => {
+    out = mkdtempSync(join(tmpdir(), "tutuca-sb-out-"));
+  });
+  afterAll(() => rmSync(out, { recursive: true, force: true }));
+
+  test("the bootstrap points the switcher at the theme CSS directory", () => {
+    const { bootstrap } = staticExport(storyset, out);
+    expect(bootstrap).toContain(
+      'themes: { baseUrl: "https://marianoguerra.github.io/margaui/themes/" }',
+    );
+  });
+
+  // margaui's dark.css is keyed on [data-theme="dark"] alone, so the page renders light
+  // until something sets the attribute — this script does it before first paint.
+  test("index.html resolves the theme before first paint", () => {
+    const { index } = staticExport(storyset, out);
+    expect(index).toContain("document.documentElement.dataset.theme = name");
+    expect(index).toContain('matchMedia("(prefers-color-scheme: dark)")');
+    expect(index).toContain('new URLSearchParams(location.search).get("theme")');
+  });
+
+  test("--no-margaui leaves out the theme CSS, the switcher, and the pre-paint script", () => {
+    const { index, bootstrap } = staticExport(storyset, out, "--no-margaui");
+    expect(index).not.toContain("margaui");
+    expect(index).not.toContain("prefers-color-scheme");
+    expect(bootstrap).not.toContain("themes:");
   });
 });

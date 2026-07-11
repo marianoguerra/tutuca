@@ -68,6 +68,45 @@ that reason):
 Trade-off: no runtime network dependency and a frozen version, at the
 cost of updating the vendored files by hand.
 
+## Dark mode and the other palettes
+
+A margaui theme is a block of CSS custom properties (`--color-*`, `--radius-*`,
+…) under a `[data-theme="<name>"]` selector, and every class it compiles reads
+those through `var(--color-*)`. So switching theme is **one attribute flip on
+`<html>`** — the compiled stylesheet never changes:
+
+```js
+document.documentElement.dataset.theme = "dark";
+```
+
+Two things to know, both of which bite if you assume otherwise:
+
+- **Dark mode never turns itself on.** `dark.css` is keyed on
+  `[data-theme="dark"]` alone — there is no `prefers-color-scheme` fallback and
+  no `.dark` class. Link `theme.css` and do nothing else and the page is light
+  forever, on every machine. Following the OS is your job:
+
+  ```js
+  const dark = matchMedia("(prefers-color-scheme: dark)");
+  document.documentElement.dataset.theme = dark.matches ? "dark" : "light";
+  ```
+
+- **`theme.css` is only light + dark.** It is literally
+  `@import"./light.css";@import"./dark.css";`. margaui ships ~33 more palettes
+  (dracula, nord, cyberpunk, …) as sibling files, each linked separately and
+  each cheap:
+
+  ```html
+  <link rel="stylesheet" href="https://marianoguerra.github.io/margaui/themes/dracula.css" />
+  ```
+
+  Link it **after** `theme.css`: `light.css` claims plain `:root` as well as
+  `[data-theme=light]`, which ties on specificity with `[data-theme=dracula]`,
+  so a palette only wins by coming later in the cascade.
+
+`tutuca storybook` does all of this for you — see the Themes section of
+[storybook.md](./storybook.md).
+
 ## Wire it into tutuca
 
 However you obtained `compile`, the integration is the same: register

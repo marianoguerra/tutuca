@@ -40,6 +40,7 @@ function makeBook() {
 function restore(book, state) {
   const next = book
     .selectSectionWithId(state.section)
+    .setTheme(state.theme ?? "")
     .setFilter(state.sectionFilter ?? "")
     .setSelectedSectionFilter(state.exampleFilter ?? "");
   return state.example
@@ -100,6 +101,64 @@ describe("Storybook URL state", () => {
   test("restore with unknown section clamps to the first section", () => {
     const book = restore(makeBook(), { section: "nope" });
     expect(book.selectedSectionIndex).toBe(0);
+  });
+
+  test("restore adopts the theme the host resolved", () => {
+    expect(restore(makeBook(), { section: "counter", theme: "dracula" }).theme).toBe("dracula");
+  });
+
+  // The theme is resolved on load (from the OS preference when the URL is silent), so
+  // putting it in the base snapshot would stamp `?theme=light` onto the URL the first
+  // time anyone typed in the filter. persistState only writes the keys it is handed.
+  test("toUrlState omits the theme unless passed as an override", () => {
+    const book = makeBook().setTheme("dracula");
+    expect(book.toUrlState()).not.toHaveProperty("theme");
+    expect(book.toUrlState({ theme: "nord" }).theme).toBe("nord");
+  });
+});
+
+describe("Storybook theme switcher", () => {
+  // Drives the real input.onSelectTheme and captures both requests it issues.
+  function selectTheme(book, name) {
+    const calls = { applyTheme: [], persistState: [] };
+    const stack = new ComponentStack();
+    stack.registerComponents([Storybook, Section, Example]);
+    stack.registerRequestHandlers({
+      applyTheme: (theme, instance) => calls.applyTheme.push([theme, instance]),
+      persistState: (state, instance, push) => calls.persistState.push([state, instance, push]),
+    });
+    const t = new Transactor(stack.comps, book);
+    t.pushInput(new Path([]), "onSelectTheme", [name]);
+    while (t.hasPendingTransactions) t.transactNext();
+    return { book: t.state.val, calls };
+  }
+
+  test("selecting a theme stores it and asks the host to apply it", () => {
+    const { book, calls } = selectTheme(makeBook(), "dracula");
+    expect(book.theme).toBe("dracula");
+    expect(calls.applyTheme.map(([theme]) => theme)).toEqual(["dracula"]);
+  });
+
+  // The instance is passed so the host can ignore nested (Inception) storybooks, whose
+  // `this` is not the app root — same guard persistState uses.
+  test("both requests carry the issuing instance", () => {
+    const book = makeBook();
+    const { calls } = selectTheme(book, "nord");
+    expect(calls.applyTheme[0][1]).toBe(book);
+    expect(calls.persistState[0][1]).toBe(book);
+  });
+
+  test("the choice is persisted to the URL, replacing rather than pushing", () => {
+    const { calls } = selectTheme(makeBook(), "nord");
+    const [state, , push] = calls.persistState[0];
+    expect(state.theme).toBe("nord");
+    expect(push).toBe(false);
+  });
+
+  // No margaui CSS on the page means no themes to offer: mountStorybook leaves `themes`
+  // empty and the view's `@hide="empty? .themes"` drops the <select> entirely.
+  test("themes is empty by default, which hides the switcher", () => {
+    expect(makeBook().themes.size).toBe(0);
   });
 });
 

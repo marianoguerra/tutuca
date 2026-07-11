@@ -7,6 +7,7 @@ import { injectCss, tutuca } from "tutuca";
 import { subscribeExampleActivity } from "./activity.js";
 import { buildExampleRequestHandlers, buildStorybook } from "./build.js";
 import { attachInspectorViews } from "./inspect.js";
+import { BUNDLED_THEMES, MARGAUI_THEMES } from "./themes.js";
 
 // High-level bootstrap: aggregate modules, mount the storybook at selector,
 // optionally compile CSS via the provided callback, and start the app.
@@ -17,6 +18,10 @@ import { attachInspectorViews } from "./inspect.js";
 //               inspector tabs. Omit (e.g. --no-inspect) for preview-only.
 //   noCache:    start the app with the render cache disabled (NullDomCache) so
 //               every example re-renders fresh — useful while developing.
+//   themes:     { baseUrl } — the directory holding margaui's palette stylesheets,
+//               e.g. "https://…/margaui/themes/". Enables the theme switcher. Like
+//               compileCss this is INJECTED, so the storybook still never imports
+//               margaui. Omit it (no margaui CSS on the page) and no switcher shows.
 // Returns the started `app`, with the registered scopes attached as
 // `app.scopes = { root, modules }`: `root` owns the engine/inspector components +
 // macros + request handlers; `modules` is one isolated child scope per input module
@@ -24,11 +29,15 @@ import { attachInspectorViews } from "./inspect.js";
 export async function mountStorybook(
   selector,
   modules,
-  { compileCss, root, persistUrl = true, dev = null, noCache = false } = {},
+  { compileCss, root, persistUrl = true, dev = null, noCache = false, themes = null } = {},
 ) {
   const app = tutuca(selector);
   const built = buildStorybook(modules);
-  app.state.set(root ?? built.root);
+  const themeBaseUrl = themes?.baseUrl ?? null;
+  const base = root ?? built.root;
+  // The switcher's option list. Left empty (the field default) without a `themes`
+  // option, which is what hides the switcher — see Storybook.themes.
+  app.state.set(themeBaseUrl && base.setThemes ? base.setThemes(MARGAUI_THEMES) : base);
   // The root scope owns the engine + inspector components, the shared macros, and
   // all request handlers. Each module then gets its OWN child scope (below): module
   // components resolve their own names locally and inherit everything here via parent
@@ -48,6 +57,12 @@ export async function mountStorybook(
   rootScope.registerRequestHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
   if (persistUrl) {
     rootScope.registerRequestHandlers({ persistState });
+  }
+  // Gated on the `themes` option for the same reason as `persistState`: with no theme
+  // CSS on the page there is nothing to switch, so the request stays unregistered and
+  // no-ops via the 404 path (the switcher isn't rendered either).
+  if (themeBaseUrl) {
+    rootScope.registerRequestHandlers({ applyTheme });
   }
   // One isolated scope per module, as a child of rootScope. `registerComponents`
   // writes each component's name into the scope it is called on, so a fresh child
@@ -100,6 +115,14 @@ export async function mountStorybook(
     }
     window.history[push ? "pushState" : "replaceState"](null, "", url);
   }
+  // Switching the palette is a document effect, so it lives here rather than in the
+  // (pure) component: set the attribute every margaui theme is keyed on, loading that
+  // theme's stylesheet first if it isn't on the page yet.
+  function applyTheme(name, instance) {
+    if (instance !== app.state.val) return; // ignore nested (Inception) storybooks
+    ensureThemeLink(name);
+    document.documentElement.dataset.theme = name;
+  }
   function loadState() {
     const p = new URLSearchParams(window.location.search);
     return {
@@ -107,10 +130,52 @@ export async function mountStorybook(
       example: p.get("example"),
       sectionFilter: p.get("sectionFilter") ?? "",
       exampleFilter: p.get("exampleFilter") ?? "",
+      theme: resolveTheme(p.get("theme")),
     };
   }
-  // Non-persisting variant: ignore the URL, just select+init the default section.
+  // Non-persisting variant: ignore the URL, just select+init the default section. The
+  // theme still resolves — it just comes from the OS preference alone, never the URL.
   function loadStateBlank() {
-    return { section: null, example: null, sectionFilter: "", exampleFilter: "" };
+    return {
+      section: null,
+      example: null,
+      sectionFilter: "",
+      exampleFilter: "",
+      theme: resolveTheme(null),
+    };
+  }
+  // Pick the theme to start in — an explicit choice in the URL, else the OS preference
+  // — and put it on the document. The OS step is on us: margaui's dark.css is keyed on
+  // [data-theme="dark"] alone, with no prefers-color-scheme fallback, so loading its
+  // theme.css without setting the attribute always renders light. Returns the resolved
+  // name so the switcher shows it; "" when theming is off, leaving the document alone.
+  function resolveTheme(fromUrl) {
+    if (!themeBaseUrl) return "";
+    const name = MARGAUI_THEMES.includes(fromUrl) ? fromUrl : osTheme();
+    ensureThemeLink(name);
+    document.documentElement.dataset.theme = name;
+    return name;
+  }
+  function osTheme() {
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  // Load a palette's stylesheet, once. light and dark are already there (they are what
+  // margaui's theme.css bundles), so only the other 33 cost a request, and only when
+  // actually selected.
+  //
+  // Appending is what makes this correct, not just cheap: light.css claims plain `:root`
+  // alongside [data-theme=light], which ties on specificity with [data-theme=<name>], so
+  // a palette only wins by coming LATER in the cascade. (margaui's own dark.css beats
+  // light.css by exactly this.)
+  function ensureThemeLink(name) {
+    if (BUNDLED_THEMES.has(name) || document.getElementById(themeLinkId(name))) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.id = themeLinkId(name);
+    link.href = `${themeBaseUrl}${name}.css`;
+    document.head.append(link);
+  }
+  function themeLinkId(name) {
+    return `tutuca-theme-${name}`;
   }
 }

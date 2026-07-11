@@ -20,6 +20,12 @@ export const Storybook = component({
     exampleId: null,
     focusExample: null,
     sidebarCollapsed: false,
+    // The active margaui palette, and the names the switcher offers. `themes` is
+    // seeded by mountStorybook from its `themes` option and left EMPTY when no
+    // margaui theme CSS is on the page (`--no-margaui`) — an empty list hides the
+    // switcher, so nothing offers a theme that can't load.
+    theme: "",
+    themes: [],
   },
   statics: {
     // Build a storybook whose sidebar tree is derived from `sections` once. Use this
@@ -111,6 +117,13 @@ export const Storybook = component({
     // Assemble the full URL snapshot from current state. `overrides` carries the
     // change the calling handler is about to make, since `this` is still the
     // pre-change state when the persistState request is issued.
+    //
+    // `theme` is deliberately NOT part of the base snapshot: it is resolved on load
+    // (from the OS preference when the URL says nothing), and writing that resolved
+    // value back would stamp `?theme=light` onto the URL the first time anyone types
+    // in the filter. persistState only touches the keys it is handed, so omitting it
+    // here leaves an already-chosen `?theme=` alone — onSelectTheme passes it as an
+    // override, which is the only way it enters the URL.
     toUrlState(overrides = {}) {
       const section = this.sections.get(this.selectedSectionIndex);
       return {
@@ -141,6 +154,15 @@ export const Storybook = component({
     onFocusClose(ctx) {
       ctx.request("persistState", [this.toUrlState({ example: "" }), this, true]);
       return this.setSectionId(null).setExampleId(null).setFocusExample(null);
+    },
+    // Switching a palette is a DOM effect (set data-theme, load the stylesheet), so it
+    // goes out as a request — the host handler in mountStorybook owns the document.
+    // Unregistered (no `themes` option), the request no-ops via the 404 path and the
+    // switcher isn't rendered anyway.
+    onSelectTheme(value, ctx) {
+      ctx.request("applyTheme", [value, this]);
+      ctx.request("persistState", [this.toUrlState({ theme: value }), this, false]);
+      return this.setTheme(value);
     },
   },
   bubble: {
@@ -188,7 +210,11 @@ export const Storybook = component({
       if (err || !state) return this;
       // selectSectionWithId marks the sidebar highlight; applyFilterToSidebar then
       // applies the restored section filter to the tree's visibility.
+      // The host handler already resolved the theme (URL param, else the OS
+      // preference) and put it on the document — storing it here only syncs the
+      // switcher's shown value.
       const selected = this.selectSectionWithId(state.section)
+        .setTheme(state.theme ?? "")
         .setFilter(state.sectionFilter ?? "")
         .applyFilterToSidebar(state.sectionFilter ?? "")
         .setSelectedSectionFilter(state.exampleFilter ?? "");
@@ -239,6 +265,15 @@ export const Storybook = component({
             @on.input="onApplyFilter value"
             @on.keydown.cancel="onClearFilter"
           />
+          <select
+            class="select w-auto"
+            title="Theme"
+            @hide="empty? .themes"
+            :value=".theme"
+            @on.input="onSelectTheme value"
+          >
+            <option @each=".themes" :value="@value" @text="@value"></option>
+          </select>
         </div>
         <div class="list h-full flex-1 overflow-y-auto">
           <x render-each=".sidebar" @when="groupVisible"></x>

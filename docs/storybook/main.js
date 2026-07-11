@@ -28,5 +28,8 @@ const modules = [m01, m02, m03, m04, m05, m06, m07, m08, m09, m10];
 const app = await mountStorybook("#app", modules, {
   compileCss: (a) => compileClassesToStyleText(a, compile),
   dev: { shadowCheckComponent, runTests, expect },
+  // Enables the theme switcher: the directory index.html's theme.css lives in, which is
+  // where every other margaui palette sits too (theme.css only bundles light + dark).
+  themes: { baseUrl: "https://marianoguerra.github.io/margaui/themes/" },
 });
 check(app);
