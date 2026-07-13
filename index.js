@@ -3,14 +3,14 @@ import { App } from "./src/app.js";
 import { Components } from "./src/components.js";
 import { Renderer } from "./src/renderer.js";
 
-// Re-export immutable's public surface, enumerated explicitly. This started as a
-// workaround for a Bun bundler bug (a star re-export of an external lowered to a
-// broken `__reExport(ns, immutable)` whose namespace was never bound, silently
-// dropping these exports from the .ext bundles). esbuild emits a real
-// `export * from "immutable"`, so the list is no longer load-bearing and could
-// collapse to a star plus the five aliases below — but the failure mode if that
-// goes wrong is silent, so it stays until someone changes it deliberately.
-// `scripts/smoke.js` guards this list against drift from the vendored bundle.
+// Re-export immutable's public surface. This is enumerated explicitly on purpose —
+// do NOT switch to `export * from "./deps/immutable.js"`. extra.js/dev.js re-export
+// this module with `export * from "./index.js"`, and in the .ext builds immutable is
+// external, so a star here would have to propagate names the bundler cannot know at
+// build time: they are silently dropped from tutuca-extra.ext.js / tutuca-dev.ext.js.
+// (Tried and reverted; `scripts/smoke.js`'s export-parity check is what catches it.)
+// Explicit named re-exports are statically enumerable and survive every build.
+// smoke.js also guards this list against drift from the vendored immutable bundle.
 export {
   Collection,
   fromJS,
