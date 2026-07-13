@@ -426,7 +426,8 @@ function parseRenderEach(px, value, as, attrs) {
   // then lift them onto the EachNode's iterInfo (there is no host element whose
   // attribute parse would otherwise carry them).
   const attrParser = getAttrParser(px);
-  const eachAttr = (attrParser.eachAttr = attrParser.pushWrapper("each", value, seqVal));
+  const eachAttr = attrParser.pushWrapper("each", value, seqVal);
+  attrParser.eachAttr = eachAttr;
   const when = attrs.getNamedItem("@when") ?? attrs.getNamedItem("when");
   if (when) {
     if (when.name.charCodeAt(0) !== 64) maybeDeprecateBareXDirective(px, "render-each", "when");
