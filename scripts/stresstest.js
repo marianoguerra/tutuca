@@ -59,8 +59,7 @@ function stresstest({ iterations, seed, onProgress, onStart }) {
   for (let i = 0; i < iterations; i++) {
     if (i > 0 && i % JSDOM_REFRESH_INTERVAL === 0) {
       document = makeDocument();
-      if (typeof Bun !== "undefined") Bun.gc(true);
-      else if (typeof globalThis.gc === "function") globalThis.gc();
+      if (typeof globalThis.gc === "function") globalThis.gc();
     }
 
     const s = baseSeed + i;

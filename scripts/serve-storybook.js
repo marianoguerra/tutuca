@@ -2,8 +2,8 @@
 // rebuilding the local runtime first so the newest src/ features (the `on` lifecycle
 // hooks and the `drive` test helper) are reflected in the served runtime.
 //
-//   bun run storybook                 # default port 4321
-//   bun run storybook -- --port 5000  # extra args after `--` go to `tutuca storybook`
+//   npm run storybook                 # default port 4321
+//   npm run storybook -- --port 5000  # extra args after `--` go to `tutuca storybook`
 //
 // Unlike scripts/storybook-examples.js there is no staging step: the files are
 // already `*.dev.js`, so the CLI discovers them in place. The CLI serves the
@@ -20,8 +20,8 @@ function run(cmd, args) {
 }
 
 // dist → tutuca-dev.js + tutuca-cli.js; dist-ext → tutuca-storybook.js.
-run("bun", ["run", "dist"]);
-run("bun", ["run", "dist-ext"]);
+run("npm", ["run", "dist"]);
+run("npm", ["run", "dist-ext"]);
 
 const passthrough = process.argv.slice(2);
 const cli = join(repoRoot, "dist", "tutuca-cli.js");

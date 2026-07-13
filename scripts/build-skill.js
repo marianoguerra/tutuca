@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 // Builds the Claude Code skills published under skill/:
 //   - tutuca        — copied locally from docs/skill/
 //   - tutuca-source — wraps dist/tutuca.ext.js so the agent can grep it
@@ -6,7 +6,7 @@
 //   - immutable-js  — cloned from the immutable-js repo's prebuilt skill
 //
 // Run with no args to build all; pass names to build a subset, e.g.
-//   bun scripts/build-skill.js tutuca
+//   node scripts/build-skill.js tutuca
 //
 // skill/ is a generated artifact (gitignored, packed into the npm tarball via
 // package.json "files"). It is NOT a source tree — edit docs/skill/, not

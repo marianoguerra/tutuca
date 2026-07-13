@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,7 +12,7 @@ const todoModule = resolve(here, "todo.js");
 const storyset = resolve(here, "fixtures", "storyset");
 
 function run(args) {
-  const r = spawnSync("bun", [cli, ...args], { encoding: "utf8" });
+  const r = spawnSync("node", [cli, ...args], { encoding: "utf8" });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
@@ -106,7 +106,7 @@ describe("CLI: human-readable error format", () => {
   test("feedback without message shows usage example", () => {
     // Pipe an empty stdin to force the no-message path even when
     // the test runner attaches a TTY.
-    const r = spawnSync("bun", [cli, "feedback"], { encoding: "utf8", input: "" });
+    const r = spawnSync("node", [cli, "feedback"], { encoding: "utf8", input: "" });
     expect(r.status).toBe(1);
     expect(r.stderr).toContain("feedback requires a message");
     expect(r.stderr).toContain("hint:");
@@ -266,7 +266,7 @@ describe("CLI: install-skill --dry-run", () => {
   // Build the tutuca skill (a local copy of docs/skill/, no network) if it's absent.
   beforeAll(() => {
     if (existsSync(resolve(repo, "skill", "tutuca", "SKILL.md"))) return;
-    const r = spawnSync("bun", [resolve(repo, "scripts", "build-skill.js"), "tutuca"], {
+    const r = spawnSync("node", [resolve(repo, "scripts", "build-skill.js"), "tutuca"], {
       cwd: repo,
       encoding: "utf8",
     });

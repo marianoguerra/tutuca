@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { LintClassCollectorCtx } from "../dev.js";
 import { component, html, macro } from "../index.js";
 import { ComponentStack } from "../src/components.js";
@@ -56,8 +56,6 @@ class HeadlessLintParseContext extends LintParseContext {
     super(document, Text, Comment);
   }
 }
-
-export const mpx = () => new HeadlessLintParseContext();
 
 function defAndCheck(opts, { macros, wellKnownExtras } = {}) {
   const Comp = component(opts);

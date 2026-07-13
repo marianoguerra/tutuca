@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { dispatchPhase, phaseOps, resolveArgs } from "../src/on.js";
 
 // Records every dispatch primitive call so we can assert what dispatchPhase emits.

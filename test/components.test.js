@@ -1,4 +1,4 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 import { component, html, macro } from "../index.js";
 import { ComponentStack, Components, LookupInfo, ProvideInfo } from "../src/components.js";
 import { Stack } from "../src/stack.js";
@@ -192,7 +192,7 @@ describe("Components", () => {
     const CompB = component({ name: "CompB", fields: {} });
     const comps = new Components();
     const compStack = new ComponentStack(comps);
-    const assertSpy = spyOn(console, "assert").mockImplementation(() => {});
+    const assertSpy = vi.spyOn(console, "assert").mockImplementation(() => {});
     try {
       compStack.registerComponents([CompA, CompB], { aliases: { CompA: "CompB" } });
       expect(assertSpy).toHaveBeenCalledWith(false, "alias overrides component", "CompA");
@@ -214,7 +214,7 @@ describe("Components", () => {
     const b = macro({}, html`<em></em>`);
     const stack = new ComponentStack();
     stack.registerMacros({ Card: a });
-    const assertSpy = spyOn(console, "assert").mockImplementation(() => {});
+    const assertSpy = vi.spyOn(console, "assert").mockImplementation(() => {});
     try {
       stack.registerMacros({ card: b });
       const collisionCall = assertSpy.mock.calls.find(
@@ -232,7 +232,7 @@ describe("Components", () => {
     const CompA = component({ name: "CompA", fields: {} });
     const comps = new Components();
     const compStack = new ComponentStack(comps);
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       compStack.registerComponents([CompA], { aliases: { AliasX: "NotAComp" } });
       expect(warnSpy).toHaveBeenCalledWith(
@@ -260,7 +260,7 @@ describe("component-typed field defaults", () => {
   });
 
   test("warns and yields null when built without a registered scope", () => {
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const p = Parent.make({});
       expect(p.sidebar).toBeNull();
@@ -281,7 +281,7 @@ describe("component-typed field defaults", () => {
     });
     const stack = new ComponentStack();
     stack.registerComponents([Parent, Sidebar]);
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const p = stack.lookupComponent("Parent").make({});
       expect(p.sidebar).not.toBeNull();

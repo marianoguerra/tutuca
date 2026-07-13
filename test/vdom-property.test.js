@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import fc from "fast-check";
 import { h, VComment, VFragment, VNode, VText } from "../src/vdom.js";
 import { assertEqualDom, setupJsdom, vdomRender } from "./dom.js";

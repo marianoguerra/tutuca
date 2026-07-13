@@ -3,7 +3,7 @@
 // view selector (`as=`) AND the inherited `@push-view` ancestor stack match —
 // otherwise a value-identical child rendered under a different effective
 // ancestor view is served stale (descendants never see the view change).
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { component, html } from "../index.js";
 import { Components } from "../src/components.js";
 import { Renderer } from "../src/renderer.js";

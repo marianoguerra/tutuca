@@ -20,7 +20,7 @@ npm i -g tutuca
 tutuca <command> <module-path> [name] [flags]
 
 # from a checkout of this repo
-bun tools/tutuca.js <command> <module-path> [name] [flags]
+node tools/tutuca.js <command> <module-path> [name] [flags]
 ```
 
 The command comes **first**, the module path second, an optional component

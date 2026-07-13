@@ -7,30 +7,21 @@
 //   src/components/tutuca/test-inspector.dev.js
 // with their relative component imports rewritten to the bare
 // "tutuca/components" specifier (resolved via the import map in index.html on
-// the published page, or the freshly built local dist under `bun run
+// the published page, or the freshly built local dist under `npm run
 // storybook`). Each section is tagged with group "Tutuca Inspectors" so they
 // cluster under one collapsible sidebar header.
 var __defProp = Object.defineProperty;
-var __returnValue = (v) => v;
-function __exportSetter(name, newValue) {
-  this[name] = __returnValue.bind(null, newValue);
-}
 var __export = (target, all) => {
   for (var name in all)
-    __defProp(target, name, {
-      get: all[name],
-      enumerable: true,
-      configurable: true,
-      set: __exportSetter.bind(all, name)
-    });
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
 
 // src/components/tutuca/component-inspector.dev.js
-var exports_component_inspector_dev = {};
-__export(exports_component_inspector_dev, {
-  getTests: () => getTests,
+var component_inspector_dev_exports = {};
+__export(component_inspector_dev_exports, {
+  getComponents: () => getComponents,
   getExamples: () => getExamples,
-  getComponents: () => getComponents
+  getTests: () => getTests
 });
 import { component, html } from "tutuca";
 import { JsonViewer } from "tutuca/components";
@@ -112,7 +103,11 @@ var Formatted = component({
 </div>`
 });
 var expandSections = (insp) => insp.setSections(insp.sections.map((s) => s.setIsExpanded(true)));
-var expandViews = (insp) => insp.setSections(insp.sections.map((s) => s.label === "Views" ? s.setIsExpanded(true).setItems(s.items.map((v) => v.setIsExpanded(true))) : s));
+var expandViews = (insp) => insp.setSections(
+  insp.sections.map(
+    (s) => s.label === "Views" ? s.setIsExpanded(true).setItems(s.items.map((v) => v.setIsExpanded(true))) : s
+  )
+);
 function getExamples() {
   const CI = ComponentInspector.Class;
   return {
@@ -280,9 +275,7 @@ function getTests({ describe, test, expect }) {
       expect(open.arrowText()).toBe("▼");
     });
     test("preserves the raw view source verbatim", () => {
-      const src = `<div>
-  <span></span>
-</div>`;
+      const src = "<div>\n  <span></span>\n</div>";
       expect(CompView.make({ rawView: src }).rawView).toBe(src);
     });
     test("plain toggle flips only this view", () => {
@@ -302,11 +295,11 @@ function getTests({ describe, test, expect }) {
 }
 
 // src/components/tutuca/instance-inspector.dev.js
-var exports_instance_inspector_dev = {};
-__export(exports_instance_inspector_dev, {
-  getTests: () => getTests2,
+var instance_inspector_dev_exports = {};
+__export(instance_inspector_dev_exports, {
+  getComponents: () => getComponents2,
   getExamples: () => getExamples2,
-  getComponents: () => getComponents2
+  getTests: () => getTests2
 });
 import { component as component2, html as html2, IMap, List } from "tutuca";
 import { JsonViewer as JsonViewer2 } from "tutuca/components";
@@ -510,11 +503,11 @@ function getTests2({ describe, test, expect }) {
 }
 
 // src/components/tutuca/lint-inspector.dev.js
-var exports_lint_inspector_dev = {};
-__export(exports_lint_inspector_dev, {
-  getTests: () => getTests3,
+var lint_inspector_dev_exports = {};
+__export(lint_inspector_dev_exports, {
+  getComponents: () => getComponents3,
   getExamples: () => getExamples3,
-  getComponents: () => getComponents3
+  getTests: () => getTests3
 });
 import { LintComponent, LintFinding, LintReport as LintReport2, lintMessage } from "tutuca/components";
 import { getComponents as getComponents3 } from "tutuca/components";
@@ -595,11 +588,13 @@ function getExamples3() {
 function getTests3({ describe, test, expect }) {
   describe(LintReport2, () => {
     test("lintMessage renders prose with an origin suffix", () => {
-      expect(lintMessage("FIELD_VAL_NOT_DEFINED", {
-        name: "nope",
-        originAttr: "@text",
-        tag: "SPAN"
-      })).toBe("Field '.nope' is not defined (in @text, on <span>)");
+      expect(
+        lintMessage("FIELD_VAL_NOT_DEFINED", {
+          name: "nope",
+          originAttr: "@text",
+          tag: "SPAN"
+        })
+      ).toBe("Field '.nope' is not defined (in @text, on <span>)");
     });
     test("lintMessage humanizes unknown rule ids as a fallback", () => {
       expect(lintMessage("SOME_NEW_RULE", {})).toBe("Some new rule");
@@ -649,21 +644,24 @@ function getTests3({ describe, test, expect }) {
 }
 
 // src/components/tutuca/test-inspector.dev.js
-var exports_test_inspector_dev = {};
-__export(exports_test_inspector_dev, {
-  getTests: () => getTests4,
+var test_inspector_dev_exports = {};
+__export(test_inspector_dev_exports, {
+  getComponents: () => getComponents4,
   getExamples: () => getExamples4,
-  getComponents: () => getComponents4
+  getTests: () => getTests4
 });
 import { ImInspector } from "tutuca/components";
 import { collectTests, TestCase, TestReport as TestReport2, TestSuite } from "tutuca/components";
 import { getComponents as getComponents4 } from "tutuca/components";
 var sampleTests = ({ describe, test }) => {
   describe("Widget", () => {
-    test("renders", () => {});
+    test("renders", () => {
+    });
     describe("interaction", () => {
-      test("click increments", () => {});
-      test("disabled blocks click", () => {});
+      test("click increments", () => {
+      });
+      test("disabled blocks click", () => {
+      });
     });
   });
 };
@@ -798,8 +796,9 @@ function getTests4({ describe, test, expect }) {
   });
 }
 
+// gallery.js
 import { getComponents as getComponents5 } from "tutuca/components";
-var MODULES = [exports_component_inspector_dev, exports_instance_inspector_dev, exports_lint_inspector_dev, exports_test_inspector_dev];
+var MODULES = [component_inspector_dev_exports, instance_inspector_dev_exports, lint_inspector_dev_exports, test_inspector_dev_exports];
 var GROUP = "Tutuca Inspectors";
 function getExamples5() {
   return MODULES.flatMap((m) => {
@@ -808,12 +807,10 @@ function getExamples5() {
   });
 }
 function getTests5(ctx) {
-  for (const m of MODULES)
-    if (typeof m.getTests === "function")
-      m.getTests(ctx);
+  for (const m of MODULES) if (typeof m.getTests === "function") m.getTests(ctx);
 }
 export {
-  getTests5 as getTests,
+  getComponents5 as getComponents,
   getExamples5 as getExamples,
-  getComponents5 as getComponents
+  getTests5 as getTests
 };

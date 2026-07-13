@@ -24,27 +24,28 @@
   },
   "scripts": {
     "clean": "rm -rf dist skill",
-    "dist": "bun scripts/dist.js",
-    "dist-ext": "bun scripts/dist-ext.js",
-    "dist-immutable": "bun scripts/dist-immutable.js",
-    "dist-all": "bun run dist-immutable && bun run dist && bun run dist-ext && bun run smoke",
+    "dist": "node scripts/dist.js",
+    "dist-ext": "node scripts/dist-ext.js",
+    "dist-immutable": "node scripts/dist-immutable.js",
+    "dist-all": "npm run dist-immutable && npm run dist && npm run dist-ext && npm run smoke",
     "smoke": "node scripts/smoke.js",
-    "release": "bun run dist-all && bun run sync-docs-storybook && bun run build-skill && (npm publish --access public; bun run clean-skill)",
-    "release-dry": "bun run dist-all && bun run sync-docs-storybook && bun run build-skill && (npm publish --dry-run; bun run clean-skill)",
-    "sync-docs-storybook": "bun scripts/sync-docs-storybook.js",
-    "build-skill": "bun scripts/build-skill.js",
+    "release": "npm run dist-all && npm run sync-docs-storybook && npm run build-skill && (npm publish --access public; npm run clean-skill)",
+    "release-dry": "npm run dist-all && npm run sync-docs-storybook && npm run build-skill && (npm publish --dry-run; npm run clean-skill)",
+    "sync-docs-storybook": "node scripts/sync-docs-storybook.js",
+    "build-skill": "node scripts/build-skill.js",
     "clean-skill": "rm -rf skill",
-    "test": "bun run dist && bun run dist-ext && bun test test/*.test.js",
-    "test-watch": "bun test --watch test/*.test.js",
-    "format": "bunx @biomejs/biome format --write",
-    "lint": "bunx @biomejs/biome lint",
-    "lint-fix": "bunx @biomejs/biome lint --write",
-    "fix": "bunx @biomejs/biome check --write",
-    "tutuca": "bun tools/tutuca.js",
-    "storybook": "bun scripts/serve-storybook.js",
-    "storybook:examples": "bun scripts/storybook-examples.js",
-    "stresstest": "bun scripts/stresstest.js",
-    "smoke-test": "bun tools/tutuca.js lint ./test/todo.js && bun tools/tutuca.js render ./test/todo.js && bun tools/tutuca.js test ./test/todo.js && bun tools/tutuca.js lint ./test/json.js && bun tools/tutuca.js render ./test/json.js"
+    "pretest": "npm run dist && npm run dist-ext",
+    "test": "vitest run",
+    "test-watch": "vitest",
+    "format": "biome format --write",
+    "lint": "biome lint",
+    "lint-fix": "biome lint --write",
+    "fix": "biome check --write",
+    "tutuca": "node tools/tutuca.js",
+    "storybook": "node scripts/serve-storybook.js",
+    "storybook:examples": "node scripts/storybook-examples.js",
+    "stresstest": "node scripts/stresstest.js",
+    "smoke-test": "node tools/tutuca.js lint ./test/todo.js && node tools/tutuca.js render ./test/todo.js && node tools/tutuca.js test ./test/todo.js && node tools/tutuca.js lint ./test/json.js && node tools/tutuca.js render ./test/json.js"
   },
   "sideEffects": [
     "./deps/chai.js"
@@ -92,7 +93,9 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.1",
     "chai": "^6.2.2",
+    "esbuild": "^0.28.1",
     "fast-check": "^4.8.0",
-    "htmlparser2": "^12.0.0"
+    "htmlparser2": "^12.0.0",
+    "vitest": "^4.1.10"
   }
 }

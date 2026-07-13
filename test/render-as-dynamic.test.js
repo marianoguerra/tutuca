@@ -5,7 +5,7 @@
 // is sugar for `@each` + `<x render-it>`, so its `as=` is evaluated per item
 // inside the iteration scope — each item can select its own view from its own
 // fields.
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { component, html } from "../index.js";
 import { Components } from "../src/components.js";
 import { Renderer } from "../src/renderer.js";

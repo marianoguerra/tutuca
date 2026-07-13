@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { component, html, IMap, List, SEQ_INFO } from "../index.js";
 import { renderToHTML, renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";

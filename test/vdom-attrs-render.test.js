@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, test } from "vitest";
 import { h, unmount, VComment, VFragment, VNode, VText } from "../src/vdom.js";
 import { renderVNode as render, setupJsdom, vdomRender } from "./dom.js";
 

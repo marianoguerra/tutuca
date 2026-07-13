@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { Map as IMap, Set as ISet, List, OrderedMap } from "../deps/immutable.js";
 import {
   classFromData,

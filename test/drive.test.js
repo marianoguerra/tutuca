@@ -1,4 +1,4 @@
-import { expect, spyOn, test } from "bun:test";
+import { expect, test, vi } from "vitest";
 import { expect as chaiExpect } from "../deps/chai.js";
 import { component, html, phaseHasBubble } from "../index.js";
 import { runTests } from "../tools/core/test.js";
@@ -74,7 +74,7 @@ test("phaseHasBubble detects bubble in a bucket or a do item", () => {
 });
 
 test("drive warns that a bubble action is a no-op at the root", async () => {
-  const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   let settled = null;
   try {
     await runTests({

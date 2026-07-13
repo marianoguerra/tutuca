@@ -30,7 +30,8 @@ export function getTests({ describe, test, expect }) {
   (`expect.objectContaining`, `toHaveBeenCalled…`, `toMatchSnapshot`) are
   **not** available — tutuca has no mocking layer.
 - `test` and `describe` are **Tutuca's own** subset of the common
-  Mocha/Bun-style API, injected by `tutuca test` — not Bun's built-ins.
+  Mocha/Jest-style API, injected by `tutuca test` — they are not imported
+  from a test runner, so don't reach for one's extras.
   Available calls: `describe(title, fn)`, `describe(Component, fn)`,
   `describe(title, { component }, fn)`, and `test(title, fn)`. There is
   no `before` / `after` / `beforeEach` / `it` / skip-flag — don't reach
@@ -183,9 +184,9 @@ const r = collectIterBindings(MyComp, c, c.items, {
   `MyComp.make({ field: ... })` so handlers that read `this.field` see
   the value you want.
 - The redirect uses Node's `module.register`, which is how the `tutuca`
-  bin runs. Under a Bun-driven CLI it degrades to the no-op stub — if you
-  see `collectIterBindings` return `[]`, import it from `tutuca/dev`
-  explicitly.
+  bin runs. On a runtime without loader-hook support it degrades to the
+  no-op stub — if you see `collectIterBindings` return `[]`, import it
+  from `tutuca/dev` explicitly.
 
 Example:
 

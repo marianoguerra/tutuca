@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { findComponentNameConflicts } from "../tools/core/module.js";
 
 // The detector only reads `.name` and object identity, so plain stand-ins suffice.

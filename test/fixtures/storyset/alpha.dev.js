@@ -1,5 +1,6 @@
-// Fixture for `tutuca test <dir>` (walk-and-run). Named *.dev.js so Bun's own
-// test runner ignores it; `tutuca test` discovers it via its dirMatch.
+// Fixture for `tutuca test <dir>` (walk-and-run). Named *.dev.js so the repo's own
+// runner ignores it (vitest only globs test/*.test.js); `tutuca test` discovers it
+// via its dirMatch.
 import { component, html } from "../../../index.js";
 
 const Alpha = component({

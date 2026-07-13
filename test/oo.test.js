@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { IMap, List, OMap } from "../index.js";
 import { classFromData, FieldInt } from "../src/oo.js";
 

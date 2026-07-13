@@ -1,8 +1,8 @@
 // Post-build smoke tests. Imports every shipped build artifact, does some simple
 // usage, and asserts that the build variants of each tier export exactly the same
-// names — the regression guard for packaging bugs like the Bun external
-// star-re-export bug that broke the .ext extra/dev bundles (immutable exports
-// silently dropped / `ReferenceError: immutable is not defined` at load).
+// names — the regression guard for packaging bugs of the kind that once broke the
+// .ext extra/dev bundles, where a mis-lowered star re-export of an external silently
+// dropped the immutable exports (`ReferenceError: immutable is not defined` at load).
 //
 // The .ext bundles import `immutable`/`chai` as bare externals; `smoke-resolve.mjs`
 // maps those to dist/immutable.js / dist/chai.js, mirroring the consumer import map.

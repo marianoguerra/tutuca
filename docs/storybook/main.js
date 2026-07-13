@@ -4,7 +4,7 @@
 // site root /storybook/) and mounts them. margaui CSS is compiled into the page via
 // the compileCss callback.
 //
-// The live CLI serve (`bun run storybook`) does NOT use this file — it generates its
+// The live CLI serve (`npm run storybook`) does NOT use this file — it generates its
 // own bootstrap pointing at the local dist. This file is what GitHub Pages serves.
 import { compile } from "margaui";
 // "tutuca" maps to tutuca-dev.js here (see index.html import map), so the dev

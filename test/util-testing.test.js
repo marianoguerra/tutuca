@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { Map as IMap, OrderedMap as IOrderedMap } from "../deps/immutable.js";
 import { component } from "../index.js";
 import { collectIterBindings } from "../src/util/testing.js";

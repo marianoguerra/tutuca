@@ -7,8 +7,8 @@ both a manual smoke test and a copy-paste reference for authors. It is published
 ## Run it
 
 ```sh
-bun run storybook          # rebuild local runtime, serve this folder (http://localhost:4321)
-bun run storybook -- --port 5000   # extra args are forwarded to `tutuca storybook`
+npm run storybook          # rebuild local runtime, serve this folder (http://localhost:4321)
+npm run storybook -- --port 5000   # extra args are forwarded to `tutuca storybook`
 ```
 
 The live serve uses the freshly built local runtime, so the newest features
@@ -49,7 +49,7 @@ left to a separate refactor:
   `../storybook.js` (outside the published `docs/` root). This `/storybook/` page
   supersedes it; the old page should be removed or repointed.
 - **Three test entry points** — playground in-browser `getTests`, CLI `runDevTests`,
-  and `bun test test/*.test.js`. A unified surface would expose one.
+  and `npm test`. A unified surface would expose one.
 
 Target: one playground that renders this storybook gallery and adds the
 editor/lint/test/API-docs tabs as the focus view. See `TODO.md`.

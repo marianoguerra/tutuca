@@ -7,35 +7,28 @@
 //   src/components/data/json-schema.dev.js
 // with their relative component imports rewritten to the bare
 // "tutuca/components" specifier (resolved via the import map in index.html on
-// the published page, or the freshly built local dist under `bun run
+// the published page, or the freshly built local dist under `npm run
 // storybook`). Each section is tagged with group "Data Inspectors" so they
 // cluster under one collapsible sidebar header.
 var __defProp = Object.defineProperty;
-var __returnValue = (v) => v;
-function __exportSetter(name, newValue) {
-  this[name] = __returnValue.bind(null, newValue);
-}
 var __export = (target, all) => {
   for (var name in all)
-    __defProp(target, name, {
-      get: all[name],
-      enumerable: true,
-      configurable: true,
-      set: __exportSetter.bind(all, name)
-    });
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
 
 // src/components/data/json.dev.js
-var exports_json_dev = {};
-__export(exports_json_dev, {
-  getExamples: () => getExamples,
-  getComponents: () => getComponents
+var json_dev_exports = {};
+__export(json_dev_exports, {
+  getComponents: () => getComponents,
+  getExamples: () => getExamples
 });
 import { JsonViewer } from "tutuca/components";
 import { getComponents } from "tutuca/components";
 function getExamples() {
   const longArray = Array.from({ length: 25 }, (_, i) => i + 1);
-  const longObject = Object.fromEntries(Array.from({ length: 15 }, (_, i) => [`key_${i + 1}`, (i + 1) * 10]));
+  const longObject = Object.fromEntries(
+    Array.from({ length: 15 }, (_, i) => [`key_${i + 1}`, (i + 1) * 10])
+  );
   const apiResponseShape = {
     id: "user_42",
     active: true,
@@ -86,6 +79,7 @@ function getExamples() {
       { title: "false", value: JsonViewer.Class.fromData(false) },
       { title: "integer", value: JsonViewer.Class.fromData(42) },
       { title: "negative integer", value: JsonViewer.Class.fromData(-7) },
+      // biome-ignore lint/suspicious/noApproximativeNumericConstant: literal float demonstration, not Math.PI
       { title: "float", value: JsonViewer.Class.fromData(3.14159) },
       { title: "zero", value: JsonViewer.Class.fromData(0) },
       {
@@ -102,7 +96,9 @@ function getExamples() {
       },
       {
         title: "very long string",
-        value: JsonViewer.Class.fromData("Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.")
+        value: JsonViewer.Class.fromData(
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+        )
       },
       {
         title: "empty array",
@@ -153,7 +149,8 @@ function getExamples() {
       },
       {
         title: "function (rendered as null)",
-        value: JsonViewer.Class.fromData(function namedFn() {})
+        value: JsonViewer.Class.fromData(function namedFn() {
+        })
       },
       {
         title: "arrow function (rendered as null)",
@@ -161,27 +158,30 @@ function getExamples() {
       },
       {
         title: "symbol (rendered as null)",
-        value: JsonViewer.Class.fromData(Symbol("sym"))
+        value: JsonViewer.Class.fromData(/* @__PURE__ */ Symbol("sym"))
       },
       {
         title: "Map (rendered as empty object)",
-        value: JsonViewer.Class.fromData(new Map([
-          ["a", 1],
-          ["b", 2]
-        ]))
+        value: JsonViewer.Class.fromData(
+          /* @__PURE__ */ new Map([
+            ["a", 1],
+            ["b", 2]
+          ])
+        )
       },
       {
         title: "Set (rendered as empty object)",
-        value: JsonViewer.Class.fromData(new Set([1, 2, 3]))
+        value: JsonViewer.Class.fromData(/* @__PURE__ */ new Set([1, 2, 3]))
       },
       {
         title: "object with non-JSON values (expanded)",
         value: JsonViewer.Class.fromData({
-          fn: function namedFn() {},
+          fn: function namedFn() {
+          },
           arrow: () => 1,
-          sym: Symbol("x"),
-          map: new Map([["k", "v"]]),
-          set: new Set([1, 2]),
+          sym: /* @__PURE__ */ Symbol("x"),
+          map: /* @__PURE__ */ new Map([["k", "v"]]),
+          set: /* @__PURE__ */ new Set([1, 2]),
           ok: "string is fine"
         }).toggleIsExpanded()
       }
@@ -190,17 +190,16 @@ function getExamples() {
 }
 
 // src/components/data/data.dev.js
-var exports_data_dev = {};
-__export(exports_data_dev, {
-  getExamples: () => getExamples2,
-  getComponents: () => getComponents2
+var data_dev_exports = {};
+__export(data_dev_exports, {
+  getComponents: () => getComponents2,
+  getExamples: () => getExamples2
 });
 import { IMap, List } from "tutuca";
 import { DataInspector } from "tutuca/components";
 import { getComponents as getComponents2 } from "tutuca/components";
 function getExamples2() {
   const DI = DataInspector.Class;
-
   class Person {
     constructor(name, age) {
       this.name = name;
@@ -211,33 +210,32 @@ function getExamples2() {
     return null;
   };
   const fnArrow = (x) => x + 1;
-
   class Greeter {
     hi() {
       return "hi";
     }
   }
-  const nativeMap = new Map([
+  const nativeMap = /* @__PURE__ */ new Map([
     ["alpha", 1],
     ["beta", 2],
     ["gamma", 3]
   ]);
-  const nativeSet = new Set(["red", "green", "blue"]);
-  const mapWithObjectKeys = new Map([
+  const nativeSet = /* @__PURE__ */ new Set(["red", "green", "blue"]);
+  const mapWithObjectKeys = /* @__PURE__ */ new Map([
     [{ id: 1 }, "first"],
     [[1, 2], "second"]
   ]);
-  const date = new Date("2026-01-15T12:00:00.000Z");
+  const date = /* @__PURE__ */ new Date("2026-01-15T12:00:00.000Z");
   const regex = /hello\s+world/gi;
   const err = new TypeError("expected a number");
-  const sym = Symbol("user-id");
+  const sym = /* @__PURE__ */ Symbol("user-id");
   const big = 9007199254740993n;
   const inst = new Person("Alice", 30);
   const deepZoo = {
     owner: new Person("Bob", 40),
-    stats: new Map([
+    stats: /* @__PURE__ */ new Map([
       ["calls", 12],
-      ["fails", new Set(["timeout", "auth"])]
+      ["fails", /* @__PURE__ */ new Set(["timeout", "auth"])]
     ]),
     fn: fnArrow,
     when: date,
@@ -245,22 +243,25 @@ function getExamples2() {
     err,
     uid: sym,
     bigCount: big,
-    nothing: undefined,
+    nothing: void 0,
     json: { ok: true, n: 1 },
     immutable: List([1, 2, IMap({ x: 99 })])
   };
-  const deepExpand = (c) => {
-    if (c == null || typeof c !== "object")
-      return c;
+  const deepExpand2 = (c) => {
+    if (c == null || typeof c !== "object") return c;
     let n = c;
     if (typeof n.setIsExpanded === "function") {
       n = n.setIsExpanded(true);
     }
     if (typeof n.setValue === "function" && n.value && typeof n.value === "object") {
-      return n.setValue(deepExpand(n.value));
+      return n.setValue(deepExpand2(n.value));
     }
     if (typeof n.setItems === "function" && n.items?.map) {
-      return n.setItems(n.items.map((item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand(item.child)) : item));
+      return n.setItems(
+        n.items.map(
+          (item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand2(item.child)) : item
+        )
+      );
     }
     return n;
   };
@@ -268,7 +269,7 @@ function getExamples2() {
     title: "DataInspector",
     description: "Inspect any JS value: composes Immutable.js detection, JS extras (Symbol, BigInt, function, Date, RegExp, Error, native Map/Set, class instances), and plain JSON. Built on the chain(classifyImmutable, classifyJsExtra, classifyJson) dispatcher.",
     items: [
-      { title: "undefined", value: DI.fromData(undefined) },
+      { title: "undefined", value: DI.fromData(void 0) },
       { title: "null", value: DI.fromData(null) },
       { title: "bigint", value: DI.fromData(big) },
       { title: "symbol", value: DI.fromData(sym) },
@@ -276,6 +277,7 @@ function getExamples2() {
       { title: "arrow function", value: DI.fromData(fnArrow) },
       {
         title: "anonymous function",
+        // biome-ignore lint/complexity/useArrowFunction: demonstrating anonymous old-style function
         value: DI.fromData(function() {
           return null;
         })
@@ -303,17 +305,17 @@ function getExamples2() {
       {
         title: "deeply mixed: Immutable + JS extras + JSON (expanded)",
         description: "Plain object containing a class instance, native Map (with a Set inside), function, Date, RegExp, Error, Symbol, BigInt, undefined, JSON, and an Immutable List with a nested IMap.",
-        value: deepExpand(DI.fromData(deepZoo))
+        value: deepExpand2(DI.fromData(deepZoo))
       }
     ]
   };
 }
 
 // src/components/data/immutable-inspector.dev.js
-var exports_immutable_inspector_dev = {};
-__export(exports_immutable_inspector_dev, {
-  getExamples: () => getExamples3,
-  getComponents: () => getComponents3
+var immutable_inspector_dev_exports = {};
+__export(immutable_inspector_dev_exports, {
+  getComponents: () => getComponents3,
+  getExamples: () => getExamples3
 });
 import { IMap as IMap2, ISet, List as List2, OMap, OrderedSet, Range, Record, Stack } from "tutuca";
 import { ImInspector } from "tutuca/components";
@@ -352,18 +354,21 @@ function getExamples3() {
       stats: IMap2({ score: 42, active: false, name: "Bob" })
     }
   ]);
-  const deepExpand = (c) => {
-    if (c == null || typeof c !== "object")
-      return c;
+  const deepExpand2 = (c) => {
+    if (c == null || typeof c !== "object") return c;
     let n = c;
     if (typeof n.setIsExpanded === "function") {
       n = n.setIsExpanded(true);
     }
     if (typeof n.setValue === "function" && n.value && typeof n.value === "object") {
-      return n.setValue(deepExpand(n.value));
+      return n.setValue(deepExpand2(n.value));
     }
     if (typeof n.setItems === "function" && n.items?.map) {
-      return n.setItems(n.items.map((item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand(item.child)) : item));
+      return n.setItems(
+        n.items.map(
+          (item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand2(item.child)) : item
+        )
+      );
     }
     return n;
   };
@@ -372,7 +377,7 @@ function getExamples3() {
   const expandedRecord = II.fromData(alice).toggleIsExpanded();
   const expandedMixed = II.fromData(mixed).toggleIsExpanded();
   const expandedNested = II.fromData(nested).toggleIsExpanded();
-  const expandedDeepMixed = deepExpand(II.fromData(deepMixed));
+  const expandedDeepMixed = deepExpand2(II.fromData(deepMixed));
   return {
     title: "ImmutableInspector",
     description: "Chrome devtools-style display for Immutable.js values. Detects List, Stack, Map, OrderedMap, Set, OrderedSet, Record, and Range; falls back to JsonViewer's per-type components for plain JS values. Composites support collapse/expand and pagination (10 items per page).",
@@ -427,11 +432,11 @@ function getExamples3() {
 }
 
 // src/components/data/json-schema.dev.js
-var exports_json_schema_dev = {};
-__export(exports_json_schema_dev, {
-  getTests: () => getTests,
+var json_schema_dev_exports = {};
+__export(json_schema_dev_exports, {
+  getComponents: () => getComponents4,
   getExamples: () => getExamples4,
-  getComponents: () => getComponents4
+  getTests: () => getTests
 });
 import { JsonViewer as JsonViewer2 } from "tutuca/components";
 import {
@@ -451,8 +456,7 @@ import {
 import { getComponents as getComponents4 } from "tutuca/components";
 var SV = SchemaViewer.Class;
 var deepExpand = (c) => {
-  if (c == null || typeof c !== "object")
-    return c;
+  if (c == null || typeof c !== "object") return c;
   let n = c;
   if (typeof n.setIsExpanded === "function") {
     n = n.setIsExpanded(true);
@@ -464,7 +468,11 @@ var deepExpand = (c) => {
     }
   }
   if (typeof n.setItems === "function" && n.items?.map) {
-    n = n.setItems(n.items.map((item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand(item.child)) : deepExpand(item)));
+    n = n.setItems(
+      n.items.map(
+        (item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand(item.child)) : deepExpand(item)
+      )
+    );
   }
   return n;
 };
@@ -523,6 +531,7 @@ function getExamples4() {
     type: "object",
     properties: { kind: { type: "string" } },
     if: { properties: { kind: { const: "card" } } },
+    // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then/else keyword
     then: {
       type: "object",
       properties: { cardNumber: { type: "string", pattern: "^\\d{16}$" } },
@@ -588,6 +597,7 @@ function getExamples4() {
     },
     required: ["id", "email"],
     if: { properties: { role: { const: "admin" } } },
+    // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then/else keyword
     then: { required: ["email"] },
     else: { properties: { age: { type: "integer" } } },
     not: { required: ["password"] },
@@ -607,6 +617,7 @@ function getExamples4() {
     title: "SchemaViewer",
     description: "High-level, human-readable view of a JSON Schema (2020-12, tolerant of draft-07): type labels, constraint badges, required markers, and a collapsible tree of properties / applicators / combinators / conditionals. Embedded literal values (const, enum members, default, examples) are rendered with JsonViewer from json.js. A future option will toggle to the raw schema (the original is retained on the viewer).",
     items: [
+      // ---- Phase A: individual constructs ----
       { title: "string", value: SV.fromData({ type: "string" }) },
       { title: "number", value: SV.fromData({ type: "number" }) },
       { title: "integer", value: SV.fromData({ type: "integer" }) },
@@ -650,43 +661,53 @@ function getExamples4() {
       },
       {
         title: "object with required (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "object",
-          properties: {
-            id: { type: "integer" },
-            name: { type: "string" }
-          },
-          required: ["id"]
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "object",
+            properties: {
+              id: { type: "integer" },
+              name: { type: "string" }
+            },
+            required: ["id"]
+          })
+        )
       },
       {
         title: "object, no additional properties (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "object",
-          properties: { a: { type: "string" } },
-          additionalProperties: false
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "object",
+            properties: { a: { type: "string" } },
+            additionalProperties: false
+          })
+        )
       },
       {
         title: "object with additionalProperties schema (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "object",
-          additionalProperties: { type: "number" }
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "object",
+            additionalProperties: { type: "number" }
+          })
+        )
       },
       {
         title: "object with patternProperties (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "object",
-          patternProperties: { "^x-": { type: "string" } }
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "object",
+            patternProperties: { "^x-": { type: "string" } }
+          })
+        )
       },
       {
         title: "object with propertyNames (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "object",
-          propertyNames: { pattern: "^[a-z]+$" }
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "object",
+            propertyNames: { pattern: "^[a-z]+$" }
+          })
+        )
       },
       {
         title: "object with min/maxProperties",
@@ -702,18 +723,22 @@ function getExamples4() {
       },
       {
         title: "tuple via prefixItems (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "array",
-          prefixItems: [{ type: "number" }, { type: "string" }],
-          items: false
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "array",
+            prefixItems: [{ type: "number" }, { type: "string" }],
+            items: false
+          })
+        )
       },
       {
         title: "draft-07 tuple via array items (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "array",
-          items: [{ type: "number" }, { type: "boolean" }]
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "array",
+            items: [{ type: "number" }, { type: "boolean" }]
+          })
+        )
       },
       {
         title: "array with min/maxItems + uniqueItems",
@@ -746,24 +771,30 @@ function getExamples4() {
       },
       {
         title: "allOf (expanded)",
-        value: deepExpand(SV.fromData({
-          allOf: [{ type: "object" }, { required: ["id"] }]
-        }))
+        value: deepExpand(
+          SV.fromData({
+            allOf: [{ type: "object" }, { required: ["id"] }]
+          })
+        )
       },
       {
         title: "anyOf (expanded)",
-        value: deepExpand(SV.fromData({
-          anyOf: [{ type: "string" }, { type: "number" }]
-        }))
+        value: deepExpand(
+          SV.fromData({
+            anyOf: [{ type: "string" }, { type: "number" }]
+          })
+        )
       },
       {
         title: "oneOf (expanded)",
-        value: deepExpand(SV.fromData({
-          oneOf: [
-            { type: "string", format: "email" },
-            { type: "string", format: "uri" }
-          ]
-        }))
+        value: deepExpand(
+          SV.fromData({
+            oneOf: [
+              { type: "string", format: "email" },
+              { type: "string", format: "uri" }
+            ]
+          })
+        )
       },
       {
         title: "not (expanded)",
@@ -771,11 +802,14 @@ function getExamples4() {
       },
       {
         title: "if / then / else (expanded)",
-        value: deepExpand(SV.fromData({
-          if: { properties: { kind: { const: "a" } } },
-          then: { required: ["x"] },
-          else: { required: ["y"] }
-        }))
+        value: deepExpand(
+          SV.fromData({
+            if: { properties: { kind: { const: "a" } } },
+            // biome-ignore lint/suspicious/noThenProperty: JSON Schema if/then/else keyword
+            then: { required: ["x"] },
+            else: { required: ["y"] }
+          })
+        )
       },
       {
         title: "$ref",
@@ -787,11 +821,13 @@ function getExamples4() {
       },
       {
         title: "draft-07 definitions (expanded)",
-        value: deepExpand(SV.fromData({
-          type: "object",
-          properties: { a: { $ref: "#/definitions/x" } },
-          definitions: { x: { type: "string" } }
-        }))
+        value: deepExpand(
+          SV.fromData({
+            type: "object",
+            properties: { a: { $ref: "#/definitions/x" } },
+            definitions: { x: { type: "string" } }
+          })
+        )
       },
       {
         title: "metadata (title / description / deprecated / readOnly)",
@@ -812,6 +848,7 @@ function getExamples4() {
         value: SV.fromData(false)
       },
       { title: "empty schema {}", value: SV.fromData({}) },
+      // ---- Phase B: nested aggregations ----
       {
         title: "object → array of objects (expanded)",
         value: deepExpand(SV.fromData(objOfArrayOfObjects))
@@ -838,6 +875,7 @@ function getExamples4() {
         description: "Embedded enum members are arbitrary JSON, rendered via JsonViewer.",
         value: deepExpand(SV.fromData(enumOfObjects))
       },
+      // ---- Phase C: kitchen sink ----
       {
         title: "kitchen sink (expanded)",
         description: "One object schema exercising every supported construct: metadata, string/numeric/array/nested-object properties, required, additionalProperties:false, patternProperties, propertyNames, prefixItems tuple, allOf/anyOf, if/then/else, not, const/default/examples, $ref, and $defs.",
@@ -968,8 +1006,9 @@ function getTests({ describe, test, expect }) {
   });
 }
 
+// gallery.js
 import { getComponents as getComponents5 } from "tutuca/components";
-var MODULES = [exports_json_dev, exports_data_dev, exports_immutable_inspector_dev, exports_json_schema_dev];
+var MODULES = [json_dev_exports, data_dev_exports, immutable_inspector_dev_exports, json_schema_dev_exports];
 var GROUP = "Data Inspectors";
 function getExamples5() {
   return MODULES.flatMap((m) => {
@@ -978,12 +1017,10 @@ function getExamples5() {
   });
 }
 function getTests2(ctx) {
-  for (const m of MODULES)
-    if (typeof m.getTests === "function")
-      m.getTests(ctx);
+  for (const m of MODULES) if (typeof m.getTests === "function") m.getTests(ctx);
 }
 export {
-  getTests2 as getTests,
+  getComponents5 as getComponents,
   getExamples5 as getExamples,
-  getComponents5 as getComponents
+  getTests2 as getTests
 };

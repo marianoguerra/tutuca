@@ -3,8 +3,8 @@
 // interactively in the browser with real example data (section selection,
 // filtering, focus, and the URL state persistence).
 //
-//   bun run storybook:examples            # default port 4321
-//   bun run storybook:examples -- --port 5000 --no-margaui
+//   npm run storybook:examples            # default port 4321
+//   npm run storybook:examples -- --port 5000 --no-margaui
 //
 // Extra args after `--` are forwarded verbatim to `tutuca storybook`.
 //
@@ -45,7 +45,7 @@ const HELPERS = ["_shared-data.js"];
 
 // Rebuild the storybook bundle so the served runtime reflects local src/ changes.
 function buildStorybookBundle() {
-  const r = spawnSync("bun", ["run", "dist-ext"], { cwd: repoRoot, stdio: "inherit" });
+  const r = spawnSync("npm", ["run", "dist-ext"], { cwd: repoRoot, stdio: "inherit" });
   if (r.status !== 0) process.exit(r.status ?? 1);
 }
 

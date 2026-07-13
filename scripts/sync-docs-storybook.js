@@ -1,9 +1,9 @@
 // Regenerate the docs/storybook gallery modules (09/10) from the components'
 // own co-located *.dev.js files, replacing the old hand-maintained ports.
 //
-// For each gallery it bundles a small aggregator entry with Bun.build:
+// For each gallery it bundles a small aggregator entry with esbuild:
 //   - "tutuca" / "tutuca/components" stay external (packages: "external") — the
-//     published page resolves them via its import map, `bun run storybook` via
+//     published page resolves them via its import map, `npm run storybook` via
 //     the local dist;
 //   - every relative import of a component module (./json.js, ../data/….js)
 //     is externalized to the single bare "tutuca/components" specifier, whose
@@ -12,10 +12,10 @@
 //     dev.js) stay bundled, since dev modules are not part of the barrel.
 // The aggregator tags every section with the gallery's sidebar `group` and
 // composes the sources' getTests.
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as esbuild from "esbuild";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -49,10 +49,13 @@ const GALLERIES = [
 const externalizeComponents = {
   name: "externalize-components",
   setup(build) {
-    build.onResolve({ filter: /^\.\.?\/.*(?<!\.dev)\.js$/ }, () => ({
-      path: "tutuca/components",
-      external: true,
-    }));
+    // esbuild compiles filters with Go's RE2, which has no lookbehind, so the
+    // "not a *.dev.js" half of the match lives in the body: returning undefined
+    // falls through to the default resolver, i.e. keeps the module bundled.
+    build.onResolve({ filter: /^\.\.?\/.*\.js$/ }, (args) => {
+      if (args.path.endsWith(".dev.js")) return undefined;
+      return { path: "tutuca/components", external: true };
+    });
   },
 };
 
@@ -85,42 +88,42 @@ function banner(gallery) {
 ${sourceList}
 // with their relative component imports rewritten to the bare
 // "tutuca/components" specifier (resolved via the import map in index.html on
-// the published page, or the freshly built local dist under \`bun run
+// the published page, or the freshly built local dist under \`npm run
 // storybook\`). Each section is tagged with group ${JSON.stringify(gallery.group)} so they
 // cluster under one collapsible sidebar header.
 `;
 }
 
-const tmp = mkdtempSync(join(tmpdir(), "tutuca-gallery-"));
-try {
-  for (const gallery of GALLERIES) {
-    const entry = join(tmp, gallery.out.split("/").at(-1));
-    writeFileSync(entry, aggregatorSource(gallery));
-    const result = await Bun.build({
-      entrypoints: [entry],
-      format: "esm",
-      packages: "external",
-      plugins: [externalizeComponents],
-    });
-    if (!result.success) {
-      for (const log of result.logs) console.error(log);
-      process.exit(1);
-    }
-    // Bun keeps the ORIGINAL specifier for external imports (same quirk
-    // scripts/dist-ext.js works around), so rewrite the relative component
-    // specifiers to the bare package export after the build.
-    const text = (await result.outputs[0].text())
-      // Drop Bun's module-path comment for the aggregator entry: it points at
-      // the random mkdtemp dir, so it would churn the output on every run.
-      .replace(/^\/\/ .*tutuca-gallery-.*\n/m, "")
-      .replaceAll(
-        /(["'])(?:\.\.?\/)+(?:[\w-]+\/)*(?!.*\.dev\.js)[\w-]+\.js\1/g,
-        '"tutuca/components"',
-      );
-    const outPath = resolve(ROOT, gallery.out);
-    writeFileSync(outPath, banner(gallery) + text);
-    console.log(`wrote ${gallery.out}`);
+for (const gallery of GALLERIES) {
+  // The aggregator is fed in via stdin rather than a temp file: nothing on disk to
+  // clean up, and no random tmpdir path leaking into the output as a module comment.
+  const result = await esbuild.build({
+    stdin: {
+      contents: aggregatorSource(gallery),
+      resolveDir: ROOT,
+      sourcefile: "gallery.js",
+      loader: "js",
+    },
+    bundle: true,
+    format: "esm",
+    platform: "browser",
+    charset: "utf8",
+    legalComments: "none",
+    packages: "external",
+    plugins: [externalizeComponents],
+    write: false,
+    logLevel: "warning",
+  });
+
+  // esbuild emits the plugin-returned path for an external import, so the component
+  // specifiers are already bare and need no post-hoc rewrite. Guard that, rather than
+  // silently publishing a gallery whose imports point at paths the browser can't resolve.
+  const text = result.outputFiles[0].text.replace(/^\/\/ <stdin>\n/m, "");
+  const stray = text.match(/from\s+(["'])(?:\.\.?\/)[^"']*\1/g);
+  if (stray) {
+    throw new Error(`${gallery.out}: relative specifier survived externalization: ${stray}`);
   }
-} finally {
-  rmSync(tmp, { recursive: true, force: true });
+
+  writeFileSync(resolve(ROOT, gallery.out), banner(gallery) + text);
+  console.log(`wrote ${gallery.out}`);
 }

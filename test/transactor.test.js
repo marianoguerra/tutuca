@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { IMap } from "../index.js";
 import { FieldStep, Path, SeqAccessStep } from "../src/path.js";
 import { Transactor } from "../src/transactor.js";

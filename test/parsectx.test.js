@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { ANode } from "../src/anode.js";
 import { ParseCtxClassSetCollector } from "../src/util/parsectx.js";
 import { Comment, document, Text } from "./dom.js";

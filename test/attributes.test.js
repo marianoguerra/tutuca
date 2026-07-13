@@ -1,4 +1,4 @@
-import { expect, test } from "bun:test";
+import { expect, test } from "vitest";
 import { ParseContext } from "../src/anode.js";
 import { ConstAttrs, DynAttrs, getAttrParser } from "../src/attribute.js";
 import {

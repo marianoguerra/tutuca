@@ -42,7 +42,7 @@ function installSkill(skill, root, scope, force, dotAgents, dryRun, opts) {
     emitError(opts, {
       code: CODES.SKILL_ASSETS_MISSING,
       message: `missing skill assets for '${skill.name}' at ${src}`,
-      hint: "If you're running from a checkout, run `bun scripts/build-skill.js` first.",
+      hint: "If you're running from a checkout, run `node scripts/build-skill.js` first.",
     });
   }
   const target = targetDir(scope, skill.name, dotAgents);
@@ -129,7 +129,7 @@ export async function run(argv, opts = {}) {
     emitError(opts, {
       code: CODES.SKILL_ASSETS_MISSING,
       message: "skill assets not found alongside this CLI",
-      hint: "If you're running from a checkout, run `bun scripts/build-skill.js` first.",
+      hint: "If you're running from a checkout, run `node scripts/build-skill.js` first.",
     });
   }
 

@@ -3,15 +3,14 @@ import { App } from "./src/app.js";
 import { Components } from "./src/components.js";
 import { Renderer } from "./src/renderer.js";
 
-// Re-export immutable's public surface. This is enumerated explicitly on
-// purpose — do NOT switch to `export * from "./deps/immutable.js"`. When this
-// module is bundled as an *inner* module (the .ext extra/dev builds re-export it
-// via `export * from "./index.js"`), Bun lowers a star re-export of an external
-// to a broken `__reExport(ns, immutable)` call whose `immutable` namespace is
-// never bound — the .ext bundle then throws `ReferenceError: immutable is not
-// defined` at load and drops the top-level immutable exports. Explicit named
-// re-exports bundle correctly in every build. `scripts/smoke.js` guards this
-// list against drift from the vendored immutable bundle.
+// Re-export immutable's public surface, enumerated explicitly. This started as a
+// workaround for a Bun bundler bug (a star re-export of an external lowered to a
+// broken `__reExport(ns, immutable)` whose namespace was never bound, silently
+// dropping these exports from the .ext bundles). esbuild emits a real
+// `export * from "immutable"`, so the list is no longer load-bearing and could
+// collapse to a star plus the five aliases below — but the failure mode if that
+// goes wrong is silent, so it stays until someone changes it deliberately.
+// `scripts/smoke.js` guards this list against drift from the vendored bundle.
 export {
   Collection,
   fromJS,

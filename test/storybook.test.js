@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { component, html } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
 import { FieldStep, Path, SeqStep } from "../src/path.js";

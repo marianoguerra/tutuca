@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { BindFrame, lookup, NEXT, ObjectFrame, STOP } from "../src/stack.js";
 
 const binds = (it, bindings = {}, isFrame = true) => new BindFrame(it, bindings, isFrame);
