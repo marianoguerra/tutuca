@@ -8,7 +8,7 @@ import {
   unpackLoopResult,
 } from "./renderer.js";
 import { isMac } from "./util/env.js";
-import { DynVal, vp } from "./value.js";
+import { ConstVal, DynVal, parseBool, parseComponent, parseSequence, parseText } from "./value.js";
 import { HTML_NS } from "./vdom.js";
 
 // Resolve the producer of a dynamic variable `name` declared on component
@@ -215,13 +215,13 @@ function parseXOp(attrs, childs, opIdx, px) {
   let node;
   switch (name) {
     case "slot":
-      node = new SlotNode(null, vp.const(value), maybeFragment(childs));
+      node = new SlotNode(null, new ConstVal(value), maybeFragment(childs));
       break;
     case "text":
-      node = px.addNodeIf(RenderTextNode, parseXOpVal(name, value, px, vp.parseText));
+      node = px.addNodeIf(RenderTextNode, parseXOpVal(name, value, px, parseText));
       break;
     case "render":
-      node = px.addNodeIf(RenderNode, parseXOpVal(name, value, px, vp.parseComponent), as);
+      node = px.addNodeIf(RenderNode, parseXOpVal(name, value, px, parseComponent), as);
       break;
     case "render-it":
       node = px.addNode(RenderItNode, as);
@@ -230,12 +230,12 @@ function parseXOp(attrs, childs, opIdx, px) {
       node = parseRenderEach(px, value, as, attrs);
       break;
     case "show": {
-      const val = parseXOpVal(name, value, px, vp.parseBool);
+      const val = parseXOpVal(name, value, px, parseBool);
       node = px.addNodeIf(ShowNode, val, maybeFragment(childs));
       break;
     }
     case "hide": {
-      const val = parseXOpVal(name, value, px, vp.parseBool);
+      const val = parseXOpVal(name, value, px, parseBool);
       node = px.addNodeIf(HideNode, val, maybeFragment(childs));
       break;
     }
@@ -246,7 +246,7 @@ function parseXOp(attrs, childs, opIdx, px) {
   return processXExtras(node, attrs, name, opIdx + 1, px);
 }
 function parseXOpVal(opName, value, px, parserFn) {
-  const val = parserFn.call(vp, value, px);
+  const val = parserFn(value, px);
   if (val === null) px.onParseIssue("bad-value", { role: "x-op", op: opName, value });
   return val;
 }
@@ -254,7 +254,7 @@ function parseXOpVal(opName, value, px, parserFn) {
 // identifier (e.g. `as="edit"`, which parses as a NameVal outside G_TEXT and so
 // yields null) falls back to a literal const view name for backward compat.
 function parseViewName(s, px) {
-  return vp.parseText(s, px) ?? vp.const(s);
+  return parseText(s, px) ?? new ConstVal(s);
 }
 function processXExtras(node, attrs, opName, startIdx, px) {
   const { consumed, wrappable } = X_OPS[opName];
@@ -271,7 +271,7 @@ function processXExtras(node, attrs, opName, startIdx, px) {
     const wrapper = wrappable ? X_OPS[baseName]?.wrapper : null;
     if (wrapper) {
       if (!atPrefixed) maybeDeprecateBareXDirective(px, opName, baseName);
-      wrappers.push([wrapper, vp.parseBool(a.value, px)]);
+      wrappers.push([wrapper, parseBool(a.value, px)]);
       continue;
     }
     const issueInfo = { op: opName, name: aName, value: a.value };
@@ -419,7 +419,7 @@ export class RenderItNode extends RenderViewId {
 // the surrounding scope, and the `render-it` child sees a clean frame (they are
 // NOT visible inside the item component's own view).
 function parseRenderEach(px, value, as, attrs) {
-  const seqVal = parseXOpVal("render-each", value, px, vp.parseSequence);
+  const seqVal = parseXOpVal("render-each", value, px, parseSequence);
   if (seqVal === null) return null;
   const renderIt = px.addNode(RenderItNode, as);
   // Reuse the directive parser to read @when / @loop-with into an each wrapper,
@@ -434,7 +434,8 @@ function parseRenderEach(px, value, as, attrs) {
   }
   const lWith = attrs.getNamedItem("@loop-with") ?? attrs.getNamedItem("loop-with");
   if (lWith) {
-    if (lWith.name.charCodeAt(0) !== 64) maybeDeprecateBareXDirective(px, "render-each", "loop-with");
+    if (lWith.name.charCodeAt(0) !== 64)
+      maybeDeprecateBareXDirective(px, "render-each", "loop-with");
     attrParser._parseLoopWith(lWith.value);
   }
   const each = px.addNodeIf(EachNode, seqVal);

@@ -6,18 +6,24 @@ import {
   FieldVal,
   HandlerNameVal,
   MethodVal,
+  parseBool,
+  parseComponent,
+  parseField,
+  parseInputHandler,
+  parseMacroAttr,
+  parseSequence,
+  parseText,
   PredicateVal,
   SeqAccessVal,
   StrTplVal,
   tokenizeValue,
-  vp,
 } from "../src/value.js";
 
 // Minimal parse context: predicate parsing reports issues via px.onParseIssue.
 const px = { frame: {}, onParseIssue() {} };
 
 test("string template with interpolation", () => {
-  const r = vp.parseText("$'flex flex-col gap-3 {.foo}'");
+  const r = parseText("$'flex flex-col gap-3 {.foo}'");
   expect(r).toBeInstanceOf(StrTplVal);
   expect(r.vals.length).toBe(2);
   expect(r.vals[0].val).toBe("flex flex-col gap-3 ");
@@ -28,7 +34,7 @@ test("constant-only template stays a StrTplVal", () => {
   // A `$'…'` whose every part is constant is no longer folded to a ConstVal —
   // it stays a StrTplVal so the linter can flag it. toLiteralSource() gives
   // the equivalent plain string literal.
-  const r = vp.parseText("$'flex flex-col gap-3 {\\'hi\\'}'");
+  const r = parseText("$'flex flex-col gap-3 {\\'hi\\'}'");
   expect(r).toBeInstanceOf(StrTplVal);
   expect(r.toLiteralSource()).toBe("'flex flex-col gap-3 hi'");
   expect(r.eval(null)).toBe("flex flex-col gap-3 hi");
@@ -44,7 +50,7 @@ describe("string template syntax", () => {
     // braces are parsed via parseText.
 
     test("text with field interpolation", () => {
-      const r = vp.parseText("$'flex gap-3 {.foo}'");
+      const r = parseText("$'flex gap-3 {.foo}'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals[0].val).toBe("flex gap-3 ");
       expect(r.vals[1].name).toBe("foo");
@@ -53,7 +59,7 @@ describe("string template syntax", () => {
     test("multiple interpolations", () => {
       // Empty ConstVal bookends are trimmed by StrTplVal.parse, so the
       // leading/trailing "" segments produced by the split don't appear in vals.
-      const r = vp.parseText("$'{.a} between {.b}'");
+      const r = parseText("$'{.a} between {.b}'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(3);
       expect(r.vals[0].name).toBe("a");
@@ -64,14 +70,14 @@ describe("string template syntax", () => {
     test("only interpolation, no surrounding text", () => {
       // After trimming, a single-placeholder template collapses to one entry —
       // this is the shape the REDUNDANT_TEMPLATE_STRING lint rule keys off.
-      const r = vp.parseText("$'{.foo}'");
+      const r = parseText("$'{.foo}'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(1);
       expect(r.vals[0].name).toBe("foo");
     });
 
     test("whitespace bookends are preserved (non-empty ConstVal)", () => {
-      const r = vp.parseText("$' {.foo} '");
+      const r = parseText("$' {.foo} '");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals.length).toBe(3);
       expect(r.vals[0].val).toBe(" ");
@@ -87,14 +93,14 @@ describe("string template syntax", () => {
     // returns the equivalent plain string literal.
 
     test("quoted constant inside braces", () => {
-      const r = vp.parseText("$'flex {\\'gap-3\\'}'");
+      const r = parseText("$'flex {\\'gap-3\\'}'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.toLiteralSource()).toBe("'flex gap-3'");
       expect(r.eval(null)).toBe("flex gap-3");
     });
 
     test("numeric constant inside braces", () => {
-      const r = vp.parseText("$'width: {42}px'");
+      const r = parseText("$'width: {42}px'");
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.toLiteralSource()).toBe("'width: 42px'");
       expect(r.eval(null)).toBe("width: 42px");
@@ -106,25 +112,25 @@ describe("string template syntax", () => {
     // it returns null. A single-quoted `'…'` literal carries spaces verbatim.
 
     test("quoted constant string with spaces", () => {
-      const r = vp.parseText("'flex gap-3'");
+      const r = parseText("'flex gap-3'");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
 
     test("quoted single word", () => {
-      const r = vp.parseText("'badge'");
+      const r = parseText("'badge'");
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("badge");
     });
 
     test("unquoted multi-word string returns null", () => {
-      const r = vp.parseText("flex gap-3");
+      const r = parseText("flex gap-3");
       expect(r).toBeNull();
     });
 
     test("unquoted {…} is not a template, returns null", () => {
-      expect(vp.parseText("flex {.foo}", px)).toBeNull();
-      expect(vp.parseText("{.foo}", px)).toBeNull();
+      expect(parseText("flex {.foo}", px)).toBeNull();
+      expect(parseText("{.foo}", px)).toBeNull();
     });
   });
 
@@ -133,7 +139,7 @@ describe("string template syntax", () => {
     // string-template kind, so `$'…'` values return null in those contexts.
 
     test("parseBool rejects string template", () => {
-      const r = vp.parseBool("$'flex {.foo}'", px);
+      const r = parseBool("$'flex {.foo}'", px);
       expect(r).toBeNull();
     });
 
@@ -143,38 +149,38 @@ describe("string template syntax", () => {
     // wherever `true`/`false` do (the linter, not the parser, flags a
     // suspicious literal condition).
     test("parseBool accepts a quoted constant (single literal kind)", () => {
-      const r = vp.parseBool("'flex gap-3'", px);
+      const r = parseBool("'flex gap-3'", px);
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
 
     test("parseBool accepts a placeholderless string template", () => {
-      const r = vp.parseBool("$'flex'", px);
+      const r = parseBool("$'flex'", px);
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.eval({})).toBe("flex");
     });
 
     test("parseSequence rejects string template", () => {
-      const r = vp.parseSequence("$'items {.foo}'", px);
+      const r = parseSequence("$'items {.foo}'", px);
       expect(r).toBeNull();
     });
 
     test("parseComponent rejects string template", () => {
-      const r = vp.parseComponent("$'child {.foo}'", px);
+      const r = parseComponent("$'child {.foo}'", px);
       expect(r).toBeNull();
     });
   });
 
   describe("parseMacroAttr accepts the string-template kind (macro dynamic attrs)", () => {
     test("string template works in parseMacroAttr", () => {
-      const r = vp.parseMacroAttr("$'flex {.foo}'", px);
+      const r = parseMacroAttr("$'flex {.foo}'", px);
       expect(r).toBeInstanceOf(StrTplVal);
       expect(r.vals[0].val).toBe("flex ");
       expect(r.vals[1].name).toBe("foo");
     });
 
     test("quoted constant works in parseMacroAttr", () => {
-      const r = vp.parseMacroAttr("'flex gap-3'", px);
+      const r = parseMacroAttr("'flex gap-3'", px);
       expect(r).toBeInstanceOf(ConstVal);
       expect(r.val).toBe("flex gap-3");
     });
@@ -184,14 +190,14 @@ describe("string template syntax", () => {
 describe("boolean predicates in parseBool", () => {
   // A single-token value still parses as a plain G_BOOL value.
   test("single-token value is not a predicate", () => {
-    const r = vp.parseBool(".items", px);
+    const r = parseBool(".items", px);
     expect(r).not.toBeInstanceOf(PredicateVal);
     expect(r.name).toBe("items");
   });
 
   for (const name of ["empty?", "truthy?", "falsy?", "null?"]) {
     test(`${name} parses to a PredicateVal`, () => {
-      const r = vp.parseBool(`${name} .items`, px);
+      const r = parseBool(`${name} .items`, px);
       expect(r).toBeInstanceOf(PredicateVal);
       expect(r.pred.name).toBe(name);
       expect(r.args.length).toBe(1);
@@ -200,92 +206,92 @@ describe("boolean predicates in parseBool", () => {
   }
 
   test("unknown predicate returns null", () => {
-    expect(vp.parseBool("present? .items", px)).toBeNull();
+    expect(parseBool("present? .items", px)).toBeNull();
   });
 
   test("arity mismatch returns null", () => {
-    expect(vp.parseBool("empty? .a .b", px)).toBeNull();
+    expect(parseBool("empty? .a .b", px)).toBeNull();
   });
 
   test("bad predicate arg returns null", () => {
     // `Foo` is a type name — not allowed in the G_BOOL group used for args.
-    expect(vp.parseBool("empty? Foo", px)).toBeNull();
+    expect(parseBool("empty? Foo", px)).toBeNull();
   });
 
   test("predicate args accept bind values", () => {
-    const r = vp.parseBool("truthy? @flag", px);
+    const r = parseBool("truthy? @flag", px);
     expect(r).toBeInstanceOf(PredicateVal);
     expect(r.args[0].name).toBe("flag");
   });
 
   test("predicate eval applies the function", () => {
     const stack = { lookupFieldRaw: (n) => ({ items: [], name: "hi" })[n] };
-    expect(vp.parseBool("empty? .items", px).eval(stack)).toBe(true);
-    expect(vp.parseBool("empty? .name", px).eval(stack)).toBe(false);
-    expect(vp.parseBool("truthy? .name", px).eval(stack)).toBe(true);
-    expect(vp.parseBool("falsy? .items", px).eval(stack)).toBe(true);
-    expect(vp.parseBool("null? .items", px).eval(stack)).toBe(false);
+    expect(parseBool("empty? .items", px).eval(stack)).toBe(true);
+    expect(parseBool("empty? .name", px).eval(stack)).toBe(false);
+    expect(parseBool("truthy? .name", px).eval(stack)).toBe(true);
+    expect(parseBool("falsy? .items", px).eval(stack)).toBe(true);
+    expect(parseBool("null? .items", px).eval(stack)).toBe(false);
   });
 });
 
 describe("$ method prefix vs . field prefix", () => {
   test(". parses to a FieldVal", () => {
-    const r = vp.parseText(".count");
+    const r = parseText(".count");
     expect(r).toBeInstanceOf(FieldVal);
     expect(r.name).toBe("count");
     expect(r.toString()).toBe(".count");
   });
 
   test("$ parses to a MethodVal", () => {
-    const r = vp.parseText("$fullName");
+    const r = parseText("$fullName");
     expect(r).toBeInstanceOf(MethodVal);
     expect(r.name).toBe("fullName");
     expect(r.toString()).toBe("$fullName");
   });
 
   test("$' is a string template, not a method", () => {
-    const r = vp.parseText("$'hi {.name}'");
+    const r = parseText("$'hi {.name}'");
     expect(r).toBeInstanceOf(StrTplVal);
-    expect(vp.parseText("$name")).toBeInstanceOf(MethodVal);
+    expect(parseText("$name")).toBeInstanceOf(MethodVal);
   });
 
   test("$ works as a conditional-slot value", () => {
-    expect(vp.parseBool("$canSubmit", px)).toBeInstanceOf(MethodVal);
+    expect(parseBool("$canSubmit", px)).toBeInstanceOf(MethodVal);
   });
 
   test("$ is rejected in path-bearing slots (@each, <x render>)", () => {
     // A method result has no addressable path, so it cannot be iterated or
     // rendered as a child — `.field` stays valid there.
-    expect(vp.parseSequence("$items", px)).toBeNull();
-    expect(vp.parseComponent("$child", px)).toBeNull();
-    expect(vp.parseSequence(".items", px)).toBeInstanceOf(FieldVal);
+    expect(parseSequence("$items", px)).toBeNull();
+    expect(parseComponent("$child", px)).toBeNull();
+    expect(parseSequence(".items", px)).toBeInstanceOf(FieldVal);
   });
 
   test("FieldVal.eval reads the raw field without invoking", () => {
     const fn = () => "called";
     const stack = { lookupFieldRaw: (n) => ({ count: 7, m: fn })[n] };
-    expect(vp.parseText(".count").eval(stack)).toBe(7);
-    expect(vp.parseText(".m").eval(stack)).toBe(fn);
+    expect(parseText(".count").eval(stack)).toBe(7);
+    expect(parseText(".m").eval(stack)).toBe(fn);
   });
 
   test("MethodVal.eval invokes the method", () => {
     const stack = { lookupMethod: (n) => ({ fullName: "Ada L" })[n] };
-    expect(vp.parseText("$fullName").eval(stack)).toBe("Ada L");
+    expect(parseText("$fullName").eval(stack)).toBe("Ada L");
   });
 
   test("MethodVal.evalAsHandler hands back the raw function", () => {
     const fn = () => {};
     const stack = { lookupFieldRaw: (n) => ({ inc: fn })[n] };
-    expect(vp.parseText("$inc").evalAsHandler(stack)).toBe(fn);
+    expect(parseText("$inc").evalAsHandler(stack)).toBe(fn);
   });
 
   test("$ is a method handler, a bare name is an input handler", () => {
-    expect(vp.parseInputHandler("$inc", px).handlerVal).toBeInstanceOf(MethodVal);
-    expect(vp.parseInputHandler("dec", px).handlerVal).toBeInstanceOf(HandlerNameVal);
+    expect(parseInputHandler("$inc", px).handlerVal).toBeInstanceOf(MethodVal);
+    expect(parseInputHandler("dec", px).handlerVal).toBeInstanceOf(HandlerNameVal);
   });
 
   test(". cannot be used in handler position", () => {
-    expect(vp.parseInputHandler(".inc", px)).toBeNull();
+    expect(parseInputHandler(".inc", px)).toBeNull();
   });
 
   test("$ method handler keeps its args", () => {
@@ -324,7 +330,7 @@ describe("tokenizeValue", () => {
 
 describe("equals? predicate with string literals", () => {
   test("parses to a PredicateVal with a ConstVal string arg", () => {
-    const r = vp.parseBool("equals? .view 'detail'", px);
+    const r = parseBool("equals? .view 'detail'", px);
     expect(r).toBeInstanceOf(PredicateVal);
     expect(r.pred.name).toBe("equals?");
     expect(r.args.length).toBe(2);
@@ -334,37 +340,37 @@ describe("equals? predicate with string literals", () => {
   });
 
   test("string literal arg preserves interior spaces", () => {
-    const r = vp.parseBool("equals? .name 'John Doe'", px);
+    const r = parseBool("equals? .name 'John Doe'", px);
     expect(r.args.length).toBe(2);
     expect(r.args[1]).toBeInstanceOf(ConstVal);
     expect(r.args[1].val).toBe("John Doe");
   });
 
   test("escaped quote in a string literal arg", () => {
-    const r = vp.parseBool("equals? .name 'it\\'s'", px);
+    const r = parseBool("equals? .name 'it\\'s'", px);
     expect(r.args[1]).toBeInstanceOf(ConstVal);
     expect(r.args[1].val).toBe("it's");
   });
 
   test("eval compares the field value against the literal", () => {
     const stack = { lookupFieldRaw: (n) => ({ view: "detail" })[n] };
-    expect(vp.parseBool("equals? .view 'detail'", px).eval(stack)).toBe(true);
-    expect(vp.parseBool("equals? .view 'list'", px).eval(stack)).toBe(false);
+    expect(parseBool("equals? .view 'detail'", px).eval(stack)).toBe(true);
+    expect(parseBool("equals? .view 'list'", px).eval(stack)).toBe(false);
   });
 
   test("arity mismatch returns null", () => {
-    expect(vp.parseBool("equals? .view", px)).toBeNull();
+    expect(parseBool("equals? .view", px)).toBeNull();
   });
 
   test("toString round-trips a quoted literal", () => {
-    expect(vp.parseBool("equals? .view 'detail'", px).toString()).toBe("equals? .view 'detail'");
+    expect(parseBool("equals? .view 'detail'", px).toString()).toBe("equals? .view 'detail'");
   });
 
   // A bare string literal now parses in a plain conditional slot: every literal
   // shares the one `K_CONST` kind, so `'detail'` is accepted wherever `true` is
   // (a suspicious literal condition is a lint concern, not a parse error).
   test("bare string literal in parseBool parses as a literal", () => {
-    const r = vp.parseBool("'detail'", px);
+    const r = parseBool("'detail'", px);
     expect(r).toBeInstanceOf(ConstVal);
     expect(r.val).toBe("detail");
   });
@@ -372,34 +378,34 @@ describe("equals? predicate with string literals", () => {
 
 describe("parseField (dynamic field definitions and defaults)", () => {
   test("accepts a field reference", () => {
-    expect(vp.parseField(".color", px)).toBeInstanceOf(FieldVal);
+    expect(parseField(".color", px)).toBeInstanceOf(FieldVal);
   });
 
   test("accepts a method reference", () => {
-    expect(vp.parseField("$color", px)).toBeInstanceOf(MethodVal);
+    expect(parseField("$color", px)).toBeInstanceOf(MethodVal);
   });
 
   test("accepts a string-literal constant (dynamic alias default)", () => {
-    const r = vp.parseField("'gray'", px);
+    const r = parseField("'gray'", px);
     expect(r).toBeInstanceOf(ConstVal);
     expect(r.val).toBe("gray");
   });
 
   test("accepts a numeric constant", () => {
-    const r = vp.parseField("42", px);
+    const r = parseField("42", px);
     expect(r).toBeInstanceOf(ConstVal);
     expect(r.val).toBe(42);
   });
 
   test("accepts a .seq[.key] seq-access", () => {
-    const r = vp.parseField(".sheets[.selId]", px);
+    const r = parseField(".sheets[.selId]", px);
     expect(r).toBeInstanceOf(SeqAccessVal);
     expect(r.seqVal.name).toBe("sheets");
     expect(r.keyVal.name).toBe("selId");
   });
 
   test("seq-access toPathItem yields a SeqAccessStep", () => {
-    const step = vp.parseField(".sheets[.selId]", px).toPathItem();
+    const step = parseField(".sheets[.selId]", px).toPathItem();
     expect(step.seqField).toBe("sheets");
     expect(step.keyField).toBe("selId");
   });
@@ -407,29 +413,29 @@ describe("parseField (dynamic field definitions and defaults)", () => {
 
 describe("binding member reads (@name.member)", () => {
   test("one-level member read parses where bindings are accepted", () => {
-    const r = vp.parseText("@value.title", px);
+    const r = parseText("@value.title", px);
     expect(r).toBeInstanceOf(BindMemberVal);
     expect(r.name).toBe("value");
     expect(r.member).toBe("title");
     expect(String(r)).toBe("@value.title");
     // any binding name, not just `value`; predicate-style `?` members parse too
-    expect(vp.parseBool("@item.done?", px)).toBeInstanceOf(BindMemberVal);
+    expect(parseBool("@item.done?", px)).toBeInstanceOf(BindMemberVal);
   });
 
   test("two or more members fail to parse", () => {
-    expect(vp.parseText("@value.a.b", px)).toBeNull();
-    expect(vp.parseBool("@value.a.b.c", px)).toBeNull();
+    expect(parseText("@value.a.b", px)).toBeNull();
+    expect(parseBool("@value.a.b.c", px)).toBeNull();
   });
 
   test("dotted field reads still fail to parse", () => {
-    expect(vp.parseText(".a.b", px)).toBeNull();
-    expect(vp.parseBool(".a.b", px)).toBeNull();
+    expect(parseText(".a.b", px)).toBeNull();
+    expect(parseBool(".a.b", px)).toBeNull();
   });
 
   test("member reads are not addressable: no path item, no path-bearing slots", () => {
-    expect(vp.parseComponent("@value.child", px)).toBeNull();
-    expect(vp.parseSequence("@value.items", px)).toBeNull();
-    expect(vp.parseText("@value.title", px).toPathItem()).toBeNull();
+    expect(parseComponent("@value.child", px)).toBeNull();
+    expect(parseSequence("@value.items", px)).toBeNull();
+    expect(parseText("@value.title", px).toPathItem()).toBeNull();
   });
 
   test("eval reads the member off the resolved binding", () => {

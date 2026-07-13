@@ -38,7 +38,7 @@ const K_SEQ = 256;
 const K_METHOD = 1024; // `$name` no-arg method call
 
 // Value groups, one per parsing context. Kept private: callers use the named
-// `parseX` methods below so they never have to know about the bitmasks.
+// `parseX` functions below so they never have to know about the bitmasks.
 // `K_METHOD` is in every value-read group but never in a path-bearing one
 // (`G_COMPONENT`, `G_SEQUENCE`): a method result has no addressable path, so
 // `$m` in `@each`/`<x render>` is a parse error rather than a silent failure.
@@ -76,203 +76,192 @@ const PREDICATES = {
   "equals?": { name: "equals?", arity: 2, fn: (a, b) => is(a, b) },
 };
 
-class ValParser {
-  constructor() {
-    this.nullConstVal = new ConstVal(null);
-  }
-  const(v) {
-    return new ConstVal(v);
-  }
-  // Parse a single token into the richest `BaseVal` it can be, with no
-  // context/kind filtering — that is the validators' job. Returns null when
-  // the token is not a well-formed value.
-  parseToken(s, px) {
-    const c0 = s.charCodeAt(0);
-    // Quoted tokens first: their `[` `]` `{` `}` are literal content, so they
-    // must be handled before the bracket checks below.
-    if (c0 === 39)
-      // '…' string literal
-      return s.length >= 2 && s.charCodeAt(s.length - 1) === 39
-        ? new ConstVal(unescapeStr(s.slice(1, -1)))
-        : null;
-    if (c0 === 36 && s.charCodeAt(1) === 39)
-      // $'…' string template
-      return s.length >= 3 && s.charCodeAt(s.length - 1) === 39
-        ? StrTplVal.parse(s.slice(2, -1), px)
-        : null;
-    // Sequence access `.seq[.key]` — checked before the prefix switch since
-    // the token starts with the `.` of its left-hand `FieldVal`.
-    if (s.indexOf("[") !== -1 || s.indexOf("]") !== -1) return this._parseSeqAccess(s, px);
-    // A bare `{…}` is not a template; use `$'…'`. It fails to parse here.
-    if (s.indexOf("{") !== -1 || s.indexOf("}") !== -1) return null;
-    switch (c0) {
-      case 94: {
-        // ^name macro variable
-        const name = s.slice(1);
-        const newS = px.frame.macroVars?.[name];
-        if (newS !== undefined) {
-          const tokens = tokenizeValue(newS.trim());
-          if (tokens.length !== 1) return null;
-          const val = this.parseToken(tokens[0], px);
-          // `^name` is a real placeholder in the macro body. If a call site
-          // binds it to a constant, mark the resulting `ConstVal` so a
-          // macro-expanded `$'…{^name}…'` isn't mistaken for a hand-written
-          // placeholderless literal — see `StrTplVal.toLiteralSource`.
-          if (val instanceof ConstVal) val.fromMacroVar = true;
-          return val;
-        }
-        px.onParseIssue("bad-value", { role: "macro-var", name, value: s });
-        return null;
+// Parse a single token into the richest `BaseVal` it can be, with no
+// context/kind filtering — that is the validators' job. Returns null when
+// the token is not a well-formed value.
+export function parseToken(s, px) {
+  const c0 = s.charCodeAt(0);
+  // Quoted tokens first: their `[` `]` `{` `}` are literal content, so they
+  // must be handled before the bracket checks below.
+  if (c0 === 39)
+    // '…' string literal
+    return s.length >= 2 && s.charCodeAt(s.length - 1) === 39
+      ? new ConstVal(unescapeStr(s.slice(1, -1)))
+      : null;
+  if (c0 === 36 && s.charCodeAt(1) === 39)
+    // $'…' string template
+    return s.length >= 3 && s.charCodeAt(s.length - 1) === 39
+      ? StrTplVal.parse(s.slice(2, -1), px)
+      : null;
+  // Sequence access `.seq[.key]` — checked before the prefix switch since
+  // the token starts with the `.` of its left-hand `FieldVal`.
+  if (s.indexOf("[") !== -1 || s.indexOf("]") !== -1) return _parseSeqAccess(s, px);
+  // A bare `{…}` is not a template; use `$'…'`. It fails to parse here.
+  if (s.indexOf("{") !== -1 || s.indexOf("}") !== -1) return null;
+  switch (c0) {
+    case 94: {
+      // ^name macro variable
+      const name = s.slice(1);
+      const newS = px.frame.macroVars?.[name];
+      if (newS !== undefined) {
+        const tokens = tokenizeValue(newS.trim());
+        if (tokens.length !== 1) return null;
+        const val = parseToken(tokens[0], px);
+        // `^name` is a real placeholder in the macro body. If a call site
+        // binds it to a constant, mark the resulting `ConstVal` so a
+        // macro-expanded `$'…{^name}…'` isn't mistaken for a hand-written
+        // placeholderless literal — see `StrTplVal.toLiteralSource`.
+        if (val instanceof ConstVal) val.fromMacroVar = true;
+        return val;
       }
-      case 36: // $name method call (a `$'…'` template was handled above)
-        return mkVal(s.slice(1), MethodVal);
-      case 64: {
-        // @name bind, or @name.member — a single-level member read on a
-        // binding. Deeper reads (`@x.a.b`) fail: the member must be a plain id.
-        const dot = s.indexOf(".", 1);
-        if (dot === -1) return mkVal(s.slice(1), BindVal);
-        const name = s.slice(1, dot);
-        const member = s.slice(dot + 1);
-        return isValidValId(name) && isValidValId(member)
-          ? new BindMemberVal(name, member)
-          : null;
-      }
-      case 42: // *name dynamic
-        return mkVal(s.slice(1), DynVal);
-      case 46: // .name field
-        return mkVal(s.slice(1), FieldVal);
+      px.onParseIssue("bad-value", { role: "macro-var", name, value: s });
+      return null;
     }
-    const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
-    if (Number.isFinite(num)) return new ConstVal(num);
-    if (s === "true" || s === "false") return new ConstVal(s === "true");
-    if (c0 >= 97 /* a */ && c0 <= 122 /* z */) return mkVal(s, NameVal);
-    if (c0 >= 65 /* A */ && c0 <= 90 /* Z */) return mkVal(s, TypeVal);
+    case 36: // $name method call (a `$'…'` template was handled above)
+      return mkVal(s.slice(1), MethodVal);
+    case 64: {
+      // @name bind, or @name.member — a single-level member read on a
+      // binding. Deeper reads (`@x.a.b`) fail: the member must be a plain id.
+      const dot = s.indexOf(".", 1);
+      if (dot === -1) return mkVal(s.slice(1), BindVal);
+      const name = s.slice(1, dot);
+      const member = s.slice(dot + 1);
+      return isValidValId(name) && isValidValId(member) ? new BindMemberVal(name, member) : null;
+    }
+    case 42: // *name dynamic
+      return mkVal(s.slice(1), DynVal);
+    case 46: // .name field
+      return mkVal(s.slice(1), FieldVal);
+  }
+  const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
+  if (Number.isFinite(num)) return new ConstVal(num);
+  if (s === "true" || s === "false") return new ConstVal(s === "true");
+  if (c0 >= 97 /* a */ && c0 <= 122 /* z */) return mkVal(s, NameVal);
+  if (c0 >= 65 /* A */ && c0 <= 90 /* Z */) return mkVal(s, TypeVal);
+  return null;
+}
+// `seq[key]`: exactly one `[`, a closing `]` as the last char, both sides
+// plain `FieldVal`s. Anything else (nested/unbalanced brackets) is rejected.
+function _parseSeqAccess(s, px) {
+  const open = s.indexOf("[");
+  const close = s.indexOf("]");
+  if (open < 1 || close !== s.length - 1 || close < open || s.indexOf("[", open + 1) !== -1)
+    return null;
+  const left = parseToken(s.slice(0, open), px);
+  const right = parseToken(s.slice(open + 1, close), px);
+  return left instanceof FieldVal && right instanceof FieldVal
+    ? new SeqAccessVal(left, right)
+    : null;
+}
+// Parse `s` as a single value and accept it only if its kind is in `group`.
+function _parseSingle(s, px, group) {
+  const tokens = tokenizeValue(s.trim());
+  if (tokens.length !== 1) return null;
+  const val = parseToken(tokens[0], px);
+  return val !== null && kindOf(val) & group ? val : null;
+}
+// Conditionals: @show, @hide, @if.<attr>, x-op show/hide, x-wrapper attrs.
+// A single token is a plain G_BOOL value; multiple whitespace-separated
+// tokens are a predicate call like `empty? .items`.
+export function parseBool(s, px) {
+  const t = s.trim();
+  const tokens = tokenizeValue(t);
+  if (tokens.length !== 1) return tokens.length === 0 ? null : _parsePredicate(t, tokens, px);
+  const val = parseToken(tokens[0], px);
+  return val !== null && kindOf(val) & G_BOOL ? val : null;
+}
+// Text values: :attr, @text, <x text>, @then/@else, @push-view, @html.
+export function parseText(s, px) {
+  return _parseSingle(s, px, G_TEXT);
+}
+// A single component to render: <x render>.
+export function parseComponent(s, px) {
+  return _parseSingle(s, px, G_COMPONENT);
+}
+// A sequence to iterate: @each, <x render-each>.
+export function parseSequence(s, px) {
+  return _parseSingle(s, px, G_SEQUENCE);
+}
+// A `provide:` field definition (and the `default` of a `lookup`):
+// a field reference, a `.seq[.key]` seq-access, a method reference, or a
+// constant value.
+export function parseField(s, px) {
+  return _parseSingle(s, px, G_FIELD);
+}
+// A `provide:` value — a field or `.seq[.key]` seq-access only (see G_PROVIDE).
+export function parseProvide(s, px) {
+  return _parseSingle(s, px, G_PROVIDE);
+}
+// A single argument passed to an event handler.
+export function parseHandlerArg(s, px) {
+  return _parseSingle(s, px, G_VALUE);
+}
+// Pass-through values on a macro-call element (:attr on a macro).
+export function parseMacroAttr(s, px) {
+  return _parseSingle(s, px, G_ALL);
+}
+// Handler reference + args for @on.<event>. Returns `{handlerVal, args}` so
+// `EventHandler.parse` is a thin wrapper, or null on a bad handler name.
+export function parseInputHandler(s, px) {
+  return _parseHandler(s, px, "input", true, true);
+}
+// Handler reference for @when, @enrich-with, @loop-with. No args, and
+// silent on failure — the directive caller reports the issue.
+export function parseAlterHandler(s, px) {
+  const r = _parseHandler(s, px, "alter", false, false);
+  return r === null ? null : r.handlerVal;
+}
+// `$name` -> a `MethodVal` (used via `evalAsHandler`); a bare name -> a
+// `HandlerNameVal`. No field syntax: a `.field` cannot be a handler.
+function _parseHandler(s, px, namespace, allowArgs, report) {
+  const tokens = tokenizeValue(s.trim());
+  const headTok = tokens[0] ?? "";
+  const head = headTok === "" ? null : parseToken(headTok, px);
+  const hk = kindOf(head);
+  let handlerVal;
+  if (hk & K_METHOD) handlerVal = head;
+  else if (hk & K_NAME) handlerVal = new HandlerNameVal(head.name, namespace);
+  else {
+    if (report) px.onParseIssue("bad-value", { role: "handler-name", value: headTok });
     return null;
   }
-  // `seq[key]`: exactly one `[`, a closing `]` as the last char, both sides
-  // plain `FieldVal`s. Anything else (nested/unbalanced brackets) is rejected.
-  _parseSeqAccess(s, px) {
-    const open = s.indexOf("[");
-    const close = s.indexOf("]");
-    if (open < 1 || close !== s.length - 1 || close < open || s.indexOf("[", open + 1) !== -1)
-      return null;
-    const left = this.parseToken(s.slice(0, open), px);
-    const right = this.parseToken(s.slice(open + 1, close), px);
-    return left instanceof FieldVal && right instanceof FieldVal
-      ? new SeqAccessVal(left, right)
-      : null;
-  }
-  // Parse `s` as a single value and accept it only if its kind is in `group`.
-  _parseSingle(s, px, group) {
-    const tokens = tokenizeValue(s.trim());
-    if (tokens.length !== 1) return null;
-    const val = this.parseToken(tokens[0], px);
-    return val !== null && kindOf(val) & group ? val : null;
-  }
-  // Conditionals: @show, @hide, @if.<attr>, x-op show/hide, x-wrapper attrs.
-  // A single token is a plain G_BOOL value; multiple whitespace-separated
-  // tokens are a predicate call like `empty? .items`.
-  parseBool(s, px) {
-    const t = s.trim();
-    const tokens = tokenizeValue(t);
-    if (tokens.length !== 1)
-      return tokens.length === 0 ? null : this._parsePredicate(t, tokens, px);
-    const val = this.parseToken(tokens[0], px);
-    return val !== null && kindOf(val) & G_BOOL ? val : null;
-  }
-  // Text values: :attr, @text, <x text>, @then/@else, @push-view, @html.
-  parseText(s, px) {
-    return this._parseSingle(s, px, G_TEXT);
-  }
-  // A single component to render: <x render>.
-  parseComponent(s, px) {
-    return this._parseSingle(s, px, G_COMPONENT);
-  }
-  // A sequence to iterate: @each, <x render-each>.
-  parseSequence(s, px) {
-    return this._parseSingle(s, px, G_SEQUENCE);
-  }
-  // A `provide:` field definition (and the `default` of a `lookup`):
-  // a field reference, a `.seq[.key]` seq-access, a method reference, or a
-  // constant value.
-  parseField(s, px) {
-    return this._parseSingle(s, px, G_FIELD);
-  }
-  // A `provide:` value — a field or `.seq[.key]` seq-access only (see G_PROVIDE).
-  parseProvide(s, px) {
-    return this._parseSingle(s, px, G_PROVIDE);
-  }
-  // A single argument passed to an event handler.
-  parseHandlerArg(s, px) {
-    return this._parseSingle(s, px, G_VALUE);
-  }
-  // Pass-through values on a macro-call element (:attr on a macro).
-  parseMacroAttr(s, px) {
-    return this._parseSingle(s, px, G_ALL);
-  }
-  // Handler reference + args for @on.<event>. Returns `{handlerVal, args}` so
-  // `EventHandler.parse` is a thin wrapper, or null on a bad handler name.
-  parseInputHandler(s, px) {
-    return this._parseHandler(s, px, "input", true, true);
-  }
-  // Handler reference for @when, @enrich-with, @loop-with. No args, and
-  // silent on failure — the directive caller reports the issue.
-  parseAlterHandler(s, px) {
-    const r = this._parseHandler(s, px, "alter", false, false);
-    return r === null ? null : r.handlerVal;
-  }
-  // `$name` -> a `MethodVal` (used via `evalAsHandler`); a bare name -> a
-  // `HandlerNameVal`. No field syntax: a `.field` cannot be a handler.
-  _parseHandler(s, px, namespace, allowArgs, report) {
-    const tokens = tokenizeValue(s.trim());
-    const headTok = tokens[0] ?? "";
-    const head = headTok === "" ? null : this.parseToken(headTok, px);
-    const hk = kindOf(head);
-    let handlerVal;
-    if (hk & K_METHOD) handlerVal = head;
-    else if (hk & K_NAME) handlerVal = new HandlerNameVal(head.name, namespace);
+  if (!allowArgs) return tokens.length === 1 ? { handlerVal, args: [] } : null;
+  const args = new Array(tokens.length - 1);
+  for (let i = 1; i < tokens.length; i++) {
+    const val = parseToken(tokens[i], px);
+    if (val !== null && kindOf(val) & G_VALUE) args[i - 1] = val;
     else {
-      if (report) px.onParseIssue("bad-value", { role: "handler-name", value: headTok });
-      return null;
+      if (report) px.onParseIssue("bad-value", { role: "handler-arg", value: tokens[i] });
+      args[i - 1] = NULL_CONST_VAL;
     }
-    if (!allowArgs) return tokens.length === 1 ? { handlerVal, args: [] } : null;
-    const args = new Array(tokens.length - 1);
-    for (let i = 1; i < tokens.length; i++) {
-      const val = this.parseToken(tokens[i], px);
-      if (val !== null && kindOf(val) & G_VALUE) args[i - 1] = val;
-      else {
-        if (report) px.onParseIssue("bad-value", { role: "handler-arg", value: tokens[i] });
-        args[i - 1] = this.nullConstVal;
-      }
-    }
-    return { handlerVal, args };
   }
-  // Mirrors EventHandler.parse: head token is the predicate, tail are its
-  // args parsed individually as G_BOOL values. `tokens.length > 1` here.
-  _parsePredicate(s, tokens, px) {
-    const predName = tokens[0];
-    const pred = PREDICATES[predName];
-    if (pred === undefined) {
-      px.onParseIssue("bad-value", { role: "predicate", value: predName });
-      return null;
-    }
-    const arity = tokens.length - 1;
-    if (arity !== pred.arity) {
-      px.onParseIssue("bad-value", { role: "predicate-arity", value: s, predicate: predName });
-      return null;
-    }
-    const args = new Array(arity);
-    for (let i = 0; i < arity; i++) {
-      const tok = tokens[i + 1];
-      const val = this.parseToken(tok, px);
-      if (val === null || !(kindOf(val) & G_BOOL)) {
-        px.onParseIssue("bad-value", { role: "predicate-arg", value: tok });
-        return null;
-      }
-      args[i] = val;
-    }
-    return new PredicateVal(pred, args);
+  return { handlerVal, args };
+}
+// Mirrors EventHandler.parse: head token is the predicate, tail are its
+// args parsed individually as G_BOOL values. `tokens.length > 1` here.
+function _parsePredicate(s, tokens, px) {
+  const predName = tokens[0];
+  const pred = PREDICATES[predName];
+  if (pred === undefined) {
+    px.onParseIssue("bad-value", { role: "predicate", value: predName });
+    return null;
   }
+  const arity = tokens.length - 1;
+  if (arity !== pred.arity) {
+    px.onParseIssue("bad-value", { role: "predicate-arity", value: s, predicate: predName });
+    return null;
+  }
+  const args = new Array(arity);
+  for (let i = 0; i < arity; i++) {
+    const tok = tokens[i + 1];
+    const val = parseToken(tok, px);
+    if (val === null || !(kindOf(val) & G_BOOL)) {
+      px.onParseIssue("bad-value", { role: "predicate-arg", value: tok });
+      return null;
+    }
+    args[i] = val;
+  }
+  return new PredicateVal(pred, args);
 }
 // The kind bit of a parsed value, used by the validators to check it against
 // a context's group mask. `ConstVal` carries its own kind (a literal differs
@@ -321,6 +310,9 @@ export class ConstVal extends BaseVal {
     return typeof v === "string" ? `'${v.replace(/(['\\])/g, "\\$1")}'` : `${v}`;
   }
 }
+// Shared null-literal sentinel: the parser's fallback for a bad handler arg,
+// and the "not set" marker for optional attribute slots (see `NOT_SET_VAL`).
+export const NULL_CONST_VAL = new ConstVal(null);
 export class PredicateVal extends BaseVal {
   constructor(pred, args) {
     super();
@@ -385,7 +377,7 @@ export class StrTplVal extends VarVal {
     for (let i = 0; i < parts.length; i++) {
       const part = parts[i];
       const isExpr = part[0] === "{" && part.at(-1) === "}";
-      vals[i] = isExpr ? vp.parseText(part.slice(1, -1), px) : new ConstVal(part);
+      vals[i] = isExpr ? parseText(part.slice(1, -1), px) : new ConstVal(part);
     }
     let lo = 0;
     let hi = vals.length;
@@ -521,4 +513,3 @@ export class SeqAccessVal extends RenderVal {
     return `${this.seqVal}[${this.keyVal}]`;
   }
 }
-export const vp = new ValParser();

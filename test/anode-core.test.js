@@ -27,8 +27,9 @@ import {
   HandlerNameVal,
   MethodVal,
   NameVal,
+  parseHandlerArg,
+  parseText,
   TypeVal,
-  vp,
 } from "../src/value.js";
 import { VComment, VFragment, VNode, VText } from "../src/vdom.js";
 import { HeadlessParseContext, isTextNodeWithText, mpx, parse, setupJsdom } from "./dom.js";
@@ -263,72 +264,72 @@ describe("ANode", () => {
   describe("VarVal", () => {
     test("parse BindVal", () => {
       const px = mpx();
-      const v = vp.parseText("@foo", px);
+      const v = parseText("@foo", px);
       expect(v).toBeInstanceOf(BindVal);
       expect(v.name).toBe("foo");
 
-      expect(vp.parseText("@9foo", px)).toBe(null);
-      expect(vp.parseText("@f-oo", px)).toBe(null);
+      expect(parseText("@9foo", px)).toBe(null);
+      expect(parseText("@f-oo", px)).toBe(null);
     });
 
     test("parse FieldVal", () => {
       const px = mpx();
-      const v = vp.parseText(".foo", px);
+      const v = parseText(".foo", px);
       expect(v).toBeInstanceOf(FieldVal);
       expect(v.name).toBe("foo");
 
-      expect(vp.parseText(".9foo", px)).toBe(null);
-      expect(vp.parseText(".f-oo", px)).toBe(null);
+      expect(parseText(".9foo", px)).toBe(null);
+      expect(parseText(".f-oo", px)).toBe(null);
     });
 
     test("parse NameVal", () => {
       const px = mpx();
-      const v = vp.parseHandlerArg("foo", px);
+      const v = parseHandlerArg("foo", px);
       expect(v).toBeInstanceOf(NameVal);
       expect(v.name).toBe("foo");
 
-      expect(vp.parseHandlerArg("9foo", px)).toBe(null);
-      expect(vp.parseHandlerArg("f-oo", px)).toBe(null);
+      expect(parseHandlerArg("9foo", px)).toBe(null);
+      expect(parseHandlerArg("f-oo", px)).toBe(null);
     });
 
     test("parse TypeVal", () => {
       const px = mpx();
-      const v = vp.parseHandlerArg("Foo", px);
+      const v = parseHandlerArg("Foo", px);
       expect(v).toBeInstanceOf(TypeVal);
       expect(v.name).toBe("Foo");
 
-      expect(vp.parseHandlerArg("F-oo", px)).toBe(null);
+      expect(parseHandlerArg("F-oo", px)).toBe(null);
     });
 
     test("parse ConstVal Number", () => {
       const px = mpx();
       {
-        const v = vp.parseHandlerArg("42", px);
+        const v = parseHandlerArg("42", px);
         expect(v).toBeInstanceOf(ConstVal);
         expect(v.val).toBe(42);
       }
       {
-        const v = vp.parseHandlerArg("42.5", px);
+        const v = parseHandlerArg("42.5", px);
         expect(v).toBeInstanceOf(ConstVal);
         expect(v.val).toBe(42.5);
       }
-      expect(vp.parseHandlerArg("42.", px)).toBe(null);
-      expect(vp.parseHandlerArg("42f", px)).toBe(null);
+      expect(parseHandlerArg("42.", px)).toBe(null);
+      expect(parseHandlerArg("42f", px)).toBe(null);
     });
 
     test("parse ConstVal Bool", () => {
       const px = mpx();
-      const v = vp.parseHandlerArg("true", px);
+      const v = parseHandlerArg("true", px);
       expect(v).toBeInstanceOf(ConstVal);
       expect(v.val).toBe(true);
-      const v1 = vp.parseHandlerArg("false", px);
+      const v1 = parseHandlerArg("false", px);
       expect(v1).toBeInstanceOf(ConstVal);
       expect(v1.val).toBe(false);
     });
 
     test("parse bad val", () => {
       const px = mpx();
-      const v = vp.parseHandlerArg("^foo", px);
+      const v = parseHandlerArg("^foo", px);
       expect(v).toBe(null);
     });
   });
@@ -630,9 +631,7 @@ describe("ANode", () => {
     });
 
     test("@on.oneevent", () => {
-      const [r, px] = parse(
-        "<div @on.click='myHandler @v .f true 42 12.5 MyType value'>hi</div>",
-      );
+      const [r, px] = parse("<div @on.click='myHandler @v .f true 42 12.5 MyType value'>hi</div>");
       expect(r).toBeInstanceOf(DomNode);
       expect(r.attrs).toBeInstanceOf(ConstAttrs);
       expect(r.attrs.items["data-eid"]).toBe(0);

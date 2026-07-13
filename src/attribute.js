@@ -1,4 +1,13 @@
-import { ConstVal, vp } from "./value.js";
+import {
+  ConstVal,
+  NULL_CONST_VAL,
+  parseAlterHandler,
+  parseBool,
+  parseInputHandler,
+  parseMacroAttr,
+  parseSequence,
+  parseText,
+} from "./value.js";
 
 export class Attributes {
   constructor(items) {
@@ -32,7 +41,7 @@ class AttrParser {
     this.events = null;
   }
   parseAttr(name, value, parseAll = false) {
-    const val = parseAll ? vp.parseMacroAttr(value, this.px) : vp.parseText(value, this.px);
+    const val = parseAll ? parseMacroAttr(value, this.px) : parseText(value, this.px);
     if (val !== null) {
       this.attrs ??= [];
       this.attrs.push(new Attr(name, val));
@@ -46,7 +55,7 @@ class AttrParser {
     return node;
   }
   parseIf(directiveName, value) {
-    const dynVal = vp.parseBool(value, this.px);
+    const dynVal = parseBool(value, this.px);
     if (dynVal) {
       this.ifAttr = new IfAttr(directiveName.slice(3), dynVal);
       this.attrs ??= [];
@@ -58,10 +67,10 @@ class AttrParser {
     }
   }
   parseThen(s) {
-    if (this.ifAttr) this.ifAttr.thenVal = vp.parseText(s, this.px) ?? NOT_SET_VAL;
+    if (this.ifAttr) this.ifAttr.thenVal = parseText(s, this.px) ?? NOT_SET_VAL;
   }
   parseElse(value) {
-    if (this.ifAttr) this.ifAttr.elseVal = vp.parseText(value, this.px) ?? NOT_SET_VAL;
+    if (this.ifAttr) this.ifAttr.elseVal = parseText(value, this.px) ?? NOT_SET_VAL;
   }
   parseEvent(directiveName, value) {
     const [eventName, ...modifiers] = directiveName.slice(3).split("+");
@@ -70,13 +79,13 @@ class AttrParser {
       if (this.events === null) {
         this.events = this.px.registerEvents();
         this.attrs ??= [];
-        this.attrs.push(new ConstAttr("data-eid", vp.const(this.events.id)));
+        this.attrs.push(new ConstAttr("data-eid", new ConstVal(this.events.id)));
       }
       this.events.add(eventName, handler, modifiers);
     }
   }
   _parseDirectiveValue(directiveName, s, parserFn) {
-    const val = parserFn.call(vp, s, this.px);
+    const val = parserFn(s, this.px);
     if (val === null) {
       const info = { role: "directive", directive: directiveName, value: s };
       this.px.onParseIssue("bad-value", info);
@@ -87,23 +96,23 @@ class AttrParser {
     switch (directiveName) {
       case "dangerouslysetinnerhtml":
         this.attrs ??= [];
-        this.attrs.push(new RawHtmlAttr(this._parseDirectiveValue(directiveName, s, vp.parseText)));
+        this.attrs.push(new RawHtmlAttr(this._parseDirectiveValue(directiveName, s, parseText)));
         this.hasDynamic = true;
         return;
       case "push-view":
-        this.pushWrapper("push-view", s, this._parseDirectiveValue(directiveName, s, vp.parseText));
+        this.pushWrapper("push-view", s, this._parseDirectiveValue(directiveName, s, parseText));
         return;
       case "text":
-        this.textChild = this._parseDirectiveValue(directiveName, s, vp.parseText);
+        this.textChild = this._parseDirectiveValue(directiveName, s, parseText);
         return;
       case "show":
-        this.pushWrapper("show", s, this._parseDirectiveValue(directiveName, s, vp.parseBool));
+        this.pushWrapper("show", s, this._parseDirectiveValue(directiveName, s, parseBool));
         return;
       case "hide":
-        this.pushWrapper("hide", s, this._parseDirectiveValue(directiveName, s, vp.parseBool));
+        this.pushWrapper("hide", s, this._parseDirectiveValue(directiveName, s, parseBool));
         return;
       case "each": {
-        const val = this._parseDirectiveValue(directiveName, s, vp.parseSequence);
+        const val = this._parseDirectiveValue(directiveName, s, parseSequence);
         this.eachAttr = this.pushWrapper("each", s, val);
         return;
       }
@@ -112,13 +121,13 @@ class AttrParser {
           this.eachAttr.enrichWithVal = this._parseDirectiveValue(
             directiveName,
             s,
-            vp.parseAlterHandler,
+            parseAlterHandler,
           );
         else
           this.pushWrapper(
             "scope",
             s,
-            this._parseDirectiveValue(directiveName, s, vp.parseAlterHandler),
+            this._parseDirectiveValue(directiveName, s, parseAlterHandler),
           );
         return;
       case "when":
@@ -145,11 +154,11 @@ class AttrParser {
   }
   _parseWhen(s) {
     if (this.eachAttr !== null)
-      this.eachAttr.whenVal = this._parseDirectiveValue("when", s, vp.parseAlterHandler);
+      this.eachAttr.whenVal = this._parseDirectiveValue("when", s, parseAlterHandler);
   }
   _parseLoopWith(s) {
     if (this.eachAttr !== null)
-      this.eachAttr.loopWithVal = this._parseDirectiveValue("loop-with", s, vp.parseAlterHandler);
+      this.eachAttr.loopWithVal = this._parseDirectiveValue("loop-with", s, parseAlterHandler);
   }
   parse(attributes, parseAll = false) {
     for (const { name, value } of attributes) {
@@ -160,7 +169,7 @@ class AttrParser {
       else {
         this.attrs ??= [];
         const constVal = value === "" && booleanAttrs.has(name) ? true : value;
-        this.attrs.push(new ConstAttr(name, vp.const(constVal)));
+        this.attrs.push(new ConstAttr(name, new ConstVal(constVal)));
       }
     }
     const { attrs, hasDynamic } = this;
@@ -224,13 +233,13 @@ export class Attr extends BaseAttr {
 export class ConstAttr extends Attr {}
 export class RawHtmlAttr extends Attr {
   constructor(val) {
-    super("dangerouslySetInnerHTML", val ?? vp.nullConstVal);
+    super("dangerouslySetInnerHTML", val ?? NULL_CONST_VAL);
   }
   eval(stack) {
     return { __html: `${this.val.eval(stack)}` };
   }
 }
-export const NOT_SET_VAL = vp.nullConstVal;
+export const NOT_SET_VAL = NULL_CONST_VAL;
 export class IfAttr extends BaseAttr {
   constructor(name, condVal) {
     super(name);
@@ -261,7 +270,7 @@ export class EventHandler {
     return [this.handlerVal.evalAsHandler(stack), argValues];
   }
   static parse(s, px) {
-    const r = vp.parseInputHandler(s, px);
+    const r = parseInputHandler(s, px);
     return r === null ? null : new EventHandler(r.handlerVal, r.args);
   }
 }

@@ -7,9 +7,9 @@ import {
   DynVal,
   FieldVal,
   NameVal,
+  parseToken,
   SeqAccessVal,
   TypeVal,
-  vp,
 } from "../src/value.js";
 import { DOMParser } from "./dom.js";
 
@@ -163,7 +163,7 @@ test("const attrs toMacroVars escapes quotes", () => {
 test("const attr with quote round-trips through a macro var", () => {
   const [nAttrs] = parseAttrs(html`<p msg="it's"></p>`);
   const px = mpx().enterMacro("m", nAttrs.toMacroVars(), {});
-  const val = vp.parseToken("^msg", px);
+  const val = parseToken("^msg", px);
   expect(val).toBeInstanceOf(ConstVal);
   expect(val.val).toBe("it's");
 });

@@ -1,6 +1,6 @@
 import { View } from "./anode.js";
 import { RequestHandler } from "./attribute.js";
-import { vp } from "./value.js";
+import { parseField, parseProvide } from "./value.js";
 
 export class Components {
   constructor() {
@@ -149,7 +149,7 @@ export class Component {
     // them at authoring time (PROVIDE_NOT_ADDRESSABLE, LOOKUP_BAD_SHAPE,
     // LOOKUP_TARGET_MALFORMED) so the runtime needn't duplicate the warning.
     for (const key in this._rawProvide) {
-      const val = vp.parseProvide(this._rawProvide[key], ctx);
+      const val = parseProvide(this._rawProvide[key], ctx);
       if (val) this.provide[key] = new ProvideInfo(key, val, Symbol(key));
     }
     for (const key in this._rawLookup) {
@@ -158,7 +158,7 @@ export class Component {
       const [compName, provideName] = forStr === null ? [] : forStr.split(".");
       if (!isString(compName) || !isString(provideName)) continue;
       const defStr = isString(linfo?.default) ? linfo.default : null;
-      const val = defStr === null ? null : vp.parseField(defStr, ctx);
+      const val = defStr === null ? null : parseField(defStr, ctx);
       this.lookup[key] = new LookupInfo(key, compName, provideName, val);
     }
     for (const key in this.lookup)
