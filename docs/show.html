@@ -19,9 +19,42 @@
       href="https://marianoguerra.github.io/margaui/themes/theme.css"
     />
     <link rel="stylesheet" href="./styles/site.css" />
+    <style>
+      /* Time-travel bar: hidden until the app has more than one state.
+         `?maxStates=<n>` caps how many states are kept, `?maxStates=0` turns
+         it off entirely (see src/show.js). */
+      #time-travel {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin: 1.5rem 0;
+        padding: 0.75rem 1rem;
+        border: var(--border-width) solid var(--border-color);
+        border-radius: var(--standard-border-radius);
+        background-color: var(--accent-bg);
+        color: var(--text-light);
+        font-size: 0.9rem;
+      }
+      #time-travel[hidden] {
+        display: none;
+      }
+      #time-travel input[type="range"] {
+        flex: 1;
+        min-width: 8rem;
+      }
+      #time-travel output {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+    </style>
     <script type="module" src="src/show.js"></script>
   </head>
   <body>
     <div id="app"></div>
+    <div id="time-travel" hidden>
+      <label for="time-travel-slider">Time travel</label>
+      <input id="time-travel-slider" type="range" min="0" max="0" value="0" />
+      <output id="time-travel-label" for="time-travel-slider"></output>
+    </div>
   </body>
 </html>
