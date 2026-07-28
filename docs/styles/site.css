@@ -79,8 +79,14 @@ body > header ul {
   margin: 1.5rem auto;
 }
 
-.btn,
-.btn:visited {
+/* The site's own call-to-action links. Namespaced on purpose: the examples
+   embedded in these pages use margaui/daisyUI, which owns the plain `.btn` /
+   `.btn-primary` names. Sharing them made an example's buttons render
+   differently per page — whichever sheet loaded last won, and margaui injects
+   its CSS at runtime, so pages that link the margaui theme in <head> (show.html)
+   lost to site.css while pages that don't (more-examples.html) did not. */
+.site-btn,
+.site-btn:visited {
   display: inline-block;
   padding: 0.6rem 1.3rem;
   font-size: 1.05rem;
@@ -96,18 +102,18 @@ body > header ul {
     border-color 0.15s ease;
 }
 
-.btn:hover {
+.site-btn:hover {
   border-color: var(--accent-hover);
   color: var(--accent-hover);
 }
 
-.btn-primary,
-.btn-primary:visited {
+.site-btn-primary,
+.site-btn-primary:visited {
   color: var(--bg);
   background: var(--accent);
 }
 
-.btn-primary:hover {
+.site-btn-primary:hover {
   color: var(--bg);
   background: var(--accent-hover);
   border-color: var(--accent-hover);
