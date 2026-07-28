@@ -533,6 +533,72 @@ describe("@on.drop bubbles to ancestor components", () => {
   });
 });
 
+describe("+prevent / +stop effect modifiers", () => {
+  function makeApp() {
+    const calls = [];
+    const Comp = component({
+      name: "EffectMods",
+      fields: { n: 0 },
+      input: {
+        onClick() {
+          calls.push("click");
+          return this;
+        },
+        onKey() {
+          calls.push("key");
+          return this;
+        },
+      },
+      view: html`<section>
+        <button class="btn" @on.click+prevent+stop="onClick">go</button>
+        <button class="plain" @on.click="onClick">plain</button>
+        <input class="inp" @on.keydown+send+prevent="onKey" />
+      </section>`,
+    });
+    const ctx = renderToHTMLNode(document, [Comp], null, Comp.make(), HeadlessParseContext);
+    return { ...ctx, calls };
+  }
+  function dispatch(node, Ctor, type, init) {
+    const ev = new Ctor(type, { bubbles: true, cancelable: true, ...init });
+    node.dispatchEvent(ev);
+    return ev;
+  }
+
+  test("+prevent preventDefaults from the root listener, +stop keeps it inside the app", () => {
+    const { container, calls, cleanup } = makeApp();
+    const win = container.ownerDocument.defaultView;
+    const seenOutside = [];
+    const onBody = (e) => seenOutside.push(e.type);
+    container.ownerDocument.body.addEventListener("click", onBody);
+    // Control: with no modifiers the event is untouched and reaches body.
+    const plain = dispatch(container.querySelector(".plain"), win.MouseEvent, "click");
+    expect(plain.defaultPrevented).toBe(false);
+    expect(seenOutside).toEqual(["click"]);
+
+    const ev = dispatch(container.querySelector(".btn"), win.MouseEvent, "click");
+    expect(calls).toEqual(["click", "click"]);
+    expect(ev.defaultPrevented).toBe(true);
+    expect(seenOutside).toEqual(["click"]); // +stop kept it from reaching body again
+    container.ownerDocument.body.removeEventListener("click", onBody);
+    cleanup();
+  });
+
+  test("a guard that fails also skips the effect", () => {
+    const { container, calls, cleanup } = makeApp();
+    const win = container.ownerDocument.defaultView;
+    const inp = container.querySelector(".inp");
+
+    const other = dispatch(inp, win.KeyboardEvent, "keydown", { key: "a" });
+    expect(calls).toEqual([]);
+    expect(other.defaultPrevented).toBe(false);
+
+    const enter = dispatch(inp, win.KeyboardEvent, "keydown", { key: "Enter" });
+    expect(calls).toEqual(["key"]);
+    expect(enter.defaultPrevented).toBe(true);
+    cleanup();
+  });
+});
+
 describe("dragInfo.lookupBind for @each items", () => {
   // A drag that starts inside an `@each` must keep the row's frame-only binds
   // (`key`/`value`) reachable from the drop handler — `compact()` strips them

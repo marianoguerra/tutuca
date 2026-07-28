@@ -11,8 +11,11 @@
 <input @on.input="$setN valueAsInt" />
 <button @on.click="$addItem JsonSelector">+</button>
 
-<!-- modifiers: keydown +send (Enter) / +cancel (Esc), and +ctrl/+cmd/+alt -->
+<!-- guards: keydown +send (Enter) / +cancel (Esc), and +ctrl/+cmd/+alt -->
 <input @on.keydown+send="$submit value" @on.keydown+cancel="$reset" />
+
+<!-- effects on any event: +prevent, +stop (applied only if the guards passed) -->
+<form @on.submit+prevent="$save">…</form>
 
 <!-- custom elements: any CustomEvent reaches @on.<name>, detail is `value` -->
 <emoji-picker @on.emoji-click="onPick value"></emoji-picker>

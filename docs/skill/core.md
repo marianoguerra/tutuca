@@ -599,13 +599,31 @@ plain literal. (Genuine exceptions exist — e.g. a file input needs
 
 `@on.<event>+<mod>+<mod>=...`
 
+Guards — run the handler only when they hold:
+
 - All events: `+ctrl`, `+cmd`/`+meta`, `+alt`
 - `keydown` only: `+send` (Enter), `+cancel` (Escape)
+
+Effects — act on the DOM event, on all events:
+
+- `+prevent` → `event.preventDefault()`
+- `+stop` → `event.stopPropagation()`
 
 ```html
 <input @on.keydown+send="$submit value" @on.keydown+cancel="$reset" />
 <button @on.click+ctrl="$soloOnly">ctrl-click</button>
+<form @on.submit+prevent="$save">…</form>
+<input @on.keydown+send+prevent="$submit value" />
 ```
+
+Effects apply only when every guard on the same handler passed, whatever
+order they are written in: `+send+prevent` prevents on Enter and nothing
+else. They run from the app's root listener, which is where tutuca listens
+— that is invisible to `+prevent` (the default action happens after the
+event finishes propagating) but it makes `+stop` narrower than it looks:
+it stops listeners *outside* the app root only. DOM ancestors between the
+target and the root have already seen the event, and tutuca runs a single
+handler per event anyway, so `+stop` never suppresses another `@on`.
 
 ### Web Components & Custom Events
 

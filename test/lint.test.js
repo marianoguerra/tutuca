@@ -450,6 +450,34 @@ test("warn on unknown event modifiers", () => {
   expect(modifier).toBe("foo");
 });
 
+test("prevent/stop and the modifier-key guards are accepted on any event", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { do() {} },
+    view: html`<form @on.submit+prevent="do">
+      <button @on.click+stop+ctrl="do">do it</button>
+      <input @on.mousedown+alt="do" />
+    </form>`,
+  });
+  expect(lx.reports.length).toBe(0);
+});
+
+test("keydown-only modifiers stay keydown-only", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    input: { do() {} },
+    view: html`<button @on.click+send="do">do it</button>`,
+  });
+  const [
+    {
+      id,
+      info: { modifier },
+    },
+  ] = lx.reports;
+  expect(id).toBe(UNKNOWN_EVENT_MODIFIER);
+  expect(modifier).toBe("send");
+});
+
 test("warn on unknown event handler arg name", () => {
   const [lx] = defAndCheck({
     name: "Comp",

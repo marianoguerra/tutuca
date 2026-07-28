@@ -796,22 +796,56 @@ const fwdIfKey = (keyName) => fwdIfCtxPred((ctx) => ctx.e.key === keyName);
 const fwdCtrl = fwdIfCtxPred(({ e }) => (isMac && e.metaKey) || e.ctrlKey);
 const fwdMeta = fwdIfCtxPred(({ e }) => e.metaKey);
 const fwdAlt = fwdIfCtxPred(({ e }) => e.altKey);
-const metaWraps = { ctrl: fwdCtrl, cmd: fwdCtrl, meta: fwdMeta, alt: fwdAlt };
+// Guards recognized on every event: they only read the modifier-key flags, which
+// every mouse and keyboard event carries.
+export const MOD_WRAPPERS_FOR_ANY_EVENT = {
+  ctrl: fwdCtrl,
+  cmd: fwdCtrl,
+  meta: fwdMeta,
+  alt: fwdAlt,
+};
 export const MOD_WRAPPERS_BY_EVENT = {
   keydown: {
     send: fwdIfKey("Enter"),
     cancel: fwdIfKey("Escape"),
-    ...metaWraps,
   },
-  click: { ...metaWraps },
 };
+// Effect modifiers act on the DOM event instead of filtering the handler, so they
+// are recognized on every event and applied innermost — after every guard passed,
+// right before the handler runs. That way `@on.keydown+send+prevent` prevents only
+// on Enter, whichever order the two are written in.
+//
+// Both run from the app's root listener (App.subscribeToEvents), the last node the
+// event reaches inside the app. `preventDefault` is unaffected by that — the default
+// action runs after propagation ends — but `stopPropagation` can only stop listeners
+// *above* the app root: DOM ancestors between the target and the root have already
+// run, and tutuca resolves a single handler per event anyway (see
+// Path.fromNodeAndEventName), so there is no in-app propagation left to stop.
+// `?.()` because touch-synthesized drag events (App._handleTouchEvent) are plain
+// objects carrying only a no-op `preventDefault`.
+export const MOD_EFFECTS = {
+  prevent: (e) => e.preventDefault?.(),
+  stop: (e) => e.stopPropagation?.(),
+};
+const NO_WRAPPERS = {};
 const identityModifierWrapper = (f, _ctx) => f;
 export function compileModifiers(eventName, names) {
   if (names.length === 0) return identityModifierWrapper;
-  const wrappers = MOD_WRAPPERS_BY_EVENT[eventName] ?? {};
-  let w = (that, f, args, _ctx) => f.apply(that, args);
+  const wrappers = MOD_WRAPPERS_BY_EVENT[eventName] ?? NO_WRAPPERS;
+  const effects = [];
   for (const name of names) {
-    const wrapper = wrappers[name];
+    const effect = MOD_EFFECTS[name];
+    if (effect !== undefined) effects.push(effect);
+  }
+  let w =
+    effects.length === 0
+      ? (that, f, args, _ctx) => f.apply(that, args)
+      : (that, f, args, ctx) => {
+          for (const effect of effects) effect(ctx.e);
+          return f.apply(that, args);
+        };
+  for (const name of names) {
+    const wrapper = wrappers[name] ?? MOD_WRAPPERS_FOR_ANY_EVENT[name];
     if (wrapper !== undefined) w = wrapper(w);
   }
   return (f, ctx) =>

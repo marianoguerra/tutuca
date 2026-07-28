@@ -2,7 +2,7 @@ import { component, html } from "tutuca";
 
 export const EventModifiers = component({
   name: "EventModifiers",
-  fields: { query: "", lastSentSearch: null },
+  fields: { query: "", lastSentSearch: null, blockedNav: false },
   input: {
     onInput(value) {
       return this.setQuery(value);
@@ -20,6 +20,12 @@ export const EventModifiers = component({
     />
     <p @show="truthy? .lastSentSearch">
       Search: "<span @text=".lastSentSearch"></span>"
+    </p>
+    <a href="https://example.com" @on.click+prevent="$toggleBlockedNav">
+      A link whose navigation is prevented
+    </a>
+    <p @show=".blockedNav">
+      The click ran the handler; the browser never followed the link.
     </p>
   </section>`,
 });

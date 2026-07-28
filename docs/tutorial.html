@@ -516,6 +516,15 @@
           <code>+ctrl+send</code>).
         </p>
         <p>
+          Two modifiers act on the event itself instead of filtering:
+          <code>+prevent</code> calls <code>preventDefault()</code> and
+          <code>+stop</code> calls <code>stopPropagation()</code>. Both work on
+          any event, and both only run once the filtering modifiers on the same
+          handler have passed &mdash; so
+          <code>@on.keydown+send+prevent</code> prevents the default on Enter
+          and leaves every other key alone.
+        </p>
+        <p>
           The example below also uses
           <code>@show="truthy? .lastSentSearch"</code> to conditionally display
           the search result &mdash; <code>truthy?</code> is one of the boolean

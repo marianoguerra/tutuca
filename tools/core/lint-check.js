@@ -1,4 +1,9 @@
-import { MOD_WRAPPERS_BY_EVENT, ParseContext } from "../../src/anode.js";
+import {
+  MOD_EFFECTS,
+  MOD_WRAPPERS_BY_EVENT,
+  MOD_WRAPPERS_FOR_ANY_EVENT,
+  ParseContext,
+} from "../../src/anode.js";
 import { lintHtml } from "./htmllinter.js";
 import { closestName } from "./util/closest-name.js";
 
@@ -474,14 +479,22 @@ function walkForRenderIt(lx, node, loopDepth) {
 }
 
 const NO_WRAPPERS = {};
+// Recognized on every event (guards + effects), plus whatever this event name adds.
+const ANY_EVENT_MODIFIERS = [
+  ...Object.keys(MOD_WRAPPERS_FOR_ANY_EVENT),
+  ...Object.keys(MOD_EFFECTS),
+];
 function checkEventModifiers(lx, view) {
   for (const event of view.ctx.events) {
     for (const handler of event.handlers) {
       const { name, modifiers } = handler;
-      const modWrappers = MOD_WRAPPERS_BY_EVENT[name] ?? NO_WRAPPERS;
+      const known = [
+        ...Object.keys(MOD_WRAPPERS_BY_EVENT[name] ?? NO_WRAPPERS),
+        ...ANY_EVENT_MODIFIERS,
+      ];
       for (const modifier of modifiers) {
-        if (modWrappers[modifier] === undefined) {
-          const close = closestName(modifier, Object.keys(modWrappers));
+        if (!known.includes(modifier)) {
+          const close = closestName(modifier, known);
           lx.error(
             UNKNOWN_EVENT_MODIFIER,
             {

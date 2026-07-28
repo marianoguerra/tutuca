@@ -915,6 +915,47 @@ describe("ANode", () => {
       expect(f1(f, mkKeyDown("Enter", { ctrlKey: false })).apply("nope", [10, 5])).toBe("nope");
       expect(f1(f, mkKeyDown("A", {})).apply(100, [10, 5])).toBe(100);
     });
+    test("guards work on events with no event-specific modifiers", () => {
+      const f1 = compileModifiers("mousedown", ["ctrl"]);
+      expect(f1(f, { e: { ctrlKey: true } }).apply(3, [10, 5])).toBe(18);
+      expect(f1(f, { e: { ctrlKey: false } }).apply(100, [10, 5])).toBe(100);
+    });
+    function mkEffectCtx(e = {}) {
+      const calls = [];
+      const ctx = {
+        e: {
+          preventDefault: () => calls.push("prevent"),
+          stopPropagation: () => calls.push("stop"),
+          ...e,
+        },
+      };
+      return [ctx, calls];
+    }
+    test("prevent/stop act on the event and still call the handler", () => {
+      const [ctx, calls] = mkEffectCtx();
+      const f1 = compileModifiers("click", ["prevent", "stop"]);
+      expect(f1(f, ctx).apply(3, [10, 5])).toBe(18);
+      expect(calls).toEqual(["prevent", "stop"]);
+    });
+    test("effects are innermost: guards short-circuit them whatever the order", () => {
+      for (const mods of [
+        ["send", "prevent"],
+        ["prevent", "send"],
+      ]) {
+        const f1 = compileModifiers("keydown", mods);
+        const [okCtx, okCalls] = mkEffectCtx({ key: "Enter" });
+        expect(f1(f, okCtx).apply(3, [10, 5])).toBe(18);
+        expect(okCalls).toEqual(["prevent"]);
+
+        const [noCtx, noCalls] = mkEffectCtx({ key: "A" });
+        expect(f1(f, noCtx).apply(100, [10, 5])).toBe(100);
+        expect(noCalls).toEqual([]);
+      }
+    });
+    test("effects tolerate events missing the method (synthesized touch drags)", () => {
+      const f1 = compileModifiers("dragover", ["prevent", "stop"]);
+      expect(f1(f, { e: { preventDefault: undefined } }).apply(3, [10, 5])).toBe(18);
+    });
   });
 
   describe("value type validation", () => {
