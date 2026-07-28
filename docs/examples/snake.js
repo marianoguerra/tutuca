@@ -1,4 +1,4 @@
-import { component, html, rootDispatcher } from "tutuca";
+import { component, css, html, rootDispatcher } from "tutuca";
 
 // Snake, with every rule and every piece of state inside the components.
 //
@@ -66,6 +66,25 @@ export const Cell = component({
 
 export const SnakeGame = component({
   name: "SnakeGame",
+  // The emoji arrows are square icon buttons: `.btn` sizes itself around a text
+  // label, which leaves an emoji off-center and cramped, so give the pad its own
+  // fixed square cells and center the glyph in them.
+  style: css`
+    .dpad {
+      display: flex;
+      gap: 0.25rem;
+    }
+    .dpad button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      padding: 0;
+      font-size: 1.125rem;
+      line-height: 1;
+    }
+  `,
   fields: {
     cols: 24,
     rows: 16,
@@ -336,11 +355,11 @@ export const SnakeGame = component({
           Resume
         </button>
       </div>
-      <div class="join">
-        <button class="btn btn-sm join-item font-mono" @on.click="turnLeft">←</button>
-        <button class="btn btn-sm join-item font-mono" @on.click="turnUp">↑</button>
-        <button class="btn btn-sm join-item font-mono" @on.click="turnDown">↓</button>
-        <button class="btn btn-sm join-item font-mono" @on.click="turnRight">→</button>
+      <div class="dpad">
+        <button class="btn btn-sm" aria-label="Turn left" @on.click="turnLeft">⬅️</button>
+        <button class="btn btn-sm" aria-label="Turn up" @on.click="turnUp">⬆️</button>
+        <button class="btn btn-sm" aria-label="Turn down" @on.click="turnDown">⬇️</button>
+        <button class="btn btn-sm" aria-label="Turn right" @on.click="turnRight">➡️</button>
       </div>
     </div>
 
