@@ -51,11 +51,17 @@ Embedded in `more-examples.html`.
 
 `todo-macros.js`, `pagination.js`, `file-picker.js`, `mathml-formula.js`,
 `traffic-light.js`, `svg-bar-chart.js`, `svg-icon-macro.js`,
-`svg-interactive.js`, `dynamic-selected-edit.js` (plus `dynamic-bindings.js`
-and `dynamic-path.js`, also used in the tutorial).
+`svg-interactive.js`, `snake.js`, `dynamic-selected-edit.js` (plus
+`dynamic-bindings.js` and `dynamic-path.js`, also used in the tutorial).
 
 `pagination.js` — `@loop-with` returns `{ iterData, start, end }`; the
 `start`/`end` slice paginates `@each` without iterating off-page items.
+
+`snake.js` — the whole game state machine lives in the components; the only
+host code is a `setInterval` in `getRequestHandlers()` that pushes a `tick`
+message at the root (what `app.sendAtRoot("tick")` does when the module owns
+the `app`). Pause / resume / speed changes are `startTicking` /
+`stopTicking` requests the component issues itself.
 
 ### Doc-referenced (not embedded in a page)
 

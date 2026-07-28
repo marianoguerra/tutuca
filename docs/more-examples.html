@@ -17,7 +17,7 @@
     </script>
     <meta
       name="description"
-      content="More Tutuca examples: reactive SVG graphics, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
+      content="More Tutuca examples: reactive SVG graphics, a snake game driven by an outside timer, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
     />
     <meta name="author" content="Mariano Guerra" />
     <meta name="theme-color" content="#0d47a1" />
@@ -30,7 +30,7 @@
     <meta property="og:title" content="Tutuca: More Examples" />
     <meta
       property="og:description"
-      content="More Tutuca examples: reactive SVG graphics, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
+      content="More Tutuca examples: reactive SVG graphics, a snake game driven by an outside timer, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
     />
     <meta property="og:type" content="website" />
     <meta
@@ -48,7 +48,7 @@
     <meta name="twitter:title" content="Tutuca: More Examples" />
     <meta
       name="twitter:description"
-      content="More Tutuca examples: reactive SVG graphics, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
+      content="More Tutuca examples: reactive SVG graphics, a snake game driven by an outside timer, MathML formulas, a file-picker form, and advanced macro and dynamic-binding playgrounds."
     />
     <meta
       name="twitter:image"
@@ -171,6 +171,35 @@
         <tutuca-playground
           src="./examples/svg-icon-macro.js"
         ></tutuca-playground>
+      </section>
+
+      <section id="timers">
+        <h2><a href="#timers">Timers &amp; Inbound Events</a></h2>
+        <h3 id="snake"><a href="#snake">Snake</a></h3>
+        <p>
+          A whole game as one state machine inside the components: the board,
+          the snake, the food, the score, and the status
+          (<code>idle</code>/<code>running</code>/<code>paused</code>/<code
+            >over</code
+          >) are fields, and every rule is a method on
+          <code>SnakeGame</code> &mdash; so <code>step()</code> is a pure
+          function of the state and the tests call it directly.
+        </p>
+        <p>
+          The only host code is the <code>setInterval</code> in
+          <code>getRequestHandlers()</code>: it owns the timer and pushes a
+          <code>tick</code> message at the root component, exactly what
+          <code>app.sendAtRoot("tick")</code> does in an app that has the
+          <code>app</code> handle. Everything else is a decision the component
+          makes &mdash; <em>Pause</em> requests <code>stopTicking</code> and the
+          interval is cancelled, <em>Resume</em> requests
+          <code>startTicking</code> again, changing the speed slider
+          reschedules it at the new rate, and a fatal tick cancels it from
+          <code>receive.tick</code>. Food placement runs off a seeded PRNG in a
+          <code>seed</code> field, so no handler needs
+          <code>Math.random()</code>.
+        </p>
+        <tutuca-playground src="./examples/snake.js"></tutuca-playground>
       </section>
 
       <section id="mathml">
