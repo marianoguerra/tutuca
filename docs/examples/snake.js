@@ -2,11 +2,12 @@ import { component, css, html, rootDispatcher } from "tutuca";
 
 // Snake, with every rule and every piece of state inside the components.
 //
-// The only host code is the timer in `getRequestHandlers()` at the bottom: it
-// owns a `setInterval` and pushes a `tick` message at the root component. It
-// never reads or writes app state — `SnakeGame.receive.tick` is what advances
-// the game, so pausing, resuming, dying, and changing the speed are all
-// ordinary state transitions the component decides on its own.
+// The only host code is in `getRequestHandlers()` at the bottom: a timer that
+// owns a `setInterval` and pushes a `tick` message at the root component, and a
+// one-line `focus()` on the board. Neither reads or writes app state —
+// `SnakeGame.receive.tick` is what advances the game, so pausing, resuming,
+// dying, and changing the speed are all ordinary state transitions the
+// component decides on its own.
 
 // Board geometry in SVG user units; the `viewBox` scales it to the container.
 const CELL = 20;
@@ -209,9 +210,12 @@ export const SnakeGame = component({
     },
 
     // --- transitions that (re)schedule the outside timer ---
+    // Starting and resuming from a button leaves the focus on that button, so
+    // both ask the host to put it back on the board and the keys work right away.
     startGame(ctx) {
       const next = this.reset().setStatus("running");
       ctx.request("startTicking", [next.intervalMs]);
+      ctx.request("focusBoard", []);
       return next;
     },
     pauseGame(ctx) {
@@ -222,6 +226,7 @@ export const SnakeGame = component({
     resumeGame(ctx) {
       if (!this.isPaused()) return this;
       ctx.request("startTicking", [this.intervalMs]);
+      ctx.request("focusBoard", []);
       return this.setStatus("running");
     },
     togglePause(ctx) {
@@ -287,7 +292,7 @@ export const SnakeGame = component({
       <span class="text-sm opacity-60" @text="$tickLabel"></span>
     </div>
 
-    <div tabindex="0" @on.keydown="onKeyDown key">
+    <div class="snake-board" tabindex="0" @on.keydown="onKeyDown key">
       <svg
         :viewBox="$viewBox"
         style="width:100%;max-height:55vh"
@@ -378,9 +383,10 @@ export const SnakeGame = component({
     </label>
 
     <p class="text-sm opacity-60">
-      Click the board to focus it, then steer with the arrow keys or
-      <code class="font-mono">WASD</code>; space pauses and resumes. The arrow
-      buttons work without focus.
+      New game and Resume focus the board, so you can steer straight away with
+      the arrow keys or <code class="font-mono">WASD</code>; space pauses and
+      resumes. Click the board to get the focus back, or use the arrow buttons,
+      which work without it.
     </p>
   </section>`,
 });
@@ -424,6 +430,12 @@ export function getRequestHandlers() {
     },
     async stopTicking() {
       stop();
+    },
+    // The other thing only the outside can do: move the focus. A handler gets no
+    // DOM node, so it looks the board up by class — with more than one game on
+    // the page (the storybook gallery) the first one wins, which is fine here.
+    async focusBoard() {
+      globalThis.document?.querySelector(".snake-board")?.focus();
     },
   };
 }
@@ -612,7 +624,10 @@ export function getTests({ describe, test, expect }) {
         const next = SnakeGame.make({ score: 9, ticks: 5 }).startGame(ctx);
         expect(next.status).toBe("running");
         expect(next.score).toBe(0);
-        expect(ctx.requests).toEqual([{ name: "startTicking", args: [160] }]);
+        expect(ctx.requests).toEqual([
+          { name: "startTicking", args: [160] },
+          { name: "focusBoard", args: [] },
+        ]);
       });
       test("pauseGame cancels the tick", () => {
         const ctx = recordingCtx();
@@ -630,7 +645,10 @@ export function getTests({ describe, test, expect }) {
         const ctx = recordingCtx();
         const next = SnakeGame.make({ status: "paused", intervalMs: 300 }).resumeGame(ctx);
         expect(next.status).toBe("running");
-        expect(ctx.requests).toEqual([{ name: "startTicking", args: [300] }]);
+        expect(ctx.requests).toEqual([
+          { name: "startTicking", args: [300] },
+          { name: "focusBoard", args: [] },
+        ]);
       });
       test("togglePause round-trips", () => {
         const ctx = recordingCtx();
