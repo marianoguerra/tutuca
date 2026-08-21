@@ -91,7 +91,7 @@ export function getExamples() {
     group: "Authoring · Behavior",
     title: "Lifecycle (on)",
     description:
-      "on.init/resume/suspend dispatching send/request/input/do to the example's component",
+      "on.init/resume/suspend dispatching send/intent/do to the example's component",
     items: [
       {
         title: "init → send",
