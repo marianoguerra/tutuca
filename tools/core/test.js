@@ -30,7 +30,7 @@ function buildStack({ components = [], macros = null, intentHandlers = null } = 
   return stack;
 }
 
-// Dispatch one `on`-phase config ({ send, bubble, request, input, do } — same
+// Dispatch one `on`-phase config ({ send, intent, do } — same
 // shape as an example's on.init) at the root over `stack`, awaiting the full
 // cascade. Returns the settled root value. `opts.onMessage(message, before,
 // after)` observes each committed transaction (message = { kind, name, args, path }).
@@ -84,7 +84,7 @@ export async function runTests({
 
   const { describe, test, moduleTests } = makeCollector({ path, components });
 
-  // Lazily build one registered scope (components + request handlers + macros) the
+  // Lazily build one registered scope (components + intent handlers + macros) the
   // first time `drive` is used, mirroring tools/core/lint.js. Lazy so an unused
   // `drive` never mutates the shared Component objects' `.scope`. The injected
   // `drive` is bound to this scope, so it takes just (value, phase, opts).

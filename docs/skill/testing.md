@@ -96,8 +96,8 @@ Comp.receive.handlerName.call(comp, arg1, arg2, /* … */);
 ## Driving a full cascade (`drive`)
 
 Direct `.call(comp, ...)` tests one handler in isolation. When you need a message
-to fan out through real dispatch — a `request` that resolves and feeds its
-an intent's answer, a `send` that triggers more sends — `getTests` also injects an async
+to fan out through real dispatch — an intent whose answer feeds more dispatches,
+a `send` that triggers more sends — `getTests` also injects an async
 `drive` helper (alongside `describe`, `test`, `expect`):
 
 ```js
@@ -106,7 +106,7 @@ export function getTests({ describe, test, expect, drive }) {
     test("init loads rows", async () => {
       const settled = await drive(
         Grid.make({ rows: [] }),
-        { request: [{ name: "load", args: [] }] }, // an `on`-phase config
+        { intent: [{ name: "load", args: [], opts: { route: ["lex"] } }] }, // an `on`-phase config
       );
       expect(settled.rows.size).toBe(3);
     });
@@ -116,7 +116,7 @@ export function getTests({ describe, test, expect, drive }) {
 
 - `drive(value, phase, opts?)` builds a transactor over `value`, dispatches the
   phase's actions at the root, awaits the whole cascade (including async
-  requests), and returns the **settled** instance.
+  intents), and returns the **settled** instance.
 - `drive` **always originates at the root** — there is no `at:`/path option. To
   exercise a handler on a nested child, call it directly with `.call(child, …)`.
 - `phase` is the same shape as an example's `on.init` (`{ send, intent, do }`;

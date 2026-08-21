@@ -10,7 +10,7 @@ import {
 
 // Inspect a Component — the class returned by `component({...})`, not a
 // `.make()` instance. The shape mirrors `getComponentDoc` in tutuca's dev
-// build but also covers the receive/bubble/response/alter channels, statics, and
+// build but also covers the receive/intent/alter channels, statics, and
 // view source. Pure and deterministic, so it is the unit the tests assert on.
 export function introspectComponent(comp) {
   const { fields, methods } = comp;
@@ -44,8 +44,8 @@ const sectionView = makeCompositeView({
   toggleHandler: "toggle isCtrl",
 });
 
-// A single name entry — used for methods, handlers (input/receive/bubble/
-// response/alter), and statics, all of which are just lists of names.
+// A single name entry — used for methods, handlers (receive/intent/
+// alter), and statics, all of which are just lists of names.
 export const CompName = component({
   name: "CompName",
   fields: { name: "" },

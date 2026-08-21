@@ -177,8 +177,8 @@ class Transaction {
   whenSettled() {
     return this.completion.whenSettled();
   }
-  // Resolves once this transaction AND all transitively-derived work (sends, bubbles,
-  // requests and the responses they produce, recursively) have settled.
+  // Resolves once this transaction AND all transitively-derived work (sends and
+  // intents, including the answers they produce, recursively) have settled.
   whenSubtreeSettled() {
     return this.completion.whenSubtreeSettled();
   }
@@ -360,7 +360,7 @@ class NameArgsTransaction extends Transaction {
   }
   handlerProp = null;
   // NameArgs verbs map their handler bucket straight to the observed kind:
-  // receive / bubble / response / input.
+  // receive / intent.
   get observeKind() {
     return this.handlerProp;
   }
@@ -786,7 +786,7 @@ class PathChanges extends PathBuilder {
   }
 }
 // A Dispatcher rooted at the empty path, so code outside a handler (e.g. a test
-// harness) can send/request/input at an absolute path without a DOM event.
+// harness) can send/intent at an absolute path without a DOM event.
 export function rootDispatcher(transactor) {
   return new Dispatcher(new Path([]), transactor, null);
 }

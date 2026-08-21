@@ -32,7 +32,7 @@ export const ActivityEntry = component({
   >
     <div class="flex items-center gap-2 flex-wrap">
       <span
-        title="How this was dispatched: receive (send), bubble, response, input, or request"
+        title="How this was dispatched: receive (send) or intent"
         class="badge badge-sm badge-neutral"
         @text=".kind"
       ></span>

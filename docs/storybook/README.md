@@ -12,9 +12,10 @@ npm run storybook -- --port 5000   # extra args are forwarded to `tutuca storybo
 ```
 
 The live serve uses the freshly built local runtime, so the newest features
-(lifecycle `on`, `drive`) work immediately. The published page uses the CDN
-(`tutuca@latest`); the `on`/`drive` demos there light up only after the next npm
-release (a note on the page says so). Everything else works on both.
+(lifecycle `on`, `drive`) work immediately. The published page loads the same
+files from the CDN, pinned to the released version by `npm run release` (see
+`scripts/pin-docs-version.js`); the `on`/`drive` demos there light up once that
+release is published. Everything else works on both.
 
 ## What each module shows
 

@@ -127,7 +127,7 @@ tutuca test ./src/components.js --bail
 
 ## `test` — running component tests
 
-Use `test` after edits that change attributes, instance methods, input
+Use `test` after edits that change attributes, instance methods, receive
 handlers, or static factories — anything observable from JS rather than
 from rendered HTML. The module opts in by exporting
 `getTests({ describe, test, expect })`:

@@ -126,7 +126,7 @@ export function getRoot() {
 export function getExamples() {
   return {
     title: "Tree",
-    description: "Recursive tree component with bubble events",
+    description: "Recursive tree component with routed intents",
     items: [
       {
         title: "Default Filesystem",

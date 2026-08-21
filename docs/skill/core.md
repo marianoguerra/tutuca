@@ -176,7 +176,7 @@ the addressed draft or message the child with `ctx.send`. Don't reach in to
 mutate the frozen snapshot,
 and prefer letting a child own and render its own state — reach down to
 read only when the ancestor genuinely needs it. See
-[component-design.md](./component-design.md) and "When to bubble" in
+[component-design.md](./component-design.md) and "When to send" in
 [messages-and-intents.md](./messages-and-intents.md).
 
 **Stack: frames vs scopes.** As the renderer walks the AST it pushes
