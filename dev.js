@@ -48,7 +48,20 @@ export function shadowCheckComponent(Comp) {
   }
 
   const shadowComp = Object.create(Comp);
-  shadowComp.views = shadowViews;
+  // `views` must be an OWN property, defined without triggering inherited
+  // setters: since the unification of component() with the generated Class
+  // (Component.fromSpec), the Class exposes every metadata key — views among
+  // them — through prototype accessors whose setter WRITES THROUGH to the live
+  // component record. A plain `shadowComp.views = shadowViews` walks the
+  // prototype chain, fires that setter, and replaces the real component's
+  // compiled Views with these context-less shadow objects; the next render then
+  // crashes with `view.render is not a function`.
+  Object.defineProperty(shadowComp, "views", {
+    value: shadowViews,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
 
   return checkComponent(shadowComp).reports;
 }
