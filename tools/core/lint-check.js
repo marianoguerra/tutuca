@@ -31,9 +31,9 @@ const EMPTY_SET = new Set();
 // Extra component-spec keys the framework itself recognizes (collected into
 // comp.extra by src/components.js but consumed at runtime), so they are never
 // flagged as unknown regardless of the caller-supplied wellKnownExtras.
-// `requestOverridesField`: the storybook Example uses it to mark the field holding
+// `intentOverridesField`: the storybook Example uses it to mark the field holding
 // per-example request-handler mocks (see src/storybook.js).
-const FRAMEWORK_WELL_KNOWN_EXTRAS = new Set(["requestOverridesField"]);
+const FRAMEWORK_WELL_KNOWN_EXTRAS = new Set(["intentOverridesField"]);
 
 const KNOWN_DIRECTIVE_NAMES = new Set([
   "dangerouslysetinnerhtml",
@@ -60,11 +60,20 @@ export const LOOKUP_TARGET_MALFORMED = "LOOKUP_TARGET_MALFORMED";
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
 export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
 export const UNKNOWN_HANDLER_ARG_NAME = "UNKNOWN_HANDLER_ARG_NAME";
-export const INPUT_HANDLER_NOT_IMPLEMENTED = "INPUT_HANDLER_NOT_IMPLEMENTED";
-export const INPUT_HANDLER_NOT_REFERENCED = "INPUT_HANDLER_NOT_REFERENCED";
-export const INPUT_HANDLER_METHOD_NOT_IMPLEMENTED = "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED";
-export const INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD = "INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD";
-export const INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER = "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER";
+export const RECEIVE_HANDLER_NOT_IMPLEMENTED = "RECEIVE_HANDLER_NOT_IMPLEMENTED";
+// TEMPORARY (remove a couple of releases after the two-channel change): the retired
+// four-channel vocabulary. These rules exist to DRIVE the migration — each one names
+// the construct at its own site and says what replaces it, so "run the linter until it
+// is clean" is the whole procedure. They report; they never rewrite, which is why there
+// is no half-migrated file to review.
+export const RETIRED_HANDLER_BUCKET = "RETIRED_HANDLER_BUCKET";
+export const RETIRED_CTX_VERB = "RETIRED_CTX_VERB";
+// PERMANENT: one bucket now holds what three did, so two handlers can silently collapse
+// onto one key, and a request can no longer share a name with its own answer.
+export const HANDLER_NAME_COLLISION = "HANDLER_NAME_COLLISION";
+export const RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED = "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED";
+export const RECEIVE_HANDLER_FOR_METHOD = "RECEIVE_HANDLER_FOR_METHOD";
+export const METHOD_FOR_RECEIVE_HANDLER = "METHOD_FOR_RECEIVE_HANDLER";
 export const FIELD_VAL_NOT_DEFINED = "FIELD_VAL_NOT_DEFINED";
 export const FIELD_VAL_IS_METHOD = "FIELD_VAL_IS_METHOD";
 export const METHOD_VAL_NOT_DEFINED = "METHOD_VAL_NOT_DEFINED";
@@ -247,6 +256,9 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
     checkProvidesAreAddressable(lx, Comp);
     checkLookupShapes(lx, Comp);
     checkHandlersNotAsync(lx, Comp);
+    checkRetiredBuckets(lx, Comp);
+    checkRetiredCtxVerbs(lx, Comp);
+    checkHandlerNameCollisions(lx, Comp);
     checkScopedStyleTopLevel(lx, Comp);
     const referencedAlters = new Set();
     const referencedInputs = new Set();
@@ -259,7 +271,6 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
       );
     }
     checkUnreferencedAlterHandlers(lx, Comp, referencedAlters);
-    checkUnreferencedInputHandlers(lx, Comp, referencedInputs);
     checkUnreferencedDynamics(lx, Comp, referencedDynamics);
     return lx;
   });
@@ -567,7 +578,7 @@ function mkAttrValEnv(Comp, referencedAlters, referencedDynamics) {
 }
 
 function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
-  const { input, views, Class } = Comp;
+  const { receive: input, views, Class } = Comp;
   const { prototype: proto } = Class;
   for (const viewName in views) {
     lx.push({ viewName }, () => {
@@ -584,7 +595,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
             if (input[name] === undefined) {
               const isMethodFix = protoHasMethod(proto, name);
               lx.error(
-                INPUT_HANDLER_NOT_IMPLEMENTED,
+                RECEIVE_HANDLER_NOT_IMPLEMENTED,
                 { name, handler, event, eventName, originAttr },
                 isMethodFix
                   ? { kind: "add-prefix", from: name, to: `$${name}` }
@@ -592,7 +603,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
               );
               if (isMethodFix) {
                 lx.hint(
-                  INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
+                  METHOD_FOR_RECEIVE_HANDLER,
                   { name, handler, event, eventName, originAttr },
                   { kind: "add-prefix", from: name, to: `$${name}` },
                 );
@@ -604,7 +615,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
             if (!protoHasMethod(proto, name)) {
               const isInputFix = input[name] !== undefined;
               lx.error(
-                INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
+                RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED,
                 { name, handler, event, eventName, originAttr },
                 isInputFix
                   ? { kind: "drop-prefix", from: `$${name}`, to: name }
@@ -612,7 +623,7 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
               );
               if (isInputFix) {
                 lx.hint(
-                  INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
+                  RECEIVE_HANDLER_FOR_METHOD,
                   { name, handler, event, eventName, originAttr },
                   { kind: "drop-prefix", from: `$${name}`, to: name },
                 );
@@ -913,12 +924,103 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
   }
 }
 
+// What a retired bucket becomes, and why. Read from `extra`: once a key leaves
+// KNOWN_COMPONENT_SPEC_KEYS, src/components.js parks it there, so a spec still using the
+// old vocabulary hands us the evidence for free.
+const isPlainObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+const RETIRED_BUCKETS = {
+  input: {
+    to: "receive",
+    how: "rename the bucket to `receive` - a view's own @on.* name and a parent's ctx.send are the same message now, and nothing can tell them apart",
+  },
+  bubble: {
+    to: "intent",
+    how: "rename the bucket to `intent` - and note the walk changed: a handler that calls ctx.reply() ENDS it, where ctx.stopPropagation() used to be the only way to stop",
+  },
+  response: {
+    to: "receive",
+    how: "split each arm into `receive` arms named after the intent: <name>Ok takes the result alone, <name>Error takes the error alone, and the optional <name>Unhandled means nothing claimed it",
+  },
+};
+
+// TEMPORARY, with RETIRED_BUCKETS above.
+function checkRetiredBuckets(lx, Comp) {
+  const extra = Comp.extra;
+  if (!extra) return;
+  for (const key of Object.keys(extra)) {
+    if (!Object.hasOwn(RETIRED_BUCKETS, key)) continue;
+    const retired = RETIRED_BUCKETS[key];
+    const names = isPlainObj(extra[key]) ? Object.keys(extra[key]) : [];
+    lx.error(RETIRED_HANDLER_BUCKET, { key, to: retired.to, how: retired.how, names });
+  }
+}
+
+const RETIRED_CTX_VERBS = {
+  bubble:
+    'ctx.intent(name, args, { route: ["dyn"] }) - the route says it walks the ancestors, where the verb used to',
+  request:
+    'ctx.intent(name, args, { route: ["lex"] }) - and the outcome comes back as a `receive` arm named <name>Ok / <name>Error / <name>Unhandled, so onOkName and onErrorName are gone',
+  stopPropagation: "ctx.stop()",
+  inputAtPath: "ctx.sendAtPath(path, name, args)",
+  requestAtPath: 'ctx.intentAtPath(path, name, args, { route: ["lex"] })',
+};
+// Anchored on `ctx.` on purpose: a handler's own `e.stopPropagation()` is a DOM call and
+// stays legal, so matching a bare `.stopPropagation(` would report it wrongly.
+const RETIRED_CTX_RE = new RegExp(
+  `\\bctx\\.(${Object.keys(RETIRED_CTX_VERBS).join("|")})\\s*\\(`,
+  "g",
+);
+
+// TEMPORARY. Scans handler SOURCE, the way checkHandlersNotAsync inspects the raw
+// function object: a retired verb is a call, not something the value AST can see.
+function checkRetiredCtxVerbs(lx, Comp) {
+  for (const bucket of ["receive", "intent", "alter", "methods", "statics"]) {
+    const block = bucket === "methods" || bucket === "statics" ? Comp.spec?.[bucket] : Comp[bucket];
+    if (!isPlainObj(block)) continue;
+    for (const name in block) {
+      const fn = block[name];
+      if (typeof fn !== "function") continue;
+      const src = String(fn);
+      for (const m of src.matchAll(RETIRED_CTX_RE)) {
+        const verb = m[1];
+        lx.error(RETIRED_CTX_VERB, { verb, to: RETIRED_CTX_VERBS[verb], bucket, name });
+      }
+    }
+  }
+}
+
+// PERMANENT. Two hazards the merge created, and both are silent at runtime: a name that
+// used to live in two buckets now resolves to one handler, and an intent whose answer
+// shares its name would have the answer dispatched back into the request's own arm.
+function checkHandlerNameCollisions(lx, Comp) {
+  const receive = Comp.receive ?? {};
+  const intent = Comp.intent ?? {};
+  for (const name in intent)
+    if (receive[name] !== undefined)
+      lx.error(HANDLER_NAME_COLLISION, {
+        name,
+        problem: `"${name}" is declared in both \`receive\` and \`intent\``,
+        fix: "one is addressed and one is routed; give them different names so a reader can tell which a call site meant",
+      });
+  for (const name in receive)
+    for (const suffix of ["Ok", "Error", "Unhandled"])
+      if (receive[name + suffix] !== undefined && intent[name] === undefined)
+        lx.warn(HANDLER_NAME_COLLISION, {
+          name,
+          problem: `\`receive\` declares both "${name}" and its answer name "${name + suffix}"`,
+          fix: `an intent named "${name}" would dispatch its answer to "${name + suffix}" - rename one unless that is what you meant`,
+        });
+}
+
 function checkUnknownSpecKeys(lx, Comp, wellKnownExtras) {
   const extra = Comp.extra;
   if (!extra) return;
   let candidates = null;
   for (const key of Object.keys(extra)) {
     if (FRAMEWORK_WELL_KNOWN_EXTRAS.has(key) || wellKnownExtras.has(key)) continue;
+    // A retired bucket is already reported by RETIRED_HANDLER_BUCKET, with the migration
+    // it needs. Saying "unknown key, did you mean..." beside that is noise.
+    if (Object.hasOwn(RETIRED_BUCKETS, key)) continue;
     candidates ??= [
       ...KNOWN_COMPONENT_SPEC_KEYS,
       ...FRAMEWORK_WELL_KNOWN_EXTRAS,
@@ -975,27 +1077,20 @@ function checkUnreferencedAlterHandlers(lx, Comp, referencedAlters) {
   }
 }
 
-function checkUnreferencedInputHandlers(lx, Comp, referencedInputs) {
-  for (const name in Comp.input) {
-    if (!referencedInputs.has(name)) {
-      lx.hint(INPUT_HANDLER_NOT_REFERENCED, { name });
-    }
-  }
-}
-
 // The five handler blocks are invoked synchronously: the transactor treats a
 // handler's return value as the new state leaf without awaiting it. An async
 // handler returns a Promise instead of an updated `this`, so the update is lost.
-// Async work belongs in a request handler (which the transactor does await),
-// never in these blocks. Detect async-ness on the raw function object — it isn't
-// represented in the value AST. Request handlers live in `scope.reqsByName`, not
-// on the component, so they're never reached here.
-const HANDLER_CHANNELS = ["input", "receive", "bubble", "response", "alter"];
+// Async work belongs in a scope-registered intent handler (which the transactor does
+// await), never in these blocks. Detect async-ness on the raw function object — it isn't
+// represented in the value AST. Intent handlers live in `scope.intentsByName`, not on
+// the component, so they're never reached here.
+const HANDLER_CHANNELS = ["receive", "intent", "alter"];
 const ASYNC_HANDLER_HELP =
-  "Move the async work into a request handler and trigger it with " +
-  "ctx.request('name', args), then handle the result in a synchronous response " +
-  "handler. To coordinate other components, keep the handler synchronous and use " +
-  "ctx.send to deliver a message or ctx.bubble to raise an event.";
+  "Move the async work into a scope-registered intent handler and trigger it with " +
+  `ctx.intent("name", args, { route: ["lex"] }), then read the outcome in the ` +
+  "synchronous `receive` arms named after it: <name>Ok, <name>Error and " +
+  "<name>Unhandled. To coordinate other components, keep the handler synchronous " +
+  "and use ctx.send to address one, or ctx.intent to let a route find one.";
 
 function checkHandlersNotAsync(lx, Comp) {
   for (const channel of HANDLER_CHANNELS) {

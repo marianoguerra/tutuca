@@ -11,7 +11,7 @@ const Counter = component({
       return this.setCount(this.count + 1);
     },
   },
-  input: {
+  receive: {
     // event handlers can call input handlers by name `@on.click="dec"`
     dec() {
       return this.setCount(this.count - 1);
@@ -57,7 +57,7 @@ export function getExamples() {
         title: "Counter that decrements when first shown",
         description: "Lifecycle hook: on.init runs the `dec` input handler",
         value: Counter.make({ count: 3 }),
-        on: { init: { input: [{ name: "dec", args: [] }] } },
+        on: { init: { send: [{ name: "dec", args: [] }] } },
       },
     ],
   };
@@ -68,7 +68,7 @@ export function getTests({ describe, test, expect, drive }) {
     describe("lifecycle via drive()", () => {
       test("on.init's `dec` input handler decrements once when shown", async () => {
         const settled = await drive(Counter.make({ count: 3 }), {
-          input: [{ name: "dec", args: [] }],
+          send: [{ name: "dec", args: [] }],
         });
         expect(settled.count).toBe(2);
       });
@@ -95,25 +95,25 @@ export function getTests({ describe, test, expect, drive }) {
 
     describe("dec()", () => {
       test("returns a Counter with count - 1", () => {
-        const next = Counter.input.dec.call(Counter.make());
+        const next = Counter.receive.dec.call(Counter.make());
         expect(next).toBeInstanceOf(Counter.Class);
         expect(next.count).toBe(-1);
       });
       test("works on a non-zero counter", () => {
-        expect(Counter.input.dec.call(Counter.make({ count: 4 })).count).toBe(3);
+        expect(Counter.receive.dec.call(Counter.make({ count: 4 })).count).toBe(3);
       });
       test("works on a negative counter", () => {
-        expect(Counter.input.dec.call(Counter.make({ count: -3 })).count).toBe(-4);
+        expect(Counter.receive.dec.call(Counter.make({ count: -3 })).count).toBe(-4);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
-        Counter.input.dec.call(c);
+        Counter.receive.dec.call(c);
         expect(c.count).toBe(7);
       });
     });
 
     test("inc and dec round-trip back to the original count", () => {
-      expect(Counter.input.dec.call(Counter.make({ count: 10 }).inc()).count).toBe(10);
+      expect(Counter.receive.dec.call(Counter.make({ count: 10 }).inc()).count).toBe(10);
     });
   });
 }

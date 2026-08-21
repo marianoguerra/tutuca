@@ -22,7 +22,7 @@ const Pagination = component({
       return this.page >= this.pageCount() - 1;
     },
   },
-  input: {
+  receive: {
     prev() {
       return this.setPage(Math.max(0, this.page - 1));
     },
@@ -95,14 +95,14 @@ export function getTests({ describe, test, expect }) {
 
     test("next() advances the page but stops at the last one", () => {
       const c = Pagination.make({ items: ITEMS, pageSize: 5 });
-      expect(Pagination.input.next.call(c).page).toBe(1);
+      expect(Pagination.receive.next.call(c).page).toBe(1);
       const last = Pagination.make({ items: ITEMS, page: 99, pageSize: 5 });
-      expect(Pagination.input.next.call(last).page).toBe(last.pageCount() - 1);
+      expect(Pagination.receive.next.call(last).page).toBe(last.pageCount() - 1);
     });
 
     test("prev() never goes below the first page", () => {
       const c = Pagination.make({ items: ITEMS, page: 0 });
-      expect(Pagination.input.prev.call(c).page).toBe(0);
+      expect(Pagination.receive.prev.call(c).page).toBe(0);
     });
   });
 }

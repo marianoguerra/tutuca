@@ -115,10 +115,10 @@ export const TestSuite = component({
       return this.summary || `(${this.items.size})`;
     },
   },
-  input: {
+  receive: {
     toggle(isCtrl, ctx) {
       if (isCtrl) {
-        ctx.bubble("toggleAll", [!this.isExpanded]);
+        ctx.intent("toggleAll", [!this.isExpanded], { route: ["dyn"] });
         return this;
       }
       return this.toggleIsExpanded();
@@ -214,7 +214,7 @@ export const TestReport = component({
       return this.setSuites(this.suites.map((s) => setSuiteTreeExpanded(s, state)));
     },
   },
-  bubble: {
+  intent: {
     // ctrl/cmd-click on any suite expands/collapses the whole tree at once.
     toggleAll(state) {
       return this.setAllSuites(state);

@@ -1,13 +1,16 @@
 import { describe, expect, test } from "vitest";
 import { IMap } from "../index.js";
 import { FieldStep, Path, SeqAccessStep } from "../src/path.js";
-import { Transactor } from "../src/transactor.js";
+import { PASS, Transactor } from "../src/transactor.js";
 
-function makeComps({ receive = {}, bubble = {}, response = {}, input = {}, request = null } = {}) {
-  const compMeta = { receive, bubble, response, input };
+// The two dispatch buckets, plus the scope-registered chain the `lex` leg walks.
+// `intentChain` is a list per name because a handler may decline with PASS and hand the
+// intent to the next one.
+function makeComps({ receive = {}, intent = {}, intentChain = null } = {}) {
+  const compMeta = { receive, intent };
   return {
     getCompFor: () => compMeta,
-    getRequestFor: (_inst, _name) => request,
+    getIntentChainFor: (_inst, _name) => intentChain ?? [],
   };
 }
 
@@ -21,7 +24,7 @@ function runAll(t) {
 
 test("can push send transaction", () => {
   const t = new Transactor();
-  t.pushBubble(new Path([]), "blurb", []);
+  t.pushSend(new Path([]), "blurb", []);
   expect(t.hasPendingTransactions).toBe(true);
 });
 
@@ -65,39 +68,46 @@ describe("$unknown fallback handler", () => {
     ]);
   });
 
-  test("bubble.$unknown is called when bubble.<name> is missing", () => {
-    const calls = [];
-    const t = setup({
-      bubble: {
-        $unknown(...args) {
-          calls.push({ name: args[args.length - 1].name });
-          return this;
-        },
-      },
-    });
-    t.pushBubble(new Path([]), "anyBubble", []);
-    runAll(t);
-    expect(calls).toEqual([{ name: "anyBubble" }]);
-  });
-
-  test("response.$unknown is called when response.<name> is missing", async () => {
+  test("intent.$unknown is called when intent.<name> is missing", () => {
     const calls = [];
     const t = new Transactor(
       makeComps({
-        response: {
+        intent: {
+          $unknown(...args) {
+            calls.push({ name: args[args.length - 1].name });
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ tag: "leaf" }) }),
+    );
+    // Raised BY the component at `.a`, so the `dyn` leg offers it to the root — an
+    // intent is never offered to the component that raised it.
+    t.pushIntent(new Path([new FieldStep("a")]), "anyIntent", [], { route: ["dyn"] });
+    runAll(t);
+    expect(calls).toEqual([{ name: "anyIntent" }]);
+  });
+
+  test("an answer arrives in `receive`, so receive.$unknown catches it", async () => {
+    const calls = [];
+    const t = new Transactor(
+      makeComps({
+        receive: {
           $unknown(...args) {
             const ctx = args[args.length - 1];
             calls.push({ name: ctx.name, payload: args.slice(0, -1) });
             return this;
           },
         },
-        request: { fn: async () => "ok" },
+        intentChain: [{ fn: async () => "ok" }],
       }),
       {},
     );
-    await t.pushRequest(new Path([]), "loadX", []);
-    runAll(t);
-    expect(calls).toEqual([{ name: "loadX", payload: ["ok", null] }]);
+    t.pushIntent(new Path([]), "loadX", [], { route: ["lex"] });
+    await t.settle();
+    // Named `<intent>Ok` and carrying the result ALONE. There is no arm that can be
+    // handed both a result and an error, so none can read the wrong one.
+    expect(calls).toEqual([{ name: "loadXOk", payload: ["ok"] }]);
   });
 
   test("missing handler with no $unknown is a silent no-op", () => {
@@ -124,93 +134,98 @@ describe("$unknown fallback handler", () => {
   });
 });
 
-describe("ctx.targetPath (DOM-style origin reference)", () => {
-  test("bubble: targetPath is the originating leaf path on every hop while path shrinks", () => {
+describe("ctx.targetPath (the position an intent was raised at)", () => {
+  const leafRoot = () => IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) });
+  const leafPath = () => new Path([new FieldStep("a"), new FieldStep("b")]);
+  const dynIntent = (intent, root = leafRoot()) => {
+    const t = new Transactor(makeComps({ intent }), root);
+    t.pushIntent(leafPath(), "foo", [], { route: ["dyn"] });
+    return t;
+  };
+
+  test("the `dyn` leg starts at the sender's PARENT, never at the sender itself", () => {
     const hops = [];
-    const t = new Transactor(
-      makeComps({
-        bubble: {
-          foo(...args) {
-            const ctx = args[args.length - 1];
-            hops.push({ pathLen: ctx.path.steps.length, targetLen: ctx.targetPath.steps.length });
-            return this;
-          },
-        },
-      }),
-      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
-    );
-    const leafPath = new Path([new FieldStep("a"), new FieldStep("b")]);
-    t.pushBubble(leafPath, "foo", [], { bubbles: true });
+    const t = dynIntent({
+      foo(...args) {
+        const ctx = args[args.length - 1];
+        hops.push({ pathLen: ctx.path.steps.length, targetLen: ctx.targetPath.steps.length });
+        return this;
+      },
+    });
     runAll(t);
+    // Two hops from a depth-2 leaf, not three: a component that wanted to handle its own
+    // intent would have written the body inline, so it is never offered one.
     expect(hops).toEqual([
-      { pathLen: 2, targetLen: 2 },
       { pathLen: 1, targetLen: 2 },
       { pathLen: 0, targetLen: 2 },
     ]);
   });
 
-  test("bubble: targetPath reference is identical (immutable) across hops", () => {
+  test("targetPath is the same reference on every hop", () => {
     const seenTargets = [];
-    const t = new Transactor(
-      makeComps({
-        bubble: {
-          foo(...args) {
-            seenTargets.push(args[args.length - 1].targetPath);
-            return this;
-          },
-        },
-      }),
-      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
-    );
-    const leafPath = new Path([new FieldStep("a"), new FieldStep("b")]);
-    t.pushBubble(leafPath, "foo", [], { bubbles: true });
+    const t = dynIntent({
+      foo(...args) {
+        seenTargets.push(args[args.length - 1].targetPath);
+        return this;
+      },
+    });
     runAll(t);
-    expect(seenTargets.length).toBe(3);
+    expect(seenTargets.length).toBe(2);
     expect(seenTargets[0]).toBe(seenTargets[1]);
-    expect(seenTargets[1]).toBe(seenTargets[2]);
-    expect(seenTargets[0]).toBe(leafPath);
+    expect(seenTargets[0].steps.length).toBe(2);
   });
 
-  test("bubble: ctx.targetPath !== ctx.path at mid and root, equal at leaf", () => {
+  test("targetPath !== path at every hop of a walk", () => {
     const hops = [];
-    const t = new Transactor(
-      makeComps({
-        bubble: {
-          foo(...args) {
-            const ctx = args[args.length - 1];
-            hops.push(ctx.targetPath === ctx.path);
-            return this;
-          },
-        },
-      }),
-      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
-    );
-    t.pushBubble(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], { bubbles: true });
+    const t = dynIntent({
+      foo(...args) {
+        const ctx = args[args.length - 1];
+        hops.push(ctx.targetPath === ctx.path);
+        return this;
+      },
+    });
     runAll(t);
-    expect(hops).toEqual([true, false, false]);
+    expect(hops).toEqual([false, false]);
   });
 
-  test("stopPropagation halts further hops but doesn't change observed targetPath", () => {
+  test("running is not answering: an observer lets the walk go on", () => {
     const hops = [];
-    const t = new Transactor(
-      makeComps({
-        bubble: {
-          foo(...args) {
-            const ctx = args[args.length - 1];
-            hops.push({ pathLen: ctx.path.steps.length, targetLen: ctx.targetPath.steps.length });
-            if (ctx.path.steps.length === 1) ctx.stopPropagation();
-            return this;
-          },
-        },
-      }),
-      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
-    );
-    t.pushBubble(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], { bubbles: true });
+    const t = dynIntent({
+      foo(...args) {
+        hops.push(args[args.length - 1].path.steps.length);
+        return this; // no reply — this handler is an OBSERVER
+      },
+    });
     runAll(t);
-    expect(hops).toEqual([
-      { pathLen: 2, targetLen: 2 },
-      { pathLen: 1, targetLen: 2 },
-    ]);
+    expect(hops).toEqual([1, 0]);
+  });
+
+  test("a reply ends the walk", () => {
+    const hops = [];
+    const t = dynIntent({
+      foo(...args) {
+        const ctx = args[args.length - 1];
+        hops.push(ctx.path.steps.length);
+        ctx.reply("done");
+        return this;
+      },
+    });
+    runAll(t);
+    expect(hops).toEqual([1]); // the root hop never happens
+  });
+
+  test("ctx.stop() ends the walk answering nothing", () => {
+    const hops = [];
+    const t = dynIntent({
+      foo(...args) {
+        const ctx = args[args.length - 1];
+        hops.push(ctx.path.steps.length);
+        if (ctx.path.steps.length === 1) ctx.stop();
+        return this;
+      },
+    });
+    runAll(t);
+    expect(hops).toEqual([1]);
   });
 
   test("receive: ctx.targetPath === ctx.path (single-hop, origin == current)", () => {
@@ -232,31 +247,14 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
     expect(seen).toEqual([{ same: true, len: 1 }]);
   });
 
-  test("response: ctx.targetPath === ctx.path", async () => {
-    const seen = [];
-    const t = new Transactor(
-      makeComps({
-        response: {
-          loadX(...args) {
-            const ctx = args[args.length - 1];
-            seen.push({ same: ctx.targetPath === ctx.path });
-            return this;
-          },
-        },
-        request: { fn: async () => "ok" },
-      }),
-      IMap({ a: IMap({ tag: "leaf" }) }),
-    );
-    await t.pushRequest(new Path([new FieldStep("a")]), "loadX", []);
-    runAll(t);
-    expect(seen).toEqual([{ same: true }]);
-  });
-
-  describe("a SeqAccessStep response pins its key to request time", () => {
-    function deferredRequestTransactor(response, root) {
+  describe("an answer pins its SeqAccessStep key to dispatch time", () => {
+    function deferredIntentTransactor(receive, root) {
       let resolveReq;
       const t = new Transactor(
-        makeComps({ response, request: { fn: () => new Promise((res) => (resolveReq = res)) } }),
+        makeComps({
+          receive,
+          intentChain: [{ fn: () => new Promise((res) => (resolveReq = res)) }],
+        }),
         root,
       );
       return { t, resolve: (v) => resolveReq(v) };
@@ -265,51 +263,48 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
       IMap({ sheets: IMap({ a: IMap({ title: "a" }), b: IMap({ title: "b" }) }), selId: "b" });
     const seqAccessPath = () => new Path([new SeqAccessStep("sheets", "selId")]);
     const markLoaded = {
-      load(res) {
+      loadOk(res) {
         return this.set("loaded", res);
       },
     };
 
-    test("by default the response lands on the request-time item, not the current one", async () => {
-      const { t, resolve } = deferredRequestTransactor(markLoaded, makeRoot());
-      const done = t.pushRequest(seqAccessPath(), "load", []);
+    test("by default the answer lands on the item that RAISED the intent", async () => {
+      const { t, resolve } = deferredIntentTransactor(markLoaded, makeRoot());
+      t.pushIntent(seqAccessPath(), "load", [], { route: ["lex"] });
       t.state.val = t.state.val.set("selId", "a"); // user switches tab mid-flight
       resolve("ok");
-      await done;
-      runAll(t);
+      await t.settle();
       expect(t.state.val.getIn(["sheets", "b", "loaded"])).toBe("ok");
       expect(t.state.val.getIn(["sheets", "a"]).get("loaded", null)).toBe(null);
     });
 
     test("livePath: true re-evaluates the key live and lands on the current item", async () => {
-      const { t, resolve } = deferredRequestTransactor(markLoaded, makeRoot());
-      const done = t.pushRequest(seqAccessPath(), "load", [], { livePath: true });
+      const { t, resolve } = deferredIntentTransactor(markLoaded, makeRoot());
+      t.pushIntent(seqAccessPath(), "load", [], { route: ["lex"], livePath: true });
       t.state.val = t.state.val.set("selId", "a");
       resolve("ok");
-      await done;
-      runAll(t);
+      await t.settle();
       expect(t.state.val.getIn(["sheets", "a", "loaded"])).toBe("ok");
       expect(t.state.val.getIn(["sheets", "b"]).get("loaded", null)).toBe(null);
     });
 
-    test("a pinned target deleted before the response arrives is a no-op", async () => {
+    test("a pinned target deleted before the answer arrives is a no-op", async () => {
       const tolerant = {
-        load(res) {
+        loadOk(res) {
           return this?.set ? this.set("loaded", res) : this;
         },
       };
-      const { t, resolve } = deferredRequestTransactor(tolerant, makeRoot());
-      const done = t.pushRequest(seqAccessPath(), "load", []);
+      const { t, resolve } = deferredIntentTransactor(tolerant, makeRoot());
+      t.pushIntent(seqAccessPath(), "load", [], { route: ["lex"] });
       t.state.val = t.state.val.set("sheets", t.state.val.get("sheets").delete("b"));
       const before = t.state.val;
       resolve("ok");
-      await done;
-      runAll(t);
+      await t.settle();
       expect(t.state.val).toBe(before);
     });
   });
 
-  test("ctx.sendAtPath(ctx.targetPath, ...) from a root bubble handler dispatches back to the originator", () => {
+  test("ctx.sendAtPath(ctx.targetPath, ...) from a root hop reaches the originator", () => {
     const replies = [];
     const t = new Transactor(
       makeComps({
@@ -320,19 +315,17 @@ describe("ctx.targetPath (DOM-style origin reference)", () => {
             return this;
           },
         },
-        bubble: {
+        intent: {
           foo(...args) {
             const ctx = args[args.length - 1];
-            if (ctx.path.steps.length === 0) {
-              ctx.sendAtPath(ctx.targetPath, "ack", []);
-            }
+            if (ctx.path.steps.length === 0) ctx.sendAtPath(ctx.targetPath, "ack", []);
             return this;
           },
         },
       }),
-      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+      leafRoot(),
     );
-    t.pushBubble(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], { bubbles: true });
+    t.pushIntent(leafPath(), "foo", [], { route: ["dyn"] });
     runAll(t);
     expect(replies).toEqual([{ name: "ack", pathLen: 2 }]);
   });
@@ -377,16 +370,14 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
       makeComps({
         receive: {
           start(ctx) {
-            ctx.request("load", []); // fire async work, don't await it
+            ctx.intent("load", [], { route: ["lex"] }); // fire async work, don't await it
             return this;
           },
-        },
-        response: {
-          load(result) {
+          loadOk(result) {
             return { ...this, loaded: result };
           },
         },
-        request: { fn: () => new Promise((res) => (resolveReq = res)) },
+        intentChain: [{ fn: () => new Promise((res) => (resolveReq = res)) }],
       }),
       { tag: "root" },
     );
@@ -412,17 +403,15 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
       makeComps({
         receive: {
           start(ctx) {
-            ctx.request("load", []);
+            ctx.intent("load", [], { route: ["lex"] });
             return this;
           },
-        },
-        response: {
-          load(result) {
+          loadOk(result) {
             responseRan = true;
             return { ...this, loaded: result };
           },
         },
-        request: { fn: () => new Promise((res) => (resolveReq = res)) },
+        intentChain: [{ fn: () => new Promise((res) => (resolveReq = res)) }],
       }),
       { tag: "root" },
     );
@@ -448,22 +437,20 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
       makeComps({
         receive: {
           start(ctx) {
-            ctx.request("load", []);
+            ctx.intent("load", [], { route: ["lex"] });
             return this;
           },
-        },
-        response: {
-          load(result, _error, ctx) {
+          loadOk(result, ctx) {
             calls++;
-            ctx.request("load2", []); // response dispatches another request
+            ctx.intent("load2", [], { route: ["lex"] }); // an answer arm raises another intent
             return { ...this, a: result };
           },
-          load2(result) {
+          load2Ok(result) {
             calls++;
             return { ...this, b: result };
           },
         },
-        request: { fn: async () => "ok" },
+        intentChain: [{ fn: async () => "ok" }],
       }),
       { tag: "root" },
     );
@@ -516,6 +503,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
         receive: {
           start(ctx) {
             ctx.sendAtPath(new Path([]), "sib", []); // sync child
+            ctx.forward({ route: ["dyn"] }); // becomes an intent after this body finishes
             ran.push("start");
             return this;
           },
@@ -524,46 +512,31 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
             return this;
           },
         },
-        bubble: {
+        intent: {
           start() {
-            ran.push("bubble");
+            ran.push("forwarded");
             return this;
           },
         },
       }),
       IMap({ a: IMap({ tag: "leaf" }) }),
     );
-    // bubbles:true at a non-root path -> afterTransaction pushes a bubble (a child created
-    // AFTER the handler ran); the subtree must not settle until it too has run.
-    const start = t.pushSend(new Path([new FieldStep("a")]), "start", [], { bubbles: true });
+    // `forward` from a receive body starts a walk in afterTransaction — a child created
+    // AFTER the handler ran. The subtree must not settle until that walk has run too.
+    const start = t.pushSend(new Path([new FieldStep("a")]), "start", []);
     const subtree = tracked(start.whenSubtreeSettled());
 
-    t.transactNext(); // run start: dispatches sib (sync) and queues the bubble (afterTransaction)
+    t.transactNext(); // run start: dispatches sib (sync) and queues the walk (afterTransaction)
     await flush();
-    expect(subtree.settled).toBe(false); // sib + bubble still pending
+    expect(subtree.settled).toBe(false); // sib + the forwarded intent still pending
 
     runAll(t);
     await flush();
     expect(subtree.settled).toBe(true);
-    expect(ran).toEqual(["start", "sib", "bubble"]);
+    expect(ran).toEqual(["start", "sib", "forwarded"]);
   });
 
   describe("robustness: every transacted transaction settles its subtree (no hang)", () => {
-    test("skipSelf send", async () => {
-      const t = setup({
-        receive: {
-          ping() {
-            return this;
-          },
-        },
-      });
-      const txn = t.pushSend(new Path([]), "ping", [], { skipSelf: true });
-      const subtree = tracked(txn.whenSubtreeSettled());
-      runAll(t);
-      await flush();
-      expect(subtree.settled).toBe(true);
-    });
-
     test("undefined-returning handler (the console.warn branch)", async () => {
       const t = setup({
         receive: {
@@ -599,20 +572,22 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
         makeComps({
           receive: {
             start(ctx) {
-              ctx.request("load", []);
+              ctx.intent("load", [], { route: ["lex"] });
               return this;
             },
-          },
-          response: {
-            load(_result, error) {
+            // A handler that THROWS fails the intent, and the failure arrives under its
+            // own name carrying the error alone.
+            loadError(error) {
               return { ...this, failed: error?.message ?? null };
             },
           },
-          request: {
-            fn: async () => {
-              throw new Error("nope");
+          intentChain: [
+            {
+              fn: async () => {
+                throw new Error("nope");
+              },
             },
-          },
+          ],
         }),
         { tag: "root" },
       );
@@ -644,17 +619,17 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
   });
 });
 
-describe("request ctx (walkPath)", () => {
+describe("intent handler ctx (walkPath)", () => {
   // Components keyed by an IMap "kind" field; only "mid" opts into overrides via extra.
   const compByKind = {
     root: { name: "Root" },
-    mid: { name: "Mid", extra: { requestOverridesField: "x" } },
+    mid: { name: "Mid", extra: { intentOverridesField: "x" } },
     leaf: { name: "Leaf" },
   };
   function makeReqComps(fn) {
     return {
       getCompFor: (v) => (v?.get ? (compByKind[v.get("kind", null)] ?? null) : null),
-      getRequestFor: () => ({ fn }),
+      getIntentChainFor: () => [{ fn }],
     };
   }
   const rootVal = IMap({
@@ -663,7 +638,7 @@ describe("request ctx (walkPath)", () => {
   });
   const leafPath = new Path([new FieldStep("child"), new FieldStep("value")]);
 
-  test("handler receives a ctx as its final arg, after the request args", async () => {
+  test("handler receives a ctx as its final arg, after the intent args", async () => {
     let received;
     const t = new Transactor(
       makeReqComps((...args) => {
@@ -672,7 +647,8 @@ describe("request ctx (walkPath)", () => {
       }),
       rootVal,
     );
-    await t.pushRequest(leafPath, "load", [1, 2]);
+    t.pushIntent(leafPath, "load", [1, 2], { route: ["lex"] });
+    await t.settle();
     expect(received.slice(0, -1)).toEqual([1, 2]);
     const ctx = received.at(-1);
     expect(typeof ctx.walkPath).toBe("function");
@@ -688,7 +664,8 @@ describe("request ctx (walkPath)", () => {
       }),
       rootVal,
     );
-    await t.pushRequest(leafPath, "load", []);
+    t.pushIntent(leafPath, "load", [], { route: ["lex"] });
+    await t.settle();
     expect(seen).toEqual([
       ["Leaf", "leaf"],
       ["Mid", "mid"],
@@ -708,7 +685,8 @@ describe("request ctx (walkPath)", () => {
       }),
       rootVal,
     );
-    await t.pushRequest(leafPath, "load", []);
+    t.pushIntent(leafPath, "load", [], { route: ["lex"] });
+    await t.settle();
     expect(seen).toEqual(["Leaf", "Mid"]);
   });
 
@@ -727,33 +705,34 @@ describe("request ctx (walkPath)", () => {
       }),
       rootVal,
     );
-    await t.pushRequest(leafPath, "load", []);
+    t.pushIntent(leafPath, "load", [], { route: ["lex"] });
+    await t.settle();
     expect(runs[0]).toEqual(["Leaf", "Mid", "Root"]);
     expect(runs[1]).toEqual(["Leaf", "Mid", "Root"]);
   });
 });
 
-describe("pushInput", () => {
-  test("dispatches a named input handler with explicit args (no DOM event)", () => {
+describe("pushSend by name (no DOM event)", () => {
+  test("dispatches a named receive handler with explicit args", () => {
     const calls = [];
     const t = setup({
-      input: {
+      receive: {
         setName(value, _ctx) {
           calls.push(value);
           return { ...this, name: value };
         },
       },
     });
-    t.pushInput(new Path([]), "setName", ["Ada"]);
+    t.pushSend(new Path([]), "setName", ["Ada"]);
     runAll(t);
     expect(calls).toEqual(["Ada"]);
     expect(t.state.val.name).toBe("Ada");
   });
 
-  test("inputAtPath targets a child instance", () => {
+  test("sendAtPath targets a child instance", () => {
     const t = setup(
       {
-        input: {
+        receive: {
           bump(_ctx) {
             return this.set("n", this.get("n") + 1);
           },
@@ -761,7 +740,7 @@ describe("pushInput", () => {
       },
       IMap({ child: IMap({ n: 0 }) }),
     );
-    t.pushInput(new Path([new FieldStep("child")]), "bump", []);
+    t.pushSend(new Path([new FieldStep("child")]), "bump", []);
     runAll(t);
     expect(t.state.val.get("child").get("n")).toBe(1);
   });
@@ -783,17 +762,17 @@ describe("settle", () => {
     expect(t.state.val.n).toBe(2);
   });
 
-  test("awaits async requests and the chained response work", async () => {
+  test("awaits an async lex handler and the answer it chains", async () => {
     const t = setup({
-      response: {
-        load(result, _err, _ctx) {
+      receive: {
+        loadOk(result, _err, _ctx) {
           return { ...this, loaded: result };
         },
       },
-      request: { fn: async () => "data" },
+      intentChain: [{ fn: async () => "data" }],
     });
     // fire-and-forget like dispatchPhase does (not awaited directly)
-    t.pushRequest(new Path([]), "load", []);
+    t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
     await t.settle();
     expect(t.state.val.loaded).toBe("data");
   });
@@ -846,11 +825,11 @@ describe("observe (transaction observer)", () => {
     expect(recs2[0].matched).toBe("none");
   });
 
-  test("emits kind 'bubble' on every hop", () => {
+  test("emits kind 'intent' on every hop of a walk", () => {
     const recs = [];
     const t = new Transactor(
       makeComps({
-        bubble: {
+        intent: {
           foo() {
             return this;
           },
@@ -859,55 +838,58 @@ describe("observe (transaction observer)", () => {
       IMap({ a: IMap({ tag: "leaf" }) }),
     );
     t.observe((r) => recs.push(r));
-    t.pushBubble(new Path([new FieldStep("a")]), "foo", [], { bubbles: true });
+    t.pushIntent(new Path([new FieldStep("a")]), "foo", [], { route: ["dyn"] });
     runAll(t);
-    expect(recs.map((r) => r.kind)).toEqual(["bubble", "bubble"]);
+    expect(recs.map((r) => r.kind)).toEqual(["intent"]);
     expect(recs[0].name).toBe("foo");
   });
 
-  test("emits kind 'input' for pushInput, with before/after", () => {
+  test("emits kind 'receive' for a named send, with before/after", () => {
     const recs = [];
     const t = setup({
-      input: {
+      receive: {
         setName(v) {
           return { ...this, name: v };
         },
       },
     });
     t.observe((r) => recs.push(r));
-    t.pushInput(new Path([]), "setName", ["Ada"]);
+    t.pushSend(new Path([]), "setName", ["Ada"]);
     runAll(t);
     expect(recs.length).toBe(1);
-    expect(recs[0].kind).toBe("input");
+    expect(recs[0].kind).toBe("receive");
     expect(recs[0].name).toBe("setName");
     expect(recs[0].after).toEqual({ tag: "root", name: "Ada" });
   });
 
-  test("emits an outgoing 'request' record (no after) and a 'response' record (before→after)", async () => {
+  test("emits an outgoing 'intent' record (no after) and an 'answer' record (before→after)", async () => {
     const recs = [];
     const t = new Transactor(
       makeComps({
-        response: {
-          load(result) {
+        receive: {
+          loadOk(result) {
             return { ...this, loaded: result };
           },
         },
-        request: { fn: async () => "data" },
+        intentChain: [{ fn: async () => "data" }],
       }),
       { tag: "root" },
     );
     t.observe((r) => recs.push(r));
-    t.pushRequest(new Path([]), "load", [7]);
+    t.pushIntent(new Path([]), "load", [7], { route: ["lex"] });
     await t.settle();
-    const req = recs.find((r) => r.kind === "request");
-    const res = recs.find((r) => r.kind === "response");
+    const req = recs.find((r) => r.kind === "intent");
+    const res = recs.find((r) => r.kind === "answer");
     expect(req).toBeTruthy();
     expect(req.name).toBe("load");
     expect(req.args).toEqual([7]);
     expect(req.matched).toBe("exact");
     expect(req.before).toEqual({ tag: "root" });
     expect(req.after).toBe(undefined);
+    // `answer` is an OBSERVATION kind only. The handler ran in the `receive` bucket and
+    // could not tell this from a message its parent sent — that is the design's claim.
     expect(res).toBeTruthy();
+    expect(res.name).toBe("loadOk");
     expect(res.before).toEqual({ tag: "root" });
     expect(res.after).toEqual({ tag: "root", loaded: "data" });
   });
@@ -951,21 +933,6 @@ describe("observe (transaction observer)", () => {
     expect(recs[0].pathKeys).toEqual([{ field: "sheets", key: "b" }]);
   });
 
-  test("a skipSelf send (no handler ran) is not emitted", () => {
-    const recs = [];
-    const t = setup({
-      receive: {
-        ping() {
-          return this;
-        },
-      },
-    });
-    t.observe((r) => recs.push(r));
-    t.pushSend(new Path([]), "ping", [], { skipSelf: true });
-    runAll(t);
-    expect(recs).toEqual([]);
-  });
-
   test("unsubscribe stops delivery", () => {
     const recs = [];
     const t = setup({
@@ -982,5 +949,219 @@ describe("observe (transaction observer)", () => {
     t.pushSend(new Path([]), "ping", []);
     runAll(t);
     expect(recs.length).toBe(1);
+  });
+});
+
+describe("the three outcomes of a walk", () => {
+  const senderRoot = () => IMap({ a: IMap({ tag: "leaf" }) });
+  const at = () => new Path([new FieldStep("a")]);
+
+  test("a lex handler that returns PASS declines, and the next one is offered it", async () => {
+    const tried = [];
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          loadOk(v) {
+            return this.set("got", v);
+          },
+        },
+        intentChain: [
+          {
+            fn: async () => {
+              tried.push("first");
+              return PASS; // not mine — running is not answering
+            },
+          },
+          {
+            fn: async () => {
+              tried.push("second");
+              return "data";
+            },
+          },
+        ],
+      }),
+      IMap({ tag: "root" }),
+    );
+    t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
+    await t.settle();
+    expect(tried).toEqual(["first", "second"]);
+    expect(t.state.val.get("got")).toBe("data");
+  });
+
+  test("every handler declining runs the route out: <name>Unhandled, with the intent's own args", async () => {
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          loadUnhandled(...args) {
+            return this.set("unhandled", args.slice(0, -1));
+          },
+        },
+        intentChain: [{ fn: async () => PASS }],
+      }),
+      IMap({ tag: "root" }),
+    );
+    t.pushIntent(new Path([]), "load", [7, 8], { route: ["lex"] });
+    await t.settle();
+    // Not an error value — the arguments it was RAISED with, so the sender can degrade
+    // or retry without having kept a copy.
+    expect(t.state.val.get("unhandled")).toEqual([7, 8]);
+  });
+
+  test("a sender that declares no Unhandled arm hears <name>Error with noHandler", async () => {
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          loadError(reason) {
+            return this.set("why", reason);
+          },
+        },
+        intentChain: [{ fn: async () => PASS }],
+      }),
+      IMap({ tag: "root" }),
+    );
+    t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
+    await t.settle();
+    // A sender that does not care WHY an answer is missing writes one arm; one that does
+    // writes two.
+    expect(t.state.val.get("why")).toBe("noHandler");
+  });
+
+  test("a sender that declares no answer arm at all is a notification: nothing happens", async () => {
+    const t = new Transactor(
+      makeComps({ receive: {}, intentChain: [{ fn: async () => PASS }] }),
+      IMap({ tag: "root" }),
+    );
+    const before = t.state.val;
+    t.pushIntent(new Path([]), "ping", [], { route: ["lex"] });
+    await t.settle();
+    expect(t.state.val).toBe(before);
+  });
+
+  test("a throwing lex handler fails the intent, and the error arrives alone", async () => {
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          loadError(err) {
+            return this.set("msg", err.message);
+          },
+        },
+        intentChain: [
+          {
+            fn: async () => {
+              throw new Error("boom");
+            },
+          },
+        ],
+      }),
+      IMap({ tag: "root" }),
+    );
+    t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
+    await t.settle();
+    expect(t.state.val.get("msg")).toBe("boom");
+  });
+
+  test("the one-shot is per INTENT, across hops: a second reply is refused", () => {
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          fooOk(v) {
+            return this.set("answers", [...(this.get("answers") ?? []), v]);
+          },
+        },
+        intent: {
+          foo(...args) {
+            const ctx = args[args.length - 1];
+            ctx.reply("first");
+            ctx.reply("second"); // refused: the walk already ended
+            return this;
+          },
+        },
+      }),
+      senderRoot(),
+    );
+    t.pushIntent(at(), "foo", [], { route: ["dyn"] });
+    runAll(t);
+    // The answer goes back to the SENDER at `.a`, not to the hop that replied.
+    expect(t.state.val.getIn(["a", "answers"])).toEqual(["first"]);
+  });
+
+  test("forward from an intent body amends the args the next hop sees", () => {
+    const seen = [];
+    const t = new Transactor(
+      makeComps({
+        intent: {
+          foo(...args) {
+            const ctx = args[args.length - 1];
+            seen.push(args.slice(0, -1));
+            if (ctx.path.steps.length === 1) ctx.forward({ args: ["amended"] });
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+    );
+    t.pushIntent(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", ["original"], {
+      route: ["dyn"],
+    });
+    runAll(t);
+    expect(seen).toEqual([["original"], ["amended"]]);
+  });
+
+  test("a hop that throws does not strand the walk: it continues past it", () => {
+    const seen = [];
+    const t = new Transactor(
+      makeComps({
+        intent: {
+          foo(...args) {
+            const ctx = args[args.length - 1];
+            seen.push(ctx.path.steps.length);
+            if (ctx.path.steps.length === 1) throw new Error("hop blew up");
+            return this;
+          },
+        },
+      }),
+      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+    );
+    const walk = t.pushIntent(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], {
+      route: ["dyn"],
+    });
+    expect(() => runAll(t)).toThrow("hop blew up");
+    runAll(t);
+    // The transition never happened, so the handler did not answer, so the walk moves on.
+    expect(seen).toEqual([1, 0]);
+    expect(walk.ended).toBe(true);
+  });
+
+  test("a walk is depth-bounded, and the bound ends it AS an exhaustion", () => {
+    let hops = 0;
+    // Deeper than INTENT_DEPTH, so the `dyn` leg would otherwise keep walking.
+    const DEPTH = 70;
+    let val = IMap({ tag: "leaf" });
+    for (let i = 0; i < DEPTH; i++) val = IMap({ [`f${i}`]: val });
+    const steps = [];
+    for (let i = DEPTH - 1; i >= 0; i--) steps.push(new FieldStep(`f${i}`));
+
+    const t = new Transactor(
+      makeComps({
+        receive: {
+          loopUnhandled() {
+            return this.set("gaveUp", true);
+          },
+        },
+        intent: {
+          loop() {
+            hops++;
+            return this; // an observer at every level
+          },
+        },
+      }),
+      val,
+    );
+    t.pushIntent(new Path(steps), "loop", [], { route: ["dyn"] });
+    runAll(t);
+    expect(hops).toBe(64); // INTENT_DEPTH, not the 70 the path would allow
+    // The refusal is delivered as an exhaustion, so the sender still hears something
+    // instead of the intent vanishing.
+    expect(t.state.val.getIn([...steps.map((x) => x.field), "gaveUp"])).toBe(true);
   });
 });

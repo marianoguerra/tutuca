@@ -20,7 +20,7 @@ async function main() {
   const components = getComponents();
   const scope = app.registerComponents(components);
   const examples = [];
-  scope.registerRequestHandlers({
+  scope.registerIntentHandlers({
     async registerModuleFromCode(codes) {
       const results = await registerModuleFromCode(codes, scope, app.ParseContext);
       const eventNames = new Set();
@@ -84,9 +84,9 @@ const ComponentSelector = component({
   lookup: {
     components: { for: "Universal.components", default: ".items" },
   },
-  bubble: {
+  intent: {
     listItemSelected(entry, ctx) {
-      ctx.stopPropagation();
+      ctx.stop();
       return entry.value;
     },
   },
@@ -116,20 +116,22 @@ const Universal = component({
   name: "Universal",
   fields: { value: ComponentSelector.make(), components: [] },
   provide: { components: ".components" },
-  input: {
+  receive: {
+    registerModuleFromCodeOk(res) {
+      console.log("registerModuleFromCode ok", res);
+      return this;
+    },
+    registerModuleFromCodeError(err) {
+      console.error("registerModuleFromCode failed", err);
+      return this;
+    },
     onDrop(e, ctx) {
       const files = e.dataTransfer?.files;
       if (files?.length) {
         Promise.all(Array.from(files, (file) => file.text())).then((codes) =>
-          ctx.request("registerModuleFromCode", [codes]),
+          ctx.intent("registerModuleFromCode", [codes], { route: ["lex"] }),
         );
       }
-      return this;
-    },
-  },
-  response: {
-    registerModuleFromCode(res, err) {
-      console.log({ res, err });
       return this;
     },
   },
@@ -157,17 +159,17 @@ const Example = component({
       });
     },
   },
-  input: {
+  receive: {
     onLogSelected() {
       console.log(this.value);
       return this;
     },
     onFocusSelected(ctx) {
-      ctx.bubble("exampleFocusRequested", [this]);
+      ctx.intent("exampleFocusRequested", [this], { route: ["dyn"] });
       return this;
     },
     onListItemSelected(ctx) {
-      ctx.bubble("listItemSelected", [this]);
+      ctx.intent("listItemSelected", [this], { route: ["dyn"] });
       return this;
     },
   },
@@ -218,8 +220,8 @@ async function registerModuleFromCode(codes, rootScope) {
       if (mod.getMacros) {
         scope.registerMacros(mod.getMacros());
       }
-      if (mod.getRequestHandlers) {
-        scope.registerRequestHandlers(mod.getRequestHandlers());
+      if (mod.getIntentHandlers) {
+        scope.registerIntentHandlers(mod.getIntentHandlers());
       }
       results.push({ mod, components, examples, scope });
     } finally {

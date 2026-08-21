@@ -6,19 +6,18 @@
 //   - resume  — each later time the section is displayed
 //   - suspend — when you navigate away from the section
 //
-// Each phase holds action buckets, run in this order: send → bubble → request →
-// input, then an explicit `do` array (ordered, mixed kinds, each item has `type`).
-//   - send    → a receive handler on the value
-//   - request → resolves (honoring per-example mocks) and feeds a response handler
-//   - input   → an input handler on the value
-//   - bubble  → propagates UPWARD from the value (see note below)
+// Each phase holds action buckets, run in this order: send → intent, then an
+// explicit `do` array (ordered, mixed kinds, each item has `type`).
+//   - send   → a receive handler on the value; addressed, and it stops there
+//   - intent → a walk along `opts.route`, answered into a `receive` arm named
+//              <name>Ok / <name>Error / <name>Unhandled
 // `args` is an array, or a function `(self) => [...]` evaluated at dispatch with
 // `self` = the value instance.
 //
-// NOTE on `bubble`: a bubble travels up to ANCESTOR components. An example's value
-// sits under the storybook engine's own components, so a lifecycle `bubble` reaches
-// the engine (a no-op for author handlers). It is included in the API for symmetry
-// and for composed apps; the visibly-useful kinds here are send / request / input.
+// NOTE on the `dyn` leg: it walks up to ANCESTOR components, and an example's value
+// sits under the storybook engine's own components — so a lifecycle intent on `dyn`
+// walks into the engine rather than into your tree. The visibly-useful shapes here
+// are `send` and an intent on the `lex` leg.
 //
 // HOW TO SEE IT: open this section, watch each card log `init`. Then click another
 // section in the sidebar and come back — the last card logs `suspend` then `resume`.
@@ -38,6 +37,14 @@ const LifecycleProbe = component({
     },
   },
   receive: {
+    // Two outcomes, two arms. An answer arrives as an ordinary message, so these sit
+    // beside the ones a parent or the host sends and nothing tells them apart.
+    fetchThingOk(res) {
+      return this.note(`intent → ok: ${res}`);
+    },
+    fetchThingError(err) {
+      return this.note(`intent → error: ${err.message}`);
+    },
     onInit(label) {
       return this.note(label != null ? `init · ${label}` : "init");
     },
@@ -50,15 +57,8 @@ const LifecycleProbe = component({
     ping(arg) {
       return this.note(`send → ping(${arg})`);
     },
-  },
-  input: {
     setSeed(value) {
       return this.note(`input → setSeed(${value})`);
-    },
-  },
-  response: {
-    fetchThing(res, err) {
-      return this.note(err ? `request → error: ${err.message}` : `request → ok: ${res}`);
     },
   },
   view: html`<div class="card bg-base-100 shadow-sm">
@@ -83,7 +83,7 @@ export function getRoot() {
 }
 
 // A real handler so the `request` action has something to resolve.
-export function getRequestHandlers() {
+export function getIntentHandlers() {
   return { fetchThing: async () => "live data" };
 }
 
@@ -106,20 +106,20 @@ export function getExamples() {
         title: "init → input",
         description: "invokes the `setSeed` input handler",
         value: probe("init → input"),
-        on: { init: { input: [{ name: "setSeed", args: [42] }] } },
+        on: { init: { send: [{ name: "setSeed", args: [42] }] } },
       },
       {
         title: "init → request",
         description: "issues `fetchThing`; its response logs (real handler)",
         value: probe("init → request"),
-        on: { init: { request: [{ name: "fetchThing", args: [] }] } },
+        on: { init: { intent: [{ name: "fetchThing", args: [], opts: { route: ["lex"] } }] } },
       },
       {
         title: "init → request (mocked)",
         description: "per-example mock overrides the real fetchThing",
         value: probe("init → request (mocked)"),
-        on: { init: { request: [{ name: "fetchThing", args: [] }] } },
-        requestHandlers: { fetchThing: async () => "MOCKED data" },
+        on: { init: { intent: [{ name: "fetchThing", args: [], opts: { route: ["lex"] } }] } },
+        intentHandlers: { fetchThing: async () => "MOCKED data" },
       },
       {
         title: "init → do (ordered, mixed)",
@@ -129,8 +129,8 @@ export function getExamples() {
           init: {
             do: [
               { type: "send", name: "ping", args: ["first"] },
-              { type: "input", name: "setSeed", args: [2] },
-              { type: "request", name: "fetchThing", args: [] },
+              { type: "send", name: "setSeed", args: [2] },
+              { type: "intent", name: "fetchThing", args: [], opts: { route: ["lex"] } },
             ],
           },
         },

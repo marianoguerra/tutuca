@@ -13,16 +13,16 @@ const LintDemo = component({
       return this;
     },
   },
-  input: {
-    doKeyDown() {},
-    // INPUT_HANDLER_NOT_REFERENCED: defined here but never used in any view
-    unusedInput() {},
-  },
   receive: {
+    doKeyDown() {},
     // ASYNC_HANDLER: a handler must be synchronous and return the updated state —
     // an async handler returns a Promise the framework won't await. Move the async
-    // work into a request handler (ctx.request) or use ctx.send / ctx.bubble.
+    // work into a scope-registered intent handler and reach it with ctx.intent.
     async loadStuff() {},
+    // HANDLER_NAME_COLLISION (warning): an intent named `save` would dispatch its
+    // answer to `saveOk`, so declaring both here is ambiguous.
+    save() {},
+    saveOk() {},
   },
   alter: {
     // ALT_HANDLER_NOT_REFERENCED: defined here but never used in any view
@@ -62,12 +62,12 @@ const LintDemo = component({
     <!-- UNKNOWN_HANDLER_ARG_NAME: unknownArg is not recognized -->
     <button @on.click="doKeyDown unknownArg event">unknown arg</button>
 
-    <!-- INPUT_HANDLER_NOT_IMPLEMENTED + INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER:
-         doClick is a method but referenced as input handler (no dot) -->
+    <!-- RECEIVE_HANDLER_NOT_IMPLEMENTED + METHOD_FOR_RECEIVE_HANDLER:
+         doClick is a method but referenced as a receive handler (no $) -->
     <button @on.click="doClick">method as handler</button>
 
-    <!-- INPUT_HANDLER_METHOD_NOT_IMPLEMENTED + INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD:
-         doKeyDown is input but referenced as method (with $) -->
+    <!-- RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED + RECEIVE_HANDLER_FOR_METHOD:
+         doKeyDown is a receive handler but referenced as a method (with $) -->
     <button @on.keydown="$doKeyDown">handler as method</button>
 
     <!-- FIELD_VAL_NOT_DEFINED: .missing is not defined -->
@@ -320,12 +320,55 @@ const ScopedStyleDemo = component({
   view: html`<p @text=".count">0</p>`,
 });
 
+// The retired four-channel vocabulary, so the temporary migration rules stay covered
+// while they exist. Delete this component when those rules are removed.
+const RetiredChannelsDemo = component({
+  name: "RetiredChannelsDemo",
+  fields: { count: 0 },
+  // RETIRED_HANDLER_BUCKET: `input`, `bubble` and `response` are no longer buckets —
+  // four dispatch channels became two, `receive` (addressed) and `intent` (routed).
+  // Unknown keys land in `extra`, which is where the rule finds them.
+  input: {
+    bump() {
+      return this;
+    },
+  },
+  bubble: {
+    childPicked() {
+      return this;
+    },
+  },
+  response: {
+    loadRows() {
+      return this;
+    },
+  },
+  receive: {
+    // RETIRED_CTX_VERB: one `ctx.intent` carries a route now, and `ctx.stop()` ends a
+    // walk where `ctx.stopPropagation()` used to.
+    go(ctx) {
+      ctx.bubble("childPicked", []);
+      ctx.request("loadRows", []);
+      ctx.stopPropagation();
+      return this;
+    },
+  },
+  view: html`<button @on.click="go" @text=".count">go</button>`,
+});
+
 export function getMacros() {
   return { labeled };
 }
 
 export function getComponents() {
-  return [LintDemo, HtmlLintDemo, JsonNode, CompFieldShapeDemo, ScopedStyleDemo];
+  return [
+    LintDemo,
+    HtmlLintDemo,
+    JsonNode,
+    CompFieldShapeDemo,
+    ScopedStyleDemo,
+    RetiredChannelsDemo,
+  ];
 }
 
 export function getRoot() {
@@ -361,6 +404,11 @@ export function getExamples() {
         title: "Scoped-style top-level CSS errors",
         description: "Top-level-only CSS in scoped style/commonStyle",
         value: ScopedStyleDemo.make(),
+      },
+      {
+        title: "Retired dispatch vocabulary",
+        description: "The four-channel spelling the migration rules report",
+        value: RetiredChannelsDemo.make(),
       },
     ],
   };

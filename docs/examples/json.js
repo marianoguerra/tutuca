@@ -98,7 +98,7 @@ const JsonArray = component({
   fields: {
     items: [],
   },
-  input: {
+  receive: {
     addItem(Comp) {
       return this.pushInItems(Comp.make());
     },
@@ -164,7 +164,7 @@ const JsonObject = component({
   fields: {
     items: [],
   },
-  input: {
+  receive: {
     addItem(KV, JsonSelector) {
       return this.pushInItems(KV.make({ value: JsonSelector.make() }));
     },

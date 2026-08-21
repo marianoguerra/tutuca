@@ -1,5 +1,5 @@
 import { View } from "./anode.js";
-import { RequestHandler } from "./attribute.js";
+import { IntentHandler } from "./attribute.js";
 import { parseField, parseProvide } from "./value.js";
 
 export class Components {
@@ -20,8 +20,11 @@ export class Components {
   getHandlerFor(v, name, key) {
     return this.getCompFor(v)?.[key][name] ?? null;
   }
-  getRequestFor(v, name) {
-    return this.getCompFor(v)?.scope.lookupRequest(name) ?? null;
+  // The `lex` leg of an intent's route: the handlers registered on the scope chain of
+  // the component that raised it, innermost first. A list, not a first match — see
+  // ComponentStack.lookupIntentChain.
+  getIntentChainFor(v, name) {
+    return this.getCompFor(v)?.scope.lookupIntentChain(name) ?? [];
   }
   compileStyles() {
     const styles = [];
@@ -34,7 +37,7 @@ export class ComponentStack {
     this.comps = comps;
     this.parent = parent;
     this.byName = {};
-    this.reqsByName = {};
+    this.intentsByName = {};
     this.macros = {};
   }
   enter() {
@@ -71,11 +74,21 @@ export class ComponentStack {
   getCompFor(v) {
     return this.comps.getCompFor(v);
   }
-  registerRequestHandlers(handlers) {
-    for (const name in handlers) this.reqsByName[name] = new RequestHandler(name, handlers[name]);
+  // Handlers that answer an intent's `lex` leg. A name maps to a LIST, because the leg
+  // walks: a handler that returns PASS declines and hands the intent to the next one.
+  // A bare function is accepted as a one-element list.
+  registerIntentHandlers(handlers) {
+    for (const name in handlers) {
+      const fns = Array.isArray(handlers[name]) ? handlers[name] : [handlers[name]];
+      this.intentsByName[name] = fns.map((fn) => new IntentHandler(name, fn));
+    }
   }
-  lookupRequest(name) {
-    return this.reqsByName[name] ?? this.parent?.lookupRequest(name) ?? null;
+  // Innermost scope first, then outward. Concatenated rather than first-match, so a
+  // declining handler can hand the intent to one further up.
+  lookupIntentChain(name) {
+    const here = this.intentsByName[name] ?? [];
+    const up = this.parent?.lookupIntentChain(name) ?? [];
+    return up.length === 0 ? here : here.concat(up);
   }
   lookupComponent(name) {
     return this.byName[name] ?? this.parent?.lookupComponent(name) ?? null;
@@ -110,8 +123,12 @@ export class LookupInfo {
   }
 }
 const isString = (v) => typeof v === "string";
+// The two dispatch buckets, plus `alter` (render-time, never dispatched). `input`,
+// `bubble` and `response` were retired when four channels became two; a spec still
+// using one lands it in `extra`, which is where the retired-construct lint rules find
+// it. See HANDLER_BUCKETS in tools/core/spec-keys.js for the tooling-side copy.
 const _rawSpecKeys =
-  "name view style commonStyle globalStyle input receive bubble response alter views provide lookup fields methods statics";
+  "name view style commonStyle globalStyle receive intent alter views provide lookup fields methods statics";
 const KNOWN_SPEC_KEYS = new Set(_rawSpecKeys.split(" "));
 let _compId = 0;
 export class Component {
@@ -122,10 +139,11 @@ export class Component {
     this.views = { main: new View("main", o.view, o.style) };
     this.commonStyle = o.commonStyle ?? "";
     this.globalStyle = o.globalStyle ?? "";
-    this.input = o.input ?? {};
+    // ADDRESSED: a view's own `@on.*`, a parent's ctx.send, the host's sendAtRoot, and
+    // an answer to an intent. One bucket, and a handler cannot tell which it was.
     this.receive = o.receive ?? {};
-    this.bubble = o.bubble ?? {};
-    this.response = o.response ?? {};
+    // ROUTED: raised by someone who did not name a target, and walked until answered.
+    this.intent = o.intent ?? {};
     this.alter = o.alter ?? {};
     for (const name in o.views ?? {}) {
       const v = o.views[name];

@@ -5,7 +5,7 @@ demos (`docs/index.html`), the more-examples gallery (`docs/more-examples.html`)
 and the storybook.
 
 Every example follows the same conventional shape (`getComponents`,
-`getRoot`, optional `getMacros` / `getRequestHandlers` / `getExamples`) so
+`getRoot`, optional `getMacros` / `getIntentHandlers` / `getExamples`) so
 the playground, the storybook, and the `tutuca` CLI can all consume them
 without per-file glue. See the "Conventional Module Exports" section in
 `docs/skill/core.md` for the contract (with `docs/skill/advanced.md` for
@@ -58,7 +58,7 @@ Embedded in `more-examples.html`.
 `start`/`end` slice paginates `@each` without iterating off-page items.
 
 `snake.js` — the whole game state machine lives in the components; the only
-host code is a `setInterval` in `getRequestHandlers()` that pushes a `tick`
+host code is a `setInterval` in `getIntentHandlers()` that pushes a `tick`
 message at the root (what `app.sendAtRoot("tick")` does when the module owns
 the `app`). Pause / resume / speed changes are `startTicking` /
 `stopTicking` requests the component issues itself.

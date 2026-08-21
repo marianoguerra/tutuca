@@ -3,7 +3,7 @@
 // "tutuca" specifier so the shipped dist/tutuca-storybook.js stays a single
 // external import — consumers wire an import map pointing "tutuca" at the same
 // runtime their story modules use, guaranteeing one tutuca instance.
-import { component, dispatchPhase, html, phaseHasBubble } from "tutuca";
+import { component, dispatchPhase, html } from "tutuca";
 
 export const Storybook = component({
   name: "Storybook",
@@ -142,17 +142,23 @@ export const Storybook = component({
       return group.visible;
     },
   },
-  input: {
+  receive: {
     onApplyFilter(value, ctx) {
-      ctx.request("persistState", [this.toUrlState({ sectionFilter: value }), this, false]);
+      ctx.intent("persistState", [this.toUrlState({ sectionFilter: value }), this, false], {
+        route: ["lex"],
+      });
       return this.setFilter(value).applyFilterToSidebar(value);
     },
     onClearFilter(ctx) {
-      ctx.request("persistState", [this.toUrlState({ sectionFilter: "" }), this, false]);
+      ctx.intent("persistState", [this.toUrlState({ sectionFilter: "" }), this, false], {
+        route: ["lex"],
+      });
       return this.resetFilter().applyFilterToSidebar("");
     },
     onFocusClose(ctx) {
-      ctx.request("persistState", [this.toUrlState({ example: "" }), this, true]);
+      ctx.intent("persistState", [this.toUrlState({ example: "" }), this, true], {
+        route: ["lex"],
+      });
       return this.setSectionId(null).setExampleId(null).setFocusExample(null);
     },
     // Switching a palette is a DOM effect (set data-theme, load the stylesheet), so it
@@ -160,54 +166,21 @@ export const Storybook = component({
     // Unregistered (no `themes` option), the request no-ops via the 404 path and the
     // switcher isn't rendered anyway.
     onSelectTheme(value, ctx) {
-      ctx.request("applyTheme", [value, this]);
-      ctx.request("persistState", [this.toUrlState({ theme: value }), this, false]);
+      ctx.intent("applyTheme", [value, this], { route: ["lex"] });
+      ctx.intent("persistState", [this.toUrlState({ theme: value }), this, false], {
+        route: ["lex"],
+      });
       return this.setTheme(value);
     },
-  },
-  bubble: {
-    // A sidebar entry was clicked; it bubbles its section id. Resolve to the content
-    // index and select. Sidebar highlight is updated by selectSectionAtIndex.
-    sectionSelected(sectionId, ctx) {
-      ctx.stopPropagation();
-      const section = this.sections.find((s) => s.id === sectionId);
-      ctx.request("persistState", [
-        this.toUrlState({ section: sectionId, exampleFilter: section?.filter ?? "" }),
-        this,
-        true,
-      ]);
-      const oldIndex = this.selectedSectionIndex;
-      const next = this.selectSectionAtIndex(this.sections.findIndex((s) => s.id === sectionId));
-      transitionSections(ctx, next, oldIndex, next.selectedSectionIndex);
-      return next;
-    },
-    // Toggle a group open/closed in place — the collapse lives on the SidebarGroup.
-    groupToggled(name, ctx) {
-      ctx.stopPropagation();
-      return this.toggleSidebarGroup(name);
-    },
-    exampleFocusRequested(example, ctx) {
-      ctx.stopPropagation();
-      const section = this.sections.get(this.selectedSectionIndex);
-      const sectionId = section?.id ?? null;
-      ctx.request("persistState", [this.toUrlState({ example: example.id }), this, true]);
-      return this.setSectionId(sectionId).setExampleId(example.id).setFocusExample(example.value);
-    },
-    exampleFilterChanged(value, ctx) {
-      ctx.stopPropagation();
-      ctx.request("persistState", [this.toUrlState({ exampleFilter: value }), this, false]);
-      return this;
-    },
-  },
-  receive: {
     init(ctx) {
-      ctx.request("loadState", []);
+      ctx.intent("loadState", [], { route: ["lex"] });
       return this;
     },
-  },
-  response: {
-    loadState(state, err, ctx) {
-      if (err || !state) return this;
+    // The answer to the `loadState` intent, arriving as an ordinary message. There is
+    // no `err` to branch on: a failure reaches `loadStateError` instead, and nothing
+    // that ran out of route reaches here at all.
+    loadStateOk(state, ctx) {
+      if (!state) return this;
       // selectSectionWithId marks the sidebar highlight; applyFilterToSidebar then
       // applies the restored section filter to the tree's visibility.
       // The host handler already resolved the theme (URL param, else the OS
@@ -223,6 +196,44 @@ export const Storybook = component({
         : selected.setSectionId(null).setExampleId(null).setFocusExample(null);
       transitionSections(ctx, next, this.selectedSectionIndex, next.selectedSectionIndex);
       return next;
+    },
+  },
+  intent: {
+    // A sidebar entry was clicked; it bubbles its section id. Resolve to the content
+    // index and select. Sidebar highlight is updated by selectSectionAtIndex.
+    sectionSelected(sectionId, ctx) {
+      ctx.stop();
+      const section = this.sections.find((s) => s.id === sectionId);
+      ctx.intent(
+        "persistState",
+        [this.toUrlState({ section: sectionId, exampleFilter: section?.filter ?? "" }), this, true],
+        { route: ["lex"] },
+      );
+      const oldIndex = this.selectedSectionIndex;
+      const next = this.selectSectionAtIndex(this.sections.findIndex((s) => s.id === sectionId));
+      transitionSections(ctx, next, oldIndex, next.selectedSectionIndex);
+      return next;
+    },
+    // Toggle a group open/closed in place — the collapse lives on the SidebarGroup.
+    groupToggled(name, ctx) {
+      ctx.stop();
+      return this.toggleSidebarGroup(name);
+    },
+    exampleFocusRequested(example, ctx) {
+      ctx.stop();
+      const section = this.sections.get(this.selectedSectionIndex);
+      const sectionId = section?.id ?? null;
+      ctx.intent("persistState", [this.toUrlState({ example: example.id }), this, true], {
+        route: ["lex"],
+      });
+      return this.setSectionId(sectionId).setExampleId(example.id).setFocusExample(example.value);
+    },
+    exampleFilterChanged(value, ctx) {
+      ctx.stop();
+      ctx.intent("persistState", [this.toUrlState({ exampleFilter: value }), this, false], {
+        route: ["lex"],
+      });
+      return this;
     },
   },
   view: html`<div>
@@ -326,17 +337,15 @@ export const Section = component({
       return this.filter === "" || fuzzyMatch(this.filter, `${item.title} ${item.description}`);
     },
   },
-  input: {
+  receive: {
     onApplyFilter(value, ctx) {
-      ctx.bubble("exampleFilterChanged", [value]);
+      ctx.intent("exampleFilterChanged", [value], { route: ["dyn"] });
       return this.setFilter(value);
     },
     onClearFilter(ctx) {
-      ctx.bubble("exampleFilterChanged", [""]);
+      ctx.intent("exampleFilterChanged", [""], { route: ["dyn"] });
       return this.resetFilter();
     },
-  },
-  receive: {
     // First display of this section: run each example's `on.init`, mark shown.
     init(ctx) {
       fanoutLifecycle(ctx, this.items, "init");
@@ -377,9 +386,9 @@ export const Section = component({
 export const SidebarEntry = component({
   name: "SidebarEntry",
   fields: { sectionId: "?", title: "", description: "", selected: false, visible: true },
-  input: {
+  receive: {
     onClick(ctx) {
-      ctx.bubble("sectionSelected", [this.sectionId]);
+      ctx.intent("sectionSelected", [this.sectionId], { route: ["dyn"] });
       return this;
     },
   },
@@ -413,9 +422,9 @@ export const SidebarGroup = component({
       return row.visible;
     },
   },
-  input: {
+  receive: {
     onToggle(ctx) {
-      ctx.bubble("groupToggled", [this.name]);
+      ctx.intent("groupToggled", [this.name], { route: ["dyn"] });
       return this;
     },
   },
@@ -447,7 +456,7 @@ export const Example = component({
     description: "",
     value: null,
     view: "main",
-    requestHandlers: null,
+    intentHandlers: null,
     on: null,
     // Inspector tabs. activeTab selects which body renders; the *View fields hold
     // prebuilt inspector instances (attached by mountStorybook before start, via
@@ -470,7 +479,7 @@ export const Example = component({
   },
   // Storybook-only convention (read in mountStorybook, never by core): names the
   // field on an example instance that holds its per-example request-handler mocks.
-  requestOverridesField: "requestHandlers",
+  intentOverridesField: "intentHandlers",
   statics: {
     fromData({
       id,
@@ -478,7 +487,7 @@ export const Example = component({
       description = "",
       value = null,
       view = "main",
-      requestHandlers = null,
+      intentHandlers = null,
       on = null,
     }) {
       id ??= slugify(title);
@@ -488,7 +497,7 @@ export const Example = component({
         description,
         value,
         view,
-        requestHandlers,
+        intentHandlers,
         on,
       });
     },
@@ -497,15 +506,15 @@ export const Example = component({
   // matching `on` phase's actions against this example's component (`.value`).
   receive: {
     init(ctx) {
-      this.runPhase(ctx, "init", this.on?.init);
+      this.runPhase(ctx, this.on?.init);
       return this;
     },
     resume(ctx) {
-      this.runPhase(ctx, "resume", this.on?.resume);
+      this.runPhase(ctx, this.on?.resume);
       return this;
     },
     suspend(ctx) {
-      this.runPhase(ctx, "suspend", this.on?.suspend);
+      this.runPhase(ctx, this.on?.suspend);
       return this;
     },
     // Append one activity row to the example's ActivityLog. Dispatched by the storybook
@@ -514,27 +523,21 @@ export const Example = component({
     logActivity(entry) {
       return this.setActivityLog(this.activityLog.appendEntry(entry)).setHasActivity(true);
     },
-  },
-  methods: {
-    runPhase(ctx, name, phase) {
-      // A lifecycle `bubble` leaves the example's value and travels up into the
-      // storybook engine's own components, so no author bubble handler runs.
-      // Warn rather than silently no-op (dev-only surface).
-      if (phaseHasBubble(phase))
-        console.warn(
-          `storybook on.${name}: a \`bubble\` action leaves this example and is received by the storybook engine, so your component's bubble handler won't run. Use send/request/input to drive a preset state.`,
-        );
-      dispatchPhase(ctx, ctx.at.field("value").buildPath(), phase, this.value);
-    },
-  },
-  input: {
     onLogSelected() {
       console.log(this.value);
       return this;
     },
     onFocusSelected(ctx) {
-      ctx.bubble("exampleFocusRequested", [this]);
+      ctx.intent("exampleFocusRequested", [this], { route: ["dyn"] });
       return this;
+    },
+  },
+  methods: {
+    // An `intent` on the `dyn` leg leaves the example and walks into the storybook
+    // engine's own components. Nothing to warn about: if nothing answers, the walk
+    // runs out and the example hears `<name>Unhandled`.
+    runPhase(ctx, phase) {
+      dispatchPhase(ctx, ctx.at.field("value").buildPath(), phase, this.value);
     },
   },
   view: html`<div class="card card-border bg-base-100 shadow-md">
@@ -636,7 +639,7 @@ export const Example = component({
 });
 
 // Drive section lifecycle on a selection change. ctx.path is the root Storybook
-// for both call sites (response.loadState + bubble.sectionSelected), so
+// for both call sites (receive.loadStateOk + intent.sectionSelected), so
 // ctx.at.index("sections", i) addresses a section. Exactly one of init/resume
 // fires for the new section; suspend fires for the old one if it was shown.
 function transitionSections(ctx, sb, oldIndex, newIndex) {

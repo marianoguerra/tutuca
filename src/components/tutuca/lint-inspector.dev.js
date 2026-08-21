@@ -11,7 +11,7 @@ const lintReport = {
       componentName: "Broken",
       findings: [
         {
-          id: "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED",
+          id: "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED",
           level: "error",
           info: { name: "missingMethod", eventName: "click", originAttr: "@on.click" },
           context: { componentName: "Broken", viewName: "main" },

@@ -38,8 +38,11 @@ export class Transactor {
     this.transactions.push(t);
     this.onTransactionPushed(t);
   }
-  // Subscribe to a normalized record for every handler invocation (send/receive,
-  // bubble, request/response, input). Returns an unsubscribe function. Records
+  // Subscribe to a normalized record for every handler invocation. `kind` is the
+  // handler bucket (`receive` / `intent`), plus `answer` — an observation-only kind for
+  // a message the runtime wrote to answer an intent. The BUCKET does not know about
+  // that distinction, and must not: a handler cannot tell an answer from a message its
+  // parent sent. Returns an unsubscribe function. Records
   // carry: kind, name, args, path, pathKeys, targetPath, handler, handlerName,
   // matched, before, after, parent, timestamp. Purely observational.
   observe(cb) {
@@ -58,8 +61,7 @@ export class Transactor {
   // updateRootValue). No-op when nobody is observing.
   _emitTransaction(transaction, root) {
     if (this._observers.length === 0) return;
-    // No handler ran (a skipSelf send — the no-op first hop of ctx.bubble): nothing
-    // to report. The bubble it spawns emits its own record when it runs.
+    // No handler ran: nothing to report.
     if (transaction._resolvedHandler === undefined) return;
     // Pin field-resolved keys (e.g. a `.a[.selId]` render target reconstructed from a
     // DOM event) against the root the handler read, so pathKeys carries concrete keys
@@ -97,26 +99,17 @@ export class Transactor {
     this.pushTransaction(t);
     return this._link(t, parent);
   }
-  pushInput(path, name, args = [], opts = {}, parent = null) {
-    const t = new InputDispatchEvent(path, this, name, args, parent, opts);
-    this.pushTransaction(t);
-    return this._link(t, parent);
-  }
-  pushBubble(path, name, args = [], opts = {}, parent = null, targetPath = null) {
-    const newOpts = opts.skipSelf ? { ...opts, skipSelf: false } : opts;
-    const t = new BubbleEvent(path, this, name, args, parent, newOpts, targetPath);
-    this.pushTransaction(t);
-    return this._link(t, parent);
-  }
-  pushRequest(path, name, args = [], opts = {}, parent = null) {
-    // Track on the parent synchronously, before any await, so the parent's subtree can't
-    // settle while the request is in flight. The unit is later transferred onto the
-    // ResponseEvent's subtree (see _runRequest), so it follows the whole response chain.
+  // Raise an intent: a job the sender did not address, walked along a route until
+  // something answers. `opts.route` is a list of legs (see DEFAULT_ROUTE) and
+  // `opts.livePath` opts out of pinning the answer's destination keys.
+  pushIntent(path, name, args = [], opts = {}, parent = null) {
+    // Track on the parent synchronously, before any await, so its subtree can't settle
+    // while the walk is in flight (a `lex` hop is async). The unit is transferred onto
+    // the answer's subtree when one goes out, so it follows the whole chain.
     const release = parent ? parent.completion.track() : null;
-    const p = this._runRequest(path, name, args, opts, parent, release);
-    this._inflight.add(p);
-    p.finally(() => this._inflight.delete(p));
-    return p;
+    const walk = new IntentWalk(this, path, name, args, opts, parent, release);
+    walk.advance();
+    return walk;
   }
   // Drain queued transactions and await in-flight requests until quiescent. Each
   // awaited request enqueues a ResponseEvent, which may dispatch more work, so we
@@ -125,69 +118,6 @@ export class Transactor {
     while ((this.hasPendingTransactions || this._inflight.size) && maxTurns-- > 0) {
       while (this.hasPendingTransactions) this.transactNext();
       if (this._inflight.size) await Promise.allSettled([...this._inflight]);
-    }
-  }
-  async _runRequest(path, name, args = [], opts = {}, parent = null, release = null) {
-    // Transfer the parent's request-unit (see pushRequest) onto the ResponseEvent's
-    // subtree, so the parent stays open until the whole response chain settles. The
-    // response is pushed via pushTransaction directly (not _link), so it is not counted
-    // twice. `released` guards the error path below so the unit is never lost or doubled.
-    let released = false;
-    const transfer = (t) => {
-      if (release) {
-        released = true;
-        t.completion.whenSubtreeSettled().then(release);
-      }
-    };
-    try {
-      const curRoot = this.state.val;
-      const txnPath = path.toTransactionPath();
-      const curLeaf = txnPath.lookup(curRoot);
-      const found = this.comps.getRequestFor(curLeaf, name);
-      const handler = found ?? mkReq404(name);
-      // Observe the outgoing request (name + args + before-state). The response
-      // side is observed later when its ResponseEvent flows through transact().
-      if (this._observers.length > 0) {
-        const reqPath = txnPath.pinKeys(curRoot);
-        this._emit({
-          kind: "request",
-          name,
-          args,
-          path: reqPath,
-          pathKeys: reqPath.toKeys(),
-          targetPath: path,
-          handler: found?.fn ?? null,
-          handlerName: found?.fn?.name || name,
-          matched: found ? "exact" : "none",
-          before: curLeaf,
-          after: undefined,
-          parent,
-          timestamp: Date.now(),
-        });
-      }
-      // Request handlers run with no `this`, and receive a RequestContext as their
-      // final argument (consistent with receive/input/response, where ctx is last).
-      const reqCtx = new RequestContext(path, this, parent, curRoot);
-      const resHandlerName = opts?.onResName ?? name;
-      // Pin field-resolved keys (e.g. `.sheets[.selId]`) to their value *now*, so the
-      // response updates the item that issued the request even if the key changed while
-      // the request was in flight. `livePath: true` opts out and re-evaluates live.
-      const resPath = opts?.livePath ? null : txnPath.pinKeys(curRoot);
-      const push = (specificName, baseName, singleArg, result, error) => {
-        const resArgs = specificName ? [singleArg] : [result, error];
-        const t = new ResponseEvent(path, this, specificName ?? baseName, resArgs, parent, resPath);
-        transfer(t);
-        this.pushTransaction(t);
-      };
-      try {
-        const result = await handler.fn.apply(null, [...args, reqCtx]);
-        push(opts?.onOkName, resHandlerName, result, result, null);
-      } catch (error) {
-        push(opts?.onErrorName, resHandlerName, error, null, error);
-      }
-    } finally {
-      // If we threw before any ResponseEvent was created, the parent would otherwise hang.
-      if (release && !released) release();
     }
   }
   get hasPendingTransactions() {
@@ -211,6 +141,12 @@ export class Transactor {
         this._emitTransaction(transaction, curState);
       } else console.warn("undefined new state", { curState, transaction });
     } finally {
+      // A hop that threw, or returned undefined, never reached afterTransaction. Without
+      // this the walk would stall mid-route and its tracked unit would never be released,
+      // hanging the parent's subtree forever. Continuing past that hop is also the right
+      // MEANING: the transition did not happen, so the handler did not answer, and a hop
+      // that did not answer is one the walk moves past.
+      transaction.ensureWalkAdvanced?.();
       transaction._completion?.ensureSelfSettled();
       transaction._completion?.releaseSelf();
     }
@@ -218,12 +154,6 @@ export class Transactor {
   transactInputNow(path, event, eventHandler, dragInfo) {
     this.transact(new InputEvent(path, event, eventHandler, this, dragInfo));
   }
-}
-function mkReq404(name) {
-  const fn = () => {
-    throw new Error(`Request not found: ${name}`);
-  };
-  return { fn };
 }
 function nullHandler() {
   return this;
@@ -254,6 +184,15 @@ class Transaction {
     return this.updateRootValue(rootValue, comps);
   }
   afterTransaction() {}
+  // Ending a walk and forwarding belong to the two dispatch buckets; the base warns
+  // rather than throwing, so a stray call from the wrong place is a message and not a
+  // crash. `walk` is undefined here, which is how ctx.reply/ctx.fail tell the two apart.
+  stop() {
+    console.warn('ctx.stop() is only meaningful in an "intent" handler - ignored');
+  }
+  forward(_opts) {
+    console.warn('ctx.forward() needs a "receive" or "intent" handler - ignored');
+  }
   buildRootStack(root, comps) {
     return Stack.root(comps, root);
   }
@@ -320,11 +259,34 @@ class InputEvent extends Transaction {
     this._dispatchPath ??= this.path.compact();
     return this._dispatchPath;
   }
+  // A DOM event is an ADDRESSED message like any other — it reaches the component that
+  // owns the view and stops. It keeps its own class only because it resolves its handler
+  // from the compiled view and runs synchronously, not because it is a different channel.
   get observeKind() {
-    return "input";
+    return "receive";
   }
   get observeName() {
     return this.e?.type ?? null;
+  }
+  // A view's name is a message. `forward` is where that name can LEAVE the component:
+  // it becomes an intent with the same name and the same arguments, so a view that says
+  // `@on.click="saveDraft .text"` never has to change when an ancestor takes the job over.
+  // (A `$method` handler has a name too, so forwarding one raises an intent under it.)
+  forward(opts) {
+    this._forward = opts ?? {};
+  }
+  afterTransaction() {
+    const f = this._forward;
+    if (f === undefined) return;
+    this._forward = undefined;
+    const { args = this._handlerArgs ?? [], ...rest } = f;
+    // `handler` is a NodeEvent, whose own `name` is the DOM event type; the MESSAGE
+    // name is the one the view wrote, on the handler call it wraps.
+    const hv = this.handler?.handlerCall?.handlerVal ?? this.handler?.handlerVal;
+    const name = hv?.name;
+    if (name === undefined)
+      return console.warn("ctx.forward() from a handler with no name - ignored");
+    this.transactor.pushIntent(this.dispatchPath, name, args, rest, this);
   }
   buildRootStack(root, comps) {
     return Stack.root(comps, root, this);
@@ -332,7 +294,8 @@ class InputEvent extends Transaction {
   getHandlerAndArgs(root, _instance, comps) {
     const stack = this.buildStack(root, comps);
     const [handler, args] = this.handler.getHandlerAndArgs(stack, this);
-    const path = this.dispatchPath; // ctx.bubble visits intermediate components
+    this._handlerArgs = [...args]; // without ctx, so `forward` can re-raise them
+    const path = this.dispatchPath; // an intent walk visits intermediate components
     args.push(new EventContext(path, this.transactor, this));
     return [handler, args];
   }
@@ -415,44 +378,246 @@ class NameArgsTransaction extends Transaction {
     return [handler, [...this.args, new EventContext(this.path, this.transactor, this)]];
   }
 }
-class ResponseEvent extends NameArgsTransaction {
-  handlerProp = "response";
-  constructor(path, transactor, name, args, parent, txnPath = null) {
-    super(path, transactor, name, args, parent);
-    // Pre-pinned transaction path captured at request time; null re-evaluates live.
-    // `this.path` stays the dispatch path so ctx.path/targetPath are unaffected.
-    this._txnPath = txnPath;
-  }
-  getTransactionPath() {
-    return this._txnPath ?? super.getTransactionPath();
-  }
-}
 class SendEvent extends NameArgsTransaction {
   handlerProp = "receive";
-  run(rootVal, comps) {
-    return this.opts.skipSelf ? rootVal : this.updateRootValue(rootVal, comps);
+  // `receive` is the ADDRESSED bucket, and it is the only one: a view's `@on.click`,
+  // a parent's ctx.send, the host's sendAtRoot and an answer to an intent all arrive
+  // here, and a handler cannot tell them apart. Splitting on where a message came from
+  // would let the view's name through and turn the parent's away, though the two say
+  // the same thing — and neither a test nor a parent could drive the component.
+  get observeKind() {
+    // The one place the origin IS visible, and only to the inspector: an answer is an
+    // ordinary receive and the bucket must not know, so this is an observation kind
+    // rather than a handler bucket.
+    return this._isAnswer ? "answer" : "receive";
+  }
+  // `forward` in a RECEIVE body starts a walk: the message that arrived becomes an
+  // intent, keeping its name and payload. This is what lets a view's name leave the
+  // component without the view changing.
+  forward(opts) {
+    this._forward = opts ?? {};
   }
   afterTransaction() {
-    const { path, name, args, opts, targetPath } = this;
-    if (opts.bubbles && path.steps.length > 0)
-      this.transactor.pushBubble(path.popStep(), name, args, opts, this, targetPath);
+    const f = this._forward;
+    if (f === undefined) return;
+    this._forward = undefined;
+    const { args = this.args, ...rest } = f;
+    this.transactor.pushIntent(this.path, this.name, args, rest, this);
   }
 }
-class BubbleEvent extends SendEvent {
-  handlerProp = "bubble";
-  constructor(path, transactor, name, args, parent, opts, targetPath) {
-    super(path, transactor, name, args, parent, opts);
-    this.targetPath = targetPath ?? path;
+// One hop of an intent's walk. The walk itself lives in `IntentWalk`, shared by
+// reference across every hop.
+class IntentEvent extends NameArgsTransaction {
+  handlerProp = "intent";
+  constructor(path, transactor, walk) {
+    super(path, transactor, walk.name, walk.args, walk.parent, {});
+    this.walk = walk;
+    // The position the intent was raised at, pinned for every hop, so a handler can
+    // address the originator back with ctx.sendAtPath(ctx.targetPath, ...).
+    this.targetPath = walk.origin;
   }
-  stopPropagation() {
-    this.opts.bubbles = false;
+  // `forward` in an INTENT body amends the hop about to be pushed — it does not push
+  // one itself, because a walk advances on its own.
+  forward(opts) {
+    this.walk.amend(opts, this.path);
+  }
+  stop() {
+    this.walk.finish(null, null);
+  }
+  afterTransaction() {
+    // THE rule: a reply ends the walk; running does not. A handler that changed state
+    // and returned without replying is an OBSERVER, and the intent goes on to the next
+    // hop. That is what makes an observer and an answerer the same construct with and
+    // without a `reply`, so no separate listener bucket has to exist.
+    this.ensureWalkAdvanced();
+  }
+  // Idempotent, because both afterTransaction and the transactor's `finally` call it —
+  // whichever gets there first advances the walk exactly once.
+  ensureWalkAdvanced() {
+    if (this._advanced) return;
+    this._advanced = true;
+    this.walk.advance();
   }
 }
-// Dispatch a named `input` handler by name with explicit args (no DOM event).
-// Mirrors SendEvent/ResponseEvent: NameArgsTransaction resolves comp.input[name]
-// and appends an EventContext. Used by ctx.inputAtPath / Transactor.pushInput.
-class InputDispatchEvent extends NameArgsTransaction {
-  handlerProp = "input";
+// What a scope-registered intent handler returns to DECLINE. It is the handler's half
+// of "running is not answering": the walk goes on to the next handler instead of
+// stopping, and a route where everything declines is what makes `<name>Unhandled`
+// reachable. "Nothing claimed it" and "a handler refused it" are different sentences,
+// so they get different answers.
+//
+// `Symbol.for`, not `Symbol`: this value is compared by IDENTITY across a module
+// boundary, and more than one copy of tutuca in a process is ordinary rather than
+// exotic — the storybook engine imports the bare "tutuca" specifier (the built bundle)
+// while a test or an app imports the source. A unique symbol would be a different
+// symbol in each copy, so every `return PASS` would read as an ANSWER of an opaque
+// value instead of a decline, silently. The global registry makes the two the same.
+export const PASS = Symbol.for("tutuca.intent.pass");
+// The route a bare `ctx.intent(...)` takes: the ancestors, then the registered scopes.
+// Written down HERE and nowhere else, so "what does a routeless intent do" has one
+// answer and no second copy to drift.
+const DEFAULT_ROUTE = ["dyn", "lex"];
+// How many hops a walk may take before the runtime refuses instead of looping.
+const INTENT_DEPTH = 64;
+
+// One intent, shared BY REFERENCE across every hop of its walk. That sharing is the
+// whole reason this is an object rather than arguments threaded through the hops: the
+// one-shot is per INTENT, not per hop, so a second `reply` — from this handler or from
+// one three hops up — finds `ended` already true.
+class IntentWalk {
+  constructor(transactor, path, name, args, opts, parent, release) {
+    this.transactor = transactor;
+    this.name = name;
+    this.args = args;
+    this.route = opts?.route ?? DEFAULT_ROUTE;
+    this.parent = parent;
+    this.release = release;
+    this.origin = path;
+    // Where an answer lands, resolved NOW. Pinning means a late answer updates the item
+    // that raised the intent even if the key moved while the walk was in flight (the
+    // user switched tabs); `livePath: true` opts out and re-resolves on delivery.
+    this.answerPath = opts?.livePath
+      ? null
+      : path.toTransactionPath().pinKeys(transactor.state.val);
+    this.legIndex = 0;
+    this.dynAt = path;
+    this.hops = 0;
+    this.ended = false;
+  }
+  // Offer the intent to the next hop. Called once at dispatch, and again by every hop
+  // that ran without answering.
+  advance() {
+    if (this.ended) return;
+    if (this.hops++ >= INTENT_DEPTH) return this.exhaust("intentDepth");
+    while (this.legIndex < this.route.length) {
+      const leg = this.route[this.legIndex];
+      if (leg === "dyn") {
+        // The `dyn` leg starts at the sender's PARENT: an intent is never offered to the
+        // component that raised it, because one that wanted to handle it itself would
+        // have written the body inline.
+        if (this.dynAt.steps.length === 0) {
+          this.legIndex++;
+          continue;
+        }
+        this.dynAt = this.dynAt.popStep();
+        this.transactor.pushTransaction(new IntentEvent(this.dynAt, this.transactor, this));
+        return;
+      }
+      if (leg === "lex") {
+        this.legIndex++;
+        return this._tryLex();
+      }
+      console.warn("unknown intent route leg", leg, '- expected "dyn" or "lex"');
+      this.legIndex++;
+    }
+    this.exhaust("noHandler");
+  }
+  // The `lex` leg: the handlers registered on the scope chain of the component that
+  // raised the intent, in order.
+  _tryLex() {
+    const root = this.transactor.state.val;
+    const txnPath = this.origin.toTransactionPath();
+    const leaf = txnPath.lookup(root);
+    const chain = this.transactor.comps.getIntentChainFor(leaf, this.name);
+    // A `dyn` hop is a transaction and emits its own record; a `lex` hop is not, so the
+    // attempt is reported here or the inspector would show only the answer.
+    if (this.transactor._observers.length > 0) {
+      const path = txnPath.pinKeys(root);
+      this.transactor._emit({
+        kind: "intent",
+        name: this.name,
+        args: this.args,
+        path,
+        pathKeys: path.toKeys(),
+        targetPath: this.origin,
+        handler: chain[0]?.fn ?? null,
+        handlerName: chain[0]?.fn?.name || this.name,
+        matched: chain.length > 0 ? "exact" : "none",
+        before: leaf,
+        after: undefined,
+        parent: this.parent,
+        timestamp: Date.now(),
+      });
+    }
+    if (chain.length === 0) return this.advance();
+    const p = this._runLex(chain, 0);
+    // Registered on the transactor so the global settle() drain can await it.
+    this.transactor._inflight.add(p);
+    p.finally(() => this.transactor._inflight.delete(p));
+  }
+  async _runLex(chain, i) {
+    if (this.ended) return;
+    if (i >= chain.length) return this.advance();
+    const ctx = new IntentContext(this.origin, this.transactor, this.parent);
+    try {
+      const res = await chain[i].fn.apply(null, [...this.args, ctx]);
+      // Resolving is an answer and throwing is a failure — the shapes an async function
+      // already has. Only DECLINING needed a new spelling, and that is PASS.
+      if (res === PASS) return this._runLex(chain, i + 1);
+      this.answer("Ok", res);
+    } catch (error) {
+      this.answer("Error", error);
+    }
+  }
+  // A hop answered. Ends the walk.
+  answer(suffix, value) {
+    this.finish(`${this.name}${suffix}`, [value]);
+  }
+  // `forward` from an intent body: keep walking, optionally with new arguments or a
+  // narrowed route.
+  amend(opts, from) {
+    if (opts?.args !== undefined) this.args = opts.args;
+    if (opts?.route !== undefined) {
+      this.route = opts.route;
+      this.legIndex = 0;
+      this.dynAt = from ?? this.dynAt;
+    }
+  }
+  // The route ran out. What the sender hears depends only on what it DECLARES, which is
+  // how "a sender expects an answer if and only if it declares an answer arm" becomes
+  // code — nobody writes it down twice, and there is no schema to keep in step.
+  exhaust(reason) {
+    if (this.ended) return;
+    const { name, args } = this;
+    const comp = this.transactor.comps.getCompFor(
+      this.origin.toTransactionPath().lookup(this.transactor.state.val),
+    );
+    // The three derived answer names. Nobody declares them twice: the sender's own
+    // `receive` bucket IS the declaration, and this reads it at the moment the walk ends.
+    const declares = (n) => comp?.receive?.[n] !== undefined;
+    if (declares(`${name}Unhandled`)) {
+      // Carries the intent's OWN arguments, not an error: the sender can degrade or
+      // retry without having kept a copy.
+      this.finish(`${name}Unhandled`, args);
+    } else if (declares(`${name}Error`)) {
+      this.finish(`${name}Error`, [reason]);
+    } else {
+      // Declaring only an Ok arm means an answer was expected and none came. Say so
+      // rather than dropping it: an answer never disappears in silence.
+      if (declares(`${name}Ok`))
+        console.warn(
+          `intent "${name}" was not answered (${reason}) and this component declares only ` +
+            `"${name}Ok" - add "${name}Unhandled" or "${name}Error" to handle it`,
+        );
+      // Otherwise: no answer arm at all, so this was a notification and nothing happened.
+      this.finish(null, null);
+    }
+  }
+  // End the walk. `name === null` means no answer goes out, which is what `stop` and a
+  // fire-and-forget notification both are — the tracked unit is released here instead
+  // of following an answer's subtree.
+  finish(name, args) {
+    if (this.ended) return;
+    this.ended = true;
+    if (name === null) return this.release?.();
+    const path = this.answerPath ?? this.origin;
+    // An answer is dispatched as an ORDINARY message. A component cannot tell one from
+    // a message its parent sent, and does not need to — that indistinguishability is
+    // the design's claim, and the reason one bucket is enough.
+    const t = new SendEvent(path, this.transactor, name, args, this.parent, {});
+    t._isAnswer = true;
+    this.transactor.pushTransaction(t);
+    if (this.release) t.completion.whenSubtreeSettled().then(this.release);
+  }
 }
 // Per-transaction completion scope (structured-concurrency / WaitGroup style). A counter
 // of outstanding "units": one self-unit (the transaction's own processing) plus one per
@@ -540,23 +705,21 @@ class Dispatcher {
   get at() {
     return new PathChanges(this);
   }
+  // A message is ADDRESSED: it names one component and stops there.
   send(name, args, opts) {
     return this.sendAtPath(this.path, name, args, opts);
-  }
-  bubble(name, args, opts) {
-    return this.send(name, args, { skipSelf: true, bubbles: true, ...opts });
   }
   sendAtPath(path, name, args, opts) {
     return this.transactor.pushSend(path, name, args, opts, this.parent);
   }
-  request(name, args, opts) {
-    return this.requestAtPath(this.path, name, args, opts);
+  // An intent is ROUTED: it names a job and walks until something answers. The verb
+  // does not decide which scope answers — `opts.route` does, written here at the call
+  // site, which is where the decision actually is.
+  intent(name, args, opts) {
+    return this.intentAtPath(this.path, name, args, opts);
   }
-  requestAtPath(path, name, args, opts) {
-    return this.transactor.pushRequest(path, name, args, opts, this.parent);
-  }
-  inputAtPath(path, name, args, opts) {
-    return this.transactor.pushInput(path, name, args, opts, this.parent);
+  intentAtPath(path, name, args, opts) {
+    return this.transactor.pushIntent(path, name, args, opts, this.parent);
   }
   lookupTypeFor(name, inst) {
     return this.transactor.comps.getCompFor(inst).scope.lookupComponent(name);
@@ -569,13 +732,35 @@ class EventContext extends Dispatcher {
   get targetPath() {
     return this.parent.targetPath;
   }
-  stopPropagation() {
-    return this.parent.stopPropagation();
+  // Answer the intent being handled, with a result or with an error. Either ENDS the
+  // walk. Legal only in an `intent` handler: a message has no sender waiting on it.
+  reply(value) {
+    return this.parent.walk === undefined
+      ? warnNotIntent("reply")
+      : this.parent.walk.answer("Ok", value);
+  }
+  fail(error) {
+    return this.parent.walk === undefined
+      ? warnNotIntent("fail")
+      : this.parent.walk.answer("Error", error);
+  }
+  // End the walk answering nothing — "served, and no answer".
+  stop() {
+    return this.parent.stop();
+  }
+  // From an `intent` body: hand the intent to the next hop, optionally amending it.
+  // From a `receive` body: turn the message that arrived into an intent. One word from
+  // both ends of a walk; which one you get depends on which bucket you are in.
+  forward(opts) {
+    return this.parent.forward(opts);
   }
 }
-// The ctx handed to a request handler as its final argument. A distinct type (and a
-// home for any request-only helpers later); `walkPath` lives on Dispatcher.
-class RequestContext extends Dispatcher {}
+// The ctx handed to a scope-registered intent handler as its final argument. A distinct
+// type (and a home for any lex-only helpers later); `walkPath` lives on Dispatcher.
+class IntentContext extends Dispatcher {}
+function warnNotIntent(verb) {
+  console.warn(`ctx.${verb}() is only meaningful in an "intent" handler - ignored`);
+}
 class PathChanges extends PathBuilder {
   constructor(dispatcher) {
     super();
@@ -584,8 +769,8 @@ class PathChanges extends PathBuilder {
   send(name, args, opts) {
     return this.dispatcher.sendAtPath(this.buildPath(), name, args, opts);
   }
-  bubble(name, args, opts) {
-    return this.send(name, args, { skipSelf: true, bubbles: true, ...opts });
+  intent(name, args, opts) {
+    return this.dispatcher.intentAtPath(this.buildPath(), name, args, opts);
   }
   buildPath() {
     return this.dispatcher.path.concat(this.pathChanges);

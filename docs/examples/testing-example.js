@@ -8,7 +8,7 @@ const Greeter = component({
       return this.setGreetings(this.greetings.push(`hello, ${this.name}!`));
     },
   },
-  input: {
+  receive: {
     submitName(value) {
       return this.setName(value);
     },
@@ -81,7 +81,7 @@ export function getTests({ describe, test, expect }) {
 
     describe("submitName() — input handler", () => {
       test("sets the name from the input value", () => {
-        const next = Greeter.input.submitName.call(Greeter.make(), "Grace");
+        const next = Greeter.receive.submitName.call(Greeter.make(), "Grace");
         expect(next.name).toBe("Grace");
       });
     });

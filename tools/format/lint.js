@@ -88,16 +88,22 @@ export function lintIdToMessage(id, info) {
     }
     case "UNKNOWN_HANDLER_ARG_NAME":
       return `Unknown handler argument '${info.name}'${fmtOriginSuffix(info)}`;
-    case "INPUT_HANDLER_NOT_IMPLEMENTED":
-      return `Input handler '${info.name}' is not implemented${fmtEventSuffix(info)}`;
-    case "INPUT_HANDLER_NOT_REFERENCED":
-      return `Input handler '${info.name}' is defined but never used — remove it or wire it to an @on.* event`;
-    case "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED":
+    case "RETIRED_HANDLER_BUCKET": {
+      const which = info.names?.length ? ` (${info.names.join(", ")})` : "";
+      return `\`${info.key}\` is no longer a handler bucket${which} — ${info.how}`;
+    }
+    case "RETIRED_CTX_VERB":
+      return `ctx.${info.verb}() no longer exists — use ${info.to} (in \`${info.bucket}.${info.name}\`)`;
+    case "HANDLER_NAME_COLLISION":
+      return `${info.problem} — ${info.fix}`;
+    case "RECEIVE_HANDLER_NOT_IMPLEMENTED":
+      return `Receive handler '${info.name}' is not implemented${fmtEventSuffix(info)}`;
+    case "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED":
       return `Method '$${info.name}' is not implemented${fmtEventSuffix(info)}`;
-    case "INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD":
-      return `'$${info.name}' is a method reference, but '${info.name}' is defined as an input handler${fmtEventSuffix(info)}`;
-    case "INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER":
-      return `'${info.name}' is an input handler reference, but '${info.name}' is defined as a method${fmtEventSuffix(info)}`;
+    case "RECEIVE_HANDLER_FOR_METHOD":
+      return `'$${info.name}' is a method reference, but '${info.name}' is defined as a receive handler${fmtEventSuffix(info)}`;
+    case "METHOD_FOR_RECEIVE_HANDLER":
+      return `'${info.name}' is a receive handler reference, but '${info.name}' is defined as a method${fmtEventSuffix(info)}`;
     case "FIELD_NAME_RESERVED_BY_RECORD":
       return `Field '${info.name}' collides with the Immutable Record API: '.${info.name}' reads the Record member, not your value — rename the field (its value is only reachable via .get('${info.name}'))`;
     case "FIELD_VAL_NOT_DEFINED":

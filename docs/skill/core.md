@@ -2,7 +2,7 @@
 
 Tutuca is an immutable-state web framework: components have typed `fields`,
 auto-generated mutators (`setX`, `pushInX`, …), HTML-template `view`s with
-`@`-prefixed directives, and `bubble` / `receive` / `response` handlers for
+`@`-prefixed directives, and `receive` / `intent` handlers for
 orchestration. Read this file when authoring or reviewing
 `component({...})` definitions, `view: html\`...\`` templates, macros, or
 the `tutuca` CLI.
@@ -10,7 +10,7 @@ the `tutuca` CLI.
 > Load the topic files only when the task touches them (the routing
 > table in [SKILL.md](./SKILL.md) has the full descriptions):
 > [iteration.md](./iteration.md) · [macros.md](./macros.md) ·
-> [styles.md](./styles.md) · [request-response.md](./request-response.md) ·
+> [styles.md](./styles.md) · [messages-and-intents.md](./messages-and-intents.md) ·
 > [component-design.md](./component-design.md) · [testing.md](./testing.md) ·
 > [storybook.md](./storybook.md) · [cli.md](./cli.md) ·
 > [semantics.md](./semantics.md) · [advanced.md](./advanced.md) ·
@@ -30,7 +30,7 @@ edit done:
    it: `tutuca lint <module-path> Button`.
 
 2. **Test component behavior** — when the edit changes attributes,
-   instance methods, input handlers, or static factories (anything
+   instance methods, receive handlers, or static factories (anything
    observable from JS, not just the rendered HTML), run the test
    suite. The module opts in by exporting
    `getTests({ describe, test, expect })`:
@@ -178,7 +178,7 @@ with `ctx.send`. Don't reach in to mutate around the handler discipline,
 and prefer letting a child own and render its own state — reach down to
 read only when the ancestor genuinely needs it. See
 [component-design.md](./component-design.md) and "When to bubble" in
-[request-response.md](./request-response.md).
+[messages-and-intents.md](./messages-and-intents.md).
 
 **Stack: frames vs scopes.** As the renderer walks the AST it pushes
 `BindFrame`s. A *frame* is a barrier: name lookups (`@x`) stop at it,
@@ -208,20 +208,19 @@ HTML comments adjacent to iteration entries. On a DOM event the
 runtime walks from the target up to the root, reads those breadcrumbs,
 and rebuilds a *positional* `Path` — an array of steps from the root
 to the value the handler should run against. The same `Path` is reused
-verbatim for `ctx.send`, `ctx.bubble`, and `ctx.request` /
-response: because it's positional rather than a captured reference, an
-async response survives intervening transactions that rebuild the root.
+verbatim for `ctx.send` and `ctx.intent`: because it's positional rather
+than a captured reference, an async answer survives intervening
+transactions that rebuild the root.
 "The right slot" is exact for named fields and for map entries by key
 (seq-access keys like `.sheets[.selId]` are *pinned* to their
-request-time value by default); a bare list **index** still slides if the
-list reordered. See [request-response.md](./request-response.md) for the
+dispatch-time value by default); a bare list **index** still slides if the
+list reordered. See [messages-and-intents.md](./messages-and-intents.md) for the
 dispatch APIs and [semantics.md](./semantics.md) for the path/transaction
 model and key pinning.
 
 **Why `alter` is its own table.** Alter handlers are pure, evaluated
-on every render, and produce binds (no state change). `input` /
-`receive` / `bubble` / `response` are transactional and produce new
-values. Same lookup mechanism, different contracts — keep them
+on every render, and produce binds (no state change). `receive` and
+`intent` are transactional and produce new values. Same lookup mechanism, different contracts — keep them
 separate.
 
 ## Notation Reference
@@ -232,8 +231,8 @@ value slot — conditions (`@show`, `@if`), iteration (`@each`,
 `render-each`, `@when`), enrichment (`@enrich-with`, `@loop-with`), template
 expansion (`{…}`, `:attr`, `@text`) — names a field, method, macro, or
 handler defined on the component (or registered with the app). Logic
-lives in `methods` / `alter` / `input` / `bubble` / `receive` /
-`response` and is referenced by name; the template itself only routes
+lives in `methods` / `alter` / `receive` / `intent` and is referenced by
+name; the template itself only routes
 data and events.
 
 The one exception is **boolean predicates** in conditional slots
@@ -271,7 +270,7 @@ prefix to use.
 A bare `name` (no prefix) in `@on.<event>="<handler> <arg> <arg>..."`
 resolves by slot:
 
-- **First slot** — handler name looked up in `input` / `alter` (use
+- **First slot** — handler name looked up in `receive` / `alter` (use
   `$name` for `methods`).
 - **Subsequent slots** — built-in handler argument name (full list in
   *Event Handling*); anything else triggers a lint warning.
@@ -335,11 +334,17 @@ component({
   commonStyle:  css`p { font-family: sans-serif; }`, // scoped to all views of this component
   globalStyle:  css`body { margin: 0; }`,        // injected globally, no scoping
   methods: { inc() { return this.setCount(this.count + 1); } },
-  input:   { onClick(ctx) { return this.inc(); } },
   alter:   { filterItem(_k, item) { return item.length > 0; } },
-  receive: { init(ctx) { ctx.request("loadData"); return this; } },
-  bubble:  { itemPicked(item, ctx) { return this.setSelected(item); } },
-  response:{ loadData(res, err, ctx) { return this.setItems(res); } },
+  // ADDRESSED: this component's own @on.* names, what a parent sends it, and the
+  // answers to intents it raised — one bucket, and nothing tells them apart.
+  receive: {
+    onClick(ctx)         { return this.inc(); },
+    init(ctx)            { ctx.intent("loadData", [], { route: ["lex"] }); return this; },
+    loadDataOk(res)      { return this.setItems(res); },
+    loadDataError(err)   { return this.setError(String(err)); },
+  },
+  // ROUTED: what this component answers for somebody who did not address it.
+  intent:  { itemPicked(item, ctx) { return this.setSelected(item); } },
   statics: { fromData(d) { return this.make({ count: d.n ?? 0 }); } },
   // provide: { ... }, lookup: { ... }   // see advanced.md
 });
@@ -552,7 +557,7 @@ several of these. The usual suspects:
 ## Event Handling
 
 ```html
-<!-- method (`$`) vs input handler (no prefix) -->
+<!-- method (`$`) vs receive handler (no prefix) -->
 <button @on.click="$inc">+</button>
 <button @on.click="dec">-</button>
 
@@ -633,7 +638,7 @@ via `@on.<event-name>`. The event's `detail` surfaces as `value`:
 ```js
 import "https://cdn.jsdelivr.net/npm/emoji-picker-element/+esm";
 
-input: { onPick(detail) { return this.setCurrent(detail.unicode); } }
+receive: { onPick(detail) { return this.setCurrent(detail.unicode); } }
 view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
 ```
 
@@ -646,7 +651,7 @@ reaching into `app.state` directly). For any event with a real element in
 the tree, `@on.` is the only entry point you need. Genuinely external
 inbound sources (WebSocket, `postMessage`, timers) have no element to bind
 — route those through `app.sendAtRoot` instead (see
-[request-response.md](./request-response.md)).
+[messages-and-intents.md](./messages-and-intents.md)).
 
 Pitfall: binding a camelCase JS property on a custom element silently
 fails — see the lowercasing rules in *Attribute Binding* above.
@@ -755,26 +760,36 @@ declarations, and the at-rules that must live in `globalStyle`: see
 
 ## Triggers and Handlers
 
-Tutuca has four orchestration channels. Each pairs a trigger with a
-same-shape handler block:
+Tutuca has **two** dispatch channels, and one question separates them:
+*does the sender know who handles this?*
 
-| Triggered by                                | Handler block       | Use for                                             |
-| ------------------------------------------- | ------------------- | --------------------------------------------------- |
-| DOM event (`click`, `input`, …)             | `input:    { ... }` | the component handling its own events               |
-| `ctx.bubble(name)` — event up the tree      | `bubble:   { ... }` | aggregate state an ancestor owns (logs, selections) |
-| `ctx.send(name)` — message to a target path | `receive:  { ... }` | addressing one known component (or self)            |
-| `ctx.request(name)` — async request         | `response: { ... }` | fetch / timer / IndexedDB, result routed back       |
+| Triggered by                                     | Handler block      | Use for                                          |
+| ------------------------------------------------ | ------------------ | ------------------------------------------------ |
+| DOM event (`click`, `input`, …)                  | `receive: { ... }` | the component handling its own events            |
+| `ctx.send(name)` — message to a target path      | `receive: { ... }` | addressing one known component (or self)         |
+| an answer to an intent this component raised     | `receive: { ... }` | `<name>Ok` / `<name>Error` / `<name>Unhandled`   |
+| `ctx.intent(name, args, opts)` — walks a route   | `intent:  { ... }` | a job the sender does not address                |
+
+The first three rows are one bucket and **nothing tells them apart** — a
+component that answered its own click differently from the identical
+`ctx.send` from its parent could be driven neither from a test nor from a
+parent.
+
+An intent carries a **route**: `["dyn"]` walks the ancestors, `["lex"]`
+walks the handlers registered on the scope, and the default `["dyn","lex"]`
+tries both. The verb does not decide which scope answers — the route does,
+written at the call site.
 
 Every handler is called as `handler(...args, ctx)` and returns a
 (possibly updated) instance of `this`, which the framework swaps into
-the dispatch path; `ctx` is always the trailing argument. The three
-channels beyond `input` — plus `ctx.at`, the `$unknown` fallback,
-per-call handler-name overrides, error handling, and request-handler
-registration — are in [request-response.md](./request-response.md);
+the dispatch path; `ctx` is always the trailing argument. Routes,
+`ctx.reply` / `ctx.fail` / `ctx.forward` / `ctx.stop`, the three
+outcomes, `ctx.at`, the `$unknown` fallback, and intent-handler
+registration are in [messages-and-intents.md](./messages-and-intents.md);
 worked snippets in
 [patterns/coordinate-components.md](./patterns/coordinate-components.md).
 
-`alter` is a fifth handler block, but it isn't event-triggered — the
+`alter` is a third handler block, but it isn't event-triggered — the
 renderer invokes alter handlers to produce binds, not state changes
 (see *Mental model*, and *Scope Enrichment* in
 [iteration.md](./iteration.md)).
@@ -821,23 +836,23 @@ and the `tutuca` CLI can introspect any module without per-app glue:
 ```js
 export function getComponents()       { return [Comp, ...]; }
 export function getMacros()           { return { name: macro }; }      // optional
-export function getRequestHandlers()  { return { name: async fn }; }    // optional
+export function getIntentHandlers()  { return { name: async fn }; }    // optional
 export function getRoot()             { return Root.make({...}); }
 export function getExamples()         {
   // Return one section, or an array of sections.
   return {
     title: "...",
     description: "...",
-    // value = Comp.make(...); requestHandlers (optional) mocks this example's requests
-    items: [{ title, description, value, view, requestHandlers }],
+    // value = Comp.make(...); intentHandlers (optional) mocks this example's requests
+    items: [{ title, description, value, view, intentHandlers }],
   };
 }
 export function getTests({ describe, test, expect }) { /*...*/ }      // optional — see cli.md
 ```
 
-An example item may carry an optional **`requestHandlers`** map — per-example
+An example item may carry an optional **`intentHandlers`** map — per-example
 mocks (keyed by request name) that override the module's real
-`getRequestHandlers()` for that one instance, so two examples of the same
+`getIntentHandlers()` for that one instance, so two examples of the same
 component show different responses side by side. Return a fixture, `throw` for
 the error path, or never resolve to hold a loading state. Full treatment, plus
 the `on` lifecycle hooks, in [storybook.md](./storybook.md).
@@ -870,8 +885,8 @@ storybook in your own page — see [storybook.md](./storybook.md).
 - [component-design.md](./component-design.md) — design judgment for shaping a
   feature into components: responsibilities, where state lives, which channel to
   reach for, and a curated do's & don'ts list.
-- [request-response.md](./request-response.md) — `bubble` / `send`-`receive` /
-  `request`-`response` channels, the `ctx.at` `PathBuilder`, `$unknown`, and
+- [messages-and-intents.md](./messages-and-intents.md) — addressed
+  `send`-`receive` vs routed `intent`, the `ctx.at` `PathBuilder`, `$unknown`, and
   request-handler registration.
 - [advanced.md](./advanced.md) — dynamic bindings (`*x`), pseudo-`@x` for
   `<select>` / `<table>` / `<tr>`, drag & drop, custom seq types.

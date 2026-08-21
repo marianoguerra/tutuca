@@ -187,7 +187,7 @@
         </p>
         <p>
           The only host code is the <code>setInterval</code> in
-          <code>getRequestHandlers()</code>: it owns the timer and pushes a
+          <code>getIntentHandlers()</code>: it owns the timer and pushes a
           <code>tick</code> message at the root component, exactly what
           <code>app.sendAtRoot("tick")</code> does in an app that has the
           <code>app</code> handle. Everything else is a decision the component

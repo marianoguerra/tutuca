@@ -89,7 +89,7 @@ export const Root = component({
       );
     },
   },
-  input: {
+  receive: {
     onCategoryToggle(key, isAlt) {
       const cat = this.allCategories.get(key);
       if (isAlt) {
@@ -125,6 +125,38 @@ export const Root = component({
     onToggleFeaturedFirst() {
       return this.toggleFeaturedFirst().resort();
     },
+    init(ctx) {
+      ctx.intent("loadData", [], { route: ["lex"] });
+      return this;
+    },
+    // The success arm gets the result ALONE — there is no `err` to assert away, because
+    // a failure reaches `loadDataError` instead and can never arrive here.
+    loadDataOk(res) {
+      const entries = res.map((data) => Entry.Class.fromData(data));
+      const allCats = new Set();
+      const allRoles = new Set();
+      for (const entry of entries) {
+        for (const cat of entry.categories) {
+          allCats.add(cat);
+        }
+        if (entry.role) {
+          allRoles.add(entry.role);
+        }
+      }
+      const allCatList = List([...allCats].sort());
+      const allRolesList = List([...allRoles].sort());
+      return this.setAllEntries(
+        sortEntries(entries, this.sortByEnd, this.sortAsc, this.featuredFirst),
+      )
+        .setAllCategories(allCatList)
+        .setSelectedCategories(ISet(allCatList))
+        .setAllRoles(allRolesList)
+        .setSelectedRoles(ISet(allRolesList));
+    },
+    loadDataError(err) {
+      console.error("loadData failed", err);
+      return this;
+    },
   },
   alter: {
     filterEntry(_key, entry) {
@@ -147,37 +179,6 @@ export const Root = component({
       binds.btnClass = isSelected
         ? "btn btn-xs btn-neutral font-bold ring-1 ring-neutral-content/30"
         : "btn btn-xs btn-ghost font-bold opacity-40";
-    },
-  },
-  response: {
-    loadData(res, err) {
-      console.assert(err === null);
-      const entries = res.map((data) => Entry.Class.fromData(data));
-      const allCats = new Set();
-      const allRoles = new Set();
-      for (const entry of entries) {
-        for (const cat of entry.categories) {
-          allCats.add(cat);
-        }
-        if (entry.role) {
-          allRoles.add(entry.role);
-        }
-      }
-      const allCatList = List([...allCats].sort());
-      const allRolesList = List([...allRoles].sort());
-      return this.setAllEntries(
-        sortEntries(entries, this.sortByEnd, this.sortAsc, this.featuredFirst),
-      )
-        .setAllCategories(allCatList)
-        .setSelectedCategories(ISet(allCatList))
-        .setAllRoles(allRolesList)
-        .setSelectedRoles(ISet(allRolesList));
-    },
-  },
-  receive: {
-    init(ctx) {
-      ctx.request("loadData");
-      return this;
     },
   },
   view: html`<section class="flex flex-col gap-4">
@@ -393,7 +394,7 @@ export function getRoot() {
   return Root.make();
 }
 
-export function getRequestHandlers() {
+export function getIntentHandlers() {
   return {
     async loadData() {
       const req = await fetch("https://marianoguerra.github.io/data.json");

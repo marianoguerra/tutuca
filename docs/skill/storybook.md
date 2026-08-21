@@ -1,7 +1,7 @@
 # Tutuca — Storybook
 
 Reach this file when authoring `*.dev.js` story modules or running
-`tutuca storybook` — defining `getExamples()` sections, mocking requests per
+`tutuca storybook` — defining `getExamples()` sections, mocking intent handlers per
 example, or rendering a live component catalog. For the framework primer see
 [core.md](./core.md); for the full CLI flag/exit-code table see
 [cli.md](./cli.md); for the `getTests` shape see [testing.md](./testing.md).
@@ -42,7 +42,7 @@ this table adds what the storybook does with each.)
 | `getExamples()` | one section, or an array of sections | the catalog cards |
 | `getTests({ describe, test, expect })` | tests | the pre-serve test run (optional) |
 | `getMacros()` | `{ name: macro }` | macros referenced in views (optional) |
-| `getRequestHandlers()` | `{ name: async fn }` | the module's **real** request handlers (optional) |
+| `getIntentHandlers()` | `{ name: async fn }` | the module's **real** handlers for the `lex` leg (optional) |
 | `getRoot()` | `Root.make({...})` | root state when examples need it (optional) |
 
 ## Authoring stories (`getExamples`)
@@ -102,38 +102,40 @@ Item fields:
 - `description?` — shown under the card title.
 - `value` — required, the instance to render, usually `Comp.make({...})`.
 - `view?` — selects a pushed named view, rendered via `@push-view` in the card.
-- `requestHandlers?` — per-example request mocks (next section).
+- `intentHandlers?` — per-example intent-handler mocks (next section).
 - `on?` — lifecycle hooks; messages sent to `value` as sections are navigated
   ([Lifecycle hooks](#lifecycle-hooks-on)).
 
 The storybook sorts sections by title and renders a sidebar with a filter, so
 one example item per meaningful state reads as a state matrix.
 
-## Mocking requests per example
+## Mocking intent handlers per example
 
-An item's optional `requestHandlers` map holds async functions keyed by request
-name that override the module's real `getRequestHandlers()` handler **for that
+An item's optional `intentHandlers` map holds async functions keyed by intent
+name that override the module's real `getIntentHandlers()` handler **for that
 one example instance only** — so two examples of the same component show
-different responses side by side. The three idioms:
+different answers side by side. The three idioms:
 
 ```js
 items: [
   { title: "Loaded", value: Widget.make({ isLoading: true }),
-    requestHandlers: { async load() { return [{ id: 1, name: "Ada" }]; } } },   // fixture
+    intentHandlers: { async load() { return [{ id: 1, name: "Ada" }]; } } },   // fixture
   { title: "Error", value: Widget.make({ isLoading: true }),
-    requestHandlers: { async load() { throw new Error("boom"); } } },           // error path
+    intentHandlers: { async load() { throw new Error("boom"); } } },           // error path
   { title: "Loading", value: Widget.make({ isLoading: true }),
-    requestHandlers: { load() { return new Promise(() => {}); } } },            // never resolves
-  { title: "Default", value: Widget.make() },         // no mock → real handler / "Request not found"
+    intentHandlers: { load() { return new Promise(() => {}); } } },            // never resolves
+  { title: "Default", value: Widget.make() },         // no mock → the real handler, or nothing
 ]
 ```
 
-How it resolves: the storybook registers one meta-handler per request name. On
+How it resolves: the storybook registers one meta-handler per intent name. On
 dispatch it walks the issuing component's path leaf→root to find the nearest
-example carrying a mock for that name (**nearest example wins**), else falls
-back to the module's real handler, else surfaces `Request not found: <name>`.
-This is **storybook-only** — at runtime your real `getRequestHandlers()` apply.
-See [request-response.md](./request-response.md) for the handler contract (the
+example carrying a mock for that name (**nearest example wins**), else falls back
+to the module's real handler. With neither, the meta-handler **declines** (`PASS`)
+rather than inventing an error, so the walk runs out and the example hears
+`<name>Unhandled` — "nothing claimed it", not "a handler refused it".
+This is **storybook-only** — at runtime your real `getIntentHandlers()` apply.
+See [messages-and-intents.md](./messages-and-intents.md) for the handler contract (the
 `ctx` is the handler's final argument). `tutuca storybook --dry-run --json`
 lists each example's mocked names.
 
@@ -152,15 +154,16 @@ constructed in it. Three phases:
 items: [
   { title: "Loaded", value: Grid.make({}),
     on: {
-      init:    { request: [{ name: "load", args: [] }] },     // fetch on first show
+      init:    { intent: [{ name: "load", args: [], opts: { route: ["lex"] } }] }, // fetch on first show
       resume:  { send:    [{ name: "refresh", args: [] }] },  // re-poll on return
       suspend: { send:    [{ name: "pause", args: [] }] },    // stop work when hidden
     } },
 ]
 ```
 
-Each phase holds **action buckets** — `send` (→ a `receive` handler), `bubble`,
-`request` (→ a `response` handler), `input` — each an array of
+Each phase holds **action buckets** — `send` (→ a `receive` handler) and
+`intent` (→ a walk along `opts.route`, answering into a `receive` arm named
+`<name>Ok` / `<name>Error` / `<name>Unhandled`) — each an array of
 `{ name, args?, opts? }`. `args` is a plain array, or a **function** `(self) =>
 [...]` called with the example's component instance:
 
@@ -173,13 +176,15 @@ carries its own `type`:
 
 ```js
 on: { init: { do: [
-  { type: "send",    name: "reset", args: [] },
-  { type: "request", name: "load",  args: [] },   // runs after reset
+  { type: "send",   name: "reset", args: [] },
+  { type: "intent", name: "load",  args: [], opts: { route: ["lex"] } }, // runs after reset
 ] } }
 ```
 
-`request` actions honor the example's `requestHandlers` mocks. A phase message
-with no matching handler on the component is a silent no-op.
+`intent` actions on the `lex` leg honor the example's `intentHandlers` mocks. A
+phase message with no matching handler on the component is a silent no-op, and an
+`intent` on the `dyn` leg walks up into the storybook engine rather than into your
+own tree — the visibly-useful shapes are `send` and `intent` on `lex`.
 
 ## Stories as tests (`getTests`)
 
@@ -196,7 +201,7 @@ export function getTests({ describe, test, expect }) {
 ```
 
 See [testing.md](./testing.md) for the full `getTests` shape and how to call
-methods / input / receive / bubble / response / alter handlers.
+methods / receive / intent / alter handlers.
 
 ## Running it
 
@@ -245,12 +250,14 @@ be no theme CSS to switch to.
 
 - ⚠️ `value` must be a real instance (`Comp.make(...)`), not a plain object or
   the class itself — examples need an addressable instance for event dispatch.
-- ⚠️ `requestHandlers` mocks are **storybook-only** and per-instance; don't rely
+- ⚠️ `intentHandlers` mocks are **storybook-only** and per-instance; don't rely
   on them in `getTests` or production code.
 - ⚠️ Never import a `.dev.js` from app/production code — the suffix is the
   ship / no-ship boundary.
-- ⚠️ An example whose component triggers a request with no real handler and no
-  per-example mock surfaces `Request not found: <name>`.
+- ⚠️ An example whose component raises an intent with no real handler and no
+  per-example mock hears `<name>Unhandled` — and if it declares no answer arm at
+  all, nothing happens and nothing is reported. Declare `<name>Unhandled` (or at
+  least `<name>Error`) while wiring one up.
 - ⚠️ Keep one tutuca runtime — mixed specifiers or installs break scope identity.
 
 ## Verify

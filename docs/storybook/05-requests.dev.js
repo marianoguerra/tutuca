@@ -1,13 +1,13 @@
-// 05 — REQUESTS: getRequestHandlers (the module's REAL handlers) + per-example
-// `requestHandlers` mocks. Four idioms, side by side:
+// 05 — INTENTS ON THE `lex` LEG: getIntentHandlers (the module's REAL handlers) +
+// per-example `intentHandlers` mocks. Four idioms, side by side:
 //   - fixture        — async returns canned data
 //   - error          — async throws (exercises the error path)
 //   - loading-forever — returns a promise that never resolves
-//   - no mock        — falls back to the module's real getRequestHandlers()
+//   - no mock        — falls back to the module's real getIntentHandlers()
 //
-// Resolution: the storybook registers ONE meta-handler per request name; on
-// dispatch it walks the issuing component's path to the nearest example carrying a
-// mock for that name (nearest example wins), else the module's real handler.
+// Resolution: the storybook registers ONE meta-handler per intent name; on dispatch
+// it walks the issuing component's path to the nearest example carrying a mock for
+// that name (nearest example wins), else the module's real handler.
 //
 // Each card loads on first display via `on: { init: { send: ["load"] } }` (so it
 // works on a runtime with lifecycle hooks), and also has a Reload button that
@@ -21,7 +21,7 @@ const DataList = component({
   methods: {
     // Methods invoked from events receive `ctx` as the last argument.
     reload(ctx) {
-      ctx.request("loadRows", []);
+      ctx.intent("loadRows", [], { route: ["lex"] });
       return this.setStatus("loading");
     },
     isLoading() {
@@ -35,14 +35,18 @@ const DataList = component({
     },
   },
   receive: {
+    // The two outcomes of `loadRows`, each with its own name and its own shape. One
+    // combined `(res, err)` arm would hand both to every call and leave the body to work
+    // out which slot was filled — which is exactly how a split arm read the wrong one.
+    loadRowsOk(res) {
+      return this.setStatus("loaded").setRows(res);
+    },
+    loadRowsError() {
+      return this.setStatus("error");
+    },
     // Lifecycle `on.init.send` targets this; reuse the reload method.
     load(ctx) {
       return this.reload(ctx);
-    },
-  },
-  response: {
-    loadRows(res, err) {
-      return err ? this.setStatus("error") : this.setStatus("loaded").setRows(res);
     },
   },
   view: html`<div class="flex flex-col gap-2 max-w-sm">
@@ -67,7 +71,7 @@ export function getRoot() {
 }
 
 // The module's REAL handler — used by any example that doesn't mock `loadRows`.
-export function getRequestHandlers() {
+export function getIntentHandlers() {
   return {
     loadRows: async () => delay(500, SAMPLE_ROWS),
   };
@@ -79,11 +83,11 @@ export function getExamples() {
   return {
     group: "Authoring · Behavior",
     title: "Requests",
-    description: "Real getRequestHandlers + per-example mocks (fixture / error / loading / real)",
+    description: "Real getIntentHandlers + per-example mocks (fixture / error / loading / real)",
     items: [
       {
         title: "Real handler",
-        description: "no mock → module's getRequestHandlers (500ms then rows)",
+        description: "no mock → module's getIntentHandlers (500ms then rows)",
         value: DataList.make(),
         on: autoLoad,
       },
@@ -92,14 +96,14 @@ export function getExamples() {
         description: "per-example mock returns canned rows instantly",
         value: DataList.make(),
         on: autoLoad,
-        requestHandlers: { loadRows: async () => ["mock-one", "mock-two", "mock-three"] },
+        intentHandlers: { loadRows: async () => ["mock-one", "mock-two", "mock-three"] },
       },
       {
         title: "Mocked error",
         description: "per-example mock throws → error path",
         value: DataList.make(),
         on: autoLoad,
-        requestHandlers: {
+        intentHandlers: {
           loadRows: async () => {
             throw new Error("mocked failure");
           },
@@ -110,7 +114,7 @@ export function getExamples() {
         description: "per-example mock never resolves → perpetual loading",
         value: DataList.make(),
         on: autoLoad,
-        requestHandlers: { loadRows: () => new Promise(() => {}) },
+        intentHandlers: { loadRows: () => new Promise(() => {}) },
       },
       {
         title: "No auto-load (click Reload)",

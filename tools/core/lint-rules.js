@@ -30,11 +30,10 @@ import {
   FIELD_VAL_NOT_DEFINED,
   GLOBAL_SELECTOR_IN_SCOPED_STYLE,
   IF_NO_BRANCH_SET,
-  INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
-  INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
-  INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
-  INPUT_HANDLER_NOT_IMPLEMENTED,
-  INPUT_HANDLER_NOT_REFERENCED,
+  RECEIVE_HANDLER_FOR_METHOD,
+  METHOD_FOR_RECEIVE_HANDLER,
+  RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED,
+  RECEIVE_HANDLER_NOT_IMPLEMENTED,
   LOOKUP_BAD_SHAPE,
   LOOKUP_TARGET_MALFORMED,
   MAYBE_ADD_AT_PREFIX,
@@ -92,36 +91,30 @@ export const LINT_RULES = [
     summary: "`$name` calls a method, but `name` is a field — use `.name`.",
   },
 
-  // Input-handler / method confusion
+  // Receive-handler / method confusion
   {
-    code: INPUT_HANDLER_NOT_IMPLEMENTED,
+    code: RECEIVE_HANDLER_NOT_IMPLEMENTED,
     level: "error",
-    group: "Input-handler / method confusion",
-    summary: "Bare handler name has no entry in `input`.",
+    group: "Receive-handler / method confusion",
+    summary: "Bare handler name has no entry in `receive`.",
   },
   {
-    code: INPUT_HANDLER_METHOD_NOT_IMPLEMENTED,
+    code: RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED,
     level: "error",
-    group: "Input-handler / method confusion",
+    group: "Receive-handler / method confusion",
     summary: "`$handler` has no entry in `methods`.",
   },
   {
-    code: INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD,
+    code: RECEIVE_HANDLER_FOR_METHOD,
     level: "hint",
-    group: "Input-handler / method confusion",
-    summary: "`$name` is a method reference, but `name` is an input handler — drop the `$`.",
+    group: "Receive-handler / method confusion",
+    summary: "`$name` is a method reference, but `name` is a receive handler — drop the `$`.",
   },
   {
-    code: INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER,
+    code: METHOD_FOR_RECEIVE_HANDLER,
     level: "hint",
-    group: "Input-handler / method confusion",
-    summary: "Bare `name` is an input-handler reference, but `name` is a method — add `$`.",
-  },
-  {
-    code: INPUT_HANDLER_NOT_REFERENCED,
-    level: "hint",
-    group: "Input-handler / method confusion",
-    summary: "`input` entry is defined but never wired to an `@on.*` event.",
+    group: "Receive-handler / method confusion",
+    summary: "Bare `name` is a receive-handler reference, but `name` is a method — add `$`.",
   },
 
   // Iteration helpers (`alter`)
@@ -318,15 +311,43 @@ export const LINT_RULES = [
     summary: "`component({...})` has an unrecognized key; its value is ignored at runtime.",
   },
 
+  // Retired four-channel vocabulary (TEMPORARY — remove a couple of releases after
+  // the two-channel change). These exist to drive the migration: the linter reports
+  // every site and says what replaces it, and a clean run IS the finished migration.
+  {
+    code: "RETIRED_HANDLER_BUCKET",
+    level: "error",
+    group: "Retired dispatch vocabulary",
+    summary:
+      "`input`, `bubble` and `response` are no longer handler buckets — four dispatch " +
+      "channels became two, `receive` (addressed) and `intent` (routed).",
+  },
+  {
+    code: "RETIRED_CTX_VERB",
+    level: "error",
+    group: "Retired dispatch vocabulary",
+    summary:
+      "`ctx.bubble`, `ctx.request` and `ctx.stopPropagation` are gone — one `ctx.intent` " +
+      "carries a route, and `ctx.stop()` ends a walk.",
+  },
+  {
+    code: "HANDLER_NAME_COLLISION",
+    level: "error",
+    group: "Retired dispatch vocabulary",
+    summary:
+      "Two handlers collapse onto one name, or a `receive` arm collides with an " +
+      "intent's derived answer name.",
+  },
+
   // Handler effects
   {
     code: ASYNC_HANDLER,
     level: "error",
     group: "Handler effects",
     summary:
-      "A handler in `input`/`receive`/`bubble`/`response`/`alter` is an async " +
-      "function — handlers must be synchronous; use a request handler, `ctx.send`, " +
-      "or `ctx.bubble` instead.",
+      "A handler in `receive`/`intent`/`alter` is an async function — handlers must " +
+      "be synchronous. Put the async work in a scope-registered intent handler and " +
+      "reach it with `ctx.intent`, or coordinate with `ctx.send`.",
   },
 
   // Component styles

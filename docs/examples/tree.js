@@ -18,13 +18,13 @@ export const TreeItem = component({
       });
     },
   },
-  input: {
+  receive: {
     onItemClick(ctx) {
-      ctx.bubble("treeItemSelected", [this]);
+      ctx.intent("treeItemSelected", [this], { route: ["dyn"] });
       return this.toggleIsOpen();
     },
   },
-  bubble: {
+  intent: {
     treeItemSelected(_selectedItem) {
       return this;
     },
@@ -72,7 +72,7 @@ export const TreeRoot = component({
       });
     },
   },
-  bubble: {
+  intent: {
     treeItemSelected(selectedItem) {
       const msg = `Selected ${selectedItem.type}: ${selectedItem.label}`;
       return this.insertInLogAt(0, msg);

@@ -191,7 +191,7 @@ describe("@value inside @each click handler", () => {
     const List = component({
       name: "List",
       fields: { items: [] },
-      input: {
+      receive: {
         noteClicked(item) {
           received = item;
           return this;
@@ -254,7 +254,7 @@ describe("@value inside @each click handler", () => {
     const Item = component({
       name: "Item",
       fields: { uid: "" },
-      input: {
+      receive: {
         // Handler is on Item (the rendered child). It tries to read @key/@value
         // which the surrounding @each scope binds. The render-it pushes a frame
         // between that scope and the child view, so the lookup must STOP at the
@@ -301,7 +301,7 @@ describe("@value inside @each click handler", () => {
     const Bag = component({
       name: "Bag",
       fields: { items: IMap() },
-      input: {
+      receive: {
         noteClicked(k, v) {
           receivedKey = k;
           receivedValue = v;
@@ -348,7 +348,7 @@ describe("@enrich-with binds survive path rebuild", () => {
           binds.label = `L:${item}`;
         },
       },
-      input: {
+      receive: {
         noteClicked(label) {
           received = label;
           return this;
@@ -390,7 +390,7 @@ describe("@enrich-with binds survive path rebuild", () => {
           binds.total = iterData.total;
         },
       },
-      input: {
+      receive: {
         noteClicked(total) {
           received = total;
           return this;
@@ -427,7 +427,7 @@ describe("@enrich-with binds survive path rebuild", () => {
           return { greeting: `hi ${this.name}` };
         },
       },
-      input: {
+      receive: {
         noteClicked(greeting) {
           received = greeting;
           return this;
@@ -464,7 +464,7 @@ describe("@on.drop bubbles to ancestor components", () => {
     const Parent = component({
       name: "Parent",
       fields: { child: Child.make({ uid: "c1" }) },
-      input: {
+      receive: {
         onDrop(e) {
           captured.type = e.type;
           captured.self = this;
@@ -539,7 +539,7 @@ describe("+prevent / +stop effect modifiers", () => {
     const Comp = component({
       name: "EffectMods",
       fields: { n: 0 },
-      input: {
+      receive: {
         onClick() {
           calls.push("click");
           return this;
@@ -609,7 +609,7 @@ describe("dragInfo.lookupBind for @each items", () => {
     const Reorder = component({
       name: "Reorder",
       fields: { items: ["a", "b", "c"] },
-      input: {
+      receive: {
         onDropOnItem(_targetKey, dragInfo) {
           sourceKey = dragInfo.lookupBind("key");
           return this;
@@ -655,7 +655,7 @@ describe("dynamic variable as a path segment", () => {
     const Sheet = component({
       name: "Sheet",
       fields: { title: "untitled" },
-      input: {
+      receive: {
         rename() {
           return this.setTitle("renamed");
         },
@@ -731,7 +731,7 @@ describe("dynamic variable as a path segment", () => {
     const Doc = component({
       name: "Doc",
       fields: { title: "untitled" },
-      input: {
+      receive: {
         rename() {
           return this.setTitle("renamed");
         },
@@ -772,7 +772,7 @@ describe("dynamic variable as a path segment", () => {
     const Row = component({
       name: "Row",
       fields: { label: "" },
-      input: {
+      receive: {
         bump() {
           return this.setLabel(`${this.label}!`);
         },
@@ -851,20 +851,20 @@ describe("dynamic variable as a path segment", () => {
     expect(p.toTransactionPath()).toBe(p);
   });
 
-  test("a bubbling event visits the intermediate components, then the producer", () => {
+  test("an intent walk visits the intermediate components, then the producer", () => {
     const visited = [];
     const Sheet = component({
       name: "Sheet",
       fields: { title: "untitled" },
-      input: {
+      receive: {
         ping(ctx) {
-          ctx.bubble("ping");
+          ctx.intent("ping", [], { route: ["dyn"] });
           return this;
         },
       },
       view: html`<button class="ping" @on.click="ping">x</button>`,
     });
-    const mkBubble = (name) => ({
+    const mkIntentObserver = (name) => ({
       ping() {
         visited.push(name);
         return this;
@@ -874,20 +874,20 @@ describe("dynamic variable as a path segment", () => {
       name: "Toolbar",
       fields: {},
       lookup: { active: { for: "Workspace.active", default: ".missing" } },
-      bubble: mkBubble("Toolbar"),
+      intent: mkIntentObserver("Toolbar"),
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
     const Panel = component({
       name: "Panel",
       fields: { toolbar: null },
-      bubble: mkBubble("Panel"),
+      intent: mkIntentObserver("Panel"),
       view: html`<div class="panel"><x render=".toolbar"></x></div>`,
     });
     const Workspace = component({
       name: "Workspace",
       fields: { sheet: null, panel: null },
       provide: { active: ".sheet" },
-      bubble: mkBubble("Workspace"),
+      intent: mkIntentObserver("Workspace"),
       view: html`<div class="workspace"><x render=".panel"></x></div>`,
     });
     const root = Workspace.make({
@@ -903,8 +903,9 @@ describe("dynamic variable as a path segment", () => {
     );
     container.querySelector(".ping").click();
     while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
-    // The dispatch path keeps every crossed component, so the bubble visits the
-    // intermediate Toolbar and Panel before reaching the producer Workspace.
+    // The dispatch path keeps every crossed component, so the walk visits the
+    // intermediate Toolbar and Panel before reaching the producer Workspace. None of
+    // them replies, so each is an OBSERVER and the walk goes on past it.
     expect(visited).toEqual(["Toolbar", "Panel", "Workspace"]);
     cleanup();
   });
@@ -913,7 +914,7 @@ describe("dynamic variable as a path segment", () => {
     const Sheet = component({
       name: "Sheet",
       fields: { title: "untitled" },
-      input: {
+      receive: {
         rename() {
           return this.setTitle("renamed");
         },
@@ -1000,7 +1001,7 @@ describe("dynamic variable as a path segment", () => {
       name: "Owner",
       fields: { items: IMap(), child: null, picked: "" },
       provide: { items: ".items" },
-      input: {
+      receive: {
         pick(k) {
           return this.setPicked(k);
         },
@@ -1053,7 +1054,7 @@ describe("passthrough component (bare <x render> as the whole view)", () => {
     const Child = component({
       name: "Child",
       fields: { title: "untitled" },
-      input: {
+      receive: {
         rename() {
           return this.setTitle("renamed");
         },
@@ -1119,7 +1120,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     component({
       name: "Item",
       fields: { uid: "", visible: true },
-      input: {
+      receive: {
         tap() {
           return this.setUid(`${this.uid}!`);
         },
@@ -1225,7 +1226,7 @@ describe("render-each is @each + <x render-it>: @key/@value semantics", () => {
     const Item = component({
       name: "REItem",
       fields: { uid: "" },
-      input: {
+      receive: {
         recordIt(k, v) {
           receivedKey = k;
           receivedValue = v;
@@ -1261,7 +1262,7 @@ describe("render-each is @each + <x render-it>: @key/@value semantics", () => {
     const Item = component({
       name: "REItem2",
       fields: { uid: "" },
-      input: {
+      receive: {
         tap() {
           return this.setUid(`${this.uid}!`);
         },

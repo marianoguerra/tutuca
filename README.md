@@ -75,8 +75,8 @@ Each concept has a tutorial section with editable live examples:
 - **[Rendering components](https://marianoguerra.github.io/tutuca/tutorial.html#rendering-components)** —
   compose with `<x render>`, multiple views per component, scoped styles
 - **[Component communication](https://marianoguerra.github.io/tutuca/tutorial.html#component-communication)** —
-  bubble events up the tree, send messages to a target, run async work with
-  request/response
+  send messages to a target, or raise an intent and let a route find whoever
+  answers it
 - **[Macros](https://marianoguerra.github.io/tutuca/tutorial.html#macros)** —
   reusable markup fragments with parameters and slots
 - **[Escape hatches](https://marianoguerra.github.io/tutuca/tutorial.html#escape-hatches)** —

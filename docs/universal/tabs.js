@@ -36,15 +36,6 @@ const Tabs = component({
       }
       return this;
     },
-  },
-  alter: {
-    enrichTabs(binds, key, item) {
-      binds.label = item.label;
-      binds.isSelected = this.selectedIndex === key;
-      binds.isEditing = item.isEditing;
-    },
-  },
-  input: {
     onAddTabSelected(ctx) {
       ctx.at.index("items", this.items.size).send("init");
       const label = `Tab ${this.items.size + 1}`;
@@ -61,6 +52,13 @@ const Tabs = component({
     },
     onTabLabelEditEnd(key) {
       return this.updateInItemsAt(key, (t) => t.setIsEditing(false));
+    },
+  },
+  alter: {
+    enrichTabs(binds, key, item) {
+      binds.label = item.label;
+      binds.isSelected = this.selectedIndex === key;
+      binds.isEditing = item.isEditing;
     },
   },
   view: html`<section class="flex flex-col gap-3">

@@ -67,10 +67,10 @@ export {
 } from "./deps/immutable.js";
 export { ParseContext } from "./src/anode.js";
 export { injectCss } from "./src/app.js";
-export { dispatchPhase, phaseHasBubble, phaseOps, resolveArgs } from "./src/on.js";
+export { dispatchPhase, phaseOps, resolveArgs } from "./src/on.js";
 export { component, FIELD_CLASS } from "./src/oo.js";
 export { SEQ_INFO } from "./src/renderer.js";
-export { rootDispatcher } from "./src/transactor.js";
+export { PASS, rootDispatcher } from "./src/transactor.js";
 export const css = String.raw;
 export const html = String.raw;
 export const macro = (defaults, rawView) => new Macro(defaults, rawView);

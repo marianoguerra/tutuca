@@ -4,7 +4,7 @@ import "https://cdn.jsdelivr.net/npm/emoji-picker-element/+esm";
 const EmojiPicker = component({
   name: "EmojiPicker",
   fields: { current: null, isPickerVisible: false },
-  input: {
+  receive: {
     onEmojiClick(detail) {
       return this.setCurrent(detail.unicode);
     },

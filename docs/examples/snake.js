@@ -2,7 +2,7 @@ import { component, css, html, rootDispatcher } from "tutuca";
 
 // Snake, with every rule and every piece of state inside the components.
 //
-// The only host code is in `getRequestHandlers()` at the bottom: a timer that
+// The only host code is in `getIntentHandlers()` at the bottom: a timer that
 // owns a `setInterval` and pushes a `tick` message at the root component, and a
 // one-line `focus()` on the board. Neither reads or writes app state —
 // `SnakeGame.receive.tick` is what advances the game, so pausing, resuming,
@@ -214,19 +214,19 @@ export const SnakeGame = component({
     // both ask the host to put it back on the board and the keys work right away.
     startGame(ctx) {
       const next = this.reset().setStatus("running");
-      ctx.request("startTicking", [next.intervalMs]);
-      ctx.request("focusBoard", []);
+      ctx.intent("startTicking", [next.intervalMs], { route: ["lex"] });
+      ctx.intent("focusBoard", [], { route: ["lex"] });
       return next;
     },
     pauseGame(ctx) {
       if (!this.isRunning()) return this;
-      ctx.request("stopTicking", []);
+      ctx.intent("stopTicking", [], { route: ["lex"] });
       return this.setStatus("paused");
     },
     resumeGame(ctx) {
       if (!this.isPaused()) return this;
-      ctx.request("startTicking", [this.intervalMs]);
-      ctx.request("focusBoard", []);
+      ctx.intent("startTicking", [this.intervalMs], { route: ["lex"] });
+      ctx.intent("focusBoard", [], { route: ["lex"] });
       return this.setStatus("running");
     },
     togglePause(ctx) {
@@ -244,7 +244,7 @@ export const SnakeGame = component({
       binds.fill = key === 0 ? HEAD_FILL : BODY_FILL;
     },
   },
-  input: {
+  receive: {
     turnUp() {
       return this.turn("up");
     },
@@ -268,11 +268,9 @@ export const SnakeGame = component({
     // on release: a running game restarts its interval at the new rate
     applySpeed(ms, ctx) {
       const next = this.setIntervalMs(ms);
-      if (next.isRunning()) ctx.request("startTicking", [ms]);
+      if (next.isRunning()) ctx.intent("startTicking", [ms], { route: ["lex"] });
       return next;
     },
-  },
-  receive: {
     // dispatched by the host after `app.start()` (`app.sendAtRoot("init")`)
     init() {
       return this.reset();
@@ -281,7 +279,7 @@ export const SnakeGame = component({
     tick(ctx) {
       if (!this.isRunning()) return this; // a tick that raced a pause: ignore it
       const next = this.step();
-      if (next.isOver()) ctx.request("stopTicking", []);
+      if (next.isOver()) ctx.intent("stopTicking", [], { route: ["lex"] });
       return next;
     },
   },
@@ -412,7 +410,7 @@ export function getRoot() {
 // is exactly what `app.sendAtRoot` does: dispatch `tick` at the root path.
 let stopPreviousTimer = null;
 
-export function getRequestHandlers() {
+export function getIntentHandlers() {
   // Each mount gets its own handlers; drop the timer the previous mount left
   // running (the playground re-runs the module on every edit).
   stopPreviousTimer?.();
@@ -493,10 +491,10 @@ export function getExamples() {
 }
 
 export function getTests({ describe, test, expect }) {
-  // handlers that schedule the timer only need a ctx that records requests
+  // handlers that schedule the timer only need a ctx that records the intents raised
   const recordingCtx = () => {
-    const requests = [];
-    return { requests, request: (name, args) => requests.push({ name, args }) };
+    const intents = [];
+    return { intents, intent: (name, args) => intents.push({ name, args }) };
   };
   const running = (fields) => SnakeGame.make({ status: "running", ...fields });
 
@@ -624,7 +622,7 @@ export function getTests({ describe, test, expect }) {
         const next = SnakeGame.make({ score: 9, ticks: 5 }).startGame(ctx);
         expect(next.status).toBe("running");
         expect(next.score).toBe(0);
-        expect(ctx.requests).toEqual([
+        expect(ctx.intents).toEqual([
           { name: "startTicking", args: [160] },
           { name: "focusBoard", args: [] },
         ]);
@@ -633,19 +631,19 @@ export function getTests({ describe, test, expect }) {
         const ctx = recordingCtx();
         const next = running().pauseGame(ctx);
         expect(next.status).toBe("paused");
-        expect(ctx.requests).toEqual([{ name: "stopTicking", args: [] }]);
+        expect(ctx.intents).toEqual([{ name: "stopTicking", args: [] }]);
       });
       test("pauseGame is a no-op unless the game is running", () => {
         const ctx = recordingCtx();
         const game = SnakeGame.make({});
         expect(game.pauseGame(ctx)).toBe(game);
-        expect(ctx.requests).toEqual([]);
+        expect(ctx.intents).toEqual([]);
       });
       test("resumeGame starts it again", () => {
         const ctx = recordingCtx();
         const next = SnakeGame.make({ status: "paused", intervalMs: 300 }).resumeGame(ctx);
         expect(next.status).toBe("running");
-        expect(ctx.requests).toEqual([
+        expect(ctx.intents).toEqual([
           { name: "startTicking", args: [300] },
           { name: "focusBoard", args: [] },
         ]);
@@ -656,18 +654,18 @@ export function getTests({ describe, test, expect }) {
       });
       test("applySpeed reschedules a running game at the new rate", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.input.applySpeed.call(running(), 320, ctx);
+        const next = SnakeGame.receive.applySpeed.call(running(), 320, ctx);
         expect(next.intervalMs).toBe(320);
-        expect(ctx.requests).toEqual([{ name: "startTicking", args: [320] }]);
+        expect(ctx.intents).toEqual([{ name: "startTicking", args: [320] }]);
       });
       test("applySpeed on a paused game only stores the rate", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.input.applySpeed.call(SnakeGame.make({}), 320, ctx);
+        const next = SnakeGame.receive.applySpeed.call(SnakeGame.make({}), 320, ctx);
         expect(next.intervalMs).toBe(320);
-        expect(ctx.requests).toEqual([]);
+        expect(ctx.intents).toEqual([]);
       });
       test("previewSpeed never touches the timer", () => {
-        expect(SnakeGame.input.previewSpeed.call(running(), 100).intervalMs).toBe(100);
+        expect(SnakeGame.receive.previewSpeed.call(running(), 100).intervalMs).toBe(100);
       });
     });
 
@@ -676,7 +674,7 @@ export function getTests({ describe, test, expect }) {
         const ctx = recordingCtx();
         const next = SnakeGame.receive.tick.call(running(), ctx);
         expect(next.ticks).toBe(1);
-        expect(ctx.requests).toEqual([]);
+        expect(ctx.intents).toEqual([]);
       });
       test("a tick that arrives while paused is ignored", () => {
         const ctx = recordingCtx();
@@ -688,27 +686,27 @@ export function getTests({ describe, test, expect }) {
         const game = running({ snake: [Cell.make({ x: 23, y: 8 })] });
         const next = SnakeGame.receive.tick.call(game, ctx);
         expect(next.status).toBe("over");
-        expect(ctx.requests).toEqual([{ name: "stopTicking", args: [] }]);
+        expect(ctx.intents).toEqual([{ name: "stopTicking", args: [] }]);
       });
     });
 
     describe("input.onKeyDown", () => {
       test("maps arrows and WASD to turns", () => {
         const ctx = recordingCtx();
-        expect(SnakeGame.input.onKeyDown.call(running(), "ArrowUp", ctx).pendingDir).toBe("up");
-        expect(SnakeGame.input.onKeyDown.call(running(), "s", ctx).pendingDir).toBe("down");
-        expect(SnakeGame.input.onKeyDown.call(running(), "W", ctx).pendingDir).toBe("up");
+        expect(SnakeGame.receive.onKeyDown.call(running(), "ArrowUp", ctx).pendingDir).toBe("up");
+        expect(SnakeGame.receive.onKeyDown.call(running(), "s", ctx).pendingDir).toBe("down");
+        expect(SnakeGame.receive.onKeyDown.call(running(), "W", ctx).pendingDir).toBe("up");
       });
       test("space toggles the pause", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.input.onKeyDown.call(running(), " ", ctx);
+        const next = SnakeGame.receive.onKeyDown.call(running(), " ", ctx);
         expect(next.status).toBe("paused");
-        expect(ctx.requests).toEqual([{ name: "stopTicking", args: [] }]);
+        expect(ctx.intents).toEqual([{ name: "stopTicking", args: [] }]);
       });
       test("any other key leaves the game alone", () => {
         const ctx = recordingCtx();
         const game = running();
-        expect(SnakeGame.input.onKeyDown.call(game, "q", ctx)).toBe(game);
+        expect(SnakeGame.receive.onKeyDown.call(game, "q", ctx)).toBe(game);
       });
     });
 

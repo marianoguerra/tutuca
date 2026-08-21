@@ -109,7 +109,7 @@ export const JsonArray = component({
     uid: "",
     items: [],
   },
-  input: {
+  receive: {
     addItem(Comp) {
       return this.pushInItems(Comp.make());
     },
@@ -178,7 +178,7 @@ export const JsonObject = component({
     uid: "",
     items: [],
   },
-  input: {
+  receive: {
     addItem(KV, JsonSelector) {
       return this.pushInItems(KV.make({ value: JsonSelector.make() }));
     },

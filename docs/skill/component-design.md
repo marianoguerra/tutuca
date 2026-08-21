@@ -4,7 +4,7 @@ How to *shape* a feature into one or more tutuca components — responsibilities
 where state lives, which channel to reach for — before you reach for syntax. The
 mechanics live elsewhere: component skeleton, fields, directives, and the
 post-edit verification recipe in [core.md](./core.md); the orchestration channels
-in [request-response.md](./request-response.md); dynamic bindings (`provide` /
+in [messages-and-intents.md](./messages-and-intents.md); dynamic bindings (`provide` /
 `lookup` / `*x`) in [advanced.md](./advanced.md); task recipes in
 [patterns/README.md](./patterns/README.md). This file is a router with judgment
 attached — every rule points at its canonical home rather than restating it.
@@ -23,7 +23,7 @@ Walk these top-down whenever you add or reshape a component:
 3. **How do these components talk?** Pick the narrowest channel that reaches the
    owner — see the ladder below.
 4. **Where does the outside world cross the boundary?** Outbound I/O goes through
-   `ctx.request` / `response`; inbound external events go through
+   `ctx.intent(..., { route: ["lex"] })`; inbound external events go through
    `app.sendAtRoot` to the root. Keep the logic inside tutuca on both sides.
 
 ## Communication decision ladder
@@ -40,24 +40,28 @@ the ladder when the one above can't express it:
 
 - **The component owns the state needed to respond** → call a plain **`method`** on
   itself (stays self-contained). See [core.md](./core.md) Methods.
-- **An ancestor owns aggregate state** (a log, a selection, a total) → **`ctx.bubble`**
-  up toward the root; the first ancestor with a matching handler runs. See
-  [request-response.md](./request-response.md) "When to bubble".
-- **You need to reach one known component** → **`ctx.send` / `receive`**, addressing a
-  specific path with `ctx.at` (defaults to self). See
-  [request-response.md](./request-response.md) "When to send".
-- **The work is async or host-side** (fetch, timer, IndexedDB, an SDK) →
-  **`ctx.request` / `response`**, which goes out to the host and routes the result
-  back into component state. See [request-response.md](./request-response.md).
+- **You know exactly which component must be told** → **`ctx.send` / `receive`**,
+  addressing a specific path with `ctx.at` (defaults to self). See
+  [messages-and-intents.md](./messages-and-intents.md) "When to send".
+- **You do not know who should answer** → **`ctx.intent`**, and the *route* says
+  where to look: `["dyn"]` up the ancestors (an ancestor owning aggregate state —
+  a log, a selection, a total), `["lex"]` the registered scope handlers (async or
+  host-side work — fetch, timer, IndexedDB, an SDK), or the default `["dyn","lex"]`
+  for both. The answer comes back as `<name>Ok` / `<name>Error` /
+  `<name>Unhandled`. See [messages-and-intents.md](./messages-and-intents.md).
 - **An external event pushes *into* the app** (WebSocket, `postMessage`, …) →
   **`app.sendAtRoot`**, which lands the inbound event on the root. See
-  [request-response.md](./request-response.md) "Integrating with the outside world".
+  [messages-and-intents.md](./messages-and-intents.md) "Integrating with the outside world".
 - **A deep descendant needs a value owned far away** and nothing in between should
   know about it → **`provide` / `lookup` (`*name`)** across the tree — the last
   resort. See [advanced.md](./advanced.md).
 
-A compact worked version of the first four (`method`, `bubble`, `send`/`receive`,
-`request`/`response`) lives in
+Note what the ladder does **not** ask: *who answers*. That is the route's job,
+written at the call site, so a name can move from being answered locally to being
+answered by an ancestor without the view or the sender changing.
+
+A compact worked version of the first three (`method`, `send`/`receive`, and
+`intent` on each leg) lives in
 [patterns/coordinate-components.md](./patterns/coordinate-components.md).
 
 ## Do's & Don'ts
@@ -82,31 +86,31 @@ A compact worked version of the first four (`method`, `bubble`, `send`/`receive`
 - **Do read a child's state directly when an ancestor needs it for an aggregate
   decision.** A parent holds its children as immutable fields, so a handler or
   method can read `this.items.get(i).done` straight off — children don't have to
-  `bubble` their state up just to be *read*. **Don't reach for a channel to read
-  downward**; `bubble` / `send` are for reaching *up*, messaging a target, or
-  mutating — not for inspecting state you already own. (And don't reach in to
-  mutate a child around the model — that still goes through the owner returning a
-  new self or `ctx.send`.) → [core.md](./core.md) "The value tree" and
-  [request-response.md](./request-response.md) "When to bubble"
+  raise an intent just to be *read*. **Don't reach for a channel to read
+  downward**; `intent` / `send` are for asking someone to act, not for inspecting
+  state you already own. (And don't reach in to mutate a child around the model —
+  that still goes through the owner returning a new self or `ctx.send`.)
+  → [core.md](./core.md) "The value tree" and
+  [messages-and-intents.md](./messages-and-intents.md) "When to send"
 
 - **Do reach for `provide` / `lookup` (`*name`) last** — only when a deep
   descendant needs a value owned far away and nothing in between should know about
   it. Dynamic bindings couple a consumer to a producer that may not be in scope.
   → [advanced.md](./advanced.md)
 
-- **Do pick the channel by direction (the ladder above). Don't `bubble` an event
-  no ancestor consumes, and don't `send` to self when a plain method call would
-  do.** `bubble` emits an *event* any ancestor can observe; `send` delivers a
-  *message* to one target. → [request-response.md](./request-response.md) "When to
-  bubble" / "When to send"
+- **Do pick the channel by whether you know the answerer (the ladder above).
+  Don't raise an intent nothing consumes, and don't `send` to self when a plain
+  method call would do.** A message is *addressed* and stops at one component; an
+  intent is *routed* and walks until something answers.
+  → [messages-and-intents.md](./messages-and-intents.md) "The two channels"
 
 - **Do keep logic inside the tutuca app when integrating with the outside world.**
-  Route outbound work through `ctx.request` / `response` and inbound external
+  Route outbound work through `ctx.intent(..., { route: ["lex"] })` and inbound external
   events through `app.sendAtRoot` to the root (which forwards deeper with `ctx.at`),
   so handlers stay the single owner of state changes. **Don't mutate `app.state`
   directly or `addEventListener` outside the model** — state changed that way
   bypasses the immutable `return this.set…()` discipline and is invisible to the
-  component that owns it. → [request-response.md](./request-response.md)
+  component that owns it. → [messages-and-intents.md](./messages-and-intents.md)
   "Integrating with the outside world" (and its ⚠️ note)
 
 - **Do handle every DOM event with tutuca's built-in `@on.` handlers — including
@@ -154,8 +158,8 @@ A compact worked version of the first four (`method`, `bubble`, `send`/`receive`
 
 - [core.md](./core.md) — component skeleton, fields, directives, predicates, the
   verification recipe, and the "Common pitfalls" list.
-- [request-response.md](./request-response.md) — the channels in depth
-  (`bubble`, `send`/`receive`, `request`/`response`, `sendAtRoot`) and integrating
+- [messages-and-intents.md](./messages-and-intents.md) — the channels in depth
+  (`send`/`receive`, `intent` and its routes, `sendAtRoot`) and integrating
   with the outside world.
 - [advanced.md](./advanced.md) — `provide` / `lookup` / `*name` and the
   clean-namespace boundary.

@@ -1,10 +1,10 @@
-import { expect, test, vi } from "vitest";
+import { expect, test } from "vitest";
 import { expect as chaiExpect } from "../deps/chai.js";
-import { component, html, phaseHasBubble } from "../index.js";
+import { component, html } from "../index.js";
 import { runTests } from "../tools/core/test.js";
 
-// A component with a receive handler and a request/response pair, so `drive` can
-// exercise both a synchronous message and an async request settling.
+// A component with a plain message handler and an intent's answer arm, so `drive` can
+// exercise both a synchronous message and an async intent settling.
 const Counter = component({
   name: "Counter",
   fields: { count: 0, loaded: null },
@@ -12,10 +12,14 @@ const Counter = component({
     inc(by, _ctx) {
       return this.setCount(this.count + (by ?? 1));
     },
-  },
-  response: {
-    load(result, _err, _ctx) {
+    // The answer to `load`, arriving as an ordinary message under its own name.
+    loadOk(result, _ctx) {
       return this.setLoaded(result);
+    },
+    // "Nothing claimed it" — a different sentence from "a handler refused it", and it
+    // carries the arguments the intent was raised with.
+    nudgeUnhandled(by, _ctx) {
+      return this.setLoaded(`unhandled:${by}`);
     },
   },
   view: html`<div></div>`,
@@ -27,13 +31,16 @@ test("drive injected into getTests runs a phase and returns the settled value", 
   const report = await runTests({
     expect: chaiExpect,
     components: [Counter],
-    requestHandlers: { load: async () => "DATA" },
+    intentHandlers: { load: async () => "DATA" },
     getTests: ({ describe, test, drive }) => {
       describe(Counter, () => {
         test("init phase", async () => {
           settled = await drive(
             Counter.make({ count: 0 }),
-            { send: [{ name: "inc", args: [2] }], request: [{ name: "load", args: [] }] },
+            {
+              send: [{ name: "inc", args: [2] }],
+              intent: [{ name: "load", args: [], opts: { route: ["lex"] } }],
+            },
             { onMessage: (m) => trace.push(`${m.kind}:${m.name ?? ""}`) },
           );
         });
@@ -43,9 +50,9 @@ test("drive injected into getTests runs a phase and returns the settled value", 
 
   expect(report.modules[0].counts.fail).toBe(0);
   expect(settled.count).toBe(2); // send inc 2
-  expect(settled.loaded).toBe("DATA"); // request load settled
+  expect(settled.loaded).toBe("DATA"); // the intent's answer settled
   expect(trace).toContain("receive:inc");
-  expect(trace).toContain("response:load");
+  expect(trace).toContain("receive:loadOk");
 });
 
 test("drive args function receives the instance (self)", async () => {
@@ -66,36 +73,24 @@ test("drive args function receives the instance (self)", async () => {
   expect(settled.count).toBe(20);
 });
 
-test("phaseHasBubble detects bubble in a bucket or a do item", () => {
-  expect(phaseHasBubble({ send: [{ name: "inc" }] })).toBe(false);
-  expect(phaseHasBubble({ bubble: [{ name: "x" }] })).toBe(true);
-  expect(phaseHasBubble({ do: [{ type: "bubble", name: "x" }] })).toBe(true);
-  expect(phaseHasBubble(null)).toBe(false);
-});
-
-test("drive warns that a bubble action is a no-op at the root", async () => {
-  const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+test("an intent at the root runs out of route and answers <name>Unhandled", async () => {
   let settled = null;
-  try {
-    await runTests({
-      expect: chaiExpect,
-      components: [Counter],
-      getTests: ({ describe, test, drive }) => {
-        describe(Counter, () => {
-          test("bubble phase", async () => {
-            settled = await drive(Counter.make({ count: 5 }), {
-              bubble: [{ name: "inc", args: [1] }],
-            });
+  await runTests({
+    expect: chaiExpect,
+    components: [Counter],
+    getTests: ({ describe, test, drive }) => {
+      describe(Counter, () => {
+        test("intent phase", async () => {
+          settled = await drive(Counter.make({ count: 5 }), {
+            intent: [{ name: "nudge", args: [1], opts: { route: ["dyn"] } }],
           });
         });
-      },
-    });
-    const msg = warnSpy.mock.calls.map((c) => c.join(" ")).join("\n");
-    expect(msg).toContain("bubble");
-    expect(msg).toContain("no-op");
-  } finally {
-    warnSpy.mockRestore();
-  }
-  // The bubble didn't reach the root's own handler — count unchanged.
+      });
+    },
+  });
+  // drive originates at the root, so the `dyn` leg has no ancestor to offer it to. The
+  // walk runs out and the sender hears `nudgeUnhandled`, carrying the intent's own args
+  // — a real answer where the old design could only print a warning.
   expect(settled.count).toBe(5);
+  expect(settled.loaded).toBe("unhandled:1");
 });

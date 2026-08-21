@@ -5,7 +5,7 @@
 // rendering comes from tutuca/components, lint/test DATA from the injected `dev`.
 import { injectCss, tutuca } from "tutuca";
 import { subscribeExampleActivity } from "./activity.js";
-import { buildExampleRequestHandlers, buildStorybook } from "./build.js";
+import { buildExampleIntentHandlers, buildStorybook } from "./build.js";
 import { attachInspectorViews } from "./inspect.js";
 import { BUNDLED_THEMES, MARGAUI_THEMES } from "./themes.js";
 
@@ -41,28 +41,28 @@ export async function mountStorybook(
   // The root scope owns the engine + inspector components, the shared macros, and
   // all request handlers. Each module then gets its OWN child scope (below): module
   // components resolve their own names locally and inherit everything here via parent
-  // chaining (lookupComponent/lookupMacro/lookupRequest all walk to the parent), so
+  // chaining (lookupComponent/lookupMacro/lookupIntentChain all walk to the parent), so
   // two modules can define different components with the same name without colliding.
   const rootScope = app.registerComponents(built.engineComponents);
   rootScope.registerMacros(built.macros);
   // Register one meta handler per request name (module handlers ∪ per-example
   // overrides). Each resolves the issuing example via the request ctx's walkPath and
   // uses that example's mock when present, else the module's real handler.
-  rootScope.registerRequestHandlers(buildExampleRequestHandlers(built));
+  rootScope.registerIntentHandlers(buildExampleIntentHandlers(built));
   // The storybook owns these request names; register last so they win over any
   // module-provided handler of the same name. `loadState` is registered even when
-  // not persisting (returning a blank state) so `response.loadState` still selects
+  // not persisting (returning a blank state) so `receive.loadStateOk` still selects
   // and inits the default section — it just never touches the URL. `persistState`
   // (the writer) stays gated; unregistered, its requests no-op via the 404 path.
-  rootScope.registerRequestHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
+  rootScope.registerIntentHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
   if (persistUrl) {
-    rootScope.registerRequestHandlers({ persistState });
+    rootScope.registerIntentHandlers({ persistState });
   }
   // Gated on the `themes` option for the same reason as `persistState`: with no theme
   // CSS on the page there is nothing to switch, so the request stays unregistered and
   // no-ops via the 404 path (the switcher isn't rendered either).
   if (themeBaseUrl) {
-    rootScope.registerRequestHandlers({ applyTheme });
+    rootScope.registerIntentHandlers({ applyTheme });
   }
   // One isolated scope per module, as a child of rootScope. `registerComponents`
   // writes each component's name into the scope it is called on, so a fresh child

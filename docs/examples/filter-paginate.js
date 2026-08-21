@@ -88,7 +88,9 @@ const NaivePeople = component({
   name: "NaivePeople",
   fields: { ...baseFields },
   methods: { ...baseMethods },
-  input: { ...baseInput },
+  receive: {
+    ...baseInput,
+  },
   alter: {
     onlyMatches,
     // TABLE scan: materialize every matching key, clamp by its length, slice.
@@ -133,7 +135,9 @@ const SharedPeople = component({
   name: "SharedPeople",
   fields: { ...baseFields },
   methods: { ...baseMethods },
-  input: { ...baseInput },
+  receive: {
+    ...baseInput,
+  },
   alter: {
     onlyMatches,
     pageInfo() {
@@ -185,7 +189,9 @@ const CoupledPeople = component({
   name: "CoupledPeople",
   fields: { ...baseFields },
   methods: { ...baseMethods },
-  input: { ...baseInput },
+  receive: {
+    ...baseInput,
+  },
   alter: {
     // One scan: count, clamp, build the page's keys, AND the pager labels.
     enrichAlsoBuildsTheLoopWithsKeysIntoUnderscoreKeys() {
@@ -323,7 +329,7 @@ export function getTests({ describe, test, expect }) {
 
     test("search resets to the first page", () => {
       const c = makeOne(SharedPeople, { page: 4 });
-      expect(SharedPeople.input.search.call(c, "grace").page).toBe(0);
+      expect(SharedPeople.receive.search.call(c, "grace").page).toBe(0);
     });
 
     test("removing by original key drops the right person even when filtered", () => {

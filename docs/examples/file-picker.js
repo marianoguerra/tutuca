@@ -26,7 +26,7 @@ const FilePicker = component({
     lastModified: 0,
     hasFile: false,
   },
-  input: {
+  receive: {
     // `event` is the raw DOM change event; the chosen File lives on
     // `event.target.files`. The metadata-copying lives in the `withFile` method
     // so it stays directly callable from tests.

@@ -1,8 +1,8 @@
 # Tutuca — Testing
 
 How to author component tests in Tutuca: the `getTests` export shape,
-the calling conventions for methods and handler blocks (`input`,
-`receive`, `bubble`, `response`, `alter`), and the view-handler design
+the calling conventions for methods and handler blocks (`receive`,
+`intent`, `alter`), and the view-handler design
 rule that keeps tests free of fake DOM events. Run them with
 `tutuca test <module-path>` — flags and exit codes are in
 [cli.md](./cli.md). General authoring lives in
@@ -51,21 +51,23 @@ template/styling tweaks; `tutuca render <module>` covers those.
 
 - **Methods** — call directly: `Comp.make({...}).method(args)`. Assert
   on the *returned* instance (Tutuca state is immutable).
-- **Input handlers** — call via
-  `Comp.input.handlerName.call(comp, ...args)` (see *Calling input
-  handlers* below).
-- **All other handler kinds** (`receive`, `bubble`, `response`, `alter`,
-  and `on` if a component declares one) follow the **same shape**:
-  `Comp.<kind>.handlerName.call(comp, ...declaredArgs)`. Only the
-  arguments the handler receives differ:
-    - `receive.<name>(ctx)` — `ctx` carries `send` / `request` / `bubble`.
-    - `bubble.<name>(payload, ctx)` — `payload` is whatever the child sent.
-    - `response.<name>(res, err, ctx)` — async result + error. But a
-      handler reached via a request's `onOkName` / `onErrorName`
-      override takes a **single** payload arg, not `(res, err)`:
-      `Comp.response.loadDataOk.call(comp, res)` /
-      `Comp.response.loadDataErr.call(comp, err)`. See
-      [request-response.md](./request-response.md).
+- **Receive handlers** — call via
+  `Comp.receive.handlerName.call(comp, ...args)` (see *Calling receive
+  handlers* below). One bucket holds every addressed message, so the same
+  call drives a view's `@on.*` name, what a parent sends, and an
+  **answer** to an intent — a handler cannot tell them apart, which is
+  exactly what makes it testable:
+    - `receive.<name>(ctx)` — `ctx` carries `send` / `intent` / `forward`.
+    - `receive.<name>Ok(res, ctx)` / `receive.<name>Error(err, ctx)` /
+      `receive.<name>Unhandled(...intentArgs, ctx)` — the three outcomes
+      of an intent. Each takes **one** payload, so there is no arm that
+      can be handed both a result and an error.
+- **The other handler kinds** (`intent`, `alter`) follow the **same
+  shape**: `Comp.<kind>.handlerName.call(comp, ...declaredArgs)`. Only
+  the arguments differ:
+    - `intent.<name>(payload, ctx)` — `payload` is whatever the sender
+      raised it with. Call `ctx.reply` / `ctx.fail` on a stand-in ctx to
+      assert what it answers.
     - `alter.<name>(...)` — iteration handlers used by `@when`,
       `@loop-with`, `@enrich-with`. Each kind has its own signature; see
       *Testing iteration handlers* below.
@@ -74,15 +76,15 @@ template/styling tweaks; `tutuca render <module>` covers those.
 - **Factories / coercion** — `Comp.make({...})` shape, defaults, and
   any deep-coercion you wired up.
 
-## Calling input handlers
+## Calling receive handlers
 
 Pattern:
 
 ```js
-Comp.input.handlerName.call(comp, arg1, arg2, /* … */);
+Comp.receive.handlerName.call(comp, arg1, arg2, /* … */);
 ```
 
-- Why `.call`: input handlers are plain functions stored on the
+- Why `.call`: receive handlers are plain functions stored on the
   component descriptor. `this` must be bound explicitly to the instance.
 - `comp` is an instance — `Comp.make({...})`.
 - The args after `comp` are exactly what the template would have passed
@@ -95,7 +97,7 @@ Comp.input.handlerName.call(comp, arg1, arg2, /* … */);
 
 Direct `.call(comp, ...)` tests one handler in isolation. When you need a message
 to fan out through real dispatch — a `request` that resolves and feeds its
-`response`, a `send` that triggers more sends — `getTests` also injects an async
+an intent's answer, a `send` that triggers more sends — `getTests` also injects an async
 `drive` helper (alongside `describe`, `test`, `expect`):
 
 ```js
@@ -117,20 +119,20 @@ export function getTests({ describe, test, expect, drive }) {
   requests), and returns the **settled** instance.
 - `drive` **always originates at the root** — there is no `at:`/path option. To
   exercise a handler on a nested child, call it directly with `.call(child, …)`.
-- `phase` is the same shape as an example's `on.init`
-  (`{ send, bubble, request, input, do }`; see
-  [storybook.md](./storybook.md#lifecycle-hooks-on)). `args` may be a function
-  `(self) => [...]`.
-- A `bubble` action is a **no-op under `drive`**: bubbles travel child→parent, and
-  at the root there is no ancestor to receive it (the root's own `bubble` handler
-  is skipped too). To test a `bubble` handler, call it directly. (`drive` warns
-  when a phase contains a `bubble`.)
+- `phase` is the same shape as an example's `on.init` (`{ send, intent, do }`;
+  see [storybook.md](./storybook.md#lifecycle-hooks-on)). `args` may be a function
+  `(self) => [...]`, and an `intent` action takes `opts: { route: [...] }`.
+- An `intent` on the **`dyn`** leg has nowhere to walk under `drive`: it
+  originates at the root, and the leg starts at the sender's *parent*. The walk
+  runs out and the sender hears `<name>Unhandled` — which is a result you can
+  assert on. To exercise an `intent` handler itself, call it directly.
 - These are *action kinds*, not methods. `$`-prefixed **methods** (auto setters/
   togglers, `$foo`) are not an action kind — `on`/`drive` can only reach state
-  through `input`/`receive`/`response` handlers. To put a component into a method-
-  driven state for a test, call the method directly or route it through an `input`
+  through `receive` / `intent` handlers. To put a component into a method-driven
+  state for a test, call the method directly or route it through a `receive`
   handler.
-- `request` actions resolve against the module's `getRequestHandlers()`.
+- `intent` actions on the `lex` leg resolve against the module's
+  `getIntentHandlers()`.
 - `opts.onMessage(message, before, after)` observes every committed transaction —
   `message` is `{ kind, name, args, path }`, `before`/`after` are the root values
   around its commit — handy for asserting the message/state trace.
@@ -229,7 +231,7 @@ event**. With named args, the test passes a literal; with `event`,
 the test must fabricate a DOM-event-shaped object.
 
 The prefix in the template picks the handler block: a leading `$`
-means "method on `this`", no prefix means an input handler. The same
+means "method on `this`", no prefix means a receive handler. The same
 named-arg rule applies to both. Both forms below are correct
 placements — what matters is what argument the handler asks for.
 
@@ -251,29 +253,29 @@ methods: { setName(event) { return this.setName(event.target.value); } }
 methods: { setName(value) { return this.setName(value); } }
 ```
 
-**Bad — input handler:**
+**Bad — receive handler:**
 
 ```html
 <input @on.input="setCount event" />
 ```
 ```js
-input: { setCount(event) { return this.setCount(parseInt(event.target.value, 10)); } }
+receive: { setCount(event) { return this.setCount(parseInt(event.target.value, 10)); } }
 ```
 
-**Good — input handler:**
+**Good — receive handler:**
 
 ```html
 <input @on.input="setCount valueAsInt" />
 ```
 ```js
-input: { setCount(n) { return this.setCount(n); } }
+receive: { setCount(n) { return this.setCount(n); } }
 ```
 
 At test time, the "good" forms become trivial:
 
 ```js
 expect(MyComp.make().setName("Ada").name).toBe("Ada");
-expect(MyComp.input.setCount.call(MyComp.make(), 42).count).toBe(42);
+expect(MyComp.receive.setCount.call(MyComp.make(), 42).count).toBe(42);
 ```
 
 The "bad" forms force every test to construct
@@ -286,8 +288,8 @@ narrower arg fits.
 
 ## Worked example
 
-A `getTests` export covering a method (`inc`), an input handler with no
-args (`dec`), and an input handler with a named arg (`setCount` taking
+A `getTests` export covering a method (`inc`), a receive handler with no
+args (`dec`), and a receive handler with a named arg (`setCount` taking
 `valueAsInt`):
 
 ```js
@@ -304,22 +306,22 @@ export function getTests({ describe, test, expect }) {
       });
     });
 
-    describe("dec()", () => {                         // input handler, no args
+    describe("dec()", () => {                         // receive handler, no args
       test("returns a Counter with count - 1", () => {
-        const next = Counter.input.dec.call(Counter.make());
+        const next = Counter.receive.dec.call(Counter.make());
         expect(next.count).toBe(-1);
       });
     });
 
-    describe("setCount()", () => {                    // input handler, valueAsInt
+    describe("setCount()", () => {                    // receive handler, valueAsInt
       test("sets the count from a parsed int", () => {
-        const next = Counter.input.setCount.call(Counter.make(), 42);
+        const next = Counter.receive.setCount.call(Counter.make(), 42);
         expect(next.count).toBe(42);
       });
     });
 
     test("inc and dec round-trip", () => {            // untagged, inherits Counter
-      expect(Counter.input.dec.call(Counter.make().inc()).count).toBe(0);
+      expect(Counter.receive.dec.call(Counter.make().inc()).count).toBe(0);
     });
   });
 }
@@ -329,7 +331,7 @@ export function getTests({ describe, test, expect }) {
 
 - [core.md](./core.md) — *Verifying changes*, *Event Handling*,
   *Component Skeleton*.
-- [request-response.md](./request-response.md) — handler signatures for
-  `bubble` / `receive` / `response`, override forms, `$unknown`.
+- [messages-and-intents.md](./messages-and-intents.md) — handler signatures for
+  `receive` / `intent`, routes and the three outcomes, `$unknown`.
 - [cli.md](./cli.md) — `test` flags, exit codes, output formats,
   `--grep` syntax.

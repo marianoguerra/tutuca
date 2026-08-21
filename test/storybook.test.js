@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { component, html } from "../index.js";
+import { component, html, PASS } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
 import { FieldStep, Path, SeqStep } from "../src/path.js";
 import {
-  buildExampleRequestHandlers,
+  buildExampleIntentHandlers,
   buildStorybook,
   Example,
   fuzzyMatch,
@@ -123,12 +123,12 @@ describe("Storybook theme switcher", () => {
     const calls = { applyTheme: [], persistState: [] };
     const stack = new ComponentStack();
     stack.registerComponents([Storybook, Section, Example]);
-    stack.registerRequestHandlers({
+    stack.registerIntentHandlers({
       applyTheme: (theme, instance) => calls.applyTheme.push([theme, instance]),
       persistState: (state, instance, push) => calls.persistState.push([state, instance, push]),
     });
     const t = new Transactor(stack.comps, book);
-    t.pushInput(new Path([]), "onSelectTheme", [name]);
+    t.pushSend(new Path([]), "onSelectTheme", [name]);
     while (t.hasPendingTransactions) t.transactNext();
     return { book: t.state.val, calls };
   }
@@ -162,7 +162,7 @@ describe("Storybook theme switcher", () => {
   });
 });
 
-describe("per-example request mocks", () => {
+describe("per-example intent-handler mocks", () => {
   // A leaf component that issues requests, plus a container holding two examples so
   // both render at once under a single shared meta-handler registry.
   const Widget = component({ name: "Widget", fields: { loaded: "?" }, view: html`<i></i>` });
@@ -177,13 +177,13 @@ describe("per-example request mocks", () => {
     const scope = new ComponentStack(comps);
     scope.registerComponents([Book, Example, Widget]);
     // Meta handlers live on the parent scope; each component's own scope chains up to it.
-    scope.registerRequestHandlers(
-      buildExampleRequestHandlers({ requestHandlers: reals, overrideNames }),
+    scope.registerIntentHandlers(
+      buildExampleIntentHandlers({ intentHandlers: reals, overrideNames }),
     );
     return new Transactor(comps, root);
   }
 
-  const exWith = (handlers) => Example.make({ value: Widget.make({}), requestHandlers: handlers });
+  const exWith = (handlers) => Example.make({ value: Widget.make({}), intentHandlers: handlers });
   // Inside Book: a is at .a, its Widget at .a.value; b at .b, Widget at .b.value.
   const widgetPath = (slot) => new Path([new FieldStep(slot), new FieldStep("value")]);
 
@@ -204,8 +204,10 @@ describe("per-example request mocks", () => {
       }),
     });
     const t = mount({ overrideNames: new Set(["load"]) }, root);
-    await t.pushRequest(widgetPath("a"), "load", []);
-    await t.pushRequest(widgetPath("b"), "load", []);
+    t.pushIntent(widgetPath("a"), "load", [], { route: ["lex"] });
+    await t.settle();
+    t.pushIntent(widgetPath("b"), "load", [], { route: ["lex"] });
+    await t.settle();
     expect(calls).toEqual(["A", "B"]);
   });
 
@@ -227,18 +229,23 @@ describe("per-example request mocks", () => {
       },
     };
     const t = mount({ reals, overrideNames: new Set(["load"]) }, root);
-    await t.pushRequest(widgetPath("a"), "load", []);
-    await t.pushRequest(widgetPath("b"), "load", []);
+    t.pushIntent(widgetPath("a"), "load", [], { route: ["lex"] });
+    await t.settle();
+    t.pushIntent(widgetPath("b"), "load", [], { route: ["lex"] });
+    await t.settle();
     expect(calls).toEqual(["mockA", "real"]);
   });
 
-  test("the meta handler throws Request not found when neither override nor real exists", async () => {
-    const handlers = buildExampleRequestHandlers({
-      requestHandlers: {},
+  test("the meta handler DECLINES when neither an override nor a real handler exists", async () => {
+    const handlers = buildExampleIntentHandlers({
+      intentHandlers: {},
       overrideNames: new Set(["load"]),
     });
     const ctx = { walkPath() {} }; // walks nothing → no override
-    await expect(handlers.load(ctx)).rejects.toThrow("Request not found: load");
+    // PASS, not a throw: "nothing claimed it" is not "a handler refused it". Declining
+    // lets the walk run out so the sender hears `loadUnhandled`, where inventing an
+    // error would have arrived as `loadError` and read like a real failure.
+    await expect(handlers.load(ctx)).resolves.toBe(PASS);
   });
 });
 
@@ -331,12 +338,19 @@ describe("Storybook lifecycle: section -> example -> value cascade", () => {
   });
 });
 
-describe("Storybook lifecycle: section-switch transitions (bubble.sectionSelected)", () => {
-  // Drives the real bubble.sectionSelected handler -> transitionSections. The
-  // persistState request it issues 404s harmlessly (no handler registered here).
+describe("Storybook lifecycle: section-switch transitions (intent.sectionSelected)", () => {
+  // Drives the real intent.sectionSelected handler -> transitionSections. The
+  // persistState intent it issues runs out of route harmlessly (nothing registered here).
   function selectSection(t, index) {
-    // sectionSelected bubbles the clicked entry's section id (a string).
-    t.pushBubble(new Path([]), "sectionSelected", [t.state.val.sections.get(index).id]);
+    // A sidebar entry raises this on the `dyn` leg with its own section id. Raised from
+    // a child position, because the leg starts at the sender's PARENT — the book itself
+    // is never offered an intent it raised.
+    t.pushIntent(
+      new Path([new FieldStep("sections")]),
+      "sectionSelected",
+      [t.state.val.sections.get(index).id],
+      { route: ["dyn"] },
+    );
     runAll(t);
   }
 

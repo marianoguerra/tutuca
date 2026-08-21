@@ -1,6 +1,7 @@
 // Pure aggregation: turn an array of dev/story modules into the data a
 // storybook needs (buildStorybook) and wire per-example request-handler mocks
-// (buildExampleRequestHandlers). No DOM — everything here is unit-testable.
+// (buildExampleIntentHandlers). No DOM — everything here is unit-testable.
+import { PASS } from "tutuca";
 import { getComponents as getInspectorComponents } from "tutuca/components";
 import { Example, Section, SidebarEntry, SidebarGroup, Storybook } from "./components.js";
 
@@ -9,7 +10,7 @@ import { Example, Section, SidebarEntry, SidebarGroup, Storybook } from "./compo
 // getExamples() -> a section object { title, description?, items: [...] } OR an
 // array of such section objects (a module contributing several sidebar sections).
 // Both forms are consumed by Section.fromData. Plus optional
-// getMacros()/getRequestHandlers().
+// getMacros()/getIntentHandlers().
 export function buildStorybook(modules) {
   const rawSections = modules.flatMap((m) => {
     const raw = m.getExamples?.();
@@ -49,18 +50,18 @@ export function buildStorybook(modules) {
     return out;
   });
   const macros = {};
-  const requestHandlers = {};
-  // Request names any example overrides via its `requestHandlers` map (read from the
-  // raw section data — the Example component's requestOverridesField convention).
+  const intentHandlers = {};
+  // Intent names any example overrides via its `intentHandlers` map (read from the
+  // raw section data — the Example component's intentOverridesField convention).
   const overrideNames = new Set();
   for (const s of rawSections) {
     for (const it of s?.items ?? []) {
-      for (const name in it?.requestHandlers ?? {}) overrideNames.add(name);
+      for (const name in it?.intentHandlers ?? {}) overrideNames.add(name);
     }
   }
   for (const m of modules) {
     if (m.getMacros) Object.assign(macros, m.getMacros());
-    if (m.getRequestHandlers) Object.assign(requestHandlers, m.getRequestHandlers());
+    if (m.getIntentHandlers) Object.assign(intentHandlers, m.getIntentHandlers());
   }
   // Flat union (engine ∪ every module's components), kept for consumers that embed a
   // whole storybook as a single value and so must register everything in one scope
@@ -72,17 +73,17 @@ export function buildStorybook(modules) {
     engineComponents,
     moduleComponents,
     macros,
-    requestHandlers,
+    intentHandlers,
     overrideNames,
   };
 }
 
-// Storybook request mocking. One meta handler per request name (module handlers ∪
-// per-example overrides). Each walks the request ctx's component path to the nearest
-// example (a component declaring `requestOverridesField` in its `extra`) and uses
-// that example's mock for the name when present, else the module's real handler. The
-// handler signature matches the framework's — the RequestContext is the final arg.
-export function buildExampleRequestHandlers({ requestHandlers: reals, overrideNames }) {
+// Storybook intent-handler mocking. One meta handler per intent name (module handlers ∪
+// per-example overrides). Each walks the intent ctx's component path to the nearest
+// example (a component declaring `intentOverridesField` in its `extra`) and uses that
+// example's mock for the name when present, else the module's real handler. The handler
+// signature matches the framework's — the IntentContext is the final arg.
+export function buildExampleIntentHandlers({ intentHandlers: reals, overrideNames }) {
   const names = new Set([...Object.keys(reals), ...overrideNames]);
   const makeMeta =
     (name) =>
@@ -91,7 +92,7 @@ export function buildExampleRequestHandlers({ requestHandlers: reals, overrideNa
       const args = rest.slice(0, -1);
       let override = null;
       ctx.walkPath((Comp, inst) => {
-        const field = Comp.extra?.requestOverridesField;
+        const field = Comp.extra?.intentOverridesField;
         if (!field) return;
         const map = inst.get(field, null);
         if (map && name in map) {
@@ -100,7 +101,9 @@ export function buildExampleRequestHandlers({ requestHandlers: reals, overrideNa
         }
       });
       const fn = override ?? reals[name];
-      if (!fn) throw new Error(`Request not found: ${name}`);
+      // Nothing registered under this name: DECLINE, so the walk goes on and the
+      // sender hears `<name>Unhandled` rather than a fabricated error.
+      if (!fn) return PASS;
       return await fn(...args, ctx);
     };
   const handlers = {};

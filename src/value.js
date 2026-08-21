@@ -202,8 +202,10 @@ export function parseMacroAttr(s, px) {
 }
 // Handler reference + args for @on.<event>. Returns `{handlerVal, args}` so
 // `EventHandler.parse` is a thin wrapper, or null on a bad handler name.
-export function parseInputHandler(s, px) {
-  return _parseHandler(s, px, "input", true, true);
+// The namespace is `receive`: a view's name is a MESSAGE addressed to the component
+// that owns the view, which is the same thing a parent's ctx.send raises.
+export function parseReceiveHandler(s, px) {
+  return _parseHandler(s, px, "receive", true, true);
 }
 // Handler reference for @when, @enrich-with, @loop-with. No args, and
 // silent on failure — the directive caller reports the issue.

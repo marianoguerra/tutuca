@@ -26,14 +26,11 @@ const DriveDemo = component({
     add(n) {
       return this.setCount(this.count + (n ?? 1));
     },
-  },
-  input: {
     typeFilter(value) {
       return this.setFilter(value);
     },
-  },
-  response: {
-    load(res, _err) {
+    // The answer to the `load` intent, under its own name and carrying the result alone.
+    loadOk(res) {
       return this.setRows(res);
     },
   },
@@ -74,7 +71,7 @@ export function getRoot() {
   return DriveDemo.make({ rows: SAMPLE_ROWS });
 }
 
-export function getRequestHandlers() {
+export function getIntentHandlers() {
   return { load: async () => SAMPLE_ROWS };
 }
 
@@ -91,9 +88,9 @@ export function getExamples() {
       },
       {
         title: "Auto-loaded via on.init",
-        description: "on.init → request load (works on a runtime with lifecycle hooks)",
+        description: "on.init → intent load on the lex leg (needs a runtime with lifecycle hooks)",
         value: DriveDemo.make(),
-        on: { init: { request: [{ name: "load", args: [] }] } },
+        on: { init: { intent: [{ name: "load", args: [], opts: { route: ["lex"] } }] } },
       },
     ],
   };
@@ -112,9 +109,9 @@ export function getTests({ describe, test, expect, drive }) {
         expect(settled.count).toBe(5);
       });
 
-      test("request action settles the response (response.load)", async () => {
+      test("an intent action settles its answer (receive.loadOk)", async () => {
         const settled = await drive(DriveDemo.make({}), {
-          request: [{ name: "load", args: [] }],
+          intent: [{ name: "load", args: [], opts: { route: ["lex"] } }],
         });
         expect(settled.rows.size).toBe(4);
       });

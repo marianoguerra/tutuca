@@ -9,7 +9,7 @@ import {
   parseBool,
   parseComponent,
   parseField,
-  parseInputHandler,
+  parseReceiveHandler,
   parseMacroAttr,
   parseSequence,
   parseText,
@@ -286,12 +286,12 @@ describe("$ method prefix vs . field prefix", () => {
   });
 
   test("$ is a method handler, a bare name is an input handler", () => {
-    expect(parseInputHandler("$inc", px).handlerVal).toBeInstanceOf(MethodVal);
-    expect(parseInputHandler("dec", px).handlerVal).toBeInstanceOf(HandlerNameVal);
+    expect(parseReceiveHandler("$inc", px).handlerVal).toBeInstanceOf(MethodVal);
+    expect(parseReceiveHandler("dec", px).handlerVal).toBeInstanceOf(HandlerNameVal);
   });
 
   test(". cannot be used in handler position", () => {
-    expect(parseInputHandler(".inc", px)).toBeNull();
+    expect(parseReceiveHandler(".inc", px)).toBeNull();
   });
 
   test("$ method handler keeps its args", () => {

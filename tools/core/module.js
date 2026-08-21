@@ -7,7 +7,7 @@ class Example {
     value,
     view = "main",
     componentName = null,
-    requestHandlers = null,
+    intentHandlers = null,
     requestHandlerNames = [],
     on = null,
   }) {
@@ -19,7 +19,7 @@ class Example {
     // This example's request-handler mocks, and their names. The names are surfaced
     // by `tutuca storybook --dry-run` for inspection; the functions themselves are
     // what `tutuca render` layers over the module's real handlers when driving.
-    this.requestHandlers = requestHandlers;
+    this.intentHandlers = intentHandlers;
     this.requestHandlerNames = requestHandlerNames;
     // Lifecycle phases ({ init, resume, suspend }, each an `on`-phase config — see
     // src/on.js). The storybook runs these on display; `tutuca render` runs `init`.
@@ -50,12 +50,12 @@ class ExampleSection {
 }
 
 class NormalizedModule {
-  constructor({ mod, path = null, components, macros, requestHandlers, sections, root }) {
+  constructor({ mod, path = null, components, macros, intentHandlers, sections, root }) {
     this.mod = mod;
     this.path = path;
     this.components = components;
     this.macros = macros;
-    this.requestHandlers = requestHandlers;
+    this.intentHandlers = intentHandlers;
     this.sections = sections;
     this.root = root;
   }
@@ -76,9 +76,9 @@ function parseExample(raw, index, components, parentPath) {
   if (raw.value === undefined) {
     throw shapeError(`example at ${where} missing "value"`, where);
   }
-  const rh = raw.requestHandlers;
+  const rh = raw.intentHandlers;
   if (rh != null && (typeof rh !== "object" || Array.isArray(rh))) {
-    throw shapeError(`example at ${where} "requestHandlers" must be an object of functions`, where);
+    throw shapeError(`example at ${where} "intentHandlers" must be an object of functions`, where);
   }
   const on = raw.on;
   if (on != null) {
@@ -99,7 +99,7 @@ function parseExample(raw, index, components, parentPath) {
       }
       if (!isPlainObject(on[key])) {
         throw shapeError(
-          `example at ${where} "on.${key}" must be an object of actions (send, bubble, request, input, do)`,
+          `example at ${where} "on.${key}" must be an object of actions (send, intent, do)`,
           where,
         );
       }
@@ -111,7 +111,7 @@ function parseExample(raw, index, components, parentPath) {
     value: raw.value,
     view: raw.view ?? "main",
     componentName: resolveComponentName(raw.value, components),
-    requestHandlers: rh ?? null,
+    intentHandlers: rh ?? null,
     requestHandlerNames: rh ? Object.keys(rh) : [],
     on: on ?? null,
   });
@@ -161,7 +161,7 @@ export function normalizeModule(mod, { path = null } = {}) {
   for (const key of [
     "getComponents",
     "getMacros",
-    "getRequestHandlers",
+    "getIntentHandlers",
     "getExamples",
     "getTests",
     "getRoot",
@@ -171,7 +171,7 @@ export function normalizeModule(mod, { path = null } = {}) {
 
   const components = present.has("getComponents") ? mod.getComponents() : [];
   const macros = present.has("getMacros") ? mod.getMacros() : null;
-  const requestHandlers = present.has("getRequestHandlers") ? mod.getRequestHandlers() : null;
+  const intentHandlers = present.has("getIntentHandlers") ? mod.getIntentHandlers() : null;
   const root = present.has("getRoot") ? mod.getRoot() : null;
   const sections = present.has("getExamples") ? parseSections(mod.getExamples(), components) : [];
 
@@ -181,7 +181,7 @@ export function normalizeModule(mod, { path = null } = {}) {
       path,
       components,
       macros,
-      requestHandlers,
+      intentHandlers,
       sections,
       root,
     }),

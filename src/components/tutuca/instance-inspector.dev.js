@@ -63,7 +63,7 @@ const Sample = component({
       return this.title;
     },
   },
-  input: {
+  receive: {
     bump() {
       return this.setCount(this.count + 1);
     },

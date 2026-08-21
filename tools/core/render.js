@@ -13,9 +13,9 @@ function checkView(value, components, viewName) {
 }
 
 // An example's own mocks win over the module's real handlers, matching how the
-// storybook resolves them (nearest example first — see buildExampleRequestHandlers).
+// storybook resolves them (nearest example first — see buildExampleIntentHandlers).
 function handlersFor(normalized, example) {
-  const merged = { ...(normalized.requestHandlers ?? {}), ...(example.requestHandlers ?? {}) };
+  const merged = { ...(normalized.intentHandlers ?? {}), ...(example.intentHandlers ?? {}) };
   return Object.keys(merged).length > 0 ? merged : null;
 }
 
@@ -49,7 +49,7 @@ export async function renderExamples(
           env.ParseContext,
           {
             phase: example.on?.init ?? null,
-            requestHandlers: handlersFor(normalized, example),
+            intentHandlers: handlersFor(normalized, example),
             view: viewName,
           },
         );

@@ -55,6 +55,8 @@ await esbuild.build({
 
 // esbuild re-prints the entry point's hashbang; the bin is unusable without it.
 if (!readFileSync("dist/tutuca-cli.js", "utf8").startsWith("#!/usr/bin/env node")) {
-  throw new Error("dist/tutuca-cli.js lost its shebang — add banner: { js: '#!/usr/bin/env node' }");
+  throw new Error(
+    "dist/tutuca-cli.js lost its shebang — add banner: { js: '#!/usr/bin/env node' }",
+  );
 }
 chmodSync("dist/tutuca-cli.js", 0o755);

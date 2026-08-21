@@ -9,24 +9,23 @@ function fakeDispatcher() {
   return {
     calls,
     sendAtPath: rec("sendAtPath"),
-    requestAtPath: rec("requestAtPath"),
-    inputAtPath: rec("inputAtPath"),
+    intentAtPath: rec("intentAtPath"),
   };
 }
 
 describe("phaseOps", () => {
   test("expands shorthand buckets in fixed kind order, then do", () => {
     const ops = phaseOps({
-      input: [{ name: "i" }],
+      // Declared out of order on purpose: the shorthand buckets come out in OP_KINDS
+      // order, and the explicit `do` sequence follows.
+      intent: [{ name: "r", opts: { route: ["lex"] } }],
       send: [{ name: "s" }],
-      request: [{ name: "r" }],
-      do: [{ type: "bubble", name: "d" }],
+      do: [{ type: "intent", name: "d", opts: { route: ["dyn"] } }],
     });
     expect(ops.map((o) => [o.type, o.name])).toEqual([
       ["send", "s"],
-      ["request", "r"],
-      ["input", "i"],
-      ["bubble", "d"],
+      ["intent", "r"],
+      ["intent", "d"],
     ]);
   });
 
@@ -56,25 +55,32 @@ describe("dispatchPhase", () => {
       d,
       "TARGET",
       {
-        send: [{ name: "select", args: (s) => [s.id] }],
-        request: [{ name: "load", args: [1] }],
-        input: [{ name: "onType", args: ["co"], opts: { x: 1 } }],
-        do: [{ type: "bubble", name: "ping", args: [] }],
+        send: [
+          { name: "select", args: (s) => [s.id] },
+          { name: "onType", args: ["co"], opts: { x: 1 } },
+        ],
+        intent: [{ name: "load", args: [1], opts: { route: ["lex"] } }],
+        do: [{ type: "intent", name: "ping", args: [], opts: { route: ["dyn"] } }],
       },
       self,
     );
 
     expect(d.calls).toEqual([
       { method: "sendAtPath", path: "TARGET", name: "select", args: [7], opts: undefined },
-      { method: "requestAtPath", path: "TARGET", name: "load", args: [1], opts: undefined },
-      { method: "inputAtPath", path: "TARGET", name: "onType", args: ["co"], opts: { x: 1 } },
-      // bubble is a send with skipSelf+bubbles
+      { method: "sendAtPath", path: "TARGET", name: "onType", args: ["co"], opts: { x: 1 } },
       {
-        method: "sendAtPath",
+        method: "intentAtPath",
+        path: "TARGET",
+        name: "load",
+        args: [1],
+        opts: { route: ["lex"] },
+      },
+      {
+        method: "intentAtPath",
         path: "TARGET",
         name: "ping",
         args: [],
-        opts: { skipSelf: true, bubbles: true },
+        opts: { route: ["dyn"] },
       },
     ]);
   });

@@ -3,7 +3,7 @@ import {
   NULL_CONST_VAL,
   parseAlterHandler,
   parseBool,
-  parseInputHandler,
+  parseReceiveHandler,
   parseMacroAttr,
   parseSequence,
   parseText,
@@ -270,11 +270,14 @@ export class EventHandler {
     return [this.handlerVal.evalAsHandler(stack), argValues];
   }
   static parse(s, px) {
-    const r = parseInputHandler(s, px);
+    const r = parseReceiveHandler(s, px);
     return r === null ? null : new EventHandler(r.handlerVal, r.args);
   }
 }
-export class RequestHandler {
+// One scope-registered handler for an intent's `lex` leg. `fn` runs with no `this` and
+// takes an IntentContext as its final argument; resolving answers, throwing fails, and
+// returning PASS declines so the walk goes on.
+export class IntentHandler {
   constructor(name, fn) {
     this.name = name;
     this.fn = fn;

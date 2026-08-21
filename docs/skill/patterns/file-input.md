@@ -6,7 +6,7 @@
 component({
   name: "FilePicker",
   fields: { name: "", size: 0, type: "", hasFile: false },
-  input: {
+  receive: {
     // `event` is the raw DOM event; the File is on event.target.files
     onPickFile(event) {
       const file = event.target.files?.[0];
@@ -34,6 +34,6 @@ fake `C:\fakepath\…` string, while `event.target.files` holds the real `File`
 objects. The metadata (`name`/`size`/`type`/`lastModified`) is available
 synchronously; the *contents* are not — read those with the async `File` API
 (`file.text()`, `file.arrayBuffer()`) and feed the result back in through a
-`request`/`response` or a follow-up `send`. Flatten what you need into fields so
+an `intent` or a follow-up `send`. Flatten what you need into fields so
 the view can bind each piece; gate the summary on a `hasFile` flag with
 `@show`/`@hide`.

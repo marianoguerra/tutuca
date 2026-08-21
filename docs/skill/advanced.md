@@ -19,7 +19,7 @@ everything else, `core.md` is the right place.
 ```
 
 ```js
-input: {
+receive: {
   onDrop(targetKey, dragInfo, e) {
     const sourceKey = dragInfo.lookupBind("key");   // any bind from source render
     return this.setItems(this.items.moveKeyBeforeKey(sourceKey, targetKey));

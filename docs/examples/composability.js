@@ -4,7 +4,7 @@ import { getComponents as getJsonComponents, getRoot as getJsonRoot } from "./js
 import {
   getComponents as getPersonalSiteComponents,
   getRoot as getPersonalSiteRoot,
-  getRequestHandlers as getRequestHandlersPersonalSite,
+  getIntentHandlers as getIntentHandlersPersonalSite,
 } from "./personal-site.js";
 import { getComponents as getTodoComponents, getRoot as getTodoRoot } from "./todo.js";
 import { getComponents as getTreeComponents, getRoot as getTreeRoot } from "./tree.js";
@@ -120,8 +120,8 @@ export function getRoot() {
   });
 }
 
-export function getRequestHandlers() {
-  return { ...getRequestHandlersPersonalSite() };
+export function getIntentHandlers() {
+  return { ...getIntentHandlersPersonalSite() };
 }
 
 export function getMacros() {

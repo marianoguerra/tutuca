@@ -59,12 +59,10 @@ export function lintMessage(id, info = {}) {
       return `Method '$${info.name}' is not defined${originSuffix(info)}`;
     case "METHOD_VAL_IS_FIELD":
       return `'$${info.name}' calls a method, but '${info.name}' is a field — use '.${info.name}'${originSuffix(info)}`;
-    case "INPUT_HANDLER_NOT_IMPLEMENTED":
-      return `Input handler '${info.name}' is not implemented${eventSuffix(info)}`;
-    case "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED":
+    case "RECEIVE_HANDLER_NOT_IMPLEMENTED":
+      return `Receive handler '${info.name}' is not implemented${eventSuffix(info)}`;
+    case "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED":
       return `Method '$${info.name}' is not implemented${eventSuffix(info)}`;
-    case "INPUT_HANDLER_NOT_REFERENCED":
-      return `Input handler '${info.name}' is defined but never used`;
     case "ALT_HANDLER_NOT_DEFINED":
       return `Alter handler '${info.name}' is not defined${originSuffix(info)}`;
     case "DYN_VAL_NOT_DEFINED":

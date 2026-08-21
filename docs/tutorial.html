@@ -207,7 +207,7 @@
             <a href="#component-communication">Component Communication</a>
             <ol>
               <li><a href="#send-receive">Send / Receive</a></li>
-              <li><a href="#bubble-events">Bubble Events</a></li>
+              <li><a href="#intents">Intents and Routes</a></li>
               <li><a href="#async-requests">Async Requests</a></li>
               <li><a href="#dynamic-bindings">Dynamic Bindings</a></li>
               <li>
@@ -1006,9 +1006,11 @@
           Components don't have to talk to each other &mdash; many apps just let
           parents read children's state directly. But once you want one
           component to <em>tell</em> another to do something, tutuca offers
-          three channels: <strong>send</strong> (targeted message),
-          <strong>bubble</strong> (event observed by ancestors), and
-          <strong>request</strong> (async, with a response). Plus
+          <strong>two</strong> channels, and one question separates them:
+          <em>does the sender know who handles this?</em> If yes it
+          <strong>sends a message</strong>, which reaches one component and
+          stops. If no it raises an <strong>intent</strong>, which walks a
+          <em>route</em> until something answers. Plus
           <strong>dynamic bindings</strong> for the case where a descendant
           needs read-only access to an ancestor's value without threading it
           through every component in between.
@@ -1027,14 +1029,14 @@
           with <code>.send(name, args)</code>.
         </p>
         <p>
-          <strong>When to send (vs bubble vs request).</strong>
+          <strong>When to send (vs raise an intent).</strong>
           <em>Send</em> delivers a message to a specific target by path &mdash;
           use it when one component needs to address another by name (a form
           telling its email field to focus, a list telling item 3 to enter edit
           mode), or to call a <code>receive</code> handler on self from multiple
-          call sites without duplicating its body. <em>Bubble</em> emits an
-          event upward that any ancestor can observe (next section).
-          <em>Request</em> is the async counterpart (covered after that).
+          call sites without duplicating its body. When you <em>don't</em> know
+          who should answer, raise an <em>intent</em> instead and let a route
+          find someone (next section).
         </p>
         <p>
           In the example below, the form sends
@@ -1047,37 +1049,60 @@
         </p>
         <tutuca-playground src="./examples/send-receive.js"></tutuca-playground>
 
-        <h3 id="bubble-events">
-          <a href="#bubble-events">Bubble Events</a>
+        <h3 id="intents">
+          <a href="#intents">Intents and Routes</a>
         </h3>
         <p>
-          <strong>When to bubble:</strong> handle the event locally if the
-          current component owns the state needed to respond. Bubble when the
-          action belongs to an ancestor (a list item's <code>remove</code> must
-          reach the list that owns the items), or when an ancestor may want to
-          react to or record something that happened (selection, logging,
-          analytics). Don't bubble events with no consumer.
+          <strong>When to raise an intent:</strong> handle the action locally if
+          the current component owns the state needed to respond. Raise an
+          intent when you <em>don't know who should answer</em> &mdash; a list
+          item's <code>remove</code> that must reach the list owning the items,
+          or something an ancestor may want to record (selection, logging,
+          analytics).
+        </p>
+        <p>
+          An intent carries a <strong>route</strong>: a list of legs saying
+          where to look. <code>"dyn"</code> walks the dispatch path from the
+          sender's <em>parent</em> up to the root; <code>"lex"</code> walks the
+          handlers registered on the scope (that's where async work lives, in
+          the next section). With no route it takes both, in that order. The
+          verb no longer decides which scope answers &mdash; the route does, and
+          it's written at the call site where the decision actually is.
         </p>
         <p>
           The recursive <code>tree.js</code> example from
-          <a href="#recursive-components">Recursive Components</a> also
-          demonstrates <code>ctx.bubble</code>. When a node is clicked,
-          <code>onItemClick</code> calls
-          <code>ctx.bubble("treeItemSelected", [this])</code>. Tutuca walks the
-          component path from the source up toward the root and, at each
-          ancestor, looks for a matching
-          <code>bubble.treeItemSelected</code> handler. Ancestors without a
-          handler are skipped silently; in the tree example the
-          <code>TreeRoot</code> at the top of the chain catches the event and
-          prepends a log entry.
+          <a href="#recursive-components">Recursive Components</a> demonstrates
+          it. When a node is clicked, <code>onItemClick</code> calls
+          <code>ctx.intent("treeItemSelected", [this], { route: ["dyn"] })</code>.
+          Tutuca walks the component path from the sender's parent up toward the
+          root and, at each ancestor, looks for a matching
+          <code>intent.treeItemSelected</code> handler; in the tree example the
+          <code>TreeRoot</code> at the top of the chain catches it and prepends
+          a log entry.
         </p>
         <p>
-          Bubble handlers return a (possibly updated) instance of their own
-          component, just like <code>methods</code> / <code>input</code> /
-          <code>receive</code> handlers. Walking stops when the root state value
-          is reached or when a handler calls <code>ctx.stopPropagation()</code>.
-          This is how aggregate state (logs, selections, totals) is maintained
-          without threading callbacks down the tree.
+          Intent handlers return a (possibly updated) instance of their own
+          component, just like <code>methods</code> and <code>receive</code>
+          handlers. The rule that governs the walk is one sentence:
+          <strong>a reply ends the walk; running does not.</strong> A handler
+          that changes state and returns is an <em>observer</em> and the intent
+          keeps going; one that calls <code>ctx.reply(value)</code> or
+          <code>ctx.fail(error)</code> answers and stops it, and
+          <code>ctx.stop()</code> ends it answering nothing. That single rule is
+          why there's no separate "listener" bucket &mdash; an observer and an
+          answerer are the same construct with and without a reply.
+        </p>
+        <p>
+          An answer comes back to the sender as an <em>ordinary message</em>, in
+          the <code>receive</code> bucket, under one of three names:
+          <code>&lt;name&gt;Ok</code> with the result,
+          <code>&lt;name&gt;Error</code> with the error, or
+          <code>&lt;name&gt;Unhandled</code> (carrying the intent's own
+          arguments) when the route ran out with nobody claiming it. Each one
+          takes a single payload, so no handler can be handed both a result and
+          an error and read the wrong one. Declaring those arms is what makes an
+          intent a <em>request</em> rather than a <em>notification</em> &mdash;
+          declare none and the outcome is simply dropped.
         </p>
 
         <h3 id="async-requests">
@@ -1096,25 +1121,31 @@
         <p>
           The <code>init(ctx)</code> handler in the <code>receive</code> section
           is called when the application starts. It calls
-          <code>ctx.request("loadData", [])</code> to trigger the async function
-          registered in <code>getRequestHandlers()</code>. When the fetch
-          completes, tutuca calls <code>response.loadData(res, err)</code> with
-          the result.
+          <code>ctx.intent("loadData", [], { route: ["lex"] })</code> to trigger
+          the async function registered in <code>getIntentHandlers()</code>.
+          When the fetch completes, tutuca delivers the result to
+          <code>receive.loadDataOk(res)</code> &mdash; or
+          <code>receive.loadDataError(err)</code> if it threw, or
+          <code>receive.loadDataUnhandled()</code> if nothing was registered to
+          answer it at all.
         </p>
         <p>
           The component manages a loading state with
           <code>@show=".isLoading"</code> and <code>@hide=".isLoading"</code>.
-          The "Load Another Way" button demonstrates
-          <code>ctx.request()</code> with custom callback names via
-          <code>onOkName</code> and <code>onErrorName</code> options, routing
-          the response to different handlers.
+          The "Load Another Way" button raises the same intent on the
+          <em>default</em> route (<code>["dyn", "lex"]</code>): the ancestors
+          first, then the registered handlers. Notice that the answer arms
+          don't change with the route &mdash; the route says who answers, the
+          arms say what to do about it.
         </p>
         <p>
-          Notice how the request implementation is defined outside the component
-          in <code>getRequestHandlers()</code>. This separation means the same
+          Notice how the async implementation is defined outside the component
+          in <code>getIntentHandlers()</code>. This separation means the same
           component can behave differently in production, in different test
-          cases, or even in different apps &mdash; just by changing the request
-          handler.
+          cases, or even in different apps &mdash; just by changing the
+          registered handler. A handler that has nothing to contribute can
+          return the exported <code>PASS</code> sentinel to decline, and the
+          walk moves on to the next one.
         </p>
         <tutuca-playground
           src="./examples/request-example.js"

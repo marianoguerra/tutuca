@@ -269,7 +269,7 @@ async function runDevTests(projectDir, devModuleUrls) {
       components: normalized.components,
       path: abs,
       expect,
-      requestHandlers: normalized.requestHandlers,
+      intentHandlers: normalized.intentHandlers,
       macros: normalized.macros,
     });
     const m = report.modules[0];
@@ -334,11 +334,11 @@ async function discoverModules(projectDir, devModuleUrls) {
             title: it.title,
             view: it.view,
             componentName: it.componentName,
-            requestHandlers: it.requestHandlerNames,
+            intentHandlers: it.requestHandlerNames,
           })),
         })),
         macros: normalized.macros ? Object.keys(normalized.macros) : [],
-        requestHandlers: normalized.requestHandlers ? Object.keys(normalized.requestHandlers) : [],
+        intentHandlers: normalized.intentHandlers ? Object.keys(normalized.intentHandlers) : [],
         error: null,
       });
     } catch (e) {

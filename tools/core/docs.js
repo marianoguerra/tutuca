@@ -174,10 +174,13 @@ function getComponentDoc(comp) {
     sig: getSignature(k, methods[k]),
   }));
 
-  const inputHandlers = Object.keys(comp.input).map((k) => ({
-    name: k,
-    sig: getSignature(k, comp.input[k]),
-  }));
+  const sigs = (bucket) =>
+    Object.keys(bucket ?? {}).map((k) => ({ name: k, sig: getSignature(k, bucket[k]) }));
+  // The two dispatch buckets. `receive` holds what the component is TOLD — its own view's
+  // names, what a parent sends it, and every answer it reads. `intent` holds what it
+  // ANSWERS for others.
+  const receiveHandlers = sigs(comp.receive);
+  const intentHandlers = sigs(comp.intent);
 
   const fieldDocs = [];
   for (const fieldName in fields) {
@@ -190,7 +193,13 @@ function getComponentDoc(comp) {
     });
   }
 
-  return { name, methods: userMethods, input: inputHandlers, fields: fieldDocs };
+  return {
+    name,
+    methods: userMethods,
+    receive: receiveHandlers,
+    intent: intentHandlers,
+    fields: fieldDocs,
+  };
 }
 
 export function docComponents(normalized, { name = null } = {}) {

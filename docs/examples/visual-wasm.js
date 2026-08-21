@@ -7,7 +7,7 @@ function instr(name, label) {
 function type(name, label) {
   return component({
     name,
-    input: {
+    receive: {
       setType(typeId) {
         return TYPE_BY_ID[typeId].make();
       },
@@ -709,7 +709,7 @@ const InstructionPicker = component({
       return this.currentSection === "vars";
     },
   },
-  input: {
+  receive: {
     selectInstructionById(target) {
       const id = target.dataset.value;
       const Comp = INSTRUCTION_COMPONENTS_BY_ID[id];

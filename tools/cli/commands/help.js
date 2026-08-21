@@ -38,7 +38,7 @@ MODULE CONVENTION
     export function getMacros()           // optional
       -> Record<string, Macro>            // from tutuca's macro()
 
-    export function getRequestHandlers()  // optional
+    export function getIntentHandlers()  // optional
       -> Record<string, Function>
 
     export function getTests({ describe, test, expect })   // required for test

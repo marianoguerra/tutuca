@@ -15,9 +15,13 @@ function fmtComponentDocs(docs) {
       lines.push("");
     }
 
-    if (comp.input.length > 0) {
-      lines.push("## Input Handlers\n");
-      for (const m of comp.input) {
+    for (const [title, bucket] of [
+      ["Receive Handlers", comp.receive],
+      ["Intent Handlers", comp.intent],
+    ]) {
+      if (!bucket?.length) continue;
+      lines.push(`## ${title}\n`);
+      for (const m of bucket) {
         lines.push(`- \`${m.sig}\``);
       }
       lines.push("");
@@ -104,7 +108,7 @@ function fmtModuleInfo(info) {
   lines.push(`- Exports: ${[...info.present].map((k) => `\`${k}\``).join(", ") || "(none)"}`);
   lines.push(`- Components: ${info.counts.components}`);
   lines.push(`- Macros: ${info.counts.macros}`);
-  lines.push(`- Request handlers: ${info.counts.requestHandlers}`);
+  lines.push(`- Request handlers: ${info.counts.intentHandlers}`);
   lines.push(`- Examples: ${info.counts.examples} (sections: ${info.counts.sections})`);
   if (info.warnings.length) {
     lines.push("", "## Warnings", "");

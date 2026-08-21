@@ -6,15 +6,13 @@
 // (tools/core/test.js) drive components through the same code here.
 //
 // A phase config looks like:
-//   { send:    [{ name, args, opts? }],   // -> receive[name]
-//     bubble:  [{ name, args, opts? }],   // -> bubble[name], from the target up
-//     request: [{ name, args, opts? }],   // -> response[name] on the target
-//     input:   [{ name, args, opts? }],   // -> input[name]
-//     do:      [{ type, name, args, opts? }] } // explicit ordered, mixed kinds
+//   { send:   [{ name, args, opts? }],   // -> receive[name] on the target
+//     intent: [{ name, args, opts? }],   // -> a walk along opts.route until answered
+//     do:     [{ type, name, args, opts? }] } // explicit ordered, mixed kinds
 // `args` is a plain array (used verbatim) or a function `(self) => array` called
 // at dispatch with `self` = the target instance.
 
-const OP_KINDS = ["send", "bubble", "request", "input"];
+const OP_KINDS = ["send", "intent"];
 
 // Compile a phase to one ordered op list: shorthand buckets first (fixed kind
 // order), then the explicit `do` sequence (each item carries its own `type`).
@@ -29,16 +27,6 @@ export function resolveArgs(args, self) {
   return typeof args === "function" ? (args(self) ?? []) : (args ?? []);
 }
 
-// True if a phase config contains any `bubble` op (shorthand bucket or a `do`
-// item of type "bubble"). Pure predicate — dev surfaces (the test harness and
-// the storybook engine) use it to warn that a bubble dispatched where the target
-// has no author-controlled ancestor can't reach any author handler.
-export function phaseHasBubble(phase) {
-  if (!phase) return false;
-  if (phase.bubble?.length) return true;
-  return (phase.do ?? []).some((op) => op.type === "bubble");
-}
-
 // Dispatch every op of a phase onto `targetPath`. `self` feeds args functions.
 // Dispatches are queued transactions, so op-list order is the execution order.
 export function dispatchPhase(dispatcher, targetPath, phase, self) {
@@ -49,18 +37,8 @@ export function dispatchPhase(dispatcher, targetPath, phase, self) {
       case "send":
         dispatcher.sendAtPath(targetPath, op.name, args, op.opts);
         break;
-      case "bubble":
-        dispatcher.sendAtPath(targetPath, op.name, args, {
-          skipSelf: true,
-          bubbles: true,
-          ...op.opts,
-        });
-        break;
-      case "request":
-        dispatcher.requestAtPath(targetPath, op.name, args, op.opts);
-        break;
-      case "input":
-        dispatcher.inputAtPath(targetPath, op.name, args, op.opts);
+      case "intent":
+        dispatcher.intentAtPath(targetPath, op.name, args, op.opts);
         break;
     }
   }

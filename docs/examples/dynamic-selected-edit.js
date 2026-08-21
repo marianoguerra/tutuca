@@ -58,7 +58,7 @@ const Root = component({
     items: ".items",
     selected: ".items[.selectedKey]",
   },
-  input: {
+  receive: {
     selectItem(key) {
       return this.setSelectedKey(key);
     },
@@ -116,7 +116,7 @@ export function getExamples() {
 export function getTests({ describe, test, expect }) {
   describe(Root, () => {
     test("selectItem changes the selected key", () => {
-      const next = Root.input.selectItem.call(makeRoot("a"), "c");
+      const next = Root.receive.selectItem.call(makeRoot("a"), "c");
       expect(next.selectedKey).toBe("c");
     });
   });

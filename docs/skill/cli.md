@@ -35,7 +35,7 @@ Use `--module=<path>` if the path conflicts with positional parsing.
 | `get <module>`           | Summarize which `getX()` exports are present and counts                                                                |
 | `list <module> [name] [--limit n]` | List components with their views and fields (name + type). `--limit n` caps; `0` = all                  |
 | `examples <module> [--limit n]` | Print `getExamples()` content (title, items, per section). `--limit n` caps total items; `0` = all                                          |
-| `show <module> [name]`   | Show API docs (methods, input handlers, fields with auto-generated accessors) — all or one                             |
+| `show <module> [name]`   | Show API docs (methods, receive/intent handlers, fields with auto-generated accessors) — all or one                             |
 | `lint <module> [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render <module> [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
 | `test <module> [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
@@ -151,7 +151,7 @@ Default format is `cli` (a tree with ✓/✗/○ and per-test durations);
 `-f md` and `-f json` work too.
 
 The `getTests` shape and the handler calling conventions (`Comp.method()`,
-`Comp.input.x.call(inst, …)`, the `drive` cascade helper, iteration
+`Comp.receive.x.call(inst, …)`, the `drive` cascade helper, iteration
 handlers) are in [testing.md](./testing.md).
 
 ## storybook — live component catalog

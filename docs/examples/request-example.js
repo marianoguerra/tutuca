@@ -8,11 +8,11 @@ export const RequestExample = component({
     toggleView() {
       return this.setView(this.view === "main" ? "edit" : "main");
     },
+    // Same intent, walked along the DEFAULT route (`dyn lex`): the ancestors first,
+    // then the registered scopes. The answer arms below do not change with the route —
+    // the route says who answers, the arms say what to do about it.
     loadAnotherWay(ctx) {
-      ctx.request("loadData", [], {
-        onOkName: "loadDataOk",
-        onErrorName: "loadDataErr",
-      });
+      ctx.intent("loadData");
       return this.setIsLoading(true);
     },
     updateFromResponse(res) {
@@ -20,22 +20,27 @@ export const RequestExample = component({
       return this.setIsLoading(false).setItems(items);
     },
   },
+  // The three outcomes of `loadData`, and DECLARING them is what makes this a request
+  // rather than a notification — nobody writes that down twice. They arrive as ordinary
+  // messages, so a test can drive one with `send` and this component cannot tell the
+  // difference. Each has its own shape, so no arm can be handed both a result and an
+  // error and read the wrong one.
   receive: {
     init(ctx) {
-      ctx.request("loadData", []);
+      ctx.intent("loadData", [], { route: ["lex"] });
       return this.setIsLoading(true);
-    },
-  },
-  response: {
-    loadData(res, err) {
-      console.log({ res, err });
-      return this.updateFromResponse(res);
     },
     loadDataOk(res) {
       return this.updateFromResponse(res);
     },
-    loadDataErr(err) {
+    loadDataError(err) {
       console.error(err);
+      return this.setIsLoading(false);
+    },
+    // The route ran out with nobody claiming it — a different thing from a handler
+    // refusing, and it carries the intent's own arguments rather than an error.
+    loadDataUnhandled() {
+      console.warn("nothing on this page answers `loadData`");
       return this.setIsLoading(false);
     },
   },
@@ -85,7 +90,7 @@ export function getRoot() {
   return RequestExample.make({});
 }
 
-export function getRequestHandlers() {
+export function getIntentHandlers() {
   return {
     async loadData() {
       const req = await fetch("https://marianoguerra.github.io/data.json");
@@ -128,7 +133,7 @@ export function getExamples() {
         title: "Mocked response",
         description: "loadData mocked to return fixtures (per-example)",
         value: RequestExample.make({ isLoading: true }),
-        requestHandlers: {
+        intentHandlers: {
           async loadData() {
             return [
               { title: "Mocked A", description: "from a per-example mock" },
@@ -141,7 +146,7 @@ export function getExamples() {
         title: "Mocked error",
         description: "loadData mocked to throw (exercises the error path)",
         value: RequestExample.make({ isLoading: true }),
-        requestHandlers: {
+        intentHandlers: {
           async loadData() {
             throw new Error("mocked failure");
           },

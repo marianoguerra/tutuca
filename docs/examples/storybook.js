@@ -38,8 +38,8 @@ export function getMacros() {
   return buildStorybook(SECTION_MODULES).macros;
 }
 
-export function getRequestHandlers() {
-  return buildStorybook(SECTION_MODULES).requestHandlers;
+export function getIntentHandlers() {
+  return buildStorybook(SECTION_MODULES).intentHandlers;
 }
 
 export function getRoot() {

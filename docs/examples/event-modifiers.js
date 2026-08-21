@@ -3,7 +3,7 @@ import { component, html } from "tutuca";
 export const EventModifiers = component({
   name: "EventModifiers",
   fields: { query: "", lastSentSearch: null, blockedNav: false },
-  input: {
+  receive: {
     onInput(value) {
       return this.setQuery(value);
     },

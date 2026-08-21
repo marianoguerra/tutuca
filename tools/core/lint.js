@@ -12,7 +12,7 @@ export function lintComponents(
   const stack = new ComponentStack();
   stack.registerComponents(comps);
   if (normalized.macros) stack.registerMacros(normalized.macros);
-  if (normalized.requestHandlers) stack.registerRequestHandlers(normalized.requestHandlers);
+  if (normalized.intentHandlers) stack.registerIntentHandlers(normalized.intentHandlers);
 
   const results = [];
   for (const comp of picked) {

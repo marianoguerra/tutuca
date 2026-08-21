@@ -22,10 +22,8 @@ export function introspectComponent(comp) {
       defaultValue: f.defaultValue,
     })),
     methods: Object.keys(methods),
-    input: Object.keys(comp.input ?? {}),
     receive: Object.keys(comp.receive ?? {}),
-    bubble: Object.keys(comp.bubble ?? {}),
-    response: Object.keys(comp.response ?? {}),
+    intent: Object.keys(comp.intent ?? {}),
     alter: Object.keys(comp.alter ?? {}),
     statics: Object.keys(comp.spec?.statics ?? {}),
     views: Object.values(comp.views ?? {}).map((v) => ({
@@ -82,10 +80,10 @@ export const CompView = component({
       return this.isExpanded ? "▼" : "▶";
     },
   },
-  input: {
+  receive: {
     toggle(isCtrl, ctx) {
       if (isCtrl) {
-        ctx.bubble("toggleAllViews", [!this.isExpanded]);
+        ctx.intent("toggleAllViews", [!this.isExpanded], { route: ["dyn"] });
         return this;
       }
       return this.toggleIsExpanded();
@@ -121,10 +119,10 @@ export const CompSection = component({
       return `(${this.items.size})`;
     },
   },
-  input: {
+  receive: {
     toggle(isCtrl, ctx) {
       if (isCtrl) {
-        ctx.bubble("toggleAllSections", [!this.isExpanded]);
+        ctx.intent("toggleAllSections", [!this.isExpanded], { route: ["dyn"] });
         return this;
       }
       return this.toggleIsExpanded();
@@ -166,7 +164,7 @@ export const ComponentInspector = component({
       return this.setAllViews(false);
     },
   },
-  bubble: {
+  intent: {
     toggleAllSections(state) {
       return this.setAllSections(state);
     },
@@ -198,10 +196,8 @@ export const ComponentInspector = component({
         true,
       );
       add("Methods", names(d.methods));
-      add("Input", names(d.input));
       add("Receive", names(d.receive));
-      add("Bubble", names(d.bubble));
-      add("Response", names(d.response));
+      add("Intent", names(d.intent));
       add("Alter", names(d.alter));
       add("Statics", names(d.statics));
       add(

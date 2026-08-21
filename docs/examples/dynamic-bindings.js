@@ -27,7 +27,7 @@ const EntryEditorAndSelector = component({
     selector: null,
   },
   provide: { entries: ".items" },
-  input: {
+  receive: {
     onAddItem(SelectorEntry) {
       const num = this.items.size + 1;
       return this.pushInItems(

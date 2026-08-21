@@ -106,7 +106,7 @@ async function main() {
   const components = mod.getComponents();
   const scope = app.registerComponents(components);
   if (mod.getMacros) scope.registerMacros(mod.getMacros());
-  if (mod.getRequestHandlers) scope.registerRequestHandlers(mod.getRequestHandlers());
+  if (mod.getIntentHandlers) scope.registerIntentHandlers(mod.getIntentHandlers());
   const styleText = await compileClassesToStyleText(app, compile);
   const style = document.createElement("style");
   style.textContent = styleText;

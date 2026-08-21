@@ -7,7 +7,7 @@ function fmtModuleInfo(info) {
   lines.push(`Exports: ${[...info.present].join(", ") || "(none)"}`);
   lines.push(`Components: ${info.counts.components}`);
   lines.push(`Macros: ${info.counts.macros}`);
-  lines.push(`Request handlers: ${info.counts.requestHandlers}`);
+  lines.push(`Request handlers: ${info.counts.intentHandlers}`);
   lines.push(`Examples: ${info.counts.examples} (sections: ${info.counts.sections})`);
   if (info.warnings.length) {
     lines.push("");
@@ -63,9 +63,13 @@ function fmtComponentDocs(docs) {
       lines.push("  methods:");
       for (const m of c.methods) lines.push(`    ${m.sig}`);
     }
-    if (c.input.length) {
-      lines.push("  input:");
-      for (const m of c.input) lines.push(`    ${m.sig}`);
+    for (const [label, bucket] of [
+      ["receive", c.receive],
+      ["intent", c.intent],
+    ]) {
+      if (!bucket?.length) continue;
+      lines.push(`  ${label}:`);
+      for (const m of bucket) lines.push(`    ${m.sig}`);
     }
     if (c.fields.length) {
       lines.push("  fields:");

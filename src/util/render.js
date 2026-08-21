@@ -1,6 +1,6 @@
 import { App } from "../app.js";
 import { Components } from "../components.js";
-import { dispatchPhase, phaseHasBubble } from "../on.js";
+import { dispatchPhase } from "../on.js";
 import { Path } from "../path.js";
 import { Renderer } from "../renderer.js";
 import { rootDispatcher } from "../transactor.js";
@@ -24,7 +24,7 @@ function serializeContainer(container) {
 }
 
 // Mount `rootState` into a fresh container and return the live app. `opts` also
-// takes `requestHandlers` (registered on the scope, so `request` dispatches resolve
+// takes `intentHandlers` (registered on the scope, so `request` dispatches resolve
 // instead of hitting the 404 handler) and `view` (which of the root component's
 // views to mount; defaults to `main`).
 export function renderToHTMLNode(
@@ -45,7 +45,7 @@ export function renderToHTMLNode(
   const app = new App(container, comps, renderer, ParseContext);
   const scope = app.registerComponents(components);
   if (macros) scope.registerMacros(macros);
-  if (opts.requestHandlers) scope.registerRequestHandlers(opts.requestHandlers);
+  if (opts.intentHandlers) scope.registerIntentHandlers(opts.intentHandlers);
   app.rootViewName = opts.view ?? null;
   app.transactor.state.set(rootState);
   app.start(opts);
@@ -87,7 +87,7 @@ export async function renderToHTMLDriven(
   macros,
   rootState,
   ParseContext,
-  { phase = null, requestHandlers = null, view = null, warn = console.warn } = {},
+  { phase = null, intentHandlers = null, view = null } = {},
 ) {
   const { container, app, cleanup } = renderToHTMLNode(
     document,
@@ -95,17 +95,13 @@ export async function renderToHTMLDriven(
     macros,
     rootState,
     ParseContext,
-    { noCache: true, requestHandlers, view },
+    { noCache: true, intentHandlers, view },
   );
   try {
     if (phase) {
-      // The example's value IS the root here, so a `bubble` travels child->parent out
-      // of a component with no ancestor and reaches no author handler (and the root's
-      // own bubble handler is skipped). Same no-op as drive(); warn rather than lie.
-      if (phaseHasBubble(phase))
-        warn(
-          "render: a `bubble` action is a no-op here — the example's value is the render root, so there is no ancestor to receive it. Use send/request/input to drive a preset state.",
-        );
+      // An `intent` raised here has no ancestor to walk to: the example's value IS the
+      // render root. It needs no warning any more — the walk runs out and the sender
+      // hears `<name>Unhandled`, which says so at the place that asked.
       dispatchPhase(rootDispatcher(app.transactor), new Path([]), phase, app.state.val);
       await app.transactor.settle();
     }

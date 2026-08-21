@@ -49,26 +49,22 @@ var Rich = component({
       return this.count * 2;
     }
   },
-  input: {
+  receive: {
     inc() {
       return this.setCount(this.count + 1);
     },
     reset() {
       return this.setCount(0);
-    }
-  },
-  receive: {
+    },
     ping() {
       return this;
-    }
-  },
-  bubble: {
-    onChild() {
+    },
+    onDataOk() {
       return this;
     }
   },
-  response: {
-    onData() {
+  intent: {
+    onChild() {
       return this;
     }
   },
@@ -112,7 +108,7 @@ function getExamples() {
   const CI = ComponentInspector.Class;
   return {
     title: "ComponentInspector",
-    description: "Inspects a tutuca Component descriptor — the object returned by `component({...})`. Lays out the component's name, fields (with default values rendered via ImInspector), methods, the input/receive/bubble/response/alter handler channels, statics, and view source. Each section collapses/expands and paginates (10 items per page) like the JSON and Immutable inspectors. Ctrl/Cmd-click a section header to expand or collapse every section at once; ctrl/cmd-click a view's arrow to do the same for all view sources.",
+    description: "Inspects a tutuca Component descriptor — the object returned by `component({...})`. Lays out the component's name, fields (with default values rendered via ImInspector), methods, the receive/intent handler buckets, statics, and view source. Each section collapses/expands and paginates (10 items per page) like the JSON and Immutable inspectors. Ctrl/Cmd-click a section header to expand or collapse every section at once; ctrl/cmd-click a view's arrow to do the same for all view sources.",
     items: [
       {
         title: "Minimal component",
@@ -121,7 +117,7 @@ function getExamples() {
       },
       {
         title: "Rich component (collapsed)",
-        description: "Exercises every channel: fields, methods, input, receive, bubble, response, alter, statics, and two views.",
+        description: "Exercises every bucket: fields, methods, receive, intent, alter, statics, and two views.",
         value: CI.fromData(Rich)
       },
       {
@@ -167,10 +163,8 @@ function getTests({ describe, test, expect }) {
       const d = introspectComponent(Rich);
       expect(d.methods).toContain("label");
       expect(d.methods).toContain("double");
-      expect(d.input).toEqual(["inc", "reset"]);
-      expect(d.receive).toEqual(["ping"]);
-      expect(d.bubble).toEqual(["onChild"]);
-      expect(d.response).toEqual(["onData"]);
+      expect(d.receive).toEqual(["inc", "reset", "ping", "onDataOk"]);
+      expect(d.intent).toEqual(["onChild"]);
       expect(d.alter).toEqual(["rows"]);
       expect(d.statics).toEqual(["blank", "fromTitle"]);
     });
@@ -189,10 +183,8 @@ function getTests({ describe, test, expect }) {
       expect(labels).toEqual([
         "Fields",
         "Methods",
-        "Input",
         "Receive",
-        "Bubble",
-        "Response",
+        "Intent",
         "Alter",
         "Statics",
         "Views"
@@ -222,14 +214,14 @@ function getTests({ describe, test, expect }) {
       const methods = insp.expandAllViews().sections.toArray().find((s) => s.label === "Methods");
       expect(methods.isExpanded).toBe(false);
     });
-    test("toggleAllSections bubble expands every section", () => {
+    test("the toggleAllSections intent expands every section", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const r = ComponentInspector.bubble.toggleAllSections.call(insp, true);
+      const r = ComponentInspector.intent.toggleAllSections.call(insp, true);
       expect(r.sections.toArray().every((s) => s.isExpanded)).toBe(true);
     });
-    test("toggleAllViews bubble expands every view source", () => {
+    test("the toggleAllViews intent expands every view source", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const r = ComponentInspector.bubble.toggleAllViews.call(insp, true);
+      const r = ComponentInspector.intent.toggleAllViews.call(insp, true);
       const views = r.sections.toArray().find((s) => s.label === "Views").items.toArray();
       expect(views.every((v) => v.isExpanded)).toBe(true);
     });
@@ -253,14 +245,14 @@ function getTests({ describe, test, expect }) {
     });
     test("plain toggle flips only this section", () => {
       const s = CompSection.make({ label: "Fields", items: items(1) });
-      const r = CompSection.input.toggle.call(s, false, {});
+      const r = CompSection.receive.toggle.call(s, false, {});
       expect(r.isExpanded).toBe(true);
     });
-    test("ctrl-toggle bubbles toggleAllSections with the target state", () => {
+    test("ctrl-toggle raises toggleAllSections with the target state", () => {
       const s = CompSection.make({ label: "Fields", items: items(1) });
       const calls = [];
-      const ctx = { bubble: (name, args) => calls.push([name, args]) };
-      const r = CompSection.input.toggle.call(s, true, ctx);
+      const ctx = { intent: (name, args) => calls.push([name, args]) };
+      const r = CompSection.receive.toggle.call(s, true, ctx);
       expect(r).toBe(s);
       expect(calls).toEqual([["toggleAllSections", [true]]]);
     });
@@ -280,14 +272,14 @@ function getTests({ describe, test, expect }) {
     });
     test("plain toggle flips only this view", () => {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
-      const r = CompView.input.toggle.call(v, false, {});
+      const r = CompView.receive.toggle.call(v, false, {});
       expect(r.isExpanded).toBe(true);
     });
-    test("ctrl-toggle bubbles toggleAllViews with the target state", () => {
+    test("ctrl-toggle raises toggleAllViews with the target state", () => {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
       const calls = [];
-      const ctx = { bubble: (name, args) => calls.push([name, args]) };
-      const r = CompView.input.toggle.call(v, true, ctx);
+      const ctx = { intent: (name, args) => calls.push([name, args]) };
+      const r = CompView.receive.toggle.call(v, true, ctx);
       expect(r).toBe(v);
       expect(calls).toEqual([["toggleAllViews", [true]]]);
     });
@@ -359,7 +351,7 @@ var Sample = component2({
       return this.title;
     }
   },
-  input: {
+  receive: {
     bump() {
       return this.setCount(this.count + 1);
     }
@@ -518,7 +510,7 @@ var lintReport2 = {
       componentName: "Broken",
       findings: [
         {
-          id: "INPUT_HANDLER_METHOD_NOT_IMPLEMENTED",
+          id: "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED",
           level: "error",
           info: { name: "missingMethod", eventName: "click", originAttr: "@on.click" },
           context: { componentName: "Broken", viewName: "main" },

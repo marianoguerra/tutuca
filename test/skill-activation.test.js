@@ -25,8 +25,8 @@ const cases = [
     terms: ["@", "handler"],
   },
   {
-    prompt: "implement a bubble handler that aggregates child selections",
-    terms: ["bubble"],
+    prompt: "implement an intent handler that aggregates child selections",
+    terms: ["intent"],
   },
   {
     prompt: "write a getTests export for my Counter",

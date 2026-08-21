@@ -24,7 +24,7 @@ export const DnDExample = component({
       return item.includes(this.query);
     },
   },
-  input: {
+  receive: {
     onDropOnItem(targetIndex, dragInfo, e) {
       console.log(dragInfo, e);
       const offset = dropWasAbove(e) ? 0 : 1;

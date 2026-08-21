@@ -27,7 +27,7 @@ const Items = component({
   fields: {
     items: [],
   },
-  input: {
+  receive: {
     onAddItem(Item) {
       return this.pushInItems(Item.make({ completed: false, text: "do the thing" }));
     },

@@ -41,7 +41,7 @@ task.
 
 ## Component communication
 
-- [Coordinate components](coordinate-components.md) — `bubble`, `send`/`receive`, async `request`/`response`.
+- [Coordinate components](coordinate-components.md) — addressed `send`/`receive` vs routed `intent` (`dyn` / `lex`).
 
 ## Stories & catalog
 

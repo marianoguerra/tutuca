@@ -44,8 +44,8 @@ The reconstructed path is transformed two ways depending on use:
 
 - **`compact()` → the dispatch path.** Drops frame-only steps, keeps one
   step per crossed component (including `DynStep`s). `popStep()` over it
-  bubbles through every component. Used to drive `ctx.send` / `ctx.bubble`
-  and to locate handlers.
+  walks every component. Used to drive `ctx.send` / `ctx.intent` and to
+  locate handlers.
 - **`toTransactionPath()` → the transaction path.** Teleports every
   `DynStep` (drops the steps interior to its producer..consumer span and
   splices in the producer's own steps) so a mutation lands on the data's
@@ -61,7 +61,7 @@ iteration entries, and scope boundaries (loop-less `@enrich-with`, so
 their custom binds can be replayed). On an event, `Path.fromNodeAndEventName` walks from the
 target up to the root, reads the breadcrumbs, and rebuilds the path. Along
 the way it resolves the handler: normally on the **leaf** component, but
-for bubbling events (and explicit `bubble`) it can resolve on an
+for DOM-bubbling events it can resolve on an
 **ancestor**, in which case the descending steps below that ancestor are
 dropped so the path resolves to the ancestor's value.
 
@@ -70,7 +70,7 @@ dropped so the path resolves to the ancestor's value.
 Each dispatch is a `Transaction`. The `Transactor` holds a FIFO queue;
 `App` drains it in time-budgeted batches on a `setTimeout(…, 0)` (see
 `src/app.js`), so transactions complete **asynchronously and interleaved**
-— which is exactly why a request's response can land after other
+— which is exactly why an intent's answer can land after other
 transactions have rebuilt the root.
 
 The core of applying one is `Transaction.updateRootValue`:
@@ -90,27 +90,33 @@ spawned (requests, follow-on sends) settles too.
 
 ## Dispatch channels, semantically
 
-The authoring API (`ctx.send` / `bubble` / `request`, the handler blocks)
-is in [request-response.md](./request-response.md). Underneath, each maps
-to a `Transaction` subclass:
+The authoring API (`ctx.send` / `ctx.intent`, the handler blocks) is in
+[messages-and-intents.md](./messages-and-intents.md). Underneath there are two
+channels, and one question separates them: **does the sender know who handles
+this?**
 
-| Channel             | Transaction      | Notes                                            |
-| ------------------- | ---------------- | ------------------------------------------------ |
-| DOM event → `input` | `InputEvent`     | transacted **synchronously** (`transactInputNow`), not queued |
-| `ctx.send` → `receive` | `SendEvent`   | queued; `skipSelf` runs no self-handler          |
-| `ctx.bubble` → `bubble` | `BubbleEvent` | queued; re-pushes itself at `path.popStep()` until it reaches the root or `stopPropagation` |
-| `ctx.request` → `response` | `ResponseEvent` | queued **after** the async work resolves |
+| Channel | Transaction | Notes |
+| --- | --- | --- |
+| DOM event → `receive` | `InputEvent` | transacted **synchronously** (`transactInputNow`), not queued; resolves its handler from the compiled view |
+| `ctx.send` → `receive` | `SendEvent` | queued; addressed at one component and stops there |
+| an intent's answer → `receive` | `SendEvent` | queued; named `<name>Ok` / `<name>Error` / `<name>Unhandled`, and indistinguishable from any other message |
+| `ctx.intent` → `intent` | `IntentEvent` per `dyn` hop; no transaction for a `lex` hop | queued; the walk state lives in `IntentWalk`, shared **by reference** across hops |
 
-Bubbling is just walking up the dispatch path one `popStep` at a time.
-`targetPath` (the originator's path) stays fixed as `path` shortens, so a
-bubble handler can reply to the originator via `ctx.sendAtPath(ctx.targetPath, …)`.
+The `dyn` leg is walking up the dispatch path one `popStep` at a time, starting
+at the sender's **parent**. `targetPath` (the originator's path) stays fixed as
+`path` shortens, so a hop can reach the originator via
+`ctx.sendAtPath(ctx.targetPath, …)`.
+
+The walk object is shared across hops on purpose: that is what makes the
+one-shot **per intent** rather than per hop, so a second `ctx.reply` — from this
+handler or one three hops up — finds the walk already ended.
 
 ## Dynamic-var teleporting
 
 A component rendered through `<x render="*sel">` *physically lives* at the
 producer that declared `provide: { sel: … }`, not under the consumer that
 wrote the render. The reconstructed dispatch path keeps every intermediate
-component (so bubbling visits them), but `toTransactionPath()` teleports
+component (so a walk visits them), but `toTransactionPath()` teleports
 the `DynStep`: it pops the steps tagged with the marker's `interiorCids`
 and splices in the producer's own steps (`DynStep.teleportSteps()`). The
 mutation therefore lands on the producer's data, and the consumer's view
@@ -125,39 +131,39 @@ races come from.
 
 A `SeqAccessStep` resolves `keyField` from the live root **every time it
 runs**. For synchronous dispatch this is invisible — the key cannot change
-mid-transaction. For an async `request`/`response` it is the whole
-problem: between issuing the request and applying the response, the key
-may move (e.g. the user switches the selected tab, so `.selId` changes),
-and a naive re-resolution would deliver the response to **whatever item is
-selected now**, not the one that issued the request.
+mid-transaction. For an async intent it is the whole problem: between
+raising the intent and applying its answer, the key may move (e.g. the
+user switches the selected tab, so `.selId` changes), and a naive
+re-resolution would deliver the answer to **whatever item is selected
+now**, not the one that raised the intent.
 
-**Key pinning is the default.** `pushRequest` snapshots the resolved key
-at request time by running `Path.pinKeys(curRoot)` over the transaction
+**Key pinning is the default.** `pushIntent` snapshots the resolved key
+at dispatch time by running `Path.pinKeys(curRoot)` over the transaction
 path — each `SeqAccessStep(seq, keyField)` becomes a literal
 `SeqStep(seq, resolvedKey)`. The pinned path is stored on the
-`ResponseEvent`, so the response updates the item that issued the request
+`IntentWalk`, so the answer updates the item that raised the intent
 regardless of later key changes. (Pinning runs on the transaction path,
 after teleporting, because the `SeqAccessStep` may have come from a
 `DynStep`.)
 
-**Opt out per request with `livePath: true`:**
+**Opt out per intent with `livePath: true`:**
 
 ```js
-ctx.request("save", [payload], { livePath: true }); // re-resolve the key live
+ctx.intent("save", [payload], { route: ["lex"], livePath: true }); // re-resolve live
 ```
 
-With `livePath`, the response re-evaluates the key at apply time — the old
-"follow the latest selection" behavior. Use it only when the response is
+With `livePath`, the answer re-evaluates the key at apply time — the old
+"follow the latest selection" behavior. Use it only when the answer is
 *meant* to follow wherever the key now points.
 
 Edge cases:
 
-- **Pinned target deleted before the response arrives** — the pinned
+- **Pinned target deleted before the answer arrives** — the pinned
   `SeqStep` resolves to nothing, the handler runs against a null leaf, and
   the result equals the input → a safe no-op (root unchanged). With
   `livePath` it would instead hit the current item.
-- **The `EventContext` path stays live (un-pinned).** A response handler
-  that itself re-dispatches via `ctx.send` / `ctx.request` re-resolves
+- **The `EventContext` path stays live (un-pinned).** An answer arm that
+  itself re-dispatches via `ctx.send` / `ctx.intent` re-resolves
   against current state — pinning covers the *update*, not nested
   re-dispatch.
 
@@ -182,8 +188,8 @@ things per step kind:
 - [core.md](./core.md) — *Mental model* and *Paths, not references* (the
   high-level invariants this file expands on), `view` directives, handler
   blocks.
-- [request-response.md](./request-response.md) — the dispatch **API**:
-  `bubble` / `send`-`receive` / `request`-`response`, `ctx.at`, `$unknown`,
+- [messages-and-intents.md](./messages-and-intents.md) — the dispatch **API**:
+  addressed `send`-`receive` vs routed `intent`, `ctx.at`, `$unknown`,
   request-handler registration, and the `livePath` request option.
 - [advanced.md](./advanced.md) — dynamic bindings (`*x`) and the authoring
   view of teleporting.

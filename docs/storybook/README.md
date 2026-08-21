@@ -24,8 +24,8 @@ release (a note on the page says so). Everything else works on both.
 | `02-sections.dev.js` | `getExamples` returning an **array of sections**; title sorting; sidebar fuzzy filter (section + example level) |
 | `03-views.dev.js` | named `views` + `@push-view`; the per-example `view` field; `<x render as="...">` |
 | `04-macros.dev.js` | `getMacros` — static, params (static + dynamic), default slot, named slots |
-| `05-requests.dev.js` | `getRequestHandlers` (real) + per-example `requestHandlers` mocks: fixture / error / loading-forever / real |
-| `06-lifecycle-on.dev.js` | the **`on`** field: `init`/`resume`/`suspend`; kinds `send`/`request`/`input` (+ `do`, + `args` as `(self)=>[...]`); a live message log makes navigation visible |
+| `05-requests.dev.js` | `getIntentHandlers` (real) + per-example `intentHandlers` mocks: fixture / error / loading-forever / real |
+| `06-lifecycle-on.dev.js` | the **`on`** field: `init`/`resume`/`suspend`; kinds `send`/`intent` (+ `do`, + `args` as `(self)=>[...]`); a live message log makes navigation visible |
 | `07-tests-drive.dev.js` | `getTests` with `describe`/`test`/`expect` + the **`drive(value, phase, opts)`** helper; `alter` handlers tested directly |
 | `08-getroot-inception.dev.js` | `getRoot` (standalone root state); the engine (`Storybook`/`Section`/`Example`) rendered as components ("Inception") |
 | `_shared.js` | shared fixtures (plain `.js`, ignored by discovery) |

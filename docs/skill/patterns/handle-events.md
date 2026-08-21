@@ -4,7 +4,7 @@
 
 ```html
 <button @on.click="$inc">+</button>      <!-- $ calls a method -->
-<button @on.click="dec">-</button>        <!-- bare name = input handler -->
+<button @on.click="dec">-</button>        <!-- bare name = receive handler -->
 
 <!-- pass args by name; ctx is auto-appended last -->
 <input @on.input="$setStr value" />
@@ -22,7 +22,7 @@
 ```
 
 Handlers return a (new) instance of `this`. The first slot is a handler name
-(`$method`, or a bare name in `input`/`alter`); later slots are built-in arg
+(`$method`, or a bare name in `receive`/`alter`); later slots are built-in arg
 names — `value`, `valueAsInt`/`valueAsFloat`, `event`, `key`, `isAlt`,
 `isShift`, `isCtrl`/`isCmd`, `dragInfo`, … `value` resolves to
 `event.target.value` (or `.checked` for a checkbox, or `event.detail` for a
