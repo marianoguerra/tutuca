@@ -7,13 +7,13 @@ export const JsonNull = component({
 });
 
 export const JsonBool = component({
+  name: "JsonBool",
+  fields: { uid: "", value: true },
   receive: {
     toggleValue(draft) {
       draft.value = !draft.value;
     },
   },
-  name: "JsonBool",
-  fields: { uid: "", value: true },
   view: html`<button
     :data-test-id=".uid"
     @if.class=".value"
@@ -27,15 +27,15 @@ export const JsonBool = component({
 });
 
 export const JsonString = component({
-  receive: {
-    setValue(draft, value) {
-      draft.value = value;
-    },
-  },
   name: "JsonString",
   fields: {
     uid: "",
     value: "hello",
+  },
+  receive: {
+    setValue(draft, value) {
+      draft.value = value;
+    },
   },
   view: html`<input
     :data-test-id=".uid"
@@ -143,16 +143,16 @@ export const JsonArray = component({
 });
 
 export const JsonObjectKeyVal = component({
-  receive: {
-    setKey(draft, value) {
-      draft.key = value;
-    },
-  },
   name: "JsonObjectKeyVal",
   fields: {
     uid: "",
     key: "k",
     value: null,
+  },
+  receive: {
+    setKey(draft, value) {
+      draft.key = value;
+    },
   },
   view: html`<div :data-test-id=".uid" class="join gap-3 items-center justify-center">
     <input

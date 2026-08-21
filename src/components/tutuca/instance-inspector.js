@@ -34,17 +34,6 @@ const fieldsView = makeCompositeView({
 export const InstanceFields = component({
   name: "InstanceFields",
   fields: { ...compositeFields, typeName: "" },
-  methods: {
-    ...compositeMethods,
-    typeText() {
-      return this.typeName;
-    },
-    countText() {
-      return `{${this.items.length}}`;
-    },
-  },
-  receive: compositeReceive,
-  alter: compositeAlter,
   statics: {
     fromData(instance, comp) {
       const d = introspectComponent(comp);
@@ -58,6 +47,17 @@ export const InstanceFields = component({
       return this.make({ typeName: d.name, items, isExpanded: true });
     },
   },
+  methods: {
+    ...compositeMethods,
+    typeText() {
+      return this.typeName;
+    },
+    countText() {
+      return `{${this.items.length}}`;
+    },
+  },
+  receive: compositeReceive,
+  alter: compositeAlter,
   view: fieldsView,
 });
 

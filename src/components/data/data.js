@@ -136,6 +136,15 @@ export const JsSetItem = component({
 export const JsMap = component({
   name: "JsMap",
   fields: compositeFields,
+  statics: {
+    fromData(map, recurse) {
+      const items = [];
+      map.forEach((v, k) => {
+        items.push(JsonProperty.make({ key: fmtAnyKey(k), child: recurse(v) }));
+      });
+      return this.make({ items });
+    },
+  },
   methods: {
     ...compositeMethods,
     typeText() {
@@ -147,21 +156,18 @@ export const JsMap = component({
   },
   receive: compositeReceive,
   alter: compositeAlter,
-  statics: {
-    fromData(map, recurse) {
-      const items = [];
-      map.forEach((v, k) => {
-        items.push(JsonProperty.make({ key: fmtAnyKey(k), child: recurse(v) }));
-      });
-      return this.make({ items });
-    },
-  },
   view: compositeView,
 });
 
 export const JsSet = component({
   name: "JsSet",
   fields: compositeFields,
+  statics: {
+    fromData(set, recurse) {
+      const items = [...set].map((v) => JsSetItem.make({ child: recurse(v) }));
+      return this.make({ items });
+    },
+  },
   methods: {
     ...compositeMethods,
     typeText() {
@@ -173,29 +179,12 @@ export const JsSet = component({
   },
   receive: compositeReceive,
   alter: compositeAlter,
-  statics: {
-    fromData(set, recurse) {
-      const items = [...set].map((v) => JsSetItem.make({ child: recurse(v) }));
-      return this.make({ items });
-    },
-  },
   view: compositeView,
 });
 
 export const JsClassInstance = component({
   name: "JsClassInstance",
   fields: { ...compositeFields, className: "Object" },
-  methods: {
-    ...compositeMethods,
-    typeText() {
-      return this.className;
-    },
-    countText() {
-      return `{${this.items.length}}`;
-    },
-  },
-  receive: compositeReceive,
-  alter: compositeAlter,
   statics: {
     fromData(obj, recurse) {
       const className = obj.constructor?.name || "Object";
@@ -210,6 +199,17 @@ export const JsClassInstance = component({
       return this.make({ className, items });
     },
   },
+  methods: {
+    ...compositeMethods,
+    typeText() {
+      return this.className;
+    },
+    countText() {
+      return `{${this.items.length}}`;
+    },
+  },
+  receive: compositeReceive,
+  alter: compositeAlter,
   view: compositeView,
 });
 

@@ -21,13 +21,13 @@ export const JsonBoolean = component({
       return `${base} ${this.value ? "text-success" : "text-warning"}`;
     },
   },
-  view: html`<span :class="$cssClass" @text="$text"></span>`,
   views: {
     // Decoy: cssClass() builds these at runtime, so they never appear as
     // literals the margaui scanner can find. Never rendered — registering
     // the view is enough for compileClassesToStyleText to emit their CSS.
     _margauiClasses: html`<p class="text-success text-warning"></p>`,
   },
+  view: html`<span :class="$cssClass" @text="$text"></span>`,
 });
 
 export const JsonNumber = component({
@@ -232,8 +232,8 @@ export function makeValueInspector({ name, fromData }) {
   return component({
     name,
     fields: { value: null },
-    methods: valueWrapperMethods,
     statics: { fromData },
+    methods: valueWrapperMethods,
     view: valueWrapperView,
   });
 }

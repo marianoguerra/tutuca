@@ -197,29 +197,6 @@ export const TestReport = component({
     hasCounts: false,
     suites: [],
   },
-  methods: {
-    passText() {
-      return `✓ ${this.pass}`;
-    },
-    failText() {
-      return `✗ ${this.fail}`;
-    },
-    skipText() {
-      return `○ ${this.skip}`;
-    },
-    hasFailures() {
-      return this.hasCounts && this.fail > 0;
-    },
-    hasSkips() {
-      return this.hasCounts && this.skip > 0;
-    },
-  },
-  intent: {
-    // ctrl/cmd-click on any suite expands/collapses the whole tree at once.
-    toggleAll(draft, state) {
-      for (const suite of draft.suites) setSuiteTreeExpanded(suite, state);
-    },
-  },
   statics: {
     fromTests(source, { title = "Tests", path = "" } = {}) {
       const suites = Array.isArray(source) ? source : (source?.suites ?? []);
@@ -242,6 +219,29 @@ export const TestReport = component({
         hasCounts: true,
         suites: suites.map((s) => buildResultNode(s).comp),
       });
+    },
+  },
+  methods: {
+    passText() {
+      return `✓ ${this.pass}`;
+    },
+    failText() {
+      return `✗ ${this.fail}`;
+    },
+    skipText() {
+      return `○ ${this.skip}`;
+    },
+    hasFailures() {
+      return this.hasCounts && this.fail > 0;
+    },
+    hasSkips() {
+      return this.hasCounts && this.skip > 0;
+    },
+  },
+  intent: {
+    // ctrl/cmd-click on any suite expands/collapses the whole tree at once.
+    toggleAll(draft, state) {
+      for (const suite of draft.suites) setSuiteTreeExpanded(suite, state);
     },
   },
   view: html`<div class="font-mono text-sm leading-tight flex flex-col gap-1">

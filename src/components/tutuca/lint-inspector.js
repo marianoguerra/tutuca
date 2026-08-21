@@ -199,26 +199,6 @@ export const LintReport = component({
     clean: true,
     components: [],
   },
-  methods: {
-    errText() {
-      return `${this.errors} error${this.errors === 1 ? "" : "s"}`;
-    },
-    warnText() {
-      return `${this.warnings} warning${this.warnings === 1 ? "" : "s"}`;
-    },
-    hintText() {
-      return `${this.hints} hint${this.hints === 1 ? "" : "s"}`;
-    },
-    hasErrors() {
-      return this.errors > 0;
-    },
-    hasWarnings() {
-      return this.warnings > 0;
-    },
-    hasHints() {
-      return this.hints > 0;
-    },
-  },
   statics: {
     fromData(report, { title = "Lint", path = "" } = {}) {
       const comps = report?.components ?? [];
@@ -255,6 +235,26 @@ export const LintReport = component({
         clean: built.length === 0,
         components: built,
       });
+    },
+  },
+  methods: {
+    errText() {
+      return `${this.errors} error${this.errors === 1 ? "" : "s"}`;
+    },
+    warnText() {
+      return `${this.warnings} warning${this.warnings === 1 ? "" : "s"}`;
+    },
+    hintText() {
+      return `${this.hints} hint${this.hints === 1 ? "" : "s"}`;
+    },
+    hasErrors() {
+      return this.errors > 0;
+    },
+    hasWarnings() {
+      return this.warnings > 0;
+    },
+    hasHints() {
+      return this.hints > 0;
     },
   },
   // Decoy so the runtime-absent soft tally colours are emitted.

@@ -40,8 +40,8 @@ describe("render cache keys on the full effective view context", () => {
       component({
         name: "Inner",
         fields: {},
-        view: html`<span>mode-main</span>`,
         views: { edit: html`<span>mode-edit</span>` },
+        view: html`<span>mode-main</span>`,
       }),
     );
     // Outer.compact renders Inner with NO `as=`, so Inner inherits whatever view
@@ -51,8 +51,8 @@ describe("render cache keys on the full effective view context", () => {
       component({
         name: "Outer",
         fields: { inner: null },
-        view: html`<div>outer-main</div>`,
         views: { compact: html`<div><x render=".inner"></x></div>` },
+        view: html`<div>outer-main</div>`,
       }),
     );
     // Wrapper pushes a view chosen at runtime, then renders Outer as="compact".
@@ -88,8 +88,8 @@ describe("render cache keys on the full effective view context", () => {
       component({
         name: "Item",
         fields: {},
-        view: html`<span>item-main</span>`,
         views: { edit: html`<span>item-edit</span>` },
+        view: html`<span>item-main</span>`,
       }),
     );
     // The @each repeats a plain element whose subtree renders Item with no

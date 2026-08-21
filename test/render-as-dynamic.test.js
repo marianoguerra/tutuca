@@ -37,8 +37,8 @@ function makeChild(comps, name) {
     component({
       name,
       fields: {},
-      view: html`<span>marker-main</span>`,
       views: { edit: html`<span>marker-edit</span>` },
+      view: html`<span>marker-main</span>`,
     }),
   );
 }
@@ -113,8 +113,8 @@ describe("dynamic as= view selection", () => {
       component({
         name: "ItemEach",
         fields: { mode: "main" },
-        view: html`<span>marker-main</span>`,
         views: { edit: html`<span>marker-edit</span>` },
+        view: html`<span>marker-main</span>`,
       }),
     );
     const List = registered(

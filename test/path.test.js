@@ -226,14 +226,14 @@ describe("@value inside @each click handler", () => {
     const List = component({
       name: "List",
       fields: { items: [] },
-      intent: {
-        removeItem(draft, key, ctx) {
-          ctx.forward({ route: ["dyn"] });
-        },
-      },
       receive: {
         removeItem(draft, key) {
           draft.items.splice(key, 1);
+        },
+      },
+      intent: {
+        removeItem(draft, key, ctx) {
+          ctx.forward({ route: ["dyn"] });
         },
       },
       view: html`<div>
@@ -354,15 +354,15 @@ describe("@enrich-with binds survive path rebuild", () => {
     const List = component({
       name: "List",
       fields: { items: [] },
-      alter: {
-        enrichItem(binds, _key, item) {
-          binds.label = `L:${item}`;
-        },
-      },
       receive: {
         noteClicked(draft, label) {
           received = label;
           return this;
+        },
+      },
+      alter: {
+        enrichItem(binds, _key, item) {
+          binds.label = `L:${item}`;
         },
       },
       view: html`<div>
@@ -391,6 +391,12 @@ describe("@enrich-with binds survive path rebuild", () => {
     const List = component({
       name: "List",
       fields: { items: [] },
+      receive: {
+        noteClicked(draft, total) {
+          received = total;
+          return this;
+        },
+      },
       alter: {
         getIterData(seq) {
           let total = 0;
@@ -399,12 +405,6 @@ describe("@enrich-with binds survive path rebuild", () => {
         },
         enrichItem(binds, _key, _item, iterData) {
           binds.total = iterData.total;
-        },
-      },
-      receive: {
-        noteClicked(draft, total) {
-          received = total;
-          return this;
         },
       },
       view: html`<div>
@@ -433,15 +433,15 @@ describe("@enrich-with binds survive path rebuild", () => {
     const Box = component({
       name: "Box",
       fields: { name: "x" },
-      alter: {
-        scopeBinds() {
-          return { greeting: `hi ${this.name}` };
-        },
-      },
       receive: {
         noteClicked(draft, greeting) {
           received = greeting;
           return this;
+        },
+      },
+      alter: {
+        scopeBinds() {
+          return { greeting: `hi ${this.name}` };
         },
       },
       view: html`<div @enrich-with="scopeBinds">
@@ -884,8 +884,8 @@ describe("dynamic variable as a path segment", () => {
     const Toolbar = component({
       name: "Toolbar",
       fields: {},
-      lookup: { active: { for: "Workspace.active", default: ".missing" } },
       intent: mkIntentObserver("Toolbar"),
+      lookup: { active: { for: "Workspace.active", default: ".missing" } },
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
     const Panel = component({
@@ -897,8 +897,8 @@ describe("dynamic variable as a path segment", () => {
     const Workspace = component({
       name: "Workspace",
       fields: { sheet: null, panel: null },
-      provide: { active: ".sheet" },
       intent: mkIntentObserver("Workspace"),
+      provide: { active: ".sheet" },
       view: html`<div class="workspace"><x render=".panel"></x></div>`,
     });
     const root = Workspace.make({
@@ -1011,12 +1011,12 @@ describe("dynamic variable as a path segment", () => {
     const Owner = component({
       name: "Owner",
       fields: { items: map(), child: null, picked: "" },
-      provide: { items: ".items" },
       receive: {
         pick(draft, k) {
           draft.picked = k;
         },
       },
+      provide: { items: ".items" },
       view: html`<div class="owner">
         <div @each="*items" class="owner-row">
           <x render-it></x>

@@ -57,13 +57,6 @@ export const Storybook = component({
       };
     },
   },
-  alter: {
-    // The sidebar render-each shows only visible groups (kept positional via `when`
-    // so a click resolves to the right group — see SidebarGroup.rowVisible).
-    groupVisible(_key, group) {
-      return group.visible;
-    },
-  },
   receive: {
     onApplyFilter(draft, value, ctx) {
       ctx.intent("persistState", [this.toUrlState({ sectionFilter: value }), this, false], {
@@ -170,6 +163,13 @@ export const Storybook = component({
       setSelectedSectionFilter(draft, value);
     },
   },
+  alter: {
+    // The sidebar render-each shows only visible groups (kept positional via `when`
+    // so a click resolves to the right group — see SidebarGroup.rowVisible).
+    groupVisible(_key, group) {
+      return group.visible;
+    },
+  },
   view: html`<div>
     <div class="flex flex-col gap-3 p-3 h-screen" @show="truthy? .focusExample">
       <div class="flex justify-end">
@@ -266,11 +266,6 @@ export const Section = component({
       });
     },
   },
-  alter: {
-    filterItem(_key, item) {
-      return this.filter === "" || fuzzyMatch(this.filter, `${item.title} ${item.description}`);
-    },
-  },
   receive: {
     onApplyFilter(draft, value, ctx) {
       ctx.intent("exampleFilterChanged", [value], { route: ["dyn"] });
@@ -292,6 +287,11 @@ export const Section = component({
     suspend(draft, ctx) {
       fanoutLifecycle(ctx, this.items, "suspend");
       return this;
+    },
+  },
+  alter: {
+    filterItem(_key, item) {
+      return this.filter === "" || fuzzyMatch(this.filter, `${item.title} ${item.description}`);
     },
   },
   view: html`<section class="flex flex-col gap-3">
@@ -347,6 +347,12 @@ export const SidebarEntry = component({
 export const SidebarGroup = component({
   name: "SidebarGroup",
   fields: { name: "", collapsed: false, visible: true, rows: [] },
+  receive: {
+    onToggle(draft, ctx) {
+      ctx.intent("groupToggled", [this.name], { route: ["dyn"] });
+      return this;
+    },
+  },
   // Visibility drives the render-each `when` predicates (not `@show` on the items):
   // a `when` filter renders only visible rows while keeping each row's positional key,
   // so an event's path resolves to the right row. `@show` on a render-each item would
@@ -354,12 +360,6 @@ export const SidebarGroup = component({
   alter: {
     rowVisible(_key, row) {
       return row.visible;
-    },
-  },
-  receive: {
-    onToggle(draft, ctx) {
-      ctx.intent("groupToggled", [this.name], { route: ["dyn"] });
-      return this;
     },
   },
   view: html`<div class="flex flex-col">
@@ -436,6 +436,14 @@ export const Example = component({
       });
     },
   },
+  methods: {
+    // An `intent` on the `dyn` leg leaves the example and walks into the storybook
+    // engine's own components. Nothing to warn about: if nothing answers, the walk
+    // runs out and the example hears `<name>Unhandled`.
+    runPhase(ctx, phase) {
+      dispatchPhase(ctx, ctx.at.field("value").buildPath(), phase, this.value);
+    },
+  },
   // Lifecycle hooks: the section forwards init/resume/suspend here; each runs the
   // matching `on` phase's actions against this example's component (`.value`).
   receive: {
@@ -469,14 +477,6 @@ export const Example = component({
     },
     setActiveTab(draft, value) {
       draft.activeTab = value;
-    },
-  },
-  methods: {
-    // An `intent` on the `dyn` leg leaves the example and walks into the storybook
-    // engine's own components. Nothing to warn about: if nothing answers, the walk
-    // runs out and the example hears `<name>Unhandled`.
-    runPhase(ctx, phase) {
-      dispatchPhase(ctx, ctx.at.field("value").buildPath(), phase, this.value);
     },
   },
   view: html`<div class="card card-border bg-base-100 shadow-md">

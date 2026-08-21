@@ -139,20 +139,6 @@ export const CompSection = component({
 export const ComponentInspector = component({
   name: "ComponentInspector",
   fields: { compName: "", compId: 0, sections: [] },
-  methods: {
-    idText() {
-      return `#${this.compId}`;
-    },
-  },
-  intent: {
-    toggleAllSections(draft, state) {
-      for (const section of draft.sections) section.isExpanded = state;
-    },
-    toggleAllViews(draft, state) {
-      const section = draft.sections.find((candidate) => candidate.label === "Views");
-      if (section) for (const view of section.items) view.isExpanded = state;
-    },
-  },
   statics: {
     fromData(comp) {
       const d = introspectComponent(comp);
@@ -187,6 +173,20 @@ export const ComponentInspector = component({
       );
 
       return this.make({ compName: d.name, compId: d.id, sections });
+    },
+  },
+  methods: {
+    idText() {
+      return `#${this.compId}`;
+    },
+  },
+  intent: {
+    toggleAllSections(draft, state) {
+      for (const section of draft.sections) section.isExpanded = state;
+    },
+    toggleAllViews(draft, state) {
+      const section = draft.sections.find((candidate) => candidate.label === "Views");
+      if (section) for (const view of section.items) view.isExpanded = state;
     },
   },
   view: html`<div class="font-mono text-sm leading-tight flex flex-col gap-1">

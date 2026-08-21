@@ -72,17 +72,17 @@ const Playlist = component({
       return { start: 1, end: 2 };
     },
   },
+  views: {
+    sliced: html`<ul>
+      <li @each=".songs" @loop-with="window"><x render-it></x></li>
+    </ul>`,
+  },
   view: html`<ul>
     <li @each=".songs">
       <x render-it></x>
       <button :data-key="@key" @on.click="removeSong @key">remove</button>
     </li>
   </ul>`,
-  views: {
-    sliced: html`<ul>
-      <li @each=".songs" @loop-with="window"><x render-it></x></li>
-    </ul>`,
-  },
 });
 
 const makeRoot = () =>

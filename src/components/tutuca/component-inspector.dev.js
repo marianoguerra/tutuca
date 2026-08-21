@@ -22,6 +22,14 @@ const Minimal = component({
 const Rich = component({
   name: "RichSample",
   fields: { title: "", count: 0, tags: [], open: false },
+  statics: {
+    blank() {
+      return this.make({});
+    },
+    fromTitle(t) {
+      return this.make({ title: t });
+    },
+  },
   methods: {
     label() {
       return this.title;
@@ -54,18 +62,10 @@ const Rich = component({
       return { start: 0, end: this.count };
     },
   },
-  statics: {
-    blank() {
-      return this.make({});
-    },
-    fromTitle(t) {
-      return this.make({ title: t });
-    },
-  },
-  view: html`<div @text=".title"></div>`,
   views: {
     compact: html`<span @text=".title"></span>`,
   },
+  view: html`<div @text=".title"></div>`,
 });
 
 // A descriptor whose view template spans multiple indented lines — used to

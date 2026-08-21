@@ -275,6 +275,13 @@ export const SchemaBranch = component({
       return `font-mono text-sm ${this.labelClass}`;
     },
   },
+  views: {
+    // Decoy: labelClass colours are chosen in JS, so they never appear as
+    // literals for the margaui scanner.
+    _margauiClasses: html`<p
+      class="text-accent text-secondary text-info text-error"
+    ></p>`,
+  },
   // `contents` so the label cell and value cell land directly in the parent's
   // grid, aligning values across rows.
   view: html`<div class="contents">
@@ -284,13 +291,6 @@ export const SchemaBranch = component({
     </span>
     <x render=".child"></x>
   </div>`,
-  views: {
-    // Decoy: labelClass colours are chosen in JS, so they never appear as
-    // literals for the margaui scanner.
-    _margauiClasses: html`<p
-      class="text-accent text-secondary text-info text-error"
-    ></p>`,
-  },
 });
 
 // ---------------------------------------------------------------------------
@@ -302,13 +302,6 @@ export const SchemaBranch = component({
 export const SchemaScalar = component({
   name: "SchemaScalar",
   fields: schemaNodeFields,
-  methods: schemaNodeMethods({
-    countText() {
-      return "";
-    },
-  }),
-  receive: compositeReceive,
-  alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
       return this.make({
@@ -319,6 +312,13 @@ export const SchemaScalar = component({
       });
     },
   },
+  methods: schemaNodeMethods({
+    countText() {
+      return "";
+    },
+  }),
+  receive: compositeReceive,
+  alter: compositeAlter,
   view: makeSchemaView("text-success"),
 });
 
@@ -327,13 +327,6 @@ export const SchemaScalar = component({
 export const SchemaObject = component({
   name: "SchemaObject",
   fields: schemaNodeFields,
-  methods: schemaNodeMethods({
-    countText() {
-      return this.items.length > 0 ? `{${this.items.length}}` : "";
-    },
-  }),
-  receive: compositeReceive,
-  alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
       const required = Array.isArray(schema.required) ? schema.required : [];
@@ -387,6 +380,13 @@ export const SchemaObject = component({
       });
     },
   },
+  methods: schemaNodeMethods({
+    countText() {
+      return this.items.length > 0 ? `{${this.items.length}}` : "";
+    },
+  }),
+  receive: compositeReceive,
+  alter: compositeAlter,
   view: makeSchemaView("text-primary"),
 });
 
@@ -395,13 +395,6 @@ export const SchemaObject = component({
 export const SchemaArray = component({
   name: "SchemaArray",
   fields: schemaNodeFields,
-  methods: schemaNodeMethods({
-    countText() {
-      return this.items.length > 0 ? `[${this.items.length}]` : "";
-    },
-  }),
-  receive: compositeReceive,
-  alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
       const items = [];
@@ -445,6 +438,13 @@ export const SchemaArray = component({
       });
     },
   },
+  methods: schemaNodeMethods({
+    countText() {
+      return this.items.length > 0 ? `[${this.items.length}]` : "";
+    },
+  }),
+  receive: compositeReceive,
+  alter: compositeAlter,
   view: makeSchemaView("text-primary"),
 });
 
@@ -452,13 +452,6 @@ export const SchemaArray = component({
 export const SchemaEnum = component({
   name: "SchemaEnum",
   fields: schemaNodeFields,
-  methods: schemaNodeMethods({
-    countText() {
-      return this.items.length > 0 ? `(${this.items.length})` : "";
-    },
-  }),
-  receive: compositeReceive,
-  alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
       const members = Array.isArray(schema.enum) ? schema.enum : [];
@@ -472,6 +465,13 @@ export const SchemaEnum = component({
       });
     },
   },
+  methods: schemaNodeMethods({
+    countText() {
+      return this.items.length > 0 ? `(${this.items.length})` : "";
+    },
+  }),
+  receive: compositeReceive,
+  alter: compositeAlter,
   // list layout: each enum member is a single value rendered one per line.
   view: makeSchemaView("text-info", LIST_BODY),
 });
@@ -499,13 +499,6 @@ export const SchemaConst = component({
 export const SchemaCombinator = component({
   name: "SchemaCombinator",
   fields: schemaNodeFields,
-  methods: schemaNodeMethods({
-    countText() {
-      return this.items.length > 0 ? `(${this.items.length})` : "";
-    },
-  }),
-  receive: compositeReceive,
-  alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
       const items = [];
@@ -525,6 +518,13 @@ export const SchemaCombinator = component({
       });
     },
   },
+  methods: schemaNodeMethods({
+    countText() {
+      return this.items.length > 0 ? `(${this.items.length})` : "";
+    },
+  }),
+  receive: compositeReceive,
+  alter: compositeAlter,
   // list layout: members are full schema nodes listed one per line, no keys.
   view: makeSchemaView("text-accent", LIST_BODY),
 });
@@ -627,12 +627,12 @@ export const SchemaBoolean = component({
       return `${base} ${this.value ? "text-success" : "text-error"}`;
     },
   },
-  view: html`<span :class="$cssClass" @text="$text"></span>`,
   views: {
     // Decoy: cssClass() builds these at runtime, so they never appear as
     // literals the margaui scanner can find.
     _margauiClasses: html`<p class="text-success text-error"></p>`,
   },
+  view: html`<span :class="$cssClass" @text="$text"></span>`,
 });
 
 // A `$ref`. Rendered as a label only — never resolved/followed, so recursive
@@ -660,12 +660,6 @@ export const SchemaViewer = component({
     rawSchema: null,
     showRaw: false,
   },
-  methods: {
-    ...valueWrapperMethods,
-    toggleLabel() {
-      return this.showRaw ? "high-level view" : "raw schema";
-    },
-  },
   statics: {
     fromData(schema) {
       return this.make({
@@ -673,6 +667,12 @@ export const SchemaViewer = component({
         raw: JsonViewer.Class.fromData(schema),
         rawSchema: schema,
       });
+    },
+  },
+  methods: {
+    ...valueWrapperMethods,
+    toggleLabel() {
+      return this.showRaw ? "high-level view" : "raw schema";
     },
   },
   receive: {
