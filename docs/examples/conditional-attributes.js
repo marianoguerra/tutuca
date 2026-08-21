@@ -1,6 +1,11 @@
 import { component, html } from "tutuca";
 
 export const ConditionalAttributes = component({
+  receive: {
+    toggleIsActive(draft) {
+      draft.isActive = !draft.isActive;
+    },
+  },
   name: "ConditionalAttributes",
   fields: { isActive: true },
   view: html`<section>
@@ -11,7 +16,7 @@ export const ConditionalAttributes = component({
       @if.title=".isActive"
       @then.title="'Click to disable'"
       @else.title="'Click to enable'"
-      @on.click="$toggleIsActive"
+      @on.click="toggleIsActive"
     >
       <span @show=".isActive">Enabled</span>
       <span @hide=".isActive">Disabled</span>

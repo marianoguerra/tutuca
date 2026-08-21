@@ -1,8 +1,8 @@
-import { describe, expect, test } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Tokenizer as Htmlparser2Tokenizer } from "htmlparser2";
+import { describe, expect, test } from "vitest";
 import { HtmlTokenizer } from "../tools/core/html-tokenizer.js";
 import {
   HTML_ATTRIBUTES_ON_END_TAG,
@@ -718,17 +718,17 @@ const LLM_DOC_FIXTURES = [
   // core.txt — macro named slots usage
   {
     label: "skill/core.md: <x:panel> with named slots",
-    html: `<x:panel><x slot="actions"><button @on.click="$inc">+</button></x><p>default slot content</p><x slot="footer">© 2026</x></x:panel>`,
+    html: `<x:panel><x slot="actions"><button @on.click="inc">+</button></x><p>default slot content</p><x slot="footer">© 2026</x></x:panel>`,
   },
   // core.txt — handler with type as arg (ctx is auto-appended, not passed in template)
   {
     label: "skill/core.md: handler with Type arg",
-    html: `<button @on.click="$addItem JsonSelector">+</button>`,
+    html: `<button @on.click="addItem JsonSelector">+</button>`,
   },
   // core.txt — keydown modifiers (+send / +cancel)
   {
     label: "skill/core.md: @on.keydown+send / +cancel modifiers",
-    html: `<input @on.keydown+send="$submit value" @on.keydown+cancel="$reset" />`,
+    html: `<input @on.keydown+send="submit value" @on.keydown+cancel="reset" />`,
   },
   // advanced.txt — pseudo-x inside a <select>
   {

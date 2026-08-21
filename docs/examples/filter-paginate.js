@@ -1,4 +1,5 @@
 import { collectIterBindings, component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 
 // Three takes on the SAME feature — filter a list, then show one page of the
 // matches — trading simplicity for how many times the list is scanned per
@@ -30,13 +31,39 @@ const pagerLabel = (currentPage, pageCount, total) =>
 // Each row is its own component, so editing a field is self-contained two-way
 // binding — no parent paths involved.
 const Person = component({
+  receive: {
+    setName(draft, value) {
+      draft.name = value;
+    },
+    setEmail(draft, value) {
+      draft.email = value;
+    },
+    setActive(draft, value) {
+      draft.active = value;
+    },
+  },
   name: "Person",
   fields: { name: "", email: "", active: false },
   view: html`<div class="flex gap-2 items-center grow">
-    <input class="input input-sm grow" :value=".name" @on.input="$setName value" placeholder="name" />
-    <input class="input input-sm grow" :value=".email" @on.input="$setEmail value" placeholder="email" />
+    <input
+      class="input input-sm grow"
+      :value=".name"
+      @on.input="setName value"
+      placeholder="name"
+    />
+    <input
+      class="input input-sm grow"
+      :value=".email"
+      @on.input="setEmail value"
+      placeholder="email"
+    />
     <label class="label cursor-pointer gap-1">
-      <input type="checkbox" class="checkbox checkbox-sm" :checked=".active" @on.input="$setActive value" />
+      <input
+        type="checkbox"
+        class="checkbox checkbox-sm"
+        :checked=".active"
+        @on.input="setActive value"
+      />
       active
     </label>
   </div>`,
@@ -50,23 +77,29 @@ const baseMethods = {
   matchCount() {
     const items = this.items;
     let n = 0;
-    for (let i = 0; i < items.size; i++) if (matches(items.get(i), this.query)) n++;
+    for (const item of items) if (matches(item, this.query)) n++;
     return n;
+  },
+};
+const baseReceive = {
+  removeInItemsAt(draft, key) {
+    draft.items.splice(key, 1);
   },
 };
 const baseInput = {
   // Reset the page on every query change so a shrinking result set never leaves
   // you stranded on an empty page.
-  search(query) {
-    return this.setQuery(query).setPage(0);
+  search(draft, query) {
+    draft.query = query;
+    draft.page = 0;
   },
-  prev() {
+  prev(draft) {
     const { currentPage } = clamp(this.page, this.matchCount(), this.pageSize);
-    return this.setPage(Math.max(0, currentPage - 1));
+    draft.page = Math.max(0, currentPage - 1);
   },
-  next() {
+  next(draft) {
     const { pageCount, currentPage } = clamp(this.page, this.matchCount(), this.pageSize);
-    return this.setPage(Math.min(pageCount - 1, currentPage + 1));
+    draft.page = Math.min(pageCount - 1, currentPage + 1);
   },
 };
 // @when predicate; also handed to a loop-with handler as `ctx.filter`.
@@ -78,7 +111,7 @@ function onlyMatches(_key, person) {
 // the <li> and the @enrich-with on the <section> change.
 const ROW = html`<span class="badge badge-neutral" @text="@key"></span>
   <x render-it></x>
-  <button class="btn btn-sm btn-error btn-outline" @on.click="$removeInItemsAt @key">✕</button>`;
+  <button class="btn btn-sm btn-error btn-outline" @on.click="removeInItemsAt @key">✕</button>`;
 
 // ─── 1. NAIVE: two independent full scans ────────────────────────────────────
 // The table scans the whole list to build + slice its page; the pager scans the
@@ -89,6 +122,7 @@ const NaivePeople = component({
   fields: { ...baseFields },
   methods: { ...baseMethods },
   receive: {
+    ...baseReceive,
     ...baseInput,
   },
   alter: {
@@ -96,7 +130,7 @@ const NaivePeople = component({
     // TABLE scan: materialize every matching key, clamp by its length, slice.
     naiveTablePage(seq, { filter }) {
       const all = [];
-      for (let i = 0; i < seq.size; i++) if (filter(i, seq.get(i))) all.push(i);
+      for (let i = 0; i < seq.length; i++) if (filter(i, seq[i])) all.push(i);
       const { currentPage } = clamp(this.page, all.length, this.pageSize);
       const start = currentPage * this.pageSize;
       return { keys: all.slice(start, start + this.pageSize) };
@@ -113,9 +147,20 @@ const NaivePeople = component({
     },
   },
   view: html`<section class="flex flex-col gap-3" @enrich-with="naivePagerInfo">
-    <input type="search" class="input" :value=".query" @on.input="search value" placeholder="Filter by name or email" />
+    <input
+      type="search"
+      class="input"
+      :value=".query"
+      @on.input="search value"
+      placeholder="Filter by name or email"
+    />
     <ul class="flex flex-col gap-2">
-      <li @each=".items" @when="onlyMatches" @loop-with="naiveTablePage" class="flex gap-2 items-center">
+      <li
+        @each=".items"
+        @when="onlyMatches"
+        @loop-with="naiveTablePage"
+        class="flex gap-2 items-center"
+      >
         ${ROW}
       </li>
     </ul>
@@ -136,6 +181,7 @@ const SharedPeople = component({
   fields: { ...baseFields },
   methods: { ...baseMethods },
   receive: {
+    ...baseReceive,
     ...baseInput,
   },
   alter: {
@@ -155,8 +201,8 @@ const SharedPeople = component({
       const end = start + this.pageSize;
       const keys = [];
       let m = 0;
-      for (let i = 0; i < seq.size && m < end; i++) {
-        if (filter(i, seq.get(i))) {
+      for (let i = 0; i < seq.length && m < end; i++) {
+        if (filter(i, seq[i])) {
           if (m >= start) keys.push(i);
           m++;
         }
@@ -165,7 +211,13 @@ const SharedPeople = component({
     },
   },
   view: html`<section class="flex flex-col gap-3" @enrich-with="pageInfo">
-    <input type="search" class="input" :value=".query" @on.input="search value" placeholder="Filter by name or email" />
+    <input
+      type="search"
+      class="input"
+      :value=".query"
+      @on.input="search value"
+      placeholder="Filter by name or email"
+    />
     <ul class="flex flex-col gap-2">
       <li @each=".items" @when="onlyMatches" @loop-with="page" class="flex gap-2 items-center">
         ${ROW}
@@ -190,14 +242,15 @@ const CoupledPeople = component({
   fields: { ...baseFields },
   methods: { ...baseMethods },
   receive: {
+    ...baseReceive,
     ...baseInput,
   },
   alter: {
     // One scan: count, clamp, build the page's keys, AND the pager labels.
     enrichAlsoBuildsTheLoopWithsKeysIntoUnderscoreKeys() {
       const all = [];
-      for (let i = 0; i < this.items.size; i++) {
-        if (matches(this.items.get(i), this.query)) all.push(i);
+      for (let i = 0; i < this.items.length; i++) {
+        if (matches(this.items[i], this.query)) all.push(i);
       }
       const { pageCount, currentPage } = clamp(this.page, all.length, this.pageSize);
       const start = currentPage * this.pageSize;
@@ -218,7 +271,13 @@ const CoupledPeople = component({
     class="flex flex-col gap-3"
     @enrich-with="enrichAlsoBuildsTheLoopWithsKeysIntoUnderscoreKeys"
   >
-    <input type="search" class="input" :value=".query" @on.input="search value" placeholder="Filter by name or email" />
+    <input
+      type="search"
+      class="input"
+      :value=".query"
+      @on.input="search value"
+      placeholder="Filter by name or email"
+    />
     <ul class="flex flex-col gap-2">
       <li
         @each=".items"
@@ -313,7 +372,7 @@ export function getTests({ describe, test, expect }) {
   // The original indices of the page each strategy should render.
   const expectedPageKeys = (c) => {
     const all = [];
-    for (let i = 0; i < c.items.size; i++) if (matches(c.items.get(i), c.query)) all.push(i);
+    for (let i = 0; i < c.items.length; i++) if (matches(c.items[i], c.query)) all.push(i);
     const { currentPage } = clamp(c.page, all.length, c.pageSize);
     const start = currentPage * c.pageSize;
     return all.slice(start, start + c.pageSize);
@@ -329,14 +388,15 @@ export function getTests({ describe, test, expect }) {
 
     test("search resets to the first page", () => {
       const c = makeOne(SharedPeople, { page: 4 });
-      expect(SharedPeople.receive.search.call(c, "grace").page).toBe(0);
+      const next = produce(c, (draft) => SharedPeople.receive.search.call(c, draft, "grace"));
+      expect(next.page).toBe(0);
     });
 
     test("removing by original key drops the right person even when filtered", () => {
       const c = makeOne(SharedPeople, { query: "bell.labs" });
-      const after = c.removeInItemsAt(12); // Ken Thompson, original index 12
-      expect(after.items.size).toBe(PEOPLE.length - 1);
-      expect(after.items.get(12).name).toBe("Dennis Ritchie");
+      const after = produce(c, (draft) => SharedPeople.receive.removeInItemsAt.call(c, draft, 12)); // Ken Thompson
+      expect(after.items.length).toBe(PEOPLE.length - 1);
+      expect(after.items[12].name).toBe("Dennis Ritchie");
     });
   });
 

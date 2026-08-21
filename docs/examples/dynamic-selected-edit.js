@@ -1,4 +1,5 @@
-import { component, html, IMap } from "tutuca";
+import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 
 // Dynamic bindings used as render targets — a single item and a whole sequence.
 //
@@ -14,6 +15,11 @@ import { component, html, IMap } from "tutuca";
 // owner — both lists update in lock-step. Click "select" on a row, then edit.
 
 const Entry = component({
+  receive: {
+    setName(draft, value) {
+      draft.name = value;
+    },
+  },
   name: "Entry",
   fields: { name: "" },
   // main view: read-only display, used inside the lists.
@@ -23,7 +29,7 @@ const Entry = component({
     edit: html`<input
       class="input input-bordered w-full"
       :value=".name"
-      @on.input="$setName value"
+      @on.input="setName value"
       placeholder="Entry name"
     />`,
   },
@@ -52,15 +58,15 @@ const Editor = component({
 
 const Root = component({
   name: "Root",
-  fields: { items: IMap(), selectedKey: "", editor: null },
+  fields: { items: new Map(), selectedKey: "", editor: null },
   // Producer: the whole sequence, plus a seq-access to the selected entry.
   provide: {
     items: ".items",
     selected: ".items[.selectedKey]",
   },
   receive: {
-    selectItem(key) {
-      return this.setSelectedKey(key);
+    selectItem(draft, key) {
+      draft.selectedKey = key;
     },
   },
   view: html`<div class="flex flex-col gap-3 p-3">
@@ -80,11 +86,11 @@ const Root = component({
 
 function makeRoot(selectedKey = "a") {
   return Root.make({
-    items: IMap({
-      a: Entry.make({ name: "alpha" }),
-      b: Entry.make({ name: "beta" }),
-      c: Entry.make({ name: "gamma" }),
-    }),
+    items: new Map([
+      ["a", Entry.make({ name: "alpha" })],
+      ["b", Entry.make({ name: "beta" })],
+      ["c", Entry.make({ name: "gamma" })],
+    ]),
     selectedKey,
     editor: Editor.make(),
   });
@@ -116,13 +122,17 @@ export function getExamples() {
 export function getTests({ describe, test, expect }) {
   describe(Root, () => {
     test("selectItem changes the selected key", () => {
-      const next = Root.receive.selectItem.call(makeRoot("a"), "c");
+      const root = makeRoot("a");
+      const next = produce(root, (draft) => Root.receive.selectItem.call(root, draft, "c"));
       expect(next.selectedKey).toBe("c");
     });
   });
   describe(Entry, () => {
     test("$setName updates the entry name", () => {
-      expect(Entry.make({ name: "x" }).setName("y").name).toBe("y");
+      const entry = Entry.make({ name: "x" });
+      expect(produce(entry, (draft) => Entry.receive.setName.call(entry, draft, "y")).name).toBe(
+        "y",
+      );
     });
   });
 }

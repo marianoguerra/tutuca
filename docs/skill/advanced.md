@@ -20,9 +20,10 @@ everything else, `core.md` is the right place.
 
 ```js
 receive: {
-  onDrop(targetKey, dragInfo, e) {
+  onDrop(draft, targetKey, dragInfo, e) {
     const sourceKey = dragInfo.lookupBind("key");   // any bind from source render
-    return this.setItems(this.items.moveKeyBeforeKey(sourceKey, targetKey));
+    const [item] = draft.items.splice(sourceKey, 1);
+    draft.items.splice(targetKey, 0, item);
   },
 }
 ```
@@ -98,7 +99,7 @@ value fallback and accepts the full grammar, including constants like
 ```js
 const Root = component({
   name: "Root",
-  fields: { items: IMap(), selectedKey: "" },
+  fields: { items: new Map(), selectedKey: "" },
   provide: {
     items: ".items",                  // the whole sequence
     selected: ".items[.selectedKey]", // seq-access to one entry
@@ -170,8 +171,10 @@ To make `@each` recognize your own collection class, install a
 
 ```js
 import { SEQ_INFO } from "tutuca";
+import { immerable } from "tutuca/immer";
 
 class MyClass {
+  static [immerable] = true;
   // ...
 }
 MyClass.prototype[SEQ_INFO] = (seq, visit, start, end) => {
@@ -183,6 +186,11 @@ MyClass.prototype[SEQ_INFO] = (seq, visit, start, end) => {
 is shared across module graphs (source vs. bundled tutuca). The
 renderer reads `seq[SEQ_INFO]` directly (no `.constructor` lookup),
 which is why the walker goes on the prototype, not as a static.
+The `immerable` marker lets handlers mutate instances of the custom class
+through a draft while preserving its prototype.
+If rendered entries can receive updates, also implement `get(key, fallback)`
+and a `set(key, value)` method that mutates the drafted instance. Tutuca uses
+those methods to look up and graft a finalized child through a keyed path.
 
 The third arg to `visit` must be `"sk"` (keyed entries) or `"si"`
 (positional indexes): it is the meta key event-path reconstruction
@@ -194,7 +202,7 @@ reads to resolve an event back to its entry — any other value means
 which case `@loop-with` ranges simply don't apply to that type.
 
 See `docs/examples/custom-collection.js` for a complete worked
-example: an immutable keyed list whose walker supports slicing and
+example: an Immer-draftable keyed list whose walker supports slicing and
 whose entries resolve `@key` in event handlers.
 
 ## Tailwind / MargaUI Class Compilation (extra build)

@@ -19,14 +19,14 @@ const panel = macro(
 const MacroNamedSlots = component({
   name: "MacroNamedSlots",
   fields: { count: 0 },
-  methods: {
-    inc() {
-      return this.setCount(this.count + 1);
+  receive: {
+    inc(draft) {
+      draft.count++;
     },
   },
   view: html`<x:panel title="Dashboard">
     <x slot="actions">
-      <button class="btn btn-sm btn-soft btn-success" @on.click="$inc">+</button>
+      <button class="btn btn-sm btn-soft btn-success" @on.click="inc">+</button>
     </x>
     <p>Count: <span @text=".count"></span></p>
     <p>This is the default slot content.</p>

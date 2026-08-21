@@ -119,18 +119,18 @@ test("parse text directive: parse error is no child text node", () => {
 
 test("expand simple macro", () => {
   const m = macro(
-    { value: ".text", onInput: "$setText" },
+    { value: ".text", onInput: "setText" },
     html`<input :value="^value" @on.input="^onInput value" />`,
   );
   {
     const px = mpx();
-    const n = m.expand(px.enterMacro("m", { value: ".text", onInput: "$setText" }, {}));
+    const n = m.expand(px.enterMacro("m", { value: ".text", onInput: "setText" }, {}));
     expect(n.attrs.items[0].val.name).toBe("text");
     expect(px.events[0].handlers[0].handlerCall.handlerVal.name).toBe("setText");
   }
   {
     const px = mpx();
-    const n = m.expand(px.enterMacro("m", { value: ".foo", onInput: "$setFoo" }, {}));
+    const n = m.expand(px.enterMacro("m", { value: ".foo", onInput: "setFoo" }, {}));
     expect(n.attrs.items[0].val.name).toBe("foo");
     expect(px.events[0].handlers[0].handlerCall.handlerVal.name).toBe("setFoo");
   }
@@ -147,14 +147,14 @@ class ScopeForMacros {
 
 test("expand nested macro", () => {
   const inputMacro = macro(
-    { value: ".text", oninput: "$setText" },
+    { value: ".text", oninput: "setText" },
     html`<input :value="^value" @on.input="^oninput value" />`,
   );
 
   const outerMacro = macro(
     { value: ".title" },
     html`<div :title="^value">
-      <x:input :value=".foo" :oninput="$setFoo"></x:input>
+      <x:input :value=".foo" :oninput="setFoo"></x:input>
       <p :title="^value"></p>
     </div>`,
   );

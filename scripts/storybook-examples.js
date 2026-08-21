@@ -45,8 +45,10 @@ const HELPERS = ["_shared-data.js"];
 
 // Rebuild the storybook bundle so the served runtime reflects local src/ changes.
 function buildStorybookBundle() {
-  const r = spawnSync("npm", ["run", "dist-ext"], { cwd: repoRoot, stdio: "inherit" });
-  if (r.status !== 0) process.exit(r.status ?? 1);
+  for (const script of ["dist", "dist-ext"]) {
+    const r = spawnSync("npm", ["run", script], { cwd: repoRoot, stdio: "inherit" });
+    if (r.status !== 0) process.exit(r.status ?? 1);
+  }
 }
 
 function stageExamples() {

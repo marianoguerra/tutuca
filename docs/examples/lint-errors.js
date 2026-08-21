@@ -14,15 +14,15 @@ const LintDemo = component({
     },
   },
   receive: {
-    doKeyDown() {},
+    doKeyDown(draft) {},
     // ASYNC_HANDLER: a handler must be synchronous and return the updated state —
     // an async handler returns a Promise the framework won't await. Move the async
     // work into a scope-registered intent handler and reach it with ctx.intent.
-    async loadStuff() {},
+    async loadStuff(draft) {},
     // HANDLER_NAME_COLLISION (warning): an intent named `save` would dispatch its
     // answer to `saveOk`, so declaring both here is ambiguous.
-    save() {},
-    saveOk() {},
+    save(draft) {},
+    saveOk(draft) {},
   },
   alter: {
     // ALT_HANDLER_NOT_REFERENCED: defined here but never used in any view
@@ -62,13 +62,12 @@ const LintDemo = component({
     <!-- UNKNOWN_HANDLER_ARG_NAME: unknownArg is not recognized -->
     <button @on.click="doKeyDown unknownArg event">unknown arg</button>
 
-    <!-- RECEIVE_HANDLER_NOT_IMPLEMENTED + METHOD_FOR_RECEIVE_HANDLER:
-         doClick is a method but referenced as a receive handler (no $) -->
+    <!-- RECEIVE_HANDLER_NOT_IMPLEMENTED:
+         event names resolve only in receive; this method must be moved there -->
     <button @on.click="doClick">method as handler</button>
 
-    <!-- RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED + RECEIVE_HANDLER_FOR_METHOD:
-         doKeyDown is a receive handler but referenced as a method (with $) -->
-    <button @on.keydown="$doKeyDown">handler as method</button>
+    <!-- EVENT_HANDLER_METHOD_NOT_ALLOWED: $method syntax is invalid in @on.* -->
+    <button @on.keydown="$doKeyDown">method syntax in an event</button>
 
     <!-- FIELD_VAL_NOT_DEFINED: .missing is not defined -->
     <p :title=".missing">undefined field</p>
@@ -296,11 +295,14 @@ const CompFieldShapeDemo = component({
     // object so it can be spread into the child component's constructor.
     badArgs: { component: "JsonNode", args: 42 },
 
-    // FIELD_NAME_RESERVED_BY_RECORD: component classes are Immutable Records,
-    // and 'entries' is a Record-API member — defining it as a field means
-    // `.entries` reads the API member, not the value (reachable only via
-    // .get("entries")). Rename the field.
+    // FIELD_METHOD_NAME_COLLISION: a field and an explicit method cannot share
+    // a name because direct property access would be ambiguous.
     entries: [],
+  },
+  methods: {
+    entries() {
+      return [];
+    },
   },
   view: html`<p>Component-field declaration shape errors — check the Lint tab</p>`,
 });
@@ -346,7 +348,7 @@ const RetiredChannelsDemo = component({
   receive: {
     // RETIRED_CTX_VERB: one `ctx.intent` carries a route now, and `ctx.stop()` ends a
     // walk where `ctx.stopPropagation()` used to.
-    go(ctx) {
+    go(draft, ctx) {
       ctx.bubble("childPicked", []);
       ctx.request("loadRows", []);
       ctx.stopPropagation();

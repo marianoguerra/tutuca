@@ -1,4 +1,5 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 import { JsonViewer } from "../data/json.js";
 import {
   CompName,
@@ -30,21 +31,21 @@ const Rich = component({
     },
   },
   receive: {
-    inc() {
-      return this.setCount(this.count + 1);
+    inc(draft) {
+      draft.count = this.count + 1;
     },
-    reset() {
-      return this.setCount(0);
+    reset(draft) {
+      draft.count = 0;
     },
-    ping() {
+    ping(draft) {
       return this;
     },
-    onDataOk() {
+    onDataOk(draft) {
       return this;
     },
   },
   intent: {
-    onChild() {
+    onChild(draft) {
       return this;
     },
   },
@@ -83,17 +84,21 @@ const Formatted = component({
 </div>`,
 });
 
-const expandSections = (insp) => insp.setSections(insp.sections.map((s) => s.setIsExpanded(true)));
+const update = (value, recipe, ...args) =>
+  produce(value, (draft) => recipe.call(value, draft, ...args));
+const expandSections = (insp) =>
+  produce(insp, (draft) => {
+    for (const section of draft.sections) section.isExpanded = true;
+  });
 
 // Expand the Views section AND each view's source block inside it.
 const expandViews = (insp) =>
-  insp.setSections(
-    insp.sections.map((s) =>
-      s.label === "Views"
-        ? s.setIsExpanded(true).setItems(s.items.map((v) => v.setIsExpanded(true)))
-        : s,
-    ),
-  );
+  produce(insp, (draft) => {
+    const section = draft.sections.find((candidate) => candidate.label === "Views");
+    if (!section) return;
+    section.isExpanded = true;
+    for (const view of section.items) view.isExpanded = true;
+  });
 
 export function getExamples() {
   const CI = ComponentInspector.Class;
@@ -101,7 +106,7 @@ export function getExamples() {
   return {
     title: "ComponentInspector",
     description:
-      "Inspects a tutuca Component descriptor — the object returned by `component({...})`. Lays out the component's name, fields (with default values rendered via ImInspector), methods, the receive/intent handler buckets, statics, and view source. Each section collapses/expands and paginates (10 items per page) like the JSON and Immutable inspectors. Ctrl/Cmd-click a section header to expand or collapse every section at once; ctrl/cmd-click a view's arrow to do the same for all view sources.",
+      "Inspects a tutuca Component descriptor — the object returned by `component({...})`. Lays out the component's name, fields (with default values rendered via DataInspector), methods, the receive/intent handler buckets, statics, and view source. Each section collapses/expands and paginates (10 items per page). Ctrl/Cmd-click a section header to expand or collapse every section at once; ctrl/cmd-click a view's arrow to do the same for all view sources.",
     items: [
       {
         title: "Minimal component",
@@ -151,7 +156,7 @@ export function getTests({ describe, test, expect }) {
       expect(d.fields.length).toBe(4);
       expect(byName.title.type).toBe("text");
       expect(byName.title.defaultValue).toBe("");
-      expect(byName.count.type).toBe("float");
+      expect(byName.count.type).toBe("int");
       expect(byName.count.defaultValue).toBe(0);
       expect(byName.tags.type).toBe("list");
       expect(byName.open.type).toBe("bool");
@@ -179,7 +184,7 @@ export function getTests({ describe, test, expect }) {
     test("fromData builds one section per non-empty group", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
       expect(insp.compName).toBe("RichSample");
-      const labels = insp.sections.toArray().map((s) => s.label);
+      const labels = insp.sections.map((s) => s.label);
       expect(labels).toEqual([
         "Fields",
         "Methods",
@@ -193,7 +198,7 @@ export function getTests({ describe, test, expect }) {
 
     test("fromData omits empty groups", () => {
       const insp = ComponentInspector.Class.fromData(Minimal);
-      const labels = insp.sections.toArray().map((s) => s.label);
+      const labels = insp.sections.map((s) => s.label);
       expect(labels).toEqual(["Fields", "Views"]);
     });
 
@@ -204,43 +209,35 @@ export function getTests({ describe, test, expect }) {
 
     test("expandAll / collapseAll toggle every section", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const allOpen = insp.expandAll().sections.toArray();
+      const allOpen = update(insp, ComponentInspector.intent.toggleAllSections, true).sections;
       expect(allOpen.every((s) => s.isExpanded)).toBe(true);
-      const allClosed = insp.collapseAll().sections.toArray();
+      const allClosed = update(insp, ComponentInspector.intent.toggleAllSections, false).sections;
       expect(allClosed.some((s) => s.isExpanded)).toBe(false);
     });
 
     test("expandAllViews / collapseAllViews toggle only the view sources", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const views = (i) =>
-        i.sections
-          .toArray()
-          .find((s) => s.label === "Views")
-          .items.toArray();
-      expect(views(insp.expandAllViews()).every((v) => v.isExpanded)).toBe(true);
-      expect(views(insp.collapseAllViews()).some((v) => v.isExpanded)).toBe(false);
+      const views = (i) => i.sections.find((s) => s.label === "Views").items;
+      const expanded = update(insp, ComponentInspector.intent.toggleAllViews, true);
+      const collapsed = update(insp, ComponentInspector.intent.toggleAllViews, false);
+      expect(views(expanded).every((v) => v.isExpanded)).toBe(true);
+      expect(views(collapsed).some((v) => v.isExpanded)).toBe(false);
       // a section that starts collapsed is left untouched by the views-only toggle
       // (Fields starts expanded via fromData, so check Methods instead)
-      const methods = insp
-        .expandAllViews()
-        .sections.toArray()
-        .find((s) => s.label === "Methods");
+      const methods = expanded.sections.find((s) => s.label === "Methods");
       expect(methods.isExpanded).toBe(false);
     });
 
     test("the toggleAllSections intent expands every section", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const r = ComponentInspector.intent.toggleAllSections.call(insp, true);
-      expect(r.sections.toArray().every((s) => s.isExpanded)).toBe(true);
+      const r = update(insp, ComponentInspector.intent.toggleAllSections, true);
+      expect(r.sections.every((s) => s.isExpanded)).toBe(true);
     });
 
     test("the toggleAllViews intent expands every view source", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const r = ComponentInspector.intent.toggleAllViews.call(insp, true);
-      const views = r.sections
-        .toArray()
-        .find((s) => s.label === "Views")
-        .items.toArray();
+      const r = update(insp, ComponentInspector.intent.toggleAllViews, true);
+      const views = r.sections.find((s) => s.label === "Views").items;
       expect(views.every((v) => v.isExpanded)).toBe(true);
     });
   });
@@ -268,7 +265,7 @@ export function getTests({ describe, test, expect }) {
 
     test("plain toggle flips only this section", () => {
       const s = CompSection.make({ label: "Fields", items: items(1) });
-      const r = CompSection.receive.toggle.call(s, false, {});
+      const r = update(s, CompSection.receive.toggle, false, {});
       expect(r.isExpanded).toBe(true);
     });
 
@@ -276,7 +273,7 @@ export function getTests({ describe, test, expect }) {
       const s = CompSection.make({ label: "Fields", items: items(1) });
       const calls = [];
       const ctx = { intent: (name, args) => calls.push([name, args]) };
-      const r = CompSection.receive.toggle.call(s, true, ctx);
+      const r = update(s, CompSection.receive.toggle, true, ctx);
       expect(r).toBe(s);
       expect(calls).toEqual([["toggleAllSections", [true]]]);
     });
@@ -287,7 +284,9 @@ export function getTests({ describe, test, expect }) {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
       expect(v.isExpanded).toBe(false);
       expect(v.arrowText()).toBe("▶");
-      const open = v.toggleIsExpanded();
+      const open = produce(v, (draft) => {
+        draft.isExpanded = true;
+      });
       expect(open.isExpanded).toBe(true);
       expect(open.arrowText()).toBe("▼");
     });
@@ -299,7 +298,7 @@ export function getTests({ describe, test, expect }) {
 
     test("plain toggle flips only this view", () => {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
-      const r = CompView.receive.toggle.call(v, false, {});
+      const r = update(v, CompView.receive.toggle, false, {});
       expect(r.isExpanded).toBe(true);
     });
 
@@ -307,7 +306,7 @@ export function getTests({ describe, test, expect }) {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
       const calls = [];
       const ctx = { intent: (name, args) => calls.push([name, args]) };
-      const r = CompView.receive.toggle.call(v, true, ctx);
+      const r = update(v, CompView.receive.toggle, true, ctx);
       expect(r).toBe(v);
       expect(calls).toEqual([["toggleAllViews", [true]]]);
     });

@@ -1,4 +1,4 @@
-import { component, html, ISet, List } from "tutuca";
+import { component, html } from "tutuca";
 
 const CATEGORY_COLORS = {
   "Programming Languages": "ring-1 ring-violet-500 text-violet-700 dark:text-violet-300",
@@ -37,13 +37,13 @@ function getCategoryColor(cat, isSelected) {
   return CATEGORY_COLORS[cat] || "bg-base-300 text-base-content";
 }
 
-// Sort entries: featured first (optional), then by year. `entries` may be a
-// plain array (load time) or an immutable List (re-sort); `.sort` returns the
-// same kind, so callers store the result back into the `allEntries` field —
+// Sort entries: featured first (optional), then by year. Copy first because
+// component state is frozen outside a transaction. Callers store the result
+// back into the `allEntries` field —
 // `@each` iterates that field directly (a method result has no path for
 // event dispatch, so a `$method` is rejected in `@each`).
 function sortEntries(entries, byEnd, asc, feat) {
-  return entries.sort((a, b) => {
+  return [...entries].sort((a, b) => {
     if (feat) {
       if (a.featured && !b.featured) return -1;
       if (!a.featured && b.featured) return 1;
@@ -65,73 +65,85 @@ export const Root = component({
     allEntries: [],
     allCategories: [],
     allRoles: [],
-    selectedCategories: ISet(),
-    selectedRoles: ISet(),
+    selectedCategories: new Set(),
+    selectedRoles: new Set(),
     featuredFirst: true,
     sortByEnd: false,
     sortAsc: false,
   },
   methods: {
-    clearFilters() {
-      return this.setSelectedCategories(ISet(this.allCategories)).setSelectedRoles(
-        ISet(this.allRoles),
-      );
-    },
-    resort() {
-      return this.setAllEntries(
-        sortEntries(this.allEntries, this.sortByEnd, this.sortAsc, this.featuredFirst),
-      );
-    },
     hasActiveFilters() {
       return (
-        this.selectedCategories.size !== this.allCategories.size ||
-        this.selectedRoles.size !== this.allRoles.size
+        this.selectedCategories.size !== this.allCategories.length ||
+        this.selectedRoles.size !== this.allRoles.length
       );
     },
   },
   receive: {
-    onCategoryToggle(key, isAlt) {
-      const cat = this.allCategories.get(key);
+    clearFilters(draft) {
+      draft.selectedCategories = new Set(this.allCategories);
+      draft.selectedRoles = new Set(this.allRoles);
+    },
+    resort(draft) {
+      draft.allEntries = sortEntries(
+        draft.allEntries,
+        draft.sortByEnd,
+        draft.sortAsc,
+        draft.featuredFirst,
+      );
+    },
+
+    onCategoryToggle(draft, key, isAlt) {
+      const cat = this.allCategories[key];
       if (isAlt) {
-        if (this.hasInSelectedCategories(cat)) {
+        if (this.selectedCategories.has(cat)) {
           // Inverse solo: select all except this one
-          return this.setSelectedCategories(ISet(this.allCategories).delete(cat));
+          draft.selectedCategories = new Set(this.allCategories);
+          draft.selectedCategories.delete(cat);
         } else {
           // Solo: select only this one
-          return this.setSelectedCategories(ISet([cat]));
+          draft.selectedCategories = new Set([cat]);
         }
+        return;
       }
-      return this.toggleInSelectedCategories(cat);
+      if (draft.selectedCategories.has(cat)) draft.selectedCategories.delete(cat);
+      else draft.selectedCategories.add(cat);
     },
-    onRoleToggle(key, isAlt) {
-      const role = this.allRoles.get(key);
+    onRoleToggle(draft, key, isAlt) {
+      const role = this.allRoles[key];
       if (isAlt) {
-        if (this.hasInSelectedRoles(role)) {
+        if (this.selectedRoles.has(role)) {
           // Inverse solo: select all except this one
-          return this.setSelectedRoles(ISet(this.allRoles).delete(role));
+          draft.selectedRoles = new Set(this.allRoles);
+          draft.selectedRoles.delete(role);
         } else {
           // Solo: select only this one
-          return this.setSelectedRoles(ISet([role]));
+          draft.selectedRoles = new Set([role]);
         }
+        return;
       }
-      return this.toggleInSelectedRoles(role);
+      if (draft.selectedRoles.has(role)) draft.selectedRoles.delete(role);
+      else draft.selectedRoles.add(role);
     },
-    onToggleSortByEnd() {
-      return this.toggleSortByEnd().resort();
+    onToggleSortByEnd(draft) {
+      draft.sortByEnd = !draft.sortByEnd;
+      Root.receive.resort.call(this, draft);
     },
-    onToggleSortAsc() {
-      return this.toggleSortAsc().resort();
+    onToggleSortAsc(draft) {
+      draft.sortAsc = !draft.sortAsc;
+      Root.receive.resort.call(this, draft);
     },
-    onToggleFeaturedFirst() {
-      return this.toggleFeaturedFirst().resort();
+    onToggleFeaturedFirst(draft) {
+      draft.featuredFirst = !draft.featuredFirst;
+      Root.receive.resort.call(this, draft);
     },
-    init(ctx) {
+    init(draft, ctx) {
       ctx.intent("loadData", [], { route: ["lex"] });
       return this;
     },
     // The success arm gets the result ALONE — there is no `err` to assert away, because
     // a failure reaches `loadDataError` instead and can never arrive here.
-    loadDataOk(res) {
+    loadDataOk(draft, res) {
       const entries = res.map((data) => Entry.Class.fromData(data));
       const allCats = new Set();
       const allRoles = new Set();
@@ -143,17 +155,15 @@ export const Root = component({
           allRoles.add(entry.role);
         }
       }
-      const allCatList = List([...allCats].sort());
-      const allRolesList = List([...allRoles].sort());
-      return this.setAllEntries(
-        sortEntries(entries, this.sortByEnd, this.sortAsc, this.featuredFirst),
-      )
-        .setAllCategories(allCatList)
-        .setSelectedCategories(ISet(allCatList))
-        .setAllRoles(allRolesList)
-        .setSelectedRoles(ISet(allRolesList));
+      const allCatList = [...allCats].sort();
+      const allRolesList = [...allRoles].sort();
+      draft.allEntries = sortEntries(entries, this.sortByEnd, this.sortAsc, this.featuredFirst);
+      draft.allCategories = allCatList;
+      draft.selectedCategories = new Set(allCatList);
+      draft.allRoles = allRolesList;
+      draft.selectedRoles = new Set(allRolesList);
     },
-    loadDataError(err) {
+    loadDataError(draft, err) {
       console.error("loadData failed", err);
       return this;
     },
@@ -163,19 +173,19 @@ export const Root = component({
       if (this.selectedRoles.size > 0) {
         if (!this.selectedRoles.has(entry.role)) return false;
       }
-      if (this.selectedCategories.size > 0 && entry.categories.size > 0) {
+      if (this.selectedCategories.size > 0 && entry.categories.length > 0) {
         const hasMatch = this.selectedCategories.some((c) => entry.categories.includes(c));
         if (!hasMatch) return false;
       }
       return true;
     },
     enrichCategoryBindings(binds, _key, cat) {
-      binds.isSelected = this.hasInSelectedCategories(cat);
+      binds.isSelected = this.selectedCategories.has(cat);
       const colorClass = getCategoryColor(cat, binds.isSelected);
       binds.btnClass = `btn btn-xs border-0 ${colorClass}`;
     },
     enrichRoleBindings(binds, _key, role) {
-      const isSelected = this.hasInSelectedRoles(role);
+      const isSelected = this.selectedRoles.has(role);
       binds.btnClass = isSelected
         ? "btn btn-xs btn-neutral font-bold ring-1 ring-neutral-content/30"
         : "btn btn-xs btn-ghost font-bold opacity-40";
@@ -214,21 +224,13 @@ export const Root = component({
         <span class="font-semibold text-sm pt-1">Sort By</span>
         <div class="flex flex-wrap items-center gap-2">
           <label class="swap btn btn-xs btn-outline btn-primary">
-            <input
-              type="checkbox"
-              :checked=".sortByEnd"
-              @on.change="onToggleSortByEnd"
-            />
+            <input type="checkbox" :checked=".sortByEnd" @on.change="onToggleSortByEnd" />
             <span class="swap-on">End Year</span>
             <span class="swap-off">Start Year</span>
           </label>
 
           <label class="swap btn btn-xs btn-outline btn-primary">
-            <input
-              type="checkbox"
-              :checked=".sortAsc"
-              @on.change="onToggleSortAsc"
-            />
+            <input type="checkbox" :checked=".sortAsc" @on.change="onToggleSortAsc" />
             <span class="swap-on">↑ Oldest first</span>
             <span class="swap-off">↓ Newest first</span>
           </label>
@@ -246,11 +248,7 @@ export const Root = component({
       </div>
 
       <div class="flex flex-wrap items-center gap-4 mt-4">
-        <button
-          class="btn btn-outline btn-sm"
-          @on.click="$clearFilters"
-          @show="$hasActiveFilters"
-        >
+        <button class="btn btn-outline btn-sm" @on.click="clearFilters" @show="$hasActiveFilters">
           Clear Filters
         </button>
       </div>
@@ -349,9 +347,7 @@ export const Entry = component({
       binds.badgeClass = `badge badge-sm ${getCategoryColor(cat, true)}`;
     },
   },
-  view: html`<div
-    class="card bg-base-200 shadow-sm p-2 sm:p-3 flex flex-col gap-2"
-  >
+  view: html`<div class="card bg-base-200 shadow-sm p-2 sm:p-3 flex flex-col gap-2">
     <div class="flex gap-1 sm:gap-2 flex-wrap items-center">
       <span @show=".featured">⭐</span>
       <span @show="$isSpanish" @text="$langFlag"></span>

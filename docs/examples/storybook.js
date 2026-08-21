@@ -81,7 +81,7 @@ export function getExamples() {
         value: Example.Class.fromData({
           title: "Example Title",
           description: "Example description",
-          value: counterSection.items.first()?.item ?? null,
+          value: counterSection.items[0]?.item ?? null,
         }),
       },
     ],

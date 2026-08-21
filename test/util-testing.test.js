@@ -1,7 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { Map as IMap, OrderedMap as IOrderedMap } from "../deps/immutable.js";
 import { component } from "../index.js";
 import { collectIterBindings } from "../src/util/testing.js";
+
+let countingLoopCalls = 0;
 
 const Items = component({
   name: "Items",
@@ -27,7 +28,7 @@ const Items = component({
       return evens;
     },
     countingLoop(seq) {
-      this.loopCalls = (this.loopCalls ?? 0) + 1;
+      countingLoopCalls++;
       return { iterData: { seq } };
     },
     enrichFromLoop(binds, _k, _v, { len }) {
@@ -137,7 +138,7 @@ describe("collectIterBindings", () => {
 
   test("keyed seq — key is the map key, not numeric index", () => {
     const it = Items.make();
-    const seq = IMap({ a: 1, b: 2, c: 3 });
+    const seq = new Map(Object.entries({ a: 1, b: 2, c: 3 }));
     const r = collectIterBindings(Items, it, seq);
     expect(r.map((b) => b.key).sort()).toEqual(["a", "b", "c"]);
     expect(r.map((b) => b.value).sort()).toEqual([1, 2, 3]);
@@ -167,13 +168,13 @@ describe("collectIterBindings", () => {
 
   test("filter excludes everything — loopWith still runs once", () => {
     const it = Items.make();
-    it.loopCalls = 0;
+    countingLoopCalls = 0;
     const r = collectIterBindings(Items, it, [1, 2, 3], {
       loopWith: "countingLoop",
       when: "keepNone",
     });
     expect(r).toEqual([]);
-    expect(it.loopCalls).toBe(1);
+    expect(countingLoopCalls).toBe(1);
   });
 });
 
@@ -241,7 +242,7 @@ describe("collectIterBindings — @loop-with slicing", () => {
 
   test("keyed seq — positional slice keeps map keys", () => {
     const it = Items.make();
-    const seq = IOrderedMap([
+    const seq = new Map([
       ["a", 1],
       ["b", 2],
       ["c", 3],

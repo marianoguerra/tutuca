@@ -443,9 +443,9 @@ describe("ANode", () => {
           loopWith(seq) {
             return {
               iterData: {
-                evens: seq.size % 2 === 0,
+                evens: seq.length % 2 === 0,
                 multiplier: 3,
-                len: seq.size,
+                len: seq.length,
               },
             };
           },
@@ -664,7 +664,7 @@ describe("ANode", () => {
     });
 
     test("@on.twoevents", () => {
-      const [r, px] = parse("<div @on.click='h @v' @on.hover='$f @v'>hi</div>");
+      const [r, px] = parse("<div @on.click='h @v' @on.hover='f @v'>hi</div>");
       expect(r).toBeInstanceOf(DomNode);
       expect(r.attrs).toBeInstanceOf(ConstAttrs);
       expect(r.attrs.items["data-eid"]).toBe(0);
@@ -685,7 +685,7 @@ describe("ANode", () => {
       //
       expect(n2).toBe("hover");
       expect(h2).toBeInstanceOf(EventHandler);
-      expect(h2.handlerVal).toBeInstanceOf(MethodVal);
+      expect(h2.handlerVal).toBeInstanceOf(NameVal);
       expect(h2.handlerVal.name).toBe("f");
       expect(h2.args.length).toBe(1);
       const [v1] = h2.args;

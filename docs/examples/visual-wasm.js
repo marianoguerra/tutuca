@@ -1,4 +1,24 @@
 import { component, html, macro } from "tutuca";
+import { produce } from "tutuca/immer";
+
+const editable = (value) =>
+  value && Object.hasOwn(value, "editing")
+    ? produce(value, (draft) => {
+        draft.editing = true;
+      })
+    : value;
+
+const expandableEditorReceive = {
+  toggleExpanded(draft) {
+    draft.expanded = !draft.expanded;
+  },
+  toggleEditing(draft) {
+    draft.editing = !draft.editing;
+  },
+  removeInItemsAt(draft, index) {
+    draft.items.splice(index, 1);
+  },
+};
 
 function instr(name, label) {
   return component({ name, view: html`<span>${label}</span>` });
@@ -8,7 +28,7 @@ function type(name, label) {
   return component({
     name,
     receive: {
-      setType(typeId) {
+      setType(draft, typeId) {
         return TYPE_BY_ID[typeId].make();
       },
     },
@@ -33,10 +53,6 @@ function instrImmInt(name, label, parse) {
     name,
     fields: { value: 0, rawValue: "0" },
     methods: {
-      setFromRawValue(s) {
-        const v = parse(s);
-        return Number.isNaN(v) ? this.setRawValue(s) : this.setRawValue(s).setValue(v);
-      },
       getInputWidth() {
         return `${this.rawValue.length + 2}em`;
       },
@@ -47,9 +63,17 @@ function instrImmInt(name, label, parse) {
         class="input px-1 py-0 m-0 h-auto input-ghost font-mono text-blue-400"
         :value=".value"
         :style="$'width: {$getInputWidth}; outline: none'"
-        @on.input="$setFromRawValue value"
+        @on.input="setFromRawValue value"
       />
     </div>`,
+
+    receive: {
+      setFromRawValue(draft, s) {
+        const v = parse(s);
+        draft.rawValue = s;
+        if (!Number.isNaN(v)) draft.value = v;
+      },
+    },
   });
 }
 
@@ -138,12 +162,15 @@ const GlobalSet = instrImmInt("GlobalSet", "global.set", parseInteger);
 const Types = component({
   name: "Types",
   fields: { items: [] },
-  methods: {
-    addItemAt(i, TypeComp) {
-      return this.insertInItemsAt(i, TypeComp.make());
+  receive: {
+    removeInItemsAt(draft, key) {
+      draft.items.splice(key, 1);
     },
-    appendItem(TypeComp) {
-      return this.pushInItems(TypeComp.make());
+    addItemAt(draft, i, TypeComp) {
+      draft.items.splice(i, 0, TypeComp.make());
+    },
+    appendItem(draft, TypeComp) {
+      draft.items.push(TypeComp.make());
     },
   },
   view: html`<div class="flex gap-3"><x render-each=".items"></x></div>`,
@@ -152,21 +179,21 @@ const Types = component({
       <div @each=".items" class="flex items-center group">
         <button
           class="btn btn-xs btn-soft btn-circle btn-success mx-3"
-          @on.click="$addItemAt @key TypeI32"
+          @on.click="addItemAt @key TypeI32"
         >
           +
         </button>
         <x render-it as="editor"></x>
         <button
           class="btn btn-xs btn-soft btn-circle btn-error max-sm:opacity-100 opacity-0 group-hover:opacity-100"
-          @on.click="$removeInItemsAt @key"
+          @on.click="removeInItemsAt @key"
         >
           ⛔
         </button>
       </div>
       <button
         class="btn btn-xs btn-soft btn-circle btn-success mx-3"
-        @on.click="$appendItem TypeI32"
+        @on.click="appendItem TypeI32"
       >
         +
       </button>
@@ -223,16 +250,8 @@ const Block = component({
     expandedAndReadOnly() {
       return this.expanded && !this.editing;
     },
-    addItemAt(i, InstructionPicker) {
-      return this.insertInItemsAt(i, InstructionPicker.make());
-    },
-    appendItem(InstructionPicker) {
-      return this.pushInItems(InstructionPicker.make());
-    },
   },
-  view: html`<section
-    class="border-l border-l-gray-400 pl-3 ml-3 flex flex-col gap-3"
-  >
+  view: html`<section class="border-l border-l-gray-400 pl-3 ml-3 flex flex-col gap-3">
     <div class="flex gap-3 items-center group">
       <x:btn-toggle-expand></x:btn-toggle-expand>
       <span class="text-sm text-gray-400">block</span>
@@ -252,6 +271,16 @@ const Block = component({
   views: {
     compact: html`<section>block ...</section>`,
   },
+
+  receive: {
+    ...expandableEditorReceive,
+    addItemAt(draft, i, InstructionPicker) {
+      draft.items.splice(i, 0, InstructionPicker.make());
+    },
+    appendItem(draft, InstructionPicker) {
+      draft.items.push(InstructionPicker.make());
+    },
+  },
 });
 
 const Loop = component({
@@ -269,16 +298,8 @@ const Loop = component({
     expandedAndReadOnly() {
       return this.expanded && !this.editing;
     },
-    addItemAt(i, InstructionPicker) {
-      return this.insertInItemsAt(i, InstructionPicker.make());
-    },
-    appendItem(InstructionPicker) {
-      return this.pushInItems(InstructionPicker.make());
-    },
   },
-  view: html`<section
-    class="border-l border-l-gray-400 pl-3 ml-3 flex flex-col gap-3"
-  >
+  view: html`<section class="border-l border-l-gray-400 pl-3 ml-3 flex flex-col gap-3">
     <div class="flex gap-3 items-center group">
       <x:btn-toggle-expand></x:btn-toggle-expand>
       <span class="text-sm text-gray-400">loop</span>
@@ -298,6 +319,16 @@ const Loop = component({
   views: {
     compact: html`<section>loop ...</section>`,
   },
+
+  receive: {
+    ...expandableEditorReceive,
+    addItemAt(draft, i, InstructionPicker) {
+      draft.items.splice(i, 0, InstructionPicker.make());
+    },
+    appendItem(draft, InstructionPicker) {
+      draft.items.push(InstructionPicker.make());
+    },
+  },
 });
 
 const If = component({
@@ -311,33 +342,46 @@ const If = component({
     editingThn: false,
     editingElse: false,
   },
-  methods: {
-    addThnAt(i, InstructionPicker) {
-      return this.insertInThnAt(i, InstructionPicker.make());
+  receive: {
+    toggleExpanded(draft) {
+      draft.expanded = !draft.expanded;
     },
-    appendInThn(InstructionPicker) {
-      return this.pushInThn(InstructionPicker.make());
+    toggleEditingIf(draft) {
+      draft.editingIf = !draft.editingIf;
     },
-    addElseAt(i, InstructionPicker) {
-      return this.insertInElseAt(i, InstructionPicker.make());
+    toggleEditingThn(draft) {
+      draft.editingThn = !draft.editingThn;
     },
-    appendInElse(InstructionPicker) {
-      return this.pushInElse(InstructionPicker.make());
+    toggleEditingElse(draft) {
+      draft.editingElse = !draft.editingElse;
+    },
+    addThnAt(draft, i, InstructionPicker) {
+      draft.thn.splice(i, 0, InstructionPicker.make());
+    },
+    appendInThn(draft, InstructionPicker) {
+      draft.thn.push(InstructionPicker.make());
+    },
+    removeInThnAt(draft, index) {
+      draft.thn.splice(index, 1);
+    },
+    addElseAt(draft, i, InstructionPicker) {
+      draft.else.splice(i, 0, InstructionPicker.make());
+    },
+    appendInElse(draft, InstructionPicker) {
+      draft.else.push(InstructionPicker.make());
+    },
+    removeInElseAt(draft, index) {
+      draft.else.splice(index, 1);
     },
   },
-  view: html`<section
-    class="border-l border-l-gray-400 pl-3 ml-3 flex flex-col gap-3"
-  >
+  view: html`<section class="border-l border-l-gray-400 pl-3 ml-3 flex flex-col gap-3">
     <div class="flex gap-3 items-center group">
       <x:btn-toggle-expand></x:btn-toggle-expand>
       <span class="text-sm text-gray-400">if</span>
       <div @hide=".editingIf">
         <x render=".blockType"></x>
       </div>
-      <x:btn-toggle-edit
-        :value=".editingIf"
-        :handler="$toggleEditingIf"
-      ></x:btn-toggle-edit>
+      <x:btn-toggle-edit :value=".editingIf" :handler="toggleEditingIf"></x:btn-toggle-edit>
     </div>
     <div @show=".editingIf">
       <x render=".blockType" as="editor"></x>
@@ -345,10 +389,7 @@ const If = component({
     <div @show=".expanded" class="border-l border-l-gray-400 pl-3 ml-3">
       <div class="flex gap-3 items-center group">
         <span class="text-sm text-slate-400">then</span>
-        <x:btn-toggle-edit
-          :value=".editingThn"
-          :handler="$toggleEditingThn"
-        ></x:btn-toggle-edit>
+        <x:btn-toggle-edit :value=".editingThn" :handler="toggleEditingThn"></x:btn-toggle-edit>
       </div>
       <div class="my-3 pl-3 flex flex-col gap-3" @hide=".editingThn">
         <x render-each=".thn"></x>
@@ -356,16 +397,13 @@ const If = component({
       <x:items-editing
         :showval=".editingThn"
         :items=".thn"
-        :onadd="$addThnAt"
-        :onremove="$removeInThnAt"
-        :onappend="$appendInThn"
+        :onadd="addThnAt"
+        :onremove="removeInThnAt"
+        :onappend="appendInThn"
       ></x:items-editing>
       <div class="flex gap-3 items-center group">
         <span class="text-sm text-slate-400">else</span>
-        <x:btn-toggle-edit
-          :value=".editingElse"
-          :handler="$toggleEditingElse"
-        ></x:btn-toggle-edit>
+        <x:btn-toggle-edit :value=".editingElse" :handler="toggleEditingElse"></x:btn-toggle-edit>
       </div>
       <div class="my-3 pl-3 flex flex-col gap-3" @hide=".editingElse">
         <x render-each=".else"></x>
@@ -373,9 +411,9 @@ const If = component({
       <x:items-editing
         :showval=".editingElse"
         :items=".else"
-        :onadd="$addElseAt"
-        :onremove="$removeInElseAt"
-        :onappend="$appendInElse"
+        :onadd="addElseAt"
+        :onremove="removeInElseAt"
+        :onappend="appendInElse"
       ></x:items-editing>
       <span class="text-sm text-slate-400">end</span>
     </div>
@@ -401,16 +439,8 @@ const Func = component({
     expandedAndReadOnly() {
       return this.expanded && !this.editing;
     },
-    addItemAt(i, InstructionPicker) {
-      return this.insertInItemsAt(i, InstructionPicker.make());
-    },
-    appendItem(InstructionPicker) {
-      return this.pushInItems(InstructionPicker.make());
-    },
   },
-  view: html`<section
-    class="border-l border-l-gray-400 ml-1 pl-3 flex flex-col gap-3"
-  >
+  view: html`<section class="border-l border-l-gray-400 ml-1 pl-3 flex flex-col gap-3">
     <div class="flex gap-3 items-center group">
       <x:btn-toggle-expand></x:btn-toggle-expand>
       <span class="text-sm text-gray-400">func</span>
@@ -436,6 +466,16 @@ const Func = component({
     </div>
     <x:items-editing></x:items-editing>
   </section>`,
+
+  receive: {
+    ...expandableEditorReceive,
+    addItemAt(draft, i, InstructionPicker) {
+      draft.items.splice(i, 0, InstructionPicker.make());
+    },
+    appendItem(draft, InstructionPicker) {
+      draft.items.push(InstructionPicker.make());
+    },
+  },
 });
 
 const Section = component({
@@ -447,22 +487,19 @@ const Section = component({
     expanded: true,
     defaultItem: null,
   },
-  methods: {
-    addDefaultItem() {
-      const v = this.defaultItem;
-      return this.pushInItems(v.setEditing ? v.setEditing(true) : v);
+  receive: {
+    toggleExpanded(draft) {
+      draft.expanded = !draft.expanded;
+    },
+    addDefaultItem(draft) {
+      draft.items.push(editable(this.defaultItem));
     },
   },
   view: html`<section class="flex flex-col gap-3">
     <p class="flex gap-3 items-center">
       <x:btn-toggle-expand></x:btn-toggle-expand>
       <span @text=".name"></span>
-      <button
-        class="btn btn-xs btn-soft btn-primary"
-        @on.click="$addDefaultItem"
-      >
-        +
-      </button>
+      <button class="btn btn-xs btn-soft btn-primary" @on.click="addDefaultItem">+</button>
     </p>
     <div class="flex flex-col gap-3 ml-2" @show=".expanded">
       <x render-each=".items"></x>
@@ -476,12 +513,12 @@ const Memory = component({
     n: 1,
     m: 1,
   },
-  methods: {
-    setNFromString(s) {
-      return this.setN(parseInt(s, 10));
+  receive: {
+    setNFromString(draft, s) {
+      draft.n = parseInt(s, 10);
     },
-    setMFromString(s) {
-      return this.setN(parseInt(s, 10));
+    setMFromString(draft, s) {
+      draft.m = parseInt(s, 10);
     },
   },
   view: html`<div class="flex gap-3 items-center">
@@ -491,7 +528,7 @@ const Memory = component({
         class="px-1 py-0 m-0 h-auto w-auto font-mono text-blue-400"
         type="number"
         :value=".n"
-        @on.input="$setNFromString value"
+        @on.input="setNFromString value"
       />
     </label>
     <label class="input input-ghost outline-0 items-baseline h-auto"
@@ -500,7 +537,7 @@ const Memory = component({
         class="px-1 py-0 m-0 h-auto w-auto font-mono text-blue-400"
         type="number"
         :value=".m"
-        @on.input="$setMFromString value"
+        @on.input="setMFromString value"
       />
     </label>
   </div>`,
@@ -663,30 +700,6 @@ const InstructionPicker = component({
     filter: "",
   },
   methods: {
-    selectSection(v) {
-      return this.setCurrentSection(v).setInstructions(INSTRUCTIONS_BY_CATEGORY[v] ?? []);
-    },
-    setCurrentAll() {
-      return this.selectSection("all");
-    },
-    setCurrentI32() {
-      return this.selectSection("i32");
-    },
-    setCurrentI64() {
-      return this.selectSection("i64");
-    },
-    setCurrentF32() {
-      return this.selectSection("f32");
-    },
-    setCurrentF64() {
-      return this.selectSection("f64");
-    },
-    setCurrentControl() {
-      return this.selectSection("control");
-    },
-    setCurrentVars() {
-      return this.selectSection("vars");
-    },
     currentIsAll() {
       return this.currentSection === "all";
     },
@@ -710,12 +723,40 @@ const InstructionPicker = component({
     },
   },
   receive: {
-    selectInstructionById(target) {
+    setFilter(draft, value) {
+      draft.filter = value;
+    },
+    selectSection(draft, v) {
+      draft.currentSection = v;
+      draft.instructions = INSTRUCTIONS_BY_CATEGORY[v] ?? [];
+    },
+    setCurrentAll(draft) {
+      InstructionPicker.receive.selectSection.call(this, draft, "all");
+    },
+    setCurrentI32(draft) {
+      InstructionPicker.receive.selectSection.call(this, draft, "i32");
+    },
+    setCurrentI64(draft) {
+      InstructionPicker.receive.selectSection.call(this, draft, "i64");
+    },
+    setCurrentF32(draft) {
+      InstructionPicker.receive.selectSection.call(this, draft, "f32");
+    },
+    setCurrentF64(draft) {
+      InstructionPicker.receive.selectSection.call(this, draft, "f64");
+    },
+    setCurrentControl(draft) {
+      InstructionPicker.receive.selectSection.call(this, draft, "control");
+    },
+    setCurrentVars(draft) {
+      InstructionPicker.receive.selectSection.call(this, draft, "vars");
+    },
+
+    selectInstructionById(draft, target) {
       const id = target.dataset.value;
       const Comp = INSTRUCTION_COMPONENTS_BY_ID[id];
       if (Comp) {
-        const comp = Comp.make();
-        return comp.setEditing ? comp.setEditing(true) : comp;
+        return editable(Comp.make());
       }
       return this;
     },
@@ -734,14 +775,14 @@ const InstructionPicker = component({
       class="input w-full outline-0"
       placeholder="Filter instructions"
       :value=".filter"
-      @on.input="$setFilter value"
+      @on.input="setFilter value"
     />
     <div class="flex gap-3 text-xs justify-between">
       <label class="flex gap-2">
         <input
           type="radio"
           class="radio radio-success radio-xs"
-          @on.input="$setCurrentAll"
+          @on.input="setCurrentAll"
           :checked="$currentIsAll"
         />
         all
@@ -750,7 +791,7 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-info radio-xs"
-          @on.input="$setCurrentI32"
+          @on.input="setCurrentI32"
           :checked="$currentIsI32"
         />
         i32
@@ -759,7 +800,7 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-info radio-xs"
-          @on.input="$setCurrentI64"
+          @on.input="setCurrentI64"
           :checked="$currentIsI64"
         />
         i64
@@ -768,7 +809,7 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-primary radio-xs"
-          @on.input="$setCurrentF32"
+          @on.input="setCurrentF32"
           :checked="$currentIsF32"
         />
         f32
@@ -777,7 +818,7 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-primary radio-xs"
-          @on.input="$setCurrentF64"
+          @on.input="setCurrentF64"
           :checked="$currentIsF64"
         />
         f64
@@ -786,7 +827,7 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-error radio-xs"
-          @on.input="$setCurrentControl"
+          @on.input="setCurrentControl"
           :checked="$currentIsControl"
         />
         control
@@ -795,7 +836,7 @@ const InstructionPicker = component({
         <input
           type="radio"
           class="radio radio-warning radio-xs"
-          @on.input="$setCurrentVars"
+          @on.input="setCurrentVars"
           :checked="$currentIsVars"
         />
         vars
@@ -907,14 +948,14 @@ export function getMacros() {
         @if.class=".expanded"
         @then="'btn btn-xs btn-soft btn-primary btn-circle'"
         @else="'btn btn-xs btn-soft btn-success btn-circle'"
-        @on.click="$toggleExpanded"
+        @on.click="toggleExpanded"
       >
         <span @show=".expanded">▽</span>
         <span @hide=".expanded">▷</span>
       </button>`,
     ),
     "btn-toggle-edit": macro(
-      { value: ".editing", handler: "$toggleEditing" },
+      { value: ".editing", handler: "toggleEditing" },
       html`<button
         @if.class="^value"
         @then="'btn btn-xs btn-soft btn-primary btn-circle'"
@@ -929,9 +970,9 @@ export function getMacros() {
       {
         showval: "$expandedAndEditing",
         items: ".items",
-        onadd: "$addItemAt",
-        onremove: "$removeInItemsAt",
-        onappend: "$appendItem",
+        onadd: "addItemAt",
+        onremove: "removeInItemsAt",
+        onappend: "appendItem",
       },
       html` <div @show="^showval" class="flex flex-col gap-3">
         <div @each="^items" class="flex flex-col gap-3">
@@ -944,10 +985,7 @@ export function getMacros() {
             </button>
           </div>
           <div class="flex gap-5 items-center">
-            <button
-              class="btn btn-xs btn-soft btn-circle btn-error"
-              @on.click="^onremove @key"
-            >
+            <button class="btn btn-xs btn-soft btn-circle btn-error" @on.click="^onremove @key">
               ⛔
             </button>
             <x render-it as="compact"></x>

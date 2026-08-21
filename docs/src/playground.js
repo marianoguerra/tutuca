@@ -664,8 +664,8 @@ open \`index.html\` through a static server.
 - \`package.json\` — declares \`tutuca\` + \`margaui\` as devDependencies
   so the \`tutuca\` CLI can resolve those bare imports when run from
   Node. Also wires \`npm run lint\` / \`npm run render\` shortcuts.
-- \`.claude/skills/\` — bundled Claude Code skills (\`tutuca\`,
-  \`margaui\`, \`immutable-js\`). Auto-discovered when this folder is
+- \`.claude/skills/\` — bundled Claude Code skills (\`tutuca\` and
+  \`margaui\`). Auto-discovered when this folder is
   opened in Claude Code.
 
 ## Running
@@ -695,8 +695,8 @@ flags like \`--view\`, \`-f html --pretty -o out.html\`, etc.), run:
 
 ## Claude Code skills
 
-\`.claude/skills/\` contains the \`tutuca\`, \`margaui\`, and
-\`immutable-js\` skill assets. When you open this folder in Claude
+\`.claude/skills/\` contains the \`tutuca\` and \`margaui\` skill assets.
+When you open this folder in Claude
 Code, those skills are picked up automatically and the assistant can
 reference them. To refresh them later from the installed CLI:
 

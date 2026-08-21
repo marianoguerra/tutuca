@@ -6,9 +6,6 @@ export const PushView = component({
   name: "PushView",
   fields: { items: [], query: "", view: "main" },
   methods: {
-    toggleView() {
-      return this.setView(this.view === "main" ? "edit" : "main");
-    },
     getToggleLabel() {
       return this.view === "main" ? "Set Edit Mode" : "Set Read Only";
     },
@@ -23,24 +20,33 @@ export const PushView = component({
       <input
         type="search"
         :value=".query"
-        @on.input="$setQuery value"
-        @on.keydown+cancel="$resetQuery"
+        @on.input="setQuery value"
+        @on.keydown+cancel="resetQuery"
         class="input"
         placeholder="Filter entries"
       />
       <button
         class="btn bnt-sm btn-primary"
         @text="$getToggleLabel"
-        @on.click="$toggleView"
+        @on.click="toggleView"
       ></button>
     </div>
-    <div
-      class="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-3"
-      @push-view=".view"
-    >
+    <div class="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-3" @push-view=".view">
       <x render-each=".items" @when="filterItem"></x>
     </div>
   </section>`,
+
+  receive: {
+    setQuery(draft, value) {
+      draft.query = value;
+    },
+    resetQuery(draft) {
+      draft.query = this.constructor.getMetaClass().fields.query.defaultValue;
+    },
+    toggleView(draft) {
+      draft.view = draft.view === "main" ? "edit" : "main";
+    },
+  },
 });
 
 export function getComponents() {

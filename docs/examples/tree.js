@@ -5,7 +5,7 @@ export const TreeItem = component({
   fields: { type: "dir", label: "A Tree Item", isOpen: true, items: [] },
   methods: {
     areChildsVisible() {
-      return this.isOpen && this.items.size > 0;
+      return this.isOpen && this.items.length > 0;
     },
   },
   statics: {
@@ -19,13 +19,13 @@ export const TreeItem = component({
     },
   },
   receive: {
-    onItemClick(ctx) {
+    onItemClick(draft, ctx) {
       ctx.intent("treeItemSelected", [this], { route: ["dyn"] });
-      return this.toggleIsOpen();
+      draft.isOpen = !draft.isOpen;
     },
   },
   intent: {
-    treeItemSelected(_selectedItem) {
+    treeItemSelected(draft, _selectedItem) {
       return this;
     },
   },
@@ -73,9 +73,9 @@ export const TreeRoot = component({
     },
   },
   intent: {
-    treeItemSelected(selectedItem) {
+    treeItemSelected(draft, selectedItem) {
       const msg = `Selected ${selectedItem.type}: ${selectedItem.label}`;
-      return this.insertInLogAt(0, msg);
+      draft.log.unshift(msg);
     },
   },
   view: html`<secction class="flex gap-2">

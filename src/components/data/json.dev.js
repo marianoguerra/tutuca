@@ -1,8 +1,13 @@
+import { produce } from "tutuca/immer";
 import { JsonViewer } from "./json.js";
 
 export { getComponents } from "./json.js";
 
 export function getExamples() {
+  const expanded = (value) =>
+    produce(value, (draft) => {
+      draft.isExpanded = true;
+    });
   const longArray = Array.from({ length: 25 }, (_, i) => i + 1);
   const longObject = Object.fromEntries(
     Array.from({ length: 15 }, (_, i) => [`key_${i + 1}`, (i + 1) * 10]),
@@ -19,9 +24,9 @@ export function getExamples() {
     },
   };
 
-  const expandedSmallArray = JsonViewer.Class.fromData([1, "two", true, null]).toggleIsExpanded();
-  const expandedPaginated = JsonViewer.Class.fromData(longArray).toggleIsExpanded();
-  const expandedNested = JsonViewer.Class.fromData(apiResponseShape).toggleIsExpanded();
+  const expandedSmallArray = expanded(JsonViewer.Class.fromData([1, "two", true, null]));
+  const expandedPaginated = expanded(JsonViewer.Class.fromData(longArray));
+  const expandedNested = expanded(JsonViewer.Class.fromData(apiResponseShape));
 
   const allTypesThreeLevels = {
     name: "demo",
@@ -49,7 +54,7 @@ export function getExamples() {
       ],
     },
   };
-  const expandedAllTypes = JsonViewer.Class.fromData(allTypesThreeLevels).toggleIsExpanded();
+  const expandedAllTypes = expanded(JsonViewer.Class.fromData(allTypesThreeLevels));
 
   return {
     title: "JsonViewer",
@@ -156,14 +161,16 @@ export function getExamples() {
       },
       {
         title: "object with non-JSON values (expanded)",
-        value: JsonViewer.Class.fromData({
-          fn: function namedFn() {},
-          arrow: () => 1,
-          sym: Symbol("x"),
-          map: new Map([["k", "v"]]),
-          set: new Set([1, 2]),
-          ok: "string is fine",
-        }).toggleIsExpanded(),
+        value: expanded(
+          JsonViewer.Class.fromData({
+            fn: function namedFn() {},
+            arrow: () => 1,
+            sym: Symbol("x"),
+            map: new Map([["k", "v"]]),
+            set: new Set([1, 2]),
+            ok: "string is fine",
+          }),
+        ),
       },
     ],
   };

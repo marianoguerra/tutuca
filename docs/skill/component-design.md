@@ -31,15 +31,16 @@ Walk these top-down whenever you add or reshape a component:
 This ladder is about *acting across* a component boundary — reaching up,
 messaging a target, doing async work, or mutating state someone else owns. It is
 **not** about merely *reading* a child's state: an ancestor already holds its
-children as immutable fields and can read them directly in any handler or method
-(`this.items.get(i).done`) — no channel needed. See [core.md](./core.md) "The
+children as frozen fields and can read them directly in any handler or method
+(`this.items[i].done`) — no channel needed. See [core.md](./core.md) "The
 value tree".
 
 Reach for the *narrowest* channel that does the job, and only move further down
 the ladder when the one above can't express it:
 
-- **The component owns the state needed to respond** → call a plain **`method`** on
-  itself (stays self-contained). See [core.md](./core.md) Methods.
+- **The component owns the state needed to respond** → mutate its handler
+  **draft**, optionally via a helper method passed that draft. See
+  [core.md](./core.md) Methods.
 - **You know exactly which component must be told** → **`ctx.send` / `receive`**,
   addressing a specific path with `ctx.at` (defaults to self). See
   [messages-and-intents.md](./messages-and-intents.md) "When to send".
@@ -84,12 +85,12 @@ A compact worked version of the first three (`method`, `send`/`receive`, and
   needs from its owner. → [patterns/share-state-across-the-tree.md](./patterns/share-state-across-the-tree.md)
 
 - **Do read a child's state directly when an ancestor needs it for an aggregate
-  decision.** A parent holds its children as immutable fields, so a handler or
-  method can read `this.items.get(i).done` straight off — children don't have to
+  decision.** A parent holds its children as frozen fields, so a handler or
+  method can read `this.items[i].done` straight off — children don't have to
   raise an intent just to be *read*. **Don't reach for a channel to read
   downward**; `intent` / `send` are for asking someone to act, not for inspecting
   state you already own. (And don't reach in to mutate a child around the model —
-  that still goes through the owner returning a new self or `ctx.send`.)
+  that still goes through the owner's draft or `ctx.send`.)
   → [core.md](./core.md) "The value tree" and
   [messages-and-intents.md](./messages-and-intents.md) "When to send"
 
@@ -109,23 +110,22 @@ A compact worked version of the first three (`method`, `send`/`receive`, and
   events through `app.sendAtRoot` to the root (which forwards deeper with `ctx.at`),
   so handlers stay the single owner of state changes. **Don't mutate `app.state`
   directly or `addEventListener` outside the model** — state changed that way
-  bypasses the immutable `return this.set…()` discipline and is invisible to the
+  bypasses the draft-first transaction discipline and is invisible to the
   component that owns it. → [messages-and-intents.md](./messages-and-intents.md)
   "Integrating with the outside world" (and its ⚠️ note)
 
 - **Do handle every DOM event with tutuca's built-in `@on.` handlers — including
   custom events fired by web components.** `@on.click`, `@on.input`,
   `@on.<custom-event>` (the event `detail` surfaces as `value`) keep the event
-  inside the model, so it flows through a handler and returns a new `this`. **Don't
+  inside the model, so it flows through a draft-first handler. **Don't
   reach in from the outside with `addEventListener`** — a listener attached out of
   band mutates state the owning component can't see and bypasses the transactor.
   → [core.md](./core.md) "Event Handling" and "Web Components & Custom Events"
 
-- **Do use inline predicates and auto-generated mutators. Don't hand-write
-  `is*Selected()` / `select*()` boilerplate.** A single field plus
-  `equals? .activeSection 'todo'` / `empty?` and the generated `$setActiveSection`
-  / `toggleX` often *is* the whole state machine. → [core.md](./core.md) "Methods
-  as Predicates & Computed Values" and "Field Types & Auto-generated API"
+- **Do use inline predicates and small explicit handlers.** A single field plus
+  `equals? .activeSection 'todo'` / `empty?` and a handler that assigns
+  `draft.activeSection` often is the whole state machine. → [core.md](./core.md)
+  "Methods as Predicates & Computed Values" and "Field Types"
 
 - **Do remember a rendered child gets a clean namespace.** Parent `@` bindings
   (`@each`, `@enrich-with`) don't cross a `<x render>` boundary — pass a value
@@ -142,17 +142,16 @@ A compact worked version of the first three (`method`, `send`/`receive`, and
 
 ## Smells & refactors
 
-- **`is*Selected()` + `select*()` methods → predicate + generated setter.**
-  Replace `@on.click="selectTodo"` / `@show="$isTodoSelected"` with
-  `@on.click="$setActiveSection 'todo'"` / `@show="equals? .activeSection 'todo'"`,
-  derive the current value from one field. (See `composability.js`, commit `808574e`.)
+- **`is*Selected()` methods → predicate + one explicit handler.** Replace
+  `$isTodoSelected` with `equals? .activeSection 'todo'`; let the click call a
+  small handler that assigns `draft.activeSection`.
 - **A view that `@if`-branches on a `kind` field → one component per kind**, each
   rendered with `<x render>`.
 - **A value passed down through three components that don't use it → move the
   state up to the nearest common owner** and let the leaf render it directly; only
   if nothing in between should know it, use `provide` / `lookup`.
 - **Host code poking `app.state` or attaching a listener → an `app.sendAtRoot`
-  handler on the root**, with the mutation expressed as `return this.set…()`.
+  handler on the root**, with the mutation expressed on its draft.
 
 ## See also
 

@@ -8,11 +8,11 @@ const Tab = component({
     isEditing: false,
   },
   receive: {
-    init(ctx) {
+    init(draft, ctx) {
       ctx.at.field("content").send("init");
       return this;
     },
-    newComponentsLoaded(res, ctx) {
+    newComponentsLoaded(draft, res, ctx) {
       ctx.at.field("content").send("newComponentsLoaded", [res]);
       return this;
     },
@@ -26,32 +26,36 @@ const Tabs = component({
   name: "Tabs",
   fields: { selectedIndex: 0, items: [] },
   receive: {
-    init(ctx) {
-      ctx.at.index("items", 0).send("init");
-      return this.pushInItems(Tab.make());
+    setSelectedIndex(draft, value) {
+      draft.selectedIndex = value;
     },
-    newComponentsLoaded(res, ctx) {
-      for (let i = 0; i < this.items.size; i++) {
+
+    init(draft, ctx) {
+      ctx.at.index("items", 0).send("init");
+      draft.items.push(Tab.make());
+    },
+    newComponentsLoaded(draft, res, ctx) {
+      for (let i = 0; i < this.items.length; i++) {
         ctx.at.index("items", i).send("newComponentsLoaded", [res]);
       }
       return this;
     },
-    onAddTabSelected(ctx) {
-      ctx.at.index("items", this.items.size).send("init");
-      const label = `Tab ${this.items.size + 1}`;
-      return this.pushInItems(Tab.make({ label }));
+    onAddTabSelected(draft, ctx) {
+      ctx.at.index("items", this.items.length).send("init");
+      const label = `Tab ${this.items.length + 1}`;
+      draft.items.push(Tab.make({ label }));
     },
-    onEditTabSelected(key) {
-      return this.updateInItemsAt(key, (t) => t.toggleIsEditing());
+    onEditTabSelected(draft, key) {
+      draft.items[key].isEditing = !draft.items[key].isEditing;
     },
-    onRemoveTabSelected(key) {
-      return this.deleteInItemsAt(key);
+    onRemoveTabSelected(draft, key) {
+      draft.items.splice(key, 1);
     },
-    onTabLabelChange(key, value) {
-      return this.updateInItemsAt(key, (t) => t.setLabel(value));
+    onTabLabelChange(draft, key, value) {
+      draft.items[key].label = value;
     },
-    onTabLabelEditEnd(key) {
-      return this.updateInItemsAt(key, (t) => t.setIsEditing(false));
+    onTabLabelEditEnd(draft, key) {
+      draft.items[key].isEditing = false;
     },
   },
   alter: {
@@ -70,7 +74,7 @@ const Tabs = component({
         @if.class="@isSelected"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setSelectedIndex @key"
+        @on.click="setSelectedIndex @key"
         @on.click+ctrl="onEditTabSelected @key"
       >
         <x text="@label" @hide="@isEditing"></x>
@@ -90,10 +94,7 @@ const Tabs = component({
         </div>
       </div>
       <span class="tab"
-        ><button
-          class="btn btn-sm btn-soft btn-circle btn-success"
-          @on.click="onAddTabSelected"
-        >
+        ><button class="btn btn-sm btn-soft btn-circle btn-success" @on.click="onAddTabSelected">
           +
         </button></span
       >

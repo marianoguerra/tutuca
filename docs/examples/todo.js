@@ -1,24 +1,22 @@
 import { component, html } from "tutuca";
 
 const Item = component({
+  receive: {
+    setCompleted(draft, value) {
+      draft.completed = value;
+    },
+    setText(draft, value) {
+      draft.text = value;
+    },
+  },
   name: "Item",
   fields: {
     completed: false,
     text: "do the thing",
   },
   view: html`<div class="flex gap-3 items-center">
-    <input
-      type="checkbox"
-      class="checkbox"
-      :checked=".completed"
-      @on.input="$setCompleted value"
-    />
-    <input
-      class="input"
-      :value=".text"
-      @on.input="$setText value"
-      :disabled=".completed"
-    />
+    <input type="checkbox" class="checkbox" :checked=".completed" @on.input="setCompleted value" />
+    <input class="input" :value=".text" @on.input="setText value" :disabled=".completed" />
   </div>`,
 });
 
@@ -28,20 +26,22 @@ const Items = component({
     items: [],
   },
   receive: {
-    onAddItem(Item) {
-      return this.pushInItems(Item.make({ completed: false, text: "do the thing" }));
+    removeInItemsAt(draft, key) {
+      draft.items.splice(key, 1);
+    },
+
+    onAddItem(draft, Item) {
+      draft.items.push(Item.make({ completed: false, text: "do the thing" }));
     },
   },
   view: html`<div class="flex flex-col gap-3">
-    <button class="btn btn-soft btn-success" @on.click="onAddItem Item">
-      Add Task
-    </button>
+    <button class="btn btn-soft btn-success" @on.click="onAddItem Item">Add Task</button>
     <div class="flex flex-col gap-3 w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>
         <button
           class="btn btn-soft btn-sm btn-error btn-circle font-mono"
-          @on.click="$removeInItemsAt @key"
+          @on.click="removeInItemsAt @key"
         >
           x
         </button>

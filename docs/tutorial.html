@@ -320,18 +320,22 @@
           Before diving into more syntax, three rules anchor everything that
           follows. The application state is a
           <strong>single immutable root value</strong> &mdash; every component
-          instance is a node in that tree. The view is a
+          instance is a node in that tree. State is deeply frozen between
+          transactions. The view is a
           <strong>pure function of the value</strong>: render the same value,
-          get the same DOM. Every event handler takes the old self and
-          <strong>returns a new self</strong>; the framework swaps the new value
-          into the tree and the renderer reuses cached subtrees by
-          <code>===</code> identity.
+          get the same DOM. Every event handler receives a
+          <strong>mutable draft as its first argument</strong>; the framework
+          finalizes and swaps the new value into the tree, and the renderer
+          reuses cached subtrees by
+          <code>===</code> identity. Every dispatched handler receives an
+          Immer <code>draft</code> first while <code>this</code> remains the
+          immutable current instance.
         </p>
         <p>
           In practice a click flows like this:
           <em
-            >click &rarr; handler receives the old instance and returns a new
-            one &rarr; the framework swaps the root in &rarr; the renderer diffs
+            >click &rarr; handler mutates its draft &rarr; Immer finalizes a new
+            value &rarr; the framework swaps the root in &rarr; the renderer diffs
             against the previous frame and patches the DOM</em
           >. There is no explicit subscribe / unsubscribe step, no central
           store, no mutation in place. The rest of this tutorial introduces the
@@ -353,80 +357,70 @@
           A component declares its state in <code>fields</code>, as a map of
           name to default value. Tutuca infers the field's <em>type</em> from
           that default &mdash; <code>0</code> is a number, <code>"hi"</code> a
-          string, <code>true</code> a boolean, <code>[]</code> a list,
-          <code>{}</code> a map, <code>new Set()</code> a set, and
-          <code>null</code> the catch-all <code>any</code>. Every field you have
-          seen mutated so far (<code>setCount</code>, <code>setStr</code>,
-          <code>toggleIsActive</code>, <code>pushInItems</code>&hellip;) is an
-          <strong>auto-generated method</strong>: tutuca derives a small API
-          from each field's type so you rarely write a setter by hand.
+          string, <code>true</code> a boolean, <code>[]</code> an Array,
+          <code>{}</code> a plain object, <code>new Map()</code> a map,
+          <code>new Set()</code> a set, and <code>null</code> the catch-all
+          <code>any</code>. Handlers update these through ordinary JavaScript
+          operations on their first <code>draft</code> argument.
         </p>
         <ul>
           <li>
-            Every type gets <code>setX</code>, <code>updateX</code> (apply a
-            function to the current value), and <code>resetX</code> (back to the
-            default).
+            Assign scalars and object members directly:
+            <code>draft.count++</code>, <code>draft.profile.name = value</code>.
           </li>
           <li>
-            Booleans also get <code>toggleX</code>; strings and lists/maps/sets
-            also get <code>xLen</code>.
+            Toggle booleans with <code>draft.open = !draft.open</code>.
           </li>
           <li>
-            Lists add <code>pushInX</code>, <code>insertInXAt</code>,
-            <code>setInXAt</code>, <code>getInXAt</code>,
-            <code>updateInXAt</code>, and <code>removeInXAt</code> /
-            <code>deleteInXAt</code>.
+            Arrays use <code>push</code>, <code>splice</code>, and indexed
+            assignment.
           </li>
           <li>
-            Maps add <code>setInXAt</code>, <code>getInXAt</code>,
-            <code>updateInXAt</code>, <code>deleteInXAt</code>; sets add
-            <code>addInX</code>, <code>deleteInX</code>, <code>hasInX</code>,
-            <code>toggleInX</code>.
+            Native Map and Set use <code>set</code>/<code>add</code> and
+            <code>delete</code>; Immer tracks all of them.
           </li>
         </ul>
         <p>
-          Like every handler, these mutators return a <em>new</em> component
-          instance &mdash; they never modify the existing one. Coercion is
-          <strong>shallow</strong>: <code>setItems([{ a: 1 }])</code> stores
-          plain objects inside the list, so to keep nested data immutable, wrap
-          each item in its own <code>Comp.make({ ... })</code>.
+          Return nothing to commit a mutated draft. Return another component
+          instance to swap the addressed component. If nothing changed, the
+          original identity is retained. Generated field setters are not part
+          of the API; define only the named handlers your view needs.
         </p>
         <pre><code>component({
   name: "Profile",
   fields: {
-    name: "",        // string  -> setName, updateName, resetName, nameLen
-    age: 0,          // number  -> setAge, updateAge, resetAge
-    active: true,    // boolean -> setActive, toggleActive, ...
-    tags: [],        // list    -> pushInTags, removeInTagsAt, tagsLen, ...
+    name: "",        // string
+    age: 0,          // number
+    active: true,    // boolean
+    tags: [],        // native Array
+  },
+  receive: {
+    setName(draft, name) { draft.name = name; },
+    toggleActive(draft) { draft.active = !draft.active; },
+    addTag(draft, tag) { draft.tags.push(tag); },
   },
 });</code></pre>
 
         <h3 id="methods-vs-input">
-          <a href="#methods-vs-input">Methods vs Input Handlers</a>
+          <a href="#methods-vs-input">Methods vs Receive Handlers</a>
         </h3>
         <p>
-          Tutuca splits handler-style functions across two tables:
-          <code>methods</code> and <code>input</code>. Both are called on the
-          component instance and both return a new instance &mdash; the only
-          difference is <em>how a template references them</em>:
+          Tutuca separates read-only computations from mutation handlers.
+          <code>methods</code> are no-argument reads used in value slots;
+          <code>receive</code> owns draft-first event and message handlers:
         </p>
         <ul>
           <li>
-            <code>$name</code> (with a leading <code>$</code>) calls
-            <code>methods.name</code> or any auto-generated mutator
-            (<code>$setX</code>, <code>$toggleX</code>, &hellip;).
+            <code>$name</code> (with a leading <code>$</code>) calls a read-only
+            <code>methods.name</code> from a value slot.
           </li>
-          <li><code>name</code> (bare) calls <code>input.name</code>.</li>
+          <li><code>name</code> (bare) calls <code>receive.name</code>.</li>
         </ul>
         <p>
-          By convention, <code>methods</code> holds anything reasonable to call
-          from JS (computed values, predicates, derivations);
-          <code>input</code> holds names that only make sense as
-          template-attached event handlers. Pick the table that reads best where
-          the handler will be called from &mdash; the linter flags mismatches in
-          either direction (<code>INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER</code>,
-          <code>INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD</code>) so the choice is
-          recoverable.
+          Every <code>@on.*</code> uses the bare form and resolves only in
+          <code>receive</code>; <code>$method</code> is rejected there.
+          The linter tells you to move a same-named method into
+          <code>receive</code> when it finds the old dual-role pattern.
         </p>
 
         <h3 id="attribute-binding">
@@ -442,10 +436,10 @@
         </p>
         <p>
           When the user types,
-          <code>@on.input="$setStr value"</code> calls the auto-generated
-          <code>setStr</code> setter with the input's current value. For the
-          number input, a custom method <code>setRawNumber</code> parses and
-          validates before calling the auto-generated <code>setNum</code>.
+          <code>@on.input="setStr value"</code> calls an explicit draft-first
+          <code>setStr</code> handler with the input's current value. For the
+          number input, <code>setRawNumber</code> parses and validates before
+          assigning to the draft.
         </p>
         <tutuca-playground
           src="./examples/attribute-binding.js"
@@ -455,18 +449,14 @@
           <a href="#event-handling">Event Handling</a>
         </h3>
         <p>
-          The <code>+</code> button uses <code>@on.click="$inc"</code> &mdash;
-          the <code>$</code> prefix calls a <code>methods</code> function. The
-          <code>-</code> button uses <code>@on.click="dec"</code> &mdash; no
-          prefix means it calls an <code>input</code> handler. Both return new
-          state via the auto-generated <code>this.setCount()</code>.
+          The <code>+</code> button uses <code>@on.click="inc"</code> &mdash;
+          it names the <code>inc</code> receive handler. The <code>-</code>
+          button similarly names <code>dec</code>. Both mutate the first
+          <code>draft</code> argument.
         </p>
         <p>
-          Methods and input handlers both must return a new component instance.
-          The input section is just for organization purposes, you can use
-          methods if you want &mdash; this example splits the two on purpose to
-          show both forms side by side (the README's Counter uses
-          <code>methods</code> for both, which works just as well).
+          Computed methods never receive a draft and cannot be event handlers;
+          this keeps calls on component instances read-only by construction.
         </p>
         <tutuca-playground src="./examples/counter.js"></tutuca-playground>
 
@@ -509,9 +499,9 @@
         </h3>
         <p>
           Modifiers filter events so handlers only fire under specific
-          conditions. <code>@on.keydown+send="$setLastSentSearch value"</code>
+          conditions. <code>@on.keydown+send="setLastSentSearch value"</code>
           only fires when the user presses Enter.
-          <code>@on.keydown+cancel="$resetQuery"</code> only fires on Escape.
+          <code>@on.keydown+cancel="resetQuery"</code> only fires on Escape.
           Modifiers are appended with <code>+</code> and can be combined (e.g.
           <code>+ctrl+send</code>).
         </p>
@@ -549,8 +539,9 @@
           string literals.
         </p>
         <p>
-          <code>$toggleIsActive</code> in the example is auto-generated for
-          boolean fields. The value passed to <code>@if</code> can also be a
+          <code>$toggleIsActive</code> in the example is a small explicit
+          handler that negates the draft field. The value passed to
+          <code>@if</code> can also be a
           method &mdash; same rule as <code>@show</code>, useful when the
           predicate combines multiple fields.
         </p>
@@ -593,9 +584,9 @@
           <code>@else="'tab'"</code> styles the rest.
         </p>
         <p>
-          Clicking a button calls <code>$setTab 'overview'</code> &mdash; the
-          auto-generated setter for the <code>tab</code> field, passed a string
-          literal as its argument. Single quotes mark string literals both in
+          Clicking a button calls <code>$setTab 'overview'</code> &mdash; an
+          explicit handler that assigns the <code>tab</code> draft field. Single
+          quotes mark string literals both in
           the <code>equals?</code> comparisons and in the handler argument.
         </p>
         <tutuca-playground src="./examples/tabbed-ui.js"></tutuca-playground>
@@ -880,7 +871,7 @@
           <code>byIndex</code> list. The bracket syntax resolves the inner
           expression as a key into the outer collection.
           <code>.byKey[.currentKey]</code> does the same for an
-          <code>IMap</code> (immutable Map), looking up the entry by string key.
+          native <code>Map</code>, looking up the entry by string key.
         </p>
         <p>
           The range slider and select dropdown update
@@ -958,7 +949,7 @@
           constructing children &mdash; exactly what the recursive-tree example
           in the next section uses to turn a nested object literal into a fully
           constructed <code>TreeItem</code> with
-          <code>List&lt;TreeItem&gt;</code> children. Statics are not part of
+          arrays of <code>TreeItem</code> children. Statics are not part of
           any lifecycle &mdash; they are plain class methods, called by the host
           application or by another static.
         </p>
@@ -1294,8 +1285,8 @@
         </p>
         <p>
           Because macros expand inline into the calling component's template,
-          <code>@on.click="$inc"</code> inside a macro calls <code>inc</code> on
-          the component where the macro is used &mdash; not on the macro itself
+          <code>@on.click="inc"</code> inside a macro dispatches the host
+          component's <code>receive.inc</code> handler &mdash; not anything on the macro itself
           (macros have no state or methods). This is a key difference from
           components: a component encapsulates its own state and handlers, while
           a macro is just template expansion that operates in the context of its
@@ -1522,7 +1513,7 @@ const r = collectIterBindings(MyComp, c, c.items, {
 </code></pre>
         <p>
           Handler names refer to entries in <code>MyComp.alter</code>; unknown
-          names throw. The example below has methods, an input handler, and an
+          names throw. The example below has computed methods, receive handlers, and an
           iteration pipeline &mdash; all three are exercised by
           <code>getTests</code>. The <strong>Test</strong> tab is selected
           automatically (<code>auto-run-tests</code>) so you see the result on

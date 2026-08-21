@@ -9,17 +9,17 @@ const Counter = component({
   name: "Counter",
   fields: { count: 0, loaded: null },
   receive: {
-    inc(by, _ctx) {
-      return this.setCount(this.count + (by ?? 1));
+    inc(draft, by, _ctx) {
+      draft.count = this.count + (by ?? 1);
     },
     // The answer to `load`, arriving as an ordinary message under its own name.
-    loadOk(result, _ctx) {
-      return this.setLoaded(result);
+    loadOk(draft, result, _ctx) {
+      draft.loaded = result;
     },
     // "Nothing claimed it" — a different sentence from "a handler refused it", and it
     // carries the arguments the intent was raised with.
-    nudgeUnhandled(by, _ctx) {
-      return this.setLoaded(`unhandled:${by}`);
+    nudgeUnhandled(draft, by, _ctx) {
+      draft.loaded = `unhandled:${by}`;
     },
   },
   view: html`<div></div>`,

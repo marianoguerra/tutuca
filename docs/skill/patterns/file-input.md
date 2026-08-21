@@ -8,13 +8,13 @@ component({
   fields: { name: "", size: 0, type: "", hasFile: false },
   receive: {
     // `event` is the raw DOM event; the File is on event.target.files
-    onPickFile(event) {
+    onPickFile(draft, event) {
       const file = event.target.files?.[0];
-      if (!file) return this.setHasFile(false);
-      return this.setName(file.name)
-        .setSize(file.size)
-        .setType(file.type)
-        .setHasFile(true);
+      draft.hasFile = !!file;
+      if (!file) return;
+      draft.name = file.name;
+      draft.size = file.size;
+      draft.type = file.type;
     },
   },
   view: html`<section>

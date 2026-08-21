@@ -5,8 +5,12 @@ const EmojiPicker = component({
   name: "EmojiPicker",
   fields: { current: null, isPickerVisible: false },
   receive: {
-    onEmojiClick(detail) {
-      return this.setCurrent(detail.unicode);
+    toggleIsPickerVisible(draft) {
+      draft.isPickerVisible = !draft.isPickerVisible;
+    },
+
+    onEmojiClick(draft, detail) {
+      draft.current = detail.unicode;
     },
   },
   view: html`<section
@@ -14,14 +18,11 @@ const EmojiPicker = component({
     class="join join-vertical gap-3 items-center"
   >
     <p @hide="truthy? .current">
-      Select the <em>Toggle Picker</em> button and select an emoji, it will be
-      displayed here
+      Select the <em>Toggle Picker</em> button and select an emoji, it will be displayed here
     </p>
     <p @show="truthy? .current">Selected emoji:</p>
     <span @show="truthy? .current" @text=".current" class="text-9xl"></span>
-    <button class="btn btn-sm" @on.click="$toggleIsPickerVisible">
-      Toggle Picker
-    </button>
+    <button class="btn btn-sm" @on.click="toggleIsPickerVisible">Toggle Picker</button>
     <emoji-picker @show=".isPickerVisible"></emoji-picker>
   </section>`,
 });

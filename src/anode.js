@@ -1,4 +1,5 @@
 import { Attributes, getAttrParser } from "./attribute.js";
+import { seqGet } from "./collection.js";
 import { DynEachStep, DynStep, EachBindStep, EachRenderItStep, ScopeBindStep } from "./path.js";
 import {
   callEnricher,
@@ -558,7 +559,7 @@ class IterInfo {
   // { key, value }, then run @enrich-with (with @loop-with's iterData) if any.
   enrichBinds(stack, key) {
     const { seq, filter, loopWith, enricher } = this.eval(stack);
-    const value = seq?.get ? seq.get(key, null) : null;
+    const value = seqGet(seq, key, null);
     const binds = { key, value };
     if (enricher) {
       const { iterData } = unpackLoopResult(

@@ -2,6 +2,14 @@ import { component, html } from "tutuca";
 import { ITEMS } from "./_shared-data.js";
 
 export const ListFilterEnrichWith = component({
+  receive: {
+    setQuery(draft, value) {
+      draft.query = value;
+    },
+    resetQuery(draft) {
+      draft.query = this.constructor.getMetaClass().fields.query.defaultValue;
+    },
+  },
   name: "ListFilterEnrichWith",
   fields: { items: [], query: "" },
   alter: {
@@ -24,20 +32,15 @@ export const ListFilterEnrichWith = component({
     <input
       type="search"
       :value=".query"
-      @on.input="$setQuery value"
-      @on.keydown+cancel="$resetQuery"
+      @on.input="setQuery value"
+      @on.keydown+cancel="resetQuery"
       class="input"
       placeholder="Filter entries"
     />
     <ul>
-      <li
-        @each=".items"
-        @when="filterItem"
-        @enrich-with="enrichItem"
-        @loop-with="getIterData"
-      >
-        <span @text="@key"></span>: <x text="@value"></x> (<x text="@count"></x>
-        / <x text="@total"></x>)
+      <li @each=".items" @when="filterItem" @enrich-with="enrichItem" @loop-with="getIterData">
+        <span @text="@key"></span>: <x text="@value"></x> (<x text="@count"></x> /
+        <x text="@total"></x>)
       </li>
     </ul>
   </section>`,

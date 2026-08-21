@@ -1,4 +1,4 @@
-import { component, html, IMap } from "tutuca";
+import { component, html } from "tutuca";
 import { ITEMS } from "./_shared-data.js";
 import { Entry } from "./entry.js";
 
@@ -7,7 +7,7 @@ export const SeqItemAccess = component({
   fields: { byKey: {}, byIndex: [], currentKey: null, currentIndex: 0 },
   methods: {
     getMaxIndex() {
-      return Math.max(0, this.byIndex.size - 1);
+      return Math.max(0, this.byIndex.length - 1);
     },
     setRawCurrentIndex() {},
   },
@@ -17,30 +17,36 @@ export const SeqItemAccess = component({
       min="0"
       :max="$getMaxIndex"
       :value=".currentIndex"
-      @on.input="$setCurrentIndex valueAsInt"
+      @on.input="setCurrentIndex valueAsInt"
     />
     <x render=".byIndex[.currentIndex]"></x>
-    <select
-      class="select"
-      :value=".currentKey"
-      @on.input="$setCurrentKey value"
-    >
+    <select class="select" :value=".currentKey" @on.input="setCurrentKey value">
       <option @each=".byKey" :value="@key" @text="@value.title"></option>
     </select>
     <x render=".byKey[.currentKey]"></x>
   </section>`,
+
+  receive: {
+    setCurrentIndex(draft, value) {
+      draft.currentIndex = value;
+    },
+    setCurrentKey(draft, value) {
+      draft.currentKey = value;
+    },
+  },
 });
 
 export function getComponents() {
   return [SeqItemAccess, Entry];
 }
 
-export function getRoot() {
+export function getRoot(currentIndex = 0, currentKey = "key-0") {
   const ENTRIES = ITEMS.map((v) => Entry.make({ title: v, description: `Length: ${v.length}` }));
   return SeqItemAccess.make({
     byIndex: ENTRIES,
-    currentKey: "key-0",
-    byKey: IMap(
+    currentIndex,
+    currentKey,
+    byKey: new Map(
       ITEMS.map((v, i) => [
         `key-${i}`,
         Entry.make({ title: v, description: `Length: ${v.length}` }),
@@ -62,7 +68,7 @@ export function getExamples() {
       {
         title: "Different Selection",
         description: "Pre-selects index 3 and key-3",
-        value: getRoot().setCurrentIndex(3).setCurrentKey("key-3"),
+        value: getRoot(3, "key-3"),
       },
     ],
   };

@@ -71,19 +71,19 @@ export const compositeMethods = {
     return this.isExpanded ? "▼" : "▶";
   },
   isItemsEmpty() {
-    return this.items.size === 0;
+    return this.items.length === 0;
   },
   pageCount() {
-    return Math.max(1, Math.ceil(this.items.size / this.itemsPerPage));
+    return Math.max(1, Math.ceil(this.items.length / this.itemsPerPage));
   },
   pageStart() {
     return this.currentPage * this.itemsPerPage;
   },
   pageEnd() {
-    return Math.min(this.items.size, this.pageStart() + this.itemsPerPage);
+    return Math.min(this.items.length, this.pageStart() + this.itemsPerPage);
   },
   hasPagination() {
-    return this.items.size > this.itemsPerPage;
+    return this.items.length > this.itemsPerPage;
   },
   showPagination() {
     return this.isExpanded && this.hasPagination();
@@ -97,13 +97,18 @@ export const compositeMethods = {
   pageIndicatorText() {
     return `${this.currentPage + 1} / ${this.pageCount()}`;
   },
-  prevPage() {
-    return this.currentPage > 0 ? this.setCurrentPage(this.currentPage - 1) : this;
+};
+
+export const compositeReceive = {
+  toggleIsExpanded(draft) {
+    draft.isExpanded = !draft.isExpanded;
   },
-  nextPage() {
-    return this.currentPage < this.pageCount() - 1
-      ? this.setCurrentPage(this.currentPage + 1)
-      : this;
+  prevPage(draft) {
+    if (draft.currentPage > 0) draft.currentPage--;
+  },
+  nextPage(draft) {
+    const pageCount = Math.max(1, Math.ceil(draft.items.length / draft.itemsPerPage));
+    if (draft.currentPage < pageCount - 1) draft.currentPage++;
   },
 };
 
@@ -116,7 +121,7 @@ export const compositeAlter = {
 export function makeCompositeView({
   typeClass = "",
   borderClass = "border-base-content/10",
-  toggleHandler = "$toggleIsExpanded",
+  toggleHandler = "toggleIsExpanded",
 } = {}) {
   return html`<span class="font-mono text-sm leading-tight inline-block">
     <span class="inline-flex items-center gap-2">
@@ -135,7 +140,7 @@ export function makeCompositeView({
           type="button"
           class="join-item btn btn-xs"
           :disabled="$cannotPrevPage"
-          @on.click="$prevPage"
+          @on.click="prevPage"
         >
           «
         </button>
@@ -147,7 +152,7 @@ export function makeCompositeView({
           type="button"
           class="join-item btn btn-xs"
           :disabled="$cannotNextPage"
-          @on.click="$nextPage"
+          @on.click="nextPage"
         >
           »
         </button>
@@ -173,9 +178,10 @@ export const JsonArray = component({
       return "Array";
     },
     countText() {
-      return `(${this.items.size})`;
+      return `(${this.items.length})`;
     },
   },
+  receive: compositeReceive,
   alter: compositeAlter,
   view: compositeView,
 });
@@ -189,9 +195,10 @@ export const JsonObject = component({
       return "Object";
     },
     countText() {
-      return `{${this.items.size}}`;
+      return `{${this.items.length}}`;
     },
   },
+  receive: compositeReceive,
   alter: compositeAlter,
   view: compositeView,
 });
@@ -212,14 +219,8 @@ export const JsonProperty = component({
 // Delegate an expand/collapse toggle to the wrapped `value` when it supports
 // one; leaf values (JsonNull, …) have no toggle so the wrapper stays as-is.
 // Shared by every top-level inspector wrapper (JsonViewer, DataInspector,
-// ImInspector, InstanceInspector, SchemaViewer).
-export const valueWrapperMethods = {
-  toggleIsExpanded() {
-    return typeof this.value?.toggleIsExpanded === "function"
-      ? this.setValue(this.value.toggleIsExpanded())
-      : this;
-  },
-};
+// DataInspector, InstanceInspector, SchemaViewer).
+export const valueWrapperMethods = {};
 
 const valueWrapperView = html`<span class="contents"><x render=".value"></x></span>`;
 

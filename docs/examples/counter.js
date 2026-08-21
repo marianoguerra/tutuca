@@ -1,20 +1,23 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
+
+const applyRecipe = (current, recipe, ...args) =>
+  produce(current, (draft) => recipe.call(current, draft, ...args));
 
 const Counter = component({
   name: "Counter",
   fields: {
     count: 0,
   },
-  methods: {
-    // event handlers can call methods with a `$` prefix `@on.click="$inc"`
-    inc() {
-      return this.setCount(this.count + 1);
-    },
-  },
   receive: {
-    // event handlers can call input handlers by name `@on.click="dec"`
-    dec() {
-      return this.setCount(this.count - 1);
+    // Event handlers name entries in `receive`; they are not component methods.
+    inc(draft) {
+      draft.count++;
+    },
+
+    // Every event action uses the same bare receive-name syntax.
+    dec(draft) {
+      draft.count = this.count - 1;
     },
   },
   view: html`<div class="join join-vertical">
@@ -26,7 +29,7 @@ const Counter = component({
         <div class="stat-desc">Current Count</div>
       </div>
     </div>
-    <button class="btn btn-success" @on.click="$inc">+</button>
+    <button class="btn btn-success" @on.click="inc">+</button>
   </div>`,
 });
 
@@ -76,44 +79,52 @@ export function getTests({ describe, test, expect, drive }) {
 
     describe("inc()", () => {
       test("returns a Counter with count + 1", () => {
-        const next = Counter.make().inc();
+        const current = Counter.make();
+        const next = applyRecipe(current, Counter.receive.inc);
         expect(next).toBeInstanceOf(Counter.Class);
         expect(next.count).toBe(1);
       });
       test("works on a non-zero counter", () => {
-        expect(Counter.make({ count: 4 }).inc().count).toBe(5);
+        const current = Counter.make({ count: 4 });
+        expect(applyRecipe(current, Counter.receive.inc).count).toBe(5);
       });
       test("works on a negative counter", () => {
-        expect(Counter.make({ count: -3 }).inc().count).toBe(-2);
+        const current = Counter.make({ count: -3 });
+        expect(applyRecipe(current, Counter.receive.inc).count).toBe(-2);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
-        c.inc();
+        applyRecipe(c, Counter.receive.inc);
         expect(c.count).toBe(7);
       });
     });
 
     describe("dec()", () => {
       test("returns a Counter with count - 1", () => {
-        const next = Counter.receive.dec.call(Counter.make());
+        const current = Counter.make();
+        const next = applyRecipe(current, Counter.receive.dec);
         expect(next).toBeInstanceOf(Counter.Class);
         expect(next.count).toBe(-1);
       });
       test("works on a non-zero counter", () => {
-        expect(Counter.receive.dec.call(Counter.make({ count: 4 })).count).toBe(3);
+        const current = Counter.make({ count: 4 });
+        expect(applyRecipe(current, Counter.receive.dec).count).toBe(3);
       });
       test("works on a negative counter", () => {
-        expect(Counter.receive.dec.call(Counter.make({ count: -3 })).count).toBe(-4);
+        const current = Counter.make({ count: -3 });
+        expect(applyRecipe(current, Counter.receive.dec).count).toBe(-4);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
-        Counter.receive.dec.call(c);
+        applyRecipe(c, Counter.receive.dec);
         expect(c.count).toBe(7);
       });
     });
 
     test("inc and dec round-trip back to the original count", () => {
-      expect(Counter.receive.dec.call(Counter.make({ count: 10 }).inc()).count).toBe(10);
+      const current = Counter.make({ count: 10 });
+      const incremented = applyRecipe(current, Counter.receive.inc);
+      expect(applyRecipe(incremented, Counter.receive.dec).count).toBe(10);
     });
   });
 }

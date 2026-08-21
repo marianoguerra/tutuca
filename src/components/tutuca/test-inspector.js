@@ -1,9 +1,10 @@
 import { component, html } from "tutuca";
-import { getComponents as getImComponents, ImInspector } from "../data/immutable-inspector.js";
+import { DataInspector, getComponents as getDataComponents } from "../data/data.js";
 import {
   compositeAlter,
   compositeFields,
   compositeMethods,
+  compositeReceive,
   makeCompositeView,
 } from "../data/json.js";
 
@@ -47,7 +48,7 @@ const suiteView = makeCompositeView({
 
 // One test: a status mark (✓/✗/○, or • when this is a definition with no run
 // status), the title, run duration, and — on failure — the message plus an
-// expected/actual diff rendered via ImInspector.
+// expected/actual diff rendered via DataInspector.
 export const TestCase = component({
   name: "TestCase",
   fields: { title: "", status: "", durationMs: 0, message: "", detail: null },
@@ -112,16 +113,17 @@ export const TestSuite = component({
       return this.title;
     },
     countText() {
-      return this.summary || `(${this.items.size})`;
+      return this.summary || `(${this.items.length})`;
     },
   },
   receive: {
-    toggle(isCtrl, ctx) {
+    ...compositeReceive,
+    toggle(draft, isCtrl, ctx) {
       if (isCtrl) {
         ctx.intent("toggleAll", [!this.isExpanded], { route: ["dyn"] });
         return this;
       }
-      return this.toggleIsExpanded();
+      draft.isExpanded = !draft.isExpanded;
     },
   },
   alter: compositeAlter,
@@ -131,8 +133,9 @@ export const TestSuite = component({
 // Recursively set isExpanded on a suite and every nested suite (TestCase leaves
 // have no isExpanded and are left untouched).
 function setSuiteTreeExpanded(node, state) {
-  if (typeof node.setIsExpanded !== "function") return node;
-  return node.setIsExpanded(state).setItems(node.items.map((c) => setSuiteTreeExpanded(c, state)));
+  if (!("isExpanded" in node)) return;
+  node.isExpanded = state;
+  for (const child of node.items) setSuiteTreeExpanded(child, state);
 }
 
 function buildDefNode(node) {
@@ -169,7 +172,7 @@ function buildResultNode(node) {
     durationMs: node.durationMs ?? 0,
     message: err?.message ?? "",
     detail: hasDiff
-      ? ImInspector.Class.fromData({ expected: err.expected, actual: err.actual })
+      ? DataInspector.Class.fromData({ expected: err.expected, actual: err.actual })
       : null,
   });
   return {
@@ -210,14 +213,11 @@ export const TestReport = component({
     hasSkips() {
       return this.hasCounts && this.skip > 0;
     },
-    setAllSuites(state) {
-      return this.setSuites(this.suites.map((s) => setSuiteTreeExpanded(s, state)));
-    },
   },
   intent: {
     // ctrl/cmd-click on any suite expands/collapses the whole tree at once.
-    toggleAll(state) {
-      return this.setAllSuites(state);
+    toggleAll(draft, state) {
+      for (const suite of draft.suites) setSuiteTreeExpanded(suite, state);
     },
   },
   statics: {
@@ -269,5 +269,5 @@ export const TestReport = component({
 });
 
 export function getComponents() {
-  return [TestReport, TestSuite, TestCase, ...getImComponents()];
+  return [TestReport, TestSuite, TestCase, ...getDataComponents()];
 }

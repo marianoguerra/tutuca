@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import { component, html, macro } from "../index.js";
 import { ComponentStack, Components, LookupInfo, ProvideInfo } from "../src/components.js";
+import { produce } from "../src/immer.js";
 import { Stack } from "../src/stack.js";
 import { HeadlessParseContext as ParseContext } from "./dom.js";
 
@@ -127,7 +128,7 @@ describe("Components", () => {
     compStack.registerComponents([Chat, Shell]);
     // direct Class.make (e.g. from a deserialization path) without a threaded scope
     const shell = Shell.Class.make({ chat: { message: "from data" } });
-    expect(shell.get("chat").get("message")).toBe("from data");
+    expect(shell.chat.message).toBe("from data");
   });
 
   test("one spec registered into two scopes yields independent Components", () => {
@@ -144,7 +145,7 @@ describe("Components", () => {
     expect(WidgetB.id).not.toBe(Widget.id);
     expect(WidgetB.Class).not.toBe(Widget.Class);
     expect(Widget.scope).not.toBe(WidgetB.scope);
-    // rebuilt as a named Record so getTypeName/datacomp keep seeing the component name
+    // rebuilt as a named class so getTypeName/datacomp keep seeing the component name
     expect(WidgetB.Class.getMetaClass().name).toBe("Widget");
 
     const a = Widget.make({ message: "from A" });
@@ -155,9 +156,10 @@ describe("Components", () => {
     expect(comps.getCompFor(a).scope).toBe(Widget.scope);
     expect(comps.getCompFor(b).scope).toBe(WidgetB.scope);
 
-    // a .set()-derived instance (new object identity) still resolves correctly,
-    // proving the binding lives on the prototype and survives Immutable updates
-    const a2 = a.set("message", "edited");
+    // an Immer-produced instance still resolves through the inherited binding.
+    const a2 = produce(a, (draft) => {
+      draft.message = "edited";
+    });
     expect(a2).not.toBe(a);
     expect(comps.getCompFor(a2)).toBe(Widget);
   });
@@ -181,8 +183,8 @@ describe("Components", () => {
 
     const a = Widget.Class.fromData({ msg: "A" });
     const b = WidgetB.Class.fromData({ msg: "B" });
-    expect(a.get("message")).toBe("A");
-    expect(b.get("message")).toBe("B");
+    expect(a.message).toBe("A");
+    expect(b.message).toBe("B");
     expect(comps.getCompFor(a)).toBe(Widget);
     expect(comps.getCompFor(b)).toBe(WidgetB);
   });

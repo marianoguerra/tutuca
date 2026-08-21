@@ -1,19 +1,31 @@
 import { component, html } from "tutuca";
 import {
-  classifyImmutable,
-  fmtAnyKey,
-  getComponents as getImmutableComponents,
-} from "./immutable-inspector.js";
-import {
   chain,
   classifyJson,
   compositeAlter,
   compositeFields,
   compositeMethods,
+  compositeReceive,
   compositeView,
+  getComponents as getJsonComponents,
   JsonProperty,
   makeValueInspector,
 } from "./json.js";
+
+export function fmtAnyKey(k) {
+  if (k === null) return "null";
+  if (k === undefined) return "undefined";
+  const t = typeof k;
+  if (t === "string" || t === "number" || t === "boolean" || t === "bigint") return String(k);
+  if (t === "symbol") return String(k);
+  if (t === "function") return `ƒ ${k.name || "(anonymous)"}()`;
+  if (Array.isArray(k)) return `Array(${k.length})`;
+  if (k instanceof Map) return `Map(${k.size})`;
+  if (k instanceof Set) return `Set(${k.size})`;
+  if (k instanceof Date) return k.toISOString();
+  const ctor = k.constructor?.name;
+  return ctor && ctor !== "Object" ? `${ctor} {…}` : Object.prototype.toString.call(k);
+}
 
 export const JsUndefined = component({
   name: "JsUndefined",
@@ -130,9 +142,10 @@ export const JsMap = component({
       return "Map";
     },
     countText() {
-      return `(${this.items.size})`;
+      return `(${this.items.length})`;
     },
   },
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(map, recurse) {
@@ -155,9 +168,10 @@ export const JsSet = component({
       return "Set";
     },
     countText() {
-      return `(${this.items.size})`;
+      return `(${this.items.length})`;
     },
   },
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(set, recurse) {
@@ -177,9 +191,10 @@ export const JsClassInstance = component({
       return this.className;
     },
     countText() {
-      return `{${this.items.size}}`;
+      return `{${this.items.length}}`;
     },
   },
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(obj, recurse) {
@@ -227,7 +242,7 @@ export function classifyJsExtra(data, recurse) {
   return null;
 }
 
-const dispatch = chain(classifyImmutable, classifyJsExtra, classifyJson);
+const dispatch = chain(classifyJsExtra, classifyJson);
 
 export const DataInspector = makeValueInspector({
   name: "DataInspector",
@@ -237,11 +252,6 @@ export const DataInspector = makeValueInspector({
 });
 
 export function getComponents() {
-  // dispatch = chain(classifyImmutable, classifyJsExtra, classifyJson), so a
-  // nested value can resolve to an Immutable component (Im*) or a plain JSON
-  // component (Json*) in addition to the JS-extras components below. Register
-  // them all or `<x render=".child">` renders nothing for those branches.
-  // getImmutableComponents() already includes the json.js leaf components.
   return [
     DataInspector,
     JsUndefined,
@@ -255,6 +265,6 @@ export function getComponents() {
     JsSet,
     JsClassInstance,
     JsSetItem,
-    ...getImmutableComponents(),
+    ...getJsonComponents(),
   ];
 }

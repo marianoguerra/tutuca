@@ -1,6 +1,11 @@
 import { component, html } from "tutuca";
 
 export const RenderWithScope = component({
+  receive: {
+    setText(draft, value) {
+      draft.text = value;
+    },
+  },
   name: "RenderWithScope",
   fields: { text: "Hello" },
   alter: {
@@ -9,7 +14,7 @@ export const RenderWithScope = component({
     },
   },
   view: html`<section class="flex flex-col gap-3">
-    <input :value=".text" @on.input="$setText value" class="input" />
+    <input :value=".text" @on.input="setText value" class="input" />
     <div @enrich-with="enrichScope">
       <p>Text: <span @text=".text"></span></p>
       <p>Len: <span @text="@len"></span></p>

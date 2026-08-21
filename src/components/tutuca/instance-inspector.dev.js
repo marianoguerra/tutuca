@@ -1,4 +1,5 @@
-import { component, html, IMap, List } from "tutuca";
+import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 import { JsonViewer } from "../data/json.js";
 import {
   InstanceExplorer,
@@ -10,6 +11,16 @@ import { LintReport } from "./lint-inspector.js";
 import { TestReport } from "./test-inspector.js";
 
 export { getComponents } from "./instance-inspector.js";
+
+const expanded = (value) =>
+  produce(value, (draft) => {
+    const target = "isExpanded" in draft ? draft : draft.value;
+    if (target && "isExpanded" in target) target.isExpanded = true;
+  });
+const withTab = (value, activeTab) =>
+  produce(value, (draft) => {
+    draft.activeTab = activeTab;
+  });
 
 // Sample test-run and lint reports (the `tutuca test/lint --json` shapes) for
 // the extra explorer tabs.
@@ -64,8 +75,8 @@ const Sample = component({
     },
   },
   receive: {
-    bump() {
-      return this.setCount(this.count + 1);
+    bump(draft) {
+      draft.count = this.count + 1;
     },
   },
   view: html`<div class="card" @text=".title"></div>`,
@@ -100,17 +111,17 @@ export function getExamples() {
       },
       {
         title: "Instance inspector (expanded)",
-        value: inspect(card).toggleIsExpanded(),
+        value: expanded(inspect(card)),
       },
       {
         title: "Instance inspector of a JsonViewer instance",
-        value: inspect(viewer).toggleIsExpanded(),
+        value: expanded(inspect(viewer)),
       },
       {
         title: "Instance inspector fallback (no descriptor → plain data)",
         description:
-          "When the caller can't resolve a descriptor, the value still renders via the Immutable/JSON data inspector.",
-        value: InstanceInspector.Class.fromData(orphan, null).toggleIsExpanded(),
+          "When the caller can't resolve a descriptor, the value still renders via the native data inspector.",
+        value: expanded(InstanceInspector.Class.fromData(orphan, null)),
       },
       {
         title: "Explorer — Instance tab (default)",
@@ -118,26 +129,32 @@ export function getExamples() {
       },
       {
         title: "Explorer — Component tab",
-        value: explore(card).setActiveTab("component"),
+        value: withTab(explore(card), "component"),
       },
       {
         title: "Explorer without a descriptor (Component tab shows a notice)",
-        value: InstanceExplorer.Class.fromData(orphan, null).setActiveTab("component"),
+        value: withTab(InstanceExplorer.Class.fromData(orphan, null), "component"),
       },
       {
         title: "Explorer — all four tabs (Tests tab)",
         description: "Instance + Component + Tests + Lint. Only tabs with content are shown.",
-        value: InstanceExplorer.Class.fromData(card, Sample, {
-          tests: runReport,
-          lint: lintReport,
-        }).setActiveTab("tests"),
+        value: withTab(
+          InstanceExplorer.Class.fromData(card, Sample, {
+            tests: runReport,
+            lint: lintReport,
+          }),
+          "tests",
+        ),
       },
       {
         title: "Explorer — all four tabs (Lint tab)",
-        value: InstanceExplorer.Class.fromData(card, Sample, {
-          tests: runReport,
-          lint: lintReport,
-        }).setActiveTab("lint"),
+        value: withTab(
+          InstanceExplorer.Class.fromData(card, Sample, {
+            tests: runReport,
+            lint: lintReport,
+          }),
+          "lint",
+        ),
       },
     ],
   };
@@ -152,8 +169,8 @@ export function getTests({ describe, test, expect }) {
       expect(isComponentInstance({ a: 1 })).toBe(false);
       expect(isComponentInstance(42)).toBe(false);
       expect(isComponentInstance(null)).toBe(false);
-      expect(isComponentInstance(IMap({ a: 1 }))).toBe(false);
-      expect(isComponentInstance(List([1, 2]))).toBe(false);
+      expect(isComponentInstance(new Map([["a", 1]]))).toBe(false);
+      expect(isComponentInstance([1, 2])).toBe(false);
     });
 
     test("with a descriptor, value is an InstanceFields", () => {
@@ -171,7 +188,7 @@ export function getTests({ describe, test, expect }) {
     test("typeName is the component name and rows match the fields", () => {
       const f = InstanceFields.Class.fromData(card, Sample);
       expect(f.typeName).toBe("SampleCard");
-      const keys = f.items.toArray().map((e) => e.key);
+      const keys = f.items.map((e) => e.key);
       expect(keys).toEqual(["title", "count", "tags", "open"]);
     });
   });
@@ -221,7 +238,7 @@ export function getTests({ describe, test, expect }) {
 
     test("setActiveTab switches the active tab", () => {
       const ex = InstanceExplorer.Class.fromData(card, Sample);
-      expect(ex.setActiveTab("lint").activeTab).toBe("lint");
+      expect(withTab(ex, "lint").activeTab).toBe("lint");
     });
   });
 }

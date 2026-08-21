@@ -7,161 +7,10 @@ function getSignature(name, fn) {
   return `${name}(${params})`;
 }
 
-function getFieldMethods(field) {
-  const { name, type } = field;
-  const uname = name[0].toUpperCase() + name.slice(1);
-
-  const methods = [
-    { name: `set${uname}`, sig: `set${uname}(v)`, desc: "Set value" },
-    {
-      name: `update${uname}`,
-      sig: `update${uname}(fn)`,
-      desc: "Update value with function",
-    },
-    {
-      name: `reset${uname}`,
-      sig: `reset${uname}()`,
-      desc: "Reset to default value",
-    },
-  ];
-
-  switch (type) {
-    case "bool":
-      methods[0].desc = "Set value (coerces to boolean)";
-      methods.push({
-        name: `toggle${uname}`,
-        sig: `toggle${uname}()`,
-        desc: "Toggle boolean value",
-      });
-      break;
-    case "int":
-    case "float":
-    case "any":
-      break;
-    case "text":
-      methods.push({
-        name: `${name}Len`,
-        sig: `${name}Len()`,
-        desc: "Get string length",
-      });
-      break;
-    case "list":
-      methods.push(
-        { name: `${name}Len`, sig: `${name}Len()`, desc: "Get list size" },
-        {
-          name: `setIn${uname}At`,
-          sig: `setIn${uname}At(i, v)`,
-          desc: "Set item at index",
-        },
-        {
-          name: `getIn${uname}At`,
-          sig: `getIn${uname}At(i, defaultValue)`,
-          desc: "Get item at index",
-        },
-        {
-          name: `updateIn${uname}At`,
-          sig: `updateIn${uname}At(i, fn)`,
-          desc: "Update item at index with function",
-        },
-        {
-          name: `deleteIn${uname}At`,
-          sig: `deleteIn${uname}At(i)`,
-          desc: "Delete item at index",
-        },
-        {
-          name: `removeIn${uname}At`,
-          sig: `removeIn${uname}At(i)`,
-          desc: "Delete item at index (alias)",
-        },
-        {
-          name: `pushIn${uname}`,
-          sig: `pushIn${uname}(v)`,
-          desc: "Push item to end",
-        },
-        {
-          name: `insertIn${uname}At`,
-          sig: `insertIn${uname}At(i, v)`,
-          desc: "Insert item at index",
-        },
-      );
-      break;
-    case "map":
-    case "omap": {
-      const label = type === "omap" ? "ordered map" : "map";
-      methods.push(
-        {
-          name: `${name}Len`,
-          sig: `${name}Len()`,
-          desc: `Get ${label} size`,
-        },
-        {
-          name: `setIn${uname}At`,
-          sig: `setIn${uname}At(key, v)`,
-          desc: "Set value at key",
-        },
-        {
-          name: `getIn${uname}At`,
-          sig: `getIn${uname}At(key, defaultValue)`,
-          desc: "Get value at key",
-        },
-        {
-          name: `updateIn${uname}At`,
-          sig: `updateIn${uname}At(key, fn)`,
-          desc: "Update value at key with function",
-        },
-        {
-          name: `deleteIn${uname}At`,
-          sig: `deleteIn${uname}At(key)`,
-          desc: "Delete entry at key",
-        },
-        {
-          name: `removeIn${uname}At`,
-          sig: `removeIn${uname}At(key)`,
-          desc: "Delete entry at key (alias)",
-        },
-      );
-      break;
-    }
-    case "set":
-      methods.push(
-        { name: `${name}Len`, sig: `${name}Len()`, desc: "Get set size" },
-        {
-          name: `addIn${uname}`,
-          sig: `addIn${uname}(v)`,
-          desc: "Add value to set",
-        },
-        {
-          name: `deleteIn${uname}`,
-          sig: `deleteIn${uname}(v)`,
-          desc: "Remove value from set",
-        },
-        {
-          name: `removeIn${uname}`,
-          sig: `removeIn${uname}(v)`,
-          desc: "Remove value from set (alias)",
-        },
-        {
-          name: `hasIn${uname}`,
-          sig: `hasIn${uname}(v)`,
-          desc: "Check if value is in set",
-        },
-        {
-          name: `toggleIn${uname}`,
-          sig: `toggleIn${uname}(v)`,
-          desc: "Toggle value in set",
-        },
-      );
-      break;
-    default:
-      break;
-  }
-
-  return methods;
-}
-
 function serializeDefault(v) {
   if (v === null || v === undefined) return v;
-  if (v?.toJS) return v.toJS();
+  if (v instanceof Map) return Object.fromEntries(v);
+  if (v instanceof Set) return [...v];
   return v;
 }
 
@@ -189,7 +38,7 @@ function getComponentDoc(comp) {
       name: fieldName,
       type: field.type,
       default: serializeDefault(field.defaultValue),
-      methods: getFieldMethods(field),
+      methods: [],
     });
   }
 

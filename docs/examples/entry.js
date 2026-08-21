@@ -17,14 +17,19 @@ export const Entry = component({
   views: {
     edit: html`<div class="card bg-base-100 shadow-sm gap-3">
       <div class="card-body">
-        <input class="input" :value=".title" @on.input="$setTitle value" />
-        <input
-          class="input"
-          :value=".description"
-          @on.input="$setDescription value"
-        />
+        <input class="input" :value=".title" @on.input="setTitle value" />
+        <input class="input" :value=".description" @on.input="setDescription value" />
       </div>
     </div> `,
+  },
+
+  receive: {
+    setTitle(draft, value) {
+      draft.title = value;
+    },
+    setDescription(draft, value) {
+      draft.description = value;
+    },
   },
 });
 

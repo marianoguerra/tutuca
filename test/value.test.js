@@ -6,14 +6,14 @@ import {
   FieldVal,
   HandlerNameVal,
   MethodVal,
+  PredicateVal,
   parseBool,
   parseComponent,
   parseField,
-  parseReceiveHandler,
   parseMacroAttr,
+  parseReceiveHandler,
   parseSequence,
   parseText,
-  PredicateVal,
   SeqAccessVal,
   StrTplVal,
   tokenizeValue,
@@ -285,18 +285,35 @@ describe("$ method prefix vs . field prefix", () => {
     expect(parseText("$inc").evalAsHandler(stack)).toBe(fn);
   });
 
-  test("$ is a method handler, a bare name is an input handler", () => {
-    expect(parseReceiveHandler("$inc", px).handlerVal).toBeInstanceOf(MethodVal);
+  test("event handlers accept only bare receive names", () => {
+    expect(parseReceiveHandler("$inc", px)).toBeNull();
     expect(parseReceiveHandler("dec", px).handlerVal).toBeInstanceOf(HandlerNameVal);
+  });
+
+  test("a macro-expanded $method is rejected in event position", () => {
+    const issues = [];
+    const macroPx = {
+      frame: { macroVars: { handler: "$inc" } },
+      onParseIssue(kind, info) {
+        issues.push({ kind, info });
+      },
+    };
+    expect(parseReceiveHandler("^handler", macroPx)).toBeNull();
+    expect(issues).toEqual([
+      {
+        kind: "event-method-handler",
+        info: { name: "inc", role: "handler-name", value: "^handler" },
+      },
+    ]);
   });
 
   test(". cannot be used in handler position", () => {
     expect(parseReceiveHandler(".inc", px)).toBeNull();
   });
 
-  test("$ method handler keeps its args", () => {
-    const h = EventHandler.parse("$setStr value", px);
-    expect(h.handlerVal).toBeInstanceOf(MethodVal);
+  test("bare receive handler keeps its args", () => {
+    const h = EventHandler.parse("setStr value", px);
+    expect(h.handlerVal).toBeInstanceOf(HandlerNameVal);
     expect(h.handlerVal.name).toBe("setStr");
     expect(h.args.length).toBe(1);
   });
@@ -439,10 +456,9 @@ describe("binding member reads (@name.member)", () => {
   });
 
   test("eval reads the member off the resolved binding", () => {
-    // immutable-style value: read via .get(member, null)
-    const im = { get: (k, d) => (k === "title" ? "alpha" : d) };
-    expect(new BindMemberVal("value", "title").eval({ lookupBind: () => im })).toBe("alpha");
-    expect(new BindMemberVal("value", "missing").eval({ lookupBind: () => im })).toBeNull();
+    const keyed = new Map([["title", "alpha"]]);
+    expect(new BindMemberVal("value", "title").eval({ lookupBind: () => keyed })).toBe("alpha");
+    expect(new BindMemberVal("value", "missing").eval({ lookupBind: () => keyed })).toBeNull();
     // plain-object value (e.g. set by @enrich-with): property access
     const plain = { lookupBind: () => ({ color: "red" }) };
     expect(new BindMemberVal("meta", "color").eval(plain)).toBe("red");

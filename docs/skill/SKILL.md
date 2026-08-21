@@ -28,10 +28,6 @@ project-wide `storybook --dry-run` smoke test — in
 
 When authoring tutuca code, also load these if available:
 
-- **immutable-js** — every `immutable` export is reachable through
-  `tutuca` (`List`, `IMap`, `OMap`, `ISet`, `Record`, `Seq`,
-  `fromJS`, `is`, …). Reach for it whenever the work touches state
-  values.
 - **margaui** — the Tailwind v4 / daisyUI-compatible class library.
   Reach for it when the project uses MargaUI / Tailwind class lists in
   `class=` / `:class=`. See [margaui.md](./margaui.md) to set it up in a

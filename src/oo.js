@@ -1,8 +1,20 @@
-import { Map as IMap, Set as ISet, List, OrderedMap, Record } from "../deps/immutable.js";
 import { Component } from "./components.js";
+import { freeze, immerable } from "./immer.js";
 
 const BAD_VALUE = Symbol("BadValue");
 const nullCoercer = (v) => v;
+const isPlainObject = (v) => {
+  if (v === null || typeof v !== "object") return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+};
+
+function defaultToData(v) {
+  if (v instanceof Map) return [...v.entries()];
+  if (v instanceof Set) return [...v.values()];
+  return v;
+}
+
 export class Field {
   constructor(type, name, typeCheck, coercer, defaultValue = null) {
     this.type = type;
@@ -13,8 +25,7 @@ export class Field {
     this.defaultValue = defaultValue;
   }
   toDataDef() {
-    const { type, defaultValue: dv } = this;
-    return { type, defaultValue: dv?.toJS ? dv.toJS() : dv };
+    return { type: this.type, defaultValue: defaultToData(this.defaultValue) };
   }
   getFirstFailingCheck(v) {
     if (!this.typeCheck.isValid(v)) return this.typeCheck;
@@ -36,29 +47,8 @@ export class Field {
   coerceOrDefault(v) {
     return this.coerceOr(v, this.defaultValue);
   }
-  extendProtoForType(_proto, _uname) {}
-  extendProto(proto) {
-    const { name } = this;
-    const uname = name[0].toUpperCase() + name.slice(1);
-    const setName = `set${uname}`;
-    const that = this;
-    proto[setName] = function (v) {
-      const v1 = that.coerceOr(v, BAD_VALUE);
-      if (v1 === BAD_VALUE) {
-        console.warn("invalid value", v);
-        return this;
-      }
-      return this.set(name, v1);
-    };
-    proto[`update${uname}`] = function (fn) {
-      return this[setName](fn(this.get(name)));
-    };
-    proto[`reset${uname}`] = function () {
-      return this.set(name, that.defaultValue);
-    };
-    this.extendProtoForType(proto, uname);
-  }
 }
+
 class Check {
   isValid(_v) {
     return true;
@@ -82,51 +72,19 @@ class FnCheck extends Check {
     return this._getMessage(v);
   }
 }
-const CHECK_TYPE_INT = new FnCheck(
-  (v) => Number.isInteger(v),
-  () => "Integer expected",
-);
-const CHECK_TYPE_FLOAT = new FnCheck(
-  (v) => Number.isFinite(v),
-  () => "Float expected",
-);
-const CHECK_TYPE_BOOL = new FnCheck(
-  (v) => typeof v === "boolean",
-  () => "Boolean expected",
-);
-const CHECK_TYPE_STRING = new FnCheck(
-  (v) => typeof v === "string",
-  () => "String expected",
-);
-const CHECK_TYPE_LIST = new FnCheck(
-  (v) => List.isList(v),
-  () => "List expected",
-);
-const CHECK_TYPE_MAP = new FnCheck(
-  (v) => IMap.isMap(v),
-  () => "Map expected",
-);
-const CHECK_TYPE_OMAP = new FnCheck(
-  (v) => OrderedMap.isOrderedMap(v),
-  () => "OrderedMap expected",
-);
-const CHECK_TYPE_SET = new FnCheck(
-  (v) => ISet.isSet(v),
-  () => "Set expected",
-);
-const boolCoercer = (v) => !!v;
+const check = (fn, message) => new FnCheck(fn, () => message);
+const CHECK_TYPE_INT = check(Number.isInteger, "Integer expected");
+const CHECK_TYPE_FLOAT = check(Number.isFinite, "Float expected");
+const CHECK_TYPE_BOOL = check((v) => typeof v === "boolean", "Boolean expected");
+const CHECK_TYPE_STRING = check((v) => typeof v === "string", "String expected");
+const CHECK_TYPE_LIST = check(Array.isArray, "Array expected");
+const CHECK_TYPE_OBJECT = check(isPlainObject, "Plain object expected");
+const CHECK_TYPE_MAP = check((v) => v instanceof Map, "Map expected");
+const CHECK_TYPE_SET = check((v) => v instanceof Set, "Set expected");
+
 export class FieldBool extends Field {
   constructor(name, defaultValue = false) {
-    super("bool", name, CHECK_TYPE_BOOL, boolCoercer, defaultValue);
-  }
-  extendProtoForType(proto, uname) {
-    const { name } = this;
-    proto[`toggle${uname}`] = function () {
-      return this.set(name, !this.get(name, false));
-    };
-    proto[`set${uname}`] = function (v) {
-      return this.set(name, !!v);
-    };
+    super("bool", name, CHECK_TYPE_BOOL, (v) => !!v, defaultValue);
   }
 }
 export class FieldAny extends Field {
@@ -134,43 +92,41 @@ export class FieldAny extends Field {
     super("any", name, CHECK_TYPE_ANY, nullCoercer, defaultValue);
   }
   toDataDef() {
-    const { defaultValue: dv } = this;
-    const type = getTypeName(dv) ?? "any";
-    return { type, defaultValue: dv?.toJS ? dv.toJS() : dv };
+    return { type: getTypeName(this.defaultValue) ?? "any", defaultValue: this.defaultValue };
   }
 }
-const stringCoercer = (v) => v?.toString?.() ?? "";
 export class FieldString extends Field {
   constructor(name, defaultValue = "") {
-    super("text", name, CHECK_TYPE_STRING, stringCoercer, defaultValue);
-  }
-  extendProtoForType(proto, _uname) {
-    extendProtoSized(proto, this.name, "", "length");
+    super("text", name, CHECK_TYPE_STRING, (v) => v?.toString?.() ?? "", defaultValue);
   }
 }
-const intCoercer = (v) => (Number.isFinite(v) ? Math.trunc(v) : null);
 export class FieldInt extends Field {
   constructor(name, defaultValue = 0) {
-    super("int", name, CHECK_TYPE_INT, intCoercer, defaultValue);
+    super(
+      "int",
+      name,
+      CHECK_TYPE_INT,
+      (v) => (Number.isFinite(v) ? Math.trunc(v) : null),
+      defaultValue,
+    );
   }
 }
-const floatCoercer = (_) => null;
 export class FieldFloat extends Field {
   constructor(name, defaultValue = 0) {
-    super("float", name, CHECK_TYPE_FLOAT, floatCoercer, defaultValue);
+    super("float", name, CHECK_TYPE_FLOAT, (_) => null, defaultValue);
   }
 }
+
 export const getTypeName = (v) => v?.constructor?.getMetaClass?.()?.name;
 class CheckTypeName {
   constructor(typeName) {
-    this.typeName = typeName; // TODO: cache instances by name
+    this.typeName = typeName;
   }
   isValid(v) {
-    return getTypeName(v) === this.typeName; // NOTE: same type name in diff scope will return true
+    return getTypeName(v) === this.typeName;
   }
   getMessage(v) {
-    const got = getTypeName(v);
-    return `Expected "${this.typeName}", got "${got}"`;
+    return `Expected "${this.typeName}", got "${getTypeName(v)}"`;
   }
 }
 export class FieldComp extends Field {
@@ -179,100 +135,55 @@ export class FieldComp extends Field {
     this.args = args;
   }
   toDataDef() {
-    return { component: this.typeName, args: this.args };
+    return { component: this.type, args: this.args };
   }
 }
-const NONE = Symbol("NONE");
-function extendProtoForKeyed(proto, name, uname) {
-  extendProtoSized(proto, name, EMPTY_LIST);
-  proto[`setIn${uname}At`] = function (i, v) {
-    return this.set(name, this.get(name).set(i, v));
-  };
-  proto[`getIn${uname}At`] = function (i, dval) {
-    return this.get(name).get(i, dval);
-  };
-  proto[`updateIn${uname}At`] = function (i, fn) {
-    const col = this.get(name);
-    const v = col.get(i, NONE);
-    if (v !== NONE) return this.set(name, col.set(i, fn(v)));
-    console.warn("key", i, "not found in", name, col);
-    return this;
-  };
-  extendDeleteInAt(proto, name, `${uname}At`);
-}
-function extendDeleteInAt(proto, name, uname) {
-  proto[`deleteIn${uname}`] = function (v) {
-    return this.set(name, this.get(name).delete(v));
-  };
-  proto[`removeIn${uname}`] = proto[`deleteIn${uname}`];
-}
-const EMPTY_LIST = List();
-const listCoercer = (v) => (Array.isArray(v) ? List(v) : null);
+
 export class FieldList extends Field {
-  constructor(name, defaultValue = EMPTY_LIST) {
-    super("list", name, CHECK_TYPE_LIST, listCoercer, defaultValue);
-  }
-  extendProtoForType(proto, uname) {
-    const { name } = this;
-    extendProtoForKeyed(proto, name, uname);
-    proto[`pushIn${uname}`] = function (v) {
-      return this.set(name, this.get(name).push(v));
-    };
-    proto[`insertIn${uname}At`] = function (i, v) {
-      return this.set(name, this.get(name).insert(i, v));
-    };
+  constructor(name, defaultValue = []) {
+    super("list", name, CHECK_TYPE_LIST, (v) => (Array.isArray(v) ? [...v] : null), defaultValue);
   }
 }
-const imapCoercer = (v) => IMap(v);
+export class FieldObject extends Field {
+  constructor(name, defaultValue = {}) {
+    super(
+      "object",
+      name,
+      CHECK_TYPE_OBJECT,
+      (v) => (isPlainObject(v) ? { ...v } : null),
+      defaultValue,
+    );
+  }
+}
 export class FieldMap extends Field {
-  constructor(name, defaultValue = IMap()) {
-    super("map", name, CHECK_TYPE_MAP, imapCoercer, defaultValue);
-  }
-  extendProtoForType(proto, uname) {
-    extendProtoForKeyed(proto, this.name, uname);
+  constructor(name, defaultValue = new Map()) {
+    super(
+      "map",
+      name,
+      CHECK_TYPE_MAP,
+      (v) => {
+        if (v instanceof Map) return new Map(v);
+        if (Array.isArray(v) || isPlainObject(v))
+          return new Map(Array.isArray(v) ? v : Object.entries(v));
+        return null;
+      },
+      defaultValue,
+    );
   }
 }
-const omapCoercer = (v) => OrderedMap(v);
-export class FieldOMap extends Field {
-  constructor(name, defaultValue = OrderedMap()) {
-    super("omap", name, CHECK_TYPE_OMAP, omapCoercer, defaultValue);
-  }
-  extendProtoForType(proto, uname) {
-    extendProtoForKeyed(proto, this.name, uname);
-  }
-}
-function extendProtoSized(proto, name, defaultEmpty, propName = "size") {
-  proto[`${name}Len`] = function () {
-    return this.get(name, defaultEmpty)[propName];
-  };
-}
-const EMPTY_SET = ISet();
-const isetCoercer = (v) => (Array.isArray(v) ? ISet(v) : v instanceof Set ? ISet(v) : null);
 export class FieldSet extends Field {
-  constructor(name, defaultValue = EMPTY_SET) {
-    super("set", name, CHECK_TYPE_SET, isetCoercer, defaultValue);
-  }
-  extendProtoForType(proto, uname) {
-    const { name } = this;
-    extendProtoSized(proto, name, EMPTY_SET);
-    proto[`addIn${uname}`] = function (v) {
-      return this.set(name, this.get(name).add(v));
-    };
-    extendDeleteInAt(proto, name, uname);
-    proto[`hasIn${uname}`] = function (v) {
-      return this.get(name).has(v);
-    };
-    proto[`toggleIn${uname}`] = function (v) {
-      const current = this.get(name);
-      return this.set(name, current.has(v) ? current.delete(v) : current.add(v));
-    };
+  constructor(name, defaultValue = new Set()) {
+    super(
+      "set",
+      name,
+      CHECK_TYPE_SET,
+      (v) => (v instanceof Set || Array.isArray(v) ? new Set(v) : null),
+      defaultValue,
+    );
   }
 }
+
 function mkCompField(field, scope, args) {
-  // scope can be null when a component with comp-field defaults is .make()'d
-  // before it's registered (e.g. tooling that inspects a module without
-  // building an app). Degrade to null rather than crashing — same graceful
-  // path already taken when the component name can't be resolved.
   const Comp = scope?.lookupComponent(field.type) ?? null;
   if (Comp === null)
     console.warn(
@@ -282,46 +193,51 @@ function mkCompField(field, scope, args) {
     );
   return Comp?.make({ ...field.args, ...args }, { scope }) ?? null;
 }
+
 class ClassBuilder {
   constructor(name) {
-    const fields = {};
-    const compFields = new Set();
     this.name = name;
-    this.fields = fields;
-    this.compFields = compFields;
+    this.fields = {};
+    this.compFields = new Set();
     this._methods = {};
-    this._statics = {
-      make: function (inArgs = {}, opts = {}) {
-        const args = {};
-        // fall back to the scope bound at registration so direct Class.make()
-        // calls (e.g. deserialization) can resolve comp fields without a caller-threaded scope
-        const scope = opts.scope ?? this.scope;
-        for (const key in inArgs) {
-          const field = fields[key];
-          if (compFields.has(key)) args[key] = mkCompField(field, scope, inArgs[key]);
-          else if (field === undefined)
-            console.warn("extra argument to constructor:", name, key, inArgs);
-          else args[key] = field.coerceOrDefault(inArgs[key]);
-        }
-        for (const key of compFields)
-          if (args[key] === undefined) args[key] = mkCompField(fields[key], scope, inArgs[key]);
-        return this(args);
-      },
-    };
+    this._statics = {};
   }
   build() {
-    const fieldVals = {};
-    const proto = {};
-    const { name, _methods, fields } = this;
-    for (const fieldName in fields) {
-      const field = fields[fieldName];
-      fieldVals[fieldName] = field.defaultValue;
-      field.extendProto(proto);
-    }
-    const Class = { [name]: Record(fieldVals, name) }[name];
-    Object.assign(Class.prototype, proto, _methods);
+    const { name, fields, compFields, _methods } = this;
+    const defaults = Object.fromEntries(
+      Object.entries(fields).map(([fieldName, field]) => [fieldName, field.defaultValue]),
+    );
+    const Class = {
+      [name]: class {
+        constructor(values = {}) {
+          Object.assign(this, defaults, values);
+        }
+      },
+    }[name];
+    Class[immerable] = true;
+    Object.assign(Class.prototype, _methods);
     const metaClass = { fields, name, methods: _methods };
-    Object.assign(Class, this._statics, { getMetaClass: () => metaClass });
+    Object.assign(
+      Class,
+      {
+        getMetaClass: () => metaClass,
+        make(inArgs = {}, opts = {}) {
+          const args = {};
+          const scope = opts.scope ?? this.scope;
+          for (const key in inArgs) {
+            const field = fields[key];
+            if (compFields.has(key)) args[key] = mkCompField(field, scope, inArgs[key]);
+            else if (field === undefined)
+              console.warn("extra argument to constructor:", name, key, inArgs);
+            else args[key] = field.coerceOrDefault(inArgs[key]);
+          }
+          for (const key of compFields)
+            if (args[key] === undefined) args[key] = mkCompField(fields[key], scope, inArgs[key]);
+          return freeze(new this(args), true);
+        },
+      },
+      this._statics,
+    );
     return Class;
   }
   methods(proto) {
@@ -342,6 +258,7 @@ class ClassBuilder {
     return field;
   }
 }
+
 export const FIELD_CLASS = Symbol.for("tutuca.fieldClass");
 export const fieldsByTypeName = {
   text: FieldString,
@@ -349,39 +266,62 @@ export const fieldsByTypeName = {
   float: FieldFloat,
   bool: FieldBool,
   list: FieldList,
+  object: FieldObject,
   map: FieldMap,
-  omap: FieldOMap,
   set: FieldSet,
   any: FieldAny,
 };
+
+function fieldFromDescriptor(name, value) {
+  const FieldCls = fieldsByTypeName[value.type] ?? FieldAny;
+  const probe = new FieldCls(name);
+  return [FieldCls, probe.coerceOr(value.defaultValue, probe.defaultValue)];
+}
+
 export function classFromData(name, { fields = {}, methods, statics }) {
   const b = new ClassBuilder(name);
   for (const field in fields) {
     const value = fields[field];
     const type = typeof value;
     if (type === "string") b.addField(field, value, FieldString);
-    else if (type === "number") b.addField(field, value, FieldFloat);
+    else if (type === "number")
+      b.addField(field, value, Number.isInteger(value) ? FieldInt : FieldFloat);
     else if (type === "boolean") b.addField(field, value, FieldBool);
-    else if (List.isList(value) || Array.isArray(value)) b.addField(field, List(value), FieldList);
-    else if (ISet.isSet(value) || value instanceof Set) b.addField(field, ISet(value), FieldSet);
-    else if (OrderedMap.isOrderedMap(value)) b.addField(field, value, FieldOMap);
-    else if (value?.type && value?.defaultValue !== undefined) {
-      const Field = fieldsByTypeName[value.type] ?? FieldAny;
-      b.addField(field, new Field().coerceOr(value.defaultValue), Field);
+    else if (Array.isArray(value)) b.addField(field, [...value], FieldList);
+    else if (value instanceof Set) b.addField(field, new Set(value), FieldSet);
+    else if (value instanceof Map) b.addField(field, new Map(value), FieldMap);
+    else if (value?.type && Object.hasOwn(value, "defaultValue")) {
+      const [FieldCls, dval] = fieldFromDescriptor(field, value);
+      b.addField(field, dval, FieldCls);
     } else if (value?.component && value?.args !== undefined)
       b.addCompField(field, value.component, value.args);
-    else if (IMap.isMap(value) || value?.constructor === Object)
-      b.addField(field, IMap(value), FieldMap);
+    else if (isPlainObject(value)) b.addField(field, { ...value }, FieldObject);
     else {
-      const Field = value?.[FIELD_CLASS] ?? FieldAny;
-      b.addField(field, value, Field);
+      const FieldCls = value?.[FIELD_CLASS] ?? FieldAny;
+      b.addField(field, value, FieldCls);
     }
   }
   if (methods) b.methods(methods);
   if (statics) b.statics(statics);
   return b.build();
 }
-// injected here (not in components.js) to avoid a components.js -> oo.js import cycle;
-// component()/fromSpec build a fresh, fully independent Component+Class from a spec
+
+// Coerce direct draft assignments with the same policy used by Class.make(). A failed
+// assignment is reverted, matching the old generated setter's warn-and-no-op behavior.
+export function validateDraftFields(current, draft) {
+  const meta = current?.constructor?.getMetaClass?.();
+  if (!meta) return;
+  for (const [name, field] of Object.entries(meta.fields)) {
+    const value = draft[name];
+    if (field.isValid(value)) continue;
+    const coerced = field.coerceOr(value, BAD_VALUE);
+    if (coerced !== BAD_VALUE) draft[name] = coerced;
+    else {
+      console.warn(`invalid value for ${meta.name}.${name}`, value);
+      draft[name] = current[name];
+    }
+  }
+}
+
 Component.fromSpec = (opts) => new Component(classFromData(opts.name, opts), opts);
 export const component = (opts) => Component.fromSpec(opts);

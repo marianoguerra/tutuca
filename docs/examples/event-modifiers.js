@@ -4,8 +4,18 @@ export const EventModifiers = component({
   name: "EventModifiers",
   fields: { query: "", lastSentSearch: null, blockedNav: false },
   receive: {
-    onInput(value) {
-      return this.setQuery(value);
+    setLastSentSearch(draft, value) {
+      draft.lastSentSearch = value;
+    },
+    resetQuery(draft) {
+      draft.query = this.constructor.getMetaClass().fields.query.defaultValue;
+    },
+    toggleBlockedNav(draft) {
+      draft.blockedNav = !draft.blockedNav;
+    },
+
+    onInput(draft, value) {
+      draft.query = value;
     },
   },
   view: html`<section class="flex flex-col gap-3">
@@ -14,19 +24,15 @@ export const EventModifiers = component({
       class="input"
       :value=".query"
       @on.input="onInput value"
-      @on.keydown+send="$setLastSentSearch value"
-      @on.keydown+cancel="$resetQuery"
+      @on.keydown+send="setLastSentSearch value"
+      @on.keydown+cancel="resetQuery"
       placeholder="Search Query (Enter to send, Esc to clear)"
     />
-    <p @show="truthy? .lastSentSearch">
-      Search: "<span @text=".lastSentSearch"></span>"
-    </p>
-    <a href="https://example.com" @on.click+prevent="$toggleBlockedNav">
+    <p @show="truthy? .lastSentSearch">Search: "<span @text=".lastSentSearch"></span>"</p>
+    <a href="https://example.com" @on.click+prevent="toggleBlockedNav">
       A link whose navigation is prevented
     </a>
-    <p @show=".blockedNav">
-      The click ran the handler; the browser never followed the link.
-    </p>
+    <p @show=".blockedNav">The click ran the handler; the browser never followed the link.</p>
   </section>`,
 });
 

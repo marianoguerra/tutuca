@@ -5,6 +5,11 @@ import { component, html } from "tutuca";
 // conditionally. Clicking a swatch sets the `color` field; the preview rect
 // and the selected ring both react to it.
 const SwatchPicker = component({
+  receive: {
+    setColor(draft, value) {
+      draft.color = value;
+    },
+  },
   name: "SwatchPicker",
   fields: {
     color: "#ef4444",
@@ -39,12 +44,10 @@ const SwatchPicker = component({
         :fill="@value"
         stroke-width="3"
         :stroke="@ring"
-        @on.click="$setColor @value"
+        @on.click="setColor @value"
       ></circle>
     </svg>
-    <p class="text-sm">
-      Selected: <code @text=".color"></code>
-    </p>
+    <p class="text-sm">Selected: <code @text=".color"></code></p>
   </div>`,
 });
 

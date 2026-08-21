@@ -1,9 +1,10 @@
 import { component, html } from "tutuca";
-import { getComponents as getImComponents, ImInspector } from "../data/immutable-inspector.js";
+import { DataInspector, getComponents as getDataComponents } from "../data/data.js";
 import {
   compositeAlter,
   compositeFields,
   compositeMethods,
+  compositeReceive,
   makeCompositeView,
 } from "../data/json.js";
 
@@ -55,8 +56,7 @@ export const CompName = component({
 });
 
 // A single field row: `name : type = <default value>`. The default value is
-// rendered with ImInspector so primitives, JS arrays/objects, and Immutable
-// values all display nicely (and recurse/expand).
+// rendered with DataInspector so native values display nicely and recurse.
 export const CompField = component({
   name: "CompField",
   fields: { name: "", typeName: "", child: null },
@@ -81,12 +81,13 @@ export const CompView = component({
     },
   },
   receive: {
-    toggle(isCtrl, ctx) {
+    ...compositeReceive,
+    toggle(draft, isCtrl, ctx) {
       if (isCtrl) {
         ctx.intent("toggleAllViews", [!this.isExpanded], { route: ["dyn"] });
         return this;
       }
-      return this.toggleIsExpanded();
+      draft.isExpanded = !draft.isExpanded;
     },
   },
   view: html`<div class="flex flex-col gap-0.5 leading-tight">
@@ -106,7 +107,7 @@ export const CompView = component({
 });
 
 // A labelled, collapsible, paginated group of entries. Reuses the same
-// composite machinery the JSON/Immutable inspectors use.
+// composite machinery the data inspectors use.
 export const CompSection = component({
   name: "CompSection",
   fields: { ...compositeFields, label: "" },
@@ -116,16 +117,17 @@ export const CompSection = component({
       return this.label;
     },
     countText() {
-      return `(${this.items.size})`;
+      return `(${this.items.length})`;
     },
   },
   receive: {
-    toggle(isCtrl, ctx) {
+    ...compositeReceive,
+    toggle(draft, isCtrl, ctx) {
       if (isCtrl) {
         ctx.intent("toggleAllSections", [!this.isExpanded], { route: ["dyn"] });
         return this;
       }
-      return this.toggleIsExpanded();
+      draft.isExpanded = !draft.isExpanded;
     },
   },
   alter: compositeAlter,
@@ -141,35 +143,14 @@ export const ComponentInspector = component({
     idText() {
       return `#${this.compId}`;
     },
-    setAllSections(state) {
-      return this.setSections(this.sections.map((s) => s.setIsExpanded(state)));
-    },
-    expandAll() {
-      return this.setAllSections(true);
-    },
-    collapseAll() {
-      return this.setAllSections(false);
-    },
-    setAllViews(state) {
-      return this.setSections(
-        this.sections.map((s) =>
-          s.label === "Views" ? s.setItems(s.items.map((v) => v.setIsExpanded(state))) : s,
-        ),
-      );
-    },
-    expandAllViews() {
-      return this.setAllViews(true);
-    },
-    collapseAllViews() {
-      return this.setAllViews(false);
-    },
   },
   intent: {
-    toggleAllSections(state) {
-      return this.setAllSections(state);
+    toggleAllSections(draft, state) {
+      for (const section of draft.sections) section.isExpanded = state;
     },
-    toggleAllViews(state) {
-      return this.setAllViews(state);
+    toggleAllViews(draft, state) {
+      const section = draft.sections.find((candidate) => candidate.label === "Views");
+      if (section) for (const view of section.items) view.isExpanded = state;
     },
   },
   statics: {
@@ -190,7 +171,7 @@ export const ComponentInspector = component({
           CompField.make({
             name: f.name,
             typeName: f.type,
-            child: ImInspector.Class.fromData(f.defaultValue),
+            child: DataInspector.Class.fromData(f.defaultValue),
           }),
         ),
         true,
@@ -218,8 +199,8 @@ export const ComponentInspector = component({
 });
 
 export function getComponents() {
-  // The Immutable inspector set (which itself includes the JSON leaf
-  // components) is registered too so that field default values rendered via
+  // The data inspector set (which itself includes the JSON leaf components)
+  // is registered too so that field default values rendered via
   // `<x render=".child">` resolve to real components.
-  return [ComponentInspector, CompSection, CompField, CompName, CompView, ...getImComponents()];
+  return [ComponentInspector, CompSection, CompField, CompName, CompView, ...getDataComponents()];
 }

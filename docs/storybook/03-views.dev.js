@@ -11,6 +11,14 @@
 import { component, html } from "tutuca";
 
 const Profile = component({
+  receive: {
+    setName(draft, value) {
+      draft.name = value;
+    },
+    setRole(draft, value) {
+      draft.role = value;
+    },
+  },
   name: "Profile",
   fields: { name: "Ada Lovelace", role: "Mathematician" },
   // Extra named views. The default ("main") is the `view:` below.
@@ -19,8 +27,8 @@ const Profile = component({
       <span @text=".name"></span> · <span class="opacity-60" @text=".role"></span>
     </span>`,
     edit: html`<div class="flex flex-col gap-2 max-w-xs">
-      <input class="input" :value=".name" @on.input="$setName value" />
-      <input class="input" :value=".role" @on.input="$setRole value" />
+      <input class="input" :value=".name" @on.input="setName value" />
+      <input class="input" :value=".role" @on.input="setRole value" />
     </div>`,
   },
   view: html`<div class="card bg-base-100 shadow-sm max-w-xs">

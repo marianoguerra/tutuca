@@ -21,13 +21,16 @@ const Quadratic = component({
   view: html`<div class="flex flex-col gap-3">
     <div class="flex gap-3 text-sm">
       <label class="flex items-center gap-1">
-        a <input type="number" class="input input-sm w-16" :value=".a" @on.input="$setA valueAsInt" />
+        a
+        <input type="number" class="input input-sm w-16" :value=".a" @on.input="setA valueAsInt" />
       </label>
       <label class="flex items-center gap-1">
-        b <input type="number" class="input input-sm w-16" :value=".b" @on.input="$setB valueAsInt" />
+        b
+        <input type="number" class="input input-sm w-16" :value=".b" @on.input="setB valueAsInt" />
       </label>
       <label class="flex items-center gap-1">
-        c <input type="number" class="input input-sm w-16" :value=".c" @on.input="$setC valueAsInt" />
+        c
+        <input type="number" class="input input-sm w-16" :value=".c" @on.input="setC valueAsInt" />
       </label>
     </div>
 
@@ -57,6 +60,18 @@ const Quadratic = component({
 
     <p class="text-sm" @text="$classify"></p>
   </div>`,
+
+  receive: {
+    setA(draft, value) {
+      draft.a = value;
+    },
+    setB(draft, value) {
+      draft.b = value;
+    },
+    setC(draft, value) {
+      draft.c = value;
+    },
+  },
 });
 
 export function getComponents() {

@@ -1,16 +1,19 @@
 import { collectIterBindings, component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 
 const Greeter = component({
   name: "Greeter",
   fields: { name: "Ada", greetings: ["hello, Ada!"], filter: "" },
-  methods: {
-    addGreeting() {
-      return this.setGreetings(this.greetings.push(`hello, ${this.name}!`));
-    },
-  },
   receive: {
-    submitName(value) {
-      return this.setName(value);
+    setFilter(draft, value) {
+      draft.filter = value;
+    },
+    addGreeting(draft) {
+      draft.greetings.push(`hello, ${draft.name}!`);
+    },
+
+    submitName(draft, value) {
+      draft.name = value;
     },
   },
   alter: {
@@ -30,15 +33,13 @@ const Greeter = component({
         @on.input="submitName value"
         placeholder="Name"
       />
-      <button class="btn btn-primary join-item" @on.click="$addGreeting">
-        Greet
-      </button>
+      <button class="btn btn-primary join-item" @on.click="addGreeting">Greet</button>
     </div>
     <input
       type="search"
       class="input"
       :value=".filter"
-      @on.input="$setFilter value"
+      @on.input="setFilter value"
       placeholder="Filter greetings"
     />
     <ul>
@@ -60,28 +61,36 @@ export function getRoot() {
 export function getExamples() {
   return {
     title: "Testing Example",
-    description: "A small component with methods, input handlers, and iteration",
+    description: "A small component with receive handlers, computed methods, and iteration",
     items: [{ title: "Default", description: "Initial state", value: Greeter.make() }],
   };
 }
 
 export function getTests({ describe, test, expect }) {
   describe(Greeter, () => {
-    describe("addGreeting() — method", () => {
+    describe("addGreeting — receive handler", () => {
       test("appends a personalized greeting", () => {
-        const next = Greeter.make({ name: "Linus", greetings: [] }).addGreeting();
-        expect(next.greetings.toArray()).toEqual(["hello, Linus!"]);
+        const current = Greeter.make({ name: "Linus", greetings: [] });
+        const next = produce(current, (draft) => {
+          Greeter.receive.addGreeting.call(current, draft);
+        });
+        expect(next.greetings).toEqual(["hello, Linus!"]);
       });
       test("does not mutate the original instance", () => {
         const g = Greeter.make({ name: "Ada", greetings: [] });
-        g.addGreeting();
-        expect(g.greetings.size).toBe(0);
+        produce(g, (draft) => {
+          Greeter.receive.addGreeting.call(g, draft);
+        });
+        expect(g.greetings.length).toBe(0);
       });
     });
 
     describe("submitName() — input handler", () => {
       test("sets the name from the input value", () => {
-        const next = Greeter.receive.submitName.call(Greeter.make(), "Grace");
+        const current = Greeter.make();
+        const next = produce(current, (draft) => {
+          Greeter.receive.submitName.call(current, draft, "Grace");
+        });
         expect(next.name).toBe("Grace");
       });
     });

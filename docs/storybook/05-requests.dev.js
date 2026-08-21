@@ -19,11 +19,8 @@ const DataList = component({
   name: "DataList",
   fields: { rows: [], status: "idle" }, // idle | loading | loaded | error
   methods: {
-    // Methods invoked from events receive `ctx` as the last argument.
-    reload(ctx) {
-      ctx.intent("loadRows", [], { route: ["lex"] });
-      return this.setStatus("loading");
-    },
+    // Receive handlers invoked from events get the draft first and `ctx` last.
+
     isLoading() {
       return this.status === "loading";
     },
@@ -35,29 +32,38 @@ const DataList = component({
     },
   },
   receive: {
+    reload(draft, ctx) {
+      ctx.intent("loadRows", [], { route: ["lex"] });
+      draft.status = "loading";
+    },
+
     // The two outcomes of `loadRows`, each with its own name and its own shape. One
     // combined `(res, err)` arm would hand both to every call and leave the body to work
     // out which slot was filled — which is exactly how a split arm read the wrong one.
-    loadRowsOk(res) {
-      return this.setStatus("loaded").setRows(res);
+    loadRowsOk(draft, res) {
+      draft.status = "loaded";
+      draft.rows = res;
     },
-    loadRowsError() {
-      return this.setStatus("error");
+    loadRowsError(draft) {
+      draft.status = "error";
     },
     // Lifecycle `on.init.send` targets this; reuse the reload method.
-    load(ctx) {
-      return this.reload(ctx);
+    load(draft, ctx) {
+      ctx.intent("loadRows", [], { route: ["lex"] });
+      draft.status = "loading";
     },
   },
   view: html`<div class="flex flex-col gap-2 max-w-sm">
     <div class="flex items-center gap-2">
-      <button class="btn btn-sm btn-primary" @on.click="$reload">Reload</button>
+      <button class="btn btn-sm btn-primary" @on.click="reload">Reload</button>
       <span class="text-sm opacity-70">status: <code @text=".status"></code></span>
     </div>
     <div class="alert alert-info alert-soft" @show="$isLoading">Loading…</div>
     <div class="alert alert-error alert-soft" @show="$isError">Request failed</div>
     <ul class="menu bg-base-200 rounded w-full" @show="$isLoaded">
-      <li @each=".rows"><a><x text="@value"></x></a></li>
+      <li @each=".rows">
+        <a><x text="@value"></x></a>
+      </li>
     </ul>
   </div>`,
 });

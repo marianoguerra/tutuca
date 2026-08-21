@@ -71,8 +71,7 @@ COMMANDS (require <module-path>)
       --limit caps the total number of items emitted (0 = all).
 
   show <module> [name]
-      Show API docs (methods, input handlers, fields with their
-      auto-generated accessor/mutator methods) for every component, or
+      Show API docs (methods, receive/intent handlers, and fields) for every component, or
       for the single component whose name matches [name].
 
   lint <module> [name]
@@ -125,12 +124,11 @@ COMMANDS (no module required)
       and error code as JSON on stdout. Use this once to teach an agent the
       shape of the CLI; the schema is versioned (schemaVersion field).
 
-  install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all] [--dot-agents] [--dry-run] [--force]
+  install-skill [--user | --project] [--margaui-skill | --all] [--dot-agents] [--dry-run] [--force]
       Copy bundled Claude Code skill assets into .claude/skills/<name>/.
       Scope: --project (cwd, default) or --user (~/.claude/skills/).
       Selection (default is the tutuca skill):
         --margaui-skill    install the margaui skill instead
-        --immutable-skill  install the immutable-js skill instead
         --all              install every bundled skill
       --dot-agents installs into .agents/skills/ instead of .claude/skills/.
       --dry-run prints the files that would be written without touching disk.

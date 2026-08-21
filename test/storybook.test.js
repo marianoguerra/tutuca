@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { component, html, PASS } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
+import { produce } from "../src/immer.js";
 import { FieldStep, Path, SeqStep } from "../src/path.js";
 import {
   buildExampleIntentHandlers,
@@ -35,17 +36,22 @@ function makeBook() {
   return Storybook.make({ sections });
 }
 
+const testCtx = {
+  stop() {},
+  intent() {},
+  at: { index: () => ({ send() {} }) },
+};
+const applyHandler = (value, handlers, name, ...args) =>
+  produce(value, (draft) => handlers[name].call(value, draft, ...args, testCtx));
+const edit = (value, changes) =>
+  produce(value, (draft) => {
+    Object.assign(draft, changes);
+  });
+
 // response.loadState is thin orchestration over these public methods; replicate
 // its exact chain so the restore behavior is covered without the transactor.
 function restore(book, state) {
-  const next = book
-    .selectSectionWithId(state.section)
-    .setTheme(state.theme ?? "")
-    .setFilter(state.sectionFilter ?? "")
-    .setSelectedSectionFilter(state.exampleFilter ?? "");
-  return state.example
-    ? next.focusExampleByIds(state.section, state.example)
-    : next.setSectionId(null).setExampleId(null).setFocusExample(null);
+  return applyHandler(book, Storybook.receive, "loadStateOk", state);
 }
 
 describe("Storybook URL state", () => {
@@ -59,7 +65,7 @@ describe("Storybook URL state", () => {
   });
 
   test("toUrlState applies overrides over current state", () => {
-    const book = makeBook().setFilter("co");
+    const book = edit(makeBook(), { filter: "co" });
     expect(book.toUrlState({ section: "todo", example: "filled" })).toEqual({
       section: "todo",
       example: "filled",
@@ -69,8 +75,9 @@ describe("Storybook URL state", () => {
   });
 
   test("setSelectedSectionFilter only touches the selected section", () => {
-    const book = makeBook().selectSectionWithId("todo").setSelectedSectionFilter("fi");
-    expect(book.sections.get(book.selectedSectionIndex).filter).toBe("fi");
+    const selected = applyHandler(makeBook(), Storybook.intent, "sectionSelected", "todo");
+    const book = applyHandler(selected, Storybook.intent, "exampleFilterChanged", "fi");
+    expect(book.sections[book.selectedSectionIndex].filter).toBe("fi");
     expect(book.sections.find((s) => s.id === "counter").filter).toBe("");
   });
 
@@ -83,7 +90,7 @@ describe("Storybook URL state", () => {
     });
     expect(book.selectedSectionIndex).toBe(1);
     expect(book.filter).toBe("to");
-    expect(book.sections.get(1).filter).toBe("fi");
+    expect(book.sections[1].filter).toBe("fi");
     expect(book.sectionId).toBe("todo");
     expect(book.exampleId).toBe("filled");
     expect(book.focusExample).toBe(4);
@@ -111,7 +118,7 @@ describe("Storybook URL state", () => {
   // putting it in the base snapshot would stamp `?theme=light` onto the URL the first
   // time anyone typed in the filter. persistState only writes the keys it is handed.
   test("toUrlState omits the theme unless passed as an override", () => {
-    const book = makeBook().setTheme("dracula");
+    const book = edit(makeBook(), { theme: "dracula" });
     expect(book.toUrlState()).not.toHaveProperty("theme");
     expect(book.toUrlState({ theme: "nord" }).theme).toBe("nord");
   });
@@ -158,7 +165,7 @@ describe("Storybook theme switcher", () => {
   // No margaui CSS on the page means no themes to offer: mountStorybook leaves `themes`
   // empty and the view's `@hide="empty? .themes"` drops the <select> entirely.
   test("themes is empty by default, which hides the switcher", () => {
-    expect(makeBook().themes.size).toBe(0);
+    expect(makeBook().themes.length).toBe(0);
   });
 });
 
@@ -259,14 +266,15 @@ const Probe = component({
   name: "Probe",
   fields: { init: 0, resume: 0, suspend: 0, last: null },
   receive: {
-    onInit(arg, _ctx) {
-      return this.setInit(this.init + 1).setLast(arg ?? null);
+    onInit(draft, arg, _ctx) {
+      draft.init = this.init + 1;
+      draft.last = arg ?? null;
     },
-    onResume(_ctx) {
-      return this.setResume(this.resume + 1);
+    onResume(draft, _ctx) {
+      draft.resume = this.resume + 1;
     },
-    onSuspend(_ctx) {
-      return this.setSuspend(this.suspend + 1);
+    onSuspend(draft, _ctx) {
+      draft.suspend = this.suspend + 1;
     },
   },
   view: html`<div></div>`,
@@ -301,14 +309,14 @@ function runAll(t) {
   while (t.hasPendingTransactions) t.transactNext();
 }
 
-const probeAt = (book, section, item = 0) => book.sections.get(section).items.get(item).value;
+const probeAt = (book, section, item = 0) => book.sections[section].items[item].value;
 
 describe("Storybook lifecycle: section -> example -> value cascade", () => {
   test("sending init to a section runs each example's on.init and marks it initialized", () => {
     const t = lifecycleTransactor(probeBook(1));
     rootDispatcher(t).sendAtPath(new Path([new SeqStep("sections", 0)]), "init", []);
     runAll(t);
-    expect(t.state.val.sections.get(0).initialized).toBe(true);
+    expect(t.state.val.sections[0].initialized).toBe(true);
     expect(probeAt(t.state.val, 0).init).toBe(1);
   });
 
@@ -322,7 +330,7 @@ describe("Storybook lifecycle: section -> example -> value cascade", () => {
     rootDispatcher(t).sendAtPath(new Path([new SeqStep("sections", 0)]), "init", []);
     runAll(t);
     expect(probeAt(t.state.val, 0).init).toBe(0);
-    expect(t.state.val.sections.get(0).initialized).toBe(true);
+    expect(t.state.val.sections[0].initialized).toBe(true);
   });
 
   test("resume/suspend forward without flipping initialized", () => {
@@ -334,7 +342,7 @@ describe("Storybook lifecycle: section -> example -> value cascade", () => {
     runAll(t);
     const p = probeAt(t.state.val, 0);
     expect([p.resume, p.suspend, p.init]).toEqual([1, 1, 0]);
-    expect(t.state.val.sections.get(0).initialized).toBe(false);
+    expect(t.state.val.sections[0].initialized).toBe(false);
   });
 });
 
@@ -348,7 +356,7 @@ describe("Storybook lifecycle: section-switch transitions (intent.sectionSelecte
     t.pushIntent(
       new Path([new FieldStep("sections")]),
       "sectionSelected",
-      [t.state.val.sections.get(index).id],
+      [t.state.val.sections[index].id],
       { route: ["dyn"] },
     );
     runAll(t);
@@ -389,14 +397,10 @@ function mod(...rawSections) {
 }
 // Flatten the sidebar tree into [groupName, [entryTitles]] for terse assertions.
 function shape(book) {
-  return book.sidebar.toArray().map((g) => [g.name, g.rows.toArray().map((e) => e.title)]);
+  return book.sidebar.map((g) => [g.name, g.rows.map((e) => e.title)]);
 }
-const entryTitles = (g) => g.rows.toArray().map((e) => e.title);
-const visibleTitles = (g) =>
-  g.rows
-    .toArray()
-    .filter((e) => e.visible)
-    .map((e) => e.title);
+const entryTitles = (g) => g.rows.map((e) => e.title);
+const visibleTitles = (g) => g.rows.filter((e) => e.visible).map((e) => e.title);
 
 describe("Storybook retained sidebar", () => {
   test("ungrouped sections each become a headerless singleton, alphabetical (flat compat)", () => {
@@ -435,7 +439,7 @@ describe("Storybook retained sidebar", () => {
     const { root } = buildStorybook([
       mod({ group: ["Margaui"], title: "Controls", items: [{ title: "a", value: 1 }] }),
     ]);
-    expect(root.sidebar.get(0).name).toBe("");
+    expect(root.sidebar[0].name).toBe("");
   });
 
   test("clicking a sidebar entry highlights it (and only it) by section id", () => {
@@ -443,10 +447,9 @@ describe("Storybook retained sidebar", () => {
       mod({ title: "Counter", items: [{ title: "y", value: 1 }] }),
       mod({ title: "Todo", items: [{ title: "x", value: 2 }] }),
     ]);
-    const sel = root.markSidebarSelected("todo");
+    const sel = applyHandler(root, Storybook.intent, "sectionSelected", "todo");
     const selected = sel.sidebar
-      .toArray()
-      .flatMap((g) => g.rows.toArray())
+      .flatMap((g) => g.rows)
       .filter((e) => e.selected)
       .map((e) => e.sectionId);
     expect(selected).toEqual(["todo"]);
@@ -458,26 +461,26 @@ describe("Storybook retained sidebar", () => {
       mod({ group: "Margaui", title: "Layout", items: [{ title: "b", value: 2 }] }),
     ]);
     // Collapse (no filter): the group stays but its entries go invisible.
-    const collapsed = root.toggleSidebarGroup("Margaui");
-    expect(collapsed.sidebar.get(0).collapsed).toBe(true);
-    expect(visibleTitles(collapsed.sidebar.get(0))).toEqual([]);
-    expect(entryTitles(collapsed.sidebar.get(0))).toEqual(["Controls", "Layout"]); // still present
+    const collapsed = applyHandler(root, Storybook.intent, "groupToggled", "Margaui");
+    expect(collapsed.sidebar[0].collapsed).toBe(true);
+    expect(visibleTitles(collapsed.sidebar[0])).toEqual([]);
+    expect(entryTitles(collapsed.sidebar[0])).toEqual(["Controls", "Layout"]); // still present
 
     // A filter does NOT force-expand a collapsed group: the header stays visible (it
     // still has a match) but its rows stay hidden until the group is expanded.
-    const filtered = collapsed.setFilter("layout").applyFilterToSidebar("layout");
-    expect(filtered.sidebar.get(0).collapsed).toBe(true);
-    expect(filtered.sidebar.get(0).visible).toBe(true); // has a match → header shown
-    expect(visibleTitles(filtered.sidebar.get(0))).toEqual([]); // collapsed → rows hidden
+    const filtered = applyHandler(collapsed, Storybook.receive, "onApplyFilter", "layout");
+    expect(filtered.sidebar[0].collapsed).toBe(true);
+    expect(filtered.sidebar[0].visible).toBe(true); // has a match → header shown
+    expect(visibleTitles(filtered.sidebar[0])).toEqual([]); // collapsed → rows hidden
 
     // Expanding while the filter is active reveals only the matching row.
-    const expanded = filtered.toggleSidebarGroup("Margaui");
-    expect(expanded.sidebar.get(0).collapsed).toBe(false);
-    expect(visibleTitles(expanded.sidebar.get(0))).toEqual(["Layout"]);
+    const expanded = applyHandler(filtered, Storybook.intent, "groupToggled", "Margaui");
+    expect(expanded.sidebar[0].collapsed).toBe(false);
+    expect(visibleTitles(expanded.sidebar[0])).toEqual(["Layout"]);
 
     // Clearing the filter while expanded shows all rows again.
-    const cleared = expanded.setFilter("").applyFilterToSidebar("");
-    expect(visibleTitles(cleared.sidebar.get(0))).toEqual(["Controls", "Layout"]);
+    const cleared = applyHandler(expanded, Storybook.receive, "onApplyFilter", "");
+    expect(visibleTitles(cleared.sidebar[0])).toEqual(["Controls", "Layout"]);
   });
 
   test("collapsing while a filter is active hides the matching rows (not just the chevron)", () => {
@@ -486,22 +489,22 @@ describe("Storybook retained sidebar", () => {
       mod({ group: "G", title: "Alphabet", items: [{ title: "b", value: 2 }] }),
     ]);
     // Filter (expanded): both rows match and show.
-    const filtered = root.setFilter("alph").applyFilterToSidebar("alph");
-    expect(visibleTitles(filtered.sidebar.get(0))).toEqual(["Alpha", "Alphabet"]);
+    const filtered = applyHandler(root, Storybook.receive, "onApplyFilter", "alph");
+    expect(visibleTitles(filtered.sidebar[0])).toEqual(["Alpha", "Alphabet"]);
     // Collapse while the filter is active: chevron collapses AND the rows hide.
-    const collapsed = filtered.toggleSidebarGroup("G");
-    expect(collapsed.sidebar.get(0).collapsed).toBe(true);
-    expect(visibleTitles(collapsed.sidebar.get(0))).toEqual([]);
-    expect(collapsed.sidebar.get(0).visible).toBe(true); // still has matches → reopenable
+    const collapsed = applyHandler(filtered, Storybook.intent, "groupToggled", "G");
+    expect(collapsed.sidebar[0].collapsed).toBe(true);
+    expect(visibleTitles(collapsed.sidebar[0])).toEqual([]);
+    expect(collapsed.sidebar[0].visible).toBe(true); // still has matches → reopenable
   });
 
   test("filtering to zero matches hides the group (kept in tree, visible=false)", () => {
     const { root } = buildStorybook([
       mod({ group: "Margaui", title: "Controls", items: [{ title: "a", value: 1 }] }),
     ]);
-    const filtered = root.setFilter("nomatch").applyFilterToSidebar("nomatch");
-    expect(filtered.sidebar.size).toBe(1);
-    expect(filtered.sidebar.get(0).visible).toBe(false);
+    const filtered = applyHandler(root, Storybook.receive, "onApplyFilter", "nomatch");
+    expect(filtered.sidebar.length).toBe(1);
+    expect(filtered.sidebar[0].visible).toBe(false);
   });
 });
 

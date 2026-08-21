@@ -1,5 +1,5 @@
-import { isIndexed, isKeyed } from "../deps/immutable.js";
 import { NullDomCache, WeakMapDomCache } from "./cache.js";
+import { isIndexedSeq, isKeyedSeq, isSetSeq, seqEntries, seqGet, seqSize } from "./collection.js";
 import { h, render, VComment, VFragment } from "./vdom.js";
 
 const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
@@ -111,7 +111,7 @@ export class Renderer {
     };
     // A `keys` return is authoritative: the handler already filtered/paged, so
     // render exactly those keys in order and skip `@when`.
-    if (keys) imKeysIter(seq, renderOne, keys);
+    if (keys) keysIter(seq, renderOne, keys);
     else
       getSeqInfo(seq)(
         seq,
@@ -146,7 +146,11 @@ export class Renderer {
   }
 }
 export const getSeqInfo = (seq) =>
-  isIndexed(seq) ? imIndexedIter : isKeyed(seq) ? imKeyedIter : (seq?.[SEQ_INFO] ?? unkIter);
+  isIndexedSeq(seq)
+    ? nativeIndexedIter
+    : isKeyedSeq(seq) || isSetSeq(seq)
+      ? nativeKeyedIter
+      : (seq?.[SEQ_INFO] ?? unkIter);
 // Clamp a `@loop-with` `{ start, end }` range to `[0, size]` using
 // `Array.prototype.slice` semantics: end-exclusive, negatives count from the
 // end, `undefined` means the natural bound. `start`/`end` are positional.
@@ -189,9 +193,9 @@ export const unpackLoopResult = (result, seq) => {
 // sequences, `sk` otherwise) so event-path reconstruction resolves the key.
 // `@when` is NOT applied here — a `keys` return means the handler already
 // decided exactly what renders.
-const imKeysIter = (seq, visit, keys) => {
-  const attrName = isIndexed(seq) ? "si" : "sk";
-  for (const key of keys) visit(key, seq.get(key), attrName);
+const keysIter = (seq, visit, keys) => {
+  const attrName = isIndexedSeq(seq) ? "si" : "sk";
+  for (const key of keys) visit(key, seqGet(seq, key), attrName);
 };
 // The context object passed to a `@loop-with` handler as its 2nd argument:
 //   loopWith.call(it, seq, { lookup, filter })
@@ -204,18 +208,18 @@ export const makeLoopCtx = (stack, filter) => ({
   lookup: (name) => stack.lookupBind(name),
   filter: (key, value, iterData) => filter.call(stack.it, key, value, iterData),
 });
-const imIndexedIter = (seq, visit, start, end) => {
+const nativeIndexedIter = (seq, visit, start, end) => {
   // Random access skips the prefix/suffix entirely; `i` stays the original
   // index so `data-si` and path lookups (`EachBindStep`) keep their identity.
-  const [s, e] = normalizeRange(start, end, seq.size);
-  for (let i = s; i < e; i++) visit(i, seq.get(i), "si");
+  const [s, e] = normalizeRange(start, end, seqSize(seq));
+  for (let i = s; i < e; i++) visit(i, seq[i], "si");
 };
-const imKeyedIter = (seq, visit, start, end) => {
+const nativeKeyedIter = (seq, visit, start, end) => {
   // Keyed maps have no positional random access; the prefix is counted but
   // not visited/rendered, and iteration breaks once past `end`.
-  const [s, e] = normalizeRange(start, end, seq.size);
+  const [s, e] = normalizeRange(start, end, seqSize(seq));
   let i = 0;
-  for (const [k, v] of seq.toSeq().entries()) {
+  for (const [k, v] of seqEntries(seq)) {
     if (i >= e) break;
     if (i >= s) visit(k, v, "sk");
     i++;

@@ -1,4 +1,8 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
+
+const applyRecipe = (current, recipe, ...args) =>
+  produce(current, (draft) => recipe.call(current, draft, ...args));
 
 // SVG renders straight from a tutuca template: the `<svg>` subtree keeps its
 // namespace, so `<rect>` / `<line>` / `<text>` become real SVG elements.
@@ -14,7 +18,7 @@ const BarChart = component({
     // runs once per render, before the loop: divide the 300-wide viewBox
     // among however many bars there currently are
     layout(seq) {
-      const step = 300 / seq.size;
+      const step = 300 / seq.length;
       return { iterData: { step, barW: step * 0.62 } };
     },
     // runs per bar: turn an index + value into pixel geometry
@@ -28,15 +32,15 @@ const BarChart = component({
     },
   },
   receive: {
-    randomize() {
+    randomize(draft) {
       const next = this.values.map(() => Math.round(Math.random() * 90 + 10));
-      return this.setValues(next);
+      draft.values = next;
     },
-    addBar() {
-      return this.values.size >= 9 ? this : this.pushInValues(Math.round(Math.random() * 90 + 10));
+    addBar(draft) {
+      if (draft.values.length < 9) draft.values.push(Math.round(Math.random() * 90 + 10));
     },
-    removeBar() {
-      return this.values.size <= 1 ? this : this.removeInValuesAt(this.values.size - 1);
+    removeBar(draft) {
+      if (draft.values.length > 1) draft.values.pop();
     },
   },
   view: html`<div class="flex flex-col gap-3">
@@ -99,24 +103,25 @@ export function getExamples() {
 export function getTests({ describe, test, expect }) {
   describe(BarChart, () => {
     test("randomize keeps the bar count", () => {
-      const next = BarChart.receive.randomize.call(BarChart.make());
-      expect(next.values.size).toBe(6);
+      const current = BarChart.make();
+      const next = applyRecipe(current, BarChart.receive.randomize);
+      expect(next.values.length).toBe(6);
     });
     test("addBar appends one bar", () => {
-      expect(BarChart.receive.addBar.call(BarChart.make({ values: [10] })).values.size).toBe(2);
+      const current = BarChart.make({ values: [10] });
+      expect(applyRecipe(current, BarChart.receive.addBar).values.length).toBe(2);
     });
     test("addBar is capped at 9 bars", () => {
       const full = BarChart.make({ values: [1, 2, 3, 4, 5, 6, 7, 8, 9] });
-      expect(BarChart.receive.addBar.call(full)).toBe(full);
+      expect(applyRecipe(full, BarChart.receive.addBar)).toBe(full);
     });
     test("removeBar drops the last bar", () => {
-      expect(BarChart.receive.removeBar.call(BarChart.make({ values: [10, 20] })).values.size).toBe(
-        1,
-      );
+      const current = BarChart.make({ values: [10, 20] });
+      expect(applyRecipe(current, BarChart.receive.removeBar).values.length).toBe(1);
     });
     test("removeBar keeps at least one bar", () => {
       const one = BarChart.make({ values: [10] });
-      expect(BarChart.receive.removeBar.call(one)).toBe(one);
+      expect(applyRecipe(one, BarChart.receive.removeBar)).toBe(one);
     });
     test("layout splits the width evenly", () => {
       expect(

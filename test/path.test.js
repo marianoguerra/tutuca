@@ -1,6 +1,6 @@
-import { describe, expect, test } from "vitest";
 import { format } from "prettier";
-import { component, html, IMap } from "../index.js";
+import { describe, expect, test } from "vitest";
+import { component, html } from "../index.js";
 import {
   BindStep,
   DynEachStep,
@@ -26,6 +26,7 @@ import {
 } from "./json.js";
 
 const document = setupJsdom();
+const map = (value = {}) => new Map(Object.entries(value));
 
 const TARGET = "target-bool";
 const SELECTOR = `[data-test-id="${TARGET}"]`;
@@ -121,7 +122,7 @@ describe("Path - find JsonBool by uid", () => {
 
 describe("Path.compact", () => {
   test("drops BindStep and EachBindStep, preserves lookup and setValue", () => {
-    const root = IMap({ a: IMap({ b: 42 }) });
+    const root = map({ a: map({ b: 42 }) });
     const original = new Path([
       new BindStep({}),
       new FieldStep("a"),
@@ -144,7 +145,7 @@ describe("Path.compact", () => {
   });
 
   test("path of only frame-only steps compacts to empty path", () => {
-    const root = IMap({ x: 1 });
+    const root = map({ x: 1 });
     const original = new Path([new BindStep({}), new EachBindStep(null, "k")]);
     const compact = original.compact();
 
@@ -154,7 +155,7 @@ describe("Path.compact", () => {
   });
 
   test("abstracts EachRenderItStep to a SeqStep, preserving lookup/setValue", () => {
-    const root = IMap({ items: IMap({ k: IMap({ v: 7 }) }) });
+    const root = map({ items: map({ k: map({ v: 7 }) }) });
     const original = new Path([new EachRenderItStep("items", "k"), new FieldStep("v")]);
     const compact = original.compact();
 
@@ -174,7 +175,7 @@ describe("Path.compact", () => {
   });
 
   test("preserves SeqStep (traverses through field+key)", () => {
-    const root = IMap({ items: IMap({ k: IMap({ v: 7 }) }) });
+    const root = map({ items: map({ k: map({ v: 7 }) }) });
     const original = new Path([new BindStep({}), new SeqStep("items", "k"), new FieldStep("v")]);
     const compact = original.compact();
 
@@ -192,7 +193,7 @@ describe("@value inside @each click handler", () => {
       name: "List",
       fields: { items: [] },
       receive: {
-        noteClicked(item) {
+        noteClicked(draft, item) {
           received = item;
           return this;
         },
@@ -225,10 +226,20 @@ describe("@value inside @each click handler", () => {
     const List = component({
       name: "List",
       fields: { items: [] },
+      intent: {
+        removeItem(draft, key, ctx) {
+          ctx.forward({ route: ["dyn"] });
+        },
+      },
+      receive: {
+        removeItem(draft, key) {
+          draft.items.splice(key, 1);
+        },
+      },
       view: html`<div>
         <div @each=".items">
           <x render-it></x>
-          <button :data-uid=".uid" @on.click="$removeInItemsAt @key">x</button>
+          <button :data-uid=".uid" @on.click="removeItem @key">x</button>
         </div>
       </div>`,
     });
@@ -240,11 +251,11 @@ describe("@value inside @each click handler", () => {
       root,
       HeadlessParseContext,
     );
-    expect(app.state.val.items.size).toBe(2);
+    expect(app.state.val.items.length).toBe(2);
     container.querySelector('[data-uid="b"]').click();
     while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
-    expect(app.state.val.items.size).toBe(1);
-    expect(app.state.val.items.get(0).uid).toBe("a");
+    expect(app.state.val.items.length).toBe(1);
+    expect(app.state.val.items[0].uid).toBe("a");
     cleanup();
   });
 
@@ -259,7 +270,7 @@ describe("@value inside @each click handler", () => {
         // which the surrounding @each scope binds. The render-it pushes a frame
         // between that scope and the child view, so the lookup must STOP at the
         // frame and return null — NOT walk through to the iteration's binds.
-        recordIt(k, v) {
+        recordIt(draft, k, v) {
           receivedKey = k;
           receivedValue = v;
           return this;
@@ -300,9 +311,9 @@ describe("@value inside @each click handler", () => {
     const Item = component({ name: "Item", fields: { uid: "" } });
     const Bag = component({
       name: "Bag",
-      fields: { items: IMap() },
+      fields: { items: map() },
       receive: {
-        noteClicked(k, v) {
+        noteClicked(draft, k, v) {
           receivedKey = k;
           receivedValue = v;
           return this;
@@ -316,7 +327,7 @@ describe("@value inside @each click handler", () => {
       </div>`,
     });
     const root = Bag.make({
-      items: IMap({ alpha: Item.make({ uid: "alpha" }), beta: Item.make({ uid: "beta" }) }),
+      items: map({ alpha: Item.make({ uid: "alpha" }), beta: Item.make({ uid: "beta" }) }),
     });
     const { container, app, cleanup } = renderToHTMLNode(
       document,
@@ -349,7 +360,7 @@ describe("@enrich-with binds survive path rebuild", () => {
         },
       },
       receive: {
-        noteClicked(label) {
+        noteClicked(draft, label) {
           received = label;
           return this;
         },
@@ -391,7 +402,7 @@ describe("@enrich-with binds survive path rebuild", () => {
         },
       },
       receive: {
-        noteClicked(total) {
+        noteClicked(draft, total) {
           received = total;
           return this;
         },
@@ -428,7 +439,7 @@ describe("@enrich-with binds survive path rebuild", () => {
         },
       },
       receive: {
-        noteClicked(greeting) {
+        noteClicked(draft, greeting) {
           received = greeting;
           return this;
         },
@@ -465,7 +476,7 @@ describe("@on.drop bubbles to ancestor components", () => {
       name: "Parent",
       fields: { child: Child.make({ uid: "c1" }) },
       receive: {
-        onDrop(e) {
+        onDrop(draft, e) {
           captured.type = e.type;
           captured.self = this;
           return this;
@@ -540,11 +551,11 @@ describe("+prevent / +stop effect modifiers", () => {
       name: "EffectMods",
       fields: { n: 0 },
       receive: {
-        onClick() {
+        onClick(draft) {
           calls.push("click");
           return this;
         },
-        onKey() {
+        onKey(draft) {
           calls.push("key");
           return this;
         },
@@ -610,7 +621,7 @@ describe("dragInfo.lookupBind for @each items", () => {
       name: "Reorder",
       fields: { items: ["a", "b", "c"] },
       receive: {
-        onDropOnItem(_targetKey, dragInfo) {
+        onDropOnItem(draft, _targetKey, dragInfo) {
           sourceKey = dragInfo.lookupBind("key");
           return this;
         },
@@ -656,8 +667,8 @@ describe("dynamic variable as a path segment", () => {
       name: "Sheet",
       fields: { title: "untitled" },
       receive: {
-        rename() {
-          return this.setTitle("renamed");
+        rename(draft) {
+          draft.title = "renamed";
         },
       },
       view: html`<div class="sheet">
@@ -732,8 +743,8 @@ describe("dynamic variable as a path segment", () => {
       name: "Doc",
       fields: { title: "untitled" },
       receive: {
-        rename() {
-          return this.setTitle("renamed");
+        rename(draft) {
+          draft.title = "renamed";
         },
       },
       view: html`<button class="rename" @on.click="rename">x</button>`,
@@ -773,8 +784,8 @@ describe("dynamic variable as a path segment", () => {
       name: "Row",
       fields: { label: "" },
       receive: {
-        bump() {
-          return this.setLabel(`${this.label}!`);
+        bump(draft) {
+          draft.label = `${this.label}!`;
         },
       },
       view: html`<button class="row" :data-row=".label" @on.click="bump">r</button>`,
@@ -789,12 +800,12 @@ describe("dynamic variable as a path segment", () => {
     });
     const Grid = component({
       name: "Grid",
-      fields: { rows: IMap(), inner: null },
+      fields: { rows: map(), inner: null },
       provide: { rows: ".rows" },
       view: html`<div class="grid"><x render=".inner"></x></div>`,
     });
     const root = Grid.make({
-      rows: IMap({ a: Row.make({ label: "a" }), b: Row.make({ label: "b" }) }),
+      rows: map({ a: Row.make({ label: "a" }), b: Row.make({ label: "b" }) }),
       inner: Inner.make(),
     });
     const { container, app, cleanup } = renderToHTMLNode(
@@ -857,7 +868,7 @@ describe("dynamic variable as a path segment", () => {
       name: "Sheet",
       fields: { title: "untitled" },
       receive: {
-        ping(ctx) {
+        ping(draft, ctx) {
           ctx.intent("ping", [], { route: ["dyn"] });
           return this;
         },
@@ -915,8 +926,8 @@ describe("dynamic variable as a path segment", () => {
       name: "Sheet",
       fields: { title: "untitled" },
       receive: {
-        rename() {
-          return this.setTitle("renamed");
+        rename(draft) {
+          draft.title = "renamed";
         },
       },
       view: html`<button class="rename" @on.click="rename">x</button>`,
@@ -929,12 +940,12 @@ describe("dynamic variable as a path segment", () => {
     });
     const Workspace = component({
       name: "Workspace",
-      fields: { sheets: IMap(), selId: "", toolbar: null },
+      fields: { sheets: map(), selId: "", toolbar: null },
       provide: { active: ".sheets[.selId]" },
       view: html`<div class="workspace"><x render=".toolbar"></x></div>`,
     });
     const root = Workspace.make({
-      sheets: IMap({ a: Sheet.make({ title: "a" }), b: Sheet.make({ title: "b" }) }),
+      sheets: map({ a: Sheet.make({ title: "a" }), b: Sheet.make({ title: "b" }) }),
       selId: "b",
       toolbar: Toolbar.make(),
     });
@@ -966,7 +977,7 @@ describe("dynamic variable as a path segment", () => {
   });
 
   test("pinKeys freezes a SeqAccessStep's key into a literal SeqStep", () => {
-    const root = IMap({ sheets: IMap({ a: 1, b: 2 }), selId: "b" });
+    const root = map({ sheets: map({ a: 1, b: 2 }), selId: "b" });
     const path = new Path([new SeqAccessStep("sheets", "selId")]);
     const pinned = path.pinKeys(root);
     expect(pinned).not.toBe(path);
@@ -978,7 +989,7 @@ describe("dynamic variable as a path segment", () => {
   });
 
   test("pinKeys returns the same Path when there is nothing to pin", () => {
-    const root = IMap({ a: IMap({ b: 1 }) });
+    const root = map({ a: map({ b: 1 }) });
     const path = new Path([new FieldStep("a"), new FieldStep("b")]);
     expect(path.pinKeys(root)).toBe(path);
   });
@@ -999,11 +1010,11 @@ describe("dynamic variable as a path segment", () => {
     });
     const Owner = component({
       name: "Owner",
-      fields: { items: IMap(), child: null, picked: "" },
+      fields: { items: map(), child: null, picked: "" },
       provide: { items: ".items" },
       receive: {
-        pick(k) {
-          return this.setPicked(k);
+        pick(draft, k) {
+          draft.picked = k;
         },
       },
       view: html`<div class="owner">
@@ -1015,7 +1026,7 @@ describe("dynamic variable as a path segment", () => {
       </div>`,
     });
     const root = Owner.make({
-      items: IMap({ a: Entry.make({ name: "A" }), b: Entry.make({ name: "B" }) }),
+      items: map({ a: Entry.make({ name: "A" }), b: Entry.make({ name: "B" }) }),
       child: Child.make(),
     });
     // Render with the DOM cache ON (the bug only surfaces with caching): the
@@ -1055,8 +1066,8 @@ describe("passthrough component (bare <x render> as the whole view)", () => {
       name: "Child",
       fields: { title: "untitled" },
       receive: {
-        rename() {
-          return this.setTitle("renamed");
+        rename(draft) {
+          draft.title = "renamed";
         },
       },
       view: html`<button class="rename" @on.click="rename">x</button>`,
@@ -1121,8 +1132,8 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
       name: "Item",
       fields: { uid: "", visible: true },
       receive: {
-        tap() {
-          return this.setUid(`${this.uid}!`);
+        tap(draft) {
+          draft.uid = `${this.uid}!`;
         },
       },
       view: itemView,
@@ -1143,8 +1154,12 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     return renderToHTMLNode(document, [List, Item], null, root, HeadlessParseContext);
   }
 
-  const SHOW_THEN_CLICK = html`<button @show=".visible" @on.click="tap" :data-uid=".uid">x</button>`;
-  const CLICK_THEN_SHOW = html`<button @on.click="tap" @show=".visible" :data-uid=".uid">x</button>`;
+  const SHOW_THEN_CLICK = html`<button @show=".visible" @on.click="tap" :data-uid=".uid">
+    x
+  </button>`;
+  const CLICK_THEN_SHOW = html`<button @on.click="tap" @show=".visible" :data-uid=".uid">
+    x
+  </button>`;
 
   test("reconstructs the path for a visible item preceded by a hidden one", () => {
     const { container, app, cleanup } = appWith(SHOW_THEN_CLICK, [
@@ -1162,7 +1177,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     expect(handlers).not.toBeNull();
     // The path must resolve to item "b" (the second render-each entry), not the
     // hidden "a" whose dangling metas come first.
-    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items.get(1));
+    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items[1]);
     cleanup();
   });
 
@@ -1178,7 +1193,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     }).not.toThrow();
     const [path, handlers] = result;
     expect(handlers).not.toBeNull();
-    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items.get(1));
+    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items[1]);
     cleanup();
   });
 
@@ -1193,7 +1208,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     expect(() => {
       [path] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
     }).not.toThrow();
-    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items.get(2));
+    expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items[2]);
     cleanup();
   });
 
@@ -1208,8 +1223,8 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     container.querySelector('[data-uid="b"]').click();
     while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
     // Only the clicked, visible item should be mutated.
-    expect(app.state.val.items.get(1).uid).toBe("b!");
-    expect(app.state.val.items.get(0).uid).toBe("a");
+    expect(app.state.val.items[1].uid).toBe("b!");
+    expect(app.state.val.items[0].uid).toBe("a");
     cleanup();
   });
 });
@@ -1227,7 +1242,7 @@ describe("render-each is @each + <x render-it>: @key/@value semantics", () => {
       name: "REItem",
       fields: { uid: "" },
       receive: {
-        recordIt(k, v) {
+        recordIt(draft, k, v) {
           receivedKey = k;
           receivedValue = v;
           return this;
@@ -1263,8 +1278,8 @@ describe("render-each is @each + <x render-it>: @key/@value semantics", () => {
       name: "REItem2",
       fields: { uid: "" },
       receive: {
-        tap() {
-          return this.setUid(`${this.uid}!`);
+        tap(draft) {
+          draft.uid = `${this.uid}!`;
         },
       },
       view: html`<button :data-uid=".uid" @on.click="tap">x</button>`,
@@ -1286,8 +1301,8 @@ describe("render-each is @each + <x render-it>: @key/@value semantics", () => {
     );
     container.querySelector('[data-uid="b"]').click();
     while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
-    expect(app.state.val.items.get(1).uid).toBe("b!");
-    expect(app.state.val.items.get(0).uid).toBe("a");
+    expect(app.state.val.items[1].uid).toBe("b!");
+    expect(app.state.val.items[0].uid).toBe("a");
     cleanup();
   });
 });

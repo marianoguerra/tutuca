@@ -65,25 +65,39 @@ describe("binding member reads in views", () => {
   });
 
   test("a handler arg @value.title resolves through event-path replay", () => {
+    const PickItem = component({
+      name: "PickItem",
+      fields: { title: "" },
+      receive: {
+        pick(draft, title) {
+          draft.picked = title;
+        },
+      },
+    });
     const Pick = component({
       name: "Pick",
       fields: { rows: [], picked: "" },
-      methods: {
-        pick(title) {
-          return this.setPicked(title);
+      receive: {
+        pick(draft, title) {
+          draft.picked = title;
+        },
+      },
+      intent: {
+        pick(draft, title) {
+          draft.picked = title;
         },
       },
       view: html`<ul>
         <li @each=".rows">
-          <button :data-key="@key" @on.click="$pick @value.title">pick</button>
+          <button :data-key="@key" @on.click="pick @value.title">pick</button>
         </li>
       </ul>`,
     });
     const { container, app, cleanup } = renderToHTMLNode(
       document,
-      [Pick, Item],
+      [Pick, PickItem],
       null,
-      Pick.make({ rows: items }),
+      Pick.make({ rows: items.map((item) => PickItem.make({ title: item.title })) }),
       HeadlessParseContext,
     );
     container.querySelector('button[data-key="1"]').click();
@@ -100,7 +114,7 @@ describe("@enrich-with cannot overwrite key/value", () => {
       fields: { rows: [] },
       alter: {
         hijack(binds, _key, value) {
-          binds.value = value.setTitle("hacked");
+          binds.value = Item.make({ ...value, title: "hacked" });
         },
       },
       view: html`<ul>

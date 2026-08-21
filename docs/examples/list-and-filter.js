@@ -2,6 +2,14 @@ import { component, html } from "tutuca";
 import { ITEMS } from "./_shared-data.js";
 
 export const ListAndFilter = component({
+  receive: {
+    setQuery(draft, value) {
+      draft.query = value;
+    },
+    resetQuery(draft) {
+      draft.query = this.constructor.getMetaClass().fields.query.defaultValue;
+    },
+  },
   name: "ListAndFilter",
   fields: { items: [], query: "" },
   alter: {
@@ -13,15 +21,13 @@ export const ListAndFilter = component({
     <input
       type="search"
       :value=".query"
-      @on.input="$setQuery value"
-      @on.keydown+cancel="$resetQuery"
+      @on.input="setQuery value"
+      @on.keydown+cancel="resetQuery"
       class="input"
       placeholder="Filter entries"
     />
     <ul>
-      <li @each=".items" @when="filterItem">
-        <span @text="@key"></span>: <x text="@value"></x>
-      </li>
+      <li @each=".items" @when="filterItem"><span @text="@key"></span>: <x text="@value"></x></li>
     </ul>
   </section>`,
 });

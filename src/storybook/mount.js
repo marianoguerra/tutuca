@@ -4,6 +4,7 @@
 // functional but unstyled. The inspector tab views are decoupled the same way:
 // rendering comes from tutuca/components, lint/test DATA from the injected `dev`.
 import { injectCss, tutuca } from "tutuca";
+import { produce } from "tutuca/immer";
 import { subscribeExampleActivity } from "./activity.js";
 import { buildExampleIntentHandlers, buildStorybook } from "./build.js";
 import { attachInspectorViews } from "./inspect.js";
@@ -37,7 +38,13 @@ export async function mountStorybook(
   const base = root ?? built.root;
   // The switcher's option list. Left empty (the field default) without a `themes`
   // option, which is what hides the switcher — see Storybook.themes.
-  app.state.set(themeBaseUrl && base.setThemes ? base.setThemes(MARGAUI_THEMES) : base);
+  app.state.set(
+    themeBaseUrl
+      ? produce(base, (draft) => {
+          draft.themes = MARGAUI_THEMES;
+        })
+      : base,
+  );
   // The root scope owns the engine + inspector components, the shared macros, and
   // all request handlers. Each module then gets its OWN child scope (below): module
   // components resolve their own names locally and inherit everything here via parent

@@ -72,7 +72,7 @@ const panel = macro(
 
 ```html
 <x:panel>
-  <x slot="actions"><button @on.click="$inc">+</button></x>
+  <x slot="actions"><button @on.click="inc">+</button></x>
   <p>default slot content</p>
   <x slot="footer">© 2026</x>
 </x:panel>

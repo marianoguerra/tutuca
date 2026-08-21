@@ -7,19 +7,21 @@ One question picks the channel: **does the sender know who handles this?**
 
 ```js
 // send / receive — YES: deliver to one target (self, or ctx.at.<step> for another)
-methods: { submit(ctx) { ctx.at.field("status").send("flash", [this.draft]); return this; } },
-receive: { flash(message) { return this.setMessage(message); } },
+receive: {
+  submit(_draft, ctx) { ctx.at.field("status").send("flash", [this.draft]); },
+  flash(draft, message) { draft.message = message; },
+},
 
 // intent on the `dyn` leg — NO: walk the ancestors; a handler that replies ends the walk
-receive: { onItemClick(ctx) { ctx.intent("itemSelected", [this.label], { route: ["dyn"] }); return this; } },
-intent:  { itemSelected(label) { return this.insertInLogAt(0, label); } },
+receive: { onItemClick(_draft, ctx) { ctx.intent("itemSelected", [this.label], { route: ["dyn"] }); } },
+intent:  { itemSelected(draft, label) { draft.log.unshift(label); } },
 
 // intent on the `lex` leg — NO: async host work, answered back into state
 receive: {
-  init(ctx) { ctx.intent("loadData", [], { route: ["lex"] }); return this.setIsLoading(true); },
-  loadDataOk(items)      { return this.setIsLoading(false).setItems(items); },
-  loadDataError(err)     { return this.setIsLoading(false).setError(String(err)); },
-  loadDataUnhandled()    { return this.setIsLoading(false); },
+  init(draft, ctx) { draft.isLoading = true; ctx.intent("loadData", [], { route: ["lex"] }); },
+  loadDataOk(draft, items)      { draft.isLoading = false; draft.items = items; },
+  loadDataError(draft, err)     { draft.isLoading = false; draft.error = String(err); },
+  loadDataUnhandled(draft)      { draft.isLoading = false; },
 },
 ```
 

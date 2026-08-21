@@ -6,11 +6,19 @@ const Item = component({
     completed: false,
     text: "do the thing",
   },
+  receive: {
+    setCompleted(draft, value) {
+      draft.completed = value;
+    },
+    setText(draft, value) {
+      draft.text = value;
+    },
+  },
   view: html`<x:hbox>
-    <x:checkbox :value=".completed" :handler="$setCompleted"></x:checkbox>
+    <x:checkbox :value=".completed" :handler="setCompleted"></x:checkbox>
     <x:input
       :value=".text"
-      :handler="$setText"
+      :handler="setText"
       :disabled=".completed"
     ></x:input>
   </x:hbox>`,
@@ -22,8 +30,11 @@ const Items = component({
     items: [],
   },
   receive: {
-    onAddItem(Item) {
-      return this.pushInItems(Item.make({ completed: false, text: "do the thing" }));
+    removeInItemsAt(draft, key) {
+      draft.items.splice(key, 1);
+    },
+    onAddItem(draft, Item) {
+      draft.items.push(Item.make({ completed: false, text: "do the thing" }));
     },
   },
   view: html`<x:vbox>
@@ -35,14 +46,14 @@ const Items = component({
     <x:vbox class="w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>
-        <x:btn-rm :handler="$removeInItemsAt" :arg="@key"></x:btn-rm>
+        <x:btn-rm :handler="removeInItemsAt" :arg="@key"></x:btn-rm>
       </div>
     </x:vbox>
   </x:vbox>`,
 });
 
 const checkbox = macro(
-  { value: ".value", handler: "$setValue" },
+  { value: ".value", handler: "setValue" },
   html`<input
     type="checkbox"
     class="checkbox"
@@ -52,7 +63,7 @@ const checkbox = macro(
 );
 
 const input = macro(
-  { value: ".value", handler: "$setValue", disabled: "false" },
+  { value: ".value", handler: "setValue", disabled: "false" },
   html`<input
     class="input"
     :value="^value"

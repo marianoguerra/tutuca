@@ -3,7 +3,6 @@
 //   - tutuca        — copied locally from docs/skill/
 //   - tutuca-source — wraps dist/tutuca.ext.js so the agent can grep it
 //   - margaui       — cloned + generated from the margaui repo
-//   - immutable-js  — cloned from the immutable-js repo's prebuilt skill
 //
 // Run with no args to build all; pass names to build a subset, e.g.
 //   node scripts/build-skill.js tutuca
@@ -155,36 +154,12 @@ function buildMargaui() {
   });
 }
 
-// --- immutable-js: cloned from the immutable-js repo's prebuilt skill ------
-
-function buildImmutable() {
-  const REPO_URL = "https://github.com/marianoguerra/immutable-js.git";
-  const BRANCH = "7.x";
-  const UPSTREAM_SKILL = ".claude/skills/immutable-js";
-  const outDir = resolve(skillDir, "immutable-js");
-
-  withClone(REPO_URL, { branch: BRANCH }, (tmp, sha) => {
-    const src = resolve(tmp, UPSTREAM_SKILL);
-    if (!existsSync(resolve(src, "SKILL.md"))) {
-      process.stderr.write(`build-skill: ${UPSTREAM_SKILL}/SKILL.md missing in clone\n`);
-      process.exit(1);
-    }
-
-    rmSync(outDir, { recursive: true, force: true });
-    cpSync(src, outDir, { recursive: true });
-    process.stdout.write(
-      `built skill/immutable-js/ from ${REPO_URL}@${sha} (${BRANCH}) → ${outDir}\n`,
-    );
-  });
-}
-
 // --- entry point -----------------------------------------------------------
 
 const builders = {
   tutuca: buildTutuca,
   "tutuca-source": buildTutucaSource,
   margaui: buildMargaui,
-  "immutable-js": buildImmutable,
 };
 
 const selected = process.argv.slice(2);

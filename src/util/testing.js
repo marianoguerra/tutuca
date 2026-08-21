@@ -1,3 +1,4 @@
+import { seqGet } from "../collection.js";
 import {
   filterAlwaysTrue,
   getSeqInfo,
@@ -34,8 +35,6 @@ function resolveAlter(Comp, name) {
   }
   return fn;
 }
-
-const seqGet = (seq, key) => (Array.isArray(seq) ? seq[key] : seq.get ? seq.get(key) : seq[key]);
 
 // Mirror the render loop for tests: resolve `@when` / `@loop-with` / `@enrich-with`
 // and return the `{ key, value, ...enriched }` binds the loop would render.

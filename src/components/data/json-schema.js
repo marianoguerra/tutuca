@@ -4,6 +4,7 @@ import {
   compositeAlter,
   compositeFields,
   compositeMethods,
+  compositeReceive,
   getComponents as getJsonComponents,
   JsonViewer,
   valueWrapperMethods,
@@ -64,7 +65,7 @@ function makeSchemaView(accent, body = GRID_BODY) {
         type="button"
         class="cursor-pointer text-base-content/70 hover:text-base-content inline-flex items-center gap-1"
         :disabled="$isItemsEmpty"
-        @on.click="$toggleIsExpanded"
+        @on.click="toggleIsExpanded"
       >
         <span @hide="$isItemsEmpty" @text="$arrowText"></span>
         <span class="${accent} font-semibold" @text="$typeText"></span>
@@ -83,7 +84,7 @@ function makeSchemaView(accent, body = GRID_BODY) {
           type="button"
           class="join-item btn btn-xs"
           :disabled="$cannotPrevPage"
-          @on.click="$prevPage"
+          @on.click="prevPage"
         >
           «
         </button>
@@ -95,7 +96,7 @@ function makeSchemaView(accent, body = GRID_BODY) {
           type="button"
           class="join-item btn btn-xs"
           :disabled="$cannotNextPage"
-          @on.click="$nextPage"
+          @on.click="nextPage"
         >
           »
         </button>
@@ -306,6 +307,7 @@ export const SchemaScalar = component({
       return "";
     },
   }),
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
@@ -327,9 +329,10 @@ export const SchemaObject = component({
   fields: schemaNodeFields,
   methods: schemaNodeMethods({
     countText() {
-      return this.items.size > 0 ? `{${this.items.size}}` : "";
+      return this.items.length > 0 ? `{${this.items.length}}` : "";
     },
   }),
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
@@ -394,9 +397,10 @@ export const SchemaArray = component({
   fields: schemaNodeFields,
   methods: schemaNodeMethods({
     countText() {
-      return this.items.size > 0 ? `[${this.items.size}]` : "";
+      return this.items.length > 0 ? `[${this.items.length}]` : "";
     },
   }),
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
@@ -450,9 +454,10 @@ export const SchemaEnum = component({
   fields: schemaNodeFields,
   methods: schemaNodeMethods({
     countText() {
-      return this.items.size > 0 ? `(${this.items.size})` : "";
+      return this.items.length > 0 ? `(${this.items.length})` : "";
     },
   }),
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
@@ -496,9 +501,10 @@ export const SchemaCombinator = component({
   fields: schemaNodeFields,
   methods: schemaNodeMethods({
     countText() {
-      return this.items.size > 0 ? `(${this.items.size})` : "";
+      return this.items.length > 0 ? `(${this.items.length})` : "";
     },
   }),
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(schema, recurse) {
@@ -669,11 +675,16 @@ export const SchemaViewer = component({
       });
     },
   },
+  receive: {
+    toggleShowRaw(draft) {
+      draft.showRaw = !draft.showRaw;
+    },
+  },
   view: html`<div class="inline-flex flex-col items-start gap-1">
     <button
       type="button"
       class="btn btn-xs btn-ghost self-end"
-      @on.click="$toggleShowRaw"
+      @on.click="toggleShowRaw"
       @text="$toggleLabel"
     ></button>
     <x render=".value" @hide=".showRaw"></x>

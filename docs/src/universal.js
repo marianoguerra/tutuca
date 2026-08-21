@@ -1,5 +1,6 @@
 import { compile } from "margaui";
 import { compileClassesToStyleText, component, html, tutuca } from "tutuca";
+import { produce } from "tutuca/immer";
 
 const APP_ROOT = "#app";
 
@@ -52,7 +53,11 @@ async function main() {
       }
       compileStyle();
       app.recompileStyles();
-      app.state.update((v) => v.setComponents(examples));
+      app.state.update((current) =>
+        produce(current, (draft) => {
+          draft.components = examples;
+        }),
+      );
       return results;
     },
   });
@@ -79,13 +84,18 @@ function getRoot() {
 }
 
 const ComponentSelector = component({
+  receive: {
+    setFilterText(draft, value) {
+      draft.filterText = value;
+    },
+  },
   name: "ComponentSelector",
   fields: { filterText: "" },
   lookup: {
     components: { for: "Universal.components", default: ".items" },
   },
   intent: {
-    listItemSelected(entry, ctx) {
+    listItemSelected(draft, entry, ctx) {
       ctx.stop();
       return entry.value;
     },
@@ -103,7 +113,7 @@ const ComponentSelector = component({
         class="input input-m"
         placeholder="Filter entries"
         :value=".filterText"
-        @on.input="$setFilterText value"
+        @on.input="setFilterText value"
       />
     </div>
     <div class="list" @hide="empty? *components">
@@ -117,15 +127,15 @@ const Universal = component({
   fields: { value: ComponentSelector.make(), components: [] },
   provide: { components: ".components" },
   receive: {
-    registerModuleFromCodeOk(res) {
+    registerModuleFromCodeOk(draft, res) {
       console.log("registerModuleFromCode ok", res);
       return this;
     },
-    registerModuleFromCodeError(err) {
+    registerModuleFromCodeError(draft, err) {
       console.error("registerModuleFromCode failed", err);
       return this;
     },
-    onDrop(e, ctx) {
+    onDrop(draft, e, ctx) {
       const files = e.dataTransfer?.files;
       if (files?.length) {
         Promise.all(Array.from(files, (file) => file.text())).then((codes) =>
@@ -135,11 +145,7 @@ const Universal = component({
       return this;
     },
   },
-  view: html`<section
-    class="m-3"
-    @on.drop="onDrop event"
-    data-droptarget="universal-components"
-  >
+  view: html`<section class="m-3" @on.drop="onDrop event" data-droptarget="universal-components">
     <x render=".value"></x>
   </section>`,
 });
@@ -160,15 +166,15 @@ const Example = component({
     },
   },
   receive: {
-    onLogSelected() {
+    onLogSelected(draft) {
       console.log(this.value);
       return this;
     },
-    onFocusSelected(ctx) {
+    onFocusSelected(draft, ctx) {
       ctx.intent("exampleFocusRequested", [this], { route: ["dyn"] });
       return this;
     },
-    onListItemSelected(ctx) {
+    onListItemSelected(draft, ctx) {
       ctx.intent("listItemSelected", [this], { route: ["dyn"] });
       return this;
     },
@@ -178,12 +184,8 @@ const Example = component({
       <h2 class="card-title flex justify-between">
         <a :href="$'#example-{.id}'" :id="$'example-{.id}'" @text=".title"></a>
         <div class="flex gap-2">
-          <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected ctx">
-            focus
-          </button>
-          <button class="btn btn-ghost btn-sm" @on.click="onLogSelected">
-            log
-          </button>
+          <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected ctx">focus</button>
+          <button class="btn btn-ghost btn-sm" @on.click="onLogSelected">log</button>
         </div>
       </h2>
       <p class="text-md italic opacity-60" @text=".description"></p>
@@ -198,10 +200,7 @@ const Example = component({
       @on.click="onListItemSelected"
     >
       <div @text=".title" class="list-col-grow"></div>
-      <p
-        class="text-xs opacity-60 list-col-wrap truncate"
-        @text=".description"
-      ></p>
+      <p class="text-xs opacity-60 list-col-wrap truncate" @text=".description"></p>
     </div>`,
   },
 });

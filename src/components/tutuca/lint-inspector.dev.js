@@ -11,7 +11,7 @@ const lintReport = {
       componentName: "Broken",
       findings: [
         {
-          id: "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED",
+          id: "EVENT_HANDLER_METHOD_NOT_ALLOWED",
           level: "error",
           info: { name: "missingMethod", eventName: "click", originAttr: "@on.click" },
           context: { componentName: "Broken", viewName: "main" },
@@ -68,7 +68,7 @@ export function getExamples() {
   return {
     title: "LintReport",
     description:
-      "LintReport renders `tutuca lint --json`: a neutral title with soft severity tallies over per-component groups. Each finding shows a soft level badge, a human-readable message (mirroring the CLI's own wording), an optional fix suggestion, and the full id/info/context via ImInspector. Colour is reserved for severity; structure stays neutral. Clean components are omitted; a fully clean run shows a soft 'clean' badge.",
+      "LintReport renders `tutuca lint --json`: a neutral title with soft severity tallies over per-component groups. Each finding shows a soft level badge, a human-readable message (mirroring the CLI's own wording), an optional fix suggestion, and the full id/info/context via DataInspector. Colour is reserved for severity; structure stays neutral. Clean components are omitted; a fully clean run shows a soft 'clean' badge.",
     items: [
       {
         title: "Module with findings (error component auto-expanded)",
@@ -104,30 +104,30 @@ export function getTests({ describe, test, expect }) {
       expect(r.warnings).toBe(2);
       expect(r.hints).toBe(1);
       expect(r.clean).toBe(false);
-      expect(r.components.size).toBe(1); // Good (no findings) omitted
+      expect(r.components.length).toBe(1); // Good (no findings) omitted
     });
 
     test("clean report flags clean and has no component groups", () => {
       const r = LintReport.Class.fromData(cleanReport);
       expect(r.clean).toBe(true);
-      expect(r.components.size).toBe(0);
+      expect(r.components.length).toBe(0);
     });
   });
 
   describe(LintComponent, () => {
     test("counts findings by level and expands on error", () => {
-      const broken = LintReport.Class.fromData(lintReport).components.first();
+      const broken = LintReport.Class.fromData(lintReport).components[0];
       expect(broken).toBeInstanceOf(LintComponent.Class);
       expect(broken.componentName).toBe("Broken");
       expect(broken.countText()).toBe("3 errors, 2 warnings, 1 hint");
       expect(broken.isExpanded).toBe(true);
-      expect(broken.items.size).toBe(6);
+      expect(broken.items.length).toBe(6);
     });
   });
 
   describe(LintFinding, () => {
     test("error finding: level, human message, soft badge class", () => {
-      const f = LintReport.Class.fromData(lintReport).components.first().items.first();
+      const f = LintReport.Class.fromData(lintReport).components[0].items[0];
       expect(f).toBeInstanceOf(LintFinding.Class);
       expect(f.level).toBe("error");
       expect(f.message).toBe("Method '$missingMethod' is not implemented in @on.click");
@@ -136,8 +136,8 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("warn finding surfaces the fix suggestion", () => {
-      const items = LintReport.Class.fromData(lintReport).components.first().items;
-      const warn = items.get(2);
+      const items = LintReport.Class.fromData(lintReport).components[0].items;
+      const warn = items[2];
       expect(warn.level).toBe("warn");
       expect(warn.message).toContain("Redundant string template");
       expect(warn.suggestion).toBe("$'{.title}' → .title");

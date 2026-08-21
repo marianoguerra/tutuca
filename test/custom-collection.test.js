@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { component, html, IMap, List, SEQ_INFO } from "../index.js";
+import { component, html, SEQ_INFO } from "../index.js";
+import { immerable } from "../src/immer.js";
 import { renderToHTML, renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";
 
@@ -8,20 +9,28 @@ const document = setupJsdom();
 // Mirrors docs/examples/custom-collection.js (which imports the dist build):
 // a minimal keyed list registering a SEQ_INFO walker so @each can iterate it.
 class KeyedList {
-  constructor(items = IMap(), order = List()) {
+  [immerable] = true;
+  constructor(items = new Map(), order = []) {
     this.items = items;
     this.order = order;
   }
   set(k, v) {
-    const order = this.items.has(k) ? this.order : this.order.push(k);
-    return new KeyedList(this.items.set(k, v), order);
+    const items = new Map(this.items);
+    const order = this.items.has(k) ? this.order : [...this.order, k];
+    items.set(k, v);
+    return new KeyedList(items, order);
   }
   get(k, dval = null) {
-    return this.items.get(k, dval);
+    return this.items.get(k) ?? dval;
   }
   delete(k) {
     if (!this.items.has(k)) return this;
-    return new KeyedList(this.items.delete(k), this.order.delete(this.order.indexOf(k)));
+    const items = new Map(this.items);
+    items.delete(k);
+    return new KeyedList(
+      items,
+      this.order.filter((key) => key !== k),
+    );
   }
   get size() {
     return this.items.size;
@@ -34,15 +43,28 @@ KeyedList.prototype[SEQ_INFO] = (seq, visit, start, end) => {
 const Song = component({
   name: "Song",
   fields: { title: "" },
+  receive: {
+    removeSong(draft, key) {
+      draft.songs.items.delete(key);
+      draft.songs.order.splice(draft.songs.order.indexOf(key), 1);
+    },
+  },
   view: html`<span @text=".title"></span>`,
 });
 
 const Playlist = component({
   name: "Playlist",
   fields: { songs: new KeyedList() },
-  methods: {
-    removeSong(key) {
-      return this.setSongs(this.songs.delete(key));
+  receive: {
+    removeSong(draft, key) {
+      draft.songs.items.delete(key);
+      draft.songs.order.splice(draft.songs.order.indexOf(key), 1);
+    },
+  },
+  intent: {
+    removeSong(draft, key) {
+      draft.songs.items.delete(key);
+      draft.songs.order.splice(draft.songs.order.indexOf(key), 1);
     },
   },
   alter: {
@@ -53,7 +75,7 @@ const Playlist = component({
   view: html`<ul>
     <li @each=".songs">
       <x render-it></x>
-      <button :data-key="@key" @on.click="$removeSong @key">remove</button>
+      <button :data-key="@key" @on.click="removeSong @key">remove</button>
     </li>
   </ul>`,
   views: {

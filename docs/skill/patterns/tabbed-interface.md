@@ -10,14 +10,14 @@ shows, and the active tab button is highlighted.
     @if.class="equals? .currentView 'overview'"
     @then="'tab tab-active'"
     @else="'tab'"
-    @on.click="$setCurrentView 'overview'"
+    @on.click="selectView 'overview'"
   >Overview</button>
   <button
     role="tab"
     @if.class="equals? .currentView 'pricing'"
     @then="'tab tab-active'"
     @else="'tab'"
-    @on.click="$setCurrentView 'pricing'"
+    @on.click="selectView 'pricing'"
   >Pricing</button>
 </div>
 
@@ -26,13 +26,18 @@ shows, and the active tab button is highlighted.
 ```
 
 ```js
-fields: { currentView: "overview" },   // $setCurrentView is auto-generated
+fields: { currentView: "overview" },
+receive: {
+  selectView(draft, view) {
+    draft.currentView = view;
+  },
+},
 ```
 
 One string field is the whole state machine. `equals? .currentView 'overview'`
 drives both the panel's `@show` and the active-tab class via `@if.class` /
-`@then` / `@else`. Tab clicks call the auto-generated setter with a
-string-literal arg (`@on.click="$setCurrentView 'pricing'"`). This toggles
+`@then` / `@else`. Tab clicks call the draft recipe with a string-literal
+argument (`@on.click="selectView 'pricing'"`). This toggles
 **sibling panels** by predicate; to swap a *component's own* rendered view
 instead, see the switch-between-views recipe. The field name is yours to pick
 (`tab`, `currentView`, …).

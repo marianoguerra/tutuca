@@ -1,5 +1,9 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 import { ITEMS } from "./_shared-data.js";
+
+const applyRecipe = (current, recipe, ...args) =>
+  produce(current, (draft) => recipe.call(current, draft, ...args));
 
 // `@loop-with` returns `{ iterData?, start?, end? }`. The `start`/`end` keys
 // slice the iteration so `@each` skips the off-page prefix and suffix instead
@@ -10,7 +14,7 @@ const Pagination = component({
   fields: { items: [], page: 0, pageSize: 5 },
   methods: {
     pageCount() {
-      return Math.max(1, Math.ceil(this.items.size / this.pageSize));
+      return Math.max(1, Math.ceil(this.items.length / this.pageSize));
     },
     pageLabel() {
       return `Page ${this.page + 1} of ${this.pageCount()}`;
@@ -23,18 +27,18 @@ const Pagination = component({
     },
   },
   receive: {
-    prev() {
-      return this.setPage(Math.max(0, this.page - 1));
+    prev(draft) {
+      draft.page = Math.max(0, this.page - 1);
     },
-    next() {
-      return this.setPage(Math.min(this.pageCount() - 1, this.page + 1));
+    next(draft) {
+      draft.page = Math.min(this.pageCount() - 1, this.page + 1);
     },
   },
   alter: {
     // runs once per render: turn the current page into a slice range
     paginate(seq) {
       const start = this.page * this.pageSize;
-      return { iterData: { total: seq.size }, start, end: start + this.pageSize };
+      return { iterData: { total: seq.length }, start, end: start + this.pageSize };
     },
   },
   view: html`<section class="flex flex-col gap-3">
@@ -95,14 +99,14 @@ export function getTests({ describe, test, expect }) {
 
     test("next() advances the page but stops at the last one", () => {
       const c = Pagination.make({ items: ITEMS, pageSize: 5 });
-      expect(Pagination.receive.next.call(c).page).toBe(1);
+      expect(applyRecipe(c, Pagination.receive.next).page).toBe(1);
       const last = Pagination.make({ items: ITEMS, page: 99, pageSize: 5 });
-      expect(Pagination.receive.next.call(last).page).toBe(last.pageCount() - 1);
+      expect(applyRecipe(last, Pagination.receive.next).page).toBe(last.pageCount() - 1);
     });
 
     test("prev() never goes below the first page", () => {
       const c = Pagination.make({ items: ITEMS, page: 0 });
-      expect(Pagination.receive.prev.call(c).page).toBe(0);
+      expect(applyRecipe(c, Pagination.receive.prev).page).toBe(0);
     });
   });
 }

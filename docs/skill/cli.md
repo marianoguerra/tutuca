@@ -35,14 +35,14 @@ Use `--module=<path>` if the path conflicts with positional parsing.
 | `get <module>`           | Summarize which `getX()` exports are present and counts                                                                |
 | `list <module> [name] [--limit n]` | List components with their views and fields (name + type). `--limit n` caps; `0` = all                  |
 | `examples <module> [--limit n]` | Print `getExamples()` content (title, items, per section). `--limit n` caps total items; `0` = all                                          |
-| `show <module> [name]`   | Show API docs (methods, receive/intent handlers, fields with auto-generated accessors) — all or one                             |
+| `show <module> [name]`   | Show API docs (methods, receive/intent handlers, and fields) — all or one                             |
 | `lint <module> [name]`   | Run the linter; exits **2** on any error-level finding                                                                 |
 | `render <module> [name]` | Render examples to HTML in a headless DOM. Filter by component name or `--title`/`--view`. Exits **3** on render crash |
 | `test <module> [name]`   | Run tests defined by `getTests({ describe, test, expect })`. Filter by component name, `--grep <pattern>`, or `--bail`. Exits **4** on any failure |
 | `storybook [dir]`        | Serve a live storybook for the project, auto-discovering co-located `*.dev.js` modules. Flags: `--port`, `--out`, `--dry-run` (prep + print, don't serve), `--no-margaui`, `--no-check`, `--no-tests`. No module path needed |
 | `help [cmd]`             | Show usage. No module path needed                                                                                      |
 | `feedback [message]`     | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl`. No module path needed                      |
-| `install-skill [name]`   | Copy a bundled skill (`tutuca`, `margaui`, `immutable-js`, or `--all`) into `.claude/skills/`. No module path needed   |
+| `install-skill [name]`   | Copy a bundled skill (`tutuca`, `margaui`, or `--all`) into `.claude/skills/`. No module path needed   |
 | `agent-context`          | Print a versioned JSON schema of every command, flag, exit code, and error code. No module path needed                 |
 
 ## Global flags
@@ -150,8 +150,8 @@ Filters:
 Default format is `cli` (a tree with ✓/✗/○ and per-test durations);
 `-f md` and `-f json` work too.
 
-The `getTests` shape and the handler calling conventions (`Comp.method()`,
-`Comp.receive.x.call(inst, …)`, the `drive` cascade helper, iteration
+The `getTests` shape and the calling conventions (`inst.computedMethod()`,
+`Comp.receive.x.call(inst, draft, …)`, the `drive` cascade helper, iteration
 handlers) are in [testing.md](./testing.md).
 
 ## storybook — live component catalog
@@ -173,15 +173,14 @@ per-example request mocking, and runtime resolution are all in
 tutuca install-skill                   # tutuca skill (default), into ./.claude/skills/tutuca/
 tutuca install-skill --user            # ~/.claude/skills/tutuca/
 tutuca install-skill --margaui-skill   # margaui skill instead of tutuca
-tutuca install-skill --immutable-skill # immutable-js skill instead of tutuca
-tutuca install-skill --all             # all bundled skills (tutuca + margaui + immutable-js)
+tutuca install-skill --all             # all bundled skills (tutuca + margaui)
 tutuca install-skill --dot-agents      # install into ./.agents/skills/ instead of ./.claude/skills/
 tutuca install-skill --all --force     # overwrite existing files
 tutuca install-skill --dry-run         # print files that would be written, don't touch disk
 ```
 
 `--user`/`--project` choose scope (default `--project`).
-`--margaui-skill`, `--immutable-skill`, and `--all` are mutually exclusive.
+`--margaui-skill` and `--all` are mutually exclusive.
 `--dot-agents` swaps the `.claude` base for `.agents` (combines with any scope/selection).
 
 ## Record feedback
@@ -216,8 +215,8 @@ category) is available straight from the CLI:
 - `tutuca agent-context` — machine-readable: the `lintCodes` array, each
   entry `{ code, level, group, summary }`.
 
-Categories include field/method references, input-handler ↔ method
-confusion, iteration helpers (`alter`), dynamic bindings (`*name`),
+Categories include field/method references, receive handlers, iteration
+helpers (`alter`), dynamic bindings (`*name`),
 template/event issues, value-expression errors, and unregistered names.
 Representative codes: `FIELD_VAL_NOT_DEFINED`, `METHOD_VAL_IS_FIELD`,
 `ALT_HANDLER_NOT_DEFINED`, `DYN_VAL_NOT_DEFINED`, `UNKNOWN_DIRECTIVE`,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { component, html, IMap } from "../index.js";
+import { component, html } from "../index.js";
 import { renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";
 
@@ -57,10 +57,10 @@ describe("@each over primitive values (DOM cache enabled)", () => {
   test("keyed map with null values renders without crashing", () => {
     const Keyed = component({
       name: "Keyed",
-      fields: { items: IMap() },
+      fields: { items: new Map() },
       view: html`<ul><li @each="*items">@key</li></ul>`,
     });
-    const root = Keyed.make({ items: IMap({ a: null, b: 1 }) });
+    const root = Keyed.make({ items: new Map(Object.entries({ a: null, b: 1 })) });
     expect(() => {
       const { cleanup } = renderToHTMLNode(document, [Keyed], null, root, HeadlessParseContext, {
         noCache: false,

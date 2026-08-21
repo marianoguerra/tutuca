@@ -1,9 +1,11 @@
-import { component, html, isRecord } from "tutuca";
-import { ImEntry, ImInspector } from "../data/immutable-inspector.js";
+import { component, html } from "tutuca";
+import { DataInspector } from "../data/data.js";
 import {
   compositeAlter,
   compositeFields,
   compositeMethods,
+  compositeReceive,
+  JsonProperty,
   makeCompositeView,
   makeValueInspector,
 } from "../data/json.js";
@@ -15,11 +17,11 @@ import {
 import { getComponents as getLintComponents, LintReport } from "./lint-inspector.js";
 import { getComponents as getTestComponents, TestReport } from "./test-inspector.js";
 
-// True for a tutuca component *instance* (a Record whose Class carries the
+// True for a tutuca component instance (whose Class carries the
 // generated `getMetaClass` static). Mirrors the framework's own type probe
 // `getTypeName = (v) => v?.constructor?.getMetaClass?.()?.name` (tutuca.js).
 export const isComponentInstance = (v) =>
-  isRecord(v) && typeof v?.constructor?.getMetaClass === "function";
+  v !== null && typeof v === "object" && typeof v?.constructor?.getMetaClass === "function";
 
 const fieldsView = makeCompositeView({
   typeClass: "font-semibold",
@@ -28,8 +30,7 @@ const fieldsView = makeCompositeView({
 
 // The field → value rows of an instance. Field names/order come from the
 // descriptor (decoupled from the instance internals); values come from the
-// instance. Reuses ImEntry + ImInspector so every value renders (and recurses)
-// like the other data inspectors.
+// instance. Reuses the native data inspector recursively.
 export const InstanceFields = component({
   name: "InstanceFields",
   fields: { ...compositeFields, typeName: "" },
@@ -39,17 +40,18 @@ export const InstanceFields = component({
       return this.typeName;
     },
     countText() {
-      return `{${this.items.size}}`;
+      return `{${this.items.length}}`;
     },
   },
+  receive: compositeReceive,
   alter: compositeAlter,
   statics: {
     fromData(instance, comp) {
       const d = introspectComponent(comp);
       const items = d.fields.map((f) =>
-        ImEntry.make({
+        JsonProperty.make({
           key: f.name,
-          child: ImInspector.Class.fromData(instance.get(f.name)),
+          child: DataInspector.Class.fromData(instance[f.name]),
         }),
       );
       // Start expanded — the field → value rows are the point of this view.
@@ -59,7 +61,7 @@ export const InstanceFields = component({
   view: fieldsView,
 });
 
-// Thin wrapper around the rendered value, mirroring ImInspector/JsonViewer.
+// Thin wrapper around the rendered value, mirroring DataInspector/JsonViewer.
 // Given an instance and its descriptor it shows the field → value rows; with
 // no descriptor (or a non-instance) it falls back to the plain data inspector.
 export const InstanceInspector = makeValueInspector({
@@ -68,7 +70,7 @@ export const InstanceInspector = makeValueInspector({
     const value =
       comp && isComponentInstance(instance)
         ? InstanceFields.Class.fromData(instance, comp)
-        : ImInspector.Class.fromData(instance);
+        : DataInspector.Class.fromData(instance);
     return this.make({ value });
   },
 });
@@ -116,6 +118,11 @@ export const InstanceExplorer = component({
       });
     },
   },
+  receive: {
+    setActiveTab(draft, value) {
+      draft.activeTab = value;
+    },
+  },
   view: html`<div class="font-mono text-sm leading-snug flex flex-col gap-3">
     <div role="tablist" class="tabs">
       <a
@@ -123,7 +130,7 @@ export const InstanceExplorer = component({
         @if.class="equals? .activeTab 'instance'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveTab 'instance'"
+        @on.click="setActiveTab 'instance'"
       >
         Instance
       </a>
@@ -133,7 +140,7 @@ export const InstanceExplorer = component({
         @if.class="equals? .activeTab 'component'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveTab 'component'"
+        @on.click="setActiveTab 'component'"
       >
         Component
       </a>
@@ -143,7 +150,7 @@ export const InstanceExplorer = component({
         @if.class="equals? .activeTab 'tests'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveTab 'tests'"
+        @on.click="setActiveTab 'tests'"
       >
         Tests
       </a>
@@ -153,7 +160,7 @@ export const InstanceExplorer = component({
         @if.class="equals? .activeTab 'lint'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveTab 'lint'"
+        @on.click="setActiveTab 'lint'"
       >
         Lint
       </a>
@@ -178,7 +185,7 @@ export const InstanceExplorer = component({
 
 export function getComponents() {
   // Pull in every inspector a tab might render (component / test / lint, each
-  // of which already includes the Immutable+JSON leaves), deduped by name so
+  // of which already includes the native data leaves), deduped by name so
   // the shared sets aren't registered more than once.
   const all = [
     InstanceExplorer,

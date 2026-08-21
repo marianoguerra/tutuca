@@ -29,36 +29,33 @@ const LifecycleProbe = component({
   name: "LifecycleProbe",
   fields: { title: "probe", log: [] },
   methods: {
-    note(msg) {
-      return this.setLog(this.log.push(msg));
-    },
     count() {
-      return this.log.size;
+      return this.log.length;
     },
   },
   receive: {
     // Two outcomes, two arms. An answer arrives as an ordinary message, so these sit
     // beside the ones a parent or the host sends and nothing tells them apart.
-    fetchThingOk(res) {
-      return this.note(`intent → ok: ${res}`);
+    fetchThingOk(draft, res) {
+      draft.log.push(`intent → ok: ${res}`);
     },
-    fetchThingError(err) {
-      return this.note(`intent → error: ${err.message}`);
+    fetchThingError(draft, err) {
+      draft.log.push(`intent → error: ${err.message}`);
     },
-    onInit(label) {
-      return this.note(label != null ? `init · ${label}` : "init");
+    onInit(draft, label) {
+      draft.log.push(label != null ? `init · ${label}` : "init");
     },
-    onResume() {
-      return this.note("resume");
+    onResume(draft) {
+      draft.log.push("resume");
     },
-    onSuspend() {
-      return this.note("suspend");
+    onSuspend(draft) {
+      draft.log.push("suspend");
     },
-    ping(arg) {
-      return this.note(`send → ping(${arg})`);
+    ping(draft, arg) {
+      draft.log.push(`send → ping(${arg})`);
     },
-    setSeed(value) {
-      return this.note(`input → setSeed(${value})`);
+    setSeed(draft, value) {
+      draft.log.push(`input → setSeed(${value})`);
     },
   },
   view: html`<div class="card bg-base-100 shadow-sm">

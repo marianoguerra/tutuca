@@ -126,11 +126,10 @@ export function getTests({ describe, test, expect, drive }) {
   originates at the root, and the leg starts at the sender's *parent*. The walk
   runs out and the sender hears `<name>Unhandled` — which is a result you can
   assert on. To exercise an `intent` handler itself, call it directly.
-- These are *action kinds*, not methods. `$`-prefixed **methods** (auto setters/
-  togglers, `$foo`) are not an action kind — `on`/`drive` can only reach state
-  through `receive` / `intent` handlers. To put a component into a method-driven
-  state for a test, call the method directly or route it through a `receive`
-  handler.
+- These are *action kinds*, not methods. `$`-prefixed methods are read-only
+  computations, not an action kind — `on`/`drive` can only reach state through
+  `receive` / `intent` handlers. To put a component into a specific state in a
+  unit test, call the receive recipe directly or drive a message.
 - `intent` actions on the `lex` leg resolve against the module's
   `getIntentHandlers()`.
 - `opts.onMessage(message, before, after)` observes every committed transaction —
@@ -178,7 +177,7 @@ const r = collectIterBindings(MyComp, c, c.items, {
 // in iteration order.
 ```
 
-- `seq` can be a plain JS Array, a JS `Map`, or any immutable.js indexed
+- `seq` can be a plain JS Array, a JS `Map`, or a custom collection
   or keyed seq.
 - Handler names refer to entries in `MyComp.alter`. An unknown name
   throws — there's no silent fallback.
@@ -230,27 +229,26 @@ Tutuca templates resolve handler args by name (see
 event**. With named args, the test passes a literal; with `event`,
 the test must fabricate a DOM-event-shaped object.
 
-The prefix in the template picks the handler block: a leading `$`
-means "method on `this`", no prefix means a receive handler. The same
-named-arg rule applies to both. Both forms below are correct
-placements — what matters is what argument the handler asks for.
+An event always names a `receive` handler without a prefix. `$method` is for
+read-only value slots and is rejected in `@on.*`. What matters for testability
+is which named argument the receive handler asks for.
 
-**Bad — method:**
-
-```html
-<input @on.input="$setName event" />
-```
-```js
-methods: { setName(event) { return this.setName(event.target.value); } }
-```
-
-**Good — method:**
+**Bad — receive handler taking the whole event:**
 
 ```html
-<input @on.input="$setName value" />
+<input @on.input="setName event" />
 ```
 ```js
-methods: { setName(value) { return this.setName(value); } }
+receive: { setName(draft, event) { draft.name = event.target.value; } }
+```
+
+**Good — receive handler taking the value:**
+
+```html
+<input @on.input="setName value" />
+```
+```js
+receive: { setName(draft, value) { draft.name = value; } }
 ```
 
 **Bad — receive handler:**
@@ -259,7 +257,7 @@ methods: { setName(value) { return this.setName(value); } }
 <input @on.input="setCount event" />
 ```
 ```js
-receive: { setCount(event) { return this.setCount(parseInt(event.target.value, 10)); } }
+receive: { setCount(draft, event) { draft.count = parseInt(event.target.value, 10); } }
 ```
 
 **Good — receive handler:**
@@ -268,14 +266,15 @@ receive: { setCount(event) { return this.setCount(parseInt(event.target.value, 1
 <input @on.input="setCount valueAsInt" />
 ```
 ```js
-receive: { setCount(n) { return this.setCount(n); } }
+receive: { setCount(draft, n) { draft.count = n; } }
 ```
 
 At test time, the "good" forms become trivial:
 
 ```js
-expect(MyComp.make().setName("Ada").name).toBe("Ada");
-expect(MyComp.receive.setCount.call(MyComp.make(), 42).count).toBe(42);
+const value = MyComp.make();
+expect(produce(value, (draft) => value.setName(draft, "Ada")).name).toBe("Ada");
+expect(produce(value, (draft) => MyComp.receive.setCount.call(value, draft, 42)).count).toBe(42);
 ```
 
 The "bad" forms force every test to construct
@@ -288,40 +287,50 @@ narrower arg fits.
 
 ## Worked example
 
-A `getTests` export covering a method (`inc`), a receive handler with no
-args (`dec`), and a receive handler with a named arg (`setCount` taking
+A `getTests` export covering two receive handlers (`inc` and `dec`) and a
+receive handler with a named arg (`setCount` taking
 `valueAsInt`):
 
 ```js
+import { produce } from "tutuca/immer";
+
 export function getTests({ describe, test, expect }) {
   describe(Counter, () => {
-    describe("inc()", () => {                         // method
+    describe("inc", () => {                           // receive handler
       test("returns a Counter with count + 1", () => {
-        expect(Counter.make().inc().count).toBe(1);
+        const c = Counter.make();
+        expect(produce(c, (draft) => Counter.receive.inc.call(c, draft)).count).toBe(1);
       });
       test("does not mutate the original instance", () => {
         const c = Counter.make({ count: 7 });
-        c.inc();
+        produce(c, (draft) => Counter.receive.inc.call(c, draft));
         expect(c.count).toBe(7);
       });
     });
 
     describe("dec()", () => {                         // receive handler, no args
       test("returns a Counter with count - 1", () => {
-        const next = Counter.receive.dec.call(Counter.make());
+        const c = Counter.make();
+        const next = produce(c, (draft) => Counter.receive.dec.call(c, draft));
         expect(next.count).toBe(-1);
       });
     });
 
     describe("setCount()", () => {                    // receive handler, valueAsInt
       test("sets the count from a parsed int", () => {
-        const next = Counter.receive.setCount.call(Counter.make(), 42);
+        const c = Counter.make();
+        const next = produce(c, (draft) => Counter.receive.setCount.call(c, draft, 42));
         expect(next.count).toBe(42);
       });
     });
 
     test("inc and dec round-trip", () => {            // untagged, inherits Counter
-      expect(Counter.receive.dec.call(Counter.make().inc()).count).toBe(0);
+      const c = Counter.make();
+      const next = produce(c, (draft) => {
+        Counter.receive.inc.call(c, draft);
+        Counter.receive.dec.call(c, draft);
+      });
+      expect(next.count).toBe(0);
     });
   });
 }

@@ -1,4 +1,3 @@
-import * as tutuca from "tutuca";
 import { CodeMirror, setCodeMirrorPath } from "./code-editor.js";
 import { HtmlPlayground } from "./html-playground.js";
 import { TutucaPlayground } from "./playground.js";
@@ -37,7 +36,6 @@ export async function init() {
 
   customElements.define("tutuca-playground", TutucaPlayground);
   customElements.define("html-playground", HtmlPlayground);
-  maybeAddImmutableDevTools();
 }
 
 export function scrollToHash() {
@@ -49,35 +47,4 @@ export function scrollToHash() {
     addEventListener("load", scrollToEl);
     setTimeout(scrollToEl, 500);
   }
-}
-
-async function maybeAddImmutableDevTools() {
-  if (hasImmutableDevTools()) {
-    return;
-  }
-
-  console.group("Immutable DevTools not found, installing for your convenience");
-  console.info("You may need to enable custom formatters in your browser");
-  console.info(
-    "https://firefox-source-docs.mozilla.org/devtools-user/custom_formatters/index.html",
-  );
-  console.info(
-    "https://docs.google.com/document/d/1FTascZXT9cxfetuPRT2eXPQKXui4nWFivUnS_335T3U/preview?tab=t.0#heading=h.xuvxhsd2bp05",
-  );
-  console.groupEnd();
-
-  const install = await import("https://cdn.jsdelivr.net/npm/@immutable/devtools/+esm");
-  // tutuca exports the immutable data structures
-  install.default(tutuca);
-}
-
-function hasImmutableDevTools() {
-  const l = tutuca.List();
-  const formatters = window.devtoolsFormatters ?? [];
-  for (const formatter of formatters) {
-    if (typeof formatter?.header === "function" && formatter.header(l) !== null) {
-      return true;
-    }
-  }
-  return false;
 }

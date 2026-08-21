@@ -48,9 +48,9 @@ const panel = macro(
 const MacroShowcase = component({
   name: "MacroShowcase",
   fields: { status: "active", count: 0 },
-  methods: {
-    inc() {
-      return this.setCount(this.count + 1);
+  receive: {
+    inc(draft) {
+      draft.count++;
     },
   },
   view: html`<div class="flex flex-col gap-3 max-w-md">
@@ -66,7 +66,7 @@ const MacroShowcase = component({
     </x:card>
     <x:panel title="Named slots">
       <x slot="actions">
-        <button class="btn btn-xs btn-soft btn-success" @on.click="$inc">+</button>
+        <button class="btn btn-xs btn-soft btn-success" @on.click="inc">+</button>
       </x>
       <p class="text-sm">Default slot body — count: <span @text=".count"></span></p>
       <x slot="footer"><span class="text-xs opacity-60">footer slot</span></x>

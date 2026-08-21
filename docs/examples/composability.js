@@ -1,10 +1,11 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 import { getComponents as getDndComponents, getRoot as getDndRoot } from "./dnd-example.js";
 import { getComponents as getJsonComponents, getRoot as getJsonRoot } from "./json.js";
 import {
+  getIntentHandlers as getIntentHandlersPersonalSite,
   getComponents as getPersonalSiteComponents,
   getRoot as getPersonalSiteRoot,
-  getIntentHandlers as getIntentHandlersPersonalSite,
 } from "./personal-site.js";
 import { getComponents as getTodoComponents, getRoot as getTodoRoot } from "./todo.js";
 import { getComponents as getTreeComponents, getRoot as getTreeRoot } from "./tree.js";
@@ -26,7 +27,11 @@ const Composability = component({
     dnd: null,
   },
   receive: {
-    init(ctx) {
+    setActiveSection(draft, value) {
+      draft.activeSection = value;
+    },
+
+    init(draft, ctx) {
       ctx.at.field("personalSite").send("init");
       return this;
     },
@@ -38,7 +43,7 @@ const Composability = component({
         @if.class="equals? .activeSection 'todo'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveSection 'todo'"
+        @on.click="setActiveSection 'todo'"
       >
         To-Do
       </button>
@@ -47,7 +52,7 @@ const Composability = component({
         @if.class="equals? .activeSection 'json'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveSection 'json'"
+        @on.click="setActiveSection 'json'"
       >
         JSON Editor
       </button>
@@ -56,7 +61,7 @@ const Composability = component({
         @if.class="equals? .activeSection 'tree'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveSection 'tree'"
+        @on.click="setActiveSection 'tree'"
       >
         Tree
       </button>
@@ -65,7 +70,7 @@ const Composability = component({
         @if.class="equals? .activeSection 'personalSite'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveSection 'personalSite'"
+        @on.click="setActiveSection 'personalSite'"
       >
         Personal Site
       </button>
@@ -74,7 +79,7 @@ const Composability = component({
         @if.class="equals? .activeSection 'dnd'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveSection 'dnd'"
+        @on.click="setActiveSection 'dnd'"
       >
         Drag and Drop
       </button>
@@ -83,7 +88,7 @@ const Composability = component({
         @if.class="equals? .activeSection 'visualWasm'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setActiveSection 'visualWasm'"
+        @on.click="setActiveSection 'visualWasm'"
       >
         Visual Wasm
       </button>
@@ -129,6 +134,10 @@ export function getMacros() {
 }
 
 export function getExamples() {
+  const withActiveSection = (activeSection) =>
+    produce(getRoot(), (draft) => {
+      draft.activeSection = activeSection;
+    });
   return {
     title: "Composability",
     description: "Tabbed view that composes several independent example components",
@@ -141,12 +150,12 @@ export function getExamples() {
       {
         title: "JSON Editor Selected",
         description: "Starts on the JSON Editor tab",
-        value: getRoot().setActiveSection("json"),
+        value: withActiveSection("json"),
       },
       {
         title: "Tree Selected",
         description: "Starts on the Tree tab",
-        value: getRoot().setActiveSection("tree"),
+        value: withActiveSection("tree"),
       },
     ],
   };

@@ -40,7 +40,6 @@ export const NO_MODULE_COMMANDS = {
         description: "Install at ./.claude/skills/ (default).",
       },
       { name: "margaui-skill", type: "boolean" },
-      { name: "immutable-skill", type: "boolean" },
       { name: "all", type: "boolean", description: "Install every bundled skill." },
       {
         name: "dot-agents",

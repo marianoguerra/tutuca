@@ -6,9 +6,11 @@ import { register } from "node:module";
 // sidesteps this with an import map that points "tutuca" at the dev build; this
 // hook does the equivalent for the commands that import user modules and run
 // their getTests() in Node (`tutuca test` and `tutuca storybook`, including
-// `--dry-run`), redirecting the bare "tutuca" specifier (and only that) to the
-// dev build — a strict superset of core that carries the real helper
-// implementations. See DEV_BUILD_COMMANDS in tools/tutuca.js.
+// `--dry-run`), redirecting the bare "tutuca" specifier to the dev build — a
+// strict superset of core that carries the real helper implementations. The
+// Immer subpath is also pinned to this installation so staged modules outside
+// the package tree can import `tutuca/immer`. See DEV_BUILD_COMMANDS in
+// tools/tutuca.js.
 //
 // Notes:
 //   • Inline `data:` URL hook so it survives bundling into the single-file
@@ -21,22 +23,28 @@ import { register } from "node:module";
 //     simply no-op as before.
 export function installDevBuildResolveHook() {
   let devUrl;
+  let immerUrl;
   try {
     devUrl = import.meta.resolve("tutuca/dev");
+    immerUrl = import.meta.resolve("tutuca/immer");
   } catch {
     return false;
   }
   const hookSource = `
 let devUrl;
-export async function initialize(data) { devUrl = data.devUrl; }
+let immerUrl;
+export async function initialize(data) {
+  devUrl = data.devUrl;
+  immerUrl = data.immerUrl;
+}
 export async function resolve(specifier, context, nextResolve) {
-  return specifier === "tutuca"
-    ? { url: devUrl, shortCircuit: true }
-    : nextResolve(specifier, context);
+  if (specifier === "tutuca") return { url: devUrl, shortCircuit: true };
+  if (specifier === "tutuca/immer") return { url: immerUrl, shortCircuit: true };
+  return nextResolve(specifier, context);
 }`;
   try {
     register(`data:text/javascript,${encodeURIComponent(hookSource)}`, import.meta.url, {
-      data: { devUrl },
+      data: { devUrl, immerUrl },
     });
     return true;
   } catch {

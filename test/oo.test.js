@@ -1,12 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { IMap, List, OMap } from "../index.js";
+import { produce } from "../src/immer.js";
 import { classFromData, FieldInt } from "../src/oo.js";
 
 describe("OO", () => {
   test("from data: all types", () => {
-    const tags = List(["a", "b"]);
-    const info = IMap({ a: 1, b: 2 });
-    const om = OMap({ a: 10, b: 20 });
+    const tags = ["a", "b"];
+    const info = new Map(Object.entries({ a: 1, b: 2 }));
+    const om = new Map(Object.entries({ a: 10, b: 20 }));
     const Foo = classFromData("Foo", {
       fields: {
         count: 1,
@@ -18,32 +18,34 @@ describe("OO", () => {
         om,
       },
     });
-    const f = Foo();
+    const f = Foo.make();
     expect(f.count).toBe(1);
     expect(f.temp).toBe(2.5);
     expect(f.isValid).toBe(true);
-    expect(f.tags).toBe(tags);
-    expect(f.info).toBe(info);
-    expect(f.om).toBe(om);
+    expect(f.tags).toEqual(tags);
+    expect(f.info).toEqual(info);
+    expect(f.om).toEqual(om);
   });
-  test("set on list runs coercer", () => {
+  test("draft assignment on list runs coercer", () => {
     const Foo = classFromData("Foo", {
       fields: {
-        items: List(),
+        items: [],
       },
     });
-    const f = Foo();
-    const f1 = f.setItems([1, 2, 3]);
-    expect(f1.items.size).toBe(3);
+    const f = Foo.make();
+    const f1 = produce(f, (draft) => {
+      draft.items = [1, 2, 3];
+    });
+    expect(f1.items.length).toBe(3);
   });
   test("Constructor runs coercers", () => {
     const Foo = classFromData("Foo", {
       fields: {
-        items: List(),
+        items: [],
       },
     });
     const f = Foo.make({ items: [1, 2, 3] });
-    expect(f.items.size).toBe(3);
+    expect(f.items.length).toBe(3);
   });
 });
 

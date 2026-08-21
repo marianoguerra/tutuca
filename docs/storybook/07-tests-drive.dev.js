@@ -17,21 +17,20 @@ import { SAMPLE_ROWS } from "./_shared.js";
 const DriveDemo = component({
   name: "DriveDemo",
   fields: { count: 0, rows: [], filter: "" },
-  methods: {
-    inc() {
-      return this.setCount(this.count + 1);
-    },
-  },
   receive: {
-    add(n) {
-      return this.setCount(this.count + (n ?? 1));
+    inc(draft) {
+      draft.count++;
     },
-    typeFilter(value) {
-      return this.setFilter(value);
+
+    add(draft, n) {
+      draft.count = this.count + (n ?? 1);
+    },
+    typeFilter(draft, value) {
+      draft.filter = value;
     },
     // The answer to the `load` intent, under its own name and carrying the result alone.
-    loadOk(res) {
-      return this.setRows(res);
+    loadOk(draft, res) {
+      draft.rows = res;
     },
   },
   alter: {
@@ -42,13 +41,13 @@ const DriveDemo = component({
   view: html`<div class="flex flex-col gap-2 max-w-sm">
     <div class="alert alert-info alert-soft text-sm">
       <span>
-        This module's <code>getTests</code> run in the terminal (storybook pre-serve,
-        or <code>tutuca test</code>) using the injected <code>drive()</code> helper.
-        The widget below is the same component those tests drive.
+        This module's <code>getTests</code> run in the terminal (storybook pre-serve, or
+        <code>tutuca test</code>) using the injected <code>drive()</code> helper. The widget below
+        is the same component those tests drive.
       </span>
     </div>
     <div class="flex items-center gap-2">
-      <button class="btn btn-sm" @on.click="$inc">count++</button>
+      <button class="btn btn-sm" @on.click="inc">count++</button>
       <span>count: <span @text=".count"></span></span>
     </div>
     <input
@@ -58,7 +57,9 @@ const DriveDemo = component({
       placeholder="filter rows"
     />
     <ul class="menu bg-base-200 rounded w-full">
-      <li @each=".rows" @when="matches"><a><x text="@value"></x></a></li>
+      <li @each=".rows" @when="matches">
+        <a><x text="@value"></x></a>
+      </li>
     </ul>
   </div>`,
 });

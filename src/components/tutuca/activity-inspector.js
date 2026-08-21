@@ -7,7 +7,7 @@
 import { component, html } from "tutuca";
 import { InstanceInspector, isComponentInstance } from "./instance-inspector.js";
 
-// Newest-first cap for an activity log (see ActivityLog.appendEntry).
+// Newest-first cap for an activity log.
 const ACTIVITY_CAP = 50;
 
 // One row of dispatch activity. Pure display: a host builds these from normalized
@@ -77,16 +77,13 @@ export const ActivityEntry = component({
   </div>`,
 });
 
-// A bounded, newest-first, scrollable list of ActivityEntry rows. `appendEntry`
-// returns a new log with the entry prepended and the list capped — call it from a
-// host's observer subscription. Renders an empty hint until the first entry lands.
+// A bounded, newest-first, scrollable list of ActivityEntry rows. Hosts update it
+// through their draft-first handler. Renders an empty hint until the first entry lands.
 export const ActivityLog = component({
   name: "ActivityLog",
   fields: { events: [], hasEvents: false },
-  methods: {
-    appendEntry(entry) {
-      return this.setEvents(this.events.unshift(entry).slice(0, ACTIVITY_CAP)).setHasEvents(true);
-    },
+  statics: {
+    cap: ACTIVITY_CAP,
   },
   view: html`<div class="p-3 flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
     <div class="text-xs opacity-40" @hide=".hasEvents">

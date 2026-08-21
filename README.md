@@ -7,12 +7,14 @@ Batteries included SPA framework with a dependency-free browser bundle.
 - **Fits in your head** (and the context window)
 - **View source friendly** — step through the whole stack
 - **As much HTML as possible, as little JS as needed**
-- ~182KB minified, ~41KB brotli compressed (the core browser bundle; the dev build adds linting and test helpers)
+- ~110KB minified, ~29KB brotli compressed (the core browser bundle; the dev build adds linting and test helpers)
 
 ## Quick Start
 
 For an interactive walk-through with editable examples, see the
 [tutorial](https://marianoguerra.github.io/tutuca/tutorial.html).
+Upgrading an Immutable.js-based app? See the
+[Immer migration guide](./docs/immer-migration.md).
 
 ### CDN (no install)
 
@@ -34,18 +36,18 @@ For an interactive walk-through with editable examples, see the
         fields: {
           count: 0,
         },
-        methods: {
-          inc() {
-            return this.setCount(this.count + 1);
+        receive: {
+          inc(draft) {
+            draft.count++;
           },
-          dec() {
-            return this.setCount(this.count - 1);
+          dec(draft) {
+            draft.count--;
           },
         },
         view: html`<div>
-          <button @on.click="$dec">-</button>
+          <button @on.click="dec">-</button>
           <div @text=".count"></div>
-          <button @on.click="$inc">+</button>
+          <button @on.click="inc">+</button>
         </div>`,
       });
 
@@ -67,8 +69,8 @@ For an interactive walk-through with editable examples, see the
 Each concept has a tutorial section with editable live examples:
 
 - **[Components & state](https://marianoguerra.github.io/tutuca/tutorial.html#basics)** —
-  typed `fields` with auto-generated mutators (`setCount`, `toggleOpen`, …),
-  views as pure functions of a single immutable state tree
+  typed `fields`, Immer draft-first handlers, and views as pure functions of a
+  single immutable state tree
   ([state & updates](https://marianoguerra.github.io/tutuca/tutorial.html#state-and-updates))
 - **[Collections](https://marianoguerra.github.io/tutuca/tutorial.html#collections)** —
   iterate with `@each`, filter with `@when`, paginate with `@loop-with`
@@ -121,7 +123,7 @@ tutuca help [command]
 | `test <module> [name] [--grep p] [--bail]` | Run `getTests()` (exit `4` on failures) |
 | `storybook [dir]` | Serve a live storybook, auto-discovering co-located `*.dev.js` modules (`--port`, `--out`, `--dry-run`, `--no-margaui`, `--no-check`, `--no-tests`; no module path needed) |
 | `feedback [message]` | Append a feedback note (positional or stdin) to `~/.tutuca/feedback.jsonl` (no module path needed) |
-| `install-skill [--user\|--project] [--margaui-skill\|--immutable-skill\|--all] [--dot-agents] [--dry-run] [--force]` | Install bundled Claude Code skills (no module path needed) |
+| `install-skill [--user\|--project] [--margaui-skill\|--all] [--dot-agents] [--dry-run] [--force]` | Install bundled Claude Code skills (no module path needed) |
 | `agent-context` | Print a versioned JSON schema of the entire CLI surface (no module path needed) |
 
 Global flags: `--json`, `-f, --format <cli\|md\|json\|html>`, `-o, --output <file>`, `--pretty`, `--module <path>`, `-h, --help`.
@@ -165,10 +167,8 @@ npx tutuca install-skill
 # or user-scoped: writes ~/.claude/skills/tutuca/
 npx tutuca install-skill --user
 
-# companion skills: MargaUI class lists, or Immutable.js (the values
-# tutuca state is made of) — or install all three
+# companion MargaUI skill, or install both bundled skills
 npx tutuca install-skill --margaui-skill
-npx tutuca install-skill --immutable-skill
 npx tutuca install-skill --all
 
 # install into ./.agents/skills/ instead of ./.claude/skills/

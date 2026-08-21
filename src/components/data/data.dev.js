@@ -1,4 +1,4 @@
-import { IMap, List } from "tutuca";
+import { produce } from "tutuca/immer";
 import { DataInspector } from "./data.js";
 
 export { getComponents } from "./data.js";
@@ -54,34 +54,25 @@ export function getExamples() {
     bigCount: big,
     nothing: undefined,
     json: { ok: true, n: 1 },
-    immutable: List([1, 2, IMap({ x: 99 })]),
+    nested: [1, 2, new Map([["x", 99]])],
   };
 
-  const deepExpand = (c) => {
-    if (c == null || typeof c !== "object") return c;
-    let n = c;
-    if (typeof n.setIsExpanded === "function") {
-      n = n.setIsExpanded(true);
-    }
-    if (typeof n.setValue === "function" && n.value && typeof n.value === "object") {
-      return n.setValue(deepExpand(n.value));
-    }
-    if (typeof n.setItems === "function" && n.items?.map) {
-      return n.setItems(
-        n.items.map((item) =>
-          item && typeof item.setChild === "function"
-            ? item.setChild(deepExpand(item.child))
-            : item,
-        ),
-      );
-    }
-    return n;
+  const expandDraft = (node) => {
+    if (node == null || typeof node !== "object") return;
+    if ("isExpanded" in node) node.isExpanded = true;
+    if (node.value && typeof node.value === "object") expandDraft(node.value);
+    if (Array.isArray(node.items)) for (const item of node.items) expandDraft(item?.child ?? item);
   };
+  const deepExpand = (value) => produce(value, expandDraft);
+  const expanded = (value) =>
+    produce(value, (draft) => {
+      draft.isExpanded = true;
+    });
 
   return {
     title: "DataInspector",
     description:
-      "Inspect any JS value: composes Immutable.js detection, JS extras (Symbol, BigInt, function, Date, RegExp, Error, native Map/Set, class instances), and plain JSON. Built on the chain(classifyImmutable, classifyJsExtra, classifyJson) dispatcher.",
+      "Inspect any JS value: JS extras (Symbol, BigInt, function, Date, RegExp, Error, native Map/Set, class instances) and plain JSON.",
     items: [
       { title: "undefined", value: DI.fromData(undefined) },
       { title: "null", value: DI.fromData(null) },
@@ -102,24 +93,24 @@ export function getExamples() {
       { title: "Error", value: DI.fromData(err) },
       {
         title: "native Map (expanded)",
-        value: DI.fromData(nativeMap).toggleIsExpanded(),
+        value: expanded(DI.fromData(nativeMap)),
       },
       {
         title: "native Set (expanded)",
-        value: DI.fromData(nativeSet).toggleIsExpanded(),
+        value: expanded(DI.fromData(nativeSet)),
       },
       {
         title: "native Map with object keys (expanded)",
-        value: DI.fromData(mapWithObjectKeys).toggleIsExpanded(),
+        value: expanded(DI.fromData(mapWithObjectKeys)),
       },
       {
         title: "class instance (Person, expanded)",
-        value: DI.fromData(inst).toggleIsExpanded(),
+        value: expanded(DI.fromData(inst)),
       },
       {
-        title: "deeply mixed: Immutable + JS extras + JSON (expanded)",
+        title: "deeply mixed: native collections + JS extras + JSON (expanded)",
         description:
-          "Plain object containing a class instance, native Map (with a Set inside), function, Date, RegExp, Error, Symbol, BigInt, undefined, JSON, and an Immutable List with a nested IMap.",
+          "Plain object containing a class instance, native Map/Set, function, Date, RegExp, Error, Symbol, BigInt, undefined, and JSON.",
         value: deepExpand(DI.fromData(deepZoo)),
       },
     ],

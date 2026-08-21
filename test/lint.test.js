@@ -15,15 +15,12 @@ import {
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
-  FIELD_NAME_RESERVED_BY_RECORD,
+  EVENT_HANDLER_METHOD_NOT_ALLOWED,
+  FIELD_METHOD_NAME_COLLISION,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   GLOBAL_SELECTOR_IN_SCOPED_STYLE,
   IF_NO_BRANCH_SET,
-  RECEIVE_HANDLER_FOR_METHOD,
-  METHOD_FOR_RECEIVE_HANDLER,
-  RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED,
-  RECEIVE_HANDLER_NOT_IMPLEMENTED,
   LintParseContext,
   LOOKUP_BAD_SHAPE,
   LOOKUP_TARGET_MALFORMED,
@@ -33,6 +30,7 @@ import {
   METHOD_VAL_NOT_DEFINED,
   PLACEHOLDERLESS_TEMPLATE_STRING,
   PROVIDE_NOT_ADDRESSABLE,
+  RECEIVE_HANDLER_NOT_IMPLEMENTED,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
   SUGGEST_BINDING_MEMBER,
@@ -73,7 +71,7 @@ test("ASYNC_HANDLER flags an async receive handler with the fix help", () => {
     name: "Comp",
     view: html`<button @on.click="go">go</button>`,
     receive: {
-      async go() {},
+      async go(draft) {},
     },
   });
   const found = lx.reports.filter((r) => r.id === ASYNC_HANDLER);
@@ -88,8 +86,8 @@ test("ASYNC_HANDLER flags async handlers across receive/intent/alter", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     view: html`<div></div>`,
-    receive: { async onMsg() {} },
-    intent: { async onEvt() {} },
+    receive: { async onMsg(draft) {} },
+    intent: { async onEvt(draft) {} },
     alter: {
       async onAlt(_k, v) {
         return v;
@@ -170,15 +168,15 @@ test("ASYNC_HANDLER does not flag synchronous handlers", () => {
     name: "Comp",
     view: html`<button @on.click="go">go</button>`,
     receive: {
-      go() {
+      go(draft) {
         return this;
       },
-      onMsg() {
+      onMsg(draft) {
         return this;
       },
     },
     intent: {
-      onEvt() {
+      onEvt(draft) {
         return this;
       },
     },
@@ -343,7 +341,6 @@ test("no UNKNOWN_COMPONENT_SPEC_KEY on a maximal legit spec", () => {
     provide: {},
     lookup: {},
     fields: {},
-    methods: {},
     statics: {},
   });
   expect(Object.keys(Comp.extra).length).toBe(0);
@@ -424,7 +421,7 @@ test("flag render-it that is sibling of a loop (not inside it)", () => {
 test("warn on unknown event modifiers", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<button @on.click+foo+alt="do">do it</button>`,
   });
   expect(lx.reports.length).toBe(1);
@@ -442,7 +439,7 @@ test("warn on unknown event modifiers", () => {
 test("prevent/stop and the modifier-key guards are accepted on any event", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<form @on.submit+prevent="do">
       <button @on.click+stop+ctrl="do">do it</button>
       <input @on.mousedown+alt="do" />
@@ -454,7 +451,7 @@ test("prevent/stop and the modifier-key guards are accepted on any event", () =>
 test("keydown-only modifiers stay keydown-only", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<button @on.click+send="do">do it</button>`,
   });
   const [
@@ -470,7 +467,7 @@ test("keydown-only modifiers stay keydown-only", () => {
 test("warn on unknown event handler arg name", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<button @on.click="do foo event bar ctx">do it</button>`,
   });
   expect(lx.reports.length).toBe(2);
@@ -493,13 +490,13 @@ test("warn on event handler in view with no impl", () => {
       doClick() {},
     },
     receive: {
-      doKeyDown() {},
+      doKeyDown(draft) {},
     },
     view: html`<button @on.click="doClick" @on.keydown="$doKeyDown">
       do it
     </button>`,
   });
-  expect(lx.reports.length).toBe(4);
+  expect(lx.reports.length).toBe(2);
   {
     const { id, info } = lx.reports[0];
     expect(id).toBe(RECEIVE_HANDLER_NOT_IMPLEMENTED);
@@ -507,17 +504,7 @@ test("warn on event handler in view with no impl", () => {
   }
   {
     const { id, info } = lx.reports[1];
-    expect(id).toBe(METHOD_FOR_RECEIVE_HANDLER);
-    expect(info.name).toBe("doClick");
-  }
-  {
-    const { id, info } = lx.reports[2];
-    expect(id).toBe(RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED);
-    expect(info.name).toBe("doKeyDown");
-  }
-  {
-    const { id, info } = lx.reports[3];
-    expect(id).toBe(RECEIVE_HANDLER_FOR_METHOD);
+    expect(id).toBe(EVENT_HANDLER_METHOD_NOT_ALLOWED);
     expect(info.name).toBe("doKeyDown");
   }
 });
@@ -535,23 +522,24 @@ test("error when . reads a method, suggesting $", () => {
   expect(r.suggestion).toEqual({ kind: "rewrite", from: ".isReady", to: "$isReady" });
 });
 
-test("error when a field name collides with the Immutable Record API", () => {
+test("error when a field name collides with a component method", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    fields: { entries: [], hashCode: 0, count: 0 },
+    fields: { count: 0 },
+    methods: { count() {} },
     view: html`<p>hi</p>`,
   });
-  const reports = lx.reports.filter((x) => x.id === FIELD_NAME_RESERVED_BY_RECORD);
-  expect(reports.map((r) => r.info.name).sort()).toEqual(["entries", "hashCode"]);
+  const reports = lx.reports.filter((x) => x.id === FIELD_METHOD_NAME_COLLISION);
+  expect(reports.map((r) => r.info.name)).toEqual(["count"]);
 });
 
-test("no Record API collision for safe field names (size, keys, values)", () => {
+test("native collection-style field names are allowed", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { size: 0, keys: [], values: [], name: "" },
     view: html`<p>hi</p>`,
   });
-  expect(lx.reports.some((x) => x.id === FIELD_NAME_RESERVED_BY_RECORD)).toBe(false);
+  expect(lx.reports.some((x) => x.id === FIELD_METHOD_NAME_COLLISION)).toBe(false);
 });
 
 test("error when $ calls a field, suggesting .", () => {
@@ -994,7 +982,7 @@ test("warn on Type not in scope", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { name: "" },
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<button @on.click="do MyComp ctx">do it</button>`,
   });
   expect(lx.reports.length).toBe(1);
@@ -1045,9 +1033,9 @@ test("a receive handler no view references is NOT reported", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     receive: {
-      usedClick() {},
-      sentByParent() {},
-      loadRowsOk() {},
+      usedClick(draft) {},
+      sentByParent(draft) {},
+      loadRowsOk(draft) {},
     },
     view: html`<button @on.click="usedClick">ok</button>`,
   });
@@ -1058,7 +1046,7 @@ test("no unreferenced input hint when handler is referenced", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     receive: {
-      doClick() {},
+      doClick(draft) {},
     },
     view: html`<button @on.click="doClick">ok</button>`,
   });
@@ -1153,7 +1141,7 @@ test("lint-errors example catches all error types", () => {
       },
     },
     receive: {
-      doKeyDown() {},
+      doKeyDown(draft) {},
     },
     view: html`<div>
       <p>Lint Errors Demo - check the Lint tab</p>
@@ -1166,7 +1154,7 @@ test("lint-errors example catches all error types", () => {
 
       <button @on.click="doClick">method as handler</button>
 
-      <button @on.keydown="$doKeyDown">handler as method</button>
+      <button @on.keydown="$doKeyDown">method syntax is invalid for events</button>
 
       <p :title=".missing">undefined field</p>
 
@@ -1195,9 +1183,7 @@ test("lint-errors example catches all error types", () => {
   expect(ids).toContain(UNKNOWN_EVENT_MODIFIER);
   expect(ids).toContain(UNKNOWN_HANDLER_ARG_NAME);
   expect(ids).toContain(RECEIVE_HANDLER_NOT_IMPLEMENTED);
-  expect(ids).toContain(METHOD_FOR_RECEIVE_HANDLER);
-  expect(ids).toContain(RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED);
-  expect(ids).toContain(RECEIVE_HANDLER_FOR_METHOD);
+  expect(ids).toContain(EVENT_HANDLER_METHOD_NOT_ALLOWED);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
@@ -1252,7 +1238,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
       },
     },
     receive: {
-      doKeyDown() {},
+      doKeyDown(draft) {},
     },
     view: html`<div>
       <p>Lint Errors Demo - check the Lint tab</p>
@@ -1265,7 +1251,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
       <button @on.click="doClick">method as handler</button>
 
-      <button @on.keydown="$doKeyDown">handler as method</button>
+      <button @on.keydown="$doKeyDown">method syntax is invalid for events</button>
 
       <p :title=".missing">undefined field</p>
 
@@ -1297,9 +1283,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
   expect(ids).toContain(UNKNOWN_EVENT_MODIFIER);
   expect(ids).toContain(UNKNOWN_HANDLER_ARG_NAME);
   expect(ids).toContain(RECEIVE_HANDLER_NOT_IMPLEMENTED);
-  expect(ids).toContain(METHOD_FOR_RECEIVE_HANDLER);
-  expect(ids).toContain(RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED);
-  expect(ids).toContain(RECEIVE_HANDLER_FOR_METHOD);
+  expect(ids).toContain(EVENT_HANDLER_METHOD_NOT_ALLOWED);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
   expect(ids).toContain(UNKNOWN_COMPONENT_NAME);
   expect(ids).toContain(ALT_HANDLER_NOT_DEFINED);
@@ -1312,7 +1296,7 @@ test("macro invocation :handler NameVal does not warn; ^handler in body expands 
   );
   const Comp = component({
     name: "Comp",
-    receive: { onDo() {} },
+    receive: { onDo(draft) {} },
     view: html`<div><x:btn :handler="onDo" :arg="event"></x:btn></div>`,
   });
   Comp.scope = new ComponentStack();
@@ -1417,7 +1401,7 @@ test("known @directives do not raise UNKNOWN_DIRECTIVE", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { name: "x", isOpen: false },
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<div @show=".isOpen" @text=".name" @on.click="do" @if.class=".isOpen" @then="'a'">
       hi
     </div>`,
@@ -1950,7 +1934,7 @@ test("BAD_VALUE on bad event handler name", () => {
 test("BAD_VALUE on bad event handler arg", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { doThing() {} },
+    receive: { doThing(draft) {} },
     view: html`<button @on.click="doThing 123bad">x</button>`,
   });
   const matched = lx.reports.filter((r) => r.id === BAD_VALUE);
@@ -2120,7 +2104,7 @@ test("good values do not raise BAD_VALUE", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [], name: "x", isOpen: false },
-    receive: { doThing() {} },
+    receive: { doThing(draft) {} },
     view: html`<div>
       <p :class=".name" @text=".name" @show=".isOpen"></p>
       <li @each=".items">x</li>
@@ -2141,7 +2125,7 @@ test("good values do not raise BAD_VALUE", () => {
 test("UNKNOWN_HANDLER_ARG_NAME suggests closest known handler arg", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<button @on.click="do valueAsint">x</button>`,
   });
   const r = lx.reports.find((x) => x.id === UNKNOWN_HANDLER_ARG_NAME);
@@ -2151,7 +2135,7 @@ test("UNKNOWN_HANDLER_ARG_NAME suggests closest known handler arg", () => {
 test("UNKNOWN_HANDLER_ARG_NAME has no suggestion when nothing is close", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<button @on.click="do completelyUnrelatedXyz">x</button>`,
   });
   const r = lx.reports.find((x) => x.id === UNKNOWN_HANDLER_ARG_NAME);
@@ -2168,30 +2152,39 @@ test("FIELD_VAL_NOT_DEFINED suggests closest field", () => {
   expect(r.suggestion).toEqual({ kind: "replace-name", from: "usrName", to: "userName" });
 });
 
-test("RECEIVE_HANDLER_NOT_IMPLEMENTED suggests add-prefix when method exists", () => {
+test("RECEIVE_HANDLER_NOT_IMPLEMENTED suggests moving a same-named method to receive", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     methods: { doClick() {} },
     view: html`<button @on.click="doClick">x</button>`,
   });
   const r = lx.reports.find((x) => x.id === RECEIVE_HANDLER_NOT_IMPLEMENTED);
-  expect(r.suggestion).toEqual({ kind: "add-prefix", from: "doClick", to: "$doClick" });
+  expect(r.suggestion).toEqual({
+    kind: "rephrase",
+    from: "doClick",
+    text: "Move 'doClick' from methods to receive; event handlers are receive handlers.",
+  });
 });
 
-test("RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED suggests drop-prefix when input handler exists", () => {
+test("EVENT_HANDLER_METHOD_NOT_ALLOWED rejects $ even when receive has the same name", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { doKeyDown() {} },
+    receive: { doKeyDown(draft) {} },
     view: html`<button @on.keydown="$doKeyDown">x</button>`,
   });
-  const r = lx.reports.find((x) => x.id === RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED);
-  expect(r.suggestion).toEqual({ kind: "drop-prefix", from: "$doKeyDown", to: "doKeyDown" });
+  const r = lx.reports.find((x) => x.id === EVENT_HANDLER_METHOD_NOT_ALLOWED);
+  expect(r.info.name).toBe("doKeyDown");
+  expect(r.suggestion).toEqual({
+    kind: "rephrase",
+    from: "$doKeyDown",
+    text: "Move 'doKeyDown' to receive and reference it as 'doKeyDown'.",
+  });
 });
 
 test("RECEIVE_HANDLER_NOT_IMPLEMENTED suggests closest input handler on typo", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { doSubmit() {} },
+    receive: { doSubmit(draft) {} },
     view: html`<button @on.click="doSumbit">x</button>`,
   });
   const r = lx.reports.find((x) => x.id === RECEIVE_HANDLER_NOT_IMPLEMENTED);
@@ -2240,7 +2233,7 @@ test("UNKNOWN_X_OP suggests closest x op on plain typo", () => {
 test("UNKNOWN_EVENT_MODIFIER suggests closest known modifier for the event", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    receive: { do() {} },
+    receive: { do(draft) {} },
     view: html`<button @on.click+ctl="do">x</button>`,
   });
   const r = lx.reports.find((x) => x.id === UNKNOWN_EVENT_MODIFIER);

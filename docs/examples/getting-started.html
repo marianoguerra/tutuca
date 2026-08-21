@@ -15,18 +15,18 @@
         fields: {
           count: 0,
         },
-        methods: {
-          inc() {
-            return this.setCount(this.count + 1);
+        receive: {
+          inc(draft) {
+            draft.count++;
           },
-          dec() {
-            return this.setCount(this.count - 1);
+          dec(draft) {
+            draft.count--;
           },
         },
         view: html`<div>
-          <button @on.click="$dec">-</button>
+          <button @on.click="dec">-</button>
           <div @text=".count"></div>
-          <button @on.click="$inc">+</button>
+          <button @on.click="inc">+</button>
         </div>`,
       });
 

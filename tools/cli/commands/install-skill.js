@@ -6,13 +6,11 @@ import { parseArgs } from "node:util";
 import { CODES, emitError } from "../errors.js";
 import { walkFiles } from "../walk.js";
 
-export const describe =
-  "Install Claude Code skills (tutuca, margaui, immutable-js) into .claude/skills/.";
+export const describe = "Install Claude Code skills (tutuca, margaui) into .claude/skills/.";
 
 const SKILLS = [
   { name: "tutuca", srcSubdir: "tutuca", flag: null },
   { name: "margaui", srcSubdir: "margaui", flag: "margaui-skill" },
-  { name: "immutable-js", srcSubdir: "immutable-js", flag: "immutable-skill" },
 ];
 
 function findSkillsRoot() {
@@ -74,7 +72,6 @@ export async function run(argv, opts = {}) {
       user: { type: "boolean", default: false },
       project: { type: "boolean", default: false },
       "margaui-skill": { type: "boolean", default: false },
-      "immutable-skill": { type: "boolean", default: false },
       all: { type: "boolean", default: false },
       "dot-agents": { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
@@ -86,7 +83,7 @@ export async function run(argv, opts = {}) {
 
   if (parsed.values.help) {
     process.stdout.write(
-      "tutuca install-skill [--user | --project] [--margaui-skill | --immutable-skill | --all]\n" +
+      "tutuca install-skill [--user | --project] [--margaui-skill | --all]\n" +
         "                    [--dot-agents] [--dry-run] [--force]\n" +
         "\n" +
         "  Installs Claude Code skill assets into .claude/skills/<name>/.\n" +
@@ -95,8 +92,7 @@ export async function run(argv, opts = {}) {
         "  Selection:\n" +
         "    (default)         install the tutuca skill\n" +
         "    --margaui-skill   install the margaui skill instead\n" +
-        "    --immutable-skill install the immutable-js skill instead\n" +
-        "    --all             install every bundled skill (tutuca + margaui + immutable-js)\n" +
+        "    --all             install every bundled skill (tutuca + margaui)\n" +
         "\n" +
         "  --dot-agents installs into .agents/skills/ instead of .claude/skills/.\n" +
         "  --dry-run prints the files that would be written without touching the filesystem.\n" +
@@ -112,9 +108,7 @@ export async function run(argv, opts = {}) {
       hint: "Use --user for ~/.claude/skills/ or --project (the default) for ./.claude/skills/.",
     });
   }
-  const selectionFlags = ["margaui-skill", "immutable-skill", "all"].filter(
-    (k) => parsed.values[k],
-  );
+  const selectionFlags = ["margaui-skill", "all"].filter((k) => parsed.values[k]);
   if (selectionFlags.length > 1) {
     emitError(opts, {
       code: CODES.USAGE_MUTUALLY_EXCLUSIVE,

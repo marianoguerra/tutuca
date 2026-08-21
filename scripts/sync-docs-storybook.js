@@ -27,7 +27,6 @@ const GALLERIES = [
     sources: [
       "src/components/data/json.dev.js",
       "src/components/data/data.dev.js",
-      "src/components/data/immutable-inspector.dev.js",
       "src/components/data/json-schema.dev.js",
     ],
   },

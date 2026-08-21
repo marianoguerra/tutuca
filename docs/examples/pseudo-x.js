@@ -34,9 +34,14 @@ const SelectOption = component({
 });
 
 const ItemSelect = component({
+  receive: {
+    setCurrent(draft, value) {
+      draft.current = value;
+    },
+  },
   name: "ItemSelect",
   fields: { options: [], current: "" },
-  view: html`<select class="select" :value=".current" @on.input="$setCurrent value">
+  view: html`<select class="select" :value=".current" @on.input="setCurrent value">
     <option @x render-each=".options"></option>
   </select>`,
 });

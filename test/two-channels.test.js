@@ -14,8 +14,8 @@ const Status = component({
   name: "Status",
   fields: { text: "" },
   receive: {
-    flash(t) {
-      return this.setText(t);
+    flash(draft, t) {
+      draft.text = t;
     },
   },
   view: html`<b class="status" @text=".text"></b>`,
@@ -27,13 +27,13 @@ const Item = component({
   receive: {
     // A view name that this component does NOT answer locally: it forwards, and the
     // name leaves the component as an intent without the view changing.
-    pick(ctx) {
+    pick(draft, ctx) {
       ctx.forward({ route: ["dyn"] });
       return this;
     },
     // A plain view message, answered right here.
-    shout() {
-      return this.setLabel(this.label.toUpperCase());
+    shout(draft) {
+      draft.label = this.label.toUpperCase();
     },
   },
   view: html`<span><button class="pick" @on.click="pick">p</button>
@@ -45,26 +45,26 @@ const Root = component({
   name: "Root",
   fields: { item: null, status: null, log: "", rows: "", err: "" },
   receive: {
-    boot(ctx) {
+    boot(draft, ctx) {
       ctx.at.field("status").send("flash", ["ready"]); // addressed send
       ctx.intent("loadRows", [], { route: ["lex"] }); // intent on the lex leg
       return this;
     },
-    loadRowsOk(rows) {
-      return this.setRows(rows.join(","));
+    loadRowsOk(draft, rows) {
+      draft.rows = rows.join(",");
     },
-    loadRowsError(e) {
-      return this.setErr(String(e));
+    loadRowsError(draft, e) {
+      draft.err = String(e);
     },
-    loadRowsUnhandled() {
-      return this.setErr("nobody claimed it");
+    loadRowsUnhandled(draft) {
+      draft.err = "nobody claimed it";
     },
   },
   // Answers the intent the Item forwarded up the `dyn` leg.
   intent: {
-    pick(ctx) {
+    pick(draft, ctx) {
       ctx.reply("ok");
-      return this.setLog("picked");
+      draft.log = "picked";
     },
   },
   view: html`<div><x render=".item"></x><x render=".status"></x>
@@ -131,8 +131,8 @@ test("a throwing lex handler answers <name>Error", async () => {
 
 // The docs site's own Counter, clicked through a real DOM. It is the smallest case of
 // "a bare view name resolves in the `receive` bucket", and the one a reader meets first:
-// `@on.click="dec"` (a receive handler) beside `@on.click="$inc"` (a method).
-test("the docs Counter example: a bare view name and a $method both work", async () => {
+// Both `@on.click="dec"` and `@on.click="inc"` resolve in the `receive` bucket.
+test("the docs Counter example routes both event names through receive", async () => {
   const { getComponents, getRoot } = await import("../docs/examples/counter.js");
   const { container, app, cleanup } = renderToHTMLNode(
     document,
@@ -148,7 +148,7 @@ test("the docs Counter example: a bare view name and a $method both work", async
   await app.transactor.settle();
   expect(value()).toBe("-1");
 
-  container.querySelector(".btn-success").click(); // @on.click="$inc" -> methods.inc
+  container.querySelector(".btn-success").click(); // @on.click="inc" -> receive.inc
   await app.transactor.settle();
   expect(value()).toBe("0");
   cleanup();

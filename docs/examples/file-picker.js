@@ -1,4 +1,10 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
+
+const pickFile = (current, file) =>
+  produce(current, (draft) =>
+    FilePicker.receive.onPickFile.call(current, draft, { target: { files: file ? [file] : [] } }),
+  );
 
 const FILE_SIZE_UNITS = ["B", "KB", "MB", "GB", "TB"];
 
@@ -28,23 +34,21 @@ const FilePicker = component({
   },
   receive: {
     // `event` is the raw DOM change event; the chosen File lives on
-    // `event.target.files`. The metadata-copying lives in the `withFile` method
-    // so it stays directly callable from tests.
-    onPickFile(event) {
-      return this.withFile(event.target.files?.[0]);
+    // `event.target.files`.
+    onPickFile(draft, event) {
+      const file = event.target.files?.[0];
+      if (!file) {
+        draft.hasFile = false;
+        return;
+      }
+      draft.name = file.name;
+      draft.size = file.size;
+      draft.type = file.type;
+      draft.lastModified = file.lastModified;
+      draft.hasFile = true;
     },
   },
   methods: {
-    // File objects can't be read synchronously, but their metadata
-    // (name/size/type/lastModified) is available immediately.
-    withFile(file) {
-      if (!file) return this.setHasFile(false);
-      return this.setName(file.name)
-        .setSize(file.size)
-        .setType(file.type)
-        .setLastModified(file.lastModified)
-        .setHasFile(true);
-    },
     sizeLabel() {
       return formatSize(this.size);
     },
@@ -109,9 +113,9 @@ export function getExamples() {
 
 export function getTests({ describe, test, expect }) {
   describe(FilePicker, () => {
-    describe("withFile()", () => {
+    describe("onPickFile", () => {
       test("copies the selected file's metadata into fields", () => {
-        const fp = FilePicker.make().withFile({
+        const fp = pickFile(FilePicker.make(), {
           name: "photo.png",
           size: 2048,
           type: "image/png",
@@ -125,7 +129,7 @@ export function getTests({ describe, test, expect }) {
       });
 
       test("clears hasFile when no file is provided", () => {
-        const fp = FilePicker.make({ hasFile: true }).withFile(undefined);
+        const fp = pickFile(FilePicker.make({ hasFile: true }));
         expect(fp.hasFile).toBe(false);
       });
     });

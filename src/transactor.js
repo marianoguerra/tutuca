@@ -1,3 +1,5 @@
+import { produce } from "./immer.js";
+import { validateDraftFields } from "./oo.js";
 import { Path, PathBuilder } from "./path.js";
 import { Stack } from "./stack.js";
 import { isMac } from "./util/env.js";
@@ -209,10 +211,10 @@ class Transaction {
   get observeName() {
     return null;
   }
-  callHandler(root, instance, comps) {
+  callHandler(root, instance, draft, comps) {
     const [handler, args] = this.getHandlerAndArgs(root, instance, comps);
     this._resolvedHandler = handler; // captured for observers
-    return handler.apply(instance, args);
+    return handler.apply(instance, [draft, ...args]);
   }
   getHandlerAndArgs(_root, _instance, _comps) {
     return null;
@@ -221,12 +223,19 @@ class Transaction {
   // the data's real location (the dispatch `this.path` keeps intermediates). A subclass
   // may override to supply a pre-resolved path (see ResponseEvent's pinned keys).
   getTransactionPath() {
-    return this.path.toTransactionPath();
+    // Frame-only bind steps are needed to replay handler arguments, but they do not
+    // address state. Compact them before lookup/grafting so a handler inside @each
+    // still updates the component that owns the view.
+    return this.path.toTransactionPath().compact();
   }
   updateRootValue(curRoot, comps) {
     const txnPath = this.getTransactionPath();
     const curLeaf = txnPath.lookup(curRoot);
-    const newLeaf = this.callHandler(curRoot, curLeaf, comps);
+    const newLeaf = produce(curLeaf, (draft) => {
+      const result = this.callHandler(curRoot, curLeaf, draft, comps);
+      if (result === undefined || result === draft) validateDraftFields(curLeaf, draft);
+      return result;
+    });
     this._before = curLeaf; // captured for observers (see _emitTransaction)
     this._after = newLeaf;
     this._completion?.markSelfSettled({ value: newLeaf, old: curLeaf });
@@ -688,7 +697,7 @@ class Dispatcher {
     this.path = path;
     this.transactor = transactor;
     this.parent = parentTransaction;
-    // The state tree this ctx's `path` indexes into, captured at dispatch. Immutable,
+    // The state tree this ctx's `path` indexes into, captured at dispatch. Frozen,
     // so `walkPath` can be called any time (before or after an await).
     this.root = root;
   }

@@ -1,9 +1,10 @@
 import { component, html } from "tutuca";
-import { getComponents as getImComponents, ImInspector } from "../data/immutable-inspector.js";
+import { DataInspector, getComponents as getDataComponents } from "../data/data.js";
 import {
   compositeAlter,
   compositeFields,
   compositeMethods,
+  compositeReceive,
   makeCompositeView,
 } from "../data/json.js";
 
@@ -61,8 +62,8 @@ export function lintMessage(id, info = {}) {
       return `'$${info.name}' calls a method, but '${info.name}' is a field — use '.${info.name}'${originSuffix(info)}`;
     case "RECEIVE_HANDLER_NOT_IMPLEMENTED":
       return `Receive handler '${info.name}' is not implemented${eventSuffix(info)}`;
-    case "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED":
-      return `Method '$${info.name}' is not implemented${eventSuffix(info)}`;
+    case "EVENT_HANDLER_METHOD_NOT_ALLOWED":
+      return `Event handler '$${info.name}' is a method reference — move it to receive and use '${info.name}'`;
     case "ALT_HANDLER_NOT_DEFINED":
       return `Alter handler '${info.name}' is not defined${originSuffix(info)}`;
     case "DYN_VAL_NOT_DEFINED":
@@ -105,7 +106,7 @@ const componentView = makeCompositeView({
 });
 
 // One finding: a soft severity badge, a human-readable message, an optional fix
-// suggestion, and the full id/info/context via ImInspector (collapsed).
+// suggestion, and the full id/info/context via DataInspector (collapsed).
 export const LintFinding = component({
   name: "LintFinding",
   fields: { id: "", level: "", message: "", suggestion: "", detail: null },
@@ -158,7 +159,7 @@ function buildFinding(f) {
     level: f.level ?? "",
     message: lintMessage(f.id, info),
     suggestion: suggestionText(f.suggestion),
-    detail: ImInspector.Class.fromData({ id: f.id, info, context: ctx }),
+    detail: DataInspector.Class.fromData({ id: f.id, info, context: ctx }),
   });
 }
 
@@ -180,6 +181,7 @@ export const LintComponent = component({
       return parts.length ? parts.join(", ") : "ok";
     },
   },
+  receive: compositeReceive,
   alter: compositeAlter,
   view: componentView,
 });
@@ -291,5 +293,5 @@ export const LintReport = component({
 });
 
 export function getComponents() {
-  return [LintReport, LintComponent, LintFinding, ...getImComponents()];
+  return [LintReport, LintComponent, LintFinding, ...getDataComponents()];
 }

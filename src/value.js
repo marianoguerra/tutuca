@@ -1,4 +1,4 @@
-import { is } from "../deps/immutable.js";
+import { isPlainObject, seqGet } from "./collection.js";
 import { FieldStep, SeqAccessStep } from "./path.js";
 
 // An identifier: a letter then letters/digits/underscores, with an optional
@@ -55,14 +55,15 @@ const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_CONST;
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
 
 // Boolean predicates usable in conditional slots, e.g. `@show="empty? .items"`.
-// `sizeOf` reads `.size` (immutable List/Map/Set/OrderedMap/Record) or
+// `sizeOf` reads `.size` (native Map/Set and custom sequences) or
 // `.length` (string/array), so predicates need no field-type info.
 function sizeOf(v) {
   if (v == null) return null;
   const s = v.size;
   if (typeof s === "number") return s;
   const l = v.length;
-  return typeof l === "number" ? l : null;
+  if (typeof l === "number") return l;
+  return isPlainObject(v) ? Object.keys(v).length : null;
 }
 const predTruthy = (v) => {
   const n = sizeOf(v);
@@ -73,7 +74,7 @@ const PREDICATES = {
   "truthy?": { name: "truthy?", arity: 1, fn: predTruthy },
   "falsy?": { name: "falsy?", arity: 1, fn: (v) => !predTruthy(v) },
   "null?": { name: "null?", arity: 1, fn: (v) => v == null },
-  "equals?": { name: "equals?", arity: 2, fn: (a, b) => is(a, b) },
+  "equals?": { name: "equals?", arity: 2, fn: (a, b) => Object.is(a, b) },
 };
 
 // Parse a single token into the richest `BaseVal` it can be, with no
@@ -205,24 +206,33 @@ export function parseMacroAttr(s, px) {
 // The namespace is `receive`: a view's name is a MESSAGE addressed to the component
 // that owns the view, which is the same thing a parent's ctx.send raises.
 export function parseReceiveHandler(s, px) {
-  return _parseHandler(s, px, "receive", true, true);
+  return _parseHandler(s, px, "receive", true, true, false);
 }
 // Handler reference for @when, @enrich-with, @loop-with. No args, and
 // silent on failure — the directive caller reports the issue.
 export function parseAlterHandler(s, px) {
-  const r = _parseHandler(s, px, "alter", false, false);
+  const r = _parseHandler(s, px, "alter", false, false, true);
   return r === null ? null : r.handlerVal;
 }
-// `$name` -> a `MethodVal` (used via `evalAsHandler`); a bare name -> a
-// `HandlerNameVal`. No field syntax: a `.field` cannot be a handler.
-function _parseHandler(s, px, namespace, allowArgs, report) {
+// A bare name becomes a `HandlerNameVal`. Read-only handler slots may also
+// opt into `$name` -> `MethodVal`; receive/event slots deliberately do not.
+// No field syntax: a `.field` cannot be a handler.
+function _parseHandler(s, px, namespace, allowArgs, report, allowMethod) {
   const tokens = tokenizeValue(s.trim());
   const headTok = tokens[0] ?? "";
   const head = headTok === "" ? null : parseToken(headTok, px);
   const hk = kindOf(head);
   let handlerVal;
-  if (hk & K_METHOD) handlerVal = head;
-  else if (hk & K_NAME) handlerVal = new HandlerNameVal(head.name, namespace);
+  if (hk & K_METHOD && allowMethod) handlerVal = head;
+  else if (hk & K_METHOD) {
+    if (report)
+      px.onParseIssue("event-method-handler", {
+        name: head.name,
+        role: "handler-name",
+        value: headTok,
+      });
+    return null;
+  } else if (hk & K_NAME) handlerVal = new HandlerNameVal(head.name, namespace);
   else {
     if (report) px.onParseIssue("bad-value", { role: "handler-name", value: headTok });
     return null;
@@ -454,9 +464,9 @@ export class BindMemberVal extends BindVal {
   }
   eval(stack) {
     const v = stack.lookupBind(this.name);
-    // Bindings hold immutable values (`@value`) or whatever `@enrich-with`
+    // Bindings hold state values (`@value`) or whatever `@enrich-with`
     // set — possibly a plain object, hence the property-access fallback.
-    return typeof v?.get === "function" ? v.get(this.member, null) : (v?.[this.member] ?? null);
+    return seqGet(v, this.member, null);
   }
   toString() {
     return `@${this.name}.${this.member}`;
@@ -485,8 +495,8 @@ export class FieldVal extends RenderNameVal {
 }
 // `$name`: a no-arg method call on `this`. Has no `toPathItem` (inherits
 // `BaseVal`'s `null`), so it cannot reach a path-bearing slot. In a value
-// slot `eval` invokes the method; in handler position `evalAsHandler` hands
-// back the raw function for the dispatch machinery to call with event args.
+// slot `eval` invokes the method; read-only handler slots such as `@when`
+// use `evalAsHandler` to obtain the raw function.
 export class MethodVal extends RenderNameVal {
   eval(stack) {
     return stack.lookupMethod(this.name);
@@ -509,7 +519,7 @@ export class SeqAccessVal extends RenderVal {
   }
   eval(stack) {
     const key = this.keyVal.eval(stack);
-    return this.seqVal.eval(stack)?.get(key, null);
+    return seqGet(this.seqVal.eval(stack), key, null);
   }
   toString() {
     return `${this.seqVal}[${this.keyVal}]`;

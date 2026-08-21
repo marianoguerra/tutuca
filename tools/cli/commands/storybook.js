@@ -142,6 +142,7 @@ function buildImports(base, { margauiEnabled, margauiJsUrl }) {
     tutuca: dev,
     "tutuca/extra": dev,
     "tutuca/dev": dev,
+    "tutuca/immer": `${base}/immer.js`,
     "tutuca/storybook": `${base}/tutuca-storybook.js`,
     "tutuca/components": `${base}/tutuca-components.js`,
   };

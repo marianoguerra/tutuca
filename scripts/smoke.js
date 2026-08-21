@@ -1,11 +1,10 @@
 // Post-build smoke tests. Imports every shipped build artifact, does some simple
 // usage, and asserts that the build variants of each tier export exactly the same
 // names — the regression guard for packaging bugs of the kind that once broke the
-// .ext extra/dev bundles, where a mis-lowered star re-export of an external silently
-// dropped the immutable exports (`ReferenceError: immutable is not defined` at load).
+// .ext extra/dev bundles, where a mis-lowered external import could fail at load.
 //
-// The .ext bundles import `immutable`/`chai` as bare externals; `smoke-resolve.mjs`
-// maps those to dist/immutable.js / dist/chai.js, mirroring the consumer import map.
+// The .ext bundles import `immer`/`chai` as bare externals; `smoke-resolve.mjs`
+// maps those to dist/immer.js / dist/chai.js, mirroring the consumer import map.
 //
 // Run with `node scripts/smoke.js` (wired into `npm run dist-all`).
 
@@ -64,24 +63,22 @@ for (const [tier, variants] of Object.entries(TIERS)) {
   }
 }
 
-// Simple usage against each tier's regular build (representative; immutable comes
-// through tutuca's re-export, component/tutuca are the framework entry points).
+// Simple usage against each tier's regular build.
 console.log("smoke: simple usage…");
 for (const tier of Object.keys(TIERS)) {
   const m = loaded[tier].regular;
   if (!m) continue;
   check(`${tier}: tutuca() is a function`, typeof m.tutuca === "function");
   check(`${tier}: component() is a function`, typeof m.component === "function");
-  check(`${tier}: re-exports immutable Map`, typeof m.Map === "function");
+  const Value = m.component({ name: `Smoke${tier}`, fields: { count: 1, items: [] } });
+  const value = Value.make();
   check(
-    `${tier}: immutable Map is usable`,
-    (() => {
-      try {
-        return m.Map({ a: 1 }).get("a") === 1 && m.is(1, 1) === true;
-      } catch {
-        return false;
-      }
-    })(),
+    `${tier}: component state uses native values`,
+    value.count === 1 && Array.isArray(value.items),
+  );
+  check(
+    `${tier}: component state is immutable`,
+    Object.isFrozen(value) && Object.isFrozen(value.items),
   );
 }
 
@@ -114,16 +111,27 @@ try {
   check("load chai.js", false, `${e.constructor.name}: ${e.message}`);
 }
 
-// immutable standalone bundle.
-console.log("smoke: immutable bundle…");
-let immutableNames = [];
+// Immer standalone bundle.
+console.log("smoke: immer bundle…");
 try {
-  const im = await import(dist("immutable.js"));
-  immutableNames = Object.keys(im);
-  check("immutable: Map usable", im.Map({ a: 1 }).get("a") === 1);
-  check("immutable: is(1,1)", im.is(1, 1) === true);
+  const immer = await import(dist("immer.js"));
+  const base = { count: 1 };
+  const next = immer.produce(base, (draft) => {
+    draft.count++;
+  });
+  check("immer: produce is usable", next.count === 2 && base.count === 1);
+  check(
+    "immer: Map/Set plugin is enabled",
+    (() => {
+      try {
+        return immer.produce(new Map([["a", 1]]), (draft) => draft.set("b", 2)).size === 2;
+      } catch {
+        return false;
+      }
+    })(),
+  );
 } catch (e) {
-  check("load immutable.js", false, `${e.constructor.name}: ${e.message}`);
+  check("load immer.js", false, `${e.constructor.name}: ${e.message}`);
 }
 
 // Storybook library: external `tutuca` import (resolved by smoke-resolve.mjs)
@@ -174,19 +182,6 @@ if (names.base.regular && names.extra.regular) {
 if (names.extra.regular && names.dev.regular) {
   const missing = names.extra.regular.filter((n) => !names.dev.regular.includes(n));
   check("dev ⊇ extra", missing.length === 0, missing.length ? `missing=[${missing}]` : "");
-}
-
-// Drift guard: every export of the vendored immutable bundle must be surfaced by
-// the base build. If immutable adds an export and index.js's explicit re-export
-// list doesn't include it, this fails — pointing at the list to update.
-console.log("smoke: immutable re-export drift guard…");
-if (immutableNames.length && names.base.regular) {
-  const missing = immutableNames.filter((n) => !names.base.regular.includes(n));
-  check(
-    "base re-exports the full immutable surface",
-    missing.length === 0,
-    missing.length ? `index.js is missing: [${missing.join(",")}]` : "",
-  );
 }
 
 // CLI executes on import, so smoke-test it as a subprocess.

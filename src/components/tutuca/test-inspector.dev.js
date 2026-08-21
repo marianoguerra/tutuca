@@ -1,4 +1,4 @@
-import { ImInspector } from "../data/immutable-inspector.js";
+import { DataInspector } from "../data/data.js";
 import { getTests as componentInspectorTests } from "./component-inspector.dev.js";
 import { collectTests, TestCase, TestReport, TestSuite } from "./test-inspector.js";
 
@@ -113,11 +113,11 @@ export function getTests({ describe, test, expect }) {
     test("fromTests builds a suite tree with no run counts", () => {
       const r = TestReport.Class.fromTests(collectTests(sampleTests));
       expect(r.hasCounts).toBe(false);
-      const widget = r.suites.first();
+      const widget = r.suites[0];
       expect(widget).toBeInstanceOf(TestSuite.Class);
-      expect(widget.items.size).toBe(2);
+      expect(widget.items.length).toBe(2);
       // a definition leaf renders the neutral "•" mark
-      expect(widget.items.first().mark()).toBe("•");
+      expect(widget.items[0].mark()).toBe("•");
     });
 
     test("fromResults carries totals and builds the suite tree", () => {
@@ -126,7 +126,7 @@ export function getTests({ describe, test, expect }) {
       expect(r.pass).toBe(3);
       expect(r.fail).toBe(1);
       expect(r.skip).toBe(1);
-      const counter = r.suites.first();
+      const counter = r.suites[0];
       expect(counter).toBeInstanceOf(TestSuite.Class);
       expect(counter.summary).toBe("✓3 ✗1 ○1");
       expect(counter.isExpanded).toBe(true);
@@ -134,23 +134,23 @@ export function getTests({ describe, test, expect }) {
 
     test("a failing test shows the mark, message, and diff", () => {
       const r = TestReport.Class.fromResults(runReport);
-      const edge = r.suites.first().items.get(2);
+      const edge = r.suites[0].items[2];
       expect(edge).toBeInstanceOf(TestSuite.Class);
-      const failCase = edge.items.first();
+      const failCase = edge.items[0];
       expect(failCase).toBeInstanceOf(TestCase.Class);
       expect(failCase.status).toBe("fail");
       expect(failCase.mark()).toBe("✗");
       expect(failCase.markClass()).toContain("text-error");
       expect(failCase.message).toBe("expected 0 to be 10");
-      expect(failCase.detail).toBeInstanceOf(ImInspector.Class);
+      expect(failCase.detail).toBeInstanceOf(DataInspector.Class);
     });
 
     test("a passing test reports its duration; a skip does not", () => {
       const r = TestReport.Class.fromResults(runReport);
-      const items = r.suites.first().items;
-      expect(items.first().durText()).toBe("(1ms)");
-      const edge = items.get(2);
-      expect(edge.items.get(2).durText()).toBe("");
+      const items = r.suites[0].items;
+      expect(items[0].durText()).toBe("(1ms)");
+      const edge = items[2];
+      expect(edge.items[2].durText()).toBe("");
     });
   });
 }

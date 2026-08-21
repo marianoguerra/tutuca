@@ -98,14 +98,10 @@ export function lintIdToMessage(id, info) {
       return `${info.problem} — ${info.fix}`;
     case "RECEIVE_HANDLER_NOT_IMPLEMENTED":
       return `Receive handler '${info.name}' is not implemented${fmtEventSuffix(info)}`;
-    case "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED":
-      return `Method '$${info.name}' is not implemented${fmtEventSuffix(info)}`;
-    case "RECEIVE_HANDLER_FOR_METHOD":
-      return `'$${info.name}' is a method reference, but '${info.name}' is defined as a receive handler${fmtEventSuffix(info)}`;
-    case "METHOD_FOR_RECEIVE_HANDLER":
-      return `'${info.name}' is a receive handler reference, but '${info.name}' is defined as a method${fmtEventSuffix(info)}`;
-    case "FIELD_NAME_RESERVED_BY_RECORD":
-      return `Field '${info.name}' collides with the Immutable Record API: '.${info.name}' reads the Record member, not your value — rename the field (its value is only reachable via .get('${info.name}'))`;
+    case "EVENT_HANDLER_METHOD_NOT_ALLOWED":
+      return `Event handler '$${info.name}' is a method reference — move it to receive and use '${info.name}'`;
+    case "FIELD_METHOD_NAME_COLLISION":
+      return `Field '${info.name}' shadows a method with the same name — rename either the field or method`;
     case "FIELD_VAL_NOT_DEFINED":
       return `Field '.${info.name}' is not defined${fmtOriginSuffix(info)}`;
     case "FIELD_VAL_IS_METHOD":

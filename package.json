@@ -2,7 +2,7 @@
   "name": "tutuca",
   "version": "0.10.0",
   "type": "module",
-  "description": "SPA framework with immutable state and virtual DOM; dependency-free browser bundle",
+  "description": "SPA framework with Immer-powered immutable state and virtual DOM",
   "main": "./dist/tutuca.js",
   "module": "./dist/tutuca.js",
   "exports": {
@@ -15,7 +15,7 @@
     "./dev-ext": "./dist/tutuca-dev.ext.js",
     "./storybook": "./dist/tutuca-storybook.js",
     "./components": "./dist/tutuca-components.js",
-    "./immutable": "./dist/immutable.js",
+    "./immer": "./dist/immer.js",
     "./chai": "./dist/chai.js",
     "./package.json": "./package.json"
   },
@@ -26,8 +26,7 @@
     "clean": "rm -rf dist skill",
     "dist": "node scripts/dist.js",
     "dist-ext": "node scripts/dist-ext.js",
-    "dist-immutable": "node scripts/dist-immutable.js",
-    "dist-all": "npm run dist-immutable && npm run dist && npm run dist-ext && npm run smoke",
+    "dist-all": "npm run dist && npm run dist-ext && npm run smoke",
     "smoke": "node scripts/smoke.js",
     "release": "npm run dist-all && npm run sync-docs-storybook && npm run build-skill && (npm publish --access public; npm run clean-skill)",
     "release-dry": "npm run dist-all && npm run sync-docs-storybook && npm run build-skill && (npm publish --dry-run; npm run clean-skill)",
@@ -56,25 +55,22 @@
     "skill"
   ],
   "dependencies": {
+    "immer": "^10.2.0",
     "jsdom": "^28.0.0 || ^29.0.0",
     "prettier": "^3.0.0"
   },
   "peerDependencies": {
-    "chai": "^6.2.2",
-    "immutable": "*"
+    "chai": "^6.2.2"
   },
   "peerDependenciesMeta": {
     "chai": {
-      "optional": true
-    },
-    "immutable": {
       "optional": true
     }
   },
   "keywords": [
     "frontend",
     "framework",
-    "immutable",
+    "immer",
     "virtual-dom"
   ],
   "repository": {

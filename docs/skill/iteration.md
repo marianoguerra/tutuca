@@ -101,8 +101,8 @@ can grow):
 
 For each render of an element with `@each=".items"`:
 
-1. **Resolve sequence** — evaluate `.items`. Lists, IMaps, OMaps, ISets,
-   and any class declaring a `SEQ_INFO` walker are recognized.
+1. **Resolve sequence** — evaluate `.items`. Native Arrays and Maps, plus any
+   class declaring a `SEQ_INFO` walker, are recognized.
 2. **`@loop-with`** (once per render) — `getIterData.call(this, seq, ctx)`
    is called with the full sequence and the `{ lookup, filter }` context;
    its `iterData` becomes the shared per-loop value and its `start`/`end`

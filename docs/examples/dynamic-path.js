@@ -1,4 +1,5 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 
 // A dynamic variable (`*name`) used as a component-render target.
 //
@@ -14,6 +15,11 @@ import { component, html } from "tutuca";
 // echoed at the Workspace level (top) updates in lock-step.
 
 const Sheet = component({
+  receive: {
+    setTitle(draft, value) {
+      draft.title = value;
+    },
+  },
   name: "Sheet",
   fields: { title: "untitled" },
   view: html`<div class="card bg-base-200 p-3 gap-2">
@@ -21,7 +27,7 @@ const Sheet = component({
     <input
       class="input input-bordered"
       :value=".title"
-      @on.input="$setTitle value"
+      @on.input="setTitle value"
       placeholder="Sheet title"
     />
   </div>`,
@@ -98,7 +104,8 @@ export function getExamples() {
 export function getTests({ describe, test, expect }) {
   describe(Sheet, () => {
     test("$setTitle updates the title", () => {
-      const next = Sheet.make({ title: "a" }).setTitle("b");
+      const sheet = Sheet.make({ title: "a" });
+      const next = produce(sheet, (draft) => Sheet.receive.setTitle.call(sheet, draft, "b"));
       expect(next.title).toBe("b");
     });
   });

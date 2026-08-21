@@ -25,15 +25,12 @@ import {
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
-  FIELD_NAME_RESERVED_BY_RECORD,
+  EVENT_HANDLER_METHOD_NOT_ALLOWED,
+  FIELD_METHOD_NAME_COLLISION,
   FIELD_VAL_IS_METHOD,
   FIELD_VAL_NOT_DEFINED,
   GLOBAL_SELECTOR_IN_SCOPED_STYLE,
   IF_NO_BRANCH_SET,
-  RECEIVE_HANDLER_FOR_METHOD,
-  METHOD_FOR_RECEIVE_HANDLER,
-  RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED,
-  RECEIVE_HANDLER_NOT_IMPLEMENTED,
   LOOKUP_BAD_SHAPE,
   LOOKUP_TARGET_MALFORMED,
   MAYBE_ADD_AT_PREFIX,
@@ -42,6 +39,7 @@ import {
   METHOD_VAL_NOT_DEFINED,
   PLACEHOLDERLESS_TEMPLATE_STRING,
   PROVIDE_NOT_ADDRESSABLE,
+  RECEIVE_HANDLER_NOT_IMPLEMENTED,
   REDUNDANT_TEMPLATE_STRING,
   RENDER_IT_OUTSIDE_OF_LOOP,
   SUGGEST_BINDING_MEMBER,
@@ -91,30 +89,18 @@ export const LINT_RULES = [
     summary: "`$name` calls a method, but `name` is a field — use `.name`.",
   },
 
-  // Receive-handler / method confusion
+  // Receive handlers
   {
     code: RECEIVE_HANDLER_NOT_IMPLEMENTED,
     level: "error",
-    group: "Receive-handler / method confusion",
+    group: "Receive handlers",
     summary: "Bare handler name has no entry in `receive`.",
   },
   {
-    code: RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED,
+    code: EVENT_HANDLER_METHOD_NOT_ALLOWED,
     level: "error",
-    group: "Receive-handler / method confusion",
-    summary: "`$handler` has no entry in `methods`.",
-  },
-  {
-    code: RECEIVE_HANDLER_FOR_METHOD,
-    level: "hint",
-    group: "Receive-handler / method confusion",
-    summary: "`$name` is a method reference, but `name` is a receive handler — drop the `$`.",
-  },
-  {
-    code: METHOD_FOR_RECEIVE_HANDLER,
-    level: "hint",
-    group: "Receive-handler / method confusion",
-    summary: "Bare `name` is a receive-handler reference, but `name` is a method — add `$`.",
+    group: "Receive handlers",
+    summary: "`@on.*` cannot call `$method`; use a bare `receive` handler name.",
   },
 
   // Iteration helpers (`alter`)
@@ -379,11 +365,10 @@ export const LINT_RULES = [
       "`fields: { x: { component, args } }` shape is wrong: `component` must be a string and `args` must be a plain object.",
   },
   {
-    code: FIELD_NAME_RESERVED_BY_RECORD,
+    code: FIELD_METHOD_NAME_COLLISION,
     level: "error",
     group: "Component field declarations",
-    summary:
-      "Field name matches an Immutable Record API member, so `.field` reads the API member instead of the value.",
+    summary: "A field and method share a name, so the instance field shadows the prototype method.",
   },
 ];
 

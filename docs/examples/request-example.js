@@ -5,20 +5,9 @@ export const RequestExample = component({
   name: "RequestExample",
   fields: { items: [], query: "", view: "main", isLoading: false },
   methods: {
-    toggleView() {
-      return this.setView(this.view === "main" ? "edit" : "main");
-    },
     // Same intent, walked along the DEFAULT route (`dyn lex`): the ancestors first,
     // then the registered scopes. The answer arms below do not change with the route —
     // the route says who answers, the arms say what to do about it.
-    loadAnotherWay(ctx) {
-      ctx.intent("loadData");
-      return this.setIsLoading(true);
-    },
-    updateFromResponse(res) {
-      const items = res.map(({ title, description }) => Entry.make({ title, description }));
-      return this.setIsLoading(false).setItems(items);
-    },
   },
   // The three outcomes of `loadData`, and DECLARING them is what makes this a request
   // rather than a notification — nobody writes that down twice. They arrive as ordinary
@@ -26,22 +15,37 @@ export const RequestExample = component({
   // difference. Each has its own shape, so no arm can be handed both a result and an
   // error and read the wrong one.
   receive: {
-    init(ctx) {
+    setQuery(draft, value) {
+      draft.query = value;
+    },
+    resetQuery(draft) {
+      draft.query = this.constructor.getMetaClass().fields.query.defaultValue;
+    },
+    toggleView(draft) {
+      draft.view = draft.view === "main" ? "edit" : "main";
+    },
+    loadAnotherWay(draft, ctx) {
+      ctx.intent("loadData");
+      draft.isLoading = true;
+    },
+
+    init(draft, ctx) {
       ctx.intent("loadData", [], { route: ["lex"] });
-      return this.setIsLoading(true);
+      draft.isLoading = true;
     },
-    loadDataOk(res) {
-      return this.updateFromResponse(res);
+    loadDataOk(draft, res) {
+      draft.isLoading = false;
+      draft.items = res.map(({ title, description }) => Entry.make({ title, description }));
     },
-    loadDataError(err) {
+    loadDataError(draft, err) {
       console.error(err);
-      return this.setIsLoading(false);
+      draft.isLoading = false;
     },
     // The route ran out with nobody claiming it — a different thing from a handler
     // refusing, and it carries the intent's own arguments rather than an error.
-    loadDataUnhandled() {
+    loadDataUnhandled(draft) {
       console.warn("nothing on this page answers `loadData`");
-      return this.setIsLoading(false);
+      draft.isLoading = false;
     },
   },
   alter: {
@@ -55,22 +59,15 @@ export const RequestExample = component({
       <input
         type="search"
         :value=".query"
-        @on.input="$setQuery value"
-        @on.keydown+cancel="$resetQuery"
+        @on.input="setQuery value"
+        @on.keydown+cancel="resetQuery"
         class="input"
         placeholder="Filter entries"
       />
-      <button
-        class="btn bnt-sm btn-primary btn-outline"
-        @on.click="$loadAnotherWay"
-      >
+      <button class="btn bnt-sm btn-primary btn-outline" @on.click="loadAnotherWay">
         Load Another Way
       </button>
-      <button
-        class="btn bnt-sm btn-primary"
-        @text=".view"
-        @on.click="$toggleView"
-      ></button>
+      <button class="btn bnt-sm btn-primary" @text=".view" @on.click="toggleView"></button>
     </div>
     <div
       class="flex flex-col gap-3 max-h-[40vh] overflow-y-auto pr-3"

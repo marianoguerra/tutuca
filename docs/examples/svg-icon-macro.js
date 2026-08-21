@@ -4,18 +4,19 @@ import { component, html, macro } from "tutuca";
 // parametrized macros. `^size` and `^color` are macro parameters; passing
 // them dynamically (`:size=".size"`) makes every icon react to state.
 const iconParams = { size: "'24'", color: "'currentColor'" };
-const iconSvg = (path) => html`<svg
-  :width="^size"
-  :height="^size"
-  viewBox="0 0 24 24"
-  fill="none"
-  :stroke="^color"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
->
-  <path d="${path}"></path>
-</svg>`;
+const iconSvg = (path) =>
+  html`<svg
+    :width="^size"
+    :height="^size"
+    viewBox="0 0 24 24"
+    fill="none"
+    :stroke="^color"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="${path}"></path>
+  </svg>`;
 
 const iconHeart = macro(
   iconParams,
@@ -32,12 +33,17 @@ const iconStar = macro(
 const iconBolt = macro(iconParams, iconSvg("M13 2L3 14h7l-1 8 10-12h-7z"));
 
 const IconGallery = component({
+  receive: {
+    setSize(draft, value) {
+      draft.size = value;
+    },
+  },
   name: "IconGallery",
   fields: { size: 40 },
   view: html`<div class="flex flex-col gap-4">
     <label class="flex items-center gap-2 text-sm">
       Size
-      <input type="range" min="16" max="80" :value=".size" @on.input="$setSize valueAsInt" />
+      <input type="range" min="16" max="80" :value=".size" @on.input="setSize valueAsInt" />
       <code @text=".size"></code>
     </label>
     <div class="flex items-end gap-6 text-primary">

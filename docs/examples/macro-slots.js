@@ -13,9 +13,9 @@ const card = macro(
 const MacroSlots = component({
   name: "MacroSlots",
   fields: { count: 0 },
-  methods: {
-    inc() {
-      return this.setCount(this.count + 1);
+  receive: {
+    inc(draft) {
+      draft.count++;
     },
   },
   view: html`<div class="flex gap-3">
@@ -23,7 +23,7 @@ const MacroSlots = component({
       <p>This content is passed into the card's slot.</p>
     </x:card>
     <x:card title="Interactive">
-      <button class="btn btn-soft btn-success" @on.click="$inc">+</button>
+      <button class="btn btn-soft btn-success" @on.click="inc">+</button>
       <p>Count: <span @text=".count"></span></p>
     </x:card>
   </div>`,

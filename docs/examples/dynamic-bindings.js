@@ -1,21 +1,34 @@
 import { component, html } from "tutuca";
 
 const SelectorEntry = component({
+  receive: {
+    setValue(draft, value) {
+      draft.value = value;
+    },
+    setLabel(draft, value) {
+      draft.label = value;
+    },
+  },
   name: "SelectorEntry",
   fields: { value: "entry-value", label: "Entry Label" },
   view: html`<div class="flex gap-3">
-        <input class="input" :value=".value" @on.input="$setValue value" />
-        <input class="input" :value=".label" @on.input="$setLabel value" />
-    </div>`,
+    <input class="input" :value=".value" @on.input="setValue value" />
+    <input class="input" :value=".label" @on.input="setLabel value" />
+  </div>`,
 });
 
 const Selector = component({
+  receive: {
+    setSelectedValue(draft, value) {
+      draft.selectedValue = value;
+    },
+  },
   name: "Selector",
   fields: { items: [], selectedValue: null },
   lookup: {
     entries: { for: "EntryEditorAndSelector.entries", default: ".items" },
   },
-  view: html`<select class="select" :value=".selectedValue" @on.input="$setSelectedValue value">
+  view: html`<select class="select" :value=".selectedValue" @on.input="setSelectedValue value">
     <option @each="*entries" :value="@value.value" @text="@value.label"></option>
   </select>`,
 });
@@ -28,26 +41,26 @@ const EntryEditorAndSelector = component({
   },
   provide: { entries: ".items" },
   receive: {
-    onAddItem(SelectorEntry) {
-      const num = this.items.size + 1;
-      return this.pushInItems(
-        SelectorEntry.make({ value: `entry-${num}`, label: `Entry #${num}` }),
-      );
+    removeInItemsAt(draft, key) {
+      draft.items.splice(key, 1);
+    },
+
+    onAddItem(draft, SelectorEntry) {
+      const num = this.items.length + 1;
+      draft.items.push(SelectorEntry.make({ value: `entry-${num}`, label: `Entry #${num}` }));
     },
   },
   view: html`<div class="flex flex-col gap-3">
     <div class="flex gap-3 justify-center">
       <x render=".selector"></x>
     </div>
-    <button class="btn btn-soft btn-success" @on.click="onAddItem SelectorEntry">
-      Add Entry
-    </button>
+    <button class="btn btn-soft btn-success" @on.click="onAddItem SelectorEntry">Add Entry</button>
     <div class="flex flex-col gap-3 w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>
         <button
           class="btn btn-soft btn-sm btn-error btn-circle font-mono"
-          @on.click="$removeInItemsAt @key"
+          @on.click="removeInItemsAt @key"
         >
           x
         </button>

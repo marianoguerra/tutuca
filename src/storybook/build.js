@@ -94,7 +94,7 @@ export function buildExampleIntentHandlers({ intentHandlers: reals, overrideName
       ctx.walkPath((Comp, inst) => {
         const field = Comp.extra?.intentOverridesField;
         if (!field) return;
-        const map = inst.get(field, null);
+        const map = inst[field] ?? null;
         if (map && name in map) {
           override = map[name];
           return false; // nearest example wins

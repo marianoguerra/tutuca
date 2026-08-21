@@ -9,6 +9,7 @@
 // `dev` (from tutuca/dev) so this engine stays free of the heavy core/lint/test
 // deps — mirroring how mountStorybook takes a compileCss callback for margaui.
 import { ActivityLog, buildInspectorViews, isComponentInstance } from "tutuca/components";
+import { produce } from "tutuca/immer";
 
 // compName -> { getTests, components } from the modules that define tests, so
 // the test tab can run just that component's suites (runTests filters by name).
@@ -34,30 +35,27 @@ async function buildExampleInspectors(example, scope, testIndex, dev) {
     components: entry?.components ?? [],
     dev,
   });
-  return example
-    .setInstanceView(views.instanceView)
-    .setComponentView(views.componentView)
-    .setLintView(views.lintView)
-    .setTestView(views.testView)
-    .setActivityLog(ActivityLog.make({}))
-    .setHasInspect(views.hasInspect)
-    .setHasComponent(views.hasComponent)
-    .setHasLint(views.hasLint)
-    .setHasTest(views.hasTest);
+  return {
+    ...views,
+    activityLog: ActivityLog.make({}),
+  };
 }
 
 // Walk the built root's sections → items, replacing each Example with one
-// carrying its inspector views. Returns a new root (immutable updates).
+// carrying its inspector views. Returns a structurally shared new root.
 export async function attachInspectorViews(root, scope, modules, dev = null) {
   const testIndex = buildTestIndex(modules);
-  let sections = root.sections;
-  for (let si = 0; si < sections.size; si++) {
-    const section = sections.get(si);
-    let items = section.items;
-    for (let ii = 0; ii < items.size; ii++) {
-      items = items.set(ii, await buildExampleInspectors(items.get(ii), scope, testIndex, dev));
+  const updates = [];
+  for (let si = 0; si < root.sections.length; si++) {
+    for (let ii = 0; ii < root.sections[si].items.length; ii++) {
+      updates.push({
+        si,
+        ii,
+        values: await buildExampleInspectors(root.sections[si].items[ii], scope, testIndex, dev),
+      });
     }
-    sections = sections.set(si, section.setItems(items));
   }
-  return root.setSections(sections);
+  return produce(root, (draft) => {
+    for (const { si, ii, values } of updates) Object.assign(draft.sections[si].items[ii], values);
+  });
 }

@@ -24,6 +24,7 @@ __export(component_inspector_dev_exports, {
   getTests: () => getTests
 });
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
 import { JsonViewer } from "tutuca/components";
 import {
   CompName,
@@ -50,21 +51,21 @@ var Rich = component({
     }
   },
   receive: {
-    inc() {
-      return this.setCount(this.count + 1);
+    inc(draft) {
+      draft.count = this.count + 1;
     },
-    reset() {
-      return this.setCount(0);
+    reset(draft) {
+      draft.count = 0;
     },
-    ping() {
+    ping(draft) {
       return this;
     },
-    onDataOk() {
+    onDataOk(draft) {
       return this;
     }
   },
   intent: {
-    onChild() {
+    onChild(draft) {
       return this;
     }
   },
@@ -98,17 +99,21 @@ var Formatted = component({
   </div>
 </div>`
 });
-var expandSections = (insp) => insp.setSections(insp.sections.map((s) => s.setIsExpanded(true)));
-var expandViews = (insp) => insp.setSections(
-  insp.sections.map(
-    (s) => s.label === "Views" ? s.setIsExpanded(true).setItems(s.items.map((v) => v.setIsExpanded(true))) : s
-  )
-);
+var update = (value, recipe, ...args) => produce(value, (draft) => recipe.call(value, draft, ...args));
+var expandSections = (insp) => produce(insp, (draft) => {
+  for (const section of draft.sections) section.isExpanded = true;
+});
+var expandViews = (insp) => produce(insp, (draft) => {
+  const section = draft.sections.find((candidate) => candidate.label === "Views");
+  if (!section) return;
+  section.isExpanded = true;
+  for (const view of section.items) view.isExpanded = true;
+});
 function getExamples() {
   const CI = ComponentInspector.Class;
   return {
     title: "ComponentInspector",
-    description: "Inspects a tutuca Component descriptor — the object returned by `component({...})`. Lays out the component's name, fields (with default values rendered via ImInspector), methods, the receive/intent handler buckets, statics, and view source. Each section collapses/expands and paginates (10 items per page) like the JSON and Immutable inspectors. Ctrl/Cmd-click a section header to expand or collapse every section at once; ctrl/cmd-click a view's arrow to do the same for all view sources.",
+    description: "Inspects a tutuca Component descriptor — the object returned by `component({...})`. Lays out the component's name, fields (with default values rendered via DataInspector), methods, the receive/intent handler buckets, statics, and view source. Each section collapses/expands and paginates (10 items per page). Ctrl/Cmd-click a section header to expand or collapse every section at once; ctrl/cmd-click a view's arrow to do the same for all view sources.",
     items: [
       {
         title: "Minimal component",
@@ -154,7 +159,7 @@ function getTests({ describe, test, expect }) {
       expect(d.fields.length).toBe(4);
       expect(byName.title.type).toBe("text");
       expect(byName.title.defaultValue).toBe("");
-      expect(byName.count.type).toBe("float");
+      expect(byName.count.type).toBe("int");
       expect(byName.count.defaultValue).toBe(0);
       expect(byName.tags.type).toBe("list");
       expect(byName.open.type).toBe("bool");
@@ -179,7 +184,7 @@ function getTests({ describe, test, expect }) {
     test("fromData builds one section per non-empty group", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
       expect(insp.compName).toBe("RichSample");
-      const labels = insp.sections.toArray().map((s) => s.label);
+      const labels = insp.sections.map((s) => s.label);
       expect(labels).toEqual([
         "Fields",
         "Methods",
@@ -192,7 +197,7 @@ function getTests({ describe, test, expect }) {
     });
     test("fromData omits empty groups", () => {
       const insp = ComponentInspector.Class.fromData(Minimal);
-      const labels = insp.sections.toArray().map((s) => s.label);
+      const labels = insp.sections.map((s) => s.label);
       expect(labels).toEqual(["Fields", "Views"]);
     });
     test("idText formats the descriptor id", () => {
@@ -201,28 +206,30 @@ function getTests({ describe, test, expect }) {
     });
     test("expandAll / collapseAll toggle every section", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const allOpen = insp.expandAll().sections.toArray();
+      const allOpen = update(insp, ComponentInspector.intent.toggleAllSections, true).sections;
       expect(allOpen.every((s) => s.isExpanded)).toBe(true);
-      const allClosed = insp.collapseAll().sections.toArray();
+      const allClosed = update(insp, ComponentInspector.intent.toggleAllSections, false).sections;
       expect(allClosed.some((s) => s.isExpanded)).toBe(false);
     });
     test("expandAllViews / collapseAllViews toggle only the view sources", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const views = (i) => i.sections.toArray().find((s) => s.label === "Views").items.toArray();
-      expect(views(insp.expandAllViews()).every((v) => v.isExpanded)).toBe(true);
-      expect(views(insp.collapseAllViews()).some((v) => v.isExpanded)).toBe(false);
-      const methods = insp.expandAllViews().sections.toArray().find((s) => s.label === "Methods");
+      const views = (i) => i.sections.find((s) => s.label === "Views").items;
+      const expanded2 = update(insp, ComponentInspector.intent.toggleAllViews, true);
+      const collapsed = update(insp, ComponentInspector.intent.toggleAllViews, false);
+      expect(views(expanded2).every((v) => v.isExpanded)).toBe(true);
+      expect(views(collapsed).some((v) => v.isExpanded)).toBe(false);
+      const methods = expanded2.sections.find((s) => s.label === "Methods");
       expect(methods.isExpanded).toBe(false);
     });
     test("the toggleAllSections intent expands every section", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const r = ComponentInspector.intent.toggleAllSections.call(insp, true);
-      expect(r.sections.toArray().every((s) => s.isExpanded)).toBe(true);
+      const r = update(insp, ComponentInspector.intent.toggleAllSections, true);
+      expect(r.sections.every((s) => s.isExpanded)).toBe(true);
     });
     test("the toggleAllViews intent expands every view source", () => {
       const insp = ComponentInspector.Class.fromData(Rich);
-      const r = ComponentInspector.intent.toggleAllViews.call(insp, true);
-      const views = r.sections.toArray().find((s) => s.label === "Views").items.toArray();
+      const r = update(insp, ComponentInspector.intent.toggleAllViews, true);
+      const views = r.sections.find((s) => s.label === "Views").items;
       expect(views.every((v) => v.isExpanded)).toBe(true);
     });
   });
@@ -245,14 +252,14 @@ function getTests({ describe, test, expect }) {
     });
     test("plain toggle flips only this section", () => {
       const s = CompSection.make({ label: "Fields", items: items(1) });
-      const r = CompSection.receive.toggle.call(s, false, {});
+      const r = update(s, CompSection.receive.toggle, false, {});
       expect(r.isExpanded).toBe(true);
     });
     test("ctrl-toggle raises toggleAllSections with the target state", () => {
       const s = CompSection.make({ label: "Fields", items: items(1) });
       const calls = [];
       const ctx = { intent: (name, args) => calls.push([name, args]) };
-      const r = CompSection.receive.toggle.call(s, true, ctx);
+      const r = update(s, CompSection.receive.toggle, true, ctx);
       expect(r).toBe(s);
       expect(calls).toEqual([["toggleAllSections", [true]]]);
     });
@@ -262,7 +269,9 @@ function getTests({ describe, test, expect }) {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
       expect(v.isExpanded).toBe(false);
       expect(v.arrowText()).toBe("▶");
-      const open = v.toggleIsExpanded();
+      const open = produce(v, (draft) => {
+        draft.isExpanded = true;
+      });
       expect(open.isExpanded).toBe(true);
       expect(open.arrowText()).toBe("▼");
     });
@@ -272,14 +281,14 @@ function getTests({ describe, test, expect }) {
     });
     test("plain toggle flips only this view", () => {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
-      const r = CompView.receive.toggle.call(v, false, {});
+      const r = update(v, CompView.receive.toggle, false, {});
       expect(r.isExpanded).toBe(true);
     });
     test("ctrl-toggle raises toggleAllViews with the target state", () => {
       const v = CompView.make({ name: "main", rawView: "<i></i>" });
       const calls = [];
       const ctx = { intent: (name, args) => calls.push([name, args]) };
-      const r = CompView.receive.toggle.call(v, true, ctx);
+      const r = update(v, CompView.receive.toggle, true, ctx);
       expect(r).toBe(v);
       expect(calls).toEqual([["toggleAllViews", [true]]]);
     });
@@ -293,7 +302,8 @@ __export(instance_inspector_dev_exports, {
   getExamples: () => getExamples2,
   getTests: () => getTests2
 });
-import { component as component2, html as html2, IMap, List } from "tutuca";
+import { component as component2, html as html2 } from "tutuca";
+import { produce as produce2 } from "tutuca/immer";
 import { JsonViewer as JsonViewer2 } from "tutuca/components";
 import {
   InstanceExplorer,
@@ -304,6 +314,13 @@ import {
 import { LintReport } from "tutuca/components";
 import { TestReport } from "tutuca/components";
 import { getComponents as getComponents2 } from "tutuca/components";
+var expanded = (value) => produce2(value, (draft) => {
+  const target = "isExpanded" in draft ? draft : draft.value;
+  if (target && "isExpanded" in target) target.isExpanded = true;
+});
+var withTab = (value, activeTab) => produce2(value, (draft) => {
+  draft.activeTab = activeTab;
+});
 var runReport = {
   modules: [
     {
@@ -352,8 +369,8 @@ var Sample = component2({
     }
   },
   receive: {
-    bump() {
-      return this.setCount(this.count + 1);
+    bump(draft) {
+      draft.count = this.count + 1;
     }
   },
   view: html2`<div class="card" @text=".title"></div>`
@@ -381,16 +398,16 @@ function getExamples2() {
       },
       {
         title: "Instance inspector (expanded)",
-        value: inspect(card).toggleIsExpanded()
+        value: expanded(inspect(card))
       },
       {
         title: "Instance inspector of a JsonViewer instance",
-        value: inspect(viewer).toggleIsExpanded()
+        value: expanded(inspect(viewer))
       },
       {
         title: "Instance inspector fallback (no descriptor → plain data)",
-        description: "When the caller can't resolve a descriptor, the value still renders via the Immutable/JSON data inspector.",
-        value: InstanceInspector.Class.fromData(orphan, null).toggleIsExpanded()
+        description: "When the caller can't resolve a descriptor, the value still renders via the native data inspector.",
+        value: expanded(InstanceInspector.Class.fromData(orphan, null))
       },
       {
         title: "Explorer — Instance tab (default)",
@@ -398,26 +415,32 @@ function getExamples2() {
       },
       {
         title: "Explorer — Component tab",
-        value: explore(card).setActiveTab("component")
+        value: withTab(explore(card), "component")
       },
       {
         title: "Explorer without a descriptor (Component tab shows a notice)",
-        value: InstanceExplorer.Class.fromData(orphan, null).setActiveTab("component")
+        value: withTab(InstanceExplorer.Class.fromData(orphan, null), "component")
       },
       {
         title: "Explorer — all four tabs (Tests tab)",
         description: "Instance + Component + Tests + Lint. Only tabs with content are shown.",
-        value: InstanceExplorer.Class.fromData(card, Sample, {
-          tests: runReport,
-          lint: lintReport
-        }).setActiveTab("tests")
+        value: withTab(
+          InstanceExplorer.Class.fromData(card, Sample, {
+            tests: runReport,
+            lint: lintReport
+          }),
+          "tests"
+        )
       },
       {
         title: "Explorer — all four tabs (Lint tab)",
-        value: InstanceExplorer.Class.fromData(card, Sample, {
-          tests: runReport,
-          lint: lintReport
-        }).setActiveTab("lint")
+        value: withTab(
+          InstanceExplorer.Class.fromData(card, Sample, {
+            tests: runReport,
+            lint: lintReport
+          }),
+          "lint"
+        )
       }
     ]
   };
@@ -430,8 +453,8 @@ function getTests2({ describe, test, expect }) {
       expect(isComponentInstance({ a: 1 })).toBe(false);
       expect(isComponentInstance(42)).toBe(false);
       expect(isComponentInstance(null)).toBe(false);
-      expect(isComponentInstance(IMap({ a: 1 }))).toBe(false);
-      expect(isComponentInstance(List([1, 2]))).toBe(false);
+      expect(isComponentInstance(/* @__PURE__ */ new Map([["a", 1]]))).toBe(false);
+      expect(isComponentInstance([1, 2])).toBe(false);
     });
     test("with a descriptor, value is an InstanceFields", () => {
       const insp = InstanceInspector.Class.fromData(card, Sample);
@@ -446,7 +469,7 @@ function getTests2({ describe, test, expect }) {
     test("typeName is the component name and rows match the fields", () => {
       const f = InstanceFields.Class.fromData(card, Sample);
       expect(f.typeName).toBe("SampleCard");
-      const keys = f.items.toArray().map((e) => e.key);
+      const keys = f.items.map((e) => e.key);
       expect(keys).toEqual(["title", "count", "tags", "open"]);
     });
   });
@@ -489,7 +512,7 @@ function getTests2({ describe, test, expect }) {
     });
     test("setActiveTab switches the active tab", () => {
       const ex = InstanceExplorer.Class.fromData(card, Sample);
-      expect(ex.setActiveTab("lint").activeTab).toBe("lint");
+      expect(withTab(ex, "lint").activeTab).toBe("lint");
     });
   });
 }
@@ -510,7 +533,7 @@ var lintReport2 = {
       componentName: "Broken",
       findings: [
         {
-          id: "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED",
+          id: "EVENT_HANDLER_METHOD_NOT_ALLOWED",
           level: "error",
           info: { name: "missingMethod", eventName: "click", originAttr: "@on.click" },
           context: { componentName: "Broken", viewName: "main" },
@@ -564,7 +587,7 @@ var cleanReport = {
 function getExamples3() {
   return {
     title: "LintReport",
-    description: "LintReport renders `tutuca lint --json`: a neutral title with soft severity tallies over per-component groups. Each finding shows a soft level badge, a human-readable message (mirroring the CLI's own wording), an optional fix suggestion, and the full id/info/context via ImInspector. Colour is reserved for severity; structure stays neutral. Clean components are omitted; a fully clean run shows a soft 'clean' badge.",
+    description: "LintReport renders `tutuca lint --json`: a neutral title with soft severity tallies over per-component groups. Each finding shows a soft level badge, a human-readable message (mirroring the CLI's own wording), an optional fix suggestion, and the full id/info/context via DataInspector. Colour is reserved for severity; structure stays neutral. Clean components are omitted; a fully clean run shows a soft 'clean' badge.",
     items: [
       {
         title: "Module with findings (error component auto-expanded)",
@@ -597,27 +620,27 @@ function getTests3({ describe, test, expect }) {
       expect(r.warnings).toBe(2);
       expect(r.hints).toBe(1);
       expect(r.clean).toBe(false);
-      expect(r.components.size).toBe(1);
+      expect(r.components.length).toBe(1);
     });
     test("clean report flags clean and has no component groups", () => {
       const r = LintReport2.Class.fromData(cleanReport);
       expect(r.clean).toBe(true);
-      expect(r.components.size).toBe(0);
+      expect(r.components.length).toBe(0);
     });
   });
   describe(LintComponent, () => {
     test("counts findings by level and expands on error", () => {
-      const broken = LintReport2.Class.fromData(lintReport2).components.first();
+      const broken = LintReport2.Class.fromData(lintReport2).components[0];
       expect(broken).toBeInstanceOf(LintComponent.Class);
       expect(broken.componentName).toBe("Broken");
       expect(broken.countText()).toBe("3 errors, 2 warnings, 1 hint");
       expect(broken.isExpanded).toBe(true);
-      expect(broken.items.size).toBe(6);
+      expect(broken.items.length).toBe(6);
     });
   });
   describe(LintFinding, () => {
     test("error finding: level, human message, soft badge class", () => {
-      const f = LintReport2.Class.fromData(lintReport2).components.first().items.first();
+      const f = LintReport2.Class.fromData(lintReport2).components[0].items[0];
       expect(f).toBeInstanceOf(LintFinding.Class);
       expect(f.level).toBe("error");
       expect(f.message).toBe("Method '$missingMethod' is not implemented in @on.click");
@@ -625,8 +648,8 @@ function getTests3({ describe, test, expect }) {
       expect(f.levelBadgeClass()).toContain("badge-error");
     });
     test("warn finding surfaces the fix suggestion", () => {
-      const items = LintReport2.Class.fromData(lintReport2).components.first().items;
-      const warn = items.get(2);
+      const items = LintReport2.Class.fromData(lintReport2).components[0].items;
+      const warn = items[2];
       expect(warn.level).toBe("warn");
       expect(warn.message).toContain("Redundant string template");
       expect(warn.suggestion).toBe("$'{.title}' → .title");
@@ -642,7 +665,7 @@ __export(test_inspector_dev_exports, {
   getExamples: () => getExamples4,
   getTests: () => getTests4
 });
-import { ImInspector } from "tutuca/components";
+import { DataInspector } from "tutuca/components";
 import { collectTests, TestCase, TestReport as TestReport2, TestSuite } from "tutuca/components";
 import { getComponents as getComponents4 } from "tutuca/components";
 var sampleTests = ({ describe, test }) => {
@@ -750,10 +773,10 @@ function getTests4({ describe, test, expect }) {
     test("fromTests builds a suite tree with no run counts", () => {
       const r = TestReport2.Class.fromTests(collectTests(sampleTests));
       expect(r.hasCounts).toBe(false);
-      const widget = r.suites.first();
+      const widget = r.suites[0];
       expect(widget).toBeInstanceOf(TestSuite.Class);
-      expect(widget.items.size).toBe(2);
-      expect(widget.items.first().mark()).toBe("•");
+      expect(widget.items.length).toBe(2);
+      expect(widget.items[0].mark()).toBe("•");
     });
     test("fromResults carries totals and builds the suite tree", () => {
       const r = TestReport2.Class.fromResults(runReport2);
@@ -761,29 +784,29 @@ function getTests4({ describe, test, expect }) {
       expect(r.pass).toBe(3);
       expect(r.fail).toBe(1);
       expect(r.skip).toBe(1);
-      const counter = r.suites.first();
+      const counter = r.suites[0];
       expect(counter).toBeInstanceOf(TestSuite.Class);
       expect(counter.summary).toBe("✓3 ✗1 ○1");
       expect(counter.isExpanded).toBe(true);
     });
     test("a failing test shows the mark, message, and diff", () => {
       const r = TestReport2.Class.fromResults(runReport2);
-      const edge = r.suites.first().items.get(2);
+      const edge = r.suites[0].items[2];
       expect(edge).toBeInstanceOf(TestSuite.Class);
-      const failCase = edge.items.first();
+      const failCase = edge.items[0];
       expect(failCase).toBeInstanceOf(TestCase.Class);
       expect(failCase.status).toBe("fail");
       expect(failCase.mark()).toBe("✗");
       expect(failCase.markClass()).toContain("text-error");
       expect(failCase.message).toBe("expected 0 to be 10");
-      expect(failCase.detail).toBeInstanceOf(ImInspector.Class);
+      expect(failCase.detail).toBeInstanceOf(DataInspector.Class);
     });
     test("a passing test reports its duration; a skip does not", () => {
       const r = TestReport2.Class.fromResults(runReport2);
-      const items = r.suites.first().items;
-      expect(items.first().durText()).toBe("(1ms)");
-      const edge = items.get(2);
-      expect(edge.items.get(2).durText()).toBe("");
+      const items = r.suites[0].items;
+      expect(items[0].durText()).toBe("(1ms)");
+      const edge = items[2];
+      expect(edge.items[2].durText()).toBe("");
     });
   });
 }

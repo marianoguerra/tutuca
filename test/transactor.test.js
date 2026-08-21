@@ -1,7 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { IMap } from "../index.js";
+import { produce } from "../src/immer.js";
 import { FieldStep, Path, SeqAccessStep } from "../src/path.js";
 import { PASS, Transactor } from "../src/transactor.js";
+
+const obj = (value = {}) => value;
 
 // The two dispatch buckets, plus the scope-registered chain the `lex` leg walks.
 // `intentChain` is a list per name because a handler may decline with PASS and hand the
@@ -33,7 +35,7 @@ describe("$unknown fallback handler", () => {
     const calls = [];
     const t = setup({
       receive: {
-        $unknown(...args) {
+        $unknown(draft, ...args) {
           const ctx = args[args.length - 1];
           calls.push({ name: ctx.name, args: args.slice(0, -1) });
           return this;
@@ -49,11 +51,11 @@ describe("$unknown fallback handler", () => {
     const calls = [];
     const t = setup({
       receive: {
-        ping(...args) {
+        ping(draft, ...args) {
           calls.push({ via: "named", name: args[args.length - 1].name });
           return this;
         },
-        $unknown(...args) {
+        $unknown(draft, ...args) {
           calls.push({ via: "unknown", name: args[args.length - 1].name });
           return this;
         },
@@ -73,13 +75,13 @@ describe("$unknown fallback handler", () => {
     const t = new Transactor(
       makeComps({
         intent: {
-          $unknown(...args) {
+          $unknown(draft, ...args) {
             calls.push({ name: args[args.length - 1].name });
             return this;
           },
         },
       }),
-      IMap({ a: IMap({ tag: "leaf" }) }),
+      obj({ a: obj({ tag: "leaf" }) }),
     );
     // Raised BY the component at `.a`, so the `dyn` leg offers it to the root — an
     // intent is never offered to the component that raised it.
@@ -93,7 +95,7 @@ describe("$unknown fallback handler", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          $unknown(...args) {
+          $unknown(draft, ...args) {
             const ctx = args[args.length - 1];
             calls.push({ name: ctx.name, payload: args.slice(0, -1) });
             return this;
@@ -122,7 +124,7 @@ describe("$unknown fallback handler", () => {
     const seen = [];
     const t = setup({
       receive: {
-        hello(...args) {
+        hello(draft, ...args) {
           seen.push(args[args.length - 1].name);
           return this;
         },
@@ -135,7 +137,7 @@ describe("$unknown fallback handler", () => {
 });
 
 describe("ctx.targetPath (the position an intent was raised at)", () => {
-  const leafRoot = () => IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) });
+  const leafRoot = () => obj({ a: obj({ b: obj({ tag: "leaf" }) }) });
   const leafPath = () => new Path([new FieldStep("a"), new FieldStep("b")]);
   const dynIntent = (intent, root = leafRoot()) => {
     const t = new Transactor(makeComps({ intent }), root);
@@ -233,14 +235,14 @@ describe("ctx.targetPath (the position an intent was raised at)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          ping(...args) {
+          ping(draft, ...args) {
             const ctx = args[args.length - 1];
             seen.push({ same: ctx.targetPath === ctx.path, len: ctx.targetPath.steps.length });
             return this;
           },
         },
       }),
-      IMap({ a: IMap({ tag: "leaf" }) }),
+      obj({ a: obj({ tag: "leaf" }) }),
     );
     t.pushSend(new Path([new FieldStep("a")]), "ping", []);
     runAll(t);
@@ -260,43 +262,49 @@ describe("ctx.targetPath (the position an intent was raised at)", () => {
       return { t, resolve: (v) => resolveReq(v) };
     }
     const makeRoot = () =>
-      IMap({ sheets: IMap({ a: IMap({ title: "a" }), b: IMap({ title: "b" }) }), selId: "b" });
+      obj({ sheets: obj({ a: obj({ title: "a" }), b: obj({ title: "b" }) }), selId: "b" });
     const seqAccessPath = () => new Path([new SeqAccessStep("sheets", "selId")]);
     const markLoaded = {
-      loadOk(res) {
-        return this.set("loaded", res);
+      loadOk(draft, res) {
+        draft.loaded = res;
       },
     };
 
     test("by default the answer lands on the item that RAISED the intent", async () => {
       const { t, resolve } = deferredIntentTransactor(markLoaded, makeRoot());
       t.pushIntent(seqAccessPath(), "load", [], { route: ["lex"] });
-      t.state.val = t.state.val.set("selId", "a"); // user switches tab mid-flight
+      t.state.val = produce(t.state.val, (draft) => {
+        draft.selId = "a";
+      }); // user switches tab mid-flight
       resolve("ok");
       await t.settle();
-      expect(t.state.val.getIn(["sheets", "b", "loaded"])).toBe("ok");
-      expect(t.state.val.getIn(["sheets", "a"]).get("loaded", null)).toBe(null);
+      expect(t.state.val.sheets.b.loaded).toBe("ok");
+      expect(t.state.val.sheets.a.loaded ?? null).toBe(null);
     });
 
     test("livePath: true re-evaluates the key live and lands on the current item", async () => {
       const { t, resolve } = deferredIntentTransactor(markLoaded, makeRoot());
       t.pushIntent(seqAccessPath(), "load", [], { route: ["lex"], livePath: true });
-      t.state.val = t.state.val.set("selId", "a");
+      t.state.val = produce(t.state.val, (draft) => {
+        draft.selId = "a";
+      });
       resolve("ok");
       await t.settle();
-      expect(t.state.val.getIn(["sheets", "a", "loaded"])).toBe("ok");
-      expect(t.state.val.getIn(["sheets", "b"]).get("loaded", null)).toBe(null);
+      expect(t.state.val.sheets.a.loaded).toBe("ok");
+      expect(t.state.val.sheets.b.loaded ?? null).toBe(null);
     });
 
     test("a pinned target deleted before the answer arrives is a no-op", async () => {
       const tolerant = {
-        loadOk(res) {
-          return this?.set ? this.set("loaded", res) : this;
+        loadOk(draft, res) {
+          if (draft) draft.loaded = res;
         },
       };
       const { t, resolve } = deferredIntentTransactor(tolerant, makeRoot());
       t.pushIntent(seqAccessPath(), "load", [], { route: ["lex"] });
-      t.state.val = t.state.val.set("sheets", t.state.val.get("sheets").delete("b"));
+      t.state.val = produce(t.state.val, (draft) => {
+        delete draft.sheets.b;
+      });
       const before = t.state.val;
       resolve("ok");
       await t.settle();
@@ -309,14 +317,14 @@ describe("ctx.targetPath (the position an intent was raised at)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          ack(...args) {
+          ack(draft, ...args) {
             const ctx = args[args.length - 1];
             replies.push({ name: ctx.name, pathLen: ctx.path.steps.length });
             return this;
           },
         },
         intent: {
-          foo(...args) {
+          foo(draft, ...args) {
             const ctx = args[args.length - 1];
             if (ctx.path.steps.length === 0) ctx.sendAtPath(ctx.targetPath, "ack", []);
             return this;
@@ -349,7 +357,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
   test("whenSettled is pending until the transaction runs, then resolves with {value, old}", async () => {
     const t = setup({
       receive: {
-        ping() {
+        ping(draft) {
           return { ...this, pinged: true };
         },
       },
@@ -369,11 +377,11 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          start(ctx) {
+          start(draft, ctx) {
             ctx.intent("load", [], { route: ["lex"] }); // fire async work, don't await it
             return this;
           },
-          loadOk(result) {
+          loadOk(draft, result) {
             return { ...this, loaded: result };
           },
         },
@@ -402,11 +410,11 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          start(ctx) {
+          start(draft, ctx) {
             ctx.intent("load", [], { route: ["lex"] });
             return this;
           },
-          loadOk(result) {
+          loadOk(draft, result) {
             responseRan = true;
             return { ...this, loaded: result };
           },
@@ -436,16 +444,16 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          start(ctx) {
+          start(draft, ctx) {
             ctx.intent("load", [], { route: ["lex"] });
             return this;
           },
-          loadOk(result, ctx) {
+          loadOk(draft, result, ctx) {
             calls++;
             ctx.intent("load2", [], { route: ["lex"] }); // an answer arm raises another intent
             return { ...this, a: result };
           },
-          load2Ok(result) {
+          load2Ok(draft, result) {
             calls++;
             return { ...this, b: result };
           },
@@ -469,12 +477,12 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          start(ctx) {
+          start(draft, ctx) {
             ctx.sendAtPath(new Path([]), "next", []);
             order.push("start");
             return this;
           },
-          next() {
+          next(draft) {
             order.push("next");
             return this;
           },
@@ -501,25 +509,25 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          start(ctx) {
+          start(draft, ctx) {
             ctx.sendAtPath(new Path([]), "sib", []); // sync child
             ctx.forward({ route: ["dyn"] }); // becomes an intent after this body finishes
             ran.push("start");
             return this;
           },
-          sib() {
+          sib(draft) {
             ran.push("sib");
             return this;
           },
         },
         intent: {
-          start() {
+          start(draft) {
             ran.push("forwarded");
             return this;
           },
         },
       }),
-      IMap({ a: IMap({ tag: "leaf" }) }),
+      obj({ a: obj({ tag: "leaf" }) }),
     );
     // `forward` from a receive body starts a walk in afterTransaction — a child created
     // AFTER the handler ran. The subtree must not settle until that walk has run too.
@@ -540,7 +548,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     test("undefined-returning handler (the console.warn branch)", async () => {
       const t = setup({
         receive: {
-          ping() {
+          ping(draft) {
             return undefined;
           },
         },
@@ -555,7 +563,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     test("throwing handler", async () => {
       const t = setup({
         receive: {
-          ping() {
+          ping(draft) {
             throw new Error("boom");
           },
         },
@@ -571,13 +579,13 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
       const t = new Transactor(
         makeComps({
           receive: {
-            start(ctx) {
+            start(draft, ctx) {
               ctx.intent("load", [], { route: ["lex"] });
               return this;
             },
             // A handler that THROWS fails the intent, and the failure arrives under its
             // own name carrying the error alone.
-            loadError(error) {
+            loadError(draft, error) {
               return { ...this, failed: error?.message ?? null };
             },
           },
@@ -606,7 +614,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
     // stays pending. Intended usage is to grab the handle from the dispatch, up front.
     const t = setup({
       receive: {
-        ping() {
+        ping(draft) {
           return { ...this, ok: true };
         },
       },
@@ -620,7 +628,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
 });
 
 describe("intent handler ctx (walkPath)", () => {
-  // Components keyed by an IMap "kind" field; only "mid" opts into overrides via extra.
+  // Components keyed by a plain-object "kind" field; only "mid" opts into overrides.
   const compByKind = {
     root: { name: "Root" },
     mid: { name: "Mid", extra: { intentOverridesField: "x" } },
@@ -628,13 +636,13 @@ describe("intent handler ctx (walkPath)", () => {
   };
   function makeReqComps(fn) {
     return {
-      getCompFor: (v) => (v?.get ? (compByKind[v.get("kind", null)] ?? null) : null),
+      getCompFor: (v) => compByKind[v?.kind] ?? null,
       getIntentChainFor: () => [{ fn }],
     };
   }
-  const rootVal = IMap({
+  const rootVal = obj({
     kind: "root",
-    child: IMap({ kind: "mid", value: IMap({ kind: "leaf" }) }),
+    child: obj({ kind: "mid", value: obj({ kind: "leaf" }) }),
   });
   const leafPath = new Path([new FieldStep("child"), new FieldStep("value")]);
 
@@ -659,7 +667,7 @@ describe("intent handler ctx (walkPath)", () => {
     const seen = [];
     const t = new Transactor(
       makeReqComps((...args) => {
-        args.at(-1).walkPath((C, inst) => seen.push([C.name, inst.get("kind", null)]));
+        args.at(-1).walkPath((C, inst) => seen.push([C.name, inst.kind]));
         return "ok";
       }),
       rootVal,
@@ -717,7 +725,7 @@ describe("pushSend by name (no DOM event)", () => {
     const calls = [];
     const t = setup({
       receive: {
-        setName(value, _ctx) {
+        setName(draft, value, _ctx) {
           calls.push(value);
           return { ...this, name: value };
         },
@@ -733,16 +741,16 @@ describe("pushSend by name (no DOM event)", () => {
     const t = setup(
       {
         receive: {
-          bump(_ctx) {
-            return this.set("n", this.get("n") + 1);
+          bump(draft, _ctx) {
+            draft.n++;
           },
         },
       },
-      IMap({ child: IMap({ n: 0 }) }),
+      obj({ child: obj({ n: 0 }) }),
     );
     t.pushSend(new Path([new FieldStep("child")]), "bump", []);
     runAll(t);
-    expect(t.state.val.get("child").get("n")).toBe(1);
+    expect(t.state.val.child.n).toBe(1);
   });
 });
 
@@ -750,7 +758,7 @@ describe("settle", () => {
   test("drains queued sync transactions", async () => {
     const t = setup({
       receive: {
-        inc(_ctx) {
+        inc(draft, _ctx) {
           return { ...this, n: (this.n ?? 0) + 1 };
         },
       },
@@ -765,7 +773,7 @@ describe("settle", () => {
   test("awaits an async lex handler and the answer it chains", async () => {
     const t = setup({
       receive: {
-        loadOk(result, _err, _ctx) {
+        loadOk(draft, result, _err, _ctx) {
           return { ...this, loaded: result };
         },
       },
@@ -783,7 +791,7 @@ describe("observe (transaction observer)", () => {
     const recs = [];
     const t = setup({
       receive: {
-        ping() {
+        ping(draft) {
           return { ...this, pinged: true };
         },
       },
@@ -807,7 +815,7 @@ describe("observe (transaction observer)", () => {
     const recs = [];
     const t = setup({
       receive: {
-        $unknown() {
+        $unknown(draft) {
           return this;
         },
       },
@@ -830,12 +838,12 @@ describe("observe (transaction observer)", () => {
     const t = new Transactor(
       makeComps({
         intent: {
-          foo() {
+          foo(draft) {
             return this;
           },
         },
       }),
-      IMap({ a: IMap({ tag: "leaf" }) }),
+      obj({ a: obj({ tag: "leaf" }) }),
     );
     t.observe((r) => recs.push(r));
     t.pushIntent(new Path([new FieldStep("a")]), "foo", [], { route: ["dyn"] });
@@ -848,7 +856,7 @@ describe("observe (transaction observer)", () => {
     const recs = [];
     const t = setup({
       receive: {
-        setName(v) {
+        setName(draft, v) {
           return { ...this, name: v };
         },
       },
@@ -867,7 +875,7 @@ describe("observe (transaction observer)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          loadOk(result) {
+          loadOk(draft, result) {
             return { ...this, loaded: result };
           },
         },
@@ -899,12 +907,12 @@ describe("observe (transaction observer)", () => {
     const t = setup(
       {
         receive: {
-          bump() {
-            return this.set("n", this.get("n") + 1);
+          bump(draft) {
+            draft.n++;
           },
         },
       },
-      IMap({ child: IMap({ n: 0 }) }),
+      obj({ child: obj({ n: 0 }) }),
     );
     t.observe((r) => recs.push(r));
     t.pushSend(new Path([new FieldStep("child")]), "bump", []);
@@ -920,12 +928,12 @@ describe("observe (transaction observer)", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          bump() {
-            return this.set("n", (this.get("n") ?? 0) + 1);
+          bump(draft) {
+            draft.n = (draft.n ?? 0) + 1;
           },
         },
       }),
-      IMap({ sheets: IMap({ a: IMap({ n: 0 }), b: IMap({ n: 0 }) }), selId: "b" }),
+      obj({ sheets: obj({ a: obj({ n: 0 }), b: obj({ n: 0 }) }), selId: "b" }),
     );
     t.observe((r) => recs.push(r));
     t.pushSend(new Path([new SeqAccessStep("sheets", "selId")]), "bump", []);
@@ -937,7 +945,7 @@ describe("observe (transaction observer)", () => {
     const recs = [];
     const t = setup({
       receive: {
-        ping() {
+        ping(draft) {
           return this;
         },
       },
@@ -953,7 +961,7 @@ describe("observe (transaction observer)", () => {
 });
 
 describe("the three outcomes of a walk", () => {
-  const senderRoot = () => IMap({ a: IMap({ tag: "leaf" }) });
+  const senderRoot = () => obj({ a: obj({ tag: "leaf" }) });
   const at = () => new Path([new FieldStep("a")]);
 
   test("a lex handler that returns PASS declines, and the next one is offered it", async () => {
@@ -961,8 +969,8 @@ describe("the three outcomes of a walk", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          loadOk(v) {
-            return this.set("got", v);
+          loadOk(draft, v) {
+            draft.got = v;
           },
         },
         intentChain: [
@@ -980,56 +988,56 @@ describe("the three outcomes of a walk", () => {
           },
         ],
       }),
-      IMap({ tag: "root" }),
+      obj({ tag: "root" }),
     );
     t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
     await t.settle();
     expect(tried).toEqual(["first", "second"]);
-    expect(t.state.val.get("got")).toBe("data");
+    expect(t.state.val.got).toBe("data");
   });
 
   test("every handler declining runs the route out: <name>Unhandled, with the intent's own args", async () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          loadUnhandled(...args) {
-            return this.set("unhandled", args.slice(0, -1));
+          loadUnhandled(draft, ...args) {
+            draft.unhandled = args.slice(0, -1);
           },
         },
         intentChain: [{ fn: async () => PASS }],
       }),
-      IMap({ tag: "root" }),
+      obj({ tag: "root" }),
     );
     t.pushIntent(new Path([]), "load", [7, 8], { route: ["lex"] });
     await t.settle();
     // Not an error value — the arguments it was RAISED with, so the sender can degrade
     // or retry without having kept a copy.
-    expect(t.state.val.get("unhandled")).toEqual([7, 8]);
+    expect(t.state.val.unhandled).toEqual([7, 8]);
   });
 
   test("a sender that declares no Unhandled arm hears <name>Error with noHandler", async () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          loadError(reason) {
-            return this.set("why", reason);
+          loadError(draft, reason) {
+            draft.why = reason;
           },
         },
         intentChain: [{ fn: async () => PASS }],
       }),
-      IMap({ tag: "root" }),
+      obj({ tag: "root" }),
     );
     t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
     await t.settle();
     // A sender that does not care WHY an answer is missing writes one arm; one that does
     // writes two.
-    expect(t.state.val.get("why")).toBe("noHandler");
+    expect(t.state.val.why).toBe("noHandler");
   });
 
   test("a sender that declares no answer arm at all is a notification: nothing happens", async () => {
     const t = new Transactor(
       makeComps({ receive: {}, intentChain: [{ fn: async () => PASS }] }),
-      IMap({ tag: "root" }),
+      obj({ tag: "root" }),
     );
     const before = t.state.val;
     t.pushIntent(new Path([]), "ping", [], { route: ["lex"] });
@@ -1041,8 +1049,8 @@ describe("the three outcomes of a walk", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          loadError(err) {
-            return this.set("msg", err.message);
+          loadError(draft, err) {
+            draft.msg = err.message;
           },
         },
         intentChain: [
@@ -1053,23 +1061,23 @@ describe("the three outcomes of a walk", () => {
           },
         ],
       }),
-      IMap({ tag: "root" }),
+      obj({ tag: "root" }),
     );
     t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
     await t.settle();
-    expect(t.state.val.get("msg")).toBe("boom");
+    expect(t.state.val.msg).toBe("boom");
   });
 
   test("the one-shot is per INTENT, across hops: a second reply is refused", () => {
     const t = new Transactor(
       makeComps({
         receive: {
-          fooOk(v) {
-            return this.set("answers", [...(this.get("answers") ?? []), v]);
+          fooOk(draft, v) {
+            draft.answers = [...(draft.answers ?? []), v];
           },
         },
         intent: {
-          foo(...args) {
+          foo(draft, ...args) {
             const ctx = args[args.length - 1];
             ctx.reply("first");
             ctx.reply("second"); // refused: the walk already ended
@@ -1082,7 +1090,7 @@ describe("the three outcomes of a walk", () => {
     t.pushIntent(at(), "foo", [], { route: ["dyn"] });
     runAll(t);
     // The answer goes back to the SENDER at `.a`, not to the hop that replied.
-    expect(t.state.val.getIn(["a", "answers"])).toEqual(["first"]);
+    expect(t.state.val.a.answers).toEqual(["first"]);
   });
 
   test("forward from an intent body amends the args the next hop sees", () => {
@@ -1090,7 +1098,7 @@ describe("the three outcomes of a walk", () => {
     const t = new Transactor(
       makeComps({
         intent: {
-          foo(...args) {
+          foo(draft, ...args) {
             const ctx = args[args.length - 1];
             seen.push(args.slice(0, -1));
             if (ctx.path.steps.length === 1) ctx.forward({ args: ["amended"] });
@@ -1098,7 +1106,7 @@ describe("the three outcomes of a walk", () => {
           },
         },
       }),
-      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+      obj({ a: obj({ b: obj({ tag: "leaf" }) }) }),
     );
     t.pushIntent(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", ["original"], {
       route: ["dyn"],
@@ -1112,7 +1120,7 @@ describe("the three outcomes of a walk", () => {
     const t = new Transactor(
       makeComps({
         intent: {
-          foo(...args) {
+          foo(draft, ...args) {
             const ctx = args[args.length - 1];
             seen.push(ctx.path.steps.length);
             if (ctx.path.steps.length === 1) throw new Error("hop blew up");
@@ -1120,7 +1128,7 @@ describe("the three outcomes of a walk", () => {
           },
         },
       }),
-      IMap({ a: IMap({ b: IMap({ tag: "leaf" }) }) }),
+      obj({ a: obj({ b: obj({ tag: "leaf" }) }) }),
     );
     const walk = t.pushIntent(new Path([new FieldStep("a"), new FieldStep("b")]), "foo", [], {
       route: ["dyn"],
@@ -1136,20 +1144,20 @@ describe("the three outcomes of a walk", () => {
     let hops = 0;
     // Deeper than INTENT_DEPTH, so the `dyn` leg would otherwise keep walking.
     const DEPTH = 70;
-    let val = IMap({ tag: "leaf" });
-    for (let i = 0; i < DEPTH; i++) val = IMap({ [`f${i}`]: val });
+    let val = obj({ tag: "leaf" });
+    for (let i = 0; i < DEPTH; i++) val = obj({ [`f${i}`]: val });
     const steps = [];
     for (let i = DEPTH - 1; i >= 0; i--) steps.push(new FieldStep(`f${i}`));
 
     const t = new Transactor(
       makeComps({
         receive: {
-          loopUnhandled() {
-            return this.set("gaveUp", true);
+          loopUnhandled(draft) {
+            draft.gaveUp = true;
           },
         },
         intent: {
-          loop() {
+          loop(draft) {
             hops++;
             return this; // an observer at every level
           },
@@ -1162,6 +1170,7 @@ describe("the three outcomes of a walk", () => {
     expect(hops).toBe(64); // INTENT_DEPTH, not the 70 the path would allow
     // The refusal is delivered as an exhaustion, so the sender still hears something
     // instead of the intent vanishing.
-    expect(t.state.val.getIn([...steps.map((x) => x.field), "gaveUp"])).toBe(true);
+    const leaf = steps.reduce((value, step) => value[step.field], t.state.val);
+    expect(leaf.gaveUp).toBe(true);
   });
 });

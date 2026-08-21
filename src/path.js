@@ -1,4 +1,35 @@
+import { produce } from "./immer.js";
+
 const NONE = Symbol("NONE");
+const readKey = (value, key, dval = null) => {
+  if (value == null) return dval;
+  if (value instanceof Map) return value.has(key) ? value.get(key) : dval;
+  if (value instanceof Set) return value.has(key) ? key : dval;
+  return Object.hasOwn(value, key) ? value[key] : dval;
+};
+const writeKey = (value, key, next) => {
+  if (value instanceof Map) value.set(key, next);
+  else if (value instanceof Set) {
+    value.delete(key);
+    value.add(next);
+  } else value[key] = next;
+};
+const readSeqKey = (value, key, dval = null) => {
+  const direct = readKey(value, key, NONE);
+  if (direct !== NONE) return direct;
+  return typeof value?.get === "function" ? value.get(key, dval) : dval;
+};
+const writeSeqKey = (value, key, next) => {
+  if (
+    value instanceof Map ||
+    value instanceof Set ||
+    Array.isArray(value) ||
+    Object.hasOwn(value, key)
+  )
+    writeKey(value, key, next);
+  else if (typeof value?.set === "function") value.set(key, next);
+  else writeKey(value, key, next);
+};
 export class Step {
   lookup(_v, dval = null) {
     return dval;
@@ -6,6 +37,7 @@ export class Step {
   setValue(root, _v) {
     return root;
   }
+  setDraftValue(_root, _v) {}
   enterFrame(stack, _prev, next) {
     return stack.enter(next, {}, true);
   }
@@ -72,10 +104,13 @@ export class FieldStep extends Step {
     this.field = field;
   }
   lookup(v, dval = null) {
-    return v?.get ? v.get(this.field, dval) : dval;
+    return readKey(v, this.field, dval);
   }
   setValue(root, v) {
-    return root.set(this.field, v);
+    return produce(root, (draft) => this.setDraftValue(draft, v));
+  }
+  setDraftValue(root, v) {
+    writeKey(root, this.field, v);
   }
   withIndex(i) {
     return new SeqStep(this.field, i);
@@ -94,12 +129,14 @@ export class SeqStep extends Step {
     this.key = key;
   }
   lookup(v, dval = null) {
-    const o = v?.get(this.field, null);
-    return o?.get ? o.get(this.key, dval) : dval;
+    return readSeqKey(readKey(v, this.field, null), this.key, dval);
   }
   setValue(root, v) {
-    const seq = root?.get(this.field, null);
-    return seq ? root.set(this.field, seq.set(this.key, v)) : root;
+    return produce(root, (draft) => this.setDraftValue(draft, v));
+  }
+  setDraftValue(root, v) {
+    const seq = readKey(root, this.field, null);
+    if (seq != null) writeSeqKey(seq, this.key, v);
   }
   enterFrame(stack, _prev, next) {
     return stack.enter(next, { key: this.key }, true);
@@ -115,19 +152,22 @@ export class SeqAccessStep extends Step {
     this.keyField = keyField;
   }
   lookup(v, dval = null) {
-    const seq = v?.get(this.seqField, NONE);
-    const key = v?.get(this.keyField, NONE);
-    return key !== NONE && seq?.get ? seq.get(key, dval) : dval;
+    const seq = readKey(v, this.seqField, NONE);
+    const key = readKey(v, this.keyField, NONE);
+    return key !== NONE && seq !== NONE ? readSeqKey(seq, key, dval) : dval;
   }
   setValue(root, v) {
-    const seq = root?.get(this.seqField, NONE);
-    const key = root?.get(this.keyField, NONE);
-    return seq === NONE || key === NONE ? root : root.set(this.seqField, seq.set(key, v));
+    return produce(root, (draft) => this.setDraftValue(draft, v));
+  }
+  setDraftValue(root, v) {
+    const seq = readKey(root, this.seqField, NONE);
+    const key = readKey(root, this.keyField, NONE);
+    if (seq !== NONE && key !== NONE) writeSeqKey(seq, key, v);
   }
   // Resolve `keyField` against `v` now and freeze it as a literal-key `SeqStep`, so a
   // later lookup/setValue lands on this same item even if `keyField` changes meanwhile.
   pinKey(v) {
-    const key = v?.get(this.keyField, NONE);
+    const key = readKey(v, this.keyField, NONE);
     return key === NONE ? this : new SeqStep(this.seqField, key);
   }
   // The key is a *field reference* resolved live, so it is unknown without a value;
@@ -321,19 +361,17 @@ export class Path {
     return out;
   }
   setValue(root, v) {
-    const intermediates = new Array(this.steps.length);
-    let curVal = root;
-    for (let i = 0; i < this.steps.length; i++) {
-      intermediates[i] = curVal;
-      curVal = this.steps[i].lookup(curVal, NONE);
-      if (curVal === NONE) return root;
-    }
-    let newVal = v;
-    for (let i = this.steps.length - 1; i >= 0; i--) {
-      newVal = this.steps[i].setValue(intermediates[i], newVal);
-      intermediates[i] = newVal;
-    }
-    return newVal;
+    if (this.steps.length === 0) return v;
+    // Immer owns the ancestor rebuilding. The replacement value is already finalized by
+    // the leaf recipe, so this second short recipe only walks and copies the path spine.
+    return produce(root, (draft) => {
+      let parent = draft;
+      for (let i = 0; i < this.steps.length - 1; i++) {
+        parent = this.steps[i].lookup(parent, NONE);
+        if (parent === NONE) return;
+      }
+      this.steps.at(-1).setDraftValue(parent, v);
+    });
   }
   buildStack(stack) {
     let prev = stack.it;

@@ -7,7 +7,10 @@ function moveKeyIndexToIndex(list, source, target, offset = 0) {
   }
   const newPos = target + offset;
   const oldPos = newPos < source ? source + 1 : source;
-  return list.insert(newPos, list.get(source)).delete(oldPos);
+  const next = [...list];
+  next.splice(newPos, 0, list[source]);
+  next.splice(oldPos, 1);
+  return next;
 }
 
 function dropWasAbove(e) {
@@ -25,12 +28,19 @@ export const DnDExample = component({
     },
   },
   receive: {
-    onDropOnItem(targetIndex, dragInfo, e) {
+    setQuery(draft, value) {
+      draft.query = value;
+    },
+    resetQuery(draft) {
+      draft.query = this.constructor.getMetaClass().fields.query.defaultValue;
+    },
+
+    onDropOnItem(draft, targetIndex, dragInfo, e) {
       console.log(dragInfo, e);
       const offset = dropWasAbove(e) ? 0 : 1;
       const sourceIndex = dragInfo.lookupBind("key");
       const newItems = moveKeyIndexToIndex(this.items, sourceIndex, targetIndex, offset);
-      return this.setItems(newItems);
+      draft.items = newItems;
     },
   },
   style: css`
@@ -48,8 +58,8 @@ export const DnDExample = component({
     <input
       type="search"
       :value=".query"
-      @on.input="$setQuery value"
-      @on.keydown+cancel="$resetQuery"
+      @on.input="setQuery value"
+      @on.keydown+cancel="resetQuery"
       class="input"
       placeholder="Filter entries"
     />

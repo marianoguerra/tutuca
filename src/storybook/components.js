@@ -36,84 +36,6 @@ export const Storybook = component({
     },
   },
   methods: {
-    selectSectionAtIndex(index) {
-      if (this.sections.size === 0) return this;
-      const safeIndex = index >= 0 && index < this.sections.size ? index : 0;
-      // Selection only moves the content index and flips the sidebar highlight — the
-      // `sections` list is left untouched (no per-selection instance churn).
-      return this.setSelectedSectionIndex(safeIndex).markSidebarSelected(
-        this.sections.get(safeIndex)?.id,
-      );
-    },
-    // Flip the `selected` highlight to the entry for `id`, clearing the rest.
-    markSidebarSelected(id) {
-      return this.setSidebar(
-        this.sidebar.map((g) => g.setRows(g.rows.map((e) => e.setSelected(e.sectionId === id)))),
-      );
-    },
-    // Walk the tree setting each row's `visible` from the filter AND the group's
-    // collapse: a row is visible iff it passes the filter (every row passes when the
-    // filter is empty) AND its group is open — collapse always wins, so a collapsed
-    // group shows no rows even while filtering. The group's own `visible` is set from
-    // whether any row MATCHES (ignoring collapse), so a collapsed group that still
-    // contains matches keeps its header and stays expandable; with no filter every
-    // group shows.
-    applyFilterToSidebar(filter) {
-      const active = (filter ?? "") !== "";
-      return this.setSidebar(
-        this.sidebar.map((g) => {
-          let anyMatch = false;
-          const rows = g.rows.map((e) => {
-            const match = !active || fuzzyMatch(filter, `${e.title} ${e.description}`);
-            if (match) anyMatch = true;
-            return e.setVisible(match && !g.collapsed);
-          });
-          return g.setRows(rows).setVisible(active ? anyMatch : true);
-        }),
-      );
-    },
-    // Flip a named group's `collapsed`, recomputing its rows' visibility for the new
-    // state against the current filter. Collapsing always hides the rows (even while a
-    // filter is active — the reported chevron-flips-but-content-stays case); expanding
-    // re-reveals the rows that pass the filter. The group header's own `visible` is left
-    // as-is, so a collapsed group that matched the filter stays visible to be reopened.
-    toggleSidebarGroup(name) {
-      const filter = this.filter;
-      const active = filter !== "";
-      return this.setSidebar(
-        this.sidebar.map((g) => {
-          if (g.name !== name) return g;
-          const collapsed = !g.collapsed;
-          const rows = g.rows.map((e) => {
-            const match = !active || fuzzyMatch(filter, `${e.title} ${e.description}`);
-            return e.setVisible(match && !collapsed);
-          });
-          return g.setCollapsed(collapsed).setRows(rows);
-        }),
-      );
-    },
-    selectSectionWithId(id) {
-      if (!id) return this.selectSectionAtIndex(this.selectedSectionIndex);
-      const index = this.sections.findIndex((s) => s.id === id);
-      return this.selectSectionAtIndex(index);
-    },
-    focusExampleByIds(sectionId, exampleId) {
-      if (!sectionId || !exampleId) {
-        return this;
-      }
-      const section = this.sections.find((s) => s.id === sectionId);
-      const example = section?.items.find((e) => e.id === exampleId);
-      if (!example) {
-        return this;
-      }
-      return this.setSectionId(sectionId).setExampleId(exampleId).setFocusExample(example.value);
-    },
-    setSelectedSectionFilter(value) {
-      if (this.sections.size === 0) return this;
-      const i = this.selectedSectionIndex;
-      const sections = this.sections.map((s, idx) => (idx === i ? s.setFilter(value ?? "") : s));
-      return this.setSections(sections);
-    },
     // Assemble the full URL snapshot from current state. `overrides` carries the
     // change the calling handler is about to make, since `this` is still the
     // pre-change state when the persistState request is issued.
@@ -125,7 +47,7 @@ export const Storybook = component({
     // here leaves an already-chosen `?theme=` alone — onSelectTheme passes it as an
     // override, which is the only way it enters the URL.
     toUrlState(overrides = {}) {
-      const section = this.sections.get(this.selectedSectionIndex);
+      const section = this.sections[this.selectedSectionIndex];
       return {
         section: section?.id ?? "",
         example: this.exampleId ?? "",
@@ -143,65 +65,73 @@ export const Storybook = component({
     },
   },
   receive: {
-    onApplyFilter(value, ctx) {
+    onApplyFilter(draft, value, ctx) {
       ctx.intent("persistState", [this.toUrlState({ sectionFilter: value }), this, false], {
         route: ["lex"],
       });
-      return this.setFilter(value).applyFilterToSidebar(value);
+      draft.filter = value;
+      applyFilterToSidebar(draft, value);
     },
-    onClearFilter(ctx) {
+    onClearFilter(draft, ctx) {
       ctx.intent("persistState", [this.toUrlState({ sectionFilter: "" }), this, false], {
         route: ["lex"],
       });
-      return this.resetFilter().applyFilterToSidebar("");
+      draft.filter = "";
+      applyFilterToSidebar(draft, "");
     },
-    onFocusClose(ctx) {
+    onFocusClose(draft, ctx) {
       ctx.intent("persistState", [this.toUrlState({ example: "" }), this, true], {
         route: ["lex"],
       });
-      return this.setSectionId(null).setExampleId(null).setFocusExample(null);
+      draft.sectionId = null;
+      draft.exampleId = null;
+      draft.focusExample = null;
     },
     // Switching a palette is a DOM effect (set data-theme, load the stylesheet), so it
     // goes out as a request — the host handler in mountStorybook owns the document.
     // Unregistered (no `themes` option), the request no-ops via the 404 path and the
     // switcher isn't rendered anyway.
-    onSelectTheme(value, ctx) {
+    onSelectTheme(draft, value, ctx) {
       ctx.intent("applyTheme", [value, this], { route: ["lex"] });
       ctx.intent("persistState", [this.toUrlState({ theme: value }), this, false], {
         route: ["lex"],
       });
-      return this.setTheme(value);
+      draft.theme = value;
     },
-    init(ctx) {
+    init(draft, ctx) {
       ctx.intent("loadState", [], { route: ["lex"] });
-      return this;
     },
     // The answer to the `loadState` intent, arriving as an ordinary message. There is
     // no `err` to branch on: a failure reaches `loadStateError` instead, and nothing
     // that ran out of route reaches here at all.
-    loadStateOk(state, ctx) {
-      if (!state) return this;
+    loadStateOk(draft, state, ctx) {
+      if (!state) return;
       // selectSectionWithId marks the sidebar highlight; applyFilterToSidebar then
       // applies the restored section filter to the tree's visibility.
       // The host handler already resolved the theme (URL param, else the OS
       // preference) and put it on the document — storing it here only syncs the
       // switcher's shown value.
-      const selected = this.selectSectionWithId(state.section)
-        .setTheme(state.theme ?? "")
-        .setFilter(state.sectionFilter ?? "")
-        .applyFilterToSidebar(state.sectionFilter ?? "")
-        .setSelectedSectionFilter(state.exampleFilter ?? "");
-      const next = state.example
-        ? selected.focusExampleByIds(state.section, state.example)
-        : selected.setSectionId(null).setExampleId(null).setFocusExample(null);
-      transitionSections(ctx, next, this.selectedSectionIndex, next.selectedSectionIndex);
-      return next;
+      selectSectionWithId(draft, state.section);
+      draft.theme = state.theme ?? "";
+      draft.filter = state.sectionFilter ?? "";
+      applyFilterToSidebar(draft, draft.filter);
+      setSelectedSectionFilter(draft, state.exampleFilter ?? "");
+      if (state.example) focusExampleByIds(draft, state.section, state.example);
+      else {
+        draft.sectionId = null;
+        draft.exampleId = null;
+        draft.focusExample = null;
+      }
+      transitionSections(ctx, draft, this.selectedSectionIndex, draft.selectedSectionIndex);
+    },
+    toggleSidebarCollapsed(draft) {
+      draft.sidebarCollapsed = !draft.sidebarCollapsed;
     },
   },
   intent: {
     // A sidebar entry was clicked; it bubbles its section id. Resolve to the content
     // index and select. Sidebar highlight is updated by selectSectionAtIndex.
-    sectionSelected(sectionId, ctx) {
+    sectionSelected(draft, sectionId, ctx) {
       ctx.stop();
       const section = this.sections.find((s) => s.id === sectionId);
       ctx.intent(
@@ -210,30 +140,34 @@ export const Storybook = component({
         { route: ["lex"] },
       );
       const oldIndex = this.selectedSectionIndex;
-      const next = this.selectSectionAtIndex(this.sections.findIndex((s) => s.id === sectionId));
-      transitionSections(ctx, next, oldIndex, next.selectedSectionIndex);
-      return next;
+      selectSectionAtIndex(
+        draft,
+        this.sections.findIndex((s) => s.id === sectionId),
+      );
+      transitionSections(ctx, draft, oldIndex, draft.selectedSectionIndex);
     },
     // Toggle a group open/closed in place — the collapse lives on the SidebarGroup.
-    groupToggled(name, ctx) {
+    groupToggled(draft, name, ctx) {
       ctx.stop();
-      return this.toggleSidebarGroup(name);
+      toggleSidebarGroup(draft, name);
     },
-    exampleFocusRequested(example, ctx) {
+    exampleFocusRequested(draft, example, ctx) {
       ctx.stop();
-      const section = this.sections.get(this.selectedSectionIndex);
+      const section = this.sections[this.selectedSectionIndex];
       const sectionId = section?.id ?? null;
       ctx.intent("persistState", [this.toUrlState({ example: example.id }), this, true], {
         route: ["lex"],
       });
-      return this.setSectionId(sectionId).setExampleId(example.id).setFocusExample(example.value);
+      draft.sectionId = sectionId;
+      draft.exampleId = example.id;
+      draft.focusExample = example.value;
     },
-    exampleFilterChanged(value, ctx) {
+    exampleFilterChanged(draft, value, ctx) {
       ctx.stop();
       ctx.intent("persistState", [this.toUrlState({ exampleFilter: value }), this, false], {
         route: ["lex"],
       });
-      return this;
+      setSelectedSectionFilter(draft, value);
     },
   },
   view: html`<div>
@@ -252,7 +186,7 @@ export const Storybook = component({
         class="btn btn-ghost btn-sm self-start"
         title="Show sections"
         @show=".sidebarCollapsed"
-        @on.click="$toggleSidebarCollapsed"
+        @on.click="toggleSidebarCollapsed"
       >
         »
       </button>
@@ -264,7 +198,7 @@ export const Storybook = component({
           <button
             class="btn btn-ghost btn-sm"
             title="Hide sections"
-            @on.click="$toggleSidebarCollapsed"
+            @on.click="toggleSidebarCollapsed"
           >
             «
           </button>
@@ -338,24 +272,24 @@ export const Section = component({
     },
   },
   receive: {
-    onApplyFilter(value, ctx) {
+    onApplyFilter(draft, value, ctx) {
       ctx.intent("exampleFilterChanged", [value], { route: ["dyn"] });
-      return this.setFilter(value);
+      draft.filter = value;
     },
-    onClearFilter(ctx) {
+    onClearFilter(draft, ctx) {
       ctx.intent("exampleFilterChanged", [""], { route: ["dyn"] });
-      return this.resetFilter();
+      draft.filter = this.constructor.getMetaClass().fields.filter.defaultValue;
     },
     // First display of this section: run each example's `on.init`, mark shown.
-    init(ctx) {
+    init(draft, ctx) {
       fanoutLifecycle(ctx, this.items, "init");
-      return this.setInitialized(true);
+      draft.initialized = true;
     },
-    resume(ctx) {
+    resume(draft, ctx) {
       fanoutLifecycle(ctx, this.items, "resume");
       return this;
     },
-    suspend(ctx) {
+    suspend(draft, ctx) {
       fanoutLifecycle(ctx, this.items, "suspend");
       return this;
     },
@@ -387,7 +321,7 @@ export const SidebarEntry = component({
   name: "SidebarEntry",
   fields: { sectionId: "?", title: "", description: "", selected: false, visible: true },
   receive: {
-    onClick(ctx) {
+    onClick(draft, ctx) {
       ctx.intent("sectionSelected", [this.sectionId], { route: ["dyn"] });
       return this;
     },
@@ -409,7 +343,7 @@ export const SidebarEntry = component({
 // group (`name === ""`) is a single ungrouped section rendered headerless. Collapse is
 // expressed through each row's `visible` (set by the engine's walks), so the render
 // just shows what is visible — no collapse logic in the template. (`rows`, not
-// `entries`: `entries` collides with Immutable's built-in `.entries()` accessor.)
+// `entries`: keep the public data shape distinct from internal section fields.)
 export const SidebarGroup = component({
   name: "SidebarGroup",
   fields: { name: "", collapsed: false, visible: true, rows: [] },
@@ -423,7 +357,7 @@ export const SidebarGroup = component({
     },
   },
   receive: {
-    onToggle(ctx) {
+    onToggle(draft, ctx) {
       ctx.intent("groupToggled", [this.name], { route: ["dyn"] });
       return this;
     },
@@ -505,31 +439,36 @@ export const Example = component({
   // Lifecycle hooks: the section forwards init/resume/suspend here; each runs the
   // matching `on` phase's actions against this example's component (`.value`).
   receive: {
-    init(ctx) {
+    init(draft, ctx) {
       this.runPhase(ctx, this.on?.init);
       return this;
     },
-    resume(ctx) {
+    resume(draft, ctx) {
       this.runPhase(ctx, this.on?.resume);
       return this;
     },
-    suspend(ctx) {
+    suspend(draft, ctx) {
       this.runPhase(ctx, this.on?.suspend);
       return this;
     },
     // Append one activity row to the example's ActivityLog. Dispatched by the storybook
     // observer at this example's node — a path OUTSIDE `.value`, so the observer's own
     // filter ignores it and this append is never itself logged (no loop).
-    logActivity(entry) {
-      return this.setActivityLog(this.activityLog.appendEntry(entry)).setHasActivity(true);
+    logActivity(draft, entry) {
+      draft.activityLog.events.unshift(entry);
+      if (draft.activityLog.events.length > 50) draft.activityLog.events.length = 50;
+      draft.activityLog.hasEvents = true;
+      draft.hasActivity = true;
     },
-    onLogSelected() {
+    onLogSelected(draft) {
       console.log(this.value);
       return this;
     },
-    onFocusSelected(ctx) {
+    onFocusSelected(draft, ctx) {
       ctx.intent("exampleFocusRequested", [this], { route: ["dyn"] });
-      return this;
+    },
+    setActiveTab(draft, value) {
+      draft.activeTab = value;
     },
   },
   methods: {
@@ -560,7 +499,7 @@ export const Example = component({
           @if.class="equals? .activeTab 'preview'"
           @then="'tab tab-active'"
           @else="'tab'"
-          @on.click="$setActiveTab 'preview'"
+          @on.click="setActiveTab 'preview'"
         >
           Preview
         </a>
@@ -570,7 +509,7 @@ export const Example = component({
           @if.class="equals? .activeTab 'component'"
           @then="'tab tab-active'"
           @else="'tab'"
-          @on.click="$setActiveTab 'component'"
+          @on.click="setActiveTab 'component'"
         >
           Component
         </a>
@@ -579,7 +518,7 @@ export const Example = component({
           @if.class="equals? .activeTab 'instance'"
           @then="'tab tab-active'"
           @else="'tab'"
-          @on.click="$setActiveTab 'instance'"
+          @on.click="setActiveTab 'instance'"
         >
           Instance
         </a>
@@ -589,7 +528,7 @@ export const Example = component({
           @if.class="equals? .activeTab 'lint'"
           @then="'tab tab-active'"
           @else="'tab'"
-          @on.click="$setActiveTab 'lint'"
+          @on.click="setActiveTab 'lint'"
         >
           Lint
         </a>
@@ -599,7 +538,7 @@ export const Example = component({
           @if.class="equals? .activeTab 'test'"
           @then="'tab tab-active'"
           @else="'tab'"
-          @on.click="$setActiveTab 'test'"
+          @on.click="setActiveTab 'test'"
         >
           Test
         </a>
@@ -609,7 +548,7 @@ export const Example = component({
           @if.class="equals? .activeTab 'activity'"
           @then="'tab tab-active'"
           @else="'tab'"
-          @on.click="$setActiveTab 'activity'"
+          @on.click="setActiveTab 'activity'"
         >
           Activity
         </a>
@@ -638,15 +577,74 @@ export const Example = component({
   </div>`,
 });
 
+function markSidebarSelected(storybook, id) {
+  for (const group of storybook.sidebar) {
+    for (const entry of group.rows) entry.selected = entry.sectionId === id;
+  }
+}
+
+function selectSectionAtIndex(storybook, index) {
+  if (storybook.sections.length === 0) return;
+  const safeIndex = index >= 0 && index < storybook.sections.length ? index : 0;
+  storybook.selectedSectionIndex = safeIndex;
+  markSidebarSelected(storybook, storybook.sections[safeIndex]?.id);
+}
+
+function applyFilterToSidebar(storybook, filter) {
+  const active = (filter ?? "") !== "";
+  for (const group of storybook.sidebar) {
+    let anyMatch = false;
+    for (const entry of group.rows) {
+      const match = !active || fuzzyMatch(filter, `${entry.title} ${entry.description}`);
+      if (match) anyMatch = true;
+      entry.visible = match && !group.collapsed;
+    }
+    group.visible = active ? anyMatch : true;
+  }
+}
+
+function toggleSidebarGroup(storybook, name) {
+  const active = storybook.filter !== "";
+  const group = storybook.sidebar.find((candidate) => candidate.name === name);
+  if (!group) return;
+  group.collapsed = !group.collapsed;
+  for (const entry of group.rows) {
+    const match = !active || fuzzyMatch(storybook.filter, `${entry.title} ${entry.description}`);
+    entry.visible = match && !group.collapsed;
+  }
+}
+
+function selectSectionWithId(storybook, id) {
+  const index = id
+    ? storybook.sections.findIndex((section) => section.id === id)
+    : storybook.selectedSectionIndex;
+  selectSectionAtIndex(storybook, index);
+}
+
+function focusExampleByIds(storybook, sectionId, exampleId) {
+  if (!sectionId || !exampleId) return;
+  const section = storybook.sections.find((candidate) => candidate.id === sectionId);
+  const example = section?.items.find((candidate) => candidate.id === exampleId);
+  if (!example) return;
+  storybook.sectionId = sectionId;
+  storybook.exampleId = exampleId;
+  storybook.focusExample = example.value;
+}
+
+function setSelectedSectionFilter(storybook, value) {
+  const section = storybook.sections[storybook.selectedSectionIndex];
+  if (section) section.filter = value ?? "";
+}
+
 // Drive section lifecycle on a selection change. ctx.path is the root Storybook
 // for both call sites (receive.loadStateOk + intent.sectionSelected), so
 // ctx.at.index("sections", i) addresses a section. Exactly one of init/resume
 // fires for the new section; suspend fires for the old one if it was shown.
 function transitionSections(ctx, sb, oldIndex, newIndex) {
   const changed = oldIndex !== newIndex;
-  if (changed && sb.sections.get(oldIndex)?.initialized)
+  if (changed && sb.sections[oldIndex]?.initialized)
     ctx.at.index("sections", oldIndex).send("suspend", []);
-  const target = sb.sections.get(newIndex);
+  const target = sb.sections[newIndex];
   if (!target) return;
   if (!target.initialized) ctx.at.index("sections", newIndex).send("init", []);
   else if (changed) ctx.at.index("sections", newIndex).send("resume", []);

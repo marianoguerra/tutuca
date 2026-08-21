@@ -1,7 +1,7 @@
 # Tutuca — Core
 
-Tutuca is an immutable-state web framework: components have typed `fields`,
-auto-generated mutators (`setX`, `pushInX`, …), HTML-template `view`s with
+Tutuca is an immutable-state web framework powered by Immer: components have
+typed `fields`, native JavaScript collections, HTML-template `view`s with
 `@`-prefixed directives, and `receive` / `intent` handlers for
 orchestration. Read this file when authoring or reviewing
 `component({...})` definitions, `view: html\`...\`` templates, macros, or
@@ -99,9 +99,9 @@ and `format` subcommands. Run `npx @biomejs/biome -h` for usage help.
   `@text="@value.title"` inside `@each` works (any `@`-binding, one level
   only; a binding member read like `@value.a.b` is a lint error, and
   render targets still reject it).
-- **Coercion is shallow.** `setItems([{a:1}])` stores plain objects inside
-  the `List`. Wrap each item in `Comp.make({...})` or run inputs through
-  immutable's `fromJS` if you need deep coercion. See *Component Skeleton*.
+- **State writes happen on the handler's first `draft` argument.** `this` is
+  the frozen pre-transaction snapshot. Arrays, objects, Map, and Set use their
+  normal JavaScript mutation APIs on `draft`.
 - **Multiple `@if.<attr>` on one element.** Every `@then`/`@else` after
   the first must name the attr (`@then.title`, `@else.title`) — HTML
   disallows duplicate attrs, so the second `@then=` is dropped silently.
@@ -128,12 +128,12 @@ import { component, html, tutuca } from "tutuca";
 const Counter = component({
   name: "Counter",
   fields: { count: 0 },
-  methods: {
-    inc() {
-      return this.setCount(this.count + 1);
+  receive: {
+    inc(draft) {
+      draft.count++;
     },
   },
-  view: html`<button @on.click="$inc" @text=".count"></button>`,
+  view: html`<button @on.click="inc" @text=".count"></button>`,
 });
 
 const app = tutuca("#app");
@@ -149,32 +149,31 @@ removes all listeners and cancels cache eviction; pair with
 
 ## Mental model
 
-Tutuca rests on three invariants: the application state is a single
-immutable root value; the view is a pure function of it; every handler
-takes the old self and returns a new self. The transactor swaps the
-root atomically. Identity-based caching, time-travel-style debugging,
-and the entire dispatch model fall out of these three properties.
+Tutuca rests on three invariants: application state is one deeply frozen root;
+the view is a pure function of it; and every dispatched handler receives an
+Immer draft as its first argument while `this` remains the immutable current
+snapshot. The transactor commits the produced root atomically.
 
-**The value tree.** Components are nested immutable Records. Children
-live in fields — a list of `Item`, a map of `User`, a scalar `count`.
+**The value tree.** Components are generated Immer-draftable classes. Children
+live in fields — an array of `Item`, a native `Map` of `User`, a scalar `count`.
 "Updating a deep child" means producing a new root that shares
 structure with the old one along the unchanged spine; the renderer
 keys its cache on `===` identity, so unchanged subtrees skip work.
 Every value carries a hidden tag back to its component class, so the
 runtime never needs `instanceof` — it asks the value what it is.
 
-Because children are just immutable Records held in fields, **handlers
+Because children are ordinary frozen values held in fields, **handlers
 and methods are ordinary JS with full read access to nested child
-state** — `this.child.count`, `this.items.get(i).done`,
+state** — `this.child.count`, `this.items[i].done`,
 `this.byKey.get(k).label`. Reading *down* the tree is direct and needs
 no channel: an ancestor that owns a list already holds every child's
 state and can read it for an aggregate decision. The single-level
 `.field` restriction (no `.foo.bar`) is a **view-template** rule, not a
 JS one — it's why a derivation like `userName() { return this.user.name; }`
 is written as a method (see *Methods as Predicates & Computed Values*).
-Reading is free; **mutating** a child still flows through the model —
-the owner returns a new self (`setInItemsAt`, …) or messages the child
-with `ctx.send`. Don't reach in to mutate around the handler discipline,
+Reading is free; **mutating** a child still flows through the model — mutate
+the addressed draft or message the child with `ctx.send`. Don't reach in to
+mutate the frozen snapshot,
 and prefer letting a child own and render its own state — reach down to
 read only when the ancestor genuinely needs it. See
 [component-design.md](./component-design.md) and "When to bubble" in
@@ -324,7 +323,7 @@ component({
   },
   view: html`<p @text=".count"></p>`,    // default view (named "main")
   views: {                                // additional views
-    edit: html`<input :value=".count" @on.input="$setCount valueAsInt" />`,
+    edit: html`<input :value=".count" @on.input="setCount valueAsInt" />`,
     big: {
       view: html`<h1 @text=".count"></h1>`,
       style: css`h1 { font-size: 4rem; }`,
@@ -333,45 +332,49 @@ component({
   style:        css`p { color: blue; }`,         // scoped to main view
   commonStyle:  css`p { font-family: sans-serif; }`, // scoped to all views of this component
   globalStyle:  css`body { margin: 0; }`,        // injected globally, no scoping
-  methods: { inc() { return this.setCount(this.count + 1); } },
+  methods: {
+    doubled() { return this.count * 2; },
+  },
   alter:   { filterItem(_k, item) { return item.length > 0; } },
   // ADDRESSED: this component's own @on.* names, what a parent sends it, and the
   // answers to intents it raised — one bucket, and nothing tells them apart.
   receive: {
-    onClick(ctx)         { return this.inc(); },
-    init(ctx)            { ctx.intent("loadData", [], { route: ["lex"] }); return this; },
-    loadDataOk(res)      { return this.setItems(res); },
-    loadDataError(err)   { return this.setError(String(err)); },
+    inc(draft)             { draft.count++; },
+    setCount(draft, value) { draft.count = value; },
+    onClick(draft)         { draft.count++; },
+    init(_draft, ctx)      { ctx.intent("loadData", [], { route: ["lex"] }); },
+    loadDataOk(draft, res) { draft.items = res; },
+    loadDataError(draft, err) { draft.error = String(err); },
   },
   // ROUTED: what this component answers for somebody who did not address it.
-  intent:  { itemPicked(item, ctx) { return this.setSelected(item); } },
+  intent:  { itemPicked(draft, item) { draft.selected = item; } },
   statics: { fromData(d) { return this.make({ count: d.n ?? 0 }); } },
   // provide: { ... }, lookup: { ... }   // see advanced.md
 });
 ```
 
-`Comp.make({...})` builds an instance. Coercion is automatic but
-**shallow**: arrays become `List`, plain objects become `IMap`, native
-`Set` becomes `ISet`. Items inside a list/map field stay as-is —
-`setItems([{a:1}])` gives `List<plainObject>`; access with `item.a`, not
-`item.get("a")`. For deep coercion, run inputs through immutable's
-`fromJS`, or wrap each item in `Comp.make({...})`.
+`Comp.make({...})` builds and deeply freezes an instance. Arrays, plain objects,
+native `Map`, and native `Set` stay native. Wrap nested component data with
+`Child.make({...})` when it needs component identity and its own view/handlers.
 
-## Field Types & Auto-generated API
+## Field Types
 
 `fields: { name: defaultValue }` — type inferred from the default.
 
-| Default              | Field type | Auto-generated methods (for field `x`)                                                                                             |
-| -------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `"hi"`               | text       | `setX`, `updateX`, `resetX`, `xLen`                                                                                                |
-| `42`                 | float      | `setX`, `updateX`, `resetX`                                                                                                        |
-| (`{type:"int"}`)     | int        | `setX`, `updateX`, `resetX` (no default-value form — declare explicitly via `classFromData`)                                       |
-| `true`               | bool       | `setX`, `toggleX`, `updateX`, `resetX`                                                                                             |
-| `null`               | any        | `setX`, `updateX`, `resetX`                                                                                                        |
-| `[]`/`List()`        | list       | `setX`, `pushInX`, `insertInXAt`, `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`/`removeInXAt`, `xLen`, `resetX`             |
-| `{}`/`IMap()`        | map        | `setInXAt`, `getInXAt`, `updateInXAt`, `deleteInXAt`, `xLen`, `resetX`                                                             |
-| `OMap()`             | omap       | same as map (preserves insertion order)                                                                                            |
-| `ISet()`/`new Set()` | set        | `addInX`, `deleteInX`, `hasInX`, `toggleInX`, `xLen`, `resetX`                                                                     |
+| Default | Field type | Draft update example |
+| --- | --- | --- |
+| `"hi"` | text | `draft.x = value` |
+| `42` | float | `draft.x++` |
+| `{ type: "int", defaultValue: 0 }` | int | `draft.x = Math.trunc(value)` |
+| `true` | bool | `draft.x = !draft.x` |
+| `null` | any | `draft.x = value` |
+| `[]` | list | `draft.x.push(value)`, `draft.x.splice(i, 1)` |
+| `{}` | object | `draft.x.key = value` |
+| `new Map()` | map | `draft.x.set(key, value)` |
+| `new Set()` | set | `draft.x.add(value)`, `draft.x.delete(value)` |
+
+Fields do not generate setters or collection mutators. Define only the named
+handlers your view/API needs; the linter reports a field/method name collision.
 
 Emptiness / truthiness / null checks are not generated as methods — use
 the boolean predicates `empty?`, `truthy?`, `falsy?`, `null?`, `equals?`
@@ -382,7 +385,7 @@ Explicit field types via `classFromData`:
 
 ```js
 fields: {
-  count: { type: "int", defaultValue: 10 },       // text/int/float/bool/list/map/omap/set/any
+  count: { type: "int", defaultValue: 10 },       // text/int/float/bool/list/object/map/set/any
   child: { component: "Item", args: { ... } },    // deferred reference by name
   child2: Item.make({ name: "" }),                // direct default if Item is in scope
 }
@@ -494,7 +497,7 @@ other inline content, or a loop binding). Both take the same value forms
 ## Attribute Binding
 
 ```html
-<input :value=".str" @on.input="$setStr value" />
+<input :value=".str" @on.input="setStr value" />
 <a :href=".url" :title="$'Hi {.name}'">link</a>       <!-- string template -->
 <button :class="$'btn {.color}'">x</button>
 ```
@@ -557,22 +560,22 @@ several of these. The usual suspects:
 ## Event Handling
 
 ```html
-<!-- method (`$`) vs receive handler (no prefix) -->
-<button @on.click="$inc">+</button>
+<!-- every event names a receive handler (no prefix) -->
+<button @on.click="inc">+</button>
 <button @on.click="dec">-</button>
 
 <!-- pass args by name -->
-<input @on.input="$setStr value" />
-<input @on.input="$setN valueAsInt" />
-<button @on.click="$pick @key isAlt">pick</button>
-<button @on.click="$addItem JsonSelector">+</button>     <!-- type as arg -->
-<button @on.click="$loadAnotherWay">load</button>        <!-- ctx auto-appended -->
+<input @on.input="setStr value" />
+<input @on.input="setN valueAsInt" />
+<button @on.click="pick @key isAlt">pick</button>
+<button @on.click="addItem JsonSelector">+</button>     <!-- type as arg -->
+<button @on.click="loadAnotherWay">load</button>        <!-- ctx auto-appended -->
 ```
 
 Every `@on.<event>` handler receives an `EventContext` as its trailing
 arg automatically — written args come first, `ctx` last. So
-`$loadAnotherWay` is called as `loadAnotherWay(ctx)`, and `$pick @key isAlt`
-is called as `pick(key, isAlt, ctx)`. You can still write `ctx` in the
+`loadAnotherWay` is called as `loadAnotherWay(draft, ctx)`, and `pick @key isAlt`
+is called as `pick(draft, key, isAlt, ctx)`. You can still write `ctx` in the
 template (it resolves to a fresh `EventContext`), but it is redundant.
 
 Built-in handler argument names: `value`, `valueAsInt`, `valueAsFloat`,
@@ -615,10 +618,10 @@ Effects — act on the DOM event, on all events:
 - `+stop` → `event.stopPropagation()`
 
 ```html
-<input @on.keydown+send="$submit value" @on.keydown+cancel="$reset" />
-<button @on.click+ctrl="$soloOnly">ctrl-click</button>
-<form @on.submit+prevent="$save">…</form>
-<input @on.keydown+send+prevent="$submit value" />
+<input @on.keydown+send="submit value" @on.keydown+cancel="reset" />
+<button @on.click+ctrl="soloOnly">ctrl-click</button>
+<form @on.submit+prevent="save">…</form>
+<input @on.keydown+send+prevent="submit value" />
 ```
 
 Effects apply only when every guard on the same handler passed, whatever
@@ -638,14 +641,14 @@ via `@on.<event-name>`. The event's `detail` surfaces as `value`:
 ```js
 import "https://cdn.jsdelivr.net/npm/emoji-picker-element/+esm";
 
-receive: { onPick(detail) { return this.setCurrent(detail.unicode); } }
+receive: { onPick(draft, detail) { draft.current = detail.unicode; } }
 view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
 ```
 
 Handle these events declaratively with `@on.<event-name>` in the view —
 don't grab the node from host/glue code and `addEventListener` on it. A
 listener attached from outside the component runs outside the handler
-model: no `return this.set…()`, no transactor batching, and the mutation
+model: no draft transaction, no transactor batching, and the mutation
 is invisible to the component that owns the state (the same hazard as
 reaching into `app.state` directly). For any event with a real element in
 the tree, `@on.` is the only entry point you need. Genuinely external
@@ -734,7 +737,7 @@ selector is evaluated once against the host, so every item gets the same view.
 ```js
 component({
   view:  html`<p @text=".title"></p>`,                              // "main"
-  views: { edit: html`<input :value=".title" @on.input="$setTitle value" />` },
+  views: { edit: html`<input :value=".title" @on.input="setTitle value" />` },
 });
 ```
 
@@ -780,9 +783,13 @@ walks the handlers registered on the scope, and the default `["dyn","lex"]`
 tries both. The verb does not decide which scope answers — the route does,
 written at the call site.
 
-Every handler is called as `handler(...args, ctx)` and returns a
-(possibly updated) instance of `this`, which the framework swaps into
-the dispatch path; `ctx` is always the trailing argument. Routes,
+Every dispatched `receive` or `intent` handler is called as
+`handler(draft, ...args, ctx)`. `this` is the immutable current instance;
+`draft` is its Immer draft; `ctx` is always trailing. Mutate `draft` and
+return nothing (or return `draft`) to commit. Return any other value to swap
+the addressed component for that value. Mutating the draft and returning a
+replacement in the same handler is an error. An unchanged recipe preserves
+the current identity. Routes,
 `ctx.reply` / `ctx.fail` / `ctx.forward` / `ctx.stop`, the three
 outcomes, `ctx.at`, the `$unknown` fallback, and intent-handler
 registration are in [messages-and-intents.md](./messages-and-intents.md);
@@ -790,7 +797,8 @@ worked snippets in
 [patterns/coordinate-components.md](./patterns/coordinate-components.md).
 
 `alter` is a third handler block, but it isn't event-triggered — the
-renderer invokes alter handlers to produce binds, not state changes
+renderer invokes alter handlers with their existing read-only signature to
+produce binds, not state changes
 (see *Mental model*, and *Scope Enrichment* in
 [iteration.md](./iteration.md)).
 
@@ -809,24 +817,18 @@ see [macros.md](./macros.md). Registry keys are lowercased —
 
 Bypasses all escaping; children of the element are ignored when active.
 
-## Immutable Re-exports
+## Immer Utilities
 
-`tutuca` re-exports **everything** from
-[`immutable`](https://immutable-js.com/) (`List`, `OrderedMap`, `Record`,
-`Seq`, `is`, `fromJS`, ...), plus short aliases to avoid clashes with
-the host runtime's `Map` / `Set`:
+Tutuca uses Immer internally but does not add Immer's API to the root export.
+Import recipe utilities explicitly when tests or host code need them:
 
 ```js
-import {
-  IMap, OMap, ISet,         // aliases for Map, OrderedMap, Set
-  isIMap, isOMap,           // aliases for isMap, isOrderedMap
-  List, Record, Seq, fromJS, is,    // ...everything else immutable exports
-} from "tutuca";
+import { produce, immerable } from "tutuca/immer";
 ```
 
-Because every `immutable` export is reachable through `tutuca`, if an
-`immutable-js` skill is available, load it alongside this one — its
-guidance applies directly to the values you'll be reading and writing.
+Generated component classes are already draftable. Add `[immerable] = true`
+to custom classes stored in state. Native `Map` and `Set` support is enabled by
+the `tutuca/immer` entry point.
 
 ## Conventional Module Exports
 

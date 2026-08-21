@@ -3,8 +3,8 @@ import {
   NULL_CONST_VAL,
   parseAlterHandler,
   parseBool,
-  parseReceiveHandler,
   parseMacroAttr,
+  parseReceiveHandler,
   parseSequence,
   parseText,
 } from "./value.js";

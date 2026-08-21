@@ -2,13 +2,14 @@
 // runner ignores it (vitest only globs test/*.test.js); `tutuca test` discovers it
 // via its dirMatch.
 import { component, html } from "../../../index.js";
+import { produce } from "../../../src/immer.js";
 
 const Alpha = component({
   name: "Alpha",
   fields: { n: 0 },
-  methods: {
-    bump() {
-      return this.setN(this.n + 1);
+  receive: {
+    bump(draft) {
+      draft.n++;
     },
   },
   view: html`<div @text=".n"></div>`,
@@ -21,7 +22,8 @@ export function getComponents() {
 export function getTests({ describe, test, expect }) {
   describe(Alpha, () => {
     test("bump increments n", () => {
-      expect(Alpha.make({ n: 1 }).bump().n).toBe(2);
+      const value = Alpha.make({ n: 1 });
+      expect(produce(value, (draft) => Alpha.receive.bump.call(value, draft)).n).toBe(2);
     });
   });
 }

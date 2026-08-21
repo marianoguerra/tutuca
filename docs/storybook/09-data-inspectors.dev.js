@@ -3,7 +3,6 @@
 // Aggregates the galleries of the real in-repo inspector components from:
 //   src/components/data/json.dev.js
 //   src/components/data/data.dev.js
-//   src/components/data/immutable-inspector.dev.js
 //   src/components/data/json-schema.dev.js
 // with their relative component imports rewritten to the bare
 // "tutuca/components" specifier (resolved via the import map in index.html on
@@ -22,9 +21,13 @@ __export(json_dev_exports, {
   getComponents: () => getComponents,
   getExamples: () => getExamples
 });
+import { produce } from "tutuca/immer";
 import { JsonViewer } from "tutuca/components";
 import { getComponents } from "tutuca/components";
 function getExamples() {
+  const expanded = (value) => produce(value, (draft) => {
+    draft.isExpanded = true;
+  });
   const longArray = Array.from({ length: 25 }, (_, i) => i + 1);
   const longObject = Object.fromEntries(
     Array.from({ length: 15 }, (_, i) => [`key_${i + 1}`, (i + 1) * 10])
@@ -40,9 +43,9 @@ function getExamples() {
       meta: { joined: "2026-01-15", verified: true }
     }
   };
-  const expandedSmallArray = JsonViewer.Class.fromData([1, "two", true, null]).toggleIsExpanded();
-  const expandedPaginated = JsonViewer.Class.fromData(longArray).toggleIsExpanded();
-  const expandedNested = JsonViewer.Class.fromData(apiResponseShape).toggleIsExpanded();
+  const expandedSmallArray = expanded(JsonViewer.Class.fromData([1, "two", true, null]));
+  const expandedPaginated = expanded(JsonViewer.Class.fromData(longArray));
+  const expandedNested = expanded(JsonViewer.Class.fromData(apiResponseShape));
   const allTypesThreeLevels = {
     name: "demo",
     active: true,
@@ -69,7 +72,7 @@ function getExamples() {
       ]
     }
   };
-  const expandedAllTypes = JsonViewer.Class.fromData(allTypesThreeLevels).toggleIsExpanded();
+  const expandedAllTypes = expanded(JsonViewer.Class.fromData(allTypesThreeLevels));
   return {
     title: "JsonViewer",
     description: "Chrome devtools–style display of a JSON value. Wraps a per-type component (JsonNull, JsonBoolean, JsonNumber, JsonString, JsonArray, JsonObject); composites support collapse/expand and pagination (default 10 items per page).",
@@ -175,15 +178,17 @@ function getExamples() {
       },
       {
         title: "object with non-JSON values (expanded)",
-        value: JsonViewer.Class.fromData({
-          fn: function namedFn() {
-          },
-          arrow: () => 1,
-          sym: /* @__PURE__ */ Symbol("x"),
-          map: /* @__PURE__ */ new Map([["k", "v"]]),
-          set: /* @__PURE__ */ new Set([1, 2]),
-          ok: "string is fine"
-        }).toggleIsExpanded()
+        value: expanded(
+          JsonViewer.Class.fromData({
+            fn: function namedFn() {
+            },
+            arrow: () => 1,
+            sym: /* @__PURE__ */ Symbol("x"),
+            map: /* @__PURE__ */ new Map([["k", "v"]]),
+            set: /* @__PURE__ */ new Set([1, 2]),
+            ok: "string is fine"
+          })
+        )
       }
     ]
   };
@@ -195,7 +200,7 @@ __export(data_dev_exports, {
   getComponents: () => getComponents2,
   getExamples: () => getExamples2
 });
-import { IMap, List } from "tutuca";
+import { produce as produce2 } from "tutuca/immer";
 import { DataInspector } from "tutuca/components";
 import { getComponents as getComponents2 } from "tutuca/components";
 function getExamples2() {
@@ -245,29 +250,21 @@ function getExamples2() {
     bigCount: big,
     nothing: void 0,
     json: { ok: true, n: 1 },
-    immutable: List([1, 2, IMap({ x: 99 })])
+    nested: [1, 2, /* @__PURE__ */ new Map([["x", 99]])]
   };
-  const deepExpand2 = (c) => {
-    if (c == null || typeof c !== "object") return c;
-    let n = c;
-    if (typeof n.setIsExpanded === "function") {
-      n = n.setIsExpanded(true);
-    }
-    if (typeof n.setValue === "function" && n.value && typeof n.value === "object") {
-      return n.setValue(deepExpand2(n.value));
-    }
-    if (typeof n.setItems === "function" && n.items?.map) {
-      return n.setItems(
-        n.items.map(
-          (item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand2(item.child)) : item
-        )
-      );
-    }
-    return n;
+  const expandDraft2 = (node) => {
+    if (node == null || typeof node !== "object") return;
+    if ("isExpanded" in node) node.isExpanded = true;
+    if (node.value && typeof node.value === "object") expandDraft2(node.value);
+    if (Array.isArray(node.items)) for (const item of node.items) expandDraft2(item?.child ?? item);
   };
+  const deepExpand2 = (value) => produce2(value, expandDraft2);
+  const expanded = (value) => produce2(value, (draft) => {
+    draft.isExpanded = true;
+  });
   return {
     title: "DataInspector",
-    description: "Inspect any JS value: composes Immutable.js detection, JS extras (Symbol, BigInt, function, Date, RegExp, Error, native Map/Set, class instances), and plain JSON. Built on the chain(classifyImmutable, classifyJsExtra, classifyJson) dispatcher.",
+    description: "Inspect any JS value: JS extras (Symbol, BigInt, function, Date, RegExp, Error, native Map/Set, class instances) and plain JSON.",
     items: [
       { title: "undefined", value: DI.fromData(void 0) },
       { title: "null", value: DI.fromData(null) },
@@ -288,144 +285,24 @@ function getExamples2() {
       { title: "Error", value: DI.fromData(err) },
       {
         title: "native Map (expanded)",
-        value: DI.fromData(nativeMap).toggleIsExpanded()
+        value: expanded(DI.fromData(nativeMap))
       },
       {
         title: "native Set (expanded)",
-        value: DI.fromData(nativeSet).toggleIsExpanded()
+        value: expanded(DI.fromData(nativeSet))
       },
       {
         title: "native Map with object keys (expanded)",
-        value: DI.fromData(mapWithObjectKeys).toggleIsExpanded()
+        value: expanded(DI.fromData(mapWithObjectKeys))
       },
       {
         title: "class instance (Person, expanded)",
-        value: DI.fromData(inst).toggleIsExpanded()
+        value: expanded(DI.fromData(inst))
       },
       {
-        title: "deeply mixed: Immutable + JS extras + JSON (expanded)",
-        description: "Plain object containing a class instance, native Map (with a Set inside), function, Date, RegExp, Error, Symbol, BigInt, undefined, JSON, and an Immutable List with a nested IMap.",
+        title: "deeply mixed: native collections + JS extras + JSON (expanded)",
+        description: "Plain object containing a class instance, native Map/Set, function, Date, RegExp, Error, Symbol, BigInt, undefined, and JSON.",
         value: deepExpand2(DI.fromData(deepZoo))
-      }
-    ]
-  };
-}
-
-// src/components/data/immutable-inspector.dev.js
-var immutable_inspector_dev_exports = {};
-__export(immutable_inspector_dev_exports, {
-  getComponents: () => getComponents3,
-  getExamples: () => getExamples3
-});
-import { IMap as IMap2, ISet, List as List2, OMap, OrderedSet, Range, Record, Stack } from "tutuca";
-import { ImInspector } from "tutuca/components";
-import { getComponents as getComponents3 } from "tutuca/components";
-function getExamples3() {
-  const II = ImInspector.Class;
-  const longList = List2(Array.from({ length: 25 }, (_, i) => i + 1));
-  const personMap = IMap2({ name: "Alice", age: 30, active: true });
-  const orderedMap = OMap([
-    ["first", 1],
-    ["second", 2],
-    ["third", 3]
-  ]);
-  const tagSet = ISet(["admin", "early-access", "beta"]);
-  const orderedTags = OrderedSet(["a", "b", "c", "a"]);
-  const stackTrace = Stack(["frame3", "frame2", "frame1"]);
-  const Person = Record({ name: "", age: 0, email: "" }, "Person");
-  const alice = Person({ name: "Alice", age: 30 });
-  const range10 = Range(0, 10);
-  const mixed = IMap2({
-    users: List2([
-      { id: 1, name: "Alice" },
-      { id: 2, name: "Bob" }
-    ]),
-    count: 2,
-    active: ISet(["admin"])
-  });
-  const nested = List2([IMap2({ a: 1 }), IMap2({ a: 2 })]);
-  const deepMixed = List2([
-    {
-      label: "first",
-      stats: IMap2({ score: 99, active: true, name: "Alice" })
-    },
-    {
-      label: "second",
-      stats: IMap2({ score: 42, active: false, name: "Bob" })
-    }
-  ]);
-  const deepExpand2 = (c) => {
-    if (c == null || typeof c !== "object") return c;
-    let n = c;
-    if (typeof n.setIsExpanded === "function") {
-      n = n.setIsExpanded(true);
-    }
-    if (typeof n.setValue === "function" && n.value && typeof n.value === "object") {
-      return n.setValue(deepExpand2(n.value));
-    }
-    if (typeof n.setItems === "function" && n.items?.map) {
-      return n.setItems(
-        n.items.map(
-          (item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand2(item.child)) : item
-        )
-      );
-    }
-    return n;
-  };
-  const expandedList = II.fromData(longList).toggleIsExpanded();
-  const expandedMap = II.fromData(personMap).toggleIsExpanded();
-  const expandedRecord = II.fromData(alice).toggleIsExpanded();
-  const expandedMixed = II.fromData(mixed).toggleIsExpanded();
-  const expandedNested = II.fromData(nested).toggleIsExpanded();
-  const expandedDeepMixed = deepExpand2(II.fromData(deepMixed));
-  return {
-    title: "ImmutableInspector",
-    description: "Chrome devtools-style display for Immutable.js values. Detects List, Stack, Map, OrderedMap, Set, OrderedSet, Record, and Range; falls back to JsonViewer's per-type components for plain JS values. Composites support collapse/expand and pagination (10 items per page).",
-    items: [
-      { title: "null", value: II.fromData(null) },
-      { title: "true", value: II.fromData(true) },
-      { title: "integer", value: II.fromData(42) },
-      { title: "string", value: II.fromData("hello, world") },
-      { title: "plain array", value: II.fromData([1, 2, 3]) },
-      {
-        title: "plain object",
-        value: II.fromData({ a: 1, b: 2 })
-      },
-      { title: "empty List", value: II.fromData(List2()) },
-      {
-        title: "List of primitives",
-        value: II.fromData(List2([1, "two", true, null]))
-      },
-      {
-        title: "List 25 (expanded, paginated)",
-        value: expandedList
-      },
-      { title: "Stack", value: II.fromData(stackTrace) },
-      { title: "small Map", value: II.fromData(personMap) },
-      { title: "Map (expanded)", value: expandedMap },
-      { title: "OrderedMap", value: II.fromData(orderedMap) },
-      { title: "Set", value: II.fromData(tagSet) },
-      {
-        title: "OrderedSet (with dup removed)",
-        value: II.fromData(orderedTags)
-      },
-      {
-        title: "Record (Person, expanded)",
-        value: expandedRecord
-      },
-      { title: "Range 0…10", value: II.fromData(range10) },
-      {
-        title: "mixed Immutable + JSON (expanded)",
-        value: expandedMixed
-      },
-      {
-        title: "nested Immutable in Immutable (expanded)",
-        value: expandedNested
-      },
-      {
-        title: "List → JS object → IMap → JS scalars (deeply expanded)",
-        description: "Demonstrates the full dispatch chain: an Immutable List whose items are plain JS objects, each containing an Immutable Map of plain JS scalars.",
-        value: expandedDeepMixed
       }
     ]
   };
@@ -434,10 +311,11 @@ function getExamples3() {
 // src/components/data/json-schema.dev.js
 var json_schema_dev_exports = {};
 __export(json_schema_dev_exports, {
-  getComponents: () => getComponents4,
-  getExamples: () => getExamples4,
+  getComponents: () => getComponents3,
+  getExamples: () => getExamples3,
   getTests: () => getTests
 });
+import { produce as produce3 } from "tutuca/immer";
 import { JsonViewer as JsonViewer2 } from "tutuca/components";
 import {
   classifySchema,
@@ -453,30 +331,17 @@ import {
   SchemaScalar,
   SchemaViewer
 } from "tutuca/components";
-import { getComponents as getComponents4 } from "tutuca/components";
+import { getComponents as getComponents3 } from "tutuca/components";
 var SV = SchemaViewer.Class;
-var deepExpand = (c) => {
-  if (c == null || typeof c !== "object") return c;
-  let n = c;
-  if (typeof n.setIsExpanded === "function") {
-    n = n.setIsExpanded(true);
-  }
-  for (const k of ["value", "raw", "child", "ifNode", "thenNode", "elseNode"]) {
-    const setter = `set${k[0].toUpperCase()}${k.slice(1)}`;
-    if (typeof n[setter] === "function" && n[k] && typeof n[k] === "object") {
-      n = n[setter](deepExpand(n[k]));
-    }
-  }
-  if (typeof n.setItems === "function" && n.items?.map) {
-    n = n.setItems(
-      n.items.map(
-        (item) => item && typeof item.setChild === "function" ? item.setChild(deepExpand(item.child)) : deepExpand(item)
-      )
-    );
-  }
-  return n;
+var expandDraft = (node) => {
+  if (node == null || typeof node !== "object") return;
+  if ("isExpanded" in node) node.isExpanded = true;
+  for (const key of ["value", "raw", "child", "ifNode", "thenNode", "elseNode"])
+    expandDraft(node[key]);
+  if (Array.isArray(node.items)) for (const item of node.items) expandDraft(item);
 };
-function getExamples4() {
+var deepExpand = (value) => produce3(value, expandDraft);
+function getExamples3() {
   const objOfArrayOfObjects = {
     type: "object",
     properties: {
@@ -884,7 +749,11 @@ function getExamples4() {
       {
         title: "raw schema view (toggled, expanded)",
         description: "Same schema with the raw view toggled on — the original JSON Schema rendered with JsonViewer from json.js. Click the button to switch back to the high-level view.",
-        value: deepExpand(SV.fromData(kitchenSink).toggleShowRaw())
+        value: deepExpand(
+          produce3(SV.fromData(kitchenSink), (draft) => {
+            draft.showRaw = true;
+          })
+        )
       }
     ]
   };
@@ -943,8 +812,8 @@ function getTests({ describe, test, expect }) {
       test("enum → SchemaEnum whose members render via JsonViewer", () => {
         const node = classifySchema({ enum: [1, 2, 3] });
         expect(node).toBeInstanceOf(SchemaEnum.Class);
-        expect(node.items.size).toBe(3);
-        expect(node.items.first()).toBeInstanceOf(JsonViewer2.Class);
+        expect(node.items.length).toBe(3);
+        expect(node.items[0]).toBeInstanceOf(JsonViewer2.Class);
       });
       test("const → SchemaConst whose value renders via JsonViewer", () => {
         const node = classifySchema({ const: 42 });
@@ -958,8 +827,8 @@ function getTests({ describe, test, expect }) {
           format: "email"
         });
         expect(node).toBeInstanceOf(SchemaScalar.Class);
-        expect(node.badges.toArray()).toContain("format: email");
-        expect(node.badges.toArray()).toContain("min length: 3");
+        expect(node.badges).toContain("format: email");
+        expect(node.badges).toContain("min length: 3");
       });
       test("multi-type joins with ' | '", () => {
         const node = classifySchema({ type: ["string", "null"] });
@@ -972,7 +841,7 @@ function getTests({ describe, test, expect }) {
         });
         expect(node).toBeInstanceOf(SchemaCombinator.Class);
         expect(node.typeLabel).toBe("any of");
-        const inner = node.items.first();
+        const inner = node.items[0];
         expect(inner).toBeInstanceOf(SchemaCombinator.Class);
         expect(inner.typeLabel).toBe("all of");
       });
@@ -1007,10 +876,10 @@ function getTests({ describe, test, expect }) {
 }
 
 // gallery.js
-import { getComponents as getComponents5 } from "tutuca/components";
-var MODULES = [json_dev_exports, data_dev_exports, immutable_inspector_dev_exports, json_schema_dev_exports];
+import { getComponents as getComponents4 } from "tutuca/components";
+var MODULES = [json_dev_exports, data_dev_exports, json_schema_dev_exports];
 var GROUP = "Data Inspectors";
-function getExamples5() {
+function getExamples4() {
   return MODULES.flatMap((m) => {
     const raw = m.getExamples();
     return (Array.isArray(raw) ? raw : [raw]).map((s) => ({ group: GROUP, ...s }));
@@ -1020,7 +889,7 @@ function getTests2(ctx) {
   for (const m of MODULES) if (typeof m.getTests === "function") m.getTests(ctx);
 }
 export {
-  getComponents5 as getComponents,
-  getExamples5 as getExamples,
+  getComponents4 as getComponents,
+  getExamples4 as getExamples,
   getTests2 as getTests
 };

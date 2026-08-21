@@ -61,6 +61,7 @@ export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
 export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
 export const UNKNOWN_HANDLER_ARG_NAME = "UNKNOWN_HANDLER_ARG_NAME";
 export const RECEIVE_HANDLER_NOT_IMPLEMENTED = "RECEIVE_HANDLER_NOT_IMPLEMENTED";
+export const EVENT_HANDLER_METHOD_NOT_ALLOWED = "EVENT_HANDLER_METHOD_NOT_ALLOWED";
 // TEMPORARY (remove a couple of releases after the two-channel change): the retired
 // four-channel vocabulary. These rules exist to DRIVE the migration — each one names
 // the construct at its own site and says what replaces it, so "run the linter until it
@@ -71,9 +72,6 @@ export const RETIRED_CTX_VERB = "RETIRED_CTX_VERB";
 // PERMANENT: one bucket now holds what three did, so two handlers can silently collapse
 // onto one key, and a request can no longer share a name with its own answer.
 export const HANDLER_NAME_COLLISION = "HANDLER_NAME_COLLISION";
-export const RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED = "RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED";
-export const RECEIVE_HANDLER_FOR_METHOD = "RECEIVE_HANDLER_FOR_METHOD";
-export const METHOD_FOR_RECEIVE_HANDLER = "METHOD_FOR_RECEIVE_HANDLER";
 export const FIELD_VAL_NOT_DEFINED = "FIELD_VAL_NOT_DEFINED";
 export const FIELD_VAL_IS_METHOD = "FIELD_VAL_IS_METHOD";
 export const METHOD_VAL_NOT_DEFINED = "METHOD_VAL_NOT_DEFINED";
@@ -104,18 +102,7 @@ export const COMP_FIELD_BAD_SHAPE = "COMP_FIELD_BAD_SHAPE";
 export const ASYNC_HANDLER = "ASYNC_HANDLER";
 export const TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE = "TOP_LEVEL_AT_RULE_IN_SCOPED_STYLE";
 export const GLOBAL_SELECTOR_IN_SCOPED_STYLE = "GLOBAL_SELECTOR_IN_SCOPED_STYLE";
-export const FIELD_NAME_RESERVED_BY_RECORD = "FIELD_NAME_RESERVED_BY_RECORD";
-
-// Component classes are Immutable.js Records, so a field whose name matches a
-// Record-API member loses its `.field` accessor — the value is then only
-// reachable via `instance.get("name")`. Most API names are verbs (`get`,
-// `set`, `merge`, …) that nobody picks as a field name; this list is the
-// noun-like members that read as plausible field names. Verified against
-// `deps/immutable.js`: defining a field with one of these triggers Immutable's
-// "part of the Record API" warning and drops the accessor. (Note `size`,
-// `keys`, `values` are NOT here — in this build the field accessor wins and
-// they work fine.)
-const RECORD_FIELD_NAME_COLLISIONS = new Set(["entries", "hashCode"]);
+export const FIELD_METHOD_NAME_COLLISION = "FIELD_METHOD_NAME_COLLISION";
 
 const X_KNOWN_OP_NAMES = new Set([
   "slot",
@@ -155,13 +142,11 @@ const PARSE_ISSUES = {
     atPrefix: X_KNOWN_ATTR_NAMES,
   },
   "bad-value": { id: BAD_VALUE },
+  "event-method-handler": { id: EVENT_HANDLER_METHOD_NOT_ALLOWED },
 };
 
-// True only when `name` is an actual method: a function-valued data property
-// somewhere on the prototype chain. The prototype also carries field accessors
-// (getters added by extendProto), so a plain `proto[name]` lookup would *invoke*
-// the getter against the bare prototype (which is not a Record instance) and
-// throw on `this._values`. Reading the descriptor avoids triggering the getter.
+// True only when `name` is an actual function-valued prototype property.
+// Descriptor walking avoids invoking any accessor a custom class may define.
 function protoHasMethod(proto, name) {
   return protoMethodValue(proto, name) !== null;
 }
@@ -252,7 +237,7 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
   return lx.push({ componentName: Comp.name }, () => {
     checkUnknownSpecKeys(lx, Comp, wellKnownExtras);
     checkFieldDeclarations(lx, Comp);
-    checkRecordFieldNameCollisions(lx, Comp);
+    checkFieldMethodNameCollisions(lx, Comp);
     checkProvidesAreAddressable(lx, Comp);
     checkLookupShapes(lx, Comp);
     checkHandlersNotAsync(lx, Comp);
@@ -319,6 +304,14 @@ function checkParseIssues(lx, view) {
     }
     if (kind === "x-op-ignores-children") {
       lx.warn(X_OP_IGNORES_CHILDREN, info, { kind: "remove", what: "the ignored children" });
+      continue;
+    }
+    if (kind === "event-method-handler") {
+      lx.error(EVENT_HANDLER_METHOD_NOT_ALLOWED, info, {
+        kind: "rephrase",
+        from: info.value,
+        text: `Move '${info.name}' to receive and reference it as '${info.name}'.`,
+      });
       continue;
     }
     const rule = PARSE_ISSUES[kind];
@@ -586,48 +579,24 @@ function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
       for (const event of view.ctx.events) {
         for (const handler of event.handlers) {
           const { handlerVal } = handler.handlerCall;
-          const hvName = handlerVal?.constructor.name;
           const eventName = handler.name;
           const originAttr = `@on.${eventName}`;
-          if (hvName === "HandlerNameVal") {
+          if (handlerVal?.constructor.name === "HandlerNameVal") {
             referencedInputs?.add(handlerVal.name);
             const { name } = handlerVal;
             if (input[name] === undefined) {
-              const isMethodFix = protoHasMethod(proto, name);
+              const suggestion = protoHasMethod(proto, name)
+                ? {
+                    kind: "rephrase",
+                    from: name,
+                    text: `Move '${name}' from methods to receive; event handlers are receive handlers.`,
+                  }
+                : replaceNameSuggestion(name, Object.keys(input));
               lx.error(
                 RECEIVE_HANDLER_NOT_IMPLEMENTED,
                 { name, handler, event, eventName, originAttr },
-                isMethodFix
-                  ? { kind: "add-prefix", from: name, to: `$${name}` }
-                  : replaceNameSuggestion(name, Object.keys(input)),
+                suggestion,
               );
-              if (isMethodFix) {
-                lx.hint(
-                  METHOD_FOR_RECEIVE_HANDLER,
-                  { name, handler, event, eventName, originAttr },
-                  { kind: "add-prefix", from: name, to: `$${name}` },
-                );
-              }
-            }
-          } else if (hvName === "MethodVal") {
-            referencedInputs?.add(handlerVal.name);
-            const { name } = handlerVal;
-            if (!protoHasMethod(proto, name)) {
-              const isInputFix = input[name] !== undefined;
-              lx.error(
-                RECEIVE_HANDLER_METHOD_NOT_IMPLEMENTED,
-                { name, handler, event, eventName, originAttr },
-                isInputFix
-                  ? { kind: "drop-prefix", from: `$${name}`, to: name }
-                  : replaceNameSuggestion(name, collectProtoMethodNames(proto)),
-              );
-              if (isInputFix) {
-                lx.hint(
-                  RECEIVE_HANDLER_FOR_METHOD,
-                  { name, handler, event, eventName, originAttr },
-                  { kind: "drop-prefix", from: `$${name}`, to: name },
-                );
-              }
             }
           }
         }
@@ -1059,14 +1028,11 @@ function checkFieldDeclarations(lx, Comp) {
   }
 }
 
-function checkRecordFieldNameCollisions(lx, Comp) {
-  const fields = Comp.Class?.getMetaClass?.().fields;
-  if (!fields) return;
-  for (const name in fields) {
-    if (RECORD_FIELD_NAME_COLLISIONS.has(name)) {
-      lx.error(FIELD_NAME_RESERVED_BY_RECORD, { name });
-    }
-  }
+function checkFieldMethodNameCollisions(lx, Comp) {
+  const meta = Comp.Class?.getMetaClass?.();
+  if (!meta) return;
+  for (const name in meta.fields)
+    if (Object.hasOwn(meta.methods, name)) lx.error(FIELD_METHOD_NAME_COLLISION, { name });
 }
 
 function checkUnreferencedAlterHandlers(lx, Comp, referencedAlters) {

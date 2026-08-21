@@ -7,6 +7,11 @@ export const JsonNull = component({
 });
 
 export const JsonBool = component({
+  receive: {
+    toggleValue(draft) {
+      draft.value = !draft.value;
+    },
+  },
   name: "JsonBool",
   fields: { uid: "", value: true },
   view: html`<button
@@ -14,7 +19,7 @@ export const JsonBool = component({
     @if.class=".value"
     @then="'btn btn-sm btn-ghost btn-success font-mono'"
     @else="'btn btn-sm btn-ghost btn-error font-mono'"
-    @on.click="$toggleValue"
+    @on.click="toggleValue"
   >
     <span @show=".value">true</span>
     <span @hide=".value">false</span>
@@ -22,6 +27,11 @@ export const JsonBool = component({
 });
 
 export const JsonString = component({
+  receive: {
+    setValue(draft, value) {
+      draft.value = value;
+    },
+  },
   name: "JsonString",
   fields: {
     uid: "",
@@ -31,7 +41,7 @@ export const JsonString = component({
     :data-test-id=".uid"
     class="input input-sm input-ghost text-green-500 font-mono"
     :value=".value"
-    @on.input="$setValue value"
+    @on.input="setValue value"
   />`,
 });
 
@@ -42,10 +52,11 @@ export const JsonNumber = component({
     strValue: "0",
     value: 0,
   },
-  methods: {
-    setRawValue(v) {
+  receive: {
+    setRawValue(draft, v) {
       const value = parseFloat(v);
-      return Number.isFinite(value) ? this.setValue(value).setStrValue(v) : this.setStrValue(v);
+      if (Number.isFinite(value)) draft.value = value;
+      draft.strValue = v;
     },
   },
   view: html`<input
@@ -54,52 +65,30 @@ export const JsonNumber = component({
     class="input input-sm input-ghost text-primary font-mono"
     :title=".value"
     :value=".strValue"
-    @on.input="$setRawValue value"
+    @on.input="setRawValue value"
   />`,
 });
 
 export const JsonSelector = component({
   name: "JsonSelector",
   fields: { uid: "" },
-  methods: {
-    setTo(Comp) {
+  receive: {
+    setTo(_draft, Comp) {
       return Comp.make();
     },
-    setToBool(Comp, isCtrl) {
+    setToBool(_draft, Comp, isCtrl) {
       return Comp.make({ value: !isCtrl });
     },
   },
   view: html`<div :data-test-id=".uid" class="join gap-3 font-mono">
-    <button
-      class="btn btn-sm btn-ghost btn-warning"
-      @on.click="$setTo JsonNull"
-    >
-      null
-    </button>
-    <button
-      class="btn btn-sm btn-ghost btn-success"
-      @on.click="$setToBool JsonBool isCtrl"
-    >
+    <button class="btn btn-sm btn-ghost btn-warning" @on.click="setTo JsonNull">null</button>
+    <button class="btn btn-sm btn-ghost btn-success" @on.click="setToBool JsonBool isCtrl">
       bool
     </button>
-    <button
-      class="btn btn-sm btn-ghost btn-primary"
-      @on.click="$setTo JsonNumber"
-    >
-      0
-    </button>
-    <button
-      class="btn btn-sm btn-ghost btn-accent"
-      @on.click="$setTo JsonString"
-    >
-      ""
-    </button>
-    <button class="btn btn-sm btn-ghost btn-info" @on.click="$setTo JsonArray">
-      []
-    </button>
-    <button class="btn btn-sm btn-ghost btn-info" @on.click="$setTo JsonObject">
-      {}
-    </button>
+    <button class="btn btn-sm btn-ghost btn-primary" @on.click="setTo JsonNumber">0</button>
+    <button class="btn btn-sm btn-ghost btn-accent" @on.click="setTo JsonString">""</button>
+    <button class="btn btn-sm btn-ghost btn-info" @on.click="setTo JsonArray">[]</button>
+    <button class="btn btn-sm btn-ghost btn-info" @on.click="setTo JsonObject">{}</button>
   </div>`,
 });
 
@@ -110,11 +99,15 @@ export const JsonArray = component({
     items: [],
   },
   receive: {
-    addItem(Comp) {
-      return this.pushInItems(Comp.make());
+    removeInItemsAt(draft, key) {
+      draft.items.splice(key, 1);
     },
-    onDropOnItem(key, dragInfo) {
-      return this.setItems(this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key));
+
+    addItem(draft, Comp) {
+      draft.items.push(Comp.make());
+    },
+    onDropOnItem(draft, key, dragInfo) {
+      draft.items = this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key);
     },
   },
   style: css`
@@ -127,12 +120,7 @@ export const JsonArray = component({
     :data-test-id=".uid"
     class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500"
   >
-    <button
-      class="btn btn-sm btn-ghost btn-primary"
-      @on.click="addItem JsonSelector"
-    >
-      +
-    </button>
+    <button class="btn btn-sm btn-ghost btn-primary" @on.click="addItem JsonSelector">+</button>
     <div class="join join-vertical gap-3">
       <div
         class="join gap-3 justify-between items-center group"
@@ -145,7 +133,7 @@ export const JsonArray = component({
         <x render-it></x
         ><button
           class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100"
-          @on.click="$removeInItemsAt @key"
+          @on.click="removeInItemsAt @key"
         >
           ⛔
         </button>
@@ -155,6 +143,11 @@ export const JsonArray = component({
 });
 
 export const JsonObjectKeyVal = component({
+  receive: {
+    setKey(draft, value) {
+      draft.key = value;
+    },
+  },
   name: "JsonObjectKeyVal",
   fields: {
     uid: "",
@@ -165,7 +158,7 @@ export const JsonObjectKeyVal = component({
     <input
       class="input input-sm input-ghost text-green-500 font-mono"
       :value=".key"
-      @on.input="$setKey value"
+      @on.input="setKey value"
     />
     <span class="text-xs font-mono text-gray-500">:</span>
     <x render=".value"></x>
@@ -179,11 +172,15 @@ export const JsonObject = component({
     items: [],
   },
   receive: {
-    addItem(KV, JsonSelector) {
-      return this.pushInItems(KV.make({ value: JsonSelector.make() }));
+    removeInItemsAt(draft, key) {
+      draft.items.splice(key, 1);
     },
-    onDropOnItem(key, dragInfo) {
-      return this.setItems(this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key));
+
+    addItem(draft, KV, JsonSelector) {
+      draft.items.push(KV.make({ value: JsonSelector.make() }));
+    },
+    onDropOnItem(draft, key, dragInfo) {
+      draft.items = this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key);
     },
   },
   style: css`
@@ -214,7 +211,7 @@ export const JsonObject = component({
         <x render-it></x
         ><button
           class="btn btn-sm btn-ghost btn-circle btn-danger opacity-0 group-hover:opacity-100"
-          @on.click="$removeInItemsAt @key"
+          @on.click="removeInItemsAt @key"
         >
           ⛔
         </button>

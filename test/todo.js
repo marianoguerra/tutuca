@@ -1,4 +1,5 @@
 import { component, html, macro } from "../index.js";
+import { produce } from "../src/immer.js";
 
 const Item = component({
   name: "Item",
@@ -6,13 +7,17 @@ const Item = component({
     completed: false,
     text: "do the thing",
   },
+  receive: {
+    setCompleted(draft, completed) {
+      draft.completed = completed;
+    },
+    setText(draft, text) {
+      draft.text = text;
+    },
+  },
   view: html`<x:hbox>
-    <x:checkbox :value=".completed" :handler="$setCompleted"></x:checkbox>
-    <x:input
-      :value=".text"
-      :handler="$setText"
-      :disabled=".completed"
-    ></x:input>
+    <x:checkbox :value=".completed" :handler="setCompleted"></x:checkbox>
+    <x:input :value=".text" :handler="setText" :disabled=".completed"></x:input>
   </x:hbox>`,
 });
 
@@ -22,51 +27,38 @@ const Items = component({
     items: [],
   },
   receive: {
-    onAddItem(Item) {
-      return this.pushInItems(Item.make({ completed: false, text: "do the thing" }));
+    removeInItemsAt(draft, index) {
+      draft.items.splice(index, 1);
+    },
+
+    onAddItem(draft, Item) {
+      draft.items.push(Item.make({ completed: false, text: "do the thing" }));
     },
   },
   view: html`<x:vbox>
-    <x:btn-action
-      label="Add Task"
-      :handler="onAddItem"
-      :arg="Item"
-    ></x:btn-action>
+    <x:btn-action label="Add Task" :handler="onAddItem" :arg="Item"></x:btn-action>
     <x:vbox class="w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>
-        <x:btn-rm :handler="$removeInItemsAt" :arg="@key"></x:btn-rm>
+        <x:btn-rm :handler="removeInItemsAt" :arg="@key"></x:btn-rm>
       </div>
     </x:vbox>
   </x:vbox>`,
 });
 
 const checkbox = macro(
-  { value: ".value", handler: "$setValue" },
-  html`<input
-    type="checkbox"
-    class="checkbox"
-    :checked="^value"
-    @on.input="^handler value"
-  />`,
+  { value: ".value", handler: "setValue" },
+  html`<input type="checkbox" class="checkbox" :checked="^value" @on.input="^handler value" />`,
 );
 
 const input = macro(
-  { value: ".value", handler: "$setValue", disabled: "false" },
-  html`<input
-    class="input"
-    :value="^value"
-    @on.input="^handler value"
-    :disabled="^disabled"
-  />`,
+  { value: ".value", handler: "setValue", disabled: "false" },
+  html`<input class="input" :value="^value" @on.input="^handler value" :disabled="^disabled" />`,
 );
 
 const btnRm = macro(
   { handler: "onRemove", arg: "event" },
-  html`<button
-    class="btn btn-ghost btn-sm btn-error btn-circle"
-    @on.click="^handler ^arg"
-  >
+  html`<button class="btn btn-ghost btn-sm btn-error btn-circle" @on.click="^handler ^arg">
     x
   </button>`,
 );
@@ -162,7 +154,7 @@ export function getTests({ describe, test, expect }) {
     describe("setCompleted", () => {
       test("flips completed flag", () => {
         const it = Item.make();
-        const next = it.setCompleted(true);
+        const next = produce(it, (draft) => Item.receive.setCompleted.call(it, draft, true));
         expect(next.completed).toBe(true);
         expect(it.completed).toBe(false);
       });
@@ -171,13 +163,13 @@ export function getTests({ describe, test, expect }) {
 
   describe(Items, () => {
     test("starts empty", () => {
-      expect(Items.make().items.size).toBe(0);
+      expect(Items.make().items.length).toBe(0);
     });
     test("holds added items", async () => {
       await Promise.resolve();
       const list = Items.make({ items: [Item.make({ text: "first" })] });
-      expect(list.items.size).toBe(1);
-      expect(list.items.get(0).text).toBe("first");
+      expect(list.items.length).toBe(1);
+      expect(list.items[0].text).toBe("first");
     });
   });
 }

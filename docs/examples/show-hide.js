@@ -7,16 +7,9 @@ const ShowHide = component({
     label() {
       return this.isOpen ? "Hide details" : "Show details";
     },
-    incCount() {
-      return this.setCount(this.count + 1);
-    },
   },
   view: html`<section class="flex flex-col gap-2">
-    <button
-      class="btn btn-primary"
-      @on.click="$toggleIsOpen"
-      @text="$label"
-    ></button>
+    <button class="btn btn-primary" @on.click="toggleIsOpen" @text="$label"></button>
 
     <!-- @show on a host element: visibility on the element itself -->
     <div class="card p-3 border" @show=".isOpen">
@@ -24,20 +17,25 @@ const ShowHide = component({
         Details panel &mdash; only visible when
         <code>isOpen</code> is true.
       </p>
-      <button class="btn btn-sm" @on.click="$incCount">Click me</button>
+      <button class="btn btn-sm" @on.click="incCount">Click me</button>
       <p>Clicked <x text=".count"></x> times.</p>
     </div>
 
     <!-- @hide as the inverse on a host element -->
-    <p class="text-sm opacity-60" @hide=".isOpen">
-      (details are hidden)
-    </p>
+    <p class="text-sm opacity-60" @hide=".isOpen">(details are hidden)</p>
 
     <!-- @show directive on an <x> render op: no extra DOM -->
-    <p>
-      Count, only when open: <x text=".count" @show=".isOpen"></x>
-    </p>
+    <p>Count, only when open: <x text=".count" @show=".isOpen"></x></p>
   </section>`,
+
+  receive: {
+    toggleIsOpen(draft) {
+      draft.isOpen = !draft.isOpen;
+    },
+    incCount(draft) {
+      draft.count++;
+    },
+  },
 });
 
 export function getComponents() {

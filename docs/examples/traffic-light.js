@@ -1,4 +1,8 @@
 import { component, html } from "tutuca";
+import { produce } from "tutuca/immer";
+
+const applyRecipe = (current, recipe, ...args) =>
+  produce(current, (draft) => recipe.call(current, draft, ...args));
 
 const TRAFFIC_LIGHTS = ["red", "orange", "green"];
 
@@ -9,12 +13,9 @@ const TrafficLight = component({
     light() {
       return TRAFFIC_LIGHTS[this.lightIndex];
     },
-    nextLight() {
-      return this.setLightIndex((this.lightIndex + 1) % TRAFFIC_LIGHTS.length);
-    },
   },
   view: html`<section class="flex flex-col gap-2">
-    <button class="btn btn-primary" @on.click="$nextLight">Next light</button>
+    <button class="btn btn-primary" @on.click="nextLight">Next light</button>
     <p>Light is: <code @text="$light"></code></p>
     <p>
       You must
@@ -23,6 +24,12 @@ const TrafficLight = component({
       <span @show="equals? $light 'green'">GO</span>
     </p>
   </section>`,
+
+  receive: {
+    nextLight(draft) {
+      draft.lightIndex = (draft.lightIndex + 1) % TRAFFIC_LIGHTS.length;
+    },
+  },
 });
 
 export function getComponents() {
@@ -64,15 +71,18 @@ export function getTests({ describe, test, expect }) {
 
     describe("nextLight()", () => {
       test("advances to the next light", () => {
-        expect(TrafficLight.make().nextLight().lightIndex).toBe(1);
-        expect(TrafficLight.make({ lightIndex: 1 }).nextLight().lightIndex).toBe(2);
+        const red = TrafficLight.make();
+        const orange = TrafficLight.make({ lightIndex: 1 });
+        expect(applyRecipe(red, TrafficLight.receive.nextLight).lightIndex).toBe(1);
+        expect(applyRecipe(orange, TrafficLight.receive.nextLight).lightIndex).toBe(2);
       });
       test("wraps around past the last light", () => {
-        expect(TrafficLight.make({ lightIndex: 2 }).nextLight().lightIndex).toBe(0);
+        const green = TrafficLight.make({ lightIndex: 2 });
+        expect(applyRecipe(green, TrafficLight.receive.nextLight).lightIndex).toBe(0);
       });
       test("does not mutate the original instance", () => {
         const tl = TrafficLight.make({ lightIndex: 1 });
-        tl.nextLight();
+        applyRecipe(tl, TrafficLight.receive.nextLight);
         expect(tl.lightIndex).toBe(1);
       });
     });

@@ -1,4 +1,5 @@
 import { component, css, html, rootDispatcher } from "tutuca";
+import { produce } from "tutuca/immer";
 
 // Snake, with every rule and every piece of state inside the components.
 //
@@ -33,6 +34,9 @@ const STATUS_LABELS = {
   over: "Game over",
 };
 
+const update = (value, recipe, ...args) =>
+  produce(value, (draft) => recipe.call(value, draft, ...args));
+
 // Deterministic PRNG (mulberry32). Food placement is a pure function of the
 // `seed` field, so `step()` stays testable — no `Math.random()` in a handler.
 function nextRandom(seed) {
@@ -56,7 +60,7 @@ export const Cell = component({
       return this.x === other.x && this.y === other.y;
     },
     movedBy(dx, dy) {
-      return this.setX(this.x + dx).setY(this.y + dy);
+      return Cell.make({ x: this.x + dx, y: this.y + dy });
     },
     isOutside(cols, rows) {
       return this.x < 0 || this.y < 0 || this.x >= cols || this.y >= rows;
@@ -148,12 +152,12 @@ export const SnakeGame = component({
       return `${this.intervalMs} ms per tick`;
     },
     tickLabel() {
-      return `${this.ticks} ticks · ${this.snake.size} long`;
+      return `${this.ticks} ticks · ${this.snake.length} long`;
     },
 
     // --- game rules: pure, no ctx, no side effects ---
     head() {
-      return this.snake.first();
+      return this.snake[0];
     },
     hasSnakeAt(x, y) {
       return this.snake.some((cell) => cell.x === x && cell.y === y);
@@ -164,76 +168,19 @@ export const SnakeGame = component({
     },
     // Move the food to a random free cell and advance the seed. With no free
     // cell left the board is full: the run is over.
-    placeFood() {
-      const free = [];
-      for (let y = 0; y < this.rows; y++)
-        for (let x = 0; x < this.cols; x++) if (!this.hasSnakeAt(x, y)) free.push([x, y]);
-      if (free.length === 0) return this.setStatus("over");
-      const [n, seed] = nextRandom(this.seed);
-      const [x, y] = free[n % free.length];
-      return this.setFood(Cell.make({ x, y })).setSeed(seed);
-    },
+
     // A fresh idle board, keeping the current speed and carrying the seed
     // forward so a replay lays out different food.
-    reset() {
-      const y = Math.floor(this.rows / 2);
-      return this.setSnake([Cell.make({ x: 3, y }), Cell.make({ x: 2, y }), Cell.make({ x: 1, y })])
-        .setDir("right")
-        .setPendingDir("right")
-        .setScore(0)
-        .setTicks(0)
-        .setStatus("idle")
-        .placeFood();
-    },
+
     // Queue a turn. A 180° reversal would run the snake into its own neck, so
     // it is ignored; comparing against `dir` (not `pendingDir`) means two turns
     // within one tick can't sneak a reversal through.
-    turn(dir) {
-      if (!dir || dir === this.dir || dir === OPPOSITE[this.dir]) return this;
-      return this.setPendingDir(dir);
-    },
+
     // One tick of the world: move, maybe eat, maybe die.
-    step() {
-      if (!this.isRunning()) return this;
-      const head = this.nextHead();
-      if (head.isOutside(this.cols, this.rows)) return this.setStatus("over");
-      const ate = head.isAt(this.food);
-      const grown = this.snake.unshift(head);
-      // Not eating means the tail vacates its cell on this same tick, so it is
-      // dropped before the self-collision check.
-      const snake = ate ? grown : grown.pop();
-      if (snake.rest().some((cell) => cell.isAt(head))) return this.setStatus("over");
-      const moved = this.setSnake(snake)
-        .setDir(this.pendingDir)
-        .setTicks(this.ticks + 1);
-      return ate ? moved.setScore(this.score + 1).placeFood() : moved;
-    },
 
     // --- transitions that (re)schedule the outside timer ---
     // Starting and resuming from a button leaves the focus on that button, so
     // both ask the host to put it back on the board and the keys work right away.
-    startGame(ctx) {
-      const next = this.reset().setStatus("running");
-      ctx.intent("startTicking", [next.intervalMs], { route: ["lex"] });
-      ctx.intent("focusBoard", [], { route: ["lex"] });
-      return next;
-    },
-    pauseGame(ctx) {
-      if (!this.isRunning()) return this;
-      ctx.intent("stopTicking", [], { route: ["lex"] });
-      return this.setStatus("paused");
-    },
-    resumeGame(ctx) {
-      if (!this.isPaused()) return this;
-      ctx.intent("startTicking", [this.intervalMs], { route: ["lex"] });
-      ctx.intent("focusBoard", [], { route: ["lex"] });
-      return this.setStatus("running");
-    },
-    togglePause(ctx) {
-      if (this.isRunning()) return this.pauseGame(ctx);
-      if (this.isPaused()) return this.resumeGame(ctx);
-      return this;
-    },
   },
   alter: {
     // per snake segment: grid coordinates to pixels, head in a lighter green
@@ -245,42 +192,122 @@ export const SnakeGame = component({
     },
   },
   receive: {
-    turnUp() {
-      return this.turn("up");
+    placeFood(draft) {
+      const free = [];
+      for (let y = 0; y < draft.rows; y++)
+        for (let x = 0; x < draft.cols; x++)
+          if (!draft.snake.some((cell) => cell.x === x && cell.y === y)) free.push([x, y]);
+      if (free.length === 0) {
+        draft.status = "over";
+        return;
+      }
+      const [n, seed] = nextRandom(draft.seed);
+      const [x, y] = free[n % free.length];
+      draft.food = Cell.make({ x, y });
+      draft.seed = seed;
     },
-    turnDown() {
-      return this.turn("down");
+    reset(draft) {
+      const y = Math.floor(draft.rows / 2);
+      draft.snake = [Cell.make({ x: 3, y }), Cell.make({ x: 2, y }), Cell.make({ x: 1, y })];
+      draft.dir = "right";
+      draft.pendingDir = "right";
+      draft.score = 0;
+      draft.ticks = 0;
+      draft.status = "idle";
+      SnakeGame.receive.placeFood.call(this, draft);
     },
-    turnLeft() {
-      return this.turn("left");
+    turn(draft, dir) {
+      if (!dir || dir === this.dir || dir === OPPOSITE[this.dir]) return this;
+      draft.pendingDir = dir;
     },
-    turnRight() {
-      return this.turn("right");
+    step(draft) {
+      if (!this.isRunning()) return this;
+      const [dx, dy] = DELTAS[draft.pendingDir];
+      const currentHead = draft.snake[0];
+      const head = Cell.make({ x: currentHead.x + dx, y: currentHead.y + dy });
+      if (head.isOutside(draft.cols, draft.rows)) {
+        draft.status = "over";
+        return;
+      }
+      const ate = head.isAt(draft.food);
+      const snake = [head, ...draft.snake];
+      // Not eating means the tail vacates its cell on this same tick, so it is
+      // dropped before the self-collision check.
+      if (!ate) snake.pop();
+      if (snake.slice(1).some((cell) => cell.isAt(head))) {
+        draft.status = "over";
+        return;
+      }
+      draft.snake = snake;
+      draft.dir = draft.pendingDir;
+      draft.ticks++;
+      if (ate) {
+        draft.score++;
+        SnakeGame.receive.placeFood.call(this, draft);
+      }
     },
-    onKeyDown(key, ctx) {
-      if (key === " " || key === "p") return this.togglePause(ctx);
-      return this.turn(KEY_DIRS[key.length === 1 ? key.toLowerCase() : key]);
+    startGame(draft, ctx) {
+      SnakeGame.receive.reset.call(this, draft);
+      draft.status = "running";
+      ctx.intent("startTicking", [draft.intervalMs], { route: ["lex"] });
+      ctx.intent("focusBoard", [], { route: ["lex"] });
+    },
+    pauseGame(draft, ctx) {
+      if (!this.isRunning()) return this;
+      ctx.intent("stopTicking", [], { route: ["lex"] });
+      draft.status = "paused";
+    },
+    resumeGame(draft, ctx) {
+      if (!this.isPaused()) return this;
+      ctx.intent("startTicking", [this.intervalMs], { route: ["lex"] });
+      ctx.intent("focusBoard", [], { route: ["lex"] });
+      draft.status = "running";
+    },
+    togglePause(draft, ctx) {
+      if (this.isRunning()) return SnakeGame.receive.pauseGame.call(this, draft, ctx);
+      if (this.isPaused()) return SnakeGame.receive.resumeGame.call(this, draft, ctx);
+      return this;
+    },
+
+    turnUp(draft) {
+      SnakeGame.receive.turn.call(this, draft, "up");
+    },
+    turnDown(draft) {
+      SnakeGame.receive.turn.call(this, draft, "down");
+    },
+    turnLeft(draft) {
+      SnakeGame.receive.turn.call(this, draft, "left");
+    },
+    turnRight(draft) {
+      SnakeGame.receive.turn.call(this, draft, "right");
+    },
+    onKeyDown(draft, key, ctx) {
+      if (key === " " || key === "p") SnakeGame.receive.togglePause.call(this, draft, ctx);
+      else
+        SnakeGame.receive.turn.call(
+          this,
+          draft,
+          KEY_DIRS[key.length === 1 ? key.toLowerCase() : key],
+        );
     },
     // while dragging the slider: show the new speed without touching the timer
-    previewSpeed(ms) {
-      return this.setIntervalMs(ms);
+    previewSpeed(draft, ms) {
+      draft.intervalMs = ms;
     },
     // on release: a running game restarts its interval at the new rate
-    applySpeed(ms, ctx) {
-      const next = this.setIntervalMs(ms);
-      if (next.isRunning()) ctx.intent("startTicking", [ms], { route: ["lex"] });
-      return next;
+    applySpeed(draft, ms, ctx) {
+      draft.intervalMs = ms;
+      if (this.isRunning()) ctx.intent("startTicking", [ms], { route: ["lex"] });
     },
     // dispatched by the host after `app.start()` (`app.sendAtRoot("init")`)
-    init() {
-      return this.reset();
+    init(draft) {
+      SnakeGame.receive.reset.call(this, draft);
     },
     // the message from the outside world, once per interval
-    tick(ctx) {
+    tick(draft, ctx) {
       if (!this.isRunning()) return this; // a tick that raced a pause: ignore it
-      const next = this.step();
-      if (next.isOver()) ctx.intent("stopTicking", [], { route: ["lex"] });
-      return next;
+      SnakeGame.receive.step.call(this, draft);
+      if (draft.status === "over") ctx.intent("stopTicking", [], { route: ["lex"] });
     },
   },
   view: html`<section class="flex flex-col gap-3">
@@ -297,14 +324,7 @@ export const SnakeGame = component({
         role="img"
         aria-label="Snake board"
       >
-        <rect
-          x="0"
-          y="0"
-          :width="$boardWidth"
-          :height="$boardHeight"
-          rx="6"
-          fill="#0f172a"
-        ></rect>
+        <rect x="0" y="0" :width="$boardWidth" :height="$boardHeight" rx="6" fill="#0f172a"></rect>
         <rect
           :x="$foodX"
           :y="$foodY"
@@ -350,11 +370,11 @@ export const SnakeGame = component({
 
     <div class="flex flex-wrap items-center gap-3">
       <div class="join">
-        <button class="btn btn-primary join-item" @hide="$isRunning" @on.click="$startGame">
+        <button class="btn btn-primary join-item" @hide="$isRunning" @on.click="startGame">
           New game
         </button>
-        <button class="btn join-item" @show="$isRunning" @on.click="$pauseGame">Pause</button>
-        <button class="btn btn-success join-item" @show="$isPaused" @on.click="$resumeGame">
+        <button class="btn join-item" @show="$isRunning" @on.click="pauseGame">Pause</button>
+        <button class="btn btn-success join-item" @show="$isPaused" @on.click="resumeGame">
           Resume
         </button>
       </div>
@@ -381,10 +401,9 @@ export const SnakeGame = component({
     </label>
 
     <p class="text-sm opacity-60">
-      New game and Resume focus the board, so you can steer straight away with
-      the arrow keys or <code class="font-mono">WASD</code>; space pauses and
-      resumes. Click the board to get the focus back, or use the arrow buttons,
-      which work without it.
+      New game and Resume focus the board, so you can steer straight away with the arrow keys or
+      <code class="font-mono">WASD</code>; space pauses and resumes. Click the board to get the
+      focus back, or use the arrow buttons, which work without it.
     </p>
   </section>`,
 });
@@ -453,24 +472,30 @@ export function getExamples() {
         {
           title: "Running",
           description: "Mid-run: a longer snake and a score",
-          value: running.setSnake([
-            Cell.make({ x: 8, y: 8 }),
-            Cell.make({ x: 7, y: 8 }),
-            Cell.make({ x: 6, y: 8 }),
-            Cell.make({ x: 5, y: 8 }),
-            Cell.make({ x: 5, y: 9 }),
-            Cell.make({ x: 5, y: 10 }),
-          ]),
+          value: produce(running, (draft) => {
+            draft.snake = [
+              Cell.make({ x: 8, y: 8 }),
+              Cell.make({ x: 7, y: 8 }),
+              Cell.make({ x: 6, y: 8 }),
+              Cell.make({ x: 5, y: 8 }),
+              Cell.make({ x: 5, y: 9 }),
+              Cell.make({ x: 5, y: 10 }),
+            ];
+          }),
         },
         {
           title: "Paused",
           description: "The tick is cancelled; the board keeps its state",
-          value: running.setStatus("paused"),
+          value: produce(running, (draft) => {
+            draft.status = "paused";
+          }),
         },
         {
           title: "Game over",
           description: "Ran into the wall",
-          value: running.setStatus("over"),
+          value: produce(running, (draft) => {
+            draft.status = "over";
+          }),
         },
         {
           title: "Slow ticks",
@@ -520,20 +545,22 @@ export function getTests({ describe, test, expect }) {
   describe(SnakeGame, () => {
     describe("step()", () => {
       test("moves the head in the pending direction and drags the tail", () => {
-        const next = running().step();
+        const game = running();
+        const next = update(game, SnakeGame.receive.step);
         expect(next.head().label()).toBe("(4, 8)");
-        expect(next.snake.size).toBe(3);
+        expect(next.snake.length).toBe(3);
         expect(next.ticks).toBe(1);
       });
       test("does nothing unless the game is running", () => {
         const idle = SnakeGame.make({});
-        expect(idle.step()).toBe(idle);
-        expect(SnakeGame.make({ status: "paused" }).step().ticks).toBe(0);
+        expect(update(idle, SnakeGame.receive.step)).toBe(idle);
+        const paused = SnakeGame.make({ status: "paused" });
+        expect(update(paused, SnakeGame.receive.step).ticks).toBe(0);
       });
       test("eating grows the snake, scores, and moves the food", () => {
         const game = running({ food: Cell.make({ x: 4, y: 8 }) });
-        const next = game.step();
-        expect(next.snake.size).toBe(4);
+        const next = update(game, SnakeGame.receive.step);
+        expect(next.snake.length).toBe(4);
         expect(next.score).toBe(1);
         expect(next.food.isAt(Cell.make({ x: 4, y: 8 }))).toBe(false);
       });
@@ -542,7 +569,7 @@ export function getTests({ describe, test, expect }) {
           snake: [Cell.make({ x: 23, y: 8 })],
           pendingDir: "right",
         });
-        expect(game.step().status).toBe("over");
+        expect(update(game, SnakeGame.receive.step).status).toBe("over");
       });
       test("biting itself ends the game", () => {
         // a 4-long snake curled so that turning down lands on its own body
@@ -557,7 +584,7 @@ export function getTests({ describe, test, expect }) {
           dir: "right",
           pendingDir: "down",
         });
-        expect(game.step().status).toBe("over");
+        expect(update(game, SnakeGame.receive.step).status).toBe("over");
       });
       test("the vacated tail cell is not a collision", () => {
         const game = running({
@@ -570,56 +597,67 @@ export function getTests({ describe, test, expect }) {
           dir: "right",
           pendingDir: "down",
         });
-        expect(game.step().status).toBe("running");
+        expect(update(game, SnakeGame.receive.step).status).toBe("running");
       });
       test("does not mutate the original instance", () => {
         const game = running();
-        game.step();
+        update(game, SnakeGame.receive.step);
         expect(game.ticks).toBe(0);
       });
     });
 
     describe("turn()", () => {
       test("queues the new direction", () => {
-        expect(running().turn("up").pendingDir).toBe("up");
+        const game = running();
+        expect(update(game, SnakeGame.receive.turn, "up").pendingDir).toBe("up");
       });
       test("ignores a reversal", () => {
         const game = running();
-        expect(game.turn("left")).toBe(game);
+        expect(update(game, SnakeGame.receive.turn, "left")).toBe(game);
       });
       test("ignores a reversal queued in two steps within one tick", () => {
         // right -> up is fine, up -> left would still be a legal move next tick,
         // but right -> up -> down must not become a reversal of `dir`
-        expect(running().turn("up").turn("left").pendingDir).toBe("up");
+        const game = running();
+        const next = produce(game, (draft) => {
+          SnakeGame.receive.turn.call(game, draft, "up");
+          SnakeGame.receive.turn.call(game, draft, "left");
+        });
+        expect(next.pendingDir).toBe("up");
       });
       test("ignores an unknown key", () => {
         const game = running();
-        expect(game.turn(undefined)).toBe(game);
+        expect(update(game, SnakeGame.receive.turn, undefined)).toBe(game);
       });
     });
 
     describe("placeFood()", () => {
       test("never lands on the snake and advances the seed", () => {
-        const game = SnakeGame.make({}).placeFood();
+        const initial = SnakeGame.make({});
+        const game = update(initial, SnakeGame.receive.placeFood);
         expect(game.hasSnakeAt(game.food.x, game.food.y)).toBe(false);
         expect(game.seed).not.toBe(SnakeGame.make({}).seed);
       });
       test("is deterministic for a given seed", () => {
-        const a = SnakeGame.make({ seed: 7 }).placeFood();
-        const b = SnakeGame.make({ seed: 7 }).placeFood();
+        const av = SnakeGame.make({ seed: 7 });
+        const bv = SnakeGame.make({ seed: 7 });
+        const a = update(av, SnakeGame.receive.placeFood);
+        const b = update(bv, SnakeGame.receive.placeFood);
         expect(a.food.label()).toBe(b.food.label());
       });
       test("a full board ends the game", () => {
         const snake = [];
         for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) snake.push(Cell.make({ x, y }));
-        expect(SnakeGame.make({ cols: 2, rows: 2, snake }).placeFood().status).toBe("over");
+        const game = SnakeGame.make({ cols: 2, rows: 2, snake });
+        expect(update(game, SnakeGame.receive.placeFood).status).toBe("over");
       });
     });
 
     describe("the outside timer", () => {
       test("startGame resets the board and asks for ticks", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.make({ score: 9, ticks: 5 }).startGame(ctx);
+        const game = SnakeGame.make({ score: 9, ticks: 5 });
+        const next = update(game, SnakeGame.receive.startGame, ctx);
         expect(next.status).toBe("running");
         expect(next.score).toBe(0);
         expect(ctx.intents).toEqual([
@@ -629,19 +667,21 @@ export function getTests({ describe, test, expect }) {
       });
       test("pauseGame cancels the tick", () => {
         const ctx = recordingCtx();
-        const next = running().pauseGame(ctx);
+        const game = running();
+        const next = update(game, SnakeGame.receive.pauseGame, ctx);
         expect(next.status).toBe("paused");
         expect(ctx.intents).toEqual([{ name: "stopTicking", args: [] }]);
       });
       test("pauseGame is a no-op unless the game is running", () => {
         const ctx = recordingCtx();
         const game = SnakeGame.make({});
-        expect(game.pauseGame(ctx)).toBe(game);
+        expect(update(game, SnakeGame.receive.pauseGame, ctx)).toBe(game);
         expect(ctx.intents).toEqual([]);
       });
       test("resumeGame starts it again", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.make({ status: "paused", intervalMs: 300 }).resumeGame(ctx);
+        const game = SnakeGame.make({ status: "paused", intervalMs: 300 });
+        const next = update(game, SnakeGame.receive.resumeGame, ctx);
         expect(next.status).toBe("running");
         expect(ctx.intents).toEqual([
           { name: "startTicking", args: [300] },
@@ -650,41 +690,51 @@ export function getTests({ describe, test, expect }) {
       });
       test("togglePause round-trips", () => {
         const ctx = recordingCtx();
-        expect(running().togglePause(ctx).togglePause(ctx).status).toBe("running");
+        const game = running();
+        const next = update(
+          update(game, SnakeGame.receive.togglePause, ctx),
+          SnakeGame.receive.togglePause,
+          ctx,
+        );
+        expect(next.status).toBe("running");
       });
       test("applySpeed reschedules a running game at the new rate", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.receive.applySpeed.call(running(), 320, ctx);
+        const game = running();
+        const next = update(game, SnakeGame.receive.applySpeed, 320, ctx);
         expect(next.intervalMs).toBe(320);
         expect(ctx.intents).toEqual([{ name: "startTicking", args: [320] }]);
       });
       test("applySpeed on a paused game only stores the rate", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.receive.applySpeed.call(SnakeGame.make({}), 320, ctx);
+        const game = SnakeGame.make({});
+        const next = update(game, SnakeGame.receive.applySpeed, 320, ctx);
         expect(next.intervalMs).toBe(320);
         expect(ctx.intents).toEqual([]);
       });
       test("previewSpeed never touches the timer", () => {
-        expect(SnakeGame.receive.previewSpeed.call(running(), 100).intervalMs).toBe(100);
+        const game = running();
+        expect(update(game, SnakeGame.receive.previewSpeed, 100).intervalMs).toBe(100);
       });
     });
 
     describe("receive.tick", () => {
       test("advances the game", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.receive.tick.call(running(), ctx);
+        const game = running();
+        const next = update(game, SnakeGame.receive.tick, ctx);
         expect(next.ticks).toBe(1);
         expect(ctx.intents).toEqual([]);
       });
       test("a tick that arrives while paused is ignored", () => {
         const ctx = recordingCtx();
         const paused = SnakeGame.make({ status: "paused" });
-        expect(SnakeGame.receive.tick.call(paused, ctx)).toBe(paused);
+        expect(update(paused, SnakeGame.receive.tick, ctx)).toBe(paused);
       });
       test("a fatal tick cancels the outside timer", () => {
         const ctx = recordingCtx();
         const game = running({ snake: [Cell.make({ x: 23, y: 8 })] });
-        const next = SnakeGame.receive.tick.call(game, ctx);
+        const next = update(game, SnakeGame.receive.tick, ctx);
         expect(next.status).toBe("over");
         expect(ctx.intents).toEqual([{ name: "stopTicking", args: [] }]);
       });
@@ -693,20 +743,23 @@ export function getTests({ describe, test, expect }) {
     describe("input.onKeyDown", () => {
       test("maps arrows and WASD to turns", () => {
         const ctx = recordingCtx();
-        expect(SnakeGame.receive.onKeyDown.call(running(), "ArrowUp", ctx).pendingDir).toBe("up");
-        expect(SnakeGame.receive.onKeyDown.call(running(), "s", ctx).pendingDir).toBe("down");
-        expect(SnakeGame.receive.onKeyDown.call(running(), "W", ctx).pendingDir).toBe("up");
+        expect(update(running(), SnakeGame.receive.onKeyDown, "ArrowUp", ctx).pendingDir).toBe(
+          "up",
+        );
+        expect(update(running(), SnakeGame.receive.onKeyDown, "s", ctx).pendingDir).toBe("down");
+        expect(update(running(), SnakeGame.receive.onKeyDown, "W", ctx).pendingDir).toBe("up");
       });
       test("space toggles the pause", () => {
         const ctx = recordingCtx();
-        const next = SnakeGame.receive.onKeyDown.call(running(), " ", ctx);
+        const game = running();
+        const next = update(game, SnakeGame.receive.onKeyDown, " ", ctx);
         expect(next.status).toBe("paused");
         expect(ctx.intents).toEqual([{ name: "stopTicking", args: [] }]);
       });
       test("any other key leaves the game alone", () => {
         const ctx = recordingCtx();
         const game = running();
-        expect(SnakeGame.receive.onKeyDown.call(game, "q", ctx)).toBe(game);
+        expect(update(game, SnakeGame.receive.onKeyDown, "q", ctx)).toBe(game);
       });
     });
 

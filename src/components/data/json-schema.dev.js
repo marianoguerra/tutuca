@@ -1,3 +1,4 @@
+import { produce } from "tutuca/immer";
 import { JsonViewer } from "./json.js";
 import {
   classifySchema,
@@ -19,30 +20,14 @@ export { getComponents } from "./json-schema.js";
 const SV = SchemaViewer.Class;
 
 // Recursively expand a classified schema tree so an example renders open.
-const deepExpand = (c) => {
-  if (c == null || typeof c !== "object") return c;
-  let n = c;
-  if (typeof n.setIsExpanded === "function") {
-    n = n.setIsExpanded(true);
-  }
-  // single-child fields (viewer value + raw, not-child, if/then/else nodes)
-  for (const k of ["value", "raw", "child", "ifNode", "thenNode", "elseNode"]) {
-    const setter = `set${k[0].toUpperCase()}${k.slice(1)}`;
-    if (typeof n[setter] === "function" && n[k] && typeof n[k] === "object") {
-      n = n[setter](deepExpand(n[k]));
-    }
-  }
-  if (typeof n.setItems === "function" && n.items?.map) {
-    n = n.setItems(
-      n.items.map((item) =>
-        item && typeof item.setChild === "function"
-          ? item.setChild(deepExpand(item.child))
-          : deepExpand(item),
-      ),
-    );
-  }
-  return n;
+const expandDraft = (node) => {
+  if (node == null || typeof node !== "object") return;
+  if ("isExpanded" in node) node.isExpanded = true;
+  for (const key of ["value", "raw", "child", "ifNode", "thenNode", "elseNode"])
+    expandDraft(node[key]);
+  if (Array.isArray(node.items)) for (const item of node.items) expandDraft(item);
 };
+const deepExpand = (value) => produce(value, expandDraft);
 
 export function getExamples() {
   // ---- Phase B: 2-level nested aggregations -------------------------------
@@ -467,7 +452,11 @@ export function getExamples() {
         title: "raw schema view (toggled, expanded)",
         description:
           "Same schema with the raw view toggled on — the original JSON Schema rendered with JsonViewer from json.js. Click the button to switch back to the high-level view.",
-        value: deepExpand(SV.fromData(kitchenSink).toggleShowRaw()),
+        value: deepExpand(
+          produce(SV.fromData(kitchenSink), (draft) => {
+            draft.showRaw = true;
+          }),
+        ),
       },
     ],
   };
@@ -535,8 +524,8 @@ export function getTests({ describe, test, expect }) {
       test("enum → SchemaEnum whose members render via JsonViewer", () => {
         const node = classifySchema({ enum: [1, 2, 3] });
         expect(node).toBeInstanceOf(SchemaEnum.Class);
-        expect(node.items.size).toBe(3);
-        expect(node.items.first()).toBeInstanceOf(JsonViewer.Class);
+        expect(node.items.length).toBe(3);
+        expect(node.items[0]).toBeInstanceOf(JsonViewer.Class);
       });
 
       test("const → SchemaConst whose value renders via JsonViewer", () => {
@@ -552,8 +541,8 @@ export function getTests({ describe, test, expect }) {
           format: "email",
         });
         expect(node).toBeInstanceOf(SchemaScalar.Class);
-        expect(node.badges.toArray()).toContain("format: email");
-        expect(node.badges.toArray()).toContain("min length: 3");
+        expect(node.badges).toContain("format: email");
+        expect(node.badges).toContain("min length: 3");
       });
 
       test("multi-type joins with ' | '", () => {
@@ -568,7 +557,7 @@ export function getTests({ describe, test, expect }) {
         });
         expect(node).toBeInstanceOf(SchemaCombinator.Class);
         expect(node.typeLabel).toBe("any of");
-        const inner = node.items.first();
+        const inner = node.items[0];
         expect(inner).toBeInstanceOf(SchemaCombinator.Class);
         expect(inner.typeLabel).toBe("all of");
       });

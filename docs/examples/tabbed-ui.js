@@ -1,6 +1,11 @@
 import { component, html } from "tutuca";
 
 export const TabbedUI = component({
+  receive: {
+    setTab(draft, value) {
+      draft.tab = value;
+    },
+  },
   name: "TabbedUI",
   fields: { tab: "overview" },
   view: html`<section class="flex flex-col gap-3">
@@ -10,7 +15,7 @@ export const TabbedUI = component({
         @if.class="equals? .tab 'overview'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setTab 'overview'"
+        @on.click="setTab 'overview'"
       >
         Overview
       </button>
@@ -19,7 +24,7 @@ export const TabbedUI = component({
         @if.class="equals? .tab 'features'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setTab 'features'"
+        @on.click="setTab 'features'"
       >
         Features
       </button>
@@ -28,7 +33,7 @@ export const TabbedUI = component({
         @if.class="equals? .tab 'pricing'"
         @then="'tab tab-active'"
         @else="'tab'"
-        @on.click="$setTab 'pricing'"
+        @on.click="setTab 'pricing'"
       >
         Pricing
       </button>

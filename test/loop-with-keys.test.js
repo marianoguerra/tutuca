@@ -11,27 +11,37 @@ const document = setupJsdom();
 const Row = component({
   name: "Row",
   fields: { label: "" },
+  receive: {
+    removeRow(draft, key) {
+      draft.rows.splice(key, 1);
+    },
+  },
   view: html`<span @text=".label"></span>`,
 });
 
 const Picker = component({
   name: "Picker",
   fields: { rows: [], order: [] },
-  methods: {
-    removeRow(i) {
-      return this.setRows(this.rows.delete(i));
+  receive: {
+    removeRow(draft, key) {
+      draft.rows.splice(key, 1);
+    },
+  },
+  intent: {
+    removeRow(draft, i) {
+      draft.rows.splice(i, 1);
     },
   },
   alter: {
     pick() {
-      return { keys: this.order.toArray ? this.order.toArray() : [...this.order] };
+      return { keys: [...this.order] };
     },
   },
   view: html`<ul>
     <li @each=".rows" @loop-with="pick">
       <span class="key" :data-key="@key" @text="@key"></span>
       <x render-it></x>
-      <button :data-key="@key" @on.click="$removeRow @key">remove</button>
+      <button :data-key="@key" @on.click="removeRow @key">remove</button>
     </li>
   </ul>`,
 });
@@ -85,12 +95,12 @@ describe("@loop-with keys", () => {
       makePicker([3, 1]),
       HeadlessParseContext,
     );
-    expect(app.state.val.rows.size).toBe(4);
+    expect(app.state.val.rows.length).toBe(4);
     // the first rendered row is original index 3 ("three")
     container.querySelector('button[data-key="3"]').click();
     while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
-    expect(app.state.val.rows.size).toBe(3);
-    expect(app.state.val.rows.get(0).label).toBe("zero");
+    expect(app.state.val.rows.length).toBe(3);
+    expect(app.state.val.rows[0].label).toBe("zero");
     cleanup();
   });
 
@@ -210,7 +220,7 @@ describe("@loop-with ctx", () => {
         },
         pick(seq, { filter }) {
           const keys = [];
-          for (let i = 0; i < seq.size; i++) if (filter(i, seq.get(i))) keys.push(i);
+          for (let i = 0; i < seq.length; i++) if (filter(i, seq[i])) keys.push(i);
           return { keys };
         },
       },
@@ -273,8 +283,8 @@ describe("@loop-with ctx", () => {
           const end = start + this.pageSize;
           const keys = [];
           let m = 0;
-          for (let i = 0; i < seq.size && m < end; i++) {
-            if (filter(i, seq.get(i))) {
+          for (let i = 0; i < seq.length && m < end; i++) {
+            if (filter(i, seq[i])) {
               if (m >= start) keys.push(i);
               m++;
             }

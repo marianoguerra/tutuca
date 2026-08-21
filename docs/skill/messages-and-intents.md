@@ -30,9 +30,10 @@ apart**. That is deliberate: a component that answered its own click
 differently from the identical `ctx.send` from its parent could be driven
 neither from a test nor from a parent.
 
-Every handler is called as `handler(...args, ctx)` and returns a (possibly
-updated) instance of `this`; the framework swaps the returned value into the
-dispatch path. `ctx` (an `EventContext`) is always the trailing argument.
+Every dispatched handler is called as `handler(draft, ...args, ctx)`. Mutate
+`draft` and return nothing to commit; `this` remains the immutable current
+instance. Returning another value swaps it into the dispatch path. `ctx` (an
+`EventContext`) is always the trailing argument.
 
 `alter` is a third block, but it isn't dispatched — the renderer invokes alter
 handlers to produce binds, not to update state. See *Mental model* in
@@ -48,8 +49,8 @@ lifecycle** — `receive.init` is just a convention; the host must dispatch it
 
 ```js
 receive: {
-  init(ctx) { ctx.at.field("status").send("flash", ["Ready"]); return this; },
-  flash(text) { return this.setText(text); },
+  init(_draft, ctx) { ctx.at.field("status").send("flash", ["Ready"]); },
+  flash(draft, text) { draft.text = text; },
 }
 ```
 
@@ -126,9 +127,9 @@ A component answers with an `intent.<name>` handler. Inside it:
 ```js
 intent: {
   // Answered where it arrives.
-  saveDraft(text, ctx) { ctx.reply(this.count + 1); return this.setCount(this.count + 1); },
+  saveDraft(draft, text, ctx) { draft.count++; ctx.reply(draft.count); },
   // An observer: it records the intent and lets it keep walking.
-  picked(k) { return this.setPage(k); },
+  picked(draft, k) { draft.page = k; },
 }
 ```
 
@@ -165,12 +166,12 @@ derived names up in the sender's own `receive` bucket.
 
 ```js
 receive: {
-  init(ctx) { ctx.intent("loadData", [], { route: ["lex"] }); return this.setIsLoading(true); },
+  init(draft, ctx) { draft.isLoading = true; ctx.intent("loadData", [], { route: ["lex"] }); },
 
   // The three ANSWERS. Declaring them is what wires `loadData` up.
-  loadDataOk(res)      { return this.setIsLoading(false).setItems(res); },
-  loadDataError(err)   { return this.setIsLoading(false).setError(String(err)); },
-  loadDataUnhandled()  { return this.setIsLoading(false).setError("nothing answers loadData"); },
+  loadDataOk(draft, res)      { draft.isLoading = false; draft.items = res; },
+  loadDataError(draft, err)   { draft.isLoading = false; draft.error = String(err); },
+  loadDataUnhandled(draft)    { draft.isLoading = false; draft.error = "nothing answers loadData"; },
 }
 ```
 
@@ -208,12 +209,12 @@ get depends on which bucket you are in:
 
 ```js
 receive: {
-  saveDraft(text, ctx) { ctx.forward(); return this; },                    // default route
-  picked(k, ctx)       { ctx.forward({ route: ["dyn"] }); return this; },  // ancestors only
-  logThenPass(t, ctx)  { ctx.forward(); return this.setCount(this.count + 1); },
+  saveDraft(_draft, text, ctx) { ctx.forward(); },                    // default route
+  picked(_draft, k, ctx)       { ctx.forward({ route: ["dyn"] }); },  // ancestors only
+  logThenPass(draft, t, ctx)   { draft.count++; ctx.forward(); },
 },
 intent: {
-  picked(k, ctx) { ctx.forward({ args: [k, "seen"] }); return this.setPage(k); },
+  picked(draft, k, ctx) { draft.page = k; ctx.forward({ args: [k, "seen"] }); },
 }
 ```
 
@@ -289,8 +290,8 @@ messages:
 
 ```js
 receive: {
-  loadUserOk(user, ctx) { ctx.intent("loadUserDetails", [user.id], { route: ["lex"] }); return this.setUser(user); },
-  loadUserDetailsOk(details) { return this.setUserDetails(details); },
+  loadUserOk(draft, user, ctx) { draft.user = user; ctx.intent("loadUserDetails", [user.id], { route: ["lex"] }); },
+  loadUserDetailsOk(draft, details) { draft.userDetails = details; },
 }
 ```
 
@@ -306,9 +307,9 @@ handlers — never around them.
 - **Inbound** — the outside world pushes an event in (a WebSocket message, a
   `postMessage`, a timer, a third-party callback). Use
   `app.sendAtRoot(name, args)` from the host / glue code. It dispatches a
-  message to the **root component**, running its `receive.<name>(...args, ctx)`
-  handler under the same immutable `return this.set…()` contract as every other
-  handler.
+  message to the **root component**, running its
+  `receive.<name>(draft, ...args, ctx)` handler under the same draft-first
+  transaction contract as every other handler.
 
 ```js
 // host / glue code, outside the component tree
@@ -322,7 +323,7 @@ receive: {
 
 ⚠️ **Do not** reach into `app.state` and call the raw `State.set(val)` /
 `State.update(fn)` methods to inject external data. That bypasses the component
-handler model, the immutable `return this.set…()` discipline, scope enrichment,
+handler model, the draft-first transaction discipline, scope enrichment,
 and the transactor's batching — state mutated that way is invisible to the
 components that own it and easily clobbered by the next transaction. Route
 every inbound event through `app.sendAtRoot` instead.
@@ -338,9 +339,9 @@ is dropped. Idiomatic for side-effect-only work like persisting state:
 
 ```js
 receive: {
-  applyFilter(value, ctx) {
+  applyFilter(draft, value, ctx) {
+    draft.filter = value;
     ctx.intent("persistState", [{ key: "sectionFilter", value }], { route: ["lex"] });
-    return this.setFilter(value);
   },
 }
 ```
