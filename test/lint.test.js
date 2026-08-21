@@ -11,7 +11,6 @@ import {
   COMP_FIELD_BAD_SHAPE,
   CONSTANT_CONDITION,
   checkComponent,
-  DEPRECATED_BARE_X_DIRECTIVE,
   DUPLICATE_ATTR_DEFINITION,
   DYN_ALIAS_NOT_REFERENCED,
   DYN_VAL_NOT_DEFINED,
@@ -1349,7 +1348,7 @@ test("x render-each with undefined when/loop-with handlers is flagged (sugar Eac
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [] },
-    view: html`<div><x render-each=".items" @when="missingWhen" loop-with="missingLoop"></x></div>`,
+    view: html`<div><x render-each=".items" @when="missingWhen" @loop-with="missingLoop"></x></div>`,
   });
   const flagged = lx.reports
     .filter((r) => r.id === ALT_HANDLER_NOT_DEFINED)
@@ -1534,7 +1533,6 @@ test("@show directive is accepted on an <x> op (no drop-@ hint)", () => {
   });
   expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
   expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
-  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
 });
 
 test("@hide directive is accepted on an <x> op (no drop-@ hint)", () => {
@@ -1547,7 +1545,6 @@ test("@hide directive is accepted on an <x> op (no drop-@ hint)", () => {
   });
   expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
   expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
-  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
 });
 
 test("@when directive is accepted on <x render-each> (no drop-@ hint)", () => {
@@ -1563,12 +1560,11 @@ test("@when directive is accepted on <x render-each> (no drop-@ hint)", () => {
   });
   expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
   expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
-  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
 });
 
-// TEMPORARY (2026-07-08): bare `show`/`hide`/`when` on `<x>` ops parse but warn.
-// Remove with the bare spelling — see docs/spec/simplification-plan.md item 3.
-test("DEPRECATED_BARE_X_DIRECTIVE warns on bare show/hide/when on <x> ops", () => {
+// The bare `show`/`hide`/`when`/`loop-with` spellings on `<x>` ops were removed:
+// they now surface as unknown x attrs.
+test("bare show/hide/when/loop-with on <x> ops raise UNKNOWN_X_ATTR", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [], isOpen: false, name: "" },
@@ -1587,18 +1583,14 @@ test("DEPRECATED_BARE_X_DIRECTIVE warns on bare show/hide/when on <x> ops", () =
       <x render-each=".items" loop-with="getIterData"></x>
     </div>`,
   });
-  const warns = lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE);
-  expect(warns.length).toBe(4);
-  expect(warns.every((w) => w.level === "warn")).toBe(true);
-  expect(warns.map((w) => w.info.name).sort()).toEqual(["hide", "loop-with", "show", "when"]);
-  const loopWarn = warns.find((w) => w.info.name === "loop-with");
-  expect(loopWarn.suggestion).toEqual({ kind: "add-prefix", from: "loop-with", to: "@loop-with" });
-  const showWarn = warns.find((w) => w.info.name === "show");
-  expect(showWarn.info.op).toBe("text");
-  expect(showWarn.suggestion).toEqual({ kind: "add-prefix", from: "show", to: "@show" });
-  // no drop-@ hint or unknown-attr error for the bare form
-  expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
-  expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
+  const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
+  expect(unknown.length).toBe(4);
+  expect(unknown.map((u) => u.info.name).sort()).toEqual([
+    "hide",
+    "loop-with",
+    "show",
+    "when",
+  ]);
 });
 
 test("@loop-with on <x render-each> is the preferred spelling (no attr error, no nudge)", () => {
@@ -1614,7 +1606,6 @@ test("@loop-with on <x render-each> is the preferred spelling (no attr error, no
   });
   expect(lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR).length).toBe(0);
   expect(lx.reports.filter((r) => r.id === MAYBE_DROP_AT_PREFIX).length).toBe(0);
-  expect(lx.reports.filter((r) => r.id === DEPRECATED_BARE_X_DIRECTIVE).length).toBe(0);
 });
 
 test("hint when unknown-x-attr name is @-prefixed consumed (@as)", () => {
@@ -1745,17 +1736,6 @@ test("no MAYBE_ADD_AT_PREFIX hint for the correct @-prefixed host directive", ()
   expect(hints.length).toBe(0);
 });
 
-test("no MAYBE_ADD_AT_PREFIX hint for the bare form on <x render-each>", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    fields: { items: [] },
-    alter: { filterItem: (_k, v) => Boolean(v) },
-    view: html`<div><x render-each=".items" when="filterItem"></x></div>`,
-  });
-  const hints = lx.reports.filter((r) => r.id === MAYBE_ADD_AT_PREFIX);
-  expect(hints.length).toBe(0);
-});
-
 test("no MAYBE_ADD_AT_PREFIX hint for `slot` (a real global HTML attribute)", () => {
   const [lx] = defAndCheck({
     name: "Comp",
@@ -1787,21 +1767,21 @@ test("known x render-each extras (as/when/loop-with) do not raise UNKNOWN_X_ATTR
       },
     },
     view: html`<div>
-      <x render-each=".items" as="row" when="myWhen" loop-with="myLoopWith"></x>
+      <x render-each=".items" as="row" @when="myWhen" @loop-with="myLoopWith"></x>
     </div>`,
   });
   const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
   expect(unknown.length).toBe(0);
 });
 
-test("show/hide on render* and text x ops do not raise UNKNOWN_X_ATTR", () => {
+test("@show/@hide on render* and text x ops do not raise UNKNOWN_X_ATTR", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [], isOpen: false, name: "" },
     view: html`<div>
-      <x text=".name" show=".isOpen"></x>
-      <div @each=".items"><x render-it hide=".isOpen"></x></div>
-      <x render-each=".items" show=".isOpen"></x>
+      <x text=".name" @show=".isOpen"></x>
+      <div @each=".items"><x render-it @hide=".isOpen"></x></div>
+      <x render-each=".items" @show=".isOpen"></x>
     </div>`,
   });
   const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
@@ -2287,7 +2267,7 @@ test("x render-each with when referencing missing alter handler warns", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     fields: { items: [] },
-    view: html`<div><x render-each=".items" when="filterItem"></x></div>`,
+    view: html`<div><x render-each=".items" @when="filterItem"></x></div>`,
   });
   const altNotDefined = lx.reports.filter(
     (r) => r.id === ALT_HANDLER_NOT_DEFINED && r.info.name === "filterItem",

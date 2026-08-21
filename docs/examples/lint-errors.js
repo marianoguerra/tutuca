@@ -116,11 +116,6 @@ const LintDemo = component({
          is silently dropped at parse time -->
     <x render=".child"><p>hi</p></x>
 
-    <!-- DEPRECATED_BARE_X_DIRECTIVE: bare 'show' on an <x> op is the legacy
-         spelling of the '@show' directive; the warning steers to '@show'.
-         TEMPORARY until the bare spelling is dropped. -->
-    <ul @each=".items"><x render-it show=".isOpen"></x></ul>
-
     <!-- UNKNOWN_X_OP + MAYBE_DROP_AT_PREFIX: @text as the op is unknown;
          hint suggests dropping the @ to use the op 'text' -->
     <x @text=".count"></x>

@@ -264,16 +264,13 @@ function processXExtras(node, attrs, opName, startIdx, px) {
     const a = attrs[i];
     const aName = a.name;
     if (consumed.has(aName)) continue;
-    // `@show`/`@hide` directives — and their legacy bare `show`/`hide` spelling —
-    // wrap the op's output node. The bare form gets a deprecation nudge (see
-    // maybeDeprecateBareXDirective).
-    const atPrefixed = aName.charCodeAt(0) === 64;
-    const baseName = atPrefixed ? aName.slice(1) : aName;
-    const wrapper = wrappable ? X_OPS[baseName]?.wrapper : null;
-    if (wrapper) {
-      if (!atPrefixed) maybeDeprecateBareXDirective(px, opName, baseName);
-      wrappers.push([wrapper, parseBool(a.value, px)]);
-      continue;
+    // `@show`/`@hide` directives wrap the op's output node.
+    if (wrappable && aName.charCodeAt(0) === 64) {
+      const wrapper = X_OPS[aName.slice(1)]?.wrapper;
+      if (wrapper) {
+        wrappers.push([wrapper, parseBool(a.value, px)]);
+        continue;
+      }
     }
     const issueInfo = { op: opName, name: aName, value: a.value };
     px.onParseIssue("unknown-x-attr", issueInfo);
@@ -284,16 +281,6 @@ function processXExtras(node, attrs, opName, startIdx, px) {
     if (wrapper !== null) node = wrapper;
   }
   return node;
-}
-// TEMPORARY (added 2026-07-08): the bare `show`/`hide`/`when`/`loop-with` attrs
-// on `<x>` ops are the legacy spelling of the `@show`/`@hide`/`@when`/`@loop-with`
-// directives, which now work directly on `<x>` ops too. Bare forms still parse,
-// but the linter nudges authors to the `@`-prefixed form.
-// Once the corpus is migrated, drop bare support entirely and remove this helper
-// plus the DEPRECATED_BARE_X_DIRECTIVE lint rule. Reported via `onDeprecatedSyntax`
-// (a lint-only hook) so the live app's base ParseContext stays silent.
-function maybeDeprecateBareXDirective(px, opName, name) {
-  px.onDeprecatedSyntax("bare-x-directive", { op: opName, name });
 }
 function wrap(node, px, wrappers) {
   if (wrappers) {
@@ -429,17 +416,10 @@ function parseRenderEach(px, value, as, attrs) {
   const attrParser = getAttrParser(px);
   const eachAttr = attrParser.pushWrapper("each", value, seqVal);
   attrParser.eachAttr = eachAttr;
-  const when = attrs.getNamedItem("@when") ?? attrs.getNamedItem("when");
-  if (when) {
-    if (when.name.charCodeAt(0) !== 64) maybeDeprecateBareXDirective(px, "render-each", "when");
-    attrParser._parseWhen(when.value);
-  }
-  const lWith = attrs.getNamedItem("@loop-with") ?? attrs.getNamedItem("loop-with");
-  if (lWith) {
-    if (lWith.name.charCodeAt(0) !== 64)
-      maybeDeprecateBareXDirective(px, "render-each", "loop-with");
-    attrParser._parseLoopWith(lWith.value);
-  }
+  const when = attrs.getNamedItem("@when");
+  if (when) attrParser._parseWhen(when.value);
+  const lWith = attrs.getNamedItem("@loop-with");
+  if (lWith) attrParser._parseLoopWith(lWith.value);
   const each = px.addNodeIf(EachNode, seqVal);
   each.iterInfo.whenVal = eachAttr.whenVal ?? null;
   each.iterInfo.loopWithVal = eachAttr.loopWithVal ?? null;
@@ -582,10 +562,8 @@ const X_OPS = {
   render: xOp(["as"], { wrappable: true, ignoresChildren: true }),
   "render-it": xOp(["as"], { wrappable: true, ignoresChildren: true }),
   // `@when`/`@loop-with` are consumed here (handled in parseRenderEach) so
-  // `processXExtras` does not flag them as unknown attrs. TEMPORARY: the bare
-  // `when`/`loop-with` spellings are deprecated in favor of the `@` form — see
-  // maybeDeprecateBareXDirective (added 2026-07-08).
-  "render-each": xOp(["as", "when", "loop-with", "@when", "@loop-with"], {
+  // `processXExtras` does not flag them as unknown attrs.
+  "render-each": xOp(["as", "@when", "@loop-with"], {
     wrappable: true,
     ignoresChildren: true,
   }),
@@ -675,9 +653,6 @@ export class ParseContext {
   onParseIssue(kind, info) {
     console.warn(`tutuca parse issue [${kind}]`, info);
   }
-  // Lint-only channel for deprecation nudges on still-valid syntax; the base
-  // (runtime) context ignores them so live apps stay quiet. See LintParseContext.
-  onDeprecatedSyntax(_kind, _info) {}
 }
 const _htmlBlockTags =
   "ADDRESS,ARTICLE,ASIDE,BLOCKQUOTE,CAPTION,COL,COLGROUP,DETAILS,DIALOG,DIV,DD,DL,DT,FIELDSET,FIGCAPTION,FIGURE,FOOTER,FORM,H1,H2,H3,H4,H5,H6,HEADER,HGROUP,HR,LEGEND,LI,MAIN,MENU,NAV,OL,P,PRE,SECTION,SUMMARY,TABLE,TBODY,TD,TFOOT,TH,THEAD,TR,UL";
