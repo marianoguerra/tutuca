@@ -1,3 +1,4 @@
+import { produce } from "tutuca/immer";
 import { ValueHistory } from "./undo.js";
 
 export class TutucaPlayground extends HTMLElement {
@@ -330,6 +331,7 @@ export class TutucaPlayground extends HTMLElement {
     btn.title = "Ejecting…";
     try {
       const tutucaUrl = this._resolveSpecifier("tutuca");
+      const immerUrl = this._resolveSpecifier("tutuca/immer");
       const margauiUrl = this._resolveSpecifier("margaui");
       const src = this.getAttribute("src") || "./src/counter.js";
       const exampleName = src.split("/").pop().replace(/\.js$/, "");
@@ -338,7 +340,7 @@ export class TutucaPlayground extends HTMLElement {
       const skills = await this._fetchSkillBundle();
       const zipped = zipSync({
         [folder]: {
-          "index.html": strToU8(EJECT_INDEX_HTML(tutucaUrl, margauiUrl)),
+          "index.html": strToU8(EJECT_INDEX_HTML(tutucaUrl, immerUrl, margauiUrl)),
           "README.md": strToU8(EJECT_README_MD),
           "package.json": strToU8(EJECT_PACKAGE_JSON(folder)),
           "src/app.js": strToU8(EJECT_APP_JS),
@@ -569,7 +571,14 @@ export class TutucaPlayground extends HTMLElement {
       this._activityLog = ActivityLog.make({});
       this._inspectorViews.activityView = this._activityLog;
       this._activitySub = app.observe((record) => {
-        this._activityLog = this._activityLog.appendEntry(recordToEntry(record, { inspect }));
+        const entry = recordToEntry(record, { inspect });
+        this._activityLog = produce(this._activityLog, (draft) => {
+          draft.events.unshift(entry);
+          if (draft.events.length > ActivityLog.Class.cap) {
+            draft.events.length = ActivityLog.Class.cap;
+          }
+          draft.hasEvents = true;
+        });
         this._inspectorViews.activityView = this._activityLog;
         if (this._activeInspector === "activity" && this._inspectorApp) {
           this._inspectorApp.state.set(this._activityLog);
@@ -588,7 +597,7 @@ export class TutucaPlayground extends HTMLElement {
   }
 }
 
-const EJECT_INDEX_HTML = (tutucaUrl, margauiUrl) => `<!doctype html>
+const EJECT_INDEX_HTML = (tutucaUrl, immerUrl, margauiUrl) => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -602,6 +611,7 @@ const EJECT_INDEX_HTML = (tutucaUrl, margauiUrl) => `<!doctype html>
       {
         "imports": {
           "tutuca": "${tutucaUrl}",
+          "tutuca/immer": "${immerUrl}",
           "margaui": "${margauiUrl}"
         }
       }

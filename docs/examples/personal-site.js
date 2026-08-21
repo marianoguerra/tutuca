@@ -174,7 +174,7 @@ export const Root = component({
         if (!this.selectedRoles.has(entry.role)) return false;
       }
       if (this.selectedCategories.size > 0 && entry.categories.length > 0) {
-        const hasMatch = this.selectedCategories.some((c) => entry.categories.includes(c));
+        const hasMatch = entry.categories.some((c) => this.selectedCategories.has(c));
         if (!hasMatch) return false;
       }
       return true;
