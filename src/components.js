@@ -127,10 +127,7 @@ export class LookupInfo {
   }
 }
 const isString = (v) => typeof v === "string";
-// The two dispatch buckets, plus `alter` (render-time, never dispatched). `input`,
-// `bubble` and `response` were retired when four channels became two; a spec still
-// using one lands it in `extra`, which is where the retired-construct lint rules find
-// it. See HANDLER_BUCKETS in tools/core/spec-keys.js for the tooling-side copy.
+// The two dispatch buckets, plus `alter` (render-time, never dispatched).
 const _rawSpecKeys =
   "name view style commonStyle globalStyle receive intent alter views provide lookup fields methods statics";
 const KNOWN_SPEC_KEYS = new Set(_rawSpecKeys.split(" "));

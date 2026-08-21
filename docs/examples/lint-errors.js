@@ -317,55 +317,12 @@ const ScopedStyleDemo = component({
   view: html`<p @text=".count">0</p>`,
 });
 
-// The retired four-channel vocabulary, so the temporary migration rules stay covered
-// while they exist. Delete this component when those rules are removed.
-const RetiredChannelsDemo = component({
-  name: "RetiredChannelsDemo",
-  fields: { count: 0 },
-  // RETIRED_HANDLER_BUCKET: `input`, `bubble` and `response` are no longer buckets —
-  // four dispatch channels became two, `receive` (addressed) and `intent` (routed).
-  // Unknown keys land in `extra`, which is where the rule finds them.
-  input: {
-    bump() {
-      return this;
-    },
-  },
-  bubble: {
-    childPicked() {
-      return this;
-    },
-  },
-  response: {
-    loadRows() {
-      return this;
-    },
-  },
-  receive: {
-    // RETIRED_CTX_VERB: one `ctx.intent` carries a route now, and `ctx.stop()` ends a
-    // walk where `ctx.stopPropagation()` used to.
-    go(draft, ctx) {
-      ctx.bubble("childPicked", []);
-      ctx.request("loadRows", []);
-      ctx.stopPropagation();
-      return this;
-    },
-  },
-  view: html`<button @on.click="go" @text=".count">go</button>`,
-});
-
 export function getMacros() {
   return { labeled };
 }
 
 export function getComponents() {
-  return [
-    LintDemo,
-    HtmlLintDemo,
-    JsonNode,
-    CompFieldShapeDemo,
-    ScopedStyleDemo,
-    RetiredChannelsDemo,
-  ];
+  return [LintDemo, HtmlLintDemo, JsonNode, CompFieldShapeDemo, ScopedStyleDemo];
 }
 
 export function getRoot() {
@@ -401,11 +358,6 @@ export function getExamples() {
         title: "Scoped-style top-level CSS errors",
         description: "Top-level-only CSS in scoped style/commonStyle",
         value: ScopedStyleDemo.make(),
-      },
-      {
-        title: "Retired dispatch vocabulary",
-        description: "The four-channel spelling the migration rules report",
-        value: RetiredChannelsDemo.make(),
       },
     ],
   };

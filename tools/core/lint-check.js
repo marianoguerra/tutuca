@@ -22,7 +22,7 @@ import { closestName } from "./util/closest-name.js";
 // the "no false positives on legit spec" test in lint.test.js exercises
 // every key and catches drift.
 const KNOWN_COMPONENT_SPEC_KEYS = new Set(
-  "name view style commonStyle globalStyle input receive bubble response alter views provide lookup fields methods statics".split(
+  "name view style commonStyle globalStyle receive intent alter views provide lookup fields methods statics".split(
     " ",
   ),
 );
@@ -63,15 +63,8 @@ export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
 export const UNKNOWN_HANDLER_ARG_NAME = "UNKNOWN_HANDLER_ARG_NAME";
 export const RECEIVE_HANDLER_NOT_IMPLEMENTED = "RECEIVE_HANDLER_NOT_IMPLEMENTED";
 export const EVENT_HANDLER_METHOD_NOT_ALLOWED = "EVENT_HANDLER_METHOD_NOT_ALLOWED";
-// TEMPORARY (remove a couple of releases after the two-channel change): the retired
-// four-channel vocabulary. These rules exist to DRIVE the migration — each one names
-// the construct at its own site and says what replaces it, so "run the linter until it
-// is clean" is the whole procedure. They report; they never rewrite, which is why there
-// is no half-migrated file to review.
-export const RETIRED_HANDLER_BUCKET = "RETIRED_HANDLER_BUCKET";
-export const RETIRED_CTX_VERB = "RETIRED_CTX_VERB";
 // PERMANENT: one bucket now holds what three did, so two handlers can silently collapse
-// onto one key, and a request can no longer share a name with its own answer.
+// onto one key, and an intent can no longer share a name with its own answer.
 export const HANDLER_NAME_COLLISION = "HANDLER_NAME_COLLISION";
 export const FIELD_VAL_NOT_DEFINED = "FIELD_VAL_NOT_DEFINED";
 export const FIELD_VAL_IS_METHOD = "FIELD_VAL_IS_METHOD";
@@ -238,8 +231,6 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
     checkProvidesAreAddressable(lx, Comp);
     checkLookupShapes(lx, Comp);
     checkHandlersNotAsync(lx, Comp);
-    checkRetiredBuckets(lx, Comp);
-    checkRetiredCtxVerbs(lx, Comp);
     checkHandlerNameCollisions(lx, Comp);
     checkScopedStyleTopLevel(lx, Comp);
     const referencedAlters = new Set();
@@ -879,71 +870,6 @@ function checkConsistentAttrs(lx, Comp, referencedAlters, referencedDynamics) {
   }
 }
 
-// What a retired bucket becomes, and why. Read from `extra`: once a key leaves
-// KNOWN_COMPONENT_SPEC_KEYS, src/components.js parks it there, so a spec still using the
-// old vocabulary hands us the evidence for free.
-const isPlainObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
-const RETIRED_BUCKETS = {
-  input: {
-    to: "receive",
-    how: "rename the bucket to `receive` - a view's own @on.* name and a parent's ctx.send are the same message now, and nothing can tell them apart",
-  },
-  bubble: {
-    to: "intent",
-    how: "rename the bucket to `intent` - and note the walk changed: a handler that calls ctx.reply() ENDS it, where ctx.stopPropagation() used to be the only way to stop",
-  },
-  response: {
-    to: "receive",
-    how: "split each arm into `receive` arms named after the intent: <name>Ok takes the result alone, <name>Error takes the error alone, and the optional <name>Unhandled means nothing claimed it",
-  },
-};
-
-// TEMPORARY, with RETIRED_BUCKETS above.
-function checkRetiredBuckets(lx, Comp) {
-  const extra = Comp.extra;
-  if (!extra) return;
-  for (const key of Object.keys(extra)) {
-    if (!Object.hasOwn(RETIRED_BUCKETS, key)) continue;
-    const retired = RETIRED_BUCKETS[key];
-    const names = isPlainObj(extra[key]) ? Object.keys(extra[key]) : [];
-    lx.error(RETIRED_HANDLER_BUCKET, { key, to: retired.to, how: retired.how, names });
-  }
-}
-
-const RETIRED_CTX_VERBS = {
-  bubble:
-    'ctx.intent(name, args, { route: ["dyn"] }) - the route says it walks the ancestors, where the verb used to',
-  request:
-    'ctx.intent(name, args, { route: ["lex"] }) - and the outcome comes back as a `receive` arm named <name>Ok / <name>Error / <name>Unhandled, so onOkName and onErrorName are gone',
-  stopPropagation: "ctx.stop()",
-  inputAtPath: "ctx.sendAtPath(path, name, args)",
-  requestAtPath: 'ctx.intentAtPath(path, name, args, { route: ["lex"] })',
-};
-// Anchored on `ctx.` on purpose: a handler's own `e.stopPropagation()` is a DOM call and
-// stays legal, so matching a bare `.stopPropagation(` would report it wrongly.
-const RETIRED_CTX_RE = new RegExp(
-  `\\bctx\\.(${Object.keys(RETIRED_CTX_VERBS).join("|")})\\s*\\(`,
-  "g",
-);
-
-// TEMPORARY. Scans handler SOURCE, the way checkHandlersNotAsync inspects the raw
-// function object: a retired verb is a call, not something the value AST can see.
-function checkRetiredCtxVerbs(lx, Comp) {
-  for (const bucket of ["receive", "intent", "alter", "methods", "statics"]) {
-    const block = bucket === "methods" || bucket === "statics" ? Comp.spec?.[bucket] : Comp[bucket];
-    if (!isPlainObj(block)) continue;
-    for (const name in block) {
-      const fn = block[name];
-      if (typeof fn !== "function") continue;
-      const src = String(fn);
-      for (const m of src.matchAll(RETIRED_CTX_RE)) {
-        const verb = m[1];
-        lx.error(RETIRED_CTX_VERB, { verb, to: RETIRED_CTX_VERBS[verb], bucket, name });
-      }
-    }
-  }
-}
-
 // PERMANENT. Two hazards the merge created, and both are silent at runtime: a name that
 // used to live in two buckets now resolves to one handler, and an intent whose answer
 // shares its name would have the answer dispatched back into the request's own arm.
@@ -973,9 +899,6 @@ function checkUnknownSpecKeys(lx, Comp, wellKnownExtras) {
   let candidates = null;
   for (const key of Object.keys(extra)) {
     if (FRAMEWORK_WELL_KNOWN_EXTRAS.has(key) || wellKnownExtras.has(key)) continue;
-    // A retired bucket is already reported by RETIRED_HANDLER_BUCKET, with the migration
-    // it needs. Saying "unknown key, did you mean..." beside that is noise.
-    if (Object.hasOwn(RETIRED_BUCKETS, key)) continue;
     candidates ??= [
       ...KNOWN_COMPONENT_SPEC_KEYS,
       ...FRAMEWORK_WELL_KNOWN_EXTRAS,

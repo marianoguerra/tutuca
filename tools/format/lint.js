@@ -88,12 +88,6 @@ export function lintIdToMessage(id, info) {
     }
     case "UNKNOWN_HANDLER_ARG_NAME":
       return `Unknown handler argument '${info.name}'${fmtOriginSuffix(info)}`;
-    case "RETIRED_HANDLER_BUCKET": {
-      const which = info.names?.length ? ` (${info.names.join(", ")})` : "";
-      return `\`${info.key}\` is no longer a handler bucket${which} — ${info.how}`;
-    }
-    case "RETIRED_CTX_VERB":
-      return `ctx.${info.verb}() no longer exists — use ${info.to} (in \`${info.bucket}.${info.name}\`)`;
     case "HANDLER_NAME_COLLISION":
       return `${info.problem} — ${info.fix}`;
     case "RECEIVE_HANDLER_NOT_IMPLEMENTED":

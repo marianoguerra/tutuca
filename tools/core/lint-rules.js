@@ -285,29 +285,11 @@ export const LINT_RULES = [
     summary: "`component({...})` has an unrecognized key; its value is ignored at runtime.",
   },
 
-  // Retired four-channel vocabulary (TEMPORARY — remove a couple of releases after
-  // the two-channel change). These exist to drive the migration: the linter reports
-  // every site and says what replaces it, and a clean run IS the finished migration.
-  {
-    code: "RETIRED_HANDLER_BUCKET",
-    level: "error",
-    group: "Retired dispatch vocabulary",
-    summary:
-      "`input`, `bubble` and `response` are no longer handler buckets — four dispatch " +
-      "channels became two, `receive` (addressed) and `intent` (routed).",
-  },
-  {
-    code: "RETIRED_CTX_VERB",
-    level: "error",
-    group: "Retired dispatch vocabulary",
-    summary:
-      "`ctx.bubble`, `ctx.request` and `ctx.stopPropagation` are gone — one `ctx.intent` " +
-      "carries a route, and `ctx.stop()` ends a walk.",
-  },
+  // PERMANENT. Two hazards the merge created, both silent at runtime.
   {
     code: "HANDLER_NAME_COLLISION",
     level: "error",
-    group: "Retired dispatch vocabulary",
+    group: "Handlers",
     summary:
       "Two handlers collapse onto one name, or a `receive` arm collides with an " +
       "intent's derived answer name.",
