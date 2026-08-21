@@ -1,6 +1,6 @@
 {
   "name": "tutuca",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "type": "module",
   "description": "SPA framework with Immer-powered immutable state and virtual DOM",
   "main": "./dist/tutuca.js",
