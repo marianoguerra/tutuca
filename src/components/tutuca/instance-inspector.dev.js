@@ -85,7 +85,7 @@ const Sample = component({
 // Simplest possible "resolve the descriptor from an instance" for the demo:
 // a lookup over the descriptors we know about, keyed by the instance's Class.
 const KNOWN = [Sample, JsonViewer];
-const compFor = (inst) => KNOWN.find((c) => c.Class === inst.constructor) ?? null;
+const compFor = (inst) => KNOWN.find((c) => c === inst.constructor) ?? null;
 
 export function getExamples() {
   const card = Sample.make({
@@ -94,11 +94,11 @@ export function getExamples() {
     tags: ["a", "b"],
     open: true,
   });
-  const viewer = JsonViewer.Class.fromData({ x: 1, y: [2, 3] });
+  const viewer = JsonViewer.fromData({ x: 1, y: [2, 3] });
   const orphan = Sample.make({ title: "no descriptor", count: 7 });
 
-  const inspect = (inst) => InstanceInspector.Class.fromData(inst, compFor(inst));
-  const explore = (inst) => InstanceExplorer.Class.fromData(inst, compFor(inst));
+  const inspect = (inst) => InstanceInspector.fromData(inst, compFor(inst));
+  const explore = (inst) => InstanceExplorer.fromData(inst, compFor(inst));
 
   return {
     title: "InstanceInspector / InstanceExplorer",
@@ -121,7 +121,7 @@ export function getExamples() {
         title: "Instance inspector fallback (no descriptor → plain data)",
         description:
           "When the caller can't resolve a descriptor, the value still renders via the native data inspector.",
-        value: expanded(InstanceInspector.Class.fromData(orphan, null)),
+        value: expanded(InstanceInspector.fromData(orphan, null)),
       },
       {
         title: "Explorer — Instance tab (default)",
@@ -133,13 +133,13 @@ export function getExamples() {
       },
       {
         title: "Explorer without a descriptor (Component tab shows a notice)",
-        value: withTab(InstanceExplorer.Class.fromData(orphan, null), "component"),
+        value: withTab(InstanceExplorer.fromData(orphan, null), "component"),
       },
       {
         title: "Explorer — all four tabs (Tests tab)",
         description: "Instance + Component + Tests + Lint. Only tabs with content are shown.",
         value: withTab(
-          InstanceExplorer.Class.fromData(card, Sample, {
+          InstanceExplorer.fromData(card, Sample, {
             tests: runReport,
             lint: lintReport,
           }),
@@ -149,7 +149,7 @@ export function getExamples() {
       {
         title: "Explorer — all four tabs (Lint tab)",
         value: withTab(
-          InstanceExplorer.Class.fromData(card, Sample, {
+          InstanceExplorer.fromData(card, Sample, {
             tests: runReport,
             lint: lintReport,
           }),
@@ -174,19 +174,19 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("with a descriptor, value is an InstanceFields", () => {
-      const insp = InstanceInspector.Class.fromData(card, Sample);
-      expect(insp.value).toBeInstanceOf(InstanceFields.Class);
+      const insp = InstanceInspector.fromData(card, Sample);
+      expect(insp.value).toBeInstanceOf(InstanceFields);
     });
 
     test("without a descriptor, value falls back to the data inspector", () => {
-      const insp = InstanceInspector.Class.fromData(card, null);
-      expect(insp.value).not.toBeInstanceOf(InstanceFields.Class);
+      const insp = InstanceInspector.fromData(card, null);
+      expect(insp.value).not.toBeInstanceOf(InstanceFields);
     });
   });
 
   describe(InstanceFields, () => {
     test("typeName is the component name and rows match the fields", () => {
-      const f = InstanceFields.Class.fromData(card, Sample);
+      const f = InstanceFields.fromData(card, Sample);
       expect(f.typeName).toBe("SampleCard");
       const keys = f.items.map((e) => e.key);
       expect(keys).toEqual(["title", "count", "tags", "open"]);
@@ -195,22 +195,22 @@ export function getTests({ describe, test, expect }) {
 
   describe(InstanceExplorer, () => {
     test("with a descriptor, builds both tabs", () => {
-      const ex = InstanceExplorer.Class.fromData(card, Sample);
+      const ex = InstanceExplorer.fromData(card, Sample);
       expect(ex.activeTab).toBe("instance");
       expect(ex.hasComponent).toBe(true);
-      expect(ex.instanceView).toBeInstanceOf(InstanceInspector.Class);
+      expect(ex.instanceView).toBeInstanceOf(InstanceInspector);
       // componentView is a ComponentInspector built from the descriptor
       expect(ex.componentView.compName).toBe("SampleCard");
     });
 
     test("without a descriptor, the component tab is empty", () => {
-      const ex = InstanceExplorer.Class.fromData(card, null);
+      const ex = InstanceExplorer.fromData(card, null);
       expect(ex.hasComponent).toBe(false);
       expect(ex.componentView).toBe(null);
     });
 
     test("tests/lint are absent unless provided", () => {
-      const ex = InstanceExplorer.Class.fromData(card, Sample);
+      const ex = InstanceExplorer.fromData(card, Sample);
       expect(ex.hasTests).toBe(false);
       expect(ex.hasLint).toBe(false);
       expect(ex.testView).toBe(null);
@@ -218,26 +218,26 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("with tests and lint, builds those tabs from raw report data", () => {
-      const ex = InstanceExplorer.Class.fromData(card, Sample, {
+      const ex = InstanceExplorer.fromData(card, Sample, {
         tests: runReport,
         lint: lintReport,
       });
       expect(ex.hasTests).toBe(true);
       expect(ex.hasLint).toBe(true);
-      expect(ex.testView).toBeInstanceOf(TestReport.Class);
-      expect(ex.lintView).toBeInstanceOf(LintReport.Class);
+      expect(ex.testView).toBeInstanceOf(TestReport);
+      expect(ex.lintView).toBeInstanceOf(LintReport);
     });
 
     test("accepts a prebuilt inspector instance for a tab", () => {
-      const prebuilt = TestReport.Class.fromResults(runReport);
-      const ex = InstanceExplorer.Class.fromData(card, Sample, {
+      const prebuilt = TestReport.fromResults(runReport);
+      const ex = InstanceExplorer.fromData(card, Sample, {
         tests: prebuilt,
       });
       expect(ex.testView).toBe(prebuilt);
     });
 
     test("setActiveTab switches the active tab", () => {
-      const ex = InstanceExplorer.Class.fromData(card, Sample);
+      const ex = InstanceExplorer.fromData(card, Sample);
       expect(withTab(ex, "lint").activeTab).toBe("lint");
     });
   });

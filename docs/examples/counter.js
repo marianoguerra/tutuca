@@ -81,7 +81,7 @@ export function getTests({ describe, test, expect, drive }) {
       test("returns a Counter with count + 1", () => {
         const current = Counter.make();
         const next = applyRecipe(current, Counter.receive.inc);
-        expect(next).toBeInstanceOf(Counter.Class);
+        expect(next).toBeInstanceOf(Counter);
         expect(next.count).toBe(1);
       });
       test("works on a non-zero counter", () => {
@@ -103,7 +103,7 @@ export function getTests({ describe, test, expect, drive }) {
       test("returns a Counter with count - 1", () => {
         const current = Counter.make();
         const next = applyRecipe(current, Counter.receive.dec);
-        expect(next).toBeInstanceOf(Counter.Class);
+        expect(next).toBeInstanceOf(Counter);
         expect(next.count).toBe(-1);
       });
       test("works on a non-zero counter", () => {

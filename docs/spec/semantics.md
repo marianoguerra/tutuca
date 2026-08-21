@@ -99,7 +99,7 @@ Type-checking is by component name, not by class identity.
   same draft-first contract as mutating methods — the split between
   `methods` and `receive` is organizational, and the linter enforces that the
   sigil matches the block (`INPUT_HANDLER_*`, `FIELD_VAL_IS_METHOD`, …).
-- `statics` — functions on the Class (`Comp.Class.fn(…)`), conventionally used
+- `statics` — functions on the Class (`Comp.fn(…)`), conventionally used
   for `fromData` factories that build nested instances from plain data
   (`docs/examples/tree.js`). Not lifecycle hooks.
 

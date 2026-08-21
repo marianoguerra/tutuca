@@ -112,10 +112,10 @@ describe("Components", () => {
     const compStack = new ComponentStack(comps);
     compStack.registerComponents([CompA], { aliases: { AliasA: "CompA", AliasB: "CompA" } });
     expect(Object.keys(compStack.byName)).toEqual(["CompA", "AliasA", "AliasB"]);
-    // Scope tables hold the metadata record; `.Class` is the component itself.
-    expect(compStack.byName.CompA.Class).toBe(CompA);
-    expect(compStack.byName.AliasA.Class).toBe(CompA);
-    expect(compStack.byName.AliasB.Class).toBe(CompA);
+    // Scope tables hold the component itself.
+    expect(compStack.byName.CompA).toBe(CompA);
+    expect(compStack.byName.AliasA).toBe(CompA);
+    expect(compStack.byName.AliasB).toBe(CompA);
   });
 
   test("registerComponents binds scope to Class so direct Class.make resolves comp fields", () => {
@@ -128,7 +128,7 @@ describe("Components", () => {
     const compStack = new ComponentStack(comps);
     compStack.registerComponents([Chat, Shell]);
     // direct Class.make (e.g. from a deserialization path) without a threaded scope
-    const shell = Shell.Class.make({ chat: { message: "from data" } });
+    const shell = Shell.make({ chat: { message: "from data" } });
     expect(shell.chat.message).toBe("from data");
   });
 
@@ -144,17 +144,16 @@ describe("Components", () => {
     // WidgetB is a distinct Component with a distinct id and Class
     expect(WidgetB).not.toBe(Widget);
     expect(WidgetB.id).not.toBe(Widget.id);
-    expect(WidgetB.Class).not.toBe(Widget.Class);
+    expect(WidgetB).not.toBe(Widget);
     expect(Widget.scope).not.toBe(WidgetB.scope);
     // rebuilt as a named class so getTypeName/datacomp keep seeing the component name
-    expect(WidgetB.Class.getMetaClass().name).toBe("Widget");
+    expect(WidgetB.getMetaClass().name).toBe("Widget");
 
     const a = Widget.make({ message: "from A" });
     const b = WidgetB.make({ message: "from B" });
     // reverse lookup resolves each instance to its own Component/scope
-    // (getCompFor yields the metadata record; `.Class` is the component).
-    expect(comps.getCompFor(a).Class).toBe(Widget);
-    expect(comps.getCompFor(b).Class).toBe(WidgetB);
+    expect(comps.getCompFor(a)).toBe(Widget);
+    expect(comps.getCompFor(b)).toBe(WidgetB);
     expect(comps.getCompFor(a).scope).toBe(Widget.scope);
     expect(comps.getCompFor(b).scope).toBe(WidgetB.scope);
 
@@ -163,7 +162,7 @@ describe("Components", () => {
       draft.message = "edited";
     });
     expect(a2).not.toBe(a);
-    expect(comps.getCompFor(a2).Class).toBe(Widget);
+    expect(comps.getCompFor(a2)).toBe(Widget);
   });
 
   test("fromData static using this.make resolves its own scope per spec instance", () => {
@@ -183,12 +182,12 @@ describe("Components", () => {
     scopeA.registerComponents([Widget]);
     scopeB.registerComponents([WidgetB]);
 
-    const a = Widget.Class.fromData({ msg: "A" });
-    const b = WidgetB.Class.fromData({ msg: "B" });
+    const a = Widget.fromData({ msg: "A" });
+    const b = WidgetB.fromData({ msg: "B" });
     expect(a.message).toBe("A");
     expect(b.message).toBe("B");
-    expect(comps.getCompFor(a).Class).toBe(Widget);
-    expect(comps.getCompFor(b).Class).toBe(WidgetB);
+    expect(comps.getCompFor(a)).toBe(Widget);
+    expect(comps.getCompFor(b)).toBe(WidgetB);
   });
 
   test("registerComponents alias overriding existing component triggers console.assert", () => {

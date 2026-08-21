@@ -40,7 +40,7 @@ export const InstanceFields = component({
       const items = d.fields.map((f) =>
         JsonProperty.make({
           key: f.name,
-          child: DataInspector.Class.fromData(instance[f.name]),
+          child: DataInspector.fromData(instance[f.name]),
         }),
       );
       // Start expanded — the field → value rows are the point of this view.
@@ -69,8 +69,8 @@ export const InstanceInspector = makeValueInspector({
   fromData(instance, comp) {
     const value =
       comp && isComponentInstance(instance)
-        ? InstanceFields.Class.fromData(instance, comp)
-        : DataInspector.Class.fromData(instance);
+        ? InstanceFields.fromData(instance, comp)
+        : DataInspector.fromData(instance);
     return this.make({ value });
   },
 });
@@ -79,11 +79,11 @@ export const InstanceInspector = makeValueInspector({
 // component instance into the right component (or null when absent).
 function asTestView(tests) {
   if (tests == null) return null;
-  return isComponentInstance(tests) ? tests : TestReport.Class.fromResults(tests);
+  return isComponentInstance(tests) ? tests : TestReport.fromResults(tests);
 }
 function asLintView(lint) {
   if (lint == null) return null;
-  return isComponentInstance(lint) ? lint : LintReport.Class.fromData(lint);
+  return isComponentInstance(lint) ? lint : LintReport.fromData(lint);
 }
 
 // Up to four tabs over one instance: its values (InstanceInspector), its
@@ -108,8 +108,8 @@ export const InstanceExplorer = component({
       const testView = asTestView(tests);
       const lintView = asLintView(lint);
       return this.make({
-        instanceView: InstanceInspector.Class.fromData(instance, comp),
-        componentView: comp ? ComponentInspector.Class.fromData(comp) : null,
+        instanceView: InstanceInspector.fromData(instance, comp),
+        componentView: comp ? ComponentInspector.fromData(comp) : null,
         testView,
         lintView,
         hasComponent: !!comp,

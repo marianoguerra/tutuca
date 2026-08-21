@@ -32,7 +32,7 @@ function makeBook() {
         { title: "Filled", value: 4 },
       ],
     },
-  ].map((s) => Section.Class.fromData(s));
+  ].map((s) => Section.fromData(s));
   return Storybook.make({ sections });
 }
 
@@ -290,7 +290,7 @@ function probeBook(sectionCount = 2) {
   const sections = [];
   for (let i = 0; i < sectionCount; i++) {
     sections.push(
-      Section.Class.fromData({
+      Section.fromData({
         title: `S${i}`,
         items: [{ title: `E${i}`, value: Probe.make({}), on: LIFECYCLE_ON }],
       }),
@@ -322,9 +322,7 @@ describe("Storybook lifecycle: section -> example -> value cascade", () => {
 
   test("examples without `on` receive nothing on init (no error)", () => {
     const book = Storybook.make({
-      sections: [
-        Section.Class.fromData({ title: "S", items: [{ title: "E", value: Probe.make({}) }] }),
-      ],
+      sections: [Section.fromData({ title: "S", items: [{ title: "E", value: Probe.make({}) }] })],
     });
     const t = lifecycleTransactor(book);
     rootDispatcher(t).sendAtPath(new Path([new SeqStep("sections", 0)]), "init", []);
@@ -551,17 +549,16 @@ describe("buildStorybook per-module component scoping", () => {
       s.registerComponents(cs);
       return s;
     });
-    // Each module scope resolves "Foo" to ITS OWN definition (lookupComponent
-    // yields the metadata record; `.Class` is the component itself)...
-    expect(moduleScopes[0].lookupComponent("Foo").Class).toBe(FooA);
-    expect(moduleScopes[1].lookupComponent("Foo").Class).toBe(FooB);
+    // Each module scope resolves "Foo" to ITS OWN definition...
+    expect(moduleScopes[0].lookupComponent("Foo")).toBe(FooA);
+    expect(moduleScopes[1].lookupComponent("Foo")).toBe(FooB);
     // ...the shared root never learns the module-local name (so it can't collide)...
     expect(rootScope.lookupComponent("Foo")).toBe(null);
     // ...engine names stay visible from each module scope via parent chaining...
-    expect(moduleScopes[0].lookupComponent("Example").Class).toBe(Example);
+    expect(moduleScopes[0].lookupComponent("Example")).toBe(Example);
     // ...and instances always resolve to their own definition by identity.
-    expect(comps.getCompFor(FooA.make({})).Class).toBe(FooA);
-    expect(comps.getCompFor(FooB.make({})).Class).toBe(FooB);
+    expect(comps.getCompFor(FooA.make({}))).toBe(FooA);
+    expect(comps.getCompFor(FooB.make({}))).toBe(FooB);
   });
 });
 

@@ -1,3 +1,5 @@
+import { COMPONENT } from "../../src/components.js";
+
 export class Describe {
   constructor({ title, componentName = null, parent = null }) {
     this.title = title;
@@ -23,23 +25,21 @@ export class ModuleTests {
   }
 }
 
+// A component is the generated Class (a function carrying COMPONENT). The
+// object branch recognizes the pre-unification outer-descriptor shape.
 function isComponentObject(x) {
-  return (
-    x !== null &&
-    typeof x === "object" &&
-    typeof x.name === "string" &&
-    typeof x.Class === "function"
-  );
+  if (x === null) return false;
+  if (typeof x === "function") return x[COMPONENT] != null;
+  return typeof x.name === "string" && typeof x.Class === "function";
 }
 
 function resolveComponentName(arg, components) {
   if (isComponentObject(arg)) return arg.name;
   if (typeof arg === "function") {
-    for (const c of components) if (c.Class === arg) return c.name;
+    for (const c of components) if (c === arg) return c.name;
   }
   return null;
 }
-
 function titleFromArg(arg) {
   if (typeof arg === "string") return arg;
   if (isComponentObject(arg)) return arg.name;

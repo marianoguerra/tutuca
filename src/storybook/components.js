@@ -262,7 +262,7 @@ export const Section = component({
         // ignored here (rendered ungrouped) rather than coerced; the normalize layer
         // (tools/core/module.js) reports it as a shape error.
         group: typeof group === "string" ? group : "",
-        items: items.map((v) => Example.Class.fromData(v)),
+        items: items.map((v) => Example.fromData(v)),
       });
     },
   },

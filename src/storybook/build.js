@@ -18,7 +18,7 @@ export function buildStorybook(modules) {
     return Array.isArray(raw) ? raw : [raw];
   });
   const sections = rawSections
-    .map((s) => Section.Class.fromData(s))
+    .map((s) => Section.fromData(s))
     .sort((a, b) => a.title.localeCompare(b.title));
   // The engine + inspector components own the shared root scope (mountStorybook
   // registers them there). Module components are grouped per module instead (below)
@@ -68,7 +68,7 @@ export function buildStorybook(modules) {
   // — e.g. the Inception demo's getComponents() (docs/examples/storybook.js).
   const components = [...new Set([...engineComponents, ...moduleComponents.flat()])];
   return {
-    root: Storybook.Class.withSections(sections),
+    root: Storybook.withSections(sections),
     components,
     engineComponents,
     moduleComponents,

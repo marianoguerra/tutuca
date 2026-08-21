@@ -144,7 +144,7 @@ export const Root = component({
     // The success arm gets the result ALONE — there is no `err` to assert away, because
     // a failure reaches `loadDataError` instead and can never arrive here.
     loadDataOk(draft, res) {
-      const entries = res.map((data) => Entry.Class.fromData(data));
+      const entries = res.map((data) => Entry.fromData(data));
       const allCats = new Set();
       const allRoles = new Set();
       for (const entry of entries) {
@@ -412,7 +412,7 @@ export function getExamples() {
       {
         title: "Sample Entry",
         description: "Single entry rendered standalone",
-        value: Entry.Class.fromData({
+        value: Entry.fromData({
           title: "Sample Project",
           description: "An example entry",
           startYear: 2020,

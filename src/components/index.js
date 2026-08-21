@@ -4,7 +4,8 @@
 //
 // These are pure rendering components: a component descriptor, a live instance,
 // any value, and `tutuca lint`/`test` results rendered as collapsible trees.
-// The storybook engine (src/storybook/) imports getComponents() + the *.Class
+// The storybook engine (src/storybook/) imports getComponents() + the component
+// classes
 // statics from here to power the per-example inspector tabs.
 
 import { getComponents as getDataComponents } from "./data/data.js";

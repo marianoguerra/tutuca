@@ -15,8 +15,7 @@ function serializeDefault(v) {
 }
 
 function getComponentDoc(comp) {
-  const meta = comp.Class.getMetaClass();
-  const { fields, name, methods } = meta;
+  const { fields, name, methods } = comp;
 
   const userMethods = Object.keys(methods).map((k) => ({
     name: k,

@@ -44,7 +44,7 @@ export function getIntentHandlers() {
 
 export function getRoot() {
   const sections = SECTION_MODULES.map((mod) => mod.getExamples())
-    .map((data) => Section.Class.fromData(data))
+    .map((data) => Section.fromData(data))
     .sort((a, b) => a.title.localeCompare(b.title));
   const storyBookSections = getExamples();
   storyBookSections.items.push({
@@ -53,12 +53,12 @@ export function getRoot() {
     value: Storybook.make({ sections }),
   });
   return Storybook.make({
-    sections: [...sections, Section.Class.fromData(storyBookSections)],
+    sections: [...sections, Section.fromData(storyBookSections)],
   });
 }
 
 export function getExamples() {
-  const counterSection = Section.Class.fromData(counterMod.getExamples());
+  const counterSection = Section.fromData(counterMod.getExamples());
   return {
     title: "Storybook",
     description: "The storybook itself, rendered as a section",
@@ -67,7 +67,7 @@ export function getExamples() {
         title: "Storybook",
         description: "Storybook root with two sections",
         value: Storybook.make({
-          sections: [counterSection, Section.Class.fromData(todoMod.getExamples())],
+          sections: [counterSection, Section.fromData(todoMod.getExamples())],
         }),
       },
       {
@@ -78,7 +78,7 @@ export function getExamples() {
       {
         title: "Single Example",
         description: "A standalone Example card",
-        value: Example.Class.fromData({
+        value: Example.fromData({
           title: "Example Title",
           description: "Example description",
           value: counterSection.items[0]?.item ?? null,

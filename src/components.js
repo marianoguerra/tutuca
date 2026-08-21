@@ -11,16 +11,18 @@ export const COMPONENT = Symbol.for("tutuca.component");
 
 export class Components {
   constructor() {
+    // id -> component Class (the metadata record lives at Class[COMPONENT]).
     this.byId = new Map();
   }
-  registerComponent(comp) {
-    this.byId.set(comp.id, comp);
+  registerComponent(Comp) {
+    this.byId.set(Comp[COMPONENT].id, Comp);
   }
   getComponentForId(id) {
     return this.byId.get(id) ?? null;
   }
   getCompFor(v) {
-    return v?.constructor?.[COMPONENT] ?? null;
+    const Comp = v?.constructor;
+    return Comp?.[COMPONENT] ? Comp : null;
   }
   getHandlerFor(v, name, key) {
     return this.getCompFor(v)?.[key][name] ?? null;
@@ -51,15 +53,13 @@ export class ComponentStack {
   registerComponents(comps, opts) {
     const { aliases = {} } = opts ?? {};
     for (let i = 0; i < comps.length; i++) {
-      // Accept either the component Class (what `component()` returns) or a raw
-      // metadata record.
-      const comp = comps[i]?.[COMPONENT] ?? comps[i];
+      const Comp = comps[i];
       // each scope owns its Class. Re-registering the same Component rebinds it to this
       // scope (last wins) — fine for fresh re-setup. To keep a Component live in *two*
-      // scopes at once, build a fresh one from its spec: component(comp.spec).
-      comp.scope = this.enter();
-      this.comps.registerComponent(comp);
-      this.byName[comp.name] = comp;
+      // scopes at once, build a fresh one from its spec: component(Comp.spec).
+      Comp[COMPONENT].scope = this.enter();
+      this.comps.registerComponent(Comp);
+      this.byName[Comp.name] = Comp;
     }
     for (const alias in aliases) {
       const comp = this.byName[aliases[alias]];

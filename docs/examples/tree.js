@@ -14,7 +14,7 @@ export const TreeItem = component({
         type,
         label,
         isOpen,
-        items: items.map((v) => TreeItem.Class.fromData(v)),
+        items: items.map((v) => TreeItem.fromData(v)),
       });
     },
   },
@@ -68,7 +68,7 @@ export const TreeRoot = component({
   statics: {
     fromData(items) {
       return TreeRoot.make({
-        items: items.map((v) => TreeItem.Class.fromData(v)),
+        items: items.map((v) => TreeItem.fromData(v)),
       });
     },
   },
@@ -93,7 +93,7 @@ export function getComponents() {
 }
 
 export function getRoot() {
-  return TreeRoot.Class.fromData([
+  return TreeRoot.fromData([
     {
       label: "home",
       items: [
@@ -136,12 +136,12 @@ export function getExamples() {
       {
         title: "Single File",
         description: "A single file leaf node",
-        value: TreeItem.Class.fromData({ type: "file", label: "README.md" }),
+        value: TreeItem.fromData({ type: "file", label: "README.md" }),
       },
       {
         title: "Closed Folder",
         description: "Folder with hidden children",
-        value: TreeItem.Class.fromData({
+        value: TreeItem.fromData({
           label: "src",
           isOpen: false,
           items: [

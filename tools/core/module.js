@@ -35,7 +35,7 @@ function isPlainObject(v) {
 
 function resolveComponentName(value, components) {
   for (const comp of components) {
-    if (value instanceof comp.Class) return comp.name;
+    if (value instanceof comp) return comp.name;
   }
   return null;
 }

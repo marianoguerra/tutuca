@@ -101,7 +101,7 @@ const expandViews = (insp) =>
   });
 
 export function getExamples() {
-  const CI = ComponentInspector.Class;
+  const CI = ComponentInspector;
 
   return {
     title: "ComponentInspector",
@@ -182,7 +182,7 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("fromData builds one section per non-empty group", () => {
-      const insp = ComponentInspector.Class.fromData(Rich);
+      const insp = ComponentInspector.fromData(Rich);
       expect(insp.compName).toBe("RichSample");
       const labels = insp.sections.map((s) => s.label);
       expect(labels).toEqual([
@@ -197,18 +197,18 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("fromData omits empty groups", () => {
-      const insp = ComponentInspector.Class.fromData(Minimal);
+      const insp = ComponentInspector.fromData(Minimal);
       const labels = insp.sections.map((s) => s.label);
       expect(labels).toEqual(["Fields", "Views"]);
     });
 
     test("idText formats the descriptor id", () => {
-      const insp = ComponentInspector.Class.fromData(Minimal);
+      const insp = ComponentInspector.fromData(Minimal);
       expect(insp.idText()).toBe(`#${insp.compId}`);
     });
 
     test("expandAll / collapseAll toggle every section", () => {
-      const insp = ComponentInspector.Class.fromData(Rich);
+      const insp = ComponentInspector.fromData(Rich);
       const allOpen = update(insp, ComponentInspector.intent.toggleAllSections, true).sections;
       expect(allOpen.every((s) => s.isExpanded)).toBe(true);
       const allClosed = update(insp, ComponentInspector.intent.toggleAllSections, false).sections;
@@ -216,7 +216,7 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("expandAllViews / collapseAllViews toggle only the view sources", () => {
-      const insp = ComponentInspector.Class.fromData(Rich);
+      const insp = ComponentInspector.fromData(Rich);
       const views = (i) => i.sections.find((s) => s.label === "Views").items;
       const expanded = update(insp, ComponentInspector.intent.toggleAllViews, true);
       const collapsed = update(insp, ComponentInspector.intent.toggleAllViews, false);
@@ -229,13 +229,13 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("the toggleAllSections intent expands every section", () => {
-      const insp = ComponentInspector.Class.fromData(Rich);
+      const insp = ComponentInspector.fromData(Rich);
       const r = update(insp, ComponentInspector.intent.toggleAllSections, true);
       expect(r.sections.every((s) => s.isExpanded)).toBe(true);
     });
 
     test("the toggleAllViews intent expands every view source", () => {
-      const insp = ComponentInspector.Class.fromData(Rich);
+      const insp = ComponentInspector.fromData(Rich);
       const r = update(insp, ComponentInspector.intent.toggleAllViews, true);
       const views = r.sections.find((s) => s.label === "Views").items;
       expect(views.every((v) => v.isExpanded)).toBe(true);

@@ -72,11 +72,11 @@ export function getExamples() {
     items: [
       {
         title: "Module with findings (error component auto-expanded)",
-        value: LintReport.Class.fromData(lintReport, { title: "broken.js" }),
+        value: LintReport.fromData(lintReport, { title: "broken.js" }),
       },
       {
         title: "Clean module",
-        value: LintReport.Class.fromData(cleanReport, { title: "good.js" }),
+        value: LintReport.fromData(cleanReport, { title: "good.js" }),
       },
     ],
   };
@@ -99,7 +99,7 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("aggregates totals and omits clean components", () => {
-      const r = LintReport.Class.fromData(lintReport);
+      const r = LintReport.fromData(lintReport);
       expect(r.errors).toBe(3);
       expect(r.warnings).toBe(2);
       expect(r.hints).toBe(1);
@@ -108,7 +108,7 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("clean report flags clean and has no component groups", () => {
-      const r = LintReport.Class.fromData(cleanReport);
+      const r = LintReport.fromData(cleanReport);
       expect(r.clean).toBe(true);
       expect(r.components.length).toBe(0);
     });
@@ -116,8 +116,8 @@ export function getTests({ describe, test, expect }) {
 
   describe(LintComponent, () => {
     test("counts findings by level and expands on error", () => {
-      const broken = LintReport.Class.fromData(lintReport).components[0];
-      expect(broken).toBeInstanceOf(LintComponent.Class);
+      const broken = LintReport.fromData(lintReport).components[0];
+      expect(broken).toBeInstanceOf(LintComponent);
       expect(broken.componentName).toBe("Broken");
       expect(broken.countText()).toBe("3 errors, 2 warnings, 1 hint");
       expect(broken.isExpanded).toBe(true);
@@ -127,8 +127,8 @@ export function getTests({ describe, test, expect }) {
 
   describe(LintFinding, () => {
     test("error finding: level, human message, soft badge class", () => {
-      const f = LintReport.Class.fromData(lintReport).components[0].items[0];
-      expect(f).toBeInstanceOf(LintFinding.Class);
+      const f = LintReport.fromData(lintReport).components[0].items[0];
+      expect(f).toBeInstanceOf(LintFinding);
       expect(f.level).toBe("error");
       expect(f.message).toBe("Method '$missingMethod' is not implemented in @on.click");
       expect(f.levelBadgeClass()).toContain("badge-soft");
@@ -136,7 +136,7 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("warn finding surfaces the fix suggestion", () => {
-      const items = LintReport.Class.fromData(lintReport).components[0].items;
+      const items = LintReport.fromData(lintReport).components[0].items;
       const warn = items[2];
       expect(warn.level).toBe("warn");
       expect(warn.message).toContain("Redundant string template");

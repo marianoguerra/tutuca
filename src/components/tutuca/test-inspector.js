@@ -171,9 +171,7 @@ function buildResultNode(node) {
     status,
     durationMs: node.durationMs ?? 0,
     message: err?.message ?? "",
-    detail: hasDiff
-      ? DataInspector.Class.fromData({ expected: err.expected, actual: err.actual })
-      : null,
+    detail: hasDiff ? DataInspector.fromData({ expected: err.expected, actual: err.actual }) : null,
   });
   return {
     comp,

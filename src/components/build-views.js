@@ -33,7 +33,7 @@ export async function buildInspectorViews(
 ) {
   const comp = isComponentInstance(value) ? scope.getCompFor(value) : null;
   const out = {
-    instanceView: InstanceInspector.Class.fromData(value, scope.getCompFor(value)),
+    instanceView: InstanceInspector.fromData(value, scope.getCompFor(value)),
     componentView: null,
     lintView: null,
     testView: null,
@@ -44,11 +44,11 @@ export async function buildInspectorViews(
   };
 
   if (comp) {
-    out.componentView = ComponentInspector.Class.fromData(comp);
+    out.componentView = ComponentInspector.fromData(comp);
     out.hasComponent = true;
     if (dev) {
       const findings = dev.shadowCheckComponent(comp);
-      out.lintView = LintReport.Class.fromData({
+      out.lintView = LintReport.fromData({
         components: [{ componentName: comp.name, findings }],
       });
       out.hasLint = true;
@@ -60,7 +60,7 @@ export async function buildInspectorViews(
           expect: dev.expect,
           name: name === undefined ? comp.name : name,
         });
-        out.testView = TestReport.Class.fromResults(report);
+        out.testView = TestReport.fromResults(report);
         out.hasTest = true;
       }
     }

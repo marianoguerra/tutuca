@@ -7,9 +7,7 @@ import { rootDispatcher } from "../transactor.js";
 
 function reindexComponents(comps) {
   for (let i = 0; i < comps.length; i++) {
-    // Accept either the component Class or a raw metadata record.
-    const comp = comps[i]?.[COMPONENT] ?? comps[i];
-    if (comp) comp.id = i;
+    comps[i][COMPONENT].id = i;
   }
 }
 

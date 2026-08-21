@@ -1,14 +1,14 @@
 import { ComponentList, ComponentSummary, ExampleIndex } from "./results.js";
 
 function summarize(comp) {
-  const meta = comp.Class.getMetaClass();
+  const { fields: fieldMap, name } = comp;
   const fields = [];
-  for (const fieldName in meta.fields) {
-    const f = meta.fields[fieldName];
+  for (const fieldName in fieldMap) {
+    const f = fieldMap[fieldName];
     fields.push({ name: fieldName, type: f.type });
   }
   return new ComponentSummary({
-    name: comp.name,
+    name,
     views: Object.keys(comp.views ?? {}),
     fields,
   });

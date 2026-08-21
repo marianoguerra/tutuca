@@ -561,7 +561,7 @@ export class TutucaPlayground extends HTMLElement {
       // current root each time the Instance tab is shown (Component/Lint/Test are
       // definition-based and stay snapshots).
       this._rebuildInstanceView = () =>
-        InstanceInspector.Class.fromData(app.state.val, scope.getCompFor(app.state.val));
+        InstanceInspector.fromData(app.state.val, scope.getCompFor(app.state.val));
 
       // Live Activity tab: subscribe to the transaction observer and accumulate a
       // shared ActivityLog. Reuses the same recordToEntry/makeInspect/ActivityLog as
@@ -574,8 +574,8 @@ export class TutucaPlayground extends HTMLElement {
         const entry = recordToEntry(record, { inspect });
         this._activityLog = produce(this._activityLog, (draft) => {
           draft.events.unshift(entry);
-          if (draft.events.length > ActivityLog.Class.cap) {
-            draft.events.length = ActivityLog.Class.cap;
+          if (draft.events.length > ActivityLog.cap) {
+            draft.events.length = ActivityLog.cap;
           }
           draft.hasEvents = true;
         });

@@ -183,7 +183,7 @@ function collectBadges(schema) {
 function valueBranch(label, value) {
   return SchemaBranch.make({
     label,
-    child: JsonViewer.Class.fromData(value),
+    child: JsonViewer.fromData(value),
     labelClass: "text-info",
   });
 }
@@ -455,7 +455,7 @@ export const SchemaEnum = component({
   statics: {
     fromData(schema, recurse) {
       const members = Array.isArray(schema.enum) ? schema.enum : [];
-      const items = members.map((v) => JsonViewer.Class.fromData(v));
+      const items = members.map((v) => JsonViewer.fromData(v));
       items.push(...collectExtras(schema, recurse, "enum"));
       return this.make({
         typeLabel: "enum",
@@ -482,7 +482,7 @@ export const SchemaConst = component({
   fields: { value: null },
   statics: {
     fromData(schema) {
-      return this.make({ value: JsonViewer.Class.fromData(schema.const) });
+      return this.make({ value: JsonViewer.fromData(schema.const) });
     },
   },
   view: html`<span
@@ -664,7 +664,7 @@ export const SchemaViewer = component({
     fromData(schema) {
       return this.make({
         value: dispatch(schema),
-        raw: JsonViewer.Class.fromData(schema),
+        raw: JsonViewer.fromData(schema),
         rawSchema: schema,
       });
     },
@@ -721,27 +721,27 @@ function hasArrayKeywords(schema) {
 
 export function classifySchema(schema, recurse = classifySchema) {
   if (schema === true || schema === false) return SchemaBoolean.make({ value: schema });
-  if (schema === null || typeof schema !== "object") return JsonViewer.Class.fromData(schema);
+  if (schema === null || typeof schema !== "object") return JsonViewer.fromData(schema);
   if (typeof schema.$ref === "string") return SchemaRef.make({ target: schema.$ref });
 
-  if (hasObjectKeywords(schema)) return SchemaObject.Class.fromData(schema, recurse);
-  if (hasArrayKeywords(schema)) return SchemaArray.Class.fromData(schema, recurse);
-  if (Array.isArray(schema.enum)) return SchemaEnum.Class.fromData(schema, recurse);
-  if ("const" in schema) return SchemaConst.Class.fromData(schema, recurse);
+  if (hasObjectKeywords(schema)) return SchemaObject.fromData(schema, recurse);
+  if (hasArrayKeywords(schema)) return SchemaArray.fromData(schema, recurse);
+  if (Array.isArray(schema.enum)) return SchemaEnum.fromData(schema, recurse);
+  if ("const" in schema) return SchemaConst.fromData(schema, recurse);
   if (schema.allOf || schema.anyOf || schema.oneOf)
-    return SchemaCombinator.Class.fromData(schema, recurse);
-  if (schema.not !== undefined) return SchemaNot.Class.fromData(schema, recurse);
+    return SchemaCombinator.fromData(schema, recurse);
+  if (schema.not !== undefined) return SchemaNot.fromData(schema, recurse);
   if (schema.if !== undefined || schema.then !== undefined || schema.else !== undefined)
-    return SchemaConditional.Class.fromData(schema, recurse);
+    return SchemaConditional.fromData(schema, recurse);
 
-  return SchemaScalar.Class.fromData(schema, recurse);
+  return SchemaScalar.fromData(schema, recurse);
 }
 
 const dispatch = chain(classifySchema);
 
 export function getComponents() {
   // Embedded literal values (const / enum members / default / examples) are
-  // rendered with JsonViewer.Class.fromData, so the json.js leaf components
+  // rendered with JsonViewer.fromData, so the json.js leaf components
   // must be registered too — otherwise those nested `<x render=".child">`
   // targets resolve to nothing.
   return [

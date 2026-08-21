@@ -29,7 +29,7 @@ async function main() {
       for (const res of results) {
         if (res?.examples?.items) {
           for (const v of res.examples.items) {
-            examples.push(Example.Class.fromData(v));
+            examples.push(Example.fromData(v));
           }
         }
         const components = res?.components;

@@ -445,9 +445,11 @@ or use `@when` with `alter`.
 ## Statics
 
 `statics: {...}` adds methods to the component **class**, not instances.
-Available as `Comp.Class.<name>(...)` alongside the auto-generated
-`Comp.Class.make(...)` (which `Comp.make(...)` aliases). Inside a static,
-`this` is the class itself.
+`component({...})` returns that class directly — the component IS the class,
+with its metadata (fields, views, handlers, spec) attached behind
+`tutuca`'s well-known `COMPONENT` symbol. Statics are available as
+`Comp.<name>(...)` alongside the auto-generated `Comp.make(...)`. Inside a
+static, `this` is the class itself.
 
 Common use: a `fromData` factory that recursively builds instances from
 plain JS data:
@@ -455,14 +457,14 @@ plain JS data:
 ```js
 statics: {
   fromData({ items = [] }) {
-    return this.make({ items: items.map((v) => Item.Class.fromData(v)) });
+    return this.make({ items: items.map((v) => Item.fromData(v)) });
   },
 }
-// usage: TreeRoot.Class.fromData([...])
+// usage: TreeRoot.fromData([...])
 ```
 
-> **Scopes own the `Class`.** A component is bound to a scope at
-> `registerComponents` time — that scope owns its `Class`, component tag,
+> **Scopes own the component.** A component is bound to a scope at
+> `registerComponents` time — that scope owns its component, tag,
 > and scope-bound `make`/statics — so a given component object is live in
 > one scope at a time. Each app/registry is a separate scope; the same
 > *object* registered into two of them rebinds (last wins). To run the
@@ -474,7 +476,7 @@ statics: {
 
 **Multi-scope caveat for statics.** A static like `fromData` that builds
 a *different* child type by naming the imported const directly
-(`Item.Class.fromData(v)` above) hardcodes the child's *original* scope.
+(`Item.fromData(v)` above) hardcodes the child's *original* scope.
 Fine in a single-scope app; across scopes, resolve the child through the
 caller's scope instead — `this.scope.lookupComponent("Item")` — so it
 deserializes into the right one. Recursion into the *same* type needs no

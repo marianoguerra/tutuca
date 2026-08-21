@@ -4,6 +4,7 @@ import {
   MOD_WRAPPERS_FOR_ANY_EVENT,
   ParseContext,
 } from "../../src/anode.js";
+import { COMPONENT } from "../../src/components.js";
 import { lintHtml } from "./htmllinter.js";
 import { closestName } from "./util/closest-name.js";
 
@@ -432,7 +433,7 @@ function checkEnrichProjection(lx, view, Comp) {
     // Bare names resolve in the `alter` namespace, `$name` on the instance.
     const fn =
       enrich.constructor.name === "MethodVal"
-        ? protoMethodValue(Comp.Class?.prototype, enrich.name)
+        ? protoMethodValue(Comp.prototype ?? Object.getPrototypeOf(Comp), enrich.name)
         : Comp.alter?.[enrich.name];
     if (typeof fn !== "function") continue;
     const members = pureProjectionBinds(fn);
@@ -562,17 +563,17 @@ function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedDyna
 // Bundles the per-component context threaded through checkConsistentAttrVal: the
 // recursive value walk passes this object through unchanged.
 function mkAttrValEnv(Comp, referencedAlters, referencedDynamics) {
-  const { scope, alter, provide, lookup, Class } = Comp;
-  const { prototype: proto } = Class;
-  const { fields } = Class.getMetaClass();
+  const { scope, alter, provide, lookup, fields } = Comp;
+  // The component Class (or a shadow object whose prototype chain reaches it).
+  const proto = Comp.prototype ?? Object.getPrototypeOf(Comp);
   // `*name` resolves either a lookup or the component's own provide.
   const dynamicMap = { ...provide, ...lookup };
   return { fields, proto, scope, alter, referencedAlters, dynamicMap, referencedDynamics };
 }
 
 function checkEventHandlersHaveImpls(lx, Comp, referencedInputs) {
-  const { receive: input, views, Class } = Comp;
-  const { prototype: proto } = Class;
+  const { receive: input, views } = Comp;
+  const proto = Comp.prototype ?? Object.getPrototypeOf(Comp);
   for (const viewName in views) {
     lx.push({ viewName }, () => {
       const view = views[viewName];
@@ -1000,7 +1001,7 @@ function checkUnknownSpecKeys(lx, Comp, wellKnownExtras) {
 }
 
 function checkFieldDeclarations(lx, Comp) {
-  const fields = Comp.Class?.getMetaClass?.().fields;
+  const fields = Comp[COMPONENT]?.fields;
   if (!fields) return;
   for (const fieldName in fields) {
     const field = fields[fieldName];
@@ -1029,7 +1030,7 @@ function checkFieldDeclarations(lx, Comp) {
 }
 
 function checkFieldMethodNameCollisions(lx, Comp) {
-  const meta = Comp.Class?.getMetaClass?.();
+  const meta = Comp[COMPONENT];
   if (!meta) return;
   for (const name in meta.fields)
     if (Object.hasOwn(meta.methods, name)) lx.error(FIELD_METHOD_NAME_COLLISION, { name });

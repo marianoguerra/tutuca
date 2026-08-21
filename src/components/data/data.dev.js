@@ -4,7 +4,7 @@ import { DataInspector } from "./data.js";
 export { getComponents } from "./data.js";
 
 export function getExamples() {
-  const DI = DataInspector.Class;
+  const DI = DataInspector;
 
   class Person {
     constructor(name, age) {

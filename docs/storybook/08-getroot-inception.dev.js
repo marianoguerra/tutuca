@@ -17,7 +17,7 @@ const Note = component({
 // Build a couple of inner sections out of Note instances.
 function demoSections() {
   return [
-    Section.Class.fromData({
+    Section.fromData({
       title: "Inner A",
       description: "first inner section",
       items: [
@@ -25,7 +25,7 @@ function demoSections() {
         { title: "note 2", value: Note.make({ text: "beta" }) },
       ],
     }),
-    Section.Class.fromData({
+    Section.fromData({
       title: "Inner B",
       description: "second inner section",
       items: [{ title: "note 3", value: Note.make({ text: "gamma" }) }],
@@ -42,7 +42,7 @@ export function getComponents() {
 export function getRoot() {
   // withSections derives the sidebar tree from the sections — a raw `Storybook.make`
   // leaves it empty (buildStorybook is the usual builder).
-  return Storybook.Class.withSections(demoSections());
+  return Storybook.withSections(demoSections());
 }
 
 export function getExamples() {
@@ -54,7 +54,7 @@ export function getExamples() {
       {
         title: "Inception 🐢",
         description: "a whole Storybook rendered inside one example card",
-        value: Storybook.Class.withSections(demoSections()),
+        value: Storybook.withSections(demoSections()),
       },
       {
         title: "A standalone Section",

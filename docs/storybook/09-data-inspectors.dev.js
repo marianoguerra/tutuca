@@ -43,9 +43,9 @@ function getExamples() {
       meta: { joined: "2026-01-15", verified: true }
     }
   };
-  const expandedSmallArray = expanded(JsonViewer.Class.fromData([1, "two", true, null]));
-  const expandedPaginated = expanded(JsonViewer.Class.fromData(longArray));
-  const expandedNested = expanded(JsonViewer.Class.fromData(apiResponseShape));
+  const expandedSmallArray = expanded(JsonViewer.fromData([1, "two", true, null]));
+  const expandedPaginated = expanded(JsonViewer.fromData(longArray));
+  const expandedNested = expanded(JsonViewer.fromData(apiResponseShape));
   const allTypesThreeLevels = {
     name: "demo",
     active: true,
@@ -72,48 +72,48 @@ function getExamples() {
       ]
     }
   };
-  const expandedAllTypes = expanded(JsonViewer.Class.fromData(allTypesThreeLevels));
+  const expandedAllTypes = expanded(JsonViewer.fromData(allTypesThreeLevels));
   return {
     title: "JsonViewer",
     description: "Chrome devtools–style display of a JSON value. Wraps a per-type component (JsonNull, JsonBoolean, JsonNumber, JsonString, JsonArray, JsonObject); composites support collapse/expand and pagination (default 10 items per page).",
     items: [
-      { title: "null", value: JsonViewer.Class.fromData(null) },
-      { title: "true", value: JsonViewer.Class.fromData(true) },
-      { title: "false", value: JsonViewer.Class.fromData(false) },
-      { title: "integer", value: JsonViewer.Class.fromData(42) },
-      { title: "negative integer", value: JsonViewer.Class.fromData(-7) },
+      { title: "null", value: JsonViewer.fromData(null) },
+      { title: "true", value: JsonViewer.fromData(true) },
+      { title: "false", value: JsonViewer.fromData(false) },
+      { title: "integer", value: JsonViewer.fromData(42) },
+      { title: "negative integer", value: JsonViewer.fromData(-7) },
       // biome-ignore lint/suspicious/noApproximativeNumericConstant: literal float demonstration, not Math.PI
-      { title: "float", value: JsonViewer.Class.fromData(3.14159) },
-      { title: "zero", value: JsonViewer.Class.fromData(0) },
+      { title: "float", value: JsonViewer.fromData(3.14159) },
+      { title: "zero", value: JsonViewer.fromData(0) },
       {
         title: "string",
-        value: JsonViewer.Class.fromData("hello, world")
+        value: JsonViewer.fromData("hello, world")
       },
       {
         title: "empty string",
-        value: JsonViewer.Class.fromData("")
+        value: JsonViewer.fromData("")
       },
       {
         title: "string with quotes",
-        value: JsonViewer.Class.fromData('she said "hi"')
+        value: JsonViewer.fromData('she said "hi"')
       },
       {
         title: "very long string",
-        value: JsonViewer.Class.fromData(
+        value: JsonViewer.fromData(
           "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
         )
       },
       {
         title: "empty array",
-        value: JsonViewer.Class.fromData([])
+        value: JsonViewer.fromData([])
       },
       {
         title: "empty object",
-        value: JsonViewer.Class.fromData({})
+        value: JsonViewer.fromData({})
       },
       {
         title: "small array (collapsed)",
-        value: JsonViewer.Class.fromData([1, "two", true, null])
+        value: JsonViewer.fromData([1, "two", true, null])
       },
       {
         title: "small array (expanded)",
@@ -121,14 +121,14 @@ function getExamples() {
       },
       {
         title: "nested array",
-        value: JsonViewer.Class.fromData([
+        value: JsonViewer.fromData([
           [1, 2],
           [3, 4]
         ])
       },
       {
         title: "small object",
-        value: JsonViewer.Class.fromData({
+        value: JsonViewer.fromData({
           name: "Alice",
           active: true,
           score: 99.5
@@ -148,24 +148,24 @@ function getExamples() {
       },
       {
         title: "paginated object (15 keys)",
-        value: JsonViewer.Class.fromData(longObject)
+        value: JsonViewer.fromData(longObject)
       },
       {
         title: "function (rendered as null)",
-        value: JsonViewer.Class.fromData(function namedFn() {
+        value: JsonViewer.fromData(function namedFn() {
         })
       },
       {
         title: "arrow function (rendered as null)",
-        value: JsonViewer.Class.fromData(() => 42)
+        value: JsonViewer.fromData(() => 42)
       },
       {
         title: "symbol (rendered as null)",
-        value: JsonViewer.Class.fromData(/* @__PURE__ */ Symbol("sym"))
+        value: JsonViewer.fromData(/* @__PURE__ */ Symbol("sym"))
       },
       {
         title: "Map (rendered as empty object)",
-        value: JsonViewer.Class.fromData(
+        value: JsonViewer.fromData(
           /* @__PURE__ */ new Map([
             ["a", 1],
             ["b", 2]
@@ -174,12 +174,12 @@ function getExamples() {
       },
       {
         title: "Set (rendered as empty object)",
-        value: JsonViewer.Class.fromData(/* @__PURE__ */ new Set([1, 2, 3]))
+        value: JsonViewer.fromData(/* @__PURE__ */ new Set([1, 2, 3]))
       },
       {
         title: "object with non-JSON values (expanded)",
         value: expanded(
-          JsonViewer.Class.fromData({
+          JsonViewer.fromData({
             fn: function namedFn() {
             },
             arrow: () => 1,
@@ -204,7 +204,7 @@ import { produce as produce2 } from "tutuca/immer";
 import { DataInspector } from "tutuca/components";
 import { getComponents as getComponents2 } from "tutuca/components";
 function getExamples2() {
-  const DI = DataInspector.Class;
+  const DI = DataInspector;
   class Person {
     constructor(name, age) {
       this.name = name;
@@ -332,7 +332,7 @@ import {
   SchemaViewer
 } from "tutuca/components";
 import { getComponents as getComponents3 } from "tutuca/components";
-var SV = SchemaViewer.Class;
+var SV = SchemaViewer;
 var expandDraft = (node) => {
   if (node == null || typeof node !== "object") return;
   if ("isExpanded" in node) node.isExpanded = true;
@@ -762,37 +762,37 @@ function getTests({ describe, test, expect }) {
   describe(SchemaViewer, () => {
     describe("fromData()", () => {
       test("boolean true schema → SchemaBoolean", () => {
-        const v = SchemaViewer.Class.fromData(true);
-        expect(v.value).toBeInstanceOf(SchemaBoolean.Class);
+        const v = SchemaViewer.fromData(true);
+        expect(v.value).toBeInstanceOf(SchemaBoolean);
         expect(v.value.value).toBe(true);
       });
       test("boolean false schema → SchemaBoolean", () => {
-        const v = SchemaViewer.Class.fromData(false);
-        expect(v.value).toBeInstanceOf(SchemaBoolean.Class);
+        const v = SchemaViewer.fromData(false);
+        expect(v.value).toBeInstanceOf(SchemaBoolean);
         expect(v.value.value).toBe(false);
       });
       test("$ref → SchemaRef (label only, not resolved)", () => {
-        const v = SchemaViewer.Class.fromData({ $ref: "#/$defs/x" });
-        expect(v.value).toBeInstanceOf(SchemaRef.Class);
+        const v = SchemaViewer.fromData({ $ref: "#/$defs/x" });
+        expect(v.value).toBeInstanceOf(SchemaRef);
         expect(v.value.target).toBe("#/$defs/x");
       });
       test("cyclic $ref does not loop", () => {
-        const v = SchemaViewer.Class.fromData({ $ref: "#" });
-        expect(v.value).toBeInstanceOf(SchemaRef.Class);
+        const v = SchemaViewer.fromData({ $ref: "#" });
+        expect(v.value).toBeInstanceOf(SchemaRef);
       });
       test("typed object → SchemaObject", () => {
-        const v = SchemaViewer.Class.fromData({ type: "object" });
-        expect(v.value).toBeInstanceOf(SchemaObject.Class);
+        const v = SchemaViewer.fromData({ type: "object" });
+        expect(v.value).toBeInstanceOf(SchemaObject);
         expect(v.value.typeLabel).toBe("object");
       });
       test("empty schema {} → childless SchemaScalar (any)", () => {
-        const v = SchemaViewer.Class.fromData({});
-        expect(v.value).toBeInstanceOf(SchemaScalar.Class);
+        const v = SchemaViewer.fromData({});
+        expect(v.value).toBeInstanceOf(SchemaScalar);
         expect(v.value.typeLabel).toBe("any");
         expect(v.value.isItemsEmpty()).toBe(true);
       });
       test("retains the original schema in rawSchema", () => {
-        const v = SchemaViewer.Class.fromData({ type: "string" });
+        const v = SchemaViewer.fromData({ type: "string" });
         expect(v.rawSchema.type).toBe("string");
       });
     });
@@ -805,20 +805,20 @@ function getTests({ describe, test, expect }) {
         });
         const id = node.items.find((p) => p.key === "id");
         const name = node.items.find((p) => p.key === "name");
-        expect(id).toBeInstanceOf(SchemaProperty.Class);
+        expect(id).toBeInstanceOf(SchemaProperty);
         expect(id.required).toBe(true);
         expect(name.required).toBe(false);
       });
       test("enum → SchemaEnum whose members render via JsonViewer", () => {
         const node = classifySchema({ enum: [1, 2, 3] });
-        expect(node).toBeInstanceOf(SchemaEnum.Class);
+        expect(node).toBeInstanceOf(SchemaEnum);
         expect(node.items.length).toBe(3);
-        expect(node.items[0]).toBeInstanceOf(JsonViewer2.Class);
+        expect(node.items[0]).toBeInstanceOf(JsonViewer2);
       });
       test("const → SchemaConst whose value renders via JsonViewer", () => {
         const node = classifySchema({ const: 42 });
-        expect(node).toBeInstanceOf(SchemaConst.Class);
-        expect(node.value).toBeInstanceOf(JsonViewer2.Class);
+        expect(node).toBeInstanceOf(SchemaConst);
+        expect(node.value).toBeInstanceOf(JsonViewer2);
       });
       test("string constraints become badges", () => {
         const node = classifySchema({
@@ -826,23 +826,23 @@ function getTests({ describe, test, expect }) {
           minLength: 3,
           format: "email"
         });
-        expect(node).toBeInstanceOf(SchemaScalar.Class);
+        expect(node).toBeInstanceOf(SchemaScalar);
         expect(node.badges).toContain("format: email");
         expect(node.badges).toContain("min length: 3");
       });
       test("multi-type joins with ' | '", () => {
         const node = classifySchema({ type: ["string", "null"] });
-        expect(node).toBeInstanceOf(SchemaScalar.Class);
+        expect(node).toBeInstanceOf(SchemaScalar);
         expect(node.typeLabel).toBe("string | null");
       });
       test("combinator phrases its kind and lists members without keys", () => {
         const node = classifySchema({
           anyOf: [{ allOf: [{ type: "object" }] }]
         });
-        expect(node).toBeInstanceOf(SchemaCombinator.Class);
+        expect(node).toBeInstanceOf(SchemaCombinator);
         expect(node.typeLabel).toBe("any of");
         const inner = node.items[0];
-        expect(inner).toBeInstanceOf(SchemaCombinator.Class);
+        expect(inner).toBeInstanceOf(SchemaCombinator);
         expect(inner.typeLabel).toBe("all of");
       });
       test("array of a bare primitive type is inlined", () => {
@@ -850,7 +850,7 @@ function getTests({ describe, test, expect }) {
           type: "array",
           items: { type: "string" }
         });
-        expect(node).toBeInstanceOf(SchemaArray.Class);
+        expect(node).toBeInstanceOf(SchemaArray);
         expect(node.typeLabel).toBe("array of string");
         expect(node.isItemsEmpty()).toBe(true);
       });
@@ -868,8 +868,8 @@ function getTests({ describe, test, expect }) {
           definitions: { x: { type: "string" } }
         });
         const branch = node.items.find((b) => b.label === "$defs/x");
-        expect(branch).toBeInstanceOf(SchemaBranch.Class);
-        expect(branch.child).toBeInstanceOf(SchemaScalar.Class);
+        expect(branch).toBeInstanceOf(SchemaBranch);
+        expect(branch.child).toBeInstanceOf(SchemaScalar);
       });
     });
   });

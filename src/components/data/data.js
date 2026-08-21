@@ -233,11 +233,11 @@ export function classifyJsExtra(data, recurse) {
       errorName: data.name ?? "Error",
       message: data.message ?? "",
     });
-  if (data instanceof Map) return JsMap.Class.fromData(data, recurse);
-  if (data instanceof Set) return JsSet.Class.fromData(data, recurse);
+  if (data instanceof Map) return JsMap.fromData(data, recurse);
+  if (data instanceof Set) return JsSet.fromData(data, recurse);
   const proto = Object.getPrototypeOf(data);
   if (proto !== Object.prototype && proto !== null) {
-    return JsClassInstance.Class.fromData(data, recurse);
+    return JsClassInstance.fromData(data, recurse);
   }
   return null;
 }

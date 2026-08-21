@@ -117,7 +117,8 @@ export class FieldFloat extends Field {
   }
 }
 
-export const getTypeName = (v) => v?.constructor?.getMetaClass?.()?.name;
+export const getTypeName = (v) =>
+  v?.constructor?.[COMPONENT]?.name ?? v?.constructor?.getMetaClass?.()?.name ?? null;
 class CheckTypeName {
   constructor(typeName) {
     this.typeName = typeName;
@@ -311,7 +312,7 @@ export function classFromData(name, { fields = {}, methods, statics }) {
 // Coerce direct draft assignments with the same policy used by Class.make(). A failed
 // assignment is reverted, matching the old generated setter's warn-and-no-op behavior.
 export function validateDraftFields(current, draft) {
-  const meta = current?.constructor?.getMetaClass?.();
+  const meta = current?.constructor?.[COMPONENT] ?? current?.constructor?.getMetaClass?.();
   if (!meta) return;
   for (const [name, field] of Object.entries(meta.fields)) {
     const value = draft[name];
@@ -327,13 +328,24 @@ export function validateDraftFields(current, draft) {
 
 // Unification: the generated Class IS the component. `component()` returns the
 // Class, carrying its metadata record (`Component` instance) behind COMPONENT.
+// The record is the single source of truth: `fields`/`methods` are folded into
+// it and `getMetaClass()` is redefined to return the record itself.
 const META_KEYS =
-  "name id views receive intent alter provide lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup".split(
+  "name id fields methods views receive intent alter provide lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup".split(
     " ",
   );
 Component.fromSpec = (opts) => {
   const Class = classFromData(opts.name, opts);
   const comp = new Component(Class, opts);
+  // Fold the builder's { fields, name, methods } view into the meta record...
+  const metaClass = Class.getMetaClass();
+  comp.fields = metaClass.fields;
+  comp.methods = metaClass.methods;
+  // ...and make `getMetaClass()` hand back the record (a superset: it also
+  // carries name/views/handlers/spec). Instance code keeping the documented
+  // `this.constructor.getMetaClass().fields.x.defaultValue` pattern works
+  // unchanged.
+  Class.getMetaClass = () => comp;
   Class[COMPONENT] = comp;
   // Expose the metadata buckets as static accessors so direct reads
   // (`Counter.receive.inc`, `Comp.spec`, `Widget.scope`) keep working, with
@@ -355,9 +367,6 @@ Component.fromSpec = (opts) => {
   for (const key of Object.getOwnPropertyNames(Component.prototype))
     if (key !== "constructor" && key !== "make" && !Object.hasOwn(Class, key))
       Class[key] = (...args) => comp[key](...args);
-  // Transitional self-reference so `Comp.Class.fromData(...)` and
-  // `instanceof Comp.Class` keep working now that Comp IS the Class.
-  if (!Object.hasOwn(Class, "Class")) Class.Class = Class;
   return Class;
 };
 export const component = (opts) => Component.fromSpec(opts);

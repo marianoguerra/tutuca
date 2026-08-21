@@ -112,7 +112,7 @@ export function pathKeysLabel(pathKeys) {
 export function makeInspect(app) {
   return (value) => {
     const comp = isComponentInstance(value) ? app.comps.getCompFor(value) : null;
-    return InstanceInspector.Class.fromData(value, comp);
+    return InstanceInspector.fromData(value, comp);
   };
 }
 

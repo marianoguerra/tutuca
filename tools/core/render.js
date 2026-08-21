@@ -6,7 +6,7 @@ import { RenderBatch, RenderedExample, RenderedSection } from "./results.js";
 // Resolve it here so a bad name becomes a rendered error instead.
 function checkView(value, components, viewName) {
   if (viewName === "main") return null;
-  const comp = components.find((c) => value instanceof c.Class);
+  const comp = components.find((c) => value instanceof c);
   if (!comp || comp.views[viewName]) return null;
   const known = Object.keys(comp.views).sort().join(", ");
   return new Error(`view "${viewName}" is not defined on ${comp.name} (has: ${known})`);

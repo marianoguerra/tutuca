@@ -17,7 +17,7 @@ import {
 
 export { getComponents } from "./json-schema.js";
 
-const SV = SchemaViewer.Class;
+const SV = SchemaViewer;
 
 // Recursively expand a classified schema tree so an example renders open.
 const expandDraft = (node) => {
@@ -466,43 +466,43 @@ export function getTests({ describe, test, expect }) {
   describe(SchemaViewer, () => {
     describe("fromData()", () => {
       test("boolean true schema → SchemaBoolean", () => {
-        const v = SchemaViewer.Class.fromData(true);
-        expect(v.value).toBeInstanceOf(SchemaBoolean.Class);
+        const v = SchemaViewer.fromData(true);
+        expect(v.value).toBeInstanceOf(SchemaBoolean);
         expect(v.value.value).toBe(true);
       });
 
       test("boolean false schema → SchemaBoolean", () => {
-        const v = SchemaViewer.Class.fromData(false);
-        expect(v.value).toBeInstanceOf(SchemaBoolean.Class);
+        const v = SchemaViewer.fromData(false);
+        expect(v.value).toBeInstanceOf(SchemaBoolean);
         expect(v.value.value).toBe(false);
       });
 
       test("$ref → SchemaRef (label only, not resolved)", () => {
-        const v = SchemaViewer.Class.fromData({ $ref: "#/$defs/x" });
-        expect(v.value).toBeInstanceOf(SchemaRef.Class);
+        const v = SchemaViewer.fromData({ $ref: "#/$defs/x" });
+        expect(v.value).toBeInstanceOf(SchemaRef);
         expect(v.value.target).toBe("#/$defs/x");
       });
 
       test("cyclic $ref does not loop", () => {
-        const v = SchemaViewer.Class.fromData({ $ref: "#" });
-        expect(v.value).toBeInstanceOf(SchemaRef.Class);
+        const v = SchemaViewer.fromData({ $ref: "#" });
+        expect(v.value).toBeInstanceOf(SchemaRef);
       });
 
       test("typed object → SchemaObject", () => {
-        const v = SchemaViewer.Class.fromData({ type: "object" });
-        expect(v.value).toBeInstanceOf(SchemaObject.Class);
+        const v = SchemaViewer.fromData({ type: "object" });
+        expect(v.value).toBeInstanceOf(SchemaObject);
         expect(v.value.typeLabel).toBe("object");
       });
 
       test("empty schema {} → childless SchemaScalar (any)", () => {
-        const v = SchemaViewer.Class.fromData({});
-        expect(v.value).toBeInstanceOf(SchemaScalar.Class);
+        const v = SchemaViewer.fromData({});
+        expect(v.value).toBeInstanceOf(SchemaScalar);
         expect(v.value.typeLabel).toBe("any");
         expect(v.value.isItemsEmpty()).toBe(true);
       });
 
       test("retains the original schema in rawSchema", () => {
-        const v = SchemaViewer.Class.fromData({ type: "string" });
+        const v = SchemaViewer.fromData({ type: "string" });
         expect(v.rawSchema.type).toBe("string");
       });
     });
@@ -516,22 +516,22 @@ export function getTests({ describe, test, expect }) {
         });
         const id = node.items.find((p) => p.key === "id");
         const name = node.items.find((p) => p.key === "name");
-        expect(id).toBeInstanceOf(SchemaProperty.Class);
+        expect(id).toBeInstanceOf(SchemaProperty);
         expect(id.required).toBe(true);
         expect(name.required).toBe(false);
       });
 
       test("enum → SchemaEnum whose members render via JsonViewer", () => {
         const node = classifySchema({ enum: [1, 2, 3] });
-        expect(node).toBeInstanceOf(SchemaEnum.Class);
+        expect(node).toBeInstanceOf(SchemaEnum);
         expect(node.items.length).toBe(3);
-        expect(node.items[0]).toBeInstanceOf(JsonViewer.Class);
+        expect(node.items[0]).toBeInstanceOf(JsonViewer);
       });
 
       test("const → SchemaConst whose value renders via JsonViewer", () => {
         const node = classifySchema({ const: 42 });
-        expect(node).toBeInstanceOf(SchemaConst.Class);
-        expect(node.value).toBeInstanceOf(JsonViewer.Class);
+        expect(node).toBeInstanceOf(SchemaConst);
+        expect(node.value).toBeInstanceOf(JsonViewer);
       });
 
       test("string constraints become badges", () => {
@@ -540,14 +540,14 @@ export function getTests({ describe, test, expect }) {
           minLength: 3,
           format: "email",
         });
-        expect(node).toBeInstanceOf(SchemaScalar.Class);
+        expect(node).toBeInstanceOf(SchemaScalar);
         expect(node.badges).toContain("format: email");
         expect(node.badges).toContain("min length: 3");
       });
 
       test("multi-type joins with ' | '", () => {
         const node = classifySchema({ type: ["string", "null"] });
-        expect(node).toBeInstanceOf(SchemaScalar.Class);
+        expect(node).toBeInstanceOf(SchemaScalar);
         expect(node.typeLabel).toBe("string | null");
       });
 
@@ -555,10 +555,10 @@ export function getTests({ describe, test, expect }) {
         const node = classifySchema({
           anyOf: [{ allOf: [{ type: "object" }] }],
         });
-        expect(node).toBeInstanceOf(SchemaCombinator.Class);
+        expect(node).toBeInstanceOf(SchemaCombinator);
         expect(node.typeLabel).toBe("any of");
         const inner = node.items[0];
-        expect(inner).toBeInstanceOf(SchemaCombinator.Class);
+        expect(inner).toBeInstanceOf(SchemaCombinator);
         expect(inner.typeLabel).toBe("all of");
       });
 
@@ -567,7 +567,7 @@ export function getTests({ describe, test, expect }) {
           type: "array",
           items: { type: "string" },
         });
-        expect(node).toBeInstanceOf(SchemaArray.Class);
+        expect(node).toBeInstanceOf(SchemaArray);
         expect(node.typeLabel).toBe("array of string");
         expect(node.isItemsEmpty()).toBe(true);
       });
@@ -587,8 +587,8 @@ export function getTests({ describe, test, expect }) {
           definitions: { x: { type: "string" } },
         });
         const branch = node.items.find((b) => b.label === "$defs/x");
-        expect(branch).toBeInstanceOf(SchemaBranch.Class);
-        expect(branch.child).toBeInstanceOf(SchemaScalar.Class);
+        expect(branch).toBeInstanceOf(SchemaBranch);
+        expect(branch.child).toBeInstanceOf(SchemaScalar);
       });
     });
   });

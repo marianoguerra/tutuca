@@ -80,20 +80,20 @@ export function getExamples() {
     items: [
       {
         title: "Definitions — sample module",
-        value: TestReport.Class.fromTests(collectTests(sampleTests), {
+        value: TestReport.fromTests(collectTests(sampleTests), {
           title: "widget.dev.js",
         }),
       },
       {
         title: "Definitions — this repo's component-inspector.dev.js",
         description: "Collected live from a real module's getTests.",
-        value: TestReport.Class.fromTests(collectTests(componentInspectorTests), {
+        value: TestReport.fromTests(collectTests(componentInspectorTests), {
           title: "component-inspector.dev.js",
         }),
       },
       {
         title: "Run — mixed pass/fail/skip (failing suite auto-expanded)",
-        value: TestReport.Class.fromResults(runReport),
+        value: TestReport.fromResults(runReport),
       },
     ],
   };
@@ -111,42 +111,42 @@ export function getTests({ describe, test, expect }) {
     });
 
     test("fromTests builds a suite tree with no run counts", () => {
-      const r = TestReport.Class.fromTests(collectTests(sampleTests));
+      const r = TestReport.fromTests(collectTests(sampleTests));
       expect(r.hasCounts).toBe(false);
       const widget = r.suites[0];
-      expect(widget).toBeInstanceOf(TestSuite.Class);
+      expect(widget).toBeInstanceOf(TestSuite);
       expect(widget.items.length).toBe(2);
       // a definition leaf renders the neutral "•" mark
       expect(widget.items[0].mark()).toBe("•");
     });
 
     test("fromResults carries totals and builds the suite tree", () => {
-      const r = TestReport.Class.fromResults(runReport);
+      const r = TestReport.fromResults(runReport);
       expect(r.hasCounts).toBe(true);
       expect(r.pass).toBe(3);
       expect(r.fail).toBe(1);
       expect(r.skip).toBe(1);
       const counter = r.suites[0];
-      expect(counter).toBeInstanceOf(TestSuite.Class);
+      expect(counter).toBeInstanceOf(TestSuite);
       expect(counter.summary).toBe("✓3 ✗1 ○1");
       expect(counter.isExpanded).toBe(true);
     });
 
     test("a failing test shows the mark, message, and diff", () => {
-      const r = TestReport.Class.fromResults(runReport);
+      const r = TestReport.fromResults(runReport);
       const edge = r.suites[0].items[2];
-      expect(edge).toBeInstanceOf(TestSuite.Class);
+      expect(edge).toBeInstanceOf(TestSuite);
       const failCase = edge.items[0];
-      expect(failCase).toBeInstanceOf(TestCase.Class);
+      expect(failCase).toBeInstanceOf(TestCase);
       expect(failCase.status).toBe("fail");
       expect(failCase.mark()).toBe("✗");
       expect(failCase.markClass()).toContain("text-error");
       expect(failCase.message).toBe("expected 0 to be 10");
-      expect(failCase.detail).toBeInstanceOf(DataInspector.Class);
+      expect(failCase.detail).toBeInstanceOf(DataInspector);
     });
 
     test("a passing test reports its duration; a skip does not", () => {
-      const r = TestReport.Class.fromResults(runReport);
+      const r = TestReport.fromResults(runReport);
       const items = r.suites[0].items;
       expect(items[0].durText()).toBe("(1ms)");
       const edge = items[2];

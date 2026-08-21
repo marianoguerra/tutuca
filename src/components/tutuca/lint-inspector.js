@@ -159,7 +159,7 @@ function buildFinding(f) {
     level: f.level ?? "",
     message: lintMessage(f.id, info),
     suggestion: suggestionText(f.suggestion),
-    detail: DataInspector.Class.fromData({ id: f.id, info, context: ctx }),
+    detail: DataInspector.fromData({ id: f.id, info, context: ctx }),
   });
 }
 

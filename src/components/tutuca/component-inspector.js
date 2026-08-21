@@ -8,12 +8,12 @@ import {
   makeCompositeView,
 } from "../data/json.js";
 
-// Inspect a Component *descriptor* — the object returned by `component({...})`,
-// not a `.make()` instance. The shape mirrors `getComponentDoc` in tutuca's dev
+// Inspect a Component — the class returned by `component({...})`, not a
+// `.make()` instance. The shape mirrors `getComponentDoc` in tutuca's dev
 // build but also covers the receive/bubble/response/alter channels, statics, and
 // view source. Pure and deterministic, so it is the unit the tests assert on.
 export function introspectComponent(comp) {
-  const { fields, methods } = comp.Class.getMetaClass();
+  const { fields, methods } = comp;
   return {
     name: comp.name,
     id: comp.id,
@@ -157,7 +157,7 @@ export const ComponentInspector = component({
           CompField.make({
             name: f.name,
             typeName: f.type,
-            child: DataInspector.Class.fromData(f.defaultValue),
+            child: DataInspector.fromData(f.defaultValue),
           }),
         ),
         true,

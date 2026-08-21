@@ -69,7 +69,7 @@ describe("Immer component state", () => {
     new ComponentStack(comps).registerComponents([First, Other]);
     const transactor = new Transactor(comps, First.make());
     send(transactor, new Path([]), "swap");
-    expect(transactor.state.val).toBeInstanceOf(Other.Class);
+    expect(transactor.state.val).toBeInstanceOf(Other);
     expect(transactor.state.val.label).toBe("next");
   });
 
