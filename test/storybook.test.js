@@ -551,16 +551,17 @@ describe("buildStorybook per-module component scoping", () => {
       s.registerComponents(cs);
       return s;
     });
-    // Each module scope resolves "Foo" to ITS OWN definition...
-    expect(moduleScopes[0].lookupComponent("Foo")).toBe(FooA);
-    expect(moduleScopes[1].lookupComponent("Foo")).toBe(FooB);
+    // Each module scope resolves "Foo" to ITS OWN definition (lookupComponent
+    // yields the metadata record; `.Class` is the component itself)...
+    expect(moduleScopes[0].lookupComponent("Foo").Class).toBe(FooA);
+    expect(moduleScopes[1].lookupComponent("Foo").Class).toBe(FooB);
     // ...the shared root never learns the module-local name (so it can't collide)...
     expect(rootScope.lookupComponent("Foo")).toBe(null);
     // ...engine names stay visible from each module scope via parent chaining...
-    expect(moduleScopes[0].lookupComponent("Example")).toBe(Example);
+    expect(moduleScopes[0].lookupComponent("Example").Class).toBe(Example);
     // ...and instances always resolve to their own definition by identity.
-    expect(comps.getCompFor(FooA.make({}))).toBe(FooA);
-    expect(comps.getCompFor(FooB.make({}))).toBe(FooB);
+    expect(comps.getCompFor(FooA.make({})).Class).toBe(FooA);
+    expect(comps.getCompFor(FooB.make({})).Class).toBe(FooB);
   });
 });
 

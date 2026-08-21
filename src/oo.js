@@ -1,4 +1,4 @@
-import { Component } from "./components.js";
+import { COMPONENT, Component } from "./components.js";
 import { freeze, immerable } from "./immer.js";
 
 const BAD_VALUE = Symbol("BadValue");
@@ -223,7 +223,9 @@ class ClassBuilder {
         getMetaClass: () => metaClass,
         make(inArgs = {}, opts = {}) {
           const args = {};
-          const scope = opts.scope ?? this.scope;
+          // The metadata record's scope (set at registration) is authoritative;
+          // a manually-assigned static `.scope` stays as a fallback.
+          const scope = opts.scope ?? this[COMPONENT]?.scope ?? this.scope;
           for (const key in inArgs) {
             const field = fields[key];
             if (compFields.has(key)) args[key] = mkCompField(field, scope, inArgs[key]);
@@ -323,5 +325,39 @@ export function validateDraftFields(current, draft) {
   }
 }
 
-Component.fromSpec = (opts) => new Component(classFromData(opts.name, opts), opts);
+// Unification: the generated Class IS the component. `component()` returns the
+// Class, carrying its metadata record (`Component` instance) behind COMPONENT.
+const META_KEYS =
+  "name id views receive intent alter provide lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup".split(
+    " ",
+  );
+Component.fromSpec = (opts) => {
+  const Class = classFromData(opts.name, opts);
+  const comp = new Component(Class, opts);
+  Class[COMPONENT] = comp;
+  // Expose the metadata buckets as static accessors so direct reads
+  // (`Counter.receive.inc`, `Comp.spec`, `Widget.scope`) keep working, with
+  // write-through (`Comp.scope = ...`) matching the old record's mutability.
+  // A user static with the same name wins — the accessor is skipped.
+  for (const key of META_KEYS)
+    if (!Object.hasOwn(Class, key))
+      Object.defineProperty(Class, key, {
+        get() {
+          return comp[key];
+        },
+        set(v) {
+          comp[key] = v;
+        },
+        configurable: true,
+      });
+  // Forward the metadata record's behavior (compile/getView/compileStyle/...)
+  // onto the Class, skipping names the generated class already owns (`make`).
+  for (const key of Object.getOwnPropertyNames(Component.prototype))
+    if (key !== "constructor" && key !== "make" && !Object.hasOwn(Class, key))
+      Class[key] = (...args) => comp[key](...args);
+  // Transitional self-reference so `Comp.Class.fromData(...)` and
+  // `instanceof Comp.Class` keep working now that Comp IS the Class.
+  if (!Object.hasOwn(Class, "Class")) Class.Class = Class;
+  return Class;
+};
 export const component = (opts) => Component.fromSpec(opts);

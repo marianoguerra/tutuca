@@ -5,6 +5,7 @@ import { Renderer } from "./src/renderer.js";
 
 export { ParseContext } from "./src/anode.js";
 export { injectCss } from "./src/app.js";
+export { COMPONENT } from "./src/components.js";
 export { dispatchPhase, phaseOps, resolveArgs } from "./src/on.js";
 export { component, FIELD_CLASS } from "./src/oo.js";
 export { SEQ_INFO } from "./src/renderer.js";

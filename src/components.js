@@ -2,20 +2,25 @@ import { View } from "./anode.js";
 import { IntentHandler } from "./attribute.js";
 import { parseField, parseProvide } from "./value.js";
 
+// Well-known link between a generated component Class and its metadata record
+// (the `Component` instance). The Class IS the component; its views/handlers/
+// provide/spec live behind this symbol, and instances resolve their component
+// via `v.constructor[COMPONENT]`. Registered (`Symbol.for`, like SEQ_INFO /
+// FIELD_CLASS) so multiple copies of the library agree on the convention.
+export const COMPONENT = Symbol.for("tutuca.component");
+
 export class Components {
   constructor() {
-    this.getComponentSymbol = Symbol("getComponent");
     this.byId = new Map();
   }
   registerComponent(comp) {
-    comp.Class.prototype[this.getComponentSymbol] = () => comp;
     this.byId.set(comp.id, comp);
   }
   getComponentForId(id) {
     return this.byId.get(id) ?? null;
   }
   getCompFor(v) {
-    return v?.[this.getComponentSymbol]?.() ?? null;
+    return v?.constructor?.[COMPONENT] ?? null;
   }
   getHandlerFor(v, name, key) {
     return this.getCompFor(v)?.[key][name] ?? null;
@@ -46,14 +51,13 @@ export class ComponentStack {
   registerComponents(comps, opts) {
     const { aliases = {} } = opts ?? {};
     for (let i = 0; i < comps.length; i++) {
-      const comp = comps[i];
+      // Accept either the component Class (what `component()` returns) or a raw
+      // metadata record.
+      const comp = comps[i]?.[COMPONENT] ?? comps[i];
       // each scope owns its Class. Re-registering the same Component rebinds it to this
       // scope (last wins) — fine for fresh re-setup. To keep a Component live in *two*
       // scopes at once, build a fresh one from its spec: component(comp.spec).
       comp.scope = this.enter();
-      // bind the scope onto the Class so direct Class.make()/fromData() calls
-      // can resolve comp fields without the caller threading a scope through
-      comp.Class.scope = comp.scope;
       this.comps.registerComponent(comp);
       this.byName[comp.name] = comp;
     }

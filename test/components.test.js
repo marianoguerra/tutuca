@@ -112,9 +112,10 @@ describe("Components", () => {
     const compStack = new ComponentStack(comps);
     compStack.registerComponents([CompA], { aliases: { AliasA: "CompA", AliasB: "CompA" } });
     expect(Object.keys(compStack.byName)).toEqual(["CompA", "AliasA", "AliasB"]);
-    expect(compStack.byName.CompA).toBe(CompA);
-    expect(compStack.byName.AliasA).toBe(CompA);
-    expect(compStack.byName.AliasB).toBe(CompA);
+    // Scope tables hold the metadata record; `.Class` is the component itself.
+    expect(compStack.byName.CompA.Class).toBe(CompA);
+    expect(compStack.byName.AliasA.Class).toBe(CompA);
+    expect(compStack.byName.AliasB.Class).toBe(CompA);
   });
 
   test("registerComponents binds scope to Class so direct Class.make resolves comp fields", () => {
@@ -151,8 +152,9 @@ describe("Components", () => {
     const a = Widget.make({ message: "from A" });
     const b = WidgetB.make({ message: "from B" });
     // reverse lookup resolves each instance to its own Component/scope
-    expect(comps.getCompFor(a)).toBe(Widget);
-    expect(comps.getCompFor(b)).toBe(WidgetB);
+    // (getCompFor yields the metadata record; `.Class` is the component).
+    expect(comps.getCompFor(a).Class).toBe(Widget);
+    expect(comps.getCompFor(b).Class).toBe(WidgetB);
     expect(comps.getCompFor(a).scope).toBe(Widget.scope);
     expect(comps.getCompFor(b).scope).toBe(WidgetB.scope);
 
@@ -161,7 +163,7 @@ describe("Components", () => {
       draft.message = "edited";
     });
     expect(a2).not.toBe(a);
-    expect(comps.getCompFor(a2)).toBe(Widget);
+    expect(comps.getCompFor(a2).Class).toBe(Widget);
   });
 
   test("fromData static using this.make resolves its own scope per spec instance", () => {
@@ -185,8 +187,8 @@ describe("Components", () => {
     const b = WidgetB.Class.fromData({ msg: "B" });
     expect(a.message).toBe("A");
     expect(b.message).toBe("B");
-    expect(comps.getCompFor(a)).toBe(Widget);
-    expect(comps.getCompFor(b)).toBe(WidgetB);
+    expect(comps.getCompFor(a).Class).toBe(Widget);
+    expect(comps.getCompFor(b).Class).toBe(WidgetB);
   });
 
   test("registerComponents alias overriding existing component triggers console.assert", () => {

@@ -1,5 +1,5 @@
 import { App } from "../app.js";
-import { Components } from "../components.js";
+import { COMPONENT, Components } from "../components.js";
 import { dispatchPhase } from "../on.js";
 import { Path } from "../path.js";
 import { Renderer } from "../renderer.js";
@@ -7,7 +7,9 @@ import { rootDispatcher } from "../transactor.js";
 
 function reindexComponents(comps) {
   for (let i = 0; i < comps.length; i++) {
-    comps[i].id = i;
+    // Accept either the component Class or a raw metadata record.
+    const comp = comps[i]?.[COMPONENT] ?? comps[i];
+    if (comp) comp.id = i;
   }
 }
 
