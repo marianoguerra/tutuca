@@ -317,7 +317,7 @@ export const SnakeGame = component({
       <span class="text-sm opacity-60" @text="$tickLabel"></span>
     </div>
 
-    <div class="snake-board" tabindex="0" @on.keydown="onKeyDown key">
+    <div class="snake-board" tabindex="0" @on.keydown="onKeyDown e.key">
       <svg
         :viewBox="$viewBox"
         style="width:100%;max-height:55vh"

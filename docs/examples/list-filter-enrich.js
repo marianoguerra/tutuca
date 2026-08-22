@@ -24,7 +24,7 @@ export const ListFilterEnrich = component({
     <input
       type="search"
       :value=".query"
-      @on.input="setQuery value"
+      @on.input="setQuery e.value"
       @on.keydown+cancel="resetQuery"
       class="input"
       placeholder="Filter entries"

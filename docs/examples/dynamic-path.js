@@ -27,7 +27,7 @@ const Sheet = component({
     <input
       class="input input-bordered"
       :value=".title"
-      @on.input="setTitle value"
+      @on.input="setTitle e.value"
       placeholder="Sheet title"
     />
   </div>`,

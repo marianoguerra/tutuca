@@ -478,11 +478,16 @@ the view changing.
 A bucket may declare a `$unknown` fallback handler; a named handler wins over
 it, and a missing handler with no `$unknown` is a silent no-op.
 
-DOM event handlers receive named built-in arguments resolved from the event
-(`src/transactor.js`, `lookupName`): `value` (input value / checkbox `checked` /
-CustomEvent `detail`), `valueAsInt`, `valueAsFloat`, `target`, `event`, `key`,
-`keyCode`, `isAlt`, `isShift`, `isCtrl`/`isCmd`, `isUpKey`, `isDownKey`,
-`isSend` (Enter), `isCancel` (Escape), `isTabKey`, `ctx`, `dragInfo`.
+DOM event handlers receive event-derived arguments resolved from the event
+(`src/transactor.js`, `lookupName`; `src/value.js`, `EventMemberVal`): the
+explicit `e.<member>` form reads any plain property off the event, and dotted
+paths (`e.target.dataset.id`, `e.detail.x`) walk it null-safe, with a lone
+`e.value` normalizing to input value / checkbox `checked` / CustomEvent
+`detail`. One-level computed conveniences (`e.valueAsInt`, `e.valueAsFloat`,
+`e.isCtrl`/`e.isCmd`, `e.isUpKey`, `e.isDownKey`, `e.isSend` (Enter),
+`e.isCancel` (Escape), `e.isTabKey`) resolve through a handler table
+(`EVENT_CONVENIENCES`); the bare spellings (`value`, `target`, `key`, …,
+`ctx`, `dragInfo`) remain for compatibility.
 Event modifiers come in two kinds. Guards decide whether the handler runs:
 `+ctrl`/`+cmd`/`+meta`/`+alt` on any event, `+send`/`+cancel` on `keydown`.
 Effects act on the DOM event: `+prevent` (`preventDefault`) and `+stop`

@@ -46,7 +46,7 @@ const SendReceive = component({
     <input
       class="input"
       :value=".draft"
-      @on.input="setDraft value"
+      @on.input="setDraft e.value"
       @on.keydown+send="submit"
       placeholder="Type a message and press Enter"
     />

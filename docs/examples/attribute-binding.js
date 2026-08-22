@@ -16,9 +16,9 @@ export const AttributeBinding = component({
     },
   },
   view: html`<section class="flex flex-col gap-3">
-    <input :value=".str" @on.input="setStr value" :title="$'Content is {.str}'" class="input" />
-    <input :value=".num" type="number" @on.input="setRawNumber value" class="input" />
-    <input :checked=".bool" type="checkbox" @on.input="setBool value" class="checkbox" />
+    <input :value=".str" @on.input="setStr e.value" :title="$'Content is {.str}'" class="input" />
+    <input :value=".num" type="number" @on.input="setRawNumber e.value" class="input" />
+    <input :checked=".bool" type="checkbox" @on.input="setBool e.value" class="checkbox" />
 
     <p>String: <span @text=".str"></span></p>
     <p>Number: <span @text=".num"></span></p>

@@ -15,8 +15,8 @@ const Item = component({
     text: "do the thing",
   },
   view: html`<div class="flex gap-3 items-center">
-    <input type="checkbox" class="checkbox" :checked=".completed" @on.input="setCompleted value" />
-    <input class="input" :value=".text" @on.input="setText value" :disabled=".completed" />
+    <input type="checkbox" class="checkbox" :checked=".completed" @on.input="setCompleted e.value" />
+    <input class="input" :value=".text" @on.input="setText e.value" :disabled=".completed" />
   </div>`,
 });
 

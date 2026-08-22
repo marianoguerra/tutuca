@@ -58,7 +58,7 @@ const checkbox = macro(
     type="checkbox"
     class="checkbox"
     :checked="^value"
-    @on.input="^handler value"
+    @on.input="^handler e.value"
   />`,
 );
 
@@ -67,7 +67,7 @@ const input = macro(
   html`<input
     class="input"
     :value="^value"
-    @on.input="^handler value"
+    @on.input="^handler e.value"
     :disabled="^disabled"
   />`,
 );

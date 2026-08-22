@@ -37,7 +37,7 @@ function type(name, label) {
       editor: html`<select
         class="select select-ghost px-0 font-italic text-amber-400"
         value="${label}"
-        @on.input="setType value"
+        @on.input="setType e.value"
       >
         <option value="i32">i32</option>
         <option value="i64">i64</option>
@@ -63,7 +63,7 @@ function instrImmInt(name, label, parse) {
         class="input px-1 py-0 m-0 h-auto input-ghost font-mono text-blue-400"
         :value=".value"
         :style="$'width: {$getInputWidth}; outline: none'"
-        @on.input="setFromRawValue value"
+        @on.input="setFromRawValue e.value"
       />
     </div>`,
 
@@ -528,7 +528,7 @@ const Memory = component({
         class="px-1 py-0 m-0 h-auto w-auto font-mono text-blue-400"
         type="number"
         :value=".n"
-        @on.input="setNFromString value"
+        @on.input="setNFromString e.value"
       />
     </label>
     <label class="input input-ghost outline-0 items-baseline h-auto"
@@ -537,7 +537,7 @@ const Memory = component({
         class="px-1 py-0 m-0 h-auto w-auto font-mono text-blue-400"
         type="number"
         :value=".m"
-        @on.input="setMFromString value"
+        @on.input="setMFromString e.value"
       />
     </label>
   </div>`,
@@ -775,7 +775,7 @@ const InstructionPicker = component({
       class="input w-full outline-0"
       placeholder="Filter instructions"
       :value=".filter"
-      @on.input="setFilter value"
+      @on.input="setFilter e.value"
     />
     <div class="flex gap-3 text-xs justify-between">
       <label class="flex gap-2">
@@ -849,7 +849,7 @@ const InstructionPicker = component({
         @loop-with="loopWith"
         @when="when"
         :data-value="@value"
-        @on.click="selectInstructionById target"
+        @on.click="selectInstructionById e.target"
       >
         <x text="@value"></x>
       </button>

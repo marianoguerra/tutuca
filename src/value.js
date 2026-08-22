@@ -1,5 +1,6 @@
 import { isPlainObject, seqGet } from "./collection.js";
 import { FieldStep, SeqAccessStep } from "./path.js";
+import { isMac } from "./util/env.js";
 
 // An identifier: a letter then letters/digits/underscores, with an optional
 // trailing `?`. The `?` lets predicate names (`empty?`, `equals?`) parse as
@@ -36,6 +37,7 @@ const K_NAME = 32;
 const K_TYPE = 64;
 const K_SEQ = 256;
 const K_METHOD = 1024; // `$name` no-arg method call
+const K_EVENT = 2048; // `e.member` explicit event-member read (handler args only)
 
 // Value groups, one per parsing context. Kept private: callers use the named
 // `parseX` functions below so they never have to know about the bitmasks.
@@ -52,6 +54,11 @@ const G_SEQUENCE = K_FIELD | K_DYN;
 const G_PROVIDE = K_FIELD | K_SEQ;
 const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_SEQ;
 const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_CONST;
+// Handler-argument slots (`@on.<event>` args): G_VALUE plus the explicit
+// event-member read. `K_EVENT` is deliberately absent from every other group —
+// an `e.member` has no meaning outside a live DOM-event dispatch, so it must
+// not reach text/bool/path/macro-attr slots.
+const G_HANDLER_ARG = G_VALUE | K_EVENT;
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
 
 // Boolean predicates usable in conditional slots, e.g. `@show="empty? .items"`.
@@ -65,6 +72,17 @@ function sizeOf(v) {
   if (typeof l === "number") return l;
   return isPlainObject(v) ? Object.keys(v).length : null;
 }
+const toNullIfNaN = (v) => (Number.isNaN(v) ? null : v);
+// Normalized `.value` read off a DOM event: checkbox -> checked, CustomEvent ->
+// detail, anything else -> target.value. Shared by the implicit `value` name
+// (transactor lookupName) and the explicit `e.value` member read.
+export function getValue(e) {
+  return e.target.type === "checkbox"
+    ? e.target.checked
+    : ((e instanceof CustomEvent ? e.detail : e.target.value) ?? null);
+}
+export { toNullIfNaN };
+
 const predTruthy = (v) => {
   const n = sizeOf(v);
   return n === null ? !!v : n > 0;
@@ -137,6 +155,16 @@ export function parseToken(s, px) {
   const num = VALID_FLOAT_RE.test(s) ? parseFloat(s) : null;
   if (Number.isFinite(num)) return new ConstVal(num);
   if (s === "true" || s === "false") return new ConstVal(s === "true");
+  // `e.member`: an explicit one-level read on the dispatched DOM event
+  // (`e.value`, `e.key`, …), or a dotted path into it (`e.target.dataset.id`,
+  // `e.detail.x`). No bare `e`. Kind-filtered by G_HANDLER_ARG, so an `e.…`
+  // outside a handler-arg slot still fails to parse. Safety shaping of which
+  // paths make sense (a static allowlist, data-only leaves) is a lint concern
+  // deferred for later; the runtime stays a permissive null-safe walk.
+  if (c0 === 101 /* e */) {
+    const m = /^e(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.exec(s);
+    if (m !== null) return new EventMemberVal(s.split(".").slice(1));
+  }
   if (c0 >= 97 /* a */ && c0 <= 122 /* z */) return mkVal(s, NameVal);
   if (c0 >= 65 /* A */ && c0 <= 90 /* Z */) return mkVal(s, TypeVal);
   return null;
@@ -195,7 +223,7 @@ export function parseProvide(s, px) {
 }
 // A single argument passed to an event handler.
 export function parseHandlerArg(s, px) {
-  return _parseSingle(s, px, G_VALUE);
+  return _parseSingle(s, px, G_HANDLER_ARG);
 }
 // Pass-through values on a macro-call element (:attr on a macro).
 export function parseMacroAttr(s, px) {
@@ -241,7 +269,7 @@ function _parseHandler(s, px, namespace, allowArgs, report, allowMethod) {
   const args = new Array(tokens.length - 1);
   for (let i = 1; i < tokens.length; i++) {
     const val = parseToken(tokens[i], px);
-    if (val !== null && kindOf(val) & G_VALUE) args[i - 1] = val;
+    if (val !== null && kindOf(val) & G_HANDLER_ARG) args[i - 1] = val;
     else {
       if (report) px.onParseIssue("bad-value", { role: "handler-arg", value: tokens[i] });
       args[i - 1] = NULL_CONST_VAL;
@@ -289,6 +317,7 @@ function kindOf(val) {
   if (val instanceof DynVal) return K_DYN;
   if (val instanceof TypeVal) return K_TYPE;
   if (val instanceof NameVal) return K_NAME;
+  if (val instanceof EventMemberVal) return K_EVENT;
   return 0;
 }
 class BaseVal {
@@ -432,6 +461,57 @@ const mk404Handler = (type, name) =>
 export class TypeVal extends NameVal {
   eval(stack) {
     return stack.lookupType(this.name);
+  }
+}
+// Conveniences with no direct property spelling, derived from the implicit
+// name switch that used to live in `InputEvent.lookupName`. Resolved only when
+// the whole path is one level (`e.isCtrl`, `e.valueAsInt`) — nothing composes
+// through this table. `event`, `ctx` and `dragInfo` are deliberately absent:
+// they aren't properties of the DOM event, and stay reachable only as bare
+// implicit names.
+const keyIs = (k) => (e) => e.key === k;
+const macCtrl = (e) => (isMac && e.metaKey) || e.ctrlKey;
+export const EVENT_CONVENIENCES = {
+  value: (e) => getValue(e),
+  valueAsInt: (e) => toNullIfNaN(parseInt(getValue(e), 10)),
+  valueAsFloat: (e) => toNullIfNaN(parseFloat(getValue(e))),
+  isAlt: (e) => e.altKey,
+  isShift: (e) => e.shiftKey,
+  isCtrl: macCtrl,
+  isCmd: macCtrl,
+  isUpKey: keyIs("ArrowUp"),
+  isDownKey: keyIs("ArrowDown"),
+  isSend: keyIs("Enter"),
+  isCancel: keyIs("Escape"),
+  isTabKey: keyIs("Tab"),
+};
+// `e.member` / `e.a.b…`: an explicit read on the dispatched DOM event in a
+// handler-arg slot (`@on.input="save e.value"`, `@on.click="pick e.target.dataset.slot"`).
+// Never a bare `e` — the raw event object stays unreachable; pick members.
+// One-level conveniences (see EVENT_CONVENIENCES) come first; every other path
+// is a plain null-safe walk — a missing link or absent member evaluates to
+// null. Outside an event transaction there is no event to read, so every path
+// evaluates to null.
+export class EventMemberVal extends BaseVal {
+  constructor(members) {
+    super();
+    this.members = members;
+  }
+  eval(stack) {
+    let v = stack.lookupName("event");
+    if (v == null) return null;
+    if (this.members.length === 1) {
+      const convenience = EVENT_CONVENIENCES[this.members[0]];
+      if (convenience !== undefined) return convenience(v);
+    }
+    for (const member of this.members) {
+      if (v == null) return null;
+      v = v[member];
+    }
+    return v ?? null;
+  }
+  toString() {
+    return `e.${this.members.join(".")}`;
   }
 }
 class RenderVal extends BaseVal {

@@ -41,7 +41,7 @@ export const JsonString = component({
     :data-test-id=".uid"
     class="input input-sm input-ghost text-green-500 font-mono"
     :value=".value"
-    @on.input="setValue value"
+    @on.input="setValue e.value"
   />`,
 });
 
@@ -65,7 +65,7 @@ export const JsonNumber = component({
     class="input input-sm input-ghost text-primary font-mono"
     :title=".value"
     :value=".strValue"
-    @on.input="setRawValue value"
+    @on.input="setRawValue e.value"
   />`,
 });
 
@@ -158,7 +158,7 @@ export const JsonObjectKeyVal = component({
     <input
       class="input input-sm input-ghost text-green-500 font-mono"
       :value=".key"
-      @on.input="setKey value"
+      @on.input="setKey e.value"
     />
     <span class="text-xs font-mono text-gray-500">:</span>
     <x render=".value"></x>

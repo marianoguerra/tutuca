@@ -12,8 +12,8 @@ const SelectorEntry = component({
   name: "SelectorEntry",
   fields: { value: "entry-value", label: "Entry Label" },
   view: html`<div class="flex gap-3">
-    <input class="input" :value=".value" @on.input="setValue value" />
-    <input class="input" :value=".label" @on.input="setLabel value" />
+    <input class="input" :value=".value" @on.input="setValue e.value" />
+    <input class="input" :value=".label" @on.input="setLabel e.value" />
   </div>`,
 });
 
@@ -28,7 +28,7 @@ const Selector = component({
   lookup: {
     entries: { for: "EntryEditorAndSelector.entries", default: ".items" },
   },
-  view: html`<select class="select" :value=".selectedValue" @on.input="setSelectedValue value">
+  view: html`<select class="select" :value=".selectedValue" @on.input="setSelectedValue e.value">
     <option @each="*entries" :value="@value.value" @text="@value.label"></option>
   </select>`,
 });

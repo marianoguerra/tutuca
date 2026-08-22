@@ -206,7 +206,7 @@ export const Root = component({
             @each=".allCategories"
             @enrich-with="enrichCategoryBindings"
             :class="@btnClass"
-            @on.click="onCategoryToggle @key isAlt"
+            @on.click="onCategoryToggle @key e.altKey"
             @text="@value"
           ></button>
         </div>
@@ -217,7 +217,7 @@ export const Root = component({
             @each=".allRoles"
             @enrich-with="enrichRoleBindings"
             :class="@btnClass"
-            @on.click="onRoleToggle @key isAlt"
+            @on.click="onRoleToggle @key e.altKey"
             @text="@value"
           ></button>
         </div>

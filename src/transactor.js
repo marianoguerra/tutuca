@@ -3,6 +3,7 @@ import { validateDraftFields } from "./oo.js";
 import { Path, PathBuilder } from "./path.js";
 import { Stack } from "./stack.js";
 import { isMac } from "./util/env.js";
+import { getValue, toNullIfNaN } from "./value.js";
 
 class State {
   constructor(val) {
@@ -244,12 +245,6 @@ class Transaction {
   lookupName(_name) {
     return null;
   }
-}
-const toNullIfNaN = (v) => (Number.isNaN(v) ? null : v);
-export function getValue(e) {
-  return e.target.type === "checkbox"
-    ? e.target.checked
-    : ((e instanceof CustomEvent ? e.detail : e.target.value) ?? null);
 }
 class InputEvent extends Transaction {
   constructor(path, e, handler, transactor, dragInfo) {

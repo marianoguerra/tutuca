@@ -14,7 +14,7 @@ const EmojiPicker = component({
     },
   },
   view: html`<section
-    @on.emoji-click="onEmojiClick value"
+    @on.emoji-click="onEmojiClick e.value"
     class="join join-vertical gap-3 items-center"
   >
     <p @hide="truthy? .current">

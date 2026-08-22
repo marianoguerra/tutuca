@@ -6,7 +6,7 @@
 ```js
 component({
   view:  html`<p @text=".title"></p>`,                  // "main"
-  views: { edit: html`<input :value=".title" @on.input="setTitle value" />` },
+  views: { edit: html`<input :value=".title" @on.input="setTitle e.value" />` },
 });
 ```
 

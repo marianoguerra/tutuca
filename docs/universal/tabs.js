@@ -82,7 +82,7 @@ const Tabs = component({
           <input
             class="input input-sm"
             :value="@label"
-            @on.input="onTabLabelChange @key value"
+            @on.input="onTabLabelChange @key e.value"
             @on.keydown+send="onTabLabelEditEnd @key"
           />
           <button

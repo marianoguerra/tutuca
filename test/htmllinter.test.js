@@ -648,7 +648,7 @@ const LLM_DOC_FIXTURES = [
   // core.txt — emoji-picker custom element with hyphenated CustomEvent
   {
     label: "skill/core.md: web component custom event",
-    html: `<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
+    html: `<emoji-picker @on.emoji-click="onPick e.value"></emoji-picker>`,
   },
   // core.txt — single-quoted string literals in @then/@else
   {
@@ -728,7 +728,7 @@ const LLM_DOC_FIXTURES = [
   // core.txt — keydown modifiers (+send / +cancel)
   {
     label: "skill/core.md: @on.keydown+send / +cancel modifiers",
-    html: `<input @on.keydown+send="submit value" @on.keydown+cancel="reset" />`,
+    html: `<input @on.keydown+send="submit e.value" @on.keydown+cancel="reset" />`,
   },
   // advanced.txt — pseudo-x inside a <select>
   {

@@ -493,6 +493,9 @@ function checkEventModifiers(lx, view) {
   }
 }
 
+// Bare implicit event names with a direct single-member `e.` spelling were
+// rewritten to the explicit form by a temporary migration lint (since removed
+// along with the rewrite); `KNOWN_HANDLER_NAMES` keeps them resolvable.
 const KNOWN_HANDLER_NAMES = new Set([
   "value",
   "valueAsInt",

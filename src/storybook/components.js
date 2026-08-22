@@ -207,7 +207,7 @@ export const Storybook = component({
             type="search"
             placeholder="Filter sections"
             :value=".filter"
-            @on.input="onApplyFilter value"
+            @on.input="onApplyFilter e.value"
             @on.keydown.cancel="onClearFilter"
           />
           <select
@@ -215,7 +215,7 @@ export const Storybook = component({
             title="Theme"
             @hide="empty? .themes"
             :value=".theme"
-            @on.input="onSelectTheme value"
+            @on.input="onSelectTheme e.value"
           >
             <option @each=".themes" :value="@value" @text="@value"></option>
           </select>
@@ -304,7 +304,7 @@ export const Section = component({
       type="search"
       placeholder="Filter examples"
       :value=".filter"
-      @on.input="onApplyFilter value"
+      @on.input="onApplyFilter e.value"
       @on.keydown.cancel="onClearFilter"
     />
     <div class="flex flex-col gap-3">

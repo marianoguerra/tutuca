@@ -23,8 +23,8 @@ export const EventModifiers = component({
       type="search"
       class="input"
       :value=".query"
-      @on.input="onInput value"
-      @on.keydown+send="setLastSentSearch value"
+      @on.input="onInput e.value"
+      @on.keydown+send="setLastSentSearch e.value"
       @on.keydown+cancel="resetQuery"
       placeholder="Search Query (Enter to send, Esc to clear)"
     />

@@ -27,8 +27,8 @@ const Profile = component({
       <span @text=".name"></span> · <span class="opacity-60" @text=".role"></span>
     </span>`,
     edit: html`<div class="flex flex-col gap-2 max-w-xs">
-      <input class="input" :value=".name" @on.input="setName value" />
-      <input class="input" :value=".role" @on.input="setRole value" />
+      <input class="input" :value=".name" @on.input="setName e.value" />
+      <input class="input" :value=".role" @on.input="setRole e.value" />
     </div>`,
   },
   view: html`<div class="card bg-base-100 shadow-sm max-w-xs">

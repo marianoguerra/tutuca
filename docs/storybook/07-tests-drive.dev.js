@@ -53,7 +53,7 @@ const DriveDemo = component({
     <input
       class="input input-sm"
       :value=".filter"
-      @on.input="typeFilter value"
+      @on.input="typeFilter e.value"
       placeholder="filter rows"
     />
     <ul class="menu bg-base-200 rounded w-full">

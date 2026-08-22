@@ -113,7 +113,7 @@ const ComponentSelector = component({
         class="input input-m"
         placeholder="Filter entries"
         :value=".filterText"
-        @on.input="setFilterText value"
+        @on.input="setFilterText e.value"
       />
     </div>
     <div class="list" @hide="empty? *components">

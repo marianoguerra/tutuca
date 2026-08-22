@@ -87,7 +87,9 @@ test("x render with show wraps in ShowNode", () => {
 });
 
 test("x render-each with show wraps in ShowNode and keeps when/loop-with", () => {
-  const [r] = parse(`<x render-each=".items" @when="$whenH" @loop-with="$lwith" @show=".isOpen"></x>`);
+  const [r] = parse(
+    `<x render-each=".items" @when="$whenH" @loop-with="$lwith" @show=".isOpen"></x>`,
+  );
   expect(r).toBeInstanceOf(ShowNode);
   // render-each is sugar for @each + <x render-it>: an EachNode wrapping a RenderItNode.
   expect(r.node).toBeInstanceOf(EachNode);
@@ -120,7 +122,7 @@ test("parse text directive: parse error is no child text node", () => {
 test("expand simple macro", () => {
   const m = macro(
     { value: ".text", onInput: "setText" },
-    html`<input :value="^value" @on.input="^onInput value" />`,
+    html`<input :value="^value" @on.input="^onInput e.value" />`,
   );
   {
     const px = mpx();
@@ -148,7 +150,7 @@ class ScopeForMacros {
 test("expand nested macro", () => {
   const inputMacro = macro(
     { value: ".text", oninput: "setText" },
-    html`<input :value="^value" @on.input="^oninput value" />`,
+    html`<input :value="^value" @on.input="^oninput e.value" />`,
   );
 
   const outerMacro = macro(

@@ -1585,12 +1585,7 @@ test("bare show/hide/when/loop-with on <x> ops raise UNKNOWN_X_ATTR", () => {
   });
   const unknown = lx.reports.filter((r) => r.id === UNKNOWN_X_ATTR);
   expect(unknown.length).toBe(4);
-  expect(unknown.map((u) => u.info.name).sort()).toEqual([
-    "hide",
-    "loop-with",
-    "show",
-    "when",
-  ]);
+  expect(unknown.map((u) => u.info.name).sort()).toEqual(["hide", "loop-with", "show", "when"]);
 });
 
 test("@loop-with on <x render-each> is the preferred spelling (no attr error, no nudge)", () => {
@@ -2010,6 +2005,22 @@ test("no SUGGEST_BINDING_MEMBER when the enrich handler derives data", () => {
     </ul>`,
   });
   expect(lx.reports.filter((r) => r.id === SUGGEST_BINDING_MEMBER).length).toBe(0);
+});
+
+// An explicit e.<member> arg must never raise a handler-arg lint: the value
+// parser owns its shape, and there is no name to resolve against a vocabulary.
+test("an explicit e.<member> arg raises no handler-arg lint", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    receive: {
+      setStr(draft, v) {
+        draft.str = v;
+      },
+    },
+    view: html`<input @on.input="setStr e.value" />`,
+  });
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).not.toContain(UNKNOWN_HANDLER_ARG_NAME);
 });
 
 test("UNSUPPORTED_EXPR_SYNTAX on ternary in :class", () => {

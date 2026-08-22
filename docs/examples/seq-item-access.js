@@ -20,7 +20,7 @@ export const SeqItemAccess = component({
       @on.input="setCurrentIndex valueAsInt"
     />
     <x render=".byIndex[.currentIndex]"></x>
-    <select class="select" :value=".currentKey" @on.input="setCurrentKey value">
+    <select class="select" :value=".currentKey" @on.input="setCurrentKey e.value">
       <option @each=".byKey" :value="@key" @text="@value.title"></option>
     </select>
     <x render=".byKey[.currentKey]"></x>

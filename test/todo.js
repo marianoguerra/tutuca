@@ -48,12 +48,12 @@ const Items = component({
 
 const checkbox = macro(
   { value: ".value", handler: "setValue" },
-  html`<input type="checkbox" class="checkbox" :checked="^value" @on.input="^handler value" />`,
+  html`<input type="checkbox" class="checkbox" :checked="^value" @on.input="^handler e.value" />`,
 );
 
 const input = macro(
   { value: ".value", handler: "setValue", disabled: "false" },
-  html`<input class="input" :value="^value" @on.input="^handler value" :disabled="^disabled" />`,
+  html`<input class="input" :value="^value" @on.input="^handler e.value" :disabled="^disabled" />`,
 );
 
 const btnRm = macro(

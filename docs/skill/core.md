@@ -499,7 +499,7 @@ other inline content, or a loop binding). Both take the same value forms
 ## Attribute Binding
 
 ```html
-<input :value=".str" @on.input="setStr value" />
+<input :value=".str" @on.input="setStr e.value" />
 <a :href=".url" :title="$'Hi {.name}'">link</a>       <!-- string template -->
 <button :class="$'btn {.color}'">x</button>
 ```
@@ -567,27 +567,35 @@ several of these. The usual suspects:
 <button @on.click="dec">-</button>
 
 <!-- pass args by name -->
-<input @on.input="setStr value" />
+<input @on.input="setStr e.value" />
 <input @on.input="setN valueAsInt" />
-<button @on.click="pick @key isAlt">pick</button>
+<button @on.click="pick @key e.altKey">pick</button>
 <button @on.click="addItem JsonSelector">+</button>     <!-- type as arg -->
 <button @on.click="loadAnotherWay">load</button>        <!-- ctx auto-appended -->
 ```
 
 Every `@on.<event>` handler receives an `EventContext` as its trailing
 arg automatically — written args come first, `ctx` last. So
-`loadAnotherWay` is called as `loadAnotherWay(draft, ctx)`, and `pick @key isAlt`
-is called as `pick(draft, key, isAlt, ctx)`. You can still write `ctx` in the
-template (it resolves to a fresh `EventContext`), but it is redundant.
+`loadAnotherWay` is called as `loadAnotherWay(draft, ctx)`, and
+`pick @key e.altKey` is called as `pick(draft, key, isAlt, ctx)`. You can still
+write `ctx` in the template (it resolves to a fresh `EventContext`), but it is
+redundant.
 
-Built-in handler argument names: `value`, `valueAsInt`, `valueAsFloat`,
-`target`, `event`, `isAlt`, `isShift`, `isCtrl`/`isCmd`, `key`, `keyCode`,
-`isUpKey`, `isDownKey`, `isSend`, `isCancel`, `isTabKey`, `ctx`,
-`dragInfo`.
+Handler argument forms:
 
-The content of `value` depends on the event source:
+- **Event-member reads** — `e.value`, `e.key`, `e.altKey`, `e.target`, plus
+  dotted paths into the event: `e.target.dataset.slot`, `e.target.id`,
+  `e.detail.x`. Null-safe at every link; a missing member reads as null.
+- **Computed conveniences** with no single-property form — `e.valueAsInt`,
+  `e.valueAsFloat`, `e.isCtrl`/`e.isCmd` (mac-aware), `e.isUpKey`, `e.isDownKey`,
+  `e.isSend`, `e.isCancel`, `e.isTabKey`. Resolved only as a one-level path;
+  nothing composes through them (`e.target.isUpKey` is null). The bare
+  spellings (`valueAsInt`, `isCtrl`, …) still resolve for compatibility.
+- **Channel args** — `ctx` (the `EventContext`) and `dragInfo`.
 
-| Source                      | What `value` resolves to                         |
+The content of `e.value` depends on the event source:
+
+| Source                      | What `e.value` resolves to                       |
 |-----------------------------|--------------------------------------------------|
 | `<input type="checkbox">`   | `event.target.checked` (boolean)                 |
 | `CustomEvent`               | `event.detail`                                   |
@@ -596,8 +604,8 @@ The content of `value` depends on the event source:
 For numeric inputs, prefer `valueAsInt` / `valueAsFloat` to skip the
 string parse.
 
-Ask for the most granular arg the handler actually uses — `value` /
-`valueAsInt` / `key`, not the raw `event` — when the specific value is
+Ask for the most granular arg the handler actually uses — `e.value` /
+`valueAsInt` / `e.key`, not the raw event object — when the specific value is
 all you need. A handler that takes `event` forces every test and
 storybook story to fabricate a DOM-event-shaped object
 (`{ target: { value: … } }`); one that takes `value` is called with a
@@ -620,10 +628,10 @@ Effects — act on the DOM event, on all events:
 - `+stop` → `event.stopPropagation()`
 
 ```html
-<input @on.keydown+send="submit value" @on.keydown+cancel="reset" />
+<input @on.keydown+send="submit e.value" @on.keydown+cancel="reset" />
 <button @on.click+ctrl="soloOnly">ctrl-click</button>
 <form @on.submit+prevent="save">…</form>
-<input @on.keydown+send+prevent="submit value" />
+<input @on.keydown+send+prevent="submit e.value" />
 ```
 
 Effects apply only when every guard on the same handler passed, whatever
@@ -644,7 +652,7 @@ via `@on.<event-name>`. The event's `detail` surfaces as `value`:
 import "https://cdn.jsdelivr.net/npm/emoji-picker-element/+esm";
 
 receive: { onPick(draft, detail) { draft.current = detail.unicode; } }
-view: html`<emoji-picker @on.emoji-click="onPick value"></emoji-picker>`,
+view: html`<emoji-picker @on.emoji-click="onPick e.value"></emoji-picker>`,
 ```
 
 Handle these events declaratively with `@on.<event-name>` in the view —
@@ -739,7 +747,7 @@ selector is evaluated once against the host, so every item gets the same view.
 ```js
 component({
   view:  html`<p @text=".title"></p>`,                              // "main"
-  views: { edit: html`<input :value=".title" @on.input="setTitle value" />` },
+  views: { edit: html`<input :value=".title" @on.input="setTitle e.value" />` },
 });
 ```
 

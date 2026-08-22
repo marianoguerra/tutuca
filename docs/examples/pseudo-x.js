@@ -41,7 +41,7 @@ const ItemSelect = component({
   },
   name: "ItemSelect",
   fields: { options: [], current: "" },
-  view: html`<select class="select" :value=".current" @on.input="setCurrent value">
+  view: html`<select class="select" :value=".current" @on.input="setCurrent e.value">
     <option @x render-each=".options"></option>
   </select>`,
 });

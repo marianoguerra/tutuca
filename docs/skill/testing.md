@@ -245,7 +245,7 @@ receive: { setName(draft, event) { draft.name = event.target.value; } }
 **Good — receive handler taking the value:**
 
 ```html
-<input @on.input="setName value" />
+<input @on.input="setName e.value" />
 ```
 ```js
 receive: { setName(draft, value) { draft.name = value; } }

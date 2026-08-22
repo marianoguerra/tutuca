@@ -48,13 +48,13 @@ const Person = component({
     <input
       class="input input-sm grow"
       :value=".name"
-      @on.input="setName value"
+      @on.input="setName e.value"
       placeholder="name"
     />
     <input
       class="input input-sm grow"
       :value=".email"
-      @on.input="setEmail value"
+      @on.input="setEmail e.value"
       placeholder="email"
     />
     <label class="label cursor-pointer gap-1">
@@ -62,7 +62,7 @@ const Person = component({
         type="checkbox"
         class="checkbox checkbox-sm"
         :checked=".active"
-        @on.input="setActive value"
+        @on.input="setActive e.value"
       />
       active
     </label>
@@ -151,7 +151,7 @@ const NaivePeople = component({
       type="search"
       class="input"
       :value=".query"
-      @on.input="search value"
+      @on.input="search e.value"
       placeholder="Filter by name or email"
     />
     <ul class="flex flex-col gap-2">
@@ -215,7 +215,7 @@ const SharedPeople = component({
       type="search"
       class="input"
       :value=".query"
-      @on.input="search value"
+      @on.input="search e.value"
       placeholder="Filter by name or email"
     />
     <ul class="flex flex-col gap-2">
@@ -275,7 +275,7 @@ const CoupledPeople = component({
       type="search"
       class="input"
       :value=".query"
-      @on.input="search value"
+      @on.input="search e.value"
       placeholder="Filter by name or email"
     />
     <ul class="flex flex-col gap-2">

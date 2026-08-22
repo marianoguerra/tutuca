@@ -29,7 +29,7 @@ const Entry = component({
     edit: html`<input
       class="input input-bordered w-full"
       :value=".name"
-      @on.input="setName value"
+      @on.input="setName e.value"
       placeholder="Entry name"
     />`,
   },
