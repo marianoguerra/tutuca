@@ -75,7 +75,7 @@ export const JsonSelector = component({
   },
   view: html`<div class="join gap-3 font-mono">
     <button class="btn btn-sm btn-soft btn-warning" @on.click="setTo JsonNull">null</button>
-    <button class="btn btn-sm btn-soft btn-success" @on.click="setToBool JsonBool isCtrl">
+    <button class="btn btn-sm btn-soft btn-success" @on.click="setToBool JsonBool e.isCtrl">
       bool
     </button>
     <button class="btn btn-sm btn-soft btn-primary" @on.click="setTo JsonNumber">0</button>

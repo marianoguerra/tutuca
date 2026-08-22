@@ -41,7 +41,7 @@ const sectionView = makeCompositeView({
   borderClass: "border-base-content/15",
   // Plain click toggles this section; ctrl/cmd-click bubbles up so the
   // inspector can toggle every section at once.
-  toggleHandler: "toggle isCtrl",
+  toggleHandler: "toggle e.isCtrl",
 });
 
 // A single name entry — used for methods, handlers (receive/intent/
@@ -94,7 +94,7 @@ export const CompView = component({
     <button
       type="button"
       class="cursor-pointer text-base-content/70 hover:text-base-content inline-flex items-center gap-1 self-start"
-      @on.click="toggle isCtrl"
+      @on.click="toggle e.isCtrl"
     >
       <span @text="$arrowText"></span>
       <span class="font-mono text-sm" @text=".name"></span>

@@ -43,7 +43,7 @@ const suiteView = makeCompositeView({
   borderClass: "border-base-content/15",
   // Plain click toggles this suite; ctrl/cmd-click bubbles up to TestReport so
   // it can expand/collapse every suite at once (like the component inspector).
-  toggleHandler: "toggle isCtrl",
+  toggleHandler: "toggle e.isCtrl",
 });
 
 // One test: a status mark (✓/✗/○, or • when this is a definition with no run
