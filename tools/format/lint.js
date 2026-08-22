@@ -86,8 +86,6 @@ export function lintIdToMessage(id, info) {
       const written = `@on.${info.name}+${mods.join("+")}`;
       return `Unknown modifier '+${info.modifier}' in '${written}'`;
     }
-    case "UNKNOWN_HANDLER_ARG_NAME":
-      return `Unknown handler argument '${info.name}'${fmtOriginSuffix(info)}`;
     case "HANDLER_NAME_COLLISION":
       return `${info.problem} — ${info.fix}`;
     case "RECEIVE_HANDLER_NOT_IMPLEMENTED":

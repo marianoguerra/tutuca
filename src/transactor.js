@@ -2,8 +2,6 @@ import { produce } from "./immer.js";
 import { validateDraftFields } from "./oo.js";
 import { Path, PathBuilder } from "./path.js";
 import { Stack } from "./stack.js";
-import { isMac } from "./util/env.js";
-import { getValue, toNullIfNaN } from "./value.js";
 
 class State {
   constructor(val) {
@@ -32,6 +30,13 @@ export class Transactor {
     // (see `_emitTransaction`). Multi-subscriber, generic; a dev tool subscribes
     // via `observe()` to trace dispatch activity. Empty by default: zero overhead.
     this._observers = [];
+    // The refusal channel: structured records for dispatch failures that used
+    // to be console.warn-and-continue (a handler name with no implementation,
+    // a forward from a handler with no name). Capped ring + observer list, the
+    // same shape as the observation channel above. Dev tools subscribe via
+    // `observeRefusals()`; every refusal also warns to the console.
+    this.refusals = [];
+    this._refusalObservers = [];
     // In-flight request promises, so the global `settle()` drain can await async
     // requests. (Per-dispatch completion is tracked separately via `Completion`; this
     // set is the thing `settle()` actually awaits to make progress on pending requests.)
@@ -57,6 +62,29 @@ export class Transactor {
   }
   _emit(record) {
     for (const cb of this._observers) cb(record);
+  }
+  // Record a refusal: a dispatch the runtime could not carry out. Kinds are
+  // open strings; today the runtime raises NO_HANDLER (a receive name with no
+  // implementation, including the auto-generated fallback firing at dispatch
+  // time) and FORWARD_NO_NAME (ctx.forward() from a handler whose view wrote
+  // no name). Records carry { kind, info, timestamp } and are observational —
+  // the dispatch itself has already failed gracefully.
+  refuse(kind, info = {}) {
+    const record = { kind, info, timestamp: Date.now() };
+    this.refusals.push(record);
+    if (this.refusals.length > REFUSAL_RING_CAP) this.refusals.shift();
+    console.warn(`tutuca refusal [${kind}]`, info);
+    for (const cb of this._refusalObservers) cb(record);
+    return record;
+  }
+  // Subscribe to refusal records as they happen. Returns an unsubscribe fn,
+  // like observe().
+  observeRefusals(cb) {
+    this._refusalObservers.push(cb);
+    return () => {
+      const i = this._refusalObservers.indexOf(cb);
+      if (i !== -1) this._refusalObservers.splice(i, 1);
+    };
   }
   // Build and dispatch the observer record for a settled transaction. The
   // resolved handler (`_resolvedHandler`/`_matched`) and per-leaf before/after
@@ -242,9 +270,6 @@ class Transaction {
     this._completion?.markSelfSettled({ value: newLeaf, old: curLeaf });
     return curLeaf !== newLeaf ? txnPath.setValue(curRoot, newLeaf) : curRoot;
   }
-  lookupName(_name) {
-    return null;
-  }
 }
 class InputEvent extends Transaction {
   constructor(path, e, handler, transactor, dragInfo) {
@@ -288,8 +313,10 @@ class InputEvent extends Transaction {
     // name is the one the view wrote, on the handler call it wraps.
     const hv = this.handler?.handlerCall?.handlerVal ?? this.handler?.handlerVal;
     const name = hv?.name;
-    if (name === undefined)
-      return console.warn("ctx.forward() from a handler with no name - ignored");
+    if (name === undefined) {
+      this.transactor.refuse("FORWARD_NO_NAME", {});
+      return;
+    }
     this.transactor.pushIntent(this.dispatchPath, name, args, rest, this);
   }
   buildRootStack(root, comps) {
@@ -303,46 +330,11 @@ class InputEvent extends Transaction {
     args.push(new EventContext(path, this.transactor, this));
     return [handler, args];
   }
-  lookupName(name) {
-    const { e } = this; // update lint if more cases are added
-    switch (name) {
-      case "value":
-        return getValue(e);
-      case "valueAsInt":
-        return toNullIfNaN(parseInt(getValue(e), 10));
-      case "valueAsFloat":
-        return toNullIfNaN(parseFloat(getValue(e)));
-      case "target":
-        return e.target;
-      case "event":
-        return e;
-      case "isAlt":
-        return e.altKey;
-      case "isShift":
-        return e.shiftKey;
-      case "isCtrl": /* falls through */
-      case "isCmd":
-        return (isMac && e.metaKey) || e.ctrlKey;
-      case "key":
-        return e.key;
-      case "keyCode":
-        return e.keyCode;
-      case "isUpKey":
-        return e.key === "ArrowUp";
-      case "isDownKey":
-        return e.key === "ArrowDown";
-      case "isSend":
-        return e.key === "Enter";
-      case "isCancel":
-        return e.key === "Escape";
-      case "isTabKey":
-        return e.key === "Tab";
-      case "ctx":
-        return new EventContext(this.dispatchPath, this.transactor, this);
-      case "dragInfo":
-        return this.dragInfo;
-    }
-    return null;
+  // The dispatched DOM event, read only through `e.<member>` handler args
+  // (src/value.js EventMemberVal via Stack.lookupEvent). There is no bare
+  // implicit-name vocabulary anymore: every arg carries a sigil.
+  get event() {
+    return this.e;
   }
 }
 class NameArgsTransaction extends Transaction {
@@ -456,6 +448,9 @@ class IntentEvent extends NameArgsTransaction {
 // symbol in each copy, so every `return PASS` would read as an ANSWER of an opaque
 // value instead of a decline, silently. The global registry makes the two the same.
 export const PASS = Symbol.for("tutuca.intent.pass");
+// Refusal ring size: enough history for a dev panel, small enough to never
+// matter for memory.
+const REFUSAL_RING_CAP = 200;
 // The route a bare `ctx.intent(...)` takes: the ancestors, then the registered scopes.
 // Written down HERE and nowhere else, so "what does a routeless intent do" has one
 // answer and no second copy to drift.

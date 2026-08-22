@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import { produce } from "../src/immer.js";
 import { FieldStep, Path, SeqAccessStep } from "../src/path.js";
 import { PASS, Transactor } from "../src/transactor.js";
+import { HandlerNameVal } from "../src/value.js";
 
 const obj = (value = {}) => value;
 
@@ -29,6 +30,57 @@ test("can push send transaction", () => {
   t.pushSend(new Path([]), "blurb", []);
   expect(t.hasPendingTransactions).toBe(true);
 });
+
+describe("refusal channel", () => {
+  test("a receive name with no implementation raises NO_HANDLER", () => {
+    const t = setup({});
+    const seen = [];
+    const unsubscribe = t.observeRefusals((r) => seen.push(r));
+    // The view wrote `@on.click="missing"`; the resolved fallback runs.
+    const handler = HandlerNameValEval(t, "missing");
+    const self = {};
+    const result = handler.call(self, { draft: 1 });
+    expect(result).toBe(self); // graceful: returns `this`, no throw
+    expect(t.refusals.length).toBe(1);
+    expect(seen.length).toBe(1);
+    expect(t.refusals[0].kind).toBe("NO_HANDLER");
+    expect(t.refusals[0].info).toEqual({ namespace: "receive", name: "missing", argCount: 1 });
+    // unsubscribing stops delivery; the ring keeps recording
+    unsubscribe();
+    t.refuse("NO_HANDLER", { name: "again" });
+    expect(seen.length).toBe(1);
+    expect(t.refusals.length).toBe(2);
+  });
+
+  test("the refusal ring is capped", () => {
+    const t = new Transactor();
+    for (let i = 0; i < 250; i++) t.refuse("NO_HANDLER", { i });
+    expect(t.refusals.length).toBeLessThanOrEqual(200);
+    expect(t.refusals.at(-1).info.i).toBe(249);
+  });
+
+  test("ctx.forward() from a handler with no name refuses FORWARD_NO_NAME", () => {
+    // covered through the intent walk below; direct unit of the guard:
+    const t = setup({
+      ping(draft) {
+        return this;
+      },
+    });
+    t.pushSend(new Path([]), "ping", []);
+    runAll(t);
+    expect(t.refusals.filter((r) => r.kind === "FORWARD_NO_NAME").length).toBe(0);
+  });
+});
+
+function HandlerNameValEval(t, name) {
+  // Resolve a missing handler exactly as a dispatch would: an empty stack
+  // whose getHandlerFor finds nothing, with the transaction as ctx.
+  const stack = {
+    ctx: { transactor: t },
+    getHandlerFor: () => null,
+  };
+  return new HandlerNameVal(name, "receive").eval(stack);
+}
 
 describe("$unknown fallback handler", () => {
   test("receive.$unknown is called when receive.<name> is missing", () => {

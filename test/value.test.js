@@ -329,10 +329,12 @@ describe("$ method prefix vs . field prefix", () => {
     expect(String(h.args[0])).toBe("e.value");
   });
 
-  test("bare e stays an ordinary name — never the raw event", () => {
-    const h = EventHandler.parse("save e", px);
-    expect(h.args[0]).toBeInstanceOf(NameVal);
-    expect(h.args[0].name).toBe("e");
+  test("bare e and sigil-less words fail to parse as handler args", () => {
+    const issues = [];
+    const spyPx = { frame: {}, onParseIssue: (kind, info) => issues.push({ kind, info }) };
+    const h = EventHandler.parse("save e", spyPx);
+    expect(h.args[0]).toBe(NULL_CONST_VAL);
+    expect(issues).toEqual([{ kind: "bad-value", info: { role: "handler-arg", value: "e" } }]);
   });
 
   test("nested event paths parse as one member chain", () => {
@@ -363,31 +365,33 @@ describe("$ method prefix vs . field prefix", () => {
   test("EventMemberVal.eval walks nested paths null-safe", () => {
     const target = { type: "text", value: "v", checked: true, dataset: { slot: "a" } };
     const e = { target, key: "Escape" };
-    expect(new EventMemberVal(["key"]).eval({ lookupName: () => e })).toBe("Escape");
-    expect(new EventMemberVal(["target", "dataset", "slot"]).eval({ lookupName: () => e })).toBe(
+    expect(new EventMemberVal(["key"]).eval({ lookupEvent: () => e })).toBe("Escape");
+    expect(new EventMemberVal(["target", "dataset", "slot"]).eval({ lookupEvent: () => e })).toBe(
       "a",
     );
     // plain property read — no checkbox normalization off the event root
-    expect(new EventMemberVal(["target", "checked"]).eval({ lookupName: () => e })).toBe(true);
+    expect(new EventMemberVal(["target", "checked"]).eval({ lookupEvent: () => e })).toBe(true);
     // missing link mid-chain, and absent leaf, both yield null
-    expect(new EventMemberVal(["detail", "x"]).eval({ lookupName: () => e })).toBeNull();
-    expect(new EventMemberVal(["target", "nope", "deep"]).eval({ lookupName: () => e })).toBeNull();
+    expect(new EventMemberVal(["detail", "x"]).eval({ lookupEvent: () => e })).toBeNull();
+    expect(
+      new EventMemberVal(["target", "nope", "deep"]).eval({ lookupEvent: () => e }),
+    ).toBeNull();
   });
 
   test("lone e.value keeps the normalized read; nested .value does not", () => {
     expect(
       new EventMemberVal(["value"]).eval({
-        lookupName: () => ({ target: { type: "checkbox", checked: true } }),
+        lookupEvent: () => ({ target: { type: "checkbox", checked: true } }),
       }),
     ).toBe(true);
     const e = { target: { type: "checkbox", checked: true, value: "on" } };
-    expect(new EventMemberVal(["target", "value"]).eval({ lookupName: () => e })).toBe("on");
-    expect(new EventMemberVal(["value"]).eval({ lookupName: () => null })).toBeNull();
+    expect(new EventMemberVal(["target", "value"]).eval({ lookupEvent: () => e })).toBe("on");
+    expect(new EventMemberVal(["value"]).eval({ lookupEvent: () => null })).toBeNull();
   });
 
   test("one-level conveniences resolve through EVENT_CONVENIENCES", () => {
     const stack = {
-      lookupName: () => ({
+      lookupEvent: () => ({
         target: { type: "text", value: "42" },
         key: "ArrowUp",
         ctrlKey: false,
@@ -407,16 +411,34 @@ describe("$ method prefix vs . field prefix", () => {
 
   test("conveniences do not compose through nested paths; NaN parses to null", () => {
     const stack = {
-      lookupName: () => ({ target: { type: "text", value: "42" }, key: "Enter" }),
+      lookupEvent: () => ({ target: { type: "text", value: "42" }, key: "Enter" }),
     };
     // a deeper path is always the plain property walk, even when a segment
     // shares a name with a convenience
     expect(new EventMemberVal(["target", "valueAsInt"]).eval(stack)).toBeNull();
     expect(
       new EventMemberVal(["valueAsInt"]).eval({
-        lookupName: () => ({ target: { type: "text", value: "nope" } }),
+        lookupEvent: () => ({ target: { type: "text", value: "nope" } }),
       }),
     ).toBeNull();
+  });
+
+  test("drag accessors read the transaction's DragInfo, null-safe", () => {
+    const info = {
+      type: "my-item",
+      val: { uid: "b" },
+      lookupBind: (n) => (n === "key" ? 1 : null),
+    };
+    const stack = { lookupEvent: () => ({}), lookupDragInfo: () => info };
+    expect(new EventMemberVal(["dragType"]).eval(stack)).toBe("my-item");
+    expect(new EventMemberVal(["dragValue"]).eval(stack)).toEqual({ uid: "b" });
+    expect(new EventMemberVal(["dragKey"]).eval(stack)).toBe(1);
+    expect(new EventMemberVal(["dragInfo"]).eval(stack)).toBe(info);
+    expect(
+      new EventMemberVal(["dragKey"]).eval({ lookupEvent: () => ({}), lookupDragInfo: () => null }),
+    ).toBeNull();
+    // nothing composes through the table
+    expect(new EventMemberVal(["dragInfo", "type"]).eval(stack)).toBeNull();
   });
 });
 

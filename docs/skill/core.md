@@ -323,7 +323,7 @@ component({
   },
   view: html`<p @text=".count"></p>`,    // default view (named "main")
   views: {                                // additional views
-    edit: html`<input :value=".count" @on.input="setCount valueAsInt" />`,
+    edit: html`<input :value=".count" @on.input="setCount e.valueAsInt" />`,
     big: {
       view: html`<h1 @text=".count"></h1>`,
       style: css`h1 { font-size: 4rem; }`,
@@ -568,7 +568,7 @@ several of these. The usual suspects:
 
 <!-- pass args by name -->
 <input @on.input="setStr e.value" />
-<input @on.input="setN valueAsInt" />
+<input @on.input="setN e.valueAsInt" />
 <button @on.click="pick @key e.altKey">pick</button>
 <button @on.click="addItem JsonSelector">+</button>     <!-- type as arg -->
 <button @on.click="loadAnotherWay">load</button>        <!-- ctx auto-appended -->
@@ -588,9 +588,9 @@ Handler argument forms:
   `e.detail.x`. Null-safe at every link; a missing member reads as null.
 - **Computed conveniences** with no single-property form — `e.valueAsInt`,
   `e.valueAsFloat`, `e.isCtrl`/`e.isCmd` (mac-aware), `e.isUpKey`, `e.isDownKey`,
-  `e.isSend`, `e.isCancel`, `e.isTabKey`. Resolved only as a one-level path;
-  nothing composes through them (`e.target.isUpKey` is null). The bare
-  spellings (`valueAsInt`, `isCtrl`, …) still resolve for compatibility.
+  `e.isSend`, `e.isCancel`, `e.isTabKey`, and on drags `e.dragInfo`/
+  `e.dragKey`/`e.dragValue`/`e.dragType`. Resolved only as a one-level path;
+  nothing composes through them (`e.target.isUpKey` is null).
 - **Channel args** — `ctx` (the `EventContext`) and `dragInfo`.
 
 The content of `e.value` depends on the event source:
@@ -601,11 +601,11 @@ The content of `e.value` depends on the event source:
 | `CustomEvent`               | `event.detail`                                   |
 | anything else               | `event.target.value` (string), or null if absent |
 
-For numeric inputs, prefer `valueAsInt` / `valueAsFloat` to skip the
+For numeric inputs, prefer `e.valueAsInt` / `valueAsFloat` to skip the
 string parse.
 
 Ask for the most granular arg the handler actually uses — `e.value` /
-`valueAsInt` / `e.key`, not the raw event object — when the specific value is
+`e.valueAsInt` / `e.key`, not the raw event object — when the specific value is
 all you need. A handler that takes `event` forces every test and
 storybook story to fabricate a DOM-event-shaped object
 (`{ target: { value: … } }`); one that takes `value` is called with a

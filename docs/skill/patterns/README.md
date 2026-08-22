@@ -37,7 +37,7 @@ task.
 
 - [Bind text and attributes](bind-text-and-attributes.md) — `@text`, `:attr`, `$'…'` templates, scope enrichment.
 - [Handle events](handle-events.md) — `@on.<event>`, handler args, modifiers, custom events.
-- [Read a picked file](file-input.md) — `@on.change="… event"` and reading `event.target.files`.
+- [Read a picked file](file-input.md) — `@on.change="… e.target"` and reading `e.target.files`.
 
 ## Component communication
 

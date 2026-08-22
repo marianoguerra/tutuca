@@ -38,7 +38,6 @@ import {
   UNKNOWN_COMPONENT_SPEC_KEY,
   UNKNOWN_DIRECTIVE,
   UNKNOWN_EVENT_MODIFIER,
-  UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
@@ -463,23 +462,18 @@ test("keydown-only modifiers stay keydown-only", () => {
   expect(modifier).toBe("send");
 });
 
-test("warn on unknown event handler arg name", () => {
+test("sigil-less words in event handler args fail to parse as bad values", () => {
   const [lx] = defAndCheck({
     name: "Comp",
     receive: { do(draft) {} },
-    view: html`<button @on.click="do foo event bar ctx">do it</button>`,
+    view: html`<button @on.click="do foo bar">do it</button>`,
   });
   expect(lx.reports.length).toBe(2);
-  {
-    const { id, info } = lx.reports[0];
-    expect(id).toBe(UNKNOWN_HANDLER_ARG_NAME);
-    expect(info.name).toBe("foo");
+  for (const { id, info } of lx.reports) {
+    expect(id).toBe(BAD_VALUE);
+    expect(info.role).toBe("handler-arg");
   }
-  {
-    const { id, info } = lx.reports[1];
-    expect(id).toBe(UNKNOWN_HANDLER_ARG_NAME);
-    expect(info.name).toBe("bar");
-  }
+  expect(lx.reports.map((r) => r.info.value).sort()).toEqual(["bar", "foo"]);
 });
 
 test("warn on event handler in view with no impl", () => {
@@ -982,7 +976,7 @@ test("warn on Type not in scope", () => {
     name: "Comp",
     fields: { name: "" },
     receive: { do(draft) {} },
-    view: html`<button @on.click="do MyComp ctx">do it</button>`,
+    view: html`<button @on.click="do MyComp">do it</button>`,
   });
   expect(lx.reports.length).toBe(1);
   {
@@ -1149,7 +1143,7 @@ test("lint-errors example catches all error types", () => {
 
       <button @on.click+badmod="doKeyDown">bad modifier</button>
 
-      <button @on.click="doKeyDown unknownArg event">unknown arg</button>
+      <button @on.click="doKeyDown unknownArg">unknown arg</button>
 
       <button @on.click="doClick">method as handler</button>
 
@@ -1157,7 +1151,7 @@ test("lint-errors example catches all error types", () => {
 
       <p :title=".missing">undefined field</p>
 
-      <button @on.click="doKeyDown UnknownComp ctx">
+      <button @on.click="doKeyDown UnknownComp">
         unknown comp
       </button>
 
@@ -1180,7 +1174,7 @@ test("lint-errors example catches all error types", () => {
 
   expect(ids).toContain(RENDER_IT_OUTSIDE_OF_LOOP);
   expect(ids).toContain(UNKNOWN_EVENT_MODIFIER);
-  expect(ids).toContain(UNKNOWN_HANDLER_ARG_NAME);
+  expect(ids).toContain(BAD_VALUE);
   expect(ids).toContain(RECEIVE_HANDLER_NOT_IMPLEMENTED);
   expect(ids).toContain(EVENT_HANDLER_METHOD_NOT_ALLOWED);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
@@ -1246,7 +1240,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
       <button @on.click+badmod="doKeyDown">bad modifier</button>
 
-      <button @on.click="doKeyDown unknownArg event">unknown arg</button>
+      <button @on.click="doKeyDown unknownArg">unknown arg</button>
 
       <button @on.click="doClick">method as handler</button>
 
@@ -1254,7 +1248,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
       <p :title=".missing">undefined field</p>
 
-      <button @on.click="doKeyDown UnknownComp ctx">
+      <button @on.click="doKeyDown UnknownComp">
         unknown comp
       </button>
 
@@ -1280,7 +1274,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
   expect(ids).toContain(RENDER_IT_OUTSIDE_OF_LOOP);
   expect(ids).toContain(UNKNOWN_EVENT_MODIFIER);
-  expect(ids).toContain(UNKNOWN_HANDLER_ARG_NAME);
+  expect(ids).toContain(BAD_VALUE);
   expect(ids).toContain(RECEIVE_HANDLER_NOT_IMPLEMENTED);
   expect(ids).toContain(EVENT_HANDLER_METHOD_NOT_ALLOWED);
   expect(ids).toContain(FIELD_VAL_NOT_DEFINED);
@@ -1323,11 +1317,8 @@ test("macro invocation :handler NameVal does not warn; ^handler in body expands 
   );
   expect(handlerAttr.val.constructor.name).toBe("NameVal");
   expect(handlerAttr.val.name).toBe("onDo");
-
-  const unknownHandlerReports = lx.reports.filter(
-    (r) => r.id === UNKNOWN_HANDLER_ARG_NAME && r.info.name === "onDo",
-  );
-  expect(unknownHandlerReports.length).toBe(0);
+  // macro-arg NameVals are pass-through, not handler args: no finding at all
+  expect(lx.reports.length).toBe(0);
 });
 
 test("x render-each with when referencing defined alter handler emits nothing", () => {
@@ -2020,7 +2011,7 @@ test("an explicit e.<member> arg raises no handler-arg lint", () => {
     view: html`<input @on.input="setStr e.value" />`,
   });
   const ids = lx.reports.map((r) => r.id);
-  expect(ids).not.toContain(UNKNOWN_HANDLER_ARG_NAME);
+  expect(ids).not.toContain(BAD_VALUE);
 });
 
 test("UNSUPPORTED_EXPR_SYNTAX on ternary in :class", () => {
@@ -2100,7 +2091,7 @@ test("good values do not raise BAD_VALUE", () => {
       <p :class=".name" @text=".name" @show=".isOpen"></p>
       <li @each=".items">x</li>
       <p @if.class=".isOpen" @then="'a'" @else="'b'">x</p>
-      <button @on.click="doThing event">x</button>
+      <button @on.click="doThing">x</button>
       <x render-each=".items"></x>
     </div>`,
   });
@@ -2112,26 +2103,6 @@ test("good values do not raise BAD_VALUE", () => {
 // suggestion field — "did you mean" / mechanical-fix hints attached to the
 // finding rather than embedded in the message.
 // ─────────────────────────────────────────────────────────────────────────
-
-test("UNKNOWN_HANDLER_ARG_NAME suggests closest known handler arg", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    receive: { do(draft) {} },
-    view: html`<button @on.click="do valueAsint">x</button>`,
-  });
-  const r = lx.reports.find((x) => x.id === UNKNOWN_HANDLER_ARG_NAME);
-  expect(r.suggestion).toEqual({ kind: "replace-name", from: "valueAsint", to: "valueAsInt" });
-});
-
-test("UNKNOWN_HANDLER_ARG_NAME has no suggestion when nothing is close", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    receive: { do(draft) {} },
-    view: html`<button @on.click="do completelyUnrelatedXyz">x</button>`,
-  });
-  const r = lx.reports.find((x) => x.id === UNKNOWN_HANDLER_ARG_NAME);
-  expect(r.suggestion).toBeNull();
-});
 
 test("FIELD_VAL_NOT_DEFINED suggests closest field", () => {
   const [lx] = defAndCheck({

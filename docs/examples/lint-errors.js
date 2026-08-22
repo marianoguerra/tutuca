@@ -59,9 +59,8 @@ const LintDemo = component({
     <!-- UNKNOWN_EVENT_MODIFIER: +badmod is not a known modifier -->
     <button @on.click+badmod="doKeyDown">bad modifier</button>
 
-    <!-- UNKNOWN_HANDLER_ARG_NAME: unknownArg is not recognized -->
-    <button @on.click="doKeyDown unknownArg event">unknown arg</button>
-
+    <!-- BAD_VALUE on handler arg: sigil-less words no longer parse as args -->
+    <button @on.click="doKeyDown unknownArg">unknown arg</button>
     <!-- RECEIVE_HANDLER_NOT_IMPLEMENTED:
          event names resolve only in receive; this method must be moved there -->
     <button @on.click="doClick">method as handler</button>

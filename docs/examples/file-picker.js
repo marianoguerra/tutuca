@@ -33,10 +33,9 @@ const FilePicker = component({
     hasFile: false,
   },
   receive: {
-    // `event` is the raw DOM change event; the chosen File lives on
-    // `event.target.files`.
-    onPickFile(draft, event) {
-      const file = event.target.files?.[0];
+    // e.target is the <input> node; the chosen File lives on its `.files`.
+    onPickFile(draft, target) {
+      const file = target.files?.[0];
       if (!file) {
         draft.hasFile = false;
         return;
@@ -62,7 +61,7 @@ const FilePicker = component({
   view: html`<section class="flex flex-col gap-3">
     <label class="flex flex-col gap-1">
       <span>Pick a file</span>
-      <input type="file" class="file-input" @on.change="onPickFile event" />
+      <input type="file" class="file-input" @on.change="onPickFile e.target" />
     </label>
 
     <table class="table" @show=".hasFile">

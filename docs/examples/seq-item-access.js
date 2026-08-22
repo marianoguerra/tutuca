@@ -17,7 +17,7 @@ export const SeqItemAccess = component({
       min="0"
       :max="$getMaxIndex"
       :value=".currentIndex"
-      @on.input="setCurrentIndex valueAsInt"
+      @on.input="setCurrentIndex e.valueAsInt"
     />
     <x render=".byIndex[.currentIndex]"></x>
     <select class="select" :value=".currentKey" @on.input="setCurrentKey e.value">

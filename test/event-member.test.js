@@ -161,6 +161,6 @@ describe("e.<member> handler args dispatch through InputEvent", () => {
   test("e.<member> outside an event transaction evaluates to null", () => {
     // A view can only carry e.member in @on args, so this guards the eval
     // fallback directly rather than through a template.
-    expect(new EventMemberVal(["value"]).eval({ lookupName: () => null })).toBeNull();
+    expect(new EventMemberVal(["value"]).eval({ lookupEvent: () => null })).toBeNull();
   });
 });

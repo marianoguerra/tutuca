@@ -394,8 +394,8 @@ export const SnakeGame = component({
         max="500"
         step="20"
         :value=".intervalMs"
-        @on.input="previewSpeed valueAsInt"
-        @on.change="applySpeed valueAsInt"
+        @on.input="previewSpeed e.valueAsInt"
+        @on.change="applySpeed e.valueAsInt"
       />
       <span class="text-sm font-mono" @text="$speedLabel"></span>
     </label>

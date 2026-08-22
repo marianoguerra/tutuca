@@ -60,7 +60,6 @@ export const LOOKUP_BAD_SHAPE = "LOOKUP_BAD_SHAPE";
 export const LOOKUP_TARGET_MALFORMED = "LOOKUP_TARGET_MALFORMED";
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
 export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
-export const UNKNOWN_HANDLER_ARG_NAME = "UNKNOWN_HANDLER_ARG_NAME";
 export const RECEIVE_HANDLER_NOT_IMPLEMENTED = "RECEIVE_HANDLER_NOT_IMPLEMENTED";
 export const EVENT_HANDLER_METHOD_NOT_ALLOWED = "EVENT_HANDLER_METHOD_NOT_ALLOWED";
 // PERMANENT: one bucket now holds what three did, so two handlers can silently collapse
@@ -493,32 +492,10 @@ function checkEventModifiers(lx, view) {
   }
 }
 
-// Bare implicit event names with a direct single-member `e.` spelling were
-// rewritten to the explicit form by a temporary migration lint (since removed
-// along with the rewrite); `KNOWN_HANDLER_NAMES` keeps them resolvable.
-const KNOWN_HANDLER_NAMES = new Set([
-  "value",
-  "valueAsInt",
-  "valueAsFloat",
-  "target",
-  "event",
-  "isAlt",
-  "isShift",
-  "isCtrl",
-  "isCmd",
-  "key",
-  "keyCode",
-  "isUpKey",
-  "isDownKey",
-  "isSend",
-  "isCancel",
-  "isTabKey",
-  "ctx",
-  "dragInfo",
-]);
-function isKnownHandlerName(name) {
-  return KNOWN_HANDLER_NAMES.has(name);
-}
+// Bare implicit event names are gone from handler args entirely: a sigil-less
+// word fails to parse (bad-value, role "handler-arg"), so the old
+// UNKNOWN_HANDLER_ARG_NAME check has no input anymore. NameVals reaching value
+// slots now only come from macro-attr pass-throughs, which the linter skips.
 
 function checkKnownHandlerNames(lx, view, Comp, referencedAlters, referencedDynamics) {
   const env = mkAttrValEnv(Comp, referencedAlters, referencedDynamics);
@@ -651,13 +628,11 @@ const ATTR_VAL_CHECKERS = {
         errCtx,
       );
   },
-  NameVal({ lx, val, errCtx, skipNameVal }) {
-    // NameVals on a macro call-site attribute are macro-param bindings, not
-    // handler args — their role is determined inside the macro body after
-    // ^-substitution, where re-parsing handles validation.
-    if (!skipNameVal && !isKnownHandlerName(val.name))
-      reportUnknownName(lx, UNKNOWN_HANDLER_ARG_NAME, val.name, KNOWN_HANDLER_NAMES, errCtx);
-  },
+  // NameVals on a macro call-site attribute are macro-param bindings, not
+  // handler args — their role is determined inside the macro body after
+  // ^-substitution, where re-parsing handles validation. No checker: a NameVal
+  // can no longer reach a handler-arg slot (sigil-less words fail to parse),
+  // and macro-attr pass-throughs are skipped via skipNameVal.
   StrTplVal({ lx, val, errCtx, recurse, isRoot }) {
     const vs = val.vals;
     const literal = val.toLiteralSource();

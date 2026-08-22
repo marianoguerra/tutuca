@@ -22,15 +22,15 @@ const Quadratic = component({
     <div class="flex gap-3 text-sm">
       <label class="flex items-center gap-1">
         a
-        <input type="number" class="input input-sm w-16" :value=".a" @on.input="setA valueAsInt" />
+        <input type="number" class="input input-sm w-16" :value=".a" @on.input="setA e.valueAsInt" />
       </label>
       <label class="flex items-center gap-1">
         b
-        <input type="number" class="input input-sm w-16" :value=".b" @on.input="setB valueAsInt" />
+        <input type="number" class="input input-sm w-16" :value=".b" @on.input="setB e.valueAsInt" />
       </label>
       <label class="flex items-center gap-1">
         c
-        <input type="number" class="input input-sm w-16" :value=".c" @on.input="setC valueAsInt" />
+        <input type="number" class="input input-sm w-16" :value=".c" @on.input="setC e.valueAsInt" />
       </label>
     </div>
 

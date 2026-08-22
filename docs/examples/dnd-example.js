@@ -13,10 +13,10 @@ function moveKeyIndexToIndex(list, source, target, offset = 0) {
   return next;
 }
 
-function dropWasAbove(e) {
-  const rect = e.target.getBoundingClientRect();
+function dropWasAbove(target, clientY) {
+  const rect = target.getBoundingClientRect();
   const midY = rect.top + rect.height / 2;
-  return e.clientY < midY;
+  return clientY < midY;
 }
 
 export const DnDExample = component({
@@ -35,10 +35,9 @@ export const DnDExample = component({
       draft.query = this.constructor.getMetaClass().fields.query.defaultValue;
     },
 
-    onDropOnItem(draft, targetIndex, dragInfo, e) {
-      console.log(dragInfo, e);
-      const offset = dropWasAbove(e) ? 0 : 1;
-      const sourceIndex = dragInfo.lookupBind("key");
+    onDropOnItem(draft, targetIndex, info, target, clientY) {
+      const offset = dropWasAbove(target, clientY) ? 0 : 1;
+      const sourceIndex = info.lookupBind("key");
       const newItems = moveKeyIndexToIndex(this.items, sourceIndex, targetIndex, offset);
       draft.items = newItems;
     },
@@ -71,7 +70,7 @@ export const DnDExample = component({
         draggable="true"
         data-dragtype="my-list-item"
         data-droptarget="my-list-item"
-        @on.drop="onDropOnItem @key dragInfo event"
+        @on.drop="onDropOnItem @key e.dragInfo e.target e.clientY"
       >
         <span @text="@key"></span>: <x text="@value"></x>
       </div>

@@ -225,21 +225,21 @@ the view actually wires these handlers correctly, use
 
 Tutuca templates resolve handler args by name (see
 [core.md](./core.md) *Event Handling*). When you author a handler,
-**pick the most specific named args you need; don't take the raw
-event**. With named args, the test passes a literal; with `event`,
-the test must fabricate a DOM-event-shaped object.
+**pick the most specific args you need; don't take broad event
+reads**. With narrow args, the test passes a literal; with `e.target`
+or friends, the test must fabricate DOM-node-shaped objects.
 
 An event always names a `receive` handler without a prefix. `$method` is for
 read-only value slots and is rejected in `@on.*`. What matters for testability
 is which named argument the receive handler asks for.
 
-**Bad — receive handler taking the whole event:**
+**Bad — receive handler taking the whole input node:**
 
 ```html
-<input @on.input="setName event" />
+<input @on.input="setName e.target" />
 ```
 ```js
-receive: { setName(draft, event) { draft.name = event.target.value; } }
+receive: { setName(draft, target) { draft.name = target.value; } }
 ```
 
 **Good — receive handler taking the value:**
@@ -254,16 +254,16 @@ receive: { setName(draft, value) { draft.name = value; } }
 **Bad — receive handler:**
 
 ```html
-<input @on.input="setCount event" />
+<input @on.input="setCount e.value" />
 ```
 ```js
-receive: { setCount(draft, event) { draft.count = parseInt(event.target.value, 10); } }
+receive: { setCount(draft, value) { draft.count = parseInt(value, 10); } }
 ```
 
 **Good — receive handler:**
 
 ```html
-<input @on.input="setCount valueAsInt" />
+<input @on.input="setCount e.valueAsInt" />
 ```
 ```js
 receive: { setCount(draft, n) { draft.count = n; } }
@@ -281,15 +281,14 @@ The "bad" forms force every test to construct
 `{ target: { value: "42" } }` (or a fuller stub when more fields are
 read), which is brittle and obscures intent.
 
-The built-in named args are listed in [core.md](./core.md) *Event
-Handling*; `ctx` is auto-appended last. Reach for `event` only when no
-narrower arg fits.
+The handler-arg forms are listed in [core.md](./core.md) *Event
+Handling*; `ctx` is auto-appended last as the trailing argument.
 
 ## Worked example
 
 A `getTests` export covering two receive handlers (`inc` and `dec`) and a
 receive handler with a named arg (`setCount` taking
-`valueAsInt`):
+`e.valueAsInt`):
 
 ```js
 import { produce } from "tutuca/immer";
@@ -316,7 +315,7 @@ export function getTests({ describe, test, expect }) {
       });
     });
 
-    describe("setCount()", () => {                    // receive handler, valueAsInt
+    describe("setCount()", () => {                    // receive handler, e.valueAsInt
       test("sets the count from a parsed int", () => {
         const c = Counter.make();
         const next = produce(c, (draft) => Counter.receive.setCount.call(c, draft, 42));

@@ -228,7 +228,7 @@
         </h3>
         <p>
           A <code>&lt;input type="file"&gt;</code> wired with
-          <code>@on.change="onPickFile event"</code>. The handler reads the
+          <code>@on.change="onPickFile e.target"</code>. The handler reads the
           chosen <code>File</code> off <code>event.target.files</code> and
           copies its metadata into fields, so the name, formatted size, MIME
           type, and last-modified date render reactively &mdash;

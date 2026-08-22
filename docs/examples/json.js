@@ -98,8 +98,8 @@ const JsonArray = component({
     addItem(draft, Comp) {
       draft.items.push(Comp.make());
     },
-    onDropOnItem(draft, key, dragInfo) {
-      draft.items = this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key);
+    onDropOnItem(draft, key, info) {
+      draft.items = this.items.moveKeyBeforeKey(info.lookupBind("key"), key);
     },
   },
   style: css`
@@ -117,7 +117,7 @@ const JsonArray = component({
         draggable="true"
         data-dragtype="json-list-item"
         data-droptarget="json-list-item"
-        @on.drop="onDropOnItem @key dragInfo"
+        @on.drop="onDropOnItem @key e.dragInfo"
       >
         <x render-it></x
         ><button
@@ -166,8 +166,8 @@ const JsonObject = component({
     addItem(draft, KV, JsonSelector) {
       draft.items.push(KV.make({ value: JsonSelector.make() }));
     },
-    onDropOnItem(draft, key, dragInfo) {
-      draft.items = this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key);
+    onDropOnItem(draft, key, info) {
+      draft.items = this.items.moveKeyBeforeKey(info.lookupBind("key"), key);
     },
   },
   style: css`
@@ -190,7 +190,7 @@ const JsonObject = component({
         draggable="true"
         data-dragtype="json-kv-item"
         data-droptarget="json-kv-item"
-        @on.drop="onDropOnItem @key dragInfo"
+        @on.drop="onDropOnItem @key e.dragInfo"
       >
         <x render-it></x
         ><button

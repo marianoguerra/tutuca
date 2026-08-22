@@ -114,8 +114,19 @@ export class Stack {
     const fn = this.it[name];
     return fn instanceof Function ? fn.call(this.it) : null;
   }
-  lookupName(name) {
-    return this.ctx.lookupName(name);
+  // Bare implicit event names are gone: a sigil-less word cannot reach a
+  // handler-arg slot anymore, so this only ever serves stale NameVals parsed
+  // before the removal (e.g. macro-attr pass-throughs). Always null.
+  lookupName(_name) {
+    return null;
+  }
+  // The dispatched DOM event / drag info, read only by EventMemberVal's
+  // `e.<member>` handler args. Null outside a live event transaction.
+  lookupEvent() {
+    return this.ctx?.event ?? null;
+  }
+  lookupDragInfo() {
+    return this.ctx?.dragInfo ?? null;
   }
   getHandlerFor(name, key) {
     return this.comps.getHandlerFor(this.it, name, key);

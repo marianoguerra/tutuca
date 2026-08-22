@@ -23,10 +23,10 @@ import { renderToHTML } from "../src/util/render.js";
 import {
   BindVal,
   ConstVal,
+  EventMemberVal,
   FieldVal,
   HandlerNameVal,
   MethodVal,
-  NameVal,
   parseHandlerArg,
   parseText,
   TypeVal,
@@ -282,11 +282,10 @@ describe("ANode", () => {
       expect(parseText(".f-oo", px)).toBe(null);
     });
 
-    test("parse NameVal", () => {
+    test("sigil-less words are no longer handler args", () => {
       const px = mpx();
-      const v = parseHandlerArg("foo", px);
-      expect(v).toBeInstanceOf(NameVal);
-      expect(v.name).toBe("foo");
+      // bare implicit names are gone: a sigil-less word fails to parse
+      expect(parseHandlerArg("foo", px)).toBe(null);
 
       expect(parseHandlerArg("9foo", px)).toBe(null);
       expect(parseHandlerArg("f-oo", px)).toBe(null);
@@ -631,7 +630,9 @@ describe("ANode", () => {
     });
 
     test("@on.oneevent", () => {
-      const [r, px] = parse("<div @on.click='myHandler @v .f true 42 12.5 MyType value'>hi</div>");
+      const [r, px] = parse(
+        "<div @on.click='myHandler @v .f true 42 12.5 MyType e.value'>hi</div>",
+      );
       expect(r).toBeInstanceOf(DomNode);
       expect(r.attrs).toBeInstanceOf(ConstAttrs);
       expect(r.attrs.items["data-eid"]).toBe(0);
@@ -643,7 +644,7 @@ describe("ANode", () => {
       const [{ name, handlerCall: handler }] = event.handlers;
       expect(name).toBe("click");
       expect(handler).toBeInstanceOf(EventHandler);
-      expect(handler.handlerVal).toBeInstanceOf(NameVal);
+      expect(handler.handlerVal).toBeInstanceOf(HandlerNameVal);
       expect(handler.handlerVal.name).toBe("myHandler");
       expect(handler.args.length).toBe(7);
       const [v, f, b, i, fl, t, n] = handler.args;
@@ -659,8 +660,8 @@ describe("ANode", () => {
       expect(fl.val).toBe(12.5);
       expect(t).toBeInstanceOf(TypeVal);
       expect(t.name).toBe("MyType");
-      expect(n).toBeInstanceOf(NameVal);
-      expect(n.name).toBe("value");
+      expect(n).toBeInstanceOf(EventMemberVal);
+      expect(n.members).toEqual(["value"]);
     });
 
     test("@on.twoevents", () => {
@@ -676,7 +677,7 @@ describe("ANode", () => {
       const [{ name: n1, handlerCall: h1 }, { name: n2, handlerCall: h2 }] = event.handlers;
       expect(n1).toBe("click");
       expect(h1).toBeInstanceOf(EventHandler);
-      expect(h1.handlerVal).toBeInstanceOf(NameVal);
+      expect(h1.handlerVal).toBeInstanceOf(HandlerNameVal);
       expect(h1.handlerVal.name).toBe("h");
       expect(h1.args.length).toBe(1);
       const [v] = h1.args;
@@ -685,7 +686,7 @@ describe("ANode", () => {
       //
       expect(n2).toBe("hover");
       expect(h2).toBeInstanceOf(EventHandler);
-      expect(h2.handlerVal).toBeInstanceOf(NameVal);
+      expect(h2.handlerVal).toBeInstanceOf(HandlerNameVal);
       expect(h2.handlerVal.name).toBe("f");
       expect(h2.args.length).toBe(1);
       const [v1] = h2.args;

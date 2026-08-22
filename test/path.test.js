@@ -476,13 +476,13 @@ describe("@on.drop bubbles to ancestor components", () => {
       name: "Parent",
       fields: { child: Child.make({ uid: "c1" }) },
       receive: {
-        onDrop(draft, e) {
-          captured.type = e.type;
+        onDrop(draft, type) {
+          captured.type = type;
           captured.self = this;
           return this;
         },
       },
-      view: html`<section @on.drop="onDrop event" data-droptarget="x">
+      view: html`<section @on.drop="onDrop e.type" data-droptarget="x">
         <x render=".child"></x>
       </section>`,
     });
@@ -621,8 +621,8 @@ describe("dragInfo.lookupBind for @each items", () => {
       name: "Reorder",
       fields: { items: ["a", "b", "c"] },
       receive: {
-        onDropOnItem(draft, _targetKey, dragInfo) {
-          sourceKey = dragInfo.lookupBind("key");
+        onDropOnItem(draft, _targetKey, info) {
+          sourceKey = info.lookupBind("key");
           return this;
         },
       },
@@ -633,7 +633,7 @@ describe("dragInfo.lookupBind for @each items", () => {
           draggable="true"
           data-dragtype="x"
           data-droptarget="x"
-          @on.drop="onDropOnItem @key dragInfo"
+          @on.drop="onDropOnItem @key e.dragInfo"
         >
           <x text="@value"></x>
         </div>

@@ -135,8 +135,8 @@ const Universal = component({
       console.error("registerModuleFromCode failed", err);
       return this;
     },
-    onDrop(draft, e, ctx) {
-      const files = e.dataTransfer?.files;
+    onDrop(draft, transfer, ctx) {
+      const files = transfer?.files;
       if (files?.length) {
         Promise.all(Array.from(files, (file) => file.text())).then((codes) =>
           ctx.intent("registerModuleFromCode", [codes], { route: ["lex"] }),
@@ -145,7 +145,7 @@ const Universal = component({
       return this;
     },
   },
-  view: html`<section class="m-3" @on.drop="onDrop event" data-droptarget="universal-components">
+  view: html`<section class="m-3" @on.drop="onDrop e.dataTransfer" data-droptarget="universal-components">
     <x render=".value"></x>
   </section>`,
 });
@@ -184,7 +184,7 @@ const Example = component({
       <h2 class="card-title flex justify-between">
         <a :href="$'#example-{.id}'" :id="$'example-{.id}'" @text=".title"></a>
         <div class="flex gap-2">
-          <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected ctx">focus</button>
+          <button class="btn btn-ghost btn-sm" @on.click="onFocusSelected">focus</button>
           <button class="btn btn-ghost btn-sm" @on.click="onLogSelected">log</button>
         </div>
       </h2>

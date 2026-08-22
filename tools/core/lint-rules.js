@@ -47,7 +47,6 @@ import {
   UNKNOWN_COMPONENT_SPEC_KEY,
   UNKNOWN_DIRECTIVE,
   UNKNOWN_EVENT_MODIFIER,
-  UNKNOWN_HANDLER_ARG_NAME,
   UNKNOWN_MACRO_ARG,
   UNKNOWN_X_ATTR,
   UNKNOWN_X_OP,
@@ -167,12 +166,6 @@ export const LINT_RULES = [
     level: "error",
     group: "Templates / events",
     summary: "`@on.<event>+<mod>` uses a modifier not in the recognized set.",
-  },
-  {
-    code: UNKNOWN_HANDLER_ARG_NAME,
-    level: "error",
-    group: "Templates / events",
-    summary: "Handler argument name is not a built-in or a declared component.",
   },
   {
     code: DUPLICATE_ATTR_DEFINITION,

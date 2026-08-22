@@ -82,7 +82,7 @@ export const JsonSelector = component({
   },
   view: html`<div :data-test-id=".uid" class="join gap-3 font-mono">
     <button class="btn btn-sm btn-ghost btn-warning" @on.click="setTo JsonNull">null</button>
-    <button class="btn btn-sm btn-ghost btn-success" @on.click="setToBool JsonBool isCtrl">
+    <button class="btn btn-sm btn-ghost btn-success" @on.click="setToBool JsonBool e.isCtrl">
       bool
     </button>
     <button class="btn btn-sm btn-ghost btn-primary" @on.click="setTo JsonNumber">0</button>
@@ -106,8 +106,8 @@ export const JsonArray = component({
     addItem(draft, Comp) {
       draft.items.push(Comp.make());
     },
-    onDropOnItem(draft, key, dragInfo) {
-      draft.items = this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key);
+    onDropOnItem(draft, key, info) {
+      draft.items = this.items.moveKeyBeforeKey(info.lookupBind("key"), key);
     },
   },
   style: css`
@@ -128,7 +128,7 @@ export const JsonArray = component({
         draggable="true"
         data-dragtype="json-list-item"
         data-droptarget="json-list-item"
-        @on.drop="onDropOnItem @key dragInfo"
+        @on.drop="onDropOnItem @key e.dragInfo"
       >
         <x render-it></x
         ><button
@@ -179,8 +179,8 @@ export const JsonObject = component({
     addItem(draft, KV, JsonSelector) {
       draft.items.push(KV.make({ value: JsonSelector.make() }));
     },
-    onDropOnItem(draft, key, dragInfo) {
-      draft.items = this.items.moveKeyBeforeKey(dragInfo.lookupBind("key"), key);
+    onDropOnItem(draft, key, info) {
+      draft.items = this.items.moveKeyBeforeKey(info.lookupBind("key"), key);
     },
   },
   style: css`
@@ -206,7 +206,7 @@ export const JsonObject = component({
         draggable="true"
         data-dragtype="json-kv-item"
         data-droptarget="json-kv-item"
-        @on.drop="onDropOnItem @key dragInfo"
+        @on.drop="onDropOnItem @key e.dragInfo"
       >
         <x render-it></x
         ><button

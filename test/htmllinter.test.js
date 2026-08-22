@@ -738,7 +738,7 @@ const LLM_DOC_FIXTURES = [
   // advanced.txt — drag-and-drop attrs on a loop element
   {
     label: "skill/advanced.md: draggable + data-* attrs",
-    html: `<div @each=".items" draggable="true" data-dragtype="my-item" data-droptarget="my-item" @on.drop="onDrop @key dragInfo event"></div>`,
+    html: `<div @each=".items" draggable="true" data-dragtype="my-item" data-droptarget="my-item" @on.drop="onDrop @key e.dragInfo"></div>`,
   },
 ];
 

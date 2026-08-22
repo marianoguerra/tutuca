@@ -7,9 +7,9 @@ component({
   name: "FilePicker",
   fields: { name: "", size: 0, type: "", hasFile: false },
   receive: {
-    // `event` is the raw DOM event; the File is on event.target.files
-    onPickFile(draft, event) {
-      const file = event.target.files?.[0];
+    // e.target is the <input> node; the File is on e.target.files
+    onPickFile(draft, target) {
+      const file = target.files?.[0];
       draft.hasFile = !!file;
       if (!file) return;
       draft.name = file.name;
@@ -18,7 +18,7 @@ component({
     },
   },
   view: html`<section>
-    <input type="file" @on.change="onPickFile event" />
+    <input type="file" @on.change="onPickFile e.target" />
     <p @hide=".hasFile">No file selected yet.</p>
     <dl @show=".hasFile">
       <dt>Name</dt><dd @text=".name"></dd>

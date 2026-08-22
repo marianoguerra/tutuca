@@ -54,11 +54,15 @@ const G_SEQUENCE = K_FIELD | K_DYN;
 const G_PROVIDE = K_FIELD | K_SEQ;
 const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_SEQ;
 const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_CONST;
-// Handler-argument slots (`@on.<event>` args): G_VALUE plus the explicit
-// event-member read. `K_EVENT` is deliberately absent from every other group —
-// an `e.member` has no meaning outside a live DOM-event dispatch, so it must
-// not reach text/bool/path/macro-attr slots.
-const G_HANDLER_ARG = G_VALUE | K_EVENT;
+// Handler-argument slots (`@on.<event>` args): G_VALUE minus bare names plus
+// the explicit event-member read. Bare implicit names (`value`, `key`, …) are
+// gone — every arg carries a sigil (`e.value`, `.field`, `@bind`, `$method`,
+// `*dyn`, a type, or a literal), and a sigil-less word fails to parse with a
+// bad-value issue rather than silently resolving to null. `K_EVENT` is
+// deliberately absent from every other group — an `e.member` has no meaning
+// outside a live DOM-event dispatch, so it must not reach text/bool/path/
+// macro-attr slots.
+const G_HANDLER_ARG = (G_VALUE & ~K_NAME) | K_EVENT;
 const G_ALL = G_VALUE | K_STRTPL | K_SEQ;
 
 // Boolean predicates usable in conditional slots, e.g. `@show="empty? .items"`.
@@ -74,8 +78,8 @@ function sizeOf(v) {
 }
 const toNullIfNaN = (v) => (Number.isNaN(v) ? null : v);
 // Normalized `.value` read off a DOM event: checkbox -> checked, CustomEvent ->
-// detail, anything else -> target.value. Shared by the implicit `value` name
-// (transactor lookupName) and the explicit `e.value` member read.
+// detail, anything else -> target.value. Used by the `e.value` handler arg
+// (EVENT_CONVENIENCES) and by the app's drag-start capture.
 export function getValue(e) {
   return e.target.type === "checkbox"
     ? e.target.checked
@@ -449,13 +453,21 @@ export class HandlerNameVal extends NameVal {
   }
   eval(stack) {
     return (
-      stack.getHandlerFor(this.name, this.namespace) ?? mk404Handler(this.namespace, this.name)
+      stack.getHandlerFor(this.name, this.namespace) ??
+      mk404Handler(stack, this.namespace, this.name)
     );
   }
 }
-const mk404Handler = (type, name) =>
+// The fallback for a handler name with no implementation. It still returns a
+// callable (guards may skip it, and the dispatch machinery needs a function),
+// but when it actually runs it raises a structured refusal on the transactor's
+// refusal channel instead of a bare console.warn.
+const mk404Handler = (stack, type, name) =>
   function (...args) {
-    console.warn("handler not found", { type, name, args }, this);
+    const transactor = stack?.ctx?.transactor;
+    if (transactor)
+      transactor.refuse("NO_HANDLER", { namespace: type, name, argCount: args.length });
+    else console.warn("handler not found", { type, name });
     return this;
   };
 export class TypeVal extends NameVal {
@@ -464,13 +476,19 @@ export class TypeVal extends NameVal {
   }
 }
 // Conveniences with no direct property spelling, derived from the implicit
-// name switch that used to live in `InputEvent.lookupName`. Resolved only when
-// the whole path is one level (`e.isCtrl`, `e.valueAsInt`) — nothing composes
-// through this table. `event`, `ctx` and `dragInfo` are deliberately absent:
-// they aren't properties of the DOM event, and stay reachable only as bare
-// implicit names.
+// name switch this file used to resolve through `InputEvent.lookupName`.
+// Resolved only when the whole path is one level (`e.isCtrl`, `e.valueAsInt`)
+// — nothing composes through this table. `event` and `ctx` are deliberately
+// absent: `e.event` would hand back the raw event the sigil exists to avoid,
+// and the EventContext reaches handlers as their trailing argument. The drag
+// accessors read the transaction's DragInfo (see src/app.js); `e.dragKey` is
+// the dragged row's `@key` bind from the source render.
 const keyIs = (k) => (e) => e.key === k;
 const macCtrl = (e) => (isMac && e.metaKey) || e.ctrlKey;
+const nullSafe = (fn) => (e, stack) => {
+  const info = stack.lookupDragInfo();
+  return info == null ? null : fn(info);
+};
 export const EVENT_CONVENIENCES = {
   value: (e) => getValue(e),
   valueAsInt: (e) => toNullIfNaN(parseInt(getValue(e), 10)),
@@ -484,6 +502,10 @@ export const EVENT_CONVENIENCES = {
   isSend: keyIs("Enter"),
   isCancel: keyIs("Escape"),
   isTabKey: keyIs("Tab"),
+  dragInfo: (_e, stack) => stack.lookupDragInfo(),
+  dragType: nullSafe((info) => info.type),
+  dragValue: nullSafe((info) => info.val),
+  dragKey: nullSafe((info) => info.lookupBind("key")),
 };
 // `e.member` / `e.a.b…`: an explicit read on the dispatched DOM event in a
 // handler-arg slot (`@on.input="save e.value"`, `@on.click="pick e.target.dataset.slot"`).
@@ -498,12 +520,13 @@ export class EventMemberVal extends BaseVal {
     this.members = members;
   }
   eval(stack) {
-    let v = stack.lookupName("event");
-    if (v == null) return null;
+    const e = stack.lookupEvent();
+    if (e == null) return null;
     if (this.members.length === 1) {
       const convenience = EVENT_CONVENIENCES[this.members[0]];
-      if (convenience !== undefined) return convenience(v);
+      if (convenience !== undefined) return convenience(e, stack);
     }
+    let v = e;
     for (const member of this.members) {
       if (v == null) return null;
       v = v[member];

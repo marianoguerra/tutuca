@@ -485,9 +485,10 @@ paths (`e.target.dataset.id`, `e.detail.x`) walk it null-safe, with a lone
 `e.value` normalizing to input value / checkbox `checked` / CustomEvent
 `detail`. One-level computed conveniences (`e.valueAsInt`, `e.valueAsFloat`,
 `e.isCtrl`/`e.isCmd`, `e.isUpKey`, `e.isDownKey`, `e.isSend` (Enter),
-`e.isCancel` (Escape), `e.isTabKey`) resolve through a handler table
-(`EVENT_CONVENIENCES`); the bare spellings (`value`, `target`, `key`, …,
-`ctx`, `dragInfo`) remain for compatibility.
+`e.isCancel` (Escape), `e.isTabKey`, and the drag accessors `e.dragInfo`,
+`e.dragKey`, `e.dragValue`, `e.dragType`) resolve through a handler table
+(`EVENT_CONVENIENCES`). There are no bare implicit names: every handler arg
+carries a sigil, and a sigil-less word fails to parse (BAD_VALUE).
 Event modifiers come in two kinds. Guards decide whether the handler runs:
 `+ctrl`/`+cmd`/`+meta`/`+alt` on any event, `+send`/`+cancel` on `keydown`.
 Effects act on the DOM event: `+prevent` (`preventDefault`) and `+stop`
@@ -536,6 +537,18 @@ after mounting. Nothing calls it automatically in a bare app.
 when unused; `app.onChange(cb)` fires per root swap with `{val, old, info}`
 (`src/app.js`, `src/transactor.js`). These hooks power the playground's
 Activity tab and are the natural substrate for explorable visualizations.
+
+### Refusals
+
+Dispatch failures that cannot be carried out are reported on a structured
+**refusal channel** instead of ad-hoc warnings: `transactor.refuse(kind, info)`
+appends `{kind, info, timestamp}` to a capped ring (`transactor.refusals`),
+warns to the console, and notifies `transactor.observeRefusals(cb)`
+subscribers. The runtime currently raises `NO_HANDLER` (a receive name with no
+implementation — its fallback ran at dispatch time) and `FORWARD_NO_NAME`
+(`ctx.forward()` from a handler whose view wrote no name). The channel is
+observational: the dispatch has already failed gracefully, and handlers never
+see refusals.
 
 ---
 
