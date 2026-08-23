@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tutuca: Zero-dependency batteries included SPA framework</title>
+    <title>Tutuca: Zero-dependency SPA framework</title>
     <script type="importmap">
       {
         "imports": {
@@ -19,17 +19,14 @@
     </script>
     <meta
       name="description"
-      content="Tutuca is a zero-dependency, batteries-included SPA framework. One script tag to start — no build step, no setup. State management, virtual DOM, drag and drop, testing, CLI tooling, LLM skills, and more."
+      content="Tutuca is a zero-dependency SPA framework. One script tag to start — no build step, no setup. State management, virtual DOM, drag and drop, testing, CLI tooling, LLM skills, and more."
     />
     <meta name="author" content="Mariano Guerra" />
     <meta name="theme-color" content="#0d47a1" />
     <link rel="canonical" href="https://marianoguerra.github.io/tutuca/" />
 
     <!-- Open Graph -->
-    <meta
-      property="og:title"
-      content="Tutuca: Zero-dependency batteries included SPA framework"
-    />
+    <meta property="og:title" content="Tutuca: Zero-dependency SPA framework" />
     <meta
       property="og:description"
       content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, testing, CLI tooling, LLM skills, and more."
@@ -44,10 +41,7 @@
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="Tutuca: Zero-dependency batteries included SPA framework"
-    />
+    <meta name="twitter:title" content="Tutuca: Zero-dependency SPA framework" />
     <meta
       name="twitter:description"
       content="One script tag to start — no build step, no dependencies, no setup. State management, side effects, memoization, drag and drop, testing, CLI tooling, LLM skills, and more."
@@ -72,8 +66,8 @@
     <header>
       <h1>Tutuca</h1>
       <h2>
-        The <abbr title="Single Page Application">SPA</abbr> framework that fits
-        in your head
+        A small <abbr title="Single Page Application">SPA</abbr> framework that
+        is easy to learn
       </h2>
       <p class="hero-tagline">
         Zero dependencies. One script tag. No build step.
@@ -86,9 +80,9 @@
         >
       </div>
       <ul class="hero-highlights">
-        <li>Batteries included</li>
-        <li>~28&nbsp;KB brotli, zero deps</li>
-        <li>View-source friendly</li>
+        <li>Many built-in features</li>
+        <li>~28&nbsp;KB brotli size, zero dependencies</li>
+        <li>Readable source</li>
         <li>HTML-first</li>
       </ul>
       <pre
@@ -99,8 +93,8 @@
       <section id="try-it">
         <h2>Try It</h2>
         <p>
-          Edit any example below and press <kbd>Ctrl/Cmd + Enter</kbd> to see
-          your changes instantly.
+          Edit an example below. Press <kbd>Ctrl/Cmd + Enter</kbd> to run your
+          changes.
         </p>
         <h3>Hello, Tutuca</h3>
         <html-playground
@@ -122,8 +116,8 @@
       <section id="get-started">
         <h2>Get Started</h2>
         <p>
-          Tutuca ships as three builds, each a superset of the previous one.
-          Pick the one that fits your needs:
+          Tutuca ships as three builds. Each build includes everything in the
+          builds before it. Select the build that you need:
         </p>
         <table>
           <thead>
@@ -181,12 +175,10 @@
           </tbody>
         </table>
         <p>
-          All builds are available as <code>.js</code>, <code>.min.js</code>,
-          and <code>.min.js.br</code> from the
-          <a href="https://github.com/marianoguerra/tutuca/releases"
-            >releases page</a
-          >
-          or directly via <a href="https://www.jsdelivr.com/">jsDelivr</a>:
+          You can download all builds as <code>.js</code>,
+          <code>.min.js</code>, and <code>.min.js.br</code>. Get them from the
+          <a href="https://github.com/marianoguerra/tutuca">releases page</a> or
+          from <a href="https://www.jsdelivr.com/">jsDelivr</a>:
         </p>
         <pre><code>import { component } from "https://cdn.jsdelivr.net/npm/tutuca/+esm";<br>
           // or https://cdn.jsdelivr.net/npm/tutuca/dist/tutuca-extra.js/+esm<br>
@@ -196,9 +188,9 @@
       <section id="examples">
         <h2>Examples</h2>
         <p>
-          Explore what you can build with Tutuca. Each playground is editable —
-          press <kbd>Ctrl/Cmd + Enter</kbd> to run your changes. For a
-          structured walkthrough, see the
+          These examples show what you can make with Tutuca. Edit any
+          playground. Press <kbd>Ctrl/Cmd + Enter</kbd> to run your changes. To
+          learn the features step by step, see the
           <a href="./tutorial.html">tutorial</a>.
         </p>
         <h3>Basics</h3>
@@ -208,8 +200,8 @@
         <tutuca-playground src="./examples/todo.js"></tutuca-playground>
         <h4>Testing Components</h4>
         <p>
-          Methods, receive handlers, and iteration logic under unit test &mdash;
-          the Test tab runs automatically.
+          This example shows methods, receive handlers, and iteration logic
+          under test. The Test tab runs automatically.
         </p>
         <tutuca-playground
           src="./examples/testing-example.js"
@@ -218,27 +210,29 @@
         <h3>Interaction Patterns</h3>
         <h4>Tree Navigation</h4>
         <p>
-          Click folders to toggle them open or closed, and click files to
-          trigger a selected event.
+          Click a folder to open or close it. Click a file to trigger a
+          selected event.
         </p>
         <tutuca-playground src="./examples/tree.js"></tutuca-playground>
         <h4>Drag and Drop</h4>
         <p>
-          Drag entries to reorder them, and use the input to filter the list.
+          Drag an entry to change its position. Use the input to filter the
+          list.
         </p>
         <tutuca-playground src="./examples/dnd-example.js"></tutuca-playground>
         <h4>Filter and Paginate</h4>
         <p>
-          Search narrows the list, pages slice the matches, and editing or
-          deleting a row works on the right item even on page 2 of a filtered
-          view &mdash; <code>@loop-with</code> returns the matching rows'
-          original <code>keys</code>, so identity survives filtering and paging.
+          The search input narrows the list. The pager shows one page of
+          matches at a time. Editing or deleting a row works on the correct
+          item, even on page 2 of a filtered view.
+          <code>@loop-with</code> returns the original <code>keys</code> of the
+          matching rows. So the rows keep their identity.
         </p>
         <tutuca-playground
           src="./examples/filter-paginate.js"
         ></tutuca-playground>
         <h4>Web Component &amp; Custom Event</h4>
-        <p>Embed a third-party web component and react to its custom events.</p>
+        <p>Add a third-party web component. React to its custom events.</p>
         <tutuca-playground
           src="./examples/web-component-custom-event.js"
         ></tutuca-playground>
@@ -252,31 +246,30 @@
         <h4>Visual WebAssembly</h4>
         <tutuca-playground src="./examples/visual-wasm.js"></tutuca-playground>
         <h3>Composability</h3>
-        <h4>All Together Now</h4>
+        <h4>Composing Examples</h4>
         <p>
-          Each example above exports its components and root independently, with
-          no knowledge of being composed. The component below imports them all
-          and renders each one in its own tab — the glue code is minimal.
+          Each example above exports its components and root alone. It knows
+          nothing about composition. The example below imports them all. It
+          renders each one in its own tab. The glue code is small.
         </p>
         <tutuca-playground
           src="./examples/composability.js"
         ></tutuca-playground>
         <h4>Storybook</h4>
         <p>
-          A storybook that aggregates examples from this page. Each example file
-          exports a <code>getExamples()</code> describing its components in a
-          few states; the storybook imports them and renders them under a
-          sidebar navigation. See the
-          <a href="./storybook/">full storybook feature reference</a> for a tour
-          of every feature (sections, views, macros, request mocks, lifecycle
-          <code>on</code> hooks, and <code>drive</code> tests).
+          This storybook collects examples from this page. Each example file
+          exports a <code>getExamples()</code> function. It describes the
+          components in a few states. The storybook imports these functions and
+          shows the results under a sidebar navigation. See the
+          <a href="./storybook/">full storybook feature reference</a> for every
+          feature: sections, views, macros, request mocks, lifecycle
+          <code>on</code> hooks, and <code>drive</code> tests.
         </p>
         <tutuca-playground src="./examples/storybook.js"></tutuca-playground>
         <h3>More Examples</h3>
         <p>
-          For reactive SVG and MathML examples, plus advanced macro and
-          dynamic-binding playgrounds, see the
-          <a href="./more-examples.html">More Examples</a> page.
+          For SVG, MathML, advanced macro, and dynamic binding examples, see
+          the <a href="./more-examples.html">More Examples</a> page.
         </p>
       </section>
       <section id="whats-next">
@@ -284,7 +277,7 @@
         <h3>Learn More</h3>
         <ul>
           <li>
-            <a href="./tutorial.html">Tutorial</a> — learn features with
+            <a href="./tutorial.html">Tutorial</a> — learn the features with
             interactive examples
           </li>
           <li>

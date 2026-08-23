@@ -73,9 +73,9 @@
     <main>
       <section>
         <p>
-          A gallery of less common Tutuca use cases. Each playground is editable
-          &mdash; press <kbd>Ctrl/Cmd + Enter</kbd> to run your changes. For the
-          core features, see the <a href="./tutorial.html">tutorial</a>; for the
+          This page shows less common uses of Tutuca. Edit any playground.
+          Press <kbd>Ctrl/Cmd + Enter</kbd> to run your changes. For the core
+          features, see the <a href="./tutorial.html">tutorial</a>. For the
           showcase apps, see the <a href="./index.html#examples">home page</a>.
         </p>
       </section>
@@ -83,23 +83,23 @@
       <section id="iteration">
         <h2><a href="#iteration">Iteration</a></h2>
         <p>
-          <code>@loop-with</code> runs once per render and returns
+          <code>@loop-with</code> runs once per render. It returns
           <code>{ iterData, start, end }</code>. The <code>start</code>/<code
             >end</code
           >
-          keys slice the iteration with
-          <code>Array.prototype.slice</code> semantics, so <code>@each</code>
-          skips the off-page prefix and suffix instead of walking and discarding
-          them. Slicing keeps each item's original key.
+          keys cut the iteration with <code>Array.prototype.slice</code> rules.
+          So <code>@each</code> does not walk the items outside the page. A cut
+          keeps the original key of each item.
         </p>
 
         <h3 id="pagination">
           <a href="#pagination">Pagination</a>
         </h3>
         <p>
-          A paged list: <code>@loop-with</code> turns the current page into a
-          slice range. Off-page items are never iterated, and the index badges
-          show that keys stay original across pages.
+          This example shows a paged list. <code>@loop-with</code> converts the
+          current page into a slice range. The loop never iterates items
+          outside the page. The index badges show that keys stay original
+          across pages.
         </p>
         <tutuca-playground src="./examples/pagination.js"></tutuca-playground>
       </section>
@@ -110,11 +110,11 @@
           <a href="#traffic-light">Traffic Light</a>
         </h3>
         <p>
-          A port of a common React exercise: a button cycles a light through
-          red, orange, and green. The current color is derived from a single
-          <code>lightIndex</code> field by a <code>light</code> method, and
-          per-color visibility uses the built-in <code>equals?</code> predicate
-          (<code>@show="equals? $light 'red'"</code>) in place of React's inline
+          This is a version of a common React exercise. A button moves a light
+          through red, orange, and green. A <code>light</code> method computes
+          the current color from one <code>lightIndex</code> field. Per-color
+          visibility uses the built-in <code>equals?</code> predicate
+          (<code>@show="equals? $light 'red'"</code>) instead of React inline
           <code>&amp;&amp;</code> expressions.
         </p>
         <tutuca-playground
@@ -125,22 +125,22 @@
       <section id="svg">
         <h2><a href="#svg">SVG</a></h2>
         <p>
-          A tutuca template renders SVG directly: the
-          <code>&lt;svg&gt;</code> subtree keeps its namespace, so the usual
+          A tutuca template can render SVG directly. The
+          <code>&lt;svg&gt;</code> subtree keeps its namespace. So the usual
           directives (<code>@each</code>, <code>:attr</code> bindings,
-          <code>@on.click</code>, <code>@if</code>, macros) all work on real SVG
-          elements.
+          <code>@on.click</code>, <code>@if</code>, macros) all work on real
+          SVG elements.
         </p>
 
         <h3 id="svg-bar-chart">
           <a href="#svg-bar-chart">Reactive Bar Chart</a>
         </h3>
         <p>
-          A bar chart driven by a list field. <code>@loop-with</code> computes
-          the shared layout once, <code>@enrich-with</code> derives each bar's
-          geometry, and the buttons mutate the data &mdash; the
+          This bar chart reads a list field. <code>@loop-with</code> computes
+          the shared layout once. <code>@enrich-with</code> derives the
+          geometry of each bar. The buttons update the data. Then the
           <code>&lt;rect&gt;</code> and <code>&lt;text&gt;</code> elements
-          re-render in response.
+          re-render.
         </p>
         <tutuca-playground
           src="./examples/svg-bar-chart.js"
@@ -150,11 +150,10 @@
           <a href="#svg-interactive">Interactive SVG</a>
         </h3>
         <p>
-          Clickable <code>&lt;circle&gt;</code> swatches. Each uses
-          <code>@on.click</code> to set the selected color,
-          <code>:fill</code> binds the preview, and <code>@if</code> /
-          <code>@then</code> / <code>@else</code> draws a ring around the active
-          swatch.
+          Each <code>&lt;circle&gt;</code> swatch answers clicks.
+          <code>@on.click</code> sets the selected color. <code>:fill</code>
+          binds the preview color. <code>@if</code> / <code>@then</code> /
+          <code>@else</code> draws a ring around the active swatch.
         </p>
         <tutuca-playground
           src="./examples/svg-interactive.js"
@@ -164,10 +163,10 @@
           <a href="#svg-icon-macro">SVG Icon Macro</a>
         </h3>
         <p>
-          Macros can expand to an <code>&lt;svg&gt;</code> subtree, so an icon
-          set is just a few parametrized macros. <code>^size</code> and
-          <code>^color</code> are macro parameters; passing them dynamically
-          makes every icon react to state.
+          A macro can expand to an <code>&lt;svg&gt;</code> subtree. So a few
+          parametrized macros can give you a full icon set. <code>^size</code>
+          and <code>^color</code> are macro parameters. When you pass them
+          dynamically, every icon reacts to state.
         </p>
         <tutuca-playground
           src="./examples/svg-icon-macro.js"
@@ -178,26 +177,26 @@
         <h2><a href="#timers">Timers &amp; Inbound Events</a></h2>
         <h3 id="snake"><a href="#snake">Snake</a></h3>
         <p>
-          A whole game as one state machine inside the components: the board,
-          the snake, the food, the score, and the status
+          The game is one state machine inside the component. The board, the
+          snake, the food, the score, and the status
           (<code>idle</code>/<code>running</code>/<code>paused</code>/<code
             >over</code
-          >) are fields, and every rule is a method on
-          <code>SnakeGame</code> &mdash; so <code>step()</code> is a pure
-          function of the state and the tests call it directly.
+          >) are fields. Every rule is a method on <code>SnakeGame</code>. So
+          <code>step()</code> is a pure function of the state. The tests call
+          it directly.
         </p>
         <p>
           The only host code is the <code>setInterval</code> in
-          <code>getIntentHandlers()</code>: it owns the timer and pushes a
-          <code>tick</code> message at the root component, exactly what
-          <code>app.sendAtRoot("tick")</code> does in an app that has the
-          <code>app</code> handle. Everything else is a decision the component
-          makes &mdash; <em>Pause</em> requests <code>stopTicking</code> and the
-          interval is cancelled, <em>Resume</em> requests
-          <code>startTicking</code> again, changing the speed slider
-          reschedules it at the new rate, and a fatal tick cancels it from
-          <code>receive.tick</code>. Food placement runs off a seeded PRNG in a
-          <code>seed</code> field, so no handler needs
+          <code>getIntentHandlers()</code>. It owns the timer. It pushes a
+          <code>tick</code> message to the root component. This is the same as
+          <code>app.sendAtRoot("tick")</code> in an app that has the
+          <code>app</code> handle. All other decisions belong to the component.
+          <em>Pause</em> requests <code>stopTicking</code>. The framework then
+          cancels the interval. <em>Resume</em> requests
+          <code>startTicking</code> again. A change to the speed slider
+          schedules the interval again at the new rate. A fatal tick cancels
+          the interval in <code>receive.tick</code>. Food placement uses a
+          seeded PRNG in a <code>seed</code> field. So no handler calls
           <code>Math.random()</code>.
         </p>
         <tutuca-playground src="./examples/snake.js"></tutuca-playground>
@@ -209,10 +208,10 @@
           <a href="#mathml-formula">Reactive Formula</a>
         </h3>
         <p>
-          MathML renders from a template just like SVG. The
-          <code>&lt;math&gt;</code> subtree keeps its namespace, so
+          MathML renders from a template in the same way as SVG. The
+          <code>&lt;math&gt;</code> subtree keeps its namespace. So
           <code>&lt;msup&gt;</code>, <code>&lt;mfrac&gt;</code>, and
-          <code>&lt;mn&gt;</code> become real MathML elements &mdash; and
+          <code>&lt;mn&gt;</code> become real MathML elements.
           <code>@text</code> on an <code>&lt;mn&gt;</code> makes the displayed
           number reactive.
         </p>
@@ -227,13 +226,13 @@
           <a href="#file-picker">File Picker</a>
         </h3>
         <p>
-          A <code>&lt;input type="file"&gt;</code> wired with
+          This example wires an <code>&lt;input type="file"&gt;</code> with
           <code>@on.change="onPickFile e.target"</code>. The handler reads the
-          chosen <code>File</code> off <code>event.target.files</code> and
-          copies its metadata into fields, so the name, formatted size, MIME
-          type, and last-modified date render reactively &mdash;
-          <code>@show</code>/<code>@hide</code> on the <code>hasFile</code> flag
-          swap between the summary table and the empty state.
+          chosen <code>File</code> from <code>event.target.files</code>. It
+          copies the file metadata into fields. The name, formatted size, MIME
+          type, and last-modified date then render reactively.
+          <code>@show</code>/<code>@hide</code> on the <code>hasFile</code>
+          flag swap between the summary table and the empty state.
         </p>
         <tutuca-playground src="./examples/file-picker.js"></tutuca-playground>
       </section>
@@ -241,18 +240,18 @@
       <section id="macros-dynamic">
         <h2><a href="#macros-dynamic">Macros &amp; Dynamic Bindings</a></h2>
         <p>
-          Advanced composition patterns. The
+          This section shows advanced composition patterns. The
           <a href="./tutorial.html#macros">tutorial</a> introduces macros and
-          dynamic bindings step by step; these playgrounds put them to work in
-          larger examples.
+          dynamic bindings step by step. These playgrounds show them in larger
+          examples.
         </p>
 
         <h3 id="todo-macros">
           <a href="#todo-macros">To-Do with Macros</a>
         </h3>
         <p>
-          The to-do app rebuilt with macros for its repeated markup &mdash;
-          checkbox, input, and button fragments factored into reusable
+          This is the to-do app again. Its repeated markup &mdash; checkbox,
+          input, and button fragments &mdash; now lives in reusable macro
           templates.
         </p>
         <tutuca-playground src="./examples/todo-macros.js"></tutuca-playground>
@@ -261,8 +260,8 @@
           <a href="#dynamic-bindings">Dynamic Bindings</a>
         </h3>
         <p>
-          A producer publishes a value and any descendant reads it as
-          <code>*name</code>, skipping the components in between.
+          A producer publishes a value. Any descendant reads it as
+          <code>*name</code>. The components in between do not pass the value.
         </p>
         <tutuca-playground
           src="./examples/dynamic-bindings.js"
@@ -272,8 +271,9 @@
           <a href="#dynamic-path">Dynamic Variable in a Path</a>
         </h3>
         <p>
-          A dynamic var used as a render target: editing the rendered component
-          teleports the mutation back to where the value actually lives.
+          This example uses a dynamic var as a render target. When you edit the
+          rendered component, the mutation goes directly to the component that
+          owns the value.
         </p>
         <tutuca-playground src="./examples/dynamic-path.js"></tutuca-playground>
 
@@ -283,8 +283,8 @@
           >
         </h3>
         <p>
-          A producer exposes a single selected entry; a distant child renders
-          and edits it through a dynamic binding.
+          A producer exposes one selected entry. A child far down the tree
+          renders and edits it through a dynamic binding.
         </p>
         <tutuca-playground
           src="./examples/dynamic-selected-edit.js"

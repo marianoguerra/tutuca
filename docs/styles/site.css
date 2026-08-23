@@ -261,6 +261,9 @@ pre code {
   color: var(--text);
   background: none;
   padding: 0;
+  /* undo the `white-space: nowrap` from the inline `code` rule above,
+     which would otherwise collapse newlines and render blocks on one line */
+  white-space: pre;
 }
 
 section {

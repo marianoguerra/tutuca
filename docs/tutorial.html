@@ -79,39 +79,39 @@
     <main>
       <section>
         <p>
-          This tutorial walks you through tutuca's features step by step, from
-          the simplest possible component to macros and async requests. Each
-          section includes editable live code &mdash; modify the examples and
+          This tutorial teaches tutuca step by step. It starts with the
+          simplest component and ends with macros and async requests. Each
+          section contains live code that you can edit. Change an example and
           press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (or <kbd>Cmd</kbd>+<kbd
             >Enter</kbd
           >
-          on macOS) to see your changes instantly. Concepts build on each other,
-          so working through them in order is recommended.
+          on macOS) to see your changes. Later sections build on earlier
+          sections. Read them in order.
         </p>
         <h3>Notation Reference</h3>
         <p>
-          Tutuca templates use prefix characters to distinguish different kinds
-          of references. You will encounter these throughout the tutorial:
+          Tutuca templates use prefix characters to show different kinds of
+          references. You will see them throughout this tutorial:
         </p>
         <ul>
           <li>
             <code>.name</code> &mdash; a component field (e.g.
-            <code>.count</code>). Single-level only &mdash; paths like
-            <code>.user.name</code> are not supported anywhere. To reach a
+            <code>.count</code>). One level only &mdash; paths like
+            <code>.user.name</code> are not supported anywhere. To read a
             nested value, render the child as a component (<code
               >&lt;x render=".user"&gt;</code
             >
             then <code>@text=".name"</code> inside), add a method that returns
-            it, or expose it via <code>@enrich-with</code>.
+            the value, or expose it with <code>@enrich-with</code>.
           </li>
           <li>
-            <code>$name</code> &mdash; a no-arg method call (e.g.
-            <code>$inc</code>). It invokes the method and uses its return value.
-            <code>.name</code> and <code>$name</code> are not interchangeable;
-            the linter flags a mismatch.
+            <code>$name</code> &mdash; a method call with no arguments (e.g.
+            <code>$inc</code>). Tutuca calls the method and uses its return
+            value. <code>.name</code> and <code>$name</code> are not
+            interchangeable; the linter reports a mismatch.
           </li>
           <li>
-            <code>@name</code> &mdash; local binding from iteration or scope
+            <code>@name</code> &mdash; a local binding from iteration or scope
             enrichment (e.g. <code>@key</code>, <code>@value</code>)
           </li>
           <li>
@@ -123,8 +123,9 @@
             <code>*theme</code>, <code>*entries</code>)
           </li>
           <li>
-            <code>.seq[.key]</code> &mdash; sequence / map item access: resolve
-            the inner expression as a key into the outer collection (e.g.
+            <code>.seq[.key]</code> &mdash; access to an item in a sequence or
+            map. Tutuca resolves the inner expression as a key into the outer
+            collection (e.g.
             <code>.byKey[.currentKey]</code>)
           </li>
         </ul>
@@ -230,7 +231,7 @@
             </ol>
           </li>
           <li>
-            <a href="#escape-hatches">Escape Hatches</a>
+            <a href="#escape-hatches">Special Cases</a>
             <ol>
               <li><a href="#drag-and-drop">Drag and Drop</a></li>
               <li><a href="#web-components">Web Components</a></li>
@@ -266,11 +267,10 @@
           <a href="#minimum-viable-component">Minimum Viable Component</a>
         </h3>
         <p>
-          The simplest possible component is one with no fields, no view, and no
-          logic: <code>component({})</code>. This is the absolute minimum
-          required to create a tutuca component &mdash; an empty object is all
-          you need. It won't render anything useful, but it demonstrates that
-          everything is optional.
+          The simplest component has no fields, no view, and no logic:
+          <code>component({})</code>. An empty object is the minimum for a
+          tutuca component. This component does not render anything useful.
+          But it shows that all parts are optional.
         </p>
         <tutuca-playground
           src="./examples/minimum-viable-component.js"
@@ -280,17 +280,16 @@
           <a href="#static-view-component">Static View Component</a>
         </h3>
         <p>
-          Adding a <code>view</code> gives the component something to render.
-          Here the view contains no dynamic content &mdash; just static HTML
-          wrapped in the <code>html</code> tagged template. This works, but for
-          purely static content with no state or interactivity,
-          <a href="#macros">macros</a> are a better fit.
+          A <code>view</code> gives the component something to render. Here the
+          view has no dynamic content. It is static HTML wrapped in the
+          <code>html</code> tagged template. This works. But for static content
+          with no state and no interactivity, use
+          <a href="#macros">macros</a>.
         </p>
         <p>
-          The <code>html</code> tag is just a hint for editors to syntax
-          highlight and format the content as HTML &mdash; the same applies to
-          the <code>css</code> tag for styles. Both are optional: you can use
-          plain strings instead.
+          The <code>html</code> tag helps editors highlight and format the
+          content as HTML. The <code>css</code> tag does the same for styles.
+          Both tags are optional: you can use plain strings instead.
         </p>
         <tutuca-playground
           src="./examples/static-view-component.js"
@@ -300,15 +299,14 @@
           <a href="#text-rendering">Text Rendering</a>
         </h3>
         <p>
-          Use <code>@text</code> as an attribute on an existing element to
-          prepend text into it (preserving its other children), or use
+          Put <code>@text</code> on an existing element to add text before its
+          other children, or use
           <code>&lt;x text=".field"&gt;&lt;/x&gt;</code> as a standalone text
-          node that adds no extra DOM element. The value can be a field
-          reference like <code>.str</code>, which resolves the
-          <code>str</code> field, or a method call like
-          <code>$getStrUpper</code>, which invokes the method and displays its
-          return value. All value types are supported: strings, numbers,
-          booleans, and null.
+          node with no extra DOM element. The value can be a field reference
+          like <code>.str</code>. Tutuca then reads the <code>str</code> field.
+          Or it can be a method call like <code>$getStrUpper</code>. Tutuca
+          then calls the method and shows its return value. All value types are
+          supported: strings, numbers, booleans, and null.
         </p>
         <tutuca-playground
           src="./examples/text-directive.js"
@@ -318,30 +316,27 @@
           <a href="#mental-model">Mental Model</a>
         </h3>
         <p>
-          Before diving into more syntax, three rules anchor everything that
-          follows. The application state is a
-          <strong>single immutable root value</strong> &mdash; every component
-          instance is a node in that tree. State is deeply frozen between
-          transactions. The view is a
-          <strong>pure function of the value</strong>: render the same value,
-          get the same DOM. Every event handler receives a
-          <strong>mutable draft as its first argument</strong>; the framework
-          finalizes and swaps the new value into the tree, and the renderer
-          reuses cached subtrees by
-          <code>===</code> identity. Every dispatched handler receives an
-          Immer <code>draft</code> first while <code>this</code> remains the
-          immutable current instance.
+          Three rules explain everything that follows. The application state is
+          a <strong>single immutable root value</strong>. Every component
+          instance is a node in that tree. The state is deeply frozen between
+          transactions. The view is a <strong>pure function of the value</strong>:
+          the same value always gives the same DOM. Every event handler receives
+          a <strong>mutable draft as its first argument</strong>. The framework
+          produces the new value and puts it into the tree. The renderer reuses
+          cached subtrees by <code>===</code> identity. Every dispatched handler
+          receives an Immer <code>draft</code> first, while <code>this</code>
+          stays the immutable current instance.
         </p>
         <p>
           In practice a click flows like this:
           <em
-            >click &rarr; handler mutates its draft &rarr; Immer finalizes a new
-            value &rarr; the framework swaps the root in &rarr; the renderer diffs
-            against the previous frame and patches the DOM</em
-          >. There is no explicit subscribe / unsubscribe step, no central
-          store, no mutation in place. The rest of this tutorial introduces the
-          syntax for describing those handlers and views; the model under all of
-          it is what you just read.
+            >click &rarr; handler changes its draft &rarr; Immer produces a new
+            value &rarr; the framework puts the new root in place &rarr; the
+            renderer compares with the previous frame and updates the DOM</em
+          >. You never subscribe or unsubscribe. There is no central store.
+          Handlers do not change state in place. The rest of this tutorial
+          teaches the syntax for these handlers and views. The model under them
+          is what you just read.
         </p>
       </section>
 
@@ -357,11 +352,11 @@
         <p>
           A component declares its state in <code>fields</code>, as a map of
           name to default value. Tutuca infers the field's <em>type</em> from
-          that default &mdash; <code>0</code> is a number, <code>"hi"</code> a
+          the default: <code>0</code> is a number, <code>"hi"</code> a
           string, <code>true</code> a boolean, <code>[]</code> an Array,
           <code>{}</code> a plain object, <code>new Map()</code> a map,
-          <code>new Set()</code> a set, and <code>null</code> the catch-all
-          <code>any</code>. Handlers update these through ordinary JavaScript
+          <code>new Set()</code> a set, and <code>null</code> the
+          <code>any</code> type. Handlers update fields with normal JavaScript
           operations on their first <code>draft</code> argument.
         </p>
         <ul>
@@ -378,14 +373,14 @@
           </li>
           <li>
             Native Map and Set use <code>set</code>/<code>add</code> and
-            <code>delete</code>; Immer tracks all of them.
+            <code>delete</code>. Immer records all of these operations.
           </li>
         </ul>
         <p>
-          Return nothing to commit a mutated draft. Return another component
-          instance to swap the addressed component. If nothing changed, the
-          original identity is retained. Generated field setters are not part
-          of the API; define only the named handlers your view needs.
+          Return nothing to commit the changed draft. Return another component
+          instance to replace that component. If nothing changed, tutuca keeps
+          the original identity. Generated field setters are not part of the
+          API. Define only the named handlers that your view needs.
         </p>
         <pre><code>component({
   name: "Profile",
@@ -407,8 +402,9 @@
         </h3>
         <p>
           Tutuca separates read-only computations from mutation handlers.
-          <code>methods</code> are no-argument reads used in value slots;
-          <code>receive</code> owns draft-first event and message handlers:
+          <code>methods</code> are reads without arguments, used in value
+          slots. <code>receive</code> holds the draft-first event and message
+          handlers:
         </p>
         <ul>
           <li>
@@ -418,29 +414,29 @@
           <li><code>name</code> (bare) calls <code>receive.name</code>.</li>
         </ul>
         <p>
-          Every <code>@on.*</code> uses the bare form and resolves only in
-          <code>receive</code>; <code>$method</code> is rejected there.
-          The linter tells you to move a same-named method into
-          <code>receive</code> when it finds the old dual-role pattern.
+          Every <code>@on.*</code> uses the bare form. It resolves only in
+          <code>receive</code>; tutuca rejects <code>$method</code> there.
+          When the linter finds the old dual-role pattern, it tells you to move
+          the same-named method into <code>receive</code>.
         </p>
 
         <h3 id="attribute-binding">
           <a href="#attribute-binding">Attribute Binding</a>
         </h3>
         <p>
-          Use the <code>:attr</code> syntax to bind component state to any HTML
+          Use the <code>:attr</code> syntax to bind component state to an HTML
           attribute. For example, <code>:value=".str"</code> binds the
-          <code>str</code> field to the input's <code>value</code> attribute.
-          Template interpolation works in bindings too:
+          <code>str</code> field to the <code>value</code> attribute of the
+          input. Template interpolation also works in bindings:
           <code>:title="$'Content is {.str}'"</code> builds a dynamic title
           string.
         </p>
         <p>
           When the user types,
-          <code>@on.input="setStr e.value"</code> calls an explicit draft-first
-          <code>setStr</code> handler with the input's current value. For the
-          number input, <code>setRawNumber</code> parses and validates before
-          assigning to the draft.
+          <code>@on.input="setStr e.value"</code> calls the draft-first
+          <code>setStr</code> handler with the current value of the input. For
+          the number input, <code>setRawNumber</code> parses and checks the
+          value before it assigns to the draft.
         </p>
         <tutuca-playground
           src="./examples/attribute-binding.js"
@@ -450,14 +446,14 @@
           <a href="#event-handling">Event Handling</a>
         </h3>
         <p>
-          The <code>+</code> button uses <code>@on.click="inc"</code> &mdash;
-          it names the <code>inc</code> receive handler. The <code>-</code>
-          button similarly names <code>dec</code>. Both mutate the first
-          <code>draft</code> argument.
+          The <code>+</code> button uses <code>@on.click="inc"</code>. This
+          names the <code>inc</code> receive handler. The <code>-</code>
+          button names <code>dec</code> in the same way. Both handlers change
+          the first <code>draft</code> argument.
         </p>
         <p>
-          Computed methods never receive a draft and cannot be event handlers;
-          this keeps calls on component instances read-only by construction.
+          Computed methods never receive a draft. They cannot be event
+          handlers. So calls on component instances are read-only by design.
         </p>
         <tutuca-playground src="./examples/counter.js"></tutuca-playground>
 
@@ -466,32 +462,31 @@
         </h3>
         <p>
           <code>@show=".field"</code> hides the host element when the field is
-          falsy; <code>@hide=".field"</code> hides it when truthy. The element
-          still renders in the DOM &mdash; only its visibility is toggled
-          &mdash; so prefer this for fast-toggling regions where mounting cost
-          isn't a concern.
+          falsy. <code>@hide=".field"</code> hides it when the field is truthy.
+          The element still renders in the DOM; only its visibility changes. Use
+          this for regions that toggle fast, when mount cost does not matter.
         </p>
         <p>
-          The same <code>@show</code> and <code>@hide</code> can also appear
-          directly on the <code>&lt;x&gt;</code> render ops
+          <code>@show</code> and <code>@hide</code> can also appear directly on
+          the <code>&lt;x&gt;</code> render ops
           (<code>render</code>, <code>render-it</code>,
-          <code>render-each</code>, <code>text</code>) &mdash; instead of
-          toggling a host element, they wrap the produced node in the equivalent
-          guard with no extra DOM. For example,
-          <code>&lt;x render-it @show=".isOpen"&gt;&lt;/x&gt;</code> is the
-          equivalent of <code>render-it</code> wrapped in
-          <code>@show=".isOpen"</code>. When both appear on the same element,
-          the first attribute in source order becomes the outermost wrapper.
+          <code>render-each</code>, <code>text</code>). They do not toggle a
+          host element. They wrap the produced node in the same guard with no
+          extra DOM. For example,
+          <code>&lt;x render-it @show=".isOpen"&gt;&lt;/x&gt;</code> equals
+          <code>render-it</code> wrapped in
+          <code>@show=".isOpen"</code>. When both appear on one element, the
+          first attribute in source order becomes the outer wrapper.
         </p>
         <p>
           The value can be a field, a built-in boolean predicate applied to one
           (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
           <code>null?</code> &mdash; written predicate-first, e.g.
-          <code>@hide="empty? .items"</code>), or a <code>methods</code> entry
-          &mdash; <code>@show="$canSubmit"</code> calls
+          <code>@hide="empty? .items"</code>), or a <code>methods</code> entry:
+          <code>@show="$canSubmit"</code> calls
           <code>methods.canSubmit()</code> with no arguments and uses its return
-          value. Reach for a method when a condition combines multiple fields;
-          the predicates only cover single-field checks.
+          value. Use a method when a condition combines several fields; the
+          predicates cover only single-field checks.
         </p>
         <tutuca-playground src="./examples/show-hide.js"></tutuca-playground>
 
@@ -499,26 +494,26 @@
           <a href="#event-modifiers">Event Modifiers</a>
         </h3>
         <p>
-          Modifiers filter events so handlers only fire under specific
+          Modifiers filter events. A handler fires only under the specified
           conditions. <code>@on.keydown+send="setLastSentSearch value"</code>
-          only fires when the user presses Enter.
-          <code>@on.keydown+cancel="resetQuery"</code> only fires on Escape.
-          Modifiers are appended with <code>+</code> and can be combined (e.g.
+          fires only when the user presses Enter.
+          <code>@on.keydown+cancel="resetQuery"</code> fires only on Escape.
+          Append modifiers with <code>+</code>; you can combine them (e.g.
           <code>+ctrl+send</code>).
         </p>
         <p>
-          Two modifiers act on the event itself instead of filtering:
+          Two modifiers act on the event itself. They do not filter:
           <code>+prevent</code> calls <code>preventDefault()</code> and
           <code>+stop</code> calls <code>stopPropagation()</code>. Both work on
-          any event, and both only run once the filtering modifiers on the same
-          handler have passed &mdash; so
+          any event. Both run only after the filter modifiers on the same
+          handler pass. So
           <code>@on.keydown+send+prevent</code> prevents the default on Enter
-          and leaves every other key alone.
+          and leaves every other key unchanged.
         </p>
         <p>
           The example below also uses
-          <code>@show="truthy? .lastSentSearch"</code> to conditionally display
-          the search result &mdash; <code>truthy?</code> is one of the boolean
+          <code>@show="truthy? .lastSentSearch"</code> to show the search
+          result conditionally &mdash; <code>truthy?</code> is one of the boolean
           predicates introduced in
           <a href="#conditional-display">Conditional Display</a>
           above.
@@ -531,32 +526,30 @@
           <a href="#conditional-attributes">Conditional Attributes</a>
         </h3>
         <p>
-          <code>@if.class=".isActive"</code> tests the boolean field, then
+          <code>@if.class=".isActive"</code> tests the boolean field. Then
           <code>@then="'btn btn-success'"</code> or
-          <code>@else="'btn btn-ghost'"</code> sets the class accordingly. The
-          same pattern works for any attribute: <code>@if.title</code> /
-          <code>@then.title</code> / <code>@else.title</code> conditionally sets
-          the title. Single quotes inside the value (<code>'...'</code>) denote
-          string literals.
+          <code>@else="'btn btn-ghost'"</code> sets the class. The same pattern
+          works for any attribute: <code>@if.title</code> /
+          <code>@then.title</code> / <code>@else.title</code> sets the title
+          conditionally. Single quotes inside the value (<code>'...'</code>)
+          mark a string literal.
         </p>
         <p>
           <code>$toggleIsActive</code> in the example is a small explicit
-          handler that negates the draft field. The value passed to
-          <code>@if</code> can also be a
-          method &mdash; same rule as <code>@show</code>, useful when the
-          predicate combines multiple fields.
+          handler that negates the draft field. The value for <code>@if</code>
+          can also be a method &mdash; same rule as <code>@show</code>. This is
+          useful when the predicate combines several fields.
         </p>
         <p>
-          When there is a single <code>@if</code> directive,
-          <code>@then</code> and <code>@else</code> don't need to specify the
-          attribute name &mdash; they infer it from
-          <code>@if.&lt;attr&gt;</code>. If there are multiple
-          <code>@if</code> directives on the same element, the additional
-          <code>@then</code> and <code>@else</code> must specify the attribute
-          name explicitly (e.g. <code>@then.title</code>,
-          <code>@else.title</code>) &mdash; HTML disallows duplicate attribute
-          names, so the second unsuffixed <code>@then=</code> would be silently
-          dropped by the parser before tutuca sees it.
+          With one <code>@if</code> directive, <code>@then</code> and
+          <code>@else</code> do not need to specify the attribute name; they
+          infer it from <code>@if.&lt;attr&gt;</code>. With several
+          <code>@if</code> directives on one element, the additional
+          <code>@then</code> and <code>@else</code> must name the attribute
+          explicitly (e.g. <code>@then.title</code>,
+          <code>@else.title</code>). HTML does not allow duplicate attribute
+          names, so the parser would drop a second unsuffixed
+          <code>@then=</code> before tutuca reads it.
         </p>
         <tutuca-playground
           src="./examples/conditional-attributes.js"
@@ -566,29 +559,29 @@
           <a href="#tabbed-ui">Tabbed UI</a>
         </h3>
         <p>
-          A tabbed UI puts the previous two sections to work together. The
-          active tab is just a single string field &mdash;
-          <code>tab</code> &mdash; and everything else derives from it. No
-          per-tab boolean flags, no separate component per tab.
+          A tabbed UI uses the two previous sections together. The active tab
+          is one string field, <code>tab</code>. Everything else derives from
+          it. There are no per-tab boolean flags and no separate component per
+          tab.
         </p>
         <p>
-          The comparison is done with <code>equals?</code>, a built-in boolean
-          predicate. Unlike the unary predicates from
+          The comparison uses <code>equals?</code>, a built-in boolean
+          predicate. The unary predicates in
           <a href="#conditional-display">Conditional Display</a>
           (<code>empty?</code>, <code>truthy?</code>, <code>falsy?</code>,
-          <code>null?</code>), <code>equals?</code> is binary: written
-          predicate-first, it takes two values &mdash; here a field and a string
-          literal, as in <code>equals? .tab 'overview'</code>. Each tab panel
-          uses it in <code>@show</code> so only the matching panel is visible,
-          and each tab button uses it in <code>@if.class</code> &mdash;
+          <code>null?</code>) take one value. <code>equals?</code> takes two
+          values, written predicate-first: here a field and a string literal,
+          as in <code>equals? .tab 'overview'</code>. Each tab panel uses it in
+          <code>@show</code>, so only the matching panel is visible. Each tab
+          button uses it in <code>@if.class</code> &mdash;
           <code>@then="'tab tab-active'"</code> highlights the active button,
-          <code>@else="'tab'"</code> styles the rest.
+          <code>@else="'tab'"</code> styles the others.
         </p>
         <p>
-          Clicking a button calls <code>$setTab 'overview'</code> &mdash; an
-          explicit handler that assigns the <code>tab</code> draft field. Single
-          quotes mark string literals both in
-          the <code>equals?</code> comparisons and in the handler argument.
+          A click calls <code>$setTab 'overview'</code>. This explicit handler
+          assigns the <code>tab</code> draft field. Single quotes mark string
+          literals both in the <code>equals?</code> comparison and in the
+          handler argument.
         </p>
         <tutuca-playground src="./examples/tabbed-ui.js"></tutuca-playground>
 
@@ -596,39 +589,37 @@
           <a href="#no-dotted-paths">No Dotted Paths in Values</a>
         </h3>
         <p>
-          Tutuca expressions resolve a <strong>single</strong> name on
+          A tutuca expression resolves a <strong>single</strong> name on
           <code>this</code>. Writing <code>@text=".user.name"</code>,
           <code>:value=".item.title"</code>, or
-          <code>@show=".item.isOpen"</code> does <em>not</em> navigate &mdash;
-          the parser will not walk a dotted path anywhere a value is read. This
-          is the most common gotcha in the language; it's worth remembering once
-          and never tripping on again. When the value lives one level deeper,
-          you have three options:
+          <code>@show=".item.isOpen"</code> does <em>not</em> navigate. The
+          parser never walks a dotted path where a value is read. Remember this
+          rule. When the value is one level deeper, you have three options:
         </p>
         <ul>
           <li>
             <strong>Render the child as a component</strong> &mdash;
             <code>&lt;x render=".user"&gt;</code> and read
-            <code>.name</code> from inside the child's view. Best when the
-            nested thing is already (or could be) its own component.
+            <code>.name</code> inside the view of the child. Use this when the
+            nested value is, or can be, its own component.
           </li>
           <li>
-            <strong>Add a method that returns it</strong> &mdash;
+            <strong>Add a method that returns the value</strong> &mdash;
             <code>userName() { return this.user.name; }</code>, then use
-            <code>@text="$userName"</code>. Best for one-off derivations or
-            formatting.
+            <code>@text="$userName"</code>. Use this for one-time derivations
+            or formatting.
           </li>
           <li>
             <strong>Use <code>@enrich-with</code></strong> &mdash; expose
-            computed values as <code>@</code>-prefixed bindings to a subtree
-            without putting them on the component. See
+            computed values as <code>@</code>-prefixed bindings to a subtree.
+            The values do not go on the component. See
             <a href="#scope-enrichment">Scope Enrichment</a>.
           </li>
         </ul>
         <p>
-          Exceptions: <code>@each</code> / <code>render-each</code> accept
-          <code>.field</code> or <code>*dynamic</code> only (not a
-          <code>$method</code>), and <code>&lt;x render&gt;</code> expects a
+          Exceptions: <code>@each</code> / <code>render-each</code> accept only
+          <code>.field</code> or <code>*dynamic</code> (not a
+          <code>$method</code>). <code>&lt;x render&gt;</code> expects a
           component instance &mdash; for a derived list, store it in a field or
           use <code>@when</code> with <code>alter</code>.
         </p>
@@ -637,10 +628,9 @@
           <a href="#quoting-string-literals">Quoting &amp; String Literals</a>
         </h3>
         <p>
-          Tutuca's expression parser is context-sensitive, and the rules for
-          static strings differ from the ones for dynamic expressions. This is
-          the most-tripped-over piece of the syntax, so it is worth
-          understanding once.
+          The tutuca expression parser depends on context. The rules for static
+          strings differ from the rules for dynamic expressions. Learn these
+          rules once; they prevent most syntax errors.
         </p>
         <ul>
           <li>
@@ -652,29 +642,29 @@
             String template: <code>:class="$'btn {.kind}'"</code> &mdash; works
             in <code>:attr=</code>, <code>@text</code>, macro dynamic attrs,
             anywhere a string template is allowed. The <code>$'…'</code> prefix
-            marks a template; <code>{...}</code> holds interpolations.
+            marks a template; <code>{...}</code> holds the interpolations.
           </li>
           <li>
-            Bare without quotes or braces:
+            Text without quotes or braces:
             <code>:class="flex gap-3"</code> &mdash;
-            <strong>does not work</strong>, the parser returns
-            <code>null</code>. Either single-quote it or add a
-            <code>{...}</code> piece.
+            <strong>this does not work</strong>. The parser returns
+            <code>null</code>. Single-quote the text or add a
+            <code>{...}</code> part.
           </li>
           <li>
             Bare identifier: <code>dec</code>, <code>value</code> &mdash; valid
-            only in name slots (event handler name, handler arg name), never as
-            a value.
+            only in name slots (event handler name, handler argument name).
+            Never valid as a value.
           </li>
         </ul>
         <p>
           Plain HTML attributes are static strings as written
           (<code>class="card"</code>). Macro parameters passed without
-          <code>:</code> are static strings too (<code>label="Sale"</code>). The
-          quoting rules only apply when the prefix <code>:</code> turns the
+          <code>:</code> are static strings too (<code>label="Sale"</code>).
+          The quoting rules apply only when the prefix <code>:</code> turns the
           value into an expression, or inside <code>@if</code> /
           <code>@then</code> / <code>@else</code> / <code>@text</code> / event
-          handler args.
+          handler arguments.
         </p>
       </section>
 
@@ -701,18 +691,18 @@
           <a href="#list-filtering">List Filtering</a>
         </h3>
         <p>
-          Adding <code>@when="filterItem"</code> alongside
-          <code>@each</code> calls <code>alter.filterItem(_key, item)</code> for
-          each entry. If it returns <code>false</code>, the item is skipped.
-          Functions in the <code>alter</code> object have
-          <code>this</code> bound to the component state, so here it reads
-          <code>this.query</code> to filter items by the current search string.
+          Add <code>@when="filterItem"</code> next to <code>@each</code>. Tutuca
+          then calls <code>alter.filterItem(_key, item)</code> for each entry.
+          If it returns <code>false</code>, tutuca skips the item. Functions in
+          the <code>alter</code> object have <code>this</code> bound to the
+          component state, so <code>filterItem</code> here reads
+          <code>this.query</code> and filters items by the current search
+          string.
         </p>
         <p>
-          If the value used the method syntax
-          (<code>@when="$filterItem"</code>), it would call a method instead.
-          Like <code>input</code>, the <code>alter</code> section is for
-          organizational purposes only.
+          If the value used method syntax (<code>@when="$filterItem"</code>),
+          tutuca would call a method instead. Like <code>input</code>, the
+          <code>alter</code> section exists for organization only.
         </p>
         <tutuca-playground
           src="./examples/list-and-filter.js"
@@ -740,12 +730,12 @@
         <p>
           <code>@loop-with="getIterData"</code> calls
           <code>alter.getIterData(seq)</code> once before the loop starts. Its
-          return value (here <code>{ totalChars, queryLower }</code>) is passed
-          as the third argument to both <code>filterItem</code> and
-          <code>enrichItem</code>. This avoids redundant computation &mdash;
-          <code>queryLower</code> is computed once instead of per-item, and
-          <code>totalChars</code> is calculated from the full sequence before
-          any filtering.
+          return value (here <code>{ totalChars, queryLower }</code>) goes as
+          the third argument to both <code>filterItem</code> and
+          <code>enrichItem</code>. This prevents duplicate work:
+          <code>queryLower</code> is computed once, not per item, and
+          <code>totalChars</code> comes from the full sequence before any
+          filtering.
         </p>
         <tutuca-playground
           src="./examples/list-filter-enrich-with.js"
@@ -755,34 +745,35 @@
           <a href="#filter-and-paginate">Filter and Paginate</a>
         </h3>
         <p>
-          Combining a filter and pagination is the common case, but it has an
-          order problem: <code>@when</code> filters <em>within</em> the slice
-          <code>@loop-with</code> already cut, so a page would show fewer than
-          its size and the page count would reflect the unfiltered total. To
+          A filter together with pagination is common, but order matters:
+          <code>@when</code> filters <em>within</em> the slice
+          <code>@loop-with</code> already cut. So a page can show fewer rows
+          than its size, and the page count reflects the unfiltered total. To
           filter <em>before</em> paging, return <code>keys</code> from
           <code>@loop-with</code>: an ordered list of the matching rows'
           <em>original</em> keys for the current page.
         </p>
         <p>
-          The handler owns the whole pipeline &mdash; filter, sort, then slice
-          &mdash; and because <code>keys</code> are the original indices,
-          <code>@key</code> keeps each row's identity: editing or deleting a row
-          on page 2 of a filtered view hits the right item. A <code>keys</code>
-          return is authoritative, so the renderer does not re-apply
-          <code>@when</code>. Each row here is its own
+          The handler owns the whole pipeline: filter, sort, then slice. Because
+          <code>keys</code> are the original indices,
+          <code>@key</code> keeps the identity of each row: editing or deleting
+          a row on page 2 of a filtered view hits the correct item. A
+          <code>keys</code> return is authoritative, so the renderer does not
+          apply <code>@when</code> again. Each row here is its own
           <code>&lt;x render-it&gt;</code> component, so its fields are
           self-contained two-way bindings.
         </p>
         <p>
-          The page controls sit outside the loop, so they can't see its
+          The page controls sit outside the loop, so they cannot see its
           per-loop data. The pattern below splits the work in two: a scope
           <code>@enrich-with</code> on the <code>&lt;section&gt;</code> does one
           counting scan and publishes the clamped page and labels as
-          <code>@</code>-bindings the controls read; the <code>@loop-with</code>
-          handler then takes a context, <code>(seq, &#123; lookup, filter &#125;)</code>,
-          reads that clamped page via <code>lookup</code>, reuses the declared
-          <code>@when</code> via <code>filter</code>, and collects just the
-          current page's keys &mdash; scanning only as far as needed.
+          <code>@</code>-bindings for the controls to read. The
+          <code>@loop-with</code> handler then takes a context,
+          <code>(seq, &#123; lookup, filter &#125;)</code>. It reads that clamped
+          page via <code>lookup</code>, reuses the declared
+          <code>@when</code> via <code>filter</code>, and collects only the
+          current page's keys &mdash; it scans only as far as needed.
         </p>
         <tutuca-playground
           src="./examples/filter-paginate.js"
@@ -792,17 +783,16 @@
           <a href="#scope-enrichment">Scope Enrichment</a>
         </h3>
         <p>
-          When <code>@enrich-with="enrichScope"</code> is used on an element
-          without <code>@each</code>, the <code>alter</code> function returns an
+          Use <code>@enrich-with="enrichScope"</code> on an element without
+          <code>@each</code>. The <code>alter</code> function then returns an
           object (here <code>{ len, upper }</code>) whose keys become
           <code>@</code>-prefixed bindings for all child elements in this view.
-          (They reach plain DOM descendants, not a rendered child component
-          &mdash; a <code>&lt;x render&gt;</code> boundary starts a clean
-          namespace.) Inside the enriched <code>&lt;div&gt;</code>,
-          <code>@len</code> and <code>@upper</code> are available alongside the
-          regular field bindings. This is useful for injecting derived values
-          into a section of the template without storing them in component
-          state.
+          (They reach plain DOM descendants, not a rendered child component;
+          a <code>&lt;x render&gt;</code> boundary starts a clean namespace.)
+          Inside the enriched <code>&lt;div&gt;</code>,
+          <code>@len</code> and <code>@upper</code> are available next to the
+          regular field bindings. This helps you put derived values into a
+          section of the template without storing them in component state.
         </p>
         <tutuca-playground
           src="./examples/render-with-scope.js"
@@ -819,30 +809,30 @@
           <a href="#rendering-a-child">Rendering a Child Component</a>
         </h3>
         <p>
-          Up to this point components have been self-contained &mdash; their
-          views render only their own fields.
+          Until here, components were self-contained: their views render only
+          their own fields.
           <code>&lt;x render=".field"&gt;</code> renders a child component held
           in a field of the current component. The child draws its own view from
           its own state, scoped to its field.
-          <code>&lt;x render-it&gt;</code> is the same idea but for use
+          <code>&lt;x render-it&gt;</code> works the same way, but only
           <em>inside</em> an iteration (<code>@each</code> or
-          <code>render-each</code>) &mdash; it renders whatever component
-          instance is currently iterated.
+          <code>render-each</code>). It renders the component instance of the
+          current iteration.
         </p>
         <p>
           A rendered child gets a <strong>clean namespace</strong>: the parent's
           <code>@</code> bindings (from <code>@each</code> iteration or
           <code>@enrich-with</code>) and scope enrichments do
           <strong>not</strong>
-          cross into it &mdash; the child sees only its own fields. To pass a
-          value across that boundary, use a
+          cross into it. The child sees only its own fields. To pass a value
+          across that boundary, use a
           <a href="#dynamic-bindings">dynamic binding</a> (<code>*name</code>).
         </p>
         <p>
-          Once you can render children, the value tree starts to look like a
-          real tree: each <code>&lt;x render&gt;</code> is a parent &rarr; child
-          edge, and a click inside the grandchild produces a new grandchild,
-          which produces a new child, which produces a new root (recall
+          With children, the value tree becomes a real tree: each
+          <code>&lt;x render&gt;</code> is a parent &rarr; child edge. A click
+          inside the grandchild produces a new grandchild. That produces a new
+          child. That produces a new root (see
           <a href="#mental-model">Mental Model</a>).
         </p>
         <tutuca-playground src="./examples/render-child.js"></tutuca-playground>
@@ -871,13 +861,13 @@
           component at position <code>.currentIndex</code> in the
           <code>byIndex</code> list. The bracket syntax resolves the inner
           expression as a key into the outer collection.
-          <code>.byKey[.currentKey]</code> does the same for an
-          native <code>Map</code>, looking up the entry by string key.
+          <code>.byKey[.currentKey]</code> does the same for a
+          native <code>Map</code>: it looks up the entry by string key.
         </p>
         <p>
-          The range slider and select dropdown update
-          <code>currentIndex</code> and <code>currentKey</code> respectively,
-          and the rendered component updates in response.
+          The range slider updates <code>currentIndex</code>, and the select
+          dropdown updates <code>currentKey</code>. The rendered component then
+          updates.
         </p>
         <tutuca-playground
           src="./examples/seq-item-access.js"
@@ -887,20 +877,19 @@
           <a href="#dynamic-view-switching">Dynamic View Switching</a>
         </h3>
         <p>
-          <code>@push-view=".view"</code> pushes a view name onto the rendering
-          stack. When rendering a component, tutuca looks for the view name
-          starting from the top of the stack and keeps trying until it finds the
-          first one that is defined; if none is found it renders the default
-          <code>"main"</code> view. The view stack applies to any component
-          rendered recursively under the <code>@push-view</code> directive, not
-          only direct children.
+          <code>@push-view=".view"</code> puts a view name onto the rendering
+          stack. When tutuca renders a component, it looks for the view name
+          from the top of the stack down. It uses the first defined match; if
+          none matches, it renders the default <code>"main"</code> view. The
+          view stack applies to any component rendered recursively under the
+          <code>@push-view</code> directive, not only direct children.
         </p>
         <p>
-          Toggling the <code>view</code> field between <code>"main"</code> and
-          <code>"edit"</code> switches every <code>Entry</code> item between
-          read-only and editable mode at once. The
+          Change the <code>view</code> field between <code>"main"</code> and
+          <code>"edit"</code>. Every <code>Entry</code> item then switches
+          between read-only and editable mode at once. The
           <code>@when="filterItem"</code> attribute on
-          <code>&lt;x render-each&gt;</code> filters items the same way
+          <code>&lt;x render-each&gt;</code> filters items in the same way
           <code>@when</code> does on <code>@each</code>.
         </p>
         <tutuca-playground src="./examples/push-view.js"></tutuca-playground>
@@ -909,24 +898,24 @@
           <a href="#component-styles">Component Styles</a>
         </h3>
         <p>
-          <code>style: css`...`</code> is scoped to a specific component+view
-          combination &mdash; the same class name <code>.mine</code> can have
+          <code>style: css`...`</code> applies to one component and view
+          combination: the same class name <code>.mine</code> can have
           different styles in different views. <code>commonStyle</code> is
-          shared across all views of the same component.
-          <code>globalStyle</code> is injected globally without scoping.
+          shared by all views of the same component.
+          <code>globalStyle</code> is added globally with no scoping.
         </p>
         <p>
           Both <code>style</code> and <code>commonStyle</code> are wrapped in a
-          component-scoped selector (<code>[data-cid="N"]{ … }</code>). A handy
-          consequence: <strong>bare declarations with no selector</strong>
-          (e.g. <code>color: red;</code>) land directly inside that wrapper, so
-          they style the component's <strong>root element</strong> &mdash; no
-          extra wrapper selector needed. Rules written with a selector
+          component-scoped selector (<code>[data-cid="N"]{ … }</code>). Bare
+          declarations with no selector
+          (e.g. <code>color: red;</code>) go directly inside that wrapper, so
+          they style the <strong>root element</strong> of the component; you
+          need no extra wrapper selector. Rules written with a selector
           (<code>.mine { … }</code>) target descendants instead.
         </p>
         <p>
           View "two" defines its own <code>style</code> that overrides the
-          default &mdash; notice <code>.mine</code> is red in the main view but
+          default. Notice <code>.mine</code> is red in the main view but
           orange and underlined in view two. The root component renders all
           three views side by side using
           <code>&lt;x render=".value" as="viewName"&gt;</code>.
@@ -937,38 +926,38 @@
 
         <h3 id="statics"><a href="#statics">Statics</a></h3>
         <p>
-          <code>statics: { ... }</code> attaches methods to the component
-          <em>class</em> rather than to instances. They are called as
+          <code>statics: { ... }</code> puts methods on the component
+          <em>class</em>, not on instances. Call them as
           <code>Comp.fromData(...)</code> &mdash; <code>component({...})</code>
           returns the class itself, with the component's metadata attached
           behind a well-known symbol. Inside a static,
           <code>this</code> is the class itself, so
-          <code>this.make({...})</code> calls the auto-generated constructor
-          that <code>component({...})</code> generates for every component.
+          <code>this.make({...})</code> calls the generated constructor that
+          <code>component({...})</code> makes for every component.
         </p>
         <p>
           The most common use is a <code>fromData</code> factory that builds an
-          instance from plain JS data (e.g. JSON loaded from disk), recursively
-          constructing children &mdash; exactly what the recursive-tree example
-          in the next section uses to turn a nested object literal into a fully
-          constructed <code>TreeItem</code> with
+          instance from plain JS data (e.g. JSON loaded from disk) and
+          constructs children recursively. This is what the recursive-tree
+          example in the next section uses: it turns a nested object literal
+          into a fully constructed <code>TreeItem</code> with
           arrays of <code>TreeItem</code> children. Statics are not part of
-          any lifecycle &mdash; they are plain class methods, called by the host
+          any lifecycle. They are plain class methods, called by the host
           application or by another static.
         </p>
         <p>
-          A component is bound to a scope at
+          A component binds to a scope at
           <code>registerComponents</code> time, and that scope owns it
           (and therefore its scope-bound <code>make</code> /
-          statics) &mdash; so a given component object is live in one scope at
-          a time. The relevant case here: a static that builds a
-          <em>different</em> child type by naming the imported const directly
-          (e.g. <code>TreeItem.fromData(v)</code>) hardcodes that child's
-          <em>original</em> scope. That's fine in a single-scope app; if you
-          ever run the same definition in separate registries, resolve the
+          statics). So a given component object is live in one scope at
+          a time. Note this case: a static that builds a
+          <em>different</em> child type names the imported const directly
+          (e.g. <code>TreeItem.fromData(v)</code>) and hardcodes that child's
+          <em>original</em> scope. That works in a single-scope app; if you
+          run the same definition in separate registries, resolve the
           child through the caller's scope instead &mdash;
           <code>this.scope.lookupComponent("TreeItem").fromData(v)</code>.
-          Recursing into the <em>same</em> type needs no lookup: just call
+          Recursion into the <em>same</em> type needs no lookup: just call
           <code>this.fromData(v)</code> / <code>this.make(...)</code>.
         </p>
 
@@ -979,13 +968,13 @@
           <code>TreeItem</code> renders its children with
           <code>&lt;x render-each=".items"&gt;</code>, where
           <code>.items</code> is a list of more <code>TreeItem</code>
-          instances &mdash; the component renders itself, recursively. Each
-          render creates a new VDOM subtree for that branch and tutuca stops
+          instances: the component renders itself, recursively. Each
+          render creates a new VDOM subtree for that branch, and tutuca stops
           descending when an item has an empty
           <code>items</code> list. <code>TreeItem.fromData</code> (a
-          static, see previous section) is what builds the nested structure from
-          plain data. The component <code>style</code> uses CSS pseudo-elements
-          (<code>:before</code>) to show folder / file icons based on class
+          static, see the previous section) builds the nested structure from
+          plain data. The component <code>style</code> uses the CSS pseudo-element
+          <code>:before</code> to show folder / file icons based on class
           names set with <code>@if.class</code>.
         </p>
         <tutuca-playground src="./examples/tree.js"></tutuca-playground>
@@ -997,16 +986,16 @@
           <a href="#component-communication">Component Communication</a>
         </h2>
         <p>
-          Components don't have to talk to each other &mdash; many apps just let
-          parents read children's state directly. But once you want one
-          component to <em>tell</em> another to do something, tutuca offers
+          Components do not need to talk to each other; many apps let
+          parents read the state of children directly. But sometimes one
+          component must tell another to do something. Tutuca offers
           <strong>two</strong> channels, and one question separates them:
-          <em>does the sender know who handles this?</em> If yes it
-          <strong>sends a message</strong>, which reaches one component and
-          stops. If no it raises an <strong>intent</strong>, which walks a
-          <em>route</em> until something answers. Plus
-          <strong>dynamic bindings</strong> for the case where a descendant
-          needs read-only access to an ancestor's value without threading it
+          <em>does the sender know who handles this?</em> If yes, it
+          <strong>sends a message</strong>. A message reaches one component and
+          stops. If no, it raises an <strong>intent</strong>. An intent walks a
+          <em>route</em> until something answers.
+          <strong>Dynamic bindings</strong> cover the third case: a descendant
+          needs read-only access to an ancestor's value without passing it
           through every component in between.
         </p>
 
@@ -1014,32 +1003,32 @@
           <a href="#send-receive">Send / Receive</a>
         </h3>
         <p>
-          <code>ctx.send(name, args)</code> dispatches a named handler in
-          <code>receive: { ... }</code> &mdash; on the current component when
-          called bare, or on any component reachable by path when prefixed with
-          <code>ctx.at</code>. <code>ctx.at</code> returns a path builder with
-          <code>.field(name)</code>, <code>.index(name, i)</code>, and
-          <code>.key(name, k)</code>; chain calls to descend further, then end
-          with <code>.send(name, args)</code>.
+          <code>ctx.send(name, args)</code> calls a named handler in
+          <code>receive: { ... }</code>. Called bare, it targets the current
+          component. Prefixed with <code>ctx.at</code>, it targets any
+          component reachable by path. <code>ctx.at</code> returns a path
+          builder with <code>.field(name)</code>, <code>.index(name, i)</code>,
+          and <code>.key(name, k)</code>. Chain calls to descend further, then
+          end with <code>.send(name, args)</code>.
         </p>
         <p>
           <strong>When to send (vs raise an intent).</strong>
-          <em>Send</em> delivers a message to a specific target by path &mdash;
-          use it when one component needs to address another by name (a form
-          telling its email field to focus, a list telling item 3 to enter edit
-          mode), or to call a <code>receive</code> handler on self from multiple
-          call sites without duplicating its body. When you <em>don't</em> know
-          who should answer, raise an <em>intent</em> instead and let a route
-          find someone (next section).
+          <em>Send</em> delivers a message to a specific target by path. Use it
+          when one component needs to address another by name (a form tells its
+          email field to focus, a list tells item 3 to enter edit mode), or to
+          call a <code>receive</code> handler on self from several call sites
+          without duplicating its body. When you do not know who should answer,
+          raise an <em>intent</em> instead and let a route find someone (next
+          section).
         </p>
         <p>
           In the example below, the form sends
           <code>ctx.at.field("status").send("flash", [text])</code> to its
-          sibling <code>Status</code> child on submit, and
+          sibling <code>Status</code> child on submit. It sends
           <code>ctx.send("clearDraft")</code> to itself to reuse the same reset
-          handler from a hypothetical second call site. The
+          handler from a second call site. The
           <code>Status</code> component owns its own state and knows nothing
-          about who sent the message &mdash; the path is the only coupling.
+          about who sent the message: the path is the only coupling.
         </p>
         <tutuca-playground src="./examples/send-receive.js"></tutuca-playground>
 
@@ -1049,7 +1038,7 @@
         <p>
           <strong>When to raise an intent:</strong> handle the action locally if
           the current component owns the state needed to respond. Raise an
-          intent when you <em>don't know who should answer</em> &mdash; a list
+          intent when you <em>do not know who should answer</em>: a list
           item's <code>remove</code> that must reach the list owning the items,
           or something an ancestor may want to record (selection, logging,
           analytics).
@@ -1058,45 +1047,45 @@
           An intent carries a <strong>route</strong>: a list of legs saying
           where to look. <code>"dyn"</code> walks the dispatch path from the
           sender's <em>parent</em> up to the root; <code>"lex"</code> walks the
-          handlers registered on the scope (that's where async work lives, in
-          the next section). With no route it takes both, in that order. The
-          verb no longer decides which scope answers &mdash; the route does, and
-          it's written at the call site where the decision actually is.
+          handlers registered on the scope (async work lives there, in the
+          next section). With no route it takes both, in that order. The verb
+          does not decide which scope answers; the route does, and it is
+          written at the call site where the decision is.
         </p>
         <p>
           The recursive <code>tree.js</code> example from
-          <a href="#recursive-components">Recursive Components</a> demonstrates
-          it. When a node is clicked, <code>onItemClick</code> calls
+          <a href="#recursive-components">Recursive Components</a> shows this.
+          When a node is clicked, <code>onItemClick</code> calls
           <code>ctx.intent("treeItemSelected", [this], { route: ["dyn"] })</code>.
-          Tutuca walks the component path from the sender's parent up toward the
+          Tutuca walks the component path from the sender's parent toward the
           root and, at each ancestor, looks for a matching
           <code>intent.treeItemSelected</code> handler; in the tree example the
-          <code>TreeRoot</code> at the top of the chain catches it and prepends
-          a log entry.
+          <code>TreeRoot</code> at the top of the chain catches it and adds a
+          log entry at the front.
         </p>
         <p>
           Intent handlers return a (possibly updated) instance of their own
           component, just like <code>methods</code> and <code>receive</code>
-          handlers. The rule that governs the walk is one sentence:
+          handlers. One sentence governs the walk:
           <strong>a reply ends the walk; running does not.</strong> A handler
-          that changes state and returns is an <em>observer</em> and the intent
-          keeps going; one that calls <code>ctx.reply(value)</code> or
-          <code>ctx.fail(error)</code> answers and stops it, and
-          <code>ctx.stop()</code> ends it answering nothing. That single rule is
-          why there's no separate "listener" bucket &mdash; an observer and an
+          that changes state and returns is an <em>observer</em>, and the intent
+          keeps going. One that calls <code>ctx.reply(value)</code> or
+          <code>ctx.fail(error)</code> answers and stops the walk.
+          <code>ctx.stop()</code> ends the walk with no answer. That single rule
+          removes the need for a separate "listener" bucket: an observer and an
           answerer are the same construct with and without a reply.
         </p>
         <p>
-          An answer comes back to the sender as an <em>ordinary message</em>, in
+          The answer comes back to the sender as an <em>ordinary message</em>, in
           the <code>receive</code> bucket, under one of three names:
           <code>&lt;name&gt;Ok</code> with the result,
           <code>&lt;name&gt;Error</code> with the error, or
           <code>&lt;name&gt;Unhandled</code> (carrying the intent's own
-          arguments) when the route ran out with nobody claiming it. Each one
+          arguments) when the route ran out with nobody claiming it. Each arm
           takes a single payload, so no handler can be handed both a result and
-          an error and read the wrong one. Declaring those arms is what makes an
-          intent a <em>request</em> rather than a <em>notification</em> &mdash;
-          declare none and the outcome is simply dropped.
+          an error and read the wrong one. Declaring these arms makes an
+          intent a <em>request</em> rather than a <em>notification</em>.
+          Declare none and tutuca simply drops the outcome.
         </p>
 
         <h3 id="async-requests">
@@ -1104,9 +1093,9 @@
         </h3>
         <p>
           <strong>Lifecycle note:</strong> tutuca has no built-in lifecycle. The
-          <code>receive</code> section is just a place to register named
+          <code>receive</code> section is only a place to register named
           handlers; nothing in the framework calls
-          <code>receive.init</code> automatically. The host application has to
+          <code>receive.init</code> automatically. The host application must
           dispatch it (the tutorial harness calls
           <code>app.sendAtRoot("init")</code> after
           <code>app.start()</code> &mdash; that is what makes
@@ -1114,32 +1103,31 @@
         </p>
         <p>
           The <code>init(ctx)</code> handler in the <code>receive</code> section
-          is called when the application starts. It calls
+          runs when the application starts. It calls
           <code>ctx.intent("loadData", [], { route: ["lex"] })</code> to trigger
           the async function registered in <code>getIntentHandlers()</code>.
           When the fetch completes, tutuca delivers the result to
-          <code>receive.loadDataOk(res)</code> &mdash; or
-          <code>receive.loadDataError(err)</code> if it threw, or
-          <code>receive.loadDataUnhandled()</code> if nothing was registered to
-          answer it at all.
+          <code>receive.loadDataOk(res)</code>. If it threw, the result goes to
+          <code>receive.loadDataError(err)</code>. If nothing was registered to
+          answer it, it goes to <code>receive.loadDataUnhandled()</code>.
         </p>
         <p>
           The component manages a loading state with
           <code>@show=".isLoading"</code> and <code>@hide=".isLoading"</code>.
           The "Load Another Way" button raises the same intent on the
           <em>default</em> route (<code>["dyn", "lex"]</code>): the ancestors
-          first, then the registered handlers. Notice that the answer arms
-          don't change with the route &mdash; the route says who answers, the
-          arms say what to do about it.
+          first, then the registered handlers. The answer arms do not change
+          with the route: the route says who answers, the arms say what to do
+          about it.
         </p>
         <p>
-          Notice how the async implementation is defined outside the component
-          in <code>getIntentHandlers()</code>. This separation means the same
-          component can behave differently in production, in different test
-          cases, or even in different apps &mdash; just by changing the
-          registered handler. A handler that has nothing to contribute can
-          return the exported <code>PASS</code> sentinel to decline, and the
-          walk moves on to the next one.
+          The async implementation sits outside the component in
+          <code>getIntentHandlers()</code>. This separation lets the same
+          component behave differently in production, in different test
+          cases, or in different apps: change only the
+          registered handler. A handler that has nothing to contribute returns
+          the exported <code>PASS</code> sentinel to decline, and the walk moves
+          on to the next one.
         </p>
         <tutuca-playground
           src="./examples/request-example.js"
@@ -1149,28 +1137,28 @@
           <a href="#dynamic-bindings">Dynamic Bindings</a>
         </h3>
         <p>
-          Dynamic bindings are tutuca's escape hatch for reaching across the
-          tree: a producer component publishes a value, and any descendant can
-          read it as
+          Dynamic bindings reach across the tree: a producer component
+          publishes a value, and any descendant can read it as
           <code>*name</code> without the value being passed through every
           component in between.
         </p>
         <p>
-          <strong>Best practice:</strong> keep state local to the component and
-          reach for <code>provide</code> / <code>lookup</code> only when it is
-          genuinely the only solution &mdash; a value owned far away that a deep
-          descendant needs and nothing in between should know about. Dynamic
-          bindings couple a consumer to a producer that may not be in scope, so
-          prefer keeping components as self-contained as possible: let a child
+          <strong>Best practice:</strong> keep state local to the component.
+          Use <code>provide</code> / <code>lookup</code> only when it is
+          genuinely the only solution: a value owned far away that a deep
+          descendant needs, and nothing in between should know about. Dynamic
+          bindings couple a consumer to a producer that may not be in scope. So
+          keep components as self-contained as possible: let a child
           render the field it needs from its owner, and lift state only as far
-          up the tree as it actually needs to live.
+          up the tree as it needs to live.
         </p>
         <p>
           A producer declares
-          <code>provide: { entries: ".items" }</code> &mdash; the field (or
-          seq-access) it wants to expose. Every <code>provide</code> is
-          evaluated and pushed onto the stack automatically when the producer is
-          entered during render; there is no hook to opt in. A consumer declares
+          <code>provide: { entries: ".items" }</code>: the field (or
+          seq-access) it wants to expose. Tutuca evaluates every
+          <code>provide</code> and puts it onto the stack automatically when
+          render enters the producer; there is no hook to opt in. A consumer
+          declares
           <code
             >lookup: { entries: { for: "EntryEditorAndSelector.entries",
             default: ".items" } }</code
@@ -1178,8 +1166,8 @@
           to bind the producer's name into its own scope, then reads it as
           <code>*entries</code> in the template (e.g.
           <code>@each="*entries"</code>). When no producer is in the render
-          stack, the <code>default</code> expression is used (omit it to get
-          <code>null</code>).
+          stack, tutuca uses the <code>default</code> expression (omit it to
+          get <code>null</code>).
         </p>
         <tutuca-playground
           src="./examples/dynamic-bindings.js"
@@ -1190,39 +1178,38 @@
         </h3>
         <p>
           A <code>*name</code> dynamic var resolves to a value, so it works
-          anywhere a value is read &mdash; not just inside <code>:style</code> /
+          anywhere a value is read, not just inside <code>:style</code> /
           <code>:class</code>. In particular it can be a component-render
           target: <code>&lt;x render="*name"&gt;</code> renders the component
-          the dynamic points at, <code>as="edit"</code> picks one of its views,
-          and <code>@each="*name"</code> iterates it when the dynamic resolves
-          to a sequence.
+          the dynamic points at, <code>as="edit"</code> selects one of its
+          views, and <code>@each="*name"</code> iterates it when the dynamic
+          resolves to a sequence.
         </p>
         <p>
-          A <code>provide</code> value must be <em>addressable</em> &mdash; a
-          field or a <code>.seq[.key]</code> seq-access (it doubles as the
-          render-target / teleport path, so a method or constant is a lint
-          error). It can therefore expose a single selected entry with
+          A <code>provide</code> value must be <em>addressable</em>: a
+          field or a <code>.seq[.key]</code> seq-access. It doubles as the
+          render-target and mutation path, so a method or constant gives a lint
+          error. A producer can therefore expose a single selected entry with
           <code>provide: { selected: ".items[.selectedKey]" }</code>. There is
           no <code>*name[.key]</code> form: the consumer never indexes a dynamic
           var, it just reads the resolved value as <code>*name</code>. (A
           <code>lookup</code> <code>default</code>, by contrast, is only a value
-          fallback and may be any expression, including a constant.)
+          fallback; it may be any expression, including a constant.)
         </p>
         <p>
           In the example below, <code>Workspace</code> exposes its
           <code>.sheet</code> field as the dynamic <code>active</code> and
           renders a deep tree (<code>Workspace &rarr; Panel &rarr; Toolbar</code
           >). <code>Toolbar</code>, far from the producer, consumes
-          <code>active</code> and does <code>&lt;x render="*active"&gt;</code>.
-          The rendered <code>Sheet</code> physically lives at
-          <code>Workspace.sheet</code> &mdash; so when you edit its title the
-          mutation is <strong>teleported</strong>. Every state update in tutuca
-          runs as a <em>transaction</em> &mdash; a dispatched handler call that
+          <code>active</code> and renders <code>&lt;x render="*active"&gt;</code>.
+          The rendered <code>Sheet</code> lives at
+          <code>Workspace.sheet</code>, so when you edit its title the mutation
+          goes directly there. Every state update in tutuca runs as a
+          <em>transaction</em>: a dispatched handler call that
           swaps the new state tree in for the old one. Here the render path is
           expanded to reconstruct the handler, but the transaction skips the
-          intermediate components and lands on <code>Workspace.sheet</code>
-          (that jump is the teleport). The proof is the title echoed at the
-          top, which updates in lock-step.
+          intermediate components and lands on <code>Workspace.sheet</code>.
+          The title echoed at the top proves it: it updates with every change.
         </p>
         <tutuca-playground src="./examples/dynamic-path.js"></tutuca-playground>
       </section>
@@ -1235,22 +1222,22 @@
           <a href="#macros-static">Macros: Reusable Templates</a>
         </h3>
         <p>
-          Macros let you define reusable HTML fragments that expand in place.
+          Macros define reusable HTML fragments that expand in place.
           <code>macro({}, html`...`)</code> takes a defaults object (empty here)
           and a template. Export macros via <code>getMacros()</code> and
           reference them in templates with the
           <code>&lt;x:name&gt;</code> syntax. Unlike components, macros have no
-          state or lifecycle &mdash; they are pure template expansion, making
-          them ideal for repeated markup patterns.
+          state or lifecycle: they are pure template expansion. Use them for
+          repeated markup patterns.
         </p>
         <p>
           The HTML parser lowercases custom tag names, so
           <code>&lt;x:Card&gt;</code> is read as <code>&lt;x:card&gt;</code>.
-          Registry keys are normalized to lowercase on
+          Registry keys become lowercase on
           <code>registerMacros</code>, so a capitalized const like
-          <code>{ Card }</code> works fine &mdash; it registers under
-          <code>card</code>. Registering two different macros under the same
-          lowercased name warns via <code>console.assert</code>.
+          <code>{ Card }</code> registers under
+          <code>card</code>. Two different macros under the same
+          lowercased name cause a warning via <code>console.assert</code>.
         </p>
         <tutuca-playground src="./examples/macro-static.js"></tutuca-playground>
 
@@ -1258,18 +1245,18 @@
           <a href="#macros-parameters">Macros: Parameters</a>
         </h3>
         <p>
-          Macros accept parameters with default values. The first argument to
+          Macros take parameters with default values. The first argument to
           <code>macro()</code> defines the defaults:
           <code>{ label: "'New'", kind: "'info'" }</code>. Inside the macro
-          template, <code>^param</code> references a parameter &mdash; e.g.
+          template, <code>^param</code> references a parameter. For example,
           <code>@text="^label"</code> displays the label value.
         </p>
         <p>
-          When using the macro, a plain attribute like
-          <code>label="Sale"</code> passes a static string &mdash; no quotes
-          needed, just like regular HTML attributes. A dynamic attribute
-          (prefixed with <code>:</code>) takes an expression instead, following
-          the usual rules from
+          In the macro tag, a plain attribute like
+          <code>label="Sale"</code> passes a static string. No quotes are
+          needed; this is the same as regular HTML attributes. A dynamic
+          attribute (prefixed with <code>:</code>) takes an expression instead,
+          following the rules from
           <a href="#quoting-string-literals">Quoting &amp; String Literals</a>:
           <code>:label="'Sale'"</code> is a string literal,
           <code>:label=".status"</code> a field reference.
@@ -1281,18 +1268,18 @@
         </h3>
         <p>
           <code>&lt;x:slot&gt;&lt;/x:slot&gt;</code> inside a macro template
-          acts as a placeholder for child content. Any children placed inside
-          the macro tag replace the slot when the macro expands. This enables
-          layout macros like cards, panels, and containers that wrap arbitrary
-          content while providing consistent structure and styling.
+          acts as a placeholder for child content. Children placed inside
+          the macro tag replace the slot when the macro expands. Layout macros
+          use this: cards, panels, and containers wrap arbitrary content while
+          providing consistent structure and styling.
         </p>
         <p>
-          Because macros expand inline into the calling component's template,
-          <code>@on.click="inc"</code> inside a macro dispatches the host
-          component's <code>receive.inc</code> handler &mdash; not anything on the macro itself
-          (macros have no state or methods). This is a key difference from
+          Macros expand inline into the calling component's template. So
+          <code>@on.click="inc"</code> inside a macro calls the host
+          component's <code>receive.inc</code> handler, never anything on the
+          macro itself (macros have no state or methods). This differs from
           components: a component encapsulates its own state and handlers, while
-          a macro is just template expansion that operates in the context of its
+          a macro is only template expansion in the context of its
           host component.
         </p>
         <tutuca-playground src="./examples/macro-slots.js"></tutuca-playground>
@@ -1301,48 +1288,48 @@
           <a href="#macros-named-slots">Macros: Named Slots</a>
         </h3>
         <p>
-          A macro can define multiple insertion points using named slots. Inside
+          A macro can define several insertion points with named slots. Inside
           the macro template,
           <code>&lt;x:slot name="actions"&gt;</code> and
           <code>&lt;x:slot name="footer"&gt;</code> mark named slots, while
-          <code>&lt;x:slot&gt;</code> (or equivalently
-          <code>&lt;x:slot name="_"&gt;</code>) is the default.
+          <code>&lt;x:slot&gt;</code> (the same as
+          <code>&lt;x:slot name="_"&gt;</code>) is the default slot.
         </p>
         <p>
-          When using the macro, wrap content in
+          Wrap content in
           <code>&lt;x slot="name"&gt;</code> to target a specific named slot.
-          Any children not wrapped in a named <code>&lt;x slot&gt;</code> go to
-          the default slot. This allows macros to define complex layouts with
-          multiple customizable regions.
+          Children not wrapped in a named <code>&lt;x slot&gt;</code> go to
+          the default slot. This way macros define complex layouts with
+          several customizable regions.
         </p>
         <tutuca-playground
           src="./examples/macro-named-slots.js"
         ></tutuca-playground>
       </section>
 
-      <!-- Escape Hatches -->
+      <!-- Special Cases -->
       <section>
         <h2 id="escape-hatches">
-          <a href="#escape-hatches">Escape Hatches</a>
+          <a href="#escape-hatches">Special Cases</a>
         </h2>
 
         <h3 id="drag-and-drop"><a href="#drag-and-drop">Drag and Drop</a></h3>
         <p>
-          Setting <code>draggable="true"</code> enables drag on each item.
-          <code>data-dragtype</code> declares what type of draggable thing the
-          element is (e.g. <code>"my-list-item"</code>), and
+          Set <code>draggable="true"</code> to enable drag on each item.
+          <code>data-dragtype</code> declares the drag type of the
+          element (e.g. <code>"my-list-item"</code>), and
           <code>data-droptarget</code> marks it as a valid drop zone.
         </p>
         <p>
-          During a drag, tutuca automatically manages two runtime attributes:
-          <code>data-dragging="1"</code> is set on the source element while it's
-          being dragged, and <code>data-draggingover</code> is set on the
+          During a drag, tutuca manages two runtime attributes:
+          <code>data-dragging="1"</code> is set on the source element while it
+          is dragged, and <code>data-draggingover</code> is set on the
           current drop target with the value of the source's
-          <code>data-dragtype</code>. You can use these as CSS attribute
-          selectors to style drag states, for example,
-          <code>[data-dragging="1"]</code> to fade the source and
-          <code>[data-draggingover="my-list-item"]</code> to highlight the
-          target. Both runtime attributes are cleaned up automatically when the
+          <code>data-dragtype</code>. Use these as CSS attribute
+          selectors to style drag states. For example,
+          <code>[data-dragging="1"]</code> fades the source and
+          <code>[data-draggingover="my-list-item"]</code> highlights the
+          target. Tutuca removes both runtime attributes automatically when the
           drag ends.
         </p>
         <p>
@@ -1350,9 +1337,9 @@
           <code>dragInfo</code>, and <code>event</code> (the raw DOM event).
           <code>dragInfo</code> captures the rendering stack from when the
           dragged element was rendered, so
-          <code>dragInfo.lookupBind("key")</code> can retrieve the source item's
-          iteration index &mdash; or any other binding that was available at
-          that point (recall <a href="#mental-model">Mental Model</a> &mdash;
+          <code>dragInfo.lookupBind("key")</code> returns the source item's
+          iteration index, or any other binding that was available at
+          that point (see <a href="#mental-model">Mental Model</a> &mdash;
           this is the same stack that resolves <code>@key</code> /
           <code>@value</code> during render). The component
           <code>style</code> (using the <code>css</code> tagged template) adds
@@ -1364,19 +1351,19 @@
           <a href="#web-components">Web Components</a>
         </h3>
         <p>
-          Custom elements work as drop-in tags inside a component view, and any
+          Custom elements work as tags inside a component view, and any
           <code>CustomEvent</code> they fire is reachable via
           <code>@on.&lt;event-name&gt;</code>. The event's
           <code>detail</code> is what the built-in <code>value</code> handler
-          arg resolves to &mdash; so an input handler signature like
+          arg resolves to, so an input handler signature like
           <code>onEmojiClick(detail)</code> receives the picker's
           <code>detail</code> object directly.
         </p>
         <p>
           The example below imports
           <code>emoji-picker-element</code> from a CDN and listens for its
-          <code>emoji-click</code> custom event. Hyphenated event names go
-          straight into the <code>@on.</code> attribute, no special quoting
+          <code>emoji-click</code> custom event. Put hyphenated event names
+          straight into the <code>@on.</code> attribute; no special quoting is
           needed.
         </p>
         <tutuca-playground
@@ -1388,32 +1375,32 @@
           Tutuca's special operations (<code>render</code>,
           <code>render-each</code>, <code>render-it</code>, <code>text</code>,
           <code>show</code>, <code>hide</code>, <code>slot</code>) live on the
-          <code>&lt;x&gt;</code> tag. That works almost everywhere &mdash; but
+          <code>&lt;x&gt;</code> tag. That works almost everywhere, but
           the browser's HTML parser refuses to keep <code>&lt;x&gt;</code> (or
           any unknown tag) as a child of certain elements.
-          <code>&lt;select&gt;</code> only accepts <code>&lt;option&gt;</code>,
-          <code>&lt;table&gt;</code> only accepts <code>&lt;tr&gt;</code> /
-          <code>&lt;tbody&gt;</code> / etc., <code>&lt;tr&gt;</code> only
-          accepts <code>&lt;th&gt;</code> / <code>&lt;td&gt;</code>. Drop a
-          <code>&lt;x render-each&gt;</code> in any of those and the parser
-          silently strips it.
+          <code>&lt;select&gt;</code> accepts only <code>&lt;option&gt;</code>,
+          <code>&lt;table&gt;</code> accepts only <code>&lt;tr&gt;</code> /
+          <code>&lt;tbody&gt;</code> / etc., and <code>&lt;tr&gt;</code> accepts
+          only <code>&lt;th&gt;</code> / <code>&lt;td&gt;</code>. Put a
+          <code>&lt;x render-each&gt;</code> inside any of those and the parser
+          silently removes it.
         </p>
         <p>
-          The escape hatch: prefix the <strong>first</strong> attribute on a
+          The solution: prefix the <strong>first</strong> attribute on a
           <em>legal</em> child tag with <code>@x</code>. Tutuca treats that tag
           as if it were <code>&lt;x&gt;</code> and reads the next attribute as
-          the special op &mdash; the host element itself is ignored, only the
+          the special op. The host element itself is ignored; only the
           special op runs.
         </p>
         <p>
-          The example below demonstrates both common cases. The first parent
+          The example below shows both common cases. The first parent
           renders a <code>&lt;table&gt;</code> whose rows are themselves
           components: inside <code>&lt;tbody&gt;</code>,
           <code>&lt;tr @x render-each=".rows"&gt;</code> tells tutuca to render
           one <code>TableRow</code> component per item. The second parent
           renders a <code>&lt;select&gt;</code> whose options are components:
           <code>&lt;option @x render-each=".options"&gt;</code> renders one
-          <code>SelectOption</code> per item. The same trick works inside
+          <code>SelectOption</code> per item. The same pattern works inside
           <code>&lt;tr&gt;</code>, <code>&lt;colgroup&gt;</code>,
           <code>&lt;dl&gt;</code>, <code>&lt;details&gt;</code>, or anywhere
           else the parser would otherwise discard a <code>&lt;x&gt;</code> tag.
@@ -1423,12 +1410,12 @@
         <h3 id="raw-html"><a href="#raw-html">Raw HTML</a></h3>
         <p>
           <code>@dangerouslysetinnerhtml=".content"</code> sets the element's
-          <code>innerHTML</code> from the field value. The intentionally scary
-          name (borrowed from React) warns that this bypasses all text escaping
-          &mdash; if the content comes from untrusted sources, it opens the door
-          to XSS attacks. Use it only when you control the HTML content or have
-          sanitized it. When this directive is active, the element's children in
-          the template are ignored.
+          <code>innerHTML</code> from the field value. The name is intentionally
+          strong (borrowed from React). It warns you: this directive bypasses
+          all text escaping. If the content comes from untrusted sources, it can
+          cause XSS attacks. Use it only when you control the HTML content or
+          have sanitized it. While this directive is active, the element's
+          children in the template are ignored.
         </p>
         <tutuca-playground
           src="./examples/danger-set-inner-html.js"
@@ -1439,29 +1426,29 @@
       <section>
         <h2 id="testing"><a href="#testing">Testing</a></h2>
         <p>
-          Components have three layers worth testing:
+          Components have three testable layers:
           <strong>methods</strong> (called directly from JS),
           <strong>input handlers</strong> (template-attached event handlers),
           and <strong>iteration handlers</strong> in the
           <code>alter</code> block (used by <code>@when</code>,
           <code>@loop-with</code>, and <code>@enrich-with</code>). The testing
-          tab in this playground runs tests written in the same module as the
-          component &mdash; the same tests
-          <code>tutuca test &lt;module&gt;</code> picks up from the CLI.
+          tab in this playground runs the tests written in the same module as
+          the component; the CLI command
+          <code>tutuca test &lt;module&gt;</code> picks up the same tests.
         </p>
 
         <h3 id="testing-setup">
           <a href="#testing-setup">Test Setup</a>
         </h3>
         <p>
-          A module opts into testing by exporting
+          A module joins testing by exporting
           <code>getTests({ describe, test, expect })</code>.
           <code>expect</code> is chai; <code>describe</code> and
           <code>test</code> are tutuca's own subset of the common
           Mocha/Jest-style API (no <code>before</code> / <code>after</code> /
-          <code>beforeEach</code>). Tests can be grouped by component with
-          <code>describe(MyComp, () =&gt; { ... })</code>, which auto-tags the
-          suite so <code>tutuca test &lt;module&gt; MyComp</code> picks it up.
+          <code>beforeEach</code>). Group tests by component with
+          <code>describe(MyComp, () =&gt; { ... })</code>. This tags the
+          suite, so <code>tutuca test &lt;module&gt; MyComp</code> picks it up.
         </p>
 
         <h3 id="testing-methods-input">
@@ -1470,7 +1457,7 @@
           >
         </h3>
         <p>
-          Methods are bound to the instance &mdash; call them directly:
+          Methods bind to the instance; call them directly:
           <code>MyComp.make().inc()</code> returns the next instance. Input
           handlers are plain functions stored on the component descriptor with
           no <code>this</code> bound, so use <code>.call</code> to bind the
@@ -1488,14 +1475,14 @@
           signatures: <code>when(key, value, iterData)</code> filters,
           <code>loopWith(seq)</code> runs once and produces shared
           <code>iterData</code>, and
-          <code>enrichWith(binds, key, value, iterData)</code> mutates each kept
+          <code>enrichWith(binds, key, value, iterData)</code> changes each kept
           item's bindings. <code>this</code> is the parent component instance in
           all three.
         </p>
         <p>
-          To test these as a pipeline (filter + loop-data + enrichment) use
-          <code>collectIterBindings</code>. A functional implementation only
-          ships in the dev build; the core <code>tutuca</code> build (the one
+          Use <code>collectIterBindings</code> to test the whole pipeline
+          (filter + loop-data + enrichment). A working implementation ships
+          only in the dev build; the core <code>tutuca</code> build (the one
           the README's CDN quick start imports) exports a no-op stub. In your
           own project import it from <code>"tutuca/dev"</code>, or run tests
           through <code>tutuca test</code>, which redirects the bare
@@ -1535,12 +1522,12 @@ const r = collectIterBindings(MyComp, c, c.items, {
         </h2>
         <p>
           The <code>tutuca</code> CLI's <code>lint</code> command emits codes
-          for the categories below. Running it after each edit (the post-edit
+          for the categories below. Run it after each edit (the post-edit
           recipe in the skill's <code>core.md</code> &rarr;
-          <em>Verifying changes</em>) catches typos and broken references before
-          they hit a render. The example below intentionally triggers every
-          category &mdash; open the <strong>Lint</strong> tab on the right to
-          see them all detected.
+          <em>Verifying changes</em>). It catches typos and broken references
+          before they reach a render. The example below triggers every
+          category on purpose; open the <strong>Lint</strong> tab on the right
+          to see them all detected.
         </p>
         <p>
           The categories the linter reports, grouped as in the CLI reference:
@@ -1553,14 +1540,14 @@ const r = collectIterBindings(MyComp, c, c.items, {
           </li>
           <li>
             <strong>Method &harr; input handler confusion</strong> &mdash;
-            calling a <code>methods</code> entry without the
-            <code>.</code> prefix (or an <code>input</code> handler with one),
-            and <code>input</code> / <code>methods</code> entries referenced but
+            a <code>methods</code> entry called without the
+            <code>.</code> prefix (or an <code>input</code> handler called with
+            one), and <code>input</code> / <code>methods</code> entries referenced but
             not declared (<code>INPUT_HANDLER_NOT_IMPLEMENTED</code>,
             <code>INPUT_HANDLER_METHOD_NOT_IMPLEMENTED</code>,
             <code>INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD</code>,
             <code>INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER</code>). The linter
-            knows which section each name lives in.
+            knows the section each name lives in.
           </li>
           <li>
             <strong>Iteration helpers (<code>alter</code>)</strong> &mdash;
@@ -1628,8 +1615,8 @@ const r = collectIterBindings(MyComp, c, c.items, {
             <strong>Unreferenced declarations</strong> &mdash;
             <code>input</code> or <code>alter</code> entries that no view ever
             uses (<code>INPUT_HANDLER_NOT_REFERENCED</code>,
-            <code>ALT_HANDLER_NOT_REFERENCED</code>). Warning level; useful for
-            catching dead code after a refactor.
+            <code>ALT_HANDLER_NOT_REFERENCED</code>). Warning level. Useful to
+            catch dead code after a refactor.
           </li>
         </ul>
         <tutuca-playground src="./examples/lint-errors.js"></tutuca-playground>
@@ -1639,17 +1626,17 @@ const r = collectIterBindings(MyComp, c, c.items, {
       <section>
         <h2 id="whats-next"><a href="#whats-next">What's Next</a></h2>
         <p>
-          You've covered all of tutuca's core features. To see them working
-          together in more realistic scenarios, check out the
-          <a href="index.html">example apps</a> on the home page &mdash;
-          including a to-do list, a JSON editor, a recursive tree, and more.
-          The next step beyond this page is the storybook: put your components
+          You now know all core features of tutuca. To see them working
+          together in realistic scenarios, see the
+          <a href="index.html">example apps</a> on the home page:
+          a to-do list, a JSON editor, a recursive tree, and more.
+          The next step beyond this page is the storybook. Put your components
           and examples in a co-located <code>*.dev.js</code> module (a dev-only
           file exporting <code>getComponents()</code> and
           <code>getExamples()</code>) and <code>tutuca storybook</code> serves
           a live catalog of them with no setup. The
-          <a href="storybook/">Storybook</a> here is a living reference that
-          exercises every feature of that format &mdash; sections, named views,
+          <a href="storybook/">Storybook</a> here is a live reference for
+          every feature of that format: sections, named views,
           macros, per-example request mocks, lifecycle <code>on</code> hooks,
           and <code>drive</code> tests. For the full API and source code, visit
           the
