@@ -98,7 +98,8 @@ Type-checking is by component name, not by class identity.
   plus what a parent sends and every answer this component reads;
   same draft-first contract as mutating methods — the split between
   `methods` and `receive` is organizational, and the linter enforces that the
-  sigil matches the block (`INPUT_HANDLER_*`, `FIELD_VAL_IS_METHOD`, …).
+  sigil matches the block (`RECEIVE_HANDLER_NOT_IMPLEMENTED`,
+  `EVENT_HANDLER_METHOD_NOT_ALLOWED`, `FIELD_VAL_IS_METHOD`, …).
 - `statics` — functions on the Class (`Comp.fn(…)`), conventionally used
   for `fromData` factories that build nested instances from plain data
   (`docs/examples/tree.js`). Not lifecycle hooks.
@@ -130,8 +131,7 @@ is no composition, nesting, or arithmetic.
 | `@name.member` | binding member | one member read off a binding (`@value.title`); exactly one level |
 | `*name` | dynamic | a `provide`/`lookup` dynamic binding (section 7) |
 | `^name` | macro param | the call-site value of a macro parameter (compile-time substitution) |
-| `Name` (uppercase) | type | a registered component class |
-| `name` (lowercase bare) | name | slot-dependent: an event argument or a handler name |
+| `name` (lowercase bare) | name | an event handler name — the first slot of `@on.*`, and nothing else |
 | `'text'` | string literal | the literal string |
 | `$'a {expr} b'` | string template | parts joined; `{…}` holds one value expression |
 | `123`, `true` | constant | the literal number/boolean |
@@ -468,7 +468,11 @@ different sentence from "a handler refused it".
 for addressing descendants; and `ctx.targetPath` — on an intent hop, the fixed
 originating path while `ctx.path` shortens per hop, letting an ancestor reach
 the exact originator via `ctx.sendAtPath(ctx.targetPath, …)`
-(`test/transactor.test.js`).
+(`test/transactor.test.js`). In a `receive` body, `ctx.sendReply(name, args)`
+answers the sender of the message under a name the replier picks — a message
+declares no answer arms, so the runtime cannot derive one; it refuses
+`NO_SENDER` when nobody is waiting. `ctx.lookup` / `ctx.lookupType` resolve a
+name along `opts.route`, the same legs an intent walks (section 7).
 
 `ctx.forward` is the one operation that crosses between the channels: in a
 `receive` body it turns the message that arrived into an intent, keeping its

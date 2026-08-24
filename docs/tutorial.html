@@ -7,9 +7,9 @@
     <script type="importmap">
       {
         "imports": {
-          "tutuca": "https://cdn.jsdelivr.net/npm/tutuca@0.12.1/dist/tutuca-dev.js",
-          "tutuca/immer": "https://cdn.jsdelivr.net/npm/tutuca@0.12.1/dist/immer.js",
-          "tutuca/components": "https://cdn.jsdelivr.net/npm/tutuca@0.12.1/dist/tutuca-components.js",
+          "tutuca": "https://cdn.jsdelivr.net/npm/tutuca@0.13.0/dist/tutuca-dev.js",
+          "tutuca/immer": "https://cdn.jsdelivr.net/npm/tutuca@0.13.0/dist/immer.js",
+          "tutuca/components": "https://cdn.jsdelivr.net/npm/tutuca@0.13.0/dist/tutuca-components.js",
           "margaui": "https://cdn.jsdelivr.net/npm/margaui@latest/+esm",
           "chai": "https://cdn.jsdelivr.net/npm/chai/index.js"
         }
@@ -652,9 +652,9 @@
             <code>{...}</code> part.
           </li>
           <li>
-            Bare identifier: <code>dec</code>, <code>value</code> &mdash; valid
-            only in name slots (event handler name, handler argument name).
-            Never valid as a value.
+            Bare identifier: <code>dec</code> &mdash; valid only as an event
+            handler <em>name</em> (the first slot of <code>@on.*</code>). Never
+            valid as a value, and never as a handler argument.
           </li>
         </ul>
         <p>
@@ -1537,15 +1537,12 @@ const r = collectIterBindings(MyComp, c, c.items, {
             (<code>FIELD_VAL_NOT_DEFINED</code>).
           </li>
           <li>
-            <strong>Method &harr; input handler confusion</strong> &mdash;
-            a <code>methods</code> entry called without the
-            <code>.</code> prefix (or an <code>input</code> handler called with
-            one), and <code>input</code> / <code>methods</code> entries referenced but
-            not declared (<code>INPUT_HANDLER_NOT_IMPLEMENTED</code>,
-            <code>INPUT_HANDLER_METHOD_NOT_IMPLEMENTED</code>,
-            <code>INPUT_HANDLER_FOR_INPUT_HANDLER_METHOD</code>,
-            <code>INPUT_HANDLER_METHOD_FOR_INPUT_HANDLER</code>). The linter
-            knows the section each name lives in.
+            <strong>Method &harr; handler confusion</strong> &mdash; a
+            <code>receive</code> name referenced by a view but not declared, or
+            a <code>$method</code> written where an event handler name belongs
+            (<code>RECEIVE_HANDLER_NOT_IMPLEMENTED</code>,
+            <code>EVENT_HANDLER_METHOD_NOT_ALLOWED</code>). The linter knows
+            the section each name lives in.
           </li>
           <li>
             <strong>Iteration helpers (<code>alter</code>)</strong> &mdash;
@@ -1569,10 +1566,13 @@ const r = collectIterBindings(MyComp, c, c.items, {
             recognized (<code>UNKNOWN_EVENT_MODIFIER</code>).
           </li>
           <li>
-            <strong>Unknown handler arg names</strong> &mdash; only the built-in
-            arg names (<code>value</code>, <code>valueAsInt</code>,
-            <code>event</code>, <code>ctx</code>, &hellip;) are accepted in
-            handler argument slots (<code>UNKNOWN_HANDLER_ARG_NAME</code>).
+            <strong>Unparsable handler arguments</strong> &mdash; every
+            argument slot carries a sigil (<code>e.value</code>,
+            <code>.field</code>, <code>@bind</code>, <code>$method</code>,
+            <code>*dyn</code>, or a literal). A sigil-less word &mdash; a
+            component type included &mdash; fails to parse
+            (<code>BAD_VALUE</code>). A handler that needs a component type
+            asks for it with <code>ctx.lookupType("Name")</code>.
           </li>
           <li>
             <strong>Duplicate attribute definitions</strong> &mdash; setting the
@@ -1610,10 +1610,22 @@ const r = collectIterBindings(MyComp, c, c.items, {
             <code>UNKNOWN_MACRO_ARG</code>).
           </li>
           <li>
+            <strong>Dynamic bindings</strong> &mdash; a <code>*name</code>
+            with nothing to resolve to, a <code>provide</code> value that is
+            not a path, an uppercase <code>provide</code> whose value is not
+            <code>"self"</code>, a <code>lookup</code> nobody in scope
+            provides, or two components providing one name
+            (<code>DYN_VAL_NOT_DEFINED</code>,
+            <code>PROVIDE_NOT_ADDRESSABLE</code>,
+            <code>PROVIDE_TYPE_BAD_SHAPE</code>,
+            <code>LOOKUP_NO_PROVIDER</code>,
+            <code>PROVIDE_NAME_COLLISION</code>).
+          </li>
+          <li>
             <strong>Unreferenced declarations</strong> &mdash;
-            <code>input</code> or <code>alter</code> entries that no view ever
-            uses (<code>INPUT_HANDLER_NOT_REFERENCED</code>,
-            <code>ALT_HANDLER_NOT_REFERENCED</code>). Warning level. Useful to
+            <code>alter</code> or <code>lookup</code> entries that no view ever
+            uses (<code>ALT_HANDLER_NOT_REFERENCED</code>,
+            <code>DYN_ALIAS_NOT_REFERENCED</code>). Hint level. Useful to
             catch dead code after a refactor.
           </li>
         </ul>

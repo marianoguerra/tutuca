@@ -223,7 +223,7 @@ the view actually wires these handlers correctly, use
 
 ## Designing handlers so tests stay simple
 
-Tutuca templates resolve handler args by name (see
+Tutuca templates resolve each handler arg from its sigil (see
 [core.md](./core.md) *Event Handling*). When you author a handler,
 **pick the most specific args you need; don't take broad event
 reads**. With narrow args, the test passes a literal; with `e.target`

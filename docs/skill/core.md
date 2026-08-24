@@ -808,9 +808,11 @@ return nothing (or return `draft`) to commit. Return any other value to swap
 the addressed component for that value. Mutating the draft and returning a
 replacement in the same handler is an error. An unchanged recipe preserves
 the current identity. Routes,
-`ctx.reply` / `ctx.fail` / `ctx.forward` / `ctx.stop`, the three
-outcomes, `ctx.at`, the `$unknown` fallback, and intent-handler
+`ctx.reply` / `ctx.fail` / `ctx.forward` / `ctx.stop` / `ctx.sendReply`, the
+three outcomes, `ctx.at`, the `$unknown` fallback, and intent-handler
 registration are in [messages-and-intents.md](./messages-and-intents.md);
+`ctx.lookupType` (and the routes it shares with `ctx.intent`) is in
+[advanced.md](./advanced.md);
 worked snippets in
 [patterns/coordinate-components.md](./patterns/coordinate-components.md).
 
