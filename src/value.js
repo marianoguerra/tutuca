@@ -203,44 +203,29 @@ export function parseBool(s, px) {
   return val !== null && kindOf(val) & G_BOOL ? val : null;
 }
 // Text values: :attr, @text, <x text>, @then/@else, @push-view, @html.
-export function parseText(s, px) {
-  return _parseSingle(s, px, G_TEXT);
-}
+export const parseText = (s, px) => _parseSingle(s, px, G_TEXT);
 // A single component to render: <x render>.
-export function parseComponent(s, px) {
-  return _parseSingle(s, px, G_COMPONENT);
-}
+export const parseComponent = (s, px) => _parseSingle(s, px, G_COMPONENT);
 // A sequence to iterate: @each, <x render-each>.
-export function parseSequence(s, px) {
-  return _parseSingle(s, px, G_SEQUENCE);
-}
+export const parseSequence = (s, px) => _parseSingle(s, px, G_SEQUENCE);
 // A `provide:` field definition (and the `default` of a `lookup`):
 // a field reference, a `.seq[.key]` seq-access, a method reference, or a
 // constant value.
-export function parseField(s, px) {
-  return _parseSingle(s, px, G_FIELD);
-}
+export const parseField = (s, px) => _parseSingle(s, px, G_FIELD);
 // A `provide:` value — a field or `.seq[.key]` seq-access only (see G_PROVIDE).
-export function parseProvide(s, px) {
-  return _parseSingle(s, px, G_PROVIDE);
-}
+export const parseProvide = (s, px) => _parseSingle(s, px, G_PROVIDE);
 // Pass-through values on a macro-call element (:attr on a macro).
-export function parseMacroAttr(s, px) {
-  return _parseSingle(s, px, G_ALL);
-}
+export const parseMacroAttr = (s, px) => _parseSingle(s, px, G_ALL);
 // Handler reference + args for @on.<event>. Returns `{handlerVal, args}` so
 // `EventHandler.parse` is a thin wrapper, or null on a bad handler name.
 // The namespace is `receive`: a view's name is a MESSAGE addressed to the component
 // that owns the view, which is the same thing a parent's ctx.send raises.
-export function parseReceiveHandler(s, px) {
-  return _parseHandler(s, px, "receive", true, true, false);
-}
+export const parseReceiveHandler = (s, px) =>
+  _parseHandler(s, px, "receive", true, true, false);
 // Handler reference for @when, @enrich-with, @loop-with. No args, and
 // silent on failure — the directive caller reports the issue.
-export function parseAlterHandler(s, px) {
-  const r = _parseHandler(s, px, "alter", false, false, true);
-  return r === null ? null : r.handlerVal;
-}
+export const parseAlterHandler = (s, px) =>
+  _parseHandler(s, px, "alter", false, false, true)?.handlerVal ?? null;
 // A bare name becomes a `HandlerNameVal`. Read-only handler slots may also
 // opt into `$name` -> `MethodVal`; receive/event slots deliberately do not.
 // No field syntax: a `.field` cannot be a handler.

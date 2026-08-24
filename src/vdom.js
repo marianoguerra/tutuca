@@ -25,19 +25,9 @@ function childOpts(vnode, ns, opts) {
 // Property names that exist on DOM nodes but whose setters misbehave for our
 // purposes (mirrors preact/src/diff/props.js setProperty; verified identical
 // to preact main as of 2026-06). Forces setAttribute.
-const NEVER_ASSIGN = new Set([
-  "width",
-  "height",
-  "href",
-  "list",
-  "form",
-  "tabIndex",
-  "download",
-  "rowSpan",
-  "colSpan",
-  "role",
-  "popover",
-]);
+const NEVER_ASSIGN = new Set(
+  "width height href list form tabIndex download rowSpan colSpan role popover".split(" "),
+);
 // IDL property names whose reflected attribute is named differently; needed
 // when removal goes through the property path so the attribute is dropped too.
 const PROP_ATTR_NAME = { className: "class", htmlFor: "for" };

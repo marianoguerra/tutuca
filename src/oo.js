@@ -37,9 +37,24 @@ const CHECK_TYPE_OBJECT = isPlainObject;
 const CHECK_TYPE_MAP = (v) => v instanceof Map;
 const CHECK_TYPE_SET = (v) => v instanceof Set;
 
+// A coercer turns an invalid value into a valid one, or null to give up.
+const COERCE_NONE = (_v) => null;
+const COERCE_BOOL = (v) => !!v;
+const COERCE_STRING = (v) => v?.toString?.() ?? "";
+const COERCE_INT = (v) => (Number.isFinite(v) ? Math.trunc(v) : null);
+const COERCE_LIST = (v) => (Array.isArray(v) ? [...v] : null);
+const COERCE_OBJECT = (v) => (isPlainObject(v) ? { ...v } : null);
+const COERCE_MAP = (v) => {
+  if (v instanceof Map) return new Map(v);
+  if (Array.isArray(v) || isPlainObject(v))
+    return new Map(Array.isArray(v) ? v : Object.entries(v));
+  return null;
+};
+const COERCE_SET = (v) => (v instanceof Set || Array.isArray(v) ? new Set(v) : null);
+
 export class FieldBool extends Field {
   constructor(name, defaultValue = false) {
-    super("bool", name, CHECK_TYPE_BOOL, (v) => !!v, defaultValue);
+    super("bool", name, CHECK_TYPE_BOOL, COERCE_BOOL, defaultValue);
   }
 }
 class FieldAny extends Field {
@@ -49,23 +64,17 @@ class FieldAny extends Field {
 }
 export class FieldString extends Field {
   constructor(name, defaultValue = "") {
-    super("text", name, CHECK_TYPE_STRING, (v) => v?.toString?.() ?? "", defaultValue);
+    super("text", name, CHECK_TYPE_STRING, COERCE_STRING, defaultValue);
   }
 }
 export class FieldInt extends Field {
   constructor(name, defaultValue = 0) {
-    super(
-      "int",
-      name,
-      CHECK_TYPE_INT,
-      (v) => (Number.isFinite(v) ? Math.trunc(v) : null),
-      defaultValue,
-    );
+    super("int", name, CHECK_TYPE_INT, COERCE_INT, defaultValue);
   }
 }
 export class FieldFloat extends Field {
   constructor(name, defaultValue = 0) {
-    super("float", name, CHECK_TYPE_FLOAT, (_) => null, defaultValue);
+    super("float", name, CHECK_TYPE_FLOAT, COERCE_NONE, defaultValue);
   }
 }
 
@@ -82,45 +91,22 @@ export class FieldComp extends Field {
 
 export class FieldList extends Field {
   constructor(name, defaultValue = []) {
-    super("list", name, CHECK_TYPE_LIST, (v) => (Array.isArray(v) ? [...v] : null), defaultValue);
+    super("list", name, CHECK_TYPE_LIST, COERCE_LIST, defaultValue);
   }
 }
 export class FieldObject extends Field {
   constructor(name, defaultValue = {}) {
-    super(
-      "object",
-      name,
-      CHECK_TYPE_OBJECT,
-      (v) => (isPlainObject(v) ? { ...v } : null),
-      defaultValue,
-    );
+    super("object", name, CHECK_TYPE_OBJECT, COERCE_OBJECT, defaultValue);
   }
 }
 export class FieldMap extends Field {
   constructor(name, defaultValue = new Map()) {
-    super(
-      "map",
-      name,
-      CHECK_TYPE_MAP,
-      (v) => {
-        if (v instanceof Map) return new Map(v);
-        if (Array.isArray(v) || isPlainObject(v))
-          return new Map(Array.isArray(v) ? v : Object.entries(v));
-        return null;
-      },
-      defaultValue,
-    );
+    super("map", name, CHECK_TYPE_MAP, COERCE_MAP, defaultValue);
   }
 }
 export class FieldSet extends Field {
   constructor(name, defaultValue = new Set()) {
-    super(
-      "set",
-      name,
-      CHECK_TYPE_SET,
-      (v) => (v instanceof Set || Array.isArray(v) ? new Set(v) : null),
-      defaultValue,
-    );
+    super("set", name, CHECK_TYPE_SET, COERCE_SET, defaultValue);
   }
 }
 
