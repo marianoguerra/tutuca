@@ -1,13 +1,9 @@
+import { isPlainObject } from "./collection.js";
 import { COMPONENT, Component } from "./components.js";
 import { freeze, immerable } from "./immer.js";
 
 const BAD_VALUE = Symbol("BadValue");
 const nullCoercer = (v) => v;
-const isPlainObject = (v) => {
-  if (v === null || typeof v !== "object") return false;
-  const proto = Object.getPrototypeOf(v);
-  return proto === Object.prototype || proto === null;
-};
 
 function defaultToData(v) {
   if (v instanceof Map) return [...v.entries()];
@@ -331,7 +327,7 @@ export function validateDraftFields(current, draft) {
 // The record is the single source of truth: `fields`/`methods` are folded into
 // it and `getMetaClass()` is redefined to return the record itself.
 const META_KEYS =
-  "name id fields methods views receive intent alter provide lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup".split(
+  "name id fields methods views receive intent alter provide provideType lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup".split(
     " ",
   );
 const RESERVED_COMPONENT_STATICS = new Set([
@@ -380,9 +376,9 @@ Component.fromSpec = (opts) => {
         configurable: true,
       });
   // Forward the metadata record's behavior (compile/getView/compileStyle/...)
-  // onto the Class, skipping names the generated class already owns (`make`).
+  // onto the Class, skipping names the generated class already owns.
   for (const key of Object.getOwnPropertyNames(Component.prototype))
-    if (key !== "constructor" && key !== "make" && !Object.hasOwn(Class, key))
+    if (key !== "constructor" && !Object.hasOwn(Class, key))
       Class[key] = (...args) => comp[key](...args);
   return Class;
 };

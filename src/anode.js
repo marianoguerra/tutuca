@@ -12,25 +12,19 @@ import { isMac } from "./util/env.js";
 import { ConstVal, DynVal, parseBool, parseComponent, parseSequence, parseText } from "./value.js";
 import { HTML_NS } from "./vdom.js";
 
-// Resolve the producer of a dynamic variable `name` declared on component
-// `comp`: walk a LookupInfo (`lookup: { x: { for: "Producer.y" } }`) to the
-// producing component and read that provide's own field path; a `provide`
-// resolves to `comp` itself. Returns the producer component id plus the steps
-// (normally one FieldStep) that locate the value in the producer, or null when
-// it cannot be resolved.
+// Resolve the producer of a dynamic variable `name` used by component `comp`: its
+// own `provide` when it has one, otherwise the component in its scope chain that
+// declares it. Returns the producer component id plus the steps (normally one
+// FieldStep) that locate the value in the producer, or null when it cannot be
+// resolved. Runs at dispatch (Path.fromNodeAndEventName), so every component has
+// compiled by now and the scope search sees populated `provide` maps.
+//
+// A published type resolves to null on purpose: a Class has no path, so it can never
+// be a render target and `<x render="*Board">` must stay unresolvable.
 function resolveDynProducer(comp, name) {
-  let producerComp, producerProvide;
-  const lk = comp?.lookup?.[name];
-  if (lk != null) {
-    // LookupInfo: forwards to another component's provide.
-    producerComp = comp.scope?.lookupComponent(lk.compName);
-    producerProvide = producerComp?.provide?.[lk.provideName];
-  } else {
-    const p = comp?.provide?.[name];
-    if (p == null) return null;
-    producerComp = comp;
-    producerProvide = p;
-  }
+  const own = comp?.provide?.[name];
+  const producerComp = own != null ? comp : (comp?.scope?.lookupProvider(name) ?? null);
+  const producerProvide = own ?? producerComp?.provide?.[name];
   if (producerComp == null || producerProvide == null) return null;
   const pi = producerProvide.val?.toPathItem?.() ?? null;
   return { producerCompId: producerComp.id, producerSteps: pi ? [pi] : [] };

@@ -61,7 +61,7 @@ const Theme = component({
   provide: { color: ".color" },
 });
 const Child = component({
-  lookup: { color: { for: "Theme.color", default: "'gray'" } },
+  lookup: [{ name: "color", default: "'gray'" }],
   view: html`<p :style="$'color: {*color}'"></p>`,
 });
 ```
@@ -70,12 +70,61 @@ A **`provide`** maps an exported name to a field expression. Every
 provide is evaluated and pushed onto the dynamic stack automatically
 when the producer is entered during render — there is no hook to opt in.
 
-A **`lookup`** reads a value the `*name` way: the key is the name used
-in views (`*color`), the value is `"Producer.provideName"`, or
-`{ for: "Producer.provideName", default: ".field" }` to supply a
-fallback when no producer is in scope (default is optional — without it
-a miss resolves to `null`). A `*name` that names the component's own
-`provide` resolves to the nearest provided value (including its own).
+A **`lookup`** is a **list of names** the component reads the `*name`
+way. A bare `"color"` is the whole declaration; an object appears only
+when you need an option — `{ name: "color", default: ".field" }`
+supplies a fallback for when no producer is above (without one, a miss
+resolves to `null`). A lookup names *what it wants*, not who provides
+it: whoever is nearest above and provides that name answers, and a
+`*name` that names the component's own `provide` resolves to that
+(including its own).
+
+Because a lookup does not name its producer, **one provide name has one
+producer per scope chain** — two components providing `color` is a lint
+error (`PROVIDE_NAME_COLLISION`), not a last-one-wins surprise. That is
+also what lets the render-target teleport below find the producer.
+
+A lookup name starting with an **uppercase** letter is a component
+**type** rather than a value; see *Looking up component types*.
+
+### Looking up component types
+
+The same two environments answer a **type** name, and a handler asks with
+`ctx.lookupType`:
+
+```js
+const Board = component({
+  name: "Board",
+  provide: { Cell: "self" },     // publish MY type under the name "Cell"
+});
+
+const Slot = component({
+  name: "Slot",
+  lookup: ["Cell"],              // declared, so the linter checks the name
+  receive: {
+    add(draft, ctx) {
+      draft.items.push(ctx.lookupType("Cell").make());
+    },
+  },
+});
+```
+
+`ctx.lookupType(name, opts)` walks a route, using the same legs and the
+same spelling as `ctx.intent`: `"dyn"` is the render ancestry, `"lex"`
+is the registration scope, and the default is `["dyn", "lex"]` — an
+ancestor's published type if there is one, else the registered
+component. `ctx.lookup(name, opts)` is the same walk for a value.
+
+An uppercase `provide` publishes a component type, and `"self"` is its
+only legal value: it is what keeps a published type a component by
+construction, so the `dyn` leg never has to trust an arbitrary
+expression. Several concrete components can publish themselves under one
+interface name, and a descendant of each gets the one that encloses it.
+
+`ctx.lookupType` works without a declaration but warns, because an
+undeclared name is one the linter cannot check. A `dyn` leg that finds a
+binding which is not a component refuses `TYPE_NOT_COMPONENT` and
+returns `null`; a name no leg resolves refuses `TYPE_NOT_FOUND`.
 
 ### Dynamic vars as render targets
 

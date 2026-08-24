@@ -42,7 +42,6 @@ describe("Components", () => {
     });
     Comp.compile(ParseContext);
     expect(Comp.provide.getMessage).toBeInstanceOf(ProvideInfo);
-    expect(typeof Comp.provide.getMessage.symbol).toBe("symbol");
     expect(Comp.provide.getMessage.name).toBe("getMessage");
     const stack = setupStack(Comp);
     expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
@@ -75,15 +74,14 @@ describe("Components", () => {
     const CompB = component({
       name: "CompB",
       fields: { message: "hi!" },
-      lookup: {
-        theMessage: { for: "CompA.getMessage", default: ".message" },
-      },
+      // A lookup names what it wants, not who provides it: whoever is nearest above
+      // and provides `getMessage` answers, and the default covers "nobody does".
+      lookup: [{ name: "getMessage", default: ".message" }],
     });
     CompA.compile(ParseContext);
     CompB.compile(ParseContext);
 
     expect(CompA.provide.getMessage).toBeInstanceOf(ProvideInfo);
-    expect(typeof CompA.provide.getMessage.symbol).toBe("symbol");
     expect(CompA.provide.getMessage.name).toBe("getMessage");
     {
       // CompA is the root frame, so its provide is in scope.
@@ -91,15 +89,13 @@ describe("Components", () => {
       expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
     }
 
-    expect(CompB.lookup.theMessage).toBeInstanceOf(LookupInfo);
-    expect(CompB.lookup.theMessage.compName).toBe("CompA");
-    expect(CompB.lookup.theMessage.provideName).toBe("getMessage");
-    expect(CompB.lookup.theMessage.name).toBe("theMessage");
+    expect(CompB.lookup.getMessage).toBeInstanceOf(LookupInfo);
+    expect(CompB.lookup.getMessage.name).toBe("getMessage");
     {
-      // NOTE: component order — root is CompB, no CompA producer in scope, so the
+      // NOTE: component order — root is CompB, no CompA producer above, so the
       // lookup falls back to its default (CompB's own .message).
       const stack = setupStackComps([CompB, CompA]);
-      expect(stack.lookupDynamic("theMessage")).toBe("hi!");
+      expect(stack.lookupDynamic("getMessage")).toBe("hi!");
     }
 
     {
@@ -108,7 +104,7 @@ describe("Components", () => {
       const stack = setupStackComps([CompA, CompB]).enter(
         CompB.make({ message: "custom message" }),
       );
-      expect(stack.lookupDynamic("theMessage")).toBe("hey there!");
+      expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
     }
 
     {
@@ -116,8 +112,48 @@ describe("Components", () => {
       const stack = setupStackComps([CompA, CompB], CompA.make({ message: "hallo" })).enter(
         CompB.make({ message: "custom message" }),
       );
-      expect(stack.lookupDynamic("theMessage")).toBe("hallo");
+      expect(stack.lookupDynamic("getMessage")).toBe("hallo");
     }
+  });
+
+  test("provide: { Name: 'self' } publishes the component type to the subtree", () => {
+    const Cell = component({ name: "Cell", fields: { v: 0 } });
+    const Board = component({
+      name: "Board",
+      fields: { title: "b" },
+      // The published name is the interface; "self" is the only value, so what lands
+      // on the stack is a component by construction.
+      provide: { Slot: "self" },
+    });
+    const Other = component({ name: "Other", fields: { title: "o" }, provide: { Slot: "self" } });
+    for (const C of [Cell, Board, Other]) C.compile(ParseContext);
+
+    const stack = setupStackComps([Board, Cell, Other]);
+    expect(stack.lookupDynamic("Slot")).toBe(Board);
+    // Nearest publisher wins, the same way a provided value does.
+    expect(stack.enter(Other.make({})).lookupDynamic("Slot")).toBe(Other);
+  });
+
+  test("lookupRouted: dyn finds the publisher, lex finds the registration", () => {
+    const Cell = component({ name: "Cell", fields: { v: 0 } });
+    const Board = component({
+      name: "Board",
+      fields: { title: "b" },
+      provide: { Cell: "self" },
+    });
+    for (const C of [Cell, Board]) C.compile(ParseContext);
+    const stack = setupStackComps([Board, Cell]);
+
+    // Board publishes ITSELF under the name "Cell", shadowing the registered Cell.
+    expect(stack.lookupRouted("Cell")).toBe(Board);
+    expect(stack.lookupRouted("Cell", ["dyn"])).toBe(Board);
+    expect(stack.lookupRouted("Cell", ["lex"])).toBe(Cell);
+    // Array order is walk order, exactly as an intent route.
+    expect(stack.lookupRouted("Cell", ["lex", "dyn"])).toBe(Cell);
+    // A name nobody publishes falls through to the registration scope.
+    expect(stack.lookupRouted("Board")).toBe(Board);
+    // An empty route resolves to null rather than falling back to the default.
+    expect(stack.lookupRouted("Cell", [])).toBe(null);
   });
 
   test("registerComponents with aliases", () => {

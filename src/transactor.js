@@ -1,7 +1,8 @@
+import { COMPONENT } from "./components.js";
 import { produce } from "./immer.js";
 import { validateDraftFields } from "./oo.js";
 import { Path, PathBuilder } from "./path.js";
-import { Stack } from "./stack.js";
+import { DEFAULT_LOOKUP_ROUTE, routeLookup, Stack } from "./stack.js";
 
 class State {
   constructor(val) {
@@ -85,7 +86,7 @@ export class Transactor {
   // Build and dispatch the observer record for a settled transaction. The
   // resolved handler (`_resolvedHandler`/`_matched`) and per-leaf before/after
   // (`_before`/`_after`) were captured while the handler ran (see callHandler /
-  // updateRootValue). No-op when nobody is observing.
+  // Transaction.run). No-op when nobody is observing.
   _emitTransaction(transaction, root) {
     if (this._observers.length === 0) return;
     // No handler ran: nothing to report.
@@ -121,8 +122,13 @@ export class Transactor {
     }
     return child;
   }
-  pushSend(path, name, args = [], parent = null) {
+  // `origin` is where the message came FROM, pinned now for the same reason an
+  // intent's answerPath is: a reply must reach the sender that asked even if a key
+  // moved while the message was in flight. Null when nobody is waiting — a host
+  // sendAtRoot or a view's own `@on.*` — and ctx.sendReply refuses on that.
+  pushSend(path, name, args = [], parent = null, origin = null) {
     const t = new SendEvent(path, this, name, args, parent);
+    t.origin = origin === null ? null : origin.toTransactionPath().pinKeys(this.state.val);
     this.pushTransaction(t);
     return this._link(t, parent);
   }
@@ -155,8 +161,8 @@ export class Transactor {
   }
   transact(transaction) {
     // `finally` guarantees the self-unit is released and self is settled on every exit:
-    // the undefined-state branch, the skipSelf path, and a throwing handler. Otherwise an
-    // un-released unit would hang this transaction's (and its parent's) subtree forever.
+    // the undefined-state branch and a throwing handler. Otherwise an un-released unit
+    // would hang this transaction's (and its parent's) subtree forever.
     // afterTransaction() stays inside `try`, before the release, so derived work is
     // counted before the subtree counter can reach zero.
     try {
@@ -207,9 +213,6 @@ class Transaction {
   whenSubtreeSettled() {
     return this.completion.whenSubtreeSettled();
   }
-  run(rootValue, comps) {
-    return this.updateRootValue(rootValue, comps);
-  }
   afterTransaction() {}
   // Ending a walk and forwarding belong to the two dispatch buckets; the base warns
   // rather than throwing, so a stray call from the wrong place is a message and not a
@@ -219,12 +222,6 @@ class Transaction {
   }
   forward(_opts) {
     console.warn('ctx.forward() needs a "receive" or "intent" handler - ignored');
-  }
-  buildRootStack(root, comps) {
-    return Stack.root(comps, root);
-  }
-  buildStack(root, comps) {
-    return this.path.toTransactionPath().buildStack(this.buildRootStack(root, comps));
   }
   // The kind reported to observers (see Transactor.observe); null on the base.
   get observeKind() {
@@ -245,15 +242,14 @@ class Transaction {
     return null;
   }
   // The path used to apply the mutation. Teleports dynamic-var renders so it lands on
-  // the data's real location (the dispatch `this.path` keeps intermediates). A subclass
-  // may override to supply a pre-resolved path (see an intent answer's pinned keys).
+  // the data's real location (the dispatch `this.path` keeps intermediates).
   getTransactionPath() {
     // Frame-only bind steps are needed to replay handler arguments, but they do not
     // address state. Compact them before lookup/grafting so a handler inside @each
     // still updates the component that owns the view.
     return this.path.toTransactionPath().compact();
   }
-  updateRootValue(curRoot, comps) {
+  run(curRoot, comps) {
     const txnPath = this.getTransactionPath();
     const curLeaf = txnPath.lookup(curRoot);
     const newLeaf = produce(curLeaf, (draft) => {
@@ -315,8 +311,8 @@ class InputEvent extends Transaction {
     }
     this.transactor.pushIntent(this.dispatchPath, name, args, rest, this);
   }
-  buildRootStack(root, comps) {
-    return Stack.root(comps, root, this);
+  buildStack(root, comps) {
+    return this.path.toTransactionPath().buildStack(Stack.root(comps, root, this));
   }
   getHandlerAndArgs(root, _instance, comps) {
     const stack = this.buildStack(root, comps);
@@ -651,7 +647,7 @@ class Completion {
     this.val = val;
     this._selfResolve?.(val);
   }
-  // Settle self even when no handler produced a value (skipSelf / undefined / throw paths).
+  // Settle self even when no handler produced a value (undefined-state / throw paths).
   ensureSelfSettled() {
     if (!this.selfSettled) this.markSelfSettled(this.val);
   }
@@ -699,12 +695,66 @@ class Dispatcher {
   get at() {
     return new PathChanges(this);
   }
+  // The render-time Stack, rebuilt on demand. A handler does not get one: the stack
+  // that evaluated its arguments is a local in getHandlerAndArgs and is gone by the
+  // time the body runs, and send/intent transactions never build one at all. Both
+  // halves it needs are pinned on this ctx, so the `dyn` leg reconstructs it — and
+  // only the `dyn` leg does, which is why this is lazy rather than eager.
+  //
+  // The path is compacted, so per-item binds (`@each`, `@enrich-with`) are not
+  // replayed; provides are pushed on every component frame either way, so a provide
+  // that reads a loop binding is the one case this cannot reproduce faithfully.
+  _stack() {
+    this._stackMemo ??= this.path
+      .toTransactionPath()
+      .buildStack(Stack.root(this.transactor.comps, this.root, this.parent));
+    return this._stackMemo;
+  }
+  // Resolve a name the way the renderer would. `opts.route` takes the same legs in
+  // the same spelling as `ctx.intent` — `["dyn"]` the render ancestry, `["lex"]` the
+  // registration scope, default both.
+  lookup(name, opts) {
+    const route = opts?.route ?? DEFAULT_LOOKUP_ROUTE;
+    return routeLookup(
+      route,
+      () => this._lookupLex(name),
+      () => this._stack()?.lookupDynamic(name) ?? null,
+    );
+  }
+  // The `lex` leg without a Stack: the scope of the component whose handler is
+  // running, which is the leaf of this ctx's path.
+  _lookupLex(name) {
+    let Comp = null;
+    this.walkPath((c) => {
+      Comp = c;
+      return false;
+    });
+    return Comp?.scope?.lookupComponent(name) ?? null;
+  }
+  // A component lookup is a value lookup constrained to a component. The `lex` leg
+  // can only ever answer with one; the `dyn` leg reads a binding an ancestor
+  // published, so it is the leg that has to be checked.
+  lookupType(name, opts) {
+    const v = this.lookup(name, opts);
+    if (v == null) {
+      this.transactor.refuse("TYPE_NOT_FOUND", {
+        name,
+        route: opts?.route ?? DEFAULT_LOOKUP_ROUTE,
+      });
+      return null;
+    }
+    if (v?.[COMPONENT] == null) {
+      this.transactor.refuse("TYPE_NOT_COMPONENT", { name, got: typeof v });
+      return null;
+    }
+    return v;
+  }
   // A message is ADDRESSED: it names one component and stops there.
   send(name, args) {
     return this.sendAtPath(this.path, name, args);
   }
   sendAtPath(path, name, args) {
-    return this.transactor.pushSend(path, name, args, this.parent);
+    return this.transactor.pushSend(path, name, args, this.parent, this.path);
   }
   // An intent is ROUTED: it names a job and walks until something answers. The verb
   // does not decide which scope answers — `opts.route` does, written here at the call
@@ -714,9 +764,6 @@ class Dispatcher {
   }
   intentAtPath(path, name, args, opts) {
     return this.transactor.pushIntent(path, name, args, opts, this.parent);
-  }
-  lookupTypeFor(name, inst) {
-    return this.transactor.comps.getCompFor(inst).scope.lookupComponent(name);
   }
 }
 class EventContext extends Dispatcher {
@@ -737,6 +784,19 @@ class EventContext extends Dispatcher {
     return this.parent.walk === undefined
       ? warnNotIntent("fail")
       : this.parent.walk.answer("Error", error);
+  }
+  // Reply to the sender of the MESSAGE being handled. An intent answers under a name
+  // the runtime derives (`<name>Ok`), because the raiser asked a question and declared
+  // arms for it; a message did not, so the replier names the reply itself and the
+  // sender handles it like any other message. Refuses when nobody sent this — a view's
+  // own `@on.*`, or a host sendAtRoot.
+  sendReply(name, args) {
+    const origin = this.parent?.origin ?? null;
+    if (origin == null) {
+      this.transactor.refuse("NO_SENDER", { name });
+      return null;
+    }
+    return this.sendAtPath(origin, name, args);
   }
   // End the walk answering nothing — "served, and no answer".
   stop() {

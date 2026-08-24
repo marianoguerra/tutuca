@@ -51,13 +51,22 @@ const KNOWN_DIRECTIVE_NAMES = new Set([
   "else",
 ]);
 
+// Mirror of `isTypeName` in src/components.js. Lives here, not imported from src/,
+// for the same reason KNOWN_COMPONENT_SPEC_KEYS does: a tooling-only consumer should
+// not widen the runtime API surface. If the runtime rule changes, update this.
+const isTypeName = (s) => {
+  const c = s.charCodeAt(0);
+  return c >= 65 && c <= 90;
+};
 export const ALT_HANDLER_NOT_DEFINED = "ALT_HANDLER_NOT_DEFINED";
 export const ALT_HANDLER_NOT_REFERENCED = "ALT_HANDLER_NOT_REFERENCED";
 export const DYN_VAL_NOT_DEFINED = "DYN_VAL_NOT_DEFINED";
 export const DYN_ALIAS_NOT_REFERENCED = "DYN_ALIAS_NOT_REFERENCED";
 export const PROVIDE_NOT_ADDRESSABLE = "PROVIDE_NOT_ADDRESSABLE";
+export const PROVIDE_TYPE_BAD_SHAPE = "PROVIDE_TYPE_BAD_SHAPE";
+export const PROVIDE_NAME_COLLISION = "PROVIDE_NAME_COLLISION";
 export const LOOKUP_BAD_SHAPE = "LOOKUP_BAD_SHAPE";
-export const LOOKUP_TARGET_MALFORMED = "LOOKUP_TARGET_MALFORMED";
+export const LOOKUP_NO_PROVIDER = "LOOKUP_NO_PROVIDER";
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
 export const UNKNOWN_EVENT_MODIFIER = "UNKNOWN_EVENT_MODIFIER";
 export const RECEIVE_HANDLER_NOT_IMPLEMENTED = "RECEIVE_HANDLER_NOT_IMPLEMENTED";
@@ -228,7 +237,11 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
     checkFieldDeclarations(lx, Comp);
     checkFieldMethodNameCollisions(lx, Comp);
     checkProvidesAreAddressable(lx, Comp);
+    checkProvidedTypes(lx, Comp);
+    checkProvideNameCollisions(lx, Comp);
     checkLookupShapes(lx, Comp);
+    checkLookupTypesResolve(lx, Comp);
+    checkLookupsHaveProviders(lx, Comp);
     checkHandlersNotAsync(lx, Comp);
     checkHandlerNameCollisions(lx, Comp);
     checkScopedStyleTopLevel(lx, Comp);
@@ -617,16 +630,6 @@ const ATTR_VAL_CHECKERS = {
   SeqAccessVal({ val, recurse }) {
     recurse(val.seqVal);
     recurse(val.keyVal);
-  },
-  TypeVal({ lx, val, env, errCtx }) {
-    if (env.scope.lookupComponent(val.name) === null)
-      reportUnknownName(
-        lx,
-        UNKNOWN_COMPONENT_NAME,
-        val.name,
-        scopeKeysAlong(env.scope, "byName"),
-        errCtx,
-      );
   },
   // NameVals on a macro call-site attribute are macro-param bindings, not
   // handler args — their role is determined inside the macro body after
@@ -1074,55 +1077,118 @@ function checkScopedStyleTopLevel(lx, Comp) {
 // as a render-target / teleport path, not only read as a value. `compile()` drops
 // any raw provide that fails to parse as such, so a key present in `_rawProvide`
 // but absent from `provide` is a non-path value (e.g. `$method`, a constant).
+//
+// A PascalCase key publishes a component TYPE, not a value. A Class has no path, so
+// the addressability rule cannot apply to it; `"self"` is the only legal value and
+// checkProvidedTypes covers those instead.
 function checkProvidesAreAddressable(lx, Comp) {
   for (const name in Comp._rawProvide) {
+    if (isTypeName(name)) continue;
     if (Comp.provide[name] === undefined) {
       lx.error(PROVIDE_NOT_ADDRESSABLE, { name, value: Comp._rawProvide[name] });
     }
   }
 }
 
-// Validates each raw `lookup` entry against its two legal shapes, inspecting the
-// authored spec directly (not the compiled result, which silently tolerates
-// unknown keys and wrong-typed `default`):
-//   - a bare `"Producer.provideName"` string, or
-//   - `{ for: "Producer.provideName", default?: "<value expr>" }` — only those
-//     two keys, both string-valued.
-// A malformed container emits LOOKUP_BAD_SHAPE; a well-shaped entry whose target
-// string isn't exactly `Producer.provideName` emits LOOKUP_TARGET_MALFORMED.
-const KNOWN_LOOKUP_KEYS = new Set(["for", "default"]);
+// A PascalCase `provide` publishes this component's own type to its subtree. `"self"`
+// is the only value: it is what keeps a published type a component by construction,
+// so the dyn leg of a type lookup never has to trust an arbitrary expression.
+function checkProvidedTypes(lx, Comp) {
+  for (const name in Comp._rawProvide) {
+    if (!isTypeName(name)) continue;
+    const raw = Comp._rawProvide[name];
+    if (raw !== "self") lx.error(PROVIDE_TYPE_BAD_SHAPE, { name, value: raw });
+  }
+}
+
+// A lookup names a value without naming its producer, and the render-target teleport
+// recovers the producer by scope search (resolveDynProducer). That is only
+// unambiguous while one name has one producer per scope chain, so two components
+// providing the same name is an error rather than a last-one-wins surprise.
+function checkProvideNameCollisions(lx, Comp) {
+  const scope = Comp.scope;
+  if (!scope) return;
+  for (const name in Comp.provide) {
+    for (let s = scope; s; s = s.parent) {
+      for (const otherName in s.byName) {
+        const Other = s.byName[otherName];
+        if (Other !== Comp && Other.provide?.[name] !== undefined)
+          lx.error(PROVIDE_NAME_COLLISION, { name, other: Other.name });
+      }
+    }
+  }
+}
+
+// `lookup` is a LIST of names: a bare string is the whole declaration, and an object
+// appears only when an option is needed. Inspects the authored spec directly, since
+// compile() silently skips anything it cannot read.
+//   - "name", or
+//   - { name: "name", default?: "<value expr>" } — only those two keys, both strings.
+const KNOWN_LOOKUP_KEYS = new Set(["name", "default"]);
 function checkLookupShapes(lx, Comp) {
-  for (const name in Comp._rawLookup) {
-    const raw = Comp._rawLookup[name];
-    let target;
-    if (typeof raw === "string") {
-      target = raw;
-    } else if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+  const raw = Comp._rawLookup;
+  if (!Array.isArray(raw)) {
+    if (raw !== undefined && Object.keys(raw).length > 0)
+      lx.error(LOOKUP_BAD_SHAPE, { name: "lookup", problem: "must be a list of names" });
+    return;
+  }
+  for (const entry of raw) {
+    if (typeof entry === "string") continue;
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
       lx.error(LOOKUP_BAD_SHAPE, {
-        name,
-        problem: 'must be a "Producer.provideName" string or a { for, default } object',
+        name: String(entry),
+        problem: 'must be a "name" string or a { name, default } object',
       });
       continue;
-    } else {
-      const extra = Object.keys(raw).filter((k) => !KNOWN_LOOKUP_KEYS.has(k));
-      if (extra.length > 0) {
-        lx.error(LOOKUP_BAD_SHAPE, { name, problem: `unknown key(s): ${extra.join(", ")}` });
-        continue;
-      }
-      if (typeof raw.for !== "string") {
-        lx.error(LOOKUP_BAD_SHAPE, { name, problem: "'for' is required and must be a string" });
-        continue;
-      }
-      if (raw.default !== undefined && typeof raw.default !== "string") {
-        lx.error(LOOKUP_BAD_SHAPE, { name, problem: "'default' must be a string" });
-        continue;
-      }
-      target = raw.for;
     }
-    const parts = target.split(".");
-    if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      lx.error(LOOKUP_TARGET_MALFORMED, { name, target });
+    const extra = Object.keys(entry).filter((k) => !KNOWN_LOOKUP_KEYS.has(k));
+    if (extra.length > 0) {
+      lx.error(LOOKUP_BAD_SHAPE, {
+        name: String(entry.name),
+        problem: `unknown key(s): ${extra.join(", ")}`,
+      });
+      continue;
     }
+    if (typeof entry.name !== "string" || entry.name === "") {
+      lx.error(LOOKUP_BAD_SHAPE, {
+        name: String(entry.name),
+        problem: "'name' is required and must be a string",
+      });
+      continue;
+    }
+    if (entry.default !== undefined && typeof entry.default !== "string")
+      lx.error(LOOKUP_BAD_SHAPE, { name: entry.name, problem: "'default' must be a string" });
+  }
+}
+
+// A lookup resolves along the `dyn` leg first, so a lowercase name that nobody in
+// scope provides can only ever reach its `default`. Whether a provider is actually
+// ABOVE the consumer at render time is a runtime fact the linter cannot settle, so a
+// declared provider is where this stops: no provider at all is the decidable half.
+// A PascalCase name is a component type and resolves on the `lex` leg instead, which
+// checkConsistentAttrVal already covers through UNKNOWN_COMPONENT_NAME.
+function checkLookupsHaveProviders(lx, Comp) {
+  const scope = Comp.scope;
+  if (!scope) return;
+  for (const name in Comp.lookup) {
+    if (isTypeName(name)) continue;
+    if (scope.lookupProvider?.(name)) continue;
+    const info = { name, hasDefault: Comp.lookup[name].val != null };
+    if (info.hasDefault) lx.hint(LOOKUP_NO_PROVIDER, info);
+    else lx.error(LOOKUP_NO_PROVIDER, info);
+  }
+}
+
+// A PascalCase lookup name is a component type. Its `lex` leg is the registration
+// scope chain, which is static, so "does this name mean anything?" is decidable here
+// — the same question the value language used to ask of a bare `Type` token in a
+// handler argument, asked now of the declaration instead.
+function checkLookupTypesResolve(lx, Comp) {
+  if (!Comp.scope) return;
+  for (const name in Comp.lookup) {
+    if (!isTypeName(name)) continue;
+    if (Comp.scope.lookupComponent(name) === null)
+      reportUnknownName(lx, UNKNOWN_COMPONENT_NAME, name, scopeKeysAlong(Comp.scope, "byName"), {});
   }
 }
 
@@ -1131,6 +1197,10 @@ function checkLookupShapes(lx, Comp) {
 // this component's own views.
 function checkUnreferencedDynamics(lx, Comp, referencedDynamics) {
   for (const name in Comp.lookup) {
+    // A PascalCase lookup is a component type, read from a handler with
+    // ctx.lookupType rather than as `*name` in a view. Absence from the views is the
+    // normal case for one, not a smell.
+    if (isTypeName(name)) continue;
     if (!referencedDynamics.has(name)) {
       lx.hint(DYN_ALIAS_NOT_REFERENCED, { name });
     }

@@ -9,7 +9,6 @@ import {
   NameVal,
   parseToken,
   SeqAccessVal,
-  TypeVal,
 } from "../src/value.js";
 import { DOMParser } from "./dom.js";
 
@@ -49,7 +48,6 @@ test("parse dyn attrs", () => {
   const [nAttrs] = parseAttrs(
     html`<p
       :name="foo"
-      :type="Foo"
       :bool="false"
       :num="42"
       :str="'hi'"
@@ -60,16 +58,11 @@ test("parse dyn attrs", () => {
     ></p>`,
   );
   expect(nAttrs).toBeInstanceOf(DynAttrs);
-  const [name, type, bool, num, str, field, bind, seq, dyn] = nAttrs.items;
+  const [name, bool, num, str, field, bind, seq, dyn] = nAttrs.items;
   expect(name.name).toBe("name");
   expect(name.val).toBeInstanceOf(NameVal);
   expect(name.val.name).toBe("foo");
   expect(name.val.toString()).toBe("foo");
-
-  expect(type.name).toBe("type");
-  expect(type.val).toBeInstanceOf(TypeVal);
-  expect(type.val.name).toBe("Foo");
-  expect(type.val.toString()).toBe("Foo");
 
   expect(bool.name).toBe("bool");
   expect(bool.val).toBeInstanceOf(ConstVal);
@@ -110,7 +103,6 @@ test("parse dyn attrs", () => {
 
   expect(nAttrs.toMacroVars()).toEqual({
     name: "foo",
-    type: "Foo",
     bool: "false",
     num: "42",
     str: "'hi'",

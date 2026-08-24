@@ -1,5 +1,28 @@
 export const STOP = Symbol("STOP");
 export const NEXT = Symbol("NEXT");
+// The route a bare lookup takes: the render ancestry, then the registration scope.
+// Written down HERE and nowhere else, the same way DEFAULT_ROUTE is for intents — and
+// deliberately the same legs, in the same order, so "where does a name come from" has
+// one answer whether the name is a value, a type, or a job.
+export const DEFAULT_LOOKUP_ROUTE = ["dyn", "lex"];
+// Walk a route's legs in order; the first one that resolves wins. Matches the intent
+// walker's contract: array order is walk order, an unknown leg warns and is skipped,
+// and an empty route resolves to null rather than falling back to the default.
+export function routeLookup(route, lex, dyn) {
+  for (let i = 0; i < route.length; i++) {
+    const leg = route[i];
+    if (leg === "dyn") {
+      const v = dyn();
+      if (v != null) return v;
+    } else if (leg === "lex") {
+      const v = lex();
+      if (v != null) return v;
+    } else {
+      console.warn("unknown lookup route leg", leg, '- expected "dyn" or "lex"');
+    }
+  }
+  return null;
+}
 export function lookup(chain, name, dv = null) {
   let n = chain;
   while (n !== null) {
@@ -50,14 +73,21 @@ export class Stack {
     this.ctx = ctx;
   }
   // Evaluate every provide the entered component publishes and push them as one
-  // dynBinds frame (keyed by each provide's symbol). No-op when there are no provides.
+  // dynBinds frame, keyed by NAME. Published types go in the same frame: a type name
+  // starts A-Z and a value name does not, so the two namespaces cannot collide and
+  // nearest-ancestor-wins falls out of frame order for both. No-op with no provides.
   _pushProvides() {
-    const provide = this.comps.getCompFor(this.it)?.provide;
-    if (provide == null) return this;
+    const comp = this.comps.getCompFor(this.it);
+    if (comp == null) return this;
+    const { provide, provideType } = comp;
     const dynObj = {};
     let has = false;
     for (const k in provide) {
-      dynObj[provide[k].symbol] = provide[k].val.eval(this);
+      dynObj[k] = provide[k].val.eval(this);
+      has = true;
+    }
+    for (const k in provideType) {
+      dynObj[k] = provideType[k];
       has = true;
     }
     if (!has) return this;
@@ -82,30 +112,36 @@ export class Stack {
     const newViews = [name, views];
     return new Stack(comps, it, binds, dynBinds, newViews, computeViewsId(newViews), ctx);
   }
+  // Published types are stable per scope and would only churn the render cache, so
+  // the cache key covers values alone.
   _pushDynBindValuesToArray(arr, comp) {
-    for (const k in comp.provide) arr.push(this._lookupProvide(comp.provide[k]));
-    for (const k in comp.lookup) arr.push(this._lookupAlias(comp.lookup[k]));
+    for (const k in comp.provide) arr.push(this.lookupDynamic(k));
+    for (const k in comp.lookup) arr.push(this.lookupDynamic(k));
   }
-  _lookupProvide(p) {
-    return lookup(this.dynBinds, p.symbol) ?? p.val.eval(this) ?? null;
-  }
-  _lookupAlias(lk) {
-    const sym = lk.getProducerSymbol(this);
-    return (sym != null ? lookup(this.dynBinds, sym) : null) ?? lk.val?.eval(this) ?? null;
-  }
+  // `*name`: the nearest binding above (including this component's own provides,
+  // pushed on entering it), else this component's declared default, else null.
   lookupDynamic(name) {
+    const v = lookup(this.dynBinds, name);
+    if (v != null) return v;
     const comp = this.comps.getCompFor(this.it);
-    if (comp == null) return null;
-    const lk = comp.lookup[name];
-    if (lk !== undefined) return this._lookupAlias(lk);
-    const p = comp.provide[name];
-    return p !== undefined ? this._lookupProvide(p) : null;
+    return comp?.lookup[name]?.val?.eval(this) ?? null;
   }
   lookupBind(name) {
     return lookup(this.binds, name);
   }
-  lookupType(name) {
-    return this.comps.getCompFor(this.it).scope.lookupComponent(name);
+  // The `lex` leg: what a name means in the registration scope of the component being
+  // rendered. The scope chain holds components, so this leg only ever answers for a
+  // type name — for a value name it is a miss, which is why one default route serves
+  // both. Guarded: a non-component `it` has no scope to ask.
+  _lookupLex(name) {
+    return this.comps.getCompFor(this.it)?.scope.lookupComponent(name) ?? null;
+  }
+  lookupRouted(name, route = DEFAULT_LOOKUP_ROUTE) {
+    return routeLookup(
+      route,
+      () => this._lookupLex(name),
+      () => this.lookupDynamic(name),
+    );
   }
   lookupFieldRaw(name) {
     return this.it[name] ?? null;

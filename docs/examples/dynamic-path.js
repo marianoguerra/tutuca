@@ -38,7 +38,7 @@ const Toolbar = component({
   fields: {},
   // Consumer: forwards to Workspace's `active` dynamic. The default is only used
   // when no producer is in scope.
-  lookup: { active: { for: "Workspace.active", default: ".missing" } },
+  lookup: [{ name: "active", default: ".missing" }],
   view: html`<div class="border border-dashed border-warning rounded p-3 gap-2">
     <span class="text-xs opacity-60">Toolbar (consumer)</span>
     <x render="*active"></x>

@@ -65,23 +65,27 @@ const JsonNumber = component({
 
 export const JsonSelector = component({
   name: "JsonSelector",
+  // The types this selector can build. One handler still serves every button: the
+  // view names the type and the handler resolves it, which is what the declaration
+  // list makes checkable.
+  lookup: ["JsonNull", "JsonBool", "JsonNumber", "JsonString", "JsonArray", "JsonObject"],
   receive: {
-    setTo(_draft, Comp) {
-      return Comp.make();
+    setTo(_draft, name, ctx) {
+      return ctx.lookupType(name).make();
     },
-    setToBool(_draft, Comp, isCtrl) {
-      return Comp.make({ value: !isCtrl });
+    setToBool(_draft, isCtrl, ctx) {
+      return ctx.lookupType("JsonBool").make({ value: !isCtrl });
     },
   },
   view: html`<div class="join gap-3 font-mono">
-    <button class="btn btn-sm btn-soft btn-warning" @on.click="setTo JsonNull">null</button>
-    <button class="btn btn-sm btn-soft btn-success" @on.click="setToBool JsonBool e.isCtrl">
+    <button class="btn btn-sm btn-soft btn-warning" @on.click="setTo 'JsonNull'">null</button>
+    <button class="btn btn-sm btn-soft btn-success" @on.click="setToBool e.isCtrl">
       bool
     </button>
-    <button class="btn btn-sm btn-soft btn-primary" @on.click="setTo JsonNumber">0</button>
-    <button class="btn btn-sm btn-soft btn-accent" @on.click="setTo JsonString">""</button>
-    <button class="btn btn-sm btn-soft btn-info" @on.click="setTo JsonArray">[]</button>
-    <button class="btn btn-sm btn-soft btn-info" @on.click="setTo JsonObject">{}</button>
+    <button class="btn btn-sm btn-soft btn-primary" @on.click="setTo 'JsonNumber'">0</button>
+    <button class="btn btn-sm btn-soft btn-accent" @on.click="setTo 'JsonString'">""</button>
+    <button class="btn btn-sm btn-soft btn-info" @on.click="setTo 'JsonArray'">[]</button>
+    <button class="btn btn-sm btn-soft btn-info" @on.click="setTo 'JsonObject'">{}</button>
   </div>`,
 });
 
@@ -95,8 +99,8 @@ const JsonArray = component({
       draft.items.splice(key, 1);
     },
 
-    addItem(draft, Comp) {
-      draft.items.push(Comp.make());
+    addItem(draft, ctx) {
+      draft.items.push(ctx.lookupType("JsonSelector").make());
     },
     onDropOnItem(draft, key, info) {
       draft.items = this.items.moveKeyBeforeKey(info.lookupBind("key"), key);
@@ -109,7 +113,7 @@ const JsonArray = component({
     }
   `,
   view: html`<section class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500">
-    <button class="btn btn-sm btn-soft btn-primary" @on.click="addItem JsonSelector">+</button>
+    <button class="btn btn-sm btn-soft btn-primary" @on.click="addItem">+</button>
     <div class="join join-vertical gap-3">
       <div
         class="join gap-3 justify-between items-center group"
@@ -163,8 +167,9 @@ const JsonObject = component({
       draft.items.splice(key, 1);
     },
 
-    addItem(draft, KV, JsonSelector) {
-      draft.items.push(KV.make({ value: JsonSelector.make() }));
+    addItem(draft, ctx) {
+      const KV = ctx.lookupType("JsonObjectKeyVal");
+      draft.items.push(KV.make({ value: ctx.lookupType("JsonSelector").make() }));
     },
     onDropOnItem(draft, key, info) {
       draft.items = this.items.moveKeyBeforeKey(info.lookupBind("key"), key);
@@ -179,7 +184,7 @@ const JsonObject = component({
   view: html`<section class="join join-vertical gap-3 pl-3 border-l-1 border-l-neutral-500">
     <button
       class="btn btn-sm btn-soft font-mono btn-primary"
-      @on.click="addItem JsonObjectKeyVal JsonSelector"
+      @on.click="addItem"
     >
       +
     </button>

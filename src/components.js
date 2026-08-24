@@ -97,36 +97,50 @@ export class ComponentStack {
   lookupComponent(name) {
     return this.byName[name] ?? this.parent?.lookupComponent(name) ?? null;
   }
+  // The component in this scope chain that provides `name`, innermost first. A lookup
+  // names a value without naming its producer, so the render-target teleport
+  // (resolveDynProducer) recovers the producer here instead. Sound because
+  // PROVIDE_NAME_COLLISION keeps a provide name to one producer per chain; with two,
+  // this returns the innermost and the linter has already reported the ambiguity.
+  lookupProvider(name) {
+    for (const compName in this.byName) {
+      const Comp = this.byName[compName];
+      if (Comp.provide?.[name] !== undefined) return Comp;
+    }
+    return this.parent?.lookupProvider(name) ?? null;
+  }
   lookupMacro(name) {
     return this.macros[name] ?? this.parent?.lookupMacro(name) ?? null;
   }
 }
 // What a component publishes: an expression evaluated and pushed onto the dynBinds
-// stack (keyed by `symbol`) when the component is entered.
+// stack (keyed by its NAME) when the component is entered. Names, not symbols: a
+// lookup names what it wants and takes whoever provides it, nearest first, so there
+// is no producer to qualify. One producer per scope chain is a lint rule
+// (PROVIDE_NAME_COLLISION), which is what keeps the render-target teleport in
+// resolveDynProducer resolvable without the qualification.
 export class ProvideInfo {
-  constructor(name, val, symbol) {
+  constructor(name, val) {
     this.name = name;
     this.val = val;
-    this.symbol = symbol;
   }
 }
-// What a component reads "context-style": resolves through the *producer's* provide
-// symbol on the dynBinds stack, falling back to `val` (the default expression, or null).
+// What a component reads "context-style": the name on the dynBinds stack, falling
+// back to `val` (the default expression, or null) when nobody above provides it.
 export class LookupInfo {
-  constructor(name, compName, provideName, val) {
+  constructor(name, val) {
     this.name = name;
-    this.compName = compName;
-    this.provideName = provideName;
     this.val = val; // default expression or null
-    this._sym = undefined; // memoized producer provide symbol
-  }
-  getProducerSymbol(stack) {
-    if (this._sym === undefined)
-      this._sym = stack.lookupType(this.compName)?.provide?.[this.provideName]?.symbol ?? null;
-    return this._sym; // invalidated on scope change
   }
 }
 const isString = (v) => typeof v === "string";
+// A name starting A-Z reads as a component type; anything else is a value. The same
+// rule the value parser uses to tell a type token from a name, lifted to spec keys so
+// one convention covers both places a name is written.
+export const isTypeName = (s) => {
+  const c = s.charCodeAt(0);
+  return c >= 65 && c <= 90;
+};
 // The two dispatch buckets, plus `alter` (render-time, never dispatched).
 const _rawSpecKeys =
   "name view style commonStyle globalStyle receive intent alter views provide lookup fields methods statics";
@@ -152,8 +166,12 @@ export class Component {
       this.views[name] = new View(name, view, style);
     }
     this._rawProvide = o.provide ?? {};
-    this._rawLookup = o.lookup ?? {};
+    this._rawLookup = o.lookup ?? [];
     this.provide = {};
+    // Component types this component publishes to its subtree, name -> Class. Kept
+    // apart from `provide` because a Class is not addressable: it can never be a
+    // render target, so it must not reach resolveDynProducer or `*name`.
+    this.provideType = {};
     this.lookup = {};
     this.scope = null;
     this.spec = o;
@@ -165,27 +183,30 @@ export class Component {
       this.views[name].compile(new ParseContext(), this.scope, this.id);
     const ctx = this.views.main.ctx;
     // Invalid provide/lookup specs are dropped silently here; the linter reports
-    // them at authoring time (PROVIDE_NOT_ADDRESSABLE, LOOKUP_BAD_SHAPE,
-    // LOOKUP_TARGET_MALFORMED) so the runtime needn't duplicate the warning.
+    // them at authoring time (PROVIDE_NOT_ADDRESSABLE, PROVIDE_TYPE_BAD_SHAPE,
+    // LOOKUP_BAD_SHAPE) so the runtime needn't duplicate the warning.
     for (const key in this._rawProvide) {
+      if (isTypeName(key)) {
+        // A published component type. `"self"` is the only value: the publisher's own
+        // Class, so a published type is a component by construction and the dyn leg
+        // never has to trust an arbitrary expression.
+        if (this._rawProvide[key] === "self") this.provideType[key] = this.Class;
+        continue;
+      }
       const val = parseProvide(this._rawProvide[key], ctx);
-      if (val) this.provide[key] = new ProvideInfo(key, val, Symbol(key));
+      if (val) this.provide[key] = new ProvideInfo(key, val);
     }
-    for (const key in this._rawLookup) {
-      const linfo = this._rawLookup[key];
-      const forStr = isString(linfo) ? linfo : isString(linfo?.for) ? linfo.for : null;
-      const [compName, provideName] = forStr === null ? [] : forStr.split(".");
-      if (!isString(compName) || !isString(provideName)) continue;
-      const defStr = isString(linfo?.default) ? linfo.default : null;
-      const val = defStr === null ? null : parseField(defStr, ctx);
-      this.lookup[key] = new LookupInfo(key, compName, provideName, val);
+    // `lookup` is a list of names: a bare string is the whole declaration, an object
+    // appears only when an option (a `default`) is needed.
+    for (const entry of this._rawLookup) {
+      const name = isString(entry) ? entry : isString(entry?.name) ? entry.name : null;
+      if (name === null) continue;
+      const defStr = isString(entry?.default) ? entry.default : null;
+      this.lookup[name] = new LookupInfo(name, defStr === null ? null : parseField(defStr, ctx));
     }
     for (const key in this.lookup)
       if (this.provide[key] !== undefined)
         console.warn("name declared in both provide and lookup", this.name, key);
-  }
-  make(args, opts) {
-    return this.Class.make(args, opts ?? { scope: this.scope });
   }
   getView(name) {
     return this.views[name] ?? this.views.main;

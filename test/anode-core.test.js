@@ -29,7 +29,6 @@ import {
   MethodVal,
   parseHandlerArg,
   parseText,
-  TypeVal,
 } from "../src/value.js";
 import { VComment, VFragment, VNode, VText } from "../src/vdom.js";
 import { HeadlessParseContext, isTextNodeWithText, mpx, parse, setupJsdom } from "./dom.js";
@@ -291,12 +290,11 @@ describe("ANode", () => {
       expect(parseHandlerArg("f-oo", px)).toBe(null);
     });
 
-    test("parse TypeVal", () => {
+    test("a capitalized token is not a handler arg", () => {
+      // Component types left the value language: a handler that needs one asks by
+      // name with ctx.lookupType, which is routed and declarable.
       const px = mpx();
-      const v = parseHandlerArg("Foo", px);
-      expect(v).toBeInstanceOf(TypeVal);
-      expect(v.name).toBe("Foo");
-
+      expect(parseHandlerArg("Foo", px)).toBe(null);
       expect(parseHandlerArg("F-oo", px)).toBe(null);
     });
 
@@ -630,9 +628,7 @@ describe("ANode", () => {
     });
 
     test("@on.oneevent", () => {
-      const [r, px] = parse(
-        "<div @on.click='myHandler @v .f true 42 12.5 MyType e.value'>hi</div>",
-      );
+      const [r, px] = parse("<div @on.click='myHandler @v .f true 42 12.5 e.value'>hi</div>");
       expect(r).toBeInstanceOf(DomNode);
       expect(r.attrs).toBeInstanceOf(ConstAttrs);
       expect(r.attrs.items["data-eid"]).toBe(0);
@@ -646,8 +642,8 @@ describe("ANode", () => {
       expect(handler).toBeInstanceOf(EventHandler);
       expect(handler.handlerVal).toBeInstanceOf(HandlerNameVal);
       expect(handler.handlerVal.name).toBe("myHandler");
-      expect(handler.args.length).toBe(7);
-      const [v, f, b, i, fl, t, n] = handler.args;
+      expect(handler.args.length).toBe(6);
+      const [v, f, b, i, fl, n] = handler.args;
       expect(v).toBeInstanceOf(BindVal);
       expect(v.name).toBe("v");
       expect(f).toBeInstanceOf(FieldVal);
@@ -658,8 +654,6 @@ describe("ANode", () => {
       expect(i.val).toBe(42);
       expect(fl).toBeInstanceOf(ConstVal);
       expect(fl.val).toBe(12.5);
-      expect(t).toBeInstanceOf(TypeVal);
-      expect(t.name).toBe("MyType");
       expect(n).toBeInstanceOf(EventMemberVal);
       expect(n.members).toEqual(["value"]);
     });

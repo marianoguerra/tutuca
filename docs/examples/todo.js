@@ -25,17 +25,21 @@ const Items = component({
   fields: {
     items: [],
   },
+  // The types this component builds. Declaring them is what lets the linter
+  // check the names; ctx.lookupType works without it but warns.
+  lookup: ["Item"],
   receive: {
     removeInItemsAt(draft, key) {
       draft.items.splice(key, 1);
     },
 
-    onAddItem(draft, Item) {
+    onAddItem(draft, ctx) {
+      const Item = ctx.lookupType("Item");
       draft.items.push(Item.make({ completed: false, text: "do the thing" }));
     },
   },
   view: html`<div class="flex flex-col gap-3">
-    <button class="btn btn-soft btn-success" @on.click="onAddItem Item">Add Task</button>
+    <button class="btn btn-soft btn-success" @on.click="onAddItem">Add Task</button>
     <div class="flex flex-col gap-3 w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>

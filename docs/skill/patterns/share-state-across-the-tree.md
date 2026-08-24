@@ -22,7 +22,7 @@ const Producer = component({
 // consumer — forwards to the producer's binding by "Component.name"
 const Consumer = component({
   name: "Selector",
-  lookup: { entries: { for: "EntryEditorAndSelector.entries", default: ".items" } },
+  lookup: [{ name: "entries", default: ".items" }],
 });
 ```
 

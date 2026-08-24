@@ -34,7 +34,6 @@ const K_FIELD = 4;
 const K_BIND = 8;
 const K_DYN = 16;
 const K_NAME = 32;
-const K_TYPE = 64;
 const K_SEQ = 256;
 const K_METHOD = 1024; // `$name` no-arg method call
 const K_EVENT = 2048; // `e.member` explicit event-member read (handler args only)
@@ -53,12 +52,14 @@ const G_SEQUENCE = K_FIELD | K_DYN;
 // (a method/const/string has no `toPathItem()` and could never teleport).
 const G_PROVIDE = K_FIELD | K_SEQ;
 const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_SEQ;
-const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_TYPE | K_CONST;
+const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_CONST;
 // Handler-argument slots (`@on.<event>` args): G_VALUE minus bare names plus
 // the explicit event-member read. Bare implicit names (`value`, `key`, …) are
-// gone — every arg carries a sigil (`e.value`, `.field`, `@bind`, `$method`,
-// `*dyn`, a type, or a literal), and a sigil-less word fails to parse with a
-// bad-value issue rather than silently resolving to null. `K_EVENT` is
+// gone, and so are bare type names — every arg carries a sigil (`e.value`,
+// `.field`, `@bind`, `$method`, `*dyn`, or a literal), and a sigil-less word
+// fails to parse with a bad-value issue rather than silently resolving to null.
+// A component type is no longer an argument: a handler that needs one asks for
+// it by name with `ctx.lookupType`, which is routed and declarable. `K_EVENT` is
 // deliberately absent from every other group — an `e.member` has no meaning
 // outside a live DOM-event dispatch, so it must not reach text/bool/path/
 // macro-attr slots.
@@ -79,13 +80,12 @@ function sizeOf(v) {
 const toNullIfNaN = (v) => (Number.isNaN(v) ? null : v);
 // Normalized `.value` read off a DOM event: checkbox -> checked, CustomEvent ->
 // detail, anything else -> target.value. Used by the `e.value` handler arg
-// (EVENT_CONVENIENCES) and by the app's drag-start capture.
-export function getValue(e) {
+// (EVENT_CONVENIENCES).
+function getValue(e) {
   return e.target.type === "checkbox"
     ? e.target.checked
     : ((e instanceof CustomEvent ? e.detail : e.target.value) ?? null);
 }
-export { toNullIfNaN };
 
 const predTruthy = (v) => {
   const n = sizeOf(v);
@@ -170,7 +170,6 @@ export function parseToken(s, px) {
     if (m !== null) return new EventMemberVal(s.split(".").slice(1));
   }
   if (c0 >= 97 /* a */ && c0 <= 122 /* z */) return mkVal(s, NameVal);
-  if (c0 >= 65 /* A */ && c0 <= 90 /* Z */) return mkVal(s, TypeVal);
   return null;
 }
 // `seq[key]`: exactly one `[`, a closing `]` as the last char, both sides
@@ -319,7 +318,6 @@ function kindOf(val) {
   if (val instanceof MethodVal) return K_METHOD;
   if (val instanceof BindVal) return K_BIND;
   if (val instanceof DynVal) return K_DYN;
-  if (val instanceof TypeVal) return K_TYPE;
   if (val instanceof NameVal) return K_NAME;
   if (val instanceof EventMemberVal) return K_EVENT;
   return 0;
@@ -467,11 +465,6 @@ const mk404Handler = (stack, type, name) =>
     else console.warn("handler not found", { type, name });
     return this;
   };
-export class TypeVal extends NameVal {
-  eval(stack) {
-    return stack.lookupType(this.name);
-  }
-}
 // Conveniences with no direct property spelling, derived from the implicit
 // name switch this file once used for bare implicit handler arguments.
 // Resolved only when the whole path is one level (`e.isCtrl`, `e.valueAsInt`)

@@ -123,8 +123,14 @@ export function lintIdToMessage(id, info) {
       return `Provide '${info.name}' value '${info.value}' must be a field ('.f') or seq-access ('.s[.k]') — a method/constant can't be a render target`;
     case "LOOKUP_BAD_SHAPE":
       return `Lookup '${info.name}' has an invalid shape: ${info.problem}`;
-    case "LOOKUP_TARGET_MALFORMED":
-      return `Lookup '${info.name}' target '${info.target}' must be 'Producer.provideName' (a string, or the 'for' of { for, default })`;
+    case "LOOKUP_NO_PROVIDER":
+      return info.hasDefault
+        ? `Lookup '${info.name}' is provided by no component in scope, so it always resolves to its default`
+        : `Lookup '${info.name}' is provided by no component in scope — add a 'provide' for it, or give this lookup a default`;
+    case "PROVIDE_TYPE_BAD_SHAPE":
+      return `Provide '${info.name}' starts uppercase, so it publishes a component type — its value must be 'self', not '${info.value}'`;
+    case "PROVIDE_NAME_COLLISION":
+      return `Provide '${info.name}' is also provided by '${info.other}' in the same scope — one name, one provider, so a lookup can find it`;
     case "UNKNOWN_MACRO_ARG":
       return `Argument '${info.name}' is not declared in macro '${info.macroName}'`;
     case "UNKNOWN_DIRECTIVE":

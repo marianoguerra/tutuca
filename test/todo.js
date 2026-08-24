@@ -26,17 +26,19 @@ const Items = component({
   fields: {
     items: [],
   },
+  lookup: ["Item"],
   receive: {
     removeInItemsAt(draft, index) {
       draft.items.splice(index, 1);
     },
 
-    onAddItem(draft, Item) {
+    onAddItem(draft, ctx) {
+      const Item = ctx.lookupType("Item");
       draft.items.push(Item.make({ completed: false, text: "do the thing" }));
     },
   },
   view: html`<x:vbox>
-    <x:btn-action label="Add Task" :handler="onAddItem" :arg="Item"></x:btn-action>
+    <x:btn-action label="Add Task" :handler="onAddItem"></x:btn-action>
     <x:vbox class="w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>
@@ -64,10 +66,10 @@ const btnRm = macro(
 );
 
 const btnAction = macro(
-  { handler: "onAction", arg: "event", label: "'Action'" },
+  { handler: "onAction", label: "'Action'" },
   html`<button
     class="btn btn-outline btn-success"
-    @on.click="^handler ^arg"
+    @on.click="^handler"
     @text="^label"
   ></button>`,
 );

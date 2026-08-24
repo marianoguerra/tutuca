@@ -9,7 +9,7 @@
 <!-- pass args by name; ctx is auto-appended last -->
 <input @on.input="setStr e.value" />
 <input @on.input="setN e.valueAsInt" />
-<button @on.click="addItem JsonSelector">+</button>
+<button @on.click="addItem">+</button>   <!-- the handler resolves the type it builds -->
 
 <!-- guards: keydown +send (Enter) / +cancel (Esc), and +ctrl/+cmd/+alt -->
 <input @on.keydown+send="submit e.value" @on.keydown+cancel="reset" />
@@ -30,7 +30,8 @@ or `e.detail.x`, null-safe at every link), one-level computed conveniences
 (`e.valueAsInt`, `e.isCtrl` mac-aware, and on drags `e.dragInfo`/
 `e.dragKey`/`e.dragValue`/`e.dragType`), state fields (`.field`), bindings
 (`@bind`), methods (`$m`), dynamics (`*dyn`). A sigil-less word fails to
-parse.
+parse — a component type included: a handler that builds one asks for it by
+name with `ctx.lookupType("JsonSelector")` and declares it in `lookup`.
 `e.value` normalizes the read: `.checked` for a checkbox, `detail` for a
 `CustomEvent`, otherwise `target.value`. Bind events declaratively with `@on.`
 rather than reaching for the node and `addEventListener` — an outside listener

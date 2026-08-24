@@ -39,10 +39,10 @@ const Editor = component({
   name: "Editor",
   fields: {},
   // Consumer: forwards to Root's provides — a sequence and a single item.
-  lookup: {
-    items: { for: "Root.items", default: ".missing" },
-    selected: { for: "Root.selected", default: ".missing" },
-  },
+  lookup: [
+    { name: "items", default: ".missing" },
+    { name: "selected", default: ".missing" },
+  ],
   view: html`<div class="card bg-base-200 p-3 gap-3">
     <span class="text-xs opacity-60">Editor (child component)</span>
     <div class="flex flex-col gap-1">

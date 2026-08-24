@@ -2,17 +2,6 @@ import { NullDomCache, WeakMapDomCache } from "./cache.js";
 import { makeLoopCtx, walkLoopBindings } from "./iteration.js";
 import { h, render, VComment, VFragment } from "./vdom.js";
 
-export {
-  callEnricher,
-  filterAlwaysTrue,
-  getSeqInfo,
-  makeLoopCtx,
-  normalizeRange,
-  nullLoopWith,
-  SEQ_INFO,
-  unpackLoopResult,
-} from "./iteration.js";
-
 const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
 export class Renderer {
   constructor(comps) {

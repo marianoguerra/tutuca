@@ -255,7 +255,6 @@ literal with spaces (escape an interior quote as `\'`).
 | `@x`     | local binding (loop / scope)              | `@key`, `@value`      |
 | `^x`     | macro parameter                           | `^label`              |
 | `*x`     | dynamic binding — see [advanced.md](./advanced.md) | `*theme`          |
-| `Name`   | component type (PascalCase)               | `Item`, `JsonNull`    |
 | `name`   | bare identifier — meaning depends on slot | `dec`, `value`        |
 | `'str'`  | string literal                            | `'btn btn-success'`   |
 | `$'…'`   | string template (`{expr}` interpolation)  | `$'Hi {.name}'`       |
@@ -266,22 +265,31 @@ literal with spaces (escape an interior quote as `\'`).
 only calls a method. The linter flags a mismatch and tells you which
 prefix to use.
 
-A bare `name` (no prefix) in `@on.<event>="<handler> <arg> <arg>..."`
-resolves by slot:
+A bare `name` (no prefix) is only a **handler name**, and only in the
+first slot of `@on.<event>="<handler> <arg> <arg>..."` — looked up in
+`receive` / `alter` (use `$name` for `methods`). Every *argument* slot
+carries a sigil (`.field`, `@bind`, `$method`, `*dyn`, `e.member`, or a
+literal); a sigil-less word in an argument slot fails to parse.
 
-- **First slot** — handler name looked up in `receive` / `alter` (use
-  `$name` for `methods`).
-- **Subsequent slots** — built-in handler argument name (full list in
-  *Event Handling*); anything else triggers a lint warning.
+A component type is not an argument. A handler that needs one asks for it
+by name:
 
 ```html
-<button @on.click="addItem JsonSelector">+</button>
-<!--                ↑ handler ↑ Type -->
+<button @on.click="addItem">+</button>
+```
+
+```js
+lookup: ["JsonSelector"],          // declared, so the linter checks the name
+receive: {
+  addItem(draft, ctx) {
+    draft.items.push(ctx.lookupType("JsonSelector").make());
+  },
+},
 ```
 
 `ctx` (an `EventContext`) is auto-appended as the trailing arg, so the
-handler is called as `addItem(JsonSelector, ctx)`. Don't list `ctx` in
-the template — it's always passed.
+handler is called as `addItem(draft, ctx)`. Don't list `ctx` in the
+template — it's always passed.
 
 ## Quoting & String Literals
 
@@ -349,7 +357,7 @@ component({
   // ROUTED: what this component answers for somebody who did not address it.
   intent:  { itemPicked(draft, item) { draft.selected = item; } },
   statics: { fromData(d) { return this.make({ count: d.n ?? 0 }); } },
-  // provide: { ... }, lookup: { ... }   // see advanced.md
+  // provide: { ... }, lookup: [ ... ]   // see advanced.md
 });
 ```
 
@@ -570,7 +578,7 @@ several of these. The usual suspects:
 <input @on.input="setStr e.value" />
 <input @on.input="setN e.valueAsInt" />
 <button @on.click="pick @key e.altKey">pick</button>
-<button @on.click="addItem JsonSelector">+</button>     <!-- type as arg -->
+<button @on.click="addItem">+</button>                  <!-- ctx.lookupType in the handler -->
 <button @on.click="loadAnotherWay">load</button>        <!-- ctx auto-appended -->
 ```
 

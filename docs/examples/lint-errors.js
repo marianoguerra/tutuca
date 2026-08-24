@@ -41,15 +41,22 @@ const LintDemo = component({
     // (.s[.k]) path — it doubles as a render-target / teleport path, so a method
     // ($doClick) or constant, which has no path, is rejected.
     badProvide: "$doClick",
+    // PROVIDE_TYPE_BAD_SHAPE: an uppercase provide publishes this component's own
+    // type, so "self" is the only value it can take.
+    BadTypeProvide: ".items",
   },
-  lookup: {
+  lookup: [
     // DYN_ALIAS_NOT_REFERENCED: lookup declared but never used as *unusedDyn in a view
-    unusedDyn: { for: "Theme.color", default: "'gray'" },
-    // LOOKUP_TARGET_MALFORMED: target must be "Producer.provideName" (needs a dot)
-    badTarget: "NoDotHere",
-    // LOOKUP_BAD_SHAPE: the object form requires a string 'for' key (missing here)
-    badShape: { default: "'gray'" },
-  },
+    // LOOKUP_NO_PROVIDER (hint): nobody in scope provides it, so it always defaults
+    { name: "unusedDyn", default: "'gray'" },
+    // LOOKUP_NO_PROVIDER (error): no provider and no default — always null
+    "orphanDyn",
+    // UNKNOWN_COMPONENT_NAME: an uppercase lookup name is a component type, and it
+    // resolves on the lex leg, so the scope has to know it.
+    "UnknownComp",
+    // LOOKUP_BAD_SHAPE: the object form requires a string 'name' key (missing here)
+    { default: "'gray'" },
+  ],
   view: html`<div>
     <p>Lint Errors Demo - check the Lint tab</p>
 
@@ -83,10 +90,8 @@ const LintDemo = component({
     <!-- DYN_VAL_NOT_DEFINED: *missingDyn is not in the component's provide/lookup -->
     <p :title="*missingDyn">undefined dynamic</p>
 
-    <!-- UNKNOWN_COMPONENT_NAME -->
-    <button @on.click="doKeyDown UnknownComp">
-      unknown comp
-    </button>
+    <!-- LOOKUP_NO_PROVIDER is also read here so it is not double-reported as unused -->
+    <p :title="*orphanDyn">orphan dynamic</p>
 
     <!-- ALT_HANDLER_NOT_DEFINED: myEnrich is not defined in alter -->
     <div @enrich-with="myEnrich">undefined alter handler</div>
@@ -301,6 +306,24 @@ const CompFieldShapeDemo = component({
   view: html`<p>Component-field declaration shape errors — check the Lint tab</p>`,
 });
 
+// PROVIDE_NAME_COLLISION: both of these provide "rows". A lookup names a value
+// without naming its producer, and the render-target teleport recovers the producer
+// by searching the scope — which only has one answer while one name has one
+// producer. Two makes the resolution ambiguous, so it is an error, not last-wins.
+const RowsProviderA = component({
+  name: "RowsProviderA",
+  fields: { rows: [] },
+  provide: { rows: ".rows" },
+  view: html`<div @each="*rows"><x render-it></x></div>`,
+});
+
+const RowsProviderB = component({
+  name: "RowsProviderB",
+  fields: { rows: [] },
+  provide: { rows: ".rows" },
+  view: html`<div @each="*rows"><x render-it></x></div>`,
+});
+
 const ScopedStyleDemo = component({
   name: "ScopedStyleDemo",
   fields: { count: 0 },
@@ -321,7 +344,15 @@ export function getMacros() {
 }
 
 export function getComponents() {
-  return [LintDemo, HtmlLintDemo, JsonNode, CompFieldShapeDemo, ScopedStyleDemo];
+  return [
+    LintDemo,
+    HtmlLintDemo,
+    JsonNode,
+    CompFieldShapeDemo,
+    RowsProviderA,
+    RowsProviderB,
+    ScopedStyleDemo,
+  ];
 }
 
 export function getRoot() {

@@ -678,7 +678,7 @@ describe("dynamic variable as a path segment", () => {
     const Toolbar = component({
       name: "Toolbar",
       fields: {},
-      lookup: { active: { for: "Workspace.active", default: ".missing" } },
+      lookup: [{ name: "active", default: ".missing" }],
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
     const Panel = component({
@@ -793,7 +793,7 @@ describe("dynamic variable as a path segment", () => {
     const Inner = component({
       name: "Inner",
       fields: {},
-      lookup: { rows: { for: "Grid.rows", default: ".missing" } },
+      lookup: [{ name: "rows", default: ".missing" }],
       view: html`<div class="inner">
         <div @each="*rows"><x render-it></x></div>
       </div>`,
@@ -885,7 +885,7 @@ describe("dynamic variable as a path segment", () => {
       name: "Toolbar",
       fields: {},
       intent: mkIntentObserver("Toolbar"),
-      lookup: { active: { for: "Workspace.active", default: ".missing" } },
+      lookup: [{ name: "active", default: ".missing" }],
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
     const Panel = component({
@@ -935,7 +935,7 @@ describe("dynamic variable as a path segment", () => {
     const Toolbar = component({
       name: "Toolbar",
       fields: {},
-      lookup: { active: { for: "Workspace.active", default: ".missing" } },
+      lookup: [{ name: "active", default: ".missing" }],
       view: html`<div class="toolbar"><x render="*active"></x></div>`,
     });
     const Workspace = component({
@@ -1003,7 +1003,7 @@ describe("dynamic variable as a path segment", () => {
     const Child = component({
       name: "Child",
       fields: {},
-      lookup: { items: { for: "Owner.items", default: ".missing" } },
+      lookup: [{ name: "items", default: ".missing" }],
       view: html`<div class="child">
         <div @each="*items" class="child-row"><x render-it></x></div>
       </div>`,

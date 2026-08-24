@@ -276,7 +276,6 @@ test("parse mixed macro attrs", () => {
     html`<x:m
       class="foo"
       :name="foo"
-      :type="Foo"
       :bool="false"
       :num="42"
       :str="'hi'"
@@ -289,7 +288,6 @@ test("parse mixed macro attrs", () => {
   expect(node.attrs).toEqual({
     class: "'foo'",
     name: "foo",
-    type: "Foo",
     bool: "false",
     num: "42",
     str: "'hi'",

@@ -14,7 +14,7 @@ const Workspace = component({
 // a distant consumer renders it as a target
 const Toolbar = component({
   name: "Toolbar",
-  lookup: { active: { for: "Workspace.active", default: ".missing" } },
+  lookup: [{ name: "active", default: ".missing" }],
   view: html`<x render="*active" as="edit"></x>`,
 });
 ```

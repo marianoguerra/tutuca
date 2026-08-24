@@ -53,8 +53,8 @@ async function main() {
       }
       compileStyle();
       app.recompileStyles();
-      app.state.update((current) =>
-        produce(current, (draft) => {
+      app.state.set(
+        produce(app.state.val, (draft) => {
           draft.components = examples;
         }),
       );
@@ -91,9 +91,7 @@ const ComponentSelector = component({
   },
   name: "ComponentSelector",
   fields: { filterText: "" },
-  lookup: {
-    components: { for: "Universal.components", default: ".items" },
-  },
+  lookup: [{ name: "components", default: ".items" }],
   intent: {
     listItemSelected(draft, entry, ctx) {
       ctx.stop();

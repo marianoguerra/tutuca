@@ -561,13 +561,23 @@ every intermediate component (`src/components.js`, `src/stack.js`):
 
 - A **producer** declares `provide: {name: ".field"}` (or `".seq[.key]"` —
   the value must be addressable). When the producer renders, the evaluated
-  value is pushed onto the dynamic-binding stack under a unique symbol.
-- A **consumer** declares `lookup: {name: {for: "Producer.name", default: …}}`
-  and reads `*name` anywhere a value is accepted, including as a render target
-  (`<x render="*active">`) or iteration source (`@each="*items"`).
+  value is pushed onto the dynamic-binding stack under its NAME.
+- A **consumer** declares `lookup: ["name"]` (or `[{name, default}]`), naming
+  what it wants rather than who provides it, and reads `*name` anywhere a value
+  is accepted, including as a render target (`<x render="*active">`) or
+  iteration source (`@each="*items"`).
 
 Resolution walks the dynamic-binding stack at render time; the default applies
-when no producer is above the consumer.
+when no producer is above the consumer. Because a lookup does not name its
+producer, one provide name has one producer per scope chain
+(`PROVIDE_NAME_COLLISION`) — which is also how the teleport below recovers the
+producer.
+
+An **uppercase** name is a component type rather than a value:
+`provide: {Cell: "self"}` publishes the producer's own class, and a handler
+reads one with `ctx.lookupType(name, opts)`. Both `ctx.lookup` and
+`ctx.lookupType` take `opts.route` with the legs and defaults an intent uses —
+`"dyn"` the render ancestry, `"lex"` the registration scope, default both.
 
 ### Teleporting
 

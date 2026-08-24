@@ -161,16 +161,17 @@ const GlobalSet = instrImmInt("GlobalSet", "global.set", parseInteger);
 
 const Types = component({
   name: "Types",
+  lookup: ["TypeI32"],
   fields: { items: [] },
   receive: {
     removeInItemsAt(draft, key) {
       draft.items.splice(key, 1);
     },
-    addItemAt(draft, i, TypeComp) {
-      draft.items.splice(i, 0, TypeComp.make());
+    addItemAt(draft, i, ctx) {
+      draft.items.splice(i, 0, ctx.lookupType("TypeI32").make());
     },
-    appendItem(draft, TypeComp) {
-      draft.items.push(TypeComp.make());
+    appendItem(draft, ctx) {
+      draft.items.push(ctx.lookupType("TypeI32").make());
     },
   },
   view: html`<div class="flex gap-3"><x render-each=".items"></x></div>`,
@@ -179,7 +180,7 @@ const Types = component({
       <div @each=".items" class="flex items-center group">
         <button
           class="btn btn-xs btn-soft btn-circle btn-success mx-3"
-          @on.click="addItemAt @key TypeI32"
+          @on.click="addItemAt @key"
         >
           +
         </button>
@@ -193,7 +194,7 @@ const Types = component({
       </div>
       <button
         class="btn btn-xs btn-soft btn-circle btn-success mx-3"
-        @on.click="appendItem TypeI32"
+        @on.click="appendItem"
       >
         +
       </button>
@@ -237,6 +238,7 @@ const BlockType = component({
 
 const Block = component({
   name: "Block",
+  lookup: ["InstructionPicker"],
   fields: {
     items: [],
     blockType: BlockType.make(),
@@ -274,17 +276,18 @@ const Block = component({
 
   receive: {
     ...expandableEditorReceive,
-    addItemAt(draft, i, InstructionPicker) {
-      draft.items.splice(i, 0, InstructionPicker.make());
+    addItemAt(draft, i, ctx) {
+      draft.items.splice(i, 0, ctx.lookupType("InstructionPicker").make());
     },
-    appendItem(draft, InstructionPicker) {
-      draft.items.push(InstructionPicker.make());
+    appendItem(draft, ctx) {
+      draft.items.push(ctx.lookupType("InstructionPicker").make());
     },
   },
 });
 
 const Loop = component({
   name: "Loop",
+  lookup: ["InstructionPicker"],
   fields: {
     items: [],
     blockType: BlockType.make(),
@@ -322,17 +325,18 @@ const Loop = component({
 
   receive: {
     ...expandableEditorReceive,
-    addItemAt(draft, i, InstructionPicker) {
-      draft.items.splice(i, 0, InstructionPicker.make());
+    addItemAt(draft, i, ctx) {
+      draft.items.splice(i, 0, ctx.lookupType("InstructionPicker").make());
     },
-    appendItem(draft, InstructionPicker) {
-      draft.items.push(InstructionPicker.make());
+    appendItem(draft, ctx) {
+      draft.items.push(ctx.lookupType("InstructionPicker").make());
     },
   },
 });
 
 const If = component({
   name: "If",
+  lookup: ["InstructionPicker"],
   fields: {
     thn: [], // don't use then, (thenable)
     else: [],
@@ -355,20 +359,20 @@ const If = component({
     toggleEditingElse(draft) {
       draft.editingElse = !draft.editingElse;
     },
-    addThnAt(draft, i, InstructionPicker) {
-      draft.thn.splice(i, 0, InstructionPicker.make());
+    addThnAt(draft, i, ctx) {
+      draft.thn.splice(i, 0, ctx.lookupType("InstructionPicker").make());
     },
-    appendInThn(draft, InstructionPicker) {
-      draft.thn.push(InstructionPicker.make());
+    appendInThn(draft, ctx) {
+      draft.thn.push(ctx.lookupType("InstructionPicker").make());
     },
     removeInThnAt(draft, index) {
       draft.thn.splice(index, 1);
     },
-    addElseAt(draft, i, InstructionPicker) {
-      draft.else.splice(i, 0, InstructionPicker.make());
+    addElseAt(draft, i, ctx) {
+      draft.else.splice(i, 0, ctx.lookupType("InstructionPicker").make());
     },
-    appendInElse(draft, InstructionPicker) {
-      draft.else.push(InstructionPicker.make());
+    appendInElse(draft, ctx) {
+      draft.else.push(ctx.lookupType("InstructionPicker").make());
     },
     removeInElseAt(draft, index) {
       draft.else.splice(index, 1);
@@ -425,6 +429,7 @@ const If = component({
 
 const Func = component({
   name: "Func",
+  lookup: ["InstructionPicker"],
   fields: {
     items: [],
     blockType: BlockType.make(),
@@ -469,11 +474,11 @@ const Func = component({
 
   receive: {
     ...expandableEditorReceive,
-    addItemAt(draft, i, InstructionPicker) {
-      draft.items.splice(i, 0, InstructionPicker.make());
+    addItemAt(draft, i, ctx) {
+      draft.items.splice(i, 0, ctx.lookupType("InstructionPicker").make());
     },
-    appendItem(draft, InstructionPicker) {
-      draft.items.push(InstructionPicker.make());
+    appendItem(draft, ctx) {
+      draft.items.push(ctx.lookupType("InstructionPicker").make());
     },
   },
 });
@@ -979,7 +984,7 @@ export function getMacros() {
           <div>
             <button
               class="btn btn-xs btn-soft btn-circle btn-success"
-              @on.click="^onadd @key InstructionPicker"
+              @on.click="^onadd @key"
             >
               +
             </button>
@@ -993,7 +998,7 @@ export function getMacros() {
         </div>
         <button
           class="btn btn-xs btn-soft btn-circle btn-success"
-          @on.click="^onappend InstructionPicker"
+          @on.click="^onappend"
         >
           +
         </button>

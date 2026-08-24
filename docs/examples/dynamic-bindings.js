@@ -25,9 +25,7 @@ const Selector = component({
   },
   name: "Selector",
   fields: { items: [], selectedValue: null },
-  lookup: {
-    entries: { for: "EntryEditorAndSelector.entries", default: ".items" },
-  },
+  lookup: [{ name: "entries", default: ".items" }],
   view: html`<select class="select" :value=".selectedValue" @on.input="setSelectedValue e.value">
     <option @each="*entries" :value="@value.value" @text="@value.label"></option>
   </select>`,
@@ -40,12 +38,14 @@ const EntryEditorAndSelector = component({
     selector: null,
   },
   provide: { entries: ".items" },
+  lookup: ["SelectorEntry"],
   receive: {
     removeInItemsAt(draft, key) {
       draft.items.splice(key, 1);
     },
 
-    onAddItem(draft, SelectorEntry) {
+    onAddItem(draft, ctx) {
+      const SelectorEntry = ctx.lookupType("SelectorEntry");
       const num = this.items.length + 1;
       draft.items.push(SelectorEntry.make({ value: `entry-${num}`, label: `Entry #${num}` }));
     },
@@ -54,7 +54,7 @@ const EntryEditorAndSelector = component({
     <div class="flex gap-3 justify-center">
       <x render=".selector"></x>
     </div>
-    <button class="btn btn-soft btn-success" @on.click="onAddItem SelectorEntry">Add Entry</button>
+    <button class="btn btn-soft btn-success" @on.click="onAddItem">Add Entry</button>
     <div class="flex flex-col gap-3 w-full">
       <div @each=".items" class="flex gap-3 justify-center items-center w-full">
         <x render-it></x>

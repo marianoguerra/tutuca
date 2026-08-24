@@ -86,7 +86,7 @@ The root swap is atomic and identity-cheap: unchanged subtrees keep their
 references, so re-render is incremental. Per-dispatch completion is tracked
 by `Completion` (counter-based): `whenSettled()` resolves once a
 transaction's own work finishes, `whenSubtreeSettled()` once the subtree it
-spawned (requests, follow-on sends) settles too.
+spawned (intents, follow-on sends) settles too.
 
 ## Dispatch channels, semantically
 
@@ -174,11 +174,11 @@ transactions that rebuild the root — but "the right slot" means different
 things per step kind:
 
 - **`SeqAccessStep` (`.seq[.key]`)** — the key is **pinned by default**, so
-  the response reaches the entry that issued the request even if the key
+  the answer reaches the entry that raised the intent even if the key
   field moved. Opt out with `livePath: true`.
 - **`SeqStep` with a list index (`.items[3]`)** — the index is literal and
   **not** pinned to identity: if the list re-sorted or an item was inserted
-  ahead of it, index 3 is now a different item and the response lands
+  ahead of it, index 3 is now a different item and the answer lands
   there. Anchor on **map keys**, not list indices, when an async result
   must reach a specific item.
 - **`FieldStep`** — a named field is stable; no ambiguity.
@@ -190,6 +190,6 @@ things per step kind:
   blocks.
 - [messages-and-intents.md](./messages-and-intents.md) — the dispatch **API**:
   addressed `send`-`receive` vs routed `intent`, `ctx.at`, `$unknown`,
-  request-handler registration, and the `livePath` request option.
+  intent-handler registration, and the `livePath` option.
 - [advanced.md](./advanced.md) — dynamic bindings (`*x`) and the authoring
   view of teleporting.

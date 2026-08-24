@@ -1159,11 +1159,9 @@
           <code>provide</code> and puts it onto the stack automatically when
           render enters the producer; there is no hook to opt in. A consumer
           declares
-          <code
-            >lookup: { entries: { for: "EntryEditorAndSelector.entries",
-            default: ".items" } }</code
-          >
-          to bind the producer's name into its own scope, then reads it as
+          <code>lookup: [{ name: "entries", default: ".items" }]</code>
+          &mdash; a list of the names it wants, not of who provides them
+          &mdash; then reads one as
           <code>*entries</code> in the template (e.g.
           <code>@each="*entries"</code>). When no producer is in the render
           stack, tutuca uses the <code>default</code> expression (omit it to
@@ -1606,8 +1604,8 @@ const r = collectIterBindings(MyComp, c, c.items, {
           </li>
           <li>
             <strong>Names registered with the app</strong> &mdash;
-            component type not registered, or macro attribute not
-            declared in defaults
+            a component type named in <code>lookup</code> is not
+            registered, or a macro attribute is not declared in defaults
             (<code>UNKNOWN_COMPONENT_NAME</code>,
             <code>UNKNOWN_MACRO_ARG</code>).
           </li>

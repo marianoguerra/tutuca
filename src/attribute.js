@@ -13,9 +13,6 @@ export class Attributes {
   constructor(items) {
     this.items = items;
   }
-  eval(_stack) {
-    return {};
-  }
   static parse(attributes, px, parseAll = false) {
     return getAttrParser(px).parse(attributes, parseAll);
   }

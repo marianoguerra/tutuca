@@ -68,6 +68,23 @@ ctx.send("loadData");                                      // self
 `ctx.at` returns a `PathBuilder` with `.field(name)`, `.index(name, i)`, and
 `.key(name, k)`. Each call appends a step before `.send(...)` / `.intent(...)`
 fires; the handler runs inside the child instance with `this` bound to it.
+
+### Replying to a message — `ctx.sendReply`
+
+An intent's raiser asked a question and declared arms for the answer, so the
+runtime names it (`<name>Ok`). A message carries no such expectation, so the
+**replier picks the name**:
+
+```js
+receive: {
+  ping(_draft, ctx) { ctx.sendReply("pong", ["from-child"]); },
+}
+```
+
+The reply is an ordinary message delivered to whoever sent this one, at the
+position they sent it from (pinned at dispatch, like an intent's answer). With
+nobody waiting — a view's own `@on.*`, or `app.sendAtRoot` — it refuses
+`NO_SENDER` and nothing is dispatched. `ctx.reply` stays intent-only.
 Paths are positional, not references — see *Positional delivery* below.
 
 **When to send.** Send when *one specific component* must be told something: a

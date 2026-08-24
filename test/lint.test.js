@@ -22,7 +22,7 @@ import {
   IF_NO_BRANCH_SET,
   LintParseContext,
   LOOKUP_BAD_SHAPE,
-  LOOKUP_TARGET_MALFORMED,
+  LOOKUP_NO_PROVIDER,
   MAYBE_ADD_AT_PREFIX,
   MAYBE_DROP_AT_PREFIX,
   METHOD_VAL_IS_FIELD,
@@ -337,7 +337,7 @@ test("no UNKNOWN_COMPONENT_SPEC_KEY on a maximal legit spec", () => {
     alter: {},
     views: { other: "<i></i>" },
     provide: {},
-    lookup: {},
+    lookup: [],
     fields: {},
     statics: {},
   });
@@ -976,14 +976,12 @@ test("warn on Type not in scope", () => {
     name: "Comp",
     fields: { name: "" },
     receive: { do(draft) {} },
-    view: html`<button @on.click="do MyComp">do it</button>`,
+    lookup: ["MyComp"],
+    view: html`<button @on.click="do">do it</button>`,
   });
-  expect(lx.reports.length).toBe(1);
-  {
-    const { id, info } = lx.reports[0];
-    expect(id).toBe(UNKNOWN_COMPONENT_NAME);
-    expect(info.name).toBe("MyComp");
-  }
+  const bad = lx.reports.filter((r) => r.id === UNKNOWN_COMPONENT_NAME);
+  expect(bad.length).toBe(1);
+  expect(bad[0].info.name).toBe("MyComp");
 });
 
 test("warn on undefined alt field for loop directives", () => {
@@ -1136,6 +1134,7 @@ test("lint-errors example catches all error types", () => {
     receive: {
       doKeyDown(draft) {},
     },
+    lookup: ["UnknownComp"],
     view: html`<div>
       <p>Lint Errors Demo - check the Lint tab</p>
 
@@ -1150,10 +1149,6 @@ test("lint-errors example catches all error types", () => {
       <button @on.keydown="$doKeyDown">method syntax is invalid for events</button>
 
       <p :title=".missing">undefined field</p>
-
-      <button @on.click="doKeyDown UnknownComp">
-        unknown comp
-      </button>
 
       <div @enrich-with="myEnrich">undefined alter handler</div>
 
@@ -1233,6 +1228,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
     receive: {
       doKeyDown(draft) {},
     },
+    lookup: ["UnknownComp"],
     view: html`<div>
       <p>Lint Errors Demo - check the Lint tab</p>
 
@@ -1247,10 +1243,6 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
       <button @on.keydown="$doKeyDown">method syntax is invalid for events</button>
 
       <p :title=".missing">undefined field</p>
-
-      <button @on.click="doKeyDown UnknownComp">
-        unknown comp
-      </button>
 
       <div @enrich-with="myEnrich">undefined alter handler</div>
 
@@ -2284,7 +2276,7 @@ test("error on *dynamic reference with no matching dynamic definition", () => {
 test("no report when a lookup is referenced in a view", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    lookup: { color: { for: "Theme.color", default: "'gray'" } },
+    lookup: [{ name: "color", default: "'gray'" }],
     view: html`<p :title="*color">hi</p>`,
   });
   const dynReports = lx.reports.filter(
@@ -2296,7 +2288,7 @@ test("no report when a lookup is referenced in a view", () => {
 test("hint when a lookup is never referenced in any view", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    lookup: { color: { for: "Theme.color", default: "'gray'" } },
+    lookup: [{ name: "color", default: "'gray'" }],
     view: html`<p>hi</p>`,
   });
   const unused = lx.reports.filter((r) => r.id === DYN_ALIAS_NOT_REFERENCED);
@@ -2337,52 +2329,47 @@ test("error on a provide whose value is not a path (method/constant)", () => {
   expect(bad.map((r) => r.info.name).sort()).toEqual(["computed", "literal"]);
 });
 
-test("no lookup shape/target reports for well-formed lookups", () => {
+test("no lookup shape reports for well-formed lookups", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    lookup: { a: "Theme.color", b: { for: "Theme.bg", default: "'gray'" } },
+    lookup: ["a", { name: "b", default: "'gray'" }],
     view: html`<p :title="*a" :data-bg="*b">hi</p>`,
   });
-  const bad = lx.reports.filter(
-    (r) => r.id === LOOKUP_TARGET_MALFORMED || r.id === LOOKUP_BAD_SHAPE,
-  );
-  expect(bad.length).toBe(0);
-});
-
-test("error on a lookup whose target string is not Producer.provideName", () => {
-  const [lx] = defAndCheck({
-    name: "Comp",
-    lookup: { noDot: "ThemeColor", tooManyDots: "A.b.c", emptyHalf: "Theme." },
-    view: html`<p>hi</p>`,
-  });
-  const bad = lx.reports.filter((r) => r.id === LOOKUP_TARGET_MALFORMED);
-  expect(bad.map((r) => r.info.name).sort()).toEqual(["emptyHalf", "noDot", "tooManyDots"]);
-  // a wrong target string is not a shape error
   expect(lx.reports.filter((r) => r.id === LOOKUP_BAD_SHAPE).length).toBe(0);
 });
 
-test("error on a lookup with an invalid object shape", () => {
+test("error on a lookup with an invalid entry shape", () => {
   const [lx] = defAndCheck({
     name: "Comp",
-    lookup: {
-      missingFor: { default: "'gray'" },
-      unknownKey: { for: "Theme.color", deafult: "'gray'" },
-      forNotString: { for: 123 },
-      defaultNotString: { for: "Theme.color", default: 5 },
-      notStringOrObject: 42,
-    },
+    lookup: [
+      { default: "'gray'" },
+      { name: "unknownKey", deafult: "'gray'" },
+      { name: 123 },
+      { name: "defaultNotString", default: 5 },
+      42,
+    ],
     view: html`<p>hi</p>`,
   });
   const bad = lx.reports.filter((r) => r.id === LOOKUP_BAD_SHAPE);
   expect(bad.map((r) => r.info.name).sort()).toEqual([
+    "123",
+    "42",
     "defaultNotString",
-    "forNotString",
-    "missingFor",
-    "notStringOrObject",
+    "undefined",
     "unknownKey",
   ]);
-  // a shape error short-circuits the target check (no double report)
-  expect(lx.reports.filter((r) => r.id === LOOKUP_TARGET_MALFORMED).length).toBe(0);
+});
+
+test("error when a lookup has no provider in scope, hint when it has a default", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    lookup: ["orphan", { name: "fallback", default: "'gray'" }],
+    view: html`<p :title="*orphan" :data-bg="*fallback">hi</p>`,
+  });
+  const bad = lx.reports.filter((r) => r.id === LOOKUP_NO_PROVIDER);
+  expect(bad.map((r) => r.info.name).sort()).toEqual(["fallback", "orphan"]);
+  expect(bad.find((r) => r.info.name === "orphan").level).toBe("error");
+  expect(bad.find((r) => r.info.name === "fallback").level).toBe("hint");
 });
 
 test("LINT_RULES covers every component-linter code, and only those", async () => {
