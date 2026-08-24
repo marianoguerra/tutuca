@@ -2,7 +2,7 @@ import { COMPONENT } from "./components.js";
 import { produce } from "./immer.js";
 import { validateDraftFields } from "./oo.js";
 import { Path, PathBuilder } from "./path.js";
-import { DEFAULT_LOOKUP_ROUTE, routeLookup, Stack } from "./stack.js";
+import { DEFAULT_ROUTE, routeLookup, Stack } from "./stack.js";
 
 class State {
   constructor(val) {
@@ -83,32 +83,50 @@ export class Transactor {
       if (i !== -1) this._refusalObservers.splice(i, 1);
     };
   }
-  // Build and dispatch the observer record for a settled transaction. The
-  // resolved handler (`_resolvedHandler`/`_matched`) and per-leaf before/after
-  // (`_before`/`_after`) were captured while the handler ran (see callHandler /
-  // Transaction.run). No-op when nobody is observing.
+  // Build and dispatch one observer record. Pins field-resolved keys (e.g. a
+  // `.a[.selId]` render target reconstructed from a DOM event) against the root the
+  // handler read, so pathKeys carries concrete keys instead of dropping the dynamic
+  // step. No-op when nobody is observing.
+  _emitRecord(
+    root,
+    { kind, name, args, path, targetPath, handler, handlerName, matched, before, after, parent },
+  ) {
+    if (this._observers.length === 0) return;
+    const pinned = path.pinKeys(root);
+    this._emit({
+      kind,
+      name,
+      args: args ?? null,
+      path: pinned,
+      pathKeys: pinned.toKeys(),
+      targetPath,
+      handler: handler ?? null,
+      handlerName: handlerName ?? (handler?.name || null),
+      matched: matched ?? null,
+      before,
+      after,
+      parent,
+      timestamp: Date.now(),
+    });
+  }
+  // The observer record for a settled transaction. The resolved handler
+  // (`_resolvedHandler`/`_matched`) and per-leaf before/after (`_before`/`_after`)
+  // were captured while the handler ran (see callHandler / Transaction.run).
   _emitTransaction(transaction, root) {
     if (this._observers.length === 0) return;
     // No handler ran: nothing to report.
     if (transaction._resolvedHandler === undefined) return;
-    // Pin field-resolved keys (e.g. a `.a[.selId]` render target reconstructed from a
-    // DOM event) against the root the handler read, so pathKeys carries concrete keys
-    // instead of dropping the dynamic step.
-    const path = transaction.getTransactionPath().pinKeys(root);
-    this._emit({
+    this._emitRecord(root, {
       kind: transaction.observeKind,
       name: transaction.observeName,
-      args: transaction.args ?? null,
-      path,
-      pathKeys: path.toKeys(),
+      args: transaction.args,
+      path: transaction.getTransactionPath(),
       targetPath: transaction.targetPath ?? transaction.path,
-      handler: transaction._resolvedHandler ?? null,
-      handlerName: transaction._resolvedHandler?.name || null,
-      matched: transaction._matched ?? null,
+      handler: transaction._resolvedHandler,
+      matched: transaction._matched,
       before: transaction._before,
       after: transaction._after,
       parent: transaction.parentTransaction,
-      timestamp: Date.now(),
     });
   }
   // Make `child` a tracked unit of `parent`'s subtree: the parent's completion stays open
@@ -218,7 +236,7 @@ class Transaction {
   // rather than throwing, so a stray call from the wrong place is a message and not a
   // crash. `walk` is undefined here, which is how ctx.reply/ctx.fail tell the two apart.
   stop() {
-    console.warn('ctx.stop() is only meaningful in an "intent" handler - ignored');
+    warnNotIntent("stop");
   }
   forward(_opts) {
     console.warn('ctx.forward() needs a "receive" or "intent" handler - ignored');
@@ -311,11 +329,8 @@ class InputEvent extends Transaction {
     }
     this.transactor.pushIntent(this.dispatchPath, name, args, rest, this);
   }
-  buildStack(root, comps) {
-    return this.path.toTransactionPath().buildStack(Stack.root(comps, root, this));
-  }
   getHandlerAndArgs(root, _instance, comps) {
-    const stack = this.buildStack(root, comps);
+    const stack = this.path.toTransactionPath().buildStack(Stack.root(comps, root, this));
     const [handler, args] = this.handler.getHandlerAndArgs(stack, this);
     this._handlerArgs = [...args]; // without ctx, so `forward` can re-raise them
     const path = this.dispatchPath; // an intent walk visits intermediate components
@@ -442,10 +457,6 @@ export const PASS = Symbol.for("tutuca.intent.pass");
 // Refusal ring size: enough history for a dev panel, small enough to never
 // matter for memory.
 const REFUSAL_RING_CAP = 200;
-// The route a bare `ctx.intent(...)` takes: the ancestors, then the registered scopes.
-// Written down HERE and nowhere else, so "what does a routeless intent do" has one
-// answer and no second copy to drift.
-const DEFAULT_ROUTE = ["dyn", "lex"];
 // How many hops a walk may take before the runtime refuses instead of looping.
 const INTENT_DEPTH = 64;
 
@@ -510,24 +521,19 @@ class IntentWalk {
     const chain = this.transactor.comps.getIntentChainFor(leaf, this.name);
     // A `dyn` hop is a transaction and emits its own record; a `lex` hop is not, so the
     // attempt is reported here or the inspector would show only the answer.
-    if (this.transactor._observers.length > 0) {
-      const path = txnPath.pinKeys(root);
-      this.transactor._emit({
-        kind: "intent",
-        name: this.name,
-        args: this.args,
-        path,
-        pathKeys: path.toKeys(),
-        targetPath: this.origin,
-        handler: chain[0]?.fn ?? null,
-        handlerName: chain[0]?.fn?.name || this.name,
-        matched: chain.length > 0 ? "exact" : "none",
-        before: leaf,
-        after: undefined,
-        parent: this.parent,
-        timestamp: Date.now(),
-      });
-    }
+    this.transactor._emitRecord(root, {
+      kind: "intent",
+      name: this.name,
+      args: this.args,
+      path: txnPath,
+      targetPath: this.origin,
+      handler: chain[0],
+      handlerName: chain[0]?.name || this.name,
+      matched: chain.length > 0 ? "exact" : "none",
+      before: leaf,
+      after: undefined,
+      parent: this.parent,
+    });
     if (chain.length === 0) return this.advance();
     const p = this._runLex(chain, 0);
     // Registered on the transactor so the global settle() drain can await it.
@@ -539,7 +545,7 @@ class IntentWalk {
     if (i >= chain.length) return this.advance();
     const ctx = new Dispatcher(this.origin, this.transactor, this.parent);
     try {
-      const res = await chain[i].fn.apply(null, [...this.args, ctx]);
+      const res = await chain[i].apply(null, [...this.args, ctx]);
       // Resolving is an answer and throwing is a failure — the shapes an async function
       // already has. Only DECLINING needed a new spelling, and that is PASS.
       if (res === PASS) return this._runLex(chain, i + 1);
@@ -714,9 +720,8 @@ class Dispatcher {
   // the same spelling as `ctx.intent` — `["dyn"]` the render ancestry, `["lex"]` the
   // registration scope, default both.
   lookup(name, opts) {
-    const route = opts?.route ?? DEFAULT_LOOKUP_ROUTE;
     return routeLookup(
-      route,
+      opts?.route ?? DEFAULT_ROUTE,
       () => this._lookupLex(name),
       () => this._stack()?.lookupDynamic(name) ?? null,
     );
@@ -735,12 +740,10 @@ class Dispatcher {
   // can only ever answer with one; the `dyn` leg reads a binding an ancestor
   // published, so it is the leg that has to be checked.
   lookupType(name, opts) {
-    const v = this.lookup(name, opts);
+    const route = opts?.route ?? DEFAULT_ROUTE;
+    const v = this.lookup(name, { route });
     if (v == null) {
-      this.transactor.refuse("TYPE_NOT_FOUND", {
-        name,
-        route: opts?.route ?? DEFAULT_LOOKUP_ROUTE,
-      });
+      this.transactor.refuse("TYPE_NOT_FOUND", { name, route });
       return null;
     }
     if (v?.[COMPONENT] == null) {

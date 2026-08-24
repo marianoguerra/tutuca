@@ -224,10 +224,6 @@ export function parseField(s, px) {
 export function parseProvide(s, px) {
   return _parseSingle(s, px, G_PROVIDE);
 }
-// A single argument passed to an event handler.
-export function parseHandlerArg(s, px) {
-  return _parseSingle(s, px, G_HANDLER_ARG);
-}
 // Pass-through values on a macro-call element (:attr on a macro).
 export function parseMacroAttr(s, px) {
   return _parseSingle(s, px, G_ALL);
@@ -473,8 +469,10 @@ const mk404Handler = (stack, type, name) =>
 // and the EventContext reaches handlers as their trailing argument. The drag
 // accessors read the transaction's DragInfo (see src/app.js); `e.dragKey` is
 // the dragged row's `@key` bind from the source render.
-const keyIs = (k) => (e) => e.key === k;
-const macCtrl = (e) => (isMac && e.metaKey) || e.ctrlKey;
+// Shared with the `@on.<event>+<modifier>` wrappers in anode.js, so `e.isCtrl`
+// and `+ctrl` (and Enter/Escape as send/cancel) are one predicate each.
+export const keyIs = (k) => (e) => e.key === k;
+export const macCtrl = (e) => (isMac && e.metaKey) || e.ctrlKey;
 const nullSafe = (fn) => (e, stack) => {
   const info = stack.lookupDragInfo();
   return info == null ? null : fn(info);

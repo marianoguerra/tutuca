@@ -1,3 +1,4 @@
+import { seqGet } from "./collection.js";
 import { produce } from "./immer.js";
 
 const NONE = Symbol("NONE");
@@ -13,11 +14,6 @@ const writeKey = (value, key, next) => {
     value.delete(key);
     value.add(next);
   } else value[key] = next;
-};
-const readSeqKey = (value, key, dval = null) => {
-  const direct = readKey(value, key, NONE);
-  if (direct !== NONE) return direct;
-  return typeof value?.get === "function" ? value.get(key, dval) : dval;
 };
 const writeSeqKey = (value, key, next) => {
   if (
@@ -35,7 +31,7 @@ export class Step {
     return dval;
   }
   setDraftValue(_root, _v) {}
-  enterFrame(stack, _prev, next) {
+  enterFrame(stack, next) {
     return stack.enter(next, {}, true);
   }
   toAbstractPathStep() {
@@ -61,7 +57,7 @@ export class BindStep extends Step {
   lookup(v, _dval) {
     return v;
   }
-  enterFrame(stack, _prev, next) {
+  enterFrame(stack, next) {
     return stack.enter(next, { ...this.binds }, false);
   }
   withIndex(i) {
@@ -81,7 +77,7 @@ export class ScopeBindStep extends BindStep {
     super(binds);
     this.val = val;
   }
-  enterFrame(stack, _prev, next) {
+  enterFrame(stack, next) {
     const dyn = this.val.evalAsHandler(stack)?.call(stack.it) ?? {};
     return stack.enter(next, { ...this.binds, ...dyn }, false);
   }
@@ -120,13 +116,13 @@ export class SeqStep extends Step {
     this.key = key;
   }
   lookup(v, dval = null) {
-    return readSeqKey(readKey(v, this.field, null), this.key, dval);
+    return seqGet(readKey(v, this.field, null), this.key, dval);
   }
   setDraftValue(root, v) {
     const seq = readKey(root, this.field, null);
     if (seq != null) writeSeqKey(seq, this.key, v);
   }
-  enterFrame(stack, _prev, next) {
+  enterFrame(stack, next) {
     return stack.enter(next, { key: this.key }, true);
   }
   toKey() {
@@ -142,7 +138,7 @@ export class SeqAccessStep extends Step {
   lookup(v, dval = null) {
     const seq = readKey(v, this.seqField, NONE);
     const key = readKey(v, this.keyField, NONE);
-    return key !== NONE && seq !== NONE ? readSeqKey(seq, key, dval) : dval;
+    return key !== NONE && seq !== NONE ? seqGet(seq, key, dval) : dval;
   }
   setDraftValue(root, v) {
     const seq = readKey(root, this.seqField, NONE);
@@ -173,7 +169,7 @@ export class EachBindStep extends Step {
   }
   // Replay the renderer's per-item binds (key, value + any @enrich-with binds)
   // so a rebuilt stack matches the one @each rendered with.
-  enterFrame(stack, _prev, next) {
+  enterFrame(stack, next) {
     return stack.enter(next, this.iterInfo.enrichBinds(stack, this.key), false);
   }
   toAbstractPathStep() {
@@ -181,7 +177,7 @@ export class EachBindStep extends Step {
   }
 }
 export class EachRenderItStep extends SeqStep {
-  enterFrame(stack, _prev, next) {
+  enterFrame(stack, next) {
     return stack.enter(next, { key: this.key, value: next }, false).enter(next, {}, true);
   }
   toAbstractPathStep() {
@@ -212,7 +208,7 @@ export class DynStep extends Step {
     warnRawDynStep("lookup", this);
     return dval;
   }
-  enterFrame(stack, _prev, _next) {
+  enterFrame(stack, _next) {
     warnRawDynStep("enterFrame", this);
     return stack;
   }
@@ -359,7 +355,7 @@ export class Path {
         console.warn("bad PathItem", { root: stack.it, step, path: this });
         return null;
       }
-      stack = step.enterFrame(stack, prev, next);
+      stack = step.enterFrame(stack, next);
       prev = next;
     }
     return stack;
@@ -441,10 +437,6 @@ export class Path {
     if (pendingDyns.length > 0)
       console.warn("event reconstruction: dynamic-var producer not found", pendingDyns);
     return [new Path(pathSteps.reverse()), handlers];
-  }
-  static fromEvent(e, rNode, maxDepth, comps, stopOnNoEvent = true) {
-    const { type, target } = e;
-    return Path.fromNodeAndEventName(target, type, rNode, maxDepth, comps, stopOnNoEvent);
   }
 }
 // Collect the run of `§…§` meta comments immediately preceding an element,

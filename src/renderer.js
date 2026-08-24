@@ -18,6 +18,8 @@ export class Renderer {
   setNullCache() {
     this.cache = new NullDomCache();
   }
+  // Library utilities for consumers embedding tutuca: render a value to a detached
+  // DOM node / an HTML string. Not called by the framework itself.
   renderToDOM(stack, val) {
     const rootNode = document.createElement("div");
     const rOpts = { document };

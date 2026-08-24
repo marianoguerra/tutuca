@@ -1,5 +1,4 @@
 import { View } from "./anode.js";
-import { IntentHandler } from "./attribute.js";
 import { parseField, parseProvide } from "./value.js";
 
 // Well-known link between a generated component Class and its metadata record
@@ -78,13 +77,15 @@ export class ComponentStack {
   getCompFor(v) {
     return this.comps.getCompFor(v);
   }
-  // Handlers that answer an intent's `lex` leg. A name maps to a LIST, because the leg
-  // walks: a handler that returns PASS declines and hands the intent to the next one.
-  // A bare function is accepted as a one-element list.
+  // Handlers that answer an intent's `lex` leg. A name maps to a LIST of plain
+  // functions, because the leg walks: a handler that returns PASS declines and hands
+  // the intent to the next one. Each runs with no `this` and takes a dispatcher
+  // context as its final argument; resolving answers, throwing fails. A bare function
+  // is accepted as a one-element list.
   registerIntentHandlers(handlers) {
     for (const name in handlers) {
-      const fns = Array.isArray(handlers[name]) ? handlers[name] : [handlers[name]];
-      this.intentsByName[name] = fns.map((fn) => new IntentHandler(name, fn));
+      const fns = handlers[name];
+      this.intentsByName[name] = Array.isArray(fns) ? fns : [fns];
     }
   }
   // Innermost scope first, then outward. Concatenated rather than first-match, so a
@@ -120,16 +121,14 @@ export class ComponentStack {
 // (PROVIDE_NAME_COLLISION), which is what keeps the render-target teleport in
 // resolveDynProducer resolvable without the qualification.
 export class ProvideInfo {
-  constructor(name, val) {
-    this.name = name;
+  constructor(val) {
     this.val = val;
   }
 }
 // What a component reads "context-style": the name on the dynBinds stack, falling
 // back to `val` (the default expression, or null) when nobody above provides it.
 export class LookupInfo {
-  constructor(name, val) {
-    this.name = name;
+  constructor(val) {
     this.val = val; // default expression or null
   }
 }
@@ -194,7 +193,7 @@ export class Component {
         continue;
       }
       const val = parseProvide(this._rawProvide[key], ctx);
-      if (val) this.provide[key] = new ProvideInfo(key, val);
+      if (val) this.provide[key] = new ProvideInfo(val);
     }
     // `lookup` is a list of names: a bare string is the whole declaration, an object
     // appears only when an option (a `default`) is needed.
@@ -202,7 +201,7 @@ export class Component {
       const name = isString(entry) ? entry : isString(entry?.name) ? entry.name : null;
       if (name === null) continue;
       const defStr = isString(entry?.default) ? entry.default : null;
-      this.lookup[name] = new LookupInfo(name, defStr === null ? null : parseField(defStr, ctx));
+      this.lookup[name] = new LookupInfo(defStr === null ? null : parseField(defStr, ctx));
     }
     for (const key in this.lookup)
       if (this.provide[key] !== undefined)

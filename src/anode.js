@@ -1,15 +1,16 @@
 import { Attributes, parseIterationDirectives } from "./attribute.js";
-import { seqGet } from "./collection.js";
-import {
-  callEnricher,
-  filterAlwaysTrue,
-  makeLoopCtx,
-  nullLoopWith,
-  unpackLoopResult,
-} from "./iteration.js";
+import { bindsForKey, filterAlwaysTrue, makeLoopCtx, nullLoopWith } from "./iteration.js";
 import { DynEachStep, DynStep, EachBindStep, EachRenderItStep, ScopeBindStep } from "./path.js";
-import { isMac } from "./util/env.js";
-import { ConstVal, DynVal, parseBool, parseComponent, parseSequence, parseText } from "./value.js";
+import {
+  ConstVal,
+  DynVal,
+  keyIs,
+  macCtrl,
+  parseBool,
+  parseComponent,
+  parseSequence,
+  parseText,
+} from "./value.js";
 import { HTML_NS } from "./vdom.js";
 
 // Resolve the producer of a dynamic variable `name` used by component `comp`: its
@@ -520,20 +521,11 @@ class IterInfo {
     const enricher = this.enrichWithVal?.evalAsHandler(stack) ?? null;
     return { seq, filter, loopWith, enricher };
   }
-  // Rebuild the per-item binds for `key`, mirroring renderEachWhen: seed
-  // { key, value }, then run @enrich-with (with @loop-with's iterData) if any.
+  // Rebuild the per-item binds for `key` (see iteration.js bindsForKey).
   enrichBinds(stack, key) {
     const { seq, filter, loopWith, enricher } = this.eval(stack);
-    const value = seqGet(seq, key, null);
-    const binds = { key, value };
-    if (enricher) {
-      const { iterData } = unpackLoopResult(
-        loopWith.call(stack.it, seq, makeLoopCtx(stack, filter)),
-        seq,
-      );
-      callEnricher(enricher, stack.it, binds, key, value, iterData);
-    }
-    return binds;
+    const ctx = makeLoopCtx(stack, filter);
+    return bindsForKey({ seq, it: stack.it, loopWith, enricher, ctx }, key);
   }
 }
 // consumed: attr names this op handles itself; wrappable: accepts show/hide wrapper
@@ -753,10 +745,13 @@ class NodeEvent {
 }
 const fwdIfCtxPred = (pred) => (w) => (that, f, args, ctx) =>
   pred(ctx) ? w(that, f, args, ctx) : that;
-const fwdIfKey = (keyName) => fwdIfCtxPred((ctx) => ctx.e.key === keyName);
-const fwdCtrl = fwdIfCtxPred(({ e }) => (isMac && e.metaKey) || e.ctrlKey);
-const fwdMeta = fwdIfCtxPred(({ e }) => e.metaKey);
-const fwdAlt = fwdIfCtxPred(({ e }) => e.altKey);
+// The event predicates are shared with `e.isCtrl`/`e.isSend`/... (value.js
+// EVENT_CONVENIENCES), so a guard and its convenience can never disagree.
+const fwdIfEventPred = (pred) => fwdIfCtxPred(({ e }) => pred(e));
+const fwdIfKey = (keyName) => fwdIfEventPred(keyIs(keyName));
+const fwdCtrl = fwdIfEventPred(macCtrl);
+const fwdMeta = fwdIfEventPred((e) => e.metaKey);
+const fwdAlt = fwdIfEventPred((e) => e.altKey);
 // Guards recognized on every event: they only read the modifier-key flags, which
 // every mouse and keyboard event carries.
 export const MOD_WRAPPERS_FOR_ANY_EVENT = {

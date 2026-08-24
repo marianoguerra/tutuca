@@ -1,10 +1,10 @@
 export const STOP = Symbol("STOP");
 export const NEXT = Symbol("NEXT");
-// The route a bare lookup takes: the render ancestry, then the registration scope.
-// Written down HERE and nowhere else, the same way DEFAULT_ROUTE is for intents — and
-// deliberately the same legs, in the same order, so "where does a name come from" has
-// one answer whether the name is a value, a type, or a job.
-export const DEFAULT_LOOKUP_ROUTE = ["dyn", "lex"];
+// The route a routeless name takes: the render ancestry (dyn), then the registration
+// scope (lex). Written down HERE and nowhere else — ctx.lookup, ctx.lookupType and
+// ctx.intent all default to it, so "where does a name come from" has one answer
+// whether the name is a value, a type, or a job.
+export const DEFAULT_ROUTE = ["dyn", "lex"];
 // Walk a route's legs in order; the first one that resolves wins. Matches the intent
 // walker's contract: array order is walk order, an unknown leg warns and is skipped,
 // and an empty route resolves to null rather than falling back to the default.
@@ -128,20 +128,6 @@ export class Stack {
   }
   lookupBind(name) {
     return lookup(this.binds, name);
-  }
-  // The `lex` leg: what a name means in the registration scope of the component being
-  // rendered. The scope chain holds components, so this leg only ever answers for a
-  // type name — for a value name it is a miss, which is why one default route serves
-  // both. Guarded: a non-component `it` has no scope to ask.
-  _lookupLex(name) {
-    return this.comps.getCompFor(this.it)?.scope.lookupComponent(name) ?? null;
-  }
-  lookupRouted(name, route = DEFAULT_LOOKUP_ROUTE) {
-    return routeLookup(
-      route,
-      () => this._lookupLex(name),
-      () => this.lookupDynamic(name),
-    );
   }
   lookupFieldRaw(name) {
     return this.it[name] ?? null;

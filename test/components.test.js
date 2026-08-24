@@ -3,6 +3,7 @@ import { component, html, macro } from "../index.js";
 import { ComponentStack, Components, LookupInfo, ProvideInfo } from "../src/components.js";
 import { produce } from "../src/immer.js";
 import { Stack } from "../src/stack.js";
+import { rootDispatcher, Transactor } from "../src/transactor.js";
 import { HeadlessParseContext as ParseContext } from "./dom.js";
 
 function setupStack(Comp) {
@@ -42,7 +43,6 @@ describe("Components", () => {
     });
     Comp.compile(ParseContext);
     expect(Comp.provide.getMessage).toBeInstanceOf(ProvideInfo);
-    expect(Comp.provide.getMessage.name).toBe("getMessage");
     const stack = setupStack(Comp);
     expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
   });
@@ -82,7 +82,6 @@ describe("Components", () => {
     CompB.compile(ParseContext);
 
     expect(CompA.provide.getMessage).toBeInstanceOf(ProvideInfo);
-    expect(CompA.provide.getMessage.name).toBe("getMessage");
     {
       // CompA is the root frame, so its provide is in scope.
       const stack = setupStackComps([CompA, CompB]);
@@ -90,7 +89,6 @@ describe("Components", () => {
     }
 
     expect(CompB.lookup.getMessage).toBeInstanceOf(LookupInfo);
-    expect(CompB.lookup.getMessage.name).toBe("getMessage");
     {
       // NOTE: component order — root is CompB, no CompA producer above, so the
       // lookup falls back to its default (CompB's own .message).
@@ -134,7 +132,7 @@ describe("Components", () => {
     expect(stack.enter(Other.make({})).lookupDynamic("Slot")).toBe(Other);
   });
 
-  test("lookupRouted: dyn finds the publisher, lex finds the registration", () => {
+  test("ctx.lookup: dyn finds the publisher, lex finds the registration", () => {
     const Cell = component({ name: "Cell", fields: { v: 0 } });
     const Board = component({
       name: "Board",
@@ -142,18 +140,20 @@ describe("Components", () => {
       provide: { Cell: "self" },
     });
     for (const C of [Cell, Board]) C.compile(ParseContext);
-    const stack = setupStackComps([Board, Cell]);
+    const comps = new Components();
+    new ComponentStack(comps).registerComponents([Board, Cell]);
+    const ctx = rootDispatcher(new Transactor(comps, Board.make({})));
 
     // Board publishes ITSELF under the name "Cell", shadowing the registered Cell.
-    expect(stack.lookupRouted("Cell")).toBe(Board);
-    expect(stack.lookupRouted("Cell", ["dyn"])).toBe(Board);
-    expect(stack.lookupRouted("Cell", ["lex"])).toBe(Cell);
+    expect(ctx.lookup("Cell")).toBe(Board);
+    expect(ctx.lookup("Cell", { route: ["dyn"] })).toBe(Board);
+    expect(ctx.lookup("Cell", { route: ["lex"] })).toBe(Cell);
     // Array order is walk order, exactly as an intent route.
-    expect(stack.lookupRouted("Cell", ["lex", "dyn"])).toBe(Cell);
+    expect(ctx.lookup("Cell", { route: ["lex", "dyn"] })).toBe(Cell);
     // A name nobody publishes falls through to the registration scope.
-    expect(stack.lookupRouted("Board")).toBe(Board);
+    expect(ctx.lookup("Board")).toBe(Board);
     // An empty route resolves to null rather than falling back to the default.
-    expect(stack.lookupRouted("Cell", [])).toBe(null);
+    expect(ctx.lookup("Cell", { route: [] })).toBe(null);
   });
 
   test("registerComponents with aliases", () => {

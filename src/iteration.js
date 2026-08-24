@@ -3,7 +3,7 @@ import { isIndexedSeq, isKeyedSeq, isSetSeq, seqEntries, seqGet, seqSize } from 
 export const SEQ_INFO = Symbol.for("tutuca.seqInfo");
 
 // Clamp a positional range using Array.prototype.slice semantics.
-export const normalizeRange = (start, end, size) => {
+const normalizeRange = (start, end, size) => {
   let s = start == null ? 0 : start < 0 ? size + start : start;
   let e = end == null ? size : end < 0 ? size + end : end;
   s = s < 0 ? 0 : s > size ? size : s;
@@ -28,7 +28,7 @@ const nativeKeyedIter = (seq, visit, start, end) => {
 
 const unknownIter = () => {};
 
-export const getSeqInfo = (seq) =>
+const getSeqInfo = (seq) =>
   isIndexedSeq(seq)
     ? nativeIndexedIter
     : isKeyedSeq(seq) || isSetSeq(seq)
@@ -38,7 +38,7 @@ export const getSeqInfo = (seq) =>
 export const filterAlwaysTrue = (_key, _value, _iterData) => true;
 export const nullLoopWith = (seq) => ({ iterData: { seq } });
 
-export const unpackLoopResult = (result, seq) => {
+const unpackLoopResult = (result, seq) => {
   const value = result ?? {};
   return {
     iterData: value.iterData ?? { seq },
@@ -54,7 +54,7 @@ export const makeLoopCtx = (stack, filter) => ({
 });
 
 // Enrichers may add bindings, but key/value always retain sequence identity.
-export const callEnricher = (enricher, it, binds, key, value, iterData) => {
+const callEnricher = (enricher, it, binds, key, value, iterData) => {
   enricher.call(it, binds, key, value, iterData);
   console.assert(
     binds.key === key && binds.value === value,
@@ -63,6 +63,21 @@ export const callEnricher = (enricher, it, binds, key, value, iterData) => {
   binds.key = key;
   binds.value = value;
 };
+
+// Rebuild the per-item binds for one authoritative `key` (a path replay), mirroring
+// what walkLoopBindings produced when the item rendered: seed { key, value }, then
+// run @enrich-with with @loop-with's iterData. The `when` filter is bypassed — a
+// replayed key is authoritative — and @loop-with only runs when an enricher needs
+// its iterData. Takes the same spec shape as walkLoopBindings.
+export function bindsForKey({ seq, it, loopWith, enricher, ctx }, key) {
+  const value = seqGet(seq, key, null);
+  const binds = { key, value };
+  if (enricher) {
+    const { iterData } = unpackLoopResult(loopWith.call(it, seq, ctx), seq);
+    callEnricher(enricher, it, binds, key, value, iterData);
+  }
+  return binds;
+}
 
 const visitKeys = (seq, keys, visit) => {
   const attrName = isIndexedSeq(seq) ? "si" : "sk";

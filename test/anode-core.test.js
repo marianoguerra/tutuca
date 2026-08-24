@@ -27,7 +27,8 @@ import {
   FieldVal,
   HandlerNameVal,
   MethodVal,
-  parseHandlerArg,
+  NULL_CONST_VAL,
+  parseReceiveHandler,
   parseText,
 } from "../src/value.js";
 import { VComment, VFragment, VNode, VText } from "../src/vdom.js";
@@ -281,52 +282,60 @@ describe("ANode", () => {
       expect(parseText(".f-oo", px)).toBe(null);
     });
 
+    // Handler args parse through parseReceiveHandler (the production path); a bad
+    // arg records a parse issue and lands as the null constant, mapped back to
+    // null here so the grammar assertions read directly.
+    const handlerArg = (s, px) => {
+      const arg = parseReceiveHandler(`h ${s}`, px).args[0];
+      return arg === NULL_CONST_VAL ? null : arg;
+    };
+
     test("sigil-less words are no longer handler args", () => {
       const px = mpx();
       // bare implicit names are gone: a sigil-less word fails to parse
-      expect(parseHandlerArg("foo", px)).toBe(null);
+      expect(handlerArg("foo", px)).toBe(null);
 
-      expect(parseHandlerArg("9foo", px)).toBe(null);
-      expect(parseHandlerArg("f-oo", px)).toBe(null);
+      expect(handlerArg("9foo", px)).toBe(null);
+      expect(handlerArg("f-oo", px)).toBe(null);
     });
 
     test("a capitalized token is not a handler arg", () => {
       // Component types left the value language: a handler that needs one asks by
       // name with ctx.lookupType, which is routed and declarable.
       const px = mpx();
-      expect(parseHandlerArg("Foo", px)).toBe(null);
-      expect(parseHandlerArg("F-oo", px)).toBe(null);
+      expect(handlerArg("Foo", px)).toBe(null);
+      expect(handlerArg("F-oo", px)).toBe(null);
     });
 
     test("parse ConstVal Number", () => {
       const px = mpx();
       {
-        const v = parseHandlerArg("42", px);
+        const v = handlerArg("42", px);
         expect(v).toBeInstanceOf(ConstVal);
         expect(v.val).toBe(42);
       }
       {
-        const v = parseHandlerArg("42.5", px);
+        const v = handlerArg("42.5", px);
         expect(v).toBeInstanceOf(ConstVal);
         expect(v.val).toBe(42.5);
       }
-      expect(parseHandlerArg("42.", px)).toBe(null);
-      expect(parseHandlerArg("42f", px)).toBe(null);
+      expect(handlerArg("42.", px)).toBe(null);
+      expect(handlerArg("42f", px)).toBe(null);
     });
 
     test("parse ConstVal Bool", () => {
       const px = mpx();
-      const v = parseHandlerArg("true", px);
+      const v = handlerArg("true", px);
       expect(v).toBeInstanceOf(ConstVal);
       expect(v.val).toBe(true);
-      const v1 = parseHandlerArg("false", px);
+      const v1 = handlerArg("false", px);
       expect(v1).toBeInstanceOf(ConstVal);
       expect(v1.val).toBe(false);
     });
 
     test("parse bad val", () => {
       const px = mpx();
-      const v = parseHandlerArg("^foo", px);
+      const v = handlerArg("^foo", px);
       expect(v).toBe(null);
     });
   });

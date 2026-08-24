@@ -43,7 +43,14 @@ export class App {
     const isDrag =
       type === "dragover" || type === "dragstart" || type === "dragend" || type === "drop";
     const { rootNode: root, maxEventNodeDepth: maxDepth, comps, transactor } = this;
-    const [path, handlers] = Path.fromEvent(e, root, maxDepth, comps, !isDrag);
+    const [path, handlers] = Path.fromNodeAndEventName(
+      e.target,
+      type,
+      root,
+      maxDepth,
+      comps,
+      !isDrag,
+    );
     if (isDrag) this._handleDragEvent(e, type, path);
     if (path !== null && handlers !== null)
       for (const handler of handlers) transactor.transactInputNow(path, e, handler, this.dragInfo);
@@ -110,7 +117,7 @@ export class App {
       // can read the source render's binds via `dragInfo.lookupBind(...)`;
       // `compact()` would strip them. DynSteps are still teleported.
       const stack = path.toTransactionPath().buildStack(this.makeStack(rootValue));
-      this.dragInfo = new DragInfo(txnPath, stack, e, value, dragType, e.target);
+      this.dragInfo = new DragInfo(stack, value, dragType, e.target);
     } else if (type === "drop") {
       e.preventDefault();
       this._cleanDragOverAttrs();
@@ -246,10 +253,8 @@ function getClosestDropTarget(target, rootNode, count) {
   return null;
 }
 class DragInfo {
-  constructor(path, stack, e, val, type, node) {
-    this.path = path;
+  constructor(stack, val, type, node) {
     this.stack = stack;
-    this.e = e;
     this.val = val;
     this.type = type;
     this.node = node;

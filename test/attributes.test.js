@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { ParseContext } from "../src/anode.js";
-import { ConstAttrs, DynAttrs, getAttrParser } from "../src/attribute.js";
+import { AttrParser, ConstAttrs, DynAttrs } from "../src/attribute.js";
 import {
   BindVal,
   ConstVal,
@@ -19,7 +19,7 @@ const mpx = () => new ParseContext();
 const domParser = new DOMParser();
 function parseAttrs(html, px = mpx()) {
   const attrs = domParser.parseFromString(html, "text/html").body.childNodes[0].attributes;
-  return getAttrParser(px).parse(attrs, true);
+  return new AttrParser(px).parse(attrs, true);
 }
 
 test("parse empty attrs", () => {

@@ -153,7 +153,7 @@ describe("$unknown fallback handler", () => {
             return this;
           },
         },
-        intentChain: [{ fn: async () => "ok" }],
+        intentChain: [async () => "ok"],
       }),
       {},
     );
@@ -307,7 +307,7 @@ describe("ctx.targetPath (the position an intent was raised at)", () => {
       const t = new Transactor(
         makeComps({
           receive,
-          intentChain: [{ fn: () => new Promise((res) => (resolveReq = res)) }],
+          intentChain: [() => new Promise((res) => (resolveReq = res))],
         }),
         root,
       );
@@ -437,7 +437,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
             return { ...this, loaded: result };
           },
         },
-        intentChain: [{ fn: () => new Promise((res) => (resolveReq = res)) }],
+        intentChain: [() => new Promise((res) => (resolveReq = res))],
       }),
       { tag: "root" },
     );
@@ -471,7 +471,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
             return { ...this, loaded: result };
           },
         },
-        intentChain: [{ fn: () => new Promise((res) => (resolveReq = res)) }],
+        intentChain: [() => new Promise((res) => (resolveReq = res))],
       }),
       { tag: "root" },
     );
@@ -510,7 +510,7 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
             return { ...this, b: result };
           },
         },
-        intentChain: [{ fn: async () => "ok" }],
+        intentChain: [async () => "ok"],
       }),
       { tag: "root" },
     );
@@ -642,10 +642,8 @@ describe("Transaction completion (whenSettled / whenSubtreeSettled)", () => {
             },
           },
           intentChain: [
-            {
-              fn: async () => {
-                throw new Error("nope");
-              },
+            async () => {
+              throw new Error("nope");
             },
           ],
         }),
@@ -689,7 +687,7 @@ describe("intent handler ctx (walkPath)", () => {
   function makeReqComps(fn) {
     return {
       getCompFor: (v) => compByKind[v?.kind] ?? null,
-      getIntentChainFor: () => [{ fn }],
+      getIntentChainFor: () => [fn],
     };
   }
   const rootVal = obj({
@@ -829,7 +827,7 @@ describe("settle", () => {
           return { ...this, loaded: result };
         },
       },
-      intentChain: [{ fn: async () => "data" }],
+      intentChain: [async () => "data"],
     });
     // fire-and-forget like dispatchPhase does (not awaited directly)
     t.pushIntent(new Path([]), "load", [], { route: ["lex"] });
@@ -931,7 +929,7 @@ describe("observe (transaction observer)", () => {
             return { ...this, loaded: result };
           },
         },
-        intentChain: [{ fn: async () => "data" }],
+        intentChain: [async () => "data"],
       }),
       { tag: "root" },
     );
@@ -1026,17 +1024,13 @@ describe("the three outcomes of a walk", () => {
           },
         },
         intentChain: [
-          {
-            fn: async () => {
-              tried.push("first");
-              return PASS; // not mine — running is not answering
-            },
+          async () => {
+            tried.push("first");
+            return PASS; // not mine — running is not answering
           },
-          {
-            fn: async () => {
-              tried.push("second");
-              return "data";
-            },
+          async () => {
+            tried.push("second");
+            return "data";
           },
         ],
       }),
@@ -1056,7 +1050,7 @@ describe("the three outcomes of a walk", () => {
             draft.unhandled = args.slice(0, -1);
           },
         },
-        intentChain: [{ fn: async () => PASS }],
+        intentChain: [async () => PASS],
       }),
       obj({ tag: "root" }),
     );
@@ -1075,7 +1069,7 @@ describe("the three outcomes of a walk", () => {
             draft.why = reason;
           },
         },
-        intentChain: [{ fn: async () => PASS }],
+        intentChain: [async () => PASS],
       }),
       obj({ tag: "root" }),
     );
@@ -1088,7 +1082,7 @@ describe("the three outcomes of a walk", () => {
 
   test("a sender that declares no answer arm at all is a notification: nothing happens", async () => {
     const t = new Transactor(
-      makeComps({ receive: {}, intentChain: [{ fn: async () => PASS }] }),
+      makeComps({ receive: {}, intentChain: [async () => PASS] }),
       obj({ tag: "root" }),
     );
     const before = t.state.val;
@@ -1106,10 +1100,8 @@ describe("the three outcomes of a walk", () => {
           },
         },
         intentChain: [
-          {
-            fn: async () => {
-              throw new Error("boom");
-            },
+          async () => {
+            throw new Error("boom");
           },
         ],
       }),

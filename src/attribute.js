@@ -14,7 +14,7 @@ export class Attributes {
     this.items = items;
   }
   static parse(attributes, px, parseAll = false) {
-    return getAttrParser(px).parse(attributes, parseAll);
+    return new AttrParser(px).parse(attributes, parseAll);
   }
   isConstant() {
     return false;
@@ -43,7 +43,7 @@ export function parseIterationDirectives(attributes, px) {
   return { whenVal: parseNamed("when"), loopWithVal: parseNamed("loop-with") };
 }
 
-class AttrParser {
+export class AttrParser {
   constructor(px) {
     this.px = px;
     this.attrs = null;
@@ -262,9 +262,6 @@ export class IfAttr extends BaseAttr {
     return this.condVal.eval(stack) ? this.thenVal.eval(stack) : this.elseVal.eval(stack);
   }
 }
-export function getAttrParser(px) {
-  return new AttrParser(px);
-}
 export class EventHandler {
   constructor(handlerVal, args = []) {
     this.handlerVal = handlerVal;
@@ -278,14 +275,5 @@ export class EventHandler {
   static parse(s, px) {
     const r = parseReceiveHandler(s, px);
     return r === null ? null : new EventHandler(r.handlerVal, r.args);
-  }
-}
-// One scope-registered handler for an intent's `lex` leg. `fn` runs with no `this` and
-// takes a dispatcher context as its final argument; resolving answers, throwing fails, and
-// returning PASS declines so the walk goes on.
-export class IntentHandler {
-  constructor(name, fn) {
-    this.name = name;
-    this.fn = fn;
   }
 }

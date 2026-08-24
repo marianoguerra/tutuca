@@ -5,35 +5,16 @@ import { freeze, immerable } from "./immer.js";
 const BAD_VALUE = Symbol("BadValue");
 const nullCoercer = (v) => v;
 
-function defaultToData(v) {
-  if (v instanceof Map) return [...v.entries()];
-  if (v instanceof Set) return [...v.values()];
-  return v;
-}
-
 export class Field {
   constructor(type, name, typeCheck, coercer, defaultValue = null) {
     this.type = type;
     this.name = name;
     this.typeCheck = typeCheck;
     this.coercer = coercer;
-    this.checks = [];
     this.defaultValue = defaultValue;
   }
-  toDataDef() {
-    return { type: this.type, defaultValue: defaultToData(this.defaultValue) };
-  }
-  getFirstFailingCheck(v) {
-    if (!this.typeCheck.isValid(v)) return this.typeCheck;
-    for (const check of this.checks) if (!check.isValid(v)) return check;
-    return null;
-  }
   isValid(v) {
-    return this.getFirstFailingCheck(v) === null;
-  }
-  addCheck(check) {
-    this.checks.push(check);
-    return this;
+    return this.typeCheck(v);
   }
   coerceOr(v, defaultValue = null) {
     if (this.isValid(v)) return v;
@@ -45,50 +26,25 @@ export class Field {
   }
 }
 
-class Check {
-  isValid(_v) {
-    return true;
-  }
-  getMessage(_v) {
-    return "Invalid";
-  }
-}
-class CheckTypeAny extends Check {}
-const CHECK_TYPE_ANY = new CheckTypeAny();
-class FnCheck extends Check {
-  constructor(isValidFn, getMessageFn) {
-    super();
-    this._isValid = isValidFn;
-    this._getMessage = getMessageFn;
-  }
-  isValid(v) {
-    return this._isValid(v);
-  }
-  getMessage(v) {
-    return this._getMessage(v);
-  }
-}
-const check = (fn, message) => new FnCheck(fn, () => message);
-const CHECK_TYPE_INT = check(Number.isInteger, "Integer expected");
-const CHECK_TYPE_FLOAT = check(Number.isFinite, "Float expected");
-const CHECK_TYPE_BOOL = check((v) => typeof v === "boolean", "Boolean expected");
-const CHECK_TYPE_STRING = check((v) => typeof v === "string", "String expected");
-const CHECK_TYPE_LIST = check(Array.isArray, "Array expected");
-const CHECK_TYPE_OBJECT = check(isPlainObject, "Plain object expected");
-const CHECK_TYPE_MAP = check((v) => v instanceof Map, "Map expected");
-const CHECK_TYPE_SET = check((v) => v instanceof Set, "Set expected");
+// A type check is a plain predicate.
+const CHECK_TYPE_ANY = (_v) => true;
+const CHECK_TYPE_INT = Number.isInteger;
+const CHECK_TYPE_FLOAT = Number.isFinite;
+const CHECK_TYPE_BOOL = (v) => typeof v === "boolean";
+const CHECK_TYPE_STRING = (v) => typeof v === "string";
+const CHECK_TYPE_LIST = Array.isArray;
+const CHECK_TYPE_OBJECT = isPlainObject;
+const CHECK_TYPE_MAP = (v) => v instanceof Map;
+const CHECK_TYPE_SET = (v) => v instanceof Set;
 
 export class FieldBool extends Field {
   constructor(name, defaultValue = false) {
     super("bool", name, CHECK_TYPE_BOOL, (v) => !!v, defaultValue);
   }
 }
-export class FieldAny extends Field {
+class FieldAny extends Field {
   constructor(name, defaultValue = null) {
     super("any", name, CHECK_TYPE_ANY, nullCoercer, defaultValue);
-  }
-  toDataDef() {
-    return { type: getTypeName(this.defaultValue) ?? "any", defaultValue: this.defaultValue };
   }
 }
 export class FieldString extends Field {
@@ -113,26 +69,14 @@ export class FieldFloat extends Field {
   }
 }
 
-export const getTypeName = (v) =>
-  v?.constructor?.[COMPONENT]?.name ?? v?.constructor?.getMetaClass?.()?.name ?? null;
-class CheckTypeName {
-  constructor(typeName) {
-    this.typeName = typeName;
-  }
-  isValid(v) {
-    return getTypeName(v) === this.typeName;
-  }
-  getMessage(v) {
-    return `Expected "${this.typeName}", got "${getTypeName(v)}"`;
-  }
-}
+// The component metadata record: `component()` classes carry it behind COMPONENT,
+// classFromData() classes behind getMetaClass().
+const metaOf = (v) => v?.constructor?.[COMPONENT] ?? v?.constructor?.getMetaClass?.();
+export const getTypeName = (v) => metaOf(v)?.name ?? null;
 export class FieldComp extends Field {
   constructor(type, name, args) {
-    super(type, name, new CheckTypeName(type), nullCoercer, null);
+    super(type, name, (v) => getTypeName(v) === type, nullCoercer, null);
     this.args = args;
-  }
-  toDataDef() {
-    return { component: this.type, args: this.args };
   }
 }
 
@@ -259,7 +203,7 @@ class ClassBuilder {
 }
 
 export const FIELD_CLASS = Symbol.for("tutuca.fieldClass");
-export const fieldsByTypeName = {
+const fieldsByTypeName = {
   text: FieldString,
   int: FieldInt,
   float: FieldFloat,
@@ -308,7 +252,7 @@ export function classFromData(name, { fields = {}, methods, statics }) {
 // Coerce direct draft assignments with the same policy used by Class.make(). A failed
 // assignment is reverted, matching the old generated setter's warn-and-no-op behavior.
 export function validateDraftFields(current, draft) {
-  const meta = current?.constructor?.[COMPONENT] ?? current?.constructor?.getMetaClass?.();
+  const meta = metaOf(current);
   if (!meta) return;
   for (const [name, field] of Object.entries(meta.fields)) {
     const value = draft[name];
