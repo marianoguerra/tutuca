@@ -1,4 +1,4 @@
-import { ComponentStack } from "./components.js";
+import { COMPONENT, ComponentStack } from "./components.js";
 import { Path } from "./path.js";
 import { Stack } from "./stack.js";
 import { Transactor } from "./transactor.js";
@@ -154,9 +154,10 @@ export class App {
   }
   compile() {
     for (const Comp of this.comps.byId.values()) {
-      Comp.compile(this.ParseContext);
-      for (const key in Comp.views)
-        for (const name of Comp.views[key].ctx.genEventNames()) this._eventNames.add(name);
+      const meta = Comp[COMPONENT];
+      meta.compile(this.ParseContext);
+      for (const key in meta.views)
+        for (const name of meta.views[key].ctx.genEventNames()) this._eventNames.add(name);
     }
     this._compiled = true;
   }
@@ -182,8 +183,8 @@ export class App {
     for (const name of this._eventNames)
       this.rootNode.removeEventListener(name, this, listenerOpts(name));
   }
-  sendAtRoot(name, args, opts) {
-    this.transactor.pushSend(new Path([]), name, args, opts);
+  sendAtRoot(name, args) {
+    this.transactor.pushSend(new Path([]), name, args);
   }
   registerComponents(comps, opts) {
     const scope = this.compStack.enter();

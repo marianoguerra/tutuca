@@ -57,7 +57,7 @@ describe("dispatchPhase", () => {
       {
         send: [
           { name: "select", args: (s) => [s.id] },
-          { name: "onType", args: ["co"], opts: { x: 1 } },
+          { name: "onType", args: ["co"] },
         ],
         intent: [{ name: "load", args: [1], opts: { route: ["lex"] } }],
         do: [{ type: "intent", name: "ping", args: [], opts: { route: ["dyn"] } }],
@@ -67,7 +67,7 @@ describe("dispatchPhase", () => {
 
     expect(d.calls).toEqual([
       { method: "sendAtPath", path: "TARGET", name: "select", args: [7], opts: undefined },
-      { method: "sendAtPath", path: "TARGET", name: "onType", args: ["co"], opts: { x: 1 } },
+      { method: "sendAtPath", path: "TARGET", name: "onType", args: ["co"], opts: undefined },
       {
         method: "intentAtPath",
         path: "TARGET",

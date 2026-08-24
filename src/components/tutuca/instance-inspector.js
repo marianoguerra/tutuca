@@ -1,4 +1,4 @@
-import { component, html } from "tutuca";
+import { COMPONENT, component, html } from "tutuca";
 import { DataInspector } from "../data/data.js";
 import {
   compositeAlter,
@@ -17,11 +17,10 @@ import {
 import { getComponents as getLintComponents, LintReport } from "./lint-inspector.js";
 import { getComponents as getTestComponents, TestReport } from "./test-inspector.js";
 
-// True for a tutuca component instance (whose Class carries the
-// generated `getMetaClass` static). Mirrors the framework's own type probe
-// `getTypeName = (v) => v?.constructor?.getMetaClass?.()?.name` (tutuca.js).
+// True for a tutuca component instance. COMPONENT is the canonical cross-bundle
+// marker; `getMetaClass` also exists on standalone classFromData models.
 export const isComponentInstance = (v) =>
-  v !== null && typeof v === "object" && typeof v?.constructor?.getMetaClass === "function";
+  v !== null && typeof v === "object" && v?.constructor?.[COMPONENT] !== undefined;
 
 const fieldsView = makeCompositeView({
   typeClass: "font-semibold",

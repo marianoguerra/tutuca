@@ -171,6 +171,13 @@ export function getTests({ describe, test, expect }) {
       expect(isComponentInstance(null)).toBe(false);
       expect(isComponentInstance(new Map([["a", 1]]))).toBe(false);
       expect(isComponentInstance([1, 2])).toBe(false);
+      const PlainModel = class {
+        value = null;
+        static getMetaClass() {
+          return { name: "PlainModel", fields: {} };
+        }
+      };
+      expect(isComponentInstance(new PlainModel())).toBe(false);
     });
 
     test("with a descriptor, value is an InstanceFields", () => {

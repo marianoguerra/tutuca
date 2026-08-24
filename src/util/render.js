@@ -24,7 +24,7 @@ function serializeContainer(container) {
 }
 
 // Mount `rootState` into a fresh container and return the live app. `opts` also
-// takes `intentHandlers` (registered on the scope, so `request` dispatches resolve
+// takes `intentHandlers` (registered on the scope, so intent dispatches resolve
 // instead of hitting the 404 handler) and `view` (which of the root component's
 // views to mount; defaults to `main`).
 export function renderToHTMLNode(

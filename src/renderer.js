@@ -1,6 +1,17 @@
 import { NullDomCache, WeakMapDomCache } from "./cache.js";
-import { isIndexedSeq, isKeyedSeq, isSetSeq, seqEntries, seqGet, seqSize } from "./collection.js";
+import { makeLoopCtx, walkLoopBindings } from "./iteration.js";
 import { h, render, VComment, VFragment } from "./vdom.js";
+
+export {
+  callEnricher,
+  filterAlwaysTrue,
+  getSeqInfo,
+  makeLoopCtx,
+  normalizeRange,
+  nullLoopWith,
+  SEQ_INFO,
+  unpackLoopResult,
+} from "./iteration.js";
 
 const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk"];
 export class Renderer {
@@ -88,17 +99,11 @@ export class Renderer {
     const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
     const r = [];
     const it = stack.it;
-    const { iterData, start, end, keys } = unpackLoopResult(
-      loopWith.call(it, seq, makeLoopCtx(stack, filter)),
-      seq,
-    );
-    const renderOne = (key, value, attrName) => {
+    const renderOne = (key, value, attrName, binds) => {
       const cachePath = enricher ? [view, it, value] : [view, value];
-      const binds = { key, value };
       // Include the inherited pushed-view stack: this repeated subtree may hold
       // `<x render>` descendants that resolve against it (see _rValComp).
       const cacheKey = `${stack.viewsId ?? ""}\x1f${nid}\x1f${key}`;
-      if (enricher) callEnricher(enricher, it, binds, key, value, iterData);
       const cachedNode = this.cache.get(cachePath, cacheKey);
       if (cachedNode) this.pushEachEntry(r, nid, attrName, key, cachedNode);
       else {
@@ -109,18 +114,10 @@ export class Renderer {
         this.cache.set(cachePath, cacheKey, dom);
       }
     };
-    // A `keys` return is authoritative: the handler already filtered/paged, so
-    // render exactly those keys in order and skip `@when`.
-    if (keys) keysIter(seq, renderOne, keys);
-    else
-      getSeqInfo(seq)(
-        seq,
-        (key, value, attrName) => {
-          if (filter.call(it, key, value, iterData)) renderOne(key, value, attrName);
-        },
-        start,
-        end,
-      );
+    walkLoopBindings(
+      { seq, it, filter, loopWith, enricher, ctx: makeLoopCtx(stack, filter) },
+      renderOne,
+    );
     return r;
   }
   renderView(view, stack) {
@@ -145,89 +142,3 @@ export class Renderer {
     return new VFragment([this._renderMetadata({ $: "Scope", nid }), dom]);
   }
 }
-export const getSeqInfo = (seq) =>
-  isIndexedSeq(seq)
-    ? nativeIndexedIter
-    : isKeyedSeq(seq) || isSetSeq(seq)
-      ? nativeKeyedIter
-      : (seq?.[SEQ_INFO] ?? unkIter);
-// Clamp a `@loop-with` `{ start, end }` range to `[0, size]` using
-// `Array.prototype.slice` semantics: end-exclusive, negatives count from the
-// end, `undefined` means the natural bound. `start`/`end` are positional.
-export const normalizeRange = (start, end, size) => {
-  let s = start == null ? 0 : start < 0 ? size + start : start;
-  let e = end == null ? size : end < 0 ? size + end : end;
-  s = s < 0 ? 0 : s > size ? size : s;
-  e = e < 0 ? 0 : e > size ? size : e;
-  return [s, e < s ? s : e];
-};
-// Run `@enrich-with` over the seeded per-item binds. `key`/`value` are
-// protected: the handler may add binds but not replace the loop's own —
-// `@value`/`@key` must always be the sequence item, so member reads
-// (`@value.title`) and event-path replay stay meaningful. Warn and restore.
-export const callEnricher = (enricher, it, binds, key, value, iterData) => {
-  enricher.call(it, binds, key, value, iterData);
-  console.assert(
-    binds.key === key && binds.value === value,
-    "@enrich-with handlers must not overwrite binds.key or binds.value",
-  );
-  binds.key = key;
-  binds.value = value;
-};
-// Defaults when `@each` has no `@when` / `@loop-with` attr.
-export const filterAlwaysTrue = (_v, _k, _seq) => true;
-export const nullLoopWith = (seq) => ({ iterData: { seq } });
-// Read a `@loop-with` handler's result: `{ iterData, start, end, keys }`, all
-// optional. `iterData` defaults to `{ seq }` so `@when`/`@enrich-with` can
-// still reach the sequence when a handler omits it. `keys` (an explicit,
-// ordered list of original keys to visit) takes precedence over `start`/`end`:
-// the handler has already filtered/sorted/sliced, so the renderer visits
-// exactly those keys — binding `@key` to each original key, which keeps event
-// dispatch and two-way binding identity intact across filtering and paging.
-export const unpackLoopResult = (result, seq) => {
-  const r = result ?? {};
-  return { iterData: r.iterData ?? { seq }, start: r.start, end: r.end, keys: r.keys };
-};
-// Walk an explicit, ordered list of original `keys`, visiting `seq.get(key)`
-// for each. The meta-key attr matches the positional walkers (`si` for indexed
-// sequences, `sk` otherwise) so event-path reconstruction resolves the key.
-// `@when` is NOT applied here — a `keys` return means the handler already
-// decided exactly what renders.
-const keysIter = (seq, visit, keys) => {
-  const attrName = isIndexedSeq(seq) ? "si" : "sk";
-  for (const key of keys) visit(key, seqGet(seq, key), attrName);
-};
-// The context object passed to a `@loop-with` handler as its 2nd argument:
-//   loopWith.call(it, seq, { lookup, filter })
-// `lookup(name)` reads a scope `@`-binding (e.g. one published by an ancestor
-// `@enrich-with`), so the handler can reuse already-computed values instead of
-// recomputing them. `filter(key, value, iterData)` wraps the resolved `@when`
-// predicate (always-true when there is no `@when`), so the handler can apply
-// the declared filter while building its key slice. An object so it can grow.
-export const makeLoopCtx = (stack, filter) => ({
-  lookup: (name) => stack.lookupBind(name),
-  filter: (key, value, iterData) => filter.call(stack.it, key, value, iterData),
-});
-const nativeIndexedIter = (seq, visit, start, end) => {
-  // Random access skips the prefix/suffix entirely; `i` stays the original
-  // index so `data-si` and path lookups (`EachBindStep`) keep their identity.
-  const [s, e] = normalizeRange(start, end, seqSize(seq));
-  for (let i = s; i < e; i++) visit(i, seq[i], "si");
-};
-const nativeKeyedIter = (seq, visit, start, end) => {
-  // Keyed maps have no positional random access; the prefix is counted but
-  // not visited/rendered, and iteration breaks once past `end`.
-  const [s, e] = normalizeRange(start, end, seqSize(seq));
-  let i = 0;
-  for (const [k, v] of seqEntries(seq)) {
-    if (i >= e) break;
-    if (i >= s) visit(k, v, "sk");
-    i++;
-  }
-};
-const unkIter = () => {};
-// A `SEQ_INFO` walker is `(seq, visit, start, end) => void`: it must honor the
-// positional `[start, end)` range (see `normalizeRange`) and preserve each
-// item's original key. Walkers may ignore the range, in which case the slice
-// simply does not apply for that sequence type.
-export const SEQ_INFO = Symbol.for("tutuca.seqInfo");

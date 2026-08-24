@@ -15,6 +15,23 @@ function setupStackComps(compArray, it = compArray[0].make()) {
   return Stack.root(comps, it);
 }
 describe("Components", () => {
+  test("component statics cannot shadow framework metadata or behavior", () => {
+    expect(() =>
+      component({
+        name: "BadViewsStatic",
+        fields: {},
+        statics: { views() {} },
+      }),
+    ).toThrow('component static "views" is reserved by the framework');
+    expect(() =>
+      component({
+        name: "BadCompileStatic",
+        fields: {},
+        statics: { compile() {} },
+      }),
+    ).toThrow('component static "compile" is reserved by the framework');
+  });
+
   test("provide binding", () => {
     const Comp = component({
       name: "MyComponent",

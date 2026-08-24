@@ -33,7 +33,7 @@ export async function buildInspectorViews(
 ) {
   const comp = isComponentInstance(value) ? scope.getCompFor(value) : null;
   const out = {
-    instanceView: InstanceInspector.fromData(value, scope.getCompFor(value)),
+    instanceView: InstanceInspector.fromData(value, comp),
     componentView: null,
     lintView: null,
     testView: null,

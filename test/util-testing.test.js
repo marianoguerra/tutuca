@@ -123,6 +123,28 @@ describe("collectIterBindings", () => {
     ]);
   });
 
+  test("enrich-with cannot replace the loop key or value", () => {
+    const Bad = component({
+      name: "BadEnricher",
+      fields: {},
+      alter: {
+        overwrite(binds) {
+          binds.key = "changed";
+          binds.value = 99;
+        },
+      },
+    });
+    const originalAssert = console.assert;
+    console.assert = () => {};
+    try {
+      expect(collectIterBindings(Bad, Bad.make(), [10], { enrichWith: "overwrite" })).toEqual([
+        { key: 0, value: 10 },
+      ]);
+    } finally {
+      console.assert = originalAssert;
+    }
+  });
+
   test("all three handlers together", () => {
     const it = Items.make();
     const r = collectIterBindings(Items, it, [10, 20, 30, 40], {

@@ -34,9 +34,6 @@ export class Step {
   lookup(_v, dval = null) {
     return dval;
   }
-  setValue(root, _v) {
-    return root;
-  }
   setDraftValue(_root, _v) {}
   enterFrame(stack, _prev, next) {
     return stack.enter(next, {}, true);
@@ -62,9 +59,6 @@ export class BindStep extends Step {
     this.binds = binds;
   }
   lookup(v, _dval) {
-    return v;
-  }
-  setValue(_root, v) {
     return v;
   }
   enterFrame(stack, _prev, next) {
@@ -106,9 +100,6 @@ export class FieldStep extends Step {
   lookup(v, dval = null) {
     return readKey(v, this.field, dval);
   }
-  setValue(root, v) {
-    return produce(root, (draft) => this.setDraftValue(draft, v));
-  }
   setDraftValue(root, v) {
     writeKey(root, this.field, v);
   }
@@ -131,9 +122,6 @@ export class SeqStep extends Step {
   lookup(v, dval = null) {
     return readSeqKey(readKey(v, this.field, null), this.key, dval);
   }
-  setValue(root, v) {
-    return produce(root, (draft) => this.setDraftValue(draft, v));
-  }
   setDraftValue(root, v) {
     const seq = readKey(root, this.field, null);
     if (seq != null) writeSeqKey(seq, this.key, v);
@@ -155,9 +143,6 @@ export class SeqAccessStep extends Step {
     const seq = readKey(v, this.seqField, NONE);
     const key = readKey(v, this.keyField, NONE);
     return key !== NONE && seq !== NONE ? readSeqKey(seq, key, dval) : dval;
-  }
-  setValue(root, v) {
-    return produce(root, (draft) => this.setDraftValue(draft, v));
   }
   setDraftValue(root, v) {
     const seq = readKey(root, this.seqField, NONE);
@@ -184,9 +169,6 @@ export class EachBindStep extends Step {
     this.key = key;
   }
   lookup(v, _dval) {
-    return v;
-  }
-  setValue(_root, v) {
     return v;
   }
   // Replay the renderer's per-item binds (key, value + any @enrich-with binds)
@@ -229,10 +211,6 @@ export class DynStep extends Step {
   lookup(_v, dval = null) {
     warnRawDynStep("lookup", this);
     return dval;
-  }
-  setValue(root, _v) {
-    warnRawDynStep("setValue", this);
-    return root;
   }
   enterFrame(stack, _prev, _next) {
     warnRawDynStep("enterFrame", this);
@@ -310,7 +288,7 @@ export class Path {
   }
   // Resolve every field-keyed step (e.g. `SeqAccessStep`) against `root`, freezing the
   // key as it is *now* so a later lookup/setValue lands on the same item even if the
-  // keyField changed meanwhile (e.g. the selected tab moved while a request was in
+  // keyField changed meanwhile (e.g. the selected tab moved while an intent was in
   // flight). Returns a new Path with those steps replaced; `this` if nothing pinned.
   // Must be called on a transaction path (no DynSteps — call toTransactionPath first).
   pinKeys(root) {

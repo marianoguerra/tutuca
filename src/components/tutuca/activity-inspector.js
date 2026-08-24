@@ -13,7 +13,7 @@ const ACTIVITY_CAP = 50;
 // One row of dispatch activity. Pure display: a host builds these from normalized
 // observer records via `recordToEntry`, prebuilding the `before`/`after` value
 // inspectors so no functions, Paths, or transactions are ever stored in state.
-// `after` is null (and hidden) for the outgoing side of a request.
+// `after` is null (and hidden) for the outgoing side of an intent.
 export const ActivityEntry = component({
   name: "ActivityEntry",
   fields: {

@@ -439,9 +439,6 @@ export class NameVal extends VarVal {
     super();
     this.name = name;
   }
-  eval(stack) {
-    return stack.lookupName(this.name);
-  }
   toString() {
     return this.name;
   }
@@ -476,7 +473,7 @@ export class TypeVal extends NameVal {
   }
 }
 // Conveniences with no direct property spelling, derived from the implicit
-// name switch this file used to resolve through `InputEvent.lookupName`.
+// name switch this file once used for bare implicit handler arguments.
 // Resolved only when the whole path is one level (`e.isCtrl`, `e.valueAsInt`)
 // — nothing composes through this table. `event` and `ctx` are deliberately
 // absent: `e.event` would hand back the raw event the sigil exists to avoid,

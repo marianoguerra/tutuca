@@ -25,7 +25,7 @@ import { BUNDLED_THEMES, MARGAUI_THEMES } from "./themes.js";
 //               margaui. Omit it (no margaui CSS on the page) and no switcher shows.
 // Returns the started `app`, with the registered scopes attached as
 // `app.scopes = { root, modules }`: `root` owns the engine/inspector components +
-// macros + request handlers; `modules` is one isolated child scope per input module
+// macros + intent handlers; `modules` is one isolated child scope per input module
 // (positional), so same-named components in different modules don't collide.
 export async function mountStorybook(
   selector,
@@ -46,27 +46,27 @@ export async function mountStorybook(
       : base,
   );
   // The root scope owns the engine + inspector components, the shared macros, and
-  // all request handlers. Each module then gets its OWN child scope (below): module
+  // all intent handlers. Each module then gets its OWN child scope (below): module
   // components resolve their own names locally and inherit everything here via parent
   // chaining (lookupComponent/lookupMacro/lookupIntentChain all walk to the parent), so
   // two modules can define different components with the same name without colliding.
   const rootScope = app.registerComponents(built.engineComponents);
   rootScope.registerMacros(built.macros);
-  // Register one meta handler per request name (module handlers ∪ per-example
-  // overrides). Each resolves the issuing example via the request ctx's walkPath and
+  // Register one meta handler per intent name (module handlers ∪ per-example
+  // overrides). Each resolves the issuing example via the intent ctx's walkPath and
   // uses that example's mock when present, else the module's real handler.
   rootScope.registerIntentHandlers(buildExampleIntentHandlers(built));
-  // The storybook owns these request names; register last so they win over any
+  // The storybook owns these intent names; register last so they win over any
   // module-provided handler of the same name. `loadState` is registered even when
   // not persisting (returning a blank state) so `receive.loadStateOk` still selects
   // and inits the default section — it just never touches the URL. `persistState`
-  // (the writer) stays gated; unregistered, its requests no-op via the 404 path.
+  // (the writer) stays gated; unregistered, its intents no-op via the 404 path.
   rootScope.registerIntentHandlers({ loadState: persistUrl ? loadState : loadStateBlank });
   if (persistUrl) {
     rootScope.registerIntentHandlers({ persistState });
   }
   // Gated on the `themes` option for the same reason as `persistState`: with no theme
-  // CSS on the page there is nothing to switch, so the request stays unregistered and
+  // CSS on the page there is nothing to switch, so the intent stays unregistered and
   // no-ops via the 404 path (the switcher isn't rendered either).
   if (themeBaseUrl) {
     rootScope.registerIntentHandlers({ applyTheme });
@@ -74,7 +74,7 @@ export async function mountStorybook(
   // One isolated scope per module, as a child of rootScope. `registerComponents`
   // writes each component's name into the scope it is called on, so a fresh child
   // per module keeps the modules' name tables disjoint while still inheriting the
-  // engine components, macros, and request handlers above. Positional with `modules`.
+  // engine components, macros, and intent handlers above. Positional with `modules`.
   const moduleScopes = built.moduleComponents.map((comps) => {
     const scope = rootScope.enter();
     scope.registerComponents(comps);

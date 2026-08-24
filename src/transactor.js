@@ -16,9 +16,6 @@ class State {
     this.val = val;
     for (const sub of this.changeSubs) sub({ val, old, info, timestamp: Date.now() });
   }
-  update(fn, info) {
-    return this.set(fn(this.val), info);
-  }
 }
 export class Transactor {
   constructor(comps, rootValue) {
@@ -37,9 +34,8 @@ export class Transactor {
     // `observeRefusals()`; every refusal also warns to the console.
     this.refusals = [];
     this._refusalObservers = [];
-    // In-flight request promises, so the global `settle()` drain can await async
-    // requests. (Per-dispatch completion is tracked separately via `Completion`; this
-    // set is the thing `settle()` actually awaits to make progress on pending requests.)
+    // In-flight async intent handlers, so the global `settle()` drain can await them.
+    // Per-dispatch completion is tracked separately via `Completion`.
     this._inflight = new Set();
   }
   pushTransaction(t) {
@@ -125,8 +121,8 @@ export class Transactor {
     }
     return child;
   }
-  pushSend(path, name, args = [], opts = {}, parent = null) {
-    const t = new SendEvent(path, this, name, args, parent, opts);
+  pushSend(path, name, args = [], parent = null) {
+    const t = new SendEvent(path, this, name, args, parent);
     this.pushTransaction(t);
     return this._link(t, parent);
   }
@@ -142,9 +138,9 @@ export class Transactor {
     walk.advance();
     return walk;
   }
-  // Drain queued transactions and await in-flight requests until quiescent. Each
-  // awaited request enqueues a ResponseEvent, which may dispatch more work, so we
-  // loop. `maxTurns` backstops a pathological non-terminating cascade.
+  // Drain queued transactions and await async intent handlers until quiescent. A
+  // completed handler may enqueue an answer, which may dispatch more work, so we loop.
+  // `maxTurns` backstops a pathological non-terminating cascade.
   async settle(maxTurns = 10000) {
     while ((this.hasPendingTransactions || this._inflight.size) && maxTurns-- > 0) {
       while (this.hasPendingTransactions) this.transactNext();
@@ -161,7 +157,7 @@ export class Transactor {
     // `finally` guarantees the self-unit is released and self is settled on every exit:
     // the undefined-state branch, the skipSelf path, and a throwing handler. Otherwise an
     // un-released unit would hang this transaction's (and its parent's) subtree forever.
-    // afterTransaction() stays inside `try`, before the release, so a bubble it pushes is
+    // afterTransaction() stays inside `try`, before the release, so derived work is
     // counted before the subtree counter can reach zero.
     try {
       const curState = this.state.val;
@@ -250,7 +246,7 @@ class Transaction {
   }
   // The path used to apply the mutation. Teleports dynamic-var renders so it lands on
   // the data's real location (the dispatch `this.path` keeps intermediates). A subclass
-  // may override to supply a pre-resolved path (see ResponseEvent's pinned keys).
+  // may override to supply a pre-resolved path (see an intent answer's pinned keys).
   getTransactionPath() {
     // Frame-only bind steps are needed to replay handler arguments, but they do not
     // address state. Compact them before lookup/grafting so a handler inside @each
@@ -338,11 +334,10 @@ class InputEvent extends Transaction {
   }
 }
 class NameArgsTransaction extends Transaction {
-  constructor(path, transactor, name, args, parentTransaction, opts = {}) {
+  constructor(path, transactor, name, args, parentTransaction) {
     super(path, transactor, parentTransaction);
     this.name = name;
     this.args = args;
-    this.opts = opts;
     this.targetPath = path;
   }
   handlerProp = null;
@@ -406,7 +401,7 @@ class SendEvent extends NameArgsTransaction {
 class IntentEvent extends NameArgsTransaction {
   handlerProp = "intent";
   constructor(path, transactor, walk) {
-    super(path, transactor, walk.name, walk.args, walk.parent, {});
+    super(path, transactor, walk.name, walk.args, walk.parent);
     this.walk = walk;
     // The position the intent was raised at, pinned for every hop, so a handler can
     // address the originator back with ctx.sendAtPath(ctx.targetPath, ...).
@@ -546,7 +541,7 @@ class IntentWalk {
   async _runLex(chain, i) {
     if (this.ended) return;
     if (i >= chain.length) return this.advance();
-    const ctx = new IntentContext(this.origin, this.transactor, this.parent);
+    const ctx = new Dispatcher(this.origin, this.transactor, this.parent);
     try {
       const res = await chain[i].fn.apply(null, [...this.args, ctx]);
       // Resolving is an answer and throwing is a failure — the shapes an async function
@@ -612,7 +607,7 @@ class IntentWalk {
     // An answer is dispatched as an ORDINARY message. A component cannot tell one from
     // a message its parent sent, and does not need to — that indistinguishability is
     // the design's claim, and the reason one bucket is enough.
-    const t = new SendEvent(path, this.transactor, name, args, this.parent, {});
+    const t = new SendEvent(path, this.transactor, name, args, this.parent);
     t._isAnswer = true;
     this.transactor.pushTransaction(t);
     if (this.release) t.completion.whenSubtreeSettled().then(this.release);
@@ -620,7 +615,7 @@ class IntentWalk {
 }
 // Per-transaction completion scope (structured-concurrency / WaitGroup style). A counter
 // of outstanding "units": one self-unit (the transaction's own processing) plus one per
-// derived child or in-flight request. Self settles when the handler runs; the subtree
+// derived child or in-flight intent. Self settles when the handler runs; the subtree
 // settles when the counter reaches zero — i.e. this transaction and everything it spawned,
 // recursively, are done. Promises are allocated lazily, only when actually awaited.
 class Completion {
@@ -705,11 +700,11 @@ class Dispatcher {
     return new PathChanges(this);
   }
   // A message is ADDRESSED: it names one component and stops there.
-  send(name, args, opts) {
-    return this.sendAtPath(this.path, name, args, opts);
+  send(name, args) {
+    return this.sendAtPath(this.path, name, args);
   }
-  sendAtPath(path, name, args, opts) {
-    return this.transactor.pushSend(path, name, args, opts, this.parent);
+  sendAtPath(path, name, args) {
+    return this.transactor.pushSend(path, name, args, this.parent);
   }
   // An intent is ROUTED: it names a job and walks until something answers. The verb
   // does not decide which scope answers — `opts.route` does, written here at the call
@@ -754,9 +749,6 @@ class EventContext extends Dispatcher {
     return this.parent.forward(opts);
   }
 }
-// The ctx handed to a scope-registered intent handler as its final argument. A distinct
-// type (and a home for any lex-only helpers later); `walkPath` lives on Dispatcher.
-class IntentContext extends Dispatcher {}
 function warnNotIntent(verb) {
   console.warn(`ctx.${verb}() is only meaningful in an "intent" handler - ignored`);
 }
@@ -765,8 +757,8 @@ class PathChanges extends PathBuilder {
     super();
     this.dispatcher = dispatcher;
   }
-  send(name, args, opts) {
-    return this.dispatcher.sendAtPath(this.buildPath(), name, args, opts);
+  send(name, args) {
+    return this.dispatcher.sendAtPath(this.buildPath(), name, args);
   }
   intent(name, args, opts) {
     return this.dispatcher.intentAtPath(this.buildPath(), name, args, opts);

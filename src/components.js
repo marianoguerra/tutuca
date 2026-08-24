@@ -35,7 +35,7 @@ export class Components {
   }
   compileStyles() {
     const styles = [];
-    for (const comp of this.byId.values()) styles.push(comp.compileStyle());
+    for (const Comp of this.byId.values()) styles.push(Comp[COMPONENT].compileStyle());
     return styles.join("\n");
   }
 }

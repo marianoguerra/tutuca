@@ -26,11 +26,28 @@ export class Attributes {
 const booleanAttrsRaw =
   "itemscope,allowfullscreen,formnovalidate,ismap,nomodule,novalidate,readonly,async,autofocus,autoplay,controls,default,defer,disabled,hidden,inert,loop,open,required,reversed,scoped,seamless,checked,muted,multiple,selected";
 const booleanAttrs = new Set(booleanAttrsRaw.split(","));
+function parseDirectiveValue(px, directiveName, source, parser) {
+  const val = parser(source, px);
+  if (val === null) {
+    px.onParseIssue("bad-value", {
+      role: "directive",
+      directive: directiveName,
+      value: source,
+    });
+  }
+  return val;
+}
+
+export function parseIterationDirectives(attributes, px) {
+  const parseNamed = (name) => {
+    const attr = attributes.getNamedItem(`@${name}`);
+    return attr ? parseDirectiveValue(px, name, attr.value, parseAlterHandler) : null;
+  };
+  return { whenVal: parseNamed("when"), loopWithVal: parseNamed("loop-with") };
+}
+
 class AttrParser {
   constructor(px) {
-    this.clear(px);
-  }
-  clear(px) {
     this.px = px;
     this.attrs = null;
     this.hasDynamic = false;
@@ -85,12 +102,7 @@ class AttrParser {
     }
   }
   _parseDirectiveValue(directiveName, s, parserFn) {
-    const val = parserFn(s, this.px);
-    if (val === null) {
-      const info = { role: "directive", directive: directiveName, value: s };
-      this.px.onParseIssue("bad-value", info);
-    }
-    return val;
+    return parseDirectiveValue(this.px, directiveName, s, parserFn);
   }
   parseDirective(s, directiveName) {
     switch (directiveName) {
@@ -253,11 +265,8 @@ export class IfAttr extends BaseAttr {
     return this.condVal.eval(stack) ? this.thenVal.eval(stack) : this.elseVal.eval(stack);
   }
 }
-let _attrParser = null;
 export function getAttrParser(px) {
-  _attrParser ??= new AttrParser(px);
-  _attrParser.clear(px);
-  return _attrParser;
+  return new AttrParser(px);
 }
 export class EventHandler {
   constructor(handlerVal, args = []) {
@@ -275,7 +284,7 @@ export class EventHandler {
   }
 }
 // One scope-registered handler for an intent's `lex` leg. `fn` runs with no `this` and
-// takes an IntentContext as its final argument; resolving answers, throwing fails, and
+// takes a dispatcher context as its final argument; resolving answers, throwing fails, and
 // returning PASS declines so the walk goes on.
 export class IntentHandler {
   constructor(name, fn) {

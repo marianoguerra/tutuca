@@ -38,7 +38,7 @@ export const Storybook = component({
   methods: {
     // Assemble the full URL snapshot from current state. `overrides` carries the
     // change the calling handler is about to make, since `this` is still the
-    // pre-change state when the persistState request is issued.
+    // pre-change state when the persistState intent is issued.
     //
     // `theme` is deliberately NOT part of the base snapshot: it is resolved on load
     // (from the OS preference when the URL says nothing), and writing that resolved
@@ -81,8 +81,8 @@ export const Storybook = component({
       draft.focusExample = null;
     },
     // Switching a palette is a DOM effect (set data-theme, load the stylesheet), so it
-    // goes out as a request — the host handler in mountStorybook owns the document.
-    // Unregistered (no `themes` option), the request no-ops via the 404 path and the
+    // goes out as an intent — the host handler in mountStorybook owns the document.
+    // Unregistered (no `themes` option), the intent no-ops via the 404 path and the
     // switcher isn't rendered anyway.
     onSelectTheme(draft, value, ctx) {
       ctx.intent("applyTheme", [value, this], { route: ["lex"] });
@@ -412,7 +412,7 @@ export const Example = component({
     hasActivity: false,
   },
   // Storybook-only convention (read in mountStorybook, never by core): names the
-  // field on an example instance that holds its per-example request-handler mocks.
+  // field on an example instance that holds its per-example intent-handler mocks.
   intentOverridesField: "intentHandlers",
   statics: {
     fromData({

@@ -1,31 +1,4 @@
-import { seqGet } from "../collection.js";
-import {
-  filterAlwaysTrue,
-  getSeqInfo,
-  normalizeRange,
-  nullLoopWith,
-  unpackLoopResult,
-} from "../renderer.js";
-
-const plainArrayIter = (seq, visit, start, end) => {
-  const [s, e] = normalizeRange(start, end, seq.length);
-  for (let i = s; i < e; i++) visit(i, seq[i]);
-};
-const plainMapIter = (seq, visit, start, end) => {
-  const [s, e] = normalizeRange(start, end, seq.size);
-  let i = 0;
-  for (const [k, v] of seq.entries()) {
-    if (i >= e) break;
-    if (i >= s) visit(k, v);
-    i++;
-  }
-};
-
-function pickIter(seq) {
-  if (Array.isArray(seq)) return plainArrayIter;
-  if (seq instanceof Map) return plainMapIter;
-  return getSeqInfo(seq);
-}
+import { filterAlwaysTrue, nullLoopWith, walkLoopBindings } from "../iteration.js";
 
 function resolveAlter(Comp, name) {
   if (name == null) return null;
@@ -63,30 +36,10 @@ export function collectIterBindings(Comp, compInstance, seq, opts = {}) {
     filter: (key, value, iterData) => whenFn.call(it, key, value, iterData),
   };
 
-  const { iterData, start, end, keys } = unpackLoopResult(loopWithFn.call(it, seq, ctx), seq);
   const out = [];
-
-  if (keys) {
-    for (const key of keys) {
-      const value = seqGet(seq, key);
-      const binds = { key, value };
-      if (enrichFn) enrichFn.call(it, binds, key, value, iterData);
-      out.push(binds);
-    }
-    return out;
-  }
-
-  const iter = pickIter(seq);
-  iter(
-    seq,
-    (key, value) => {
-      if (!whenFn.call(it, key, value, iterData)) return;
-      const binds = { key, value };
-      if (enrichFn) enrichFn.call(it, binds, key, value, iterData);
-      out.push(binds);
-    },
-    start,
-    end,
+  walkLoopBindings(
+    { seq, it, filter: whenFn, loopWith: loopWithFn, enricher: enrichFn, ctx },
+    (_key, _value, _attrName, binds) => out.push(binds),
   );
   return out;
 }

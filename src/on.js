@@ -6,7 +6,7 @@
 // (tools/core/test.js) drive components through the same code here.
 //
 // A phase config looks like:
-//   { send:   [{ name, args, opts? }],   // -> receive[name] on the target
+//   { send:   [{ name, args }],          // -> receive[name] on the target
 //     intent: [{ name, args, opts? }],   // -> a walk along opts.route until answered
 //     do:     [{ type, name, args, opts? }] } // explicit ordered, mixed kinds
 // `args` is a plain array (used verbatim) or a function `(self) => array` called
@@ -35,7 +35,7 @@ export function dispatchPhase(dispatcher, targetPath, phase, self) {
     const args = resolveArgs(op.args, self);
     switch (op.type) {
       case "send":
-        dispatcher.sendAtPath(targetPath, op.name, args, op.opts);
+        dispatcher.sendAtPath(targetPath, op.name, args);
         break;
       case "intent":
         dispatcher.intentAtPath(targetPath, op.name, args, op.opts);

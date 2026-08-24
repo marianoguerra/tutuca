@@ -1,5 +1,5 @@
 // Pure aggregation: turn an array of dev/story modules into the data a
-// storybook needs (buildStorybook) and wire per-example request-handler mocks
+// storybook needs (buildStorybook) and wire per-example intent-handler mocks
 // (buildExampleIntentHandlers). No DOM — everything here is unit-testable.
 import { PASS } from "tutuca";
 import { getComponents as getInspectorComponents } from "tutuca/components";
@@ -82,7 +82,7 @@ export function buildStorybook(modules) {
 // per-example overrides). Each walks the intent ctx's component path to the nearest
 // example (a component declaring `intentOverridesField` in its `extra`) and uses that
 // example's mock for the name when present, else the module's real handler. The handler
-// signature matches the framework's — the IntentContext is the final arg.
+// signature matches the framework's — the dispatcher context is the final arg.
 export function buildExampleIntentHandlers({ intentHandlers: reals, overrideNames }) {
   const names = new Set([...Object.keys(reals), ...overrideNames]);
   const makeMeta =

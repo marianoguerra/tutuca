@@ -334,7 +334,23 @@ const META_KEYS =
   "name id fields methods views receive intent alter provide lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup".split(
     " ",
   );
+const RESERVED_COMPONENT_STATICS = new Set([
+  ...META_KEYS,
+  "make",
+  "getMetaClass",
+  ...Object.getOwnPropertyNames(Component.prototype),
+]);
+
+function assertNoReservedComponentStatics(statics = {}) {
+  for (const name in statics) {
+    if (RESERVED_COMPONENT_STATICS.has(name)) {
+      throw new TypeError(`component static "${name}" is reserved by the framework`);
+    }
+  }
+}
+
 Component.fromSpec = (opts) => {
+  assertNoReservedComponentStatics(opts.statics);
   const Class = classFromData(opts.name, opts);
   const comp = new Component(Class, opts);
   // Fold the builder's { fields, name, methods } view into the meta record...
@@ -350,7 +366,8 @@ Component.fromSpec = (opts) => {
   // Expose the metadata buckets as static accessors so direct reads
   // (`Counter.receive.inc`, `Comp.spec`, `Widget.scope`) keep working, with
   // write-through (`Comp.scope = ...`) matching the old record's mutability.
-  // A user static with the same name wins — the accessor is skipped.
+  // Reserved-name validation above guarantees these accessors cannot be shadowed
+  // by a user static.
   for (const key of META_KEYS)
     if (!Object.hasOwn(Class, key))
       Object.defineProperty(Class, key, {

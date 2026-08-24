@@ -1,13 +1,13 @@
-import { Attributes, getAttrParser } from "./attribute.js";
+import { Attributes, parseIterationDirectives } from "./attribute.js";
 import { seqGet } from "./collection.js";
-import { DynEachStep, DynStep, EachBindStep, EachRenderItStep, ScopeBindStep } from "./path.js";
 import {
   callEnricher,
   filterAlwaysTrue,
   makeLoopCtx,
   nullLoopWith,
   unpackLoopResult,
-} from "./renderer.js";
+} from "./iteration.js";
+import { DynEachStep, DynStep, EachBindStep, EachRenderItStep, ScopeBindStep } from "./path.js";
 import { isMac } from "./util/env.js";
 import { ConstVal, DynVal, parseBool, parseComponent, parseSequence, parseText } from "./value.js";
 import { HTML_NS } from "./vdom.js";
@@ -410,19 +410,10 @@ function parseRenderEach(px, value, as, attrs) {
   const seqVal = parseXOpVal("render-each", value, px, parseSequence);
   if (seqVal === null) return null;
   const renderIt = px.addNode(RenderItNode, as);
-  // Reuse the directive parser to read @when / @loop-with into an each wrapper,
-  // then lift them onto the EachNode's iterInfo (there is no host element whose
-  // attribute parse would otherwise carry them).
-  const attrParser = getAttrParser(px);
-  const eachAttr = attrParser.pushWrapper("each", value, seqVal);
-  attrParser.eachAttr = eachAttr;
-  const when = attrs.getNamedItem("@when");
-  if (when) attrParser._parseWhen(when.value);
-  const lWith = attrs.getNamedItem("@loop-with");
-  if (lWith) attrParser._parseLoopWith(lWith.value);
+  const { whenVal, loopWithVal } = parseIterationDirectives(attrs, px);
   const each = px.addNodeIf(EachNode, seqVal);
-  each.iterInfo.whenVal = eachAttr.whenVal ?? null;
-  each.iterInfo.loopWithVal = eachAttr.loopWithVal ?? null;
+  each.iterInfo.whenVal = whenVal;
+  each.iterInfo.loopWithVal = loopWithVal;
   // Marker so the linter checks this EachNode's @when/@loop-with in the node
   // loop — a render-each sugar node has no wrapperAttr entry to check instead.
   each.fromRenderEach = true;
