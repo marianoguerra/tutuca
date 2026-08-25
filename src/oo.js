@@ -213,8 +213,11 @@ export function classFromData(name, { fields = {}, methods, statics }) {
     const value = fields[field];
     const type = typeof value;
     if (type === "string") b.addField(field, value, FieldString);
-    else if (type === "number")
-      b.addField(field, value, Number.isInteger(value) ? FieldInt : FieldFloat);
+    // Every numeric default is a float: a JS number literal can't express
+    // int-ness (`0.0` IS `0`), so inferring `int` from a whole number silently
+    // truncates every later assignment. `int` is opt-in, via the descriptor
+    // form `{ type: "int", defaultValue: 0 }`.
+    else if (type === "number") b.addField(field, value, FieldFloat);
     else if (type === "boolean") b.addField(field, value, FieldBool);
     else if (Array.isArray(value)) b.addField(field, [...value], FieldList);
     else if (value instanceof Set) b.addField(field, new Set(value), FieldSet);

@@ -340,6 +340,15 @@ function morphChildren(parentDom, oldChilds, newChilds, opts) {
     if (!used[i] && domNodes[i].parentNode === parentDom) parentDom.removeChild(domNodes[i]);
 }
 export function render(vnode, container, options, prev) {
+  // A root that renders nothing — its view root is `@show`-hidden, or it is an
+  // `<x render>` whose value has no component — yields null, exactly like a
+  // hidden child, which addChild drops. At the root there is no parent to drop
+  // it into, so empty the container instead of dereferencing null. The next
+  // render sees `prev.vnode === null`, misses the morph branch, and rebuilds.
+  if (vnode == null) {
+    container.replaceChildren();
+    return { vnode: null, dom: null };
+  }
   const isFragment = vnode instanceof VFragment;
   if (prev && prev.vnode instanceof VFragment === isFragment) {
     const oldDom = isFragment ? container : prev.dom;

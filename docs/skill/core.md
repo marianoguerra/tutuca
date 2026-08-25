@@ -381,6 +381,12 @@ native `Map`, and native `Set` stay native. Wrap nested component data with
 | `new Map()` | map | `draft.x.set(key, value)` |
 | `new Set()` | set | `draft.x.add(value)`, `draft.x.delete(value)` |
 
+**Every numeric default is a float, whole numbers included** — `count: 0` is a
+float field, not an int, because a JS literal can't say which one it means
+(`0.0` IS `0`). Ask for int explicitly when you want the truncation:
+`count: { type: "int", defaultValue: 0 }` turns a later `3.14` into `3`, while
+the plain `count: 0` keeps it.
+
 Fields do not generate setters or collection mutators. Define only the named
 handlers your view/API needs; the linter reports a field/method name collision.
 

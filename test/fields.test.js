@@ -56,7 +56,7 @@ describe("classFromData", () => {
     });
     const fields = Model.getMetaClass().fields;
     expect(Object.fromEntries(Object.entries(fields).map(([k, f]) => [k, f.type]))).toEqual({
-      count: "int",
+      count: "float",
       ratio: "float",
       title: "text",
       enabled: "bool",
@@ -88,14 +88,31 @@ describe("classFromData", () => {
   });
 
   test("make coerces invalid constructor inputs to field defaults", () => {
-    const Model = classFromData("Model", { fields: { count: 0, items: [] } });
+    const Model = classFromData("Model", {
+      fields: { count: { type: "int", defaultValue: 0 }, items: [] },
+    });
     const value = Model.make({ count: 3.5, items: "bad" });
     expect(value.count).toBe(3);
     expect(value.items).toEqual([]);
   });
 
+  // A whole-number default can't mean "int": `0.0` IS `0` in JS, so inferring
+  // int from it truncated every fractional value ever assigned to the field.
+  // The shorthand is float; truncation is opt-in through the descriptor form.
+  test("a whole-number default infers float and keeps fractional values", () => {
+    const Model = classFromData("Model", {
+      fields: { price: 0, rounded: { type: "int", defaultValue: 0 } },
+    });
+    expect(Model.getMetaClass().fields.price.type).toBe("float");
+    const value = Model.make({ price: 3.14, rounded: 3.14 });
+    expect(value.price).toBe(3.14);
+    expect(value.rounded).toBe(3);
+  });
+
   test("draft validation coerces assignments and rejects invalid values", () => {
-    const Model = classFromData("Model", { fields: { count: 0, ratio: 1.5 } });
+    const Model = classFromData("Model", {
+      fields: { count: { type: "int", defaultValue: 0 }, ratio: 1.5 },
+    });
     const before = Model.make({ count: 2 });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const after = produce(before, (draft) => {
