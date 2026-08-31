@@ -1,6 +1,6 @@
 import { ComponentStack } from "../../src/components.js";
 import { dispatchPhase } from "../../src/on.js";
-import { Path } from "../../src/path.js";
+import { DispatchPath } from "../../src/path.js";
 import { rootDispatcher, Transactor } from "../../src/transactor.js";
 import { DescribeResult, ModuleTestReport, TestReport, TestResult } from "./results.js";
 import { makeCollector, Test } from "./tests.js";
@@ -47,7 +47,7 @@ async function driveStack(stack, value, phase, opts = {}) {
     });
   // An `intent` from here has no ancestor to walk to (drive originates at the root).
   // The walk runs out and the sender hears `<name>Unhandled` — no warning needed.
-  dispatchPhase(rootDispatcher(transactor), new Path([]), phase, value);
+  dispatchPhase(rootDispatcher(transactor), new DispatchPath(), phase, value);
   await transactor.settle();
   return transactor.state.val;
 }

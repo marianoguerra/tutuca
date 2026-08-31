@@ -37,7 +37,6 @@ import {
   METHOD_VAL_IS_FIELD,
   METHOD_VAL_NOT_DEFINED,
   PLACEHOLDERLESS_TEMPLATE_STRING,
-  PROVIDE_NAME_COLLISION,
   PROVIDE_NOT_ADDRESSABLE,
   PROVIDE_TYPE_BAD_SHAPE,
   RECEIVE_HANDLER_NOT_IMPLEMENTED,
@@ -153,19 +152,13 @@ export const LINT_RULES = [
     code: LOOKUP_NO_PROVIDER,
     level: "error",
     group: "Dynamic bindings",
-    summary: "`lookup` name is provided by no component in scope.",
+    summary: "`lookup` name is neither provided in scope nor a registered path.",
   },
   {
     code: PROVIDE_TYPE_BAD_SHAPE,
     level: "error",
     group: "Dynamic bindings",
     summary: 'A PascalCase `provide` publishes a component type; its value must be `"self"`.',
-  },
-  {
-    code: PROVIDE_NAME_COLLISION,
-    level: "error",
-    group: "Dynamic bindings",
-    summary: "Two components in one scope chain `provide` the same name.",
   },
 
   // Templates / events

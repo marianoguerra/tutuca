@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { component, html, PASS } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
 import { produce } from "../src/immer.js";
-import { FieldStep, Path, SeqStep } from "../src/path.js";
+import { DispatchPath, FieldStep, SeqStep } from "../src/path.js";
 import {
   buildExampleIntentHandlers,
   buildStorybook,
@@ -135,7 +135,7 @@ describe("Storybook theme switcher", () => {
       persistState: (state, instance, push) => calls.persistState.push([state, instance, push]),
     });
     const t = new Transactor(stack.comps, book);
-    t.pushSend(new Path([]), "onSelectTheme", [name]);
+    t.pushSend(DispatchPath.ofSteps([]), "onSelectTheme", [name]);
     while (t.hasPendingTransactions) t.transactNext();
     return { book: t.state.val, calls };
   }
@@ -192,7 +192,7 @@ describe("per-example intent-handler mocks", () => {
 
   const exWith = (handlers) => Example.make({ value: Widget.make({}), intentHandlers: handlers });
   // Inside Book: a is at .a, its Widget at .a.value; b at .b, Widget at .b.value.
-  const widgetPath = (slot) => new Path([new FieldStep(slot), new FieldStep("value")]);
+  const widgetPath = (slot) => DispatchPath.ofSteps([new FieldStep(slot), new FieldStep("value")]);
 
   test("two examples of the same component each get their own mock (per-instance)", async () => {
     const calls = [];
@@ -314,7 +314,7 @@ const probeAt = (book, section, item = 0) => book.sections[section].items[item].
 describe("Storybook lifecycle: section -> example -> value cascade", () => {
   test("sending init to a section runs each example's on.init and marks it initialized", () => {
     const t = lifecycleTransactor(probeBook(1));
-    rootDispatcher(t).sendAtPath(new Path([new SeqStep("sections", 0)]), "init", []);
+    rootDispatcher(t).sendAtPath(DispatchPath.ofSteps([new SeqStep("sections", 0)]), "init", []);
     runAll(t);
     expect(t.state.val.sections[0].initialized).toBe(true);
     expect(probeAt(t.state.val, 0).init).toBe(1);
@@ -325,7 +325,7 @@ describe("Storybook lifecycle: section -> example -> value cascade", () => {
       sections: [Section.fromData({ title: "S", items: [{ title: "E", value: Probe.make({}) }] })],
     });
     const t = lifecycleTransactor(book);
-    rootDispatcher(t).sendAtPath(new Path([new SeqStep("sections", 0)]), "init", []);
+    rootDispatcher(t).sendAtPath(DispatchPath.ofSteps([new SeqStep("sections", 0)]), "init", []);
     runAll(t);
     expect(probeAt(t.state.val, 0).init).toBe(0);
     expect(t.state.val.sections[0].initialized).toBe(true);
@@ -334,7 +334,7 @@ describe("Storybook lifecycle: section -> example -> value cascade", () => {
   test("resume/suspend forward without flipping initialized", () => {
     const t = lifecycleTransactor(probeBook(1));
     const d = rootDispatcher(t);
-    const sec0 = new Path([new SeqStep("sections", 0)]);
+    const sec0 = DispatchPath.ofSteps([new SeqStep("sections", 0)]);
     d.sendAtPath(sec0, "resume", []);
     d.sendAtPath(sec0, "suspend", []);
     runAll(t);
@@ -352,7 +352,7 @@ describe("Storybook lifecycle: section-switch transitions (intent.sectionSelecte
     // a child position, because the leg starts at the sender's PARENT — the book itself
     // is never offered an intent it raised.
     t.pushIntent(
-      new Path([new FieldStep("sections")]),
+      DispatchPath.ofSteps([new FieldStep("sections")]),
       "sectionSelected",
       [t.state.val.sections[index].id],
       { route: ["dyn"] },

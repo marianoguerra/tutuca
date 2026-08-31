@@ -1613,13 +1613,14 @@ const r = collectIterBindings(MyComp, c, c.items, {
             <strong>Dynamic bindings</strong> &mdash; a <code>*name</code>
             with nothing to resolve to, a <code>provide</code> value that is
             not a path, an uppercase <code>provide</code> whose value is not
-            <code>"self"</code>, a <code>lookup</code> nobody in scope
-            provides, or two components providing one name
+            <code>"self"</code>, or a <code>lookup</code> that nothing in scope
+            provides and no registered path answers
             (<code>DYN_VAL_NOT_DEFINED</code>,
             <code>PROVIDE_NOT_ADDRESSABLE</code>,
             <code>PROVIDE_TYPE_BAD_SHAPE</code>,
-            <code>LOOKUP_NO_PROVIDER</code>,
-            <code>PROVIDE_NAME_COLLISION</code>).
+            <code>LOOKUP_NO_PROVIDER</code>). Two components providing one
+            name is <em>not</em> an error: the nearest one in the live render
+            ancestry wins.
           </li>
           <li>
             <strong>Unreferenced declarations</strong> &mdash;

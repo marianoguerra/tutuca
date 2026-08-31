@@ -31,26 +31,29 @@ references* in [core.md](./core.md)). The step kinds:
 | `SeqStep`           | a sequence entry by **literal** key/index | `.items[2]`       |
 | `SeqAccessStep`     | a sequence entry whose key is **read from another field** | `.sheets[.selId]` |
 | `EachRenderItStep`  | an iterated `render-it` item       | `<x render-it>` per iter |
-| `DynStep` / `DynEachStep` | a dynamic-var (`*x`) render target — a teleport marker | `<x render="*x">` |
 | `BindStep` / `EachBindStep` | nothing — frame-only (carry scope binds, no addressing) | `@each`, `@enrich-with` |
 
 `SeqAccessStep` is the important one for async correctness: it stores the
 field *names* `seqField` and `keyField`, and resolves the key from the
 live data each time it runs — see *Key resolution & async races* below.
 
-### Two derived paths
+### A dispatch path is a stack of continuation frames
 
-The reconstructed path is transformed two ways depending on use:
+What reconstruction actually returns is a `DispatchPath`: a list of frames,
+each `{ base, items }`. Ordinary rendering extends the top frame's `items`;
+rendering a located binding (`<x render="*sel">`) pushes a NEW frame based
+at the value's own absolute path — see *Rendering with a resumed path*
+below. Two projections come off it:
 
-- **`compact()` → the dispatch path.** Drops frame-only steps, keeps one
-  step per crossed component (including `DynStep`s). `popStep()` over it
-  walks every component. Used to drive `ctx.send` / `ctx.intent` and to
-  locate handlers.
-- **`toTransactionPath()` → the transaction path.** Teleports every
-  `DynStep` (drops the steps interior to its producer..consumer span and
-  splices in the producer's own steps) so a mutation lands on the data's
-  real location. A path with no `DynStep` is returned unchanged. Used by
-  `lookup` / `setValue` to read and write state.
+- **`compact()` → the dispatch path.** Drops frame-only steps inside every
+  frame independently, keeping one step per crossed component. `popStep()`
+  over it walks every component, and at the top of a frame returns to the
+  visual caller. Used to drive `ctx.send` / `ctx.intent` and to locate
+  handlers.
+- **`toTransactionPath()` → the transaction path.** The ACTIVE frame alone:
+  its absolute base followed by its own steps, so a mutation lands on the
+  data's real location. The saved caller frames affect bubbling only. Used
+  by `lookup` / `setValue` to read and write state.
 
 ## Reconstructing a path from the DOM
 
@@ -111,21 +114,32 @@ The walk object is shared across hops on purpose: that is what makes the
 one-shot **per intent** rather than per hop, so a second `ctx.reply` — from this
 handler or one three hops up — finds the walk already ended.
 
-## Dynamic-var teleporting
+## Rendering with a resumed path
 
 A component rendered through `<x render="*sel">` *physically lives* at the
 producer that declared `provide: { sel: … }`, not under the consumer that
-wrote the render. The reconstructed dispatch path keeps every intermediate
-component (so a walk visits them), but `toTransactionPath()` teleports
-the `DynStep`: it pops the steps tagged with the marker's `interiorCids`
-and splices in the producer's own steps (`DynStep.teleportSteps()`). The
-mutation therefore lands on the producer's data, and the consumer's view
-of it updates in lock-step. Authoring view: *Teleporting* in
-[advanced.md](./advanced.md).
+wrote the render. A provider evaluates both halves of a lowercase binding:
+its value, and the absolute path of that value. A descendant retrieves the
+nearest pair and renders the value after pushing its path as a continuation
+frame; the frame's base is recorded in the DOM (`base` in the `§Comp§` meta,
+`data-rp` on a fragment-rooted body) so reconstruction can rebuild it.
 
-When the producer's `provide` value is a seq-access (`.sheets[.selId]`),
-the teleported steps include a `SeqAccessStep` — which is where async key
-races come from.
+Consequently:
+
+- mutation uses the ACTIVE frame, so an event inside the resumed component
+  updates the provider's data, and the consumer's view of it updates in
+  lock-step;
+- bubbling reaches the top of that frame and pops directly back to the
+  visual caller, then continues through the caller's ancestry.
+
+There is no producer search, producer id, interior list, or path rewriting
+at dispatch. Nested providers therefore shadow by live render ancestry: the
+nearest one that actually rendered wins. Authoring view: *Resuming at the
+value's path* in [advanced.md](./advanced.md).
+
+When the producer's `provide` value is a seq-access (`.sheets[.selId]`), the
+frame's base ends in a `SeqAccessStep` — which is where async key races come
+from.
 
 ## Key resolution & async races
 
@@ -143,8 +157,9 @@ path — each `SeqAccessStep(seq, keyField)` becomes a literal
 `SeqStep(seq, resolvedKey)`. The pinned path is stored on the
 `IntentWalk`, so the answer updates the item that raised the intent
 regardless of later key changes. (Pinning runs on the transaction path,
-after teleporting, because the `SeqAccessStep` may have come from a
-`DynStep`.)
+because the `SeqAccessStep` may have come from a resumed frame's base. The
+answer still DISPATCHES at the raiser's position, frames and all; the pinned
+path only decides where its mutation lands.)
 
 **Opt out per intent with `livePath: true`:**
 
@@ -191,5 +206,5 @@ things per step kind:
 - [messages-and-intents.md](./messages-and-intents.md) — the dispatch **API**:
   addressed `send`-`receive` vs routed `intent`, `ctx.at`, `$unknown`,
   intent-handler registration, and the `livePath` option.
-- [advanced.md](./advanced.md) — dynamic bindings (`*x`) and the authoring
-  view of teleporting.
+- [advanced.md](./advanced.md) — dynamic bindings (`*x`), lexically
+  registered paths, and the authoring view of resuming at a value's path.

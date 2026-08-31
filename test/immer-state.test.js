@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { component } from "../index.js";
 import { ComponentStack, Components } from "../src/components.js";
 import { immerable } from "../src/immer.js";
-import { FieldStep, Path, SeqStep } from "../src/path.js";
+import { DispatchPath, FieldStep, SeqStep } from "../src/path.js";
 import { Transactor } from "../src/transactor.js";
 
 function setup(Comp, root = Comp.make()) {
@@ -32,7 +32,7 @@ describe("Immer component state", () => {
     });
     const current = Counter.make();
     const transactor = setup(Counter, current);
-    send(transactor, new Path([]), "increment", [2]);
+    send(transactor, DispatchPath.ofSteps([]), "increment", [2]);
 
     expect(seen.self).toBe(current);
     expect(current.count).toBe(0);
@@ -49,7 +49,7 @@ describe("Immer component state", () => {
     });
     const current = Observer.make();
     const transactor = setup(Observer, current);
-    send(transactor, new Path([]), "observe");
+    send(transactor, DispatchPath.ofSteps([]), "observe");
     expect(transactor.state.val).toBe(current);
   });
 
@@ -68,7 +68,7 @@ describe("Immer component state", () => {
     const comps = new Components();
     new ComponentStack(comps).registerComponents([First, Other]);
     const transactor = new Transactor(comps, First.make());
-    send(transactor, new Path([]), "swap");
+    send(transactor, DispatchPath.ofSteps([]), "swap");
     expect(transactor.state.val).toBeInstanceOf(Other);
     expect(transactor.state.val.label).toBe("next");
   });
@@ -85,7 +85,7 @@ describe("Immer component state", () => {
       },
     });
     const transactor = setup(Broken);
-    transactor.pushSend(new Path([]), "broken");
+    transactor.pushSend(DispatchPath.ofSteps([]), "broken");
     expect(() => transactor.transactNext()).toThrow(/returned a new value.*modified its draft/i);
   });
 
@@ -105,7 +105,7 @@ describe("Immer component state", () => {
     const comps = new Components();
     new ComponentStack(comps).registerComponents([Root, Child]);
     const transactor = new Transactor(comps, root);
-    send(transactor, new Path([new FieldStep("child")]), "increment");
+    send(transactor, DispatchPath.ofSteps([new FieldStep("child")]), "increment");
     expect(transactor.state.val).not.toBe(root);
     expect(transactor.state.val.child.count).toBe(1);
     expect(transactor.state.val.sibling).toBe(sibling);
@@ -138,7 +138,7 @@ describe("Immer component state", () => {
     const comps = new Components();
     new ComponentStack(comps).registerComponents([Root, Child]);
     const transactor = new Transactor(comps, root);
-    send(transactor, new Path([new SeqStep("children", "a")]), "increment");
+    send(transactor, DispatchPath.ofSteps([new SeqStep("children", "a")]), "increment");
     expect(transactor.state.val.children.get("a").count).toBe(1);
     expect(root.children.get("a").count).toBe(0);
   });

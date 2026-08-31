@@ -6,9 +6,12 @@ import { Renderer } from "./src/renderer.js";
 export { ParseContext } from "./src/anode.js";
 export { injectCss } from "./src/app.js";
 export { COMPONENT } from "./src/components.js";
+export { SEQ_INFO } from "./src/iteration.js";
 export { dispatchPhase, phaseOps, resolveArgs } from "./src/on.js";
 export { component, FIELD_CLASS } from "./src/oo.js";
-export { SEQ_INFO } from "./src/iteration.js";
+// Writes an address down: `path().field("theme")`, the same builder `ctx.at` is.
+// A registered path (`registerComponents(comps, { paths })`) takes one.
+export { path } from "./src/path.js";
 export { PASS, rootDispatcher } from "./src/transactor.js";
 export const css = String.raw;
 export const html = String.raw;

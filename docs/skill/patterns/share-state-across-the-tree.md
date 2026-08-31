@@ -19,7 +19,7 @@ const Producer = component({
   provide: { entries: ".items" },
 });
 
-// consumer — forwards to the producer's binding by "Component.name"
+// consumer — names what it WANTS, never who provides it
 const Consumer = component({
   name: "Selector",
   lookup: [{ name: "entries", default: ".items" }],
@@ -32,7 +32,22 @@ const Consumer = component({
 ```
 
 `provide` publishes a field under a name; a descendant's `lookup` resolves
-`*name` to the nearest matching producer, falling back to `default` when none
-is in scope. `*name` works wherever a `.field` does for iteration/rendering.
+`*name` to the nearest matching producer in the live render ancestry, falling
+back to `default` when none is above it. Several components may publish one
+name — the nearest rendered one wins. `*name` works wherever a `.field` does
+for iteration/rendering.
+
+For a value nothing in the tree should have to publish — a session, a theme —
+register it on the scope instead, as an absolute path from the state root:
+
+```js
+import { path } from "tutuca";
+
+app.registerComponents(comps, { paths: { theme: path().field("theme") } });
+```
+
+Consumers still declare `lookup: ["theme"]` and read `*theme`; a rendered
+provider of the same name still wins over it.
+
 This is the **read** side; to edit the producer's value through the dynamic,
 see the edit-through-a-dynamic-target recipe.

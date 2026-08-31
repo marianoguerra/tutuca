@@ -38,8 +38,8 @@ const LintDemo = component({
   },
   provide: {
     // PROVIDE_NOT_ADDRESSABLE: a provide value must be a field (.f) or seq-access
-    // (.s[.k]) path — it doubles as a render-target / teleport path, so a method
-    // ($doClick) or constant, which has no path, is rejected.
+    // (.s[.k]) path — it doubles as the path `<x render="*name">` resumes at, so a
+    // method ($doClick) or constant, which has no path, is rejected and dropped.
     badProvide: "$doClick",
     // PROVIDE_TYPE_BAD_SHAPE: an uppercase provide publishes this component's own
     // type, so "self" is the only value it can take.
@@ -306,10 +306,10 @@ const CompFieldShapeDemo = component({
   view: html`<p>Component-field declaration shape errors — check the Lint tab</p>`,
 });
 
-// PROVIDE_NAME_COLLISION: both of these provide "rows". A lookup names a value
-// without naming its producer, and the render-target teleport recovers the producer
-// by searching the scope — which only has one answer while one name has one
-// producer. Two makes the resolution ambiguous, so it is an error, not last-wins.
+// Not an error: both of these provide "rows". A lookup names a value without naming
+// its producer, and a provider publishes the value together with the path it lives
+// at — so the nearest one in the live render ancestry answers, and a nested provider
+// shadows an outer one the way any scope does.
 const RowsProviderA = component({
   name: "RowsProviderA",
   fields: { rows: [] },

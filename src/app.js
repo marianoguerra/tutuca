@@ -1,5 +1,5 @@
 import { COMPONENT, ComponentStack } from "./components.js";
-import { Path } from "./path.js";
+import { DispatchPath } from "./path.js";
 import { Stack } from "./stack.js";
 import { Transactor } from "./transactor.js";
 import { render } from "./vdom.js";
@@ -43,7 +43,7 @@ export class App {
     const isDrag =
       type === "dragover" || type === "dragstart" || type === "dragend" || type === "drop";
     const { rootNode: root, maxEventNodeDepth: maxDepth, comps, transactor } = this;
-    const [path, handlers] = Path.fromNodeAndEventName(
+    const [path, handlers] = DispatchPath.fromNodeAndEventName(
       e.target,
       type,
       root,
@@ -108,15 +108,15 @@ export class App {
     } else if (type === "dragstart") {
       e.target.dataset.dragging = 1;
       const rootValue = this.state.val;
-      // Teleport dynamic-var renders so the dragged value resolves to its real
-      // location (and bubbling-frame-only steps are dropped).
+      // The active frame is where the dragged value really lives (and
+      // bubbling-frame-only steps are dropped).
       const txnPath = path.compact().toTransactionPath();
       const value = txnPath.lookup(rootValue);
       const dragType = e.target.dataset.dragtype ?? "?";
       // The drag stack keeps frame-only steps (e.g. `@each` binds) so handlers
       // can read the source render's binds via `dragInfo.lookupBind(...)`;
-      // `compact()` would strip them. DynSteps are still teleported.
-      const stack = path.toTransactionPath().buildStack(this.makeStack(rootValue));
+      // `compact()` would strip them. Resumed frames are replayed too.
+      const stack = path.buildStack(this.makeStack(rootValue));
       this.dragInfo = new DragInfo(stack, value, dragType, e.target);
     } else if (type === "drop") {
       e.preventDefault();
@@ -191,7 +191,7 @@ export class App {
       this.rootNode.removeEventListener(name, this, listenerOpts(name));
   }
   sendAtRoot(name, args) {
-    this.transactor.pushSend(new Path([]), name, args);
+    this.transactor.pushSend(new DispatchPath(), name, args);
   }
   registerComponents(comps, opts) {
     const scope = this.compStack.enter();

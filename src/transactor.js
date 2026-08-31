@@ -1,8 +1,8 @@
 import { COMPONENT } from "./components.js";
 import { produce } from "./immer.js";
 import { validateDraftFields } from "./oo.js";
-import { Path, PathBuilder } from "./path.js";
-import { DEFAULT_ROUTE, routeLookup, Stack } from "./stack.js";
+import { DispatchPath, PathBuilder } from "./path.js";
+import { DEFAULT_ROUTE, isTypeName, routeLookup, Stack } from "./stack.js";
 
 class State {
   constructor(val) {
@@ -144,9 +144,11 @@ export class Transactor {
   // intent's answerPath is: a reply must reach the sender that asked even if a key
   // moved while the message was in flight. Null when nobody is waiting — a host
   // sendAtRoot or a view's own `@on.*` — and ctx.sendReply refuses on that.
-  pushSend(path, name, args = [], parent = null, origin = null) {
+  pushSend(path, name, args = [], parent = null, origin = null, txnPath = null) {
     const t = new SendEvent(path, this, name, args, parent);
-    t.origin = origin === null ? null : origin.toTransactionPath().pinKeys(this.state.val);
+    t.txnPath = txnPath;
+    t.origin = origin;
+    t.originPinned = origin === null ? null : origin.toTransactionPath().pinKeys(this.state.val);
     this.pushTransaction(t);
     return this._link(t, parent);
   }
@@ -211,7 +213,12 @@ function nullHandler() {
 }
 class Transaction {
   constructor(path, transactor, parentTransaction = null) {
+    // `path` is a DispatchPath: a position in the RENDER tree, frames and all, so
+    // bubbling can walk it. `txnPath`, when set, overrides where the mutation
+    // lands — a pinned address captured when a sender asked, so a late answer
+    // still reaches the item that asked even if its key moved meanwhile.
     this.path = path;
+    this.txnPath = null;
     this.transactor = transactor;
     this.parentTransaction = parentTransaction;
     this._completion = null;
@@ -259,9 +266,11 @@ class Transaction {
   getHandlerAndArgs(_root, _instance, _comps) {
     return null;
   }
-  // The path used to apply the mutation. Teleports dynamic-var renders so it lands on
-  // the data's real location (the dispatch `this.path` keeps intermediates).
+  // The path used to apply the mutation: the ACTIVE frame of the dispatch path, so
+  // an event inside a `<x render="*name">` subtree updates the value where it
+  // really lives (the dispatch `this.path` keeps the visual callers, for bubbling).
   getTransactionPath() {
+    if (this.txnPath !== null) return this.txnPath;
     // Frame-only bind steps are needed to replay handler arguments, but they do not
     // address state. Compact them before lookup/grafting so a handler inside @each
     // still updates the component that owns the view.
@@ -285,15 +294,16 @@ class InputEvent extends Transaction {
   constructor(path, e, handler, transactor, dragInfo) {
     // Keep the raw reconstructed path: buildStack needs its frame steps intact.
     // `dispatchPath` (compacted) drives ctx dispatch + bubbling; `buildStack` /
-    // lookup / setValue teleport it via toTransactionPath().
+    // lookup / setValue read the active frame via toTransactionPath().
     super(path, transactor);
     this.e = e;
     this.handler = handler;
     this.dragInfo = dragInfo;
     this._dispatchPath = null;
   }
-  // Frame steps removed, DynStep + one step per crossed component kept: bubbling
-  // it visits every component (including intermediates of a dynamic-var render).
+  // Frame-only steps removed, one step per crossed component kept — inside every
+  // continuation frame independently, so bubbling it visits every component and
+  // then returns to the caller that wrote the `*name`.
   get dispatchPath() {
     this._dispatchPath ??= this.path.compact();
     return this._dispatchPath;
@@ -330,7 +340,7 @@ class InputEvent extends Transaction {
     this.transactor.pushIntent(this.dispatchPath, name, args, rest, this);
   }
   getHandlerAndArgs(root, _instance, comps) {
-    const stack = this.path.toTransactionPath().buildStack(Stack.root(comps, root, this));
+    const stack = this.path.buildStack(Stack.root(comps, root, this));
     const [handler, args] = this.handler.getHandlerAndArgs(stack, this);
     this._handlerArgs = [...args]; // without ctx, so `forward` can re-raise them
     const path = this.dispatchPath; // an intent walk visits intermediate components
@@ -479,6 +489,8 @@ class IntentWalk {
     this.answerPath = opts?.livePath
       ? null
       : path.toTransactionPath().pinKeys(transactor.state.val);
+    // The answer dispatches at the sender's render position; `answerPath` only
+    // overrides where its mutation lands.
     this.legIndex = 0;
     this.dynAt = path;
     this.hops = 0;
@@ -495,7 +507,7 @@ class IntentWalk {
         // The `dyn` leg starts at the sender's PARENT: an intent is never offered to the
         // component that raised it, because one that wanted to handle it itself would
         // have written the body inline.
-        if (this.dynAt.steps.length === 0) {
+        if (!this.dynAt.canPop()) {
           this.legIndex++;
           continue;
         }
@@ -605,11 +617,16 @@ class IntentWalk {
     if (this.ended) return;
     this.ended = true;
     if (name === null) return this.release?.();
-    const path = this.answerPath ?? this.origin;
     // An answer is dispatched as an ORDINARY message. A component cannot tell one from
     // a message its parent sent, and does not need to — that indistinguishability is
     // the design's claim, and the reason one bucket is enough.
-    const t = new SendEvent(path, this.transactor, name, args, this.parent);
+    //
+    // It dispatches at the sender's render POSITION (frames included, so it enters the
+    // same continuation the raiser was in) while `answerPath` — pinned when the intent
+    // went out — decides where its mutation lands. `livePath` leaves it null and the
+    // position is re-resolved on delivery.
+    const t = new SendEvent(this.origin, this.transactor, name, args, this.parent);
+    t.txnPath = this.answerPath;
     t._isAnswer = true;
     this.transactor.pushTransaction(t);
     if (this.release) t.completion.whenSubtreeSettled().then(this.release);
@@ -711,9 +728,9 @@ class Dispatcher {
   // replayed; provides are pushed on every component frame either way, so a provide
   // that reads a loop binding is the one case this cannot reproduce faithfully.
   _stack() {
-    this._stackMemo ??= this.path
-      .toTransactionPath()
-      .buildStack(Stack.root(this.transactor.comps, this.root, this.parent));
+    this._stackMemo ??= this.path.buildStack(
+      Stack.root(this.transactor.comps, this.root, this.parent),
+    );
     return this._stackMemo;
   }
   // Resolve a name the way the renderer would. `opts.route` takes the same legs in
@@ -727,14 +744,19 @@ class Dispatcher {
     );
   }
   // The `lex` leg without a Stack: the scope of the component whose handler is
-  // running, which is the leaf of this ctx's path.
+  // running, which is the leaf of this ctx's path. A type name resolves to the
+  // component registered under it; a value name to a path registered under it
+  // (see ComponentStack.registerPaths), read against the current root.
   _lookupLex(name) {
     let Comp = null;
     this.walkPath((c) => {
       Comp = c;
       return false;
     });
-    return Comp?.scope?.lookupComponent(name) ?? null;
+    const scope = Comp?.scope;
+    if (scope == null) return null;
+    if (isTypeName(name)) return scope.lookupComponent(name) ?? null;
+    return scope.lookupPath(name)?.lookup(this.root) ?? null;
   }
   // A component lookup is a value lookup constrained to a component. The `lex` leg
   // can only ever answer with one; the `dyn` leg reads a binding an ancestor
@@ -799,7 +821,16 @@ class EventContext extends Dispatcher {
       this.transactor.refuse("NO_SENDER", { name });
       return null;
     }
-    return this.sendAtPath(origin, name, args);
+    // The sender's position, with the address it had when it sent: a reply must
+    // reach the item that asked even if a key moved while it was being handled.
+    return this.transactor.pushSend(
+      origin,
+      name,
+      args,
+      this.parent,
+      this.path,
+      this.parent.originPinned,
+    );
   }
   // End the walk answering nothing — "served, and no answer".
   stop() {
@@ -833,5 +864,5 @@ class PathChanges extends PathBuilder {
 // A Dispatcher rooted at the empty path, so code outside a handler (e.g. a test
 // harness) can send/intent at an absolute path without a DOM event.
 export function rootDispatcher(transactor) {
-  return new Dispatcher(new Path([]), transactor, null);
+  return new Dispatcher(new DispatchPath(), transactor, null);
 }

@@ -1,9 +1,10 @@
 import { Attributes, parseIterationDirectives } from "./attribute.js";
 import { bindsForKey, filterAlwaysTrue, makeLoopCtx, nullLoopWith } from "./iteration.js";
-import { DynEachStep, DynStep, EachBindStep, EachRenderItStep, ScopeBindStep } from "./path.js";
+import { EachBindStep, EachRenderItStep, ScopeBindStep, SeqStep } from "./path.js";
 import {
   ConstVal,
   DynVal,
+  FieldVal,
   keyIs,
   macCtrl,
   parseBool,
@@ -13,24 +14,24 @@ import {
 } from "./value.js";
 import { HTML_NS } from "./vdom.js";
 
-// Resolve the producer of a dynamic variable `name` used by component `comp`: its
-// own `provide` when it has one, otherwise the component in its scope chain that
-// declares it. Returns the producer component id plus the steps (normally one
-// FieldStep) that locate the value in the producer, or null when it cannot be
-// resolved. Runs at dispatch (Path.fromNodeAndEventName), so every component has
-// compiled by now and the scope search sees populated `provide` maps.
-//
-// A published type resolves to null on purpose: a Class has no path, so it can never
-// be a render target and `<x render="*Board">` must stay unresolvable.
-function resolveDynProducer(comp, name) {
-  const own = comp?.provide?.[name];
-  const producerComp = own != null ? comp : (comp?.scope?.lookupProvider(name) ?? null);
-  const producerProvide = own ?? producerComp?.provide?.[name];
-  if (producerComp == null || producerProvide == null) return null;
-  const pi = producerProvide.val?.toPathItem?.() ?? null;
-  return { producerCompId: producerComp.id, producerSteps: pi ? [pi] : [] };
+// Resolve a render operand together with the dispatch continuation it enters.
+// A dynamic name carries the absolute path its value lives at, so rendering it
+// pushes a continuation frame based there; an ordinary field extends the frame
+// already in flight. The third element is the frame base to record in the DOM
+// when this site resumed — null when it did not.
+function renderTarget(val, stack) {
+  if (val instanceof DynVal) {
+    const loc = stack.lookupDynamicLocated(val.name);
+    // A `*name` that resolved to a pathless default (a constant) reads fine but
+    // has nowhere to resume, so it enters no frame.
+    if (loc?.path == null) return [loc?.value ?? null, stack.renderPath, null];
+    return [loc.value, stack.renderPath.pushFrame(loc.path), loc.path];
+  }
+  const step = val.toPathItem?.() ?? null;
+  if (step === null) return [val.eval(stack), stack.renderPath, null];
+  const path = stack.renderPath.pushItem(step);
+  return [val.eval(stack), path, stack.pendingFrame ? path.toTransactionPath() : null];
 }
-
 class BaseNode {
   render(_stack, _rx) {
     return null;
@@ -358,38 +359,34 @@ class RenderViewId extends ANode {
   // meta comment instead (see Renderer._rValComp), so this is a no-op.
   setDataAttr(_key, _val) {}
 }
-// Build the teleporting step for a dynamic render target `name` produced
-// relative to `comp`: a DynStep, or a keyed DynEachStep when `key` is given.
-// Returns null when the producer can't be resolved.
-function dynRenderStep(comp, name, key) {
-  const p = resolveDynProducer(comp, name);
-  if (!p) return null;
-  return key === undefined
-    ? new DynStep(p.producerCompId, p.producerSteps)
-    : new DynEachStep(p.producerCompId, p.producerSteps, key);
-}
 export class RenderNode extends RenderViewId {
   render(stack, rx) {
-    const newStack = stack.enter(this.val.eval(stack), {}, true);
-    return rx.renderIt(newStack, this, "", this.evalViewName(stack));
+    const [value, renderPath, base] = renderTarget(this.val, stack);
+    const newStack = stack.enter(value, {}, true, renderPath, false);
+    return rx.renderIt(newStack, this, "", this.evalViewName(stack), base);
   }
+  // A `*name` target contributes no step: the site recorded the absolute base it
+  // resumed at, and event reconstruction turns that into a continuation frame.
   toPathStep(ctx) {
-    if (this.val instanceof DynVal) return dynRenderStep(ctx.comp, this.val.name);
+    if (this.val instanceof DynVal) return null;
     return super.toPathStep(ctx);
   }
 }
 export class RenderItNode extends RenderViewId {
   render(stack, rx) {
-    const newStack = stack.enter(stack.it, {}, true);
-    return rx.renderIt(newStack, this, "", this.evalViewName(stack));
+    // The `@each` above already moved the render path onto this item and, when
+    // the sequence was a dynamic, pushed its frame; this boundary is where that
+    // base has to be recorded.
+    const base = stack.pendingFrame ? stack.renderPath.toTransactionPath() : null;
+    const newStack = stack.enter(stack.it, {}, true, stack.renderPath, false);
+    return rx.renderIt(newStack, this, "", this.evalViewName(stack), base);
   }
   toPathStep(ctx) {
     const next = ctx.next();
     if (next === null) return null;
     const nextNode = next.resolveNode();
     if (nextNode instanceof EachNode && next.hasKey) {
-      if (nextNode.val instanceof DynVal)
-        return dynRenderStep(ctx.comp, nextNode.val.name, next.key);
+      if (nextNode.val instanceof DynVal) return null; // resumed: the base carries it
       return new EachRenderItStep(nextNode.val.name, next.key);
     }
     return null;
@@ -500,10 +497,18 @@ export class EachNode extends WrapperNode {
     this.iterInfo = new IterInfo(val, null, null, null);
   }
   render(stack, rx) {
-    return rx.renderEachWhen(stack, this.iterInfo, this.node, this.nodeId);
+    return rx.renderEachWhen(stack, this);
   }
   toPathStep(ctx) {
     return ctx.hasKey ? new EachBindStep(this.iterInfo, ctx.key) : null;
+  }
+  // Where one item lives, for the render path. `@each` re-binds `it` to the item
+  // whether or not the body is a component, so the position moves either way and
+  // the step has to address it — `.rows` iterated at `key` IS `rows[key]`.
+  // Null for a dynamic sequence: `*rows` carries its own absolute path and enters
+  // a continuation frame instead (see Renderer.renderEachWhen).
+  itemStep(key) {
+    return this.val instanceof FieldVal ? new SeqStep(this.val.name, key) : null;
   }
   static register = true;
 }

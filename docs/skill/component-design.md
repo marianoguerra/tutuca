@@ -160,8 +160,8 @@ A compact worked version of the first three (`method`, `send`/`receive`, and
 - [messages-and-intents.md](./messages-and-intents.md) — the channels in depth
   (`send`/`receive`, `intent` and its routes, `sendAtRoot`) and integrating
   with the outside world.
-- [advanced.md](./advanced.md) — `provide` / `lookup` / `*name` and the
-  clean-namespace boundary.
+- [advanced.md](./advanced.md) — `provide` / `lookup` / `*name`, lexically
+  registered paths, and the clean-namespace boundary.
 - [patterns/coordinate-components.md](./patterns/coordinate-components.md),
   [patterns/share-state-across-the-tree.md](./patterns/share-state-across-the-tree.md),
   [patterns/render-a-child-component.md](./patterns/render-a-child-component.md) —

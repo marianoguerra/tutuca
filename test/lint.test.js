@@ -2372,6 +2372,43 @@ test("error when a lookup has no provider in scope, hint when it has a default",
   expect(bad.find((r) => r.info.name === "fallback").level).toBe("hint");
 });
 
+test("no LOOKUP_NO_PROVIDER when a path is registered under the name", async () => {
+  const { path } = await import("../index.js");
+  const Comp = component({
+    name: "Comp",
+    lookup: ["session"],
+    view: html`<p :title="*session">hi</p>`,
+  });
+  Comp.scope = new ComponentStack();
+  // Nothing PROVIDES `session`; the scope registers it as an absolute path, which
+  // is the other half of the `dyn lex` route and answers just as well.
+  Comp.scope.registerPaths({ session: path().field("session") });
+  Comp.compile(HeadlessLintParseContext);
+  const lx = checkComponent(Comp);
+  expect(lx.reports.filter((r) => r.id === LOOKUP_NO_PROVIDER)).toEqual([]);
+});
+
+test("two components providing one name is not an error: render ancestry shadows", () => {
+  const scope = new ComponentStack();
+  const mk = (name) => {
+    const C = component({
+      name,
+      fields: { rows: [] },
+      provide: { rows: ".rows" },
+      view: html`<p>hi</p>`,
+    });
+    C.scope = scope;
+    return C;
+  };
+  const A = mk("ProviderA");
+  const B = mk("ProviderB");
+  scope.registerComponents([A, B]);
+  for (const C of [A, B]) C.compile(HeadlessLintParseContext);
+  // A provider publishes the path its value lives at, so the NEAREST rendered one
+  // answers — nothing here has to be decided statically.
+  for (const C of [A, B]) expect(checkComponent(C).reports).toEqual([]);
+});
+
 test("LINT_RULES covers every component-linter code, and only those", async () => {
   const LINT_CHECK = await import("../tools/core/lint-check.js");
   const { LINT_RULES } = await import("../tools/core/lint-rules.js");

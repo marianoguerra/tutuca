@@ -8,11 +8,12 @@ import { produce } from "tutuca/immer";
 // *consumes* `active` and does `<x render="*active">` to render the Sheet.
 //
 // The rendered Sheet's data physically lives at `Workspace.sheet`, NOT under
-// `Toolbar`. When you edit the title inside the dynamically-rendered Sheet, the
-// event path is *expanded* during reconstruction (it walks Workspace -> Panel ->
-// Toolbar) but *teleported* for the transaction: the mutation skips the
-// intermediate components and lands on `Workspace.sheet`. The proof: the title
-// echoed at the Workspace level (top) updates in lock-step.
+// `Toolbar`. `Workspace` publishes both halves of `active`: the value AND the
+// absolute path it lives at, so the `<x render="*active">` site *resumes* there
+// — it pushes `.sheet` as the active position. Editing the title inside the
+// rendered Sheet therefore lands on `Workspace.sheet`, while bubbling still
+// returns through Toolbar -> Panel -> Workspace. The proof: the title echoed at
+// the Workspace level (top) updates in lock-step.
 
 const Sheet = component({
   receive: {

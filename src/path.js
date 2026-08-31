@@ -31,8 +31,11 @@ export class Step {
     return dval;
   }
   setDraftValue(_root, _v) {}
-  enterFrame(stack, next) {
-    return stack.enter(next, {}, true);
+  // Re-enter this step while rebuilding a stack. `renderPath` is the dispatch
+  // position AFTER this step: a rebuilt frame must carry the same render path
+  // the renderer had there, or the provides it publishes would be located wrong.
+  enterFrame(stack, next, renderPath) {
+    return stack.enter(next, {}, true, renderPath);
   }
   toAbstractPathStep() {
     return this;
@@ -57,8 +60,8 @@ export class BindStep extends Step {
   lookup(v, _dval) {
     return v;
   }
-  enterFrame(stack, next) {
-    return stack.enter(next, { ...this.binds }, false);
+  enterFrame(stack, next, renderPath) {
+    return stack.enter(next, { ...this.binds }, false, renderPath);
   }
   withIndex(i) {
     return new BindStep({ ...this.binds, key: i });
@@ -77,9 +80,9 @@ export class ScopeBindStep extends BindStep {
     super(binds);
     this.val = val;
   }
-  enterFrame(stack, next) {
+  enterFrame(stack, next, renderPath) {
     const dyn = this.val.evalAsHandler(stack)?.call(stack.it) ?? {};
-    return stack.enter(next, { ...this.binds, ...dyn }, false);
+    return stack.enter(next, { ...this.binds, ...dyn }, false, renderPath);
   }
   withIndex(i) {
     return new ScopeBindStep(this.val, { ...this.binds, key: i });
@@ -122,8 +125,8 @@ export class SeqStep extends Step {
     const seq = readKey(root, this.field, null);
     if (seq != null) writeSeqKey(seq, this.key, v);
   }
-  enterFrame(stack, next) {
-    return stack.enter(next, { key: this.key }, true);
+  enterFrame(stack, next, renderPath) {
+    return stack.enter(next, { key: this.key }, true, renderPath);
   }
   toKey() {
     return { field: this.field, key: this.key };
@@ -169,71 +172,62 @@ export class EachBindStep extends Step {
   }
   // Replay the renderer's per-item binds (key, value + any @enrich-with binds)
   // so a rebuilt stack matches the one @each rendered with.
-  enterFrame(stack, next) {
-    return stack.enter(next, this.iterInfo.enrichBinds(stack, this.key), false);
+  enterFrame(stack, next, renderPath) {
+    return stack.enter(next, this.iterInfo.enrichBinds(stack, this.key), false, renderPath);
   }
   toAbstractPathStep() {
     return null;
   }
 }
 export class EachRenderItStep extends SeqStep {
-  enterFrame(stack, next) {
-    return stack.enter(next, { key: this.key, value: next }, false).enter(next, {}, true);
+  enterFrame(stack, next, renderPath) {
+    return stack
+      .enter(next, { key: this.key, value: next }, false, renderPath)
+      .enter(next, {}, true, renderPath);
   }
   toAbstractPathStep() {
     return new SeqStep(this.field, this.key);
   }
 }
-function warnRawDynStep(op, step) {
-  console.warn(`Path.${op} reached a DynStep: call toTransactionPath() first`, step);
+// ---- resume bases on the wire -----------------------------------------
+// A `provide` doubles as the path a `<x render="*name">` resumes at, so that
+// path has to reach event reconstruction — it travels in the `§Comp§` meta
+// comment and on `data-rp`. Only addressing steps have a wire form, which is
+// all a base can be made of: the grammar restricts a provide to a field or a
+// seq access. A step with no encoding drops the whole path — half a path
+// addresses the wrong value, and no path at all is the safe answer.
+function stepToJson(step) {
+  if (step instanceof SeqStep) return { f: step.field, k: step.key };
+  if (step instanceof FieldStep) return { f: step.field };
+  if (step instanceof SeqAccessStep) return { f: step.seqField, a: step.keyField };
+  return null;
 }
-// A dynamic variable (`*dyn`) used as a render target. The rendered component's
-// data lives at the *producer* component (where the dynamic was defined), not at
-// the consumer that wrote `<x render="*dyn">`. A DynStep is a marker: it survives
-// `compact()` so the dispatch path still walks every intermediate component for
-// bubbling, while `Path.toTransactionPath()` teleports it — dropping every step
-// interior to the producer..consumer span and splicing in the producer's path.
-export class DynStep extends Step {
-  constructor(producerCompId, producerSteps) {
-    super();
-    this.producerCompId = producerCompId;
-    this.producerSteps = producerSteps;
-    this.interiorCids = new Set(); // component ids crossed from producer..consumer
-  }
-  // Steps spliced into the transaction path in place of this marker.
-  teleportSteps() {
-    return this.producerSteps;
-  }
-  lookup(_v, dval = null) {
-    warnRawDynStep("lookup", this);
-    return dval;
-  }
-  enterFrame(stack, _next) {
-    warnRawDynStep("enterFrame", this);
-    return stack;
-  }
+function stepFromJson(j) {
+  if (j == null || typeof j.f !== "string") return null;
+  if (j.k !== undefined) return new SeqStep(j.f, j.k);
+  if (j.a !== undefined) return new SeqAccessStep(j.f, j.a);
+  return new FieldStep(j.f);
 }
-// A dynamic variable used as an *iterated* render target (`@each="*dyn"` with
-// `<x render-it>`, or `<x render-each="*dyn">`): the item lives at the producer's
-// sequence field, keyed by `key`.
-export class DynEachStep extends DynStep {
-  constructor(producerCompId, producerSteps, key) {
-    super(producerCompId, producerSteps);
-    this.key = key;
+export function pathToJson(path) {
+  const out = [];
+  for (const step of path.steps) {
+    const j = stepToJson(step);
+    // Null, not `[]`: an empty path addresses the ROOT, so encoding a path we
+    // could not write down as one would silently resume the whole app there.
+    if (j === null) return null;
+    out.push(j);
   }
-  teleportSteps() {
-    const { producerSteps, key } = this;
-    if (producerSteps.length === 0) return producerSteps;
-    const last = producerSteps[producerSteps.length - 1];
-    if (!(last instanceof FieldStep)) {
-      // A seq-access dynamic (`.a[.b]`) under `@each`/`render-each` would need a
-      // key-only step to address the item; not supported — fail loud, don't
-      // silently build a broken `SeqStep(undefined, key)`.
-      console.warn("DynEachStep: seq-access dynamic cannot be iterated", this);
-      return producerSteps;
-    }
-    return producerSteps.slice(0, -1).concat(new SeqStep(last.field, key));
+  return out;
+}
+function pathFromJson(j) {
+  if (!Array.isArray(j)) return null;
+  const steps = [];
+  for (const item of j) {
+    const step = stepFromJson(item);
+    if (step === null) return null;
+    steps.push(step);
   }
+  return new Path(steps);
 }
 export class Path {
   constructor(steps = []) {
@@ -245,40 +239,13 @@ export class Path {
   popStep() {
     return new Path(this.steps.slice(0, -1));
   }
-  // The dispatch path: frame-only steps removed, one step per crossed component
-  // (DynStep included). `popStep` over it bubbles through every component.
+  // Frame-only steps removed, one step per crossed component: `popStep` over the
+  // result bubbles through every component.
   compact() {
     const out = [];
     for (const step of this.steps) {
       const s = step.toAbstractPathStep();
-      if (s !== null) {
-        if (s !== step) s._originCid = step._originCid; // keep provenance for teleport
-        out.push(s);
-      }
-    }
-    return new Path(out);
-  }
-  // The abstract path used to apply a transaction: every DynStep is teleported —
-  // the steps interior to its producer..consumer span are dropped and the
-  // producer's own path spliced in — so a mutation lands on the data's real
-  // location. A path with no DynStep is returned unchanged.
-  toTransactionPath() {
-    let hasDyn = false;
-    for (const step of this.steps)
-      if (step instanceof DynStep) {
-        hasDyn = true;
-        break;
-      }
-    if (!hasDyn) return this;
-    const out = [];
-    for (const step of this.steps) {
-      if (step instanceof DynStep) {
-        while (out.length > 0 && step.interiorCids.has(out[out.length - 1]._originCid)) out.pop();
-        for (const ts of step.teleportSteps()) {
-          ts._originCid = step.producerCompId;
-          out.push(ts);
-        }
-      } else out.push(step);
+      if (s !== null) out.push(s);
     }
     return new Path(out);
   }
@@ -286,7 +253,6 @@ export class Path {
   // key as it is *now* so a later lookup/setValue lands on the same item even if the
   // keyField changed meanwhile (e.g. the selected tab moved while an intent was in
   // flight). Returns a new Path with those steps replaced; `this` if nothing pinned.
-  // Must be called on a transaction path (no DynSteps — call toTransactionPath first).
   pinKeys(root) {
     let curVal = root;
     let out = null;
@@ -310,8 +276,8 @@ export class Path {
   }
   // The values entered along the path, root→leaf (root included): index 0 is `root`,
   // the last entry is the leaf this path resolves to. Stops early at the first
-  // unresolvable step. Call on a transaction path (no DynSteps). Used to walk the
-  // component instances on a dispatch path (filter via Components.getCompFor).
+  // unresolvable step. Used to walk the component instances on a dispatch path
+  // (filter via Components.getCompFor).
   resolveChain(root) {
     const out = [root];
     let curVal = root;
@@ -325,7 +291,7 @@ export class Path {
   // A flat `[{ field, key? }]` list of the addressing steps, skipping frame-only
   // steps (binds). Generic path introspection so tooling (e.g. the storybook
   // activity log) can identify which subtree a transaction touched without
-  // depending on Step internals. Call on a transaction path (no DynSteps).
+  // depending on Step internals.
   toKeys() {
     const out = [];
     for (const step of this.steps) {
@@ -348,65 +314,164 @@ export class Path {
     });
   }
   buildStack(stack) {
-    let prev = stack.it;
-    for (const step of this.steps) {
-      const next = step.lookup(prev, NONE);
-      if (next === NONE) {
-        console.warn("bad PathItem", { root: stack.it, step, path: this });
-        return null;
+    return walkItems(stack, this.steps, stack.renderPath ?? new DispatchPath(), this)?.[0] ?? null;
+  }
+}
+// Walk `items` from `stack`, entering each step's frame and extending
+// `renderPath` as it goes. Returns `[stack, renderPath]`, or null on a step
+// that does not resolve.
+function walkItems(stack, items, renderPath, path) {
+  let prev = stack.it;
+  for (const step of items) {
+    const next = step.lookup(prev, NONE);
+    if (next === NONE) {
+      console.warn("bad PathItem", { root: stack.it, step, path });
+      return null;
+    }
+    renderPath = renderPath.pushItem(step);
+    stack = step.enterFrame(stack, next, renderPath);
+    prev = next;
+  }
+  return [stack, renderPath];
+}
+const EMPTY_PATH = new Path([]);
+// A render path as a stack of continuations. Ordinary rendering extends the top
+// frame; rendering a located binding (`<x render="*name">`) pushes a new frame
+// based at the value's own absolute path, because that is where the value lives
+// and where an edit inside it has to land.
+//
+// `toTransactionPath` therefore reads the TOP frame alone — the saved frames
+// below it are the visual callers, and they matter only to bubbling: `popStep`
+// drains the top frame and then pops it, returning to the caller that wrote the
+// `*name`. Nested providers shadow by live render ancestry, so nothing here has
+// to know who produced a name.
+export class DispatchPath {
+  constructor(frames = [{ base: EMPTY_PATH, items: [] }]) {
+    this.frames = frames;
+  }
+  // Plain addressing steps in one frame based at the root: what a caller means
+  // by "this position" when it has no continuation of its own.
+  static ofSteps(steps) {
+    return new DispatchPath([{ base: EMPTY_PATH, items: steps.slice() }]);
+  }
+  get top() {
+    return this.frames[this.frames.length - 1];
+  }
+  _withTopItems(items) {
+    const frames = this.frames.slice();
+    frames[frames.length - 1] = { base: this.top.base, items };
+    return new DispatchPath(frames);
+  }
+  concat(steps) {
+    if (this.frames.length === 0) return DispatchPath.ofSteps(steps);
+    return this._withTopItems(this.top.items.concat(steps));
+  }
+  pushItem(step) {
+    return this.concat([step]);
+  }
+  pushFrame(base) {
+    return new DispatchPath(this.frames.concat({ base, items: [] }));
+  }
+  // Whether bubbling has anywhere left to go: another step in this frame, or a
+  // visual caller underneath it.
+  canPop() {
+    const n = this.frames.length;
+    return n > 1 || (n === 1 && this.frames[0].items.length > 0);
+  }
+  isRoot() {
+    return this.toTransactionPath().steps.length === 0;
+  }
+  // One component closer to the root. At the top of a frame that is popping back
+  // to the visual caller, not to the producer's own parent — the caller is where
+  // the `*name` was written, and where an unhandled message should keep going.
+  popStep() {
+    const n = this.frames.length;
+    if (n === 0) return this;
+    const top = this.frames[n - 1];
+    if (top.items.length > 0) return this._withTopItems(top.items.slice(0, -1));
+    if (n > 1) return new DispatchPath(this.frames.slice(0, -1));
+    return this;
+  }
+  // Drop frame-only steps inside every frame independently; a frame's base is
+  // already addressing-only.
+  compact() {
+    return new DispatchPath(
+      this.frames.map(({ base, items }) => ({ base, items: new Path(items).compact().steps })),
+    );
+  }
+  // A stable string for the ADDRESS this path denotes, for the render cache. The
+  // same immutable value can sit at two places in the tree, and a subtree rendered
+  // at one of them bakes that address in — the provides it publishes are located
+  // there. Frame-only steps address nothing, so they are compacted out: two sites
+  // that differ only in binds do render the same subtree.
+  get addressKey() {
+    this._addressKey ??= renderPathText(this.toTransactionPath().compact());
+    return this._addressKey;
+  }
+  // The active transaction address: the top frame's absolute base followed by
+  // its ordinary descendant steps. This is where a mutation lands.
+  toTransactionPath() {
+    const top = this.top;
+    return top === undefined ? EMPTY_PATH : top.base.concat(top.items);
+  }
+  // Rebuild the render stack this path was dispatched from. A frame with a base
+  // re-enters at that absolute value first — replaying the resume a `*name`
+  // render performed — and then walks its ordinary items.
+  buildStack(stack) {
+    let renderPath = new DispatchPath();
+    for (let i = 0; i < this.frames.length; i++) {
+      const { base, items } = this.frames[i];
+      if (i > 0 || base.steps.length > 0) {
+        const baseValue = base.lookup(stack.root, NONE);
+        if (baseValue === NONE) {
+          console.warn("bad frame base", { base, path: this });
+          return null;
+        }
+        renderPath = renderPath.pushFrame(base);
+        stack = stack.enter(baseValue, {}, true, renderPath);
       }
-      stack = step.enterFrame(stack, next);
-      prev = next;
+      const walked = walkItems(stack, items, renderPath, this);
+      if (walked === null) return null;
+      [stack, renderPath] = walked;
     }
     return stack;
   }
   static fromNodeAndEventName(node, eventName, rootNode, maxDepth, comps, stopOnNoEvent = true) {
-    const pathSteps = [];
-    const pendingDyns = []; // DynSteps still walking up toward their producer
+    const parts = [];
     const bubbles = BUBBLING_EVENTS.has(eventName);
     let depth = 0;
     let eventIds = [];
     let handlers = null;
-    let nodeIds = [];
+    let nodeRefs = [];
     let isLeafComponent = true;
     // Cross one component boundary `cidNum`: resolve the event handlers (once)
-    // and the path step that leaves this component. Returns false to signal
-    // "no handler on the leaf component" — caller aborts with NO_EVENT_INFO.
+    // and the path part that leaves this component — a step, or a frame when the
+    // site resumed at an absolute base. Returns false to signal "no handler on
+    // the leaf component" — caller aborts with NO_EVENT_INFO.
     const crossComponent = (cidNum, vid) => {
       const comp = comps.getComponentForId(cidNum);
-      let pushStep = true;
+      let pushPart = true;
       if (handlers === null && (isLeafComponent || bubbles)) {
         handlers = findHandlers(comp, eventIds, vid, eventName);
         if (handlers === null) {
           if (isLeafComponent && stopOnNoEvent && !bubbles) return false;
         } else if (!isLeafComponent) {
-          pathSteps.length = 0; // handler bubbled up to an ancestor component: the returned path must
-          pendingDyns.length = 0; // resolve to that component's value, so drop the steps that descend below it
-          pushStep = false;
+          parts.length = 0; // handler bubbled up to an ancestor component: the returned path
+          pushPart = false; // must resolve to that component's value, so drop what descends below it
         }
       }
       isLeafComponent = false;
-      for (const dyn of pendingDyns) dyn.interiorCids.add(cidNum); // crossed below a teleport's producer
-      if (pushStep) {
-        const step = resolvePathStep(comp, nodeIds, vid);
-        if (step) {
-          step._originCid = cidNum;
-          pathSteps.push(step);
-          if (step instanceof DynStep) {
-            step.interiorCids.add(cidNum);
-            pendingDyns.push(step);
-          }
-        }
+      if (pushPart) {
+        const part = resolvePathPart(comp, nodeRefs, vid);
+        if (part) parts.push(part);
       }
-      for (let i = pendingDyns.length - 1; i >= 0; i--)
-        if (pendingDyns[i].producerCompId === cidNum) pendingDyns.splice(i, 1); // reached the producer
       eventIds = [];
-      nodeIds = [];
+      nodeRefs = [];
       return true;
     };
     while (node && node !== rootNode && depth < maxDepth) {
       if (node?.dataset) {
-        const { eid, cid, vid } = node.dataset;
+        const { eid, cid, vid, rp } = node.dataset;
         if (eid !== undefined) eventIds.push(eid);
         // Meta comments before the element, innermost-first. A `Comp` meta is
         // a component boundary — there is one per rendered component even when
@@ -421,22 +486,52 @@ export class Path {
           if (m.$ === "Comp") {
             sawComp = true;
             if (!crossComponent(m.cid, m.vid)) return NO_EVENT_INFO;
-            nodeIds.push({ nid: m.nid });
+            nodeRefs.push({ nid: m.nid, base: pathFromJson(m.base) });
           } else {
-            nodeIds.push({ nid: m.nid, si: m.si, sk: m.sk });
+            nodeRefs.push({ nid: m.nid, si: m.si, sk: m.sk });
           }
         }
         // A fragment-rooted component stamps `data-cid` on every child but
         // emits a single `Comp` meta (before the first child); later children
-        // carry the boundary only on the element itself.
-        if (!sawComp && cid !== undefined && !crossComponent(+cid, vid)) return NO_EVENT_INFO;
+        // carry the boundary only on the element itself — and, when the site
+        // resumed, its base on `data-rp`.
+        if (!sawComp && cid !== undefined) {
+          if (!crossComponent(+cid, vid)) return NO_EVENT_INFO;
+          if (rp !== undefined) {
+            const base = parseRenderPath(rp);
+            if (base !== null) nodeRefs.push({ base });
+          }
+        }
       }
       depth += 1;
       node = node.parentNode;
     }
-    if (pendingDyns.length > 0)
-      console.warn("event reconstruction: dynamic-var producer not found", pendingDyns);
-    return [new Path(pathSteps.reverse()), handlers];
+    parts.reverse();
+    let path = new DispatchPath();
+    for (const part of parts)
+      path = part.base !== undefined ? path.pushFrame(part.base) : path.pushItem(part.step);
+    return [path, handlers];
+  }
+}
+// Key one item of a located sequence: the base addresses the sequence, so the
+// item is that same field at `key`. A base whose last step resolves its key live
+// (`.a[.b]`) addresses one item rather than a sequence and cannot be keyed.
+export function keyedPath(path, key) {
+  const steps = path.steps;
+  const last = steps[steps.length - 1];
+  if (last instanceof SeqStep || last instanceof FieldStep)
+    return new Path(steps.slice(0, -1).concat(new SeqStep(last.field, key)));
+  return null;
+}
+function renderPathText(path) {
+  return JSON.stringify(pathToJson(path));
+}
+function parseRenderPath(text) {
+  try {
+    return pathFromJson(JSON.parse(text));
+  } catch (err) {
+    console.warn("bad render path", err, text);
+    return null;
   }
 }
 // Collect the run of `§…§` meta comments immediately preceding an element,
@@ -494,19 +589,31 @@ class StepCtx {
     return pi;
   }
 }
-function resolvePathStep(comp, nodeIds, vid) {
-  for (let i = 0; i < nodeIds.length; i++) {
-    const ctx = new StepCtx(comp, nodeIds, i, vid);
-    const step = ctx.resolveNode().toPathStep(ctx);
-    if (step !== null) return step;
+// The path part that leaves one component: `{ base }` when the render site
+// resumed at an absolute path (a `*name` target — which contributes no step of
+// its own, see RenderNode.toPathStep), otherwise `{ step }`.
+function resolvePathPart(comp, nodeRefs, vid) {
+  for (let i = 0; i < nodeRefs.length; i++) {
+    const ref = nodeRefs[i];
+    if (ref.base != null) return { base: ref.base };
+    if (ref.nid === undefined || ref.nid === null) continue;
+    const ctx = new StepCtx(comp, nodeRefs, i, vid);
+    const step = ctx.resolveNode()?.toPathStep(ctx) ?? null;
+    if (step !== null) return { step };
   }
   return null;
 }
 const NO_EVENT_INFO = [null, null];
 const BUBBLING_EVENTS = new Set(["drop"]); // Events whose handlers bubble across component boundaries to ancestor components
+// A fresh address builder. `ctx.at` is one bound to a dispatcher; this is the
+// standalone form, for naming a position outside a handler.
+export const path = () => new PathBuilder();
 export class PathBuilder {
   constructor() {
     this.pathChanges = [];
+  }
+  toPath() {
+    return new Path(this.pathChanges);
   }
   add(pathChange) {
     this.pathChanges.push(pathChange);

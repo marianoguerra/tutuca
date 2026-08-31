@@ -1,4 +1,5 @@
 import { View } from "./anode.js";
+import { isTypeName } from "./stack.js";
 import { parseField, parseProvide } from "./value.js";
 
 // Well-known link between a generated component Class and its metadata record
@@ -45,12 +46,14 @@ export class ComponentStack {
     this.byName = {};
     this.intentsByName = {};
     this.macros = {};
+    this.paths = {};
   }
   enter() {
     return new ComponentStack(this.comps, this);
   }
   registerComponents(comps, opts) {
-    const { aliases = {} } = opts ?? {};
+    const { aliases = {}, paths } = opts ?? {};
+    if (paths) this.registerPaths(paths);
     for (let i = 0; i < comps.length; i++) {
       const Comp = comps[i];
       // each scope owns its Class. Re-registering the same Component rebinds it to this
@@ -66,6 +69,29 @@ export class ComponentStack {
       if (comp !== undefined) this.byName[alias] = comp;
       else console.warn("alias", alias, "to inexistent component", aliases[alias]);
     }
+  }
+  // Register lowercase names as absolute paths from the app state root. A
+  // descendant that declares one in its `lookup` reads and renders `*name` without
+  // anything above it publishing one — which is what makes a session, a theme or a
+  // host-owned value available in its natural registration scope, instead of forcing
+  // an application root whose only job is to `provide` it. Register on a nested
+  // scope to narrow a name; nearest registration wins.
+  //
+  // Uppercase names are ignored: a component TYPE is what `lookupComponent` already
+  // answers, and a type has no path.
+  registerPaths(paths) {
+    for (const name in paths) {
+      if (isTypeName(name)) {
+        console.warn("registerPaths: a type name has no path", name);
+        continue;
+      }
+      // `path().field("theme")` — the same builder `ctx.at` hands a handler, so
+      // there is one way to write an address down. A finished `Path` is taken as is.
+      this.paths[name] = paths[name].toPath?.() ?? paths[name];
+    }
+  }
+  lookupPath(name) {
+    return this.paths[name] ?? this.parent?.lookupPath(name) ?? null;
   }
   registerMacros(macros) {
     for (const key in macros) {
@@ -98,28 +124,27 @@ export class ComponentStack {
   lookupComponent(name) {
     return this.byName[name] ?? this.parent?.lookupComponent(name) ?? null;
   }
-  // The component in this scope chain that provides `name`, innermost first. A lookup
-  // names a value without naming its producer, so the render-target teleport
-  // (resolveDynProducer) recovers the producer here instead. Sound because
-  // PROVIDE_NAME_COLLISION keeps a provide name to one producer per chain; with two,
-  // this returns the innermost and the linter has already reported the ambiguity.
-  lookupProvider(name) {
+  // Whether anything in this scope chain provides `name`. Existence only: a lookup
+  // names what it WANTS and takes whoever is nearest above it at render time, so
+  // there is no producer to identify — several components may publish one name and
+  // the live render ancestry decides. Used by the linter to tell a lookup that can
+  // be satisfied from one that never will be.
+  hasProvider(name) {
     for (const compName in this.byName) {
-      const Comp = this.byName[compName];
-      if (Comp.provide?.[name] !== undefined) return Comp;
+      if (this.byName[compName].provide?.[name] !== undefined) return true;
     }
-    return this.parent?.lookupProvider(name) ?? null;
+    return this.parent?.hasProvider(name) ?? false;
   }
   lookupMacro(name) {
     return this.macros[name] ?? this.parent?.lookupMacro(name) ?? null;
   }
 }
-// What a component publishes: an expression evaluated and pushed onto the dynBinds
-// stack (keyed by its NAME) when the component is entered. Names, not symbols: a
-// lookup names what it wants and takes whoever provides it, nearest first, so there
-// is no producer to qualify. One producer per scope chain is a lint rule
-// (PROVIDE_NAME_COLLISION), which is what keeps the render-target teleport in
-// resolveDynProducer resolvable without the qualification.
+// What a component publishes: an expression evaluated when the component is entered
+// and pushed onto the dynBinds stack under its NAME, together with the absolute path
+// its value lives at. Names, not symbols: a lookup names what it wants and takes
+// whoever provides it, nearest first, so there is no producer to qualify — and
+// because the pair is resolved by live render ancestry, several components may
+// publish one name and the nearest rendered one wins.
 export class ProvideInfo {
   constructor(val) {
     this.val = val;
@@ -133,13 +158,6 @@ export class LookupInfo {
   }
 }
 const isString = (v) => typeof v === "string";
-// A name starting A-Z reads as a component type; anything else is a value. The same
-// rule the value parser uses to tell a type token from a name, lifted to spec keys so
-// one convention covers both places a name is written.
-export const isTypeName = (s) => {
-  const c = s.charCodeAt(0);
-  return c >= 65 && c <= 90;
-};
 // The two dispatch buckets, plus `alter` (render-time, never dispatched).
 const _rawSpecKeys =
   "name view style commonStyle globalStyle receive intent alter views provide lookup fields methods statics";

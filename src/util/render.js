@@ -1,7 +1,7 @@
 import { App } from "../app.js";
 import { COMPONENT, Components } from "../components.js";
 import { dispatchPhase } from "../on.js";
-import { Path } from "../path.js";
+import { DispatchPath } from "../path.js";
 import { Renderer } from "../renderer.js";
 import { rootDispatcher } from "../transactor.js";
 
@@ -25,8 +25,9 @@ function serializeContainer(container) {
 
 // Mount `rootState` into a fresh container and return the live app. `opts` also
 // takes `intentHandlers` (registered on the scope, so intent dispatches resolve
-// instead of hitting the 404 handler) and `view` (which of the root component's
-// views to mount; defaults to `main`).
+// instead of hitting the 404 handler), `paths` (names registered as absolute app
+// paths, so a lookup resolves on the `lex` leg with no component publishing it) and
+// `view` (which of the root component's views to mount; defaults to `main`).
 export function renderToHTMLNode(
   document,
   components,
@@ -43,7 +44,7 @@ export function renderToHTMLNode(
   const comps = new Components();
   const renderer = new Renderer(comps);
   const app = new App(container, comps, renderer, ParseContext);
-  const scope = app.registerComponents(components);
+  const scope = app.registerComponents(components, { paths: opts.paths });
   if (macros) scope.registerMacros(macros);
   if (opts.intentHandlers) scope.registerIntentHandlers(opts.intentHandlers);
   app.rootViewName = opts.view ?? null;
@@ -102,7 +103,7 @@ export async function renderToHTMLDriven(
       // An `intent` raised here has no ancestor to walk to: the example's value IS the
       // render root. It needs no warning any more — the walk runs out and the sender
       // hears `<name>Unhandled`, which says so at the place that asked.
-      dispatchPhase(rootDispatcher(app.transactor), new Path([]), phase, app.state.val);
+      dispatchPhase(rootDispatcher(app.transactor), new DispatchPath(), phase, app.state.val);
       await app.transactor.settle();
     }
     return serializeContainer(container);

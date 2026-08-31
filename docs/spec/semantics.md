@@ -171,8 +171,8 @@ masks). The consequential ones:
 - **Render targets** (`<x render>`, `@each`): only *path-bearing* kinds —
   fields, sequence access, dynamics. `$method` is deliberately excluded: a
   method result has no address, so events inside it could not be dispatched.
-- **`provide` values**: fields and sequence access only — provided values must
-  be addressable so mutations can teleport to them (section 7).
+- **`provide` values**: fields and sequence access only — a provide doubles as
+  the path `<x render="*name">` resumes at, so it must have one (section 7).
 
 ### Predicates
 
@@ -278,18 +278,22 @@ Scoped styles reject top-level at-rules and `html`/`body`/`:root` selectors
 (`src/app.js`); the VDOM diff is a keyed, preact-style reconciliation.
 
 Because state is immutable and views are pure, rendering caches per
-`(node, value, dynamic-binding values, view-selection key)`: an unchanged
-subtree keeps `===` identity, hits the cache, and is skipped entirely
-(`src/renderer.js` `_rValComp`, `src/cache.js`). Two consumers rendering the
+`(node, value, dynamic-binding values, view-selection key, render address)`: an
+unchanged subtree keeps `===` identity, hits the cache, and is skipped entirely
+(`src/renderer.js` `_rValComp`, `src/cache.js`). The render address is part of
+the key because a subtree bakes it in — the provides it publishes are located
+there, and a resumed site records the base it resumed at — so the same immutable
+value rendered at two places cannot share an entry. Two consumers rendering the
 same provided sequence do not alias each other's cache entries
-(`test/cache-view-context.test.js`). Constant subtrees are additionally
+(`test/cache-view-context.test.js`, `test/path.test.js`). Constant subtrees are additionally
 memoized at compile time (`RenderOnceNode`).
 
 ### The render stack: frames vs scopes
 
 Rendering walks the ANode tree with a `Stack` carrying `it` (the current
-instance), a chain of binding frames, dynamic bindings, and the view stack
-(`src/stack.js`). The chain has two frame kinds, and this single distinction
+instance), a chain of binding frames, dynamic bindings, the view stack, and the
+`DispatchPath` of where it currently is — which is what lets a provide publish
+the absolute path of the value it publishes (`src/stack.js`). The chain has two frame kinds, and this single distinction
 answers most name-visibility questions:
 
 - A **frame** is a lookup *barrier*: `@name` resolution stops there. Entering
@@ -335,7 +339,10 @@ The DOM is the only artifact that survives from render to the next user event,
 so the renderer stamps addressing data into it: `data-cid` (component/view),
 `data-nid` (template node id), `data-eid` (event id) attributes, plus `§…§`
 JSON comment markers at component, iteration, and scope boundaries
-(`src/renderer.js`, `_renderMetadata`). Section 5's path reconstruction reads
+(`src/renderer.js`, `_renderMetadata`). A component boundary that RESUMED at an
+absolute path also carries that path — as `base` in its `§Comp§` marker, and on
+`data-rp` for every element root of a fragment-rooted body, since only the first
+of those siblings follows the marker. Section 5's path reconstruction reads
 these back.
 
 ---
@@ -360,24 +367,25 @@ swaps and are re-resolved against whatever root is current when they are used.
 | `SeqStep` | a sequence entry by literal key or index |
 | `SeqAccessStep` | a sequence entry whose key is read live from another field (`.sheets[.selId]`) |
 | `EachRenderItStep` | the current `render-each` item (a keyed `SeqStep` subclass) |
-| `DynStep` / `DynEachStep` | a dynamic-binding render target — a teleport marker (section 7) |
 | `BindStep` / `ScopeBindStep` / `EachBindStep` | nothing — frame-only steps that carry scope bindings for stack reconstruction |
 
 Each step knows how to `lookup` a value, `setValue` (rebuilding the spine with
 structural sharing), and `enterFrame` (rebuilding the render stack).
 
-### Two derived paths
+### Dispatch paths and the two projections
 
-From one recorded path, two projections serve two purposes:
+A recorded position is a **`DispatchPath`**: a stack of continuation frames,
+each `{base, items}`. Ordinary rendering extends the top frame; rendering a
+located binding pushes a new frame based at the value's own absolute path
+(section 7). From it, two projections serve two purposes:
 
-- **`compact()` — the dispatch path.** Drops frame-only steps, keeping exactly
-  one step per crossed component. Popping one step at a time walks an intent's
-  `dyn` leg
-  upward through every component between origin and root.
-- **`toTransactionPath()` — the transaction path.** Additionally *teleports*
-  every `DynStep`: steps interior to the producer→consumer span are dropped and
-  the producer's own steps are spliced in, so the mutation lands where the data
-  physically lives.
+- **`compact()` — the dispatch path.** Drops frame-only steps inside every
+  frame independently, keeping exactly one step per crossed component. Popping
+  one step at a time (`popStep`) walks an intent's `dyn` leg upward through
+  every component, and at the top of a frame returns to the visual caller.
+- **`toTransactionPath()` — the transaction path.** The ACTIVE frame alone: its
+  absolute base followed by its ordinary steps. The mutation lands where the
+  data physically lives; the saved caller frames affect bubbling only.
 
 ### Key pinning and async races
 
@@ -391,11 +399,16 @@ List *indices* are never pinned — async work should anchor on map keys.
 
 ### Reconstruction from the DOM
 
-On a DOM event, `Path.fromEvent` walks from the event target up to the root,
-reading the breadcrumbs of section 4, and rebuilds the full path plus the
-handler to run — including through `@show`-hidden iteration items, passthrough
-components whose whole view is a bare `<x render>`, and bubbling DOM events
-handled on an ancestor element (`src/path.js`, `test/path.test.js`).
+On a DOM event, `DispatchPath.fromNodeAndEventName` walks from the event target
+up to the root, reading the breadcrumbs of section 4, and rebuilds the full path
+plus the handler to run — including through `@show`-hidden iteration items,
+passthrough components whose whole view is a bare `<x render>`, and bubbling DOM
+events handled on an ancestor element (`src/path.js`, `test/path.test.js`).
+
+Each crossed component contributes one part: a boundary carrying a `base`
+(section 7) pushes a continuation frame, anything else pushes one step onto the
+active frame. A `<x render="*name">` site contributes no step of its own — its
+base does the work.
 
 ---
 
@@ -571,28 +584,50 @@ every intermediate component (`src/components.js`, `src/stack.js`):
   is accepted, including as a render target (`<x render="*active">`) or
   iteration source (`@each="*items"`).
 
-Resolution walks the dynamic-binding stack at render time; the default applies
-when no producer is above the consumer. Because a lookup does not name its
-producer, one provide name has one producer per scope chain
-(`PROVIDE_NAME_COLLISION`) — which is also how the teleport below recovers the
-producer.
+A provider publishes BOTH halves of a binding: the evaluated value and the
+absolute path it lives at (`LocatedValue`, `src/stack.js`). That is why a
+provide must be addressable — the same declaration is read as `*name` and
+resumed at by `<x render="*name">`.
+
+Resolution walks the dynamic-binding stack at render time, nearest frame first,
+then a path registered in the component's lexical scope, then the consumer's own
+default. The stack is the LIVE RENDER ANCESTRY, so several components may
+publish one name and the nearest rendered one shadows the rest — an ordinary
+scope, with no producer to identify.
+
+A name may also be registered **lexically** as an absolute path from the state
+root: `app.registerComponents(comps, {paths: {session: path().field("session")}})`,
+or `scope.registerPaths({…})` on a nested scope (nearest registration wins). A
+descendant declares it in `lookup` and reads or renders `*session` with nothing
+above it publishing one — no application root exists solely to `provide`. The
+order stays `dyn lex`, so a rendered provider still answers first.
 
 An **uppercase** name is a component type rather than a value:
 `provide: {Cell: "self"}` publishes the producer's own class, and a handler
-reads one with `ctx.lookupType(name, opts)`. Both `ctx.lookup` and
-`ctx.lookupType` take `opts.route` with the legs and defaults an intent uses —
-`"dyn"` the render ancestry, `"lex"` the registration scope, default both.
+reads one with `ctx.lookupType(name, opts)`. A type has no path, so it can never
+be a render target — `<x render="*Cell">` is unresolvable by construction. Both
+`ctx.lookup` and `ctx.lookupType` take `opts.route` with the legs and defaults
+an intent uses — `"dyn"` the render ancestry, `"lex"` the registration scope,
+default both.
 
-### Teleporting
+### Located continuations
 
 When a component renders a dynamically-bound value, the data *physically lives*
-at the producer. The recorded path marks this with a `DynStep`: for event
-reconstruction the path expands through the intermediate components, but
-`toTransactionPath()` teleports — it splices the producer's own steps in place
-of the span, so mutating the dynamically-rendered child mutates the producer's
-field in lock-step (`docs/examples/dynamic-path.js`, `test/path.test.js`).
+where the producer published it. Rendering `*name` therefore pushes the value's
+absolute path as a new **continuation frame** on the dispatch path
+(`DispatchPath`, `src/path.js`), and records that base in the DOM — in the
+`§Comp§` meta comment, and on `data-rp` for a fragment-rooted body.
+
+A dispatch path is a stack of such frames. `toTransactionPath()` reads the
+ACTIVE frame — its absolute base plus the ordinary steps below it — so a
+mutation lands on the value's real location. The saved frames underneath are the
+visual callers: `popStep()` drains the active frame and then pops it, returning
+bubbling to the component that wrote the `*name` and continuing through its
+ancestry (`docs/examples/dynamic-path.js`, `test/path.test.js`).
+
 This is what makes "render the selected sheet from anywhere, edit it in place"
-sound: rendering is indirect, mutation is direct.
+sound: rendering is indirect, mutation is direct. There is no producer search,
+no producer-qualified target, and no path rewriting at dispatch.
 
 ### Macros and slots
 
@@ -703,7 +738,7 @@ arc: value model → templates → rendering → paths → dispatch → cross-tr
 | 9 | Macros: params and slots | 7 | `macro-params.js`, `macro-named-slots.js`, `todo-macros.js` |
 | 10 | Targeted messages vs bubbling | 6 | `send-receive.js`, `tree.js` |
 | 11 | Async: intents on the `lex` leg, the three outcomes, mocking, error paths | 6 | `request-example.js` (built-in success/error/loading examples) |
-| 12 | Paths and teleporting: mutate the producer through the consumer | 5, 7 | `dynamic-path.js`, `dynamic-selected-edit.js`, `seq-item-access.js` |
+| 12 | Located continuations: mutate the producer through the consumer | 5, 7 | `dynamic-path.js`, `dynamic-selected-edit.js`, `seq-item-access.js` |
 | 13 | Extending iteration: the `SEQ_INFO` protocol | 4 | `custom-collection.js` |
 
 Semantics with **no example yet** — and the strongest candidates for new,

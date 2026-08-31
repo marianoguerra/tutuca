@@ -1,7 +1,8 @@
 import { describe, expect, test, vi } from "vitest";
-import { component, html, macro } from "../index.js";
+import { component, html, macro, path } from "../index.js";
 import { ComponentStack, Components, LookupInfo, ProvideInfo } from "../src/components.js";
 import { produce } from "../src/immer.js";
+import { FieldStep, Path } from "../src/path.js";
 import { Stack } from "../src/stack.js";
 import { rootDispatcher, Transactor } from "../src/transactor.js";
 import { HeadlessParseContext as ParseContext } from "./dom.js";
@@ -154,6 +155,90 @@ describe("Components", () => {
     expect(ctx.lookup("Board")).toBe(Board);
     // An empty route resolves to null rather than falling back to the default.
     expect(ctx.lookup("Cell", { route: [] })).toBe(null);
+  });
+
+  test("a provide publishes its value AND the absolute path it lives at", () => {
+    const Doc = component({ name: "Doc", fields: { title: "t" } });
+    const Comp = component({
+      name: "Holder",
+      fields: { doc: null, sheets: new Map(), selId: "" },
+      provide: { active: ".doc", picked: ".sheets[.selId]" },
+    });
+    for (const C of [Doc, Comp]) C.compile(ParseContext);
+    const doc = Doc.make({ title: "hi" });
+    const root = Comp.make({ doc, sheets: new Map([["a", doc]]), selId: "a" });
+    const stack = setupStackComps([Comp, Doc], root);
+    // Both halves: what a `*name` reads, and where `<x render="*name">` resumes.
+    const active = stack.lookupDynamicLocated("active");
+    expect(active.value).toBe(doc);
+    expect(active.path.toKeys()).toEqual([{ field: "doc" }]);
+    // A seq-access provide keeps its live key, so it follows `.selId`.
+    expect(stack.lookupDynamicLocated("picked").path.lookup(root)).toBe(doc);
+  });
+
+  // The path is only published when it demonstrably addresses the value being
+  // rendered. Reading `*name` still works; there is simply nowhere to resume, so
+  // `<x render="*name">` renders nothing rather than editing a guessed address.
+  test("a provide whose position cannot be addressed publishes the value with no path", () => {
+    const Doc = component({ name: "Doc", fields: { title: "t" } });
+    const Holder = component({
+      name: "Holder",
+      fields: { doc: null },
+      provide: { active: ".doc" },
+    });
+    for (const C of [Doc, Holder]) C.compile(ParseContext);
+    const other = Holder.make({ doc: Doc.make({ title: "elsewhere" }) });
+    // Entering a value that is not at the render path this stack is standing on:
+    // `it` moved, the position did not.
+    const stack = setupStackComps([Holder, Doc]).enter(other);
+    const loc = stack.lookupDynamicLocated("active");
+    expect(loc.value).toBe(other.doc);
+    expect(loc.path).toBe(null);
+    expect(stack.lookupDynamic("active")).toBe(other.doc);
+  });
+
+  test("a published TYPE has no path, so it can never be a render target", () => {
+    const Board = component({ name: "Board", fields: { t: "b" }, provide: { Slot: "self" } });
+    Board.compile(ParseContext);
+    const stack = setupStackComps([Board]);
+    expect(stack.lookupDynamic("Slot")).toBe(Board);
+    expect(stack.lookupDynamicLocated("Slot")).toBe(null);
+  });
+
+  test("registerPaths: a name resolves from the registration scope, nearest first", () => {
+    const Comp = component({ name: "Comp", fields: { theme: "dark", session: "s" } });
+    Comp.compile(ParseContext);
+    const comps = new Components();
+    const outer = new ComponentStack(comps);
+    outer.registerComponents([Comp], { paths: { theme: path().field("theme") } });
+    expect(outer.lookupPath("theme").toKeys()).toEqual([{ field: "theme" }]);
+    expect(outer.lookupPath("session")).toBe(null);
+    const inner = outer.enter();
+    inner.registerPaths({ session: path().field("session") });
+    // The inner scope sees both; the outer one still sees only its own.
+    expect(inner.lookupPath("session").toKeys()).toEqual([{ field: "session" }]);
+    expect(inner.lookupPath("theme").toKeys()).toEqual([{ field: "theme" }]);
+    expect(outer.lookupPath("session")).toBe(null);
+    // A type name has no path — that is what lookupComponent answers.
+    inner.registerPaths({ Theme: path().field("theme") });
+    expect(inner.lookupPath("Theme")).toBe(null);
+  });
+
+  test("ctx.lookup: the lex leg of a value name reads a registered path", () => {
+    const Root = component({ name: "Root", fields: { theme: "dark", live: "bright" } });
+    Root.compile(ParseContext);
+    const comps = new Components();
+    new ComponentStack(comps).registerComponents([Root], {
+      paths: { theme: path().field("theme") },
+    });
+    const ctx = rootDispatcher(new Transactor(comps, Root.make({})));
+    expect(ctx.lookup("theme")).toBe("dark");
+    expect(ctx.lookup("theme", { route: ["lex"] })).toBe("dark");
+    // The `dyn` leg answers too: a `*name` READ is itself "nearest provider, else
+    // registered path", so the same order applies whether it is a view or a handler
+    // asking. What the legs separate is which environment gets asked first.
+    expect(ctx.lookup("theme", { route: ["dyn"] })).toBe("dark");
+    expect(ctx.lookup("missing", { route: ["dyn", "lex"] })).toBe(null);
   });
 
   test("registerComponents with aliases", () => {

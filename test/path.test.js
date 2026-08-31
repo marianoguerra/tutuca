@@ -1,10 +1,9 @@
 import { format } from "prettier";
 import { describe, expect, test } from "vitest";
-import { component, html } from "../index.js";
+import { component, html, path } from "../index.js";
 import {
   BindStep,
-  DynEachStep,
-  DynStep,
+  DispatchPath,
   EachBindStep,
   EachRenderItStep,
   FieldStep,
@@ -43,7 +42,14 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(target);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [path, events] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+    const [dpath, events] = DispatchPath.fromNodeAndEventName(
+      node,
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    const path = dpath.toTransactionPath();
     expect(path.steps.length).toBe(0);
     expect(events.length).toBe(1);
     expect(path.lookup(target)).toBe(target);
@@ -75,8 +81,14 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(rootValue);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [path, events] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
-    console.log(path.steps);
+    const [dpath, events] = DispatchPath.fromNodeAndEventName(
+      node,
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    const path = dpath.toTransactionPath();
     expect(path.steps.length).toBe(2);
     expect(events.length).toBe(1);
     expect(path.lookup(rootValue)).toBe(target);
@@ -110,9 +122,15 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(rootValue);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [path, events] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+    const [dpath, events] = DispatchPath.fromNodeAndEventName(
+      node,
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
     console.log(await formatHTML(container.innerHTML));
-    console.log(path.steps);
+    const path = dpath.toTransactionPath();
     expect(path.steps.length).toBe(3);
     expect(events.length).toBe(1);
     expect(path.lookup(rootValue)).toBe(target);
@@ -496,11 +514,11 @@ describe("@on.drop bubbles to ancestor components", () => {
     return { ...ctx, captured };
   }
 
-  test("Path.fromNodeAndEventName finds the ancestor @on.drop and resolves to its value", () => {
+  test("DispatchPath.fromNodeAndEventName finds the ancestor @on.drop and resolves to its value", () => {
     const { container, app, cleanup } = makeApp();
     const inner = container.querySelector(".inner");
     expect(inner).not.toBeNull();
-    const [path, handlers] = Path.fromNodeAndEventName(
+    const [path, handlers] = DispatchPath.fromNodeAndEventName(
       inner,
       "drop",
       container,
@@ -510,15 +528,16 @@ describe("@on.drop bubbles to ancestor components", () => {
     expect(handlers).not.toBeNull();
     expect(handlers.length).toBe(1);
     // Parent is the app root, so the path is empty and resolves to the Parent value.
-    expect(path.steps.length).toBe(0);
-    expect(path.lookup(app.state.val)).toBe(app.state.val);
+    const txn = path.toTransactionPath();
+    expect(txn.steps.length).toBe(0);
+    expect(txn.lookup(app.state.val)).toBe(app.state.val);
     cleanup();
   });
 
   test("non-bubbling event (click) still bails at the leaf component", () => {
     const { container, app, cleanup } = makeApp();
     const inner = container.querySelector(".inner");
-    const [path, handlers] = Path.fromNodeAndEventName(
+    const [path, handlers] = DispatchPath.fromNodeAndEventName(
       inner,
       "click",
       container,
@@ -658,10 +677,12 @@ describe("dragInfo.lookupBind for @each items", () => {
   });
 });
 
-describe("dynamic variable as a path segment", () => {
+describe("a dynamic variable as a located continuation", () => {
   // Workspace (producer of *active = .sheet) -> Panel -> Toolbar (consumer that
   // does `<x render="*active">`) -> Sheet. The Sheet's data physically lives at
-  // Workspace.sheet, NOT under Toolbar.
+  // Workspace.sheet, NOT under Toolbar — so the Toolbar's render site RESUMES
+  // there: it pushes `.sheet` as a new continuation frame, and the frames it
+  // saved underneath are the visual callers bubbling returns through.
   function workspaceApp() {
     const Sheet = component({
       name: "Sheet",
@@ -705,23 +726,40 @@ describe("dynamic variable as a path segment", () => {
     );
   }
 
-  test("<x render='*dyn'> renders and reconstructs an expanded path", () => {
+  test("<x render='*dyn'> reconstructs as two frames: the caller, then the resume", () => {
     const { container, app, cleanup } = workspaceApp();
     const button = container.querySelector(".rename");
     expect(button).not.toBeNull();
-    const [path] = Path.fromNodeAndEventName(button, "click", container, Infinity, app.comps);
-    // dispatch path keeps a step per crossed component (.panel, .toolbar, DynStep)
-    expect(path.steps.length).toBe(3);
-    expect(path.steps[2]).toBeInstanceOf(DynStep);
+    const [path] = DispatchPath.fromNodeAndEventName(
+      button,
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    expect(path.frames.length).toBe(2);
+    // The caller frame keeps a step per crossed component, so bubbling still
+    // visits Panel and Toolbar on the way back out.
+    expect(path.frames[0].base.steps.length).toBe(0);
+    expect(path.frames[0].items.map((s) => s.field)).toEqual(["panel", "toolbar"]);
+    // The active frame is based at the value's own address and descends no further.
+    expect(path.frames[1].base.steps.map((s) => s.field)).toEqual(["sheet"]);
+    expect(path.frames[1].items.length).toBe(0);
     cleanup();
   });
 
-  test("transaction path teleports past intermediate components to the producer", () => {
+  test("the transaction path is the active frame: the value's own address", () => {
     const { container, app, cleanup } = workspaceApp();
     const button = container.querySelector(".rename");
-    const [path] = Path.fromNodeAndEventName(button, "click", container, Infinity, app.comps);
+    const [path] = DispatchPath.fromNodeAndEventName(
+      button,
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
     const txn = path.toTransactionPath();
-    // Workspace -> .sheet : intermediate Panel/Toolbar steps skipped.
+    // Workspace -> .sheet : the caller frame's Panel/Toolbar steps are not part of it.
     expect(txn.steps.length).toBe(1);
     expect(txn.steps[0]).toBeInstanceOf(FieldStep);
     expect(txn.steps[0].field).toBe("sheet");
@@ -738,7 +776,7 @@ describe("dynamic variable as a path segment", () => {
     cleanup();
   });
 
-  test("producer is also the consumer (own provide): interiorCids is just itself", () => {
+  test("producer is also the consumer (own provide): it resumes at its own field", () => {
     const Doc = component({
       name: "Doc",
       fields: { title: "untitled" },
@@ -763,7 +801,7 @@ describe("dynamic variable as a path segment", () => {
       root,
       HeadlessParseContext,
     );
-    const [path] = Path.fromNodeAndEventName(
+    const [path] = DispatchPath.fromNodeAndEventName(
       container.querySelector(".rename"),
       "click",
       container,
@@ -779,7 +817,7 @@ describe("dynamic variable as a path segment", () => {
     cleanup();
   });
 
-  test("@each='*dyn' with <x render-it> teleports the iterated item to the producer", () => {
+  test("@each='*dyn' with <x render-it> resumes at the producer's keyed item", () => {
     const Row = component({
       name: "Row",
       fields: { label: "" },
@@ -815,7 +853,7 @@ describe("dynamic variable as a path segment", () => {
       root,
       HeadlessParseContext,
     );
-    const [path] = Path.fromNodeAndEventName(
+    const [path] = DispatchPath.fromNodeAndEventName(
       container.querySelector('[data-row="b"]'),
       "click",
       container,
@@ -834,32 +872,44 @@ describe("dynamic variable as a path segment", () => {
     cleanup();
   });
 
-  test("toTransactionPath: DynStep rewinds by interiorCids and splices producer steps", () => {
-    const panel = new FieldStep("panel");
-    panel._originCid = 1; // producer (Workspace)
-    const toolbar = new FieldStep("toolbar");
-    toolbar._originCid = 2; // intermediate (Panel)
-    const dyn = new DynStep(1, [new FieldStep("sheet")]);
-    dyn.interiorCids = new Set([1, 2, 3]); // producer + intermediates + consumer
-    const txn = new Path([panel, toolbar, dyn]).toTransactionPath();
-    expect(txn.steps.length).toBe(1);
-    expect(txn.steps[0]).toBeInstanceOf(FieldStep);
-    expect(txn.steps[0].field).toBe("sheet");
+  // The frame algebra on its own, without a render behind it.
+  test("toTransactionPath reads the active frame alone", () => {
+    const p = DispatchPath.ofSteps([new FieldStep("panel"), new FieldStep("toolbar")]).pushFrame(
+      new Path([new FieldStep("sheet")]),
+    );
+    expect(p.toTransactionPath().steps.map((s) => s.field)).toEqual(["sheet"]);
+    // Descending inside the resumed component extends the ACTIVE frame.
+    const deeper = p.pushItem(new SeqStep("rows", "b"));
+    const steps = deeper.toTransactionPath().steps;
+    expect(steps.map((s) => s.field)).toEqual(["sheet", "rows"]);
+    expect(steps[1].key).toBe("b");
   });
 
-  test("toTransactionPath: DynEachStep splices a keyed SeqStep", () => {
-    const dyn = new DynEachStep(1, [new FieldStep("rows")], "b");
-    dyn.interiorCids = new Set([1]);
-    const txn = new Path([dyn]).toTransactionPath();
-    expect(txn.steps.length).toBe(1);
-    expect(txn.steps[0]).toBeInstanceOf(SeqStep);
-    expect(txn.steps[0].field).toBe("rows");
-    expect(txn.steps[0].key).toBe("b");
+  test("popStep drains the active frame, then returns to the visual caller", () => {
+    const p = DispatchPath.ofSteps([new FieldStep("panel"), new FieldStep("toolbar")])
+      .pushFrame(new Path([new FieldStep("sheet")]))
+      .pushItem(new FieldStep("body"));
+    const inFrame = p.popStep(); // still inside the resumed component
+    expect(inFrame.toTransactionPath().steps.map((s) => s.field)).toEqual(["sheet"]);
+    const back = inFrame.popStep(); // top of the frame: back to the caller
+    expect(back.toTransactionPath().steps.map((s) => s.field)).toEqual(["panel", "toolbar"]);
+    expect(
+      back
+        .popStep()
+        .toTransactionPath()
+        .steps.map((s) => s.field),
+    ).toEqual(["panel"]);
+    expect(back.popStep().popStep().canPop()).toBe(false);
   });
 
-  test("toTransactionPath is a no-op for paths without a DynStep", () => {
-    const p = new Path([new FieldStep("a"), new SeqStep("b", "k")]);
-    expect(p.toTransactionPath()).toBe(p);
+  test("compact drops frame-only steps inside every frame independently", () => {
+    const p = DispatchPath.ofSteps([new BindStep({}), new FieldStep("panel")]).pushFrame(
+      new Path([new FieldStep("sheet")]),
+    );
+    const c = p.pushItem(new EachBindStep(null, "k")).compact();
+    expect(c.frames[0].items.map((s) => s.field)).toEqual(["panel"]);
+    expect(c.frames[1].items.length).toBe(0);
+    expect(c.frames[1].base.steps.map((s) => s.field)).toEqual(["sheet"]);
   });
 
   test("an intent walk visits the intermediate components, then the producer", () => {
@@ -921,7 +971,7 @@ describe("dynamic variable as a path segment", () => {
     cleanup();
   });
 
-  test("a seq-access dynamic (.a[.b]) teleports to the producer's keyed item", () => {
+  test("a seq-access dynamic (.a[.b]) resumes at the producer's live-keyed item", () => {
     const Sheet = component({
       name: "Sheet",
       fields: { title: "untitled" },
@@ -956,7 +1006,7 @@ describe("dynamic variable as a path segment", () => {
       root,
       HeadlessParseContext,
     );
-    const [path] = Path.fromNodeAndEventName(
+    const [path] = DispatchPath.fromNodeAndEventName(
       container.querySelector(".rename"),
       "click",
       container,
@@ -964,7 +1014,7 @@ describe("dynamic variable as a path segment", () => {
       app.comps,
     );
     const txn = path.toTransactionPath();
-    // Teleports straight to the producer's `.sheets[.selId]` seq-access.
+    // The active frame is the producer's `.sheets[.selId]` seq-access itself.
     expect(txn.steps.length).toBe(1);
     expect(txn.steps[0].seqField).toBe("sheets");
     expect(txn.steps[0].keyField).toBe("selId");
@@ -1047,12 +1097,250 @@ describe("dynamic variable as a path segment", () => {
     // Reconstructing an event path from a child entry must not crash.
     const childEntry = container.querySelector(".child .entry");
     expect(() =>
-      Path.fromNodeAndEventName(childEntry, "click", container, Infinity, app.comps, false),
+      DispatchPath.fromNodeAndEventName(childEntry, "click", container, Infinity, app.comps, false),
     ).not.toThrow();
     // The owner's own select button still works.
     container.querySelector('.owner > .owner-row .pick[data-k="b"]').click();
     while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
     expect(app.state.val.picked).toBe("b");
+    cleanup();
+  });
+
+  // A `Doc` with one message, reused by the tests below.
+  const mkDoc = () =>
+    component({
+      name: "Doc",
+      fields: { title: "untitled" },
+      receive: {
+        rename(draft) {
+          draft.title = "renamed";
+        },
+      },
+      view: html`<button class="rename" @on.click="rename">x</button>`,
+    });
+
+  // The producer is found in the LIVE RENDER ANCESTRY, not by searching the
+  // registration scope, so two components may publish one name and the nearer
+  // rendered one shadows the outer one — the way any scope does.
+  test("a nested provider shadows an outer one of the same name", () => {
+    const Doc = mkDoc();
+    const Leaf = component({
+      name: "Leaf",
+      fields: {},
+      lookup: ["sel"],
+      view: html`<div class="leaf"><x render="*sel"></x></div>`,
+    });
+    const Inner = component({
+      name: "Inner",
+      fields: { b: null, leaf: null },
+      provide: { sel: ".b" },
+      view: html`<div class="inner"><x render=".leaf"></x></div>`,
+    });
+    const Outer = component({
+      name: "Outer",
+      fields: { a: null, inner: null },
+      provide: { sel: ".a" },
+      view: html`<div class="outer"><x render=".inner"></x></div>`,
+    });
+    const root = Outer.make({
+      a: Doc.make({ title: "outer" }),
+      inner: Inner.make({ b: Doc.make({ title: "inner" }), leaf: Leaf.make() }),
+    });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Outer, Inner, Leaf, Doc],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    const [path] = DispatchPath.fromNodeAndEventName(
+      container.querySelector(".rename"),
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    // The frame is based at the NEARER provider's value, absolute from the root.
+    expect(path.toTransactionPath().steps.map((st) => st.field)).toEqual(["inner", "b"]);
+    container.querySelector(".rename").click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.inner.b.title).toBe("renamed");
+    expect(app.state.val.a.title).toBe("outer"); // the outer provider was shadowed
+    cleanup();
+  });
+
+  // The `lex` leg of a value lookup: a name registered on the scope as an absolute
+  // path from the state root. Nothing above the consumer publishes it, and no
+  // wrapper component exists solely to.
+  test("a lexically registered path resumes with no provider above it", () => {
+    const Doc = mkDoc();
+    const Body = component({
+      name: "Body",
+      fields: {},
+      lookup: ["session"],
+      view: html`<div class="body"><x render="*session"></x></div>`,
+    });
+    const Root = component({
+      name: "Root",
+      fields: { session: null, body: null },
+      view: html`<div class="root"><x render=".body"></x></div>`,
+    });
+    const root = Root.make({ session: Doc.make(), body: Body.make() });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Root, Body, Doc],
+      null,
+      root,
+      HeadlessParseContext,
+      { noCache: true, paths: { session: path().field("session") } },
+    );
+    const [dispatched] = DispatchPath.fromNodeAndEventName(
+      container.querySelector(".rename"),
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    expect(dispatched.toTransactionPath().steps.map((st) => st.field)).toEqual(["session"]);
+    container.querySelector(".rename").click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.session.title).toBe("renamed");
+    cleanup();
+  });
+
+  // The route is `dyn lex`: a provider that actually rendered above the consumer
+  // answers before a path registered under the same name.
+  test("a rendered provider wins over a registered path of the same name", () => {
+    const Doc = mkDoc();
+    const Body = component({
+      name: "Body",
+      fields: {},
+      lookup: ["session"],
+      view: html`<div class="body"><x render="*session"></x></div>`,
+    });
+    const Root = component({
+      name: "Root",
+      fields: { session: null, live: null, body: null },
+      provide: { session: ".live" },
+      view: html`<div class="root"><x render=".body"></x></div>`,
+    });
+    const root = Root.make({
+      session: Doc.make({ title: "lexical" }),
+      live: Doc.make({ title: "dynamic" }),
+      body: Body.make(),
+    });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Root, Body, Doc],
+      null,
+      root,
+      HeadlessParseContext,
+      { noCache: true, paths: { session: path().field("session") } },
+    );
+    container.querySelector(".rename").click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.live.title).toBe("renamed");
+    expect(app.state.val.session.title).toBe("lexical");
+    cleanup();
+  });
+
+  // A provider inside an iterated component publishes the ITEM's address, so the
+  // base has to carry the loop key: `@each` moves the render position, and a
+  // provide is located from wherever its publisher actually rendered.
+  test("a provider inside an iterated component resumes at the keyed item", () => {
+    const Doc = mkDoc();
+    const Slot = component({
+      name: "Slot",
+      fields: {},
+      lookup: ["sel"],
+      view: html`<div class="slot"><x render="*sel"></x></div>`,
+    });
+    const Cell = component({
+      name: "Cell",
+      fields: { doc: null, slot: null },
+      provide: { sel: ".doc" },
+      view: html`<div class="cell"><x render=".slot"></x></div>`,
+    });
+    const Grid = component({
+      name: "Grid",
+      fields: { cells: [] },
+      view: html`<div class="grid" @each=".cells"><x render-it></x></div>`,
+    });
+    const mkCell = (title) => Cell.make({ doc: Doc.make({ title }), slot: Slot.make() });
+    const root = Grid.make({ cells: [mkCell("one"), mkCell("two")] });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Grid, Cell, Slot, Doc],
+      null,
+      root,
+      HeadlessParseContext,
+    );
+    const buttons = container.querySelectorAll(".rename");
+    expect(buttons.length).toBe(2);
+    const [dispatched] = DispatchPath.fromNodeAndEventName(
+      buttons[1],
+      "click",
+      container,
+      Infinity,
+      app.comps,
+    );
+    expect(dispatched.toTransactionPath().toKeys()).toEqual([
+      { field: "cells", key: 1 },
+      { field: "doc" },
+    ]);
+    buttons[1].click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.cells[1].doc.title).toBe("renamed");
+    expect(app.state.val.cells[0].doc.title).toBe("one");
+    cleanup();
+  });
+
+  // A resumed site bakes its base into the DOM it renders, so two consumers
+  // resuming the SAME value at different addresses must not share a cache entry —
+  // otherwise the second would edit the first one's data.
+  test("the same value resumed at two addresses does not alias in the cache", () => {
+    const Doc = mkDoc();
+    const Slot = component({
+      name: "Slot",
+      fields: {},
+      lookup: ["sel"],
+      view: html`<div class="slot"><x render="*sel"></x></div>`,
+    });
+    const mkHolder = (name) =>
+      component({
+        name,
+        fields: { doc: null, slot: null },
+        provide: { sel: ".doc" },
+        view: html`<div class="${name}"><x render=".slot"></x></div>`,
+      });
+    const Left = mkHolder("Left");
+    const Right = mkHolder("Right");
+    const Wrap = component({
+      name: "Wrap",
+      fields: { p: null, q: null },
+      view: html`<div class="wrap"><x render=".p"></x><x render=".q"></x></div>`,
+    });
+    // ONE Doc value in two places: identical by reference, so the cache can only
+    // tell the two render sites apart by where they are.
+    const doc = Doc.make({ title: "shared" });
+    const root = Wrap.make({
+      p: Left.make({ doc, slot: Slot.make() }),
+      q: Right.make({ doc, slot: Slot.make() }),
+    });
+    const { container, app, cleanup } = renderToHTMLNode(
+      document,
+      [Wrap, Left, Right, Slot, Doc],
+      null,
+      root,
+      HeadlessParseContext,
+      { noCache: false },
+    );
+    const buttons = container.querySelectorAll(".rename");
+    expect(buttons.length).toBe(2);
+    buttons[1].click();
+    while (app.transactor.hasPendingTransactions) app.transactor.transactNext();
+    expect(app.state.val.q.doc.title).toBe("renamed");
+    expect(app.state.val.p.doc.title).toBe("shared");
     cleanup();
   });
 });
@@ -1083,16 +1371,17 @@ describe("passthrough component (bare <x render> as the whole view)", () => {
 
   test("reconstructs the path through a bare-render parent", () => {
     const { container, app, cleanup } = passthroughApp(html`<x render=".child"></x>`);
-    const [path] = Path.fromNodeAndEventName(
+    const [path] = DispatchPath.fromNodeAndEventName(
       container.querySelector(".rename"),
       "click",
       container,
       Infinity,
       app.comps,
     );
-    expect(path.steps.length).toBe(1);
-    expect(path.steps[0]).toBeInstanceOf(FieldStep);
-    expect(path.steps[0].field).toBe("child");
+    const txn = path.toTransactionPath();
+    expect(txn.steps.length).toBe(1);
+    expect(txn.steps[0]).toBeInstanceOf(FieldStep);
+    expect(txn.steps[0].field).toBe("child");
     cleanup();
   });
 
@@ -1171,7 +1460,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     // The dangling `§Each§`/`§Comp§` metas of the hidden "a" precede "b".
     let result;
     expect(() => {
-      result = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+      result = DispatchPath.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
     }).not.toThrow();
     const [path, handlers] = result;
     expect(handlers).not.toBeNull();
@@ -1189,7 +1478,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     const node = container.querySelector('[data-uid="b"]');
     let result;
     expect(() => {
-      result = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+      result = DispatchPath.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
     }).not.toThrow();
     const [path, handlers] = result;
     expect(handlers).not.toBeNull();
@@ -1206,7 +1495,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     const node = container.querySelector('[data-uid="c"]');
     let path;
     expect(() => {
-      [path] = Path.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+      [path] = DispatchPath.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
     }).not.toThrow();
     expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items[2]);
     cleanup();

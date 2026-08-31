@@ -4,7 +4,7 @@
 // from the ctx — a handler never gets the one that evaluated its arguments.
 import { expect, test } from "vitest";
 import { component, html } from "../index.js";
-import { FieldStep, Path } from "../src/path.js";
+import { DispatchPath, FieldStep } from "../src/path.js";
 import { renderToHTMLNode } from "../src/util/render.js";
 import { HeadlessParseContext, setupJsdom } from "./dom.js";
 
@@ -96,7 +96,7 @@ const madeUnder = (container, which) =>
 
 // The Slot nested under each parent. `App` only exposes sendAtRoot, so address the
 // nested component through the transactor directly.
-const slotPath = (parent) => new Path([new FieldStep(parent), new FieldStep("slot")]);
+const slotPath = (parent) => DispatchPath.ofSteps([new FieldStep(parent), new FieldStep("slot")]);
 const sendToSlot = (app, parent, name) => app.transactor.pushSend(slotPath(parent), name, []);
 
 test("lex leg resolves the registered component", async () => {

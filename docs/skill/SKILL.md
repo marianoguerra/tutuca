@@ -45,9 +45,9 @@ When authoring tutuca code, also load these if available:
 | CLI commands, flags, exit codes, full linter rule list                                         | [cli.md](./cli.md)             |
 | Authoring `*.dev.js` story modules, `getExamples()` sections, per-example intent-handler mocking, running `tutuca storybook` | [storybook.md](./storybook.md) |
 | Addressed `send`/`receive` vs routed `intent` (routes, `reply`/`fail`/`forward`/`stop`, the three outcomes), `$unknown`, intent-handler registration | [messages-and-intents.md](./messages-and-intents.md) |
-| Drag & drop, dynamic bindings (`*x`), pseudo-`x`, custom seq types | [advanced.md](./advanced.md)   |
+| Drag & drop, dynamic bindings (`*x`), registered paths, pseudo-`x`, custom seq types | [advanced.md](./advanced.md)   |
 | Setting up MargaUI styling — install (CDN / npm / vendoring), theme CSS, and the `compileClassesToStyleText` wiring | [margaui.md](./margaui.md)     |
-| Runtime semantics — path steps, transaction lifecycle, dyn-var teleporting, async key pinning (`livePath`) | [semantics.md](./semantics.md) |
+| Runtime semantics — path steps, transaction lifecycle, located continuations, async key pinning (`livePath`) | [semantics.md](./semantics.md) |
 | Authoring tests — `getTests` shape, calling methods / receive / intent / alter handlers, designing handlers for testability | [testing.md](./testing.md) |
 | Task-oriented recipes — iteration, filtering, conditional content, conditional attributes, dynamic vars, composition, events | [patterns/README.md](./patterns/README.md) |
 

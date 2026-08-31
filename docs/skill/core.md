@@ -921,7 +921,7 @@ storybook in your own page — see [storybook.md](./storybook.md).
 - [margaui.md](./margaui.md) — setting up MargaUI styling: install
   (CDN / npm / vendoring), theme CSS, and `compileClassesToStyleText`.
 - [semantics.md](./semantics.md) — runtime semantics: path steps, the
-  transaction lifecycle, dyn-var teleporting, and async key pinning
+  transaction lifecycle, located continuations, and async key pinning
   (`livePath`).
 - [testing.md](./testing.md) — `getTests` shape and the handler calling
   convention for tests.

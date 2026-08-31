@@ -64,7 +64,6 @@ export const DYN_VAL_NOT_DEFINED = "DYN_VAL_NOT_DEFINED";
 export const DYN_ALIAS_NOT_REFERENCED = "DYN_ALIAS_NOT_REFERENCED";
 export const PROVIDE_NOT_ADDRESSABLE = "PROVIDE_NOT_ADDRESSABLE";
 export const PROVIDE_TYPE_BAD_SHAPE = "PROVIDE_TYPE_BAD_SHAPE";
-export const PROVIDE_NAME_COLLISION = "PROVIDE_NAME_COLLISION";
 export const LOOKUP_BAD_SHAPE = "LOOKUP_BAD_SHAPE";
 export const LOOKUP_NO_PROVIDER = "LOOKUP_NO_PROVIDER";
 export const RENDER_IT_OUTSIDE_OF_LOOP = "RENDER_IT_OUTSIDE_OF_LOOP";
@@ -238,7 +237,6 @@ export function checkComponent(Comp, lx = new LintContext(), { wellKnownExtras =
     checkFieldMethodNameCollisions(lx, Comp);
     checkProvidesAreAddressable(lx, Comp);
     checkProvidedTypes(lx, Comp);
-    checkProvideNameCollisions(lx, Comp);
     checkLookupShapes(lx, Comp);
     checkLookupTypesResolve(lx, Comp);
     checkLookupsHaveProviders(lx, Comp);
@@ -1074,9 +1072,11 @@ function checkScopedStyleTopLevel(lx, Comp) {
 }
 
 // A `provide` value must be addressable (a `.field` or `.seq[.key]`): it is used
-// as a render-target / teleport path, not only read as a value. `compile()` drops
+// as the path a render target resumes at, not only read as a value. `compile()` drops
 // any raw provide that fails to parse as such, so a key present in `_rawProvide`
-// but absent from `provide` is a non-path value (e.g. `$method`, a constant).
+// but absent from `provide` is a non-path value (e.g. `$method`, a constant). A
+// provide doubles as the path `<x render="*name">` resumes at, which is why nothing
+// pathless can be one.
 //
 // A PascalCase key publishes a component TYPE, not a value. A Class has no path, so
 // the addressability rule cannot apply to it; `"self"` is the only legal value and
@@ -1098,24 +1098,6 @@ function checkProvidedTypes(lx, Comp) {
     if (!isTypeName(name)) continue;
     const raw = Comp._rawProvide[name];
     if (raw !== "self") lx.error(PROVIDE_TYPE_BAD_SHAPE, { name, value: raw });
-  }
-}
-
-// A lookup names a value without naming its producer, and the render-target teleport
-// recovers the producer by scope search (resolveDynProducer). That is only
-// unambiguous while one name has one producer per scope chain, so two components
-// providing the same name is an error rather than a last-one-wins surprise.
-function checkProvideNameCollisions(lx, Comp) {
-  const scope = Comp.scope;
-  if (!scope) return;
-  for (const name in Comp.provide) {
-    for (let s = scope; s; s = s.parent) {
-      for (const otherName in s.byName) {
-        const Other = s.byName[otherName];
-        if (Other !== Comp && Other.provide?.[name] !== undefined)
-          lx.error(PROVIDE_NAME_COLLISION, { name, other: Other.name });
-      }
-    }
   }
 }
 
@@ -1161,10 +1143,12 @@ function checkLookupShapes(lx, Comp) {
   }
 }
 
-// A lookup resolves along the `dyn` leg first, so a lowercase name that nobody in
-// scope provides can only ever reach its `default`. Whether a provider is actually
-// ABOVE the consumer at render time is a runtime fact the linter cannot settle, so a
-// declared provider is where this stops: no provider at all is the decidable half.
+// A lookup resolves along the `dyn` leg first and then the `lex` one, so a lowercase
+// name that nothing in scope provides AND no registered path answers can only ever
+// reach its `default`. Whether a provider is actually ABOVE the consumer at render
+// time is a runtime fact the linter cannot settle — several components may publish
+// one name and the nearest rendered one wins — so existence is where this stops: no
+// answer at all is the decidable half.
 // A PascalCase name is a component type and resolves on the `lex` leg instead, which
 // checkConsistentAttrVal already covers through UNKNOWN_COMPONENT_NAME.
 function checkLookupsHaveProviders(lx, Comp) {
@@ -1172,7 +1156,7 @@ function checkLookupsHaveProviders(lx, Comp) {
   if (!scope) return;
   for (const name in Comp.lookup) {
     if (isTypeName(name)) continue;
-    if (scope.lookupProvider?.(name)) continue;
+    if (scope.hasProvider?.(name) || scope.lookupPath?.(name)) continue;
     const info = { name, hasDefault: Comp.lookup[name].val != null };
     if (info.hasDefault) lx.hint(LOOKUP_NO_PROVIDER, info);
     else lx.error(LOOKUP_NO_PROVIDER, info);

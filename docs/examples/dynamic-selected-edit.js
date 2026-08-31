@@ -11,8 +11,9 @@ import { produce } from "tutuca/immer";
 // The child `Editor` *consumes* both: it renders the `*items` sequence (showing
 // a dynamic-var sequence can be iterated by a consumer) and renders the
 // `*selected` entry in its edit view. The edited entry physically lives in
-// `Root.items`, so editing it in the child teleports the mutation back to the
-// owner — both lists update in lock-step. Click "select" on a row, then edit.
+// `Root.items`, and rendering `*selected` resumes at that address, so editing it
+// in the child lands on the owner's entry — both lists update in lock-step.
+// Click "select" on a row, then edit.
 
 const Entry = component({
   receive: {
@@ -110,8 +111,8 @@ export function getExamples() {
     description:
       "The root owns a keyed list and a selected key, exposed as two dynamics: the " +
       "whole sequence `.items` and a seq-access `.items[.selectedKey]`. A child Editor " +
-      "renders the *items sequence and edits the *selected entry; edits teleport back " +
-      "to the owner's list.",
+      "renders the *items sequence and edits the *selected entry; edits land on " +
+      "the owner's list.",
     items: [
       { title: "First selected", description: "Editing 'alpha'", value: makeRoot("a") },
       { title: "Second selected", description: "Editing 'beta'", value: makeRoot("b") },

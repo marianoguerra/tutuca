@@ -409,7 +409,7 @@ rules are in [semantics.md](./semantics.md).
   blocks overview, and *Conventional Module Exports*.
 - [component-design.md](./component-design.md) — which channel to reach for when.
 - [semantics.md](./semantics.md) — the path/transaction model behind these
-  channels: path steps, the transaction lifecycle, teleporting, and the
+  channels: path steps, the transaction lifecycle, continuation frames, and the
   key-pinning rules `livePath` toggles.
 - [testing.md](./testing.md) — driving message and intent flows from tests.
 - [cli.md](./cli.md) — the full linter rule list, exit codes, and

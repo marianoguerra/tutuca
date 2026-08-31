@@ -48,8 +48,8 @@ const G_TEXT = G_BOOL | K_STRTPL;
 const G_COMPONENT = K_FIELD | K_SEQ | K_DYN;
 const G_SEQUENCE = K_FIELD | K_DYN;
 // A `provide:` value must be addressable: it is both read as `*name` and used
-// as a render-target / teleport path, so only path-bearing kinds are allowed
-// (a method/const/string has no `toPathItem()` and could never teleport).
+// as the path `<x render="*name">` resumes at, so only path-bearing kinds are
+// allowed (a method/const/string has no `toPathItem()` and addresses nothing).
 const G_PROVIDE = K_FIELD | K_SEQ;
 const G_FIELD = K_FIELD | K_METHOD | K_CONST | K_SEQ;
 const G_VALUE = K_FIELD | K_METHOD | K_BIND | K_DYN | K_NAME | K_CONST;

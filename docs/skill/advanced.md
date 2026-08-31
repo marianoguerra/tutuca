@@ -79,13 +79,37 @@ it: whoever is nearest above and provides that name answers, and a
 `*name` that names the component's own `provide` resolves to that
 (including its own).
 
-Because a lookup does not name its producer, **one provide name has one
-producer per scope chain** — two components providing `color` is a lint
-error (`PROVIDE_NAME_COLLISION`), not a last-one-wins surprise. That is
-also what lets the render-target teleport below find the producer.
+More than one component may provide the same name. The live render stack
+is a normal shadowing stack, so the **nearest rendered provider wins** —
+a `Theme` nested inside another `Theme` overrides it for its own subtree,
+and nothing has to name a producer.
 
 A lookup name starting with an **uppercase** letter is a component
 **type** rather than a value; see *Looking up component types*.
+
+### Ambient names without a provider
+
+A name can also be registered **lexically**, as an absolute path from the
+app state root — for a session, a theme, or anything host-owned that no
+component in the tree should have to publish:
+
+```js
+import { path } from "tutuca";
+
+app.registerComponents([Workspace, Toolbar], {
+  paths: { session: path().field("session"), theme: path().field("ui").field("theme") },
+});
+```
+
+`path()` is the same address builder `ctx.at` hands a handler — `.field(name)`,
+`.index(name, i)`, `.key(name, k)`, chained freely from the state root.
+
+Descendants declare `lookup: ["session", "theme"]` and read or render
+`*session` / `*theme` as usual. The mounted root does not have to publish
+them, and no wrapper component needs to exist solely to. Register on a
+nested scope (`scope.registerPaths({…})`) to narrow a name; nearest
+registration wins. The order is still `dyn lex`, so a rendered provider
+answers before a registered path.
 
 ### Looking up component types
 
@@ -139,11 +163,14 @@ component-render target and an iteration source:
 ```
 
 A `provide` value must be **addressable** — a `.field` or a `.seq[.key]`
-seq-access, nothing else. (It is both read as `*name` *and* used as a
-render-target / teleport path, so a method or constant — which has no
-path — is a lint error.) A `lookup` `default`, by contrast, is only a
-value fallback and accepts the full grammar, including constants like
-`'gray'`. A `provide` can be a sequence/map item access:
+seq-access, nothing else. It is both read as `*name` *and* used as the
+path a render target resumes at, so a method or constant — which has no
+path — is a lint error (`PROVIDE_NOT_ADDRESSABLE`), and the bad provide is
+dropped: `*name` then reads its `default`, or `null`. If a dynamic binding
+reads as its fallback everywhere, lint first and suspect the producer's
+expression. A `lookup` `default`, by contrast, is only a value fallback and
+accepts the full grammar, including constants like `'gray'`. A `provide`
+can be a sequence/map item access:
 
 ```js
 const Root = component({
@@ -160,14 +187,18 @@ There is **no `*name[.key]` form** — a consumer never indexes a dynamic
 var. The seq-access lives in the producer's `provide` declaration; the
 consumer just reads the resolved value as `*name`.
 
-**Teleporting.** The component rendered via `<x render="*selected">`
-physically lives at the producer (e.g. `Root.items`), not under the
-consumer. When an event fires inside that dynamically-rendered subtree,
-the runtime expands the *render* path (consumer → … → the rendered
-node) to reconstruct the handler, but the *transaction* is teleported:
-the mutation skips the intermediate components and lands on the
-producer's data. Editing the entry in the consumer and the same entry
-in the producer's own view update in lock-step.
+A published **type** is not a render target: it has no path, so
+`<x render="*Cell">` stays unresolvable by construction.
+
+**Resuming at the value's path.** The component rendered via
+`<x render="*selected">` physically lives at the producer (e.g.
+`Root.items`), not under the consumer. A provider publishes the value
+*and* the absolute path it lives at, and rendering pushes that path as a
+continuation frame. So an event inside that subtree mutates the selected
+value where it really is, while bubbling pops back out to the visual
+caller that wrote the `*name` and continues through its ancestry. Editing
+the entry in the consumer and the same entry in the producer's own view
+update in lock-step.
 
 ## Pseudo-`x` (`@x`)
 
