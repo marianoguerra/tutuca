@@ -30,7 +30,7 @@ Everything in tutuca derives from three properties (`docs/skill/core.md`,
 3. **Handlers draft, the transactor commits.** Every dispatched handler receives
    an Immer draft first while `this` remains the immutable current instance.
    The runtime finalizes the draft, rebuilds the root with structural sharing,
-   and swaps it atomically (`src/transactor.js`, `updateRootValue`).
+   and swaps it atomically (`src/transactor.js`, `Transaction.run`).
 
 From these fall out identity-based render caching (unchanged subtree ⇒ same
 object ⇒ skip), time-travel debugging (every root is a complete snapshot), and
@@ -50,19 +50,16 @@ blocks on the component. The linter enforces this
 
 ### Components are draftable classes
 
-`component(spec)` (`src/oo.js`) produces a pair:
+`component(spec)` (`src/oo.js`) returns a generated Class marked `immerable`
+and built from the `fields` declaration. The Class is the public component:
+its runtime metadata record — name, compiled views, handler buckets,
+`provide`/`lookup` declarations, and registration scope — is attached behind
+the well-known `COMPONENT` symbol (`src/components.js`). Component instances
+retain their prototype while being deeply frozen outside transactions.
 
-- a **`Component`** — runtime metadata: name, compiled views, the handler
-  buckets (`receive`, `intent`, `alter`), `provide`/`lookup`
-  declarations, and the registration scope (`src/components.js`);
-- a generated **Class** marked `immerable` and built from the `fields`
-  declaration. Component instances retain their prototype and metadata while
-  being deeply frozen outside transactions.
-
-Every instance carries a hidden tag back to its `Component`: registration
-installs a per-registry `Symbol` accessor on the Class prototype
-(`src/components.js`, `registerComponent`). The runtime asks a value which
-component it belongs to; it never uses `instanceof`.
+The runtime resolves an instance through `instance.constructor[COMPONENT]`;
+it does not use `instanceof`. Registering the Class binds its metadata record
+to that scope and makes the Class available by component name.
 
 There is no inheritance. Reuse happens by composition (component-typed fields
 rendered with `<x render>`), by macros (section 7), and by `methods`/`statics`.
@@ -92,12 +89,11 @@ Type-checking is by component name, not by class identity.
 
 ### Methods, input handlers, statics
 
-- `methods` — instance functions called from views as `$name`; no-arg in value
-  position for computed values, and draft-first in handler position.
+- `methods` — read-only instance functions called from views as `$name`; they
+  are not event handlers and receive no draft.
 - `receive` — event handler functions referenced bare (`name`) from `@on.*`,
   plus what a parent sends and every answer this component reads;
-  same draft-first contract as mutating methods — the split between
-  `methods` and `receive` is organizational, and the linter enforces that the
+  these use the draft-first handler contract. The linter enforces that the
   sigil matches the block (`RECEIVE_HANDLER_NOT_IMPLEMENTED`,
   `EVENT_HANDLER_METHOD_NOT_ALLOWED`, `FIELD_VAL_IS_METHOD`, …).
 - `statics` — functions on the Class (`Comp.fn(…)`), conventionally used
@@ -418,10 +414,13 @@ base does the work.
 
 Every state update is a **transaction**: one handler call addressed by a path
 (`src/transactor.js`). Execution: resolve the transaction path against the
-*current* root → take the addressed instance as old `self` → call
-`handler(…args, ctx)` with `this = self` → if the result differs, rebuild the
-root with structural sharing and swap it atomically. The swap notifies
-subscribers; the app re-renders.
+*current* root → take the addressed instance as immutable `self` → create an
+Immer draft of that instance → call `handler(draft, …args, ctx)` with
+`this = self` → finalize and validate the draft → graft a changed leaf back
+into the root with structural sharing. Returning nothing (or the draft)
+commits draft mutations; returning another value replaces the addressed leaf;
+mutating and returning a replacement is an error. The atomic root swap
+notifies subscribers and the app re-renders.
 
 Transactions queue FIFO and drain in time-budgeted asynchronous batches
 (~10 ms per `setTimeout(0)` turn, `src/app.js`) — except DOM input events,
@@ -433,9 +432,11 @@ One question separates them: **does the sender know who handles this?** If yes
 it sends a **message**, which reaches one component and stops. If no it raises
 an **intent**, which walks a *route* until something answers.
 
-Handler signature everywhere: `(…args, ctx)`, returning the new self. All
-handlers except scope-registered intent handlers must be synchronous (lint
-`ASYNC_HANDLER`).
+Component handler signature everywhere: `(draft, …args, ctx)`. `this` is the
+immutable value from the start of the handler, and `ctx` is trailing. All
+component handlers must be synchronous (lint `ASYNC_HANDLER`); scope-registered
+intent handlers are asynchronous host-side functions and do not receive a
+component draft.
 
 | Channel | Trigger | Bucket | Semantics |
 |---|---|---|---|
@@ -448,10 +449,10 @@ written at the call site where the decision is.
 **A reply ends the walk; running does not.** Inside an `intent` handler,
 `ctx.reply(v)` and `ctx.fail(e)` answer and end the walk; `ctx.stop()` ends it
 answering nothing; `ctx.forward(opts)` hands it to the next hop, optionally
-amending `args` or `route`; and a body that does none of these runs, returns
-new state, and the walk continues — that handler is an **observer**. One rule
-replaces the separate listener bucket a fifth channel would have needed. The
-one-shot is per *intent*, shared across hops, not per body.
+amending `args` or `route`; and a body that does none of these commits any
+draft changes and lets the walk continue — that handler is an **observer**.
+One rule replaces the separate listener bucket a fifth channel would have
+needed. The one-shot is per *intent*, shared across hops, not per body.
 
 An intent ends in exactly three ways, each with its own name and **one**
 payload, delivered back to the sender as ordinary `receive` messages:

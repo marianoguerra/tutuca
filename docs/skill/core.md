@@ -159,8 +159,9 @@ live in fields — an array of `Item`, a native `Map` of `User`, a scalar `count
 "Updating a deep child" means producing a new root that shares
 structure with the old one along the unchanged spine; the renderer
 keys its cache on `===` identity, so unchanged subtrees skip work.
-Every value carries a hidden tag back to its component class, so the
-runtime never needs `instanceof` — it asks the value what it is.
+Each component instance resolves through its constructor's well-known
+`COMPONENT` metadata symbol, so the runtime never needs `instanceof` — it asks
+the value's class what component it is.
 
 Because children are ordinary frozen values held in fields, **handlers
 and methods are ordinary JS with full read access to nested child
@@ -478,7 +479,7 @@ statics: {
 ```
 
 > **Scopes own the component.** A component is bound to a scope at
-> `registerComponents` time — that scope owns its component, tag,
+> `registerComponents` time — that scope owns its component metadata,
 > and scope-bound `make`/statics — so a given component object is live in
 > one scope at a time. Each app/registry is a separate scope; the same
 > *object* registered into two of them rebinds (last wins). To run the

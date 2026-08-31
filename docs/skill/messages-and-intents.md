@@ -108,17 +108,16 @@ A route is a list of **legs**, and there are two:
 
 With no `opts.route`, an intent takes the default route `["dyn", "lex"]`: try
 the ancestors, then the registered handlers. That default is written down in
-exactly one place (`DEFAULT_ROUTE` in `src/transactor.js`), so "what does a
+exactly one place (`DEFAULT_ROUTE` in `src/stack.js`), so "what does a
 bare `ctx.intent` do" has one answer and no second copy.
 
 ```js
 receive: {
-  go(ctx) {
+  go(_draft, ctx) {
     ctx.intent("saveDraft", [this.name]);                        // dyn, then lex
     ctx.intent("picked", [this.page], { route: ["dyn"] });        // ancestors only
     ctx.intent("loadRows", [], { route: ["lex"] });               // the scope only
     ctx.intent("saveDraft", [this.name], { route: ["lex", "dyn"] }); // in the order written
-    return this;
   },
 }
 ```
@@ -138,7 +137,7 @@ A component answers with an `intent.<name>` handler. Inside it:
 - `ctx.fail(error)` — answer with an error. **Ends the walk.**
 - `ctx.forward(opts)` — hand the intent to the next hop (see below).
 - `ctx.stop()` — end the walk **answering nothing**.
-- ...or none of the above: the body runs, returns new state, and the walk goes
+- ...or none of the above: the body commits any draft changes and the walk goes
   on. A handler that does not reply is an **observer**.
 
 ```js
@@ -334,15 +333,14 @@ ws.onmessage = (e) => app.sendAtRoot("serverPushed", [JSON.parse(e.data)]);
 
 // root component
 receive: {
-  serverPushed(msg) { return this.prependEvent(msg); },
+  serverPushed(draft, msg) { draft.events.unshift(msg); },
 }
 ```
 
-⚠️ **Do not** reach into `app.state` and call the raw `State.set(val)` /
-`State.update(fn)` methods to inject external data. That bypasses the component
-handler model, the draft-first transaction discipline, scope enrichment,
-and the transactor's batching — state mutated that way is invisible to the
-components that own it and easily clobbered by the next transaction. Route
+⚠️ **Do not** reach into `app.state` and call the raw `State.set(val)` method
+to inject external data. That replaces the root outside the component handler
+model: there is no draft validation, transaction observation/completion, or
+batching, and an arbitrary value can violate the frozen-root invariant. Route
 every inbound event through `app.sendAtRoot` instead.
 
 `sendAtRoot` only targets the root (`Path([])`). To land an inbound event on

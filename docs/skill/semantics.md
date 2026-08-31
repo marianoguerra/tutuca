@@ -13,8 +13,9 @@ behavior against `src/path.js` / `src/transactor.js` (or grep the
 ## State & identity (in one paragraph)
 
 The application is a single immutable root value; the view is a pure
-function of it; every handler takes the old self and returns a new self,
-and the transactor swaps the root atomically. Updating a deep child
+function of it; every component handler receives an Immer draft while `this`
+remains the immutable current value, and the transactor swaps the produced
+root atomically. Updating a deep child
 produces a new root that shares structure with the old one along the
 unchanged spine, so the renderer's `===`-keyed cache skips untouched
 subtrees. Full version: *Mental model* in [core.md](./core.md).
@@ -76,20 +77,28 @@ Each dispatch is a `Transaction`. The `Transactor` holds a FIFO queue;
 — which is exactly why an intent's answer can land after other
 transactions have rebuilt the root.
 
-The core of applying one is `Transaction.updateRootValue`:
+The core of applying one is `Transaction.run`:
 
 ```js
-const txnPath = this.getTransactionPath();   // toTransactionPath(), or a pinned path
-const curLeaf = txnPath.lookup(curRoot);      // read the addressed value NOW
-const newLeaf = this.callHandler(curRoot, curLeaf, comps);  // old self → new self
+const txnPath = this.getTransactionPath(); // transaction path, or a pinned path
+const curLeaf = txnPath.lookup(curRoot); // immutable value addressed now
+const newLeaf = produce(curLeaf, (draft) => {
+  const result = this.callHandler(curRoot, curLeaf, draft, comps);
+  if (result === undefined || result === draft) validateDraftFields(curLeaf, draft);
+  return result;
+});
 return curLeaf !== newLeaf ? txnPath.setValue(curRoot, newLeaf) : curRoot;
 ```
 
-The root swap is atomic and identity-cheap: unchanged subtrees keep their
-references, so re-render is incremental. Per-dispatch completion is tracked
-by `Completion` (counter-based): `whenSettled()` resolves once a
-transaction's own work finishes, `whenSubtreeSettled()` once the subtree it
-spawned (intents, follow-on sends) settles too.
+Returning nothing (or the draft) commits draft mutations; returning another
+value replaces the addressed leaf. Immer rejects a handler that both mutates
+the draft and returns a replacement. `Path.setValue` uses a second, short
+recipe to rebuild only the path spine. The root swap is atomic and
+identity-cheap: unchanged subtrees keep their references, so re-render is
+incremental. Per-dispatch completion is tracked by `Completion`
+(counter-based): `whenSettled()` resolves once a transaction's own work
+finishes, `whenSubtreeSettled()` once the subtree it spawned (intents,
+follow-on sends) settles too.
 
 ## Dispatch channels, semantically
 
