@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
 import { ANode } from "../src/anode.js";
 import { ParseCtxClassSetCollector } from "../src/util/parsectx.js";
-import { Comment, document, Text } from "./dom.js";
+import { document } from "./dom.js";
 
 function parse(html) {
-  const ctx = new ParseCtxClassSetCollector(document, Text, Comment);
+  const ctx = new ParseCtxClassSetCollector(document);
   const r = ANode.parse(html, ctx);
   return [r, ctx];
 }
