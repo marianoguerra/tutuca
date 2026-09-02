@@ -13,6 +13,8 @@
       "test/**/*.js",
       "docs/src/**/*.js",
       "docs/examples/**/*.js",
+      "spec/**/*.js",
+      "!spec/featherweight/vendor",
       "scripts/**",
       "tools/**/*.js"
     ]
