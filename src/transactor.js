@@ -114,8 +114,6 @@ export class Transactor {
   // were captured while the handler ran (see callHandler / Transaction.run).
   _emitTransaction(transaction, root) {
     if (this._observers.length === 0) return;
-    // No handler ran: nothing to report.
-    if (transaction._resolvedHandler === undefined) return;
     this._emitRecord(root, {
       kind: transaction.observeKind,
       name: transaction.observeName,
@@ -177,7 +175,7 @@ export class Transactor {
     return this.transactions.length > 0;
   }
   transactNext() {
-    if (this.hasPendingTransactions) this.transact(this.transactions.shift());
+    this.transact(this.transactions.shift());
   }
   transact(transaction) {
     // `finally` guarantees the self-unit is released and self is settled on every exit:
@@ -238,33 +236,14 @@ class Transaction {
   whenSubtreeSettled() {
     return this.completion.whenSubtreeSettled();
   }
-  afterTransaction() {}
-  // Ending a walk and forwarding belong to the two dispatch buckets; the base warns
-  // rather than throwing, so a stray call from the wrong place is a message and not a
-  // crash. `walk` is undefined here, which is how ctx.reply/ctx.fail tell the two apart.
-  stop() {
-    warnNotIntent("stop");
-  }
-  forward(_opts) {
-    console.warn('ctx.forward() needs a "receive" or "intent" handler - ignored');
-  }
-  // The kind reported to observers (see Transactor.observe); null on the base.
-  get observeKind() {
-    return null;
-  }
-  // The name reported to observers; null on the base. Overridden by NameArgs (the
-  // dispatched message name) and InputEvent (the DOM event type). Kept separate from
-  // `name`/`ctx.name` so it can't change handler-visible behavior.
-  get observeName() {
-    return null;
-  }
+  // Every transaction kind defines: `afterTransaction()` (derived work, once the
+  // state moved), `forward(opts)`, `observeKind` / `observeName` (what observers see;
+  // kept apart from `name`/`ctx.name` so they can't change handler-visible behavior)
+  // and `getHandlerAndArgs(root, instance, comps)`.
   callHandler(root, instance, draft, comps) {
     const [handler, args] = this.getHandlerAndArgs(root, instance, comps);
     this._resolvedHandler = handler; // captured for observers
     return handler.apply(instance, [draft, ...args]);
-  }
-  getHandlerAndArgs(_root, _instance, _comps) {
-    return null;
   }
   // The path used to apply the mutation: the ACTIVE frame of the dispatch path, so
   // an event inside a `<x render="*name">` subtree updates the value where it
@@ -347,12 +326,6 @@ class InputEvent extends Transaction {
     args.push(new EventContext(path, this.transactor, this));
     return [handler, args];
   }
-  // The dispatched DOM event, read only through `e.<member>` handler args
-  // (src/value.js EventMemberVal via Stack.lookupEvent). There is no bare
-  // implicit-name vocabulary anymore: every arg carries a sigil.
-  get event() {
-    return this.e;
-  }
 }
 class NameArgsTransaction extends Transaction {
   constructor(path, transactor, name, args, parentTransaction) {
@@ -432,9 +405,6 @@ class IntentEvent extends NameArgsTransaction {
   // one itself, because a walk advances on its own.
   forward(opts) {
     this.walk.amend(opts, this.path);
-  }
-  stop() {
-    this.walk.finish(null, null);
   }
   afterTransaction() {
     // THE rule: a reply ends the walk; running does not. A handler that changed state
@@ -697,13 +667,13 @@ class Completion {
   }
 }
 class Dispatcher {
-  constructor(path, transactor, parentTransaction, root = transactor.state.val) {
+  constructor(path, transactor, parentTransaction) {
     this.path = path;
     this.transactor = transactor;
     this.parent = parentTransaction;
     // The state tree this ctx's `path` indexes into, captured at dispatch. Frozen,
     // so `walkPath` can be called any time (before or after an await).
-    this.root = root;
+    this.root = transactor.state.val;
   }
   // Walk the component instances on this ctx's path, leaf→root, calling
   // callback(Component, instance). Return false from the callback to stop early.
@@ -832,9 +802,12 @@ class EventContext extends Dispatcher {
       this.parent.originPinned,
     );
   }
-  // End the walk answering nothing — "served, and no answer".
+  // End the walk answering nothing — "served, and no answer". Like reply/fail,
+  // legal only in an `intent` handler.
   stop() {
-    return this.parent.stop();
+    return this.parent.walk === undefined
+      ? warnNotIntent("stop")
+      : this.parent.walk.finish(null, null);
   }
   // From an `intent` body: hand the intent to the next hop, optionally amending it.
   // From a `receive` body: turn the message that arrived into an intent. One word from

@@ -139,24 +139,6 @@ export class ComponentStack {
     return this.macros[name] ?? this.parent?.lookupMacro(name) ?? null;
   }
 }
-// What a component publishes: an expression evaluated when the component is entered
-// and pushed onto the dynBinds stack under its NAME, together with the absolute path
-// its value lives at. Names, not symbols: a lookup names what it wants and takes
-// whoever provides it, nearest first, so there is no producer to qualify — and
-// because the pair is resolved by live render ancestry, several components may
-// publish one name and the nearest rendered one wins.
-export class ProvideInfo {
-  constructor(val) {
-    this.val = val;
-  }
-}
-// What a component reads "context-style": the name on the dynBinds stack, falling
-// back to `val` (the default expression, or null) when nobody above provides it.
-export class LookupInfo {
-  constructor(val) {
-    this.val = val; // default expression or null
-  }
-}
 const isString = (v) => typeof v === "string";
 // The two dispatch buckets, plus `alter` (render-time, never dispatched).
 const _rawSpecKeys =
@@ -184,11 +166,20 @@ export class Component {
     }
     this._rawProvide = o.provide ?? {};
     this._rawLookup = o.lookup ?? [];
+    // What a component publishes: name -> parsed expression, evaluated when the
+    // component is entered and pushed onto the dynBinds stack under that NAME,
+    // together with the absolute path its value lives at. Names, not symbols: a
+    // lookup names what it wants and takes whoever provides it, nearest first, so
+    // there is no producer to qualify — and because the pair is resolved by live
+    // render ancestry, several components may publish one name and the nearest
+    // rendered one wins.
     this.provide = {};
     // Component types this component publishes to its subtree, name -> Class. Kept
     // apart from `provide` because a Class is not addressable: it can never be a
     // render target, so it must not reach resolveDynProducer or `*name`.
     this.provideType = {};
+    // What a component reads "context-style": name -> default expression (or
+    // null), used when nobody above provides the name.
     this.lookup = {};
     this.scope = null;
     this.spec = o;
@@ -211,7 +202,7 @@ export class Component {
         continue;
       }
       const val = parseProvide(this._rawProvide[key], ctx);
-      if (val) this.provide[key] = new ProvideInfo(val);
+      if (val) this.provide[key] = val;
     }
     // `lookup` is a list of names: a bare string is the whole declaration, an object
     // appears only when an option (a `default`) is needed.
@@ -219,7 +210,7 @@ export class Component {
       const name = isString(entry) ? entry : isString(entry?.name) ? entry.name : null;
       if (name === null) continue;
       const defStr = isString(entry?.default) ? entry.default : null;
-      this.lookup[name] = new LookupInfo(defStr === null ? null : parseField(defStr, ctx));
+      this.lookup[name] = defStr === null ? null : parseField(defStr, ctx);
     }
     for (const key in this.lookup)
       if (this.provide[key] !== undefined)
@@ -228,11 +219,11 @@ export class Component {
   getView(name) {
     return this.views[name] ?? this.views.main;
   }
-  getEventForId(id, name = "main") {
-    return this.getView(name).ctx.getEventForId(id);
+  getEventForId(id, viewName) {
+    return this.getView(viewName).ctx.getEventForId(id);
   }
-  getNodeForId(id, name = "main") {
-    return this.getView(name).ctx.getNodeForId(id);
+  getNodeForId(id, viewName) {
+    return this.getView(viewName).ctx.getNodeForId(id);
   }
   compileStyle() {
     const { id, commonStyle, globalStyle, views } = this;

@@ -103,9 +103,9 @@ export class Stack {
     for (const k in provide) {
       // A provide with no path item was already dropped by compile(); the linter
       // reports it as PROVIDE_NOT_ADDRESSABLE.
-      const step = provide[k].val.toPathItem?.() ?? null;
+      const step = provide[k].toPathItem?.() ?? null;
       if (step === null) continue;
-      const value = provide[k].val.eval(this);
+      const value = provide[k].eval(this);
       binds[k] = { value, path: base === null ? null : base.concat([step]) };
       has = true;
     }
@@ -187,7 +187,7 @@ export class Stack {
       const value = path.lookup(this.root, NOT_FOUND);
       if (value !== NOT_FOUND) return { value, path };
     }
-    const dval = comp.lookup[name]?.val ?? null;
+    const dval = comp.lookup[name] ?? null;
     if (dval === null) return null;
     const step = dval.toPathItem?.() ?? null;
     const value = dval.eval(this);
@@ -212,9 +212,10 @@ export class Stack {
     return fn instanceof Function ? fn.call(this.it) : null;
   }
   // The dispatched DOM event / drag info, read only by EventMemberVal's
-  // `e.<member>` handler args. Null outside a live event transaction.
+  // `e.<member>` handler args. Null outside a live event transaction (`ctx` is
+  // then a send/intent transaction, which carries no `e`).
   lookupEvent() {
-    return this.ctx?.event ?? null;
+    return this.ctx?.e ?? null;
   }
   lookupDragInfo() {
     return this.ctx?.dragInfo ?? null;

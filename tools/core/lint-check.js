@@ -1153,7 +1153,7 @@ function checkLookupsHaveProviders(lx, Comp) {
   for (const name in Comp.lookup) {
     if (isTypeName(name)) continue;
     if (scope.hasProvider?.(name) || scope.lookupPath?.(name)) continue;
-    const info = { name, hasDefault: Comp.lookup[name].val != null };
+    const info = { name, hasDefault: Comp.lookup[name] != null };
     if (info.hasDefault) lx.hint(LOOKUP_NO_PROVIDER, info);
     else lx.error(LOOKUP_NO_PROVIDER, info);
   }

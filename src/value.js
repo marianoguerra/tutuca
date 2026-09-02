@@ -1,6 +1,9 @@
 import { isPlainObject, seqGet } from "./collection.js";
 import { FieldStep, SeqAccessStep } from "./path.js";
-import { isMac } from "./util/env.js";
+
+// Host-platform detection for the cmd/ctrl unification: `e.isCtrl` and the
+// `+ctrl` event modifier both read as cmd on a mac.
+const isMac = (globalThis.navigator?.userAgent ?? "").toLowerCase().includes("mac");
 
 // An identifier: a letter then letters/digits/underscores, with an optional
 // trailing `?`. The `?` lets predicate names (`empty?`, `equals?`) parse as
@@ -220,8 +223,7 @@ export const parseMacroAttr = (s, px) => _parseSingle(s, px, G_ALL);
 // `EventHandler.parse` is a thin wrapper, or null on a bad handler name.
 // The namespace is `receive`: a view's name is a MESSAGE addressed to the component
 // that owns the view, which is the same thing a parent's ctx.send raises.
-export const parseReceiveHandler = (s, px) =>
-  _parseHandler(s, px, "receive", true, true, false);
+export const parseReceiveHandler = (s, px) => _parseHandler(s, px, "receive", true, true, false);
 // Handler reference for @when, @enrich-with, @loop-with. No args, and
 // silent on failure — the directive caller reports the issue.
 export const parseAlterHandler = (s, px) =>
@@ -304,7 +306,6 @@ function kindOf(val) {
   return 0;
 }
 class BaseVal {
-  render(_stack, _rx) {}
   eval(_stack) {}
   toPathItem() {
     return null;
@@ -322,9 +323,6 @@ export class ConstVal extends BaseVal {
     super();
     this.val = val;
     this.kind = kind;
-  }
-  render(_stack, _rx) {
-    return this.val;
   }
   eval(_stack) {
     return this.val;
@@ -353,8 +351,7 @@ export class PredicateVal extends BaseVal {
     return `${this.pred.name} ${this.args.map(String).join(" ")}`;
   }
 }
-export class VarVal extends BaseVal {}
-export class StrTplVal extends VarVal {
+export class StrTplVal extends BaseVal {
   constructor(vals) {
     super();
     this.vals = vals;
@@ -371,9 +368,6 @@ export class StrTplVal extends VarVal {
   isLiteral() {
     for (const v of this.vals) if (!(v instanceof ConstVal) || v.fromMacroVar) return false;
     return true;
-  }
-  render(stack, _rx) {
-    return this.eval(stack);
   }
   eval(stack) {
     const strs = new Array(this.vals.length);
@@ -413,7 +407,7 @@ export class StrTplVal extends VarVal {
     return new StrTplVal(lo === 0 && hi === vals.length ? vals : vals.slice(lo, hi));
   }
 }
-export class NameVal extends VarVal {
+export class NameVal extends BaseVal {
   constructor(name) {
     super();
     this.name = name;
@@ -510,12 +504,7 @@ export class EventMemberVal extends BaseVal {
     return `e.${this.members.join(".")}`;
   }
 }
-class RenderVal extends BaseVal {
-  render(stack, _rx) {
-    return this.eval(stack);
-  }
-}
-class RenderNameVal extends RenderVal {
+class RenderNameVal extends BaseVal {
   constructor(name) {
     super();
     this.name = name;
@@ -584,7 +573,7 @@ export class MethodVal extends RenderNameVal {
     return `$${this.name}`;
   }
 }
-export class SeqAccessVal extends RenderVal {
+export class SeqAccessVal extends BaseVal {
   constructor(seqVal, keyVal) {
     super();
     this.seqVal = seqVal;

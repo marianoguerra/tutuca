@@ -1,4 +1,4 @@
-import { Attributes, parseIterationDirectives } from "./attribute.js";
+import { AttrParser, parseIterationDirectives } from "./attribute.js";
 import { bindsForKey, filterAlwaysTrue, makeLoopCtx, nullLoopWith } from "./iteration.js";
 import { EachBindStep, EachRenderItStep, ScopeBindStep, SeqStep } from "./path.js";
 import {
@@ -36,9 +36,11 @@ class BaseNode {
   render(_stack, _rx) {
     return null;
   }
-  setDataAttr(key, val) {
-    console.warn("setDataAttr not implemented for", this, { key, val });
-  }
+  // Stamp a `data-*` attribute on the element(s) this node renders. A no-op for
+  // nodes that produce no element of their own (text, `<x render*>`): a view whose
+  // root is one of those records its component boundary in the `§Comp§` meta
+  // comment instead (see Renderer._rValComp).
+  setDataAttr(_key, _val) {}
   isConstant() {
     return false;
   }
@@ -75,18 +77,10 @@ export class TextNode extends BaseNode {
   isConstant() {
     return true;
   }
-  setDataAttr(_key, _val) {}
 }
 export class CommentNode extends TextNode {
   render(_stack, rx) {
     return rx.renderComment(this.val);
-  }
-}
-function optimizeChilds(childs) {
-  for (let i = 0; i < childs.length; i++) {
-    const child = childs[i];
-    if (child.isConstant()) childs[i] = new RenderOnceNode(child);
-    else child.optimize();
   }
 }
 function optimizeNode(node) {
@@ -103,7 +97,8 @@ class ChildsNode extends BaseNode {
     return this.childs.every((v) => v.isConstant());
   }
   optimize() {
-    optimizeChilds(this.childs);
+    const { childs } = this;
+    for (let i = 0; i < childs.length; i++) childs[i] = optimizeNode(childs[i]);
   }
 }
 export class DomNode extends ChildsNode {
@@ -115,8 +110,7 @@ export class DomNode extends ChildsNode {
   }
   render(stack, rx) {
     const childNodes = new Array(this.childs.length);
-    for (let i = 0; i < childNodes.length; i++)
-      childNodes[i] = this.childs[i]?.render?.(stack, rx) ?? null;
+    for (let i = 0; i < childNodes.length; i++) childNodes[i] = this.childs[i].render(stack, rx);
     return rx.renderTag(this.tagName, this.attrs.eval(stack), childNodes, this.namespace);
   }
   setDataAttr(key, val) {
@@ -128,7 +122,7 @@ export class DomNode extends ChildsNode {
 }
 export class FragmentNode extends ChildsNode {
   render(stack, rx) {
-    return rx.renderFragment(this.childs.map((c) => c?.render(stack, rx)));
+    return rx.renderFragment(this.childs.map((c) => c.render(stack, rx)));
   }
   setDataAttr(key, val) {
     for (const child of this.childs) child.setDataAttr(key, val);
@@ -142,8 +136,10 @@ export class ANode extends BaseNode {
     this.nodeId = nodeId;
     this.val = val;
   }
-  toPathStep(ctx) {
-    return ctx.applyKey(this.val?.toPathItem?.() ?? null);
+  // The addressing step this node contributes to an event's dispatch path, given
+  // the `StepCtx` of the meta that named it; null when it addresses nothing.
+  toPathStep(_ctx) {
+    return this.val?.toPathItem?.() ?? null;
   }
   static parse(html, px) {
     const nodes = px.parseHTML(html);
@@ -181,11 +177,11 @@ export class ANode extends BaseNode {
           const slotName = attrs.getNamedItem("name")?.value ?? "_";
           return px.frame.macroSlots[slotName] ?? maybeFragment(childs);
         }
-        const [nAttrs, wrappers] = Attributes.parse(attrs, px, true);
+        const [nAttrs, wrappers] = new AttrParser(px).parse(attrs, true);
         px.onAttributes(nAttrs, wrappers, null, true, tag);
         return wrap(px.newMacroNode(macroName, nAttrs.toMacroVars(), childs), px, wrappers);
       } else if (VALID_NODE_RE.test(tag)) {
-        const [nAttrs, wrappers, textChild] = Attributes.parse(attrs, px);
+        const [nAttrs, wrappers, textChild] = new AttrParser(px).parse(attrs);
         px.onAttributes(nAttrs, wrappers, textChild, false, tag);
         if (textChild) childs.unshift(new RenderTextNode(null, textChild));
         const domChilds = tag !== "PRE" ? condenseChildsWhites(childs) : childs;
@@ -354,16 +350,12 @@ class RenderViewId extends ANode {
   evalViewName(stack) {
     return this.viewVal ? this.viewVal.eval(stack) : null;
   }
-  // A `<x render*>` produces no DOM element of its own to carry `data-cid`;
-  // when it is a view's root the component boundary is recorded in the `Comp`
-  // meta comment instead (see Renderer._rValComp), so this is a no-op.
-  setDataAttr(_key, _val) {}
 }
 export class RenderNode extends RenderViewId {
   render(stack, rx) {
     const [value, renderPath, base] = renderTarget(this.val, stack);
     const newStack = stack.enter(value, {}, true, renderPath, false);
-    return rx.renderIt(newStack, this, "", this.evalViewName(stack), base);
+    return rx.renderIt(newStack, this, this.evalViewName(stack), base);
   }
   // A `*name` target contributes no step: the site recorded the absolute base it
   // resumed at, and event reconstruction turns that into a continuation frame.
@@ -379,7 +371,7 @@ export class RenderItNode extends RenderViewId {
     // base has to be recorded.
     const base = stack.pendingFrame ? stack.renderPath.toTransactionPath() : null;
     const newStack = stack.enter(stack.it, {}, true, stack.renderPath, false);
-    return rx.renderIt(newStack, this, "", this.evalViewName(stack), base);
+    return rx.renderIt(newStack, this, this.evalViewName(stack), base);
   }
   toPathStep(ctx) {
     const next = ctx.next();
@@ -416,8 +408,6 @@ export class RenderTextNode extends ANode {
   render(stack, _rx) {
     return this.val.eval(stack);
   }
-  // Renders to a text node, which can't carry `data-cid`.
-  setDataAttr(_key, _val) {}
 }
 export class RenderOnceNode extends BaseNode {
   constructor(node) {
@@ -464,7 +454,7 @@ export class PushViewNameNode extends WrapperNode {
     return this.node.render(stack.pushViewName(this.val.eval(stack)), rx);
   }
 }
-export class SlotNode extends WrapperNode {
+class SlotNode extends WrapperNode {
   // Marker instead of `instanceof`: newMacroNode receives nodes that may come
   // from a different copy of this module (CLI tools import src/ while the
   // module under render imports the dist bundle), and cross-copy instanceof
@@ -494,13 +484,29 @@ export class ScopeNode extends WrapperNode {
 export class EachNode extends WrapperNode {
   constructor(nodeId, val) {
     super(nodeId, val);
-    this.iterInfo = new IterInfo(val, null, null, null);
+    this.iterInfo = new IterInfo();
   }
   render(stack, rx) {
     return rx.renderEachWhen(stack, this);
   }
+  // The sequence and the three loop handlers, resolved against `stack`.
+  evalIter(stack) {
+    const { whenVal, loopWithVal, enrichWithVal } = this.iterInfo;
+    return {
+      seq: this.val.eval(stack) ?? [],
+      filter: whenVal?.evalAsHandler(stack) ?? filterAlwaysTrue,
+      loopWith: loopWithVal?.evalAsHandler(stack) ?? nullLoopWith,
+      enricher: enrichWithVal?.evalAsHandler(stack) ?? null,
+    };
+  }
+  // Rebuild the per-item binds for `key` (see iteration.js bindsForKey).
+  enrichBinds(stack, key) {
+    const { seq, filter, loopWith, enricher } = this.evalIter(stack);
+    const ctx = makeLoopCtx(stack, filter);
+    return bindsForKey({ seq, it: stack.it, loopWith, enricher, ctx }, key);
+  }
   toPathStep(ctx) {
-    return ctx.hasKey ? new EachBindStep(this.iterInfo, ctx.key) : null;
+    return ctx.hasKey ? new EachBindStep(this, ctx.key) : null;
   }
   // Where one item lives, for the render path. `@each` re-binds `it` to the item
   // whether or not the body is a component, so the position moves either way and
@@ -512,25 +518,14 @@ export class EachNode extends WrapperNode {
   }
   static register = true;
 }
+// The three optional loop directives of an `@each` / `<x render-each>`, as parsed
+// values (`@when`, `@loop-with`, `@enrich-with`); the sequence itself is the node's
+// `val`.
 class IterInfo {
-  constructor(val, whenVal, loopWithVal, enrichWithVal) {
-    this.val = val;
-    this.whenVal = whenVal;
-    this.loopWithVal = loopWithVal;
-    this.enrichWithVal = enrichWithVal;
-  }
-  eval(stack) {
-    const seq = this.val.eval(stack) ?? [];
-    const filter = this.whenVal?.evalAsHandler(stack) ?? filterAlwaysTrue;
-    const loopWith = this.loopWithVal?.evalAsHandler(stack) ?? nullLoopWith;
-    const enricher = this.enrichWithVal?.evalAsHandler(stack) ?? null;
-    return { seq, filter, loopWith, enricher };
-  }
-  // Rebuild the per-item binds for `key` (see iteration.js bindsForKey).
-  enrichBinds(stack, key) {
-    const { seq, filter, loopWith, enricher } = this.eval(stack);
-    const ctx = makeLoopCtx(stack, filter);
-    return bindsForKey({ seq, it: stack.it, loopWith, enricher, ctx }, key);
+  constructor() {
+    this.whenVal = null;
+    this.loopWithVal = null;
+    this.enrichWithVal = null;
   }
 }
 // consumed: attr names this op handles itself; wrappable: accepts show/hide wrapper
@@ -570,7 +565,6 @@ export class ParseContext {
     this.document = document ?? globalThis.document;
     this.Text = Text ?? globalThis.Text;
     this.Comment = Comment ?? globalThis.Comment;
-    this.cacheConstNodes = true;
     this.currentTag = null;
   }
   isInsideMacro(name) {
@@ -656,12 +650,12 @@ const isEmptyText = (c) => c instanceof TextNode && c.val === "";
 // insignificant whitespace (childs here aren't run through condenseChildsWhites,
 // so whitespace TextNodes survive) and comments (CommentNode extends TextNode but
 // its text isn't whitespace, so exclude it by type, not by isWhiteSpace).
-const isIgnorableXChild = (c) => c instanceof CommentNode || (c.isWhiteSpace?.() ?? false);
+const isIgnorableXChild = (c) => c instanceof CommentNode || c.isWhiteSpace();
 const hasMeaningfulChilds = (childs) => childs.some((c) => !isIgnorableXChild(c));
 // Collapse a leading/trailing whitespace child to nothing; returns whether it
 // became an empty node that the final filter should drop.
 function trimEdgeWhite(node) {
-  if (!node.isWhiteSpace?.()) return false;
+  if (!node.isWhiteSpace()) return false;
   node.condenseWhiteSpace();
   return true;
 }
@@ -680,7 +674,7 @@ function condenseChildsWhites(childs) {
 
   for (let i = 1; i < last; i++) {
     const cur = childs[i];
-    if (!(cur.isWhiteSpace?.() && cur.hasNewLine())) continue;
+    if (!(cur.isWhiteSpace() && cur.hasNewLine())) continue;
     const bothBlock = isBlockDomNode(childs[i - 1]) && isBlockDomNode(childs[i + 1]);
     cur.condenseWhiteSpace(bothBlock ? "" : " ");
     if (bothBlock) emptied = true;
@@ -689,12 +683,13 @@ function condenseChildsWhites(childs) {
   return emptied ? childs.filter((c) => !isEmptyText(c)) : childs;
 }
 export class View {
-  constructor(name, rawView = "No View Defined", style = "", anode = null, ctx = null) {
+  constructor(name, rawView = "No View Defined", style = "") {
     this.name = name;
-    this.anode = anode;
-    this.style = style;
-    this.ctx = ctx;
     this.rawView = rawView;
+    this.style = style;
+    // Set by compile().
+    this.anode = null;
+    this.ctx = null;
   }
   compile(ctx, scope, cid) {
     this.ctx = ctx;
@@ -702,7 +697,7 @@ export class View {
     this.anode.setDataAttr("data-cid", cid);
     this.anode.setDataAttr("data-vid", this.name);
     this.ctx.compile(scope);
-    if (ctx.cacheConstNodes) this.anode = optimizeNode(this.anode);
+    this.anode = optimizeNode(this.anode);
   }
   render(stack, rx) {
     // A null anode means this view was never compiled — i.e. a value whose component
@@ -733,7 +728,7 @@ export class NodeEvents {
   getHandlersFor(eventName) {
     let r = null;
     for (const handler of this.handlers)
-      if (handler.handlesEventName(eventName)) {
+      if (handler.name === eventName) {
         r ??= [];
         r.push(handler);
       }
@@ -746,9 +741,6 @@ class NodeEvent {
     this.handlerCall = handlerCall;
     this.modifierWrapper = compileModifiers(name, modifiers);
     this.modifiers = modifiers;
-  }
-  handlesEventName(name) {
-    return this.name === name;
   }
   getHandlerAndArgs(stack, event) {
     const r = this.handlerCall.getHandlerAndArgs(stack, event);

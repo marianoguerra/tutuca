@@ -2,11 +2,11 @@ import { describe, expect, test } from "vitest";
 import { NullDomCache, WeakMapDomCache } from "../src/cache.js";
 
 describe("NullDomCache", () => {
-  test("get/set are no-ops and evict returns zeroed stats", () => {
+  test("get/set/evict are no-ops", () => {
     const c = new NullDomCache();
     c.set([{}, {}], "ck", 1);
     expect(c.get([{}, {}], "ck")).toBeUndefined();
-    expect(c.evict()).toEqual({ hit: 0, miss: 0, badKey: 0 });
+    c.evict();
   });
 });
 
@@ -20,13 +20,11 @@ describe("WeakMapDomCache get/set", () => {
         const keys = makeKeys();
         c.set(keys, "ck", 42);
         expect(c.get(keys, "ck")).toBe(42);
-        expect(c.evict()).toEqual({ hit: 1, miss: 0, badKey: 0 });
       });
 
-      test("get with unknown keys counts a miss", () => {
+      test("get with unknown keys returns undefined", () => {
         const c = new WeakMapDomCache();
         expect(c.get(makeKeys(), "ck")).toBeUndefined();
-        expect(c.evict()).toEqual({ hit: 0, miss: 1, badKey: 0 });
       });
 
       test("get with the wrong cacheKey returns undefined", () => {
@@ -81,40 +79,38 @@ describe("WeakMapDomCache get/set", () => {
         });
       }
 
-      test("primitive last key counts a badKey", () => {
+      test("primitive last key goes uncached", () => {
         const c = new WeakMapDomCache();
         const keys = makeKeys();
         keys[n - 1] = "not-object";
         c.set(keys, "ck", 42);
-        expect(c.evict().badKey).toBe(1);
+        expect(c.get(keys, "ck")).toBeUndefined();
       });
 
       // `typeof null === "object"`, so `null` used to slip past the primitive
       // guard and crash `WeakMap.set(null, …)`. It must be treated like any
-      // other non-weakly-holdable key: counted as a badKey, never thrown.
+      // other non-weakly-holdable key: left uncached, never thrown.
       for (const [label, prim] of [
         ["null", null],
         ["undefined", undefined],
         ["false", false],
         ["zero", 0],
       ]) {
-        test(`${label} last key is a badKey, not a throw`, () => {
+        test(`${label} last key goes uncached, no throw`, () => {
           const c = new WeakMapDomCache();
           const keys = makeKeys();
           keys[n - 1] = prim;
           expect(() => c.set(keys, "ck", 42)).not.toThrow();
           expect(c.get(keys, "ck")).toBeUndefined();
-          expect(c.evict()).toEqual({ hit: 0, miss: 1, badKey: 1 });
         });
 
         if (n > 1) {
-          test(`${label} first key is a badKey, not a throw`, () => {
+          test(`${label} first key goes uncached, no throw`, () => {
             const c = new WeakMapDomCache();
             const keys = makeKeys();
             keys[0] = prim;
             expect(() => c.set(keys, "ck", 42)).not.toThrow();
             expect(c.get(keys, "ck")).toBeUndefined();
-            expect(c.evict()).toEqual({ hit: 0, miss: 1, badKey: 1 });
           });
         }
       }
@@ -126,30 +122,28 @@ describe("WeakMapDomCache get/set", () => {
         if (n > 1) keys[0] = () => {};
         c.set(keys, "ck", 42);
         expect(c.get(keys, "ck")).toBe(42);
-        expect(c.evict()).toEqual({ hit: 1, miss: 0, badKey: 0 });
       });
 
       if (n > 1) {
-        test("primitive first key counts a badKey", () => {
+        test("primitive first key goes uncached", () => {
           const c = new WeakMapDomCache();
           const keys = makeKeys();
           keys[0] = "not-object";
           c.set(keys, "ck", 42);
-          expect(c.evict().badKey).toBe(1);
+          expect(c.get(keys, "ck")).toBeUndefined();
         });
       }
 
-      test("evict resets stats and storage", () => {
+      test("evict clears the storage", () => {
         const c = new WeakMapDomCache();
         const keys = makeKeys();
         c.set(keys, "ck", 7);
         expect(c.get(keys, "ck")).toBe(7);
-        expect(c.evict()).toEqual({ hit: 1, miss: 0, badKey: 0 });
+        c.evict();
         expect(c.get(keys, "ck")).toBeUndefined();
-        expect(c.evict()).toEqual({ hit: 0, miss: 1, badKey: 0 });
       });
 
-      test("falsy non-undefined values round-trip and count as hits", () => {
+      test("falsy non-undefined values round-trip", () => {
         const c = new WeakMapDomCache();
         const keys = makeKeys();
         c.set(keys, "zero", 0);
@@ -160,22 +154,6 @@ describe("WeakMapDomCache get/set", () => {
         expect(c.get(keys, "null")).toBeNull();
         expect(c.get(keys, "empty")).toBe("");
         expect(c.get(keys, "false")).toBe(false);
-        expect(c.evict()).toEqual({ hit: 4, miss: 0, badKey: 0 });
-      });
-
-      test("counters accumulate across mixed hits, misses, and badKeys", () => {
-        const c = new WeakMapDomCache();
-        const keys = makeKeys();
-        c.set(keys, "ck", 1);
-        c.get(keys, "ck"); // hit
-        c.get(keys, "ck"); // hit
-        c.get(makeKeys(), "ck"); // miss
-        c.get(makeKeys(), "ck"); // miss
-        c.get(makeKeys(), "ck"); // miss
-        const bad = makeKeys();
-        bad[n - 1] = "primitive";
-        c.set(bad, "ck", 2); // badKey
-        expect(c.evict()).toEqual({ hit: 2, miss: 3, badKey: 1 });
       });
 
       if (n >= 2) {
@@ -192,12 +170,12 @@ describe("WeakMapDomCache get/set", () => {
       }
 
       if (n >= 3) {
-        test("primitive middle key counts a badKey", () => {
+        test("primitive middle key goes uncached", () => {
           const c = new WeakMapDomCache();
           const keys = makeKeys();
           keys[1] = "not-object";
           c.set(keys, "ck", 42);
-          expect(c.evict().badKey).toBe(1);
+          expect(c.get(keys, "ck")).toBeUndefined();
         });
       }
     });
@@ -214,7 +192,6 @@ describe("WeakMapDomCache paths of different lengths are independent", () => {
     c.set([a, b, cc], "ck", 2);
     expect(c.get([a, b], "ck")).toBe(1);
     expect(c.get([a, b, cc], "ck")).toBe(2);
-    expect(c.evict()).toEqual({ hit: 2, miss: 0, badKey: 0 });
   });
 
   test("longer set then shorter set: both coexist", () => {
@@ -226,35 +203,31 @@ describe("WeakMapDomCache paths of different lengths are independent", () => {
     c.set([a, b], "ck", 2);
     expect(c.get([a, b, cc], "ck")).toBe(1);
     expect(c.get([a, b], "ck")).toBe(2);
-    expect(c.evict()).toEqual({ hit: 2, miss: 0, badKey: 0 });
   });
 
-  test("get longer than stored path returns miss", () => {
+  test("get longer than stored path returns undefined", () => {
     const c = new WeakMapDomCache();
     const a = {};
     const b = {};
     const cc = {};
     c.set([a, b], "ck", 1);
     expect(c.get([a, b, cc], "ck")).toBeUndefined();
-    expect(c.evict().miss).toBe(1);
   });
 
-  test("get shorter than stored path returns miss", () => {
+  test("get shorter than stored path returns undefined", () => {
     const c = new WeakMapDomCache();
     const a = {};
     const b = {};
     const cc = {};
     c.set([a, b, cc], "ck", 1);
     expect(c.get([a, b], "ck")).toBeUndefined();
-    expect(c.evict().miss).toBe(1);
   });
 });
 
 describe("WeakMapDomCache empty path", () => {
-  test("set with empty keys is badKey, get with empty keys is miss", () => {
+  test("set with empty keys is ignored, get with empty keys is undefined", () => {
     const c = new WeakMapDomCache();
     c.set([], "ck", 42);
     expect(c.get([], "ck")).toBeUndefined();
-    expect(c.evict()).toEqual({ hit: 0, miss: 1, badKey: 1 });
   });
 });

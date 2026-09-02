@@ -1,13 +1,9 @@
 import { seqGet } from "./collection.js";
 import { produce } from "./immer.js";
 
+// Steps resolve with `lookup(v)`, answering NONE when the step does not apply to
+// `v`; a Path turns that into its caller's default.
 const NONE = Symbol("NONE");
-const readKey = (value, key, dval = null) => {
-  if (value == null) return dval;
-  if (value instanceof Map) return value.has(key) ? value.get(key) : dval;
-  if (value instanceof Set) return value.has(key) ? key : dval;
-  return Object.hasOwn(value, key) ? value[key] : dval;
-};
 const writeKey = (value, key, next) => {
   if (value instanceof Map) value.set(key, next);
   else if (value instanceof Set) {
@@ -15,21 +11,14 @@ const writeKey = (value, key, next) => {
     value.add(next);
   } else value[key] = next;
 };
-const writeSeqKey = (value, key, next) => {
-  if (
-    value instanceof Map ||
-    value instanceof Set ||
-    Array.isArray(value) ||
-    Object.hasOwn(value, key)
-  )
-    writeKey(value, key, next);
-  else if (typeof value?.set === "function") value.set(key, next);
-  else writeKey(value, key, next);
-};
+// A custom collection (no own `key`, but a `set` method) is written through it.
+const writeSeqKey = (value, key, next) =>
+  !(value instanceof Map || value instanceof Set || Array.isArray(value)) &&
+  !Object.hasOwn(value, key) &&
+  typeof value?.set === "function"
+    ? value.set(key, next)
+    : writeKey(value, key, next);
 export class Step {
-  lookup(_v, dval = null) {
-    return dval;
-  }
   setDraftValue(_root, _v) {}
   // Re-enter this step while rebuilding a stack. `renderPath` is the dispatch
   // position AFTER this step: a rebuilt frame must carry the same render path
@@ -57,17 +46,11 @@ export class BindStep extends Step {
     super();
     this.binds = binds;
   }
-  lookup(v, _dval) {
+  lookup(v) {
     return v;
   }
   enterFrame(stack, next, renderPath) {
     return stack.enter(next, { ...this.binds }, false, renderPath);
-  }
-  withIndex(i) {
-    return new BindStep({ ...this.binds, key: i });
-  }
-  withKey(key) {
-    return new BindStep({ ...this.binds, key });
   }
   toAbstractPathStep() {
     return null;
@@ -84,29 +67,17 @@ export class ScopeBindStep extends BindStep {
     const dyn = this.val.evalAsHandler(stack)?.call(stack.it) ?? {};
     return stack.enter(next, { ...this.binds, ...dyn }, false, renderPath);
   }
-  withIndex(i) {
-    return new ScopeBindStep(this.val, { ...this.binds, key: i });
-  }
-  withKey(key) {
-    return new ScopeBindStep(this.val, { ...this.binds, key });
-  }
 }
 export class FieldStep extends Step {
   constructor(field) {
     super();
     this.field = field;
   }
-  lookup(v, dval = null) {
-    return readKey(v, this.field, dval);
+  lookup(v) {
+    return seqGet(v, this.field, NONE);
   }
   setDraftValue(root, v) {
     writeKey(root, this.field, v);
-  }
-  withIndex(i) {
-    return new SeqStep(this.field, i);
-  }
-  withKey(k) {
-    return new SeqStep(this.field, k);
   }
   toKey() {
     return { field: this.field };
@@ -118,11 +89,11 @@ export class SeqStep extends Step {
     this.field = field;
     this.key = key;
   }
-  lookup(v, dval = null) {
-    return seqGet(readKey(v, this.field, null), this.key, dval);
+  lookup(v) {
+    return seqGet(seqGet(v, this.field, null), this.key, NONE);
   }
   setDraftValue(root, v) {
-    const seq = readKey(root, this.field, null);
+    const seq = seqGet(root, this.field, null);
     if (seq != null) writeSeqKey(seq, this.key, v);
   }
   enterFrame(stack, next, renderPath) {
@@ -138,20 +109,20 @@ export class SeqAccessStep extends Step {
     this.seqField = seqField;
     this.keyField = keyField;
   }
-  lookup(v, dval = null) {
-    const seq = readKey(v, this.seqField, NONE);
-    const key = readKey(v, this.keyField, NONE);
-    return key !== NONE && seq !== NONE ? seqGet(seq, key, dval) : dval;
+  lookup(v) {
+    const seq = seqGet(v, this.seqField, NONE);
+    const key = seqGet(v, this.keyField, NONE);
+    return key !== NONE && seq !== NONE ? seqGet(seq, key, NONE) : NONE;
   }
   setDraftValue(root, v) {
-    const seq = readKey(root, this.seqField, NONE);
-    const key = readKey(root, this.keyField, NONE);
+    const seq = seqGet(root, this.seqField, NONE);
+    const key = seqGet(root, this.keyField, NONE);
     if (seq !== NONE && key !== NONE) writeSeqKey(seq, key, v);
   }
   // Resolve `keyField` against `v` now and freeze it as a literal-key `SeqStep`, so a
   // later lookup/setValue lands on this same item even if `keyField` changes meanwhile.
   pinKey(v) {
-    const key = readKey(v, this.keyField, NONE);
+    const key = seqGet(v, this.keyField, NONE);
     return key === NONE ? this : new SeqStep(this.seqField, key);
   }
   // The key is a *field reference* resolved live, so it is unknown without a value;
@@ -162,18 +133,18 @@ export class SeqAccessStep extends Step {
   }
 }
 export class EachBindStep extends Step {
-  constructor(iterInfo, key) {
+  constructor(eachNode, key) {
     super();
-    this.iterInfo = iterInfo;
+    this.eachNode = eachNode;
     this.key = key;
   }
-  lookup(v, _dval) {
+  lookup(v) {
     return v;
   }
   // Replay the renderer's per-item binds (key, value + any @enrich-with binds)
   // so a rebuilt stack matches the one @each rendered with.
   enterFrame(stack, next, renderPath) {
-    return stack.enter(next, this.iterInfo.enrichBinds(stack, this.key), false, renderPath);
+    return stack.enter(next, this.eachNode.enrichBinds(stack, this.key), false, renderPath);
   }
   toAbstractPathStep() {
     return null;
@@ -236,9 +207,6 @@ export class Path {
   concat(steps) {
     return new Path(this.steps.concat(steps));
   }
-  popStep() {
-    return new Path(this.steps.slice(0, -1));
-  }
   // Frame-only steps removed, one step per crossed component: `popStep` over the
   // result bubbles through every component.
   compact() {
@@ -261,7 +229,7 @@ export class Path {
       const pinned = step.pinKey(curVal);
       // biome-ignore lint/suspicious/noAssignInExpressions: lazy-clone steps on first change
       if (pinned !== step) (out ??= this.steps.slice())[i] = pinned;
-      curVal = step.lookup(curVal, NONE);
+      curVal = step.lookup(curVal);
       if (curVal === NONE) break;
     }
     return out ? new Path(out) : this;
@@ -269,7 +237,7 @@ export class Path {
   lookup(v, dval = null) {
     let curVal = v;
     for (const step of this.steps) {
-      curVal = step.lookup(curVal, NONE);
+      curVal = step.lookup(curVal);
       if (curVal === NONE) return dval;
     }
     return curVal;
@@ -282,7 +250,7 @@ export class Path {
     const out = [root];
     let curVal = root;
     for (const step of this.steps) {
-      curVal = step.lookup(curVal, NONE);
+      curVal = step.lookup(curVal);
       if (curVal === NONE) break;
       out.push(curVal);
     }
@@ -307,14 +275,11 @@ export class Path {
     return produce(root, (draft) => {
       let parent = draft;
       for (let i = 0; i < this.steps.length - 1; i++) {
-        parent = this.steps[i].lookup(parent, NONE);
+        parent = this.steps[i].lookup(parent);
         if (parent === NONE) return;
       }
       this.steps.at(-1).setDraftValue(parent, v);
     });
-  }
-  buildStack(stack) {
-    return walkItems(stack, this.steps, stack.renderPath ?? new DispatchPath(), this)?.[0] ?? null;
   }
 }
 // Walk `items` from `stack`, entering each step's frame and extending
@@ -323,7 +288,7 @@ export class Path {
 function walkItems(stack, items, renderPath, path) {
   let prev = stack.it;
   for (const step of items) {
-    const next = step.lookup(prev, NONE);
+    const next = step.lookup(prev);
     if (next === NONE) {
       console.warn("bad PathItem", { root: stack.it, step, path });
       return null;
@@ -363,7 +328,6 @@ export class DispatchPath {
     return new DispatchPath(frames);
   }
   concat(steps) {
-    if (this.frames.length === 0) return DispatchPath.ofSteps(steps);
     return this._withTopItems(this.top.items.concat(steps));
   }
   pushItem(step) {
@@ -373,23 +337,17 @@ export class DispatchPath {
     return new DispatchPath(this.frames.concat({ base, items: [] }));
   }
   // Whether bubbling has anywhere left to go: another step in this frame, or a
-  // visual caller underneath it.
+  // visual caller underneath it. (A path always has at least one frame.)
   canPop() {
-    const n = this.frames.length;
-    return n > 1 || (n === 1 && this.frames[0].items.length > 0);
-  }
-  isRoot() {
-    return this.toTransactionPath().steps.length === 0;
+    return this.frames.length > 1 || this.frames[0].items.length > 0;
   }
   // One component closer to the root. At the top of a frame that is popping back
   // to the visual caller, not to the producer's own parent — the caller is where
   // the `*name` was written, and where an unhandled message should keep going.
   popStep() {
-    const n = this.frames.length;
-    if (n === 0) return this;
-    const top = this.frames[n - 1];
+    const { top } = this;
     if (top.items.length > 0) return this._withTopItems(top.items.slice(0, -1));
-    if (n > 1) return new DispatchPath(this.frames.slice(0, -1));
+    if (this.frames.length > 1) return new DispatchPath(this.frames.slice(0, -1));
     return this;
   }
   // Drop frame-only steps inside every frame independently; a frame's base is
@@ -411,8 +369,8 @@ export class DispatchPath {
   // The active transaction address: the top frame's absolute base followed by
   // its ordinary descendant steps. This is where a mutation lands.
   toTransactionPath() {
-    const top = this.top;
-    return top === undefined ? EMPTY_PATH : top.base.concat(top.items);
+    const { base, items } = this.top;
+    return base.concat(items);
   }
   // Rebuild the render stack this path was dispatched from. A frame with a base
   // re-enters at that absolute value first — replaying the resume a `*name`
@@ -436,10 +394,12 @@ export class DispatchPath {
     }
     return stack;
   }
-  static fromNodeAndEventName(node, eventName, rootNode, maxDepth, comps, stopOnNoEvent = true) {
+  // Reconstruct the dispatch position of a DOM event from the `data-*` stamps and
+  // `§…§` meta comments the renderer left on the way down. `stopOnNoEvent` is off for
+  // drag events, whose path is needed even where no handler is registered.
+  static fromNodeAndEventName(node, eventName, rootNode, comps, stopOnNoEvent = true) {
     const parts = [];
     const bubbles = BUBBLING_EVENTS.has(eventName);
-    let depth = 0;
     let eventIds = [];
     let handlers = null;
     let nodeRefs = [];
@@ -454,6 +414,7 @@ export class DispatchPath {
       if (handlers === null && (isLeafComponent || bubbles)) {
         handlers = findHandlers(comp, eventIds, vid, eventName);
         if (handlers === null) {
+          // A bubbling event keeps climbing: an ancestor may own the handler.
           if (isLeafComponent && stopOnNoEvent && !bubbles) return false;
         } else if (!isLeafComponent) {
           parts.length = 0; // handler bubbled up to an ancestor component: the returned path
@@ -469,7 +430,7 @@ export class DispatchPath {
       nodeRefs = [];
       return true;
     };
-    while (node && node !== rootNode && depth < maxDepth) {
+    while (node && node !== rootNode) {
       if (node?.dataset) {
         const { eid, cid, vid, rp } = node.dataset;
         if (eid !== undefined) eventIds.push(eid);
@@ -503,7 +464,6 @@ export class DispatchPath {
           }
         }
       }
-      depth += 1;
       node = node.parentNode;
     }
     parts.reverse();
@@ -580,13 +540,6 @@ class StepCtx {
   }
   resolveNode() {
     return this.comp.getNodeForId(+this.meta.nid, this.vid);
-  }
-  applyKey(pi) {
-    if (pi === null) return null;
-    const m = this.meta;
-    if (m.si !== undefined) return pi.withIndex(+m.si);
-    if (m.sk !== undefined) return pi.withKey(m.sk);
-    return pi;
   }
 }
 // The path part that leaves one component: `{ base }` when the render site

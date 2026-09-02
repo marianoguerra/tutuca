@@ -13,9 +13,6 @@ export class Attributes {
   constructor(items) {
     this.items = items;
   }
-  static parse(attributes, px, parseAll = false) {
-    return new AttrParser(px).parse(attributes, parseAll);
-  }
   isConstant() {
     return false;
   }
@@ -98,36 +95,34 @@ export class AttrParser {
       this.events.add(eventName, handler, modifiers);
     }
   }
-  _parseDirectiveValue(directiveName, s, parserFn) {
-    return parseDirectiveValue(this.px, directiveName, s, parserFn);
-  }
   parseDirective(s, directiveName) {
     switch (directiveName) {
       case "dangerouslysetinnerhtml":
         this.attrs ??= [];
-        this.attrs.push(new RawHtmlAttr(this._parseDirectiveValue(directiveName, s, parseText)));
+        this.attrs.push(new RawHtmlAttr(parseDirectiveValue(this.px, directiveName, s, parseText)));
         this.hasDynamic = true;
         return;
       case "push-view":
-        this.pushWrapper("push-view", s, this._parseDirectiveValue(directiveName, s, parseText));
+        this.pushWrapper("push-view", s, parseDirectiveValue(this.px, directiveName, s, parseText));
         return;
       case "text":
-        this.textChild = this._parseDirectiveValue(directiveName, s, parseText);
+        this.textChild = parseDirectiveValue(this.px, directiveName, s, parseText);
         return;
       case "show":
-        this.pushWrapper("show", s, this._parseDirectiveValue(directiveName, s, parseBool));
+        this.pushWrapper("show", s, parseDirectiveValue(this.px, directiveName, s, parseBool));
         return;
       case "hide":
-        this.pushWrapper("hide", s, this._parseDirectiveValue(directiveName, s, parseBool));
+        this.pushWrapper("hide", s, parseDirectiveValue(this.px, directiveName, s, parseBool));
         return;
       case "each": {
-        const val = this._parseDirectiveValue(directiveName, s, parseSequence);
+        const val = parseDirectiveValue(this.px, directiveName, s, parseSequence);
         this.eachAttr = this.pushWrapper("each", s, val);
         return;
       }
       case "enrich-with":
         if (this.eachAttr !== null)
-          this.eachAttr.enrichWithVal = this._parseDirectiveValue(
+          this.eachAttr.enrichWithVal = parseDirectiveValue(
+            this.px,
             directiveName,
             s,
             parseAlterHandler,
@@ -136,7 +131,7 @@ export class AttrParser {
           this.pushWrapper(
             "scope",
             s,
-            this._parseDirectiveValue(directiveName, s, parseAlterHandler),
+            parseDirectiveValue(this.px, directiveName, s, parseAlterHandler),
           );
         return;
       case "when":
@@ -163,11 +158,11 @@ export class AttrParser {
   }
   _parseWhen(s) {
     if (this.eachAttr !== null)
-      this.eachAttr.whenVal = this._parseDirectiveValue("when", s, parseAlterHandler);
+      this.eachAttr.whenVal = parseDirectiveValue(this.px, "when", s, parseAlterHandler);
   }
   _parseLoopWith(s) {
     if (this.eachAttr !== null)
-      this.eachAttr.loopWithVal = this._parseDirectiveValue("loop-with", s, parseAlterHandler);
+      this.eachAttr.loopWithVal = parseDirectiveValue(this.px, "loop-with", s, parseAlterHandler);
   }
   parse(attributes, parseAll = false) {
     for (const { name, value } of attributes) {

@@ -13,7 +13,6 @@ export class App {
     this.transactor = new Transactor(comps, null);
     this.ParseContext = ParseContext;
     this.renderer = renderer;
-    this.maxEventNodeDepth = Infinity;
     this._transactNextBatchId = this._evictCacheId = null;
     this._eventNames = new Set(_evs);
     this.dragInfo = this.curDragOver = null;
@@ -42,12 +41,11 @@ export class App {
     const { type } = e;
     const isDrag =
       type === "dragover" || type === "dragstart" || type === "dragend" || type === "drop";
-    const { rootNode: root, maxEventNodeDepth: maxDepth, comps, transactor } = this;
+    const { rootNode, comps, transactor } = this;
     const [path, handlers] = DispatchPath.fromNodeAndEventName(
       e.target,
       type,
-      root,
-      maxDepth,
+      rootNode,
       comps,
       !isDrag,
     );

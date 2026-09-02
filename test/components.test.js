@@ -1,8 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 import { component, html, macro, path } from "../index.js";
-import { ComponentStack, Components, LookupInfo, ProvideInfo } from "../src/components.js";
+import { ComponentStack, Components } from "../src/components.js";
 import { produce } from "../src/immer.js";
-import { FieldStep, Path } from "../src/path.js";
 import { Stack } from "../src/stack.js";
 import { rootDispatcher, Transactor } from "../src/transactor.js";
 import { HeadlessParseContext as ParseContext } from "./dom.js";
@@ -43,7 +42,7 @@ describe("Components", () => {
       },
     });
     Comp.compile(ParseContext);
-    expect(Comp.provide.getMessage).toBeInstanceOf(ProvideInfo);
+    expect(Comp.provide.getMessage).toBeDefined();
     const stack = setupStack(Comp);
     expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
   });
@@ -82,14 +81,14 @@ describe("Components", () => {
     CompA.compile(ParseContext);
     CompB.compile(ParseContext);
 
-    expect(CompA.provide.getMessage).toBeInstanceOf(ProvideInfo);
+    expect(CompA.provide.getMessage).toBeDefined();
     {
       // CompA is the root frame, so its provide is in scope.
       const stack = setupStackComps([CompA, CompB]);
       expect(stack.lookupDynamic("getMessage")).toBe("hey there!");
     }
 
-    expect(CompB.lookup.getMessage).toBeInstanceOf(LookupInfo);
+    expect("getMessage" in CompB.lookup).toBe(true);
     {
       // NOTE: component order — root is CompB, no CompA producer above, so the
       // lookup falls back to its default (CompB's own .message).

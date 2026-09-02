@@ -1,35 +1,29 @@
 // A value can key a WeakMap only if it is a non-null object or a function.
 // `typeof null === "object"`, so a plain `typeof k === "object"` check lets
 // `null` through and `WeakMap.set(null, …)` then throws; primitives (strings,
-// numbers, booleans, `undefined`, `null`) are not weakly holdable and are
-// counted as `badKey` instead — the entry simply goes uncached.
+// numbers, booleans, `undefined`, `null`) are not weakly holdable, so an entry
+// keyed by one simply goes uncached.
 const isWeakKey = (k) => k !== null && (typeof k === "object" || typeof k === "function");
 export class NullDomCache {
   get(_keys, _cacheKey) {}
   set(_keys, _cacheKey, _v) {}
-  evict() {
-    return { hit: 0, miss: 0, badKey: 0 };
-  }
+  evict() {}
 }
+// Rendered subtrees keyed by a chain of immutable values (a WeakMap per level,
+// so an entry dies with its values) and, at the leaf, by a string cache key.
 export class WeakMapDomCache {
   constructor() {
-    this.hit = this.miss = this.badKey = 0;
     this.keysByLen = new Map();
-  }
-  _returnValue(r) {
-    if (r === undefined) this.miss += 1;
-    else this.hit += 1;
-    return r;
   }
   get(keys, cacheKey) {
     const len = keys.length;
     let cur = this.keysByLen.get(len);
-    if (!cur) return this._returnValue(undefined);
+    if (!cur) return undefined;
     for (let i = 0; i < len - 1; i++) {
       cur = cur.get(keys[i]);
-      if (!cur) return this._returnValue(undefined);
+      if (!cur) return undefined;
     }
-    return this._returnValue(cur.get(keys[len - 1])?.[cacheKey]);
+    return cur.get(keys[len - 1])?.[cacheKey];
   }
   set(keys, cacheKey, v) {
     const len = keys.length;
@@ -42,10 +36,7 @@ export class WeakMapDomCache {
       const key = keys[i];
       let next = cur.get(key);
       if (!next) {
-        if (!isWeakKey(key)) {
-          this.badKey += 1;
-          return;
-        }
+        if (!isWeakKey(key)) return;
         next = new WeakMap();
         cur.set(key, next);
       }
@@ -55,12 +46,8 @@ export class WeakMapDomCache {
     const leaf = cur.get(lastKey);
     if (leaf) leaf[cacheKey] = v;
     else if (isWeakKey(lastKey)) cur.set(lastKey, { [cacheKey]: v });
-    else this.badKey += 1;
   }
   evict() {
-    const { hit, miss, badKey } = this;
-    this.hit = this.miss = this.badKey = 0;
     this.keysByLen = new Map();
-    return { hit, miss, badKey };
   }
 }

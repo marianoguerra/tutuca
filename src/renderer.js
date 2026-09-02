@@ -2,9 +2,8 @@ import { NullDomCache, WeakMapDomCache } from "./cache.js";
 import { makeLoopCtx, walkLoopBindings } from "./iteration.js";
 import { keyedPath, pathToJson } from "./path.js";
 import { DynVal } from "./value.js";
-import { h, render, VComment, VFragment, VNode } from "./vdom.js";
+import { h, VComment, VFragment, VNode } from "./vdom.js";
 
-const DATASET_ATTRS = ["nid", "cid", "eid", "vid", "si", "sk", "rp"];
 // Stamp the resume base on every element root of a component body. A
 // fragment-rooted component emits ONE `§Comp§` meta, before its first child, so
 // a later root sibling has to carry the base itself or an event raised there
@@ -27,7 +26,14 @@ export class Renderer {
   constructor(comps) {
     this.comps = comps;
     this.cache = new WeakMapDomCache();
-    this.renderTag = h;
+  }
+  // Parse nodes build their VDOM through the renderer, never by importing vdom.js
+  // themselves: a component may have been compiled by ANOTHER copy of the library
+  // (a docs example imports the dist bundle while the host app runs from src), and
+  // `render()` recognizes VNodes by `instanceof` against ITS copy's classes. Going
+  // through `rx` guarantees the rendering copy makes them.
+  renderTag(tag, attrs, childs, namespace) {
+    return h(tag, attrs, childs, namespace);
   }
   renderFragment(childs) {
     return new VFragment(childs);
@@ -38,30 +44,16 @@ export class Renderer {
   setNullCache() {
     this.cache = new NullDomCache();
   }
-  // Library utilities for consumers embedding tutuca: render a value to a detached
-  // DOM node / an HTML string. Not called by the framework itself.
-  renderToDOM(stack, val) {
-    const rootNode = document.createElement("div");
-    const rOpts = { document };
-    render(h("DIV", null, [this.renderRoot(stack, val)]), rootNode, rOpts);
-    return rootNode.childNodes[0];
-  }
-  renderToString(stack, val, cleanAttrs = true) {
-    const dom = this.renderToDOM(stack, val);
-    if (cleanAttrs) {
-      const nodes = dom.querySelectorAll("[data-nid],[data-cid],[data-eid]");
-      for (const { dataset } of nodes) for (const name of DATASET_ATTRS) delete dataset[name];
-    }
-    return dom.innerHTML;
-  }
   renderRoot(stack, val, viewName = null) {
     const comp = this.comps.getCompFor(val);
     if (comp === null) return null;
     return this._rValComp(stack, val, comp, comp.getView(viewName).anode, "ROOT", viewName);
   }
-  renderIt(stack, node, key, viewName, base = null) {
+  // Render `stack.it` at a `<x render*>` site (`node`). `base` is the absolute
+  // path the site resumed at, when it rendered a `*name` (see _rValComp).
+  renderIt(stack, node, viewName, base = null) {
     const comp = this.comps.getCompFor(stack.it);
-    return comp ? this._rValComp(stack, stack.it, comp, node, key, viewName, base) : null;
+    return comp ? this._rValComp(stack, stack.it, comp, node, "", viewName, base) : null;
   }
   // `node` is the parse node of the render site (`<x render>` / `render-it` /
   // `render-each`, or the view's root anode for the app root). It keys the
@@ -120,16 +112,14 @@ export class Renderer {
     r.push(this._renderMetadata({ $: "Each", nid, [attrName]: key }), dom);
   }
   renderEachWhen(stack, each) {
-    const { iterInfo, node: view, nodeId: nid } = each;
-    const { seq, filter, loopWith, enricher } = iterInfo.eval(stack);
+    const { val: seqVal, node: view, nodeId: nid } = each;
+    const { seq, filter, loopWith, enricher } = each.evalIter(stack);
     // A dynamic sequence carries the absolute path it lives at, so each item is
     // that path keyed — and iterating it resumes there, exactly as rendering one
     // does. `pendingFrame` hands the base to the component boundary below, which
     // is the first place there is DOM to record it on.
     const seqPath =
-      iterInfo.val instanceof DynVal
-        ? (stack.lookupDynamicLocated(iterInfo.val.name)?.path ?? null)
-        : null;
+      seqVal instanceof DynVal ? (stack.lookupDynamicLocated(seqVal.name)?.path ?? null) : null;
     const r = [];
     const it = stack.it;
     const renderOne = (key, value, attrName, binds) => {

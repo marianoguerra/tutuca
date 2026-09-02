@@ -3,9 +3,8 @@ import { COMPONENT, Component } from "./components.js";
 import { freeze, immerable } from "./immer.js";
 
 const BAD_VALUE = Symbol("BadValue");
-const nullCoercer = (v) => v;
 
-export class Field {
+class Field {
   constructor(type, name, typeCheck, coercer, defaultValue = null) {
     this.type = type;
     this.name = name;
@@ -59,7 +58,7 @@ export class FieldBool extends Field {
 }
 class FieldAny extends Field {
   constructor(name, defaultValue = null) {
-    super("any", name, CHECK_TYPE_ANY, nullCoercer, defaultValue);
+    super("any", name, CHECK_TYPE_ANY, COERCE_NONE, defaultValue);
   }
 }
 export class FieldString extends Field {
@@ -81,10 +80,10 @@ export class FieldFloat extends Field {
 // The component metadata record: `component()` classes carry it behind COMPONENT,
 // classFromData() classes behind getMetaClass().
 const metaOf = (v) => v?.constructor?.[COMPONENT] ?? v?.constructor?.getMetaClass?.();
-export const getTypeName = (v) => metaOf(v)?.name ?? null;
-export class FieldComp extends Field {
+const getTypeName = (v) => metaOf(v)?.name ?? null;
+class FieldComp extends Field {
   constructor(type, name, args) {
-    super(type, name, (v) => getTypeName(v) === type, nullCoercer, null);
+    super(type, name, (v) => getTypeName(v) === type, COERCE_NONE, null);
     this.args = args;
   }
 }
@@ -188,7 +187,6 @@ class ClassBuilder {
   }
 }
 
-export const FIELD_CLASS = Symbol.for("tutuca.fieldClass");
 const fieldsByTypeName = {
   text: FieldString,
   int: FieldInt,
@@ -228,10 +226,7 @@ export function classFromData(name, { fields = {}, methods, statics }) {
     } else if (value?.component && value?.args !== undefined)
       b.addCompField(field, value.component, value.args);
     else if (isPlainObject(value)) b.addField(field, { ...value }, FieldObject);
-    else {
-      const FieldCls = value?.[FIELD_CLASS] ?? FieldAny;
-      b.addField(field, value, FieldCls);
-    }
+    else b.addField(field, value, FieldAny);
   }
   if (methods) b.methods(methods);
   if (statics) b.statics(statics);

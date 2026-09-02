@@ -42,13 +42,7 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(target);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [dpath, events] = DispatchPath.fromNodeAndEventName(
-      node,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [dpath, events] = DispatchPath.fromNodeAndEventName(node, "click", container, app.comps);
     const path = dpath.toTransactionPath();
     expect(path.steps.length).toBe(0);
     expect(events.length).toBe(1);
@@ -81,13 +75,7 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(rootValue);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [dpath, events] = DispatchPath.fromNodeAndEventName(
-      node,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [dpath, events] = DispatchPath.fromNodeAndEventName(node, "click", container, app.comps);
     const path = dpath.toTransactionPath();
     expect(path.steps.length).toBe(2);
     expect(events.length).toBe(1);
@@ -122,13 +110,7 @@ describe("Path - find JsonBool by uid", () => {
     const { container, app, cleanup } = renderNode(rootValue);
     const node = container.querySelector(SELECTOR);
     expect(node).not.toBeNull();
-    const [dpath, events] = DispatchPath.fromNodeAndEventName(
-      node,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [dpath, events] = DispatchPath.fromNodeAndEventName(node, "click", container, app.comps);
     console.log(await formatHTML(container.innerHTML));
     const path = dpath.toTransactionPath();
     expect(path.steps.length).toBe(3);
@@ -518,13 +500,7 @@ describe("@on.drop bubbles to ancestor components", () => {
     const { container, app, cleanup } = makeApp();
     const inner = container.querySelector(".inner");
     expect(inner).not.toBeNull();
-    const [path, handlers] = DispatchPath.fromNodeAndEventName(
-      inner,
-      "drop",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [path, handlers] = DispatchPath.fromNodeAndEventName(inner, "drop", container, app.comps);
     expect(handlers).not.toBeNull();
     expect(handlers.length).toBe(1);
     // Parent is the app root, so the path is empty and resolves to the Parent value.
@@ -541,7 +517,6 @@ describe("@on.drop bubbles to ancestor components", () => {
       inner,
       "click",
       container,
-      Infinity,
       app.comps,
     );
     expect(path).toBeNull();
@@ -730,13 +705,7 @@ describe("a dynamic variable as a located continuation", () => {
     const { container, app, cleanup } = workspaceApp();
     const button = container.querySelector(".rename");
     expect(button).not.toBeNull();
-    const [path] = DispatchPath.fromNodeAndEventName(
-      button,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [path] = DispatchPath.fromNodeAndEventName(button, "click", container, app.comps);
     expect(path.frames.length).toBe(2);
     // The caller frame keeps a step per crossed component, so bubbling still
     // visits Panel and Toolbar on the way back out.
@@ -751,13 +720,7 @@ describe("a dynamic variable as a located continuation", () => {
   test("the transaction path is the active frame: the value's own address", () => {
     const { container, app, cleanup } = workspaceApp();
     const button = container.querySelector(".rename");
-    const [path] = DispatchPath.fromNodeAndEventName(
-      button,
-      "click",
-      container,
-      Infinity,
-      app.comps,
-    );
+    const [path] = DispatchPath.fromNodeAndEventName(button, "click", container, app.comps);
     const txn = path.toTransactionPath();
     // Workspace -> .sheet : the caller frame's Panel/Toolbar steps are not part of it.
     expect(txn.steps.length).toBe(1);
@@ -805,7 +768,6 @@ describe("a dynamic variable as a located continuation", () => {
       container.querySelector(".rename"),
       "click",
       container,
-      Infinity,
       app.comps,
     );
     const txn = path.toTransactionPath();
@@ -857,7 +819,6 @@ describe("a dynamic variable as a located continuation", () => {
       container.querySelector('[data-row="b"]'),
       "click",
       container,
-      Infinity,
       app.comps,
     );
     const txn = path.toTransactionPath();
@@ -1010,7 +971,6 @@ describe("a dynamic variable as a located continuation", () => {
       container.querySelector(".rename"),
       "click",
       container,
-      Infinity,
       app.comps,
     );
     const txn = path.toTransactionPath();
@@ -1097,7 +1057,7 @@ describe("a dynamic variable as a located continuation", () => {
     // Reconstructing an event path from a child entry must not crash.
     const childEntry = container.querySelector(".child .entry");
     expect(() =>
-      DispatchPath.fromNodeAndEventName(childEntry, "click", container, Infinity, app.comps, false),
+      DispatchPath.fromNodeAndEventName(childEntry, "click", container, app.comps, false),
     ).not.toThrow();
     // The owner's own select button still works.
     container.querySelector('.owner > .owner-row .pick[data-k="b"]').click();
@@ -1157,7 +1117,6 @@ describe("a dynamic variable as a located continuation", () => {
       container.querySelector(".rename"),
       "click",
       container,
-      Infinity,
       app.comps,
     );
     // The frame is based at the NEARER provider's value, absolute from the root.
@@ -1198,7 +1157,6 @@ describe("a dynamic variable as a located continuation", () => {
       container.querySelector(".rename"),
       "click",
       container,
-      Infinity,
       app.comps,
     );
     expect(dispatched.toTransactionPath().steps.map((st) => st.field)).toEqual(["session"]);
@@ -1281,7 +1239,6 @@ describe("a dynamic variable as a located continuation", () => {
       buttons[1],
       "click",
       container,
-      Infinity,
       app.comps,
     );
     expect(dispatched.toTransactionPath().toKeys()).toEqual([
@@ -1375,7 +1332,6 @@ describe("passthrough component (bare <x render> as the whole view)", () => {
       container.querySelector(".rename"),
       "click",
       container,
-      Infinity,
       app.comps,
     );
     const txn = path.toTransactionPath();
@@ -1460,7 +1416,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     // The dangling `§Each§`/`§Comp§` metas of the hidden "a" precede "b".
     let result;
     expect(() => {
-      result = DispatchPath.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+      result = DispatchPath.fromNodeAndEventName(node, "click", container, app.comps);
     }).not.toThrow();
     const [path, handlers] = result;
     expect(handlers).not.toBeNull();
@@ -1478,7 +1434,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     const node = container.querySelector('[data-uid="b"]');
     let result;
     expect(() => {
-      result = DispatchPath.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+      result = DispatchPath.fromNodeAndEventName(node, "click", container, app.comps);
     }).not.toThrow();
     const [path, handlers] = result;
     expect(handlers).not.toBeNull();
@@ -1495,7 +1451,7 @@ describe("@show-hidden items in a render-each list (path rebuild regression)", (
     const node = container.querySelector('[data-uid="c"]');
     let path;
     expect(() => {
-      [path] = DispatchPath.fromNodeAndEventName(node, "click", container, Infinity, app.comps);
+      [path] = DispatchPath.fromNodeAndEventName(node, "click", container, app.comps);
     }).not.toThrow();
     expect(path.toTransactionPath().lookup(app.state.val)).toBe(app.state.val.items[2]);
     cleanup();
