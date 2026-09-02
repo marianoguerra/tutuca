@@ -2,7 +2,7 @@ import { COMPONENT } from "./components.js";
 import { produce } from "./immer.js";
 import { validateDraftFields } from "./oo.js";
 import { DispatchPath, PathBuilder } from "./path.js";
-import { DEFAULT_ROUTE, isTypeName, routeLookup, Stack } from "./stack.js";
+import { DEFAULT_ROUTE, isTypeName, Stack } from "./stack.js";
 
 class State {
   constructor(val) {
@@ -51,14 +51,7 @@ export class Transactor {
   // carry: kind, name, args, path, pathKeys, targetPath, handler, handlerName,
   // matched, before, after, parent, timestamp. Purely observational.
   observe(cb) {
-    this._observers.push(cb);
-    return () => {
-      const i = this._observers.indexOf(cb);
-      if (i !== -1) this._observers.splice(i, 1);
-    };
-  }
-  _emit(record) {
-    for (const cb of this._observers) cb(record);
+    return subscribe(this._observers, cb);
   }
   // Record a refusal: a dispatch the runtime could not carry out. Kinds are
   // open strings; today the runtime raises NO_HANDLER (a receive name with no
@@ -77,11 +70,7 @@ export class Transactor {
   // Subscribe to refusal records as they happen. Returns an unsubscribe fn,
   // like observe().
   observeRefusals(cb) {
-    this._refusalObservers.push(cb);
-    return () => {
-      const i = this._refusalObservers.indexOf(cb);
-      if (i !== -1) this._refusalObservers.splice(i, 1);
-    };
+    return subscribe(this._refusalObservers, cb);
   }
   // Build and dispatch one observer record. Pins field-resolved keys (e.g. a
   // `.a[.selId]` render target reconstructed from a DOM event) against the root the
@@ -93,7 +82,7 @@ export class Transactor {
   ) {
     if (this._observers.length === 0) return;
     const pinned = path.pinKeys(root);
-    this._emit({
+    const record = {
       kind,
       name,
       args: args ?? null,
@@ -107,7 +96,8 @@ export class Transactor {
       after,
       parent,
       timestamp: Date.now(),
-    });
+    };
+    for (const cb of this._observers) cb(record);
   }
   // The observer record for a settled transaction. The resolved handler
   // (`_resolvedHandler`/`_matched`) and per-leaf before/after (`_before`/`_after`)
@@ -127,36 +117,30 @@ export class Transactor {
       parent: transaction.parentTransaction,
     });
   }
-  // Make `child` a tracked unit of `parent`'s subtree: the parent's completion stays open
-  // until the child's *whole* subtree settles. Tracking happens at dispatch time — during
-  // the parent's handler or afterTransaction — while the parent's self-unit is still held,
-  // so the parent counter can't reach zero before the child is registered. Returns `child`.
-  _link(child, parent) {
-    if (parent) {
-      const release = parent.completion.track();
-      child.completion.whenSubtreeSettled().then(release);
-    }
-    return child;
-  }
   // `origin` is where the message came FROM, pinned now for the same reason an
   // intent's answerPath is: a reply must reach the sender that asked even if a key
   // moved while the message was in flight. Null when nobody is waiting — a host
   // sendAtRoot or a view's own `@on.*` — and ctx.sendReply refuses on that.
+  //
+  // The parent's subtree stays open until this message's whole subtree settles. The
+  // unit is taken now, at dispatch — during the parent's handler or afterTransaction,
+  // while the parent's self-unit is still held — so its counter can't reach zero first.
   pushSend(path, name, args = [], parent = null, origin = null, txnPath = null) {
     const t = new SendEvent(path, this, name, args, parent);
     t.txnPath = txnPath;
     t.origin = origin;
     t.originPinned = origin === null ? null : origin.toTransactionPath().pinKeys(this.state.val);
     this.pushTransaction(t);
-    return this._link(t, parent);
+    if (parent) t.completion.carry(parent.completion.track());
+    return t;
   }
   // Raise an intent: a job the sender did not address, walked along a route until
   // something answers. `opts.route` is a list of legs (see DEFAULT_ROUTE) and
   // `opts.livePath` opts out of pinning the answer's destination keys.
   pushIntent(path, name, args = [], opts = {}, parent = null) {
-    // Track on the parent synchronously, before any await, so its subtree can't settle
-    // while the walk is in flight (a `lex` hop is async). The unit is transferred onto
-    // the answer's subtree when one goes out, so it follows the whole chain.
+    // The parent's unit is taken synchronously, before any await, so its subtree can't
+    // settle while the walk is in flight (a `lex` hop is async). The walk carries it
+    // onto the answer's subtree when one goes out, so it follows the whole chain.
     const release = parent ? parent.completion.track() : null;
     const walk = new IntentWalk(this, path, name, args, opts, parent, release);
     walk.advance();
@@ -198,8 +182,7 @@ export class Transactor {
       // MEANING: the transition did not happen, so the handler did not answer, and a hop
       // that did not answer is one the walk moves past.
       transaction.ensureWalkAdvanced?.();
-      transaction._completion?.ensureSelfSettled();
-      transaction._completion?.releaseSelf();
+      transaction._completion?.finish();
     }
   }
   transactInputNow(path, event, eventHandler, dragInfo) {
@@ -208,6 +191,18 @@ export class Transactor {
 }
 function nullHandler() {
   return this;
+}
+// Push `cb` on `list`; returns the one-shot unsubscribe.
+function subscribe(list, cb) {
+  list.push(cb);
+  return () => {
+    const i = list.indexOf(cb);
+    if (i !== -1) list.splice(i, 1);
+  };
+}
+function warnUnknownLeg(what, leg) {
+  console.warn(`unknown ${what} route leg`, leg, '- expected "dyn" or "lex"');
+  return null;
 }
 class Transaction {
   constructor(path, transactor, parentTransaction = null) {
@@ -236,24 +231,41 @@ class Transaction {
   whenSubtreeSettled() {
     return this.completion.whenSubtreeSettled();
   }
-  // Every transaction kind defines: `afterTransaction()` (derived work, once the
-  // state moved), `forward(opts)`, `observeKind` / `observeName` (what observers see;
-  // kept apart from `name`/`ctx.name` so they can't change handler-visible behavior)
-  // and `getHandlerAndArgs(root, instance, comps)`.
+  // Every transaction kind defines `observeKind` / `observeName` (what observers see;
+  // kept apart from `name`/`ctx.name` so they can't change handler-visible behavior),
+  // `getHandlerAndArgs(root, instance, comps)`, and the three `_forward*` hooks below.
   callHandler(root, instance, draft, comps) {
     const [handler, args] = this.getHandlerAndArgs(root, instance, comps);
     this._resolvedHandler = handler; // captured for observers
     return handler.apply(instance, [draft, ...args]);
   }
+  // `forward` is where a name can LEAVE the component: the message being handled is
+  // raised again as an INTENT under the same name (`_forwardName()`) with the same
+  // arguments unless `opts.args` says otherwise, from the position `_forwardPath()`
+  // names. Deferred to afterTransaction so the state the handler produced is in place
+  // before the walk starts. (`IntentEvent` overrides both: in an intent body, forward
+  // amends the walk that is already running.)
+  forward(opts) {
+    this._forward = opts ?? {};
+  }
+  afterTransaction() {
+    const f = this._forward;
+    if (f === undefined) return;
+    this._forward = undefined;
+    const name = this._forwardName();
+    if (name === undefined) {
+      this.transactor.refuse("FORWARD_NO_NAME", {});
+      return;
+    }
+    const { args = this._forwardArgs(), ...rest } = f;
+    this.transactor.pushIntent(this._forwardPath(), name, args, rest, this);
+  }
   // The path used to apply the mutation: the ACTIVE frame of the dispatch path, so
   // an event inside a `<x render="*name">` subtree updates the value where it
   // really lives (the dispatch `this.path` keeps the visual callers, for bubbling).
+  // `txnPath`, when pinned by the sender, wins.
   getTransactionPath() {
-    if (this.txnPath !== null) return this.txnPath;
-    // Frame-only bind steps are needed to replay handler arguments, but they do not
-    // address state. Compact them before lookup/grafting so a handler inside @each
-    // still updates the component that owns the view.
-    return this.path.toTransactionPath().compact();
+    return this.txnPath ?? this.path.toTransactionPath();
   }
   run(curRoot, comps) {
     const txnPath = this.getTransactionPath();
@@ -287,6 +299,13 @@ class InputEvent extends Transaction {
     this._dispatchPath ??= this.path.compact();
     return this._dispatchPath;
   }
+  // Only a DOM event's path carries frame-only bind steps (they replay the handler's
+  // arguments, but address no state); the compacted path is where the mutation lands,
+  // so a handler inside @each still updates the component that owns the view. Every
+  // other transaction is dispatched at an already-compacted position.
+  getTransactionPath() {
+    return this.dispatchPath.toTransactionPath();
+  }
   // A DOM event is an ADDRESSED message like any other — it reaches the component that
   // owns the view and stops. It keeps its own class only because it resolves its handler
   // from the compiled view and runs synchronously, not because it is a different channel.
@@ -296,27 +315,20 @@ class InputEvent extends Transaction {
   get observeName() {
     return this.e?.type ?? null;
   }
-  // A view's name is a message. `forward` is where that name can LEAVE the component:
-  // it becomes an intent with the same name and the same arguments, so a view that says
-  // `@on.click="saveDraft .text"` never has to change when an ancestor takes the job over.
-  // (A `$method` handler has a name too, so forwarding one raises an intent under it.)
-  forward(opts) {
-    this._forward = opts ?? {};
-  }
-  afterTransaction() {
-    const f = this._forward;
-    if (f === undefined) return;
-    this._forward = undefined;
-    const { args = this._handlerArgs ?? [], ...rest } = f;
-    // `handler` is a NodeEvent, whose own `name` is the DOM event type; the MESSAGE
-    // name is the one the view wrote, on the handler call it wraps.
+  // A view's name is a message, and forwarding it means a view that says
+  // `@on.click="saveDraft .text"` never has to change when an ancestor takes the job
+  // over. (A `$method` handler has a name too, so forwarding one raises an intent under
+  // it.) `handler` is a NodeEvent, whose own `name` is the DOM event type; the MESSAGE
+  // name is the one the view wrote, on the handler call it wraps.
+  _forwardName() {
     const hv = this.handler?.handlerCall?.handlerVal ?? this.handler?.handlerVal;
-    const name = hv?.name;
-    if (name === undefined) {
-      this.transactor.refuse("FORWARD_NO_NAME", {});
-      return;
-    }
-    this.transactor.pushIntent(this.dispatchPath, name, args, rest, this);
+    return hv?.name;
+  }
+  _forwardArgs() {
+    return this._handlerArgs ?? [];
+  }
+  _forwardPath() {
+    return this.dispatchPath; // an intent walk visits intermediate components
   }
   getHandlerAndArgs(root, _instance, comps) {
     const stack = this.path.buildStack(Stack.root(comps, root, this));
@@ -342,6 +354,17 @@ class NameArgsTransaction extends Transaction {
   }
   get observeName() {
     return this.name;
+  }
+  // `forward` in a RECEIVE body starts a walk: the message that arrived becomes an
+  // intent, keeping its name and payload.
+  _forwardName() {
+    return this.name;
+  }
+  _forwardArgs() {
+    return this.args;
+  }
+  _forwardPath() {
+    return this.path;
   }
   getHandlerForName(comp) {
     const handlers = comp?.[this.handlerProp];
@@ -375,19 +398,6 @@ class SendEvent extends NameArgsTransaction {
     // ordinary receive and the bucket must not know, so this is an observation kind
     // rather than a handler bucket.
     return this._isAnswer ? "answer" : "receive";
-  }
-  // `forward` in a RECEIVE body starts a walk: the message that arrived becomes an
-  // intent, keeping its name and payload. This is what lets a view's name leave the
-  // component without the view changing.
-  forward(opts) {
-    this._forward = opts ?? {};
-  }
-  afterTransaction() {
-    const f = this._forward;
-    if (f === undefined) return;
-    this._forward = undefined;
-    const { args = this.args, ...rest } = f;
-    this.transactor.pushIntent(this.path, this.name, args, rest, this);
   }
 }
 // One hop of an intent's walk. The walk itself lives in `IntentWalk`, shared by
@@ -489,7 +499,7 @@ class IntentWalk {
         this.legIndex++;
         return this._tryLex();
       }
-      console.warn("unknown intent route leg", leg, '- expected "dyn" or "lex"');
+      warnUnknownLeg("intent", leg);
       this.legIndex++;
     }
     this.exhaust("noHandler");
@@ -599,7 +609,7 @@ class IntentWalk {
     t.txnPath = this.answerPath;
     t._isAnswer = true;
     this.transactor.pushTransaction(t);
-    if (this.release) t.completion.whenSubtreeSettled().then(this.release);
+    if (this.release) t.completion.carry(this.release);
   }
 }
 // Per-transaction completion scope (structured-concurrency / WaitGroup style). A counter
@@ -612,12 +622,13 @@ class Completion {
     this.val = undefined;
     this.selfSettled = false;
     this.subtreeSettled = false;
-    this.pending = 1; // the self-unit, released after handler + afterTransaction
+    this.pending = 0;
     this._selfResolve = null;
     this._selfPromise = null;
     this._subtreeResolve = null;
     this._subtreePromise = null;
-    this._selfReleased = false;
+    // The self-unit: the transaction's own processing, released by `finish()`.
+    this._releaseSelf = this.track();
   }
   whenSettled() {
     if (this.selfSettled) return Promise.resolve(this.val);
@@ -640,30 +651,30 @@ class Completion {
     this.val = val;
     this._selfResolve?.(val);
   }
-  // Settle self even when no handler produced a value (undefined-state / throw paths).
-  ensureSelfSettled() {
-    if (!this.selfSettled) this.markSelfSettled(this.val);
+  // The transaction is done processing: self is settled (with the value the handler
+  // produced, or none on the undefined-state / throw paths) and the self-unit goes.
+  finish() {
+    this.markSelfSettled(this.val);
+    this._releaseSelf();
   }
-  // Register an outstanding unit; returns a one-shot release.
+  // Register an outstanding unit; returns its one-shot release. The subtree settles
+  // when the last unit is released.
   track() {
     this.pending++;
     let done = false;
     return () => {
       if (done) return;
       done = true;
-      this._release();
+      if (--this.pending === 0) {
+        this.subtreeSettled = true;
+        this._subtreeResolve?.(this.val);
+      }
     };
   }
-  releaseSelf() {
-    if (this._selfReleased) return;
-    this._selfReleased = true;
-    this._release();
-  }
-  _release() {
-    if (--this.pending === 0) {
-      this.subtreeSettled = true;
-      this._subtreeResolve?.(this.val);
-    }
+  // Hand a unit held elsewhere to this subtree: `release` runs once this transaction
+  // and everything it spawned have settled.
+  carry(release) {
+    this.whenSubtreeSettled().then(release);
   }
 }
 class Dispatcher {
@@ -706,12 +717,19 @@ class Dispatcher {
   // Resolve a name the way the renderer would. `opts.route` takes the same legs in
   // the same spelling as `ctx.intent` — `["dyn"]` the render ancestry, `["lex"]` the
   // registration scope, default both.
+  // Legs are tried in route order, like the intent walker's; an unknown leg warns and
+  // is skipped, and an empty route resolves to null.
   lookup(name, opts) {
-    return routeLookup(
-      opts?.route ?? DEFAULT_ROUTE,
-      () => this._lookupLex(name),
-      () => this._stack()?.lookupDynamic(name) ?? null,
-    );
+    for (const leg of opts?.route ?? DEFAULT_ROUTE) {
+      const v =
+        leg === "dyn"
+          ? (this._stack()?.lookupDynamic(name) ?? null)
+          : leg === "lex"
+            ? this._lookupLex(name)
+            : warnUnknownLeg("lookup", leg);
+      if (v != null) return v;
+    }
+    return null;
   }
   // The `lex` leg without a Stack: the scope of the component whose handler is
   // running, which is the leaf of this ctx's path. A type name resolves to the

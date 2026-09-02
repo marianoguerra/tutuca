@@ -7,24 +7,6 @@ export const NEXT = Symbol("NEXT");
 // ctx.intent all default to it, so "where does a name come from" has one answer
 // whether the name is a value, a type, or a job.
 export const DEFAULT_ROUTE = ["dyn", "lex"];
-// Walk a route's legs in order; the first one that resolves wins. Matches the intent
-// walker's contract: array order is walk order, an unknown leg warns and is skipped,
-// and an empty route resolves to null rather than falling back to the default.
-export function routeLookup(route, lex, dyn) {
-  for (let i = 0; i < route.length; i++) {
-    const leg = route[i];
-    if (leg === "dyn") {
-      const v = dyn();
-      if (v != null) return v;
-    } else if (leg === "lex") {
-      const v = lex();
-      if (v != null) return v;
-    } else {
-      console.warn("unknown lookup route leg", leg, '- expected "dyn" or "lex"');
-    }
-  }
-  return null;
-}
 // A name starting A-Z is a component TYPE, anything else is a value. The one rule
 // that partitions the dynamic-binding keyspace, so types and values can share a
 // frame without ever colliding. Mirrored in tools/core/lint-check.js.

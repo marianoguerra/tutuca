@@ -290,22 +290,12 @@ function _parsePredicate(s, tokens, px) {
   return new PredicateVal(pred, args);
 }
 // The kind bit of a parsed value, used by the validators to check it against
-// a context's group mask. `ConstVal` carries its own kind (a literal differs
-// from a number); the rest are fixed per class.
-function kindOf(val) {
-  if (val === null) return 0;
-  if (val instanceof ConstVal) return val.kind;
-  if (val instanceof StrTplVal) return val.kind;
-  if (val instanceof SeqAccessVal) return K_SEQ;
-  if (val instanceof FieldVal) return K_FIELD;
-  if (val instanceof MethodVal) return K_METHOD;
-  if (val instanceof BindVal) return K_BIND;
-  if (val instanceof DynVal) return K_DYN;
-  if (val instanceof NameVal) return K_NAME;
-  if (val instanceof EventMemberVal) return K_EVENT;
-  return 0;
-}
+// a context's group mask. Every value class declares its `kind` (a property, not
+// a class check: a value parsed by another copy of this module still answers).
+const kindOf = (val) => val?.kind ?? 0;
 class BaseVal {
+  // No kind: never accepted by a group (PredicateVal, which only parseBool builds).
+  kind = 0;
   eval(_stack) {}
   toPathItem() {
     return null;
@@ -408,6 +398,7 @@ export class StrTplVal extends BaseVal {
   }
 }
 export class NameVal extends BaseVal {
+  kind = K_NAME;
   constructor(name) {
     super();
     this.name = name;
@@ -482,6 +473,7 @@ export const EVENT_CONVENIENCES = {
 // null. Outside an event transaction there is no event to read, so every path
 // evaluates to null.
 export class EventMemberVal extends BaseVal {
+  kind = K_EVENT;
   constructor(members) {
     super();
     this.members = members;
@@ -504,18 +496,22 @@ export class EventMemberVal extends BaseVal {
     return `e.${this.members.join(".")}`;
   }
 }
-class RenderNameVal extends BaseVal {
+// A sigil-prefixed name: `@bind`, `*dyn`, `.field`, `$method`. Each subclass says
+// which sigil it spells and where on the stack the name is looked up.
+class SigilNameVal extends BaseVal {
   constructor(name) {
     super();
     this.name = name;
   }
+  toString() {
+    return this.sigil + this.name;
+  }
 }
-export class BindVal extends RenderNameVal {
+export class BindVal extends SigilNameVal {
+  kind = K_BIND;
+  sigil = "@";
   eval(stack) {
     return stack.lookupBind(this.name);
-  }
-  toString() {
-    return `@${this.name}`;
   }
 }
 // `@name.member`: a one-level member read on a binding. Display-only — it
@@ -537,43 +533,41 @@ export class BindMemberVal extends BindVal {
     return `@${this.name}.${this.member}`;
   }
 }
-export class DynVal extends RenderNameVal {
+export class DynVal extends SigilNameVal {
+  kind = K_DYN;
+  sigil = "*";
   eval(stack) {
     return stack.lookupDynamic(this.name);
-  }
-  toString() {
-    return `*${this.name}`;
   }
 }
 // `.name`: a plain field read on `this`. Never invokes — a method referenced
 // via `.name` is a lint error; use `$name` instead.
-export class FieldVal extends RenderNameVal {
+export class FieldVal extends SigilNameVal {
+  kind = K_FIELD;
+  sigil = ".";
   eval(stack) {
     return stack.lookupFieldRaw(this.name);
   }
   toPathItem() {
     return new FieldStep(this.name);
   }
-  toString() {
-    return `.${this.name}`;
-  }
 }
 // `$name`: a no-arg method call on `this`. Has no `toPathItem` (inherits
 // `BaseVal`'s `null`), so it cannot reach a path-bearing slot. In a value
 // slot `eval` invokes the method; read-only handler slots such as `@when`
 // use `evalAsHandler` to obtain the raw function.
-export class MethodVal extends RenderNameVal {
+export class MethodVal extends SigilNameVal {
+  kind = K_METHOD;
+  sigil = "$";
   eval(stack) {
     return stack.lookupMethod(this.name);
   }
   evalAsHandler(stack) {
     return stack.lookupFieldRaw(this.name);
   }
-  toString() {
-    return `$${this.name}`;
-  }
 }
 export class SeqAccessVal extends BaseVal {
+  kind = K_SEQ;
   constructor(seqVal, keyVal) {
     super();
     this.seqVal = seqVal;

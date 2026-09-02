@@ -133,6 +133,8 @@ export function lintIdToMessage(id, info) {
       return `Argument '${info.name}' is not declared in macro '${info.macroName}'`;
     case "UNKNOWN_DIRECTIVE":
       return `Unknown directive '@${info.name}=${JSON.stringify(info.value)}'${fmtTagSuffix(info)}`;
+    case "ORPHAN_DIRECTIVE":
+      return `'@${info.name}=${JSON.stringify(info.value)}' needs an '@${info.needs}' on the same element — it was ignored${fmtTagSuffix(info)}`;
     case "UNKNOWN_X_OP":
       return `Unknown <x> op '${info.name}=${JSON.stringify(info.value)}'${fmtTagSuffix(info)}`;
     case "UNKNOWN_X_ATTR":

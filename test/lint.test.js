@@ -27,6 +27,7 @@ import {
   MAYBE_DROP_AT_PREFIX,
   METHOD_VAL_IS_FIELD,
   METHOD_VAL_NOT_DEFINED,
+  ORPHAN_DIRECTIVE,
   PLACEHOLDERLESS_TEMPLATE_STRING,
   PROVIDE_NOT_ADDRESSABLE,
   RECEIVE_HANDLER_NOT_IMPLEMENTED,
@@ -811,6 +812,23 @@ test("dynamic single-placeholder template stays REDUNDANT, not placeholderless",
   const ids = lx.reports.map((r) => r.id);
   expect(ids).toContain(REDUNDANT_TEMPLATE_STRING);
   expect(ids).not.toContain(PLACEHOLDERLESS_TEMPLATE_STRING);
+});
+
+test("ORPHAN_DIRECTIVE: @when / @loop-with without @each, @then / @else without @if", () => {
+  const [lx] = defAndCheck({
+    name: "Comp",
+    fields: { items: [] },
+    alter: { keep() {} },
+    view: html`<ul><li @when="keep">a</li><li @loop-with="keep">b</li><li @then="'x'" @else.title="'y'">c</li></ul>`,
+  });
+  const orphans = lx.reports.filter((r) => r.id === ORPHAN_DIRECTIVE);
+  expect(orphans.map((r) => [r.info.name, r.info.needs])).toEqual([
+    ["when", "each"],
+    ["loop-with", "each"],
+    ["then", "if"],
+    ["else.title", "if"],
+  ]);
+  expect(lx.reports.filter((r) => r.id === UNKNOWN_DIRECTIVE)).toEqual([]);
 });
 
 test("findings inside a macro body are reported like findings in the view", () => {

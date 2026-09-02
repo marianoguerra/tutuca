@@ -78,6 +78,7 @@ export const IF_NO_BRANCH_SET = "IF_NO_BRANCH_SET";
 export const UNKNOWN_COMPONENT_NAME = "UNKNOWN_COMPONENT_NAME";
 export const UNKNOWN_MACRO_ARG = "UNKNOWN_MACRO_ARG";
 export const UNKNOWN_DIRECTIVE = "UNKNOWN_DIRECTIVE";
+export const ORPHAN_DIRECTIVE = "ORPHAN_DIRECTIVE";
 export const UNKNOWN_X_OP = "UNKNOWN_X_OP";
 export const UNKNOWN_X_ATTR = "UNKNOWN_X_ATTR";
 export const X_OP_IGNORES_CHILDREN = "X_OP_IGNORES_CHILDREN";
@@ -128,6 +129,7 @@ const LEVEL_HINT = "hint";
 // `@render` for `render`) that triggers a drop-prefix hint.
 const PARSE_ISSUES = {
   "unknown-directive": { id: UNKNOWN_DIRECTIVE, candidates: KNOWN_DIRECTIVE_NAMES },
+  "orphan-directive": { id: ORPHAN_DIRECTIVE },
   "unknown-x-op": { id: UNKNOWN_X_OP, candidates: X_KNOWN_OP_NAMES, atPrefix: X_KNOWN_OP_NAMES },
   "unknown-x-attr": {
     id: UNKNOWN_X_ATTR,

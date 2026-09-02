@@ -106,6 +106,8 @@ const LintDemo = component({
 
     <!-- UNKNOWN_DIRECTIVE: @bogus is not a known directive -->
     <div @bogus="oops">unknown directive</div>
+    <!-- ORPHAN_DIRECTIVE: @when only means something next to an @each -->
+    <div @when="keep">orphan directive</div>
 
     <!-- UNKNOWN_X_OP: bogus is not a known <x> op -->
     <x bogus="oops"></x>

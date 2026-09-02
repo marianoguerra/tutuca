@@ -86,8 +86,8 @@ export class ComponentStack {
         continue;
       }
       // `path().field("theme")` — the same builder `ctx.at` hands a handler, so
-      // there is one way to write an address down. A finished `Path` is taken as is.
-      this.paths[name] = paths[name].toPath?.() ?? paths[name];
+      // there is one way to write an address down.
+      this.paths[name] = paths[name].toPath();
     }
   }
   lookupPath(name) {

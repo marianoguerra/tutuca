@@ -36,6 +36,7 @@ import {
   MAYBE_DROP_AT_PREFIX,
   METHOD_VAL_IS_FIELD,
   METHOD_VAL_NOT_DEFINED,
+  ORPHAN_DIRECTIVE,
   PLACEHOLDERLESS_TEMPLATE_STRING,
   PROVIDE_NOT_ADDRESSABLE,
   PROVIDE_TYPE_BAD_SHAPE,
@@ -191,6 +192,13 @@ export const LINT_RULES = [
     level: "error",
     group: "Templates / events",
     summary: "`@directive` name is not recognized (typo or unsupported).",
+  },
+  {
+    code: ORPHAN_DIRECTIVE,
+    level: "error",
+    group: "Templates / events",
+    summary:
+      "`@when` / `@loop-with` without an `@each`, or `@then` / `@else` without an `@if`, on the same element — the directive is ignored.",
   },
   {
     code: UNKNOWN_X_OP,

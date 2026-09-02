@@ -32,10 +32,20 @@ function parseDirectiveValue(px, directiveName, source, parser) {
   return val;
 }
 
+// The directives that amend an iteration, and the IterInfo slot each one fills.
+const ITER_DIRECTIVES = {
+  when: "whenVal",
+  "loop-with": "loopWithVal",
+  "enrich-with": "enrichWithVal",
+};
+const parseIterDirective = (px, name, s) => parseDirectiveValue(px, name, s, parseAlterHandler);
+
+// `@when` / `@loop-with` read off a `<x render-each>` element's raw attributes (its
+// other attributes are the op's own, so it does not go through AttrParser).
 export function parseIterationDirectives(attributes, px) {
   const parseNamed = (name) => {
     const attr = attributes.getNamedItem(`@${name}`);
-    return attr ? parseDirectiveValue(px, name, attr.value, parseAlterHandler) : null;
+    return attr ? parseIterDirective(px, name, attr.value) : null;
   };
   return { whenVal: parseNamed("when"), loopWithVal: parseNamed("loop-with") };
 }
@@ -77,11 +87,22 @@ export class AttrParser {
       this.px.onParseIssue("bad-value", info);
     }
   }
-  parseThen(s) {
-    if (this.ifAttr) this.ifAttr.thenVal = parseText(s, this.px) ?? NOT_SET_VAL;
+  // `@then` / `@else` fill the branches of the `@if.<attr>` on the same element.
+  parseBranch(slot, name, s) {
+    if (this.ifAttr === null) return this._orphan(name, s, "if");
+    this.ifAttr[slot] = parseText(s, this.px) ?? NOT_SET_VAL;
   }
-  parseElse(value) {
-    if (this.ifAttr) this.ifAttr.elseVal = parseText(value, this.px) ?? NOT_SET_VAL;
+  // `@when` / `@loop-with` / `@enrich-with` amend the `@each` on the same element. A
+  // loop-less `@enrich-with` is a scope of its own; the other two need the loop.
+  parseIter(name, s) {
+    const val = parseIterDirective(this.px, name, s);
+    if (this.eachAttr !== null) this.eachAttr[ITER_DIRECTIVES[name]] = val;
+    else if (name === "enrich-with") this.pushWrapper("scope", s, val);
+    else this._orphan(name, s, "each");
+  }
+  // A directive that only means something next to another one, written alone.
+  _orphan(name, value, needs) {
+    this.px.onParseIssue("orphan-directive", { name, value, needs });
   }
   parseEvent(directiveName, value) {
     const [eventName, ...modifiers] = directiveName.slice(3).split("+");
@@ -119,50 +140,26 @@ export class AttrParser {
         this.eachAttr = this.pushWrapper("each", s, val);
         return;
       }
-      case "enrich-with":
-        if (this.eachAttr !== null)
-          this.eachAttr.enrichWithVal = parseDirectiveValue(
-            this.px,
-            directiveName,
-            s,
-            parseAlterHandler,
-          );
-        else
-          this.pushWrapper(
-            "scope",
-            s,
-            parseDirectiveValue(this.px, directiveName, s, parseAlterHandler),
-          );
-        return;
       case "when":
-        this._parseWhen(s);
-        return;
       case "loop-with":
-        this._parseLoopWith(s);
+      case "enrich-with":
+        this.parseIter(directiveName, s);
         return;
       case "then":
-        this.parseThen(s);
+        this.parseBranch("thenVal", directiveName, s);
         return;
       case "else":
-        this.parseElse(s);
+        this.parseBranch("elseVal", directiveName, s);
         return;
     }
     if (directiveName.startsWith("on.")) this.parseEvent(directiveName, s);
     else if (directiveName.startsWith("if.")) this.parseIf(directiveName, s);
-    else if (directiveName.startsWith("then.")) this.parseThen(s);
-    else if (directiveName.startsWith("else.")) this.parseElse(s);
+    else if (directiveName.startsWith("then.")) this.parseBranch("thenVal", directiveName, s);
+    else if (directiveName.startsWith("else.")) this.parseBranch("elseVal", directiveName, s);
     else {
       const info = { name: directiveName, value: s };
       this.px.onParseIssue("unknown-directive", info);
     }
-  }
-  _parseWhen(s) {
-    if (this.eachAttr !== null)
-      this.eachAttr.whenVal = parseDirectiveValue(this.px, "when", s, parseAlterHandler);
-  }
-  _parseLoopWith(s) {
-    if (this.eachAttr !== null)
-      this.eachAttr.loopWithVal = parseDirectiveValue(this.px, "loop-with", s, parseAlterHandler);
   }
   parse(attributes, parseAll = false) {
     for (const { name, value } of attributes) {

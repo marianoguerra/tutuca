@@ -204,18 +204,25 @@ export class VNode extends VBase {
     const node =
       ns === null ? doc.createElement(tag, createOpts) : doc.createElementNS(ns, tag, createOpts);
     const cOpts = childOpts(this, ns, opts);
-    if ("value" in attrs || "checked" in attrs) {
-      const { value, checked, ...rest } = attrs;
-      applyProperties(node, rest);
-      appendChildNodes(node, this.childs, cOpts);
-      if (value !== undefined) applyValueLast(node, value);
-      if (checked !== undefined) setProp(node, "checked", checked, false);
-    } else {
-      applyProperties(node, attrs);
-      appendChildNodes(node, this.childs, cOpts);
-    }
+    applyAttrs(node, attrs, () => appendChildNodes(node, this.childs, cOpts));
     return node;
   }
+}
+// Apply `attrs` (a full set, or a diff whose `undefined` entries mean "remove")
+// around `placeChildren`: `value` and `checked` go LAST, after siblings/children, so
+// (a) <input min=… max=… value=…> clamps the value against the final range, and
+// (b) a <select>'s <option> children exist before it is told which one is selected.
+// Mirrors preact/src/diff/index.js end-of-diffElementNodes.
+function applyAttrs(node, attrs, placeChildren) {
+  const hasValue = "value" in attrs;
+  const hasChecked = "checked" in attrs;
+  if (hasValue || hasChecked) {
+    const { value: _v, checked: _c, ...rest } = attrs;
+    applyProperties(node, rest);
+  } else applyProperties(node, attrs);
+  placeChildren();
+  if (hasValue) applyValueLast(node, attrs.value);
+  if (hasChecked) setProp(node, "checked", attrs.checked, isNamespaced(node));
 }
 function diffProps(a, b) {
   if (a === b) return null;
@@ -247,24 +254,17 @@ function morphNode(domNode, source, target, opts) {
     }
     if (type === 1 && source.isSameKind(target)) {
       const propsDiff = diffProps(source.attrs, target.attrs);
-      const hasValue = propsDiff != null && "value" in propsDiff;
-      const hasChecked = propsDiff != null && "checked" in propsDiff;
-      if (propsDiff) {
-        if (hasValue || hasChecked) {
-          const { value: _v, checked: _c, ...rest } = propsDiff;
-          applyProperties(domNode, rest);
-        } else applyProperties(domNode, propsDiff);
-      }
-      if (!target.attrs.dangerouslySetInnerHTML) {
+      const placeChildren = () => {
+        if (target.attrs.dangerouslySetInnerHTML) return;
         const ns = effectiveNs(target, opts);
         morphChildren(domNode, source.childs, target.childs, childOpts(target, ns, opts));
-      }
-      if (hasValue) applyValueLast(domNode, propsDiff.value);
+      };
+      if (propsDiff) applyAttrs(domNode, propsDiff, placeChildren);
+      else placeChildren();
       // For <select>, re-apply value even when not in the diff: changing the
       // <option> children can silently shift dom.value to "".
-      else if (source.tag === "SELECT" && target.attrs.value !== undefined)
-        applyValueLast(domNode, target.attrs.value);
-      if (hasChecked) setProp(domNode, "checked", propsDiff.checked, false);
+      if (!(propsDiff && "value" in propsDiff) && source.tag === "SELECT")
+        if (target.attrs.value !== undefined) applyValueLast(domNode, target.attrs.value);
       return domNode;
     }
     if (type === 11) {

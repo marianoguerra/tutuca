@@ -4,13 +4,40 @@ import { freeze, immerable } from "./immer.js";
 
 const BAD_VALUE = Symbol("BadValue");
 
-class Field {
-  constructor(type, name, typeCheck, coercer, defaultValue = null) {
+// A coercer turns an invalid value into a valid one, or null to give up.
+const COERCE_NONE = (_v) => null;
+const COERCE_MAP = (v) => {
+  if (v instanceof Map) return new Map(v);
+  if (Array.isArray(v) || isPlainObject(v))
+    return new Map(Array.isArray(v) ? v : Object.entries(v));
+  return null;
+};
+// The field types by name: [typeCheck, coercer, makeDefault]. A type check is a
+// plain predicate; the default is made per field so no two fields share a Map.
+const FIELD_TYPES = {
+  any: [(_v) => true, COERCE_NONE, () => null],
+  text: [(v) => typeof v === "string", (v) => v?.toString?.() ?? "", () => ""],
+  int: [Number.isInteger, (v) => (Number.isFinite(v) ? Math.trunc(v) : null), () => 0],
+  float: [Number.isFinite, COERCE_NONE, () => 0],
+  bool: [(v) => typeof v === "boolean", (v) => !!v, () => false],
+  list: [Array.isArray, (v) => (Array.isArray(v) ? [...v] : null), () => []],
+  object: [isPlainObject, (v) => (isPlainObject(v) ? { ...v } : null), () => ({})],
+  map: [(v) => v instanceof Map, COERCE_MAP, () => new Map()],
+  set: [
+    (v) => v instanceof Set,
+    (v) => (v instanceof Set || Array.isArray(v) ? new Set(v) : null),
+    () => new Set(),
+  ],
+};
+
+export class Field {
+  // `type` names an entry of FIELD_TYPES; `defaultValue` falls back to the type's own.
+  constructor(type, name, defaultValue, [typeCheck, coercer, makeDefault] = FIELD_TYPES[type]) {
     this.type = type;
     this.name = name;
     this.typeCheck = typeCheck;
     this.coercer = coercer;
-    this.defaultValue = defaultValue;
+    this.defaultValue = defaultValue === undefined ? makeDefault() : defaultValue;
   }
   isValid(v) {
     return this.typeCheck(v);
@@ -25,87 +52,16 @@ class Field {
   }
 }
 
-// A type check is a plain predicate.
-const CHECK_TYPE_ANY = (_v) => true;
-const CHECK_TYPE_INT = Number.isInteger;
-const CHECK_TYPE_FLOAT = Number.isFinite;
-const CHECK_TYPE_BOOL = (v) => typeof v === "boolean";
-const CHECK_TYPE_STRING = (v) => typeof v === "string";
-const CHECK_TYPE_LIST = Array.isArray;
-const CHECK_TYPE_OBJECT = isPlainObject;
-const CHECK_TYPE_MAP = (v) => v instanceof Map;
-const CHECK_TYPE_SET = (v) => v instanceof Set;
-
-// A coercer turns an invalid value into a valid one, or null to give up.
-const COERCE_NONE = (_v) => null;
-const COERCE_BOOL = (v) => !!v;
-const COERCE_STRING = (v) => v?.toString?.() ?? "";
-const COERCE_INT = (v) => (Number.isFinite(v) ? Math.trunc(v) : null);
-const COERCE_LIST = (v) => (Array.isArray(v) ? [...v] : null);
-const COERCE_OBJECT = (v) => (isPlainObject(v) ? { ...v } : null);
-const COERCE_MAP = (v) => {
-  if (v instanceof Map) return new Map(v);
-  if (Array.isArray(v) || isPlainObject(v))
-    return new Map(Array.isArray(v) ? v : Object.entries(v));
-  return null;
-};
-const COERCE_SET = (v) => (v instanceof Set || Array.isArray(v) ? new Set(v) : null);
-
-export class FieldBool extends Field {
-  constructor(name, defaultValue = false) {
-    super("bool", name, CHECK_TYPE_BOOL, COERCE_BOOL, defaultValue);
-  }
-}
-class FieldAny extends Field {
-  constructor(name, defaultValue = null) {
-    super("any", name, CHECK_TYPE_ANY, COERCE_NONE, defaultValue);
-  }
-}
-export class FieldString extends Field {
-  constructor(name, defaultValue = "") {
-    super("text", name, CHECK_TYPE_STRING, COERCE_STRING, defaultValue);
-  }
-}
-export class FieldInt extends Field {
-  constructor(name, defaultValue = 0) {
-    super("int", name, CHECK_TYPE_INT, COERCE_INT, defaultValue);
-  }
-}
-export class FieldFloat extends Field {
-  constructor(name, defaultValue = 0) {
-    super("float", name, CHECK_TYPE_FLOAT, COERCE_NONE, defaultValue);
-  }
-}
-
 // The component metadata record: `component()` classes carry it behind COMPONENT,
 // classFromData() classes behind getMetaClass().
 const metaOf = (v) => v?.constructor?.[COMPONENT] ?? v?.constructor?.getMetaClass?.();
 const getTypeName = (v) => metaOf(v)?.name ?? null;
+// A component-typed field: `type` is a component NAME, resolved through the scope
+// when an instance is made (see mkCompField); a value is valid when it is one.
 class FieldComp extends Field {
   constructor(type, name, args) {
-    super(type, name, (v) => getTypeName(v) === type, COERCE_NONE, null);
+    super(type, name, null, [(v) => getTypeName(v) === type, COERCE_NONE, () => null]);
     this.args = args;
-  }
-}
-
-export class FieldList extends Field {
-  constructor(name, defaultValue = []) {
-    super("list", name, CHECK_TYPE_LIST, COERCE_LIST, defaultValue);
-  }
-}
-export class FieldObject extends Field {
-  constructor(name, defaultValue = {}) {
-    super("object", name, CHECK_TYPE_OBJECT, COERCE_OBJECT, defaultValue);
-  }
-}
-export class FieldMap extends Field {
-  constructor(name, defaultValue = new Map()) {
-    super("map", name, CHECK_TYPE_MAP, COERCE_MAP, defaultValue);
-  }
-}
-export class FieldSet extends Field {
-  constructor(name, defaultValue = new Set()) {
-    super("set", name, CHECK_TYPE_SET, COERCE_SET, defaultValue);
   }
 }
 
@@ -120,117 +76,74 @@ function mkCompField(field, scope, args) {
   return Comp?.make({ ...field.args, ...args }, { scope }) ?? null;
 }
 
-class ClassBuilder {
-  constructor(name) {
-    this.name = name;
-    this.fields = {};
-    this.compFields = new Set();
-    this._methods = {};
-    this._statics = {};
+// The field a `fields:` entry declares. The type is inferred from the default
+// value's JS type; the descriptor form `{ type, defaultValue }` names it, and
+// `{ component, args }` declares a component-typed field by component name.
+function fieldFromSpec(name, value) {
+  const type = typeof value;
+  if (type === "string") return new Field("text", name, value);
+  // Every numeric default is a float: a JS number literal can't express
+  // int-ness (`0.0` IS `0`), so inferring `int` from a whole number silently
+  // truncates every later assignment. `int` is opt-in, via the descriptor
+  // form `{ type: "int", defaultValue: 0 }`.
+  if (type === "number") return new Field("float", name, value);
+  if (type === "boolean") return new Field("bool", name, value);
+  if (Array.isArray(value)) return new Field("list", name, [...value]);
+  if (value instanceof Set) return new Field("set", name, new Set(value));
+  if (value instanceof Map) return new Field("map", name, new Map(value));
+  if (value?.type && Object.hasOwn(value, "defaultValue")) {
+    const t = value.type in FIELD_TYPES ? value.type : "any";
+    const probe = new Field(t, name);
+    return new Field(t, name, probe.coerceOr(value.defaultValue, probe.defaultValue));
   }
-  build() {
-    const { name, fields, compFields, _methods } = this;
-    const defaults = Object.fromEntries(
-      Object.entries(fields).map(([fieldName, field]) => [fieldName, field.defaultValue]),
-    );
-    const Class = {
-      [name]: class {
-        constructor(values = {}) {
-          Object.assign(this, defaults, values);
+  if (value?.component && value?.args !== undefined)
+    return new FieldComp(value.component, name, value.args);
+  if (isPlainObject(value)) return new Field("object", name, { ...value });
+  return new Field("any", name, value);
+}
+
+export function classFromData(name, { fields: spec = {}, methods = {}, statics = {} }) {
+  const fields = {};
+  for (const key in spec) fields[key] = fieldFromSpec(key, spec[key]);
+  const defaults = Object.fromEntries(
+    Object.entries(fields).map(([key, field]) => [key, field.defaultValue]),
+  );
+  const Class = {
+    [name]: class {
+      constructor(values = {}) {
+        Object.assign(this, defaults, values);
+      }
+    },
+  }[name];
+  Class[immerable] = true;
+  Object.assign(Class.prototype, methods);
+  const metaClass = { fields, name, methods };
+  Object.assign(
+    Class,
+    {
+      getMetaClass: () => metaClass,
+      make(inArgs = {}, opts = {}) {
+        const args = {};
+        // The metadata record's scope (set at registration) is authoritative;
+        // a manually-assigned static `.scope` stays as a fallback.
+        const scope = opts.scope ?? this[COMPONENT]?.scope ?? this.scope;
+        for (const key in inArgs) {
+          const field = fields[key];
+          if (field === undefined)
+            console.warn("extra argument to constructor:", name, key, inArgs);
+          else if (field instanceof FieldComp) args[key] = mkCompField(field, scope, inArgs[key]);
+          else args[key] = field.coerceOrDefault(inArgs[key]);
         }
+        // A component field left out still gets an instance, built through the scope.
+        for (const key in fields)
+          if (fields[key] instanceof FieldComp && args[key] === undefined)
+            args[key] = mkCompField(fields[key], scope, undefined);
+        return freeze(new this(args), true);
       },
-    }[name];
-    Class[immerable] = true;
-    Object.assign(Class.prototype, _methods);
-    const metaClass = { fields, name, methods: _methods };
-    Object.assign(
-      Class,
-      {
-        getMetaClass: () => metaClass,
-        make(inArgs = {}, opts = {}) {
-          const args = {};
-          // The metadata record's scope (set at registration) is authoritative;
-          // a manually-assigned static `.scope` stays as a fallback.
-          const scope = opts.scope ?? this[COMPONENT]?.scope ?? this.scope;
-          for (const key in inArgs) {
-            const field = fields[key];
-            if (compFields.has(key)) args[key] = mkCompField(field, scope, inArgs[key]);
-            else if (field === undefined)
-              console.warn("extra argument to constructor:", name, key, inArgs);
-            else args[key] = field.coerceOrDefault(inArgs[key]);
-          }
-          for (const key of compFields)
-            if (args[key] === undefined) args[key] = mkCompField(fields[key], scope, inArgs[key]);
-          return freeze(new this(args), true);
-        },
-      },
-      this._statics,
-    );
-    return Class;
-  }
-  methods(proto) {
-    for (const k in proto) this._methods[k] = proto[k];
-  }
-  statics(proto) {
-    for (const k in proto) this._statics[k] = proto[k];
-  }
-  addField(name, dval, FieldCls) {
-    const field = new FieldCls(name, dval);
-    this.fields[name] = field;
-    return field;
-  }
-  addCompField(name, type, args) {
-    const field = new FieldComp(type, name, args);
-    this.compFields.add(name);
-    this.fields[name] = field;
-    return field;
-  }
-}
-
-const fieldsByTypeName = {
-  text: FieldString,
-  int: FieldInt,
-  float: FieldFloat,
-  bool: FieldBool,
-  list: FieldList,
-  object: FieldObject,
-  map: FieldMap,
-  set: FieldSet,
-  any: FieldAny,
-};
-
-function fieldFromDescriptor(name, value) {
-  const FieldCls = fieldsByTypeName[value.type] ?? FieldAny;
-  const probe = new FieldCls(name);
-  return [FieldCls, probe.coerceOr(value.defaultValue, probe.defaultValue)];
-}
-
-export function classFromData(name, { fields = {}, methods, statics }) {
-  const b = new ClassBuilder(name);
-  for (const field in fields) {
-    const value = fields[field];
-    const type = typeof value;
-    if (type === "string") b.addField(field, value, FieldString);
-    // Every numeric default is a float: a JS number literal can't express
-    // int-ness (`0.0` IS `0`), so inferring `int` from a whole number silently
-    // truncates every later assignment. `int` is opt-in, via the descriptor
-    // form `{ type: "int", defaultValue: 0 }`.
-    else if (type === "number") b.addField(field, value, FieldFloat);
-    else if (type === "boolean") b.addField(field, value, FieldBool);
-    else if (Array.isArray(value)) b.addField(field, [...value], FieldList);
-    else if (value instanceof Set) b.addField(field, new Set(value), FieldSet);
-    else if (value instanceof Map) b.addField(field, new Map(value), FieldMap);
-    else if (value?.type && Object.hasOwn(value, "defaultValue")) {
-      const [FieldCls, dval] = fieldFromDescriptor(field, value);
-      b.addField(field, dval, FieldCls);
-    } else if (value?.component && value?.args !== undefined)
-      b.addCompField(field, value.component, value.args);
-    else if (isPlainObject(value)) b.addField(field, { ...value }, FieldObject);
-    else b.addField(field, value, FieldAny);
-  }
-  if (methods) b.methods(methods);
-  if (statics) b.statics(statics);
-  return b.build();
+    },
+    statics,
+  );
+  return Class;
 }
 
 // Coerce direct draft assignments with the same policy used by Class.make(). A failed

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { produce } from "../src/immer.js";
-import { classFromData, FieldInt } from "../src/oo.js";
+import { classFromData, Field } from "../src/oo.js";
 
 describe("OO", () => {
   test("from data: all types", () => {
@@ -51,7 +51,7 @@ describe("OO", () => {
 
 describe("Field type check", () => {
   test("isValid runs the type predicate; coerceOr falls back on failure", () => {
-    const f = new FieldInt("count");
+    const f = new Field("int", "count");
     expect(f.isValid(5)).toBe(true);
     expect(f.isValid(3.14)).toBe(false);
     expect(f.coerceOr(3.14)).toBe(3);

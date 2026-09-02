@@ -1,36 +1,25 @@
 import { describe, expect, test, vi } from "vitest";
 import { produce } from "../src/immer.js";
-import {
-  classFromData,
-  FieldBool,
-  FieldFloat,
-  FieldInt,
-  FieldList,
-  FieldMap,
-  FieldObject,
-  FieldSet,
-  FieldString,
-  validateDraftFields,
-} from "../src/oo.js";
+import { classFromData, Field, validateDraftFields } from "../src/oo.js";
 
 describe("native field descriptors", () => {
   test.each([
-    [FieldString, "text", "", "hello"],
-    [FieldInt, "int", 0, 4],
-    [FieldFloat, "float", 0, 2.5],
-    [FieldBool, "bool", false, true],
-  ])("%p validates its native scalar", (FieldClass, type, defaultValue, sample) => {
-    const field = new FieldClass("value");
+    ["text", "", "hello"],
+    ["int", 0, 4],
+    ["float", 0, 2.5],
+    ["bool", false, true],
+  ])("%p validates its native scalar", (type, defaultValue, sample) => {
+    const field = new Field(type, "value");
     expect(field.type).toBe(type);
     expect(field.defaultValue).toEqual(defaultValue);
     expect(field.isValid(sample)).toBe(true);
   });
 
   test("collection fields use native values", () => {
-    expect(new FieldList("items").isValid([])).toBe(true);
-    expect(new FieldObject("data").isValid({ a: 1 })).toBe(true);
-    expect(new FieldMap("byId").isValid(new Map())).toBe(true);
-    expect(new FieldSet("selected").isValid(new Set())).toBe(true);
+    expect(new Field("list", "items").isValid([])).toBe(true);
+    expect(new Field("object", "data").isValid({ a: 1 })).toBe(true);
+    expect(new Field("map", "byId").isValid(new Map())).toBe(true);
+    expect(new Field("set", "selected").isValid(new Set())).toBe(true);
   });
 });
 
