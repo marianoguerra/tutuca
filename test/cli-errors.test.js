@@ -11,8 +11,8 @@ const repo = resolve(here, "..");
 const todoModule = resolve(here, "todo.js");
 const storyset = resolve(here, "fixtures", "storyset");
 
-function run(args) {
-  const r = spawnSync("node", [cli, ...args], { encoding: "utf8" });
+function run(args, cwd) {
+  const r = spawnSync("node", [cli, ...args], { encoding: "utf8", cwd });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
@@ -278,6 +278,29 @@ describe("CLI: install-skill --dry-run", () => {
     expect(code).toBe(0);
     expect(stdout).toContain("would install tutuca skill");
     expect(stdout).toContain("SKILL.md");
+  });
+
+  test("still reports, and notes the overwrite, when the target is already installed", () => {
+    const dir = mkdtempSync(join(tmpdir(), "tutuca-install-skill-"));
+    try {
+      const target = join(dir, ".claude", "skills", "tutuca");
+      mkdirSync(target, { recursive: true });
+      writeFileSync(join(target, "SKILL.md"), "# already here\n");
+
+      const { code, stdout } = run(["install-skill", "--dry-run"], dir);
+      expect(code).toBe(0);
+      expect(stdout).toContain("would install tutuca skill");
+      expect(stdout).toContain("already contains skill files");
+      // --dry-run touches nothing: the pre-existing file is untouched.
+      expect(readFileSync(join(target, "SKILL.md"), "utf8")).toBe("# already here\n");
+
+      // Without --dry-run the same target is still refused.
+      const refused = run(["install-skill"], dir);
+      expect(refused.code).toBe(1);
+      expect(refused.stderr).toContain("already contains skill files");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

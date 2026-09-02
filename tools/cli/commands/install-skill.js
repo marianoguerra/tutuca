@@ -44,21 +44,29 @@ function installSkill(skill, root, scope, force, dotAgents, dryRun, opts) {
     });
   }
   const target = targetDir(scope, skill.name, dotAgents);
-  if (targetHasSkillFiles(target) && !force) {
+  const baseDir = dotAgents ? ".agents/skills" : ".claude/skills";
+  const rel = scope === "project" ? `${baseDir}/${skill.name}` : target;
+  const exists = targetHasSkillFiles(target);
+
+  // --dry-run reports what an install would do, including over an existing
+  // install, so it runs before the already-installed guard its hint points at.
+  if (dryRun) {
+    const files = walkFiles(src, { match: () => true }).map((f) => relative(src, f));
+    process.stdout.write(`would install ${skill.name} skill → ${rel}\n`);
+    for (const f of files) process.stdout.write(`  + ${f}\n`);
+    if (exists) {
+      process.stdout.write(
+        `  note: ${rel} already contains skill files; re-run with --force to overwrite them\n`,
+      );
+    }
+    return;
+  }
+  if (exists && !force) {
     emitError(opts, {
       code: CODES.SKILL_TARGET_EXISTS,
       message: `${target} already contains skill files`,
       hint: "Re-run with --force to overwrite, or --dry-run to see what would change.",
     });
-  }
-  const baseDir = dotAgents ? ".agents/skills" : ".claude/skills";
-  const rel = scope === "project" ? `${baseDir}/${skill.name}` : target;
-
-  if (dryRun) {
-    const files = walkFiles(src, { match: () => true }).map((f) => relative(src, f));
-    process.stdout.write(`would install ${skill.name} skill → ${rel}\n`);
-    for (const f of files) process.stdout.write(`  + ${f}\n`);
-    return;
   }
   mkdirSync(target, { recursive: true });
   cpSync(src, target, { recursive: true });
