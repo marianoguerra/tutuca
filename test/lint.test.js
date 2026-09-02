@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { LintClassCollectorCtx } from "../dev.js";
+
 import { component, html, macro } from "../index.js";
 import { ComponentStack } from "../src/components.js";
 import {
@@ -813,6 +813,22 @@ test("dynamic single-placeholder template stays REDUNDANT, not placeholderless",
   expect(ids).not.toContain(PLACEHOLDERLESS_TEMPLATE_STRING);
 });
 
+test("findings inside a macro body are reported like findings in the view", () => {
+  // The macro body parses in a child context; it has to keep the collectors of the
+  // context that entered it, or a directive typo inside a macro would only warn to
+  // the console and a placeholderless template there would never be hinted.
+  const box = macro({}, html`<div :class="$'plain'" @bogus="x"><x:slot></x:slot></div>`);
+  const [lx] = defAndCheckWithMacros(
+    { name: "Comp", view: html`<section><x:box>hi</x:box></section>` },
+    { box },
+  );
+  const ids = lx.reports.map((r) => r.id);
+  expect(ids).toContain(PLACEHOLDERLESS_TEMPLATE_STRING);
+  expect(ids).toContain(UNKNOWN_DIRECTIVE);
+  const unknown = lx.reports.find((r) => r.id === UNKNOWN_DIRECTIVE);
+  expect(unknown.info).toEqual({ name: "bogus", value: "x", tag: "DIV" });
+});
+
 test("no placeholderless hint when a macro template's ^var resolves to a constant", () => {
   // The macro body `$'box {^class}'` has a real placeholder; binding it to a
   // constant at the call site must not make it look like a hand-written
@@ -1210,13 +1226,7 @@ test("component-scoped findings carry componentName and no viewName", () => {
   expect(unused.context.viewName).toBeUndefined();
 });
 
-test("lint-errors example with LintClassCollectorCtx catches all error types", () => {
-  class HeadlessLintClassCollectorCtx extends LintClassCollectorCtx {
-    constructor() {
-      super(document, Text, Comment);
-    }
-  }
-
+test("lint-errors example catches all error types", () => {
   const Comp = component({
     name: "LintDemo",
     fields: { count: 0, items: [] },
@@ -1259,7 +1269,7 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
     </div>`,
   });
   Comp.scope = new ComponentStack();
-  Comp.compile(HeadlessLintClassCollectorCtx);
+  Comp.compile(HeadlessLintParseContext);
   const lx = checkComponent(Comp);
 
   const ids = lx.reports.map((r) => r.id);
@@ -1276,13 +1286,13 @@ test("lint-errors example with LintClassCollectorCtx catches all error types", (
 
 test("macro invocation :handler NameVal does not warn; ^handler in body expands to HandlerNameVal", () => {
   const btn = macro(
-    { handler: "onAction", arg: "event" },
+    { handler: "onAction", arg: "'ev'" },
     html`<button @on.click="^handler ^arg"></button>`,
   );
   const Comp = component({
     name: "Comp",
     receive: { onDo(draft) {} },
-    view: html`<div><x:btn :handler="onDo" :arg="event"></x:btn></div>`,
+    view: html`<div><x:btn :handler="onDo" :arg="'ev'"></x:btn></div>`,
   });
   Comp.scope = new ComponentStack();
   Comp.scope.registerMacros({ btn });

@@ -576,10 +576,18 @@ export class ParseContext {
   isInsideMacro(name) {
     return this.frame.macroName === name || this.parent?.isInsideMacro(name);
   }
+  // A macro body parses in a child context that shares every accumulator with
+  // its parent (nodes, events, macroNodes, and whatever a subclass collects) and
+  // differs only in its frame. Cloned rather than constructed so a subclass
+  // keeps collecting inside macro bodies without re-implementing this — the
+  // lint and class-set contexts used to lose (or had to copy) exactly that.
   enterMacro(macroName, macroVars, macroSlots) {
-    const { document, Text, Comment, nodes, events, macroNodes } = this;
-    const frame = { macroName, macroVars, macroSlots };
-    return new ParseContext(document, Text, Comment, nodes, events, macroNodes, frame, this);
+    const child = Object.create(Object.getPrototypeOf(this));
+    return Object.assign(child, this, {
+      frame: { macroName, macroVars, macroSlots },
+      parent: this,
+      currentTag: null,
+    });
   }
   parseHTML(html) {
     const t = this.document.createElement("template");

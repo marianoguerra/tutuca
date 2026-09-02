@@ -477,7 +477,7 @@ export class TutucaPlayground extends HTMLElement {
     try {
       const mod = await import(this._blobUrl);
       const tutucaApi = await import(this._resolveSpecifier("tutuca"));
-      const { tutuca, compileClassesToStyleText, LintClassCollectorCtx } = tutucaApi;
+      const { tutuca, compileClassesToStyleText, LintParseContext } = tutucaApi;
       const { compile } = await import(this._resolveSpecifier("margaui"));
       // The inspector tabs are the SAME ones the storybook renders: built by
       // buildInspectorViews from tutuca/components, with lint/test data produced
@@ -509,7 +509,7 @@ export class TutucaPlayground extends HTMLElement {
       app.registerComponents(this._inspectorComponents);
 
       app.state.set(mod.getRoot());
-      const styleText = await compileClassesToStyleText(app, compile, LintClassCollectorCtx);
+      const styleText = await compileClassesToStyleText(app, compile, LintParseContext);
       const margauiSheet = new CSSStyleSheet();
       margauiSheet.replaceSync(styleText);
       this._adoptStyles(margauiSheet);

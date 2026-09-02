@@ -1,10 +1,6 @@
-import {
-  MOD_EFFECTS,
-  MOD_WRAPPERS_BY_EVENT,
-  MOD_WRAPPERS_FOR_ANY_EVENT,
-  ParseContext,
-} from "../../src/anode.js";
+import { MOD_EFFECTS, MOD_WRAPPERS_BY_EVENT, MOD_WRAPPERS_FOR_ANY_EVENT } from "../../src/anode.js";
 import { COMPONENT } from "../../src/components.js";
+import { ParseCtxClassSetCollector } from "../../src/util/parsectx.js";
 import { lintHtml } from "./htmllinter.js";
 import { closestName } from "./util/closest-name.js";
 
@@ -1219,13 +1215,18 @@ export class LintContext {
   }
 }
 
-export class LintParseContext extends ParseContext {
+// Collects what the checks below read: every attribute set (with its wrapper
+// directives, text child and tag) and every parse issue. Extends the class-set
+// collector so one context serves both the linter and CSS class compilation
+// (the playground compiles styles off the same parse it lints).
+export class LintParseContext extends ParseCtxClassSetCollector {
   constructor(document, Text, Comment) {
     super(document, Text, Comment);
     this.attrs = [];
     this.parseIssues = [];
   }
   onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false, tag = null) {
+    super.onAttributes(attrs, wrapperAttrs, textChild, isMacroCall, tag);
     this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall, tag });
   }
   onParseIssue(kind, info) {

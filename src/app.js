@@ -187,6 +187,8 @@ export class App {
   }
   stop() {
     this.stopCacheEvictionInterval();
+    clearTimeout(this._transactNextBatchId);
+    this._transactNextBatchId = null;
     for (const name of this._eventNames)
       this.rootNode.removeEventListener(name, this, listenerOpts(name));
   }

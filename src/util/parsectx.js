@@ -11,22 +11,7 @@ export class ParseCtxClassSetCollector extends ParseContext {
       this.classes.add(v);
     }
   }
-  enterMacro(macroName, macroVars, macroSlots) {
-    const { document, Text, Comment, nodes, events, macroNodes } = this;
-    const frame = { macroName, macroVars, macroSlots };
-    const v = new ParseCtxClassSetCollector(
-      document,
-      Text,
-      Comment,
-      nodes,
-      events,
-      macroNodes,
-      frame,
-      this,
-    );
-    v.classes = this.classes;
-    return v;
-  }
+
   onAttributes(attrs, _wrapperAttrs, _textChild, _isMacroCall, _tag) {
     if (Array.isArray(attrs.items)) {
       for (const attr of attrs.items) {

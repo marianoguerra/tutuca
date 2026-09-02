@@ -23,18 +23,19 @@ function serializeContainer(container) {
   return container.innerHTML;
 }
 
-// Mount `rootState` into a fresh container and return the live app. `opts` also
-// takes `intentHandlers` (registered on the scope, so intent dispatches resolve
-// instead of hitting the 404 handler), `paths` (names registered as absolute app
-// paths, so a lookup resolves on the `lex` leg with no component publishing it) and
-// `view` (which of the root component's views to mount; defaults to `main`).
+// Mount `rootState` into a fresh container and return the live app. Options:
+// `noCache` (default on: a headless render has no second frame to reuse),
+// `intentHandlers` (registered on the scope, so intent dispatches resolve instead
+// of hitting the 404 handler), `paths` (names registered as absolute app paths, so
+// a lookup resolves on the `lex` leg with no component publishing it) and `view`
+// (which of the root component's views to mount; defaults to `main`).
 export function renderToHTMLNode(
   document,
   components,
   macros,
   rootState,
   ParseContext,
-  opts = { noCache: true },
+  { noCache = true, paths = null, intentHandlers = null, view = null } = {},
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -44,12 +45,12 @@ export function renderToHTMLNode(
   const comps = new Components();
   const renderer = new Renderer(comps);
   const app = new App(container, comps, renderer, ParseContext);
-  const scope = app.registerComponents(components, { paths: opts.paths });
+  const scope = app.registerComponents(components, { paths });
   if (macros) scope.registerMacros(macros);
-  if (opts.intentHandlers) scope.registerIntentHandlers(opts.intentHandlers);
-  app.rootViewName = opts.view ?? null;
+  if (intentHandlers) scope.registerIntentHandlers(intentHandlers);
+  app.rootViewName = view;
   app.transactor.state.set(rootState);
-  app.start(opts);
+  app.start({ noCache });
 
   return {
     container,
@@ -61,24 +62,11 @@ export function renderToHTMLNode(
   };
 }
 
-export function renderToHTML(document, components, macros, rootState, ParseContext) {
-  const { container, cleanup } = renderToHTMLNode(
-    document,
-    components,
-    macros,
-    rootState,
-    ParseContext,
-  );
-  const html = serializeContainer(container);
-  cleanup();
-  return html;
-}
-
-// Mount `rootState`, drive it through one `on`-phase config, wait for the whole
-// cascade to settle, and only then serialize. This is what the storybook does on
-// first display (Section init -> Example.runPhase), so it is what a headless render
-// must do too: without it, an example whose interesting state only exists after
-// `on.init` is serialized in its pristine, never-driven form.
+// Mount `rootState`, drive it through one `on`-phase config (when given), wait for
+// the whole cascade to settle, and only then serialize. This is what the storybook
+// does on first display (Section init -> Example.runPhase), so it is what a headless
+// render must do too: without it, an example whose interesting state only exists
+// after `on.init` is serialized in its pristine, never-driven form.
 //
 // Mirrors `drive()` in tools/core/test.js — same dispatchPhase + settle pair, so the
 // `render` gate exercises components exactly the way the `test` gate does.
@@ -88,7 +76,7 @@ export async function renderToHTMLDriven(
   macros,
   rootState,
   ParseContext,
-  { phase = null, intentHandlers = null, view = null } = {},
+  { phase = null, ...opts } = {},
 ) {
   const { container, app, cleanup } = renderToHTMLNode(
     document,
@@ -96,7 +84,7 @@ export async function renderToHTMLDriven(
     macros,
     rootState,
     ParseContext,
-    { noCache: true, intentHandlers, view },
+    opts,
   );
   try {
     if (phase) {
@@ -106,6 +94,23 @@ export async function renderToHTMLDriven(
       dispatchPhase(rootDispatcher(app.transactor), new DispatchPath(), phase, app.state.val);
       await app.transactor.settle();
     }
+    return serializeContainer(container);
+  } finally {
+    cleanup();
+  }
+}
+
+// The undriven form: mount, serialize, unmount. Synchronous, for the tests that
+// only look at a first render.
+export function renderToHTML(document, components, macros, rootState, ParseContext) {
+  const { container, cleanup } = renderToHTMLNode(
+    document,
+    components,
+    macros,
+    rootState,
+    ParseContext,
+  );
+  try {
     return serializeContainer(container);
   } finally {
     cleanup();

@@ -8,7 +8,6 @@ import { expect } from "./deps/chai.js";
 export { expect } from "./deps/chai.js";
 
 import { ANode } from "./src/anode.js";
-import { ParseCtxClassSetCollector } from "./src/util/parsectx.js";
 import { checkComponent, LintParseContext } from "./tools/core/lint-check.js";
 import { runTests } from "./tools/core/test.js";
 import { reportTestReportToConsole } from "./tools/format/console.js";
@@ -93,37 +92,4 @@ export function check(app) {
       : `check: ${counts.error} error, ${counts.warn} warn, ${counts.hint} hint`,
   );
   return counts;
-}
-export class LintClassCollectorCtx extends ParseCtxClassSetCollector {
-  constructor(...args) {
-    super(...args);
-    this.attrs = [];
-    this.parseIssues = [];
-  }
-  enterMacro(macroName, macroVars, macroSlots) {
-    const { document, Text, Comment, nodes, events, macroNodes } = this;
-    const frame = { macroName, macroVars, macroSlots };
-    const v = new LintClassCollectorCtx(
-      document,
-      Text,
-      Comment,
-      nodes,
-      events,
-      macroNodes,
-      frame,
-      this,
-    );
-    v.classes = this.classes;
-    v.attrs = this.attrs;
-    v.parseIssues = this.parseIssues;
-    return v;
-  }
-  onAttributes(attrs, wrapperAttrs, textChild, isMacroCall = false, tag = null) {
-    super.onAttributes(attrs, wrapperAttrs, textChild, isMacroCall, tag);
-    this.attrs.push({ attrs, wrapperAttrs, textChild, isMacroCall, tag });
-  }
-  onParseIssue(kind, info) {
-    const tag = this.currentTag;
-    this.parseIssues.push({ kind, info: tag && info.tag === undefined ? { ...info, tag } : info });
-  }
 }
