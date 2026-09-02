@@ -2,20 +2,20 @@ import { View } from "./anode.js";
 import { isTypeName } from "./stack.js";
 import { parseField, parseProvide } from "./value.js";
 
-// Well-known link between a generated component Class and its metadata record
-// (the `Component` instance). The Class IS the component; its views/handlers/
-// provide/spec live behind this symbol, and instances resolve their component
-// via `v.constructor[COMPONENT]`. Registered (`Symbol.for`, like SEQ_INFO /
-// FIELD_CLASS) so multiple copies of the library agree on the convention.
+// Marks a generated Class as a component: `Class[COMPONENT] === Class`. The Class IS
+// the component — its views/handlers/provide/spec are its own statics (see
+// `initComponent`) — and instances resolve theirs via `v.constructor[COMPONENT]`.
+// Registered (`Symbol.for`, like SEQ_INFO) so multiple copies of the library agree
+// on the convention.
 export const COMPONENT = Symbol.for("tutuca.component");
 
 export class Components {
   constructor() {
-    // id -> component Class (the metadata record lives at Class[COMPONENT]).
+    // id -> component Class.
     this.byId = new Map();
   }
   registerComponent(Comp) {
-    this.byId.set(Comp[COMPONENT].id, Comp);
+    this.byId.set(Comp.id, Comp);
   }
   getComponentForId(id) {
     return this.byId.get(id) ?? null;
@@ -35,7 +35,7 @@ export class Components {
   }
   compileStyles() {
     const styles = [];
-    for (const Comp of this.byId.values()) styles.push(Comp[COMPONENT].compileStyle());
+    for (const Comp of this.byId.values()) styles.push(Comp.compileStyle());
     return styles.join("\n");
   }
 }
@@ -59,7 +59,7 @@ export class ComponentStack {
       // each scope owns its Class. Re-registering the same Component rebinds it to this
       // scope (last wins) — fine for fresh re-setup. To keep a Component live in *two*
       // scopes at once, build a fresh one from its spec: component(Comp.spec).
-      Comp[COMPONENT].scope = this.enter();
+      Comp.scope = this.enter();
       this.comps.registerComponent(Comp);
       this.byName[Comp.name] = Comp;
     }
@@ -145,47 +145,49 @@ const _rawSpecKeys =
   "name view style commonStyle globalStyle receive intent alter views provide lookup fields methods statics";
 const KNOWN_SPEC_KEYS = new Set(_rawSpecKeys.split(" "));
 let _compId = 0;
-export class Component {
-  constructor(Class, o) {
-    this.id = _compId++;
-    this.name = o.name ?? "UnkComp";
-    this.Class = Class;
-    this.views = { main: new View("main", o.view, o.style) };
-    this.commonStyle = o.commonStyle ?? "";
-    this.globalStyle = o.globalStyle ?? "";
-    // ADDRESSED: a view's own `@on.*`, a parent's ctx.send, the host's sendAtRoot, and
-    // an answer to an intent. One bucket, and a handler cannot tell which it was.
-    this.receive = o.receive ?? {};
-    // ROUTED: raised by someone who did not name a target, and walked until answered.
-    this.intent = o.intent ?? {};
-    this.alter = o.alter ?? {};
-    for (const name in o.views ?? {}) {
-      const v = o.views[name];
-      const { view, style } = isString(v) ? { view: v } : v;
-      this.views[name] = new View(name, view, style);
-    }
-    this._rawProvide = o.provide ?? {};
-    this._rawLookup = o.lookup ?? [];
-    // What a component publishes: name -> parsed expression, evaluated when the
-    // component is entered and pushed onto the dynBinds stack under that NAME,
-    // together with the absolute path its value lives at. Names, not symbols: a
-    // lookup names what it wants and takes whoever provides it, nearest first, so
-    // there is no producer to qualify — and because the pair is resolved by live
-    // render ancestry, several components may publish one name and the nearest
-    // rendered one wins.
-    this.provide = {};
-    // Component types this component publishes to its subtree, name -> Class. Kept
-    // apart from `provide` because a Class is not addressable: it can never be a
-    // render target, so it must not reach resolveDynProducer or `*name`.
-    this.provideType = {};
-    // What a component reads "context-style": name -> default expression (or
-    // null), used when nobody above provides the name.
-    this.lookup = {};
-    this.scope = null;
-    this.spec = o;
-    this.extra = {};
-    for (const key of Object.keys(o)) if (!KNOWN_SPEC_KEYS.has(key)) this.extra[key] = o[key];
+// Make a generated Class a component: the spec's declarations become its own statics
+// and the methods below its static behavior. `this` in those is the Class.
+export function initComponent(Class, o) {
+  Class[COMPONENT] = Class;
+  Class.id = _compId++;
+  Class.views = { main: new View("main", o.view, o.style) };
+  Class.commonStyle = o.commonStyle ?? "";
+  Class.globalStyle = o.globalStyle ?? "";
+  // ADDRESSED: a view's own `@on.*`, a parent's ctx.send, the host's sendAtRoot, and
+  // an answer to an intent. One bucket, and a handler cannot tell which it was.
+  Class.receive = o.receive ?? {};
+  // ROUTED: raised by someone who did not name a target, and walked until answered.
+  Class.intent = o.intent ?? {};
+  Class.alter = o.alter ?? {};
+  for (const name in o.views ?? {}) {
+    const v = o.views[name];
+    const { view, style } = isString(v) ? { view: v } : v;
+    Class.views[name] = new View(name, view, style);
   }
+  Class._rawProvide = o.provide ?? {};
+  Class._rawLookup = o.lookup ?? [];
+  // What a component publishes: name -> parsed expression, evaluated when the
+  // component is entered and pushed onto the dynBinds stack under that NAME,
+  // together with the absolute path its value lives at. Names, not symbols: a
+  // lookup names what it wants and takes whoever provides it, nearest first, so
+  // there is no producer to qualify — and because the pair is resolved by live
+  // render ancestry, several components may publish one name and the nearest
+  // rendered one wins.
+  Class.provide = {};
+  // Component types this component publishes to its subtree, name -> Class. Kept
+  // apart from `provide` because a Class is not addressable: it can never be a
+  // render target, so it must not reach `*name`.
+  Class.provideType = {};
+  // What a component reads "context-style": name -> default expression (or
+  // null), used when nobody above provides the name.
+  Class.lookup = {};
+  Class.scope = null;
+  Class.spec = o;
+  Class.extra = {};
+  for (const key of Object.keys(o)) if (!KNOWN_SPEC_KEYS.has(key)) Class.extra[key] = o[key];
+  return Object.assign(Class, COMPONENT_METHODS);
+}
+export const COMPONENT_METHODS = {
   compile(ParseContext) {
     for (const name in this.views)
       this.views[name].compile(new ParseContext(), this.scope, this.id);
@@ -198,7 +200,7 @@ export class Component {
         // A published component type. `"self"` is the only value: the publisher's own
         // Class, so a published type is a component by construction and the dyn leg
         // never has to trust an arbitrary expression.
-        if (this._rawProvide[key] === "self") this.provideType[key] = this.Class;
+        if (this._rawProvide[key] === "self") this.provideType[key] = this;
         continue;
       }
       const val = parseProvide(this._rawProvide[key], ctx);
@@ -215,16 +217,16 @@ export class Component {
     for (const key in this.lookup)
       if (this.provide[key] !== undefined)
         console.warn("name declared in both provide and lookup", this.name, key);
-  }
+  },
   getView(name) {
     return this.views[name] ?? this.views.main;
-  }
+  },
   getEventForId(id, viewName) {
     return this.getView(viewName).ctx.getEventForId(id);
-  }
+  },
   getNodeForId(id, viewName) {
     return this.getView(viewName).ctx.getNodeForId(id);
-  }
+  },
   compileStyle() {
     const { id, commonStyle, globalStyle, views } = this;
     const styles = commonStyle ? [`[data-cid="${id}"]{${commonStyle}}`] : [];
@@ -234,5 +236,5 @@ export class Component {
       if (style !== "") styles.push(`[data-cid="${id}"][data-vid="${name}"]{${style}}`);
     }
     return styles.join("\n");
-  }
-}
+  },
+};

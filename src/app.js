@@ -1,4 +1,4 @@
-import { COMPONENT, ComponentStack } from "./components.js";
+import { ComponentStack } from "./components.js";
 import { DispatchPath } from "./path.js";
 import { Stack } from "./stack.js";
 import { Transactor } from "./transactor.js";
@@ -159,10 +159,9 @@ export class App {
   }
   compile() {
     for (const Comp of this.comps.byId.values()) {
-      const meta = Comp[COMPONENT];
-      meta.compile(this.ParseContext);
-      for (const key in meta.views)
-        for (const name of meta.views[key].ctx.genEventNames()) this._eventNames.add(name);
+      Comp.compile(this.ParseContext);
+      for (const key in Comp.views)
+        for (const name of Comp.views[key].ctx.genEventNames()) this._eventNames.add(name);
     }
     this._compiled = true;
   }

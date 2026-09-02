@@ -45,11 +45,11 @@ import {
   UNSUPPORTED_EXPR_SYNTAX,
   X_OP_IGNORES_CHILDREN,
 } from "../tools/core/lint-check.js";
-import { Comment, document, Text } from "./dom.js";
+import { document } from "./dom.js";
 
 class HeadlessLintParseContext extends LintParseContext {
   constructor() {
-    super(document, Text, Comment);
+    super(document);
   }
 }
 

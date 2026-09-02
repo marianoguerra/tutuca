@@ -155,8 +155,8 @@ export class ANode extends BaseNode {
     return maybeFragment(trimmed);
   }
   static fromDOM(node, px) {
-    if (node instanceof px.Text) return new TextNode(node.textContent);
-    else if (node instanceof px.Comment) return new CommentNode(node.textContent);
+    if (node.nodeType === 3) return new TextNode(node.textContent);
+    if (node.nodeType === 8) return new CommentNode(node.textContent);
     const { childNodes, attributes: attrs, tagName: tag } = node;
     const childs = [];
     for (let i = 0; i < childNodes.length; i++) {
@@ -555,16 +555,19 @@ const WRAPPER_NODES = {
   scope: ScopeNode,
   "push-view": PushViewNameNode,
 };
+// One view's parse: the `document` that parses the template HTML, and what the
+// parse accumulates — the addressable nodes and event sets (by id, for event-path
+// reconstruction) and the macro calls to expand at compile time. A subclass adds
+// its own accumulators (CSS classes, lint findings) by overriding `onAttributes`
+// / `onParseIssue`.
 export class ParseContext {
-  constructor(document, Text, Comment, nodes, events, macroNodes, frame, parent) {
-    this.nodes = nodes ?? [];
-    this.events = events ?? [];
-    this.macroNodes = macroNodes ?? [];
-    this.parent = parent ?? null;
-    this.frame = frame ?? {};
-    this.document = document ?? globalThis.document;
-    this.Text = Text ?? globalThis.Text;
-    this.Comment = Comment ?? globalThis.Comment;
+  constructor(document = globalThis.document) {
+    this.document = document;
+    this.nodes = [];
+    this.events = [];
+    this.macroNodes = [];
+    this.parent = null;
+    this.frame = {};
     this.currentTag = null;
   }
   isInsideMacro(name) {

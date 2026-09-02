@@ -51,15 +51,16 @@ blocks on the component. The linter enforces this
 ### Components are draftable classes
 
 `component(spec)` (`src/oo.js`) returns a generated Class marked `immerable`
-and built from the `fields` declaration. The Class is the public component:
-its runtime metadata record — name, compiled views, handler buckets,
-`provide`/`lookup` declarations, and registration scope — is attached behind
-the well-known `COMPONENT` symbol (`src/components.js`). Component instances
+and built from the `fields` declaration. The Class is the public component,
+and it carries its own runtime metadata as statics — name, compiled views,
+handler buckets, `provide`/`lookup` declarations, and registration scope
+(`initComponent` in `src/components.js`) — marked by the well-known
+`COMPONENT` symbol (`Class[COMPONENT] === Class`). Component instances
 retain their prototype while being deeply frozen outside transactions.
 
 The runtime resolves an instance through `instance.constructor[COMPONENT]`;
-it does not use `instanceof`. Registering the Class binds its metadata record
-to that scope and makes the Class available by component name.
+it does not use `instanceof`. Registering the Class binds its `scope` and
+makes the Class available by component name.
 
 There is no inheritance. Reuse happens by composition (component-typed fields
 rendered with `<x render>`), by macros (section 7), and by `methods`/`statics`.

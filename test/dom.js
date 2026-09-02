@@ -29,11 +29,11 @@ function makeVirtualConsole() {
 const { window } = new JSDOM("", { virtualConsole: makeVirtualConsole() });
 const { DOMParser, Text, Comment, document } = window;
 
-export const mpx = () => new ParseContext(document, Text, Comment);
+export const mpx = () => new ParseContext(document);
 
 export class HeadlessParseContext extends ParseContext {
   constructor() {
-    super(document, Text, Comment);
+    super(document);
   }
 }
 

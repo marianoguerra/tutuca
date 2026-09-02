@@ -12,17 +12,17 @@ export async function createNodeEnv() {
   const dom = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>", {
     virtualConsole,
   });
-  const { document, Text, Comment } = dom.window;
+  const { document } = dom.window;
   globalThis.document = document;
 
   class HeadlessParseContext extends ParseContext {
     constructor() {
-      super(document, Text, Comment);
+      super(document);
     }
   }
   class HeadlessLintParseContext extends LintParseContext {
     constructor() {
-      super(document, Text, Comment);
+      super(document);
     }
   }
 

@@ -1222,8 +1222,8 @@ export class LintContext {
 // collector so one context serves both the linter and CSS class compilation
 // (the playground compiles styles off the same parse it lints).
 export class LintParseContext extends ParseCtxClassSetCollector {
-  constructor(document, Text, Comment) {
-    super(document, Text, Comment);
+  constructor(document) {
+    super(document);
     this.attrs = [];
     this.parseIssues = [];
   }

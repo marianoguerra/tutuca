@@ -1,5 +1,5 @@
 import { isPlainObject } from "./collection.js";
-import { COMPONENT, Component } from "./components.js";
+import { COMPONENT_METHODS, initComponent } from "./components.js";
 import { freeze, immerable } from "./immer.js";
 
 const BAD_VALUE = Symbol("BadValue");
@@ -52,9 +52,9 @@ export class Field {
   }
 }
 
-// The component metadata record: `component()` classes carry it behind COMPONENT,
-// classFromData() classes behind getMetaClass().
-const metaOf = (v) => v?.constructor?.[COMPONENT] ?? v?.constructor?.getMetaClass?.();
+// The class an instance was made by, carrying `fields` / `methods` / `name` as
+// statics — a component Class or a plain classFromData() model.
+const metaOf = (v) => v?.constructor?.getMetaClass?.();
 const getTypeName = (v) => metaOf(v)?.name ?? null;
 // A component-typed field: `type` is a component NAME, resolved through the scope
 // when an instance is made (see mkCompField); a value is valid when it is one.
@@ -117,16 +117,18 @@ export function classFromData(name, { fields: spec = {}, methods = {}, statics =
   }[name];
   Class[immerable] = true;
   Object.assign(Class.prototype, methods);
-  const metaClass = { fields, name, methods };
   Object.assign(
     Class,
     {
-      getMetaClass: () => metaClass,
+      fields,
+      methods,
+      // The documented way for instance code to reach its class's fields
+      // (`this.constructor.getMetaClass().fields.x.defaultValue`).
+      getMetaClass: () => Class,
       make(inArgs = {}, opts = {}) {
         const args = {};
-        // The metadata record's scope (set at registration) is authoritative;
-        // a manually-assigned static `.scope` stays as a fallback.
-        const scope = opts.scope ?? this[COMPONENT]?.scope ?? this.scope;
+        // The registration scope is authoritative; `opts.scope` overrides it.
+        const scope = opts.scope ?? this.scope;
         for (const key in inArgs) {
           const field = fields[key];
           if (field === undefined)
@@ -163,19 +165,13 @@ export function validateDraftFields(current, draft) {
   }
 }
 
-// Unification: the generated Class IS the component. `component()` returns the
-// Class, carrying its metadata record (`Component` instance) behind COMPONENT.
-// The record is the single source of truth: `fields`/`methods` are folded into
-// it and `getMetaClass()` is redefined to return the record itself.
-const META_KEYS =
-  "name id fields methods views receive intent alter provide provideType lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup".split(
-    " ",
-  );
+// The statics a component Class owns (see initComponent / classFromData); a user
+// static may not shadow one.
 const RESERVED_COMPONENT_STATICS = new Set([
-  ...META_KEYS,
-  "make",
-  "getMetaClass",
-  ...Object.getOwnPropertyNames(Component.prototype),
+  ..."name id fields methods views receive intent alter provide provideType lookup spec extra commonStyle globalStyle scope _rawProvide _rawLookup make getMetaClass".split(
+    " ",
+  ),
+  ...Object.keys(COMPONENT_METHODS),
 ]);
 
 function assertNoReservedComponentStatics(statics = {}) {
@@ -186,41 +182,9 @@ function assertNoReservedComponentStatics(statics = {}) {
   }
 }
 
-Component.fromSpec = (opts) => {
+// The generated Class IS the component: `component()` returns it, carrying the
+// spec's views/handlers/provide/lookup as its own statics and marked with COMPONENT.
+export function component(opts) {
   assertNoReservedComponentStatics(opts.statics);
-  const Class = classFromData(opts.name, opts);
-  const comp = new Component(Class, opts);
-  // Fold the builder's { fields, name, methods } view into the meta record...
-  const metaClass = Class.getMetaClass();
-  comp.fields = metaClass.fields;
-  comp.methods = metaClass.methods;
-  // ...and make `getMetaClass()` hand back the record (a superset: it also
-  // carries name/views/handlers/spec). Instance code keeping the documented
-  // `this.constructor.getMetaClass().fields.x.defaultValue` pattern works
-  // unchanged.
-  Class.getMetaClass = () => comp;
-  Class[COMPONENT] = comp;
-  // Expose the metadata buckets as static accessors so direct reads
-  // (`Counter.receive.inc`, `Comp.spec`, `Widget.scope`) keep working, with
-  // write-through (`Comp.scope = ...`) matching the old record's mutability.
-  // Reserved-name validation above guarantees these accessors cannot be shadowed
-  // by a user static.
-  for (const key of META_KEYS)
-    if (!Object.hasOwn(Class, key))
-      Object.defineProperty(Class, key, {
-        get() {
-          return comp[key];
-        },
-        set(v) {
-          comp[key] = v;
-        },
-        configurable: true,
-      });
-  // Forward the metadata record's behavior (compile/getView/compileStyle/...)
-  // onto the Class, skipping names the generated class already owns.
-  for (const key of Object.getOwnPropertyNames(Component.prototype))
-    if (key !== "constructor" && !Object.hasOwn(Class, key))
-      Class[key] = (...args) => comp[key](...args);
-  return Class;
-};
-export const component = (opts) => Component.fromSpec(opts);
+  return initComponent(classFromData(opts.name ?? "UnkComp", opts), opts);
+}
