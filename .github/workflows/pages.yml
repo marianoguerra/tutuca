@@ -31,6 +31,8 @@ jobs:
           version: stable
           distribution: full
       - run: npm ci
+      - run: npm run lint
+      - run: npm test
       - run: racket spec/render.rkt
       - run: npm run site
       - uses: actions/upload-pages-artifact@v3

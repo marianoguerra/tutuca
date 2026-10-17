@@ -34,7 +34,8 @@
 	],
 	"scripts": {
 		"test": "node --test test/*/*.test.js",
-		"lint": "biome check src storybook*.js components test scripts site",
+		"lint": "biome check .",
+		"fmt": "biome check --write .",
 		"dist": "node scripts/dist.js",
 		"smoke": "node scripts/smoke.js",
 		"site": "node scripts/site.js",

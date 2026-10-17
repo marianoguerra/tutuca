@@ -25,9 +25,12 @@ for (const file of ["dist/tutuca.js", "dist/tutuca.min.js"]) {
 const [packed] = JSON.parse(
 	execFileSync("npm", ["pack", "--dry-run", "--json"], { encoding: "utf8" }),
 );
-const allowed = /^(src\/|deps\/|dist\/|README\.md$|LICENSE$|package\.json$)/;
+// What package.json "files" lists, folders ending in /, and package.json itself.
+const allowed = (path) =>
+	path === "package.json" ||
+	pkg.files.some((entry) => (entry.endsWith("/") ? path.startsWith(entry) : path === entry));
 for (const { path } of packed.files) {
-	if (!allowed.test(path)) problems.push(`unexpected file in the package: ${path}`);
+	if (!allowed(path)) problems.push(`unexpected file in the package: ${path}`);
 }
 
 if (problems.length > 0) {

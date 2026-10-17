@@ -1,8 +1,6 @@
 # Tasks for tutuca. `just` lists them.
 
 port := "8000"
-# Our sources: biome checks these, not the vendored deps/ (biome.json ignores it).
-sources := "src storybook*.js components demos test scripts site"
 
 default:
     @just --list
@@ -27,13 +25,13 @@ test-file name:
 watch:
     node --test --watch test/*/*.test.js
 
-# Lint and check formatting.
+# Lint and check formatting; biome.json leaves out the vendored deps/ and build output.
 lint:
-    npx biome check {{sources}}
+    npm run lint
 
 # Format and apply safe lint fixes.
 fmt:
-    npx biome check --write {{sources}}
+    npm run fmt
 
 # Lint, then test: what to run before a commit.
 check: lint test

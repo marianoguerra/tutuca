@@ -19,3 +19,8 @@ jobs:
       - run: npm test
       - run: npm run dist
       - run: npm run smoke
+      - uses: Bogdanp/setup-racket@v1.16
+        with:
+          version: stable
+          distribution: full
+      - run: raco test spec/

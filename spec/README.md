@@ -15,7 +15,7 @@ The optimizations in `src/optimize.js` and the fast paths in `vdom.js` are not p
 model. The model defines the meaning those optimizations must preserve.
 
 ```sh
-raco test spec/            # unit tests, properties, and scenarios ported from test/*.test.js
+raco test spec/            # unit tests, properties, and scenarios ported from test/
 racket spec/render.rkt     # typesets the rules into spec/semantics.pdf
 ```
 
@@ -194,7 +194,7 @@ Two of these are equivalent only when nothing but the runtime mutates the manage
 - Arrays, records and components are the only objects.
 - Dev checks (schemas, invariants, message contracts), `Host.notify`, listener registration.
   Routing already ignores unknown event types.
-- `src/dev/util.js`, `src/storybook/element.js`, the storybook, pbt and lint modules.
+- `src/tag.js`, `src/dev/`, `src/storybook/element.js`, the storybook, pbt and lint modules.
 
 ## What the tests check
 
@@ -212,14 +212,14 @@ Two of these are equivalent only when nothing but the runtime mutates the manage
 - **Render invariant:** after every simulated click and drain, the DOM is the render of the
   root.
 - **Ported scenarios:**
-  - `view-semantics.test.js`: literals, truthiness, attributes, patching, meta comments,
+  - `test/core/view-semantics.test.js`: literals, truthiness, attributes, patching, meta comments,
     the main view
-  - `event-metadata.test.js`: field/seqItem/provided chains, keyed reorder with node
+  - `test/paths/event-metadata.test.js`: field/seqItem/provided chains, keyed reorder with node
     identity, nested multi-root loops with unmanaged DOM, renderIt boundaries
-  - `source-key.test.js`: the exact sequence
-  - `task-paths.test.js`: commit-time freezing, event-time selection, producer failure,
+  - `test/paths/source-key.test.js`: the exact sequence
+  - `test/paths/task-paths.test.js`: commit-time freezing, event-time selection, producer failure,
     child preparation failure, async replies (ok and error), selectors below provided frames
-  - `vdom.test.js`: patching, shapes, namespaces, keyed groups
+  - `test/vdom/vdom.test.js`: patching, shapes, namespaces, keyed groups
 
   The scheduling-only task-path tests (reentrant draining, events during rendering) are
   covered by atomic transactions and nondeterministic scheduling.

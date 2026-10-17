@@ -10,7 +10,9 @@ const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name
 
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
-for (const path of ["src", "deps", "components", "demos", "storybook.js", "storybook.books.js"]) {
+// What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.
+const pages = ["src", "deps", "components", "demos", ...globSync("storybook*.js")];
+for (const path of pages) {
 	cpSync(path, `${out}/${path}`, { recursive: true });
 }
 

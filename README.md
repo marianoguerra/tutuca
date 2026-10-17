@@ -57,6 +57,11 @@ host.start(host.scope.components.Counter());
 | `tutuca/element` | the `<tutuca-app>` custom element |
 | `tutuca/vdom` | the virtual DOM |
 
+## Docs
+
+- [`docs/paths.md`](docs/paths.md): how update paths, dispatch paths and selectors route messages.
+- [`spec/README.md`](spec/README.md): the formal semantics in PLT Redex and how it maps to `src/`.
+
 ## Development
 
 Tasks are in the `justfile`; `just` lists them.
