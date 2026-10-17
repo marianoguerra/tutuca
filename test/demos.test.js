@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
-import { inferSchema, schemaDocument } from "../components/jsonschema/infer.js";
+import { inferSchema, schemaDocument } from "../components/json-schema/infer.js";
 import { quadraticLabel } from "../components/math/workbench.js";
 import { addDays } from "../components/todo/dates.js";
 import { TODAY } from "../components/todo/fixtures.js";

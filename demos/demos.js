@@ -23,7 +23,7 @@ export const demos = [
 		title: "Payload → Schema",
 		blurb: "Edit an example API payload and get a documented JSON Schema for it.",
 		story: "JSON Schema studio/Order payload",
-		sources: ["jsonschema", "json"],
+		sources: ["json-schema", "json"],
 	},
 	{
 		dir: "drawing",

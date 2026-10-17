@@ -1,4 +1,4 @@
-import { studio, studioComponents } from "../../components/jsonschema/studio.js";
+import { studio, studioComponents } from "../../components/json-schema/studio.js";
 import { boot, sendRoot } from "../boot.js";
 
 export const start = (document = globalThis.document) => {
