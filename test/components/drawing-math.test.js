@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { drawingComponents } from "../components/drawing/index.js";
-import { fmt, mathComponents } from "../components/math/index.js";
-import { Driver } from "../src/test/pbt.js";
-import { DispatchPath } from "../src/tutuca.js";
-import { document, scopeWith, testGenericProperties } from "./helpers.js";
+import { drawingComponents } from "../../components/drawing/index.js";
+import { fmt, mathComponents } from "../../components/math/index.js";
+import { Driver } from "../../src/test/pbt.js";
+import { DispatchPath } from "../../src/tutuca.js";
+import { document, scopeWith, testGenericProperties } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const MATHML = "http://www.w3.org/1998/Math/MathML";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { component, each, field, h, renderEach, renderIt, send } from "../src/tutuca.js";
-import { setupHost } from "./helpers.js";
+import { component, each, field, h, renderEach, renderIt, send } from "../../src/tutuca.js";
+import { setupHost } from "../helpers.js";
 
 // A Leaf in rows[1].cells[2] of a Mid, the Mid in mids[1] of a Top: each receiver
 // sees the key of the step that leads out of its own view.

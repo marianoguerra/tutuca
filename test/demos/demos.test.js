@@ -2,17 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
-import { inferSchema, schemaDocument } from "../components/json-schema/infer.js";
-import { quadraticLabel } from "../components/math/workbench.js";
-import { addDays } from "../components/todo/dates.js";
-import { TODAY } from "../components/todo/fixtures.js";
-import { start as startDrawing } from "../demos/drawing/main.js";
-import { start as startStudio } from "../demos/json-schema/main.js";
-import { start as startMath } from "../demos/math/main.js";
-import { start as startTracker } from "../demos/thing-tracker/main.js";
-import { start as startTodo } from "../demos/todo/main.js";
-import { lint } from "../src/lint/index.js";
-import { settle } from "./helpers.js";
+import { inferSchema, schemaDocument } from "../../components/json-schema/infer.js";
+import { quadraticLabel } from "../../components/math/workbench.js";
+import { addDays } from "../../components/todo/dates.js";
+import { TODAY } from "../../components/todo/fixtures.js";
+import { start as startDrawing } from "../../demos/drawing/main.js";
+import { start as startStudio } from "../../demos/json-schema/main.js";
+import { start as startMath } from "../../demos/math/main.js";
+import { start as startTracker } from "../../demos/thing-tracker/main.js";
+import { start as startTodo } from "../../demos/todo/main.js";
+import { lint } from "../../src/lint/index.js";
+import { settle } from "../helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
 const mount = (start, ...args) => {

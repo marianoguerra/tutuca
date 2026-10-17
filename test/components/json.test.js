@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-import { fromJson, jsonComponents } from "../components/json/index.js";
-import { arbitraries, Driver } from "../src/test/pbt.js";
-import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "./helpers.js";
+import { fromJson, jsonComponents } from "../../components/json/index.js";
+import { arbitraries, Driver } from "../../src/test/pbt.js";
+import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 
 const setup = () => {
 	const scope = scopeWith(jsonComponents);

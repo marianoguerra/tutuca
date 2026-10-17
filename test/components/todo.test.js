@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-import { addDays, dayHeader, dueLabel, dueTone, isIso } from "../components/todo/dates.js";
-import { TODAY, todoAppArb } from "../components/todo/fixtures.js";
-import { todoComponents } from "../components/todo/index.js";
-import { parseQuickAdd } from "../components/todo/quickadd.js";
-import { devComponents } from "../src/dev/panel.js";
-import { testGenericProperties } from "./helpers.js";
+import { addDays, dayHeader, dueLabel, dueTone, isIso } from "../../components/todo/dates.js";
+import { TODAY, todoAppArb } from "../../components/todo/fixtures.js";
+import { todoComponents } from "../../components/todo/index.js";
+import { parseQuickAdd } from "../../components/todo/quickadd.js";
+import { devComponents } from "../../src/dev/panel.js";
+import { testGenericProperties } from "../helpers.js";
 
 test("due labels are relative to today", () => {
 	const at = (n) => dueLabel(addDays(TODAY, n), TODAY);

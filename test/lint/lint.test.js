@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lint, lintToConsole } from "../src/lint/index.js";
+import { lint, lintToConsole } from "../../src/lint/index.js";
 import {
 	$if,
 	component,
@@ -20,7 +20,7 @@ import {
 	sourceKey,
 	t,
 	targetValue,
-} from "../src/tutuca.js";
+} from "../../src/tutuca.js";
 
 // Registration only needs a root node to add delegated listeners to.
 const lintOf = (specs) => {

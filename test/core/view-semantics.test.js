@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { $if, AstNode, component, field, h, pushView } from "../src/tutuca.js";
-import { setupHost } from "./helpers.js";
+import { $if, AstNode, component, field, h, pushView } from "../../src/tutuca.js";
+import { setupHost } from "../helpers.js";
 
 const setup = (specs) => setupHost(specs);
 

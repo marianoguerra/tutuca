@@ -3,10 +3,10 @@ import test from "node:test";
 import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
-import jsonBook from "../components/json/stories.js";
-import mathBook from "../components/math/stories.js";
-import { startStorybook, storybookComponents } from "../src/storybook/index.js";
-import { settle, testGenericProperties, testLintsClean } from "./helpers.js";
+import jsonBook from "../../components/json/stories.js";
+import mathBook from "../../components/math/stories.js";
+import { startStorybook, storybookComponents } from "../../src/storybook/index.js";
+import { settle, testGenericProperties, testLintsClean } from "../helpers.js";
 
 testLintsClean("storybook", storybookComponents);
 

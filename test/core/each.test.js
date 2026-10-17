@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lint } from "../src/lint/index.js";
+import { lint } from "../../src/lint/index.js";
 import {
 	$if,
 	component,
@@ -12,8 +12,8 @@ import {
 	scope,
 	send,
 	sourceKey,
-} from "../src/tutuca.js";
-import { startHost, vh as vdomH } from "./helpers.js";
+} from "../../src/tutuca.js";
+import { startHost, vh as vdomH } from "../helpers.js";
 
 // Unmanaged-event and basic keyed-loop cases are covered in events.test.js and
 // composition.test.js.

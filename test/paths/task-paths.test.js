@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { component, h, provided, render, send, seqItem } from "../src/tutuca.js";
-import { setupHost } from "./helpers.js";
+import { component, h, provided, render, send, seqItem } from "../../src/tutuca.js";
+import { setupHost } from "../helpers.js";
 
 function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 	const Item = component({

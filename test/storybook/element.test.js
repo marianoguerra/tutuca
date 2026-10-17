@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
-import { lint } from "../src/lint/index.js";
-import { defineTutucaApp, mountTutucaApp, REQUEST } from "../src/storybook/element.js";
-import { component, DispatchPath, field, Host, h, send, Target, Task } from "../src/tutuca.js";
+import { lint } from "../../src/lint/index.js";
+import { defineTutucaApp, mountTutucaApp, REQUEST } from "../../src/storybook/element.js";
+import { component, DispatchPath, field, Host, h, send, Target, Task } from "../../src/tutuca.js";
 
 const Counter = component({
 	name: "Counter",

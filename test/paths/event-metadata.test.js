@@ -14,8 +14,8 @@ import {
 	send,
 	seqItem,
 	sourceKey,
-} from "../src/tutuca.js";
-import { vcomment as comment, setupHost } from "./helpers.js";
+} from "../../src/tutuca.js";
+import { vcomment as comment, setupHost } from "../helpers.js";
 
 // Routing without notify, provided or sourceKey is covered in events.test.js.
 

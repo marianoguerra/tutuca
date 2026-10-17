@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { component, field, findInvalidFields, h, renderEach, send, t } from "../src/tutuca.js";
-import { setupHost } from "./helpers.js";
+import { component, field, findInvalidFields, h, renderEach, send, t } from "../../src/tutuca.js";
+import { setupHost } from "../helpers.js";
 
 const Item = component({
 	name: "Item",

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-import { NOW, trackerAppArb } from "../components/thing-tracker/fixtures.js";
-import { trackerComponents } from "../components/thing-tracker/index.js";
+import { NOW, trackerAppArb } from "../../components/thing-tracker/fixtures.js";
+import { trackerComponents } from "../../components/thing-tracker/index.js";
 import {
 	findMeasurement,
 	formatDurationMs,
@@ -10,7 +10,7 @@ import {
 	fromBase,
 	MEASUREMENTS,
 	toBase,
-} from "../components/thing-tracker/measure.js";
+} from "../../components/thing-tracker/measure.js";
 import {
 	applyPlan,
 	bucketEvents,
@@ -20,7 +20,7 @@ import {
 	parseEnvelope,
 	planImport,
 	withGaps,
-} from "../components/thing-tracker/model.js";
+} from "../../components/thing-tracker/model.js";
 import {
 	DAY,
 	formatBucketLabel,
@@ -30,8 +30,8 @@ import {
 	isoWeekKey,
 	startOfIsoWeek,
 	toDatetimeLocal,
-} from "../components/thing-tracker/time.js";
-import { testGenericProperties } from "./helpers.js";
+} from "../../components/thing-tracker/time.js";
+import { testGenericProperties } from "../helpers.js";
 
 test("relative times and bucket labels", () => {
 	assert.deepEqual(

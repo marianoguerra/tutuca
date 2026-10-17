@@ -33,7 +33,7 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"test": "node --test test/*.test.js",
+		"test": "node --test test/*/*.test.js",
 		"lint": "biome check src storybook*.js components test scripts site",
 		"dist": "node scripts/dist.js",
 		"smoke": "node scripts/smoke.js",

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { produce } from "../deps/immer.js";
+import { produce } from "../../deps/immer.js";
 import {
 	component,
 	field,
@@ -10,7 +10,7 @@ import {
 	NumberType,
 	specOf,
 	t as types,
-} from "../src/tutuca.js";
+} from "../../src/tutuca.js";
 
 const Task = component({
 	name: "Task",

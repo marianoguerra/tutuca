@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-import { jsonComponents } from "../components/json/index.js";
-import { todoAppArb } from "../components/todo/fixtures.js";
-import { todoComponents } from "../components/todo/index.js";
+import { jsonComponents } from "../../components/json/index.js";
+import { todoAppArb } from "../../components/todo/fixtures.js";
+import { todoComponents } from "../../components/todo/index.js";
 import {
 	arbitraries,
 	Driver,
 	eventCommands,
 	messageCommands,
 	runCommands,
-} from "../src/test/pbt.js";
+} from "../../src/test/pbt.js";
 import {
 	$if,
 	component,
@@ -24,8 +24,8 @@ import {
 	send,
 	seqItem,
 	t,
-} from "../src/tutuca.js";
-import { document, testGenericProperties } from "./helpers.js";
+} from "../../src/tutuca.js";
+import { document, testGenericProperties } from "../helpers.js";
 
 const RUNS = { numRuns: 50 };
 

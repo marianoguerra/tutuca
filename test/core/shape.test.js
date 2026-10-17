@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { $if, component, field, h, send } from "../src/tutuca.js";
-import { Shape, VNode } from "../src/vdom.js";
-import { mutationsOf, startHost } from "./helpers.js";
+import { $if, component, field, h, send } from "../../src/tutuca.js";
+import { Shape, VNode } from "../../src/vdom.js";
+import { mutationsOf, startHost } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 

@@ -3,9 +3,9 @@ import test from "node:test";
 import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
-import jsonBook from "../components/json/stories.js";
-import mathBook from "../components/math/stories.js";
-import { defineTutucaApp, REPORT, REQUEST } from "../src/storybook/element.js";
+import jsonBook from "../../components/json/stories.js";
+import mathBook from "../../components/math/stories.js";
+import { defineTutucaApp, REPORT, REQUEST } from "../../src/storybook/element.js";
 import {
 	checkStory,
 	prepareStory,
@@ -13,11 +13,11 @@ import {
 	step,
 	stories,
 	stressStory,
-} from "../src/storybook/index.js";
-import { Driver, describeProblems } from "../src/test/pbt.js";
-import { component, field, h, send } from "../src/tutuca.js";
-import { books } from "../storybook.books.js";
-import { document, testLintsClean } from "./helpers.js";
+} from "../../src/storybook/index.js";
+import { Driver, describeProblems } from "../../src/test/pbt.js";
+import { component, field, h, send } from "../../src/tutuca.js";
+import { books } from "../../storybook.books.js";
+import { document, testLintsClean } from "../helpers.js";
 
 const byName = (book, name) => book.stories.find((s) => s.name === name);
 

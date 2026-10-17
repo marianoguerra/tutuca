@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-import { jsonComponents } from "../components/json/index.js";
-import { allOpen, schemaComponents } from "../components/json-schema/index.js";
-import { fromSchema, readKind, schemaTree } from "../components/json-schema/read.js";
-import { sample } from "../components/json-schema/stories.js";
-import { arbitraries, Driver } from "../src/test/pbt.js";
-import { Scope, selectorFrom } from "../src/tutuca.js";
-import { document, testGenericProperties, testLintsClean, textOf } from "./helpers.js";
+import { jsonComponents } from "../../components/json/index.js";
+import { allOpen, schemaComponents } from "../../components/json-schema/index.js";
+import { fromSchema, readKind, schemaTree } from "../../components/json-schema/read.js";
+import { sample } from "../../components/json-schema/stories.js";
+import { arbitraries, Driver } from "../../src/test/pbt.js";
+import { Scope, selectorFrom } from "../../src/tutuca.js";
+import { document, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 
 const setup = () => {
 	const scope = new Scope(() => {});

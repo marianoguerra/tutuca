@@ -17,15 +17,15 @@ test:
 
 # Run the tests whose names match pattern, e.g. `just test-only "Todo/App"`.
 test-only pattern:
-    node --test --test-name-pattern="{{pattern}}" test/*.test.js
+    node --test --test-name-pattern="{{pattern}}" test/*/*.test.js
 
 # Run the tests of one file, e.g. `just test-file stories`.
 test-file name:
-    node --test test/{{name}}.test.js
+    node --test test/*/{{name}}.test.js
 
 # Run the tests again on every change.
 watch:
-    node --test --watch test/*.test.js
+    node --test --watch test/*/*.test.js
 
 # Lint and check formatting.
 lint:

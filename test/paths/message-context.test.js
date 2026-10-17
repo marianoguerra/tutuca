@@ -10,8 +10,8 @@ import {
 	renderIt,
 	send,
 	sourceKey,
-} from "../src/tutuca.js";
-import { setupHost } from "./helpers.js";
+} from "../../src/tutuca.js";
+import { setupHost } from "../helpers.js";
 
 const setup = (specs) => setupHost(specs, { sync: true });
 
