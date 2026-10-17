@@ -289,3 +289,35 @@ footer {
 	color: var(--muted);
 	font-weight: 400;
 }
+h3 {
+	font-size: 18px;
+	font-weight: 600;
+	margin: 28px 0 4px;
+}
+kbd {
+	font:
+		0.85em ui-monospace,
+		SFMono-Regular,
+		Menlo,
+		monospace;
+	padding: 1px 5px;
+	border: 1px solid var(--border);
+	border-bottom-width: 2px;
+	border-radius: 4px;
+	background: var(--surface);
+}
+
+/* Playgrounds are wider than the text column, centered on it. */
+tutuca-playground.wide {
+	display: block;
+	position: relative;
+	left: 50%;
+	width: min(1200px, calc(100vw - 32px));
+	transform: translateX(-50%);
+	margin: 16px 0;
+	font-size: 14px;
+	line-height: 1.5;
+}
+body {
+	overflow-x: clip;
+}

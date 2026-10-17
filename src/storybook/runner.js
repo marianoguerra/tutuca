@@ -358,19 +358,22 @@ export class StoryRunner {
 	}
 }
 
-// The live runners by app key, `${storyId}@${seed}`; answers <tutuca-app> requests.
+// The live runners by app key, `${prefix}${storyId}@${seed}`; answers <tutuca-app> requests.
+// A new prefix gives the same stories new keys, so their apps mount again.
 export class StoryRegistry {
-	constructor({ fc, books, css = "", links = [], compile = null, known = [] }) {
-		Object.assign(this, { fc, css, links });
+	constructor({ fc, books, css = "", links = [], compile = null, known = [], prefix = "" }) {
+		Object.assign(this, { fc, css, links, prefix });
 		this.classes = compile === null ? null : new ClassCompiler(compile, known);
 		this.stories = new Map(books.flatMap((book) => book.stories.map((s) => [s.id, s])));
 		this.runners = new Map();
 	}
 	mount(detail) {
-		const at = detail.key?.lastIndexOf("@") ?? -1;
-		const story = this.stories.get(at < 0 ? detail.key : detail.key.slice(0, at));
+		if (!detail.key?.startsWith(this.prefix)) return;
+		const key = detail.key.slice(this.prefix.length);
+		const at = key.lastIndexOf("@");
+		const story = this.stories.get(at < 0 ? key : key.slice(0, at));
 		if (story === undefined) return;
-		const seed = at < 0 ? 0 : Number(detail.key.slice(at + 1)) || 0;
+		const seed = at < 0 ? 0 : Number(key.slice(at + 1)) || 0;
 		const { fc, css, links, classes } = this;
 		const runner = new StoryRunner(story, { fc, seed, css, links, classes });
 		const { dispose } = runner;

@@ -58,6 +58,10 @@ dist:
 vendor-immer:
     npm run vendor-immer
 
+# Rebuild site/deps/codemirror.js for the playground, after bumping the codemirror packages.
+vendor-codemirror:
+    npm run vendor-codemirror
+
 # Check what gets published: imports by package name, bundle exports, tarball contents.
 smoke: dist
     npm run smoke

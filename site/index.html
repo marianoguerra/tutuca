@@ -16,7 +16,11 @@
 			rel="icon"
 			href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>"
 		/>
+		<!-- importmap: scripts/site.js writes it -->
+		<!-- The playgrounds' components use margaui; site.css comes after so the page keeps its colors. -->
+		<link rel="stylesheet" href="./node_modules/margaui/dist/themes/theme.css" />
 		<link rel="stylesheet" href="./site.css" />
+		<script type="module" src="./playground/boot.js"></script>
 	</head>
 	<body>
 		<main class="page">
@@ -26,7 +30,9 @@
 			<p class="subtagline">A full implementation that fits in your head and the context window.</p>
 
 			<nav class="actions">
-				<a class="button primary" href="./storybook.html">Open the storybook</a>
+				<a class="button primary" href="./playground/">Open the playground</a>
+				<a class="button" href="./storybook.html">Storybook</a>
+				<a class="button" href="#examples">Examples</a>
 				<a class="button" href="#demos">Demos</a>
 				<a class="button" href="https://github.com/marianoguerra/tutuca">GitHub</a>
 			</nav>
@@ -53,20 +59,17 @@
 			</div>
 
 			<h2>A first component</h2>
-			<pre class="code"><code>const Counter = component({
-  name: "Counter",
-  fields: (t) =&gt; ({ count: t.number() }),
-  view: h("button", { "@on.click": send("inc") }, "Clicked ", field("count")),
-  on: {
-    inc(draft) {
-      draft.count += 1;
-    },
-  },
-});
-
-const host = new Host({ document, rootNode: document.getElementById("app") });
+			<p>
+				A component is a name, typed fields, a view and the messages it handles. Click the buttons,
+				or change the code on the left and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
+				<strong>Steps</strong> replays the story's sequences, <strong>Stress test</strong> throws
+				random messages at it and <strong>Dev</strong> shows its state, specs and lint.
+			</p>
+			<tutuca-playground class="wide" src="./examples/counter.js"></tutuca-playground>
+			<pre class="code"><code>const host = new Host({ document, rootNode: document.getElementById("app") });
 host.scope.register({ Counter });
 host.start(host.scope.components.Counter());</code></pre>
+			<p class="muted">That is all it takes to run it in your own page.</p>
 
 			<hr />
 
@@ -208,6 +211,44 @@ host.start(host.scope.components.Counter());</code></pre>
 
 			<hr />
 
+			<h2 id="examples">Learn by example</h2>
+			<p class="muted">
+				Each example builds on the one before. All of them are editable; the
+				<a href="./playground/">playground</a> has these and every component library.
+			</p>
+
+			<h3>Lists and forms</h3>
+			<p>
+				Arrays of records, <code>each</code> to loop over them, inputs that send their value with
+				<code>targetValue()</code>, and getters the view reads like fields.
+			</p>
+			<tutuca-playground class="wide" src="./examples/todo-list.js"></tutuca-playground>
+
+			<h3>Components inside components</h3>
+			<p>
+				A cart renders a line component per item. Lines handle their own messages and
+				<code>notify</code> their parent of what only the parent can do. Messages declare typed
+				arguments, checked in dev and used to generate stress tests.
+			</p>
+			<tutuca-playground class="wide" src="./examples/composed.js"></tutuca-playground>
+
+			<h3>Talking to the outside world</h3>
+			<p>
+				Components don't call <code>fetch</code>: they <code>ask</code> a named handler and get
+				the answer back as a message. Stories swap the handlers, and steps can send the reply
+				themselves.
+			</p>
+			<tutuca-playground class="wide" src="./examples/async.js"></tutuca-playground>
+
+			<h3>When things go wrong</h3>
+			<p>
+				A component with three bugs. Views are data, so the linter finds them before anything
+				runs: the <strong>Dev</strong> tab lists them. Fix them and run it again.
+			</p>
+			<tutuca-playground class="wide" src="./examples/mistakes.js"></tutuca-playground>
+
+			<hr />
+
 			<h2 id="demos">Demos</h2>
 			<p class="muted">
 				Small apps built from the component libraries. Each one has stories you can step through
@@ -219,6 +260,11 @@ host.start(host.scope.components.Counter());</code></pre>
 
 			<h2>Resources</h2>
 			<ul class="links">
+				<li>
+					<a href="./playground/"
+						><span aria-hidden="true">🛝</span> Playground <span class="arrow">↗</span></a
+					>
+				</li>
 				<li>
 					<a href="./storybook.html"
 						><span aria-hidden="true">📚</span> Storybook <span class="arrow">↗</span></a

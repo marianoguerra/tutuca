@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Tutuca Playground</title>
+		<meta name="description" content="Edit tutuca components and their stories and run them live." />
+		<link
+			rel="icon"
+			href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>"
+		/>
+		<!-- importmap: scripts/site.js writes it -->
+		<link rel="stylesheet" href="../node_modules/margaui/dist/themes/theme.css" />
+		<style>
+			html,
+			body {
+				margin: 0;
+				height: 100%;
+			}
+			body {
+				display: flex;
+				flex-direction: column;
+				background: var(--color-base-200);
+				color: var(--color-base-content);
+				font-family: ui-sans-serif, system-ui, sans-serif;
+			}
+			header {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 8px 16px;
+			}
+			header a {
+				color: inherit;
+			}
+			header h1 {
+				font-size: 18px;
+				margin: 0;
+			}
+			header .muted {
+				opacity: 0.6;
+				font-size: 14px;
+			}
+			tutuca-playground {
+				flex: 1;
+				min-height: 0;
+				margin: 0 8px 8px;
+				--playground-height: 100%;
+			}
+		</style>
+		<script type="module" src="./page.js"></script>
+	</head>
+	<body>
+		<header>
+			<a href="../">🧩</a>
+			<h1>Tutuca Playground</h1>
+			<span class="muted">Edit any file, then Ctrl+Enter to run it. Steps, Stress test and Dev look inside.</span>
+			<a href="../storybook.html" style="margin-left: auto">Storybook ↗</a>
+		</header>
+		<tutuca-playground></tutuca-playground>
+	</body>
+</html>

@@ -1,21 +1,18 @@
 // The storybook root: the sidebar of stories and the panels of the selected one.
 
-import { makeDevPanel, updateDevPanel } from "../../dev/panel.js";
 import {
 	$if,
 	component,
 	field,
 	render,
 	renderEach,
-	scopeOf,
 	send,
 	t,
 	tag,
 	targetValue,
 } from "../../tutuca.js";
 import { smallButton } from "./common.js";
-import { SUMMARY_KEYS, syncForm } from "./story-panel.js";
-import { applyStress } from "./stress-panel.js";
+import { applyAppReport, resetPanels } from "./panels.js";
 
 const { aside, button, div, h1, h2, input, main, p, section, span, ul } = tag;
 const tutucaApp = tag["tutuca-app"];
@@ -192,24 +189,10 @@ export const Storybook = component({
 		},
 		// Reports from the story's <tutuca-app>; only events carry them.
 		appReport(draft, _args, ctx) {
-			const detail = ctx.event?.detail;
-			if (detail?.key !== this.appKey) return;
-			if (detail.type === "state" && draft.story.appKey === detail.key) {
-				for (const key of SUMMARY_KEYS) draft.story[key] = detail.data[key];
-				syncForm(draft.story);
-				if (detail.data.dev) updateDevPanel(scopeOf(this).components, draft.dev, detail.data.dev);
-			} else if (detail.type === "stress" && draft.stress.status === "running") {
-				applyStress(draft.stress, detail.data);
-			}
+			applyAppReport(this, draft, ctx.event?.detail);
 		},
 	},
 });
-export const resetPanels = (self, draft, appKey) => {
-	const C = scopeOf(self).components;
-	draft.story = C.StoryPanel({ appKey });
-	draft.stress = C.StressPanel({ appKey });
-	draft.dev = makeDevPanel(C);
-};
 // A filter shows every match, collapsed or not.
 export const syncCollapsed = (draft) => {
 	const filtering = draft.filterText.trim() !== "";

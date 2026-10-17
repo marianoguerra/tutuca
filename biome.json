@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!deps", "!dist", "!_site"]
+		"includes": ["**", "!deps", "!site/deps", "!dist", "!_site", "!tutuca-mb"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -42,6 +42,14 @@
 		}
 	},
 	"overrides": [
+		{
+			"includes": ["site/examples/**/*.js"],
+			"linter": {
+				"rules": {
+					"correctness": { "noUnresolvedImports": "off" }
+				}
+			}
+		},
 		{
 			"includes": ["test/**/*.js", "scripts/**/*.js"],
 			"linter": {
