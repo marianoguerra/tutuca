@@ -93,3 +93,14 @@ test("view names don't resolve to inherited properties", () => {
 	const C = component({ name: "C", view: "main" });
 	assert.equal(C.views.toString, undefined);
 });
+
+test("arrays of children splice into their parent, nested ones too", () => {
+	const Root = component({
+		name: "Root",
+		fields: (t) => ({ show: t.boolean(true) }),
+		view: h("p", {}, [h("b", {}, "x"), [$if(field("show"), h("i", {}, "y"), ""), "z"]]),
+	});
+	const { host, rootNode } = setup({ Root });
+	host.start(Root.make());
+	assert.equal(rootNode.querySelector("p").innerHTML, "<b>x</b><i>y</i>z");
+});

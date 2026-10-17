@@ -114,6 +114,7 @@ export class DomNode extends AstNode {
 		return [...attrs, ...this.childs, ...this.handlers.map((h) => h.action)];
 	}
 }
+// Arrays of children splice into the element when the view is built, nested ones too.
 export const h = (tagName, attrs, ...childs) => {
 	const props = [];
 	const handlers = [];
@@ -122,7 +123,7 @@ export const h = (tagName, attrs, ...childs) => {
 		if (key.startsWith("@on.")) handlers.push({ name: key.slice(4), action: value });
 		else props.push([key, toExpr(value)]);
 	}
-	return new DomNode(tagName, props, childs.map(toExpr), handlers);
+	return new DomNode(tagName, props, childs.flat(Infinity).map(toExpr), handlers);
 };
 export class Cond extends AstNode {
 	static kind = "cond";
