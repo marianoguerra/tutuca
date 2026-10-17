@@ -1,3 +1,4 @@
+// The selected story: its sequences, timeline, targets and a form to send one message.
 import {
 	$if,
 	component,
