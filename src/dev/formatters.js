@@ -1,5 +1,7 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
 // Enable them in DevTools → Settings → Preferences → Console → "Enable custom formatters".
+
+import { isMetaOpen, META_CLOSE, parseMeta } from "../meta.js";
 import {
 	AnyType,
 	ArrayType,
@@ -256,10 +258,10 @@ const metaParts = (meta) => {
 	}
 };
 const metaComment = (text) => {
-	if (text === "§/§") return [span(S.muted, "⟨/⟩")];
-	if (!text.startsWith("§{") || !text.endsWith("§")) return null;
+	if (text === META_CLOSE) return [span(S.muted, "⟨/⟩")];
+	if (!isMetaOpen(text)) return null;
 	try {
-		return [span(S.muted, "⟨"), ...metaParts(JSON.parse(text.slice(1, -1))), span(S.muted, "⟩")];
+		return [span(S.muted, "⟨"), ...metaParts(parseMeta(text)), span(S.muted, "⟩")];
 	} catch {
 		return null;
 	}

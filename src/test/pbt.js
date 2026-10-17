@@ -247,7 +247,7 @@ export const snapshot = (v) => {
 	return out;
 };
 
-const PROBLEMS = new Set(["taskFailed", "stateInvalid", "messageInvalid"]);
+export const PROBLEMS = new Set(["taskFailed", "stateInvalid", "messageInvalid"]);
 
 // Runs messages on a component tree through Host's task handling in dev mode, with no
 // timers. With a document it renders too; otherwise it is headless. Live keeps the timers,
@@ -281,6 +281,10 @@ export class Driver {
 	get problems() {
 		return this.reports.filter((r) => PROBLEMS.has(r.type));
 	}
+	// The problems reported after the first before reports.
+	problemsSince(before) {
+		return this.reports.slice(before).filter((r) => PROBLEMS.has(r.type));
+	}
 	// Send name to the component at path, a DispatchPath or a Selector from the root; from is
 	// the frames (or a Selector) from it to the child the message comes through, which sets
 	// ctx.sourceKey.
@@ -299,11 +303,8 @@ export class Driver {
 	// Continue from root instead, dropping queued tasks: rewinds a timeline. An async ask
 	// reply already in flight still arrives, against the new root.
 	restart(root) {
-		const { host } = this;
-		host.tasks.length = 0;
-		clearTimeout(host._taskTickTimeoutId);
-		host._taskTickTimeoutId = null;
-		host.start(root);
+		this.host.clearTasks();
+		this.host.start(root);
 	}
 }
 
@@ -375,12 +376,6 @@ export const drivableMessages = (A, spec) => {
 	return { drivable, untyped };
 };
 
-const pathString = (path) =>
-	path.frames
-		.flatMap((f) => f.accessKeys)
-		.map((k) => (typeof k === "number" ? `[${k}]` : `.${k}`))
-		.join("") || "·";
-
 // One line per problem a Driver reported, for errors and logs.
 export const describeProblems = (problems) =>
 	problems.map((p) => {
@@ -427,7 +422,7 @@ export class MessageCommand {
 		this.resolved = r;
 		const before = driver.reports.length;
 		driver.send(r.path, this.message.name, r.args, r.from);
-		const problems = driver.problems.filter((p) => driver.reports.indexOf(p) >= before);
+		const problems = driver.problemsSince(before);
 		if (problems.length > 0) {
 			throw new Error(`${this} broke:\n  ${describeProblems(problems).join("\n  ")}`);
 		}
@@ -437,7 +432,7 @@ export class MessageCommand {
 	toString() {
 		const args = this.args.map((a) => (a instanceof KeyRef ? String(a) : JSON.stringify(a)));
 		const from = this.index === null ? "" : ` from ${this.index.fieldName}[${this.keyRef}]`;
-		const at = this.resolved === null ? `#${this.target}` : ` at ${pathString(this.resolved.path)}`;
+		const at = this.resolved === null ? `#${this.target}` : ` at ${this.resolved.path}`;
 		return `${this.specName}${at}.${this.message.name}(${args.join(", ")})${from}`;
 	}
 	// An unrun copy, to replay a sequence fast-check already ran.
@@ -529,7 +524,7 @@ export class EventCommand {
 		dispatchOn(el, name, this.value);
 		driver.drain();
 		this.description = `${name} on <${el.tagName.toLowerCase()} data-eid=${eid}>`;
-		const problems = driver.problems.filter((p) => driver.reports.indexOf(p) >= before);
+		const problems = driver.problemsSince(before);
 		if (problems.length > 0) {
 			throw new Error(`${this} broke: ${problems.map((p) => p.type).join(", ")}`);
 		}

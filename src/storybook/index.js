@@ -17,6 +17,7 @@ import {
 	eventCommands,
 	messageCommand,
 	messageCommands,
+	PROBLEMS,
 	registeredSpecs,
 	resolveRefs,
 	runCommands,
@@ -54,13 +55,6 @@ const json = (v) => {
 	}
 };
 const clip = (text, max = 80) => (text.length > max ? `${text.slice(0, max)}…` : text);
-const keyLabel = (key) => (typeof key === "string" ? `.${key}` : `[${json(key)}]`);
-const frameLabel = (frame) =>
-	`${frame.keys.map(keyLabel).join("")}${frame.item === null ? "" : `[${json(frame.item)}]`}`;
-export const pathLabel = (path) => path.frames.map(frameLabel).join("") || "·";
-const opLabel = (op) =>
-	`.${op.name}${op.t === "item" ? `[${json(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
-const selectorLabel = (selector) => selector.ops.map(opLabel).join("") || "·";
 const argsLabel = (args) => clip(args.map(json).join(", "));
 
 // Steps of a sequence, as plain data. at and from are PathBuilder functions relative to
@@ -72,7 +66,7 @@ export const step = {
 		args,
 		at,
 		from,
-		label: label ?? `${at ? selectorLabel(selectorFrom(at)) : "·"}.${name}(${argsLabel(args)})`,
+		label: label ?? `${at ? selectorFrom(at) : "·"}.${name}(${argsLabel(args)})`,
 	}),
 	// value, when given, is set on the form field first, as targetValue() reads it.
 	event: (type, selector, { value, label } = {}) => ({
@@ -118,16 +112,11 @@ export const prepareStory = (story, { fc, seed = 0 }) => {
 	return { scope, A, root };
 };
 
-const PROBLEMS = new Set(["taskFailed", "stateInvalid", "messageInvalid"]);
-// The problems driver reported since it had before reports, described.
-const problemsSince = (driver, before) =>
-	describeProblems(driver.reports.slice(before).filter((r) => PROBLEMS.has(r.type)));
-
 // Runs one step on driver: { status: "ok" | "failed" | "skipped", error, problems }.
 export const runStep = (driver, s) => {
 	const before = driver.reports.length;
 	const done = (status, error = "") => {
-		const problems = problemsSince(driver, before);
+		const problems = describeProblems(driver.problemsSince(before));
 		const failed = status === "ok" && problems.length > 0 ? "failed" : status;
 		return { status: failed, error: error || problems.join("\n"), problems };
 	};
@@ -259,10 +248,7 @@ export class StoryRunner {
 	dispose() {
 		this.stressToken = null;
 		this.detail = null;
-		const { host } = this.driver;
-		host.tasks.length = 0;
-		clearTimeout(host._taskTickTimeoutId);
-		host.rootComponent = null;
+		this.driver.host.stop();
 	}
 	get current() {
 		return this.timeline[this.cursor];
@@ -282,7 +268,7 @@ export class StoryRunner {
 	begin(root, problems = null) {
 		const before = this.driver.reports.length;
 		if (problems === null) this.act(() => this.driver.restart(root));
-		const initial = problems ?? problemsSince(this.driver, before);
+		const initial = problems ?? describeProblems(this.driver.problemsSince(before));
 		this.timeline = [
 			{
 				label: "initial",
@@ -365,7 +351,7 @@ export class StoryRunner {
 				...m,
 				keys: m.index === null ? [] : m.index.keysIn(instance),
 			}));
-			return { path, instance, label: `${spec.name} at ${pathLabel(path)}`, messages };
+			return { path, instance, label: `${spec.name} at ${path}`, messages };
 		});
 	}
 	messagesOf(spec) {

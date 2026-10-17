@@ -1,5 +1,6 @@
 import { immerable, produce } from "../deps/immer.js";
-import { META_END, planElement, reuseConstant } from "./optimize.js";
+import { isMetaOpen, META_CLOSE, META_END, metaOpen, parseMeta } from "./meta.js";
+import { planElement, reuseConstant } from "./optimize.js";
 import {
 	findInvalidFields,
 	isComponent,
@@ -11,7 +12,7 @@ import {
 	t,
 	toMessages,
 } from "./schema.js";
-import { render as $render, VBase, VComment, VFragment, VNode, VText } from "./vdom.js";
+import { render as $render, VBase, VFragment, VNode, VText } from "./vdom.js";
 import { Collect } from "./walk.js";
 
 export * from "./schema.js";
@@ -440,6 +441,17 @@ export class RenderContext {
 		return spec.views.main;
 	}
 }
+// Paths print as .key and [item], with · for the root, in labels and errors.
+const jsonText = (v) => {
+	try {
+		return JSON.stringify(v) ?? String(v);
+	} catch {
+		return String(v);
+	}
+};
+const keyText = (key) => (typeof key === "string" ? `.${key}` : `[${jsonText(key)}]`);
+const opText = (op) =>
+	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
 export class UpdatePath {
 	constructor(keys = []) {
 		this.keys = keys;
@@ -481,6 +493,10 @@ export class Frame {
 		const provider = p === null ? null : { name: p.v, depth: p.d, keys: p.k };
 		return new Frame(k, i, provider);
 	}
+	// The keys and item, without the provider.
+	toString() {
+		return `${this.keys.map(keyText).join("")}${this.item === null ? "" : `[${jsonText(this.item)}]`}`;
+	}
 }
 export class DispatchPath {
 	constructor(frames = []) {
@@ -513,6 +529,9 @@ export class DispatchPath {
 	toUpdatePath() {
 		return this.toComponentPath().resolve();
 	}
+	toString() {
+		return this.frames.join("") || "·";
+	}
 	sourceKeyIn(receiver) {
 		let i = receiver.frames.length;
 		if (i >= this.frames.length) return null;
@@ -523,6 +542,9 @@ export class DispatchPath {
 export class Selector {
 	constructor(ops = []) {
 		this.ops = ops;
+	}
+	toString() {
+		return this.ops.map(opText).join("") || "·";
 	}
 	freeze(value) {
 		const frames = [];
@@ -568,25 +590,25 @@ export const selectorFrom = (fn, self) => {
 	fn.call(self, pb);
 	return new Selector(pb.ops);
 };
-const wrapMeta = (meta, node) => [new VComment(`§${JSON.stringify(meta)}§`), node, META_END];
+const wrapMeta = (meta, node) => [metaOpen(meta), node, META_END];
 const META_TYPES = new Set(["component", "frame"]);
 function* enclosingNodeMeta(node) {
 	let closed = 0;
 	for (let n = node.previousSibling; n; n = n.previousSibling) {
 		if (n.nodeType !== 8) continue;
 		const data = n.data;
-		if (data === "§/§") {
+		if (data === META_CLOSE) {
 			closed++;
 			continue;
 		}
-		if (!data.startsWith("§{") || !data.endsWith("§")) continue;
+		if (!isMetaOpen(data)) continue;
 		if (closed > 0) {
 			closed--;
 			continue;
 		}
 		let meta;
 		try {
-			meta = JSON.parse(data.slice(1, -1));
+			meta = parseMeta(data);
 		} catch (err) {
 			console.error("bad meta comment", err, n, node);
 			continue;
@@ -857,6 +879,17 @@ export class Host {
 	scheduleNextTaskTick() {
 		if (this._taskTickTimeoutId !== null) return;
 		this._taskTickTimeoutId = setTimeout(this.handleTasks, 0);
+	}
+	// Drops the queued tasks and the pending tick; an async ask reply in flight still arrives.
+	clearTasks() {
+		this.tasks.length = 0;
+		clearTimeout(this._taskTickTimeoutId);
+		this._taskTickTimeoutId = null;
+	}
+	// Stops handling events and tasks: handleEvent ignores events without a root.
+	stop() {
+		this.clearTasks();
+		this.rootComponent = null;
 	}
 	handleTasks() {
 		if (this._handlingTasks) return;

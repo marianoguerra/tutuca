@@ -1,7 +1,7 @@
 // Render optimizations. tutuca.js says what a view evaluates to; this module makes evaluating it
 // cheaper without changing the result. Every call site in tutuca.js is marked with `// OPT:`.
 // Nodes are told apart by their Walker kind, so this module needs nothing from tutuca.js.
-import { Shape, VComment, VText } from "./vdom.js";
+import { Shape, VText } from "./vdom.js";
 
 // A constant node evaluates to the same value with any ctx, including null. Anything that reads
 // the ctx, runs user code or is unknown (custom AstNode subclasses) is not constant.
@@ -67,6 +67,3 @@ export function reuseConstant(node, ctx) {
 	plan.vnode ??= node.build(null);
 	return plan.vnode;
 }
-
-// One shared closing meta comment, so morph skips it by identity.
-export const META_END = new VComment("§/§");

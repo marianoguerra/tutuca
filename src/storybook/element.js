@@ -103,9 +103,7 @@ export const mountTutucaApp = (detail, { register, make, dev = false, onNotify }
 	const controller = {
 		host,
 		dispose() {
-			host.tasks.length = 0;
-			clearTimeout(host._taskTickTimeoutId);
-			host.rootComponent = null; // handleEvent ignores events from now on.
+			host.stop();
 		},
 	};
 	detail.mount(controller);
