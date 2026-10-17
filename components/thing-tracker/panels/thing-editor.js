@@ -8,6 +8,7 @@ import {
 	field,
 	render,
 	send,
+	sourceKey,
 	t,
 	tag,
 	targetValue,
@@ -167,7 +168,7 @@ export const ThingEditor = component({
 										class: "checkbox checkbox-sm",
 										checked: field("checked"),
 										value: field("id"),
-										"@on.change": send("toggleMeasurement", targetValue()),
+										"@on.change": send("toggleMeasurement", sourceKey()),
 									}),
 									field("label"),
 								),
@@ -268,11 +269,11 @@ export const ThingEditor = component({
 				draft.description = description;
 			},
 		},
-		// The checkbox's value is the measurement's id.
+		// A checkbox's targetValue is whether it is checked, so the choice comes as its key.
 		toggleMeasurement: {
-			args: [t.string()],
-			run(draft, [value]) {
-				const m = findMeasurement(MEASUREMENTS, value);
+			args: [t.index("choices")],
+			run(draft, [key]) {
+				const m = findMeasurement(MEASUREMENTS, this.choices[key].id);
 				if (m === undefined) return;
 				const i = this.measurements.findIndex((r) => r.measurementId === m.id);
 				if (i >= 0) draft.measurements.splice(i, 1);
