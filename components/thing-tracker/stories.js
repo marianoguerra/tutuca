@@ -1,4 +1,5 @@
 import { step, stories } from "../../src/storybook/index.js";
+import { readText, saveFile } from "../common/files.js";
 import { drink, habit, NOW, sample, trackerAppArb } from "./fixtures.js";
 import { trackerApp, trackerComponents } from "./index.js";
 import { BUNDLES } from "./model.js";
@@ -43,25 +44,14 @@ const appMessages = [
 	"EntryList.remove",
 ];
 
-const browserSave = ([filename, text, kind]) => {
-	const doc = globalThis.document;
-	if (doc?.createElement !== undefined && globalThis.URL?.createObjectURL !== undefined) {
-		const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
-		const a = Object.assign(doc.createElement("a"), { href: url, download: filename });
-		a.click();
-		setTimeout(() => URL.revokeObjectURL(url), 0);
-	}
-	return kind;
-};
-
 export default stories({
 	title: "Thing tracker",
 	components: trackerComponents,
 	askHandlers: {
 		now: () => NOW + 90 * MINUTE,
 		wait: ([ms, id]) => new Promise((resolve) => setTimeout(() => resolve(id), ms)),
-		saveFile: browserSave,
-		readText: ([file]) => file.text(),
+		saveFile,
+		readText,
 	},
 	overrides: { TrackerApp: trackerAppArb },
 	stories: {

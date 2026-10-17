@@ -1068,7 +1068,7 @@ export const TrackerApp = component({
 				const g = this.groups[ctx.sourceKey];
 				const pack = buildPack([plainTag(g)], this.things.map(plainThing), this.now);
 				const file = `thing-tracker-pack-${g.bundleId || slugify(g.title)}-${dayKey(this.now, this.tz)}.json`;
-				ctx.ask("saveFile", [file, JSON.stringify(pack, null, 2), "share"]);
+				ctx.ask("saveFile", [file, JSON.stringify(pack, null, 2), "application/json", "share"]);
 			},
 		},
 		// Manage.
@@ -1130,6 +1130,7 @@ export const TrackerApp = component({
 				ctx.ask("saveFile", [
 					`thing-tracker-backup-${name}.json`,
 					JSON.stringify(backup, null, 2),
+					"application/json",
 					"backup",
 				]);
 			},

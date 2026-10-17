@@ -1,11 +1,10 @@
 import { studio, studioComponents } from "../../components/jsonschema/studio.js";
-import { boot, browserHandlers, sendRoot } from "../boot.js";
+import { boot, sendRoot } from "../boot.js";
 
 export const start = (document = globalThis.document) => {
 	const host = boot({
 		document,
 		components: studioComponents,
-		askHandlers: { saveFile: browserHandlers.saveFile },
 		make: (C) => studio(C),
 	});
 	// Edits happen inside the editor, which doesn't tell the studio: infer after each one. Making

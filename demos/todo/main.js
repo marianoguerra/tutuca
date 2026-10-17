@@ -6,7 +6,6 @@ export const start = (document = globalThis.document, today = browserHandlers.to
 	boot({
 		document,
 		components: todoComponents,
-		askHandlers: { today: browserHandlers.today },
 		make: (C) => weekOfPlans(C, today),
 	});
 

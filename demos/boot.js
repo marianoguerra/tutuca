@@ -1,10 +1,17 @@
-// Boots a demo: a dev Host on #app with the components, their ask handlers and a root.
+// Boots a demo: a dev Host on #app with the components, the browser's ask handlers (or
+// askHandlers) and a root.
 import { compile } from "margaui";
 import { isoDay } from "../components/common/calendar.js";
+import { readText, saveFile } from "../components/common/files.js";
 import { ClassCompiler, classNamesOf } from "../src/dev/classes.js";
 import { DispatchPath, Host, Target, Task } from "../src/tutuca.js";
 
-export const boot = ({ components, askHandlers = {}, make, document = globalThis.document }) => {
+export const boot = ({
+	components,
+	askHandlers = browserHandlers,
+	make,
+	document = globalThis.document,
+}) => {
 	const rootNode = document.getElementById("app");
 	const host = new Host({ document, rootNode, dev: true });
 	host.scope.register(components);
@@ -34,20 +41,9 @@ export const sendRoot = (host, name, args = []) => {
 };
 
 // Ask handlers backed by the browser.
-const download = (filename, text, type) => {
-	const doc = globalThis.document;
-	if (doc?.createElement === undefined || globalThis.URL?.createObjectURL === undefined) return;
-	const url = URL.createObjectURL(new Blob([text], { type }));
-	Object.assign(doc.createElement("a"), { href: url, download: filename }).click();
-	setTimeout(() => URL.revokeObjectURL(url), 0);
-};
 export const browserHandlers = {
-	// The third argument is a mime type (drawing) or a kind the caller wants back (tracker).
-	saveFile: ([filename, text, typeOrKind]) => {
-		download(filename, text, typeOrKind.includes("/") ? typeOrKind : "application/json");
-		return typeOrKind;
-	},
-	readText: ([file]) => file.text(),
+	saveFile,
+	readText,
 	today: () => isoDay(new Date()),
 	now: () => Date.now(),
 	wait: ([ms, id]) => new Promise((resolve) => setTimeout(() => resolve(id), ms)),

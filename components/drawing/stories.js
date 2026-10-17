@@ -1,4 +1,5 @@
 import { step, stories } from "../../src/storybook/index.js";
+import { saveFile } from "../common/files.js";
 import { drawingComponents } from "./index.js";
 
 // A house in the sun, as shapes.
@@ -77,15 +78,7 @@ export default stories({
 	title: "Drawing",
 	components: drawingComponents,
 	askHandlers: {
-		saveFile: ([filename, text, type]) => {
-			const doc = globalThis.document;
-			if (doc?.createElement !== undefined && globalThis.URL?.createObjectURL !== undefined) {
-				const url = URL.createObjectURL(new Blob([text], { type }));
-				Object.assign(doc.createElement("a"), { href: url, download: filename }).click();
-				setTimeout(() => URL.revokeObjectURL(url), 0);
-			}
-			return filename;
-		},
+		saveFile,
 	},
 	stories: {
 		"Shapes/Rectangle": {

@@ -62,3 +62,21 @@ body {
 	opacity: 0.75;
 	font-size: 0.9rem;
 }
+
+/* An app screen, like the tracker: it fills the window below the bar, scrolls inside and keeps
+   its own bars in place. */
+body.demo-fullscreen {
+	display: flex;
+	flex-direction: column;
+	height: 100vh;
+	min-height: 0;
+}
+.demo-fullscreen #app {
+	flex: 1;
+	min-height: 0;
+	padding: 0;
+}
+.demo-fullscreen #app > div {
+	height: 100%;
+	min-height: 0;
+}
