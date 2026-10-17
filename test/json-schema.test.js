@@ -1,45 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { jsonComponents } from "../components/json/index.js";
 import { allOpen, schemaComponents } from "../components/json-schema/index.js";
 import { fromSchema, readKind, schemaTree } from "../components/json-schema/read.js";
 import { sample } from "../components/json-schema/stories.js";
-import { lint } from "../src/lint/index.js";
-import { arbitraries, Driver, specProperties } from "../src/test/pbt.js";
+import { arbitraries, Driver } from "../src/test/pbt.js";
 import { Scope, selectorFrom } from "../src/tutuca.js";
+import { document, testGenericProperties, testLintsClean, textOf } from "./helpers.js";
 
-const { document } = new JSDOM("").window;
 const setup = () => {
 	const scope = new Scope(() => {});
 	scope.register({ ...jsonComponents, ...schemaComponents });
 	return { scope, C: scope.components, A: arbitraries({ fc, scope }) };
 };
 
-test("the JSON Schema components lint clean", () => {
-	const all = { ...jsonComponents, ...schemaComponents };
-	const issues = lint(Object.values(schemaComponents), Object.keys(all));
-	assert.deepEqual(
-		issues.map((i) => `${i.code} ${i.path}: ${i.message}`),
-		[],
-	);
+testLintsClean("JSON Schema", schemaComponents, {
+	names: Object.keys({ ...jsonComponents, ...schemaComponents }),
 });
 
-for (const [name, spec] of Object.entries(schemaComponents)) {
-	test(`${name} has the generic properties`, () => {
-		const { A } = setup();
-		for (const [propName, prop] of Object.entries(specProperties(spec, A, { document }))) {
-			try {
-				fc.assert(prop, { numRuns: 30 });
-			} catch (error) {
-				error.message = `${name}.${propName}: ${error.message}`;
-				throw error;
-			}
-		}
-	});
-}
+testGenericProperties(schemaComponents, { registered: { ...jsonComponents, ...schemaComponents } });
 
 test("readKind follows the order a validator reads a schema in", () => {
 	const cases = [
@@ -124,10 +104,6 @@ test("generated trees read back to a fixed point", () => {
 	);
 });
 
-const textOf = (root) => {
-	const driver = new Driver({ root, document });
-	return driver.rootNode.textContent.replace(/\s+/g, "");
-};
 const assertReads = (text, parts) => {
 	for (const part of parts) {
 		assert.ok(text.includes(part.replace(/\s+/g, "")), `${JSON.stringify(part)} in ${text}`);

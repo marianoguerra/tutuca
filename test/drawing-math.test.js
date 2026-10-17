@@ -1,37 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { drawingComponents } from "../components/drawing/index.js";
 import { fmt, mathComponents } from "../components/math/index.js";
-import { arbitraries, Driver, specProperties } from "../src/test/pbt.js";
-import { DispatchPath, Scope } from "../src/tutuca.js";
+import { Driver } from "../src/test/pbt.js";
+import { DispatchPath } from "../src/tutuca.js";
+import { document, scopeWith, testGenericProperties } from "./helpers.js";
 
-const { document } = new JSDOM("").window;
 const SVG = "http://www.w3.org/2000/svg";
 const MATHML = "http://www.w3.org/1998/Math/MathML";
 
-const scopeWith = (components) => {
-	const scope = new Scope(() => {});
-	scope.register(components);
-	return scope;
-};
-
 for (const components of [drawingComponents, mathComponents]) {
-	for (const [name, spec] of Object.entries(components)) {
-		test(`${name} has the generic properties`, () => {
-			const A = arbitraries({ fc, scope: scopeWith(components) });
-			for (const [propName, prop] of Object.entries(specProperties(spec, A, { document }))) {
-				try {
-					fc.assert(prop, { numRuns: 25 });
-				} catch (error) {
-					error.message = `${name}.${propName}: ${error.message}`;
-					throw error;
-				}
-			}
-		});
-	}
+	testGenericProperties(components, { numRuns: 25 });
 }
 
 test("shapes render as SVG elements inside the canvas", () => {

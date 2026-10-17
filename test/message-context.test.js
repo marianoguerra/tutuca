@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import {
 	component,
 	each,
 	field,
-	Host,
 	h,
 	provided,
 	render,
@@ -14,22 +11,9 @@ import {
 	send,
 	sourceKey,
 } from "../src/tutuca.js";
+import { setupHost } from "./helpers.js";
 
-function setup(specs) {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode });
-	const failures = [];
-	host.notify = (type, info) => {
-		if (type === "taskFailed") failures.push(info.error);
-	};
-	host.scheduleNextTaskTick = () => {};
-	host.scope.register(specs);
-	const drain = () => {
-		while (host.tasks.length) host.handleTasks();
-	};
-	return { host, rootNode, failures, drain, C: host.scope.components };
-}
+const setup = (specs) => setupHost(specs, { sync: true });
 
 for (const placement of ["root", "field", "provided", "nested loops"]) {
 	test(`loop handlers route derived tasks from their component: ${placement}`, async () => {

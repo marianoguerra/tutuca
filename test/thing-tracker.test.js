@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { NOW, trackerAppArb } from "../components/thing-tracker/fixtures.js";
 import { trackerComponents } from "../components/thing-tracker/index.js";
 import {
@@ -33,10 +31,7 @@ import {
 	startOfIsoWeek,
 	toDatetimeLocal,
 } from "../components/thing-tracker/time.js";
-import { arbitraries, specProperties } from "../src/test/pbt.js";
-import { Scope } from "../src/tutuca.js";
-
-const { document } = new JSDOM("").window;
+import { testGenericProperties } from "./helpers.js";
 
 test("relative times and bucket labels", () => {
 	assert.deepEqual(
@@ -191,18 +186,4 @@ test("imports: errors, merges and replaces", () => {
 	assert.ok(planImport(backup, current, { mode: "replace" }).replace);
 });
 
-for (const [name, spec] of Object.entries(trackerComponents)) {
-	test(`${name} has the generic properties`, () => {
-		const scope = new Scope(() => {});
-		scope.register(trackerComponents);
-		const A = arbitraries({ fc, scope, overrides: { TrackerApp: trackerAppArb } });
-		for (const [propName, prop] of Object.entries(specProperties(spec, A, { document }))) {
-			try {
-				fc.assert(prop, { numRuns: 20 });
-			} catch (error) {
-				error.message = `${name}.${propName}: ${error.message}`;
-				throw error;
-			}
-		}
-	});
-}
+testGenericProperties(trackerComponents, { overrides: { TrackerApp: trackerAppArb }, numRuns: 20 });

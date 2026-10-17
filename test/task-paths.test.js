@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
-import { component, Host, h, provided, render, send, seqItem } from "../src/tutuca.js";
+import { component, h, provided, render, send, seqItem } from "../src/tutuca.js";
+import { setupHost } from "./helpers.js";
 
 function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 	const Item = component({
@@ -39,18 +38,10 @@ function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 		),
 		on: rootHandlers,
 	});
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode });
 	const notices = [];
-	host.notify = (type, info) => notices.push({ type, ...info });
-	host.scheduleNextTaskTick = () => {};
-	host.scope.register({ Root, Item });
-	const C = host.scope.components;
+	const onReport = (type, info) => notices.push({ type, ...info });
+	const { host, rootNode, C, drain } = setupHost({ Root, Item }, { sync: true, onReport });
 	host.start(C.Root({ items: [C.Item(), C.Item()] }));
-	function drain() {
-		while (host.tasks.length > 0) host.handleTasks();
-	}
 	function queueEvents(...ids) {
 		const handleTasks = host.handleTasks;
 		host.handleTasks = () => {};

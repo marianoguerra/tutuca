@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { lint } from "../src/lint/index.js";
 import {
 	$if,
@@ -15,7 +13,7 @@ import {
 	send,
 	sourceKey,
 } from "../src/tutuca.js";
-import { vh as vdomH } from "./vh.js";
+import { startHost, vh as vdomH } from "./helpers.js";
 
 // Unmanaged-event and basic keyed-loop cases are covered in events.test.js and
 // composition.test.js.
@@ -86,14 +84,7 @@ const listOptions = {
 };
 const List = component(listOptions);
 
-function setup(Comp = List) {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode });
-	host.scope.register({ Comp });
-	host.start(host.scope.components.Comp());
-	return { host, rootNode, C: host.scope.components };
-}
+const setup = (Comp = List) => startHost(Comp);
 
 test("registration snapshots the loops", () => {
 	const loops = { ...listOptions.loops };

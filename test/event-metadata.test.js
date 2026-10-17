@@ -1,14 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import {
 	$if,
 	AstNode,
 	component,
 	each,
 	field,
-	Host,
 	h,
 	provided,
 	pushView,
@@ -18,30 +15,18 @@ import {
 	seqItem,
 	sourceKey,
 } from "../src/tutuca.js";
-import { vcomment as comment } from "./vh.js";
+import { vcomment as comment, setupHost } from "./helpers.js";
 
 // Routing without notify, provided or sourceKey is covered in events.test.js.
 
+// click fails the test on any failed task.
 function setup(specs) {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode });
-	const failures = [];
-	host.notify = (type, info) => {
-		if (type === "taskFailed") failures.push(info.error);
+	const setup = setupHost(specs, { sync: true });
+	const click = (target) => {
+		setup.click(target);
+		assert.deepEqual(setup.failures, []);
 	};
-	host.scheduleNextTaskTick = () => {};
-	host.scope.register(specs);
-	return {
-		host,
-		rootNode,
-		C: host.scope.components,
-		click(target) {
-			host.handleEvent({ type: "click", target });
-			while (host.tasks.length) host.handleTasks();
-			assert.deepEqual(failures, []);
-		},
-	};
+	return { ...setup, click };
 }
 
 // Custom view nodes can return several roots, just as collection nodes do.

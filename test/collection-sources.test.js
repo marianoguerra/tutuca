@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import {
 	component,
 	each,
 	field,
-	Host,
 	h,
 	provided,
 	render,
@@ -16,16 +13,9 @@ import {
 	seqItem,
 	sourceKey,
 } from "../src/tutuca.js";
+import { setupHost } from "./helpers.js";
 
-function setup(specs) {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode });
-	host.notify = () => {};
-	host.scheduleNextTaskTick = () => {};
-	host.scope.register(specs);
-	return { host, rootNode, C: host.scope.components };
-}
+const setup = (specs) => setupHost(specs, { sync: true });
 
 function click(host, rootNode, index = 0) {
 	host.handleEvent({

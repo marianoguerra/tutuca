@@ -20,17 +20,9 @@ import {
 	targetValue,
 	Walker,
 } from "../src/tutuca.js";
+import { setupHost } from "./helpers.js";
 
-function setup(specs) {
-	const { window } = new JSDOM("");
-	const rootNode = window.document.createElement("main");
-	const host = new Host({ document: window.document, rootNode });
-	const failures = [];
-	host.notify = (type, info) => type === "taskFailed" && failures.push(info.error);
-	host.scheduleNextTaskTick = () => {};
-	host.scope.register(specs);
-	return { host, rootNode, window, failures, C: host.scope.components };
-}
+const setup = (specs) => setupHost(specs, { sync: true });
 
 const actionNames = (spec, node) =>
 	spec.eventHandlers.get(node.eid).map((handler) => handler.action.name);

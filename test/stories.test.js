@@ -5,7 +5,6 @@ import fc from "fast-check";
 import { JSDOM } from "jsdom";
 import jsonBook from "../components/json/stories.js";
 import mathBook from "../components/math/stories.js";
-import { lint } from "../src/lint/index.js";
 import { defineTutucaApp, REPORT, REQUEST } from "../src/storybook/element.js";
 import {
 	checkStory,
@@ -18,19 +17,11 @@ import {
 import { Driver, describeProblems } from "../src/test/pbt.js";
 import { component, field, h, send } from "../src/tutuca.js";
 import { books } from "../storybook.books.js";
+import { document, testLintsClean } from "./helpers.js";
 
-const { document } = new JSDOM("").window;
 const byName = (book, name) => book.stories.find((s) => s.name === name);
 
-for (const book of books) {
-	test(`the ${book.title} components lint clean`, () => {
-		const issues = lint(Object.values(book.components), Object.keys(book.components));
-		assert.deepEqual(
-			issues.filter((i) => i.level === "error").map((i) => `${i.code} ${i.path}: ${i.message}`),
-			[],
-		);
-	});
-}
+for (const book of books) testLintsClean(book.title, book.components, { errorsOnly: true });
 
 for (const story of books.flatMap((book) => book.stories)) {
 	test(`${story.id} starts valid and renders`, () => {

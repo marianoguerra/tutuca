@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { installVdomFormatters } from "../src/dev/vdom-formatters.js";
-import { vcomment as comment, vfrag as fragment, vh as h } from "./vh.js";
+import { vcomment as comment, vfrag as fragment, vh as h } from "./helpers.js";
 
 const formatter = installVdomFormatters({});
 

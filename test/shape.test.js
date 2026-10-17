@@ -1,38 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
-import { $if, component, field, Host, h, send } from "../src/tutuca.js";
+import { $if, component, field, h, send } from "../src/tutuca.js";
 import { Shape, VNode } from "../src/vdom.js";
+import { mutationsOf, startHost } from "./helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
 function setup(Comp, args) {
-	const { window } = new JSDOM("");
-	const rootNode = window.document.createElement("main");
-	const host = new Host({ document: window.document, rootNode });
-	host.scope.register({ Comp });
-	host.start(host.scope.components.Comp(args));
+	const started = startHost(Comp, args);
+	const { host, C } = started;
 	const rerender = (next) => {
-		host.rootComponent = host.scope.components.Comp(next);
+		host.rootComponent = C.Comp(next);
 		host.render();
 	};
-	return { window, host, rootNode, rerender };
-}
-
-async function mutationsOf(window, rootNode, fn) {
-	const records = [];
-	const observer = new window.MutationObserver((rs) => records.push(...rs));
-	observer.observe(rootNode, {
-		subtree: true,
-		childList: true,
-		attributes: true,
-		characterData: true,
-	});
-	fn();
-	await new Promise((resolve) => setTimeout(resolve, 0));
-	observer.disconnect();
-	return records;
+	return { ...started, rerender };
 }
 
 test("a DomNode splits its attrs into a shape once: static, dynamic, key and namespace", () => {

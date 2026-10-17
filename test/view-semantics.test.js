@@ -1,16 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
-import { $if, AstNode, component, field, Host, h, pushView } from "../src/tutuca.js";
+import { $if, AstNode, component, field, h, pushView } from "../src/tutuca.js";
+import { setupHost } from "./helpers.js";
 
-function setup(specs) {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode });
-	host.scope.register(specs);
-	return { host, rootNode };
-}
+const setup = (specs) => setupHost(specs);
 
 for (const value of ["hello", 42, false, null, undefined]) {
 	test(`literal ${String(value)} works in every expression body`, () => {

@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { collectClasses } from "../src/dev/classes.js";
 import { isConstant } from "../src/optimize.js";
 import {
@@ -10,7 +8,6 @@ import {
 	component,
 	each,
 	field,
-	Host,
 	h,
 	lookupBind,
 	pushView,
@@ -19,15 +16,9 @@ import {
 	sourceKey,
 } from "../src/tutuca.js";
 import { VBase, VComment, VNode } from "../src/vdom.js";
+import { startHost } from "./helpers.js";
 
-function setup(Comp, args) {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode });
-	host.scope.register({ Comp });
-	host.start(host.scope.components.Comp(args));
-	return { host, rootNode, C: host.scope.components };
-}
+const setup = startHost;
 
 function* allVNodes(childs) {
 	for (const c of childs) {

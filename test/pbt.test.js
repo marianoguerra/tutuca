@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { jsonComponents } from "../components/json/index.js";
 import { todoAppArb } from "../components/todo/fixtures.js";
 import { todoComponents } from "../components/todo/index.js";
@@ -12,7 +10,6 @@ import {
 	eventCommands,
 	messageCommands,
 	runCommands,
-	specProperties,
 } from "../src/test/pbt.js";
 import {
 	$if,
@@ -28,8 +25,8 @@ import {
 	seqItem,
 	t,
 } from "../src/tutuca.js";
+import { document, testGenericProperties } from "./helpers.js";
 
-const { document } = new JSDOM("").window;
 const RUNS = { numRuns: 50 };
 
 // Tabs keep exactly the selected tab selected: an invariant the tests below break on purpose.
@@ -109,19 +106,7 @@ const setup = (components = tabComponents, overrides = { Tabs: tabsArb }) => {
 	return arbitraries({ fc, scope, overrides });
 };
 
-for (const [name, spec] of Object.entries(tabComponents)) {
-	test(`${name} has the generic properties`, () => {
-		const A = setup();
-		for (const [propName, prop] of Object.entries(specProperties(spec, A, { document }))) {
-			try {
-				fc.assert(prop, RUNS);
-			} catch (error) {
-				error.message = `${name}.${propName}: ${error.message}`;
-				throw error;
-			}
-		}
-	});
-}
+testGenericProperties(tabComponents, { overrides: { Tabs: tabsArb }, ...RUNS });
 
 test("message sequences keep the todo app valid", () => {
 	const A = setup(todoComponents, { TodoApp: todoAppArb });

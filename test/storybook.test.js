@@ -5,42 +5,14 @@ import fc from "fast-check";
 import { JSDOM } from "jsdom";
 import jsonBook from "../components/json/stories.js";
 import mathBook from "../components/math/stories.js";
-import { lint } from "../src/lint/index.js";
 import { startStorybook, storybookComponents } from "../src/storybook/index.js";
-import { arbitraries, specProperties } from "../src/test/pbt.js";
-import { Scope } from "../src/tutuca.js";
+import { settle, testGenericProperties, testLintsClean } from "./helpers.js";
 
-const { document } = new JSDOM("").window;
+testLintsClean("storybook", storybookComponents);
 
-test("the storybook components lint clean", () => {
-	const issues = lint(Object.values(storybookComponents), Object.keys(storybookComponents));
-	assert.deepEqual(
-		issues.map((i) => `${i.code} ${i.path}: ${i.message}`),
-		[],
-	);
-});
-
-for (const [name, spec] of Object.entries(storybookComponents)) {
-	test(`${name} has the generic properties`, () => {
-		const scope = new Scope(() => {});
-		scope.register(storybookComponents);
-		const A = arbitraries({ fc, scope });
-		for (const [propName, prop] of Object.entries(specProperties(spec, A, { document }))) {
-			try {
-				fc.assert(prop, { numRuns: 30 });
-			} catch (error) {
-				error.message = `${name}.${propName}: ${error.message}`;
-				throw error;
-			}
-		}
-	});
-}
+testGenericProperties(storybookComponents);
 
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
-// Lets tasks, reports and their renders settle.
-const settle = async () => {
-	for (let i = 0; i < 5; i++) await tick();
-};
 
 const start = (initialId = "") => {
 	const { window } = new JSDOM("<body></body>");

@@ -1,17 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
-import {
-	component,
-	field,
-	findInvalidFields,
-	Host,
-	h,
-	renderEach,
-	send,
-	t,
-} from "../src/tutuca.js";
+import { component, field, findInvalidFields, h, renderEach, send, t } from "../src/tutuca.js";
+import { setupHost } from "./helpers.js";
 
 const Item = component({
 	name: "Item",
@@ -37,14 +27,9 @@ const List = component({
 });
 
 function setup(dev) {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode, dev });
 	const reports = [];
-	host.notify = (type, info) => type === "stateInvalid" && reports.push(info);
-	host.scheduleNextTaskTick = () => {};
-	host.scope.register({ List, Item });
-	return { host, rootNode, reports, C: host.scope.components };
+	const onReport = (type, info) => type === "stateInvalid" && reports.push(info);
+	return { ...setupHost({ List, Item }, { dev, sync: true, onReport }), reports };
 }
 
 const summary = (issues) =>
@@ -142,14 +127,10 @@ const Picker = component({
 });
 
 test("dev mode reports messages that break their spec", () => {
-	const { document } = new JSDOM("").window;
-	const rootNode = document.createElement("main");
-	const host = new Host({ document, rootNode, dev: true });
 	const reports = [];
-	host.notify = (type, info) => type === "messageInvalid" && reports.push(info);
-	host.scheduleNextTaskTick = () => {};
-	host.scope.register({ Picker, Item });
-	host.start(host.scope.components.Picker({ items: [host.scope.components.Item()] }));
+	const onReport = (type, info) => type === "messageInvalid" && reports.push(info);
+	const { host, rootNode, C } = setupHost({ Picker, Item }, { dev: true, sync: true, onReport });
+	host.start(C.Picker({ items: [C.Item()] }));
 	const click = (tag) => rootNode.querySelector(tag).click();
 	click("p");
 	assert.deepEqual(reports, []);

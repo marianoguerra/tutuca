@@ -1,17 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { addDays, dayHeader, dueLabel, dueTone, isIso } from "../components/todo/dates.js";
 import { TODAY, todoAppArb } from "../components/todo/fixtures.js";
 import { todoComponents } from "../components/todo/index.js";
 import { parseQuickAdd } from "../components/todo/quickadd.js";
 import { devComponents } from "../src/dev/panel.js";
-import { arbitraries, specProperties } from "../src/test/pbt.js";
-import { Scope } from "../src/tutuca.js";
-
-const { document } = new JSDOM("").window;
+import { testGenericProperties } from "./helpers.js";
 
 test("due labels are relative to today", () => {
 	const at = (n) => dueLabel(addDays(TODAY, n), TODAY);
@@ -83,22 +78,5 @@ test("quick add never loses words", () => {
 	);
 });
 
-const propertiesOf = (components, overrides) => {
-	for (const [name, spec] of Object.entries(components)) {
-		test(`${name} has the generic properties`, () => {
-			const scope = new Scope(() => {});
-			scope.register(components);
-			const A = arbitraries({ fc, scope, overrides });
-			for (const [propName, prop] of Object.entries(specProperties(spec, A, { document }))) {
-				try {
-					fc.assert(prop, { numRuns: 25 });
-				} catch (error) {
-					error.message = `${name}.${propName}: ${error.message}`;
-					throw error;
-				}
-			}
-		});
-	}
-};
-propertiesOf(todoComponents, { TodoApp: todoAppArb });
-propertiesOf(devComponents, {});
+testGenericProperties(todoComponents, { overrides: { TodoApp: todoAppArb }, numRuns: 25 });
+testGenericProperties(devComponents, { numRuns: 25 });

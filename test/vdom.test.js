@@ -3,7 +3,7 @@ import test from "node:test";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { render } from "../src/vdom.js";
-import { vh as h, vchilds } from "./vh.js";
+import { vh as h, mutationsOf, vchilds } from "./helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const MATH = "http://www.w3.org/1998/Math/MathML";
@@ -23,16 +23,6 @@ function setup() {
 }
 
 // Runs fn and resolves with the DOM mutations it caused in container.
-async function mutationsOf(window, container, fn) {
-	const records = [];
-	const observer = new window.MutationObserver((rs) => records.push(...rs));
-	const all = { subtree: true, childList: true, attributes: true, characterData: true };
-	observer.observe(container, all);
-	fn();
-	await new Promise((resolve) => setTimeout(resolve, 0));
-	observer.disconnect();
-	return records;
-}
 
 test("render mounts, then morphs in place from what the last render returned", () => {
 	const { document, container } = setup();

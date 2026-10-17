@@ -1,41 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { fromJson, jsonComponents } from "../components/json/index.js";
-import { lint } from "../src/lint/index.js";
-import { arbitraries, Driver, specProperties } from "../src/test/pbt.js";
-import { Scope } from "../src/tutuca.js";
+import { arbitraries, Driver } from "../src/test/pbt.js";
+import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "./helpers.js";
 
-const { document } = new JSDOM("").window;
 const setup = () => {
-	const scope = new Scope(() => {});
-	scope.register(jsonComponents);
+	const scope = scopeWith(jsonComponents);
 	return { scope, C: scope.components, A: arbitraries({ fc, scope }) };
 };
 
-test("the JSON components lint clean", () => {
-	const issues = lint(Object.values(jsonComponents), Object.keys(jsonComponents));
-	assert.deepEqual(
-		issues.map((i) => `${i.code} ${i.path}: ${i.message}`),
-		[],
-	);
-});
+testLintsClean("JSON", jsonComponents);
 
-for (const [name, spec] of Object.entries(jsonComponents)) {
-	test(`${name} has the generic properties`, () => {
-		const { A } = setup();
-		for (const [propName, prop] of Object.entries(specProperties(spec, A, { document }))) {
-			try {
-				fc.assert(prop, { numRuns: 30 });
-			} catch (error) {
-				error.message = `${name}.${propName}: ${error.message}`;
-				throw error;
-			}
-		}
-	});
-}
+testGenericProperties(jsonComponents);
 
 test("fromJson and toJson round trip", () => {
 	const { C } = setup();
@@ -47,12 +24,6 @@ test("fromJson and toJson round trip", () => {
 		{ numRuns: 100 },
 	);
 });
-
-// The text of a render, without the tutuca comments and whitespace between elements.
-const textOf = (root) => {
-	const driver = new Driver({ root, document });
-	return driver.rootNode.textContent.replace(/\s+/g, "");
-};
 
 test("the main view reads as JSON", () => {
 	const { C } = setup();

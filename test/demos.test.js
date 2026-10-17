@@ -12,11 +12,7 @@ import { start as startMath } from "../demos/math/main.js";
 import { start as startTracker } from "../demos/thing-tracker/main.js";
 import { start as startTodo } from "../demos/todo/main.js";
 import { lint } from "../src/lint/index.js";
-
-// Lets tasks, notifications and the renders they cause settle.
-const settle = async () => {
-	for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
-};
+import { settle } from "./helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
 const mount = (start, ...args) => {
