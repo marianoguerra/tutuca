@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thing tracker · Tutuca demos</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "margaui": "../../node_modules/margaui/dist/margaui.min.js"
+        }
+      }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="../../node_modules/margaui/dist/themes/theme.css" />
+    <link rel="stylesheet" href="../demo.css" />
+    <style>
+      /* The tracker is an app screen: it fills the window below the bar, scrolls inside and
+         keeps its tab bar at the bottom. */
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        min-height: 0;
+      }
+      #app {
+        flex: 1;
+        min-height: 0;
+        padding: 0;
+      }
+      #app > div {
+        height: 100%;
+        min-height: 0;
+      }
+    </style>
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <header class="demo-bar">
+      <a href="../">← All demos</a>
+      <h1>Thing tracker</h1>
+      <p>Log habits, moods and drinks with a tap; see how often they happen.</p>
+    </header>
+    <div id="app"></div>
+  </body>
+</html>

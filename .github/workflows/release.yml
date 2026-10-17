@@ -1,0 +1,28 @@
+name: release
+
+# `just release <version>` pushes a v* tag; this attaches the spec PDF to its GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Bogdanp/setup-racket@v1.16
+        with:
+          version: stable
+          distribution: full
+      - run: racket spec/render.rkt
+      - name: Create the release with the spec PDF
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          flags=(--title "$TAG" --generate-notes --verify-tag)
+          if [[ "$TAG" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$TAG" spec/semantics.pdf "${flags[@]}"

@@ -1,0 +1,67 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
+	"vcs": {
+		"enabled": false,
+		"clientKind": "git",
+		"useIgnoreFile": false
+	},
+	"files": {
+		"ignoreUnknown": false,
+		"includes": ["**", "!deps", "!dist", "!_site"]
+	},
+	"formatter": {
+		"enabled": true,
+		"indentStyle": "tab",
+		"lineWidth": 100
+	},
+	"linter": {
+		"enabled": true,
+		"domains": {
+			"project": "all"
+		},
+		"rules": {
+			"preset": "recommended",
+			"complexity": {
+				"noThisInStatic": "off"
+			},
+			"correctness": {
+				"noUndeclaredVariables": "error",
+				"noUndeclaredDependencies": "error",
+				"noNodejsModules": "error",
+				"useImportExtensions": "error"
+			},
+			"suspicious": {
+				"noConstantBinaryExpressions": "error",
+				"useAwait": "error"
+			},
+			"nursery": {
+				"noFloatingPromises": "error",
+				"noLoopFunc": "error",
+				"noImpliedEval": "error"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["test/**/*.js", "scripts/**/*.js"],
+			"linter": {
+				"rules": {
+					"correctness": { "noNodejsModules": "off" }
+				}
+			}
+		}
+	],
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double"
+		}
+	},
+	"assist": {
+		"enabled": true,
+		"actions": {
+			"source": {
+				"organizeImports": "on"
+			}
+		}
+	}
+}

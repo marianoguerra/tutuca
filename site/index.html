@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Tutuca</title>
+		<meta
+			name="description"
+			content="A SPA framework for humans and agents. A full implementation that fits in your head and the context window, with testing, a storybook, property-based tests and a formal specification built in."
+		/>
+		<meta property="og:title" content="Tutuca" />
+		<meta property="og:description" content="A SPA framework for humans and agents." />
+		<meta property="og:type" content="website" />
+		<link rel="canonical" href="https://marianoguerra.github.io/tutuca/" />
+		<link
+			rel="icon"
+			href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>"
+		/>
+		<link rel="stylesheet" href="./site.css" />
+	</head>
+	<body>
+		<main class="page">
+			<div class="page-icon" aria-hidden="true">🧩</div>
+			<h1>Tutuca</h1>
+			<p class="tagline">A SPA framework for humans <em>and</em> agents.</p>
+			<p class="subtagline">A full implementation that fits in your head and the context window.</p>
+
+			<nav class="actions">
+				<a class="button primary" href="./storybook.html">Open the storybook</a>
+				<a class="button" href="#demos">Demos</a>
+				<a class="button" href="https://github.com/marianoguerra/tutuca">GitHub</a>
+			</nav>
+
+			<p>
+				Tutuca is a complete frontend framework, not just a view layer. Components, typed state,
+				rendering and event routing come with everything you need to trust them: headless tests,
+				property-based tests derived from your schemas, a storybook that stress tests your stories,
+				a linter, and a formal specification of the semantics in PLT Redex.
+			</p>
+			<p>
+				The core is about 1,800 lines with no runtime dependencies. You can read all of it in an
+				afternoon, and an agent can hold all of it at once.
+			</p>
+
+			<div class="callout">
+				<span class="callout-icon" aria-hidden="true">📦</span>
+				<div>
+					<p><strong>Install</strong></p>
+					<pre><code>npm install tutuca@next</code></pre>
+					<p>Or import it from a CDN, no build step:</p>
+					<pre><code>import { component, h, Host } from "https://cdn.jsdelivr.net/npm/tutuca@next/dist/tutuca.min.js";</code></pre>
+				</div>
+			</div>
+
+			<h2>A first component</h2>
+			<pre class="code"><code>const Counter = component({
+  name: "Counter",
+  fields: (t) =&gt; ({ count: t.number() }),
+  view: h("button", { "@on.click": send("inc") }, "Clicked ", field("count")),
+  on: {
+    inc(draft) {
+      draft.count += 1;
+    },
+  },
+});
+
+const host = new Host({ document, rootNode: document.getElementById("app") });
+host.scope.register({ Counter });
+host.start(host.scope.components.Counter());</code></pre>
+
+			<hr />
+
+			<h2>Build</h2>
+			<ul class="features">
+				<li>
+					<span class="icon" aria-hidden="true">🧱</span>
+					<div>
+						<strong>Components with typed state</strong>
+						<p>
+							Fields are schemas: strings, numbers, enums, options, arrays, maps, records, unions
+							and nested components.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🌳</span>
+					<div>
+						<strong>Views as data</strong>
+						<p>
+							<code>h</code>, <code>each</code>, <code>render</code>, <code>$if</code> and
+							<code>scope</code> build a tree the framework can inspect, lint and optimize.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">✉️</span>
+					<div>
+						<strong>Messages, not callbacks</strong>
+						<p>
+							Events send typed messages along explicit paths to the component that handles them.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🧊</span>
+					<div>
+						<strong>Immutable updates</strong>
+						<p>Handlers edit a draft; state stays immutable, so time travel and diffing are free.</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">⚡</span>
+					<div>
+						<strong>A small, fast vdom</strong>
+						<p>Keyed reconciliation, with constant subtrees hoisted out of re-renders.</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🪟</span>
+					<div>
+						<strong>Embeddable</strong>
+						<p>
+							A <code>&lt;tutuca-app&gt;</code> custom element runs apps isolated in a shadow root.
+						</p>
+					</div>
+				</li>
+			</ul>
+
+			<h2>Test</h2>
+			<ul class="features">
+				<li>
+					<span class="icon" aria-hidden="true">🤖</span>
+					<div>
+						<strong>Headless testing</strong>
+						<p>
+							A driver runs messages through the real task loop with or without a DOM, and reports
+							failed tasks and invalid state.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🎲</span>
+					<div>
+						<strong>Property-based tests from your schemas</strong>
+						<p>
+							Random states, messages and DOM events are generated from the field and message
+							types you already wrote.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">📚</span>
+					<div>
+						<strong>Storybook built in</strong>
+						<p>
+							Stories with step sequences, a timeline to step back and forth, and stress tests
+							that find and replay counterexamples.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🧹</span>
+					<div>
+						<strong>Lint and invariants</strong>
+						<p>
+							Catch unknown fields, views, components and handlers, and mistyped message arguments,
+							before running. In dev, state and invariants are checked after every update.
+						</p>
+					</div>
+				</li>
+			</ul>
+
+			<h2>Understand</h2>
+			<ul class="features">
+				<li>
+					<span class="icon" aria-hidden="true">📐</span>
+					<div>
+						<strong>A formal specification</strong>
+						<p>
+							A PLT Redex model of views, rendering, reconciliation, paths and the task queue,
+							<a href="./spec/semantics.pdf">typeset as a PDF</a>.
+							<span class="tag">in progress</span>
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🔍</span>
+					<div>
+						<strong>DevTools formatters</strong>
+						<p>Components, paths and tasks show up readable in the browser console.</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🪶</span>
+					<div>
+						<strong>Fits in your head</strong>
+						<p>About 1,800 lines of core, 16 KB minified and gzipped, no runtime dependencies.</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🧠</span>
+					<div>
+						<strong>Fits in the context window</strong>
+						<p>Small enough for an agent to read the whole framework before writing a line.</p>
+					</div>
+				</li>
+			</ul>
+
+			<hr />
+
+			<h2 id="demos">Demos</h2>
+			<p class="muted">
+				Small apps built from the component libraries. Each one has stories you can step through
+				and stress test in the storybook.
+			</p>
+			<ul class="demos">
+				<li>
+					<a class="demo-title" href="./demos/todo/"
+						><span aria-hidden="true">✅</span> Todo <span class="arrow">↗</span></a
+					>
+					<p>Projects, labels, priorities, subtasks and quick add that reads “tomorrow p1 #Work”.</p>
+					<p class="demo-links">
+						<a href="./storybook.html#Todo/App/Today">Storybook</a>
+						<span aria-hidden="true">·</span>
+						<a href="https://github.com/marianoguerra/tutuca/tree/main/components/todo">Source</a>
+					</p>
+				</li>
+				<li>
+					<a class="demo-title" href="./demos/thing-tracker/"
+						><span aria-hidden="true">📈</span> Thing tracker <span class="arrow">↗</span></a
+					>
+					<p>Log habits, moods and drinks with a tap; insights by day, week or month.</p>
+					<p class="demo-links">
+						<a href="./storybook.html#Thing%20tracker/App/Track">Storybook</a>
+						<span aria-hidden="true">·</span>
+						<a href="https://github.com/marianoguerra/tutuca/tree/main/components/thing-tracker">Source</a>
+					</p>
+				</li>
+				<li>
+					<a class="demo-title" href="./demos/json-schema/"
+						><span aria-hidden="true">📝</span> Payload → Schema <span class="arrow">↗</span></a
+					>
+					<p>Edit an example API payload and get a documented JSON Schema for it.</p>
+					<p class="demo-links">
+						<a href="./storybook.html#JSON%20Schema/Episode">Storybook</a>
+						<span aria-hidden="true">·</span>
+						Source: <a href="https://github.com/marianoguerra/tutuca/tree/main/components/jsonschema">jsonschema</a> <a href="https://github.com/marianoguerra/tutuca/tree/main/components/json">json</a>
+					</p>
+				</li>
+				<li>
+					<a class="demo-title" href="./demos/drawing/"
+						><span aria-hidden="true">🎨</span> Sketchpad <span class="arrow">↗</span></a
+					>
+					<p>Draw shapes; move, layer, undo and save as SVG.</p>
+					<p class="demo-links">
+						<a href="./storybook.html#Drawing/Drawing/House">Storybook</a>
+						<span aria-hidden="true">·</span>
+						<a href="https://github.com/marianoguerra/tutuca/tree/main/components/drawing">Source</a>
+					</p>
+				</li>
+				<li>
+					<a class="demo-title" href="./demos/math/"
+						><span aria-hidden="true">➗</span> Algebra workbench <span class="arrow">↗</span></a
+					>
+					<p>Solve quadratics with their plot and invert 2×2 matrices.</p>
+					<p class="demo-links">
+						<a href="./storybook.html#Math/Quadratic/Two%20roots">Storybook</a>
+						<span aria-hidden="true">·</span>
+						<a href="https://github.com/marianoguerra/tutuca/tree/main/components/math">Source</a>
+					</p>
+				</li>
+			</ul>
+
+			<h2>Resources</h2>
+			<ul class="links">
+				<li>
+					<a href="./storybook.html"
+						><span aria-hidden="true">📚</span> Storybook <span class="arrow">↗</span></a
+					>
+				</li>
+				<li>
+					<a href="https://github.com/marianoguerra/tutuca"
+						><span aria-hidden="true">🧑‍💻</span> Source on GitHub <span class="arrow">↗</span></a
+					>
+				</li>
+				<li>
+					<a href="https://www.npmjs.com/package/tutuca"
+						><span aria-hidden="true">📦</span> Package on npm <span class="arrow">↗</span></a
+					>
+				</li>
+				<li>
+					<a href="./spec/semantics.pdf"
+						><span aria-hidden="true">📐</span> Formal semantics (PDF) <span class="arrow">↗</span></a
+					>
+				</li>
+				<li>
+					<a href="https://github.com/marianoguerra/tutuca/blob/main/spec/README.md"
+						><span aria-hidden="true">🧪</span> Formal semantics: the model <span class="arrow">↗</span></a
+					>
+				</li>
+				<li>
+					<a href="https://github.com/marianoguerra/tutuca/blob/main/docs/paths.md"
+						><span aria-hidden="true">🧭</span> How paths route events <span class="arrow">↗</span></a
+					>
+				</li>
+			</ul>
+
+			<footer>
+				<span>MIT licensed</span>
+				<a href="https://bsky.app/profile/marianoguerra.org">🦋 @marianoguerra.org</a>
+				<a href="https://x.com/warianoguerra">𝕏 @warianoguerra</a>
+			</footer>
+		</main>
+	</body>
+</html>

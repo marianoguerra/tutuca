@@ -1,0 +1,60 @@
+{
+	"name": "tutuca",
+	"version": "1.0.0-alpha.0",
+	"description": "A small SPA framework that is easy to learn",
+	"type": "module",
+	"license": "MIT",
+	"author": "Mariano Guerra",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/marianoguerra/tutuca.git"
+	},
+	"homepage": "https://marianoguerra.github.io/tutuca/",
+	"engines": {
+		"node": ">=20"
+	},
+	"sideEffects": false,
+	"exports": {
+		".": "./src/tutuca.js",
+		"./vdom": "./src/vdom.js",
+		"./dev": "./src/dev/formatters.js",
+		"./lint": "./src/lint/index.js",
+		"./util": "./src/dev/util.js",
+		"./pbt": "./src/test/pbt.js",
+		"./storybook": "./src/storybook/index.js",
+		"./element": "./src/storybook/element.js",
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"src/",
+		"deps/",
+		"components/tutuca-dev/index.js",
+		"components/tutuca-dev/summary.js",
+		"dist/",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"test": "node --test test/*.test.js",
+		"lint": "biome check src storybook*.js components test scripts site",
+		"dist": "node scripts/dist.js",
+		"smoke": "node scripts/smoke.js",
+		"site": "node scripts/site.js",
+		"prepublishOnly": "npm run lint && npm test && npm run dist && npm run smoke"
+	},
+	"peerDependencies": {
+		"fast-check": "^4"
+	},
+	"peerDependenciesMeta": {
+		"fast-check": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.15",
+		"esbuild": "^0.28.2",
+		"fast-check": "^4.10.2",
+		"jsdom": "^30.1.3",
+		"margaui": "^0.5704.0"
+	}
+}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tutuca Storybook</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "margaui": "./node_modules/margaui/dist/margaui.min.js",
+          "fast-check": "./node_modules/fast-check/lib/fast-check.js",
+          "pure-rand/distribution/uniformBigInt": "./node_modules/pure-rand/lib/esm/distribution/uniformBigInt.js",
+          "pure-rand/distribution/uniformInt": "./node_modules/pure-rand/lib/esm/distribution/uniformInt.js",
+          "pure-rand/generator/congruential32": "./node_modules/pure-rand/lib/esm/generator/congruential32.js",
+          "pure-rand/generator/mersenne": "./node_modules/pure-rand/lib/esm/generator/mersenne.js",
+          "pure-rand/generator/xoroshiro128plus": "./node_modules/pure-rand/lib/esm/generator/xoroshiro128plus.js",
+          "pure-rand/generator/xorshift128plus": "./node_modules/pure-rand/lib/esm/generator/xorshift128plus.js",
+          "pure-rand/utils/skipN": "./node_modules/pure-rand/lib/esm/utils/skipN.js"
+        }
+      }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="./node_modules/margaui/dist/themes/theme.css" />
+    <script type="module" src="./storybook.js"></script>
+  </head>
+  <body>
+    <div id="storybook"></div>
+  </body>
+</html>
