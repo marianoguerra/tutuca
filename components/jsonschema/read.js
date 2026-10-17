@@ -2,7 +2,7 @@
 import { fromJson } from "../json/index.js";
 import { DEFAULT_PER_PAGE, pagerFor } from "./index.js";
 
-const isObject = (j) => typeof j === "object" && j !== null && !Array.isArray(j);
+export const isObject = (j) => typeof j === "object" && j !== null && !Array.isArray(j);
 const arrayAt = (j, key) => (Array.isArray(j[key]) ? j[key] : []);
 // A keyword as text: a number or a string, else "".
 const scalar = (j, key) => {

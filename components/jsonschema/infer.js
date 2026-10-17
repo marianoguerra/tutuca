@@ -1,5 +1,6 @@
 // A JSON Schema that the example value matches: types, properties, required keys and string
-// formats, with array items merged into one schema across the elements.
+// formats, with array items merged into one schema across the elements. The inverse of read.js.
+import { isObject } from "./read.js";
 
 const FORMATS = [
 	["date-time", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/],
@@ -8,8 +9,6 @@ const FORMATS = [
 	["uri", /^[a-z][a-z0-9+.-]*:\/\/\S+$/i],
 ];
 const formatOf = (s) => FORMATS.find(([, re]) => re.test(s))?.[0] ?? null;
-
-const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 export const inferSchema = (value) => {
 	if (value === null) return { type: "null" };

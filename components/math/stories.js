@@ -1,5 +1,6 @@
 import { step, stories } from "../../src/storybook/index.js";
 import { mathComponents } from "./index.js";
+import { matrixLabel, quadraticLabel, workbenchComponents } from "./workbench.js";
 
 const quadraticMessages = ["Quadratic.setCoefficient", "Quadratic.preset"];
 
@@ -82,5 +83,30 @@ export default stories({
 		},
 		"Matrix/Singular": { make: (C) => C.Matrix2({ a: 2, b: 4, c: 1, d: 2 }) },
 		"Formula gallery": { make: (C) => C.FormulaGallery() },
+	},
+});
+
+// The workbench has its own book, as the demo puts it together.
+export const workbenchBook = stories({
+	title: "Math workbench",
+	components: workbenchComponents,
+	stories: {
+		"Two saved problems": {
+			make: (C) =>
+				C.Workbench({
+					quadratic: C.Quadratic({ a: 1, b: -3, c: 2 }),
+					history: [
+						{ kind: "quadratic", label: quadraticLabel(1, 2, 5), values: [1, 2, 5] },
+						{ kind: "matrix", label: matrixLabel(2, 4, 1, 2), values: [2, 4, 1, 2] },
+					],
+				}),
+			sequences: {
+				"switch tabs": [
+					step.check("on the quadratic", (s) => s.is_quadratic),
+					step.send("setTab", ["matrix"]),
+					step.check("on the matrix", (s) => s.is_matrix),
+				],
+			},
+		},
 	},
 });

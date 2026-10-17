@@ -3,6 +3,7 @@ import { scopeOf } from "../../src/tutuca.js";
 import { jsonComponents } from "../json/index.js";
 import { allOpen, schemaComponents } from "./index.js";
 import { fromSchema, schemaTree } from "./read.js";
+import { studio, studioComponents } from "./studio.js";
 
 // A schema that uses most of what the family models.
 export const sample = {
@@ -213,6 +214,28 @@ export default stories({
 		"Generated tree": {
 			arbitrary: (A) => A.instance("SchemaRoot"),
 			pbt: { include: messages, maxCommands: 10 },
+		},
+	},
+});
+
+// The studio has its own book: its components join the generated trees' candidates otherwise.
+export const studioBook = stories({
+	title: "JSON Schema studio",
+	components: studioComponents,
+	stories: {
+		"Order payload": {
+			make: (C) => studio(C),
+			sequences: {
+				"load another sample": [
+					step.check("in step with the payload", (s) => !s.isStale),
+					step.send("loadSample", ["user"]),
+					step.check("the user schema", (s) => s.title === "User" && !s.isStale),
+				],
+				"retitle the schema": [
+					step.send("setTitle", ["Purchase"]),
+					step.check("the schema follows", (s) => JSON.parse(s.schemaText).title === "Purchase"),
+				],
+			},
 		},
 	},
 });
