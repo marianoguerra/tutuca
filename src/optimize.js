@@ -1,6 +1,6 @@
-// Render optimizations. tutuca.js says what a view evaluates to; this module makes evaluating it
-// cheaper without changing the result. Every call site in tutuca.js is marked with `// OPT:`.
-// Nodes are told apart by their Walker kind, so this module needs nothing from tutuca.js.
+// Render optimizations. view.js says what a view evaluates to; this module makes evaluating it
+// cheaper without changing the result. Every call site in view.js is marked with `// OPT:`.
+// Nodes are told apart by their Walker kind, so this module needs nothing from view.js.
 import { Shape, VText } from "./vdom.js";
 
 // A constant node evaluates to the same value with any ctx, including null. Anything that reads

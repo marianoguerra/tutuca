@@ -1,6 +1,6 @@
 # Tutuca semantics
 
-A PLT Redex model of `tutuca.js` and `vdom.js`. It covers:
+A PLT Redex model of the core (`src/view.js`, `paths.js`, `events.js`, `tasks.js`, `host.js`) and `vdom.js`. It covers:
 
 - views: every expression form
 - registration
@@ -25,14 +25,14 @@ racket spec/render.rkt     # typesets the rules into spec/semantics.pdf
 |---|---|---|
 | `data.rkt` | values (atoms, null, arrays, records, components), `String()`, truthiness, property get/set, `entries` | plain JS values, immer drafts |
 | `core.rkt` | normalized vnodes, metadata leaves and their JSON text | `VText`, `VComment`, `VNode`, `VFragment`, `Shape` |
-| `normalize.rkt` | `addChild`/`toVChilds`, keys | `tutuca.js` |
+| `normalize.rkt` | `addChild`/`toVChilds`, keys | `view.js` |
 | `dom.rkt` | `toDom`, namespaces | `vdom.js` |
 | `keys.rkt` | sibling matching | `morphChildren`, first half |
 | `morph.rkt` | reconciliation over labeled DOM nodes | `morphNode`, `morphChildren`, `mountBefore` |
 | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toComponentPath`, `sourceKeyIn`, frame metadata, freezing | `UpdatePath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
 | `host.rkt` | user code as terms: loop hooks, scope binds, provides, ask handlers, message handlers | the functions passed to `component()` and `registerAskHandlers` |
 | `view.rkt` | expressions, `Collect`, registration, `RenderContext`, `eval`, `renderView` | the `AstNode` subclasses, `ComponentSpec`, `RenderContext` |
-| `routing.rkt` | `enclosingNodeMeta`, `getEventInfoFor` | |
+| `routing.rkt` | `enclosingNodeMeta`, `getEventInfoFor` | `events.js` |
 | `tasks.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling | `Task`, `NotifyTask`, `AskTask`, `EventTask`, `Host` |
 | `tutuca.rkt` | everything; end-to-end scenarios | |
 | `render.rkt` | `semantics.pdf` | |

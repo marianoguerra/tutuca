@@ -1,4 +1,4 @@
-import { h } from "./tutuca.js";
+import { h } from "./view.js";
 
 // Element builders: tag.div(attrs, ...childs) is h("div", attrs, ...childs), and attrs can be
 // left out, as in tag.p("Hello"): a plain object first is attrs, children never are.
