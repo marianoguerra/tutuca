@@ -18,7 +18,6 @@ import {
 	messageCommand,
 	messageCommands,
 	PROBLEMS,
-	registeredSpecs,
 	resolveRefs,
 	runCommands,
 	snapshot,
@@ -233,7 +232,7 @@ export class StoryRunner {
 		this.classes?.watch(detail.rootNode, detail.adoptCss(""));
 		const { A, root, scope } = prepareStory(this.story, { fc: this.fc, seed: this.seed });
 		this.A = A;
-		const specs = registeredSpecs(scope);
+		const specs = scope.allSpecs();
 		this.specs = Object.values(specs);
 		this.issues = lint(this.specs, Object.keys(specs));
 		const { document, rootNode } = detail;

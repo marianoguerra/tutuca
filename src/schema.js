@@ -59,7 +59,10 @@ const CHECKS = {
 	pattern: (v, re) => re.test(v),
 	where: (v, preds) => preds.every(({ pred }) => pred(v)),
 };
+// make throws it for state it can't default: a missing value, not a bug in the component.
+export class NoDefaultError extends Error {}
 export class AnyType {
+	static kind = "any"; // The t builder name, for tools that print or derive types.
 	constructor(defaultValue) {
 		this.defaultValue = defaultValue;
 		this.constraints = {};
@@ -104,7 +107,8 @@ export class AnyType {
 	make(value, scope, owner) {
 		if (this.isValid(value, scope, owner)) return value;
 		const made = this.makeDefault(scope, owner);
-		if (!this.meetsConstraints(made)) throw new Error("has no default that meets its constraints");
+		if (!this.meetsConstraints(made))
+			throw new NoDefaultError("has no default that meets its constraints");
 		return made;
 	}
 	makeDefault(_scope, _owner) {
@@ -128,6 +132,7 @@ export class AnyType {
 	}
 }
 export class StringType extends AnyType {
+	static kind = "string";
 	constructor(defaultValue = "") {
 		super(defaultValue);
 	}
@@ -136,6 +141,7 @@ export class StringType extends AnyType {
 	}
 }
 export class BooleanType extends AnyType {
+	static kind = "boolean";
 	constructor(defaultValue = false) {
 		super(defaultValue);
 	}
@@ -144,6 +150,7 @@ export class BooleanType extends AnyType {
 	}
 }
 export class NumberType extends AnyType {
+	static kind = "number";
 	constructor(defaultValue = 0) {
 		super(defaultValue);
 	}
@@ -161,6 +168,7 @@ export class NumberType extends AnyType {
 	}
 }
 export class EnumType extends AnyType {
+	static kind = "enum";
 	constructor(...members) {
 		super(members[0]);
 		this.members = members;
@@ -171,6 +179,7 @@ export class EnumType extends AnyType {
 }
 // Null or a valid inner value; nullability is a type, not a flag on every type.
 export class OptionType extends AnyType {
+	static kind = "option";
 	constructor(valueType) {
 		super(null);
 		this.valueType = valueType;
@@ -183,6 +192,7 @@ export class OptionType extends AnyType {
 	}
 }
 export class ArrayType extends AnyType {
+	static kind = "array";
 	constructor(valueType = new AnyType(null)) {
 		super([]);
 		this.valueType = valueType;
@@ -197,6 +207,7 @@ export class ArrayType extends AnyType {
 const isRecordValue = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 // A record with arbitrary string keys and values of one type.
 export class MapType extends AnyType {
+	static kind = "map";
 	constructor(valueType = new AnyType(null)) {
 		super({});
 		this.valueType = valueType;
@@ -212,6 +223,7 @@ export class MapType extends AnyType {
 }
 // A record with exactly the keys of shape, each of its own type.
 export class RecordType extends AnyType {
+	static kind = "record";
 	constructor(shape) {
 		super(undefined); // Undefined builds the default from the shape's defaults.
 		this.shape = shape;
@@ -231,6 +243,7 @@ export class RecordType extends AnyType {
 	}
 }
 export class UnionType extends AnyType {
+	static kind = "oneOf";
 	constructor(...types) {
 		super(undefined); // Undefined takes the first alternative's default.
 		this.types = types;
@@ -248,6 +261,7 @@ export class UnionType extends AnyType {
 }
 // A key of the array or map in the owner's field, such as a selected index.
 export class IndexType extends AnyType {
+	static kind = "index";
 	constructor(fieldName) {
 		super(undefined);
 		this.fieldName = fieldName;
@@ -260,7 +274,9 @@ export class IndexType extends AnyType {
 	makeDefault(_scope, owner) {
 		const [first] = this.keysIn(owner);
 		if (first === undefined) {
-			throw new Error(`${this.fieldName} has no key for a required t.index(), use t.option`);
+			throw new NoDefaultError(
+				`${this.fieldName} has no key for a required t.index(), use t.option`,
+			);
 		}
 		return first;
 	}
@@ -273,6 +289,7 @@ export class IndexType extends AnyType {
 // A component registered under name, or one of names, in the scope the owner is made in, so
 // a scope can swap it. Without names any component is valid.
 export class ComponentType extends AnyType {
+	static kind = "component";
 	constructor(names) {
 		super(undefined);
 		this.names = names === undefined ? [] : [names].flat();
@@ -282,10 +299,14 @@ export class ComponentType extends AnyType {
 	}
 	makeDefault(scope) {
 		if (this.name === undefined) {
-			throw new Error("required t.component() has no default, pass a component or name it");
+			throw new NoDefaultError(
+				"required t.component() has no default, pass a component or name it",
+			);
 		}
 		if (scope === null) {
-			throw new Error(`no scope to make ${this.name} in, use scope.components to create it`);
+			throw new NoDefaultError(
+				`no scope to make ${this.name} in, use scope.components to create it`,
+			);
 		}
 		return scope.make(this.name);
 	}
@@ -295,6 +316,9 @@ export class ComponentType extends AnyType {
 		return this.names.some((name) => scope.lookupByName(name) === specOf(value));
 	}
 }
+// The type an option wraps, or type itself.
+export const unwrapOption = (type) =>
+	type instanceof OptionType ? unwrapOption(type.valueType) : type;
 const ctor =
 	(Type) =>
 	(...args) =>

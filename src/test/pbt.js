@@ -2,47 +2,38 @@
 // message schemas. fast-check is passed in, so tutuca itself doesn't depend on it.
 import {
 	AnyType,
-	ArrayType,
-	BooleanType,
 	ComponentType,
 	component,
 	DispatchPath,
-	EnumType,
 	Frame,
 	field,
 	findInvalidFields,
 	Host,
 	IndexType,
 	isComponent,
-	MapType,
 	messageIssues,
-	NumberType,
-	OptionType,
-	RecordType,
+	NoDefaultError,
 	render,
 	Selector,
-	StringType,
 	scopeOf,
 	specOf,
 	Target,
 	TargetValue,
 	Task,
 	t,
-	UnionType,
+	unwrapOption,
 } from "../tutuca.js";
 
 const mapValues = (record, fn) =>
 	Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v, k)]));
-// Errors make throws for state it can't default, not bugs in the component.
-const NO_DEFAULT = /has no default|has no key|no scope to make/;
-
-// Every spec registered in scope or its parents, by name; inner registrations win.
-export const registeredSpecs = (scope) => {
-	const specs = {};
-	for (let s = scope; s !== null; s = s.parent) {
-		for (const name in s.byName) specs[name] ??= s.byName[name];
+// spec.make(args, scope), or undefined when the state can't be defaulted.
+const tryMake = (spec, args, scope) => {
+	try {
+		return spec.make(args, scope);
+	} catch (error) {
+		if (error instanceof NoDefaultError) return undefined;
+		throw error;
 	}
-	return specs;
 };
 
 // A key chosen in a collection that only exists once the owner does: n picks among its keys.
@@ -57,12 +48,11 @@ export class KeyRef {
 		return `key#${this.n}`;
 	}
 }
-const indexOf = (type) => (type instanceof OptionType ? indexOf(type.valueType) : type);
-const isIndex = (type) => indexOf(type) instanceof IndexType;
+const isIndex = (type) => unwrapOption(type) instanceof IndexType;
 // Resolve KeyRefs in a value generated for type against owner.
 export const resolveRefs = (value, type, owner) => {
 	if (!(value instanceof KeyRef)) return value;
-	return value.resolve(indexOf(type).keysIn(owner));
+	return value.resolve(unwrapOption(type).keysIn(owner));
 };
 
 class Unbounded extends Error {
@@ -84,19 +74,11 @@ export const arbitraries = ({
 	numberRange = 1000,
 	overrides = {},
 }) => {
-	const specs = registeredSpecs(scope);
+	const specs = scope?.allSpecs() ?? {};
 	for (const spec of Object.values(specs)) printCompactly(spec);
 	const cache = new Map();
-	const tryMake = (spec, args) => {
-		try {
-			return spec.make(args, scope);
-		} catch (error) {
-			if (NO_DEFAULT.test(error.message)) return undefined;
-			throw error;
-		}
-	};
 	// Specs makeable with no args end the recursion once maxDepth is reached.
-	const leaves = Object.values(specs).filter((spec) => tryMake(spec, {}) !== undefined);
+	const leaves = Object.values(specs).filter((spec) => tryMake(spec, {}, scope) !== undefined);
 	const leafOf = (spec) => fc.constant(null).map(() => spec.make({}, scope));
 	const specFor = (specOrName) => (typeof specOrName === "string" ? specs[specOrName] : specOrName);
 
@@ -125,36 +107,40 @@ export const arbitraries = ({
 		minLength,
 		maxLength: depth >= maxDepth ? minLength : Math.max(minLength, Math.min(max, maxLength)),
 	});
-	const derive = (type, depth) => {
-		const c = type.constraints;
-		if (type instanceof OptionType) return fc.option(value(type.valueType, depth), { nil: null });
-		if (type instanceof IndexType) return fc.nat().map((n) => new KeyRef(n));
-		if (type instanceof EnumType) return fc.constantFrom(...type.members);
-		if (type instanceof BooleanType) return fc.boolean();
-		if (type instanceof StringType) {
+	// Arbitraries by type kind; other kinds take any json value.
+	const derivers = {
+		option: (type, depth) => fc.option(value(type.valueType, depth), { nil: null }),
+		index: () => fc.nat().map((n) => new KeyRef(n)),
+		enum: (type) => fc.constantFrom(...type.members),
+		boolean: () => fc.boolean(),
+		string: ({ constraints: c }) => {
 			const { minLength, maxLength: max } = lengths(c, 0);
 			if (c.pattern !== undefined) return fc.stringMatching(c.pattern);
 			return fc.string({ minLength, maxLength: max });
-		}
-		if (type instanceof NumberType) {
-			// Unbounded sides stay within numberRange of the other bound, so invariants on counts
-			// and pages are met often enough to filter for.
+		},
+		// Unbounded sides stay within numberRange of the other bound, so invariants on counts
+		// and pages are met often enough to filter for.
+		number: ({ constraints: c }) => {
 			const min = c.min ?? Math.min(-numberRange, (c.max ?? 0) - numberRange);
 			const max = c.max ?? Math.max(numberRange, min + numberRange);
 			if (c.int) return fc.integer({ min: Math.ceil(min), max: Math.floor(max) });
 			return fc.double({ min, max, noNaN: true });
-		}
-		if (type instanceof ArrayType) return fc.array(value(type.valueType, depth), lengths(c, depth));
-		if (type instanceof MapType) {
-			const { minLength: minKeys, maxLength: maxKeys } = lengths(c, depth);
+		},
+		array: (type, depth) =>
+			fc.array(value(type.valueType, depth), lengths(type.constraints, depth)),
+		map: (type, depth) => {
+			const { minLength: minKeys, maxLength: maxKeys } = lengths(type.constraints, depth);
 			const key = fc.string({ maxLength: 4 }).filter((k) => k !== "__proto__");
 			return fc.dictionary(key, value(type.valueType, depth), { minKeys, maxKeys });
-		}
-		if (type instanceof RecordType) return fc.record(mapValues(type.shape, (v) => value(v, depth)));
-		if (type instanceof UnionType) return fc.oneof(...type.types.map((v) => value(v, depth)));
-		if (type instanceof ComponentType) return component(type, depth);
-		return fc.jsonValue();
+		},
+		record: (type, depth) => fc.record(mapValues(type.shape, (v) => value(v, depth))),
+		oneOf: (type, depth) => fc.oneof(...type.types.map((v) => value(v, depth))),
+		component: (type, depth) => component(type, depth),
 	};
+	const derive = (type, depth) =>
+		Object.hasOwn(derivers, type.constructor.kind)
+			? derivers[type.constructor.kind](type, depth)
+			: fc.jsonValue();
 	// Valid values for type; KeyRefs stand in for t.index keys until the owner exists.
 	const value = (type, depth = 0) => {
 		const arb = type.generator === undefined ? derive(type, depth) : type.generator(fc, A);
@@ -175,7 +161,7 @@ export const arbitraries = ({
 		);
 	// Values type rejects, or null when it accepts every defined value.
 	const invalid = (type) => {
-		const unwrapped = type instanceof OptionType ? type.valueType : type;
+		const unwrapped = unwrapOption(type);
 		const acceptsAll =
 			unwrapped.constructor === AnyType && Object.keys(unwrapped.constraints).length === 0;
 		if (acceptsAll) return null;
@@ -200,12 +186,12 @@ export const arbitraries = ({
 			if (indexes.length === 0) return fc.constant(fieldArgs);
 			const keyArbs = Object.fromEntries(indexes.map(([name, type]) => [name, value(type, depth)]));
 			return fc.record(keyArbs).map((refs) => {
-				const owner = tryMake(spec, fieldArgs);
+				const owner = tryMake(spec, fieldArgs, scope);
 				const keys = mapValues(refs, (ref, name) => resolveRefs(ref, spec.fields[name], owner));
 				return { ...fieldArgs, ...keys };
 			});
 		});
-		const made = withKeys.map((a) => tryMake(spec, a)).filter((v) => v !== undefined);
+		const made = withKeys.map((a) => tryMake(spec, a, scope)).filter((v) => v !== undefined);
 		const { invariants } = spec;
 		if (Object.keys(invariants).length === 0) return made;
 		return made.filter((v) => Object.values(invariants).every((inv) => inv.call(v)));
@@ -266,7 +252,7 @@ export class Driver {
 		if (!live) this.host.scheduleNextTaskTick = () => {};
 		if (document === null) this.host.render = () => {};
 		else
-			for (const spec of Object.values(registeredSpecs(scopeOf(root)))) {
+			for (const spec of Object.values(scopeOf(root)?.allSpecs() ?? {})) {
 				this.host.addEventListeners(spec.eventNames);
 			}
 		this.host.start(root);
@@ -366,7 +352,7 @@ export const drivableMessages = (A, spec) => {
 			untyped.push(message.name);
 			continue;
 		}
-		const index = message.sourceKey === undefined ? null : indexOf(message.sourceKey);
+		const index = message.sourceKey === undefined ? null : unwrapOption(message.sourceKey);
 		if (index !== null && !(index instanceof IndexType)) {
 			untyped.push(message.name); // A sourceKey the harness can't build a source path for.
 			continue;
@@ -515,7 +501,7 @@ export class EventCommand {
 		if (elements.length === 0) return;
 		const el = elements[this.target % elements.length];
 		const eid = Number(el.dataset.eid);
-		const handlers = Object.values(registeredSpecs(scopeOf(driver.state))).flatMap(
+		const handlers = Object.values(scopeOf(driver.state)?.allSpecs() ?? {}).flatMap(
 			(spec) => spec.eventHandlers.get(eid) ?? [],
 		);
 		if (handlers.length === 0) return;
@@ -566,13 +552,8 @@ export const specProperties = (spec, A, { document = null } = {}) => {
 	const schemaIssues = (v) =>
 		findInvalidFields(v, null).filter((i) => !i.reason.startsWith("invariant:"));
 	props.makeIsTotal = fc.property(A.args(spec), (args) => {
-		let made;
-		try {
-			made = spec.make(args, scope);
-		} catch (error) {
-			if (NO_DEFAULT.test(error.message)) return;
-			throw error;
-		}
+		const made = tryMake(spec, args, scope);
+		if (made === undefined) return;
 		const issues = schemaIssues(made);
 		if (issues.length > 0)
 			throw new Error(`invalid after make: ${JSON.stringify(issues.map((i) => i.path))}`);
@@ -585,15 +566,9 @@ export const specProperties = (spec, A, { document = null } = {}) => {
 		}
 	});
 	props.defaultsAreFresh = fc.property(fc.constant(null), () => {
-		let a;
-		let b;
-		try {
-			a = spec.make({}, scope);
-			b = spec.make({}, scope);
-		} catch (error) {
-			if (NO_DEFAULT.test(error.message)) return;
-			throw error;
-		}
+		const a = tryMake(spec, {}, scope);
+		if (a === undefined) return;
+		const b = spec.make({}, scope);
 		for (const key in spec.fields) {
 			if (a[key] !== null && typeof a[key] === "object" && a[key] === b[key]) {
 				throw new Error(`${spec.name}.${key} default is shared between instances`);

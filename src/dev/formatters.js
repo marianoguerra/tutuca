@@ -4,10 +4,8 @@
 import { isMetaOpen, META_CLOSE, parseMeta } from "../meta.js";
 import {
 	AnyType,
-	ArrayType,
 	AskTask,
 	AstNode,
-	BooleanType,
 	ComponentSpec,
 	ComponentType,
 	DispatchPath,
@@ -16,21 +14,17 @@ import {
 	EventTask,
 	Frame,
 	IndexType,
-	MapType,
 	MessageContext,
 	NotifyTask,
-	NumberType,
 	OptionType,
 	RecordType,
 	RenderContext,
 	Scope,
 	Selector,
-	StringType,
 	scopeOf,
 	specOf,
 	Target,
 	Task,
-	UnionType,
 	UpdatePath,
 	Walker,
 } from "../tutuca.js";
@@ -169,19 +163,7 @@ const astHeader = (node) => {
 	return printer.out;
 };
 
-const typeName = (t) => {
-	if (t instanceof StringType) return "string";
-	if (t instanceof BooleanType) return "boolean";
-	if (t instanceof NumberType) return "number";
-	if (t instanceof EnumType) return "enum";
-	if (t instanceof ArrayType) return "array";
-	if (t instanceof MapType) return "map";
-	if (t instanceof RecordType) return "record";
-	if (t instanceof UnionType) return "oneOf";
-	if (t instanceof IndexType) return "index";
-	if (t instanceof ComponentType) return "component";
-	return "any";
-};
+const typeName = (t) => t.constructor.kind ?? "any";
 const join = (items, sep) => items.flatMap((item, i) => (i === 0 ? item : [sep, ...item]));
 const constraintParts = ({ where, ...rest }) => {
 	const parts = Object.entries(rest).map(([k, v]) =>

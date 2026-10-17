@@ -6,7 +6,7 @@ import {
 	IndexType,
 	MapType,
 	MessageSpec,
-	OptionType,
+	unwrapOption,
 	Walker,
 } from "../tutuca.js";
 
@@ -128,7 +128,7 @@ export class Lint extends Walker {
 			}
 		} else if (type instanceof IndexType) {
 			const target = fields[type.fieldName];
-			const unwrapped = target instanceof OptionType ? target.valueType : target;
+			const unwrapped = unwrapOption(target);
 			if (!(unwrapped instanceof ArrayType || unwrapped instanceof MapType)) {
 				this.report(
 					"error",

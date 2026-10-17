@@ -5,6 +5,7 @@ import {
 	findInvalidFields,
 	isComponent,
 	messageIssues,
+	NoDefaultError,
 	scopeOf,
 	scopeSym,
 	specOf,
@@ -46,7 +47,8 @@ export class ComponentSpec {
 				state[key] = this.fields[key].make(args[key], scope, state);
 			} catch (error) {
 				// Prefix the field, so nested failures read as a path: Root.child: Child.item: ...
-				throw new Error(`${this.name}.${key}: ${error.message}`, { cause: error });
+				const Wrapped = error instanceof NoDefaultError ? NoDefaultError : Error;
+				throw new Wrapped(`${this.name}.${key}: ${error.message}`, { cause: error });
 			}
 		}
 		return state;
@@ -793,6 +795,14 @@ export class Scope {
 	}
 	lookupByName(name) {
 		return this.lookup((scope) => scope.byName[name]);
+	}
+	// Every spec registered here or in a parent, by name; inner registrations win.
+	allSpecs() {
+		const specs = {};
+		for (let s = this; s !== null; s = s.parent) {
+			for (const name in s.byName) specs[name] ??= s.byName[name];
+		}
+		return specs;
 	}
 	make(name, args) {
 		const spec = this.lookupByName(name);
