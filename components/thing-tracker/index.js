@@ -26,7 +26,6 @@ import {
 	measureRef,
 	PANELS,
 	pick,
-	plural,
 	seg,
 	TABS,
 } from "./common.js";
@@ -47,6 +46,7 @@ import {
 	measurementHistory,
 	parseEnvelope,
 	planImport,
+	plural,
 	rankThings,
 	slugify,
 	UNGROUPED,

@@ -16,7 +16,6 @@ export const BANNER = "mx-4 mt-3 rounded-lg border border-base-300 bg-base-200/4
 export const LINK = "underline underline-offset-2 cursor-pointer";
 export const pick = (on) => (on ? PILL_ON : PILL_OFF);
 export const seg = (on) => (on ? SEG_ON : SEG_OFF);
-export const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export const measureRef = (t) => t.record({ measurementId: t.string(), unit: t.string() });
 export const eventRecord = (t) =>

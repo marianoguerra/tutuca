@@ -13,7 +13,8 @@ import {
 	t,
 	tag,
 } from "../../src/tutuca.js";
-import { MUTED, measureRef, plural } from "./common.js";
+import { MUTED, measureRef } from "./common.js";
+import { plural } from "./model.js";
 
 const { div, h2, li, p, section, span } = tag;
 

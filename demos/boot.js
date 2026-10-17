@@ -1,5 +1,6 @@
 // Boots a demo: a dev Host on #app with the components, their ask handlers and a root.
 import { compile } from "margaui";
+import { isoDay } from "../components/common/calendar.js";
 import { ClassCompiler, classNamesOf } from "../src/dev/classes.js";
 import { DispatchPath, Host, Target, Task } from "../src/tutuca.js";
 
@@ -40,7 +41,6 @@ const download = (filename, text, type) => {
 	Object.assign(doc.createElement("a"), { href: url, download: filename }).click();
 	setTimeout(() => URL.revokeObjectURL(url), 0);
 };
-const pad = (n) => String(n).padStart(2, "0");
 export const browserHandlers = {
 	// The third argument is a mime type (drawing) or a kind the caller wants back (tracker).
 	saveFile: ([filename, text, typeOrKind]) => {
@@ -48,10 +48,7 @@ export const browserHandlers = {
 		return typeOrKind;
 	},
 	readText: ([file]) => file.text(),
-	today: () => {
-		const d = new Date();
-		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-	},
+	today: () => isoDay(new Date()),
 	now: () => Date.now(),
 	wait: ([ms, id]) => new Promise((resolve) => setTimeout(() => resolve(id), ms)),
 };

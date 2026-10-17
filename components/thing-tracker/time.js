@@ -1,11 +1,12 @@
 // Time helpers of thing-tracker (src/lib/time.ts). Timestamps are epoch ms; tz is the
 // offset of local time from UTC in minutes (-new Date().getTimezoneOffset()), passed in
 // so results don't depend on the machine running them.
+import { DAY, MONTHS, pad } from "../common/calendar.js";
+
+export { DAY };
 export const MINUTE = 60000;
 export const HOUR = 3600000;
-export const DAY = 86400000;
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const LONG_MONTHS = [
 	"January",
 	"February",
@@ -20,7 +21,6 @@ const LONG_MONTHS = [
 	"November",
 	"December",
 ];
-const pad = (n) => String(n).padStart(2, "0");
 
 // A Date whose UTC fields read as the local time of ts.
 const local = (ts, tz) => new Date(ts + tz * MINUTE);

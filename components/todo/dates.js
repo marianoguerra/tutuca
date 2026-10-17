@@ -1,7 +1,7 @@
 // Calendar dates as ISO strings (YYYY-MM-DD), computed in UTC so no time zone shifts a day.
-const DAY_MS = 86400000;
+import { DAY, isoDay, MONTHS } from "../common/calendar.js";
+
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 export const parseIso = (iso) => {
@@ -10,10 +10,9 @@ export const parseIso = (iso) => {
 };
 export const toIso = (date) => date.toISOString().slice(0, 10);
 export const isIso = (s) => typeof s === "string" && ISO.test(s) && toIso(parseIso(s)) === s;
-export const isoToday = (now = new Date()) =>
-	toIso(new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())));
-export const addDays = (iso, n) => toIso(new Date(parseIso(iso).getTime() + n * DAY_MS));
-export const daysBetween = (from, to) => Math.round((parseIso(to) - parseIso(from)) / DAY_MS);
+export const isoToday = (now = new Date()) => isoDay(now);
+export const addDays = (iso, n) => toIso(new Date(parseIso(iso).getTime() + n * DAY));
+export const daysBetween = (from, to) => Math.round((parseIso(to) - parseIso(from)) / DAY);
 const weekdayOf = (iso) => parseIso(iso).getUTCDay();
 const capitalize = (s) => s[0].toUpperCase() + s.slice(1);
 
