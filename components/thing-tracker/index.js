@@ -3,9 +3,9 @@
 // backups. The app owns all data; panels and children notify it with what to change.
 // Time is state (now, tz) the host keeps current, so every view is a function of it.
 
-import { tag } from "../../src/dev/util.js";
 import {
 	$if,
+	button,
 	component,
 	each,
 	field,
@@ -20,6 +20,7 @@ import {
 	seqItem,
 	sourceKey,
 	t,
+	tag,
 	targetValue,
 } from "../../src/tutuca.js";
 import { EMOJI, EMOJI_CATEGORIES } from "./emoji.js";
@@ -86,7 +87,6 @@ const {
 	textarea,
 	ul,
 } = tag;
-const button = (attrs, ...childs) => tag.button({ type: "button", ...attrs }, ...childs);
 
 // Looks, after shadcn's zinc theme in daisyUI terms.
 const MUTED = "text-base-content/60";

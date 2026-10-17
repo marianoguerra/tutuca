@@ -7,7 +7,7 @@ import { addDays, dayHeader, dueLabel, dueTone, isIso } from "../components/todo
 import { todoComponents } from "../components/todo/index.js";
 import { parseQuickAdd } from "../components/todo/quickadd.js";
 import { TODAY, todoAppArb } from "../components/todo/stories.js";
-import { devComponents } from "../components/tutuca-dev/index.js";
+import { devComponents } from "../src/dev/panel.js";
 import { arbitraries, specProperties } from "../src/test/pbt.js";
 import { Scope } from "../src/tutuca.js";
 

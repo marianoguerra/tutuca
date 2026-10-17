@@ -2,9 +2,9 @@
 // subtasks; inbox, today, upcoming, project, label and search views; quick add that parses
 // "Buy milk tomorrow p1 #Errands @shop".
 
-import { tag } from "../../src/dev/util.js";
 import {
 	$if,
+	button,
 	component,
 	each,
 	field,
@@ -19,14 +19,13 @@ import {
 	seqItem,
 	sourceKey,
 	t,
+	tag,
 	targetValue,
 } from "../../src/tutuca.js";
 import { addDays, dayHeader, dueLabel, dueTone, isIso, isoToday } from "./dates.js";
 import { parseQuickAdd } from "./quickadd.js";
 
-const { aside, button, div, form, h2, h3, input, label, main, option, p, select, span, textarea } =
-	tag;
-const btn = (attrs, ...childs) => button({ type: "button", ...attrs }, ...childs);
+const { aside, div, form, h2, h3, input, label, main, option, p, select, span, textarea } = tag;
 
 // Dates in a two year window, for generated states.
 const isoArb = (fc) => fc.integer({ min: 0, max: 730 }).map((n) => addDays("2026-01-01", n));
@@ -220,7 +219,7 @@ export const TodoTask = component({
 				),
 				div(
 					{ class: "flex justify-end" },
-					btn({ class: "btn btn-sm btn-primary", "@on.click": send("endEdit") }, "Done"),
+					button({ class: "btn btn-sm btn-primary", "@on.click": send("endEdit") }, "Done"),
 				),
 			),
 			div(
@@ -249,7 +248,7 @@ export const TodoTask = component({
 						),
 						$if(
 							field("hasSubtasks"),
-							btn(
+							button(
 								{ class: "link link-hover opacity-60", "@on.click": send("toggleExpand") },
 								field("subtaskProgress"),
 							),
@@ -259,10 +258,10 @@ export const TodoTask = component({
 				),
 				div(
 					{ class: "flex shrink-0 gap-0.5" },
-					btn({ class: ICON_BTN, title: "Move up", "@on.click": send("moveUp") }, "↑"),
-					btn({ class: ICON_BTN, title: "Move down", "@on.click": send("moveDown") }, "↓"),
-					btn({ class: ICON_BTN, title: "Edit", "@on.click": send("beginEdit") }, "✎"),
-					btn(
+					button({ class: ICON_BTN, title: "Move up", "@on.click": send("moveUp") }, "↑"),
+					button({ class: ICON_BTN, title: "Move down", "@on.click": send("moveDown") }, "↓"),
+					button({ class: ICON_BTN, title: "Edit", "@on.click": send("beginEdit") }, "✎"),
+					button(
 						{ class: `${ICON_BTN} text-error`, title: "Delete", "@on.click": send("remove") },
 						"🗑",
 					),
@@ -452,7 +451,7 @@ export const TodoProject = component({
 					},
 					...Object.keys(COLORS).map((c) => option({ value: c }, c)),
 				),
-				btn({ class: "btn btn-sm btn-primary", "@on.click": send("endRename") }, "Done"),
+				button({ class: "btn btn-sm btn-primary", "@on.click": send("endRename") }, "Done"),
 			),
 			h2(
 				{
@@ -467,8 +466,8 @@ export const TodoProject = component({
 			field("canEdit"),
 			div(
 				{ class: "ml-auto flex gap-1" },
-				btn({ class: "btn btn-xs btn-ghost", "@on.click": send("beginRename") }, "Rename"),
-				btn({ class: "btn btn-xs btn-ghost text-error", "@on.click": send("remove") }, "Delete"),
+				button({ class: "btn btn-xs btn-ghost", "@on.click": send("beginRename") }, "Rename"),
+				button({ class: "btn btn-xs btn-ghost text-error", "@on.click": send("remove") }, "Delete"),
 			),
 			"",
 		),
@@ -776,24 +775,24 @@ export const TodoApp = component({
 					value: field("search"),
 					"@on.input": send("setSearch", targetValue()),
 				}),
-				btn(
+				button(
 					{ class: lookupBind("inboxClass"), "@on.click": send("openView", "inbox") },
 					"📥 Inbox",
 					span({ class: "ml-auto text-xs opacity-60" }, lookupBind("inboxCount")),
 				),
-				btn(
+				button(
 					{ class: lookupBind("todayClass"), "@on.click": send("openView", "today") },
 					"📅 Today",
 					span({ class: "ml-auto text-xs opacity-60" }, lookupBind("todayCount")),
 				),
-				btn(
+				button(
 					{ class: lookupBind("upcomingClass"), "@on.click": send("openView", "upcoming") },
 					"🗓 Upcoming",
 				),
 				h3({ class: "mt-3 px-3 text-xs font-semibold uppercase opacity-60" }, "Projects"),
 				each(
 					field("projects"),
-					btn(
+					button(
 						{ class: lookupBind("navClass"), "@on.click": send("openProject", sourceKey()) },
 						span({ class: lookupBind("dot") }),
 						field("name"),
@@ -819,7 +818,7 @@ export const TodoApp = component({
 				h3({ class: "mt-3 px-3 text-xs font-semibold uppercase opacity-60" }, "Labels"),
 				each(
 					field("labels"),
-					btn(
+					button(
 						{ class: lookupBind("navClass"), "@on.click": send("openLabel", sourceKey()) },
 						"@",
 						lookupBind("value"),
@@ -877,7 +876,7 @@ export const TodoApp = component({
 					),
 					$if(
 						lookupBind("hasCompleted"),
-						btn(
+						button(
 							{ class: "btn btn-xs btn-ghost", "@on.click": send("clearCompleted") },
 							"Clear completed",
 						),

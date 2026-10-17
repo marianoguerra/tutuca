@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { collectClasses } from "../src/dev/util.js";
+import { collectClasses } from "../src/dev/classes.js";
 import { $if, each, field, h } from "../src/tutuca.js";
 
 test("collectClasses finds constant classes in nested $if branches", () => {

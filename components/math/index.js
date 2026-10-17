@@ -3,8 +3,18 @@
 // or complex, next to a plot of the parabola; a 2×2 matrix with its determinant and
 // inverse; and a gallery of classic formulas.
 
-import { tag } from "../../src/dev/util.js";
-import { $if, component, each, field, lookupBind, send, t, targetValue } from "../../src/tutuca.js";
+import {
+	$if,
+	button,
+	component,
+	each,
+	field,
+	lookupBind,
+	send,
+	t,
+	tag,
+	targetValue,
+} from "../../src/tutuca.js";
 
 const { div, h3, input, label, p, span } = tag;
 const {
@@ -25,7 +35,6 @@ const {
 	munderover,
 } = tag;
 const { circle, g, line, path, svg } = tag;
-const button = (attrs, ...childs) => tag.button({ type: "button", ...attrs }, ...childs);
 
 // Numbers as MathML shows them: up to 3 decimals, a real minus sign.
 export const fmt = (n) => {

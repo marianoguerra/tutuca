@@ -1,6 +1,6 @@
 // Boots a demo: a dev Host on #app with the components, their ask handlers and a root.
 import { compile } from "margaui";
-import { ClassCompiler, classNamesOf } from "../src/storybook/index.js";
+import { ClassCompiler, classNamesOf } from "../src/dev/classes.js";
 import { DispatchPath, Host, Target, Task } from "../src/tutuca.js";
 
 export const boot = ({ components, askHandlers = {}, make, document = globalThis.document }) => {

@@ -5,9 +5,9 @@
 //
 // enum and const carry arbitrary JSON, which has no schema shape, so they hold JSON components.
 
-import { tag } from "../../src/dev/util.js";
 import {
 	$if,
+	button,
 	component,
 	each,
 	field,
@@ -20,6 +20,7 @@ import {
 	send,
 	specOf,
 	t,
+	tag,
 } from "../../src/tutuca.js";
 import { fromJson, VALUE_NAMES } from "../json/index.js";
 
@@ -45,7 +46,6 @@ export const SCHEMA_NAMES = [
 export const DEFAULT_PER_PAGE = 50;
 
 const { div, header, section, span } = tag;
-const button = (attrs, ...childs) => tag.button({ type: "button", ...attrs }, ...childs);
 
 const LINE = "flex items-baseline min-w-0 py-px";
 const BODY = "ml-2 pl-3 border-l border-base-300";

@@ -15,6 +15,7 @@ import { render as $render, VBase, VComment, VFragment, VNode, VText } from "./v
 import { Collect } from "./walk.js";
 
 export * from "./schema.js";
+export * from "./tag.js";
 export * from "./walk.js";
 
 export class ComponentSpec {

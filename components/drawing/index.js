@@ -4,9 +4,9 @@
 // for stroke), stroke widths, undo and redo, and export as an .svg file. Pointer events turn
 // into messages with coordinates (startAt, moveTo, end), so drawing can be scripted and tested.
 
-import { tag } from "../../src/dev/util.js";
 import {
 	$if,
+	button,
 	component,
 	each,
 	field,
@@ -16,12 +16,12 @@ import {
 	send,
 	specOf,
 	t,
+	tag,
 	targetValue,
 } from "../../src/tutuca.js";
 
 const { div, ellipse, g, line, polyline, rect, span } = tag;
 const svg = tag.svg;
-const button = (attrs, ...childs) => tag.button({ type: "button", ...attrs }, ...childs);
 
 export const PALETTE = [
 	"#000000",

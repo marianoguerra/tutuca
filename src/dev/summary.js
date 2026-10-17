@@ -28,7 +28,7 @@ import {
 	Task,
 	UnionType,
 	UpdatePath,
-} from "../../src/tutuca.js";
+} from "../tutuca.js";
 
 const MAX = 40;
 const clip = (text) => (text.length > MAX ? `${text.slice(0, MAX)}…` : text);

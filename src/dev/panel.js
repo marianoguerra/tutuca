@@ -1,9 +1,8 @@
 // Tutuca components that show in a page what the DevTools formatters of src/dev/formatters.js show
 // in the console: a component's fields and spec, field types, views, paths, tasks, scopes
 // and render contexts, each node expanding into its rows. The main views say it in plain
-// words (summary.js); the code views print it as src/dev/formatters.js does.
-import { describe, S } from "../../src/dev/formatters.js";
-import { tag } from "../../src/dev/util.js";
+// words (summary.js); the code views print it as formatters.js does.
+
 import {
 	$if,
 	ComponentSpec,
@@ -17,7 +16,9 @@ import {
 	scopeOf,
 	send,
 	t,
-} from "../../src/tutuca.js";
+	tag,
+} from "../tutuca.js";
+import { describe, S } from "./formatters.js";
 import { summarize } from "./summary.js";
 
 const { button, div, h3, li, p, section, span, ul } = tag;

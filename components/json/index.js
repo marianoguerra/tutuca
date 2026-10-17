@@ -2,9 +2,9 @@
 // an edit view, styled like main, that edits them in place. pushView("edit", ...) above a
 // tree, as JsonEditor does, switches the whole tree; values without an edit view keep main.
 
-import { tag } from "../../src/dev/util.js";
 import {
 	$if,
+	button,
 	component,
 	each,
 	field,
@@ -16,6 +16,7 @@ import {
 	send,
 	sourceKey,
 	t,
+	tag,
 	targetValue,
 } from "../../src/tutuca.js";
 
@@ -48,7 +49,6 @@ const ADD = "cursor-pointer self-start rounded px-1 font-mono text-xs opacity-50
 const BLOCK = "ml-1 flex flex-col border-l border-base-content/15 pl-4";
 
 const { div, input, label, pre, span } = tag;
-const button = (attrs, ...childs) => tag.button({ type: "button", ...attrs }, ...childs);
 
 export const JsonNull = component({
 	name: "JsonNull",

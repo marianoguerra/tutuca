@@ -1,12 +1,8 @@
 import * as fc from "fast-check";
 import { compile } from "margaui";
+import { ClassCompiler, classNamesOf } from "./src/dev/classes.js";
 import { installFormatters } from "./src/dev/formatters.js";
-import {
-	ClassCompiler,
-	classNamesOf,
-	startStorybook,
-	storybookClasses,
-} from "./src/storybook/index.js";
+import { startStorybook, storybookClasses } from "./src/storybook/index.js";
 import { books } from "./storybook.books.js";
 
 installFormatters();

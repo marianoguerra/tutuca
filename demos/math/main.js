@@ -1,6 +1,5 @@
 import { fmt, mathComponents } from "../../components/math/index.js";
-import { tag } from "../../src/dev/util.js";
-import { $if, component, each, field, render, send, sourceKey, t } from "../../src/tutuca.js";
+import { $if, component, each, field, render, send, sourceKey, t, tag } from "../../src/tutuca.js";
 import { boot } from "../boot.js";
 
 const { aside, button, div, h2, li, p, span, ul } = tag;

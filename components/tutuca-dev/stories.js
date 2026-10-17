@@ -1,9 +1,15 @@
+import {
+	devComponents,
+	devNode,
+	lintRecords,
+	makeDevPanel,
+	updateDevPanel,
+} from "../../src/dev/panel.js";
 import { lint } from "../../src/lint/index.js";
 import { step, stories } from "../../src/storybook/index.js";
 import { DispatchPath, Frame, Scope, Target, Task } from "../../src/tutuca.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { todoComponents } from "../todo/index.js";
-import { devComponents, devNode, lintRecords, makeDevPanel, updateDevPanel } from "./index.js";
 
 // Values to inspect, made in a scope of their own like an app's.
 const app = new Scope(() => {});

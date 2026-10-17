@@ -48,10 +48,10 @@ host.start(host.scope.components.Counter());
 
 | Import | What |
 |---|---|
-| `tutuca` | components, views, schemas, the host |
+| `tutuca` | components, views, schemas, the host, the `tag` and `button` element builders |
 | `tutuca/dev` | DevTools formatters |
 | `tutuca/lint` | the linter |
-| `tutuca/util` | the `tag` element builders and `collectClasses` |
+| `tutuca/classes` | `collectClasses`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed |
 | `tutuca/pbt` | property-based testing and the headless driver (bring your own `fast-check`) |
 | `tutuca/storybook` | the storybook |
 | `tutuca/element` | the `<tutuca-app>` custom element |

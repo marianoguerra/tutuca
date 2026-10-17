@@ -1,7 +1,16 @@
 import { fromJson, jsonComponents } from "../../components/json/index.js";
 import { schemaComponents, schemaTree } from "../../components/jsonschema/index.js";
-import { tag } from "../../src/dev/util.js";
-import { $if, component, field, render, scopeOf, send, t, targetValue } from "../../src/tutuca.js";
+import {
+	$if,
+	component,
+	field,
+	render,
+	scopeOf,
+	send,
+	t,
+	tag,
+	targetValue,
+} from "../../src/tutuca.js";
 import { boot, browserHandlers, sendRoot } from "../boot.js";
 import { inferSchema, schemaDocument } from "./infer.js";
 

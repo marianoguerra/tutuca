@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
-import { collectClasses } from "../src/dev/util.js";
+import { collectClasses } from "../src/dev/classes.js";
 import { isConstant } from "../src/optimize.js";
 import {
 	$if,

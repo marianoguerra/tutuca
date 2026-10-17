@@ -19,7 +19,7 @@
 		"./vdom": "./src/vdom.js",
 		"./dev": "./src/dev/formatters.js",
 		"./lint": "./src/lint/index.js",
-		"./util": "./src/dev/util.js",
+		"./classes": "./src/dev/classes.js",
 		"./pbt": "./src/test/pbt.js",
 		"./storybook": "./src/storybook/index.js",
 		"./element": "./src/storybook/element.js",
@@ -28,8 +28,6 @@
 	"files": [
 		"src/",
 		"deps/",
-		"components/tutuca-dev/index.js",
-		"components/tutuca-dev/summary.js",
 		"dist/",
 		"README.md",
 		"LICENSE"
