@@ -1,7 +1,8 @@
 import { step, stories } from "../../src/storybook/index.js";
 import { scopeOf } from "../../src/tutuca.js";
 import { jsonComponents } from "../json/index.js";
-import { allOpen, fromSchema, schemaComponents, schemaTree } from "./index.js";
+import { allOpen, schemaComponents } from "./index.js";
+import { fromSchema, schemaTree } from "./read.js";
 
 // A schema that uses most of what the family models.
 export const sample = {

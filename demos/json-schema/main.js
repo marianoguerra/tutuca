@@ -1,5 +1,6 @@
 import { fromJson, jsonComponents } from "../../components/json/index.js";
-import { schemaComponents, schemaTree } from "../../components/jsonschema/index.js";
+import { schemaComponents } from "../../components/jsonschema/index.js";
+import { schemaTree } from "../../components/jsonschema/read.js";
 import {
 	$if,
 	component,

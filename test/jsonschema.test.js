@@ -4,13 +4,8 @@ import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { jsonComponents } from "../components/json/index.js";
-import {
-	allOpen,
-	fromSchema,
-	readKind,
-	schemaComponents,
-	schemaTree,
-} from "../components/jsonschema/index.js";
+import { allOpen, schemaComponents } from "../components/jsonschema/index.js";
+import { fromSchema, readKind, schemaTree } from "../components/jsonschema/read.js";
 import { sample } from "../components/jsonschema/stories.js";
 import { lint } from "../src/lint/index.js";
 import { arbitraries, Driver, specProperties } from "../src/test/pbt.js";
