@@ -3,6 +3,7 @@ import test from "node:test";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { addDays } from "../components/todo/dates.js";
+import { TODAY } from "../components/todo/fixtures.js";
 import { start as startDrawing } from "../demos/drawing/main.js";
 import { inferSchema, schemaDocument } from "../demos/json-schema/infer.js";
 import { start as startStudio } from "../demos/json-schema/main.js";
@@ -81,7 +82,7 @@ test("math demo: saves, reopens and removes problems", async () => {
 });
 
 test("todo demo: quick adds a task in plain words", async () => {
-	const today = "2026-10-16";
+	const today = TODAY;
 	const app = mount(startTodo, today);
 	app.fire("input", app.$('[aria-label="Quick add"]'), "Call mom tomorrow p1 #Errands");
 	app.fire("submit", app.$('[aria-label="Quick add task"]'));

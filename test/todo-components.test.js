@@ -4,9 +4,9 @@ import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { addDays, dayHeader, dueLabel, dueTone, isIso } from "../components/todo/dates.js";
+import { TODAY, todoAppArb } from "../components/todo/fixtures.js";
 import { todoComponents } from "../components/todo/index.js";
 import { parseQuickAdd } from "../components/todo/quickadd.js";
-import { TODAY, todoAppArb } from "../components/todo/stories.js";
 import { devComponents } from "../src/dev/panel.js";
 import { arbitraries, specProperties } from "../src/test/pbt.js";
 import { Scope } from "../src/tutuca.js";

@@ -25,8 +25,7 @@ for (const file of ["dist/tutuca.js", "dist/tutuca.min.js"]) {
 const [packed] = JSON.parse(
 	execFileSync("npm", ["pack", "--dry-run", "--json"], { encoding: "utf8" }),
 );
-const allowed =
-	/^(src\/|deps\/|dist\/|README\.md$|LICENSE$|package\.json$)/;
+const allowed = /^(src\/|deps\/|dist\/|README\.md$|LICENSE$|package\.json$)/;
 for (const { path } of packed.files) {
 	if (!allowed.test(path)) problems.push(`unexpected file in the package: ${path}`);
 }

@@ -1,73 +1,15 @@
 import { step, stories } from "../../src/storybook/index.js";
+import { drink, habit, NOW, sample, trackerAppArb } from "./fixtures.js";
 import { trackerApp, trackerComponents } from "./index.js";
 import { BUNDLES } from "./model.js";
-import { DAY, HOUR, MINUTE } from "./time.js";
+import { MINUTE } from "./time.js";
 
-// Stories run at a fixed time, in UTC, so labels don't change from run to run.
-export const NOW = Date.UTC(2026, 9, 16, 10, 30); // Friday 16 Oct 2026, 10:30.
-
-const habit = (slug) => `thing:habits/${slug}`;
-const drink = (slug) => `thing:hydration/${slug}`;
-const km = (n) => ({ measurementId: "distance", value: n * 1000 });
-const minutes = (n) => ({ measurementId: "duration", value: n * MINUTE });
-const ml = (n) => ({ measurementId: "volume", value: n });
-// A week of logging, with gaps.
-const week = [
-	{ thing: drink("coffee"), ago: 2 * HOUR },
-	{ thing: drink("coffee"), ago: 4 * HOUR },
-	{ thing: drink("water"), ago: 3 * HOUR, measurements: [ml(500)] },
-	{ thing: drink("water"), ago: DAY + HOUR, measurements: [ml(250)] },
-	{
-		thing: habit("run"),
-		ago: DAY + 2 * HOUR,
-		measurements: [km(5), minutes(28)],
-		notes: "Felt great",
-	},
-	{ thing: habit("run"), ago: 3 * DAY, measurements: [km(8), minutes(45)] },
-	{ thing: habit("breakfast"), ago: 3 * DAY + HOUR },
-	{ thing: habit("read"), ago: 6 * DAY, recordedAgo: 5 * DAY },
-	{ thing: habit("nap"), ago: 20 * DAY, measurements: [minutes(20)] },
-];
-const sample = (C, rest = {}) =>
-	trackerApp(C, { now: NOW, bundles: ["habits", "hydration"], events: week, ...rest });
 // Indexes into the sample app's things, for message sources.
 const SAMPLE_THINGS = BUNDLES.filter((b) => b.id === "habits" || b.id === "hydration").flatMap(
 	(b) => b.pack.things.map((t) => t.id),
 );
 const atPanel = (b) => b.field("panel");
 const lastEvent = (s) => s.events.at(-1);
-
-// Generated apps: some bundles and events among their things, at some time.
-export const trackerAppArb = (A) => {
-	const { fc } = A;
-	const ids = BUNDLES.map((b) => b.id);
-	return fc
-		.record({
-			bundles: fc.subarray(ids, { maxLength: 3 }),
-			now: fc.integer({ min: Date.UTC(2025, 0, 1), max: Date.UTC(2027, 0, 1) }),
-			tz: fc.constantFrom(0, 60, -180, 330),
-			events: fc.array(
-				fc.record({
-					pick: fc.nat(),
-					ago: fc.integer({ min: 0, max: 40 * DAY }),
-					done: fc.boolean(),
-				}),
-				{
-					maxLength: 12,
-				},
-			),
-			compact: fc.boolean(),
-			granularity: fc.constantFrom("day", "week", "month"),
-		})
-		.map(({ bundles, events, ...rest }) => {
-			const things = BUNDLES.filter((b) => bundles.includes(b.id)).flatMap((b) => b.pack.things);
-			const picked =
-				things.length === 0
-					? []
-					: events.map((e) => ({ thing: things[e.pick % things.length].id, ago: e.ago }));
-			return trackerApp(A.scope.components, { bundles, events: picked, ...rest });
-		});
-};
 
 const appMessages = [
 	"TrackerApp.setTab",

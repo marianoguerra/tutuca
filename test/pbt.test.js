@@ -4,8 +4,8 @@ import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { jsonComponents } from "../components/json/index.js";
+import { todoAppArb } from "../components/todo/fixtures.js";
 import { todoComponents } from "../components/todo/index.js";
-import { todoAppArb } from "../components/todo/stories.js";
 import {
 	arbitraries,
 	Driver,

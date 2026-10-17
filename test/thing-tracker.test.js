@@ -3,6 +3,7 @@ import test from "node:test";
 import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
+import { NOW, trackerAppArb } from "../components/thing-tracker/fixtures.js";
 import { trackerComponents } from "../components/thing-tracker/index.js";
 import {
 	findMeasurement,
@@ -22,7 +23,6 @@ import {
 	planImport,
 	withGaps,
 } from "../components/thing-tracker/model.js";
-import { NOW, trackerAppArb } from "../components/thing-tracker/stories.js";
 import {
 	DAY,
 	formatBucketLabel,
