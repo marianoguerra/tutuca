@@ -53,11 +53,13 @@ const FILES = {
 	"https://x.test/app/util/one.js": `export const one = 1;`,
 	"https://x.test/src/lib.js": `export const lib = 10;`,
 };
-const fakeFetch = async (url) => {
+const fakeFetch = (url) => {
 	const code = FILES[url];
-	return code === undefined
-		? { ok: false, status: 404 }
-		: { ok: true, status: 200, text: async () => code };
+	return Promise.resolve(
+		code === undefined
+			? { ok: false, status: 404 }
+			: { ok: true, status: 200, text: () => Promise.resolve(code) },
+	);
 };
 const isExternal = (url) => url.startsWith("https://x.test/src/");
 
