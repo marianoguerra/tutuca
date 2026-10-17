@@ -54,6 +54,10 @@ storybook story="":
 dist:
     npm run dist
 
+# Rebuild deps/immer.js from the immer devDependency, after bumping it in package.json.
+vendor-immer:
+    npm run vendor-immer
+
 # Check what gets published: imports by package name, bundle exports, tarball contents.
 smoke: dist
     npm run smoke

@@ -37,6 +37,7 @@
 		"lint": "biome check .",
 		"fmt": "biome check --write .",
 		"dist": "node scripts/dist.js",
+		"vendor-immer": "node scripts/vendor-immer.js",
 		"smoke": "node scripts/smoke.js",
 		"site": "node scripts/site.js",
 		"prepublishOnly": "npm run lint && npm test && npm run dist && npm run smoke"
@@ -53,6 +54,7 @@
 		"@biomejs/biome": "^2.5.15",
 		"esbuild": "^0.28.2",
 		"fast-check": "^4.10.2",
+		"immer": "11.1.21",
 		"jsdom": "^30.1.3",
 		"margaui": "^0.5704.0"
 	}

@@ -1,5 +1,4 @@
-/*! immer (https://github.com/immerjs/immer), vendored so src/ runs in a browser without a
- * build step: an ESM bundle of immer's source from around 10.2, with its development checks on.
+/*! immer 11.1.21 (https://github.com/immerjs/immer), vendored by scripts/vendor-immer.js.
  *
  * MIT License
  *
@@ -23,13 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-// utils/env.ts
-var NOTHING = Symbol.for("immer-nothing");
-var DRAFTABLE = Symbol.for("immer-draftable");
-var DRAFT_STATE = Symbol.for("immer-state");
-
-// utils/errors.ts
-var errors = [
+// node_modules/immer/dist/immer.mjs
+var NOTHING = /* @__PURE__ */ Symbol.for("immer-nothing");
+var DRAFTABLE = /* @__PURE__ */ Symbol.for("immer-draftable");
+var DRAFT_STATE = /* @__PURE__ */ Symbol.for("immer-state");
+var errors = true ? [
+  // All error codes, starting by 0:
   function(plugin) {
     return `The plugin for '${plugin}' has not been loaded into Immer. To enable the plugin, import and call \`enable${plugin}()\` when initializing your application.`;
   },
@@ -56,41 +54,48 @@ var errors = [
   function(thing) {
     return `'original' expects a draft, got: ${thing}`;
   }
-];
+  // Note: if more errors are added, the errorOffset in Patches.ts should be increased
+  // See Patches.ts for additional errors
+] : [];
 function die(error, ...args) {
   if (true) {
     const e = errors[error];
-    const msg = typeof e === "function" ? e.apply(null, args) : e;
+    const msg = isFunction(e) ? e.apply(null, args) : e;
     throw new Error(`[Immer] ${msg}`);
   }
-  throw new Error(`[Immer] minified error nr: ${error}. Full error at: https://bit.ly/3cXEKWf`);
+  throw new Error(
+    `[Immer] minified error nr: ${error}. Full error at: https://bit.ly/3cXEKWf`
+  );
 }
-
-// utils/common.ts
-var getPrototypeOf = Object.getPrototypeOf;
-function isDraft(value) {
-  return !!value && !!value[DRAFT_STATE];
-}
+var O = Object;
+var getPrototypeOf = O.getPrototypeOf;
+var CONSTRUCTOR = "constructor";
+var PROTOTYPE = "prototype";
+var CONFIGURABLE = "configurable";
+var ENUMERABLE = "enumerable";
+var WRITABLE = "writable";
+var VALUE = "value";
+var isDraft = (value) => !!value && !!value[DRAFT_STATE];
 function isDraftable(value) {
   if (!value)
     return false;
-  return isPlainObject(value) || Array.isArray(value) || !!value[DRAFTABLE] || !!value.constructor?.[DRAFTABLE] || isMap(value) || isSet(value);
+  return isPlainObject(value) || isArray(value) || !!value[DRAFTABLE] || !!value[CONSTRUCTOR]?.[DRAFTABLE] || isMap(value) || isSet(value);
 }
-var objectCtorString = Object.prototype.constructor.toString();
-var cachedCtorStrings = new WeakMap;
+var objectCtorString = O[PROTOTYPE][CONSTRUCTOR].toString();
+var cachedCtorStrings = /* @__PURE__ */ new WeakMap();
 function isPlainObject(value) {
-  if (!value || typeof value !== "object")
+  if (!value || !isObjectish(value))
     return false;
-  const proto = Object.getPrototypeOf(value);
-  if (proto === null || proto === Object.prototype)
+  const proto = getPrototypeOf(value);
+  if (proto === null || proto === O[PROTOTYPE])
     return true;
-  const Ctor = Object.hasOwnProperty.call(proto, "constructor") && proto.constructor;
+  const Ctor = O.hasOwnProperty.call(proto, CONSTRUCTOR) && proto[CONSTRUCTOR];
   if (Ctor === Object)
     return true;
-  if (typeof Ctor !== "function")
+  if (!isFunction(Ctor))
     return false;
   let ctorString = cachedCtorStrings.get(Ctor);
-  if (ctorString === undefined) {
+  if (ctorString === void 0) {
     ctorString = Function.toString.call(Ctor);
     cachedCtorStrings.set(Ctor, ctorString);
   }
@@ -102,8 +107,8 @@ function original(value) {
   return value[DRAFT_STATE].base_;
 }
 function each(obj, iter, strict = true) {
-  if (getArchtype(obj) === 0 /* Object */) {
-    const keys = strict ? Reflect.ownKeys(obj) : Object.keys(obj);
+  if (getArchtype(obj) === 0) {
+    const keys = strict ? Reflect.ownKeys(obj) : O.keys(obj);
     keys.forEach((key) => {
       iter(key, obj[key], obj);
     });
@@ -113,23 +118,21 @@ function each(obj, iter, strict = true) {
 }
 function getArchtype(thing) {
   const state = thing[DRAFT_STATE];
-  return state ? state.type_ : Array.isArray(thing) ? 1 /* Array */ : isMap(thing) ? 2 /* Map */ : isSet(thing) ? 3 /* Set */ : 0 /* Object */;
+  return state ? state.type_ : isArray(thing) ? 1 : isMap(thing) ? 2 : isSet(thing) ? 3 : 0;
 }
-function has(thing, prop) {
-  return getArchtype(thing) === 2 /* Map */ ? thing.has(prop) : Object.prototype.hasOwnProperty.call(thing, prop);
-}
-function get(thing, prop) {
-  return getArchtype(thing) === 2 /* Map */ ? thing.get(prop) : thing[prop];
-}
-function set(thing, propOrOldValue, value) {
-  const t = getArchtype(thing);
-  if (t === 2 /* Map */)
+var has = (thing, prop, type = getArchtype(thing)) => type === 2 ? thing.has(prop) : O[PROTOTYPE].hasOwnProperty.call(thing, prop);
+var get = (thing, prop, type = getArchtype(thing)) => (
+  // @ts-ignore
+  type === 2 ? thing.get(prop) : thing[prop]
+);
+var set = (thing, propOrOldValue, value, type = getArchtype(thing)) => {
+  if (type === 2)
     thing.set(propOrOldValue, value);
-  else if (t === 3 /* Set */) {
+  else if (type === 3) {
     thing.add(value);
   } else
     thing[propOrOldValue] = value;
-}
+};
 function is(x, y) {
   if (x === y) {
     return x !== 0 || 1 / x === 1 / y;
@@ -137,15 +140,27 @@ function is(x, y) {
     return x !== x && y !== y;
   }
 }
-function isMap(target) {
-  return target instanceof Map;
+var isArray = Array.isArray;
+var isMap = (target) => target instanceof Map;
+var isSet = (target) => target instanceof Set;
+var isObjectish = (target) => typeof target === "object";
+var isFunction = (target) => typeof target === "function";
+var isBoolean = (target) => typeof target === "boolean";
+function isArrayIndex(value) {
+  const n = +value;
+  return Number.isInteger(n) && String(n) === value;
 }
-function isSet(target) {
-  return target instanceof Set;
-}
-function latest(state) {
-  return state.copy_ || state.base_;
-}
+var getProxyDraft = (value) => {
+  if (!isObjectish(value))
+    return null;
+  return value?.[DRAFT_STATE];
+};
+var latest = (state) => state.copy_ || state.base_;
+var getValue = (value) => {
+  const proxyDraft = getProxyDraft(value);
+  return proxyDraft ? getFinalValue(proxyDraft) : value;
+};
+var getFinalValue = (state) => state.modified_ ? state.copy_ : state.base_;
 function shallowCopy(base, strict) {
   if (isMap(base)) {
     return new Map(base);
@@ -153,67 +168,75 @@ function shallowCopy(base, strict) {
   if (isSet(base)) {
     return new Set(base);
   }
-  if (Array.isArray(base))
-    return Array.prototype.slice.call(base);
+  if (isArray(base))
+    return Array[PROTOTYPE].slice.call(base);
   const isPlain = isPlainObject(base);
   if (strict === true || strict === "class_only" && !isPlain) {
-    const descriptors = Object.getOwnPropertyDescriptors(base);
+    const descriptors = O.getOwnPropertyDescriptors(base);
     delete descriptors[DRAFT_STATE];
     let keys = Reflect.ownKeys(descriptors);
-    for (let i = 0;i < keys.length; i++) {
+    for (let i = 0; i < keys.length; i++) {
       const key = keys[i];
       const desc = descriptors[key];
-      if (desc.writable === false) {
-        desc.writable = true;
-        desc.configurable = true;
+      if (desc[WRITABLE] === false) {
+        desc[WRITABLE] = true;
+        desc[CONFIGURABLE] = true;
       }
       if (desc.get || desc.set)
         descriptors[key] = {
-          configurable: true,
-          writable: true,
-          enumerable: desc.enumerable,
-          value: base[key]
+          [CONFIGURABLE]: true,
+          [WRITABLE]: true,
+          // could live with !!desc.set as well here...
+          [ENUMERABLE]: desc[ENUMERABLE],
+          [VALUE]: base[key]
         };
     }
-    return Object.create(getPrototypeOf(base), descriptors);
+    return O.create(getPrototypeOf(base), descriptors);
   } else {
     const proto = getPrototypeOf(base);
     if (proto !== null && isPlain) {
       return { ...base };
     }
-    const obj = Object.create(proto);
-    return Object.assign(obj, base);
+    const obj = O.create(proto);
+    return O.assign(obj, base);
   }
 }
 function freeze(obj, deep = false) {
   if (isFrozen(obj) || isDraft(obj) || !isDraftable(obj))
     return obj;
   if (getArchtype(obj) > 1) {
-    Object.defineProperties(obj, {
+    O.defineProperties(obj, {
       set: dontMutateMethodOverride,
       add: dontMutateMethodOverride,
       clear: dontMutateMethodOverride,
       delete: dontMutateMethodOverride
     });
   }
-  Object.freeze(obj);
+  O.freeze(obj);
   if (deep)
-    Object.values(obj).forEach((value) => freeze(value, true));
+    each(
+      obj,
+      (_key, value) => {
+        freeze(value, true);
+      },
+      false
+    );
   return obj;
 }
 function dontMutateFrozenCollections() {
   die(2);
 }
 var dontMutateMethodOverride = {
-  value: dontMutateFrozenCollections
+  [VALUE]: dontMutateFrozenCollections
 };
 function isFrozen(obj) {
-  if (obj === null || typeof obj !== "object")
+  if (obj === null || !isObjectish(obj))
     return true;
-  return Object.isFrozen(obj);
+  return O.isFrozen(obj);
 }
-
-// utils/plugins.ts
+var PluginMapSet = "MapSet";
+var PluginPatches = "Patches";
+var PluginArrayMethods = "ArrayMethods";
 var plugins = {};
 function getPlugin(pluginKey) {
   const plugin = plugins[pluginKey];
@@ -222,28 +245,29 @@ function getPlugin(pluginKey) {
   }
   return plugin;
 }
+var isPluginLoaded = (pluginKey) => !!plugins[pluginKey];
 function loadPlugin(pluginKey, implementation) {
   if (!plugins[pluginKey])
     plugins[pluginKey] = implementation;
 }
-
-// core/scope.ts
 var currentScope;
-function getCurrentScope() {
-  return currentScope;
-}
-function createScope(parent_, immer_) {
-  return {
-    drafts_: [],
-    parent_,
-    immer_,
-    canAutoFreeze_: true,
-    unfinalizedDrafts_: 0
-  };
-}
+var getCurrentScope = () => currentScope;
+var createScope = (parent_, immer_) => ({
+  drafts_: [],
+  parent_,
+  immer_,
+  // Whenever the modified draft contains a draft from another scope, we
+  // need to prevent auto-freezing so the unowned draft can be finalized.
+  canAutoFreeze_: true,
+  unfinalizedDrafts_: 0,
+  handledSet_: /* @__PURE__ */ new Set(),
+  processedForPatches_: /* @__PURE__ */ new Set(),
+  mapSetPlugin_: isPluginLoaded(PluginMapSet) ? getPlugin(PluginMapSet) : void 0,
+  arrayMethodsPlugin_: isPluginLoaded(PluginArrayMethods) ? getPlugin(PluginArrayMethods) : void 0
+});
 function usePatchesInScope(scope, patchListener) {
   if (patchListener) {
-    getPlugin("Patches");
+    scope.patchPlugin_ = getPlugin(PluginPatches);
     scope.patches_ = [];
     scope.inversePatches_ = [];
     scope.patchListener_ = patchListener;
@@ -259,22 +283,18 @@ function leaveScope(scope) {
     currentScope = scope.parent_;
   }
 }
-function enterScope(immer) {
-  return currentScope = createScope(currentScope, immer);
-}
+var enterScope = (immer2) => currentScope = createScope(currentScope, immer2);
 function revokeDraft(draft) {
   const state = draft[DRAFT_STATE];
-  if (state.type_ === 0 /* Object */ || state.type_ === 1 /* Array */)
+  if (state.type_ === 0 || state.type_ === 1)
     state.revoke_();
   else
     state.revoked_ = true;
 }
-
-// core/finalize.ts
 function processResult(result, scope) {
   scope.unfinalizedDrafts_ = scope.drafts_.length;
   const baseDraft = scope.drafts_[0];
-  const isReplaced = result !== undefined && result !== baseDraft;
+  const isReplaced = result !== void 0 && result !== baseDraft;
   if (isReplaced) {
     if (baseDraft[DRAFT_STATE].modified_) {
       revokeScope(scope);
@@ -282,139 +302,234 @@ function processResult(result, scope) {
     }
     if (isDraftable(result)) {
       result = finalize(scope, result);
-      if (!scope.parent_)
-        maybeFreeze(scope, result);
     }
-    if (scope.patches_) {
-      getPlugin("Patches").generateReplacementPatches_(baseDraft[DRAFT_STATE].base_, result, scope.patches_, scope.inversePatches_);
+    const { patchPlugin_ } = scope;
+    if (patchPlugin_) {
+      patchPlugin_.generateReplacementPatches_(
+        baseDraft[DRAFT_STATE].base_,
+        result,
+        scope
+      );
     }
   } else {
-    result = finalize(scope, baseDraft, []);
+    result = finalize(scope, baseDraft);
   }
+  maybeFreeze(scope, result, true);
   revokeScope(scope);
   if (scope.patches_) {
     scope.patchListener_(scope.patches_, scope.inversePatches_);
   }
-  return result !== NOTHING ? result : undefined;
+  return result !== NOTHING ? result : void 0;
 }
-function finalize(rootScope, value, path) {
+function finalize(rootScope, value) {
   if (isFrozen(value))
     return value;
-  const useStrictIteration = rootScope.immer_.shouldUseStrictIteration();
   const state = value[DRAFT_STATE];
   if (!state) {
-    each(value, (key, childValue) => finalizeProperty(rootScope, state, value, key, childValue, path), useStrictIteration);
+    const finalValue = handleValue(value, rootScope.handledSet_, rootScope);
+    return finalValue;
+  }
+  if (!isSameScope(state, rootScope)) {
     return value;
   }
-  if (state.scope_ !== rootScope)
-    return value;
   if (!state.modified_) {
-    maybeFreeze(rootScope, state.base_, true);
     return state.base_;
   }
   if (!state.finalized_) {
-    state.finalized_ = true;
-    state.scope_.unfinalizedDrafts_--;
-    const result = state.copy_;
-    let resultEach = result;
-    let isSet2 = false;
-    if (state.type_ === 3 /* Set */) {
-      resultEach = new Set(result);
-      result.clear();
-      isSet2 = true;
+    const { callbacks_ } = state;
+    if (callbacks_) {
+      while (callbacks_.length > 0) {
+        const callback = callbacks_.pop();
+        callback(rootScope);
+      }
     }
-    each(resultEach, (key, childValue) => finalizeProperty(rootScope, state, result, key, childValue, path, isSet2), useStrictIteration);
-    maybeFreeze(rootScope, result, false);
-    if (path && rootScope.patches_) {
-      getPlugin("Patches").generatePatches_(state, path, rootScope.patches_, rootScope.inversePatches_);
-    }
+    generatePatchesAndFinalize(state, rootScope);
   }
   return state.copy_;
-}
-function finalizeProperty(rootScope, parentState, targetObject, prop, childValue, rootPath, targetIsSet) {
-  if (childValue == null) {
-    return;
-  }
-  if (typeof childValue !== "object" && !targetIsSet) {
-    return;
-  }
-  const childIsFrozen = isFrozen(childValue);
-  if (childIsFrozen && !targetIsSet) {
-    return;
-  }
-  if (childValue === targetObject)
-    die(5);
-  if (isDraft(childValue)) {
-    const path = rootPath && parentState && parentState.type_ !== 3 /* Set */ && !has(parentState.assigned_, prop) ? rootPath.concat(prop) : undefined;
-    const res = finalize(rootScope, childValue, path);
-    set(targetObject, prop, res);
-    if (isDraft(res)) {
-      rootScope.canAutoFreeze_ = false;
-    } else
-      return;
-  } else if (targetIsSet) {
-    targetObject.add(childValue);
-  }
-  if (isDraftable(childValue) && !childIsFrozen) {
-    if (!rootScope.immer_.autoFreeze_ && rootScope.unfinalizedDrafts_ < 1) {
-      return;
-    }
-    if (parentState && parentState.base_ && parentState.base_[prop] === childValue && childIsFrozen) {
-      return;
-    }
-    finalize(rootScope, childValue);
-    if ((!parentState || !parentState.scope_.parent_) && typeof prop !== "symbol" && (isMap(targetObject) ? targetObject.has(prop) : Object.prototype.propertyIsEnumerable.call(targetObject, prop)))
-      maybeFreeze(rootScope, childValue);
-  }
 }
 function maybeFreeze(scope, value, deep = false) {
   if (!scope.parent_ && scope.immer_.autoFreeze_ && scope.canAutoFreeze_) {
     freeze(value, deep);
   }
 }
-
-// core/proxy.ts
+function markStateFinalized(state) {
+  state.finalized_ = true;
+  state.scope_.unfinalizedDrafts_--;
+}
+var isSameScope = (state, rootScope) => state.scope_ === rootScope;
+var EMPTY_LOCATIONS_RESULT = [];
+function updateDraftInParent(parent, draftValue, finalizedValue, originalKey) {
+  const parentCopy = latest(parent);
+  const parentType = parent.type_;
+  if (originalKey !== void 0) {
+    const currentValue = get(parentCopy, originalKey, parentType);
+    if (currentValue === draftValue) {
+      set(parentCopy, originalKey, finalizedValue, parentType);
+      return;
+    }
+  }
+  if (!parent.draftLocations_) {
+    const draftLocations = parent.draftLocations_ = /* @__PURE__ */ new Map();
+    each(parentCopy, (key, value) => {
+      if (isDraft(value)) {
+        const keys = draftLocations.get(value) || [];
+        keys.push(key);
+        draftLocations.set(value, keys);
+      }
+    });
+  }
+  const locations = parent.draftLocations_.get(draftValue) ?? EMPTY_LOCATIONS_RESULT;
+  for (const location of locations) {
+    set(parentCopy, location, finalizedValue, parentType);
+  }
+}
+function registerChildFinalizationCallback(parent, child, key) {
+  parent.callbacks_.push(function childCleanup(rootScope) {
+    const state = child;
+    if (!state || !isSameScope(state, rootScope)) {
+      return;
+    }
+    rootScope.mapSetPlugin_?.fixSetContents(state);
+    const finalizedValue = getFinalValue(state);
+    updateDraftInParent(parent, state.draft_ ?? state, finalizedValue, key);
+    generatePatchesAndFinalize(state, rootScope);
+  });
+}
+function generatePatchesAndFinalize(state, rootScope) {
+  const shouldFinalize = state.modified_ && !state.finalized_ && (state.type_ === 3 || state.type_ === 1 && state.allIndicesReassigned_ || (state.assigned_?.size ?? 0) > 0);
+  if (shouldFinalize) {
+    const { patchPlugin_ } = rootScope;
+    if (patchPlugin_) {
+      const basePath = patchPlugin_.getPath(state);
+      if (basePath) {
+        patchPlugin_.generatePatches_(state, basePath, rootScope);
+      }
+    }
+    markStateFinalized(state);
+  }
+}
+function handleCrossReference(target, key, value) {
+  const { scope_ } = target;
+  if (isDraft(value)) {
+    const state = value[DRAFT_STATE];
+    if (isSameScope(state, scope_)) {
+      state.callbacks_.push(function crossReferenceCleanup() {
+        prepareCopy(target);
+        const finalizedValue = getFinalValue(state);
+        updateDraftInParent(target, value, finalizedValue, key);
+      });
+    }
+  } else if (isDraftable(value)) {
+    target.callbacks_.push(function nestedDraftCleanup() {
+      const targetCopy = latest(target);
+      if (target.type_ === 3) {
+        if (targetCopy.has(value)) {
+          handleValue(value, scope_.handledSet_, scope_);
+        }
+      } else {
+        if (get(targetCopy, key, target.type_) === value) {
+          if (scope_.drafts_.length > 1 && (target.assigned_.get(key) ?? false) === true && target.copy_) {
+            handleValue(
+              get(target.copy_, key, target.type_),
+              scope_.handledSet_,
+              scope_
+            );
+          }
+        }
+      }
+    });
+  }
+}
+function handleValue(target, handledSet, rootScope) {
+  if (!rootScope.immer_.autoFreeze_ && rootScope.unfinalizedDrafts_ < 1) {
+    return target;
+  }
+  if (isDraft(target) || handledSet.has(target) || !isDraftable(target) || isFrozen(target)) {
+    return target;
+  }
+  handledSet.add(target);
+  each(target, (key, value) => {
+    if (isDraft(value)) {
+      const state = value[DRAFT_STATE];
+      if (isSameScope(state, rootScope)) {
+        const updatedValue = getFinalValue(state);
+        set(target, key, updatedValue, target.type_);
+        markStateFinalized(state);
+      }
+    } else if (isDraftable(value)) {
+      handleValue(value, handledSet, rootScope);
+    }
+  });
+  return target;
+}
 function createProxyProxy(base, parent) {
-  const isArray = Array.isArray(base);
+  const baseIsArray = isArray(base);
   const state = {
-    type_: isArray ? 1 /* Array */ : 0 /* Object */,
+    type_: baseIsArray ? 1 : 0,
+    // Track which produce call this is associated with.
     scope_: parent ? parent.scope_ : getCurrentScope(),
+    // True for both shallow and deep changes.
     modified_: false,
+    // Used during finalization.
     finalized_: false,
-    assigned_: {},
+    // Track which properties have been assigned (true) or deleted (false).
+    // actually instantiated in `prepareCopy()`
+    assigned_: void 0,
+    // The parent draft state.
     parent_: parent,
+    // The base state.
     base_: base,
+    // The base proxy.
     draft_: null,
+    // set below
+    // The base copy with any updated values.
     copy_: null,
+    // Called by the `produce` function.
     revoke_: null,
-    isManual_: false
+    isManual_: false,
+    // `callbacks` actually gets assigned in `createProxy`
+    callbacks_: void 0
   };
   let target = state;
   let traps = objectTraps;
-  if (isArray) {
+  if (baseIsArray) {
     target = [state];
     traps = arrayTraps;
   }
   const { revoke, proxy } = Proxy.revocable(target, traps);
   state.draft_ = proxy;
   state.revoke_ = revoke;
-  return proxy;
+  return [proxy, state];
 }
 var objectTraps = {
   get(state, prop) {
     if (prop === DRAFT_STATE)
       return state;
+    let arrayPlugin = state.scope_.arrayMethodsPlugin_;
+    const isArrayWithStringProp = state.type_ === 1 && typeof prop === "string";
+    if (isArrayWithStringProp) {
+      if (arrayPlugin?.isArrayOperationMethod(prop)) {
+        return arrayPlugin.createMethodInterceptor(state, prop);
+      }
+    }
     const source = latest(state);
-    if (!has(source, prop)) {
+    if (!has(source, prop, state.type_)) {
       return readPropFromProto(state, source, prop);
     }
     const value = source[prop];
     if (state.finalized_ || !isDraftable(value)) {
       return value;
     }
-    if (value === peek(state.base_, prop)) {
+    if (isArrayWithStringProp && state.operationMethod && arrayPlugin?.isMutatingArrayMethod(
+      state.operationMethod
+    ) && isArrayIndex(prop)) {
+      return value;
+    }
+    if (value === peek(state.base_, prop) || isRelocatedBaseRef(state, prop, value)) {
       prepareCopy(state);
-      return state.copy_[prop] = createProxy(value, state);
+      const childKey = state.type_ === 1 ? +prop : prop;
+      const childDraft = createProxy(state.scope_, value, state, childKey);
+      return state.copy_[childKey] = childDraft;
     }
     return value;
   },
@@ -431,47 +546,52 @@ var objectTraps = {
       return true;
     }
     if (!state.modified_) {
-      const current = peek(latest(state), prop);
-      const currentState = current?.[DRAFT_STATE];
+      const current2 = peek(latest(state), prop);
+      const currentState = current2?.[DRAFT_STATE];
       if (currentState && currentState.base_ === value) {
         state.copy_[prop] = value;
-        state.assigned_[prop] = false;
+        state.assigned_.delete(prop);
         return true;
       }
-      if (is(value, current) && (value !== undefined || has(state.base_, prop)))
+      if (is(value, current2) && (value !== void 0 || has(state.base_, prop, state.type_)))
         return true;
       prepareCopy(state);
       markChanged(state);
     }
-    if (state.copy_[prop] === value && (value !== undefined || (prop in state.copy_)) || Number.isNaN(value) && Number.isNaN(state.copy_[prop]))
+    if (state.copy_[prop] === value && // special case: handle new props with value 'undefined'
+    (value !== void 0 || has(state.copy_, prop, state.type_)) || // special case: NaN
+    Number.isNaN(value) && Number.isNaN(state.copy_[prop]))
       return true;
     state.copy_[prop] = value;
-    state.assigned_[prop] = true;
+    state.assigned_.set(prop, true);
+    handleCrossReference(state, prop, value);
     return true;
   },
   deleteProperty(state, prop) {
-    if (peek(state.base_, prop) !== undefined || prop in state.base_) {
-      state.assigned_[prop] = false;
-      prepareCopy(state);
+    prepareCopy(state);
+    if (peek(state.base_, prop) !== void 0 || prop in state.base_) {
+      state.assigned_.set(prop, false);
       markChanged(state);
     } else {
-      delete state.assigned_[prop];
+      state.assigned_.delete(prop);
     }
     if (state.copy_) {
       delete state.copy_[prop];
     }
     return true;
   },
+  // Note: We never coerce `desc.value` into an Immer draft, because we can't make
+  // the same guarantee in ES5 mode.
   getOwnPropertyDescriptor(state, prop) {
     const owner = latest(state);
     const desc = Reflect.getOwnPropertyDescriptor(owner, prop);
     if (!desc)
       return desc;
     return {
-      writable: true,
-      configurable: state.type_ !== 1 /* Array */ || prop !== "length",
-      enumerable: desc.enumerable,
-      value: owner[prop]
+      [WRITABLE]: true,
+      [CONFIGURABLE]: state.type_ !== 1 || prop !== "length",
+      [ENUMERABLE]: desc[ENUMERABLE],
+      [VALUE]: owner[prop]
     };
   },
   defineProperty() {
@@ -485,16 +605,18 @@ var objectTraps = {
   }
 };
 var arrayTraps = {};
-each(objectTraps, (key, fn) => {
+for (let key in objectTraps) {
+  let fn = objectTraps[key];
   arrayTraps[key] = function() {
-    arguments[0] = arguments[0][0];
-    return fn.apply(this, arguments);
+    const args = arguments;
+    args[0] = args[0][0];
+    return fn.apply(this, args);
   };
-});
+}
 arrayTraps.deleteProperty = function(state, prop) {
   if (isNaN(parseInt(prop)))
     die(13);
-  return arrayTraps.set.call(this, state, prop, undefined);
+  return arrayTraps.set.call(this, state, prop, void 0);
 };
 arrayTraps.set = function(state, prop, value) {
   if (prop !== "length" && isNaN(parseInt(prop)))
@@ -506,13 +628,23 @@ function peek(draft, prop) {
   const source = state ? latest(state) : draft;
   return source[prop];
 }
+function isRelocatedBaseRef(state, prop, value) {
+  if (state.type_ !== 1 || !state.allIndicesReassigned_ || state.assigned_?.get(prop) || !isDraftable(value) || value[DRAFT_STATE]) {
+    return false;
+  }
+  return state.baseRefs_.has(value);
+}
 function readPropFromProto(state, source, prop) {
   const desc = getDescriptorFromProto(source, prop);
-  return desc ? `value` in desc ? desc.value : desc.get?.call(state.draft_) : undefined;
+  return desc ? VALUE in desc ? desc[VALUE] : (
+    // This is a very special case, if the prop is a getter defined by the
+    // prototype, we should invoke it with the draft as context!
+    desc.get?.call(state.draft_)
+  ) : void 0;
 }
 function getDescriptorFromProto(source, prop) {
   if (!(prop in source))
-    return;
+    return void 0;
   let proto = getPrototypeOf(source);
   while (proto) {
     const desc = Object.getOwnPropertyDescriptor(proto, prop);
@@ -520,7 +652,7 @@ function getDescriptorFromProto(source, prop) {
       return desc;
     proto = getPrototypeOf(proto);
   }
-  return;
+  return void 0;
 }
 function markChanged(state) {
   if (!state.modified_) {
@@ -532,88 +664,93 @@ function markChanged(state) {
 }
 function prepareCopy(state) {
   if (!state.copy_) {
-    state.copy_ = shallowCopy(state.base_, state.scope_.immer_.useStrictShallowCopy_);
+    state.assigned_ = /* @__PURE__ */ new Map();
+    state.copy_ = shallowCopy(
+      state.base_,
+      state.scope_.immer_.useStrictShallowCopy_
+    );
   }
 }
-
-// core/immerClass.ts
-class Immer2 {
-  autoFreeze_ = true;
-  useStrictShallowCopy_ = false;
-  useStrictIteration_ = true;
+var Immer2 = class {
   constructor(config) {
-    if (typeof config?.autoFreeze === "boolean")
+    this.autoFreeze_ = true;
+    this.useStrictShallowCopy_ = false;
+    this.useStrictIteration_ = false;
+    this.produce = (base, recipe, patchListener) => {
+      if (isFunction(base) && !isFunction(recipe)) {
+        const defaultBase = recipe;
+        recipe = base;
+        const self = this;
+        return function curriedProduce(base2 = defaultBase, ...args) {
+          return self.produce(base2, (draft) => recipe.call(this, draft, ...args));
+        };
+      }
+      if (!isFunction(recipe))
+        die(6);
+      if (patchListener !== void 0 && !isFunction(patchListener))
+        die(7);
+      let result;
+      if (isDraftable(base)) {
+        const scope = enterScope(this);
+        const proxy = createProxy(scope, base, void 0);
+        let hasError = true;
+        try {
+          result = recipe(proxy);
+          hasError = false;
+        } finally {
+          if (hasError)
+            revokeScope(scope);
+          else
+            leaveScope(scope);
+        }
+        usePatchesInScope(scope, patchListener);
+        return processResult(result, scope);
+      } else if (!base || !isObjectish(base)) {
+        result = recipe(base);
+        if (result === void 0)
+          result = base;
+        if (result === NOTHING)
+          result = void 0;
+        if (this.autoFreeze_)
+          freeze(result, true);
+        if (patchListener) {
+          const p = [];
+          const ip = [];
+          getPlugin(PluginPatches).generateReplacementPatches_(base, result, {
+            patches_: p,
+            inversePatches_: ip
+          });
+          patchListener(p, ip);
+        }
+        return result;
+      } else
+        die(1, base);
+    };
+    this.produceWithPatches = (base, recipe) => {
+      if (isFunction(base)) {
+        return (state, ...args) => this.produceWithPatches(state, (draft) => base(draft, ...args));
+      }
+      let patches, inversePatches;
+      const result = this.produce(base, recipe, (p, ip) => {
+        patches = p;
+        inversePatches = ip;
+      });
+      return [result, patches, inversePatches];
+    };
+    if (isBoolean(config?.autoFreeze))
       this.setAutoFreeze(config.autoFreeze);
-    if (typeof config?.useStrictShallowCopy === "boolean")
+    if (isBoolean(config?.useStrictShallowCopy))
       this.setUseStrictShallowCopy(config.useStrictShallowCopy);
-    if (typeof config?.useStrictIteration === "boolean")
+    if (isBoolean(config?.useStrictIteration))
       this.setUseStrictIteration(config.useStrictIteration);
   }
-  produce = (base, recipe, patchListener) => {
-    if (typeof base === "function" && typeof recipe !== "function") {
-      const defaultBase = recipe;
-      recipe = base;
-      const self = this;
-      return function curriedProduce(base2 = defaultBase, ...args) {
-        return self.produce(base2, (draft) => recipe.call(this, draft, ...args));
-      };
-    }
-    if (typeof recipe !== "function")
-      die(6);
-    if (patchListener !== undefined && typeof patchListener !== "function")
-      die(7);
-    let result;
-    if (isDraftable(base)) {
-      const scope = enterScope(this);
-      const proxy = createProxy(base, undefined);
-      let hasError = true;
-      try {
-        result = recipe(proxy);
-        hasError = false;
-      } finally {
-        if (hasError)
-          revokeScope(scope);
-        else
-          leaveScope(scope);
-      }
-      usePatchesInScope(scope, patchListener);
-      return processResult(result, scope);
-    } else if (!base || typeof base !== "object") {
-      result = recipe(base);
-      if (result === undefined)
-        result = base;
-      if (result === NOTHING)
-        result = undefined;
-      if (this.autoFreeze_)
-        freeze(result, true);
-      if (patchListener) {
-        const p = [];
-        const ip = [];
-        getPlugin("Patches").generateReplacementPatches_(base, result, p, ip);
-        patchListener(p, ip);
-      }
-      return result;
-    } else
-      die(1, base);
-  };
-  produceWithPatches = (base, recipe) => {
-    if (typeof base === "function") {
-      return (state, ...args) => this.produceWithPatches(state, (draft) => base(draft, ...args));
-    }
-    let patches, inversePatches;
-    const result = this.produce(base, recipe, (p, ip) => {
-      patches = p;
-      inversePatches = ip;
-    });
-    return [result, patches, inversePatches];
-  };
   createDraft(base) {
     if (!isDraftable(base))
       die(8);
     if (isDraft(base))
       base = current(base);
     const scope = enterScope(this);
-    const proxy = createProxy(base, undefined);
+    const proxy = createProxy(scope, base, void 0);
     proxy[DRAFT_STATE].isManual_ = true;
     leaveScope(scope);
     return proxy;
@@ -624,14 +761,30 @@ class Immer2 {
       die(9);
     const { scope_: scope } = state;
     usePatchesInScope(scope, patchListener);
-    return processResult(undefined, scope);
+    return processResult(void 0, scope);
   }
+  /**
+   * Pass true to automatically freeze all copies created by Immer.
+   *
+   * By default, auto-freezing is enabled.
+   */
   setAutoFreeze(value) {
     this.autoFreeze_ = value;
   }
+  /**
+   * Pass true to enable strict shallow copy.
+   *
+   * By default, immer does not copy the object descriptors such as getter, setter and non-enumrable properties.
+   */
   setUseStrictShallowCopy(value) {
     this.useStrictShallowCopy_ = value;
   }
+  /**
+   * Pass false to use faster iteration that skips non-enumerable properties
+   * but still handles symbols for compatibility.
+   *
+   * By default, strict iteration is enabled (includes all own properties).
+   */
   setUseStrictIteration(value) {
     this.useStrictIteration_ = value;
   }
@@ -640,7 +793,7 @@ class Immer2 {
   }
   applyPatches(base, patches) {
     let i;
-    for (i = patches.length - 1;i >= 0; i--) {
+    for (i = patches.length - 1; i >= 0; i--) {
       const patch = patches[i];
       if (patch.path.length === 0 && patch.op === "replace") {
         base = patch.value;
@@ -650,21 +803,35 @@ class Immer2 {
     if (i > -1) {
       patches = patches.slice(i + 1);
     }
-    const applyPatchesImpl = getPlugin("Patches").applyPatches_;
+    const applyPatchesImpl = getPlugin(PluginPatches).applyPatches_;
     if (isDraft(base)) {
       return applyPatchesImpl(base, patches);
     }
-    return this.produce(base, (draft) => applyPatchesImpl(draft, patches));
+    return this.produce(
+      base,
+      (draft) => applyPatchesImpl(draft, patches)
+    );
   }
-}
-function createProxy(value, parent) {
-  const draft = isMap(value) ? getPlugin("MapSet").proxyMap_(value, parent) : isSet(value) ? getPlugin("MapSet").proxySet_(value, parent) : createProxyProxy(value, parent);
-  const scope = parent ? parent.scope_ : getCurrentScope();
+};
+function createProxy(rootScope, value, parent, key) {
+  const [draft, state] = isMap(value) ? getPlugin(PluginMapSet).proxyMap_(value, parent) : isSet(value) ? getPlugin(PluginMapSet).proxySet_(value, parent) : createProxyProxy(value, parent);
+  const scope = parent?.scope_ ?? getCurrentScope();
   scope.drafts_.push(draft);
+  state.callbacks_ = parent?.callbacks_ ?? [];
+  state.key_ = key;
+  if (parent && key !== void 0) {
+    registerChildFinalizationCallback(parent, state, key);
+  } else {
+    state.callbacks_.push(function rootDraftCleanup(rootScope2) {
+      rootScope2.mapSetPlugin_?.fixSetContents(state);
+      const { patchPlugin_ } = rootScope2;
+      if (state.modified_ && patchPlugin_) {
+        patchPlugin_.generatePatches_(state, [], rootScope2);
+      }
+    });
+  }
   return draft;
 }
-
-// core/current.ts
 function current(value) {
   if (!isDraft(value))
     die(10, value);
@@ -685,69 +852,159 @@ function currentImpl(value) {
   } else {
     copy = shallowCopy(value, true);
   }
-  each(copy, (key, childValue) => {
-    set(copy, key, currentImpl(childValue));
-  }, strict);
+  each(
+    copy,
+    (key, childValue) => {
+      set(copy, key, currentImpl(childValue));
+    },
+    strict
+  );
   if (state) {
     state.finalized_ = false;
   }
   return copy;
 }
-// plugins/patches.ts
 function enablePatches() {
   const errorOffset = 16;
   if (true) {
-    errors.push('Sets cannot have "replace" patches.', function(op) {
-      return "Unsupported patch operation: " + op;
-    }, function(path) {
-      return "Cannot apply patch, path doesn't resolve: " + path;
-    }, "Patching reserved attributes like __proto__, prototype and constructor is not allowed");
+    errors.push(
+      'Sets cannot have "replace" patches.',
+      function(op) {
+        return "Unsupported patch operation: " + op;
+      },
+      function(path) {
+        return "Cannot apply patch, path doesn't resolve: " + path;
+      },
+      "Patching reserved attributes like __proto__, prototype and constructor is not allowed"
+    );
+  }
+  function getPath(state, path = []) {
+    if (state.key_ !== void 0) {
+      const parentCopy = state.parent_.copy_ ?? state.parent_.base_;
+      const proxyDraft = getProxyDraft(get(parentCopy, state.key_));
+      const valueAtKey = get(parentCopy, state.key_);
+      if (valueAtKey === void 0) {
+        return null;
+      }
+      if (valueAtKey !== state.draft_ && valueAtKey !== state.base_ && valueAtKey !== state.copy_) {
+        return null;
+      }
+      if (proxyDraft != null && proxyDraft.base_ !== state.base_) {
+        return null;
+      }
+      const isSet2 = state.parent_.type_ === 3;
+      let key;
+      if (isSet2) {
+        const setParent = state.parent_;
+        key = Array.from(setParent.drafts_.keys()).indexOf(state.key_);
+      } else {
+        key = state.key_;
+      }
+      if (!(isSet2 && parentCopy.size > key || has(parentCopy, key))) {
+        return null;
+      }
+      path.push(key);
+    }
+    if (state.parent_) {
+      return getPath(state.parent_, path);
+    }
+    path.reverse();
+    try {
+      resolvePath(state.copy_, path);
+    } catch (e) {
+      return null;
+    }
+    return path;
+  }
+  function resolvePath(base, path) {
+    let current2 = base;
+    for (let i = 0; i < path.length - 1; i++) {
+      const key = path[i];
+      current2 = get(current2, key);
+      if (!isObjectish(current2) || current2 === null) {
+        throw new Error(`Cannot resolve path at '${path.join("/")}'`);
+      }
+    }
+    return current2;
   }
   const REPLACE = "replace";
   const ADD = "add";
   const REMOVE = "remove";
-  function generatePatches_(state, basePath, patches, inversePatches) {
+  function generatePatches_(state, basePath, scope) {
+    if (state.scope_.processedForPatches_.has(state)) {
+      return;
+    }
+    state.scope_.processedForPatches_.add(state);
+    const { patches_, inversePatches_ } = scope;
     switch (state.type_) {
-      case 0 /* Object */:
-      case 2 /* Map */:
-        return generatePatchesFromAssigned(state, basePath, patches, inversePatches);
-      case 1 /* Array */:
-        return generateArrayPatches(state, basePath, patches, inversePatches);
-      case 3 /* Set */:
-        return generateSetPatches(state, basePath, patches, inversePatches);
+      case 0:
+      case 2:
+        return generatePatchesFromAssigned(
+          state,
+          basePath,
+          patches_,
+          inversePatches_
+        );
+      case 1:
+        return generateArrayPatches(
+          state,
+          basePath,
+          patches_,
+          inversePatches_
+        );
+      case 3:
+        return generateSetPatches(
+          state,
+          basePath,
+          patches_,
+          inversePatches_
+        );
     }
   }
   function generateArrayPatches(state, basePath, patches, inversePatches) {
     let { base_, assigned_ } = state;
     let copy_ = state.copy_;
     if (copy_.length < base_.length) {
+      ;
       [base_, copy_] = [copy_, base_];
       [patches, inversePatches] = [inversePatches, patches];
     }
-    for (let i = 0;i < base_.length; i++) {
-      if (assigned_[i] && copy_[i] !== base_[i]) {
+    const allReassigned = state.allIndicesReassigned_ === true;
+    for (let i = 0; i < base_.length; i++) {
+      const copiedItem = copy_[i];
+      const baseItem = base_[i];
+      const isAssigned = allReassigned || assigned_?.get(i.toString());
+      if (isAssigned && copiedItem !== baseItem) {
+        const childState = copiedItem?.[DRAFT_STATE];
+        if (childState && childState.modified_) {
+          continue;
+        }
         const path = basePath.concat([i]);
         patches.push({
           op: REPLACE,
           path,
-          value: clonePatchValueIfNeeded(copy_[i])
+          // Need to maybe clone it, as it can in fact be the original value
+          // due to the base/copy inversion at the start of this function
+          value: clonePatchValueIfNeeded(copiedItem)
         });
         inversePatches.push({
           op: REPLACE,
           path,
-          value: clonePatchValueIfNeeded(base_[i])
+          value: clonePatchValueIfNeeded(baseItem)
         });
       }
     }
-    for (let i = base_.length;i < copy_.length; i++) {
+    for (let i = base_.length; i < copy_.length; i++) {
       const path = basePath.concat([i]);
       patches.push({
         op: ADD,
         path,
+        // Need to maybe clone it, as it can in fact be the original value
+        // due to the base/copy inversion at the start of this function
         value: clonePatchValueIfNeeded(copy_[i])
       });
     }
-    for (let i = copy_.length - 1;base_.length <= i; --i) {
+    for (let i = copy_.length - 1; base_.length <= i; --i) {
       const path = basePath.concat([i]);
       inversePatches.push({
         op: REMOVE,
@@ -756,16 +1013,20 @@ function enablePatches() {
     }
   }
   function generatePatchesFromAssigned(state, basePath, patches, inversePatches) {
-    const { base_, copy_ } = state;
+    const { base_, copy_, type_ } = state;
     each(state.assigned_, (key, assignedValue) => {
-      const origValue = get(base_, key);
-      const value = get(copy_, key);
+      const origValue = get(base_, key, type_);
+      const value = get(copy_, key, type_);
       const op = !assignedValue ? REMOVE : has(base_, key) ? REPLACE : ADD;
       if (origValue === value && op === REPLACE)
         return;
       const path = basePath.concat(key);
-      patches.push(op === REMOVE ? { op, path } : { op, path, value });
-      inversePatches.push(op === ADD ? { op: REMOVE, path } : op === REMOVE ? { op: ADD, path, value: clonePatchValueIfNeeded(origValue) } : { op: REPLACE, path, value: clonePatchValueIfNeeded(origValue) });
+      patches.push(
+        op === REMOVE ? { op, path } : { op, path, value: clonePatchValueIfNeeded(value) }
+      );
+      inversePatches.push(
+        op === ADD ? { op: REMOVE, path } : op === REMOVE ? { op: ADD, path, value: clonePatchValueIfNeeded(origValue) } : { op: REPLACE, path, value: clonePatchValueIfNeeded(origValue) }
+      );
     });
   }
   function generateSetPatches(state, basePath, patches, inversePatches) {
@@ -805,13 +1066,14 @@ function enablePatches() {
       i++;
     });
   }
-  function generateReplacementPatches_(baseValue, replacement, patches, inversePatches) {
-    patches.push({
+  function generateReplacementPatches_(baseValue, replacement, scope) {
+    const { patches_, inversePatches_ } = scope;
+    patches_.push({
       op: REPLACE,
       path: [],
-      value: replacement === NOTHING ? undefined : replacement
+      value: replacement === NOTHING ? void 0 : replacement
     });
-    inversePatches.push({
+    inversePatches_.push({
       op: REPLACE,
       path: [],
       value: baseValue
@@ -821,18 +1083,18 @@ function enablePatches() {
     patches.forEach((patch) => {
       const { path, op } = patch;
       let base = draft;
-      for (let i = 0;i < path.length - 1; i++) {
+      for (let i = 0; i < path.length - 1; i++) {
         const parentType = getArchtype(base);
         let p = path[i];
         if (typeof p !== "string" && typeof p !== "number") {
           p = "" + p;
         }
-        if ((parentType === 0 /* Object */ || parentType === 1 /* Array */) && (p === "__proto__" || p === "constructor"))
+        if ((parentType === 0 || parentType === 1) && (p === "__proto__" || p === CONSTRUCTOR))
           die(errorOffset + 3);
-        if (typeof base === "function" && p === "prototype")
+        if (isFunction(base) && p === PROTOTYPE)
           die(errorOffset + 3);
         base = get(base, p);
-        if (typeof base !== "object")
+        if (base === null || !isObjectish(base))
           die(errorOffset + 2, path.join("/"));
       }
       const type = getArchtype(base);
@@ -841,31 +1103,31 @@ function enablePatches() {
       switch (op) {
         case REPLACE:
           switch (type) {
-            case 2 /* Map */:
+            case 2:
               return base.set(key, value);
-            case 3 /* Set */:
+            case 3:
               die(errorOffset);
             default:
               return base[key] = value;
           }
         case ADD:
           switch (type) {
-            case 1 /* Array */:
+            case 1:
               return key === "-" ? base.push(value) : base.splice(key, 0, value);
-            case 2 /* Map */:
+            case 2:
               return base.set(key, value);
-            case 3 /* Set */:
+            case 3:
               return base.add(value);
             default:
               return base[key] = value;
           }
         case REMOVE:
           switch (type) {
-            case 1 /* Array */:
+            case 1:
               return base.splice(key, 1);
-            case 2 /* Map */:
+            case 2:
               return base.delete(key);
-            case 3 /* Set */:
+            case 3:
               return base.delete(patch.value);
             default:
               return delete base[key];
@@ -879,10 +1141,12 @@ function enablePatches() {
   function deepClonePatchValue(obj) {
     if (!isDraftable(obj))
       return obj;
-    if (Array.isArray(obj))
+    if (isArray(obj))
       return obj.map(deepClonePatchValue);
     if (isMap(obj))
-      return new Map(Array.from(obj.entries()).map(([k, v]) => [k, deepClonePatchValue(v)]));
+      return new Map(
+        Array.from(obj.entries()).map(([k, v]) => [k, deepClonePatchValue(v)])
+      );
     if (isSet(obj))
       return new Set(Array.from(obj).map(deepClonePatchValue));
     const cloned = Object.create(getPrototypeOf(obj));
@@ -898,37 +1162,43 @@ function enablePatches() {
     } else
       return obj;
   }
-  loadPlugin("Patches", {
+  loadPlugin(PluginPatches, {
     applyPatches_,
     generatePatches_,
-    generateReplacementPatches_
+    generateReplacementPatches_,
+    getPath
   });
 }
-// plugins/mapset.ts
+var _globalIterator = globalThis.Iterator;
+var hasIteratorFrom = typeof _globalIterator?.from === "function";
 function enableMapSet() {
   class DraftMap extends Map {
-    [DRAFT_STATE];
     constructor(target, parent) {
       super();
       this[DRAFT_STATE] = {
-        type_: 2 /* Map */,
+        type_: 2,
         parent_: parent,
         scope_: parent ? parent.scope_ : getCurrentScope(),
         modified_: false,
         finalized_: false,
-        copy_: undefined,
-        assigned_: undefined,
+        copy_: void 0,
+        assigned_: void 0,
         base_: target,
         draft_: this,
         isManual_: false,
-        revoked_: false
+        revoked_: false,
+        callbacks_: []
       };
     }
     get size() {
-      return latest(this[DRAFT_STATE]).size;
+      const state = this[DRAFT_STATE];
+      assertUnrevoked(state);
+      return latest(state).size;
     }
     has(key) {
-      return latest(this[DRAFT_STATE]).has(key);
+      const state = this[DRAFT_STATE];
+      assertUnrevoked(state);
+      return latest(state).has(key);
     }
     set(key, value) {
       const state = this[DRAFT_STATE];
@@ -939,6 +1209,7 @@ function enableMapSet() {
         state.assigned_.set(key, true);
         state.copy_.set(key, value);
         state.assigned_.set(key, true);
+        handleCrossReference(state, key, value);
       }
       return this;
     }
@@ -964,7 +1235,7 @@ function enableMapSet() {
       if (latest(state).size) {
         prepareMapCopy(state);
         markChanged(state);
-        state.assigned_ = new Map;
+        state.assigned_ = /* @__PURE__ */ new Map();
         each(state.base_, (key) => {
           state.assigned_.set(key, false);
         });
@@ -973,6 +1244,7 @@ function enableMapSet() {
     }
     forEach(cb, thisArg) {
       const state = this[DRAFT_STATE];
+      assertUnrevoked(state);
       latest(state).forEach((_value, key, _map) => {
         cb.call(thisArg, this.get(key), key, this);
       });
@@ -987,18 +1259,19 @@ function enableMapSet() {
       if (value !== state.base_.get(key)) {
         return value;
       }
-      const draft = createProxy(value, state);
+      const draft = createProxy(state.scope_, value, state, key);
       prepareMapCopy(state);
       state.copy_.set(key, draft);
       return draft;
     }
     keys() {
-      return latest(this[DRAFT_STATE]).keys();
+      const state = this[DRAFT_STATE];
+      assertUnrevoked(state);
+      return latest(state).keys();
     }
     values() {
       const iterator = this.keys();
-      return {
-        [Symbol.iterator]: () => this.values(),
+      return iteratorFrom({
         next: () => {
           const r = iterator.next();
           if (r.done)
@@ -1009,12 +1282,11 @@ function enableMapSet() {
             value
           };
         }
-      };
+      });
     }
     entries() {
       const iterator = this.keys();
-      return {
-        [Symbol.iterator]: () => this.entries(),
+      return iteratorFrom({
         next: () => {
           const r = iterator.next();
           if (r.done)
@@ -1025,42 +1297,55 @@ function enableMapSet() {
             value: [r.value, value]
           };
         }
-      };
+      });
     }
-    [Symbol.iterator]() {
+    [(DRAFT_STATE, Symbol.iterator)]() {
       return this.entries();
     }
   }
+  function iteratorFrom(iterable) {
+    if (hasIteratorFrom) {
+      return _globalIterator.from(iterable);
+    }
+    const iterator = {
+      ...iterable,
+      [Symbol.iterator]: () => iterator
+    };
+    return iterator;
+  }
   function proxyMap_(target, parent) {
-    return new DraftMap(target, parent);
+    const map = new DraftMap(target, parent);
+    return [map, map[DRAFT_STATE]];
   }
   function prepareMapCopy(state) {
     if (!state.copy_) {
-      state.assigned_ = new Map;
+      state.assigned_ = /* @__PURE__ */ new Map();
       state.copy_ = new Map(state.base_);
     }
   }
-
   class DraftSet extends Set {
-    [DRAFT_STATE];
     constructor(target, parent) {
       super();
       this[DRAFT_STATE] = {
-        type_: 3 /* Set */,
+        type_: 3,
         parent_: parent,
         scope_: parent ? parent.scope_ : getCurrentScope(),
         modified_: false,
         finalized_: false,
-        copy_: undefined,
+        copy_: void 0,
         base_: target,
         draft_: this,
-        drafts_: new Map,
+        drafts_: /* @__PURE__ */ new Map(),
         revoked_: false,
-        isManual_: false
+        isManual_: false,
+        assigned_: void 0,
+        callbacks_: []
       };
     }
     get size() {
-      return latest(this[DRAFT_STATE]).size;
+      const state = this[DRAFT_STATE];
+      assertUnrevoked(state);
+      return latest(state).size;
     }
     has(value) {
       const state = this[DRAFT_STATE];
@@ -1081,6 +1366,7 @@ function enableMapSet() {
         prepareSetCopy(state);
         markChanged(state);
         state.copy_.add(value);
+        handleCrossReference(state, value, value);
       }
       return this;
     }
@@ -1092,7 +1378,10 @@ function enableMapSet() {
       assertUnrevoked(state);
       prepareSetCopy(state);
       markChanged(state);
-      return state.copy_.delete(value) || (state.drafts_.has(value) ? state.copy_.delete(state.drafts_.get(value)) : false);
+      return state.copy_.delete(value) || (state.drafts_.has(value) ? state.copy_.delete(state.drafts_.get(value)) : (
+        /* istanbul ignore next */
+        false
+      ));
     }
     clear() {
       const state = this[DRAFT_STATE];
@@ -1118,7 +1407,7 @@ function enableMapSet() {
     keys() {
       return this.values();
     }
-    [Symbol.iterator]() {
+    [(DRAFT_STATE, Symbol.iterator)]() {
       return this.values();
     }
     forEach(cb, thisArg) {
@@ -1131,14 +1420,15 @@ function enableMapSet() {
     }
   }
   function proxySet_(target, parent) {
-    return new DraftSet(target, parent);
+    const set2 = new DraftSet(target, parent);
+    return [set2, set2[DRAFT_STATE]];
   }
   function prepareSetCopy(state) {
     if (!state.copy_) {
-      state.copy_ = new Set;
+      state.copy_ = /* @__PURE__ */ new Set();
       state.base_.forEach((value) => {
         if (isDraftable(value)) {
-          const draft = createProxy(value, state);
+          const draft = createProxy(state.scope_, value, state, value);
           state.drafts_.set(value, draft);
           state.copy_.add(draft);
         } else {
@@ -1151,11 +1441,216 @@ function enableMapSet() {
     if (state.revoked_)
       die(3, JSON.stringify(latest(state)));
   }
-  loadPlugin("MapSet", { proxyMap_, proxySet_ });
+  function fixSetContents(target) {
+    if (target.type_ === 3 && target.copy_) {
+      const copy = new Set(target.copy_);
+      target.copy_.clear();
+      copy.forEach((value) => {
+        target.copy_.add(getValue(value));
+      });
+    }
+  }
+  loadPlugin(PluginMapSet, { proxyMap_, proxySet_, fixSetContents });
 }
-
-// immer.ts
-var immer = new Immer2;
+function enableArrayMethods() {
+  const SHIFTING_METHODS = /* @__PURE__ */ new Set(["shift", "unshift"]);
+  const QUEUE_METHODS = /* @__PURE__ */ new Set(["push", "pop"]);
+  const RESULT_RETURNING_METHODS = /* @__PURE__ */ new Set([
+    ...QUEUE_METHODS,
+    ...SHIFTING_METHODS
+  ]);
+  const REORDERING_METHODS = /* @__PURE__ */ new Set(["reverse", "sort"]);
+  const MUTATING_METHODS = /* @__PURE__ */ new Set([
+    ...RESULT_RETURNING_METHODS,
+    ...REORDERING_METHODS,
+    "splice"
+  ]);
+  const FIND_METHODS = /* @__PURE__ */ new Set(["find", "findLast"]);
+  const NON_MUTATING_METHODS = /* @__PURE__ */ new Set([
+    "filter",
+    "slice",
+    "concat",
+    "flat",
+    ...FIND_METHODS,
+    "findIndex",
+    "findLastIndex",
+    "some",
+    "every",
+    "indexOf",
+    "lastIndexOf",
+    "includes",
+    "join",
+    "toString",
+    "toLocaleString"
+  ]);
+  function isMutatingArrayMethod(method) {
+    return MUTATING_METHODS.has(method);
+  }
+  function isNonMutatingArrayMethod(method) {
+    return NON_MUTATING_METHODS.has(method);
+  }
+  function isArrayOperationMethod(method) {
+    return isMutatingArrayMethod(method) || isNonMutatingArrayMethod(method);
+  }
+  function enterOperation(state, method) {
+    state.operationMethod = method;
+  }
+  function exitOperation(state) {
+    state.operationMethod = void 0;
+  }
+  function executeArrayMethod(state, operation, markLength = true) {
+    prepareCopy(state);
+    const result = operation();
+    markArrayChanged(state, markLength);
+    return result;
+  }
+  function markArrayChanged(state, markLength = true) {
+    markChanged(state);
+    if (markLength)
+      state.assigned_.set("length", true);
+  }
+  function markAllIndicesReassigned(state) {
+    state.allIndicesReassigned_ = true;
+    state.baseRefs_ = new Set(state.base_);
+  }
+  function normalizeSliceIndex(index, length) {
+    if (index < 0) {
+      return Math.max(length + index, 0);
+    }
+    return Math.min(index, length);
+  }
+  function handleInsertedValues(state, startIndex, values) {
+    for (let i = 0; i < values.length; i++) {
+      const index = "" + (startIndex + i);
+      state.assigned_.set(index, true);
+      handleCrossReference(state, index, values[i]);
+    }
+  }
+  function handleSimpleOperation(state, method, args) {
+    const isInsert = method === "push" || method === "unshift";
+    if (isInsert ? args.length === 0 : latest(state).length === 0) {
+      return isInsert ? latest(state).length : void 0;
+    }
+    prepareCopy(state);
+    const lengthBefore = state.copy_.length;
+    const result = state.copy_[method](...args);
+    markArrayChanged(state);
+    if (SHIFTING_METHODS.has(method)) {
+      markAllIndicesReassigned(state);
+    }
+    if (method === "push") {
+      handleInsertedValues(state, lengthBefore, args);
+    } else if (method === "unshift") {
+      handleInsertedValues(state, 0, args);
+    }
+    return RESULT_RETURNING_METHODS.has(method) ? result : state.draft_;
+  }
+  function handleReorderingOperation(state, method, args) {
+    if (latest(state).length <= 1)
+      return state.draft_;
+    return executeArrayMethod(
+      state,
+      () => {
+        ;
+        state.copy_[method](...args);
+        markAllIndicesReassigned(state);
+        return state.draft_;
+      },
+      false
+    );
+  }
+  function createMethodInterceptor(state, originalMethod) {
+    return function interceptedMethod(...args) {
+      const method = originalMethod;
+      enterOperation(state, method);
+      try {
+        if (isMutatingArrayMethod(method)) {
+          if (RESULT_RETURNING_METHODS.has(method)) {
+            return handleSimpleOperation(state, method, args);
+          }
+          if (REORDERING_METHODS.has(method)) {
+            return handleReorderingOperation(state, method, args);
+          }
+          if (method === "splice") {
+            const insertCount = args.length > 2 ? args.length - 2 : 0;
+            if (insertCount === 0) {
+              const length = latest(state).length;
+              if (args.length === 0 || normalizeSliceIndex(args[0] ?? 0, length) === length || args.length > 1 && !(args[1] >= 1)) {
+                return [];
+              }
+            }
+            prepareCopy(state);
+            const res = state.copy_.splice(
+              ...args
+            );
+            if (res.length === 0 && insertCount === 0) {
+              return res;
+            }
+            markArrayChanged(state);
+            markAllIndicesReassigned(state);
+            if (insertCount > 0) {
+              const startIndex = normalizeSliceIndex(
+                args[0] ?? 0,
+                state.copy_.length
+              );
+              handleInsertedValues(state, startIndex, args.slice(2));
+            }
+            return res;
+          }
+        } else {
+          return handleNonMutatingOperation(state, method, args);
+        }
+      } finally {
+        exitOperation(state);
+      }
+    };
+  }
+  function handleNonMutatingOperation(state, method, args) {
+    const source = latest(state);
+    if (method === "filter") {
+      const predicate = args[0];
+      const thisArg = args[1];
+      const result = [];
+      for (let i = 0; i < source.length; i++) {
+        if (predicate.call(thisArg, source[i], i, source)) {
+          result.push(state.draft_[i]);
+        }
+      }
+      return result;
+    }
+    if (FIND_METHODS.has(method)) {
+      const predicate = args[0];
+      const thisArg = args[1];
+      const isForward = method === "find";
+      const step = isForward ? 1 : -1;
+      const start = isForward ? 0 : source.length - 1;
+      for (let i = start; i >= 0 && i < source.length; i += step) {
+        if (predicate.call(thisArg, source[i], i, source)) {
+          return state.draft_[i];
+        }
+      }
+      return void 0;
+    }
+    if (method === "slice") {
+      const rawStart = args[0] ?? 0;
+      const rawEnd = args[1] ?? source.length;
+      const start = normalizeSliceIndex(rawStart, source.length);
+      const end = normalizeSliceIndex(rawEnd, source.length);
+      const result = [];
+      for (let i = start; i < end; i++) {
+        result.push(state.draft_[i]);
+      }
+      return result;
+    }
+    return source[method](...args);
+  }
+  loadPlugin(PluginArrayMethods, {
+    createMethodInterceptor,
+    isArrayOperationMethod,
+    isMutatingArrayMethod
+  });
+}
+var immer = new Immer2();
 var produce = immer.produce;
 var produceWithPatches = /* @__PURE__ */ immer.produceWithPatches.bind(immer);
 var setAutoFreeze = /* @__PURE__ */ immer.setAutoFreeze.bind(immer);
@@ -1164,12 +1659,8 @@ var setUseStrictIteration = /* @__PURE__ */ immer.setUseStrictIteration.bind(imm
 var applyPatches = /* @__PURE__ */ immer.applyPatches.bind(immer);
 var createDraft = /* @__PURE__ */ immer.createDraft.bind(immer);
 var finishDraft = /* @__PURE__ */ immer.finishDraft.bind(immer);
-function castDraft(value) {
-  return value;
-}
-function castImmutable(value) {
-  return value;
-}
+var castDraft = (value) => value;
+var castImmutable = (value) => value;
 export {
   Immer2 as Immer,
   applyPatches,
@@ -1177,6 +1668,7 @@ export {
   castImmutable,
   createDraft,
   current,
+  enableArrayMethods,
   enableMapSet,
   enablePatches,
   finishDraft,
