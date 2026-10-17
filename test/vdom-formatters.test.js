@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { installFormatters } from "../src/dev/vdom-formatters.js";
+import { installVdomFormatters } from "../src/dev/vdom-formatters.js";
 import { vcomment as comment, vfrag as fragment, vh as h } from "./vh.js";
 
-const formatter = installFormatters({});
+const formatter = installVdomFormatters({});
 
 // Flattens JsonML to the text DevTools would show; nested object refs print as <ref>.
 const text = (ml) => {
@@ -17,7 +17,7 @@ const body = (v) => text(formatter.body(v));
 
 test("install is idempotent per target", () => {
 	const target = {};
-	assert.equal(installFormatters(target), installFormatters(target));
+	assert.equal(installVdomFormatters(target), installVdomFormatters(target));
 	assert.equal(target.devtoolsFormatters.length, 1);
 });
 
@@ -81,7 +81,7 @@ test("text, comments, fragments and vnode arrays", () => {
 });
 
 test("comment hook", () => {
-	const f = installFormatters({}, { comment: (t) => (t === "x" ? ["X"] : null) });
+	const f = installVdomFormatters({}, { comment: (t) => (t === "x" ? ["X"] : null) });
 	assert.equal(text(f.header(comment("x"))), "X");
 	assert.equal(text(f.header(comment("y"))), "<!--y-->");
 });

@@ -112,7 +112,7 @@ export const prepareStory = (story, { fc, seed = 0 }) => {
 };
 
 // Runs one step on driver: { status: "ok" | "failed" | "skipped", error, problems }.
-export const runStep = (driver, s) => {
+const runStep = (driver, s) => {
 	const before = driver.reports.length;
 	const done = (status, error = "") => {
 		const problems = describeProblems(driver.problemsSince(before));
@@ -173,7 +173,7 @@ export const checkStory = (story, { fc, document = null }) => {
 
 // The fc property of story's stress test: sequences of messages, or of events with a
 // document, from root or, with from "generated", from instances of the root's spec.
-export const stressProperty = (
+const stressProperty = (
 	story,
 	{
 		fc,
@@ -1450,7 +1450,7 @@ export const storybookClasses = () =>
 	classNamesOf(Object.values(storybookComponents), [...Object.values(BADGES), ...devClasses]);
 
 // The storybook root for books, with initialId selected when it names a story.
-export const makeStorybook = (C, books, initialId = "") => {
+const makeStorybook = (C, books, initialId = "") => {
 	const links = books.flatMap((book) =>
 		book.stories.map((story, i) =>
 			C.StoryLink({

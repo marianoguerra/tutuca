@@ -37,7 +37,7 @@ const tryMake = (spec, args, scope) => {
 };
 
 // A key chosen in a collection that only exists once the owner does: n picks among its keys.
-export class KeyRef {
+class KeyRef {
 	constructor(n) {
 		this.n = n;
 	}
@@ -468,7 +468,7 @@ export const runCommands = (A, root, cmds, driverOptions = {}) => {
 
 const FORM_FIELDS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 // The DOM under node as text, attributes sorted: patching may add them in another order.
-export const domSignature = (node) => {
+const domSignature = (node) => {
 	if (node.nodeType === 3) return node.data;
 	if (node.nodeType === 8) return `<!--${node.data}-->`;
 	const attrs = [...node.attributes].map((a) => `${a.name}="${a.value}"`).sort();

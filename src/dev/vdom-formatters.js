@@ -1,6 +1,6 @@
 // DevTools custom formatters for vdom trees (Chrome/Firefox), shown like the Elements panel.
-// Enable them in DevTools → Settings → Preferences → Console → "Enable custom formatters".
 import { HTML_NS, VBase, VComment, VFragment, VNode, VText } from "../vdom.js";
+import { install, makeFormatter, objectRef as ref, span, truncate } from "./jsonml.js";
 
 const S = {
 	tag: "color:#9333ea",
@@ -9,14 +9,10 @@ const S = {
 	muted: "opacity:0.6",
 	removed: "opacity:0.6;text-decoration:line-through",
 };
-const LIST_STYLE = "list-style:none;margin:0;padding-left:14px";
 const MAX_STR = 40;
 const MAX_INLINE_ATTRS = 4;
 
-const span = (style, ...kids) => ["span", { style }, ...kids];
-const truncate = (s) => (s.length > MAX_STR ? `${s.slice(0, MAX_STR)}…` : s);
-const quoted = (s) => span(S.str, JSON.stringify(truncate(s)));
-const ref = (v) => ["object", { object: v }];
+const quoted = (s) => span(S.str, JSON.stringify(truncate(s, MAX_STR)));
 
 // every stops at the first non vnode, so big arrays of other things bail out on item 0.
 const isVdomArray = (v) => Array.isArray(v) && v.length > 0 && v.every((c) => c instanceof VBase);
@@ -57,7 +53,7 @@ const inlineText = (node) => {
 		: null;
 };
 
-const makeFormatter = (comment) => {
+const vdomFormatter = (comment) => {
 	const commentParts = (node) => comment?.(node.text) ?? [span(S.muted, `<!--${node.text}-->`)];
 	const describe = (v) => {
 		if (v instanceof VNode) {
@@ -87,33 +83,20 @@ const makeFormatter = (comment) => {
 		}
 		return null;
 	};
-	return {
-		header(v) {
-			try {
-				const d = describe(v);
-				return d === null ? null : ["span", {}, ...d.header];
-			} catch {
-				return null; // Fall back to the native view rather than breaking the console.
-			}
+	return makeFormatter({
+		header: (v) => describe(v)?.header ?? null,
+		rows(v) {
+			const d = describe(v);
+			if (d === null || d.childs.length === 0) return [];
+			const rows = d.childs.map((c) => ["li", {}, ref(c)]);
+			if (d.close !== undefined) rows.push(["li", {}, d.close]);
+			return rows;
 		},
-		hasBody(v) {
-			return (describe(v)?.childs.length ?? 0) > 0;
-		},
-		body(v) {
-			const { childs, close } = describe(v);
-			const rows = childs.map((c) => ["li", {}, ref(c)]);
-			if (close !== undefined) rows.push(["li", {}, close]);
-			return ["ol", { style: LIST_STYLE }, ...rows];
-		},
-	};
+	});
 };
 
 const installed = new WeakMap(); // target → formatter, so installing twice is a no-op
-export const installFormatters = (target = globalThis, { comment } = {}) => {
-	if (installed.has(target)) return installed.get(target);
-	const formatter = makeFormatter(comment);
-	target.devtoolsFormatters ??= [];
-	target.devtoolsFormatters.push(formatter);
-	installed.set(target, formatter);
-	return formatter;
+export const installVdomFormatters = (target = globalThis, { comment } = {}) => {
+	if (!installed.has(target)) installed.set(target, install(target, vdomFormatter(comment)));
+	return installed.get(target);
 };

@@ -1,5 +1,4 @@
 // DevTools custom formatters for tutuca values (Chrome/Firefox).
-// Enable them in DevTools → Settings → Preferences → Console → "Enable custom formatters".
 
 import { isMetaOpen, META_CLOSE, parseMeta } from "../meta.js";
 import {
@@ -28,7 +27,8 @@ import {
 	UpdatePath,
 	Walker,
 } from "../tutuca.js";
-import { installFormatters as installVdomFormatters } from "./vdom-formatters.js";
+import { install, join, makeFormatter, objectRef, span, truncate } from "./jsonml.js";
+import { installVdomFormatters } from "./vdom-formatters.js";
 
 export const S = {
 	name: "color:#d97706;font-weight:bold",
@@ -38,23 +38,17 @@ export const S = {
 	fn: "color:#0891b2",
 	muted: "opacity:0.6",
 };
-const LIST_STYLE = "list-style:none;margin:0;padding-left:14px";
 const MAX_STR = 30;
 const MAX_INLINE_FIELDS = 3;
 const MAX_AST_DEPTH = 2;
 const MAX_AST_CHILDS = 3;
 
-const span = (style, ...kids) => ["span", { style }, ...kids];
-const isObject = (v) => (v !== null && typeof v === "object") || typeof v === "function";
+export const isObject = (v) => (v !== null && typeof v === "object") || typeof v === "function";
 const isTutucaComponent = (v) => specOf(v) instanceof ComponentSpec; // a Proxy may answer any key
-const ref = (v) => (isObject(v) ? ["object", { object: v }] : prim(v));
-const joined = (items, sep = ", ") => items.flatMap((v, i) => (i === 0 ? [v] : [sep, v]));
+const ref = (v) => (isObject(v) ? objectRef(v) : prim(v));
 
 const prim = (v) => {
-	if (typeof v === "string") {
-		const s = v.length > MAX_STR ? `${v.slice(0, MAX_STR)}…` : v;
-		return span(S.str, JSON.stringify(s));
-	}
+	if (typeof v === "string") return span(S.str, JSON.stringify(truncate(v, MAX_STR)));
 	if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
 		return span(S.num, String(v));
 	}
@@ -164,7 +158,6 @@ const astHeader = (node) => {
 };
 
 const typeName = (t) => t.constructor.kind ?? "any";
-const join = (items, sep) => items.flatMap((item, i) => (i === 0 ? item : [sep, ...item]));
 const constraintParts = ({ where, ...rest }) => {
 	const parts = Object.entries(rest).map(([k, v]) =>
 		v === true ? [`.${k}()`] : [`.${k}(`, prim(v), ")"],
@@ -349,7 +342,7 @@ const KINDS = [
 			span(S.muted, `${taskKind(task)} `),
 			span(S.name, task.name),
 			"(",
-			...joined(task.args.map(prim)),
+			...join(task.args.map((a) => [prim(a)])),
 			") ",
 			...pathParts(task.sourcePath),
 			span(S.muted, " → "),
@@ -387,7 +380,7 @@ const KINDS = [
 		header: (scope) => [
 			span(S.muted, "Scope "),
 			"[",
-			...joined(Object.keys(scope.byName).map((name) => span(S.name, name))),
+			...join(Object.keys(scope.byName).map((name) => [span(S.name, name)])),
 			"]",
 			scope.parent === null ? "" : span(S.muted, " ↑"),
 		],
@@ -436,28 +429,12 @@ export const describe = (v) => {
 const rowItem = ([label, value]) =>
 	label === null ? ["li", {}, value] : ["li", {}, span(S.key, label), ": ", value];
 
-const formatter = {
-	header(v) {
-		const kind = kindOf(v);
-		if (kind === null) return null;
-		try {
-			return ["span", {}, ...kind.header(v)];
-		} catch {
-			return null; // Fall back to the native view rather than breaking the console.
-		}
-	},
-	hasBody(v) {
-		const kind = kindOf(v);
-		return kind !== null && kind.rows(v).length > 0;
-	},
-	body(v) {
-		return ["ol", { style: LIST_STYLE }, ...kindOf(v).rows(v).map(rowItem)];
-	},
-};
+const formatter = makeFormatter({
+	header: (v) => kindOf(v)?.header(v) ?? null,
+	rows: (v) => kindOf(v)?.rows(v).map(rowItem) ?? [],
+});
 
 export const installFormatters = (target = globalThis) => {
 	installVdomFormatters(target, { comment: metaComment });
-	target.devtoolsFormatters ??= [];
-	if (!target.devtoolsFormatters.includes(formatter)) target.devtoolsFormatters.push(formatter);
-	return formatter;
+	return install(target, formatter);
 };

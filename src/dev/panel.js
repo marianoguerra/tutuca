@@ -18,7 +18,7 @@ import {
 	t,
 	tag,
 } from "../tutuca.js";
-import { describe, S } from "./formatters.js";
+import { describe, isObject, S } from "./formatters.js";
 import { summarize } from "./summary.js";
 
 const { button, div, h3, li, p, section, span, ul } = tag;
@@ -28,7 +28,6 @@ const { button, div, h3, li, p, section, span, ul } = tag;
 const refs = new Map();
 const ids = new WeakMap();
 let nextRef = 1;
-const isObject = (v) => (v !== null && typeof v === "object") || typeof v === "function";
 export const refOf = (v) => {
 	if (!isObject(v)) return 0;
 	let id = ids.get(v);

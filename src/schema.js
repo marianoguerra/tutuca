@@ -5,7 +5,7 @@ export const specOf = (v) => v?.[specSym];
 export const scopeOf = (v) => v?.[scopeSym] ?? null;
 export const isComponent = (v) => specOf(v) !== undefined;
 // The names of the invariants instance breaks; a throwing invariant counts as broken.
-export const brokenInvariants = (instance) => {
+const brokenInvariants = (instance) => {
 	const { invariants } = specOf(instance);
 	return Object.keys(invariants).filter((name) => {
 		try {
