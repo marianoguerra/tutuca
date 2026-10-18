@@ -8,12 +8,8 @@ import { classNamesOf } from "../css/classes.js";
 import { makeDevPanel } from "../dev/panel.js";
 import { Host } from "../tutuca.js";
 
-export { StoryRegistry, StoryRunner } from "./runner.js";
+export { StoryRegistry } from "./runner.js";
 export { checkStory, prepareStory, step, stories, stressStory } from "./stories.js";
-export { StoryLink } from "./ui/link.js";
-export { StoryPanel } from "./ui/story-panel.js";
-export { Storybook } from "./ui/storybook.js";
-export { StressPanel } from "./ui/stress-panel.js";
 
 import { defineTutucaApp, REQUEST } from "../embed/element.js";
 import { StoryRegistry, storyAskHandlers } from "./runner.js";

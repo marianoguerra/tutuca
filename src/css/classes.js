@@ -24,7 +24,7 @@ class ClassNames extends Walker {
 // The constant class names in a tree, including every $if branch; classes
 // read from the state are only known at render time.
 export const collectClasses = (tree, classes = new Set()) => {
-	tree.walk(new ClassNames(classes));
+	new ClassNames(classes).visit(tree);
 	return classes;
 };
 

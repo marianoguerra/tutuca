@@ -25,7 +25,7 @@ export const importSpecifiers = (code) => {
 	return specifiers;
 };
 
-export const isRelative = (specifier) => /^\.\.?\//.test(specifier);
+const isRelative = (specifier) => /^\.\.?\//.test(specifier);
 
 // A url relative to the entry's folder, for file tabs.
 export const relativeName = (url, base) => {

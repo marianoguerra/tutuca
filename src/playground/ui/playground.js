@@ -9,7 +9,7 @@ import { $if, component, each, field, render, send, t, tag, targetValue } from "
 const { div, option, p, pre, section, select, span } = tag;
 const tutucaApp = tag["tutuca-app"];
 
-export const TABS = ["preview", "steps", "stress", "dev"];
+const TABS = ["preview", "steps", "stress", "dev"];
 const TAB_LABELS = { preview: "Preview", steps: "Steps", stress: "Stress test", dev: "Dev" };
 // The dev tab counts the lint issues of the run.
 const issueBadge = $if(

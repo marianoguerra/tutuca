@@ -170,7 +170,7 @@ export const Storybook = component({
 	},
 });
 // A filter shows every match, collapsed or not.
-export const syncCollapsed = (draft) => {
+const syncCollapsed = (draft) => {
 	const filtering = draft.filterText.trim() !== "";
 	for (const link of draft.links)
 		link.isCollapsed = !filtering && draft.collapsed.includes(link.group);

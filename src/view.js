@@ -18,9 +18,6 @@ export class AstNode {
 	accept(walker) {
 		walker[this.constructor.kind](this);
 	}
-	walk(walker) {
-		walker.visit(this);
-	}
 }
 export class Field extends AstNode {
 	static kind = "field";

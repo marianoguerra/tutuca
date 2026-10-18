@@ -19,7 +19,7 @@ export class ComponentSpec {
 		this.provides = provides;
 		this.invariants = invariants; // name → predicate on the instance, checked in dev and tests.
 		const collect = new Collect();
-		for (const key in views) views[key].walk(collect);
+		for (const key in views) collect.visit(views[key]);
 		this.eventHandlers = collect.eventHandlers;
 		this.eventNames = new Set([...this.eventHandlers.values()].flat().map((h) => h.name));
 	}

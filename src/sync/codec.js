@@ -18,7 +18,7 @@ const ANY = new AnyType(null);
 // The value at path in a plain value, undefined where it isn't there.
 export const getIn = (value, path) => path.reduce((v, key) => v?.[key], value);
 // The ref of a projected component; an engine may store it wrapped, as an object with val.
-export const refOf = (v) => {
+const refOf = (v) => {
 	if (!isRecord(v)) return null;
 	const ref = v.$;
 	return typeof ref === "string" ? ref : typeof ref?.val === "string" ? ref.val : null;

@@ -38,7 +38,7 @@ const quote = (s) => `“${truncate(String(s), MAX)}”`;
 export const isTutucaComponent = (v) => specOf(v) instanceof ComponentSpec;
 
 // A value in a few words: "“hello”", "42", "3 items", "Tab".
-export const brief = (v) => {
+const brief = (v) => {
 	if (typeof v === "string") return quote(v);
 	if (v === null || v === undefined) return "nothing";
 	if (typeof v === "function") return `function ${v.name || "(anonymous)"}`;
@@ -66,7 +66,7 @@ const pathWordList = (path) => {
 	return path.frames.flatMap(frameWords);
 };
 // "tabs → 1 → child", or "the root".
-export const pathWords = (path) => {
+const pathWords = (path) => {
 	const words = pathWordList(path);
 	return words.length === 0 ? "the root" : words.join(" → ");
 };
@@ -81,7 +81,7 @@ const CONSTRAINTS = {
 	where: (preds) => preds.map((p) => `where ${p.name || "a check"} holds`).join(", "),
 };
 // "list of whole number", "one of grey, red", "Tab component or nothing".
-export const typeWords = (type) => {
+const typeWords = (type) => {
 	if (type instanceof OptionType) return `${typeWords(type.valueType)} or nothing`;
 	if (type instanceof StringType) return "text";
 	if (type instanceof BooleanType) return "true or false";

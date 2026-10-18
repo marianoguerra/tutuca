@@ -29,7 +29,7 @@ const { button, div, h3, li, p, section, span, ul } = tag;
 const refs = new Map();
 const ids = new WeakMap();
 let nextRef = 1;
-export const idOf = (v) => {
+const idOf = (v) => {
 	if (!isObject(v)) return 0;
 	let id = ids.get(v);
 	if (id === undefined) {
@@ -39,10 +39,10 @@ export const idOf = (v) => {
 	}
 	return id;
 };
-export const deref = (id) => refs.get(id)?.deref();
+const deref = (id) => refs.get(id)?.deref();
 
 // Classes for the styles of src/dev/formatters.js, by the name it gives them.
-export const TONES = {
+const TONES = {
 	plain: "",
 	name: "font-bold text-warning",
 	key: "text-secondary",
@@ -381,7 +381,7 @@ export const makeDevPanel = (C) =>
 const sameRefs = (nodes, values) =>
 	nodes.length === values.length && nodes.every((n, i) => n.ref === idOf(values[i].value));
 // Sets section's nodes to { label, value } items, unless they show the same values already.
-export const updateSection = (C, section, items) => {
+const updateSection = (C, section, items) => {
 	if (sameRefs(section.nodes, items)) return;
 	section.nodes = items.map(({ label, value }) => devNode(C, label, value));
 };

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lint, lintToConsole } from "../../src/lint/index.js";
+import { lint } from "../../src/lint/index.js";
 import {
 	$if,
 	component,
@@ -321,38 +321,6 @@ test("lint reports t.component names no scope registers", () => {
 	const host = new Host({ document: null, rootNode: { addEventListener() {} } });
 	host.scope.register({ Page });
 	assert.deepEqual(lint(host.registrations), [], "without names the check is skipped");
-});
-
-test("lintToConsole groups issues by component and logs by level", () => {
-	const Mixed = component({
-		name: "Mixed",
-		view: h("button", { "@on.click": send("missing") }, lookupBind("count")),
-	});
-	const host = new Host({ document: null, rootNode: { addEventListener() {} } });
-	host.scope.register({ Mixed });
-	const calls = [];
-	const out = Object.fromEntries(
-		["info", "group", "groupCollapsed", "groupEnd", "error", "warn"].map((name) => [
-			name,
-			(...args) => calls.push([name, args[0]]),
-		]),
-	);
-	const issues = lintToConsole(host.registrations, out);
-	assert.equal(issues.length, 2);
-	assert.deepEqual(calls, [
-		["group", "tutuca lint: 1 errors, 1 warnings"],
-		["groupCollapsed", "Mixed (2)"],
-		[
-			"warn",
-			'unknown-bind Mixed.main > button > lookupBind: no enclosing scope or enriching loop binds "count"',
-		],
-		["error", "unknown-handler Mixed.main > button > [@on.click]: no own handler on.missing"],
-		["groupEnd", undefined],
-		["groupEnd", undefined],
-	]);
-	const clean = [];
-	lintToConsole([], { info: (msg) => clean.push(msg) });
-	assert.deepEqual(clean, ["tutuca lint: clean"]);
 });
 
 test("lint reports defaults of the wrong kind, bad index targets and every unknown candidate", () => {

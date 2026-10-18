@@ -13,11 +13,11 @@ import { EventTask, specOf } from "../tutuca.js";
 import { argsLabel, prepareStory, runStep, step, stepText, stressProperty } from "./stories.js";
 import { STRESS_IDLE, STRESS_LOG_MAX } from "./ui/common.js";
 
-export const rootTask = (task) => {
+const rootTask = (task) => {
 	while (task.parent !== null) task = task.parent;
 	return task;
 };
-export const taskLabel = (task) => {
+const taskLabel = (task) => {
 	const call = `${task.name}(${argsLabel(task.args)})`;
 	return task instanceof EventTask ? `${task.event.type} → ${call}` : call;
 };
@@ -480,7 +480,7 @@ export class StoryRegistry {
 		return runner[op](...args);
 	}
 }
-export const OPS = new Set([
+const OPS = new Set([
 	"load",
 	"goto",
 	"reset",

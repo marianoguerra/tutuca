@@ -56,6 +56,7 @@ host.start(host.scope.components.Counter());
 | `tutuca/classes` | `collectClasses`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed |
 | `tutuca/pbt` | property-based testing and the headless driver (bring your own `fast-check`) |
 | `tutuca/storybook` | the storybook |
+| `tutuca/playground` | the `<tutuca-playground>` element: edit a book of stories and run it live (bring your own CodeMirror) |
 | `tutuca/element` | the `<tutuca-app>` custom element |
 | `tutuca/vdom` | the virtual DOM |
 | `tutuca/sync` | sync engines: projection, schema-guided diff, ops, `startSynced`, `storageEngine` |

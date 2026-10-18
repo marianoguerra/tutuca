@@ -2,7 +2,7 @@
 // formatter built from a header and rows. Enable custom formatters in DevTools → Settings →
 // Preferences → Console → "Enable custom formatters".
 
-export const LIST_STYLE = "list-style:none;margin:0;padding-left:14px";
+const LIST_STYLE = "list-style:none;margin:0;padding-left:14px";
 export const span = (style, ...kids) => ["span", { style }, ...kids];
 export const objectRef = (v) => ["object", { object: v }];
 export const truncate = (s, max) => (s.length > max ? `${s.slice(0, max)}…` : s);

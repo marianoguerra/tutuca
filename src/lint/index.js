@@ -419,32 +419,3 @@ export class Lint extends Walker {
 // Pass the registered names, such as host.componentNames, to check t.component() names.
 export const lint = (registrations, componentNames = null) =>
 	new Lint(registrations, componentNames).run();
-
-// Lints the registrations and reports to the console: one collapsed group per
-// component, errors with console.error and warnings with console.warn, each
-// with its node to inspect. Returns the issues.
-export const lintToConsole = (registrations, out = console, componentNames = null) => {
-	const issues = lint(registrations, componentNames);
-	if (issues.length === 0) {
-		out.info("tutuca lint: clean");
-		return issues;
-	}
-	const errors = issues.filter((issue) => issue.level === "error").length;
-	out.group(`tutuca lint: ${errors} errors, ${issues.length - errors} warnings`);
-	const byComponent = new Map();
-	for (const issue of issues) {
-		const group = byComponent.get(issue.component);
-		if (group === undefined) byComponent.set(issue.component, [issue]);
-		else group.push(issue);
-	}
-	for (const [component, componentIssues] of byComponent) {
-		out.groupCollapsed(`${component} (${componentIssues.length})`);
-		for (const { level, code, path, message, node } of componentIssues) {
-			const log = level === "error" ? out.error : out.warn;
-			log.call(out, `${code} ${path}: ${message}`, ...(node === null ? [] : [node]));
-		}
-		out.groupEnd();
-	}
-	out.groupEnd();
-	return issues;
-};

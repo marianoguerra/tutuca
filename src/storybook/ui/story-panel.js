@@ -15,12 +15,12 @@ import { askStory, BADGES, card, ORIGINS, smallButton, title } from "./common.js
 
 const { button, div, h3, input, li, ol, option, pre, section, select, span, ul } = tag;
 
-export const stepFields = (t) => ({
+const stepFields = (t) => ({
 	label: t.string(),
 	status: t.enum("pending", "ok", "failed", "skipped"),
 	isNext: t.boolean(),
 });
-export const entryFields = (t) => ({
+const entryFields = (t) => ({
 	label: t.string(),
 	origin: t.enum("initial", "reload", "step", "user"),
 	problemCount: t.number().int().min(0),

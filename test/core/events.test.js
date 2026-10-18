@@ -51,7 +51,7 @@ test("the default walker walks parents first, attributes before children and han
 		each(field("items"), scope("binds", pushView("compact", h("i", {}, field("t"))))),
 	);
 	const seen = [];
-	v.walk(recordVisits(seen));
+	recordVisits(seen).visit(v);
 	assert.deepEqual(seen, [
 		"DomNode",
 		"Cond",
@@ -82,7 +82,7 @@ test("Walker reads children of custom nodes through childNodes", () => {
 	}
 	class Opaque extends AstNode {}
 	const seen = [];
-	h("p", {}, new Listed(new Opaque()), new Listed(field("name"))).walk(recordVisits(seen));
+	recordVisits(seen).visit(h("p", {}, new Listed(new Opaque()), new Listed(field("name"))));
 	assert.deepEqual(seen, ["DomNode", "Listed", "Opaque", "Listed", "Field"]);
 });
 
