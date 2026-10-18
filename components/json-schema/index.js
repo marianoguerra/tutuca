@@ -430,10 +430,12 @@ export const SchemaObject = component({
 		},
 		toSchema() {
 			const out = putNotes(this, { type: "object" });
+			// A repeated name is one key in JSON: the last property with it wins, required too.
+			const byName = new Map(this.properties.map((p) => [p.name, p]));
 			out.properties = Object.fromEntries(
-				this.properties.map((p) => [p.name, p.schema.toSchema()]),
+				[...byName].map(([name, p]) => [name, p.schema.toSchema()]),
 			);
-			const required = this.properties.filter((p) => p.required).map((p) => p.name);
+			const required = [...byName.values()].filter((p) => p.required).map((p) => p.name);
 			if (required.length > 0) out.required = required;
 			if (this.additional !== null) out.additionalProperties = this.additional.toSchema();
 			return out;
