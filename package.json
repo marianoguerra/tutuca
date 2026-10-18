@@ -41,12 +41,7 @@
 		"lint": "biome check .",
 		"fmt": "biome check --write .",
 		"dist": "node scripts/dist.js",
-		"vendor-immer": "node scripts/vendor-immer.js",
-		"vendor-codemirror": "node scripts/vendor-codemirror.js",
-		"vendor-automerge": "node scripts/vendor-automerge.js",
 		"smoke": "node scripts/smoke.js",
-		"site": "node scripts/site.js",
-		"loc": "node scripts/loc.js",
 		"prepublishOnly": "npm run lint && npm test && npm run dist && npm run smoke"
 	},
 	"peerDependencies": {

@@ -2,16 +2,19 @@
 // PDF, with their pages pointing at pinned CDN copies of their dependencies instead of node_modules.
 import { cpSync, existsSync, globSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { siteList } from "../demos/demos.js";
+import { vendor } from "./vendor.js";
 
 const out = "_site";
 const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
 const version = (name) => lock.packages[`node_modules/${name}`].version;
 const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name)}/${path}`;
 
+// The playground and the Automerge demo load bundles too big to keep in git; build them when
+// they're missing.
+if (!existsSync("site/deps/codemirror.js")) await vendor("codemirror");
+if (!existsSync("demos/deps/automerge.js")) await vendor("automerge");
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
-// The Automerge demo loads a bundle too big to keep in git; build it when it's missing.
-if (!existsSync("demos/deps/automerge.js")) await import("./vendor-automerge.js");
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.
 const pages = ["src", "deps", "components", "demos", ...globSync("storybook*.js")];
 for (const path of pages) {

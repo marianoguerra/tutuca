@@ -1,7 +1,10 @@
 name: pages
 
+# Deploys once the test workflow, which lints and tests, has passed on main.
 on:
-  push:
+  workflow_run:
+    workflows: [test]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -16,12 +19,17 @@ concurrency:
 
 jobs:
   deploy:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
@@ -31,10 +39,8 @@ jobs:
           version: stable
           distribution: full
       - run: npm ci
-      - run: npm run lint
-      - run: npm test
       - run: racket spec/render.rkt
-      - run: npm run site
+      - run: node scripts/site.js
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

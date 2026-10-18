@@ -36,35 +36,26 @@ fmt:
 # Lint, then test: what to run before a commit.
 check: lint test
 
-# Serve the repo for the browser pages.
-serve:
+# Serve the repo for the browser pages, printing the URL of path.
+serve path="":
+    @echo "http://127.0.0.1:{{port}}/{{path}}"
     python3 -m http.server {{port}} --bind 127.0.0.1
 
 # Serve and print the URL of the demos.
-demos:
-    @echo "http://127.0.0.1:{{port}}/demos/"
-    python3 -m http.server {{port}} --bind 127.0.0.1
+demos: (serve "demos/")
 
 # Serve and print the URL of the storybook, optionally at a story, e.g. `just storybook Todo/App/Today`.
-storybook story="":
-    @echo "http://127.0.0.1:{{port}}/storybook.html#{{story}}"
-    python3 -m http.server {{port}} --bind 127.0.0.1
+storybook story="": (serve "storybook.html#" + story)
 
 # Build the CDN bundles in dist/.
 dist:
     npm run dist
 
-# Rebuild deps/immer.js from the immer devDependency, after bumping it in package.json.
-vendor-immer:
-    npm run vendor-immer
-
-# Rebuild site/deps/codemirror.js for the playground, after bumping the codemirror packages.
-vendor-codemirror:
-    npm run vendor-codemirror
-
-# Rebuild demos/deps/automerge.js for the Automerge demo (gitignored; `just site` builds it).
-vendor-automerge:
-    npm run vendor-automerge
+# immer is deps/immer.js; codemirror (site/deps/) and automerge (demos/deps/) are gitignored and
+# `just site` builds them when missing.
+# Rebuild a vendored bundle after bumping its packages, e.g. `just vendor immer`.
+vendor name:
+    node scripts/vendor.js {{name}}
 
 # Check what gets published: imports by package name, bundle exports, tarball contents.
 smoke: dist
@@ -80,9 +71,13 @@ spec-test:
 
 # Build the landing page, storybook and spec PDF into _site/ and serve it.
 site: spec
-    npm run site
+    node scripts/site.js
     @echo "http://127.0.0.1:{{port}}/"
     python3 -m http.server {{port}} --bind 127.0.0.1 -d _site
+
+# Print files, lines and code lines per src submodule.
+loc:
+    node scripts/loc.js
 
 # Show what would be published, without publishing.
 publish-dry:

@@ -9,7 +9,7 @@ const { version } = JSON.parse(readFileSync("package.json", "utf8"));
 const vendored = readFileSync("deps/immer.js", "utf8");
 const immer = /^\/\*! immer (\S+)/.exec(vendored)?.[1];
 if (immer === undefined)
-	throw new Error("deps/immer.js has no version header: run just vendor-immer");
+	throw new Error("deps/immer.js has no version header: run just vendor immer");
 const copyright = (text) => /Copyright \(c\) [^\n]+/.exec(text)[0];
 const banner = [
 	`/*! tutuca ${version} | MIT License | ${copyright(readFileSync("LICENSE", "utf8"))}`,

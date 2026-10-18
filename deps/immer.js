@@ -1,4 +1,4 @@
-/*! immer 11.1.21 (https://github.com/immerjs/immer), vendored by scripts/vendor-immer.js.
+/*! immer 11.1.21 (https://github.com/immerjs/immer), vendored by scripts/vendor.js.
  *
  * MIT License
  *

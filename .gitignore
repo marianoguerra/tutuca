@@ -4,3 +4,4 @@ _site
 *.tgz
 .playwright-mcp
 demos/deps/
+site/deps/
