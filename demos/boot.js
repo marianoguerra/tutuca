@@ -38,7 +38,11 @@ const addSyncSwitcher = (document, mode) => {
 	if (bar === null) return;
 	const nav = document.createElement("nav");
 	nav.className = "sync-modes";
-	nav.append("Sync:");
+	const label = document.createElement("span");
+	label.textContent = "Sync";
+	const options = document.createElement("span");
+	options.className = "sync-options";
+	nav.append(label, options);
 	for (const [value, label] of [[null, "off"], ...Object.entries(SYNC_MODES)]) {
 		const url = new URL(document.defaultView.location.href);
 		url.searchParams.delete("doc");
@@ -48,7 +52,7 @@ const addSyncSwitcher = (document, mode) => {
 		link.href = url.search === "" ? url.pathname : url.search;
 		link.textContent = label;
 		if (value === mode) link.setAttribute("aria-current", "page");
-		nav.append(" ", link);
+		options.append(link);
 	}
 	bar.append(nav);
 };
