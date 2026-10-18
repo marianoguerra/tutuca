@@ -11,7 +11,7 @@ import { start as startStudio } from "../../demos/json-schema/main.js";
 import { start as startMath } from "../../demos/math/main.js";
 import { start as startNotes } from "../../demos/notes/main.js";
 import { notesComponents } from "../../demos/notes/notes.js";
-import { syncFromQuery } from "../../demos/sync/engines.js";
+import { RELAY_URL, syncFromQuery } from "../../demos/sync/engines.js";
 import { start as startTracker } from "../../demos/thing-tracker/main.js";
 import { start as startTodo } from "../../demos/todo/main.js";
 import { lint } from "../../src/lint/index.js";
@@ -273,6 +273,19 @@ test("?sync=worker: tabs sync through the backend, and a new tab starts from it"
 	assert.deepEqual(backend.remote.load().value.notes, [
 		{ $: "Note", text: "buy milk", done: false },
 	]);
+});
+
+test("?sync=relay: the Automerge document also syncs through the public relay", async () => {
+	const { docHandle } = await import("../../src/sync/automerge.js");
+	const window = page("?sync=relay");
+	const opened = [];
+	const open = (_, options) => {
+		opened.push(options);
+		return docHandle();
+	};
+	const engines = await syncFromQuery(window, { open, storage: memoryStorage() });
+	assert.deepEqual(opened, [{ relay: RELAY_URL }]);
+	assert.equal(engines[0].level, "shared");
 });
 
 test("?sync=automerge: tabs on the same document merge", async () => {

@@ -169,6 +169,7 @@ Every demo takes a `sync` query parameter and attaches engines without the app k
 | `?sync=local` | `storageEngine`: the state stays in this browser |
 | `?sync=worker` | `remoteEngine` to a pretend backend: a relay in a SharedWorker, kept in IndexedDB |
 | `?sync=automerge` | `automergeEngine` over a `Repo` that syncs tabs over a BroadcastChannel and keeps the document in IndexedDB, with no server; its URL goes in `&doc=` |
+| `?sync=relay` | the same, and the `Repo` also syncs through the Automerge community relay (`wss://sync.automerge.org`), so other browsers and machines that open the same `&doc=` URL join in. The relay makes no uptime promises and anyone with the URL can read and edit the document |
 
 Every mode also keeps the `"local"` fields in the browser's storage, and each demo (by its path)
 keeps its own state. The [notes demo](../demos/notes/) shows what each field level keeps.

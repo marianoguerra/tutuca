@@ -1,10 +1,18 @@
 // Sync for any demo, picked by the page's query: ?sync=local keeps the state in this browser,
 // ?sync=worker syncs tabs through a pretend backend in a worker, ?sync=automerge syncs tabs
-// through an Automerge document with no server. The app doesn't know: boot attaches the engines.
+// through an Automerge document with no server, ?sync=relay syncs that document with other
+// browsers through a public relay. The app doesn't know: boot attaches the engines.
 import { storageEngine } from "../../src/sync/index.js";
 import { logEngine } from "./log.js";
 
-export const SYNC_MODES = { local: "this browser", worker: "worker", automerge: "Automerge" };
+export const SYNC_MODES = {
+	local: "this browser",
+	worker: "worker",
+	automerge: "Automerge",
+	relay: "Automerge relay",
+};
+// The Automerge community's relay: for demos, with no uptime or privacy promises.
+export const RELAY_URL = "wss://sync.automerge.org";
 export const syncModeOf = (window) => {
 	const mode = new URLSearchParams(window.location.search).get("sync");
 	return Object.hasOwn(SYNC_MODES, mode) ? mode : null;
@@ -48,16 +56,26 @@ export const backendPort = (window, key) => {
 };
 
 // The handle of the document in the page's doc parameter, or of a new one put there. Tabs on
-// the same address sync over a BroadcastChannel and keep it in IndexedDB.
-export const repoHandle = async (window) => {
+// the same address sync over a BroadcastChannel and keep it in IndexedDB; with a relay URL,
+// other browsers on that address sync through it too.
+export const repoHandle = async (window, { relay = null } = {}) => {
 	const { isValidAutomergeUrl, Repo } = await import("@automerge/automerge-repo");
 	const { BroadcastChannelNetworkAdapter } = await import(
 		"@automerge/automerge-repo-network-broadcastchannel"
 	);
 	const { IndexedDBStorageAdapter } = await import("@automerge/automerge-repo-storage-indexeddb");
+	const network = [new BroadcastChannelNetworkAdapter()];
+	if (relay !== null) {
+		const { BrowserWebSocketClientAdapter } = await import(
+			"@automerge/automerge-repo-network-websocket"
+		);
+		network.push(new BrowserWebSocketClientAdapter(relay));
+	}
 	const repo = new Repo({
-		network: [new BroadcastChannelNetworkAdapter()],
-		storage: new IndexedDBStorageAdapter("tutuca-sync-automerge"),
+		network,
+		storage: new IndexedDBStorageAdapter(
+			relay === null ? "tutuca-sync-automerge" : "tutuca-sync-automerge-relay",
+		),
 	});
 	const url = new URL(window.location.href);
 	const doc = url.searchParams.get("doc");
@@ -87,9 +105,10 @@ export const syncFromQuery = async (
 	if (mode === "worker") {
 		const { remoteEngine } = await import("../../src/sync/remote.js");
 		engines.push(remoteEngine({ transport: workerTransport(connect(window, key)) }));
-	} else if (mode === "automerge") {
+	} else if (mode === "automerge" || mode === "relay") {
 		const { automergeEngine } = await import("../../src/sync/automerge.js");
-		engines.push(automergeEngine({ handle: await open(window) }));
+		const relay = mode === "relay" ? RELAY_URL : null;
+		engines.push(automergeEngine({ handle: await open(window, { relay }) }));
 	}
 	engines.push(storageEngine(storage, `tutuca-sync:${mode}:${key}`));
 	if (log !== null) engines.push(logEngine(log));

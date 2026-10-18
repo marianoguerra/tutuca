@@ -11,6 +11,7 @@ const packages = [
 	"@automerge/automerge",
 	"@automerge/automerge-repo",
 	"@automerge/automerge-repo-network-broadcastchannel",
+	"@automerge/automerge-repo-network-websocket",
 	"@automerge/automerge-repo-storage-indexeddb",
 ];
 const versionOf = (name) =>
@@ -31,6 +32,7 @@ const { outputFiles } = await esbuild.build({
 			'export * from "@automerge/automerge";',
 			'export { isValidAutomergeUrl, Repo } from "@automerge/automerge-repo";',
 			'export { BroadcastChannelNetworkAdapter } from "@automerge/automerge-repo-network-broadcastchannel";',
+			'export { BrowserWebSocketClientAdapter } from "@automerge/automerge-repo-network-websocket";',
 			'export { IndexedDBStorageAdapter } from "@automerge/automerge-repo-storage-indexeddb";',
 		].join("\n"),
 		resolveDir: ".",
