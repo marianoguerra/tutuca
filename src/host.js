@@ -97,18 +97,42 @@ export class Scope {
 		return spec.make(args, this);
 	}
 }
-// Ids that count up, for hosts whose runs must repeat (tests, drivers): uuid-shaped, so they
-// stand in for random ones.
-export const sequentialUuids = () => {
-	let n = 0;
-	return () => `00000000-0000-4000-8000-${(++n).toString(16).padStart(12, "0")}`;
+// What handlers read from the world, through ctx.now(), ctx.random() and ctx.uuid(): the
+// clock in ms since the epoch, a number in [0, 1) and a new id. Each mirrors the global it
+// stands for, so a host can swap them for ones that repeat (testEnv).
+export const browserEnv = {
+	now: () => Date.now(),
+	random: () => Math.random(),
+	uuid: () => globalThis.crypto.randomUUID(),
+};
+// An env whose runs repeat: a clock stopped at start until advance(ms) moves it, numbers from
+// a generator seeded with seed, and uuid-shaped ids that count up.
+export const testEnv = ({ seed = 1, start = Date.UTC(2026, 0, 1) } = {}) => {
+	let time = start;
+	let state = seed >>> 0;
+	let ids = 0;
+	return {
+		now: () => time,
+		advance(ms) {
+			time += ms;
+		},
+		// mulberry32
+		random() {
+			state = (state + 0x6d2b79f5) >>> 0;
+			let x = state;
+			x = Math.imul(x ^ (x >>> 15), x | 1);
+			x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+			return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+		},
+		uuid: () => `00000000-0000-4000-8000-${(++ids).toString(16).padStart(12, "0")}`,
+	};
 };
 export class Host {
-	constructor({ document, rootNode, dev = false, uuid = () => globalThis.crypto.randomUUID() }) {
+	constructor({ document, rootNode, dev = false, env = browserEnv }) {
 		this.document = document;
 		this.rootNode = rootNode;
 		this.dev = dev; // Check the state against the schemas on start and after each task.
-		this.uuid = uuid; // New ids for handlers, through ctx.uuid().
+		this.env = env; // What handlers read from the world, through ctx.
 		this.rootComponent = null;
 		this.registrations = new Set();
 		this.componentNames = new Set(); // In any scope, aliases included.
@@ -284,7 +308,7 @@ export class Host {
 		try {
 			newRoot = produce(curRoot, (rootDraft) => {
 				const leafDraft = path.getIn(rootDraft);
-				ctx = new MessageContext(task, route.path, pushTask, this.uuid);
+				ctx = new MessageContext(task, route.path, pushTask, this.env);
 				const newLeaf = task.run(instance, leafDraft, ctx);
 				return path.setIn(rootDraft, newLeaf);
 			});

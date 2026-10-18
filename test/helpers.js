@@ -7,7 +7,7 @@ import fc from "fast-check";
 import { JSDOM } from "jsdom";
 import { lint } from "../src/lint/index.js";
 import { arbitraries, Driver, specProperties } from "../src/test/pbt.js";
-import { Host, Scope, sequentialUuids } from "../src/tutuca.js";
+import { Host, Scope, testEnv } from "../src/tutuca.js";
 import { Shape, VBase, VComment, VFragment, VNode, VText } from "../src/vdom.js";
 
 // --- documents, hosts and scopes ---------------------------------------------------------
@@ -22,7 +22,7 @@ export const { document } = dom();
 export const setupHost = (specs, { dev = false, sync = false, onReport = null } = {}) => {
 	const window = dom();
 	const rootNode = window.document.createElement("main");
-	const host = new Host({ document: window.document, rootNode, dev, uuid: sequentialUuids() });
+	const host = new Host({ document: window.document, rootNode, dev, env: testEnv() });
 	const failures = [];
 	if (sync) {
 		host.notify = (type, info) => {

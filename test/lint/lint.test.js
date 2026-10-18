@@ -378,6 +378,29 @@ test("lint reports defaults of the wrong kind, bad index targets and every unkno
 	]);
 });
 
+test("lint warns about handlers that read the clock or randomness themselves", () => {
+	const Dice = component({
+		name: "Dice",
+		fields: (t) => ({ n: t.number(), at: t.number(), id: t.string() }),
+		on: {
+			roll(draft) {
+				draft.n = Math.random();
+				draft.at = Date.now();
+			},
+			rollWithCtx(draft, _args, ctx) {
+				draft.n = ctx.random();
+				draft.at = ctx.now();
+				draft.id = ctx.uuid();
+			},
+		},
+		view: "dice",
+	});
+	assert.deepEqual(lintOf({ Dice }), [
+		"warning nondeterministic-call Dice",
+		"warning nondeterministic-call Dice",
+	]);
+});
+
 test("lint reserves the field name $ for synced components", () => {
 	const Bad = component({ name: "Bad", fields: (t) => ({ $: t.string() }), view: "bad" });
 	assert.deepEqual(lintOf({ Bad }), ["error reserved-field Bad"]);

@@ -16,12 +16,12 @@ import {
 	render,
 	Selector,
 	scopeOf,
-	sequentialUuids,
 	specOf,
 	Target,
 	TargetValue,
 	Task,
 	t,
+	testEnv,
 	unwrapOption,
 } from "../tutuca.js";
 
@@ -241,9 +241,17 @@ export const PROBLEMS = new Set(["taskFailed", "stateInvalid", "messageInvalid"]
 // for async ask replies and events from a user, and only keeps problems in reports;
 // onReport gets every report as it happens.
 export class Driver {
-	constructor({ root, document = null, rootNode = null, live = false, onReport = null }) {
+	constructor({
+		root,
+		document = null,
+		rootNode = null,
+		live = false,
+		onReport = null,
+		env = testEnv(),
+	}) {
 		const node = rootNode ?? document?.createElement("main") ?? { addEventListener() {} };
-		this.host = new Host({ document, rootNode: node, dev: true, uuid: sequentialUuids() });
+		this.env = env; // Its clock moves with env.advance(ms).
+		this.host = new Host({ document, rootNode: node, dev: true, env });
 		this.reports = [];
 		this.host.notify = (type, info) => {
 			const report = { type, ...info };

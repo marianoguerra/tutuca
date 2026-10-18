@@ -49,6 +49,14 @@ const labelOf = (node, kind) => {
 // Bindings visible where an expression evaluates: inside a loop body (value and
 // key), and whether a scope or an enriching loop adds names only known at runtime.
 const viewEnv = Object.freeze({ loop: false, open: false });
+// Calls whose results differ between runs, and the ctx method to use instead.
+const WORLD_READS = [
+	[/\bDate\.now\s*\(/, "Date.now()", "ctx.now()"],
+	[/\bnew Date\s*\(\s*\)/, "new Date()", "new Date(ctx.now())"],
+	[/\bperformance\.now\s*\(/, "performance.now()", "ctx.now()"],
+	[/\bMath\.random\s*\(/, "Math.random()", "ctx.random()"],
+	[/\bcrypto\.randomUUID\s*\(/, "crypto.randomUUID()", "ctx.uuid()"],
+];
 
 // Checks statically everything the runtime assumes about registrations and their
 // views. The runtime does not repeat these checks: run lint and fix every issue
@@ -171,6 +179,16 @@ export class Lint extends Walker {
 			if (kinds.some(([kind, names]) => !EMIT_KINDS.has(kind) || !Array.isArray(names))) {
 				bad(".emits must map notify, ask or sendAt to name arrays");
 			}
+		}
+		if (typeof run === "function") this.lintWorldReads(name, run);
+	}
+	// A handler that reads the clock or randomness itself gives a Driver different runs.
+	lintWorldReads(name, run) {
+		const source = String(run);
+		for (const [pattern, call, instead] of WORLD_READS) {
+			if (!pattern.test(source)) continue;
+			const message = `on.${name}: ${call} changes between runs, use ${instead} so they repeat`;
+			this.report("warning", "nondeterministic-call", null, message);
 		}
 	}
 	lintLoop(name, loop) {

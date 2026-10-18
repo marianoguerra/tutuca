@@ -15,9 +15,9 @@ const run = (instance, draft, handlerName, args, ctx) => {
 	return draft;
 };
 export class MessageContext {
-	constructor(task, path, pushTask, newUuid) {
+	constructor(task, path, pushTask, env) {
 		this.task = task;
-		this.newUuid = newUuid;
+		this.env = env;
 		this.path = path.toComponentPath();
 		this.pushTask = pushTask;
 		this.event = task.event;
@@ -27,9 +27,16 @@ export class MessageContext {
 		this.handled = null; // { message, args } once a handler runs.
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
 	}
-	// A new id, unique across hosts: random in an app, counting up in a Driver so runs repeat.
+	// The world, as the host's env gives it, so a Driver's runs repeat. Handlers use these
+	// instead of Date.now(), Math.random() and crypto.randomUUID().
+	now() {
+		return this.env.now();
+	}
+	random() {
+		return this.env.random();
+	}
 	uuid() {
-		return this.newUuid();
+		return this.env.uuid();
 	}
 	notify(name, args = []) {
 		this.emitted.push({ kind: "notify", name, args });
