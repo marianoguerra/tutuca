@@ -3,13 +3,13 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>Tutuca</title>
+		<title>Tutuca — A small JavaScript framework for interactive web apps</title>
 		<meta
 			name="description"
-			content="A small framework for web apps in the browser, with typed state, tests, a storybook, a linter, and pluggable sync for persisting and sharing state."
+			content="Build interactive web apps with typed state, built-in testing tools, and pluggable sync. Tutuca is a small JavaScript framework you can read in full."
 		/>
-		<meta property="og:title" content="Tutuca" />
-		<meta property="og:description" content="A small framework for web apps in the browser." />
+		<meta property="og:title" content="Tutuca — A small JavaScript framework for interactive web apps" />
+		<meta property="og:description" content="Build interactive web apps with typed state, built-in testing tools, and pluggable sync. Small enough to read in full." />
 		<meta property="og:type" content="website" />
 		<link rel="canonical" href="https://marianoguerra.github.io/tutuca/" />
 		<link
@@ -26,8 +26,8 @@
 		<main class="page">
 			<div class="page-icon" aria-hidden="true">🧩</div>
 			<h1>Tutuca</h1>
-			<p class="tagline">A small framework for web apps in the browser.</p>
-			<p class="subtagline">Small enough to read in full, for people and for coding agents.</p>
+			<p class="tagline">A small JavaScript framework for interactive web apps.</p>
+			<p class="subtagline">Typed state, built-in testing tools, and pluggable sync. Small enough to read in full.</p>
 
 			<nav class="actions">
 				<a class="button primary" href="./playground/">Open the playground</a>
@@ -38,50 +38,53 @@
 			</nav>
 
 			<p>
-				Tutuca covers components, typed state, rendering and event handling, and the tools to check
-				them: tests that run without a browser, property-based tests generated from your field
-				types, a storybook with stress tests, and a linter. State changes can be saved or shared
-				with other tabs and devices through sync engines you plug in.
+				Define your components, their state, and the messages they handle. Tutuca uses those
+				definitions to render your UI, check for mistakes, and generate test cases. Explore
+				components in the built-in storybook, then add a sync engine to save state or share
+				changes across tabs and devices.
 			</p>
 			<p>
-				The core is about 2,000 lines of JavaScript with no npm dependencies (it includes a copy of
-				immer). A formal model of its semantics is being written in PLT Redex.
+				Start in the playground or import Tutuca into your own page. No build step required.
 			</p>
 
 			<div class="callout">
 				<span class="callout-icon" aria-hidden="true">📦</span>
 				<div>
-					<p><strong>Install</strong></p>
+					<p><strong>Get started</strong></p>
 					<pre><code>npm install tutuca@next</code></pre>
-					<p>Or import it from a CDN, no build step:</p>
+					<p>Or import directly from a CDN:</p>
 					<pre><code>import { component, h, Host } from "https://cdn.jsdelivr.net/npm/tutuca@next/dist/tutuca.min.js";</code></pre>
 				</div>
 			</div>
 
 			<h2>A first component</h2>
 			<p>
-				A component is a name, typed fields, a view and the messages it handles. Click the buttons,
-				or change the code on the left and press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>.
-				<strong>Steps</strong> replays the story's sequences, <strong>Stress test</strong> throws
-				random messages at it and <strong>Dev</strong> shows its state, specs and lint.
+				This counter introduces the four parts of a component: a name, typed fields, a view,
+				and message handlers. Try the buttons, then edit the code and press
+				<kbd>Ctrl</kbd>+<kbd>Enter</kbd> to run your changes.
+			</p>
+			<p>
+				Open <strong>Steps</strong> to replay a test sequence, <strong>Stress test</strong> to
+				try random messages, or <strong>Dev</strong> to inspect the state, component definitions,
+				and lint results.
 			</p>
 			<tutuca-playground class="wide" src="./examples/counter.js"></tutuca-playground>
 			<pre class="code"><code>const host = new Host({ document, rootNode: document.getElementById("app") });
 host.scope.register({ Counter });
 host.start(host.scope.components.Counter());</code></pre>
-			<p class="muted">That is all it takes to run it in your own page.</p>
+			<p class="muted">To mount the counter on your own page, register it with a host and start it in an element with id <code>app</code>.</p>
 
 			<hr />
 
-			<h2>Build</h2>
+			<h2>Build with components and messages</h2>
 			<ul class="features">
 				<li>
 					<span class="icon" aria-hidden="true">🧱</span>
 					<div>
 						<strong>Components with typed state</strong>
 						<p>
-							Fields are schemas: strings, numbers, enums, options, arrays, maps, records, unions
-							and nested components.
+							Describe your state with schemas for strings, numbers, enums, optional values,
+							arrays, maps, records, unions, and nested components.
 						</p>
 					</div>
 				</li>
@@ -98,7 +101,7 @@ host.start(host.scope.components.Counter());</code></pre>
 				<li>
 					<span class="icon" aria-hidden="true">✉️</span>
 					<div>
-						<strong>Messages, not callbacks</strong>
+						<strong>Explicit message routing</strong>
 						<p>
 							Events send typed messages along explicit paths to the component that handles them.
 						</p>
@@ -109,16 +112,16 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Immutable updates</strong>
 						<p>
-							Handlers edit a draft and the result is a new state. Old states stay unchanged, which
-							the storybook's timeline and the sync diff rely on.
+							Write updates by editing a draft. Tutuca creates a new state and preserves the
+							previous one for the storybook timeline and sync comparisons.
 						</p>
 					</div>
 				</li>
 				<li>
 					<span class="icon" aria-hidden="true">⚡</span>
 					<div>
-						<strong>A small, fast vdom</strong>
-						<p>Keyed reconciliation, with constant subtrees hoisted out of re-renders.</p>
+						<strong>Efficient rendering</strong>
+						<p>A small virtual DOM matches elements by key and reuses static parts of the view.</p>
 					</div>
 				</li>
 				<li>
@@ -126,22 +129,23 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Embeddable</strong>
 						<p>
-							A <code>&lt;tutuca-app&gt;</code> custom element runs apps isolated in a shadow root.
+							Embed an app with the <code>&lt;tutuca-app&gt;</code> custom element, which isolates
+							its DOM and styles in a shadow root.
 						</p>
 					</div>
 				</li>
 			</ul>
 
-			<h2>Keep and share state</h2>
+			<h2>Save and share state</h2>
 			<ul class="features">
 				<li>
 					<span class="icon" aria-hidden="true">🔎</span>
 					<div>
 						<strong>A diff guided by your schemas</strong>
 						<p>
-							After each message, tutuca can list what changed as small operations: set a field,
-							insert into a list, edit part of a text. It uses your field types to do this, so
-							typed text becomes text edits and a list item added at the top is one insert.
+							Tutuca uses your field types to describe changes as small operations: set a field,
+							insert a list item, or edit part of a string. Adding an item at the start of a list
+							produces one insert operation.
 						</p>
 					</div>
 				</li>
@@ -150,9 +154,9 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Pluggable sync</strong>
 						<p>
-							A sync engine receives each change and can apply changes made elsewhere. Your
-							handlers don't change. Each field says whether it is shared, kept on this device
-							only, or not kept at all.
+							Connect an engine to save changes and apply updates from elsewhere. Keep the same
+							message handlers, and choose which fields are shared, saved only on this device,
+							or kept only for the current session.
 						</p>
 					</div>
 				</li>
@@ -161,9 +165,8 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Three engines included</strong>
 						<p>
-							One saves to the browser's storage. One sends changes to a server that orders them.
-							One keeps state in an <a href="https://automerge.org/">Automerge</a> document, so
-							edits made at the same time merge.
+							Use browser storage for persistence, a remote engine to exchange changes through
+							a server, or <a href="https://automerge.org/">Automerge</a> to merge concurrent edits.
 						</p>
 					</div>
 				</li>
@@ -172,20 +175,21 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Repeatable handlers</strong>
 						<p>
-							Handlers get the time, random numbers and new ids from <code>ctx</code>, so tests can
-							replay them and peers don't make clashing ids.
+							Read time, random numbers, and IDs through <code>ctx</code>. Tests can control
+							these values to replay a run; apps use UUIDs to avoid ID collisions between peers.
 						</p>
 					</div>
 				</li>
 			</ul>
 			<p>
-				Try it: open the notes demo with each engine, in two tabs, and edit in one of them.
+				Try the notes demo: reload it to check persistence, or open the Worker or Automerge
+				version in two tabs to see changes sync. For Automerge, copy the full URL after the
+				demo loads so both tabs open the same document.
 			</p>
 			<ul class="sync-links">
-				<li><a href="./demos/notes/?sync=local">This browser</a>: kept in localStorage</li>
+				<li><a href="./demos/notes/?sync=local">Browser storage</a>: saves state in localStorage across reloads</li>
 				<li>
-					<a href="./demos/notes/?sync=worker">Worker</a>: a pretend server in a shared worker,
-					kept in IndexedDB
+					<a href="./demos/notes/?sync=worker">Worker</a>: simulates a server with a SharedWorker and saves state in IndexedDB
 				</li>
 				<li>
 					<a href="./demos/notes/?sync=automerge">Automerge</a>: tabs sync over a
@@ -193,11 +197,12 @@ host.start(host.scope.components.Counter());</code></pre>
 				</li>
 			</ul>
 			<p class="muted">
-				Every demo below takes the same <code>?sync=</code> option. How it works, and what an app
-				needs to do: <a href="https://github.com/marianoguerra/tutuca/blob/main/docs/sync.md">docs/sync.md</a>.
+				All demos support these <code>?sync=</code> options.
+				<a href="https://github.com/marianoguerra/tutuca/blob/main/docs/sync.md">Read the sync guide</a>
+				for setup, field settings, and how each engine handles concurrent edits.
 			</p>
 
-			<h2>Test</h2>
+			<h2>Test as you build</h2>
 			<ul class="features">
 				<li>
 					<span class="icon" aria-hidden="true">🤖</span>
@@ -214,8 +219,8 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Property-based tests from your schemas</strong>
 						<p>
-							Random states, messages and DOM events are generated from the field and message
-							types you already wrote.
+							Generate random states, messages, and DOM events from your field and message
+							types to exercise cases you might not think to write by hand.
 						</p>
 					</div>
 				</li>
@@ -224,8 +229,8 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Storybook built in</strong>
 						<p>
-							Stories with step sequences, a timeline to step back and forth, and stress tests
-							that find and replay counterexamples.
+							Write stories with test sequences, step through state changes on a timeline,
+							and replay failing cases found by stress tests.
 						</p>
 					</div>
 				</li>
@@ -234,14 +239,15 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Lint and invariants</strong>
 						<p>
-							Catch unknown fields, views, components and handlers, and mistyped message arguments,
-							before running. In dev, state and invariants are checked after every update.
+							Find unknown fields, views, components, and handlers before running your app.
+							In development mode, Tutuca also checks message arguments, state, and invariants
+							as your app runs.
 						</p>
 					</div>
 				</li>
 			</ul>
 
-			<h2>Understand</h2>
+			<h2>Understand how it works</h2>
 			<ul class="features">
 				<li>
 					<span class="icon" aria-hidden="true">📐</span>
@@ -258,21 +264,22 @@ host.start(host.scope.components.Counter());</code></pre>
 					<span class="icon" aria-hidden="true">🔍</span>
 					<div>
 						<strong>DevTools formatters</strong>
-						<p>Components, paths and tasks show up readable in the browser console.</p>
+						<p>Inspect components, paths, and tasks with readable formatting in the browser console.</p>
 					</div>
 				</li>
 				<li>
 					<span class="icon" aria-hidden="true">🪶</span>
 					<div>
-						<strong>Fits in your head</strong>
-						<p>About 2,000 lines of core, 19 KB minified and gzipped, no npm dependencies.</p>
+						<strong>A core you can read</strong>
+						<p>About 2,000 lines of JavaScript in the core, with no npm dependencies.
+							Includes a bundled copy of Immer.</p>
 					</div>
 				</li>
 				<li>
 					<span class="icon" aria-hidden="true">🧠</span>
 					<div>
 						<strong>Readable by coding agents</strong>
-						<p>The whole framework fits in an agent's context, so it can read it before writing code.</p>
+						<p>A compact codebase lets coding agents inspect the implementation while working on your app.</p>
 					</div>
 				</li>
 			</ul>
@@ -281,37 +288,39 @@ host.start(host.scope.components.Counter());</code></pre>
 
 			<h2 id="examples">Learn by example</h2>
 			<p class="muted">
-				Each example builds on the one before. All of them are editable; the
-				<a href="./playground/">playground</a> has these and every component library.
+				Edit and run each example as you go, from lists and forms to nested components and
+				async requests. Explore more in the <a href="./playground/">playground</a>, including
+				the component libraries.
 			</p>
 
 			<h3>Lists and forms</h3>
 			<p>
-				Arrays of records, <code>each</code> to loop over them, inputs that send their value with
-				<code>targetValue()</code>, and getters the view reads like fields.
+				Build a todo list from an array of records. Render items with <code>each</code>,
+				read input values with <code>targetValue()</code>, and use getters for derived values
+				in the view.
 			</p>
 			<tutuca-playground class="wide" src="./examples/todo-list.js"></tutuca-playground>
 
 			<h3>Components inside components</h3>
 			<p>
-				A cart renders a line component per item. Lines handle their own messages and
-				<code>notify</code> their parent of what only the parent can do. Messages declare typed
-				arguments, checked in dev and used to generate stress tests.
+				Build a cart with a component for each item. Each item handles its own messages and
+				uses <code>notify</code> to request changes from the cart. Typed message arguments
+				enable runtime checks in development and generated stress tests.
 			</p>
 			<tutuca-playground class="wide" src="./examples/composed.js"></tutuca-playground>
 
 			<h3>Talking to the outside world</h3>
 			<p>
-				Components don't call <code>fetch</code>: they <code>ask</code> a named handler and get
-				the answer back as a message. Stories swap the handlers, and steps can send the reply
-				themselves.
+				Use <code>ask</code> to delegate a request to a named handler and receive the result
+				as a message. Stories can substitute test handlers or send replies directly, so you
+				can test loading, success, and failure states.
 			</p>
 			<tutuca-playground class="wide" src="./examples/async.js"></tutuca-playground>
 
 			<h3>When things go wrong</h3>
 			<p>
-				A component with three bugs. Views are data, so the linter finds them before anything
-				runs: the <strong>Dev</strong> tab lists them. Fix them and run it again.
+				This component has three deliberate mistakes. Open <strong>Dev</strong> to see what
+				the linter found, fix the code, and run it again.
 			</p>
 			<tutuca-playground class="wide" src="./examples/mistakes.js"></tutuca-playground>
 
@@ -319,8 +328,8 @@ host.start(host.scope.components.Counter());</code></pre>
 
 			<h2 id="demos">Demos</h2>
 			<p class="muted">
-				Small apps built from the component libraries. Most have stories in the storybook. Each
-				one can run without sync or with any of the three engines.
+				Explore small apps built with the component libraries. Most also have stories you can
+				inspect and test in the storybook. Run any demo on its own or try it with a sync engine.
 			</p>
 			<ul class="demos">
 				<!-- demos: scripts/site.js lists demos/demos.js here -->
