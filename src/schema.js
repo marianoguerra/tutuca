@@ -331,23 +331,22 @@ export class ComponentType extends AnyType {
 // The type an option wraps, or type itself.
 export const unwrapOption = (type) =>
 	type instanceof OptionType ? unwrapOption(type.valueType) : type;
+const typeArgs = (t, text) => {
+	if (t instanceof EnumType) return t.members.map(text);
+	if (t instanceof IndexType) return [text(t.fieldName)];
+	if (t instanceof ComponentType) return t.names.map(text);
+	if (t instanceof RecordType)
+		return Object.entries(t.shape).map(([k, v]) => `${k}: ${typeText(v)}`);
+	return t
+		.children()
+		.filter((c) => c.constructor !== AnyType)
+		.map(typeText);
+};
 // A type as text, like `number.int().min(0) = 0`, to compare and show.
 export const typeText = (t) => {
 	if (t instanceof OptionType) return `${typeText(t.valueType)}?`;
 	const text = (v) => (v instanceof RegExp ? String(v) : JSON.stringify(v));
-	const args =
-		t instanceof EnumType
-			? t.members.map(text)
-			: t instanceof IndexType
-				? [text(t.fieldName)]
-				: t instanceof ComponentType
-					? t.names.map(text)
-					: t instanceof RecordType
-						? Object.entries(t.shape).map(([k, v]) => `${k}: ${typeText(v)}`)
-						: t
-								.children()
-								.filter((c) => c.constructor !== AnyType)
-								.map(typeText);
+	const args = typeArgs(t, text);
 	const { where = [], ...rest } = t.constraints;
 	const constraints = Object.entries(rest).map(([k, v]) =>
 		v === true ? `.${k}()` : `.${k}(${text(v)})`,
