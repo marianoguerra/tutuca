@@ -46,6 +46,7 @@
 		"vendor-automerge": "node scripts/vendor-automerge.js",
 		"smoke": "node scripts/smoke.js",
 		"site": "node scripts/site.js",
+		"loc": "node scripts/loc.js",
 		"prepublishOnly": "npm run lint && npm test && npm run dist && npm run smoke"
 	},
 	"peerDependencies": {
