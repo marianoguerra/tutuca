@@ -5,7 +5,7 @@
 import { compile } from "margaui";
 import { isoDay } from "../components/common/calendar.js";
 import { readText, saveFile } from "../components/common/files.js";
-import { ClassCompiler, classNamesOf } from "../src/dev/classes.js";
+import { ClassCompiler, classNamesOf } from "../src/css/classes.js";
 import { startSynced } from "../src/sync/index.js";
 import { DispatchPath, Host, Target, Task } from "../src/tutuca.js";
 import { SYNC_MODES, syncFromQuery, syncModeOf } from "./sync/engines.js";

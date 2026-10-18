@@ -1,31 +1,17 @@
 // Runs stories live in <tutuca-app>s for the UI: a StoryRunner per mounted app, with a timeline
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
-import { ClassCompiler } from "../dev/classes.js";
+import { ClassCompiler } from "../css/classes.js";
 import { lint } from "../lint/index.js";
+import { jsonText } from "../paths.js";
 import { carry, specChanges } from "../sync/carry.js";
 import { diff } from "../sync/diff.js";
 import { opText } from "../sync/ops.js";
-import {
-	componentPaths,
-	Driver,
-	describeProblems,
-	drivableMessages,
-	messageCommand,
-	PROBLEMS,
-	resolveRefs,
-	snapshot,
-} from "../test/pbt.js";
+import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../test/driver.js";
+import { drivableMessages, messageCommand, resolveRefs } from "../test/pbt.js";
 import { EventTask, Frame, specOf } from "../tutuca.js";
-import {
-	argsLabel,
-	json,
-	prepareStory,
-	runStep,
-	step,
-	stepText,
-	stressProperty,
-} from "./stories.js";
+import { argsLabel, prepareStory, runStep, step, stepText, stressProperty } from "./stories.js";
+import { STRESS_IDLE } from "./ui/common.js";
 
 export const rootTask = (task) => {
 	while (task.parent !== null) task = task.parent;
@@ -35,7 +21,6 @@ export const taskLabel = (task) => {
 	const call = `${task.name}(${argsLabel(task.args)})`;
 	return task instanceof EventTask ? `${task.event.type} → ${call}` : call;
 };
-export const STRESS_IDLE = { status: "idle", done: 0, total: 0, error: "", commands: [] };
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
 // states, one entry per step and per user interaction, to go back and forth through.
@@ -253,7 +238,7 @@ export class StoryRunner {
 		const [args] = this.fc.sample(message.args, { seed: Number(seed), numRuns: 1 });
 		const types = message.message.args;
 		const resolved = args.map((arg, i) => resolveRefs(arg, types?.[i], target.instance));
-		return { argsJson: json(resolved) };
+		return { argsJson: jsonText(resolved) };
 	}
 	// A generated message that applies to the current state, run as a single step.
 	randomStep(seed) {

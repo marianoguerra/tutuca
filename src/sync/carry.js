@@ -2,22 +2,10 @@
 // state goes through its projection at level "none", so it holds refs, not specs, and hydrate
 // makes it again through whatever the refs name now; diffing the two projections tells what
 // didn't come through.
-import {
-	AnyType,
-	ComponentType,
-	EnumType,
-	findInvalidFields,
-	IndexType,
-	OptionType,
-	RecordType,
-} from "../schema.js";
-import { componentOf, hydrate, isRecord, keyType, project } from "./codec.js";
+import { findInvalidFields, isRecord, typeText } from "../schema.js";
+import { componentOf, hydrate, keyType, project, rootOf } from "./codec.js";
 import { diff } from "./diff.js";
 
-const rootOf = (scope) => {
-	while (scope.parent !== null) scope = scope.parent;
-	return scope;
-};
 const at = (value, path) => path.reduce((v, key) => v?.[key], value);
 
 // The state prev holds, made again through scope's components:
@@ -87,34 +75,4 @@ const specsByRef = (scope, out = new Map()) => {
 	for (const name in scope.byName) out.set([...scope.path, name].join("/"), scope.byName[name]);
 	for (const name in scope.children) specsByRef(scope.children[name], out);
 	return out;
-};
-
-// A type as text, like `number.int().min(0) = 0`, to compare and show.
-export const typeText = (t) => {
-	if (t instanceof OptionType) return `${typeText(t.valueType)}?`;
-	const text = (v) => (v instanceof RegExp ? String(v) : JSON.stringify(v));
-	const args =
-		t instanceof EnumType
-			? t.members.map(text)
-			: t instanceof IndexType
-				? [text(t.fieldName)]
-				: t instanceof ComponentType
-					? t.names.map(text)
-					: t instanceof RecordType
-						? Object.entries(t.shape).map(([k, v]) => `${k}: ${typeText(v)}`)
-						: t
-								.children()
-								.filter((c) => c.constructor !== AnyType)
-								.map(typeText);
-	const { where = [], ...rest } = t.constraints;
-	const constraints = Object.entries(rest).map(([k, v]) =>
-		v === true ? `.${k}()` : `.${k}(${text(v)})`,
-	);
-	for (const { name } of where) constraints.push(`.where(${name})`);
-	const sync = t.syncLevel === "shared" ? "" : `.sync(${text(t.syncLevel)})`;
-	const { defaultValue: d } = t;
-	const value =
-		d === undefined || d === null ? "" : typeof d === "function" ? " = ƒ" : ` = ${text(d)}`;
-	const kind = t.constructor.kind ?? "any";
-	return `${kind}${args.length > 0 ? `(${args.join(", ")})` : ""}${constraints.join("")}${sync}${value}`;
 };

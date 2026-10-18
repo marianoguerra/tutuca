@@ -1,7 +1,7 @@
 // Render optimizations. view.js says what a view evaluates to; this module makes evaluating it
 // cheaper without changing the result. Every call site in view.js is marked with `// OPT:`.
 // Nodes are told apart by their Walker kind, so this module needs nothing from view.js.
-import { Shape, VText } from "./vdom.js";
+import { DYNAMIC_ONLY, Shape, VText } from "./vdom.js";
 
 // A constant node evaluates to the same value with any ctx, including null. Anything that reads
 // the ctx, runs user code or is unknown (custom AstNode subclasses) is not constant.
@@ -19,8 +19,6 @@ export function isConstant(node) {
 }
 
 const isText = (v) => typeof v === "string" || typeof v === "number";
-// Read when the element is created or after its children, so they're never folded into the shape.
-const DYNAMIC_ONLY = new Set(["value", "checked", "is", "dangerouslySetInnerHTML"]);
 
 // What every render of a DomNode shares, computed once when it's built:
 // - constant: handlers don't count, actions are evaluated on dispatch, not on render.

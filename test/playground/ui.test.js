@@ -4,9 +4,9 @@ import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import mathBook, { workbenchBook } from "../../components/math/stories.js";
+import { defineTutucaApp, REQUEST } from "../../src/embed/element.js";
 import { playgroundComponents } from "../../src/playground/element.js";
 import { makePlayground, storyChoices } from "../../src/playground/ui/playground.js";
-import { defineTutucaApp, REQUEST } from "../../src/storybook/element.js";
 import { StoryRegistry } from "../../src/storybook/index.js";
 import { DispatchPath, Host, Target, Task } from "../../src/tutuca.js";
 import { settle, testGenericProperties, testLintsClean } from "../helpers.js";

@@ -29,12 +29,13 @@ import {
 	UnionType,
 	UpdatePath,
 } from "../tutuca.js";
+import { truncate } from "./jsonml.js";
 
 const MAX = 40;
-const clip = (text) => (text.length > MAX ? `${text.slice(0, MAX)}…` : text);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const quote = (s) => `“${clip(String(s))}”`;
-const isTutucaComponent = (v) => specOf(v) instanceof ComponentSpec;
+const quote = (s) => `“${truncate(String(s), MAX)}”`;
+// specOf alone isn't enough: a Proxy may answer any key.
+export const isTutucaComponent = (v) => specOf(v) instanceof ComponentSpec;
 
 // A value in a few words: "“hello”", "42", "3 items", "Tab".
 export const brief = (v) => {

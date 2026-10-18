@@ -4,6 +4,7 @@ import {
 	AstNode,
 	ComponentType,
 	IndexType,
+	isRecord,
 	MapType,
 	MessageSpec,
 	unwrapOption,
@@ -25,7 +26,6 @@ const RENDER_KINDS = new Set([
 ]);
 const LOOP_HOOKS = ["prepare", "filter", "iter", "key", "enrich"];
 const EMIT_KINDS = new Set(["notify", "ask", "sendAt"]);
-const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 const labelOf = (node, kind) => {
 	switch (kind) {
 		case "element":

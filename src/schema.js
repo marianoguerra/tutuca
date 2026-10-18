@@ -216,7 +216,7 @@ export class ArrayType extends AnyType {
 		return Array.isArray(value) && value.every((v) => this.valueType.isValid(v, scope));
 	}
 }
-const isRecordValue = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
+export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 // A record with arbitrary string keys and values of one type.
 export class MapType extends AnyType {
 	static kind = "map";
@@ -228,9 +228,7 @@ export class MapType extends AnyType {
 		return [this.valueType];
 	}
 	isValidValue(value, scope) {
-		return (
-			isRecordValue(value) && Object.values(value).every((v) => this.valueType.isValid(v, scope))
-		);
+		return isRecord(value) && Object.values(value).every((v) => this.valueType.isValid(v, scope));
 	}
 }
 // A record with exactly the keys of shape, each of its own type.
@@ -249,7 +247,7 @@ export class RecordType extends AnyType {
 		return Object.fromEntries(entries);
 	}
 	isValidValue(value, scope) {
-		if (!isRecordValue(value)) return false;
+		if (!isRecord(value)) return false;
 		if (Object.keys(value).some((k) => !Object.hasOwn(this.shape, k))) return false;
 		return Object.entries(this.shape).every(([k, type]) => type.isValid(value[k], scope));
 	}
@@ -281,7 +279,7 @@ export class IndexType extends AnyType {
 	keysIn(owner) {
 		const items = owner?.[this.fieldName];
 		if (Array.isArray(items)) return items.map((_, i) => i);
-		return isRecordValue(items) ? Object.keys(items) : [];
+		return isRecord(items) ? Object.keys(items) : [];
 	}
 	makeDefault(_scope, owner) {
 		const [first] = this.keysIn(owner);
@@ -331,6 +329,35 @@ export class ComponentType extends AnyType {
 // The type an option wraps, or type itself.
 export const unwrapOption = (type) =>
 	type instanceof OptionType ? unwrapOption(type.valueType) : type;
+// A type as text, like `number.int().min(0) = 0`, to compare and show.
+export const typeText = (t) => {
+	if (t instanceof OptionType) return `${typeText(t.valueType)}?`;
+	const text = (v) => (v instanceof RegExp ? String(v) : JSON.stringify(v));
+	const args =
+		t instanceof EnumType
+			? t.members.map(text)
+			: t instanceof IndexType
+				? [text(t.fieldName)]
+				: t instanceof ComponentType
+					? t.names.map(text)
+					: t instanceof RecordType
+						? Object.entries(t.shape).map(([k, v]) => `${k}: ${typeText(v)}`)
+						: t
+								.children()
+								.filter((c) => c.constructor !== AnyType)
+								.map(typeText);
+	const { where = [], ...rest } = t.constraints;
+	const constraints = Object.entries(rest).map(([k, v]) =>
+		v === true ? `.${k}()` : `.${k}(${text(v)})`,
+	);
+	for (const { name } of where) constraints.push(`.where(${name})`);
+	const sync = t.syncLevel === "shared" ? "" : `.sync(${text(t.syncLevel)})`;
+	const { defaultValue: d } = t;
+	const value =
+		d === undefined || d === null ? "" : typeof d === "function" ? " = ƒ" : ` = ${text(d)}`;
+	const kind = t.constructor.kind ?? "any";
+	return `${kind}${args.length > 0 ? `(${args.join(", ")})` : ""}${constraints.join("")}${sync}${value}`;
+};
 const ctor =
 	(Type) =>
 	(...args) =>

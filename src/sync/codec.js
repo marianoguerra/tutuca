@@ -4,6 +4,7 @@ import {
 	AnyType,
 	ArrayType,
 	isComponent,
+	isRecord,
 	MapType,
 	OptionType,
 	RecordType,
@@ -14,7 +15,6 @@ import {
 } from "../schema.js";
 
 const ANY = new AnyType(null);
-export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 // The ref of a projected component; an engine may store it wrapped, as an object with val.
 export const refOf = (v) => {
 	if (!isRecord(v)) return null;
@@ -22,7 +22,7 @@ export const refOf = (v) => {
 	return typeof ref === "string" ? ref : typeof ref?.val === "string" ? ref.val : null;
 };
 export const isRef = (v) => refOf(v) !== null;
-const rootOf = (scope) => {
+export const rootOf = (scope) => {
 	while (scope.parent !== null) scope = scope.parent;
 	return scope;
 };

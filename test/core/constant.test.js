@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { collectClasses } from "../../src/dev/classes.js";
+import { collectClasses } from "../../src/css/classes.js";
 import { isConstant } from "../../src/optimize.js";
 import {
 	$if,

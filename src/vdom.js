@@ -23,7 +23,8 @@ export class VComment extends VBase {
 }
 // What every render of one template shares: tag, namespace, the attrs that never change and
 // the names of the ones that do. Same-shape vnodes diff by index; different shapes replace.
-const DYNAMIC_ONLY = ["value", "checked", "is", "dangerouslySetInnerHTML"];
+// Attrs read when the element is created or after its children, so never part of a Shape.
+export const DYNAMIC_ONLY = new Set(["value", "checked", "is", "dangerouslySetInnerHTML"]);
 export class Shape {
 	constructor(tag, namespace, staticAttrs, names) {
 		if (namespace == null) {

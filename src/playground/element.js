@@ -7,9 +7,9 @@
 // CodeMirror (EditorView, EditorState, Compartment, keymap, basicSetup, javascript, oneDark),
 // fast-check and a margaui-style compile(classes) → css are passed in, as in the storybook.
 
-import { ClassCompiler, classNamesOf } from "../dev/classes.js";
+import { ClassCompiler, classNamesOf } from "../css/classes.js";
 import { devClasses, devComponents } from "../dev/panel.js";
-import { defineTutucaApp, REQUEST } from "../storybook/element.js";
+import { defineTutucaApp, REQUEST } from "../embed/element.js";
 import { StoryRegistry } from "../storybook/runner.js";
 import { BADGES } from "../storybook/ui/common.js";
 import { StoryPanel } from "../storybook/ui/story-panel.js";

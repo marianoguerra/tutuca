@@ -6,17 +6,12 @@ import {
 	AskTask,
 	AstNode,
 	ComponentSpec,
-	ComponentType,
 	DispatchPath,
 	DomNode,
-	EnumType,
 	EventTask,
 	Frame,
-	IndexType,
 	MessageContext,
 	NotifyTask,
-	OptionType,
-	RecordType,
 	RenderContext,
 	Scope,
 	Selector,
@@ -24,10 +19,12 @@ import {
 	specOf,
 	Target,
 	Task,
+	typeText,
 	UpdatePath,
 	Walker,
 } from "../tutuca.js";
 import { install, join, makeFormatter, objectRef, span, truncate } from "./jsonml.js";
+import { isTutucaComponent } from "./summary.js";
 import { installVdomFormatters } from "./vdom-formatters.js";
 
 export const S = {
@@ -44,7 +41,6 @@ const MAX_AST_DEPTH = 2;
 const MAX_AST_CHILDS = 3;
 
 export const isObject = (v) => (v !== null && typeof v === "object") || typeof v === "function";
-const isTutucaComponent = (v) => specOf(v) instanceof ComponentSpec; // a Proxy may answer any key
 const ref = (v) => (isObject(v) ? objectRef(v) : prim(v));
 
 const prim = (v) => {
@@ -157,45 +153,7 @@ const astHeader = (node) => {
 	return printer.out;
 };
 
-const typeName = (t) => t.constructor.kind ?? "any";
-const constraintParts = ({ where, ...rest }) => {
-	const parts = Object.entries(rest).map(([k, v]) =>
-		v === true ? [`.${k}()`] : [`.${k}(`, prim(v), ")"],
-	);
-	for (const { name } of where ?? []) parts.push([`.where(${name})`]);
-	return parts.flat();
-};
-const typeArgs = (t) => {
-	if (t instanceof EnumType)
-		return join(
-			t.members.map((m) => [prim(m)]),
-			", ",
-		);
-	if (t instanceof IndexType) return [prim(t.fieldName)];
-	if (t instanceof ComponentType)
-		return join(
-			t.names.map((n) => [prim(n)]),
-			", ",
-		);
-	if (t instanceof RecordType) {
-		return join(
-			Object.entries(t.shape).map(([k, v]) => [span(S.key, k), ": ", ...typeHeader(v)]),
-			", ",
-		);
-	}
-	const params = t.children().filter((c) => c.constructor !== AnyType);
-	return join(params.map(typeHeader), ", ");
-};
-const typeHeader = (t) => {
-	if (t instanceof OptionType) return [...typeHeader(t.valueType), "?"];
-	const parts = [span(S.fn, typeName(t))];
-	const args = typeArgs(t);
-	if (args.length > 0) parts.push("(", ...args, ")");
-	parts.push(...constraintParts(t.constraints));
-	const { defaultValue } = t;
-	if (defaultValue !== undefined && defaultValue !== null) parts.push(" = ", prim(defaultValue));
-	return parts;
-};
+const typeHeader = (t) => [span(S.fn, typeText(t))];
 
 const keyParts = (key) =>
 	typeof key === "string" ? [".", span(S.key, key)] : ["[", prim(key), "]"];

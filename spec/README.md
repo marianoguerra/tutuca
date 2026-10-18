@@ -194,7 +194,7 @@ Two of these are equivalent only when nothing but the runtime mutates the manage
 - Arrays, records and components are the only objects.
 - Dev checks (schemas, invariants, message contracts), `Host.notify`, listener registration.
   Routing already ignores unknown event types.
-- `src/tag.js`, `src/dev/`, `src/storybook/element.js`, the storybook, pbt and lint modules.
+- `src/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, the storybook, pbt and lint modules.
 
 ## What the tests check
 

@@ -1,10 +1,11 @@
 // Stories without a UI: books of stories, their sequences of steps and stress tests, run on a
 // headless Driver. fast-check is passed in, as in pbt.js.
 
+import { truncate } from "../dev/jsonml.js";
+import { jsonText } from "../paths.js";
+import { Driver, describeProblems } from "../test/driver.js";
 import {
 	arbitraries,
-	Driver,
-	describeProblems,
 	dispatchOn,
 	eventCommands,
 	messageCommands,
@@ -12,15 +13,7 @@ import {
 } from "../test/pbt.js";
 import { DispatchPath, Scope, selectorFrom, specOf } from "../tutuca.js";
 
-export const json = (v) => {
-	try {
-		return JSON.stringify(v) ?? String(v);
-	} catch {
-		return String(v);
-	}
-};
-export const clip = (text, max = 80) => (text.length > max ? `${text.slice(0, max)}…` : text);
-export const argsLabel = (args) => clip(args.map(json).join(", "));
+export const argsLabel = (args) => truncate(args.map(jsonText).join(", "), 80);
 
 // Steps of a sequence, as plain data. at and from are PathBuilder functions relative to
 // the story root, as in ctx.sendAt; from is the child the message comes through.

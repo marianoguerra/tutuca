@@ -1,132 +1,14 @@
 // The host: registers components in scopes, renders the root and runs tasks against its state.
 import { produce } from "../deps/immer.js";
+import { browserEnv } from "./env.js";
 import { getEventInfoFor } from "./events.js";
 import { routeFor } from "./paths.js";
 import { findInvalidFields, messageIssues } from "./schema.js";
+import { Scope } from "./scope.js";
 import { EventTask, MessageContext } from "./tasks.js";
 import { render as $render } from "./vdom.js";
 import { RenderContext, renderView, toVChilds } from "./view.js";
 
-// A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
-const refSep = "/";
-export class Scope {
-	constructor(onRegister, parent = null, name = null) {
-		this.onRegister = onRegister;
-		this.parent = parent;
-		this.name = name;
-		this.path = parent === null ? [] : [...parent.path, name];
-		this.children = Object.create(null);
-		this.byName = Object.create(null);
-		this.askHandlers = Object.create(null);
-		this.components = new Proxy(Object.create(null), {
-			get: (_target, name) => this.factory(name),
-		});
-	}
-	// Names make scopes a namespace tree, so a component's ref finds the same scope on reload.
-	enter(name) {
-		if (typeof name !== "string" || name === "" || name.includes(refSep)) {
-			throw new Error(`scope.enter needs a name without "${refSep}", got ${String(name)}`);
-		}
-		this.children[name] ??= new Scope(this.onRegister, this, name);
-		return this.children[name];
-	}
-	// The ref of a component made in this scope: this path and a name it's looked up by here.
-	refFor(spec) {
-		for (let s = this; s !== null; s = s.parent) {
-			for (const name in s.byName) {
-				if (s.byName[name] === spec && this.lookupByName(name) === spec) {
-					return [...this.path, name].join(refSep);
-				}
-			}
-		}
-		throw new Error(`Component ${spec.name} is not registered in scope /${this.path.join(refSep)}`);
-	}
-	// The scope and name a ref names, from this scope down.
-	resolveRef(ref) {
-		const keys = ref.split(refSep);
-		const name = keys.pop();
-		let scope = this;
-		for (const key of keys) {
-			scope = scope.children[key];
-			if (scope === undefined) throw new Error(`No scope ${keys.join(refSep)} for ${ref}`);
-		}
-		return { scope, name };
-	}
-	register(comps) {
-		const factories = {};
-		for (const name in comps) {
-			const spec = comps[name];
-			this.byName[name] = spec;
-			this.onRegister(spec, name);
-			factories[name] = this.factory(name);
-		}
-		return factories;
-	}
-	factory(name) {
-		return (args) => this.make(name, args);
-	}
-	lookup(getter) {
-		let scope = this;
-		while (scope !== null) {
-			const v = getter(scope);
-			if (v !== undefined) return v;
-			scope = scope.parent;
-		}
-		return null;
-	}
-	registerAskHandlers(handlers) {
-		Object.assign(this.askHandlers, handlers);
-	}
-	lookupAskHandler(name) {
-		return this.lookup((scope) => scope.askHandlers[name]);
-	}
-	lookupByName(name) {
-		return this.lookup((scope) => scope.byName[name]);
-	}
-	// Every spec registered here or in a parent, by name; inner registrations win.
-	allSpecs() {
-		const specs = {};
-		for (let s = this; s !== null; s = s.parent) {
-			for (const name in s.byName) specs[name] ??= s.byName[name];
-		}
-		return specs;
-	}
-	make(name, args) {
-		const spec = this.lookupByName(name);
-		if (spec === null) throw new Error(`Component ${String(name)} is not registered`);
-		return spec.make(args, this);
-	}
-}
-// What handlers read from the world, through ctx.now(), ctx.random() and ctx.uuid(): the
-// clock in ms since the epoch, a number in [0, 1) and a new id. Each mirrors the global it
-// stands for, so a host can swap them for ones that repeat (testEnv).
-export const browserEnv = {
-	now: () => Date.now(),
-	random: () => Math.random(),
-	uuid: () => globalThis.crypto.randomUUID(),
-};
-// An env whose runs repeat: a clock stopped at start until advance(ms) moves it, numbers from
-// a generator seeded with seed, and uuid-shaped ids that count up.
-export const testEnv = ({ seed = 1, start = Date.UTC(2026, 0, 1) } = {}) => {
-	let time = start;
-	let state = seed >>> 0;
-	let ids = 0;
-	return {
-		now: () => time,
-		advance(ms) {
-			time += ms;
-		},
-		// mulberry32
-		random() {
-			state = (state + 0x6d2b79f5) >>> 0;
-			let x = state;
-			x = Math.imul(x ^ (x >>> 15), x | 1);
-			x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
-			return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-		},
-		uuid: () => `00000000-0000-4000-8000-${(++ids).toString(16).padStart(12, "0")}`,
-	};
-};
 export class Host {
 	constructor({ document, rootNode, dev = false, env = browserEnv }) {
 		this.document = document;

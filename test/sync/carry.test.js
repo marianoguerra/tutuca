@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { carry, specChanges, typeText } from "../../src/sync/index.js";
-import { component, Scope, specOf, t } from "../../src/tutuca.js";
+import { carry, specChanges } from "../../src/sync/index.js";
+import { component, Scope, specOf, t, typeText } from "../../src/tutuca.js";
 
 // The same components before and after an edit: each version registered in its own scope.
 const scopeOf = (components) => {

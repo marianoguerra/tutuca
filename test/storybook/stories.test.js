@@ -5,7 +5,7 @@ import fc from "fast-check";
 import { JSDOM } from "jsdom";
 import jsonBook from "../../components/json/stories.js";
 import mathBook from "../../components/math/stories.js";
-import { defineTutucaApp, REPORT, REQUEST } from "../../src/storybook/element.js";
+import { defineTutucaApp, REPORT, REQUEST } from "../../src/embed/element.js";
 import {
 	checkStory,
 	prepareStory,

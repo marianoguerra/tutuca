@@ -4,7 +4,7 @@
 // single messages and stress tests it with generated message or event sequences.
 // fast-check is passed in, as in pbt.js.
 
-import { classNamesOf } from "../dev/classes.js";
+import { classNamesOf } from "../css/classes.js";
 import { devClasses, devComponents, makeDevPanel } from "../dev/panel.js";
 import { Host } from "../tutuca.js";
 
@@ -15,7 +15,7 @@ export { StoryPanel } from "./ui/story-panel.js";
 export { Storybook } from "./ui/storybook.js";
 export { StressPanel } from "./ui/stress-panel.js";
 
-import { defineTutucaApp, REQUEST } from "./element.js";
+import { defineTutucaApp, REQUEST } from "../embed/element.js";
 import { StoryRegistry } from "./runner.js";
 import { BADGES } from "./ui/common.js";
 import { StoryLink } from "./ui/link.js";

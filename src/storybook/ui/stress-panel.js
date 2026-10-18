@@ -11,8 +11,7 @@ import {
 	tag,
 	targetValue,
 } from "../../tutuca.js";
-import { STRESS_IDLE } from "../runner.js";
-import { askStory, card, smallButton, title } from "./common.js";
+import { askStory, card, STRESS_IDLE, smallButton, title } from "./common.js";
 
 const { div, h3, input, label, li, ol, option, pre, section, select, span } = tag;
 

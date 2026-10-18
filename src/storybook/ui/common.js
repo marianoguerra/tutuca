@@ -17,3 +17,6 @@ export const askStory = (ctx, self, op, ...args) => ctx.ask("story", [self.appKe
 // A small daisyUI button; class adds to btn btn-sm unless attrs replace it.
 export const smallButton = (attrs, ...childs) =>
 	button({ class: "btn btn-sm", ...attrs }, ...childs);
+
+// A stress panel before any run, and the shape of a run's progress.
+export const STRESS_IDLE = { status: "idle", done: 0, total: 0, error: "", commands: [] };

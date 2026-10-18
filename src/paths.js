@@ -1,6 +1,6 @@
 // Paths: where a component is in the state (UpdatePath), how a message got there (DispatchPath)
 // and where it goes (Selector, Target).
-const jsonText = (v) => {
+export const jsonText = (v) => {
 	try {
 		return JSON.stringify(v) ?? String(v);
 	} catch {

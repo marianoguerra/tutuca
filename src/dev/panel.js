@@ -19,6 +19,7 @@ import {
 	tag,
 } from "../tutuca.js";
 import { describe, isObject, S } from "./formatters.js";
+import { truncate } from "./jsonml.js";
 import { summarize } from "./summary.js";
 
 const { button, div, h3, li, p, section, span, ul } = tag;
@@ -28,7 +29,7 @@ const { button, div, h3, li, p, section, span, ul } = tag;
 const refs = new Map();
 const ids = new WeakMap();
 let nextRef = 1;
-export const refOf = (v) => {
+export const idOf = (v) => {
 	if (!isObject(v)) return 0;
 	let id = ids.get(v);
 	if (id === undefined) {
@@ -52,7 +53,6 @@ export const TONES = {
 };
 const TONE_OF_STYLE = new Map(Object.entries(S).map(([tone, style]) => [style, tone]));
 const MAX_TEXT = 60;
-const clip = (text) => (text.length > MAX_TEXT ? `${text.slice(0, MAX_TEXT)}…` : text);
 
 // JsonML parts as { text, tone } tokens; adjacent tokens of one tone merge.
 const tokensOf = (parts) => {
@@ -74,7 +74,7 @@ const tokensOf = (parts) => {
 	return tokens;
 };
 const primTokens = (v) => {
-	if (typeof v === "string") return [{ text: clip(JSON.stringify(v)), tone: "str" }];
+	if (typeof v === "string") return [{ text: truncate(JSON.stringify(v), MAX_TEXT), tone: "str" }];
 	if (typeof v === "function") return [{ text: `ƒ ${v.name}`, tone: "fn" }];
 	if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
 		return [{ text: String(v), tone: "num" }];
@@ -128,7 +128,7 @@ const TONE_NAMES = Object.keys(TONES);
 export const devNode = (C, label, value) => {
 	const { tokens, rows } = inspect(value);
 	const { title, detail } = summarize(value);
-	return C.DevNode({ label, tokens, title, detail, ref: refOf(value), canOpen: rows.length > 0 });
+	return C.DevNode({ label, tokens, title, detail, ref: idOf(value), canOpen: rows.length > 0 });
 };
 // A row with nothing to expand reads the same either way.
 const leafNode = (C, label, tokens) =>
@@ -386,7 +386,7 @@ export const makeDevPanel = (C) =>
 	});
 
 const sameRefs = (nodes, values) =>
-	nodes.length === values.length && nodes.every((n, i) => n.ref === refOf(values[i].value));
+	nodes.length === values.length && nodes.every((n, i) => n.ref === idOf(values[i].value));
 // Sets section's nodes to { label, value } items, unless they show the same values already.
 export const updateSection = (C, section, items) => {
 	if (sameRefs(section.nodes, items)) return;
