@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import mathBook, { workbenchBook } from "../../components/math/stories.js";
 import { defineTutucaApp, REQUEST } from "../../src/embed/element.js";
 import { playgroundComponents } from "../../src/playground/element.js";
 import { makePlayground, storyChoices } from "../../src/playground/ui/playground.js";
 import { StoryRegistry } from "../../src/storybook/index.js";
 import { DispatchPath, Host, Target, Task } from "../../src/tutuca.js";
-import { settle, testGenericProperties, testLintsClean } from "../helpers.js";
+import { dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
 
 testLintsClean("playground", playgroundComponents);
 
@@ -17,7 +15,7 @@ testGenericProperties(playgroundComponents);
 
 // What the element does around the Playground, without CodeMirror: a registry per run.
 const start = () => {
-	const { window } = new JSDOM("<body></body>");
+	const window = dom("<body></body>");
 	defineTutucaApp(window);
 	const rootNode = window.document.createElement("div");
 	window.document.body.append(rootNode);

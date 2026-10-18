@@ -6,12 +6,11 @@ import { allOpen, schemaComponents } from "../../components/json-schema/index.js
 import { fromSchema, readKind, schemaTree } from "../../components/json-schema/read.js";
 import { sample } from "../../components/json-schema/stories.js";
 import { arbitraries, Driver } from "../../src/test/pbt.js";
-import { Scope, selectorFrom } from "../../src/tutuca.js";
-import { document, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
+import { selectorFrom } from "../../src/tutuca.js";
+import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 
 const setup = () => {
-	const scope = new Scope(() => {});
-	scope.register({ ...jsonComponents, ...schemaComponents });
+	const scope = scopeWith({ ...jsonComponents, ...schemaComponents });
 	return { scope, C: scope.components, A: arbitraries({ fc, scope }) };
 };
 

@@ -10,21 +10,17 @@ import {
 	startSynced,
 	storageEngine,
 } from "../../src/sync/index.js";
-import { component, Scope, specOf, t, typeText } from "../../src/tutuca.js";
-import { setupHost } from "../helpers.js";
+import { component, specOf, t, typeText } from "../../src/tutuca.js";
+import { scopeWith, setupHost } from "../helpers.js";
 
-// The same components before and after an edit: each version registered in its own scope.
-const scopeOf = (components) => {
-	const scope = new Scope(() => {});
-	scope.register(components);
-	return scope;
-};
+// The same components before and after an edit, each version registered with scopeWith in its
+// own scope.
 const Item = (fields, opts = {}) => component({ name: "Item", fields, view: "<b></b>", ...opts });
 const List = (fields = (t) => ({ title: t.string(), items: t.array(t.component("Item")) })) =>
 	component({ name: "List", fields, view: "<ul></ul>" });
 const v1 = Item((t) => ({ label: t.string(), done: t.boolean() }));
 const made = () => {
-	const scope = scopeOf({ List: List(), Item: v1 });
+	const scope = scopeWith({ List: List(), Item: v1 });
 	const C = scope.components;
 	return C.List({
 		title: "todo",
@@ -34,7 +30,7 @@ const made = () => {
 
 test("the same components carry everything and report nothing", () => {
 	const prev = made();
-	const scope = scopeOf({ List: List(), Item: v1 });
+	const scope = scopeWith({ List: List(), Item: v1 });
 	const { root, added, reset, dropped, broken } = carry(prev, scope);
 	assert.deepEqual(
 		{ added, reset, dropped, broken },
@@ -53,7 +49,7 @@ test("the same components carry everything and report nothing", () => {
 
 test("an added field takes its default and a removed one is dropped", () => {
 	const v2 = Item((t) => ({ label: t.string(), priority: t.number(3) }));
-	const { root, added, dropped, reset } = carry(made(), scopeOf({ List: List(), Item: v2 }));
+	const { root, added, dropped, reset } = carry(made(), scopeWith({ List: List(), Item: v2 }));
 	assert.deepEqual(added, [
 		["items", 0, "priority"],
 		["items", 1, "priority"],
@@ -69,7 +65,7 @@ test("an added field takes its default and a removed one is dropped", () => {
 
 test("a value the new type rejects is reset to its default", () => {
 	const v2 = Item((t) => ({ label: t.string(), done: t.enum("open", "done") }));
-	const { root, reset } = carry(made(), scopeOf({ List: List(), Item: v2 }));
+	const { root, reset } = carry(made(), scopeWith({ List: List(), Item: v2 }));
 	assert.deepEqual(reset, [
 		{ path: ["items", 0, "done"], before: true, after: "open" },
 		{ path: ["items", 1, "done"], before: false, after: "open" },
@@ -78,25 +74,25 @@ test("a value the new type rejects is reset to its default", () => {
 });
 
 test("a narrower type keeps the values that still fit", () => {
-	const scope = scopeOf({ List: List(), Item: v1 });
+	const scope = scopeWith({ List: List(), Item: v1 });
 	const prev = scope.components.List({ title: "ok" });
 	const narrower = List((t) => ({ title: t.string().len(1), items: t.array(t.component("Item")) }));
-	assert.deepEqual(carry(prev, scopeOf({ List: narrower, Item: v1 })).reset, []);
+	assert.deepEqual(carry(prev, scopeWith({ List: narrower, Item: v1 })).reset, []);
 });
 
 test("a component that's gone or a field without a default can't be carried", () => {
-	assert.throws(() => carry(made(), scopeOf({ List: List() })), /No component Item/);
+	assert.throws(() => carry(made(), scopeWith({ List: List() })), /No component Item/);
 	const required = Item((t) => ({ label: t.string(), owner: t.component() }));
-	assert.throws(() => carry(made(), scopeOf({ List: List(), Item: required })), /no default/);
+	assert.throws(() => carry(made(), scopeWith({ List: List(), Item: required })), /no default/);
 });
 
 test("components in a scope entered by name carry through their ref", () => {
 	const AnyList = List((t) => ({ items: t.array(t.component()) }));
-	const scope = scopeOf({ List: AnyList });
+	const scope = scopeWith({ List: AnyList });
 	scope.enter("editor").register({ Item: v1 });
 	const item = scope.enter("editor").components.Item({ label: "x" });
 	const prev = scope.components.List({ items: [item] });
-	const next = scopeOf({ List: AnyList });
+	const next = scopeWith({ List: AnyList });
 	next.enter("editor").register({ Item: v1 });
 	const { root } = carry(prev, next);
 	assert.equal(specOf(root.items[0]), next.enter("editor").lookupByName("Item"));
@@ -105,8 +101,8 @@ test("components in a scope entered by name carry through their ref", () => {
 
 test("a value the projection can't hold can't be carried", () => {
 	const Clock = component({ name: "Clock", fields: (t) => ({ at: t.any() }), view: "<b></b>" });
-	const prev = scopeOf({ Clock }).components.Clock({ at: new Date(0) });
-	assert.throws(() => carry(prev, scopeOf({ Clock })), /can't sync a Date instance/);
+	const prev = scopeWith({ Clock }).components.Clock({ at: new Date(0) });
+	assert.throws(() => carry(prev, scopeWith({ Clock })), /can't sync a Date instance/);
 });
 
 test("invariants the carried state breaks are reported, and the state still carried", () => {
@@ -123,7 +119,7 @@ test("invariants the carried state breaks are reported, and the state still carr
 			},
 		},
 	});
-	const { root, broken } = carry(made(), scopeOf({ List: fewer, Item: labelled }));
+	const { root, broken } = carry(made(), scopeWith({ List: fewer, Item: labelled }));
 	assert.equal(root.items.length, 2);
 	assert.deepEqual(
 		broken.map((i) => [i.path, i.component, i.reason]),
@@ -137,7 +133,10 @@ test("invariants the carried state breaks are reported, and the state still carr
 test("specChanges tells the fields and components that changed by ref", () => {
 	const v2 = Item((t) => ({ label: t.string("?"), priority: t.number(3).int() }));
 	const Extra = component({ name: "Extra", fields: () => ({}), view: "<b></b>" });
-	const changes = specChanges(scopeOf({ List: List(), Item: v1 }), scopeOf({ Item: v2, Extra }));
+	const changes = specChanges(
+		scopeWith({ List: List(), Item: v1 }),
+		scopeWith({ Item: v2, Extra }),
+	);
 	assert.deepEqual(changes, [
 		{ ref: "List", field: null, change: "removed", before: null, after: null },
 		{
@@ -168,9 +167,13 @@ test("rebuild reports only the fields its level sees as added", () => {
 		fields: (t) => ({ text: t.string(), seen: t.boolean().sync("local"), tag: t.string("x") }),
 		view: "<b></b>",
 	});
-	const { added, reset, dropped } = rebuild({ $: "Note", text: "hi", gone: 1 }, scopeOf({ Note }), {
-		level: "shared",
-	});
+	const { added, reset, dropped } = rebuild(
+		{ $: "Note", text: "hi", gone: 1 },
+		scopeWith({ Note }),
+		{
+			level: "shared",
+		},
+	);
 	assert.deepEqual({ added, reset, dropped }, { added: [["tag"]], reset: [], dropped: [["gone"]] });
 });
 
@@ -203,7 +206,7 @@ test("startSynced reports what a projection stored by another version lost", asy
 });
 
 test("ops from a peer on another version are made to fit", () => {
-	const scope = scopeOf({ List: List(), Item: v1 });
+	const scope = scopeWith({ List: List(), Item: v1 });
 	const C = scope.components;
 	const root = C.List({ items: [C.Item({ label: "a" })] });
 	const ops = [
@@ -239,7 +242,7 @@ test("ops from a peer on another version are made to fit", () => {
 });
 
 test("ops that fit change nothing in the report", () => {
-	const scope = scopeOf({ List: List(), Item: v1 });
+	const scope = scopeWith({ List: List(), Item: v1 });
 	const root = scope.components.List();
 	const onMigrate = () => assert.fail("nothing to report");
 	const ops = [

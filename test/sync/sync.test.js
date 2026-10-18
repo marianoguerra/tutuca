@@ -14,7 +14,7 @@ import {
 } from "../../src/sync/index.js";
 import { memoryRemote, remoteEngine } from "../../src/sync/remote.js";
 import { component, DispatchPath, scopeOf, specOf, Target, Task } from "../../src/tutuca.js";
-import { setupHost } from "../helpers.js";
+import { setupHost, tick } from "../helpers.js";
 
 const Item = component({
 	name: "Item",
@@ -57,7 +57,6 @@ const send = (host, name, args) => {
 };
 // A copy of a component with changes, as a handler's draft would leave it.
 const edit = (c, changes) => Object.assign(Object.create(Object.getPrototypeOf(c)), c, changes);
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // --- scopes and refs -----------------------------------------------------------------------
 
@@ -253,15 +252,15 @@ const remoteClient = async (remote) => {
 test("remote clients converge through the relay", async () => {
 	const remote = memoryRemote();
 	const a = await remoteClient(remote);
-	await settle();
+	await tick();
 	const b = await remoteClient(remote);
 	send(a.host, "retitle", ["shared title"]);
 	send(a.host, "add", ["first"]);
-	await settle();
+	await tick();
 	assert.equal(b.host.rootComponent.title, "shared title");
 	assert.equal(specOf(b.host.rootComponent.items[0]), Item);
 	send(b.host, "add", ["second"]);
-	await settle();
+	await tick();
 	assert.deepEqual(project(a.host.rootComponent), project(b.host.rootComponent));
 	assert.deepEqual(remote.relay.load().value, project(a.host.rootComponent));
 });
@@ -269,12 +268,12 @@ test("remote clients converge through the relay", async () => {
 test("a change made against an old version is rejected and reloads", async () => {
 	const remote = memoryRemote();
 	const a = await remoteClient(remote);
-	await settle();
+	await tick();
 	const b = await remoteClient(remote);
 	send(a.host, "retitle", ["from a"]);
 	send(b.host, "retitle", ["from b"]); // before b hears of a's change
-	await settle();
-	await settle();
+	await tick();
+	await tick();
 	assert.equal(a.host.rootComponent.title, "from a");
 	assert.equal(b.host.rootComponent.title, "from a");
 });
@@ -283,7 +282,7 @@ test("a local engine restores local fields under the shared ones", async () => {
 	const remote = memoryRemote();
 	const a = await remoteClient(remote);
 	send(a.host, "add", ["x"]);
-	await settle();
+	await tick();
 	let saved = null;
 	const local = {
 		level: "local",

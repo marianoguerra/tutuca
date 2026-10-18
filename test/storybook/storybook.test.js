@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import jsonBook from "../../components/json/stories.js";
 import mathBook from "../../components/math/stories.js";
 import { startStorybook, storybookComponents } from "../../src/storybook/index.js";
-import { settle, testGenericProperties, testLintsClean } from "../helpers.js";
+import { dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
 
 testLintsClean("storybook", storybookComponents);
 
@@ -15,7 +13,7 @@ testGenericProperties(storybookComponents);
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const start = (initialId = "") => {
-	const { window } = new JSDOM("<body></body>");
+	const window = dom("<body></body>");
 	const rootNode = window.document.createElement("div");
 	window.document.body.append(rootNode);
 	const failures = [];

@@ -20,12 +20,11 @@ import {
 	h,
 	render,
 	renderEach,
-	Scope,
 	send,
 	seqItem,
 	t,
 } from "../../src/tutuca.js";
-import { document, testGenericProperties } from "../helpers.js";
+import { document, scopeWith, testGenericProperties } from "../helpers.js";
 
 const RUNS = { numRuns: 50 };
 
@@ -101,9 +100,7 @@ const tabsArb = (A, depth) =>
 		});
 
 const setup = (components = tabComponents, overrides = { Tabs: tabsArb }) => {
-	const scope = new Scope(() => {});
-	scope.register(components);
-	return arbitraries({ fc, scope, overrides });
+	return arbitraries({ fc, scope: scopeWith(components), overrides });
 };
 
 testGenericProperties(tabComponents, { overrides: { Tabs: tabsArb }, ...RUNS });

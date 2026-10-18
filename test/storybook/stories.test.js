@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import jsonBook from "../../components/json/stories.js";
 import mathBook from "../../components/math/stories.js";
 import { defineTutucaApp, REPORT, REQUEST } from "../../src/embed/element.js";
@@ -17,7 +15,7 @@ import {
 import { Driver, describeProblems } from "../../src/test/pbt.js";
 import { component, field, h, send } from "../../src/tutuca.js";
 import { books } from "../../storybook.books.js";
-import { document, testLintsClean } from "../helpers.js";
+import { document, dom, testLintsClean, tick } from "../helpers.js";
 
 const byName = (book, name) => book.stories.find((s) => s.name === name);
 
@@ -92,7 +90,7 @@ test("stressStory finds the schema break", () => {
 
 // A page with a <tutuca-app> answered by a registry, recording the summaries it publishes.
 const mountStory = (story, key = `${story.id}@0`) => {
-	const { window } = new JSDOM("<body></body>");
+	const window = dom("<body></body>");
 	defineTutucaApp(window);
 	const registry = new StoryRegistry({ fc, books: [story.book] });
 	const { body } = window.document;
@@ -230,7 +228,7 @@ test("removing the element disposes the runner", async () => {
 });
 
 test("classes stories compute at render compile into their shadow roots", async () => {
-	const { window } = new JSDOM("<body></body>");
+	const window = dom("<body></body>");
 	defineTutucaApp(window);
 	const compiled = [];
 	const compile = (classes) => {
@@ -242,18 +240,18 @@ test("classes stories compute at render compile into their shadow roots", async 
 	const element = window.document.createElement("tutuca-app");
 	element.setAttribute("app-key", "JSON/Document@0");
 	window.document.body.append(element);
-	await new Promise((resolve) => setTimeout(resolve, 0));
+	await tick();
 	const style = element.shadowRoot.querySelector("style");
 	assert.match(style.textContent, /\.btn-primary\{\}/);
 	assert.ok(!compiled.at(-1).includes("decoration-dashed"));
 	// Edit mode renders the value's edit view, with classes the view mode never showed.
 	element.shadowRoot.querySelector("button:nth-of-type(2)").click();
-	await new Promise((resolve) => setTimeout(resolve, 0));
+	await tick();
 	assert.match(style.textContent, /\.decoration-dashed\{\}/);
 });
 
 test("a new registry carries each mounted story's state over to the new components", async () => {
-	const { window } = new JSDOM("<body></body>");
+	const window = dom("<body></body>");
 	defineTutucaApp(window);
 	let registry = new StoryRegistry({ fc, books: [counterBook], prefix: "r1/" });
 	const { body } = window.document;

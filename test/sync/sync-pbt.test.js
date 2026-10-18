@@ -23,7 +23,7 @@ import {
 import { memoryRemote, remoteEngine } from "../../src/sync/remote.js";
 import { arbitraries } from "../../src/test/pbt.js";
 import { component } from "../../src/tutuca.js";
-import { scopeWith, setupHost } from "../helpers.js";
+import { scopeWith, setupHost, tick } from "../helpers.js";
 
 const LEVELS = ["shared", "local"];
 // Every other field of b over a copy of a: states that share subtrees, like successive ones do.
@@ -144,7 +144,6 @@ const peer = async (engine) => {
 	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
 	return s.host;
 };
-const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 test("automerge: the document follows every generated edit", async () => {
 	await fc.assert(
@@ -188,13 +187,13 @@ test("remote: clients converge on the relay's state after interleaved generated 
 			async (steps) => {
 				const remote = memoryRemote();
 				const a = await peer(remoteEngine({ transport: remote.connect() }));
-				await settle();
+				await tick();
 				const b = await peer(remoteEngine({ transport: remote.connect() }));
 				for (const [onA, fn, wait] of steps) {
 					edit(onA ? a : b, fn);
-					if (wait) await settle();
+					if (wait) await tick();
 				}
-				for (let i = 0; i < 4; i++) await settle();
+				for (let i = 0; i < 4; i++) await tick();
 				const { value } = remote.relay.load();
 				assert.deepEqual(project(a.rootComponent), value);
 				assert.deepEqual(project(b.rootComponent), value);

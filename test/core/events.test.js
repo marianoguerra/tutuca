@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import {
 	$if,
 	AstNode,
@@ -20,7 +18,7 @@ import {
 	targetValue,
 	Walker,
 } from "../../src/tutuca.js";
-import { setupHost } from "../helpers.js";
+import { dom, setupHost } from "../helpers.js";
 
 const setup = (specs) => setupHost(specs, { sync: true });
 
@@ -425,7 +423,7 @@ test("renderIt stops event lookup at its view", () => {
 });
 
 test("a child-scope registration after startup adds only its event listeners", (t) => {
-	const { window } = new JSDOM("");
+	const window = dom("");
 	const rootNode = window.document.createElement("main");
 	const host = new Host({ document: window.document, rootNode });
 	const listeners = t.mock.method(rootNode, "addEventListener");

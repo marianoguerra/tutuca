@@ -12,7 +12,7 @@ import { Shape, VBase, VComment, VFragment, VNode, VText } from "../src/vdom.js"
 
 // --- documents, hosts and scopes ---------------------------------------------------------
 
-export const dom = (html = "") => new JSDOM(html).window;
+export const dom = (html = "", options) => new JSDOM(html, options).window;
 // A document for tests that only render into detached nodes.
 export const { document } = dom();
 
@@ -54,9 +54,11 @@ export const scopeWith = (components) => {
 	return scope;
 };
 
+// One turn of the event loop.
+export const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 // Lets tasks, notifications and the renders they cause settle.
 export const settle = async () => {
-	for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+	for (let i = 0; i < 5; i++) await tick();
 };
 
 // The mutation records fn causes under node.
@@ -65,7 +67,7 @@ export const mutationsOf = async (window, node, fn) => {
 	const observer = new window.MutationObserver((rs) => records.push(...rs));
 	observer.observe(node, { subtree: true, childList: true, attributes: true, characterData: true });
 	fn();
-	await new Promise((resolve) => setTimeout(resolve, 0));
+	await tick();
 	observer.disconnect();
 	return records;
 };

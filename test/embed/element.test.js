@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { defineTutucaApp, mountTutucaApp, REQUEST } from "../../src/embed/element.js";
 import { lint } from "../../src/lint/index.js";
 import { component, DispatchPath, field, Host, h, send, Target, Task } from "../../src/tutuca.js";
+import { dom } from "../helpers.js";
 
 const Counter = component({
 	name: "Counter",
@@ -44,7 +43,7 @@ const Outer = component({
 });
 
 const setup = () => {
-	const { window } = new JSDOM("<body></body>");
+	const window = dom("<body></body>");
 	const { document } = window;
 	defineTutucaApp(window);
 	const rootNode = document.createElement("main");
@@ -143,7 +142,7 @@ test("emit reaches an outer @on.tutucareport handler; stale requests are dropped
 });
 
 test("an element nobody answers says so", () => {
-	const { window } = new JSDOM("<body></body>");
+	const window = dom("<body></body>");
 	defineTutucaApp(window);
 	const element = window.document.createElement("tutuca-app");
 	element.setAttribute("app-key", "missing");

@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { render } from "../../src/vdom.js";
-import { vh as h, mutationsOf, vchilds } from "../helpers.js";
+import { dom, vh as h, mutationsOf, vchilds } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const MATH = "http://www.w3.org/1998/Math/MathML";
@@ -17,7 +15,7 @@ const draw = (document, container, root, prev) => {
 };
 
 function setup() {
-	const { window } = new JSDOM("");
+	const window = dom("");
 	const container = window.document.createElement("div");
 	return { window, document: window.document, container };
 }

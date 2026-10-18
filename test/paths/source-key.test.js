@@ -7,7 +7,6 @@ import { setupHost } from "../helpers.js";
 // sees the key of the step that leads out of its own view.
 test("sourceKey is relative to the receiver for events, notifies, sends and replies", () => {
 	const seen = [];
-	const failures = [];
 	const record = (who) => (_draft, _args, ctx) => {
 		seen.push([who, ctx.sourceKey]);
 	};
@@ -40,13 +39,11 @@ test("sourceKey is relative to the receiver for events, notifies, sends and repl
 			},
 		},
 	});
-	const onReport = (type, info) => type === "taskFailed" && failures.push(info.error);
-	const { host, rootNode, C } = setupHost({ Leaf, Mid, Top }, { sync: true, onReport });
+	const { host, rootNode, C, failures, click } = setupHost({ Leaf, Mid, Top }, { sync: true });
 	host.scope.registerAskHandlers({ load: () => "loaded" });
 	const mid = C.Mid({ rows: [{ cells: [] }, { cells: [C.Leaf(), C.Leaf(), C.Leaf()] }] });
 	host.start(C.Top({ mids: [C.Mid(), mid] }));
-	host.handleEvent({ type: "click", target: rootNode.querySelectorAll("button")[2] });
-	while (host.tasks.length) host.handleTasks();
+	click(rootNode.querySelectorAll("button")[2]);
 	assert.deepEqual(failures, []);
 	assert.deepEqual(seen, [
 		["leaf click", null],

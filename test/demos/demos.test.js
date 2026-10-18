@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-// biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
-import { JSDOM } from "jsdom";
 import { inferSchema, schemaDocument } from "../../components/json-schema/infer.js";
 import { quadraticLabel } from "../../components/math/workbench.js";
 import { addDays } from "../../components/todo/dates.js";
@@ -18,11 +16,11 @@ import { lint } from "../../src/lint/index.js";
 import { startSynced } from "../../src/sync/index.js";
 import { relay } from "../../src/sync/remote.js";
 import { Host } from "../../src/tutuca.js";
-import { settle } from "../helpers.js";
+import { dom, settle } from "../helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
 const mount = (start, ...args) => {
-	const { window } = new JSDOM('<div id="app"></div>');
+	const window = dom('<div id="app"></div>');
 	const { document } = window;
 	const host = start(document, ...args);
 	const problems = [];
@@ -204,9 +202,9 @@ const memoryStorage = () => {
 	return { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => items.set(k, v) };
 };
 const page = (query) =>
-	new JSDOM('<header class="demo-bar"></header><div id="app"></div>', {
+	dom('<header class="demo-bar"></header><div id="app"></div>', {
 		url: `http://localhost/demos/notes/${query}`,
-	}).window;
+	});
 const started = async (host) => {
 	while (host.rootComponent === null) await settle();
 	return host;
