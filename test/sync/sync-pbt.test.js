@@ -35,6 +35,10 @@ const mixed = (a, b) => {
 	return out;
 };
 
+// Projections are stored as JSON, so -0 and 0 are one value: immer won't set one over the other.
+const assertSameJSON = (actual, expected) =>
+	assert.deepEqual(JSON.parse(JSON.stringify(actual)), JSON.parse(JSON.stringify(expected)));
+
 const libraries = {
 	todo: [todoComponents, { TodoApp: todoAppArb }],
 	tracker: [trackerComponents, { TrackerApp: trackerAppArb }],
@@ -58,9 +62,9 @@ for (const [library, [components, overrides]] of Object.entries(libraries)) {
 							const pb = project(b, { level });
 							assert.deepEqual(project(hydrate(pa, scope), { level }), pa);
 							const ops = diff(a, b, { scope, level });
-							assert.deepEqual(applyOps(structuredClone(pa), ops), pb);
+							assertSameJSON(applyOps(structuredClone(pa), ops), pb);
 							const applied = produce(a, (draft) => applyStateOps(draft, ops, scope));
-							assert.deepEqual(project(applied, { level }), pb);
+							assertSameJSON(project(applied, { level }), pb);
 						}
 					}),
 					{ numRuns: 20 },
