@@ -41,17 +41,25 @@ body {
 	margin: 0 auto;
 	padding: 1.5rem;
 }
-.demo-list a {
-	display: block;
-	padding: 1rem 1.25rem;
+.demo-card {
 	border: 1px solid var(--color-base-300, #e4e4e7);
 	border-radius: 0.75rem;
 	background: var(--color-base-100, #fff);
+}
+.demo-card:hover {
+	border-color: currentColor;
+}
+.demo-card > a {
+	display: block;
+	padding: 1rem 1.25rem 0.5rem;
 	color: inherit;
 	text-decoration: none;
 }
-.demo-list a:hover {
-	border-color: currentColor;
+.demo-card .demo-sync {
+	padding: 0 1.25rem 1rem;
+}
+.demo-card .demo-sync a {
+	color: inherit;
 }
 .demo-list h2 {
 	margin: 0 0 0.25rem;

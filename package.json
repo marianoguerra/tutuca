@@ -1,7 +1,7 @@
 {
 	"name": "tutuca",
 	"version": "1.0.0-alpha.0",
-	"description": "A small SPA framework that is easy to learn",
+	"description": "A small framework for web apps in the browser, with typed state, tests, a storybook and pluggable sync",
 	"type": "module",
 	"license": "MIT",
 	"author": "Mariano Guerra",

@@ -44,9 +44,9 @@ export const demos = [
 	{
 		dir: "notes",
 		emoji: "🔀",
-		title: "Synced notes",
+		title: "Notes",
 		blurb:
-			"Every demo takes ?sync=local, worker or automerge; these notes show what each field keeps.",
+			"A notes list for trying sync: the title and notes are shared, the filter stays on this device, the new note's text isn't kept.",
 		story: null,
 		sources: [],
 	},
@@ -58,6 +58,16 @@ const SOURCE = "https://github.com/marianoguerra/tutuca/tree/main/components/";
 const DEMO_SOURCE = "https://github.com/marianoguerra/tutuca/tree/main/demos/";
 const storyHref = (story) =>
 	`./storybook.html#${story.split("/").map(encodeURIComponent).join("/")}`;
+// Links to a demo with each sync engine (see sync/engines.js), from its folder's parent.
+const SYNC_LINKS = [
+	["local", "this browser"],
+	["worker", "worker"],
+	["automerge", "Automerge"],
+];
+const syncLinks = (href) =>
+	SYNC_LINKS.map(([mode, label]) => `<a href="${href}?sync=${mode}">${label}</a>`).join(
+		' <span aria-hidden="true">·</span> ',
+	);
 
 // The demo list of the site's landing page, from its root.
 export const siteList = () =>
@@ -75,6 +85,7 @@ export const siteList = () =>
 	<a class="demo-title" href="./demos/${dir}/"><span aria-hidden="true">${emoji}</span> ${escapeHtml(title)} <span class="arrow">↗</span></a>
 	<p>${escapeHtml(blurb)}</p>
 	<p class="demo-links">${storybook}Source: ${links}</p>
+	<p class="demo-links">Sync: ${syncLinks(`./demos/${dir}/`)}</p>
 </li>`;
 		})
 		.join("\n");
@@ -84,6 +95,6 @@ export const indexList = () =>
 	demos
 		.map(
 			({ dir, title, blurb }) =>
-				`<a href="./${dir}/"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(blurb)}</p></a>`,
+				`<div class="demo-card"><a href="./${dir}/"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(blurb)}</p></a><p class="demo-sync">Sync: ${syncLinks(`./${dir}/`)}</p></div>`,
 		)
 		.join("\n");

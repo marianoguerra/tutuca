@@ -1,12 +1,14 @@
 # Tutuca
 
-A SPA framework for humans *and* agents. A full implementation that fits in your head and the
-context window.
+A small framework for web apps in the browser, small enough to read in full, for people and for
+coding agents.
 
-Tutuca is a complete frontend framework with built-in support for testing: headless tests,
-property-based tests derived from your schemas, a storybook with stress testing, a linter, and an
-in-progress formal specification in PLT Redex (`spec/`). The core is about 1,800 lines with no
-runtime dependencies.
+Tutuca covers components, typed state, rendering and event handling, and the tools to check them:
+tests that run without a browser, property-based tests generated from your field types, a
+storybook with stress tests, and a linter. State changes can be saved or shared with other tabs
+and devices through sync engines you plug in ([`docs/sync.md`](docs/sync.md)). A formal model of
+the semantics is being written in PLT Redex (`spec/`). The core is about 2,000 lines of
+JavaScript with no npm dependencies (it includes a copy of immer).
 
 - Site: https://marianoguerra.github.io/tutuca/
 - Storybook: https://marianoguerra.github.io/tutuca/storybook.html

@@ -6,10 +6,10 @@
 		<title>Tutuca</title>
 		<meta
 			name="description"
-			content="A SPA framework for humans and agents. A full implementation that fits in your head and the context window, with testing, a storybook, property-based tests and a formal specification built in."
+			content="A small framework for web apps in the browser, with typed state, tests, a storybook, a linter, and pluggable sync for persisting and sharing state."
 		/>
 		<meta property="og:title" content="Tutuca" />
-		<meta property="og:description" content="A SPA framework for humans and agents." />
+		<meta property="og:description" content="A small framework for web apps in the browser." />
 		<meta property="og:type" content="website" />
 		<link rel="canonical" href="https://marianoguerra.github.io/tutuca/" />
 		<link
@@ -26,8 +26,8 @@
 		<main class="page">
 			<div class="page-icon" aria-hidden="true">🧩</div>
 			<h1>Tutuca</h1>
-			<p class="tagline">A SPA framework for humans <em>and</em> agents.</p>
-			<p class="subtagline">A full implementation that fits in your head and the context window.</p>
+			<p class="tagline">A small framework for web apps in the browser.</p>
+			<p class="subtagline">Small enough to read in full, for people and for coding agents.</p>
 
 			<nav class="actions">
 				<a class="button primary" href="./playground/">Open the playground</a>
@@ -38,14 +38,14 @@
 			</nav>
 
 			<p>
-				Tutuca is a complete frontend framework, not just a view layer. Components, typed state,
-				rendering and event routing come with everything you need to trust them: headless tests,
-				property-based tests derived from your schemas, a storybook that stress tests your stories,
-				a linter, and a formal specification of the semantics in PLT Redex.
+				Tutuca covers components, typed state, rendering and event handling, and the tools to check
+				them: tests that run without a browser, property-based tests generated from your field
+				types, a storybook with stress tests, and a linter. State changes can be saved or shared
+				with other tabs and devices through sync engines you plug in.
 			</p>
 			<p>
-				The core is about 1,800 lines with no runtime dependencies. You can read all of it in an
-				afternoon, and an agent can hold all of it at once.
+				The core is about 2,000 lines of JavaScript with no npm dependencies (it includes a copy of
+				immer). A formal model of its semantics is being written in PLT Redex.
 			</p>
 
 			<div class="callout">
@@ -108,7 +108,10 @@ host.start(host.scope.components.Counter());</code></pre>
 					<span class="icon" aria-hidden="true">🧊</span>
 					<div>
 						<strong>Immutable updates</strong>
-						<p>Handlers edit a draft; state stays immutable, so time travel and diffing are free.</p>
+						<p>
+							Handlers edit a draft and the result is a new state. Old states stay unchanged, which
+							the storybook's timeline and the sync diff rely on.
+						</p>
 					</div>
 				</li>
 				<li>
@@ -128,6 +131,71 @@ host.start(host.scope.components.Counter());</code></pre>
 					</div>
 				</li>
 			</ul>
+
+			<h2>Keep and share state</h2>
+			<ul class="features">
+				<li>
+					<span class="icon" aria-hidden="true">🔎</span>
+					<div>
+						<strong>A diff guided by your schemas</strong>
+						<p>
+							After each message, tutuca can list what changed as small operations: set a field,
+							insert into a list, edit part of a text. It uses your field types to do this, so
+							typed text becomes text edits and a list item added at the top is one insert.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🔌</span>
+					<div>
+						<strong>Pluggable sync</strong>
+						<p>
+							A sync engine receives each change and can apply changes made elsewhere. Your
+							handlers don't change. Each field says whether it is shared, kept on this device
+							only, or not kept at all.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🗂️</span>
+					<div>
+						<strong>Three engines included</strong>
+						<p>
+							One saves to the browser's storage. One sends changes to a server that orders them.
+							One keeps state in an <a href="https://automerge.org/">Automerge</a> document, so
+							edits made at the same time merge.
+						</p>
+					</div>
+				</li>
+				<li>
+					<span class="icon" aria-hidden="true">🧪</span>
+					<div>
+						<strong>Repeatable handlers</strong>
+						<p>
+							Handlers get the time, random numbers and new ids from <code>ctx</code>, so tests can
+							replay them and peers don't make clashing ids.
+						</p>
+					</div>
+				</li>
+			</ul>
+			<p>
+				Try it: open the notes demo with each engine, in two tabs, and edit in one of them.
+			</p>
+			<ul class="sync-links">
+				<li><a href="./demos/notes/?sync=local">This browser</a>: kept in localStorage</li>
+				<li>
+					<a href="./demos/notes/?sync=worker">Worker</a>: a pretend server in a shared worker,
+					kept in IndexedDB
+				</li>
+				<li>
+					<a href="./demos/notes/?sync=automerge">Automerge</a>: tabs sync over a
+					BroadcastChannel, with no server
+				</li>
+			</ul>
+			<p class="muted">
+				Every demo below takes the same <code>?sync=</code> option. How it works, and what an app
+				needs to do: <a href="https://github.com/marianoguerra/tutuca/blob/main/docs/sync.md">docs/sync.md</a>.
+			</p>
 
 			<h2>Test</h2>
 			<ul class="features">
@@ -197,14 +265,14 @@ host.start(host.scope.components.Counter());</code></pre>
 					<span class="icon" aria-hidden="true">🪶</span>
 					<div>
 						<strong>Fits in your head</strong>
-						<p>About 1,800 lines of core, 16 KB minified and gzipped, no runtime dependencies.</p>
+						<p>About 2,000 lines of core, 19 KB minified and gzipped, no npm dependencies.</p>
 					</div>
 				</li>
 				<li>
 					<span class="icon" aria-hidden="true">🧠</span>
 					<div>
-						<strong>Fits in the context window</strong>
-						<p>Small enough for an agent to read the whole framework before writing a line.</p>
+						<strong>Readable by coding agents</strong>
+						<p>The whole framework fits in an agent's context, so it can read it before writing code.</p>
 					</div>
 				</li>
 			</ul>
@@ -251,8 +319,8 @@ host.start(host.scope.components.Counter());</code></pre>
 
 			<h2 id="demos">Demos</h2>
 			<p class="muted">
-				Small apps built from the component libraries. Each one has stories you can step through
-				and stress test in the storybook.
+				Small apps built from the component libraries. Most have stories in the storybook. Each
+				one can run without sync or with any of the three engines.
 			</p>
 			<ul class="demos">
 				<!-- demos: scripts/site.js lists demos/demos.js here -->
@@ -288,6 +356,11 @@ host.start(host.scope.components.Counter());</code></pre>
 				<li>
 					<a href="https://github.com/marianoguerra/tutuca/blob/main/spec/README.md"
 						><span aria-hidden="true">🧪</span> Formal semantics: the model <span class="arrow">↗</span></a
+					>
+				</li>
+				<li>
+					<a href="https://github.com/marianoguerra/tutuca/blob/main/docs/sync.md"
+						><span aria-hidden="true">🔌</span> How sync works <span class="arrow">↗</span></a
 					>
 				</li>
 				<li>
