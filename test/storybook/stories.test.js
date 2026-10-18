@@ -190,6 +190,10 @@ test("stress finds a counterexample that replays in the stepper", async () => {
 	assert.equal(result.status, "failed");
 	assert.match(result.error, /stateInvalid: Counter count invalid/);
 	assert.ok(result.commands.length > 0);
+	assert.match(result.log[0], /^run 1, \d+ ops, (ok|failed)/);
+	assert.match(result.log.at(-2) ?? "", /^ {2}\d+\. Counter/);
+	assert.match(result.log.at(-1), /^shrunk to \d+ ops in \d+ attempts$/);
+	assert.ok(result.log.some((l) => /, failed: .*Counter count invalid/.test(l)));
 	assert.ok((await last()).sequences.includes("counterexample"));
 	runner.load("counterexample");
 	runner.toEnd();
@@ -207,6 +211,7 @@ test("stress can be cancelled and reports progress", async () => {
 	const result = await running;
 	assert.equal(result.status, "cancelled");
 	assert.ok(reports.some((r) => r.type === "stress" && r.data.done > 0));
+	assert.ok(result.log.some((l) => /^run \d+, \d+ ops, ok$/.test(l)));
 });
 
 test("a generated story is sampled with the seed in its key", () => {

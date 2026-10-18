@@ -29,6 +29,7 @@ export const StressPanel = component({
 		total: t.number().int().min(0),
 		error: t.string(),
 		commands: t.array(t.string()),
+		log: t.array(t.string()),
 	}),
 	methods: {
 		get isRunning() {
@@ -39,6 +40,9 @@ export const StressPanel = component({
 		},
 		get progressMax() {
 			return Math.max(1, this.total);
+		},
+		get hasLog() {
+			return this.log.length > 0;
 		},
 	},
 	view: section(
@@ -130,6 +134,18 @@ export const StressPanel = component({
 			"",
 		),
 		$if(
+			field("hasLog"),
+			div(
+				{ class: "flex flex-col gap-2" },
+				h3({ class: title }, "Operations log"),
+				div(
+					{ class: "max-h-64 overflow-auto rounded bg-base-200 p-2 font-mono text-xs" },
+					each(field("log"), div({ class: "whitespace-pre" }, lookupBind("value"))),
+				),
+			),
+			"",
+		),
+		$if(
 			field("isFailed"),
 			div(
 				{ class: "flex flex-col gap-2" },
@@ -205,5 +221,7 @@ export const StressPanel = component({
 		},
 	},
 });
-export const applyStress = (draft, { status, done = 0, total = 0, error = "", commands = [] }) =>
-	Object.assign(draft, { status, done, total, error, commands: [...commands] });
+export const applyStress = (draft, r) => {
+	const { status, done = 0, total = 0, error = "", commands = [], log = [] } = r;
+	Object.assign(draft, { status, done, total, error, commands: [...commands], log: [...log] });
+};

@@ -11,7 +11,7 @@ import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "..
 import { drivableMessages, messageCommand, resolveRefs } from "../test/pbt.js";
 import { EventTask, Frame, specOf } from "../tutuca.js";
 import { argsLabel, prepareStory, runStep, step, stepText, stressProperty } from "./stories.js";
-import { STRESS_IDLE } from "./ui/common.js";
+import { STRESS_IDLE, STRESS_LOG_MAX } from "./ui/common.js";
 
 export const rootTask = (task) => {
 	while (task.parent !== null) task = task.parent;
@@ -256,11 +256,30 @@ export class StoryRunner {
 		const { fc, A } = this;
 		const root = from === "current" ? this.driver.state : this.timeline[0].state;
 		const total = numRuns;
-		const result = (r) => ({ ...STRESS_IDLE, total, ...r });
+		// The operations of each run, latest STRESS_LOG_MAX lines; runs after a failure are
+		// fast-check shrinking it, only counted.
+		const log = [];
+		let runs = 0;
+		let shrinks = -1;
+		const onRun = (ops, error) => {
+			if (shrinks >= 0) {
+				shrinks += 1;
+				return;
+			}
+			runs += 1;
+			const message = String(error?.message ?? error).replace(/\s*\n\s*/g, " ");
+			const outcome = error === null ? "ok" : `failed: ${message}`;
+			log.push(`run ${runs}, ${ops.length} ops, ${outcome}`);
+			for (const [i, op] of ops.entries()) log.push(`  ${i + 1}. ${op}`);
+			if (error !== null) shrinks = 0;
+			if (log.length > STRESS_LOG_MAX) log.splice(0, log.length - STRESS_LOG_MAX);
+		};
+		const result = (r) => ({ ...STRESS_IDLE, total, log: [...log], ...r });
 		let property;
 		try {
 			const document = events ? this.detail.document.implementation.createHTMLDocument("") : null;
-			property = stressProperty(this.story, { fc, A, root, from, events, maxCommands, document });
+			const options = { fc, A, root, from, events, maxCommands, document, onRun };
+			property = stressProperty(this.story, options);
 		} catch (error) {
 			return result({ status: "unavailable", error: error.message });
 		}
@@ -281,10 +300,11 @@ export class StoryRunner {
 				this.lastStress = { root: failedRoot, commands };
 				const message = String(details.errorInstance?.message ?? details.errorInstance);
 				const error = `${message}\n(seed ${runSeed}, path "${details.counterexamplePath}")`;
+				log.push(`shrunk to ${commands.length} ops in ${shrinks} attempts`);
 				this.publish(); // The counterexample sequence is now loadable.
 				return result({ status: "failed", done, error, commands: commands.map(String) });
 			}
-			this.detail?.emit("stress", { status: "running", done, total });
+			this.detail?.emit("stress", { status: "running", done, total, log: [...log] });
 		}
 		return result({ status: "passed", done });
 	}

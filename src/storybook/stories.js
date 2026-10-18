@@ -132,6 +132,8 @@ export const checkStory = (story, { fc, document = null }) => {
 
 // The fc property of story's stress test: sequences of messages, or of events with a
 // document, from root or, with from "generated", from instances of the root's spec.
+// onRun(ops, error), when given, is called after each run with the text of the commands
+// that ran and the error that failed it, or null.
 export const stressProperty = (
 	story,
 	{
@@ -142,6 +144,7 @@ export const stressProperty = (
 		events = story.pbt?.events ?? false,
 		maxCommands = story.pbt?.maxCommands ?? 20,
 		document = null,
+		onRun = null,
 	},
 ) => {
 	if (events && document === null) throw new Error("event stress tests need a document");
@@ -150,7 +153,17 @@ export const stressProperty = (
 		? eventCommands(A, { maxCommands })
 		: messageCommands(A, { ...story.pbt, maxCommands });
 	const options = events ? { document } : {};
-	return fc.property(roots, cmds, (r, c) => runCommands(A, r, c, options));
+	if (onRun === null) return fc.property(roots, cmds, (r, c) => runCommands(A, r, c, options));
+	const ran = (c) => [...c].filter((w) => w.hasRan).map((w) => String(w.cmd));
+	return fc.property(roots, cmds, (r, c) => {
+		try {
+			runCommands(A, r, c, options);
+		} catch (error) {
+			onRun(ran(c), error);
+			throw error;
+		}
+		onRun(ran(c), null);
+	});
 };
 
 // fc.assert of story's stress test, with its pbt config.
