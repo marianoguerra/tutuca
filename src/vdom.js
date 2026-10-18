@@ -208,9 +208,8 @@ function morphNode(domNode, source, target, doc, ns) {
 		}
 		if (valueIdx !== -1) {
 			// A select reapplies its value whenever it changed, since its options may have.
-			if (a[valueIdx] !== b[valueIdx]) applyValueLast(domNode, b[valueIdx]);
-			else if (domNode.tagName === "SELECT" && b[valueIdx] !== undefined)
-				applyValueLast(domNode, b[valueIdx]);
+			const reselect = domNode.tagName === "SELECT" && b[valueIdx] !== undefined;
+			if (a[valueIdx] !== b[valueIdx] || reselect) applyValueLast(domNode, b[valueIdx]);
 		}
 		if (checkedIdx !== -1 && a[checkedIdx] !== b[checkedIdx])
 			setProp(domNode, "checked", b[checkedIdx], false);

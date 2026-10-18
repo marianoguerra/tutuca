@@ -8,8 +8,8 @@ import { diff } from "../sync/diff.js";
 import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
 import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../test/driver.js";
-import { drivableMessages, messageCommand, resolveRefs } from "../test/pbt.js";
-import { EventTask, Frame, specOf } from "../tutuca.js";
+import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../test/pbt.js";
+import { EventTask, specOf } from "../tutuca.js";
 import { argsLabel, prepareStory, runStep, step, stepText, stressProperty } from "./stories.js";
 import { STRESS_IDLE, STRESS_LOG_MAX } from "./ui/common.js";
 
@@ -205,9 +205,8 @@ export class StoryRunner {
 	messagesOf(spec) {
 		if (!this.messagesBySpec.has(spec)) {
 			const { drivable, untyped } = drivableMessages(this.A, spec);
-			const typed = drivable.map(({ message, index, args }) => ({ message, index, args }));
 			const rest = untyped.map((name) => ({ message: spec.on[name], index: null, args: null }));
-			this.messagesBySpec.set(spec, [...typed, ...rest]);
+			this.messagesBySpec.set(spec, [...drivable, ...rest]);
 		}
 		return this.messagesBySpec.get(spec);
 	}
@@ -226,7 +225,7 @@ export class StoryRunner {
 		if (message.index !== null) {
 			const sourceKey = message.keys.find((k) => String(k) === key);
 			if (sourceKey === undefined) throw new Error(`no ${message.index.fieldName} key ${key}`);
-			fromFrames = [new Frame([message.index.fieldName], sourceKey, null, true)];
+			fromFrames = sourceFrames(message.index, sourceKey);
 		}
 		const label = `${target.label}.${name}(${argsLabel(args)})`;
 		this.runSingle({ kind: "send", name, args, path: target.path, fromFrames, label });
@@ -419,6 +418,17 @@ export class StoryRunner {
 
 // The live runners by app key, `${prefix}${storyId}@${seed}`; answers <tutuca-app> requests.
 // A new prefix gives the same stories new keys, so their apps mount again.
+// The asks of the panels: "story" runs an op on the StoryRunner of an app of registryOf(),
+// "delay" waits.
+export const storyAskHandlers = (registryOf) => ({
+	story: ([key, op, ...args]) => {
+		const registry = registryOf();
+		if (registry === null) throw new Error("no stories loaded");
+		return registry.call(key, op, args);
+	},
+	delay: ([ms]) => new Promise((resolve) => setTimeout(resolve, ms)),
+});
+
 export class StoryRegistry {
 	constructor({
 		fc,

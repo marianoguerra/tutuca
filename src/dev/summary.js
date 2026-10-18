@@ -166,12 +166,15 @@ const astDetail = (node) => {
 			return "";
 	}
 };
+// Each kind of task: the noun a summary titles it with and the verb a formatter shows.
 const TASKS = [
-	[EventTask, "event"],
-	[AskTask, "ask"],
-	[NotifyTask, "notification"],
-	[Task, "message"],
+	[EventTask, "event", "event"],
+	[AskTask, "ask", "ask"],
+	[NotifyTask, "notification", "notify"],
+	[Task, "message", "send"],
 ];
+const taskWords = (task) => TASKS.find(([Kind]) => task instanceof Kind);
+export const taskVerb = (task) => taskWords(task)[2];
 
 export const summarize = (v) => {
 	try {
@@ -207,7 +210,7 @@ const summarizeUnsafe = (v) => {
 	if (v instanceof Target) return { title: "target", detail: pathWords(v) };
 	if (v instanceof Frame) return { title: "frame", detail: frameWords(v).join(" → ") || "nothing" };
 	if (v instanceof Task) {
-		const [, kind] = TASKS.find(([Kind]) => v instanceof Kind);
+		const [, kind] = taskWords(v);
 		const to = pathWords(v.target);
 		const from = pathWords(v.sourcePath);
 		return {

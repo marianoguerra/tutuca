@@ -11,11 +11,9 @@ import {
 	specOf,
 	typeText,
 } from "../schema.js";
-import { componentOf, hydrate, keyType, project, rootOf, typeAt } from "./codec.js";
+import { componentOf, getIn, hydrate, keyType, project, rootOf, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyOps } from "./ops.js";
-
-const at = (value, path) => path.reduce((v, key) => v?.[key], value);
 
 // The state plain (a projection at level) makes through scope's components, and what didn't
 // come through: { root, added: [path], reset: [{ path, before, after }], dropped: [path],
@@ -31,9 +29,9 @@ export const rebuild = (plain, scope, { level = "none", type = undefined } = {})
 	const reset = [];
 	for (const { op, path } of diff(plain, after, { scope, level })) {
 		const key = path.at(-1);
-		const parent = at(plain, path.slice(0, -1));
+		const parent = getIn(plain, path.slice(0, -1));
 		if (op === "set" && isRecord(parent) && !Object.hasOwn(parent, key)) added.push(path);
-		else reset.push({ path, before: at(plain, path), after: at(after, path) });
+		else reset.push({ path, before: getIn(plain, path), after: getIn(after, path) });
 	}
 	const dropped = droppedFields(plain, type, rootOf(scope));
 	return { root, added, reset, dropped, broken: findInvalidFields(root, null) };

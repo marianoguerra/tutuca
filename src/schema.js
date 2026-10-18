@@ -2,18 +2,20 @@
 export const specSym = Symbol("TutucaSpec");
 export const scopeSym = Symbol("TutucaScope");
 export const specOf = (v) => v?.[specSym];
+// Whether fn returns truthy without throwing.
+function holds(fn) {
+	try {
+		return Boolean(fn());
+	} catch {
+		return false;
+	}
+}
 export const scopeOf = (v) => v?.[scopeSym] ?? null;
 export const isComponent = (v) => specOf(v) !== undefined;
 // The names of the invariants instance breaks; a throwing invariant counts as broken.
 const brokenInvariants = (instance) => {
 	const { invariants } = specOf(instance);
-	return Object.keys(invariants).filter((name) => {
-		try {
-			return !invariants[name].call(instance);
-		} catch {
-			return true;
-		}
-	});
+	return Object.keys(invariants).filter((name) => !holds(() => invariants[name].call(instance)));
 };
 // Dev mode: the fields of the components in value that don't match their schema, as
 // { path, component, field, value, reason }. Broken invariants report the component
@@ -355,8 +357,7 @@ export const typeText = (t) => {
 	const { defaultValue: d } = t;
 	const value =
 		d === undefined || d === null ? "" : typeof d === "function" ? " = ƒ" : ` = ${text(d)}`;
-	const kind = t.constructor.kind ?? "any";
-	return `${kind}${args.length > 0 ? `(${args.join(", ")})` : ""}${constraints.join("")}${sync}${value}`;
+	return `${t.constructor.kind}${args.length > 0 ? `(${args.join(", ")})` : ""}${constraints.join("")}${sync}${value}`;
 };
 const ctor =
 	(Type) =>
@@ -395,13 +396,6 @@ export const toMessages = (on) => {
 		messages[key] = isSpec ? new MessageSpec(key, entry) : entry;
 	}
 	return messages;
-};
-const holds = (fn) => {
-	try {
-		return Boolean(fn());
-	} catch {
-		return false;
-	}
 };
 // The ways a handled message broke its spec: "args", "arg:<i>", "sourceKey", "pre", "post"
 // and "emits:<kind>:<name>". prev and next are the component before and after the handler,

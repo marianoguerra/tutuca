@@ -5,7 +5,7 @@
 // handle: an automerge-repo DocHandle, or docHandle(doc) for a document without a repo.
 import * as A from "@automerge/automerge";
 import { StringType } from "../schema.js";
-import { componentOf, keyType, narrow, typeAt } from "./codec.js";
+import { componentOf, getIn, keyType, narrow, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyStateOps, opsOf } from "./index.js";
 
@@ -35,7 +35,6 @@ const toDoc = (v, type, rootScope) => {
 	}
 	return out;
 };
-const getIn = (d, path) => path.reduce((v, key) => v[key], d);
 // Writes ops, made against next, into the change proxy d.
 const writeOps = (d, ops, next, scope) => {
 	for (const op of ops) {

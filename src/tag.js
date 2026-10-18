@@ -5,8 +5,11 @@ import { h } from "./view.js";
 // Destructure the ones a view uses: const { div, p, span } = tag; tag["my-element"] works too.
 const isAttrs = (v) =>
 	v !== null && typeof v === "object" && Object.getPrototypeOf(v) === Object.prototype;
-const build = (name, args) =>
-	isAttrs(args[0]) ? h(name, args[0], ...args.slice(1)) : h(name, {}, ...args);
+const split = (args) => (isAttrs(args[0]) ? [args[0], args.slice(1)] : [{}, args]);
+const build = (name, args) => {
+	const [attrs, childs] = split(args);
+	return h(name, attrs, ...childs);
+};
 export const tag = new Proxy(Object.create(null), {
 	get:
 		(_target, name) =>
@@ -16,6 +19,6 @@ export const tag = new Proxy(Object.create(null), {
 
 // A <button> that doesn't submit its form unless attrs say type: "submit".
 export const button = (...args) => {
-	const [attrs, childs] = isAttrs(args[0]) ? [args[0], args.slice(1)] : [{}, args];
+	const [attrs, childs] = split(args);
 	return h("button", { type: "button", ...attrs }, ...childs);
 };

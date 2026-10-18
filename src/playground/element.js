@@ -8,19 +8,16 @@
 // fast-check and a margaui-style compile(classes) → css are passed in, as in the storybook.
 
 import { ClassCompiler, classNamesOf } from "../css/classes.js";
-import { devClasses, devComponents } from "../dev/panel.js";
 import { defineTutucaApp, REQUEST } from "../embed/element.js";
-import { StoryRegistry } from "../storybook/runner.js";
-import { BADGES } from "../storybook/ui/common.js";
-import { StoryPanel } from "../storybook/ui/story-panel.js";
-import { StressPanel } from "../storybook/ui/stress-panel.js";
+import { StoryRegistry, storyAskHandlers } from "../storybook/runner.js";
+import { panelClassNames, panelComponents } from "../storybook/ui/panels.js";
 import { DispatchPath, Host, Target, Task } from "../tutuca.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
-export const playgroundComponents = { Playground, StoryPanel, StressPanel, ...devComponents };
+export const playgroundComponents = { Playground, ...panelComponents };
 export const playgroundClasses = () =>
-	classNamesOf(Object.values(playgroundComponents), [...Object.values(BADGES), ...devClasses]);
+	classNamesOf(Object.values(playgroundComponents), panelClassNames);
 
 // Files under src/ are tutuca itself: imported as they are, never edited, so every run
 // shares the page's copy.
@@ -185,11 +182,7 @@ export const definePlayground = (
 			this.host = host;
 			host.scope.register(playgroundComponents);
 			host.scope.registerAskHandlers({
-				story: ([key, op, ...args]) => {
-					if (this.registry === null) throw new Error("no stories loaded");
-					return this.registry.call(key, op, args);
-				},
-				delay: ([ms]) => new Promise((resolve) => setTimeout(resolve, ms)),
+				...storyAskHandlers(() => this.registry),
 				playground: ([op, id]) => this.onPick(op, id),
 			});
 			const uiClasses = new ClassCompiler(compile, playgroundClasses());

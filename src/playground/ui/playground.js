@@ -2,35 +2,23 @@
 // and look into it with the storybook's panels. The element runs the code and sends the
 // stories of each run here; a new run gives the app a new key, so it mounts again.
 import { makeDevPanel } from "../../dev/panel.js";
+import { tabButton } from "../../storybook/ui/common.js";
 import { applyAppReport, resetPanels } from "../../storybook/ui/panels.js";
 import { $if, component, each, field, render, send, t, tag, targetValue } from "../../tutuca.js";
 
-const { button, div, option, p, pre, section, select, span } = tag;
+const { div, option, p, pre, section, select, span } = tag;
 const tutucaApp = tag["tutuca-app"];
 
 export const TABS = ["preview", "steps", "stress", "dev"];
 const TAB_LABELS = { preview: "Preview", steps: "Steps", stress: "Stress test", dev: "Dev" };
-const tabGetter = (name) => `is${name[0].toUpperCase()}${name.slice(1)}`;
-
-const tabButton = (name) =>
-	button(
-		{
-			type: "button",
-			role: "tab",
-			class: $if(field(tabGetter(name)), "tab tab-active", "tab"),
-			"@on.click": send("setTab", name),
-		},
-		TAB_LABELS[name],
-		...(name === "dev"
-			? [
-					$if(
-						field("hasIssues"),
-						span({ class: "badge badge-sm badge-warning ml-1" }, field("issueCount")),
-						"",
-					),
-				]
-			: []),
-	);
+// The dev tab counts the lint issues of the run.
+const issueBadge = $if(
+	field("hasIssues"),
+	span({ class: "badge badge-sm badge-warning ml-1" }, field("issueCount")),
+	"",
+);
+const playgroundTab = (name) =>
+	tabButton("setTab", name, TAB_LABELS[name], ...(name === "dev" ? [issueBadge] : []));
 
 export const Playground = component({
 	name: "Playground",
@@ -92,7 +80,10 @@ export const Playground = component({
 				class:
 					"flex min-w-0 flex-wrap items-center gap-2 border-b border-base-300 bg-base-200 px-2 py-1",
 			},
-			div({ role: "tablist", class: "tabs tabs-border tabs-sm shrink-0" }, ...TABS.map(tabButton)),
+			div(
+				{ role: "tablist", class: "tabs tabs-border tabs-sm shrink-0" },
+				...TABS.map(playgroundTab),
+			),
 			div(
 				{ class: "ml-auto flex min-w-0 flex-1 items-center justify-end gap-2" },
 				$if(field("isLoading"), span({ class: "loading loading-spinner loading-sm" }), ""),

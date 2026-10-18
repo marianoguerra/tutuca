@@ -3,15 +3,12 @@
 import { isMetaOpen, META_CLOSE, parseMeta } from "../meta.js";
 import {
 	AnyType,
-	AskTask,
 	AstNode,
 	ComponentSpec,
 	DispatchPath,
 	DomNode,
-	EventTask,
 	Frame,
 	MessageContext,
-	NotifyTask,
 	RenderContext,
 	Scope,
 	Selector,
@@ -24,7 +21,7 @@ import {
 	Walker,
 } from "../tutuca.js";
 import { install, join, makeFormatter, objectRef, span, truncate } from "./jsonml.js";
-import { isTutucaComponent } from "./summary.js";
+import { isTutucaComponent, taskVerb } from "./summary.js";
 import { installVdomFormatters } from "./vdom-formatters.js";
 
 export const S = {
@@ -200,13 +197,6 @@ const metaComment = (text) => {
 	}
 };
 
-const taskKind = (task) => {
-	if (task instanceof EventTask) return "event";
-	if (task instanceof AskTask) return "ask";
-	if (task instanceof NotifyTask) return "notify";
-	return "send";
-};
-
 const objectRows = (obj) => Object.keys(obj ?? {}).map((k) => [k, ref(obj[k])]);
 
 // Each kind: test(v), header(v) → JsonML parts, rows(v) → [label | null, JsonML][].
@@ -297,7 +287,7 @@ const KINDS = [
 	{
 		test: (v) => v instanceof Task,
 		header: (task) => [
-			span(S.muted, `${taskKind(task)} `),
+			span(S.muted, `${taskVerb(task)} `),
 			span(S.name, task.name),
 			"(",
 			...join(task.args.map((a) => [prim(a)])),

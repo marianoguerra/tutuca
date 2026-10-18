@@ -221,7 +221,9 @@ const printCompactly = (spec) => {
 	};
 };
 
-const EVENT_ARG = { TargetValue: (fc) => fc.oneof(fc.string({ maxLength: 6 }), fc.boolean()) };
+// What an event's target value can be: an input's text or a checkbox's checked.
+const eventValue = (fc) => fc.oneof(fc.string({ maxLength: 6 }), fc.boolean());
+const EVENT_ARG = { TargetValue: eventValue };
 // Arbitraries of args for a message: its declared types, else the args of the sends in the
 // spec's views when every one is a constant or targetValue; null when it can't be driven.
 const argsFor = (A, spec, message) => {
@@ -263,6 +265,9 @@ export const drivableMessages = (A, spec) => {
 	return { drivable, untyped };
 };
 
+// The frames a message's sourceKey comes from: the item at key of index's field.
+export const sourceFrames = (index, key) => [new Frame([index.fieldName], key, null, true)];
+
 // Sends message to the target-th component of its spec in the current state.
 export class MessageCommand {
 	constructor(specName, { message, index }, target, args, keyRef, afterEach) {
@@ -281,7 +286,7 @@ export class MessageCommand {
 		if (this.index !== null) {
 			sourceKey = this.keyRef.resolve(this.index.keysIn(instance));
 			if (sourceKey === undefined) return null;
-			from = [new Frame([this.index.fieldName], sourceKey, null, true)];
+			from = sourceFrames(this.index, sourceKey);
 		}
 		if (args.includes(undefined)) return null;
 		return { path, instance, args, from, sourceKey };
@@ -423,8 +428,7 @@ export class EventCommand {
 // fc.commands of DOM events; run them on a Driver made with a document.
 export const eventCommands = (A, { maxCommands = 20 } = {}) => {
 	const { fc } = A;
-	const value = fc.oneof(fc.string({ maxLength: 6 }), fc.boolean());
-	const cmd = fc.tuple(fc.nat(), fc.nat(), value).map((a) => new EventCommand(...a));
+	const cmd = fc.tuple(fc.nat(), fc.nat(), eventValue(fc)).map((a) => new EventCommand(...a));
 	return fc.commands([cmd], { maxCommands });
 };
 

@@ -7,6 +7,7 @@ export const jsonText = (v) => {
 		return String(v);
 	}
 };
+// Paths print as .key and [item], with · for the root, in labels and errors.
 const keyText = (key) => (typeof key === "string" ? `.${key}` : `[${jsonText(key)}]`);
 const opText = (op) =>
 	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;

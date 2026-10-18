@@ -43,17 +43,19 @@ export class Host {
 	checkState(task, prevRoot) {
 		if (!this.dev) return;
 		// A task can leave invariants broken for the tasks it queued, so they wait for checkSettled.
-		const check = { fields: true, invariants: task === null };
-		const issues = findInvalidFields(this.rootComponent, prevRoot, check);
-		if (issues.length > 0) this.notify("stateInvalid", { task, issues });
+		this.reportInvalid(prevRoot, { fields: true, invariants: task === null }, { task });
 	}
 	// Dev mode: once the queue is empty, check the invariants of what changed since it last was.
 	checkSettled() {
 		if (!this.dev || this._settledRoot === this.rootComponent) return;
-		const check = { fields: false, invariants: true };
-		const issues = findInvalidFields(this.rootComponent, this._settledRoot, check);
+		const prevRoot = this._settledRoot;
 		this._settledRoot = this.rootComponent;
-		if (issues.length > 0) this.notify("stateInvalid", { task: null, settled: true, issues });
+		const check = { fields: false, invariants: true };
+		this.reportInvalid(prevRoot, check, { task: null, settled: true });
+	}
+	reportInvalid(prevRoot, check, info) {
+		const issues = findInvalidFields(this.rootComponent, prevRoot, check);
+		if (issues.length > 0) this.notify("stateInvalid", { ...info, issues });
 	}
 	checkMessage(task, ctx, prev, next) {
 		if (!this.dev || ctx.handled === null) return;
@@ -94,6 +96,9 @@ export class Host {
 	// Drops the queued tasks and the pending tick; an async ask reply in flight still arrives.
 	clearTasks() {
 		this.tasks.length = 0;
+		this.cancelTick();
+	}
+	cancelTick() {
 		clearTimeout(this._taskTickTimeoutId);
 		this._taskTickTimeoutId = null;
 	}
@@ -141,8 +146,7 @@ export class Host {
 	handleTasks() {
 		if (this._handlingTasks) return;
 		this._handlingTasks = true;
-		clearTimeout(this._taskTickTimeoutId);
-		this._taskTickTimeoutId = null;
+		this.cancelTick();
 		const t1 = Date.now();
 		const oldRootComponent = this.rootComponent;
 		try {
@@ -198,6 +202,7 @@ export class Host {
 			this.commitEngines(curRoot, newRoot, task);
 		} catch (error) {
 			status = "failed";
+			// pushTask can outlive the transaction in an async ask's ctx: drop what it staged.
 			children.length = 0;
 			throw error;
 		}

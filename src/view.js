@@ -1,5 +1,5 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
-import { META_END, metaOpen } from "./meta.js";
+import { wrapMeta } from "./meta.js";
 import { planElement, reuseConstant } from "./optimize.js";
 import { DispatchPath, Frame, selectorFrom } from "./paths.js";
 import { isComponent, specOf } from "./schema.js";
@@ -71,11 +71,9 @@ export class Provided extends AstNode {
 export const provided = (name) => new Provided(name);
 let nextEid = 0;
 // Any iterable is spliced into its parent, null and undefined render nothing, other values as text.
-const isIterable = (obj) =>
-	obj != null && typeof obj !== "string" && typeof obj[Symbol.iterator] === "function";
 function addChild(childs, child) {
 	if (child == null) return;
-	if (isIterable(child)) {
+	if (typeof child !== "string" && typeof child[Symbol.iterator] === "function") {
 		for (const c of child) addChild(childs, c);
 	} else if (child instanceof VBase) childs.push(child);
 	else childs.push(new VText(child));
@@ -363,5 +361,3 @@ export class RenderContext {
 		return spec.views.main;
 	}
 }
-// Paths print as .key and [item], with · for the root, in labels and errors.
-export const wrapMeta = (meta, node) => [metaOpen(meta), node, META_END];

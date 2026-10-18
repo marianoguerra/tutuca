@@ -11,10 +11,10 @@ import {
 	tag,
 	targetValue,
 } from "../../tutuca.js";
-import { smallButton } from "./common.js";
+import { smallButton, tabButton } from "./common.js";
 import { applyAppReport, resetPanels } from "./panels.js";
 
-const { aside, button, div, h1, h2, input, main, p, section, span, ul } = tag;
+const { aside, div, h1, h2, input, main, p, section, span, ul } = tag;
 const tutucaApp = tag["tutuca-app"];
 
 export const Storybook = component({
@@ -103,33 +103,9 @@ export const Storybook = component({
 					),
 					div(
 						{ role: "tablist", class: "tabs tabs-box self-start" },
-						button(
-							{
-								type: "button",
-								role: "tab",
-								class: $if(field("isSteps"), "tab tab-active", "tab"),
-								"@on.click": send("setPanel", "steps"),
-							},
-							"Steps",
-						),
-						button(
-							{
-								type: "button",
-								role: "tab",
-								class: $if(field("isStress"), "tab tab-active", "tab"),
-								"@on.click": send("setPanel", "stress"),
-							},
-							"Stress test",
-						),
-						button(
-							{
-								type: "button",
-								role: "tab",
-								class: $if(field("isDev"), "tab tab-active", "tab"),
-								"@on.click": send("setPanel", "dev"),
-							},
-							"Dev",
-						),
+						tabButton("setPanel", "steps", "Steps"),
+						tabButton("setPanel", "stress", "Stress test"),
+						tabButton("setPanel", "dev", "Dev"),
 					),
 					$if(
 						field("isSteps"),

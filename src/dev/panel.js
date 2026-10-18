@@ -98,22 +98,15 @@ const safeDescribe = (v) => {
 export const inspect = (v) => {
 	if (!isObject(v) || typeof v === "function") return { tokens: primTokens(v), rows: [] };
 	const described = safeDescribe(v);
-	// A spec's field types expand as types, so the readable view can name them.
-	if (v instanceof ComponentSpec) {
+	if (described !== null) {
+		// A spec's field types expand as types, so the readable view can name them.
+		const fields = v instanceof ComponentSpec ? v.fields : {};
 		const rows = described.rows.map(([label, value]) =>
-			Object.hasOwn(v.fields, label)
-				? { label, value: v.fields[label] }
+			Object.hasOwn(fields, label)
+				? { label, value: fields[label] }
 				: value[0] === "object"
 					? { label: label ?? "", value: value[1].object }
 					: { label: label ?? "", tokens: tokensOf([value]) },
-		);
-		return { tokens: tokensOf(described.header), rows };
-	}
-	if (described !== null) {
-		const rows = described.rows.map(([label, value]) =>
-			value[0] === "object"
-				? { label: label ?? "", value: value[1].object }
-				: { label: label ?? "", tokens: tokensOf([value]) },
 		);
 		return { tokens: tokensOf(described.header), rows };
 	}
