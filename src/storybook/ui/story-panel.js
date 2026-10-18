@@ -97,174 +97,187 @@ export const StoryPanel = component({
 			},
 		},
 	},
+	// Two columns when the panel, not the window, is wide: the playground shows it beside code.
 	view: div(
-		{ class: "grid gap-4 xl:grid-cols-2" },
-		section(
-			{ class: card },
-			div(
-				{ class: "flex flex-wrap items-center gap-2" },
-				select(
-					{
-						class: "select select-sm select-bordered",
-						"aria-label": "Sequence",
-						value: field("sequence"),
-						"@on.change": send("selectSequence", targetValue()),
-					},
-					option({ value: "" }, "(no sequence)"),
-					each(field("sequences"), option({ value: lookupBind("value") }, lookupBind("value"))),
-				),
+		{ class: "@container" },
+		div(
+			{ class: "grid gap-4 @3xl:grid-cols-2" },
+			section(
+				{ class: card },
 				div(
-					{ class: "join" },
-					smallButton(
-						{ class: "btn btn-sm join-item", title: "Reset", "@on.click": send("op", "reset") },
-						"⏮",
-					),
-					smallButton(
-						{ class: "btn btn-sm join-item", title: "Back", "@on.click": send("op", "back") },
-						"◀",
-					),
-					smallButton(
-						{ class: "btn btn-sm join-item", title: "Step", "@on.click": send("op", "forward") },
-						"▶",
-					),
-					smallButton(
-						{
-							class: "btn btn-sm join-item",
-							title: "Run to end",
-							"@on.click": send("op", "toEnd"),
-						},
-						"⏭",
-					),
-				),
-				smallButton(
-					{
-						class: $if(field("isPlaying"), "btn btn-sm btn-warning", "btn btn-sm btn-primary"),
-						"@on.click": send("togglePlay"),
-					},
-					$if(field("isPlaying"), "Pause", "Play"),
-				),
-			),
-			h3({ class: title }, "Steps"),
-			ol(
-				{ class: "flex flex-col gap-1 text-sm" },
-				each(
-					field("steps"),
-					li(
-						{
-							class: $if(
-								field("isNext"),
-								"flex items-center gap-2 rounded bg-base-200 px-2 py-1 font-semibold",
-								"flex items-center gap-2 px-2 py-1",
-							),
-						},
-						span({ class: lookupBind("badge") }, field("status")),
-						span({ class: "min-w-0 break-all font-mono text-xs" }, field("label")),
-					),
-					"steps",
-				),
-			),
-			$if(
-				field("hasProblems"),
-				ul(
-					{ class: "flex flex-col gap-1 rounded bg-error/10 p-2", role: "alert" },
-					each(
-						field("problems"),
-						li({ class: "whitespace-pre-wrap font-mono text-xs text-error" }, lookupBind("value")),
-					),
-				),
-				"",
-			),
-			h3({ class: title }, "Send a message"),
-			div(
-				{ class: "flex flex-wrap items-end gap-2" },
-				select(
-					{
-						class: "select select-sm select-bordered max-w-full",
-						"aria-label": "Target component",
-						value: field("target"),
-						"@on.change": send("setTarget", targetValue()),
-					},
-					each(field("targets"), option({ value: lookupBind("key") }, field("label"))),
-				),
-				select(
-					{
-						class: "select select-sm select-bordered",
-						"aria-label": "Message",
-						value: field("message"),
-						"@on.change": send("setMessage", targetValue()),
-					},
-					each(field("messages"), option({ value: lookupBind("value") }, lookupBind("value"))),
-				),
-				$if(
-					field("hasSourceKeys"),
+					{ class: "flex flex-wrap items-center gap-2" },
 					select(
 						{
 							class: "select select-sm select-bordered",
-							"aria-label": "Source key",
-							value: field("sourceKey"),
-							"@on.change": send("setSourceKey", targetValue()),
+							"aria-label": "Sequence",
+							value: field("sequence"),
+							"@on.change": send("selectSequence", targetValue()),
 						},
-						each(field("sourceKeys"), option({ value: lookupBind("value") }, lookupBind("value"))),
+						option({ value: "" }, "(no sequence)"),
+						each(field("sequences"), option({ value: lookupBind("value") }, lookupBind("value"))),
+					),
+					div(
+						{ class: "join" },
+						smallButton(
+							{ class: "btn btn-sm join-item", title: "Reset", "@on.click": send("op", "reset") },
+							"⏮",
+						),
+						smallButton(
+							{ class: "btn btn-sm join-item", title: "Back", "@on.click": send("op", "back") },
+							"◀",
+						),
+						smallButton(
+							{ class: "btn btn-sm join-item", title: "Step", "@on.click": send("op", "forward") },
+							"▶",
+						),
+						smallButton(
+							{
+								class: "btn btn-sm join-item",
+								title: "Run to end",
+								"@on.click": send("op", "toEnd"),
+							},
+							"⏭",
+						),
+					),
+					smallButton(
+						{
+							class: $if(field("isPlaying"), "btn btn-sm btn-warning", "btn btn-sm btn-primary"),
+							"@on.click": send("togglePlay"),
+						},
+						$if(field("isPlaying"), "Pause", "Play"),
+					),
+				),
+				h3({ class: title }, "Steps"),
+				ol(
+					{ class: "flex flex-col gap-1 text-sm" },
+					each(
+						field("steps"),
+						li(
+							{
+								class: $if(
+									field("isNext"),
+									"flex items-center gap-2 rounded bg-base-200 px-2 py-1 font-semibold",
+									"flex items-center gap-2 px-2 py-1",
+								),
+							},
+							span({ class: lookupBind("badge") }, field("status")),
+							span({ class: "min-w-0 break-all font-mono text-xs" }, field("label")),
+						),
+						"steps",
+					),
+				),
+				$if(
+					field("hasProblems"),
+					ul(
+						{ class: "flex flex-col gap-1 rounded bg-error/10 p-2", role: "alert" },
+						each(
+							field("problems"),
+							li(
+								{ class: "whitespace-pre-wrap font-mono text-xs text-error" },
+								lookupBind("value"),
+							),
+						),
 					),
 					"",
 				),
-				input({
-					class: "input input-sm input-bordered min-w-40 flex-1 font-mono",
-					"aria-label": "Arguments as a JSON array",
-					value: field("argsJson"),
-					"@on.input": send("setArgs", targetValue()),
-				}),
-			),
-			div(
-				{ class: "flex flex-wrap gap-2" },
-				smallButton({ "@on.click": send("generateArgs") }, "Generate args"),
-				smallButton({ class: "btn btn-sm btn-primary", "@on.click": send("sendMessage") }, "Send"),
-				smallButton(
-					{ class: "btn btn-sm btn-secondary", "@on.click": send("randomStep") },
-					"Random step",
-				),
-			),
-		),
-		div(
-			{ class: "flex min-w-0 flex-col gap-4" },
-			section(
-				{ class: card },
-				h3({ class: title }, "Timeline"),
-				ol(
-					{ class: "flex max-h-64 flex-col gap-1 overflow-auto" },
-					each(
-						field("timeline"),
-						li(
-							{},
-							button(
-								{
-									type: "button",
-									class: $if(
-										field("isCurrent"),
-										"btn btn-xs btn-primary w-full justify-start font-normal",
-										"btn btn-xs btn-ghost w-full justify-start font-normal",
-									),
-									"@on.click": send("gotoEntry", sourceKey()),
-								},
-								lookupBind("icon"),
-								span({ class: "min-w-0 flex-1 truncate text-left font-mono" }, field("label")),
-								$if(
-									field("problemCount"),
-									span({ class: "badge badge-xs badge-error" }, field("problemCount")),
-									"",
-								),
+				h3({ class: title }, "Send a message"),
+				div(
+					{ class: "flex flex-wrap items-end gap-2" },
+					select(
+						{
+							class: "select select-sm select-bordered max-w-full",
+							"aria-label": "Target component",
+							value: field("target"),
+							"@on.change": send("setTarget", targetValue()),
+						},
+						each(field("targets"), option({ value: lookupBind("key") }, field("label"))),
+					),
+					select(
+						{
+							class: "select select-sm select-bordered",
+							"aria-label": "Message",
+							value: field("message"),
+							"@on.change": send("setMessage", targetValue()),
+						},
+						each(field("messages"), option({ value: lookupBind("value") }, lookupBind("value"))),
+					),
+					$if(
+						field("hasSourceKeys"),
+						select(
+							{
+								class: "select select-sm select-bordered",
+								"aria-label": "Source key",
+								value: field("sourceKey"),
+								"@on.change": send("setSourceKey", targetValue()),
+							},
+							each(
+								field("sourceKeys"),
+								option({ value: lookupBind("value") }, lookupBind("value")),
 							),
 						),
-						"timeline",
+						"",
+					),
+					input({
+						class: "input input-sm input-bordered min-w-40 flex-1 font-mono",
+						"aria-label": "Arguments as a JSON array",
+						value: field("argsJson"),
+						"@on.input": send("setArgs", targetValue()),
+					}),
+				),
+				div(
+					{ class: "flex flex-wrap gap-2" },
+					smallButton({ "@on.click": send("generateArgs") }, "Generate args"),
+					smallButton(
+						{ class: "btn btn-sm btn-primary", "@on.click": send("sendMessage") },
+						"Send",
+					),
+					smallButton(
+						{ class: "btn btn-sm btn-secondary", "@on.click": send("randomStep") },
+						"Random step",
 					),
 				),
 			),
-			section(
-				{ class: card },
-				h3({ class: title }, "State"),
-				pre(
-					{ class: "max-h-96 overflow-auto rounded bg-base-200 p-3 text-xs" },
-					field("stateJson"),
+			div(
+				{ class: "flex min-w-0 flex-col gap-4" },
+				section(
+					{ class: card },
+					h3({ class: title }, "Timeline"),
+					ol(
+						{ class: "flex max-h-64 flex-col gap-1 overflow-auto" },
+						each(
+							field("timeline"),
+							li(
+								{},
+								button(
+									{
+										type: "button",
+										class: $if(
+											field("isCurrent"),
+											"btn btn-xs btn-primary w-full justify-start font-normal",
+											"btn btn-xs btn-ghost w-full justify-start font-normal",
+										),
+										"@on.click": send("gotoEntry", sourceKey()),
+									},
+									lookupBind("icon"),
+									span({ class: "min-w-0 flex-1 truncate text-left font-mono" }, field("label")),
+									$if(
+										field("problemCount"),
+										span({ class: "badge badge-xs badge-error" }, field("problemCount")),
+										"",
+									),
+								),
+							),
+							"timeline",
+						),
+					),
+				),
+				section(
+					{ class: card },
+					h3({ class: title }, "State"),
+					pre(
+						{ class: "max-h-96 overflow-auto rounded bg-base-200 p-3 text-xs" },
+						field("stateJson"),
+					),
 				),
 			),
 		),

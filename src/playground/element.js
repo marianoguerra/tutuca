@@ -54,12 +54,25 @@ ${INHERIT_THEME}
 	overflow: hidden; background: var(--color-base-100); color: var(--color-base-content); }
 .pg-editor { display: flex; flex-direction: column; min-height: 0; min-width: 0;
 	border-right: 1px solid var(--color-base-300); }
-.pg-files { display: flex; gap: 2px; overflow-x: auto; padding: 4px 4px 0;
+.pg-head { display: flex; align-items: stretch; min-height: 2.5rem; box-sizing: border-box;
 	background: var(--color-base-200); border-bottom: 1px solid var(--color-base-300); }
+.pg-files { display: flex; align-items: flex-end; gap: 2px; flex: 1; min-width: 0;
+	overflow-x: auto; padding: 4px 4px 0; }
 .pg-files button { font: 12px ui-monospace, monospace; padding: 4px 8px; border: 0;
 	border-radius: 4px 4px 0 0; background: transparent; color: inherit; opacity: 0.7;
 	white-space: nowrap; cursor: pointer; }
 .pg-files button[aria-selected="true"] { background: var(--color-base-100); opacity: 1; }
+.pg-toggle { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px;
+	border: 0; background: transparent; color: inherit; opacity: 0.6; cursor: pointer;
+	font: 12px ui-sans-serif, system-ui, sans-serif; white-space: nowrap; }
+.pg-toggle:hover { opacity: 1; background: var(--color-base-300); }
+.pg-toggle .label { display: none; }
+.pg.collapsed { grid-template-columns: auto minmax(0, 1fr); }
+.pg.collapsed .pg-files, .pg.collapsed .pg-code, .pg.collapsed .pg-bar { display: none; }
+.pg.collapsed .pg-head { flex: 1; border-bottom: 0; }
+.pg.collapsed .pg-toggle { flex: 1; flex-direction: column; justify-content: flex-start;
+	padding: 12px 8px; }
+.pg.collapsed .pg-toggle .label { display: block; writing-mode: vertical-rl; }
 .pg-code { flex: 1; min-height: 0; overflow: hidden; }
 .pg-code .cm-editor { height: 100%; font-size: 13px; }
 .pg-code .cm-editor.cm-focused { outline: none; }
@@ -71,6 +84,9 @@ ${INHERIT_THEME}
 @container (max-width: 760px) {
 	.pg { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
 	.pg-editor { border-right: 0; border-bottom: 1px solid var(--color-base-300); }
+	.pg.collapsed { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+	.pg.collapsed .pg-toggle { flex-direction: row; padding: 0 10px; }
+	.pg.collapsed .pg-toggle .label { writing-mode: horizontal-tb; }
 }
 `;
 
@@ -104,6 +120,7 @@ export const definePlayground = (
 		linked = null;
 		registry = null;
 		runs = 0;
+		collapsed = false;
 
 		connectedCallback() {
 			if (this.shadowRoot !== null) return;
@@ -112,7 +129,12 @@ export const definePlayground = (
 			root.innerHTML = `<style>${LAYOUT}</style><style data-ui></style><style data-ui-extra></style>
 <div class="pg">
 	<div class="pg-editor">
-		<div class="pg-files" role="tablist" aria-label="Files"></div>
+		<div class="pg-head">
+			<div class="pg-files" role="tablist" aria-label="Files"></div>
+			<button type="button" class="pg-toggle" data-toggle aria-expanded="true" title="Hide the code">
+				<span class="icon">«</span><span class="label">Code</span>
+			</button>
+		</div>
 		<div class="pg-code"></div>
 		<div class="pg-bar">
 			<button type="button" class="btn btn-sm btn-primary" data-run>Run ▶\uFE0E</button>
@@ -152,6 +174,9 @@ export const definePlayground = (
 			this.view = new EditorView({ parent: root.querySelector(".pg-code"), root });
 			root.querySelector("[data-run]").addEventListener("click", () => void this.run());
 			root.querySelector("[data-reset]").addEventListener("click", () => void this.reset());
+			this.toggle = root.querySelector("[data-toggle]");
+			this.toggle.addEventListener("click", () => this.setCollapsed(!this.collapsed));
+			this.setCollapsed(this.hasAttribute("collapsed"));
 
 			const rootNode = root.querySelector(".pg-panel");
 			rootNode.addEventListener(REQUEST, (e) => this.registry?.mount(e.detail));
@@ -186,6 +211,15 @@ export const definePlayground = (
 		loadExample(id, story = "") {
 			const example = this.examples.find((e) => e.id === id) ?? this.examples[0];
 			if (example !== undefined) return this.load(example.src, { example: example.id, story });
+		}
+
+		// Hides the code, leaving the panel the whole width; the attribute collapsed starts so.
+		setCollapsed(collapsed) {
+			this.collapsed = collapsed;
+			this.shadowRoot.querySelector(".pg").classList.toggle("collapsed", collapsed);
+			this.toggle.setAttribute("aria-expanded", String(!collapsed));
+			this.toggle.title = collapsed ? "Show the code" : "Hide the code";
+			this.toggle.querySelector(".icon").textContent = collapsed ? "»" : "«";
 		}
 
 		syncTheme() {

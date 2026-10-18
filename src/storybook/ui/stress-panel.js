@@ -45,13 +45,13 @@ export const StressPanel = component({
 	view: section(
 		{ class: card },
 		div(
-			{ class: "grid grid-cols-2 gap-3 sm:grid-cols-5" },
+			{ class: "grid max-w-xl grid-cols-3 gap-3" },
 			label(
 				{ class: "flex flex-col gap-1 text-xs" },
 				"Runs",
 				input({
 					type: "number",
-					class: "input input-sm input-bordered",
+					class: "input input-sm input-bordered w-full",
 					value: field("numRuns"),
 					"@on.input": send("setNumber", "numRuns", targetValue()),
 				}),
@@ -61,7 +61,7 @@ export const StressPanel = component({
 				"Max steps per run",
 				input({
 					type: "number",
-					class: "input input-sm input-bordered",
+					class: "input input-sm input-bordered w-full",
 					value: field("maxCommands"),
 					"@on.input": send("setNumber", "maxCommands", targetValue()),
 				}),
@@ -71,17 +71,17 @@ export const StressPanel = component({
 				"Seed",
 				input({
 					type: "number",
-					class: "input input-sm input-bordered",
+					class: "input input-sm input-bordered w-full",
 					value: field("seed"),
 					"@on.input": send("setNumber", "seed", targetValue()),
 				}),
 			),
 			label(
-				{ class: "flex flex-col gap-1 text-xs" },
+				{ class: "col-span-2 flex flex-col gap-1 text-xs" },
 				"Start from",
 				select(
 					{
-						class: "select select-sm select-bordered",
+						class: "select select-sm select-bordered w-full",
 						value: field("from"),
 						"@on.change": send("setFrom", targetValue()),
 					},
@@ -91,7 +91,7 @@ export const StressPanel = component({
 				),
 			),
 			label(
-				{ class: "flex items-center gap-2 self-end pb-2 text-xs" },
+				{ class: "flex items-center gap-2 self-end pb-1.5 text-xs" },
 				input({
 					type: "checkbox",
 					class: "checkbox checkbox-sm",

@@ -85,40 +85,47 @@ export const Playground = component({
 		},
 	},
 	view: div(
-		{ class: "flex h-full min-h-0 flex-col gap-3 bg-base-200 p-3 text-base-content" },
+		{ class: "flex h-full min-h-0 flex-col bg-base-200 text-base-content" },
+		// One strip, like the editor's file tabs: the panels on the left, the pickers fill the rest.
 		div(
-			{ class: "flex flex-wrap items-center gap-2" },
-			$if(
-				field("hasExamples"),
-				select(
-					{
-						class: "select select-sm select-bordered",
-						"aria-label": "Example",
-						value: field("example"),
-						"@on.change": send("selectExample", targetValue()),
-					},
-					each(field("examples"), option({ value: field("id") }, field("title"))),
+			{
+				class:
+					"flex min-w-0 flex-wrap items-center gap-2 border-b border-base-300 bg-base-200 px-2 py-1",
+			},
+			div({ role: "tablist", class: "tabs tabs-border tabs-sm shrink-0" }, ...TABS.map(tabButton)),
+			div(
+				{ class: "ml-auto flex min-w-0 flex-1 items-center justify-end gap-2" },
+				$if(field("isLoading"), span({ class: "loading loading-spinner loading-sm" }), ""),
+				$if(
+					field("hasExamples"),
+					select(
+						{
+							class: "select select-sm select-bordered w-auto min-w-0 max-w-xs",
+							"aria-label": "Example",
+							value: field("example"),
+							"@on.change": send("selectExample", targetValue()),
+						},
+						each(field("examples"), option({ value: field("id") }, field("title"))),
+					),
+					"",
 				),
-				"",
-			),
-			$if(
-				field("hasStories"),
-				select(
-					{
-						class: "select select-sm select-bordered min-w-0 max-w-full",
-						"aria-label": "Story",
-						value: field("selectedId"),
-						"@on.change": send("selectStory", targetValue()),
-					},
-					each(field("stories"), option({ value: field("id") }, field("label"))),
+				$if(
+					field("hasStories"),
+					select(
+						{
+							class: "select select-sm select-bordered w-auto min-w-0 max-w-xs flex-1",
+							"aria-label": "Story",
+							value: field("selectedId"),
+							"@on.change": send("selectStory", targetValue()),
+						},
+						each(field("stories"), option({ value: field("id") }, field("label"))),
+					),
+					"",
 				),
-				"",
 			),
-			$if(field("isLoading"), span({ class: "loading loading-spinner loading-sm" }), ""),
-			div({ role: "tablist", class: "tabs tabs-box tabs-sm ml-auto" }, ...TABS.map(tabButton)),
 		),
 		div(
-			{ class: "min-h-0 flex-1 overflow-auto" },
+			{ class: "min-h-0 flex-1 overflow-auto p-3" },
 			$if(
 				field("isFailed"),
 				div(
