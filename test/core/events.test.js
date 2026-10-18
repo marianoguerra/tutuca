@@ -445,7 +445,7 @@ test("a child-scope registration after startup adds only its event listeners", (
 			},
 		},
 	});
-	const local = host.scope.enter();
+	const local = host.scope.enter("local");
 	local.register({ Late });
 	local.register({ Alias: Late });
 	assert.deepEqual(names(), ["click", "dblclick"]);

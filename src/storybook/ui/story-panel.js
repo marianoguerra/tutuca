@@ -35,6 +35,7 @@ export const SUMMARY_KEYS = [
 	"problems",
 	"error",
 	"stateJson",
+	"changes",
 	"targets",
 ];
 // Keeps the step form's choices among the current targets and their messages.
@@ -59,6 +60,7 @@ export const StoryPanel = component({
 		problems: t.array(t.string()),
 		error: t.string(),
 		stateJson: t.string(),
+		changes: t.array(t.string()),
 		targets: t.array(
 			t.record({
 				label: t.string(),
@@ -77,6 +79,9 @@ export const StoryPanel = component({
 	methods: {
 		get hasSourceKeys() {
 			return this.sourceKeys.length > 0;
+		},
+		get hasChanges() {
+			return this.changes.length > 0;
 		},
 		get hasProblems() {
 			return this.problems.length > 0;
@@ -269,6 +274,18 @@ export const StoryPanel = component({
 							),
 							"timeline",
 						),
+					),
+				),
+				section(
+					{ class: card },
+					h3({ class: title }, "Changes"),
+					$if(
+						field("hasChanges"),
+						ul(
+							{ class: "space-y-1 font-mono text-xs" },
+							each(field("changes"), li({ class: "break-all" }, lookupBind("value"))),
+						),
+						span({ class: "text-xs opacity-60" }, "No changes since the previous entry"),
 					),
 				),
 				section(

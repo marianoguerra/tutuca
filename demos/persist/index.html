@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notes with a backend · Tutuca demos</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "margaui": "../../node_modules/margaui/dist/margaui.min.js"
+        }
+      }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="../../node_modules/margaui/dist/themes/theme.css" />
+    <link rel="stylesheet" href="../demo.css" />
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <header class="demo-bar">
+      <a href="../">← All demos</a>
+      <h1>Notes with a backend</h1>
+      <p>
+        A worker plays the server and keeps the notes in IndexedDB. Open this page in another tab:
+        both sync through it. The filter is kept per device, the new note's text isn't kept.
+      </p>
+    </header>
+    <div id="app"></div>
+    <section class="sync-log">
+      <h2>What syncs</h2>
+      <ol id="sync-log"></ol>
+    </section>
+  </body>
+</html>

@@ -56,10 +56,14 @@ host.start(host.scope.components.Counter());
 | `tutuca/storybook` | the storybook |
 | `tutuca/element` | the `<tutuca-app>` custom element |
 | `tutuca/vdom` | the virtual DOM |
+| `tutuca/sync` | sync engines: projection, schema-guided diff, ops, `startSynced`, `storageEngine` |
+| `tutuca/sync/remote` | an engine that sends diffs to a remote and applies the ones it sends |
+| `tutuca/automerge` | an engine over an Automerge document (bring your own `@automerge/automerge`) |
 
 ## Docs
 
 - [`docs/paths.md`](docs/paths.md): how update paths, dispatch paths and selectors route messages.
+- [`docs/sync.md`](docs/sync.md): persisting and syncing state with sync engines.
 - [`spec/README.md`](spec/README.md): the formal semantics in PLT Redex and how it maps to `src/`.
 
 ## Development

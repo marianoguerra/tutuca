@@ -225,7 +225,7 @@ test("t.component defaults to a fresh instance from the owner's scope", () => {
 	assert.equal(root.maybe, null);
 	assert.notEqual(C.Root().child, root.child);
 	// A child scope can swap the implementation registered under a name.
-	const local = host.scope.enter();
+	const local = host.scope.enter("local");
 	local.register({ Item: Other });
 	host.start(local.components.Root());
 	assert.equal(rootNode.textContent, "other");
@@ -250,7 +250,7 @@ test("t.component rejects values registered under a different name", () => {
 
 test("register returns factories bound to its scope, and child scopes fall back to parents", () => {
 	const { host } = setup({ Item });
-	const local = host.scope.enter();
+	const local = host.scope.enter("local");
 	const { Root: make } = local.register({ Root: component({ name: "Root", view: "x" }) });
 	assert.equal(scopeOf(make()), local);
 	assert.equal(scopeOf(local.components.Item()), local);

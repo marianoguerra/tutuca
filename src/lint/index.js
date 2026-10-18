@@ -113,6 +113,10 @@ export class Lint extends Walker {
 		for (const [name, type] of Object.entries(spec.fields)) {
 			this.lintFieldType(name, type, spec.fields);
 		}
+		if (Object.hasOwn(spec.fields, "$")) {
+			const message = "fields.$: $ marks a component in synced state, name the field otherwise";
+			this.report("error", "reserved-field", null, message);
+		}
 	}
 	// A named t.component() makes and checks its value through the scope.
 	lintFieldType(name, type, fields) {

@@ -10,6 +10,8 @@ const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name
 
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
+// The Automerge demo loads a bundle too big to keep in git; build it when it's missing.
+if (!existsSync("demos/deps/automerge.js")) await import("./vendor-automerge.js");
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.
 const pages = ["src", "deps", "components", "demos", ...globSync("storybook*.js")];
 for (const path of pages) {

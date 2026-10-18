@@ -41,11 +41,28 @@ export const demos = [
 		story: "Math workbench/Two saved problems",
 		sources: ["math"],
 	},
+	{
+		dir: "persist",
+		emoji: "💾",
+		title: "Notes with a backend",
+		blurb: "A worker plays the server: it orders every tab's changes and keeps them in IndexedDB.",
+		story: null,
+		sources: [],
+	},
+	{
+		dir: "automerge",
+		emoji: "🔀",
+		title: "Notes with Automerge",
+		blurb: "Tabs edit the same Automerge document and merge their changes, without a server.",
+		story: null,
+		sources: [],
+	},
 ];
 
 const escapeHtml = (s) =>
 	s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const SOURCE = "https://github.com/marianoguerra/tutuca/tree/main/components/";
+const DEMO_SOURCE = "https://github.com/marianoguerra/tutuca/tree/main/demos/";
 const storyHref = (story) =>
 	`./storybook.html#${story.split("/").map(encodeURIComponent).join("/")}`;
 
@@ -53,11 +70,18 @@ const storyHref = (story) =>
 export const siteList = () =>
 	demos
 		.map(({ dir, emoji, title, blurb, story, sources }) => {
-			const links = sources.map((s) => `<a href="${SOURCE}${s}">${escapeHtml(s)}</a>`).join(" ");
+			const links =
+				sources.length === 0
+					? `<a href="${DEMO_SOURCE}${dir}">demos/${escapeHtml(dir)}</a>`
+					: sources.map((s) => `<a href="${SOURCE}${s}">${escapeHtml(s)}</a>`).join(" ");
+			const storybook =
+				story === null
+					? ""
+					: `<a href="${storyHref(story)}">Storybook</a> <span aria-hidden="true">·</span> `;
 			return `<li>
 	<a class="demo-title" href="./demos/${dir}/"><span aria-hidden="true">${emoji}</span> ${escapeHtml(title)} <span class="arrow">↗</span></a>
 	<p>${escapeHtml(blurb)}</p>
-	<p class="demo-links"><a href="${storyHref(story)}">Storybook</a> <span aria-hidden="true">·</span> Source: ${links}</p>
+	<p class="demo-links">${storybook}Source: ${links}</p>
 </li>`;
 		})
 		.join("\n");

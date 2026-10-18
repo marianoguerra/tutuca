@@ -3,6 +3,8 @@
 
 import { ClassCompiler } from "../dev/classes.js";
 import { lint } from "../lint/index.js";
+import { diff } from "../sync/diff.js";
+import { opText } from "../sync/ops.js";
 import {
 	componentPaths,
 	Driver,
@@ -55,6 +57,7 @@ export class StoryRunner {
 		this.classes?.watch(detail.rootNode, detail.adoptCss(""));
 		const { A, root, scope } = prepareStory(this.story, { fc: this.fc, seed: this.seed });
 		this.A = A;
+		this.scope = scope;
 		const specs = scope.allSpecs();
 		this.specs = Object.values(specs);
 		this.issues = lint(this.specs, Object.keys(specs));
@@ -311,6 +314,17 @@ export class StoryRunner {
 			this.publish();
 		});
 	}
+	// What the current entry changed since the one before it, as the ops a sync engine sees
+	// (every field, whatever its sync level).
+	changes() {
+		const prev = this.timeline[this.cursor - 1];
+		if (prev === undefined) return [];
+		try {
+			return diff(prev.state, this.current.state, { scope: this.scope, level: "none" }).map(opText);
+		} catch (error) {
+			return [`can't diff: ${error.message}`];
+		}
+	}
 	statusOf(i) {
 		const entry = this.timeline.findLast((e) => e.stepIndex === i);
 		return entry === undefined ? "pending" : entry.status;
@@ -337,6 +351,7 @@ export class StoryRunner {
 			problems: current.error && current.status !== "failed" ? [current.error] : current.problems,
 			error: current.status === "ok" ? "" : (current.error ?? ""),
 			stateJson: JSON.stringify(snapshot(current.state), null, 2) ?? "",
+			changes: this.changes(),
 			// Live values for the dev panel, which keeps refs to them, not the values.
 			dev: {
 				state: current.state,

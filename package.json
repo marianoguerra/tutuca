@@ -24,6 +24,9 @@
 		"./storybook": "./src/storybook/index.js",
 		"./element": "./src/storybook/element.js",
 		"./playground": "./src/playground/index.js",
+		"./sync": "./src/sync/index.js",
+		"./sync/remote": "./src/sync/remote.js",
+		"./automerge": "./src/sync/automerge.js",
 		"./package.json": "./package.json"
 	},
 	"files": [
@@ -40,19 +43,28 @@
 		"dist": "node scripts/dist.js",
 		"vendor-immer": "node scripts/vendor-immer.js",
 		"vendor-codemirror": "node scripts/vendor-codemirror.js",
+		"vendor-automerge": "node scripts/vendor-automerge.js",
 		"smoke": "node scripts/smoke.js",
 		"site": "node scripts/site.js",
 		"prepublishOnly": "npm run lint && npm test && npm run dist && npm run smoke"
 	},
 	"peerDependencies": {
+		"@automerge/automerge": "^3",
 		"fast-check": "^4"
 	},
 	"peerDependenciesMeta": {
 		"fast-check": {
 			"optional": true
+		},
+		"@automerge/automerge": {
+			"optional": true
 		}
 	},
 	"devDependencies": {
+		"@automerge/automerge": "^3.5.0",
+		"@automerge/automerge-repo": "^2.6.0-alpha.3",
+		"@automerge/automerge-repo-network-broadcastchannel": "^2.6.0-alpha.3",
+		"@automerge/automerge-repo-storage-indexeddb": "^2.6.0-alpha.3",
 		"@biomejs/biome": "^2.5.15",
 		"@codemirror/lang-javascript": "^6.2.5",
 		"@codemirror/theme-one-dark": "^6.1.3",

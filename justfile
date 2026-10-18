@@ -62,6 +62,10 @@ vendor-immer:
 vendor-codemirror:
     npm run vendor-codemirror
 
+# Rebuild demos/deps/automerge.js for the Automerge demo (gitignored; `just site` builds it).
+vendor-automerge:
+    npm run vendor-automerge
+
 # Check what gets published: imports by package name, bundle exports, tarball contents.
 smoke: dist
     npm run smoke

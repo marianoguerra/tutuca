@@ -378,6 +378,11 @@ test("lint reports defaults of the wrong kind, bad index targets and every unkno
 	]);
 });
 
+test("lint reserves the field name $ for synced components", () => {
+	const Bad = component({ name: "Bad", fields: (t) => ({ $: t.string() }), view: "bad" });
+	assert.deepEqual(lintOf({ Bad }), ["error reserved-field Bad"]);
+});
+
 test("lint checks message specs and the sends that target them", () => {
 	const Form = component({
 		name: "Form",

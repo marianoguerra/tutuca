@@ -61,12 +61,18 @@ const CHECKS = {
 };
 // make throws it for state it can't default: a missing value, not a bug in the component.
 export class NoDefaultError extends Error {}
+// How far a field's state goes, from most to least: replicated and persisted, persisted on this
+// device only, neither. A sync engine sees the fields up to its level.
+export const SYNC_LEVELS = ["shared", "local", "none"];
+export const syncsAt = (type, level) =>
+	SYNC_LEVELS.indexOf(type.syncLevel) <= SYNC_LEVELS.indexOf(level);
 export class AnyType {
 	static kind = "any"; // The t builder name, for tools that print or derive types.
 	constructor(defaultValue) {
 		this.defaultValue = defaultValue;
 		this.constraints = {};
 		this.generator = undefined; // (fc, A) => arbitrary, overrides the derived one in pbt.js.
+		this.syncLevel = "shared";
 	}
 	// Types are immutable: modifiers return a changed copy.
 	with(changes) {
@@ -98,6 +104,12 @@ export class AnyType {
 	}
 	arb(generator) {
 		return this.with({ generator });
+	}
+	sync(level) {
+		if (!SYNC_LEVELS.includes(level)) {
+			throw new Error(`sync level must be one of ${SYNC_LEVELS.join(", ")}, got ${String(level)}`);
+		}
+		return this.with({ syncLevel: level });
 	}
 	children() {
 		return [];

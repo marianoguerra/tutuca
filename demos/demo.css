@@ -80,3 +80,27 @@ body.demo-fullscreen {
 	height: 100%;
 	min-height: 0;
 }
+/* The sync demos' log of the ops each change sent or received. */
+.sync-log {
+	max-width: 36rem;
+	margin: 0 auto 2rem;
+	padding: 0 1.5rem;
+	font-size: 0.8rem;
+}
+.sync-log h2 {
+	font-size: 0.9rem;
+	opacity: 0.7;
+}
+.sync-log ol {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-family: ui-monospace, monospace;
+	word-break: break-all;
+}
+.sync-log li {
+	padding: 0.15rem 0;
+}
+.sync-log li.received {
+	color: var(--color-info, #0369a1);
+}

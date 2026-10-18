@@ -9,9 +9,11 @@ import { TODAY } from "../../components/todo/fixtures.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
 import { start as startStudio } from "../../demos/json-schema/main.js";
 import { start as startMath } from "../../demos/math/main.js";
+import { start as startPersist } from "../../demos/persist/main.js";
 import { start as startTracker } from "../../demos/thing-tracker/main.js";
 import { start as startTodo } from "../../demos/todo/main.js";
 import { lint } from "../../src/lint/index.js";
+import { relay } from "../../src/sync/remote.js";
 import { settle } from "../helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
@@ -167,4 +169,71 @@ test("thing tracker demo: logs a thing with a tap", async () => {
 	assert.equal(app.state().events.length, before + 1);
 	assert.equal(app.state().events.at(-1).thingId, "thing:hydration/coffee");
 	await checkClean(app);
+});
+
+// A port to an in-process backend, answering like demos/persist/backend.js does.
+const backendPorts = () => {
+	const remote = relay();
+	const ports = new Set();
+	const connect = () => {
+		const port = {
+			onmessage: null,
+			deliver(data) {
+				setTimeout(() => port.onmessage?.({ data: structuredClone(data) }), 0);
+			},
+			postMessage(data) {
+				if (data.type === "load")
+					port.deliver({ type: "loaded", id: data.id, state: remote.load() });
+				else if (data.type === "push") {
+					const message = remote.receive(structuredClone(data.batch));
+					for (const p of ports) p.deliver({ type: "message", message });
+				}
+			},
+		};
+		ports.add(port);
+		return port;
+	};
+	return { remote, connect };
+};
+const memoryStorage = () => {
+	const items = new Map();
+	return { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => items.set(k, v) };
+};
+
+test("persist demo: tabs sync through the backend, and a new tab starts from it", async () => {
+	const backend = backendPorts();
+	const storage = memoryStorage();
+	const open = async () => {
+		const { window } = new JSDOM('<div id="app"></div><ol id="sync-log"></ol>');
+		const host = await startPersist(window.document, { port: backend.connect(), storage });
+		const $ = (selector) => window.document.querySelector(selector);
+		const fire = (type, el, value) => {
+			if (value !== undefined) el.value = value;
+			const Event = type === "click" ? window.MouseEvent : window.Event;
+			el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
+		};
+		return { host, $, fire };
+	};
+	const a = await open();
+	await settle();
+	const b = await open();
+	a.fire("input", a.$('[aria-label="New note"]'), "buy milk");
+	a.fire("submit", a.$("form"));
+	await settle();
+	// Tabs share the device's storage: the last one to change anything saves its local fields.
+	a.fire("change", a.$("select"), "open");
+	assert.deepEqual(
+		b.host.rootComponent.notes.map((n) => n.text),
+		["buy milk"],
+	);
+	assert.equal(b.host.rootComponent.filter, "all"); // local fields don't sync
+	assert.match(a.$("#sync-log").textContent, /sent: insert/);
+	assert.match(b.$("#sync-log").textContent, /received: insert/);
+	const c = await open();
+	assert.equal(c.host.rootComponent.notes[0].text, "buy milk");
+	assert.equal(c.host.rootComponent.filter, "open"); // from storage
+	assert.equal(c.host.rootComponent.draft, "");
+	assert.deepEqual(backend.remote.load().value.notes, [
+		{ $: "Note", text: "buy milk", done: false },
+	]);
 });

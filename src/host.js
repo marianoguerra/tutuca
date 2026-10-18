@@ -7,18 +7,50 @@ import { EventTask, MessageContext } from "./tasks.js";
 import { render as $render } from "./vdom.js";
 import { RenderContext, renderView, toVChilds } from "./view.js";
 
+// A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
+const refSep = "/";
 export class Scope {
-	constructor(onRegister, parent = null) {
+	constructor(onRegister, parent = null, name = null) {
 		this.onRegister = onRegister;
 		this.parent = parent;
+		this.name = name;
+		this.path = parent === null ? [] : [...parent.path, name];
+		this.children = Object.create(null);
 		this.byName = Object.create(null);
 		this.askHandlers = Object.create(null);
 		this.components = new Proxy(Object.create(null), {
 			get: (_target, name) => this.factory(name),
 		});
 	}
-	enter() {
-		return new Scope(this.onRegister, this);
+	// Names make scopes a namespace tree, so a component's ref finds the same scope on reload.
+	enter(name) {
+		if (typeof name !== "string" || name === "" || name.includes(refSep)) {
+			throw new Error(`scope.enter needs a name without "${refSep}", got ${String(name)}`);
+		}
+		this.children[name] ??= new Scope(this.onRegister, this, name);
+		return this.children[name];
+	}
+	// The ref of a component made in this scope: this path and a name it's looked up by here.
+	refFor(spec) {
+		for (let s = this; s !== null; s = s.parent) {
+			for (const name in s.byName) {
+				if (s.byName[name] === spec && this.lookupByName(name) === spec) {
+					return [...this.path, name].join(refSep);
+				}
+			}
+		}
+		throw new Error(`Component ${spec.name} is not registered in scope /${this.path.join(refSep)}`);
+	}
+	// The scope and name a ref names, from this scope down.
+	resolveRef(ref) {
+		const keys = ref.split(refSep);
+		const name = keys.pop();
+		let scope = this;
+		for (const key of keys) {
+			scope = scope.children[key];
+			if (scope === undefined) throw new Error(`No scope ${keys.join(refSep)} for ${ref}`);
+		}
+		return { scope, name };
 	}
 	register(comps) {
 		const factories = {};
@@ -87,6 +119,7 @@ export class Host {
 		this._taskTickTimeoutId = null;
 		this._handlingTasks = false;
 		this._eventsAdded = new Set();
+		this.engines = []; // Sync engines: told about each change, and can apply their own.
 	}
 	start(rootComponent) {
 		this.rootComponent = rootComponent;
@@ -154,7 +187,43 @@ export class Host {
 	// Stops handling events and tasks: handleEvent ignores events without a root.
 	stop() {
 		this.clearTasks();
+		this.detachSync();
 		this.rootComponent = null;
+	}
+	// Engines see every committed change through commit({ prev, next, task }) and apply changes
+	// from elsewhere through the link attach gets. A throwing commit fails the task.
+	attachSync(...engines) {
+		for (const engine of engines) {
+			this.engines.push(engine);
+			engine.attach?.({
+				host: this,
+				root: () => this.rootComponent,
+				apply: (producer, info = null) => this.applyExternal(producer, engine, info),
+			});
+		}
+	}
+	detachSync() {
+		for (const engine of this.engines.splice(0)) engine.detach?.();
+	}
+	commitEngines(prev, next, task, source = null) {
+		if (prev === next) return;
+		const change = { prev, next, task };
+		for (const engine of this.engines) if (engine !== source) engine.commit(change);
+	}
+	// Applies a change made elsewhere (by source, an engine) as a producer on the root, at once,
+	// so it applies to the state it was made against. Renders unless a task run will.
+	applyExternal(producer, source = null, info = null) {
+		const curRoot = this.rootComponent;
+		if (curRoot === null) return;
+		const newRoot = produce(curRoot, producer);
+		if (newRoot === curRoot) return;
+		this.commitEngines(curRoot, newRoot, null, source);
+		this.rootComponent = newRoot;
+		this.checkState(null, curRoot);
+		this.notify("externalApplied", { source, info, curRoot, newRoot });
+		if (this._handlingTasks) return;
+		this.render();
+		this.checkSettled();
 	}
 	handleTasks() {
 		if (this._handlingTasks) return;
@@ -213,6 +282,7 @@ export class Host {
 				return path.setIn(rootDraft, newLeaf);
 			});
 			for (const child of children) this.prepareTask(child, newRoot);
+			this.commitEngines(curRoot, newRoot, task);
 		} catch (error) {
 			status = "failed";
 			children.length = 0;

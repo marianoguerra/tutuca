@@ -164,6 +164,7 @@ test("user interaction in the canvas becomes a timeline entry", async () => {
 	);
 	assert.equal(runner.driver.state.toJson(), true);
 	assert.match(summary.stateJson, /"value": true/);
+	assert.deepEqual(summary.changes, ["set value.value to true"]);
 });
 
 test("single steps: send to a target, generate args, random step", async () => {
