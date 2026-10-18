@@ -1,6 +1,6 @@
 #lang racket
-;; The host: a reduction relation over the task queue (Host, Task, NotifyTask,
-;; AskTask, EventTask and MessageContext in tutuca.js).
+;; The host: a reduction relation over the task queue (Host in host.js; Task,
+;; NotifyTask, AskTask, EventTask and MessageContext in tasks.js).
 ;;
 ;; A configuration holds the root state, the task queue, async ask replies that
 ;; have not settled, the DOM (with node identities) and the vnodes it was
@@ -17,7 +17,9 @@
 ;; Erased: the 16ms time slice and the setTimeout ticks. Rules are enabled
 ;; nondeterministically instead: events arrive between any two steps, and a
 ;; render may happen between any two tasks once the root changed. Dev checks
-;; (schemas, invariants, message contracts) and Host.notify are not modeled.
+;; (schemas, invariants, message contracts), Host.notify, Host.stop and
+;; clearTasks, the env behind ctx.now/random/uuid, ctx.event/node, task.parent
+;; and sync engines are not modeled.
 (require redex/reduction-semantics "data.rkt" "core.rkt" "dom.rkt" "paths.rkt" "host.rkt"
          "view.rkt" "morph.rkt" "routing.rkt")
 (provide route-event task-name
@@ -34,7 +36,9 @@
   (tsk ::= (task kind fname (value ...) dpath target route?))
   (target ::= (at dpath sel))
   (route? ::= route none)
-  (evt ::= (event fname addr value))                ; type, target, target value
+  ;; type, target, and the value of the element with the handler (targetValue
+  ;; reads ctx.node, not event.target)
+  (evt ::= (event fname addr value))
   (obs ::= (log value) (failed fname) rendered)
   (outcome ::= (ok value (tsk ...) (tsk ...) (obs ...)) (failed (obs ...)))
   (cfg ::= (host registry (ask-def ...) value (tsk ...) (tsk ...)
@@ -148,7 +152,10 @@
      (define args (for/list ([a arg-terms]) (term (eval-arg ,a ,tv ,(mctx-source-key ctx)))))
      (define handler (find-handler reg instance name))
      (unless handler (error 'event "no handler ~a" name)) ; lint guarantees it exists
-     (append (call handler instance args ctx) '(()))]))
+     ;; EventTask.run sets this.args before the handler runs, so forwardAt sends them.
+     (match-define `(task ,k ,n ,_ ,rest ...) task)
+     (define ctx/args (struct-copy mctx ctx [task `(task ,k ,n ,args ,@rest)]))
+     (append (call handler instance args ctx/args) '(()))]))
 
 ;; prepareTask: a task without a route freezes its selector against the value
 ;; its base resolves to in the root; the frozen frames extend the base.

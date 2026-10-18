@@ -149,6 +149,36 @@ test("child path preparation failure rolls back the producer and all its childre
 	assert.equal(host.tasks.length, 0);
 });
 
+test("a throwing sync ReplyOk fails the ask instead of running ReplyError", () => {
+	const error = new Error("reply failed");
+	const { host, notices, queueEvents, drain } = setup(
+		{
+			queue(_draft, _args, ctx) {
+				ctx.sendAt("request", [], (pb) => pb.seqItem("items", "selected"));
+			},
+		},
+		{
+			request(_draft, _args, ctx) {
+				ctx.ask("load");
+			},
+			loadReplyOk(draft, _args, ctx) {
+				draft.reply = "ok";
+				ctx.sendAt("inc", [], (_pb) => {});
+				throw error;
+			},
+			loadReplyError(draft) {
+				draft.reply = "error";
+			},
+		},
+	);
+	host.scope.registerAskHandlers({ load: () => "result" });
+	queueEvents("queue");
+	drain();
+	assert.equal(host.rootComponent.items[0].reply, null);
+	assert.equal(host.rootComponent.items[0].count, 0);
+	assert.equal(notices.find(({ type }) => type === "taskFailed").error, error);
+});
+
 for (const rejected of [false, true]) {
 	test(`async ${rejected ? "error" : "success"} reply reuses captured caller path`, async () => {
 		let settle;

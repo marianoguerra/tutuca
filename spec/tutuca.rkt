@@ -252,6 +252,17 @@
     (test-equal (counts c3) '(0 1))
     (test-equal (failures c3) '()))
 
+  ;; "a throwing sync ReplyOk fails the ask instead of running ReplyError"
+  (let ([c (drain (queue-ids (task-setup '((queue () (send-at request () ((pb-seq-item items selected)))))
+                                         '((request () (ask load))
+                                           (loadReplyOk (r) (set (reply) "ok") (send-at inc () ()) (fail "reply failed"))
+                                           (loadReplyError (r) (set (reply) "error")))
+                                         #:asks '((load (ok "result"))))
+                             "queue"))])
+    (test-equal (get c 'items 0 'reply) 'null)
+    (test-equal (counts c) '(0 0))
+    (test-equal (failures c) '((failed load))))
+
   ;; "dynamic selectors below provided frames capture commit and retain bubbling"
   (let* ([item (λ (sel kids) `(comp Item (count 0) (selected ,sel) (children ,kids) (reply null)))]
          [kids `(arr ,(item 0 '(arr)) ,(item 0 '(arr)))]
@@ -269,6 +280,19 @@
                 '(0 1))
     (test-equal (logs c) '("item" "root"))
     (test-equal (failures c) '()))
+
+  ;; ---- message-context.test.js -------------------------------------------------
+  ;; "forwardAt from an event handler forwards the sent message and keeps the
+  ;; DOM event as cause" (the cause is not modeled)
+  (let* ([classes '((class Child (views ("main" (h 1 "span" ()))) (on (act (n) (set (got) n))))
+                    (class Parent
+                      (views ("main" (h 2 "div" () (h 3 "button" ((on click (send act 7))))
+                                        (x-render (field child) none))))
+                      (on (act () (forward-at ((pb-field child)))))))]
+         [c0 (start classes '(comp Parent (child (comp Child (got null)))))]
+         [c (click c0 (addr-of c0 (by-tag "button")))])
+    (test-equal (failures c) '())
+    (test-equal (get c 'child 'got) 7))
 
   ;; ---- routing soundness -------------------------------------------------------
   ;; For random component trees rendered through every kind of source (fields,

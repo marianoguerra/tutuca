@@ -1,5 +1,5 @@
 #lang racket
-;; Normalization: addChild/toVChilds in tutuca.js, from the values expressions
+;; Normalization: addChild/toVChilds in view.js, from the values expressions
 ;; evaluate to (results) to a flat sequence of Core nodes.
 (require redex/reduction-semantics "data.rkt" "core.rkt")
 (provide Norm normalize key-of)
@@ -28,12 +28,15 @@
   [(key-of result) ,(js-string (term result))])
 
 (module+ test
+  (require rackunit)
   (test-equal (term (normalize null)) (term ()))
   (test-equal (term (normalize "hi")) (term ((text "hi"))))
   (test-equal (term (normalize 1)) (term ((text "1"))))
   (test-equal (term (normalize #t)) (term ((text "true"))))
-  ;; Records and components are not iterable: String() gives "[object Object]".
+  ;; Records are not iterable: String() gives "[object Object]". A component
+  ;; has no toString, so String() throws.
   (test-equal (term (normalize (rec (a 1)))) (term ((text "[object Object]"))))
+  (check-exn exn:fail? (λ () (term (normalize (comp C)))))
   ;; Leaves, elements and groups are already nodes.
   (test-equal (term (normalize (comment "c"))) (term ((comment "c"))))
   (test-equal (term (normalize meta-close)) (term (meta-close)))
@@ -49,9 +52,12 @@
   (test-equal (term (key-of 1)) "1")
   (test-equal (term (key-of "k")) "k")
 
-  ;; Normalizing a normalized sequence changes nothing.
+  ;; Normalizing a normalized sequence changes nothing. A component in text
+  ;; position throws (String(instance)), so those results are skipped.
+  (define (has-comp? t) (and (pair? t) (or (eq? (car t) 'comp) (ormap has-comp? t))))
   (test-equal (redex-check Norm result
-               (let ([ns (term (normalize result))])
-                 (equal? (term (normalize (frag ,@ns))) ns))
+               (or (has-comp? (term result))
+                   (let ([ns (term (normalize result))])
+                     (equal? (term (normalize (frag ,@ns))) ns)))
                #:attempts 300 #:print? #f) #t)
   (test-results))

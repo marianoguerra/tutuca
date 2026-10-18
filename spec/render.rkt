@@ -180,7 +180,7 @@
 (define abstract
   (list
    (string-append
-    "This document specifies the meaning of tutuca.js and vdom.js as a PLT Redex model. "
+    "This document specifies the meaning of the tutuca core and vdom.js as a PLT Redex model. "
     "It is built bottom up, the way the framework grows: plain values first, then the "
     "virtual nodes a view builds and the DOM they render to, then reconciliation of an "
     "existing DOM against new vnodes, then the paths that name places in the state, then "

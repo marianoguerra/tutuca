@@ -1,6 +1,6 @@
 #lang racket
 ;; Event routing: from the DOM node an event hit back to a handler and the
-;; path of the component that owns it (getEventInfoFor in tutuca.js).
+;; path of the component that owns it (getEventInfoFor in events.js).
 ;;
 ;; The rendered DOM carries no component references. Each element with
 ;; handlers has data-eid, and metadata comments mark where components, fields

@@ -30,7 +30,7 @@
                (provides (fname sel) ...))
   ;; A message handler: name, parameters bound to the args, then commands.
   (handler ::= (fname (x ...) cmd ...))
-  ;; loops[name]: key(key, value), filter(key, value), enrich(base), view
+  ;; loops[name]: key(key, value), filter(key, value), enrich(base), view; all see self
   (loop ::= (fname loop-opt ...))
   (loop-opt ::= (key hx) (filter hx) (enrich hx) (view view-name))
   ;; Commands run against the draft: `draft` is the current leaf, `self` the
@@ -44,7 +44,8 @@
            (fail hx)                       ; throw
            (when hx cmd ...))
   (lv ::= fname (at hx))
-  ;; Ask handlers, registered on a scope: args -> result, or a promise.
+  ;; Ask handlers, registered on a scope: args -> result, or a promise. The
+  ;; runtime also passes ctx, so an ask handler can send tasks; the model does not.
   (ask-def ::= (fname ask-result))
   (ask-result ::= (ok hx) (error hx) (async (ok hx)) (async (error hx))))
 

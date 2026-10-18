@@ -37,6 +37,9 @@
                      [(integer? x) (number->string (inexact->exact x))]
                      [else (number->string x)])]
     [(list 'arr vs ...) (string-join (for/list ([v vs]) (if (eq? v 'null) "" (js-string v))) ",")]
+    ;; A component's prototype is Object.create(null): it has no toString, so
+    ;; String(instance) is a TypeError.
+    [(list 'comp _ ...) (error 'js-string "String() of a component instance")]
     [_ "[object Object]"]))
 
 ;; JS truthiness: objects (arrays, records, components, vnodes) are truthy.

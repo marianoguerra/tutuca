@@ -1,6 +1,7 @@
 # Tutuca semantics
 
-A PLT Redex model of the core (`src/view.js`, `paths.js`, `events.js`, `tasks.js`, `host.js`) and `vdom.js`. It covers:
+A PLT Redex model of the core (`src/view.js`, `component.js`, `scope.js`, `walk.js`, `meta.js`, `paths.js`,
+`events.js`, `tasks.js`, `host.js`) and `vdom.js`. It covers:
 
 - views: every expression form
 - registration
@@ -55,6 +56,9 @@ racket spec/render.rkt     # typesets the rules into spec/semantics.pdf
 | `(render-it view)` | `renderIt` |
 | `(scope name body)` | `scope` |
 | `(push-view e body)` | `pushView` |
+| `(send name arg ...)` | `send` |
+| `(target-value)` | `targetValue` |
+| `(source-key)` | `sourceKey` |
 
 Three forms differ from the runtime:
 - A plain value is a `Const`.
@@ -81,7 +85,8 @@ roles:
 - `for-item-view` keeps the depth and clears the binds.
 - `best-view` tries the explicit name, then the view stack, then `"main"`.
 - `eval-each` produces one keyed group per entry, with item metadata around the body.
-- The loop hooks `key`, `filter`, `enrich` and `view` are host expressions.
+- The loop hooks `key`, `filter`, `enrich` and `view` are host expressions. `key`, `filter`
+  and `enrich` see `self`.
 
 **Paths.** There are four kinds, one per job:
 
@@ -95,6 +100,8 @@ roles:
 - A frame `(frame base keys item cf)` reads its keys, then its item key if it has one. It
   reads them from the previous frame's value or, with a provider base `(prov name depth
   suffix)`, from the value captured at that depth followed by the suffix.
+- A `seqItem` whose key field is null makes a frame with no item, which points at the whole
+  sequence (`item ?? null`).
 - `cf` means a component boundary follows the frame. It is not serialized; routing restores
   it from the component metadata.
 - `resolve` maps frames to keys left to right, which replaces the old `resolveProviders`
@@ -129,11 +136,13 @@ One transaction (`handle-task`) does the following:
    - notify: bubbles to the parent unless at the root or after `stopNext`.
    - ask: `ok` runs `<n>ReplyOk`, `error` runs `<n>ReplyError`, a missing handler runs
      `<n>HandlerNotFound`, and `async` adds a pending reply routed to the asker's path.
-   - event: evaluates the action arguments in the message context. A missing handler fails.
+   - event: evaluates the action arguments in the message context and makes them the task's
+     arguments, so `forwardAt` forwards them. A missing handler fails.
 3. Set the new leaf.
 4. Freeze each child task's selector against the new root.
 
-Any exception aborts the whole transaction: the root and the queue stay as they were.
+Any exception aborts the whole transaction: the root and the queue stay as they were. That
+includes a `<n>ReplyOk` that throws: it fails the ask, it does not run `<n>ReplyError`.
 Handler logs are side effects, so they survive an abort. `MessageContext.path` is
 `toComponentPath(route.path)`, and `sourceKey` is `source.sourceKeyIn(path)`.
 
@@ -168,8 +177,9 @@ These do not change the meaning, so the model does not include them:
 - `reuseConstant`'s shared vnodes, the prebuilt literal `texts`, and the shared `META_END`
   comment.
 - The `source === target` and `isEqualTo` skips in `morphNode`, writing only the props that
-  changed, the `innerHTML` re-parse skip, the `domWidth` snapshot, the `used` bitmap and the
-  `-1` marker in `oldKeyMap`. `morph-node` patches every prop. The property tests check that
+  changed, the `innerHTML` re-parse skip, the `childNodes` snapshot taken before editing, the
+  `nextSibling` check before `insertBefore`, the `used` bitmap and the `-1` marker in
+  `oldKeyMap`. `morph-node` patches every prop. The property tests check that
   morphing a tree into itself keeps every node.
 - The 16 ms time slice and the `setTimeout` ticks. The rules are enabled
   nondeterministically: events may arrive between any two steps, and a render may happen
@@ -179,7 +189,8 @@ These do not change the meaning, so the model does not include them:
 
 Two of these are equivalent only when nothing but the runtime mutates the managed DOM:
 - The identity skip leaves externally edited nodes alone. The model would overwrite them.
-- Comparing the root by reference (`oldRoot !== root`) is modeled as structural inequality.
+- Comparing the root by reference (`oldRootComponent !== this.rootComponent`) is modeled as
+  structural inequality.
   Re-rendering an equal root changes nothing.
 
 ## Out of scope
@@ -189,12 +200,26 @@ Two of these are equivalent only when nothing but the runtime mutates the manage
   after the children (including `select` reapplying its value). The model also leaves out
   input state edited by the user.
 - Loop `prepare`/`iter` (arbitrary iteration protocols).
-- Scope chains, aliases and lifetimes. Ask handlers live in one table.
+- Scope chains, aliases and lifetimes. Ask handlers live in one table and are pure: the
+  runtime also passes them `ctx`, so they can send tasks. Class names are unique in the
+  model; `Scope.register` overwrites a name instead.
 - `null` and `undefined` are one value.
-- Arrays, records and components are the only objects.
-- Dev checks (schemas, invariants, message contracts), `Host.notify`, listener registration.
-  Routing already ignores unknown event types.
-- `src/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, the storybook, pbt and lint modules.
+- Arrays, records and components are the only objects. A component has only its fields:
+  getters and methods, which `field` reads through the prototype, are not modeled.
+- JS coercions of property keys and values: string indexes into arrays, `length`, indexing
+  and iterating strings, view names that are not strings, prototype keys such as
+  `constructor` in binds, and the number format of `String()` for small exponents.
+- Malformed frame comments: the model skips any comment that is not a well-formed frame as a
+  look-alike; the runtime only checks `t`.
+- Dev checks (schemas, invariants, message contracts), `Host.notify`, `Host.stop`,
+  `clearTasks`, listener registration. Routing already ignores unknown event types.
+- The host env: `ctx.now()`, `ctx.random()`, `ctx.uuid()`. Also `ctx.event`, `ctx.node` and
+  `task.parent`. `targetValue` is modeled as a value the event carries: the value of the
+  element with the handler, not of `event.target`.
+- Sync engines (`src/sync/`): `commit` after each task and changes applied from elsewhere,
+  outside the task queue.
+- `src/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, `src/playground/`, the storybook, the
+  test driver and pbt, and the lint modules.
 
 ## What the tests check
 
@@ -218,7 +243,9 @@ Two of these are equivalent only when nothing but the runtime mutates the manage
     identity, nested multi-root loops with unmanaged DOM, renderIt boundaries
   - `test/paths/source-key.test.js`: the exact sequence
   - `test/paths/task-paths.test.js`: commit-time freezing, event-time selection, producer failure,
-    child preparation failure, async replies (ok and error), selectors below provided frames
+    child preparation failure, async replies (ok and error), a throwing sync reply, selectors
+    below provided frames
+  - `test/paths/message-context.test.js`: `forwardAt` from an event handler
   - `test/vdom/vdom.test.js`: patching, shapes, namespaces, keyed groups
 
   The scheduling-only task-path tests (reentrant draining, events during rendering) are

@@ -6,7 +6,7 @@
 ;;
 ;; Erased optimizations: skipping a node when source === target or
 ;; source.isEqualTo(target), writing only props whose value changed, and the
-;; domWidth snapshot. Patching every prop of a node gives the same DOM, so the
+;; childNodes snapshot taken before editing. Patching every prop of a node gives the same DOM, so the
 ;; model patches everything. It assumes, like those skips, that only the
 ;; runtime mutates the managed DOM.
 (require redex/reduction-semantics "core.rkt" "dom.rkt" "keys.rkt")

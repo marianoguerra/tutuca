@@ -1,6 +1,6 @@
 #lang racket
-;; Views: expressions, registration and rendering (tutuca.js AstNodes,
-;; ComponentSpec, RenderContext, renderView).
+;; Views: expressions, registration and rendering (the AstNodes, RenderContext
+;; and renderView in view.js, ComponentSpec in component.js).
 ;;
 ;; A view is a tree of expressions and rendering is evaluating it: every
 ;; template node has one eval method. Evaluating h builds a Core element now,
@@ -38,7 +38,7 @@
          (render-it view-name?)            ; renderIt(viewName)
          (scope fname e)                   ; scope(scopeName, body)
          (push-view e e))                  ; pushView(viewName, body)
-  ;; Sources a step can be taken from (toStep).
+  ;; Sources a frame can be taken from (toFrame).
   (src ::= (field fname) (seq-item fname fname) (provided fname))
   (loop-name? ::= fname none)
   (attr ::= (prop-name e) (key e) (namespace ns) on-attr)
@@ -107,7 +107,8 @@
    (reg cname (collect-all (e ...) ()) (class cname section_1 ... (views (view-name e) ...) section_2 ...))
    (side-condition (member "main" (term (view-name ...))))])
 
-;; Scope.register: class names are unique.
+;; Class names are unique. This is a model restriction: Scope.register
+;; overwrites a name silently, and inner scopes shadow outer ones.
 (define-metafunction View
   register-classes : (class-def ...) -> registry
   [(register-classes (class-def ...)) ((register class-def) ...)
@@ -203,7 +204,7 @@
   to-frame : ctx src -> dframe
   [(to-frame ctx (field fname)) (frame none (,(symbol->string (term fname))) none #t)]
   [(to-frame (rctx value_it any ...) (seq-item fname fname_k))
-   (frame none (,(symbol->string (term fname))) (prop-get value_it fname_k) #t)]
+   (frame none (,(symbol->string (term fname))) (item-of (prop-get value_it fname_k)) #t)]
   [(to-frame (rctx value_it binds dyn any_v integer value_c) (provided fname))
    (frame (prov fname natural upath) () none #t)
    (where (value natural upath) (lookup-dyn dyn fname))])
@@ -289,17 +290,18 @@
   eval-each : registry ctx src any loop-name? -> result
   [(eval-each registry (rctx value_it any_r ...) src any_body loop-name?)
    (group none ,(for/list ([entry (term (entries-of (eval registry ctx src)))]
-                           #:when (keep? (term class-def) (term loop-name?) entry))
+                           #:when (keep? (term class-def) (term loop-name?) entry (term value_c)))
                   (term (eval-item registry ctx class-def dframe src any_body loop-name? ,entry))))
    (where ctx (rctx value_it any_r ...))
    (where (rctx any_i ... value_c) ctx)
    (where class-def (class-def-of registry value_c))
    (where dframe (to-frame ctx src))])
 
-(define (keep? def loop entry)
+;; loop.filter.call(self, key, value)
+(define (keep? def loop entry self)
   (define f (term (loop-opt ,def ,loop filter)))
   (or (not f)
-      (truthy? (term (eval-hx ((key ,(first entry)) (value ,(second entry))) ,f)))))
+      (truthy? (term (eval-hx ((key ,(first entry)) (value ,(second entry)) (self ,self)) ,f)))))
 
 (define-metafunction View
   eval-item : registry ctx class-def dframe src any loop-name? (skey value) -> node
@@ -446,6 +448,13 @@
                            (group "c" ((meta-open (frame none ("items") 2))
                                        (el 1 "i" none none () ((text "2") (text "c"))) meta-close))))
                    meta-close))
+  ;; filter, like key and enrich, sees self.
+  (test-equal (render (term ((class Root
+                               (views ("main" (each (field items) (field name) skip)))
+                               (loops (skip (filter (not (= key (get self skip)))))))))
+                      '(comp Root (skip 0) (items (arr (rec (name "a")) (rec (name "b"))))))
+              `(,C (group none ((group "1" ((meta-open (frame none ("items") 1)) (text "b") meta-close))))
+                   meta-close))
   ;; Without a loop, keys are the entry keys; records iterate their entries.
   (test-equal (render (main-of '(each (field r) (lookup-bind value) none)) '(comp Root (r (rec (x 1)))))
               `(,C (group none ((group "x" ((meta-open (frame none ("r") "x")) (text "1") meta-close))))
@@ -481,14 +490,19 @@
   ;; provided: the provider's frozen path, captured at its depth.
   (define prov
     (term ((class Child (views ("main" (h 1 "i" () (field n)))))
-           (class Panel (views ("main" (frag (provided sel) (x-render (provided sel) none))))
+           (class Panel (views ("main" (x-render (provided sel) none)))
                   (provides (sel ((pb-seq-item items selected))))))))
   (define panel '(comp Panel (selected 1) (items (arr (comp Child (n "a")) (comp Child (n "b"))))))
   (test-equal (render prov panel)
-              `(,C (text "[object Object]")
-                   (meta-open (frame (prov sel 0 ("items" 1)) () none))
+              `(,C (meta-open (frame (prov sel 0 ("items" 1)) () none))
                    ,C (el 1 "i" none none () ((text "b"))) meta-close meta-close
                    meta-close))
+  ;; A component as a text child: String(instance) throws (no toString).
+  (check-exn exn:fail?
+             (λ () (render `(,(first prov)
+                             (class Panel (views ("main" (provided sel)))
+                                    (provides (sel ((pb-seq-item items selected))))))
+                           panel)))
   ;; No provider: reading gives null, rendering fails.
   (test-equal (render (main-of '(provided nope)) '(comp Root)) `(,C meta-close))
   (check-exn exn:fail? (λ () (render (main-of '(x-render (provided nope) none)) '(comp Root))))

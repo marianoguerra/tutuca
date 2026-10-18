@@ -92,17 +92,19 @@ export class AskTask extends Task {
 		}
 		const okName = `${this.name}ReplyOk`;
 		const errName = `${this.name}ReplyError`;
+		let result;
 		try {
-			const result = handler(this.args, ctx);
-			if (result instanceof Promise) {
-				const reply = (name, args) => ctx.pushTask(this.makeReply(name, args));
-				result.then((r) => reply(okName, [r])).catch((error) => reply(errName, [error]));
-				return draft;
-			}
-			return run(instance, draft, okName, [result], ctx);
+			result = handler(this.args, ctx);
 		} catch (err) {
 			return run(instance, draft, errName, [err], ctx);
 		}
+		if (result instanceof Promise) {
+			const reply = (name, args) => ctx.pushTask(this.makeReply(name, args));
+			result.then((r) => reply(okName, [r])).catch((error) => reply(errName, [error]));
+			return draft;
+		}
+		// Outside the try: a throwing ReplyOk fails the task instead of running ReplyError.
+		return run(instance, draft, okName, [result], ctx);
 	}
 	makeReply(name, args) {
 		const reply = new Task(name, args, this.sourcePath, new Target(this.sourcePath), this);

@@ -18,7 +18,7 @@
 (require redex/reduction-semantics "data.rkt" "core.rkt")
 (provide Paths access-keys get-in set-in resolve resolve-from to-component-path to-parent-path
          to-update-path frame-item-key key-at source-key-in frame-meta meta-frame promote item-frame
-         freeze-op freeze-sel route-for)
+         item-of freeze-op freeze-sel route-for)
 
 (define-extended-language Paths Core
   (dframe ::= (frame base (skey ...) item? boolean))
@@ -129,13 +129,20 @@
   [(item-frame (frame base any_k item? boolean) skey)
    (frame base (access-keys (frame base any_k item? boolean)) skey #f)])
 
+;; The item a seqItem selects: its key, or none when the key field is null
+;; (item ?? null in the runtime), so the frame points at the whole sequence.
+(define-metafunction Paths
+  item-of : value -> item?
+  [(item-of null) none]
+  [(item-of skey) skey])
+
 ;; Freezing one builder call against the value it starts from.
 (define-metafunction Paths
   freeze-op : pb-op value -> dframe
   [(freeze-op (pb-field fname) value) (frame none (,(symbol->string (term fname))) none #t)]
   [(freeze-op (pb-item fname skey) value) (frame none (,(symbol->string (term fname))) skey #t)]
   [(freeze-op (pb-seq-item fname fname_k) value)
-   (frame none (,(symbol->string (term fname))) (prop-get value fname_k) #t)])
+   (frame none (,(symbol->string (term fname))) (item-of (prop-get value fname_k)) #t)])
 
 ;; A selector freezes against the value it starts from, one call at a time.
 (define-metafunction Paths
@@ -147,6 +154,9 @@
 
 (module+ test
   (require rackunit)
+  ;; seqItem with an unset key: no item, the frame points at the whole sequence.
+  (test-equal (term (freeze-op (pb-seq-item items sel) (rec (sel null))))
+              (term (frame none ("items") none #t)))
   (define root
     (term (comp Root (selected 1)
                 (items (arr (comp Item (count 0) (kids (arr)))
