@@ -261,7 +261,8 @@ export const DevSection = component({
 	),
 });
 
-const LEVELS = { error: "badge badge-xs badge-error", warning: "badge badge-xs badge-warning" };
+const BADGE = "badge badge-sm shrink-0 whitespace-nowrap font-mono";
+const LEVELS = { error: `${BADGE} badge-error`, warning: `${BADGE} badge-warning` };
 // The issues of lint() from src/lint/index.js, as plain records.
 export const DevLint = component({
 	name: "DevLint",
@@ -294,14 +295,17 @@ export const DevLint = component({
 			field("isClean"),
 			p({ class: "text-xs text-success" }, "Clean"),
 			ul(
-				{ class: "flex flex-col gap-1" },
+				{ class: "flex flex-col divide-y divide-base-300" },
 				each(
 					field("issues"),
 					li(
-						{ class: "flex items-baseline gap-2 text-xs" },
-						span({ class: lookupBind("badge") }, field("code")),
-						span({ class: "font-mono opacity-70" }, field("path")),
-						span(field("message")),
+						{ class: "flex min-w-0 flex-col gap-1 py-2 text-xs first:pt-0 last:pb-0" },
+						div(
+							{ class: "flex flex-wrap items-center gap-2" },
+							span({ class: lookupBind("badge") }, field("code")),
+							span({ class: "min-w-0" }, field("message")),
+						),
+						span({ class: "min-w-0 break-all font-mono opacity-60" }, field("path")),
 					),
 					"issues",
 				),
