@@ -172,11 +172,7 @@ const toast = (draft, ctx, title, text, { eventId = "", kind = "info" } = {}) =>
 	draft.toast = { id: draft.toastSeq, title, text, eventId, kind };
 	ctx.ask("wait", [4000, draft.toastSeq]);
 };
-const newId = (draft, prefix) => {
-	const id = `${prefix}-${draft.nextId}`;
-	draft.nextId += 1;
-	return id;
-};
+const newId = (ctx, prefix) => `${prefix}-${ctx.uuid()}`;
 const openImport = (draft, ctx, title, text) => {
 	const parsed = parseEnvelope(text);
 	if (parsed.error !== undefined) {
@@ -204,7 +200,7 @@ export const TrackerApp = component({
 		events: t.array(eventRecord(t)),
 		order: t.array(t.string()),
 		collapsed: t.array(t.string()),
-		query: t.string(),
+		query: t.string().sync("none"),
 		compact: t.boolean(),
 		sections: t.array(t.component("Section")),
 		granularity: t.enum("day", "week", "month"),
@@ -213,7 +209,7 @@ export const TrackerApp = component({
 		shownEntries: t.number(200).int().min(1),
 		listContext: t.option(t.record({ thingId: t.string(), start: t.number(), end: t.number() })),
 		manageTab: t.enum(...MANAGE_TABS.map(([id]) => id)),
-		manageQuery: t.string(),
+		manageQuery: t.string().sync("none"),
 		panel: t.option(t.component(PANELS)),
 		toast: t.option(
 			t.record({
@@ -226,7 +222,6 @@ export const TrackerApp = component({
 		),
 		toastSeq: t.number().int().min(0),
 		hintShown: t.boolean(),
-		nextId: t.number(1).int().min(1),
 		backup: t.record({
 			lastAt: t.number().min(0), // 0 when never.
 			intervalDays: t.enum(7, 1, 3, 14, 30, 90, 0),
@@ -234,11 +229,11 @@ export const TrackerApp = component({
 			rangeText: t.string(),
 		}),
 		importMode: t.enum("merge", "replace"),
-		importText: t.string(),
-		importSource: t.string(),
-		importTitle: t.string(),
-		showPreview: t.boolean(),
-		overwrite: t.boolean(),
+		importText: t.string().sync("none"),
+		importSource: t.string().sync("none"),
+		importTitle: t.string().sync("none"),
+		showPreview: t.boolean().sync("none"),
+		overwrite: t.boolean().sync("none"),
 	}),
 	invariants: {
 		statsMatchEvents() {
@@ -788,7 +783,7 @@ export const TrackerApp = component({
 					notes: notes.trim() ? notes : "",
 					measurements,
 				};
-				if (mode === "create") draft.events.push({ id: newId(draft, "event"), ...record });
+				if (mode === "create") draft.events.push({ id: newId(ctx, "event"), ...record });
 				else {
 					const e = draft.events.find((x) => x.id === id);
 					if (e !== undefined)
@@ -976,7 +971,7 @@ export const TrackerApp = component({
 				ctx.stopNext();
 				const C = scopeOf(this).components;
 				if (mode === "create") {
-					const id = newId(draft, "thing");
+					const id = newId(ctx, "thing");
 					draft.things.push(C.Thing({ ...thing, id }));
 					draft.order.push(id);
 				} else {
@@ -1039,7 +1034,7 @@ export const TrackerApp = component({
 				const tag = { ...given, thingIds: given.thingIds.filter((id) => known.has(id)) };
 				if (mode === "create") {
 					const sortOrder = Math.max(-1, ...this.groups.map((g) => g.sortOrder)) + 1;
-					draft.groups.push(C.Tag({ ...tag, id: newId(draft, "tag"), sortOrder }));
+					draft.groups.push(C.Tag({ ...tag, id: newId(ctx, "tag"), sortOrder }));
 				} else {
 					const local = draft.groups.find((g) => g.id === tag.id);
 					if (local !== undefined)
@@ -1288,7 +1283,7 @@ const openTagEditor = (self, draft, tag) => {
 	});
 };
 const logEvent = (self, draft, ctx, thing, measurements) => {
-	const id = newId(draft, "event");
+	const id = newId(ctx, "event");
 	draft.events.push({
 		id,
 		thingId: thing.id,
@@ -1333,7 +1328,6 @@ export const trackerApp = (C, { now, tz = 0, bundles = [], events = [], ...rest 
 		groups: [...groups.values()],
 		events: made,
 		order: rankThings(visible, usageOf(made)),
-		nextId: made.length + 1,
 		...rest,
 	});
 	refresh(app, app); // Not frozen yet: made by make, not by a task.

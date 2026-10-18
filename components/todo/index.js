@@ -135,15 +135,13 @@ export const TodoApp = component({
 		projects: t.array(t.component("TodoProject")).len(1),
 		labels: t.array(t.string()),
 		tasks: t.array(t.component("TodoTask")),
-		view: t.enum(...VIEWS),
-		projectIndex: t.index("projects"),
-		labelIndex: t.option(t.index("labels")),
-		search: t.string(),
-		showCompleted: t.boolean(),
+		view: t.enum(...VIEWS).sync("local"),
+		projectIndex: t.index("projects").sync("local"),
+		labelIndex: t.option(t.index("labels")).sync("local"),
+		search: t.string().sync("none"),
+		showCompleted: t.boolean().sync("local"),
 		quickAdd: t.component("QuickAdd"),
-		newProject: t.string(),
-		nextTaskId: t.number(1).int().min(1),
-		nextProjectId: t.number(1).int().min(1),
+		newProject: t.string().sync("none"),
 	}),
 	invariants: {
 		inboxFirst() {
@@ -460,10 +458,9 @@ export const TodoApp = component({
 				ctx.event?.preventDefault();
 				const name = this.newProject.trim();
 				if (name === "") return;
-				const id = `p${this.nextProjectId}`;
+				const id = ctx.uuid();
 				const color = Object.keys(COLORS)[this.projects.length % 6];
 				draft.projects.push(scopeOf(this).make("TodoProject", { id, name, color }));
-				draft.nextProjectId = this.nextProjectId + 1;
 				draft.newProject = "";
 				draft.projectIndex = this.projects.length;
 				draft.view = "project";
@@ -497,7 +494,7 @@ export const TodoApp = component({
 				const here = this.view === "project" ? this.currentProject : this.projects[0];
 				const due = parsed.due || (this.view === "today" ? this.today : "");
 				const task = scopeOf(this).make("TodoTask", {
-					id: `t${this.nextTaskId}`,
+					id: ctx.uuid(),
 					title: parsed.title,
 					projectId: (named ?? here).id,
 					due,
@@ -506,7 +503,6 @@ export const TodoApp = component({
 					today: this.today,
 				});
 				draft.tasks.push(task);
-				draft.nextTaskId = this.nextTaskId + 1;
 				for (const l of parsed.labels) if (!draft.labels.includes(l)) draft.labels.push(l);
 			},
 		},
@@ -583,7 +579,6 @@ const makeTask = (C, today, projects, spec, id) => {
 		labels,
 		isCompleted: done,
 		subtasks,
-		nextSubId: subtasks.length + 1,
 		today,
 	});
 };
@@ -605,8 +600,6 @@ export const todoApp = (C, { today, projects = [], tasks = [], ...rest }) => {
 		projects: all,
 		labels,
 		tasks: made,
-		nextTaskId: made.length + 1,
-		nextProjectId: all.length,
 		...rest,
 	});
 };

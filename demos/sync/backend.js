@@ -1,10 +1,12 @@
 // A pretend backend in a worker: a relay that orders the tabs' changes, persisted in
-// IndexedDB. A SharedWorker serves every tab of the origin, so they sync through it; a plain
-// Worker (where SharedWorker is missing) serves its one tab. Replies come after a delay, like
-// a network's.
+// IndexedDB under the key in its URL (one per demo). A SharedWorker serves every tab of the
+// origin on that URL, so they sync through it; a plain Worker (where SharedWorker is missing)
+// serves its one tab. Replies come after a delay, like a network's.
 import { relay } from "../../src/sync/remote.js";
 
-const LATENCY_MS = Number(new URL(self.location.href).searchParams.get("latency") ?? 120);
+const params = new URL(self.location.href).searchParams;
+const KEY = params.get("key") ?? "default";
+const LATENCY_MS = Number(params.get("latency") ?? 120);
 const later = (fn) => setTimeout(fn, LATENCY_MS);
 
 const request = (req) =>
@@ -13,14 +15,14 @@ const request = (req) =>
 		req.onerror = () => reject(req.error);
 	});
 const openDb = () => {
-	const req = indexedDB.open("tutuca-persist-demo", 1);
+	const req = indexedDB.open("tutuca-sync-backend", 1);
 	req.onupgradeneeded = () => req.result.createObjectStore("state");
 	return request(req);
 };
 const ready = openDb().then(async (db) => {
 	const store = (mode) => db.transaction("state", mode).objectStore("state");
-	const stored = await request(store("readonly").get("root"));
-	const save = (state) => store("readwrite").put(state, "root");
+	const stored = await request(store("readonly").get(KEY));
+	const save = (state) => store("readwrite").put(state, KEY);
 	return relay({ ...(stored ?? {}), save });
 });
 

@@ -141,7 +141,7 @@ const edits = fc.array(editArb, { maxLength: 12 });
 const edit = (host, fn) => host.applyExternal((draft) => void fn(draft, host.scope));
 const peer = async (engine) => {
 	const s = setupHost({ Root, Item }, { sync: true });
-	await startSynced(s.host, { rootRef: "Root", engines: [engine] });
+	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
 	return s.host;
 };
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));

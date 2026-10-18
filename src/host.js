@@ -97,11 +97,18 @@ export class Scope {
 		return spec.make(args, this);
 	}
 }
+// Ids that count up, for hosts whose runs must repeat (tests, drivers): uuid-shaped, so they
+// stand in for random ones.
+export const sequentialUuids = () => {
+	let n = 0;
+	return () => `00000000-0000-4000-8000-${(++n).toString(16).padStart(12, "0")}`;
+};
 export class Host {
-	constructor({ document, rootNode, dev = false }) {
+	constructor({ document, rootNode, dev = false, uuid = () => globalThis.crypto.randomUUID() }) {
 		this.document = document;
 		this.rootNode = rootNode;
 		this.dev = dev; // Check the state against the schemas on start and after each task.
+		this.uuid = uuid; // New ids for handlers, through ctx.uuid().
 		this.rootComponent = null;
 		this.registrations = new Set();
 		this.componentNames = new Set(); // In any scope, aliases included.
@@ -277,7 +284,7 @@ export class Host {
 		try {
 			newRoot = produce(curRoot, (rootDraft) => {
 				const leafDraft = path.getIn(rootDraft);
-				ctx = new MessageContext(task, route.path, pushTask);
+				ctx = new MessageContext(task, route.path, pushTask, this.uuid);
 				const newLeaf = task.run(instance, leafDraft, ctx);
 				return path.setIn(rootDraft, newLeaf);
 			});

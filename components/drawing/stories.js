@@ -43,7 +43,7 @@ const house = (C) => [
 	}),
 	C.Line({ id: "s5", x0: 0, y0: 330, x1: 640, y1: 330, stroke: "#22b14c", fill: "none", width: 8 }),
 ];
-export const houseDrawing = (C, rest = {}) => C.Drawing({ shapes: house(C), nextId: 6, ...rest });
+export const houseDrawing = (C, rest = {}) => C.Drawing({ shapes: house(C), ...rest });
 // Drags from (x0, y0) to (x1, y1) through a point between them.
 const drag = (x0, y0, x1, y1) => [
 	step.send("startAt", [x0, y0]),
@@ -86,7 +86,6 @@ export default stories({
 				C.Drawing({
 					width: 240,
 					height: 120,
-					nextId: 2,
 					shapes: [C.Rect({ id: "s1", x0: 200, y0: 100, x1: 40, y1: 20, fill: "#99d9ea" })],
 				}),
 		},
@@ -95,7 +94,6 @@ export default stories({
 				C.Drawing({
 					width: 240,
 					height: 120,
-					nextId: 2,
 					shapes: [
 						C.Ellipse({
 							id: "s1",
@@ -115,7 +113,6 @@ export default stories({
 				C.Drawing({
 					width: 240,
 					height: 120,
-					nextId: 2,
 					shapes: [
 						C.Line({ id: "s1", x0: 20, y0: 100, x1: 220, y1: 20, stroke: "#3f48cc", width: 8 }),
 					],
@@ -126,7 +123,6 @@ export default stories({
 				C.Drawing({
 					width: 240,
 					height: 120,
-					nextId: 2,
 					shapes: [
 						C.Polyline({
 							id: "s1",
@@ -222,10 +218,10 @@ export default stories({
 					step.send("duplicate"),
 					step.check(
 						"a copy, selected, offset",
-						(s) => s.selected === "s6" && byId(s, "s6").x0 === 270,
+						(s) => s.selected === s.shapes[3].id && s.shapes[3].x0 === 270,
 					),
 					step.send("remove"),
-					step.check("deleted the copy", (s) => !byId(s, "s6") && s.selected === ""),
+					step.check("deleted the copy", (s) => s.shapes.length === 5 && s.selected === ""),
 					step.send("shapeDown", ["s2", 280, 140]),
 					step.event("keydown", '[tabindex="0"]', {}),
 					step.send("remove"),

@@ -104,7 +104,10 @@ export default stories({
 					step.event("input", '[aria-label="New subtask"]', { value: "Label boxes" }),
 					step.event("submit", "form"),
 					step.check("added", (s) => s.subtasks.at(-1).title === "Label boxes"),
-					step.check("with a nested id", (s) => s.subtasks.at(-1).id === "t1.4"),
+					step.check(
+						"with a new id",
+						(s) => !s.subtasks.slice(0, -1).some((t) => t.id === s.subtasks.at(-1).id),
+					),
 				],
 			},
 			pbt: {

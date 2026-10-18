@@ -27,9 +27,9 @@ export const applyStateOps = (root, ops, scope) =>
 		return hydrate(value, scope, type);
 	});
 
-// Starts host with the root its engines stored, or a new rootRef component when none did: the
-// "local" engines' projections first, the "shared" ones on top. Then attaches the engines.
-export const startSynced = async (host, { rootRef, engines, args = {} }) => {
+// Starts host with the root its engines stored, or make(C) when none did: the "local" engines'
+// projections first, the "shared" ones on top. Then attaches the engines.
+export const startSynced = async (host, { engines, make }) => {
 	const byLevel = [...engines].sort((a, b) =>
 		a.level === "local" ? -1 : b.level === "local" ? 1 : 0,
 	);
@@ -38,15 +38,9 @@ export const startSynced = async (host, { rootRef, engines, args = {} }) => {
 		(acc, p) => (p === null ? acc : acc === null ? p : overlay(acc, p)),
 		null,
 	);
-	let root;
-	if (plain !== null) root = hydrate(plain, host.scope);
-	else {
-		const { scope, name } = host.scope.resolveRef(rootRef);
-		root = scope.make(name, args);
-	}
-	host.start(root);
+	host.start(plain === null ? make(host.scope.components) : hydrate(plain, host.scope));
 	host.attachSync(...engines);
-	return root;
+	return host.rootComponent;
 };
 
 // The simplest engine: keeps the projection of every field but the "none" ones in storage (a

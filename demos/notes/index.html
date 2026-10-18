@@ -3,11 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Notes with a backend · Tutuca demos</title>
+    <title>Notes · Tutuca demos</title>
     <script type="importmap">
       {
         "imports": {
-          "margaui": "../../node_modules/margaui/dist/margaui.min.js"
+          "margaui": "../../node_modules/margaui/dist/margaui.min.js",
+          "@automerge/automerge": "../deps/automerge.js",
+          "@automerge/automerge-repo": "../deps/automerge.js",
+          "@automerge/automerge-repo-network-broadcastchannel": "../deps/automerge.js",
+          "@automerge/automerge-repo-storage-indexeddb": "../deps/automerge.js"
         }
       }
     </script>
@@ -19,16 +23,12 @@
   <body>
     <header class="demo-bar">
       <a href="../">← All demos</a>
-      <h1>Notes with a backend</h1>
+      <h1>Notes</h1>
       <p>
-        A worker plays the server and keeps the notes in IndexedDB. Open this page in another tab:
-        both sync through it. The filter is kept per device, the new note's text isn't kept.
+        Pick a sync mode and open the page in another tab. The title and notes sync, the filter
+        stays on this device, the new note's text isn't kept.
       </p>
     </header>
     <div id="app"></div>
-    <section class="sync-log">
-      <h2>What syncs</h2>
-      <ol id="sync-log"></ol>
-    </section>
   </body>
 </html>

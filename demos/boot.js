@@ -1,11 +1,14 @@
 // Boots a demo: a dev Host on #app with the components, the browser's ask handlers (or
-// askHandlers) and a root.
+// askHandlers) and a root. The page's ?sync= picks engines that keep or sync the state (see
+// sync/engines.js); then the root is what they stored, or make's when they have nothing, and
+// the host starts once they've loaded.
 import { compile } from "margaui";
 import { isoDay } from "../components/common/calendar.js";
 import { readText, saveFile } from "../components/common/files.js";
 import { ClassCompiler, classNamesOf } from "../src/dev/classes.js";
 import { startSynced } from "../src/sync/index.js";
 import { DispatchPath, Host, Target, Task } from "../src/tutuca.js";
+import { SYNC_MODES, syncFromQuery, syncModeOf } from "./sync/engines.js";
 
 export const boot = ({
 	components,
@@ -14,23 +17,51 @@ export const boot = ({
 	document = globalThis.document,
 }) => {
 	const { host, watch } = setup({ components, askHandlers, document });
-	host.start(make(host.scope.components));
-	watch();
+	const window = document.defaultView;
+	const mode = window === null ? null : syncModeOf(window);
+	addSyncSwitcher(document, mode);
+	if (mode === null) {
+		host.start(make(host.scope.components));
+		watch();
+		return host;
+	}
+	syncFromQuery(window, { log: addSyncLog(document) })
+		.then((engines) => startSynced(host, { engines, make }))
+		.then(watch)
+		.catch((error) => console.error("sync failed to start", error));
 	return host;
 };
 
-// boot for a root that sync engines keep: started from what they stored, or a new rootRef.
-export const bootSynced = async ({
-	components,
-	askHandlers = browserHandlers,
-	rootRef,
-	engines,
-	document = globalThis.document,
-}) => {
-	const { host, watch } = setup({ components, askHandlers, document });
-	await startSynced(host, { rootRef, engines });
-	watch();
-	return host;
+// Links in the demo bar to reload the page with each sync mode.
+const addSyncSwitcher = (document, mode) => {
+	const bar = document.querySelector(".demo-bar");
+	if (bar === null) return;
+	const nav = document.createElement("nav");
+	nav.className = "sync-modes";
+	nav.append("Sync:");
+	for (const [value, label] of [[null, "off"], ...Object.entries(SYNC_MODES)]) {
+		const url = new URL(document.defaultView.location.href);
+		url.searchParams.delete("doc");
+		if (value === null) url.searchParams.delete("sync");
+		else url.searchParams.set("sync", value);
+		const link = document.createElement("a");
+		link.href = url.search === "" ? url.pathname : url.search;
+		link.textContent = label;
+		if (value === mode) link.setAttribute("aria-current", "page");
+		nav.append(" ", link);
+	}
+	bar.append(nav);
+};
+// A list under the app for the ops that sync.
+const addSyncLog = (document) => {
+	const section = document.createElement("section");
+	section.className = "sync-log";
+	const title = document.createElement("h2");
+	title.textContent = "What syncs";
+	const list = document.createElement("ol");
+	section.append(title, list);
+	document.getElementById("app").after(section);
+	return list;
 };
 
 const setup = ({ components, askHandlers, document }) => {

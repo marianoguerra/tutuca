@@ -72,13 +72,15 @@ test("a drag ends on release over the shape, so later moves don't move it", () =
 test("duplicating and moving shapes at the edge keeps them in range", () => {
 	const C = scopeWith(drawingComponents).components;
 	const shapes = [C.Rect({ id: "a", x0: 9990, y0: 0, x1: 10000, y1: 20 })];
-	const driver = new Driver({ root: C.Drawing({ shapes, selected: "a", nextId: 1 }), document });
+	const driver = new Driver({ root: C.Drawing({ shapes, selected: "a" }), document });
 	const send = (name, args = []) => driver.send(new DispatchPath(), name, args);
 	send("duplicate");
 	const corners = (s) => [s.x0, s.y0, s.x1, s.y1];
 	assert.deepEqual(corners(driver.state.shapes[1]), [9980, 10, 9990, 30]);
-	assert.equal(driver.state.selected, "s1");
-	send("shapeDown", ["s1", 10000, -10000]);
+	const copy = driver.state.shapes[1].id; // s-<uuid>, the Driver's first
+	assert.equal(copy, "s-00000000-0000-4000-8000-000000000001");
+	assert.equal(driver.state.selected, copy);
+	send("shapeDown", [copy, 10000, -10000]);
 	send("moveTo", [-10000, 10000]); // 20000 each way, more than the room left on either axis
 	assert.deepEqual(corners(driver.state.shapes[1]), [-10000, 9980, -9990, 10000]);
 	send("moveTo", [-9999.5, 9999.5]);

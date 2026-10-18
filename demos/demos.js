@@ -42,18 +42,11 @@ export const demos = [
 		sources: ["math"],
 	},
 	{
-		dir: "persist",
-		emoji: "💾",
-		title: "Notes with a backend",
-		blurb: "A worker plays the server: it orders every tab's changes and keeps them in IndexedDB.",
-		story: null,
-		sources: [],
-	},
-	{
-		dir: "automerge",
+		dir: "notes",
 		emoji: "🔀",
-		title: "Notes with Automerge",
-		blurb: "Tabs edit the same Automerge document and merge their changes, without a server.",
+		title: "Synced notes",
+		blurb:
+			"Every demo takes ?sync=local, worker or automerge; these notes show what each field keeps.",
 		story: null,
 		sources: [],
 	},

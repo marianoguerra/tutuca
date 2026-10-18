@@ -56,9 +56,9 @@ export default stories({
 					step.check("so do field types", (s) =>
 						s.rows.some(
 							(r) =>
-								r.label === "nextSubId" &&
-								r.title === "whole number" &&
-								r.detail === "at least 1, default 1",
+								r.label === "priority" &&
+								r.title === "one of 4, 1, 2, 3" &&
+								r.detail === "default 4",
 						),
 					),
 				],

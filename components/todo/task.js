@@ -34,7 +34,6 @@ export const TodoTask = component({
 		isEditing: t.boolean(),
 		isExpanded: t.boolean(true),
 		subtasks: t.array(t.component("TodoTask")),
-		nextSubId: t.number(1).int().min(1),
 		newSubtask: t.string(),
 		today: todayType(),
 	}),
@@ -280,15 +279,14 @@ export const TodoTask = component({
 				ctx.event?.preventDefault();
 				const title = this.newSubtask.trim();
 				if (title === "") return;
-				const { id, projectId, today, nextSubId } = this;
+				const { projectId, today } = this;
 				const sub = scopeOf(this).make("TodoTask", {
-					id: `${id}.${nextSubId}`,
+					id: ctx.uuid(),
 					title,
 					projectId,
 					today,
 				});
 				draft.subtasks.push(sub);
-				draft.nextSubId = nextSubId + 1;
 				draft.newSubtask = "";
 				draft.isExpanded = true;
 			},

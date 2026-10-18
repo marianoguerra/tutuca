@@ -9,11 +9,15 @@ import { TODAY } from "../../components/todo/fixtures.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
 import { start as startStudio } from "../../demos/json-schema/main.js";
 import { start as startMath } from "../../demos/math/main.js";
-import { start as startPersist } from "../../demos/persist/main.js";
+import { start as startNotes } from "../../demos/notes/main.js";
+import { notesComponents } from "../../demos/notes/notes.js";
+import { syncFromQuery } from "../../demos/sync/engines.js";
 import { start as startTracker } from "../../demos/thing-tracker/main.js";
 import { start as startTodo } from "../../demos/todo/main.js";
 import { lint } from "../../src/lint/index.js";
+import { startSynced } from "../../src/sync/index.js";
 import { relay } from "../../src/sync/remote.js";
+import { Host } from "../../src/tutuca.js";
 import { settle } from "../helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
@@ -171,7 +175,7 @@ test("thing tracker demo: logs a thing with a tap", async () => {
 	await checkClean(app);
 });
 
-// A port to an in-process backend, answering like demos/persist/backend.js does.
+// A port to an in-process backend, answering like demos/sync/backend.js does.
 const backendPorts = () => {
 	const remote = relay();
 	const ports = new Set();
@@ -199,41 +203,104 @@ const memoryStorage = () => {
 	const items = new Map();
 	return { getItem: (k) => items.get(k) ?? null, setItem: (k, v) => items.set(k, v) };
 };
+const page = (query) =>
+	new JSDOM('<header class="demo-bar"></header><div id="app"></div>', {
+		url: `http://localhost/demos/notes/${query}`,
+	}).window;
+const started = async (host) => {
+	while (host.rootComponent === null) await settle();
+	return host;
+};
 
-test("persist demo: tabs sync through the backend, and a new tab starts from it", async () => {
+test("boot syncs any demo from the query: ?sync=local keeps the state in this browser", async () => {
+	const window = page("?sync=local");
+	const host = await started(startNotes(window.document));
+	const $ = (selector) => window.document.querySelector(selector);
+	$('[aria-label="New note"]').value = "buy milk";
+	$('[aria-label="New note"]').dispatchEvent(new window.Event("input", { bubbles: true }));
+	$("form").dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+	assert.match($(".sync-log").textContent, /sent: insert/);
+	assert.equal($('.sync-modes [aria-current="page"]').textContent, "this browser");
+	// Another page on the same address, in the same browser, starts from it.
+	const again = page("?sync=local");
+	Object.defineProperty(again, "localStorage", { value: window.localStorage });
+	const other = await started(startNotes(again.document));
+	assert.deepEqual(
+		other.rootComponent.notes.map((n) => n.text),
+		["buy milk"],
+	);
+	void host;
+});
+
+test("without ?sync a demo starts at once, with no engines", () => {
+	const window = page("");
+	const host = startNotes(window.document);
+	assert.equal(host.engines.length, 0);
+	assert.notEqual(host.rootComponent, null);
+});
+
+test("?sync=worker: tabs sync through the backend, and a new tab starts from it", async () => {
 	const backend = backendPorts();
 	const storage = memoryStorage();
 	const open = async () => {
-		const { window } = new JSDOM('<div id="app"></div><ol id="sync-log"></ol>');
-		const host = await startPersist(window.document, { port: backend.connect(), storage });
-		const $ = (selector) => window.document.querySelector(selector);
-		const fire = (type, el, value) => {
-			if (value !== undefined) el.value = value;
-			const Event = type === "click" ? window.MouseEvent : window.Event;
-			el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
-		};
-		return { host, $, fire };
+		const window = page("?sync=worker");
+		const host = new Host({
+			document: window.document,
+			rootNode: window.document.getElementById("app"),
+		});
+		host.scope.register(notesComponents);
+		const engines = await syncFromQuery(window, { connect: backend.connect, storage });
+		await startSynced(host, { engines, make: (C) => C.Notes() });
+		return host;
 	};
 	const a = await open();
 	await settle();
 	const b = await open();
-	a.fire("input", a.$('[aria-label="New note"]'), "buy milk");
-	a.fire("submit", a.$("form"));
+	a.applyExternal((d) => void d.notes.push(a.scope.make("Note", { text: "buy milk" })));
 	await settle();
-	// Tabs share the device's storage: the last one to change anything saves its local fields.
-	a.fire("change", a.$("select"), "open");
 	assert.deepEqual(
-		b.host.rootComponent.notes.map((n) => n.text),
+		b.rootComponent.notes.map((n) => n.text),
 		["buy milk"],
 	);
-	assert.equal(b.host.rootComponent.filter, "all"); // local fields don't sync
-	assert.match(a.$("#sync-log").textContent, /sent: insert/);
-	assert.match(b.$("#sync-log").textContent, /received: insert/);
+	a.applyExternal((d) => {
+		d.filter = "open";
+		d.draft = "unsaved";
+	});
 	const c = await open();
-	assert.equal(c.host.rootComponent.notes[0].text, "buy milk");
-	assert.equal(c.host.rootComponent.filter, "open"); // from storage
-	assert.equal(c.host.rootComponent.draft, "");
+	assert.equal(c.rootComponent.notes[0].text, "buy milk");
+	assert.equal(c.rootComponent.filter, "open"); // local: from this browser's storage
+	assert.equal(c.rootComponent.draft, ""); // none: not kept
 	assert.deepEqual(backend.remote.load().value.notes, [
 		{ $: "Note", text: "buy milk", done: false },
 	]);
+});
+
+test("?sync=automerge: tabs on the same document merge", async () => {
+	const { docHandle } = await import("../../src/sync/automerge.js");
+	const { clone } = await import("@automerge/automerge");
+	const handle = docHandle();
+	const open = async (h) => {
+		const window = page("?sync=automerge");
+		const host = new Host({
+			document: window.document,
+			rootNode: window.document.getElementById("app"),
+		});
+		host.scope.register(notesComponents);
+		const engines = await syncFromQuery(window, { open: () => h, storage: memoryStorage() });
+		await startSynced(host, { engines, make: (C) => C.Notes() });
+		return host;
+	};
+	const a = await open(handle);
+	const other = docHandle(clone(handle.doc()));
+	const b = await open(other);
+	a.applyExternal((d) => void d.notes.push(a.scope.make("Note", { text: "from a" })));
+	b.applyExternal((d) => {
+		d.title = "Merged";
+	});
+	handle.merge(other.doc());
+	other.merge(handle.doc());
+	for (const host of [a, b]) {
+		assert.equal(host.rootComponent.title, "Merged");
+		assert.equal(host.rootComponent.notes[0].text, "from a");
+	}
 });

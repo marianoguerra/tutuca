@@ -104,3 +104,13 @@ body.demo-fullscreen {
 .sync-log li.received {
 	color: var(--color-info, #0369a1);
 }
+.sync-modes {
+	margin-left: auto;
+	white-space: nowrap;
+	font-size: 0.85rem;
+}
+.sync-modes a[aria-current] {
+	opacity: 1;
+	font-weight: 600;
+	text-decoration: underline;
+}

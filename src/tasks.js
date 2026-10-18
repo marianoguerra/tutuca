@@ -15,8 +15,9 @@ const run = (instance, draft, handlerName, args, ctx) => {
 	return draft;
 };
 export class MessageContext {
-	constructor(task, path, pushTask) {
+	constructor(task, path, pushTask, newUuid) {
 		this.task = task;
+		this.newUuid = newUuid;
 		this.path = path.toComponentPath();
 		this.pushTask = pushTask;
 		this.event = task.event;
@@ -25,6 +26,10 @@ export class MessageContext {
 		this.isStopNextSet = false;
 		this.handled = null; // { message, args } once a handler runs.
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
+	}
+	// A new id, unique across hosts: random in an app, counting up in a Driver so runs repeat.
+	uuid() {
+		return this.newUuid();
 	}
 	notify(name, args = []) {
 		this.emitted.push({ kind: "notify", name, args });

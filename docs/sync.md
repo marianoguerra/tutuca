@@ -9,7 +9,7 @@ import { startSynced, storageEngine } from "tutuca/sync";
 import { automergeEngine } from "tutuca/automerge";
 
 await startSynced(host, {
-	rootRef: "Notes", // made when no engine has stored anything yet
+	make: (C) => C.Notes(), // when no engine has stored anything yet
 	engines: [automergeEngine({ handle }), storageEngine(localStorage, "notes")],
 });
 ```
@@ -68,15 +68,35 @@ other. It skips the subtrees both share, so it only walks what changed. The sche
 
 The playground's Steps tab shows each timeline entry's ops under Changes.
 
+## Opting in from outside the app
+
+An app needs no sync code: engines attach to the host, so whoever boots it decides. The demos
+do it from the page's query (`demos/boot.js`, `demos/sync/engines.js`):
+
+| Query | Engines |
+|---|---|
+| (none) | none, the app starts as always |
+| `?sync=local` | `storageEngine`: the state stays in this browser |
+| `?sync=worker` | `remoteEngine` to a pretend backend in a SharedWorker, kept in IndexedDB |
+| `?sync=automerge` | `automergeEngine` over a `Repo` that syncs tabs over BroadcastChannel and keeps the document in IndexedDB; its URL goes in `&doc=` |
+
+Every mode also keeps the `"local"` fields in the browser's storage, and each demo (by its path)
+keeps its own state. Apps can add `.sync("none")` or `.sync("local")` to UI fields, which does
+nothing without an engine.
+
+## Ids: ctx.uuid()
+
+Ids made by counting (`nextId`) collide when two peers add at once. Handlers take new ids from
+`ctx.uuid()` instead: random in an app, counting up in a `Driver` (and in hosts made with
+`uuid: sequentialUuids()`) so runs, and the determinism property, repeat.
+
 ## The reference engines
 
 - `remoteEngine({ transport })` (`tutuca/sync/remote`) sends each change's ops to a remote that
   orders them by version (`relay()` is its side). A change made against an older version is
-  rejected and that client reloads, so the first of two concurrent changes wins. The
-  [backend demo](../demos/persist/) runs the relay in a SharedWorker that keeps the state in
-  IndexedDB.
+  rejected and that client reloads, so the first of two concurrent changes wins.
 - `automergeEngine({ handle })` (`tutuca/automerge`) keeps the shared fields in an Automerge
   document. It takes an automerge-repo `DocHandle`, or `docHandle(doc)` for a bare document.
-  Peers merge concurrent edits. The [Automerge demo](../demos/automerge/) syncs tabs with no
-  server: a `Repo` with a `BroadcastChannelNetworkAdapter` and an `IndexedDBStorageAdapter`, with
-  the document URL in the page's hash.
+  Peers merge concurrent edits.
+
+The [notes demo](../demos/notes/) shows what each field level keeps in every mode.

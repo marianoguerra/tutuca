@@ -16,6 +16,7 @@ import {
 	render,
 	Selector,
 	scopeOf,
+	sequentialUuids,
 	specOf,
 	Target,
 	TargetValue,
@@ -242,7 +243,7 @@ export const PROBLEMS = new Set(["taskFailed", "stateInvalid", "messageInvalid"]
 export class Driver {
 	constructor({ root, document = null, rootNode = null, live = false, onReport = null }) {
 		const node = rootNode ?? document?.createElement("main") ?? { addEventListener() {} };
-		this.host = new Host({ document, rootNode: node, dev: true });
+		this.host = new Host({ document, rootNode: node, dev: true, uuid: sequentialUuids() });
 		this.reports = [];
 		this.host.notify = (type, info) => {
 			const report = { type, ...info };

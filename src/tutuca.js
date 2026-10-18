@@ -1,7 +1,7 @@
 // The core: components, views, schemas, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
 export { ComponentSpec, component } from "./component.js";
-export { Host, Scope } from "./host.js";
+export { Host, Scope, sequentialUuids } from "./host.js";
 export { DispatchPath, Frame, Selector, selectorFrom, Target, UpdatePath } from "./paths.js";
 export * from "./schema.js";
 export * from "./tag.js";

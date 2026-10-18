@@ -246,7 +246,7 @@ test("applyExternal keeps untouched subtrees and skips the engine it came from",
 const remoteClient = async (remote) => {
 	const s = setup();
 	const engine = remoteEngine({ transport: remote.connect() });
-	await startSynced(s.host, { rootRef: "Root", engines: [engine] });
+	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
 	return { ...s, engine };
 };
 
@@ -294,7 +294,7 @@ test("a local engine restores local fields under the shared ones", async () => {
 	};
 	const s = setup();
 	await startSynced(s.host, {
-		rootRef: "Root",
+		make: (C) => C.Root(),
 		engines: [remoteEngine({ transport: remote.connect() }), local],
 	});
 	s.host.applyExternal((d) => {
@@ -303,7 +303,7 @@ test("a local engine restores local fields under the shared ones", async () => {
 	});
 	const t = setup();
 	await startSynced(t.host, {
-		rootRef: "Root",
+		make: (C) => C.Root(),
 		engines: [remoteEngine({ transport: remote.connect() }), local],
 	});
 	assert.equal(t.host.rootComponent.selected, 0);
@@ -316,7 +316,7 @@ test("a local engine restores local fields under the shared ones", async () => {
 const amClient = async (handle) => {
 	const s = setup();
 	const engine = automergeEngine({ handle });
-	await startSynced(s.host, { rootRef: "Root", engines: [engine] });
+	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
 	return { ...s, engine };
 };
 

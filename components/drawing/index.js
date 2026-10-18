@@ -56,28 +56,27 @@ const remember = (self, draft) => {
 	draft.past = [...self.past.slice(-(MAX_HISTORY - 1)), self.shapes];
 	draft.future = [];
 };
-const newId = (self, draft) => {
-	draft.nextId = self.nextId + 1;
-	return `s${self.nextId}`;
-};
+const newId = (ctx) => `s-${ctx.uuid()}`;
 
 export const Drawing = component({
 	name: "Drawing",
 	fields: (t) => ({
 		width: t.number(640).int().min(16).max(4000),
 		height: t.number(400).int().min(16).max(4000),
-		tool: t.enum(...TOOLS.map(([id]) => id)),
+		tool: t.enum(...TOOLS.map(([id]) => id)).sync("local"),
 		fill: paintType("#99d9ea"), // For new shapes, and the selected one.
 		stroke: paintType("#000000"),
 		strokeWidth: t.enum(2, 1, 4, 8),
 		shapes: t.array(t.component(SHAPES)),
-		selected: t.string(), // The selected shape's id, or "".
-		current: t.option(t.component(SHAPES)), // The shape being drawn.
-		dragFrom: t.option(t.array(coord()).len(2, 2)), // Where moving the selection was last.
-		past: t.array(t.array(t.component(SHAPES))).len(0, MAX_HISTORY),
-		future: t.array(t.array(t.component(SHAPES))),
-		nextId: t.number(1).int().min(1),
-		cursor: t.string(),
+		selected: t.string().sync("none"), // The selected shape's id, or "".
+		current: t.option(t.component(SHAPES)).sync("none"), // The shape being drawn.
+		dragFrom: t.option(t.array(coord()).len(2, 2)).sync("none"), // Where moving the selection was last.
+		past: t
+			.array(t.array(t.component(SHAPES)))
+			.len(0, MAX_HISTORY)
+			.sync("none"), // Undo stays per tab.
+		future: t.array(t.array(t.component(SHAPES))).sync("none"),
+		cursor: t.string().sync("none"),
 	}),
 	invariants: {
 		uniqueIds() {
@@ -102,12 +101,6 @@ export const Drawing = component({
 		// Its points so far, then the one that follows the pointer.
 		drawnPolylineHasPointer() {
 			return this.current?.points === undefined || this.current.points.length >= 4;
-		},
-		// newId hands out s<nextId> onwards, so those can't be taken yet.
-		idsAreFresh() {
-			const shapes = [...this.shapes, ...this.past.flat(), ...this.future.flat()];
-			if (this.current !== null) shapes.push(this.current);
-			return shapes.every((s) => !/^s\d+$/.test(s.id) || Number(s.id.slice(1)) < this.nextId);
 		},
 		selectionExists() {
 			return this.selected === "" || this.shapes.some((s) => s.id === this.selected);
@@ -418,7 +411,7 @@ export const Drawing = component({
 		// Drawing, by coordinates.
 		startAt: {
 			args: [coord(), coord()],
-			run(draft, [x, y]) {
+			run(draft, [x, y], ctx) {
 				if (this.tool === "select") {
 					draft.selected = "";
 					return;
@@ -436,7 +429,7 @@ export const Drawing = component({
 				};
 				const shape =
 					kind === "Polyline" ? { points: [x, y, x, y] } : { x0: x, y0: y, x1: x, y1: y };
-				draft.current = scopeOf(this).make(kind, { id: newId(this, draft), ...style, ...shape });
+				draft.current = scopeOf(this).make(kind, { id: newId(ctx), ...style, ...shape });
 			},
 		},
 		moveTo: {
@@ -552,11 +545,11 @@ export const Drawing = component({
 		// A copy a little down and right, above the original, which becomes the selection.
 		duplicate: {
 			args: [],
-			run(draft) {
+			run(draft, _args, ctx) {
 				const s = this.selection;
 				if (s === null) return;
 				remember(this, draft);
-				const copy = scopeOf(this).make(specOf(s).name, { ...s, id: newId(this, draft) });
+				const copy = scopeOf(this).make(specOf(s).name, { ...s, id: newId(ctx) });
 				const at = this.selectedIndex + 1;
 				draft.shapes.splice(at, 0, copy);
 				// Toward the side with room, so a copy at the edge still shows apart.
