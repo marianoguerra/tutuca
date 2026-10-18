@@ -1,0 +1,41 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/site/todo_list"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] books() -> Array[@storybook.Book[N]]
+
+pub let todo_list : @tutuca.Component[TodoList, TodoListMsg]
+
+// Errors
+
+// Types and methods
+pub(all) struct Todo {
+  title : String
+  done : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct TodoList {
+  text : String
+  items : @tutuca.Vec[Todo]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn TodoList::left(Self) -> Int
+
+pub(all) enum TodoListMsg {
+  SetText(String)
+  Add
+  Toggle(Int)
+  Remove(Int)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

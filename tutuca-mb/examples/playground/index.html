@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tutuca-mb · playground</title>
+    <script type="importmap">
+      { "imports": { "margaui": "/node_modules/margaui/dist/margaui.min.js" } }
+    </script>
+    <!-- #margaui is the storybook's (each run compiles its classes there); #page is this page's. -->
+    <style id="margaui"></style>
+    <style id="page"></style>
+    <link rel="stylesheet" href="/node_modules/margaui/dist/themes/theme.css" />
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body { display: flex; flex-direction: column; }
+      #playground { flex: 1; min-height: 0; margin: 0 12px 12px; }
+    </style>
+  </head>
+  <body class="bg-base-200 text-base-content">
+    <header class="flex flex-wrap items-baseline gap-3 px-3 py-2">
+      <a class="link text-sm" href="../">← tutuca-mb</a>
+      <h1 class="text-lg font-bold">Playground</h1>
+      <p class="text-sm opacity-70">
+        Edit a book of stories in MoonBit and run it: it compiles here, in your browser.
+      </p>
+    </header>
+    <div id="playground"></div>
+    <script type="module" src="./page.js"></script>
+  </body>
+</html>

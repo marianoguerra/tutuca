@@ -1,0 +1,11 @@
+// The math stories, from components/math/stories.js.
+import {
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/examples/math",
+  "moonbitlang/core/quickcheck",
+}
+
+warnings = "-79"

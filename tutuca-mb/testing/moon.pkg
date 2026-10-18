@@ -1,0 +1,17 @@
+// Testing tutuca components: a headless Driver on memdom, a small property runner, random
+// message and event sequences, and the generic properties every component should have.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom/memdom",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+import {
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+} for "test"
+
+warnings = "-79"

@@ -1,0 +1,16 @@
+// The JSON Schema stories, from components/json-schema/stories.js.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/examples/jsonschema" @js,
+  "marianoguerra/tutuca/examples/json_editor" @jv,
+  "moonbitlang/core/quickcheck",
+}
+
+import {
+  "marianoguerra/tutuca/vdom/memdom",
+} for "test"
+
+warnings = "-79"

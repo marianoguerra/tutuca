@@ -1,0 +1,17 @@
+// A JSON Schema viewer and studio, from components/json-schema.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/examples/json_editor" @jv,
+  "marianoguerra/tutuca/examples/common",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/string",
+  "moonbitlang/core/math",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+import {
+  "marianoguerra/tutuca/testing",
+} for "wbtest"
+
+warnings = "-79"

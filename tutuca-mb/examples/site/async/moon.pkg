@@ -1,0 +1,11 @@
+// A landing page example, which the playground also offers: 4. asks answered outside the component.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/json",
+}
+
+warnings = "-79"

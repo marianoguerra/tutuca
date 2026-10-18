@@ -1,0 +1,11 @@
+// The browser shell (js target): the DomNode trait over the real DOM, and `mount`, which runs
+// a host with setTimeout, Date.now and delegated listeners on the root node.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/dev",
+}
+
+supported_targets = "js"
+
+warnings = "-79"

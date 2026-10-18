@@ -1,0 +1,6 @@
+// What the examples share: file asks, as components/common/files.js.
+import {
+  "marianoguerra/tutuca",
+}
+
+warnings = "-79"

@@ -1,0 +1,14 @@
+// What a playground run calls on wasm-gc: run's twin, starting the storybook UI through
+// storybook/wasm. The page answers the `playground` imports (playground.js) with the run's
+// config, and the run's boot file exports `current` (compile.js).
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/wasm" @tw,
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/storybook/wasm" @sbw,
+  "marianoguerra/tutuca/examples/playground",
+}
+
+supported_targets = "wasm-gc"
+
+warnings = "-79"

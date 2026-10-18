@@ -1,0 +1,217 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/dev"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub fn brief(Json) -> String
+
+pub fn debug_call(String) -> String
+
+pub fn[S, M] describe_component(@tutuca.Component[S, M]) -> Described
+
+pub fn describe_frame(@tutuca.Frame) -> Described
+
+pub fn describe_json(Json) -> Described
+
+pub fn describe_path(@tutuca.DispatchPath) -> Described
+
+pub fn describe_report(@tutuca.Report) -> Described
+
+pub fn describe_task(@tutuca.Task) -> Described
+
+pub fn describe_vnode(@vdom.VNode) -> Described
+
+pub fn describe_vnodes(Array[@vdom.VNode]) -> Described
+
+pub let dev_classes : Array[String]
+
+pub let dev_lint : @tutuca.Component[DevLint, Unit]
+
+pub let dev_node : @tutuca.Component[DevNode, DevNodeMsg]
+
+pub let dev_panel : @tutuca.Component[DevPanel, DevPanelMsg]
+
+pub let dev_section : @tutuca.Component[DevSection, Unit]
+
+pub fn field_detail(@tutuca.FieldInfo) -> String
+
+pub fn js_name(String) -> String
+
+pub fn lint_records(Array[@tutuca.Issue]) -> Array[LintRecord]
+
+pub fn message_call(Json) -> String
+
+pub fn path_words(@tutuca.DispatchPath) -> String
+
+pub fn snapshot(SpecInfo, Json, Array[SpecInfo]) -> Json
+
+pub fn type_words(@tutuca.FieldType) -> String
+
+// Errors
+
+// Types and methods
+pub struct ClassCollector {
+  seen : Map[String, Unit]
+  on_new : (Array[String]) -> Unit
+}
+pub fn ClassCollector::add(Self, Array[String]) -> Unit
+pub fn ClassCollector::new((Array[String]) -> Unit, known? : Array[String]) -> Self
+pub fn[N : @vdom.DomNode] ClassCollector::scan(Self, N) -> Unit
+
+pub struct Described {
+  header : Array[Ml]
+  rows : () -> Array[(String?, Ml)]
+}
+pub fn Described::body_text(Self) -> String
+pub fn Described::has_body(Self) -> Bool
+pub fn Described::header_text(Self) -> String
+
+pub(all) struct DevLint {
+  issues : Array[LintRecord]
+} derive(Eq, ToJson, @debug.Debug, @quickcheck.Arbitrary)
+
+pub(all) struct DevNode {
+  label : String
+  title : String
+  detail : String
+  tokens : Array[Token]
+  ref_ : Int
+  can_open : Bool
+  is_open : Bool
+  rows : @tutuca.Vec[DevNode]
+} derive(Eq, ToJson, @debug.Debug, @quickcheck.Arbitrary)
+pub fn DevNode::of(String, Inspected) -> Self
+pub fn DevNode::row(Int) -> @tutuca.Lens[Self, Self]
+
+pub(all) enum DevNodeMsg {
+  Toggle
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct DevPanel {
+  view : DevView
+  state : DevSection
+  tasks : DevSection
+  specs : DevSection
+  lint : DevLint
+} derive(Eq, ToJson, @debug.Debug, @quickcheck.Arbitrary)
+pub fn DevPanel::new() -> Self
+pub fn DevPanel::updated(Self, state? : Inspected, tasks? : Array[(String, Inspected)], specs? : Array[SpecInfo], issues? : Array[LintRecord]) -> Self
+
+pub(all) enum DevPanelMsg {
+  SetView(DevView)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct DevSection {
+  title : String
+  empty_text : String
+  nodes : @tutuca.Vec[DevNode]
+} derive(Eq, ToJson, @debug.Debug, @quickcheck.Arbitrary)
+pub fn DevSection::new(String, empty_text? : String, nodes? : Array[DevNode]) -> Self
+pub fn DevSection::node(Int) -> @tutuca.Lens[Self, DevNode]
+
+pub(all) enum DevView {
+  Main
+  Code
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for DevView
+pub impl @json.FromJson for DevView
+
+pub struct Inspected {
+  key : String
+  tokens : Array[Token]
+  prim : Array[Token]
+  brief : String
+  title : String
+  detail : String
+  rows : () -> Array[Row]
+}
+pub fn Inspected::field(@tutuca.FieldInfo) -> Self
+pub fn Inspected::frame(@tutuca.Frame) -> Self
+pub fn Inspected::instance(SpecInfo, Array[(String, Self)], scope? : Array[SpecInfo]) -> Self
+pub fn Inspected::json(Json) -> Self
+pub fn Inspected::list(Array[Self]) -> Self
+pub fn Inspected::message(@tutuca.TaskKind, String, Array[Json], @tutuca.DispatchPath, to? : @tutuca.DispatchPath) -> Self
+pub fn Inspected::path(@tutuca.DispatchPath) -> Self
+pub fn Inspected::scope(Array[SpecInfo]) -> Self
+pub fn Inspected::set(Array[Json]) -> Self
+pub fn Inspected::spec(SpecInfo) -> Self
+pub fn Inspected::state(SpecInfo, Json, specs? : Array[SpecInfo]) -> Self
+pub fn Inspected::task(@tutuca.Task) -> Self
+pub fn Inspected::task_label(String) -> Self
+pub fn Inspected::view(@tutuca.Ir) -> Self
+
+pub(all) enum LintLevel {
+  Error
+  Warning
+} derive(Eq, ToJson, @debug.Debug, @quickcheck.Arbitrary)
+
+pub(all) struct LintRecord {
+  level : LintLevel
+  code : String
+  path : String
+  message : String
+} derive(Eq, ToJson, @debug.Debug, @quickcheck.Arbitrary)
+
+pub enum Ml {
+  Text(String)
+  Span(String, Array[Ml])
+  Ref(Described)
+}
+pub fn Ml::text(Self) -> String
+
+pub enum Row {
+  Node(String, Inspected)
+  Leaf(String, Array[Token])
+}
+
+pub(all) struct SpecInfo {
+  name : String
+  fields : Array[@tutuca.FieldInfo]
+  views : Array[ViewInfo]
+  messages : Array[String]
+  methods : Array[String]
+  events : Array[String]
+  listens : Array[String]
+  provides : Array[String]
+  invariants : Array[String]
+  has_contract : Bool
+  issues : Array[String]
+  lint : Array[LintRecord]
+} derive(Eq, ToJson, @debug.Debug)
+pub fn[S, M] SpecInfo::of(@tutuca.Component[S, M]) -> Self
+
+pub(all) struct Token {
+  text : String
+  tone : Tone
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum Tone {
+  Plain
+  Name
+  Key
+  Str
+  Num
+  Fn
+  Muted
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn Tone::class(Self) -> String
+pub fn Tone::name(Self) -> String
+pub impl ToJson for Tone
+pub impl @json.FromJson for Tone
+
+pub(all) struct ViewInfo {
+  name : String
+  words : String
+  code : String
+} derive(Eq, ToJson, @debug.Debug)
+
+// Type aliases
+
+// Traits

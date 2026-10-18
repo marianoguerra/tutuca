@@ -1,0 +1,11 @@
+// The storybook in a browser: a <tutuca-app> element per story preview, and the UI.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/browser",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/internal/previews",
+}
+
+supported_targets = "js"
+
+warnings = "-79"

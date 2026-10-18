@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/internal/previews"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] bind_previews(@storybook.Registry[N], N, listen~ : ((Request[N]) -> Unit) -> Unit, schedule~ : (() -> Unit) -> Unit, connect~ : (@tutuca.Host[N]) -> Unit, set_text~ : (N, String) -> Unit, css~ : String, links~ : Array[String], compile? : (Array[String], (String) -> Unit) -> Unit, known~ : Array[String], prefix~ : String) -> (String) -> Unit
+
+// Errors
+
+// Types and methods
+pub(all) struct Request[N] {
+  key : String
+  root : N
+  adopt_css : (String) -> N
+  adopt_link : (String) -> Unit
+  emit : (String, Json) -> Unit
+  mount : (() -> Unit) -> Unit
+}
+
+// Type aliases
+
+// Traits

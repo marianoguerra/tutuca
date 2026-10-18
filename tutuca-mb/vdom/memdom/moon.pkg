@@ -1,0 +1,9 @@
+// In-memory DOM implementing vdom's DomNode trait: the renderer's test substrate, on every
+// target, with no browser.
+import {
+  "marianoguerra/tutuca/vdom",
+}
+
+import {
+  "marianoguerra/tutuca/vdom",
+} for "test"

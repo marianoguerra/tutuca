@@ -1,0 +1,19 @@
+// The todo demo on wasm-gc: the same app, mounted through @wasm.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/wasm" @tw,
+  "marianoguerra/tutuca/examples/todo",
+}
+
+supported_targets = "wasm-gc"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [ "start", "on_call" ],
+      "use-js-builtin-string": true,
+    },
+  },
+)

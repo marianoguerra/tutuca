@@ -1,0 +1,16 @@
+// The drawing stories, from components/drawing/stories.js.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/examples/common",
+  "marianoguerra/tutuca/examples/drawing",
+  "moonbitlang/core/quickcheck",
+}
+
+import {
+  "marianoguerra/tutuca/vdom/memdom",
+} for "test"
+
+warnings = "-79"

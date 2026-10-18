@@ -1,0 +1,42 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/common"
+
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn handle_clock_in_memory(@tutuca.Scope, () -> Double, Timers) -> Unit
+
+pub fn handle_in_memory(@tutuca.Scope, Array[SaveFile], files? : Map[String, String]) -> Unit
+
+pub let now : @tutuca.Ask[Unit, Double]
+
+pub let read_text : @tutuca.Ask[@tutuca.FileRef, String]
+
+pub let save_file : @tutuca.Ask[SaveFile, String]
+
+pub let wait : @tutuca.Ask[Int, Unit]
+
+// Errors
+
+// Types and methods
+pub(all) struct SaveFile {
+  name : String
+  text : String
+  mime : String
+  kind : String
+} derive(Eq, @debug.Debug)
+pub fn SaveFile::new(String, String, mime? : String, kind? : String) -> Self
+
+pub struct Timers {
+  // private fields
+}
+pub fn Timers::fire_all(Self) -> Unit
+pub fn Timers::new() -> Self
+pub fn Timers::waiting(Self) -> Array[Int]
+
+// Type aliases
+
+// Traits

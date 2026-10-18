@@ -1,0 +1,135 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/json_editor"
+
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub let chosen : @tutuca.Signal[Kind]
+
+pub fn from_json(Json) -> JsonValue
+
+pub fn json_array() -> @tutuca.Component[JsonArray, CollectionMsg]
+
+pub let json_bool : @tutuca.Component[JsonBool, JsonBoolMsg]
+
+pub let json_editor : @tutuca.Component[JsonEditor, JsonEditorMsg]
+
+pub fn json_entry() -> @tutuca.Component[JsonEntry, JsonEntryMsg]
+
+pub let json_null : @tutuca.Component[Unit, Unit]
+
+pub let json_number : @tutuca.Component[JsonNumber, JsonNumberMsg]
+
+pub fn json_object() -> @tutuca.Component[JsonObject, CollectionMsg]
+
+pub let json_selector : @tutuca.Component[Unit, ChooseMsg]
+
+pub let json_string : @tutuca.Component[JsonString, JsonStringMsg]
+
+pub fn json_value() -> @tutuca.Component[JsonValue, Unit]
+
+// Errors
+
+// Types and methods
+pub(all) enum ChooseMsg {
+  SetTo(Kind)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum CollectionMsg {
+  Add
+  RemoveAt(Int)
+  MoveUp(Int)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct JsonArray {
+  items : @tutuca.Vec[JsonValue]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct JsonBool {
+  value : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum JsonBoolMsg {
+  Toggle
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct JsonEditor {
+  value : JsonValue
+  mode : Mode
+  show_text : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum JsonEditorMsg {
+  SetMode(Mode)
+  SetShowText(Bool)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct JsonEntry {
+  key : String
+  value : JsonValue
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum JsonEntryMsg {
+  SetKey(String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct JsonNumber {
+  value : Double
+  text : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum JsonNumberMsg {
+  SetText(String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct JsonObject {
+  entries : @tutuca.Vec[JsonEntry]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct JsonString {
+  value : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum JsonStringMsg {
+  SetValue(String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum JsonValue {
+  JNull
+  JBool(JsonBool)
+  JNumber(JsonNumber)
+  JString(JsonString)
+  JArray(JsonArray)
+  JObject(JsonObject)
+  Choose
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn JsonValue::to_json_value(Self) -> Json
+pub impl ToJson for JsonValue
+pub impl @json.FromJson for JsonValue
+
+pub(all) enum Kind {
+  Null
+  Boolean
+  Number
+  Text
+  List
+  Record
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Kind
+pub impl @json.FromJson for Kind
+
+pub(all) enum Mode {
+  Viewing
+  Editing
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Mode
+pub impl @json.FromJson for Mode
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,15 @@
+// The JSON tree example, from components/json: values read only in their main view, edited in
+// place in their edit view, switched for a whole tree with push_view.
+import {
+  "moonbitlang/core/json",
+  "marianoguerra/tutuca",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/string",
+}
+
+import {
+  "marianoguerra/tutuca/testing",
+  "moonbitlang/core/quickcheck/splitmix",
+} for "wbtest"
+
+warnings = "-79"

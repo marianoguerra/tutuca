@@ -1,0 +1,294 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/jsonschema"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/examples/json_editor",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+// Values
+pub fn all_of() -> @tutuca.Component[Combinator, OpenMsg]
+
+pub fn any_of() -> @tutuca.Component[Combinator, OpenMsg]
+
+pub fn canonical(Json) -> String
+
+pub let default_per_page : Int
+
+pub fn from_schema(Json, open? : Bool, per_page? : Int) -> Schema
+
+pub fn gen_schema(@splitmix.RandomState, Int) -> Json
+
+pub fn infer_schema(Json) -> Json
+
+pub let object_pager_lens : @tutuca.Lens[ObjectSchema, Pager]
+
+pub let object_variant : @tutuca.Lens[Schema, ObjectSchema]
+
+pub fn one_of() -> @tutuca.Component[Combinator, OpenMsg]
+
+pub let open_siblings : @tutuca.Signal[Bool]
+
+pub fn pager_for(Int, Int) -> Pager?
+
+pub let properties_lens : @tutuca.Items[ObjectSchema, Int, Property]
+
+pub let property_schema_lens : @tutuca.Lens[Property, Schema]
+
+pub fn read_kind(Json) -> String
+
+pub let root_lens : @tutuca.Lens[SchemaRoot, Schema]
+
+pub let sample : Json
+
+pub let samples : Array[Sample]
+
+pub let schema_any : @tutuca.Component[Unit, Unit]
+
+pub fn schema_array() -> @tutuca.Component[ArraySchema, OpenMsg]
+
+pub let schema_boolean : @tutuca.Component[Notes, Unit]
+
+pub let schema_const : @tutuca.Component[ConstSchema, Unit]
+
+pub fn schema_document(Json, String) -> Json
+
+pub fn schema_enum() -> @tutuca.Component[EnumSchema, OpenMsg]
+
+pub let schema_integer : @tutuca.Component[NumericSchema, Unit]
+
+pub let schema_never : @tutuca.Component[Unit, Unit]
+
+pub fn schema_node() -> @tutuca.Component[Schema, Unit]
+
+pub fn schema_not() -> @tutuca.Component[NotSchema, NotMsg]
+
+pub let schema_null : @tutuca.Component[Notes, Unit]
+
+pub let schema_number : @tutuca.Component[NumericSchema, Unit]
+
+pub fn schema_object() -> @tutuca.Component[ObjectSchema, OpenMsg]
+
+pub let schema_pager : @tutuca.Component[Pager, PagerMsg]
+
+pub fn schema_property() -> @tutuca.Component[Property, PropertyMsg]
+
+pub let schema_ref : @tutuca.Component[String, Unit]
+
+pub let schema_root : @tutuca.Component[SchemaRoot, RootMsg]
+
+pub let schema_string : @tutuca.Component[StringSchema, Unit]
+
+pub fn schema_tree(Json, reading? : Reading, open? : Bool, per_page? : Int) -> SchemaRoot
+
+pub let schema_union : @tutuca.Component[UnionSchema, Unit]
+
+pub fn studio(id? : String) -> Studio
+
+pub let studio_component : @tutuca.Component[Studio, StudioMsg]
+
+// Errors
+
+// Types and methods
+pub(all) struct ArraySchema {
+  notes : Notes
+  items : Schema?
+  min_items : String
+  max_items : String
+  open : Bool
+} derive(Eq, @debug.Debug)
+pub impl ToJson for ArraySchema
+
+pub(all) struct Combinator {
+  notes : Notes
+  branches : @tutuca.Vec[Schema]
+  open : Bool
+  pager : Pager?
+} derive(Eq, @debug.Debug)
+pub impl ToJson for Combinator
+
+pub(all) struct ConstSchema {
+  notes : Notes
+  value : @json_editor.JsonValue
+} derive(Eq, @debug.Debug)
+pub impl ToJson for ConstSchema
+
+pub(all) struct EnumSchema {
+  notes : Notes
+  values : @tutuca.Vec[@json_editor.JsonValue]
+  open : Bool
+  pager : Pager?
+} derive(Eq, @debug.Debug)
+pub impl ToJson for EnumSchema
+
+pub(all) enum NotMsg {
+  SetOpenDeep(Bool)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct NotSchema {
+  notes : Notes
+  schema : Schema
+} derive(Eq, @debug.Debug)
+pub impl ToJson for NotSchema
+
+pub(all) struct Notes {
+  title : String
+  description : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct NumericSchema {
+  notes : Notes
+  minimum : String
+  maximum : String
+  multiple_of : String
+} derive(Eq, @debug.Debug)
+pub impl ToJson for NumericSchema
+
+pub(all) struct ObjectSchema {
+  notes : Notes
+  properties : @tutuca.Vec[Property]
+  additional : Schema?
+  open : Bool
+  pager : Pager?
+} derive(Eq, @debug.Debug)
+pub impl ToJson for ObjectSchema
+
+pub(all) enum OpenMsg {
+  Toggle
+  SetOpen(Bool)
+  SetOpenDeep(Bool)
+  OpenSiblings(Bool)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Pager {
+  total : Int
+  per_page : Int
+  page : Int
+  settings : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub fn Pager::is_many(Self) -> Bool
+pub fn Pager::last_page(Self) -> Int
+pub fn Pager::shows(Self, Int) -> Bool
+
+pub(all) enum PagerMsg {
+  First
+  Prev
+  Next
+  Last
+  SetPerPage(Int)
+  ShowAll
+  ToggleSettings
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Property {
+  name : String
+  required : Bool
+  schema : Schema
+} derive(Eq, @debug.Debug)
+pub impl ToJson for Property
+
+pub(all) enum PropertyMsg {
+  SetOpen(Bool)
+  SetOpenDeep(Bool)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum Reading {
+  Semantic
+  Format
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Reading
+pub impl @json.FromJson for Reading
+
+pub(all) enum RootMsg {
+  SetView(Reading)
+  SetOpenDeep(Bool)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Sample {
+  id : String
+  label : String
+  title : String
+  value : Json
+}
+
+pub(all) enum Schema {
+  SObject(ObjectSchema)
+  SArray(ArraySchema)
+  SString(StringSchema)
+  SNumber(NumericSchema)
+  SInteger(NumericSchema)
+  SBoolean(Notes)
+  SNull(Notes)
+  SUnion(UnionSchema)
+  SEnum(EnumSchema)
+  SConst(ConstSchema)
+  SRef(String)
+  SAllOf(Combinator)
+  SAnyOf(Combinator)
+  SOneOf(Combinator)
+  SNot(NotSchema)
+  SAny
+  SNever
+} derive(Eq, @debug.Debug)
+pub fn Schema::all_open(Self) -> Array[Bool]
+pub fn Schema::children(Self) -> Array[Self]
+pub fn Schema::is_open(Self) -> Bool?
+pub fn Schema::is_openable(Self) -> Bool
+pub fn Schema::map_children(Self, (Self) -> Self) -> Self
+pub fn Schema::open_children(Self, Bool) -> Self
+pub fn Schema::open_deep(Self, Bool) -> Self
+pub fn Schema::set_open(Self, Bool) -> Self
+pub fn Schema::to_schema(Self) -> Json
+pub impl ToJson for Schema
+
+pub(all) struct SchemaRoot {
+  node : Schema
+  view : Reading
+} derive(Eq, ToJson, @debug.Debug)
+pub impl @quickcheck.Arbitrary for SchemaRoot
+
+pub(all) struct StringSchema {
+  notes : Notes
+  format : String
+  pattern : String
+  min_length : String
+  max_length : String
+} derive(Eq, @debug.Debug)
+pub impl ToJson for StringSchema
+
+pub(all) struct Studio {
+  sample : String
+  title : String
+  editor : @json_editor.JsonEditor
+  schema : SchemaRoot
+  source : String
+  paste_text : String
+  paste_error : String
+} derive(Eq, ToJson, @debug.Debug)
+pub fn Studio::is_stale(Self) -> Bool
+pub fn Studio::json(Self) -> Json
+pub fn Studio::schema_text(Self) -> String
+
+pub(all) enum StudioMsg {
+  Regenerate
+  LoadSample(String)
+  SetTitle(String)
+  SetPasteText(String)
+  PasteJson
+  DownloadSchema
+  Saved(@tutuca.AskResult[String])
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct UnionSchema {
+  notes : Notes
+  types : Array[String]
+} derive(Eq, @debug.Debug)
+pub impl ToJson for UnionSchema
+
+// Type aliases
+
+// Traits

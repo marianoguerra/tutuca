@@ -1,0 +1,64 @@
+///|
+// Stage already-built release assets. The manifest also selects the smoke suite's demos.
+import {
+  "moonbitlang/core/env",
+  "moonbitlang/core/json",
+  "moonbitlang/x/fs",
+  "moonbitlang/async",
+  "moonbitlang/async/shell",
+}
+
+///|
+async fn main {
+  let args = @env.args()
+  guard args.length() >= 2 else {
+    fail("usage: stage-assets.mbtx js|wasm-gc [demo]")
+  }
+  let backend = args[1]
+  guard backend == "js" || backend == "wasm-gc" else {
+    fail("unknown backend: \{backend}")
+  }
+  let demos : Array[String] = @json.from_json(
+    @json.parse(@fs.read_file_to_string("scripts/demos.json")),
+  )
+  let selected = if args.length() > 2 && args[2] != "" {
+    guard demos.contains(args[2]) else { fail("unknown demo: \{args[2]}") }
+    [args[2]]
+  } else {
+    demos
+  }
+  for name in selected {
+    let example = "examples/\{name}"
+    let build = "_build/\{backend}/release/build/\{example}"
+    if backend == "js" {
+      let entry = if name == "storybook" {
+        "storybook.js"
+      } else {
+        "web/web.js"
+      }
+      @shell.Cmd("../node_modules/.bin/esbuild", [
+        "\{build}/\{entry}",
+        "--minify",
+        "--format=esm",
+        "--log-level=warning",
+        "--outfile=\{example}/\{entry}",
+      ]).run()
+      // Preserve the existing todo page's asset URL.
+      if name == "todo" {
+        @fs.write_bytes_to_file(
+          "\{example}/web/todo_web.js",
+          @fs.read_file_to_bytes("\{example}/\{entry}"),
+        )
+      }
+    } else {
+      @fs.write_bytes_to_file(
+        "\{example}/wasm/\{name}.wasm",
+        @fs.read_file_to_bytes("\{build}/wasm/wasm.wasm"),
+      )
+      @fs.write_bytes_to_file(
+        "\{example}/wasm/loader.mjs",
+        @fs.read_file_to_bytes("wasm/loader.mjs"),
+      )
+    }
+  }
+}

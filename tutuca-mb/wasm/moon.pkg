@@ -1,0 +1,13 @@
+// The wasm-gc shell: the DomNode trait over the real DOM through a small `tdom` import
+// namespace (loader.mjs is its JS side), callbacks by number through the exported `on_call`
+// (a closure can't cross into JS on wasm-gc), files, timers, margaui, <tutuca-app> and the
+// DevTools formatters.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/dev",
+}
+
+supported_targets = "wasm-gc"
+
+warnings = "-79"

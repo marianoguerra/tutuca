@@ -1,0 +1,16 @@
+// The thing tracker demo in a browser: mounts the app on #app with three weeks of logging,
+// time from the browser's clock, toasts on its timers and files as downloads and picks.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/browser",
+  "marianoguerra/tutuca/examples/common/web" @common_web,
+  "marianoguerra/tutuca/examples/thingtracker" @tt,
+}
+
+supported_targets = "js"
+
+pkgtype(kind: "executable")
+
+options(
+  link: { "js": { "exports": [ "start" ], "format": "esm" } },
+)

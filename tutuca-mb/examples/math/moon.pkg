@@ -1,0 +1,16 @@
+// MathML for an illustrative case, from components/math: a quadratic equation explorer, a 2×2
+// matrix, a formula gallery, and a workbench that keeps the problems solved.
+import {
+  "moonbitlang/core/json",
+  "marianoguerra/tutuca",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/math" @fm,
+  "moonbitlang/core/string",
+}
+
+import {
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/vdom",
+} for "wbtest"
+
+warnings = "-79"

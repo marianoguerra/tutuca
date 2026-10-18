@@ -1,0 +1,12 @@
+// What a playground run calls: the prebuilt half of a run. The user's package is compiled in
+// the browser against these packages, and its `main` hands its books to `start`.
+import {
+  "marianoguerra/tutuca/browser",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/storybook/web",
+  "marianoguerra/tutuca/examples/playground",
+}
+
+supported_targets = "js"
+
+warnings = "-79"

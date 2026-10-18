@@ -1,0 +1,14 @@
+// Dev tools made with tutuca: values in plain words, an expandable state tree, and a panel
+// with a component's state, the tasks that made it and what its check found.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/json",
+}
+
+import {
+  "marianoguerra/tutuca/testing",
+} for "test"
+
+warnings = "-79"

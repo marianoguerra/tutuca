@@ -1,0 +1,13 @@
+// The link root of a playground run: its link closure (run, and through it the storybook
+// and everything it uses) is what a run is linked against. A run takes this package's place.
+// The example packages a library builds on aren't here: the playground compiles them with the
+// library, so they're editable.
+import {
+  "marianoguerra/tutuca/examples/playground/run",
+}
+
+supported_targets = "js"
+
+pkgtype(kind: "executable")
+
+warnings = "-79"

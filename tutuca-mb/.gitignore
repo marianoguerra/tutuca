@@ -1,0 +1,10 @@
+_build
+.mooncakes
+examples/todo/web/todo_web.js
+examples/storybook/storybook.js
+examples/*/wasm/*.wasm
+examples/*/wasm/loader.mjs
+examples/*/web/web.js
+examples/playground/deps/moonc-web.cjs
+examples/playground/deps/moonc-web.json
+examples/playground/payload

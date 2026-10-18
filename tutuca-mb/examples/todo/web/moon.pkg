@@ -1,0 +1,15 @@
+// The todo demo in a browser: mounts the app on #app with a week of plans and asks for today
+// answered by the browser's clock.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/browser",
+  "marianoguerra/tutuca/examples/todo",
+}
+
+supported_targets = "js"
+
+pkgtype(kind: "executable")
+
+options(
+  link: { "js": { "exports": [ "start" ], "format": "esm" } },
+)

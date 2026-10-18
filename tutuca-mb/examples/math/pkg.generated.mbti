@@ -1,0 +1,124 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/math"
+
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+// Values
+pub fn fmt(Double) -> String
+
+pub let formula_gallery : @tutuca.Component[Unit, Unit]
+
+pub let matrix2 : @tutuca.Component[Matrix2, Matrix2Msg]
+
+pub fn matrix_label(Int, Int, Int, Int) -> String
+
+pub let quadratic : @tutuca.Component[Quadratic, QuadraticMsg]
+
+pub fn quadratic_label(Double, Double, Double) -> String
+
+pub let workbench : @tutuca.Component[Workbench, WorkbenchMsg]
+
+// Errors
+
+// Types and methods
+pub(all) enum Coefficient {
+  A
+  B
+  C
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Coefficient
+pub impl @json.FromJson for Coefficient
+
+pub(all) enum Entry {
+  A
+  B
+  C
+  D
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Entry
+pub impl @json.FromJson for Entry
+
+pub(all) enum Kind {
+  TwoReal
+  Double
+  Complex
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Matrix2 {
+  a : Int
+  b : Int
+  c : Int
+  d : Int
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub fn Matrix2::det(Self) -> Int
+pub impl Default for Matrix2
+pub impl @quickcheck.Arbitrary for Matrix2
+
+pub(all) enum Matrix2Msg {
+  SetEntry(Entry, String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum Problem {
+  SavedQuadratic(Quadratic)
+  SavedMatrix(Matrix2)
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn Problem::label(Self) -> String
+pub impl ToJson for Problem
+pub impl @json.FromJson for Problem
+
+pub(all) struct Quadratic {
+  a : Double
+  b : Double
+  c : Double
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub fn Quadratic::a_factor(Self) -> String
+pub fn Quadratic::a_shown(Self) -> String
+pub fn Quadratic::curve(Self) -> String
+pub fn Quadratic::discriminant(Self) -> Double
+pub fn Quadratic::imaginary_part(Self) -> String
+pub fn Quadratic::kind(Self) -> Kind
+pub fn Quadratic::real_part(Self) -> String
+pub fn Quadratic::roots(Self) -> Array[Double]
+pub fn Quadratic::x1(Self) -> String
+pub fn Quadratic::x2(Self) -> String
+pub impl @quickcheck.Arbitrary for Quadratic
+
+pub(all) enum QuadraticMsg {
+  SetCoefficient(Coefficient, String)
+  Preset(String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum Tab {
+  QuadraticTab
+  MatrixTab
+  FormulasTab
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Tab
+pub impl @json.FromJson for Tab
+
+pub(all) struct Workbench {
+  tab : Tab
+  quadratic : Quadratic
+  matrix : Matrix2
+  history : @tutuca.Vec[Problem]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn Workbench::cannot_save(Self) -> Bool
+pub fn Workbench::new() -> Self
+pub fn Workbench::problem(Self) -> Problem?
+
+pub(all) enum WorkbenchMsg {
+  SetTab(Tab)
+  SaveProblem
+  OpenProblem(Int)
+  RemoveProblem(Int)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

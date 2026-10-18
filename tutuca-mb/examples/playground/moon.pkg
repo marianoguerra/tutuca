@@ -1,0 +1,9 @@
+// The playground's pure logic: which story a run shows, and what keeps it from starting. The
+// page (index.html, playground.js) and the compiler worker live beside it; `run` is the
+// prebuilt half of a run and `link` the executable whose link closure a run is linked against
+// (`run_wasm` and `link_wasm` on wasm-gc).
+import {
+  "marianoguerra/tutuca",
+}
+
+warnings = "-79"

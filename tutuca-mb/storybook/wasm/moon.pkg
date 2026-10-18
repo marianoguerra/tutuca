@@ -1,0 +1,12 @@
+// The storybook in a browser on wasm-gc: a <tutuca-app> element per story preview, and the UI,
+// as storybook/web through @wasm.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/wasm" @tw,
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/internal/previews",
+}
+
+supported_targets = "wasm-gc"
+
+warnings = "-79"

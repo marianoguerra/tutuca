@@ -1,0 +1,763 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca"
+
+import {
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/immut/sorted_map",
+  "moonbitlang/core/immut/vector",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/shrink",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+// Values
+pub fn[X, S, M] a(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, M] aria(String, String) -> Prop[X, M]
+
+pub fn[X, M] attr(String, String) -> Prop[X, M]
+
+pub fn[X, M] bind(String, (X) -> @vdom.AttrValue) -> Prop[X, M]
+
+pub fn[X, M] bind_str(String, (X) -> String) -> Prop[X, M]
+
+pub fn[X, S, M] button(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn check(Ir) -> Array[Issue]
+
+pub fn check_set(Array[Checked]) -> Array[Issue]
+
+pub fn[X, M] checked((X) -> Bool) -> Prop[X, M]
+
+pub fn[S, C, CM] child(Component[C, CM], Lens[S, C]) -> Child[S]
+
+pub fn[X, M] class_((X) -> String) -> Prop[X, M]
+
+pub fn[X, M] cls(String) -> Prop[X, M]
+
+pub fn[X, S, M] code(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] comment(String) -> ViewAt[X, S, M]
+
+pub fn[S, M : @debug.Debug] component(String, view~ : () -> ViewAt[S, S, M], views? : () -> Array[(String, ViewAt[S, S, M])], update? : (S, M, Ctx[S, M]) -> S raise?, on? : Array[Listener[S, M]], provides? : Array[Provision[S]], invariants? : Array[(String, (S) -> Bool)], pre? : (S, M) -> Bool, post? : (M, S, S) -> Bool, fields? : Array[FieldInfo], messages? : Messages[M], computed? : Array[(String, (S) -> Json?)], children? : () -> Array[Child[S]], transparent? : Bool) -> Component[S, M]
+
+pub fn[X, S, M] div(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, T, M] each((X) -> Iter[T], ViewAt[Item[X, T], S, M], key? : (T, Int) -> String) -> ViewAt[X, S, M]
+
+pub fn[S, K, C, CM] each_child(Component[C, CM], Items[S, K, C]) -> Child[S]
+
+pub fn[S, K] each_self(Items[S, K, S]) -> Child[S]
+
+pub fn[X, S, M] em(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] empty() -> ViewAt[X, S, M]
+
+pub fn[S, T] entries(String, (S) -> @sorted_map.SortedMap[String, T], (S, @sorted_map.SortedMap[String, T]) -> S) -> Items[S, String, T]
+
+pub fn[S, C] field(String, (S) -> C, (S, C) -> S) -> Lens[S, C]
+
+pub fn field_info(String, FieldType, constraints? : Array[Constraint], initial? : Json, computed_initial? : Bool, checks? : Array[String]) -> FieldInfo
+
+pub fn[X, S, M] footer(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] form(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] frag(Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] h(String, Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] h1(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] h2(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] h3(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub let handler_attr : String
+
+pub fn[X, S, M] header(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[T : @json.FromJson] heard(Signal[T]) -> Heard
+
+pub let host_attr : String
+
+pub fn[X, S, M] if_((X) -> Bool, ViewAt[X, S, M], ViewAt[X, S, M]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] img(Array[Prop[X, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] input(Array[Prop[X, M]]) -> ViewAt[X, S, M]
+
+pub fn[S, T] items(String, (S) -> Vec[T], (S, Vec[T]) -> S) -> Items[S, Int, T]
+
+pub fn[M : @json.FromJson + ToJson + @quickcheck.Arbitrary] json_messages(Array[String], heard? : Array[Heard], replies? : Array[(String, String)]) -> Messages[M]
+
+pub fn[X, M] key((X) -> String) -> Prop[X, M]
+
+pub fn[X, S, M] label(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] li(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] main_(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub let meta_close : String
+
+pub fn[X, S, M] nav(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, M] ns(String) -> Prop[X, M]
+
+pub fn[X, S, M] ol(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, M] on(EventName, M) -> Prop[X, M]
+
+pub fn[X, M] on_change((String) -> M) -> Prop[X, M]
+
+pub fn[X, M] on_check((Bool) -> M) -> Prop[X, M]
+
+pub fn[X, M] on_click(M) -> Prop[X, M]
+
+pub fn[X, M] on_dblclick(M) -> Prop[X, M]
+
+pub fn[X, M] on_event(EventName, (X, Event) -> M?) -> Prop[X, M]
+
+pub fn[X, M] on_files((Array[FileRef]) -> M) -> Prop[X, M]
+
+pub fn[X, M] on_input((String) -> M) -> Prop[X, M]
+
+pub fn[X, M] on_submit(M) -> Prop[X, M]
+
+pub fn[X, M] on_value(EventName, (String) -> M) -> Prop[X, M]
+
+pub fn[X, S, M] option(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] p(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn parse_meta(String) -> (String, String)?
+
+pub fn[X, S, M] pre(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] push_view((X) -> String, ViewAt[X, S, M]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] push_view_named(String, ViewAt[X, S, M]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M, C, CM] render(Lens[S, C], Component[C, CM], view? : String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M, K, C, CM] render_each(Items[S, K, C], Component[C, CM], view? : String, filter? : (S, K, C) -> Bool, key? : (K, C) -> String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M, K, C, CM] render_key(Items[S, K, C], (X) -> K, Component[C, CM], view? : String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M, C, CM] render_provided(Provide[C], Component[C, CM], view? : String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M, T, K, C, CM] render_provided_key(Provide[T], Items[T, K, C], (X) -> K, Component[C, CM], view? : String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] render_self(Lens[S, S], view? : String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M, K] render_self_each(Items[S, K, S], view? : String, filter? : (S, K, S) -> Bool, key? : (K, S) -> String) -> ViewAt[X, S, M]
+
+pub fn[A, R] reply(String, Ask[A, R]) -> (String, String)
+
+pub fn[X, S, Y, M] scope((X) -> Y, ViewAt[With[X, Y], S, M]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] section(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] select(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] show((X) -> String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] small(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] span(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] strong(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] table(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] td(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] textarea(Array[Prop[X, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] th(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] tr(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] txt(String) -> ViewAt[X, S, M]
+
+pub fn[X, S, M] ul(Array[Prop[X, M]], Array[ViewAt[X, S, M]]) -> ViewAt[X, S, M]
+
+pub fn[X, M] value((X) -> String) -> Prop[X, M]
+
+pub fn[X, S, M] when((X) -> Bool, ViewAt[X, S, M]) -> ViewAt[X, S, M]
+
+pub fn[X, S, M, T] when_provided(Provide[T], ViewAt[With[X, T], S, M], else_? : ViewAt[X, S, M]) -> ViewAt[X, S, M]
+
+// Errors
+pub suberror RouteError {
+  RouteError(String)
+}
+
+pub suberror ViewError {
+  ViewError(Array[Issue])
+}
+
+// Types and methods
+pub struct App[R, M] {
+  // private fields
+}
+pub fn[R, M, T, C] App::hear(Self[R, M], Signal[T], T, from? : Lens[R, C]) -> Unit
+pub fn[R, M] App::instances(Self[R, M]) -> Array[Node]
+pub fn[R, M] App::send(Self[R, M], M) -> Unit
+pub fn[R, M] App::send_json(Self[R, M], String, String, Array[Json], String) -> Unit raise
+pub fn[R, M, C, CM] App::send_to(Self[R, M], Component[C, CM], Lens[R, C], CM) -> Unit
+pub fn[R, M] App::state(Self[R, M]) -> R
+
+pub struct Ask[A, R] {
+  id : Int
+  name : String
+  // private fields
+}
+pub fn[A, R] Ask::new(String) -> Self[A, R]
+
+pub(all) enum AskResult[R] {
+  Ok(R)
+  Err(String)
+  NotFound
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn[R : Eq] AskResult::equal(Self[R], Self[R]) -> Bool
+pub fn[R : Eq] AskResult::not_equal(Self[R], Self[R]) -> Bool
+pub fn[R : @debug.Debug] AskResult::to_repr(Self[R]) -> @debug.Repr
+
+pub struct Checked {
+  name : String
+  irs : Array[(String, Ir)]
+  provides : Array[String]
+  issues : Array[Issue]
+}
+
+pub struct Child[S] {
+  // private fields
+}
+
+pub struct Component[S, M] {
+  id : Int
+  name : String
+  // private fields
+}
+pub fn[S, M] Component::check(Self[S, M]) -> Array[Issue]
+pub fn[S, M] Component::checked(Self[S, M]) -> Checked
+pub fn[S, M] Component::class_names(Self[S, M]) -> Array[String]
+pub fn[S, M] Component::compile(Self[S, M]) -> Unit raise ViewError
+pub fn[S, M] Component::compiled_irs(Self[S, M]) -> Array[(String, Ir)] raise ViewError
+pub fn[S, M] Component::computed_names(Self[S, M]) -> Array[String]
+pub fn[S, M] Component::computed_values(Self[S, M], S) -> Array[(String, Json?)]
+pub fn[S, M] Component::event_names(Self[S, M]) -> Array[String] raise ViewError
+pub fn[S, M] Component::fields(Self[S, M]) -> Array[FieldInfo]
+pub fn[S, M] Component::has_contract(Self[S, M]) -> Bool
+pub fn[S, M] Component::invariant_names(Self[S, M]) -> Array[String]
+pub fn[S, M] Component::irs(Self[S, M]) -> Array[(String, Ir)]
+pub fn[S, M] Component::listens(Self[S, M]) -> Array[String]
+pub fn[S, M] Component::message_names(Self[S, M]) -> Array[String]
+pub fn[S, M] Component::provided_names(Self[S, M]) -> Array[String]
+pub fn[S, M] Component::view_names(Self[S, M]) -> Array[String]
+
+pub(all) enum Constraint {
+  AtLeast(Double)
+  AtMost(Double)
+  MinLength(Int)
+  MaxLength(Int)
+  Matching(String)
+  Where(String)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct Ctx[S, M] {
+  // private fields
+}
+pub fn[S, M, A, R] Ctx::ask(Self[S, M], Ask[A, R], A, (AskResult[R]) -> M?) -> Unit
+pub fn[S, M] Ctx::event(Self[S, M]) -> Event?
+pub fn[S, M, T] Ctx::notify(Self[S, M], Signal[T], T) -> Unit
+pub fn[S, M] Ctx::path(Self[S, M]) -> DispatchPath
+pub fn[S, M] Ctx::send(Self[S, M], M) -> Unit
+pub fn[S, M, C, CM] Ctx::send_to(Self[S, M], Component[C, CM], (S) -> Lens[S, C], CM) -> Unit
+pub fn[S, M] Ctx::stop(Self[S, M]) -> Unit
+
+pub struct DispatchPath {
+  frames : Array[Frame]
+} derive(Eq, @debug.Debug)
+pub fn DispatchPath::depth(Self) -> Int
+pub fn DispatchPath::equal(Self, Self) -> Bool
+pub fn DispatchPath::frame_below(Self, Self) -> Frame?
+pub fn DispatchPath::is_root(Self) -> Bool
+pub fn DispatchPath::not_equal(Self, Self) -> Bool
+pub fn DispatchPath::push(Self, Frame) -> Self
+pub fn DispatchPath::root() -> Self
+pub fn DispatchPath::to_repr(Self) -> @debug.Repr
+pub fn DispatchPath::to_string(Self) -> String
+
+pub struct ElemPlan[X, S, M] {
+  shape : @vdom.Shape
+  dyns : Array[(X) -> @vdom.AttrValue]
+  key : ((X) -> String)?
+  eid : Int
+  handlers : Array[(String, (X, Event) -> M?)]
+  childs : Array[Plan[X, S, M]]
+}
+
+pub struct Event {
+  name : String
+  target_value : String
+  target_checked : Bool
+  is_checkbox : Bool
+  info : EventInfo
+  mut default_prevented : Bool
+}
+pub fn Event::button(Self) -> Int
+pub fn Event::capture_pointer(Self) -> Unit
+pub fn Event::command_key(Self) -> Bool
+pub fn Event::files(Self) -> Array[FileRef]
+pub fn Event::key(Self) -> String
+pub fn Event::new(String, target_value? : String, target_checked? : Bool, is_checkbox? : Bool, info? : EventInfo) -> Self
+pub fn Event::point(Self) -> (Double, Double)?
+pub fn Event::prevent_default(Self) -> Unit
+pub fn Event::shift_key(Self) -> Bool
+pub fn Event::value(Self) -> String
+
+pub(all) struct EventInfo {
+  key : String
+  client_x : Double
+  client_y : Double
+  point : (Double, Double)?
+  button : Int
+  ctrl_key : Bool
+  meta_key : Bool
+  shift_key : Bool
+  alt_key : Bool
+  files : Array[FileRef]
+  prevent : () -> Unit
+  capture : () -> Unit
+}
+pub fn EventInfo::new(key? : String, client_x? : Double, client_y? : Double, point? : (Double, Double), button? : Int, ctrl_key? : Bool, meta_key? : Bool, shift_key? : Bool, alt_key? : Bool, files? : Array[FileRef], prevent? : () -> Unit, capture? : () -> Unit) -> Self
+
+pub(all) enum EventName {
+  Click
+  DblClick
+  Input
+  Change
+  Submit
+  KeyDown
+  KeyUp
+  Focus
+  Blur
+  PointerDown
+  PointerMove
+  PointerUp
+  DragStart
+  DragOver
+  Drop
+  Custom(String)
+} derive(Eq)
+pub fn EventName::dom_name(Self) -> String
+pub fn EventName::equal(Self, Self) -> Bool
+pub fn EventName::not_equal(Self, Self) -> Bool
+
+pub(all) struct FieldInfo {
+  name : String
+  ty : FieldType
+  constraints : Array[Constraint]
+  initial : Json?
+  computed_initial : Bool
+  checks : Array[String]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum FieldType {
+  Text
+  Boolean
+  Number
+  Whole
+  OneOf(Array[Json])
+  ListOf(FieldType)
+  MapOf(FieldType)
+  RecordOf(Array[(String, FieldType)])
+  Either(Array[FieldType])
+  KeyOf(String)
+  ComponentOf(Array[String])
+  Optional(FieldType)
+  Anything
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct FileRef {
+  id : Int
+  name : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct Frame {
+  name : String
+  item : SlotKey?
+  lens_id : Int
+  provider : String?
+} derive(Eq, @debug.Debug)
+pub fn Frame::equal(Self, Self) -> Bool
+pub fn Frame::not_equal(Self, Self) -> Bool
+pub fn Frame::to_repr(Self) -> @debug.Repr
+pub fn Frame::to_string(Self) -> String
+
+pub struct Heard {
+  name : String
+  deliver : (Node, DispatchPath, Json) -> Task raise
+}
+
+pub struct Host[N] {
+  id : Int
+  doc : N
+  root_node : N
+  scope : Scope
+  dev : Bool
+  meta : Bool
+  // private fields
+}
+pub fn[N] Host::clear_tasks(Self[N]) -> Unit
+pub fn[N : @vdom.DomNode] Host::component_at(Self[N], N) -> (String, String)?
+pub fn[N : @vdom.DomNode] Host::drain(Self[N]) -> Unit
+pub fn[N : @vdom.DomNode] Host::handle_event(Self[N], N, String, info? : EventInfo) -> Bool
+pub fn[N : @vdom.DomNode] Host::handle_tasks(Self[N]) -> Unit
+pub fn[N] Host::handler_sites(Self[N]) -> Array[(String, Array[String])]
+pub fn[N] Host::instances(Self[N]) -> Array[Node]
+pub fn[N] Host::new(N, N, dev? : Bool, meta? : Bool, scope? : Scope, schedule? : (() -> Unit) -> Unit, now? : () -> Double, listen? : (String) -> Unit) -> Self[N]
+pub fn[N] Host::on_stop(Self[N], () -> Unit) -> Unit
+pub fn[N] Host::pending(Self[N]) -> Int
+pub fn[N : @vdom.DomNode] Host::push_task(Self[N], Task) -> Unit
+pub fn[N : @vdom.DomNode] Host::render(Self[N]) -> Unit
+pub fn[N : @vdom.DomNode] Host::send_json(Self[N], String, String, Array[Json], String) -> Unit raise
+pub fn[N] Host::set_listen(Self[N], (String) -> Unit) -> Unit
+pub fn[N] Host::set_on_report(Self[N], (Report) -> Unit) -> Unit
+pub fn[N : @vdom.DomNode, R, M] Host::start(Self[N], Component[R, M], R, view? : String) -> App[R, M]
+pub fn[N] Host::stop(Self[N]) -> Unit
+pub fn[N] Host::vnodes(Self[N]) -> Array[@vdom.VNode]
+
+pub struct HostCore {
+  id : Int
+  scope : Scope
+  dev : Bool
+  report : (Report) -> Unit
+  push : (Task) -> Unit
+  node_at : (String) -> Node?
+}
+
+pub(all) enum Ir {
+  IText(String)
+  IShow
+  IElem(IrElem)
+  IIf(Ir, Ir)
+  IFrag(Array[Ir])
+  IEach(Ir)
+  IScope(Ir)
+  IRender(IrRender)
+  IPushView(String?, Ir)
+  IProvided(String, Ir)
+}
+pub fn Ir::class_names(Self) -> Array[String]
+pub fn Ir::event_names(Self) -> Array[String]
+pub fn Ir::to_code(Self) -> String
+pub fn Ir::walk(Self, (Self) -> Unit) -> Unit
+pub fn Ir::words(Self) -> String
+
+pub(all) struct IrElem {
+  tag : String
+  ns : Array[String]
+  statics : Array[(String, @vdom.AttrValue)]
+  dyns : Array[String]
+  events : Array[EventName]
+  has_key : Bool
+  childs : Array[Ir]
+}
+
+pub(all) struct IrRender {
+  kind : String
+  provided : String?
+  component : () -> String
+  view_name : String?
+  view_names : () -> Array[String]
+}
+
+pub(all) struct Issue {
+  path : String
+  message : String
+} derive(Eq, @debug.Debug)
+pub fn Issue::equal(Self, Self) -> Bool
+pub fn Issue::not_equal(Self, Self) -> Bool
+pub fn Issue::to_repr(Self) -> @debug.Repr
+pub fn Issue::to_string(Self) -> String
+
+pub struct Item[X, T] {
+  up : X
+  value : T
+  index : Int
+}
+
+pub struct Items[S, K, T] {
+  id : Int
+  name : String
+  entries : (S) -> Iter[(K, T)]
+  get_at : (S, K) -> T?
+  set_at : (S, K, T) -> S
+  slot_of : (K) -> SlotKey
+  key_of : (SlotKey) -> K?
+}
+pub fn[S, K, T] Items::at(Self[S, K, T], K) -> Lens[S, T]
+pub fn[S, J, C, K, T] Items::then(Self[S, J, C], Self[C, K, T]) -> Self[S, (J, K), T]
+
+pub struct Lens[S, C] {
+  id : Int
+  name : String
+  slot : SlotKey?
+  get : (S) -> C?
+  set : (S, C) -> S
+}
+pub fn[S, C] Lens::partial(String, (S) -> C?, (S, C) -> S) -> Self[S, C]
+pub fn[S, C, D] Lens::then(Self[S, C], Self[C, D]) -> Self[S, D]
+pub fn[S, C, K, T] Lens::then_items(Self[S, C], Items[C, K, T]) -> Items[S, K, T]
+pub fn[S, C] Lens::variant((S) -> C?, (S, C) -> S) -> Self[S, C]
+
+pub struct Listener[S, M] {
+  sig_id : Int
+  sig_name : String
+  run : (S, Frame?, Ctx[S, M]) -> S? raise
+  items : String?
+  keys : (S) -> Array[(String, SlotKey)]
+}
+
+pub struct Lowerer {
+  mut next_eid : Int
+}
+pub fn Lowerer::new() -> Self
+
+pub struct Messages[M] {
+  names : Array[String]
+  decode : (String, Array[Json]) -> M raise
+  heard : Array[Heard]
+  sample : (String, UInt64) -> Array[Json]
+}
+
+pub struct Node {
+  path : DispatchPath
+  home : DispatchPath
+  name : String
+  fields : Array[String]
+  transparent : Bool
+  parent : Node?
+  messages : Array[String]
+  keys_of : (String) -> Array[String]
+  message_task : (String, Array[Json], String) -> Task raise
+  sample_args : (String, UInt64) -> Array[Json]
+  listen : (Int, DispatchPath, Tx) -> Bool? raise
+}
+
+pub struct Once[T] {
+  // private fields
+}
+pub fn[T] Once::get(Self[T], () -> T) -> T
+pub fn[T] Once::new() -> Self[T]
+
+pub enum Plan[X, S, M] {
+  PConst(@vdom.VNode)
+  PText((X) -> String)
+  PElem(ElemPlan[X, S, M])
+  PIf((X) -> Bool, Plan[X, S, M], Plan[X, S, M])
+  PFrag(Array[Plan[X, S, M]])
+  PDyn((X, () -> X?, Rctx[S, M], Array[@vdom.VNode]) -> Unit)
+}
+pub fn[X, S, M] Plan::eval(Self[X, S, M], X, () -> X?, Rctx[S, M], Array[@vdom.VNode]) -> Unit
+pub fn[X, S, M] Plan::render(Self[X, S, M], X, Rctx[S, M]) -> Array[@vdom.VNode]
+
+pub enum Prop[X, M] {
+  Static(String, @vdom.AttrValue)
+  Dyn(String, (X) -> @vdom.AttrValue)
+  Key((X) -> String)
+  Ns(String)
+  On(EventName, (X, Event) -> M?)
+}
+
+pub struct Provide[T] {
+  id : Int
+  name : String
+  // private fields
+}
+pub fn[S, K, T] Provide::at(Self[T], Items[S, K, T], (S) -> K) -> Provision[S]
+pub fn[T] Provide::current(Self[T]) -> T?
+pub fn[S, T] Provide::from(Self[T], Lens[S, T]) -> Provision[S]
+pub fn[T] Provide::new(String) -> Self[T]
+
+pub struct Provision[S] {
+  key_id : Int
+  key_name : String
+  push : (S, Route[S]) -> Bool
+  pop : () -> Unit
+}
+
+pub struct Rctx[S, M] {
+  env : RenderEnv
+  route : Route[S]
+  node : Node
+  state : S
+  comp : Component[S, M]
+  keys : String
+  send : (M, () -> M?, Event) -> Task
+}
+
+pub struct RenderEnv {
+  host_id : Int
+  start_id : Int
+  gen : Int
+  settled : Bool
+  dev : Bool
+  meta : Bool
+  bindings : Array[(String, Array[(String, (Event) -> Task?)])]
+  nodes : Array[(String, Node)]
+  deps : Array[() -> Bool]
+  view_stack : Array[String]
+  issues : Array[Issue]
+  events : Array[String]
+  prunes : Map[Int, () -> Unit]
+}
+pub fn RenderEnv::new(Int, Int, start_id? : Int, settled~ : Bool, dev~ : Bool, meta? : Bool) -> Self
+
+pub enum Report {
+  Rendered
+  TaskHandled(Task)
+  TaskFailed(Task, String)
+  StateInvalid(Array[Issue])
+  MessageInvalid(Task, Array[String])
+  RenderFailed(String)
+}
+
+pub struct Route[S] {
+  path : DispatchPath
+  home : DispatchPath
+  get : () -> S?
+  set : (S) -> Unit raise RouteError
+}
+pub fn[S, C] Route::focus(Self[S], Lens[S, C], path? : DispatchPath) -> Self[C]
+pub fn[S] Route::new(DispatchPath, () -> S?, (S) -> Unit raise RouteError) -> Self[S]
+pub fn[S] Route::read(Self[S]) -> S raise RouteError
+
+pub struct Scope {
+  id : Int
+  parent : Scope?
+}
+pub fn[A, R] Scope::answer(Self, Ask[A, R], (A) -> R raise?) -> Unit
+pub fn Scope::enter(Self) -> Self
+pub fn[A, R] Scope::handle(Self, Ask[A, R], (A, (AskResult[R]) -> Unit) -> Unit raise?) -> Unit
+pub fn[A, R] Scope::lookup(Self, Ask[A, R]) -> ((A, (AskResult[R]) -> Unit) -> Unit raise)?
+pub fn Scope::new() -> Self
+
+pub struct Signal[T] {
+  id : Int
+  name : String
+  // private fields
+}
+pub fn[S, M, T, K, I] Signal::from(Self[T], Items[S, K, I], (S, T, K, Ctx[S, M]) -> S raise?) -> Listener[S, M]
+pub fn[T] Signal::new(String) -> Self[T]
+pub fn[S, M, T] Signal::on(Self[T], (S, T, Ctx[S, M]) -> S raise?) -> Listener[S, M]
+
+pub(all) enum SlotKey {
+  Index(Int)
+  Name(String)
+  Pair(SlotKey, SlotKey)
+} derive(Eq, @debug.Debug)
+pub fn SlotKey::equal(Self, Self) -> Bool
+pub fn SlotKey::not_equal(Self, Self) -> Bool
+pub fn SlotKey::to_repr(Self) -> @debug.Repr
+pub fn SlotKey::to_string(Self) -> String
+
+pub struct Task {
+  kind : TaskKind
+  label : String
+  path : DispatchPath
+  trigger : String?
+  run : (Tx) -> Unit raise
+}
+
+pub(all) enum TaskKind {
+  Send
+  Event
+  Notify
+  Ask
+  Reply
+} derive(Eq, @debug.Debug)
+pub fn TaskKind::equal(Self, Self) -> Bool
+pub fn TaskKind::not_equal(Self, Self) -> Bool
+pub fn TaskKind::to_repr(Self) -> @debug.Repr
+
+pub struct Tx {
+  core : HostCore
+  task : Task
+  staged : Array[() -> Task raise]
+}
+
+pub struct Vec[T](@vector.Vector[T])
+pub fn[T] Vec::all(Self[T], (T) -> Bool) -> Bool
+pub fn[T] Vec::any(Self[T], (T) -> Bool) -> Bool
+pub fn[T : @quickcheck.Arbitrary] Vec::arbitrary(Int, @splitmix.RandomState) -> Self[T]
+#alias("_[_]")
+pub fn[T] Vec::at(Self[T], Int) -> T
+pub fn[T] Vec::concat(Self[T], Self[T]) -> Self[T]
+pub fn[T : Eq] Vec::contains(Self[T], T) -> Bool
+pub fn[T] Vec::count(Self[T], (T) -> Bool) -> Int
+pub fn[T] Vec::default() -> Self[T]
+pub fn[T] Vec::entries(Self[T]) -> Iter[(Int, T)]
+pub fn[T : Eq] Vec::equal(Self[T], Self[T]) -> Bool
+pub fn[T] Vec::filter(Self[T], (T) -> Bool) -> Self[T]
+pub fn[T] Vec::find_index(Self[T], (T) -> Bool) -> Int?
+pub fn[T] Vec::first(Self[T]) -> T?
+pub fn[T, A] Vec::fold(Self[T], init~ : A, (A, T) -> A) -> A
+pub fn[T] Vec::from_iter(Iter[T]) -> Self[T]
+pub fn[T : @json.FromJson] Vec::from_json(Json, @json.JsonPath) -> Self[T] raise @json.JsonDecodeError
+pub fn[T] Vec::get(Self[T], Int) -> T?
+pub fn[T] Vec::insert(Self[T], Int, T) -> Self[T]
+pub fn[T] Vec::is_empty(Self[T]) -> Bool
+pub fn[T] Vec::iter(Self[T]) -> Iter[T]
+pub fn[T] Vec::iter2(Self[T]) -> Iter2[Int, T]
+pub fn[T] Vec::last(Self[T]) -> T?
+pub fn[T] Vec::length(Self[T]) -> Int
+pub fn[T, U] Vec::map(Self[T], (T) -> U) -> Self[U]
+pub fn[T] Vec::new() -> Self[T]
+pub fn[T : Eq] Vec::not_equal(Self[T], Self[T]) -> Bool
+pub fn[T] Vec::of(ArrayView[T]) -> Self[T]
+pub fn[T] Vec::push(Self[T], T) -> Self[T]
+pub fn[T] Vec::remove(Self[T], Int) -> Self[T]
+pub fn[T] Vec::set(Self[T], Int, T) -> Self[T]
+pub fn[T : @shrink.Shrink] Vec::shrink(Self[T]) -> Iter[Self[T]]
+pub fn[T] Vec::swap(Self[T], Int, Int) -> Self[T]
+pub fn[T] Vec::to_array(Self[T]) -> Array[T]
+pub fn[T : ToJson] Vec::to_json(Self[T]) -> Json
+pub fn[T : @debug.Debug] Vec::to_repr(Self[T]) -> @debug.Repr
+pub fn[T] Vec::update(Self[T], Int, (T) -> T) -> Self[T]
+pub impl[T] Default for Vec[T]
+pub impl[T : Eq] Eq for Vec[T]
+pub impl[T : ToJson] ToJson for Vec[T]
+pub impl[T : @debug.Debug] @debug.Debug for Vec[T]
+pub impl[T : @json.FromJson] @json.FromJson for Vec[T]
+pub impl[T : @quickcheck.Arbitrary] @quickcheck.Arbitrary for Vec[T]
+pub impl[T : @shrink.Shrink] @shrink.Shrink for Vec[T]
+
+pub enum ViewAt[X, S, M] {
+  Text(String)
+  Show((X) -> String)
+  Elem(String, Array[Prop[X, M]], Array[ViewAt[X, S, M]])
+  If((X) -> Bool, ViewAt[X, S, M], ViewAt[X, S, M])
+  Frag(Array[ViewAt[X, S, M]])
+  Ext(Ir, (Lowerer) -> Plan[X, S, M])
+}
+pub fn[X, S, M] ViewAt::compile(Self[X, S, M]) -> Plan[X, S, M] raise ViewError
+pub fn[X, S, M] ViewAt::ir(Self[X, S, M]) -> Ir
+
+pub struct With[X, Y] {
+  up : X
+  value : Y
+}
+
+// Type aliases
+pub type Bound = Array[(String, (Event) -> Task?)]
+
+pub type View[S, M] = ViewAt[S, S, M]
+
+// Traits

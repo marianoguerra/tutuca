@@ -1,0 +1,44 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/site/async"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] books() -> Array[@storybook.Book[N]]
+
+pub let lookup : @tutuca.Ask[String, String]
+
+pub let weather : @tutuca.Component[Weather, WeatherMsg]
+
+// Errors
+
+// Types and methods
+pub(all) enum Status {
+  Idle
+  Loading
+  Done
+  Failed
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Weather {
+  city : String
+  status : Status
+  report : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum WeatherMsg {
+  SetCity(String)
+  Lookup
+  Got(@tutuca.AskResult[String])
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,27 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/counter"
+
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub let counter : @tutuca.Component[Counter, CounterMsg]
+
+// Errors
+
+// Types and methods
+pub(all) struct Counter {
+  count : Int
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum CounterMsg {
+  Inc
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

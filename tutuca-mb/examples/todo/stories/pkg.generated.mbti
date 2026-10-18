@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/todo/stories"
+
+import {
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] todo_book() -> @storybook.Book[N]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

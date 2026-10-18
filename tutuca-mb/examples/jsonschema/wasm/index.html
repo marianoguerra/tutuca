@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tutuca-mb · json schema studio (wasm-gc)</title>
+    <script type="importmap">
+      { "imports": { "margaui": "/node_modules/margaui/dist/margaui.min.js" } }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="/node_modules/margaui/dist/themes/theme.css" />
+  </head>
+  <body class="p-4">
+    <div id="app"></div>
+    <script type="module">
+      import { load } from "./loader.mjs";
+      const instance = await load("./jsonschema.wasm");
+      instance.exports.start("#app");
+    </script>
+  </body>
+</html>

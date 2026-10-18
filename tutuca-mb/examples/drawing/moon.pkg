@@ -1,0 +1,17 @@
+// A small vector drawing editor in SVG, from components/drawing.
+import {
+  "moonbitlang/core/json",
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/examples/common",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/math" @fm,
+  "moonbitlang/core/string",
+  "moonbitlang/core/double",
+}
+
+import {
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/vdom",
+} for "wbtest"
+
+warnings = "-79"

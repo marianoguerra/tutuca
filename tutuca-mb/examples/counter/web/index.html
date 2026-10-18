@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tutuca-mb · counters in elements</title>
+  </head>
+  <body>
+    <div id="app">
+      <tutuca-app app-key="counter"></tutuca-app>
+      <tutuca-app app-key="counter:10"></tutuca-app>
+      <tutuca-app app-key="nothing"></tutuca-app>
+      <p id="log"></p>
+    </div>
+    <script type="module">
+      document.getElementById("app").addEventListener("tutucareport", (e) => {
+        document.getElementById("log").textContent = `${e.detail.key}: ${e.detail.type} ${e.detail.data}`;
+      });
+      await import("./web.js");
+    </script>
+  </body>
+</html>

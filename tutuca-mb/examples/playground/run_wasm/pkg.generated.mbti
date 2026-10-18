@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/playground/run_wasm"
+
+import {
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/wasm",
+}
+
+// Values
+pub fn current() -> String
+
+pub fn start(Array[@storybook.Book[@wasm.JsNode]]) -> Unit
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

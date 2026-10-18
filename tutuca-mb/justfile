@@ -1,0 +1,146 @@
+# Tasks for tutuca-mb. `just` lists them.
+
+port := "8001"
+
+default:
+    @just --list
+
+# --- MoonBit -------------------------------------------------------------------------------
+
+# Type-check every package on wasm-gc (the default), js and native.
+check:
+    moon check
+    moon check --target js
+    moon check --target native
+
+# Re-check on every save (one target, wasm-gc by default).
+watch target="wasm-gc":
+    moon check --watch --target {{target}}
+
+# Build every package for one target (wasm-gc, js, native or all).
+build target="wasm-gc":
+    moon build --target {{target}}
+
+# Run every test on wasm-gc, js and native.
+test:
+    moon test
+    moon test --target js
+    moon test --target native
+
+# Run tests on one target, optionally only one package and a test-name glob:
+# `just test-one js storybook "*send form*"`.
+[doc("Test one target, optionally one package (-p) and a name glob (-f)")]
+test-one target="wasm-gc" package="" filter="":
+    moon test --target {{target}} {{ if package != "" { "-p " + package } else { "" } }} {{ if filter != "" { "-f '" + filter + "'" } else { "" } }}
+
+# Accept changed snapshot / inspect expectations.
+update target="wasm-gc":
+    moon test --target {{target}} --update
+
+# Format the MoonBit sources.
+fmt:
+    moon fmt
+    moon fmt scripts/stage-assets.mbtx
+
+# Fail if any MoonBit source isn't formatted.
+fmt-check:
+    moon fmt --check
+    moon fmt --check scripts/stage-assets.mbtx
+
+# Regenerate the packages' .mbti interface files (review public API changes in the diff).
+info:
+    moon info
+
+# Remove build outputs.
+clean:
+    moon clean
+
+# --- Browser -------------------------------------------------------------------------------
+
+# Build the browser demos and run them in jsdom (needs the parent repo's npm install): js and
+# wasm-gc builds of every demo, the storybook and the playground.
+[doc("Build js and wasm-gc and run every demo, storybook and playground in jsdom")]
+smoke: (_debug "js") (_debug "wasm-gc") playground
+    node scripts/smoke.mjs
+    node scripts/smoke-storybook.mjs
+    node scripts/smoke-wasm.mjs
+    node scripts/smoke-demos.mjs
+    node scripts/smoke-playground.mjs
+
+# Prepare the playground: fetch the in-browser moonc built from the installed one (once per
+# toolchain, from npm) and assemble the payload a run compiles against.
+[doc("Vendor the in-browser moonc and assemble the playground payload")]
+playground: (_release "js") (_release "wasm-gc")
+    node scripts/vendor-moonc.mjs
+    node scripts/playground-payload.mjs --built
+
+# Shared prerequisites run once per just invocation, including `ci`.
+_debug target:
+    moon build --target {{target}}
+
+_release target:
+    moon build --release --target {{target}}
+
+_assets target demo="": (_release target)
+    moon run scripts/stage-assets.mbtx {{target}} {{demo}}
+
+# Rebuild examples/playground/deps/editor.js (CodeMirror and the MoonBit mode) from the parent
+# repo's node_modules, after changing examples/playground/editor.js or bumping CodeMirror.
+[doc("Rebuild the playground's bundled CodeMirror editor")]
+vendor-codemirror:
+    node scripts/vendor-codemirror.mjs
+
+# Assemble the demo pages' assets from release builds: js bundles minified with esbuild,
+# wasm-gc modules with their loader, and the playground payload.
+[doc("Build release assets for the demo pages (minified js, wasm-gc, playground)")]
+site: (_assets "js") (_assets "wasm-gc") playground
+
+# Build the demos and serve the repo root: /tutuca-mb/examples/ links them all. Pages style
+# themselves with margaui from /node_modules, as the JS demos do.
+[doc("Build the site and serve it at /tutuca-mb/examples/ from the repo root")]
+serve: site
+    @echo "http://localhost:{{port}}/tutuca-mb/examples/ (served from the repo root, for node_modules/margaui)"
+    cd .. && python3 -m http.server {{port}}
+
+# Build only the storybook (release, for `backend` js or wasm-gc), serve the repo root and open
+# it in the default browser once the server is up.
+[doc("Build the storybook (js or wasm-gc), serve it and open it in the browser")]
+storybook backend="js": (_assets backend "storybook")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "{{backend}}" = "wasm-gc" ]; then
+        url="http://localhost:{{port}}/tutuca-mb/examples/storybook/wasm/"
+    else
+        url="http://localhost:{{port}}/tutuca-mb/examples/storybook/"
+    fi
+    echo "$url"
+    open_cmd={{ if os() == "macos" { "open" } else { "xdg-open" } }}
+    (until curl -s -o /dev/null "$url"; do sleep 0.2; done; "$open_cmd" "$url" >/dev/null 2>&1) &
+    cd .. && exec python3 -m http.server {{port}}
+
+# --- Parity with JS tutuca -----------------------------------------------------------------
+
+# Every JS test (in ../test) has a row in docs/parity, and every ported row names a MoonBit test
+# or test file that exists.
+[doc("Check every JS test has a docs/parity row naming a MoonBit test that exists")]
+parity:
+    node scripts/parity-check.mjs
+
+# Every story rendered by JS tutuca and by the port in jsdom: the DOM after the initial render
+# and after each step of each sequence must match, and so must both storybooks' UI for every
+# story (each tab, after Run to end, after a stress run); scripts/differential.mjs prints the
+# allowlist.
+[doc("Compare every story's DOM and storybook UI with JS tutuca's")]
+differential: (_debug "js")
+    node scripts/differential.mjs
+
+# The release pages in real Chromium (playwright-core): every story of both storybooks, and
+# every playground example on js and wasm-gc, each sequence to its end.
+[doc("Release pages in real Chromium: both storybooks and every playground example")]
+browser: site
+    node scripts/browser-check.mjs
+
+# --- CI ------------------------------------------------------------------------------------
+
+[doc("Everything CI should run")]
+ci: fmt-check check test smoke parity differential browser

@@ -1,0 +1,21 @@
+// The drawing demo on wasm-gc.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/wasm" @tw,
+  "marianoguerra/tutuca/examples/common/wasm" @files,
+  "marianoguerra/tutuca/examples/drawing",
+  "marianoguerra/tutuca/examples/drawing/stories",
+}
+
+supported_targets = "wasm-gc"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [ "start", "on_call" ],
+      "use-js-builtin-string": true,
+    },
+  },
+)

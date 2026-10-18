@@ -1,0 +1,14 @@
+// The todo stories, from components/todo/stories.js.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/examples/todo",
+}
+
+import {
+  "marianoguerra/tutuca/vdom/memdom",
+} for "test"
+
+warnings = "-79"

@@ -1,0 +1,1006 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/thingtracker"
+
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+// Values
+pub fn apply_frozen_order(Array[Thing], Array[String]) -> Array[Thing]
+
+pub fn apply_plan(Plan, Snapshot) -> Snapshot
+
+pub let backdate_thing : @tutuca.Signal[String]
+
+pub let backup_format : String
+
+pub let bucket_c : @tutuca.Component[Bucket, BucketMsg]
+
+pub fn bucket_end(Double, Granularity, Int) -> Double
+
+pub fn bucket_events(Array[EventRecord], Granularity, Int) -> Array[BucketData]
+
+pub fn bucket_key(Double, Granularity, Int) -> String
+
+pub fn bucket_start(Double, Granularity, Int) -> Double
+
+pub let buckets_items : @tutuca.Items[TrackerApp, Int, Bucket]
+
+pub fn build_backup(Snapshot, Double) -> Json
+
+pub fn build_pack(Array[Tag], Array[Thing], Double) -> Json
+
+pub fn build_rows(Array[Tag], Array[Thing]) -> Array[Row]
+
+pub let bundle_defs : Array[BundleDef]
+
+pub fn bundle_of(BundleDef) -> Bundle
+
+pub fn bundles() -> Array[Bundle]
+
+pub let categories : Array[Category]
+
+pub let close_panel : @tutuca.Signal[Unit]
+
+pub let commit_log : @tutuca.Signal[(String, Array[MeasureValue])]
+
+pub fn common_values(Array[Double], limit? : Int) -> Array[Double]
+
+pub fn count_mark(Int) -> String
+
+pub let day : Double
+
+pub fn day_key(Double, Int) -> String
+
+pub fn days_ago(Double, Double) -> String
+
+pub let delete_entry : @tutuca.Signal[String]
+
+pub let delete_tag : @tutuca.Signal[String]
+
+pub let delete_thing : @tutuca.Signal[String]
+
+pub fn demo_app(Double, tz? : Int) -> TrackerApp
+
+pub fn drink(String) -> String
+
+pub let edit_entry : @tutuca.Signal[String]
+
+pub let edit_tag : @tutuca.Signal[Unit]
+
+pub let edit_thing : @tutuca.Signal[String]
+
+pub let emoji_palette : Array[Emoji]
+
+pub let emoji_picked : @tutuca.Signal[String]
+
+pub let emoji_picker : @tutuca.Component[EmojiPicker, PickerMsg]
+
+pub let entries_panel : @tutuca.Lens[TrackerApp, EntryList]
+
+pub let entries_variant : @tutuca.Lens[Panel, EntryList]
+
+pub let entry_list : @tutuca.Component[EntryList, EntryListMsg]
+
+pub fn ev(String, Double, recorded_ago? : Double, measurements? : Array[MeasureValue], notes? : String) -> EventSpec
+
+pub let event_editor : @tutuca.Component[EventEditor, EventEditorMsg]
+
+pub fn event_from(Json) -> EventRecord
+
+pub let event_panel : @tutuca.Lens[TrackerApp, EventEditor]
+
+pub fn event_range(Array[EventRecord]) -> (Double, Double)?
+
+pub let event_variant : @tutuca.Lens[Panel, EventEditor]
+
+pub fn[T] filter_by(Array[T], String, (T) -> Searchable) -> Array[T]
+
+pub fn filter_things(Array[Thing], String) -> Array[Thing]
+
+pub fn find_bundle(String) -> Bundle?
+
+pub fn find_measurement(String) -> Measurement?
+
+pub let fixture_now : Double
+
+pub fn format_bucket_label(Double, Granularity, Double, Int) -> String
+
+pub fn format_date(Double, Int, weekday? : Bool, now? : Double) -> String
+
+pub fn format_duration_ms(Double) -> String
+
+pub fn format_measurement(Measurement, Double, unit? : String) -> String
+
+pub fn format_relative(Double, Double, Int) -> String
+
+pub fn format_time(Double, Int) -> String
+
+pub fn from_base(Double, MeasureUnit) -> Double
+
+pub fn from_datetime_local(String, Int) -> Double?
+
+pub fn generate_app(@splitmix.RandomState, Int) -> TrackerApp
+
+pub let groups_items : @tutuca.Items[TrackerApp, Int, Tag]
+
+pub fn habit(String) -> String
+
+pub let hour : Double
+
+pub fn imported_text(Plan) -> String
+
+pub let intervals : Array[(Int, String)]
+
+pub fn iso_week_key(Double, Int) -> String
+
+pub fn km(Double) -> MeasureValue
+
+pub let log_thing : @tutuca.Signal[String]
+
+pub fn make_prompt(Measurement, String, Double, Array[Double], blank? : Bool) -> Prompt
+
+pub fn matches_query(Array[String], String) -> Bool
+
+pub fn measurement_history(Iter[EventRecord], String, String) -> Array[Double]
+
+pub let measurement_wizard : @tutuca.Component[MeasurementWizard, WizardMsg]
+
+pub let measurements : Array[Measurement]
+
+pub let minute : Double
+
+pub fn minutes(Double) -> MeasureValue
+
+pub fn ml(Double) -> MeasureValue
+
+pub fn month_key(Double, Int) -> String
+
+pub fn mood(String) -> String
+
+pub let more_entries : @tutuca.Signal[Unit]
+
+pub fn normalize(String) -> String
+
+pub let open_chip : @tutuca.Signal[ChipOpened]
+
+pub let pack_format : String
+
+pub let panel_c : @tutuca.Component[Panel, Unit]
+
+pub let panel_lens : @tutuca.Lens[TrackerApp, Panel]
+
+pub fn parse_envelope(String) -> Result[Envelope, String]
+
+pub fn plain_event(EventRecord) -> Json
+
+pub fn plain_tag(Tag) -> Json
+
+pub fn plain_thing(Thing) -> Json
+
+pub fn plan_import(Envelope, Snapshot, mode? : ImportMode, overwrite? : Bool) -> Plan
+
+pub fn plural(Int, String, many? : String) -> String
+
+pub fn preferred_unit(Measurement, String, current? : Double) -> MeasureUnit
+
+pub let prompt_c : @tutuca.Component[Prompt, PromptMsg]
+
+pub let prompts_items : @tutuca.Items[MeasurementWizard, Int, Prompt]
+
+pub fn rank_things(Array[Thing], Map[String, Usage]) -> Array[String]
+
+pub fn round_to(Double, Int) -> Double
+
+pub fn sample_app() -> TrackerApp
+
+pub let save_entry : @tutuca.Signal[EntrySaved]
+
+pub let save_tag : @tutuca.Signal[(Mode, TagFields)]
+
+pub let save_thing : @tutuca.Signal[(Mode, ThingFields)]
+
+pub fn score_thing(Searchable, String) -> Int
+
+pub let section_c : @tutuca.Component[Section, SectionMsg]
+
+pub let sections_items : @tutuca.Items[TrackerApp, Int, Section]
+
+pub let share_tag : @tutuca.Signal[Unit]
+
+pub fn slugify(String) -> String
+
+pub fn sort_groups(Array[Tag]) -> Array[Tag]
+
+pub fn start_of_day(Double, Int) -> Double
+
+pub fn start_of_iso_week(Double, Int) -> Double
+
+pub fn start_of_month(Double, Int) -> Double
+
+pub let tag_c : @tutuca.Component[Tag, TagMsg]
+
+pub let tag_editor : @tutuca.Component[TagEditor, TagEditorMsg]
+
+pub let tag_editor_panel : @tutuca.Lens[TrackerApp, TagEditor]
+
+pub let tag_editor_variant : @tutuca.Lens[Panel, TagEditor]
+
+pub fn tag_from(Json, Int) -> Tag
+
+pub let tag_picker_lens : @tutuca.Lens[TagEditor, EmojiPicker]
+
+pub fn terms(String) -> Array[String]
+
+pub fn text_in(Double, MeasureUnit) -> String
+
+pub let thing_c : @tutuca.Component[Thing, ThingMsg]
+
+pub let thing_editor : @tutuca.Component[ThingEditor, ThingEditorMsg]
+
+pub let thing_editor_panel : @tutuca.Lens[TrackerApp, ThingEditor]
+
+pub let thing_editor_variant : @tutuca.Lens[Panel, ThingEditor]
+
+pub fn thing_from(Json) -> Thing
+
+pub fn thing_over(Thing, Json) -> Thing
+
+pub let thing_picker_lens : @tutuca.Lens[ThingEditor, EmojiPicker]
+
+pub let things_items : @tutuca.Items[TrackerApp, Int, Thing]
+
+pub let things_provided : @tutuca.Provide[@tutuca.Vec[Thing]]
+
+pub fn three_weeks() -> Array[EventSpec]
+
+pub fn to_base(Double, MeasureUnit) -> Double
+
+pub fn to_datetime_local(Double, Int) -> String
+
+pub let toggle_all_sections : @tutuca.Signal[Unit]
+
+pub let toggle_section : @tutuca.Signal[String]
+
+pub let tracker_app : @tutuca.Component[TrackerApp, TrackerMsg]
+
+pub fn tracker_app_of(Double, tz? : Int, bundles? : Array[String], events? : Array[EventSpec]) -> TrackerApp
+
+pub let ungrouped : String
+
+pub fn usage_of(Iter[EventRecord]) -> Map[String, Usage]
+
+pub fn utc(Int, Int, Int, h? : Int, mi? : Int, s? : Int) -> Double
+
+pub let values_items : @tutuca.Items[EventEditor, Int, Prompt]
+
+pub fn with_gaps(Array[BucketData]) -> Array[Dated]
+
+pub let wizard_panel : @tutuca.Lens[TrackerApp, MeasurementWizard]
+
+pub let wizard_variant : @tutuca.Lens[Panel, MeasurementWizard]
+
+// Errors
+
+// Types and methods
+pub(all) struct BackupInfo {
+  last_at : Double
+  interval_days : Int
+  dismissed_at : Double
+  range_text : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Bucket {
+  label : String
+  start : Double
+  end : Double
+  total : Int
+  gap : Int
+  chips : @tutuca.Vec[Chip]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct BucketData {
+  key : String
+  start : Double
+  end : Double
+  total : Int
+  chips : Array[ChipCount]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum BucketMsg {
+  Open(Int)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Bundle {
+  id : String
+  title : String
+  description : String
+  emoji : String
+  version : Int
+  thing_count : Int
+  group_count : Int
+  things : Array[Thing]
+  groups : Array[Tag]
+  pack : Json
+}
+
+pub(all) struct BundleDef {
+  slug : String
+  title : String
+  emoji : String
+  description : String
+  version : Int
+  groups : Array[GroupDef]
+}
+
+pub(all) enum Category {
+  Common
+  FoodDrink
+  Health
+  Activity
+  Rest
+  Mood
+  Focus
+  Home
+  NaturePets
+  Places
+  Social
+  Money
+  Symbols
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn Category::name(Self) -> String
+pub impl Default for Category
+pub impl ToJson for Category
+pub impl @json.FromJson for Category
+
+pub(all) struct Chip {
+  thing_id : String
+  emoji : String
+  aria : String
+  tip : String
+  mark : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct ChipCount {
+  thing_id : String
+  count : Int
+  last_at : Double
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ChipOpened {
+  thing_id : String
+  start : Double
+  end : Double
+  label : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum CloseMsg {
+  AskClose
+  Pressed(String)
+  Keep
+  Drop
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Confirm {
+  confirming : Bool
+  title : String
+  text : String
+  keep : String
+}
+
+pub(all) enum Dated {
+  Full(BucketData)
+  Gap(Int)
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Emoji {
+  glyph : String
+  name : String
+  category : Category
+  keywords : Array[String]
+}
+
+pub(all) struct EmojiPicker {
+  query : String
+  category : Category
+  value : String
+  recent : @tutuca.Vec[String]
+  paste : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn EmojiPicker::is_searching(Self) -> Bool
+pub fn EmojiPicker::matches(Self) -> Array[Emoji]
+pub fn EmojiPicker::new(value? : String) -> Self
+pub impl Default for EmojiPicker
+
+pub(all) struct EntryList {
+  heading : String
+  subtitle : String
+  rows : @tutuca.Vec[EntryRow]
+  remaining : Int
+  confirming : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn EntryList::new(heading? : String, subtitle? : String) -> Self
+
+pub(all) enum EntryListMsg {
+  RequestClose
+  Key(String)
+  KeepEditing
+  Discard
+  Open(Int)
+  Remove(Int)
+  More
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct EntryRow {
+  id : String
+  head : String
+  line : String
+  notes : String
+  recorded : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct EntrySaved {
+  mode : Mode
+  id : String
+  thing_id : String
+  recorded_at : Double
+  actual_at : Double
+  notes : String
+  measurements : Array[MeasureValue]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Envelope {
+  format : Format
+  version : Double
+  bundle_title : String?
+  things : Array[IncomingThing]
+  groups : Array[Tag]
+  events : Array[EventRecord]
+}
+
+pub(all) struct EventEditor {
+  mode : Mode
+  event_id : String
+  thing_id : String
+  heading : String
+  subtitle : String
+  recorded_at : Double
+  when_ : String
+  tz : Int
+  notes : String
+  values : @tutuca.Vec[Prompt]
+  confirming : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn EventEditor::actual_at(Self) -> Double?
+pub fn EventEditor::is_invalid(Self) -> Bool
+pub fn EventEditor::new(Mode, event_id? : String, thing_id? : String, heading? : String, subtitle? : String, recorded_at? : Double, when_? : String, tz? : Int, notes? : String, values? : Array[Prompt]) -> Self
+
+pub(all) enum EventEditorMsg {
+  RequestClose
+  Key(String)
+  KeepEditing
+  Discard
+  SetWhen(String)
+  SetNotes(String)
+  Save
+  Remove
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct EventRecord {
+  id : String
+  thing_id : String
+  recorded_at : Double
+  actual_at : Double
+  measurements : @tutuca.Vec[MeasureValue]
+  notes : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct EventSpec {
+  thing : String
+  ago : Double
+  recorded_ago : Double?
+  measurements : Array[MeasureValue]
+  notes : String
+}
+
+pub(all) enum Format {
+  Pack
+  Backup
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Granularity {
+  Day
+  Week
+  Month
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn Granularity::name(Self) -> String
+pub impl ToJson for Granularity
+pub impl @json.FromJson for Granularity
+
+pub(all) struct GroupDef {
+  slug : String
+  title : String
+  emoji : String
+  things : Array[ThingDef]
+}
+
+pub(all) enum ImportMode {
+  MergeMode
+  ReplaceMode
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for ImportMode
+pub impl @json.FromJson for ImportMode
+
+pub(all) struct IncomingThing {
+  id : String
+  updated_at : Double
+  json : Json
+}
+
+pub(all) struct ListContext {
+  thing_id : String
+  start : Double
+  end : Double
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum ManageTab {
+  Things
+  Groups
+  Units
+  Bundles
+  Data
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for ManageTab
+pub impl @json.FromJson for ManageTab
+
+pub(all) struct MeasureDef {
+  slug : String
+  unit : String
+}
+
+pub(all) enum MeasureKind {
+  Duration
+  Count
+  Distance
+  Weight
+  Volume
+  Temperature
+  Energy
+  Steps
+  Rating
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn MeasureKind::from_id(String) -> Self?
+pub fn MeasureKind::id(Self) -> String
+pub fn MeasureKind::measurement(Self) -> Measurement
+pub impl Default for MeasureKind
+pub impl ToJson for MeasureKind
+pub impl @json.FromJson for MeasureKind
+
+pub(all) struct MeasureRef {
+  kind : MeasureKind
+  unit : String
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for MeasureRef
+pub impl @json.FromJson for MeasureRef
+
+pub(all) struct MeasureUnit {
+  id : String
+  label : String
+  symbol : String
+  factor : Double
+  precision : Int
+  offset : Double?
+}
+
+pub(all) struct MeasureValue {
+  measurement_id : String
+  value : Double
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Measurement {
+  kind : MeasureKind
+  id : String
+  name : String
+  emoji : String
+  base_unit : String
+  default_unit : String
+  units : Array[MeasureUnit]
+  steps : Array[Double]
+  step_unit : String
+}
+pub fn Measurement::find_unit(Self, String) -> MeasureUnit?
+
+pub(all) struct MeasurementWizard {
+  thing_id : String
+  emoji : String
+  title : String
+  prompts : @tutuca.Vec[Prompt]
+  step : Int
+  confirming : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn MeasurementWizard::cannot_go(Self) -> Bool
+pub fn MeasurementWizard::current(Self) -> Prompt?
+pub fn MeasurementWizard::is_last(Self) -> Bool
+pub fn MeasurementWizard::new(String, String, String, Array[Prompt]) -> Self
+pub fn MeasurementWizard::primary_label(Self) -> String
+pub fn MeasurementWizard::step_text(Self) -> String
+
+pub(all) struct Member {
+  id : String
+  emoji : String
+  title : String
+  checked : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum Mode {
+  Create
+  Edit
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Mode
+pub impl @json.FromJson for Mode
+
+pub(all) enum Panel {
+  WizardPanel(MeasurementWizard)
+  EventPanel(EventEditor)
+  ThingPanel(ThingEditor)
+  TagPanel(TagEditor)
+  EntriesPanel(EntryList)
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Panel
+pub impl @json.FromJson for Panel
+
+pub(all) enum PickerMsg {
+  SetQuery(String)
+  SetCategory(Category)
+  Pick(String)
+  Pasted(String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Plan {
+  new_things : Array[Thing]
+  updated_things : Array[Thing]
+  unchanged : Int
+  new_groups : Array[Tag]
+  merges : Array[TagMerge]
+  new_events : Array[EventRecord]
+  skipped : Int
+  replace : Bool
+  is_noop : Bool
+  lines : Array[String]
+  warnings : Array[String]
+  can_overwrite : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Preview {
+  lines : Array[String]
+  warnings : Array[String]
+  description : String
+  is_noop : Bool
+  can_overwrite : Bool
+  replace : Bool
+}
+
+pub(all) struct Prompt {
+  kind : MeasureKind
+  unit_id : String
+  base : Double
+  text : String
+  history : @tutuca.Vec[Double]
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn Prompt::formatted(Self) -> String
+pub fn Prompt::measurement(Self) -> Measurement
+pub fn Prompt::unit(Self) -> MeasureUnit
+pub impl ToJson for Prompt
+pub impl @json.FromJson for Prompt
+
+pub(all) enum PromptMsg {
+  SetText(String)
+  SetUnit(String)
+  SetBase(String)
+  Adjust(String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Row {
+  id : String
+  title : String
+  emoji : String
+  member_ids : Array[String]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Searchable {
+  emoji : String
+  title : String
+  description : String
+}
+
+pub(all) struct Section {
+  id : String
+  title : String
+  emoji : String
+  member_ids : @tutuca.Vec[String]
+  is_open : Bool
+  compact : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum SectionMsg {
+  Toggle
+  ToggleAll
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Snapshot {
+  things : Array[Thing]
+  groups : Array[Tag]
+  events : Array[EventRecord]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Tab {
+  Track
+  Insights
+  Manage
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Tab
+pub impl @json.FromJson for Tab
+
+pub(all) struct Tag {
+  id : String
+  title : String
+  emoji : String
+  description : String
+  sort_order : Int
+  thing_ids : @tutuca.Vec[String]
+  bundle_id : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn Tag::new(String, String, emoji? : String, description? : String, sort_order? : Int, thing_ids? : @tutuca.Vec[String], bundle_id? : String) -> Self
+
+pub(all) struct TagEditor {
+  mode : Mode
+  tag_id : String
+  emoji : String
+  title : String
+  picker_open : Bool
+  picker : EmojiPicker
+  query : String
+  members : @tutuca.Vec[Member]
+  confirming : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn TagEditor::cannot_save(Self) -> Bool
+pub fn TagEditor::new(Mode, tag_id? : String, emoji? : String, title? : String, members? : Array[Member]) -> Self
+pub fn TagEditor::selected_text(Self) -> String
+
+pub(all) enum TagEditorMsg {
+  RequestClose
+  Key(String)
+  KeepEditing
+  Discard
+  TogglePicker
+  SetTitle(String)
+  SetQuery(String)
+  ToggleMember(Int)
+  Save
+  Remove
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct TagFields {
+  id : String
+  title : String
+  emoji : String
+  thing_ids : Array[String]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct TagMerge {
+  id : String
+  title : String
+  added : Array[String]
+} derive(Eq, @debug.Debug)
+
+pub(all) enum TagMsg {
+  Edit
+  Share
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Thing {
+  id : String
+  emoji : String
+  title : String
+  description : String
+  measurements : @tutuca.Vec[MeasureRef]
+  color : String
+  archived : Bool
+  bundle_id : String
+  total : Int
+  last_text : String
+  tags_text : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn Thing::new(String, String, String, description? : String, measurements? : @tutuca.Vec[MeasureRef], color? : String, archived? : Bool, bundle_id? : String) -> Self
+
+pub(all) struct ThingDef {
+  slug : String
+  emoji : String
+  title : String
+  measures : Array[MeasureDef]
+}
+
+pub(all) struct ThingEditor {
+  mode : Mode
+  thing_id : String
+  step : Int
+  emoji : String
+  title : String
+  description : String
+  measurements : @tutuca.Vec[MeasureRef]
+  picker_open : Bool
+  picker : EmojiPicker
+  clash : String
+  confirming : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn ThingEditor::cannot_go(Self) -> Bool
+pub fn ThingEditor::new(Mode, thing_id? : String, emoji? : String, title? : String, description? : String, measurements? : Array[MeasureRef], picker_open? : Bool, clash? : String) -> Self
+pub fn ThingEditor::primary_label(Self) -> String
+
+pub(all) enum ThingEditorMsg {
+  RequestClose
+  Key(String)
+  KeepEditing
+  Discard
+  TogglePicker
+  SetTitle(String)
+  SetDescription(String)
+  ToggleMeasurement(MeasureKind)
+  SetUnit(String)
+  Back
+  Next
+  Remove
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct ThingFields {
+  id : String
+  emoji : String
+  title : String
+  description : String
+  measurements : Array[MeasureRef]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum ThingMsg {
+  Tap
+  Hold
+  Edit
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Toast {
+  id : Int
+  title : String
+  text : String
+  event_id : String
+  kind : ToastKind
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum ToastKind {
+  Info
+  Logged
+  Failed
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for ToastKind
+pub impl @json.FromJson for ToastKind
+
+pub(all) struct TrackerApp {
+  now : Double
+  tz : Int
+  tab : Tab
+  things : @tutuca.Vec[Thing]
+  groups : @tutuca.Vec[Tag]
+  events : @tutuca.Vec[EventRecord]
+  order : @tutuca.Vec[String]
+  collapsed : @tutuca.Vec[String]
+  query : String
+  compact : Bool
+  sections : @tutuca.Vec[Section]
+  granularity : Granularity
+  group_filter : String
+  buckets : @tutuca.Vec[Bucket]
+  shown_entries : Int
+  list_context : ListContext?
+  manage_tab : ManageTab
+  manage_query : String
+  panel : Panel?
+  toast : Toast?
+  toast_seq : Int
+  hint_shown : Bool
+  next_id : Int
+  backup : BackupInfo
+  import_mode : ImportMode
+  import_text : String
+  import_source : String
+  import_title : String
+  show_preview : Bool
+  overwrite : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn TrackerApp::any_open(Self) -> Bool
+pub fn TrackerApp::backup_due(Self) -> Bool
+pub fn TrackerApp::find_thing(Self, String) -> Thing?
+pub fn TrackerApp::grid_view(Self) -> String
+pub fn TrackerApp::has_things(Self) -> Bool
+pub fn TrackerApp::new(Double, tz? : Int) -> Self
+pub fn TrackerApp::no_matches(Self) -> Bool
+pub fn TrackerApp::plan(Self) -> Plan?
+pub fn TrackerApp::preview(Self) -> Preview
+pub fn TrackerApp::refresh(Self) -> Self
+pub fn TrackerApp::searching(Self) -> Bool
+pub fn TrackerApp::snapshot(Self) -> Snapshot
+
+pub(all) enum TrackerMsg {
+  SetTab(Tab)
+  SyncNow
+  NowIs(@tutuca.AskResult[Double])
+  SetNow(Double)
+  Reorder
+  SetQuery(String)
+  ToggleCompact
+  ToggleSection(String)
+  ToggleAllSections
+  LogThing(String)
+  CommitLog(String, Array[MeasureValue])
+  BackdateThing(String)
+  SaveEntry(EntrySaved)
+  EditEntry(String)
+  DeleteEntry(String)
+  ClosePanel
+  UndoToast
+  EditToast
+  DismissToast
+  ToastDone(Int)
+  SetGranularity(Granularity)
+  SetGroupFilter(Int)
+  ClearGroupFilter
+  OpenChip(ChipOpened)
+  OpenAllEntries
+  MoreEntries
+  NewThing(String)
+  NewThingFromQuery
+  EditThing(String)
+  SaveThing(Mode, ThingFields)
+  DeleteThing(String)
+  NewTag
+  EditTag(Int)
+  SaveTag(Mode, TagFields)
+  DeleteTag(String)
+  ShareTag(Int)
+  SetManageTab(ManageTab)
+  SetManageQuery(String)
+  BrowseBundles
+  BackupNow
+  BackupLater
+  SetInterval(String)
+  ExportAll
+  Saved(@tutuca.AskResult[String])
+  SetImportMode(ImportMode)
+  SetImportText(String)
+  PreviewImport
+  ChooseFile(Int, String)
+  TextRead(@tutuca.AskResult[String])
+  AddBundle(String)
+  SetOverwrite(Bool)
+  CancelImport
+  ConfirmImport
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Usage {
+  total : Int
+  last_at : Double
+} derive(Eq, @debug.Debug)
+
+pub(all) enum WizardMsg {
+  RequestClose
+  Key(String)
+  KeepEditing
+  Discard
+  Back
+  Next
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

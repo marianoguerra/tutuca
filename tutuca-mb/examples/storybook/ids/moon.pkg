@@ -1,0 +1,17 @@
+// Prints every story id of the storybook page's books, one per line, for
+// scripts/parity-check.mjs: `moon run --target js examples/storybook/ids`.
+import {
+  "marianoguerra/tutuca/vdom/memdom",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/examples/todo/stories" @todo_stories,
+  "marianoguerra/tutuca/examples/json_editor/stories" @json_stories,
+  "marianoguerra/tutuca/examples/thingtracker/stories" @tracker_stories,
+  "marianoguerra/tutuca/examples/jsonschema/stories" @schema_stories,
+  "marianoguerra/tutuca/examples/drawing/stories" @drawing_stories,
+  "marianoguerra/tutuca/examples/math/stories" @math_stories,
+  "marianoguerra/tutuca/examples/devtools" @dev_stories,
+}
+
+pkgtype(kind: "executable")
+
+warnings = "-79"

@@ -1,0 +1,11 @@
+// A landing page example, which the playground also offers: 2. a todo list.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/json",
+}
+
+warnings = "-79"

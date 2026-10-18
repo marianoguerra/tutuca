@@ -1,0 +1,94 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/vdom/memdom"
+
+import {
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn document() -> MemNode
+
+// Errors
+
+// Types and methods
+pub(all) enum MemKind {
+  Document
+  Element
+  TextNode
+  CommentNode
+  FragmentNode
+} derive(Eq)
+pub fn MemKind::equal(Self, Self) -> Bool
+pub fn MemKind::not_equal(Self, Self) -> Bool
+
+pub struct MemNode {
+  kind : MemKind
+  tag : String
+  ns : String?
+  doc : MemNode?
+  attrs : Array[(String, String)]
+  props : Map[String, @vdom.AttrValue]
+  childs : Array[MemNode]
+  mut parent : MemNode?
+  mut data : String
+  mut created_is : String?
+  mut inner_html : String?
+  mutations : Array[Mutation]
+}
+pub fn MemNode::append_child(Self, Self) -> Unit
+pub fn MemNode::child_nodes(Self) -> Array[Self]
+pub fn MemNode::children(Self) -> Array[Self]
+pub fn MemNode::create_comment(Self, String) -> Self
+pub fn MemNode::create_element(Self, String, String?, String?) -> Self
+pub fn MemNode::create_fragment(Self) -> Self
+pub fn MemNode::create_text(Self, String) -> Self
+pub fn MemNode::data(Self) -> String
+pub fn MemNode::descendants(Self) -> Array[Self]
+pub fn MemNode::element(Self, String) -> Self
+pub fn MemNode::find(Self, String) -> Self?
+pub fn MemNode::first_child(Self) -> Self?
+pub fn MemNode::get_attribute(Self, String) -> String?
+pub fn MemNode::get_checked(Self) -> Bool
+pub fn MemNode::get_data(Self) -> String
+pub fn MemNode::get_inner_html(Self) -> String
+pub fn MemNode::get_property(Self, String) -> @vdom.AttrValue?
+pub fn MemNode::get_value(Self) -> String
+pub fn MemNode::has_property(Self, String) -> Bool
+pub fn MemNode::inner_html(Self) -> String
+pub fn MemNode::insert_before(Self, Self, Self?) -> Unit
+pub fn MemNode::is_same_node(Self, Self) -> Bool
+pub fn MemNode::kind(Self) -> MemKind
+pub fn MemNode::namespace_uri(Self) -> String?
+pub fn MemNode::next_sibling(Self) -> Self?
+pub fn MemNode::parent_node(Self) -> Self?
+pub fn MemNode::remove_attribute(Self, String) -> Unit
+pub fn MemNode::remove_child(Self, Self) -> Unit
+pub fn MemNode::replace_child(Self, Self, Self) -> Unit
+pub fn MemNode::replace_children(Self) -> Unit
+pub fn MemNode::set_attribute(Self, String, String) -> Unit
+pub fn MemNode::set_checked(Self, Bool) -> Unit
+pub fn MemNode::set_data(Self, String) -> Unit
+pub fn MemNode::set_inner_html(Self, String) -> Unit
+pub fn MemNode::set_property(Self, String, @vdom.AttrValue) -> Bool
+pub fn MemNode::set_value(Self, String) -> Unit
+pub fn MemNode::signature(Self, skip_live? : (Self) -> Bool) -> String
+pub fn MemNode::tag_name(Self) -> String
+pub fn MemNode::take_mutations(Self) -> Array[Mutation]
+pub fn MemNode::text_content(Self) -> String
+pub fn MemNode::to_html(Self) -> String
+pub fn MemNode::value(Self) -> String
+pub impl @vdom.DomNode for MemNode
+
+pub(all) enum Mutation {
+  ChildList
+  Attribute(String)
+  CharacterData(String)
+} derive(Eq, @debug.Debug)
+pub fn Mutation::equal(Self, Self) -> Bool
+pub fn Mutation::not_equal(Self, Self) -> Bool
+pub fn Mutation::to_repr(Self) -> @debug.Repr
+
+// Type aliases
+
+// Traits

@@ -1,0 +1,33 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/site/mistakes"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] books() -> Array[@storybook.Book[N]]
+
+pub let greeting : @tutuca.Component[Greeting, GreetingMsg]
+
+// Errors
+
+// Types and methods
+pub(all) struct Greeting {
+  name : String
+  greetings : Int
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum GreetingMsg {
+  Greet
+  Rename(String)
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

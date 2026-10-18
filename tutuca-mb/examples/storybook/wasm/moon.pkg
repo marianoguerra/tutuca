@@ -1,0 +1,25 @@
+// The storybook page for the examples, on wasm-gc.
+import {
+  "marianoguerra/tutuca/wasm" @tw,
+  "marianoguerra/tutuca/storybook/wasm" @sbw,
+  "marianoguerra/tutuca/examples/todo/stories" @todo_stories,
+  "marianoguerra/tutuca/examples/json_editor/stories" @json_stories,
+  "marianoguerra/tutuca/examples/thingtracker/stories" @tracker_stories,
+  "marianoguerra/tutuca/examples/jsonschema/stories" @schema_stories,
+  "marianoguerra/tutuca/examples/drawing/stories" @drawing_stories,
+  "marianoguerra/tutuca/examples/math/stories" @math_stories,
+  "marianoguerra/tutuca/examples/devtools" @dev_stories,
+}
+
+supported_targets = "wasm-gc"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [ "start", "on_call" ],
+      "use-js-builtin-string": true,
+    },
+  },
+)

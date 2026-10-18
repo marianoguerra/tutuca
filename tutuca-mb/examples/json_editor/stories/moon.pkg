@@ -1,0 +1,11 @@
+// The JSON stories, from components/json/stories.js.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/examples/json_editor" @json,
+  "moonbitlang/core/quickcheck",
+}
+
+warnings = "-79"

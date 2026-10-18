@@ -1,0 +1,53 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/site/composed"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] books() -> Array[@storybook.Book[N]]
+
+pub let cart : @tutuca.Component[Cart, CartMsg]
+
+pub let line : @tutuca.Component[Line, LineMsg]
+
+pub let lines : @tutuca.Items[Cart, Int, Line]
+
+pub fn money(Int) -> String
+
+pub let remove_line : @tutuca.Signal[Unit]
+
+// Errors
+
+// Types and methods
+pub(all) struct Cart {
+  lines : @tutuca.Vec[Line]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn Cart::count(Self) -> Int
+pub fn Cart::total(Self) -> Int
+
+pub(all) enum CartMsg {
+  Clear
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Line {
+  name : String
+  cents : Int
+  quantity : Int
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum LineMsg {
+  Step(Int)
+  SetQuantity(Int)
+  Remove
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

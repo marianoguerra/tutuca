@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/storybook/wasm"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/storybook",
+}
+
+// Values
+pub fn start(@marianoguerra/tutuca/wasm.JsNode, Array[@storybook.Book[@marianoguerra/tutuca/wasm.JsNode]], selected? : String, css? : String, links? : Array[String], compile? : (Array[String], (String) -> Unit) -> Unit, known? : Array[String], prefix? : String, style_id? : String) -> @tutuca.App[@storybook.Storybook, @storybook.StorybookMsg]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

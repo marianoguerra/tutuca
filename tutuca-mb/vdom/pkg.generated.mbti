@@ -1,0 +1,110 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/vdom"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub let html_ns : String
+
+pub let math_ns : String
+
+pub fn never_assign(String) -> Bool
+
+pub fn prop_attr_name(String) -> String
+
+pub fn[N : DomNode] render(N, N, Array[VNode], prev? : Array[VNode]) -> Unit raise DuplicateKey
+
+pub let svg_ns : String
+
+// Errors
+pub suberror DuplicateKey {
+  DuplicateKey(String)
+}
+
+pub suberror ShapeError {
+  ShapeError(String)
+}
+
+// Types and methods
+pub(all) enum AttrValue {
+  Absent
+  Str(String)
+  Num(Double)
+  Bool(Bool)
+  Html(String)
+} derive(Eq, @debug.Debug)
+pub fn AttrValue::equal(Self, Self) -> Bool
+pub fn AttrValue::not_equal(Self, Self) -> Bool
+pub fn AttrValue::to_attr_string(Self) -> String
+pub fn AttrValue::to_repr(Self) -> @debug.Repr
+
+pub struct Shape {
+  tag : String
+  ns : String?
+  static_attrs : Array[(String, AttrValue)]
+  names : Array[String]
+  value_idx : Int
+  checked_idx : Int
+  is_idx : Int
+  html_idx : Int
+}
+pub fn Shape::new(String, ns? : String, static_attrs? : Array[(String, AttrValue)], names? : Array[String]) -> Self raise ShapeError
+
+pub struct VElem {
+  shape : Shape
+  values : Array[AttrValue]
+  childs : Array[VNode]
+  key : String?
+}
+pub fn VElem::attrs(Self) -> Array[(String, AttrValue)]
+pub fn VElem::is_same_kind(Self, Self) -> Bool
+
+pub struct VFragment {
+  childs : Array[VNode]
+  key : String?
+}
+
+pub(all) enum VNode {
+  Text(String)
+  Comment(String)
+  Elem(VElem)
+  Fragment(VFragment)
+}
+pub fn VNode::elem(Shape, Array[AttrValue], Array[Self], key? : String) -> Self
+pub fn VNode::fragment(Array[Self], key? : String) -> Self
+pub fn VNode::is_equal_to(Self, Self) -> Bool
+pub fn VNode::key(Self) -> String?
+
+// Type aliases
+
+// Traits
+pub(open) trait DomNode {
+  fn create_element(Self, String, String?, String?) -> Self
+  fn create_text(Self, String) -> Self
+  fn create_comment(Self, String) -> Self
+  fn create_fragment(Self) -> Self
+  fn append_child(Self, Self) -> Unit
+  fn insert_before(Self, Self, Self?) -> Unit
+  fn remove_child(Self, Self) -> Unit
+  fn replace_child(Self, Self, Self) -> Unit
+  fn replace_children(Self) -> Unit
+  fn parent_node(Self) -> Self?
+  fn next_sibling(Self) -> Self?
+  fn child_nodes(Self) -> Array[Self]
+  fn is_same_node(Self, Self) -> Bool
+  fn set_attribute(Self, String, String) -> Unit
+  fn remove_attribute(Self, String) -> Unit
+  fn get_attribute(Self, String) -> String?
+  fn get_value(Self) -> String
+  fn get_checked(Self) -> Bool
+  fn has_property(Self, String) -> Bool
+  fn set_property(Self, String, AttrValue) -> Bool
+  fn get_inner_html(Self) -> String
+  fn set_inner_html(Self, String) -> Unit
+  fn set_data(Self, String) -> Unit
+  fn get_data(Self) -> String
+  fn tag_name(Self) -> String
+  fn namespace_uri(Self) -> String?
+}

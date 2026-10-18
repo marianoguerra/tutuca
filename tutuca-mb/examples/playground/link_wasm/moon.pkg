@@ -1,0 +1,22 @@
+// The link root of a playground run on wasm-gc, as link is on js: its link closure (run_wasm,
+// and through it the wasm storybook and everything it uses) is what a run is linked against.
+// A run takes this package's place.
+import {
+  "marianoguerra/tutuca/wasm" @tw,
+  "marianoguerra/tutuca/examples/playground/run_wasm" @run,
+}
+
+supported_targets = "wasm-gc"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [ "on_call", "playground_story" ],
+      "use-js-builtin-string": true,
+    },
+  },
+)
+
+warnings = "-79"

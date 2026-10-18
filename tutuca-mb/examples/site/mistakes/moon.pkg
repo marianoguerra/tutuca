@@ -1,0 +1,14 @@
+// A landing page example, which the playground also offers: 5. what the compiler and check() catch.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/storybook",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/json",
+}
+
+import {
+  "marianoguerra/tutuca/vdom/memdom",
+} for "test"
+
+warnings = "-79"

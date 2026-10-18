@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/playground"
+
+import {
+  "marianoguerra/tutuca",
+}
+
+// Values
+pub fn choose_story(Array[String], Array[String]) -> String
+
+pub fn issues_of(Array[Array[(String, Array[@tutuca.Issue])]]) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

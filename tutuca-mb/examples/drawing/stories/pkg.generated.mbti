@@ -1,0 +1,21 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/drawing/stories"
+
+import {
+  "marianoguerra/tutuca/examples/drawing",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] drawing_book() -> @storybook.Book[N]
+
+pub fn house() -> @drawing.Drawing
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

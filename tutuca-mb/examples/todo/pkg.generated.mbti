@@ -1,0 +1,217 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/todo"
+
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub fn add_days(String, Int) -> String
+
+pub let add_task : @tutuca.Signal[String]
+
+pub fn day_header(String, String) -> String
+
+pub fn due_label(String, String) -> String
+
+pub fn due_tone(String, String) -> Tone
+
+pub let fixture_today : String
+
+pub fn is_iso(String) -> Bool
+
+pub let labels_changed : @tutuca.Signal[Array[String]]
+
+pub fn labels_of(String) -> @tutuca.Vec[String]
+
+pub fn make_app(String, projects? : Array[(String, Color)], tasks? : Array[Spec], page? : Page) -> TodoApp
+
+pub let move_task : @tutuca.Signal[Int]
+
+pub fn parse_due_words(Array[String], Int, String) -> (String, Int)?
+
+pub fn parse_quick_add(String, today? : String, projects? : Array[String]) -> Parsed
+
+pub let projects_provided : @tutuca.Provide[@tutuca.Vec[TodoProject]]
+
+pub let quick_add : @tutuca.Component[QuickAdd, QuickAddMsg]
+
+pub fn random_app((Int) -> Int) -> TodoApp
+
+pub fn random_task((Int) -> Int) -> TodoTask
+
+pub let remove_project : @tutuca.Signal[Unit]
+
+pub let remove_task : @tutuca.Signal[Unit]
+
+pub fn sample_app() -> TodoApp
+
+pub fn spec(String, due? : Int, priority? : Int, labels? : Array[String], done? : Bool, description? : String, project? : String, subtasks? : Array[Spec]) -> Spec
+
+pub let today_ask : @tutuca.Ask[Unit, String]
+
+pub let todo_app : @tutuca.Component[TodoApp, TodoAppMsg]
+
+pub let todo_project : @tutuca.Component[TodoProject, TodoProjectMsg]
+
+pub let todo_task : @tutuca.Component[TodoTask, TodoTaskMsg]
+
+pub fn week_of_plans(String) -> TodoApp
+
+// Errors
+
+// Types and methods
+pub(all) enum Color {
+  Grey
+  Red
+  Orange
+  Green
+  Blue
+  Violet
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub fn Color::from_name(String) -> Self?
+pub fn Color::name(Self) -> String
+pub impl Default for Color
+pub impl ToJson for Color
+pub impl @json.FromJson for Color
+
+pub(all) enum Page {
+  Inbox
+  Today
+  Upcoming
+  Project
+  Label
+  Search
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Page
+pub impl @json.FromJson for Page
+
+pub(all) struct Parsed {
+  title : String
+  due : String
+  due_text : String
+  priority : Int
+  project : String?
+  labels : Array[String]
+} derive(Eq, @debug.Debug)
+
+pub(all) struct QuickAdd {
+  text : String
+} derive(Default, Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum QuickAddMsg {
+  SetText(String)
+  Submit
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Spec {
+  title : String
+  due : Int?
+  priority : Int
+  labels : Array[String]
+  done : Bool
+  description : String
+  project : String?
+  subtasks : Array[Spec]
+}
+
+pub(all) struct TodoApp {
+  today : String
+  projects : @tutuca.Vec[TodoProject]
+  labels : @tutuca.Vec[String]
+  tasks : @tutuca.Vec[TodoTask]
+  view : Page
+  project_index : Int
+  label_index : Int?
+  search : String
+  show_completed : Bool
+  quick_add : QuickAdd
+  new_project : String
+  next_task_id : Int
+  next_project_id : Int
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum TodoAppMsg {
+  OpenView(Page)
+  OpenProject(Int)
+  OpenLabel(Int)
+  SetSearch(String)
+  SetShowCompleted(Bool)
+  ClearCompleted
+  SetNewProject(String)
+  AddProject
+  SetToday(String)
+  SyncToday
+  TodayIs(@tutuca.AskResult[String])
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct TodoProject {
+  id : String
+  name : String
+  color : Color
+  is_editing : Bool
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn TodoProject::inbox() -> Self
+
+pub(all) enum TodoProjectMsg {
+  BeginRename
+  SetName(String)
+  SetColor(String)
+  EndRename
+  Remove
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct TodoTask {
+  id : String
+  title : String
+  description : String
+  project_id : String
+  due : String
+  priority : Int
+  labels : @tutuca.Vec[String]
+  is_completed : Bool
+  is_editing : Bool
+  is_expanded : Bool
+  subtasks : @tutuca.Vec[TodoTask]
+  next_sub_id : Int
+  new_subtask : String
+  today : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+pub fn TodoTask::all(Self) -> Array[Self]
+pub fn TodoTask::deep(Self, (Self) -> Self) -> Self
+pub fn TodoTask::matches(Self, String) -> Bool
+pub fn TodoTask::new(String, String, today~ : String, description? : String, project_id? : String, due? : String, priority? : Int, labels? : @tutuca.Vec[String], is_completed? : Bool, subtasks? : @tutuca.Vec[Self]) -> Self
+
+pub(all) enum TodoTaskMsg {
+  Toggle
+  SetTitle(String)
+  SetDescription(String)
+  SetDue(String)
+  SetPriority(String)
+  SetLabelsText(String)
+  SetProject(String)
+  BeginEdit
+  EndEdit
+  ToggleExpand
+  SetNewSubtask(String)
+  AddSubtask
+  Remove
+  MoveUp
+  MoveDown
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum Tone {
+  Overdue
+  DueToday
+  Tomorrow
+  Week
+  Later
+  NoTone
+}
+
+// Type aliases
+
+// Traits

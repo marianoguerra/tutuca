@@ -1,0 +1,156 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/drawing"
+
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+// Values
+pub let coord_max : Double
+
+pub let drawing : @tutuca.Component[Drawing, DrawingMsg]
+
+pub let ellipse_shape : @tutuca.Component[Box, PointerMsg]
+
+pub fn is_paint(String) -> Bool
+
+pub let line_shape : @tutuca.Component[Box, PointerMsg]
+
+pub let palette : Array[String]
+
+pub let polyline_shape : @tutuca.Component[Poly, PointerMsg]
+
+pub let rect_shape : @tutuca.Component[Box, PointerMsg]
+
+pub let shape_down : @tutuca.Signal[(String, Double, Double)]
+
+pub let shape_move : @tutuca.Signal[(Double, Double)]
+
+pub let shape_up : @tutuca.Signal[Unit]
+
+pub let shape_view : @tutuca.Component[Shape, Unit]
+
+// Errors
+
+// Types and methods
+pub(all) struct Box {
+  id : String
+  style : Style
+  x0 : Double
+  y0 : Double
+  x1 : Double
+  y1 : Double
+} derive(Eq, @debug.Debug)
+pub impl ToJson for Box
+pub impl @json.FromJson for Box
+pub impl @quickcheck.Arbitrary for Box
+
+pub(all) struct Drawing {
+  width : Int
+  height : Int
+  tool : Tool
+  fill : String
+  stroke : String
+  stroke_width : Int
+  shapes : @tutuca.Vec[Shape]
+  selected : String
+  current : Shape?
+  drag_from : (Double, Double)?
+  past : @tutuca.Vec[@tutuca.Vec[Shape]]
+  future : @tutuca.Vec[@tutuca.Vec[Shape]]
+  next_id : Int
+  cursor : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub fn Drawing::new(shapes? : Array[Shape], tool? : Tool, selected? : String, next_id? : Int) -> Self
+pub fn Drawing::selected_index(Self) -> Int?
+pub fn Drawing::selection(Self) -> Shape?
+pub fn Drawing::to_svg(Self) -> String
+pub impl @quickcheck.Arbitrary for Drawing
+
+pub(all) enum DrawingMsg {
+  SetTool(String)
+  SetWidth(String)
+  SetFill(String)
+  SetStroke(String)
+  StartAt(Double, Double)
+  MoveTo(Double, Double)
+  End
+  Finish
+  Cancel
+  Down
+  Move
+  Up
+  ShapeDown(String, Double, Double)
+  Raise
+  Lower
+  Duplicate
+  Remove
+  Undo
+  Redo
+  Clear
+  Key
+  ExportSvg
+  Saved(@tutuca.AskResult[String])
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum PointerMsg {
+  Down
+  Move
+  Up
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) struct Poly {
+  id : String
+  style : Style
+  points : @tutuca.Vec[Double]
+} derive(Eq, @debug.Debug)
+pub impl ToJson for Poly
+pub impl @json.FromJson for Poly
+pub impl @quickcheck.Arbitrary for Poly
+
+pub(all) enum Shape {
+  Rect(Box)
+  Ellipse(Box)
+  Line(Box)
+  Polyline(Poly)
+} derive(Eq, @debug.Debug)
+pub fn Shape::box_height(Self) -> Double
+pub fn Shape::box_width(Self) -> Double
+pub fn Shape::drag_to(Self, Double, Double) -> Self
+pub fn Shape::id(Self) -> String
+pub fn Shape::is_empty(Self) -> Bool
+pub fn Shape::kind(Self) -> Tool
+pub fn Shape::left(Self) -> Double
+pub fn Shape::move_by(Self, Double, Double) -> Self
+pub fn Shape::style(Self) -> Style
+pub fn Shape::to_svg(Self) -> String
+pub fn Shape::top(Self) -> Double
+pub fn Shape::with_id(Self, String) -> Self
+pub fn Shape::with_style(Self, (Style) -> Style) -> Self
+pub impl ToJson for Shape
+pub impl @json.FromJson for Shape
+pub impl @quickcheck.Arbitrary for Shape
+
+pub(all) struct Style {
+  fill : String
+  stroke : String
+  width : Int
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) enum Tool {
+  SelectTool
+  RectTool
+  EllipseTool
+  LineTool
+  PolylineTool
+} derive(Eq, @debug.Debug, @quickcheck.Arbitrary)
+pub impl ToJson for Tool
+pub impl @json.FromJson for Tool
+
+// Type aliases
+
+// Traits

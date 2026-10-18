@@ -1,0 +1,32 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/examples/site/counter"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+}
+
+// Values
+pub fn[N : @vdom.DomNode] books() -> Array[@storybook.Book[N]]
+
+pub let counter : @tutuca.Component[Counter, CounterMsg]
+
+// Errors
+
+// Types and methods
+pub(all) struct Counter {
+  count : Int
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+pub(all) enum CounterMsg {
+  Inc
+  Dec
+} derive(ToJson, @debug.Debug, @json.FromJson, @quickcheck.Arbitrary)
+
+// Type aliases
+
+// Traits

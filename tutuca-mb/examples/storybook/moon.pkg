@@ -1,0 +1,20 @@
+// The storybook page for the examples.
+import {
+  "marianoguerra/tutuca/browser",
+  "marianoguerra/tutuca/storybook/web",
+  "marianoguerra/tutuca/examples/todo/stories" @todo_stories,
+  "marianoguerra/tutuca/examples/json_editor/stories" @json_stories,
+  "marianoguerra/tutuca/examples/thingtracker/stories" @tracker_stories,
+  "marianoguerra/tutuca/examples/jsonschema/stories" @schema_stories,
+  "marianoguerra/tutuca/examples/drawing/stories" @drawing_stories,
+  "marianoguerra/tutuca/examples/math/stories" @math_stories,
+  "marianoguerra/tutuca/examples/devtools" @dev_stories,
+}
+
+supported_targets = "js"
+
+pkgtype(kind: "executable")
+
+options(
+  link: { "js": { "exports": [ "start" ], "format": "esm" } },
+)

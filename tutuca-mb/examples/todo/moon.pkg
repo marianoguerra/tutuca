@@ -1,0 +1,13 @@
+// The todo example: the core of todoist.com, ported from components/todo.
+import {
+  "moonbitlang/core/json",
+  "marianoguerra/tutuca",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/string",
+}
+
+import {
+  "marianoguerra/tutuca/testing",
+} for "wbtest"
+
+warnings = "-79"

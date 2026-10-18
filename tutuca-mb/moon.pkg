@@ -1,0 +1,20 @@
+// tutuca: components, views, paths, tasks and the host. One package: a view renders
+// components and a component owns views.
+import {
+  "marianoguerra/tutuca/vdom",
+  "moonbitlang/core/immut/vector",
+  "moonbitlang/core/immut/sorted_map",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+}
+
+import {
+  "marianoguerra/tutuca/vdom/memdom",
+} for "wbtest"
+
+// Derived traits warn that their methods are promoted (implicit_impl_as_method); the
+// promotion is harmless here, and spelling an `extend` per derive would be boilerplate.
+
+warnings = "-79"

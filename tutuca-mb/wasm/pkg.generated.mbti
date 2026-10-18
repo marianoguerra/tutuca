@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/wasm"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/dev",
+  "marianoguerra/tutuca/vdom",
+}
+
+// Values
+pub fn add_listener(JsNode, String, (JsNode) -> Unit) -> Unit
+
+pub fn callback((Int, JsNode, String) -> Unit, once? : Bool) -> Int
+
+pub fn compile_styles(JsNode, style_id? : String, compile? : (Array[String], (String) -> Unit) -> Unit, known? : Array[String]) -> (@tutuca.Report) -> Unit
+
+pub fn define_app_element(tag? : String) -> Unit
+
+pub fn delegate(@tutuca.Host[JsNode]) -> Unit
+
+pub fn document() -> JsNode
+
+pub fn download(String, String, String) -> Unit
+
+pub fn element_by_id(String) -> JsNode?
+
+pub fn[R : ToJson, M] expose(String, @tutuca.Host[JsNode], @tutuca.App[R, M], @tutuca.Component[R, M]) -> Unit
+
+pub fn host(JsNode, doc? : JsNode, dev? : Bool, scope? : @tutuca.Scope) -> @tutuca.Host[JsNode]
+
+pub fn inspect(@dev.Described) -> Unit
+
+pub fn install_formatters() -> Unit
+
+pub fn iso_today() -> String
+
+pub fn local_offset(Double) -> Int
+
+pub fn log_problems(@tutuca.Report) -> Unit
+
+pub fn margaui(Array[String], (String) -> Unit) -> Unit
+
+pub fn[R, M] mount(JsNode, @tutuca.Component[R, M], R, dev? : Bool, scope? : @tutuca.Scope, on_report? : (@tutuca.Report) -> Unit) -> (@tutuca.Host[JsNode], @tutuca.App[R, M])
+
+pub fn[R, M] mount_app(AppRequest, @tutuca.Component[R, M], R, dev? : Bool, scope? : @tutuca.Scope, on_report? : (@tutuca.Report) -> Unit) -> (@tutuca.Host[JsNode], @tutuca.App[R, M])
+
+pub fn now() -> Double
+
+pub fn on_app_request(JsNode, (AppRequest) -> Unit) -> Unit
+
+pub fn on_call(Int, Int, JsNode, String) -> Unit
+
+pub fn query(String) -> JsNode?
+
+pub fn read_file(@tutuca.FileRef, (@tutuca.AskResult[String]) -> Unit) -> Unit
+
+pub fn release(Int) -> Unit
+
+pub fn set_text(JsNode, String) -> Unit
+
+pub fn set_timeout(() -> Unit, Int) -> Unit
+
+// Errors
+
+// Types and methods
+#external
+pub type AppRequest
+pub fn AppRequest::adopt_css(Self, String) -> JsNode
+pub fn AppRequest::adopt_link(Self, String) -> Unit
+pub fn AppRequest::element(Self) -> JsNode
+pub fn AppRequest::emit(Self, String, Json) -> Unit
+pub fn AppRequest::is_same(Self, Self) -> Bool
+pub fn AppRequest::key(Self) -> String
+pub fn AppRequest::mount(Self, () -> Unit) -> Unit
+pub fn AppRequest::root(Self) -> JsNode
+
+#external
+pub type JsNode
+pub impl @vdom.DomNode for JsNode
+
+// Type aliases
+
+// Traits

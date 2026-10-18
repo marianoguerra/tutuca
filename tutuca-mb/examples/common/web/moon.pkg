@@ -1,0 +1,10 @@
+// The file asks, answered by the browser.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/browser",
+  "marianoguerra/tutuca/examples/common",
+}
+
+supported_targets = "js"
+
+warnings = "-79"

@@ -1,0 +1,12 @@
+// The dev tools' stories, from components/tutuca-dev/stories.js.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/dev",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/examples/json_editor" @jv,
+  "marianoguerra/tutuca/examples/todo",
+}
+
+warnings = "-79"

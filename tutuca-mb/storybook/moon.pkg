@@ -1,0 +1,19 @@
+// The storybook: books of stories (an initial state, named sequences of steps, stress test
+// targets), run headless to check them, or live behind a UI made with tutuca.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/vdom/memdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/dev",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/string",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+import {
+  "moonbitlang/core/quickcheck",
+} for "test"
+
+warnings = "-79"

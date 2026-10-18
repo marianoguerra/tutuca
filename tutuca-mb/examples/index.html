@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>tutuca-mb · demos</title>
+    <script type="importmap">
+      { "imports": { "margaui": "/node_modules/margaui/dist/margaui.min.js" } }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="/node_modules/margaui/dist/themes/theme.css" />
+    <style>
+      tutuca-playground { display: block; height: 38rem; }
+    </style>
+    <script type="module" src="./playground/element.js"></script>
+  </head>
+  <body class="mx-auto flex max-w-6xl flex-col gap-4 p-6">
+    <h1 class="text-2xl font-bold">tutuca-mb</h1>
+    <p>
+      <a class="btn btn-primary" href="playground/">Open the playground</a>
+      Edit a book of stories in MoonBit and run it with the storybook's panels: it compiles in
+      your browser.
+    </p>
+    <h2 class="text-xl font-bold">Examples</h2>
+    <p class="opacity-70">
+      Each one compiles in your browser when it scrolls into view. Edit it and press
+      <kbd class="kbd kbd-sm">Ctrl</kbd>+<kbd class="kbd kbd-sm">Enter</kbd>; the storybook on the
+      right steps through its sequences, stress tests it and shows its state. Their sources are
+      packages in <code>site/</code>, which <code>moon test</code> checks; each also opens in the
+      <a class="link" href="playground/#counter">playground</a>.
+    </p>
+    <h3 class="text-lg font-bold">1. A counter</h3>
+    <p>A component is a state type, a message type, a view and an update. Its story replays a sequence of clicks.</p>
+    <tutuca-playground example="counter"></tutuca-playground>
+    <h3 class="text-lg font-bold">2. A todo list</h3>
+    <p>A collection, a loop, form inputs and a computed value.</p>
+    <tutuca-playground example="todo-list"></tutuca-playground>
+    <h3 class="text-lg font-bold">3. Components inside components</h3>
+    <p>A cart renders its lines, which notify it when they go; an invariant is checked after every message.</p>
+    <tutuca-playground example="composed"></tutuca-playground>
+    <h3 class="text-lg font-bold">4. Asks</h3>
+    <p>A component asks; a handler in a scope answers, now, later or never.</p>
+    <tutuca-playground example="async"></tutuca-playground>
+    <h3 class="text-lg font-bold">5. Mistakes</h3>
+    <p>What the compiler catches, underlined in the editor, then what <code>Component::check()</code> reports.</p>
+    <tutuca-playground example="mistakes"></tutuca-playground>
+    <h2 class="text-xl font-bold">Demos</h2>
+    <ul class="flex flex-col gap-2">
+      <li><a class="link" href="todo/web/">✅ Todo</a>: projects, labels, priorities, subtasks and quick add (<a class="link" href="todo/wasm/">wasm-gc</a>).</li>
+      <li><a class="link" href="thingtracker/web/">📈 Thing tracker</a>: log habits, moods and drinks; see insights (<a class="link" href="thingtracker/wasm/">wasm-gc</a>).</li>
+      <li><a class="link" href="jsonschema/web/">📝 Payload → Schema</a>: edit a payload, get a documented JSON Schema (<a class="link" href="jsonschema/wasm/">wasm-gc</a>).</li>
+      <li><a class="link" href="drawing/web/">🎨 Sketchpad</a>: shapes, layers, undo and save as SVG (<a class="link" href="drawing/wasm/">wasm-gc</a>).</li>
+      <li><a class="link" href="math/web/">➗ Algebra workbench</a>: quadratics with their plot, 2×2 matrices (<a class="link" href="math/wasm/">wasm-gc</a>).</li>
+      <li><a class="link" href="counter/web/">🔢 Counters in elements</a>: apps in <code>&lt;tutuca-app&gt;</code> shadow roots, reporting to the page (<a class="link" href="counter/wasm/">wasm-gc</a>).</li>
+      <li><a class="link" href="storybook/">📚 Storybook</a>: every story, live, with its steps, timeline and stress tests (<a class="link" href="storybook/wasm/">wasm-gc</a>).</li>
+    </ul>
+    <p class="opacity-70">The js pages run the moon js build; the wasm-gc ones the same components compiled to wasm-gc, through <code>wasm/loader.mjs</code>.</p>
+    <script type="module">
+      import { compile } from "margaui";
+      import { playgroundClasses } from "./playground/playground.js";
+      const classes = new Set(playgroundClasses);
+      for (const el of document.querySelectorAll("[class]")) for (const c of el.classList) classes.add(c);
+      document.getElementById("margaui").textContent = await compile([...classes]);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,15 @@
+// The thing tracker stories, from components/thing-tracker/stories.js.
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/storybook",
+  "marianoguerra/tutuca/examples/common",
+  "marianoguerra/tutuca/examples/thingtracker" @tt,
+}
+
+import {
+  "marianoguerra/tutuca/vdom/memdom",
+} for "test"
+
+warnings = "-79"

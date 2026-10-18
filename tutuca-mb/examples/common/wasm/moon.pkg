@@ -1,0 +1,10 @@
+// The file and clock asks, answered by the browser through @wasm (wasm-gc).
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/wasm" @tw,
+  "marianoguerra/tutuca/examples/common",
+}
+
+supported_targets = "wasm-gc"
+
+warnings = "-79"

@@ -1,0 +1,288 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/storybook"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/dev",
+  "marianoguerra/tutuca/testing",
+  "marianoguerra/tutuca/vdom",
+  "marianoguerra/tutuca/vdom/memdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+// Values
+pub fn[N] book(String, Array[Story[N]], specs? : Array[@dev.SpecInfo]) -> Book[N]
+
+pub fn[R, M] check(String, (R) -> Bool) -> Step[R, M]
+
+pub fn check_books(Array[Book[@memdom.MemNode]], stress? : Int, steps? : Int, seed? : UInt64) -> Unit raise
+
+pub fn css(String) -> Find
+
+pub let delay : @tutuca.Ask[Int, Unit]
+
+pub fn[R, M] event(String, Find, value? : String, label? : String) -> Step[R, M]
+
+pub fn find(String, attr? : (String, String), text? : String, nth? : Int) -> Find
+
+pub fn[N : @vdom.DomNode, R : ToJson, M] generated_story(String, @tutuca.Component[R, M], (@splitmix.RandomState, Int) -> R, sequences? : Array[(String, Array[Step[R, M]])], targets? : Array[@testing.Target[R, M]], size? : Int, asks? : (@tutuca.Scope) -> Unit, max_steps? : Int, events? : Bool) -> Story[N]
+
+pub fn[R, M, T : ToJson, C] hear(@tutuca.Signal[T], T, from? : @tutuca.Lens[R, C], label? : String) -> Step[R, M]
+
+pub fn[R] sampled((@splitmix.RandomState, Int) -> R, seed? : UInt64, size? : Int) -> () -> R
+
+pub let scroll_to_top : @tutuca.Ask[Unit, Unit]
+
+pub fn[R, M : ToJson] send(M, label? : String) -> Step[R, M]
+
+pub fn[R, M, C, CM : ToJson] send_to(@tutuca.Component[C, CM], @tutuca.Lens[R, C], CM, label? : String) -> Step[R, M]
+
+pub fn[S, M] spec(@tutuca.Component[S, M]) -> @dev.SpecInfo
+
+pub fn[N : @vdom.DomNode, R : ToJson, M] story(String, @tutuca.Component[R, M], () -> R, sequences? : Array[(String, Array[Step[R, M]])], targets? : Array[@testing.Target[R, M]], generate? : (@splitmix.RandomState, Int) -> R, asks? : (@tutuca.Scope) -> Unit, max_steps? : Int, events? : Bool) -> Story[N]
+
+pub let story_op : @tutuca.Ask[(String, Op), Summary]
+
+pub let story_sample_args : @tutuca.Ask[(String, Int, String, UInt64), String]
+
+pub let storybook : @tutuca.Component[Storybook, StorybookMsg]
+
+// Errors
+pub(all) suberror StoryFailed {
+  StoryFailed(String)
+}
+pub impl Show for StoryFailed
+
+// Types and methods
+pub struct Book[N] {
+  title : String
+  stories : Array[Story[N]]
+}
+
+pub(all) struct EntryView {
+  label : String
+  origin : String
+  problem_count : Int
+  is_current : Bool
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Find {
+  tag : String
+  attr : (String, String)?
+  text : String?
+  nth : Int
+  selector : String?
+}
+pub fn Find::to_string(Self) -> String
+
+pub(all) struct MessageView {
+  name : String
+  keys : Array[String]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Op {
+  Show
+  Load(String)
+  Goto(Int)
+  Back
+  Forward
+  ToEnd
+  Reset
+  Random(UInt64)
+  Stress(Int, Int, UInt64, StressFrom)
+  SendTo(Int, String, String, String)
+  StressStart(Int, Int, UInt64, StressFrom)
+  StressEvents(Int, Int, UInt64, StressFrom)
+  StressCancel
+} derive(Eq, @debug.Debug)
+
+pub(all) enum Panel {
+  Steps
+  Stress
+  Dev
+} derive(Eq, @debug.Debug)
+
+pub struct Registry[N] {
+  stories : Map[String, Story[N]]
+  runners : Map[String, Runner]
+  // private fields
+}
+pub fn[N] Registry::call(Self[N], String, Op) -> Summary raise StoryFailed
+pub fn[N] Registry::mount(Self[N], String, N, N, seed? : UInt64, schedule? : (() -> Unit) -> Unit, connect? : (@tutuca.Host[N]) -> Unit) -> Unit
+pub fn[N] Registry::new(Array[Book[N]]) -> Self[N]
+pub fn[N] Registry::serve(Self[N], @tutuca.Scope) -> Unit
+pub fn[N] Registry::set_on_change(Self[N], (String) -> Unit) -> Unit
+pub fn[N] Registry::unmount(Self[N], String) -> Unit
+
+pub struct Runner {
+  load : (String) -> Unit
+  goto : (Int) -> Unit
+  back : () -> Unit
+  forward : () -> StepResult
+  to_end : () -> Unit
+  reset : () -> Unit
+  random_step : (UInt64) -> StepResult
+  stress : (Int, Int, UInt64, StressFrom) -> StressResult
+  stress_start : (Int, Int, UInt64, StressFrom) -> Unit
+  stress_events_start : (Int, Int, UInt64, StressFrom) -> Unit
+  stress_step : () -> Bool
+  stress_cancel : () -> Unit
+  send_to : (Int, String, String, String) -> StepResult
+  sample_args : (Int, String, UInt64) -> String
+  summary : () -> Summary
+  dispose : () -> Unit
+}
+
+pub enum Step[R, M] {
+  Send(String, M)
+  SendWith(String, (@tutuca.App[R, M]) -> Unit)
+  Event(String, String, Find, String?)
+  Check(String, (R) -> Bool)
+}
+pub fn[R, M] Step::label(Self[R, M]) -> String
+
+pub(all) struct StepForm {
+  target : Int
+  message : String
+  key : String
+  args : String
+  arg_seed : Int
+  is_playing : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) struct StepResult {
+  status : String
+  error : String
+}
+
+pub(all) struct StepView {
+  label : String
+  status : String
+  is_next : Bool
+} derive(Eq, ToJson, @debug.Debug)
+
+pub struct Story[N] {
+  id : String
+  name : String
+  group : String
+  sequences : Array[String]
+  issues : Array[@tutuca.Issue]
+  is_generated : Bool
+  stressed : Bool
+  events : Bool
+  specs : Array[@dev.SpecInfo]
+  max_steps : Int
+  runner : (UInt64, N, N, ((() -> Unit) -> Unit)?, () -> Unit, (@tutuca.Host[N]) -> Unit) -> Runner
+  check_sequences : () -> Unit raise
+}
+
+pub(all) struct StoryLink {
+  id : String
+  group : String
+  name : String
+  show_group : Bool
+  group_size : Int
+  is_generated : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Storybook {
+  links : Array[StoryLink]
+  filter : String
+  collapsed : Array[String]
+  selected : String
+  is_generated : Bool
+  seed : Int
+  panel : Panel
+  summary : Summary?
+  error : String
+  form : StepForm
+  stress : StressForm
+  dev : @dev.DevPanel
+  prefix : String
+} derive(Eq, @debug.Debug)
+pub fn[N] Storybook::of(Array[Book[N]], selected? : String, prefix? : String) -> Self
+
+pub(all) enum StorybookMsg {
+  SetFilter(String)
+  ToggleGroup(String)
+  Select(String)
+  Reroll
+  SetPanel(Panel)
+  Run(Op)
+  TogglePlay
+  Delayed(@tutuca.AskResult[Unit])
+  SetTarget(String)
+  SetMessage(String)
+  SetKey(String)
+  SetArgs(String)
+  GenerateArgs
+  Generated(@tutuca.AskResult[String])
+  SendIt
+  RandomStep
+  SetStressNumber(String, String)
+  SetStressFrom(String)
+  SetEvents(Bool)
+  StressIt
+  LoadCounterexample
+  Refresh
+  Got(@tutuca.AskResult[Summary])
+} derive(@debug.Debug)
+
+pub(all) struct StressForm {
+  runs : Int
+  steps : Int
+  seed : Int
+  from : StressFrom
+  events : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) enum StressFrom {
+  FromStory
+  FromCurrent
+  FromGenerated
+} derive(Eq, @debug.Debug)
+
+pub(all) struct StressResult {
+  status : String
+  runs : Int
+  done : Int
+  error : String
+  steps : Array[String]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Summary {
+  sequences : Array[String]
+  sequence : String
+  steps : Array[StepView]
+  timeline : Array[EntryView]
+  cursor : Int
+  problems : Array[String]
+  error : String
+  state : Json
+  tasks : Array[TaskView]
+  issues : Array[String]
+  lint : Array[@dev.LintRecord]
+  specs : Array[@dev.SpecInfo]
+  spec : @dev.SpecInfo
+  stress : StressResult?
+  targets : Array[TargetView]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct TargetView {
+  name : String
+  path : String
+  messages : Array[MessageView]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct TaskView {
+  kind : @tutuca.TaskKind
+  label : String
+  path : @tutuca.DispatchPath
+  trigger : String?
+} derive(Eq, @debug.Debug)
+pub impl ToJson for TaskView
+
+// Type aliases
+
+// Traits

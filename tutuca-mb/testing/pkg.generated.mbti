@@ -1,0 +1,102 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tutuca/testing"
+
+import {
+  "marianoguerra/tutuca",
+  "marianoguerra/tutuca/vdom/memdom",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/json",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/quickcheck/splitmix",
+}
+
+// Values
+pub fn[R, M] any_instance() -> Target[R, M]
+
+pub fn[S : @quickcheck.Arbitrary + ToJson, M : @quickcheck.Arbitrary + @debug.Debug] check_component(@tutuca.Component[S, M], state? : (@splitmix.RandomState, Int) -> S, shrink? : (S) -> Iter[S], scope? : @tutuca.Scope, count? : Int, seed? : UInt64) -> Unit raise
+
+pub fn check_property(String, (@splitmix.RandomState, Int) -> Unit raise, count? : Int, size? : Int, seed? : UInt64) -> Unit raise PropertyFailed
+
+pub fn[R, M, C, CM : @quickcheck.Arbitrary + @debug.Debug + ToJson + @json.FromJson] child_messages(@tutuca.Component[C, CM], @tutuca.Lens[R, C], keep? : (CM) -> Bool) -> Target[R, M]
+
+pub fn describe(@tutuca.Report) -> String
+
+pub fn[R, M] find_failure(@tutuca.Component[R, M], (@splitmix.RandomState, Int) -> R, Array[Target[R, M]], scope? : @tutuca.Scope, count? : Int, steps? : Int, seed? : UInt64, size? : Int, after_each? : (R, R, String) -> Unit raise?) -> Failure[R, M]?
+
+pub fn is_problem(@tutuca.Report) -> Bool
+
+pub fn[R, M, K, C, CM : @quickcheck.Arbitrary + @debug.Debug + ToJson + @json.FromJson] item_messages(@tutuca.Component[C, CM], @tutuca.Items[R, K, C], keep? : (CM) -> Bool) -> Target[R, M]
+
+pub fn[R, M, C, CM : @quickcheck.Arbitrary + @debug.Debug + ToJson + @json.FromJson] lens_messages(@tutuca.Component[C, CM], (R) -> Array[@tutuca.Lens[R, C]], keep? : (CM) -> Bool) -> Target[R, M]
+
+pub fn[R, M : @quickcheck.Arbitrary + @debug.Debug + ToJson + @json.FromJson] root_messages(keep? : (M) -> Bool) -> Target[R, M]
+
+pub fn[R, M] run_events(@tutuca.Component[R, M], () -> R, scope? : @tutuca.Scope, count? : Int, steps? : Int, seed? : UInt64) -> Unit raise PropertyFailed
+
+pub fn[R, M] run_messages(@tutuca.Component[R, M], () -> R, Array[Target[R, M]], scope? : @tutuca.Scope, count? : Int, steps? : Int, seed? : UInt64, after_each? : (R, R, String) -> Unit raise?) -> Unit raise PropertyFailed
+
+// Errors
+pub(all) suberror Broke {
+  Broke(String)
+}
+pub impl Show for Broke
+
+pub(all) suberror Discard {
+  Discard
+}
+
+pub suberror PropertyFailed {
+  PropertyFailed(String)
+}
+pub impl Show for PropertyFailed
+
+// Types and methods
+pub struct Driver[R, M] {
+  host : @tutuca.Host[@memdom.MemNode]
+  app : @tutuca.App[R, M]
+  root_node : @memdom.MemNode
+  reports : Array[@tutuca.Report]
+  // private fields
+}
+pub fn[R, M] Driver::click(Self[R, M], String, text? : String) -> Unit
+pub fn[R, M] Driver::dispatch(Self[R, M], @memdom.MemNode, String, value? : String, info? : @tutuca.EventInfo) -> Unit
+pub fn[R, M] Driver::drain(Self[R, M]) -> Unit
+pub fn[R, M] Driver::find(Self[R, M], String, text? : String) -> @memdom.MemNode?
+pub fn[R, M] Driver::find_all(Self[R, M], String) -> Array[@memdom.MemNode]
+pub fn[R, M] Driver::html(Self[R, M]) -> String
+pub fn[R, M] Driver::new(@tutuca.Component[R, M], R, scope? : @tutuca.Scope, view? : String, dev? : Bool) -> Self[R, M]
+pub fn[R, M] Driver::problems(Self[R, M]) -> Array[@tutuca.Report]
+pub fn[R, M] Driver::problems_since(Self[R, M], Int) -> Array[@tutuca.Report]
+pub fn[R, M] Driver::restart(Self[R, M], R) -> Self[R, M]
+pub fn[R, M] Driver::scope(Self[R, M]) -> @tutuca.Scope
+pub fn[R, M] Driver::send(Self[R, M], M) -> Unit
+pub fn[R, M, C, CM] Driver::send_to(Self[R, M], @tutuca.Component[C, CM], @tutuca.Lens[R, C], CM) -> Unit
+pub fn[R, M] Driver::state(Self[R, M]) -> R
+pub fn[R, M] Driver::text(Self[R, M]) -> String
+pub fn[R, M] Driver::type_into(Self[R, M], String, String, event? : String, nth? : Int) -> Unit
+
+pub struct Failure[R, M] {
+  start : R
+  steps : Array[Step[R, M]]
+  problem : String
+}
+pub fn[R, M] Failure::describe(Self[R, M]) -> String
+
+pub struct Step[R, M] {
+  label : String
+  send_app : (@tutuca.App[R, M]) -> Unit
+}
+
+pub struct Target[R, M] {
+  name : String
+  step : (R, @splitmix.RandomState, Int) -> Step[R, M]?
+  sample : (@splitmix.RandomState, Int) -> String
+  decode : (R, String, String) -> Step[R, M] raise
+  keys : (R) -> Array[String]
+  messages : Array[String]
+  app_step : ((@tutuca.App[R, M], @splitmix.RandomState, Int) -> Step[R, M]?)?
+}
+
+// Type aliases
+
+// Traits

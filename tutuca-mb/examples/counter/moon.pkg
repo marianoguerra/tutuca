@@ -1,0 +1,12 @@
+// The README counter.
+import {
+  "marianoguerra/tutuca",
+  "moonbitlang/core/quickcheck",
+  "moonbitlang/core/json",
+}
+
+import {
+  "marianoguerra/tutuca/testing",
+} for "test"
+
+warnings = "-79"
