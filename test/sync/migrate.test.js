@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { carry, specChanges } from "../../src/sync/index.js";
+import { produce } from "../../deps/immer.js";
+import {
+	applyStateOps,
+	carry,
+	project,
+	rebuild,
+	specChanges,
+	startSynced,
+	storageEngine,
+} from "../../src/sync/index.js";
 import { component, Scope, specOf, t, typeText } from "../../src/tutuca.js";
+import { setupHost } from "../helpers.js";
 
 // The same components before and after an edit: each version registered in its own scope.
 const scopeOf = (components) => {
@@ -148,4 +158,93 @@ test("typeText writes a type like the builder that made it", () => {
 	assert.equal(typeText(t.enum("a", "b").sync("local")), 'enum("a", "b").sync("local") = "a"');
 	assert.equal(typeText(t.option(t.array(t.component("Item")))), 'array(component("Item")) = []?');
 	assert.equal(typeText(t.record({ x: t.string() })), 'record(x: string = "")');
+});
+
+// --- state from another version: stored projections and peers' ops ---------------------------
+
+test("rebuild reports only the fields its level sees as added", () => {
+	const Note = component({
+		name: "Note",
+		fields: (t) => ({ text: t.string(), seen: t.boolean().sync("local"), tag: t.string("x") }),
+		view: "<b></b>",
+	});
+	const { added, reset, dropped } = rebuild({ $: "Note", text: "hi", gone: 1 }, scopeOf({ Note }), {
+		level: "shared",
+	});
+	assert.deepEqual({ added, reset, dropped }, { added: [["tag"]], reset: [], dropped: [["gone"]] });
+});
+
+test("startSynced reports what a projection stored by another version lost", async () => {
+	const reports = [];
+	const s = setupHost(
+		{ List: List(), Item: Item((t) => ({ label: t.string(), done: t.enum("open", "done") })) },
+		{
+			sync: true,
+			onReport: (type, info) => type === "stateMigrated" && reports.push(info),
+		},
+	);
+	const stored = { $: "List", title: "old", items: [{ $: "Item", label: "a", done: true, x: 1 }] };
+	const storage = new Map([["k", JSON.stringify(stored)]]);
+	const engine = storageEngine(
+		{ getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) },
+		"k",
+	);
+	await startSynced(s.host, { make: (C) => C.List(), engines: [engine] });
+	assert.equal(s.host.rootComponent.title, "old");
+	assert.equal(s.host.rootComponent.items[0].done, "open");
+	assert.deepEqual(reports, [
+		{
+			engine: null,
+			added: [],
+			reset: [{ path: ["items", 0, "done"], before: true, after: "open" }],
+			dropped: [["items", 0, "x"]],
+		},
+	]);
+});
+
+test("ops from a peer on another version are made to fit", () => {
+	const scope = scopeOf({ List: List(), Item: v1 });
+	const C = scope.components;
+	const root = C.List({ items: [C.Item({ label: "a" })] });
+	const ops = [
+		{ op: "set", path: ["items", 0, "priority"], value: 3 }, // a field this version lacks
+		{ op: "set", path: ["items", 0, "done"], value: "yes" }, // a value of another type
+		{ op: "insert", path: ["items"], index: 1, values: [{ $: "Item", label: "b", due: 1 }] },
+		{ op: "insert", path: ["items"], index: 2, values: [{ $: "Gone" }] }, // no such component
+		{ op: "set", path: ["title"], value: "kept" },
+	];
+	const reports = [];
+	const next = produce(root, (d) =>
+		applyStateOps(d, ops, scope, { onMigrate: (report) => reports.push(report) }),
+	);
+	assert.deepEqual(project(next, { level: "none" }), {
+		$: "List",
+		title: "kept",
+		items: [
+			{ $: "Item", label: "a", done: false },
+			{ $: "Item", label: "b", done: false },
+		],
+	});
+	assert.deepEqual(reports, [
+		{
+			added: [["items", 1, "done"]],
+			reset: [{ path: ["items", 0, "done"], before: "yes", after: false }],
+			dropped: [
+				["items", 0, "priority"],
+				["items", 1, "due"],
+				["items", 2],
+			],
+		},
+	]);
+});
+
+test("ops that fit change nothing in the report", () => {
+	const scope = scopeOf({ List: List(), Item: v1 });
+	const root = scope.components.List();
+	const onMigrate = () => assert.fail("nothing to report");
+	const ops = [
+		{ op: "insert", path: ["items"], index: 0, values: [{ $: "Item", label: "a", done: true }] },
+	];
+	const next = produce(root, (d) => applyStateOps(d, ops, scope, { onMigrate }));
+	assert.equal(next.items[0].done, true);
 });

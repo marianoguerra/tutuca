@@ -77,7 +77,9 @@ export const automergeEngine = ({ handle }) => {
 		if (writing || link === null) return;
 		const { scope } = link.host;
 		const ops = diff(patchInfo.before, patchInfo.after, { scope, leaf, plain: fromDoc });
-		if (ops.length > 0) link.apply((root) => applyStateOps(root, ops, scope), patchInfo);
+		if (ops.length === 0) return;
+		const onMigrate = (report) => link.host.notify("stateMigrated", { engine, ...report });
+		link.apply((root) => applyStateOps(root, ops, scope, { onMigrate }), patchInfo);
 	};
 	const write = (fn) => {
 		writing = true;
@@ -87,7 +89,7 @@ export const automergeEngine = ({ handle }) => {
 			writing = false;
 		}
 	};
-	return {
+	const engine = {
 		level: "shared",
 		handle,
 		load() {
@@ -114,6 +116,7 @@ export const automergeEngine = ({ handle }) => {
 			link = null;
 		},
 	};
+	return engine;
 };
 
 // A handle over a document without a repo: change it here, and merge(other) or

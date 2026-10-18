@@ -4,8 +4,8 @@
 import { ClassCompiler } from "../css/classes.js";
 import { lint } from "../lint/index.js";
 import { jsonText } from "../paths.js";
-import { carry, specChanges } from "../sync/carry.js";
 import { diff } from "../sync/diff.js";
+import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
 import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../test/driver.js";
 import { drivableMessages, messageCommand, resolveRefs } from "../test/pbt.js";

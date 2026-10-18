@@ -36,8 +36,9 @@ await startSynced(host, {
 });
 ```
 
-`startSynced` loads what each engine stored, hydrates it into components, starts the host with
-it (or with `make(C)` when nothing is stored) and attaches the engines.
+`startSynced` loads what each engine stored, rebuilds it into components (see
+[Other versions of the app](#other-versions-of-the-app)), starts the host with it (or with
+`make(C)` when nothing is stored) and attaches the engines.
 
 ### The projection
 
@@ -105,8 +106,9 @@ The diff is guided by the schemas:
 - Records and maps change key by key. A component whose spec changed is set whole.
 
 `applyOps(root, ops)` applies ops to a projection; `applyStateOps(draft, ops, scope)` applies
-them to a state draft, hydrating the components they bring. An op whose path isn't there throws
-`OpConflictError`. The playground's Steps tab lists each timeline entry's ops under Changes.
+them to a state draft, hydrating the components they bring and making each op fit this
+version's components (see [Other versions of the app](#other-versions-of-the-app)). An op whose
+path isn't there throws `OpConflictError`. The playground's Steps tab lists each timeline entry's ops under Changes.
 
 ## The world through ctx
 
@@ -188,8 +190,10 @@ An engine is an object:
 - `opsOf(change, level, host.scope)` gives a change's ops. It is computed once per change and
   level for every engine that asks.
 - To bring in a change from elsewhere, use
-  `link.apply((draft) => applyStateOps(draft, ops, link.host.scope))`. Apply it **when it
-  arrives**, not later: its ops are paths into the state as it is now.
+  `link.apply((draft) => applyStateOps(draft, ops, link.host.scope, { level, onMigrate }))`.
+  Apply it **when it arrives**, not later: its ops are paths into the state as it is now.
+  `onMigrate(report)` is called when ops from a peer on another version had to be changed to
+  fit; the included engines pass it on as `host.notify("stateMigrated", { engine, ...report })`.
 - A one-object engine that only persists, or only calls back:
   `{ level: "local", commit: (c) => save(project(c.next, { level: "local" })) }`.
 
@@ -233,29 +237,42 @@ An app that syncs must:
   `test/sync` properties (generated edits on two peers, then convergence) show how to check an
   app's sync.
 
-## Hot reload
+## Other versions of the app
 
-The playground re-runs edited code without losing the app's state. `carry(prev, scope)`
-(`tutuca/sync`) makes a state again with new versions of its components:
+Stored state, a peer's changes and the code before an edit can all come from another version of
+the components. `tutuca/sync` makes them fit this one with hydrate's rules: fields a component
+doesn't declare are dropped, values their type rejects take its default, and missing fields take
+theirs. Each use says what it changed, as `{ added, reset, dropped }`:
 
-1. `project(prev, { level: "none" })`. The projection holds refs, not specs, so it outlives the
-   module that made them.
-2. `hydrate` it through `scope`, the scope tree the new components are registered in.
-3. `diff` the projection before and after to tell what didn't come through.
+- `added`: paths of fields the data lacked, now at their default. Only fields the level sees
+  count: a "shared" projection lacking a "local" field isn't missing it.
+- `reset`: `{ path, before, after }` for values the type rejects, now at its default. A narrower
+  type keeps the values that still fit it: `number` → `number().int()` keeps integers.
+- `dropped`: paths of fields the components don't declare, and of values that can't be made.
 
-It returns `{ root, added, reset, dropped, broken }`:
+`rebuild(plain, scope, { level })` makes a projection into a state this way and returns
+`{ root, added, reset, dropped, broken }`, `broken` being what `findInvalidFields` finds in
+`root`, invariants included. It throws when a component the data holds is gone or a field has no
+default. `startSynced` and `remoteEngine`'s reload use it; when the stored data didn't fit as is,
+the host gets `stateMigrated` with the report (`engine` is `null` for `startSynced`).
 
-- `added` fields the old state lacked, now at their default.
-- `reset` values the new type rejects (`{ path, before, after }`), now at their default. A
-  narrower type keeps the values that still fit it: `number` → `number().int()` keeps integers.
-- `dropped` fields the components no longer declare.
-- `broken` what `findInvalidFields` finds in `root`, invariants included. The state is still
-  carried; post-conditions belong to messages and aren't checked, since a reload runs none.
+`applyStateOps` applies a peer's ops the same way, op by op (`applyFitting`): an op under a field
+this version doesn't declare is dropped (Automerge's diff already skips those fields, and they
+stay in the document for the peers that know them), a value is rebuilt and reset to its type's
+default when the type rejects it, and an op whose value can't be made, such as a component this
+version doesn't have, is dropped. Types are checked without their owner, since a later op of the
+same change can make an index valid; the dev checks see the result.
 
-It throws when a component the state holds is gone, when a new field has no default, and when a
-value can't be projected (a `Date` in a `t.any()`). The caller then starts fresh.
-`specChanges(prevScope, scope)` lists the fields that changed by ref, as `typeText`, to tell what
-a reload did; the values decide, not the types.
+### Hot reload
+
+The playground re-runs edited code without losing the app's state. `carry(prev, scope)` is
+`rebuild(project(prev, { level: "none" }), scope)`: the projection holds refs, not specs, so it
+outlives the module that made them, and `rebuild` makes it again with the new components. The
+state is carried with broken invariants; post-conditions belong to messages and aren't checked,
+since a reload runs none. `carry` also throws for a value a projection can't hold (a `Date` in a
+`t.any()`), and the playground then starts fresh. `specChanges(prevScope, scope)` lists the
+fields that changed by ref, as `typeText`, to tell what a reload did; the values decide, not the
+types.
 
 In the playground, Run (Ctrl/Cmd+Enter) carries each mounted story's state and its place in the
 sequence; Reset and loading an example start fresh. The timeline starts with a "hot reload" entry

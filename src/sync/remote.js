@@ -5,8 +5,9 @@
 // transport: { push(batch), subscribe(onMessage) → unsubscribe, load() → { version, value } | null }
 // batch:     { clientId, base, ops }, base being the version the ops were made against
 // messages:  { type: "batch", clientId, version, ops } | { type: "reject", clientId }
-import { hydrate, project } from "./codec.js";
-import { applyStateOps, opsOf } from "./index.js";
+import { project } from "./codec.js";
+import { applyStateOps, migrated, opsOf } from "./index.js";
+import { rebuild } from "./migrate.js";
 import { applyOps } from "./ops.js";
 
 const newId = () => globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
@@ -34,7 +35,10 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 		const loaded = await transport.load();
 		if (link === null || loaded === null) return;
 		acked = loaded.version;
-		link.apply(() => hydrate(loaded.value, link.host.scope), { reload: true });
+		const { root, added, reset, dropped } = rebuild(loaded.value, link.host.scope, { level });
+		link.apply(() => root, { reload: true });
+		const report = { added, reset, dropped };
+		if (migrated(report)) link.host.notify("stateMigrated", { engine, ...report });
 	};
 	const resync = () => {
 		reload().catch((error) => link?.host.notify("syncFailed", { error }));
@@ -54,9 +58,10 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 		if (message.version !== acked + 1) return resync();
 		acked = message.version;
 		const { scope } = link.host;
-		link.apply((root) => applyStateOps(root, message.ops, scope), message);
+		const onMigrate = (report) => link.host.notify("stateMigrated", { engine, ...report });
+		link.apply((root) => applyStateOps(root, message.ops, scope, { level, onMigrate }), message);
 	};
-	return {
+	const engine = {
 		level,
 		clientId,
 		async load() {
@@ -83,6 +88,7 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 			link = null;
 		},
 	};
+	return engine;
 };
 
 // The remote's side: keeps the projection and its version, applies the batches made against
