@@ -119,6 +119,7 @@ export const definePlayground = (
 		current = null;
 		linked = null;
 		registry = null;
+		fresh = true; // The next run starts its stories fresh instead of carrying their state.
 		runs = 0;
 		collapsed = false;
 
@@ -246,8 +247,9 @@ export const definePlayground = (
 			await this.reset();
 		}
 
-		// Back to the files as loaded, then runs them.
+		// Back to the files as loaded, then runs them with fresh state.
 		reset() {
+			this.fresh = true;
 			this.states = new Map(
 				this.files.map((file) => [
 					file.url,
@@ -324,6 +326,8 @@ export const definePlayground = (
 				const known = classNamesOf(specs);
 				const css = await compile(known);
 				this.runs += 1;
+				// Unless reset, each mounted story carries its state over to the new components.
+				const carried = this.fresh ? new Map() : (this.registry?.carriable() ?? new Map());
 				this.registry = new StoryRegistry({
 					fc,
 					books,
@@ -331,7 +335,9 @@ export const definePlayground = (
 					compile,
 					known,
 					prefix: `r${this.runs}/`,
+					carried,
 				});
+				this.fresh = false;
 				this.linked?.revoke();
 				this.linked = linked;
 				const stories = storyChoices(books);

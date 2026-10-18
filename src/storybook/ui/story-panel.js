@@ -22,7 +22,7 @@ export const stepFields = (t) => ({
 });
 export const entryFields = (t) => ({
 	label: t.string(),
-	origin: t.enum("initial", "step", "user"),
+	origin: t.enum("initial", "reload", "step", "user"),
 	problemCount: t.number().int().min(0),
 	isCurrent: t.boolean(),
 });
@@ -36,6 +36,7 @@ export const SUMMARY_KEYS = [
 	"error",
 	"stateJson",
 	"changes",
+	"reload",
 	"targets",
 ];
 // Keeps the step form's choices among the current targets and their messages.
@@ -61,6 +62,7 @@ export const StoryPanel = component({
 		error: t.string(),
 		stateJson: t.string(),
 		changes: t.array(t.string()),
+		reload: t.array(t.string()),
 		targets: t.array(
 			t.record({
 				label: t.string(),
@@ -82,6 +84,9 @@ export const StoryPanel = component({
 		},
 		get hasChanges() {
 			return this.changes.length > 0;
+		},
+		get hasReload() {
+			return this.reload.length > 0;
 		},
 		get hasProblems() {
 			return this.problems.length > 0;
@@ -287,6 +292,18 @@ export const StoryPanel = component({
 						),
 						span({ class: "text-xs opacity-60" }, "No changes since the previous entry"),
 					),
+				),
+				$if(
+					field("hasReload"),
+					section(
+						{ class: card },
+						h3({ class: title }, "Hot reload"),
+						ul(
+							{ class: "space-y-1 font-mono text-xs" },
+							each(field("reload"), li({ class: "break-all" }, lookupBind("value"))),
+						),
+					),
+					"",
 				),
 				section(
 					{ class: card },

@@ -3,6 +3,7 @@
 
 import { ClassCompiler } from "../dev/classes.js";
 import { lint } from "../lint/index.js";
+import { carry, specChanges } from "../sync/carry.js";
 import { diff } from "../sync/diff.js";
 import { opText } from "../sync/ops.js";
 import {
@@ -39,8 +40,9 @@ export const STRESS_IDLE = { status: "idle", done: 0, total: 0, error: "", comma
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
 // states, one entry per step and per user interaction, to go back and forth through.
 export class StoryRunner {
-	constructor(story, { fc, seed = 0, css = "", links = [], classes = null }) {
-		Object.assign(this, { story, fc, seed, css, links, classes });
+	constructor(story, { fc, seed = 0, css = "", links = [], classes = null, carried = null }) {
+		Object.assign(this, { story, fc, seed, css, links, classes, carried });
+		this.reload = []; // What carrying the last run's state did, when there was one.
 		this.detail = null;
 		this.driver = null;
 		this.busy = false; // Reports during our own steps are recorded by the step.
@@ -55,19 +57,28 @@ export class StoryRunner {
 		for (const href of this.links) detail.adoptLink(href);
 		if (this.css !== "") detail.adoptCss(this.css);
 		this.classes?.watch(detail.rootNode, detail.adoptCss(""));
-		const { A, root, scope } = prepareStory(this.story, { fc: this.fc, seed: this.seed });
+		const prepared = prepareStory(this.story, { fc: this.fc, seed: this.seed });
+		const { A, scope } = prepared;
 		this.A = A;
 		this.scope = scope;
 		const specs = scope.allSpecs();
 		this.specs = Object.values(specs);
 		this.issues = lint(this.specs, Object.keys(specs));
+		const { root, lost } = this.carryOver(prepared.root);
 		const { document, rootNode } = detail;
 		const onReport = (report) => this.onReport(report);
 		this.driver = new Driver({ root, document, rootNode, live: true, onReport });
 		const [first = ""] = Object.keys(this.story.sequences);
-		this.sequence = first;
-		this.steps = this.story.sequences[first] ?? [];
-		this.begin(root, describeProblems(this.driver.problems));
+		const sequence = this.carried?.sequence;
+		this.sequence = Object.hasOwn(this.story.sequences, sequence ?? "") ? sequence : first;
+		this.steps = this.story.sequences[this.sequence] ?? [];
+		const problems = [...lost, ...describeProblems(this.driver.problems)];
+		if (this.carried === null) this.begin(root, problems);
+		else {
+			const nextStep = this.sequence === sequence ? this.carried.nextStep : 0;
+			this.begin(root, problems, { label: "hot reload", origin: "reload", nextStep });
+		}
+		this.carried = null;
 		detail.mount(this);
 	}
 	dispose() {
@@ -89,18 +100,45 @@ export class StoryRunner {
 			this.busy = false;
 		}
 	}
+	// The last run's state made again with this run's components, else made: { root, lost }, lost
+	// the problem lines for what didn't carry. The Host reports the invariants root breaks.
+	carryOver(made) {
+		if (this.carried === null) return { root: made, lost: [] };
+		const { state, scope } = this.carried;
+		const pathText = (path) => `/${path.join("/")}`;
+		this.reload = specChanges(scope, this.scope).map(({ ref, field, change, before, after }) => {
+			if (field === null) return `${ref} ${change}`;
+			if (change === "changed") return `${ref}.${field} changed: ${before} → ${after}`;
+			return `${ref}.${field} ${change}: ${before ?? after}`;
+		});
+		try {
+			const { root, added, reset, dropped } = carry(state, this.scope);
+			this.reload.push(
+				...added.map((path) => `${pathText(path)} added, at its default`),
+				...dropped.map((path) => `${pathText(path)} dropped`),
+			);
+			const lost = reset.map(
+				({ path, before, after }) =>
+					`${pathText(path)} reset: ${JSON.stringify(before)} → ${JSON.stringify(after)}`,
+			);
+			return { root, lost };
+		} catch (error) {
+			this.carried = null;
+			return { root: made, lost: [`state not carried, started fresh: ${error.message}`] };
+		}
+	}
 	// A new timeline from root.
-	begin(root, problems = null) {
+	begin(root, problems = null, { label = "initial", origin = "initial", nextStep = 0 } = {}) {
 		const before = this.driver.reports.length;
 		if (problems === null) this.act(() => this.driver.restart(root));
 		const initial = problems ?? describeProblems(this.driver.problemsSince(before));
 		this.timeline = [
 			{
-				label: "initial",
-				origin: "initial",
+				label,
+				origin,
 				state: root,
 				problems: initial,
-				nextStep: 0,
+				nextStep,
 				tasks: [],
 			},
 		];
@@ -352,6 +390,7 @@ export class StoryRunner {
 			error: current.status === "ok" ? "" : (current.error ?? ""),
 			stateJson: JSON.stringify(snapshot(current.state), null, 2) ?? "",
 			changes: this.changes(),
+			reload: this.reload,
 			// Live values for the dev panel, which keeps refs to them, not the values.
 			dev: {
 				state: current.state,
@@ -376,8 +415,17 @@ export class StoryRunner {
 // The live runners by app key, `${prefix}${storyId}@${seed}`; answers <tutuca-app> requests.
 // A new prefix gives the same stories new keys, so their apps mount again.
 export class StoryRegistry {
-	constructor({ fc, books, css = "", links = [], compile = null, known = [], prefix = "" }) {
-		Object.assign(this, { fc, css, links, prefix });
+	constructor({
+		fc,
+		books,
+		css = "",
+		links = [],
+		compile = null,
+		known = [],
+		prefix = "",
+		carried = new Map(),
+	}) {
+		Object.assign(this, { fc, css, links, prefix, carried });
 		this.classes = compile === null ? null : new ClassCompiler(compile, known);
 		this.stories = new Map(books.flatMap((book) => book.stories.map((s) => [s.id, s])));
 		this.runners = new Map();
@@ -390,7 +438,9 @@ export class StoryRegistry {
 		if (story === undefined) return;
 		const seed = at < 0 ? 0 : Number(key.slice(at + 1)) || 0;
 		const { fc, css, links, classes } = this;
-		const runner = new StoryRunner(story, { fc, seed, css, links, classes });
+		const carried = this.carried.get(story.id) ?? null;
+		this.carried.delete(story.id); // Once: mounting the story again starts it fresh.
+		const runner = new StoryRunner(story, { fc, seed, css, links, classes, carried });
 		const { dispose } = runner;
 		runner.dispose = () => {
 			this.runners.delete(detail.key);
@@ -398,6 +448,15 @@ export class StoryRegistry {
 		};
 		runner.mount(detail);
 		this.runners.set(detail.key, runner);
+	}
+	// The state each mounted story is at, by story id, for the next registry to carry over.
+	carriable() {
+		const carried = new Map();
+		for (const runner of this.runners.values()) {
+			const { story, current, scope, sequence, nextStep } = runner;
+			carried.set(story.id, { state: current.state, scope, sequence, nextStep });
+		}
+		return carried;
 	}
 	call(key, op, args) {
 		const runner = this.runners.get(key);

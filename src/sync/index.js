@@ -8,6 +8,7 @@ import { hydrate, overlay, project, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyOps } from "./ops.js";
 
+export { carry, specChanges, typeText } from "./carry.js";
 export { componentOf, hydrate, isRef, overlay, project, typeAt } from "./codec.js";
 export { diff, textSplice } from "./diff.js";
 export { applyOps, OpConflictError, opText } from "./ops.js";

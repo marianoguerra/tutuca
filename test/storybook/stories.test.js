@@ -246,3 +246,57 @@ test("classes stories compute at render compile into their shadow roots", async 
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	assert.match(style.textContent, /\.decoration-dashed\{\}/);
 });
+
+test("a new registry carries each mounted story's state over to the new components", async () => {
+	const { window } = new JSDOM("<body></body>");
+	defineTutucaApp(window);
+	let registry = new StoryRegistry({ fc, books: [counterBook], prefix: "r1/" });
+	const { body } = window.document;
+	body.addEventListener(REQUEST, (e) => registry.mount(e.detail));
+	const reports = [];
+	body.addEventListener(REPORT, (e) => reports.push(e.detail));
+	const element = window.document.createElement("tutuca-app");
+	element.setAttribute("app-key", `r1/${counterStory.id}@0`);
+	body.append(element);
+	element.controller.forward();
+	assert.equal(element.controller.driver.state.count, 1);
+	// The next version: a new field, and an invariant the carried count breaks.
+	const Counter2 = component({
+		name: "Counter",
+		fields: (t) => ({ count: t.number(), label: t.string("clicks") }),
+		view: h("button", {}, field("label")),
+		invariants: {
+			belowOne() {
+				return this.count < 1;
+			},
+		},
+	});
+	const book2 = stories({
+		title: "Bugs",
+		components: { Counter: Counter2 },
+		stories: { Counter: { make: (C) => C.Counter(), sequences: counterStory.sequences } },
+	});
+	const carried = registry.carriable();
+	registry = new StoryRegistry({ fc, books: [book2], prefix: "r2/", carried });
+	element.setAttribute("app-key", `r2/${counterStory.id}@0`);
+	const runner = element.controller;
+	assert.equal(runner.driver.state.count, 1);
+	assert.equal(runner.driver.state.label, "clicks");
+	await Promise.resolve();
+	const summary = reports.findLast((r) => r.type === "state").data;
+	assert.deepEqual(summary.timeline[0], {
+		label: "hot reload",
+		origin: "reload",
+		problemCount: 1,
+		isCurrent: true,
+	});
+	assert.deepEqual(summary.reload, [
+		'Counter.label added: string = "clicks"',
+		"/label added, at its default",
+	]);
+	assert.deepEqual(summary.problems, ["stateInvalid: Counter  invariant:belowOne"]);
+	assert.equal(runner.nextStep, 1); // Where the sequence was.
+	// Mounting the story again starts it fresh.
+	element.setAttribute("app-key", `r2/${counterStory.id}@1`);
+	assert.equal(element.controller.driver.state.count, 0);
+});

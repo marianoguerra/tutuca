@@ -233,6 +233,36 @@ An app that syncs must:
   `test/sync` properties (generated edits on two peers, then convergence) show how to check an
   app's sync.
 
+## Hot reload
+
+The playground re-runs edited code without losing the app's state. `carry(prev, scope)`
+(`tutuca/sync`) makes a state again with new versions of its components:
+
+1. `project(prev, { level: "none" })`. The projection holds refs, not specs, so it outlives the
+   module that made them.
+2. `hydrate` it through `scope`, the scope tree the new components are registered in.
+3. `diff` the projection before and after to tell what didn't come through.
+
+It returns `{ root, added, reset, dropped, broken }`:
+
+- `added` fields the old state lacked, now at their default.
+- `reset` values the new type rejects (`{ path, before, after }`), now at their default. A
+  narrower type keeps the values that still fit it: `number` → `number().int()` keeps integers.
+- `dropped` fields the components no longer declare.
+- `broken` what `findInvalidFields` finds in `root`, invariants included. The state is still
+  carried; post-conditions belong to messages and aren't checked, since a reload runs none.
+
+It throws when a component the state holds is gone, when a new field has no default, and when a
+value can't be projected (a `Date` in a `t.any()`). The caller then starts fresh.
+`specChanges(prevScope, scope)` lists the fields that changed by ref, as `typeText`, to tell what
+a reload did; the values decide, not the types.
+
+In the playground, Run (Ctrl/Cmd+Enter) carries each mounted story's state and its place in the
+sequence; Reset and loading an example start fresh. The timeline starts with a "hot reload" entry
+whose problems are the reset values and broken invariants; the Steps tab's "Hot reload" card
+lists the spec changes, added and dropped fields. Tasks in flight are dropped and the old
+timeline isn't replayed.
+
 ## Limits
 
 - **Concurrency depends on the engine.** `remoteEngine` keeps the first of two concurrent
