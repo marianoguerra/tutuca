@@ -88,12 +88,19 @@ body.demo-fullscreen {
 	height: 100%;
 	min-height: 0;
 }
-/* The sync demos' log of the ops each change sent or received. */
+/* The sync demos' log of the ops each change sent or received: it scrolls in its own strip. */
 .sync-log {
 	max-width: 36rem;
+	max-height: 25vh;
+	overflow-y: auto;
 	margin: 0 auto 2rem;
 	padding: 0 1.5rem;
 	font-size: 0.8rem;
+}
+/* Under a fullscreen app it keeps its height, or the app would shrink instead. */
+.demo-fullscreen .sync-log {
+	flex: none;
+	margin-bottom: 0;
 }
 .sync-log h2 {
 	font-size: 0.9rem;

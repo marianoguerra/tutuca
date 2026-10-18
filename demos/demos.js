@@ -1,3 +1,5 @@
+import { SYNC_MODES } from "./sync/engines.js";
+
 // The demos, in the order the demo index and the site's landing page list them. dir is the
 // demo's folder here and the component folders its source is in; story opens in the storybook.
 export const demos = [
@@ -59,15 +61,10 @@ const DEMO_SOURCE = "https://github.com/marianoguerra/tutuca/tree/main/demos/";
 const storyHref = (story) =>
 	`./storybook.html#${story.split("/").map(encodeURIComponent).join("/")}`;
 // Links to a demo with each sync engine (see sync/engines.js), from its folder's parent.
-const SYNC_LINKS = [
-	["local", "this browser"],
-	["worker", "worker"],
-	["automerge", "Automerge"],
-];
 const syncLinks = (href) =>
-	SYNC_LINKS.map(([mode, label]) => `<a href="${href}?sync=${mode}">${label}</a>`).join(
-		' <span aria-hidden="true">·</span> ',
-	);
+	Object.entries(SYNC_MODES)
+		.map(([mode, label]) => `<a href="${href}?sync=${mode}">${label}</a>`)
+		.join(' <span aria-hidden="true">·</span> ');
 
 // The demo list of the site's landing page, from its root.
 export const siteList = () =>
