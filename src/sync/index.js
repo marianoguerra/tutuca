@@ -1,8 +1,11 @@
 // Sync engines: a host tells each one about the changes it commits (host.attachSync) and an
 // engine applies changes from elsewhere through the link it's attached with. An engine is
-//   { level: "shared" | "local", load?(), attach?(link), commit(change), detach?() }
-// where level picks the fields it sees, load returns its stored projection to start from, and
-// change is { prev, next, task }. opsOf gives a change's ops, project its projection.
+//   { level: "shared" | "local", load?(), attach?(link), prepare?(change), commit(change, prepared),
+//     detach?() }
+// where level picks the fields it sees, load returns its stored projection to start from,
+// change is { prev, next, task }, prepare does the work that can fail on the change itself (a
+// throw fails the task before any engine wrote it) and commit writes what prepare returned.
+// opsOf gives a change's ops, project its projection.
 
 import { overlay, project } from "./codec.js";
 import { diff } from "./diff.js";
@@ -10,8 +13,8 @@ import { applyFitting, rebuild } from "./migrate.js";
 
 export { componentOf, hydrate, isRef, overlay, project, typeAt } from "./codec.js";
 export { diff, textSplice } from "./diff.js";
-export { applyFitting, carry, rebuild, specChanges } from "./migrate.js";
-export { applyOps, OpConflictError, opText } from "./ops.js";
+export { applyFitting, carry, rebuild, specChanges, writeFitting } from "./migrate.js";
+export { applyOps, OpConflictError, opFits, opText } from "./ops.js";
 
 const memo = new WeakMap(); // change → level → ops
 // The ops of a committed change at level, computed once for all the engines that ask.
@@ -30,6 +33,21 @@ export const applyStateOps = (root, ops, scope, { level = "shared", onMigrate = 
 	if (onMigrate !== null && migrated(report)) onMigrate(report);
 	return root;
 };
+// Brings the fields level sees to what plain, an engine's whole copy of the state, means to
+// this version of the components (rebuild), through link and as ops, so the fields other levels
+// see stay as they are: a reload, a resync. onMigrate(report) gets what didn't fit as is.
+export const applyProjection = (
+	link,
+	plain,
+	{ level = "shared", onMigrate = null, info = null },
+) => {
+	const { scope } = link.host;
+	const { root, added, reset, dropped } = rebuild(plain, scope, { level });
+	const ops = diff(link.root(), root, { scope, level });
+	if (ops.length > 0) link.apply((draft) => applyStateOps(draft, ops, scope, { level }), info);
+	const report = { added, reset, dropped };
+	if (onMigrate !== null && migrated(report)) onMigrate(report);
+};
 // Whether a migration report changed anything.
 export const migrated = ({ added, reset, dropped }) =>
 	added.length + reset.length + dropped.length > 0;
@@ -42,7 +60,8 @@ export const startSynced = async (host, { engines, make }) => {
 	);
 	const stored = await Promise.all(byLevel.map((e) => e.load?.() ?? null));
 	const plain = stored.reduce(
-		(acc, p) => (p === null ? acc : acc === null ? p : overlay(acc, p)),
+		(acc, p, i) =>
+			p === null ? acc : acc === null ? p : overlay(acc, p, host.scope, byLevel[i].level),
 		null,
 	);
 	if (plain === null) host.start(make(host.scope.components));
@@ -71,7 +90,8 @@ export const storageEngine = (storage, key) => ({
 			return null;
 		}
 	},
-	commit(change) {
-		storage.setItem(key, JSON.stringify(project(change.next, { level: "local" })));
+	prepare: (change) => JSON.stringify(project(change.next, { level: "local" })),
+	commit(_change, json) {
+		storage.setItem(key, json);
 	},
 });

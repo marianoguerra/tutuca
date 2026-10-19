@@ -6,6 +6,7 @@ import {
 	isComponent,
 	isRecord,
 	MapType,
+	NoDefaultError,
 	OptionType,
 	RecordType,
 	scopeOf,
@@ -13,6 +14,7 @@ import {
 	syncsAt,
 	UnionType,
 } from "../schema.js";
+import { setOwn } from "./ops.js";
 
 const ANY = new AnyType(null);
 // The value at path in a plain value, undefined where it isn't there.
@@ -114,47 +116,78 @@ export const project = (value, { level = "shared", type = ANY, leaf = null } = {
 						? t.shape[key]
 						: ANY;
 		if (child === undefined || !syncsAt(child, level)) continue;
-		out[key] = project(value[key], { level, type: child, leaf }, [...path, key]);
+		setOwn(out, key, project(value[key], { level, type: child, leaf }, [...path, key]));
 	}
 	return out;
 };
 
+// value made to fit type where a container holds it, as applyFitting fits an op's value: one
+// the type rejects takes its default; one without a default is left for its container's type.
+const fitIn = (type, value, scope) => {
+	if (type === ANY) return value;
+	try {
+		return type.make(value, scope, undefined);
+	} catch (error) {
+		if (error instanceof NoDefaultError) return value;
+		throw error;
+	}
+};
 // The state plain projects: components made through their scopes with their fields, so the
-// fields the projection lacks take their defaults. scope is any scope of the tree.
+// fields the projection lacks take their defaults, and the values their types reject inside
+// arrays, maps and records take theirs. scope is any scope of the tree.
 export const hydrate = (plain, scope, type = ANY) => {
 	const rootScope = rootOf(scope);
-	const build = (v, t) => {
+	const build = (v, t, s) => {
 		if (v === null || typeof v !== "object") return v;
 		if (Array.isArray(v)) {
 			const n = narrow(t, v);
-			return v.map((item) => build(item, n instanceof ArrayType ? n.valueType : ANY));
+			const itemType = n instanceof ArrayType ? n.valueType : ANY;
+			return v.map((item) => fitIn(itemType, build(item, itemType, s), s));
 		}
 		const component = componentOf(v, rootScope, t);
 		if (component !== null) {
-			const { spec, scope: s } = component;
+			const { spec, scope: own } = component;
 			const args = {};
 			for (const key in spec.fields) {
-				if (Object.hasOwn(v, key)) args[key] = build(v[key], spec.fields[key]);
+				if (Object.hasOwn(v, key)) args[key] = build(v[key], spec.fields[key], own);
 			}
-			return spec.make(args, s);
+			return spec.make(args, own);
 		}
 		const out = {};
-		for (const key of Object.keys(v))
-			out[key] = build(v[key], keyType(t, v, key, "none", rootScope));
+		for (const key of Object.keys(v)) {
+			const child = keyType(t, v, key, "none", rootScope) ?? ANY;
+			setOwn(out, key, fitIn(child, build(v[key], child, s), s));
+		}
 		return out;
 	};
-	return build(plain, type);
+	return build(plain, type, scope);
 };
 
-// base with over's data on top: over wins, except inside the same component, where the fields
-// over lacks (another level's) come from base.
-export const overlay = (base, over) => {
-	if (!isRef(base) || refOf(base) !== refOf(over)) return over;
-	const out = { ...base };
-	for (const key of Object.keys(over)) {
-		out[key] = Object.hasOwn(base, key) ? overlay(base[key], over[key]) : over[key];
-	}
-	return out;
+// base, a projection at another level, with over's data on top: over, at level, wins, but the
+// fields level doesn't see (another level's) come from base, inside the same components, records
+// and maps. An array keeps base's items under over's only when both hold the same refs at the
+// same places; otherwise base's fields there are lost and take their defaults.
+export const overlay = (base, over, scope, level = "shared") => {
+	const rootScope = rootOf(scope);
+	const merge = (b, o, type) => {
+		if (Array.isArray(b) && Array.isArray(o)) {
+			if (b.length !== o.length || b.some((item, i) => refOf(item) !== refOf(o[i]))) return o;
+			return o.map((item, i) => merge(b[i], item, keyType(type, o, i, "none", rootScope)));
+		}
+		if (!isRecord(b) || !isRecord(o) || refOf(b) !== refOf(o)) return o;
+		const out = {};
+		for (const key of Object.keys(o)) {
+			const t = keyType(type, o, key, "none", rootScope);
+			setOwn(out, key, Object.hasOwn(b, key) && t !== null ? merge(b[key], o[key], t) : o[key]);
+		}
+		for (const key of Object.keys(b)) {
+			if (Object.hasOwn(o, key)) continue;
+			const t = keyType(type, b, key, "none", rootScope);
+			if (t !== null && !syncsAt(t, level)) setOwn(out, key, b[key]);
+		}
+		return out;
+	};
+	return merge(base, over, ANY);
 };
 
 // The type and scope at path in root, a state or a projection, walking through components.

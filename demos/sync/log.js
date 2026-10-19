@@ -9,12 +9,12 @@ export const logEngine = (list, { level = "shared", max = 40 } = {}) => {
 		attach(l) {
 			link = l;
 		},
-		commit(change) {
-			const ops = opsOf(change, level, link.host.scope);
-			if (ops.length === 0) return;
+		prepare: (change) => opsOf(change, level, link.host.scope).map(opText),
+		commit(change, lines) {
+			if (lines.length === 0) return;
 			const item = list.ownerDocument.createElement("li");
 			item.className = change.task === null ? "received" : "sent";
-			item.textContent = `${change.task === null ? "⬇ received" : "⬆ sent"}: ${ops.map(opText).join("; ")}`;
+			item.textContent = `${change.task === null ? "⬇ received" : "⬆ sent"}: ${lines.join("; ")}`;
 			list.prepend(item);
 			while (list.children.length > max) list.lastChild.remove();
 		},

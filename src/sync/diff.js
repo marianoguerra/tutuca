@@ -83,8 +83,13 @@ const editRuns = (prev, next) => {
 
 // diff options: level, the fields it sees; scope, any scope of the tree (to resolve refs in a
 // projection); plain(value, type), the plain data of a value from next for set and insert ops;
-// leaf(value), a projection's stored leaf as a JS value (an engine's wrapped strings).
-export const diff = (prev, next, { level = "shared", scope, plain = null, leaf = (v) => v }) => {
+// leaf(value), a projection's stored leaf as a JS value (an engine's wrapped strings);
+// isText(value), whether a string of prev can take text splices (an engine's text type).
+export const diff = (
+	prev,
+	next,
+	{ level = "shared", scope, plain = null, leaf = (v) => v, isText = () => true },
+) => {
 	const rootScope = rootOf(scope);
 	const toPlain = plain ?? ((value, type) => project(value, { level, type }));
 	const ops = [];
@@ -95,7 +100,7 @@ export const diff = (prev, next, { level = "shared", scope, plain = null, leaf =
 		const lb = leaf(b);
 		if (la === lb) return;
 		if (typeof la === "string" && typeof lb === "string") {
-			if (!(narrow(type, lb) instanceof StringType)) return set(path, b, type);
+			if (!(narrow(type, lb) instanceof StringType) || !isText(a)) return set(path, b, type);
 			return ops.push({ op: "text", path, ...textSplice(la, lb) });
 		}
 		if (Array.isArray(a) && Array.isArray(b)) return walkArray(a, b, type, path);

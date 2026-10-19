@@ -13,7 +13,7 @@ import {
 } from "../schema.js";
 import { componentOf, getIn, hydrate, keyType, project, rootOf, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
-import { applyOps } from "./ops.js";
+import { applyOps, opFits } from "./ops.js";
 
 // The state plain (a projection at level) makes through scope's components, and what didn't
 // come through: { root, added: [path], reset: [{ path, before, after }], dropped: [path],
@@ -115,6 +115,41 @@ export const applyFitting = (root, op, scope, report, { level = "shared" } = {})
 		report.dropped.push(error.path);
 		return root;
 	}
+};
+
+// Writes ops, the diff of a change at level, into copy, an engine's copy of the state before it,
+// made to fit copy: the copy can differ from the state where the state was made to fit this
+// version of the components (a field it added, a value it reset). Up to the first op that
+// doesn't fit (opFits), the ops go as they are; from there, the diff from copy, as they left
+// it, to next, the state after the change. write(copy, op) writes one op and returns the copy;
+// leaf and isText read copy's values, as diff's do. Returns { copy, ops }, ops being what it
+// wrote.
+export const writeFitting = (
+	copy,
+	ops,
+	next,
+	{
+		scope,
+		level = "shared",
+		leaf = undefined,
+		isText = undefined,
+		write = (c, op) => applyOps(c, [op]),
+	},
+) => {
+	const written = [];
+	const put = (op) => {
+		copy = write(copy, op);
+		written.push(op);
+	};
+	for (const op of ops) {
+		if (opFits(copy, op, { isText }) === null) {
+			put(op);
+			continue;
+		}
+		for (const fit of diff(copy, next, { scope, level, leaf, isText })) put(fit);
+		break;
+	}
+	return { copy, ops: written };
 };
 
 // What changed between the components two scope trees register, by ref: for telling what a

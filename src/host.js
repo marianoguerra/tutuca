@@ -33,6 +33,8 @@ export class Host {
 		this._handlingTasks = false;
 		this._eventsAdded = new Set();
 		this.engines = []; // Sync engines: told about each change, and can apply their own.
+		this._committing = false; // Engines are writing a change: applies wait in _deferred.
+		this._deferred = [];
 	}
 	start(rootComponent) {
 		this.rootComponent = rootComponent;
@@ -108,8 +110,10 @@ export class Host {
 		this.detachSync();
 		this.rootComponent = null;
 	}
-	// Engines see every committed change through commit({ prev, next, task }) and apply changes
-	// from elsewhere through the link attach gets. A throwing commit fails the task.
+	// Engines see every committed change through prepare(change) and commit(change, prepared),
+	// change being { prev, next, task }, and apply changes from elsewhere through the link attach
+	// gets. A throwing prepare fails the task, before any engine wrote the change; a throwing
+	// commit is reported as syncFailed and the change stands.
 	attachSync(...engines) {
 		for (const engine of engines) {
 			this.engines.push(engine);
@@ -123,20 +127,54 @@ export class Host {
 	detachSync() {
 		for (const engine of this.engines.splice(0)) engine.detach?.();
 	}
-	commitEngines(prev, next, task, source = null) {
-		if (prev === next) return;
+	// Prepares the change from prev to next with every engine but source, and returns the
+	// function that commits it, to call once next is the root. A prepare that throws fails a
+	// task's change; a change from elsewhere happened already, so that engine skips it instead.
+	prepareEngines(prev, next, task, source = null) {
+		if (prev === next) return () => {};
 		const change = { prev, next, task };
-		for (const engine of this.engines) if (engine !== source) engine.commit(change);
+		const prepared = [];
+		for (const engine of this.engines) {
+			if (engine === source) continue;
+			try {
+				prepared.push([engine, engine.prepare?.(change)]);
+			} catch (error) {
+				if (task !== null) throw error;
+				this.notify("syncFailed", { engine, error });
+			}
+		}
+		return () => {
+			this._committing = true;
+			try {
+				for (const [engine, p] of prepared) {
+					try {
+						engine.commit(change, p);
+					} catch (error) {
+						this.notify("syncFailed", { engine, error });
+					}
+				}
+			} finally {
+				this._committing = false;
+			}
+			// An engine applied a change while the others still hadn't seen this one: now they have.
+			while (this._deferred.length > 0) this._deferred.shift()();
+		};
 	}
 	// Applies a change made elsewhere (by source, an engine) as a producer on the root, at once,
-	// so it applies to the state it was made against. Renders unless a task run will.
+	// so it applies to the state it was made against. Renders unless a task run will. During
+	// the engines' commit it waits for them to finish, so every engine sees changes in order.
 	applyExternal(producer, source = null, info = null) {
+		if (this._committing) {
+			this._deferred.push(() => this.applyExternal(producer, source, info));
+			return;
+		}
 		const curRoot = this.rootComponent;
 		if (curRoot === null) return;
 		const newRoot = produce(curRoot, producer);
 		if (newRoot === curRoot) return;
-		this.commitEngines(curRoot, newRoot, null, source);
+		const commit = this.prepareEngines(curRoot, newRoot, null, source);
 		this.rootComponent = newRoot;
+		commit();
 		this.checkState(null, curRoot);
 		this.notify("externalApplied", { source, info, curRoot, newRoot });
 		if (this._handlingTasks) return;
@@ -191,6 +229,7 @@ export class Host {
 		};
 		let newRoot;
 		let ctx;
+		let commit;
 		try {
 			newRoot = produce(curRoot, (rootDraft) => {
 				const leafDraft = path.getIn(rootDraft);
@@ -199,7 +238,7 @@ export class Host {
 				return path.setIn(rootDraft, newLeaf);
 			});
 			for (const child of children) this.prepareTask(child, newRoot);
-			this.commitEngines(curRoot, newRoot, task);
+			commit = this.prepareEngines(curRoot, newRoot, task);
 		} catch (error) {
 			status = "failed";
 			// pushTask can outlive the transaction in an async ask's ctx: drop what it staged.
@@ -207,6 +246,7 @@ export class Host {
 			throw error;
 		}
 		this.rootComponent = newRoot;
+		commit();
 		status = "committed";
 		for (const child of children) this.pushTask(child);
 		children.length = 0;

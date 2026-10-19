@@ -16,12 +16,20 @@ ship with tutuca, and what an app must and should do to sync well.
 
 Handlers keep changing immer drafts. **Sync engines** sit beside the host:
 
-1. After a task commits a new root, the host calls `commit({ prev, next, task })` on every engine
-   attached to it. An engine that throws fails the task: the root stays as it was and the task's
-   child messages are dropped, as for any failed handler.
+1. After a task makes a new root, the host tells every engine attached to it in two steps. First
+   `prepare({ prev, next, task })`, the work that can fail on the change itself, such as
+   computing its ops or projecting a value that can't be stored. A prepare that throws fails the
+   task before any engine wrote anything: the root stays as it was and the task's child messages
+   are dropped, as for any failed handler. Then, with the new root in place,
+   `commit(change, prepared)` writes what prepare returned. A commit that throws (a full
+   storage, a closed connection) is reported as `syncFailed` with the engine and the error, and
+   the change stands for the host and the other engines.
 2. A change made elsewhere (by a peer, a server, a reload) reaches the host through the engine's
    link: `link.apply(producer)` runs `producer` on a draft of the current root, commits it at
-   once, tells every *other* engine, checks the state in dev mode and renders.
+   once, tells every *other* engine, checks the state in dev mode and renders. A prepare that
+   throws there skips that engine and reports `syncFailed`, since the change already happened.
+   An apply made while engines are committing waits until they all have, so every engine sees
+   changes in the order the host made them.
 
 Engines never see components. They see the **projection**, the state as plain JSON, and the
 **ops** that change it.
@@ -80,7 +88,10 @@ scope, so a reloaded app finds it. The name in a ref is the registered one, so a
 
 An engine has a level too: `"shared"` engines (servers, CRDTs) see shared fields; `"local"`
 engines (the browser's storage) see shared and local ones. `startSynced` lays the shared
-engines' projections over the local ones'.
+engines' projections over the local ones' (`overlay`): the shared data wins, and the fields the
+shared level doesn't see come from the local projection, inside components, records and maps.
+An array keeps its local fields only when both projections hold the same components at the same
+places; otherwise they take their defaults.
 
 ### Ops and the diff
 
@@ -107,8 +118,12 @@ The diff is guided by the schemas:
 
 `applyOps(root, ops)` applies ops to a projection; `applyStateOps(draft, ops, scope)` applies
 them to a state draft, hydrating the components they bring and making each op fit this
-version's components (see [Other versions of the app](#other-versions-of-the-app)). An op whose
-path isn't there throws `OpConflictError`. The playground's Steps tab lists each timeline entry's ops under Changes.
+version's components (see [Other versions of the app](#other-versions-of-the-app)). An op that
+doesn't fit the state it's applied to throws `OpConflictError` before changing anything:
+`opFits(root, op)` says why. It checks the path through own keys only, indices as integers in
+range, `set` inside arrays only on items that exist, `delete` on record keys only, and `text`
+on strings, so a relay can apply what clients send. A map key named `__proto__` is data like any
+other. The playground's Steps tab lists each timeline entry's ops under Changes.
 
 ## The world through ctx
 
@@ -141,12 +156,22 @@ browser, one writer.
 
 Sends each change's ops to a remote and applies the ops other clients send.
 
-- The remote (`relay()`) keeps the projection and a version. It applies a batch only if it was made
-  against its current version, and rejects it otherwise. A rejected client reloads the remote's
-  state, so the first of two concurrent changes wins.
-- Ops are batched per microtask: one batch per run of tasks.
-- `transport` is `{ push(batch), subscribe(onMessage), load() }`. `memoryRemote()` connects clients
-  to one relay in-process, for tests.
+- The remote (`relay()`) keeps the projection and a version. It applies a batch whole, and only
+  if it was made against its current version and every op fits; it rejects it otherwise. So the
+  first of two concurrent changes wins.
+- A client has one batch in flight at a time, so every batch is made against the version before
+  it. Ops committed meanwhile wait, and go as one batch when the remote confirms. At most one
+  batch per run of tasks.
+- The engine keeps a copy of the remote's projection, and makes each batch fit it (see
+  [Other versions of the app](#other-versions-of-the-app)).
+- A rejected client, or one that missed a message, resyncs: it loads the remote's state and
+  applies the difference as ops (`applyProjection`), so its "local" and "none" fields stay. Its
+  unconfirmed ops are dropped and reported as `syncRejected` with `ops`. Messages it has seen
+  already are ignored.
+- `transport` is `{ push(batch), subscribe(onMessage), load() }` and delivers each direction's
+  messages in order. A batch is `{ clientId, seq, base, ops }`; the remote answers every client
+  with `{ type: "batch", clientId, seq, version, ops }` or `{ type: "reject", clientId, seq }`.
+  `memoryRemote()` connects clients to one relay in-process, for tests.
 
 ### `automergeEngine({ handle })` (`tutuca/automerge`)
 
@@ -156,7 +181,11 @@ Keeps the shared fields in an Automerge document, so peers merge concurrent edit
 - `t.string()` fields are Automerge text, so concurrent typing interleaves. Every other string,
   refs included, is stored as an `ImmutableString`.
 - Remote changes are diffed between the document before and after them: Automerge keeps
-  untouched subtrees `===`, so this costs what changed.
+  untouched subtrees `===`, so this costs what changed. A change that doesn't apply to the state
+  (the state and the document parted ways) reports `syncFailed`, and the state is brought to the
+  whole document instead.
+- Each change is written made to fit the document, which can lack a field this version added or
+  hold a value of another type.
 - `@automerge/automerge` is an optional peer dependency. Nothing else in tutuca imports it.
 
 ### The demos' query switch (`demos/boot.js`, `demos/sync/engines.js`)
@@ -183,7 +212,10 @@ An engine is an object:
 	level: "shared" | "local",   // the fields it sees
 	load() {},                   // optional: its stored projection, or null
 	attach(link) {},             // optional: link.host, link.root(), link.apply(producer, info)
-	commit(change) {},           // { prev, next, task }; task is null for changes from elsewhere
+	prepare(change) {},          // optional: { prev, next, task }; task is null for changes from
+	                             // elsewhere. The work that can fail on the change; returns what
+	                             // commit writes
+	commit(change, prepared) {}, // writes it: storage, the network
 	detach() {},                 // optional
 }
 ```
@@ -195,8 +227,13 @@ An engine is an object:
   Apply it **when it arrives**, not later: its ops are paths into the state as it is now.
   `onMigrate(report)` is called when ops from a peer on another version had to be changed to
   fit; the included engines pass it on as `host.notify("stateMigrated", { engine, ...report })`.
+- An engine that keeps a copy of the state (a document, a server's projection) writes each
+  change's ops with `writeFitting(copy, ops, next, { scope, level, write })`, so they fit the
+  copy even where this version of the components made the state differ from it. To bring the
+  state to the whole copy (a reload), use `applyProjection(link, plain, { level, onMigrate })`:
+  it keeps the fields other levels see.
 - A one-object engine that only persists, or only calls back:
-  `{ level: "local", commit: (c) => save(project(c.next, { level: "local" })) }`.
+  `{ level: "local", prepare: (c) => project(c.next, { level: "local" }), commit: (c, p) => save(p) }`.
 
 ## Required practices
 
@@ -243,7 +280,8 @@ An app that syncs must:
 Stored state, a peer's changes and the code before an edit can all come from another version of
 the components. `tutuca/sync` makes them fit this one with hydrate's rules: fields a component
 doesn't declare are dropped, values their type rejects take its default, and missing fields take
-theirs. Each use says what it changed, as `{ added, reset, dropped }`:
+theirs. Each value is fitted where it is: one rejected item of an array, or value of a map,
+takes its default and the others stay, whether it came in a stored projection or in an op. Each use says what it changed, as `{ added, reset, dropped }`:
 
 - `added`: paths of fields the data lacked, now at their default. Only fields the level sees
   count: a "shared" projection lacking a "local" field isn't missing it.
@@ -263,6 +301,12 @@ stay in the document for the peers that know them), a value is rebuilt and reset
 default when the type rejects it, and an op whose value can't be made, such as a component this
 version doesn't have, is dropped. Types are checked without their owner, since a later op of the
 same change can make an index valid; the dev checks see the result.
+
+The other way round, `writeFitting` writes a change into an engine's copy made by another
+version: up to the first op that doesn't fit the copy the ops go as they are, and from there the
+copy gets the diff to the new state. A field this version added is written whole the first time
+it changes, then as ops; a value of a type that changed is set whole. Nothing is written back
+unless a task changes it, so peers on two versions don't fight over a field.
 
 ### Hot reload
 
@@ -286,6 +330,8 @@ timeline isn't replayed.
 - **Concurrency depends on the engine.** `remoteEngine` keeps the first of two concurrent
   changes and reloads the other client. Automerge merges both: last writer wins per field,
   inserts interleave and text merges.
+- **Local fields under arrays** come back on start only when the shared array still holds the
+  same components at the same places as the stored local one.
 - **Tasks already queued** when a remote change arrives were routed against the state before it.
   The queue usually drains in the same tick, but a remote insert can shift an index such a task
   holds.

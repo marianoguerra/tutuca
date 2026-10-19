@@ -18,9 +18,10 @@ import {
 	diff,
 	hydrate,
 	project,
+	rebuild,
 	startSynced,
 } from "../../src/sync/index.js";
-import { memoryRemote, remoteEngine } from "../../src/sync/remote.js";
+import { relay, remoteEngine } from "../../src/sync/remote.js";
 import { arbitraries } from "../../src/test/pbt.js";
 import { component } from "../../src/tutuca.js";
 import { scopeWith, setupHost, tick } from "../helpers.js";
@@ -79,30 +80,40 @@ for (const [library, [components, overrides]] of Object.entries(libraries)) {
 
 // --- generated edits on synced hosts ----------------------------------------------------------
 
+// Two versions of an app: the second adds a text field, body, and narrows meta to integers.
 const Item = component({
 	name: "Item",
 	fields: (t) => ({ label: t.string(), done: t.boolean(), tags: t.array(t.string()) }),
 	view: "<span>{.label}</span>",
 });
-const Root = component({
+const rootFields = (t) => ({
+	title: t.string(),
+	kind: t.enum("note", "list"),
+	items: t.array(t.component("Item")),
+	meta: t.map(t.number()),
+	note: t.option(t.string()),
+	open: t.boolean().sync("none"),
+});
+const Root = component({ name: "Root", fields: rootFields, view: "<h1>{.title}</h1>" });
+const Root2 = component({
 	name: "Root",
-	fields: (t) => ({
-		title: t.string(),
-		kind: t.enum("note", "list"),
-		items: t.array(t.component("Item")),
-		meta: t.map(t.number()),
-		note: t.option(t.string()),
-		open: t.boolean().sync("none"),
-	}),
+	fields: (t) => ({ ...rootFields(t), meta: t.map(t.number().int()), body: t.string() }),
 	view: "<h1>{.title}</h1>",
 });
+const V1 = { Root, Item };
+const V2 = { Root: Root2, Item };
 
-// An edit a handler could make, as a function on the root draft and its scope.
-const text = fc.string({ maxLength: 8 });
+// An edit a handler could make, as a function on the root draft and its scope. Text is any
+// unicode, and is cut between code points as a person's typing would.
+const text = fc.string({ maxLength: 8, unit: "grapheme" });
 const at = (n, len) => (len === 0 ? 0 : n % len);
+const typed = (s, i, tail) => {
+	const points = [...s];
+	return points.slice(0, at(i, points.length + 1)).join("") + tail;
+};
 const editArb = fc.oneof(
 	fc.tuple(text, fc.nat(8)).map(([s, i]) => (d) => {
-		d.title = d.title.slice(0, at(i, d.title.length + 1)) + s; // a typed tail
+		d.title = typed(d.title, i, s);
 	}),
 	fc.constantFrom("note", "list").map((kind) => (d) => {
 		d.kind = kind;
@@ -128,10 +139,10 @@ const editArb = fc.oneof(
 	fc.tuple(fc.nat(8), text).map(([i, tag]) => (d) => {
 		if (d.items.length > 0) d.items[at(i, d.items.length)].tags.push(tag);
 	}),
-	fc.tuple(fc.constantFrom("a", "b", "$"), fc.integer()).map(([k, v]) => (d) => {
+	fc.tuple(fc.constantFrom("a", "b", "$", "__proto__"), fc.integer()).map(([k, v]) => (d) => {
 		d.meta[k] = v;
 	}),
-	fc.constantFrom("a", "b", "$").map((k) => (d) => {
+	fc.constantFrom("a", "b", "$", "__proto__").map((k) => (d) => {
 		delete d.meta[k];
 	}),
 	fc.option(text).map((note) => (d) => {
@@ -141,13 +152,42 @@ const editArb = fc.oneof(
 		d.open = open;
 	}),
 );
+// The edits each version's handlers could make on top of the common ones.
+const editsOf = new Map([
+	[
+		V1,
+		fc.oneof(
+			editArb,
+			fc.integer().map((n) => (d) => {
+				d.meta.a = n + 0.5;
+			}),
+		),
+	],
+	[
+		V2,
+		fc.oneof(
+			editArb,
+			fc.tuple(text, fc.nat(8)).map(([s, i]) => (d) => {
+				d.body = typed(d.body, i, s);
+			}),
+		),
+	],
+]);
 const edits = fc.array(editArb, { maxLength: 12 });
 const edit = (host, fn) => host.applyExternal((draft) => void fn(draft, host.scope));
-const peer = async (engine) => {
-	const s = setupHost({ Root, Item }, { sync: true });
+const peer = async (engine, specs = V1) => {
+	const failures = [];
+	const s = setupHost(specs, {
+		sync: true,
+		onReport: (type, info) => type === "syncFailed" && failures.push(info.error),
+	});
 	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
+	s.host.syncFailures = failures;
 	return s.host;
 };
+// What plain, a copy of the state from any version, is in host's version.
+const meaningIn = (host, plain) =>
+	project(rebuild(structuredClone(plain), host.scope, { level: "shared" }).root);
 
 test("automerge: the document follows every generated edit", async () => {
 	await fc.assert(
@@ -184,25 +224,107 @@ test("automerge: peers converge after concurrent generated edits", async () => {
 	);
 });
 
-test("remote: clients converge on the relay's state after interleaved generated edits", async () => {
+// Steps on peers of the versions in versions: [peer, edit for V1, edit for V2, merge?].
+const stepsOn = (count) =>
+	fc.array(fc.tuple(fc.nat(count - 1), editsOf.get(V1), editsOf.get(V2), fc.nat(3)), {
+		maxLength: 16,
+	});
+
+test("automerge: peers on two versions edit and merge, each holding what the document means to it", async () => {
+	const versions = [V1, V2, V2];
 	await fc.assert(
-		fc.asyncProperty(
-			fc.array(fc.tuple(fc.boolean(), editArb, fc.boolean()), { maxLength: 16 }),
-			async (steps) => {
-				const remote = memoryRemote();
-				const a = await peer(remoteEngine({ transport: remote.connect() }));
-				await tick();
-				const b = await peer(remoteEngine({ transport: remote.connect() }));
-				for (const [onA, fn, wait] of steps) {
-					edit(onA ? a : b, fn);
-					if (wait) await tick();
+		fc.asyncProperty(stepsOn(versions.length), async (steps) => {
+			const handles = versions.map(() => docHandle());
+			const peers = [];
+			for (const [i, specs] of versions.entries()) {
+				if (i > 0) handles[i].merge(handles[0].doc());
+				peers.push(await peer(automergeEngine({ handle: handles[i] }), specs));
+			}
+			const check = () => {
+				for (const [i, host] of peers.entries()) {
+					assert.deepEqual(project(host.rootComponent), meaningIn(host, fromDoc(handles[i].doc())));
 				}
-				for (let i = 0; i < 4; i++) await tick();
-				const { value } = remote.relay.load();
-				assert.deepEqual(project(a.rootComponent), value);
-				assert.deepEqual(project(b.rootComponent), value);
-			},
-		),
+			};
+			for (const [i, fn1, fn2, merge] of steps) {
+				edit(peers[i], versions[i] === V1 ? fn1 : fn2);
+				if (merge < versions.length && merge !== i) handles[merge].merge(handles[i].doc());
+				check();
+			}
+			for (const h of handles) for (const o of handles) if (o !== h) h.merge(o.doc());
+			check();
+			const docs = handles.map((h) => fromDoc(h.doc()));
+			for (const doc of docs) assert.deepEqual(doc, docs[0]);
+			for (const host of peers) assert.deepEqual(host.syncFailures, []);
+		}),
+		{ numRuns: 100 },
+	);
+});
+
+// Transports to one relay whose deliveries s orders: each client's pushes, and the relay's
+// messages to each client, in order (as over a socket); everything else, loads included,
+// interleaved as s picks.
+const scheduledRemote = (s) => {
+	const r = relay();
+	const inboxes = new Set();
+	const channel = (deliver) => {
+		const queue = [];
+		return (item) => {
+			queue.push(item);
+			s.schedule(Promise.resolve()).then(() => deliver(queue.shift()));
+		};
+	};
+	return {
+		relay: r,
+		connect() {
+			const subscribers = new Set();
+			const inbox = channel((m) => {
+				for (const fn of subscribers) fn(structuredClone(m));
+			});
+			inboxes.add(inbox);
+			return {
+				push: channel((batch) => {
+					const message = r.receive(structuredClone(batch));
+					for (const send of inboxes) send(message);
+				}),
+				subscribe(fn) {
+					subscribers.add(fn);
+					return () => subscribers.delete(fn);
+				},
+				load: () => s.schedule(Promise.resolve()).then(() => r.load()),
+			};
+		},
+	};
+};
+const settled = async (s) => {
+	for (let i = 0; i < 50; i++) {
+		await tick();
+		if (s.count() === 0) return;
+		await s.waitIdle();
+	}
+	throw new Error("the clients never settled");
+};
+
+test("remote: clients on two versions converge on the relay, whatever order the network delivers in", async () => {
+	const versions = [V1, V2, V2];
+	await fc.assert(
+		fc.asyncProperty(fc.scheduler(), stepsOn(versions.length), async (s, steps) => {
+			const remote = scheduledRemote(s);
+			const starting = Promise.all(
+				versions.map((specs) => peer(remoteEngine({ transport: remote.connect() }), specs)),
+			);
+			const peers = await s.waitFor(starting);
+			for (const [i, fn1, fn2, deliveries] of steps) {
+				edit(peers[i], versions[i] === V1 ? fn1 : fn2);
+				await tick();
+				for (let k = 0; k < deliveries && s.count() > 0; k++) await s.waitNext(1);
+			}
+			await settled(s);
+			const { value } = remote.relay.load();
+			for (const host of peers) {
+				assert.deepEqual(project(host.rootComponent), meaningIn(host, value));
+				assert.deepEqual(host.syncFailures, []);
+			}
+		}),
 		{ numRuns: 100 },
 	);
 });
