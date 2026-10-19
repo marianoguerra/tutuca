@@ -8,6 +8,8 @@
 	--accent: #2383e2;
 	--tag-bg: #fbecdd;
 	--tag-text: #9a5b13;
+	--beta-bg: #e7f3f8;
+	--beta-text: #1f6c9f;
 	color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -21,6 +23,8 @@
 		--accent: #529cca;
 		--tag-bg: #3a2a1a;
 		--tag-text: #e2a35c;
+		--beta-bg: #1c2b36;
+		--beta-text: #6fb3e0;
 		color-scheme: dark;
 	}
 }
@@ -203,6 +207,35 @@ pre code {
 	padding: 0 6px;
 	font-size: 12px;
 	font-weight: 500;
+}
+
+.tag.beta {
+	background: var(--beta-bg);
+	color: var(--beta-text);
+}
+
+.status {
+	width: 100%;
+	border-collapse: collapse;
+	margin: 8px 0;
+	font-size: 14px;
+}
+.status th,
+.status td {
+	text-align: left;
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--border);
+	vertical-align: top;
+}
+.status th {
+	color: var(--muted);
+	font-weight: 500;
+}
+.status td:nth-child(2) {
+	color: var(--muted);
+}
+.status tr:last-child td {
+	border-bottom: 0;
 }
 
 .links {
