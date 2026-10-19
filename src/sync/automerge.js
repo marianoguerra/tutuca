@@ -75,6 +75,7 @@ const writeOp = (d, op, next, scope) => {
 export const automergeEngine = ({ handle }) => {
 	let link = null;
 	let writing = false;
+	let loaded = null; // the document load read, to catch what changed before attach
 	const onMigrate = (report) => link.host.notify("stateMigrated", { engine, ...report });
 	const onChange = ({ patchInfo }) => {
 		if (writing || link === null) return;
@@ -107,15 +108,21 @@ export const automergeEngine = ({ handle }) => {
 		handle,
 		load() {
 			const doc = handle.doc();
+			loaded = doc ?? null;
 			return doc === undefined || doc.$ === undefined ? null : fromDoc(doc);
 		},
 		attach(l) {
 			link = l;
-			// An empty document starts from this root.
-			if (handle.doc()?.$ === undefined) {
+			const doc = handle.doc();
+			// An empty document starts from this root; one that changed since load (or that load
+			// didn't read) brings the state to it.
+			if (doc?.$ === undefined) {
 				const change = { prev: undefined, next: l.root(), task: null };
 				write(opsOf(change, "shared", l.host.scope), l.root());
+			} else if (doc !== loaded) {
+				applyProjection(l, fromDoc(doc), { onMigrate, info: { attach: true } });
 			}
+			loaded = null;
 			handle.on("change", onChange);
 		},
 		prepare: (change) => opsOf(change, "shared", link.host.scope),

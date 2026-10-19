@@ -560,6 +560,57 @@ test("messages a client has seen don't make it resync", async () => {
 	assert.equal(a.host.rootComponent.title, "t");
 });
 
+test("a batch that arrives before a client pushed its own edits makes it resync", async () => {
+	const r = relay({ version: 1, value: rootPlain({ title: "abc" }) });
+	const h = hub(r);
+	const a = await hubClient(h);
+	const b = await hubClient(h);
+	b.host.applyExternal((d) => {
+		d.title = "Yabc";
+	});
+	await tick();
+	a.host.applyExternal((d) => {
+		d.title = "aXbc";
+	});
+	h.deliver(); // before a pushed its edit, which was made against "abc"
+	await tick();
+	assert.deepEqual(h.queue, []);
+	assert.equal(a.host.rootComponent.title, "Yabc");
+	assert.deepEqual(project(a.host.rootComponent), r.load().value);
+	assert.equal(reportsOf(a, "syncRejected").length, 1);
+});
+
+test("a batch sent between a client's load and attach reaches it", async () => {
+	const r = relay({ version: 1, value: rootPlain({ title: "abc" }) });
+	const h = hub(r);
+	const b = await hubClient(h);
+	b.host.applyExternal((d) => {
+		d.title = "Yabc";
+	});
+	await tick();
+	const transport = h.connect();
+	const s = setupHost({ Root, Item }, { sync: true });
+	await startSynced(s.host, {
+		make: (C) => C.Root(),
+		engines: [
+			remoteEngine({
+				transport: {
+					...transport,
+					load() {
+						const state = r.load();
+						h.deliver(); // after the snapshot, before attach
+						return Promise.resolve(state);
+					},
+				},
+			}),
+		],
+	});
+	const loads = h.loads;
+	await tick();
+	assert.equal(s.host.rootComponent.title, "Yabc");
+	assert.equal(h.loads, loads);
+});
+
 test("a client whose copy doesn't take a batch resyncs to the remote", async () => {
 	const r = relay({ version: 1, value: rootPlain({ title: "remote" }) });
 	const h = hub(r);
@@ -667,6 +718,26 @@ const amClient = async (handle) => {
 	await startSynced(s.host, { make: (C) => C.Root(), engines: [engine] });
 	return { ...s, engine };
 };
+
+test("automerge brings in what changed in the document between load and attach", async () => {
+	const handle = docHandle();
+	const a = await amClient(handle);
+	const b = setup();
+	const between = {
+		level: "shared",
+		load() {
+			send(a.host, "retitle", ["between"]);
+			return null;
+		},
+		commit() {},
+	};
+	await startSynced(b.host, {
+		make: (C) => C.Root(),
+		engines: [automergeEngine({ handle }), between],
+	});
+	assert.equal(b.host.rootComponent.title, "between");
+	assert.deepEqual(project(b.host.rootComponent), fromDoc(handle.doc()));
+});
 
 test("automerge keeps the projection in the document, text as text", async () => {
 	const handle = docHandle();

@@ -164,10 +164,15 @@ Sends each change's ops to a remote and applies the ops other clients send.
   batch per run of tasks.
 - The engine keeps a copy of the remote's projection, and makes each batch fit it (see
   [Other versions of the app](#other-versions-of-the-app)).
-- A rejected client, or one that missed a message, resyncs: it loads the remote's state and
+- Another client's batch that arrives while this one's ops are in flight, or committed and not
+  yet pushed, means those ops were made against a state the remote moved past.
+- A rejected client, one that got another's batch before its own ops went through, or one that
+  missed a message (a gap in versions), resyncs: it loads the remote's state and
   applies the difference as ops (`applyProjection`), so its "local" and "none" fields stay. Its
   unconfirmed ops are dropped and reported as `syncRejected` with `ops`. Messages it has seen
   already are ignored.
+- The engine subscribes before it loads, and applies what arrived meanwhile once attached, so
+  a batch sent between the two isn't missed.
 - `transport` is `{ push(batch), subscribe(onMessage), load() }` and delivers each direction's
   messages in order. A batch is `{ clientId, seq, base, ops }`; the remote answers every client
   with `{ type: "batch", clientId, seq, version, ops }` or `{ type: "reject", clientId, seq }`.
@@ -184,6 +189,8 @@ Keeps the shared fields in an Automerge document, so peers merge concurrent edit
   untouched subtrees `===`, so this costs what changed. A change that doesn't apply to the state
   (the state and the document parted ways) reports `syncFailed`, and the state is brought to the
   whole document instead.
+- A document that changed between `load` and `attach` (a peer merged in meanwhile), or one
+  `load` wasn't called for, brings the state to it on attach (`applyProjection`).
 - Each change is written made to fit the document, which can lack a field this version added or
   hold a value of another type.
 - `@automerge/automerge` is an optional peer dependency. Nothing else in tutuca imports it.

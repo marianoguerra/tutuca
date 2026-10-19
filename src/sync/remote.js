@@ -24,7 +24,7 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 	let seq = 0;
 	let flushing = false; // a flush is queued for the end of this run of tasks
 	let resyncs = 0; // the resync in flight, 0 for none; a newer one supersedes it
-	let held = []; // messages that arrived during a resync
+	let held = []; // messages that arrived during a resync, or between load and attach
 	const notify = (type, info) => link?.host.notify(type, { engine, ...info });
 	const onMigrate = (report) => notify("stateMigrated", report);
 
@@ -77,7 +77,10 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 		scheduleFlush();
 	};
 	const receive = (message) => {
-		if (link === null) return;
+		if (link === null) {
+			if (unsubscribe !== null) held.push(message); // subscribed by load, not yet attached
+			return;
+		}
 		if (resyncs !== 0) {
 			held.push(message);
 			return;
@@ -88,8 +91,9 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 			return;
 		}
 		if (message.version <= acked) return; // seen already, or in what a resync loaded
-		if (message.version !== acked + 1 || inflight !== null) {
-			// A gap, or another change got in before ours, which the remote rejects: resync.
+		if (message.version !== acked + 1 || inflight !== null || pending.length > 0) {
+			// A gap, or another change got in before ours (in flight or not yet pushed), which the
+			// remote rejects or which was made against the state before it: resync.
 			if (ours && message.version === acked + 1) {
 				acked = message.version;
 				inflight = null;
@@ -111,7 +115,17 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 		level,
 		clientId,
 		async load() {
-			const stored = await transport.load();
+			// Subscribed before loading, so nothing sent meanwhile is missed: attach replays it.
+			unsubscribe = transport.subscribe(receive);
+			let stored;
+			try {
+				stored = await transport.load();
+			} catch (error) {
+				unsubscribe();
+				unsubscribe = null;
+				held = [];
+				throw error;
+			}
 			if (stored === null) return null;
 			acked = stored.version;
 			copy = structuredClone(stored.value);
@@ -119,9 +133,10 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 		},
 		attach(l) {
 			link = l;
-			unsubscribe = transport.subscribe(receive);
+			unsubscribe ??= transport.subscribe(receive);
 			// Nothing stored yet: the remote starts from this root.
 			if (copy === null) pushRoot();
+			for (const message of held.splice(0)) receive(message);
 		},
 		prepare: (change) => opsOf(change, level, link.host.scope),
 		commit(_change, ops) {
@@ -132,6 +147,8 @@ export const remoteEngine = ({ transport, level = "shared", clientId = newId() }
 		detach() {
 			flush();
 			unsubscribe?.();
+			unsubscribe = null;
+			held = [];
 			link = null;
 		},
 	};
