@@ -4,6 +4,7 @@ import { inferSchema, schemaDocument } from "../../components/json-schema/infer.
 import { quadraticLabel } from "../../components/math/workbench.js";
 import { addDays } from "../../components/todo/dates.js";
 import { TODAY } from "../../components/todo/fixtures.js";
+import { start as startComposition } from "../../demos/composition/main.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
 import { start as startStudio } from "../../demos/json-schema/main.js";
 import { start as startKanban } from "../../demos/kanban/main.js";
@@ -16,7 +17,7 @@ import { start as startTodo } from "../../demos/todo/main.js";
 import { lint } from "../../src/lint/index.js";
 import { startSynced } from "../../src/sync/index.js";
 import { relay } from "../../src/sync/remote.js";
-import { Host } from "../../src/tutuca.js";
+import { Host, specOf } from "../../src/tutuca.js";
 import { dom, settle } from "../helpers.js";
 
 // Boots a demo in jsdom, collecting what would go to console.error.
@@ -73,6 +74,18 @@ test("kanban demo: moves a dragged card to the column it's dropped on", async ()
 		app.state().columns.map((column) => column.cards.length),
 		[2, 1, 1],
 	);
+	await checkClean(app);
+});
+
+test("composition demo: a picker becomes the cell picked, and adds pickers around it", async () => {
+	const app = mount(startComposition);
+	const kinds = () => app.state().order.map((key) => specOf(app.state().entries[key].content).name);
+	app.fire("click", app.$('[data-choice="tracker"]'));
+	app.fire("click", app.$('[data-choice="group:pets/care"]'));
+	assert.deepEqual(kinds(), ["TrackerCell"]);
+	app.fire("click", app.$('[title="Add a cell at the end"]'));
+	app.fire("click", app.$('[data-choice="kanban"]'));
+	assert.deepEqual(kinds(), ["TrackerCell", "Board"]);
 	await checkClean(app);
 });
 

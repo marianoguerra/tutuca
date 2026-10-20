@@ -52,6 +52,15 @@ export const demos = [
 		sources: ["math"],
 	},
 	{
+		dir: "composition",
+		emoji: "📓",
+		title: "Notebook",
+		blurb:
+			"A notebook of the other demos' components: add notes, todos, boards, drawings, trackers and notebooks as cells, drag them around, collapse them.",
+		story: "Composition/Notebook/New",
+		sources: ["composition"],
+	},
+	{
 		dir: "notes",
 		emoji: "🔀",
 		title: "Notes",

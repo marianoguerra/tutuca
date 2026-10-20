@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Notebook · Tutuca demos</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "margaui": "../../node_modules/margaui/dist/margaui.min.js",
+          "@automerge/automerge": "../deps/automerge.js",
+          "@automerge/automerge-repo": "../deps/automerge.js",
+          "@automerge/automerge-repo-network-broadcastchannel": "../deps/automerge.js",
+          "@automerge/automerge-repo-network-websocket": "../deps/automerge.js",
+          "@automerge/automerge-repo-storage-indexeddb": "../deps/automerge.js"
+        }
+      }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="../../node_modules/margaui/dist/themes/theme.css" />
+    <link rel="stylesheet" href="../demo.css" />
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <header class="demo-bar">
+      <a href="../">← All demos</a>
+      <h1>Notebook</h1>
+      <p>A notebook of interactive cells: add notes, todos, a kanban board, a drawing, a tracker or another notebook anywhere in it. Drag a cell by its header to move it; Ctrl+click a cell’s ▾ to collapse or expand them all.</p>
+    </header>
+    <div id="app"></div>
+  </body>
+</html>

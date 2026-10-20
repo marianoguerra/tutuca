@@ -198,6 +198,7 @@ export const Board = component({
 			args: [t.string(), t.number().int().min(0)],
 			sourceKey: t.index("columns"),
 			run(draft, [id, at], ctx) {
+				ctx.stopNext(); // The board may be inside another component.
 				moveCard(this, draft, id, ctx.sourceKey, at);
 			},
 		},

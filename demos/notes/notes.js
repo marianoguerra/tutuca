@@ -158,6 +158,7 @@ export const Notes = component({
 		removeNote: {
 			sourceKey: t.index("notes"),
 			run(draft, _args, ctx) {
+				ctx.stopNext(); // The notes may be inside another component.
 				draft.notes.splice(ctx.sourceKey, 1);
 			},
 		},

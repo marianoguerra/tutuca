@@ -376,7 +376,13 @@ const domSignature = (node) => {
 export const dispatchOn = (el, type, value) => {
 	if (value !== undefined) {
 		if (el.type === "checkbox") el.checked = Boolean(value);
-		else if (FORM_FIELDS.has(el.tagName)) el.value = String(value);
+		else if (el.tagName === "SELECT") {
+			// A select only takes one of its options: value if it's one, else one picked by it.
+			const options = [...el.options].map((o) => o.value);
+			const text = String(value);
+			if (options.includes(text)) el.value = text;
+			else if (options.length > 0) el.value = options[text.length % options.length];
+		} else if (FORM_FIELDS.has(el.tagName)) el.value = String(value);
 	}
 	const { Event } = el.ownerDocument.defaultView;
 	el.dispatchEvent(new Event(type, { bubbles: true }));
