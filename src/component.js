@@ -1,5 +1,6 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../deps/immer.js";
+import { DRAG_EVENTS } from "./drag.js";
 import { NoDefaultError, scopeSym, specSym, t, toMessages } from "./schema.js";
 import { toExpr } from "./view.js";
 import { Collect } from "./walk.js";
@@ -22,6 +23,8 @@ export class ComponentSpec {
 		for (const key in views) collect.visit(views[key]);
 		this.eventHandlers = collect.eventHandlers;
 		this.eventNames = new Set([...this.eventHandlers.values()].flat().map((h) => h.name));
+		// A drop target needs the drag from its start: the host tracks it.
+		if (this.eventNames.has("drop")) for (const name of DRAG_EVENTS) this.eventNames.add(name);
 	}
 	make(args = {}, scope = null) {
 		const state = Object.create(this.proto);

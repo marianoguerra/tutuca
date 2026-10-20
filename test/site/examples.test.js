@@ -22,6 +22,7 @@ const books = {
 	composed: (await import("../../site/examples/composed.js")).default,
 	async: (await import("../../site/examples/async.js")).default,
 	"web-component": (await import("../../site/examples/web-component.js")).default,
+	"drag-and-drop": (await import("../../site/examples/drag-and-drop.js")).default,
 };
 const mistakes = (await import("../../site/examples/mistakes.js")).default;
 

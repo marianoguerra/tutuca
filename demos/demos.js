@@ -36,6 +36,14 @@ export const demos = [
 		sources: ["drawing"],
 	},
 	{
+		dir: "kanban",
+		emoji: "🗂️",
+		title: "Kanban",
+		blurb: "Drag cards within a column or across columns; add and remove them as you go.",
+		story: "Kanban/Board/Week",
+		sources: ["kanban"],
+	},
+	{
 		dir: "math",
 		emoji: "➗",
 		title: "Algebra workbench",

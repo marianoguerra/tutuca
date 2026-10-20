@@ -6,6 +6,7 @@ import { addDays } from "../../components/todo/dates.js";
 import { TODAY } from "../../components/todo/fixtures.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
 import { start as startStudio } from "../../demos/json-schema/main.js";
+import { start as startKanban } from "../../demos/kanban/main.js";
 import { start as startMath } from "../../demos/math/main.js";
 import { start as startNotes } from "../../demos/notes/main.js";
 import { notesComponents } from "../../demos/notes/notes.js";
@@ -57,6 +58,21 @@ test("drawing demo: picks a tool", async () => {
 	assert.equal(app.state().shapes.length, 5);
 	app.fire("click", app.$('button[title="Rectangle (R)"]'));
 	assert.equal(app.state().tool, "rect");
+	await checkClean(app);
+});
+
+test("kanban demo: moves a dragged card to the column it's dropped on", async () => {
+	const app = mount(startKanban);
+	const [todo, , done] = app.rootNode.querySelectorAll(".grid > div");
+	const card = todo.querySelector('[data-dragtype="card"]');
+	app.fire("dragstart", card);
+	app.fire("dragover", done);
+	app.fire("drop", done);
+	app.fire("dragend", card);
+	assert.deepEqual(
+		app.state().columns.map((column) => column.cards.length),
+		[2, 1, 1],
+	);
 	await checkClean(app);
 });
 

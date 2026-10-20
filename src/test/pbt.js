@@ -381,6 +381,26 @@ export const dispatchOn = (el, type, value) => {
 	const { Event } = el.ownerDocument.defaultView;
 	el.dispatchEvent(new Event(type, { bubbles: true }));
 };
+const elementText = (el) => `<${el.tagName.toLowerCase()} data-eid=${el.dataset.eid}>`;
+// Throws if cmd's run on driver broke something since the before-th report, or patched the DOM
+// into something a fresh render doesn't make.
+const checkAfter = (cmd, model, driver, before) => {
+	const problems = driver.problemsSince(before);
+	if (problems.length > 0) {
+		throw new Error(`${cmd} broke: ${problems.map((p) => p.type).join(", ")}`);
+	}
+	const fresh = new Driver({ root: driver.state, document: driver.rootNode.ownerDocument });
+	if (domSignature(fresh.rootNode) !== domSignature(driver.rootNode)) {
+		throw new Error(`${cmd}: the patched DOM differs from a fresh render`);
+	}
+	model.state = driver.state;
+};
+// Fires the events of dragging from and dropping on to, as a browser does.
+export const dispatchDrag = (from, to) => {
+	dispatchOn(from, "dragstart");
+	for (const type of ["dragenter", "dragover", "drop"]) dispatchOn(to, type);
+	dispatchOn(from, "dragend");
+};
 // Dispatches an event on the target-th element with handlers in the current DOM, with a
 // generated value for targetValue, then checks the patched DOM equals a fresh render.
 export class EventCommand {
@@ -406,16 +426,8 @@ export class EventCommand {
 		const before = driver.reports.length;
 		dispatchOn(el, name, this.value);
 		driver.drain();
-		this.description = `${name} on <${el.tagName.toLowerCase()} data-eid=${eid}>`;
-		const problems = driver.problemsSince(before);
-		if (problems.length > 0) {
-			throw new Error(`${this} broke: ${problems.map((p) => p.type).join(", ")}`);
-		}
-		const fresh = new Driver({ root: driver.state, document: el.ownerDocument });
-		if (domSignature(fresh.rootNode) !== domSignature(driver.rootNode)) {
-			throw new Error(`${this}: the patched DOM differs from a fresh render`);
-		}
-		model.state = driver.state;
+		this.description = `${name} on ${elementText(el)}`;
+		checkAfter(this, model, driver, before);
 	}
 	toString() {
 		return this.description ?? `event#${this.target}.${this.pick}(${JSON.stringify(this.value)})`;
@@ -425,11 +437,46 @@ export class EventCommand {
 	}
 }
 
-// fc.commands of DOM events; run them on a Driver made with a document.
+// Drags the source-th draggable element in the current DOM onto the target-th drop target, an
+// element with a drop handler, then checks the patched DOM equals a fresh render.
+export class DragCommand {
+	constructor(source, target) {
+		Object.assign(this, { source, target });
+	}
+	check() {
+		return true;
+	}
+	run(model, driver) {
+		const sources = [...driver.rootNode.querySelectorAll('[draggable="true"]')];
+		const specs = Object.values(scopeOf(driver.state)?.allSpecs() ?? {});
+		const targets = [...driver.rootNode.querySelectorAll("[data-eid]")].filter((el) =>
+			specs.some((spec) =>
+				spec.eventHandlers.get(Number(el.dataset.eid))?.some((h) => h.name === "drop"),
+			),
+		);
+		if (sources.length === 0 || targets.length === 0) return;
+		const from = sources[this.source % sources.length];
+		const to = targets[this.target % targets.length];
+		const before = driver.reports.length;
+		this.description = `drag <${from.tagName.toLowerCase()}>#${this.source % sources.length} onto ${elementText(to)}`;
+		dispatchDrag(from, to);
+		driver.drain();
+		checkAfter(this, model, driver, before);
+	}
+	toString() {
+		return this.description ?? `drag#${this.source}→${this.target}`;
+	}
+	clone() {
+		return new DragCommand(this.source, this.target);
+	}
+}
+
+// fc.commands of DOM events, drags included; run them on a Driver made with a document.
 export const eventCommands = (A, { maxCommands = 20 } = {}) => {
 	const { fc } = A;
 	const cmd = fc.tuple(fc.nat(), fc.nat(), eventValue(fc)).map((a) => new EventCommand(...a));
-	return fc.commands([cmd], { maxCommands });
+	const drag = fc.tuple(fc.nat(), fc.nat()).map((a) => new DragCommand(...a));
+	return fc.commands([cmd, drag], { maxCommands });
 };
 
 // Shows spec through one of its views, so properties can render views other than main.

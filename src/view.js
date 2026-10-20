@@ -293,6 +293,15 @@ export class SourceKey extends AstNode {
 	}
 }
 export const sourceKey = () => new SourceKey();
+// The key of the child the dragged element is in, as sourceKey is for the event's element;
+// null when nothing, or something from outside the component, is dragged.
+export class DragKey extends AstNode {
+	static kind = "dragKey";
+	eval(ctx) {
+		return ctx.drag?.keyIn(ctx.path) ?? null;
+	}
+}
+export const dragKey = () => new DragKey();
 export class LookupBindName extends AstNode {
 	static kind = "lookupBind";
 	constructor(name) {

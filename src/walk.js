@@ -24,6 +24,9 @@ export class Walker {
 	sourceKey(node) {
 		this.node(node);
 	}
+	dragKey(node) {
+		this.node(node);
+	}
 	lookupBind(node) {
 		this.node(node);
 	}

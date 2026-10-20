@@ -3,6 +3,7 @@ import {
 	ArrayType,
 	AstNode,
 	ComponentType,
+	DRAG_EVENTS,
 	IndexType,
 	isRecord,
 	MapType,
@@ -275,6 +276,7 @@ export class Lint extends Walker {
 			} else if (message.args !== undefined) this.checkSendArgs(action, message.args);
 			this.labels.push(labelOf(action, "action"));
 			this.inAction = true;
+			this.eventName = name;
 			for (const arg of action.args) this.visit(arg);
 			this.inAction = false;
 			this.labels.pop();
@@ -351,6 +353,25 @@ export class Lint extends Walker {
 			);
 		}
 		super.sourceKey(node);
+	}
+	// Only drag events happen with something dragged.
+	dragKey(node) {
+		if (!this.inAction) {
+			this.report(
+				"error",
+				"drag-key-outside-action",
+				node,
+				"dragKey is only valid in send arguments",
+			);
+		} else if (!DRAG_EVENTS.includes(this.eventName)) {
+			this.report(
+				"error",
+				"drag-key-outside-drag-event",
+				node,
+				`dragKey is only set in drag events, not in @on.${this.eventName}`,
+			);
+		}
+		super.dragKey(node);
 	}
 	lookupBind(node) {
 		const { name } = node;

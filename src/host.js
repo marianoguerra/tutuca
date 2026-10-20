@@ -1,7 +1,8 @@
 // The host: registers components in scopes, renders the root and runs tasks against its state.
 import { produce } from "../deps/immer.js";
+import { DROP_EVENTS, Drag } from "./drag.js";
 import { browserEnv } from "./env.js";
-import { getEventInfoFor } from "./events.js";
+import { getEventInfoFor, pathOf } from "./events.js";
 import { routeFor } from "./paths.js";
 import { findInvalidFields, messageIssues, scopeOf } from "./schema.js";
 import { Scope } from "./scope.js";
@@ -32,6 +33,8 @@ export class Host {
 		this._taskTickTimeoutId = null;
 		this._handlingTasks = false;
 		this._eventsAdded = new Set();
+		this.drag = null; // The element being dragged, from dragstart to dragend.
+		this._dragOver = null; // The drop target with data-draggingover.
 		this.engines = []; // Sync engines: told about each change, and can apply their own.
 		this._committing = false; // Engines are writing a change: applies wait in _deferred.
 		this._deferred = [];
@@ -75,10 +78,58 @@ export class Host {
 	}
 	handleEvent(e) {
 		if (this.rootComponent === null) return;
-		const info = getEventInfoFor(e, this.rootNode, this.rootComponent);
-		if (info === null) return;
-		this.pushTask(new EventTask(e, info));
-		this.handleTasks();
+		const { type } = e;
+		const bubbles = DROP_EVENTS.has(type);
+		if (type === "dragstart") this.startDrag(e);
+		else if (bubbles) this.dragOver(e);
+		const info = getEventInfoFor(e.target, type, this.rootNode, this.rootComponent, bubbles);
+		if (info !== null) {
+			this.pushTask(new EventTask(e, info, this.drag));
+			this.handleTasks();
+		}
+		if (type === "dragend") this.endDrag();
+	}
+	// Remembers what is dragged: the closest draggable element, where it was rendered and its value.
+	startDrag(e) {
+		const node = e.target.closest?.('[draggable="true"]');
+		const path = node ? pathOf(node, this.rootNode) : null;
+		if (path === null) return;
+		this.endDrag();
+		const value = path.resolve().getIn(this.rootComponent);
+		this.drag = new Drag(path, node.dataset.dragtype ?? null, node, value);
+		node.dataset.dragging = "";
+		if (e.dataTransfer) {
+			e.dataTransfer.setData("text/plain", ""); // Firefox starts no drag without data.
+			e.dataTransfer.effectAllowed = "move";
+		}
+	}
+	// Over a drop target, an element with a drop handler, lets the drop happen and marks it.
+	dragOver(e) {
+		if (e.type === "drop") {
+			e.preventDefault();
+			this.markDragOver(null);
+		} else if (e.type === "dragleave") {
+			if (!this.rootNode.contains(e.relatedTarget ?? null)) this.markDragOver(null);
+		} else {
+			const info = getEventInfoFor(e.target, "drop", this.rootNode, this.rootComponent, true);
+			// The browser shows a move cursor over a drop target, a not-allowed one elsewhere.
+			if (info !== null) {
+				e.preventDefault();
+				if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+			}
+			this.markDragOver(info?.node ?? null);
+		}
+	}
+	markDragOver(node) {
+		if (node === this._dragOver) return;
+		if (this._dragOver !== null) delete this._dragOver.dataset.draggingover;
+		this._dragOver = node;
+		if (node !== null) node.dataset.draggingover = this.drag?.type ?? "external";
+	}
+	endDrag() {
+		this.markDragOver(null);
+		if (this.drag !== null) delete this.drag.node.dataset.dragging;
+		this.drag = null;
 	}
 	addEventListeners(eventNames) {
 		for (const eventName of eventNames) {

@@ -6,6 +6,7 @@ import { jsonText } from "../paths.js";
 import { Driver, describeProblems } from "../test/driver.js";
 import {
 	arbitraries,
+	dispatchDrag,
 	dispatchOn,
 	eventCommands,
 	messageCommands,
@@ -33,6 +34,13 @@ export const step = {
 		selector,
 		value,
 		label: label ?? `${type} on ${selector}`,
+	}),
+	// Drags the element from matches and drops it on the one to matches.
+	drag: (from, to, { label } = {}) => ({
+		kind: "drag",
+		from,
+		to,
+		label: label ?? `drag ${from} onto ${to}`,
 	}),
 	check: (label, pred) => ({ kind: "check", label, pred }),
 	// A MessageCommand or EventCommand from pbt.js.
@@ -93,6 +101,18 @@ export const runStep = (driver, s) => {
 				const el = driver.rootNode.querySelector(s.selector);
 				if (el === null) return done("skipped", `nothing matches ${s.selector}`);
 				dispatchOn(el, s.type, s.value);
+				driver.drain();
+				break;
+			}
+			case "drag": {
+				if (typeof driver.rootNode.querySelector !== "function") {
+					return done("failed", "drag steps need a document");
+				}
+				const [from, to] = [s.from, s.to].map((sel) => driver.rootNode.querySelector(sel));
+				if (from === null || to === null) {
+					return done("skipped", `nothing matches ${from === null ? s.from : s.to}`);
+				}
+				dispatchDrag(from, to);
 				driver.drain();
 				break;
 			}

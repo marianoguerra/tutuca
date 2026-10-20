@@ -23,6 +23,7 @@ export class MessageContext {
 		this.pushTask = pushTask;
 		this.event = task.event;
 		this.node = task.node ?? null; // The element whose handler an event task runs.
+		this.drag = task.drag ?? null; // What is being dragged, in drag events.
 		this.sourceKey = task.sourcePath.sourceKeyIn(this.path);
 		this.isStopNextSet = false;
 		this.handled = null; // { message, args } once a handler runs.
@@ -114,10 +115,11 @@ export class AskTask extends Task {
 	}
 }
 export class EventTask extends Task {
-	constructor(e, { handler, route, node = null }) {
+	constructor(e, { handler, route, node = null }, drag = null) {
 		super(handler.action.name, [], route.path, new Target(route.path), null);
 		this.event = e;
 		this.node = node;
+		this.drag = drag;
 		this.handler = handler;
 		this.route = route;
 	}

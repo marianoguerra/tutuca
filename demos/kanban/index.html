@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kanban · Tutuca demos</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "margaui": "../../node_modules/margaui/dist/margaui.min.js",
+          "@automerge/automerge": "../deps/automerge.js",
+          "@automerge/automerge-repo": "../deps/automerge.js",
+          "@automerge/automerge-repo-network-broadcastchannel": "../deps/automerge.js",
+          "@automerge/automerge-repo-network-websocket": "../deps/automerge.js",
+          "@automerge/automerge-repo-storage-indexeddb": "../deps/automerge.js"
+        }
+      }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="../../node_modules/margaui/dist/themes/theme.css" />
+    <link rel="stylesheet" href="../demo.css" />
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <header class="demo-bar">
+      <a href="../">← All demos</a>
+      <h1>Kanban</h1>
+      <p>Drag cards within a column or to another one; add and remove cards in each column.</p>
+    </header>
+    <div id="app"></div>
+  </body>
+</html>

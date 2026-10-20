@@ -363,6 +363,17 @@ host.start(host.scope.components.Counter());</code></pre>
 			</p>
 			<tutuca-playground class="wide" src="./examples/web-component.js"></tutuca-playground>
 
+			<h3>Drag and drop</h3>
+			<p>
+				Make an element draggable with <code>draggable="true"</code>, and a drop target with
+				<code>@on.drop</code>. In the drop's message, <code>dragKey()</code> is the dragged item
+				and <code>sourceKey()</code> the one it landed on. While you drag, Tutuca marks the
+				dragged element with <code>data-dragging</code> and the target under it with
+				<code>data-draggingover</code>, so styles can show where it will land. Filter the list,
+				then drag: the keys stay those of the full list.
+			</p>
+			<tutuca-playground class="wide" src="./examples/drag-and-drop.js"></tutuca-playground>
+
 			<h3>When things go wrong</h3>
 			<p>
 				This component has three deliberate mistakes. Open <strong>Dev</strong> to see what

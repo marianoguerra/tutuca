@@ -4,6 +4,7 @@ import { lint } from "../../src/lint/index.js";
 import {
 	$if,
 	component,
+	dragKey,
 	each,
 	field,
 	Host,
@@ -183,6 +184,22 @@ const cases = [
 			"error source-key-outside-action Source.main > div > sourceKey",
 			"error source-key-outside-action Source.main > div > each() > i > sourceKey",
 			"error source-key-outside-loop Source.main > div > [@on.click] > send(pick) > sourceKey",
+		],
+	],
+	[
+		"dragKey outside send arguments or outside drag events",
+		{
+			name: "DragOutside",
+			view: h(
+				"div",
+				{ "@on.click": send("pick", dragKey()), "@on.drop": send("pick", dragKey()) },
+				dragKey(),
+			),
+			on: { pick() {} },
+		},
+		[
+			"error drag-key-outside-action DragOutside.main > div > dragKey",
+			"error drag-key-outside-drag-event DragOutside.main > div > [@on.click] > send(pick) > dragKey",
 		],
 	],
 	[

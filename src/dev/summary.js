@@ -141,6 +141,8 @@ const astTitle = (node) => {
 			return "the value of the event's target";
 		case "sourceKey":
 			return "the key the event came from";
+		case "dragKey":
+			return "the key the dragged element came from";
 		case "lookupBind":
 			return `the binding ${quote(node.name)}`;
 		default:
