@@ -252,7 +252,8 @@ export class Lint extends Walker {
 	}
 	element(node) {
 		for (const { name } of node.handlers) {
-			if (!/^[a-z]+$/.test(name)) {
+			// Custom elements' events are often kebab-case, like emoji-click.
+			if (!/^[a-z]+(-[a-z0-9]+)*$/.test(name)) {
 				this.report("warning", "unknown-event", node, `"${name}" is not a lower-case event type`);
 			}
 		}

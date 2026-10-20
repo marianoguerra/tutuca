@@ -333,6 +333,15 @@ host.start(host.scope.components.Counter());</code></pre>
 			</p>
 			<tutuca-playground class="wide" src="./examples/async.js"></tutuca-playground>
 
+			<h3>Web components and custom events</h3>
+			<p>
+				Use custom elements as tags in a view, and handle the custom events they fire with
+				<code>@on.</code> and the event's name. This picker comes from a CDN; its
+				<code>emoji-click</code> event bubbles out of its shadow root, and the handler reads
+				the chosen emoji from <code>ctx.event.detail</code>.
+			</p>
+			<tutuca-playground class="wide" src="./examples/web-component.js"></tutuca-playground>
+
 			<h3>When things go wrong</h3>
 			<p>
 				This component has three deliberate mistakes. Open <strong>Dev</strong> to see what

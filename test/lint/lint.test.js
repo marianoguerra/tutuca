@@ -124,6 +124,11 @@ const cases = [
 		["warning unknown-event Camel.main > button"],
 	],
 	[
+		"a kebab-case custom event type",
+		{ name: "Kebab", view: h("div", { "@on.emoji-click": send("inc") }), on: { inc() {} } },
+		[],
+	],
+	[
 		"unknown and inherited loop and scope names",
 		{
 			name: "Names",
