@@ -129,6 +129,17 @@ host.start(host.scope.components.Counter());</code></pre>
 					</div>
 				</li>
 				<li>
+					<span class="icon" aria-hidden="true">✋</span>
+					<div>
+						<strong>Built-in drag and drop</strong>
+						<p>
+							Mark elements <code>draggable="true"</code> and handle <code>@on.drop</code>; the
+							handler gets the dragged item's key, no library needed.
+							<a href="#drag-and-drop">See the example</a>.
+						</p>
+					</div>
+				</li>
+				<li>
 					<span class="icon" aria-hidden="true">🧊</span>
 					<div>
 						<strong>Immutable updates</strong>
@@ -363,7 +374,7 @@ host.start(host.scope.components.Counter());</code></pre>
 			</p>
 			<tutuca-playground class="wide" src="./examples/web-component.js"></tutuca-playground>
 
-			<h3>Drag and drop</h3>
+			<h3 id="drag-and-drop">Drag and drop</h3>
 			<p>
 				Make an element draggable with <code>draggable="true"</code>, and a drop target with
 				<code>@on.drop</code>. In the drop's message, <code>dragKey()</code> is the dragged item
