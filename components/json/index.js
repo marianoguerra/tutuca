@@ -12,7 +12,6 @@ import {
 	pushView,
 	render,
 	renderIt,
-	scopeOf,
 	send,
 	sourceKey,
 	t,
@@ -209,9 +208,9 @@ export const JsonSelector = component({
 		// Replaces itself with an empty value of type.
 		setTo: {
 			args: [t.enum(...Object.keys(CHOICES))],
-			run(_draft, [type]) {
+			run(_draft, [type], ctx) {
 				const [name] = CHOICES[type];
-				return scopeOf(this).make(name, {});
+				return ctx.scope.make(name, {});
 			},
 		},
 	},
@@ -286,8 +285,8 @@ export const JsonArray = component({
 		add: {
 			args: [],
 			post: (prev, next) => next.items.length === prev.items.length + 1,
-			run(draft) {
-				draft.items.push(scopeOf(this).make("JsonSelector", {}));
+			run(draft, _args, ctx) {
+				draft.items.push(ctx.scope.make("JsonSelector", {}));
 			},
 		},
 		removeAt: {
@@ -365,8 +364,8 @@ export const JsonObject = component({
 		add: {
 			args: [],
 			post: (prev, next) => next.entries.length === prev.entries.length + 1,
-			run(draft) {
-				const scope = scopeOf(this);
+			run(draft, _args, ctx) {
+				const scope = ctx.scope;
 				const key = `key${this.entries.length + 1}`;
 				draft.entries.push(scope.make("JsonEntry", { key, value: scope.make("JsonSelector", {}) }));
 			},

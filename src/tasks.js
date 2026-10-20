@@ -15,9 +15,10 @@ const run = (instance, draft, handlerName, args, ctx) => {
 	return draft;
 };
 export class MessageContext {
-	constructor(task, path, pushTask, env) {
+	constructor(task, path, pushTask, env, scope) {
 		this.task = task;
 		this.env = env;
+		this.scope = scope; // The handling component's scope, to make components from.
 		this.path = path.toComponentPath();
 		this.pushTask = pushTask;
 		this.event = task.event;

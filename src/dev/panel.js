@@ -13,7 +13,6 @@ import {
 	pushView,
 	render,
 	renderEach,
-	scopeOf,
 	send,
 	t,
 	tag,
@@ -212,12 +211,12 @@ export const DevNode = component({
 		toggle: {
 			args: [],
 			post: (prev, next) => next.isOpen !== prev.isOpen,
-			run(draft) {
+			run(draft, _args, ctx) {
 				draft.isOpen = !this.isOpen;
 				if (!draft.isOpen || this.rows.length > 0) return;
 				const value = deref(this.ref);
 				if (value === undefined) return;
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				draft.rows = inspect(value).rows.map((row) =>
 					row.tokens === undefined
 						? devNode(C, row.label, row.value)

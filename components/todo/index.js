@@ -12,7 +12,6 @@ import {
 	render,
 	renderIt,
 	scope,
-	scopeOf,
 	send,
 	seqItem,
 	sourceKey,
@@ -460,7 +459,7 @@ export const TodoApp = component({
 				if (name === "") return;
 				const id = ctx.uuid();
 				const color = Object.keys(COLORS)[this.projects.length % 6];
-				draft.projects.push(scopeOf(this).make("TodoProject", { id, name, color }));
+				draft.projects.push(ctx.scope.make("TodoProject", { id, name, color }));
 				draft.newProject = "";
 				draft.projectIndex = this.projects.length;
 				draft.view = "project";
@@ -493,7 +492,7 @@ export const TodoApp = component({
 				const named = this.projects.find((p) => p.name === parsed.project);
 				const here = this.view === "project" ? this.currentProject : this.projects[0];
 				const due = parsed.due || (this.view === "today" ? this.today : "");
-				const task = scopeOf(this).make("TodoTask", {
+				const task = ctx.scope.make("TodoTask", {
 					id: ctx.uuid(),
 					title: parsed.title,
 					projectId: (named ?? here).id,

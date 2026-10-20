@@ -207,8 +207,8 @@ export const Studio = component({
 		},
 		loadSample: {
 			args: [t.enum(...SAMPLE_IDS)],
-			run(draft, [id]) {
-				const C = scopeOf(this).components;
+			run(draft, [id], ctx) {
+				const C = ctx.scope.components;
 				const { title, value } = SAMPLES[id];
 				draft.sample = id;
 				draft.title = title;
@@ -232,7 +232,7 @@ export const Studio = component({
 		},
 		pasteJson: {
 			args: [],
-			run(draft) {
+			run(draft, _args, ctx) {
 				let value;
 				try {
 					value = JSON.parse(this.pasteText);
@@ -240,7 +240,7 @@ export const Studio = component({
 					draft.pasteError = `Not JSON: ${error.message}`;
 					return;
 				}
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				draft.editor = C.JsonEditor({ mode: "edit", value: fromJson(C, value) });
 				draft.pasteText = "";
 				draft.title = "";

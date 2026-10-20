@@ -12,7 +12,6 @@ import {
 	field,
 	render,
 	renderEach,
-	scopeOf,
 	send,
 	specOf,
 	t,
@@ -429,7 +428,7 @@ export const Drawing = component({
 				};
 				const shape =
 					kind === "Polyline" ? { points: [x, y, x, y] } : { x0: x, y0: y, x1: x, y1: y };
-				draft.current = scopeOf(this).make(kind, { id: newId(ctx), ...style, ...shape });
+				draft.current = ctx.scope.make(kind, { id: newId(ctx), ...style, ...shape });
 			},
 		},
 		moveTo: {
@@ -456,7 +455,7 @@ export const Drawing = component({
 		finish: {
 			args: [],
 			post: (_prev, next) => next.current === null,
-			run(draft) {
+			run(draft, _args, ctx) {
 				const shape = this.current;
 				if (shape === null) return;
 				if (shape.points === undefined) {
@@ -470,7 +469,7 @@ export const Drawing = component({
 					if (kept.at(-2) !== points[i] || kept.at(-1) !== points[i + 1])
 						kept.push(points[i], points[i + 1]);
 				}
-				commit(this, draft, scopeOf(this).make("Polyline", { ...shape, points: kept }));
+				commit(this, draft, ctx.scope.make("Polyline", { ...shape, points: kept }));
 			},
 		},
 		cancel: {
@@ -549,7 +548,7 @@ export const Drawing = component({
 				const s = this.selection;
 				if (s === null) return;
 				remember(this, draft);
-				const copy = scopeOf(this).make(specOf(s).name, { ...s, id: newId(ctx) });
+				const copy = ctx.scope.make(specOf(s).name, { ...s, id: newId(ctx) });
 				const at = this.selectedIndex + 1;
 				draft.shapes.splice(at, 0, copy);
 				// Toward the side with room, so a copy at the edge still shows apart.

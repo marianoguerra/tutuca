@@ -3,7 +3,7 @@ import { produce } from "../deps/immer.js";
 import { browserEnv } from "./env.js";
 import { getEventInfoFor } from "./events.js";
 import { routeFor } from "./paths.js";
-import { findInvalidFields, messageIssues } from "./schema.js";
+import { findInvalidFields, messageIssues, scopeOf } from "./schema.js";
 import { Scope } from "./scope.js";
 import { EventTask, MessageContext } from "./tasks.js";
 import { render as $render } from "./vdom.js";
@@ -233,7 +233,7 @@ export class Host {
 		try {
 			newRoot = produce(curRoot, (rootDraft) => {
 				const leafDraft = path.getIn(rootDraft);
-				ctx = new MessageContext(task, route.path, pushTask, this.env);
+				ctx = new MessageContext(task, route.path, pushTask, this.env, scopeOf(instance));
 				const newLeaf = task.run(instance, leafDraft, ctx);
 				return path.setIn(rootDraft, newLeaf);
 			});

@@ -7,7 +7,6 @@ import {
 	each,
 	field,
 	renderIt,
-	scopeOf,
 	send,
 	t,
 	tag,
@@ -152,7 +151,7 @@ export const Notes = component({
 				ctx.event?.preventDefault();
 				const text = this.draft.trim();
 				if (text === "") return;
-				draft.notes.push(scopeOf(this).make("Note", { text }));
+				draft.notes.push(ctx.scope.make("Note", { text }));
 				draft.draft = "";
 			},
 		},

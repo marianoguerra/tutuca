@@ -704,7 +704,7 @@ export const TrackerApp = component({
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === id);
 				if (thing === undefined) return;
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				const prompts = thing.measurements.flatMap((ref) => {
 					const m = findMeasurement(MEASUREMENTS, ref.measurementId);
 					if (m === undefined) return [];
@@ -741,7 +741,7 @@ export const TrackerApp = component({
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === id);
 				if (thing === undefined) return;
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				const values = thing.measurements.flatMap((ref) => {
 					const m = findMeasurement(MEASUREMENTS, ref.measurementId);
 					if (m === undefined) return [];
@@ -890,7 +890,7 @@ export const TrackerApp = component({
 			run(draft, [thingId, start, end, bucketLabel], ctx) {
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === thingId);
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				draft.panel = C.EntryList({
 					heading: thing === undefined ? "❔ Deleted thing" : `${thing.emoji} ${thing.title}`,
 					subtitle: bucketLabel,
@@ -901,9 +901,9 @@ export const TrackerApp = component({
 		},
 		openAllEntries: {
 			args: [],
-			run(draft) {
+			run(draft, _args, ctx) {
 				draft.shownEntries = 200;
-				draft.panel = scopeOf(this).components.EntryList({ heading: "All entries" });
+				draft.panel = ctx.scope.components.EntryList({ heading: "All entries" });
 				draft.listContext = { thingId: "", start: 0, end: 0 };
 				refresh(this, draft);
 			},
@@ -916,15 +916,15 @@ export const TrackerApp = component({
 		// Things.
 		newThing: {
 			args: [t.string()],
-			run(draft, [title]) {
-				const C = scopeOf(this).components;
+			run(draft, [title], ctx) {
+				const C = ctx.scope.components;
 				draft.panel = C.ThingEditor({ mode: "create", title, pickerOpen: true });
 			},
 		},
 		newThingFromQuery: {
 			args: [],
-			run(draft) {
-				const C = scopeOf(this).components;
+			run(draft, _args, ctx) {
+				const C = ctx.scope.components;
 				draft.panel = C.ThingEditor({ mode: "create", title: this.query.trim(), pickerOpen: true });
 			},
 		},
@@ -934,7 +934,7 @@ export const TrackerApp = component({
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === id);
 				if (thing === undefined) return;
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				// The same emoji as a thing sharing one of its tags.
 				const peers = this.groups
 					.filter((g) => g.thingIds.includes(thing.id))
@@ -969,7 +969,7 @@ export const TrackerApp = component({
 			],
 			run(draft, [mode, thing], ctx) {
 				ctx.stopNext();
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				if (mode === "create") {
 					const id = newId(ctx, "thing");
 					draft.things.push(C.Thing({ ...thing, id }));
@@ -1029,7 +1029,7 @@ export const TrackerApp = component({
 			],
 			run(draft, [mode, given], ctx) {
 				ctx.stopNext();
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				const known = new Set(this.things.map((x) => x.id));
 				const tag = { ...given, thingIds: given.thingIds.filter((id) => known.has(id)) };
 				if (mode === "create") {
@@ -1216,7 +1216,7 @@ export const TrackerApp = component({
 				draft.showPreview = false;
 				draft.importSource = "";
 				if (plan === null || plan.isNoop) return;
-				const C = scopeOf(this).components;
+				const C = ctx.scope.components;
 				const next = applyPlan(plan, this.snapshot());
 				const known = new Set(next.things.map((x) => x.id));
 				draft.things = next.things.map((x) => thingFrom(C, x));

@@ -9,7 +9,6 @@ import {
 	lookupBind,
 	provided,
 	renderEach,
-	scopeOf,
 	send,
 	t,
 	tag,
@@ -280,7 +279,7 @@ export const TodoTask = component({
 				const title = this.newSubtask.trim();
 				if (title === "") return;
 				const { projectId, today } = this;
-				const sub = scopeOf(this).make("TodoTask", {
+				const sub = ctx.scope.make("TodoTask", {
 					id: ctx.uuid(),
 					title,
 					projectId,

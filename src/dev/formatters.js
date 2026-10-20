@@ -321,6 +321,7 @@ const KINDS = [
 			["path", ref(ctx.path)],
 			["event", ref(ctx.event)],
 			["sourceKey", ref(ctx.sourceKey)],
+			["scope", ref(ctx.scope)],
 		],
 	},
 	{

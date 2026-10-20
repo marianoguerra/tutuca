@@ -253,8 +253,8 @@ An app that syncs must:
 3. **Keep state JSON-shaped.** Use only the schema types: strings, finite numbers, booleans,
    `null`, arrays, records, maps and components. No `undefined`, `Date`, `Map`, `Set` or class
    instances. A change that can't be projected fails its task.
-4. **Make components through scopes.** Use `scope.make`, `C.Name()` or `scopeOf(this).make`, so
-   each one knows its scope. Name every scope you enter: `scope.enter(name)`.
+4. **Make components through scopes.** Use `scope.make`, `C.Name()` or, in a handler,
+   `ctx.scope.make`, so each one knows its scope. Name every scope you enter: `scope.enter(name)`.
 5. **Don't name a field `$`.** It marks components in the projection; lint reports it
    (`reserved-field`).
 6. **Keep the app's behavior inside handlers.** Engines see committed changes only. State changed
