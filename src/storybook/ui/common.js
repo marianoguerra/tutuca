@@ -25,7 +25,7 @@ export const tabButton = (message, name, label, ...childs) =>
 		{
 			role: "tab",
 			class: $if(field(`is${name[0].toUpperCase()}${name.slice(1)}`), "tab tab-active", "tab"),
-			"@on.click": send(message, name),
+			"on:click": send(message, name),
 		},
 		label,
 		...childs,

@@ -38,7 +38,7 @@ export function trackView() {
 								placeholder: "Search things…",
 								"aria-label": "Search things",
 								value: field("query"),
-								"@on.input": send("setQuery", targetValue()),
+								"on:input": send("setQuery", targetValue()),
 							}),
 						),
 						button(
@@ -46,7 +46,7 @@ export function trackView() {
 								class: `${ICON_TOGGLE} border-base-300 ${MUTED}`,
 								"aria-label": field("collapseLabel"),
 								title: field("collapseLabel"),
-								"@on.click": send("toggleAllSections"),
+								"on:click": send("toggleAllSections"),
 							},
 							field("collapseIcon"),
 						),
@@ -56,7 +56,7 @@ export function trackView() {
 								"aria-label": field("compactLabel"),
 								title: field("compactLabel"),
 								"aria-pressed": $if(field("compact"), "true", "false"),
-								"@on.click": send("toggleCompact"),
+								"on:click": send("toggleCompact"),
 							},
 							"▦",
 						),
@@ -69,8 +69,8 @@ export function trackView() {
 							p({ class: `mt-0.5 ${MUTED}` }, field("backupText")),
 							div(
 								{ class: "mt-1 flex gap-3" },
-								button({ class: LINK, "@on.click": send("backupNow") }, "Back up now"),
-								button({ class: LINK, "@on.click": send("backupLater") }, "Later"),
+								button({ class: LINK, "on:click": send("backupNow") }, "Back up now"),
+								button({ class: LINK, "on:click": send("backupLater") }, "Later"),
 							),
 						),
 						"",
@@ -81,7 +81,7 @@ export function trackView() {
 							{ class: "space-y-3 px-4 py-10 text-center" },
 							p({ class: `text-sm ${MUTED}` }, field("noMatchText")),
 							button(
-								{ class: "btn btn-primary btn-sm", "@on.click": send("newThingFromQuery") },
+								{ class: "btn btn-primary btn-sm", "on:click": send("newThingFromQuery") },
 								field("createText"),
 							),
 						),
@@ -102,11 +102,11 @@ export function trackView() {
 					div(
 						{ class: "flex w-full max-w-xs flex-col gap-2" },
 						button(
-							{ class: "btn btn-primary", "@on.click": send("browseBundles") },
+							{ class: "btn btn-primary", "on:click": send("browseBundles") },
 							"Browse bundles",
 						),
 						button(
-							{ class: "btn btn-outline", "@on.click": send("newThing", "") },
+							{ class: "btn btn-outline", "on:click": send("newThing", "") },
 							"Create a thing",
 						),
 					),
@@ -134,7 +134,7 @@ export function insightsView() {
 								{
 									class: field("cls"),
 									value: field("value"),
-									"@on.click": send("setGranularity", targetValue()),
+									"on:click": send("setGranularity", targetValue()),
 								},
 								field("text"),
 							),
@@ -145,7 +145,7 @@ export function insightsView() {
 							class: `size-9 rounded-md border border-base-300 ${MUTED}`,
 							"aria-label": "All entries",
 							title: "All entries",
-							"@on.click": send("openAllEntries"),
+							"on:click": send("openAllEntries"),
 						},
 						"☰",
 					),
@@ -154,11 +154,11 @@ export function insightsView() {
 					field("hasUsedGroups"),
 					div(
 						{ class: "-mx-1 flex gap-1.5 overflow-x-auto px-1" },
-						button({ class: field("allChipClass"), "@on.click": send("clearGroupFilter") }, "All"),
+						button({ class: field("allChipClass"), "on:click": send("clearGroupFilter") }, "All"),
 						each(
 							field("groups"),
 							button(
-								{ class: lookupBind("chip"), "@on.click": send("setGroupFilter", sourceKey()) },
+								{ class: lookupBind("chip"), "on:click": send("setGroupFilter", sourceKey()) },
 								field("title"),
 							),
 							"usedGroups",
@@ -191,7 +191,7 @@ function searchBox(placeholder) {
 		placeholder,
 		"aria-label": placeholder,
 		value: field("manageQuery"),
-		"@on.input": send("setManageQuery", targetValue()),
+		"on:input": send("setManageQuery", targetValue()),
 	});
 }
 export function manageView() {
@@ -210,7 +210,7 @@ export function manageView() {
 								class: field("cls"),
 								role: "tab",
 								value: field("id"),
-								"@on.click": send("setManageTab", targetValue()),
+								"on:click": send("setManageTab", targetValue()),
 							},
 							field("text"),
 						),
@@ -222,7 +222,7 @@ export function manageView() {
 				div(
 					{ class: "p-4" },
 					button(
-						{ class: "btn btn-primary mb-3 w-full", "@on.click": send("newThing", "") },
+						{ class: "btn btn-primary mb-3 w-full", "on:click": send("newThing", "") },
 						"＋ New thing",
 					),
 					$if(
@@ -244,7 +244,7 @@ export function manageView() {
 				div(
 					{ class: "p-4" },
 					button(
-						{ class: "btn btn-primary mb-3 w-full", "@on.click": send("newTag") },
+						{ class: "btn btn-primary mb-3 w-full", "on:click": send("newTag") },
 						"＋ New tag",
 					),
 					searchBox("Search tags…"),
@@ -327,7 +327,7 @@ export function manageView() {
 									{
 										class: field("cls"),
 										value: field("id"),
-										"@on.click": send("addBundle", targetValue()),
+										"on:click": send("addBundle", targetValue()),
 									},
 									field("action"),
 								),
@@ -365,7 +365,7 @@ function dataView() {
 				"A single JSON file with every thing, tag and entry — for safekeeping or for analysing elsewhere.",
 			),
 			button(
-				{ class: "btn btn-primary w-full", "@on.click": send("exportAll") },
+				{ class: "btn btn-primary w-full", "on:click": send("exportAll") },
 				"⤓ Export everything",
 			),
 			p({ class: `text-xs ${MUTED}` }, field("backupStatus")),
@@ -378,7 +378,7 @@ function dataView() {
 						{
 							class: field("cls"),
 							value: field("value"),
-							"@on.click": send("setInterval", targetValue()),
+							"on:click": send("setInterval", targetValue()),
 						},
 						field("text"),
 					),
@@ -401,7 +401,7 @@ function dataView() {
 						{
 							class: field("cls"),
 							value: field("value"),
-							"@on.click": send("setImportMode", targetValue()),
+							"on:click": send("setImportMode", targetValue()),
 						},
 						field("text"),
 					),
@@ -415,7 +415,7 @@ function dataView() {
 					type: "file",
 					accept: "application/json,.json",
 					class: "hidden",
-					"@on.change": send("chooseFile"),
+					"on:change": send("chooseFile"),
 				}),
 			),
 			textarea({
@@ -424,10 +424,10 @@ function dataView() {
 				placeholder: "…or paste a backup or tag pack",
 				"aria-label": "Paste a file",
 				value: field("importText"),
-				"@on.input": send("setImportText", targetValue()),
+				"on:input": send("setImportText", targetValue()),
 			}),
 			button(
-				{ class: "btn btn-outline btn-sm w-full", "@on.click": send("previewImport") },
+				{ class: "btn btn-outline btn-sm w-full", "on:click": send("previewImport") },
 				"Preview import",
 			),
 		),
@@ -464,7 +464,7 @@ export function importDialog() {
 						type: "checkbox",
 						class: "checkbox checkbox-sm",
 						checked: field("overwrite"),
-						"@on.change": send("setOverwrite", targetValue()),
+						"on:change": send("setOverwrite", targetValue()),
 					}),
 					span(
 						{},
@@ -479,12 +479,12 @@ export function importDialog() {
 			),
 			div(
 				{ class: "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end" },
-				button({ class: "btn btn-outline btn-sm", "@on.click": send("cancelImport") }, "Cancel"),
+				button({ class: "btn btn-outline btn-sm", "on:click": send("cancelImport") }, "Cancel"),
 				button(
 					{
 						class: field("confirmImportClass"),
 						disabled: field("previewNoop"),
-						"@on.click": send("confirmImport"),
+						"on:click": send("confirmImport"),
 					},
 					field("confirmImportLabel"),
 				),

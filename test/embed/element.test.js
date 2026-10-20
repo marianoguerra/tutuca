@@ -18,7 +18,7 @@ import { dom } from "../helpers.js";
 const Counter = component({
 	name: "Counter",
 	fields: { count: t.number() },
-	view: h("button", { "@on.click": send("inc") }, field("count")),
+	view: h("button", { "on:click": send("inc") }, field("count")),
 	on: {
 		inc(draft) {
 			draft.count++;
@@ -32,8 +32,8 @@ const Outer = component({
 	fields: { key: t.string("a"), clicks: t.number(), reports: t.array() },
 	view: h(
 		"div",
-		{ "@on.click": send("clicked") },
-		h("tutuca-app", { "app-key": field("key"), "@on.tutucareport": send("report") }),
+		{ "on:click": send("clicked") },
+		h("tutuca-app", { "app-key": field("key"), "on:tutucareport": send("report") }),
 	),
 	on: {
 		clicked(draft) {
@@ -138,7 +138,7 @@ test("moving the element keeps its app", async () => {
 	assert.deepEqual(disposed, []);
 });
 
-test("emit reaches an outer @on.tutucareport handler; stale requests are dropped", async () => {
+test("emit reaches an outer on:tutucareport handler; stale requests are dropped", async () => {
 	const { host, mounted, send } = setup();
 	const first = mounted[0];
 	first.emit("hello", 42);

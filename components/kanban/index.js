@@ -38,10 +38,10 @@ export const Card = component({
 				"flex cursor-grab items-center gap-2 rounded-box border border-base-300 bg-base-100 px-3 py-2 shadow-sm data-[dragging]:opacity-40 data-[draggingover=card]:border-primary data-[draggingover=card]:bg-primary/10 data-[draggingover=card]:ring-2 data-[draggingover=card]:ring-primary",
 			draggable: "true",
 			"data-dragtype": "card",
-			"@on.drop": send("dropped"),
+			"on:drop": send("dropped"),
 		},
 		span({ class: "flex-1" }, field("title")),
-		button({ class: "btn btn-ghost btn-xs", title: "Remove", "@on.click": send("remove") }, "✕"),
+		button({ class: "btn btn-ghost btn-xs", title: "Remove", "on:click": send("remove") }, "✕"),
 	),
 	on: {
 		remove: {
@@ -79,13 +79,13 @@ export const Column = component({
 		),
 		div({ class: "flex min-h-12 flex-col gap-2" }, renderEach(field("cards"))),
 		form(
-			{ class: "join", "@on.submit": send("add") },
+			{ class: "join", "on:submit": send("add") },
 			input({
 				class: "input input-sm join-item",
 				placeholder: "New card",
 				"aria-label": "New card",
 				value: field("text"),
-				"@on.input": send("setText", targetValue()),
+				"on:input": send("setText", targetValue()),
 			}),
 			button({ class: "btn btn-sm join-item" }, "Add"),
 		),
@@ -170,7 +170,7 @@ export const Board = component({
 					// transparent outline keeps the layout still when it turns on.
 					class:
 						"rounded-box border border-base-300 bg-base-200 p-3 outline-2 outline-dashed outline-offset-2 outline-transparent data-[draggingover=card]:bg-primary/10 data-[draggingover=card]:outline-primary",
-					"@on.drop": send("dropCard", sourceKey()),
+					"on:drop": send("dropCard", sourceKey()),
 				},
 				renderIt(),
 			),

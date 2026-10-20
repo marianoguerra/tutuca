@@ -41,7 +41,7 @@ for (const story of books.flatMap((book) => book.stories)) {
 const Counter = component({
 	name: "Counter",
 	fields: { count: t.number() },
-	view: h("button", { "@on.click": send("inc") }, field("count")),
+	view: h("button", { "on:click": send("inc") }, field("count")),
 	on: {
 		inc: {
 			args: [],

@@ -12,9 +12,9 @@ export const Counter = component({
 	// The view is data: send("inc") is the message a click sends to this component.
 	view: div(
 		{ class: "flex items-center gap-3" },
-		button({ class: "btn", "@on.click": send("dec") }, "−"),
+		button({ class: "btn", "on:click": send("dec") }, "−"),
 		span({ class: "text-2xl font-bold tabular-nums" }, field("count")),
-		button({ class: "btn btn-primary", "@on.click": send("inc") }, "+"),
+		button({ class: "btn btn-primary", "on:click": send("inc") }, "+"),
 	),
 	// Handlers change a draft of the state; tutuca renders the new state.
 	on: {

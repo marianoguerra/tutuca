@@ -115,7 +115,7 @@ export const h = (tagName, attrs, ...childs) => {
 	const handlers = [];
 	for (const key in attrs) {
 		const value = attrs[key];
-		if (key.startsWith("@on.")) handlers.push({ name: key.slice(4), action: value });
+		if (key.startsWith("on:")) handlers.push({ name: key.slice(3), action: value });
 		else props.push([key, toExpr(value)]);
 	}
 	return new DomNode(tagName, props, childs.flat(Infinity).map(toExpr), handlers);

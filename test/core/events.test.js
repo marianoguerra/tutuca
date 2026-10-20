@@ -37,7 +37,7 @@ const recordVisits = (seen) =>
 const Counter = component({
 	name: "Counter",
 	fields: { id: t.string(), count: t.number() },
-	views: { main: h("button", { "@on.click": send("inc") }, field("count")) },
+	views: { main: h("button", { "on:click": send("inc") }, field("count")) },
 	on: {
 		inc(draft) {
 			draft.count++;
@@ -48,7 +48,7 @@ const Counter = component({
 test("the default walker walks parents first, attributes before children and handlers", () => {
 	const v = h(
 		"div",
-		{ class: $if(field("on"), "a", "b"), "@on.click": send("go", field("x")) },
+		{ class: $if(field("on"), "a", "b"), "on:click": send("go", field("x")) },
 		each(field("items"), scope("binds", pushView("compact", h("i", {}, field("t"))))),
 	);
 	const seen = [];
@@ -90,10 +90,10 @@ test("Walker reads children of custom nodes through childNodes", () => {
 test("elements with handlers get unique IDs, and the spec maps them without copying", () => {
 	const source = h(
 		"ul",
-		{ "@on.click": send("list") },
-		h("li", { "@on.click": send("a") }),
+		{ "on:click": send("list") },
+		h("li", { "on:click": send("a") }),
 		h("li", {}),
-		h("li", { "@on.input": send("c"), "@on.blur": send("d") }),
+		h("li", { "on:input": send("c"), "on:blur": send("d") }),
 	);
 	const [a, plain, cd] = source.childs;
 	assert.equal(plain.eid, null);
@@ -109,13 +109,13 @@ test("elements with handlers get unique IDs, and the spec maps them without copy
 });
 
 test("compilation collects handlers in attributes and children, not in action arguments", () => {
-	const argument = h("b", { "@on.click": send("argument") });
-	const yes = h("i", { "@on.click": send("yes") });
-	const no = h("i", { "@on.click": send("no") });
-	const child = h("button", { "@on.click": send("child") });
+	const argument = h("b", { "on:click": send("argument") });
+	const yes = h("i", { "on:click": send("yes") });
+	const no = h("i", { "on:click": send("no") });
+	const child = h("button", { "on:click": send("child") });
 	const source = h(
 		"div",
-		{ "@on.click": send("parent", argument), title: $if(true, yes, no) },
+		{ "on:click": send("parent", argument), title: $if(true, yes, no) },
 		child,
 	);
 	const spec = component({ name: "C", view: source });
@@ -127,11 +127,11 @@ test("compilation collects handlers in attributes and children, not in action ar
 });
 
 test("shared templates keep one ID across views and components", () => {
-	const shared = h("button", { "@on.click": send("shared") });
+	const shared = h("button", { "on:click": send("shared") });
 	const spec = component({
 		name: "A",
 		views: {
-			main: h("div", { "@on.click": send("a") }, shared),
+			main: h("div", { "on:click": send("a") }, shared),
 			compact: h("section", {}, shared),
 		},
 	});
@@ -142,7 +142,7 @@ test("shared templates keep one ID across views and components", () => {
 });
 
 test("rendering adds data-eid only to elements with handlers", () => {
-	const view = h("div", {}, h("button", { "@on.click": send("go") }), h("p", {}));
+	const view = h("div", {}, h("button", { "on:click": send("go") }), h("p", {}));
 	const Root = component({ name: "Root", view });
 	const { host, rootNode, C } = setup({ Root });
 	host.start(C.Root());
@@ -170,8 +170,8 @@ test("targetValue reads values and checkbox state", () => {
 		view: h(
 			"form",
 			{},
-			h("input", { value: field("name"), "@on.input": send("setName", targetValue()) }),
-			h("input", { type: "checkbox", "@on.input": send("setDone", targetValue()) }),
+			h("input", { value: field("name"), "on:input": send("setName", targetValue()) }),
+			h("input", { type: "checkbox", "on:input": send("setDone", targetValue()) }),
 		),
 		on: {
 			setName(draft, [v]) {
@@ -197,7 +197,7 @@ test("a handler's return value replaces the component", () => {
 	const Reset = component({
 		name: "Reset",
 		fields: { count: t.number(5) },
-		view: h("button", { "@on.click": send("reset") }),
+		view: h("button", { "on:click": send("reset") }),
 		on: {
 			reset() {
 				return Reset.make({ count: 0 });
@@ -214,7 +214,7 @@ test("a throwing handler keeps the state and reports taskFailed", () => {
 	const Bad = component({
 		name: "Bad",
 		fields: { count: t.number() },
-		view: h("button", { "@on.click": send("boom") }),
+		view: h("button", { "on:click": send("boom") }),
 		on: {
 			boom(draft) {
 				draft.count = 10;
@@ -234,7 +234,7 @@ test("a throwing handler keeps the state and reports taskFailed", () => {
 });
 
 test("only own message handlers run", () => {
-	const Root = component({ name: "Root", view: h("button", { "@on.click": send("toString") }) });
+	const Root = component({ name: "Root", view: h("button", { "on:click": send("toString") }) });
 	const { host, rootNode, failures, C } = setup({ Root });
 	const root = C.Root();
 	host.start(root);
@@ -274,16 +274,16 @@ test("all views of one instance render together and route to it", () => {
 		name: "Child",
 		fields: { seen: t.array() },
 		views: {
-			compact: h("button", { "@on.click": send("record", "compact") }, "compact"),
+			compact: h("button", { "on:click": send("record", "compact") }, "compact"),
 			main: h(
 				"section",
-				{ "@on.click": send("record", "outer") },
+				{ "on:click": send("record", "outer") },
 				h(
 					"button",
-					{ "@on.click": send("record", "main"), "@on.input": send("record", "input") },
+					{ "on:click": send("record", "main"), "on:input": send("record", "input") },
 					"main",
 				),
-				h("i", { "@on.input": send("record", "inner-input") }),
+				h("i", { "on:input": send("record", "inner-input") }),
 			),
 		},
 		on: {
@@ -315,7 +315,7 @@ for (const source of ["field", "seqItem"]) {
 			fields: { count: t.number() },
 			views: {
 				main: h("i", {}),
-				compact: h("button", { "@on.click": send("inc") }, h("span", {}, "increment")),
+				compact: h("button", { "on:click": send("inc") }, h("span", {}, "increment")),
 			},
 			on: {
 				inc(draft) {
@@ -386,7 +386,7 @@ test("renderIt stops event lookup at its view", () => {
 	const Item = component({
 		name: "Item",
 		fields: { count: t.number() },
-		view: h("div", {}, h("button", { "@on.click": send("inc") }), h("i", {})),
+		view: h("div", {}, h("button", { "on:click": send("inc") }), h("i", {})),
 		on: {
 			inc(draft) {
 				draft.count++;
@@ -400,9 +400,9 @@ test("renderIt stops event lookup at its view", () => {
 			field("items"),
 			h(
 				"section",
-				{ "@on.click": send("pick") },
+				{ "on:click": send("pick") },
 				renderIt(),
-				h("button", { "@on.click": send("pick") }),
+				h("button", { "on:click": send("pick") }),
 			),
 		),
 		on: {
@@ -430,14 +430,14 @@ test("a child-scope registration after startup adds only its event listeners", (
 	const listeners = ctx.mock.method(rootNode, "addEventListener");
 	const names = () => listeners.mock.calls.map(({ arguments: [name] }) => name);
 	host.scope.register({
-		Root: component({ name: "Root", view: h("i", { "@on.click": send("x") }) }),
+		Root: component({ name: "Root", view: h("i", { "on:click": send("x") }) }),
 	});
 	assert.deepEqual(names(), ["click"]);
 	host.start(host.scope.components.Root());
 	const Late = component({
 		name: "Late",
 		fields: { count: t.number() },
-		view: h("button", { "@on.dblclick": send("changed"), "@on.click": send("changed") }),
+		view: h("button", { "on:dblclick": send("changed"), "on:click": send("changed") }),
 		on: {
 			changed(draft) {
 				draft.count++;
@@ -460,7 +460,7 @@ test("targetValue reads the element with the handler, not the child that was cli
 		fields: { tab: t.string("a") },
 		view: h(
 			"button",
-			{ value: "b", "@on.click": send("setTab", targetValue()) },
+			{ value: "b", "on:click": send("setTab", targetValue()) },
 			h("span", {}, "icon"),
 			"label",
 		),

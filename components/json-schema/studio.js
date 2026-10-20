@@ -126,7 +126,7 @@ export const Studio = component({
 						class: "select select-sm select-bordered",
 						"aria-label": "Sample payload",
 						value: field("sample"),
-						"@on.change": send("loadSample", targetValue()),
+						"on:change": send("loadSample", targetValue()),
 					},
 					...SAMPLE_IDS.map((id) => option({ value: id }, SAMPLES[id].label)),
 				),
@@ -146,13 +146,13 @@ export const Studio = component({
 						"aria-label": "JSON to paste",
 						placeholder: '{ "id": 1, "name": "…" }',
 						value: field("pasteText"),
-						"@on.input": send("setPasteText", targetValue()),
+						"on:input": send("setPasteText", targetValue()),
 					}),
 					$if(field("hasPasteError"), p({ class: "text-sm text-error" }, field("pasteError")), ""),
 					button(
 						{
 							class: "btn btn-sm btn-primary self-start",
-							"@on.click": send("pasteJson"),
+							"on:click": send("pasteJson"),
 						},
 						"Use this JSON",
 					),
@@ -164,7 +164,7 @@ export const Studio = component({
 				{ class: "flex flex-wrap items-center justify-between gap-2" },
 				cardTitle("Schema"),
 				button(
-					{ class: "btn btn-sm btn-primary", "@on.click": send("downloadSchema") },
+					{ class: "btn btn-sm btn-primary", "on:click": send("downloadSchema") },
 					"Download .schema.json",
 				),
 			),
@@ -175,7 +175,7 @@ export const Studio = component({
 					class: "input input-sm input-bordered flex-1",
 					"aria-label": "Schema title",
 					value: field("title"),
-					"@on.input": send("setTitle", targetValue()),
+					"on:input": send("setTitle", targetValue()),
 				}),
 			),
 			$if(
@@ -183,7 +183,7 @@ export const Studio = component({
 				button(
 					{
 						class: "btn btn-sm btn-warning self-start",
-						"@on.click": send("regenerate"),
+						"on:click": send("regenerate"),
 					},
 					"Update schema",
 				),

@@ -23,12 +23,12 @@ export const Line = component({
 		span({ class: "flex-1" }, field("name")),
 		div(
 			{ class: "join" },
-			button({ class: "btn btn-sm join-item", "@on.click": send("step", -1) }, "−"),
+			button({ class: "btn btn-sm join-item", "on:click": send("step", -1) }, "−"),
 			span({ class: "btn btn-sm join-item pointer-events-none tabular-nums" }, field("quantity")),
-			button({ class: "btn btn-sm join-item", "@on.click": send("step", 1) }, "+"),
+			button({ class: "btn btn-sm join-item", "on:click": send("step", 1) }, "+"),
 		),
 		span({ class: "w-16 text-right tabular-nums" }, "$", field("subtotal")),
-		button({ class: "btn btn-sm btn-ghost", "@on.click": send("remove") }, "✕"),
+		button({ class: "btn btn-sm btn-ghost", "on:click": send("remove") }, "✕"),
 	),
 	on: {
 		step: {

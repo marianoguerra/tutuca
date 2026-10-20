@@ -22,13 +22,13 @@ export const TodoList = component({
 	view: div(
 		{ class: "flex max-w-sm flex-col gap-3" },
 		form(
-			{ class: "join", "@on.submit": send("add") },
+			{ class: "join", "on:submit": send("add") },
 			// targetValue() is the input's value, sent with each keystroke.
 			input({
 				class: "input join-item",
 				placeholder: "What needs doing?",
 				value: field("text"),
-				"@on.input": send("setText", targetValue()),
+				"on:input": send("setText", targetValue()),
 			}),
 			button({ class: "btn btn-primary join-item" }, "Add"),
 		),
@@ -48,14 +48,11 @@ export const TodoList = component({
 								type: "checkbox",
 								class: "checkbox checkbox-sm",
 								checked: field("done"),
-								"@on.change": send("toggle", sourceKey()),
+								"on:change": send("toggle", sourceKey()),
 							}),
 							span({}, field("title")),
 						),
-						button(
-							{ class: "btn btn-xs btn-ghost", "@on.click": send("remove", sourceKey()) },
-							"✕",
-						),
+						button({ class: "btn btn-xs btn-ghost", "on:click": send("remove", sourceKey()) }, "✕"),
 					),
 				),
 			),

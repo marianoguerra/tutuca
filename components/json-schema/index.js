@@ -190,7 +190,7 @@ export const SchemaPager = component({
 							class: `${PAGER_BTN} join-item ${name}`,
 							title,
 							disabled: field(off),
-							"@on.click": send(name),
+							"on:click": send(name),
 						},
 						text,
 					),
@@ -201,7 +201,7 @@ export const SchemaPager = component({
 				{
 					class: `${PAGER_BTN} settings-toggle`,
 					title: "Items per page",
-					"@on.click": send("toggleSettings"),
+					"on:click": send("toggleSettings"),
 				},
 				"⚙",
 			),
@@ -211,11 +211,11 @@ export const SchemaPager = component({
 					{ class: "join per-page" },
 					...[10, 25, 50, 100].map((n) =>
 						button(
-							{ class: `${PAGER_BTN} join-item size`, "@on.click": send("setPerPage", n) },
+							{ class: `${PAGER_BTN} join-item size`, "on:click": send("setPerPage", n) },
 							String(n),
 						),
 					),
-					button({ class: `${PAGER_BTN} join-item all`, "@on.click": send("showAll") }, "all"),
+					button({ class: `${PAGER_BTN} join-item all`, "on:click": send("showAll") }, "all"),
 				),
 				null,
 			),
@@ -291,7 +291,7 @@ const paged = {
 const tri = span({ class: `${MUTED} mr-1` }, $if(field("open"), "▾", "▸"));
 const disclosure = (caption, captionClass = `${MUTED} caption`) =>
 	button(
-		{ class: DISCLOSURE, title: HINT, "@on.click": send("toggle") },
+		{ class: DISCLOSURE, title: HINT, "on:click": send("toggle") },
 		tri,
 		span({ class: captionClass }, caption),
 	);
@@ -354,7 +354,7 @@ const viewButton = (view, label) =>
 				`btn btn-xs btn-ghost join-item view-${label}`,
 			),
 			"aria-pressed": field(view === "format" ? "isFormat" : "isMain"),
-			"@on.click": send("setView", view),
+			"on:click": send("setView", view),
 		},
 		label,
 	);
@@ -386,11 +386,11 @@ export const SchemaRoot = component({
 				viewButton("format", "format"),
 			),
 			button(
-				{ class: "btn btn-xs btn-ghost expand-all", "@on.click": send("setOpenDeep", true) },
+				{ class: "btn btn-xs btn-ghost expand-all", "on:click": send("setOpenDeep", true) },
 				"expand all",
 			),
 			button(
-				{ class: "btn btn-xs btn-ghost collapse-all", "@on.click": send("setOpenDeep", false) },
+				{ class: "btn btn-xs btn-ghost collapse-all", "on:click": send("setOpenDeep", false) },
 				"collapse all",
 			),
 		),

@@ -71,14 +71,14 @@ export const MeasurementWizard = component({
 		foot: [
 			$if(
 				field("hasBack"),
-				button({ class: "btn btn-outline h-12 shrink-0", "@on.click": send("back") }, "← Back"),
+				button({ class: "btn btn-outline h-12 shrink-0", "on:click": send("back") }, "← Back"),
 				"",
 			),
 			button(
 				{
 					class: "btn btn-primary h-12 flex-1 text-base",
 					disabled: field("cannotGo"),
-					"@on.click": send("next"),
+					"on:click": send("next"),
 				},
 				field("primaryLabel"),
 			),

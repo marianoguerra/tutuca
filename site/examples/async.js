@@ -28,12 +28,12 @@ export const Weather = component({
 	view: div(
 		{ class: "flex max-w-sm flex-col gap-3" },
 		form(
-			{ class: "join", "@on.submit": send("lookup") },
+			{ class: "join", "on:submit": send("lookup") },
 			input({
 				class: "input join-item",
 				"aria-label": "City",
 				value: field("city"),
-				"@on.input": send("setCity", targetValue()),
+				"on:input": send("setCity", targetValue()),
 			}),
 			button({ class: "btn btn-primary join-item" }, "Look up"),
 		),

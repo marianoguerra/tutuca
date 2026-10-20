@@ -145,7 +145,7 @@ Drag events use the same routing, with two differences.
 
 - **Drop events bubble.** `dragenter`, `dragover`, `dragleave` and `drop` go to the nearest
   enclosing component that handles them, not only to the component the event happened in. A
-  drop on a card's elements reaches the board's `@on.drop` around it. The route then ends at
+  drop on a card's elements reaches the board's `on:drop` around it. The route then ends at
   the frame of the child the event came through, so `sourceKey()` is that child's key.
 - **The host keeps the drag.** On `dragstart` it finds the closest `draggable="true"`
   element and keeps a `Drag`: its full dispatch path (loop items included), its

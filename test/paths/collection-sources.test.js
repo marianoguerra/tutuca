@@ -34,7 +34,7 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 				const Item = component({
 					name: "Item",
 					fields: { count: t.number() },
-					view: h("button", { "@on.click": send("inc") }, field("count")),
+					view: h("button", { "on:click": send("inc") }, field("count")),
 					on: {
 						inc(draft, _args, ctx) {
 							draft.count++;
@@ -58,7 +58,7 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 									{},
 									mode === "renderIt"
 										? renderIt()
-										: h("button", { "@on.click": send("pick", sourceKey()) }, "pick"),
+										: h("button", { "on:click": send("pick", sourceKey()) }, "pick"),
 								),
 								mode === "iterWith" ? "iterate" : undefined,
 							);
@@ -141,7 +141,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 	const Counter = component({
 		name: "Counter",
 		fields: { count: t.number() },
-		view: h("button", { "@on.click": send("inc") }, "inc"),
+		view: h("button", { "on:click": send("inc") }, "inc"),
 		on: {
 			inc(draft, _args, ctx) {
 				draft.count++;
@@ -208,7 +208,7 @@ test("rendered SeqItem collection stays frozen while sendAt captures producer co
 	const Item = component({
 		name: "Item",
 		fields: { count: t.number() },
-		view: h("button", { "@on.click": send("inc") }, "inc"),
+		view: h("button", { "on:click": send("inc") }, "inc"),
 		on: {
 			inc(draft) {
 				draft.count++;
@@ -221,7 +221,7 @@ test("rendered SeqItem collection stays frozen while sendAt captures producer co
 		view: h(
 			"div",
 			{},
-			h("button", { "@on.click": send("queue") }, "queue"),
+			h("button", { "on:click": send("queue") }, "queue"),
 			renderEach(seqItem("groups", "selected")),
 		),
 		on: {
@@ -259,7 +259,7 @@ for (const depth of [0, 1, 2, 8]) {
 			view: h(
 				"div",
 				{},
-				h("button", { "@on.click": send("inc") }, "inc"),
+				h("button", { "on:click": send("inc") }, "inc"),
 				renderEach(provided("items")),
 			),
 			on: {
@@ -301,7 +301,7 @@ test("PathBuilder item updates array and object items", () => {
 	const Root = component({
 		name: "Root",
 		fields: { array: t.array(), object: t.map() },
-		view: h("button", { "@on.click": send("update") }, "update"),
+		view: h("button", { "on:click": send("update") }, "update"),
 		on: {
 			update(_draft, _args, ctx) {
 				ctx.sendAt("inc", [], (pb) => pb.item("array", 0));

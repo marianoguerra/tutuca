@@ -59,8 +59,8 @@ export const Thing = component({
 				style: field("borderStyle"),
 				title: field("hint"),
 				"aria-label": field("ariaLabel"),
-				"@on.click": send("tap"),
-				"@on.contextmenu": send("hold"),
+				"on:click": send("tap"),
+				"on:contextmenu": send("hold"),
 			},
 			span(
 				{ class: "emoji relative text-3xl leading-none" },
@@ -84,15 +84,15 @@ export const Thing = component({
 				style: field("borderStyle"),
 				title: field("hint"),
 				"aria-label": field("ariaLabel"),
-				"@on.click": send("tap"),
-				"@on.contextmenu": send("hold"),
+				"on:click": send("tap"),
+				"on:contextmenu": send("hold"),
 			},
 			span({ class: "emoji text-3xl leading-none" }, field("emoji")),
 		),
 		row: li(
 			{},
 			button(
-				{ class: "flex w-full items-center gap-3 py-2.5 text-left", "@on.click": send("edit") },
+				{ class: "flex w-full items-center gap-3 py-2.5 text-left", "on:click": send("edit") },
 				span({ class: "emoji text-2xl" }, field("emoji")),
 				span(
 					{ class: "min-w-0 flex-1" },
@@ -156,7 +156,7 @@ export const Tag = component({
 			button(
 				{
 					class: "flex min-w-0 flex-1 items-center gap-3 py-2.5 text-left",
-					"@on.click": send("edit"),
+					"on:click": send("edit"),
 				},
 				span({ class: "emoji text-xl" }, field("emoji")),
 				span({ class: "min-w-0 flex-1 truncate text-sm font-medium" }, field("title")),
@@ -166,7 +166,7 @@ export const Tag = component({
 				{
 					class: "btn btn-ghost btn-square btn-sm",
 					"aria-label": field("shareLabel"),
-					"@on.click": send("share"),
+					"on:click": send("share"),
 				},
 				"⇪",
 			),
@@ -235,8 +235,8 @@ export const Section = component({
 				{
 					class: `flex w-full items-center gap-1.5 px-4 py-2 text-left text-xs font-semibold tracking-wide uppercase select-none ${MUTED}`,
 					"aria-expanded": $if(field("isOpen"), "true", "false"),
-					"@on.click": send("toggle"),
-					"@on.contextmenu": send("toggleAll"),
+					"on:click": send("toggle"),
+					"on:contextmenu": send("toggleAll"),
 				},
 				span({ class: "w-3" }, field("chevron")),
 				span({ class: "emoji" }, field("emoji")),
@@ -326,7 +326,7 @@ export const Bucket = component({
 								"flex items-center gap-0.5 rounded-lg border border-base-300/60 bg-base-100 py-1.5 pr-1.5 pl-2 active:bg-base-200",
 							"aria-label": field("aria"),
 							title: field("tip"),
-							"@on.click": send("open", sourceKey()),
+							"on:click": send("open", sourceKey()),
 						},
 						span({ class: "emoji text-xl" }, field("emoji")),
 						span({ class: `text-xs ${MUTED}` }, field("mark")),

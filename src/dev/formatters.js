@@ -126,7 +126,7 @@ class Printer extends Walker {
 	}
 	element(node) {
 		this.emit(span(S.fn, "h"), "(", prim(node.tagName));
-		const attrs = [...node.attrs, ...node.handlers.map((h) => [`@on.${h.name}`, h.action])];
+		const attrs = [...node.attrs, ...node.handlers.map((h) => [`on:${h.name}`, h.action])];
 		if (attrs.length > 0) {
 			this.emit(", {");
 			attrs.forEach(([name, value], i) => {
@@ -248,7 +248,7 @@ const KINDS = [
 			if (!(node instanceof DomNode)) return node.childNodes().map((c) => [null, ref(c)]);
 			return [
 				...node.attrs.map(([name, value]) => [name, ref(value)]),
-				...node.handlers.map((h) => [`@on.${h.name}`, ref(h.action)]),
+				...node.handlers.map((h) => [`on:${h.name}`, ref(h.action)]),
 				...node.childs.map((c) => [null, ref(c)]),
 			];
 		},

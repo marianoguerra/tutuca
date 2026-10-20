@@ -11,7 +11,7 @@ export const panel = ({ title, description, extra = "", progress = null, body, f
 			class: "absolute inset-0 z-40 flex flex-col bg-base-100",
 			role: "dialog",
 			"aria-modal": "true",
-			"@on.keydown": send("key"),
+			"on:keydown": send("key"),
 		},
 		header(
 			{ class: "shrink-0 border-b border-base-300 pt-2 pb-2" },
@@ -21,7 +21,7 @@ export const panel = ({ title, description, extra = "", progress = null, body, f
 					{
 						class: "btn btn-ghost btn-square",
 						"aria-label": "Close",
-						"@on.click": send("requestClose"),
+						"on:click": send("requestClose"),
 					},
 					"✕",
 				),
@@ -65,10 +65,10 @@ export const panel = ({ title, description, extra = "", progress = null, body, f
 					div(
 						{ class: "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end" },
 						button(
-							{ class: "btn btn-outline btn-sm", "@on.click": send("keepEditing") },
+							{ class: "btn btn-outline btn-sm", "on:click": send("keepEditing") },
 							field("keepLabel"),
 						),
-						button({ class: "btn btn-error btn-sm", "@on.click": send("discard") }, "Discard"),
+						button({ class: "btn btn-error btn-sm", "on:click": send("discard") }, "Discard"),
 					),
 				),
 			),

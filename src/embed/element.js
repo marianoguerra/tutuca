@@ -7,7 +7,7 @@
 //   document, adoptCss(text) → <style>, adoptLink(href), emit(type, data), mount(controller) }; a
 //   listener mounts an app on rootNode and passes mount a controller with dispose().
 // - REPORT, sent by emit, with detail { key, type, data }. An outer view can handle it
-//   like any event: h("tutuca-app", { "app-key": ..., "@on.tutucareport": send(...) }).
+//   like any event: h("tutuca-app", { "app-key": ..., "on:tutucareport": send(...) }).
 //   Reports go out in a microtask, in order: a request answered during the outer render,
 //   or a call from an outer task, never reenters the outer Host.
 // The outer side calls the app through element.controller or its own registry by key.

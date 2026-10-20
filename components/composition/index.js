@@ -141,7 +141,7 @@ const choice = (id, action, emoji, label, blurb) =>
 		{
 			class: "btn h-auto flex-col items-start gap-0 py-2 text-left",
 			"data-choice": id,
-			"@on.click": action,
+			"on:click": action,
 		},
 		span({ class: "font-bold" }, `${emoji} ${label}`),
 		span({ class: "text-xs font-normal opacity-70" }, blurb),
@@ -185,7 +185,7 @@ export const Picker = component({
 						),
 					),
 				),
-				button({ class: "btn btn-ghost btn-sm self-start", "@on.click": send("back") }, "← Back"),
+				button({ class: "btn btn-ghost btn-sm self-start", "on:click": send("back") }, "← Back"),
 			),
 		),
 	),
@@ -258,13 +258,13 @@ export const Cell = component({
 					class: "btn btn-ghost btn-xs w-6 px-0",
 					title: "Collapse or expand (Ctrl+click: every cell)",
 					"aria-expanded": $if(field("isOpen"), "true", "false"),
-					"@on.click": send("toggle"),
+					"on:click": send("toggle"),
 				},
 				field("chevron"),
 			),
 			span({ class: "flex-1 text-sm font-bold opacity-60" }, field("label")),
 			button(
-				{ class: "btn btn-ghost btn-xs", title: "Remove this cell", "@on.click": send("remove") },
+				{ class: "btn btn-ghost btn-xs", title: "Remove this cell", "on:click": send("remove") },
 				"✕",
 			),
 		),
@@ -299,13 +299,13 @@ const gap = (drop, add, title) =>
 		{
 			class:
 				"flex min-h-8 items-center justify-center rounded-box border-2 border-dashed border-transparent data-[draggingover=cell]:min-h-14 data-[draggingover=cell]:border-primary data-[draggingover=cell]:bg-primary/10",
-			"@on.drop": drop,
+			"on:drop": drop,
 		},
 		button(
 			{
 				class: "btn btn-circle btn-ghost btn-sm opacity-50 hover:opacity-100",
 				title,
-				"@on.click": add,
+				"on:click": add,
 			},
 			"+",
 		),

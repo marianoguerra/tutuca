@@ -69,7 +69,7 @@ const Tab = component({
 		main: h("p", {}, field("label")),
 		tab: h(
 			"button",
-			{ class: $if(field("isSelected"), "btn btn-success", "btn"), "@on.click": send("selected") },
+			{ class: $if(field("isSelected"), "btn btn-success", "btn"), "on:click": send("selected") },
 			field("label"),
 		),
 	},
@@ -157,7 +157,7 @@ test("a handler that breaks the schema is found with a minimal sequence", () => 
 	const Item = component({
 		name: "Item",
 		fields: { count: t.number() },
-		view: h("button", { "@on.click": send("inc") }, field("count")),
+		view: h("button", { "on:click": send("inc") }, field("count")),
 		on: {
 			inc(draft) {
 				draft.count = draft.count > 0 ? "many" : draft.count + 1;

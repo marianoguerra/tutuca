@@ -266,9 +266,9 @@ export class Lint extends Walker {
 		this.labels.pop();
 	}
 	handler(_node, { name, action }) {
-		this.labels.push(`[@on.${name}]`);
+		this.labels.push(`[on:${name}]`);
 		if (kindOf(action) !== "action") {
-			this.report("error", "event-needs-send", action, `@on.${name} needs a send action`);
+			this.report("error", "event-needs-send", action, `on:${name} needs a send action`);
 		} else {
 			const message = this.spec.on[action.name];
 			if (typeof message?.run !== "function") {
@@ -302,7 +302,7 @@ export class Lint extends Walker {
 		});
 	}
 	action(node) {
-		this.report("error", "send-not-event", node, "send is only valid as an @on.* value");
+		this.report("error", "send-not-event", node, "send is only valid as an on:* value");
 	}
 	field(node) {
 		this.checkField(node, node.name);
@@ -368,7 +368,7 @@ export class Lint extends Walker {
 				"error",
 				"drag-key-outside-drag-event",
 				node,
-				`dragKey is only set in drag events, not in @on.${this.eventName}`,
+				`dragKey is only set in drag events, not in on:${this.eventName}`,
 			);
 		}
 		super.dragKey(node);

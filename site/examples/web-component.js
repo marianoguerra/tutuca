@@ -1,5 +1,5 @@
 // 5. Web components: custom elements are tags like any other, and the custom events they
-// fire reach @on.<event-name> handlers. emoji-picker-element fires emoji-click, a
+// fire reach on:<event-name> handlers. emoji-picker-element fires emoji-click, a
 // CustomEvent that bubbles out of its shadow root; the handler reads its detail from ctx.event.
 import "https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1/index.js";
 import { $if, component, field, h, send, t, tag } from "tutuca";
@@ -16,13 +16,13 @@ export const EmojiPicker = component({
 		},
 	},
 	view: div(
-		{ class: "flex flex-col items-center gap-3", "@on.emoji-click": send("pick") },
+		{ class: "flex flex-col items-center gap-3", "on:emoji-click": send("pick") },
 		$if(
 			field("hasEmoji"),
 			span({ class: "text-8xl" }, field("current")),
 			p({}, "Press Toggle picker and choose an emoji, it will show up here."),
 		),
-		button({ class: "btn btn-sm", "@on.click": send("togglePicker") }, "Toggle picker"),
+		button({ class: "btn btn-sm", "on:click": send("togglePicker") }, "Toggle picker"),
 		// h makes any tag, custom elements included.
 		$if(field("isPickerVisible"), h("emoji-picker", {}), ""),
 	),

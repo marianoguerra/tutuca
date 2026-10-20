@@ -74,7 +74,7 @@ export const JsonBool = component({
 				class: `${TEXT.bool} cursor-pointer underline decoration-dashed decoration-transparent hover:decoration-current`,
 				title: "Toggle",
 				"aria-label": "boolean value",
-				"@on.click": send("toggle"),
+				"on:click": send("toggle"),
 			},
 			$if(field("value"), "true", "false"),
 		),
@@ -119,7 +119,7 @@ export const JsonNumber = component({
 			"aria-label": "number value",
 			title: field("value"),
 			value: field("text"),
-			"@on.input": send("setText", targetValue()),
+			"on:input": send("setText", targetValue()),
 		}),
 	},
 	on: {
@@ -152,7 +152,7 @@ export const JsonString = component({
 				class: INLINE,
 				"aria-label": "string value",
 				value: field("value"),
-				"@on.input": send("setValue", targetValue()),
+				"on:input": send("setValue", targetValue()),
 			}),
 			'"',
 		),
@@ -197,7 +197,7 @@ export const JsonSelector = component({
 					{
 						class: `${cls} cursor-pointer rounded border border-dashed border-base-content/20 px-1 hover:border-current`,
 						title: type,
-						"@on.click": send("setTo", type),
+						"on:click": send("setTo", type),
 					},
 					label,
 				),
@@ -227,11 +227,11 @@ const commas = {
 };
 
 const removeButton = button(
-	{ class: `${ACTION} text-error`, title: "Remove", "@on.click": send("removeAt", sourceKey()) },
+	{ class: `${ACTION} text-error`, title: "Remove", "on:click": send("removeAt", sourceKey()) },
 	"×",
 );
 const moveButton = button(
-	{ class: ACTION, title: "Move up", "@on.click": send("moveUp", sourceKey()) },
+	{ class: ACTION, title: "Move up", "on:click": send("moveUp", sourceKey()) },
 	"↑",
 );
 
@@ -248,7 +248,7 @@ const collectionView = (open, close, itemsField, rowExtras, addLabel) =>
 		div(
 			{ class: "inline-flex items-baseline gap-1" },
 			span({ class: `${MONO} ${PUNCT}` }, open + close),
-			...(addLabel ? [button({ class: ADD, "@on.click": send("add") }, addLabel)] : []),
+			...(addLabel ? [button({ class: ADD, "on:click": send("add") }, addLabel)] : []),
 		),
 		div(
 			{ class: "inline-flex flex-col" },
@@ -256,7 +256,7 @@ const collectionView = (open, close, itemsField, rowExtras, addLabel) =>
 			div(
 				{ class: BLOCK },
 				each(field(itemsField), itemRow(...rowExtras), "items"),
-				...(addLabel ? [button({ class: ADD, "@on.click": send("add") }, addLabel)] : []),
+				...(addLabel ? [button({ class: ADD, "on:click": send("add") }, addLabel)] : []),
 			),
 			span({ class: `${MONO} ${PUNCT}` }, close),
 		),
@@ -324,7 +324,7 @@ export const JsonEntry = component({
 					class: INLINE,
 					"aria-label": "key",
 					value: field("key"),
-					"@on.input": send("setKey", targetValue()),
+					"on:input": send("setKey", targetValue()),
 				}),
 				'"',
 			),
@@ -414,14 +414,14 @@ export const JsonEditor = component({
 				button(
 					{
 						class: $if(field("isEdit"), "btn btn-xs join-item", "btn btn-xs btn-primary join-item"),
-						"@on.click": send("setMode", "view"),
+						"on:click": send("setMode", "view"),
 					},
 					"View",
 				),
 				button(
 					{
 						class: $if(field("isEdit"), "btn btn-xs btn-primary join-item", "btn btn-xs join-item"),
-						"@on.click": send("setMode", "edit"),
+						"on:click": send("setMode", "edit"),
 					},
 					"Edit",
 				),
@@ -432,7 +432,7 @@ export const JsonEditor = component({
 					type: "checkbox",
 					class: "checkbox checkbox-xs",
 					checked: field("showText"),
-					"@on.change": send("setShowText", targetValue()),
+					"on:change": send("setShowText", targetValue()),
 				}),
 				"JSON text",
 			),

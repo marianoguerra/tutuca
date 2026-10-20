@@ -12,7 +12,7 @@ test("sourceKey is relative to the receiver for events, notifies, sends and repl
 	};
 	const Leaf = component({
 		name: "Leaf",
-		view: h("button", { "@on.click": send("click") }),
+		view: h("button", { "on:click": send("click") }),
 		on: {
 			click(_draft, _args, ctx) {
 				seen.push(["leaf click", ctx.sourceKey]);

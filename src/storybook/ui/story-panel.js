@@ -121,7 +121,7 @@ export const StoryPanel = component({
 							class: "select select-sm select-bordered",
 							"aria-label": "Sequence",
 							value: field("sequence"),
-							"@on.change": send("selectSequence", targetValue()),
+							"on:change": send("selectSequence", targetValue()),
 						},
 						option({ value: "" }, "(no sequence)"),
 						each(field("sequences"), option({ value: lookupBind("value") }, lookupBind("value"))),
@@ -129,22 +129,22 @@ export const StoryPanel = component({
 					div(
 						{ class: "join" },
 						smallButton(
-							{ class: "btn btn-sm join-item", title: "Reset", "@on.click": send("op", "reset") },
+							{ class: "btn btn-sm join-item", title: "Reset", "on:click": send("op", "reset") },
 							"⏮",
 						),
 						smallButton(
-							{ class: "btn btn-sm join-item", title: "Back", "@on.click": send("op", "back") },
+							{ class: "btn btn-sm join-item", title: "Back", "on:click": send("op", "back") },
 							"◀",
 						),
 						smallButton(
-							{ class: "btn btn-sm join-item", title: "Step", "@on.click": send("op", "forward") },
+							{ class: "btn btn-sm join-item", title: "Step", "on:click": send("op", "forward") },
 							"▶",
 						),
 						smallButton(
 							{
 								class: "btn btn-sm join-item",
 								title: "Run to end",
-								"@on.click": send("op", "toEnd"),
+								"on:click": send("op", "toEnd"),
 							},
 							"⏭",
 						),
@@ -152,7 +152,7 @@ export const StoryPanel = component({
 					smallButton(
 						{
 							class: $if(field("isPlaying"), "btn btn-sm btn-warning", "btn btn-sm btn-primary"),
-							"@on.click": send("togglePlay"),
+							"on:click": send("togglePlay"),
 						},
 						$if(field("isPlaying"), "Pause", "Play"),
 					),
@@ -198,7 +198,7 @@ export const StoryPanel = component({
 							class: "select select-sm select-bordered max-w-full",
 							"aria-label": "Target component",
 							value: field("target"),
-							"@on.change": send("setTarget", targetValue()),
+							"on:change": send("setTarget", targetValue()),
 						},
 						each(field("targets"), option({ value: lookupBind("key") }, field("label"))),
 					),
@@ -207,7 +207,7 @@ export const StoryPanel = component({
 							class: "select select-sm select-bordered",
 							"aria-label": "Message",
 							value: field("message"),
-							"@on.change": send("setMessage", targetValue()),
+							"on:change": send("setMessage", targetValue()),
 						},
 						each(field("messages"), option({ value: lookupBind("value") }, lookupBind("value"))),
 					),
@@ -218,7 +218,7 @@ export const StoryPanel = component({
 								class: "select select-sm select-bordered",
 								"aria-label": "Source key",
 								value: field("sourceKey"),
-								"@on.change": send("setSourceKey", targetValue()),
+								"on:change": send("setSourceKey", targetValue()),
 							},
 							each(
 								field("sourceKeys"),
@@ -231,18 +231,15 @@ export const StoryPanel = component({
 						class: "input input-sm input-bordered min-w-40 flex-1 font-mono",
 						"aria-label": "Arguments as a JSON array",
 						value: field("argsJson"),
-						"@on.input": send("setArgs", targetValue()),
+						"on:input": send("setArgs", targetValue()),
 					}),
 				),
 				div(
 					{ class: "flex flex-wrap gap-2" },
-					smallButton({ "@on.click": send("generateArgs") }, "Generate args"),
+					smallButton({ "on:click": send("generateArgs") }, "Generate args"),
+					smallButton({ class: "btn btn-sm btn-primary", "on:click": send("sendMessage") }, "Send"),
 					smallButton(
-						{ class: "btn btn-sm btn-primary", "@on.click": send("sendMessage") },
-						"Send",
-					),
-					smallButton(
-						{ class: "btn btn-sm btn-secondary", "@on.click": send("randomStep") },
+						{ class: "btn btn-sm btn-secondary", "on:click": send("randomStep") },
 						"Random step",
 					),
 				),
@@ -266,7 +263,7 @@ export const StoryPanel = component({
 											"btn btn-xs btn-primary w-full justify-start font-normal",
 											"btn btn-xs btn-ghost w-full justify-start font-normal",
 										),
-										"@on.click": send("gotoEntry", sourceKey()),
+										"on:click": send("gotoEntry", sourceKey()),
 									},
 									lookupBind("icon"),
 									span({ class: "min-w-0 flex-1 truncate text-left font-mono" }, field("label")),

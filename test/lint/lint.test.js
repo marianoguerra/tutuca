@@ -53,10 +53,10 @@ test("a component using every helper correctly is clean", () => {
 		view: h(
 			"div",
 			{ class: $if(field("query"), "a", "b") },
-			h("input", { "@on.input": send("setQuery", targetValue()) }),
+			h("input", { "on:input": send("setQuery", targetValue()) }),
 			each(
 				field("items"),
-				h("button", { "@on.click": send("pick", sourceKey()) }, lookupBind("label")),
+				h("button", { "on:click": send("pick", sourceKey()) }, lookupBind("label")),
 				"rows",
 			),
 			each(field("items"), renderIt("row")),
@@ -106,8 +106,8 @@ const cases = [
 	],
 	[
 		"an event bound to a non-send value",
-		{ name: "NotSend", view: h("button", { "@on.click": "inc" }) },
-		["error event-needs-send NotSend.main > button > [@on.click]"],
+		{ name: "NotSend", view: h("button", { "on:click": "inc" }) },
+		["error event-needs-send NotSend.main > button > [on:click]"],
 	],
 	[
 		"a send in a plain attribute",
@@ -116,17 +116,17 @@ const cases = [
 	],
 	[
 		"an event naming a missing or inherited handler",
-		{ name: "NoHandler", view: h("p", {}, h("button", { "@on.click": send("toString") })) },
-		["error unknown-handler NoHandler.main > p > button > [@on.click]"],
+		{ name: "NoHandler", view: h("p", {}, h("button", { "on:click": send("toString") })) },
+		["error unknown-handler NoHandler.main > p > button > [on:click]"],
 	],
 	[
 		"an event type that is not lower-case",
-		{ name: "Camel", view: h("button", { "@on.Click": send("inc") }), on: { inc() {} } },
+		{ name: "Camel", view: h("button", { "on:Click": send("inc") }), on: { inc() {} } },
 		["warning unknown-event Camel.main > button"],
 	],
 	[
 		"a kebab-case custom event type",
-		{ name: "Kebab", view: h("div", { "@on.emoji-click": send("inc") }), on: { inc() {} } },
+		{ name: "Kebab", view: h("div", { "on:emoji-click": send("inc") }), on: { inc() {} } },
 		[],
 	],
 	[
@@ -154,12 +154,12 @@ const cases = [
 		{
 			name: "Reads",
 			fields: { name: t.string() },
-			view: h("button", { "@on.click": send("set", field("name"), h("i", {})) }),
+			view: h("button", { "on:click": send("set", field("name"), h("i", {})) }),
 			on: { set() {} },
 		},
 		[
-			"error state-in-action Reads.main > button > [@on.click] > send(set) > field(name)",
-			"error state-in-action Reads.main > button > [@on.click] > send(set) > i",
+			"error state-in-action Reads.main > button > [on:click] > send(set) > field(name)",
+			"error state-in-action Reads.main > button > [on:click] > send(set) > i",
 		],
 	],
 	[
@@ -174,7 +174,7 @@ const cases = [
 			fields: { items: t.array() },
 			view: h(
 				"div",
-				{ "@on.click": send("pick", sourceKey()) },
+				{ "on:click": send("pick", sourceKey()) },
 				sourceKey(),
 				each(field("items"), h("i", {}, sourceKey())),
 			),
@@ -183,7 +183,7 @@ const cases = [
 		[
 			"error source-key-outside-action Source.main > div > sourceKey",
 			"error source-key-outside-action Source.main > div > each() > i > sourceKey",
-			"error source-key-outside-loop Source.main > div > [@on.click] > send(pick) > sourceKey",
+			"error source-key-outside-loop Source.main > div > [on:click] > send(pick) > sourceKey",
 		],
 	],
 	[
@@ -192,14 +192,14 @@ const cases = [
 			name: "DragOutside",
 			view: h(
 				"div",
-				{ "@on.click": send("pick", dragKey()), "@on.drop": send("pick", dragKey()) },
+				{ "on:click": send("pick", dragKey()), "on:drop": send("pick", dragKey()) },
 				dragKey(),
 			),
 			on: { pick() {} },
 		},
 		[
 			"error drag-key-outside-action DragOutside.main > div > dragKey",
-			"error drag-key-outside-drag-event DragOutside.main > div > [@on.click] > send(pick) > dragKey",
+			"error drag-key-outside-drag-event DragOutside.main > div > [on:click] > send(pick) > dragKey",
 		],
 	],
 	[
@@ -223,13 +223,13 @@ const cases = [
 			fields: { items: t.array() },
 			view: each(
 				field("items"),
-				h("button", { "@on.click": send("pick", lookupBind("value"), lookupBind("key")) }),
+				h("button", { "on:click": send("pick", lookupBind("value"), lookupBind("key")) }),
 			),
 			on: { pick() {} },
 		},
 		[
-			"error bind-in-action ActionBinds.main > each() > button > [@on.click] > send(pick) > lookupBind",
-			"error bind-in-action ActionBinds.main > each() > button > [@on.click] > send(pick) > lookupBind",
+			"error bind-in-action ActionBinds.main > each() > button > [on:click] > send(pick) > lookupBind",
+			"error bind-in-action ActionBinds.main > each() > button > [on:click] > send(pick) > lookupBind",
 		],
 	],
 	[
@@ -403,9 +403,9 @@ test("lint checks message specs and the sends that target them", () => {
 		view: h(
 			"div",
 			{},
-			h("p", { "@on.click": send("set", 1) }, "ok"),
-			h("i", { "@on.click": send("set") }, "arity"),
-			h("b", { "@on.click": send("set", "x") }, "type"),
+			h("p", { "on:click": send("set", 1) }, "ok"),
+			h("i", { "on:click": send("set") }, "arity"),
+			h("b", { "on:click": send("set", "x") }, "type"),
 		),
 		on: {
 			set: { args: [t.number()], run() {} },
@@ -422,7 +422,7 @@ test("lint checks message specs and the sends that target them", () => {
 		"error section-shape Form",
 		"error section-shape Form",
 		"error section-shape Form",
-		"error send-arity Form.main > div > i > [@on.click]",
-		"error send-arg-type Form.main > div > b > [@on.click]",
+		"error send-arity Form.main > div > i > [on:click]",
+		"error send-arg-type Form.main > div > b > [on:click]",
 	]);
 });

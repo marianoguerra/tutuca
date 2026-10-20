@@ -1,4 +1,4 @@
-// 6. Drag and drop: draggable="true" makes an element draggable, @on.drop makes one a drop
+// 6. Drag and drop: draggable="true" makes an element draggable, on:drop makes one a drop
 // target. In the drop's send, dragKey() is the key of the dragged item and sourceKey() the
 // one it was dropped on. While dragging, tutuca marks the dragged element with data-dragging
 // and the target under it with data-draggingover, set to the dragged one's data-dragtype.
@@ -46,7 +46,7 @@ export const Planets = component({
 			class: "input",
 			placeholder: "Filter",
 			value: field("query"),
-			"@on.input": send("setQuery", targetValue()),
+			"on:input": send("setQuery", targetValue()),
 		}),
 		ul(
 			{ class: "flex flex-col gap-1" },
@@ -58,7 +58,7 @@ export const Planets = component({
 							"cursor-grab rounded-box border border-base-300 px-3 py-2 data-[dragging]:opacity-40 data-[draggingover=planet]:border-primary",
 						draggable: "true",
 						"data-dragtype": "planet",
-						"@on.drop": send("move", dragKey(), sourceKey()),
+						"on:drop": send("move", dragKey(), sourceKey()),
 					},
 					lookupBind("value"),
 				),

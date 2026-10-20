@@ -6,7 +6,7 @@ import { setupHost } from "../helpers.js";
 const Item = component({
 	name: "Item",
 	fields: { count: t.number() },
-	view: h("button", { "@on.click": send("inc") }, field("count")),
+	view: h("button", { "on:click": send("inc") }, field("count")),
 	on: {
 		inc(draft) {
 			draft.count = draft.count > 0 ? "many" : draft.count + 1;
@@ -17,7 +17,7 @@ const Item = component({
 const List = component({
 	name: "List",
 	fields: { items: t.array(t.component("Item")), title: t.string() },
-	view: h("div", { "@on.click": send("rename") }, renderEach(field("items"))),
+	view: h("div", { "on:click": send("rename") }, renderEach(field("items"))),
 	on: {
 		rename(draft) {
 			draft.title = 42;
@@ -101,10 +101,10 @@ const Picker = component({
 	view: h(
 		"div",
 		{},
-		h("p", { "@on.click": send("pick", 1) }, "ok"),
-		h("i", { "@on.click": send("pick", "x") }, "bad arg"),
-		h("b", { "@on.click": send("pick", 99) }, "breaks post"),
-		h("u", { "@on.click": send("noisy") }, "emits"),
+		h("p", { "on:click": send("pick", 1) }, "ok"),
+		h("i", { "on:click": send("pick", "x") }, "bad arg"),
+		h("b", { "on:click": send("pick", 99) }, "breaks post"),
+		h("u", { "on:click": send("noisy") }, "emits"),
 	),
 	on: {
 		pick: {

@@ -34,7 +34,7 @@ test("isConstant: literals, elements with constant parts and constant conditions
 	const constants = [
 		h("p", {}, "hi"),
 		h("p", { class: "a", title: 1 }, h("b", {}, "x"), null, 42),
-		h("button", { "@on.click": send("pick", field("id")) }, "+"),
+		h("button", { "on:click": send("pick", field("id")) }, "+"),
 		$if(true, h("i", {}, "a"), "b"),
 	];
 	for (const node of constants) assert.equal(isConstant(node), true);
@@ -98,10 +98,10 @@ test("handlers inside constant elements still dispatch, also per loop item", () 
 		view: h(
 			"div",
 			{},
-			h("button", { class: "inc", "@on.click": send("inc") }, "+"),
+			h("button", { class: "inc", "on:click": send("inc") }, "+"),
 			each(
 				field("items"),
-				h("button", { class: "pick", "@on.click": send("pick", sourceKey()) }, "pick"),
+				h("button", { class: "pick", "on:click": send("pick", sourceKey()) }, "pick"),
 			),
 			h("output", {}, field("count")),
 		),

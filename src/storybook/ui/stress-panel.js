@@ -56,7 +56,7 @@ export const StressPanel = component({
 					type: "number",
 					class: "input input-sm input-bordered w-full",
 					value: field("numRuns"),
-					"@on.input": send("setNumber", "numRuns", targetValue()),
+					"on:input": send("setNumber", "numRuns", targetValue()),
 				}),
 			),
 			label(
@@ -66,7 +66,7 @@ export const StressPanel = component({
 					type: "number",
 					class: "input input-sm input-bordered w-full",
 					value: field("maxCommands"),
-					"@on.input": send("setNumber", "maxCommands", targetValue()),
+					"on:input": send("setNumber", "maxCommands", targetValue()),
 				}),
 			),
 			label(
@@ -76,7 +76,7 @@ export const StressPanel = component({
 					type: "number",
 					class: "input input-sm input-bordered w-full",
 					value: field("seed"),
-					"@on.input": send("setNumber", "seed", targetValue()),
+					"on:input": send("setNumber", "seed", targetValue()),
 				}),
 			),
 			label(
@@ -86,7 +86,7 @@ export const StressPanel = component({
 					{
 						class: "select select-sm select-bordered w-full",
 						value: field("from"),
-						"@on.change": send("setFrom", targetValue()),
+						"on:change": send("setFrom", targetValue()),
 					},
 					option({ value: "story" }, "story state"),
 					option({ value: "generated" }, "generated states"),
@@ -99,7 +99,7 @@ export const StressPanel = component({
 					type: "checkbox",
 					class: "checkbox checkbox-sm",
 					checked: field("events"),
-					"@on.change": send("setEvents", targetValue()),
+					"on:change": send("setEvents", targetValue()),
 				}),
 				"DOM events",
 			),
@@ -107,10 +107,10 @@ export const StressPanel = component({
 		div(
 			{ class: "flex flex-wrap items-center gap-3" },
 			smallButton(
-				{ class: "btn btn-sm btn-primary", disabled: field("isRunning"), "@on.click": send("run") },
+				{ class: "btn btn-sm btn-primary", disabled: field("isRunning"), "on:click": send("run") },
 				"Run stress test",
 			),
-			$if(field("isRunning"), smallButton({ "@on.click": send("cancel") }, "Cancel"), ""),
+			$if(field("isRunning"), smallButton({ "on:click": send("cancel") }, "Cancel"), ""),
 			span({ class: "badge" }, field("status")),
 			span(
 				{ class: "text-xs text-base-content/60" },
@@ -155,7 +155,7 @@ export const StressPanel = component({
 					each(field("commands"), li(lookupBind("value"))),
 				),
 				smallButton(
-					{ class: "btn btn-sm btn-secondary self-start", "@on.click": send("load") },
+					{ class: "btn btn-sm btn-secondary self-start", "on:click": send("load") },
 					"Load into stepper",
 				),
 			),

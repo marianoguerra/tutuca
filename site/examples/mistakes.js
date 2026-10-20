@@ -17,11 +17,11 @@ export const Greeting = component({
 		p({}, "Greeted ", field("greetings"), " times."),
 		div(
 			{ class: "flex gap-2" },
-			button({ class: "btn btn-primary", "@on.click": send("greet") }, "Greet"),
+			button({ class: "btn btn-primary", "on:click": send("greet") }, "Greet"),
 			// Mistake 2: rename takes one string, this sends none.
-			button({ class: "btn", "@on.click": send("rename") }, "Rename"),
+			button({ class: "btn", "on:click": send("rename") }, "Rename"),
 			// Mistake 3: there is no reset handler.
-			button({ class: "btn btn-ghost", "@on.click": send("reset") }, "Reset"),
+			button({ class: "btn btn-ghost", "on:click": send("reset") }, "Reset"),
 		),
 	),
 	on: {

@@ -61,7 +61,7 @@ export const EntryList = component({
 					li(
 						{ class: "flex items-center gap-2 py-2.5" },
 						button(
-							{ class: "min-w-0 flex-1 text-left", "@on.click": send("open", sourceKey()) },
+							{ class: "min-w-0 flex-1 text-left", "on:click": send("open", sourceKey()) },
 							$if(field("head"), div({ class: "text-sm font-medium" }, field("head")), ""),
 							div({ class: "text-sm tabular-nums" }, field("line")),
 							$if(field("notes"), div({ class: `truncate text-xs ${MUTED}` }, field("notes")), ""),
@@ -76,7 +76,7 @@ export const EntryList = component({
 							{
 								class: "btn btn-ghost btn-square btn-sm",
 								"aria-label": "Delete entry",
-								"@on.click": send("remove", sourceKey()),
+								"on:click": send("remove", sourceKey()),
 							},
 							"🗑",
 						),
@@ -86,14 +86,14 @@ export const EntryList = component({
 			$if(
 				field("hasMore"),
 				button(
-					{ class: "btn btn-outline mt-3 w-full", "@on.click": send("more") },
+					{ class: "btn btn-outline mt-3 w-full", "on:click": send("more") },
 					field("moreText"),
 				),
 				"",
 			),
 		),
 		foot: button(
-			{ class: "btn btn-outline h-12 flex-1", "@on.click": send("requestClose") },
+			{ class: "btn btn-outline h-12 flex-1", "on:click": send("requestClose") },
 			"Close",
 		),
 	}),

@@ -59,7 +59,7 @@ for (const source of ["field", "seqItem", "provided"]) {
 			fields: { count: t.number() },
 			views: {
 				main: h("i", {}),
-				compact: h("button", { "@on.click": send("inc") }, h("span", {}, "increment")),
+				compact: h("button", { "on:click": send("inc") }, h("span", {}, "increment")),
 			},
 			on: {
 				inc(draft, _args, ctx) {
@@ -118,7 +118,7 @@ test("top-level each routes every item after keyed reorder", () => {
 		name: "Root",
 		fields: { picked: t.array(), items: t.array() },
 		loops: { byId: { key: (_key, item) => item.id } },
-		view: each(field("items"), h("button", { "@on.click": send("pick", sourceKey()) }), "byId"),
+		view: each(field("items"), h("button", { "on:click": send("pick", sourceKey()) }), "byId"),
 		on: {
 			pick(draft, [key]) {
 				draft.picked.push(draft.items[key].id);
@@ -157,15 +157,15 @@ test("nested multi-root loops retain paths across text, comments, empty scopes a
 					$if(
 						field("visible"),
 						roots(
-							h("button", { "@on.click": send("pick", sourceKey()) }),
+							h("button", { "on:click": send("pick", sourceKey()) }),
 							new Leaf(() => ["text between roots", comment("ordinary comment")]),
-							h("button", { "@on.click": send("pick", sourceKey()) }),
+							h("button", { "on:click": send("pick", sourceKey()) }),
 						),
 						null,
 					),
 				),
 			),
-			h("button", { "@on.click": send("pick", sourceKey()) }),
+			h("button", { "on:click": send("pick", sourceKey()) }),
 		),
 		on: {
 			pick(draft, [key]) {
@@ -189,7 +189,7 @@ test("renderIt promotes only its own scope and stops event lookup at its view", 
 	const Item = component({
 		name: "Item",
 		fields: { count: t.number() },
-		view: roots(h("button", { "@on.click": send("inc") }), h("i", {})),
+		view: roots(h("button", { "on:click": send("inc") }), h("i", {})),
 		on: {
 			inc(draft) {
 				draft.count++;
@@ -203,9 +203,9 @@ test("renderIt promotes only its own scope and stops event lookup at its view", 
 			field("items"),
 			h(
 				"section",
-				{ "@on.click": send("pick", sourceKey()) },
+				{ "on:click": send("pick", sourceKey()) },
 				renderIt(),
-				h("button", { "@on.click": send("pick", sourceKey()) }),
+				h("button", { "on:click": send("pick", sourceKey()) }),
 			),
 		),
 		on: {

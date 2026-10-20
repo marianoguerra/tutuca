@@ -12,7 +12,7 @@ function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 			children: t.array(),
 			reply: t.any(),
 		},
-		view: h("button", { id: "item", "@on.click": send("inc") }, "inc"),
+		view: h("button", { id: "item", "on:click": send("inc") }, "inc"),
 		on: {
 			inc(draft) {
 				draft.count++;
@@ -32,7 +32,7 @@ function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 			"div",
 			{},
 			...Object.keys(rootHandlers).map((name) =>
-				h("button", { id: name, "@on.click": send(name) }, name),
+				h("button", { id: name, "on:click": send(name) }, name),
 			),
 			render(useProvided ? provided("selectedItem") : seqItem("items", "selected")),
 		),

@@ -84,7 +84,7 @@ export const TagEditor = component({
 						class:
 							"emoji flex size-11 items-center justify-center rounded-xl border border-base-300 text-2xl",
 						"aria-label": "Choose an emoji",
-						"@on.click": send("togglePicker"),
+						"on:click": send("togglePicker"),
 					},
 					field("emojiText"),
 				),
@@ -93,7 +93,7 @@ export const TagEditor = component({
 					placeholder: "Morning routine",
 					"aria-label": "Tag name",
 					value: field("title"),
-					"@on.input": send("setTitle", targetValue()),
+					"on:input": send("setTitle", targetValue()),
 				}),
 			),
 			$if(field("pickerOpen"), render(field("picker")), ""),
@@ -108,7 +108,7 @@ export const TagEditor = component({
 				placeholder: "Search things…",
 				"aria-label": "Search things",
 				value: field("query"),
-				"@on.input": send("setQuery", targetValue()),
+				"on:input": send("setQuery", targetValue()),
 			}),
 			$if(
 				field("isEmpty"),
@@ -125,7 +125,7 @@ export const TagEditor = component({
 									type: "checkbox",
 									class: "checkbox checkbox-sm",
 									checked: field("checked"),
-									"@on.change": send("toggleMember", sourceKey()),
+									"on:change": send("toggleMember", sourceKey()),
 								}),
 								span({ class: "emoji" }, field("emoji")),
 								field("title"),
@@ -139,14 +139,14 @@ export const TagEditor = component({
 		foot: [
 			$if(
 				field("isEdit"),
-				button({ class: "btn btn-outline h-12 text-error", "@on.click": send("remove") }, "Delete"),
+				button({ class: "btn btn-outline h-12 text-error", "on:click": send("remove") }, "Delete"),
 				"",
 			),
 			button(
 				{
 					class: "btn btn-primary h-12 flex-1",
 					disabled: field("cannotSave"),
-					"@on.click": send("save"),
+					"on:click": send("save"),
 				},
 				$if(field("isEdit"), "Save", "Create"),
 			),

@@ -657,7 +657,7 @@ fn ir_go(out : Array[Token], ir : @tutuca.Ir, depth : Int32) -> Unit {
         attrs.push((d, tok(Muted, "ƒ")))
       }
       for ev in e.events {
-        attrs.push(("@on.\{ev.dom_name()}", tok(Fn, "send")))
+        attrs.push(("on:\{ev.dom_name()}", tok(Fn, "send")))
       }
       if attrs.length() > 0 {
         out.push(tok(Plain, ", {"))
@@ -744,7 +744,7 @@ pub fn Inspected::view(ir : @tutuca.Ir) -> Inspected {
             rows.push(Leaf(d, [tok(Muted, "computed")]))
           }
           for ev in e.events {
-            rows.push(Leaf("@on.\{ev.dom_name()}", [tok(Fn, "send")]))
+            rows.push(Leaf("on:\{ev.dom_name()}", [tok(Fn, "send")]))
           }
           for c in e.childs {
             rows.push(Node("", Inspected::view(c)))

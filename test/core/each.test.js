@@ -73,7 +73,7 @@ const listOptions = {
 		{},
 		each(
 			field("items"),
-			h("button", { "@on.click": send("pick", sourceKey()) }, lookupBind("title")),
+			h("button", { "on:click": send("pick", sourceKey()) }, lookupBind("title")),
 			"items",
 		),
 	),
@@ -95,7 +95,7 @@ test("registration snapshots the loops", () => {
 		loops,
 		view: each(
 			field("items"),
-			h("button", { "@on.click": send("pick", sourceKey()) }, lookupBind("title")),
+			h("button", { "on:click": send("pick", sourceKey()) }, lookupBind("title")),
 			"items",
 		),
 	});

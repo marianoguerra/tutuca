@@ -83,14 +83,14 @@ export const TodoTask = component({
 					class: "input input-sm input-ghost w-full text-base font-medium",
 					"aria-label": "Task name",
 					value: field("title"),
-					"@on.input": send("setTitle", targetValue()),
+					"on:input": send("setTitle", targetValue()),
 				}),
 				textarea({
 					class: "textarea textarea-ghost textarea-sm w-full",
 					"aria-label": "Description",
 					placeholder: "Description",
 					value: field("description"),
-					"@on.input": send("setDescription", targetValue()),
+					"on:input": send("setDescription", targetValue()),
 				}),
 				div(
 					{ class: "flex flex-wrap items-center gap-2" },
@@ -99,14 +99,14 @@ export const TodoTask = component({
 						class: "input input-xs w-auto",
 						"aria-label": "Due date",
 						value: field("due"),
-						"@on.change": send("setDue", targetValue()),
+						"on:change": send("setDue", targetValue()),
 					}),
 					select(
 						{
 							class: "select select-xs w-auto",
 							"aria-label": "Priority",
 							value: field("priority"),
-							"@on.change": send("setPriority", targetValue()),
+							"on:change": send("setPriority", targetValue()),
 						},
 						...[1, 2, 3, 4].map((n) => option({ value: String(n) }, `Priority ${n}`)),
 					),
@@ -115,7 +115,7 @@ export const TodoTask = component({
 						"aria-label": "Labels",
 						placeholder: "@label",
 						value: field("labelsText"),
-						"@on.change": send("setLabelsText", targetValue()),
+						"on:change": send("setLabelsText", targetValue()),
 					}),
 					// Only inside an app, which provides its projects.
 					$if(
@@ -125,7 +125,7 @@ export const TodoTask = component({
 								class: "select select-xs w-auto",
 								"aria-label": "Project",
 								value: field("projectId"),
-								"@on.change": send("setProject", targetValue()),
+								"on:change": send("setProject", targetValue()),
 							},
 							each(provided("projects"), option({ value: field("id") }, field("name"))),
 						),
@@ -133,19 +133,19 @@ export const TodoTask = component({
 					),
 				),
 				form(
-					{ class: "flex gap-2", "@on.submit": send("addSubtask") },
+					{ class: "flex gap-2", "on:submit": send("addSubtask") },
 					input({
 						class: "input input-xs flex-1",
 						"aria-label": "New subtask",
 						placeholder: "Add a subtask",
 						value: field("newSubtask"),
-						"@on.input": send("setNewSubtask", targetValue()),
+						"on:input": send("setNewSubtask", targetValue()),
 					}),
 					button({ type: "submit", class: "btn btn-xs" }, "Add subtask"),
 				),
 				div(
 					{ class: "flex justify-end" },
-					button({ class: "btn btn-sm btn-primary", "@on.click": send("endEdit") }, "Done"),
+					button({ class: "btn btn-sm btn-primary", "on:click": send("endEdit") }, "Done"),
 				),
 			),
 			div(
@@ -155,11 +155,11 @@ export const TodoTask = component({
 					class: field("checkClass"),
 					"aria-label": "Complete task",
 					checked: field("isCompleted"),
-					"@on.change": send("toggle"),
+					"on:change": send("toggle"),
 				}),
 				div(
 					{ class: "flex min-w-0 flex-1 flex-col gap-0.5" },
-					span({ class: field("titleClass"), "@on.dblclick": send("beginEdit") }, field("title")),
+					span({ class: field("titleClass"), "on:dblclick": send("beginEdit") }, field("title")),
 					$if(
 						field("hasDescription"),
 						p({ class: "truncate text-xs text-base-content/60" }, field("description")),
@@ -175,7 +175,7 @@ export const TodoTask = component({
 						$if(
 							field("hasSubtasks"),
 							button(
-								{ class: "link link-hover opacity-60", "@on.click": send("toggleExpand") },
+								{ class: "link link-hover opacity-60", "on:click": send("toggleExpand") },
 								field("subtaskProgress"),
 							),
 							"",
@@ -184,11 +184,11 @@ export const TodoTask = component({
 				),
 				div(
 					{ class: "flex shrink-0 gap-0.5" },
-					button({ class: ICON_BTN, title: "Move up", "@on.click": send("moveUp") }, "↑"),
-					button({ class: ICON_BTN, title: "Move down", "@on.click": send("moveDown") }, "↓"),
-					button({ class: ICON_BTN, title: "Edit", "@on.click": send("beginEdit") }, "✎"),
+					button({ class: ICON_BTN, title: "Move up", "on:click": send("moveUp") }, "↑"),
+					button({ class: ICON_BTN, title: "Move down", "on:click": send("moveDown") }, "↓"),
+					button({ class: ICON_BTN, title: "Edit", "on:click": send("beginEdit") }, "✎"),
 					button(
-						{ class: `${ICON_BTN} text-error`, title: "Delete", "@on.click": send("remove") },
+						{ class: `${ICON_BTN} text-error`, title: "Delete", "on:click": send("remove") },
 						"🗑",
 					),
 				),

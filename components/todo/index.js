@@ -56,7 +56,7 @@ export const QuickAdd = component({
 		},
 	},
 	view: form(
-		{ class: "flex flex-col gap-1", "aria-label": "Quick add task", "@on.submit": send("submit") },
+		{ class: "flex flex-col gap-1", "aria-label": "Quick add task", "on:submit": send("submit") },
 		div(
 			{ class: "join w-full" },
 			input({
@@ -64,7 +64,7 @@ export const QuickAdd = component({
 				"aria-label": "Quick add",
 				placeholder: "e.g. Buy milk tomorrow p1 #Errands @shop",
 				value: field("text"),
-				"@on.input": send("setText", targetValue()),
+				"on:input": send("setText", targetValue()),
 			}),
 			button({ type: "submit", class: "btn btn-sm btn-primary join-item" }, "Add task"),
 		),
@@ -290,27 +290,27 @@ export const TodoApp = component({
 					"aria-label": "Search",
 					placeholder: "Search",
 					value: field("search"),
-					"@on.input": send("setSearch", targetValue()),
+					"on:input": send("setSearch", targetValue()),
 				}),
 				button(
-					{ class: lookupBind("inboxClass"), "@on.click": send("openView", "inbox") },
+					{ class: lookupBind("inboxClass"), "on:click": send("openView", "inbox") },
 					"📥 Inbox",
 					span({ class: "ml-auto text-xs opacity-60" }, lookupBind("inboxCount")),
 				),
 				button(
-					{ class: lookupBind("todayClass"), "@on.click": send("openView", "today") },
+					{ class: lookupBind("todayClass"), "on:click": send("openView", "today") },
 					"📅 Today",
 					span({ class: "ml-auto text-xs opacity-60" }, lookupBind("todayCount")),
 				),
 				button(
-					{ class: lookupBind("upcomingClass"), "@on.click": send("openView", "upcoming") },
+					{ class: lookupBind("upcomingClass"), "on:click": send("openView", "upcoming") },
 					"🗓 Upcoming",
 				),
 				h3({ class: "mt-3 px-3 text-xs font-semibold uppercase opacity-60" }, "Projects"),
 				each(
 					field("projects"),
 					button(
-						{ class: lookupBind("navClass"), "@on.click": send("openProject", sourceKey()) },
+						{ class: lookupBind("navClass"), "on:click": send("openProject", sourceKey()) },
 						span({ class: lookupBind("dot") }),
 						field("name"),
 						span({ class: "ml-auto text-xs opacity-60" }, lookupBind("count")),
@@ -321,14 +321,14 @@ export const TodoApp = component({
 					{
 						class: "flex gap-1 px-1",
 						"aria-label": "Add project",
-						"@on.submit": send("addProject"),
+						"on:submit": send("addProject"),
 					},
 					input({
 						class: "input input-xs flex-1",
 						"aria-label": "New project",
 						placeholder: "New project",
 						value: field("newProject"),
-						"@on.input": send("setNewProject", targetValue()),
+						"on:input": send("setNewProject", targetValue()),
 					}),
 					button({ type: "submit", class: "btn btn-xs" }, "+"),
 				),
@@ -336,7 +336,7 @@ export const TodoApp = component({
 				each(
 					field("labels"),
 					button(
-						{ class: lookupBind("navClass"), "@on.click": send("openLabel", sourceKey()) },
+						{ class: lookupBind("navClass"), "on:click": send("openLabel", sourceKey()) },
 						"@",
 						lookupBind("value"),
 						span({ class: "ml-auto text-xs opacity-60" }, lookupBind("count")),
@@ -387,14 +387,14 @@ export const TodoApp = component({
 							type: "checkbox",
 							class: "checkbox checkbox-xs",
 							checked: field("showCompleted"),
-							"@on.change": send("setShowCompleted", targetValue()),
+							"on:change": send("setShowCompleted", targetValue()),
 						}),
 						"Show completed",
 					),
 					$if(
 						lookupBind("hasCompleted"),
 						button(
-							{ class: "btn btn-xs btn-ghost", "@on.click": send("clearCompleted") },
+							{ class: "btn btn-xs btn-ghost", "on:click": send("clearCompleted") },
 							"Clear completed",
 						),
 						"",

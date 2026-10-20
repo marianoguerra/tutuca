@@ -70,7 +70,7 @@ export const Storybook = component({
 				placeholder: "Filter stories…",
 				"aria-label": "Filter stories",
 				value: field("filterText"),
-				"@on.input": send("setFilterText", targetValue()),
+				"on:input": send("setFilterText", targetValue()),
 			}),
 			ul({ class: "flex flex-col gap-1" }, renderEach(field("links"), "links")),
 		),
@@ -88,7 +88,7 @@ export const Storybook = component({
 							div(
 								{ class: "flex items-center gap-2" },
 								span({ class: "badge badge-outline" }, "seed ", field("seed")),
-								smallButton({ "@on.click": send("reroll") }, "Reroll"),
+								smallButton({ "on:click": send("reroll") }, "Reroll"),
 							),
 							"",
 						),
@@ -98,7 +98,7 @@ export const Storybook = component({
 						tutucaApp({
 							class: "block",
 							"app-key": field("appKey"),
-							"@on.tutucareport": send("appReport"),
+							"on:tutucareport": send("appReport"),
 						}),
 					),
 					div(

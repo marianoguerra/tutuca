@@ -133,7 +133,7 @@ host.start(host.scope.components.Counter());</code></pre>
 					<div>
 						<strong>Built-in drag and drop</strong>
 						<p>
-							Mark elements <code>draggable="true"</code> and handle <code>@on.drop</code>; the
+							Mark elements <code>draggable="true"</code> and handle <code>on:drop</code>; the
 							handler gets the dragged item's key, no library needed.
 							<a href="#drag-and-drop">See the example</a>.
 						</p>
@@ -358,7 +358,7 @@ host.start(host.scope.components.Counter());</code></pre>
 			<h3>Web components and custom events</h3>
 			<p>
 				Use custom elements as tags in a view, and handle the custom events they fire with
-				<code>@on.</code> and the event's name. This picker comes from a CDN; its
+				<code>on:</code> and the event's name. This picker comes from a CDN; its
 				<code>emoji-click</code> event bubbles out of its shadow root, and the handler reads
 				the chosen emoji from <code>ctx.event.detail</code>.
 			</p>
@@ -367,7 +367,7 @@ host.start(host.scope.components.Counter());</code></pre>
 			<h3 id="drag-and-drop">Drag and drop</h3>
 			<p>
 				Make an element draggable with <code>draggable="true"</code>, and a drop target with
-				<code>@on.drop</code>. In the drop's message, <code>dragKey()</code> is the dragged item
+				<code>on:drop</code>. In the drop's message, <code>dragKey()</code> is the dragged item
 				and <code>sourceKey()</code> the one it landed on. While you drag, Tutuca marks the
 				dragged element with <code>data-dragging</code> and the target under it with
 				<code>data-draggingover</code>, so styles can show where it will land. Filter the list,

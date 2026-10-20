@@ -133,7 +133,7 @@ export const Prompt = component({
 				class: "input mx-auto block h-16 w-44 text-center text-3xl font-semibold tabular-nums",
 				"aria-label": field("name"),
 				value: field("text"),
-				"@on.input": send("setText", targetValue()),
+				"on:input": send("setText", targetValue()),
 			}),
 			p({ class: `mt-2 text-center text-sm ${MUTED}`, "aria-live": "polite" }, field("formatted")),
 			$if(
@@ -146,7 +146,7 @@ export const Prompt = component({
 							{
 								class: field("pill"),
 								value: field("value"),
-								"@on.click": send("setUnit", targetValue()),
+								"on:click": send("setUnit", targetValue()),
 							},
 							field("label"),
 						),
@@ -167,7 +167,7 @@ export const Prompt = component({
 								{
 									class: field("cls"),
 									value: field("value"),
-									"@on.click": send("setBase", targetValue()),
+									"on:click": send("setBase", targetValue()),
 								},
 								field("label"),
 							),
@@ -189,7 +189,7 @@ export const Prompt = component({
 								value: field("value"),
 								disabled: field("disabled"),
 								"aria-label": field("aria"),
-								"@on.click": send("adjust", targetValue()),
+								"on:click": send("adjust", targetValue()),
 							},
 							field("label"),
 						),
@@ -211,7 +211,7 @@ export const Prompt = component({
 					class: "input input-sm w-24 tabular-nums",
 					"aria-label": field("name"),
 					value: field("text"),
-					"@on.input": send("setText", targetValue()),
+					"on:input": send("setText", targetValue()),
 				}),
 				div(
 					{ class: "flex max-h-20 flex-wrap gap-1 overflow-y-auto" },
@@ -221,7 +221,7 @@ export const Prompt = component({
 							{
 								class: field("button"),
 								value: field("value"),
-								"@on.click": send("setUnit", targetValue()),
+								"on:click": send("setUnit", targetValue()),
 							},
 							field("symbol"),
 						),

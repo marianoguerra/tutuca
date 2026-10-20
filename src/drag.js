@@ -1,7 +1,7 @@
 // Drag and drop: the drag the host keeps from dragstart to dragend, read by handlers as ctx.drag.
 
 // The events over a drop target. They reach the nearest enclosing component that handles them,
-// so a drop on a child's elements gets to the parent's @on.drop.
+// so a drop on a child's elements gets to the parent's on:drop.
 export const DROP_EVENTS = new Set(["dragenter", "dragover", "dragleave", "drop"]);
 // What the host listens to once a component handles drop.
 export const DRAG_EVENTS = ["dragstart", "dragend", ...DROP_EVENTS];

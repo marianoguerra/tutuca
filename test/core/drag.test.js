@@ -48,8 +48,8 @@ const List = component({
 				{
 					draggable: "true",
 					"data-dragtype": "item",
-					"@on.drop": send("move", dragKey(), sourceKey()),
-					"@on.dragstart": send("started", dragKey()),
+					"on:drop": send("move", dragKey(), sourceKey()),
+					"on:dragstart": send("started", dragKey()),
 				},
 				field("label"),
 			),
@@ -101,7 +101,7 @@ test("dragover outside any drop target doesn't accept the drop", () => {
 	const Plain = component({
 		name: "Plain",
 		fields: { n: t.number() },
-		view: h("div", {}, h("p", { class: "away" }, "x"), h("p", { "@on.drop": send("d") }, "y")),
+		view: h("div", {}, h("p", { class: "away" }, "x"), h("p", { "on:drop": send("d") }, "y")),
 		on: { d() {} },
 	});
 	const d = start({ Plain }, (C) => C.Plain());
@@ -122,7 +122,7 @@ const Column = component({
 	view: h(
 		"section",
 		{},
-		h("button", { "@on.focus": send("noop") }, "·"),
+		h("button", { "on:focus": send("noop") }, "·"),
 		renderEach(field("cards")),
 	),
 	on: { noop() {} },
@@ -139,8 +139,8 @@ const Board = component({
 				"div",
 				{
 					class: "col",
-					"@on.drop": send("dropCard", sourceKey(), dragKey()),
-					"@on.click": send("clicked"),
+					"on:drop": send("dropCard", sourceKey(), dragKey()),
+					"on:click": send("clicked"),
 				},
 				renderIt(),
 			),

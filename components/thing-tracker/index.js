@@ -572,7 +572,7 @@ export const TrackerApp = component({
 								class: field("cls"),
 								"aria-current": field("current"),
 								value: field("id"),
-								"@on.click": send("setTab", targetValue()),
+								"on:click": send("setTab", targetValue()),
 							},
 							span({ class: "text-lg leading-none" }, field("icon")),
 							field("text"),
@@ -595,21 +595,21 @@ export const TrackerApp = component({
 							field("toastText"),
 							$if(
 								field("toastCanEdit"),
-								button({ class: `ml-1 ${LINK}`, "@on.click": send("editToast") }, "Edit"),
+								button({ class: `ml-1 ${LINK}`, "on:click": send("editToast") }, "Edit"),
 								"",
 							),
 						),
 					),
 					$if(
 						field("toastCanEdit"),
-						button({ class: "btn btn-xs", "@on.click": send("undoToast") }, "Undo"),
+						button({ class: "btn btn-xs", "on:click": send("undoToast") }, "Undo"),
 						"",
 					),
 					button(
 						{
 							class: "btn btn-ghost btn-xs",
 							"aria-label": "Dismiss",
-							"@on.click": send("dismissToast"),
+							"on:click": send("dismissToast"),
 						},
 						"✕",
 					),

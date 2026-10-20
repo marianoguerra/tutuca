@@ -42,7 +42,7 @@
   (src ::= (field fname) (seq-item fname fname) (provided fname))
   (loop-name? ::= fname none)
   (attr ::= (prop-name e) (key e) (namespace ns) on-attr)
-  (on-attr ::= (on fname action))          ; "@on.<event>": action
+  (on-attr ::= (on fname action))          ; "on:<event>": action
   ;; Send arguments are evaluated on dispatch, against the message context:
   ;; literals, the event target's value, the source key, or conditionals of
   ;; those. Lint rejects state reads and render binds there.

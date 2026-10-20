@@ -67,7 +67,7 @@ export const EventEditor = component({
 					"aria-label": "When did it happen?",
 					"aria-invalid": $if(field("isInvalid"), "true", "false"),
 					value: field("when"),
-					"@on.input": send("setWhen", targetValue()),
+					"on:input": send("setWhen", targetValue()),
 				}),
 				$if(field("isInvalid"), p({ class: "text-xs text-error" }, "That isn't a valid time."), ""),
 			),
@@ -81,7 +81,7 @@ export const EventEditor = component({
 					"aria-label": "Notes",
 					placeholder: "Anything worth remembering about this one?",
 					value: field("notes"),
-					"@on.input": send("setNotes", targetValue()),
+					"on:input": send("setNotes", targetValue()),
 				}),
 			),
 		),
@@ -89,7 +89,7 @@ export const EventEditor = component({
 			$if(
 				field("isEdit"),
 				button(
-					{ class: "btn btn-outline h-12 shrink-0 text-error", "@on.click": send("remove") },
+					{ class: "btn btn-outline h-12 shrink-0 text-error", "on:click": send("remove") },
 					"Delete",
 				),
 				"",
@@ -98,7 +98,7 @@ export const EventEditor = component({
 				{
 					class: "btn btn-primary h-12 flex-1 text-base",
 					disabled: field("isInvalid"),
-					"@on.click": send("save"),
+					"on:click": send("save"),
 				},
 				field("primaryLabel"),
 			),

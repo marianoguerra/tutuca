@@ -33,7 +33,7 @@ import { component, field, h, Host, send, t } from "tutuca";
 const Counter = component({
 	name: "Counter",
 	fields: { count: t.number() },
-	view: h("button", { "@on.click": send("inc") }, "Clicked ", field("count")),
+	view: h("button", { "on:click": send("inc") }, "Clicked ", field("count")),
 	on: {
 		inc(draft) {
 			draft.count += 1;

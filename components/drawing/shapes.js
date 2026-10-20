@@ -97,10 +97,10 @@ export const pointer = {
 	},
 };
 const pointerEvents = {
-	"@on.pointerdown": send("down"),
-	"@on.pointermove": send("move"),
-	"@on.pointerup": send("up"),
-	"@on.pointercancel": send("up"),
+	"on:pointerdown": send("down"),
+	"on:pointermove": send("move"),
+	"on:pointerup": send("up"),
+	"on:pointercancel": send("up"),
 };
 export const paint = {
 	fill: field("fill"),

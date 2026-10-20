@@ -133,7 +133,7 @@ const expander = $if(
 			type: "button",
 			class: "w-3 shrink-0 cursor-pointer opacity-60 hover:opacity-100",
 			"aria-label": "Expand",
-			"@on.click": send("toggle"),
+			"on:click": send("toggle"),
 		},
 		$if(field("isOpen"), "▾", "▸"),
 	),
@@ -336,7 +336,7 @@ export const DevPanel = component({
 				{
 					type: "button",
 					class: $if(field("isCode"), VIEW_BUTTON, `${VIEW_BUTTON} btn-primary`),
-					"@on.click": send("setView", "main"),
+					"on:click": send("setView", "main"),
 				},
 				"Readable",
 			),
@@ -344,7 +344,7 @@ export const DevPanel = component({
 				{
 					type: "button",
 					class: $if(field("isCode"), `${VIEW_BUTTON} btn-primary`, VIEW_BUTTON),
-					"@on.click": send("setView", "code"),
+					"on:click": send("setView", "code"),
 				},
 				"Code",
 			),

@@ -19,7 +19,7 @@ function setup(Comp, args) {
 test("a DomNode splits its attrs into a shape once: static, dynamic, key and namespace", () => {
 	const node = h(
 		"input",
-		{ class: "c", title: field("t"), value: "v", key: field("k"), "@on.input": send("x") },
+		{ class: "c", title: field("t"), value: "v", key: field("k"), "on:input": send("x") },
 		"label",
 	);
 	const { shape } = node.plan;

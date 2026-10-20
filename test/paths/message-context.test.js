@@ -45,7 +45,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 					h(
 						"section",
 						{},
-						each(field("cells"), h("button", { "@on.click": send("act", sourceKey()) })),
+						each(field("cells"), h("button", { "on:click": send("act", sourceKey()) })),
 					),
 				),
 			),
@@ -144,7 +144,7 @@ test("forwardAt from an event handler forwards the sent message and keeps the DO
 	const Parent = component({
 		name: "Parent",
 		fields: { child: t.component("Child"), causeType: t.any() },
-		view: h("div", {}, h("button", { "@on.click": send("act", 7) }), render(field("child"))),
+		view: h("div", {}, h("button", { "on:click": send("act", 7) }), render(field("child"))),
 		on: {
 			act(draft, _args, ctx) {
 				draft.causeType = ctx.event.type;
