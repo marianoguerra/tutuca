@@ -152,6 +152,28 @@ pre code {
 	padding: 16px 20px;
 }
 
+.quote {
+	margin: 20px 0;
+}
+.quote figcaption {
+	color: var(--muted);
+	font-size: 14px;
+	margin-bottom: 4px;
+}
+.quote blockquote {
+	margin: 0;
+	padding: 2px 0 2px 16px;
+	border-left: 3px solid var(--text);
+	font-size: 17px;
+}
+.quote blockquote p,
+.quote blockquote ol {
+	margin: 4px 0;
+}
+.quote blockquote ol {
+	padding-left: 20px;
+}
+
 .callout {
 	display: flex;
 	gap: 12px;
