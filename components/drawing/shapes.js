@@ -60,7 +60,7 @@ export const svgPoint = (event) => {
 	return [round(event.clientX - box.left), round(event.clientY - box.top)];
 };
 
-const shapeFields = (t) => ({
+const shapeFields = () => ({
 	id: t.string(),
 	fill: paintType("none"),
 	stroke: paintType("#000000"),
@@ -147,7 +147,7 @@ const cornerFields = () => ({ x0: coord(), y0: coord(), x1: coord(), y1: coord()
 
 export const Rect = component({
 	name: "Rect",
-	fields: (t) => ({ ...shapeFields(t), ...cornerFields() }),
+	fields: { ...shapeFields(), ...cornerFields() },
 	methods: withCorners({
 		toSvg() {
 			return `<rect x="${this.left}" y="${this.top}" width="${this.boxWidth}" height="${this.boxHeight}" ${attrs(this)}/>`;
@@ -166,7 +166,7 @@ export const Rect = component({
 
 export const Ellipse = component({
 	name: "Ellipse",
-	fields: (t) => ({ ...shapeFields(t), ...cornerFields() }),
+	fields: { ...shapeFields(), ...cornerFields() },
 	methods: withCorners({
 		get cx() {
 			return (this.x0 + this.x1) / 2;
@@ -197,7 +197,7 @@ export const Ellipse = component({
 
 export const Line = component({
 	name: "Line",
-	fields: (t) => ({ ...shapeFields(t), ...cornerFields() }),
+	fields: { ...shapeFields(), ...cornerFields() },
 	methods: withCorners({
 		toSvg() {
 			return `<line x1="${this.x0}" y1="${this.y0}" x2="${this.x1}" y2="${this.y1}" ${attrs(this)} stroke-linecap="round"/>`;
@@ -227,7 +227,7 @@ const pointsType = () =>
 // Built a point per click; while drawing, the last point follows the pointer.
 export const Polyline = component({
 	name: "Polyline",
-	fields: (t) => ({ ...shapeFields(t), points: pointsType() }),
+	fields: { ...shapeFields(), points: pointsType() },
 	methods: {
 		get pointsAttr() {
 			const pairs = [];

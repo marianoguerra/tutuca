@@ -31,10 +31,10 @@ const RUNS = { numRuns: 50 };
 // Tabs keep exactly the selected tab selected: an invariant the tests below break on purpose.
 const Tabs = component({
 	name: "Tabs",
-	fields: (t) => ({
+	fields: {
 		tabs: t.array(t.component("Tab")).len(1),
 		selectedTabIndex: t.index("tabs"),
-	}),
+	},
 	invariants: {
 		oneSelected() {
 			return this.tabs.every((tab, i) => tab.isSelected === (i === this.selectedTabIndex));
@@ -64,7 +64,7 @@ const Tabs = component({
 
 const Tab = component({
 	name: "Tab",
-	fields: (t) => ({ label: t.string(), isSelected: t.boolean() }),
+	fields: { label: t.string(), isSelected: t.boolean() },
 	views: {
 		main: h("p", {}, field("label")),
 		tab: h(
@@ -156,7 +156,7 @@ const failure = (fn) => {
 test("a handler that breaks the schema is found with a minimal sequence", () => {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h("button", { "@on.click": send("inc") }, field("count")),
 		on: {
 			inc(draft) {
@@ -208,7 +208,7 @@ test("a tab switch that forgets the old tab breaks the invariant", () => {
 test("a post condition that doesn't hold is reported with the message", () => {
 	const Counter = component({
 		name: "Counter",
-		fields: (t) => ({ count: t.number().int().min(0).max(1000) }),
+		fields: { count: t.number().int().min(0).max(1000) },
 		view: "counter",
 		on: {
 			add: {

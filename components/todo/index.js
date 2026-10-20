@@ -29,7 +29,7 @@ const { aside, div, form, h2, h3, input, label, main, p, span } = tag;
 
 export const QuickAdd = component({
 	name: "QuickAdd",
-	fields: (t) => ({ text: t.string() }),
+	fields: { text: t.string() },
 	methods: {
 		get parsed() {
 			return parseQuickAdd(this.text);
@@ -129,7 +129,7 @@ const EMPTY = {
 
 export const TodoApp = component({
 	name: "TodoApp",
-	fields: (t) => ({
+	fields: {
 		today: todayType(),
 		projects: t.array(t.component("TodoProject")).len(1),
 		labels: t.array(t.string()),
@@ -141,7 +141,7 @@ export const TodoApp = component({
 		showCompleted: t.boolean().sync("local"),
 		quickAdd: t.component("QuickAdd"),
 		newProject: t.string().sync("none"),
-	}),
+	},
 	invariants: {
 		inboxFirst() {
 			return this.projects[0].id === "inbox";

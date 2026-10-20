@@ -1,7 +1,7 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../deps/immer.js";
 import { DRAG_EVENTS } from "./drag.js";
-import { NoDefaultError, scopeSym, specSym, t, toMessages } from "./schema.js";
+import { NoDefaultError, scopeSym, specSym, toMessages } from "./schema.js";
 import { toExpr } from "./view.js";
 import { Collect } from "./walk.js";
 
@@ -44,14 +44,13 @@ export class ComponentSpec {
 const ownEntries = (record) => Object.assign(Object.create(null), record); // no toString &c in entries
 export const component = (opts) => {
 	const { name, fields = {}, methods = {}, view, views = {} } = opts;
-	const schema = typeof fields === "function" ? fields(t) : fields;
 	const sources = view === undefined ? views : { ...views, main: view };
 	const exprs = ownEntries({});
 	for (const key in sources) exprs[key] = toExpr(sources[key]);
 	if (!("main" in exprs)) throw new Error(`Component ${name} has no main view`);
 	return new ComponentSpec({
 		name,
-		fields: schema,
+		fields,
 		methods,
 		views: exprs,
 		on: toMessages(opts.on),

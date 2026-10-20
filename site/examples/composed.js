@@ -8,11 +8,11 @@ const { button, div, span, strong } = tag;
 
 export const Line = component({
 	name: "Line",
-	fields: (t) => ({
+	fields: {
 		name: t.string(),
 		price: t.number().min(0),
 		quantity: t.number(1).int().min(0),
-	}),
+	},
 	methods: {
 		get subtotal() {
 			return (this.price * this.quantity).toFixed(2);
@@ -56,7 +56,7 @@ export const Line = component({
 
 export const Cart = component({
 	name: "Cart",
-	fields: (t) => ({ lines: t.array(t.component("Line")) }),
+	fields: { lines: t.array(t.component("Line")) },
 	methods: {
 		get total() {
 			return this.lines.reduce((sum, line) => sum + line.price * line.quantity, 0).toFixed(2);

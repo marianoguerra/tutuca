@@ -17,7 +17,7 @@ const { div, h3, input, label, li, ol, option, pre, section, select, span } = ta
 
 export const StressPanel = component({
 	name: "StressPanel",
-	fields: (t) => ({
+	fields: {
 		appKey: t.string(),
 		numRuns: t.number(100).int().min(1).max(100000),
 		maxCommands: t.number(20).int().min(1).max(1000),
@@ -30,7 +30,7 @@ export const StressPanel = component({
 		error: t.string(),
 		commands: t.array(t.string()),
 		log: t.array(t.string()),
-	}),
+	},
 	methods: {
 		get isRunning() {
 			return this.status === "running";

@@ -61,7 +61,7 @@ const NUMERIC = /^(-?\d+(\.\d+)?([eE][-+]?\d+)?)?$/;
 const isFiniteText = (text) => text === "" || Number.isFinite(Number(text));
 const numText = () => t.string().match(NUMERIC).where(isFiniteText);
 const schemaNode = () => t.component(SCHEMA_NAMES);
-const notesFields = (t) => ({ title: t.string(), description: t.string() });
+const notesFields = () => ({ title: t.string(), description: t.string() });
 
 // -- opening and closing ------------------------------------------------------
 
@@ -138,12 +138,12 @@ const openableMessages = {
 // One page of a node's items. total is a field: a node's items never change once built.
 export const SchemaPager = component({
 	name: "SchemaPager",
-	fields: (t) => ({
+	fields: {
 		total: t.number().int().min(0),
 		perPage: t.number(DEFAULT_PER_PAGE).int().min(1),
 		page: t.number().int().min(0),
 		settings: t.boolean(),
-	}),
+	},
 	invariants: {
 		pageInRange() {
 			return this.page <= this.lastPage;
@@ -362,7 +362,7 @@ const viewButton = (view, label) =>
 // The entry point of a schema tree: a toolbar and one node.
 export const SchemaRoot = component({
 	name: "SchemaRoot",
-	fields: (t) => ({ node: schemaNode(), view: t.enum("main", "format") }),
+	fields: { node: schemaNode(), view: t.enum("main", "format") },
 	methods: {
 		toSchema() {
 			return this.node.toSchema();
@@ -417,13 +417,13 @@ export const SchemaRoot = component({
 // type: object.
 export const SchemaObject = component({
 	name: "SchemaObject",
-	fields: (t) => ({
-		...notesFields(t),
+	fields: {
+		...notesFields(),
 		properties: t.array(t.component("SchemaProperty")),
 		additional: t.option(schemaNode()), // What additionalProperties allows, if it says.
 		open: t.boolean(true),
 		pager: t.option(t.component("SchemaPager")),
-	}),
+	},
 	methods: {
 		get caption() {
 			return `object (${this.properties.length})`;
@@ -495,7 +495,7 @@ export const SchemaObject = component({
 // One named property of an object. It owns no open state: messages go to its schema.
 export const SchemaProperty = component({
 	name: "SchemaProperty",
-	fields: (t) => ({ name: t.string(), required: t.boolean(), schema: schemaNode() }),
+	fields: { name: t.string(), required: t.boolean(), schema: schemaNode() },
 	methods: {
 		get mark() {
 			return this.required ? "required" : "optional";
@@ -553,13 +553,13 @@ export const SchemaProperty = component({
 // type: array.
 export const SchemaArray = component({
 	name: "SchemaArray",
-	fields: (t) => ({
-		...notesFields(t),
+	fields: {
+		...notesFields(),
 		items: t.option(schemaNode()), // What every element must be, if it says.
 		minItems: numText(),
 		maxItems: numText(),
 		open: t.boolean(true),
-	}),
+	},
 	methods: {
 		get minLabel() {
 			return `≥ ${this.minItems}`;
@@ -625,13 +625,13 @@ export const SchemaArray = component({
 
 export const SchemaString = component({
 	name: "SchemaString",
-	fields: (t) => ({
-		...notesFields(t),
+	fields: {
+		...notesFields(),
 		format: t.string(),
 		pattern: t.string(),
 		minLength: numText(),
 		maxLength: numText(),
-	}),
+	},
 	methods: {
 		get minLabel() {
 			return `≥ ${this.minLength}`;
@@ -673,12 +673,12 @@ export const SchemaString = component({
 const numeric = (name, kind) =>
 	component({
 		name,
-		fields: (t) => ({
-			...notesFields(t),
+		fields: {
+			...notesFields(),
 			minimum: numText(),
 			maximum: numText(),
 			multipleOf: numText(),
-		}),
+		},
 		methods: {
 			get minLabel() {
 				return `≥ ${this.minimum}`;
@@ -721,7 +721,7 @@ export const SchemaInteger = numeric("SchemaInteger", "integer");
 const bare = (name, kind) =>
 	component({
 		name,
-		fields: notesFields,
+		fields: notesFields(),
 		methods: {
 			toSchema() {
 				return putNotes(this, { type: kind });
@@ -743,7 +743,7 @@ const typeNames = each(
 // type: ["string", "null"]: several types, any of which will do.
 export const SchemaUnion = component({
 	name: "SchemaUnion",
-	fields: (t) => ({ ...notesFields(t), types: t.array(t.string()) }),
+	fields: { ...notesFields(), types: t.array(t.string()) },
 	methods: {
 		toSchema() {
 			return putNotes(this, { type: [...this.types] });
@@ -768,12 +768,12 @@ export const SchemaUnion = component({
 // enum: [...]: a closed set of values, shown as JSON.
 export const SchemaEnum = component({
 	name: "SchemaEnum",
-	fields: (t) => ({
-		...notesFields(t),
+	fields: {
+		...notesFields(),
 		values: t.array(t.component(VALUE_NAMES)),
 		open: t.boolean(true),
 		pager: t.option(t.component("SchemaPager")),
-	}),
+	},
 	methods: {
 		get caption() {
 			return `enum (${this.values.length})`;
@@ -818,7 +818,7 @@ export const SchemaEnum = component({
 // const: x, exactly one value.
 export const SchemaConst = component({
 	name: "SchemaConst",
-	fields: (t) => ({ ...notesFields(t), value: t.component(VALUE_NAMES) }),
+	fields: { ...notesFields(), value: t.component(VALUE_NAMES) },
 	methods: {
 		toSchema() {
 			return putNotes(this, { const: this.value.toJson() });
@@ -845,7 +845,7 @@ export const SchemaConst = component({
 // $ref: a pointer to a schema declared elsewhere.
 export const SchemaRef = component({
 	name: "SchemaRef",
-	fields: (t) => ({ target: t.string() }),
+	fields: { target: t.string() },
 	methods: {
 		toSchema() {
 			return { $ref: this.target };
@@ -870,12 +870,12 @@ export const SchemaRef = component({
 const combinator = (name, key, label) =>
 	component({
 		name,
-		fields: (t) => ({
-			...notesFields(t),
+		fields: {
+			...notesFields(),
 			branches: t.array(schemaNode()),
 			open: t.boolean(true),
 			pager: t.option(t.component("SchemaPager")),
-		}),
+		},
 		methods: {
 			get caption() {
 				return `${key} (${this.branches.length})`;
@@ -919,7 +919,7 @@ export const SchemaOneOf = combinator("SchemaOneOf", "oneOf", "exactly one of");
 // not: the one branch must not hold.
 export const SchemaNot = component({
 	name: "SchemaNot",
-	fields: (t) => ({ ...notesFields(t), schema: schemaNode() }),
+	fields: { ...notesFields(), schema: schemaNode() },
 	methods: {
 		toSchema() {
 			return putNotes(this, { not: this.schema.toSchema() });

@@ -9,7 +9,7 @@ const { button, div, h3, p } = tag;
 
 export const Greeting = component({
 	name: "Greeting",
-	fields: (t) => ({ name: t.string("World"), greetings: t.number().int().min(0) }),
+	fields: { name: t.string("World"), greetings: t.number().int().min(0) },
 	view: div(
 		{ class: "flex flex-col gap-2" },
 		// Mistake 1: the field is name, not nmae.

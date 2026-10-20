@@ -1,13 +1,13 @@
 // A story in the sidebar list.
 
-import { $if, component, field, send, tag } from "../../tutuca.js";
+import { $if, component, field, send, t, tag } from "../../tutuca.js";
 import { title } from "./common.js";
 
 const { button, li, span } = tag;
 
 export const StoryLink = component({
 	name: "StoryLink",
-	fields: (t) => ({
+	fields: {
 		id: t.string(),
 		group: t.string(),
 		name: t.string(),
@@ -16,7 +16,7 @@ export const StoryLink = component({
 		isGenerated: t.boolean(),
 		isSelected: t.boolean(),
 		isCollapsed: t.boolean(), // Its group is, and no filter shows it anyway.
-	}),
+	},
 	methods: {
 		matches(text) {
 			return this.id.toLowerCase().includes(text.toLowerCase());

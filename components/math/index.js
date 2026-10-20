@@ -60,14 +60,14 @@ const PRESETS = {
 
 export const Quadratic = component({
 	name: "Quadratic",
-	fields: () => ({
+	fields: {
 		a: coefficient()
 			.default(1)
 			.where((a) => a !== 0, "notZero")
 			.arb((fc) => fc.integer({ min: -20, max: 20 }).filter((n) => n !== 0)),
 		b: coefficient(),
 		c: coefficient(),
-	}),
+	},
 	methods: {
 		get discriminant() {
 			return this.b * this.b - 4 * this.a * this.c;
@@ -408,12 +408,12 @@ const entry = () =>
 // A 2×2 matrix, its determinant and its inverse when it has one.
 export const Matrix2 = component({
 	name: "Matrix2",
-	fields: () => ({
+	fields: {
 		a: entry().default(2),
 		b: entry().default(1),
 		c: entry().default(1),
 		d: entry().default(3),
-	}),
+	},
 	methods: {
 		get det() {
 			return this.a * this.d - this.b * this.c;

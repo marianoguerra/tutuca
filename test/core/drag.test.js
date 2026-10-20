@@ -25,6 +25,7 @@ import {
 	Scope,
 	send,
 	sourceKey,
+	t,
 } from "../../src/tutuca.js";
 import { document } from "../helpers.js";
 
@@ -36,7 +37,7 @@ const start = (specs, make) => {
 
 const List = component({
 	name: "List",
-	fields: (t) => ({ items: t.array(), dropped: t.any(null), seen: t.any(null) }),
+	fields: { items: t.array(), dropped: t.any(null), seen: t.any(null) },
 	view: h(
 		"ul",
 		{},
@@ -99,7 +100,7 @@ test("the dragged element and the drop target under it are marked until the drag
 test("dragover outside any drop target doesn't accept the drop", () => {
 	const Plain = component({
 		name: "Plain",
-		fields: (t) => ({ n: t.number() }),
+		fields: { n: t.number() },
 		view: h("div", {}, h("p", { class: "away" }, "x"), h("p", { "@on.drop": send("d") }, "y")),
 		on: { d() {} },
 	});
@@ -112,12 +113,12 @@ test("dragover outside any drop target doesn't accept the drop", () => {
 // A board of columns, each a component with draggable cards; only the board handles drops.
 const Card = component({
 	name: "Card",
-	fields: (t) => ({ id: t.string() }),
+	fields: { id: t.string() },
 	view: h("p", { draggable: "true", "data-dragtype": "card" }, h("span", {}, field("id"))),
 });
 const Column = component({
 	name: "Column",
-	fields: (t) => ({ cards: t.array(t.component("Card")) }),
+	fields: { cards: t.array(t.component("Card")) },
 	view: h(
 		"section",
 		{},
@@ -128,7 +129,7 @@ const Column = component({
 });
 const Board = component({
 	name: "Board",
-	fields: (t) => ({ columns: t.array(t.component("Column")), log: t.array(), clicks: t.number() }),
+	fields: { columns: t.array(t.component("Column")), log: t.array(), clicks: t.number() },
 	view: h(
 		"div",
 		{},

@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { component, h, provided, render, send, seqItem } from "../../src/tutuca.js";
+import { component, h, provided, render, send, seqItem, t } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
 function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({
+		fields: {
 			count: t.number(),
 			selected: t.number(),
 			children: t.array(),
 			reply: t.any(),
-		}),
+		},
 		view: h("button", { id: "item", "@on.click": send("inc") }, "inc"),
 		on: {
 			inc(draft) {
@@ -22,7 +22,7 @@ function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ selected: t.number(), committed: t.number(), items: t.array() }),
+		fields: { selected: t.number(), committed: t.number(), items: t.array() },
 		provides: {
 			selectedItem(pb) {
 				pb.seqItem("items", "selected");

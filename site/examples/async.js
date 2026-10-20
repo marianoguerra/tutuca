@@ -2,18 +2,18 @@
 // names a handler registered next to the components; its result comes back as the
 // lookupReplyOk message, and a failure as lookupReplyError. Handlers are swappable:
 // these stories answer from a table, an app would call fetch.
-import { $if, component, field, send, tag, targetValue } from "tutuca";
+import { $if, component, field, send, t, tag, targetValue } from "tutuca";
 import { step, stories } from "tutuca/storybook";
 
 const { button, div, form, input, p, span } = tag;
 
 export const Weather = component({
 	name: "Weather",
-	fields: (t) => ({
+	fields: {
 		city: t.string("Lisbon"),
 		status: t.enum("idle", "loading", "done", "failed"),
 		report: t.string(),
-	}),
+	},
 	methods: {
 		get isLoading() {
 			return this.status === "loading";

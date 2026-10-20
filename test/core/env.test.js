@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { Driver } from "../../src/test/pbt.js";
-import { component, DispatchPath, testEnv } from "../../src/tutuca.js";
+import { component, DispatchPath, t, testEnv } from "../../src/tutuca.js";
 import { scopeWith } from "../helpers.js";
 
 const Stamp = component({
 	name: "Stamp",
-	fields: (t) => ({ at: t.number(), roll: t.number(), id: t.string() }),
+	fields: { at: t.number(), roll: t.number(), id: t.string() },
 	on: {
 		stamp(draft, _args, ctx) {
 			draft.at = ctx.now();

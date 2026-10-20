@@ -28,10 +28,10 @@ const isLowerHalf = ({ event, node }) => {
 
 export const Planets = component({
 	name: "Planets",
-	fields: (t) => ({
+	fields: {
 		query: t.string(),
 		items: t.array(t.string()),
-	}),
+	},
 	loops: {
 		matching: {
 			filter(_key, item) {

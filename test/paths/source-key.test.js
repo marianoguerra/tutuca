@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { component, each, field, h, renderEach, renderIt, send } from "../../src/tutuca.js";
+import { component, each, field, h, renderEach, renderIt, send, t } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
 // A Leaf in rows[1].cells[2] of a Mid, the Mid in mids[1] of a Top: each receiver
@@ -24,13 +24,13 @@ test("sourceKey is relative to the receiver for events, notifies, sends and repl
 	});
 	const Mid = component({
 		name: "Mid",
-		fields: (t) => ({ rows: t.array() }),
+		fields: { rows: t.array() },
 		view: h("div", {}, each(field("rows"), h("p", {}, each(field("cells"), renderIt())))),
 		on: { ping: record("mid notify") },
 	});
 	const Top = component({
 		name: "Top",
-		fields: (t) => ({ mids: t.array() }),
+		fields: { mids: t.array() },
 		view: h("div", {}, renderEach(field("mids"))),
 		on: {
 			ping(_draft, _args, ctx) {

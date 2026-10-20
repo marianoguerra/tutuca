@@ -141,7 +141,7 @@ const expander = $if(
 );
 export const DevNode = component({
 	name: "DevNode",
-	fields: (t) => ({
+	fields: {
 		label: t.string(),
 		title: t.string(),
 		detail: t.string(),
@@ -150,7 +150,7 @@ export const DevNode = component({
 		canOpen: t.boolean(),
 		isOpen: t.boolean(),
 		rows: t.array(t.component("DevNode")),
-	}),
+	},
 	methods: {
 		get hasLabel() {
 			return this.label !== "";
@@ -232,11 +232,11 @@ const sectionTitle = "text-xs font-semibold uppercase tracking-wider text-base-c
 // A titled list of nodes.
 export const DevSection = component({
 	name: "DevSection",
-	fields: (t) => ({
+	fields: {
 		title: t.string(),
 		emptyText: t.string("Nothing to show."),
 		nodes: t.array(t.component("DevNode")),
-	}),
+	},
 	methods: {
 		get isEmpty() {
 			return this.nodes.length === 0;
@@ -258,7 +258,7 @@ const LEVELS = { error: `${BADGE} badge-error`, warning: `${BADGE} badge-warning
 // The issues of lint() from src/lint/index.js, as plain records.
 export const DevLint = component({
 	name: "DevLint",
-	fields: (t) => ({
+	fields: {
 		issues: t.array(
 			t.record({
 				level: t.enum("error", "warning"),
@@ -267,7 +267,7 @@ export const DevLint = component({
 				message: t.string(),
 			}),
 		),
-	}),
+	},
 	methods: {
 		get isClean() {
 			return this.issues.length === 0;
@@ -316,13 +316,13 @@ const card = (name) =>
 const VIEW_BUTTON = "btn btn-xs join-item";
 export const DevPanel = component({
 	name: "DevPanel",
-	fields: (t) => ({
+	fields: {
 		view: t.enum("main", "code"),
 		state: t.component("DevSection"),
 		tasks: t.component("DevSection"),
 		specs: t.component("DevSection"),
 		lint: t.component("DevLint"),
-	}),
+	},
 	methods: {
 		get isCode() {
 			return this.view === "code";

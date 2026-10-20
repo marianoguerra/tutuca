@@ -1,5 +1,6 @@
 // What the tracker's components share: its look (after shadcn's zinc theme in daisyUI terms),
 // small helpers, field types and the app's panels, intervals and tabs.
+import { t } from "../../src/tutuca.js";
 
 // Looks, after shadcn's zinc theme in daisyUI terms.
 export const MUTED = "text-base-content/60";
@@ -17,8 +18,8 @@ export const LINK = "underline underline-offset-2 cursor-pointer";
 export const pick = (on) => (on ? PILL_ON : PILL_OFF);
 export const seg = (on) => (on ? SEG_ON : SEG_OFF);
 
-export const measureRef = (t) => t.record({ measurementId: t.string(), unit: t.string() });
-export const eventRecord = (t) =>
+export const measureRef = () => t.record({ measurementId: t.string(), unit: t.string() });
+export const eventRecord = () =>
 	t.record({
 		id: t.string(),
 		thingId: t.string(),

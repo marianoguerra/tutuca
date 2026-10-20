@@ -23,7 +23,7 @@ import {
 } from "../../src/sync/index.js";
 import { relay, remoteEngine } from "../../src/sync/remote.js";
 import { arbitraries } from "../../src/test/pbt.js";
-import { component } from "../../src/tutuca.js";
+import { component, t } from "../../src/tutuca.js";
 import { scopeWith, setupHost, tick } from "../helpers.js";
 
 const LEVELS = ["shared", "local"];
@@ -83,10 +83,10 @@ for (const [library, [components, overrides]] of Object.entries(libraries)) {
 // Two versions of an app: the second adds a text field, body, and narrows meta to integers.
 const Item = component({
 	name: "Item",
-	fields: (t) => ({ label: t.string(), done: t.boolean(), tags: t.array(t.string()) }),
+	fields: { label: t.string(), done: t.boolean(), tags: t.array(t.string()) },
 	view: "<span>{.label}</span>",
 });
-const rootFields = (t) => ({
+const rootFields = () => ({
 	title: t.string(),
 	kind: t.enum("note", "list"),
 	items: t.array(t.component("Item")),
@@ -94,10 +94,10 @@ const rootFields = (t) => ({
 	note: t.option(t.string()),
 	open: t.boolean().sync("none"),
 });
-const Root = component({ name: "Root", fields: rootFields, view: "<h1>{.title}</h1>" });
+const Root = component({ name: "Root", fields: rootFields(), view: "<h1>{.title}</h1>" });
 const Root2 = component({
 	name: "Root",
-	fields: (t) => ({ ...rootFields(t), meta: t.map(t.number().int()), body: t.string() }),
+	fields: { ...rootFields(), meta: t.map(t.number().int()), body: t.string() },
 	view: "<h1>{.title}</h1>",
 });
 const V1 = { Root, Item };

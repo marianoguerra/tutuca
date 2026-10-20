@@ -61,7 +61,7 @@ export const JsonNull = component({
 
 export const JsonBool = component({
 	name: "JsonBool",
-	fields: (t) => ({ value: t.boolean() }),
+	fields: { value: t.boolean() },
 	methods: {
 		toJson() {
 			return this.value;
@@ -94,7 +94,7 @@ export const JsonBool = component({
 const asNumber = (text) => (text.trim() === "" ? Number.NaN : Number(text));
 export const JsonNumber = component({
 	name: "JsonNumber",
-	fields: (t) => ({ value: t.number(), text: t.string("0") }),
+	fields: { value: t.number(), text: t.string("0") },
 	invariants: {
 		valueFollowsText() {
 			const n = asNumber(this.text);
@@ -137,7 +137,7 @@ export const JsonNumber = component({
 
 export const JsonString = component({
 	name: "JsonString",
-	fields: (t) => ({ value: t.string() }),
+	fields: { value: t.string() },
 	methods: {
 		toJson() {
 			return this.value;
@@ -267,7 +267,7 @@ const moveUp = (items, key) => {
 
 export const JsonArray = component({
 	name: "JsonArray",
-	fields: (t) => ({ items: t.array(t.component(VALUE_NAMES)) }),
+	fields: { items: t.array(t.component(VALUE_NAMES)) },
 	methods: {
 		toJson() {
 			return this.items.map((item) => item.toJson());
@@ -307,7 +307,7 @@ export const JsonArray = component({
 
 export const JsonEntry = component({
 	name: "JsonEntry",
-	fields: (t) => ({ key: t.string(), value: t.component(VALUE_NAMES) }),
+	fields: { key: t.string(), value: t.component(VALUE_NAMES) },
 	views: {
 		main: span(
 			{ class: "inline-flex items-baseline gap-1" },
@@ -345,7 +345,7 @@ export const JsonEntry = component({
 
 export const JsonObject = component({
 	name: "JsonObject",
-	fields: (t) => ({ entries: t.array(t.component("JsonEntry")) }),
+	fields: { entries: t.array(t.component("JsonEntry")) },
 	methods: {
 		// Later entries win, as in JSON.parse.
 		toJson() {
@@ -389,11 +389,11 @@ export const JsonObject = component({
 // A JSON document, shown read only or edited in place, with its JSON text.
 export const JsonEditor = component({
 	name: "JsonEditor",
-	fields: (t) => ({
+	fields: {
 		value: t.component(VALUE_NAMES),
 		mode: t.enum("view", "edit"),
 		showText: t.boolean(),
-	}),
+	},
 	methods: {
 		toJson() {
 			return this.value.toJson();

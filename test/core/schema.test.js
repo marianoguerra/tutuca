@@ -9,12 +9,13 @@ import {
 	isComponent,
 	NumberType,
 	specOf,
+	t,
 	t as types,
 } from "../../src/tutuca.js";
 
 const Task = component({
 	name: "Task",
-	fields: (t) => ({ title: t.string("Just do it"), tags: t.array(), done: t.boolean() }),
+	fields: { title: t.string("Just do it"), tags: t.array(), done: t.boolean() },
 	methods: {
 		label() {
 			return this.done ? `${this.title} ✓` : this.title;
@@ -69,7 +70,7 @@ test("view becomes main next to named views", () => {
 test("option fields accept null, and missing values take the default", () => {
 	const N = component({
 		name: "N",
-		fields: (t) => ({
+		fields: {
 			s: t.option(t.string()).default("d"),
 			n: t.option(t.number()).default(1),
 			b: t.option(t.boolean()).default(true),
@@ -77,7 +78,7 @@ test("option fields accept null, and missing values take the default", () => {
 			m: t.option(t.map()).default({ k: 1 }),
 			none: t.option(t.string()),
 			strict: t.string("d"),
-		}),
+		},
 		view: "n",
 	});
 	const filled = N.make({ s: null, n: null, b: null, a: null, m: null, strict: null });
@@ -91,7 +92,7 @@ test("option fields accept null, and missing values take the default", () => {
 test("types have zero defaults and default() returns a changed copy", () => {
 	const Z = component({
 		name: "Z",
-		fields: (t) => ({ s: t.string(), n: t.number(), b: t.boolean(), a: t.array(), m: t.map() }),
+		fields: { s: t.string(), n: t.number(), b: t.boolean(), a: t.array(), m: t.map() },
 		view: "z",
 	});
 	assert.deepEqual({ ...Z.make() }, { s: "", n: 0, b: false, a: [], m: {} });
@@ -104,7 +105,7 @@ test("types have zero defaults and default() returns a changed copy", () => {
 test("getters in methods read the instance", () => {
 	const P = component({
 		name: "P",
-		fields: (t) => ({ first: t.string(), last: t.string() }),
+		fields: { first: t.string(), last: t.string() },
 		methods: {
 			get full() {
 				return `${this.first} ${this.last}`;
@@ -164,12 +165,12 @@ test("enum, record and oneOf check members, shape and alternatives", () => {
 test("index fields are keys of a sibling collection", () => {
 	const Sel = component({
 		name: "Sel",
-		fields: (t) => ({
+		fields: {
 			items: t.array().default(["a", "b"]),
 			selected: t.index("items"),
 			byId: t.map(),
 			current: t.option(t.index("byId")),
-		}),
+		},
 		view: "sel",
 	});
 	const sel = Sel.make();
@@ -188,7 +189,7 @@ test("index fields are keys of a sibling collection", () => {
 test("broken invariants are reported on the component", () => {
 	const Range = component({
 		name: "Range",
-		fields: (t) => ({ lo: t.number(), hi: t.number() }),
+		fields: { lo: t.number(), hi: t.number() },
 		invariants: {
 			ordered() {
 				return this.lo <= this.hi;

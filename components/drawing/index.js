@@ -59,7 +59,7 @@ const newId = (ctx) => `s-${ctx.uuid()}`;
 
 export const Drawing = component({
 	name: "Drawing",
-	fields: (t) => ({
+	fields: {
 		width: t.number(640).int().min(16).max(4000),
 		height: t.number(400).int().min(16).max(4000),
 		tool: t.enum(...TOOLS.map(([id]) => id)).sync("local"),
@@ -76,7 +76,7 @@ export const Drawing = component({
 			.sync("none"), // Undo stays per tab.
 		future: t.array(t.array(t.component(SHAPES))).sync("none"),
 		cursor: t.string().sync("none"),
-	}),
+	},
 	invariants: {
 		uniqueIds() {
 			return hasUniqueIds(this.shapes);

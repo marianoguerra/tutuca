@@ -21,12 +21,12 @@ const { div, h2, li, p, section, span } = tag;
 // One thing: a button on Track, a row in Manage.
 export const Thing = component({
 	name: "Thing",
-	fields: (t) => ({
+	fields: {
 		id: t.string(),
 		emoji: t.string("⭐").len(1, 16),
 		title: t.string().len(0, 120),
 		description: t.string(),
-		measurements: t.array(measureRef(t)),
+		measurements: t.array(measureRef()),
 		color: t.string(),
 		archived: t.boolean(),
 		bundleId: t.string(),
@@ -34,7 +34,7 @@ export const Thing = component({
 		total: t.number().int().min(0),
 		lastText: t.string("never"),
 		tagsText: t.string("No tags"),
-	}),
+	},
 	methods: {
 		get hasMeasurements() {
 			return this.measurements.length > 0;
@@ -132,7 +132,7 @@ export const Thing = component({
 // A tag ("group" in the data).
 export const Tag = component({
 	name: "Tag",
-	fields: (t) => ({
+	fields: {
 		id: t.string(),
 		title: t.string().len(0, 120),
 		emoji: t.string(),
@@ -140,7 +140,7 @@ export const Tag = component({
 		sortOrder: t.number().int().min(0).max(1000000),
 		thingIds: t.array(t.string()),
 		bundleId: t.string(),
-	}),
+	},
 	methods: {
 		get countText() {
 			return plural(this.thingIds.length, "thing");
@@ -193,14 +193,14 @@ export const Tag = component({
 // A collapsible section of Track; its members are the app's things it names.
 export const Section = component({
 	name: "Section",
-	fields: (t) => ({
+	fields: {
 		id: t.string(),
 		title: t.string(),
 		emoji: t.string(),
 		memberIds: t.array(t.string()),
 		isOpen: t.boolean(true),
 		compact: t.boolean(),
-	}),
+	},
 	methods: {
 		get count() {
 			return this.memberIds.length;
@@ -280,7 +280,7 @@ export const Section = component({
 // A bucket of Insights, or the quiet days between two.
 export const Bucket = component({
 	name: "Bucket",
-	fields: (t) => ({
+	fields: {
 		label: t.string(),
 		start: t.number().int(),
 		end: t.number().int(),
@@ -295,7 +295,7 @@ export const Bucket = component({
 				mark: t.string(),
 			}),
 		),
-	}),
+	},
 	methods: {
 		get isGap() {
 			return this.gap > 0;

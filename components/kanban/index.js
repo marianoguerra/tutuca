@@ -31,7 +31,7 @@ const draggedCardId = (ctx) => (ctx.drag?.type === "card" ? ctx.drag.value?.id :
 
 export const Card = component({
 	name: "Card",
-	fields: (t) => ({ id: t.string(), title: t.string() }),
+	fields: { id: t.string(), title: t.string() },
 	view: div(
 		{
 			class:
@@ -65,11 +65,11 @@ export const Card = component({
 
 export const Column = component({
 	name: "Column",
-	fields: (t) => ({
+	fields: {
 		title: t.string(),
 		cards: t.array(t.component("Card")),
 		text: t.string().sync("none"), // The new card's title, being typed.
-	}),
+	},
 	view: section(
 		{ class: "flex flex-col gap-2" },
 		h2(
@@ -159,7 +159,7 @@ const dropIndex = (node, clientY) => {
 
 export const Board = component({
 	name: "Board",
-	fields: (t) => ({ columns: t.array(t.component("Column")) }),
+	fields: { columns: t.array(t.component("Column")) },
 	view: div(
 		{ class: "grid gap-4 sm:grid-cols-3" },
 		each(

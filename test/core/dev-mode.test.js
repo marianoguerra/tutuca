@@ -5,7 +5,7 @@ import { setupHost } from "../helpers.js";
 
 const Item = component({
 	name: "Item",
-	fields: (t) => ({ count: t.number() }),
+	fields: { count: t.number() },
 	view: h("button", { "@on.click": send("inc") }, field("count")),
 	on: {
 		inc(draft) {
@@ -16,7 +16,7 @@ const Item = component({
 
 const List = component({
 	name: "List",
-	fields: (t) => ({ items: t.array(t.component("Item")), title: t.string() }),
+	fields: { items: t.array(t.component("Item")), title: t.string() },
 	view: h("div", { "@on.click": send("rename") }, renderEach(field("items"))),
 	on: {
 		rename(draft) {
@@ -97,7 +97,7 @@ test("dev mode reports an invalid root on start, and nothing runs without dev", 
 
 const Picker = component({
 	name: "Picker",
-	fields: (t) => ({ items: t.array(t.component("Item")).default([]), picked: t.number() }),
+	fields: { items: t.array(t.component("Item")).default([]), picked: t.number() },
 	view: h(
 		"div",
 		{},

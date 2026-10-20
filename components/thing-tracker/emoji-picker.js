@@ -25,13 +25,13 @@ const CATEGORIES = ["Common", ...EMOJI_CATEGORIES];
 const MAX_RESULTS = 300;
 export const EmojiPicker = component({
 	name: "EmojiPicker",
-	fields: (t) => ({
+	fields: {
 		query: t.string(),
 		category: t.enum(...CATEGORIES),
 		value: t.string(),
 		recent: t.array(t.string()).len(0, 16),
 		paste: t.string(),
-	}),
+	},
 	methods: {
 		get isSearching() {
 			return this.query.trim() !== "";

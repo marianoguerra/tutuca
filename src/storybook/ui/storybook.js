@@ -19,7 +19,7 @@ const tutucaApp = tag["tutuca-app"];
 
 export const Storybook = component({
 	name: "Storybook",
-	fields: (t) => ({
+	fields: {
 		links: t.array(t.component("StoryLink")),
 		filterText: t.string(),
 		collapsed: t.array(t.string()), // Groups whose stories are hidden.
@@ -30,7 +30,7 @@ export const Storybook = component({
 		story: t.component("StoryPanel"),
 		stress: t.component("StressPanel"),
 		dev: t.component("DevPanel"),
-	}),
+	},
 	methods: {
 		get appKey() {
 			return `${this.selectedId}@${this.seed}`;

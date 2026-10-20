@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { $if, component, field, h, send } from "../../src/tutuca.js";
+import { $if, component, field, h, send, t } from "../../src/tutuca.js";
 import { Shape, VNode } from "../../src/vdom.js";
 import { mutationsOf, startHost } from "../helpers.js";
 
@@ -59,7 +59,7 @@ test("namespace must be a constant, and svg and math are detected once in the sh
 test("re-rendering a changed dynamic attr writes only that attr", async () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ t: t.string() }),
+		fields: { t: t.string() },
 		view: h("p", { class: "fixed", title: field("t") }, "x"),
 	});
 	const { window, rootNode, rerender } = setup(Comp, { t: "a" });
@@ -77,7 +77,7 @@ test("re-rendering a changed dynamic attr writes only that attr", async () => {
 test("different templates with the same tag replace the element; the same one morphs", () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ on: t.boolean(), t: t.string() }),
+		fields: { on: t.boolean(), t: t.string() },
 		view: $if(field("on"), h("div", { class: "a", title: field("t") }), h("div", { class: "b" })),
 	});
 	const { rootNode, rerender } = setup(Comp, { on: true, t: "1" });
@@ -95,7 +95,7 @@ test("different templates with the same tag replace the element; the same one mo
 test("a changed key remounts the element", () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ src: t.string() }),
+		fields: { src: t.string() },
 		view: h("video", { key: field("src"), src: field("src") }),
 	});
 	const { rootNode, rerender } = setup(Comp, { src: "a.mp4" });
@@ -124,7 +124,7 @@ test("a constant select value is applied after its options are created", () => {
 test("tutuca normalizes child values: null, iterables, nested arrays and primitives", () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ items: t.any() }),
+		fields: { items: t.any() },
 		view: h("p", {}, field("items")),
 	});
 	const items = [

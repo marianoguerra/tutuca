@@ -21,7 +21,7 @@ const { div, form, input, option, p, select, span, textarea } = tag;
 
 export const TodoTask = component({
 	name: "TodoTask",
-	fields: (t) => ({
+	fields: {
 		id: t.string(),
 		title: t.string(),
 		description: t.string(),
@@ -35,7 +35,7 @@ export const TodoTask = component({
 		subtasks: t.array(t.component("TodoTask")),
 		newSubtask: t.string(),
 		today: todayType(),
-	}),
+	},
 	methods: {
 		matches(query) {
 			const q = query.toLowerCase();

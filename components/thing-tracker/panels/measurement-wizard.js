@@ -1,6 +1,16 @@
 // Asks a thing's measurements one at a time when logging it.
 
-import { $if, button, component, field, render, send, seqItem, tag } from "../../../src/tutuca.js";
+import {
+	$if,
+	button,
+	component,
+	field,
+	render,
+	send,
+	seqItem,
+	t,
+	tag,
+} from "../../../src/tutuca.js";
 import { MUTED } from "../common.js";
 import { always, closing, panel } from "../panel.js";
 
@@ -8,14 +18,14 @@ const { span } = tag;
 
 export const MeasurementWizard = component({
 	name: "MeasurementWizard",
-	fields: (t) => ({
+	fields: {
 		thingId: t.string(),
 		emoji: t.string(),
 		title: t.string(),
 		prompts: t.array(t.component("Prompt")).len(1),
 		step: t.index("prompts"),
 		confirming: t.boolean(),
-	}),
+	},
 	methods: {
 		get current() {
 			return this.prompts[this.step];

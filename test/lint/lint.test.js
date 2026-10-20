@@ -35,12 +35,12 @@ const lintOf = (specs) => {
 test("a component using every helper correctly is clean", () => {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({ label: t.string() }),
+		fields: { label: t.string() },
 		views: { main: field("label"), row: h("li", {}, field("label")) },
 	});
 	const Page = component({
 		name: "Page",
-		fields: (t) => ({ items: t.array(), selected: t.number(), query: t.string() }),
+		fields: { items: t.array(), selected: t.number(), query: t.string() },
 		loops: {
 			rows: { enrich: ({ value }) => ({ label: value.label }), view: "row" },
 		},
@@ -133,7 +133,7 @@ const cases = [
 		"unknown and inherited loop and scope names",
 		{
 			name: "Names",
-			fields: (t) => ({ items: t.array() }),
+			fields: { items: t.array() },
 			view: h("div", {}, each(field("items"), "x", "nope"), scope("toString", "x")),
 		},
 		[
@@ -153,7 +153,7 @@ const cases = [
 		"state read in send arguments",
 		{
 			name: "Reads",
-			fields: (t) => ({ name: t.string() }),
+			fields: { name: t.string() },
 			view: h("button", { "@on.click": send("set", field("name"), h("i", {})) }),
 			on: { set() {} },
 		},
@@ -171,7 +171,7 @@ const cases = [
 		"sourceKey outside send arguments or outside a loop body",
 		{
 			name: "Source",
-			fields: (t) => ({ items: t.array() }),
+			fields: { items: t.array() },
 			view: h(
 				"div",
 				{ "@on.click": send("pick", sourceKey()) },
@@ -206,7 +206,7 @@ const cases = [
 		"renderIt and item binds outside a loop body",
 		{
 			name: "OutsideLoop",
-			fields: (t) => ({ items: t.array() }),
+			fields: { items: t.array() },
 			view: h("div", {}, renderIt(), lookupBind("key"), each(lookupBind("value"), "x")),
 		},
 		[
@@ -220,7 +220,7 @@ const cases = [
 		"binds in send arguments, the key included",
 		{
 			name: "ActionBinds",
-			fields: (t) => ({ items: t.array() }),
+			fields: { items: t.array() },
 			view: each(
 				field("items"),
 				h("button", { "@on.click": send("pick", lookupBind("value"), lookupBind("key")) }),
@@ -236,7 +236,7 @@ const cases = [
 		"a named bind with no scope or enriching loop",
 		{
 			name: "Binds",
-			fields: (t) => ({ items: t.array() }),
+			fields: { items: t.array() },
 			loops: { plain: {} },
 			view: h("div", {}, lookupBind("count"), each(field("items"), lookupBind("label"), "plain")),
 		},
@@ -249,7 +249,7 @@ const cases = [
 		"a scope does not reach into a loop body",
 		{
 			name: "ScopeLoop",
-			fields: (t) => ({ items: t.array() }),
+			fields: { items: t.array() },
 			scopes: { s: { bind: () => ({ count: 1 }) } },
 			view: scope("s", each(field("items"), lookupBind("count"))),
 		},
@@ -259,7 +259,7 @@ const cases = [
 		"view names no registration declares",
 		{
 			name: "Views",
-			fields: (t) => ({ child: t.option(t.component()) }),
+			fields: { child: t.option(t.component()) },
 			loops: { l: { view: "nope" } },
 			view: h("div", {}, render(field("child"), "missing"), pushView("other", "x")),
 		},
@@ -278,7 +278,7 @@ const cases = [
 		"a view rooted at render",
 		{
 			name: "Root",
-			fields: (t) => ({ child: t.option(t.component()) }),
+			fields: { child: t.option(t.component()) },
 			view: render(field("child")),
 		},
 		[],
@@ -293,7 +293,7 @@ for (const [name, options, expected] of cases) {
 test("field names are checked against the schema and methods, outside loop bodies", () => {
 	const Fields = component({
 		name: "Fields",
-		fields: (t) => ({ declared: t.number(1), label: t.string() }),
+		fields: { declared: t.number(1), label: t.string() },
 		methods: {
 			computed() {
 				return this.declared;
@@ -327,13 +327,13 @@ test("lint reports t.component names no scope registers", () => {
 	const Item = component({ name: "Item", view: "item" });
 	const Page = component({
 		name: "Page",
-		fields: (t) => ({
+		fields: {
 			item: t.component("Item"),
 			alias: t.component("Row"),
 			any: t.component(),
 			missing: t.option(t.component("Missing")),
 			items: t.array(t.component("Gone")),
-		}),
+		},
 		view: "page",
 	});
 	assert.deepEqual(lintOf({ Item, Row: Item, Page }), [
@@ -349,7 +349,7 @@ test("lint reports defaults of the wrong kind, bad index targets and every unkno
 	const Item = component({ name: "Item", view: "item" });
 	const Bad = component({
 		name: "Bad",
-		fields: (t) => ({
+		fields: {
 			count: t.number().default("x"),
 			level: t.number().min(1).default(0),
 			mode: t.enum("a", "b").default("c"),
@@ -357,7 +357,7 @@ test("lint reports defaults of the wrong kind, bad index targets and every unkno
 			selected: t.index("label"),
 			pick: t.option(t.component(["Item", "Nope"])),
 			fresh: t.string(() => "computed"),
-		}),
+		},
 		view: "bad",
 	});
 	assert.deepEqual(lintOf({ Item, Bad }), [
@@ -371,7 +371,7 @@ test("lint reports defaults of the wrong kind, bad index targets and every unkno
 test("lint warns about handlers that read the clock or randomness themselves", () => {
 	const Dice = component({
 		name: "Dice",
-		fields: (t) => ({ n: t.number(), at: t.number(), id: t.string() }),
+		fields: { n: t.number(), at: t.number(), id: t.string() },
 		on: {
 			roll(draft) {
 				draft.n = Math.random();
@@ -392,14 +392,14 @@ test("lint warns about handlers that read the clock or randomness themselves", (
 });
 
 test("lint reserves the field name $ for synced components", () => {
-	const Bad = component({ name: "Bad", fields: (t) => ({ $: t.string() }), view: "bad" });
+	const Bad = component({ name: "Bad", fields: { $: t.string() }, view: "bad" });
 	assert.deepEqual(lintOf({ Bad }), ["error reserved-field Bad"]);
 });
 
 test("lint checks message specs and the sends that target them", () => {
 	const Form = component({
 		name: "Form",
-		fields: (t) => ({ n: t.number() }),
+		fields: { n: t.number() },
 		view: h(
 			"div",
 			{},

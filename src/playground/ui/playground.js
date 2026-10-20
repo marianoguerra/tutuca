@@ -22,7 +22,7 @@ const playgroundTab = (name) =>
 
 export const Playground = component({
 	name: "Playground",
-	fields: (t) => ({
+	fields: {
 		examples: t.array(t.record({ id: t.string(), title: t.string() })),
 		example: t.string(),
 		stories: t.array(t.record({ id: t.string(), label: t.string() })),
@@ -36,7 +36,7 @@ export const Playground = component({
 		story: t.component("StoryPanel"),
 		stress: t.component("StressPanel"),
 		dev: t.component("DevPanel"),
-	}),
+	},
 	methods: {
 		get appKey() {
 			return `r${this.run}/${this.selectedId}@${this.seed}`;

@@ -14,6 +14,7 @@ import {
 	render,
 	send,
 	sourceKey,
+	t,
 } from "../../src/tutuca.js";
 import { VBase, VComment, VNode } from "../../src/vdom.js";
 import { startHost } from "../helpers.js";
@@ -70,7 +71,7 @@ test("a constant element evaluates once without a ctx and returns the same vnode
 test("constant subtrees keep their vnode identity across renders", () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h(
 			"div",
 			{},
@@ -93,7 +94,7 @@ test("constant subtrees keep their vnode identity across renders", () => {
 test("handlers inside constant elements still dispatch, also per loop item", () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ count: t.number(), items: t.array(), picked: t.any() }),
+		fields: { count: t.number(), items: t.array(), picked: t.any() },
 		view: h(
 			"div",
 			{},
@@ -134,7 +135,7 @@ test("walkers still see the attrs of constant elements", () => {
 test("meta closing comments are one shared vnode across positions and renders", () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ items: t.array() }),
+		fields: { items: t.array() },
 		view: h("ul", {}, each(field("items"), h("li", {}, lookupBind("value")))),
 	});
 	const { host, C } = setup(Comp, { items: ["a", "b"] });
@@ -150,7 +151,7 @@ test("meta closing comments are one shared vnode across positions and renders", 
 test("literal text children of dynamic elements keep their vnode across renders", () => {
 	const Comp = component({
 		name: "Comp",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h("p", { title: field("count") }, "Count: ", field("count"), 7),
 	});
 	const { host, rootNode, C } = setup(Comp);

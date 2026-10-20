@@ -55,11 +55,11 @@ const GROUP_IDS = GROUPS.map((g) => g.id);
 // to the section, and what logging one does here instead of in the tracker app.
 export const TrackerCell = component({
 	name: "TrackerCell",
-	fields: (t) => ({
+	fields: {
 		section: t.component("Section"),
 		things: t.array(t.component("Thing")),
 		tz: t.number().int().min(-840).max(840),
-	}),
+	},
 	provides: {
 		things(b) {
 			b.field("things");
@@ -150,7 +150,7 @@ const choice = (id, action, emoji, label, blurb) =>
 // A new cell's content, until you pick what it becomes.
 export const Picker = component({
 	name: "Picker",
-	fields: (t) => ({ step: t.enum("kind", "tracker") }),
+	fields: { step: t.enum("kind", "tracker") },
 	methods: {
 		get isPickingKind() {
 			return this.step === "kind";
@@ -227,7 +227,7 @@ const CONTENT_LABELS = {
 // One cell of a notebook: a header to drag it by, collapse it or remove it, and its content.
 export const Cell = component({
 	name: "Cell",
-	fields: (t) => ({ content: t.component(), collapsed: t.boolean() }),
+	fields: { content: t.component(), collapsed: t.boolean() },
 	methods: {
 		get label() {
 			const { name } = specOf(this.content);
@@ -318,14 +318,14 @@ const isOwnCell = (ctx) =>
 
 export const Notebook = component({
 	name: "Notebook",
-	fields: (t) => ({
+	fields: {
 		title: t.string("Notebook"),
 		// An ordered map: cells by key, and the keys in order. Keys are uuids, so cells added
 		// on two devices don't collide when they sync.
 		entries: t.map(t.component("Cell")),
 		order: t.array(t.string()),
 		tz: t.number().int().min(-840).max(840), // Minutes east of UTC, for the trackers.
-	}),
+	},
 	loops: {
 		ordered: {
 			iter(entries) {

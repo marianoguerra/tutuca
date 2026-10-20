@@ -22,19 +22,19 @@ const { div, input, label, li, p, span, textarea, ul } = tag;
 const STEPS = ["Name & emoji", "What to record", "Notes"];
 export const ThingEditor = component({
 	name: "ThingEditor",
-	fields: (t) => ({
+	fields: {
 		mode: t.enum("create", "edit"),
 		thingId: t.string(),
 		step: t.number().int().min(0).max(2),
 		emoji: t.string("⭐"),
 		title: t.string(),
 		description: t.string(),
-		measurements: t.array(measureRef(t)),
+		measurements: t.array(measureRef()),
 		pickerOpen: t.boolean(),
 		picker: t.component("EmojiPicker"),
 		clash: t.string(),
 		confirming: t.boolean(),
-	}),
+	},
 	methods: {
 		get heading() {
 			return this.mode === "edit" ? "Edit thing" : "New thing";

@@ -28,11 +28,11 @@ import { component, h, Host } from "https://cdn.jsdelivr.net/npm/tutuca@next/dis
 ## Example
 
 ```js
-import { component, field, h, Host, send } from "tutuca";
+import { component, field, h, Host, send, t } from "tutuca";
 
 const Counter = component({
 	name: "Counter",
-	fields: (t) => ({ count: t.number() }),
+	fields: { count: t.number() },
 	view: h("button", { "@on.click": send("inc") }, "Clicked ", field("count")),
 	on: {
 		inc(draft) {

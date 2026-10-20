@@ -14,6 +14,7 @@ import {
 	send,
 	seqItem,
 	sourceKey,
+	t,
 } from "../../src/tutuca.js";
 import { vcomment as comment, setupHost } from "../helpers.js";
 
@@ -55,7 +56,7 @@ for (const source of ["field", "seqItem", "provided"]) {
 		const seen = [];
 		const Child = component({
 			name: "Child",
-			fields: (t) => ({ count: t.number() }),
+			fields: { count: t.number() },
 			views: {
 				main: h("i", {}),
 				compact: h("button", { "@on.click": send("inc") }, h("span", {}, "increment")),
@@ -69,7 +70,7 @@ for (const source of ["field", "seqItem", "provided"]) {
 		});
 		const Panel = component({
 			name: "Panel",
-			fields: (t) => ({ selected: t.number(1), child: t.component("Child"), items: t.array() }),
+			fields: { selected: t.number(1), child: t.component("Child"), items: t.array() },
 			provides: { child: (b) => b.field("child") },
 			view: pushView(
 				"compact",
@@ -89,7 +90,7 @@ for (const source of ["field", "seqItem", "provided"]) {
 		});
 		const Root = component({
 			name: "Root",
-			fields: (t) => ({ panel: t.component("Panel") }),
+			fields: { panel: t.component("Panel") },
 			view: render(field("panel")),
 			on: {
 				changed() {
@@ -110,12 +111,12 @@ for (const source of ["field", "seqItem", "provided"]) {
 test("top-level each routes every item after keyed reorder", () => {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({ id: t.string() }),
+		fields: { id: t.string() },
 		view: h("button", {}),
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ picked: t.array(), items: t.array() }),
+		fields: { picked: t.array(), items: t.array() },
 		loops: { byId: { key: (_key, item) => item.id } },
 		view: each(field("items"), h("button", { "@on.click": send("pick", sourceKey()) }), "byId"),
 		on: {
@@ -142,12 +143,12 @@ test("top-level each routes every item after keyed reorder", () => {
 test("nested multi-root loops retain paths across text, comments, empty scopes and siblings", () => {
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({
+		fields: {
 			groups: t
 				.array()
 				.default([{ items: [{ visible: false }, { visible: true }, { visible: false }] }]),
 			picked: t.array(),
-		}),
+		},
 		view: roots(
 			each(
 				field("groups"),
@@ -187,7 +188,7 @@ test("nested multi-root loops retain paths across text, comments, empty scopes a
 test("renderIt promotes only its own scope and stops event lookup at its view", () => {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: roots(h("button", { "@on.click": send("inc") }), h("i", {})),
 		on: {
 			inc(draft) {
@@ -197,7 +198,7 @@ test("renderIt promotes only its own scope and stops event lookup at its view", 
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ picked: t.array(), items: t.array() }),
+		fields: { picked: t.array(), items: t.array() },
 		view: each(
 			field("items"),
 			h(

@@ -15,6 +15,7 @@ import {
 	scope,
 	send,
 	seqItem,
+	t,
 	targetValue,
 	Walker,
 } from "../../src/tutuca.js";
@@ -35,7 +36,7 @@ const recordVisits = (seen) =>
 
 const Counter = component({
 	name: "Counter",
-	fields: (t) => ({ id: t.string(), count: t.number() }),
+	fields: { id: t.string(), count: t.number() },
 	views: { main: h("button", { "@on.click": send("inc") }, field("count")) },
 	on: {
 		inc(draft) {
@@ -165,7 +166,7 @@ test("a click runs the handler on a draft and re-renders the produced state", ()
 test("targetValue reads values and checkbox state", () => {
 	const Form = component({
 		name: "Form",
-		fields: (t) => ({ name: t.string(), done: t.boolean() }),
+		fields: { name: t.string(), done: t.boolean() },
 		view: h(
 			"form",
 			{},
@@ -195,7 +196,7 @@ test("targetValue reads values and checkbox state", () => {
 test("a handler's return value replaces the component", () => {
 	const Reset = component({
 		name: "Reset",
-		fields: (t) => ({ count: t.number(5) }),
+		fields: { count: t.number(5) },
 		view: h("button", { "@on.click": send("reset") }),
 		on: {
 			reset() {
@@ -212,7 +213,7 @@ test("a handler's return value replaces the component", () => {
 test("a throwing handler keeps the state and reports taskFailed", () => {
 	const Bad = component({
 		name: "Bad",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h("button", { "@on.click": send("boom") }),
 		on: {
 			boom(draft) {
@@ -271,7 +272,7 @@ test("look-alike meta comments from unmanaged DOM are skipped", () => {
 test("all views of one instance render together and route to it", () => {
 	const Child = component({
 		name: "Child",
-		fields: (t) => ({ seen: t.array() }),
+		fields: { seen: t.array() },
 		views: {
 			compact: h("button", { "@on.click": send("record", "compact") }, "compact"),
 			main: h(
@@ -293,7 +294,7 @@ test("all views of one instance render together and route to it", () => {
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ child: t.component("Child") }),
+		fields: { child: t.component("Child") },
 		view: h("div", {}, render(field("child")), render(field("child"), "compact")),
 	});
 	const { host, rootNode, window, C } = setup({ Root, Child });
@@ -311,7 +312,7 @@ for (const source of ["field", "seqItem"]) {
 	test(`nested components route through ${source} with a pushed view`, () => {
 		const Child = component({
 			name: "Child",
-			fields: (t) => ({ count: t.number() }),
+			fields: { count: t.number() },
 			views: {
 				main: h("i", {}),
 				compact: h("button", { "@on.click": send("inc") }, h("span", {}, "increment")),
@@ -324,11 +325,11 @@ for (const source of ["field", "seqItem"]) {
 		});
 		const Panel = component({
 			name: "Panel",
-			fields: (t) => ({
+			fields: {
 				child: t.component("Child"),
 				items: t.array(),
 				selected: t.number(1),
-			}),
+			},
 			view: pushView(
 				"compact",
 				render(source === "field" ? field("child") : seqItem("items", "selected")),
@@ -336,7 +337,7 @@ for (const source of ["field", "seqItem"]) {
 		});
 		const Root = component({
 			name: "Root",
-			fields: (t) => ({ panel: t.component("Panel") }),
+			fields: { panel: t.component("Panel") },
 			view: render(field("panel")),
 		});
 		const { host, rootNode, C } = setup({ Root, Panel, Child });
@@ -354,7 +355,7 @@ for (const mode of ["renderEach", "renderIt", "deep renderIt"]) {
 		const child = mode === "renderIt" ? renderIt() : h("section", {}, h("article", {}, renderIt()));
 		const Root = component({
 			name: "Root",
-			fields: (t) => ({ items: t.array() }),
+			fields: { items: t.array() },
 			loops: { byId: { key: (_key, item) => item.id } },
 			view:
 				mode === "renderEach"
@@ -384,7 +385,7 @@ for (const mode of ["renderEach", "renderIt", "deep renderIt"]) {
 test("renderIt stops event lookup at its view", () => {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h("div", {}, h("button", { "@on.click": send("inc") }), h("i", {})),
 		on: {
 			inc(draft) {
@@ -394,7 +395,7 @@ test("renderIt stops event lookup at its view", () => {
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ items: t.array(), picked: t.number() }),
+		fields: { items: t.array(), picked: t.number() },
 		view: each(
 			field("items"),
 			h(
@@ -422,11 +423,11 @@ test("renderIt stops event lookup at its view", () => {
 	assert.equal(host.rootComponent.picked, 2);
 });
 
-test("a child-scope registration after startup adds only its event listeners", (t) => {
+test("a child-scope registration after startup adds only its event listeners", (ctx) => {
 	const window = dom("");
 	const rootNode = window.document.createElement("main");
 	const host = new Host({ document: window.document, rootNode });
-	const listeners = t.mock.method(rootNode, "addEventListener");
+	const listeners = ctx.mock.method(rootNode, "addEventListener");
 	const names = () => listeners.mock.calls.map(({ arguments: [name] }) => name);
 	host.scope.register({
 		Root: component({ name: "Root", view: h("i", { "@on.click": send("x") }) }),
@@ -435,7 +436,7 @@ test("a child-scope registration after startup adds only its event listeners", (
 	host.start(host.scope.components.Root());
 	const Late = component({
 		name: "Late",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h("button", { "@on.dblclick": send("changed"), "@on.click": send("changed") }),
 		on: {
 			changed(draft) {
@@ -456,7 +457,7 @@ test("a child-scope registration after startup adds only its event listeners", (
 test("targetValue reads the element with the handler, not the child that was clicked", () => {
 	const Tabs = component({
 		name: "Tabs",
-		fields: (t) => ({ tab: t.string("a") }),
+		fields: { tab: t.string("a") },
 		view: h(
 			"button",
 			{ value: "b", "@on.click": send("setTab", targetValue()) },

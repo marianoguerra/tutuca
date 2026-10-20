@@ -17,7 +17,7 @@ const { button, div, form, input, label, option, p, select, span } = tag;
 
 export const Note = component({
 	name: "Note",
-	fields: (t) => ({ text: t.string(), done: t.boolean() }),
+	fields: { text: t.string(), done: t.boolean() },
 	view: div(
 		{ class: "group flex items-center gap-3 py-1" },
 		input({
@@ -65,12 +65,12 @@ const FILTERS = { all: () => true, open: (n) => !n.done, done: (n) => n.done };
 
 export const Notes = component({
 	name: "Notes",
-	fields: (t) => ({
+	fields: {
 		title: t.string("Shared notes"),
 		notes: t.array(t.component("Note")),
 		filter: t.enum("all", "open", "done").sync("local"),
 		draft: t.string().sync("none"),
-	}),
+	},
 	methods: {
 		get summary() {
 			const open = this.notes.filter(FILTERS.open).length;

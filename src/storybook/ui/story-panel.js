@@ -15,12 +15,12 @@ import { askStory, BADGES, card, ORIGINS, smallButton, title } from "./common.js
 
 const { button, div, h3, input, li, ol, option, pre, section, select, span, ul } = tag;
 
-const stepFields = (t) => ({
+const stepFields = () => ({
 	label: t.string(),
 	status: t.enum("pending", "ok", "failed", "skipped"),
 	isNext: t.boolean(),
 });
-const entryFields = (t) => ({
+const entryFields = () => ({
 	label: t.string(),
 	origin: t.enum("initial", "reload", "step", "user"),
 	problemCount: t.number().int().min(0),
@@ -51,12 +51,12 @@ export const syncForm = (draft) => {
 
 export const StoryPanel = component({
 	name: "StoryPanel",
-	fields: (t) => ({
+	fields: {
 		appKey: t.string(),
 		sequences: t.array(t.string()),
 		sequence: t.string(),
-		steps: t.array(t.record(stepFields(t))),
-		timeline: t.array(t.record(entryFields(t))),
+		steps: t.array(t.record(stepFields())),
+		timeline: t.array(t.record(entryFields())),
 		cursor: t.number().int().min(0),
 		problems: t.array(t.string()),
 		error: t.string(),
@@ -77,7 +77,7 @@ export const StoryPanel = component({
 		argsJson: t.string("[]"),
 		argSeed: t.number(1).int(),
 		isPlaying: t.boolean(),
-	}),
+	},
 	methods: {
 		get hasSourceKeys() {
 			return this.sourceKeys.length > 0;

@@ -85,7 +85,7 @@ const cardTitle = (text) =>
 // An example payload in a JSON editor and the schema inferred from it, kept in step.
 export const Studio = component({
 	name: "Studio",
-	fields: (t) => ({
+	fields: {
 		sample: t.enum(...SAMPLE_IDS),
 		title: t.string(),
 		editor: t.component("JsonEditor"),
@@ -93,7 +93,7 @@ export const Studio = component({
 		source: t.string(), // The payload the schema was inferred from, as JSON text.
 		pasteText: t.string(),
 		pasteError: t.string(),
-	}),
+	},
 	methods: {
 		get json() {
 			return this.editor.toJson();

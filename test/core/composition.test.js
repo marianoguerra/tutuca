@@ -14,6 +14,7 @@ import {
 	scopeOf,
 	seqItem,
 	specOf,
+	t,
 } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
@@ -33,7 +34,7 @@ const metas = (rootNode) => {
 
 const Item = component({
 	name: "Item",
-	fields: (t) => ({ label: t.string() }),
+	fields: { label: t.string() },
 	views: { main: h("b", {}, field("label")), compact: h("i", {}, field("label")) },
 });
 
@@ -46,7 +47,7 @@ for (const value of ["hello", 42, false, null]) {
 		]) {
 			const Root = component({
 				name: "Root",
-				fields: (t) => ({ items: t.array().default([{}, {}]) }),
+				fields: { items: t.array().default([{}, {}]) },
 				scopes: { bindings: { bind: () => ({}) } },
 				views: { main: body },
 			});
@@ -78,7 +79,7 @@ for (const [explicit, stack, expected] of [
 		for (const name of stack) tree = pushView(name, tree);
 		const Root = component({
 			name: "Root",
-			fields: (t) => ({ child: t.component("Child") }),
+			fields: { child: t.component("Child") },
 			view: tree,
 		});
 		const { host, rootNode, C } = setup({ Root, Child });
@@ -102,7 +103,7 @@ for (const object of [false, true]) {
 							);
 				const Panel = component({
 					name: "Panel",
-					fields: (t) => ({ items: t.any(), groups: t.array(), selected: t.number() }),
+					fields: { items: t.any(), groups: t.array(), selected: t.number() },
 					loops: {
 						iterate: {
 							iter: (items) => (Array.isArray(items) ? items.entries() : Object.entries(items)),
@@ -134,7 +135,7 @@ for (const object of [false, true]) {
 test("render(seqItem) is a frame selecting the item", () => {
 	const Tabs = component({
 		name: "Tabs",
-		fields: (t) => ({ tabs: t.array(t.component("Item")), selected: t.number() }),
+		fields: { tabs: t.array(t.component("Item")), selected: t.number() },
 		view: h("div", {}, render(seqItem("tabs", "selected"))),
 	});
 	const { host, rootNode, C } = setup({ Tabs, Item });
@@ -151,7 +152,7 @@ test("loop key, filter, prepare and enrich are called on the component", () => {
 	const keyCalls = [];
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ items: t.array(), hidden: t.string("b") }),
+		fields: { items: t.array(), hidden: t.string("b") },
 		loops: {
 			visible: {
 				prepare(items) {
@@ -198,7 +199,7 @@ test("renderIt clears local binds while the outer scope keeps them", () => {
 	const Leaf = component({ name: "Leaf", view: h("b", { title: lookupBind("local") }, "leaf") });
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ items: t.array() }),
+		fields: { items: t.array() },
 		scopes: { bindings: { bind: () => ({ local: "outer", value: "ignored" }) } },
 		view: each(
 			field("items"),
@@ -216,7 +217,7 @@ test("t.component defaults to a fresh instance from the owner's scope", () => {
 	const Other = component({ name: "Other", view: "other" });
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ child: t.component("Item"), maybe: t.option(t.component("Item")) }),
+		fields: { child: t.component("Item"), maybe: t.option(t.component("Item")) },
 		view: render(field("child")),
 	});
 	const { host, rootNode, C } = setup({ Root, Item });
@@ -236,7 +237,7 @@ test("t.component rejects values registered under a different name", () => {
 	const Other = component({ name: "Other", view: "other" });
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ child: t.option(t.component("Item")), items: t.array(t.component()) }),
+		fields: { child: t.option(t.component("Item")), items: t.array(t.component()) },
 		view: "x",
 	});
 	const { C } = setup({ Root, Item, Other });
@@ -263,12 +264,12 @@ test("register returns factories bound to its scope, and child scopes fall back 
 test("a required component field without a default fails with its path", () => {
 	const Pane = component({
 		name: "Pane",
-		fields: (t) => ({ body: t.component(), maybe: t.option(t.component()) }),
+		fields: { body: t.component(), maybe: t.option(t.component()) },
 		view: "x",
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ left: t.component("Pane") }),
+		fields: { left: t.component("Pane") },
 		view: "x",
 	});
 	const { C } = setup({ Root, Pane, Item });
@@ -277,7 +278,7 @@ test("a required component field without a default fails with its path", () => {
 	assert.equal(C.Pane({ body: C.Item() }).maybe, null);
 	const Named = component({
 		name: "Named",
-		fields: (t) => ({ item: t.component("Item") }),
+		fields: { item: t.component("Item") },
 		view: "x",
 	});
 	assert.throws(() => Named.make(), /^Error: Named\.item: no scope to make Item in/);

@@ -21,7 +21,7 @@ const { div, input, label, li, p, span, ul } = tag;
 
 export const TagEditor = component({
 	name: "TagEditor",
-	fields: (t) => ({
+	fields: {
 		mode: t.enum("create", "edit"),
 		tagId: t.string(),
 		emoji: t.string(),
@@ -33,7 +33,7 @@ export const TagEditor = component({
 			t.record({ id: t.string(), emoji: t.string(), title: t.string(), checked: t.boolean() }),
 		),
 		confirming: t.boolean(),
-	}),
+	},
 	methods: {
 		get heading() {
 			return this.mode === "edit" ? "Edit tag" : "New tag";

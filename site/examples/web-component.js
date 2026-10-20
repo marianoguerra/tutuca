@@ -2,14 +2,14 @@
 // fire reach @on.<event-name> handlers. emoji-picker-element fires emoji-click, a
 // CustomEvent that bubbles out of its shadow root; the handler reads its detail from ctx.event.
 import "https://cdn.jsdelivr.net/npm/emoji-picker-element@1.29.1/index.js";
-import { $if, component, field, h, send, tag } from "tutuca";
+import { $if, component, field, h, send, t, tag } from "tutuca";
 import { step, stories } from "tutuca/storybook";
 
 const { button, div, p, span } = tag;
 
 export const EmojiPicker = component({
 	name: "EmojiPicker",
-	fields: (t) => ({ current: t.string(), isPickerVisible: t.boolean() }),
+	fields: { current: t.string(), isPickerVisible: t.boolean() },
 	methods: {
 		get hasEmoji() {
 			return this.current !== "";

@@ -191,13 +191,13 @@ const openImport = (draft, ctx, title, text) => {
 
 export const TrackerApp = component({
 	name: "TrackerApp",
-	fields: (t) => ({
+	fields: {
 		now: t.number().int().min(0),
 		tz: t.number().int().min(-840).max(840),
 		tab: t.enum("track", "insights", "manage"),
 		things: t.array(t.component("Thing")),
 		groups: t.array(t.component("Tag")),
-		events: t.array(eventRecord(t)),
+		events: t.array(eventRecord()),
 		order: t.array(t.string()),
 		collapsed: t.array(t.string()),
 		query: t.string().sync("none"),
@@ -234,7 +234,7 @@ export const TrackerApp = component({
 		importTitle: t.string().sync("none"),
 		showPreview: t.boolean().sync("none"),
 		overwrite: t.boolean().sync("none"),
-	}),
+	},
 	invariants: {
 		statsMatchEvents() {
 			const usage = usageOf(this.events);
@@ -964,7 +964,7 @@ export const TrackerApp = component({
 					emoji: t.string().len(1, 16),
 					title: t.string().len(0, 120),
 					description: t.string(),
-					measurements: t.array(measureRef(t)),
+					measurements: t.array(measureRef()),
 				}),
 			],
 			run(draft, [mode, thing], ctx) {

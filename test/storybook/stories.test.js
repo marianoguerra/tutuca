@@ -13,7 +13,7 @@ import {
 	stressStory,
 } from "../../src/storybook/index.js";
 import { Driver, describeProblems } from "../../src/test/pbt.js";
-import { component, field, h, send } from "../../src/tutuca.js";
+import { component, field, h, send, t } from "../../src/tutuca.js";
 import { books } from "../../storybook.books.js";
 import { document, dom, testLintsClean, tick } from "../helpers.js";
 
@@ -40,7 +40,7 @@ for (const story of books.flatMap((book) => book.stories)) {
 // count turns into a string once it is positive: a schema break stress tests find.
 const Counter = component({
 	name: "Counter",
-	fields: (t) => ({ count: t.number() }),
+	fields: { count: t.number() },
 	view: h("button", { "@on.click": send("inc") }, field("count")),
 	on: {
 		inc: {
@@ -266,7 +266,7 @@ test("a new registry carries each mounted story's state over to the new componen
 	// The next version: a new field, and an invariant the carried count breaks.
 	const Counter2 = component({
 		name: "Counter",
-		fields: (t) => ({ count: t.number(), label: t.string("clicks") }),
+		fields: { count: t.number(), label: t.string("clicks") },
 		view: h("button", {}, field("label")),
 		invariants: {
 			belowOne() {

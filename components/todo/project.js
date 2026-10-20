@@ -7,12 +7,12 @@ const { div, h2, input, option, select, span } = tag;
 
 export const TodoProject = component({
 	name: "TodoProject",
-	fields: (t) => ({
+	fields: {
 		id: t.string("inbox"),
 		name: t.string("Inbox"),
 		color: t.enum(...Object.keys(COLORS)),
 		isEditing: t.boolean(),
-	}),
+	},
 	methods: {
 		get dotClass() {
 			return `size-3 shrink-0 rounded-full ${COLORS[this.color]}`;

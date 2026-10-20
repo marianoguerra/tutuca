@@ -14,24 +14,24 @@ import {
 	textSplice,
 } from "../../src/sync/index.js";
 import { memoryRemote, relay, remoteEngine } from "../../src/sync/remote.js";
-import { component, DispatchPath, scopeOf, specOf, Target, Task } from "../../src/tutuca.js";
+import { component, DispatchPath, scopeOf, specOf, Target, Task, t } from "../../src/tutuca.js";
 import { setupHost, tick } from "../helpers.js";
 
 const Item = component({
 	name: "Item",
-	fields: (t) => ({ label: t.string(), done: t.boolean() }),
+	fields: { label: t.string(), done: t.boolean() },
 	view: "<span>{.label}</span>",
 });
 const Root = component({
 	name: "Root",
-	fields: (t) => ({
+	fields: {
 		title: t.string(),
 		kind: t.enum("note", "list"),
 		items: t.array(t.component("Item")),
 		meta: t.map(t.number()),
 		selected: t.option(t.index("items")).sync("local"),
 		open: t.boolean().sync("none"),
-	}),
+	},
 	on: {
 		retitle(draft, [title]) {
 			draft.title = title;
@@ -232,12 +232,12 @@ test("overlay keeps the fields the level over lacks inside components, maps and 
 	const { host } = setup();
 	const Card = component({
 		name: "Card",
-		fields: (t) => ({ label: t.string(), open: t.boolean().sync("local") }),
+		fields: { label: t.string(), open: t.boolean().sync("local") },
 		view: "x",
 	});
 	const Board = component({
 		name: "Board",
-		fields: (t) => ({ cards: t.array(t.component("Card")), byId: t.map(t.component("Card")) }),
+		fields: { cards: t.array(t.component("Card")), byId: t.map(t.component("Card")) },
 		view: "x",
 	});
 	host.scope.register({ Card, Board });
@@ -625,10 +625,10 @@ test("a client whose copy doesn't take a batch resyncs to the remote", async () 
 });
 
 // Two versions of an app: the second adds a text field.
-const Doc1 = component({ name: "Root", fields: (t) => ({ title: t.string() }), view: "x" });
+const Doc1 = component({ name: "Root", fields: { title: t.string() }, view: "x" });
 const Doc2 = component({
 	name: "Root",
-	fields: (t) => ({ title: t.string(), body: t.string() }),
+	fields: { title: t.string(), body: t.string() },
 	view: "x",
 });
 

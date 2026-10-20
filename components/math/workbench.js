@@ -37,7 +37,7 @@ const tabButton = (id, label) =>
 // The math components under tabs, with the problems saved along the way.
 export const Workbench = component({
 	name: "Workbench",
-	fields: (t) => ({
+	fields: {
 		tab: t.enum(...TABS.map(([id]) => id)),
 		quadratic: t.component("Quadratic"),
 		matrix: t.component("Matrix2"),
@@ -49,7 +49,7 @@ export const Workbench = component({
 				values: t.array(t.number()),
 			}),
 		),
-	}),
+	},
 	methods: {
 		get is_quadratic() {
 			return this.tab === "quadratic";

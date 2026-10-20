@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { $if, AstNode, component, field, h, pushView } from "../../src/tutuca.js";
+import { $if, AstNode, component, field, h, pushView, t } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
 const setup = (specs) => setupHost(specs);
@@ -45,7 +45,7 @@ test("literal condition uses JS truthiness and only evaluates the selected branc
 test("attributes and children read fields, and $if selects values", () => {
 	const Greeting = component({
 		name: "Greeting",
-		fields: (t) => ({ name: t.string("world"), loud: t.boolean() }),
+		fields: { name: t.string("world"), loud: t.boolean() },
 		view: h(
 			"p",
 			{ class: $if(field("loud"), "loud", "quiet"), title: field("name") },
@@ -65,7 +65,7 @@ test("attributes and children read fields, and $if selects values", () => {
 test("re-rendering patches the existing DOM", () => {
 	const Str = component({
 		name: "Str",
-		fields: (t) => ({ value: t.string() }),
+		fields: { value: t.string() },
 		view: h("span", {}, field("value")),
 	});
 	const { host, rootNode } = setup({ Str });
@@ -97,7 +97,7 @@ test("view names don't resolve to inherited properties", () => {
 test("arrays of children splice into their parent, nested ones too", () => {
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ show: t.boolean(true) }),
+		fields: { show: t.boolean(true) },
 		view: h("p", {}, [h("b", {}, "x"), [$if(field("show"), h("i", {}, "y"), ""), "z"]]),
 	});
 	const { host, rootNode } = setup({ Root });

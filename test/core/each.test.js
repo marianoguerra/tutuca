@@ -12,6 +12,7 @@ import {
 	scope,
 	send,
 	sourceKey,
+	t,
 } from "../../src/tutuca.js";
 import { startHost, vh as vdomH } from "../helpers.js";
 
@@ -25,14 +26,14 @@ const ITEMS = [
 	{ id: "b", title: "B" },
 	{ id: "c", title: "C" },
 ];
-const listFields = (t) => ({
+const listFields = () => ({
 	items: t.array().default(ITEMS),
 	hidden: t.any(),
 	picked: t.any(),
 });
 const listOptions = {
 	name: "List",
-	fields: listFields,
+	fields: listFields(),
 	methods: {
 		itemKey(_index, value) {
 			return value.id;
@@ -157,7 +158,7 @@ test("XEach supports object sources, text, conditional empty output and multiple
 	const Groups = component({
 		...listOptions,
 		name: "Groups",
-		fields: (t) => ({ ...listFields(t), items: t.map() }),
+		fields: { ...listFields(), items: t.map() },
 		view: h(
 			"div",
 			{},
@@ -222,10 +223,10 @@ test("lint rejects loop and scope names the component does not declare", () => {
 test("loops run on the component, not on the item, inside nested each", () => {
 	const Nested = component({
 		name: "Nested",
-		fields: (t) => ({
+		fields: {
 			rows: t.array().default([{ cells: ["a", "b"] }, { cells: ["c"] }]),
 			prefix: t.string(">"),
-		}),
+		},
 		loops: {
 			cells: {
 				enrich({ value }) {
@@ -243,10 +244,10 @@ test("XEach defaults to source keys without keyWith", () => {
 	const DefaultKeys = component({
 		...listOptions,
 		name: "DefaultKeys",
-		fields: (t) => ({
-			...listFields(t),
+		fields: {
+			...listFields(),
 			items: t.map().default({ a: { title: "A" }, b: { title: "B" } }),
-		}),
+		},
 		view: h("div", {}, each(field("items"), h("i", {}, lookupBind("title")), "enriched")),
 	});
 	const { host, rootNode, C } = setup(DefaultKeys);

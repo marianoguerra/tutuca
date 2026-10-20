@@ -10,6 +10,7 @@ import {
 	renderIt,
 	send,
 	sourceKey,
+	t,
 } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
@@ -20,7 +21,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 		const seen = [];
 		const Child = component({
 			name: "Child",
-			fields: (t) => ({ count: t.number() }),
+			fields: { count: t.number() },
 			view: h("span", {}),
 			on: {
 				inc(draft) {
@@ -30,12 +31,12 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 		});
 		const Panel = component({
 			name: "Panel",
-			fields: (t) => ({
+			fields: {
 				rows: t.array().default([{ cells: [{ label: "cell" }] }]),
 				child: t.component("Child"),
 				picked: t.any(),
 				result: t.any(),
-			}),
+			},
 			view: h(
 				"div",
 				{},
@@ -68,11 +69,11 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 		});
 		const Root = component({
 			name: "Root",
-			fields: (t) => ({
+			fields: {
 				storage: t.any(),
 				groups: t.any(),
 				panel: t.option(t.component("Panel")),
-			}),
+			},
 			provides:
 				placement === "provided"
 					? {
@@ -132,7 +133,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 test("forwardAt from an event handler forwards the sent message and keeps the DOM event as cause", () => {
 	const Child = component({
 		name: "Child",
-		fields: (t) => ({ got: t.any() }),
+		fields: { got: t.any() },
 		view: h("span", {}),
 		on: {
 			act(draft, [n]) {
@@ -142,7 +143,7 @@ test("forwardAt from an event handler forwards the sent message and keeps the DO
 	});
 	const Parent = component({
 		name: "Parent",
-		fields: (t) => ({ child: t.component("Child"), causeType: t.any() }),
+		fields: { child: t.component("Child"), causeType: t.any() },
 		view: h("div", {}, h("button", { "@on.click": send("act", 7) }), render(field("child"))),
 		on: {
 			act(draft, _args, ctx) {

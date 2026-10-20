@@ -32,13 +32,13 @@ const ADJUST =
 	"flex min-h-12 items-center justify-center gap-1 rounded-xl border border-base-300 text-sm font-medium tabular-nums disabled:opacity-40";
 export const Prompt = component({
 	name: "Prompt",
-	fields: (t) => ({
+	fields: {
 		measurementId: t.enum(...MEASUREMENTS.map((m) => m.id)),
 		unitId: t.string(),
 		base: t.number().min(0),
 		text: t.string(),
 		history: t.array(t.number().min(0)),
-	}),
+	},
 	methods: {
 		get measurement() {
 			return findMeasurement(MEASUREMENTS, this.measurementId);

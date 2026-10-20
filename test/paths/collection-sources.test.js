@@ -12,6 +12,7 @@ import {
 	send,
 	seqItem,
 	sourceKey,
+	t,
 } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
@@ -32,7 +33,7 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 				const seen = [];
 				const Item = component({
 					name: "Item",
-					fields: (t) => ({ count: t.number() }),
+					fields: { count: t.number() },
 					view: h("button", { "@on.click": send("inc") }, field("count")),
 					on: {
 						inc(draft, _args, ctx) {
@@ -63,12 +64,12 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 							);
 				const Panel = component({
 					name: "Panel",
-					fields: (t) => ({
+					fields: {
 						items: t.any(),
 						groups: t.any(),
 						selected: t.number(),
 						picked: t.any(),
-					}),
+					},
 					loops: {
 						iterate: {
 							iter: (items) => (Array.isArray(items) ? items.entries() : Object.entries(items)),
@@ -86,11 +87,11 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 				});
 				const Root = component({
 					name: "Root",
-					fields: (t) => ({
+					fields: {
 						panel: t.component("Panel"),
 						groups: t.any(),
 						selected: t.number(),
-					}),
+					},
 					provides:
 						sourceName === "provided"
 							? {
@@ -139,7 +140,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 	const seen = [];
 	const Counter = component({
 		name: "Counter",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h("button", { "@on.click": send("inc") }, "inc"),
 		on: {
 			inc(draft, _args, ctx) {
@@ -159,7 +160,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 	});
 	const Group = component({
 		name: "Group",
-		fields: (t) => ({ items: t.map(), panel: t.component("InnerPanel") }),
+		fields: { items: t.map(), panel: t.component("InnerPanel") },
 		provides: {
 			items(pb) {
 				pb.field("items");
@@ -183,7 +184,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ groups: t.array(), panel: t.component("OuterPanel") }),
+		fields: { groups: t.array(), panel: t.component("OuterPanel") },
 		provides: {
 			items(pb) {
 				pb.field("groups");
@@ -206,7 +207,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 test("rendered SeqItem collection stays frozen while sendAt captures producer commit", () => {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: h("button", { "@on.click": send("inc") }, "inc"),
 		on: {
 			inc(draft) {
@@ -216,7 +217,7 @@ test("rendered SeqItem collection stays frozen while sendAt captures producer co
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ selected: t.number(), groups: t.array() }),
+		fields: { selected: t.number(), groups: t.array() },
 		view: h(
 			"div",
 			{},
@@ -249,7 +250,7 @@ for (const depth of [0, 1, 2, 8]) {
 		const seen = [];
 		const Node = component({
 			name: "Node",
-			fields: (t) => ({ count: t.number(), id: t.number(), items: t.array() }),
+			fields: { count: t.number(), id: t.number(), items: t.array() },
 			provides: {
 				items(pb) {
 					pb.field("items");
@@ -289,7 +290,7 @@ for (const depth of [0, 1, 2, 8]) {
 test("PathBuilder item updates array and object items", () => {
 	const Item = component({
 		name: "Item",
-		fields: (t) => ({ count: t.number() }),
+		fields: { count: t.number() },
 		view: null,
 		on: {
 			inc(draft) {
@@ -299,7 +300,7 @@ test("PathBuilder item updates array and object items", () => {
 	});
 	const Root = component({
 		name: "Root",
-		fields: (t) => ({ array: t.array(), object: t.map() }),
+		fields: { array: t.array(), object: t.map() },
 		view: h("button", { "@on.click": send("update") }, "update"),
 		on: {
 			update(_draft, _args, ctx) {

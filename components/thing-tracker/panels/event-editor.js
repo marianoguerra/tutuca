@@ -18,7 +18,7 @@ const { div, input, label, p, textarea } = tag;
 
 export const EventEditor = component({
 	name: "EventEditor",
-	fields: (t) => ({
+	fields: {
 		mode: t.enum("create", "edit"),
 		eventId: t.string(),
 		thingId: t.string(),
@@ -30,7 +30,7 @@ export const EventEditor = component({
 		notes: t.string(),
 		values: t.array(t.component("Prompt")),
 		confirming: t.boolean(),
-	}),
+	},
 	methods: {
 		get actualAt() {
 			return fromDatetimeLocal(this.when, this.tz);

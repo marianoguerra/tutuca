@@ -2,12 +2,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defineTutucaApp, mountTutucaApp, REQUEST } from "../../src/embed/element.js";
 import { lint } from "../../src/lint/index.js";
-import { component, DispatchPath, field, Host, h, send, Target, Task } from "../../src/tutuca.js";
+import {
+	component,
+	DispatchPath,
+	field,
+	Host,
+	h,
+	send,
+	Target,
+	Task,
+	t,
+} from "../../src/tutuca.js";
 import { dom } from "../helpers.js";
 
 const Counter = component({
 	name: "Counter",
-	fields: (t) => ({ count: t.number() }),
+	fields: { count: t.number() },
 	view: h("button", { "@on.click": send("inc") }, field("count")),
 	on: {
 		inc(draft) {
@@ -19,7 +29,7 @@ const Counter = component({
 // Holds an inner app and counts its own clicks and the reports the app sends.
 const Outer = component({
 	name: "Outer",
-	fields: (t) => ({ key: t.string("a"), clicks: t.number(), reports: t.array() }),
+	fields: { key: t.string("a"), clicks: t.number(), reports: t.array() },
 	view: h(
 		"div",
 		{ "@on.click": send("clicked") },

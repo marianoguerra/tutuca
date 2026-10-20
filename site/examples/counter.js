@@ -1,6 +1,6 @@
 // 1. A counter: a component is a name, typed fields, a view and the messages it handles.
 // Click the buttons in Preview, then open Steps to replay the "count to three" sequence.
-import { component, field, send, tag } from "tutuca";
+import { component, field, send, t, tag } from "tutuca";
 import { step, stories } from "tutuca/storybook";
 
 const { button, div, span } = tag;
@@ -8,7 +8,7 @@ const { button, div, span } = tag;
 export const Counter = component({
 	name: "Counter",
 	// Fields are schemas: count is a number that starts at 0.
-	fields: (t) => ({ count: t.number() }),
+	fields: { count: t.number() },
 	// The view is data: send("inc") is the message a click sends to this component.
 	view: div(
 		{ class: "flex items-center gap-3" },

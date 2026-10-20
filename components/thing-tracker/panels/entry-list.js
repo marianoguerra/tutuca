@@ -16,7 +16,7 @@ import { closing, panel } from "../panel.js";
 
 const { div, li, span, ul } = tag;
 
-const entryRow = (t) =>
+const entryRow = () =>
 	t.record({
 		id: t.string(),
 		head: t.string(),
@@ -27,13 +27,13 @@ const entryRow = (t) =>
 // A list of entries: of one thing in one bucket, or all of them.
 export const EntryList = component({
 	name: "EntryList",
-	fields: (t) => ({
+	fields: {
 		heading: t.string("All entries"),
 		subtitle: t.string(),
-		rows: t.array(entryRow(t)),
+		rows: t.array(entryRow()),
 		remaining: t.number().int().min(0),
 		confirming: t.boolean(),
-	}),
+	},
 	methods: {
 		get isEmpty() {
 			return this.rows.length === 0;
