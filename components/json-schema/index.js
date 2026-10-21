@@ -435,7 +435,9 @@ export const SchemaObject = component({
 			out.properties = Object.fromEntries(
 				[...byName].map(([name, p]) => [name, p.schema.toSchema()]),
 			);
-			const required = [...byName.values()].filter((p) => p.required).map((p) => p.name);
+			// In the order of properties' keys, which puts index-like names ("0") first, so the
+			// schema reads back as itself.
+			const required = Object.keys(out.properties).filter((name) => byName.get(name).required);
 			if (required.length > 0) out.required = required;
 			if (this.additional !== null) out.additionalProperties = this.additional.toSchema();
 			return out;

@@ -92,6 +92,16 @@ test("reading a tree back is a fixed point", () => {
 	);
 });
 
+test("required follows the order of properties, index-like names first", () => {
+	const { C } = setup();
+	// JSON puts an index-like key like "0" first, whatever order the tree has.
+	const property = (name) => C.SchemaProperty({ name, required: true, schema: C.SchemaAny() });
+	const once = C.SchemaObject({ properties: [property(""), property("0")] }).toSchema();
+	assert.deepEqual(Object.keys(once.properties), ["0", ""]);
+	assert.deepEqual(once.required, ["0", ""]);
+	assert.deepEqual(fromSchema(C, once).toSchema(), once);
+});
+
 test("generated trees read back to a fixed point", () => {
 	const { A, C } = setup();
 	fc.assert(
