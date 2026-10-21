@@ -38,7 +38,8 @@ export default stories({
 				"clear the result and fill it again": [
 					step.event("click", 'pre > div > div:last-child > span > button[title="Clear"]'),
 					step.check("an empty hole", outputIs("Error: the program has an empty hole")),
-					step.event("change", '[aria-label="Pick a node"]', { value: "Num" }),
+					step.event("click", '[aria-label="Pick a node"]'),
+					step.event("click", '[data-kind="Num"]'),
 					step.check("a zero", outputIs("0")),
 				],
 				"add a statement": [

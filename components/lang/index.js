@@ -36,19 +36,6 @@ export const EXPR_NAMES = [
 	"If",
 	"Call",
 ];
-// The kinds a hole can become, with their label in its picker.
-const KINDS = {
-	Num: "number",
-	Bool: "boolean",
-	Str: "string",
-	Var: "variable",
-	Arith: "arithmetic",
-	Compare: "comparison",
-	Logic: "and / or",
-	If: "if",
-	Call: "call",
-};
-
 // The notations, with the suffix of their view names.
 export const NOTATIONS = { lisp: "Lisp", python: "Python", js: "Js", forth: "Forth" };
 export const NOTATION_LABELS = { lisp: "Lisp", python: "Python", js: "JavaScript", forth: "Forth" };
@@ -80,8 +67,10 @@ const INLINE =
 const PICK = `${INLINE} cursor-pointer appearance-none`;
 const ACTION =
 	"cursor-pointer rounded px-0.5 align-super font-mono text-[0.6rem] opacity-30 hover:opacity-100 hover:text-error focus:opacity-100";
-const REMOVE =
-	"cursor-pointer rounded px-1 font-mono text-xs opacity-0 group-hover:opacity-60 hover:text-error hover:opacity-100 focus:opacity-100";
+const ROW_ACTION =
+	"cursor-pointer rounded px-1 font-mono text-xs opacity-0 group-hover:opacity-60 hover:opacity-100 focus:opacity-100";
+const INSERT = `${ROW_ACTION} hover:text-primary`;
+const REMOVE = `${ROW_ACTION} hover:text-error`;
 const ADD = "cursor-pointer rounded px-1 font-mono text-xs opacity-50 hover:opacity-100";
 
 const punct = (text) => span({ class: TEXT.punct }, text);
@@ -129,33 +118,89 @@ export const formatValue = (v, notation) => {
 	return String(v);
 };
 
+// The kinds a hole can become: their label in its picker, their color and how each notation
+// writes one.
+const example = (lisp, python, js, forth) => ({ lisp, python, js, forth });
+const KINDS = {
+	Num: ["number", TEXT.number, example("42", "42", "42", "42")],
+	Bool: ["boolean", TEXT.bool, example("true", "True", "true", "true")],
+	Str: ["string", TEXT.string, example('"hi"', '"hi"', '"hi"', 's" hi"')],
+	Var: ["variable", TEXT.name, example("x", "x", "x", "x")],
+	Arith: ["arithmetic", TEXT.op, example("(+ a b)", "a + b", "a + b", "a b +")],
+	Compare: ["comparison", TEXT.op, example("(< a b)", "a < b", "a < b", "a b <")],
+	Logic: ["and / or", TEXT.op, example("(and a b)", "a and b", "a && b", "a b and")],
+	If: [
+		"if",
+		TEXT.keyword,
+		example("(if c a b)", "a if c else b", "c ? a : b", "c IF a ELSE b THEN"),
+	],
+	Call: ["call", TEXT.name, example("(f a)", "f(a)", "f(a)", "a f")],
+};
+const HOLE =
+	"cursor-pointer rounded border border-dashed border-base-content/40 px-1.5 leading-5 text-base-content/60 hover:border-primary hover:text-primary";
+const HOLE_OPEN =
+	"cursor-pointer rounded border border-primary bg-primary px-1.5 leading-5 text-primary-content";
+const MENU =
+	"absolute left-0 top-full z-20 mt-1 grid w-max grid-cols-3 gap-1 whitespace-normal rounded-box border border-base-content/10 bg-base-100 p-2 font-sans shadow-lg";
+const CHOICE =
+	"flex cursor-pointer flex-col items-start gap-0.5 rounded-field px-2 py-1 text-left hover:bg-base-200 focus:bg-base-200 focus:outline-none";
+
 export const Hole = component({
 	name: "Hole",
+	fields: { open: t.boolean() },
 	methods: {
 		evaluate() {
 			throw new LangError("the program has an empty hole");
 		},
 	},
-	views: notations((_notation, edit) =>
+	views: notations((notation, edit) =>
 		edit
-			? select(
-					{
-						class: `${PICK} ${TEXT.hole}`,
-						"aria-label": "Pick a node",
-						value: "",
-						"on:change": send("fill", targetValue()),
-					},
-					option({ value: "" }, "?"),
-					...Object.entries(KINDS).map(([kind, label]) => option({ value: kind }, label)),
+			? span(
+					{ class: "relative inline-block" },
+					button(
+						{
+							class: $if(field("open"), HOLE_OPEN, HOLE),
+							title: "Pick a node",
+							"aria-label": "Pick a node",
+							"aria-expanded": $if(field("open"), "true", "false"),
+							"on:click": send("toggle"),
+						},
+						"?",
+					),
+					$if(
+						field("open"),
+						div(
+							{ class: MENU, role: "menu", "aria-label": "Node kinds" },
+							...Object.entries(KINDS).map(([kind, [label, color, written]]) =>
+								button(
+									{
+										class: CHOICE,
+										role: "menuitem",
+										"data-kind": kind,
+										"on:click": send("fill", kind),
+									},
+									span({ class: "text-xs text-base-content/60" }, label),
+									span({ class: `font-mono text-sm ${color}` }, written[notation]),
+								),
+							),
+						),
+						"",
+					),
 				)
 			: span({ class: TEXT.hole }, "?"),
 	),
 	on: {
+		toggle: {
+			args: [],
+			post: (prev, next) => next.open === !prev.open,
+			run(draft) {
+				draft.open = !this.open;
+			},
+		},
 		// Replaces itself with a new node of kind, its expressions holes.
 		fill: {
-			args: [t.string()],
+			args: [t.enum(...Object.keys(KINDS))],
 			run(_draft, [kind], ctx) {
-				if (!Object.hasOwn(KINDS, kind)) return;
 				if (kind === "Call") return newCall(ctx.scope, BUILTIN_NAMES[0]);
 				return ctx.scope.make(kind, {});
 			},
@@ -619,6 +664,13 @@ export const Program = component({
 		result: t.component(EXPR_NAMES),
 	},
 	methods: {
+		// An assignment of a hole to a name no statement uses yet.
+		newStatement(scope) {
+			const used = new Set(this.statements.map((s) => s.name));
+			let n = this.statements.length + 1;
+			while (used.has(`v${n}`)) n++;
+			return scope.make("Assign", { name: `v${n}` });
+		},
 		// The value of the result once every statement ran, in order.
 		execute() {
 			const env = new Map();
@@ -632,6 +684,14 @@ export const Program = component({
 					{ class: "group" },
 					renderIt(),
 					" ",
+					button(
+						{
+							class: INSERT,
+							title: "Add a statement after (Ctrl+click: before)",
+							"on:click": send("insertAt", sourceKey()),
+						},
+						"+",
+					),
 					button(
 						{
 							class: REMOVE,
@@ -657,8 +717,16 @@ export const Program = component({
 			args: [],
 			post: (prev, next) => next.statements.length === prev.statements.length + 1,
 			run(draft, _args, ctx) {
-				const name = `v${this.statements.length + 1}`;
-				draft.statements.push(ctx.scope.make("Assign", { name }));
+				draft.statements.push(this.newStatement(ctx.scope));
+			},
+		},
+		// Adds a statement after the one at key, or before it on Ctrl+click.
+		insertAt: {
+			args: [t.index("statements")],
+			post: (prev, next) => next.statements.length === prev.statements.length + 1,
+			run(draft, [key], ctx) {
+				const before = ctx.event?.ctrlKey || ctx.event?.metaKey;
+				draft.statements.splice(before ? key : key + 1, 0, this.newStatement(ctx.scope));
 			},
 		},
 		removeAt: {
@@ -759,7 +827,7 @@ export const Editor = component({
 		pre(
 			{
 				class:
-					"overflow-auto whitespace-pre-wrap rounded bg-base-200 p-4 font-mono text-sm leading-7",
+					"whitespace-pre-wrap break-words rounded bg-base-200 p-4 font-mono text-sm leading-7",
 			},
 			pushView(field("viewName"), render(field("program"))),
 		),

@@ -110,7 +110,8 @@ test("editing clears nodes, fills holes and keeps call arguments fitting", () =>
 	fire("change", $('[aria-label="function"]'), "max");
 	assert.equal(d.state.program.result.args.length, 2);
 	assert.equal(d.state.output, "Error: the program has an empty hole");
-	fire("change", $('[aria-label="Pick a node"]'), "Num");
+	fire("click", $('[aria-label="Pick a node"]'));
+	fire("click", $('[data-kind="Num"]'));
 	fire("input", d.rootNode.querySelectorAll('[aria-label="number"]')[1], "5");
 	assert.equal(d.state.output, "5");
 	fire("change", $('[aria-label="function"]'), "upper");
@@ -118,8 +119,28 @@ test("editing clears nodes, fills holes and keeps call arguments fitting", () =>
 	assert.equal(d.state.output, "Error: upper needs a string, got number");
 	// The argument comes before the call in the page, so its ✕ is the first.
 	fire("click", d.rootNode.querySelectorAll('button[title="Clear"]')[0]);
-	fire("change", $('[aria-label="Pick a node"]'), "Str");
+	fire("click", $('[aria-label="Pick a node"]'));
+	fire("click", $('[data-kind="Str"]'));
 	fire("input", $('[aria-label="string"]'), "hi");
 	assert.equal(d.state.output, '"HI"');
+	assert.deepEqual(d.problems, []);
+});
+
+test("+ on a statement adds one after it, or before it on Ctrl+click", () => {
+	const C = setup();
+	const root = C.Editor({ mode: "edit", program: sample(C) });
+	const d = new Driver({ root, document });
+	const names = () => d.state.program.statements.map((s) => s.name);
+	const insert = (i, ctrlKey = false) => {
+		const { MouseEvent } = document.defaultView;
+		const button = d.rootNode.querySelectorAll('button[title^="Add a statement after"]')[i];
+		button.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey }));
+		d.drain();
+	};
+	insert(0);
+	assert.deepEqual(names(), ["x", "v6", "name", "debug", "total", "big"]);
+	insert(2, true);
+	assert.deepEqual(names(), ["x", "v6", "v7", "name", "debug", "total", "big"]);
+	assert.equal(d.state.program.statements[1].value.constructor, C.Hole().constructor);
 	assert.deepEqual(d.problems, []);
 });
