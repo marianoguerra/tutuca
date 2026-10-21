@@ -2,6 +2,7 @@
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
 import { ClassCompiler } from "../css/classes.js";
+import { argsLabel, rootTask, Timeline, taskLabel } from "../history/index.js";
 import { lint } from "../lint/index.js";
 import { jsonText } from "../paths.js";
 import { diff } from "../sync/diff.js";
@@ -9,18 +10,9 @@ import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
 import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../test/driver.js";
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../test/pbt.js";
-import { EventTask, specOf } from "../tutuca.js";
-import { argsLabel, prepareStory, runStep, step, stepText } from "./stories.js";
+import { specOf } from "../tutuca.js";
+import { prepareStory, runStep, step, stepText } from "./stories.js";
 import { runStress } from "./stress.js";
-
-const rootTask = (task) => {
-	while (task.parent !== null) task = task.parent;
-	return task;
-};
-const taskLabel = (task) => {
-	const call = `${task.name}(${argsLabel(task.args)})`;
-	return task instanceof EventTask ? `${task.event.type} → ${call}` : call;
-};
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
 // states, one entry per step and per user interaction, to go back and forth through.
@@ -36,6 +28,7 @@ export class StoryRunner {
 		this.stressToken = null;
 		this.lastStress = null; // { root, commands } of the last failed stress run.
 		this.messagesBySpec = new Map();
+		this.timeline = new Timeline();
 	}
 	mount(detail) {
 		this.detail = detail;
@@ -72,7 +65,7 @@ export class StoryRunner {
 		this.driver.host.stop();
 	}
 	get current() {
-		return this.timeline[this.cursor];
+		return this.timeline.current;
 	}
 	get nextStep() {
 		return this.current.nextStep;
@@ -117,23 +110,8 @@ export class StoryRunner {
 		const before = this.driver.reports.length;
 		if (problems === null) this.act(() => this.driver.restart(root));
 		const initial = problems ?? describeProblems(this.driver.problemsSince(before));
-		this.timeline = [
-			{
-				label,
-				origin,
-				state: root,
-				problems: initial,
-				nextStep,
-				tasks: [],
-			},
-		];
-		this.cursor = 0;
+		this.timeline.begin({ label, origin, state: root, problems: initial, nextStep, tasks: [] });
 		this.publish();
-	}
-	record(entry) {
-		this.timeline.length = this.cursor + 1;
-		this.timeline.push(entry);
-		this.cursor = this.timeline.length - 1;
 	}
 	runAt(s, stepIndex, nextStep) {
 		this.tasks = [];
@@ -142,7 +120,7 @@ export class StoryRunner {
 		const label = stepText(s);
 		const { state } = this.driver;
 		const { tasks } = this;
-		this.record({
+		this.timeline.record({
 			label,
 			origin: "step",
 			state,
@@ -161,10 +139,10 @@ export class StoryRunner {
 		if (name === "counterexample") return this.loadCounterexample();
 		this.sequence = name;
 		this.steps = this.story.sequences[name] ?? [];
-		this.begin(this.timeline[0].state);
+		this.begin(this.timeline.entries[0].state);
 	}
 	goto(i) {
-		this.cursor = Math.max(0, Math.min(Number(i), this.timeline.length - 1));
+		this.timeline.goto(i);
 		this.act(() => this.driver.restart(this.current.state));
 		this.publish();
 	}
@@ -172,12 +150,12 @@ export class StoryRunner {
 		this.goto(0);
 	}
 	back() {
-		this.goto(this.cursor - 1);
+		this.goto(this.timeline.cursor - 1);
 	}
 	// Redo, else run the next step of the sequence; false when there is none.
 	forward() {
-		if (this.cursor < this.timeline.length - 1) {
-			this.goto(this.cursor + 1);
+		if (!this.timeline.atEnd) {
+			this.goto(this.timeline.cursor + 1);
 			return true;
 		}
 		const i = this.nextStep;
@@ -185,7 +163,7 @@ export class StoryRunner {
 		return this.runAt(this.steps[i], i, i + 1).status === "ok";
 	}
 	toEnd() {
-		if (this.cursor < this.timeline.length - 1) this.goto(this.timeline.length - 1);
+		if (!this.timeline.atEnd) this.goto(this.timeline.size - 1);
 		while (this.nextStep < this.steps.length && this.forward()) {}
 	}
 	// A step outside the sequence, at the current position.
@@ -253,7 +231,7 @@ export class StoryRunner {
 		const token = {};
 		this.stressToken = token;
 		const { fc, A } = this;
-		const root = from === "current" ? this.driver.state : this.timeline[0].state;
+		const root = from === "current" ? this.driver.state : this.timeline.entries[0].state;
 		return await runStress({
 			story: this.story,
 			fc,
@@ -296,16 +274,14 @@ export class StoryRunner {
 			return;
 		}
 		if (type !== "taskHandled") return;
-		const root = rootTask(report.task);
+		const { task, newRoot } = report;
 		let entry = this.current;
-		if (entry.rootTask === root) {
-			entry.state = report.newRoot;
-			entry.tasks = [...entry.tasks, report.task];
-		} else {
-			entry = { label: taskLabel(root), origin: "user", state: report.newRoot, problems: [] };
+		if (!this.timeline.merge(task, newRoot)) {
+			const root = rootTask(task);
+			entry = { label: taskLabel(root), origin: "user", state: newRoot, problems: [] };
 			Object.assign(entry, { status: "ok", nextStep: this.nextStep, rootTask: root });
-			entry.tasks = [report.task];
-			this.record(entry);
+			entry.tasks = [task];
+			entry = this.timeline.record(entry);
 		}
 		this.tasks = [];
 		this.addProblems(entry);
@@ -326,7 +302,7 @@ export class StoryRunner {
 	// What the current entry changed since the one before it, as the ops a sync engine sees
 	// (every field, whatever its sync level).
 	changes() {
-		const prev = this.timeline[this.cursor - 1];
+		const prev = this.timeline.entries[this.timeline.cursor - 1];
 		if (prev === undefined) return [];
 		try {
 			return diff(prev.state, this.current.state, { scope: this.scope, level: "none" }).map(opText);
@@ -335,7 +311,7 @@ export class StoryRunner {
 		}
 	}
 	statusOf(i) {
-		const entry = this.timeline.findLast((e) => e.stepIndex === i);
+		const entry = this.timeline.entries.findLast((e) => e.stepIndex === i);
 		return entry === undefined ? "pending" : entry.status;
 	}
 	summary() {
@@ -350,13 +326,13 @@ export class StoryRunner {
 				status: this.statusOf(i),
 				isNext: i === this.nextStep,
 			})),
-			timeline: this.timeline.map((e, i) => ({
+			timeline: this.timeline.entries.map((e, i) => ({
 				label: e.label,
 				origin: e.origin,
 				problemCount: e.problems.length,
-				isCurrent: i === this.cursor,
+				isCurrent: i === this.timeline.cursor,
 			})),
-			cursor: this.cursor,
+			cursor: this.timeline.cursor,
 			problems: current.error && current.status !== "failed" ? [current.error] : current.problems,
 			error: current.status === "ok" ? "" : (current.error ?? ""),
 			stateJson: JSON.stringify(snapshot(current.state), null, 2) ?? "",
@@ -394,7 +370,20 @@ export const storyAskHandlers = (registryOf) => ({
 		return registry.call(key, op, args);
 	},
 	delay: ([ms]) => new Promise((resolve) => setTimeout(resolve, ms)),
+	// The TimeTravel bar's ops, on the timeline of the StoryRunner of app key.
+	history: ([key, op, arg]) => {
+		const registry = registryOf();
+		if (registry === null) throw new Error("no stories loaded");
+		return registry.call(key, HISTORY_OPS[op], op === "goto" ? [arg] : []);
+	},
 });
+const HISTORY_OPS = {
+	goto: "goto",
+	back: "back",
+	forward: "forward",
+	toStart: "reset",
+	toEnd: "toEnd",
+};
 
 export class StoryRegistry {
 	constructor({

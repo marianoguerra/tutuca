@@ -103,6 +103,24 @@ test("lang demo: switches notation and edits the program", async () => {
 	await checkClean(app);
 });
 
+test("a demo's time travel bar steps back to an earlier state", async () => {
+	const app = mount(startLang);
+	const bar = app.rootNode.previousElementSibling;
+	assert.equal(bar.className, "time-travel");
+	app.fire("click", app.$('[data-notation="forth"]'));
+	app.fire("click", app.$('[data-mode="edit"]'));
+	await settle();
+	assert.match(bar.textContent, /state 3 of 3 · ☝ click → setMode\("edit"\)/);
+	app.fire("click", bar.querySelector('button[title="Back"]'));
+	await settle();
+	assert.equal(app.state().viewName, "viewForth");
+	app.fire("click", bar.querySelector('button[title="First state"]'));
+	await settle();
+	assert.equal(app.state().viewName, "viewLisp");
+	assert.match(bar.textContent, /state 1 of 3 · ◆ initial/);
+	await checkClean(app);
+});
+
 test("math demo: saves, reopens and removes problems", async () => {
 	const app = mount(startMath);
 	const save = () =>
@@ -273,11 +291,11 @@ test("boot syncs any demo from the query: ?sync=local keeps the state in this br
 	void host;
 });
 
-test("without ?sync a demo starts at once, with no engines", () => {
-	const window = page("");
-	const host = startNotes(window.document);
-	assert.equal(host.engines.length, 0);
+test("without ?sync a demo starts at once, its only engine the time travel history", () => {
+	const host = startNotes(page("").document);
+	assert.equal(host.engines.length, 1);
 	assert.notEqual(host.rootComponent, null);
+	assert.equal(startNotes(page("?history=0").document).engines.length, 0);
 });
 
 test("?sync=worker: tabs sync through the backend, and a new tab starts from it", async () => {

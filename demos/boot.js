@@ -1,11 +1,13 @@
 // Boots a demo: a dev Host on #app with the components, the browser's ask handlers (or
 // askHandlers) and a root. The page's ?sync= picks engines that keep or sync the state (see
 // sync/engines.js); then the root is what they stored, or make's when they have nothing, and
-// the host starts once they've loaded.
+// the host starts once they've loaded. A time travel bar under the demo bar records up to
+// ?history= states (1000 when left out, none and no bar for 0).
 import { compile } from "margaui";
 import { isoDay } from "../components/common/calendar.js";
 import { readText, saveFile } from "../components/common/files.js";
 import { ClassCompiler, classNamesOf } from "../src/css/classes.js";
+import { mountTimeTravel, TimeTravel } from "../src/history/bar.js";
 import { startSynced } from "../src/sync/index.js";
 import { DispatchPath, Host, Target, Task } from "../src/tutuca.js";
 import { SYNC_MODES, syncFromQuery, syncModeOf } from "./sync/engines.js";
@@ -20,6 +22,7 @@ export const boot = ({
 	const window = document.defaultView;
 	const mode = window === null ? null : syncModeOf(window);
 	addSyncSwitcher(document, mode);
+	if (window !== null) addTimeTravel(document, host, historyOf(window));
 	if (mode === null) {
 		host.start(make(host.scope.components));
 		watch();
@@ -56,6 +59,31 @@ const addSyncSwitcher = (document, mode) => {
 	}
 	bar.append(nav);
 };
+// How many states ?history= keeps: 1000 when it's left out, 0 for none, null when it isn't a
+// whole number.
+export const historyOf = (window) => {
+	const value = new URLSearchParams(window.location.search).get("history");
+	if (value === null || value === "") return 1000;
+	const n = Number(value);
+	return Number.isInteger(n) && n >= 0 ? n : null;
+};
+// The time travel bar under the demo bar, recording host's states; nothing for 0.
+const addTimeTravel = (document, host, max) => {
+	if (max === 0) return;
+	const bar = document.querySelector(".demo-bar");
+	if (max === null) {
+		const error = document.createElement("p");
+		error.className = "demo-error";
+		error.textContent = "?history= takes a whole number of states, 0 for no time travel.";
+		bar?.append(error);
+		return;
+	}
+	const rootNode = document.createElement("div");
+	rootNode.className = "time-travel";
+	if (bar === null) document.getElementById("app").before(rootNode);
+	else bar.after(rootNode);
+	mountTimeTravel({ document, rootNode, host, max });
+};
 // A list under the app for the ops that sync.
 const addSyncLog = (document) => {
 	const section = document.createElement("section");
@@ -84,7 +112,7 @@ const setup = ({ components, askHandlers, document }) => {
 	};
 	const watch = () => {
 		if (classes === null) return;
-		for (const c of classNamesOf(Object.values(components))) classes.seen.add(c);
+		for (const c of classNamesOf([...Object.values(components), TimeTravel])) classes.seen.add(c);
 		classes.watch(rootNode, styleNode);
 		classes.update().catch((error) => console.error("margaui compile failed", error));
 	};

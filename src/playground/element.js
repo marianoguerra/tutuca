@@ -9,13 +9,14 @@
 
 import { ClassCompiler, classNamesOf } from "../css/classes.js";
 import { defineTutucaApp, REQUEST } from "../embed/element.js";
+import { TimeTravel } from "../history/bar.js";
 import { StoryRegistry, storyAskHandlers } from "../storybook/runner.js";
 import { panelClassNames, panelComponents } from "../storybook/ui/panels.js";
 import { DispatchPath, Host, Target, Task } from "../tutuca.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
-export const playgroundComponents = { Playground, ...panelComponents };
+export const playgroundComponents = { Playground, TimeTravel, ...panelComponents };
 export const playgroundClasses = () =>
 	classNamesOf(Object.values(playgroundComponents), panelClassNames);
 

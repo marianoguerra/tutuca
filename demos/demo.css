@@ -34,6 +34,19 @@ body {
 	opacity: 0.7;
 	text-decoration: none;
 }
+/* The time travel bar, under the demo bar; empty, and so hidden, until there are two states. */
+.time-travel {
+	padding: 0.25rem 1.5rem;
+	background: var(--color-base-100, #fff);
+	border-bottom: 1px solid var(--color-base-300, #e4e4e7);
+}
+.time-travel:not(:has([role="group"])) {
+	display: none;
+}
+.demo-bar .demo-error {
+	color: var(--color-error, #dc2626);
+	opacity: 1;
+}
 #app {
 	padding: 1.5rem;
 }

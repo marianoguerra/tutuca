@@ -24,6 +24,8 @@
 		"./storybook": "./src/storybook/index.js",
 		"./element": "./src/embed/element.js",
 		"./playground": "./src/playground/index.js",
+		"./history": "./src/history/index.js",
+		"./history/bar": "./src/history/bar.js",
 		"./sync": "./src/sync/index.js",
 		"./sync/remote": "./src/sync/remote.js",
 		"./automerge": "./src/sync/automerge.js",

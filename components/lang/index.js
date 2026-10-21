@@ -491,7 +491,6 @@ const binary = (name, ops, apply) =>
 			},
 			clear,
 			placeNode,
-			placeNode,
 		},
 	});
 

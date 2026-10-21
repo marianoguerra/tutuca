@@ -2,9 +2,21 @@
 // and look into it with the storybook's panels. The element runs the code and sends the
 // stories of each run here; a new run gives the app a new key, so it mounts again.
 import { makeDevPanel } from "../../dev/panel.js";
+import { showArgs } from "../../history/bar.js";
 import { tabButton } from "../../storybook/ui/common.js";
 import { applyAppReport, resetPanels } from "../../storybook/ui/panels.js";
-import { $if, component, each, field, render, send, t, tag, targetValue } from "../../tutuca.js";
+import {
+	$if,
+	component,
+	each,
+	field,
+	render,
+	scopeOf,
+	send,
+	t,
+	tag,
+	targetValue,
+} from "../../tutuca.js";
 
 const { div, option, p, pre, section, select, span } = tag;
 const tutucaApp = tag["tutuca-app"];
@@ -36,6 +48,7 @@ export const Playground = component({
 		story: t.component("StoryPanel"),
 		stress: t.component("StressPanel"),
 		dev: t.component("DevPanel"),
+		travel: t.component("TimeTravel"), // Under the preview, over the story's timeline.
 	},
 	methods: {
 		get appKey() {
@@ -141,6 +154,7 @@ export const Playground = component({
 								"app-key": field("appKey"),
 								"on:tutucareport": send("appReport"),
 							}),
+							div({ class: "mt-3 empty:hidden" }, render(field("travel"))),
 						),
 						$if(field("isSteps"), render(field("story")), ""),
 						$if(field("isStress"), render(field("stress")), ""),
@@ -230,7 +244,13 @@ export const Playground = component({
 		appReport(draft, _args, ctx) {
 			const detail = ctx.event?.detail;
 			if (detail?.key === this.appKey && detail.type === "state") {
-				draft.issueCount = detail.data.dev?.issues.length ?? 0;
+				const { dev, timeline, cursor } = detail.data;
+				draft.issueCount = dev?.issues.length ?? 0;
+				const [size, , label, origin] = showArgs({
+					size: timeline.length,
+					current: timeline[cursor],
+				});
+				Object.assign(draft.travel, { target: this.appKey, size, cursor, label, origin });
 			}
 			applyAppReport(this, draft, detail);
 		},
@@ -241,6 +261,7 @@ const showStory = (self, draft, id) => {
 	draft.selectedId = id;
 	draft.issueCount = 0;
 	resetPanels(self, draft, `r${draft.run}/${id}@${self.seed}`);
+	draft.travel = scopeOf(self).components.TimeTravel();
 };
 
 export const makePlayground = (C) =>
@@ -249,6 +270,7 @@ export const makePlayground = (C) =>
 		story: C.StoryPanel({}),
 		stress: C.StressPanel({}),
 		dev: makeDevPanel(C),
+		travel: C.TimeTravel(),
 	});
 
 // Lists, in each story's label, its book's title when there are many books.

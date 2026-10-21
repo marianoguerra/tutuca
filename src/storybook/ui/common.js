@@ -9,7 +9,7 @@ export const BADGES = {
 	failed: "badge badge-sm badge-error",
 	skipped: "badge badge-sm badge-warning",
 };
-export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝" };
+export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝", external: "⇅" };
 
 // Asks the StoryRunner of self's app to run op.
 export const askStory = (ctx, self, op, ...args) => ctx.ask("story", [self.appKey, op, ...args]);

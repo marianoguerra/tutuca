@@ -6,6 +6,7 @@ import { defineTutucaApp, REQUEST } from "../../src/embed/element.js";
 import { playgroundComponents } from "../../src/playground/element.js";
 import { makePlayground, storyChoices } from "../../src/playground/ui/playground.js";
 import { StoryRegistry } from "../../src/storybook/index.js";
+import { storyAskHandlers } from "../../src/storybook/runner.js";
 import { DispatchPath, Host, Target, Task } from "../../src/tutuca.js";
 import { dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
 
@@ -24,7 +25,7 @@ const start = () => {
 	const host = new Host({ document: window.document, rootNode });
 	host.scope.register(playgroundComponents);
 	host.scope.registerAskHandlers({
-		story: ([key, op, ...args]) => state.registry.call(key, op, args),
+		...storyAskHandlers(() => state.registry),
 		delay: () => Promise.resolve(),
 		playground: (pick) => {
 			state.picks.push(pick);
@@ -130,4 +131,29 @@ test("StoryRegistry with a prefix mounts only its own keys", () => {
 	const detail = (key) => ({ key, mount: (c) => mounted.push(c) });
 	registry.mount(detail("r1/Math/Quadratic/Two roots@0"));
 	assert.equal(mounted.length, 0);
+});
+
+test("a time travel bar under the preview moves through the story's timeline", async () => {
+	const { rootNode, host, failures, run, click, tab } = start();
+	run([mathBook]);
+	await settle();
+	const bar = () => rootNode.querySelector('[aria-label="Time travel"]');
+	assert.equal(bar(), null, "one state, no bar");
+	click(tab("Steps"));
+	await settle();
+	click(rootNode.querySelector('[title="Run to end"]'));
+	await settle();
+	click(tab("Preview"));
+	await settle();
+	const { size } = host.rootComponent.travel;
+	assert.ok(size > 2);
+	assert.match(bar().textContent, new RegExp(`state ${size} of ${size}`));
+	click(bar().querySelector('button[title="Back"]'));
+	await settle();
+	assert.equal(host.rootComponent.story.cursor, size - 2);
+	click(bar().querySelector('button[title="First state"]'));
+	await settle();
+	assert.equal(host.rootComponent.story.cursor, 0);
+	assert.match(bar().textContent, /state 1 of \d+ · ◆ initial/);
+	assert.deepEqual(failures, []);
 });
