@@ -193,6 +193,18 @@ host.start(host.scope.components.Counter());</code></pre>
 					</div>
 				</li>
 				<li>
+					<span class="icon" aria-hidden="true">⏪</span>
+					<div>
+						<strong>Time travel</strong>
+						<p>
+							Step back and forward through your app's states with the bar under each demo's
+							header, or with Alt+←/→. Each step is one user action, with its async replies
+							folded in. Time travel is itself a sync engine: going back applies the past state
+							as a change from elsewhere, so storage and peers follow.
+						</p>
+					</div>
+				</li>
+				<li>
 					<span class="icon" aria-hidden="true">🧪</span>
 					<div>
 						<strong>Repeatable handlers</strong>
@@ -235,7 +247,8 @@ host.start(host.scope.components.Counter());</code></pre>
 				</li>
 			</ul>
 			<p class="muted">
-				All demos support these <code>?sync=</code> options.
+				All demos support these <code>?sync=</code> options, plus <code>?history=N</code> to cap
+				the time travel timeline (<code>0</code> turns it off).
 				<a href="https://github.com/marianoguerra/tutuca/blob/main/docs/sync.md">Read the sync guide</a>
 				for setup, field settings, and how each engine handles concurrent edits.
 			</p>
