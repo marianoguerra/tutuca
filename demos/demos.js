@@ -61,6 +61,15 @@ export const demos = [
 		sources: ["composition"],
 	},
 	{
+		dir: "lang",
+		emoji: "🌳",
+		title: "AST notations",
+		blurb:
+			"A small language's syntax tree as components: read or edit it as Lisp, Python, JavaScript or Forth, and see what it evaluates to.",
+		story: "Lang/Editor/Lisp",
+		sources: ["lang"],
+	},
+	{
 		dir: "notes",
 		emoji: "🔀",
 		title: "Notes",

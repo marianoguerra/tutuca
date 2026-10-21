@@ -8,6 +8,7 @@ import { start as startComposition } from "../../demos/composition/main.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
 import { start as startStudio } from "../../demos/json-schema/main.js";
 import { start as startKanban } from "../../demos/kanban/main.js";
+import { start as startLang } from "../../demos/lang/main.js";
 import { start as startMath } from "../../demos/math/main.js";
 import { start as startNotes } from "../../demos/notes/main.js";
 import { notesComponents } from "../../demos/notes/notes.js";
@@ -86,6 +87,19 @@ test("composition demo: a picker becomes the cell picked, and adds pickers aroun
 	app.fire("click", app.$('[title="Add a cell at the end"]'));
 	app.fire("click", app.$('[data-choice="kanban"]'));
 	assert.deepEqual(kinds(), ["TrackerCell", "Board"]);
+	await checkClean(app);
+});
+
+test("lang demo: switches notation and edits the program", async () => {
+	const app = mount(startLang);
+	const output = () => app.$('[aria-label="Result"]').textContent;
+	assert.equal(output(), '⇒ "ADA!"');
+	app.fire("click", app.$('[data-notation="forth"]'));
+	assert.match(app.$("pre").textContent, /IF .* ELSE .* THEN/);
+	app.fire("click", app.$('[data-mode="edit"]'));
+	assert.equal(app.state().viewName, "editForth");
+	app.fire("input", app.$('[aria-label="number"]'), "2");
+	assert.equal(output(), '⇒ s" 3"');
 	await checkClean(app);
 });
 
