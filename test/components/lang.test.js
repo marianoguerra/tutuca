@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { LangError, langComponents, sample } from "../../components/lang/index.js";
 import { Driver } from "../../src/test/pbt.js";
+import { specOf } from "../../src/tutuca.js";
 import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 
 const setup = () => scopeWith(langComponents).components;
@@ -142,5 +143,74 @@ test("+ on a statement adds one after it, or before it on Ctrl+click", () => {
 	insert(2, true);
 	assert.deepEqual(names(), ["x", "v6", "v7", "name", "debug", "total", "big"]);
 	assert.equal(d.state.program.statements[1].value.constructor, C.Hole().constructor);
+	assert.deepEqual(d.problems, []);
+});
+
+const dragSetup = (program) => {
+	const C = setup();
+	const d = new Driver({ root: C.Editor({ mode: "edit", program: program(C) }), document });
+	const all = (selector) => [...d.rootNode.querySelectorAll(selector)];
+	const drop = (from, to, ctrlKey = false) => {
+		const { Event, MouseEvent } = document.defaultView;
+		from.dispatchEvent(new Event("dragstart", { bubbles: true }));
+		for (const type of ["dragenter", "dragover"])
+			to.dispatchEvent(new Event(type, { bubbles: true }));
+		to.dispatchEvent(new MouseEvent("drop", { bubbles: true, ctrlKey }));
+		from.dispatchEvent(new Event("dragend", { bubbles: true }));
+		d.drain();
+	};
+	return { C, d, all, drop };
+};
+const nameOf = (v) => specOf(v).name;
+// a = 5, then a hole plus 1.
+const holeProgram = (C) =>
+	C.Program({
+		statements: [C.Assign({ name: "a", value: n(C, 5) })],
+		result: C.Arith({ op: "+", left: C.Hole(), right: n(C, 1) }),
+	});
+
+test("a node dragged into a hole moves there and leaves a hole behind", () => {
+	const { d, all, drop } = dragSetup(holeProgram);
+	drop(all('[data-dragtype="node"]')[0], all('[aria-label="Pick a node"]')[0]);
+	assert.equal(nameOf(d.state.program.statements[0].value), "Hole");
+	assert.equal(d.state.program.result.left.value, 5);
+	assert.equal(d.state.output, "Error: the program has an empty hole");
+	assert.deepEqual(d.problems, []);
+});
+
+test("Ctrl while dropping copies the node instead", () => {
+	const { d, all, drop } = dragSetup(holeProgram);
+	drop(all('[data-dragtype="node"]')[0], all('[aria-label="Pick a node"]')[0], true);
+	assert.equal(d.state.program.statements[0].value.value, 5);
+	assert.equal(d.state.program.result.left.value, 5);
+	assert.equal(d.state.output, "6");
+	assert.deepEqual(d.problems, []);
+});
+
+test("a node can't be dropped into a hole inside itself", () => {
+	const { d, all, drop } = dragSetup(holeProgram);
+	const before = d.state;
+	// The grip of the result's + comes after its operands'.
+	drop(all('[data-dragtype="node"]').at(-1), all('[aria-label="Pick a node"]')[0]);
+	assert.equal(d.state, before);
+	assert.deepEqual(d.problems, []);
+});
+
+test("statements reorder by dragging", () => {
+	const { d, all, drop } = dragSetup((C) =>
+		C.Program({
+			statements: ["a", "b", "c"].map((name, i) => C.Assign({ name, value: n(C, i) })),
+			result: C.Var({ name: "a" }),
+		}),
+	);
+	const names = () => d.state.program.statements.map((s) => s.name);
+	const grips = () => all('[data-dragtype="statement"]');
+	drop(grips()[2], grips()[0].parentElement);
+	assert.deepEqual(names(), ["c", "a", "b"]);
+	drop(grips()[0], grips()[2].parentElement);
+	assert.deepEqual(names(), ["a", "c", "b"]);
+	// A node dropped on a statement doesn't move it.
+	drop(all('[data-dragtype="node"]')[0], grips()[0].parentElement);
+	assert.deepEqual(names(), ["a", "c", "b"]);
 	assert.deepEqual(d.problems, []);
 });

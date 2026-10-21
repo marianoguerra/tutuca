@@ -8,6 +8,7 @@ import {
 	$if,
 	button,
 	component,
+	dragKey,
 	each,
 	field,
 	lookupBind,
@@ -16,9 +17,11 @@ import {
 	renderIt,
 	send,
 	sourceKey,
+	specOf,
 	t,
 	tag,
 	targetValue,
+	UpdatePath,
 } from "../../src/tutuca.js";
 
 const { div, input, option, pre, select, span } = tag;
@@ -67,6 +70,8 @@ const INLINE =
 const PICK = `${INLINE} cursor-pointer appearance-none`;
 const ACTION =
 	"cursor-pointer rounded px-0.5 align-super font-mono text-[0.6rem] opacity-30 hover:opacity-100 hover:text-error focus:opacity-100";
+const GRIP =
+	"cursor-grab rounded px-0.5 align-super font-mono text-[0.6rem] opacity-30 hover:opacity-100 hover:text-primary data-[dragging]:opacity-100 data-[dragging]:text-primary";
 const ROW_ACTION =
 	"cursor-pointer rounded px-1 font-mono text-xs opacity-0 group-hover:opacity-60 hover:opacity-100 focus:opacity-100";
 const INSERT = `${ROW_ACTION} hover:text-primary`;
@@ -75,12 +80,25 @@ const ADD = "cursor-pointer rounded px-1 font-mono text-xs opacity-50 hover:opac
 
 const punct = (text) => span({ class: TEXT.punct }, text);
 const keyword = (text) => span({ class: TEXT.keyword }, text);
-// A node, with a button to clear it back to a hole when editing.
+// A node and, when editing, a handle to drag it into a hole and a button to clear it back to one.
 const node = (edit, ...children) =>
 	span(
 		{ class: "inline" },
 		...children,
-		...(edit ? [button({ class: ACTION, title: "Clear", "on:click": send("clear") }, "✕")] : []),
+		...(edit
+			? [
+					span(
+						{
+							class: GRIP,
+							draggable: "true",
+							"data-dragtype": "node",
+							title: "Drag into a hole to move it there (Ctrl: copy it)",
+						},
+						"⠿",
+					),
+					button({ class: ACTION, title: "Clear", "on:click": send("clear") }, "✕"),
+				]
+			: []),
 	);
 const clear = {
 	args: [],
@@ -88,6 +106,9 @@ const clear = {
 		return ctx.scope.make("Hole", {});
 	},
 };
+// A hole's placeNode on its way up to the editor: the nodes it passes leave it alone.
+const PLACE_ARGS = [t.array(t.any()), t.array(t.any()), t.boolean()];
+const placeNode = { args: PLACE_ARGS, run() {} };
 
 export class LangError extends Error {}
 const typeOf = (v) =>
@@ -156,7 +177,11 @@ export const Hole = component({
 	views: notations((notation, edit) =>
 		edit
 			? span(
-					{ class: "relative inline-block" },
+					{
+						class:
+							"relative inline-block rounded data-[draggingover=node]:bg-primary/20 data-[draggingover=node]:ring-2 data-[draggingover=node]:ring-primary",
+						"on:drop": send("dropNode"),
+					},
 					button(
 						{
 							class: $if(field("open"), HOLE_OPEN, HOLE),
@@ -195,6 +220,19 @@ export const Hole = component({
 			post: (prev, next) => next.open === !prev.open,
 			run(draft) {
 				draft.open = !this.open;
+			},
+		},
+		// A node dropped here: the editor, which holds both places, moves it, or copies it on
+		// Ctrl. Other drags are ignored.
+		dropNode: {
+			args: [],
+			emits: { notify: ["placeNode"] },
+			run(_draft, _args, ctx) {
+				if (ctx.drag?.type !== "node") return;
+				const from = ctx.drag.path.toComponentPath().resolve().keys;
+				const to = ctx.path.resolve().keys;
+				const copy = Boolean(ctx.event?.ctrlKey || ctx.event?.metaKey);
+				ctx.notify("placeNode", [from, to, copy]);
 			},
 		},
 		// Replaces itself with a new node of kind, its expressions holes.
@@ -254,6 +292,7 @@ export const Num = component({
 			},
 		},
 		clear,
+		placeNode,
 	},
 });
 
@@ -294,6 +333,7 @@ export const Bool = component({
 			},
 		},
 		clear,
+		placeNode,
 	},
 });
 
@@ -340,6 +380,7 @@ export const Str = component({
 			},
 		},
 		clear,
+		placeNode,
 	},
 });
 
@@ -370,7 +411,7 @@ export const Var = component({
 	views: notations((_notation, edit) =>
 		edit ? node(edit, nameInput("variable")) : span({ class: TEXT.name }, field("name")),
 	),
-	on: { setName, clear },
+	on: { setName, clear, placeNode },
 });
 
 // The operators of a kind of binary node, as each notation spells them.
@@ -449,6 +490,8 @@ const binary = (name, ops, apply) =>
 				},
 			},
 			clear,
+			placeNode,
+			placeNode,
 		},
 	});
 
@@ -552,7 +595,7 @@ export const If = component({
 			keyword("THEN"),
 		);
 	}),
-	on: { clear },
+	on: { clear, placeNode },
 });
 
 // The built-in functions: how many arguments they take and what they do.
@@ -632,6 +675,7 @@ export const Call = component({
 			},
 		},
 		clear,
+		placeNode,
 	},
 });
 
@@ -654,8 +698,19 @@ export const Assign = component({
 			return span(keyword("let"), " ", name, " ", punct("="), " ", value, punct(";"));
 		return span(value, " ", keyword("VALUE"), " ", name);
 	}),
-	on: { setName },
+	on: { setName, placeNode },
 });
+
+// Whether a drop landed on the lower half of the element that handles it; one without a
+// position, as in tests, lands on the upper half.
+const isLowerHalf = ({ event, node }) => {
+	if (node === null || typeof event?.clientY !== "number") return false;
+	const rect = node.getBoundingClientRect();
+	return event.clientY > rect.top + rect.height / 2;
+};
+// Whether the drag is of one of this program's statements, by the handle in its row.
+const isOwnStatement = (ctx) =>
+	ctx.drag?.type === "statement" && String(ctx.drag.path.toComponentPath()) === String(ctx.path);
 
 export const Program = component({
 	name: "Program",
@@ -681,7 +736,21 @@ export const Program = component({
 	views: notations((notation, edit) => {
 		const row = edit
 			? div(
-					{ class: "group" },
+					{
+						class:
+							"group rounded data-[draggingover=statement]:bg-primary/10 data-[draggingover=statement]:ring-1 data-[draggingover=statement]:ring-primary",
+						"on:drop": send("moveStatement", dragKey(), sourceKey()),
+					},
+					span(
+						{
+							class: `${ROW_ACTION} cursor-grab`,
+							draggable: "true",
+							"data-dragtype": "statement",
+							title: "Drag to move this statement",
+						},
+						"⠿",
+					),
+					" ",
 					renderIt(),
 					" ",
 					button(
@@ -729,6 +798,20 @@ export const Program = component({
 				draft.statements.splice(before ? key : key + 1, 0, this.newStatement(ctx.scope));
 			},
 		},
+		// A statement dragged onto the one at onto: it goes above it, or below when dropped on
+		// its lower half. Drags of anything else, or from another program, are ignored.
+		moveStatement: {
+			args: [t.option(t.index("statements")), t.index("statements")],
+			post: (prev, next) => next.statements.length === prev.statements.length,
+			run(draft, [from, onto], ctx) {
+				if (from === null || from === onto || !isOwnStatement(ctx)) return;
+				let to = isLowerHalf(ctx) ? onto + 1 : onto;
+				if (from < to) to--;
+				const [statement] = draft.statements.splice(from, 1);
+				draft.statements.splice(to, 0, statement);
+			},
+		},
+		placeNode,
 		removeAt: {
 			args: [t.index("statements")],
 			post: (prev, next) => next.statements.length === prev.statements.length - 1,
@@ -845,6 +928,27 @@ export const Editor = component({
 			args: [t.enum("view", "edit")],
 			run(draft, [mode]) {
 				draft.mode = mode;
+			},
+		},
+		// From a hole: the node at from, keys from the root, was dropped on the hole at to. It
+		// moves there, leaving a hole behind, or is copied. A node can't go into a hole inside
+		// itself, and only expressions from this editor's program move.
+		placeNode: {
+			args: PLACE_ARGS,
+			run(draft, [from, to, copy], ctx) {
+				ctx.stopNext();
+				const base = ctx.path.resolve().keys;
+				const within = (keys) => base.every((key, i) => keys[i] === key);
+				if (!within(from) || !within(to)) return;
+				const source = new UpdatePath(from.slice(base.length));
+				const target = new UpdatePath(to.slice(base.length));
+				if (source.keys.every((key, i) => target.keys[i] === key)) return;
+				const nameAt = ({ keys }) => specOf(keys.reduce((v, key) => v?.[key], this))?.name;
+				const name = nameAt(source);
+				if (!EXPR_NAMES.includes(name) || name === "Hole" || nameAt(target) !== "Hole") return;
+				const value = source.getIn(this);
+				target.setIn(draft, value);
+				if (!copy) source.setIn(draft, ctx.scope.make("Hole", {}));
 			},
 		},
 		setNotation: {

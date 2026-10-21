@@ -42,6 +42,21 @@ export default stories({
 					step.event("click", '[data-kind="Num"]'),
 					step.check("a zero", outputIs("0")),
 				],
+				"move a statement and a node by dragging": [
+					step.drag('[data-dragtype="statement"]', "pre > div > div:nth-child(5)"),
+					step.check(
+						"x moved after total",
+						(s) => s.program.statements.map((st) => st.name).join() === "name,debug,total,x,big",
+					),
+					step.event("click", 'pre > div > div:last-child > span > button[title="Clear"]'),
+					step.drag('[data-dragtype="node"]', '[aria-label="Pick a node"]'),
+					step.check(
+						'"ada" moved into the result, leaving a hole in name',
+						(s) =>
+							s.program.result.value === "ada" &&
+							s.output === "Error: the program has an empty hole",
+					),
+				],
 				"add a statement": [
 					step.send("add", [], { at: (b) => b.field("program") }),
 					step.check("its value is a hole", (s) => s.isError),
