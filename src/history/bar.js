@@ -104,7 +104,7 @@ export const TimeTravel = component({
 			),
 			input({
 				type: "range",
-				class: "range range-xs range-primary min-w-24 flex-1",
+				class: "range range-xs range-primary w-64 max-w-[40vw] shrink-0",
 				"aria-label": "State",
 				min: "0",
 				max: field("last"),
@@ -112,7 +112,7 @@ export const TimeTravel = component({
 				"on:input": send("goto", targetValue()),
 			}),
 			span(
-				{ class: "min-w-0 truncate font-mono text-xs opacity-70" },
+				{ class: "min-w-0 flex-1 truncate font-mono text-xs tabular-nums opacity-70" },
 				field("position"),
 				" · ",
 				field("icon"),
