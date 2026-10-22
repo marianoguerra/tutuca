@@ -822,11 +822,12 @@ export const Program = component({
 });
 
 // The root: picks a mode and a notation and pushes both, as one view name, over the program.
+// Both are local, so each session views or edits the shared program in its own way.
 export const Editor = component({
 	name: "Editor",
 	fields: {
-		mode: t.enum("view", "edit"),
-		notation: t.enum(...Object.keys(NOTATIONS)),
+		mode: t.enum("view", "edit").sync("local"),
+		notation: t.enum(...Object.keys(NOTATIONS)).sync("local"),
 		program: t.component("Program"),
 	},
 	methods: {
