@@ -73,7 +73,7 @@ export const pointer = {
 	down: {
 		args: [],
 		emits: { notify: ["shapeDown"] },
-		run(_draft, _args, ctx) {
+		run(_next, _args, ctx) {
 			const point = svgPoint(ctx.event);
 			if (point === null) return;
 			capture(ctx.event);
@@ -83,7 +83,7 @@ export const pointer = {
 	move: {
 		args: [],
 		emits: { notify: ["shapeMove"] },
-		run(_draft, _args, ctx) {
+		run(_next, _args, ctx) {
 			const point = svgPoint(ctx.event);
 			if (point !== null) ctx.notify("shapeMove", point);
 		},
@@ -91,7 +91,7 @@ export const pointer = {
 	up: {
 		args: [],
 		emits: { notify: ["shapeUp"] },
-		run(_draft, _args, ctx) {
+		run(_next, _args, ctx) {
 			ctx.notify("shapeUp");
 		},
 	},

@@ -70,32 +70,32 @@ export const TrackerCell = component({
 		// From the section's things.
 		logThing: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
 				const i = this.things.findIndex((thing) => thing.id === id);
 				if (i === -1) return;
-				draft.things[i].total += 1;
-				draft.things[i].lastText = formatTime(ctx.now(), this.tz);
+				next.things[i].total += 1;
+				next.things[i].lastText = formatTime(ctx.now(), this.tz);
 			},
 		},
 		backdateThing: {
 			args: [t.string()],
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.stopNext();
 			},
 		},
 		toggleSection: {
 			args: [t.string()],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext();
-				draft.section.isOpen = !this.section.isOpen;
+				next.section.isOpen = !this.section.isOpen;
 			},
 		},
 		toggleAllSections: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext();
-				draft.section.isOpen = !this.section.isOpen;
+				next.section.isOpen = !this.section.isOpen;
 			},
 		},
 	},
@@ -193,22 +193,22 @@ export const Picker = component({
 		pick: {
 			args: [t.enum(...KIND_NAMES)],
 			emits: { notify: ["become"] },
-			run(draft, [kind], ctx) {
-				if (kind === "tracker") draft.step = "tracker";
+			run(next, [kind], ctx) {
+				if (kind === "tracker") next.step = "tracker";
 				else ctx.notify("become", [kind, null]);
 			},
 		},
 		pickGroup: {
 			args: [t.enum(...GROUP_IDS)],
 			emits: { notify: ["become"] },
-			run(_draft, [group], ctx) {
+			run(_next, [group], ctx) {
 				ctx.notify("become", ["tracker", group]);
 			},
 		},
 		back: {
 			args: [],
-			run(draft) {
-				draft.step = "kind";
+			run(next) {
+				next.step = "kind";
 			},
 		},
 	},
@@ -275,16 +275,16 @@ export const Cell = component({
 		toggle: {
 			args: [],
 			emits: { notify: ["collapseAll"] },
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				const collapsed = !this.collapsed;
 				if (ctx.event?.ctrlKey || ctx.event?.metaKey) ctx.notify("collapseAll", [collapsed]);
-				else draft.collapsed = collapsed;
+				else next.collapsed = collapsed;
 			},
 		},
 		remove: {
 			args: [],
 			emits: { notify: ["removeCell"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("removeCell");
 			},
 		},
@@ -360,61 +360,61 @@ export const Notebook = component({
 	on: {
 		add: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				const key = ctx.uuid();
-				draft.entries[key] = ctx.scope.components.Cell({ content: ctx.scope.make("Picker") });
-				draft.order.push(key);
+				next.entries[key] = ctx.scope.components.Cell({ content: ctx.scope.make("Picker") });
+				next.order.push(key);
 			},
 		},
 		addBefore: {
 			args: [t.index("entries")],
-			run(draft, [before], ctx) {
+			run(next, [before], ctx) {
 				const key = ctx.uuid();
-				draft.entries[key] = ctx.scope.components.Cell({ content: ctx.scope.make("Picker") });
-				draft.order.splice(this.order.indexOf(before), 0, key);
+				next.entries[key] = ctx.scope.components.Cell({ content: ctx.scope.make("Picker") });
+				next.order.splice(this.order.indexOf(before), 0, key);
 			},
 		},
 		// A cell dragged onto the gap before the cell at before; drags from elsewhere are ignored.
 		moveBefore: {
 			args: [t.option(t.index("entries")), t.index("entries")],
-			run(draft, [key, before], ctx) {
+			run(next, [key, before], ctx) {
 				if (key === null || key === before || !isOwnCell(ctx)) return;
 				const order = this.order.filter((k) => k !== key);
 				order.splice(order.indexOf(before), 0, key);
-				draft.order = order;
+				next.order = order;
 			},
 		},
 		moveToEnd: {
 			args: [t.option(t.index("entries"))],
-			run(draft, [key], ctx) {
+			run(next, [key], ctx) {
 				if (key === null || !isOwnCell(ctx)) return;
-				draft.order = [...this.order.filter((k) => k !== key), key];
+				next.order = [...this.order.filter((k) => k !== key), key];
 			},
 		},
 		// From the cells.
 		removeCell: {
 			args: [],
 			sourceKey: t.index("entries"),
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext();
-				delete draft.entries[ctx.sourceKey];
-				draft.order = this.order.filter((k) => k !== ctx.sourceKey);
+				delete next.entries[ctx.sourceKey];
+				next.order = this.order.filter((k) => k !== ctx.sourceKey);
 			},
 		},
 		collapseAll: {
 			args: [t.boolean()],
-			run(draft, [collapsed], ctx) {
+			run(next, [collapsed], ctx) {
 				ctx.stopNext();
-				for (const key of this.order) draft.entries[key].collapsed = collapsed;
+				for (const key of this.order) next.entries[key].collapsed = collapsed;
 			},
 		},
 		// From the picker of the cell at ctx.sourceKey: the cell's content becomes kind.
 		become: {
 			args: [t.enum(...KIND_NAMES), t.option(t.enum(...GROUP_IDS))],
 			sourceKey: t.index("entries"),
-			run(draft, [kind, group], ctx) {
+			run(next, [kind, group], ctx) {
 				ctx.stopNext();
-				draft.entries[ctx.sourceKey].content = makeContent(ctx.scope.components, kind, {
+				next.entries[ctx.sourceKey].content = makeContent(ctx.scope.components, kind, {
 					group: group ?? undefined,
 					now: ctx.now(),
 					tz: this.tz,

@@ -41,25 +41,25 @@ export const Weather = component({
 		$if(field("hasReport"), p({ class: field("reportClass") }, field("report")), ""),
 	),
 	on: {
-		setCity(draft, [city]) {
-			draft.city = city;
+		setCity(next, [city]) {
+			next.city = city;
 		},
 		lookup: {
 			args: [],
 			emits: { ask: ["lookup"] },
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.event?.preventDefault();
-				draft.status = "loading";
+				next.status = "loading";
 				ctx.ask("lookup", [this.city]);
 			},
 		},
-		lookupReplyOk(draft, [report]) {
-			draft.status = "done";
-			draft.report = report;
+		lookupReplyOk(next, [report]) {
+			next.status = "done";
+			next.report = report;
 		},
-		lookupReplyError(draft, [error]) {
-			draft.status = "failed";
-			draft.report = String(error?.message ?? error);
+		lookupReplyError(next, [error]) {
+			next.status = "failed";
+			next.report = String(error?.message ?? error);
 		},
 	},
 });

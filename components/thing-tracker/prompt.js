@@ -234,39 +234,39 @@ export const Prompt = component({
 	on: {
 		setText: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.text = text;
+			run(next, [text]) {
+				next.text = text;
 				const n = Number.parseFloat(text);
-				draft.base = text.trim() === "" || Number.isNaN(n) ? 0 : Math.max(0, toBase(n, this.unit));
+				next.base = text.trim() === "" || Number.isNaN(n) ? 0 : Math.max(0, toBase(n, this.unit));
 			},
 		},
 		// Shows the same value in another unit.
 		setUnit: {
 			args: [t.string()],
-			run(draft, [unitId]) {
+			run(next, [unitId]) {
 				const u = findUnit(this.measurement.units, unitId);
 				if (u === undefined) return;
-				draft.unitId = u.id;
-				draft.text = this.base > 0 || this.text !== "" ? textIn(this.base, u) : "";
+				next.unitId = u.id;
+				next.text = this.base > 0 || this.text !== "" ? textIn(this.base, u) : "";
 			},
 		},
 		setBase: {
 			args: [t.string()],
-			run(draft, [value]) {
+			run(next, [value]) {
 				const base = Number(value);
 				if (!Number.isFinite(base) || base < 0) return;
-				draft.base = base;
-				draft.text = textIn(base, this.unit);
+				next.base = base;
+				next.text = textIn(base, this.unit);
 			},
 		},
 		adjust: {
 			args: [t.string()],
-			run(draft, [value]) {
+			run(next, [value]) {
 				const steps = Number(value);
 				if (!Number.isFinite(steps)) return;
 				const base = Math.max(0, this.base + steps * this.stepUnit.factor);
-				draft.base = base;
-				draft.text = textIn(base, this.unit);
+				next.base = base;
+				next.text = textIn(base, this.unit);
 			},
 		},
 	},

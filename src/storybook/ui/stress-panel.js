@@ -165,31 +165,31 @@ export const StressPanel = component({
 	on: {
 		setNumber: {
 			args: [t.enum("numRuns", "maxCommands", "seed"), t.string()],
-			run(draft, [name, value]) {
+			run(next, [name, value]) {
 				const n = Number.parseInt(value, 10);
 				if (!Number.isFinite(n)) return;
 				const type = StressPanel.fields[name];
-				if (type.isValid(n)) draft[name] = n;
+				if (type.isValid(n)) next[name] = n;
 			},
 		},
 		setFrom: {
 			args: [t.enum("story", "generated", "current")],
-			run(draft, [from]) {
-				draft.from = from;
+			run(next, [from]) {
+				next.from = from;
 			},
 		},
 		setEvents: {
 			args: [t.boolean()],
-			run(draft, [events]) {
-				draft.events = events;
+			run(next, [events]) {
+				next.events = events;
 			},
 		},
 		run: {
 			args: [],
 			emits: { ask: ["story"] },
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				if (this.isRunning) return;
-				Object.assign(draft, { ...STRESS_IDLE, status: "running", total: this.numRuns });
+				Object.assign(next, { ...STRESS_IDLE, status: "running", total: this.numRuns });
 				const { numRuns, maxCommands, seed, from, events } = this;
 				askStory(ctx, this, "stress", { numRuns, maxCommands, seed, from, events });
 			},
@@ -197,31 +197,31 @@ export const StressPanel = component({
 		cancel: {
 			args: [],
 			emits: { ask: ["story"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				askStory(ctx, this, "cancelStress");
 			},
 		},
 		load: {
 			args: [],
 			emits: { ask: ["story"], notify: ["showSteps"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				askStory(ctx, this, "loadCounterexample");
 				ctx.notify("showSteps");
 			},
 		},
-		storyReplyOk(draft, [result]) {
-			if (typeof result?.status === "string") applyStress(draft, result);
+		storyReplyOk(next, [result]) {
+			if (typeof result?.status === "string") applyStress(next, result);
 		},
-		storyReplyError(draft, [error]) {
-			Object.assign(draft, { ...STRESS_IDLE, status: "unavailable" });
-			draft.error = String(error?.message ?? error);
+		storyReplyError(next, [error]) {
+			Object.assign(next, { ...STRESS_IDLE, status: "unavailable" });
+			next.error = String(error?.message ?? error);
 		},
-		storyHandlerNotFound(draft) {
-			draft.status = "unavailable";
+		storyHandlerNotFound(next) {
+			next.status = "unavailable";
 		},
 	},
 });
-export const applyStress = (draft, r) => {
+export const applyStress = (next, r) => {
 	const { status, done = 0, total = 0, error = "", commands = [], log = [] } = r;
-	Object.assign(draft, { status, done, total, error, commands: [...commands], log: [...log] });
+	Object.assign(next, { status, done, total, error, commands: [...commands], log: [...log] });
 };

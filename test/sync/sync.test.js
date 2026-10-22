@@ -33,11 +33,11 @@ const Root = component({
 		open: t.boolean().sync("none"),
 	},
 	on: {
-		retitle(draft, [title]) {
-			draft.title = title;
+		retitle(next, [title]) {
+			next.title = title;
 		},
-		add(draft, [label]) {
-			draft.items.unshift(scopeOf(this).make("Item", { label }));
+		add(next, [label]) {
+			next.items.unshift(scopeOf(this).make("Item", { label }));
 		},
 	},
 	view: "<h1>{.title}</h1>",
@@ -263,7 +263,7 @@ test("applyStateOps hydrates the components ops insert", () => {
 	const prev = C.Root();
 	const ops = diffOf(host, prev, edit(prev, { items: [C.Item({ label: "n" })] }));
 	host.start(prev);
-	host.applyExternal((draft) => applyStateOps(draft, ops, host.scope));
+	host.applyExternal((next) => applyStateOps(next, ops, host.scope));
 	assert.equal(specOf(host.rootComponent.items[0]), Item);
 	assert.equal(host.rootComponent.items[0].label, "n");
 });
@@ -364,8 +364,8 @@ test("applyExternal keeps untouched subtrees and skips the engine it came from",
 	const other = { level: "shared", commit: () => commits.push("other") };
 	host.attachSync(source, other);
 	const before = host.rootComponent;
-	source.link.apply((draft) => {
-		draft.title = "remote";
+	source.link.apply((next) => {
+		next.title = "remote";
 	});
 	assert.equal(host.rootComponent.title, "remote");
 	assert.equal(host.rootComponent.items, before.items);
@@ -787,7 +787,7 @@ test("applying diff(a, b) to a gives b, for generated states", async () => {
 			for (const level of ["shared", "local"]) {
 				const ops = diff(a, b, { scope: host.scope, level });
 				assert.deepEqual(applyOps(project(a, { level }), ops), project(b, { level }));
-				const applied = produce(a, (draft) => applyStateOps(draft, ops, host.scope));
+				const applied = produce(a, (next) => applyStateOps(next, ops, host.scope));
 				assert.deepEqual(project(applied, { level }), project(b, { level }));
 			}
 		}),

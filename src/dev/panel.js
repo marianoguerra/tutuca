@@ -211,13 +211,13 @@ export const DevNode = component({
 		toggle: {
 			args: [],
 			post: (prev, next) => next.isOpen !== prev.isOpen,
-			run(draft, _args, ctx) {
-				draft.isOpen = !this.isOpen;
-				if (!draft.isOpen || this.rows.length > 0) return;
+			run(next, _args, ctx) {
+				next.isOpen = !this.isOpen;
+				if (!next.isOpen || this.rows.length > 0) return;
 				const value = deref(this.ref);
 				if (value === undefined) return;
 				const C = ctx.scope.components;
-				draft.rows = inspect(value).rows.map((row) =>
+				next.rows = inspect(value).rows.map((row) =>
 					row.tokens === undefined
 						? devNode(C, row.label, row.value)
 						: leafNode(C, row.label, row.tokens),
@@ -362,8 +362,8 @@ export const DevPanel = component({
 	on: {
 		setView: {
 			args: [t.enum("main", "code")],
-			run(draft, [view]) {
-				draft.view = view;
+			run(next, [view]) {
+				next.view = view;
 			},
 		},
 	},
@@ -384,16 +384,16 @@ const updateSection = (C, section, items) => {
 	if (sameRefs(section.nodes, items)) return;
 	section.nodes = items.map(({ label, value }) => devNode(C, label, value));
 };
-// data: { state, tasks: [{ label, value }], specs: [spec], issues } for a draft DevPanel.
-export const updateDevPanel = (C, draft, { state, tasks, specs, issues }) => {
-	updateSection(C, draft.state, [{ label: "", value: state }]);
-	updateSection(C, draft.tasks, tasks);
+// data: { state, tasks: [{ label, value }], specs: [spec], issues } for next, a DevPanel being updated.
+export const updateDevPanel = (C, next, { state, tasks, specs, issues }) => {
+	updateSection(C, next.state, [{ label: "", value: state }]);
+	updateSection(C, next.tasks, tasks);
 	updateSection(
 		C,
-		draft.specs,
+		next.specs,
 		specs.map((spec) => ({ label: "", value: spec })),
 	);
-	draft.lint.issues = lintRecords(issues);
+	next.lint.issues = lintRecords(issues);
 };
 
 export const devComponents = { DevNode, DevSection, DevLint, DevPanel };

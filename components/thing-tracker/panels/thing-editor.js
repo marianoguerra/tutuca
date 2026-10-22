@@ -245,47 +245,47 @@ export const ThingEditor = component({
 		...closing(always),
 		togglePicker: {
 			args: [],
-			run(draft) {
-				draft.pickerOpen = !this.pickerOpen;
+			run(next) {
+				next.pickerOpen = !this.pickerOpen;
 			},
 		},
 		emojiPicked: {
 			args: [t.string()],
-			run(draft, [emoji], ctx) {
-				draft.emoji = emoji;
-				draft.pickerOpen = false;
+			run(next, [emoji], ctx) {
+				next.emoji = emoji;
+				next.pickerOpen = false;
 				ctx.stopNext();
 			},
 		},
 		setTitle: {
 			args: [t.string()],
-			run(draft, [title]) {
-				draft.title = title;
+			run(next, [title]) {
+				next.title = title;
 			},
 		},
 		setDescription: {
 			args: [t.string()],
-			run(draft, [description]) {
-				draft.description = description;
+			run(next, [description]) {
+				next.description = description;
 			},
 		},
 		// A checkbox's targetValue is whether it is checked, so the choice comes as its key.
 		toggleMeasurement: {
 			args: [t.index("choices")],
-			run(draft, [key]) {
+			run(next, [key]) {
 				const m = findMeasurement(MEASUREMENTS, this.choices[key].id);
 				if (m === undefined) return;
 				const i = this.measurements.findIndex((r) => r.measurementId === m.id);
-				if (i >= 0) draft.measurements.splice(i, 1);
-				else draft.measurements.push({ measurementId: m.id, unit: m.defaultUnit });
+				if (i >= 0) next.measurements.splice(i, 1);
+				else next.measurements.push({ measurementId: m.id, unit: m.defaultUnit });
 			},
 		},
 		// A chip's value is "measurementId|unitId".
 		setUnit: {
 			args: [t.string()],
-			run(draft, [value]) {
+			run(next, [value]) {
 				const [measurementId, unitId] = value.split("|");
-				const ref = draft.measurements.find((r) => r.measurementId === measurementId);
+				const ref = next.measurements.find((r) => r.measurementId === measurementId);
 				const m = findMeasurement(MEASUREMENTS, measurementId);
 				if (ref !== undefined && m !== undefined && findUnit(m.units, unitId) !== undefined)
 					ref.unit = unitId;
@@ -293,18 +293,18 @@ export const ThingEditor = component({
 		},
 		back: {
 			args: [],
-			run(draft) {
-				if (this.step > 0) draft.step = this.step - 1;
+			run(next) {
+				if (this.step > 0) next.step = this.step - 1;
 			},
 		},
 		next: {
 			args: [],
 			emits: { notify: ["saveThing"] },
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				if (this.cannotGo) return;
 				if (this.step < 2) {
-					draft.step = this.step + 1;
-					draft.pickerOpen = false;
+					next.step = this.step + 1;
+					next.pickerOpen = false;
 					return;
 				}
 				const { mode, thingId: id, emoji, measurements } = this;
@@ -321,7 +321,7 @@ export const ThingEditor = component({
 		remove: {
 			args: [],
 			emits: { notify: ["deleteThing"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("deleteThing", [this.thingId]);
 			},
 		},

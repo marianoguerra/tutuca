@@ -60,21 +60,21 @@ export const TodoList = component({
 		p({ class: "text-sm opacity-60" }, field("left"), " left"),
 	),
 	on: {
-		setText(draft, [text]) {
-			draft.text = text;
+		setText(next, [text]) {
+			next.text = text;
 		},
-		add(draft, _args, ctx) {
+		add(next, _args, ctx) {
 			ctx.event?.preventDefault();
 			const title = this.text.trim();
 			if (title === "") return;
-			draft.items.push({ title, done: false });
-			draft.text = "";
+			next.items.push({ title, done: false });
+			next.text = "";
 		},
-		toggle(draft, [i]) {
-			draft.items[i].done = !this.items[i].done;
+		toggle(next, [i]) {
+			next.items[i].done = !this.items[i].done;
 		},
-		remove(draft, [i]) {
-			draft.items.splice(i, 1);
+		remove(next, [i]) {
+			next.items.splice(i, 1);
 		},
 	},
 });

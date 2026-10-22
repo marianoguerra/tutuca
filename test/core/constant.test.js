@@ -106,11 +106,11 @@ test("handlers inside constant elements still dispatch, also per loop item", () 
 			h("output", {}, field("count")),
 		),
 		on: {
-			inc(draft) {
-				draft.count++;
+			inc(next) {
+				next.count++;
 			},
-			pick(draft, [key]) {
-				draft.picked = draft.items[key];
+			pick(next, [key]) {
+				next.picked = next.items[key];
 			},
 		},
 	});

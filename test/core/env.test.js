@@ -8,10 +8,10 @@ const Stamp = component({
 	name: "Stamp",
 	fields: { at: t.number(), roll: t.number(), id: t.string() },
 	on: {
-		stamp(draft, _args, ctx) {
-			draft.at = ctx.now();
-			draft.roll = ctx.random();
-			draft.id = ctx.uuid();
+		stamp(next, _args, ctx) {
+			next.at = ctx.now();
+			next.roll = ctx.random();
+			next.id = ctx.uuid();
 		},
 	},
 	view: "stamp",

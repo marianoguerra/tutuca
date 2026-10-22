@@ -67,17 +67,17 @@ export const Planets = component({
 		),
 	),
 	on: {
-		setQuery(draft, [query]) {
-			draft.query = query;
+		setQuery(next, [query]) {
+			next.query = query;
 		},
 		// from is null when what was dropped didn't come from this list.
 		move: {
 			args: [t.option(t.index("items")), t.index("items")],
-			run(draft, [from, to], ctx) {
+			run(next, [from, to], ctx) {
 				if (from === null || from === to) return;
-				const [item] = draft.items.splice(from, 1);
+				const [item] = next.items.splice(from, 1);
 				const at = from < to ? to - 1 : to;
-				draft.items.splice(at + (isLowerHalf(ctx) ? 1 : 0), 0, item);
+				next.items.splice(at + (isLowerHalf(ctx) ? 1 : 0), 0, item);
 			},
 		},
 	},

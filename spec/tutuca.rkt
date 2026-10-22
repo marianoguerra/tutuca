@@ -63,7 +63,7 @@
       (term ((class Child
                (views ("main" (h 10 "i" ()))
                       ("compact" (h 11 "button" ((on click (send inc))) (h 12 "span" () "increment"))))
-               (on (inc () (set (count) (+ (get draft count) 1)) (notify changed))))
+               (on (inc () (set (count) (+ (get next count) 1)) (notify changed))))
              (class Panel
                (provides (child ((pb-field child))))
                (views ("main" (push-view "compact" (x-render ,source none))))
@@ -87,7 +87,7 @@
            (class Root
              (loops (byId (key (get value id))))
              (views ("main" (each (field items) (h 2 "button" ((on click (send pick (source-key))))) byId)))
-             (on (pick (k) (set (picked) (push (get draft picked) (get (at (get draft items) k) id)))))))))
+             (on (pick (k) (set (picked) (push (get next picked) (get (at (get next items) k) id)))))))))
   (let* ([c0 (start each-classes '(comp Root (picked (arr))
                                         (items (arr (comp Item (id "a")) (comp Item (id "b"))))))]
          [a (label-at c0 (first (addrs-where c0 (by-tag "button"))))]
@@ -114,7 +114,7 @@
                                               none)
                                         none)
                                   (h 3 "button" ((on click (send pick (source-key))))))))
-             (on (pick (k) (set (picked) (push (get draft picked) k))))))))
+             (on (pick (k) (set (picked) (push (get next picked) k))))))))
   (let* ([c0 (start multi '(comp Root (picked (arr))
                                  (groups (arr (rec (items (arr (rec (visible #f)) (rec (visible #t))
                                                                (rec (visible #f)))))))))]
@@ -129,14 +129,14 @@
   (define render-it-classes
     (term ((class Item
              (views ("main" (frag (h 1 "button" ((on click (send inc)))) (h 2 "i" ()))))
-             (on (inc () (set (count) (+ (get draft count) 1)))))
+             (on (inc () (set (count) (+ (get next count) 1)))))
            (class Root
              (views ("main" (each (field items)
                                   (h 3 "section" ((on click (send pick (source-key))))
                                      (render-it none)
                                      (h 4 "button" ((on click (send pick (source-key))))))
                                   none)))
-             (on (pick (k) (set (picked) (push (get draft picked) k))))))))
+             (on (pick (k) (set (picked) (push (get next picked) k))))))))
   (let* ([c0 (start render-it-classes '(comp Root (picked (arr)) (items (arr (comp Item (count 0))))))]
          [c1 (click c0 (first (addrs-where c0 (by-tag "button"))))]
          [c2 (click c1 (addr-of c1 (by-tag "i")))])
@@ -175,7 +175,7 @@
     (define classes
       (term ((class Item
                (views ("main" (h 1 "button" ((id "item") (on click (send inc))) "inc")))
-               (on (inc () (set (count) (+ (get draft count) 1))) ,@item-handlers))
+               (on (inc () (set (count) (+ (get next count) 1))) ,@item-handlers))
              (class Root
                (provides (selectedItem ((pb-seq-item items selected))))
                (views ("main" (h 2 "div" ()
@@ -211,7 +211,7 @@
   (let ([c (drain (queue-ids (task-setup '((fail () (set (selected) 1)
                                                  (send-at inc () ((pb-seq-item items selected)))
                                                  (fail "producer failed"))
-                                           (keep () (set (committed) (+ (get draft committed) 1)))))
+                                           (keep () (set (committed) (+ (get next committed) 1)))))
                              "fail" "keep"))])
     (test-equal (get c 'selected) 0)
     (test-equal (get c 'committed) 1)
@@ -224,7 +224,7 @@
   (let ([c (drain (queue-ids (task-setup '((fail () (set (selected) 1)
                                                  (send-at inc () ((pb-seq-item items selected)))
                                                  (send-at inc () ((pb-field missing) (pb-seq-item items selected))))
-                                           (keep () (set (committed) (+ (get draft committed) 1)))))
+                                           (keep () (set (committed) (+ (get next committed) 1)))))
                              "fail" "keep"))])
     (test-equal (get c 'selected) 0)
     (test-equal (get c 'committed) 1)
@@ -269,7 +269,7 @@
          [c0 (task-setup '((change () (set (items (at 0) selected) 0))
                            (changed () (log "root")))
                          '((inc () (send-at bump () ((pb-seq-item children selected))) (set (selected) 1))
-                           (bump () (set (count) (+ (get draft count) 1)) (notify changed))
+                           (bump () (set (count) (+ (get next count) 1)) (notify changed))
                            (changed () (log "item")))
                          #:provided #t
                          #:root `(comp Root (selected 0) (committed 0)

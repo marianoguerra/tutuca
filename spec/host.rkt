@@ -33,9 +33,9 @@
   ;; loops[name]: key(key, value), filter(key, value), enrich(base), view; all see self
   (loop ::= (fname loop-opt ...))
   (loop-opt ::= (key hx) (filter hx) (enrich hx) (view view-name))
-  ;; Commands run against the draft: `draft` is the current leaf, `self` the
+  ;; Commands run against `next`, the draft of the leaf, `self` the
   ;; instance before the task, `sourceKey` ctx.sourceKey.
-  (cmd ::= (set (lv ...) hx)               ; draft.a.b = v
+  (cmd ::= (set (lv ...) hx)               ; next.a.b = v
            (replace hx)                    ; return a replacement
            (notify fname hx ...) (ask fname hx ...)
            (send-at fname (hx ...) sel) (forward-at sel)
@@ -99,10 +99,10 @@
   (check-exn exn:fail? (λ () (term (eval-hx () missing))))
   (check-exn exn:fail? (λ () (term (eval-hx () (+ "a" 1)))))
 
-  (define def (term (class Item (views ("main" "x")) (on (inc () (set (count) (+ (get draft count) 1)))))))
+  (define def (term (class Item (views ("main" "x")) (on (inc () (set (count) (+ (get next count) 1)))))))
   (test-equal (redex-match? Host class-def def) #t)
   (test-equal (class-section def 'loops) '())
-  (test-equal (lookup-named (class-section def 'on) 'inc) '(inc () (set (count) (+ (get draft count) 1))))
+  (test-equal (lookup-named (class-section def 'on) 'inc) '(inc () (set (count) (+ (get next count) 1))))
   (test-equal (redex-match? Host loop (term (byId (key (get value id)) (view "row")))) #t)
   (test-equal (redex-match? Host ask-def (term (load (async (ok "loaded"))))) #t)
   (test-results))

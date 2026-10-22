@@ -97,15 +97,15 @@ export const allOpen = (v) =>
 
 const setOpenDeep = {
 	args: [t.boolean()],
-	run(draft, [open]) {
-		openDeep(draft, open);
+	run(next, [open]) {
+		openDeep(next, open);
 	},
 };
 // Raised by a ctrl click below: the nearest container opens or closes all its nodes.
 const openSiblings = {
 	args: [t.boolean()],
-	run(draft, [open], ctx) {
-		for (const k of openablesBelow(draft)) k.open = open;
+	run(next, [open], ctx) {
+		for (const k of openablesBelow(next)) k.open = open;
 		ctx.stopNext();
 	},
 };
@@ -114,20 +114,20 @@ const openableMessages = {
 	toggle: {
 		args: [],
 		emits: { notify: ["openSiblings"] },
-		run(draft, _args, ctx) {
+		run(next, _args, ctx) {
 			const e = ctx.event;
 			const ctrl = Boolean(e?.ctrlKey || e?.metaKey);
 			const open = !this.open;
-			if (ctrl && e.altKey) openDeep(draft, open);
+			if (ctrl && e.altKey) openDeep(next, open);
 			else if (ctrl) ctx.notify("openSiblings", [open]);
-			else draft.open = open;
+			else next.open = open;
 		},
 	},
 	setOpen: {
 		args: [t.boolean()],
 		post: (_prev, next, [open]) => next.open === open,
-		run(draft, [open]) {
-			draft.open = open;
+		run(next, [open]) {
+			next.open = open;
 		},
 	},
 	setOpenDeep,
@@ -226,51 +226,51 @@ export const SchemaPager = component({
 		first: {
 			args: [],
 			post: (_prev, next) => next.page === 0,
-			run(draft) {
-				draft.page = 0;
+			run(next) {
+				next.page = 0;
 			},
 		},
 		prev: {
 			args: [],
-			run(draft) {
-				draft.page = Math.max(0, this.page - 1);
+			run(next) {
+				next.page = Math.max(0, this.page - 1);
 			},
 		},
 		next: {
 			args: [],
-			run(draft) {
-				draft.page = Math.min(this.lastPage, this.page + 1);
+			run(next) {
+				next.page = Math.min(this.lastPage, this.page + 1);
 			},
 		},
 		last: {
 			args: [],
 			post: (_prev, next) => next.atLast,
-			run(draft) {
-				draft.page = this.lastPage;
+			run(next) {
+				next.page = this.lastPage;
 			},
 		},
 		// Keeps the first item of the page in view.
 		setPerPage: {
 			args: [t.number().int().min(1)],
 			post: (_prev, next, [n]) => next.perPage === n,
-			run(draft, [n]) {
+			run(next, [n]) {
 				const first = this.page * this.perPage;
-				draft.perPage = n;
-				draft.page = Math.floor(first / n);
+				next.perPage = n;
+				next.page = Math.floor(first / n);
 			},
 		},
 		showAll: {
 			args: [],
 			post: (_prev, next) => !next.isMany,
-			run(draft) {
-				draft.perPage = Math.max(1, this.total);
-				draft.page = 0;
+			run(next) {
+				next.perPage = Math.max(1, this.total);
+				next.page = 0;
 			},
 		},
 		toggleSettings: {
 			args: [],
-			run(draft) {
-				draft.settings = !this.settings;
+			run(next) {
+				next.settings = !this.settings;
 			},
 		},
 	},
@@ -400,8 +400,8 @@ export const SchemaRoot = component({
 		setView: {
 			args: [t.enum("main", "format")],
 			post: (_prev, next, [view]) => next.view === view,
-			run(draft, [view]) {
-				draft.view = view;
+			run(next, [view]) {
+				next.view = view;
 			},
 		},
 		setOpenDeep: {
@@ -540,8 +540,8 @@ export const SchemaProperty = component({
 	on: {
 		setOpen: {
 			args: [t.boolean()],
-			run(draft, [open]) {
-				if (isOpenable(draft.schema)) draft.schema.open = open;
+			run(next, [open]) {
+				if (isOpenable(next.schema)) next.schema.open = open;
 			},
 		},
 		setOpenDeep,

@@ -20,8 +20,8 @@ const Counter = component({
 	fields: { count: t.number() },
 	view: h("button", { "on:click": send("inc") }, field("count")),
 	on: {
-		inc(draft) {
-			draft.count++;
+		inc(next) {
+			next.count++;
 		},
 	},
 });
@@ -36,18 +36,18 @@ const Outer = component({
 		h("tutuca-app", { "app-key": field("key"), "on:tutucareport": send("report") }),
 	),
 	on: {
-		clicked(draft) {
-			draft.clicks++;
+		clicked(next) {
+			next.clicks++;
 		},
-		report(draft, _args, ctx) {
+		report(next, _args, ctx) {
 			const { key, type, data } = ctx.event.detail;
-			draft.reports.push({ key, type, data });
+			next.reports.push({ key, type, data });
 		},
-		setKey(draft, [key]) {
-			draft.key = key;
+		setKey(next, [key]) {
+			next.key = key;
 		},
-		setClicks(draft, [clicks]) {
-			draft.clicks = clicks;
+		setClicks(next, [clicks]) {
+			next.clicks = clicks;
 		},
 	},
 });

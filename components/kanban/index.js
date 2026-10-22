@@ -47,7 +47,7 @@ export const Card = component({
 		remove: {
 			args: [],
 			emits: { notify: ["removeCard"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("removeCard");
 			},
 		},
@@ -55,7 +55,7 @@ export const Card = component({
 		dropped: {
 			args: [],
 			emits: { notify: ["cardDropped"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				const id = draggedCardId(ctx);
 				if (id !== undefined) ctx.notify("cardDropped", [id, isLowerHalf(ctx)]);
 			},
@@ -98,18 +98,18 @@ export const Column = component({
 	on: {
 		setText: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.text = text;
+			run(next, [text]) {
+				next.text = text;
 			},
 		},
 		add: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.event?.preventDefault();
 				const title = this.text.trim();
 				if (title === "") return;
-				draft.cards.push(ctx.scope.make("Card", { id: ctx.uuid(), title }));
-				draft.text = "";
+				next.cards.push(ctx.scope.make("Card", { id: ctx.uuid(), title }));
+				next.text = "";
 			},
 		},
 		// From a card, which ctx.sourceKey points at.
@@ -117,8 +117,8 @@ export const Column = component({
 			args: [],
 			sourceKey: t.index("cards"),
 			post: (prev, next) => next.cards.length === prev.cards.length - 1,
-			run(draft, _args, ctx) {
-				draft.cards.splice(ctx.sourceKey, 1);
+			run(next, _args, ctx) {
+				next.cards.splice(ctx.sourceKey, 1);
 				ctx.stopNext();
 			},
 		},
@@ -127,7 +127,7 @@ export const Column = component({
 			args: [t.string(), t.boolean()],
 			sourceKey: t.index("cards"),
 			emits: { notify: ["moveCard"] },
-			run(_draft, [id, after], ctx) {
+			run(_next, [id, after], ctx) {
 				ctx.stopNext();
 				ctx.notify("moveCard", [id, ctx.sourceKey + (after ? 1 : 0)]);
 			},
@@ -136,15 +136,15 @@ export const Column = component({
 });
 
 // Moves the card id to position at of column to, wherever it is now.
-const moveCard = (self, draft, id, to, at) => {
+const moveCard = (self, next, id, to, at) => {
 	const from = self.columns.findIndex((column) => column.cards.some((c) => c.id === id));
 	if (from === -1) return;
 	const cardIndex = self.columns[from].cards.findIndex((c) => c.id === id);
 	const card = self.columns[from].cards[cardIndex];
 	// Its own place doesn't count once it's taken out.
 	const target = from === to && at > cardIndex ? at - 1 : at;
-	draft.columns[from].cards.splice(cardIndex, 1);
-	draft.columns[to].cards.splice(target, 0, card);
+	next.columns[from].cards.splice(cardIndex, 1);
+	next.columns[to].cards.splice(target, 0, card);
 };
 // Where among the cards in node a drop at clientY goes: after every card whose middle is above
 // it. Without a position, as in tests, at the end.
@@ -187,19 +187,18 @@ export const Board = component({
 		// dropped is ignored.
 		dropCard: {
 			args: [t.index("columns")],
-			run(draft, [to], ctx) {
+			run(next, [to], ctx) {
 				const id = draggedCardId(ctx);
-				if (id !== undefined)
-					moveCard(this, draft, id, to, dropIndex(ctx.node, ctx.event?.clientY));
+				if (id !== undefined) moveCard(this, next, id, to, dropIndex(ctx.node, ctx.event?.clientY));
 			},
 		},
 		// From the column at ctx.sourceKey: the card id was dropped on one of its cards.
 		moveCard: {
 			args: [t.string(), t.number().int().min(0)],
 			sourceKey: t.index("columns"),
-			run(draft, [id, at], ctx) {
+			run(next, [id, at], ctx) {
 				ctx.stopNext(); // The board may be inside another component.
-				moveCard(this, draft, id, ctx.sourceKey, at);
+				moveCard(this, next, id, ctx.sourceKey, at);
 			},
 		},
 	},

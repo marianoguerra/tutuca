@@ -83,8 +83,8 @@ export const JsonBool = component({
 		toggle: {
 			args: [],
 			post: (prev, next) => next.value === !prev.value,
-			run(draft) {
-				draft.value = !this.value;
+			run(next) {
+				next.value = !this.value;
 			},
 		},
 	},
@@ -126,10 +126,10 @@ export const JsonNumber = component({
 		setText: {
 			args: [t.string()],
 			post: (_prev, next, [text]) => next.text === text,
-			run(draft, [text]) {
-				draft.text = text;
+			run(next, [text]) {
+				next.text = text;
 				const n = asNumber(text);
-				if (Number.isFinite(n)) draft.value = n;
+				if (Number.isFinite(n)) next.value = n;
 			},
 		},
 	},
@@ -161,8 +161,8 @@ export const JsonString = component({
 		setValue: {
 			args: [t.string()],
 			post: (_prev, next, [value]) => next.value === value,
-			run(draft, [value]) {
-				draft.value = value;
+			run(next, [value]) {
+				next.value = value;
 			},
 		},
 	},
@@ -208,7 +208,7 @@ export const JsonSelector = component({
 		// Replaces itself with an empty value of type.
 		setTo: {
 			args: [t.enum(...Object.keys(CHOICES))],
-			run(_draft, [type], ctx) {
+			run(_next, [type], ctx) {
 				const [name] = CHOICES[type];
 				return ctx.scope.make(name, {});
 			},
@@ -285,21 +285,21 @@ export const JsonArray = component({
 		add: {
 			args: [],
 			post: (prev, next) => next.items.length === prev.items.length + 1,
-			run(draft, _args, ctx) {
-				draft.items.push(ctx.scope.make("JsonSelector", {}));
+			run(next, _args, ctx) {
+				next.items.push(ctx.scope.make("JsonSelector", {}));
 			},
 		},
 		removeAt: {
 			args: [t.index("items")],
 			post: (prev, next) => next.items.length === prev.items.length - 1,
-			run(draft, [key]) {
-				draft.items.splice(key, 1);
+			run(next, [key]) {
+				next.items.splice(key, 1);
 			},
 		},
 		moveUp: {
 			args: [t.index("items")],
-			run(draft, [key]) {
-				moveUp(draft.items, key);
+			run(next, [key]) {
+				moveUp(next.items, key);
 			},
 		},
 	},
@@ -336,8 +336,8 @@ export const JsonEntry = component({
 		setKey: {
 			args: [t.string()],
 			post: (_prev, next, [key]) => next.key === key,
-			run(draft, [key]) {
-				draft.key = key;
+			run(next, [key]) {
+				next.key = key;
 			},
 		},
 	},
@@ -364,23 +364,23 @@ export const JsonObject = component({
 		add: {
 			args: [],
 			post: (prev, next) => next.entries.length === prev.entries.length + 1,
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				const scope = ctx.scope;
 				const key = `key${this.entries.length + 1}`;
-				draft.entries.push(scope.make("JsonEntry", { key, value: scope.make("JsonSelector", {}) }));
+				next.entries.push(scope.make("JsonEntry", { key, value: scope.make("JsonSelector", {}) }));
 			},
 		},
 		removeAt: {
 			args: [t.index("entries")],
 			post: (prev, next) => next.entries.length === prev.entries.length - 1,
-			run(draft, [key]) {
-				draft.entries.splice(key, 1);
+			run(next, [key]) {
+				next.entries.splice(key, 1);
 			},
 		},
 		moveUp: {
 			args: [t.index("entries")],
-			run(draft, [key]) {
-				moveUp(draft.entries, key);
+			run(next, [key]) {
+				moveUp(next.entries, key);
 			},
 		},
 	},
@@ -447,14 +447,14 @@ export const JsonEditor = component({
 	on: {
 		setMode: {
 			args: [t.enum("view", "edit")],
-			run(draft, [mode]) {
-				draft.mode = mode;
+			run(next, [mode]) {
+				next.mode = mode;
 			},
 		},
 		setShowText: {
 			args: [t.boolean()],
-			run(draft, [showText]) {
-				draft.showText = showText;
+			run(next, [showText]) {
+				next.showText = showText;
 			},
 		},
 	},

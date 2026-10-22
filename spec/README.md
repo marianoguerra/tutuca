@@ -150,14 +150,14 @@ Handler logs are side effects, so they survive an abort. `MessageContext.path` i
 
 | Command | Meaning |
 |---|---|
-| `(set (lv ...) hx)` | assign into the draft |
+| `(set (lv ...) hx)` | assign into `next` |
 | `(replace hx)` | return a replacement leaf |
 | `notify`, `ask`, `send-at`, `forward-at`, `stop-next` | `ctx.*` |
 | `(log hx)` | an observable side effect, for tests |
 | `(fail hx)` | throw |
 | `(when hx cmd ...)` | conditional |
 
-Inside a handler, `draft` is the current draft, `self` is the instance before the task, and
+Inside a handler, `next` is the draft of the state it produces, `self` is the instance before the task, and
 `sourceKey` is `ctx.sourceKey`.
 
 ## Exceptions

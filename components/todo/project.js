@@ -67,33 +67,33 @@ export const TodoProject = component({
 	on: {
 		beginRename: {
 			args: [],
-			run(draft) {
-				if (this.id !== "inbox") draft.isEditing = true;
+			run(next) {
+				if (this.id !== "inbox") next.isEditing = true;
 			},
 		},
 		setName: {
 			args: [t.string()],
-			run(draft, [name]) {
-				draft.name = name;
+			run(next, [name]) {
+				next.name = name;
 			},
 		},
 		setColor: {
 			args: [t.string()],
-			run(draft, [color]) {
-				if (Object.hasOwn(COLORS, color)) draft.color = color;
+			run(next, [color]) {
+				if (Object.hasOwn(COLORS, color)) next.color = color;
 			},
 		},
 		endRename: {
 			args: [],
-			run(draft) {
-				draft.isEditing = false;
-				draft.name = this.name.trim() || "Untitled";
+			run(next) {
+				next.isEditing = false;
+				next.name = this.name.trim() || "Untitled";
 			},
 		},
 		remove: {
 			args: [],
 			emits: { notify: ["removeProject"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("removeProject");
 			},
 		},

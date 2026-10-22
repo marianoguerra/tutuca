@@ -39,8 +39,8 @@ const Counter = component({
 	fields: { id: t.string(), count: t.number() },
 	views: { main: h("button", { "on:click": send("inc") }, field("count")) },
 	on: {
-		inc(draft) {
-			draft.count++;
+		inc(next) {
+			next.count++;
 		},
 	},
 });
@@ -174,11 +174,11 @@ test("targetValue reads values and checkbox state", () => {
 			h("input", { type: "checkbox", "on:input": send("setDone", targetValue()) }),
 		),
 		on: {
-			setName(draft, [v]) {
-				draft.name = v;
+			setName(next, [v]) {
+				next.name = v;
 			},
-			setDone(draft, [v]) {
-				draft.done = v;
+			setDone(next, [v]) {
+				next.done = v;
 			},
 		},
 	});
@@ -216,8 +216,8 @@ test("a throwing handler keeps the state and reports taskFailed", () => {
 		fields: { count: t.number() },
 		view: h("button", { "on:click": send("boom") }),
 		on: {
-			boom(draft) {
-				draft.count = 10;
+			boom(next) {
+				next.count = 10;
 				throw new Error("boom");
 			},
 		},
@@ -287,8 +287,8 @@ test("all views of one instance render together and route to it", () => {
 			),
 		},
 		on: {
-			record(draft, [name]) {
-				draft.seen.push(name);
+			record(next, [name]) {
+				next.seen.push(name);
 			},
 		},
 	});
@@ -318,8 +318,8 @@ for (const source of ["field", "seqItem"]) {
 				compact: h("button", { "on:click": send("inc") }, h("span", {}, "increment")),
 			},
 			on: {
-				inc(draft) {
-					draft.count++;
+				inc(next) {
+					next.count++;
 				},
 			},
 		});
@@ -388,8 +388,8 @@ test("renderIt stops event lookup at its view", () => {
 		fields: { count: t.number() },
 		view: h("div", {}, h("button", { "on:click": send("inc") }), h("i", {})),
 		on: {
-			inc(draft) {
-				draft.count++;
+			inc(next) {
+				next.count++;
 			},
 		},
 	});
@@ -406,8 +406,8 @@ test("renderIt stops event lookup at its view", () => {
 			),
 		),
 		on: {
-			pick(draft) {
-				draft.picked++;
+			pick(next) {
+				next.picked++;
 			},
 		},
 	});
@@ -439,8 +439,8 @@ test("a child-scope registration after startup adds only its event listeners", (
 		fields: { count: t.number() },
 		view: h("button", { "on:dblclick": send("changed"), "on:click": send("changed") }),
 		on: {
-			changed(draft) {
-				draft.count++;
+			changed(next) {
+				next.count++;
 			},
 		},
 	});
@@ -465,8 +465,8 @@ test("targetValue reads the element with the handler, not the child that was cli
 			"label",
 		),
 		on: {
-			setTab(draft, [tab]) {
-				draft.tab = tab;
+			setTab(next, [tab]) {
+				next.tab = tab;
 			},
 		},
 	});

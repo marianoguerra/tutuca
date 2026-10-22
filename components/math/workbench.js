@@ -148,35 +148,35 @@ export const Workbench = component({
 	on: {
 		setTab: {
 			args: [t.enum(...TABS.map(([id]) => id))],
-			run(draft, [tab]) {
-				draft.tab = tab;
+			run(next, [tab]) {
+				next.tab = tab;
 			},
 		},
 		saveProblem: {
 			args: [],
-			run(draft) {
-				if (!this.cannotSave) draft.history.unshift(this.problem);
+			run(next) {
+				if (!this.cannotSave) next.history.unshift(this.problem);
 			},
 		},
 		openProblem: {
 			args: [t.index("history")],
-			run(draft, [i]) {
+			run(next, [i]) {
 				const { kind, values } = this.history[i];
 				if (kind === "quadratic") {
 					const [a, b, c] = values;
-					Object.assign(draft.quadratic, { a, b, c });
+					Object.assign(next.quadratic, { a, b, c });
 				} else {
 					const [a, b, c, d] = values;
-					Object.assign(draft.matrix, { a, b, c, d });
+					Object.assign(next.matrix, { a, b, c, d });
 				}
-				draft.tab = kind;
+				next.tab = kind;
 			},
 		},
 		removeProblem: {
 			args: [t.index("history")],
 			post: (prev, next) => next.history.length === prev.history.length - 1,
-			run(draft, [i]) {
-				draft.history.splice(i, 1);
+			run(next, [i]) {
+				next.history.splice(i, 1);
 			},
 		},
 	},

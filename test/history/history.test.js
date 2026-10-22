@@ -63,8 +63,8 @@ const Counter = component({
 	on: {
 		inc: {
 			args: [],
-			run(draft) {
-				draft.count = this.count + 1;
+			run(next) {
+				next.count = this.count + 1;
 			},
 		},
 	},
@@ -119,8 +119,8 @@ test("changes from another engine are recorded", () => {
 	const { host, engine } = counterHost();
 	let link = null;
 	host.attachSync({ attach: (l) => (link = l), commit() {} });
-	link.apply((draft) => {
-		draft.count = 5;
+	link.apply((next) => {
+		next.count = 5;
 	});
 	assert.deepEqual(
 		engine.timeline.entries.map((e) => [e.origin, e.state.count]),

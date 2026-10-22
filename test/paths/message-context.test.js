@@ -24,8 +24,8 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 			fields: { count: t.number() },
 			view: h("span", {}),
 			on: {
-				inc(draft) {
-					draft.count++;
+				inc(next) {
+					next.count++;
 				},
 			},
 		});
@@ -50,16 +50,16 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 				),
 			),
 			on: {
-				act(draft, [key], ctx) {
-					draft.picked = key;
+				act(next, [key], ctx) {
+					next.picked = key;
 					// The source key survives even though derived tasks use the component path.
 					assert.equal(ctx.sourceKey, 0);
 					ctx.sendAt("inc", [], (b) => b.field("child"));
 					ctx.ask("load");
 					ctx.notify("changed");
 				},
-				loadReplyOk(draft, [value], ctx) {
-					draft.result = value;
+				loadReplyOk(next, [value], ctx) {
+					next.result = value;
 					ctx.sendAt("inc", [], (b) => b.field("child"));
 				},
 				changed() {
@@ -136,8 +136,8 @@ test("forwardAt from an event handler forwards the sent message and keeps the DO
 		fields: { got: t.any() },
 		view: h("span", {}),
 		on: {
-			act(draft, [n]) {
-				draft.got = n;
+			act(next, [n]) {
+				next.got = n;
 			},
 		},
 	});
@@ -146,8 +146,8 @@ test("forwardAt from an event handler forwards the sent message and keeps the DO
 		fields: { child: t.component("Child"), causeType: t.any() },
 		view: h("div", {}, h("button", { "on:click": send("act", 7) }), render(field("child"))),
 		on: {
-			act(draft, _args, ctx) {
-				draft.causeType = ctx.event.type;
+			act(next, _args, ctx) {
+				next.causeType = ctx.event.type;
 				ctx.forwardAt((b) => b.field("child"));
 			},
 		},

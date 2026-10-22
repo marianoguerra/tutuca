@@ -27,15 +27,15 @@ export const EmojiPicker = component({
 		$if(field("isPickerVisible"), h("emoji-picker", {}), ""),
 	),
 	on: {
-		togglePicker(draft) {
-			draft.isPickerVisible = !draft.isPickerVisible;
+		togglePicker(next) {
+			next.isPickerVisible = !next.isPickerVisible;
 		},
 		pick: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				// The picker's CustomEvent carries the chosen emoji in detail.
 				const unicode = ctx.event?.detail?.unicode;
-				if (unicode !== undefined) draft.current = unicode;
+				if (unicode !== undefined) next.current = unicode;
 			},
 		},
 	},

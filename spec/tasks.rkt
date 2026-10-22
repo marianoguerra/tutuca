@@ -55,7 +55,7 @@
   [(eval-arg value value_tv any) value])
 
 ;; ---- message handlers ------------------------------------------------------
-;; The command interpreter: a handler runs with `draft`, `self`, `sourceKey`
+;; The command interpreter: a handler runs with `next`, `self`, `sourceKey`
 ;; and its parameters bound. It yields the new leaf, the tasks it sent (with no
 ;; route yet), whether it called stopNext, and the async replies it started.
 
@@ -70,40 +70,40 @@
 (define (child-task ctx kind name args base sel)
   `(task ,kind ,name ,args ,(mctx-path ctx) (at ,base ,sel) none))
 
-;; Runs cmds; returns (list leaf tasks stop?) where leaf is the final draft or
+;; Runs cmds; returns (list leaf tasks stop?) where leaf is the final next or
 ;; the replacement a `replace` returned.
-(define (exec cmds env ctx self draft tasks stop)
-  (define (ev hx) (term (eval-hx (env-extend ,env (draft ,draft)) ,hx)))
+(define (exec cmds env ctx self next tasks stop)
+  (define (ev hx) (term (eval-hx (env-extend ,env (next ,next)) ,hx)))
   (match cmds
-    ['() (list draft tasks stop)]
+    ['() (list next tasks stop)]
     [(cons cmd more)
-     (define (next draft tasks stop) (exec more env ctx self draft tasks stop))
+     (define (continue next tasks stop) (exec more env ctx self next tasks stop))
      (match cmd
        [`(set ,lvs ,hx)
         (define keys (for/list ([lv lvs]) (match lv [`(at ,k) (ev k)] [f f])))
-        (next (set-path draft keys (ev hx)) tasks stop)]
+        (continue (set-path next keys (ev hx)) tasks stop)]
        [`(replace ,hx) (list (ev hx) tasks stop)]
        [`(notify ,name ,hxs ...)
         (define path (mctx-path ctx))
-        (next draft
-              (if (null? path) tasks
-                  (append tasks (list (child-task ctx 'notify name (map ev hxs) (term (to-parent-path ,path)) '()))))
-              stop)]
+        (continue next
+                  (if (null? path) tasks
+                      (append tasks (list (child-task ctx 'notify name (map ev hxs) (term (to-parent-path ,path)) '()))))
+                  stop)]
        [`(ask ,name ,hxs ...)
-        (next draft (append tasks (list (child-task ctx 'ask name (map ev hxs) (mctx-path ctx) '()))) stop)]
+        (continue next (append tasks (list (child-task ctx 'ask name (map ev hxs) (mctx-path ctx) '()))) stop)]
        [`(send-at ,name ,hxs ,sel)
-        (next draft (append tasks (list (child-task ctx 'plain name (map ev hxs) (mctx-path ctx) sel))) stop)]
+        (continue next (append tasks (list (child-task ctx 'plain name (map ev hxs) (mctx-path ctx) sel))) stop)]
        [`(forward-at ,sel)
         (match-define `(task ,_ ,name ,args ,_ ,_ ,_) (mctx-task ctx))
-        (next draft (append tasks (list (child-task ctx 'plain name args (mctx-path ctx) sel))) stop)]
-       ['(stop-next) (next draft tasks #t)]
-       [`(log ,hx) (emit! ctx `(log ,(ev hx))) (next draft tasks stop)]
+        (continue next (append tasks (list (child-task ctx 'plain name args (mctx-path ctx) sel))) stop)]
+       ['(stop-next) (continue next tasks #t)]
+       [`(log ,hx) (emit! ctx `(log ,(ev hx))) (continue next tasks stop)]
        [`(fail ,hx) (error 'handler "~a" (ev hx))]
        [`(when ,hx ,body ...)
         (if (truthy? (ev hx))
-            (match-let ([(list draft tasks stop) (exec body env ctx self draft tasks stop)])
-              (next draft tasks stop))
-            (next draft tasks stop))])]))
+            (match-let ([(list next tasks stop) (exec body env ctx self next tasks stop)])
+              (continue next tasks stop))
+            (continue next tasks stop))])]))
 
 (define (find-handler reg instance name)
   (lookup-named (class-section (term (class-def-of ,reg ,instance)) 'on) name))
@@ -116,7 +116,7 @@
                         (list p (if (< i (length args)) (list-ref args i) 'null)))))
   (exec cmds env ctx instance instance '() #f))
 
-;; run(): a missing handler warns and keeps the draft.
+;; run(): a missing handler warns and keeps next.
 (define (run reg instance name args ctx)
   (define handler (find-handler reg instance name))
   (if handler (call handler instance args ctx) (list instance '() #f)))
@@ -278,7 +278,7 @@
   (define counter
     (term ((class Counter
              (views ("main" (h 1 "button" ((on click (send inc (target-value)))) (field n))))
-             (on (inc (by) (set (n) (+ (get draft n) by)) (log (get draft n))))))))
+             (on (inc (by) (set (n) (+ (get next n) by)) (log (get next n))))))))
   (define c0 (start counter '(comp Counter (n 0)) #:events '((event click (1) 2))))
 
   ;; An event routes to the button's handler; the task commits; render morphs

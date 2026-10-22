@@ -7,14 +7,14 @@ import { setupHost } from "../helpers.js";
 // sees the key of the step that leads out of its own view.
 test("sourceKey is relative to the receiver for events, notifies, sends and replies", () => {
 	const seen = [];
-	const record = (who) => (_draft, _args, ctx) => {
+	const record = (who) => (_next, _args, ctx) => {
 		seen.push([who, ctx.sourceKey]);
 	};
 	const Leaf = component({
 		name: "Leaf",
 		view: h("button", { "on:click": send("click") }),
 		on: {
-			click(_draft, _args, ctx) {
+			click(_next, _args, ctx) {
 				seen.push(["leaf click", ctx.sourceKey]);
 				ctx.notify("ping");
 				ctx.ask("load");
@@ -33,7 +33,7 @@ test("sourceKey is relative to the receiver for events, notifies, sends and repl
 		fields: { mids: t.array() },
 		view: h("div", {}, renderEach(field("mids"))),
 		on: {
-			ping(_draft, _args, ctx) {
+			ping(_next, _args, ctx) {
 				seen.push(["top notify", ctx.sourceKey]);
 				ctx.sendAt("ping", [], (b) => b.item("mids", 1));
 			},

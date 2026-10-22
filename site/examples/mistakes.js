@@ -25,13 +25,13 @@ export const Greeting = component({
 		),
 	),
 	on: {
-		greet(draft) {
-			draft.greetings += 1;
+		greet(next) {
+			next.greetings += 1;
 		},
 		rename: {
 			args: [t.string()],
-			run(draft, [name]) {
-				draft.name = name;
+			run(next, [name]) {
+				next.name = name;
 			},
 		},
 	},

@@ -40,13 +40,13 @@ export const SUMMARY_KEYS = [
 	"targets",
 ];
 // Keeps the step form's choices among the current targets and their messages.
-export const syncForm = (draft) => {
-	if (draft.target >= draft.targets.length) draft.target = 0;
-	const messages = draft.targets[draft.target]?.messages ?? [];
-	draft.messages = messages.map((m) => m.name);
-	if (!draft.messages.includes(draft.message)) draft.message = draft.messages[0] ?? "";
-	draft.sourceKeys = [...(messages.find((m) => m.name === draft.message)?.sourceKeys ?? [])];
-	if (!draft.sourceKeys.includes(draft.sourceKey)) draft.sourceKey = draft.sourceKeys[0] ?? "";
+export const syncForm = (next) => {
+	if (next.target >= next.targets.length) next.target = 0;
+	const messages = next.targets[next.target]?.messages ?? [];
+	next.messages = messages.map((m) => m.name);
+	if (!next.messages.includes(next.message)) next.message = next.messages[0] ?? "";
+	next.sourceKeys = [...(messages.find((m) => m.name === next.message)?.sourceKeys ?? [])];
+	if (!next.sourceKeys.includes(next.sourceKey)) next.sourceKey = next.sourceKeys[0] ?? "";
 };
 
 export const StoryPanel = component({
@@ -317,62 +317,62 @@ export const StoryPanel = component({
 		op: {
 			args: [t.enum("reset", "back", "forward", "toEnd")],
 			emits: { ask: ["story"] },
-			run(_draft, [op], ctx) {
+			run(_next, [op], ctx) {
 				askStory(ctx, this, op);
 			},
 		},
 		gotoEntry: {
 			args: [t.index("timeline")],
 			emits: { ask: ["story"] },
-			run(_draft, [i], ctx) {
+			run(_next, [i], ctx) {
 				askStory(ctx, this, "goto", i);
 			},
 		},
 		selectSequence: {
 			args: [t.string()],
 			emits: { ask: ["story"] },
-			run(_draft, [name], ctx) {
+			run(_next, [name], ctx) {
 				askStory(ctx, this, "load", name);
 			},
 		},
 		setTarget: {
 			args: [t.string()],
-			run(draft, [value]) {
-				draft.target = Math.max(0, Number.parseInt(value, 10) || 0);
-				syncForm(draft);
+			run(next, [value]) {
+				next.target = Math.max(0, Number.parseInt(value, 10) || 0);
+				syncForm(next);
 			},
 		},
 		setMessage: {
 			args: [t.string()],
-			run(draft, [value]) {
-				draft.message = value;
-				syncForm(draft);
+			run(next, [value]) {
+				next.message = value;
+				syncForm(next);
 			},
 		},
 		setSourceKey: {
 			args: [t.string()],
-			run(draft, [value]) {
-				draft.sourceKey = value;
+			run(next, [value]) {
+				next.sourceKey = value;
 			},
 		},
 		setArgs: {
 			args: [t.string()],
-			run(draft, [value]) {
-				draft.argsJson = value;
+			run(next, [value]) {
+				next.argsJson = value;
 			},
 		},
 		generateArgs: {
 			args: [],
 			emits: { ask: ["story"] },
-			run(draft, _args, ctx) {
-				draft.argSeed = this.argSeed + 1;
+			run(next, _args, ctx) {
+				next.argSeed = this.argSeed + 1;
 				askStory(ctx, this, "sampleArgs", this.target, this.message, this.argSeed);
 			},
 		},
 		sendMessage: {
 			args: [],
 			emits: { ask: ["story"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				const { target, message, argsJson, sourceKey } = this;
 				askStory(ctx, this, "sendTo", target, message, argsJson, sourceKey);
 			},
@@ -380,47 +380,47 @@ export const StoryPanel = component({
 		randomStep: {
 			args: [],
 			emits: { ask: ["story"] },
-			run(draft, _args, ctx) {
-				draft.argSeed = this.argSeed + 1;
+			run(next, _args, ctx) {
+				next.argSeed = this.argSeed + 1;
 				askStory(ctx, this, "randomStep", this.argSeed);
 			},
 		},
 		togglePlay: {
 			args: [],
 			emits: { ask: ["delay"] },
-			run(draft, _args, ctx) {
-				draft.isPlaying = !this.isPlaying;
-				if (draft.isPlaying) ctx.ask("delay", [400]);
+			run(next, _args, ctx) {
+				next.isPlaying = !this.isPlaying;
+				if (next.isPlaying) ctx.ask("delay", [400]);
 			},
 		},
-		delayReplyOk(draft, _args, ctx) {
+		delayReplyOk(next, _args, ctx) {
 			if (!this.isPlaying) return;
 			if (this.atEnd) {
-				draft.isPlaying = false;
+				next.isPlaying = false;
 				return;
 			}
 			askStory(ctx, this, "forward");
 			ctx.ask("delay", [400]);
 		},
-		delayReplyError(draft) {
-			draft.isPlaying = false;
+		delayReplyError(next) {
+			next.isPlaying = false;
 		},
-		delayHandlerNotFound(draft) {
-			draft.isPlaying = false;
+		delayHandlerNotFound(next) {
+			next.isPlaying = false;
 		},
-		storyReplyOk(draft, [result]) {
-			draft.error = "";
-			if (typeof result?.argsJson === "string") draft.argsJson = result.argsJson;
+		storyReplyOk(next, [result]) {
+			next.error = "";
+			if (typeof result?.argsJson === "string") next.argsJson = result.argsJson;
 			// forward returns false at a failing or missing step: stop playing there.
-			if (result === false) draft.isPlaying = false;
+			if (result === false) next.isPlaying = false;
 		},
-		storyReplyError(draft, [error]) {
-			draft.error = String(error?.message ?? error);
-			draft.problems = [draft.error];
-			draft.isPlaying = false;
+		storyReplyError(next, [error]) {
+			next.error = String(error?.message ?? error);
+			next.problems = [next.error];
+			next.isPlaying = false;
 		},
-		storyHandlerNotFound(draft) {
-			draft.problems = ["no story ask handler is registered"];
+		storyHandlerNotFound(next) {
+			next.problems = ["no story ask handler is registered"];
 		},
 	},
 });

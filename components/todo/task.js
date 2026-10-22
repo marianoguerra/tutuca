@@ -200,81 +200,81 @@ export const TodoTask = component({
 		toggle: {
 			args: [],
 			post: (prev, next) => next.isCompleted !== prev.isCompleted,
-			run(draft) {
+			run(next) {
 				// Completing a task completes its subtasks; reopening it leaves them.
-				if (this.isCompleted) draft.isCompleted = false;
-				else setDeep(draft, "isCompleted", true);
+				if (this.isCompleted) next.isCompleted = false;
+				else setDeep(next, "isCompleted", true);
 			},
 		},
 		setTitle: {
 			args: [t.string()],
-			run(draft, [title]) {
-				draft.title = title;
+			run(next, [title]) {
+				next.title = title;
 			},
 		},
 		setDescription: {
 			args: [t.string()],
-			run(draft, [description]) {
-				draft.description = description;
+			run(next, [description]) {
+				next.description = description;
 			},
 		},
 		setDue: {
 			args: [dueType()],
-			run(draft, [due]) {
-				draft.due = due;
+			run(next, [due]) {
+				next.due = due;
 			},
 		},
 		// From a select: values it doesn't offer are ignored.
 		setPriority: {
 			args: [t.string()],
-			run(draft, [priority]) {
-				if (["1", "2", "3", "4"].includes(priority)) draft.priority = Number(priority);
+			run(next, [priority]) {
+				if (["1", "2", "3", "4"].includes(priority)) next.priority = Number(priority);
 			},
 		},
 		setLabelsText: {
 			args: [t.string()],
 			emits: { notify: ["labelsChanged"] },
-			run(draft, [text], ctx) {
-				draft.labels = labelsOf(text);
-				ctx.notify("labelsChanged", [[...draft.labels]]);
+			run(next, [text], ctx) {
+				next.labels = labelsOf(text);
+				ctx.notify("labelsChanged", [[...next.labels]]);
 			},
 		},
 		setProject: {
 			args: [t.string()],
-			run(draft, [projectId]) {
-				setDeep(draft, "projectId", projectId);
+			run(next, [projectId]) {
+				setDeep(next, "projectId", projectId);
 			},
 		},
 		beginEdit: {
 			args: [],
-			run(draft) {
-				draft.isEditing = true;
+			run(next) {
+				next.isEditing = true;
 			},
 		},
 		endEdit: {
 			args: [],
-			run(draft) {
-				draft.isEditing = false;
-				draft.title = this.title.trim() || "Untitled";
+			run(next) {
+				next.isEditing = false;
+				next.title = this.title.trim() || "Untitled";
 			},
 		},
 		toggleExpand: {
 			args: [],
-			run(draft) {
-				draft.isExpanded = !this.isExpanded;
+			run(next) {
+				next.isExpanded = !this.isExpanded;
 			},
 		},
 		setNewSubtask: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.newSubtask = text;
+			run(next, [text]) {
+				next.newSubtask = text;
 			},
 		},
 		addSubtask: {
 			args: [],
 			post: (prev, next) =>
 				prev.newSubtask.trim() === "" || next.subtasks.length === prev.subtasks.length + 1,
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.event?.preventDefault();
 				const title = this.newSubtask.trim();
 				if (title === "") return;
@@ -285,29 +285,29 @@ export const TodoTask = component({
 					projectId,
 					today,
 				});
-				draft.subtasks.push(sub);
-				draft.newSubtask = "";
-				draft.isExpanded = true;
+				next.subtasks.push(sub);
+				next.newSubtask = "";
+				next.isExpanded = true;
 			},
 		},
 		remove: {
 			args: [],
 			emits: { notify: ["removeTask"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("removeTask");
 			},
 		},
 		moveUp: {
 			args: [],
 			emits: { notify: ["moveTask"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("moveTask", [-1]);
 			},
 		},
 		moveDown: {
 			args: [],
 			emits: { notify: ["moveTask"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("moveTask", [1]);
 			},
 		},
@@ -316,17 +316,17 @@ export const TodoTask = component({
 			args: [],
 			sourceKey: t.index("subtasks"),
 			post: (prev, next) => next.subtasks.length === prev.subtasks.length - 1,
-			run(draft, _args, ctx) {
-				draft.subtasks.splice(ctx.sourceKey, 1);
+			run(next, _args, ctx) {
+				next.subtasks.splice(ctx.sourceKey, 1);
 				ctx.stopNext();
 			},
 		},
 		moveTask: {
 			args: [t.enum(-1, 1)],
 			sourceKey: t.index("subtasks"),
-			run(draft, [delta], ctx) {
+			run(next, [delta], ctx) {
 				const j = ctx.sourceKey + delta;
-				if (j >= 0 && j < this.subtasks.length) swap(draft.subtasks, ctx.sourceKey, j);
+				if (j >= 0 && j < this.subtasks.length) swap(next.subtasks, ctx.sourceKey, j);
 				ctx.stopNext();
 			},
 		},

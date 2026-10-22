@@ -45,14 +45,14 @@ const Counter = component({
 	on: {
 		inc: {
 			args: [],
-			run(draft) {
-				draft.count = draft.count > 1 ? "many" : draft.count + 1;
+			run(next) {
+				next.count = next.count > 1 ? "many" : next.count + 1;
 			},
 		},
 		dec: {
 			args: [],
-			run(draft) {
-				draft.count -= 1;
+			run(next) {
+				next.count -= 1;
 			},
 		},
 	},

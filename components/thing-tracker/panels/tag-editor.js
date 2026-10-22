@@ -156,40 +156,40 @@ export const TagEditor = component({
 		...closing(always),
 		togglePicker: {
 			args: [],
-			run(draft) {
-				draft.pickerOpen = !this.pickerOpen;
+			run(next) {
+				next.pickerOpen = !this.pickerOpen;
 			},
 		},
 		emojiPicked: {
 			args: [t.string()],
-			run(draft, [emoji], ctx) {
-				draft.emoji = emoji;
-				draft.pickerOpen = false;
+			run(next, [emoji], ctx) {
+				next.emoji = emoji;
+				next.pickerOpen = false;
 				ctx.stopNext();
 			},
 		},
 		setTitle: {
 			args: [t.string()],
-			run(draft, [title]) {
-				draft.title = title;
+			run(next, [title]) {
+				next.title = title;
 			},
 		},
 		setQuery: {
 			args: [t.string()],
-			run(draft, [query]) {
-				draft.query = query;
+			run(next, [query]) {
+				next.query = query;
 			},
 		},
 		toggleMember: {
 			args: [t.index("members")],
-			run(draft, [i]) {
-				draft.members[i].checked = !this.members[i].checked;
+			run(next, [i]) {
+				next.members[i].checked = !this.members[i].checked;
 			},
 		},
 		save: {
 			args: [],
 			emits: { notify: ["saveTag"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				if (this.cannotSave) return;
 				const thingIds = this.members.filter((m) => m.checked).map((m) => m.id);
 				const tag = { id: this.tagId, title: this.title.trim(), emoji: this.emoji, thingIds };
@@ -199,7 +199,7 @@ export const TagEditor = component({
 		remove: {
 			args: [],
 			emits: { notify: ["deleteTag"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("deleteTag", [this.tagId]);
 			},
 		},

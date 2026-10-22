@@ -36,8 +36,8 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 					fields: { count: t.number() },
 					view: h("button", { "on:click": send("inc") }, field("count")),
 					on: {
-						inc(draft, _args, ctx) {
-							draft.count++;
+						inc(next, _args, ctx) {
+							next.count++;
 							ctx.notify("changed");
 						},
 					},
@@ -77,8 +77,8 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 					},
 					view: h("div", {}, content),
 					on: {
-						pick(draft, [key]) {
-							draft.picked = key;
+						pick(next, [key]) {
+							next.picked = key;
 						},
 						changed() {
 							seen.push("panel");
@@ -143,8 +143,8 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 		fields: { count: t.number() },
 		view: h("button", { "on:click": send("inc") }, "inc"),
 		on: {
-			inc(draft, _args, ctx) {
-				draft.count++;
+			inc(next, _args, ctx) {
+				next.count++;
 				ctx.notify("changed");
 			},
 		},
@@ -210,8 +210,8 @@ test("rendered SeqItem collection stays frozen while sendAt captures producer co
 		fields: { count: t.number() },
 		view: h("button", { "on:click": send("inc") }, "inc"),
 		on: {
-			inc(draft) {
-				draft.count++;
+			inc(next) {
+				next.count++;
 			},
 		},
 	});
@@ -225,9 +225,9 @@ test("rendered SeqItem collection stays frozen while sendAt captures producer co
 			renderEach(seqItem("groups", "selected")),
 		),
 		on: {
-			queue(draft, _args, ctx) {
+			queue(next, _args, ctx) {
 				ctx.sendAt("inc", [], (pb) => pb.seqItem("groups", "selected").field(0));
-				draft.selected = 1;
+				next.selected = 1;
 			},
 		},
 	});
@@ -263,8 +263,8 @@ for (const depth of [0, 1, 2, 8]) {
 				renderEach(provided("items")),
 			),
 			on: {
-				inc(draft, _args, ctx) {
-					draft.count++;
+				inc(next, _args, ctx) {
+					next.count++;
 					ctx.notify("changed");
 				},
 				changed() {
@@ -293,8 +293,8 @@ test("PathBuilder item updates array and object items", () => {
 		fields: { count: t.number() },
 		view: null,
 		on: {
-			inc(draft) {
-				draft.count++;
+			inc(next) {
+				next.count++;
 			},
 		},
 	});
@@ -303,7 +303,7 @@ test("PathBuilder item updates array and object items", () => {
 		fields: { array: t.array(), object: t.map() },
 		view: h("button", { "on:click": send("update") }, "update"),
 		on: {
-			update(_draft, _args, ctx) {
+			update(_next, _args, ctx) {
 				ctx.sendAt("inc", [], (pb) => pb.item("array", 0));
 				ctx.sendAt("inc", [], (pb) => pb.item("object", "a"));
 			},

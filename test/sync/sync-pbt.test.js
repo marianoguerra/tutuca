@@ -64,7 +64,7 @@ for (const [library, [components, overrides]] of Object.entries(libraries)) {
 							assert.deepEqual(project(hydrate(pa, scope), { level }), pa);
 							const ops = diff(a, b, { scope, level });
 							assertSameJSON(applyOps(structuredClone(pa), ops), pb);
-							const applied = produce(a, (draft) => applyStateOps(draft, ops, scope));
+							const applied = produce(a, (next) => applyStateOps(next, ops, scope));
 							assertSameJSON(project(applied, { level }), pb);
 						}
 					}),
@@ -174,7 +174,7 @@ const editsOf = new Map([
 	],
 ]);
 const edits = fc.array(editArb, { maxLength: 12 });
-const edit = (host, fn) => host.applyExternal((draft) => void fn(draft, host.scope));
+const edit = (host, fn) => host.applyExternal((next) => void fn(next, host.scope));
 const peer = async (engine, specs = V1) => {
 	const failures = [];
 	const s = setupHost(specs, {

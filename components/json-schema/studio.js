@@ -108,11 +108,11 @@ export const Studio = component({
 			return this.pasteError !== "";
 		},
 		// Infers the schema again from the editor's payload, keeping how it is read.
-		infer(draft) {
+		infer(next) {
 			const C = scopeOf(this).components;
-			const json = draft.editor.toJson();
-			draft.schema = schemaTree(C, schemaFor(json, draft.title), { view: this.schema.view });
-			draft.source = textOf(json);
+			const json = next.editor.toJson();
+			next.schema = schemaTree(C, schemaFor(json, next.title), { view: this.schema.view });
+			next.source = textOf(json);
 		},
 	},
 	view: div(
@@ -201,56 +201,56 @@ export const Studio = component({
 		regenerate: {
 			args: [],
 			post: (_prev, next) => !next.isStale,
-			run(draft) {
-				this.infer(draft);
+			run(next) {
+				this.infer(next);
 			},
 		},
 		loadSample: {
 			args: [t.enum(...SAMPLE_IDS)],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				const C = ctx.scope.components;
 				const { title, value } = SAMPLES[id];
-				draft.sample = id;
-				draft.title = title;
-				draft.editor = C.JsonEditor({ mode: "edit", value: fromJson(C, value) });
-				this.infer(draft);
+				next.sample = id;
+				next.title = title;
+				next.editor = C.JsonEditor({ mode: "edit", value: fromJson(C, value) });
+				this.infer(next);
 			},
 		},
 		setTitle: {
 			args: [t.string()],
-			run(draft, [title]) {
-				draft.title = title;
-				this.infer(draft);
+			run(next, [title]) {
+				next.title = title;
+				this.infer(next);
 			},
 		},
 		setPasteText: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.pasteText = text;
-				draft.pasteError = "";
+			run(next, [text]) {
+				next.pasteText = text;
+				next.pasteError = "";
 			},
 		},
 		pasteJson: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				let value;
 				try {
 					value = JSON.parse(this.pasteText);
 				} catch (error) {
-					draft.pasteError = `Not JSON: ${error.message}`;
+					next.pasteError = `Not JSON: ${error.message}`;
 					return;
 				}
 				const C = ctx.scope.components;
-				draft.editor = C.JsonEditor({ mode: "edit", value: fromJson(C, value) });
-				draft.pasteText = "";
-				draft.title = "";
-				this.infer(draft);
+				next.editor = C.JsonEditor({ mode: "edit", value: fromJson(C, value) });
+				next.pasteText = "";
+				next.title = "";
+				this.infer(next);
 			},
 		},
 		downloadSchema: {
 			args: [],
 			emits: { ask: ["saveFile"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				const name = (this.title || "payload").toLowerCase().replace(/[^a-z0-9]+/g, "-");
 				ctx.ask("saveFile", [
 					`${name}.schema.json`,
@@ -260,7 +260,7 @@ export const Studio = component({
 			},
 		},
 		saveFileReplyOk() {},
-		saveFileReplyError(_draft, [error]) {
+		saveFileReplyError(_next, [error]) {
 			console.error("saving the schema failed", error);
 		},
 		saveFileHandlerNotFound() {},

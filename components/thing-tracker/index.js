@@ -77,43 +77,43 @@ const { div, li, main, nav, span, ul } = tag;
 
 // Rebuilds what the app derives from its data and time: thing stats, Track's sections,
 // Insights' buckets and an open entry list.
-const refresh = (self, draft) => {
+const refresh = (self, next) => {
 	const C = scopeOf(self).components;
-	const { now, tz } = draft;
-	const usage = usageOf(draft.events);
+	const { now, tz } = next;
+	const usage = usageOf(next.events);
 	const tagsOf = new Map();
-	for (const g of draft.groups)
+	for (const g of next.groups)
 		for (const id of g.thingIds) tagsOf.set(id, [...(tagsOf.get(id) ?? []), g.title]);
-	for (const thing of draft.things) {
+	for (const thing of next.things) {
 		const u = usage.get(thing.id);
 		thing.total = u?.total ?? 0;
 		thing.lastText = u === undefined ? "never" : formatRelative(u.lastAt, now, tz);
 		thing.tagsText = tagsOf.get(thing.id)?.join(" · ") ?? "No tags";
 	}
-	const visible = draft.things.filter((thing) => !thing.archived);
-	const searching = draft.query.trim() !== "";
+	const visible = next.things.filter((thing) => !thing.archived);
+	const searching = next.query.trim() !== "";
 	const ordered = searching
-		? filterThings(visible, draft.query)
-		: applyFrozenOrder(visible, draft.order);
-	draft.sections = buildRows(draft.groups, ordered).map((row) =>
+		? filterThings(visible, next.query)
+		: applyFrozenOrder(visible, next.order);
+	next.sections = buildRows(next.groups, ordered).map((row) =>
 		C.Section({
 			...row,
-			isOpen: searching || !draft.collapsed.includes(row.id),
-			compact: draft.compact,
+			isOpen: searching || !next.collapsed.includes(row.id),
+			compact: next.compact,
 		}),
 	);
-	const group = draft.groups.find((g) => g.id === draft.groupFilter);
+	const group = next.groups.find((g) => g.id === next.groupFilter);
 	const events =
 		group === undefined
-			? draft.events
-			: draft.events.filter((e) => group.thingIds.includes(e.thingId));
-	const buckets = bucketEvents(events, draft.granularity, tz);
-	const thingOf = new Map(draft.things.map((thing) => [thing.id, thing]));
-	draft.buckets = (draft.granularity === "day" ? withGaps(buckets) : buckets).map((b) =>
+			? next.events
+			: next.events.filter((e) => group.thingIds.includes(e.thingId));
+	const buckets = bucketEvents(events, next.granularity, tz);
+	const thingOf = new Map(next.things.map((thing) => [thing.id, thing]));
+	next.buckets = (next.granularity === "day" ? withGaps(buckets) : buckets).map((b) =>
 		b.gap !== undefined
 			? C.Bucket({ gap: b.gap })
 			: C.Bucket({
-					label: formatBucketLabel(b.start, draft.granularity, now, tz),
+					label: formatBucketLabel(b.start, next.granularity, now, tz),
 					start: b.start,
 					end: b.end,
 					total: b.total,
@@ -130,7 +130,7 @@ const refresh = (self, draft) => {
 					}),
 				}),
 	);
-	if (draft.listContext !== null) refreshList(draft, thingOf);
+	if (next.listContext !== null) refreshList(next, thingOf);
 };
 const entryLine = (e, tz, mixed, thing) => {
 	const values = e.measurements.map((m) => {
@@ -146,47 +146,47 @@ const entryLine = (e, tz, mixed, thing) => {
 			Math.abs(e.recordedAt - e.actualAt) > 60000 ? `recorded ${formatTime(e.recordedAt, tz)}` : "",
 	};
 };
-const refreshList = (draft, thingOf) => {
-	if (draft.panel?.rows === undefined) {
-		draft.listContext = null;
+const refreshList = (next, thingOf) => {
+	if (next.panel?.rows === undefined) {
+		next.listContext = null;
 		return;
 	}
-	const ctx = draft.listContext;
-	const group = draft.groups.find((g) => g.id === draft.groupFilter);
-	const all = draft.events
+	const ctx = next.listContext;
+	const group = next.groups.find((g) => g.id === next.groupFilter);
+	const all = next.events
 		.filter((e) =>
 			ctx.thingId === ""
 				? group === undefined || group.thingIds.includes(e.thingId)
 				: e.thingId === ctx.thingId && e.actualAt >= ctx.start && e.actualAt < ctx.end,
 		)
 		.sort((a, b) => b.actualAt - a.actualAt);
-	const shown = ctx.thingId === "" ? all.slice(0, draft.shownEntries) : all;
+	const shown = ctx.thingId === "" ? all.slice(0, next.shownEntries) : all;
 	const mixed = ctx.thingId === "";
-	draft.panel.rows = shown.map((e) => entryLine(e, draft.tz, mixed, thingOf.get(e.thingId)));
-	draft.panel.remaining = all.length - shown.length;
-	if (mixed) draft.panel.subtitle = `${shown.length} of ${all.length}, newest first`;
+	next.panel.rows = shown.map((e) => entryLine(e, next.tz, mixed, thingOf.get(e.thingId)));
+	next.panel.remaining = all.length - shown.length;
+	if (mixed) next.panel.subtitle = `${shown.length} of ${all.length}, newest first`;
 };
 // Shows a toast, gone after a while unless another replaces it first.
-const toast = (draft, ctx, title, text, { eventId = "", kind = "info" } = {}) => {
-	draft.toastSeq += 1;
-	draft.toast = { id: draft.toastSeq, title, text, eventId, kind };
-	ctx.ask("wait", [4000, draft.toastSeq]);
+const toast = (next, ctx, title, text, { eventId = "", kind = "info" } = {}) => {
+	next.toastSeq += 1;
+	next.toast = { id: next.toastSeq, title, text, eventId, kind };
+	ctx.ask("wait", [4000, next.toastSeq]);
 };
 const newId = (ctx, prefix) => `${prefix}-${ctx.uuid()}`;
-const openImport = (draft, ctx, title, text) => {
+const openImport = (next, ctx, title, text) => {
 	const parsed = parseEnvelope(text);
 	if (parsed.error !== undefined) {
-		toast(draft, ctx, "Couldn't read that file", parsed.error, { kind: "error" });
+		toast(next, ctx, "Couldn't read that file", parsed.error, { kind: "error" });
 		return;
 	}
-	draft.importSource = text;
-	draft.importTitle =
+	next.importSource = text;
+	next.importTitle =
 		title ||
 		(parsed.envelope.format === "thing-tracker/backup"
 			? "Restore backup"
 			: (parsed.envelope.bundle?.title ?? "Import tags"));
-	draft.overwrite = false;
-	draft.showPreview = true;
+	next.overwrite = false;
+	next.showPreview = true;
 };
 
 export const TrackerApp = component({
@@ -623,84 +623,84 @@ export const TrackerApp = component({
 	on: {
 		setTab: {
 			args: [t.string()],
-			run(draft, [tab]) {
-				if (TABS.some(([id]) => id === tab)) draft.tab = tab;
+			run(next, [tab]) {
+				if (TABS.some(([id]) => id === tab)) next.tab = tab;
 			},
 		},
 		// Time: the host asks for it, or sends it.
 		syncNow: {
 			args: [],
 			emits: { ask: ["now"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.ask("now");
 			},
 		},
-		nowReplyOk(draft, [now]) {
+		nowReplyOk(next, [now]) {
 			if (!Number.isInteger(now) || now < 0) return;
-			draft.now = now;
-			refresh(this, draft);
+			next.now = now;
+			refresh(this, next);
 		},
 		nowReplyError() {},
 		nowHandlerNotFound() {},
 		setNow: {
 			args: [t.number().int().min(0)],
-			run(draft, [now]) {
-				draft.now = now;
-				refresh(this, draft);
+			run(next, [now]) {
+				next.now = now;
+				refresh(this, next);
 			},
 		},
 		// Re-sorts Track by use; the original does it when the app comes back to the front.
 		reorder: {
 			args: [],
-			run(draft) {
-				draft.order = rankThings(
+			run(next) {
+				next.order = rankThings(
 					this.things.filter((thing) => !thing.archived),
 					usageOf(this.events),
 				);
-				refresh(this, draft);
+				refresh(this, next);
 			},
 		},
 		// Track.
 		setQuery: {
 			args: [t.string()],
-			run(draft, [query]) {
-				draft.query = query;
-				refresh(this, draft);
+			run(next, [query]) {
+				next.query = query;
+				refresh(this, next);
 			},
 		},
 		toggleCompact: {
 			args: [],
-			run(draft) {
-				draft.compact = !this.compact;
-				refresh(this, draft);
+			run(next) {
+				next.compact = !this.compact;
+				refresh(this, next);
 			},
 		},
 		toggleSection: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
 				if (this.searching) return;
-				draft.collapsed = this.collapsed.includes(id)
+				next.collapsed = this.collapsed.includes(id)
 					? this.collapsed.filter((c) => c !== id)
 					: [...this.collapsed, id];
-				refresh(this, draft);
+				refresh(this, next);
 			},
 		},
 		// Collapses all when any is open, else expands all; keeps ids not on screen.
 		toggleAllSections: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext();
 				const ids = this.sections.map((s) => s.id);
-				draft.collapsed = this.anyOpen
+				next.collapsed = this.anyOpen
 					? [...new Set([...this.collapsed, ...ids])]
 					: this.collapsed.filter((id) => !ids.includes(id));
-				refresh(this, draft);
+				refresh(this, next);
 			},
 		},
 		logThing: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === id);
 				if (thing === undefined) return;
@@ -712,9 +712,9 @@ export const TrackerApp = component({
 					const u = preferredUnit(m, ref.unit);
 					return [makePrompt(C, m, ref.unit, history[0] ?? u.factor, history)];
 				});
-				if (prompts.length === 0) logEvent(this, draft, ctx, thing, []);
+				if (prompts.length === 0) logEvent(this, next, ctx, thing, []);
 				else
-					draft.panel = C.MeasurementWizard({
+					next.panel = C.MeasurementWizard({
 						thingId: thing.id,
 						emoji: thing.emoji,
 						title: thing.title,
@@ -727,17 +727,17 @@ export const TrackerApp = component({
 				t.string(),
 				t.array(t.record({ measurementId: t.string(), value: t.number().min(0) })),
 			],
-			run(draft, [thingId, values], ctx) {
+			run(next, [thingId, values], ctx) {
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === thingId);
-				draft.panel = null;
-				if (thing !== undefined) logEvent(this, draft, ctx, thing, values);
+				next.panel = null;
+				if (thing !== undefined) logEvent(this, next, ctx, thing, values);
 			},
 		},
 		// Opens the editor on an unsaved entry for now, with last time's values.
 		backdateThing: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === id);
 				if (thing === undefined) return;
@@ -748,7 +748,7 @@ export const TrackerApp = component({
 					const history = measurementHistory(this.events, thing.id, m.id);
 					return [makePrompt(C, m, ref.unit, history[0] ?? 0, history, true)];
 				});
-				draft.panel = C.EventEditor({
+				next.panel = C.EventEditor({
 					mode: "create",
 					thingId: thing.id,
 					heading: `${thing.emoji} ${thing.title}`,
@@ -772,7 +772,7 @@ export const TrackerApp = component({
 					measurements: t.array(t.record({ measurementId: t.string(), value: t.number().min(0) })),
 				}),
 			],
-			run(draft, [entry], ctx) {
+			run(next, [entry], ctx) {
 				ctx.stopNext();
 				const { mode, id, thingId, recordedAt, actualAt, notes, measurements } = entry;
 				if (mode === "create" && !this.things.some((x) => x.id === thingId)) return;
@@ -783,9 +783,9 @@ export const TrackerApp = component({
 					notes: notes.trim() ? notes : "",
 					measurements,
 				};
-				if (mode === "create") draft.events.push({ id: newId(ctx, "event"), ...record });
+				if (mode === "create") next.events.push({ id: newId(ctx, "event"), ...record });
 				else {
-					const e = draft.events.find((x) => x.id === id);
+					const e = next.events.find((x) => x.id === id);
 					if (e !== undefined)
 						Object.assign(e, {
 							actualAt,
@@ -793,70 +793,70 @@ export const TrackerApp = component({
 							measurements: measurements.filter((m) => m.value > 0),
 						});
 				}
-				draft.panel = null;
-				draft.listContext = null;
-				refresh(this, draft);
+				next.panel = null;
+				next.listContext = null;
+				refresh(this, next);
 			},
 		},
 		editEntry: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
-				openEntry(this, draft, id);
+				openEntry(this, next, id);
 			},
 		},
 		deleteEntry: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
-				draft.events = draft.events.filter((e) => e.id !== id);
-				if (this.panel?.eventId === id) draft.panel = null;
-				refresh(this, draft);
+				next.events = next.events.filter((e) => e.id !== id);
+				if (this.panel?.eventId === id) next.panel = null;
+				refresh(this, next);
 			},
 		},
-		closePanel(draft, _args, ctx) {
+		closePanel(next, _args, ctx) {
 			ctx.stopNext();
-			draft.panel = null;
-			draft.listContext = null;
+			next.panel = null;
+			next.listContext = null;
 		},
 		// Toasts.
 		undoToast: {
 			args: [],
-			run(draft) {
+			run(next) {
 				const id = this.toast?.eventId;
-				draft.toast = null;
+				next.toast = null;
 				if (!id) return;
-				draft.events = draft.events.filter((e) => e.id !== id);
-				refresh(this, draft);
+				next.events = next.events.filter((e) => e.id !== id);
+				refresh(this, next);
 			},
 		},
 		editToast: {
 			args: [],
-			run(draft) {
+			run(next) {
 				const id = this.toast?.eventId;
-				draft.toast = null;
-				if (id) openEntry(this, draft, id);
+				next.toast = null;
+				if (id) openEntry(this, next, id);
 			},
 		},
 		dismissToast: {
 			args: [],
-			run(draft) {
-				draft.toast = null;
+			run(next) {
+				next.toast = null;
 			},
 		},
 		// A toast's timer ran out; the first log's is followed by a tip.
-		waitReplyOk(draft, [id], ctx) {
+		waitReplyOk(next, [id], ctx) {
 			if (this.toast?.id !== id) return;
-			draft.toast = null;
+			next.toast = null;
 			if (!this.hintShown && this.toast.kind === "logged") {
-				draft.hintShown = true;
+				next.hintShown = true;
 				toast(
-					draft,
+					next,
 					ctx,
 					"Tip",
 					"Press and hold a thing to log it at a different time, or a section header to collapse everything.",
 				);
-				ctx.ask("wait", [6000, draft.toastSeq]);
+				ctx.ask("wait", [6000, next.toastSeq]);
 			}
 		},
 		waitReplyError() {},
@@ -864,73 +864,73 @@ export const TrackerApp = component({
 		// Insights.
 		setGranularity: {
 			args: [t.string()],
-			run(draft, [granularity]) {
+			run(next, [granularity]) {
 				if (!["day", "week", "month"].includes(granularity)) return;
-				draft.granularity = granularity;
-				refresh(this, draft);
+				next.granularity = granularity;
+				refresh(this, next);
 			},
 		},
 		setGroupFilter: {
 			args: [t.index("groups")],
-			run(draft, [i]) {
+			run(next, [i]) {
 				const { id } = this.groups[i];
-				draft.groupFilter = id === this.groupFilter ? "" : id;
-				refresh(this, draft);
+				next.groupFilter = id === this.groupFilter ? "" : id;
+				refresh(this, next);
 			},
 		},
 		clearGroupFilter: {
 			args: [],
-			run(draft) {
-				draft.groupFilter = "";
-				refresh(this, draft);
+			run(next) {
+				next.groupFilter = "";
+				refresh(this, next);
 			},
 		},
 		openChip: {
 			args: [t.string(), t.number(), t.number(), t.string()],
-			run(draft, [thingId, start, end, bucketLabel], ctx) {
+			run(next, [thingId, start, end, bucketLabel], ctx) {
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === thingId);
 				const C = ctx.scope.components;
-				draft.panel = C.EntryList({
+				next.panel = C.EntryList({
 					heading: thing === undefined ? "❔ Deleted thing" : `${thing.emoji} ${thing.title}`,
 					subtitle: bucketLabel,
 				});
-				draft.listContext = { thingId, start, end };
-				refresh(this, draft);
+				next.listContext = { thingId, start, end };
+				refresh(this, next);
 			},
 		},
 		openAllEntries: {
 			args: [],
-			run(draft, _args, ctx) {
-				draft.shownEntries = 200;
-				draft.panel = ctx.scope.components.EntryList({ heading: "All entries" });
-				draft.listContext = { thingId: "", start: 0, end: 0 };
-				refresh(this, draft);
+			run(next, _args, ctx) {
+				next.shownEntries = 200;
+				next.panel = ctx.scope.components.EntryList({ heading: "All entries" });
+				next.listContext = { thingId: "", start: 0, end: 0 };
+				refresh(this, next);
 			},
 		},
-		moreEntries(draft, _args, ctx) {
+		moreEntries(next, _args, ctx) {
 			ctx.stopNext();
-			draft.shownEntries = this.shownEntries + 200;
-			refresh(this, draft);
+			next.shownEntries = this.shownEntries + 200;
+			refresh(this, next);
 		},
 		// Things.
 		newThing: {
 			args: [t.string()],
-			run(draft, [title], ctx) {
+			run(next, [title], ctx) {
 				const C = ctx.scope.components;
-				draft.panel = C.ThingEditor({ mode: "create", title, pickerOpen: true });
+				next.panel = C.ThingEditor({ mode: "create", title, pickerOpen: true });
 			},
 		},
 		newThingFromQuery: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				const C = ctx.scope.components;
-				draft.panel = C.ThingEditor({ mode: "create", title: this.query.trim(), pickerOpen: true });
+				next.panel = C.ThingEditor({ mode: "create", title: this.query.trim(), pickerOpen: true });
 			},
 		},
 		editThing: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
 				const thing = this.things.find((x) => x.id === id);
 				if (thing === undefined) return;
@@ -942,7 +942,7 @@ export const TrackerApp = component({
 				const other = this.things.find(
 					(x) => x.id !== thing.id && x.emoji === thing.emoji && peers.includes(x.id),
 				);
-				draft.panel = C.ThingEditor({
+				next.panel = C.ThingEditor({
 					mode: "edit",
 					thingId: thing.id,
 					emoji: thing.emoji,
@@ -967,15 +967,15 @@ export const TrackerApp = component({
 					measurements: t.array(measureRef()),
 				}),
 			],
-			run(draft, [mode, thing], ctx) {
+			run(next, [mode, thing], ctx) {
 				ctx.stopNext();
 				const C = ctx.scope.components;
 				if (mode === "create") {
 					const id = newId(ctx, "thing");
-					draft.things.push(C.Thing({ ...thing, id }));
-					draft.order.push(id);
+					next.things.push(C.Thing({ ...thing, id }));
+					next.order.push(id);
 				} else {
-					const local = draft.things.find((x) => x.id === thing.id);
+					const local = next.things.find((x) => x.id === thing.id);
 					if (local !== undefined) {
 						Object.assign(local, {
 							emoji: thing.emoji,
@@ -985,36 +985,36 @@ export const TrackerApp = component({
 						});
 					}
 				}
-				draft.panel = null;
-				refresh(this, draft);
+				next.panel = null;
+				refresh(this, next);
 			},
 		},
 		// Its entries go too, and it leaves every tag.
 		deleteThing: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
-				draft.events = draft.events.filter((e) => e.thingId !== id);
-				for (const g of draft.groups)
+				next.events = next.events.filter((e) => e.thingId !== id);
+				for (const g of next.groups)
 					if (g.thingIds.includes(id)) g.thingIds = g.thingIds.filter((x) => x !== id);
-				draft.things = draft.things.filter((x) => x.id !== id);
-				draft.panel = null;
-				refresh(this, draft);
+				next.things = next.things.filter((x) => x.id !== id);
+				next.panel = null;
+				refresh(this, next);
 			},
 		},
 		// Tags.
 		newTag: {
 			args: [],
-			run(draft) {
-				openTagEditor(this, draft, null);
+			run(next) {
+				openTagEditor(this, next, null);
 			},
 		},
 		editTag: {
 			args: [],
 			sourceKey: t.index("groups"),
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext();
-				openTagEditor(this, draft, this.groups[ctx.sourceKey]);
+				openTagEditor(this, next, this.groups[ctx.sourceKey]);
 			},
 		},
 		saveTag: {
@@ -1027,38 +1027,38 @@ export const TrackerApp = component({
 					thingIds: t.array(t.string()),
 				}),
 			],
-			run(draft, [mode, given], ctx) {
+			run(next, [mode, given], ctx) {
 				ctx.stopNext();
 				const C = ctx.scope.components;
 				const known = new Set(this.things.map((x) => x.id));
 				const tag = { ...given, thingIds: given.thingIds.filter((id) => known.has(id)) };
 				if (mode === "create") {
 					const sortOrder = Math.max(-1, ...this.groups.map((g) => g.sortOrder)) + 1;
-					draft.groups.push(C.Tag({ ...tag, id: newId(ctx, "tag"), sortOrder }));
+					next.groups.push(C.Tag({ ...tag, id: newId(ctx, "tag"), sortOrder }));
 				} else {
-					const local = draft.groups.find((g) => g.id === tag.id);
+					const local = next.groups.find((g) => g.id === tag.id);
 					if (local !== undefined)
 						Object.assign(local, { title: tag.title, emoji: tag.emoji, thingIds: tag.thingIds });
 				}
-				draft.panel = null;
-				refresh(this, draft);
+				next.panel = null;
+				refresh(this, next);
 			},
 		},
 		deleteTag: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				ctx.stopNext();
-				draft.groups = draft.groups.filter((g) => g.id !== id);
-				if (this.groupFilter === id) draft.groupFilter = "";
-				draft.panel = null;
-				refresh(this, draft);
+				next.groups = next.groups.filter((g) => g.id !== id);
+				if (this.groupFilter === id) next.groupFilter = "";
+				next.panel = null;
+				refresh(this, next);
 			},
 		},
 		shareTag: {
 			args: [],
 			sourceKey: t.index("groups"),
 			emits: { ask: ["saveFile"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.stopNext();
 				const g = this.groups[ctx.sourceKey];
 				const pack = buildPack([plainTag(g)], this.things.map(plainThing), this.now);
@@ -1069,53 +1069,53 @@ export const TrackerApp = component({
 		// Manage.
 		setManageTab: {
 			args: [t.string()],
-			run(draft, [tab]) {
+			run(next, [tab]) {
 				if (!MANAGE_TABS.some(([id]) => id === tab)) return;
-				draft.manageTab = tab;
-				draft.manageQuery = "";
+				next.manageTab = tab;
+				next.manageQuery = "";
 			},
 		},
 		setManageQuery: {
 			args: [t.string()],
-			run(draft, [query]) {
-				draft.manageQuery = query;
+			run(next, [query]) {
+				next.manageQuery = query;
 			},
 		},
 		browseBundles: {
 			args: [],
-			run(draft) {
-				draft.tab = "manage";
-				draft.manageTab = "bundles";
-				draft.manageQuery = "";
+			run(next) {
+				next.tab = "manage";
+				next.manageTab = "bundles";
+				next.manageQuery = "";
 			},
 		},
 		// Backups.
 		backupNow: {
 			args: [],
-			run(draft) {
-				draft.tab = "manage";
-				draft.manageTab = "data";
+			run(next) {
+				next.tab = "manage";
+				next.manageTab = "data";
 			},
 		},
 		backupLater: {
 			args: [],
-			run(draft) {
-				draft.backup.dismissedAt = this.now;
+			run(next) {
+				next.backup.dismissedAt = this.now;
 			},
 		},
 		setInterval: {
 			args: [t.string()],
-			run(draft, [days]) {
+			run(next, [days]) {
 				const n = Number(days);
 				if (!INTERVALS.some(([d]) => d === n)) return;
-				draft.backup.intervalDays = n;
-				draft.backup.dismissedAt = 0;
+				next.backup.intervalDays = n;
+				next.backup.dismissedAt = 0;
 			},
 		},
 		exportAll: {
 			args: [],
 			emits: { ask: ["saveFile"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				const backup = buildBackup(this.snapshot(), this.now);
 				const { from, to } = backup.range;
 				const name =
@@ -1130,9 +1130,9 @@ export const TrackerApp = component({
 				]);
 			},
 		},
-		saveFileReplyOk(draft, [kind], ctx) {
+		saveFileReplyOk(next, [kind], ctx) {
 			if (kind !== "backup") {
-				toast(draft, ctx, "Shared", "The pack is ready to send.");
+				toast(next, ctx, "Shared", "The pack is ready to send.");
 				return;
 			}
 			const times = this.events.map((e) => e.actualAt);
@@ -1140,99 +1140,99 @@ export const TrackerApp = component({
 				times.length === 0
 					? ""
 					: `${formatDate(Math.min(...times), this.tz, { weekday: false, now: 0 })} – ${formatDate(Math.max(...times), this.tz, { weekday: false, now: 0 })}`;
-			draft.backup.lastAt = this.now;
-			draft.backup.dismissedAt = 0;
-			draft.backup.rangeText = range;
-			toast(draft, ctx, "Backup ready", "");
+			next.backup.lastAt = this.now;
+			next.backup.dismissedAt = 0;
+			next.backup.rangeText = range;
+			toast(next, ctx, "Backup ready", "");
 		},
-		saveFileReplyError(draft, [error], ctx) {
-			toast(draft, ctx, "Export failed", String(error?.message ?? error), { kind: "error" });
+		saveFileReplyError(next, [error], ctx) {
+			toast(next, ctx, "Export failed", String(error?.message ?? error), { kind: "error" });
 		},
-		saveFileHandlerNotFound(draft, _args, ctx) {
-			toast(draft, ctx, "Export failed", "This page can't save files.", { kind: "error" });
+		saveFileHandlerNotFound(next, _args, ctx) {
+			toast(next, ctx, "Export failed", "This page can't save files.", { kind: "error" });
 		},
 		// Imports: a file, pasted text or a bundle, previewed before anything changes.
 		setImportMode: {
 			args: [t.string()],
-			run(draft, [mode]) {
-				if (mode === "merge" || mode === "replace") draft.importMode = mode;
+			run(next, [mode]) {
+				if (mode === "merge" || mode === "replace") next.importMode = mode;
 			},
 		},
 		setImportText: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.importText = text;
+			run(next, [text]) {
+				next.importText = text;
 			},
 		},
 		previewImport: {
 			args: [],
-			run(draft, _args, ctx) {
-				openImport(draft, ctx, "", this.importText);
+			run(next, _args, ctx) {
+				openImport(next, ctx, "", this.importText);
 			},
 		},
 		chooseFile: {
 			args: [],
 			emits: { ask: ["readText"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				const file = ctx.event?.target?.files?.[0];
 				if (file !== undefined) ctx.ask("readText", [file]);
 			},
 		},
-		readTextReplyOk(draft, [text], ctx) {
-			openImport(draft, ctx, "", String(text));
+		readTextReplyOk(next, [text], ctx) {
+			openImport(next, ctx, "", String(text));
 		},
-		readTextReplyError(draft, [error], ctx) {
-			toast(draft, ctx, "Couldn't read that file", String(error?.message ?? error), {
+		readTextReplyError(next, [error], ctx) {
+			toast(next, ctx, "Couldn't read that file", String(error?.message ?? error), {
 				kind: "error",
 			});
 		},
 		readTextHandlerNotFound() {},
 		addBundle: {
 			args: [t.string()],
-			run(draft, [id], ctx) {
+			run(next, [id], ctx) {
 				const bundle = BUNDLES.find((b) => b.id === id);
 				if (bundle === undefined) return;
-				draft.importMode = "merge";
-				openImport(draft, ctx, bundle.title, JSON.stringify(bundle.pack));
+				next.importMode = "merge";
+				openImport(next, ctx, bundle.title, JSON.stringify(bundle.pack));
 			},
 		},
 		setOverwrite: {
 			args: [t.boolean()],
-			run(draft, [overwrite]) {
-				draft.overwrite = overwrite;
+			run(next, [overwrite]) {
+				next.overwrite = overwrite;
 			},
 		},
 		cancelImport: {
 			args: [],
-			run(draft) {
-				draft.showPreview = false;
-				draft.importSource = "";
+			run(next) {
+				next.showPreview = false;
+				next.importSource = "";
 			},
 		},
 		confirmImport: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				const plan = this.plan;
-				draft.showPreview = false;
-				draft.importSource = "";
+				next.showPreview = false;
+				next.importSource = "";
 				if (plan === null || plan.isNoop) return;
 				const C = ctx.scope.components;
-				const next = applyPlan(plan, this.snapshot());
-				const known = new Set(next.things.map((x) => x.id));
-				draft.things = next.things.map((x) => thingFrom(C, x));
-				draft.groups = next.groups.map((g, i) =>
+				const planned = applyPlan(plan, this.snapshot());
+				const known = new Set(planned.things.map((x) => x.id));
+				next.things = planned.things.map((x) => thingFrom(C, x));
+				next.groups = planned.groups.map((g, i) =>
 					tagFrom(C, { ...g, thingIds: g.thingIds.filter((id) => known.has(id)) }, i),
 				);
-				draft.events = next.events.filter((e) => known.has(e.thingId)).map(eventFrom);
-				draft.importText = "";
-				toast(draft, ctx, "Imported", importedText(plan));
-				refresh(this, draft);
+				next.events = planned.events.filter((e) => known.has(e.thingId)).map(eventFrom);
+				next.importText = "";
+				toast(next, ctx, "Imported", importedText(plan));
+				refresh(this, next);
 			},
 		},
 	},
 });
 // The event editor on entry id.
-const openEntry = (self, draft, id) => {
+const openEntry = (self, next, id) => {
 	const e = self.events.find((x) => x.id === id);
 	if (e === undefined) return;
 	const thing = self.things.find((x) => x.id === e.thingId);
@@ -1250,8 +1250,8 @@ const openEntry = (self, draft, id) => {
 		const unit = thing?.measurements.find((r) => r.measurementId === mid)?.unit;
 		return [makePrompt(C, m, unit, base, measurementHistory(self.events, e.thingId, mid), true)];
 	});
-	draft.listContext = null;
-	draft.panel = C.EventEditor({
+	next.listContext = null;
+	next.panel = C.EventEditor({
 		mode: "edit",
 		eventId: e.id,
 		thingId: e.thingId,
@@ -1264,7 +1264,7 @@ const openEntry = (self, draft, id) => {
 		values,
 	});
 };
-const openTagEditor = (self, draft, tag) => {
+const openTagEditor = (self, next, tag) => {
 	const C = scopeOf(self).components;
 	const members = [...self.things]
 		.sort((a, b) => a.title.localeCompare(b.title))
@@ -1274,7 +1274,7 @@ const openTagEditor = (self, draft, tag) => {
 			title: thing.title,
 			checked: tag?.thingIds.includes(thing.id) ?? false,
 		}));
-	draft.panel = C.TagEditor({
+	next.panel = C.TagEditor({
 		mode: tag === null ? "create" : "edit",
 		tagId: tag?.id ?? "",
 		emoji: tag?.emoji ?? "",
@@ -1282,9 +1282,9 @@ const openTagEditor = (self, draft, tag) => {
 		members,
 	});
 };
-const logEvent = (self, draft, ctx, thing, measurements) => {
+const logEvent = (self, next, ctx, thing, measurements) => {
 	const id = newId(ctx, "event");
-	draft.events.push({
+	next.events.push({
 		id,
 		thingId: thing.id,
 		recordedAt: self.now,
@@ -1298,8 +1298,8 @@ const logEvent = (self, draft, ctx, thing, measurements) => {
 			: `${measurements
 					.map((v) => formatMeasurement(findMeasurement(MEASUREMENTS, v.measurementId), v.value))
 					.join(" · ")} at ${formatTime(self.now, self.tz)}`;
-	toast(draft, ctx, `${thing.emoji} ${thing.title}`, text, { eventId: id, kind: "logged" });
-	refresh(self, draft);
+	toast(next, ctx, `${thing.emoji} ${thing.title}`, text, { eventId: id, kind: "logged" });
+	refresh(self, next);
 };
 
 // An app with the things and tags of bundles (slugs) and events, each { thing (id), ago

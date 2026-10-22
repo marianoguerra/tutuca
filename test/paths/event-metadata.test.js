@@ -62,8 +62,8 @@ for (const source of ["field", "seqItem", "provided"]) {
 				compact: h("button", { "on:click": send("inc") }, h("span", {}, "increment")),
 			},
 			on: {
-				inc(draft, _args, ctx) {
-					draft.count++;
+				inc(next, _args, ctx) {
+					next.count++;
 					ctx.notify("changed");
 				},
 			},
@@ -120,8 +120,8 @@ test("top-level each routes every item after keyed reorder", () => {
 		loops: { byId: { key: (_key, item) => item.id } },
 		view: each(field("items"), h("button", { "on:click": send("pick", sourceKey()) }), "byId"),
 		on: {
-			pick(draft, [key]) {
-				draft.picked.push(draft.items[key].id);
+			pick(next, [key]) {
+				next.picked.push(next.items[key].id);
 			},
 		},
 	});
@@ -168,8 +168,8 @@ test("nested multi-root loops retain paths across text, comments, empty scopes a
 			h("button", { "on:click": send("pick", sourceKey()) }),
 		),
 		on: {
-			pick(draft, [key]) {
-				draft.picked.push(key);
+			pick(next, [key]) {
+				next.picked.push(key);
 			},
 		},
 	});
@@ -191,8 +191,8 @@ test("renderIt promotes only its own scope and stops event lookup at its view", 
 		fields: { count: t.number() },
 		view: roots(h("button", { "on:click": send("inc") }), h("i", {})),
 		on: {
-			inc(draft) {
-				draft.count++;
+			inc(next) {
+				next.count++;
 			},
 		},
 	});
@@ -209,8 +209,8 @@ test("renderIt promotes only its own scope and stops event lookup at its view", 
 			),
 		),
 		on: {
-			pick(draft, [key]) {
-				draft.picked.push(key);
+			pick(next, [key]) {
+				next.picked.push(key);
 			},
 		},
 	});

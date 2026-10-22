@@ -373,14 +373,14 @@ test("lint warns about handlers that read the clock or randomness themselves", (
 		name: "Dice",
 		fields: { n: t.number(), at: t.number(), id: t.string() },
 		on: {
-			roll(draft) {
-				draft.n = Math.random();
-				draft.at = Date.now();
+			roll(next) {
+				next.n = Math.random();
+				next.at = Date.now();
 			},
-			rollWithCtx(draft, _args, ctx) {
-				draft.n = ctx.random();
-				draft.at = ctx.now();
-				draft.id = ctx.uuid();
+			rollWithCtx(next, _args, ctx) {
+				next.n = ctx.random();
+				next.at = ctx.now();
+				next.id = ctx.uuid();
 			},
 		},
 		view: "dice",

@@ -8,8 +8,8 @@ const Item = component({
 	fields: { count: t.number() },
 	view: h("button", { "on:click": send("inc") }, field("count")),
 	on: {
-		inc(draft) {
-			draft.count = draft.count > 0 ? "many" : draft.count + 1;
+		inc(next) {
+			next.count = next.count > 0 ? "many" : next.count + 1;
 		},
 	},
 });
@@ -19,9 +19,9 @@ const List = component({
 	fields: { items: t.array(t.component("Item")), title: t.string() },
 	view: h("div", { "on:click": send("rename") }, renderEach(field("items"))),
 	on: {
-		rename(draft) {
-			draft.title = 42;
-			draft.extra = true;
+		rename(next) {
+			next.title = 42;
+			next.extra = true;
 		},
 	},
 });
@@ -111,13 +111,13 @@ const Picker = component({
 			args: [t.number().int()],
 			pre: (prev) => prev.items.length > 0,
 			post: (_prev, next, [n]) => next.picked === n && n < 10,
-			run(draft, [n]) {
-				draft.picked = n;
+			run(next, [n]) {
+				next.picked = n;
 			},
 		},
 		noisy: {
 			emits: { notify: ["picked"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("picked");
 				ctx.notify("other");
 				ctx.ask("load");

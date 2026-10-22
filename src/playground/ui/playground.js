@@ -174,94 +174,94 @@ export const Playground = component({
 				t.number().int().min(0),
 				t.string(),
 			],
-			run(draft, [stories, run, wanted]) {
-				draft.stories = stories;
-				draft.status = "ready";
-				draft.error = "";
-				draft.run = run;
+			run(next, [stories, run, wanted]) {
+				next.stories = stories;
+				next.status = "ready";
+				next.error = "";
+				next.run = run;
 				const keep = (id) => id !== "" && stories.some((s) => s.id === id);
 				const id = keep(wanted)
 					? wanted
 					: keep(this.selectedId)
 						? this.selectedId
 						: (stories[0]?.id ?? "");
-				showStory(this, draft, id);
+				showStory(this, next, id);
 			},
 		},
 		setExamples: {
 			args: [t.array(t.record({ id: t.string(), title: t.string() }))],
-			run(draft, [examples]) {
-				draft.examples = examples;
+			run(next, [examples]) {
+				next.examples = examples;
 			},
 		},
 		loading: {
 			args: [t.string()],
-			run(draft, [example]) {
-				draft.example = example;
-				draft.status = "loading";
+			run(next, [example]) {
+				next.example = example;
+				next.status = "loading";
 			},
 		},
 		failed: {
 			args: [t.string()],
-			run(draft, [error]) {
-				draft.status = "failed";
-				draft.error = error;
+			run(next, [error]) {
+				next.status = "failed";
+				next.error = error;
 			},
 		},
 		selectExample: {
 			args: [t.string()],
 			emits: { ask: ["playground"] },
-			run(draft, [id], ctx) {
-				draft.example = id;
-				draft.status = "loading";
+			run(next, [id], ctx) {
+				next.example = id;
+				next.status = "loading";
 				ctx.ask("playground", ["example", id]);
 			},
 		},
 		selectStory: {
 			args: [t.string()],
 			emits: { ask: ["playground"] },
-			run(draft, [id], ctx) {
-				showStory(this, draft, id);
+			run(next, [id], ctx) {
+				showStory(this, next, id);
 				ctx.ask("playground", ["story", id]);
 			},
 		},
 		playgroundReplyOk() {},
-		playgroundReplyError(draft, [error]) {
-			draft.status = "failed";
-			draft.error = String(error?.message ?? error);
+		playgroundReplyError(next, [error]) {
+			next.status = "failed";
+			next.error = String(error?.message ?? error);
 		},
 		playgroundHandlerNotFound() {},
 		setTab: {
 			args: [t.enum(...TABS)],
-			run(draft, [tab]) {
-				draft.tab = tab;
+			run(next, [tab]) {
+				next.tab = tab;
 			},
 		},
-		showSteps(draft, _args, ctx) {
-			draft.tab = "steps";
+		showSteps(next, _args, ctx) {
+			next.tab = "steps";
 			ctx.stopNext();
 		},
-		appReport(draft, _args, ctx) {
+		appReport(next, _args, ctx) {
 			const detail = ctx.event?.detail;
 			if (detail?.key === this.appKey && detail.type === "state") {
 				const { dev, timeline, cursor } = detail.data;
-				draft.issueCount = dev?.issues.length ?? 0;
+				next.issueCount = dev?.issues.length ?? 0;
 				const [size, , label, origin] = showArgs({
 					size: timeline.length,
 					current: timeline[cursor],
 				});
-				Object.assign(draft.travel, { target: this.appKey, size, cursor, label, origin });
+				Object.assign(next.travel, { target: this.appKey, size, cursor, label, origin });
 			}
-			applyAppReport(this, draft, detail);
+			applyAppReport(this, next, detail);
 		},
 	},
 });
 
-const showStory = (self, draft, id) => {
-	draft.selectedId = id;
-	draft.issueCount = 0;
-	resetPanels(self, draft, `r${draft.run}/${id}@${self.seed}`);
-	draft.travel = scopeOf(self).components.TimeTravel();
+const showStory = (self, next, id) => {
+	next.selectedId = id;
+	next.issueCount = 0;
+	resetPanels(self, next, `r${next.run}/${id}@${self.seed}`);
+	next.travel = scopeOf(self).components.TimeTravel();
 };
 
 export const makePlayground = (C) =>

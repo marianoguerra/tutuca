@@ -33,21 +33,21 @@ export const Line = component({
 	on: {
 		step: {
 			args: [t.number().int()],
-			run(draft, [by]) {
-				draft.quantity = Math.max(0, this.quantity + by);
+			run(next, [by]) {
+				next.quantity = Math.max(0, this.quantity + by);
 			},
 		},
 		setQuantity: {
 			args: [t.number().int().min(0)],
-			run(draft, [quantity]) {
-				draft.quantity = quantity;
+			run(next, [quantity]) {
+				next.quantity = quantity;
 			},
 		},
 		// A line can't remove itself: it tells its parent, which owns the list.
 		remove: {
 			args: [],
 			emits: { notify: ["removeLine"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("removeLine");
 			},
 		},
@@ -80,8 +80,8 @@ export const Cart = component({
 		removeLine: {
 			args: [],
 			sourceKey: t.index("lines"),
-			run(draft, _args, ctx) {
-				draft.lines.splice(ctx.sourceKey, 1);
+			run(next, _args, ctx) {
+				next.lines.splice(ctx.sourceKey, 1);
 				ctx.stopNext();
 			},
 		},

@@ -10,23 +10,23 @@ import { applyStress, StressPanel } from "./stress-panel.js";
 export const panelComponents = { StoryPanel, StressPanel, ...devComponents };
 export const panelClassNames = [...Object.values(BADGES), ...devClasses];
 
-// New panels for the app at appKey, in draft's story, stress and dev fields.
-export const resetPanels = (self, draft, appKey) => {
+// New panels for the app at appKey, in next's story, stress and dev fields.
+export const resetPanels = (self, next, appKey) => {
 	const C = scopeOf(self).components;
-	draft.story = C.StoryPanel({ appKey });
-	draft.stress = C.StressPanel({ appKey });
-	draft.dev = makeDevPanel(C);
+	next.story = C.StoryPanel({ appKey });
+	next.stress = C.StressPanel({ appKey });
+	next.dev = makeDevPanel(C);
 };
 
 // Applies a tutucareport of self's app (self.appKey) to the panels; reports of other apps,
 // like one being replaced, are ignored.
-export const applyAppReport = (self, draft, detail) => {
+export const applyAppReport = (self, next, detail) => {
 	if (detail?.key !== self.appKey) return;
-	if (detail.type === "state" && draft.story.appKey === detail.key) {
-		for (const key of SUMMARY_KEYS) draft.story[key] = detail.data[key];
-		syncForm(draft.story);
-		if (detail.data.dev) updateDevPanel(scopeOf(self).components, draft.dev, detail.data.dev);
-	} else if (detail.type === "stress" && draft.stress.status === "running") {
-		applyStress(draft.stress, detail.data);
+	if (detail.type === "state" && next.story.appKey === detail.key) {
+		for (const key of SUMMARY_KEYS) next.story[key] = detail.data[key];
+		syncForm(next.story);
+		if (detail.data.dev) updateDevPanel(scopeOf(self).components, next.dev, detail.data.dev);
+	} else if (detail.type === "stress" && next.stress.status === "running") {
+		applyStress(next.stress, detail.data);
 	}
 };

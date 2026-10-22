@@ -108,20 +108,20 @@ export const EventEditor = component({
 		...closing(always),
 		setWhen: {
 			args: [t.string()],
-			run(draft, [when]) {
-				draft.when = when;
+			run(next, [when]) {
+				next.when = when;
 			},
 		},
 		setNotes: {
 			args: [t.string()],
-			run(draft, [notes]) {
-				draft.notes = notes;
+			run(next, [notes]) {
+				next.notes = notes;
 			},
 		},
 		save: {
 			args: [],
 			emits: { notify: ["saveEntry"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				const { actualAt } = this;
 				if (actualAt === null) return;
 				const measurements = this.values
@@ -134,7 +134,7 @@ export const EventEditor = component({
 		remove: {
 			args: [],
 			emits: { notify: ["deleteEntry"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("deleteEntry", [this.eventId]);
 			},
 		},

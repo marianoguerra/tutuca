@@ -102,7 +102,7 @@ const node = (edit, ...children) =>
 	);
 const clear = {
 	args: [],
-	run(_draft, _args, ctx) {
+	run(_next, _args, ctx) {
 		return ctx.scope.make("Hole", {});
 	},
 };
@@ -218,8 +218,8 @@ export const Hole = component({
 		toggle: {
 			args: [],
 			post: (prev, next) => next.open === !prev.open,
-			run(draft) {
-				draft.open = !this.open;
+			run(next) {
+				next.open = !this.open;
 			},
 		},
 		// A node dropped here: the editor, which holds both places, moves it, or copies it on
@@ -227,7 +227,7 @@ export const Hole = component({
 		dropNode: {
 			args: [],
 			emits: { notify: ["placeNode"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				if (ctx.drag?.type !== "node") return;
 				const from = ctx.drag.path.toComponentPath().resolve().keys;
 				const to = ctx.path.resolve().keys;
@@ -238,7 +238,7 @@ export const Hole = component({
 		// Replaces itself with a new node of kind, its expressions holes.
 		fill: {
 			args: [t.enum(...Object.keys(KINDS))],
-			run(_draft, [kind], ctx) {
+			run(_next, [kind], ctx) {
 				if (kind === "Call") return newCall(ctx.scope, BUILTIN_NAMES[0]);
 				return ctx.scope.make(kind, {});
 			},
@@ -285,10 +285,10 @@ export const Num = component({
 		setText: {
 			args: [t.string()],
 			post: (_prev, next, [text]) => next.text === text,
-			run(draft, [text]) {
-				draft.text = text;
+			run(next, [text]) {
+				next.text = text;
 				const n = asNumber(text);
-				if (Number.isFinite(n)) draft.value = n;
+				if (Number.isFinite(n)) next.value = n;
 			},
 		},
 		clear,
@@ -328,8 +328,8 @@ export const Bool = component({
 		toggle: {
 			args: [],
 			post: (prev, next) => next.value === !prev.value,
-			run(draft) {
-				draft.value = !this.value;
+			run(next) {
+				next.value = !this.value;
 			},
 		},
 		clear,
@@ -375,8 +375,8 @@ export const Str = component({
 		setValue: {
 			args: [t.string()],
 			post: (_prev, next, [value]) => next.value === value,
-			run(draft, [value]) {
-				draft.value = value;
+			run(next, [value]) {
+				next.value = value;
 			},
 		},
 		clear,
@@ -394,8 +394,8 @@ const nameInput = (label) =>
 const setName = {
 	args: [t.string()],
 	post: (_prev, next, [name]) => next.name === name,
-	run(draft, [name]) {
-		draft.name = name;
+	run(next, [name]) {
+		next.name = name;
 	},
 };
 
@@ -485,8 +485,8 @@ const binary = (name, ops, apply) =>
 			setOp: {
 				args: [t.enum(...Object.keys(ops))],
 				post: (_prev, next, [op]) => next.op === op,
-				run(draft, [op]) {
-					draft.op = op;
+				run(next, [op]) {
+					next.op = op;
 				},
 			},
 			clear,
@@ -666,11 +666,11 @@ export const Call = component({
 		setFn: {
 			args: [t.enum(...BUILTIN_NAMES)],
 			post: (_prev, next, [fn]) => next.fn === fn && next.args.length === BUILTINS[fn][0],
-			run(draft, [fn], ctx) {
+			run(next, [fn], ctx) {
 				const arity = BUILTINS[fn][0];
-				draft.fn = fn;
-				draft.args.splice(arity);
-				draft.args.push(...holes(ctx.scope, arity - draft.args.length));
+				next.fn = fn;
+				next.args.splice(arity);
+				next.args.push(...holes(ctx.scope, arity - next.args.length));
 			},
 		},
 		clear,
@@ -784,17 +784,17 @@ export const Program = component({
 		add: {
 			args: [],
 			post: (prev, next) => next.statements.length === prev.statements.length + 1,
-			run(draft, _args, ctx) {
-				draft.statements.push(this.newStatement(ctx.scope));
+			run(next, _args, ctx) {
+				next.statements.push(this.newStatement(ctx.scope));
 			},
 		},
 		// Adds a statement after the one at key, or before it on Ctrl+click.
 		insertAt: {
 			args: [t.index("statements")],
 			post: (prev, next) => next.statements.length === prev.statements.length + 1,
-			run(draft, [key], ctx) {
+			run(next, [key], ctx) {
 				const before = ctx.event?.ctrlKey || ctx.event?.metaKey;
-				draft.statements.splice(before ? key : key + 1, 0, this.newStatement(ctx.scope));
+				next.statements.splice(before ? key : key + 1, 0, this.newStatement(ctx.scope));
 			},
 		},
 		// A statement dragged onto the one at onto: it goes above it, or below when dropped on
@@ -802,20 +802,20 @@ export const Program = component({
 		moveStatement: {
 			args: [t.option(t.index("statements")), t.index("statements")],
 			post: (prev, next) => next.statements.length === prev.statements.length,
-			run(draft, [from, onto], ctx) {
+			run(next, [from, onto], ctx) {
 				if (from === null || from === onto || !isOwnStatement(ctx)) return;
 				let to = isLowerHalf(ctx) ? onto + 1 : onto;
 				if (from < to) to--;
-				const [statement] = draft.statements.splice(from, 1);
-				draft.statements.splice(to, 0, statement);
+				const [statement] = next.statements.splice(from, 1);
+				next.statements.splice(to, 0, statement);
 			},
 		},
 		placeNode,
 		removeAt: {
 			args: [t.index("statements")],
 			post: (prev, next) => next.statements.length === prev.statements.length - 1,
-			run(draft, [key]) {
-				draft.statements.splice(key, 1);
+			run(next, [key]) {
+				next.statements.splice(key, 1);
 			},
 		},
 	},
@@ -926,8 +926,8 @@ export const Editor = component({
 	on: {
 		setMode: {
 			args: [t.enum("view", "edit")],
-			run(draft, [mode]) {
-				draft.mode = mode;
+			run(next, [mode]) {
+				next.mode = mode;
 			},
 		},
 		// From a hole: the node at from, keys from the root, was dropped on the hole at to. It
@@ -935,7 +935,7 @@ export const Editor = component({
 		// itself, and only expressions from this editor's program move.
 		placeNode: {
 			args: PLACE_ARGS,
-			run(draft, [from, to, copy], ctx) {
+			run(next, [from, to, copy], ctx) {
 				ctx.stopNext();
 				const base = ctx.path.resolve().keys;
 				const within = (keys) => base.every((key, i) => keys[i] === key);
@@ -947,14 +947,14 @@ export const Editor = component({
 				const name = nameAt(source);
 				if (!EXPR_NAMES.includes(name) || name === "Hole" || nameAt(target) !== "Hole") return;
 				const value = source.getIn(this);
-				target.setIn(draft, value);
-				if (!copy) source.setIn(draft, ctx.scope.make("Hole", {}));
+				target.setIn(next, value);
+				if (!copy) source.setIn(next, ctx.scope.make("Hole", {}));
 			},
 		},
 		setNotation: {
 			args: [t.enum(...Object.keys(NOTATIONS))],
-			run(draft, [notation]) {
-				draft.notation = notation;
+			run(next, [notation]) {
+				next.notation = notation;
 			},
 		},
 	},

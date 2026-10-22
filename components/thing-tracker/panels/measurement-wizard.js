@@ -88,17 +88,17 @@ export const MeasurementWizard = component({
 		...closing(always),
 		back: {
 			args: [],
-			run(draft) {
-				if (this.step > 0) draft.step = this.step - 1;
+			run(next) {
+				if (this.step > 0) next.step = this.step - 1;
 			},
 		},
 		next: {
 			args: [],
 			emits: { notify: ["commitLog"] },
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				if (!(this.current.base > 0)) return;
 				if (!this.isLast) {
-					draft.step = this.step + 1;
+					next.step = this.step + 1;
 					return;
 				}
 				const values = this.prompts.map((pr) => ({

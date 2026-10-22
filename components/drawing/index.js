@@ -51,9 +51,9 @@ const NONE_STYLE = "background:repeating-linear-gradient(45deg,#fff 0 4px,#ed1c2
 const swatchStyle = (paint) => (paint === "none" ? NONE_STYLE : `background:${paint}`);
 
 // Every change to the shapes goes through here, so it can be undone.
-const remember = (self, draft) => {
-	draft.past = [...self.past.slice(-(MAX_HISTORY - 1)), self.shapes];
-	draft.future = [];
+const remember = (self, next) => {
+	next.past = [...self.past.slice(-(MAX_HISTORY - 1)), self.shapes];
+	next.future = [];
 };
 const newId = (ctx) => `s-${ctx.uuid()}`;
 
@@ -373,51 +373,51 @@ export const Drawing = component({
 	on: {
 		setTool: {
 			args: [t.string()],
-			run(draft, [tool]) {
+			run(next, [tool]) {
 				if (!TOOLS.some(([id]) => id === tool)) return;
-				draft.tool = tool;
-				draft.current = null;
-				if (tool !== "select") draft.selected = "";
+				next.tool = tool;
+				next.current = null;
+				if (tool !== "select") next.selected = "";
 			},
 		},
 		setWidth: {
 			args: [t.string()],
-			run(draft, [width]) {
+			run(next, [width]) {
 				const w = Number(width);
 				if (![1, 2, 4, 8].includes(w)) return;
-				draft.strokeWidth = w;
-				restyle(this, draft, { width: w });
+				next.strokeWidth = w;
+				restyle(this, next, { width: w });
 			},
 		},
 		setFill: {
 			args: [t.string()],
-			run(draft, [p]) {
+			run(next, [p]) {
 				if (!isPaint(p)) return;
-				draft.fill = p;
-				restyle(this, draft, { fill: p });
+				next.fill = p;
+				restyle(this, next, { fill: p });
 			},
 		},
 		// A right click on a swatch, as Inkscape's shift click.
 		setStroke: {
 			args: [t.string()],
-			run(draft, [p], ctx) {
+			run(next, [p], ctx) {
 				ctx.event?.preventDefault();
 				if (!isPaint(p)) return;
-				draft.stroke = p;
-				restyle(this, draft, { stroke: p });
+				next.stroke = p;
+				restyle(this, next, { stroke: p });
 			},
 		},
 		// Drawing, by coordinates.
 		startAt: {
 			args: [coord(), coord()],
-			run(draft, [x, y], ctx) {
+			run(next, [x, y], ctx) {
 				if (this.tool === "select") {
-					draft.selected = "";
+					next.selected = "";
 					return;
 				}
 				// A polyline being drawn takes another point; its last one follows the pointer.
 				if (this.current !== null && this.tool === "polyline") {
-					draft.current.addPoint(x, y);
+					next.current.addPoint(x, y);
 					return;
 				}
 				const kind = TOOLS.find(([id]) => id === this.tool)[3];
@@ -428,38 +428,38 @@ export const Drawing = component({
 				};
 				const shape =
 					kind === "Polyline" ? { points: [x, y, x, y] } : { x0: x, y0: y, x1: x, y1: y };
-				draft.current = ctx.scope.make(kind, { id: newId(ctx), ...style, ...shape });
+				next.current = ctx.scope.make(kind, { id: newId(ctx), ...style, ...shape });
 			},
 		},
 		moveTo: {
 			args: [coord(), coord()],
-			run(draft, [x, y]) {
-				draft.cursor = `${Math.round(x)}, ${Math.round(y)}`;
-				if (draft.current !== null) draft.current.dragTo(x, y);
+			run(next, [x, y]) {
+				next.cursor = `${Math.round(x)}, ${Math.round(y)}`;
+				if (next.current !== null) next.current.dragTo(x, y);
 				else if (this.dragFrom !== null && this.selection !== null) {
 					const [x0, y0] = this.dragFrom;
-					draft.shapes[this.selectedIndex].moveBy(x - x0, y - y0);
-					draft.dragFrom = [x, y];
+					next.shapes[this.selectedIndex].moveBy(x - x0, y - y0);
+					next.dragFrom = [x, y];
 				}
 			},
 		},
 		// Ends a drag; a polyline goes on until finish.
 		end: {
 			args: [],
-			run(draft) {
-				draft.dragFrom = null;
+			run(next) {
+				next.dragFrom = null;
 				if (this.current === null || this.tool === "polyline") return;
-				commit(this, draft, this.current);
+				commit(this, next, this.current);
 			},
 		},
 		finish: {
 			args: [],
 			post: (_prev, next) => next.current === null,
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				const shape = this.current;
 				if (shape === null) return;
 				if (shape.points === undefined) {
-					commit(this, draft, shape);
+					commit(this, next, shape);
 					return;
 				}
 				// Without the point following the pointer, and the repeats a double click adds.
@@ -469,140 +469,140 @@ export const Drawing = component({
 					if (kept.at(-2) !== points[i] || kept.at(-1) !== points[i + 1])
 						kept.push(points[i], points[i + 1]);
 				}
-				commit(this, draft, ctx.scope.make("Polyline", { ...shape, points: kept }));
+				commit(this, next, ctx.scope.make("Polyline", { ...shape, points: kept }));
 			},
 		},
 		cancel: {
 			args: [],
-			run(draft) {
-				draft.current = null;
-				draft.dragFrom = null;
-				draft.selected = "";
+			run(next) {
+				next.current = null;
+				next.dragFrom = null;
+				next.selected = "";
 			},
 		},
 		// Pointer events, turned into the messages above.
-		down(draft, _args, ctx) {
+		down(next, _args, ctx) {
 			const point = svgPoint(ctx.event);
 			if (point === null || ctx.event.button > 0) return;
 			capture(ctx.event);
-			Drawing.on.startAt.run.call(this, draft, point, ctx);
+			Drawing.on.startAt.run.call(this, next, point, ctx);
 		},
-		move(draft, _args, ctx) {
+		move(next, _args, ctx) {
 			const point = svgPoint(ctx.event);
-			if (point !== null) Drawing.on.moveTo.run.call(this, draft, point, ctx);
+			if (point !== null) Drawing.on.moveTo.run.call(this, next, point, ctx);
 		},
-		up(draft, _args, ctx) {
-			Drawing.on.end.run.call(this, draft, [], ctx);
+		up(next, _args, ctx) {
+			Drawing.on.end.run.call(this, next, [], ctx);
 		},
 		// From a pressed shape: the select tool picks it up, the others draw over it.
 		shapeDown: {
 			args: [t.string(), coord(), coord()],
-			run(draft, [id, x, y], ctx) {
+			run(next, [id, x, y], ctx) {
 				ctx.stopNext();
 				if (this.tool !== "select") {
-					Drawing.on.startAt.run.call(this, draft, [x, y], ctx);
+					Drawing.on.startAt.run.call(this, next, [x, y], ctx);
 					return;
 				}
 				if (!this.shapes.some((s) => s.id === id)) return;
-				remember(this, draft); // So moving it can be undone.
-				draft.selected = id;
-				draft.dragFrom = [x, y];
+				remember(this, next); // So moving it can be undone.
+				next.selected = id;
+				next.dragFrom = [x, y];
 			},
 		},
 		shapeMove: {
 			args: [coord(), coord()],
-			run(draft, point, ctx) {
+			run(next, point, ctx) {
 				ctx.stopNext();
-				Drawing.on.moveTo.run.call(this, draft, point, ctx);
+				Drawing.on.moveTo.run.call(this, next, point, ctx);
 			},
 		},
 		shapeUp: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext();
-				Drawing.on.end.run.call(this, draft, [], ctx);
+				Drawing.on.end.run.call(this, next, [], ctx);
 			},
 		},
 		raise: {
 			args: [],
-			run(draft) {
+			run(next) {
 				const i = this.selectedIndex;
 				if (i < 0 || i === this.shapes.length - 1) return;
-				remember(this, draft);
-				[draft.shapes[i], draft.shapes[i + 1]] = [this.shapes[i + 1], this.shapes[i]];
+				remember(this, next);
+				[next.shapes[i], next.shapes[i + 1]] = [this.shapes[i + 1], this.shapes[i]];
 			},
 		},
 		lower: {
 			args: [],
-			run(draft) {
+			run(next) {
 				const i = this.selectedIndex;
 				if (i <= 0) return;
-				remember(this, draft);
-				[draft.shapes[i - 1], draft.shapes[i]] = [this.shapes[i], this.shapes[i - 1]];
+				remember(this, next);
+				[next.shapes[i - 1], next.shapes[i]] = [this.shapes[i], this.shapes[i - 1]];
 			},
 		},
 		// A copy a little down and right, above the original, which becomes the selection.
 		duplicate: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				const s = this.selection;
 				if (s === null) return;
-				remember(this, draft);
+				remember(this, next);
 				const copy = ctx.scope.make(specOf(s).name, { ...s, id: newId(ctx) });
 				const at = this.selectedIndex + 1;
-				draft.shapes.splice(at, 0, copy);
+				next.shapes.splice(at, 0, copy);
 				// Toward the side with room, so a copy at the edge still shows apart.
 				const nudge = (far) => (far + 10 <= COORD_MAX ? 10 : -10);
-				draft.shapes[at].moveBy(nudge(s.left + s.boxWidth), nudge(s.top + s.boxHeight));
-				draft.selected = copy.id;
+				next.shapes[at].moveBy(nudge(s.left + s.boxWidth), nudge(s.top + s.boxHeight));
+				next.selected = copy.id;
 			},
 		},
 		remove: {
 			args: [],
-			run(draft) {
+			run(next) {
 				const i = this.selectedIndex;
 				if (i < 0) return;
-				remember(this, draft);
-				draft.shapes.splice(i, 1);
-				draft.selected = "";
+				remember(this, next);
+				next.shapes.splice(i, 1);
+				next.selected = "";
 			},
 		},
 		undo: {
 			args: [],
-			run(draft) {
+			run(next) {
 				if (this.past.length === 0) return;
-				draft.future = [this.shapes, ...this.future];
-				draft.shapes = this.past.at(-1);
-				draft.past = this.past.slice(0, -1);
-				deselectMissing(draft);
+				next.future = [this.shapes, ...this.future];
+				next.shapes = this.past.at(-1);
+				next.past = this.past.slice(0, -1);
+				deselectMissing(next);
 			},
 		},
 		redo: {
 			args: [],
-			run(draft) {
+			run(next) {
 				if (this.future.length === 0) return;
-				draft.past = [...this.past.slice(-(MAX_HISTORY - 1)), this.shapes];
-				draft.shapes = this.future[0];
-				draft.future = this.future.slice(1);
-				deselectMissing(draft);
+				next.past = [...this.past.slice(-(MAX_HISTORY - 1)), this.shapes];
+				next.shapes = this.future[0];
+				next.future = this.future.slice(1);
+				deselectMissing(next);
 			},
 		},
 		clear: {
 			args: [],
 			post: (_prev, next) => next.shapes.length === 0,
-			run(draft) {
-				draft.current = null;
-				draft.selected = "";
+			run(next) {
+				next.current = null;
+				next.selected = "";
 				if (this.shapes.length === 0) return;
-				remember(this, draft);
-				draft.shapes = [];
+				remember(this, next);
+				next.shapes = [];
 			},
 		},
-		key(draft, _args, ctx) {
+		key(next, _args, ctx) {
 			const e = ctx.event;
 			const key = e?.key?.toLowerCase();
 			if (key === undefined) return;
-			const run = (name) => Drawing.on[name].run.call(this, draft, [], ctx);
+			const run = (name) => Drawing.on[name].run.call(this, next, [], ctx);
 			if (e.ctrlKey || e.metaKey) {
 				if (key === "z" && !e.shiftKey) run("undo");
 				else if (key === "y" || key === "z") run("redo");
@@ -614,14 +614,14 @@ export const Drawing = component({
 			else if (key === "enter") run("finish");
 			else if (key === "escape") run("cancel");
 			else if (TOOL_KEYS[key] !== undefined)
-				Drawing.on.setTool.run.call(this, draft, [TOOL_KEYS[key]], ctx);
+				Drawing.on.setTool.run.call(this, next, [TOOL_KEYS[key]], ctx);
 			else return;
 			e.preventDefault();
 		},
 		exportSvg: {
 			args: [],
 			emits: { ask: ["saveFile"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.ask("saveFile", ["drawing.svg", this.toSvg(), "image/svg+xml"]);
 			},
 		},
@@ -631,23 +631,23 @@ export const Drawing = component({
 	},
 });
 // Paint and width apply to the selection too, as one undoable change.
-function restyle(self, draft, changes) {
+function restyle(self, next, changes) {
 	const i = self.selectedIndex;
 	if (i < 0) return;
-	remember(self, draft);
-	Object.assign(draft.shapes[i], changes);
+	remember(self, next);
+	Object.assign(next.shapes[i], changes);
 }
-function commit(self, draft, shape) {
-	draft.current = null;
+function commit(self, next, shape) {
+	next.current = null;
 	if (shape.isEmpty()) return;
-	remember(self, draft);
-	draft.shapes.push(shape);
+	remember(self, next);
+	next.shapes.push(shape);
 }
 function hasUniqueIds(shapes) {
 	return new Set(shapes.map((s) => s.id)).size === shapes.length;
 }
-function deselectMissing(draft) {
-	if (!draft.shapes.some((s) => s.id === draft.selected)) draft.selected = "";
+function deselectMissing(next) {
+	if (!next.shapes.some((s) => s.id === next.selected)) next.selected = "";
 }
 
 export const drawingComponents = { Drawing, Rect, Ellipse, Line, Polyline };

@@ -52,10 +52,10 @@ const Tabs = component({
 			args: [],
 			sourceKey: t.index("tabs"),
 			post: (_prev, next, _args, { sourceKey }) => next.selectedTabIndex === sourceKey,
-			run(draft, _args, ctx) {
-				draft.tabs[this.selectedTabIndex].isSelected = false;
-				draft.tabs[ctx.sourceKey].isSelected = true;
-				draft.selectedTabIndex = ctx.sourceKey;
+			run(next, _args, ctx) {
+				next.tabs[this.selectedTabIndex].isSelected = false;
+				next.tabs[ctx.sourceKey].isSelected = true;
+				next.selectedTabIndex = ctx.sourceKey;
 				ctx.stopNext();
 			},
 		},
@@ -77,8 +77,8 @@ const Tab = component({
 		selected: {
 			args: [],
 			emits: { notify: ["tabSelected"] },
-			run(draft, _args, ctx) {
-				draft.isSelected = true;
+			run(next, _args, ctx) {
+				next.isSelected = true;
 				ctx.notify("tabSelected");
 			},
 		},
@@ -159,8 +159,8 @@ test("a handler that breaks the schema is found with a minimal sequence", () => 
 		fields: { count: t.number() },
 		view: h("button", { "on:click": send("inc") }, field("count")),
 		on: {
-			inc(draft) {
-				draft.count = draft.count > 0 ? "many" : draft.count + 1;
+			inc(next) {
+				next.count = next.count > 0 ? "many" : next.count + 1;
 			},
 		},
 	});
@@ -185,9 +185,9 @@ test("a tab switch that forgets the old tab breaks the invariant", () => {
 		on: {
 			tabSelected: {
 				...tabSelected,
-				run(draft, _args, ctx) {
-					draft.tabs[ctx.sourceKey].isSelected = true;
-					draft.selectedTabIndex = ctx.sourceKey;
+				run(next, _args, ctx) {
+					next.tabs[ctx.sourceKey].isSelected = true;
+					next.selectedTabIndex = ctx.sourceKey;
 					ctx.stopNext();
 				},
 			},
@@ -214,8 +214,8 @@ test("a post condition that doesn't hold is reported with the message", () => {
 			add: {
 				args: [t.number().int().min(0).max(10)],
 				post: (prev, next, [n]) => next.count === prev.count + n,
-				run(draft, [n]) {
-					draft.count = Math.min(draft.count + n, 1000);
+				run(next, [n]) {
+					next.count = Math.min(next.count + n, 1000);
 				},
 			},
 		},

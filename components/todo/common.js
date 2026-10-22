@@ -53,9 +53,9 @@ export const labelsOf = (text) => [
 			.filter(Boolean),
 	),
 ];
-export const setDeep = (draft, key, value) => {
-	draft[key] = value;
-	for (const sub of draft.subtasks) setDeep(sub, key, value);
+export const setDeep = (next, key, value) => {
+	next[key] = value;
+	for (const sub of next.subtasks) setDeep(sub, key, value);
 };
 export const allTasks = (tasks) => tasks.flatMap((task) => [task, ...allTasks(task.subtasks)]);
 // The index of the next task after i in direction delta that passes keep, or -1.

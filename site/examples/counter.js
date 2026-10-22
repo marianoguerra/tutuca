@@ -16,13 +16,13 @@ export const Counter = component({
 		span({ class: "text-2xl font-bold tabular-nums" }, field("count")),
 		button({ class: "btn btn-primary", "on:click": send("inc") }, "+"),
 	),
-	// Handlers change a draft of the state; tutuca renders the new state.
+	// Handlers change next, a draft of the new state; tutuca renders it.
 	on: {
-		inc(draft) {
-			draft.count += 1;
+		inc(next) {
+			next.count += 1;
 		},
-		dec(draft) {
-			draft.count -= 1;
+		dec(next) {
+			next.count -= 1;
 		},
 	},
 });

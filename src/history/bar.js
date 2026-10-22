@@ -125,21 +125,21 @@ export const TimeTravel = component({
 	on: {
 		show: {
 			args: [t.number().int().min(0), t.number().int().min(0), t.string(), t.string()],
-			run(draft, [size, cursor, label, origin]) {
-				Object.assign(draft, { size, cursor, label, origin });
+			run(next, [size, cursor, label, origin]) {
+				Object.assign(next, { size, cursor, label, origin });
 			},
 		},
 		op: {
 			args: [t.enum(...OPS)],
 			emits: { ask: ["history"] },
-			run(_draft, [op], ctx) {
+			run(_next, [op], ctx) {
 				ctx.ask("history", [this.target, op, null]);
 			},
 		},
 		goto: {
 			args: [t.string()],
 			emits: { ask: ["history"] },
-			run(_draft, [value], ctx) {
+			run(_next, [value], ctx) {
 				const i = Number(value);
 				if (Number.isInteger(i)) ctx.ask("history", [this.target, "goto", i]);
 			},
@@ -148,7 +148,7 @@ export const TimeTravel = component({
 		key: {
 			args: [],
 			emits: { ask: ["history"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				const op = ctx.event?.altKey ? KEYS[ctx.event.key] : undefined;
 				if (op === undefined) return;
 				ctx.event.preventDefault?.();
@@ -156,7 +156,7 @@ export const TimeTravel = component({
 			},
 		},
 		historyReplyOk() {},
-		historyReplyError(_draft, [error]) {
+		historyReplyError(_next, [error]) {
 			console.error("time travel failed", error);
 		},
 	},

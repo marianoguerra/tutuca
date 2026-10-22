@@ -80,32 +80,32 @@ export const closing = (needsConfirm) => ({
 	requestClose: {
 		args: [],
 		emits: { notify: ["closePanel"] },
-		run(draft, _args, ctx) {
-			if (needsConfirm.call(this)) draft.confirming = true;
+		run(next, _args, ctx) {
+			if (needsConfirm.call(this)) next.confirming = true;
 			else ctx.notify("closePanel");
 		},
 	},
 	key: {
 		args: [],
 		emits: { notify: ["closePanel"] },
-		run(draft, _args, ctx) {
+		run(next, _args, ctx) {
 			if (ctx.event?.key !== "Escape") return;
-			if (this.confirming) draft.confirming = false;
-			else if (needsConfirm.call(this)) draft.confirming = true;
+			if (this.confirming) next.confirming = false;
+			else if (needsConfirm.call(this)) next.confirming = true;
 			else ctx.notify("closePanel");
 		},
 	},
 	keepEditing: {
 		args: [],
-		run(draft) {
-			draft.confirming = false;
+		run(next) {
+			next.confirming = false;
 		},
 	},
 	discard: {
 		args: [],
 		emits: { notify: ["closePanel"] },
-		run(draft, _args, ctx) {
-			draft.confirming = false;
+		run(next, _args, ctx) {
+			next.confirming = false;
 			ctx.notify("closePanel");
 		},
 	},

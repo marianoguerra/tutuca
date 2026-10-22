@@ -106,7 +106,7 @@ export const Thing = component({
 		tap: {
 			args: [],
 			emits: { notify: ["logThing"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("logThing", [this.id]);
 			},
 		},
@@ -114,7 +114,7 @@ export const Thing = component({
 		hold: {
 			args: [],
 			emits: { notify: ["backdateThing"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.event?.preventDefault();
 				ctx.notify("backdateThing", [this.id]);
 			},
@@ -122,7 +122,7 @@ export const Thing = component({
 		edit: {
 			args: [],
 			emits: { notify: ["editThing"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("editThing", [this.id]);
 			},
 		},
@@ -176,14 +176,14 @@ export const Tag = component({
 		edit: {
 			args: [],
 			emits: { notify: ["editTag"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("editTag");
 			},
 		},
 		share: {
 			args: [],
 			emits: { notify: ["shareTag"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("shareTag");
 			},
 		},
@@ -259,7 +259,7 @@ export const Section = component({
 		toggle: {
 			args: [],
 			emits: { notify: ["toggleSection"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("toggleSection", [this.id]);
 			},
 		},
@@ -269,7 +269,7 @@ export const Section = component({
 		toggleAll: {
 			args: [],
 			emits: { notify: ["toggleAllSections"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.event?.preventDefault();
 				ctx.notify("toggleAllSections");
 			},
@@ -339,7 +339,7 @@ export const Bucket = component({
 		open: {
 			args: [t.index("chips")],
 			emits: { notify: ["openChip"] },
-			run(_draft, [i], ctx) {
+			run(_next, [i], ctx) {
 				const { start, end, label } = this;
 				ctx.notify("openChip", [this.chips[i].thingId, start, end, label]);
 			},

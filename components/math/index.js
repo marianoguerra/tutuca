@@ -371,18 +371,18 @@ export const Quadratic = component({
 	on: {
 		setCoefficient: {
 			args: [t.enum("a", "b", "c"), t.string()],
-			run(draft, [name, text]) {
+			run(next, [name, text]) {
 				const n = Number(text);
 				if (!Number.isFinite(n) || n < -20 || n > 20) return;
 				if (name === "a" && n === 0) return; // Not a quadratic any more.
-				draft[name] = n;
+				next[name] = n;
 			},
 		},
 		preset: {
 			args: [t.string()],
-			run(draft, [name]) {
+			run(next, [name]) {
 				const preset = PRESETS[name];
-				if (preset !== undefined) [draft.a, draft.b, draft.c] = preset;
+				if (preset !== undefined) [next.a, next.b, next.c] = preset;
 			},
 		},
 	},
@@ -503,9 +503,9 @@ export const Matrix2 = component({
 	on: {
 		setEntry: {
 			args: [t.enum("a", "b", "c", "d"), t.string()],
-			run(draft, [name, text]) {
+			run(next, [name, text]) {
 				const n = Number(text);
-				if (Number.isInteger(n) && n >= -9 && n <= 9) draft[name] = n;
+				if (Number.isInteger(n) && n >= -9 && n <= 9) next[name] = n;
 			},
 		},
 	},

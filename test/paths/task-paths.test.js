@@ -14,8 +14,8 @@ function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 		},
 		view: h("button", { id: "item", "on:click": send("inc") }, "inc"),
 		on: {
-			inc(draft) {
-				draft.count++;
+			inc(next) {
+				next.count++;
 			},
 			...itemHandlers,
 		},
@@ -61,12 +61,12 @@ function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 
 test("generated paths capture producer commit before intervening tasks run", () => {
 	const { host, notices, queueEvents, drain } = setup({
-		queue(draft, _args, ctx) {
+		queue(next, _args, ctx) {
 			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
-			draft.selected = 1;
+			next.selected = 1;
 		},
-		change(draft) {
-			draft.selected = 0;
+		change(next) {
+			next.selected = 0;
 		},
 	});
 	queueEvents("queue", "change");
@@ -81,8 +81,8 @@ test("generated paths capture producer commit before intervening tasks run", () 
 
 test("DOM event paths retain event-time selection behind older queued work", () => {
 	const { host, queueEvents, drain } = setup({
-		change(draft) {
-			draft.selected = 1;
+		change(next) {
+			next.selected = 1;
 		},
 	});
 	queueEvents("change", "item");
@@ -96,13 +96,13 @@ test("DOM event paths retain event-time selection behind older queued work", () 
 test("failed producers discard drafts and children but preserve older tasks", () => {
 	const error = new Error("producer failed");
 	const { host, notices, queueEvents, drain, rootNode } = setup({
-		fail(draft, _args, ctx) {
-			draft.selected = 1;
+		fail(next, _args, ctx) {
+			next.selected = 1;
 			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
 			throw error;
 		},
-		keep(draft) {
-			draft.committed++;
+		keep(next) {
+			next.committed++;
 		},
 	});
 	queueEvents("fail", "keep");
@@ -122,14 +122,14 @@ test("failed producers discard drafts and children but preserve older tasks", ()
 test("child path preparation failure rolls back the producer and all its children", () => {
 	let failedContext;
 	const { host, notices, queueEvents, drain } = setup({
-		fail(draft, _args, ctx) {
+		fail(next, _args, ctx) {
 			failedContext = ctx;
-			draft.selected = 1;
+			next.selected = 1;
 			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
 			ctx.sendAt("inc", [], (pb) => pb.field("missing").seqItem("items", "selected"));
 		},
-		keep(draft) {
-			draft.committed++;
+		keep(next) {
+			next.committed++;
 		},
 	});
 	queueEvents("fail", "keep");
@@ -153,21 +153,21 @@ test("a throwing sync ReplyOk fails the ask instead of running ReplyError", () =
 	const error = new Error("reply failed");
 	const { host, notices, queueEvents, drain } = setup(
 		{
-			queue(_draft, _args, ctx) {
+			queue(_next, _args, ctx) {
 				ctx.sendAt("request", [], (pb) => pb.seqItem("items", "selected"));
 			},
 		},
 		{
-			request(_draft, _args, ctx) {
+			request(_next, _args, ctx) {
 				ctx.ask("load");
 			},
-			loadReplyOk(draft, _args, ctx) {
-				draft.reply = "ok";
+			loadReplyOk(next, _args, ctx) {
+				next.reply = "ok";
 				ctx.sendAt("inc", [], (_pb) => {});
 				throw error;
 			},
-			loadReplyError(draft) {
-				draft.reply = "error";
+			loadReplyError(next) {
+				next.reply = "error";
 			},
 		},
 	);
@@ -185,22 +185,22 @@ for (const rejected of [false, true]) {
 		const pending = new Promise((resolve, reject) => {
 			settle = rejected ? reject : resolve;
 		});
-		const replyHandler = (draft, [value], ctx) => {
-			draft.reply = value;
+		const replyHandler = (next, [value], ctx) => {
+			next.reply = value;
 			ctx.sendAt("inc", [], (_pb) => {});
 		};
 		const { host, notices, queueEvents, drain } = setup(
 			{
-				queue(draft, _args, ctx) {
+				queue(next, _args, ctx) {
 					ctx.sendAt("request", [], (pb) => pb.seqItem("items", "selected"));
-					draft.selected = 1;
+					next.selected = 1;
 				},
-				change(draft) {
-					draft.selected = 0;
+				change(next) {
+					next.selected = 0;
 				},
 			},
 			{
-				request(_draft, _args, ctx) {
+				request(_next, _args, ctx) {
 					ctx.ask("load");
 				},
 				loadReplyOk: replyHandler,
@@ -232,10 +232,10 @@ for (const rejected of [false, true]) {
 
 test("reentrant draining cannot execute children before their producer commits", () => {
 	const { host, queueEvents, drain } = setup({
-		queue(draft, _args, ctx) {
+		queue(next, _args, ctx) {
 			ctx.sendAt("inc", [], (pb) => pb.seqItem("items", "selected"));
 			host.handleTasks();
-			draft.selected = 1;
+			next.selected = 1;
 		},
 	});
 	queueEvents("queue");
@@ -249,8 +249,8 @@ test("reentrant draining cannot execute children before their producer commits",
 for (const renderThrows of [false, true]) {
 	test(`events during rendering wait for the next tick${renderThrows ? " even when rendering throws" : ""}`, () => {
 		const { host, queueEvents, rootNode } = setup({
-			change(draft) {
-				draft.committed++;
+			change(next) {
+				next.committed++;
 			},
 		});
 		queueEvents("change");
@@ -287,20 +287,20 @@ test("dynamic selectors below provided frames capture commit and retain bubbling
 	const seen = [];
 	const { host, notices, queueEvents, drain, C } = setup(
 		{
-			change(draft) {
-				draft.items[0].selected = 0;
+			change(next) {
+				next.items[0].selected = 0;
 			},
 			changed() {
 				seen.push("root");
 			},
 		},
 		{
-			inc(draft, _args, ctx) {
+			inc(next, _args, ctx) {
 				ctx.sendAt("bump", [], (pb) => pb.seqItem("children", "selected"));
-				draft.selected = 1;
+				next.selected = 1;
 			},
-			bump(draft, _args, ctx) {
-				draft.count++;
+			bump(next, _args, ctx) {
+				next.count++;
 				ctx.notify("changed");
 			},
 			changed() {

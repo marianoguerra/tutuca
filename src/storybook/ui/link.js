@@ -65,14 +65,14 @@ export const StoryLink = component({
 		toggleGroup: {
 			args: [],
 			emits: { notify: ["groupToggled"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("groupToggled", [this.group]);
 			},
 		},
 		select: {
 			args: [],
 			emits: { notify: ["storySelected"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("storySelected", [this.id]);
 			},
 		},

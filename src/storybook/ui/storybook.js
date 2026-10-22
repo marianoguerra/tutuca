@@ -120,28 +120,28 @@ export const Storybook = component({
 	on: {
 		setFilterText: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.filterText = text;
-				syncCollapsed(draft);
+			run(next, [text]) {
+				next.filterText = text;
+				syncCollapsed(next);
 			},
 		},
 		groupToggled: {
 			args: [t.string()],
-			run(draft, [group], ctx) {
+			run(next, [group], ctx) {
 				ctx.stopNext();
 				const { collapsed } = this;
-				draft.collapsed = collapsed.includes(group)
+				next.collapsed = collapsed.includes(group)
 					? collapsed.filter((g) => g !== group)
 					: [...collapsed, group];
-				syncCollapsed(draft);
+				syncCollapsed(next);
 			},
 		},
 		// Shows the new story from its top, wherever the list was scrolled to.
 		storySelected: {
 			args: [t.string()],
 			emits: { ask: ["scrollToTop"] },
-			run(draft, [id], ctx) {
-				selectStory(this, draft, id);
+			run(next, [id], ctx) {
+				selectStory(this, next, id);
 				ctx.stopNext();
 				ctx.ask("scrollToTop");
 			},
@@ -151,37 +151,37 @@ export const Storybook = component({
 		scrollToTopHandlerNotFound() {},
 		setPanel: {
 			args: [t.enum("steps", "stress", "dev")],
-			run(draft, [panel]) {
-				draft.panel = panel;
+			run(next, [panel]) {
+				next.panel = panel;
 			},
 		},
-		showSteps(draft, _args, ctx) {
-			draft.panel = "steps";
+		showSteps(next, _args, ctx) {
+			next.panel = "steps";
 			ctx.stopNext();
 		},
-		reroll(draft) {
-			draft.seed = this.seed + 1;
-			resetPanels(this, draft, `${this.selectedId}@${this.seed + 1}`);
+		reroll(next) {
+			next.seed = this.seed + 1;
+			resetPanels(this, next, `${this.selectedId}@${this.seed + 1}`);
 		},
 		// Reports from the story's <tutuca-app>; only events carry them.
-		appReport(draft, _args, ctx) {
-			applyAppReport(this, draft, ctx.event?.detail);
+		appReport(next, _args, ctx) {
+			applyAppReport(this, next, ctx.event?.detail);
 		},
 	},
 });
 // A filter shows every match, collapsed or not.
-const syncCollapsed = (draft) => {
-	const filtering = draft.filterText.trim() !== "";
-	for (const link of draft.links)
-		link.isCollapsed = !filtering && draft.collapsed.includes(link.group);
+const syncCollapsed = (next) => {
+	const filtering = next.filterText.trim() !== "";
+	for (const link of next.links)
+		link.isCollapsed = !filtering && next.collapsed.includes(link.group);
 };
-export const selectStory = (self, draft, id) => {
+export const selectStory = (self, next, id) => {
 	const link = self.links.find((l) => l.id === id);
 	if (link === undefined) return;
-	draft.selectedId = id;
-	draft.isGenerated = link.isGenerated;
-	draft.links.forEach((l, i) => {
+	next.selectedId = id;
+	next.isGenerated = link.isGenerated;
+	next.links.forEach((l, i) => {
 		l.isSelected = self.links[i].id === id;
 	});
-	resetPanels(self, draft, `${id}@${self.seed}`);
+	resetPanels(self, next, `${id}@${self.seed}`);
 };

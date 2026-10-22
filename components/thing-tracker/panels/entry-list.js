@@ -102,21 +102,21 @@ export const EntryList = component({
 		open: {
 			args: [t.index("rows")],
 			emits: { notify: ["editEntry"] },
-			run(_draft, [i], ctx) {
+			run(_next, [i], ctx) {
 				ctx.notify("editEntry", [this.rows[i].id]);
 			},
 		},
 		remove: {
 			args: [t.index("rows")],
 			emits: { notify: ["deleteEntry"] },
-			run(_draft, [i], ctx) {
+			run(_next, [i], ctx) {
 				ctx.notify("deleteEntry", [this.rows[i].id]);
 			},
 		},
 		more: {
 			args: [],
 			emits: { notify: ["moreEntries"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("moreEntries");
 			},
 		},

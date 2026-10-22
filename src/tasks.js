@@ -2,17 +2,17 @@
 import { routeFor, selectorFrom, Target } from "./paths.js";
 import { scopeOf, specOf } from "./schema.js";
 
-// A handler returns a replacement for the component, or undefined to keep the draft.
-const call = (message, instance, draft, args, ctx) => {
+// A handler returns a replacement for the component, or undefined to keep next.
+const call = (message, instance, next, args, ctx) => {
 	ctx.handled = { message, args };
-	const result = message.run.call(instance, draft, args, ctx);
-	return result === undefined ? draft : result;
+	const result = message.run.call(instance, next, args, ctx);
+	return result === undefined ? next : result;
 };
-const run = (instance, draft, handlerName, args, ctx) => {
+const run = (instance, next, handlerName, args, ctx) => {
 	const handler = specOf(instance).on[handlerName];
-	if (handler !== undefined) return call(handler, instance, draft, args, ctx);
+	if (handler !== undefined) return call(handler, instance, next, args, ctx);
 	console.warn("handler", handlerName, "not found on", instance, { args, ctx });
-	return draft;
+	return next;
 };
 export class MessageContext {
 	constructor(task, path, pushTask, env, scope) {
@@ -73,13 +73,13 @@ export class Task {
 		this.event = null;
 		this.route = null;
 	}
-	run(instance, draft, ctx) {
-		return run(instance, draft, this.name, this.args, ctx);
+	run(instance, next, ctx) {
+		return run(instance, next, this.name, this.args, ctx);
 	}
 }
 export class NotifyTask extends Task {
-	run(instance, draft, ctx) {
-		const result = super.run(instance, draft, ctx);
+	run(instance, next, ctx) {
+		const result = super.run(instance, next, ctx);
 		if (ctx.path.isRootPath || ctx.isStopNextSet) return result;
 		const { name, args, sourcePath } = this;
 		ctx.pushTask(new NotifyTask(name, args, sourcePath, new Target(ctx.path.toParentPath()), this));
@@ -87,10 +87,10 @@ export class NotifyTask extends Task {
 	}
 }
 export class AskTask extends Task {
-	run(instance, draft, ctx) {
+	run(instance, next, ctx) {
 		const handler = scopeOf(instance)?.lookupAskHandler(this.name);
 		if (!handler) {
-			return run(instance, draft, `${this.name}HandlerNotFound`, [], ctx);
+			return run(instance, next, `${this.name}HandlerNotFound`, [], ctx);
 		}
 		const okName = `${this.name}ReplyOk`;
 		const errName = `${this.name}ReplyError`;
@@ -98,15 +98,15 @@ export class AskTask extends Task {
 		try {
 			result = handler(this.args, ctx);
 		} catch (err) {
-			return run(instance, draft, errName, [err], ctx);
+			return run(instance, next, errName, [err], ctx);
 		}
 		if (result instanceof Promise) {
 			const reply = (name, args) => ctx.pushTask(this.makeReply(name, args));
 			result.then((r) => reply(okName, [r])).catch((error) => reply(errName, [error]));
-			return draft;
+			return next;
 		}
 		// Outside the try: a throwing ReplyOk fails the task instead of running ReplyError.
-		return run(instance, draft, okName, [result], ctx);
+		return run(instance, next, okName, [result], ctx);
 	}
 	makeReply(name, args) {
 		const reply = new Task(name, args, this.sourcePath, new Target(this.sourcePath), this);
@@ -123,8 +123,8 @@ export class EventTask extends Task {
 		this.handler = handler;
 		this.route = route;
 	}
-	run(instance, draft, ctx) {
+	run(instance, next, ctx) {
 		this.args = this.handler.action.args.map((arg) => arg.eval(ctx));
-		return call(specOf(instance).on[this.name], instance, draft, this.args, ctx);
+		return call(specOf(instance).on[this.name], instance, next, this.args, ctx);
 	}
 }

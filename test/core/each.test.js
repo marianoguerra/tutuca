@@ -78,8 +78,8 @@ const listOptions = {
 		),
 	),
 	on: {
-		pick(draft, [key]) {
-			draft.picked = draft.items[key].id;
+		pick(next, [key]) {
+			next.picked = next.items[key].id;
 		},
 	},
 };

@@ -197,34 +197,34 @@ export const EmojiPicker = component({
 	on: {
 		setQuery: {
 			args: [t.string()],
-			run(draft, [query]) {
-				draft.query = query;
+			run(next, [query]) {
+				next.query = query;
 			},
 		},
 		setCategory: {
 			args: [t.string()],
-			run(draft, [category]) {
-				if (CATEGORIES.includes(category)) draft.category = category;
+			run(next, [category]) {
+				if (CATEGORIES.includes(category)) next.category = category;
 			},
 		},
 		pick: {
 			args: [t.string()],
 			emits: { notify: ["emojiPicked"] },
-			run(draft, [char], ctx) {
+			run(next, [char], ctx) {
 				if (char === "") return;
-				draft.value = char;
-				draft.recent = [char, ...this.recent.filter((c) => c !== char)].slice(0, 16);
+				next.value = char;
+				next.recent = [char, ...this.recent.filter((c) => c !== char)].slice(0, 16);
 				ctx.notify("emojiPicked", [char]);
 			},
 		},
 		pasted: {
 			args: [t.string()],
 			emits: { notify: ["emojiPicked"] },
-			run(draft, [text], ctx) {
-				draft.paste = text;
+			run(next, [text], ctx) {
+				next.paste = text;
 				const char = text.trim();
 				if (char === "" || char.length > 16) return;
-				draft.value = char;
+				next.value = char;
 				ctx.notify("emojiPicked", [char]);
 			},
 		},

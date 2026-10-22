@@ -35,8 +35,8 @@ const Counter = component({
 	fields: { count: t.number() },
 	view: h("button", { "on:click": send("inc") }, "Clicked ", field("count")),
 	on: {
-		inc(draft) {
-			draft.count += 1;
+		inc(next) {
+			next.count += 1;
 		},
 	},
 });

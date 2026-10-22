@@ -43,18 +43,18 @@ export const Note = component({
 		),
 	),
 	on: {
-		toggle(draft) {
-			draft.done = !this.done;
+		toggle(next) {
+			next.done = !this.done;
 		},
 		setText: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.text = text;
+			run(next, [text]) {
+				next.text = text;
 			},
 		},
 		remove: {
 			emits: { notify: ["removeNote"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.notify("removeNote");
 			},
 		},
@@ -130,36 +130,36 @@ export const Notes = component({
 	on: {
 		setTitle: {
 			args: [t.string()],
-			run(draft, [title]) {
-				draft.title = title;
+			run(next, [title]) {
+				next.title = title;
 			},
 		},
 		setDraft: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.draft = text;
+			run(next, [text]) {
+				next.draft = text;
 			},
 		},
 		setFilter: {
 			args: [t.enum("all", "open", "done")],
-			run(draft, [filter]) {
-				draft.filter = filter;
+			run(next, [filter]) {
+				next.filter = filter;
 			},
 		},
 		add: {
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.event?.preventDefault();
 				const text = this.draft.trim();
 				if (text === "") return;
-				draft.notes.push(ctx.scope.make("Note", { text }));
-				draft.draft = "";
+				next.notes.push(ctx.scope.make("Note", { text }));
+				next.draft = "";
 			},
 		},
 		removeNote: {
 			sourceKey: t.index("notes"),
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext(); // The notes may be inside another component.
-				draft.notes.splice(ctx.sourceKey, 1);
+				next.notes.splice(ctx.sourceKey, 1);
 			},
 		},
 	},

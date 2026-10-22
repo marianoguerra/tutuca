@@ -56,13 +56,13 @@ const List = component({
 		),
 	),
 	on: {
-		move(draft, [from, to], ctx) {
-			draft.dropped = [from, to, ctx.drag?.type ?? null];
-			const [item] = draft.items.splice(from, 1);
-			draft.items.splice(to, 0, item);
+		move(next, [from, to], ctx) {
+			next.dropped = [from, to, ctx.drag?.type ?? null];
+			const [item] = next.items.splice(from, 1);
+			next.items.splice(to, 0, item);
 		},
-		started(draft, [key]) {
-			draft.seen = key;
+		started(next, [key]) {
+			next.seen = key;
 		},
 	},
 });
@@ -147,11 +147,11 @@ const Board = component({
 		),
 	),
 	on: {
-		dropCard(draft, [to, from], ctx) {
-			draft.log.push([to, from, ctx.drag.value.id]);
+		dropCard(next, [to, from], ctx) {
+			next.log.push([to, from, ctx.drag.value.id]);
 		},
-		clicked(draft) {
-			draft.clicks++;
+		clicked(next) {
+			next.clicks++;
 		},
 	},
 });

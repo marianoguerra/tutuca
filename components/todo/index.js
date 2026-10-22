@@ -99,19 +99,19 @@ export const QuickAdd = component({
 	on: {
 		setText: {
 			args: [t.string()],
-			run(draft, [text]) {
-				draft.text = text;
+			run(next, [text]) {
+				next.text = text;
 			},
 		},
 		submit: {
 			args: [],
 			emits: { notify: ["addTask"] },
 			post: (prev, next) => prev.text.trim() === "" || next.text === "",
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.event?.preventDefault();
 				if (this.text.trim() === "") return;
 				ctx.notify("addTask", [this.text]);
-				draft.text = "";
+				next.text = "";
 			},
 		},
 	},
@@ -406,85 +406,85 @@ export const TodoApp = component({
 	on: {
 		openView: {
 			args: [t.enum("inbox", "today", "upcoming")],
-			run(draft, [view]) {
-				draft.view = view;
+			run(next, [view]) {
+				next.view = view;
 			},
 		},
 		openProject: {
 			args: [t.index("projects")],
-			run(draft, [key]) {
-				draft.projectIndex = key;
-				draft.view = key === 0 ? "inbox" : "project";
+			run(next, [key]) {
+				next.projectIndex = key;
+				next.view = key === 0 ? "inbox" : "project";
 			},
 		},
 		openLabel: {
 			args: [t.index("labels")],
-			run(draft, [key]) {
-				draft.labelIndex = key;
-				draft.view = "label";
+			run(next, [key]) {
+				next.labelIndex = key;
+				next.view = "label";
 			},
 		},
 		setSearch: {
 			args: [t.string()],
-			run(draft, [search]) {
-				draft.search = search;
-				if (search.trim() !== "") draft.view = "search";
-				else if (this.view === "search") draft.view = "inbox";
+			run(next, [search]) {
+				next.search = search;
+				if (search.trim() !== "") next.view = "search";
+				else if (this.view === "search") next.view = "inbox";
 			},
 		},
 		setShowCompleted: {
 			args: [t.boolean()],
-			run(draft, [show]) {
-				draft.showCompleted = show;
+			run(next, [show]) {
+				next.showCompleted = show;
 			},
 		},
 		clearCompleted: {
 			args: [],
 			post: (_prev, next) => next.tasks.every((task) => !task.isCompleted),
-			run(draft) {
-				draft.tasks = draft.tasks.filter((task) => !task.isCompleted);
+			run(next) {
+				next.tasks = next.tasks.filter((task) => !task.isCompleted);
 			},
 		},
 		setNewProject: {
 			args: [t.string()],
-			run(draft, [name]) {
-				draft.newProject = name;
+			run(next, [name]) {
+				next.newProject = name;
 			},
 		},
 		addProject: {
 			args: [],
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.event?.preventDefault();
 				const name = this.newProject.trim();
 				if (name === "") return;
 				const id = ctx.uuid();
 				const color = Object.keys(COLORS)[this.projects.length % 6];
-				draft.projects.push(ctx.scope.make("TodoProject", { id, name, color }));
-				draft.newProject = "";
-				draft.projectIndex = this.projects.length;
-				draft.view = "project";
+				next.projects.push(ctx.scope.make("TodoProject", { id, name, color }));
+				next.newProject = "";
+				next.projectIndex = this.projects.length;
+				next.view = "project";
 			},
 		},
 		// From the shown project's header; its tasks move to the inbox.
 		removeProject: {
 			args: [],
 			sourceKey: t.index("projects"),
-			run(draft, _args, ctx) {
+			run(next, _args, ctx) {
 				ctx.stopNext();
 				const key = ctx.sourceKey;
 				if (key === 0) return;
 				const { id } = this.projects[key];
-				for (const task of draft.tasks)
+				for (const task of next.tasks)
 					if (task.projectId === id) setDeep(task, "projectId", "inbox");
-				draft.projects.splice(key, 1);
-				draft.projectIndex = 0;
-				if (this.view === "project") draft.view = "inbox";
+				next.projects.splice(key, 1);
+				next.projectIndex = 0;
+				if (this.view === "project") next.view = "inbox";
 			},
 		},
 		// From QuickAdd: parses text against today and the project names.
 		addTask: {
 			args: [t.string()],
-			run(draft, [text], ctx) {
+			run(next, [text], ctx) {
 				ctx.stopNext();
 				const names = this.projects.map((p) => p.name);
 				const parsed = parseQuickAdd(text, { today: this.today, projects: names });
@@ -501,16 +501,16 @@ export const TodoApp = component({
 					labels: parsed.labels,
 					today: this.today,
 				});
-				draft.tasks.push(task);
-				for (const l of parsed.labels) if (!draft.labels.includes(l)) draft.labels.push(l);
+				next.tasks.push(task);
+				for (const l of parsed.labels) if (!next.labels.includes(l)) next.labels.push(l);
 			},
 		},
 		removeTask: {
 			args: [],
 			sourceKey: t.index("tasks"),
 			post: (prev, next) => next.tasks.length === prev.tasks.length - 1,
-			run(draft, _args, ctx) {
-				draft.tasks.splice(ctx.sourceKey, 1);
+			run(next, _args, ctx) {
+				next.tasks.splice(ctx.sourceKey, 1);
 				ctx.stopNext();
 			},
 		},
@@ -518,40 +518,40 @@ export const TodoApp = component({
 		moveTask: {
 			args: [t.enum(-1, 1)],
 			sourceKey: t.index("tasks"),
-			run(draft, [delta], ctx) {
+			run(next, [delta], ctx) {
 				ctx.stopNext();
 				const i = ctx.sourceKey;
 				const { projectId } = this.tasks[i];
 				const j = neighbor(this.tasks, i, delta, (task) => task.projectId === projectId);
-				if (j >= 0) swap(draft.tasks, i, j);
+				if (j >= 0) swap(next.tasks, i, j);
 			},
 		},
 		labelsChanged: {
 			args: [t.array(t.string())],
-			run(draft, [labels], ctx) {
+			run(next, [labels], ctx) {
 				ctx.stopNext();
-				for (const l of labels) if (!draft.labels.includes(l)) draft.labels.push(l);
+				for (const l of labels) if (!next.labels.includes(l)) next.labels.push(l);
 			},
 		},
 		setToday: {
 			args: [todayType()],
-			run(draft, [today]) {
-				draft.today = today;
-				for (const task of draft.tasks) setDeep(task, "today", today);
+			run(next, [today]) {
+				next.today = today;
+				for (const task of next.tasks) setDeep(task, "today", today);
 			},
 		},
 		// Asks the host for the real date.
 		syncToday: {
 			args: [],
 			emits: { ask: ["today"] },
-			run(_draft, _args, ctx) {
+			run(_next, _args, ctx) {
 				ctx.ask("today");
 			},
 		},
-		todayReplyOk(draft, [today]) {
+		todayReplyOk(next, [today]) {
 			if (!isIso(today)) return;
-			draft.today = today;
-			for (const task of draft.tasks) setDeep(task, "today", today);
+			next.today = today;
+			for (const task of next.tasks) setDeep(task, "today", today);
 		},
 		todayReplyError() {},
 		todayHandlerNotFound() {},
