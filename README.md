@@ -16,13 +16,13 @@ JavaScript with no npm dependencies (it includes a copy of immer).
 ## Install
 
 ```sh
-npm install tutuca@next
+npm install tutuca
 ```
 
 Or from a CDN, without a build step:
 
 ```js
-import { component, h, Host } from "https://cdn.jsdelivr.net/npm/tutuca@next/dist/tutuca.min.js";
+import { component, h, Host } from "https://cdn.jsdelivr.net/npm/tutuca/dist/tutuca.min.js";
 ```
 
 ## Example
@@ -79,7 +79,7 @@ just check      # lint, then test
 just storybook  # serve the storybook from the repo
 just site       # build the landing page and storybook into _site/ and serve it
 just smoke      # build dist/ and check what would be published
-just publish    # publish to npm under the next tag
+just publish    # publish to npm as latest
 ```
 
 ## License

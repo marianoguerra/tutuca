@@ -1,6 +1,6 @@
 {
 	"name": "tutuca",
-	"version": "1.0.0-alpha.0",
+	"version": "1.0.0-beta.1",
 	"description": "A small framework for web apps in the browser, with typed state, tests, a storybook and pluggable sync",
 	"type": "module",
 	"license": "MIT",
@@ -36,6 +36,7 @@
 		"deps/",
 		"dist/",
 		"README.md",
+		"CHANGELOG.md",
 		"LICENSE"
 	],
 	"scripts": {

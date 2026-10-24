@@ -81,11 +81,11 @@ loc:
 
 # Show what would be published, without publishing.
 publish-dry:
-    npm publish --dry-run --tag next
+    npm publish --dry-run --tag latest
 
-# Publish to npm under the next tag; prepublishOnly lints, tests, builds and smoke tests first.
+# Publish to npm as latest (npm needs the tag spelled out for a prerelease); prepublishOnly lints, tests, builds and smoke tests first.
 publish:
-    npm publish --access public --tag next
+    npm publish --access public --tag latest
 
 # Bump the version (e.g. `just release prerelease`), commit, tag and push.
 release version:
