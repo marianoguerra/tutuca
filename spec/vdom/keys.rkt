@@ -3,10 +3,10 @@
 ;; each of which may own zero, one or several actual DOM nodes. Matching never
 ;; searches through a fragment boundary. Mounting has no duplicate-key check;
 ;; these rules apply when an old and a new sibling sequence are compared.
-(require redex/reduction-semantics "core.rkt")
+(require redex/reduction-semantics "vnode.rkt")
 (provide Keyed node-key keys-unique? find-key unkeyed-indices match-next match-siblings)
 
-(define-extended-language Keyed Core
+(define-extended-language Keyed VDom
   (index ::= natural)
   (match-result ::= index fresh)
   (matches ::= (match-result ...) duplicate-keys))
@@ -80,9 +80,9 @@
   (test-equal (term (match-siblings ((text "first") (group "a" ()) (group none ()))
                                     ((group "a" ()) (group none ()) (text "second") (text "new"))))
               (term (1 0 2 fresh)))
-  ;; Metadata leaves are unkeyed siblings like any other leaf.
-  (test-equal (term (match-siblings ((meta-open component) (el 1 "b" none none () ()) meta-close)
-                                    ((meta-open component) (el 1 "b" none none () ()) meta-close)))
+  ;; Comments are unkeyed siblings like any other leaf.
+  (test-equal (term (match-siblings ((comment "open") (el 1 "b" none none () ()) (comment "close"))
+                                    ((comment "open") (el 1 "b" none none () ()) (comment "close"))))
               (term (0 1 2)))
   ;; Every explicit fragment, including an unkeyed loop, is a separate scope.
   (define loops (term ((group none ((group "a" ()))) (group none ((group "a" ()))))))

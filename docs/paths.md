@@ -17,8 +17,8 @@ Tutuca has four kinds of path. Each has one job:
 A **route** pairs a dispatch path with its update path: `{ path, updatePath }`. Every task
 runs with a route.
 
-The formal model is in `spec/paths.rkt` (`upath`, `dframe`/`dpath`, `sel`, `route`). The task
-side is in `spec/tasks.rkt` (`(at base sel)`).
+The formal model is in `spec/component/paths.rkt` (`upath`, `dframe`/`dpath`, `sel`, `route`). The task
+side is in `spec/system/host.rkt` (`(at base sel)`).
 
 ## Update paths: where a value is
 

@@ -5,7 +5,7 @@
 ;;           component. getIn and setIn read and write through it; nothing
 ;;           else does.
 ;;   dpath   a dispatch path: the frames of rendered ancestry, one per
-;;           metadata comment and per render depth. Notify bubbling and
+;;           render source or loop item entered. Notify bubbling and
 ;;           sourceKey follow it; resolve turns it into an update path.
 ;;   sel     a selector: PathBuilder calls (field, item, seqItem) that read
 ;;           the state when they freeze, at commit.
@@ -15,12 +15,15 @@
 ;; base: the previous frame, or the value a provider captured at depth d,
 ;; reached by its suffix keys. cf says that a component boundary follows the
 ;; frame, which makes it a component frame.
-(require redex/reduction-semantics "data.rkt" "core.rkt")
+(require redex/reduction-semantics "../data.rkt")
 (provide Paths access-keys get-in set-in resolve resolve-from to-component-path to-parent-path
-         to-update-path frame-item-key key-at source-key-in frame-meta meta-frame promote item-frame
+         to-update-path frame-item-key key-at source-key-in promote item-frame
          item-of freeze-op freeze-sel route-for)
 
-(define-extended-language Paths Core
+(define-extended-language Paths Data
+  (skey ::= natural string)            ; a property key in a path
+  (base ::= none (prov fname natural (skey ...)))  ; a provider jump: name, depth, suffix
+  (item? ::= skey none)                ; the item key, when the frame selects an item
   (dframe ::= (frame base (skey ...) item? boolean))
   (dpath ::= (dframe ...))
   (upath ::= (skey ...))
@@ -107,15 +110,6 @@
    (side-condition (< (term natural) (sub1 (length (term dpath)))))
    (where (frame base any_k item? #f) ,(list-ref (term dpath) (term natural)))]
   [(key-at dpath natural) (frame-item-key ,(list-ref (term dpath) (term natural)))])
-
-;; Metadata drops cf: the component boundary that follows says it.
-(define-metafunction Paths
-  frame-meta : dframe -> meta
-  [(frame-meta (frame base any_k item? boolean)) (frame base any_k item?)])
-
-(define-metafunction Paths
-  meta-frame : meta -> dframe
-  [(meta-frame (frame base any_k item?)) (frame base any_k item? #f)])
 
 ;; A component boundary makes the frame before it a component frame.
 (define-metafunction Paths
@@ -204,11 +198,6 @@
   (test-equal (term (source-key-in ,p ((frame none ("mids") 1 #t)))) 2)
   (test-equal (term (source-key-in ,p ,p)) 'null)
   (test-equal (term (source-key-in ((frame none ("a") none #t)) ())) 'null)
-
-  ;; Metadata round trip; cf comes back from promotion.
-  (for ([f (term ((frame none ("a") none #t) (frame none ("xs") 0 #f) (frame ,(second jump) () 4 #f)))])
-    (define parsed (term (meta-frame ,(string->meta (meta->string (term (frame-meta ,f)))))))
-    (test-equal (if (fifth f) (term (promote (,parsed))) (list parsed)) (list f)))
 
   ;; Freezing a selector at the end of a resolved base equals resolving the base
   ;; with the frozen frames appended: selector frames carry no provider jumps.

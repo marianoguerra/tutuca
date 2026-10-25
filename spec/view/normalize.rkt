@@ -1,24 +1,24 @@
 #lang racket
 ;; Normalization: addChild/toVChilds in view.js, from the values expressions
-;; evaluate to (results) to a flat sequence of Core nodes.
-(require redex/reduction-semantics "data.rkt" "core.rkt")
+;; evaluate to (results) to a flat sequence of semantic nodes.
+(require redex/reduction-semantics "../data.rkt" "sem.rkt")
 (provide Norm normalize key-of)
 
-(define-extended-language Norm Core
-  ;; What an expression evaluates to: a value, a vnode, or an iterable of
-  ;; results (a custom node returning several roots, or wrapMeta's triple).
-  (result ::= value node (frag result ...)))
+(define-extended-language Norm Sem
+  ;; What an expression evaluates to: a value, a node, or an iterable of
+  ;; results (a custom node returning several roots).
+  (result ::= value snode (frag result ...)))
 
-;; Iterables (arrays and frags, never strings) splice; null drops; vnodes stay;
+;; Iterables (arrays and frags, never strings) splice; null drops; nodes stay;
 ;; anything else becomes text with String().
 (define-metafunction Norm
-  normalize : result -> (node ...)
+  normalize : result -> (snode ...)
   [(normalize null) ()]
-  [(normalize node) (node)]
-  [(normalize (frag result ...)) (node ... ...)
-   (where ((node ...) ...) ((normalize result) ...))]
-  [(normalize (arr value ...)) (node ... ...)
-   (where ((node ...) ...) ((normalize value) ...))]
+  [(normalize snode) (snode)]
+  [(normalize (frag result ...)) (snode ... ...)
+   (where ((snode ...) ...) ((normalize result) ...))]
+  [(normalize (arr value ...)) (snode ... ...)
+   (where ((snode ...) ...) ((normalize value) ...))]
   [(normalize value) ((text ,(js-string (term value))))])
 
 ;; key != null ? String(key) : undefined
@@ -37,16 +37,16 @@
   ;; has no toString, so String() throws.
   (test-equal (term (normalize (rec (a 1)))) (term ((text "[object Object]"))))
   (check-exn exn:fail? (λ () (term (normalize (comp C)))))
-  ;; Leaves, elements and groups are already nodes.
+  ;; Leaves, elements, groups and wrappers are already nodes.
   (test-equal (term (normalize (comment "c"))) (term ((comment "c"))))
-  (test-equal (term (normalize meta-close)) (term (meta-close)))
+  (test-equal (term (normalize (component C ()))) (term ((component C ()))))
   (test-equal (term (normalize (group none ()))) (term ((group none ()))))
   ;; Iterables flatten to any depth and drop nulls along the way; arrays too.
   (test-equal (term (normalize (frag 1 (frag #t (arr null "x")))))
               (term ((text "1") (text "true") (text "x"))))
   (test-equal (term (normalize (frag))) (term ()))
-  (test-equal (term (normalize (frag (group "a" ((text "A"))) (el 0 "b" none none () ()))))
-              (term ((group "a" ((text "A"))) (el 0 "b" none none () ()))))
+  (test-equal (term (normalize (frag (group "a" ((text "A"))) (el 0 "b" none none () () ()))))
+              (term ((group "a" ((text "A"))) (el 0 "b" none none () () ()))))
   ;; Keys become strings; null is no key.
   (test-equal (term (key-of null)) (term none))
   (test-equal (term (key-of 1)) "1")

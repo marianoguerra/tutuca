@@ -9,23 +9,16 @@
 ;; childNodes snapshot taken before editing. Patching every prop of a node gives the same DOM, so the
 ;; model patches everything. It assumes, like those skips, that only the
 ;; runtime mutates the managed DOM.
-(require redex/reduction-semantics "core.rkt" "dom.rkt" "keys.rkt")
-(provide comment-text el-ns split-groups morph-seq morph-one
+(require redex/reduction-semantics "vnode.rkt" "dom.rkt" "keys.rkt")
+(provide el-ns split-groups morph-seq morph-one
          Morph mount mount-all morph-children morph-node dom-width erase erase-all)
 
 (define-extended-language Morph Keyed
   (lbl ::= natural)
   (dom ::= (element ns tag (prop ...) (dom ...)) (text string) (comment string))  ; as in dom.rkt
   (ldom ::= (element lbl ns tag (prop ...) (ldom ...)) (text lbl string) (comment lbl string))
-  (comment-node ::= (comment string) (meta-open meta) meta-close)
   (lgroups ::= ((ldom ...) ...))
   (out ::= ((ldom ...) lbl)))              ; nodes, and the next fresh label
-
-(define-metafunction Morph
-  comment-text : comment-node -> string
-  [(comment-text (comment string)) string]
-  [(comment-text (meta-open meta)) ,(meta->string (term meta))]
-  [(comment-text meta-close) "§/§"])
 
 (define-metafunction Morph
   el-ns : ns? ns -> ns
@@ -36,7 +29,7 @@
 (define-metafunction Morph
   mount : node ns lbl -> out
   [(mount (text string) ns lbl) (((text lbl string)) ,(add1 (term lbl)))]
-  [(mount comment-node ns lbl) (((comment lbl (comment-text comment-node))) ,(add1 (term lbl)))]
+  [(mount (comment string) ns lbl) (((comment lbl string)) ,(add1 (term lbl)))]
   [(mount (group key? (node ...)) ns lbl) (mount-all (node ...) ns lbl)]
   [(mount (el tid tag ns? key? (prop ...) (node ...)) ns lbl)
    (((element lbl ns_el tag (prop ...) (ldom ...))) lbl_next)
@@ -71,8 +64,8 @@
   morph-node : ldom node node ns lbl -> out
   [(morph-node (text lbl_n string_old) (text string_s) (text string_t) ns lbl)
    (((text lbl_n string_t)) lbl)]
-  [(morph-node (comment lbl_n string_old) comment-node_s comment-node_t ns lbl)
-   (((comment lbl_n (comment-text comment-node_t))) lbl)]
+  [(morph-node (comment lbl_n string_old) (comment string_s) (comment string_t) ns lbl)
+   (((comment lbl_n string_t)) lbl)]
   [(morph-node (element lbl_n ns_n tag_n (prop_old ...) (ldom ...))
                (el tid tag_s ns?_s key? (prop_s ...) (node_s ...))
                (el tid tag ns? key? (prop ...) (node ...)) ns lbl)
@@ -146,7 +139,7 @@
   (define key (λ () (list-ref '(none none "x" "y") (random 4))))
   (case (if (zero? depth) (random 3) (random 5))
     [(0) `(text ,(list-ref '("a" "b") (random 2)))]
-    [(1) (list-ref `((comment "c") meta-close (meta-open (frame none ("f") none))) (random 3))]
+    [(1) `(comment ,(list-ref '("c" "d") (random 2)))]
     [(2) (let ([tid (random 3)])
            `(el ,tid ,(format "t~a" tid) none ,(key)
                 ,(if (zero? (random 2)) '() `((title ,(random 2))))
@@ -186,9 +179,9 @@
   (test-equal (morph* '((text "x")) '((group none ((text "x")))))
               (term (((text 1 "x")) 2)))
 
-  ;; Text never turns into a comment; any two comments, metadata included, patch.
-  (test-equal (morph* '((text "x") (comment "c")) '((comment "x") (meta-open component)))
-              (term (((comment 2 "x") (comment 1 "§{\"t\":\"component\"}§")) 3)))
+  ;; Text never turns into a comment; any two comments patch.
+  (test-equal (morph* '((text "x") (comment "c")) '((comment "x") (comment "y")))
+              (term (((comment 2 "x") (comment 1 "y")) 3)))
 
   ;; Duplicate keys in a compared scope have no morph (the runtime throws).
   (check-exn exn:fail? (λ () (morph* '() '((group "a" ()) (group "a" ())))))

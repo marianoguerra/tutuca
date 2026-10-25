@@ -1,46 +1,140 @@
 # Tutuca semantics
 
-A PLT Redex model of the core (`src/view.js`, `component.js`, `scope.js`, `walk.js`, `meta.js`, `paths.js`,
-`events.js`, `tasks.js`, `host.js`) and `vdom.js`. It covers:
+A PLT Redex model of tutuca. It has two sides, joined by a binding layer:
 
-- views: every expression form
-- registration
-- render contexts with providers and the view stack
-- normalization
-- keyed matching and reconciliation with DOM node identity
-- paths
-- metadata comments and event routing
-- the host's task queue as a reduction relation
+- **Tutuca**, which is declarative. It covers:
+  - components: classes with typed fields, invariants and a protocol of messages, each handled by a TLA+-style action
+  - views, which evaluate to a semantic tree
+  - routing on that tree
+  - the host's task queue
+- **The virtual DOM** (`vdom.js`). It covers normalized vnodes, the DOM they render to, and reconciliation with node identity. It knows nothing about tutuca.
+- **The binding** lowers the semantic tree to vnodes, writing metadata comments and `data-eid` attributes. It also decodes events back from the DOM. The comments are an implementation detail of this layer.
 
 The optimizations in `src/optimize.js` and the fast paths in `vdom.js` are not part of the
 model. The model defines the meaning those optimizations must preserve.
 
 ```sh
 raco test spec/            # unit tests, properties, and scenarios ported from test/
+raco test spec/vdom/       # any layer on its own, with the layers below it
 racket spec/render.rkt     # typesets the rules into spec/semantics.pdf
 ```
 
+In `semantics.pdf`, the tutuca side and the binding are the main chapters, and the virtual
+DOM is Appendix A.
+
 ## Layers
 
-| File | Models | Runtime |
-|---|---|---|
-| `data.rkt` | values (atoms, null, arrays, records, components), `String()`, truthiness, property get/set, `entries` | plain JS values, immer drafts |
-| `core.rkt` | normalized vnodes, metadata leaves and their JSON text | `VText`, `VComment`, `VNode`, `VFragment`, `Shape` |
-| `normalize.rkt` | `addChild`/`toVChilds`, keys | `view.js` |
-| `dom.rkt` | `toDom`, namespaces | `vdom.js` |
-| `keys.rkt` | sibling matching | `morphChildren`, first half |
-| `morph.rkt` | reconciliation over labeled DOM nodes | `morphNode`, `morphChildren`, `mountBefore` |
-| `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toComponentPath`, `sourceKeyIn`, frame metadata, freezing | `UpdatePath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
-| `host.rkt` | user code as terms: loop hooks, scope binds, provides, ask handlers, message handlers | the functions passed to `component()` and `registerAskHandlers` |
-| `view.rkt` | expressions, `Collect`, registration, `RenderContext`, `eval`, `renderView` | the `AstNode` subclasses, `ComponentSpec`, `RenderContext` |
-| `routing.rkt` | `enclosingNodeMeta`, `getEventInfoFor` | `events.js` |
-| `tasks.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling | `Task`, `NotifyTask`, `AskTask`, `EventTask`, `Host` |
-| `tutuca.rkt` | everything; end-to-end scenarios | |
-| `render.rkt` | `semantics.pdf` | |
+Each directory requires only the ones above it in this table, plus `data.rkt`.
 
-## Correspondence
+| Directory | File | Models | Runtime |
+|---|---|---|---|
+| | `data.rkt` | values (atoms, null, arrays, records, components), `String()`, truthiness, property get/set, `entries` | plain JS values, immer drafts |
+| `vdom/` (Appendix A) | `vnode.rkt` | normalized vnodes; comments are plain text | `VText`, `VComment`, `VNode`, `VFragment`, `Shape` |
+| | `dom.rkt` | `toDom`, namespaces | `vdom.js` |
+| | `keys.rkt` | sibling matching | `morphChildren`, first half |
+| | `morph.rkt` | reconciliation over labeled DOM nodes | `morphNode`, `morphChildren`, `mountBefore` |
+| `component/` | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toComponentPath`, `sourceKeyIn`, freezing | `UpdatePath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
+| | `expr.rkt` | the expression language user functions are written in | the functions passed to `component()` |
+| | `types.rkt` | field types, `valid`, defaults, `make` | `t.*`, `AnyType` and its subclasses in `schema.js` |
+| | `class.rkt` | classes: fields, invariants, handlers with contracts and actions | `fields`, `invariants`, `on`, `MessageSpec` |
+| | `action.rkt` | `act` (one message on one instance), `message-issues`, `invalid-in` | `call`/`run` in `tasks.js`, `messageIssues`, `findInvalidFields` |
+| `view/` | `sem.rkt` | the semantic tree | (what `renderView` means) |
+| | `normalize.rkt` | `addChild`/`toVChilds`, keys | `view.js` |
+| | `view.rkt` | view definitions, expressions, registration, `RenderContext`, `eval`, `renderView` | the `AstNode` subclasses, `ComponentSpec`, `RenderContext` |
+| | `route.rkt` | routing on the semantic tree | (what `getEventInfoFor` means) |
+| | `wf.rkt` | well-formed views | lint's `unknown-handler`, `send-arity`, `send-arg-type` |
+| `bind/` | `meta.rkt` | metadata comment text | `wrapMeta`'s objects, `parseMeta` |
+| | `lower.rkt` | semantic tree → vnodes | `wrapMeta`, `planElement`'s `data-eid`, loop fragments |
+| | `decode.rkt` | `enclosingNodeMeta`, `getEventInfoFor` | `events.js` |
+| `system/` | `host.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling, dev checks | `Task`, `NotifyTask`, `AskTask`, `EventTask`, `Host` |
+| | `tutuca.rkt` | end-to-end scenarios, routing soundness, the binding theorem | |
+| | `render.rkt` | `semantics.pdf` | |
 
-**Expressions.** These map directly to the runtime:
+## Two theorems join the parts
+
+- **Virtual DOM:** `erase(morph(mount(old), old, new)) = render(new)`, and morphing a tree into
+  itself keeps every node. This is all the binding relies on.
+- **Binding:** for every element of a semantic tree, `event-info` on `render(lower(s))` gives
+  the same handler and route as `site-info` on `s`. Combined with the vdom theorem, routing on
+  the live DOM means what `route.rkt` says.
+
+## Components
+
+`component()` is split the way `ComponentSpec` keeps its options apart:
+- `(class C (fields …) (invariants …) (on …))` is the model half.
+- `(view-of C (views …) (loops …) (scopes …) (provides …))` is the view half.
+
+The combined form `(component C section …)` is what scenarios write, and `split-component`
+divides it.
+
+Instances are values: there is no identity and no inheritance. The route is the only identity
+an instance has.
+
+**Types** mirror `t.*`:
+
+| Model | Runtime |
+|---|---|
+| `Any`, `String`, `Number`, `Boolean` | `t.any()`, `t.string()`, `t.number()`, `t.boolean()` |
+| `(Enum v …)`, `(Option τ)`, `(Array τ)`, `(Map τ)` | `t.enum`, `t.option`, `t.array`, `t.map` |
+| `(Record (f τ) …)`, `(OneOf τ …)`, `(Index f)`, `(Component C …)` | `t.record`, `t.oneOf`, `t.index`, `t.component` |
+| `(Refine τ check …)` | `.int()`, `.min()`, `.max()`, `.len()`, `.where()` |
+| `(Default τ v)` | `.default(v)` |
+
+An owner is the component holding the field. Inside arrays, maps and records there is none,
+as in the runtime. A class without a `fields` section has no schema: its fields are not
+checked. That lets scenarios leave out schemas, where the runtime would report every field as
+undeclared.
+
+**Handlers** are actions in the style of TLA+:
+
+```racket
+(inc (by)
+     (args (Refine Number (min 0)))               ; MessageSpec.args
+     (pre (< by 5))                               ; pre(prev, args)
+     (post (= (get next n) (+ (get self n) by)))  ; post(prev, next, args)
+     (emits (notify changed))                     ; emits
+     (step (next (n) (+ (get self n) by))         ; next.n = self.n + by
+           (notify changed)))                     ; ctx.notify("changed")
+```
+
+- A body is one `(step part …)`, or `(cases (guard body) …)`, where the first truthy guard's
+  body runs. With no enabled case, the handler throws.
+- `(next (lv …) e)` assigns into `next`. Every update reads `self`, never `next`, so updates
+  are simultaneous. A field no update names keeps its value (UNCHANGED).
+- `(become e)` replaces the instance, as returning a value from a handler does.
+- Effects run in order and may read `next`: `notify`, `ask`, `send-at`, `forward-at`, `stop`
+  (`stopNext`), `log` and `fail` (throw).
+- Handlers are deterministic. All nondeterminism is in the host: when events arrive, the order
+  replies settle in, and when renders happen.
+
+**Contracts and checks** are dev mode, which the model always runs:
+- After each committed task, the fields of what changed are checked against their types
+  (`state-invalid`).
+- The handler that ran is checked against its contract (`message-invalid`). These checks
+  report violations and do not abort.
+- Invariants are checked at start and when the queue is empty (`settle`): a task may break
+  them for a task it queued to repair, so they are invariants of quiescent states.
+- `pre` is the enabling condition, as in `pbt.js`.
+- Property tests check that handlers refine their contracts from valid states that meet `pre`.
+
+## Views
+
+A context is `(rctx it binds dynBinds viewStack depth component)`:
+- `enter-frame` increments the depth and captures the providers of a component.
+- `for-item-view` keeps the depth and clears the binds.
+- `best-view` tries the explicit name, then the view stack, then `"main"`.
+
+Evaluation builds the semantic tree:
+
+| Node | Meaning |
+|---|---|
+| `(el tid tag ns? key? (prop …) (on-attr …) (snode …))` | an element, with its handlers |
+| `(component C (snode …))` | the render of an instance of `C` |
+| `(enter dframe (snode …))` | rendered at a frame: a field, `seqItem` or `provided` |
+| `(items (item key? dframe (snode …)) …)` | a loop: each item's key, frame and body |
+| `(group key? (snode …))`, `(text s)`, `(comment s)` | as in the vdom |
+
+These expressions map directly to the runtime:
 
 | Model | Runtime |
 |---|---|
@@ -66,99 +160,87 @@ Three forms differ from the runtime:
   in the tests.
 - An attribute is one of `(name e)`, `(key e)`, `(namespace uri)` or `(on event (send name arg ...))`.
 
-**Element identity.** Every `h` node carries a template id `tid`. The id plays two runtime
-roles:
-- It is the element's `Shape`: `isSameKind` compares shapes, so two templates with the same
-  tag replace each other instead of patching.
-- It is the element's `eid`: an element with handlers renders `data-eid = tid`. The runtime
-  draws eids from a counter, only for elements with handlers. Ids are opaque, so only
-  uniqueness per template matters.
+Other points:
+- **Element identity:** every `h` node carries a template id `tid`. It is the element's
+  `Shape`, which `isSameKind` compares, and lowering uses it as the `data-eid` of an element
+  with handlers. Ids are opaque, so only uniqueness per template matters.
+- **Registration:** `register` follows `component()`. A class needs `"main"`, and `collect` is
+  the `Collect` walker: an element's entry, then its attribute expressions, then its children.
+- **Wrappers:** a wrapper holds its children normalized. The runtime keeps `wrapMeta`'s triple
+  unnormalized until `addChild`. The two differ only for a render used as a prop value whose
+  view evaluates to a component instance, which would throw in text position.
+- **Routing on the tree:** an element's dispatch path is the frames of the wrappers above it,
+  and a component wrapper makes the frame before it a component frame. Its candidate handlers
+  are its own, then those of the elements above it up to the nearest component wrapper.
 
-**Registration.** `register-classes` follows `component()` and `ComponentSpec`:
-- A class needs `"main"`.
-- `collect` is the `Collect` walker: an element's entry comes first, then its attribute
-  expressions in order, then its children. It does not walk action arguments.
-- One table covers all views of a class, and a shared template keeps one entry.
+## Paths
 
-**Rendering.** A context is `(rctx it binds dynBinds viewStack depth component)`:
-- `enter-frame` increments the depth and captures the providers of a component.
-- `for-item-view` keeps the depth and clears the binds.
-- `best-view` tries the explicit name, then the view stack, then `"main"`.
-- `eval-each` produces one keyed group per entry, with item metadata around the body.
-- The loop hooks `key`, `filter`, `enrich` and `view` are host expressions. `key`, `filter`
-  and `enrich` see `self`.
-
-**Paths.** There are four kinds, one per job:
+There are four kinds, one per job:
 
 | Kind | Model | Runtime | Used for |
 |---|---|---|---|
 | update path | `upath`: property keys | `UpdatePath` | `getIn`/`setIn`, nothing else |
-| dispatch path | `dpath`: frames | `DispatchPath` of `Frame`s | rendered ancestry: metadata, notify bubbling, `sourceKey` |
+| dispatch path | `dpath`: frames | `DispatchPath` of `Frame`s | rendered ancestry: notify bubbling, `sourceKey` |
 | selector | `sel`: builder calls | `Selector` (from `PathBuilder`) | `sendAt` targets; freezes at commit |
 | route | `(dpath upath)` | `{ path, updatePath }` | where a task runs |
+
+Paths sit in `component/` because a route is where a message is delivered, and selectors
+freeze into frames.
 
 - A frame `(frame base keys item cf)` reads its keys, then its item key if it has one. It
   reads them from the previous frame's value or, with a provider base `(prov name depth
   suffix)`, from the value captured at that depth followed by the suffix.
 - A `seqItem` whose key field is null makes a frame with no item, which points at the whole
   sequence (`item ?? null`).
-- `cf` means a component boundary follows the frame. It is not serialized; routing restores
-  it from the component metadata.
-- `resolve` maps frames to keys left to right, which replaces the old `resolveProviders`
-  splice.
+- `cf` means a component boundary follows the frame.
+- `resolve` maps frames to keys left to right.
 - A task's target is `(at base sel)`. At commit, the selector freezes against
   `get-in(resolve(base), root)` and its frames extend the base.
-- Checked: this equals resolving the base with the frozen frames appended, because selector
-  frames carry no provider jumps.
+
+## Binding
 
 Metadata comments are `{"t":"component"}` or one frame:
-`{"t":"frame","p":null|{"v":name,"d":depth,"k":[…]},"k":[…],"i":item|null}`.
+`{"t":"frame","p":null|{"v":name,"d":depth,"k":[…]},"k":[…],"i":item|null}`, closed by `§/§`.
+`cf` is not written: decoding restores it from the component boundary that follows.
 
-**Routing.** `event-info` matches `getEventInfoFor`:
+`lower` turns each wrapper into its metadata comment, its children and the closing comment. A
+loop becomes an unkeyed group of keyed item groups, and an element with handlers gets
+`data-eid`.
+
+`event-info` decodes the way `getEventInfoFor` does:
 - It collects eids from the target up to the first component boundary.
 - It reads enclosing metadata by scanning previous siblings. Each closing comment hides one
   opening comment, and look-alike comments are skipped.
-- A component boundary makes the preceding frame a component frame.
-- The handler is the first one matching the event type, trying the eids innermost first,
-  in the table of the class the update path reaches.
+- The handler is the first one matching the event type, trying the eids innermost first, in
+  the table of the class the update path reaches.
 
-**Tasks.** `host->` has five rules:
-- `event` routes against the current DOM and root, and fixes the route.
+## The host
+
+As TLA+: a configuration is the state, and `host->` is `Next`, with six actions:
+- `event` decodes against the current DOM and root, and fixes the route.
 - `run` commits one transaction.
 - `fail` aborts one transaction.
 - `resolve` settles a pending async ask, in any order.
 - `render` morphs the DOM when the root changed.
+- `settle` checks invariants when the queue is empty and the root changed.
 
 One transaction (`handle-task`) does the following:
 1. Resolve the update path.
-2. Run the task by kind:
+2. Run the task by kind, stepping the handler with `act`:
    - plain: a missing handler is a no-op.
-   - notify: bubbles to the parent unless at the root or after `stopNext`.
+   - notify: bubbles to the parent unless at the root or after `stop`.
    - ask: `ok` runs `<n>ReplyOk`, `error` runs `<n>ReplyError`, a missing handler runs
      `<n>HandlerNotFound`, and `async` adds a pending reply routed to the asker's path.
    - event: evaluates the action arguments in the message context and makes them the task's
-     arguments, so `forwardAt` forwards them. A missing handler fails.
+     arguments, so `forward-at` forwards them. A missing handler fails; for well-formed views
+     it never happens.
 3. Set the new leaf.
 4. Freeze each child task's selector against the new root.
+5. Report invalid fields and contract issues.
 
 Any exception aborts the whole transaction: the root and the queue stay as they were. That
 includes a `<n>ReplyOk` that throws: it fails the ask, it does not run `<n>ReplyError`.
-Handler logs are side effects, so they survive an abort. `MessageContext.path` is
-`toComponentPath(route.path)`, and `sourceKey` is `source.sourceKeyIn(path)`.
-
-**Message handlers.** They are written in a small command language:
-
-| Command | Meaning |
-|---|---|
-| `(set (lv ...) hx)` | assign into `next` |
-| `(replace hx)` | return a replacement leaf |
-| `notify`, `ask`, `send-at`, `forward-at`, `stop-next` | `ctx.*` |
-| `(log hx)` | an observable side effect, for tests |
-| `(fail hx)` | throw |
-| `(when hx cmd ...)` | conditional |
-
-Inside a handler, `next` is the draft of the state it produces, `self` is the instance before the task, and
-`sourceKey` is `ctx.sourceKey`.
+Effects evaluated before the throw survive, so their logs are observed.
 
 ## Exceptions
 
@@ -168,6 +250,7 @@ A metafunction undefined on its input stands for a thrown JS exception. Examples
 - a `provided` render source with no provider
 - duplicate sibling keys while morphing
 - a selector that cannot freeze
+- a field with no default (`NoDefaultError`)
 
 ## Optimizations erased
 
@@ -179,66 +262,66 @@ These do not change the meaning, so the model does not include them:
 - The `source === target` and `isEqualTo` skips in `morphNode`, writing only the props that
   changed, the `innerHTML` re-parse skip, the `childNodes` snapshot taken before editing, the
   `nextSibling` check before `insertBefore`, the `used` bitmap and the `-1` marker in
-  `oldKeyMap`. `morph-node` patches every prop. The property tests check that
-  morphing a tree into itself keeps every node.
+  `oldKeyMap`. `morph-node` patches every prop.
 - The 16 ms time slice and the `setTimeout` ticks. The rules are enabled
-  nondeterministically: events may arrive between any two steps, and a render may happen
-  between any two tasks.
+  nondeterministically.
 - `_handlingTasks` and the staging of children until commit. Transactions are atomic, so
   reentrant draining cannot be observed.
 
 Two of these are equivalent only when nothing but the runtime mutates the managed DOM:
 - The identity skip leaves externally edited nodes alone. The model would overwrite them.
 - Comparing the root by reference (`oldRootComponent !== this.rootComponent`) is modeled as
-  structural inequality.
-  Re-rendering an equal root changes nothing.
+  structural inequality. The same holds for `findInvalidFields`'s `value === prev` skip.
 
 ## Out of scope
 
 - `setProp` coercion: removing `null`/`false` attributes, property vs attribute writes,
   function-valued props, `dangerouslySetInnerHTML`, `is`, and applying `value`/`checked`
-  after the children (including `select` reapplying its value). The model also leaves out
-  input state edited by the user.
+  after the children. The model also leaves out input state edited by the user.
 - Loop `prepare`/`iter` (arbitrary iteration protocols).
-- Scope chains, aliases and lifetimes. Ask handlers live in one table and are pure: the
-  runtime also passes them `ctx`, so they can send tasks. Class names are unique in the
-  model; `Scope.register` overwrites a name instead.
-- `null` and `undefined` are one value.
-- Arrays, records and components are the only objects. A component has only its fields:
-  getters and methods, which `field` reads through the prototype, are not modeled.
-- JS coercions of property keys and values: string indexes into arrays, `length`, indexing
-  and iterating strings, view names that are not strings, prototype keys such as
-  `constructor` in binds, and the number format of `String()` for small exponents.
-- Malformed frame comments: the model skips any comment that is not a well-formed frame as a
-  look-alike; the runtime only checks `t`.
-- Dev checks (schemas, invariants, message contracts), `Host.notify`, `Host.stop`,
-  `clearTasks`, listener registration. Routing already ignores unknown event types.
+- `methods` and getters: `field` reads only own fields. In the TLA+ reading they would be
+  operator definitions.
+- `.match()` (regular expressions), sync levels and pbt generators on types.
+- Scope chains, aliases and lifetimes. A `Component` type checks class names, not scope
+  lookups, and has no default (the runtime makes one through the scope). Ask handlers live
+  in one table and are pure. Class names are unique.
+- `null` and `undefined` are one value; an absent field is undefined.
+- JS coercions of property keys and values.
+- Malformed frame comments: the model skips any comment that is not a well-formed frame.
+- `Host.notify` (reports are observations instead), `Host.stop`, `clearTasks`, listener
+  registration.
 - The host env: `ctx.now()`, `ctx.random()`, `ctx.uuid()`. Also `ctx.event`, `ctx.node` and
-  `task.parent`. `targetValue` is modeled as a value the event carries: the value of the
-  element with the handler, not of `event.target`.
-- Sync engines (`src/sync/`): `commit` after each task and changes applied from elsewhere,
-  outside the task queue.
+  `task.parent`.
+- Sync engines (`src/sync/`).
 - `src/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, `src/playground/`, the storybook, the
-  test driver and pbt, and the lint modules.
+  test driver and pbt, and the lint modules (beyond `wf.rkt`).
 
 ## What the tests check
 
-- **Morph:** `erase(morph(mount(old), old, new)) = render(new)` on random tree pairs. Morphing
-  a tree into itself keeps every label. Labels are unique and either kept or fresh.
+- **Virtual DOM:** `erase(morph(mount(old), old, new)) = render(new)` on random tree pairs.
+  Morphing a tree into itself keeps every label. Labels are unique and either kept or fresh.
 - **Normalize:** idempotent (`redex-check`).
-- **Paths:**
-  - frame metadata round trips through JSON
-  - provider jumps resolve from their capture depth
-  - freezing a selector below a base equals resolving the base with the frozen keys
-    appended
+- **Types:** `make` keeps valid arguments, otherwise yields the default, and always yields a
+  valid value when every `.default(v)` has its type (`redex-check`). A record's default makes
+  each key, and a union's its first alternative, as a field with no argument.
+- **Actions:** handlers refine their contracts from valid states that meet `pre`, and a
+  handler that breaks its contract is caught (`redex-check`).
+- **Paths:** frame metadata round trips through JSON; provider jumps resolve from their
+  capture depth; freezing a selector below a base equals resolving the base with the frozen
+  keys appended.
 - **Routing soundness:** on random component trees, every element with handlers routes to
-  the instance that rendered it. The trees render through fields, `seqItem`, nested
-  `provided`, `each`/`renderIt`, keyed `renderEach`, named views and the view stack.
+  the instance that rendered it.
+- **Binding theorem:** on the same trees, decoding agrees with routing on the semantic tree,
+  for every element and event type.
+- **Well-formedness:** on random trees of well-formed components, every click runs without
+  a missing-handler failure.
 - **Render invariant:** after every simulated click and drain, the DOM is the render of the
   root.
+- **Dev checks:** undeclared fields and broken invariants at start; invalid fields and
+  contract issues after a task; invariants deferred until the queue is empty.
 - **Ported scenarios:**
-  - `test/core/view-semantics.test.js`: literals, truthiness, attributes, patching, meta comments,
-    the main view
+  - `test/core/view-semantics.test.js`: literals, truthiness, attributes, patching, meta
+    comments, the main view
   - `test/paths/event-metadata.test.js`: field/seqItem/provided chains, keyed reorder with node
     identity, nested multi-root loops with unmanaged DOM, renderIt boundaries
   - `test/paths/source-key.test.js`: the exact sequence
@@ -247,6 +330,3 @@ Two of these are equivalent only when nothing but the runtime mutates the manage
     below provided frames
   - `test/paths/message-context.test.js`: `forwardAt` from an event handler
   - `test/vdom/vdom.test.js`: patching, shapes, namespaces, keyed groups
-
-  The scheduling-only task-path tests (reentrant draining, events during rendering) are
-  covered by atomic transactions and nondeterministic scheduling.

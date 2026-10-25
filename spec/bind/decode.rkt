@@ -1,17 +1,22 @@
 #lang racket
-;; Event routing: from the DOM node an event hit back to a handler and the
-;; path of the component that owns it (getEventInfoFor in events.js).
+;; Decoding: from the DOM node an event hit back to a handler and the path of
+;; the component that owns it (getEventInfoFor in events.js).
 ;;
 ;; The rendered DOM carries no component references. Each element with
-;; handlers has data-eid, and metadata comments mark where components, fields
-;; and items begin and end. Routing walks from the target up to the container,
+;; handlers has data-eid, and metadata comments mark where the semantic tree's
+;; wrappers begin and end. Decoding walks from the target up to the container,
 ;; collects the eids met before the innermost component boundary, and reads the
-;; metadata enclosing each ancestor to rebuild the path.
-(require redex/reduction-semantics "data.rkt" "core.rkt" "dom.rkt" "paths.rkt" "view.rkt")
+;; metadata enclosing each ancestor to rebuild the path. view/route.rkt says
+;; what the answer means on the semantic tree; the binding theorem
+;; (system/tutuca.rkt) checks that decoding the lowered DOM gives it.
+(require redex/reduction-semantics "../data.rkt" "../vdom/vnode.rkt" "../vdom/dom.rkt"
+         "../component/paths.rkt" "../view/view.rkt" "meta.rkt" "lower.rkt")
 (provide siblings-before scan eid-of walk frames-of
          Routing node-at enclosing-meta event-info addresses)
 
-(define-extended-language Routing View
+(define-union-language View+Meta View Meta)
+
+(define-extended-language Routing View+Meta
   (dom ::= (element ns tag (prop ...) (dom ...)) (text string) (comment string))
   (addr ::= (natural ...))                 ; child indices from the container
   (info ::= (on-attr route) none))
@@ -42,7 +47,8 @@
 (define-metafunction Routing
   scan : (dom ...) natural -> (meta ...)
   [(scan () natural) ()]
-  [(scan ((comment "§/§") dom ...) natural) (scan (dom ...) ,(add1 (term natural)))]
+  [(scan ((comment string) dom ...) natural) (scan (dom ...) ,(add1 (term natural)))
+   (side-condition (equal? (term string) META-CLOSE))]
   [(scan ((comment string) dom ...) natural) (scan (dom ...) ,(sub1 (term natural)))
    (side-condition (meta-like? (term string)))
    (side-condition (> (term natural) 0))]
@@ -109,8 +115,8 @@
   (require rackunit)
   (define (tag=? t) (λ (d) (equal? (third d) t)))
   (define (dom-of classes root)
-    (define reg (term (register-classes ,classes)))
-    (values reg (term (render (render-root ,reg ,root)))))
+    (define reg (term (register-components ,classes)))
+    (values reg (term (render (lower-root ,reg ,root)))))
 
   ;; The scan skips closed siblings and look-alike comments.
   (define siblings
@@ -122,8 +128,8 @@
 
   ;; A component in a field: the update path is the field.
   (define classes
-    (term ((class Child (views ("main" (h 1 "button" ((on click (send inc))) "+"))))
-           (class Root (views ("main" (h 2 "div" ((on click (send outer))) (x-render (field child) none))))))))
+    (term ((component Child (views ("main" (h 1 "button" ((on click (send inc))) "+"))))
+           (component Root (views ("main" (h 2 "div" ((on click (send outer))) (x-render (field child) none))))))))
   (define-values (reg dom) (dom-of classes '(comp Root (child (comp Child)))))
   (match-define (list button) (addresses dom (tag=? "button")))
   (test-equal (term (event-info ,reg (comp Root (child (comp Child))) ,dom click ,button))
@@ -140,7 +146,7 @@
 
   ;; Loop items inside a component's own view are not component frames.
   (define loop-classes
-    (term ((class Root (views ("main" (each (field xs) (h 1 "button" ((on click (send pick (source-key))))) none)))))))
+    (term ((component Root (views ("main" (each (field xs) (h 1 "button" ((on click (send pick (source-key))))) none)))))))
   (define-values (lreg ldom) (dom-of loop-classes '(comp Root (xs (arr 1 2)))))
   (test-equal (for/list ([a (addresses ldom (tag=? "button"))])
                 (term (event-info ,lreg (comp Root (xs (arr 1 2))) ,ldom click ,a)))
