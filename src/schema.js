@@ -243,9 +243,17 @@ export class RecordType extends AnyType {
 	children() {
 		return Object.values(this.shape);
 	}
+	// Each key is made like a field, so its default must meet its constraints too.
 	makeDefault(scope, owner) {
 		if (this.defaultValue !== undefined) return super.makeDefault(scope, owner);
-		const entries = Object.entries(this.shape).map(([k, type]) => [k, type.makeDefault(scope)]);
+		const entries = Object.entries(this.shape).map(([k, type]) => {
+			try {
+				return [k, type.make(undefined, scope)];
+			} catch (error) {
+				const Wrapped = error instanceof NoDefaultError ? NoDefaultError : Error;
+				throw new Wrapped(`${k}: ${error.message}`, { cause: error });
+			}
+		});
 		return Object.fromEntries(entries);
 	}
 	isValidValue(value, scope) {
@@ -257,7 +265,7 @@ export class RecordType extends AnyType {
 export class UnionType extends AnyType {
 	static kind = "oneOf";
 	constructor(...types) {
-		super(undefined); // Undefined takes the first alternative's default.
+		super(undefined); // Undefined makes the first alternative with no value.
 		this.types = types;
 	}
 	children() {
@@ -265,7 +273,7 @@ export class UnionType extends AnyType {
 	}
 	makeDefault(scope, owner) {
 		if (this.defaultValue !== undefined) return super.makeDefault(scope, owner);
-		return this.types[0].makeDefault(scope, owner);
+		return this.types[0].make(undefined, scope, owner);
 	}
 	isValidValue(value, scope, owner) {
 		return this.types.some((type) => type.isValid(value, scope, owner));

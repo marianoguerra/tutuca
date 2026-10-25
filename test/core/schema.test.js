@@ -162,6 +162,16 @@ test("enum, record and oneOf check members, shape and alternatives", () => {
 	);
 });
 
+test("record and oneOf defaults meet the constraints of what they are made of", () => {
+	const three = types.number().min(1).where((v) => v === 3, "three");
+	const r = types.record({ n: three });
+	assert.throws(() => r.make(undefined, null), /n: has no default/);
+	assert.deepEqual(types.record({ n: three.default(3) }).make(undefined, null), { n: 3 });
+	const u = types.oneOf(types.string().len(1), types.number());
+	assert.throws(() => u.make(undefined, null), /has no default/);
+	assert.equal(types.oneOf(types.string("a").len(1)).make(undefined, null), "a");
+});
+
 test("index fields are keys of a sibling collection", () => {
 	const Sel = component({
 		name: "Sel",
