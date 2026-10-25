@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { render } from "../../src/vdom.js";
-import { dom, vh as h, mutationsOf, vchilds } from "../helpers.js";
+import { dom, vh as h, mutationsOf, vchilds, vfrag } from "../helpers.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const MATH = "http://www.w3.org/1998/Math/MathML";
@@ -74,6 +74,33 @@ test("an unchanged re-render writes nothing to the DOM", async () => {
 		draw(document, container, tree(), prev),
 	);
 	assert.equal(records.length, 0);
+});
+
+test("nodes other code put in a rendered element stay, and don't shift the morph", async () => {
+	const { window, document, container } = setup();
+	const tree = (items, label) =>
+		h("ul", {}, [...items.map((i) => h("li", { key: i }, i)), vfrag([h("li", {}, label), "tail"])]);
+	let prev = draw(document, container, tree(["a", "b"], "x"));
+	const ul = container.firstChild;
+	const foreign = [
+		document.createComment('§{"t":"other"}§'),
+		document.createElement("aside"),
+		document.createTextNode("ad"),
+	];
+	ul.prepend(foreign[0]);
+	ul.children[1].after(foreign[1]);
+	ul.append(foreign[2]);
+	const records = await mutationsOf(window, container, () => {
+		prev = draw(document, container, tree(["a", "b"], "x"), prev);
+	});
+	assert.equal(records.length, 0);
+	draw(document, container, tree(["b", "c", "a"], "y"), prev);
+	const owned = [...ul.childNodes].filter((n) => !foreign.includes(n));
+	assert.deepEqual(
+		owned.map((n) => n.textContent),
+		["b", "c", "a", "y", "tail"],
+	);
+	for (const node of foreign) assert.equal(node.parentNode, ul);
 });
 
 test("a changed leaf only writes that leaf", async () => {

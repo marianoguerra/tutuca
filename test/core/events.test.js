@@ -264,9 +264,13 @@ test("look-alike meta comments from unmanaged DOM are skipped", () => {
 	const { host, rootNode, C } = setup({ Counter });
 	host.start(C.Counter());
 	const button = rootNode.querySelector("button");
-	button.before(rootNode.ownerDocument.createComment('§{"t":"other"}§'));
+	const foreign = rootNode.ownerDocument.createComment('§{"t":"other"}§');
+	button.before(foreign);
 	button.click();
 	assert.equal(host.rootComponent.count, 1);
+	// The re-render matches past the foreign comment and leaves it in place.
+	assert.equal(rootNode.querySelector("button").textContent, "1");
+	assert.equal(foreign.parentNode, button.parentNode);
 });
 
 test("all views of one instance render together and route to it", () => {

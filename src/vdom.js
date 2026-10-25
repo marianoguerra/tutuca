@@ -150,14 +150,27 @@ function applyValueLast(node, value) {
 		setProp(node, "value", value, isNamespaced(node));
 	}
 }
+// The nodes render made. Morphing matches vnodes to these only, so nodes other code put in a
+// rendered element (an extension, a third-party widget) don't shift the match, and stay.
+const owned = new WeakSet();
+const own = (node) => {
+	owned.add(node);
+	return node;
+};
+const ownedChildNodes = (parent) => Array.from(parent.childNodes).filter((n) => owned.has(n));
+function nextOwnedSibling(node) {
+	let next = node.nextSibling;
+	while (next !== null && !owned.has(next)) next = next.nextSibling;
+	return next;
+}
 function toDom(vnode, doc, ns) {
 	if (vnode instanceof VFragment) {
 		const node = doc.createDocumentFragment();
 		appendChildNodes(node, vnode.childs, doc, ns);
 		return node;
 	}
-	if (vnode instanceof VText) return doc.createTextNode(vnode.text);
-	if (vnode instanceof VComment) return doc.createComment(vnode.text);
+	if (vnode instanceof VText) return own(doc.createTextNode(vnode.text));
+	if (vnode instanceof VComment) return own(doc.createComment(vnode.text));
 	const { shape, values } = vnode;
 	const { names, staticAttrs, valueIdx, checkedIdx } = shape;
 	const elNs = shape.namespace ?? ns;
@@ -167,6 +180,7 @@ function toDom(vnode, doc, ns) {
 		elNs === null
 			? doc.createElement(shape.tag, createOpts)
 			: doc.createElementNS(elNs, shape.tag, createOpts);
+	own(node);
 	const namespaced = isNamespaced(node);
 	for (const name in staticAttrs) setProp(node, name, staticAttrs[name], namespaced);
 	for (let i = 0; i < names.length; i++) {
@@ -236,7 +250,7 @@ function morphChildren(
 	newChilds,
 	doc,
 	ns,
-	domNodes = Array.from(parentDom.childNodes),
+	domNodes = ownedChildNodes(parentDom),
 	before = null,
 ) {
 	const oldGroups = [];
@@ -291,7 +305,7 @@ function morphChildren(
 			nodes = morphChildren(parentDom, source.childs, target.childs, doc, ns, oldNodes, before);
 		} else if (source && !(source instanceof VFragment) && !(target instanceof VFragment)) {
 			const node = morphNode(oldNodes[0], source, target, doc, ns);
-			if (node.nextSibling !== before) {
+			if (nextOwnedSibling(node) !== before) {
 				parentDom.insertBefore(node, before);
 			}
 			nodes = [node];
