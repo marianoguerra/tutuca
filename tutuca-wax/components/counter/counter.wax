@@ -1,0 +1,278 @@
+// The counter component module: Counter and Label, written by hand against
+// the runtime's ABI. board.wax has the Board that holds counters, and
+// register.wax the module's interface, which registers the three in a scope.
+
+import "'" {
+    #[import = "Counter"]
+    const s_counter: &extern;
+    #[import = "Label"]
+    const s_label_type: &extern;
+    #[import = "count"]
+    const s_count: &extern;
+    #[import = "text"]
+    const s_text: &extern;
+    #[import = "div"]
+    const s_div: &extern;
+    #[import = "button"]
+    const s_button: &extern;
+    #[import = "span"]
+    const s_span: &extern;
+    #[import = "input"]
+    const s_input: &extern;
+    #[import = "p"]
+    const s_p_tag: &extern;
+    #[import = "counter card card-border bg-base-100 w-fit flex-row items-center gap-2 p-2"]
+    const s_counter_class: &extern;
+    #[import = "btn btn-sm"]
+    const s_btn_class: &extern;
+    #[import = "btn btn-sm btn-ghost"]
+    const s_btn_ghost_class: &extern;
+    #[import = "min-w-10 text-center font-semibold tabular-nums"]
+    const s_count_class: &extern;
+    #[import = "input input-sm w-20"]
+    const s_input_class: &extern;
+    #[import = "text-sm italic opacity-70"]
+    const s_label_class: &extern;
+    #[import = "click"]
+    const s_click: &extern;
+    #[import = "+"]
+    const s_plus: &extern;
+    #[import = "+10"]
+    const s_plus_ten: &extern;
+    #[import = "x"]
+    const s_x: &extern;
+    #[import = "inc"]
+    const s_inc: &extern;
+    #[import = "add"]
+    const s_add: &extern;
+    #[import = "set"]
+    const s_set: &extern;
+    #[import = "reset"]
+    const s_reset: &extern;
+    #[import = "remove"]
+    const s_remove: &extern;
+    #[import = "removeMe"]
+    const s_remove_me: &extern;
+    #[import = "changed"]
+    const s_changed: &extern;
+    #[import = "load"]
+    const s_load: &extern;
+    #[import = "loadCount"]
+    const s_load_count: &extern;
+    #[import = "loadCountReplyOk"]
+    const s_load_count_reply_ok: &extern;
+    #[import = "loadCountReplyError"]
+    const s_load_count_reply_error: &extern;
+    #[import = "fetch"]
+    const s_fetch: &extern;
+    #[import = "fetchCount"]
+    const s_fetch_count: &extern;
+    #[import = "fetchCountReplyOk"]
+    const s_fetch_count_reply_ok: &extern;
+    #[import = "toLabel"]
+    const s_to_label: &extern;
+    #[import = "was "]
+    const s_was: &extern;
+    #[import = "class"]
+    const s_class: &extern;
+    #[import = "value"]
+    const s_value: &extern;
+    #[import = ""]
+    const s_empty: &extern;
+}
+
+// ---- Counter -------------------------------------------------------------------
+//
+// <div class="counter card ...">
+//   <button class="btn btn-sm" on:click="inc">+</button>
+//   <span class="... tabular-nums">{count}</span>
+//   <button class="btn btn-sm" on:click="add(10)">+10</button>
+//   <input class="input input-sm w-20" value={count} on:input="set(targetValue)">
+//   <button class="btn btn-sm btn-ghost" on:click="remove">x</button>
+// </div>
+
+type counter_state = { count: i32 };
+
+let counter_spec_made: &?component_spec = null;
+
+fn counter_spec() -> &component_spec {
+    if !!counter_spec_made {
+        return counter_spec_made!;
+    }
+    let main =
+        el_class(
+            s_div,
+            s_counter_class,
+            views5(
+                el_class_on(
+                    s_button,
+                    s_btn_class,
+                    views1(text(s_plus)),
+                    view_ons1(s_click, s_inc, views0()),
+                ),
+                el_class(s_span, s_count_class, views1(view_field(s_count))),
+                el_class_on(
+                    s_button,
+                    s_btn_class,
+                    views1(text(s_plus_ten)),
+                    view_ons1(s_click, s_add, views1(view_const(value_int(10)))),
+                ),
+                el_on(
+                    s_input,
+                    strs2(s_class, s_value),
+                    views2(text(s_input_class), view_field(s_count)),
+                    views0(),
+                    view_ons1(s_input, s_set, views1(view_target_value())),
+                ),
+                el_class_on(
+                    s_button,
+                    s_btn_ghost_class,
+                    views1(text(s_x)),
+                    view_ons1(s_click, s_remove, views0()),
+                ),
+            ),
+        );
+    let spec = spec_main(s_counter, main, no_loops());
+    counter_spec_made = spec;
+    spec;
+}
+
+fn counter_vtable() -> &vtable {
+    {vtable| init: counter_init, handle: counter_handle, get: counter_get, set: counter_set };
+}
+
+fn counter_init: init_fn (fields: &value) -> &init_result {
+    let (count, issues) = init_int(fields, s_count, 0, list_empty());
+    init_ok({counter_state| count }, issues);
+}
+
+fn counter_with(count: i32) -> &message_result {
+    message_result_updated({counter_state| count });
+}
+
+fn counter_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let count = (instance as &counter_state).count;
+    let name = m.name;
+    if str_eq(name, s_inc) {
+        ctx_notify(ctx, s_changed, values1(value_int(count + 1)));
+        return counter_with(count + 1);
+    }
+    if str_eq(name, s_add) {
+        let (ok, n) = arg_int(m.args, 0);
+        if !ok {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return counter_with(count + n);
+    }
+    if str_eq(name, s_set) {
+        // An input's value is a string.
+        if m.args.length() != 1 {
+            return message_result_rejected(message_error_wrong_arity(1, m.args.length()));
+        }
+        let text = value_string_of(m.args[0]!);
+        if !text {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        let (ok, n) = parse_int(text!);
+        if !ok {
+            // Not a number yet: keep the count.
+            return message_result_unchanged();
+        }
+        return counter_with(n);
+    }
+    if str_eq(name, s_reset) {
+        return counter_with(0);
+    }
+    if str_eq(name, s_remove) {
+        ctx_notify(ctx, s_remove_me, values0());
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_load) {
+        ctx_ask(ctx, s_load_count, values0());
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_fetch) {
+        ctx_ask(ctx, s_fetch_count, values0());
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_load_count_reply_ok) | str_eq(name, s_fetch_count_reply_ok) {
+        let (ok, n) = arg_int(m.args, 0);
+        if !ok {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return counter_with(n);
+    }
+    if str_eq(name, s_load_count_reply_error) {
+        ctx_log(ctx, m.args[0]!);
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_to_label) {
+        let text = js_string_concat(s_was, int_text(count));
+        let fields = map_assoc(map_empty(), s_text, value_string(text));
+        return message_result_swapped(ctx_make(ctx, s_label_type, fields));
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn counter_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    if str_eq(name, s_count) {
+        return (property_ok, value_int((instance as &counter_state).count));
+    }
+    (property_no_such_property, null);
+}
+
+fn counter_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    if str_eq(name, s_count) {
+        if v.kind != value_kind_int {
+            return (property_wrong_type, null);
+        }
+        return (property_ok, {counter_state| count: (v as &value_int).value });
+    }
+    (property_no_such_property, null);
+}
+
+// ---- Label -----------------------------------------------------------------------
+//
+// <p class="text-sm italic opacity-70">{text}</p>
+
+type label_state = { text: &extern };
+
+let label_spec_made: &?component_spec = null;
+
+fn label_spec() -> &component_spec {
+    if !!label_spec_made {
+        return label_spec_made!;
+    }
+    let spec =
+        spec_main(
+            s_label_type,
+            el_class(s_p_tag, s_label_class, views1(view_field(s_text))),
+            no_loops(),
+        );
+    label_spec_made = spec;
+    spec;
+}
+
+fn label_vtable() -> &vtable {
+    {vtable| init: label_init, handle: label_handle, get: label_get, set: label_set };
+}
+
+fn label_init: init_fn (fields: &value) -> &init_result {
+    let (text, issues) = init_string(fields, s_text, s_empty, list_empty());
+    init_ok({label_state| text }, issues);
+}
+
+fn label_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn label_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    if str_eq(name, s_text) {
+        return (property_ok, value_string((instance as &label_state).text));
+    }
+    (property_no_such_property, null);
+}
+
+fn label_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    (property_not_writable, null);
+}

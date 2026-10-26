@@ -1,0 +1,695 @@
+// The component ABI: every function a component module imports from the
+// runtime, as module "tutuca". The prelude (prelude/*.wax) has the types both
+// sides share, and no code: the code is here, once.
+//
+// This file is the one list of the ABI. The build reads the wrappers below
+// and writes the import block components are assembled with
+// (dist/prelude/abi_imports.wax), so each wrapper is an export attribute
+// naming the export, then `fn abi_` and that name, its parameters (no
+// tuples) and its result.
+// JS calls these exports too. A change to them, or to the prelude's types,
+// is a change of tutuca_abi_version_current.
+
+#[export = "tutuca_abi_version"]
+fn abi_tutuca_abi_version() -> i32 {
+    tutuca_abi_version_current;
+}
+
+// Values (value.wax, str.wax). Reading a value's kind or a case's field is a
+// field read, which components do themselves.
+
+#[export = "value_null"]
+fn abi_value_null() -> &value {
+    value_null();
+}
+
+#[export = "value_bool"]
+fn abi_value_bool(v: i32) -> &value {
+    value_bool(v);
+}
+
+#[export = "value_int"]
+fn abi_value_int(v: i32) -> &value {
+    value_int(v);
+}
+
+#[export = "value_float"]
+fn abi_value_float(v: f64) -> &value {
+    value_float(v);
+}
+
+#[export = "value_string"]
+fn abi_value_string(v: &extern) -> &value {
+    value_string(v);
+}
+
+#[export = "value_ok"]
+fn abi_value_ok(v: &value) -> &value {
+    value_ok(v);
+}
+
+#[export = "value_err"]
+fn abi_value_err(v: &value) -> &value {
+    value_err(v);
+}
+
+#[export = "value_component"]
+fn abi_value_component(c: &component_base) -> &value {
+    value_component(c);
+}
+
+#[export = "value_same"]
+fn abi_value_same(a: &value, b: &value) -> i32 {
+    value_same(a, b);
+}
+
+#[export = "value_truthy"]
+fn abi_value_truthy(v: &value) -> i32 {
+    value_truthy(v);
+}
+
+#[export = "value_string_of"]
+fn abi_value_string_of(v: &value) -> &?extern {
+    value_string_of(v);
+}
+
+#[export = "value_as_component"]
+fn abi_value_as_component(v: &value) -> &?component {
+    value_as_component(v);
+}
+
+#[export = "str_eq"]
+fn abi_str_eq(a: &?extern, b: &?extern) -> i32 {
+    str_eq(a, b);
+}
+
+// List and Map (collections.wax): the vendored collections' code lives only
+// here.
+
+#[export = "list_empty"]
+fn abi_list_empty() -> &value {
+    list_empty();
+}
+
+#[export = "list_count"]
+fn abi_list_count(list: &value) -> i32 {
+    list_count(list);
+}
+
+#[export = "list_get"]
+fn abi_list_get(list: &value, i: i32) -> &?value {
+    list_get(list, i);
+}
+
+#[export = "list_push"]
+fn abi_list_push(list: &value, item: &value) -> &value {
+    list_push(list, item);
+}
+
+#[export = "list_assoc"]
+fn abi_list_assoc(list: &value, i: i32, item: &value) -> &value {
+    list_assoc(list, i, item);
+}
+
+#[export = "list_pop"]
+fn abi_list_pop(list: &value) -> &value {
+    list_pop(list);
+}
+
+#[export = "map_empty"]
+fn abi_map_empty() -> &value {
+    map_empty();
+}
+
+#[export = "map_count"]
+fn abi_map_count(map: &value) -> i32 {
+    map_count(map);
+}
+
+#[export = "map_get"]
+fn abi_map_get(map: &value, key: &extern) -> &?value {
+    map_get(map, key);
+}
+
+#[export = "map_assoc"]
+fn abi_map_assoc(map: &value, key: &extern, item: &value) -> &value {
+    map_assoc(map, key, item);
+}
+
+#[export = "map_dissoc"]
+fn abi_map_dissoc(map: &value, key: &extern) -> &value {
+    map_dissoc(map, key);
+}
+
+#[export = "map_keys"]
+fn abi_map_keys(map: &value) -> &value {
+    map_keys(map);
+}
+
+#[export = "map_values"]
+fn abi_map_values(map: &value) -> &value {
+    map_values(map);
+}
+
+// Path keys (path.wax).
+
+#[export = "path_key_name"]
+fn abi_path_key_name(name: &extern) -> &path_key {
+    path_key_name(name);
+}
+
+#[export = "path_key_index"]
+fn abi_path_key_index(index: i32) -> &path_key {
+    path_key_index(index);
+}
+
+// The semantic tree (sem.wax): templates, send arguments and nodes.
+
+#[export = "template_new"]
+fn abi_template_new(
+    tid: i32,
+    tag_name: &extern,
+    ns: &?extern,
+    static_names: &str_array,
+    static_values: &value_array,
+    names: &str_array,
+    handlers: &on_attr_array,
+) -> &template {
+    template_new(tid, tag_name, ns, static_names, static_values, names, handlers);
+}
+
+#[export = "arg_value"]
+fn abi_arg_value(value: &value) -> &arg {
+    arg_value(value);
+}
+
+#[export = "arg_target_value"]
+fn abi_arg_target_value() -> &arg {
+    arg_target_value();
+}
+
+#[export = "arg_source_key"]
+fn abi_arg_source_key() -> &arg {
+    arg_source_key();
+}
+
+#[export = "arg_if"]
+fn abi_arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {
+    arg_if(test, then, otherwise);
+}
+
+#[export = "snode_el"]
+fn abi_snode_el(
+    template: &template,
+    values: &value_array,
+    key: &?extern,
+    childs: &snode_array,
+) -> &snode {
+    snode_el(template, values, key, childs);
+}
+
+#[export = "snode_text"]
+fn abi_snode_text(text: &extern) -> &snode {
+    snode_text(text);
+}
+
+#[export = "snode_comment"]
+fn abi_snode_comment(text: &extern) -> &snode {
+    snode_comment(text);
+}
+
+#[export = "snode_group"]
+fn abi_snode_group(key: &?extern, childs: &snode_array) -> &snode {
+    snode_group(key, childs);
+}
+
+#[export = "snode_component"]
+fn abi_snode_component(name: &extern, childs: &snode_array) -> &snode {
+    snode_component(name, childs);
+}
+
+#[export = "snode_enter"]
+fn abi_snode_enter(frame: &frame, childs: &snode_array) -> &snode {
+    snode_enter(frame, childs);
+}
+
+#[export = "snode_items"]
+fn abi_snode_items(entries: &entry_array) -> &snode {
+    snode_items(entries);
+}
+
+// Views as data (view.wax), what walking them collects (collect.wax), and
+// making a component type's spec from them (eval.wax).
+
+#[export = "view_const"]
+fn abi_view_const(value: &value) -> &view {
+    view_const(value);
+}
+
+#[export = "view_field"]
+fn abi_view_field(name: &extern) -> &view {
+    view_field(name);
+}
+
+#[export = "view_seq_item"]
+fn abi_view_seq_item(seq_name: &extern, key_name: &extern) -> &view {
+    view_seq_item(seq_name, key_name);
+}
+
+#[export = "view_provided"]
+fn abi_view_provided(name: &extern) -> &view {
+    view_provided(name);
+}
+
+#[export = "view_lookup_bind"]
+fn abi_view_lookup_bind(name: &extern) -> &view {
+    view_lookup_bind(name);
+}
+
+#[export = "view_if"]
+fn abi_view_if(test: &view, then: &view, otherwise: &view) -> &view {
+    view_if(test, then, otherwise);
+}
+
+#[export = "view_el"]
+fn abi_view_el(
+    tag_name: &extern,
+    ns: &?extern,
+    attr_names: &str_array,
+    attr_values: &view_array,
+    key: &?view,
+    childs: &view_array,
+    handlers: &view_on_array,
+) -> &view {
+    view_el(tag_name, ns, attr_names, attr_values, key, childs, handlers);
+}
+
+#[export = "view_frag"]
+fn abi_view_frag(childs: &view_array) -> &view {
+    view_frag(childs);
+}
+
+#[export = "view_render"]
+fn abi_view_render(source: &view, view_name: &?extern) -> &view {
+    view_render(source, view_name);
+}
+
+#[export = "view_each"]
+fn abi_view_each(source: &view, body: &view, loop_name: &?extern) -> &view {
+    view_each(source, body, loop_name);
+}
+
+#[export = "view_render_each"]
+fn abi_view_render_each(source: &view, loop_name: &?extern) -> &view {
+    view_render_each(source, loop_name);
+}
+
+#[export = "view_render_it"]
+fn abi_view_render_it(view_name: &?extern) -> &view {
+    view_render_it(view_name);
+}
+
+#[export = "view_scope"]
+fn abi_view_scope(scope_name: &extern, body: &view) -> &view {
+    view_scope(scope_name, body);
+}
+
+#[export = "view_push_view"]
+fn abi_view_push_view(view_name: &view, body: &view) -> &view {
+    view_push_view(view_name, body);
+}
+
+#[export = "view_action"]
+fn abi_view_action(name: &extern, args: &view_array) -> &view_action {
+    view_action(name, args);
+}
+
+#[export = "view_target_value"]
+fn abi_view_target_value() -> &view {
+    view_target_value();
+}
+
+#[export = "view_source_key"]
+fn abi_view_source_key() -> &view {
+    view_source_key();
+}
+
+#[export = "view_on"]
+fn abi_view_on(event: &extern, action: &view_action) -> &view_on {
+    view_on(event, action);
+}
+
+#[export = "spec_new"]
+fn abi_spec_new(
+    name: &extern,
+    view_names: &str_array,
+    views: &view_array,
+    loops: &loop_def_array,
+    scopes: &scope_def_array,
+    provide_names: &str_array,
+    provide_selectors: &selector_array,
+) -> &component_spec {
+    spec_new(name, view_names, views, loops, scopes, provide_names, provide_selectors);
+}
+
+#[export = "views_collect_templates"]
+fn abi_views_collect_templates(views: &view_array) -> &template_array {
+    views_collect_templates(views);
+}
+
+#[export = "views_collect_classes"]
+fn abi_views_collect_classes(views: &view_array) -> &value {
+    views_collect_classes(views);
+}
+
+// What handlers and ask handlers return (component.wax).
+
+#[export = "message_result_unchanged"]
+fn abi_message_result_unchanged() -> &message_result {
+    message_result_unchanged();
+}
+
+#[export = "message_result_updated"]
+fn abi_message_result_updated(instance: &eq) -> &message_result {
+    message_result_updated(instance);
+}
+
+#[export = "message_result_swapped"]
+fn abi_message_result_swapped(component: &component) -> &message_result {
+    message_result_swapped(component);
+}
+
+#[export = "message_result_rejected"]
+fn abi_message_result_rejected(error: &message_error) -> &message_result {
+    message_result_rejected(error);
+}
+
+#[export = "message_error_unknown_message"]
+fn abi_message_error_unknown_message() -> &message_error {
+    message_error_unknown_message();
+}
+
+#[export = "message_error_wrong_arity"]
+fn abi_message_error_wrong_arity(expected: i32, got: i32) -> &message_error {
+    message_error_wrong_arity(expected, got);
+}
+
+#[export = "message_error_wrong_arg_type"]
+fn abi_message_error_wrong_arg_type(index: i32) -> &message_error {
+    message_error_wrong_arg_type(index);
+}
+
+#[export = "message_error_failed"]
+fn abi_message_error_failed(reason: &value) -> &message_error {
+    message_error_failed(reason);
+}
+
+#[export = "ask_result_reply"]
+fn abi_ask_result_reply(result: &value) -> &ask_result {
+    ask_result_reply(result);
+}
+
+#[export = "ask_result_pending"]
+fn abi_ask_result_pending(handle: &extern) -> &ask_result {
+    ask_result_pending(handle);
+}
+
+// Scopes (scope.wax): what a component module's tutuca_register calls.
+
+#[export = "scope_register"]
+fn abi_scope_register(s: &scope, name: &extern, spec: &component_spec, vtable: &vtable) {
+    scope_register(s, name, spec, vtable);
+}
+
+#[export = "scope_register_ask"]
+fn abi_scope_register_ask(s: &scope, name: &extern, handler: &ask_fn) {
+    scope_register_ask(s, name, handler);
+}
+
+#[export = "scope_register_host_ask"]
+fn abi_scope_register_host_ask(s: &scope, name: &extern) {
+    scope_register_host_ask(s, name);
+}
+
+// What a handler does through its context (context.wax).
+
+#[export = "ctx_notify"]
+fn abi_ctx_notify(ctx: &context, name: &extern, args: &value_array) {
+    ctx_notify(ctx, name, args);
+}
+
+#[export = "ctx_ask"]
+fn abi_ctx_ask(ctx: &context, name: &extern, args: &value_array) {
+    ctx_ask(ctx, name, args);
+}
+
+#[export = "ctx_send_at"]
+fn abi_ctx_send_at(ctx: &context, name: &extern, args: &value_array, selector: &selector) {
+    ctx_send_at(ctx, name, args, selector);
+}
+
+#[export = "ctx_forward_at"]
+fn abi_ctx_forward_at(ctx: &context, selector: &selector) {
+    ctx_forward_at(ctx, selector);
+}
+
+#[export = "ctx_stop_next"]
+fn abi_ctx_stop_next(ctx: &context) {
+    ctx_stop_next(ctx);
+}
+
+#[export = "ctx_log"]
+fn abi_ctx_log(ctx: &context, v: &value) {
+    ctx_log(ctx, v);
+}
+
+#[export = "ctx_now"]
+fn abi_ctx_now(ctx: &context) -> f64 {
+    ctx_now(ctx);
+}
+
+#[export = "ctx_random"]
+fn abi_ctx_random(ctx: &context) -> f64 {
+    ctx_random(ctx);
+}
+
+#[export = "ctx_uuid"]
+fn abi_ctx_uuid(ctx: &context) -> &extern {
+    ctx_uuid(ctx);
+}
+
+#[export = "ctx_make"]
+fn abi_ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
+    ctx_make(ctx, name, fields);
+}
+
+// Helpers for writing component types (lib/author.wax).
+
+#[export = "values0"]
+fn abi_values0() -> &value_array {
+    values0();
+}
+
+#[export = "values1"]
+fn abi_values1(a: &value) -> &value_array {
+    values1(a);
+}
+
+#[export = "strs0"]
+fn abi_strs0() -> &str_array {
+    strs0();
+}
+
+#[export = "strs1"]
+fn abi_strs1(a: &extern) -> &str_array {
+    strs1(a);
+}
+
+#[export = "selector_item"]
+fn abi_selector_item(name: &extern, key: &path_key) -> &selector {
+    selector_item(name, key);
+}
+
+#[export = "selector_field"]
+fn abi_selector_field(name: &extern) -> &selector {
+    selector_field(name);
+}
+
+#[export = "no_provides"]
+fn abi_no_provides() -> &selector_array {
+    no_provides();
+}
+
+#[export = "views0"]
+fn abi_views0() -> &view_array {
+    views0();
+}
+
+#[export = "views1"]
+fn abi_views1(a: &view) -> &view_array {
+    views1(a);
+}
+
+#[export = "views2"]
+fn abi_views2(a: &view, b: &view) -> &view_array {
+    views2(a, b);
+}
+
+#[export = "views3"]
+fn abi_views3(a: &view, b: &view, c: &view) -> &view_array {
+    views3(a, b, c);
+}
+
+#[export = "view_ons0"]
+fn abi_view_ons0() -> &view_on_array {
+    view_ons0();
+}
+
+#[export = "view_ons1"]
+fn abi_view_ons1(event: &extern, name: &extern, args: &view_array) -> &view_on_array {
+    view_ons1(event, name, args);
+}
+
+#[export = "strs2"]
+fn abi_strs2(a: &extern, b: &extern) -> &str_array {
+    strs2(a, b);
+}
+
+#[export = "views4"]
+fn abi_views4(a: &view, b: &view, c: &view, d: &view) -> &view_array {
+    views4(a, b, c, d);
+}
+
+#[export = "views5"]
+fn abi_views5(a: &view, b: &view, c: &view, d: &view, e: &view) -> &view_array {
+    views5(a, b, c, d, e);
+}
+
+#[export = "text"]
+fn abi_text(s: &extern) -> &view {
+    text(s);
+}
+
+#[export = "el"]
+fn abi_el(tag_name: &extern, childs: &view_array) -> &view {
+    el(tag_name, childs);
+}
+
+#[export = "el_attrs"]
+fn abi_el_attrs(
+    tag_name: &extern,
+    names: &str_array,
+    values: &view_array,
+    childs: &view_array,
+) -> &view {
+    el_attrs(tag_name, names, values, childs);
+}
+
+#[export = "el_on"]
+fn abi_el_on(
+    tag_name: &extern,
+    names: &str_array,
+    values: &view_array,
+    childs: &view_array,
+    ons: &view_on_array,
+) -> &view {
+    el_on(tag_name, names, values, childs, ons);
+}
+
+#[export = "strs3"]
+fn abi_strs3(a: &extern, b: &extern, c: &extern) -> &str_array {
+    strs3(a, b, c);
+}
+
+#[export = "el_class"]
+fn abi_el_class(tag_name: &extern, class: &extern, childs: &view_array) -> &view {
+    el_class(tag_name, class, childs);
+}
+
+#[export = "el_class_on"]
+fn abi_el_class_on(
+    tag_name: &extern,
+    class: &extern,
+    childs: &view_array,
+    ons: &view_on_array,
+) -> &view {
+    el_class_on(tag_name, class, childs, ons);
+}
+
+#[export = "spec_main"]
+fn abi_spec_main(name: &extern, main: &view, loops: &loop_def_array) -> &component_spec {
+    spec_main(name, main, loops);
+}
+
+#[export = "no_loops"]
+fn abi_no_loops() -> &loop_def_array {
+    no_loops();
+}
+
+#[export = "loops1"]
+fn abi_loops1(a: &loop_def) -> &loop_def_array {
+    loops1(a);
+}
+
+#[export = "no_scopes"]
+fn abi_no_scopes() -> &scope_def_array {
+    no_scopes();
+}
+
+#[export = "init_ok"]
+fn abi_init_ok(instance: &eq, issues: &value) -> &init_result {
+    init_ok(instance, issues);
+}
+
+#[export = "init_int"]
+fn abi_init_int(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+    init_int(fields, name, default, issues);
+}
+
+#[export = "init_bool"]
+fn abi_init_bool(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+    init_bool(fields, name, default, issues);
+}
+
+#[export = "init_list"]
+fn abi_init_list(fields: &value, name: &extern, issues: &value) -> (&value, &value) {
+    init_list(fields, name, issues);
+}
+
+#[export = "init_string"]
+fn abi_init_string(
+    fields: &value,
+    name: &extern,
+    default: &extern,
+    issues: &value,
+) -> (&extern, &value) {
+    init_string(fields, name, default, issues);
+}
+
+#[export = "arg_int"]
+fn abi_arg_int(args: &value_array, i: i32) -> (i32, i32) {
+    arg_int(args, i);
+}
+
+#[export = "arg_bool"]
+fn abi_arg_bool(args: &value_array, i: i32) -> (i32, i32) {
+    arg_bool(args, i);
+}
+
+#[export = "int_text"]
+fn abi_int_text(n: i32) -> &extern {
+    int_text(n);
+}
+
+#[export = "parse_int"]
+fn abi_parse_int(s: &extern) -> (i32, i32) {
+    parse_int(s);
+}
+
+// Failing: throws a JS Error with the message, as the runtime's own failures
+// do, so the task commits nothing.
+
+#[export = "tutuca_fail"]
+fn abi_tutuca_fail(message: &extern) {
+    host_fail(message);
+}

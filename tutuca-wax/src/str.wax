@@ -1,0 +1,38 @@
+// String helpers over JS strings.
+
+// JS ===: null equals null, and nothing else.
+fn str_eq(a: &?extern, b: &?extern) -> i32 {
+    js_string_equals(a, b);
+}
+
+// Whether s, lowercased in ASCII, is lower (which is already lowercase).
+fn str_eq_ascii_lower(s: &extern, lower: &extern) -> i32 {
+    let n = js_string_length(s);
+    if n != js_string_length(lower) {
+        return 0;
+    }
+    let i = 0;
+    while i <s n {
+        let c = js_string_char_code_at(s, i);
+        if (c >=s 'A') & (c <=s 'Z') {
+            c = c + 32;
+        }
+        if c != js_string_char_code_at(lower, i) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// FNV-1a over the UTF-16 code units.
+fn str_hash(s: &extern) -> i32 {
+    let h = 0x811c9dc5;
+    let n = js_string_length(s);
+    let i = 0;
+    while i <s n {
+        h = (h ^ js_string_char_code_at(s, i)) * 0x01000193;
+        i += 1;
+    }
+    h;
+}

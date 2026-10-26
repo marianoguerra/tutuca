@@ -1,0 +1,169 @@
+// The Board example: the root, holding counters.
+//
+// <section class="flex flex-col items-start gap-2">
+//   <div class="flex items-center gap-2">
+//     <button class="btn btn-sm" on:click="addCounter">add</button>
+//     <button class="btn btn-sm btn-outline" on:click="resetAll">reset all</button>
+//     <p class="font-semibold tabular-nums">total {total}</p>
+//   </div>
+//   @each counters as counter: render counter
+// </section>
+
+import "'" {
+    #[import = "Board"]
+    const s_board_type: &extern;
+    #[import = "counters"]
+    const s_counters: &extern;
+    #[import = "total"]
+    const s_total: &extern;
+    #[import = "section"]
+    const s_section: &extern;
+    #[import = "addCounter"]
+    const s_add_counter: &extern;
+    #[import = "resetAll"]
+    const s_reset_all: &extern;
+    #[import = "add"]
+    const s_add_label: &extern;
+    #[import = "reset all"]
+    const s_reset_all_label: &extern;
+    #[import = "total "]
+    const s_total_label: &extern;
+    #[import = "flex flex-col items-start gap-2"]
+    const s_board_class: &extern;
+    #[import = "flex items-center gap-2"]
+    const s_toolbar_class: &extern;
+    #[import = "btn btn-sm btn-outline"]
+    const s_btn_outline_class: &extern;
+    #[import = "font-semibold tabular-nums"]
+    const s_total_class: &extern;
+}
+
+type board_state = { counters: &value, total: i32 };
+
+let board_spec_made: &?component_spec = null;
+
+fn board_spec() -> &component_spec {
+    if !!board_spec_made {
+        return board_spec_made!;
+    }
+    let toolbar =
+        el_class(
+            s_div,
+            s_toolbar_class,
+            views3(
+                el_class_on(
+                    s_button,
+                    s_btn_class,
+                    views1(text(s_add_label)),
+                    view_ons1(s_click, s_add_counter, views0()),
+                ),
+                el_class_on(
+                    s_button,
+                    s_btn_outline_class,
+                    views1(text(s_reset_all_label)),
+                    view_ons1(s_click, s_reset_all, views0()),
+                ),
+                el_class(s_p_tag, s_total_class, views2(text(s_total_label), view_field(s_total))),
+            ),
+        );
+    let main =
+        el_class(
+            s_section,
+            s_board_class,
+            views2(toolbar, view_render_each(view_field(s_counters), null)),
+        );
+    let spec = spec_main(s_board_type, main, no_loops());
+    board_spec_made = spec;
+    spec;
+}
+
+fn board_vtable() -> &vtable {
+    {vtable| init: board_init, handle: board_handle, get: board_get, set: board_set };
+}
+
+fn board_init: init_fn (fields: &value) -> &init_result {
+    let (counters, issues) = init_list(fields, s_counters, list_empty());
+    let (total, more) = init_int(fields, s_total, 0, issues);
+    init_ok({board_state| counters, total }, more);
+}
+
+// The list without the item at i.
+fn board_without(list: &value, i: i32) -> &value {
+    let out = list_empty();
+    let j = 0;
+    while j <s list_count(list) {
+        if j != i {
+            out = list_push(out, list_get(list, j)!);
+        }
+        j += 1;
+    }
+    out;
+}
+
+fn board_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let state = instance as &board_state;
+    let name = m.name;
+    if str_eq(name, s_add_counter) {
+        let n = list_count(state.counters);
+        let c = ctx_make(ctx, s_counter, map_assoc(map_empty(), s_count, value_int(n)));
+        let counters = list_push(state.counters, value_component(c));
+        return message_result_updated({board_state| counters, total: state.total });
+    }
+    if str_eq(name, s_reset_all) {
+        let i = 0;
+        while i <s list_count(state.counters) {
+            ctx_send_at(ctx, s_reset, values0(), selector_item(s_counters, path_key_index(i)));
+            i += 1;
+        }
+        return message_result_unchanged();
+    }
+    // Notified by a counter that changed.
+    if str_eq(name, s_changed) {
+        return
+            message_result_updated(
+                {board_state| counters: state.counters, total: state.total + 1 },
+            );
+    }
+    // Notified by a counter that wants to go: the source key says which.
+    if str_eq(name, s_remove_me) {
+        let key = ctx.source_key;
+        if !key {
+            return message_result_unchanged();
+        }
+        let i = (key! as &path_key_index).index;
+        return
+            message_result_updated(
+                {board_state| counters: board_without(state.counters, i), total: state.total },
+            );
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn board_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let state = instance as &board_state;
+    if str_eq(name, s_counters) {
+        return (property_ok, state.counters);
+    }
+    if str_eq(name, s_total) {
+        return (property_ok, value_int(state.total));
+    }
+    (property_no_such_property, null);
+}
+
+fn board_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    let state = instance as &board_state;
+    if str_eq(name, s_counters) {
+        if v.kind != value_kind_list {
+            return (property_wrong_type, null);
+        }
+        return (property_ok, {board_state| counters: v, total: state.total });
+    }
+    if str_eq(name, s_total) {
+        if v.kind != value_kind_int {
+            return (property_wrong_type, null);
+        }
+        return
+            (property_ok, {board_state| counters: state.counters, total: (v as &value_int).value });
+    }
+    (property_no_such_property, null);
+}

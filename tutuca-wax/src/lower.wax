@@ -1,0 +1,108 @@
+// Lowering (the spec's bind/lower.rkt; wrapMeta, planElement's data-eid and
+// the loop fragments in tutuca's src/view.js): from the semantic tree to
+// vnodes. This is what binds tutuca to the vdom, which knows nothing of it.
+//
+// A component or frame wrapper becomes its metadata comment, its children and
+// the closing comment. A loop becomes an unkeyed fragment of keyed item
+// fragments, so each loop is its own sibling key scope, and each item is
+// wrapped in its frame's metadata. An element's data-eid is already in its
+// template's shape.
+
+// The comments every render shares: morph skips them by identity.
+const VNODE_META_COMPONENT: &vnode =
+    {vnode_comment| kind: vnode_kind_comment, text: s_meta_component };
+const VNODE_META_CLOSE: &vnode = {vnode_comment| kind: vnode_kind_comment, text: s_meta_close };
+
+type vnode_buf = { items: mut &vnode_array, len: mut i32 };
+
+fn vnode_buf_new() -> &vnode_buf {
+    {vnode_buf| items: [vnode_array|null; 8], len: 0 };
+}
+
+fn vnode_buf_push(buf: &vnode_buf, node: &vnode) {
+    let len = buf.len;
+    if len == buf.items.length() {
+        let bigger = [vnode_array|null; len * 2];
+        bigger.copy(0, buf.items, 0, len);
+        buf.items = bigger;
+    }
+    buf.items[len] = node;
+    buf.len = len + 1;
+}
+
+fn vnode_buf_finish(buf: &vnode_buf) -> &vnode_array {
+    let out = [vnode_array|null; buf.len];
+    out.copy(0, buf.items, 0, buf.len);
+    out;
+}
+
+fn lower_all(nodes: &snode_array) -> &vnode_array {
+    let out = vnode_buf_new();
+    lower_all_into(out, nodes);
+    vnode_buf_finish(out);
+}
+
+fn lower_all_into(out: &vnode_buf, nodes: &snode_array) {
+    let i = 0;
+    while i <s nodes.length() {
+        lower_into(out, nodes[i]!);
+        i += 1;
+    }
+}
+
+// The open comment, the children, the closing comment.
+fn wrap_into(out: &vnode_buf, opening: &vnode, childs: &snode_array) {
+    vnode_buf_push(out, opening);
+    lower_all_into(out, childs);
+    vnode_buf_push(out, VNODE_META_CLOSE);
+}
+
+fn lower_entry(e: &entry) -> &vnode {
+    let out = vnode_buf_new();
+    wrap_into(out, vnode_comment(meta_frame_text(e.frame)), e.body);
+    vnode_frag(vnode_buf_finish(out), e.key);
+}
+
+fn lower_into(out: &vnode_buf, node: &snode) {
+    match node {
+        n: &snode_el => {
+            let shape = n.template.shape;
+            vnode_buf_push(out, vnode_elem(shape, n.values, lower_all(n.childs), n.key));
+            return;
+        }
+        n: &snode_text => {
+            vnode_buf_push(out, vnode_text(n.text));
+            return;
+        }
+        n: &snode_comment => {
+            vnode_buf_push(out, vnode_comment(n.text));
+            return;
+        }
+        n: &snode_group => {
+            vnode_buf_push(out, vnode_frag(lower_all(n.childs), n.key));
+            return;
+        }
+        n: &snode_component => {
+            wrap_into(out, VNODE_META_COMPONENT, n.childs);
+            return;
+        }
+        n: &snode_enter => {
+            wrap_into(out, vnode_comment(meta_frame_text(n.frame)), n.childs);
+            return;
+        }
+        n: &snode_items => {
+            let entries = n.entries;
+            let items = [vnode_array|null; entries.length()];
+            let i = 0;
+            while i <s entries.length() {
+                items[i] = lower_entry(entries[i]!);
+                i += 1;
+            }
+            vnode_buf_push(out, vnode_frag(items, null));
+            return;
+        }
+        _ => {
+            unreachable;
+        }
+    }
+}

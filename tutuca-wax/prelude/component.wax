@@ -1,0 +1,182 @@
+// The component runtime's types (NOTES.md), shared with component modules: the
+// component every component is, the spec and vtable its type provides, the
+// scope it was made in, and the context and results of handling a message.
+// They refer to each other (a handler returns a result that may hold a
+// component, whose vtable holds the handler), so they're one rec group.
+//
+// A component type's functions are declared with the vtable's types, e.g.
+// `fn counter_handle: handle_fn (instance: &eq, message: &message, ctx: &context) -> &message_result`:
+// a function type in a rec group is its own type, which a function only has
+// when it's declared with it.
+//
+// Some of these are shared only because the types around them hold them:
+// scope, scope_entry, ask_handler, and a context's path and
+// effects. Components never read their fields; they go through the functions
+// src/abi.wax exports. A component reads a context's source_key, event and
+// drag, and a message's name and args.
+
+// The version of the interface between the runtime and component modules: a
+// component's tutuca_abi_version must return the runtime's.
+const tutuca_abi_version_current = 1;
+
+// What a handler asks for besides its next state: src/component.wax has the
+// cases, which only the runtime makes and reads.
+type effect = open { kind: i32 };
+type effect_array = [mut &?effect];
+type effect_buf = { items: mut &effect_array, len: mut i32 };
+
+// ---- Messages ---------------------------------------------------------------
+
+type message = { name: &extern, args: &value_array };
+
+// Why a message can't be handled.
+const message_error_kind_unknown_message = 0;
+const message_error_kind_wrong_arity = 1;
+const message_error_kind_wrong_arg_type = 2;
+const message_error_kind_failed = 3;
+
+type message_error = open { kind: i32 };
+type message_error_unknown_message: message_error = { .. };
+type message_error_wrong_arity: message_error = { .., expected: i32, got: i32 };
+type message_error_wrong_arg_type: message_error = { .., index: i32 };
+type message_error_failed: message_error = { .., reason: &value };
+
+// Property access results. A fieldless enum that is only ever compared, so
+// it's an i32 with consts (README.md's enum convention allows it).
+const property_ok = 0;
+const property_no_such_property = 1;
+const property_not_readable = 2;
+const property_not_writable = 3;
+const property_wrong_type = 4;
+const property_invalid = 5;
+
+// What init made: the instance, or null and the error when it couldn't make
+// one. issues is a list of { field, problem } maps for the values it fixed by
+// taking a default (missing, unknown, wrong type, invalid).
+type init_result = { instance: &?eq, issues: &value, error: &?value };
+
+type selector_array = [mut &?selector];
+type template_array = [mut &?template];
+
+rec {
+    // The functions a component type provides, one table per type.
+    type vtable = { init: &init_fn, handle: &handle_fn, get: &get_fn, set: &set_fn };
+    // Makes an instance from a map of values.
+    type init_fn = fn(&value) -> &init_result;
+    // Handles every message of the type, routing it however it likes.
+    type handle_fn = fn(&eq, &message, &context) -> &message_result;
+    // Reads a property: property_ok and the value, or an error code.
+    type get_fn = fn(&eq, &extern) -> (i32, &?value);
+    // Sets a property: property_ok and the new instance (the same reference
+    // when the value didn't change it), or an error code.
+    type set_fn = fn(&eq, &extern, &value) -> (i32, &?eq);
+
+    // A loop's hooks (loops[name] in tutuca's component()), each given the
+    // instance whose view has the loop: key(key, value) is the item's
+    // sibling key, filter(key, value) whether it renders, enrich(binds) the
+    // binds its body sees besides value and key (a map value); view is the
+    // view a renderEach renders the items with.
+    type loop_def = {
+        name: &extern,
+        key: &?loop_key_fn,
+        filter: &?loop_filter_fn,
+        enrich: &?loop_enrich_fn,
+        view: &?extern
+    };
+    type loop_key_fn = fn(&eq, &value, &value) -> &value;
+    type loop_filter_fn = fn(&eq, &value, &value) -> i32;
+    type loop_enrich_fn = fn(&eq, &value) -> &value;
+    type loop_def_array = [mut &?loop_def];
+    // scopes[name].bind: the binds a scope's body sees, as a map value.
+    type scope_def = { name: &extern, bind: &scope_bind_fn };
+    type scope_bind_fn = fn(&eq) -> &value;
+    type scope_def_array = [mut &?scope_def];
+
+    // The shape of a component type, its "class": two components are of the
+    // same type when their specs are the same reference. views are its views
+    // (prelude/view.wax), aligned with view_names, one of them "main";
+    // templates are their elements, whose handlers routing finds by data-eid;
+    // loops and scopes are the hooks the views name; provides are the values
+    // it provides to the components rendered below it. spec_new makes one,
+    // collecting the templates.
+    type component_spec = {
+        name: &extern,
+        view_names: &str_array,
+        views: &view_array,
+        templates: &template_array,
+        loops: &loop_def_array,
+        scopes: &scope_def_array,
+        provide_names: &str_array,
+        provide_selectors: &selector_array
+    };
+
+    // A component: the one type every component is, so any component
+    // composes with any other.
+    type component: component_base = {
+        ..,
+        spec: &component_spec,
+        // Its state, opaque to the runtime: a new reference means a new state.
+        instance: &eq,
+        vtable: &vtable,
+        // Where it was made: resolving a type by name depends on it.
+        scope: &scope
+    };
+
+    // What a scope keeps for a component type registered under a name.
+    type scope_entry = { spec: &component_spec, vtable: &vtable };
+
+    // Answers an ask by name, with its arguments.
+    type ask_fn = fn(&extern, &value_array, &context) -> &ask_result;
+    type ask_handler = { handler: &ask_fn };
+
+    // The names component types are registered under, nested into a tree. A
+    // name resolves here first, then in the parents. children, entries and
+    // ask_handlers are string-keyed maps (smap_*) of scopes, scope entries and
+    // ask handlers.
+    type scope = {
+        name: &extern,
+        parent: &?scope,
+        children: mut &phm_map,
+        entries: mut &phm_map,
+        ask_handlers: mut &phm_map
+    };
+
+    // What a message handler gets besides its arguments, the same for every
+    // component. The host makes one per handled message.
+    type context = {
+        // The handling component's scope, to make components from.
+        scope: &scope,
+        // The handling component's dispatch path, as a component path.
+        path: &dispatch_path,
+        // The item key of the child the message arrived from, if any.
+        source_key: &?path_key,
+        // The event, for event tasks, and what is being dragged; null otherwise.
+        event: &value,
+        drag: &value,
+        // What the handler asked for, in order.
+        effects: &effect_buf
+    };
+
+    // What handling a message did.
+    type message_result = open { kind: i32 };
+    type message_result_unchanged: message_result = { .. };
+    // A new state for the same component type.
+    type message_result_updated: message_result = { .., instance: &eq };
+    // Replace the component with another one, possibly of another type.
+    type message_result_swapped: message_result = { .., component: &component };
+    type message_result_rejected: message_result = { .., error: &message_error };
+
+    // What an ask handler answers with: a reply now (a result value), or one
+    // the host settles later (host_settle with this handle).
+    type ask_result = open { kind: i32 };
+    type ask_result_reply: ask_result = { .., result: &value };
+    type ask_result_pending: ask_result = { .., handle: &extern };
+}
+
+const message_result_kind_unchanged = 0;
+const message_result_kind_updated = 1;
+const message_result_kind_swapped = 2;
+const message_result_kind_rejected = 3;
+
+const ask_result_kind_reply = 0;
+const ask_result_kind_pending = 1;

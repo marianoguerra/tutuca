@@ -1,0 +1,28 @@
+// The prelude: what the runtime and every component module share, prepended
+// to both. Only types, i32 consts and zero-code import declarations go here,
+// never functions or reference globals: every function lives once, in the
+// runtime, and components import it (src/abi.wax). wasm-gc types are equal
+// across modules when their declarations are, so both sides get them from
+// these same files.
+
+// The js-string builtins (https://github.com/WebAssembly/js-string-builtins),
+// supplied by the engine: strings are JS strings, `&extern`, read without
+// being copied. The builtins take nullable externrefs: an engine rejects the
+// module if they are declared `&extern`.
+
+// UTF-16 code units, for building strings (text.wax): fromCharCodeArray
+// takes exactly this array type.
+type u16_array = [mut i16];
+
+import "wasm:js-string" {
+    #[import = "equals"]
+    fn js_string_equals(a: &?extern, b: &?extern) -> i32;
+    #[import = "length"]
+    fn js_string_length(s: &?extern) -> i32;
+    #[import = "charCodeAt"]
+    fn js_string_char_code_at(s: &?extern, i: i32) -> i32;
+    #[import = "concat"]
+    fn js_string_concat(a: &?extern, b: &?extern) -> &extern;
+    #[import = "fromCharCodeArray"]
+    fn js_string_from_char_code_array(units: &?u16_array, start: i32, end: i32) -> &extern;
+}

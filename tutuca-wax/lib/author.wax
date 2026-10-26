@@ -1,0 +1,289 @@
+// Helpers for writing component types in Wax by hand: views, small arrays,
+// selectors, and reading init's fields. A view language would generate what
+// these spell out. They're compiled into the runtime, once, and component
+// modules import them through src/abi.wax like the runtime's own functions.
+
+fn values0() -> &value_array {
+    [value_array|null; 0];
+}
+
+fn values1(a: &value) -> &value_array {
+    let out = [value_array|null; 1];
+    out[0] = a;
+    out;
+}
+
+fn strs0() -> &str_array {
+    [str_array|null; 0];
+}
+
+fn strs1(a: &extern) -> &str_array {
+    let out = [str_array|null; 1];
+    out[0] = a;
+    out;
+}
+
+fn strs2(a: &extern, b: &extern) -> &str_array {
+    let out = [str_array|null; 2];
+    out[0] = a;
+    out[1] = b;
+    out;
+}
+
+fn strs3(a: &extern, b: &extern, c: &extern) -> &str_array {
+    let out = [str_array|null; 3];
+    out[0] = a;
+    out[1] = b;
+    out[2] = c;
+    out;
+}
+
+// b.item(name, key): the component at key in the field name.
+fn selector_item(name: &extern, key: &path_key) -> &selector {
+    let steps = [selector_step_array|null; 1];
+    steps[0] = selector_step_item(name, key);
+    {selector| steps };
+}
+
+// b.field(name)
+fn selector_field(name: &extern) -> &selector {
+    let steps = [selector_step_array|null; 1];
+    steps[0] = selector_step_field(name);
+    {selector| steps };
+}
+
+fn no_provides() -> &selector_array {
+    [selector_array|null; 0];
+}
+
+fn views0() -> &view_array {
+    [view_array|null; 0];
+}
+
+fn views1(a: &view) -> &view_array {
+    let out = [view_array|null; 1];
+    out[0] = a;
+    out;
+}
+
+fn views2(a: &view, b: &view) -> &view_array {
+    let out = [view_array|null; 2];
+    out[0] = a;
+    out[1] = b;
+    out;
+}
+
+fn views3(a: &view, b: &view, c: &view) -> &view_array {
+    let out = [view_array|null; 3];
+    out[0] = a;
+    out[1] = b;
+    out[2] = c;
+    out;
+}
+
+fn views4(a: &view, b: &view, c: &view, d: &view) -> &view_array {
+    let out = [view_array|null; 4];
+    out[0] = a;
+    out[1] = b;
+    out[2] = c;
+    out[3] = d;
+    out;
+}
+
+fn views5(a: &view, b: &view, c: &view, d: &view, e: &view) -> &view_array {
+    let out = [view_array|null; 5];
+    out[0] = a;
+    out[1] = b;
+    out[2] = c;
+    out[3] = d;
+    out[4] = e;
+    out;
+}
+
+// A string constant, as an attr value or a text child.
+fn text(s: &extern) -> &view {
+    view_const(value_string(s));
+}
+
+// An element without attrs or handlers.
+fn el(tag_name: &extern, childs: &view_array) -> &view {
+    view_el(tag_name, null, strs0(), views0(), null, childs, view_ons0());
+}
+
+// An element with attrs (names aligned with values) and no handlers.
+fn el_attrs(
+    tag_name: &extern,
+    names: &str_array,
+    values: &view_array,
+    childs: &view_array,
+) -> &view {
+    view_el(tag_name, null, names, values, null, childs, view_ons0());
+}
+
+// An element whose only attr is a constant class.
+fn el_class(tag_name: &extern, class: &extern, childs: &view_array) -> &view {
+    view_el(tag_name, null, strs1(s_class), views1(text(class)), null, childs, view_ons0());
+}
+
+// The same, with handlers.
+fn el_class_on(
+    tag_name: &extern,
+    class: &extern,
+    childs: &view_array,
+    ons: &view_on_array,
+) -> &view {
+    view_el(tag_name, null, strs1(s_class), views1(text(class)), null, childs, ons);
+}
+
+// An element with attrs and handlers.
+fn el_on(
+    tag_name: &extern,
+    names: &str_array,
+    values: &view_array,
+    childs: &view_array,
+    ons: &view_on_array,
+) -> &view {
+    view_el(tag_name, null, names, values, null, childs, ons);
+}
+
+// A component type with only a main view, no scopes and no provides.
+fn spec_main(name: &extern, main: &view, loops: &loop_def_array) -> &component_spec {
+    spec_new(name, strs1(s_main), views1(main), loops, no_scopes(), strs0(), no_provides());
+}
+
+fn no_loops() -> &loop_def_array {
+    [loop_def_array|null; 0];
+}
+
+fn loops1(a: &loop_def) -> &loop_def_array {
+    let out = [loop_def_array|null; 1];
+    out[0] = a;
+    out;
+}
+
+fn no_scopes() -> &scope_def_array {
+    [scope_def_array|null; 0];
+}
+
+fn view_ons0() -> &view_on_array {
+    [view_on_array|null; 0];
+}
+
+// One handler: on `event`, send `name` with `args`.
+fn view_ons1(event: &extern, name: &extern, args: &view_array) -> &view_on_array {
+    let out = [view_on_array|null; 1];
+    out[0] = view_on(event, view_action(name, args));
+    out;
+}
+
+// init's issues: a list of { field, problem } maps.
+fn init_issue(issues: &value, field: &extern, problem: &extern) -> &value {
+    let issue =
+        map_assoc(
+            map_assoc(map_empty(), s_field, value_string(field)),
+            s_problem,
+            value_string(problem),
+        );
+    list_push(issues, issue);
+}
+
+fn init_ok(instance: &eq, issues: &value) -> &init_result {
+    {init_result| instance, issues, error: null };
+}
+
+// The field name of init's fields when it's an int; else default, with an
+// issue saying why: missing, or the wrong type.
+fn init_int(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+    let found = fields.kind == value_kind_map?map_get(fields, name):null;
+    if !found {
+        return (default, init_issue(issues, name, s_missing));
+    }
+    if (found!).kind != value_kind_int {
+        return (default, init_issue(issues, name, s_wrong_type));
+    }
+    ((found! as &value_int).value, issues);
+}
+
+// The same for a list.
+fn init_list(fields: &value, name: &extern, issues: &value) -> (&value, &value) {
+    let found = fields.kind == value_kind_map?map_get(fields, name):null;
+    if !found {
+        return (list_empty(), init_issue(issues, name, s_missing));
+    }
+    if (found!).kind != value_kind_list {
+        return (list_empty(), init_issue(issues, name, s_wrong_type));
+    }
+    (found!, issues);
+}
+
+// The same for a string.
+fn init_string(
+    fields: &value,
+    name: &extern,
+    default: &extern,
+    issues: &value,
+) -> (&extern, &value) {
+    let found = fields.kind == value_kind_map?map_get(fields, name):null;
+    if !found {
+        return (default, init_issue(issues, name, s_missing));
+    }
+    let text = value_string_of(found!);
+    if !text {
+        return (default, init_issue(issues, name, s_wrong_type));
+    }
+    (text!, issues);
+}
+
+// The same for a bool.
+fn init_bool(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+    let found = fields.kind == value_kind_map?map_get(fields, name):null;
+    if !found {
+        return (default, init_issue(issues, name, s_missing));
+    }
+    if (found!).kind != value_kind_bool {
+        return (default, init_issue(issues, name, s_wrong_type));
+    }
+    ((found! as &value_bool).value, issues);
+}
+
+// The int argument at i, or null when it isn't one.
+fn arg_int(args: &value_array, i: i32) -> (i32, i32) {
+    if i >=s args.length() {
+        return (0, 0);
+    }
+    let v = args[i]!;
+    if v.kind != value_kind_int {
+        return (0, 0);
+    }
+    (1, (v as &value_int).value);
+}
+
+// The bool argument at i, the same way.
+fn arg_bool(args: &value_array, i: i32) -> (i32, i32) {
+    if i >=s args.length() {
+        return (0, 0);
+    }
+    let v = args[i]!;
+    if v.kind != value_kind_bool {
+        return (0, 0);
+    }
+    (1, (v as &value_bool).value);
+}
+
+// n in decimal, as a JS string.
+fn int_text(n: i32) -> &extern {
+    let b = text_builder_new();
+    text_push_int(b, n);
+    text_finish(b);
+}
+
+// A string of decimal digits (an optional leading '-') as an int: (1, n), or
+// (0, 0) when it isn't one.
+fn parse_int(s: &extern) -> (i32, i32) {
+    let r = {json_reader| text: s, pos: 0, end: js_string_length(s), ok: 1 };
+    let n = jr_int(r);
+    if !r.ok | (r.pos != r.end) {
+        return (0, 0);
+    }
+    (1, n);
+}

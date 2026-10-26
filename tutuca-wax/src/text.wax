@@ -1,0 +1,150 @@
+// Building strings: UTF-16 code units in a growable array, turned into one JS
+// string at the end with the fromCharCodeArray builtin. JSON text, for the
+// metadata comments, is written here too.
+
+// '"' and '\\' as numbers: wax-mb doesn't lex '"' (see wax-mb-usage-feedback.md).
+const UNIT_QUOTE = 0x22;
+const UNIT_BACKSLASH = 0x5c;
+
+type text_builder = { units: mut &u16_array, len: mut i32 };
+
+fn text_builder_new() -> &text_builder {
+    {text_builder| units: [u16_array|0; 64], len: 0 };
+}
+
+fn text_push_unit(b: &text_builder, unit: i32) {
+    let len = b.len;
+    if len == b.units.length() {
+        let bigger = [u16_array|0; len * 2];
+        bigger.copy(0, b.units, 0, len);
+        b.units = bigger;
+    }
+    b.units[len] = unit;
+    b.len = len + 1;
+}
+
+fn text_push(b: &text_builder, s: &extern) {
+    let n = js_string_length(s);
+    let i = 0;
+    while i <s n {
+        text_push_unit(b, js_string_char_code_at(s, i));
+        i += 1;
+    }
+}
+
+fn text_finish(b: &text_builder) -> &extern {
+    js_string_from_char_code_array(b.units, 0, b.len);
+}
+
+// n in decimal, as JS's String(n) writes an integer.
+fn text_push_int(b: &text_builder, n: i32) {
+    if n == 0 {
+        text_push_unit(b, '0');
+        return;
+    }
+    // Negative, so i32's minimum has a counterpart.
+    let m = n;
+    if n >s 0 {
+        m = -n;
+    } else {
+        text_push_unit(b, '-');
+    }
+    let digits = [u16_array|0; 11];
+    let count = 0;
+    while m != 0 {
+        digits[count] = '0' - m %s 10;
+        m = m /s 10;
+        count += 1;
+    }
+    while count >s 0 {
+        count -= 1;
+        text_push_unit(b, digits[count] as i32_u);
+    }
+}
+
+fn text_push_hex4(b: &text_builder, unit: i32) {
+    let shift = 12;
+    while shift >=s 0 {
+        let digit = unit >>u shift & 15;
+        text_push_unit(b, digit <s 10?'0' + digit:'a' + digit - 10);
+        shift -= 4;
+    }
+}
+
+fn is_high_surrogate(unit: i32) -> i32 {
+    (unit >=s 0xd800) & (unit <=s 0xdbff);
+}
+
+fn is_low_surrogate(unit: i32) -> i32 {
+    (unit >=s 0xdc00) & (unit <=s 0xdfff);
+}
+
+// s as a JSON string, the way JSON.stringify writes it: quotes, backslash and
+// the control characters escaped (\b \f \n \r \t, \u00xx for the others),
+// lone surrogates as \udxxx, everything else as it is.
+fn text_push_json_string(b: &text_builder, s: &extern) {
+    text_push_unit(b, UNIT_QUOTE);
+    let n = js_string_length(s);
+    let i = 0;
+    while i <s n {
+        let unit = js_string_char_code_at(s, i);
+        if (unit == UNIT_QUOTE) | (unit == UNIT_BACKSLASH) {
+            text_push_unit(b, UNIT_BACKSLASH);
+            text_push_unit(b, unit);
+        } else {
+            if unit <s 0x20 {
+                text_push_unit(b, UNIT_BACKSLASH);
+                if unit == 0x08 {
+                    text_push_unit(b, 'b');
+                } else {
+                    if unit == 0x0c {
+                        text_push_unit(b, 'f');
+                    } else {
+                        if unit == '\n' {
+                            text_push_unit(b, 'n');
+                        } else {
+                            if unit == '\r' {
+                                text_push_unit(b, 'r');
+                            } else {
+                                if unit == '\t' {
+                                    text_push_unit(b, 't');
+                                } else {
+                                    text_push_unit(b, 'u');
+                                    text_push_hex4(b, unit);
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                if is_high_surrogate(unit) {
+                    let paired = 0;
+                    if i + 1 <s n {
+                        paired = is_low_surrogate(js_string_char_code_at(s, i + 1));
+                    }
+                    if paired {
+                        text_push_unit(b, unit);
+                        text_push_unit(b, js_string_char_code_at(s, i + 1));
+                        i += 1;
+                    } else {
+                        text_push_lone_surrogate(b, unit);
+                    }
+                } else {
+                    if is_low_surrogate(unit) {
+                        text_push_lone_surrogate(b, unit);
+                    } else {
+                        text_push_unit(b, unit);
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    text_push_unit(b, UNIT_QUOTE);
+}
+
+fn text_push_lone_surrogate(b: &text_builder, unit: i32) {
+    text_push_unit(b, UNIT_BACKSLASH);
+    text_push_unit(b, 'u');
+    text_push_hex4(b, unit);
+}

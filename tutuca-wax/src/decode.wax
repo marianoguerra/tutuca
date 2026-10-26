@@ -1,0 +1,435 @@
+// Routing an event (getEventInfoFor in tutuca's src/events.js; the spec's
+// bind/decode.rkt): from the DOM node an event hit back to a handler and the
+// path of the component that owns it. The rendered DOM carries no component
+// references: elements with handlers have data-eid, and metadata comments
+// mark where the semantic tree's wrappers begin and end. Decoding walks from
+// the target up to the container, collects the eids met before the innermost
+// component boundary, and reads the metadata enclosing each ancestor to
+// rebuild the path.
+
+// ---- Reading metadata comments back -----------------------------------------
+// A JSON reader for what meta.wax writes. Anything else, a look-alike comment
+// from unmanaged DOM included, reads as no metadata.
+
+type json_reader = { text: &extern, pos: mut i32, end: i32, ok: mut i32 };
+
+fn jr_peek(r: &json_reader) -> i32 {
+    if r.pos <s r.end {
+        return js_string_char_code_at(r.text, r.pos);
+    }
+    -1;
+}
+
+fn jr_expect(r: &json_reader, unit: i32) {
+    if jr_peek(r) == unit {
+        r.pos = r.pos + 1;
+    } else {
+        r.ok = 0;
+    }
+}
+
+fn jr_hex(unit: i32) -> i32 {
+    if (unit >=s '0') & (unit <=s '9') {
+        return unit - '0';
+    }
+    if (unit >=s 'a') & (unit <=s 'f') {
+        return unit - 'a' + 10;
+    }
+    if (unit >=s 'A') & (unit <=s 'F') {
+        return unit - 'A' + 10;
+    }
+    -1;
+}
+
+fn jr_string(r: &json_reader) -> &extern {
+    jr_expect(r, UNIT_QUOTE);
+    let b = text_builder_new();
+    'done: do {
+        while r.ok {
+            let unit = jr_peek(r);
+            if unit == -1 {
+                r.ok = 0;
+                br 'done;
+            }
+            r.pos = r.pos + 1;
+            if unit == UNIT_QUOTE {
+                br 'done;
+            }
+            if unit == UNIT_BACKSLASH {
+                let escaped = jr_peek(r);
+                r.pos = r.pos + 1;
+                if escaped == 'u' {
+                    let code = 0;
+                    let k = 0;
+                    while k <s 4 {
+                        let digit = jr_hex(jr_peek(r));
+                        if digit == -1 {
+                            r.ok = 0;
+                        }
+                        code = code * 16 + digit;
+                        r.pos = r.pos + 1;
+                        k += 1;
+                    }
+                    text_push_unit(b, code);
+                } else {
+                    text_push_unit(b, jr_unescape(r, escaped));
+                }
+            } else {
+                text_push_unit(b, unit);
+            }
+        }
+    }
+    text_finish(b);
+}
+
+fn jr_unescape(r: &json_reader, escaped: i32) -> i32 {
+    if (escaped == UNIT_QUOTE) | (escaped == UNIT_BACKSLASH) | (escaped == '/') {
+        return escaped;
+    }
+    if escaped == 'b' {
+        return 0x08;
+    }
+    if escaped == 'f' {
+        return 0x0c;
+    }
+    if escaped == 'n' {
+        return '\n';
+    }
+    if escaped == 'r' {
+        return '\r';
+    }
+    if escaped == 't' {
+        return '\t';
+    }
+    r.ok = 0;
+    0;
+}
+
+// An integer: what meta.wax writes for indexes and depths.
+fn jr_int(r: &json_reader) -> i32 {
+    let negative = 0;
+    if jr_peek(r) == '-' {
+        negative = 1;
+        r.pos = r.pos + 1;
+    }
+    let n = 0;
+    let digits = 0;
+    while (jr_peek(r) >=s '0') & (jr_peek(r) <=s '9') {
+        n = n * 10 + (jr_peek(r) - '0');
+        r.pos = r.pos + 1;
+        digits += 1;
+    }
+    if digits == 0 {
+        r.ok = 0;
+    }
+    negative?-n:n;
+}
+
+fn jr_null(r: &json_reader) {
+    jr_expect(r, 'n');
+    jr_expect(r, 'u');
+    jr_expect(r, 'l');
+    jr_expect(r, 'l');
+}
+
+// A path key (a string or an integer), or null.
+fn jr_key_or_null(r: &json_reader) -> &?path_key {
+    let unit = jr_peek(r);
+    if unit == 'n' {
+        jr_null(r);
+        return null;
+    }
+    if unit == UNIT_QUOTE {
+        return path_key_name(jr_string(r));
+    }
+    path_key_index(jr_int(r));
+}
+
+fn jr_keys(r: &json_reader) -> &path_key_array {
+    jr_expect(r, '[');
+    let keys = [path_key_array|null; 4];
+    let n = 0;
+    if jr_peek(r) == ']' {
+        r.pos = r.pos + 1;
+        return [path_key_array|null; 0];
+    }
+    'done: do {
+        while r.ok {
+            let key = jr_key_or_null(r);
+            if !key {
+                r.ok = 0;
+                br 'done;
+            }
+            if n == keys.length() {
+                let bigger = [path_key_array|null; n * 2];
+                bigger.copy(0, keys, 0, n);
+                keys = bigger;
+            }
+            keys[n] = key;
+            n += 1;
+            if jr_peek(r) == ',' {
+                r.pos = r.pos + 1;
+            } else {
+                jr_expect(r, ']');
+                br 'done;
+            }
+        }
+    }
+    let out = [path_key_array|null; n];
+    out.copy(0, keys, 0, n);
+    out;
+}
+
+// {"v":name,"d":depth,"k":keys}, or null.
+fn jr_provider(r: &json_reader) -> &?provider {
+    if jr_peek(r) == 'n' {
+        jr_null(r);
+        return null;
+    }
+    jr_expect(r, '{');
+    let name = s_empty;
+    let depth = 0;
+    let keys = [path_key_array|null; 0];
+    'done: do {
+        while r.ok {
+            let field = jr_string(r);
+            jr_expect(r, ':');
+            if str_eq(field, s_v) {
+                name = jr_string(r);
+            } else {
+                if str_eq(field, s_d) {
+                    depth = jr_int(r);
+                } else {
+                    if str_eq(field, s_k) {
+                        keys = jr_keys(r);
+                    } else {
+                        r.ok = 0;
+                    }
+                }
+            }
+            if jr_peek(r) == ',' {
+                r.pos = r.pos + 1;
+            } else {
+                jr_expect(r, '}');
+                br 'done;
+            }
+        }
+    }
+    {provider| name, depth, keys };
+}
+
+const meta_kind_none = 0;
+const meta_kind_component = 1;
+const meta_kind_frame = 2;
+
+// Whether text looks like an opening metadata comment: §{...}§.
+fn is_meta_open(text: &extern) -> i32 {
+    let n = js_string_length(text);
+    if n <s 3 {
+        return 0;
+    }
+    (js_string_char_code_at(text, 0) == 0xa7) & (js_string_char_code_at(text, 1) == '{')
+        & (js_string_char_code_at(text, n - 1) == 0xa7);
+}
+
+// What an opening comment says: meta_kind_none for anything that isn't
+// metadata, a component boundary, or a frame (without its component flag:
+// the boundary that follows restores it).
+fn parse_meta(text: &extern) -> (i32, &?frame) {
+    if !is_meta_open(text) {
+        return (meta_kind_none, null);
+    }
+    let r = {json_reader| text, pos: 1, end: js_string_length(text) - 1, ok: 1 };
+    jr_expect(r, '{');
+    let t = s_empty;
+    let p: &?provider = null;
+    let keys: &?path_key_array = null;
+    let item: &?path_key = null;
+    'done: do {
+        while r.ok {
+            let field = jr_string(r);
+            jr_expect(r, ':');
+            if str_eq(field, s_t) {
+                t = jr_string(r);
+            } else {
+                if str_eq(field, s_p) {
+                    p = jr_provider(r);
+                } else {
+                    if str_eq(field, s_k) {
+                        keys = jr_keys(r);
+                    } else {
+                        if str_eq(field, s_i) {
+                            item = jr_key_or_null(r);
+                        } else {
+                            r.ok = 0;
+                        }
+                    }
+                }
+            }
+            if jr_peek(r) == ',' {
+                r.pos = r.pos + 1;
+            } else {
+                jr_expect(r, '}');
+                br 'done;
+            }
+        }
+    }
+    if !r.ok | (r.pos != r.end) {
+        return (meta_kind_none, null);
+    }
+    if str_eq(t, s_component) {
+        return (meta_kind_component, null);
+    }
+    if str_eq(t, s_frame) & !!keys {
+        return (meta_kind_frame, {frame| keys: keys!, item, provider: p, is_component: 0 });
+    }
+    (meta_kind_none, null);
+}
+
+// ---- The walk ---------------------------------------------------------------
+
+// A component boundary among the metas a walk collects, which are otherwise
+// frames.
+type component_mark = { };
+
+const COMPONENT_MARK: &component_mark = {component_mark| };
+
+type event_info = { handler: &on_attr, route: &route, node: &extern };
+
+// The metadata enclosing node: its previous siblings, nearest first. Each
+// closing comment hides one opening comment; other comments are skipped.
+// Pushes frames and component marks to metas; returns how many components.
+fn enclosing_meta(node: &extern, metas: &pv_vector) -> (i32, &pv_vector) {
+    let out = metas;
+    let components = 0;
+    let closed = 0;
+    let sib = dom_previous_sibling(node);
+    while !!sib {
+        let comment = dom_comment_data(sib!);
+        if !!comment {
+            if str_eq(comment, s_meta_close) {
+                closed += 1;
+            } else {
+                if is_meta_open(comment!) {
+                    if closed >s 0 {
+                        closed -= 1;
+                    } else {
+                        let (kind, f) = parse_meta(comment!);
+                        if kind == meta_kind_component {
+                            out = pv_push(out, COMPONENT_MARK);
+                            components += 1;
+                        }
+                        if kind == meta_kind_frame {
+                            out = pv_push(out, f);
+                        }
+                    }
+                }
+            }
+        }
+        sib = dom_previous_sibling(sib!);
+    }
+    (components, out);
+}
+
+// The path the metas, innermost first, describe: outermost first, each frame
+// is a frame, and a component boundary makes the frame before it a
+// component frame.
+fn path_from_metas(metas: &pv_vector) -> &dispatch_path {
+    let n = pv_count(metas);
+    let frames = [frame_array|null; n];
+    let count = 0;
+    let i = n - 1;
+    while i >=s 0 {
+        let m = pv_at(metas, i)!;
+        if m == COMPONENT_MARK {
+            if count >s 0 {
+                frames[count - 1] = frame_as_component(frames[count - 1]!);
+            }
+        } else {
+            frames[count] = m as &frame;
+            count += 1;
+        }
+        i -= 1;
+    }
+    {dispatch_path| frames: frames_slice(frames, 0, count) };
+}
+
+fn template_of(spec: &component_spec, tid: i32) -> &?template {
+    let i = 0;
+    while i <s spec.templates.length() {
+        let t = spec.templates[i];
+        if !!t {
+            if (t!).tid == tid {
+                return t;
+            }
+        }
+        i += 1;
+    }
+    null;
+}
+
+// The handler for a `kind` event on target, with the route to its component
+// and its element: the first handler for the event among the elements with
+// handlers between target and the innermost component boundary, innermost
+// first, in the table of that component's type. null when target is outside
+// container, in no component, or no element there handles the event.
+fn decode_event(container: &extern, target: &extern, kind: &extern, root: &value) -> &?event_info {
+    let metas = pv_empty();
+    let components = 0;
+    let eids = [i32_array|0; 4];
+    let eid_nodes = ext_buf_new(4);
+    let at: &?extern = target;
+    'walk: do {
+        while 1 {
+            if !at {
+                // Not inside the container.
+                return null;
+            }
+            let node = at!;
+            if dom_is_same_node(node, container) {
+                br 'walk;
+            }
+            if components == 0 {
+                let eid = dom_get_eid(node);
+                if eid >=s 0 {
+                    if eid_nodes.len == eids.length() {
+                        let bigger = [i32_array|0; eids.length() * 2];
+                        bigger.copy(0, eids, 0, eid_nodes.len);
+                        eids = bigger;
+                    }
+                    eids[eid_nodes.len] = eid;
+                    ext_buf_push(eid_nodes, node);
+                }
+            }
+            let (found, more) = enclosing_meta(node, metas);
+            components += found;
+            metas = more;
+            at = dom_parent_node(node);
+        }
+    }
+    if (components == 0) | (eid_nodes.len == 0) {
+        return null;
+    }
+    let r = route_for(path_from_metas(metas));
+    let c = value_as_component(update_path_get_in(r.update_path, root));
+    if !c {
+        return null;
+    }
+    let i = 0;
+    while i <s eid_nodes.len {
+        let t = template_of((c!).spec, eids[i]);
+        if !!t {
+            let handlers = (t!).handlers;
+            let j = 0;
+            while j <s handlers.length() {
+                let handler = handlers[j]!;
+                if str_eq(handler.event, kind) {
+                    return {event_info| handler, route: r, node: ext_buf_at(eid_nodes, i) };
+                }
+                j += 1;
+            }
+        }
+        i += 1;
+    }
+    null;
+}

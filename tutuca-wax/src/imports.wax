@@ -1,0 +1,307 @@
+// What the runtime imports from its host, besides the js-string builtins
+// (prelude/js_string.wax).
+//
+// Strings are JS strings: an `&extern` passed through as it is, so a string
+// crosses the boundary without being copied. Optional strings are `&?extern`.
+
+// String constants (imported string constants, the "'" module): each global
+// is the JS string its import name spells.
+import "'" {
+    #[import = "value"]
+    const s_value: &extern;
+    #[import = "checked"]
+    const s_checked: &extern;
+    #[import = "is"]
+    const s_is: &extern;
+    #[import = "dangerouslySetInnerHTML"]
+    const s_dangerously_set_inner_html: &extern;
+    #[import = ""]
+    const s_empty: &extern;
+    #[import = "PROGRESS"]
+    const s_progress_tag: &extern;
+    #[import = "SELECT"]
+    const s_select_tag: &extern;
+    #[import = "svg"]
+    const s_svg: &extern;
+    #[import = "math"]
+    const s_math: &extern;
+    #[import = "foreignobject"]
+    const s_foreign_object_lower: &extern;
+    #[import = "http://www.w3.org/1999/xhtml"]
+    const s_html_ns: &extern;
+    #[import = "http://www.w3.org/2000/svg"]
+    const s_svg_ns: &extern;
+    #[import = "http://www.w3.org/1998/Math/MathML"]
+    const s_math_ns: &extern;
+    #[import = "className"]
+    const s_class_name: &extern;
+    #[import = "class"]
+    const s_class: &extern;
+    #[import = "htmlFor"]
+    const s_html_for: &extern;
+    #[import = "for"]
+    const s_for: &extern;
+    // DOM properties that must be set as attributes.
+    #[import = "width"]
+    const s_width: &extern;
+    #[import = "height"]
+    const s_height: &extern;
+    #[import = "href"]
+    const s_href: &extern;
+    #[import = "list"]
+    const s_list: &extern;
+    #[import = "form"]
+    const s_form: &extern;
+    #[import = "tabIndex"]
+    const s_tab_index: &extern;
+    #[import = "download"]
+    const s_download: &extern;
+    #[import = "rowSpan"]
+    const s_row_span: &extern;
+    #[import = "colSpan"]
+    const s_col_span: &extern;
+    #[import = "role"]
+    const s_role: &extern;
+    #[import = "popover"]
+    const s_popover: &extern;
+    #[import = "data-eid"]
+    const s_data_eid: &extern;
+    #[import = "null"]
+    const s_null: &extern;
+    #[import = "__html"]
+    const s_html_key: &extern;
+    #[import = "key"]
+    const s_key: &extern;
+    // Views (eval.wax).
+    #[import = "main"]
+    const s_main: &extern;
+    #[import = "true"]
+    const s_true: &extern;
+    #[import = "false"]
+    const s_false: &extern;
+    // The pieces of the metadata comments (meta.wax).
+    #[import = "§{\"t\":\"component\"}§"]
+    const s_meta_component: &extern;
+    #[import = "§/§"]
+    const s_meta_close: &extern;
+    #[import = "§{\"t\":\"frame\",\"p\":"]
+    const s_meta_frame_open: &extern;
+    #[import = "{\"v\":"]
+    const s_meta_provider_open: &extern;
+    #[import = ",\"d\":"]
+    const s_meta_depth: &extern;
+    #[import = ",\"k\":"]
+    const s_meta_keys: &extern;
+    #[import = ",\"i\":"]
+    const s_meta_item: &extern;
+    #[import = "}§"]
+    const s_meta_frame_close: &extern;
+    // Metadata JSON field names and values (decode.wax).
+    #[import = "t"]
+    const s_t: &extern;
+    #[import = "p"]
+    const s_p: &extern;
+    #[import = "k"]
+    const s_k: &extern;
+    #[import = "i"]
+    const s_i: &extern;
+    #[import = "v"]
+    const s_v: &extern;
+    #[import = "d"]
+    const s_d: &extern;
+    #[import = "component"]
+    const s_component: &extern;
+    #[import = "frame"]
+    const s_frame: &extern;
+    // Reply message suffixes (host.wax).
+    #[import = "ReplyOk"]
+    const s_reply_ok: &extern;
+    #[import = "ReplyError"]
+    const s_reply_error: &extern;
+    #[import = "HandlerNotFound"]
+    const s_handler_not_found: &extern;
+    // init's issues (author.wax).
+    #[import = "field"]
+    const s_field: &extern;
+    #[import = "problem"]
+    const s_problem: &extern;
+    #[import = "missing"]
+    const s_missing: &extern;
+    #[import = "wrong type"]
+    const s_wrong_type: &extern;
+    // Error messages.
+    #[import = "Duplicate sibling key: "]
+    const s_duplicate_key: &extern;
+    #[import = " must be a dynamic attr"]
+    const s_must_be_dynamic: &extern;
+    #[import = "Can't read or write the property at key "]
+    const s_err_property: &extern;
+    #[import = "Can't read below something that isn't a component, map or list, at key "]
+    const s_err_not_a_container: &extern;
+    #[import = "An item key must be a string, an int or null"]
+    const s_err_bad_item_key: &extern;
+    #[import = "No component type is registered as "]
+    const s_err_unknown_component: &extern;
+    #[import = "Can't make a component of type "]
+    const s_err_cant_make: &extern;
+    #[import = "Only a component can be rendered"]
+    const s_err_render_not_component: &extern;
+    #[import = "No component where this task goes: "]
+    const s_err_not_a_component: &extern;
+    #[import = "The component rejected the message "]
+    const s_err_rejected: &extern;
+    #[import = "A view element belongs to the views of one component type"]
+    const s_err_view_shared: &extern;
+    #[import = "A send argument must be a constant, targetValue, sourceKey or an if of them"]
+    const s_err_action_arg: &extern;
+    #[import = "A component type needs a main view: "]
+    const s_err_no_main_view: &extern;
+    #[import = "A component type's view names and views must align: "]
+    const s_err_view_names: &extern;
+    #[import = "A view element renders only once its component type's spec_new collected it"]
+    const s_err_view_not_collected: &extern;
+    #[import = "Only a constant, field, seqItem, provided, lookupBind or an if of them has a value"]
+    const s_err_not_a_value: &extern;
+    #[import = "A render or loop source must be a field, seqItem or provided"]
+    const s_err_not_a_source: &extern;
+    #[import = "No ancestor provides "]
+    const s_err_no_provider: &extern;
+    #[import = "No loop named "]
+    const s_err_unknown_loop: &extern;
+    #[import = "No scope named "]
+    const s_err_unknown_scope: &extern;
+    #[import = "An action, targetValue or sourceKey can only be a send argument"]
+    const s_err_not_renderable: &extern;
+    #[import = "A component in a view renders through render, not as a child"]
+    const s_err_component_child: &extern;
+    #[import = "A loop source must be a list, a map or null"]
+    const s_err_not_iterable: &extern;
+    #[import = "A view name must be a string"]
+    const s_err_view_name: &extern;
+}
+
+// The DOM, as the host gives it: the DomNode trait of tutuca-mb's
+// vdom/dom.mbt, flattened so that nothing but nodes, strings, numbers and
+// booleans crosses the boundary (NOTES.md has the mapping).
+import "dom" {
+    #[import = "create_element"]
+    fn dom_create_element(doc: &extern, tag_name: &extern, ns: &?extern, is_attr: &?extern) -> &extern;
+    #[import = "create_text"]
+    fn dom_create_text(doc: &extern, text: &extern) -> &extern;
+    #[import = "create_comment"]
+    fn dom_create_comment(doc: &extern, text: &extern) -> &extern;
+    #[import = "create_fragment"]
+    fn dom_create_fragment(doc: &extern) -> &extern;
+
+    #[import = "append_child"]
+    fn dom_append_child(parent: &extern, child: &extern);
+    // Appends when ref_node is null.
+    #[import = "insert_before"]
+    fn dom_insert_before(parent: &extern, node: &extern, ref_node: &?extern);
+    #[import = "remove_child"]
+    fn dom_remove_child(parent: &extern, child: &extern);
+    #[import = "replace_child"]
+    fn dom_replace_child(parent: &extern, node: &extern, old: &extern);
+    // replaceChildren() with no arguments: removes every child.
+    #[import = "replace_children"]
+    fn dom_replace_children(node: &extern);
+    #[import = "parent_node"]
+    fn dom_parent_node(node: &extern) -> &?extern;
+    #[import = "previous_sibling"]
+    fn dom_previous_sibling(node: &extern) -> &?extern;
+    // A comment's text, or null for any other node.
+    #[import = "comment_data"]
+    fn dom_comment_data(node: &extern) -> &?extern;
+    // An element's data-eid as a number, -1 when it has none.
+    #[import = "get_eid"]
+    fn dom_get_eid(node: &extern) -> i32;
+    // The value of the element with a handler, as a Value (a wasm value the
+    // host made through the exports): checked for a checkbox, value otherwise.
+    #[import = "target_value"]
+    fn dom_target_value(node: &extern) -> &extern;
+    #[import = "first_child"]
+    fn dom_first_child(node: &extern) -> &?extern;
+    #[import = "next_sibling"]
+    fn dom_next_sibling(node: &extern) -> &?extern;
+    // Identity: externrefs can't be compared inside wasm.
+    #[import = "is_same_node"]
+    fn dom_is_same_node(a: &extern, b: &extern) -> i32;
+
+    #[import = "set_attribute_string"]
+    fn dom_set_attribute_string(node: &extern, name: &extern, value: &extern);
+    #[import = "set_attribute_number"]
+    fn dom_set_attribute_number(node: &extern, name: &extern, value: f64);
+    #[import = "set_attribute_bool"]
+    fn dom_set_attribute_bool(node: &extern, name: &extern, value: i32);
+    // setAttribute with an opaque object: String(value).
+    #[import = "set_attribute_ref"]
+    fn dom_set_attribute_ref(node: &extern, name: &extern, value: &extern);
+    #[import = "remove_attribute"]
+    fn dom_remove_attribute(node: &extern, name: &extern);
+    // `name in node`: whether a prop is set as a property or an attribute.
+    #[import = "has_property"]
+    fn dom_has_property(node: &extern, name: &extern) -> i32;
+    // node[name] = value; 0 when the assignment threw.
+    #[import = "set_string_property"]
+    fn dom_set_string_property(node: &extern, name: &extern, value: &extern) -> i32;
+    #[import = "set_number_property"]
+    fn dom_set_number_property(node: &extern, name: &extern, value: f64) -> i32;
+    #[import = "set_bool_property"]
+    fn dom_set_bool_property(node: &extern, name: &extern, value: i32) -> i32;
+    // A list, map, result or component, as the opaque object it is.
+    #[import = "set_ref_property"]
+    fn dom_set_ref_property(node: &extern, name: &extern, value: &extern) -> i32;
+    #[import = "get_inner_html"]
+    fn dom_get_inner_html(node: &extern) -> &extern;
+    #[import = "set_inner_html"]
+    fn dom_set_inner_html(node: &extern, html: &extern);
+    // Text and comment character data.
+    #[import = "set_data"]
+    fn dom_set_data(node: &extern, text: &extern);
+    // Uppercase for HTML elements, as in the DOM.
+    #[import = "tag_name"]
+    fn dom_tag_name(node: &extern) -> &extern;
+    // null for nodes without one.
+    #[import = "namespace_uri"]
+    fn dom_namespace_uri(node: &extern) -> &?extern;
+
+    // The nodes render made (a WeakSet on the host). Morphing matches vnodes
+    // to these only, so nodes other code put in a rendered element don't
+    // shift the match, and stay.
+    #[import = "own"]
+    fn dom_own(node: &extern);
+    #[import = "is_owned"]
+    fn dom_is_owned(node: &extern) -> i32;
+
+    // Throws a JS Error with this message; never returns.
+    #[import = "fail"]
+    fn host_fail(message: &extern);
+}
+
+// The world, as the host gives it (MessageContext's now, random and uuid), so
+// a run can be repeated by a host that gives the same answers.
+import "env" {
+    #[import = "now"]
+    fn env_now() -> f64;
+    #[import = "random"]
+    fn env_random() -> f64;
+    #[import = "uuid"]
+    fn env_uuid() -> &extern;
+}
+
+// What the host is told while it runs tasks, and asks it answers.
+import "host" {
+    // A handler's log: a Value, as an externref.
+    #[import = "observe_log"]
+    fn observe_log(v: &extern);
+    // A message the component has no handler for: it stays as it was.
+    #[import = "observe_unhandled"]
+    fn observe_unhandled(name: &extern);
+    // An ask the host answers (see scope_register_host_ask): its name and its
+    // arguments as a list Value. Returns the handle host_settle gets back.
+    #[import = "ask"]
+    fn host_ask(name: &extern, args: &extern) -> &extern;
+    // A float as JS's String(n) writes it, for rendering it as text.
+    #[import = "number_text"]
+    fn host_number_text(n: f64) -> &extern;
+}

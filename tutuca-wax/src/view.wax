@@ -1,0 +1,109 @@
+// Views as data: the constructors of prelude/view.wax's types, one per form
+// of the spec's view/view.rkt.
+
+fn view_const(value: &value) -> &view {
+    let out: &view_const = { kind: view_kind_const, value };
+    out;
+}
+
+fn view_field(name: &extern) -> &view {
+    let out: &view_field = { kind: view_kind_field, name };
+    out;
+}
+
+fn view_seq_item(seq_name: &extern, key_name: &extern) -> &view {
+    let out: &view_seq_item = { kind: view_kind_seq_item, seq_name, key_name };
+    out;
+}
+
+fn view_provided(name: &extern) -> &view {
+    let out: &view_provided = { kind: view_kind_provided, name };
+    out;
+}
+
+fn view_lookup_bind(name: &extern) -> &view {
+    let out: &view_lookup_bind = { kind: view_kind_lookup_bind, name };
+    out;
+}
+
+fn view_if(test: &view, then: &view, otherwise: &view) -> &view {
+    let out: &view_if = { kind: view_kind_if, test, then, otherwise };
+    out;
+}
+
+fn view_el(
+    tag_name: &extern,
+    ns: &?extern,
+    attr_names: &str_array,
+    attr_values: &view_array,
+    key: &?view,
+    childs: &view_array,
+    handlers: &view_on_array,
+) -> &view {
+    let out: &view_el =
+        {
+            kind: view_kind_el,
+            tag_name,
+            ns,
+            attr_names,
+            attr_values,
+            key,
+            childs,
+            handlers,
+            template: null,
+        };
+    out;
+}
+
+fn view_frag(childs: &view_array) -> &view {
+    let out: &view_frag = { kind: view_kind_frag, childs };
+    out;
+}
+
+fn view_render(source: &view, view_name: &?extern) -> &view {
+    let out: &view_render = { kind: view_kind_render, source, view_name };
+    out;
+}
+
+fn view_each(source: &view, body: &view, loop_name: &?extern) -> &view {
+    let out: &view_each = { kind: view_kind_each, source, body, loop_name };
+    out;
+}
+
+fn view_render_each(source: &view, loop_name: &?extern) -> &view {
+    let out: &view_render_each = { kind: view_kind_render_each, source, loop_name };
+    out;
+}
+
+fn view_render_it(view_name: &?extern) -> &view {
+    let out: &view_render_it = { kind: view_kind_render_it, view_name };
+    out;
+}
+
+fn view_scope(scope_name: &extern, body: &view) -> &view {
+    let out: &view_scope = { kind: view_kind_scope, scope_name, body };
+    out;
+}
+
+fn view_push_view(view_name: &view, body: &view) -> &view {
+    let out: &view_push_view = { kind: view_kind_push_view, view_name, body };
+    out;
+}
+
+fn view_action(name: &extern, args: &view_array) -> &view_action {
+    {view_action| kind: view_kind_action, name, args };
+}
+
+fn view_target_value() -> &view {
+    let out: &view_target_value = { kind: view_kind_target_value };
+    out;
+}
+
+fn view_source_key() -> &view {
+    let out: &view_source_key = { kind: view_kind_source_key };
+    out;
+}
+
+fn view_on(event: &extern, action: &view_action) -> &view_on {
+    {view_on| event, action };
+}

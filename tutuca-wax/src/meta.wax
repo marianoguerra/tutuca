@@ -1,0 +1,66 @@
+// Metadata comments (wrapMeta in tutuca's src/meta.js, the spec's
+// bind/meta.rkt): how the DOM records the semantic tree's wrappers. A wrapper
+// becomes an opening comment before its children and the closing comment
+// after them. The text is §JSON.stringify(meta)§, with the runtime's key
+// order:
+//
+//   §{"t":"component"}§
+//   §{"t":"frame","p":{"v":name,"d":depth,"k":keys}|null,"k":keys,"i":item|null}§
+//   §/§
+
+fn text_push_path_key(b: &text_builder, key: &path_key) {
+    match key {
+        k: &path_key_name => {
+            text_push_json_string(b, k.name);
+            return;
+        }
+        k: &path_key_index => {
+            text_push_int(b, k.index);
+            return;
+        }
+        _ => {
+            unreachable;
+        }
+    }
+}
+
+fn text_push_path_keys(b: &text_builder, keys: &path_key_array) {
+    text_push_unit(b, '[');
+    let i = 0;
+    while i <s keys.length() {
+        if i >s 0 {
+            text_push_unit(b, ',');
+        }
+        text_push_path_key(b, keys[i]!);
+        i += 1;
+    }
+    text_push_unit(b, ']');
+}
+
+// The opening comment's text for a frame wrapper.
+fn meta_frame_text(f: &frame) -> &extern {
+    let b = text_builder_new();
+    text_push(b, s_meta_frame_open);
+    if !f.provider {
+        text_push(b, s_null);
+    } else {
+        let p = f.provider!;
+        text_push(b, s_meta_provider_open);
+        text_push_json_string(b, p.name);
+        text_push(b, s_meta_depth);
+        text_push_int(b, p.depth);
+        text_push(b, s_meta_keys);
+        text_push_path_keys(b, p.keys);
+        text_push_unit(b, '}');
+    }
+    text_push(b, s_meta_keys);
+    text_push_path_keys(b, f.keys);
+    text_push(b, s_meta_item);
+    if !f.item {
+        text_push(b, s_null);
+    } else {
+        text_push_path_key(b, f.item!);
+    }
+    text_push(b, s_meta_frame_close);
+    text_finish(b);
+}

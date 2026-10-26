@@ -1,0 +1,487 @@
+// Evaluating views (the spec's view/view.rkt eval; the eval methods of
+// tutuca's src/view.js AstNodes): a component's view, as data, to the
+// semantic tree. And spec_new, which makes a component type's spec from its
+// views, collecting their templates.
+
+// ---- Specs -------------------------------------------------------------------
+
+// A component type's spec: its views (one of them "main"), the templates
+// collected from them, the hooks they name and what it provides.
+fn spec_new(
+    name: &extern,
+    view_names: &str_array,
+    views: &view_array,
+    loops: &loop_def_array,
+    scopes: &scope_def_array,
+    provide_names: &str_array,
+    provide_selectors: &selector_array,
+) -> &component_spec {
+    if view_names.length() != views.length() {
+        host_fail(js_string_concat(s_err_view_names, name));
+    }
+    let spec =
+        {component_spec|
+            name,
+            view_names,
+            views,
+            templates: views_collect_templates(views),
+            loops,
+            scopes,
+            provide_names,
+            provide_selectors,
+        };
+    if !spec_view_named(spec, s_main) {
+        host_fail(js_string_concat(s_err_no_main_view, name));
+    }
+    spec;
+}
+
+fn spec_view_named(spec: &component_spec, name: &extern) -> &?view {
+    let i = 0;
+    while i <s spec.view_names.length() {
+        if str_eq(spec.view_names[i], name) {
+            return spec.views[i];
+        }
+        i += 1;
+    }
+    null;
+}
+
+// getBestViewFor: the view named, else the first of the views pushed that
+// the spec has, else its main view.
+fn spec_best_view(spec: &component_spec, name: &?extern, ctx: &render_context) -> &view {
+    if !!name {
+        let named = spec_view_named(spec, name!);
+        if !!named {
+            return named!;
+        }
+    }
+    let i = 0;
+    while i <s ctx.views.length() {
+        let pushed = spec_view_named(spec, ctx.views[i]!);
+        if !!pushed {
+            return pushed!;
+        }
+        i += 1;
+    }
+    spec_view_named(spec, s_main)!;
+}
+
+fn spec_loop(spec: &component_spec, name: &extern) -> &loop_def {
+    let i = 0;
+    while i <s spec.loops.length() {
+        let l = spec.loops[i]!;
+        if str_eq(l.name, name) {
+            return l;
+        }
+        i += 1;
+    }
+    host_fail(js_string_concat(s_err_unknown_loop, name));
+    unreachable;
+}
+
+fn spec_scope(spec: &component_spec, name: &extern) -> &scope_def {
+    let i = 0;
+    while i <s spec.scopes.length() {
+        let s = spec.scopes[i]!;
+        if str_eq(s.name, name) {
+            return s;
+        }
+        i += 1;
+    }
+    host_fail(js_string_concat(s_err_unknown_scope, name));
+    unreachable;
+}
+
+// ---- Evaluating ----------------------------------------------------------------
+
+// RenderContext's it, binds and component, besides what crosses component
+// boundaries (render_context): it is the component, or the item inside a
+// loop body; binds is a map value of the loop's and scopes' binds.
+type eval_ctx = { rc: &render_context, it: &value, component: &component, binds: &value };
+
+type snode_buf = { items: mut &snode_array, len: mut i32 };
+
+fn snode_buf_new() -> &snode_buf {
+    {snode_buf| items: [snode_array|null; 4], len: 0 };
+}
+
+fn snode_buf_push(buf: &snode_buf, node: &snode) {
+    let len = buf.len;
+    if len == buf.items.length() {
+        let bigger = [snode_array|null; len * 2];
+        bigger.copy(0, buf.items, 0, len);
+        buf.items = bigger;
+    }
+    buf.items[len] = node;
+    buf.len = len + 1;
+}
+
+fn snode_buf_finish(buf: &snode_buf) -> &snode_array {
+    let out = [snode_array|null; buf.len];
+    out.copy(0, buf.items, 0, buf.len);
+    out;
+}
+
+type entry_buf = { items: mut &entry_array, len: mut i32 };
+
+fn entry_buf_push(buf: &entry_buf, e: &entry) {
+    let len = buf.len;
+    if len == buf.items.length() {
+        let bigger = [entry_array|null; len * 2 + 1];
+        bigger.copy(0, buf.items, 0, len);
+        buf.items = bigger;
+    }
+    buf.items[len] = e;
+    buf.len = len + 1;
+}
+
+// A component's view, as the children of its component wrapper.
+fn view_eval_component(c: &component, name: &?extern, rc: &render_context) -> &snode_array {
+    let v = spec_best_view(c.spec, name, rc);
+    let e = {eval_ctx| rc, it: value_component(c), component: c, binds: map_empty() };
+    let out = snode_buf_new();
+    view_eval_into(out, v, e);
+    snode_buf_finish(out);
+}
+
+// What a view reads: a constant, the state, a provided value, a bind.
+fn view_value(v: &view, e: &eval_ctx) -> &value {
+    match v {
+        c: &view_const => {
+            return c.value;
+        }
+        f: &view_field => {
+            return get_key(e.it, path_key_name(f.name));
+        }
+        s: &view_seq_item => {
+            let key = key_from_value(get_key(e.it, path_key_name(s.key_name)));
+            if !key {
+                return VALUE_NULL;
+            }
+            return get_key(get_key(e.it, path_key_name(s.seq_name)), key!);
+        }
+        p: &view_provided => {
+            let found = render_context_provided(e.rc, p.name);
+            if !found {
+                return VALUE_NULL;
+            }
+            return (found!).value;
+        }
+        b: &view_lookup_bind => {
+            let found = map_get(e.binds, b.name);
+            if !found {
+                return VALUE_NULL;
+            }
+            return found!;
+        }
+        c: &view_if => {
+            return view_value(value_truthy(view_value(c.test, e))?c.then:c.otherwise, e);
+        }
+        _ => {
+            host_fail(s_err_not_a_value);
+            unreachable;
+        }
+    }
+}
+
+// toFrame: the frame a render or loop source enters.
+fn view_frame(v: &view, e: &eval_ctx) -> &frame {
+    match v {
+        f: &view_field => {
+            let keys = [path_key_array|null; 1];
+            keys[0] = path_key_name(f.name);
+            return {frame| keys, item: null, provider: null, is_component: 1 };
+        }
+        s: &view_seq_item => {
+            let keys = [path_key_array|null; 1];
+            keys[0] = path_key_name(s.seq_name);
+            let item = key_from_value(get_key(e.it, path_key_name(s.key_name)));
+            return {frame| keys, item, provider: null, is_component: 1 };
+        }
+        p: &view_provided => {
+            let f = render_context_provided_frame(e.rc, p.name);
+            if !f {
+                host_fail(js_string_concat(s_err_no_provider, p.name));
+            }
+            return f!;
+        }
+        _ => {
+            host_fail(s_err_not_a_source);
+            unreachable;
+        }
+    }
+}
+
+// The text a key renders as: a string as it is, an int in decimal, null none.
+fn key_text(v: &value) -> &?extern {
+    let key = key_from_value(v);
+    if !key {
+        return null;
+    }
+    if (key!).kind == path_key_kind_name {
+        return (key! as &path_key_name).name;
+    }
+    int_text((key! as &path_key_index).index);
+}
+
+fn view_name_of(v: &value) -> &extern {
+    let name = value_string_of(v);
+    if !name {
+        host_fail(s_err_view_name);
+    }
+    name!;
+}
+
+// A value as children: null renders nothing, a list its items, a map or a
+// result nothing, anything else as text.
+fn value_eval_into(out: &snode_buf, v: &value) {
+    let kind = v.kind;
+    if kind == value_kind_string {
+        snode_buf_push(out, snode_text((v as &value_string).value));
+        return;
+    }
+    if kind == value_kind_int {
+        snode_buf_push(out, snode_text(int_text((v as &value_int).value)));
+        return;
+    }
+    if kind == value_kind_float {
+        snode_buf_push(out, snode_text(host_number_text((v as &value_float).value)));
+        return;
+    }
+    if kind == value_kind_bool {
+        snode_buf_push(out, snode_text((v as &value_bool).value?s_true:s_false));
+        return;
+    }
+    if kind == value_kind_list {
+        let i = 0;
+        while i <s list_count(v) {
+            value_eval_into(out, list_get(v, i)!);
+            i += 1;
+        }
+        return;
+    }
+    if kind == value_kind_component {
+        host_fail(s_err_component_child);
+    }
+}
+
+fn view_eval_all(out: &snode_buf, nodes: &view_array, e: &eval_ctx) {
+    let i = 0;
+    while i <s nodes.length() {
+        view_eval_into(out, nodes[i]!, e);
+        i += 1;
+    }
+}
+
+fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
+    match v {
+        n: &view_el => {
+            snode_buf_push(out, view_eval_el(n, e));
+            return;
+        }
+        c: &view_if => {
+            view_eval_into(out, value_truthy(view_value(c.test, e))?c.then:c.otherwise, e);
+            return;
+        }
+        f: &view_frag => {
+            view_eval_all(out, f.childs, e);
+            return;
+        }
+        r: &view_render => {
+            let child = view_value(r.source, e);
+            snode_buf_push(out, render_child(view_frame(r.source, e), child, r.view_name, e.rc));
+            return;
+        }
+        l: &view_each => {
+            view_eval_loop(out, l.source, l.body, l.loop_name, e);
+            return;
+        }
+        l: &view_render_each => {
+            view_eval_loop(out, l.source, null, l.loop_name, e);
+            return;
+        }
+        r: &view_render_it => {
+            let it = view_value(view_lookup_bind(s_value), e);
+            let c = value_as_component(it);
+            if !c {
+                host_fail(s_err_render_not_component);
+            }
+            snode_buf_push(out, render_view(c!, r.view_name, e.rc));
+            return;
+        }
+        s: &view_scope => {
+            let def = spec_scope(e.component.spec, s.scope_name);
+            let binds = map_merge(e.binds, def.bind(e.component.instance));
+            view_eval_into(
+                out,
+                s.body,
+                {eval_ctx| rc: e.rc, it: e.it, component: e.component, binds },
+            );
+            return;
+        }
+        p: &view_push_view => {
+            let rc = render_context_push_view(e.rc, view_name_of(view_value(p.view_name, e)));
+            view_eval_into(
+                out,
+                p.body,
+                {eval_ctx| rc, it: e.it, component: e.component, binds: e.binds },
+            );
+            return;
+        }
+        a: &view_action => {
+            host_fail(s_err_not_renderable);
+            return;
+        }
+        t: &view_target_value => {
+            host_fail(s_err_not_renderable);
+            return;
+        }
+        k: &view_source_key => {
+            host_fail(s_err_not_renderable);
+            return;
+        }
+        _ => {
+            value_eval_into(out, view_value(v, e));
+            return;
+        }
+    }
+}
+
+// An element: its template's dynamic attrs (the ones that aren't constants,
+// in order), its key and its children.
+fn view_eval_el(n: &view_el, e: &eval_ctx) -> &snode {
+    if !n.template {
+        host_fail(s_err_view_not_collected);
+    }
+    let t = n.template!;
+    let values = [value_array|null; t.shape.names.length()];
+    let vi = 0;
+    let i = 0;
+    while i <s n.attr_values.length() {
+        let attr = n.attr_values[i]!;
+        if attr.kind != view_kind_const {
+            values[vi] = view_value(attr, e);
+            vi += 1;
+        }
+        i += 1;
+    }
+    let key: &?extern = null;
+    if !!n.key {
+        key = key_text(view_value(n.key!, e));
+    }
+    let childs = snode_buf_new();
+    view_eval_all(childs, n.childs, e);
+    snode_el(t, values, key, snode_buf_finish(childs));
+}
+
+// The map a with b's entries set over it.
+fn map_merge(a: &value, b: &value) -> &value {
+    if b.kind != value_kind_map {
+        return a;
+    }
+    let keys = map_keys(b);
+    let out = a;
+    let i = 0;
+    while i <s list_count(keys) {
+        let key = (list_get(keys, i)! as &value_string).value;
+        out = map_assoc(out, key, map_get(b, key)!);
+        i += 1;
+    }
+    out;
+}
+
+// each and renderEach: one entry per item the loop's filter keeps, keyed by
+// its key hook or the item's key, at the item's frame. A body renders with
+// the item as it and binds value, key and what enrich adds; without a body,
+// the item, a component, renders with the loop's view.
+fn view_eval_loop(out: &snode_buf, source: &view, body: &?view, loop_name: &?extern, e: &eval_ctx) {
+    let def: &?loop_def = null;
+    if !!loop_name {
+        def = spec_loop(e.component.spec, loop_name!);
+    }
+    let items = view_value(source, e);
+    if items.kind == value_kind_null {
+        snode_buf_push(out, snode_items([entry_array|null; 0]));
+        return;
+    }
+    let is_list = items.kind == value_kind_list;
+    if !is_list & (items.kind != value_kind_map) {
+        host_fail(s_err_not_iterable);
+    }
+    // A list's keys are its indexes; a map's, its keys.
+    let keys = items;
+    if !is_list {
+        keys = map_keys(items);
+    }
+    let count = list_count(keys);
+    let source_frame = view_frame(source, e);
+    let instance = e.component.instance;
+    let entries = {entry_buf| items: [entry_array|null; count], len: 0 };
+    let i = 0;
+    while i <s count {
+        let key = value_int(i);
+        let item = VALUE_NULL;
+        if is_list {
+            item = list_get(items, i)!;
+        } else {
+            key = list_get(keys, i)!;
+            item = map_get(items, (key as &value_string).value)!;
+        }
+        let keep = 1;
+        if !!def {
+            if !!(def!).filter {
+                keep = ((def!).filter!)(instance, key, item);
+            }
+        }
+        if keep {
+            let fragment_key = key;
+            let binds = map_assoc(map_assoc(map_empty(), s_value, item), s_key, key);
+            if !!def {
+                if !!(def!).key {
+                    fragment_key = ((def!).key!)(instance, key, item);
+                }
+                if !!(def!).enrich {
+                    let extra = ((def!).enrich!)(instance, binds);
+                    binds =
+                        map_assoc(
+                            map_assoc(map_merge(map_empty(), extra), s_value, item),
+                            s_key,
+                            key,
+                        );
+                }
+            }
+            let rc = render_context_enter_frame(e.rc, item);
+            let nodes = snode_buf_new();
+            if !!body {
+                view_eval_into(
+                    nodes,
+                    body!,
+                    {eval_ctx| rc, it: item, component: e.component, binds },
+                );
+            } else {
+                let c = value_as_component(item);
+                if !c {
+                    host_fail(s_err_render_not_component);
+                }
+                let view: &?extern = null;
+                if !!def {
+                    view = (def!).view;
+                }
+                snode_buf_push(nodes, render_view(c!, view, rc));
+            }
+            entry_buf_push(
+                entries,
+                {entry|
+                    key: key_text(fragment_key),
+                    frame: frame_for_item(source_frame, key_from_value(key)!),
+                    body: snode_buf_finish(nodes),
+                },
+            );
+        }
+        i += 1;
+    }
+    let done = [entry_array|null; entries.len];
+    done.copy(0, entries.items, 0, entries.len);
+    snode_buf_push(out, snode_items(done));
+}

@@ -1,0 +1,53 @@
+// What a handler does through its context (MessageContext in tutuca's
+// src/tasks.js): records effects, which the host turns into tasks once the
+// handler returns; reads the world through the host, so a run can be
+// repeated; and makes components in the handling component's scope.
+
+fn ctx_notify(ctx: &context, name: &extern, args: &value_array) {
+    let e: &effect_notify = { kind: effect_kind_notify, name, args };
+    effect_buf_push(ctx.effects, e);
+}
+
+fn ctx_ask(ctx: &context, name: &extern, args: &value_array) {
+    let e: &effect_ask = { kind: effect_kind_ask, name, args };
+    effect_buf_push(ctx.effects, e);
+}
+
+fn ctx_send_at(ctx: &context, name: &extern, args: &value_array, selector: &selector) {
+    let e: &effect_send_at = { kind: effect_kind_send_at, name, args, selector };
+    effect_buf_push(ctx.effects, e);
+}
+
+fn ctx_forward_at(ctx: &context, selector: &selector) {
+    let e: &effect_forward_at = { kind: effect_kind_forward_at, selector };
+    effect_buf_push(ctx.effects, e);
+}
+
+fn ctx_stop_next(ctx: &context) {
+    effect_buf_push(ctx.effects, EFFECT_STOP_NEXT);
+}
+
+fn ctx_log(ctx: &context, v: &value) {
+    let e: &effect_log = { kind: effect_kind_log, value: v };
+    effect_buf_push(ctx.effects, e);
+}
+
+// The world, as the host's env gives it. Handlers use these instead of a
+// clock or a random source of their own.
+fn ctx_now(ctx: &context) -> f64 {
+    env_now();
+}
+
+fn ctx_random(ctx: &context) -> f64 {
+    env_random();
+}
+
+fn ctx_uuid(ctx: &context) -> &extern {
+    env_uuid();
+}
+
+// A component of a type registered in the handling component's scope, e.g.
+// the one a handler returns in Swapped.
+fn ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
+    scope_make_or_fail(ctx.scope, name, fields);
+}

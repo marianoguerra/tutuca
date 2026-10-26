@@ -1,0 +1,89 @@
+// The semantic tree (the spec's view/sem.rkt): what evaluating a view
+// produces. It says what the rendered tree means, not how the DOM records it:
+// wrapper nodes say that their children are the render of a component, are
+// rendered at a frame, or are the items of a loop. lower.wax turns it into
+// vnodes. prelude/sem.wax has the types; these are their constructors.
+
+const ARG_TARGET_VALUE: &arg = {arg_target_value| kind: arg_kind_target_value };
+const ARG_SOURCE_KEY: &arg = {arg_source_key| kind: arg_kind_source_key };
+
+fn arg_value(value: &value) -> &arg {
+    let out: &arg_value = { kind: arg_kind_value, value };
+    out;
+}
+
+fn arg_target_value() -> &arg {
+    ARG_TARGET_VALUE;
+}
+
+fn arg_source_key() -> &arg {
+    ARG_SOURCE_KEY;
+}
+
+fn arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {
+    let out: &arg_if = { kind: arg_kind_if, test, then, otherwise };
+    out;
+}
+
+fn template_new(
+    tid: i32,
+    tag_name: &extern,
+    ns: &?extern,
+    static_names: &str_array,
+    static_values: &value_array,
+    names: &str_array,
+    handlers: &on_attr_array,
+) -> &template {
+    let all_names = static_names;
+    let all_values = static_values;
+    if handlers.length() >s 0 {
+        let n = static_names.length();
+        all_names = [str_array|null; n + 1];
+        all_names.copy(0, static_names, 0, n);
+        all_names[n] = s_data_eid;
+        all_values = [value_array|null; n + 1];
+        all_values.copy(0, static_values, 0, n);
+        all_values[n] = value_int(tid);
+    }
+    {template| tid, shape: shape_new(tag_name, ns, all_names, all_values, names), handlers };
+}
+
+fn snode_el(
+    template: &template,
+    values: &value_array,
+    key: &?extern,
+    childs: &snode_array,
+) -> &snode {
+    let out: &snode_el = { kind: snode_kind_el, template, values, key, childs };
+    out;
+}
+
+fn snode_text(text: &extern) -> &snode {
+    let out: &snode_text = { kind: snode_kind_text, text };
+    out;
+}
+
+fn snode_comment(text: &extern) -> &snode {
+    let out: &snode_comment = { kind: snode_kind_comment, text };
+    out;
+}
+
+fn snode_group(key: &?extern, childs: &snode_array) -> &snode {
+    let out: &snode_group = { kind: snode_kind_group, key, childs };
+    out;
+}
+
+fn snode_component(name: &extern, childs: &snode_array) -> &snode {
+    let out: &snode_component = { kind: snode_kind_component, name, childs };
+    out;
+}
+
+fn snode_enter(frame: &frame, childs: &snode_array) -> &snode {
+    let out: &snode_enter = { kind: snode_kind_enter, frame, childs };
+    out;
+}
+
+fn snode_items(entries: &entry_array) -> &snode {
+    let out: &snode_items = { kind: snode_kind_items, entries };
+    out;
+}

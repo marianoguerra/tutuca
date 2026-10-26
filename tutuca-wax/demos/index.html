@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tutuca-wax demos</title>
+<!-- margaui's light and dark themes, then the CSS margaui-css.wasm compiles
+     for the classes the page and the loaded components use (demos.js). -->
+<style id="themes"></style>
+<style id="classes"></style>
+</head>
+<body>
+<header>
+	<h1>tutuca-wax demos</h1>
+	<p>tutuca's runtime in Wax, compiled to wasm-gc: the components below are written in Wax (<code>components/</code>) and compiled to component modules the page loads at run time, and every click goes from the DOM through the wasm module's event routing, a transaction on the root, and a morph of the DOM.</p>
+	<div id="status">loading…</div>
+</header>
+<main id="demos"></main>
+<footer>Rebuild with <code>just build</code> and reload; <code>just demos</code> builds and serves this page.</footer>
+<script type="module" src="./demos.js"></script>
+</body>
+</html>

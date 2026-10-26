@@ -1,0 +1,44 @@
+// Path keys and frames (Frame in tutuca's src/paths.js, dframe in the spec's
+// component/paths.rkt): what a wrapper of the semantic tree enters, and what
+// its metadata comment records. prelude/path.wax has the types components
+// share; these are their constructors and the runtime's own path types.
+
+fn path_key_name(name: &extern) -> &path_key {
+    let out: &path_key_name = { kind: path_key_kind_name, name };
+    out;
+}
+
+fn path_key_index(index: i32) -> &path_key {
+    let out: &path_key_index = { kind: path_key_kind_index, index };
+    out;
+}
+
+// ---- Paths (NOTES.md; the spec's component/paths.rkt) ---------------------
+// route.wax has what they do, since that reads components.
+
+type path_key_array_array = [mut &?path_key_array];
+
+// The keys from the root state to a component: reading and writing the state
+// goes through it and nothing else does.
+type update_path = { keys: &path_key_array };
+
+fn selector_step_field(name: &extern) -> &selector_step {
+    let out: &selector_step_field = { kind: selector_step_kind_field, name };
+    out;
+}
+
+fn selector_step_item(name: &extern, key: &path_key) -> &selector_step {
+    let out: &selector_step_item = { kind: selector_step_kind_item, name, key };
+    out;
+}
+
+fn selector_step_seq_item(name: &extern, key_field: &extern) -> &selector_step {
+    let out: &selector_step_seq_item = { kind: selector_step_kind_seq_item, name, key_field };
+    out;
+}
+
+// Where a task goes: a dispatch path, then a selector below it.
+type target = { base: &dispatch_path, selector: &selector };
+
+// A dispatch path with its update path.
+type route = { path: &dispatch_path, update_path: &update_path };

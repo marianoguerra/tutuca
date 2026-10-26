@@ -1,0 +1,98 @@
+// Scopes (NOTES.md; tutuca's src/scope.js): the names component types are
+// registered under, nested into a tree, and making components through them.
+
+fn scope_new(name: &extern, parent: &?scope) -> &scope {
+    {scope|
+        name,
+        parent,
+        children: smap_empty(),
+        entries: smap_empty(),
+        ask_handlers: smap_empty(),
+    };
+}
+
+fn scope_root() -> &scope {
+    scope_new(s_empty, null);
+}
+
+// The child scope named so, made on first use.
+fn scope_enter(s: &scope, name: &extern) -> &scope {
+    let child = smap_get(s.children, name);
+    if !!child {
+        return child! as &scope;
+    }
+    let made = scope_new(name, s);
+    s.children = smap_assoc(s.children, name, made);
+    made;
+}
+
+fn scope_register(s: &scope, name: &extern, spec: &component_spec, vtable: &vtable) {
+    s.entries = smap_assoc(s.entries, name, {scope_entry| spec, vtable });
+}
+
+// Here first, then in the parents: inner registrations win.
+fn scope_lookup(s: &scope, name: &extern) -> &?scope_entry {
+    let at: &?scope = s;
+    while !!at {
+        let found = smap_get((at!).entries, name);
+        if !!found {
+            return found! as &scope_entry;
+        }
+        at = (at!).parent;
+    }
+    null;
+}
+
+fn scope_register_ask(s: &scope, name: &extern, handler: &ask_fn) {
+    s.ask_handlers = smap_assoc(s.ask_handlers, name, {ask_handler| handler });
+}
+
+fn scope_lookup_ask(s: &scope, name: &extern) -> &?ask_handler {
+    let at: &?scope = s;
+    while !!at {
+        let found = smap_get((at!).ask_handlers, name);
+        if !!found {
+            return found! as &ask_handler;
+        }
+        at = (at!).parent;
+    }
+    null;
+}
+
+// What making a component by name gave: the component, or null and why.
+// issues are init's, for the caller to report.
+type make_result = { component: &?component, issues: &value, error: &?value };
+
+// Makes a component by name. It gets the scope that was asked, not the parent
+// the entry was found in, so the names it asks for resolve from where it was
+// made.
+fn scope_make(s: &scope, name: &extern, fields: &value) -> &make_result {
+    let entry = scope_lookup(s, name);
+    if !entry {
+        let message = value_string(js_string_concat(s_err_unknown_component, name));
+        return {make_result| component: null, issues: list_empty(), error: message };
+    }
+    let e = entry!;
+    let made = e.vtable.init(fields);
+    if !made.instance {
+        return {make_result| component: null, issues: made.issues, error: made.error };
+    }
+    let c = component_new(e.spec, made.instance!, e.vtable, s);
+    {make_result| component: c, issues: made.issues, error: null };
+}
+
+// Makes a component by name, failing the task when it can't.
+fn scope_make_or_fail(s: &scope, name: &extern, fields: &value) -> &component {
+    let made = scope_make(s, name, fields);
+    if !made.component {
+        host_fail(js_string_concat(s_err_cant_make, name));
+        unreachable;
+    }
+    made.component!;
+}
+
+// Answers asks of this name through the host's ask import, later
+// (host_ask_handler, api.wax).
+fn scope_register_host_ask(s: &scope, name: &extern) {
+    scope_register_ask(s, name, host_ask_handler);
+}

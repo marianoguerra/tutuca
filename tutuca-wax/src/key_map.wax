@@ -1,0 +1,72 @@
+// A string -> i32 map, for sibling keys while morphing children. Open
+// addressing with linear probing over a power-of-two table, at most half full.
+
+type key_map = { keys: mut &ext_array, values: mut &i32_array, count: mut i32 };
+
+fn key_map_new(expected: i32) -> &key_map {
+    let size = 8;
+    while size <s expected * 2 {
+        size = size * 2;
+    }
+    {key_map| keys: [ext_array|null; size], values: [i32_array|0; size], count: 0 };
+}
+
+// The slot that holds key, or the empty slot where it would go.
+fn key_map_slot(map: &key_map, key: &extern) -> i32 {
+    let mask = map.keys.length() - 1;
+    let i = str_hash(key) & mask;
+    while 1 {
+        let at = map.keys[i];
+        if !at {
+            return i;
+        }
+        if str_eq(at, key) {
+            return i;
+        }
+        i = i + 1 & mask;
+    }
+    unreachable;
+}
+
+fn key_map_get(map: &key_map, key: &extern) -> (i32, i32) {
+    let i = key_map_slot(map, key);
+    if !map.keys[i] {
+        return (0, 0);
+    }
+    (1, map.values[i]);
+}
+
+fn key_map_has(map: &key_map, key: &extern) -> i32 {
+    !!map.keys[key_map_slot(map, key)];
+}
+
+fn key_map_set(map: &key_map, key: &extern, value: i32) {
+    let i = key_map_slot(map, key);
+    if !map.keys[i] {
+        if (map.count + 1) * 2 >s map.keys.length() {
+            key_map_grow(map);
+            key_map_set(map, key, value);
+            return;
+        }
+        map.keys[i] = key;
+        map.count = map.count + 1;
+    }
+    map.values[i] = value;
+}
+
+fn key_map_grow(map: &key_map) {
+    let old_keys = map.keys;
+    let old_values = map.values;
+    let size = old_keys.length() * 2;
+    map.keys = [ext_array|null; size];
+    map.values = [i32_array|0; size];
+    map.count = 0;
+    let i = 0;
+    while i <s old_keys.length() {
+        let key = old_keys[i];
+        if !!key {
+            key_map_set(map, key!, old_values[i]);
+        }
+        i += 1;
+    }
+}

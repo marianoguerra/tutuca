@@ -1,0 +1,204 @@
+// What walking a component type's views collects (src/walk.wax): its
+// templates (the spec's collect, tutuca's Collect in src/walk.js) and the
+// constant class names they use (ClassNames in tutuca's src/css/classes.js).
+
+// ---- Templates ---------------------------------------------------------------
+//
+// Every element gets its template once: an element shared by two views is one
+// template. Tids are numbered in walk order from 1, so they're unique within
+// the component type, which is all routing needs (template_of in
+// decode.wax). An attr whose value is a constant is static, set when the
+// element is made and never diffed; the others are dynamic.
+
+type collect_templates_state = { items: mut &template_array, len: mut i32 };
+
+fn collect_templates_has(s: &collect_templates_state, t: &template) -> i32 {
+    let i = 0;
+    while i <s s.len {
+        if s.items[i] == t {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+fn collect_templates_push(s: &collect_templates_state, t: &template) {
+    let len = s.len;
+    if len == s.items.length() {
+        let bigger = [template_array|null; len * 2];
+        bigger.copy(0, s.items, 0, len);
+        s.items = bigger;
+    }
+    s.items[len] = t;
+    s.len = len + 1;
+}
+
+// A send argument as its handler table keeps it: what it evaluates to on
+// dispatch, against the message context.
+fn view_to_arg(v: &view) -> &arg {
+    match v {
+        c: &view_const => {
+            return arg_value(c.value);
+        }
+        t: &view_target_value => {
+            return arg_target_value();
+        }
+        k: &view_source_key => {
+            return arg_source_key();
+        }
+        c: &view_if => {
+            return arg_if(view_to_arg(c.test), view_to_arg(c.then), view_to_arg(c.otherwise));
+        }
+        _ => {
+            host_fail(s_err_action_arg);
+            unreachable;
+        }
+    }
+}
+
+fn view_to_on_attr(h: &view_on) -> &on_attr {
+    let args = h.action.args;
+    let out = [arg_array|null; args.length()];
+    let i = 0;
+    while i <s args.length() {
+        out[i] = view_to_arg(args[i]!);
+        i += 1;
+    }
+    {on_attr| event: h.event, action: {action| name: h.action.name, args: out } };
+}
+
+fn view_el_template(e: &view_el, tid: i32) -> &template {
+    let n = e.attr_names.length();
+    let statics = 0;
+    let i = 0;
+    while i <s n {
+        if (e.attr_values[i]!).kind == view_kind_const {
+            statics += 1;
+        }
+        i += 1;
+    }
+    let static_names = [str_array|null; statics];
+    let static_values = [value_array|null; statics];
+    let names = [str_array|null; n - statics];
+    let si = 0;
+    let di = 0;
+    i = 0;
+    while i <s n {
+        let v = e.attr_values[i]!;
+        if v.kind == view_kind_const {
+            static_names[si] = e.attr_names[i];
+            static_values[si] = (v as &view_const).value;
+            si += 1;
+        } else {
+            names[di] = e.attr_names[i];
+            di += 1;
+        }
+        i += 1;
+    }
+    let handlers = [on_attr_array|null; e.handlers.length()];
+    i = 0;
+    while i <s handlers.length() {
+        handlers[i] = view_to_on_attr(e.handlers[i]!);
+        i += 1;
+    }
+    template_new(tid, e.tag_name, e.ns, static_names, static_values, names, handlers);
+}
+
+fn collect_templates_element: visit_fn (w: &walker, n: &view) {
+    let s = w.state as &collect_templates_state;
+    let e = n as &view_el;
+    if !!e.template {
+        // Shared within these views: already collected, its children too.
+        if collect_templates_has(s, e.template!) {
+            return;
+        }
+        host_fail(s_err_view_shared);
+        unreachable;
+    }
+    let t = view_el_template(e, s.len + 1);
+    e.template = t;
+    collect_templates_push(s, t);
+    walk_element_default(w, n);
+}
+
+// Handlers hold no elements: actions aren't walked.
+fn collect_templates_handler: handler_fn (w: &walker, e: &view_el, h: &view_on) {}
+
+// The templates of a component type's views, setting each element's.
+fn views_collect_templates(views: &view_array) -> &template_array {
+    let vt = walker_vtable_default();
+    vt.element = collect_templates_element;
+    vt.handler = collect_templates_handler;
+    let s = {collect_templates_state| items: [template_array|null; 8], len: 0 };
+    walk_all(walker_new(s, vt), views);
+    let out = [template_array|null; s.len];
+    out.copy(0, s.items, 0, s.len);
+    out;
+}
+
+// ---- Class names -------------------------------------------------------------
+//
+// The constant class names in views, every if branch and loop body included:
+// a constant is class names only inside a class attr. Classes read from the
+// state are only known at render time.
+
+type collect_classes_state = { in_class: mut i32, seen: mut &phm_map, names: mut &value };
+
+fn collect_classes_attr: attr_fn (w: &walker, e: &view_el, name: &extern, value: &view) {
+    let s = w.state as &collect_classes_state;
+    let outer = s.in_class;
+    s.in_class = str_eq(name, s_class);
+    walk_attr_default(w, e, name, value);
+    s.in_class = outer;
+}
+
+fn collect_classes_add(s: &collect_classes_state, b: &text_builder) {
+    if b.len == 0 {
+        return;
+    }
+    let name = text_finish(b);
+    b.len = 0;
+    if !!smap_get(s.seen, name) {
+        return;
+    }
+    s.seen = smap_assoc(s.seen, name, value_null());
+    s.names = list_push(s.names, value_string(name));
+}
+
+// ASCII whitespace: space, tab, newline, form feed, carriage return.
+fn is_ascii_space(unit: i32) -> i32 {
+    (unit == 32) | (unit == 9) | (unit == 10) | (unit == 12) | (unit == 13);
+}
+
+fn collect_classes_constant: visit_fn (w: &walker, n: &view) {
+    let s = w.state as &collect_classes_state;
+    let v = (n as &view_const).value;
+    if !s.in_class | (v.kind != value_kind_string) {
+        return;
+    }
+    let text = (v as &value_string).value;
+    let b = text_builder_new();
+    let i = 0;
+    while i <s js_string_length(text) {
+        let unit = js_string_char_code_at(text, i);
+        if is_ascii_space(unit) {
+            collect_classes_add(s, b);
+        } else {
+            text_push_unit(b, unit);
+        }
+        i += 1;
+    }
+    collect_classes_add(s, b);
+}
+
+// The constant class names of views, each once, in the order they appear: a
+// list value of strings.
+fn views_collect_classes(views: &view_array) -> &value {
+    let vt = walker_vtable_default();
+    vt.attr = collect_classes_attr;
+    vt.constant = collect_classes_constant;
+    let s = {collect_classes_state| in_class: 0, seen: smap_empty(), names: list_empty() };
+    walk_all(walker_new(s, vt), views);
+    s.names;
+}

@@ -1,0 +1,36 @@
+// The tutuca value's types (NOTES.md's Value), shared with component modules.
+// src/value.wax has its functions; README.md has the enum convention they
+// follow.
+
+const value_kind_null = 0;
+const value_kind_bool = 1;
+const value_kind_int = 2;
+const value_kind_float = 3;
+const value_kind_string = 4;
+const value_kind_list = 5;
+const value_kind_map = 6;
+const value_kind_result = 7;
+const value_kind_component = 8;
+
+// What the Component case holds. The component runtime's `component`
+// (component.wax: spec, instance, vtable, scope) is its subtype; the base is
+// empty so that Value, which components are made of, can come first.
+type component_base = open { };
+
+type value = open { kind: i32 };
+// Also "no value", for optional fields, and JS's null and undefined.
+type value_null: value = { .. };
+type value_bool: value = { .., value: i32 };
+// Whole numbers.
+type value_int: value = { .., value: i32 };
+type value_float: value = { .., value: f64 };
+type value_string: value = { .., value: &extern };
+// The persistent vector of vendor/wax-mb, holding &value.
+type value_list: value = { .., value: &pv_vector };
+// The persistent hash map of vendor/wax-mb: &value_string keys, &value values.
+type value_map: value = { .., value: &phm_map };
+// The outcome of something that can fail: ok is 1 for Ok, 0 for Err.
+type value_result: value = { .., ok: i32, value: &value };
+type value_component: value = { .., component: &component_base };
+
+type value_array = [mut &?value];

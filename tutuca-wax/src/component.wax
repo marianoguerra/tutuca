@@ -1,0 +1,119 @@
+// The component runtime's functions over prelude/component.wax's types, and
+// the types only the runtime uses: the effects' cases and what a render
+// captures of a provided value.
+
+// ---- Effects: what a handler asks for besides its next state ----------------
+
+const effect_kind_notify = 0;
+const effect_kind_ask = 1;
+const effect_kind_send_at = 2;
+const effect_kind_forward_at = 3;
+const effect_kind_stop_next = 4;
+const effect_kind_log = 5;
+
+// To the parent, bubbling up until a handler stops it.
+type effect_notify: effect = { .., name: &extern, args: &value_array };
+// To the scope's ask handler; the reply comes back as NameReplyOk or
+// NameReplyError, or NameHandlerNotFound.
+type effect_ask: effect = { .., name: &extern, args: &value_array };
+// To a component below, by selector.
+type effect_send_at: effect = { .., name: &extern, args: &value_array, selector: &selector };
+// The message being handled, to a component below.
+type effect_forward_at: effect = { .., selector: &selector };
+// Stops the notify being handled from bubbling further up.
+type effect_stop_next: effect = { .. };
+type effect_log: effect = { .., value: &value };
+
+const EFFECT_STOP_NEXT: &effect = {effect_stop_next| kind: effect_kind_stop_next };
+
+fn effect_buf_new() -> &effect_buf {
+    {effect_buf| items: [effect_array|null; 4], len: 0 };
+}
+
+fn effect_buf_push(buf: &effect_buf, e: &effect) {
+    let len = buf.len;
+    if len == buf.items.length() {
+        let bigger = [effect_array|null; len * 2];
+        bigger.copy(0, buf.items, 0, len);
+        buf.items = bigger;
+    }
+    buf.items[len] = e;
+    buf.len = len + 1;
+}
+
+const MESSAGE_ERROR_UNKNOWN_MESSAGE: &message_error =
+    {message_error_unknown_message| kind: message_error_kind_unknown_message };
+
+fn message_error_unknown_message() -> &message_error {
+    MESSAGE_ERROR_UNKNOWN_MESSAGE;
+}
+
+fn message_error_wrong_arity(expected: i32, got: i32) -> &message_error {
+    let out: &message_error_wrong_arity = { kind: message_error_kind_wrong_arity, expected, got };
+    out;
+}
+
+fn message_error_wrong_arg_type(index: i32) -> &message_error {
+    let out: &message_error_wrong_arg_type = { kind: message_error_kind_wrong_arg_type, index };
+    out;
+}
+
+fn message_error_failed(reason: &value) -> &message_error {
+    let out: &message_error_failed = { kind: message_error_kind_failed, reason };
+    out;
+}
+
+// ---- Rendering ----------------------------------------------------------------
+
+// A value an ancestor provides, and where it was captured: the depth of the
+// frame and the keys below it, for the frames that jump to it.
+type provided = { value: &value, depth: i32, keys: &path_key_array };
+
+const MESSAGE_RESULT_UNCHANGED: &message_result =
+    {message_result_unchanged| kind: message_result_kind_unchanged };
+
+fn message_result_unchanged() -> &message_result {
+    MESSAGE_RESULT_UNCHANGED;
+}
+
+fn message_result_updated(instance: &eq) -> &message_result {
+    let out: &message_result_updated = { kind: message_result_kind_updated, instance };
+    out;
+}
+
+fn message_result_swapped(component: &component) -> &message_result {
+    let out: &message_result_swapped = { kind: message_result_kind_swapped, component };
+    out;
+}
+
+fn message_result_rejected(error: &message_error) -> &message_result {
+    let out: &message_result_rejected = { kind: message_result_kind_rejected, error };
+    out;
+}
+
+fn ask_result_reply(result: &value) -> &ask_result {
+    let out: &ask_result_reply = { kind: ask_result_kind_reply, result };
+    out;
+}
+
+fn ask_result_pending(handle: &extern) -> &ask_result {
+    let out: &ask_result_pending = { kind: ask_result_kind_pending, handle };
+    out;
+}
+
+fn component_new(
+    spec: &component_spec,
+    instance: &eq,
+    vtable: &vtable,
+    scope: &scope,
+) -> &component {
+    {component| spec, instance, vtable, scope };
+}
+
+// The component a value holds, or null when it holds something else.
+fn value_as_component(v: &value) -> &?component {
+    if v.kind != value_kind_component {
+        return null;
+    }
+    (v as &value_component).component as &component;
+}

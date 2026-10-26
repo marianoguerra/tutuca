@@ -1,0 +1,101 @@
+# Tasks for tutuca-wax. `just` lists them.
+
+# The wax-mb compiler: WAX_MB if set, else the pinned build `just setup` makes.
+wax_mb := env("WAX_MB", ".tools/wax-mb/_build/native/debug/build/marianoguerra/wax-cli/wax-mb/wax-mb.exe")
+
+default:
+    @just --list
+
+# --- Setup -----------------------------------------------------------------------------------
+
+# Install the JS dependencies (jsdom, Playwright) and build the pinned wax-mb into .tools/.
+setup:
+    npm install
+    sh scripts/setup-wax-mb.sh
+
+# Run the pinned wax-mb with any arguments: `just wax-mb check dist/tutuca-rt.wax`.
+wax-mb *args:
+    {{wax_mb}} {{args}}
+
+# --- Build -----------------------------------------------------------------------------------
+
+# Assemble and compile dist/tutuca-rt.wasm and the component modules, dist/components/*.wasm:
+# wax-mb writes <name>.debug.wasm, wasm-opt optimizes it into <name>.wasm.
+build:
+    node scripts/build.mjs
+
+# The runtime as WebAssembly text, dist/tutuca-rt.wat, to read what the build emits.
+wat: build
+    {{wax_mb}} dist/tutuca-rt.wax -f wat -o dist/tutuca-rt.wat
+    @echo "wrote dist/tutuca-rt.wat"
+
+# The size of the built modules, as wax-mb wrote them and optimized, raw and gzipped.
+size: build
+    @printf "%8s %8s %8s %8s  %s\n" debug gz optimized gz module
+    @for f in dist/*.debug.wasm dist/components/*.debug.wasm; do o="${f%.debug.wasm}.wasm"; printf "%8d %8d %8d %8d  %s\n" $(stat -c%s "$f") $(gzip -9c "$f" | wc -c) $(stat -c%s "$o") $(gzip -9c "$o" | wc -c) "$o"; done
+
+# Drop the build outputs.
+clean:
+    rm -rf dist
+
+# --- Demos ------------------------------------------------------------------------------------
+
+# Build, then serve the demos page at http://127.0.0.1:{{port}}/demos/ (Ctrl-C stops it).
+demos port="8002": build
+    node scripts/serve.mjs {{port}}
+
+# Serve this directory without building first, e.g. after `just build` elsewhere.
+serve port="8002":
+    node scripts/serve.mjs {{port}}
+
+# --- Format ----------------------------------------------------------------------------------
+
+# Format the sources in place (not src/imports.wax or vendor/, see scripts/format.mjs).
+fmt:
+    node scripts/format.mjs
+
+# List the sources that need `just fmt`, failing if any do.
+fmt-check:
+    node scripts/format.mjs --check
+
+# --- Test ------------------------------------------------------------------------------------
+
+# Everything `npm test` runs: format check, build, then jsdom, parity and the browser.
+test: fmt-check build test-jsdom test-parity test-browser
+
+# The fast gate: format check, build, and the suite in jsdom.
+check: fmt-check build test-jsdom
+
+# The suite in Node against jsdom, with the js-string builtins and with the polyfills.
+test-jsdom:
+    node --test test/jsdom.test.mjs
+
+# Random trees and frames against tutuca's own runtime (../src), step by step.
+test-parity:
+    node --test test/parity.test.mjs
+
+# The suite in Chromium, through Playwright.
+test-browser:
+    node --test test/browser.test.mjs
+
+# The jsdom cases whose names match a pattern: `just test-one "keyed"`.
+test-one pattern: build
+    node --test --test-name-pattern="{{pattern}}" test/jsdom.test.mjs
+
+# --- Vendored collections --------------------------------------------------------------------
+
+# Copy wax-mb's persistent map and vector again from .tools/wax-mb (see vendor/wax-mb/README.md).
+vendor:
+    .tools/wax-mb/tools/vendor-collections.sh vendor/wax-mb map
+    .tools/wax-mb/tools/vendor-collections.sh vendor/wax-mb vector
+    cp .tools/wax-mb/LICENSE .tools/wax-mb/NOTICE vendor/wax-mb/
+    @echo "vendored from $(git -C .tools/wax-mb rev-parse HEAD): record it in vendor/wax-mb/README.md"
+
+# Download margaui-css.wasm and margaui's light and dark themes again (see vendor/margaui/README.md).
+vendor-margaui release="v0.5.0" commit="142b397":
+    gh release download {{release}} -R marianoguerra/tailwindcss-moonbit -p margaui-css.wasm -p margaui-css.wasm.sha256 -D vendor/margaui --clobber
+    cd vendor/margaui && sha256sum -c margaui-css.wasm.sha256
+    for t in light dark; do gh api "repos/marianoguerra/margaui/contents/themes/$t.css?ref={{commit}}" --jq .content | base64 -d > vendor/margaui/themes/$t.css; done
+    gh api "repos/marianoguerra/margaui/contents/LICENSE?ref={{commit}}" --jq .content | base64 -d > vendor/margaui/LICENSE-margaui
+    gh api "repos/marianoguerra/tailwindcss-moonbit/contents/LICENSE?ref={{release}}" --jq .content | base64 -d > vendor/margaui/LICENSE-tailwindcss-moonbit
+    @echo "vendored margaui-css {{release}} and margaui themes at {{commit}}: record them in vendor/margaui/README.md"

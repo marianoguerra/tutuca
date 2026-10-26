@@ -1,0 +1,7 @@
+# What `npm install` / `just setup` brings: jsdom, Playwright, binaryen.
+/node_modules/
+# The pinned wax-mb, cloned and built by scripts/setup-wax-mb.sh.
+/.tools/
+# Build outputs (scripts/build.mjs): the assembled .wax, the generated prelude
+# files, <module>.debug.wasm and the optimized <module>.wasm, `just wat`'s .wat.
+/dist/

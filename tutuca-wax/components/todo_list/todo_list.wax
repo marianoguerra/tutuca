@@ -1,0 +1,403 @@
+// TodoList, a component module of its own: it holds TodoItem components in a
+// field and renders each in a keyed loop. It reads an item's done through the
+// item's vtable (get), sends items messages (sendAt), and handles the notify
+// an item sends to be removed. TodoItem is another module's
+// (components/todo_item): addTodo makes one by name, through the scope, so
+// it works once some module has registered TodoItem there.
+
+import "'" {
+    #[import = "TodoList"]
+    const s_todo_list_type: &extern;
+    #[import = "TodoItem"]
+    const s_todo_item_type: &extern;
+    #[import = "items"]
+    const s_items: &extern;
+    #[import = "draft"]
+    const s_draft: &extern;
+    #[import = "nextId"]
+    const s_next_id: &extern;
+    #[import = "remaining"]
+    const s_remaining: &extern;
+    #[import = "count"]
+    const s_count: &extern;
+    #[import = "id"]
+    const s_id: &extern;
+    #[import = "text"]
+    const s_text: &extern;
+    #[import = "done"]
+    const s_done: &extern;
+    #[import = "section"]
+    const s_section: &extern;
+    #[import = "input"]
+    const s_input: &extern;
+    #[import = "button"]
+    const s_button: &extern;
+    #[import = "ul"]
+    const s_ul: &extern;
+    #[import = "footer"]
+    const s_footer: &extern;
+    #[import = "span"]
+    const s_span: &extern;
+    #[import = "class"]
+    const s_class: &extern;
+    #[import = "value"]
+    const s_value: &extern;
+    #[import = "placeholder"]
+    const s_placeholder: &extern;
+    #[import = "click"]
+    const s_click: &extern;
+    #[import = "todos flex flex-col gap-2"]
+    const s_todos_class: &extern;
+    #[import = "div"]
+    const s_div: &extern;
+    #[import = "join w-full"]
+    const s_join_class: &extern;
+    #[import = "input input-sm join-item w-full"]
+    const s_input_class: &extern;
+    #[import = "btn btn-sm btn-primary join-item"]
+    const s_add_class: &extern;
+    #[import = "list bg-base-100 rounded-box border border-base-300"]
+    const s_list_class: &extern;
+    #[import = "flex items-center gap-2 text-sm"]
+    const s_footer_class: &extern;
+    #[import = "flex-1 opacity-70 tabular-nums"]
+    const s_left_class: &extern;
+    #[import = "btn btn-xs"]
+    const s_footer_btn_class: &extern;
+    #[import = "What needs doing?"]
+    const s_todo_prompt: &extern;
+    #[import = "setDraft"]
+    const s_set_draft: &extern;
+    #[import = "addTodo"]
+    const s_add_todo: &extern;
+    #[import = "completeAll"]
+    const s_complete_all: &extern;
+    #[import = "clearDone"]
+    const s_clear_done: &extern;
+    #[import = "setDone"]
+    const s_set_done: &extern;
+    #[import = "removeMe"]
+    const s_remove_me: &extern;
+    #[import = "add"]
+    const s_add_label: &extern;
+    #[import = " of "]
+    const s_of_label: &extern;
+    #[import = " left"]
+    const s_left_label: &extern;
+    #[import = "all done"]
+    const s_all_done_label: &extern;
+    #[import = "clear done"]
+    const s_clear_done_label: &extern;
+    #[import = ""]
+    const s_empty: &extern;
+}
+
+// ---- TodoList --------------------------------------------------------------------
+//
+// <section class="todos flex flex-col gap-2">
+//   <div class="join w-full">
+//     <input class="input ... join-item" placeholder="What needs doing?" value={draft} on:input="setDraft(targetValue)">
+//     <button class="btn ... join-item" on:click="addTodo">add</button>
+//   </div>
+//   <ul class="list ...">@each items as item (keyed by its id): render item</ul>
+//   <footer class="flex items-center gap-2 text-sm">
+//     <span class="flex-1 ...">{remaining} of {count} left</span>
+//     <button class="btn btn-xs" on:click="completeAll">all done</button>
+//     <button class="btn btn-xs" on:click="clearDone">clear done</button>
+//   </footer>
+// </section>
+
+type todo_list_state = { items: &value, draft: &extern, next_id: i32 };
+
+let todo_list_spec_made: &?component_spec = null;
+
+fn todo_list_spec() -> &component_spec {
+    if !!todo_list_spec_made {
+        return todo_list_spec_made!;
+    }
+    let entry =
+        el_class(
+            s_div,
+            s_join_class,
+            views2(
+                el_on(
+                    s_input,
+                    strs3(s_class, s_placeholder, s_value),
+                    views3(text(s_input_class), text(s_todo_prompt), view_field(s_draft)),
+                    views0(),
+                    view_ons1(s_input, s_set_draft, views1(view_target_value())),
+                ),
+                el_class_on(
+                    s_button,
+                    s_add_class,
+                    views1(text(s_add_label)),
+                    view_ons1(s_click, s_add_todo, views0()),
+                ),
+            ),
+        );
+    let footer =
+        el_class(
+            s_footer,
+            s_footer_class,
+            views3(
+                el_class(
+                    s_span,
+                    s_left_class,
+                    views4(
+                        view_field(s_remaining),
+                        text(s_of_label),
+                        view_field(s_count),
+                        text(s_left_label),
+                    ),
+                ),
+                el_class_on(
+                    s_button,
+                    s_footer_btn_class,
+                    views1(text(s_all_done_label)),
+                    view_ons1(s_click, s_complete_all, views0()),
+                ),
+                el_class_on(
+                    s_button,
+                    s_footer_btn_class,
+                    views1(text(s_clear_done_label)),
+                    view_ons1(s_click, s_clear_done, views0()),
+                ),
+            ),
+        );
+    let list = el_class(s_ul, s_list_class, views1(view_render_each(
+                                                        view_field(s_items),
+                                                        s_items,
+                                                    )));
+    let main = el_class(s_section, s_todos_class, views3(entry, list, footer));
+    // Keyed by the item's id, so an item keeps its DOM when the ones before it
+    // go; routed by its index in items.
+    let by_id =
+        {loop_def| name: s_items, key: todo_list_item_key, filter: null, enrich: null, view: null };
+    let spec = spec_main(s_todo_list_type, main, loops1(by_id));
+    todo_list_spec_made = spec;
+    spec;
+}
+
+fn todo_list_item_key: loop_key_fn (instance: &eq, key: &value, item: &value) -> &value {
+    value_int(todo_list_item_id(item, (key as &value_int).value));
+}
+
+fn todo_list_vtable() -> &vtable {
+    {vtable|
+        init: todo_list_init,
+        handle: todo_list_handle,
+        get: todo_list_get,
+        set: todo_list_set,
+    };
+}
+
+fn todo_list_init: init_fn (fields: &value) -> &init_result {
+    let (items, issues) = init_list(fields, s_items, list_empty());
+    let (draft, more) = init_string(fields, s_draft, s_empty, issues);
+    let (next_id, all) = init_int(fields, s_next_id, 0, more);
+    init_ok({todo_list_state| items, draft, next_id }, all);
+}
+
+// Whether the item is done, read through its vtable like any component's
+// property: the list knows nothing of TodoItem's state.
+fn todo_list_item_done(item: &value) -> i32 {
+    let c = value_as_component(item);
+    if !c {
+        return 0;
+    }
+    let (code, got) = (c!).vtable.get((c!).instance, s_done);
+    if code != property_ok {
+        return 0;
+    }
+    value_truthy(got!);
+}
+
+// The item's id, or fallback when it has none.
+fn todo_list_item_id(item: &value, fallback: i32) -> i32 {
+    let c = value_as_component(item);
+    if !c {
+        return fallback;
+    }
+    let (code, got) = (c!).vtable.get((c!).instance, s_id);
+    if code != property_ok {
+        return fallback;
+    }
+    if (got!).kind != value_kind_int {
+        return fallback;
+    }
+    (got! as &value_int).value;
+}
+
+fn todo_list_remaining(items: &value) -> i32 {
+    let n = 0;
+    let i = 0;
+    while i <s list_count(items) {
+        if !todo_list_item_done(list_get(items, i)!) {
+            n += 1;
+        }
+        i += 1;
+    }
+    n;
+}
+
+// The items without the one at skip (-1 for none) and, if drop_done, without
+// the done ones.
+fn todo_list_keep(items: &value, skip: i32, drop_done: i32) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(items) {
+        let item = list_get(items, i)!;
+        if i != skip {
+            if !(drop_done & todo_list_item_done(item)) {
+                out = list_push(out, item);
+            }
+        }
+        i += 1;
+    }
+    out;
+}
+
+fn todo_list_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let state = instance as &todo_list_state;
+    let name = m.name;
+    if str_eq(name, s_set_draft) {
+        if m.args.length() != 1 {
+            return message_result_rejected(message_error_wrong_arity(1, m.args.length()));
+        }
+        let text = value_string_of(m.args[0]!);
+        if !text {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return
+            message_result_updated(
+                {todo_list_state| items: state.items, draft: text!, next_id: state.next_id },
+            );
+    }
+    if str_eq(name, s_add_todo) {
+        if js_string_length(state.draft) == 0 {
+            return message_result_unchanged();
+        }
+        let fields =
+            map_assoc(
+                map_assoc(
+                    map_assoc(map_empty(), s_id, value_int(state.next_id)),
+                    s_text,
+                    value_string(state.draft),
+                ),
+                s_done,
+                value_bool(0),
+            );
+        let item = ctx_make(ctx, s_todo_item_type, fields);
+        let items = list_push(state.items, value_component(item));
+        return
+            message_result_updated(
+                {todo_list_state| items, draft: s_empty, next_id: state.next_id + 1 },
+            );
+    }
+    // Each item changes itself: the list only addresses them.
+    if str_eq(name, s_complete_all) {
+        let i = 0;
+        while i <s list_count(state.items) {
+            ctx_send_at(
+                ctx,
+                s_set_done,
+                values1(value_bool(1)),
+                selector_item(s_items, path_key_index(i)),
+            );
+            i += 1;
+        }
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_clear_done) {
+        let items = todo_list_keep(state.items, -1, 1);
+        if list_count(items) == list_count(state.items) {
+            return message_result_unchanged();
+        }
+        return
+            message_result_updated(
+                {todo_list_state| items, draft: state.draft, next_id: state.next_id },
+            );
+    }
+    // Notified by an item that wants to go: the source key says which.
+    if str_eq(name, s_remove_me) {
+        let key = ctx.source_key;
+        if !key {
+            return message_result_unchanged();
+        }
+        let i = (key! as &path_key_index).index;
+        let items = todo_list_keep(state.items, i, 0);
+        return
+            message_result_updated(
+                {todo_list_state| items, draft: state.draft, next_id: state.next_id },
+            );
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn todo_list_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let state = instance as &todo_list_state;
+    if str_eq(name, s_items) {
+        return (property_ok, state.items);
+    }
+    if str_eq(name, s_draft) {
+        return (property_ok, value_string(state.draft));
+    }
+    if str_eq(name, s_next_id) {
+        return (property_ok, value_int(state.next_id));
+    }
+    if str_eq(name, s_remaining) {
+        return (property_ok, value_int(todo_list_remaining(state.items)));
+    }
+    if str_eq(name, s_count) {
+        return (property_ok, value_int(list_count(state.items)));
+    }
+    (property_no_such_property, null);
+}
+
+fn todo_list_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    let state = instance as &todo_list_state;
+    if str_eq(name, s_items) {
+        if v.kind != value_kind_list {
+            return (property_wrong_type, null);
+        }
+        return
+            (property_ok, {todo_list_state| items: v, draft: state.draft, next_id: state.next_id });
+    }
+    if str_eq(name, s_draft) {
+        let text = value_string_of(v);
+        if !text {
+            return (property_wrong_type, null);
+        }
+        return
+            (property_ok,
+             {todo_list_state| items: state.items, draft: text!, next_id: state.next_id });
+    }
+    if str_eq(name, s_next_id) {
+        if v.kind != value_kind_int {
+            return (property_wrong_type, null);
+        }
+        return
+            (property_ok,
+             {todo_list_state|
+                 items: state.items,
+                 draft: state.draft,
+                 next_id: (v as &value_int).value,
+             });
+    }
+    if str_eq(name, s_remaining) | str_eq(name, s_count) {
+        return (property_not_writable, null);
+    }
+    (property_no_such_property, null);
+}
+
+// ---- The module's interface (README.md has the convention) -------------------
+
+#[export = "tutuca_abi_version"]
+fn tutuca_abi_version() -> i32 {
+    tutuca_abi_version_current;
+}
+
+#[export = "tutuca_register"]
+fn tutuca_register(s: &scope) {
+    scope_register(s, s_todo_list_type, todo_list_spec(), todo_list_vtable());
+}

@@ -1,0 +1,203 @@
+// TodoItem, a component module of its own: a todo with a checkbox it
+// handles itself and an x that asks its parent to remove it. The parent is
+// whatever holds it; in the demos it's TodoList, from another module
+// (components/todo_list), which composes with it through the scope.
+
+import "'" {
+    #[import = "TodoItem"]
+    const s_todo_item_type: &extern;
+    #[import = "id"]
+    const s_id: &extern;
+    #[import = "text"]
+    const s_text: &extern;
+    #[import = "done"]
+    const s_done: &extern;
+    #[import = "li"]
+    const s_li: &extern;
+    #[import = "input"]
+    const s_input: &extern;
+    #[import = "span"]
+    const s_span: &extern;
+    #[import = "button"]
+    const s_button: &extern;
+    #[import = "type"]
+    const s_type: &extern;
+    #[import = "checkbox"]
+    const s_checkbox: &extern;
+    #[import = "checked"]
+    const s_checked: &extern;
+    #[import = "class"]
+    const s_class: &extern;
+    #[import = "change"]
+    const s_change: &extern;
+    #[import = "click"]
+    const s_click: &extern;
+    #[import = "todo list-row items-center"]
+    const s_todo_class: &extern;
+    #[import = "todo done list-row items-center opacity-60"]
+    const s_todo_done_class: &extern;
+    #[import = "checkbox checkbox-sm"]
+    const s_checkbox_class: &extern;
+    #[import = "list-col-grow"]
+    const s_text_class: &extern;
+    #[import = "list-col-grow line-through"]
+    const s_text_done_class: &extern;
+    #[import = "btn btn-xs btn-ghost"]
+    const s_remove_class: &extern;
+    #[import = "toggle"]
+    const s_toggle: &extern;
+    #[import = "setDone"]
+    const s_set_done: &extern;
+    #[import = "remove"]
+    const s_remove: &extern;
+    #[import = "removeMe"]
+    const s_remove_me: &extern;
+    #[import = "x"]
+    const s_x: &extern;
+    #[import = ""]
+    const s_empty: &extern;
+}
+
+// ---- TodoItem --------------------------------------------------------------------
+//
+// <li class={done ? "todo done list-row ..." : "todo list-row ..."}>
+//   <input type="checkbox" class="checkbox checkbox-sm" checked={done} on:change="toggle">
+//   <span class={done ? "list-col-grow line-through" : "list-col-grow"}>{text}</span>
+//   <button class="btn btn-xs btn-ghost" on:click="remove">x</button>
+// </li>
+
+type todo_item_state = { id: i32, text: &extern, done: i32 };
+
+let todo_item_spec_made: &?component_spec = null;
+
+fn todo_item_spec() -> &component_spec {
+    if !!todo_item_spec_made {
+        return todo_item_spec_made!;
+    }
+    let main =
+        el_attrs(
+            s_li,
+            strs1(s_class),
+            views1(view_if(view_field(s_done), text(s_todo_done_class), text(s_todo_class))),
+            views3(
+                el_on(
+                    s_input,
+                    strs3(s_type, s_class, s_checked),
+                    views3(text(s_checkbox), text(s_checkbox_class), view_field(s_done)),
+                    views0(),
+                    view_ons1(s_change, s_toggle, views0()),
+                ),
+                el_attrs(
+                    s_span,
+                    strs1(s_class),
+                    views1(
+                        view_if(view_field(s_done), text(s_text_done_class), text(s_text_class)),
+                    ),
+                    views1(view_field(s_text)),
+                ),
+                el_class_on(
+                    s_button,
+                    s_remove_class,
+                    views1(text(s_x)),
+                    view_ons1(s_click, s_remove, views0()),
+                ),
+            ),
+        );
+    let spec = spec_main(s_todo_item_type, main, no_loops());
+    todo_item_spec_made = spec;
+    spec;
+}
+
+fn todo_item_vtable() -> &vtable {
+    {vtable|
+        init: todo_item_init,
+        handle: todo_item_handle,
+        get: todo_item_get,
+        set: todo_item_set,
+    };
+}
+
+fn todo_item_init: init_fn (fields: &value) -> &init_result {
+    let (id, issues) = init_int(fields, s_id, 0, list_empty());
+    let (text, more) = init_string(fields, s_text, s_empty, issues);
+    let (done, all) = init_bool(fields, s_done, 0, more);
+    init_ok({todo_item_state| id, text, done }, all);
+}
+
+fn todo_item_with_done(state: &todo_item_state, done: i32) -> &message_result {
+    if done == state.done {
+        return message_result_unchanged();
+    }
+    message_result_updated({todo_item_state| id: state.id, text: state.text, done });
+}
+
+fn todo_item_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let state = instance as &todo_item_state;
+    let name = m.name;
+    if str_eq(name, s_toggle) {
+        return todo_item_with_done(state, !state.done);
+    }
+    // Sent by the list: completeAll sends setDone(true) to every item.
+    if str_eq(name, s_set_done) {
+        let (ok, done) = arg_bool(m.args, 0);
+        if !ok {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return todo_item_with_done(state, done);
+    }
+    // The list holds the items, so removing is the list's to do: ask it.
+    if str_eq(name, s_remove) {
+        ctx_notify(ctx, s_remove_me, values0());
+        return message_result_unchanged();
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn todo_item_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let state = instance as &todo_item_state;
+    if str_eq(name, s_id) {
+        return (property_ok, value_int(state.id));
+    }
+    if str_eq(name, s_text) {
+        return (property_ok, value_string(state.text));
+    }
+    if str_eq(name, s_done) {
+        return (property_ok, value_bool(state.done));
+    }
+    (property_no_such_property, null);
+}
+
+fn todo_item_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    let state = instance as &todo_item_state;
+    if str_eq(name, s_id) {
+        return (property_not_writable, null);
+    }
+    if str_eq(name, s_text) {
+        let text = value_string_of(v);
+        if !text {
+            return (property_wrong_type, null);
+        }
+        return (property_ok, {todo_item_state| id: state.id, text: text!, done: state.done });
+    }
+    if str_eq(name, s_done) {
+        if v.kind != value_kind_bool {
+            return (property_wrong_type, null);
+        }
+        return
+            (property_ok,
+             {todo_item_state| id: state.id, text: state.text, done: (v as &value_bool).value });
+    }
+    (property_no_such_property, null);
+}
+
+// ---- The module's interface (README.md has the convention) -------------------
+
+#[export = "tutuca_abi_version"]
+fn tutuca_abi_version() -> i32 {
+    tutuca_abi_version_current;
+}
+
+#[export = "tutuca_register"]
+fn tutuca_register(s: &scope) {
+    scope_register(s, s_todo_item_type, todo_item_spec(), todo_item_vtable());
+}

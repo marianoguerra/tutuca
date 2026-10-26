@@ -1,0 +1,122 @@
+// List and Map: the Value cases over wax-mb's persistent vector and hash map
+// (vendor/wax-mb, unmodified), adapted to the runtime. The vendored code
+// stores `&?eq`; these functions only ever store `&value`, so what comes out
+// is cast back. Both are persistent: an update returns a new list or map and
+// the old one stays usable, sharing what didn't change; reference equality on
+// the value tells whether it changed.
+//
+// A map's keys are strings. The HAMT needs keys in the eq hierarchy, and a JS
+// string is an externref, so a key is stored as the `value_string` struct
+// that holds it, and the map's hash and equality read the string through it:
+// the key policy is fixed here instead of passed per map.
+
+fn value_key_hash(key: &eq) -> i32 {
+    str_hash((key as &value_string).value);
+}
+
+fn value_key_equal(a: &eq, b: &eq) -> i32 {
+    str_eq((a as &value_string).value, (b as &value_string).value);
+}
+
+// ---- List ----------------------------------------------------------------
+
+fn list_empty() -> &value {
+    value_list(pv_empty());
+}
+
+fn list_count(list: &value) -> i32 {
+    pv_count((list as &value_list).value);
+}
+
+// The item at i, or null when i is out of range.
+fn list_get(list: &value, i: i32) -> &?value {
+    let (found, item) = pv_get((list as &value_list).value, i);
+    if found == 0 {
+        return null;
+    }
+    item! as &value;
+}
+
+fn list_push(list: &value, item: &value) -> &value {
+    value_list(pv_push((list as &value_list).value, item));
+}
+
+// The list with item at i; i == count appends.
+fn list_assoc(list: &value, i: i32, item: &value) -> &value {
+    value_list(pv_assoc((list as &value_list).value, i, item));
+}
+
+fn list_pop(list: &value) -> &value {
+    value_list(pv_pop((list as &value_list).value));
+}
+
+// ---- Map -----------------------------------------------------------------
+
+fn map_empty() -> &value {
+    value_map(phm_empty(value_key_hash, value_key_equal));
+}
+
+fn map_count(map: &value) -> i32 {
+    phm_count((map as &value_map).value);
+}
+
+// The value under key, or null when there's none.
+fn map_get(map: &value, key: &extern) -> &?value {
+    let (found, item) = phm_get((map as &value_map).value, value_string(key));
+    if found == 0 {
+        return null;
+    }
+    item! as &value;
+}
+
+fn map_assoc(map: &value, key: &extern, item: &value) -> &value {
+    value_map(phm_assoc((map as &value_map).value, value_string(key), item));
+}
+
+fn map_dissoc(map: &value, key: &extern) -> &value {
+    value_map(phm_dissoc((map as &value_map).value, value_string(key)));
+}
+
+// The keys and values of a map as two lists in the same order, the HAMT's.
+type map_entries_acc = { keys: mut &pv_vector, values: mut &pv_vector };
+
+fn map_entries_visit(context: &?eq, key: &?eq, item: &?eq) {
+    let acc = context! as &map_entries_acc;
+    acc.keys = pv_push(acc.keys, key);
+    acc.values = pv_push(acc.values, item);
+}
+
+fn map_entries(map: &value) -> &map_entries_acc {
+    let acc = {map_entries_acc| keys: pv_empty(), values: pv_empty() };
+    phm_each((map as &value_map).value, acc, map_entries_visit);
+    acc;
+}
+
+fn map_keys(map: &value) -> &value {
+    value_list(map_entries(map).keys);
+}
+
+fn map_values(map: &value) -> &value {
+    value_list(map_entries(map).values);
+}
+
+// ---- String-keyed maps of runtime structs --------------------------------
+
+// The same HAMT and key policy, for the runtime's own tables (a scope's
+// children, registrations and ask handlers; a render's provided values),
+// whose values are runtime structs rather than values.
+fn smap_empty() -> &phm_map {
+    phm_empty(value_key_hash, value_key_equal);
+}
+
+fn smap_get(map: &phm_map, key: &extern) -> &?eq {
+    let (found, item) = phm_get(map, value_string(key));
+    if found == 0 {
+        return null;
+    }
+    item;
+}
+
+fn smap_assoc(map: &phm_map, key: &extern, item: &eq) -> &phm_map {
+    phm_assoc(map, value_string(key), item);
+}

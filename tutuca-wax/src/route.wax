@@ -1,0 +1,277 @@
+// What paths do (NOTES.md; tutuca's src/paths.js; the spec's
+// component/paths.rkt): reading and writing the state through update paths,
+// dispatch paths and their frames, selectors and targets. A failure fails the
+// task it happens in (host_fail throws), so nothing it did is committed.
+
+fn fail_at_key(message: &extern, key: &path_key) {
+    let b = text_builder_new();
+    text_push(b, message);
+    text_push_path_key(b, key);
+    host_fail(text_finish(b));
+}
+
+// One step down: a component's property through its vtable, a map's key or a
+// list's index. Like JS's v[key], a missing property, key or index reads as
+// null; reading below anything that isn't a component, map or list fails.
+fn get_key(v: &value, key: &path_key) -> &value {
+    let kind = v.kind;
+    if key.kind == path_key_kind_name {
+        let name = (key as &path_key_name).name;
+        if kind == value_kind_component {
+            let c = value_as_component(v)!;
+            let (code, got) = c.vtable.get(c.instance, name);
+            if code == property_no_such_property {
+                return VALUE_NULL;
+            }
+            if code != property_ok {
+                fail_at_key(s_err_property, key);
+                unreachable;
+            }
+            return got!;
+        }
+        if kind == value_kind_map {
+            let got = map_get(v, name);
+            if !got {
+                return VALUE_NULL;
+            }
+            return got!;
+        }
+    } else {
+        if kind == value_kind_list {
+            let got = list_get(v, (key as &path_key_index).index);
+            if !got {
+                return VALUE_NULL;
+            }
+            return got!;
+        }
+    }
+    fail_at_key(s_err_not_a_container, key);
+    unreachable;
+}
+
+// The value with key set to item, as a new value: a component through its
+// vtable's set, which keeps the component's spec, vtable and scope.
+fn set_key(v: &value, key: &path_key, item: &value) -> &value {
+    let kind = v.kind;
+    if key.kind == path_key_kind_name {
+        let name = (key as &path_key_name).name;
+        if kind == value_kind_component {
+            let c = value_as_component(v)!;
+            let (code, instance) = c.vtable.set(c.instance, name, item);
+            if code != property_ok {
+                fail_at_key(s_err_property, key);
+                unreachable;
+            }
+            return value_component(component_new(c.spec, instance!, c.vtable, c.scope));
+        }
+        if kind == value_kind_map {
+            return map_assoc(v, name, item);
+        }
+    } else {
+        if kind == value_kind_list {
+            let i = (key as &path_key_index).index;
+            if (i >=s 0) & (i <=s list_count(v)) {
+                return list_assoc(v, i, item);
+            }
+        }
+    }
+    fail_at_key(s_err_not_a_container, key);
+    unreachable;
+}
+
+fn update_path_get_in(path: &update_path, root: &value) -> &value {
+    let v = root;
+    let i = 0;
+    while i <s path.keys.length() {
+        v = get_key(v, path.keys[i]!);
+        i += 1;
+    }
+    v;
+}
+
+// The root with the value at the path set to item, as a new root.
+fn update_path_set_in(path: &update_path, root: &value, item: &value) -> &value {
+    set_in_from(path.keys, 0, root, item);
+}
+
+fn set_in_from(keys: &path_key_array, i: i32, v: &value, item: &value) -> &value {
+    if i == keys.length() {
+        return item;
+    }
+    let key = keys[i]!;
+    set_key(v, key, set_in_from(keys, i + 1, get_key(v, key), item));
+}
+
+fn path_keys_concat(a: &path_key_array, b: &path_key_array) -> &path_key_array {
+    let out = [path_key_array|null; a.length() + b.length()];
+    out.copy(0, a, 0, a.length());
+    out.copy(a.length(), b, 0, b.length());
+    out;
+}
+
+fn frames_slice(frames: &frame_array, start: i32, end: i32) -> &frame_array {
+    let out = [frame_array|null; end - start];
+    out.copy(0, frames, start, end - start);
+    out;
+}
+
+fn frames_concat(a: &frame_array, b: &frame_array) -> &frame_array {
+    let out = [frame_array|null; a.length() + b.length()];
+    out.copy(0, a, 0, a.length());
+    out.copy(a.length(), b, 0, b.length());
+    out;
+}
+
+// The keys a frame reads from where it starts: its keys, then its item.
+fn frame_access_keys(f: &frame) -> &path_key_array {
+    if !f.item {
+        return f.keys;
+    }
+    let out = [path_key_array|null; f.keys.length() + 1];
+    out.copy(0, f.keys, 0, f.keys.length());
+    out[f.keys.length()] = f.item;
+    out;
+}
+
+// The frame, with a component boundary after it.
+fn frame_as_component(f: &frame) -> &frame {
+    {frame| keys: f.keys, item: f.item, provider: f.provider, is_component: 1 };
+}
+
+// A loop item over a source frame: the same provider, the source's keys, the item.
+fn frame_for_item(f: &frame, key: &path_key) -> &frame {
+    {frame| keys: frame_access_keys(f), item: key, provider: f.provider, is_component: 0 };
+}
+
+fn dispatch_path_is_root(p: &dispatch_path) -> i32 {
+    p.frames.length() == 0;
+}
+
+fn dispatch_path_to_parent(p: &dispatch_path) -> &dispatch_path {
+    {dispatch_path| frames: frames_slice(p.frames, 0, p.frames.length() - 1) };
+}
+
+// Drops trailing frames that aren't component frames: an event inside a loop
+// item belongs to the component whose view has the loop.
+fn dispatch_path_to_component(p: &dispatch_path) -> &dispatch_path {
+    let end = p.frames.length();
+    'done: do {
+        while end >s 0 {
+            if (p.frames[end - 1]!).is_component {
+                br 'done;
+            }
+            end -= 1;
+        }
+    }
+    {dispatch_path| frames: frames_slice(p.frames, 0, end) };
+}
+
+// From frames to keys, left to right. A frame starts where the previous one
+// ended or, with a provider, at the end of the first depth frames followed by
+// the provider's keys.
+fn dispatch_path_resolve(p: &dispatch_path) -> &update_path {
+    let n = p.frames.length();
+    let prefixes = [path_key_array_array|null; n + 1];
+    prefixes[0] = [path_key_array|null; 0];
+    let i = 0;
+    while i <s n {
+        let f = p.frames[i]!;
+        let start = prefixes[i]!;
+        if !!f.provider {
+            let provider = f.provider!;
+            start = path_keys_concat(prefixes[provider.depth]!, provider.keys);
+        }
+        prefixes[i + 1] = path_keys_concat(start, frame_access_keys(f));
+        i += 1;
+    }
+    {update_path| keys: prefixes[n]! };
+}
+
+fn dispatch_path_to_update(p: &dispatch_path) -> &update_path {
+    dispatch_path_resolve(dispatch_path_to_component(p));
+}
+
+// The item key of the frame that leads out of the receiver's view, or null
+// when the receiver itself or an ancestor sent it.
+fn dispatch_path_source_key_in(p: &dispatch_path, receiver: &dispatch_path) -> &?path_key {
+    let n = p.frames.length();
+    let i = receiver.frames.length();
+    if i >=s n {
+        return null;
+    }
+    while i <s n - 1 {
+        if (p.frames[i]!).is_component {
+            return (p.frames[i]!).item;
+        }
+        i += 1;
+    }
+    (p.frames[i]!).item;
+}
+
+fn route_for(path: &dispatch_path) -> &route {
+    {route| path, update_path: dispatch_path_to_update(path) };
+}
+
+// The frames a selector selects in value, one component frame per step. A
+// seqItem whose key field is null selects the whole field.
+fn selector_freeze(sel: &selector, start: &value) -> &frame_array {
+    let n = sel.steps.length();
+    let frames = [frame_array|null; n];
+    let v = start;
+    let i = 0;
+    while i <s n {
+        let step = sel.steps[i]!;
+        let item: &?path_key = null;
+        let name = s_empty;
+        if step.kind == selector_step_kind_field {
+            name = (step as &selector_step_field).name;
+        } else {
+            if step.kind == selector_step_kind_item {
+                let s = step as &selector_step_item;
+                name = s.name;
+                item = s.key;
+            } else {
+                let s = step as &selector_step_seq_item;
+                name = s.name;
+                item = key_from_value(get_key(v, path_key_name(s.key_field)));
+            }
+        }
+        let keys = [path_key_array|null; 1];
+        keys[0] = path_key_name(name);
+        let f = {frame| keys, item, provider: null, is_component: 1 };
+        frames[i] = f;
+        v = update_path_get_in({update_path| keys: frame_access_keys(f) }, v);
+        i += 1;
+    }
+    frames;
+}
+
+// A value as an item key: a string is a name, an int an index, null none.
+fn key_from_value(v: &value) -> &?path_key {
+    if v.kind == value_kind_null {
+        return null;
+    }
+    if v.kind == value_kind_string {
+        return path_key_name((v as &value_string).value);
+    }
+    if v.kind == value_kind_int {
+        return path_key_index((v as &value_int).value);
+    }
+    host_fail(s_err_bad_item_key);
+    unreachable;
+}
+
+// A path key as a value: a name is a string, an index an int.
+fn value_from_key(key: &path_key) -> &value {
+    if key.kind == path_key_kind_name {
+        return value_string((key as &path_key_name).name);
+    }
+    value_int((key as &path_key_index).index);
+}
+
+// The dispatch path a target reaches in root: its base, then the frames its
+// selector freezes to below it.
+fn target_freeze(t: &target, root: &value) -> &dispatch_path {
+    let start = update_path_get_in(dispatch_path_resolve(t.base), root);
+    {dispatch_path| frames: frames_concat(t.base.frames, selector_freeze(t.selector, start)) };
+}

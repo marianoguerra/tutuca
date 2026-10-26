@@ -1,0 +1,553 @@
+// Building and patching real nodes from vnodes: toDom, morphNode,
+// morphChildren and render of tutuca's src/vdom.js. `ns` is the namespace
+// children inherit from their parent, null for HTML.
+
+fn is_namespaced(node: &extern) -> i32 {
+    let ns = dom_namespace_uri(node);
+    if !ns {
+        return 0;
+    }
+    !str_eq(ns, s_html_ns);
+}
+
+fn child_ns(shape: &shape, ns: &?extern) -> &?extern {
+    if str_eq(ns, s_svg_ns) {
+        if str_eq_ascii_lower(shape.tag_name, s_foreign_object_lower) {
+            return null;
+        }
+    }
+    ns;
+}
+
+// The element's own namespace, or the one it inherits.
+fn el_ns(shape: &shape, ns: &?extern) -> &?extern {
+    if !shape.ns {
+        ns;
+    } else {
+        shape.ns;
+    }
+}
+
+// DOM properties that must be set as attributes.
+fn never_assign(name: &extern) -> i32 {
+    str_eq(name, s_width) | str_eq(name, s_height) | str_eq(name, s_href) | str_eq(name, s_list)
+        | str_eq(name, s_form) | str_eq(name, s_tab_index) | str_eq(name, s_download)
+        | str_eq(name, s_row_span) | str_eq(name, s_col_span) | str_eq(name, s_role)
+        | str_eq(name, s_popover);
+}
+
+// The attribute a property reflects to.
+fn prop_attr_name(name: &extern) -> &extern {
+    if str_eq(name, s_class_name) {
+        return s_class;
+    }
+    if str_eq(name, s_html_for) {
+        return s_for;
+    }
+    name;
+}
+
+// name[4] === "-": data-* and aria-* keep false as the string "false".
+fn is_prefixed_attr(name: &extern) -> i32 {
+    if js_string_length(name) <=s 4 {
+        return 0;
+    }
+    js_string_char_code_at(name, 4) == '-';
+}
+
+// node[name] = value; 0 when it threw. Scalars go as JS strings, numbers and
+// booleans; lists, maps, results and components as the opaque objects they
+// are, as JS sets an object prop.
+fn set_property(node: &extern, name: &extern, value: &value) -> i32 {
+    let kind = value.kind;
+    if kind == value_kind_string {
+        return dom_set_string_property(node, name, (value as &value_string).value);
+    }
+    if value_is_number(value) {
+        return dom_set_number_property(node, name, value_to_f64(value));
+    }
+    if kind == value_kind_bool {
+        return dom_set_bool_property(node, name, (value as &value_bool).value);
+    }
+    dom_set_ref_property(node, name, value as &extern);
+}
+
+// setAttribute(name, value), which writes String(value).
+fn set_attribute(node: &extern, name: &extern, value: &value) {
+    let kind = value.kind;
+    if kind == value_kind_string {
+        dom_set_attribute_string(node, name, (value as &value_string).value);
+        return;
+    }
+    if value_is_number(value) {
+        dom_set_attribute_number(node, name, value_to_f64(value));
+        return;
+    }
+    if kind == value_kind_bool {
+        dom_set_attribute_bool(node, name, (value as &value_bool).value);
+        return;
+    }
+    dom_set_attribute_ref(node, name, value as &extern);
+}
+
+// dangerouslySetInnerHTML's markup: the "__html" string of a map
+// ({ __html } in JS), "" for anything else.
+fn inner_html_of(value: &value) -> &extern {
+    if value.kind == value_kind_map {
+        let html = map_get(value, s_html_key);
+        if !!html {
+            let text = value_string_of(html!);
+            if !!text {
+                return text!;
+            }
+        }
+    }
+    s_empty;
+}
+
+fn set_prop(node: &extern, name: &extern, value: &value, namespaced: i32) {
+    if str_eq(name, s_dangerously_set_inner_html) {
+        if value_is_null(value) {
+            dom_replace_children(node);
+        } else {
+            let html = inner_html_of(value);
+            // Skip the re-parse when the markup is identical (preact does the same).
+            if !str_eq(html, dom_get_inner_html(node)) {
+                dom_set_inner_html(node, html);
+            }
+        }
+        return;
+    }
+    let uses_prop = 0;
+    if !namespaced {
+        if !never_assign(name) {
+            uses_prop = dom_has_property(node, name);
+        }
+    }
+    let absent = value_is_null(value);
+    if uses_prop & !absent {
+        if set_property(node, name, value) {
+            return;
+        }
+    }
+    if absent | value_is_false(value) & !is_prefixed_attr(name) {
+        if uses_prop {
+            _ = dom_set_string_property(node, name, s_empty);
+            dom_remove_attribute(node, prop_attr_name(name));
+        } else {
+            dom_remove_attribute(node, name);
+        }
+    } else {
+        set_attribute(node, name, value);
+    }
+}
+
+fn apply_value_last(node: &extern, value: &value) {
+    let zero = 0;
+    if value_is_number(value) {
+        zero = value_to_f64(value) == 0.0;
+    }
+    if str_eq(dom_tag_name(node), s_progress_tag) & (value_is_null(value) | zero) {
+        dom_remove_attribute(node, s_value);
+    } else {
+        set_prop(node, s_value, value, is_namespaced(node));
+    }
+}
+
+fn own(node: &extern) -> &extern {
+    dom_own(node);
+    node;
+}
+
+fn owned_child_nodes(parent: &extern) -> &ext_buf {
+    let out = ext_buf_new(8);
+    let at = dom_first_child(parent);
+    while !!at {
+        let node = at!;
+        if dom_is_owned(node) {
+            ext_buf_push(out, node);
+        }
+        at = dom_next_sibling(node);
+    }
+    out;
+}
+
+fn next_owned_sibling(node: &extern) -> &?extern {
+    let next = dom_next_sibling(node);
+    while !!next {
+        if dom_is_owned(next!) {
+            return next;
+        }
+        next = dom_next_sibling(next!);
+    }
+    null;
+}
+
+// Node identity, null included.
+fn same_node(a: &?extern, b: &?extern) -> i32 {
+    if !a {
+        return !b;
+    }
+    if !b {
+        return 0;
+    }
+    dom_is_same_node(a!, b!);
+}
+
+fn to_dom(node: &vnode, doc: &extern, ns: &?extern) -> &extern {
+    match node {
+        f: &vnode_frag => {
+            let out = dom_create_fragment(doc);
+            append_child_nodes(out, f.childs, doc, ns);
+            return out;
+        }
+        t: &vnode_text => {
+            return own(dom_create_text(doc, t.text));
+        }
+        c: &vnode_comment => {
+            return own(dom_create_comment(doc, c.text));
+        }
+        e: &vnode_elem => {
+            return elem_to_dom(e, doc, ns);
+        }
+        _ => {
+            unreachable;
+        }
+    }
+    unreachable;
+}
+
+fn elem_to_dom(e: &vnode_elem, doc: &extern, ns: &?extern) -> &extern {
+    let shape = e.shape;
+    let values = e.values;
+    let own_ns = el_ns(shape, ns);
+    let is_attr: &?extern = null;
+    if shape.is_idx != -1 {
+        is_attr = value_string_of(values[shape.is_idx]!);
+    }
+    let out = own(dom_create_element(doc, shape.tag_name, own_ns, is_attr));
+    let namespaced = is_namespaced(out);
+    let i = 0;
+    while i <s shape.static_names.length() {
+        set_prop(out, shape.static_names[i]!, shape.static_values[i]!, namespaced);
+        i += 1;
+    }
+    i = 0;
+    while i <s shape.names.length() {
+        if (i != shape.value_idx) & (i != shape.checked_idx) {
+            set_prop(out, shape.names[i]!, values[i]!, namespaced);
+        }
+        i += 1;
+    }
+    append_child_nodes(out, e.childs, doc, child_ns(shape, own_ns));
+    // After the children, so a select's options exist before its value picks one.
+    if shape.value_idx != -1 {
+        let value = values[shape.value_idx]!;
+        if !value_is_null(value) {
+            apply_value_last(out, value);
+        }
+    }
+    if shape.checked_idx != -1 {
+        let checked = values[shape.checked_idx]!;
+        if !value_is_null(checked) {
+            set_prop(out, s_checked, checked, 0);
+        }
+    }
+    out;
+}
+
+fn append_child_nodes(parent: &extern, childs: &vnode_array, doc: &extern, ns: &?extern) {
+    let i = 0;
+    while i <s childs.length() {
+        dom_append_child(parent, to_dom(vnode_at(childs, i), doc, ns));
+        i += 1;
+    }
+}
+
+// A shared vnode skips by identity, an equal one by the cheaper vnode walk.
+fn morph_node(
+    dom_node: &extern,
+    source: &vnode,
+    target: &vnode,
+    doc: &extern,
+    ns: &?extern,
+) -> &extern {
+    if vnode_equal(source, target) {
+        return dom_node;
+    }
+    let kind = target.kind;
+    if source.kind == kind {
+        if kind == vnode_kind_text {
+            dom_set_data(dom_node, (target as &vnode_text).text);
+            return dom_node;
+        }
+        if kind == vnode_kind_comment {
+            dom_set_data(dom_node, (target as &vnode_comment).text);
+            return dom_node;
+        }
+        if kind == vnode_kind_elem {
+            let s = source as &vnode_elem;
+            let t = target as &vnode_elem;
+            if vnode_elem_same_kind(s, t) {
+                morph_elem(dom_node, s, t, doc, ns);
+                return dom_node;
+            }
+        }
+    }
+    let out = to_dom(target, doc, ns);
+    dom_replace_child(dom_parent_node(dom_node)!, out, dom_node);
+    out;
+}
+
+fn morph_elem(dom_node: &extern, s: &vnode_elem, t: &vnode_elem, doc: &extern, ns: &?extern) {
+    let shape = t.shape;
+    let a = s.values;
+    let b = t.values;
+    let namespaced = is_namespaced(dom_node);
+    let i = 0;
+    while i <s shape.names.length() {
+        if (i != shape.value_idx) & (i != shape.checked_idx) {
+            if !value_same(a[i]!, b[i]!) {
+                set_prop(dom_node, shape.names[i]!, b[i]!, namespaced);
+            }
+        }
+        i += 1;
+    }
+    let html_set = 0;
+    if shape.html_idx != -1 {
+        let html = b[shape.html_idx]!;
+        html_set = value_truthy(html);
+    }
+    if !html_set {
+        _ =
+            morph_children(
+                dom_node,
+                s.childs,
+                t.childs,
+                doc,
+                child_ns(shape, el_ns(shape, ns)),
+                owned_child_nodes(dom_node),
+                null,
+            );
+    }
+    let vi = shape.value_idx;
+    if vi != -1 {
+        // A select reapplies its value whenever it changed, since its options may have.
+        let reselect = 0;
+        if str_eq(dom_tag_name(dom_node), s_select_tag) {
+            reselect = !value_is_null(b[vi]!);
+        }
+        if !value_same(a[vi]!, b[vi]!) | reselect {
+            apply_value_last(dom_node, b[vi]!);
+        }
+    }
+    let ci = shape.checked_idx;
+    if ci != -1 {
+        if !value_same(a[ci]!, b[ci]!) {
+            set_prop(dom_node, s_checked, b[ci]!, 0);
+        }
+    }
+}
+
+fn mount_before(
+    parent: &extern,
+    node: &vnode,
+    doc: &extern,
+    ns: &?extern,
+    before: &?extern,
+) -> &ext_buf {
+    let dom = to_dom(node, doc, ns);
+    let nodes = ext_buf_new(1);
+    if node.kind == vnode_kind_frag {
+        let at = dom_first_child(dom);
+        while !!at {
+            ext_buf_push(nodes, at!);
+            at = dom_next_sibling(at!);
+        }
+    } else {
+        ext_buf_push(nodes, dom);
+    }
+    dom_insert_before(parent, dom, before);
+    nodes;
+}
+
+fn remove_all(parent: &extern, nodes: &ext_buf) {
+    let i = 0;
+    while i <s nodes.len {
+        dom_remove_child(parent, ext_buf_at(nodes, i));
+        i += 1;
+    }
+}
+
+fn fail_duplicate_key(key: &extern) {
+    host_fail(js_string_concat(s_duplicate_key, key));
+}
+
+// Matches new_childs to old_childs, keyed ones by key and unkeyed ones in
+// order, then places each new child before the one placed after it, from the
+// last to the first. dom_nodes are the DOM nodes old_childs made, in order:
+// virtual indices need not equal DOM indices, since a fragment makes as many
+// nodes as its children do, including none. Returns the nodes new_childs made.
+fn morph_children(
+    parent: &extern,
+    old_childs: &vnode_array,
+    new_childs: &vnode_array,
+    doc: &extern,
+    ns: &?extern,
+    dom_nodes: &ext_buf,
+    before: &?extern,
+) -> &ext_buf {
+    let old_n = old_childs.length();
+    let new_n = new_childs.length();
+    let old_groups = [ext_bufs|null; old_n];
+    let keys = key_map_new(old_n + new_n);
+    let offset = 0;
+    let i = 0;
+    while i <s old_n {
+        let child = vnode_at(old_childs, i);
+        let width = vnode_dom_width(child);
+        old_groups[i] = ext_buf_slice(dom_nodes, offset, offset + width);
+        offset += width;
+        let key = vnode_key(child);
+        if !!key {
+            if key_map_has(keys, key!) {
+                fail_duplicate_key(key!);
+            }
+            key_map_set(keys, key!, i);
+        }
+        i += 1;
+    }
+    let used = [i32_array|0; old_n];
+    let unkeyed_cursor = 0;
+    // Match unkeyed children in forward order, independently of placement order.
+    let matches = [i32_array|-1; new_n];
+    let j = 0;
+    while j <s new_n {
+        let key = vnode_key(vnode_at(new_childs, j));
+        let index = -1;
+        if !!key {
+            let (found, previous) = key_map_get(keys, key!);
+            if found {
+                if previous == -1 {
+                    fail_duplicate_key(key!);
+                }
+                if used[previous] {
+                    fail_duplicate_key(key!);
+                }
+                index = previous;
+            } else {
+                // Remember newly introduced keys in the map already used for matching.
+                key_map_set(keys, key!, -1);
+            }
+        } else {
+            'found: do {
+                while unkeyed_cursor <s old_n {
+                    let candidate = unkeyed_cursor;
+                    unkeyed_cursor += 1;
+                    if !vnode_key(vnode_at(old_childs, candidate)) {
+                        index = candidate;
+                        br 'found;
+                    }
+                }
+            }
+        }
+        if index >=s 0 {
+            used[index] = 1;
+        }
+        matches[j] = index;
+        j += 1;
+    }
+    let new_groups = [ext_bufs|null; new_n];
+    let total = 0;
+    // The next already-placed group provides a real insertion reference. Empty
+    // groups leave it unchanged, including through arbitrarily nested fragments.
+    let at = before;
+    j = new_n - 1;
+    while j >=s 0 {
+        let target = vnode_at(new_childs, j);
+        let index = matches[j];
+        let nodes = place(parent, old_childs, old_groups, index, target, doc, ns, at);
+        new_groups[j] = nodes;
+        total += nodes.len;
+        if nodes.len >s 0 {
+            at = ext_buf_at(nodes, 0);
+        }
+        j -= 1;
+    }
+    i = 0;
+    while i <s old_n {
+        if !used[i] {
+            remove_all(parent, old_groups[i]!);
+        }
+        i += 1;
+    }
+    let out = ext_buf_new(total);
+    j = 0;
+    while j <s new_n {
+        let nodes = new_groups[j]!;
+        let k = 0;
+        while k <s nodes.len {
+            ext_buf_push(out, ext_buf_at(nodes, k));
+            k += 1;
+        }
+        j += 1;
+    }
+    out;
+}
+
+// Places target before `before`: morphing the old child it matched (index),
+// or mounting it when it matched none, or when one of the two is a fragment
+// and the other isn't, or when the old child's nodes are gone.
+fn place(
+    parent: &extern,
+    old_childs: &vnode_array,
+    old_groups: &ext_bufs,
+    index: i32,
+    target: &vnode,
+    doc: &extern,
+    ns: &?extern,
+    before: &?extern,
+) -> &ext_buf {
+    if index == -1 {
+        return mount_before(parent, target, doc, ns, before);
+    }
+    let source = vnode_at(old_childs, index);
+    let old_nodes = old_groups[index]!;
+    let source_frag = source.kind == vnode_kind_frag;
+    let target_frag = target.kind == vnode_kind_frag;
+    if source_frag & target_frag {
+        return
+            morph_children(
+                parent,
+                (source as &vnode_frag).childs,
+                (target as &vnode_frag).childs,
+                doc,
+                ns,
+                old_nodes,
+                before,
+            );
+    }
+    if source_frag | target_frag | (old_nodes.len == 0) {
+        let nodes = mount_before(parent, target, doc, ns, before);
+        remove_all(parent, old_nodes);
+        return nodes;
+    }
+    let node = morph_node(ext_buf_at(old_nodes, 0), source, target, doc, ns);
+    if !same_node(next_owned_sibling(node), before) {
+        dom_insert_before(parent, node, before);
+    }
+    let nodes = ext_buf_new(1);
+    ext_buf_push(nodes, node);
+    nodes;
+}
+
+// Renders childs into container, morphing from prev, the childs of the last
+// render, when there is one.
+fn render(doc: &extern, container: &extern, childs: &vnode_array, prev: &?vnode_array) {
+    if !prev {
+        dom_replace_children(container);
+        append_child_nodes(container, childs, doc, null);
+    } else {
+        _ = morph_children(container, prev!, childs, doc, null, owned_child_nodes(container), null);
+    }
+}

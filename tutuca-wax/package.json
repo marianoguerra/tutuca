@@ -1,0 +1,22 @@
+{
+	"name": "tutuca-wax",
+	"private": true,
+	"type": "module",
+	"description": "tutuca's runtime in Wax, compiled to wasm-gc",
+	"scripts": {
+		"setup": "sh scripts/setup-wax-mb.sh",
+		"build": "node scripts/build.mjs",
+		"format": "node scripts/format.mjs",
+		"format:check": "node scripts/format.mjs --check",
+		"test": "npm run format:check && npm run build && npm run test:jsdom && npm run test:parity && npm run test:browser",
+		"test:jsdom": "node --test test/jsdom.test.mjs",
+		"test:parity": "node --test test/parity.test.mjs",
+		"test:browser": "node --test test/browser.test.mjs",
+		"demos": "node scripts/build.mjs && node scripts/serve.mjs"
+	},
+	"devDependencies": {
+		"binaryen": "132.0.0",
+		"jsdom": "^30.1.3",
+		"playwright": "1.63.0"
+	}
+}

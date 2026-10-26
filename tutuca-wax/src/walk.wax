@@ -1,0 +1,265 @@
+// Walkers: visits over views (prelude/view.wax), dispatching on each node's
+// kind (tutuca's src/walk.js). A walker is a table of visits and the state
+// its visits share: wax has no closures, so a consumer's visits cast state to
+// its own type, the way a vtable's functions cast their instance.
+//
+// walker_vtable_default() is a fresh table whose visits walk every node, in
+// the order of the spec's collect: a consumer sets the fields for the kinds
+// it cares about, and calls the named defaults below to walk on ("super").
+// Each kind's default goes through node, so overriding node sees every kind
+// but element, which goes through attr, child and handler instead. A
+// render_each defaults to each, a render_it to render.
+
+rec {
+    type walker = { state: &eq, vt: &walker_vtable };
+    type walker_vtable = {
+        // Every kind without an override of its own: walks its children.
+        node: mut &visit_fn,
+        constant: mut &visit_fn,
+        field: mut &visit_fn,
+        seq_item: mut &visit_fn,
+        provided: mut &visit_fn,
+        lookup_bind: mut &visit_fn,
+        target_value: mut &visit_fn,
+        source_key: mut &visit_fn,
+        cond: mut &visit_fn,
+        element: mut &visit_fn,
+        frag: mut &visit_fn,
+        render: mut &visit_fn,
+        render_it: mut &visit_fn,
+        each: mut &visit_fn,
+        render_each: mut &visit_fn,
+        scope: mut &visit_fn,
+        push_view: mut &visit_fn,
+        action: mut &visit_fn,
+        // An element's attr (the key too, as "key"), child and handler.
+        attr: mut &attr_fn,
+        child: mut &child_fn,
+        handler: mut &handler_fn
+    };
+    type visit_fn = fn(&walker, &view);
+    type attr_fn = fn(&walker, &view_el, &extern, &view);
+    type child_fn = fn(&walker, &view_el, &view);
+    type handler_fn = fn(&walker, &view_el, &view_on);
+}
+
+fn walker_new(state: &eq, vt: &walker_vtable) -> &walker {
+    {walker| state, vt };
+}
+
+fn walker_vtable_default() -> &walker_vtable {
+    {walker_vtable|
+        node: walk_children,
+        constant: walk_kind_default,
+        field: walk_kind_default,
+        seq_item: walk_kind_default,
+        provided: walk_kind_default,
+        lookup_bind: walk_kind_default,
+        target_value: walk_kind_default,
+        source_key: walk_kind_default,
+        cond: walk_kind_default,
+        element: walk_element_default,
+        frag: walk_kind_default,
+        render: walk_kind_default,
+        render_it: walk_render_it_default,
+        each: walk_kind_default,
+        render_each: walk_render_each_default,
+        scope: walk_kind_default,
+        push_view: walk_kind_default,
+        action: walk_kind_default,
+        attr: walk_attr_default,
+        child: walk_child_default,
+        handler: walk_handler_default,
+    };
+}
+
+// Visits n with the walker's visit for its kind.
+fn walk(w: &walker, n: &view) {
+    let vt = w.vt;
+    let kind = n.kind;
+    if kind == view_kind_const {
+        vt.constant(w, n);
+        return;
+    }
+    if kind == view_kind_field {
+        vt.field(w, n);
+        return;
+    }
+    if kind == view_kind_seq_item {
+        vt.seq_item(w, n);
+        return;
+    }
+    if kind == view_kind_provided {
+        vt.provided(w, n);
+        return;
+    }
+    if kind == view_kind_lookup_bind {
+        vt.lookup_bind(w, n);
+        return;
+    }
+    if kind == view_kind_if {
+        vt.cond(w, n);
+        return;
+    }
+    if kind == view_kind_el {
+        vt.element(w, n);
+        return;
+    }
+    if kind == view_kind_frag {
+        vt.frag(w, n);
+        return;
+    }
+    if kind == view_kind_render {
+        vt.render(w, n);
+        return;
+    }
+    if kind == view_kind_each {
+        vt.each(w, n);
+        return;
+    }
+    if kind == view_kind_render_each {
+        vt.render_each(w, n);
+        return;
+    }
+    if kind == view_kind_render_it {
+        vt.render_it(w, n);
+        return;
+    }
+    if kind == view_kind_scope {
+        vt.scope(w, n);
+        return;
+    }
+    if kind == view_kind_push_view {
+        vt.push_view(w, n);
+        return;
+    }
+    if kind == view_kind_action {
+        vt.action(w, n);
+        return;
+    }
+    if kind == view_kind_target_value {
+        vt.target_value(w, n);
+        return;
+    }
+    if kind == view_kind_source_key {
+        vt.source_key(w, n);
+        return;
+    }
+    unreachable;
+}
+
+fn walk_all(w: &walker, nodes: &view_array) {
+    let i = 0;
+    while i <s nodes.length() {
+        walk(w, nodes[i]!);
+        i += 1;
+    }
+}
+
+// A node's children, in order: an element's attr values, key, children and
+// actions; an if's test, then and otherwise; a loop's source, then its body;
+// pushView's name, then its body; an action's args.
+fn walk_children: visit_fn (w: &walker, n: &view) {
+    match n {
+        e: &view_el => {
+            walk_all(w, e.attr_values);
+            if !!e.key {
+                walk(w, e.key!);
+            }
+            walk_all(w, e.childs);
+            let i = 0;
+            while i <s e.handlers.length() {
+                walk(w, (e.handlers[i]!).action);
+                i += 1;
+            }
+            return;
+        }
+        c: &view_if => {
+            walk(w, c.test);
+            walk(w, c.then);
+            walk(w, c.otherwise);
+            return;
+        }
+        f: &view_frag => {
+            walk_all(w, f.childs);
+            return;
+        }
+        r: &view_render => {
+            walk(w, r.source);
+            return;
+        }
+        l: &view_each => {
+            walk(w, l.source);
+            walk(w, l.body);
+            return;
+        }
+        l: &view_render_each => {
+            walk(w, l.source);
+            return;
+        }
+        s: &view_scope => {
+            walk(w, s.body);
+            return;
+        }
+        p: &view_push_view => {
+            walk(w, p.view_name);
+            walk(w, p.body);
+            return;
+        }
+        a: &view_action => {
+            walk_all(w, a.args);
+            return;
+        }
+        _ => {
+            return;
+        }
+    }
+}
+
+fn walk_kind_default: visit_fn (w: &walker, n: &view) {
+    w.vt.node(w, n);
+}
+
+fn walk_render_it_default: visit_fn (w: &walker, n: &view) {
+    w.vt.render(w, n);
+}
+
+fn walk_render_each_default: visit_fn (w: &walker, n: &view) {
+    w.vt.each(w, n);
+}
+
+// Its attrs, then its key as the attr "key", then its children, then its handlers.
+fn walk_element_default: visit_fn (w: &walker, n: &view) {
+    let e = n as &view_el;
+    let vt = w.vt;
+    let i = 0;
+    while i <s e.attr_names.length() {
+        vt.attr(w, e, e.attr_names[i]!, e.attr_values[i]!);
+        i += 1;
+    }
+    if !!e.key {
+        vt.attr(w, e, s_key, e.key!);
+    }
+    i = 0;
+    while i <s e.childs.length() {
+        vt.child(w, e, e.childs[i]!);
+        i += 1;
+    }
+    i = 0;
+    while i <s e.handlers.length() {
+        vt.handler(w, e, e.handlers[i]!);
+        i += 1;
+    }
+}
+
+fn walk_attr_default: attr_fn (w: &walker, e: &view_el, name: &extern, value: &view) {
+    walk(w, value);
+}
+
+fn walk_child_default: child_fn (w: &walker, e: &view_el, child: &view) {
+    walk(w, child);
+}
+
+fn walk_handler_default: handler_fn (w: &walker, e: &view_el, h: &view_on) {
+    walk(w, h.action);
+}

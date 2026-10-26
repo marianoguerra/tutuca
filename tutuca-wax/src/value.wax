@@ -1,0 +1,136 @@
+// The tutuca value (NOTES.md's Value): what fields hold, messages carry as
+// arguments, properties get and set, an element's props are, and init
+// receives in its map of values.
+//
+// It's the runtime's first enum, and the one that shows the convention every
+// enum follows (README.md has it in full): an open base struct holding only
+// the case's tag, one final subtype per case, a const per tag, a constructor
+// per case returning the base type, and one shared instance for a case
+// without fields. The types are in prelude/value.wax; the shared instances
+// exist only here, since components get values from the runtime's
+// constructors.
+
+const VALUE_NULL: &value = {value_null| kind: value_kind_null };
+const VALUE_FALSE: &value = {value_bool| kind: value_kind_bool, value: 0 };
+const VALUE_TRUE: &value = {value_bool| kind: value_kind_bool, value: 1 };
+
+fn value_null() -> &value {
+    VALUE_NULL;
+}
+
+fn value_bool(value: i32) -> &value {
+    if value == 0 {
+        VALUE_FALSE;
+    } else {
+        VALUE_TRUE;
+    }
+}
+
+fn value_int(value: i32) -> &value {
+    let out: &value_int = { kind: value_kind_int, value };
+    out;
+}
+
+fn value_float(value: f64) -> &value {
+    let out: &value_float = { kind: value_kind_float, value };
+    out;
+}
+
+fn value_string(value: &extern) -> &value {
+    let out: &value_string = { kind: value_kind_string, value };
+    out;
+}
+
+fn value_list(value: &pv_vector) -> &value {
+    let out: &value_list = { kind: value_kind_list, value };
+    out;
+}
+
+fn value_map(value: &phm_map) -> &value {
+    let out: &value_map = { kind: value_kind_map, value };
+    out;
+}
+
+fn value_ok(value: &value) -> &value {
+    let out: &value_result = { kind: value_kind_result, ok: 1, value };
+    out;
+}
+
+fn value_err(value: &value) -> &value {
+    let out: &value_result = { kind: value_kind_result, ok: 0, value };
+    out;
+}
+
+fn value_component(component: &component_base) -> &value {
+    let out: &value_component = { kind: value_kind_component, component };
+    out;
+}
+
+fn value_is_null(v: &value) -> i32 {
+    v.kind == value_kind_null;
+}
+
+// Bools are the two shared instances, so false is one reference.
+fn value_is_false(v: &value) -> i32 {
+    v == VALUE_FALSE;
+}
+
+fn value_is_number(v: &value) -> i32 {
+    (v.kind == value_kind_int) | (v.kind == value_kind_float);
+}
+
+// An int or a float as a double; 0 for anything else.
+fn value_to_f64(v: &value) -> f64 {
+    if v.kind == value_kind_int {
+        return (v as &value_int).value as f64_s;
+    }
+    if v.kind == value_kind_float {
+        return (v as &value_float).value;
+    }
+    0.0;
+}
+
+// The string, or null for any other case.
+fn value_string_of(v: &value) -> &?extern {
+    if v.kind == value_kind_string {
+        return (v as &value_string).value;
+    }
+    null;
+}
+
+// JS truthiness: null, false, 0, NaN and "" are falsy, everything else, empty
+// lists and maps included, is truthy.
+fn value_truthy(v: &value) -> i32 {
+    let kind = v.kind;
+    if kind == value_kind_null {
+        return 0;
+    }
+    if kind == value_kind_bool {
+        return (v as &value_bool).value;
+    }
+    if value_is_number(v) {
+        let n = value_to_f64(v);
+        // Not 0, and not NaN (the one value unequal to itself).
+        return (n != 0.0) & (n == n);
+    }
+    if kind == value_kind_string {
+        return js_string_length((v as &value_string).value) != 0;
+    }
+    1;
+}
+
+// JS ===, what a render compares props with: numbers by value whatever case
+// holds them (so NaN differs from itself), strings by content, and lists,
+// maps, results and components by reference.
+fn value_same(a: &value, b: &value) -> i32 {
+    if a == b {
+        return 1;
+    }
+    if value_is_number(a) & value_is_number(b) {
+        return value_to_f64(a) == value_to_f64(b);
+    }
+    if (a.kind == value_kind_string) & (b.kind == value_kind_string) {
+        return str_eq((a as &value_string).value, (b as &value_string).value);
+    }
+    0;
+}

@@ -1,0 +1,207 @@
+// Shapes and vnodes (Shape, VText, VComment, VNode and VFragment in tutuca's
+// src/vdom.js). The shape type is in prelude/sem.wax, since templates hold one.
+
+// Attrs read when the element is created or after its children, so never
+// static: value, checked, is, dangerouslySetInnerHTML.
+fn is_dynamic_only(name: &extern) -> i32 {
+    str_eq(name, s_value) | str_eq(name, s_checked) | str_eq(name, s_is)
+        | str_eq(name, s_dangerously_set_inner_html);
+}
+
+fn str_array_index(names: &str_array, name: &extern) -> i32 {
+    let i = 0;
+    while i <s names.length() {
+        if str_eq(names[i], name) {
+            return i;
+        }
+        i += 1;
+    }
+    -1;
+}
+
+// new Shape(tag, namespace, staticAttrs, names): with no namespace, svg and
+// math are detected case-insensitively and set their own.
+fn shape_new(
+    tag_name: &extern,
+    ns: &?extern,
+    static_names: &str_array,
+    static_values: &value_array,
+    names: &str_array,
+) -> &shape {
+    let own_tag = tag_name;
+    let own_ns = ns;
+    if !ns {
+        if str_eq_ascii_lower(tag_name, s_svg) {
+            own_tag = s_svg;
+            own_ns = s_svg_ns;
+        } else {
+            if str_eq_ascii_lower(tag_name, s_math) {
+                own_tag = s_math;
+                own_ns = s_math_ns;
+            }
+        }
+    }
+    let i = 0;
+    while i <s static_names.length() {
+        let name = static_names[i]!;
+        if is_dynamic_only(name) {
+            host_fail(js_string_concat(name, s_must_be_dynamic));
+        }
+        i += 1;
+    }
+    {shape|
+        tag_name: own_tag,
+        ns: own_ns,
+        static_names,
+        static_values,
+        names,
+        value_idx: str_array_index(names, s_value),
+        checked_idx: str_array_index(names, s_checked),
+        is_idx: str_array_index(names, s_is),
+        html_idx: str_array_index(names, s_dangerously_set_inner_html),
+    };
+}
+
+// A vnode, normalized: children are a flat array of vnodes, and a fragment is
+// a virtual boundary that makes no DOM node of its own.
+const vnode_kind_text = 0;
+const vnode_kind_comment = 1;
+const vnode_kind_elem = 2;
+const vnode_kind_frag = 3;
+
+rec {
+    type vnode = open { kind: i32 };
+    type vnode_text: vnode = { .., text: &extern };
+    type vnode_comment: vnode = { .., text: &extern };
+    type vnode_elem: vnode = {
+        ..,
+        shape: &shape,
+        values: &value_array, // aligned with shape.names
+        childs: &vnode_array,
+        key: &?extern
+    };
+    // An explicit fragment is a sibling key scope, even without a key.
+    type vnode_frag: vnode = { .., childs: &vnode_array, key: &?extern };
+    type vnode_array = [mut &?vnode];
+}
+
+fn vnode_text(text: &extern) -> &vnode {
+    let out: &vnode_text = { kind: vnode_kind_text, text };
+    out;
+}
+
+fn vnode_comment(text: &extern) -> &vnode {
+    let out: &vnode_comment = { kind: vnode_kind_comment, text };
+    out;
+}
+
+fn vnode_elem(shape: &shape, values: &value_array, childs: &vnode_array, key: &?extern) -> &vnode {
+    let out: &vnode_elem = { kind: vnode_kind_elem, shape, values, childs, key };
+    out;
+}
+
+fn vnode_frag(childs: &vnode_array, key: &?extern) -> &vnode {
+    let out: &vnode_frag = { kind: vnode_kind_frag, childs, key };
+    out;
+}
+
+fn vnode_key(node: &vnode) -> &?extern {
+    match node {
+        e: &vnode_elem => {
+            return e.key;
+        }
+        f: &vnode_frag => {
+            return f.key;
+        }
+        _ => {
+            return null;
+        }
+    }
+    unreachable;
+}
+
+fn vnode_at(childs: &vnode_array, i: i32) -> &vnode {
+    childs[i]!;
+}
+
+// isSameKind: the same shape and key.
+fn vnode_elem_same_kind(a: &vnode_elem, b: &vnode_elem) -> i32 {
+    (a.shape == b.shape) & str_eq(a.key, b.key);
+}
+
+// isEqualTo: a pure vnode walk, much cheaper than morphing, which has to read
+// the DOM at every element.
+fn vnode_equal(a: &vnode, b: &vnode) -> i32 {
+    if a == b {
+        return 1;
+    }
+    if a.kind != b.kind {
+        return 0;
+    }
+    match a {
+        x: &vnode_text => {
+            return str_eq(x.text, (b as &vnode_text).text);
+        }
+        x: &vnode_comment => {
+            return str_eq(x.text, (b as &vnode_comment).text);
+        }
+        x: &vnode_elem => {
+            let y = b as &vnode_elem;
+            if !vnode_elem_same_kind(x, y) {
+                return 0;
+            }
+            if x.childs.length() != y.childs.length() {
+                return 0;
+            }
+            let i = 0;
+            while i <s x.values.length() {
+                if !value_same(x.values[i]!, y.values[i]!) {
+                    return 0;
+                }
+                i += 1;
+            }
+            return vnode_childs_equal(x.childs, y.childs);
+        }
+        x: &vnode_frag => {
+            let y = b as &vnode_frag;
+            return str_eq(x.key, y.key) & vnode_childs_equal(x.childs, y.childs);
+        }
+        _ => {
+            return 0;
+        }
+    }
+    unreachable;
+}
+
+fn vnode_childs_equal(a: &vnode_array, b: &vnode_array) -> i32 {
+    if a.length() != b.length() {
+        return 0;
+    }
+    let i = 0;
+    while i <s a.length() {
+        if !vnode_equal(vnode_at(a, i), vnode_at(b, i)) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// A fragment contributes the sum of its children's DOM widths, including zero.
+fn vnode_dom_width(node: &vnode) -> i32 {
+    match node {
+        f: &vnode_frag => {
+            let total = 0;
+            let i = 0;
+            while i <s f.childs.length() {
+                total += vnode_dom_width(vnode_at(f.childs, i));
+                i += 1;
+            }
+            return total;
+        }
+        _ => {
+            return 1;
+        }
+    }
+    unreachable;
+}

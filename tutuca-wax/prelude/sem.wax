@@ -1,0 +1,88 @@
+// The semantic tree's types (the spec's view/sem.rkt), and the templates and
+// shapes its elements point at: what a component's render returns. src/sem.wax
+// has the constructors; src/vnode.wax what shapes are for.
+
+type str_array = [mut &?extern];
+
+// What every render of one template shares: tag, namespace, the attrs that
+// never change and the names of the ones that do. Same-shape vnodes diff by
+// index; different shapes replace. Shapes are compared by reference.
+type shape = {
+    tag_name: &extern,
+    ns: &?extern, // null: the element inherits its parent's
+    static_names: &str_array, // set when the element is created, never diffed
+    static_values: &value_array,
+    names: &str_array, // the dynamic attrs, aligned with an element's values
+    // Where the attrs read on creation or after the children are, -1 if absent.
+    value_idx: i32,
+    checked_idx: i32,
+    is_idx: i32,
+    html_idx: i32
+};
+
+// A send argument, evaluated on dispatch against the message context.
+const arg_kind_value = 0;
+const arg_kind_target_value = 1;
+const arg_kind_source_key = 2;
+const arg_kind_if = 3;
+
+rec {
+    type arg = open { kind: i32 };
+    type arg_value: arg = { .., value: &value };
+    // The value of the element with the handler.
+    type arg_target_value: arg = { .. };
+    type arg_source_key: arg = { .. };
+    type arg_if: arg = { .., test: &arg, then: &arg, otherwise: &arg };
+}
+
+type arg_array = [mut &?arg];
+
+// What an event sends: (send name arg ...).
+type action = { name: &extern, args: &arg_array };
+
+// on:<event>.
+type on_attr = { event: &extern, action: &action };
+type on_attr_array = [mut &?on_attr];
+
+// A template: one element of a component type's views, made once when the
+// type is. Every render of it shares its shape, so morph patches one render
+// into the next; its handlers are the type's table entry for its id, which
+// routing an event finds through the element's data-eid. An element with
+// handlers gets data-eid as a static attr, since its id never changes.
+type template = { tid: i32, shape: &shape, handlers: &on_attr_array };
+
+const snode_kind_el = 0;
+const snode_kind_text = 1;
+const snode_kind_comment = 2;
+const snode_kind_group = 3;
+const snode_kind_component = 4;
+const snode_kind_enter = 5;
+const snode_kind_items = 6;
+
+rec {
+    type snode = open { kind: i32 };
+    // An element: its template, and its dynamic values aligned with the
+    // template shape's names.
+    type snode_el: snode = {
+        ..,
+        template: &template,
+        values: &value_array,
+        key: &?extern,
+        childs: &snode_array
+    };
+    type snode_text: snode = { .., text: &extern };
+    // A comment the view itself writes.
+    type snode_comment: snode = { .., text: &extern };
+    // An explicit fragment: a sibling key scope.
+    type snode_group: snode = { .., key: &?extern, childs: &snode_array };
+    // The render of an instance of the named component type.
+    type snode_component: snode = { .., name: &extern, childs: &snode_array };
+    // Rendered at a frame: a field, the selected item of a field, a provided value.
+    type snode_enter: snode = { .., frame: &frame, childs: &snode_array };
+    // A loop, one entry per item.
+    type snode_items: snode = { .., entries: &entry_array };
+    type snode_array = [mut &?snode];
+    // A loop item: its key, its frame and its body.
+    type entry = { key: &?extern, frame: &frame, body: &snode_array };
+    type entry_array = [mut &?entry];
+}

@@ -1,0 +1,57 @@
+// Growable arrays: wasm-gc arrays have a fixed length, so a buffer is an array
+// with spare room and the count of slots in use.
+
+type ext_array = [mut &?extern];
+type ext_buf = { items: mut &ext_array, len: mut i32 };
+type ext_bufs = [mut &?ext_buf];
+type i32_array = [mut i32];
+
+fn ext_buf_new(capacity: i32) -> &ext_buf {
+    let n =
+        if capacity <s 4 {
+            4;
+        } else {
+            capacity;
+        };
+    {ext_buf| items: [ext_array|null; n], len: 0 };
+}
+
+fn ext_buf_push(buf: &ext_buf, node: &extern) {
+    let len = buf.len;
+    if len == buf.items.length() {
+        let bigger = [ext_array|null; len * 2];
+        bigger.copy(0, buf.items, 0, len);
+        buf.items = bigger;
+    }
+    buf.items[len] = node;
+    buf.len = len + 1;
+}
+
+fn ext_buf_at(buf: &ext_buf, i: i32) -> &extern {
+    buf.items[i]!;
+}
+
+// The slots from start to end, clamped to the buffer: a group of DOM nodes
+// comes out short, instead of reading out of range, when nodes the vnodes
+// expect were taken away by someone else.
+fn ext_buf_slice(buf: &ext_buf, start: i32, end: i32) -> &ext_buf {
+    let from =
+        if start <s buf.len {
+            start;
+        } else {
+            buf.len;
+        };
+    let to =
+        if end <s buf.len {
+            end;
+        } else {
+            buf.len;
+        };
+    let out = ext_buf_new(to - from);
+    let i = from;
+    while i <s to {
+        ext_buf_push(out, ext_buf_at(buf, i));
+        i += 1;
+    }
+    out;
+}

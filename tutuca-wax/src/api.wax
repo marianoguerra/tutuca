@@ -1,0 +1,478 @@
+// What the JS side calls: building values, vnodes and semantic trees, and
+// rendering them. js/tutuca-rt.js wraps these in a friendlier API. It also
+// calls the component ABI's exports (src/abi.wax): value constructors, List
+// and Map, the semantic tree's nodes.
+
+#[export = "str_array_new"]
+fn api_str_array_new(n: i32) -> &str_array {
+    [str_array|null; n];
+}
+
+#[export = "str_array_set"]
+fn api_str_array_set(a: &str_array, i: i32, s: &extern) {
+    a[i] = s;
+}
+
+#[export = "value_array_new"]
+fn api_value_array_new(n: i32) -> &value_array {
+    [value_array|null; n];
+}
+
+#[export = "value_array_set"]
+fn api_value_array_set(a: &value_array, i: i32, v: &value) {
+    a[i] = v;
+}
+
+#[export = "vnode_array_new"]
+fn api_vnode_array_new(n: i32) -> &vnode_array {
+    [vnode_array|null; n];
+}
+
+#[export = "vnode_array_set"]
+fn api_vnode_array_set(a: &vnode_array, i: i32, v: &vnode) {
+    a[i] = v;
+}
+
+#[export = "vnode_array_length"]
+fn api_vnode_array_length(a: &vnode_array) -> i32 {
+    a.length();
+}
+
+// Values (value.wax, collections.wax): making them, and reading them back.
+
+#[export = "value_kind"]
+fn api_value_kind(v: &value) -> i32 {
+    v.kind;
+}
+
+// The payload of a bool (0 or 1), int, float or string; each traps on
+// another case.
+#[export = "value_bool_get"]
+fn api_value_bool_get(v: &value) -> i32 {
+    (v as &value_bool).value;
+}
+
+#[export = "value_int_get"]
+fn api_value_int_get(v: &value) -> i32 {
+    (v as &value_int).value;
+}
+
+#[export = "value_float_get"]
+fn api_value_float_get(v: &value) -> f64 {
+    (v as &value_float).value;
+}
+
+#[export = "value_string_get"]
+fn api_value_string_get(v: &value) -> &extern {
+    (v as &value_string).value;
+}
+
+// A result's: 1 for Ok, 0 for Err, and what it holds.
+#[export = "value_result_ok"]
+fn api_value_result_ok(v: &value) -> i32 {
+    (v as &value_result).ok;
+}
+
+#[export = "value_result_value"]
+fn api_value_result_value(v: &value) -> &value {
+    (v as &value_result).value;
+}
+
+#[export = "shape_new"]
+fn api_shape_new(
+    tag_name: &extern,
+    ns: &?extern,
+    static_names: &str_array,
+    static_values: &value_array,
+    names: &str_array,
+) -> &shape {
+    shape_new(tag_name, ns, static_names, static_values, names);
+}
+
+#[export = "vnode_text"]
+fn api_vnode_text(text: &extern) -> &vnode {
+    vnode_text(text);
+}
+
+#[export = "vnode_comment"]
+fn api_vnode_comment(text: &extern) -> &vnode {
+    vnode_comment(text);
+}
+
+#[export = "vnode_elem"]
+fn api_vnode_elem(
+    shape: &shape,
+    values: &value_array,
+    childs: &vnode_array,
+    key: &?extern,
+) -> &vnode {
+    vnode_elem(shape, values, childs, key);
+}
+
+#[export = "vnode_frag"]
+fn api_vnode_frag(childs: &vnode_array, key: &?extern) -> &vnode {
+    vnode_frag(childs, key);
+}
+
+#[export = "render"]
+fn api_render(doc: &extern, container: &extern, childs: &vnode_array, prev: &?vnode_array) {
+    render(doc, container, childs, prev);
+}
+
+// The semantic tree (sem.wax), and lowering it.
+
+#[export = "path_key_array_new"]
+fn api_path_key_array_new(n: i32) -> &path_key_array {
+    [path_key_array|null; n];
+}
+
+#[export = "path_key_array_set"]
+fn api_path_key_array_set(a: &path_key_array, i: i32, key: &path_key) {
+    a[i] = key;
+}
+
+#[export = "provider_new"]
+fn api_provider_new(name: &extern, depth: i32, keys: &path_key_array) -> &provider {
+    {provider| name, depth, keys };
+}
+
+#[export = "frame_new"]
+fn api_frame_new(
+    keys: &path_key_array,
+    item: &?path_key,
+    provider: &?provider,
+    is_component: i32,
+) -> &frame {
+    {frame| keys, item, provider, is_component };
+}
+
+#[export = "frame_meta_text"]
+fn api_frame_meta_text(f: &frame) -> &extern {
+    meta_frame_text(f);
+}
+
+#[export = "arg_array_new"]
+fn api_arg_array_new(n: i32) -> &arg_array {
+    [arg_array|null; n];
+}
+
+#[export = "arg_array_set"]
+fn api_arg_array_set(a: &arg_array, i: i32, value: &arg) {
+    a[i] = value;
+}
+
+#[export = "on_attr_new"]
+fn api_on_attr_new(event: &extern, name: &extern, args: &arg_array) -> &on_attr {
+    {on_attr| event, action: {action| name, args } };
+}
+
+#[export = "on_attr_array_new"]
+fn api_on_attr_array_new(n: i32) -> &on_attr_array {
+    [on_attr_array|null; n];
+}
+
+#[export = "on_attr_array_set"]
+fn api_on_attr_array_set(a: &on_attr_array, i: i32, value: &on_attr) {
+    a[i] = value;
+}
+
+#[export = "snode_array_new"]
+fn api_snode_array_new(n: i32) -> &snode_array {
+    [snode_array|null; n];
+}
+
+#[export = "snode_array_set"]
+fn api_snode_array_set(a: &snode_array, i: i32, node: &snode) {
+    a[i] = node;
+}
+
+#[export = "entry_new"]
+fn api_entry_new(key: &?extern, frame: &frame, body: &snode_array) -> &entry {
+    {entry| key, frame, body };
+}
+
+#[export = "entry_array_new"]
+fn api_entry_array_new(n: i32) -> &entry_array {
+    [entry_array|null; n];
+}
+
+#[export = "entry_array_set"]
+fn api_entry_array_set(a: &entry_array, i: i32, e: &entry) {
+    a[i] = e;
+}
+
+// Host.render's lowering: the vnodes of a semantic tree.
+#[export = "lower"]
+fn api_lower(nodes: &snode_array) -> &vnode_array {
+    lower_all(nodes);
+}
+
+// For the fromCharCodeArray polyfill, on engines without the builtin: JS
+// can't read a wasm-gc array otherwise.
+#[export = "u16_array_get"]
+fn api_u16_array_get(units: &u16_array, i: i32) -> i32 {
+    units[i] as i32_u;
+}
+
+// The component runtime: scopes, making components, hosts.
+
+#[export = "scope_root"]
+fn api_scope_root() -> &scope {
+    scope_root();
+}
+
+#[export = "scope_enter"]
+fn api_scope_enter(s: &scope, name: &extern) -> &scope {
+    scope_enter(s, name);
+}
+
+// Makes a component by name: an ok result holding it, or an err result
+// holding why. fields is a map value.
+#[export = "scope_make"]
+fn api_scope_make(s: &scope, name: &extern, fields: &value) -> &value {
+    let made = scope_make(s, name, fields);
+    if !made.component {
+        return value_err(made.error!);
+    }
+    value_ok(value_component(made.component!));
+}
+
+// The issues init reported making a component by name: a list value.
+#[export = "scope_make_issues"]
+fn api_scope_make_issues(s: &scope, name: &extern, fields: &value) -> &value {
+    scope_make(s, name, fields).issues;
+}
+
+fn list_to_values(list: &value) -> &value_array {
+    let n = list_count(list);
+    let out = [value_array|null; n];
+    let i = 0;
+    while i <s n {
+        out[i] = list_get(list, i);
+        i += 1;
+    }
+    out;
+}
+
+fn values_to_list(args: &value_array) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s args.length() {
+        out = list_push(out, args[i]!);
+        i += 1;
+    }
+    out;
+}
+
+// Answers asks of this name through the host's ask import, later: the host
+// calls host_settle with the handle it returned.
+fn host_ask_handler: ask_fn (name: &extern, args: &value_array, ctx: &context) -> &ask_result {
+    ask_result_pending(host_ask(name, values_to_list(args) as &extern));
+}
+
+// The name of a component value's type.
+#[export = "component_type_name"]
+fn api_component_type_name(v: &value) -> &extern {
+    (value_as_component(v)!).spec.name;
+}
+
+// A component value's property, through its vtable's get.
+#[export = "component_get"]
+fn api_component_get(v: &value, name: &extern) -> &value {
+    get_key(v, path_key_name(name));
+}
+
+#[export = "host_new"]
+fn api_host_new(doc: &extern, container: &extern, root: &value) -> &host {
+    host_new(doc, container, root);
+}
+
+#[export = "host_root"]
+fn api_host_root(h: &host) -> &value {
+    h.root;
+}
+
+// A message to the root component; args is a list value.
+#[export = "host_send"]
+fn api_host_send(h: &host, name: &extern, args: &value) {
+    host_send(h, name, list_to_values(args));
+}
+
+#[export = "host_has_tasks"]
+fn api_host_has_tasks(h: &host) -> i32 {
+    host_has_tasks(h);
+}
+
+#[export = "host_step"]
+fn api_host_step(h: &host) -> i32 {
+    host_step(h);
+}
+
+#[export = "host_render"]
+fn api_host_render(h: &host) {
+    host_render(h);
+}
+
+#[export = "host_dispatch_event"]
+fn api_host_dispatch_event(h: &host, target: &extern, kind: &extern, event: &value) -> i32 {
+    host_dispatch_event(h, target, kind, event);
+}
+
+#[export = "host_settle"]
+fn api_host_settle(h: &host, handle: &extern, result: &value) -> i32 {
+    host_settle(h, handle, result);
+}
+
+// Paths, for testing them against the spec's component/paths.rkt cases: a
+// dispatch path from frames, and what it resolves to, as values.
+
+#[export = "frame_array_new"]
+fn api_frame_array_new(n: i32) -> &frame_array {
+    [frame_array|null; n];
+}
+
+#[export = "frame_array_set"]
+fn api_frame_array_set(a: &frame_array, i: i32, f: &frame) {
+    a[i] = f;
+}
+
+fn keys_to_list(keys: &path_key_array) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s keys.length() {
+        out = list_push(out, value_from_key(keys[i]!));
+        i += 1;
+    }
+    out;
+}
+
+fn keys_from_list(list: &value) -> &update_path {
+    let n = list_count(list);
+    let keys = [path_key_array|null; n];
+    let i = 0;
+    while i <s n {
+        keys[i] = key_from_value(list_get(list, i)!);
+        i += 1;
+    }
+    {update_path| keys };
+}
+
+#[export = "path_resolve"]
+fn api_path_resolve(frames: &frame_array) -> &value {
+    keys_to_list(dispatch_path_resolve({dispatch_path| frames }).keys);
+}
+
+#[export = "path_to_update"]
+fn api_path_to_update(frames: &frame_array) -> &value {
+    keys_to_list(dispatch_path_to_update({dispatch_path| frames }).keys);
+}
+
+#[export = "path_source_key_in"]
+fn api_path_source_key_in(frames: &frame_array, receiver: &frame_array) -> &value {
+    let key =
+        dispatch_path_source_key_in({dispatch_path| frames }, {dispatch_path| frames: receiver });
+    if !key {
+        return VALUE_NULL;
+    }
+    value_from_key(key!);
+}
+
+#[export = "path_get_in"]
+fn api_path_get_in(keys: &value, root: &value) -> &value {
+    update_path_get_in(keys_from_list(keys), root);
+}
+
+#[export = "path_set_in"]
+fn api_path_set_in(keys: &value, root: &value, item: &value) -> &value {
+    update_path_set_in(keys_from_list(keys), root, item);
+}
+
+// Views (view.wax) and walking them (walk.wax, collect.wax), for testing.
+
+#[export = "view_array_new"]
+fn api_view_array_new(n: i32) -> &view_array {
+    [view_array|null; n];
+}
+
+#[export = "view_array_set"]
+fn api_view_array_set(a: &view_array, i: i32, v: &view) {
+    a[i] = v;
+}
+
+#[export = "view_on_array_new"]
+fn api_view_on_array_new(n: i32) -> &view_on_array {
+    [view_on_array|null; n];
+}
+
+#[export = "view_on_array_set"]
+fn api_view_on_array_set(a: &view_on_array, i: i32, h: &view_on) {
+    a[i] = h;
+}
+
+#[export = "template_array_length"]
+fn api_template_array_length(a: &template_array) -> i32 {
+    a.length();
+}
+
+#[export = "template_array_get"]
+fn api_template_array_get(a: &template_array, i: i32) -> &template {
+    a[i]!;
+}
+
+#[export = "template_tid"]
+fn api_template_tid(t: &template) -> i32 {
+    t.tid;
+}
+
+// The template collecting an element's views set on it, or null.
+#[export = "view_el_template"]
+fn api_view_el_template(v: &view) -> &?template {
+    (v as &view_el).template;
+}
+
+// The constant class names of a component type's views, each once: what
+// loadComponent reports for the types a module registers, to compile CSS for.
+#[export = "spec_classes"]
+fn api_spec_classes(spec: &component_spec) -> &value {
+    views_collect_classes(spec.views);
+}
+
+// A walker that records the kinds it visits, as a list of ints.
+type kinds_state = { kinds: mut &value };
+
+fn kinds_record(w: &walker, n: &view) {
+    let s = w.state as &kinds_state;
+    s.kinds = list_push(s.kinds, value_int(n.kind));
+}
+
+fn kinds_node: visit_fn (w: &walker, n: &view) {
+    kinds_record(w, n);
+    walk_children(w, n);
+}
+
+fn kinds_element: visit_fn (w: &walker, n: &view) {
+    kinds_record(w, n);
+    walk_element_default(w, n);
+}
+
+// Every kind, in walk order: node and element overridden.
+#[export = "views_walk_kinds"]
+fn api_views_walk_kinds(views: &view_array) -> &value {
+    let vt = walker_vtable_default();
+    vt.node = kinds_node;
+    vt.element = kinds_element;
+    let s = {kinds_state| kinds: list_empty() };
+    walk_all(walker_new(s, vt), views);
+    s.kinds;
+}
+
+// Only each and render overridden: render_each reaches each, render_it render.
+#[export = "views_walk_loops"]
+fn api_views_walk_loops(views: &view_array) -> &value {
+    let vt = walker_vtable_default();
+    vt.each = kinds_node;
+    vt.render = kinds_node;
+    let s = {kinds_state| kinds: list_empty() };
+    walk_all(walker_new(s, vt), views);
+    s.kinds;
+}

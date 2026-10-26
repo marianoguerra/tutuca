@@ -1,0 +1,54 @@
+// Path keys, frames, dispatch paths and selectors: the types a handler's
+// context and a render's frames are made of. src/path.wax and src/route.wax
+// have what they do.
+
+// A key in a path: a property name, or an index in a list.
+const path_key_kind_name = 0;
+const path_key_kind_index = 1;
+
+type path_key = open { kind: i32 };
+type path_key_name: path_key = { .., name: &extern };
+type path_key_index: path_key = { .., index: i32 };
+
+type path_key_array = [mut &?path_key];
+
+// Where a provider captured the value a frame starts from: the frame at
+// depth, then these keys. Frames without one start where the previous ended.
+type provider = { name: &extern, depth: i32, keys: &path_key_array };
+
+// One step of rendered ancestry: a render source, or a loop item entered.
+type frame = {
+    keys: &path_key_array,
+    // The item key, when the frame selects an item of a loop or a seqItem.
+    item: &?path_key,
+    provider: &?provider,
+    // A component boundary follows the frame. Not written to the metadata:
+    // routing restores it from the boundary that follows.
+    is_component: i32
+};
+
+type frame_array = [mut &?frame];
+
+// How a message got to a component: the frames of rendered ancestry, one per
+// render source or loop item entered. Notify bubbling and the source key
+// follow it, and it resolves to an update path.
+type dispatch_path = { frames: &frame_array };
+
+// A step of a selector (JS's PathBuilder calls).
+const selector_step_kind_field = 0;
+const selector_step_kind_item = 1;
+const selector_step_kind_seq_item = 2;
+
+type selector_step = open { kind: i32 };
+// b.field(name)
+type selector_step_field: selector_step = { .., name: &extern };
+// b.item(name, key)
+type selector_step_item: selector_step = { .., name: &extern, key: &path_key };
+// b.seqItem(name, key_field): the item whose key another field holds.
+type selector_step_seq_item: selector_step = { .., name: &extern, key_field: &extern };
+
+type selector_step_array = [mut &?selector_step];
+
+// Where a handler sends a message below it, read against the state when it
+// freezes, at commit.
+type selector = { steps: &selector_step_array };
