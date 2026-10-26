@@ -405,6 +405,12 @@ host.start(host.scope.components.Counter());</code></pre>
 			<ul class="demos">
 				<!-- demos: scripts/site.js lists demos/demos.js here -->
 			</ul>
+			<p class="muted">
+				The runtime also runs as WebAssembly:
+				<a href="./wax/demos/">tutuca-wax</a> is tutuca's runtime written in Wax and compiled to
+				wasm-gc, with components that are wasm modules of their own, loaded at run time and styled
+				with Tailwind and margaui CSS compiled in the page.
+			</p>
 
 			<h2 id="status">Project status</h2>
 			<p class="muted">
@@ -438,6 +444,11 @@ host.start(host.scope.components.Counter());</code></pre>
 				<li>
 					<a href="./storybook.html"
 						><span aria-hidden="true">📚</span> Storybook <span class="arrow">↗</span></a
+					>
+				</li>
+				<li>
+					<a href="./wax/demos/"
+						><span aria-hidden="true">🧬</span> tutuca-wax: the runtime in WebAssembly <span class="arrow">↗</span></a
 					>
 				</li>
 				<li>

@@ -31,6 +31,31 @@ if (existsSync(spec)) {
 	console.warn(`warning: ${spec} is missing, the site links to it: run just spec`);
 }
 
+// The tutuca-wax demos, in wax/: its demos page with the files it loads, at the same relative
+// paths. dist/ is built by tutuca-wax's build (wax-mb and wasm-opt); CI builds it first. Only the
+// optimized modules: not the .debug.wasm copies, the assembled .wax or the generated prelude.
+const wax = "tutuca-wax";
+if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
+	for (const path of [
+		"demos",
+		"js",
+		"vendor/margaui/margaui-css.wasm",
+		"vendor/margaui/themes",
+		"dist/tutuca-rt.wasm",
+	]) {
+		cpSync(`${wax}/${path}`, `${out}/wax/${path}`, { recursive: true });
+	}
+	for (const file of globSync(`${wax}/dist/components/*.wasm`)) {
+		if (!file.endsWith(".debug.wasm")) cpSync(file, `${out}/wax/${file.slice(wax.length + 1)}`);
+	}
+} else if (process.env.CI) {
+	throw new Error(`${wax}/dist is missing: build tutuca-wax first (its scripts/build.mjs)`);
+} else {
+	console.warn(
+		`warning: ${wax}/dist is missing, the site links to its demos: run just build in ${wax}`,
+	);
+}
+
 // Site pages import tutuca by name, from the copy of src/ next to them.
 const siteImportMap = (base) => ({
 	imports: {

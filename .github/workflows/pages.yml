@@ -40,6 +40,19 @@ jobs:
           distribution: full
       - run: npm ci
       - run: racket spec/render.rkt
+      # The tutuca-wax demos (wax/ on the site): MoonBit builds the pinned wax-mb, which compiles
+      # the runtime and the component modules; npm ci brings binaryen's wasm-opt for the build.
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+      - run: moon update
+      - run: sh scripts/setup-wax-mb.sh
+        working-directory: tutuca-wax
+      - run: npm ci
+        working-directory: tutuca-wax
+      - run: node scripts/build.mjs
+        working-directory: tutuca-wax
       - run: node scripts/site.js
       - uses: actions/upload-pages-artifact@v5
         with:

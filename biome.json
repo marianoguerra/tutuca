@@ -7,7 +7,16 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!deps", "!site/deps", "!demos/deps", "!dist", "!_site", "!tutuca-mb"]
+		"includes": [
+			"**",
+			"!deps",
+			"!site/deps",
+			"!demos/deps",
+			"!dist",
+			"!_site",
+			"!tutuca-mb",
+			"!tutuca-wax"
+		]
 	},
 	"formatter": {
 		"enabled": true,
