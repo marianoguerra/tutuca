@@ -16,7 +16,50 @@ pub(all) struct Gen {
 
 ///|
 pub fn Gen::new(pkg : @check.Package, have? : Array[String]) -> Gen {
-  { pkg, strings: Strings::new(), enums: [], have, }
+  { pkg, strings: names_first(pkg), enums: [], have, }
+}
+
+///|
+/// The strings, with the package's names claimed first, in the order they're
+/// declared: an implementation's gs_<name> is that name's, whatever text a
+/// view has that reads the same (a "Notes" label takes gs_notes_2, not the
+/// field notes's gs_notes).
+fn names_first(pkg : @check.Package) -> Strings {
+  let strings = Strings::new()
+  let members = (fields : Array[@check.FieldM]) => {
+    for f in fields {
+      ignore(strings.get(@check.camel(f.name)))
+    }
+  }
+  for c in pkg.components {
+    ignore(strings.get(@check.pascal(c.name)))
+  }
+  for i in pkg.interfaces {
+    ignore(strings.get(@check.pascal(i.name)))
+  }
+  for c in pkg.components {
+    members(c.fields)
+    members(c.gets)
+    for m in c.messages {
+      ignore(strings.get(@check.camel(m.name)))
+    }
+    for n in c.notifies {
+      ignore(strings.get(@check.camel(n.name)))
+    }
+    for a in c.asks {
+      ignore(strings.get(@check.camel(a.name)))
+    }
+    for l in c.loops {
+      ignore(strings.get(@check.camel(l.name)))
+    }
+    for sc in c.scopes {
+      ignore(strings.get(@check.camel(sc.name)))
+    }
+    for pr in c.provides {
+      ignore(strings.get(@check.camel(pr.name)))
+    }
+  }
+  strings
 }
 
 ///|

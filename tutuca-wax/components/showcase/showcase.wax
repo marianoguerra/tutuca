@@ -7,6 +7,10 @@ import "'" {
     const s_open_paren: &extern;
     #[import = ")"]
     const s_close_paren: &extern;
+    #[import = " of "]
+    const s_of: &extern;
+    #[import = " read"]
+    const s_read: &extern;
 }
 
 // ---- Shelf --------------------------------------------------------------------------
@@ -15,11 +19,8 @@ fn shelf_book_year(books: &value, i: i32) -> i32 {
     (value_member(list_get(books, i)!, gs_year) as &value_int).value;
 }
 
-fn shelf_get_share(state: &shelf_state) -> f64 {
+fn shelf_read_count(state: &shelf_state) -> i32 {
     let n = list_count(state.books);
-    if n == 0 {
-        return 0.0;
-    }
     let read = 0;
     let i = 0;
     while i <s n {
@@ -28,7 +29,21 @@ fn shelf_get_share(state: &shelf_state) -> f64 {
         }
         i += 1;
     }
-    read as f64_s / n as f64_s;
+    read;
+}
+
+fn shelf_get_share(state: &shelf_state) -> f64 {
+    let n = list_count(state.books);
+    if n == 0 {
+        return 0.0;
+    }
+    shelf_read_count(state) as f64_s / n as f64_s;
+}
+
+fn shelf_get_read_text(state: &shelf_state) -> &extern {
+    let read = int_text(shelf_read_count(state));
+    let n = int_text(list_count(state.books));
+    js_string_concat(js_string_concat(js_string_concat(read, s_of), n), s_read);
 }
 
 fn shelf_on_toggle_unread(state: &shelf_state, ctx: &context) -> &shelf_state {

@@ -856,14 +856,15 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 	assert.deepEqual([...container.querySelectorAll("li")].map((li) => marks(li, "read", "unread")), ["read", "unread", "unread"]);
 	// tags[current], and a float as String(n) writes it.
 	assert.equal(container.querySelector("p.tag").textContent, "b");
-	assert.equal(container.querySelectorAll("section > p")[1].textContent, String(1 / 3));
+	assert.equal(container.querySelector("progress").getAttribute("value"), String(1 / 3));
+	assert.equal(container.querySelector("progress + span").textContent, "1 of 3 read");
 	// pushView: the pinned note renders its compact view, with the theme Shelf provides.
 	assert.equal(container.querySelector("small").className, "dark");
 	assert.equal(container.querySelector("small").textContent, "pinned");
 	// renderIt: each note in its main view.
-	assert.deepEqual(texts("div.notes p.note"), ["x", "y"]);
+	assert.deepEqual(texts(".notes p.note"), ["x", "y"]);
 	// byYear: its prepare sorts the indexes by year, its iter gives the books in that order.
-	assert.deepEqual(texts("div.by-year span"), ["Emma", "Ulysses", "Dune"]);
+	assert.deepEqual(texts(".by-year span"), ["Emma", "Ulysses", "Dune"]);
 	// The filter drops the read ones; keyed by title, Emma keeps its node.
 	const emma = container.querySelectorAll("li")[1];
 	click(window, buttons(container, "only unread")[0]);
@@ -937,7 +938,7 @@ test("drag and drop: drop events reach the nearest enclosing component that hand
 	const { window, container } = env;
 	const host = await mountShelf(env);
 	const [, emma] = shelfBooks(container);
-	const notes = container.querySelector("div.notes");
+	const notes = container.querySelector(".notes");
 	const [x] = notes.querySelectorAll("p.note");
 	dragEvent(window, "dragstart", emma);
 	// A Note handles no drop: Shelf's notes element, around it, does.

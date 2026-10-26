@@ -24,32 +24,32 @@ test "generated contract and glue of a small component" {
       #|// Don't edit it: change t.tcd and run tcd again.
       #|
       #|import "'" {
+      #|    #[import = "Tally"]
+      #|    const gs_tally: &extern;
+      #|    #[import = "count"]
+      #|    const gs_count: &extern;
+      #|    #[import = "mode"]
+      #|    const gs_mode: &extern;
+      #|    #[import = "bump"]
+      #|    const gs_bump: &extern;
+      #|    #[import = "changed"]
+      #|    const gs_changed: &extern;
       #|    #[import = "class"]
       #|    const gs_class: &extern;
       #|    #[import = "btn"]
       #|    const gs_btn: &extern;
       #|    #[import = "click"]
       #|    const gs_click: &extern;
-      #|    #[import = "bump"]
-      #|    const gs_bump: &extern;
-      #|    #[import = "count"]
-      #|    const gs_count: &extern;
       #|    #[import = "button"]
       #|    const gs_button: &extern;
       #|    #[import = "up"]
       #|    const gs_up: &extern;
       #|    #[import = "down"]
       #|    const gs_down: &extern;
-      #|    #[import = "mode"]
-      #|    const gs_mode: &extern;
       #|    #[import = "n"]
       #|    const gs_n: &extern;
-      #|    #[import = "changed"]
-      #|    const gs_changed: &extern;
       #|    #[import = "main"]
       #|    const gs_main: &extern;
-      #|    #[import = "Tally"]
-      #|    const gs_tally: &extern;
       #|    #[import = "missing"]
       #|    const gs_missing: &extern;
       #|    #[import = "wrong type"]
@@ -310,6 +310,45 @@ test "generated contract and glue of a small component" {
     out.required.map(r => r.signature()),
     content=(
       #|["fn tally_on_bump(state: &tally_state, ctx: &context, n: i32) -> &tally_state"]
+    ),
+  )
+}
+
+///|
+/// A name an implementation reads as gs_<name> keeps it whatever a view says
+/// first that reads the same: a "Notes" label before the field notes.
+test "the package's names claim their gs_ constants before view text" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component shelf {
+      #|    field notes: list<string>;
+      #|    message add_note() changes notes;
+      #|    view main = div(span("Notes"), span("Add note"), field(notes));
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let contract = @gen.generate(pkg, "t.tcd").contract
+  let consts = contract
+    .split("\n")
+    .filter(l => l.contains("#[import = ") || l.contains("const gs_"))
+    .map(l => l.trim().to_owned())
+    .collect()
+  debug_inspect(
+    consts.filter(l => l.contains("ote")),
+    content=(
+      #|[
+      #|  "#[import = \"notes\"]",
+      #|  "const gs_notes: &extern;",
+      #|  "#[import = \"addNote\"]",
+      #|  "const gs_addnote: &extern;",
+      #|  "#[import = \"Notes\"]",
+      #|  "const gs_notes_2: &extern;",
+      #|  "#[import = \"Add note\"]",
+      #|  "const gs_add_note: &extern;",
+      #|]
     ),
   )
 }

@@ -20,6 +20,8 @@ component shelf {
     field notes: list<note>;
     /// The share of the books read.
     get share: f64 where 0 <= share <= 1;
+    /// "1 of 3 read".
+    get read_text: string;
 
     provide theme = field(theme);
 
@@ -36,24 +38,38 @@ component shelf {
     loop books { key: string; filter; enrich { label: string } }
     loop by_year { prepare: list<s32>; iter }
 
-    view main = section(class: "shelf card card-border bg-base-100 gap-2 p-4",
+    // Each row of the list says what it shows.
+    view main = section(class: "shelf card card-border bg-base-100 gap-3 p-4",
         scope(header, h2(class: "card-title", bind(heading))),
-        button(class: "btn btn-sm btn-outline w-fit", on_click: send(toggle_unread),
-            if(field(only_unread), "show all", "only unread")),
-        ul(class: "flex flex-wrap gap-1",
-            each(loop: books, field(books),
-                li(class: if(field(read), "read badge badge-success", "unread badge badge-outline"),
-                    draggable: "true",
-                    "data-dragtype": "book",
-                    on_drop: send(move_book, drag_key(), source_key()),
-                    bind(label)))),
-        div(class: "by-year flex flex-wrap gap-1",
-            each(loop: by_year, field(books), span(class: "badge badge-ghost", field(title)))),
-        p(class: "tag badge badge-primary", seq_item(tags, current)),
-        p(class: "text-sm opacity-70 tabular-nums", field(share)),
-        push_view("compact", render(field(note))),
-        div(class: "notes flex flex-col gap-1", on_drop: send(note_book, drag_key(), source_key()),
-            each(field(notes), render_it())));
+        dl(class: "grid grid-cols-[8rem_1fr] gap-x-3 gap-y-3 items-center text-sm",
+            dt(class: "opacity-60", "Books"),
+            dd(class: "flex flex-col gap-1",
+                button(class: "btn btn-xs btn-outline w-fit", on_click: send(toggle_unread),
+                    if(field(only_unread), "show all", "only unread")),
+                ul(class: "flex flex-wrap gap-1",
+                    each(loop: books, field(books),
+                        li(class: if(field(read), "read badge badge-success cursor-grab", "unread badge badge-outline cursor-grab"),
+                            title: "drag onto another book to move it there, or onto a note",
+                            draggable: "true",
+                            "data-dragtype": "book",
+                            on_drop: send(move_book, drag_key(), source_key()),
+                            bind(label)))),
+                span(class: "text-xs opacity-60", "green: read. Drag a book onto another to reorder.")),
+            dt(class: "opacity-60", "Oldest first"),
+            dd(class: "by-year flex flex-wrap gap-1",
+                each(loop: by_year, field(books), span(class: "badge badge-ghost", field(title)))),
+            dt(class: "opacity-60", "Current tag"),
+            dd(p(class: "tag badge badge-primary", seq_item(tags, current))),
+            dt(class: "opacity-60", "Read"),
+            dd(class: "flex items-center gap-2",
+                progress(class: "progress progress-success w-32", max: "1", value: field(share)),
+                span(class: "tabular-nums", field(read_text))),
+            dt(class: "opacity-60", "Pinned note"),
+            dd(push_view("compact", render(field(note)))),
+            dt(class: "opacity-60", "Notes"),
+            dd(class: "notes flex flex-col gap-1", on_drop: send(note_book, drag_key(), source_key()),
+                each(field(notes), render_it()),
+                span(class: "text-xs opacity-60", "Drop a book on a note to write its title there."))));
 }
 
 /// A note: its text, in a paragraph, or small in the provided theme.
@@ -62,6 +78,6 @@ component note {
 
     message set_text(text: string) changes text ensures next.text == text;
 
-    view main = p(class: "note text-sm", field(text));
+    view main = p(class: "note text-sm rounded-box border border-dashed border-base-300 px-2 py-1", field(text));
     view compact = small(class: provided(theme), field(text));
 }

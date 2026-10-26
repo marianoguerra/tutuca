@@ -133,6 +133,10 @@ The generated contract gives the implementation the state struct,
 `c_with_<field>(state, v)`, `c_notify_<n>(ctx, ...)`, `c_ask_<n>(ctx, ...)`,
 `<type>_send_<m>(ctx, selector, ...)`, `c_make_<type>(ctx, fields...) ->
 &component`, and a `gs_...` string constant for every string the `.tcd` uses.
+The package's names (types, then each component's fields, properties,
+messages, notifies, asks, loops, scopes, provides) claim theirs first, so
+`gs_notes` is the field `notes` even when a view also says "Notes", which gets
+`gs_notes_2`.
 
 ## What's generated
 
