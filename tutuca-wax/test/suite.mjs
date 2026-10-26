@@ -28,9 +28,9 @@ export const cases = [];
 // The component modules of dist/components/ every case's scope has.
 export const MODULES = ["counter", "todo_item", "todo_list"];
 // The ones cases load into scopes of their own: todo_card registers TodoItem
-// too, so it would take the name over in the shared scope; showcase's types
-// are only for its own case.
-const OWN_SCOPE_MODULES = ["todo_card", "showcase"];
+// too, so it would take the name over in the shared scope; showcase's and
+// json's types are only for their own cases.
+const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json"];
 const test = (name, fn) => cases.push({ name, fn });
 
 test("render mounts, then morphs in place from what the last render returned", ({ vdom, document, container }) => {
@@ -765,7 +765,7 @@ test("walk: every kind in tutuca's Walker order, element by attrs, key, children
 	const { view: v } = vdom;
 	const tree = v.h(
 		"li",
-		{ class: v.if(v.field("done"), "done", v.provided("theme")), key: v.lookupBind("key"), "on:click": v.send("pick", v.targetValue(), v.sourceKey()) },
+		{ class: v.if(v.field("done"), "done", v.provided("theme")), key: v.lookupBind("key"), "on:click": v.send("pick", v.targetValue(), v.sourceKey(), v.dragKey()) },
 		v.frag(v.seqItem("items", "sel"), v.render(v.field("child"), "card")),
 		v.each(v.field("items"), v.renderIt()),
 		v.renderEach(v.field("items")),
@@ -779,7 +779,7 @@ test("walk: every kind in tutuca's Walker order, element by attrs, key, children
 		...["each", "field", "renderIt"],
 		...["renderEach", "field"],
 		...["scope", "pushView", "const", "const"],
-		...["action", "targetValue", "sourceKey"],
+		...["action", "targetValue", "sourceKey", "dragKey"],
 	]);
 });
 
@@ -859,12 +859,244 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 	assert.equal(container.querySelector("small").textContent, "pinned");
 	// renderIt: each note in its main view.
 	assert.deepEqual(texts("div.notes p.note"), ["x", "y"]);
+	// byYear: its prepare sorts the indexes by year, its iter gives the books in that order.
+	assert.deepEqual(texts("div.by-year span"), ["Emma", "Ulysses", "Dune"]);
 	// The filter drops the read ones; keyed by title, Emma keeps its node.
 	const emma = container.querySelectorAll("li")[1];
 	click(window, buttons(container, "only unread")[0]);
 	assert.deepEqual(texts("li"), ["Emma (1815)", "Ulysses (1922)"]);
 	assert.equal(container.querySelectorAll("li")[0], emma);
 	assert.equal(buttons(container, "show all").length, 1);
+});
+
+// ---- Drag and drop, through components/showcase --------------------------
+// Shelf's books are draggable, data-dragtype "book", and each one is a drop
+// target; its notes element is one too, for drops on the Notes in it.
+
+const BOOKS = [
+	{ title: "Dune", year: 1965, read: true },
+	{ title: "Emma", year: 1815, read: false },
+	{ title: "Ulysses", year: 1922, read: false },
+];
+const mountShelf = async ({ vdom, document, container, modules }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.showcase, scope);
+	const note = (text) => runtime.make(scope, "Note", { text });
+	const fields = { books: BOOKS, onlyUnread: false, tags: ["a"], current: 0, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
+	return runtime.createHost(document, container, runtime.make(scope, "Shelf", fields)).mount();
+};
+// A drag event of type on node, cancelable, with init's fields (relatedTarget).
+const dragEvent = (window, type, node, init = {}) => {
+	const e = new window.Event(type, { bubbles: true, cancelable: true });
+	Object.assign(e, init);
+	node.dispatchEvent(e);
+	return e;
+};
+const shelfBooks = (container) => [...container.querySelectorAll("ul li")];
+
+test("drag and drop: a book dropped on another moves there, with what's dragged in ctx.drag", async (env) => {
+	const { window, container } = env;
+	const host = await mountShelf(env);
+	const [dune, emma, ulysses] = shelfBooks(container);
+	dragEvent(window, "dragstart", dune);
+	assert.equal(dune.dataset.dragging, "");
+	// Over a drop target the drop is let happen, and the target is marked with the dragged type.
+	assert.equal(dragEvent(window, "dragover", ulysses).defaultPrevented, true);
+	assert.equal(ulysses.dataset.draggingover, "book");
+	// Over something else it isn't, and the mark goes.
+	assert.equal(dragEvent(window, "dragover", container.querySelector("h2")).defaultPrevented, false);
+	assert.equal(ulysses.dataset.draggingover, undefined);
+	// Leaving for another node inside keeps the mark; leaving the container drops it.
+	dragEvent(window, "dragover", ulysses);
+	dragEvent(window, "dragleave", ulysses, { relatedTarget: emma });
+	assert.equal(ulysses.dataset.draggingover, "book");
+	dragEvent(window, "dragleave", ulysses, { relatedTarget: null });
+	assert.equal(ulysses.dataset.draggingover, undefined);
+	dragEvent(window, "dragover", ulysses);
+	assert.equal(dragEvent(window, "drop", ulysses).defaultPrevented, true);
+	dragEvent(window, "dragend", dune);
+	// moveBook(dragKey, sourceKey): Dune, at 0, to Ulysses' place, 2.
+	assert.deepEqual(
+		shelfBooks(container).map((li) => li.textContent),
+		["Emma (1815)", "Ulysses (1922)", "Dune (1965)"],
+	);
+	// Keyed by title, Dune's node moved with it; the marks are gone.
+	assert.equal(shelfBooks(container)[2], dune);
+	assert.equal(dune.dataset.dragging, undefined);
+	assert.equal(container.querySelector("[data-draggingover]"), null);
+	// ctx.drag: its type, its value when the drag started, its key in Shelf.
+	assert.deepEqual(host.logs, [{ type: "book", value: BOOKS[0], key: 0 }]);
+	assert.deepEqual(host.failures, []);
+});
+
+test("drag and drop: drop events reach the nearest enclosing component that handles them", async (env) => {
+	const { window, container } = env;
+	const host = await mountShelf(env);
+	const [, emma] = shelfBooks(container);
+	const notes = container.querySelector("div.notes");
+	const [x] = notes.querySelectorAll("p.note");
+	dragEvent(window, "dragstart", emma);
+	// A Note handles no drop: Shelf's notes element, around it, does.
+	assert.equal(dragEvent(window, "dragover", x).defaultPrevented, true);
+	assert.equal(notes.dataset.draggingover, "book");
+	dragEvent(window, "drop", x);
+	dragEvent(window, "dragend", emma);
+	// noteBook(dragKey, sourceKey): Emma, at 1, to the note at 0, by sendAt.
+	assert.deepEqual([...notes.querySelectorAll("p.note")].map((p) => p.textContent), ["Emma", "y"]);
+	assert.equal(notes.dataset.draggingover, undefined);
+	assert.deepEqual(host.failures, []);
+});
+
+test("drag and drop: something dragged from elsewhere has no drag and no key", async (env) => {
+	const { window, container } = env;
+	const host = await mountShelf(env);
+	const [, , ulysses] = shelfBooks(container);
+	dragEvent(window, "dragover", ulysses);
+	assert.equal(ulysses.dataset.draggingover, "external");
+	dragEvent(window, "drop", ulysses);
+	assert.deepEqual(host.logs, [null]);
+	assert.deepEqual(shelfBooks(container).map((li) => li.textContent), ["Dune (1965)", "Emma (1815)", "Ulysses (1922)"]);
+	assert.equal(ulysses.dataset.draggingover, undefined);
+});
+
+test("drag and drop: a todo dropped on another takes its place, through the item to the list's on:drop", (env) => {
+	const { window, container } = env;
+	const { host } = mountRoot(env, "TodoList", {});
+	addTodos(env, "a", "b", "c");
+	const [a, , c] = container.querySelectorAll("li");
+	// TodoItem handles no drop: the drop on its elements reaches TodoList's list.
+	dragEvent(window, "dragstart", a.querySelector("span"));
+	assert.equal(a.dataset.dragging, "");
+	assert.equal(dragEvent(window, "dragover", c.querySelector("span")).defaultPrevented, true);
+	assert.equal(container.querySelector("ul").dataset.draggingover, "todo");
+	dragEvent(window, "drop", c.querySelector("span"));
+	dragEvent(window, "dragend", a);
+	assert.deepEqual(todoTexts(container), ["b", "c", "a"]);
+	// Keyed by id, a's node moved with it.
+	assert.equal(container.querySelectorAll("li")[2], a);
+	assert.equal(container.querySelector("[data-dragging], [data-draggingover]"), null);
+	assert.deepEqual(host.failures, []);
+});
+
+// ---- The JSON viewer and editor, through components/json --------------------
+
+// The components for a JSON value, made in scope (fromJson in tutuca's
+// components/json).
+const fromJson = (runtime, scope, v) => {
+	const make = (type, fields = {}) => runtime.make(scope, type, fields);
+	if (v === null) return make("JsonNull");
+	if (typeof v === "boolean") return make("JsonBool", { value: v });
+	if (typeof v === "number") return make("JsonNumber", { value: v, text: String(v) });
+	if (typeof v === "string") return make("JsonString", { value: v });
+	if (Array.isArray(v)) return make("JsonArray", { items: v.map((x) => fromJson(runtime, scope, x)) });
+	return make("JsonObject", { entries: Object.entries(v).map(([key, x]) => make("JsonEntry", { key, value: fromJson(runtime, scope, x) })) });
+};
+const DOC = { name: 'say "hi"\n', count: 2.5, tags: ["a", 1, true, null], empty: [], nested: { none: {}, ok: false } };
+const mountJson = async ({ vdom, document, container, modules }, doc = DOC) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.json, scope);
+	const root = runtime.make(scope, "JsonEditor", { value: fromJson(runtime, scope, doc), mode: "view", showText: true });
+	return runtime.createHost(document, container, root).mount();
+};
+const jsonText = (container) => container.querySelector("pre").textContent;
+const input = (window, node, value) => {
+	node.value = value;
+	node.dispatchEvent(new window.Event("input", { bubbles: true }));
+};
+const toggleText = (window, container) => toggle(window, container.querySelector("label"));
+
+test("json: the viewer renders a document read only, and its text as JSON.stringify writes it", async (env) => {
+	const { container } = env;
+	const host = await mountJson(env);
+	assert.equal(jsonText(container), JSON.stringify(DOC, null, 2));
+	assert.equal(container.querySelectorAll("input:not([type=checkbox])").length, 0);
+	// Commas after every item but the last, from the loop's prepare and enrich.
+	const tags = [...container.querySelectorAll("div.group")].map((row) => row.textContent);
+	assert.ok(tags.includes('"a",') && tags.includes("null"), tags.join(" | "));
+	assert.ok(container.textContent.includes("2.5"));
+	// The text toggles.
+	toggleText(env.window, container);
+	assert.equal(container.querySelector("pre"), null);
+	assert.deepEqual(host.failures, []);
+});
+
+test("json: the editor edits every value in place, its text following", async (env) => {
+	const { window, container } = env;
+	const host = await mountJson(env, { s: "x", n: 1, b: false, list: [1, 2] });
+	click(window, buttons(container, "Edit")[0]);
+	const inputs = () => [...container.querySelectorAll("input:not([type=checkbox])")];
+	// Keys and strings and numbers are inputs; booleans toggle.
+	const [keyS, valueS] = inputs();
+	assert.equal(keyS.value, "s");
+	input(window, valueS, 'y"');
+	input(window, keyS, "str");
+	const number = container.querySelector("input[inputmode=decimal]");
+	input(window, number, "4e1");
+	assert.ok(!number.classList.contains("text-error"));
+	input(window, number, "abc");
+	assert.ok(number.classList.contains("text-error"), "not a number: marked, and the value stays");
+	click(window, buttons(container, "false")[0]);
+	// The list: move its second item up, remove the one now second, add an
+	// item and pick its type. The rows' buttons come in document order: the
+	// object's s, n and b, the list's two items, then the list's own.
+	click(window, container.querySelectorAll("button[title='Move up']")[4]);
+	assert.deepEqual(JSON.parse(jsonText(container)).list, [2, 1]);
+	click(window, container.querySelectorAll("button[title=Remove]")[4]);
+	click(window, buttons(container, "+ item")[0]);
+	assert.deepEqual(JSON.parse(jsonText(container)).list, [2, null]);
+	click(window, container.querySelector("[aria-label='Pick a type'] button[title=string]"));
+	click(window, buttons(container, "+ entry")[0]);
+	click(window, [...container.querySelectorAll("[aria-label='Pick a type'] button[title=array]")].at(-1));
+	assert.equal(jsonText(container), JSON.stringify({ str: 'y"', n: 40, b: true, list: [2, ""], key5: [] }, null, 2));
+	// Back to view: the same tree, read only.
+	click(window, buttons(container, "View")[0]);
+	assert.equal(inputs().length, 0);
+	assert.deepEqual(host.failures, []);
+});
+
+// ---- Hosts: what they listen to, and how long a run takes ------------------
+
+test("hosts listen to the events the types in their scope tree handle, the drag events with drop", async ({ vdom, document, container, modules }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.showcase, scope);
+	const listened = [];
+	const add = container.addEventListener.bind(container);
+	container.addEventListener = (type, ...rest) => {
+		listened.push(type);
+		add(type, ...rest);
+	};
+	// The root, a Note, handles nothing; Shelf, registered next to it, does.
+	const host = runtime.createHost(document, container, runtime.make(scope, "Note", { text: "x" })).mount();
+	assert.deepEqual(listened, ["click", "drop", "dragstart", "dragend", "dragenter", "dragover", "dragleave"]);
+	// Types loaded later, in a child scope too, once the host runs again: only the new events.
+	await vdom.loadComponent(modules.counter, runtime.enter(scope, "inner"));
+	host.send("nope");
+	assert.deepEqual(listened.slice(7), ["input"]);
+});
+
+test("hosts run tasks for up to 16ms, render, and run the rest on the next tick", async (env) => {
+	const { window, container } = env;
+	const { host } = mountRoot(env, "Board", { counters: [], total: 0 });
+	for (let i = 0; i < 3; i++) click(window, buttons(container, "add")[0]);
+	click(window, buttons(container, "+")[0]);
+	assert.deepEqual(counts(container), ["1", "1", "2"]);
+	// A clock that moves 10ms each time it's read: resetAll runs, then the
+	// first counter's reset, and the run is past 16ms.
+	const now = Date.now;
+	let t = 0;
+	Date.now = () => (t += 10);
+	try {
+		click(window, buttons(container, "reset all")[0]);
+	} finally {
+		Date.now = now;
+	}
+	assert.deepEqual(counts(container), ["0", "1", "2"]);
+	await host.settled();
+	assert.deepEqual(counts(container), ["0", "0", "0"]);
+	assert.deepEqual(host.failures, []);
 });
 
 // ---- CSS: the classes loaded modules' views use, compiled ------------------
@@ -1014,7 +1246,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 1/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 2/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

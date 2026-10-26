@@ -60,7 +60,7 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
 	await page.goto(`http://127.0.0.1:${server.address().port}/demos/`);
-	await page.waitForFunction(() => document.querySelectorAll(".demo").length === 5);
+	await page.waitForFunction(() => document.querySelectorAll(".demo").length === 6);
 	const board = page.locator(".demo").nth(1);
 	await board.locator(".stage button", { hasText: "add" }).click();
 	await board.locator(".stage button", { hasText: "add" }).click();
@@ -80,6 +80,10 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	if (texts !== "read the README:true,write a component:true,ship it:false" || todoState.remaining !== 1 || todoState.draft !== "") {
 		throw new Error(`unexpected todos state: ${JSON.stringify(todoState)}`);
 	}
+	// A real drag, with its dataTransfer: the first todo onto the last.
+	await todos.locator(".stage li").first().dragTo(todos.locator(".stage li").last());
+	const dragged = JSON.parse(await todos.locator("pre").textContent()).items.map((item) => item.text).join(",");
+	if (dragged !== "write a component,ship it,read the README") throw new Error(`unexpected order after a drag: ${dragged}`);
 	// Loading modules at run time: TodoList first, which can't make a
 	// TodoItem until todo_item.wasm is loaded too.
 	const loading = page.locator(".demo").first();
@@ -106,6 +110,19 @@ test("the demos page loads its modules, and its Board and todos respond to input
 		classes !== "todo,todo-card"
 	) {
 		throw new Error(`unexpected loading state: ${classes} ${JSON.stringify(loadingState)}`);
+	}
+	// The JSON editor: edit, toggle the boolean, add an entry and make it a number.
+	const json = page.locator(".demo").nth(4);
+	await json.locator(".stage button", { hasText: "Edit" }).click();
+	await json.locator(".stage button", { hasText: "true" }).click();
+	// The document's own, after the nested deps' one.
+	await json.locator(".stage button", { hasText: "+ entry" }).last().click();
+	await json.locator(".stage [aria-label='Pick a type'] button[title=number]").click();
+	// The state panel's pre comes after the editor's own.
+	const jsonState = JSON.parse(await json.locator("pre").last().textContent());
+	const expected = { name: "tutuca-wax", version: 2, wasm: false, tags: ["wax", "wasm-gc"], author: null, deps: {}, key7: 0 };
+	if (jsonState.mode !== "edit" || JSON.stringify(jsonState.json) !== JSON.stringify(expected)) {
+		throw new Error(`unexpected json state: ${JSON.stringify(jsonState)}`);
 	}
 	if (!(await page.locator("#status").textContent()).includes("native")) throw new Error("not on the builtins");
 	if (errors.length > 0) throw new Error(errors.join("; "));

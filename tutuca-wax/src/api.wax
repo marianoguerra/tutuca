@@ -313,9 +313,23 @@ fn api_host_render(h: &host) {
     host_render(h);
 }
 
+// A DOM event: the event itself, its target and type, and the value
+// handlers read as ctx.event.
 #[export = "host_dispatch_event"]
-fn api_host_dispatch_event(h: &host, target: &extern, kind: &extern, event: &value) -> i32 {
-    host_dispatch_event(h, target, kind, event);
+fn api_host_dispatch_event(
+    h: &host,
+    e: &extern,
+    target: &extern,
+    kind: &extern,
+    event: &value,
+) -> i32 {
+    host_dispatch_event(h, e, target, kind, event);
+}
+
+// The event names to start listening to, as a list value of strings.
+#[export = "host_new_event_names"]
+fn api_host_new_event_names(h: &host) -> &value {
+    host_new_event_names(h);
 }
 
 #[export = "host_settle"]

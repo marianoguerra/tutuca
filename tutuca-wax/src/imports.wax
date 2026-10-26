@@ -120,6 +120,29 @@ import "'" {
     const s_reply_error: &extern;
     #[import = "HandlerNotFound"]
     const s_handler_not_found: &extern;
+    // Drag and drop (collect.wax, host.wax).
+    #[import = "drop"]
+    const s_drop: &extern;
+    #[import = "dragstart"]
+    const s_dragstart: &extern;
+    #[import = "dragend"]
+    const s_dragend: &extern;
+    #[import = "dragenter"]
+    const s_dragenter: &extern;
+    #[import = "dragover"]
+    const s_dragover: &extern;
+    #[import = "dragleave"]
+    const s_dragleave: &extern;
+    #[import = "dragtype"]
+    const s_dragtype: &extern;
+    #[import = "dragging"]
+    const s_dragging: &extern;
+    #[import = "draggingover"]
+    const s_draggingover: &extern;
+    #[import = "external"]
+    const s_external: &extern;
+    #[import = "type"]
+    const s_type: &extern;
     // init's issues (author.wax).
     #[import = "field"]
     const s_field: &extern;
@@ -152,7 +175,7 @@ import "'" {
     const s_err_rejected: &extern;
     #[import = "A view element belongs to the views of one component type"]
     const s_err_view_shared: &extern;
-    #[import = "A send argument must be a constant, targetValue, sourceKey or an if of them"]
+    #[import = "A send argument must be a constant, targetValue, sourceKey, dragKey or an if of them"]
     const s_err_action_arg: &extern;
     #[import = "A component type needs a main view: "]
     const s_err_no_main_view: &extern;
@@ -170,10 +193,12 @@ import "'" {
     const s_err_unknown_loop: &extern;
     #[import = "No scope named "]
     const s_err_unknown_scope: &extern;
-    #[import = "An action, targetValue or sourceKey can only be a send argument"]
+    #[import = "An action, targetValue, sourceKey or dragKey can only be a send argument"]
     const s_err_not_renderable: &extern;
     #[import = "A component in a view renders through render, not as a child"]
     const s_err_component_child: &extern;
+    #[import = "A loop's iter must return a list of [key, value] lists"]
+    const s_err_bad_iter: &extern;
     #[import = "A loop source must be a list, a map or null"]
     const s_err_not_iterable: &extern;
     #[import = "A view name must be a string"]
@@ -273,6 +298,31 @@ import "dom" {
     #[import = "is_owned"]
     fn dom_is_owned(node: &extern) -> i32;
 
+    // Drag and drop: the closest element with draggable="true", or null;
+    // node.dataset[name], or null when unset; setting and deleting it.
+    #[import = "closest_draggable"]
+    fn dom_closest_draggable(node: &extern) -> &?extern;
+    #[import = "dataset_get"]
+    fn dom_dataset_get(node: &extern, name: &extern) -> &?extern;
+    #[import = "dataset_set"]
+    fn dom_dataset_set(node: &extern, name: &extern, value: &extern);
+    #[import = "dataset_delete"]
+    fn dom_dataset_delete(node: &extern, name: &extern);
+    // Whether node is container or inside it; 0 for null.
+    #[import = "contains"]
+    fn dom_contains(container: &extern, node: &?extern) -> i32;
+    // The event's: preventDefault(), its relatedTarget, and its dataTransfer
+    // (when it has one) set up for a move: data, so Firefox starts the drag,
+    // and the effect allowed at dragstart; the drop effect over a target.
+    #[import = "prevent_default"]
+    fn dom_prevent_default(e: &extern);
+    #[import = "related_target"]
+    fn dom_related_target(e: &extern) -> &?extern;
+    #[import = "drag_start"]
+    fn dom_drag_start(e: &extern);
+    #[import = "drop_effect_move"]
+    fn dom_drop_effect_move(e: &extern);
+
     // Throws a JS Error with this message; never returns.
     #[import = "fail"]
     fn host_fail(message: &extern);
@@ -304,4 +354,7 @@ import "host" {
     // A float as JS's String(n) writes it, for rendering it as text.
     #[import = "number_text"]
     fn host_number_text(n: f64) -> &extern;
+    // Text as JS's Number(text) reads it, NaN for blank text.
+    #[import = "parse_number"]
+    fn host_parse_number(text: &extern) -> f64;
 }

@@ -91,7 +91,7 @@ classes as constants, or `if`s of constants.
 | `prelude/*.wax` | what the runtime and component modules share: types and i32 consts, no code |
 | `src/*.wax` | the runtime, one concern per file; `src/abi.wax` is what component modules import |
 | `lib/*.wax` | helpers for writing component types, compiled into the runtime and imported |
-| `components/<module>/` | the example component modules: `counter` (Board, Counter, Label), `todo_list`, two implementations of the TodoItem it holds, `todo_item` (a checkbox) and `todo_card` (a card with buttons), and `showcase` (Shelf and Note: scopes, loop hooks, provided values, `pushView`, `renderIt`) |
+| `components/<module>/` | the example component modules: `counter` (Board, Counter, Label), `todo_list`, two implementations of the TodoItem it holds, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `pushView`, `renderIt`, drag and drop), and `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them) |
 | `scripts/build.mjs` | assembles and compiles `dist/tutuca-rt.wasm` and `dist/components/<module>.wasm`, generating the prelude files components need, and optimizes them with wasm-opt |
 | `scripts/format.mjs` | `wax-mb format` over the sources (`npm run format`, `--check` in `npm test`) |
 | `scripts/setup-wax-mb.sh` | clones and builds the pinned wax-mb into `.tools/` |
@@ -466,30 +466,41 @@ side calls `host_step` once per task and collects what failed
 scope's handler: a reply now becomes `NameReplyOk` / `NameReplyError` in the
 same transaction, a pending one is answered by `host_settle` later. After the
 queue drains, `host_render` renders the root if it isn't the same reference
-as the last one rendered.
+as the last one rendered. The JS side runs tasks for up to 16ms, as
+tutuca's JS host does, then renders and leaves the rest for the next tick
+(`host.settled()` waits for them too). After each run it listens on the
+container for the events it doesn't yet: `host_new_event_names` gives the
+ones the types registered anywhere in the root's scope tree handle, so a
+module loaded later brings its events with it.
 
 **Views** (`view.wax`) are data, the spec's `view.rkt` expressions: constants,
 fields, seq items, provided values, binds, `if`, elements, fragments,
 `render`, `each`, `renderEach`, `renderIt`, `scope`, `pushView`, and the send
-actions on elements. Computed text is a property: `get` answers names that
+actions on elements, whose arguments can also be `targetValue`, `sourceKey`
+and `dragKey`. Computed text is a property: `get` answers names that
 aren't fields (TodoList's `remaining` and `count`, TodoCard's `meta`).
 `spec_new` collects a type's templates from its views (`collect.wax`): every
 element gets one, numbered in walk order, constant attrs static and the rest
-dynamic.
+dynamic. It collects the events their handlers are for too, the drag events
+with `drop`, which a host listens to.
 
 **Walking** (`walk.wax`) is tutuca's `Walker`: a `walker_vtable` of visits,
 one per kind plus `node`, `attr`, `child` and `handler`, and the state they
 share. `walker_vtable_default()` walks everything; a consumer sets the visits
-it cares about and calls the `walk_*` defaults to go on. Collecting templates
-and the constant class names (`views_collect_classes`) are walkers.
+it cares about and calls the `walk_*` defaults to go on. Collecting templates,
+event names (`views_collect_event_names`) and the constant class names
+(`views_collect_classes`) are walkers.
 
 **Rendering** (`eval.wax`, `render.wax`): `render_view` evaluates a
 component's best view (the one named, the first pushed one it has, or
 `main`) to its semantic tree, in its component wrapper. A `render` renders a
 child at its source's frame one frame deeper, capturing what the child
-provides; a loop makes one entry per item its loop's `filter` keeps, keyed by
-its `key` hook or the item's key, its body seeing the item, `value`, `key`
-and what `enrich` adds.
+provides; a loop makes one entry per item, at the item's frame. Its loop's
+hooks are tutuca's: `prepare(items)` makes the state the others get last;
+`iter(items, state)` gives the items as `[key, value]` lists, else they're the
+source's that `filter(key, value, state)` keeps; an item is keyed by
+`key(key, value, state)` or its key, and its body sees the item, `value`,
+`key` and what `enrich(binds, state)` adds.
 
 **Events** (`decode.wax`): the host routes a DOM event the way
 `getEventInfoFor` does: from the target up to the container, the `data-eid`s
@@ -498,11 +509,21 @@ ancestor's previous siblings, read back by a JSON reader for what `meta.wax`
 writes; the frames give the route, the route's component's spec the template
 with that eid, and its handlers the one for the event. Its arguments are
 evaluated when the task runs, against its context: literals, the value of
-the element with the handler (checked for a checkbox), the source key, and
-conditionals.
+the element with the handler (checked for a checkbox), the source key, the
+drag key, and conditionals.
 
-Not implemented yet: drag and drop (JS's drag events and the bubbling it
-uses for them), the dev checks (fields against their schema after each task,
+**Drag and drop** (`host.wax`), as in tutuca's JS: from `dragstart` to
+`dragend` the host keeps what is dragged, the closest `draggable="true"`
+element: its path, its `data-dragtype` and its value there, marking it
+`data-dragging`. The drop events (`dragenter`, `dragover`, `dragleave`,
+`drop`) bubble: they reach the nearest enclosing component with a handler
+for them, so a drop on a child's elements gets to the parent's `on:drop`.
+Over a drop target the host lets the drop happen and marks the target
+`data-draggingover` with the dragged type (or `external`). A handler reads
+`ctx.drag`, a map of the `type`, the `value` and the `key` of its child the
+drag started in (what `dragKey` sends), or null.
+
+Not implemented yet: the dev checks (fields against their schema after each task,
 message contracts, invariants once the queue is empty, which also need the
 properties, messages and init schemas of NOTES.md's `ComponentSpec`), sync
 engines, and a view language (the examples spell their views with
@@ -527,6 +548,9 @@ engines, and a view language (the examples spell their views with
   invalid shapes, the errors tutuca's JS throws, and for a task that fails.
 - `previous_sibling`, `comment_data`, `get_eid` and `target_value`: what
   routing an event reads.
+- `closest_draggable`, `dataset_get` / `_set` / `_delete`, `contains`, and
+  the event's `prevent_default`, `related_target`, `drag_start` and
+  `drop_effect_move`: what tracking a drag does.
 
 ## Differences from tutuca's JS vdom
 

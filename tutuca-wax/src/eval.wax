@@ -5,8 +5,8 @@
 
 // ---- Specs -------------------------------------------------------------------
 
-// A component type's spec: its views (one of them "main"), the templates
-// collected from them, the hooks they name and what it provides.
+// A component type's spec: its views (one of them "main"), the templates and
+// event names collected from them, the hooks they name and what it provides.
 fn spec_new(
     name: &extern,
     view_names: &str_array,
@@ -29,6 +29,7 @@ fn spec_new(
             scopes,
             provide_names,
             provide_selectors,
+            event_names: views_collect_event_names(views),
         };
     if !spec_view_named(spec, s_main) {
         host_fail(js_string_concat(s_err_no_main_view, name));
@@ -341,6 +342,10 @@ fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
             host_fail(s_err_not_renderable);
             return;
         }
+        d: &view_drag_key => {
+            host_fail(s_err_not_renderable);
+            return;
+        }
         _ => {
             value_eval_into(out, view_value(v, e));
             return;
@@ -391,97 +396,137 @@ fn map_merge(a: &value, b: &value) -> &value {
     out;
 }
 
-// each and renderEach: one entry per item the loop's filter keeps, keyed by
-// its key hook or the item's key, at the item's frame. A body renders with
-// the item as it and binds value, key and what enrich adds; without a body,
-// the item, a component, renders with the loop's view.
+// each and renderEach: one entry per item, at the item's frame. The loop's
+// prepare makes the state its other hooks get; its iter gives the items, as
+// [key, value] lists, else they're the source's, those its filter keeps. An
+// item is keyed by its key hook or its key. A body renders with the item as
+// it and binds value, key and what enrich adds; without a body, the item, a
+// component, renders with the loop's view.
 fn view_eval_loop(out: &snode_buf, source: &view, body: &?view, loop_name: &?extern, e: &eval_ctx) {
     let def: &?loop_def = null;
     if !!loop_name {
         def = spec_loop(e.component.spec, loop_name!);
     }
     let items = view_value(source, e);
-    if items.kind == value_kind_null {
+    let instance = e.component.instance;
+    let state = VALUE_NULL;
+    let iter: &?loop_iter_fn = null;
+    let filter: &?loop_filter_fn = null;
+    if !!def {
+        let d = def!;
+        if !!d.prepare {
+            state = (d.prepare!)(instance, items);
+        }
+        iter = d.iter;
+        filter = d.filter;
+    }
+    let entries = {entry_buf| items: [entry_array|null; 4], len: 0 };
+    if !iter & (items.kind == value_kind_null) {
         snode_buf_push(out, snode_items([entry_array|null; 0]));
         return;
     }
-    let is_list = items.kind == value_kind_list;
-    if !is_list & (items.kind != value_kind_map) {
-        host_fail(s_err_not_iterable);
-    }
-    // A list's keys are its indexes; a map's, its keys.
-    let keys = items;
-    if !is_list {
-        keys = map_keys(items);
-    }
-    let count = list_count(keys);
-    let source_frame = view_frame(source, e);
-    let instance = e.component.instance;
-    let entries = {entry_buf| items: [entry_array|null; count], len: 0 };
-    let i = 0;
-    while i <s count {
-        let key = value_int(i);
-        let item = VALUE_NULL;
-        if is_list {
-            item = list_get(items, i)!;
-        } else {
-            key = list_get(keys, i)!;
-            item = map_get(items, (key as &value_string).value)!;
+    let p = {loop_pass| entries, source_frame: view_frame(source, e), def, state, body, e };
+    if !!iter {
+        let pairs = (iter!)(instance, items, state);
+        if pairs.kind != value_kind_list {
+            host_fail(s_err_bad_iter);
         }
-        let keep = 1;
-        if !!def {
-            if !!(def!).filter {
-                keep = ((def!).filter!)(instance, key, item);
+        let i = 0;
+        while i <s list_count(pairs) {
+            let pair = list_get(pairs, i)!;
+            if (pair.kind != value_kind_list) | (list_count(pair) != 2) {
+                host_fail(s_err_bad_iter);
             }
+            loop_entry(p, list_get(pair, 0)!, list_get(pair, 1)!);
+            i += 1;
         }
-        if keep {
-            let fragment_key = key;
-            let binds = map_assoc(map_assoc(map_empty(), s_value, item), s_key, key);
-            if !!def {
-                if !!(def!).key {
-                    fragment_key = ((def!).key!)(instance, key, item);
-                }
-                if !!(def!).enrich {
-                    let extra = ((def!).enrich!)(instance, binds);
-                    binds =
-                        map_assoc(
-                            map_assoc(map_merge(map_empty(), extra), s_value, item),
-                            s_key,
-                            key,
-                        );
-                }
-            }
-            let rc = render_context_enter_frame(e.rc, item);
-            let nodes = snode_buf_new();
-            if !!body {
-                view_eval_into(
-                    nodes,
-                    body!,
-                    {eval_ctx| rc, it: item, component: e.component, binds },
-                );
+    } else {
+        let is_list = items.kind == value_kind_list;
+        if !is_list & (items.kind != value_kind_map) {
+            host_fail(s_err_not_iterable);
+        }
+        // A list's keys are its indexes; a map's, its keys.
+        let keys = items;
+        if !is_list {
+            keys = map_keys(items);
+        }
+        let count = list_count(keys);
+        let i = 0;
+        while i <s count {
+            let key = value_int(i);
+            let item = VALUE_NULL;
+            if is_list {
+                item = list_get(items, i)!;
             } else {
-                let c = value_as_component(item);
-                if !c {
-                    host_fail(s_err_render_not_component);
-                }
-                let view: &?extern = null;
-                if !!def {
-                    view = (def!).view;
-                }
-                snode_buf_push(nodes, render_view(c!, view, rc));
+                key = list_get(keys, i)!;
+                item = map_get(items, (key as &value_string).value)!;
             }
-            entry_buf_push(
-                entries,
-                {entry|
-                    key: key_text(fragment_key),
-                    frame: frame_for_item(source_frame, key_from_value(key)!),
-                    body: snode_buf_finish(nodes),
-                },
-            );
+            let keep = 1;
+            if !!filter {
+                keep = (filter!)(instance, key, item, state);
+            }
+            if keep {
+                loop_entry(p, key, item);
+            }
+            i += 1;
         }
-        i += 1;
     }
     let done = [entry_array|null; entries.len];
     done.copy(0, entries.items, 0, entries.len);
     snode_buf_push(out, snode_items(done));
+}
+
+// What every item of one loop's render shares.
+type loop_pass = {
+    entries: &entry_buf,
+    source_frame: &frame,
+    def: &?loop_def,
+    state: &value,
+    body: &?view,
+    e: &eval_ctx
+};
+
+// One item of a loop: its entry, keyed and rendered.
+fn loop_entry(p: &loop_pass, key: &value, item: &value) {
+    let item_key = key_from_value(key);
+    if !item_key {
+        host_fail(s_err_bad_item_key);
+    }
+    let e = p.e;
+    let instance = e.component.instance;
+    let fragment_key = key;
+    let binds = map_assoc(map_assoc(map_empty(), s_value, item), s_key, key);
+    if !!p.def {
+        let d = p.def!;
+        if !!d.key {
+            fragment_key = (d.key!)(instance, key, item, p.state);
+        }
+        if !!d.enrich {
+            let extra = (d.enrich!)(instance, binds, p.state);
+            binds = map_assoc(map_assoc(map_merge(map_empty(), extra), s_value, item), s_key, key);
+        }
+    }
+    let rc = render_context_enter_frame(e.rc, item);
+    let nodes = snode_buf_new();
+    if !!p.body {
+        view_eval_into(nodes, p.body!, {eval_ctx| rc, it: item, component: e.component, binds });
+    } else {
+        let c = value_as_component(item);
+        if !c {
+            host_fail(s_err_render_not_component);
+        }
+        let view: &?extern = null;
+        if !!p.def {
+            view = (p.def!).view;
+        }
+        snode_buf_push(nodes, render_view(c!, view, rc));
+    }
+    entry_buf_push(
+        p.entries,
+        {entry|
+            key: key_text(fragment_key),
+            frame: frame_for_item(p.source_frame, item_key!),
+            body: snode_buf_finish(nodes),
+        },
+    );
 }

@@ -82,7 +82,7 @@ const showStatus = () => {
 		`runtime and component modules loaded; js-string builtins: <b>${tw.builtins ? "native" : "polyfilled"}</b>; CSS compiled for <b>${styles.classes().length}</b> classes`;
 };
 const scope = runtime.scope();
-for (const name of ["counter", "todo_item", "todo_list"]) await loadComponent(name, scope);
+for (const name of ["counter", "todo_item", "todo_list", "json"]) await loadComponent(name, scope);
 showStatus();
 
 const el = (tag, attrs = {}, ...children) => {
@@ -265,7 +265,7 @@ demo({
 demo({
 	title: "Todos: a list of item components",
 	description:
-		"Composition: TodoList holds TodoItem components in its items field and renders each in a keyed loop. An item handles its own checkbox (toggle) and asks the list to remove it (x notifies removeMe; the list finds which by the source key). The list reads each item's done through the item's vtable to count what's left, makes new items through the scope, and sends every item setDone(true) by selector for all done.",
+		"Composition: TodoList holds TodoItem components in its items field and renders each in a keyed loop. An item handles its own checkbox (toggle) and asks the list to remove it (x notifies removeMe; the list finds which by the source key). The list reads each item's done through the item's vtable to count what's left, makes new items through the scope, and sends every item setDone(true) by selector for all done. Drag an item onto another to move it there: items are draggable but handle no drop, so the drop reaches the list's on:drop, which reads the dragged item's key (dragKey) and the one dropped on (sourceKey).",
 	type: "TodoList",
 	fields: {
 		items: ["read the README", "write a component", "compose two"].map((text, id) =>
@@ -298,6 +298,35 @@ demo({
 		{ label: "to label", send: "toLabel", hint: "returns Swapped: the root becomes a Label" },
 		{ label: 'add "x"', send: "add", args: ["x"], hint: "rejected: the transaction aborts" },
 		{ label: "nope", send: "nope", hint: "no handler: observed as unhandled" },
+	],
+});
+
+// The components for a JSON value, made in scope (fromJson in tutuca's
+// components/json).
+const fromJson = (v) => {
+	const make = (type, fields = {}) => runtime.make(scope, type, fields);
+	if (v === null) return make("JsonNull");
+	if (typeof v === "boolean") return make("JsonBool", { value: v });
+	if (typeof v === "number") return make("JsonNumber", { value: v, text: String(v) });
+	if (typeof v === "string") return make("JsonString", { value: v });
+	if (Array.isArray(v)) return make("JsonArray", { items: v.map(fromJson) });
+	return make("JsonObject", { entries: Object.entries(v).map(([key, x]) => make("JsonEntry", { key, value: fromJson(x) })) });
+};
+
+demo({
+	title: "JSON: a viewer and editor",
+	description:
+		"A tree of components, one type per kind of JSON value, each with a read only main view and, for the ones that can change, an edit view styled like it. JsonEditor pushes its mode's view above the tree (pushView), so Edit switches the whole tree: keys, strings and numbers become inputs, booleans toggle, arrays and objects get move up, remove and add buttons, and an added value starts as a selector that swaps itself for the type picked. Every value answers json with its compact JSON text, which the collections compose and the editor indents. The commas come from the items loop's prepare (the last index) and enrich hooks.",
+	type: "JsonEditor",
+	fields: {
+		value: fromJson({ name: "tutuca-wax", version: 2, wasm: true, tags: ["wax", "wasm-gc"], author: null, deps: {} }),
+		mode: "view",
+		showText: true,
+	},
+	inspect: (root) => ({ mode: runtime.get(root, "mode"), json: JSON.parse(runtime.get(root, "json")) }),
+	actions: [
+		{ label: "edit", send: "setMode", args: ["edit"] },
+		{ label: "view", send: "setMode", args: ["view"] },
 	],
 });
 

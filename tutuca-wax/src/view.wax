@@ -104,6 +104,11 @@ fn view_source_key() -> &view {
     out;
 }
 
+fn view_drag_key() -> &view {
+    let out: &view_drag_key = { kind: view_kind_drag_key };
+    out;
+}
+
 fn view_on(event: &extern, action: &view_action) -> &view_on {
     {view_on| event, action };
 }

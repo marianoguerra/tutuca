@@ -193,6 +193,11 @@ fn abi_arg_source_key() -> &arg {
     arg_source_key();
 }
 
+#[export = "arg_drag_key"]
+fn abi_arg_drag_key() -> &arg {
+    arg_drag_key();
+}
+
 #[export = "arg_if"]
 fn abi_arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {
     arg_if(test, then, otherwise);
@@ -332,6 +337,11 @@ fn abi_view_target_value() -> &view {
 #[export = "view_source_key"]
 fn abi_view_source_key() -> &view {
     view_source_key();
+}
+
+#[export = "view_drag_key"]
+fn abi_view_drag_key() -> &view {
+    view_drag_key();
 }
 
 #[export = "view_on"]
@@ -684,6 +694,26 @@ fn abi_int_text(n: i32) -> &extern {
 #[export = "parse_int"]
 fn abi_parse_int(s: &extern) -> (i32, i32) {
     parse_int(s);
+}
+
+#[export = "number_text"]
+fn abi_number_text(n: f64) -> &extern {
+    number_text(n);
+}
+
+#[export = "parse_number"]
+fn abi_parse_number(s: &extern) -> (i32, f64) {
+    parse_number(s);
+}
+
+#[export = "json_string"]
+fn abi_json_string(s: &extern) -> &extern {
+    json_string(s);
+}
+
+#[export = "json_indent"]
+fn abi_json_indent(text: &extern) -> &extern {
+    json_indent(text);
 }
 
 // Failing: throws a JS Error with the message, as the runtime's own failures

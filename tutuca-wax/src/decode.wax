@@ -331,15 +331,15 @@ fn enclosing_meta(node: &extern, metas: &pv_vector) -> (i32, &pv_vector) {
     (components, out);
 }
 
-// The path the metas, innermost first, describe: outermost first, each frame
-// is a frame, and a component boundary makes the frame before it a
-// component frame.
-fn path_from_metas(metas: &pv_vector) -> &dispatch_path {
+// The path the metas from start on, innermost first, describe: outermost
+// first, each frame is a frame, and a component boundary makes the frame
+// before it a component frame.
+fn path_from_metas(metas: &pv_vector, start: i32) -> &dispatch_path {
     let n = pv_count(metas);
     let frames = [frame_array|null; n];
     let count = 0;
     let i = n - 1;
-    while i >=s 0 {
+    while i >=s start {
         let m = pv_at(metas, i)!;
         if m == COMPONENT_MARK {
             if count >s 0 {
@@ -352,6 +352,26 @@ fn path_from_metas(metas: &pv_vector) -> &dispatch_path {
         i -= 1;
     }
     {dispatch_path| frames: frames_slice(frames, 0, count) };
+}
+
+// Where the metas outside the level-th component boundary, counted from the
+// innermost, start: what is outside the component below.
+fn metas_start(metas: &pv_vector, level: i32) -> i32 {
+    if level == 0 {
+        return 0;
+    }
+    let seen = 0;
+    let i = 0;
+    while i <s pv_count(metas) {
+        if pv_at(metas, i)! == COMPONENT_MARK {
+            seen += 1;
+            if seen == level {
+                return i + 1;
+            }
+        }
+        i += 1;
+    }
+    pv_count(metas);
 }
 
 fn template_of(spec: &component_spec, tid: i32) -> &?template {
@@ -368,65 +388,141 @@ fn template_of(spec: &component_spec, tid: i32) -> &?template {
     null;
 }
 
-// The handler for a `kind` event on target, with the route to its component
-// and its element: the first handler for the event among the elements with
-// handlers between target and the innermost component boundary, innermost
-// first, in the table of that component's type. null when target is outside
-// container, in no component, or no element there handles the event.
-fn decode_event(container: &extern, target: &extern, kind: &extern, root: &value) -> &?event_info {
+// What walking up from a node to the container met: the metas enclosing each
+// ancestor, innermost first, and how many component boundaries are among
+// them; and the elements with handlers, innermost first, each with its eid
+// and its level, the number of boundaries below it.
+type walk_up = {
+    metas: &pv_vector,
+    components: i32,
+    eids: &i32_array,
+    levels: &i32_array,
+    nodes: &ext_buf
+};
+
+// null when node is outside container.
+fn walk_up(container: &extern, node: &extern) -> &?walk_up {
     let metas = pv_empty();
     let components = 0;
     let eids = [i32_array|0; 4];
-    let eid_nodes = ext_buf_new(4);
-    let at: &?extern = target;
+    let levels = [i32_array|0; 4];
+    let nodes = ext_buf_new(4);
+    let at: &?extern = node;
     'walk: do {
         while 1 {
             if !at {
-                // Not inside the container.
                 return null;
             }
-            let node = at!;
-            if dom_is_same_node(node, container) {
+            let n = at!;
+            if dom_is_same_node(n, container) {
                 br 'walk;
             }
-            if components == 0 {
-                let eid = dom_get_eid(node);
-                if eid >=s 0 {
-                    if eid_nodes.len == eids.length() {
-                        let bigger = [i32_array|0; eids.length() * 2];
-                        bigger.copy(0, eids, 0, eid_nodes.len);
-                        eids = bigger;
-                    }
-                    eids[eid_nodes.len] = eid;
-                    ext_buf_push(eid_nodes, node);
+            let eid = dom_get_eid(n);
+            if eid >=s 0 {
+                if nodes.len == eids.length() {
+                    let more_eids = [i32_array|0; nodes.len * 2];
+                    more_eids.copy(0, eids, 0, nodes.len);
+                    eids = more_eids;
+                    let more_levels = [i32_array|0; nodes.len * 2];
+                    more_levels.copy(0, levels, 0, nodes.len);
+                    levels = more_levels;
                 }
+                eids[nodes.len] = eid;
+                levels[nodes.len] = components;
+                ext_buf_push(nodes, n);
             }
-            let (found, more) = enclosing_meta(node, metas);
+            let (found, more) = enclosing_meta(n, metas);
             components += found;
             metas = more;
-            at = dom_parent_node(node);
+            at = dom_parent_node(n);
         }
     }
-    if (components == 0) | (eid_nodes.len == 0) {
+    {walk_up| metas, components, eids, levels, nodes };
+}
+
+// The path of the component, and the loop items in it, node was rendered in
+// (pathOf in tutuca's src/events.js); null outside container or any component.
+fn path_of(container: &extern, node: &extern) -> &?dispatch_path {
+    let found = walk_up(container, node);
+    if !found {
         return null;
     }
-    let r = route_for(path_from_metas(metas));
+    let w = found!;
+    if w.components == 0 {
+        return null;
+    }
+    path_from_metas(w.metas, 0);
+}
+
+// The handler for a `kind` event on target, with the route to its component
+// and its element: the first handler for the event among the elements with
+// handlers between target and the innermost component boundary, innermost
+// first, in the table of that component's type. When the event bubbles (the
+// drop events), the next enclosing component with a handler for it gets it
+// if that one has none, and so on out. null when target is outside
+// container, in no component, or no element there handles the event.
+fn decode_event(
+    container: &extern,
+    target: &extern,
+    kind: &extern,
+    root: &value,
+    bubbles: i32,
+) -> &?event_info {
+    let found = walk_up(container, target);
+    if !found {
+        return null;
+    }
+    let w = found!;
+    let levels = w.components;
+    if !bubbles & (levels >s 1) {
+        levels = 1;
+    }
+    let level = 0;
+    while level <s levels {
+        let info = decode_at_level(w, kind, root, level);
+        if !!info {
+            return info;
+        }
+        level += 1;
+    }
+    null;
+}
+
+// The handler for kind among the elements at level, in their component.
+fn decode_at_level(w: &walk_up, kind: &extern, root: &value, level: i32) -> &?event_info {
+    let first = -1;
+    let i = 0;
+    'found: do {
+        while i <s w.nodes.len {
+            if w.levels[i] == level {
+                first = i;
+                br 'found;
+            }
+            i += 1;
+        }
+    }
+    if first <s 0 {
+        return null;
+    }
+    let r = route_for(path_from_metas(w.metas, metas_start(w.metas, level)));
     let c = value_as_component(update_path_get_in(r.update_path, root));
     if !c {
         return null;
     }
-    let i = 0;
-    while i <s eid_nodes.len {
-        let t = template_of((c!).spec, eids[i]);
-        if !!t {
-            let handlers = (t!).handlers;
-            let j = 0;
-            while j <s handlers.length() {
-                let handler = handlers[j]!;
-                if str_eq(handler.event, kind) {
-                    return {event_info| handler, route: r, node: ext_buf_at(eid_nodes, i) };
+    i = first;
+    while i <s w.nodes.len {
+        if w.levels[i] == level {
+            let t = template_of((c!).spec, w.eids[i]);
+            if !!t {
+                let handlers = (t!).handlers;
+                let j = 0;
+                while j <s handlers.length() {
+                    let handler = handlers[j]!;
+                    if str_eq(handler.event, kind) {
+                        return {event_info| handler, route: r, node: ext_buf_at(w.nodes, i) };
+                    }
+                    j += 1;
                 }
-                j += 1;
             }
         }
         i += 1;

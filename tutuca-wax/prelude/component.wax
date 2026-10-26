@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 1;
+const tutuca_abi_version_current = 2;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -72,20 +72,27 @@ rec {
     type set_fn = fn(&eq, &extern, &value) -> (i32, &?eq);
 
     // A loop's hooks (loops[name] in tutuca's component()), each given the
-    // instance whose view has the loop: key(key, value) is the item's
-    // sibling key, filter(key, value) whether it renders, enrich(binds) the
-    // binds its body sees besides value and key (a map value); view is the
-    // view a renderEach renders the items with.
+    // instance whose view has the loop. prepare(items) makes the state the
+    // other hooks get last (null without it); iter(items, state) gives the
+    // entries to render, a list of [key, value] lists, in place of the
+    // source's own (filter doesn't apply then); key(key, value, state) is
+    // the item's sibling key, filter(key, value, state) whether it renders,
+    // enrich(binds, state) the binds its body sees besides value and key (a
+    // map value); view is the view a renderEach renders the items with.
     type loop_def = {
         name: &extern,
+        prepare: &?loop_prepare_fn,
+        iter: &?loop_iter_fn,
         key: &?loop_key_fn,
         filter: &?loop_filter_fn,
         enrich: &?loop_enrich_fn,
         view: &?extern
     };
-    type loop_key_fn = fn(&eq, &value, &value) -> &value;
-    type loop_filter_fn = fn(&eq, &value, &value) -> i32;
-    type loop_enrich_fn = fn(&eq, &value) -> &value;
+    type loop_prepare_fn = fn(&eq, &value) -> &value;
+    type loop_iter_fn = fn(&eq, &value, &value) -> &value;
+    type loop_key_fn = fn(&eq, &value, &value, &value) -> &value;
+    type loop_filter_fn = fn(&eq, &value, &value, &value) -> i32;
+    type loop_enrich_fn = fn(&eq, &value, &value) -> &value;
     type loop_def_array = [mut &?loop_def];
     // scopes[name].bind: the binds a scope's body sees, as a map value.
     type scope_def = { name: &extern, bind: &scope_bind_fn };
@@ -97,8 +104,10 @@ rec {
     // (prelude/view.wax), aligned with view_names, one of them "main";
     // templates are their elements, whose handlers routing finds by data-eid;
     // loops and scopes are the hooks the views name; provides are the values
-    // it provides to the components rendered below it. spec_new makes one,
-    // collecting the templates.
+    // it provides to the components rendered below it; event_names are the
+    // DOM events its views handle, which a host listens to (with the drag
+    // events, when one is drop). spec_new makes one, collecting the
+    // templates and the event names.
     type component_spec = {
         name: &extern,
         view_names: &str_array,
@@ -107,7 +116,8 @@ rec {
         loops: &loop_def_array,
         scopes: &scope_def_array,
         provide_names: &str_array,
-        provide_selectors: &selector_array
+        provide_selectors: &selector_array,
+        event_names: &str_array
     };
 
     // A component: the one type every component is, so any component
@@ -150,8 +160,13 @@ rec {
         path: &dispatch_path,
         // The item key of the child the message arrived from, if any.
         source_key: &?path_key,
-        // The event, for event tasks, and what is being dragged; null otherwise.
+        // The event, for event tasks; null otherwise.
         event: &value,
+        // What is being dragged, in an event task that ran while a drag was
+        // on: a map of its type (data-dragtype, or null), its value where it
+        // was rendered, and its key: the item key of this component's child
+        // it was dragged from (dragKey), null when it came from elsewhere.
+        // null when nothing is being dragged.
         drag: &value,
         // What the handler asked for, in order.
         effects: &effect_buf

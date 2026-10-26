@@ -27,6 +27,14 @@ import "'" {
     const s_starred: &extern;
     #[import = "li"]
     const s_li: &extern;
+    #[import = "draggable"]
+    const s_draggable: &extern;
+    #[import = "data-dragtype"]
+    const s_data_dragtype: &extern;
+    #[import = "true"]
+    const s_true: &extern;
+    #[import = "todo"]
+    const s_todo_dragtype: &extern;
     #[import = "div"]
     const s_div: &extern;
     #[import = "span"]
@@ -103,7 +111,7 @@ import "'" {
 
 // ---- TodoItem, the card ----------------------------------------------------------
 //
-// <li class={done ? "todo-card done card ..." : "todo-card card ..."}>
+// <li class={done ? "todo-card done card ..." : "todo-card card ..."} draggable="true" data-dragtype="todo">
 //   <div class="todo-card-main ...">
 //     <span class="todo-card-text ...">{text}</span>
 //     <span class="todo-card-meta ...">{meta}</span>
@@ -134,8 +142,12 @@ fn todo_card_spec() -> &component_spec {
     let main =
         el_attrs(
             s_li,
-            strs1(s_class),
-            views1(view_if(done, text(s_card_done_class), text(s_card_class))),
+            strs3(s_class, s_draggable, s_data_dragtype),
+            views3(
+                view_if(done, text(s_card_done_class), text(s_card_class)),
+                text(s_true),
+                text(s_todo_dragtype),
+            ),
             views2(
                 el_attrs(
                     s_div,

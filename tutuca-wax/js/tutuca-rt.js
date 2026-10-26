@@ -97,6 +97,26 @@ function domImports(late) {
 		},
 		// The element with the handler: checked for a checkbox, value otherwise.
 		target_value: (node) => late.toValue(node.type === "checkbox" ? node.checked : node.value),
+		// Drag and drop.
+		closest_draggable: (node) => node.closest?.('[draggable="true"]') ?? null,
+		dataset_get: (node, name) => node.dataset?.[name] ?? null,
+		dataset_set: (node, name, value) => {
+			node.dataset[name] = value;
+		},
+		dataset_delete: (node, name) => {
+			delete node.dataset[name];
+		},
+		contains: (container, node) => (node != null && container.contains(node) ? 1 : 0),
+		prevent_default: (e) => e.preventDefault(),
+		related_target: (e) => e.relatedTarget ?? null,
+		drag_start: (e) => {
+			if (!e.dataTransfer) return;
+			e.dataTransfer.setData("text/plain", ""); // Firefox starts no drag without data.
+			e.dataTransfer.effectAllowed = "move";
+		},
+		drop_effect_move: (e) => {
+			if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+		},
 		fail: (message) => {
 			throw new Error(message);
 		},
@@ -156,6 +176,7 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			observe_unhandled: (name) => late.host?.unhandled.push(name),
 			ask: (name, args) => late.host.ask(name, late.fromValue(args)),
 			number_text: (n) => String(n),
+			parse_number: (s) => (s.trim() === "" ? Number.NaN : Number(s)),
 		},
 	});
 	late.exports = instance.exports;
@@ -379,11 +400,12 @@ function makeApi(w) {
 			isComponent ? 1 : 0,
 		);
 	// A send argument: a literal, { targetValue: true }, { sourceKey: true },
-	// or { if: [test, then, otherwise] }.
+	// { dragKey: true }, or { if: [test, then, otherwise] }.
 	const arg = (a) => {
 		if (a !== null && typeof a === "object") {
 			if (a.targetValue) return w.arg_target_value();
 			if (a.sourceKey) return w.arg_source_key();
+			if (a.dragKey) return w.arg_drag_key();
 			if (Array.isArray(a.if)) return w.arg_if(arg(a.if[0]), arg(a.if[1]), arg(a.if[2]));
 		}
 		return w.arg_value(toValue(a));
@@ -482,6 +504,7 @@ function makeApi(w) {
 			"action",
 			"targetValue",
 			"sourceKey",
+			"dragKey",
 		],
 		constant: (v) => viewNode(w.view_const(toValue(v))),
 		field: (name) => viewNode(w.view_field(name)),
@@ -519,6 +542,7 @@ function makeApi(w) {
 		send: (name, ...args) => w.view_action(name, viewArray(args)),
 		targetValue: () => viewNode(w.view_target_value()),
 		sourceKey: () => viewNode(w.view_source_key()),
+		dragKey: () => viewNode(w.view_drag_key()),
 		// The templates of views (src/collect.wax), setting each element's.
 		templates(views) {
 			const ts = w.views_collect_templates(viewArray(views));
@@ -576,6 +600,15 @@ function makeRuntime(w, api, late) {
 	const createHost = (document, container, root, { env = {}, asks = {} } = {}) => {
 		const h = w.host_new(document, container, root);
 		const inflight = new Set();
+		const listener = (e) => host.dispatch(e);
+		let running = false;
+		let tick = null; // The timeout of the next run, when tasks are left.
+		const schedule = () => {
+			tick ??= setTimeout(() => {
+				tick = null;
+				host.run();
+			}, 0);
+		};
 		const host = {
 			logs: [],
 			unhandled: [],
@@ -587,22 +620,43 @@ function makeRuntime(w, api, late) {
 			},
 			// The root component, as a value.
 			root: () => w.host_root(h),
-			// Runs the queued tasks, one transaction each, then renders. A task
-			// that fails (throws or traps) is dropped with nothing committed.
+			// Runs the queued tasks, one transaction each, for up to 16ms, then
+			// renders and listens to the events the registered types handle;
+			// the tasks left run on the next tick, after the browser had a
+			// turn. A task that fails (throws or traps) is dropped with nothing
+			// committed. Called while a run is on (an event the render caused),
+			// it leaves the tasks to that run.
 			run() {
+				if (running) return;
+				running = true;
 				late.host = host;
-				while (w.host_has_tasks(h)) {
+				clearTimeout(tick);
+				tick = null;
+				const start = Date.now();
+				try {
+					while (w.host_has_tasks(h)) {
+						try {
+							w.host_step(h);
+						} catch (error) {
+							host.failures.push(error);
+						}
+						if (Date.now() - start > 16) break;
+					}
 					try {
-						w.host_step(h);
+						w.host_render(h);
 					} catch (error) {
 						host.failures.push(error);
 					}
+					host.listen();
+				} finally {
+					running = false;
+					if (w.host_has_tasks(h)) schedule();
 				}
-				try {
-					w.host_render(h);
-				} catch (error) {
-					host.failures.push(error);
-				}
+			},
+			// Listens on the container for the events the types in the root's
+			// scope tree handle, the ones loaded since included.
+			listen() {
+				for (const type of values.to(w.host_new_event_names(h))) container.addEventListener(type, listener);
 			},
 			// A message to the root, from outside it.
 			send(name, args = []) {
@@ -614,17 +668,20 @@ function makeRuntime(w, api, late) {
 			dispatch(e) {
 				late.host = host;
 				const event = values.from({ type: e.type, key: e.key ?? null });
-				if (w.host_dispatch_event(h, e.target, e.type, event)) host.run();
+				if (w.host_dispatch_event(h, e, e.target, e.type, event)) host.run();
 			},
-			// Listens for these events on the container, and renders.
-			mount(types = ["click", "input", "change", "keydown", "submit"]) {
-				for (const type of types) container.addEventListener(type, (e) => host.dispatch(e));
+			// Renders, and listens to the events its components handle.
+			mount() {
 				host.run();
 				return host;
 			},
-			// Resolves once the asks in flight are answered and their replies run.
+			// Resolves once the asks in flight are answered and the tasks left
+			// for later have run.
 			async settled() {
-				while (inflight.size > 0) await Promise.allSettled([...inflight]);
+				while (inflight.size > 0 || tick !== null) {
+					if (inflight.size > 0) await Promise.allSettled([...inflight]);
+					else await new Promise((resolve) => setTimeout(resolve, 0));
+				}
 			},
 			// The ask import: answers through asks[name], later.
 			ask(name, args) {

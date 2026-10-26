@@ -1,0 +1,482 @@
+// JsonArray, JsonObject and the JsonEntry an object holds. Both collections
+// render the same way, with the same loop: commas after every item but the
+// last, and in their edit views a move up and a remove button per item and an
+// add button below them.
+
+// ---- The items loop: commas ------------------------------------------------------
+//
+// prepare: the index of the last item; enrich: comma, "," for every item but it.
+
+fn json_commas() -> &loop_def {
+    {loop_def|
+        name: s_items,
+        prepare: json_commas_prepare,
+        iter: null,
+        key: null,
+        filter: null,
+        enrich: json_commas_enrich,
+        view: null,
+    };
+}
+
+fn json_commas_prepare: loop_prepare_fn (instance: &eq, items: &value) -> &value {
+    value_int(list_count(items) - 1);
+}
+
+fn json_commas_enrich: loop_enrich_fn (instance: &eq, binds: &value, last: &value) -> &value {
+    let key = map_get(binds, s_key)!;
+    let is_last = value_same(key, last);
+    map_assoc(map_empty(), s_comma, value_string(is_last?s_empty:s_comma_text));
+}
+
+// ---- Their views -----------------------------------------------------------------
+//
+// {isEmpty ?
+//   <div class="inline-flex items-baseline gap-1"><span>{empty}</span> [add]</div> :
+//   <div class="inline-flex flex-col">
+//     <span>{opening}</span>
+//     <div class="ml-1 flex flex-col border-l ...">
+//       @each field (loop items):
+//         <div class="group flex items-baseline gap-1">
+//           renderIt <span>{comma}</span> [<button on:click="moveUp(sourceKey)">↑</button>
+//           <button on:click="removeAt(sourceKey)">×</button>]
+//         </div>
+//       [<button on:click="add">{add_label}</button>]
+//     </div>
+//     <span>{closing}</span>
+//   </div>}
+//
+// The bracketed parts only in the edit view, the one with an add_label.
+
+fn json_punct(s: &extern) -> &view {
+    json_span_text(s_c_punct, s);
+}
+
+fn json_add_button(label: &extern) -> &view {
+    json_button(text(s_c_add), null, label, s_add, views0());
+}
+
+fn json_collection_view(
+    opening: &extern,
+    closing: &extern,
+    empty: &extern,
+    items: &extern,
+    add_label: &?extern,
+) -> &view {
+    let comma = el_class(s_span, s_c_punct, views1(view_lookup_bind(s_comma)));
+    let row_childs = views2(view_render_it(null), comma);
+    let empty_childs = views1(json_punct(empty));
+    let block_childs = views0();
+    if !!add_label {
+        let up =
+            json_button(
+                text(s_c_action),
+                s_move_up_title,
+                s_up_arrow,
+                s_move_up,
+                views1(view_source_key()),
+            );
+        let remove =
+            json_button(
+                text(s_c_remove),
+                s_remove_title,
+                s_times,
+                s_remove_at,
+                views1(view_source_key()),
+            );
+        row_childs = views4(view_render_it(null), comma, up, remove);
+        empty_childs = views2(json_punct(empty), json_add_button(add_label!));
+    }
+    let each = view_each(view_field(items), el_class(s_div, s_c_row, row_childs), s_items);
+    block_childs = views1(each);
+    if !!add_label {
+        block_childs = views2(each, json_add_button(add_label!));
+    }
+    let full =
+        el_class(
+            s_div,
+            s_c_column,
+            views3(
+                json_punct(opening),
+                el_class(s_div, s_c_block, block_childs),
+                json_punct(closing),
+            ),
+        );
+    view_if(view_field(s_is_empty), el_class(s_div, s_c_inline_row, empty_childs), full);
+}
+
+// ---- What they do to their items ---------------------------------------------------
+
+// The index argument, when it's one of items'.
+fn json_index_arg(args: &value_array, items: &value) -> (i32, i32) {
+    let (ok, i) = arg_int(args, 0);
+    if !ok | (i <s 0) | (i >=s list_count(items)) {
+        return (0, 0);
+    }
+    (1, i);
+}
+
+fn json_remove_at(items: &value, at: i32) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(items) {
+        if i != at {
+            out = list_push(out, list_get(items, i)!);
+        }
+        i += 1;
+    }
+    out;
+}
+
+// The item at at swapped with the one before it, if any.
+fn json_move_up(items: &value, at: i32) -> &value {
+    if at == 0 {
+        return items;
+    }
+    let before = list_get(items, at - 1)!;
+    list_assoc(list_assoc(items, at - 1, list_get(items, at)!), at, before);
+}
+
+// removeAt and moveUp, the same for both: the new items, or null when the
+// message isn't one of them; rejected when its index isn't one of items'.
+fn json_items_message(m: &message, items: &value) -> (i32, &?value) {
+    let is_remove = str_eq(m.name, s_remove_at);
+    let is_move = str_eq(m.name, s_move_up);
+    if !is_remove & !is_move {
+        return (0, null);
+    }
+    let (ok, at) = json_index_arg(m.args, items);
+    if !ok {
+        return (1, null);
+    }
+    if is_remove {
+        return (1, json_remove_at(items, at));
+    }
+    (1, json_move_up(items, at));
+}
+
+// ---- JsonArray -------------------------------------------------------------------
+
+type json_array_state = { items: &value };
+
+let json_array_spec_made: &?component_spec = null;
+
+fn json_array_spec() -> &component_spec {
+    if !!json_array_spec_made {
+        return json_array_spec_made!;
+    }
+    let main = json_collection_view(s_open_bracket, s_close_bracket, s_brackets, s_items, null);
+    let edit =
+        json_collection_view(s_open_bracket, s_close_bracket, s_brackets, s_items, s_add_item);
+    let spec =
+        json_spec(
+            s_json_array_type,
+            strs2(s_main, s_edit),
+            views2(main, edit),
+            loops1(json_commas()),
+        );
+    json_array_spec_made = spec;
+    spec;
+}
+
+fn json_array_vtable() -> &vtable {
+    {vtable|
+        init: json_array_init,
+        handle: json_array_handle,
+        get: json_array_get,
+        set: json_array_set,
+    };
+}
+
+fn json_array_init: init_fn (fields: &value) -> &init_result {
+    let (items, issues) = init_list(fields, s_items, list_empty());
+    init_ok({json_array_state| items }, issues);
+}
+
+fn json_array_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let items = (instance as &json_array_state).items;
+    if str_eq(m.name, s_add) {
+        let selector = ctx_make(ctx, s_json_selector_type, map_empty());
+        return
+            message_result_updated(
+                {json_array_state| items: list_push(items, value_component(selector)) },
+            );
+    }
+    let (handled, next) = json_items_message(m, items);
+    if handled {
+        if !next {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return message_result_updated({json_array_state| items: next! });
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn json_array_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let items = (instance as &json_array_state).items;
+    if str_eq(name, s_items) {
+        return (property_ok, items);
+    }
+    if str_eq(name, s_is_empty) {
+        return (property_ok, value_bool(list_count(items) == 0));
+    }
+    if str_eq(name, s_json) {
+        let out = s_open_bracket;
+        let i = 0;
+        while i <s list_count(items) {
+            if i >s 0 {
+                out = js_string_concat(out, s_comma_text);
+            }
+            out = js_string_concat(out, json_of(list_get(items, i)!));
+            i += 1;
+        }
+        return (property_ok, value_string(js_string_concat(out, s_close_bracket)));
+    }
+    (property_no_such_property, null);
+}
+
+// Its items change through their paths.
+fn json_array_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    if str_eq(name, s_items) {
+        if v.kind != value_kind_list {
+            return (property_wrong_type, null);
+        }
+        return (property_ok, {json_array_state| items: v });
+    }
+    (property_not_writable, null);
+}
+
+// ---- JsonEntry -------------------------------------------------------------------
+//
+// main: <span class="inline-flex ..."><span class="... text-secondary">"{key}"</span>
+//         <span>:</span> render value</span>
+// edit: the same, the key an <input aria-label="key" value={key} on:input="setKey(targetValue)">
+
+type json_entry_state = { key: &extern, value: &value };
+
+let json_entry_spec_made: &?component_spec = null;
+
+fn json_entry_view(key: &view) -> &view {
+    el_class(
+        s_span,
+        s_c_inline_row,
+        views3(
+            el_class(s_span, s_c_key, views3(text(s_quote), key, text(s_quote))),
+            json_punct(s_colon),
+            view_render(view_field(s_value), null),
+        ),
+    );
+}
+
+fn json_entry_spec() -> &component_spec {
+    if !!json_entry_spec_made {
+        return json_entry_spec_made!;
+    }
+    let main = json_entry_view(view_field(s_key));
+    let input =
+        el_on(
+            s_input,
+            strs3(s_class, s_aria_label, s_value),
+            views3(text(s_c_inline), text(s_key_label), view_field(s_key)),
+            views0(),
+            view_ons1(s_input, s_set_key, views1(view_target_value())),
+        );
+    let edit = json_entry_view(input);
+    let spec = json_spec(s_json_entry_type, strs2(s_main, s_edit), views2(main, edit), no_loops());
+    json_entry_spec_made = spec;
+    spec;
+}
+
+fn json_entry_vtable() -> &vtable {
+    {vtable|
+        init: json_entry_init,
+        handle: json_entry_handle,
+        get: json_entry_get,
+        set: json_entry_set,
+    };
+}
+
+fn json_entry_init: init_fn (fields: &value) -> &init_result {
+    let value = json_init_component(fields, s_value);
+    if !value {
+        return json_init_fail(s_value);
+    }
+    let (key, issues) = init_string(fields, s_key, s_empty, list_empty());
+    init_ok({json_entry_state| key, value: value! }, issues);
+}
+
+fn json_entry_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let s = instance as &json_entry_state;
+    if str_eq(m.name, s_set_key) {
+        let key = json_arg_string(m.args);
+        if !key {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return message_result_updated({json_entry_state| key: key!, value: s.value });
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn json_entry_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let s = instance as &json_entry_state;
+    if str_eq(name, s_key) {
+        return (property_ok, value_string(s.key));
+    }
+    if str_eq(name, s_value) {
+        return (property_ok, s.value);
+    }
+    (property_no_such_property, null);
+}
+
+fn json_entry_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    let s = instance as &json_entry_state;
+    if str_eq(name, s_value) {
+        if v.kind != value_kind_component {
+            return (property_wrong_type, null);
+        }
+        return (property_ok, {json_entry_state| key: s.key, value: v });
+    }
+    (property_not_writable, null);
+}
+
+// ---- JsonObject ------------------------------------------------------------------
+
+type json_object_state = { entries: &value };
+
+let json_object_spec_made: &?component_spec = null;
+
+fn json_object_spec() -> &component_spec {
+    if !!json_object_spec_made {
+        return json_object_spec_made!;
+    }
+    let main = json_collection_view(s_open_brace, s_close_brace, s_braces, s_entries, null);
+    let edit = json_collection_view(s_open_brace, s_close_brace, s_braces, s_entries, s_add_entry);
+    let spec =
+        json_spec(
+            s_json_object_type,
+            strs2(s_main, s_edit),
+            views2(main, edit),
+            loops1(json_commas()),
+        );
+    json_object_spec_made = spec;
+    spec;
+}
+
+fn json_object_vtable() -> &vtable {
+    {vtable|
+        init: json_object_init,
+        handle: json_object_handle,
+        get: json_object_get,
+        set: json_object_set,
+    };
+}
+
+fn json_object_init: init_fn (fields: &value) -> &init_result {
+    let (entries, issues) = init_list(fields, s_entries, list_empty());
+    init_ok({json_object_state| entries }, issues);
+}
+
+fn json_object_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let entries = (instance as &json_object_state).entries;
+    if str_eq(m.name, s_add) {
+        let key = js_string_concat(s_key, int_text(list_count(entries) + 1));
+        let value = value_component(ctx_make(ctx, s_json_selector_type, map_empty()));
+        let entry =
+            ctx_make(
+                ctx,
+                s_json_entry_type,
+                map_assoc(map_assoc(map_empty(), s_key, value_string(key)), s_value, value),
+            );
+        return
+            message_result_updated(
+                {json_object_state| entries: list_push(entries, value_component(entry)) },
+            );
+    }
+    let (handled, next) = json_items_message(m, entries);
+    if handled {
+        if !next {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return message_result_updated({json_object_state| entries: next! });
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn json_entry_key(entry: &value) -> &extern {
+    let key = json_prop(entry, s_key);
+    if !key {
+        return s_empty;
+    }
+    let text = value_string_of(key!);
+    if !text {
+        return s_empty;
+    }
+    text!;
+}
+
+// As JSON.parse would read it back: a key's first entry places it, its last
+// entry gives its value.
+fn json_object_text(entries: &value) -> &extern {
+    let n = list_count(entries);
+    let out = s_open_brace;
+    let first = 1;
+    let i = 0;
+    while i <s n {
+        let key = json_entry_key(list_get(entries, i)!);
+        let seen = 0;
+        let j = 0;
+        while j <s i {
+            if str_eq(json_entry_key(list_get(entries, j)!), key) {
+                seen = 1;
+            }
+            j += 1;
+        }
+        if !seen {
+            let last = i;
+            j = i + 1;
+            while j <s n {
+                if str_eq(json_entry_key(list_get(entries, j)!), key) {
+                    last = j;
+                }
+                j += 1;
+            }
+            let value = json_prop(list_get(entries, last)!, s_value);
+            if !first {
+                out = js_string_concat(out, s_comma_text);
+            }
+            first = 0;
+            out = js_string_concat(js_string_concat(out, json_string(key)), s_colon);
+            let text = s_null;
+            if !!value {
+                text = json_of(value!);
+            }
+            out = js_string_concat(out, text);
+        }
+        i += 1;
+    }
+    js_string_concat(out, s_close_brace);
+}
+
+fn json_object_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let entries = (instance as &json_object_state).entries;
+    if str_eq(name, s_entries) {
+        return (property_ok, entries);
+    }
+    if str_eq(name, s_is_empty) {
+        return (property_ok, value_bool(list_count(entries) == 0));
+    }
+    if str_eq(name, s_json) {
+        return (property_ok, value_string(json_object_text(entries)));
+    }
+    (property_no_such_property, null);
+}
+
+fn json_object_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    if str_eq(name, s_entries) {
+        if v.kind != value_kind_list {
+            return (property_wrong_type, null);
+        }
+        return (property_ok, {json_object_state| entries: v });
+    }
+    (property_not_writable, null);
+}

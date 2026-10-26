@@ -1,0 +1,20 @@
+// The module's interface (README.md has the convention): its ABI version,
+// and registering its component types in a scope.
+
+#[export = "tutuca_abi_version"]
+fn tutuca_abi_version() -> i32 {
+    tutuca_abi_version_current;
+}
+
+#[export = "tutuca_register"]
+fn tutuca_register(s: &scope) {
+    scope_register(s, s_json_null_type, json_null_spec(), json_null_vtable());
+    scope_register(s, s_json_bool_type, json_bool_spec(), json_bool_vtable());
+    scope_register(s, s_json_number_type, json_number_spec(), json_number_vtable());
+    scope_register(s, s_json_string_type, json_string_spec(), json_string_vtable());
+    scope_register(s, s_json_selector_type, json_selector_spec(), json_selector_vtable());
+    scope_register(s, s_json_array_type, json_array_spec(), json_array_vtable());
+    scope_register(s, s_json_entry_type, json_entry_spec(), json_entry_vtable());
+    scope_register(s, s_json_object_type, json_object_spec(), json_object_vtable());
+    scope_register(s, s_json_editor_type, json_editor_spec(), json_editor_vtable());
+}

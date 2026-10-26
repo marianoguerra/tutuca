@@ -1,6 +1,7 @@
 // The showcase component module: Shelf and Note, using what the other
 // examples' views don't: a scope's binds, a loop with filter, enrich and key
-// hooks, seq items, a float, a provided value, pushView, and renderIt.
+// hooks, a loop with prepare and iter hooks, seq items, a float, a provided
+// value, pushView, renderIt, and drag and drop.
 
 import "'" {
     #[import = "Shelf"]
@@ -41,6 +42,30 @@ import "'" {
     const s_compact: &extern;
     #[import = "toggleUnread"]
     const s_toggle_unread: &extern;
+    #[import = "moveBook"]
+    const s_move_book: &extern;
+    #[import = "noteBook"]
+    const s_note_book: &extern;
+    #[import = "setText"]
+    const s_set_text: &extern;
+    #[import = "byYear"]
+    const s_by_year: &extern;
+    #[import = "drop"]
+    const s_drop: &extern;
+    #[import = "draggable"]
+    const s_draggable: &extern;
+    #[import = "true"]
+    const s_true: &extern;
+    #[import = "data-dragtype"]
+    const s_data_dragtype: &extern;
+    #[import = "book"]
+    const s_book: &extern;
+    #[import = "span"]
+    const s_span: &extern;
+    #[import = "by-year flex flex-wrap gap-1"]
+    const s_by_year_class: &extern;
+    #[import = "badge badge-ghost"]
+    const s_year_class: &extern;
     #[import = "section"]
     const s_section: &extern;
     #[import = "h2"]
@@ -105,16 +130,23 @@ import "'" {
 //   @scope header: <h2 class="card-title">{heading}</h2>
 //   <button class="btn ..." on:click="toggleUnread">{onlyUnread ? "show all" : "only unread"}</button>
 //   <ul class="flex ...">
-//     @each books (loop books): <li class={read ? "read badge ..." : "unread badge ..."}>{label}</li>
+//     @each books (loop books):
+//       <li class={read ? "read badge ..." : "unread badge ..."} draggable="true"
+//           data-dragtype="book" on:drop="moveBook(dragKey, sourceKey)">{label}</li>
 //   </ul>
+//   <div class="by-year ...">@each books (loop byYear): <span class="badge ...">{title}</span></div>
 //   <p class="tag badge ...">{tags[current]}</p>
 //   <p class="text-sm ...">{share}</p>
 //   @pushView compact: render note
-//   <div class="notes flex ...">@each notes: renderIt</div>
+//   <div class="notes flex ..." on:drop="noteBook(dragKey, sourceKey)">@each notes: renderIt</div>
 // </section>
 //
 // The books loop keeps only the unread ones when onlyUnread, keys them by
-// title, and binds label as "title (year)". Shelf provides its theme.
+// title, and binds label as "title (year)"; the byYear loop's prepare sorts
+// their indexes by year, and its iter gives the books in that order. Shelf
+// provides its theme. A book dropped on another moves there; dropped on a
+// note, which handles no drop, it reaches the notes' on:drop, which sends
+// that note the book's title.
 
 type shelf_state = {
     books: &value,
@@ -133,11 +165,16 @@ fn shelf_spec() -> &component_spec {
         return shelf_spec_made!;
     }
     let book =
-        el_attrs(
+        el_on(
             s_li,
-            strs1(s_class),
-            views1(view_if(view_field(s_read), text(s_read_class), text(s_unread_class))),
+            strs3(s_class, s_draggable, s_data_dragtype),
+            views3(
+                view_if(view_field(s_read), text(s_read_class), text(s_unread_class)),
+                text(s_true),
+                text(s_book),
+            ),
             views1(view_lookup_bind(s_label)),
+            view_ons1(s_drop, s_move_book, views2(view_drag_key(), view_source_key())),
         );
     let toggle =
         el_class_on(
@@ -150,35 +187,60 @@ fn shelf_spec() -> &component_spec {
                     )),
             view_ons1(s_click, s_toggle_unread, views0()),
         );
-    let childs = [view_array|null; 7];
+    let childs = [view_array|null; 8];
     childs[0] =
         view_scope(s_header, el_class(s_h2, s_title_class, views1(view_lookup_bind(s_heading))));
     childs[1] = toggle;
     childs[2] =
         el_class(s_ul, s_books_class, views1(view_each(view_field(s_books), book, s_books)));
     childs[3] =
+        el_class(
+            s_div,
+            s_by_year_class,
+            views1(
+                view_each(
+                    view_field(s_books),
+                    el_class(s_span, s_year_class, views1(view_field(s_title))),
+                    s_by_year,
+                ),
+            ),
+        );
+    childs[4] =
         el_attrs(
             s_p,
             strs1(s_class),
             views1(text(s_tag_class)),
             views1(view_seq_item(s_tags, s_current)),
         );
-    childs[4] = el_class(s_p, s_share_class, views1(view_field(s_share)));
-    childs[5] = view_push_view(text(s_compact), view_render(view_field(s_note), null));
-    childs[6] =
-        el_attrs(
+    childs[5] = el_class(s_p, s_share_class, views1(view_field(s_share)));
+    childs[6] = view_push_view(text(s_compact), view_render(view_field(s_note), null));
+    childs[7] =
+        el_class_on(
             s_div,
-            strs1(s_class),
-            views1(text(s_notes_class)),
+            s_notes_class,
             views1(view_each(view_field(s_notes), view_render_it(null), null)),
+            view_ons1(s_drop, s_note_book, views2(view_drag_key(), view_source_key())),
         );
     let main = el_attrs(s_section, strs1(s_class), views1(text(s_shelf_class)), childs);
-    let books =
+    let loops = [loop_def_array|null; 2];
+    loops[0] =
         {loop_def|
             name: s_books,
+            prepare: null,
+            iter: null,
             key: shelf_book_key,
             filter: shelf_book_filter,
             enrich: shelf_book_enrich,
+            view: null,
+        };
+    loops[1] =
+        {loop_def|
+            name: s_by_year,
+            prepare: shelf_by_year_prepare,
+            iter: shelf_by_year_iter,
+            key: null,
+            filter: null,
+            enrich: null,
             view: null,
         };
     let scopes = [scope_def_array|null; 1];
@@ -190,7 +252,7 @@ fn shelf_spec() -> &component_spec {
             s_shelf_type,
             strs1(s_main_view),
             views1(main),
-            loops1(books),
+            loops,
             scopes,
             strs1(s_theme),
             provides,
@@ -199,18 +261,25 @@ fn shelf_spec() -> &component_spec {
     spec;
 }
 
-fn shelf_book_key: loop_key_fn (instance: &eq, key: &value, item: &value) -> &value {
+fn shelf_book_key: loop_key_fn (instance: &eq, key: &value, item: &value, state: &value) -> &value {
     map_get(item, s_title)!;
 }
 
-fn shelf_book_filter: loop_filter_fn (instance: &eq, key: &value, item: &value) -> i32 {
+fn shelf_book_filter:
+loop_filter_fn
+(
+    instance: &eq,
+    key: &value,
+    item: &value,
+    state: &value,
+) -> i32 {
     if !(instance as &shelf_state).only_unread {
         return 1;
     }
     !value_truthy(map_get(item, s_read)!);
 }
 
-fn shelf_book_enrich: loop_enrich_fn (instance: &eq, binds: &value) -> &value {
+fn shelf_book_enrich: loop_enrich_fn (instance: &eq, binds: &value, state: &value) -> &value {
     let book = map_get(binds, s_value_bind)!;
     let title = value_string_of(map_get(book, s_title)!)!;
     let year = int_text((map_get(book, s_year)! as &value_int).value);
@@ -220,6 +289,51 @@ fn shelf_book_enrich: loop_enrich_fn (instance: &eq, binds: &value) -> &value {
             s_close_paren,
         );
     map_assoc(map_empty(), s_label, value_string(label));
+}
+
+fn shelf_book_year(books: &value, i: i32) -> i32 {
+    (map_get(list_get(books, i)!, s_year)! as &value_int).value;
+}
+
+// The books' indexes, by year: an insertion sort, stable.
+fn shelf_by_year_prepare: loop_prepare_fn (instance: &eq, books: &value) -> &value {
+    let order = list_empty();
+    let i = 0;
+    while i <s list_count(books) {
+        let year = shelf_book_year(books, i);
+        let sorted = list_empty();
+        let placed = 0;
+        let j = 0;
+        while j <s list_count(order) {
+            let at = list_get(order, j)!;
+            if !placed & (year <s shelf_book_year(books, (at as &value_int).value)) {
+                sorted = list_push(sorted, value_int(i));
+                placed = 1;
+            }
+            sorted = list_push(sorted, at);
+            j += 1;
+        }
+        if !placed {
+            sorted = list_push(sorted, value_int(i));
+        }
+        order = sorted;
+        i += 1;
+    }
+    order;
+}
+
+// [index, book] in the order prepare sorted.
+fn shelf_by_year_iter: loop_iter_fn (instance: &eq, books: &value, order: &value) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(order) {
+        let at = list_get(order, i)!;
+        let entry =
+            list_push(list_push(list_empty(), at), list_get(books, (at as &value_int).value)!);
+        out = list_push(out, entry);
+        i += 1;
+    }
+    out;
 }
 
 fn shelf_header: scope_bind_fn (instance: &eq) -> &value {
@@ -248,8 +362,18 @@ fn shelf_init: init_fn (fields: &value) -> &init_result {
 }
 
 fn shelf_with(s: &shelf_state, only_unread: i32, note: &value, notes: &value) -> &shelf_state {
+    shelf_with_books(s, s.books, only_unread, note, notes);
+}
+
+fn shelf_with_books(
+    s: &shelf_state,
+    books: &value,
+    only_unread: i32,
+    note: &value,
+    notes: &value,
+) -> &shelf_state {
     {shelf_state|
-        books: s.books,
+        books,
         only_unread,
         tags: s.tags,
         current: s.current,
@@ -264,7 +388,56 @@ fn shelf_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &messa
     if str_eq(m.name, s_toggle_unread) {
         return message_result_updated(shelf_with(s, !s.only_unread, s.note, s.notes));
     }
+    // moveBook(from, to): the book dragged from `from` dropped on the one at
+    // `to`. A drag from elsewhere has no key: nothing moves.
+    if str_eq(m.name, s_move_book) {
+        ctx_log(ctx, ctx.drag);
+        let (has_from, from) = arg_int(m.args, 0);
+        let (has_to, to) = arg_int(m.args, 1);
+        if !has_from | !has_to | (from == to) {
+            return message_result_unchanged();
+        }
+        let books = shelf_move(s.books, from, to);
+        return message_result_updated(shelf_with_books(s, books, s.only_unread, s.note, s.notes));
+    }
+    // noteBook(book, note): a book dropped on a note writes its title there.
+    if str_eq(m.name, s_note_book) {
+        let (has_book, book) = arg_int(m.args, 0);
+        let (has_note, note) = arg_int(m.args, 1);
+        if !has_book | !has_note {
+            return message_result_unchanged();
+        }
+        let title = map_get(list_get(s.books, book)!, s_title)!;
+        ctx_send_at(ctx, s_set_text, values1(title), selector_item(s_notes, path_key_index(note)));
+        return message_result_unchanged();
+    }
     message_result_rejected(message_error_unknown_message());
+}
+
+// The list with the item at from taken out and put in at to.
+fn shelf_move(items: &value, from: i32, to: i32) -> &value {
+    let moved = list_get(items, from)!;
+    let rest = list_empty();
+    let i = 0;
+    while i <s list_count(items) {
+        if i != from {
+            rest = list_push(rest, list_get(items, i)!);
+        }
+        i += 1;
+    }
+    let out = list_empty();
+    i = 0;
+    while i <s list_count(rest) {
+        if i == to {
+            out = list_push(out, moved);
+        }
+        out = list_push(out, list_get(rest, i)!);
+        i += 1;
+    }
+    if to >=s list_count(rest) {
+        out = list_push(out, moved);
+    }
+    out;
 }
 
 // The share of the books read, a float: what a view renders as JS's String(n).
@@ -374,6 +547,16 @@ fn note_init: init_fn (fields: &value) -> &init_result {
 }
 
 fn note_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    if str_eq(m.name, s_set_text) {
+        if m.args.length() != 1 {
+            return message_result_rejected(message_error_wrong_arity(1, m.args.length()));
+        }
+        let text = value_string_of(m.args[0]!);
+        if !text {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return message_result_updated({note_state| text: text! });
+    }
     message_result_rejected(message_error_unknown_message());
 }
 

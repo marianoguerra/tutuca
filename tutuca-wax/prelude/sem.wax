@@ -25,6 +25,7 @@ const arg_kind_value = 0;
 const arg_kind_target_value = 1;
 const arg_kind_source_key = 2;
 const arg_kind_if = 3;
+const arg_kind_drag_key = 4;
 
 rec {
     type arg = open { kind: i32 };
@@ -32,6 +33,8 @@ rec {
     // The value of the element with the handler.
     type arg_target_value: arg = { .. };
     type arg_source_key: arg = { .. };
+    // The item key of the receiver's child the dragged element is in.
+    type arg_drag_key: arg = { .. };
     type arg_if: arg = { .., test: &arg, then: &arg, otherwise: &arg };
 }
 

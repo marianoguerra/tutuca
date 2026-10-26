@@ -15,6 +15,10 @@ const task_kind_notify = 1; // handled, then sent on to the parent
 const task_kind_ask = 2; // the scope's ask handler, then the reply on the asker
 const task_kind_event = 3; // an event on a rendered element
 
+// The element being dragged: where it was rendered, its data-dragtype and
+// the value there when the drag started.
+type drag = { path: &dispatch_path, drag_type: &?extern, node: &extern, value: &value };
+
 type task = {
     kind: i32,
     name: &extern,
@@ -25,11 +29,12 @@ type task = {
     // Fixed for events and async replies; every other task's is frozen from
     // its target against the root when it's queued.
     route: &?route,
-    // For event tasks: the event and what's being dragged (null otherwise),
-    // the action's arguments, evaluated when the task runs, and the element
-    // with the handler, whose value a target-value argument reads.
+    // For event tasks: the event and what was being dragged when it
+    // happened (null otherwise), the action's arguments, evaluated when the
+    // task runs, and the element with the handler, whose value a
+    // target-value argument reads.
     event: &value,
-    drag: &value,
+    drag: &?drag,
     action_args: &?arg_array,
     node: &?extern
 };
@@ -82,7 +87,13 @@ type host = {
     pending: mut &pv_vector,
     // What the last render rendered, and from which root.
     rendered: mut &?vnode_array,
-    rendered_root: mut &?value
+    rendered_root: mut &?value,
+    // The element being dragged, from dragstart to dragend, and the drop
+    // target marked with data-draggingover.
+    drag: mut &?drag,
+    drag_over: mut &?extern,
+    // The event names host_new_event_names gave, as keys.
+    listening: mut &phm_map
 };
 
 fn empty_selector() -> &selector {
@@ -102,6 +113,9 @@ fn host_new(doc: &extern, container: &extern, root: &value) -> &host {
         pending: pv_empty(),
         rendered: null,
         rendered_root: null,
+        drag: null,
+        drag_over: null,
+        listening: smap_empty(),
     };
 }
 
@@ -121,7 +135,7 @@ fn task_new(
         target,
         route: null,
         event: VALUE_NULL,
-        drag: VALUE_NULL,
+        drag: null,
         action_args: null,
         node: null,
     };
@@ -218,7 +232,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
             path,
             source_key: dispatch_path_source_key_in(t.source, path),
             event: t.event,
-            drag: t.drag,
+            drag: drag_value(t.drag, path),
             effects: effect_buf_new(),
         };
     let args = t.args;
@@ -391,36 +405,231 @@ fn eval_arg(a: &arg, ctx: &context, node: &?extern) -> &value {
         }
         return value_from_key(ctx.source_key!);
     }
+    if kind == arg_kind_drag_key {
+        if ctx.drag.kind != value_kind_map {
+            return VALUE_NULL;
+        }
+        return map_get(ctx.drag, s_key)!;
+    }
     let c = a as &arg_if;
     value_truthy(eval_arg(c.test, ctx, node))?eval_arg(c.then, ctx, node)
         :eval_arg(c.otherwise, ctx, node);
 }
 
-// Routes a DOM event: queues the task of the handler it reaches, if any, with
-// its route fixed now. 1 when it reached one.
-fn host_dispatch_event(h: &host, target: &extern, kind: &extern, event: &value) -> i32 {
-    let info = decode_event(h.container, target, kind, h.root);
-    if !info {
-        return 0;
+// Routes a DOM event, e, of type kind on target: queues the task of the
+// handler it reaches, if any, with its route fixed now and what is being
+// dragged. 1 when it reached one. The drop events reach the nearest
+// enclosing component that handles them, so a drop on a child's elements
+// gets to the parent's on:drop; before that, the drag they're about is
+// tracked from dragstart to dragend.
+fn host_dispatch_event(h: &host, e: &extern, target: &extern, kind: &extern, event: &value) -> i32 {
+    let bubbles = is_drop_event(kind);
+    if str_eq(kind, s_dragstart) {
+        host_start_drag(h, e, target);
+    } else {
+        if bubbles {
+            host_drag_over(h, e, target, kind);
+        }
     }
-    let i = info!;
-    let r = i.route;
-    task_queue_push(
-        h.queue,
-        {task|
-            kind: task_kind_event,
-            name: i.handler.action.name,
-            args: empty_args(),
-            source: r.path,
-            target: {target| base: r.path, selector: empty_selector() },
-            route: r,
-            event,
-            drag: VALUE_NULL,
-            action_args: i.handler.action.args,
-            node: i.node,
-        },
-    );
-    1;
+    let info = decode_event(h.container, target, kind, h.root, bubbles);
+    let queued = 0;
+    if !!info {
+        let i = info!;
+        let r = i.route;
+        task_queue_push(
+            h.queue,
+            {task|
+                kind: task_kind_event,
+                name: i.handler.action.name,
+                args: empty_args(),
+                source: r.path,
+                target: {target| base: r.path, selector: empty_selector() },
+                route: r,
+                event,
+                drag: h.drag,
+                action_args: i.handler.action.args,
+                node: i.node,
+            },
+        );
+        queued = 1;
+    }
+    if str_eq(kind, s_dragend) {
+        host_end_drag(h);
+    }
+    queued;
+}
+
+// ---- Drag and drop (tutuca's src/drag.js and its Host's drag methods) --------
+
+fn is_drop_event(kind: &extern) -> i32 {
+    if str_eq(kind, s_dragenter) | str_eq(kind, s_dragover) {
+        return 1;
+    }
+    str_eq(kind, s_dragleave) | str_eq(kind, s_drop);
+}
+
+// Remembers what is dragged: the closest draggable element, where it was
+// rendered and its value.
+fn host_start_drag(h: &host, e: &extern, target: &extern) {
+    let node = dom_closest_draggable(target);
+    if !node {
+        return;
+    }
+    let path = path_of(h.container, node!);
+    if !path {
+        return;
+    }
+    host_end_drag(h);
+    let value = update_path_get_in(dispatch_path_resolve(path!), h.root);
+    h.drag =
+        {drag| path: path!, drag_type: dom_dataset_get(node!, s_dragtype), node: node!, value };
+    dom_dataset_set(node!, s_dragging, s_empty);
+    dom_drag_start(e);
+}
+
+// Over a drop target, an element with a drop handler, lets the drop happen
+// and marks it: the browser shows a move cursor over a drop target, a
+// not-allowed one elsewhere.
+fn host_drag_over(h: &host, e: &extern, target: &extern, kind: &extern) {
+    if str_eq(kind, s_drop) {
+        dom_prevent_default(e);
+        host_mark_drag_over(h, null);
+        return;
+    }
+    if str_eq(kind, s_dragleave) {
+        if !dom_contains(h.container, dom_related_target(e)) {
+            host_mark_drag_over(h, null);
+        }
+        return;
+    }
+    let info = decode_event(h.container, target, s_drop, h.root, 1);
+    if !info {
+        host_mark_drag_over(h, null);
+        return;
+    }
+    dom_prevent_default(e);
+    dom_drop_effect_move(e);
+    host_mark_drag_over(h, (info!).node);
+}
+
+// data-draggingover on the drop target node (none when null): the dragged
+// element's data-dragtype, or "external".
+fn host_mark_drag_over(h: &host, node: &?extern) {
+    if !node {
+        if !h.drag_over {
+            return;
+        }
+    } else {
+        if !!h.drag_over {
+            if dom_is_same_node(node!, h.drag_over!) {
+                return;
+            }
+        }
+    }
+    if !!h.drag_over {
+        dom_dataset_delete(h.drag_over!, s_draggingover);
+    }
+    h.drag_over = node;
+    if !!node {
+        let kind = s_external;
+        if !!h.drag {
+            let t = (h.drag!).drag_type;
+            if !!t {
+                kind = t!;
+            }
+        }
+        dom_dataset_set(node!, s_draggingover, kind);
+    }
+}
+
+fn host_end_drag(h: &host) {
+    host_mark_drag_over(h, null);
+    if !!h.drag {
+        dom_dataset_delete((h.drag!).node, s_dragging);
+    }
+    h.drag = null;
+}
+
+// The key of receiver's child the dragged element is in, as the source key
+// is for a message; null when it was dragged from outside receiver.
+fn drag_key_in(d: &drag, receiver: &dispatch_path) -> &?path_key {
+    let frames = d.path.frames;
+    let n = receiver.frames.length();
+    if n >=s frames.length() {
+        return null;
+    }
+    let i = 0;
+    while i <s n {
+        if !str_eq(meta_frame_text(receiver.frames[i]!), meta_frame_text(frames[i]!)) {
+            return null;
+        }
+        i += 1;
+    }
+    dispatch_path_source_key_in(d.path, receiver);
+}
+
+// What a handler at receiver reads as ctx.drag: { type, value, key }, or null.
+fn drag_value(d: &?drag, receiver: &dispatch_path) -> &value {
+    if !d {
+        return VALUE_NULL;
+    }
+    let dd = d!;
+    let kind = VALUE_NULL;
+    if !!dd.drag_type {
+        kind = value_string(dd.drag_type!);
+    }
+    let key = VALUE_NULL;
+    let found = drag_key_in(dd, receiver);
+    if !!found {
+        key = value_from_key(found!);
+    }
+    map_assoc(map_assoc(map_assoc(map_empty(), s_type, kind), s_value, dd.value), s_key, key);
+}
+
+// ---- Listening --------------------------------------------------------------
+
+// The event names the component types the root's scope tree registers handle
+// that this host hasn't given before: the ones to start listening to. The
+// tree is the whole one, from its root scope, since a component can make
+// types registered anywhere above it and the root can be swapped.
+type event_names_acc = { listening: mut &phm_map, out: mut &value };
+
+fn host_new_event_names(h: &host) -> &value {
+    let c = value_as_component(h.root);
+    if !c {
+        return list_empty();
+    }
+    let s = (c!).scope;
+    while !!s.parent {
+        s = s.parent!;
+    }
+    let acc = {event_names_acc| listening: h.listening, out: list_empty() };
+    scope_collect_event_names(acc, s);
+    h.listening = acc.listening;
+    acc.out;
+}
+
+fn scope_collect_event_names(acc: &event_names_acc, s: &scope) {
+    phm_each(s.entries, acc, event_names_entry_visit);
+    phm_each(s.children, acc, event_names_child_visit);
+}
+
+fn event_names_entry_visit(context: &?eq, key: &?eq, item: &?eq) {
+    let acc = context! as &event_names_acc;
+    let names = (item! as &scope_entry).spec.event_names;
+    let i = 0;
+    while i <s names.length() {
+        let name = names[i]!;
+        if !smap_get(acc.listening, name) {
+            acc.listening = smap_assoc(acc.listening, name, value_null());
+            acc.out = list_push(acc.out, value_string(name));
+        }
+        i += 1;
+    }
+}
+
+fn event_names_child_visit(context: &?eq, key: &?eq, item: &?eq) {
+    scope_collect_event_names(context! as &event_names_acc, item! as &scope);
 }
 
 // An ask answered later settled: its reply joins the queue, routed to the
@@ -462,7 +671,7 @@ fn host_settle(h: &host, handle: &extern, result: &value) -> i32 {
                     target: t.target,
                     route: route_for(p.source),
                     event: VALUE_NULL,
-                    drag: VALUE_NULL,
+                    drag: null,
                     action_args: null,
                     node: null,
                 },

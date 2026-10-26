@@ -1,7 +1,9 @@
 // TodoList, a component module of its own: it holds TodoItem components in a
 // field and renders each in a keyed loop. It reads an item's done through the
 // item's vtable (get), sends items messages (sendAt), and handles the notify
-// an item sends to be removed. TodoItem is another module's
+// an item sends to be removed, and moves the item dragged onto another to
+// its place: the items are draggable, and a drop on one, which handles no
+// drop, reaches the list's on:drop. TodoItem is another module's
 // (components/todo_item): addTodo makes one by name, through the scope, so
 // it works once some module has registered TodoItem there.
 
@@ -12,6 +14,10 @@ import "'" {
     const s_todo_item_type: &extern;
     #[import = "items"]
     const s_items: &extern;
+    #[import = "drop"]
+    const s_drop: &extern;
+    #[import = "moveItem"]
+    const s_move_item: &extern;
     #[import = "draft"]
     const s_draft: &extern;
     #[import = "nextId"]
@@ -99,7 +105,9 @@ import "'" {
 //     <input class="input ... join-item" placeholder="What needs doing?" value={draft} on:input="setDraft(targetValue)">
 //     <button class="btn ... join-item" on:click="addTodo">add</button>
 //   </div>
-//   <ul class="list ...">@each items as item (keyed by its id): render item</ul>
+//   <ul class="list ..." on:drop="moveItem(dragKey, sourceKey)">
+//     @each items as item (keyed by its id): render item
+//   </ul>
 //   <footer class="flex items-center gap-2 text-sm">
 //     <span class="flex-1 ...">{remaining} of {count} left</span>
 //     <button class="btn btn-xs" on:click="completeAll">all done</button>
@@ -164,21 +172,39 @@ fn todo_list_spec() -> &component_spec {
                 ),
             ),
         );
-    let list = el_class(s_ul, s_list_class, views1(view_render_each(
-                                                        view_field(s_items),
-                                                        s_items,
-                                                    )));
+    let list =
+        el_class_on(
+            s_ul,
+            s_list_class,
+            views1(view_render_each(view_field(s_items), s_items)),
+            view_ons1(s_drop, s_move_item, views2(view_drag_key(), view_source_key())),
+        );
     let main = el_class(s_section, s_todos_class, views3(entry, list, footer));
     // Keyed by the item's id, so an item keeps its DOM when the ones before it
     // go; routed by its index in items.
     let by_id =
-        {loop_def| name: s_items, key: todo_list_item_key, filter: null, enrich: null, view: null };
+        {loop_def|
+            name: s_items,
+            prepare: null,
+            iter: null,
+            key: todo_list_item_key,
+            filter: null,
+            enrich: null,
+            view: null,
+        };
     let spec = spec_main(s_todo_list_type, main, loops1(by_id));
     todo_list_spec_made = spec;
     spec;
 }
 
-fn todo_list_item_key: loop_key_fn (instance: &eq, key: &value, item: &value) -> &value {
+fn todo_list_item_key:
+loop_key_fn
+(
+    instance: &eq,
+    key: &value,
+    item: &value,
+    state: &value,
+) -> &value {
     value_int(todo_list_item_id(item, (key as &value_int).value));
 }
 
@@ -257,6 +283,30 @@ fn todo_list_keep(items: &value, skip: i32, drop_done: i32) -> &value {
     out;
 }
 
+// The list with the item at from taken out and put in at to.
+fn todo_list_move(items: &value, from: i32, to: i32) -> &value {
+    let moved = list_get(items, from)!;
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(items) {
+        if i == to {
+            if to <s from {
+                out = list_push(out, moved);
+            }
+        }
+        if i != from {
+            out = list_push(out, list_get(items, i)!);
+        }
+        if i == to {
+            if to >s from {
+                out = list_push(out, moved);
+            }
+        }
+        i += 1;
+    }
+    out;
+}
+
 fn todo_list_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
     let state = instance as &todo_list_state;
     let name = m.name;
@@ -292,6 +342,20 @@ fn todo_list_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &m
         return
             message_result_updated(
                 {todo_list_state| items, draft: s_empty, next_id: state.next_id + 1 },
+            );
+    }
+    // moveItem(from, to): the item dragged from from, dropped on the one at
+    // to, takes its place. Something dragged from elsewhere has no key.
+    if str_eq(name, s_move_item) {
+        let (has_from, from) = arg_int(m.args, 0);
+        let (has_to, to) = arg_int(m.args, 1);
+        if !has_from | !has_to | (from == to) {
+            return message_result_unchanged();
+        }
+        let items = todo_list_move(state.items, from, to);
+        return
+            message_result_updated(
+                {todo_list_state| items, draft: state.draft, next_id: state.next_id },
             );
     }
     // Each item changes itself: the list only addresses them.

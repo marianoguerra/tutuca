@@ -86,6 +86,10 @@ export const COMPONENTS = [
 	{ name: "todo_card", sources: ["components/todo_card/todo_card.wax"] },
 	// Shelf and Note: scopes, loop hooks, provided values, pushView, renderIt.
 	{ name: "showcase", sources: ["components/showcase/showcase.wax"] },
+	{
+		name: "json",
+		sources: ["components/json/common.wax", "components/json/scalars.wax", "components/json/collections.wax", "components/json/editor.wax", "components/json/register.wax"],
+	},
 ];
 
 

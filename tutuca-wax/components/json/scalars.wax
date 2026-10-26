@@ -1,0 +1,375 @@
+// The scalar values, and JsonSelector, a value still to be chosen.
+
+// ---- JsonNull ------------------------------------------------------------------
+//
+// main: <span class="... text-warning">null</span>
+
+let json_null_spec_made: &?component_spec = null;
+
+fn json_null_spec() -> &component_spec {
+    if !!json_null_spec_made {
+        return json_null_spec_made!;
+    }
+    let spec =
+        json_spec(
+            s_json_null_type,
+            strs1(s_main),
+            views1(json_span_text(s_c_null, s_null)),
+            no_loops(),
+        );
+    json_null_spec_made = spec;
+    spec;
+}
+
+fn json_null_vtable() -> &vtable {
+    {vtable|
+        init: json_unit_init,
+        handle: json_unit_handle,
+        get: json_null_get,
+        set: json_read_only,
+    };
+}
+
+fn json_unit_init: init_fn (fields: &value) -> &init_result {
+    init_ok(JSON_UNIT, list_empty());
+}
+
+fn json_unit_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn json_null_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    if str_eq(name, s_json) {
+        return (property_ok, value_string(s_null));
+    }
+    (property_no_such_property, null);
+}
+
+fn json_read_only: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    (property_not_writable, null);
+}
+
+// ---- JsonBool ------------------------------------------------------------------
+//
+// main: <span class="... text-accent">{value ? "true" : "false"}</span>
+// edit: <button class="... text-accent cursor-pointer ..." title="Toggle"
+//         aria-label="boolean value" on:click="toggle">{value ? "true" : "false"}</button>
+
+type json_bool_state = { value: i32 };
+
+let json_bool_spec_made: &?component_spec = null;
+
+fn json_bool_text() -> &view {
+    view_if(view_field(s_value), text(s_true), text(s_false));
+}
+
+fn json_bool_spec() -> &component_spec {
+    if !!json_bool_spec_made {
+        return json_bool_spec_made!;
+    }
+    let main = el_class(s_span, s_c_bool, views1(json_bool_text()));
+    let edit =
+        el_on(
+            s_button,
+            json_strs4(s_type, s_class, s_title, s_aria_label),
+            views4(text(s_button), text(s_c_bool_edit), text(s_toggle_title), text(s_bool_label)),
+            views1(json_bool_text()),
+            view_ons1(s_click, s_toggle, views0()),
+        );
+    let spec = json_spec(s_json_bool_type, strs2(s_main, s_edit), views2(main, edit), no_loops());
+    json_bool_spec_made = spec;
+    spec;
+}
+
+fn json_bool_vtable() -> &vtable {
+    {vtable|
+        init: json_bool_init,
+        handle: json_bool_handle,
+        get: json_bool_get,
+        set: json_read_only,
+    };
+}
+
+fn json_bool_init: init_fn (fields: &value) -> &init_result {
+    let (value, issues) = init_bool(fields, s_value, 0, list_empty());
+    init_ok({json_bool_state| value }, issues);
+}
+
+fn json_bool_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    if str_eq(m.name, s_toggle) {
+        return
+            message_result_updated(
+                {json_bool_state| value: !(instance as &json_bool_state).value },
+            );
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn json_bool_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let value = (instance as &json_bool_state).value;
+    if str_eq(name, s_value) {
+        return (property_ok, value_bool(value));
+    }
+    if str_eq(name, s_json) {
+        return (property_ok, value_string(value?s_true:s_false));
+    }
+    (property_no_such_property, null);
+}
+
+// ---- JsonNumber ----------------------------------------------------------------
+//
+// main: <span class="... text-info">{value}</span>
+// edit: <input class={valid ? "... text-info ..." : "... text-info ... text-error"}
+//         inputmode="decimal" aria-label="number value" title={value} value={text}
+//         on:input="setText(targetValue)">
+//
+// text is what the user typed; value follows it whenever it reads as a number.
+
+type json_number_state = { value: f64, text: &extern };
+
+let json_number_spec_made: &?component_spec = null;
+
+fn json_number_spec() -> &component_spec {
+    if !!json_number_spec_made {
+        return json_number_spec_made!;
+    }
+    let main = el_class(s_span, s_c_number, views1(view_field(s_value)));
+    let names = [str_array|null; 5];
+    names[0] = s_class;
+    names[1] = s_inputmode;
+    names[2] = s_aria_label;
+    names[3] = s_title;
+    names[4] = s_value;
+    let edit =
+        el_on(
+            s_input,
+            names,
+            views5(
+                view_if(view_field(s_valid), text(s_c_number_input), text(s_c_number_input_bad)),
+                text(s_decimal),
+                text(s_number_label),
+                view_field(s_value),
+                view_field(s_text),
+            ),
+            views0(),
+            view_ons1(s_input, s_set_text, views1(view_target_value())),
+        );
+    let spec = json_spec(s_json_number_type, strs2(s_main, s_edit), views2(main, edit), no_loops());
+    json_number_spec_made = spec;
+    spec;
+}
+
+fn json_number_vtable() -> &vtable {
+    {vtable|
+        init: json_number_init,
+        handle: json_number_handle,
+        get: json_number_get,
+        set: json_read_only,
+    };
+}
+
+// value is an int or a float; text defaults to it as JS writes it.
+fn json_number_init: init_fn (fields: &value) -> &init_result {
+    let issues = list_empty();
+    let value = 0.0;
+    let found = fields.kind == value_kind_map?map_get(fields, s_value):null;
+    let is_float = 0;
+    if !!found {
+        is_float = (found!).kind == value_kind_float;
+    }
+    if is_float {
+        value = (found! as &value_float).value;
+    } else {
+        // An int, or the issue saying why there's none.
+        let (n, int_issues) = init_int(fields, s_value, 0, issues);
+        value = n as f64_s;
+        issues = int_issues;
+    }
+    let (text, more) = init_string(fields, s_text, number_text(value), issues);
+    init_ok({json_number_state| value, text }, more);
+}
+
+fn json_number_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let s = instance as &json_number_state;
+    if str_eq(m.name, s_set_text) {
+        let text = json_arg_string(m.args);
+        if !text {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        let (ok, n) = parse_number(text!);
+        return message_result_updated({json_number_state| value: ok?n:s.value, text: text! });
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn json_number_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let s = instance as &json_number_state;
+    if str_eq(name, s_value) {
+        return (property_ok, value_float(s.value));
+    }
+    if str_eq(name, s_text) {
+        return (property_ok, value_string(s.text));
+    }
+    if str_eq(name, s_valid) {
+        let (ok, n) = parse_number(s.text);
+        return (property_ok, value_bool(ok));
+    }
+    if str_eq(name, s_json) {
+        return (property_ok, value_string(number_text(s.value)));
+    }
+    (property_no_such_property, null);
+}
+
+// ---- JsonString ----------------------------------------------------------------
+//
+// main: <span class="... text-success">"{value}"</span>
+// edit: <span class="... text-success">"<input class="..." aria-label="string value"
+//         value={value} on:input="setValue(targetValue)">"</span>
+
+type json_string_state = { value: &extern };
+
+let json_string_spec_made: &?component_spec = null;
+
+fn json_string_spec() -> &component_spec {
+    if !!json_string_spec_made {
+        return json_string_spec_made!;
+    }
+    let main =
+        el_class(s_span, s_c_string, views3(text(s_quote), view_field(s_value), text(s_quote)));
+    let input =
+        el_on(
+            s_input,
+            strs3(s_class, s_aria_label, s_value),
+            views3(text(s_c_inline), text(s_string_label), view_field(s_value)),
+            views0(),
+            view_ons1(s_input, s_set_value, views1(view_target_value())),
+        );
+    let edit = el_class(s_span, s_c_string, views3(text(s_quote), input, text(s_quote)));
+    let spec = json_spec(s_json_string_type, strs2(s_main, s_edit), views2(main, edit), no_loops());
+    json_string_spec_made = spec;
+    spec;
+}
+
+fn json_string_vtable() -> &vtable {
+    {vtable|
+        init: json_string_init,
+        handle: json_string_handle,
+        get: json_string_get,
+        set: json_read_only,
+    };
+}
+
+fn json_string_init: init_fn (fields: &value) -> &init_result {
+    let (value, issues) = init_string(fields, s_value, s_empty, list_empty());
+    init_ok({json_string_state| value }, issues);
+}
+
+fn json_string_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    if str_eq(m.name, s_set_value) {
+        let value = json_arg_string(m.args);
+        if !value {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return message_result_updated({json_string_state| value: value! });
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn json_string_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let value = (instance as &json_string_state).value;
+    if str_eq(name, s_value) {
+        return (property_ok, value_string(value));
+    }
+    if str_eq(name, s_json) {
+        return (property_ok, value_string(json_string(value)));
+    }
+    (property_no_such_property, null);
+}
+
+// ---- JsonSelector --------------------------------------------------------------
+//
+// main: <span class="... italic opacity-40">…</span>
+// edit: <span class="inline-flex ..." role="group" aria-label="Pick a type">
+//         <button class="... text-warning ..." title="null" on:click="setTo('null')">null</button>
+//         ... one per type: bool false, number 0, string "", array [], object {}
+//       </span>
+//
+// setTo replaces it with an empty value of the type picked.
+
+let json_selector_spec_made: &?component_spec = null;
+
+fn json_choice(class: &extern, kind: &extern, label: &extern) -> &view {
+    json_button(text(class), kind, label, s_set_to, views1(text(kind)));
+}
+
+fn json_selector_spec() -> &component_spec {
+    if !!json_selector_spec_made {
+        return json_selector_spec_made!;
+    }
+    let main = json_span_text(s_c_selector, s_ellipsis);
+    let choices = [view_array|null; 6];
+    choices[0] = json_choice(s_c_choice_null, s_null, s_null);
+    choices[1] = json_choice(s_c_choice_bool, s_bool, s_false);
+    choices[2] = json_choice(s_c_choice_number, s_number, s_zero);
+    choices[3] = json_choice(s_c_choice_string, s_string, s_quotes);
+    choices[4] = json_choice(s_c_choice_plain, s_array, s_brackets);
+    choices[5] = json_choice(s_c_choice_plain, s_object, s_braces);
+    let edit =
+        el_attrs(
+            s_span,
+            strs3(s_class, s_role, s_aria_label),
+            views3(text(s_c_choices), text(s_group), text(s_pick_label)),
+            choices,
+        );
+    let spec =
+        json_spec(s_json_selector_type, strs2(s_main, s_edit), views2(main, edit), no_loops());
+    json_selector_spec_made = spec;
+    spec;
+}
+
+fn json_selector_vtable() -> &vtable {
+    {vtable|
+        init: json_unit_init,
+        handle: json_selector_handle,
+        get: json_null_get,
+        set: json_read_only,
+    };
+}
+
+// The type name a choice makes, or null.
+fn json_choice_type(kind: &extern) -> &?extern {
+    if str_eq(kind, s_null) {
+        return s_json_null_type;
+    }
+    if str_eq(kind, s_bool) {
+        return s_json_bool_type;
+    }
+    if str_eq(kind, s_number) {
+        return s_json_number_type;
+    }
+    if str_eq(kind, s_string) {
+        return s_json_string_type;
+    }
+    if str_eq(kind, s_array) {
+        return s_json_array_type;
+    }
+    if str_eq(kind, s_object) {
+        return s_json_object_type;
+    }
+    null;
+}
+
+fn json_selector_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    if str_eq(m.name, s_set_to) {
+        let kind = json_arg_string(m.args);
+        if !kind {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        let name = json_choice_type(kind!);
+        if !name {
+            return message_result_rejected(message_error_wrong_arg_type(0));
+        }
+        return message_result_swapped(ctx_make(ctx, name!, map_empty()));
+    }
+    message_result_rejected(message_error_unknown_message());
+}

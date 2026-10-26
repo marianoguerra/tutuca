@@ -1,6 +1,7 @@
 // What walking a component type's views collects (src/walk.wax): its
-// templates (the spec's collect, tutuca's Collect in src/walk.js) and the
-// constant class names they use (ClassNames in tutuca's src/css/classes.js).
+// templates (the spec's collect, tutuca's Collect in src/walk.js), the DOM
+// events they handle (ComponentSpec's eventNames) and the constant class
+// names they use (ClassNames in tutuca's src/css/classes.js).
 
 // ---- Templates ---------------------------------------------------------------
 //
@@ -46,6 +47,9 @@ fn view_to_arg(v: &view) -> &arg {
         }
         k: &view_source_key => {
             return arg_source_key();
+        }
+        d: &view_drag_key => {
+            return arg_drag_key();
         }
         c: &view_if => {
             return arg_if(view_to_arg(c.test), view_to_arg(c.then), view_to_arg(c.otherwise));
@@ -134,6 +138,47 @@ fn views_collect_templates(views: &view_array) -> &template_array {
     walk_all(walker_new(s, vt), views);
     let out = [template_array|null; s.len];
     out.copy(0, s.items, 0, s.len);
+    out;
+}
+
+// ---- Event names --------------------------------------------------------------
+//
+// The DOM events views handle, each once, in the order their handlers
+// appear: what a host listens to on its container. A drop target needs the
+// drag from its start, so handling drop brings every drag event with it.
+
+type collect_events_state = { seen: mut &phm_map, names: &ext_buf };
+
+fn collect_events_add(s: &collect_events_state, name: &extern) {
+    if !!smap_get(s.seen, name) {
+        return;
+    }
+    s.seen = smap_assoc(s.seen, name, value_null());
+    ext_buf_push(s.names, name);
+}
+
+fn collect_events_handler: handler_fn (w: &walker, e: &view_el, h: &view_on) {
+    collect_events_add(w.state as &collect_events_state, h.event);
+}
+
+fn views_collect_event_names(views: &view_array) -> &str_array {
+    let vt = walker_vtable_default();
+    vt.handler = collect_events_handler;
+    let s = {collect_events_state| seen: smap_empty(), names: ext_buf_new(4) };
+    walk_all(walker_new(s, vt), views);
+    if !!smap_get(s.seen, s_drop) {
+        collect_events_add(s, s_dragstart);
+        collect_events_add(s, s_dragend);
+        collect_events_add(s, s_dragenter);
+        collect_events_add(s, s_dragover);
+        collect_events_add(s, s_dragleave);
+    }
+    let out = [str_array|null; s.names.len];
+    let i = 0;
+    while i <s s.names.len {
+        out[i] = ext_buf_at(s.names, i);
+        i += 1;
+    }
     out;
 }
 

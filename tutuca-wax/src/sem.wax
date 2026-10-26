@@ -6,6 +6,7 @@
 
 const ARG_TARGET_VALUE: &arg = {arg_target_value| kind: arg_kind_target_value };
 const ARG_SOURCE_KEY: &arg = {arg_source_key| kind: arg_kind_source_key };
+const ARG_DRAG_KEY: &arg = {arg_drag_key| kind: arg_kind_drag_key };
 
 fn arg_value(value: &value) -> &arg {
     let out: &arg_value = { kind: arg_kind_value, value };
@@ -18,6 +19,10 @@ fn arg_target_value() -> &arg {
 
 fn arg_source_key() -> &arg {
     ARG_SOURCE_KEY;
+}
+
+fn arg_drag_key() -> &arg {
+    ARG_DRAG_KEY;
 }
 
 fn arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {

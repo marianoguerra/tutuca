@@ -14,6 +14,14 @@ import "'" {
     const s_done: &extern;
     #[import = "li"]
     const s_li: &extern;
+    #[import = "draggable"]
+    const s_draggable: &extern;
+    #[import = "data-dragtype"]
+    const s_data_dragtype: &extern;
+    #[import = "true"]
+    const s_true: &extern;
+    #[import = "todo"]
+    const s_todo_dragtype: &extern;
     #[import = "input"]
     const s_input: &extern;
     #[import = "span"]
@@ -60,7 +68,7 @@ import "'" {
 
 // ---- TodoItem --------------------------------------------------------------------
 //
-// <li class={done ? "todo done list-row ..." : "todo list-row ..."}>
+// <li class={done ? "todo done list-row ..." : "todo list-row ..."} draggable="true" data-dragtype="todo">
 //   <input type="checkbox" class="checkbox checkbox-sm" checked={done} on:change="toggle">
 //   <span class={done ? "list-col-grow line-through" : "list-col-grow"}>{text}</span>
 //   <button class="btn btn-xs btn-ghost" on:click="remove">x</button>
@@ -77,8 +85,12 @@ fn todo_item_spec() -> &component_spec {
     let main =
         el_attrs(
             s_li,
-            strs1(s_class),
-            views1(view_if(view_field(s_done), text(s_todo_done_class), text(s_todo_class))),
+            strs3(s_class, s_draggable, s_data_dragtype),
+            views3(
+                view_if(view_field(s_done), text(s_todo_done_class), text(s_todo_class)),
+                text(s_true),
+                text(s_todo_dragtype),
+            ),
             views3(
                 el_on(
                     s_input,
