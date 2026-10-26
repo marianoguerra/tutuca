@@ -1,0 +1,243 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/tcd/syntax"
+
+import {
+  "moonbitlang/core/debug",
+  "tutuca/tcd/diag",
+}
+
+// Values
+pub fn parse(String, String) -> (File, Array[@diag.Diagnostic])
+
+pub fn tokenize(String, String) -> (Array[Token], Array[@diag.Diagnostic])
+
+// Errors
+
+// Types and methods
+pub(all) struct Attr {
+  key : Name
+  value : ViewExpr
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum BinOp {
+  Add
+  Sub
+  Eq
+  Ne
+  Lt
+  Le
+  Gt
+  Ge
+  And
+  Or
+  In
+  NotIn
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Decl {
+  doc : String?
+  name : Name
+  implements : Array[Name]
+  members : Array[Member]
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Emit {
+  kind : EmitKind
+  target : Array[Name]
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum EmitKind {
+  Notify
+  Ask
+  Send
+  Make
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Example {
+  name : Name
+  component : Name
+  start : Array[(Name, Expr)]
+  steps : Array[Step]
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Expr {
+  Lit(Lit, span~ : @diag.Span)
+  Path(Array[Name], span~ : @diag.Span)
+  Call(Name, Array[Expr], span~ : @diag.Span)
+  List(Array[Expr], span~ : @diag.Span)
+  Record(Array[(Name, Expr)], span~ : @diag.Span)
+  Not(Expr, span~ : @diag.Span)
+  Bin(BinOp, Expr, Expr, span~ : @diag.Span)
+  Matches(Expr, String, span~ : @diag.Span)
+} derive(Eq, ToJson, @debug.Debug)
+pub fn Expr::span(Self) -> @diag.Span
+
+pub(all) struct Field {
+  doc : String?
+  name : Name
+  ty : TypeExpr
+  default : Expr?
+  where_ : Expr?
+  sync : Name?
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct File {
+  path : String
+  package_decl : (String, @diag.Span)?
+  uses : Array[Use]
+  items : Array[Item]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Invariant {
+  doc : String?
+  name : Name
+  cond : Expr
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Item {
+  Interface(Decl)
+  Component(Decl)
+  Register(Array[Register], span~ : @diag.Span)
+  AskHandler(Signal)
+  HostAsk(Name)
+  Example(Example)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Lit {
+  Int(Int64)
+  Float(Double)
+  Str(String)
+  Bool(Bool)
+  Null
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct LoopDecl {
+  name : Name
+  prepare : TypeExpr?
+  iter : Bool
+  key : TypeExpr?
+  filter : Bool
+  enrich : Array[(Name, TypeExpr)]?
+  view : Name?
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Member {
+  Field(Field)
+  Get(Field)
+  Message(Message)
+  Notify(Signal)
+  Ask(Signal)
+  Invariant(Invariant)
+  Init(@diag.Span)
+  Loop(LoopDecl)
+  Scope(ScopeDecl)
+  Provide(Provide)
+  View(ViewDecl)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Message {
+  doc : String?
+  name : Name
+  params : Array[Param]
+  swap : Bool
+  source_key : Param?
+  when_ : Expr?
+  changes : Array[Name]?
+  ensures : Expr?
+  emits : Array[Emit]?
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Name {
+  text : String
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Param {
+  name : Name
+  ty : TypeExpr
+  where_ : Expr?
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Provide {
+  name : Name
+  source : ViewExpr
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Register {
+  name : Name
+  as_ : Name?
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct ScopeDecl {
+  name : Name
+  binds : Array[(Name, TypeExpr)]
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Signal {
+  doc : String?
+  name : Name
+  params : Array[Param]
+  result : TypeExpr?
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Step {
+  Send(Name, Array[Expr], span~ : @diag.Span)
+  Expect(Expr, span~ : @diag.Span)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Tok {
+  Ident(String)
+  Str(String)
+  Int(String)
+  Float(String)
+  Punct(String)
+  Eof
+} derive(Eq, @debug.Debug)
+
+pub(all) struct Token {
+  tok : Tok
+  span : @diag.Span
+  doc : String?
+} derive(@debug.Debug)
+
+pub(all) enum TypeExpr {
+  Named(Name)
+  Apply(Name, Array[TypeExpr], span~ : @diag.Span)
+  Enum(Array[Name], span~ : @diag.Span)
+  Record(Array[(Name, TypeExpr)], span~ : @diag.Span)
+} derive(Eq, ToJson, @debug.Debug)
+pub fn TypeExpr::span(Self) -> @diag.Span
+
+pub(all) struct Use {
+  path : String
+  names : Array[Name]
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct ViewDecl {
+  doc : String?
+  name : Name
+  body : ViewExpr
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum ViewExpr {
+  Lit(Lit, span~ : @diag.Span)
+  Name(Name)
+  Call(Name, Array[Attr], Array[ViewExpr], span~ : @diag.Span)
+} derive(Eq, ToJson, @debug.Debug)
+pub fn ViewExpr::span(Self) -> @diag.Span
+
+// Type aliases
+
+// Traits

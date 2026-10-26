@@ -1,0 +1,206 @@
+// The json component module: a JSON tree, read only in each value's main
+// view, edited in place in its edit view (components/json in tutuca's JS).
+// JsonEditor pushes its mode's view above the tree, so "edit" switches the
+// whole tree; values without an edit view keep main. Every value implements
+// json_value: its json property is its compact JSON text, which the
+// collections compose and the editor indents.
+package tutuca:json@0.1.0;
+
+/// What every value is: its JSON text.
+interface json_value {
+    get json: string;
+}
+
+/// null.
+component json_null: json_value {
+    get json: string;
+    view main = span(class: "font-mono text-sm leading-6 text-warning", "null");
+}
+
+/// true or false; edit toggles it.
+component json_bool: json_value {
+    field value: bool;
+    get json: string;
+
+    message toggle() changes value ensures next.value == not value;
+
+    view main = span(class: "font-mono text-sm leading-6 text-accent", if(field(value), "true", "false"));
+    view edit = button(type: "button",
+        class: "font-mono text-sm leading-6 text-accent cursor-pointer underline decoration-dashed decoration-transparent hover:decoration-current",
+        title: "Toggle", "aria-label": "boolean value", on_click: send(toggle),
+        if(field(value), "true", "false"));
+}
+
+/// A number. text is what the user typed; value follows it whenever it
+/// reads as a number.
+component json_number: json_value {
+    field value: f64;
+    field text: string = "0";
+    /// Whether text reads as a number.
+    get valid: bool;
+    get json: string;
+
+    message set_text(text: string) changes value, text ensures next.text == text;
+
+    view main = span(class: "font-mono text-sm leading-6 text-info", field(value));
+    view edit = input(
+        class: if(field(valid),
+            "font-mono text-sm leading-6 text-info min-w-[1ch] [field-sizing:content] bg-transparent p-0 outline-none border-0 border-b border-dashed border-transparent hover:border-base-content/30 focus:border-primary",
+            "font-mono text-sm leading-6 text-info min-w-[1ch] [field-sizing:content] bg-transparent p-0 outline-none border-0 border-b border-dashed border-transparent hover:border-base-content/30 focus:border-primary text-error"),
+        inputmode: "decimal", "aria-label": "number value", title: field(value), value: field(text),
+        on_input: send(set_text, target_value()));
+}
+
+/// A string.
+component json_string: json_value {
+    field value: string;
+    get json: string;
+
+    message set_value(value: string) changes value ensures next.value == value;
+
+    view main = span(class: "font-mono text-sm leading-6 text-success", "\"", field(value), "\"");
+    view edit = span(class: "font-mono text-sm leading-6 text-success",
+        "\"",
+        input(class: "min-w-[1ch] [field-sizing:content] bg-transparent p-0 outline-none border-0 border-b border-dashed border-transparent hover:border-base-content/30 focus:border-primary",
+            "aria-label": "string value", value: field(value), on_input: send(set_value, target_value())),
+        "\"");
+}
+
+/// A value still to be chosen, in a new array item or object entry: set_to
+/// replaces it with an empty value of the type picked.
+component json_selector: json_value {
+    get json: string;
+
+    message set_to(kind: enum { null, bool, number, string, array, object }) -> swap
+        emits make json_null, make json_bool, make json_number, make json_string, make json_array, make json_object;
+
+    view main = span(class: "font-mono text-sm leading-6 italic opacity-40", "…");
+    view edit = span(class: "inline-flex flex-wrap items-center gap-1", role: "group", "aria-label": "Pick a type",
+        button(type: "button", class: "font-mono text-sm leading-6 text-warning cursor-pointer rounded border border-dashed border-base-content/20 px-1 hover:border-current", title: "null", on_click: send(set_to, "null"), "null"),
+        button(type: "button", class: "font-mono text-sm leading-6 text-accent cursor-pointer rounded border border-dashed border-base-content/20 px-1 hover:border-current", title: "bool", on_click: send(set_to, "bool"), "false"),
+        button(type: "button", class: "font-mono text-sm leading-6 text-info cursor-pointer rounded border border-dashed border-base-content/20 px-1 hover:border-current", title: "number", on_click: send(set_to, "number"), "0"),
+        button(type: "button", class: "font-mono text-sm leading-6 text-success cursor-pointer rounded border border-dashed border-base-content/20 px-1 hover:border-current", title: "string", on_click: send(set_to, "string"), "\"\""),
+        button(type: "button", class: "font-mono text-sm leading-6 cursor-pointer rounded border border-dashed border-base-content/20 px-1 hover:border-current", title: "array", on_click: send(set_to, "array"), "[]"),
+        button(type: "button", class: "font-mono text-sm leading-6 cursor-pointer rounded border border-dashed border-base-content/20 px-1 hover:border-current", title: "object", on_click: send(set_to, "object"), "{}"));
+}
+
+/// A list of values.
+component json_array: json_value {
+    field items: list<json_value>;
+    get is_empty: bool;
+    get json: string;
+
+    message add() changes items ensures len(next.items) == len(items) + 1 emits make json_selector;
+    message remove_at(key: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    message move_up(key: index<items>) changes items ensures len(next.items) == len(items);
+
+    /// Commas after every item but the last.
+    loop items { prepare: s32; enrich { comma: string } }
+
+    view main = if(field(is_empty),
+        div(class: "inline-flex items-baseline gap-1", span(class: "font-mono text-sm leading-6 opacity-50", "[]")),
+        div(class: "inline-flex flex-col",
+            span(class: "font-mono text-sm leading-6 opacity-50", "["),
+            div(class: "ml-1 flex flex-col border-l border-base-content/15 pl-4",
+                each(loop: items, field(items),
+                    div(class: "group flex items-baseline gap-1",
+                        render_it(), span(class: "font-mono text-sm leading-6 opacity-50", bind(comma))))),
+            span(class: "font-mono text-sm leading-6 opacity-50", "]")));
+    view edit = if(field(is_empty),
+        div(class: "inline-flex items-baseline gap-1",
+            span(class: "font-mono text-sm leading-6 opacity-50", "[]"),
+            button(type: "button", class: "cursor-pointer self-start rounded px-1 font-mono text-xs opacity-50 hover:opacity-100", on_click: send(add), "+ item")),
+        div(class: "inline-flex flex-col",
+            span(class: "font-mono text-sm leading-6 opacity-50", "["),
+            div(class: "ml-1 flex flex-col border-l border-base-content/15 pl-4",
+                each(loop: items, field(items),
+                    div(class: "group flex items-baseline gap-1",
+                        render_it(), span(class: "font-mono text-sm leading-6 opacity-50", bind(comma)),
+                        button(type: "button", class: "cursor-pointer rounded px-1 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus:opacity-100", title: "Move up", on_click: send(move_up, source_key()), "↑"),
+                        button(type: "button", class: "cursor-pointer rounded px-1 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus:opacity-100 text-error", title: "Remove", on_click: send(remove_at, source_key()), "×"))),
+                button(type: "button", class: "cursor-pointer self-start rounded px-1 font-mono text-xs opacity-50 hover:opacity-100", on_click: send(add), "+ item")),
+            span(class: "font-mono text-sm leading-6 opacity-50", "]")));
+}
+
+/// An object's entry: a key and its value.
+component json_entry {
+    field key: string;
+    field value: json_value;
+
+    message set_key(key: string) changes key ensures next.key == key;
+
+    view main = span(class: "inline-flex items-baseline gap-1",
+        span(class: "font-mono text-sm leading-6 text-secondary", "\"", field(key), "\""),
+        span(class: "font-mono text-sm leading-6 opacity-50", ":"),
+        render(field(value)));
+    view edit = span(class: "inline-flex items-baseline gap-1",
+        span(class: "font-mono text-sm leading-6 text-secondary", "\"",
+            input(class: "min-w-[1ch] [field-sizing:content] bg-transparent p-0 outline-none border-0 border-b border-dashed border-transparent hover:border-base-content/30 focus:border-primary",
+                "aria-label": "key", value: field(key), on_input: send(set_key, target_value())),
+            "\""),
+        span(class: "font-mono text-sm leading-6 opacity-50", ":"),
+        render(field(value)));
+}
+
+/// Keys and values. Later entries win, as in JSON.parse.
+component json_object: json_value {
+    field entries: list<json_entry>;
+    get is_empty: bool;
+    get json: string;
+
+    message add() changes entries ensures len(next.entries) == len(entries) + 1
+        emits make json_entry, make json_selector;
+    message remove_at(key: index<entries>) changes entries ensures len(next.entries) == len(entries) - 1;
+    message move_up(key: index<entries>) changes entries ensures len(next.entries) == len(entries);
+
+    loop items { prepare: s32; enrich { comma: string } }
+
+    view main = if(field(is_empty),
+        div(class: "inline-flex items-baseline gap-1", span(class: "font-mono text-sm leading-6 opacity-50", "{}")),
+        div(class: "inline-flex flex-col",
+            span(class: "font-mono text-sm leading-6 opacity-50", "{"),
+            div(class: "ml-1 flex flex-col border-l border-base-content/15 pl-4",
+                each(loop: items, field(entries),
+                    div(class: "group flex items-baseline gap-1",
+                        render_it(), span(class: "font-mono text-sm leading-6 opacity-50", bind(comma))))),
+            span(class: "font-mono text-sm leading-6 opacity-50", "}")));
+    view edit = if(field(is_empty),
+        div(class: "inline-flex items-baseline gap-1",
+            span(class: "font-mono text-sm leading-6 opacity-50", "{}"),
+            button(type: "button", class: "cursor-pointer self-start rounded px-1 font-mono text-xs opacity-50 hover:opacity-100", on_click: send(add), "+ entry")),
+        div(class: "inline-flex flex-col",
+            span(class: "font-mono text-sm leading-6 opacity-50", "{"),
+            div(class: "ml-1 flex flex-col border-l border-base-content/15 pl-4",
+                each(loop: items, field(entries),
+                    div(class: "group flex items-baseline gap-1",
+                        render_it(), span(class: "font-mono text-sm leading-6 opacity-50", bind(comma)),
+                        button(type: "button", class: "cursor-pointer rounded px-1 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus:opacity-100", title: "Move up", on_click: send(move_up, source_key()), "↑"),
+                        button(type: "button", class: "cursor-pointer rounded px-1 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus:opacity-100 text-error", title: "Remove", on_click: send(remove_at, source_key()), "×"))),
+                button(type: "button", class: "cursor-pointer self-start rounded px-1 font-mono text-xs opacity-50 hover:opacity-100", on_click: send(add), "+ entry")),
+            span(class: "font-mono text-sm leading-6 opacity-50", "}")));
+}
+
+/// A JSON document, shown read only or edited in place, with its JSON text.
+component json_editor {
+    field value: json_value;
+    field mode: enum { view, edit };
+    field show_text: bool;
+    get is_edit: bool;
+    get json: string;
+    /// JSON.stringify(value, null, 2).
+    get text: string;
+
+    message set_mode(mode: enum { view, edit }) changes mode ensures next.mode == mode;
+    message set_show_text(show_text: bool) changes show_text ensures next.show_text == show_text;
+
+    view main = div(class: "flex flex-col gap-3",
+        div(class: "flex flex-wrap items-center gap-2",
+            div(class: "join", role: "group", "aria-label": "Mode",
+                button(type: "button", class: if(field(is_edit), "btn btn-xs join-item", "btn btn-xs btn-primary join-item"), on_click: send(set_mode, "view"), "View"),
+                button(type: "button", class: if(field(is_edit), "btn btn-xs btn-primary join-item", "btn btn-xs join-item"), on_click: send(set_mode, "edit"), "Edit")),
+            label(class: "flex items-center gap-1 text-xs",
+                input(type: "checkbox", class: "checkbox checkbox-xs", checked: field(show_text), on_change: send(set_show_text, target_value())),
+                "JSON text")),
+        div(class: "overflow-auto", push_view(field(mode), render(field(value)))),
+        if(field(show_text), pre(class: "rounded bg-base-200 p-3 font-mono text-xs", field(text)), ""));
+}

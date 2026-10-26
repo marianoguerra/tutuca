@@ -454,7 +454,8 @@ fn path_of(container: &extern, node: &extern) -> &?dispatch_path {
     path_from_metas(w.metas, 0);
 }
 
-// The handler for a `kind` event on target, with the route to its component
+// The handler for a `kind` event on target that takes event (its modifiers
+// match it), with the route to its component
 // and its element: the first handler for the event among the elements with
 // handlers between target and the innermost component boundary, innermost
 // first, in the table of that component's type. When the event bubbles (the
@@ -467,6 +468,7 @@ fn decode_event(
     kind: &extern,
     root: &value,
     bubbles: i32,
+    event: &value,
 ) -> &?event_info {
     let found = walk_up(container, target);
     if !found {
@@ -479,7 +481,7 @@ fn decode_event(
     }
     let level = 0;
     while level <s levels {
-        let info = decode_at_level(w, kind, root, level);
+        let info = decode_at_level(w, kind, root, level, event);
         if !!info {
             return info;
         }
@@ -489,7 +491,13 @@ fn decode_event(
 }
 
 // The handler for kind among the elements at level, in their component.
-fn decode_at_level(w: &walk_up, kind: &extern, root: &value, level: i32) -> &?event_info {
+fn decode_at_level(
+    w: &walk_up,
+    kind: &extern,
+    root: &value,
+    level: i32,
+    event: &value,
+) -> &?event_info {
     let first = -1;
     let i = 0;
     'found: do {
@@ -518,7 +526,7 @@ fn decode_at_level(w: &walk_up, kind: &extern, root: &value, level: i32) -> &?ev
                 let j = 0;
                 while j <s handlers.length() {
                     let handler = handlers[j]!;
-                    if str_eq(handler.event, kind) {
+                    if str_eq(handler.event, kind) & on_attr_takes(handler, event) {
                         return {event_info| handler, route: r, node: ext_buf_at(w.nodes, i) };
                     }
                     j += 1;

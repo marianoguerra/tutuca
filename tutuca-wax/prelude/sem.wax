@@ -26,6 +26,7 @@ const arg_kind_target_value = 1;
 const arg_kind_source_key = 2;
 const arg_kind_if = 3;
 const arg_kind_drag_key = 4;
+const arg_kind_event = 5;
 
 rec {
     type arg = open { kind: i32 };
@@ -35,6 +36,8 @@ rec {
     type arg_source_key: arg = { .. };
     // The item key of the receiver's child the dragged element is in.
     type arg_drag_key: arg = { .. };
+    // A field of the event (its key, clientX, ctrlKey, ...), null when it has none.
+    type arg_event: arg = { .., name: &extern };
     type arg_if: arg = { .., test: &arg, then: &arg, otherwise: &arg };
 }
 
@@ -43,8 +46,18 @@ type arg_array = [mut &?arg];
 // What an event sends: (send name arg ...).
 type action = { name: &extern, args: &arg_array };
 
-// on:<event>.
-type on_attr = { event: &extern, action: &action };
+// What an on:<event>+<modifier>... attr requires of the event besides its
+// type, and what it does to it: modifier keys held, flags; and a key, the
+// event's key (KeyboardEvent.key) when the modifiers name one.
+const event_mod_ctrl = 1;
+const event_mod_alt = 2;
+const event_mod_shift = 4;
+const event_mod_meta = 8;
+const event_mod_prevent = 16; // preventDefault() when it handles the event
+const event_mod_stop = 32; // stopPropagation() when it handles the event
+
+// on:<event>[+modifier...]: event is the type alone.
+type on_attr = { event: &extern, key: &?extern, mods: i32, action: &action };
 type on_attr_array = [mut &?on_attr];
 
 // A template: one element of a component type's views, made once when the

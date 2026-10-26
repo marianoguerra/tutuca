@@ -14,9 +14,10 @@ const PAGE = `<!doctype html>
 	import { load } from "/js/tutuca-rt.js";
 	import { prepare, run } from "/test/suite.mjs";
 	const bytesOf = async (path) => new Uint8Array(await (await fetch("/dist/" + path + ".wasm")).arrayBuffer());
+	const textOf = async (path) => (await fetch("/dist/" + path)).text();
 	window.results = (async () => {
 		const vdom = await load(new URL("/dist/tutuca-rt.wasm", location.href));
-		const shared = await prepare(vdom, bytesOf);
+		const shared = await prepare(vdom, bytesOf, textOf);
 		return { builtins: vdom.builtins, cases: await run({ vdom, window }, shared) };
 	})();
 </script>`;

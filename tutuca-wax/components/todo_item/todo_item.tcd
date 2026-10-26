@@ -1,0 +1,28 @@
+// TodoItem, a component module of its own: a todo with a checkbox it handles
+// itself and an x that asks its parent to remove it. It implements
+// TodoList's TodoItem interface, so the list can make it by that name.
+package tutuca:todo-item@0.1.0;
+
+use "../todo_list/todo_list.tcd".{ todo_item };
+
+component todo_item: todo_item {
+    field id: s32 where id >= 0;
+    field text: string;
+    field done: bool;
+
+    notify remove_me();
+
+    message toggle() changes done ensures next.done == not done;
+    /// Sent by the list: complete_all sends set_done(true) to every item.
+    message set_done(done: bool) changes done ensures next.done == done;
+    /// The list holds the items, so removing is the list's to do: ask it.
+    message remove() changes nothing emits notify remove_me;
+
+    view main = li(
+        class: if(field(done), "todo done list-row items-center opacity-60", "todo list-row items-center"),
+        draggable: "true",
+        "data-dragtype": "todo",
+        input(type: "checkbox", class: "checkbox checkbox-sm", checked: field(done), on_change: send(toggle)),
+        span(class: if(field(done), "list-col-grow line-through", "list-col-grow"), field(text)),
+        button(class: "btn btn-xs btn-ghost", on_click: send(remove), "x"));
+}

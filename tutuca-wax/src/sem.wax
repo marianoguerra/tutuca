@@ -25,6 +25,163 @@ fn arg_drag_key() -> &arg {
     ARG_DRAG_KEY;
 }
 
+fn arg_event(name: &extern) -> &arg {
+    let out: &arg_event = { kind: arg_kind_event, name };
+    out;
+}
+
+// ---- Event handlers: on:<event>[+modifier...] ---------------------------------
+//
+// Modifiers are what the event must also be for the handler to take it (a
+// key held: ctrl, alt, shift, meta; the key pressed: enter, escape, tab,
+// space, up, down, left, right, delete, backspace) and what the host does to
+// it when it does (prevent: preventDefault(), stop: stopPropagation()).
+
+// s split at each '+'.
+fn str_split_plus(s: &extern) -> &ext_buf {
+    let parts = ext_buf_new(2);
+    let b = text_builder_new();
+    let i = 0;
+    while i <s js_string_length(s) {
+        let unit = js_string_char_code_at(s, i);
+        if unit == '+' {
+            ext_buf_push(parts, text_finish(b));
+            b.len = 0;
+        } else {
+            text_push_unit(b, unit);
+        }
+        i += 1;
+    }
+    ext_buf_push(parts, text_finish(b));
+    parts;
+}
+
+// The KeyboardEvent.key a key modifier names, or null.
+fn event_mod_key(m: &extern) -> &?extern {
+    if str_eq(m, s_mod_enter) {
+        return s_key_enter;
+    }
+    if str_eq(m, s_mod_escape) | str_eq(m, s_mod_esc) {
+        return s_key_escape;
+    }
+    if str_eq(m, s_mod_tab) {
+        return s_key_tab;
+    }
+    if str_eq(m, s_mod_space) {
+        return s_key_space;
+    }
+    if str_eq(m, s_mod_up) {
+        return s_key_up;
+    }
+    if str_eq(m, s_mod_down) {
+        return s_key_down;
+    }
+    if str_eq(m, s_mod_left) {
+        return s_key_left;
+    }
+    if str_eq(m, s_mod_right) {
+        return s_key_right;
+    }
+    if str_eq(m, s_mod_delete) {
+        return s_key_delete;
+    }
+    if str_eq(m, s_mod_backspace) {
+        return s_key_backspace;
+    }
+    null;
+}
+
+// The flag a modifier sets, 0 for none.
+fn event_mod_flag(m: &extern) -> i32 {
+    if str_eq(m, s_mod_ctrl) {
+        return event_mod_ctrl;
+    }
+    if str_eq(m, s_mod_alt) {
+        return event_mod_alt;
+    }
+    if str_eq(m, s_mod_shift) {
+        return event_mod_shift;
+    }
+    if str_eq(m, s_mod_meta) {
+        return event_mod_meta;
+    }
+    if str_eq(m, s_mod_prevent) {
+        return event_mod_prevent;
+    }
+    if str_eq(m, s_mod_stop) {
+        return event_mod_stop;
+    }
+    0;
+}
+
+// The handler of on:<spec>: spec is the event's type and its modifiers.
+fn on_attr_new(spec: &extern, name: &extern, args: &arg_array) -> &on_attr {
+    let parts = str_split_plus(spec);
+    let key: &?extern = null;
+    let mods = 0;
+    let i = 1;
+    while i <s parts.len {
+        let m = ext_buf_at(parts, i);
+        let flag = event_mod_flag(m);
+        let k = event_mod_key(m);
+        if !!k {
+            key = k;
+        } else {
+            if flag == 0 {
+                host_fail(
+                    js_string_concat(
+                        js_string_concat(js_string_concat(s_err_event_mod, m), s_err_event_mod_in),
+                        spec,
+                    ),
+                );
+            }
+            mods = mods | flag;
+        }
+        i += 1;
+    }
+    {on_attr| event: ext_buf_at(parts, 0), key, mods, action: {action| name, args } };
+}
+
+// The event type of on:<spec>, without its modifiers.
+fn event_type_of(spec: &extern) -> &extern {
+    ext_buf_at(str_split_plus(spec), 0);
+}
+
+fn event_flag_held(event: &value, flag: i32, mods: i32, name: &extern) -> i32 {
+    if !(mods & flag) {
+        return 1;
+    }
+    let held = map_get(event, name);
+    if !held {
+        return 0;
+    }
+    value_truthy(held!);
+}
+
+// Whether event (the value the host made of a DOM event) is one the handler
+// takes: its key, and the modifier keys it requires held.
+fn on_attr_takes(h: &on_attr, event: &value) -> i32 {
+    if !h.key & ((h.mods & 15) == 0) {
+        return 1;
+    }
+    if event.kind != value_kind_map {
+        return 0;
+    }
+    if !!h.key {
+        let key = map_get(event, s_key);
+        if !key {
+            return 0;
+        }
+        if !str_eq(value_string_of(key!), h.key) {
+            return 0;
+        }
+    }
+    event_flag_held(event, event_mod_ctrl, h.mods, s_ctrl_key)
+        & event_flag_held(event, event_mod_alt, h.mods, s_alt_key)
+        & event_flag_held(event, event_mod_shift, h.mods, s_shift_key)
+        & event_flag_held(event, event_mod_meta, h.mods, s_meta_key);
+}
+
 fn arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {
     let out: &arg_if = { kind: arg_kind_if, test, then, otherwise };
     out;

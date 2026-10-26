@@ -1,0 +1,45 @@
+// TodoItem again, as a card: another component module registering a type
+// as TodoItem, with the same interface and a different implementation:
+// buttons instead of a checkbox, the text's length, and a star the list
+// knows nothing about. Loaded into a scope where TodoItem is registered
+// already, it takes the name over for the items made from then on.
+package tutuca:todo-card@0.1.0;
+
+use "../todo_list/todo_list.tcd".{ todo_item };
+
+component todo_card: todo_item {
+    field id: s32 where id >= 0;
+    field text: string;
+    field done: bool;
+    /// Not part of the interface, so the list never passes it.
+    field starred: bool;
+    /// The text's length and the id: "5 chars · #2".
+    get meta: string;
+
+    notify remove_me();
+
+    message toggle() changes done ensures next.done == not done;
+    message star() changes starred ensures next.starred == not starred;
+    message set_done(done: bool) changes done ensures next.done == done;
+    message remove() changes nothing emits notify remove_me;
+
+    view main = li(
+        class: if(field(done), "todo-card done card card-border bg-base-200 flex-row items-center justify-between gap-3 p-3 opacity-70", "todo-card card card-border bg-base-100 flex-row items-center justify-between gap-3 p-3"),
+        draggable: "true",
+        "data-dragtype": "todo",
+        div(class: "todo-card-main flex flex-col min-w-0",
+            span(class: "todo-card-text font-semibold break-words", field(text)),
+            span(class: "todo-card-meta text-xs opacity-60 tabular-nums", field(meta))),
+        div(class: "todo-card-actions flex gap-1 shrink-0",
+            button(class: if(field(done), "done-toggle on btn btn-xs btn-success rounded-full", "done-toggle btn btn-xs btn-outline rounded-full"),
+                title: if(field(done), "mark as to do", "mark as done"),
+                on_click: send(toggle),
+                if(field(done), "✓ done", "○ to do")),
+            button(class: if(field(starred), "star on btn btn-xs btn-ghost text-warning", "star btn btn-xs btn-ghost opacity-50"),
+                title: if(field(starred), "unstar", "star"),
+                on_click: send(star),
+                if(field(starred), "★", "☆")),
+            button(class: "remove btn btn-xs btn-ghost text-error", on_click: send(remove), "remove")));
+}
+
+register todo_card as todo_item;

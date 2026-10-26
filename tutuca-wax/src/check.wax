@@ -1,0 +1,457 @@
+// What the host checks with schemas (tutuca's src/host.js checkState,
+// checkMessage and checkSettled, and src/schema.js findInvalidFields and
+// messageIssues): a message's arguments, always, rejecting the ones that
+// don't fit before the handler sees them, with a structured rejection; and
+// in dev mode, the message's contract around its handler, the state's fields
+// after each task, and invariants when the queue settles, reported through
+// observe_issue.
+
+// ---- Rejections ------------------------------------------------------------------
+
+// The text a rejection's reason reads as: a string as it is, anything else short.
+fn reason_text(v: &value) -> &extern {
+    let s = value_string_of(v);
+    if !!s {
+        return s!;
+    }
+    value_short(v);
+}
+
+// Aborts the task: the component c rejected the message name, for reason (a
+// code: wrongArity, wrongArgType, invalidArg, failed), at the argument
+// index (-1 for none); problem says why in words; detail is the handler's own
+// reason, when it gave one. JS gets them all as the error's rejection.
+fn reject_with(
+    c: &component,
+    name: &extern,
+    reason: &extern,
+    index: i32,
+    problem: &extern,
+    detail: &?value,
+) {
+    let info = map_assoc(map_empty(), s_message, value_string(name));
+    info = map_assoc(info, s_component, value_string(c.spec.name));
+    info = map_assoc(info, s_reason, value_string(reason));
+    info = map_assoc(info, s_problem, value_string(problem));
+    if index >=s 0 {
+        info = map_assoc(info, s_index, value_int(index));
+    }
+    if !!detail {
+        info = map_assoc(info, s_detail, detail!);
+    }
+    let text =
+        js_string_concat(
+            js_string_concat(js_string_concat(s_err_rejected, name), s_colon_space),
+            problem,
+        );
+    host_reject(text, info as &extern);
+}
+
+fn arity_problem(expected: i32, got: i32) -> &extern {
+    let b = text_builder_new();
+    text_push(b, s_r_takes);
+    text_push_int(b, expected);
+    text_push(b, expected == 1?s_r_argument_got:s_r_arguments_got);
+    text_push_int(b, got);
+    text_finish(b);
+}
+
+// "argument 0 (n): must be at least 0, got -1"; name is null when unknown.
+fn arg_problem(index: i32, name: &?extern, problem: &extern) -> &extern {
+    let b = text_builder_new();
+    text_push(b, s_r_argument);
+    text_push_int(b, index);
+    if !!name {
+        text_push(b, s_r_paren_open);
+        text_push(b, name!);
+        text_push_unit(b, ')');
+    }
+    text_push(b, s_colon_space);
+    text_push(b, problem);
+    text_finish(b);
+}
+
+// A handler's rejection, as a structured one.
+fn reject_message(c: &component, name: &extern, e: &message_error) {
+    let kind = e.kind;
+    if kind == message_error_kind_wrong_arity {
+        let a = e as &message_error_wrong_arity;
+        reject_with(c, name, s_r_wrong_arity, -1, arity_problem(a.expected, a.got), null);
+        return;
+    }
+    if kind == message_error_kind_wrong_arg_type {
+        let index = (e as &message_error_wrong_arg_type).index;
+        reject_with(
+            c,
+            name,
+            s_r_wrong_arg_type,
+            index,
+            arg_problem(index, null, s_r_wrong_type),
+            null,
+        );
+        return;
+    }
+    if kind == message_error_kind_invalid_arg {
+        let a = e as &message_error_invalid_arg;
+        reject_with(
+            c,
+            name,
+            s_r_invalid_arg,
+            a.index,
+            arg_problem(a.index, null, reason_text(a.reason)),
+            a.reason,
+        );
+        return;
+    }
+    let reason = (e as &message_error_failed).reason;
+    reject_with(c, name, s_r_failed, -1, reason_text(reason), reason);
+}
+
+// Rejects args that don't fit the message's schema: their number, then each
+// one's type, then its constraints, against c's state for the ones that read
+// it (a key of one of its fields).
+fn check_message_args(c: &component, ms: &message_schema, args: &value_array) {
+    if args.length() != ms.args.length() {
+        reject_with(
+            c,
+            ms.name,
+            s_r_wrong_arity,
+            -1,
+            arity_problem(ms.args.length(), args.length()),
+            null,
+        );
+        return;
+    }
+    let i = 0;
+    while i <s args.length() {
+        let f = ms.args[i]!;
+        let arg = args[i]!;
+        let problem = vtype_problem(f.vtype, arg);
+        if !!problem {
+            reject_with(c, ms.name, s_r_wrong_arg_type, i, arg_problem(i, f.name, problem!), null);
+            return;
+        }
+        // A null its type takes (an option's) meets the constraints, which
+        // are about the value it's an option of.
+        if arg.kind != value_kind_null {
+            problem = constraints_problem(f.constraints, arg, c);
+        }
+        if !!problem {
+            reject_with(c, ms.name, s_r_invalid_arg, i, arg_problem(i, f.name, problem!), null);
+            return;
+        }
+        i += 1;
+    }
+}
+
+// ---- Message contracts (dev mode) ---------------------------------------------------
+
+fn emits_has(emits: &emit_array, kind: i32, name: &extern) -> i32 {
+    let i = 0;
+    while i <s emits.length() {
+        let e = emits[i]!;
+        if (e.kind == kind) & str_eq(e.name, name) {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+// "emits:notify:removeMe" when the message may not emit it.
+fn emit_issue(issues: &value, emits: &emit_array, kind: i32, name: &extern) -> &value {
+    if emits_has(emits, kind, name) {
+        return issues;
+    }
+    let text =
+        js_string_concat(
+            js_string_concat(js_string_concat(s_r_emits, emit_kind_name(kind)), s_colon),
+            name,
+        );
+    list_push(issues, value_string(text));
+}
+
+// What the handler of t, which turned prev into next, broke of its message's
+// contract (messageIssues in JS): "pre", "post", "sourceKey",
+// "changes:<field>" (a field outside changes isn't the same value),
+// "emits:<kind>:<name>". Kept in the transaction, reported once it commits.
+fn check_message_contract(
+    tx: &transaction,
+    t: &task,
+    prev: &component,
+    next: &component,
+    ms: &message_schema,
+    args: &value_array,
+    ctx: &context,
+    pre_held: i32,
+) {
+    let issues = list_empty();
+    if !pre_held {
+        issues = list_push(issues, value_string(s_pre));
+    }
+    if !!ms.post {
+        if !(ms.post!)(prev.instance, next.instance, args, ctx) {
+            issues = list_push(issues, value_string(s_post));
+        }
+    }
+    if !!ms.source_key {
+        let key = VALUE_NULL;
+        if !!ctx.source_key {
+            key = value_from_key(ctx.source_key!);
+        }
+        if !!field_problem(ms.source_key!, key, prev) {
+            issues = list_push(issues, value_string(s_source_key_name));
+        }
+    }
+    if !!ms.changes & (next.spec == prev.spec) & !!prev.spec.schema {
+        let fields = (prev.spec.schema!).fields;
+        let i = 0;
+        while i <s fields.length() {
+            let name = (fields[i]!).name;
+            if !str_array_has(ms.changes!, name) {
+                let before = owner_field(prev, name);
+                let after = owner_field(next, name);
+                if !!before & !!after {
+                    if !value_same(before!, after!) {
+                        issues =
+                            list_push(issues, value_string(js_string_concat(s_r_changes, name)));
+                    }
+                }
+            }
+            i += 1;
+        }
+    }
+    if !!ms.emits {
+        let emits = ms.emits!;
+        let i = 0;
+        while i <s ctx.effects.len {
+            let e = ctx.effects.items[i]!;
+            if e.kind == effect_kind_notify {
+                issues = emit_issue(issues, emits, emit_kind_notify, (e as &effect_notify).name);
+            }
+            if e.kind == effect_kind_ask {
+                issues = emit_issue(issues, emits, emit_kind_ask, (e as &effect_ask).name);
+            }
+            if e.kind == effect_kind_send_at {
+                issues = emit_issue(issues, emits, emit_kind_send_at, (e as &effect_send_at).name);
+            }
+            if e.kind == effect_kind_forward_at {
+                issues = emit_issue(issues, emits, emit_kind_send_at, t.name);
+            }
+            i += 1;
+        }
+    }
+    if list_count(issues) == 0 {
+        return;
+    }
+    let info = map_assoc(map_empty(), s_message, value_string(t.name));
+    info = map_assoc(info, s_component, value_string(prev.spec.name));
+    tx.issues = list_push(tx.issues, map_assoc(info, s_issues, issues));
+}
+
+// ---- The state (dev mode) --------------------------------------------------------------
+
+// What a walk of the state reports: the fields that don't fit their schema
+// and the invariants that don't hold, as { path, component, field, value,
+// reason, problem } maps.
+type invalid_acc = { issues: mut &value, fields: i32, invariants: i32 };
+
+fn invalid_issue(
+    acc: &invalid_acc,
+    path: &value,
+    c: &component,
+    field: &value,
+    v: &value,
+    reason: &extern,
+    problem: &extern,
+) {
+    let m = map_assoc(map_empty(), s_path, path);
+    m = map_assoc(m, s_component, value_string(c.spec.name));
+    m = map_assoc(m, s_field, field);
+    m = map_assoc(m, s_value, v);
+    m = map_assoc(m, s_reason, value_string(reason));
+    acc.issues = list_push(acc.issues, map_assoc(m, s_problem, value_string(problem)));
+}
+
+// Walks v, skipping what it shares with prev (the same reference), so after
+// a task only what it changed is checked. A component without a schema is a
+// leaf: the runtime can't see its fields.
+fn find_invalid(acc: &invalid_acc, v: &value, prev: &?value, path: &value) {
+    if !!prev {
+        if prev! == v {
+            return;
+        }
+    }
+    if v.kind == value_kind_list {
+        let i = 0;
+        while i <s list_count(v) {
+            let before: &?value = null;
+            if !!prev {
+                if (prev!).kind == value_kind_list {
+                    if i <s list_count(prev!) {
+                        before = list_get(prev!, i);
+                    }
+                }
+            }
+            find_invalid(acc, list_get(v, i)!, before, list_push(path, value_int(i)));
+            i += 1;
+        }
+        return;
+    }
+    if v.kind == value_kind_map {
+        let keys = map_keys(v);
+        let i = 0;
+        while i <s list_count(keys) {
+            let key = (list_get(keys, i)! as &value_string).value;
+            let before: &?value = null;
+            if !!prev {
+                if (prev!).kind == value_kind_map {
+                    before = map_get(prev!, key);
+                }
+            }
+            find_invalid(acc, map_get(v, key)!, before, list_push(path, value_string(key)));
+            i += 1;
+        }
+        return;
+    }
+    let found = value_as_component(v);
+    if !found {
+        return;
+    }
+    let c = found!;
+    if !c.spec.schema {
+        return;
+    }
+    let schema = c.spec.schema!;
+    let prev_c: &?component = null;
+    if !!prev {
+        prev_c = value_as_component(prev!);
+    }
+    let i = 0;
+    while i <s schema.fields.length() {
+        let f = schema.fields[i]!;
+        let fv = owner_field(c, f.name);
+        let at = list_push(path, value_string(f.name));
+        if !fv {
+            if acc.fields {
+                invalid_issue(acc, at, c, value_string(f.name), VALUE_NULL, s_invalid, s_p_missing);
+            }
+        } else {
+            if acc.fields {
+                let problem = field_problem(f, fv!, c);
+                if !!problem {
+                    invalid_issue(acc, at, c, value_string(f.name), fv!, s_invalid, problem!);
+                }
+            }
+            let before: &?value = null;
+            if !!prev_c {
+                before = owner_field(prev_c!, f.name);
+            }
+            find_invalid(acc, fv!, before, at);
+        }
+        i += 1;
+    }
+    if !acc.invariants {
+        return;
+    }
+    i = 0;
+    while i <s schema.invariants.length() {
+        let inv = schema.invariants[i]!;
+        if !inv.holds(c.instance) {
+            let reason = js_string_concat(s_r_invariant, inv.name);
+            let problem =
+                js_string_concat(js_string_concat(s_r_the_invariant, inv.name), s_r_doesnt_hold);
+            invalid_issue(acc, path, c, VALUE_NULL, v, reason, problem);
+        }
+        i += 1;
+    }
+}
+
+fn find_invalid_in(root: &value, prev: &?value, fields: i32, invariants: i32) -> &value {
+    let acc = {invalid_acc| issues: list_empty(), fields, invariants };
+    find_invalid(acc, root, prev, list_empty());
+    acc.issues;
+}
+
+// stateInvalid, with what the walk found and where it happened.
+fn report_state(issues: &value, key: &extern, at: &value) {
+    if list_count(issues) == 0 {
+        return;
+    }
+    let info = map_assoc(map_assoc(map_empty(), key, at), s_issues, issues);
+    observe_issue(s_state_invalid, info as &extern);
+}
+
+// After a task committed: what its handler broke of its message's contract,
+// the fields it changed that don't fit, and once the queue is empty, the
+// invariants of what changed since it last was. A task can leave invariants
+// broken for the tasks it queued, so they wait for the queue to settle.
+fn host_check_task(h: &host, t: &task, prev: &value, message_issues: &value) {
+    let i = 0;
+    while i <s list_count(message_issues) {
+        observe_issue(s_message_invalid, list_get(message_issues, i)! as &extern);
+        i += 1;
+    }
+    report_state(find_invalid_in(h.root, prev, 1, 0), s_task, value_string(t.name));
+    if !host_has_tasks(h) {
+        host_check_settled(h);
+    }
+}
+
+fn host_check_settled(h: &host) {
+    if h.settled_root == h.root {
+        return;
+    }
+    let prev = h.settled_root;
+    h.settled_root = h.root;
+    report_state(find_invalid_in(h.root, prev, 0, 1), s_settled, value_bool(1));
+}
+
+// The whole state, fields and invariants: what a dev host checks when it
+// starts.
+fn host_check(h: &host) {
+    h.settled_root = h.root;
+    report_state(find_invalid_in(h.root, null, 1, 1), s_task, VALUE_NULL);
+}
+
+// ---- For test runners ----------------------------------------------------------------
+
+// Why the component c can't take the message name with args now, or null
+// when it can: the arguments don't fit its schema, or its guard (when)
+// doesn't hold on c's state. A runner generating messages only sends the
+// ones c can take. No schema, or no such message: null (the vtable decides).
+fn message_problem(c: &component, name: &extern, args: &value_array) -> &?extern {
+    let ms = spec_message_schema(c.spec, name);
+    if !ms {
+        return null;
+    }
+    let m = ms!;
+    if args.length() != m.args.length() {
+        return arity_problem(m.args.length(), args.length());
+    }
+    let i = 0;
+    while i <s args.length() {
+        let f = m.args[i]!;
+        let problem = field_problem(f, args[i]!, c);
+        if !!problem {
+            return arg_problem(i, f.name, problem!);
+        }
+        i += 1;
+    }
+    if !!m.pre {
+        let root = {dispatch_path| frames: [frame_array|null; 0] };
+        let ctx =
+            {context|
+                scope: c.scope,
+                path: root,
+                source_key: null,
+                event: VALUE_NULL,
+                drag: VALUE_NULL,
+                effects: effect_buf_new(),
+            };
+        if !(m.pre!)(c.instance, args, ctx) {
+            return s_pre;
+        }
+    }
+    null;
+}

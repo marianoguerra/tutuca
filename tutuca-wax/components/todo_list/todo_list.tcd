@@ -1,0 +1,54 @@
+// TodoList, a component module of its own: it holds TodoItem components in a
+// field and renders each in a keyed loop. TodoItem is an interface, declared
+// here and registered with the list: any module's component implementing it
+// can be made as TodoItem (todo_item and todo_card do).
+package tutuca:todo-list@0.1.0;
+
+/// What TodoList needs of the items it makes by name.
+interface todo_item {
+    field id: s32;
+    field text: string;
+    field done: bool;
+    message set_done(done: bool);
+    /// To the list, asking to be removed.
+    notify remove_me();
+}
+
+component todo_list {
+    field items: list<todo_item>;
+    field draft: string;
+    field next_id: s32 where next_id >= 0;
+    get remaining: s32 where remaining >= 0;
+    get count: s32 where count >= 0;
+
+    /// Every item's id is below next_id, so the next one made is new.
+    invariant ids_below_next_id: all(items, it.id < next_id);
+
+    message set_draft(text: string) changes draft ensures next.draft == text;
+    message add_todo() changes items, draft, next_id emits make todo_item;
+    message complete_all() changes nothing emits send todo_item.set_done;
+    message clear_done() changes items;
+    /// The item dragged from from, dropped on the one at to, takes its place;
+    /// something dragged from elsewhere has no key.
+    message move_item(from: option<index<items>>, to: option<index<items>>) changes items
+        ensures len(next.items) == len(items);
+    /// An item's notify: the source key says which wants to go.
+    message remove_me() source_key: index<items> changes items;
+
+    /// Keyed by the item's id, so an item keeps its DOM when the ones before it go.
+    loop items { key: s32 }
+
+    view main = section(class: "todos flex flex-col gap-2",
+        div(class: "join w-full",
+            input(class: "input input-sm join-item w-full", placeholder: "What needs doing?", value: field(draft),
+                on_input: send(set_draft, target_value()),
+                "on_keydown+enter+prevent": send(add_todo)),
+            button(class: "btn btn-sm btn-primary join-item", on_click: send(add_todo), "add")),
+        ul(class: "list bg-base-100 rounded-box border border-base-300",
+            on_drop: send(move_item, drag_key(), source_key()),
+            render_each(loop: items, field(items))),
+        footer(class: "flex items-center gap-2 text-sm",
+            span(class: "flex-1 opacity-70 tabular-nums", field(remaining), " of ", field(count), " left"),
+            button(class: "btn btn-xs", on_click: send(complete_all), "all done"),
+            button(class: "btn btn-xs", on_click: send(clear_done), "clear done")));
+}

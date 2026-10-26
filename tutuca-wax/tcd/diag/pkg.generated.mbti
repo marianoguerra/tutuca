@@ -1,0 +1,61 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/tcd/diag"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub fn error(String, Span, String, hint? : String, related? : Array[Related]) -> Diagnostic
+
+pub fn has_errors(Array[Diagnostic]) -> Bool
+
+pub fn note(String, Span, String) -> Diagnostic
+
+pub fn render(Diagnostic) -> String
+
+pub fn sorted(Array[Diagnostic]) -> Array[Diagnostic]
+
+pub fn warning(String, Span, String, hint? : String, related? : Array[Related]) -> Diagnostic
+
+// Errors
+
+// Types and methods
+pub(all) struct Diagnostic {
+  code : String
+  severity : Severity
+  span : Span
+  message : String
+  hint : String?
+  related : Array[Related]
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Pos {
+  line : Int32
+  col : Int32
+  offset : Int32
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct Related {
+  span : Span
+  message : String
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Severity {
+  Error
+  Warning
+  Note
+} derive(Eq, @debug.Debug)
+pub impl ToJson for Severity
+
+pub(all) struct Span {
+  file : String
+  start : Pos
+  end : Pos
+} derive(Eq, ToJson, @debug.Debug)
+pub fn Span::merge(Self, Self) -> Self
+pub fn Span::none(String) -> Self
+
+// Type aliases
+
+// Traits

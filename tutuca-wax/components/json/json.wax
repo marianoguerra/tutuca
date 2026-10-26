@@ -1,0 +1,306 @@
+// The json module's implementation (json.tcd has the rest): each value's
+// JSON text, editing numbers, swapping a selector for the value picked, and
+// the collections' items.
+
+import "'" {
+    #[import = "null"]
+    const s_null: &extern;
+    #[import = "true"]
+    const s_true: &extern;
+    #[import = "false"]
+    const s_false: &extern;
+    #[import = "["]
+    const s_open_bracket: &extern;
+    #[import = "]"]
+    const s_close_bracket: &extern;
+    #[import = "{"]
+    const s_open_brace: &extern;
+    #[import = "}"]
+    const s_close_brace: &extern;
+    #[import = ","]
+    const s_comma: &extern;
+    #[import = ":"]
+    const s_colon: &extern;
+    #[import = "0"]
+    const s_zero: &extern;
+    #[import = ""]
+    const s_empty: &extern;
+}
+
+// A value's JSON text, through its json property.
+fn json_of(v: &value) -> &extern {
+    let text = value_string_of(value_member(v, gs_json));
+    if !text {
+        return s_null;
+    }
+    text!;
+}
+
+// ---- Scalars -----------------------------------------------------------------------
+
+fn json_null_get_json(state: &json_null_state) -> &extern {
+    s_null;
+}
+
+fn json_bool_on_toggle(state: &json_bool_state, ctx: &context) -> &json_bool_state {
+    json_bool_with_value(state, !state.value);
+}
+
+fn json_bool_get_json(state: &json_bool_state) -> &extern {
+    state.value?s_true:s_false;
+}
+
+fn json_number_on_set_text(
+    state: &json_number_state,
+    ctx: &context,
+    text: &extern,
+) -> &json_number_state {
+    let (ok, n) = parse_number(text);
+    {json_number_state| value: ok?n:state.value, text };
+}
+
+fn json_number_get_valid(state: &json_number_state) -> i32 {
+    let (ok, n) = parse_number(state.text);
+    ok;
+}
+
+fn json_number_get_json(state: &json_number_state) -> &extern {
+    number_text(state.value);
+}
+
+fn json_string_on_set_value(
+    state: &json_string_state,
+    ctx: &context,
+    value: &extern,
+) -> &json_string_state {
+    json_string_with_value(state, value);
+}
+
+fn json_string_get_json(state: &json_string_state) -> &extern {
+    json_string(state.value);
+}
+
+fn json_selector_get_json(state: &json_selector_state) -> &extern {
+    s_null;
+}
+
+// An empty value of the type picked: kind is set_to's enum, in order.
+fn json_selector_on_set_to(state: &json_selector_state, ctx: &context, kind: i32) -> &component {
+    if kind == 1 {
+        return json_selector_make_json_bool(ctx, 0);
+    }
+    if kind == 2 {
+        return json_selector_make_json_number(ctx, 0.0, s_zero);
+    }
+    if kind == 3 {
+        return json_selector_make_json_string(ctx, s_empty);
+    }
+    if kind == 4 {
+        return json_selector_make_json_array(ctx, list_empty());
+    }
+    if kind == 5 {
+        return json_selector_make_json_object(ctx, list_empty());
+    }
+    json_selector_make_json_null(ctx);
+}
+
+// ---- Collections -------------------------------------------------------------------
+
+fn json_remove_at(items: &value, at: i32) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(items) {
+        if i != at {
+            out = list_push(out, list_get(items, i)!);
+        }
+        i += 1;
+    }
+    out;
+}
+
+// The item at at swapped with the one before it, if any.
+fn json_move_up(items: &value, at: i32) -> &value {
+    if at == 0 {
+        return items;
+    }
+    let before = list_get(items, at - 1)!;
+    list_assoc(list_assoc(items, at - 1, list_get(items, at)!), at, before);
+}
+
+// "," after every item but the last.
+fn json_comma(key: &value, last: i32) -> &extern {
+    if (key.kind == value_kind_int) & ((key as &value_int).value == last) {
+        return s_empty;
+    }
+    s_comma;
+}
+
+fn json_array_on_add(state: &json_array_state, ctx: &context) -> &json_array_state {
+    json_array_with_items(
+        state,
+        list_push(state.items, value_component(json_array_make_json_selector(ctx))),
+    );
+}
+
+fn json_array_on_remove_at(state: &json_array_state, ctx: &context, key: i32) -> &json_array_state {
+    json_array_with_items(state, json_remove_at(state.items, key));
+}
+
+fn json_array_on_move_up(state: &json_array_state, ctx: &context, key: i32) -> &json_array_state {
+    json_array_with_items(state, json_move_up(state.items, key));
+}
+
+fn json_array_get_is_empty(state: &json_array_state) -> i32 {
+    list_count(state.items) == 0;
+}
+
+fn json_array_get_json(state: &json_array_state) -> &extern {
+    let out = s_open_bracket;
+    let i = 0;
+    while i <s list_count(state.items) {
+        if i >s 0 {
+            out = js_string_concat(out, s_comma);
+        }
+        out = js_string_concat(out, json_of(list_get(state.items, i)!));
+        i += 1;
+    }
+    js_string_concat(out, s_close_bracket);
+}
+
+fn json_array_loop_items_prepare(state: &json_array_state, items: &value) -> i32 {
+    list_count(items) - 1;
+}
+
+fn json_array_loop_items_enrich(
+    state: &json_array_state,
+    key: &value,
+    item: &value,
+    prepared: i32,
+) -> &json_array_loop_items_binds {
+    {json_array_loop_items_binds| comma: json_comma(key, prepared) };
+}
+
+fn json_entry_on_set_key(
+    state: &json_entry_state,
+    ctx: &context,
+    key: &extern,
+) -> &json_entry_state {
+    json_entry_with_key(state, key);
+}
+
+fn json_object_on_add(state: &json_object_state, ctx: &context) -> &json_object_state {
+    let key = js_string_concat(gs_key, int_text(list_count(state.entries) + 1));
+    let value = value_component(json_object_make_json_selector(ctx));
+    let entry = json_object_make_json_entry(ctx, key, value);
+    json_object_with_entries(state, list_push(state.entries, value_component(entry)));
+}
+
+fn json_object_on_remove_at(
+    state: &json_object_state,
+    ctx: &context,
+    key: i32,
+) -> &json_object_state {
+    json_object_with_entries(state, json_remove_at(state.entries, key));
+}
+
+fn json_object_on_move_up(
+    state: &json_object_state,
+    ctx: &context,
+    key: i32,
+) -> &json_object_state {
+    json_object_with_entries(state, json_move_up(state.entries, key));
+}
+
+fn json_object_get_is_empty(state: &json_object_state) -> i32 {
+    list_count(state.entries) == 0;
+}
+
+fn json_entry_key(entry: &value) -> &extern {
+    let key = value_string_of(value_member(entry, gs_key));
+    if !key {
+        return s_empty;
+    }
+    key!;
+}
+
+// As JSON.parse would read it back: a key's first entry places it, its last
+// entry gives its value.
+fn json_object_get_json(state: &json_object_state) -> &extern {
+    let entries = state.entries;
+    let n = list_count(entries);
+    let out = s_open_brace;
+    let first = 1;
+    let i = 0;
+    while i <s n {
+        let key = json_entry_key(list_get(entries, i)!);
+        let seen = 0;
+        let j = 0;
+        while j <s i {
+            if str_eq(json_entry_key(list_get(entries, j)!), key) {
+                seen = 1;
+            }
+            j += 1;
+        }
+        if !seen {
+            let last = i;
+            j = i + 1;
+            while j <s n {
+                if str_eq(json_entry_key(list_get(entries, j)!), key) {
+                    last = j;
+                }
+                j += 1;
+            }
+            if !first {
+                out = js_string_concat(out, s_comma);
+            }
+            first = 0;
+            out = js_string_concat(js_string_concat(out, json_string(key)), s_colon);
+            out = js_string_concat(out, json_of(value_member(list_get(entries, last)!, gs_value)));
+        }
+        i += 1;
+    }
+    js_string_concat(out, s_close_brace);
+}
+
+fn json_object_loop_items_prepare(state: &json_object_state, items: &value) -> i32 {
+    list_count(items) - 1;
+}
+
+fn json_object_loop_items_enrich(
+    state: &json_object_state,
+    key: &value,
+    item: &value,
+    prepared: i32,
+) -> &json_object_loop_items_binds {
+    {json_object_loop_items_binds| comma: json_comma(key, prepared) };
+}
+
+// ---- JsonEditor --------------------------------------------------------------------
+
+fn json_editor_on_set_mode(
+    state: &json_editor_state,
+    ctx: &context,
+    mode: i32,
+) -> &json_editor_state {
+    json_editor_with_mode(state, mode);
+}
+
+fn json_editor_on_set_show_text(
+    state: &json_editor_state,
+    ctx: &context,
+    show_text: i32,
+) -> &json_editor_state {
+    json_editor_with_show_text(state, show_text);
+}
+
+fn json_editor_get_is_edit(state: &json_editor_state) -> i32 {
+    state.mode == json_editor_mode_edit;
+}
+
+fn json_editor_get_json(state: &json_editor_state) -> &extern {
+    json_of(state.value);
+}
+
+fn json_editor_get_text(state: &json_editor_state) -> &extern {
+    json_indent(json_of(state.value));
+}

@@ -1,0 +1,77 @@
+// The counter component module: Counter, Label and the Board that holds
+// counters. counter.wax has what this can't say: the handlers' logic.
+package tutuca:counter@0.1.0;
+
+/// A count, with buttons to change it and an input to type it.
+component counter {
+    field count: s32;
+
+    /// To the parent, with the new count, when + was clicked.
+    notify changed(count: s32);
+    /// To the parent, asking to be removed.
+    notify remove_me();
+    /// Answered now, by this package's ask_handler.
+    ask load_count() -> s32;
+    /// Answered later, by the host.
+    ask fetch_count() -> s32;
+
+    message inc() changes count ensures next.count == count + 1 emits notify changed;
+    message add(n: s32) changes count ensures next.count == count + n emits nothing;
+    /// From the input: the text typed, kept when it isn't a number yet.
+    message set(text: string) changes count emits nothing;
+    message reset() changes count ensures next.count == 0 emits nothing;
+    message remove() changes nothing emits notify remove_me;
+    message load() changes nothing emits ask load_count;
+    message fetch() changes nothing emits ask fetch_count;
+    /// Swaps itself for a Label saying what the count was.
+    message to_label() -> swap emits make label;
+
+    view main = div(class: "counter card card-border bg-base-100 w-fit flex-row items-center gap-2 p-2",
+        button(class: "btn btn-sm", on_click: send(inc), "+"),
+        span(class: "min-w-10 text-center font-semibold tabular-nums", field(count)),
+        button(class: "btn btn-sm", on_click: send(add, 10), "+10"),
+        input(class: "input input-sm w-20", value: field(count), on_input: send(set, target_value())),
+        button(class: "btn btn-sm btn-ghost", on_click: send(remove), "x"));
+}
+
+/// What a counter swaps itself for.
+component label {
+    field text: string;
+    view main = p(class: "text-sm italic opacity-70", field(text));
+}
+
+/// The root: a list of counters, and how many times they were incremented.
+component board {
+    field counters: list<counter>;
+    field total: s32;
+
+    message add_counter() changes counters emits make counter;
+    message reset_all() changes nothing emits send counter.reset;
+    /// A counter's notify: one more increment.
+    message changed(count: s32) changes total ensures next.total == total + 1;
+    /// A counter's notify: the source key says which wants to go.
+    message remove_me() source_key: index<counters> changes counters
+        ensures len(next.counters) == len(counters) - 1;
+
+    view main = section(class: "flex flex-col items-start gap-2",
+        div(class: "flex items-center gap-2",
+            button(class: "btn btn-sm", on_click: send(add_counter), "add"),
+            button(class: "btn btn-sm btn-outline", on_click: send(reset_all), "reset all"),
+            p(class: "font-semibold tabular-nums", "total ", field(total))),
+        render_each(field(counters)));
+}
+
+register counter, label, board;
+
+/// loadCount: answered now, with 42.
+ask_handler load_count() -> s32;
+/// fetchCount: answered by the host, later.
+host_ask fetch_count;
+
+example add_then_reset for counter {
+    start { count: 1 }
+    send add(5);
+    expect count == 6;
+    send reset();
+    expect count == 0;
+}

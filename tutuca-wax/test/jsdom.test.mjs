@@ -8,11 +8,12 @@ import { load } from "../js/tutuca-rt.js";
 import { cases, prepare } from "./suite.mjs";
 
 const bytesOf = (path) => readFile(new URL(`../dist/${path}.wasm`, import.meta.url));
+const textOf = (path) => readFile(new URL(`../dist/${path}`, import.meta.url), "utf8");
 
 for (const builtins of [true, false]) {
 	const vdom = await load(new URL("../dist/tutuca-rt.wasm", import.meta.url), { builtins });
 	// The component modules load the same way as the runtime: builtins or polyfills.
-	const shared = await prepare(vdom, bytesOf);
+	const shared = await prepare(vdom, bytesOf, textOf);
 	describe(builtins ? "builtins" : "polyfills", () => {
 		test("the module runs on what was asked for", () => {
 			if (vdom.builtins !== builtins) throw new Error(`builtins: ${vdom.builtins}`);

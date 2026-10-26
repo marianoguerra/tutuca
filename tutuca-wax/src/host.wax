@@ -78,9 +78,11 @@ fn task_queue_pop(q: &task_queue) -> &?task {
 // An ask whose reply hasn't arrived: the reply goes to the asker.
 type pending_reply = { handle: &extern, name: &extern, source: &dispatch_path };
 
+// A host renders into container, in doc; a headless host has neither, and
+// only runs tasks (for tests and tools).
 type host = {
-    doc: &extern,
-    container: &extern,
+    doc: &?extern,
+    container: &?extern,
     root: mut &value,
     queue: &task_queue,
     // The pending_replies of asks answered later.
@@ -93,7 +95,13 @@ type host = {
     drag: mut &?drag,
     drag_over: mut &?extern,
     // The event names host_new_event_names gave, as keys.
-    listening: mut &phm_map
+    listening: mut &phm_map,
+    // Dev mode: check the state against its schemas after each task, and
+    // the invariants of what changed when the queue settles, from the root
+    // as of the last time it did; and messages against their contracts.
+    // What fails is reported through observe_issue.
+    dev: mut i32,
+    settled_root: mut &value
 };
 
 fn empty_selector() -> &selector {
@@ -104,7 +112,7 @@ fn empty_args() -> &value_array {
     [value_array|null; 0];
 }
 
-fn host_new(doc: &extern, container: &extern, root: &value) -> &host {
+fn host_new(doc: &?extern, container: &?extern, root: &value) -> &host {
     {host|
         doc,
         container,
@@ -116,6 +124,8 @@ fn host_new(doc: &extern, container: &extern, root: &value) -> &host {
         drag: null,
         drag_over: null,
         listening: smap_empty(),
+        dev: 0,
+        settled_root: root,
     };
 }
 
@@ -191,7 +201,14 @@ fn host_step(h: &host) -> i32 {
     if !t {
         return 0;
     }
-    let tx = {transaction| children: [task_array|null; 4], count: 0, pending: h.pending };
+    let tx =
+        {transaction|
+            children: [task_array|null; 4],
+            count: 0,
+            pending: h.pending,
+            issues: list_empty(),
+        };
+    let prev = h.root;
     let root = host_transaction(h, t!, tx);
     // Commit: nothing above threw.
     h.root = root;
@@ -201,11 +218,21 @@ fn host_step(h: &host) -> i32 {
         task_queue_push(h.queue, tx.children[i]!);
         i += 1;
     }
+    if h.dev {
+        host_check_task(h, t!, prev, tx.issues);
+    }
     1;
 }
 
-// What a transaction makes besides the new root, committed only if it ends.
-type transaction = { children: mut &task_array, count: mut i32, pending: mut &pv_vector };
+// What a transaction makes besides the new root, committed only if it ends:
+// its child tasks, the asks pending, and in dev mode what the handler broke
+// of its message's contract (a list of messageInvalid infos).
+type transaction = {
+    children: mut &task_array,
+    count: mut i32,
+    pending: mut &pv_vector,
+    issues: mut &value
+};
 
 fn transaction_push(tx: &transaction, t: &task) {
     if tx.count == tx.children.length() {
@@ -239,6 +266,19 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     if !!t.action_args {
         args = eval_args(t.action_args!, ctx, t.node);
     }
+    // The message's schema: arguments that don't fit it are rejected before
+    // the handler sees them; in dev mode, its contract is checked around it.
+    let ms: &?message_schema = null;
+    let pre_held = 1;
+    if t.kind != task_kind_ask {
+        ms = spec_message_schema(comp.spec, t.name);
+        if !!ms {
+            check_message_args(comp, ms!, args);
+            if h.dev & !!(ms!).pre {
+                pre_held = ((ms!).pre!)(comp.instance, args, ctx);
+            }
+        }
+    }
     let result =
         t.kind == task_kind_ask?run_ask(comp, t, args, ctx, tx)
             :comp.vtable.handle(comp.instance, {message| name: t.name, args }, ctx);
@@ -259,9 +299,16 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
             // As JS warns and keeps next: the component stays as it was.
             observe_unhandled(t.name);
         } else {
-            host_fail(js_string_concat(s_err_rejected, t.name));
+            reject_message(comp, t.name, error);
             unreachable;
         }
+    }
+    if h.dev & !!ms {
+        let next = comp;
+        if !!leaf {
+            next = value_as_component(leaf!)!;
+        }
+        check_message_contract(tx, t, comp, next, ms!, args, ctx, pre_held);
     }
     if (t.kind == task_kind_notify) & !dispatch_path_is_root(path) & !stop {
         let parent = {target| base: dispatch_path_to_parent(path), selector: empty_selector() };
@@ -405,6 +452,16 @@ fn eval_arg(a: &arg, ctx: &context, node: &?extern) -> &value {
         }
         return value_from_key(ctx.source_key!);
     }
+    if kind == arg_kind_event {
+        if ctx.event.kind != value_kind_map {
+            return VALUE_NULL;
+        }
+        let found = map_get(ctx.event, (a as &arg_event).name);
+        if !found {
+            return VALUE_NULL;
+        }
+        return found!;
+    }
     if kind == arg_kind_drag_key {
         if ctx.drag.kind != value_kind_map {
             return VALUE_NULL;
@@ -423,18 +480,28 @@ fn eval_arg(a: &arg, ctx: &context, node: &?extern) -> &value {
 // gets to the parent's on:drop; before that, the drag they're about is
 // tracked from dragstart to dragend.
 fn host_dispatch_event(h: &host, e: &extern, target: &extern, kind: &extern, event: &value) -> i32 {
+    if !h.container {
+        return 0;
+    }
+    let container = h.container!;
     let bubbles = is_drop_event(kind);
     if str_eq(kind, s_dragstart) {
-        host_start_drag(h, e, target);
+        host_start_drag(h, container, e, target);
     } else {
         if bubbles {
-            host_drag_over(h, e, target, kind);
+            host_drag_over(h, container, e, target, kind, event);
         }
     }
-    let info = decode_event(h.container, target, kind, h.root, bubbles);
+    let info = decode_event(container, target, kind, h.root, bubbles, event);
     let queued = 0;
     if !!info {
         let i = info!;
+        if i.handler.mods & event_mod_prevent {
+            dom_prevent_default(e);
+        }
+        if i.handler.mods & event_mod_stop {
+            dom_stop_propagation(e);
+        }
         let r = i.route;
         task_queue_push(
             h.queue,
@@ -470,12 +537,12 @@ fn is_drop_event(kind: &extern) -> i32 {
 
 // Remembers what is dragged: the closest draggable element, where it was
 // rendered and its value.
-fn host_start_drag(h: &host, e: &extern, target: &extern) {
+fn host_start_drag(h: &host, container: &extern, e: &extern, target: &extern) {
     let node = dom_closest_draggable(target);
     if !node {
         return;
     }
-    let path = path_of(h.container, node!);
+    let path = path_of(container, node!);
     if !path {
         return;
     }
@@ -490,19 +557,26 @@ fn host_start_drag(h: &host, e: &extern, target: &extern) {
 // Over a drop target, an element with a drop handler, lets the drop happen
 // and marks it: the browser shows a move cursor over a drop target, a
 // not-allowed one elsewhere.
-fn host_drag_over(h: &host, e: &extern, target: &extern, kind: &extern) {
+fn host_drag_over(
+    h: &host,
+    container: &extern,
+    e: &extern,
+    target: &extern,
+    kind: &extern,
+    event: &value,
+) {
     if str_eq(kind, s_drop) {
         dom_prevent_default(e);
         host_mark_drag_over(h, null);
         return;
     }
     if str_eq(kind, s_dragleave) {
-        if !dom_contains(h.container, dom_related_target(e)) {
+        if !dom_contains(container, dom_related_target(e)) {
             host_mark_drag_over(h, null);
         }
         return;
     }
-    let info = decode_event(h.container, target, s_drop, h.root, 1);
+    let info = decode_event(container, target, s_drop, h.root, 1, event);
     if !info {
         host_mark_drag_over(h, null);
         return;
@@ -685,14 +759,18 @@ fn host_settle(h: &host, handle: &extern, result: &value) -> i32 {
 
 // Renders the root if it changed since the last render: lowers its view and
 // morphs the DOM from what the last render rendered.
+// A headless host renders nothing.
 fn host_render(h: &host) {
+    if !h.container | !h.doc {
+        return;
+    }
     if !!h.rendered_root {
         if h.rendered_root! == h.root {
             return;
         }
     }
     let vnodes = lower_all(render_root(h.root));
-    render(h.doc, h.container, vnodes, h.rendered);
+    render(h.doc!, h.container!, vnodes, h.rendered);
     h.rendered = vnodes;
     h.rendered_root = h.root;
 }

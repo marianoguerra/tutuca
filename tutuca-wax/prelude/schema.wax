@@ -1,0 +1,84 @@
+// Schemas as data (tutuca's src/schema.js): the types and constraints of a
+// component type's fields, computed properties and message arguments, which
+// the runtime checks values against, and tools read to know a component's
+// protocol. prelude/component.wax holds what refers to the handler context
+// (message schemas, interfaces) in its rec group; src/schema.wax has the
+// constructors and the checks.
+
+// The type of a value (tutuca's t.*). Cases without fields of their own
+// (any, null, bool, int, float, string) share vtype_simple, and the ones with
+// one item type (option, list, map) share vtype_of; the kind tells them apart.
+const vtype_kind_any = 0;
+const vtype_kind_null = 1;
+const vtype_kind_bool = 2;
+const vtype_kind_int = 3;
+const vtype_kind_float = 4;
+const vtype_kind_string = 5;
+const vtype_kind_enum = 6;
+const vtype_kind_option = 7;
+const vtype_kind_list = 8;
+const vtype_kind_map = 9;
+const vtype_kind_record = 10;
+const vtype_kind_one_of = 11;
+const vtype_kind_component = 12;
+const vtype_kind_result = 13;
+
+rec {
+    type vtype = open { kind: i32 };
+    type vtype_simple: vtype = { .. };
+    // A string from members.
+    type vtype_enum: vtype = { .., members: &str_array };
+    // option<item>, list<item>, map<item> (string keys).
+    type vtype_of: vtype = { .., item: &vtype };
+    // A map with exactly these keys, each of its type.
+    type vtype_record: vtype = { .., names: &str_array, types: &vtype_array };
+    type vtype_one_of: vtype = { .., types: &vtype_array };
+    // A component of one of these types or interfaces; any component when none.
+    type vtype_component: vtype = { .., names: &str_array };
+    type vtype_result: vtype = { .., ok: &vtype, err: &vtype };
+    type vtype_array = [mut &?vtype];
+}
+
+// What a value of the right type must also be (the constraints of tutuca's
+// t.*, in the normal form a TCD where clause compiles to).
+const constraint_kind_min = 0; // value >= bound, > when exclusive
+const constraint_kind_max = 1; // value <= bound, < when exclusive
+const constraint_kind_min_len = 2; // a string's, list's or map's length >= n
+const constraint_kind_max_len = 3; // <= n
+const constraint_kind_one_of = 4; // one of values
+const constraint_kind_none_of = 5; // none of values
+const constraint_kind_key_of = 6; // a key of the owner's field (t.index)
+const constraint_kind_pattern = 7; // a string matching the regular expression
+const constraint_kind_check = 8; // a named predicate (t.where)
+
+// A named predicate: the owner's instance and the value.
+type check_fn = fn(&eq, &value) -> i32;
+
+type constraint = open { kind: i32 };
+type constraint_bound: constraint = { .., bound: f64, exclusive: i32 };
+type constraint_len: constraint = { .., n: i32 };
+type constraint_values: constraint = { .., values: &value };
+type constraint_key_of: constraint = { .., field: &extern };
+type constraint_pattern: constraint = { .., pattern: &extern };
+type constraint_check: constraint = { .., name: &extern, check: &check_fn };
+type constraint_array = [mut &?constraint];
+
+// How far a field's state goes, from most to least (tutuca's SYNC_LEVELS):
+// replicated and persisted, persisted on this device only, neither.
+const sync_shared = 0;
+const sync_local = 1;
+const sync_none = 2;
+
+// A field, a computed property or a message argument: its name, type,
+// constraints and sync level.
+type field_schema = { name: &extern, vtype: &vtype, constraints: &constraint_array, sync: i32 };
+type field_schema_array = [mut &?field_schema];
+
+// An effect a message may emit (MessageSpec's emits): a notify, an ask, or a
+// send below (sendAt, forwardAt), by message name.
+const emit_kind_notify = 0;
+const emit_kind_ask = 1;
+const emit_kind_send_at = 2;
+
+type emit_spec = { kind: i32, name: &extern };
+type emit_array = [mut &?emit_spec];

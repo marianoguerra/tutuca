@@ -1,0 +1,67 @@
+// The showcase component module: Shelf and Note, using what the other
+// examples' views don't: a scope's binds, a loop with filter, enrich and key
+// hooks, a loop with prepare and iter hooks, seq items, a float, a provided
+// value, push_view, render_it, and drag and drop.
+package tutuca:showcase@0.1.0;
+
+/// A shelf of books. The books loop keeps only the unread ones when
+/// only_unread, keys them by title, and binds label as "title (year)"; the
+/// by_year loop's prepare sorts their indexes by year, and its iter gives the
+/// books in that order. A book dropped on another moves there; dropped on a
+/// note, which handles no drop, it reaches the notes' on_drop, which sends
+/// that note the book's title.
+component shelf {
+    field books: list<record { title: string, year: s32, read: bool }>;
+    field only_unread: bool;
+    field tags: list<string>;
+    field current: s32;
+    field theme: string;
+    field note: option<note>;
+    field notes: list<note>;
+    /// The share of the books read.
+    get share: f64 where 0 <= share <= 1;
+
+    provide theme = field(theme);
+
+    message toggle_unread() changes only_unread ensures next.only_unread == not only_unread;
+    /// The book dragged from from, dropped on the one at to; a drag from
+    /// elsewhere has no key, and nothing moves.
+    message move_book(from: option<index<books>>, to: option<index<books>>) changes books
+        ensures len(next.books) == len(books);
+    /// A book dropped on a note writes its title there.
+    message note_book(book: option<index<books>>, note: option<index<notes>>) changes nothing
+        emits send note.set_text;
+
+    scope header { heading: string }
+    loop books { key: string; filter; enrich { label: string } }
+    loop by_year { prepare: list<s32>; iter }
+
+    view main = section(class: "shelf card card-border bg-base-100 gap-2 p-4",
+        scope(header, h2(class: "card-title", bind(heading))),
+        button(class: "btn btn-sm btn-outline w-fit", on_click: send(toggle_unread),
+            if(field(only_unread), "show all", "only unread")),
+        ul(class: "flex flex-wrap gap-1",
+            each(loop: books, field(books),
+                li(class: if(field(read), "read badge badge-success", "unread badge badge-outline"),
+                    draggable: "true",
+                    "data-dragtype": "book",
+                    on_drop: send(move_book, drag_key(), source_key()),
+                    bind(label)))),
+        div(class: "by-year flex flex-wrap gap-1",
+            each(loop: by_year, field(books), span(class: "badge badge-ghost", field(title)))),
+        p(class: "tag badge badge-primary", seq_item(tags, current)),
+        p(class: "text-sm opacity-70 tabular-nums", field(share)),
+        push_view("compact", render(field(note))),
+        div(class: "notes flex flex-col gap-1", on_drop: send(note_book, drag_key(), source_key()),
+            each(field(notes), render_it())));
+}
+
+/// A note: its text, in a paragraph, or small in the provided theme.
+component note {
+    field text: string;
+
+    message set_text(text: string) changes text ensures next.text == text;
+
+    view main = p(class: "note text-sm", field(text));
+    view compact = small(class: provided(theme), field(text));
+}

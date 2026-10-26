@@ -1,0 +1,10 @@
+import {
+  "tutuca/tcd/diag",
+  "tutuca/tcd/syntax",
+  "tutuca/tcd/check",
+  "moonbitlang/core/cmp",
+}
+
+import {
+  "tutuca/tcd/gen",
+} for "test"

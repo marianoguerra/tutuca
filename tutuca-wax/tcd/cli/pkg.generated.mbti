@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/tcd/cli"
+
+// Values
+pub fn run(Array[String], Io) -> Int32
+
+// Errors
+
+// Types and methods
+pub(all) struct Io {
+  read : (String) -> String?
+  write : (String, String) -> Bool
+  write_bytes : (String, Bytes) -> Bool
+  out : (String) -> Unit
+  err : (String) -> Unit
+}
+
+// Type aliases
+
+// Traits

@@ -58,6 +58,11 @@ fn message_error_wrong_arg_type(index: i32) -> &message_error {
     out;
 }
 
+fn message_error_invalid_arg(index: i32, reason: &value) -> &message_error {
+    let out: &message_error_invalid_arg = { kind: message_error_kind_invalid_arg, index, reason };
+    out;
+}
+
 fn message_error_failed(reason: &value) -> &message_error {
     let out: &message_error_failed = { kind: message_error_kind_failed, reason };
     out;

@@ -163,7 +163,7 @@ fn api_arg_array_set(a: &arg_array, i: i32, value: &arg) {
 
 #[export = "on_attr_new"]
 fn api_on_attr_new(event: &extern, name: &extern, args: &arg_array) -> &on_attr {
-    {on_attr| event, action: {action| name, args } };
+    on_attr_new(event, name, args);
 }
 
 #[export = "on_attr_array_new"]
@@ -282,9 +282,54 @@ fn api_component_get(v: &value, name: &extern) -> &value {
     get_key(v, path_key_name(name));
 }
 
+// A host rendering into container in doc; headless when both are null.
 #[export = "host_new"]
-fn api_host_new(doc: &extern, container: &extern, root: &value) -> &host {
+fn api_host_new(doc: &?extern, container: &?extern, root: &value) -> &host {
     host_new(doc, container, root);
+}
+
+// Dev mode: checks the whole state now, then after each task.
+#[export = "host_set_dev"]
+fn api_host_set_dev(h: &host, dev: i32) {
+    h.dev = dev;
+    if dev {
+        host_check(h);
+    }
+}
+
+// A component's type's schema as a value, or null.
+#[export = "component_schema"]
+fn api_component_schema(v: &value) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return VALUE_NULL;
+    }
+    spec_schema_value((c!).spec);
+}
+
+// Why the component v can't take the message name with args (a list value)
+// now, as a string value, or null when it can.
+#[export = "component_message_problem"]
+fn api_component_message_problem(v: &value, name: &extern, args: &value) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return VALUE_NULL;
+    }
+    let problem = message_problem(c!, name, list_to_values(args));
+    if !problem {
+        return VALUE_NULL;
+    }
+    value_string(problem!);
+}
+
+// The interface registered as name, visible from s, as a value, or null.
+#[export = "scope_interface"]
+fn api_scope_interface(s: &scope, name: &extern) -> &value {
+    let iface = scope_lookup_interface(s, name);
+    if !iface {
+        return VALUE_NULL;
+    }
+    interface_schema_value(iface!);
 }
 
 #[export = "host_root"]

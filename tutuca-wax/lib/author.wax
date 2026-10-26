@@ -383,3 +383,321 @@ fn json_indent_line(b: &text_builder, depth: i32) {
         i += 1;
     }
 }
+
+// ---- Schemas -------------------------------------------------------------------
+//
+// What a TCD file declares, spelled out by hand: fields and arguments with
+// their types and constraints, messages, and a component type's schema.
+
+// A field or an argument: its name and type, no constraints, shared.
+fn fs(name: &extern, vt: &vtype) -> &field_schema {
+    field_schema_new(name, vt, [constraint_array|null; 0], sync_shared);
+}
+
+// The same, with one constraint, or two.
+fn fs1(name: &extern, vt: &vtype, c: &constraint) -> &field_schema {
+    let cs = [constraint_array|null; 1];
+    cs[0] = c;
+    field_schema_new(name, vt, cs, sync_shared);
+}
+
+fn fs2(name: &extern, vt: &vtype, c1: &constraint, c2: &constraint) -> &field_schema {
+    let cs = [constraint_array|null; 2];
+    cs[0] = c1;
+    cs[1] = c2;
+    field_schema_new(name, vt, cs, sync_shared);
+}
+
+fn fields0() -> &field_schema_array {
+    [field_schema_array|null; 0];
+}
+
+fn fields1(a: &field_schema) -> &field_schema_array {
+    let out = [field_schema_array|null; 1];
+    out[0] = a;
+    out;
+}
+
+fn fields2(a: &field_schema, b: &field_schema) -> &field_schema_array {
+    let out = [field_schema_array|null; 2];
+    out[0] = a;
+    out[1] = b;
+    out;
+}
+
+fn fields3(a: &field_schema, b: &field_schema, c: &field_schema) -> &field_schema_array {
+    let out = [field_schema_array|null; 3];
+    out[0] = a;
+    out[1] = b;
+    out[2] = c;
+    out;
+}
+
+// A message without a contract: its arguments only.
+fn msg(name: &extern, args: &field_schema_array) -> &message_schema {
+    message_schema_new(name, args, null, null, null, null, null);
+}
+
+// What a message may emit: one effect, or none.
+fn emits1(kind: i32, name: &extern) -> &emit_array {
+    let out = [emit_array|null; 1];
+    out[0] = emit_spec_new(kind, name);
+    out;
+}
+
+fn emits0() -> &emit_array {
+    [emit_array|null; 0];
+}
+
+fn no_invariants() -> &invariant_array {
+    [invariant_array|null; 0];
+}
+
+// ---- What generated components call (tcd) ---------------------------------------
+//
+// tcd generates a component's boilerplate from its TCD file; these are the
+// runtime's side of that: reading init's fields, the schema checks, a
+// handler's result by reference, and what compiled conditions evaluate with.
+
+// The field name of init's fields, or null when it's missing or fields isn't a map.
+fn field_value(fields: &value, name: &extern) -> &?value {
+    if fields.kind != value_kind_map {
+        return null;
+    }
+    map_get(fields, name);
+}
+
+// Init that can't make an instance: field is missing or invalid, and has no
+// default (problem says how).
+fn init_fail(issues: &value, field: &extern, problem: &extern) -> &init_result {
+    let message = js_string_concat(js_string_concat(field, s_colon_space), problem);
+    {init_result|
+        instance: null,
+        issues: init_issue(issues, field, problem),
+        error: value_string(message),
+    };
+}
+
+// A handler's next state: unchanged when it's the same reference.
+fn message_result_of(prev: &eq, next: &eq) -> &message_result {
+    if prev == next {
+        return message_result_unchanged();
+    }
+    message_result_updated(next);
+}
+
+// ---- Conditions (when, ensures, invariant) -----------------------------------------
+
+// a == b, as a condition compares: numbers by value, strings by content,
+// lists and maps item by item, the rest by reference.
+fn cond_eq(a: &value, b: &value) -> i32 {
+    if value_same(a, b) {
+        return 1;
+    }
+    if (a.kind == value_kind_list) & (b.kind == value_kind_list) {
+        let n = list_count(a);
+        if n != list_count(b) {
+            return 0;
+        }
+        let i = 0;
+        while i <s n {
+            if !cond_eq(list_get(a, i)!, list_get(b, i)!) {
+                return 0;
+            }
+            i += 1;
+        }
+        return 1;
+    }
+    if (a.kind == value_kind_map) & (b.kind == value_kind_map) {
+        if map_count(a) != map_count(b) {
+            return 0;
+        }
+        let keys = map_keys(a);
+        let i = 0;
+        while i <s list_count(keys) {
+            let key = (list_get(keys, i)! as &value_string).value;
+            let other = map_get(b, key);
+            if !other {
+                return 0;
+            }
+            if !cond_eq(map_get(a, key)!, other!) {
+                return 0;
+            }
+            i += 1;
+        }
+        return 1;
+    }
+    0;
+}
+
+fn is_number(v: &value) -> i32 {
+    (v.kind == value_kind_int) | (v.kind == value_kind_float);
+}
+
+// -1, 0 or 1 ordering numbers or strings; 2 when they don't order.
+fn cond_order(a: &value, b: &value) -> i32 {
+    if is_number(a) & is_number(b) {
+        let x = value_to_f64(a);
+        let y = value_to_f64(b);
+        if x < y {
+            return -1;
+        }
+        if x > y {
+            return 1;
+        }
+        if x == y {
+            return 0;
+        }
+        return 2;
+    }
+    if (a.kind == value_kind_string) & (b.kind == value_kind_string) {
+        let s = (a as &value_string).value;
+        let t = (b as &value_string).value;
+        let n = js_string_length(s);
+        let m = js_string_length(t);
+        let i = 0;
+        while (i <s n) & (i <s m) {
+            let c = js_string_char_code_at(s, i);
+            let d = js_string_char_code_at(t, i);
+            if c != d {
+                return c <s d?-1:1;
+            }
+            i += 1;
+        }
+        if n == m {
+            return 0;
+        }
+        return n <s m?-1:1;
+    }
+    2;
+}
+
+fn cond_lt(a: &value, b: &value) -> i32 {
+    cond_order(a, b) == -1;
+}
+
+fn cond_le(a: &value, b: &value) -> i32 {
+    let o = cond_order(a, b);
+    (o == -1) | (o == 0);
+}
+
+fn cond_gt(a: &value, b: &value) -> i32 {
+    cond_order(a, b) == 1;
+}
+
+fn cond_ge(a: &value, b: &value) -> i32 {
+    let o = cond_order(a, b);
+    (o == 1) | (o == 0);
+}
+
+// a + b and a - b of numbers: an int when both are, null for anything else.
+fn cond_add(a: &value, b: &value) -> &value {
+    if (a.kind == value_kind_int) & (b.kind == value_kind_int) {
+        return value_int((a as &value_int).value + (b as &value_int).value);
+    }
+    if is_number(a) & is_number(b) {
+        return value_float(value_to_f64(a) + value_to_f64(b));
+    }
+    VALUE_NULL;
+}
+
+fn cond_sub(a: &value, b: &value) -> &value {
+    if (a.kind == value_kind_int) & (b.kind == value_kind_int) {
+        return value_int((a as &value_int).value - (b as &value_int).value);
+    }
+    if is_number(a) & is_number(b) {
+        return value_float(value_to_f64(a) - value_to_f64(b));
+    }
+    VALUE_NULL;
+}
+
+// len(v): a string's, a list's or a map's; null for anything else.
+fn cond_len(v: &value) -> &value {
+    let n = value_length(v);
+    if n <s 0 {
+        return VALUE_NULL;
+    }
+    value_int(n);
+}
+
+// The items all(xs, ...) and any(xs, ...) go over: a list's, a map's values.
+fn cond_count(v: &value) -> i32 {
+    if v.kind == value_kind_list {
+        return list_count(v);
+    }
+    if v.kind == value_kind_map {
+        return map_count(v);
+    }
+    0;
+}
+
+fn cond_item(v: &value, i: i32) -> &value {
+    if v.kind == value_kind_list {
+        return list_get(v, i)!;
+    }
+    list_get(map_values(v), i)!;
+}
+
+// keys(f) and values(f), as lists.
+fn cond_keys(v: &value) -> &value {
+    if v.kind == value_kind_map {
+        return map_keys(v);
+    }
+    let out = list_empty();
+    let i = 0;
+    while i <s cond_count(v) {
+        out = list_push(out, value_int(i));
+        i += 1;
+    }
+    out;
+}
+
+fn cond_values(v: &value) -> &value {
+    if v.kind == value_kind_map {
+        return map_values(v);
+    }
+    if v.kind == value_kind_list {
+        return v;
+    }
+    list_empty();
+}
+
+// x in xs.
+fn cond_in(x: &value, xs: &value) -> i32 {
+    let i = 0;
+    while i <s cond_count(xs) {
+        if cond_eq(x, cond_item(xs, i)) {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+// s matches the regular expression pattern.
+fn cond_matches(s: &value, pattern: &extern) -> i32 {
+    if s.kind != value_kind_string {
+        return 0;
+    }
+    host_regex_test(pattern, (s as &value_string).value);
+}
+
+// v.name: a component's property, a map's key; null when it has none.
+fn value_member(v: &value, name: &extern) -> &value {
+    if v.kind == value_kind_map {
+        let found = map_get(v, name);
+        if !found {
+            return VALUE_NULL;
+        }
+        return found!;
+    }
+    let c = value_as_component(v);
+    if !c {
+        return VALUE_NULL;
+    }
+    let got = owner_field(c!, name);
+    if !got {
+        return VALUE_NULL;
+    }
+    got!;
+}

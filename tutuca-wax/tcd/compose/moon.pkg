@@ -1,0 +1,16 @@
+import {
+  "tutuca/tcd/diag",
+  "tutuca/tcd/check",
+  "tutuca/tcd/gen",
+  "marianoguerra/wax",
+  "marianoguerra/wax/ast",
+  "marianoguerra/wax/basic",
+  "marianoguerra/wax/diagnostic",
+  "marianoguerra/wax/message",
+  "marianoguerra/wax/warning",
+}
+
+import {
+  "tutuca/tcd/syntax",
+  "tutuca/tcd/compose",
+} for "test"

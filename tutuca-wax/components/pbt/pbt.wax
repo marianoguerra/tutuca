@@ -1,0 +1,45 @@
+// The pbt fixture's implementation (pbt.tcd has the rest), bug included.
+
+fn tally_on_inc(state: &tally_state, ctx: &context) -> &tally_state {
+    tally_with_count(state, state.count + 1);
+}
+
+// The seeded bug: add(4) past 8 adds 5.
+fn tally_on_add(state: &tally_state, ctx: &context, n: i32) -> &tally_state {
+    if (n == 4) & (state.count >=s 8) {
+        return tally_with_count(state, state.count + 5);
+    }
+    tally_with_count(state, state.count + n);
+}
+
+fn tally_on_mark(state: &tally_state, ctx: &context) -> &tally_state {
+    tally_with_marks(state, list_push(state.marks, value_int(state.count)));
+}
+
+fn tally_on_unmark(state: &tally_state, ctx: &context, at: i32) -> &tally_state {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.marks) {
+        if i != at {
+            out = list_push(out, list_get(state.marks, i)!);
+        }
+        i += 1;
+    }
+    tally_with_marks(state, out);
+}
+
+fn tally_on_reset(state: &tally_state, ctx: &context) -> &tally_state {
+    {tally_state| count: 0, marks: list_empty() };
+}
+
+fn lamp_on_toggle(state: &lamp_state, ctx: &context) -> &lamp_state {
+    lamp_with_mode(state, state.mode == lamp_mode_on?lamp_mode_off:lamp_mode_on);
+}
+
+fn lamp_on_break_it(state: &lamp_state, ctx: &context) -> &lamp_state {
+    lamp_with_mode(state, lamp_mode_broken);
+}
+
+fn lamp_on_repair(state: &lamp_state, ctx: &context) -> &lamp_state {
+    lamp_with_mode(state, lamp_mode_off);
+}

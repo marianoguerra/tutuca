@@ -1,0 +1,9 @@
+import {
+  "tutuca/tcd/diag",
+  "tutuca/tcd/syntax",
+  "tutuca/tcd/check",
+  "tutuca/tcd/gen",
+  "tutuca/tcd/compose",
+  "tutuca/tcd/export",
+  "marianoguerra/wax",
+}

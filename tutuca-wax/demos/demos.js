@@ -39,6 +39,7 @@ const UI = {
 	log: "log text-success",
 	unhandled: "unhandled text-warning",
 	failed: "failed text-error",
+	issue: "issue text-warning",
 	note: "note opacity-60",
 	empty: "opacity-60",
 	list: "list-disc pl-5",
@@ -130,15 +131,17 @@ function card({ title, description }) {
 // panel shows.
 function observe(host, c, show) {
 	const run = host.run.bind(host);
-	const seen = { logs: 0, unhandled: 0, failures: 0 };
+	const seen = { logs: 0, unhandled: 0, failures: 0, issues: 0 };
 	host.run = () => {
 		run();
 		for (const v of host.logs.slice(seen.logs)) c.note("log", JSON.stringify(v));
 		for (const name of host.unhandled.slice(seen.unhandled)) c.note("unhandled", name);
 		for (const e of host.failures.slice(seen.failures)) c.note("failed", e.message);
+		for (const i of host.issues.slice(seen.issues)) c.note("issue", JSON.stringify(i));
 		seen.logs = host.logs.length;
 		seen.unhandled = host.unhandled.length;
 		seen.failures = host.failures.length;
+		seen.issues = host.issues.length;
 		c.state.textContent = JSON.stringify(show(host.root()), null, 2);
 	};
 	return host;
@@ -151,7 +154,7 @@ function demo({ title, description, type, fields, inspect, actions = [], asks = 
 	let host;
 	const mount = () => {
 		c.stage.replaceChildren();
-		host = runtime.createHost(document, c.stage, runtime.make(scope, type, fields), { asks });
+		host = runtime.createHost(document, c.stage, runtime.make(scope, type, fields), { asks, dev: true });
 		observe(host, c, (root) => ({ type: runtime.typeName(root), ...inspect(root) }));
 		host.mount();
 	};

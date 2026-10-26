@@ -51,6 +51,9 @@ fn view_to_arg(v: &view) -> &arg {
         d: &view_drag_key => {
             return arg_drag_key();
         }
+        v: &view_event => {
+            return arg_event(v.name);
+        }
         c: &view_if => {
             return arg_if(view_to_arg(c.test), view_to_arg(c.then), view_to_arg(c.otherwise));
         }
@@ -69,7 +72,7 @@ fn view_to_on_attr(h: &view_on) -> &on_attr {
         out[i] = view_to_arg(args[i]!);
         i += 1;
     }
-    {on_attr| event: h.event, action: {action| name: h.action.name, args: out } };
+    on_attr_new(h.event, h.action.name, out);
 }
 
 fn view_el_template(e: &view_el, tid: i32) -> &template {
@@ -158,7 +161,7 @@ fn collect_events_add(s: &collect_events_state, name: &extern) {
 }
 
 fn collect_events_handler: handler_fn (w: &walker, e: &view_el, h: &view_on) {
-    collect_events_add(w.state as &collect_events_state, h.event);
+    collect_events_add(w.state as &collect_events_state, event_type_of(h.event));
 }
 
 fn views_collect_event_names(views: &view_array) -> &str_array {

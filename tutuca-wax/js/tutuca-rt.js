@@ -108,6 +108,7 @@ function domImports(late) {
 		},
 		contains: (container, node) => (node != null && container.contains(node) ? 1 : 0),
 		prevent_default: (e) => e.preventDefault(),
+		stop_propagation: (e) => e.stopPropagation(),
 		related_target: (e) => e.relatedTarget ?? null,
 		drag_start: (e) => {
 			if (!e.dataTransfer) return;
@@ -150,6 +151,59 @@ export async function readBytes(url) {
 	return response.arrayBuffer();
 }
 
+// A pattern constraint's regular expression, compiled once.
+const regexes = new Map();
+const regexOf = (pattern) => {
+	if (!regexes.has(pattern)) regexes.set(pattern, new RegExp(pattern));
+	return regexes.get(pattern);
+};
+
+// The fields of a DOM event handlers read as ctx.event (and a view's
+// event(name) send argument): its type, the key and the modifier keys held,
+// the pointer's buttons, position, movement and kind, and a wheel's deltas;
+// only the ones the event has.
+const EVENT_FIELDS = [
+	"key",
+	"code",
+	"repeat",
+	"altKey",
+	"ctrlKey",
+	"shiftKey",
+	"metaKey",
+	"button",
+	"buttons",
+	"clientX",
+	"clientY",
+	"offsetX",
+	"offsetY",
+	"pageX",
+	"pageY",
+	"screenX",
+	"screenY",
+	"movementX",
+	"movementY",
+	"pointerId",
+	"pointerType",
+	"isPrimary",
+	"pressure",
+	"width",
+	"height",
+	"tiltX",
+	"tiltY",
+	"deltaX",
+	"deltaY",
+	"deltaZ",
+	"deltaMode",
+];
+export const eventFields = (e) => {
+	const out = { type: e.type };
+	for (const name of EVENT_FIELDS) {
+		const v = e[name];
+		if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") out[name] = v;
+	}
+	return out;
+};
+
 // What a component module may import: the runtime's ABI, the js-string
 // builtins and its string constants.
 const COMPONENT_IMPORTS = new Set(["tutuca", "wasm:js-string", "'"]);
@@ -177,6 +231,13 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			ask: (name, args) => late.host.ask(name, late.fromValue(args)),
 			number_text: (n) => String(n),
 			parse_number: (s) => (s.trim() === "" ? Number.NaN : Number(s)),
+			regex_test: (pattern, s) => (regexOf(pattern).test(s) ? 1 : 0),
+			reject: (message, info) => {
+				const error = new Error(message);
+				error.rejection = late.fromValue(info);
+				throw error;
+			},
+			observe_issue: (kind, info) => late.host?.issues.push({ kind, ...late.fromValue(info) }),
 		},
 	});
 	late.exports = instance.exports;
@@ -400,12 +461,13 @@ function makeApi(w) {
 			isComponent ? 1 : 0,
 		);
 	// A send argument: a literal, { targetValue: true }, { sourceKey: true },
-	// { dragKey: true }, or { if: [test, then, otherwise] }.
+	// { dragKey: true }, { event: name }, or { if: [test, then, otherwise] }.
 	const arg = (a) => {
 		if (a !== null && typeof a === "object") {
 			if (a.targetValue) return w.arg_target_value();
 			if (a.sourceKey) return w.arg_source_key();
 			if (a.dragKey) return w.arg_drag_key();
+			if (typeof a.event === "string") return w.arg_event(a.event);
 			if (Array.isArray(a.if)) return w.arg_if(arg(a.if[0]), arg(a.if[1]), arg(a.if[2]));
 		}
 		return w.arg_value(toValue(a));
@@ -505,6 +567,7 @@ function makeApi(w) {
 			"targetValue",
 			"sourceKey",
 			"dragKey",
+			"event",
 		],
 		constant: (v) => viewNode(w.view_const(toValue(v))),
 		field: (name) => viewNode(w.view_field(name)),
@@ -543,6 +606,8 @@ function makeApi(w) {
 		targetValue: () => viewNode(w.view_target_value()),
 		sourceKey: () => viewNode(w.view_source_key()),
 		dragKey: () => viewNode(w.view_drag_key()),
+		// A field of the event (key, clientX, ctrlKey, ...), as a send argument.
+		event: (name) => viewNode(w.view_event(name)),
 		// The templates of views (src/collect.wax), setting each element's.
 		templates(views) {
 			const ts = w.views_collect_templates(viewArray(views));
@@ -594,10 +659,13 @@ function makeRuntime(w, api, late) {
 		if ("err" in result) throw new Error(String(result.err));
 		return w.value_result_value(made);
 	};
-	// A host for root, rendering into container. env gives now, random and
-	// uuid; asks answers the asks registered with registerHostAsk, by name,
-	// with a value or a promise of one. One module instance drives one host.
-	const createHost = (document, container, root, { env = {}, asks = {} } = {}) => {
+	// A host for root, rendering into container, in document; a headless
+	// one, with both null, only runs tasks. env gives now, random and uuid;
+	// asks answers the asks registered with registerHostAsk, by name, with a
+	// value or a promise of one; dev checks the state against the schemas of
+	// its components and messages against their contracts, into issues. One
+	// module instance drives one host.
+	const createHost = (document, container, root, { env = {}, asks = {}, dev = false } = {}) => {
 		const h = w.host_new(document, container, root);
 		const inflight = new Set();
 		const listener = (e) => host.dispatch(e);
@@ -613,6 +681,9 @@ function makeRuntime(w, api, late) {
 			logs: [],
 			unhandled: [],
 			failures: [],
+			// What dev mode found: { kind: "stateInvalid" | "messageInvalid", ... }.
+			issues: [],
+			headless: container === null,
 			env: {
 				now: env.now ?? (() => Date.now()),
 				random: env.random ?? (() => Math.random()),
@@ -656,6 +727,7 @@ function makeRuntime(w, api, late) {
 			// Listens on the container for the events the types in the root's
 			// scope tree handle, the ones loaded since included.
 			listen() {
+				if (host.headless) return;
 				for (const type of values.to(w.host_new_event_names(h))) container.addEventListener(type, listener);
 			},
 			// A message to the root, from outside it.
@@ -667,7 +739,7 @@ function makeRuntime(w, api, late) {
 			// Routes a DOM event to the handler it reaches, if any, and runs.
 			dispatch(e) {
 				late.host = host;
-				const event = values.from({ type: e.type, key: e.key ?? null });
+				const event = values.from(eventFields(e));
 				if (w.host_dispatch_event(h, e, e.target, e.type, event)) host.run();
 			},
 			// Renders, and listens to the events its components handle.
@@ -700,6 +772,10 @@ function makeRuntime(w, api, late) {
 				return handle;
 			},
 		};
+		if (dev) {
+			late.host = host;
+			w.host_set_dev(h, 1);
+		}
 		return host;
 	};
 	return {
@@ -710,6 +786,15 @@ function makeRuntime(w, api, late) {
 		// init's issues making a component: [{ field, problem }].
 		issues: (scope, name, fields = {}) => values.to(w.scope_make_issues(scope, name, values.from(fields))),
 		typeName: (component) => w.component_type_name(component),
+		// A component's type's schema: { name, fields, gets, messages,
+		// invariants, interfaces }, types written as TCD writes them; null
+		// for a type without one.
+		schema: (component) => values.to(w.component_schema(component)),
+		// Why component can't take the message name with args now (they don't
+		// fit its schema, or its guard doesn't hold), or null when it can.
+		messageProblem: (component, name, args = []) => values.to(w.component_message_problem(component, name, values.from(args))),
+		// The interface registered as name, visible from scope, or null.
+		interface: (scope, name) => values.to(w.scope_interface(scope, name)),
 		// A component's property, as a JS value.
 		get: (component, name) => values.to(w.component_get(component, name)),
 		createHost,

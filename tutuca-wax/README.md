@@ -20,8 +20,16 @@ has the design. Implemented so far:
   `bind/decode.rkt` and `system/host.rkt`;
 - component modules: a component type is a `.wasm` of its own, loaded at run
   time, that imports the runtime's functions and shares its types through a
-  prelude both are built with. `components/` has the examples, written by
-  hand against it, which the tests and demos load.
+  prelude both are built with. `components/` has the examples, which the
+  tests and demos load;
+- components defined in TCD (`tcd/`, its README has the language): a
+  WIT-style `.tcd` file says a component's state, protocol (messages with
+  their guards, frames, relations and effects) and views; tcd checks it,
+  generates the boilerplate (spec, schema, vtable, routing each message to
+  its handler), holds the hand-written `.wax` (only what each handler does)
+  to a naming convention, and compiles the module. Every example but `probe`
+  is written this way, and `js/pbt.js` tests components from the model tcd
+  exports: random walks with shrinking, exhaustive exploration, examples.
 
 ## Use
 
@@ -91,11 +99,13 @@ classes as constants, or `if`s of constants.
 | `prelude/*.wax` | what the runtime and component modules share: types and i32 consts, no code |
 | `src/*.wax` | the runtime, one concern per file; `src/abi.wax` is what component modules import |
 | `lib/*.wax` | helpers for writing component types, compiled into the runtime and imported |
-| `components/<module>/` | the example component modules: `counter` (Board, Counter, Label), `todo_list`, two implementations of the TodoItem it holds, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `pushView`, `renderIt`, drag and drop), and `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them) |
+| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
+| `tcd/` | the TCD tool, in MoonBit (its README has the language and the naming convention) |
 | `scripts/build.mjs` | assembles and compiles `dist/tutuca-rt.wasm` and `dist/components/<module>.wasm`, generating the prelude files components need, and optimizes them with wasm-opt |
 | `scripts/format.mjs` | `wax-mb format` over the sources (`npm run format`, `--check` in `npm test`) |
 | `scripts/setup-wax-mb.sh` | clones and builds the pinned wax-mb into `.tools/` |
 | `js/tutuca-rt.js` | the host side: the imports (DOM, env, host), loading the runtime and component modules, building values, vnodes and semantic trees from JS values, driving a host |
+| `js/pbt.js` | testing components from their TCD model (`dist/components/*.model.json`): random walks of enabled messages on a headless dev host, shrunk to a 1-minimal failing trace; exhaustive exploration of small state spaces; example blocks |
 | `js/css.js` | CSS for collected classes: loads margaui-css.wasm, compiles the set of classes loaded modules use into a `<style>` |
 | `vendor/margaui/` | margaui-css.wasm (tailwindcss-moonbit v0.5.0) and margaui's light and dark themes, pinned (`just vendor-margaui`) |
 | `test/suite.mjs` | the vdom, lowering, value, path and component cases, written once for both test environments |
@@ -119,7 +129,7 @@ The runtime is:
 2. `imports.wax`: the host imports
 3. `vendor/wax-mb/persistent_hash_map.wax`: wax-mb's HAMT, unmodified
 4. `vendor/wax-mb/persistent_vector.wax`: wax-mb's persistent vector, unmodified
-5. `prelude/value.wax`, `path.wax`, `sem.wax`, `view.wax`, `component.wax`: the shared types
+5. `prelude/value.wax`, `path.wax`, `sem.wax`, `view.wax`, `schema.wax`, `component.wax`: the shared types
 6. `str.wax`: string helpers
 7. `buf.wax`: growable arrays
 8. `key_map.wax`: a string → i32 hash map
@@ -130,22 +140,24 @@ The runtime is:
 13. `path.wax`: path keys and frames
 14. `text.wax`: building strings, JSON text
 15. `meta.wax`: the metadata comments' text
-16. `sem.wax`: the semantic tree, templates, event handlers
+16. `sem.wax`: the semantic tree, templates, event handlers and their modifiers
 17. `lower.wax`: the semantic tree to vnodes
 18. `view.wax`: views as data
 19. `walk.wax`: walking views
-20. `collect.wax`: what walking views collects: templates, class names
+20. `collect.wax`: what walking views collects: templates, event names, class names
 21. `component.wax`: the component runtime's functions and own types
 22. `route.wax`: paths: reading and writing the state, dispatch paths, selectors
-23. `scope.wax`: scopes: registering and making components
-24. `context.wax`: what a handler does through its context
-25. `render.wax`: rendering components into the semantic tree
-26. `eval.wax`: evaluating views; making specs from them
-27. `decode.wax`: routing a DOM event to a handler
-28. `host.wax`: tasks, transactions, rendering
-29. `api.wax`: the exports for JS
-30. `lib/author.wax`: helpers for writing component types by hand
-31. `abi.wax`: the component ABI's exports
+23. `schema.wax`: schemas: checking values against types and constraints, interfaces, schemas as values
+24. `scope.wax`: scopes: registering and making components
+25. `context.wax`: what a handler does through its context
+26. `render.wax`: rendering components into the semantic tree
+27. `eval.wax`: evaluating views; making specs from them
+28. `decode.wax`: routing a DOM event to a handler
+29. `host.wax`: tasks, transactions, rendering, drag and drop
+30. `check.wax`: what the host checks with schemas: arguments, contracts, the state
+31. `api.wax`: the exports for JS
+32. `lib/author.wax`: helpers for writing component types and schemas by hand
+33. `abi.wax`: the component ABI's exports
 
 A component module is the prelude (with the generated files below) and then
 its own sources, listed in `COMPONENTS`. The next section has how.
@@ -523,11 +535,61 @@ Over a drop target the host lets the drop happen and marks the target
 `ctx.drag`, a map of the `type`, the `value` and the `key` of its child the
 drag started in (what `dragKey` sends), or null.
 
-Not implemented yet: the dev checks (fields against their schema after each task,
-message contracts, invariants once the queue is empty, which also need the
-properties, messages and init schemas of NOTES.md's `ComponentSpec`), sync
-engines, and a view language (the examples spell their views with
-`lib/author.wax`'s helpers).
+**Event modifiers and data**: `on:<event>+<modifier>...` takes the event
+only when its modifiers match: a key held (`ctrl`, `alt`, `shift`, `meta`)
+or the key pressed (`enter`, `escape`, `tab`, `space`, `up`, `down`, `left`,
+`right`, `delete`, `backspace`); `prevent` and `stop` call `preventDefault()`
+and `stopPropagation()` when it does. TodoList's input adds on
+`keydown+enter+prevent`. A handler's `ctx.event` is the event's type, key
+and modifier keys, the pointer's buttons, position, movement and kind and a
+wheel's deltas (the ones it has), and a view reads them as send arguments
+with `event(name)`: `on:mousedown` → `press(event(clientX), event(clientY))`.
+
+**Schemas** (`prelude/schema.wax`, `schema.wax`; tutuca's `t.*` and
+`MessageSpec`): a component type can carry its schema as data
+(`spec_set_schema`): its fields' and computed properties' types
+(`vtype_int()`, `vtype_list(...)`, `vtype_component(names)`, ...) with
+constraints in normal form (`constraint_min`, `_max`, `_min_len`,
+`_max_len`, `_one_of`, `_none_of`, `_key_of` a field, `_pattern`, `_check`
+a named predicate), its messages (arguments, source key, `pre` and `post`
+predicates, the fields it `changes`, what it `emits`), its invariants, and
+the interfaces it implements. With one, the host rejects a message whose
+arguments don't fit before the handler sees them, and every rejection
+(those and a handler's own, `message_error_failed(reason)` or
+`message_error_invalid_arg(i, reason)`) aborts the task with a structured
+reason JS reads as `error.rejection`: `{ message, component, reason:
+wrongArity | wrongArgType | invalidArg | failed, index, problem, detail }`,
+`problem` saying why in words ("argument 0 (n): must be at least 1, got 0").
+`runtime.schema(component)` reads a type's schema, types written as TCD
+writes them (`list<TodoItem>`, `option<s32>`, constraints as `>= 1`,
+`in keys(items)`). Counter, the todos and Probe have schemas; the rest don't,
+and the runtime can't check inside them.
+
+**Dev mode** (`check.wax`; `createHost(..., { dev: true })`): the host
+checks the whole state when it starts, then after each task the fields it
+changed (only what changed: subtrees shared with the previous root are
+skipped), the message's contract (`pre`, `post`, `sourceKey`,
+`changes:<field>` for a field outside its changes that isn't the same value,
+`emits:<kind>:<name>`), and once the queue is empty, the invariants of what
+changed since it last was, since a task can leave them broken for the tasks
+it queued. What fails goes to `host.issues`, as JS's `stateInvalid` and
+`messageInvalid` reports; the tasks still commit.
+
+**Interfaces**: an `interface_schema` (fields, properties and messages, each
+of its type) registered in a scope by name (`scope_register_interface`)
+means a type registered or made under that name, or one that declares it
+implements it, must have all of it, of the same types; registering or
+making one that doesn't fails, saying what's missing ("Impostor can't be a
+TodoItem: its field done is s32, TodoItem's is bool"). TodoList registers
+TodoItem's; todo_item and todo_card implement it. `vtype_component` accepts
+a component of a named type or of a type implementing a named interface.
+
+**Headless hosts**: `host_new` with a null document and container, or
+`createHost(null, null, root)`, runs tasks and renders nothing, for tests
+and tools.
+
+Not implemented yet: sync engines, and a view language (the examples spell
+their views and schemas with `lib/author.wax`'s helpers).
 
 ## The DOM imports
 
@@ -549,7 +611,7 @@ engines, and a view language (the examples spell their views with
 - `previous_sibling`, `comment_data`, `get_eid` and `target_value`: what
   routing an event reads.
 - `closest_draggable`, `dataset_get` / `_set` / `_delete`, `contains`, and
-  the event's `prevent_default`, `related_target`, `drag_start` and
+  the event's `prevent_default`, `stop_propagation`, `related_target`, `drag_start` and
   `drop_effect_move`: what tracking a drag does.
 
 ## Differences from tutuca's JS vdom

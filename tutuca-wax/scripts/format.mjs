@@ -14,7 +14,7 @@ const UNFORMATTED = new Set(["src/imports.wax"]);
 // generated ones in dist/ aren't kept.
 const OURS = ["src/", "prelude/", "lib/", "components/"];
 const formatted = (f) => OURS.some((dir) => f.startsWith(dir)) && !UNFORMATTED.has(f);
-const files = [...new Set([...SOURCES, ...COMPONENTS.flatMap((c) => c.sources)])].filter(formatted);
+const files = [...new Set([...SOURCES, ...COMPONENTS.flatMap((c) => c.sources ?? c.impl)])].filter(formatted);
 const check = process.argv.includes("--check");
 const result = spawnSync(findWaxMb(), ["format", check ? "--check" : "-i", ...files], {
 	cwd: root,

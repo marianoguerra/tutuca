@@ -1,0 +1,1165 @@
+// Schemas (prelude/schema.wax and the schema types of prelude/component.wax;
+// tutuca's src/schema.js): their constructors; checking a value against a
+// type and its constraints, with a sentence saying why it doesn't fit;
+// writing types as TCD writes them; interfaces and what implementing one
+// takes; and a schema as a value, for tools to read a component's protocol.
+
+// ---- Constructors ---------------------------------------------------------------
+
+const VTYPE_ANY: &vtype = {vtype_simple| kind: vtype_kind_any };
+const VTYPE_NULL: &vtype = {vtype_simple| kind: vtype_kind_null };
+const VTYPE_BOOL: &vtype = {vtype_simple| kind: vtype_kind_bool };
+const VTYPE_INT: &vtype = {vtype_simple| kind: vtype_kind_int };
+const VTYPE_FLOAT: &vtype = {vtype_simple| kind: vtype_kind_float };
+const VTYPE_STRING: &vtype = {vtype_simple| kind: vtype_kind_string };
+
+fn vtype_any() -> &vtype {
+    VTYPE_ANY;
+}
+
+fn vtype_null() -> &vtype {
+    VTYPE_NULL;
+}
+
+fn vtype_bool() -> &vtype {
+    VTYPE_BOOL;
+}
+
+fn vtype_int() -> &vtype {
+    VTYPE_INT;
+}
+
+fn vtype_float() -> &vtype {
+    VTYPE_FLOAT;
+}
+
+fn vtype_string() -> &vtype {
+    VTYPE_STRING;
+}
+
+fn vtype_enum(members: &str_array) -> &vtype {
+    let out: &vtype_enum = { kind: vtype_kind_enum, members };
+    out;
+}
+
+fn vtype_option(item: &vtype) -> &vtype {
+    let out: &vtype_of = { kind: vtype_kind_option, item };
+    out;
+}
+
+fn vtype_list(item: &vtype) -> &vtype {
+    let out: &vtype_of = { kind: vtype_kind_list, item };
+    out;
+}
+
+fn vtype_map(item: &vtype) -> &vtype {
+    let out: &vtype_of = { kind: vtype_kind_map, item };
+    out;
+}
+
+fn vtype_record(names: &str_array, types: &vtype_array) -> &vtype {
+    if names.length() != types.length() {
+        host_fail(s_err_record_shape);
+    }
+    let out: &vtype_record = { kind: vtype_kind_record, names, types };
+    out;
+}
+
+fn vtype_one_of(types: &vtype_array) -> &vtype {
+    let out: &vtype_one_of = { kind: vtype_kind_one_of, types };
+    out;
+}
+
+fn vtype_component(names: &str_array) -> &vtype {
+    let out: &vtype_component = { kind: vtype_kind_component, names };
+    out;
+}
+
+fn vtype_result(ok: &vtype, err: &vtype) -> &vtype {
+    let out: &vtype_result = { kind: vtype_kind_result, ok, err };
+    out;
+}
+
+fn vtype_array_new(n: i32) -> &vtype_array {
+    [vtype_array|null; n];
+}
+
+fn constraint_min(bound: f64, exclusive: i32) -> &constraint {
+    let out: &constraint_bound = { kind: constraint_kind_min, bound, exclusive };
+    out;
+}
+
+fn constraint_max(bound: f64, exclusive: i32) -> &constraint {
+    let out: &constraint_bound = { kind: constraint_kind_max, bound, exclusive };
+    out;
+}
+
+fn constraint_min_len(n: i32) -> &constraint {
+    let out: &constraint_len = { kind: constraint_kind_min_len, n };
+    out;
+}
+
+fn constraint_max_len(n: i32) -> &constraint {
+    let out: &constraint_len = { kind: constraint_kind_max_len, n };
+    out;
+}
+
+// values is a list value.
+fn constraint_one_of(values: &value) -> &constraint {
+    let out: &constraint_values = { kind: constraint_kind_one_of, values };
+    out;
+}
+
+fn constraint_none_of(values: &value) -> &constraint {
+    let out: &constraint_values = { kind: constraint_kind_none_of, values };
+    out;
+}
+
+fn constraint_key_of(field: &extern) -> &constraint {
+    let out: &constraint_key_of = { kind: constraint_kind_key_of, field };
+    out;
+}
+
+fn constraint_pattern(pattern: &extern) -> &constraint {
+    let out: &constraint_pattern = { kind: constraint_kind_pattern, pattern };
+    out;
+}
+
+fn constraint_check(name: &extern, check: &check_fn) -> &constraint {
+    let out: &constraint_check = { kind: constraint_kind_check, name, check };
+    out;
+}
+
+fn constraint_array_new(n: i32) -> &constraint_array {
+    [constraint_array|null; n];
+}
+
+fn field_schema_new(
+    name: &extern,
+    vtype: &vtype,
+    constraints: &constraint_array,
+    sync: i32,
+) -> &field_schema {
+    {field_schema| name, vtype, constraints, sync };
+}
+
+fn field_schema_array_new(n: i32) -> &field_schema_array {
+    [field_schema_array|null; n];
+}
+
+fn message_schema_new(
+    name: &extern,
+    args: &field_schema_array,
+    source_key: &?field_schema,
+    pre: &?pre_fn,
+    post: &?post_fn,
+    changes: &?str_array,
+    emits: &?emit_array,
+) -> &message_schema {
+    {message_schema| name, args, source_key, pre, post, changes, emits };
+}
+
+fn message_schema_array_new(n: i32) -> &message_schema_array {
+    [message_schema_array|null; n];
+}
+
+fn emit_spec_new(kind: i32, name: &extern) -> &emit_spec {
+    {emit_spec| kind, name };
+}
+
+fn emit_array_new(n: i32) -> &emit_array {
+    [emit_array|null; n];
+}
+
+fn invariant_new(name: &extern, holds: &invariant_fn) -> &invariant {
+    {invariant| name, holds };
+}
+
+fn invariant_array_new(n: i32) -> &invariant_array {
+    [invariant_array|null; n];
+}
+
+fn interface_schema_new(
+    name: &extern,
+    fields: &field_schema_array,
+    gets: &field_schema_array,
+    messages: &message_schema_array,
+) -> &interface_schema {
+    {interface_schema| name, fields, gets, messages };
+}
+
+fn component_schema_new(
+    fields: &field_schema_array,
+    gets: &field_schema_array,
+    messages: &message_schema_array,
+    invariants: &invariant_array,
+    interfaces: &str_array,
+) -> &component_schema {
+    {component_schema| fields, gets, messages, invariants, interfaces };
+}
+
+fn spec_set_schema(spec: &component_spec, schema: &component_schema) {
+    spec.schema = schema;
+}
+
+// ---- Looking schemas up ------------------------------------------------------------
+
+fn field_schema_named(fields: &field_schema_array, name: &extern) -> &?field_schema {
+    let i = 0;
+    while i <s fields.length() {
+        let f = fields[i]!;
+        if str_eq(f.name, name) {
+            return f;
+        }
+        i += 1;
+    }
+    null;
+}
+
+fn message_schema_named(messages: &message_schema_array, name: &extern) -> &?message_schema {
+    let i = 0;
+    while i <s messages.length() {
+        let m = messages[i]!;
+        if str_eq(m.name, name) {
+            return m;
+        }
+        i += 1;
+    }
+    null;
+}
+
+fn spec_message_schema(spec: &component_spec, name: &extern) -> &?message_schema {
+    if !spec.schema {
+        return null;
+    }
+    message_schema_named((spec.schema!).messages, name);
+}
+
+fn str_array_has(names: &str_array, name: &extern) -> i32 {
+    let i = 0;
+    while i <s names.length() {
+        if str_eq(names[i], name) {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+// Whether c is of the named type, or of a type that implements the named
+// interface.
+fn component_is(c: &component, name: &extern) -> i32 {
+    if str_eq(c.spec.name, name) {
+        return 1;
+    }
+    if !c.spec.schema {
+        return 0;
+    }
+    str_array_has((c.spec.schema!).interfaces, name);
+}
+
+// ---- Describing types and values -----------------------------------------------------
+
+fn text_push_vtypes(b: &text_builder, types: &vtype_array) {
+    let i = 0;
+    while i <s types.length() {
+        if i >s 0 {
+            text_push(b, s_comma_space);
+        }
+        text_push_vtype(b, types[i]!);
+        i += 1;
+    }
+}
+
+// A type as TCD writes it: s32, list<string>, record { a: bool }, ...
+fn text_push_vtype(b: &text_builder, t: &vtype) {
+    let kind = t.kind;
+    if kind == vtype_kind_any {
+        text_push(b, s_t_any);
+        return;
+    }
+    if kind == vtype_kind_null {
+        text_push(b, s_null);
+        return;
+    }
+    if kind == vtype_kind_bool {
+        text_push(b, s_t_bool);
+        return;
+    }
+    if kind == vtype_kind_int {
+        text_push(b, s_t_s32);
+        return;
+    }
+    if kind == vtype_kind_float {
+        text_push(b, s_t_f64);
+        return;
+    }
+    if kind == vtype_kind_string {
+        text_push(b, s_t_string);
+        return;
+    }
+    if kind == vtype_kind_enum {
+        let members = (t as &vtype_enum).members;
+        text_push(b, s_t_enum_open);
+        let i = 0;
+        while i <s members.length() {
+            if i >s 0 {
+                text_push(b, s_comma_space);
+            }
+            text_push(b, members[i]!);
+            i += 1;
+        }
+        text_push(b, s_t_brace_close);
+        return;
+    }
+    if (kind == vtype_kind_option) | (kind == vtype_kind_list) | (kind == vtype_kind_map) {
+        let name = s_t_option;
+        if kind == vtype_kind_list {
+            name = s_t_list;
+        }
+        if kind == vtype_kind_map {
+            name = s_t_map;
+        }
+        text_push(b, name);
+        text_push_unit(b, '<');
+        text_push_vtype(b, (t as &vtype_of).item);
+        text_push_unit(b, '>');
+        return;
+    }
+    if kind == vtype_kind_record {
+        let r = t as &vtype_record;
+        text_push(b, s_t_record_open);
+        let i = 0;
+        while i <s r.names.length() {
+            if i >s 0 {
+                text_push(b, s_comma_space);
+            }
+            text_push(b, r.names[i]!);
+            text_push(b, s_colon_space);
+            text_push_vtype(b, r.types[i]!);
+            i += 1;
+        }
+        text_push(b, s_t_brace_close);
+        return;
+    }
+    if kind == vtype_kind_one_of {
+        text_push(b, s_t_one_of);
+        text_push_unit(b, '<');
+        text_push_vtypes(b, (t as &vtype_one_of).types);
+        text_push_unit(b, '>');
+        return;
+    }
+    if kind == vtype_kind_component {
+        let names = (t as &vtype_component).names;
+        if names.length() == 0 {
+            text_push(b, s_component);
+            return;
+        }
+        let i = 0;
+        while i <s names.length() {
+            if i >s 0 {
+                text_push(b, s_or_space);
+            }
+            text_push(b, names[i]!);
+            i += 1;
+        }
+        return;
+    }
+    let r = t as &vtype_result;
+    text_push(b, s_t_result);
+    text_push_unit(b, '<');
+    text_push_vtype(b, r.ok);
+    text_push(b, s_comma_space);
+    text_push_vtype(b, r.err);
+    text_push_unit(b, '>');
+}
+
+fn vtype_text(t: &vtype) -> &extern {
+    let b = text_builder_new();
+    text_push_vtype(b, t);
+    text_finish(b);
+}
+
+// A value, short, for saying what was given: strings quoted, numbers and
+// booleans as they are, collections by their size, components by type.
+fn text_push_value_short(b: &text_builder, v: &value) {
+    let kind = v.kind;
+    if kind == value_kind_null {
+        text_push(b, s_null);
+        return;
+    }
+    if kind == value_kind_bool {
+        text_push(b, (v as &value_bool).value?s_true:s_false);
+        return;
+    }
+    if kind == value_kind_int {
+        text_push_int(b, (v as &value_int).value);
+        return;
+    }
+    if kind == value_kind_float {
+        text_push(b, host_number_text((v as &value_float).value));
+        return;
+    }
+    if kind == value_kind_string {
+        text_push_json_string(b, (v as &value_string).value);
+        return;
+    }
+    if kind == value_kind_list {
+        text_push(b, s_v_list_of);
+        text_push_int(b, list_count(v));
+        text_push(b, s_v_items);
+        return;
+    }
+    if kind == value_kind_map {
+        text_push(b, s_v_map_of);
+        text_push_int(b, map_count(v));
+        text_push(b, s_v_keys);
+        return;
+    }
+    if kind == value_kind_result {
+        text_push(b, s_v_result);
+        return;
+    }
+    text_push(b, s_v_a);
+    text_push(b, (value_as_component(v)!).spec.name);
+}
+
+fn value_short(v: &value) -> &extern {
+    let b = text_builder_new();
+    text_push_value_short(b, v);
+    text_finish(b);
+}
+
+// ---- Checking values -------------------------------------------------------------------
+
+fn is_finite(n: f64) -> i32 {
+    (n == n) & (n - n == 0.0);
+}
+
+// Why v isn't of type t, or null when it is: "expected s32, got "a"", "item
+// 2: expected string, got 1", "key "b": expected bool, got null".
+fn vtype_problem(t: &vtype, v: &value) -> &?extern {
+    let kind = t.kind;
+    let vk = v.kind;
+    if kind == vtype_kind_any {
+        return null;
+    }
+    let fits = 0;
+    if kind == vtype_kind_null {
+        fits = vk == value_kind_null;
+    }
+    if kind == vtype_kind_bool {
+        fits = vk == value_kind_bool;
+    }
+    if kind == vtype_kind_int {
+        fits = vk == value_kind_int;
+    }
+    if kind == vtype_kind_float {
+        if vk == value_kind_int {
+            fits = 1;
+        }
+        if vk == value_kind_float {
+            fits = is_finite((v as &value_float).value);
+        }
+    }
+    if kind == vtype_kind_string {
+        fits = vk == value_kind_string;
+    }
+    if kind == vtype_kind_enum {
+        if vk == value_kind_string {
+            fits = str_array_has((t as &vtype_enum).members, (v as &value_string).value);
+        }
+    }
+    if kind == vtype_kind_option {
+        if vk == value_kind_null {
+            return null;
+        }
+        return vtype_problem((t as &vtype_of).item, v);
+    }
+    if (kind == vtype_kind_list) & (vk == value_kind_list) {
+        let item = (t as &vtype_of).item;
+        let i = 0;
+        while i <s list_count(v) {
+            let problem = vtype_problem(item, list_get(v, i)!);
+            if !!problem {
+                return
+                    js_string_concat(
+                        js_string_concat(js_string_concat(s_p_item, int_text(i)), s_colon_space),
+                        problem!,
+                    );
+            }
+            i += 1;
+        }
+        return null;
+    }
+    if (kind == vtype_kind_map) & (vk == value_kind_map) {
+        let item = (t as &vtype_of).item;
+        let keys = map_keys(v);
+        let i = 0;
+        while i <s list_count(keys) {
+            let key = (list_get(keys, i)! as &value_string).value;
+            let problem = vtype_problem(item, map_get(v, key)!);
+            if !!problem {
+                return key_problem(key, problem!);
+            }
+            i += 1;
+        }
+        return null;
+    }
+    if (kind == vtype_kind_record) & (vk == value_kind_map) {
+        let r = t as &vtype_record;
+        let i = 0;
+        while i <s r.names.length() {
+            let found = map_get(v, r.names[i]!);
+            if !found {
+                return key_problem(r.names[i]!, s_p_missing);
+            }
+            let problem = vtype_problem(r.types[i]!, found!);
+            if !!problem {
+                return key_problem(r.names[i]!, problem!);
+            }
+            i += 1;
+        }
+        let keys = map_keys(v);
+        i = 0;
+        while i <s list_count(keys) {
+            let key = (list_get(keys, i)! as &value_string).value;
+            if !str_array_has(r.names, key) {
+                return key_problem(key, s_p_not_in_record);
+            }
+            i += 1;
+        }
+        return null;
+    }
+    if kind == vtype_kind_one_of {
+        let types = (t as &vtype_one_of).types;
+        let i = 0;
+        while i <s types.length() {
+            if !vtype_problem(types[i]!, v) {
+                return null;
+            }
+            i += 1;
+        }
+    }
+    if (kind == vtype_kind_component) & (vk == value_kind_component) {
+        let names = (t as &vtype_component).names;
+        if names.length() == 0 {
+            return null;
+        }
+        let c = value_as_component(v)!;
+        let i = 0;
+        while i <s names.length() {
+            if component_is(c, names[i]!) {
+                return null;
+            }
+            i += 1;
+        }
+    }
+    if (kind == vtype_kind_result) & (vk == value_kind_result) {
+        let r = v as &value_result;
+        let rt = t as &vtype_result;
+        return vtype_problem(r.ok?rt.ok:rt.err, r.value);
+    }
+    if fits {
+        return null;
+    }
+    let b = text_builder_new();
+    text_push(b, s_p_expected);
+    text_push_vtype(b, t);
+    text_push(b, s_p_got);
+    text_push_value_short(b, v);
+    text_finish(b);
+}
+
+fn key_problem(key: &extern, problem: &extern) -> &extern {
+    let b = text_builder_new();
+    text_push(b, s_p_key);
+    text_push_json_string(b, key);
+    text_push(b, s_colon_space);
+    text_push(b, problem);
+    text_finish(b);
+}
+
+// The length a constraint on length reads: characters of a string, items of
+// a list or a map; -1 for anything else.
+fn value_length(v: &value) -> i32 {
+    if v.kind == value_kind_string {
+        return js_string_length((v as &value_string).value);
+    }
+    if v.kind == value_kind_list {
+        return list_count(v);
+    }
+    if v.kind == value_kind_map {
+        return map_count(v);
+    }
+    -1;
+}
+
+fn values_have(values: &value, v: &value) -> i32 {
+    let i = 0;
+    while i <s list_count(values) {
+        if value_same(list_get(values, i)!, v) {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+fn text_push_values(b: &text_builder, values: &value) {
+    let i = 0;
+    while i <s list_count(values) {
+        if i >s 0 {
+            text_push(b, s_comma_space);
+        }
+        text_push_value_short(b, list_get(values, i)!);
+        i += 1;
+    }
+}
+
+// what, then "got v": "must be at least 1, got 0".
+fn problem_got(what: &text_builder, v: &value) -> &extern {
+    text_push(what, s_p_got);
+    text_push_value_short(what, v);
+    text_finish(what);
+}
+
+// The owner's field a key_of constraint names, or null.
+fn owner_field(owner: &component, name: &extern) -> &?value {
+    let (code, got) = owner.vtable.get(owner.instance, name);
+    if code != property_ok {
+        return null;
+    }
+    got;
+}
+
+// Why v, of the right type, breaks one of constraints, or null. owner is the
+// component the value belongs to (the field's component, the message's
+// receiver): key_of and check constraints read it, and are skipped without one.
+fn constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> &?extern {
+    let i = 0;
+    while i <s cs.length() {
+        let problem = constraint_problem(cs[i]!, v, owner);
+        if !!problem {
+            return problem;
+        }
+        i += 1;
+    }
+    null;
+}
+
+fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> &?extern {
+    let kind = c.kind;
+    let b = text_builder_new();
+    if (kind == constraint_kind_min) | (kind == constraint_kind_max) {
+        if (v.kind != value_kind_int) & (v.kind != value_kind_float) {
+            return null;
+        }
+        let bound = c as &constraint_bound;
+        let n = value_to_f64(v);
+        let ok = 0;
+        let what = s_p_at_least;
+        if kind == constraint_kind_min {
+            ok = bound.exclusive?n > bound.bound:n >= bound.bound;
+            what = bound.exclusive?s_p_above:s_p_at_least;
+        } else {
+            ok = bound.exclusive?n < bound.bound:n <= bound.bound;
+            what = bound.exclusive?s_p_below:s_p_at_most;
+        }
+        if ok {
+            return null;
+        }
+        text_push(b, what);
+        text_push(b, host_number_text(bound.bound));
+        return problem_got(b, v);
+    }
+    if (kind == constraint_kind_min_len) | (kind == constraint_kind_max_len) {
+        let len = value_length(v);
+        if len <s 0 {
+            return null;
+        }
+        let n = (c as &constraint_len).n;
+        if (kind == constraint_kind_min_len) & (len >=s n) {
+            return null;
+        }
+        if (kind == constraint_kind_max_len) & (len <=s n) {
+            return null;
+        }
+        text_push(b, kind == constraint_kind_min_len?s_p_len_at_least:s_p_len_at_most);
+        text_push_int(b, n);
+        text_push(b, v.kind == value_kind_string?s_p_characters:s_p_items);
+        text_push(b, s_p_got);
+        text_push_int(b, len);
+        return text_finish(b);
+    }
+    if kind == constraint_kind_one_of {
+        let values = (c as &constraint_values).values;
+        if values_have(values, v) {
+            return null;
+        }
+        text_push(b, s_p_one_of);
+        text_push_values(b, values);
+        return problem_got(b, v);
+    }
+    if kind == constraint_kind_none_of {
+        let values = (c as &constraint_values).values;
+        if !values_have(values, v) {
+            return null;
+        }
+        text_push(b, s_p_none_of);
+        text_push_values(b, values);
+        return problem_got(b, v);
+    }
+    if kind == constraint_kind_key_of {
+        if !owner {
+            return null;
+        }
+        let field = (c as &constraint_key_of).field;
+        let items = owner_field(owner!, field);
+        if !items {
+            return null;
+        }
+        let ok = 0;
+        let list = items!;
+        if (list.kind == value_kind_list) & (v.kind == value_kind_int) {
+            let i = (v as &value_int).value;
+            ok = (i >=s 0) & (i <s list_count(list));
+        }
+        if (list.kind == value_kind_map) & (v.kind == value_kind_string) {
+            ok = !!map_get(list, (v as &value_string).value);
+        }
+        if ok {
+            return null;
+        }
+        text_push(b, s_p_key_of);
+        text_push(b, field);
+        return problem_got(b, v);
+    }
+    if kind == constraint_kind_pattern {
+        if v.kind != value_kind_string {
+            return null;
+        }
+        let pattern = (c as &constraint_pattern).pattern;
+        if host_regex_test(pattern, (v as &value_string).value) {
+            return null;
+        }
+        text_push(b, s_p_matching);
+        text_push(b, pattern);
+        text_push_unit(b, '/');
+        return problem_got(b, v);
+    }
+    if !owner {
+        return null;
+    }
+    let check = c as &constraint_check;
+    if check.check((owner!).instance, v) {
+        return null;
+    }
+    text_push(b, s_p_satisfying);
+    text_push(b, check.name);
+    problem_got(b, v);
+}
+
+// Why v doesn't fit field (its type, then its constraints), or null. A null
+// its type takes (an option's) meets the constraints, which are about the
+// value it's an option of.
+fn field_problem(f: &field_schema, v: &value, owner: &?component) -> &?extern {
+    let problem = vtype_problem(f.vtype, v);
+    if !!problem {
+        return problem;
+    }
+    if v.kind == value_kind_null {
+        return null;
+    }
+    constraints_problem(f.constraints, v, owner);
+}
+
+// ---- Interfaces ------------------------------------------------------------------------
+
+fn vtypes_equal(a: &vtype_array, b: &vtype_array) -> i32 {
+    if a.length() != b.length() {
+        return 0;
+    }
+    let i = 0;
+    while i <s a.length() {
+        if !vtype_equal(a[i]!, b[i]!) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+fn str_arrays_equal(a: &str_array, b: &str_array) -> i32 {
+    if a.length() != b.length() {
+        return 0;
+    }
+    let i = 0;
+    while i <s a.length() {
+        if !str_eq(a[i], b[i]) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// Structural equality of types.
+fn vtype_equal(a: &vtype, b: &vtype) -> i32 {
+    let kind = a.kind;
+    if kind != b.kind {
+        return 0;
+    }
+    if kind == vtype_kind_enum {
+        return str_arrays_equal((a as &vtype_enum).members, (b as &vtype_enum).members);
+    }
+    if (kind == vtype_kind_option) | (kind == vtype_kind_list) | (kind == vtype_kind_map) {
+        return vtype_equal((a as &vtype_of).item, (b as &vtype_of).item);
+    }
+    if kind == vtype_kind_record {
+        let ra = a as &vtype_record;
+        let rb = b as &vtype_record;
+        return str_arrays_equal(ra.names, rb.names) & vtypes_equal(ra.types, rb.types);
+    }
+    if kind == vtype_kind_one_of {
+        return vtypes_equal((a as &vtype_one_of).types, (b as &vtype_one_of).types);
+    }
+    if kind == vtype_kind_component {
+        return str_arrays_equal((a as &vtype_component).names, (b as &vtype_component).names);
+    }
+    if kind == vtype_kind_result {
+        let ra = a as &vtype_result;
+        let rb = b as &vtype_result;
+        return vtype_equal(ra.ok, rb.ok) & vtype_equal(ra.err, rb.err);
+    }
+    1;
+}
+
+// "its field done is s32, TodoItem's is bool".
+fn mismatch_problem(
+    what: &extern,
+    name: &extern,
+    theirs: &vtype,
+    iface: &interface_schema,
+    ours: &vtype,
+) -> &extern {
+    let b = text_builder_new();
+    text_push(b, s_i_its);
+    text_push(b, what);
+    text_push(b, name);
+    text_push(b, s_i_is);
+    text_push_vtype(b, theirs);
+    text_push(b, s_comma_space);
+    text_push(b, iface.name);
+    text_push(b, s_i_s_is);
+    text_push_vtype(b, ours);
+    text_finish(b);
+}
+
+fn missing_problem(what: &extern, name: &extern) -> &extern {
+    js_string_concat(js_string_concat(s_i_it_has_no, what), name);
+}
+
+// Why spec doesn't implement iface, or null when it does: it declares it,
+// and has each of its fields and properties (as a field or a property), and
+// each of its messages, of the same types.
+fn interface_problem(spec: &component_spec, iface: &interface_schema) -> &?extern {
+    if !spec.schema {
+        return s_i_no_schema;
+    }
+    let schema = spec.schema!;
+    if !str_array_has(schema.interfaces, iface.name) {
+        return js_string_concat(s_i_doesnt_declare, iface.name);
+    }
+    let i = 0;
+    while i <s iface.fields.length() + iface.gets.length() {
+        let f =
+            if i <s iface.fields.length() {
+                iface.fields[i]!;
+            } else {
+                iface.gets[i - iface.fields.length()]!;
+            };
+        let found = field_schema_named(schema.fields, f.name);
+        if !found {
+            found = field_schema_named(schema.gets, f.name);
+        }
+        if !found {
+            return missing_problem(s_i_field, f.name);
+        }
+        if !vtype_equal((found!).vtype, f.vtype) {
+            return mismatch_problem(s_i_field, f.name, (found!).vtype, iface, f.vtype);
+        }
+        i += 1;
+    }
+    i = 0;
+    while i <s iface.messages.length() {
+        let m = iface.messages[i]!;
+        let found = message_schema_named(schema.messages, m.name);
+        if !found {
+            return missing_problem(s_i_message, m.name);
+        }
+        let args = (found!).args;
+        if args.length() != m.args.length() {
+            let b = text_builder_new();
+            text_push(b, s_i_its);
+            text_push(b, s_i_message);
+            text_push(b, m.name);
+            text_push(b, s_i_takes);
+            text_push_int(b, args.length());
+            text_push(b, s_i_arguments);
+            text_push(b, iface.name);
+            text_push(b, s_i_s_takes);
+            text_push_int(b, m.args.length());
+            return text_finish(b);
+        }
+        let j = 0;
+        while j <s args.length() {
+            if !vtype_equal((args[j]!).vtype, (m.args[j]!).vtype) {
+                let what = js_string_concat(js_string_concat(m.name, s_i_argument), int_text(j));
+                return
+                    mismatch_problem(
+                        s_i_message,
+                        what,
+                        (args[j]!).vtype,
+                        iface,
+                        (m.args[j]!).vtype,
+                    );
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+    null;
+}
+
+fn scope_register_interface(s: &scope, iface: &interface_schema) {
+    s.interfaces = smap_assoc(s.interfaces, iface.name, iface);
+}
+
+// Here first, then in the parents.
+fn scope_lookup_interface(s: &scope, name: &extern) -> &?interface_schema {
+    let at: &?scope = s;
+    while !!at {
+        let found = smap_get((at!).interfaces, name);
+        if !!found {
+            return found! as &interface_schema;
+        }
+        at = (at!).parent;
+    }
+    null;
+}
+
+// "TodoCard can't be a TodoItem: its field done is s32, TodoItem's is bool".
+fn interface_error(spec: &component_spec, name: &extern, problem: &extern) -> &extern {
+    let b = text_builder_new();
+    text_push(b, spec.name);
+    text_push(b, s_i_cant_be);
+    text_push(b, name);
+    text_push(b, s_colon_space);
+    text_push(b, problem);
+    text_finish(b);
+}
+
+fn scope_interface_problem(s: &scope, name: &extern, spec: &component_spec) -> &?extern {
+    let iface = scope_lookup_interface(s, name);
+    if !iface {
+        return null;
+    }
+    let problem = interface_problem(spec, iface!);
+    if !problem {
+        return null;
+    }
+    interface_error(spec, name, problem!);
+}
+
+// Why spec can't be registered or made under name in s, or null: an
+// interface of that name, or one spec declares it implements, is visible
+// there and spec doesn't implement it. Interfaces registered after a type
+// are checked when it's made.
+fn scope_entry_problem(s: &scope, name: &extern, spec: &component_spec) -> &?extern {
+    let problem = scope_interface_problem(s, name, spec);
+    if !!problem {
+        return problem;
+    }
+    if !spec.schema {
+        return null;
+    }
+    let declared = (spec.schema!).interfaces;
+    let i = 0;
+    while i <s declared.length() {
+        let problem = scope_interface_problem(s, declared[i]!, spec);
+        if !!problem {
+            return problem;
+        }
+        i += 1;
+    }
+    null;
+}
+
+// ---- A schema as a value, for tools ------------------------------------------------------
+
+fn constraint_text(c: &constraint) -> &extern {
+    let kind = c.kind;
+    let b = text_builder_new();
+    if (kind == constraint_kind_min) | (kind == constraint_kind_max) {
+        let bound = c as &constraint_bound;
+        if kind == constraint_kind_min {
+            text_push(b, bound.exclusive?s_c_gt:s_c_ge);
+        } else {
+            text_push(b, bound.exclusive?s_c_lt:s_c_le);
+        }
+        text_push(b, host_number_text(bound.bound));
+        return text_finish(b);
+    }
+    if (kind == constraint_kind_min_len) | (kind == constraint_kind_max_len) {
+        text_push(b, kind == constraint_kind_min_len?s_c_len_ge:s_c_len_le);
+        text_push_int(b, (c as &constraint_len).n);
+        return text_finish(b);
+    }
+    if (kind == constraint_kind_one_of) | (kind == constraint_kind_none_of) {
+        text_push(b, kind == constraint_kind_one_of?s_c_in:s_c_not_in);
+        text_push_values(b, (c as &constraint_values).values);
+        text_push_unit(b, ']');
+        return text_finish(b);
+    }
+    if kind == constraint_kind_key_of {
+        text_push(b, s_c_in_keys);
+        text_push(b, (c as &constraint_key_of).field);
+        text_push_unit(b, ')');
+        return text_finish(b);
+    }
+    if kind == constraint_kind_pattern {
+        text_push(b, s_c_matches);
+        text_push_json_string(b, (c as &constraint_pattern).pattern);
+        return text_finish(b);
+    }
+    text_push(b, s_c_check);
+    text_push(b, (c as &constraint_check).name);
+    text_push_unit(b, ')');
+    text_finish(b);
+}
+
+fn sync_name(sync: i32) -> &extern {
+    if sync == sync_local {
+        return s_sync_local;
+    }
+    if sync == sync_none {
+        return s_sync_none;
+    }
+    s_sync_shared;
+}
+
+// { name, type, constraints: [text], sync }
+fn field_schema_value(f: &field_schema) -> &value {
+    let cs = list_empty();
+    let i = 0;
+    while i <s f.constraints.length() {
+        cs = list_push(cs, value_string(constraint_text(f.constraints[i]!)));
+        i += 1;
+    }
+    let m = map_assoc(map_empty(), s_name, value_string(f.name));
+    m = map_assoc(m, s_type, value_string(vtype_text(f.vtype)));
+    m = map_assoc(m, s_constraints, cs);
+    map_assoc(m, s_sync, value_string(sync_name(f.sync)));
+}
+
+fn field_schemas_value(fields: &field_schema_array) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s fields.length() {
+        out = list_push(out, field_schema_value(fields[i]!));
+        i += 1;
+    }
+    out;
+}
+
+fn strs_value(names: &str_array) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s names.length() {
+        out = list_push(out, value_string(names[i]!));
+        i += 1;
+    }
+    out;
+}
+
+fn emit_kind_name(kind: i32) -> &extern {
+    if kind == emit_kind_ask {
+        return s_e_ask;
+    }
+    if kind == emit_kind_send_at {
+        return s_e_send_at;
+    }
+    s_e_notify;
+}
+
+// { name, args, sourceKey, pre, post, changes, emits }
+fn message_schema_value(ms: &message_schema) -> &value {
+    let m = map_assoc(map_empty(), s_name, value_string(ms.name));
+    m = map_assoc(m, s_args, field_schemas_value(ms.args));
+    let key = VALUE_NULL;
+    if !!ms.source_key {
+        key = field_schema_value(ms.source_key!);
+    }
+    m = map_assoc(m, s_source_key_name, key);
+    m = map_assoc(m, s_pre, value_bool(!!ms.pre));
+    m = map_assoc(m, s_post, value_bool(!!ms.post));
+    let changes = VALUE_NULL;
+    if !!ms.changes {
+        changes = strs_value(ms.changes!);
+    }
+    m = map_assoc(m, s_changes, changes);
+    let emits = VALUE_NULL;
+    if !!ms.emits {
+        let es = ms.emits!;
+        let list = list_empty();
+        let i = 0;
+        while i <s es.length() {
+            let e = es[i]!;
+            let one = map_assoc(map_empty(), s_kind, value_string(emit_kind_name(e.kind)));
+            list = list_push(list, map_assoc(one, s_name, value_string(e.name)));
+            i += 1;
+        }
+        emits = list;
+    }
+    map_assoc(m, s_emits, emits);
+}
+
+fn message_schemas_value(messages: &message_schema_array) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s messages.length() {
+        out = list_push(out, message_schema_value(messages[i]!));
+        i += 1;
+    }
+    out;
+}
+
+// A component type's schema: { name, fields, gets, messages, invariants,
+// interfaces }, or null without one.
+fn spec_schema_value(spec: &component_spec) -> &value {
+    if !spec.schema {
+        return VALUE_NULL;
+    }
+    let schema = spec.schema!;
+    let invariants = list_empty();
+    let i = 0;
+    while i <s schema.invariants.length() {
+        invariants = list_push(invariants, value_string((schema.invariants[i]!).name));
+        i += 1;
+    }
+    let m = map_assoc(map_empty(), s_name, value_string(spec.name));
+    m = map_assoc(m, s_fields, field_schemas_value(schema.fields));
+    m = map_assoc(m, s_gets, field_schemas_value(schema.gets));
+    m = map_assoc(m, s_messages, message_schemas_value(schema.messages));
+    m = map_assoc(m, s_invariants, invariants);
+    map_assoc(m, s_interfaces, strs_value(schema.interfaces));
+}
+
+// An interface: { name, fields, gets, messages }.
+fn interface_schema_value(iface: &interface_schema) -> &value {
+    let m = map_assoc(map_empty(), s_name, value_string(iface.name));
+    m = map_assoc(m, s_fields, field_schemas_value(iface.fields));
+    m = map_assoc(m, s_gets, field_schemas_value(iface.gets));
+    map_assoc(m, s_messages, message_schemas_value(iface.messages));
+}

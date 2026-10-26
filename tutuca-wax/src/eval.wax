@@ -30,6 +30,7 @@ fn spec_new(
             provide_names,
             provide_selectors,
             event_names: views_collect_event_names(views),
+            schema: null,
         };
     if !spec_view_named(spec, s_main) {
         host_fail(js_string_concat(s_err_no_main_view, name));
@@ -276,6 +277,12 @@ fn view_eval_all(out: &snode_buf, nodes: &view_array, e: &eval_ctx) {
 }
 
 fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
+    // An action and the send arguments (targetValue, sourceKey, dragKey,
+    // event) only go in on:<event> attrs.
+    if (v.kind >=s view_kind_action) & (v.kind <=s view_kind_event) {
+        host_fail(s_err_not_renderable);
+        return;
+    }
     match v {
         n: &view_el => {
             snode_buf_push(out, view_eval_el(n, e));
@@ -328,22 +335,6 @@ fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
                 p.body,
                 {eval_ctx| rc, it: e.it, component: e.component, binds: e.binds },
             );
-            return;
-        }
-        a: &view_action => {
-            host_fail(s_err_not_renderable);
-            return;
-        }
-        t: &view_target_value => {
-            host_fail(s_err_not_renderable);
-            return;
-        }
-        k: &view_source_key => {
-            host_fail(s_err_not_renderable);
-            return;
-        }
-        d: &view_drag_key => {
-            host_fail(s_err_not_renderable);
             return;
         }
         _ => {

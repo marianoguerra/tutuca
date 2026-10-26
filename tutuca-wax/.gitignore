@@ -5,3 +5,6 @@
 # Build outputs (scripts/build.mjs): the assembled .wax, the generated prelude
 # files, <module>.debug.wasm and the optimized <module>.wasm, `just wat`'s .wat.
 /dist/
+# tcd's build (moon) and fetched dependencies.
+/tcd/_build/
+/tcd/.mooncakes/

@@ -36,6 +36,7 @@ export const SOURCES = [
 	"prelude/path.wax", // shared: path keys, frames, dispatch paths, selectors
 	"prelude/sem.wax", // shared: shapes, templates, the semantic tree
 	"prelude/view.wax", // shared: views as data
+	"prelude/schema.wax", // shared: value types, constraints, field schemas
 	"prelude/component.wax", // shared: the component runtime's types
 	"src/str.wax", // string helpers over JS strings
 	"src/buf.wax", // growable arrays of externrefs and i32s
@@ -54,19 +55,21 @@ export const SOURCES = [
 	"src/collect.wax", // what walking views collects: templates, class names
 	"src/component.wax", // the component runtime's types
 	"src/route.wax", // paths: reading and writing the state, dispatch paths, selectors
+	"src/schema.wax", // schemas: checking values, interfaces, describing them
 	"src/scope.wax", // scopes: registering and making components
 	"src/context.wax", // what a handler does through its context
 	"src/render.wax", // rendering components into the semantic tree
 	"src/eval.wax", // evaluating views; making specs from them
 	"src/decode.wax", // routing a DOM event to a handler
 	"src/host.wax", // tasks, transactions, rendering
+	"src/check.wax", // what the host checks with schemas: arguments, contracts, the state
 	"src/api.wax", // exports for the JS side
 	"lib/author.wax", // helpers for writing component types, exported for them
 	"src/abi.wax", // the component ABI: what component modules import
 ];
 
 // The prelude without the js-string builtins, which come first.
-const PRELUDE = ["prelude/value.wax", "prelude/path.wax", "prelude/sem.wax", "prelude/view.wax", "prelude/component.wax"];
+const PRELUDE = ["prelude/value.wax", "prelude/path.wax", "prelude/sem.wax", "prelude/view.wax", "prelude/schema.wax", "prelude/component.wax"];
 
 // The generated prelude files components are assembled with: the vendored
 // collections' types, and per module, the ABI functions its sources call.
@@ -79,23 +82,26 @@ export const componentPrelude = (name) => ["prelude/js_string.wax", COLLECTION_T
 // The component modules: each a .wasm of its own, exporting tutuca_register and
 // tutuca_abi_version (README.md has the convention).
 export const COMPONENTS = [
-	{ name: "counter", sources: ["components/counter/counter.wax", "components/counter/board.wax", "components/counter/register.wax"] },
-	{ name: "todo_item", sources: ["components/todo_item/todo_item.wax"] },
-	{ name: "todo_list", sources: ["components/todo_list/todo_list.wax"] },
+	// Defined in TCD (tcd/): tcd generates the boilerplate, the .wax has the rest.
+	{ name: "counter", tcd: "components/counter/counter.tcd", impl: ["components/counter/counter.wax"] },
+	{ name: "todo_item", tcd: "components/todo_item/todo_item.tcd", impl: ["components/todo_item/todo_item.wax"] },
+	{ name: "todo_list", tcd: "components/todo_list/todo_list.tcd", impl: ["components/todo_list/todo_list.wax"] },
 	// Another TodoItem, as a card: the same interface, another implementation.
-	{ name: "todo_card", sources: ["components/todo_card/todo_card.wax"] },
+	{ name: "todo_card", tcd: "components/todo_card/todo_card.tcd", impl: ["components/todo_card/todo_card.wax"] },
 	// Shelf and Note: scopes, loop hooks, provided values, pushView, renderIt.
-	{ name: "showcase", sources: ["components/showcase/showcase.wax"] },
-	{
-		name: "json",
-		sources: ["components/json/common.wax", "components/json/scalars.wax", "components/json/collections.wax", "components/json/editor.wax", "components/json/register.wax"],
-	},
+	{ name: "showcase", tcd: "components/showcase/showcase.tcd", impl: ["components/showcase/showcase.wax"] },
+	{ name: "probe", sources: ["components/probe/probe.wax"] },
+	// For js/pbt.js's tests: a seeded bug, a message that can't be enabled.
+	{ name: "pbt", tcd: "components/pbt/pbt.tcd", impl: ["components/pbt/pbt.wax"] },
+	{ name: "json", tcd: "components/json/json.tcd", impl: ["components/json/json.wax"] },
 ];
 
 
 const TARGETS = [
 	{ name: "tutuca-rt", sources: SOURCES },
-	...COMPONENTS.map(({ name, sources }) => ({ name: `components/${name}`, sources: [...componentPrelude(name), ...sources] })),
+	...COMPONENTS.map(({ name, sources, tcd, impl }) =>
+		tcd ? { name: `components/${name}`, tcd, impl } : { name: `components/${name}`, sources: [...componentPrelude(name), ...sources] },
+	),
 ];
 
 // The top-level `type ...;` and `rec { ... }` items of a Wax source, in order.
@@ -172,6 +178,7 @@ const generatePrelude = () => {
 	const decls = abiImports(readFileSync(join(root, "src/abi.wax"), "utf8"));
 	mkdirSync(join(root, "dist/components"), { recursive: true });
 	for (const { name, sources } of COMPONENTS) {
+		if (!sources) continue; // tcd writes a TCD module's imports itself
 		const code = sources.map((f) => readFileSync(join(root, f), "utf8").replace(/\/\/.*$/gm, "")).join("\n");
 		const used = decls.filter((d) => new RegExp(`\\b${d.name}\\b`).test(code));
 		writeFileSync(
@@ -259,12 +266,53 @@ const mapLocations = (output, ranges, outWax) => {
 	});
 };
 
+// The tcd command (tcd/), built with moon when it isn't, or TCD.
+export const findTcd = () => {
+	if (process.env.TCD) return process.env.TCD;
+	const result = spawnSync("moon", ["-C", "tcd", "build", "--target", "native"], { cwd: root, encoding: "utf8" });
+	if (result.error || result.status !== 0) {
+		process.stderr.write(`${result.stdout ?? ""}${result.stderr ?? ""}`);
+		throw new Error(`could not build tcd with moon${result.error ? ` (${result.error.message})` : ""}`);
+	}
+	return join(root, "tcd/_build/native/debug/build/tutuca/tcd/cmd/tcd/tcd.exe");
+};
+
 export function build() {
 	generatePrelude();
 	return TARGETS.map(buildTarget);
 }
 
-function buildTarget({ name, sources }) {
+// A component module defined in TCD: tcd generates its contract and glue
+// (kept in dist/ next to it), checks the implementation against them, and
+// compiles it with the runtime's prelude.
+function buildTcd({ name, tcd, impl }) {
+	const OUT_DEBUG = `dist/${name}.debug.wasm`;
+	const OUT_WASM = `dist/${name}.wasm`;
+	mkdirSync(dirname(join(root, OUT_DEBUG)), { recursive: true });
+	const bin = findTcd();
+	const result = spawnSync(bin, ["build", tcd, ...impl, "--runtime", ".", "-o", OUT_DEBUG, "--gen", dirname(OUT_DEBUG)], {
+		cwd: root,
+		encoding: "utf8",
+	});
+	const output = `${result.stdout}${result.stderr}`;
+	if (result.error || result.status !== 0) {
+		process.stderr.write(output);
+		throw new Error(`tcd build ${tcd} failed${result.error ? ` (${result.error.message})` : ""}`);
+	}
+	if (output.trim()) process.stderr.write(output);
+	// The model test runners generate states and messages from (js/pbt.js).
+	const model = spawnSync(bin, ["model", tcd, "-o", `dist/${name}.model.json`], { cwd: root, encoding: "utf8" });
+	if (model.status !== 0) {
+		process.stderr.write(`${model.stdout}${model.stderr}`);
+		throw new Error(`tcd model ${tcd} failed`);
+	}
+	optimize(OUT_DEBUG, OUT_WASM);
+	return relative(process.cwd(), join(root, OUT_WASM));
+}
+
+function buildTarget(target) {
+	if (target.tcd) return buildTcd(target);
+	const { name, sources } = target;
 	const OUT_WAX = `dist/${name}.wax`;
 	const OUT_DEBUG = `dist/${name}.debug.wasm`;
 	const OUT_WASM = `dist/${name}.wasm`;

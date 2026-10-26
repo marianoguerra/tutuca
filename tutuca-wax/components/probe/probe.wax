@@ -1,0 +1,366 @@
+// The probe component module, for the runtime's tests: Probe breaks its own
+// schema on purpose, so dev mode has something to report, and reads event
+// modifiers and pointer data; Pretender registers as TodoItem without
+// implementing TodoList's TodoItem interface, and Impostor declares it with
+// a field of the wrong type, so the interface checks have something to refuse.
+
+import "'" {
+    #[import = "Probe"]
+    const s_probe_type: &extern;
+    #[import = "TodoItem"]
+    const s_todo_item_type: &extern;
+    #[import = "Pretender"]
+    const s_pretender_type: &extern;
+    #[import = "Impostor"]
+    const s_impostor_type: &extern;
+    #[import = "count"]
+    const s_count: &extern;
+    #[import = "label"]
+    const s_label: &extern;
+    #[import = "id"]
+    const s_id: &extern;
+    #[import = "text"]
+    const s_text: &extern;
+    #[import = "done"]
+    const s_done: &extern;
+    #[import = "n"]
+    const s_n: &extern;
+    #[import = "x"]
+    const s_x: &extern;
+    #[import = "y"]
+    const s_y: &extern;
+    #[import = "shift"]
+    const s_shift: &extern;
+    #[import = "even"]
+    const s_even: &extern;
+    #[import = "bump"]
+    const s_bump: &extern;
+    #[import = "rename"]
+    const s_rename: &extern;
+    #[import = "shout"]
+    const s_shout: &extern;
+    #[import = "shouted"]
+    const s_shouted: &extern;
+    #[import = "fail"]
+    const s_fail: &extern;
+    #[import = "press"]
+    const s_press: &extern;
+    #[import = "ctrlClick"]
+    const s_ctrl_click: &extern;
+    #[import = "inner"]
+    const s_inner: &extern;
+    #[import = "out of luck"]
+    const s_out_of_luck: &extern;
+    #[import = "ctrl"]
+    const s_ctrl: &extern;
+    #[import = "div"]
+    const s_div: &extern;
+    #[import = "span"]
+    const s_span: &extern;
+    #[import = "button"]
+    const s_button: &extern;
+    #[import = "class"]
+    const s_class: &extern;
+    #[import = "probe"]
+    const s_probe_class: &extern;
+    #[import = "pad"]
+    const s_pad_class: &extern;
+    #[import = "with-ctrl"]
+    const s_ctrl_class: &extern;
+    #[import = "stopper"]
+    const s_stop_class: &extern;
+    #[import = "click+ctrl"]
+    const s_click_ctrl: &extern;
+    #[import = "click+stop"]
+    const s_click_stop: &extern;
+    #[import = "mousedown"]
+    const s_mousedown: &extern;
+    #[import = "clientX"]
+    const s_client_x: &extern;
+    #[import = "clientY"]
+    const s_client_y: &extern;
+    #[import = "shiftKey"]
+    const s_shift_key: &extern;
+    #[import = "stop"]
+    const s_stop: &extern;
+    #[import = "pretender"]
+    const s_pretender_text: &extern;
+    #[import = ""]
+    const s_empty: &extern;
+}
+
+// ---- Probe -----------------------------------------------------------------------
+//
+// <div class="probe">
+//   <span>{count}</span>
+//   <button class="with-ctrl" on:click+ctrl="ctrlClick">ctrl</button>
+//   <div class="pad" on:mousedown="press(event(clientX), event(clientY), event(shiftKey))"></div>
+//   <button class="stopper" on:click+stop="inner">stop</button>
+// </div>
+//
+// What a TCD file would declare, and what the handlers break:
+//   field count: s32 where 0 <= count <= 10;   // bump can push it past 10
+//   field label: string where len(label) <= 5;
+//   invariant even: count % 2 == 0;            // bump(1) makes it odd
+//   message bump(n: s32 where n >= 1) when count < 10 changes count
+//       ensures next.count == count + n;       // bump(3) adds 4
+//   message rename(text: string) changes label;  // and resets count
+//   message shout() emits nothing;             // and notifies shouted
+//   message fail();                            // rejects itself
+//   message press(x: f64, y: f64, shift: bool) changes nothing;
+//   message ctrl_click() changes nothing;  message inner() changes nothing;
+
+type probe_state = { count: i32, label: &extern };
+
+let probe_spec_made: &?component_spec = null;
+
+fn probe_button(class: &extern, event: &extern, message: &extern, label: &extern) -> &view {
+    el_class_on(s_button, class, views1(text(label)), view_ons1(event, message, views0()));
+}
+
+fn probe_spec() -> &component_spec {
+    if !!probe_spec_made {
+        return probe_spec_made!;
+    }
+    let pad =
+        el_class_on(
+            s_div,
+            s_pad_class,
+            views0(),
+            view_ons1(
+                s_mousedown,
+                s_press,
+                views3(view_event(s_client_x), view_event(s_client_y), view_event(s_shift_key)),
+            ),
+        );
+    let main =
+        el_class(
+            s_div,
+            s_probe_class,
+            views4(
+                el(s_span, views1(view_field(s_count))),
+                probe_button(s_ctrl_class, s_click_ctrl, s_ctrl_click, s_ctrl),
+                pad,
+                probe_button(s_stop_class, s_click_stop, s_inner, s_stop),
+            ),
+        );
+    let spec = spec_main(s_probe_type, main, no_loops());
+    spec_set_schema(spec, probe_schema());
+    probe_spec_made = spec;
+    spec;
+}
+
+fn probe_schema() -> &component_schema {
+    let count = strs1(s_count);
+    let nothing = strs0();
+    let ms = [message_schema_array|null; 7];
+    ms[0] =
+        message_schema_new(
+            s_bump,
+            fields1(fs1(s_n, vtype_int(), constraint_min(1.0, 0))),
+            null,
+            probe_bump_pre,
+            probe_bump_post,
+            count,
+            emits0(),
+        );
+    ms[1] =
+        message_schema_new(
+            s_rename,
+            fields1(fs(s_text, vtype_string())),
+            null,
+            null,
+            null,
+            strs1(s_label),
+            emits0(),
+        );
+    ms[2] = message_schema_new(s_shout, fields0(), null, null, null, nothing, emits0());
+    ms[3] = msg(s_fail, fields0());
+    ms[4] =
+        message_schema_new(
+            s_press,
+            fields3(fs(s_x, vtype_float()), fs(s_y, vtype_float()), fs(s_shift, vtype_bool())),
+            null,
+            null,
+            null,
+            nothing,
+            emits0(),
+        );
+    ms[5] = message_schema_new(s_ctrl_click, fields0(), null, null, null, nothing, emits0());
+    ms[6] = message_schema_new(s_inner, fields0(), null, null, null, nothing, emits0());
+    let fields =
+        fields2(
+            fs2(s_count, vtype_int(), constraint_min(0.0, 0), constraint_max(10.0, 0)),
+            fs1(s_label, vtype_string(), constraint_max_len(5)),
+        );
+    let invariants = [invariant_array|null; 1];
+    invariants[0] = invariant_new(s_even, probe_even);
+    component_schema_new(fields, fields0(), ms, invariants, strs0());
+}
+
+fn probe_bump_pre: pre_fn (instance: &eq, args: &value_array, ctx: &context) -> i32 {
+    (instance as &probe_state).count <s 10;
+}
+
+fn probe_bump_post: post_fn (prev: &eq, next: &eq, args: &value_array, ctx: &context) -> i32 {
+    let (ok, n) = arg_int(args, 0);
+    (next as &probe_state).count == (prev as &probe_state).count + n;
+}
+
+fn probe_even: invariant_fn (instance: &eq) -> i32 {
+    ((instance as &probe_state).count & 1) == 0;
+}
+
+fn probe_vtable() -> &vtable {
+    {vtable| init: probe_init, handle: probe_handle, get: probe_get, set: probe_set };
+}
+
+fn probe_init: init_fn (fields: &value) -> &init_result {
+    let (count, i1) = init_int(fields, s_count, 0, list_empty());
+    let (label, i2) = init_string(fields, s_label, s_empty, i1);
+    init_ok({probe_state| count, label }, i2);
+}
+
+fn probe_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    let s = instance as &probe_state;
+    let name = m.name;
+    if str_eq(name, s_bump) {
+        let (ok, n) = arg_int(m.args, 0);
+        let by = n;
+        if n == 3 {
+            by = 4;
+        }
+        return message_result_updated({probe_state| count: s.count + by, label: s.label });
+    }
+    if str_eq(name, s_rename) {
+        return
+            message_result_updated({probe_state| count: 0, label: value_string_of(m.args[0]!)! });
+    }
+    if str_eq(name, s_shout) {
+        ctx_notify(ctx, s_shouted, values0());
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_fail) {
+        return message_result_rejected(message_error_failed(value_string(s_out_of_luck)));
+    }
+    if str_eq(name, s_press) {
+        let logged =
+            list_push(list_push(list_push(list_empty(), m.args[0]!), m.args[1]!), m.args[2]!);
+        ctx_log(ctx, logged);
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_ctrl_click) {
+        ctx_log(ctx, value_string(s_ctrl));
+        return message_result_unchanged();
+    }
+    if str_eq(name, s_inner) {
+        ctx_log(ctx, value_string(s_inner));
+        return message_result_unchanged();
+    }
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn probe_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let s = instance as &probe_state;
+    if str_eq(name, s_count) {
+        return (property_ok, value_int(s.count));
+    }
+    if str_eq(name, s_label) {
+        return (property_ok, value_string(s.label));
+    }
+    (property_no_such_property, null);
+}
+
+fn probe_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    (property_not_writable, null);
+}
+
+// ---- Pretender and Impostor --------------------------------------------------------
+//
+// <span>{text}</span>, with TodoItem's fields. Pretender doesn't say it
+// implements TodoItem; Impostor does, with done an s32.
+
+type pretender_state = { id: i32, text: &extern, done: i32 };
+
+let pretender_spec_made: &?component_spec = null;
+let impostor_spec_made: &?component_spec = null;
+
+fn pretender_schema(done: &vtype, interfaces: &str_array) -> &component_schema {
+    let fields = fields3(fs(s_id, vtype_int()), fs(s_text, vtype_string()), fs(s_done, done));
+    component_schema_new(
+        fields,
+        fields0(),
+        [message_schema_array|null; 0],
+        no_invariants(),
+        interfaces,
+    );
+}
+
+fn pretender_spec() -> &component_spec {
+    if !!pretender_spec_made {
+        return pretender_spec_made!;
+    }
+    let spec = spec_main(s_pretender_type, el(s_span, views1(view_field(s_text))), no_loops());
+    spec_set_schema(spec, pretender_schema(vtype_bool(), strs0()));
+    pretender_spec_made = spec;
+    spec;
+}
+
+fn impostor_spec() -> &component_spec {
+    if !!impostor_spec_made {
+        return impostor_spec_made!;
+    }
+    let spec = spec_main(s_impostor_type, el(s_span, views1(view_field(s_text))), no_loops());
+    spec_set_schema(spec, pretender_schema(vtype_int(), strs1(s_todo_item_type)));
+    impostor_spec_made = spec;
+    spec;
+}
+
+fn pretender_vtable() -> &vtable {
+    {vtable|
+        init: pretender_init,
+        handle: pretender_handle,
+        get: pretender_get,
+        set: pretender_set,
+    };
+}
+
+fn pretender_init: init_fn (fields: &value) -> &init_result {
+    init_ok({pretender_state| id: 0, text: s_pretender_text, done: 0 }, list_empty());
+}
+
+fn pretender_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
+    message_result_rejected(message_error_unknown_message());
+}
+
+fn pretender_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+    let s = instance as &pretender_state;
+    if str_eq(name, s_id) {
+        return (property_ok, value_int(s.id));
+    }
+    if str_eq(name, s_text) {
+        return (property_ok, value_string(s.text));
+    }
+    if str_eq(name, s_done) {
+        return (property_ok, value_bool(s.done));
+    }
+    (property_no_such_property, null);
+}
+
+fn pretender_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+    (property_not_writable, null);
+}
+
+// ---- The module's interface (README.md has the convention) -------------------
+
+#[export = "tutuca_abi_version"]
+fn tutuca_abi_version() -> i32 {
+    tutuca_abi_version_current;
+}
+
+#[export = "tutuca_register"]
+fn tutuca_register(s: &scope) {
+    scope_register(s, s_probe_type, probe_spec(), probe_vtable());
+    scope_register(s, s_todo_item_type, pretender_spec(), pretender_vtable());
+    scope_register(s, s_impostor_type, impostor_spec(), pretender_vtable());
+}

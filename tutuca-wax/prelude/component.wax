@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 2;
+const tutuca_abi_version_current = 3;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -34,12 +34,15 @@ const message_error_kind_unknown_message = 0;
 const message_error_kind_wrong_arity = 1;
 const message_error_kind_wrong_arg_type = 2;
 const message_error_kind_failed = 3;
+const message_error_kind_invalid_arg = 4;
 
 type message_error = open { kind: i32 };
 type message_error_unknown_message: message_error = { .. };
 type message_error_wrong_arity: message_error = { .., expected: i32, got: i32 };
 type message_error_wrong_arg_type: message_error = { .., index: i32 };
 type message_error_failed: message_error = { .., reason: &value };
+// An argument of the right type that breaks a constraint; reason says how.
+type message_error_invalid_arg: message_error = { .., index: i32, reason: &value };
 
 // Property access results. A fieldless enum that is only ever compared, so
 // it's an i32 with consts (README.md's enum convention allows it).
@@ -117,7 +120,53 @@ rec {
         scopes: &scope_def_array,
         provide_names: &str_array,
         provide_selectors: &selector_array,
-        event_names: &str_array
+        event_names: &str_array,
+        // Its fields', properties' and messages' types, its invariants and the
+        // interfaces it implements; null for a type without one, which the
+        // runtime then can't check.
+        schema: mut &?component_schema
+    };
+
+    // A message's schema (tutuca's MessageSpec): its arguments, the type of
+    // the source key it arrives with, its contract (pre on the state before
+    // and the arguments, post relating the state before and after), the
+    // fields it may change (null: any) and the effects it may emit (null:
+    // any). The runtime rejects arguments that don't fit; the rest is checked
+    // in dev mode.
+    type message_schema = {
+        name: &extern,
+        args: &field_schema_array,
+        source_key: &?field_schema,
+        pre: &?pre_fn,
+        post: &?post_fn,
+        changes: &?str_array,
+        emits: &?emit_array
+    };
+    type message_schema_array = [mut &?message_schema];
+    type pre_fn = fn(&eq, &value_array, &context) -> i32;
+    type post_fn = fn(&eq, &eq, &value_array, &context) -> i32;
+
+    // A predicate over one state, checked in dev mode once the queue settles.
+    type invariant = { name: &extern, holds: &invariant_fn };
+    type invariant_fn = fn(&eq) -> i32;
+    type invariant_array = [mut &?invariant];
+
+    // What a component type must have to be made under the interface's name:
+    // fields, computed properties and messages, each of the same type.
+    type interface_schema = {
+        name: &extern,
+        fields: &field_schema_array,
+        gets: &field_schema_array,
+        messages: &message_schema_array
+    };
+
+    type component_schema = {
+        fields: &field_schema_array,
+        gets: &field_schema_array,
+        messages: &message_schema_array,
+        invariants: &invariant_array,
+        // The interfaces it implements, by name.
+        interfaces: &str_array
     };
 
     // A component: the one type every component is, so any component
@@ -142,13 +191,16 @@ rec {
     // The names component types are registered under, nested into a tree. A
     // name resolves here first, then in the parents. children, entries and
     // ask_handlers are string-keyed maps (smap_*) of scopes, scope entries and
-    // ask handlers.
+    // ask handlers; interfaces, of interface schemas.
     type scope = {
         name: &extern,
         parent: &?scope,
         children: mut &phm_map,
         entries: mut &phm_map,
-        ask_handlers: mut &phm_map
+        ask_handlers: mut &phm_map,
+        // Interface schemas by name: a type registered under one's name must
+        // implement it.
+        interfaces: mut &phm_map
     };
 
     // What a message handler gets besides its arguments, the same for every

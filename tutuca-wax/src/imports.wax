@@ -143,6 +143,303 @@ import "'" {
     const s_external: &extern;
     #[import = "type"]
     const s_type: &extern;
+    // Schemas (schema.wax): type names, problems, interfaces, schemas as values.
+    #[import = "A record type's names and types must align"]
+    const s_err_record_shape: &extern;
+    #[import = ", "]
+    const s_comma_space: &extern;
+    #[import = ": "]
+    const s_colon_space: &extern;
+    #[import = " | "]
+    const s_or_space: &extern;
+    #[import = "any"]
+    const s_t_any: &extern;
+    #[import = "bool"]
+    const s_t_bool: &extern;
+    #[import = "s32"]
+    const s_t_s32: &extern;
+    #[import = "f64"]
+    const s_t_f64: &extern;
+    #[import = "string"]
+    const s_t_string: &extern;
+    #[import = "enum { "]
+    const s_t_enum_open: &extern;
+    #[import = " }"]
+    const s_t_brace_close: &extern;
+    #[import = "option"]
+    const s_t_option: &extern;
+    #[import = "list"]
+    const s_t_list: &extern;
+    #[import = "map"]
+    const s_t_map: &extern;
+    #[import = "record { "]
+    const s_t_record_open: &extern;
+    #[import = "one_of"]
+    const s_t_one_of: &extern;
+    #[import = "result"]
+    const s_t_result: &extern;
+    #[import = "a list of "]
+    const s_v_list_of: &extern;
+    #[import = " items"]
+    const s_v_items: &extern;
+    #[import = "a map of "]
+    const s_v_map_of: &extern;
+    #[import = " keys"]
+    const s_v_keys: &extern;
+    #[import = "a result"]
+    const s_v_result: &extern;
+    #[import = "a "]
+    const s_v_a: &extern;
+    #[import = "item "]
+    const s_p_item: &extern;
+    #[import = "missing"]
+    const s_p_missing: &extern;
+    #[import = "not a key of the record"]
+    const s_p_not_in_record: &extern;
+    #[import = "expected "]
+    const s_p_expected: &extern;
+    #[import = ", got "]
+    const s_p_got: &extern;
+    #[import = "key "]
+    const s_p_key: &extern;
+    #[import = "must be at least "]
+    const s_p_at_least: &extern;
+    #[import = "must be above "]
+    const s_p_above: &extern;
+    #[import = "must be below "]
+    const s_p_below: &extern;
+    #[import = "must be at most "]
+    const s_p_at_most: &extern;
+    #[import = "must have at least "]
+    const s_p_len_at_least: &extern;
+    #[import = "must have at most "]
+    const s_p_len_at_most: &extern;
+    #[import = " characters"]
+    const s_p_characters: &extern;
+    #[import = " items"]
+    const s_p_items: &extern;
+    #[import = "must be one of "]
+    const s_p_one_of: &extern;
+    #[import = "must not be one of "]
+    const s_p_none_of: &extern;
+    #[import = "must be a key of "]
+    const s_p_key_of: &extern;
+    #[import = "must match /"]
+    const s_p_matching: &extern;
+    #[import = "must satisfy "]
+    const s_p_satisfying: &extern;
+    #[import = "its "]
+    const s_i_its: &extern;
+    #[import = " is "]
+    const s_i_is: &extern;
+    #[import = "'s is "]
+    const s_i_s_is: &extern;
+    #[import = "it has no "]
+    const s_i_it_has_no: &extern;
+    #[import = "it has no schema"]
+    const s_i_no_schema: &extern;
+    #[import = "it doesn't declare that it implements "]
+    const s_i_doesnt_declare: &extern;
+    #[import = "field "]
+    const s_i_field: &extern;
+    #[import = "message "]
+    const s_i_message: &extern;
+    #[import = " takes "]
+    const s_i_takes: &extern;
+    #[import = " arguments, "]
+    const s_i_arguments: &extern;
+    #[import = "'s takes "]
+    const s_i_s_takes: &extern;
+    #[import = " argument "]
+    const s_i_argument: &extern;
+    #[import = " can't be a "]
+    const s_i_cant_be: &extern;
+    #[import = "> "]
+    const s_c_gt: &extern;
+    #[import = ">= "]
+    const s_c_ge: &extern;
+    #[import = "< "]
+    const s_c_lt: &extern;
+    #[import = "<= "]
+    const s_c_le: &extern;
+    #[import = "len >= "]
+    const s_c_len_ge: &extern;
+    #[import = "len <= "]
+    const s_c_len_le: &extern;
+    #[import = "in ["]
+    const s_c_in: &extern;
+    #[import = "not in ["]
+    const s_c_not_in: &extern;
+    #[import = "in keys("]
+    const s_c_in_keys: &extern;
+    #[import = "matches "]
+    const s_c_matches: &extern;
+    #[import = "check("]
+    const s_c_check: &extern;
+    #[import = "shared"]
+    const s_sync_shared: &extern;
+    #[import = "local"]
+    const s_sync_local: &extern;
+    #[import = "none"]
+    const s_sync_none: &extern;
+    #[import = "name"]
+    const s_name: &extern;
+    #[import = "constraints"]
+    const s_constraints: &extern;
+    #[import = "sync"]
+    const s_sync: &extern;
+    #[import = "args"]
+    const s_args: &extern;
+    #[import = "sourceKey"]
+    const s_source_key_name: &extern;
+    #[import = "pre"]
+    const s_pre: &extern;
+    #[import = "post"]
+    const s_post: &extern;
+    #[import = "changes"]
+    const s_changes: &extern;
+    #[import = "emits"]
+    const s_emits: &extern;
+    #[import = "kind"]
+    const s_kind: &extern;
+    #[import = "fields"]
+    const s_fields: &extern;
+    #[import = "gets"]
+    const s_gets: &extern;
+    #[import = "messages"]
+    const s_messages: &extern;
+    #[import = "invariants"]
+    const s_invariants: &extern;
+    #[import = "interfaces"]
+    const s_interfaces: &extern;
+    #[import = "notify"]
+    const s_e_notify: &extern;
+    #[import = "ask"]
+    const s_e_ask: &extern;
+    #[import = "sendAt"]
+    const s_e_send_at: &extern;
+    // Event modifiers (sem.wax).
+    #[import = "enter"]
+    const s_mod_enter: &extern;
+    #[import = "escape"]
+    const s_mod_escape: &extern;
+    #[import = "esc"]
+    const s_mod_esc: &extern;
+    #[import = "tab"]
+    const s_mod_tab: &extern;
+    #[import = "space"]
+    const s_mod_space: &extern;
+    #[import = "up"]
+    const s_mod_up: &extern;
+    #[import = "down"]
+    const s_mod_down: &extern;
+    #[import = "left"]
+    const s_mod_left: &extern;
+    #[import = "right"]
+    const s_mod_right: &extern;
+    #[import = "delete"]
+    const s_mod_delete: &extern;
+    #[import = "backspace"]
+    const s_mod_backspace: &extern;
+    #[import = "ctrl"]
+    const s_mod_ctrl: &extern;
+    #[import = "alt"]
+    const s_mod_alt: &extern;
+    #[import = "shift"]
+    const s_mod_shift: &extern;
+    #[import = "meta"]
+    const s_mod_meta: &extern;
+    #[import = "prevent"]
+    const s_mod_prevent: &extern;
+    #[import = "stop"]
+    const s_mod_stop: &extern;
+    #[import = "Enter"]
+    const s_key_enter: &extern;
+    #[import = "Escape"]
+    const s_key_escape: &extern;
+    #[import = "Tab"]
+    const s_key_tab: &extern;
+    #[import = " "]
+    const s_key_space: &extern;
+    #[import = "ArrowUp"]
+    const s_key_up: &extern;
+    #[import = "ArrowDown"]
+    const s_key_down: &extern;
+    #[import = "ArrowLeft"]
+    const s_key_left: &extern;
+    #[import = "ArrowRight"]
+    const s_key_right: &extern;
+    #[import = "Delete"]
+    const s_key_delete: &extern;
+    #[import = "Backspace"]
+    const s_key_backspace: &extern;
+    #[import = "ctrlKey"]
+    const s_ctrl_key: &extern;
+    #[import = "altKey"]
+    const s_alt_key: &extern;
+    #[import = "shiftKey"]
+    const s_shift_key: &extern;
+    #[import = "metaKey"]
+    const s_meta_key: &extern;
+    #[import = "Unknown event modifier "]
+    const s_err_event_mod: &extern;
+    #[import = " in on:"]
+    const s_err_event_mod_in: &extern;
+    // Checks and rejections (check.wax).
+    #[import = "message"]
+    const s_message: &extern;
+    #[import = "reason"]
+    const s_reason: &extern;
+    #[import = "index"]
+    const s_index: &extern;
+    #[import = "detail"]
+    const s_detail: &extern;
+    #[import = "wrongArity"]
+    const s_r_wrong_arity: &extern;
+    #[import = "wrongArgType"]
+    const s_r_wrong_arg_type: &extern;
+    #[import = "invalidArg"]
+    const s_r_invalid_arg: &extern;
+    #[import = "failed"]
+    const s_r_failed: &extern;
+    #[import = "it takes "]
+    const s_r_takes: &extern;
+    #[import = " arguments, got "]
+    const s_r_arguments_got: &extern;
+    #[import = " argument, got "]
+    const s_r_argument_got: &extern;
+    #[import = "the invariant "]
+    const s_r_the_invariant: &extern;
+    #[import = " doesn't hold"]
+    const s_r_doesnt_hold: &extern;
+    #[import = "argument "]
+    const s_r_argument: &extern;
+    #[import = " ("]
+    const s_r_paren_open: &extern;
+    #[import = "has the wrong type"]
+    const s_r_wrong_type: &extern;
+    #[import = "emits:"]
+    const s_r_emits: &extern;
+    #[import = ":"]
+    const s_colon: &extern;
+    #[import = "changes:"]
+    const s_r_changes: &extern;
+    #[import = "issues"]
+    const s_issues: &extern;
+    #[import = "path"]
+    const s_path: &extern;
+    #[import = "invalid"]
+    const s_invalid: &extern;
+    #[import = "invariant:"]
+    const s_r_invariant: &extern;
+    #[import = "task"]
+    const s_task: &extern;
+    #[import = "settled"]
+    const s_settled: &extern;
+    #[import = "stateInvalid"]
+    const s_state_invalid: &extern;
+    #[import = "messageInvalid"]
+    const s_message_invalid: &extern;
     // init's issues (author.wax).
     #[import = "field"]
     const s_field: &extern;
@@ -175,7 +472,7 @@ import "'" {
     const s_err_rejected: &extern;
     #[import = "A view element belongs to the views of one component type"]
     const s_err_view_shared: &extern;
-    #[import = "A send argument must be a constant, targetValue, sourceKey, dragKey or an if of them"]
+    #[import = "A send argument must be a constant, targetValue, sourceKey, dragKey, event or an if of them"]
     const s_err_action_arg: &extern;
     #[import = "A component type needs a main view: "]
     const s_err_no_main_view: &extern;
@@ -193,7 +490,7 @@ import "'" {
     const s_err_unknown_loop: &extern;
     #[import = "No scope named "]
     const s_err_unknown_scope: &extern;
-    #[import = "An action, targetValue, sourceKey or dragKey can only be a send argument"]
+    #[import = "An action, targetValue, sourceKey, dragKey or event can only be a send argument"]
     const s_err_not_renderable: &extern;
     #[import = "A component in a view renders through render, not as a child"]
     const s_err_component_child: &extern;
@@ -316,6 +613,8 @@ import "dom" {
     // and the effect allowed at dragstart; the drop effect over a target.
     #[import = "prevent_default"]
     fn dom_prevent_default(e: &extern);
+    #[import = "stop_propagation"]
+    fn dom_stop_propagation(e: &extern);
     #[import = "related_target"]
     fn dom_related_target(e: &extern) -> &?extern;
     #[import = "drag_start"]
@@ -354,6 +653,16 @@ import "host" {
     // A float as JS's String(n) writes it, for rendering it as text.
     #[import = "number_text"]
     fn host_number_text(n: f64) -> &extern;
+    // Whether s matches the regular expression pattern (a pattern constraint).
+    #[import = "regex_test"]
+    fn host_regex_test(pattern: &extern, s: &extern) -> i32;
+    // Throws a JS Error with this message whose rejection is info (a Value):
+    // a message a component rejected, with why; never returns.
+    #[import = "reject"]
+    fn host_reject(message: &extern, info: &extern);
+    // What dev mode found: kind is stateInvalid or messageInvalid, info a Value.
+    #[import = "observe_issue"]
+    fn observe_issue(kind: &extern, info: &extern);
     // Text as JS's Number(text) reads it, NaN for blank text.
     #[import = "parse_number"]
     fn host_parse_number(text: &extern) -> f64;

@@ -716,6 +716,373 @@ fn abi_json_indent(text: &extern) -> &extern {
     json_indent(text);
 }
 
+// Schemas (schema.wax): value types, constraints, the schemas of fields,
+// messages, invariants, interfaces and component types, and registering
+// interfaces in scopes.
+
+#[export = "vtype_any"]
+fn abi_vtype_any() -> &vtype {
+    vtype_any();
+}
+
+#[export = "vtype_null"]
+fn abi_vtype_null() -> &vtype {
+    vtype_null();
+}
+
+#[export = "vtype_bool"]
+fn abi_vtype_bool() -> &vtype {
+    vtype_bool();
+}
+
+#[export = "vtype_int"]
+fn abi_vtype_int() -> &vtype {
+    vtype_int();
+}
+
+#[export = "vtype_float"]
+fn abi_vtype_float() -> &vtype {
+    vtype_float();
+}
+
+#[export = "vtype_string"]
+fn abi_vtype_string() -> &vtype {
+    vtype_string();
+}
+
+#[export = "vtype_enum"]
+fn abi_vtype_enum(members: &str_array) -> &vtype {
+    vtype_enum(members);
+}
+
+#[export = "vtype_option"]
+fn abi_vtype_option(item: &vtype) -> &vtype {
+    vtype_option(item);
+}
+
+#[export = "vtype_list"]
+fn abi_vtype_list(item: &vtype) -> &vtype {
+    vtype_list(item);
+}
+
+#[export = "vtype_map"]
+fn abi_vtype_map(item: &vtype) -> &vtype {
+    vtype_map(item);
+}
+
+#[export = "vtype_record"]
+fn abi_vtype_record(names: &str_array, types: &vtype_array) -> &vtype {
+    vtype_record(names, types);
+}
+
+#[export = "vtype_one_of"]
+fn abi_vtype_one_of(types: &vtype_array) -> &vtype {
+    vtype_one_of(types);
+}
+
+#[export = "vtype_component"]
+fn abi_vtype_component(names: &str_array) -> &vtype {
+    vtype_component(names);
+}
+
+#[export = "vtype_result"]
+fn abi_vtype_result(ok: &vtype, err: &vtype) -> &vtype {
+    vtype_result(ok, err);
+}
+
+#[export = "constraint_min"]
+fn abi_constraint_min(bound: f64, exclusive: i32) -> &constraint {
+    constraint_min(bound, exclusive);
+}
+
+#[export = "constraint_max"]
+fn abi_constraint_max(bound: f64, exclusive: i32) -> &constraint {
+    constraint_max(bound, exclusive);
+}
+
+#[export = "constraint_min_len"]
+fn abi_constraint_min_len(n: i32) -> &constraint {
+    constraint_min_len(n);
+}
+
+#[export = "constraint_max_len"]
+fn abi_constraint_max_len(n: i32) -> &constraint {
+    constraint_max_len(n);
+}
+
+#[export = "constraint_one_of"]
+fn abi_constraint_one_of(values: &value) -> &constraint {
+    constraint_one_of(values);
+}
+
+#[export = "constraint_none_of"]
+fn abi_constraint_none_of(values: &value) -> &constraint {
+    constraint_none_of(values);
+}
+
+#[export = "constraint_key_of"]
+fn abi_constraint_key_of(field: &extern) -> &constraint {
+    constraint_key_of(field);
+}
+
+#[export = "constraint_pattern"]
+fn abi_constraint_pattern(pattern: &extern) -> &constraint {
+    constraint_pattern(pattern);
+}
+
+#[export = "constraint_check"]
+fn abi_constraint_check(name: &extern, check: &check_fn) -> &constraint {
+    constraint_check(name, check);
+}
+
+#[export = "field_schema_new"]
+fn abi_field_schema_new(
+    name: &extern,
+    vtype: &vtype,
+    constraints: &constraint_array,
+    sync: i32,
+) -> &field_schema {
+    field_schema_new(name, vtype, constraints, sync);
+}
+
+#[export = "message_schema_new"]
+fn abi_message_schema_new(
+    name: &extern,
+    args: &field_schema_array,
+    source_key: &?field_schema,
+    pre: &?pre_fn,
+    post: &?post_fn,
+    changes: &?str_array,
+    emits: &?emit_array,
+) -> &message_schema {
+    message_schema_new(name, args, source_key, pre, post, changes, emits);
+}
+
+#[export = "emit_spec_new"]
+fn abi_emit_spec_new(kind: i32, name: &extern) -> &emit_spec {
+    emit_spec_new(kind, name);
+}
+
+#[export = "invariant_new"]
+fn abi_invariant_new(name: &extern, holds: &invariant_fn) -> &invariant {
+    invariant_new(name, holds);
+}
+
+#[export = "interface_schema_new"]
+fn abi_interface_schema_new(
+    name: &extern,
+    fields: &field_schema_array,
+    gets: &field_schema_array,
+    messages: &message_schema_array,
+) -> &interface_schema {
+    interface_schema_new(name, fields, gets, messages);
+}
+
+#[export = "component_schema_new"]
+fn abi_component_schema_new(
+    fields: &field_schema_array,
+    gets: &field_schema_array,
+    messages: &message_schema_array,
+    invariants: &invariant_array,
+    interfaces: &str_array,
+) -> &component_schema {
+    component_schema_new(fields, gets, messages, invariants, interfaces);
+}
+
+#[export = "spec_set_schema"]
+fn abi_spec_set_schema(spec: &component_spec, schema: &component_schema) {
+    spec_set_schema(spec, schema);
+}
+
+#[export = "scope_register_interface"]
+fn abi_scope_register_interface(s: &scope, iface: &interface_schema) {
+    scope_register_interface(s, iface);
+}
+
+#[export = "message_error_invalid_arg"]
+fn abi_message_error_invalid_arg(index: i32, reason: &value) -> &message_error {
+    message_error_invalid_arg(index, reason);
+}
+
+#[export = "view_event"]
+fn abi_view_event(name: &extern) -> &view {
+    view_event(name);
+}
+
+#[export = "arg_event"]
+fn abi_arg_event(name: &extern) -> &arg {
+    arg_event(name);
+}
+
+// Schema helpers (lib/author.wax).
+
+#[export = "fs"]
+fn abi_fs(name: &extern, vt: &vtype) -> &field_schema {
+    fs(name, vt);
+}
+
+#[export = "fs1"]
+fn abi_fs1(name: &extern, vt: &vtype, c: &constraint) -> &field_schema {
+    fs1(name, vt, c);
+}
+
+#[export = "fs2"]
+fn abi_fs2(name: &extern, vt: &vtype, c1: &constraint, c2: &constraint) -> &field_schema {
+    fs2(name, vt, c1, c2);
+}
+
+#[export = "fields0"]
+fn abi_fields0() -> &field_schema_array {
+    fields0();
+}
+
+#[export = "fields1"]
+fn abi_fields1(a: &field_schema) -> &field_schema_array {
+    fields1(a);
+}
+
+#[export = "fields2"]
+fn abi_fields2(a: &field_schema, b: &field_schema) -> &field_schema_array {
+    fields2(a, b);
+}
+
+#[export = "fields3"]
+fn abi_fields3(a: &field_schema, b: &field_schema, c: &field_schema) -> &field_schema_array {
+    fields3(a, b, c);
+}
+
+#[export = "msg"]
+fn abi_msg(name: &extern, args: &field_schema_array) -> &message_schema {
+    msg(name, args);
+}
+
+#[export = "emits1"]
+fn abi_emits1(kind: i32, name: &extern) -> &emit_array {
+    emits1(kind, name);
+}
+
+#[export = "emits0"]
+fn abi_emits0() -> &emit_array {
+    emits0();
+}
+
+#[export = "no_invariants"]
+fn abi_no_invariants() -> &invariant_array {
+    no_invariants();
+}
+
+// What generated components call (lib/author.wax, schema.wax).
+
+#[export = "value_to_f64"]
+fn abi_value_to_f64(v: &value) -> f64 {
+    value_to_f64(v);
+}
+
+#[export = "vtype_problem"]
+fn abi_vtype_problem(t: &vtype, v: &value) -> &?extern {
+    vtype_problem(t, v);
+}
+
+#[export = "constraints_problem"]
+fn abi_constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> &?extern {
+    constraints_problem(cs, v, owner);
+}
+
+#[export = "field_value"]
+fn abi_field_value(fields: &value, name: &extern) -> &?value {
+    field_value(fields, name);
+}
+
+#[export = "init_issue"]
+fn abi_init_issue(issues: &value, field: &extern, problem: &extern) -> &value {
+    init_issue(issues, field, problem);
+}
+
+#[export = "init_fail"]
+fn abi_init_fail(issues: &value, field: &extern, problem: &extern) -> &init_result {
+    init_fail(issues, field, problem);
+}
+
+#[export = "message_result_of"]
+fn abi_message_result_of(prev: &eq, next: &eq) -> &message_result {
+    message_result_of(prev, next);
+}
+
+#[export = "cond_eq"]
+fn abi_cond_eq(a: &value, b: &value) -> i32 {
+    cond_eq(a, b);
+}
+
+#[export = "cond_lt"]
+fn abi_cond_lt(a: &value, b: &value) -> i32 {
+    cond_lt(a, b);
+}
+
+#[export = "cond_le"]
+fn abi_cond_le(a: &value, b: &value) -> i32 {
+    cond_le(a, b);
+}
+
+#[export = "cond_gt"]
+fn abi_cond_gt(a: &value, b: &value) -> i32 {
+    cond_gt(a, b);
+}
+
+#[export = "cond_ge"]
+fn abi_cond_ge(a: &value, b: &value) -> i32 {
+    cond_ge(a, b);
+}
+
+#[export = "cond_add"]
+fn abi_cond_add(a: &value, b: &value) -> &value {
+    cond_add(a, b);
+}
+
+#[export = "cond_sub"]
+fn abi_cond_sub(a: &value, b: &value) -> &value {
+    cond_sub(a, b);
+}
+
+#[export = "cond_len"]
+fn abi_cond_len(v: &value) -> &value {
+    cond_len(v);
+}
+
+#[export = "cond_count"]
+fn abi_cond_count(v: &value) -> i32 {
+    cond_count(v);
+}
+
+#[export = "cond_item"]
+fn abi_cond_item(v: &value, i: i32) -> &value {
+    cond_item(v, i);
+}
+
+#[export = "cond_keys"]
+fn abi_cond_keys(v: &value) -> &value {
+    cond_keys(v);
+}
+
+#[export = "cond_values"]
+fn abi_cond_values(v: &value) -> &value {
+    cond_values(v);
+}
+
+#[export = "cond_in"]
+fn abi_cond_in(x: &value, xs: &value) -> i32 {
+    cond_in(x, xs);
+}
+
+#[export = "cond_matches"]
+fn abi_cond_matches(s: &value, pattern: &extern) -> i32 {
+    cond_matches(s, pattern);
+}
+
+#[export = "value_member"]
+fn abi_value_member(v: &value, name: &extern) -> &value {
+    value_member(v, name);
+}
+
 // Failing: throws a JS Error with the message, as the runtime's own failures
 // do, so the task commits nothing.
 

@@ -1,417 +1,38 @@
-// The showcase component module: Shelf and Note, using what the other
-// examples' views don't: a scope's binds, a loop with filter, enrich and key
-// hooks, a loop with prepare and iter hooks, seq items, a float, a provided
-// value, pushView, renderIt, and drag and drop.
+// The showcase module's implementation (showcase.tcd has the rest).
 
 import "'" {
-    #[import = "Shelf"]
-    const s_shelf_type: &extern;
-    #[import = "Note"]
-    const s_note_type: &extern;
-    #[import = "books"]
-    const s_books: &extern;
-    #[import = "onlyUnread"]
-    const s_only_unread: &extern;
-    #[import = "tags"]
-    const s_tags: &extern;
-    #[import = "current"]
-    const s_current: &extern;
-    #[import = "theme"]
-    const s_theme: &extern;
-    #[import = "note"]
-    const s_note: &extern;
-    #[import = "notes"]
-    const s_notes: &extern;
-    #[import = "share"]
-    const s_share: &extern;
-    #[import = "header"]
-    const s_header: &extern;
-    #[import = "heading"]
-    const s_heading: &extern;
-    #[import = "label"]
-    const s_label: &extern;
-    #[import = "title"]
-    const s_title: &extern;
-    #[import = "year"]
-    const s_year: &extern;
-    #[import = "read"]
-    const s_read: &extern;
-    #[import = "text"]
-    const s_text: &extern;
-    #[import = "compact"]
-    const s_compact: &extern;
-    #[import = "toggleUnread"]
-    const s_toggle_unread: &extern;
-    #[import = "moveBook"]
-    const s_move_book: &extern;
-    #[import = "noteBook"]
-    const s_note_book: &extern;
-    #[import = "setText"]
-    const s_set_text: &extern;
-    #[import = "byYear"]
-    const s_by_year: &extern;
-    #[import = "drop"]
-    const s_drop: &extern;
-    #[import = "draggable"]
-    const s_draggable: &extern;
-    #[import = "true"]
-    const s_true: &extern;
-    #[import = "data-dragtype"]
-    const s_data_dragtype: &extern;
-    #[import = "book"]
-    const s_book: &extern;
-    #[import = "span"]
-    const s_span: &extern;
-    #[import = "by-year flex flex-wrap gap-1"]
-    const s_by_year_class: &extern;
-    #[import = "badge badge-ghost"]
-    const s_year_class: &extern;
-    #[import = "section"]
-    const s_section: &extern;
-    #[import = "h2"]
-    const s_h2: &extern;
-    #[import = "button"]
-    const s_button: &extern;
-    #[import = "ul"]
-    const s_ul: &extern;
-    #[import = "li"]
-    const s_li: &extern;
-    #[import = "p"]
-    const s_p: &extern;
-    #[import = "div"]
-    const s_div: &extern;
-    #[import = "small"]
-    const s_small: &extern;
-    #[import = "class"]
-    const s_class: &extern;
-    #[import = "click"]
-    const s_click: &extern;
-    #[import = "shelf card card-border bg-base-100 gap-2 p-4"]
-    const s_shelf_class: &extern;
-    #[import = "card-title"]
-    const s_title_class: &extern;
-    #[import = "btn btn-sm btn-outline w-fit"]
-    const s_toggle_class: &extern;
-    #[import = "flex flex-wrap gap-1"]
-    const s_books_class: &extern;
-    #[import = "read badge badge-success"]
-    const s_read_class: &extern;
-    #[import = "unread badge badge-outline"]
-    const s_unread_class: &extern;
-    #[import = "text-sm opacity-70 tabular-nums"]
-    const s_share_class: &extern;
-    #[import = "tag badge badge-primary"]
-    const s_tag_class: &extern;
-    #[import = "notes flex flex-col gap-1"]
-    const s_notes_class: &extern;
-    #[import = "note text-sm"]
-    const s_note_class: &extern;
-    #[import = "show all"]
-    const s_show_all: &extern;
-    #[import = "only unread"]
-    const s_only_unread_label: &extern;
     #[import = " books"]
     const s_books_label: &extern;
     #[import = " ("]
     const s_open_paren: &extern;
     #[import = ")"]
     const s_close_paren: &extern;
-    #[import = "main"]
-    const s_main_view: &extern;
-    #[import = "value"]
-    const s_value_bind: &extern;
-    #[import = ""]
-    const s_empty: &extern;
 }
 
-// ---- Shelf -----------------------------------------------------------------------
-//
-// <section class="shelf card ...">
-//   @scope header: <h2 class="card-title">{heading}</h2>
-//   <button class="btn ..." on:click="toggleUnread">{onlyUnread ? "show all" : "only unread"}</button>
-//   <ul class="flex ...">
-//     @each books (loop books):
-//       <li class={read ? "read badge ..." : "unread badge ..."} draggable="true"
-//           data-dragtype="book" on:drop="moveBook(dragKey, sourceKey)">{label}</li>
-//   </ul>
-//   <div class="by-year ...">@each books (loop byYear): <span class="badge ...">{title}</span></div>
-//   <p class="tag badge ...">{tags[current]}</p>
-//   <p class="text-sm ...">{share}</p>
-//   @pushView compact: render note
-//   <div class="notes flex ..." on:drop="noteBook(dragKey, sourceKey)">@each notes: renderIt</div>
-// </section>
-//
-// The books loop keeps only the unread ones when onlyUnread, keys them by
-// title, and binds label as "title (year)"; the byYear loop's prepare sorts
-// their indexes by year, and its iter gives the books in that order. Shelf
-// provides its theme. A book dropped on another moves there; dropped on a
-// note, which handles no drop, it reaches the notes' on:drop, which sends
-// that note the book's title.
-
-type shelf_state = {
-    books: &value,
-    only_unread: i32,
-    tags: &value,
-    current: i32,
-    theme: &extern,
-    note: &value,
-    notes: &value
-};
-
-let shelf_spec_made: &?component_spec = null;
-
-fn shelf_spec() -> &component_spec {
-    if !!shelf_spec_made {
-        return shelf_spec_made!;
-    }
-    let book =
-        el_on(
-            s_li,
-            strs3(s_class, s_draggable, s_data_dragtype),
-            views3(
-                view_if(view_field(s_read), text(s_read_class), text(s_unread_class)),
-                text(s_true),
-                text(s_book),
-            ),
-            views1(view_lookup_bind(s_label)),
-            view_ons1(s_drop, s_move_book, views2(view_drag_key(), view_source_key())),
-        );
-    let toggle =
-        el_class_on(
-            s_button,
-            s_toggle_class,
-            views1(view_if(
-                        view_field(s_only_unread),
-                        text(s_show_all),
-                        text(s_only_unread_label),
-                    )),
-            view_ons1(s_click, s_toggle_unread, views0()),
-        );
-    let childs = [view_array|null; 8];
-    childs[0] =
-        view_scope(s_header, el_class(s_h2, s_title_class, views1(view_lookup_bind(s_heading))));
-    childs[1] = toggle;
-    childs[2] =
-        el_class(s_ul, s_books_class, views1(view_each(view_field(s_books), book, s_books)));
-    childs[3] =
-        el_class(
-            s_div,
-            s_by_year_class,
-            views1(
-                view_each(
-                    view_field(s_books),
-                    el_class(s_span, s_year_class, views1(view_field(s_title))),
-                    s_by_year,
-                ),
-            ),
-        );
-    childs[4] =
-        el_attrs(
-            s_p,
-            strs1(s_class),
-            views1(text(s_tag_class)),
-            views1(view_seq_item(s_tags, s_current)),
-        );
-    childs[5] = el_class(s_p, s_share_class, views1(view_field(s_share)));
-    childs[6] = view_push_view(text(s_compact), view_render(view_field(s_note), null));
-    childs[7] =
-        el_class_on(
-            s_div,
-            s_notes_class,
-            views1(view_each(view_field(s_notes), view_render_it(null), null)),
-            view_ons1(s_drop, s_note_book, views2(view_drag_key(), view_source_key())),
-        );
-    let main = el_attrs(s_section, strs1(s_class), views1(text(s_shelf_class)), childs);
-    let loops = [loop_def_array|null; 2];
-    loops[0] =
-        {loop_def|
-            name: s_books,
-            prepare: null,
-            iter: null,
-            key: shelf_book_key,
-            filter: shelf_book_filter,
-            enrich: shelf_book_enrich,
-            view: null,
-        };
-    loops[1] =
-        {loop_def|
-            name: s_by_year,
-            prepare: shelf_by_year_prepare,
-            iter: shelf_by_year_iter,
-            key: null,
-            filter: null,
-            enrich: null,
-            view: null,
-        };
-    let scopes = [scope_def_array|null; 1];
-    scopes[0] = {scope_def| name: s_header, bind: shelf_header };
-    let provides = [selector_array|null; 1];
-    provides[0] = selector_field(s_theme);
-    let spec =
-        spec_new(
-            s_shelf_type,
-            strs1(s_main_view),
-            views1(main),
-            loops,
-            scopes,
-            strs1(s_theme),
-            provides,
-        );
-    shelf_spec_made = spec;
-    spec;
-}
-
-fn shelf_book_key: loop_key_fn (instance: &eq, key: &value, item: &value, state: &value) -> &value {
-    map_get(item, s_title)!;
-}
-
-fn shelf_book_filter:
-loop_filter_fn
-(
-    instance: &eq,
-    key: &value,
-    item: &value,
-    state: &value,
-) -> i32 {
-    if !(instance as &shelf_state).only_unread {
-        return 1;
-    }
-    !value_truthy(map_get(item, s_read)!);
-}
-
-fn shelf_book_enrich: loop_enrich_fn (instance: &eq, binds: &value, state: &value) -> &value {
-    let book = map_get(binds, s_value_bind)!;
-    let title = value_string_of(map_get(book, s_title)!)!;
-    let year = int_text((map_get(book, s_year)! as &value_int).value);
-    let label =
-        js_string_concat(
-            js_string_concat(js_string_concat(title, s_open_paren), year),
-            s_close_paren,
-        );
-    map_assoc(map_empty(), s_label, value_string(label));
-}
+// ---- Shelf --------------------------------------------------------------------------
 
 fn shelf_book_year(books: &value, i: i32) -> i32 {
-    (map_get(list_get(books, i)!, s_year)! as &value_int).value;
+    (value_member(list_get(books, i)!, gs_year) as &value_int).value;
 }
 
-// The books' indexes, by year: an insertion sort, stable.
-fn shelf_by_year_prepare: loop_prepare_fn (instance: &eq, books: &value) -> &value {
-    let order = list_empty();
+fn shelf_get_share(state: &shelf_state) -> f64 {
+    let n = list_count(state.books);
+    if n == 0 {
+        return 0.0;
+    }
+    let read = 0;
     let i = 0;
-    while i <s list_count(books) {
-        let year = shelf_book_year(books, i);
-        let sorted = list_empty();
-        let placed = 0;
-        let j = 0;
-        while j <s list_count(order) {
-            let at = list_get(order, j)!;
-            if !placed & (year <s shelf_book_year(books, (at as &value_int).value)) {
-                sorted = list_push(sorted, value_int(i));
-                placed = 1;
-            }
-            sorted = list_push(sorted, at);
-            j += 1;
+    while i <s n {
+        if value_truthy(value_member(list_get(state.books, i)!, gs_read)) {
+            read += 1;
         }
-        if !placed {
-            sorted = list_push(sorted, value_int(i));
-        }
-        order = sorted;
         i += 1;
     }
-    order;
+    read as f64_s / n as f64_s;
 }
 
-// [index, book] in the order prepare sorted.
-fn shelf_by_year_iter: loop_iter_fn (instance: &eq, books: &value, order: &value) -> &value {
-    let out = list_empty();
-    let i = 0;
-    while i <s list_count(order) {
-        let at = list_get(order, i)!;
-        let entry =
-            list_push(list_push(list_empty(), at), list_get(books, (at as &value_int).value)!);
-        out = list_push(out, entry);
-        i += 1;
-    }
-    out;
-}
-
-fn shelf_header: scope_bind_fn (instance: &eq) -> &value {
-    let n = list_count((instance as &shelf_state).books);
-    map_assoc(map_empty(), s_heading, value_string(js_string_concat(int_text(n), s_books_label)));
-}
-
-fn shelf_vtable() -> &vtable {
-    {vtable| init: shelf_init, handle: shelf_handle, get: shelf_get, set: shelf_set };
-}
-
-fn shelf_init: init_fn (fields: &value) -> &init_result {
-    let (books, i1) = init_list(fields, s_books, list_empty());
-    let (only_unread, i2) = init_bool(fields, s_only_unread, 0, i1);
-    let (tags, i3) = init_list(fields, s_tags, i2);
-    let (current, i4) = init_int(fields, s_current, 0, i3);
-    let (theme, i5) = init_string(fields, s_theme, s_empty, i4);
-    let note = value_null();
-    let found = map_get(fields, s_note);
-    if !!found {
-        note = found!;
-    }
-    let (notes, i6) = init_list(fields, s_notes, i5);
-    let state = {shelf_state| books, only_unread, tags, current, theme, note, notes };
-    init_ok(state, i6);
-}
-
-fn shelf_with(s: &shelf_state, only_unread: i32, note: &value, notes: &value) -> &shelf_state {
-    shelf_with_books(s, s.books, only_unread, note, notes);
-}
-
-fn shelf_with_books(
-    s: &shelf_state,
-    books: &value,
-    only_unread: i32,
-    note: &value,
-    notes: &value,
-) -> &shelf_state {
-    {shelf_state|
-        books,
-        only_unread,
-        tags: s.tags,
-        current: s.current,
-        theme: s.theme,
-        note,
-        notes,
-    };
-}
-
-fn shelf_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
-    let s = instance as &shelf_state;
-    if str_eq(m.name, s_toggle_unread) {
-        return message_result_updated(shelf_with(s, !s.only_unread, s.note, s.notes));
-    }
-    // moveBook(from, to): the book dragged from `from` dropped on the one at
-    // `to`. A drag from elsewhere has no key: nothing moves.
-    if str_eq(m.name, s_move_book) {
-        ctx_log(ctx, ctx.drag);
-        let (has_from, from) = arg_int(m.args, 0);
-        let (has_to, to) = arg_int(m.args, 1);
-        if !has_from | !has_to | (from == to) {
-            return message_result_unchanged();
-        }
-        let books = shelf_move(s.books, from, to);
-        return message_result_updated(shelf_with_books(s, books, s.only_unread, s.note, s.notes));
-    }
-    // noteBook(book, note): a book dropped on a note writes its title there.
-    if str_eq(m.name, s_note_book) {
-        let (has_book, book) = arg_int(m.args, 0);
-        let (has_note, note) = arg_int(m.args, 1);
-        if !has_book | !has_note {
-            return message_result_unchanged();
-        }
-        let title = map_get(list_get(s.books, book)!, s_title)!;
-        ctx_send_at(ctx, s_set_text, values1(title), selector_item(s_notes, path_key_index(note)));
-        return message_result_unchanged();
-    }
-    message_result_rejected(message_error_unknown_message());
+fn shelf_on_toggle_unread(state: &shelf_state, ctx: &context) -> &shelf_state {
+    shelf_with_only_unread(state, !state.only_unread);
 }
 
 // The list with the item at from taken out and put in at to.
@@ -440,146 +61,115 @@ fn shelf_move(items: &value, from: i32, to: i32) -> &value {
     out;
 }
 
-// The share of the books read, a float: what a view renders as JS's String(n).
-fn shelf_share(s: &shelf_state) -> f64 {
-    let n = list_count(s.books);
-    if n == 0 {
-        return 0.0;
+fn shelf_on_move_book(
+    state: &shelf_state,
+    ctx: &context,
+    from: &value,
+    to: &value,
+) -> &shelf_state {
+    ctx_log(ctx, ctx.drag);
+    if (from.kind != value_kind_int) | (to.kind != value_kind_int) {
+        return state;
     }
-    let read = 0;
+    let f = (from as &value_int).value;
+    let t = (to as &value_int).value;
+    if f == t {
+        return state;
+    }
+    shelf_with_books(state, shelf_move(state.books, f, t));
+}
+
+fn shelf_on_note_book(
+    state: &shelf_state,
+    ctx: &context,
+    book: &value,
+    note: &value,
+) -> &shelf_state {
+    if (book.kind != value_kind_int) | (note.kind != value_kind_int) {
+        return state;
+    }
+    let title = value_member(list_get(state.books, (book as &value_int).value)!, gs_title);
+    let at = selector_item(gs_notes, path_key_index((note as &value_int).value));
+    note_send_set_text(ctx, at, value_string_of(title)!);
+    state;
+}
+
+fn shelf_scope_header(state: &shelf_state) -> &shelf_scope_header_binds {
+    let n = list_count(state.books);
+    {shelf_scope_header_binds| heading: js_string_concat(int_text(n), s_books_label) };
+}
+
+fn shelf_loop_books_key(state: &shelf_state, key: &value, item: &value) -> &extern {
+    value_string_of(value_member(item, gs_title))!;
+}
+
+fn shelf_loop_books_filter(state: &shelf_state, key: &value, item: &value) -> i32 {
+    if !state.only_unread {
+        return 1;
+    }
+    !value_truthy(value_member(item, gs_read));
+}
+
+fn shelf_loop_books_enrich(
+    state: &shelf_state,
+    key: &value,
+    item: &value,
+) -> &shelf_loop_books_binds {
+    let title = value_string_of(value_member(item, gs_title))!;
+    let year = int_text((value_member(item, gs_year) as &value_int).value);
+    let label =
+        js_string_concat(
+            js_string_concat(js_string_concat(title, s_open_paren), year),
+            s_close_paren,
+        );
+    {shelf_loop_books_binds| label };
+}
+
+// The books' indexes, by year: an insertion sort, stable.
+fn shelf_loop_by_year_prepare(state: &shelf_state, books: &value) -> &value {
+    let order = list_empty();
     let i = 0;
-    while i <s n {
-        if value_truthy(map_get(list_get(s.books, i)!, s_read)!) {
-            read += 1;
+    while i <s list_count(books) {
+        let year = shelf_book_year(books, i);
+        let sorted = list_empty();
+        let placed = 0;
+        let j = 0;
+        while j <s list_count(order) {
+            let at = list_get(order, j)!;
+            if !placed & (year <s shelf_book_year(books, (at as &value_int).value)) {
+                sorted = list_push(sorted, value_int(i));
+                placed = 1;
+            }
+            sorted = list_push(sorted, at);
+            j += 1;
         }
+        if !placed {
+            sorted = list_push(sorted, value_int(i));
+        }
+        order = sorted;
         i += 1;
     }
-    read as f64_s / n as f64_s;
+    order;
 }
 
-fn shelf_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
-    let s = instance as &shelf_state;
-    if str_eq(name, s_books) {
-        return (property_ok, s.books);
+// [index, book] in the order prepare sorted.
+fn shelf_loop_by_year_iter(state: &shelf_state, books: &value, order: &value) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(order) {
+        let at = list_get(order, i)!;
+        out =
+            list_push(
+                out,
+                list_push(list_push(list_empty(), at), list_get(books, (at as &value_int).value)!),
+            );
+        i += 1;
     }
-    if str_eq(name, s_only_unread) {
-        return (property_ok, value_bool(s.only_unread));
-    }
-    if str_eq(name, s_tags) {
-        return (property_ok, s.tags);
-    }
-    if str_eq(name, s_current) {
-        return (property_ok, value_int(s.current));
-    }
-    if str_eq(name, s_theme) {
-        return (property_ok, value_string(s.theme));
-    }
-    if str_eq(name, s_note) {
-        return (property_ok, s.note);
-    }
-    if str_eq(name, s_notes) {
-        return (property_ok, s.notes);
-    }
-    if str_eq(name, s_share) {
-        return (property_ok, value_float(shelf_share(s)));
-    }
-    (property_no_such_property, null);
+    out;
 }
 
-// Only the children change, through their paths; the rest is read-only here.
-fn shelf_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
-    let s = instance as &shelf_state;
-    if str_eq(name, s_note) {
-        return (property_ok, shelf_with(s, s.only_unread, v, s.notes));
-    }
-    if str_eq(name, s_notes) {
-        if v.kind != value_kind_list {
-            return (property_wrong_type, null);
-        }
-        return (property_ok, shelf_with(s, s.only_unread, s.note, v));
-    }
-    (property_not_writable, null);
-}
+// ---- Note ---------------------------------------------------------------------------
 
-// ---- Note ------------------------------------------------------------------------
-//
-// main:    <p class="note text-sm">{text}</p>
-// compact: <small class={provided theme}>{text}</small>
-
-type note_state = { text: &extern };
-
-let note_spec_made: &?component_spec = null;
-
-fn note_spec() -> &component_spec {
-    if !!note_spec_made {
-        return note_spec_made!;
-    }
-    let main =
-        el_attrs(s_p, strs1(s_class), views1(text(s_note_class)), views1(view_field(s_text)));
-    let compact =
-        el_attrs(
-            s_small,
-            strs1(s_class),
-            views1(view_provided(s_theme)),
-            views1(view_field(s_text)),
-        );
-    let spec =
-        spec_new(
-            s_note_type,
-            strs2(s_main_view, s_compact),
-            views2(main, compact),
-            no_loops(),
-            no_scopes(),
-            strs0(),
-            no_provides(),
-        );
-    note_spec_made = spec;
-    spec;
-}
-
-fn note_vtable() -> &vtable {
-    {vtable| init: note_init, handle: note_handle, get: note_get, set: note_set };
-}
-
-fn note_init: init_fn (fields: &value) -> &init_result {
-    let (text, issues) = init_string(fields, s_text, s_empty, list_empty());
-    init_ok({note_state| text }, issues);
-}
-
-fn note_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &message_result {
-    if str_eq(m.name, s_set_text) {
-        if m.args.length() != 1 {
-            return message_result_rejected(message_error_wrong_arity(1, m.args.length()));
-        }
-        let text = value_string_of(m.args[0]!);
-        if !text {
-            return message_result_rejected(message_error_wrong_arg_type(0));
-        }
-        return message_result_updated({note_state| text: text! });
-    }
-    message_result_rejected(message_error_unknown_message());
-}
-
-fn note_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
-    if str_eq(name, s_text) {
-        return (property_ok, value_string((instance as &note_state).text));
-    }
-    (property_no_such_property, null);
-}
-
-fn note_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
-    (property_not_writable, null);
-}
-
-// ---- The module's interface (README.md has the convention) -------------------
-
-#[export = "tutuca_abi_version"]
-fn tutuca_abi_version() -> i32 {
-    tutuca_abi_version_current;
-}
-
-#[export = "tutuca_register"]
-fn tutuca_register(s: &scope) {
-    scope_register(s, s_shelf_type, shelf_spec(), shelf_vtable());
-    scope_register(s, s_note_type, note_spec(), note_vtable());
+fn note_on_set_text(state: &note_state, ctx: &context, text: &extern) -> &note_state {
+    note_with_text(state, text);
 }

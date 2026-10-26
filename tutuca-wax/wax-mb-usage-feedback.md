@@ -82,6 +82,15 @@ to the end of the next line: the `"` inside the character literal seems to
 start a string. `'\\'`, `'\n'` and other character literals work. Writing JSON
 needs both `"` and `\`; I used `0x22` and `0x5c` constants.
 
+- A `match` with many type arms whose bindings go unused emitted a function
+  engines reject: `view_eval_into` grew to sixteen arms (five of them only
+  `x: &t => { host_fail(...); return; }`) and the unoptimized module failed
+  validation with `uninitialized non-defaultable local: 3`. wasm-opt still
+  took it, and the optimized module trapped with `unreachable` at run time,
+  far from the cause. Checking the kinds before the `match` (dropping those
+  five arms) fixed it. Validating the emitted module would have reported it
+  at build time.
+
 ## Diagnostics that could help more
 
 ### js-string builtin imports with non-nullable parameters compile, then fail to instantiate

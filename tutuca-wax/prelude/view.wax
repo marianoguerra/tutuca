@@ -22,6 +22,7 @@ const view_kind_action = 14;
 const view_kind_target_value = 15;
 const view_kind_source_key = 16;
 const view_kind_drag_key = 17;
+const view_kind_event = 18;
 
 rec {
     type view = open { kind: i32 };
@@ -74,6 +75,8 @@ rec {
     // The item key of the child the dragged element is in, as a send
     // argument; null when nothing, or something from elsewhere, is dragged.
     type view_drag_key: view = { .. };
+    // A field of the event (key, clientX, ctrlKey, ...), as a send argument.
+    type view_event: view = { .., name: &extern };
     // on:<event>.
     type view_on = { event: &extern, action: &view_action };
     type view_array = [mut &?view];

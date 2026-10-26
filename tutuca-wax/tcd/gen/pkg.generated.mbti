@@ -1,0 +1,63 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/tcd/gen"
+
+import {
+  "moonbitlang/core/debug",
+  "tutuca/tcd/check",
+  "tutuca/tcd/diag",
+}
+
+// Values
+pub fn generate(@check.Package, String, have? : Array[String]) -> Output
+
+pub fn required(@check.Package) -> Array[Required]
+
+pub fn required_of(@check.Package, @check.ComponentM) -> Array[Required]
+
+pub fn required_of_package(@check.Package) -> Array[Required]
+
+pub fn stub(@check.Package, String, have? : Array[String]) -> String
+
+pub fn wax_ty(@check.Ty) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct Gen {
+  pkg : @check.Package
+  strings : Strings
+  enums : Array[Array[String]]
+  have : Array[String]?
+}
+pub fn Gen::contract(Self) -> String
+pub fn Gen::glue(Self) -> String
+pub fn Gen::new(@check.Package, have? : Array[String]) -> Self
+
+pub(all) struct Output {
+  contract : String
+  glue : String
+  required : Array[Required]
+}
+
+pub(all) struct Required {
+  name : String
+  params : Array[(String, String)]
+  result : String
+  what : String
+  notes : Array[String]
+  span : @diag.Span
+  optional : Bool
+} derive(@debug.Debug)
+pub fn Required::signature(Self) -> String
+
+pub(all) struct Strings {
+  by_text : Map[String, String]
+  order : Array[String]
+}
+pub fn Strings::get(Self, String) -> String
+pub fn Strings::imports(Self) -> String
+pub fn Strings::new() -> Self
+
+// Type aliases
+
+// Traits

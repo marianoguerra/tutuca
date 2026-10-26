@@ -23,6 +23,7 @@ rec {
         target_value: mut &visit_fn,
         source_key: mut &visit_fn,
         drag_key: mut &visit_fn,
+        event: mut &visit_fn,
         cond: mut &visit_fn,
         element: mut &visit_fn,
         frag: mut &visit_fn,
@@ -59,6 +60,7 @@ fn walker_vtable_default() -> &walker_vtable {
         target_value: walk_kind_default,
         source_key: walk_kind_default,
         drag_key: walk_kind_default,
+        event: walk_kind_default,
         cond: walk_kind_default,
         element: walk_element_default,
         frag: walk_kind_default,
@@ -149,6 +151,10 @@ fn walk(w: &walker, n: &view) {
     }
     if kind == view_kind_drag_key {
         vt.drag_key(w, n);
+        return;
+    }
+    if kind == view_kind_event {
+        vt.event(w, n);
         return;
     }
     unreachable;

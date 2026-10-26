@@ -1,0 +1,4 @@
+import {
+  "tutuca/tcd/syntax",
+  "tutuca/tcd/check",
+}

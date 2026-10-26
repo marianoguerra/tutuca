@@ -8,6 +8,7 @@ fn scope_new(name: &extern, parent: &?scope) -> &scope {
         children: smap_empty(),
         entries: smap_empty(),
         ask_handlers: smap_empty(),
+        interfaces: smap_empty(),
     };
 }
 
@@ -26,7 +27,15 @@ fn scope_enter(s: &scope, name: &extern) -> &scope {
     made;
 }
 
+// A type registered under an interface's name visible here must implement
+// it, and so must a type that declares interfaces visible here; registering
+// one that doesn't fails. Interfaces registered later are checked when a
+// component is made.
 fn scope_register(s: &scope, name: &extern, spec: &component_spec, vtable: &vtable) {
+    let problem = scope_entry_problem(s, name, spec);
+    if !!problem {
+        host_fail(problem!);
+    }
     s.entries = smap_assoc(s.entries, name, {scope_entry| spec, vtable });
 }
 
@@ -73,6 +82,10 @@ fn scope_make(s: &scope, name: &extern, fields: &value) -> &make_result {
         return {make_result| component: null, issues: list_empty(), error: message };
     }
     let e = entry!;
+    let problem = scope_entry_problem(s, name, e.spec);
+    if !!problem {
+        return {make_result| component: null, issues: list_empty(), error: value_string(problem!) };
+    }
     let made = e.vtable.init(fields);
     if !made.instance {
         return {make_result| component: null, issues: made.issues, error: made.error };
@@ -85,7 +98,12 @@ fn scope_make(s: &scope, name: &extern, fields: &value) -> &make_result {
 fn scope_make_or_fail(s: &scope, name: &extern, fields: &value) -> &component {
     let made = scope_make(s, name, fields);
     if !made.component {
-        host_fail(js_string_concat(s_err_cant_make, name));
+        let text = js_string_concat(s_err_cant_make, name);
+        if !!made.error {
+            text =
+                js_string_concat(js_string_concat(text, s_colon_space), reason_text(made.error!));
+        }
+        host_fail(text);
         unreachable;
     }
     made.component!;

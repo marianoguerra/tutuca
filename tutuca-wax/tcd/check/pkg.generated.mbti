@@ -1,0 +1,271 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/tcd/check"
+
+import {
+  "moonbitlang/core/debug",
+  "tutuca/tcd/diag",
+  "tutuca/tcd/syntax",
+}
+
+// Values
+pub fn camel(String) -> String
+
+pub fn check(@syntax.File, Map[String, @syntax.File]) -> (Package, Array[@diag.Diagnostic])
+
+pub fn check_views(Package, ComponentM, Array[@diag.Diagnostic]) -> Unit
+
+pub fn closest(String, Array[String]) -> String?
+
+pub fn contradiction(Norm, String) -> String?
+
+pub fn did_you_mean(String, Array[String]) -> String
+
+pub fn eval(@syntax.Expr, Map[String, Val], it? : Val) -> Val
+
+pub let event_modifiers : Array[String]
+
+pub fn event_of_key(String) -> (String, Array[String])?
+
+pub fn expr_text(@syntax.Expr) -> String
+
+pub fn has_length(Ty) -> Bool
+
+pub fn is_numeric(Ty) -> Bool
+
+pub fn is_snake_case(String) -> Bool
+
+pub fn lit_fits_ty(@syntax.Lit, Ty) -> Bool
+
+pub fn lit_meets(@syntax.Lit, Norm) -> Bool
+
+pub fn lit_text(@syntax.Lit) -> String
+
+pub fn lit_ty(@syntax.Lit) -> Ty
+
+pub fn lit_val(@syntax.Lit) -> Val
+
+pub fn literal_val(@syntax.Expr) -> Val
+
+pub fn norm_text(Norm) -> String
+
+pub fn normalize(@syntax.Expr?, String, Ty, Map[String, Ty], Array[@diag.Diagnostic]) -> Norm
+
+pub fn pascal(String) -> String
+
+pub fn ty_text(Ty) -> String
+
+pub fn type_default(Ty) -> Val?
+
+pub fn unoption(Ty) -> Ty
+
+pub fn val_fits(Val, Ty) -> Bool
+
+pub fn val_meets(Val, Norm) -> Bool
+
+pub fn wax(String) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct Bound {
+  value : Double
+  exclusive : Bool
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct ComponentM {
+  name : String
+  implements : Array[String]
+  fields : Array[FieldM]
+  gets : Array[FieldM]
+  messages : Array[MessageM]
+  notifies : Array[SignalM]
+  asks : Array[SignalM]
+  invariants : Array[InvariantM]
+  init_hook : Bool
+  loops : Array[LoopM]
+  scopes : Array[ScopeM]
+  provides : Array[ProvideM]
+  views : Array[ViewM]
+  checks : Array[(String, Ty?)]
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+pub fn ComponentM::field(Self, String) -> FieldM?
+pub fn ComponentM::message(Self, String) -> MessageM?
+pub fn ComponentM::property(Self, String) -> FieldM?
+
+pub(all) enum EmitKindM {
+  Notify
+  Ask
+  SendAt
+  Make
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct EmitM {
+  kind : EmitKindM
+  name : String
+  target : String?
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct ExampleM {
+  name : String
+  component : String
+  start : Array[(String, @syntax.Expr)]
+  steps : Array[StepM]
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct FieldM {
+  name : String
+  ty : Ty
+  norm : Norm
+  default : @syntax.Expr?
+  required : Bool
+  sync : SyncLevel
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct InterfaceM {
+  name : String
+  fields : Array[FieldM]
+  gets : Array[FieldM]
+  messages : Array[MessageM]
+  notifies : Array[SignalM]
+  declared_here : Bool
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct InvariantM {
+  name : String
+  cond : @syntax.Expr
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct LoopM {
+  name : String
+  prepare : Ty?
+  iter : Bool
+  key : Ty?
+  filter : Bool
+  enrich : Array[FieldM]?
+  view : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct MessageM {
+  name : String
+  params : Array[FieldM]
+  swap : Bool
+  source_key : FieldM?
+  when_ : @syntax.Expr?
+  changes : Array[String]?
+  ensures : @syntax.Expr?
+  emits : Array[EmitM]?
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct Norm {
+  mut lo : Bound?
+  mut hi : Bound?
+  mut len_lo : Int32?
+  mut len_hi : Int32?
+  mut one_of : Array[@syntax.Lit]?
+  none_of : Array[@syntax.Lit]
+  patterns : Array[String]
+  key_of : Array[String]
+  member_of : Array[String]
+  checks : Array[String]
+} derive(Eq, ToJson, @debug.Debug)
+pub fn Norm::is_empty(Self) -> Bool
+pub fn Norm::new() -> Self
+
+pub(all) struct Package {
+  full_name : String
+  name : String
+  components : Array[ComponentM]
+  interfaces : Array[InterfaceM]
+  registers : Array[RegisterM]
+  ask_handlers : Array[SignalM]
+  host_asks : Array[String]
+  examples : Array[ExampleM]
+} derive(ToJson, @debug.Debug)
+pub fn Package::component(Self, String) -> ComponentM?
+pub fn Package::interface_named(Self, String) -> InterfaceM?
+
+pub(all) struct ProvideM {
+  name : String
+  field : String
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct RegisterM {
+  component : String
+  as_ : String
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct ScopeM {
+  name : String
+  binds : Array[FieldM]
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) struct SignalM {
+  name : String
+  params : Array[FieldM]
+  result : Ty?
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+pub(all) enum StepM {
+  Send(String, Array[@syntax.Expr])
+  Expect(@syntax.Expr)
+} derive(ToJson, @debug.Debug)
+
+pub(all) enum SyncLevel {
+  Shared
+  Local
+  NoSync
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Ty {
+  Bool
+  S32
+  F64
+  Str
+  Any
+  Null
+  Enum(Array[String])
+  Option(Ty)
+  List(Ty)
+  Map(Ty)
+  Record(Array[(String, Ty)])
+  OneOf(Array[Ty])
+  Comp(Array[String])
+  Result(Ty, Ty)
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) enum Val {
+  VNull
+  VBool(Bool)
+  VNum(Double)
+  VStr(String)
+  VList(Array[Val])
+  VMap(Array[(String, Val)])
+  Unknown
+} derive(Eq, @debug.Debug)
+
+pub(all) struct ViewM {
+  name : String
+  body : @syntax.ViewExpr
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
+// Type aliases
+
+// Traits
