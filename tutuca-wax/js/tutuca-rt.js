@@ -670,7 +670,9 @@ function makeRuntime(w, api, late) {
 		const inflight = new Set();
 		const listener = (e) => host.dispatch(e);
 		let running = false;
+		let stopped = false; // Unmounted: it renders and listens no more.
 		let tick = null; // The timeout of the next run, when tasks are left.
+		const listening = [];
 		const schedule = () => {
 			tick ??= setTimeout(() => {
 				tick = null;
@@ -698,7 +700,7 @@ function makeRuntime(w, api, late) {
 			// committed. Called while a run is on (an event the render caused),
 			// it leaves the tasks to that run.
 			run() {
-				if (running) return;
+				if (running || stopped) return;
 				running = true;
 				late.host = host;
 				clearTimeout(tick);
@@ -728,7 +730,19 @@ function makeRuntime(w, api, late) {
 			// scope tree handle, the ones loaded since included.
 			listen() {
 				if (host.headless) return;
-				for (const type of values.to(w.host_new_event_names(h))) container.addEventListener(type, listener);
+				for (const type of values.to(w.host_new_event_names(h))) {
+					container.addEventListener(type, listener);
+					listening.push(type);
+				}
+			},
+			// Stops: no more listening, runs or renders, and the container
+			// emptied, so another host can mount there.
+			unmount() {
+				stopped = true;
+				clearTimeout(tick);
+				tick = null;
+				for (const type of listening.splice(0)) container?.removeEventListener(type, listener);
+				container?.replaceChildren();
 			},
 			// A message to the root, from outside it.
 			send(name, args = []) {

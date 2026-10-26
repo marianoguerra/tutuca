@@ -21,7 +21,7 @@
 //   types, since the functions are the runtime's);
 // - the import block of the component ABI, read from src/abi.wax.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -277,9 +277,23 @@ export const findTcd = () => {
 	return join(root, "tcd/_build/native/debug/build/tutuca/tcd/cmd/tcd/tcd.exe");
 };
 
+// tcd and wax-mb's library compiled to wasm-gc (tcd/web), for the
+// playground to compile components in the browser: dist/tcd/tcd.wasm.
+export function buildTcdWeb() {
+	const result = spawnSync("moon", ["-C", "tcd", "build", "--target", "wasm-gc", "--release"], { cwd: root, encoding: "utf8" });
+	if (result.error || result.status !== 0) {
+		process.stderr.write(`${result.stdout ?? ""}${result.stderr ?? ""}`);
+		throw new Error(`could not build tcd for wasm-gc${result.error ? ` (${result.error.message})` : ""}`);
+	}
+	const out = "dist/tcd/tcd.wasm";
+	mkdirSync(join(root, "dist/tcd"), { recursive: true });
+	copyFileSync(join(root, "tcd/_build/wasm-gc/release/build/tutuca/tcd/web/web.wasm"), join(root, out));
+	return out;
+}
+
 export function build() {
 	generatePrelude();
-	return TARGETS.map(buildTarget);
+	return [...TARGETS.map(buildTarget), buildTcdWeb()];
 }
 
 // A component module defined in TCD: tcd generates its contract and glue

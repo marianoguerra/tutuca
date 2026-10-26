@@ -9,6 +9,7 @@
 // ones each component module's views use, which loadComponent reports. Each
 // time a module brings new ones, the whole set is compiled again.
 import { classStyles, loadCssCompiler } from "../js/css.js";
+import { fromJson as fromJsonIn } from "../js/json-example.js";
 import { load } from "../js/tutuca-rt.js";
 
 // The page's own classes, the components bring theirs. The first class of
@@ -153,7 +154,7 @@ function demo({ title, description, type, fields, inspect, actions = [], asks = 
 	const c = card({ title, description });
 	let host;
 	const mount = () => {
-		c.stage.replaceChildren();
+		host?.unmount();
 		host = runtime.createHost(document, c.stage, runtime.make(scope, type, fields), { asks, dev: true });
 		observe(host, c, (root) => ({ type: runtime.typeName(root), ...inspect(root) }));
 		host.mount();
@@ -304,17 +305,7 @@ demo({
 	],
 });
 
-// The components for a JSON value, made in scope (fromJson in tutuca's
-// components/json).
-const fromJson = (v) => {
-	const make = (type, fields = {}) => runtime.make(scope, type, fields);
-	if (v === null) return make("JsonNull");
-	if (typeof v === "boolean") return make("JsonBool", { value: v });
-	if (typeof v === "number") return make("JsonNumber", { value: v, text: String(v) });
-	if (typeof v === "string") return make("JsonString", { value: v });
-	if (Array.isArray(v)) return make("JsonArray", { items: v.map(fromJson) });
-	return make("JsonObject", { entries: Object.entries(v).map(([key, x]) => make("JsonEntry", { key, value: fromJson(x) })) });
-};
+const fromJson = (v) => fromJsonIn(runtime, scope, v);
 
 demo({
 	title: "JSON: a viewer and editor",

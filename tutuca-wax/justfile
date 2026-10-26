@@ -44,6 +44,15 @@ clean:
 demos port="8002": build
     node scripts/serve.mjs {{port}}
 
+# Build, then serve the playground at http://127.0.0.1:{{port}}/playground/ (Ctrl-C stops it).
+playground port="8002": build
+    @echo "http://127.0.0.1:{{port}}/playground/"
+    node scripts/serve.mjs {{port}}
+
+# Bundle the playground's editor (playground/editor.src.js and CodeMirror) into playground/deps/editor.js.
+vendor-editor:
+    node scripts/vendor-editor.mjs
+
 # Serve this directory without building first, e.g. after `just build` elsewhere.
 serve port="8002":
     node scripts/serve.mjs {{port}}
@@ -60,8 +69,8 @@ fmt-check:
 
 # --- Test ------------------------------------------------------------------------------------
 
-# Everything `npm test` runs: format check, build, then jsdom, parity and the browser.
-test: fmt-check build test-jsdom test-parity test-browser
+# Everything `npm test` runs: format check, build, then jsdom, tcd in wasm-gc, parity and the browser.
+test: fmt-check build test-jsdom test-tcd-web test-parity test-browser
 
 # The fast gate: format check, build, and the suite in jsdom.
 check: fmt-check build test-jsdom
@@ -69,6 +78,10 @@ check: fmt-check build test-jsdom
 # The suite in Node against jsdom, with the js-string builtins and with the polyfills.
 test-jsdom:
     node --test test/jsdom.test.mjs
+
+# tcd compiled to wasm-gc (dist/tcd/tcd.wasm, what the playground compiles with), in Node.
+test-tcd-web:
+    node --test test/tcd-web.test.mjs
 
 # Random trees and frames against tutuca's own runtime (../src), step by step.
 test-parity:

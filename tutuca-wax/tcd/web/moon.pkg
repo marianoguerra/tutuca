@@ -1,0 +1,22 @@
+// tcd compiled to wasm-gc for the playground (js/tcd-web.js loads it).
+import {
+  "tutuca/tcd/diag",
+  "tutuca/tcd/check",
+  "tutuca/tcd/compose",
+  "tutuca/tcd/export",
+  "tutuca/tcd/api",
+  "moonbitlang/core/json",
+}
+
+supported_targets = "wasm-gc"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [ "tcd_check", "tcd_stub", "tcd_build", "tcd_model" ],
+      "use-js-builtin-string": true,
+    },
+  },
+)

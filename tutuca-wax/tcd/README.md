@@ -23,7 +23,10 @@ moon test                                      # the tool's own tests
 ```
 
 `scripts/build.mjs` builds tcd and runs it for the components that have a
-`tcd` entry, then wasm-opt as for the rest.
+`tcd` entry, then wasm-opt as for the rest, and builds `web` for wasm-gc
+(`moon build --target wasm-gc --release`) into `dist/tcd/tcd.wasm`: tcd and
+wax-mb's library in the browser, which the playground compiles with. Both
+build byte-identical modules.
 
 ## The language
 
@@ -162,7 +165,9 @@ is; `examples` runs the example blocks.
 | `gen` | the contract, the glue, the stub, the required functions |
 | `compose` | the convention check, assembling the module, checking and compiling it with wax-mb's library |
 | `export` | the model as JSON |
+| `api` | the pipeline over files a read function gives: load (with `use`d files, paths normalized), stub, build |
 | `cli`, `cmd/tcd` | the command, over an `Io`; the native binary |
+| `web` | tcd in the browser: `api` compiled to wasm-gc, exporting `tcd_check`, `tcd_stub`, `tcd_model` and `tcd_build`, JSON strings in and out (`../js/tcd-web.js` loads it; `../playground/` uses it) |
 
 It depends on `marianoguerra/wax` (wax-mb's library, through `moon.work`,
 from `../.tools/wax-mb/lib`, which `just setup` builds).

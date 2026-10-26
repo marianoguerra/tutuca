@@ -15,7 +15,8 @@
 //
 // Generated values meet the constraints the model states (bounds, lengths,
 // one_of, none_of, keys of a field); patterns and check(p) predicates are
-// left to the runtime, which rejects what doesn't fit them.
+// left to the runtime, which rejects what doesn't fit them. Invariants
+// aren't aimed at: walk skips start states that break them.
 
 // ---- Randomness -------------------------------------------------------------------
 
@@ -362,6 +363,9 @@ const shrink = (runtime, scope, typeName, fields, failure) => {
 	return best;
 };
 
+// An issue the host reported that is about invariants only.
+const breaksOnlyInvariants = (issue) => (issue.issues ?? [issue]).every((i) => i.reason?.startsWith("invariant:"));
+
 // Random walks over component (its runtime type name) of model, in scope.
 // Resolves { ok, runs } or { ok: false, start, trace, issues, failures }: the
 // start state's fields and the shortest message sequence found that fails.
@@ -379,6 +383,9 @@ export const walk = ({ runtime, scope, model, component, runs = 50, steps = 25, 
 			continue;
 		}
 		const host = runtime.createHost(null, null, root, { dev: true });
+		// A start state that only breaks invariants is one the generator made,
+		// not one the component reached: skip it, as make's rejections are.
+		if (host.issues.length > 0 && host.issues.every(breaksOnlyInvariants)) continue;
 		if (host.issues.length > 0) {
 			return { ok: false, start: fields, trace: [], issues: host.issues, failures: [] };
 		}

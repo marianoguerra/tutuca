@@ -32,25 +32,6 @@ let usage : String =
   #|
 
 ///|
-fn dir_of(path : String) -> String {
-  match path.rev_find("/") {
-    Some(i) => path.unsafe_substring(start=0, end=i + 1)
-    None => ""
-  }
-}
-
-///|
-fn join_path(dir : String, file : String) -> String {
-  if dir.is_empty() || file.has_prefix("/") {
-    file
-  } else if dir.has_suffix("/") {
-    dir + file
-  } else {
-    dir + "/" + file
-  }
-}
-
-///|
 priv struct Args {
   positional : Array[String]
   options : Map[String, String]
@@ -86,31 +67,6 @@ fn parse_args(args : Array[String]) -> Args {
     i += 1
   }
   { positional, options, flags, rest, }
-}
-
-///|
-/// A TCD file, checked, with the files it uses; None when it can't be read.
-fn load(io : Io, path : String) -> (@check.Package, Array[@diag.Diagnostic])? {
-  guard (io.read)(path) is Some(src) else {
-    (io.err)("tcd: can't read \{path}\n")
-    return None
-  }
-  let (file, diags) = @syntax.parse(path, src)
-  let used : Map[String, @syntax.File] = Map([])
-  for u in file.uses {
-    let p = join_path(dir_of(path), u.path)
-    match (io.read)(p) {
-      Some(text) => {
-        let (f, ds) = @syntax.parse(p, text)
-        diags.append(ds)
-        used[u.path] = f
-      }
-      None => ()
-    }
-  }
-  let (pkg, check_diags) = @check.check(file, used)
-  diags.append(check_diags)
-  Some((pkg, diags))
 }
 
 ///|
@@ -155,7 +111,10 @@ pub fn run(args : Array[String], io : Io) -> Int32 {
     (io.err)(usage)
     return 2
   }
-  guard load(io, file) is Some((pkg, diags)) else { return 1 }
+  guard @api.load(io.read, file) is Some((pkg, diags)) else {
+    (io.err)("tcd: can't read \{file}\n")
+    return 1
+  }
   let json = a.flags.contains("--json")
   match cmd {
     "check" => {
@@ -190,21 +149,15 @@ pub fn run(args : Array[String], io : Io) -> Int32 {
       }
       match cmd {
         "stub" => {
-          let have = []
+          let impls = []
           for impl_path in a.rest {
             match (io.read)(impl_path) {
-              Some(text) => {
-                let r = @wax.parse_string(text, fname=impl_path)
-                for f in r.module_.unwrap_or([]) {
-                  if f.desc is Func(name~, ..) {
-                    have.push(name.name)
-                  }
-                }
-              }
+              Some(text) =>
+                impls.push(@compose.Source::{ path: impl_path, text, })
               None => ()
             }
           }
-          let text = @gen.stub(pkg, file, have~)
+          let text = @api.stub(pkg, file, impls)
           match a.options.get("-o") {
             Some(out) => if (io.write)(out, text) { 0 } else { 1 }
             None => {
@@ -215,12 +168,15 @@ pub fn run(args : Array[String], io : Io) -> Int32 {
         }
         "contract" => {
           let out = @gen.generate(pkg, file)
-          let dir = a.options.get("-o").unwrap_or(dir_of(file))
+          let dir = a.options.get("-o").unwrap_or(@api.dir_of(file))
           let ok1 = (io.write)(
-            join_path(dir, "\{pkg.name}.contract.wax"),
+            @api.join_path(dir, "\{pkg.name}.contract.wax"),
             out.contract,
           )
-          let ok2 = (io.write)(join_path(dir, "\{pkg.name}.glue.wax"), out.glue)
+          let ok2 = (io.write)(
+            @api.join_path(dir, "\{pkg.name}.glue.wax"),
+            out.glue,
+          )
           if ok1 && ok2 {
             0
           } else {
@@ -257,29 +213,13 @@ fn build(io : Io, a : Args, pkg : @check.Package, file : String) -> Int32 {
     (io.err)("tcd build needs -o OUT.wasm\n")
     return 2
   }
-  let read_rt = (p : String) => {
-    let full = join_path(rt, p)
-    match (io.read)(full) {
-      Some(text) => Some(@compose.Source::{ path: p, text, })
-      None => {
-        (io.err)("tcd: can't read \{full}\n")
-        None
-      }
+  let runtime = match @api.read_runtime(p => (io.read)(@api.join_path(rt, p))) {
+    Ok(r) => r
+    Err(missing) => {
+      (io.err)("tcd: can't read \{@api.join_path(rt, missing)}\n")
+      return 1
     }
   }
-  let prelude = []
-  let files = ["prelude/js_string.wax"]
-  files.append(@compose.prelude_files)
-  for p in files {
-    guard read_rt(p) is Some(s) else { return 1 }
-    prelude.push(s)
-  }
-  let collections = []
-  for p in @compose.collection_files {
-    guard read_rt(p) is Some(s) else { return 1 }
-    collections.push(s)
-  }
-  guard read_rt("src/abi.wax") is Some(abi) else { return 1 }
   let impls = []
   for p in a.positional[2:] {
     match (io.read)(p) {
@@ -290,34 +230,11 @@ fn build(io : Io, a : Args, pkg : @check.Package, file : String) -> Int32 {
       }
     }
   }
-  // The functions the implementation defines: the optional ones it lacks
-  // aren't called.
-  let have = []
-  for f in impls {
-    let r = @wax.parse_string(f.text, fname=f.path)
-    for item in r.module_.unwrap_or([]) {
-      if item.desc is Func(name~, ..) {
-        have.push(name.name)
-      }
-    }
-  }
-  let generated = @gen.generate(pkg, file, have~)
-  let gen_dir = a.options.get("--gen").unwrap_or(dir_of(out_path))
-  let contract_path = join_path(gen_dir, "\{pkg.name}.contract.wax")
-  let glue_path = join_path(gen_dir, "\{pkg.name}.glue.wax")
-  let abi_path = join_path(gen_dir, "\{pkg.name}.abi.wax")
-  ignore((io.write)(contract_path, generated.contract))
-  ignore((io.write)(glue_path, generated.glue))
-  let built = @compose.build(
-    { prelude, collections, abi, },
-    pkg,
-    generated,
-    contract_path,
-    glue_path,
-    impls,
-    abi_path,
-  )
-  ignore((io.write)(abi_path, built.abi_imports))
+  let gen_dir = a.options.get("--gen").unwrap_or(@api.dir_of(out_path))
+  let built = @api.build(pkg, file, runtime, impls, gen_dir)
+  ignore((io.write)(built.contract_path, built.generated.contract))
+  ignore((io.write)(built.glue_path, built.generated.glue))
+  ignore((io.write)(built.abi_path, built.abi_imports))
   report(io, built.diags, a.flags.contains("--json"))
   match built.wasm {
     Some(bytes) => if (io.write_bytes)(out_path, bytes) { 0 } else { 1 }

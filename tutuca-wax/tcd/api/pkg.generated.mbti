@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tutuca/tcd/api"
+
+import {
+  "tutuca/tcd/check",
+  "tutuca/tcd/compose",
+  "tutuca/tcd/diag",
+  "tutuca/tcd/gen",
+}
+
+// Values
+pub fn build(@check.Package, String, @compose.Runtime, Array[@compose.Source], String) -> Built
+
+pub fn defined_functions(Array[@compose.Source]) -> Array[String]
+
+pub fn dir_of(String) -> String
+
+pub fn join_path(String, String) -> String
+
+pub fn load((String) -> String?, String) -> (@check.Package, Array[@diag.Diagnostic])?
+
+pub fn normalize_path(String) -> String
+
+pub fn read_runtime((String) -> String?) -> Result[@compose.Runtime, String]
+
+pub fn stub(@check.Package, String, Array[@compose.Source]) -> String
+
+// Errors
+
+// Types and methods
+pub(all) struct Built {
+  generated : @gen.Output
+  contract_path : String
+  glue_path : String
+  abi_path : String
+  abi_imports : String
+  wasm : Bytes?
+  diags : Array[@diag.Diagnostic]
+}
+
+// Type aliases
+
+// Traits

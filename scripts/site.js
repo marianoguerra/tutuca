@@ -31,21 +31,35 @@ if (existsSync(spec)) {
 	console.warn(`warning: ${spec} is missing, the site links to it: run just spec`);
 }
 
-// The tutuca-wax demos, in wax/: its demos page with the files it loads, at the same relative
-// paths. dist/ is built by tutuca-wax's build (wax-mb and wasm-opt); CI builds it first. Only the
-// optimized modules: not the .debug.wasm copies, the assembled .wax or the generated prelude.
+// The tutuca-wax demos and playground, in wax/: their pages with the files they load, at the same
+// relative paths. dist/ is built by tutuca-wax's build (wax-mb, moon and wasm-opt); CI builds it
+// first. Only the optimized modules: not the .debug.wasm copies, the assembled .wax or the
+// generated prelude. The playground compiles in the browser with dist/tcd/tcd.wasm, from the
+// runtime's prelude, collections and ABI and the components' .tcd and .wax sources.
 const wax = "tutuca-wax";
 if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
 	for (const path of [
 		"demos",
+		"playground",
 		"js",
+		"prelude",
+		"src/abi.wax",
+		"vendor/wax-mb",
 		"vendor/margaui/margaui-css.wasm",
 		"vendor/margaui/themes",
 		"dist/tutuca-rt.wasm",
+		"dist/tcd/tcd.wasm",
 	]) {
-		cpSync(`${wax}/${path}`, `${out}/wax/${path}`, { recursive: true });
+		cpSync(`${wax}/${path}`, `${out}/wax/${path}`, {
+			recursive: true,
+			// The editor's source: the page loads its bundle, deps/editor.js.
+			filter: (src) => !src.endsWith("editor.src.js"),
+		});
 	}
-	for (const file of globSync(`${wax}/dist/components/*.wasm`)) {
+	for (const file of [
+		...globSync(`${wax}/dist/components/*.wasm`),
+		...globSync(`${wax}/components/*/*.{tcd,wax}`),
+	]) {
 		if (!file.endsWith(".debug.wasm")) cpSync(file, `${out}/wax/${file.slice(wax.length + 1)}`);
 	}
 } else if (process.env.CI) {

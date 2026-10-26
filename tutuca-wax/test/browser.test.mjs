@@ -129,3 +129,68 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	if (errors.length > 0) throw new Error(errors.join("; "));
 	await page.close();
 });
+
+test("the playground compiles components in the browser, reports errors, adds missing functions, and composes with prebuilt modules", async () => {
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	const base = `http://127.0.0.1:${server.address().port}/playground/`;
+	const built = async () => {
+		await page.waitForFunction(() => /built in|didn't build|failed/.test(document.querySelector(".pg-status")?.textContent ?? ""));
+		return page.locator(".pg-status").textContent();
+	};
+	// Clicks a toolbar button that compiles, and resolves with the status after.
+	const press = async (label) => {
+		await page.evaluate(() => {
+			document.querySelector(".pg-status").textContent = "";
+		});
+		await page.locator(".pg-toolbar button", { hasText: label }).click();
+		return built();
+	};
+	const compile = () => press("Compile");
+	const state = async () => JSON.parse(await page.locator(".pg-state").textContent());
+	const tab = (name) => page.locator(".pg-tab-button", { hasText: new RegExp(`^${name.replace(".", "\\.")}$`) });
+	await page.goto(`${base}?example=clicker`);
+	if (!(await built()).startsWith("built in")) throw new Error(`clicker didn't build: ${await page.locator(".pg-diagnostics").textContent()}`);
+	await page.locator(".pg-stage button", { hasText: "click" }).click();
+	await page.locator(".pg-stage button", { hasText: "click" }).click();
+	if (JSON.stringify(await state()) !== JSON.stringify({ $: "Clicker", count: 2, best: 2 })) throw new Error(`unexpected state: ${JSON.stringify(await state())}`);
+	// The generated files are tabs too.
+	for (const name of ["mine.contract.wax", "mine.glue.wax", "mine.abi.wax", "clicker.model.json"]) await tab(name).waitFor();
+	// Test runs the model's example and random walks.
+	await page.locator(".pg-toolbar button", { hasText: "Test" }).click();
+	await page.locator(".pg-events div", { hasText: "example best_stays: passed" }).waitFor();
+	await page.locator(".pg-events div", { hasText: "Clicker: 25 random walks found nothing" }).waitFor();
+	// A type error in the .wax: a diagnostic at its line, and no module.
+	await tab("clicker.wax").click();
+	await page.locator(".cm-content").click();
+	await page.keyboard.press("Control+End");
+	await page.keyboard.type("\nfn clicker_oops() -> i32 { nope; }\n");
+	const line = await page.locator(".cm-line").count();
+	if (!(await compile()).startsWith("didn't build")) throw new Error("a broken .wax built");
+	const diag = await page.locator(".pg-diagnostic").first().textContent();
+	if (!diag.includes(`clicker.wax:${line - 1}:`) || !diag.includes("nope")) throw new Error(`unexpected diagnostic: ${diag}`);
+	await page.locator(".cm-lintRange-error").first().waitFor();
+	if (!(await press("Reset")).startsWith("built in")) throw new Error("Reset didn't build");
+	// A new message in the .tcd lacks its function; Add missing functions writes it.
+	await tab("clicker.tcd").click();
+	await page.locator(".cm-line", { hasText: "message reset()" }).click();
+	await page.keyboard.press("End");
+	await page.keyboard.type("\nmessage halve() changes count;");
+	if (!(await compile()).startsWith("didn't build")) throw new Error("a message without its function built");
+	if (!(await page.locator(".pg-diagnostics").textContent()).includes("clicker_on_halve")) throw new Error("the missing function isn't reported");
+	if (!(await press("Add missing functions")).startsWith("built in")) throw new Error(`didn't build after adding: ${await page.locator(".pg-diagnostics").textContent()}`);
+	if (!(await page.locator(".cm-content").textContent()).includes("fn clicker_on_halve(state: &clicker_state, ctx: &context) -> &clicker_state")) {
+		throw new Error("the stub wasn't added to the .wax");
+	}
+	// Composition: the compiled TodoCard in the prebuilt TodoList.
+	await page.locator("select").first().selectOption("todo_card");
+	await page.waitForFunction(() => document.querySelector(".pg-stage li.todo-card"));
+	await page.locator(".pg-stage li.todo-card .star").first().click();
+	const todos = await state();
+	if (todos.$ !== "TodoList" || todos.items.map((i) => `${i.$}:${i.starred}`).join() !== "TodoCard:true,TodoCard:false") {
+		throw new Error(`unexpected todos: ${JSON.stringify(todos)}`);
+	}
+	if (errors.length > 0) throw new Error(errors.join("; "));
+	await page.close();
+});

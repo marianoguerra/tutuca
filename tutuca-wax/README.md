@@ -35,7 +35,7 @@ has the design. Implemented so far:
 
 ```sh
 just setup      # npm install (jsdom, Playwright, binaryen's wasm-opt), and builds wax-mb into .tools/, pinned (or set WAX_MB to a wax-mb binary)
-just test       # format check, build, then the tests in jsdom, against JS, and in Chromium
+just test       # format check, build, then the tests in jsdom, tcd in wasm-gc, against JS, and in Chromium
 just            # lists the rest: build, check, fmt, test-one, wat, size, vendor, ...
 ```
 
@@ -51,6 +51,33 @@ re-rendering a keyed list with a count of the DOM mutations each render
 caused. Rebuild and reload to see a change. The page and the components are
 styled only with Tailwind and margaui classes (margaui uses daisyUI's class
 names), compiled in the page as modules load (the next section).
+
+`just playground` builds and serves `playground/` at
+http://127.0.0.1:8002/playground/: write a component in the browser. Pick an
+example (or the clicker, a starting point), edit its `.tcd` and `.wax` in a
+CodeMirror editor, and Compile (Ctrl/Cmd-Enter): tcd and wax-mb's library,
+compiled to wasm-gc (`tcd/web`, `dist/tcd/tcd.wasm`, about 2.5 MB), run in a
+worker and build the same module the native tcd does. Diagnostics show inline
+and in a list; the generated contract, glue, ABI imports and model open as
+read-only tabs. The module is loaded into a fresh scope, next to the prebuilt
+modules the example composes with (todo_card's TodoItem inside the prebuilt
+TodoList), and its root mounted on a dev host, with its state, logs and the
+issues the dev checks report. Add missing functions appends `tcd stub
+--missing`'s stubs to the `.wax`; Test runs the model's examples and random
+walks (`js/pbt.js`). Edits are kept per example in localStorage. It needs the
+js-string builtins (Chrome 131, Firefox 134 and later).
+
+```js
+import { loadRuntimeFiles, loadTcd } from "./js/tcd-web.js";
+
+// tcd in the browser (or Node 24): JSON-shaped requests, what the CLI's commands do.
+const tcd = await loadTcd(new URL("./dist/tcd/tcd.wasm", import.meta.url));
+const runtime = await loadRuntimeFiles(new URL("./", import.meta.url)); // prelude, collections, src/abi.wax
+const files = { "c.tcd": tcdText }; // the main .tcd and the ones it uses, by path
+const res = tcd.build({ main: "c.tcd", files, impls: [{ path: "c.wax", text: waxText }], runtime });
+// { ok, diags, contract, glue, abi, model, types, wasm: Uint8Array }; also check, stub, model
+if (res.ok) await tw.loadComponent(res.wasm, scope);
+```
 
 ```js
 import { load } from "./js/tutuca-rt.js";
@@ -106,14 +133,18 @@ classes as constants, or `if`s of constants.
 | `scripts/setup-wax-mb.sh` | clones and builds the pinned wax-mb into `.tools/` |
 | `js/tutuca-rt.js` | the host side: the imports (DOM, env, host), loading the runtime and component modules, building values, vnodes and semantic trees from JS values, driving a host |
 | `js/pbt.js` | testing components from their TCD model (`dist/components/*.model.json`): random walks of enabled messages on a headless dev host, shrunk to a 1-minimal failing trace; exhaustive exploration of small state spaces; example blocks |
+| `js/tcd-web.js` | loads `dist/tcd/tcd.wasm` (tcd compiled to wasm-gc) and the runtime sources it builds components with |
+| `js/json-example.js` | components/json's tree for a JSON value, shared by the demos and the playground |
 | `js/css.js` | CSS for collected classes: loads margaui-css.wasm, compiles the set of classes loaded modules use into a `<style>` |
 | `vendor/margaui/` | margaui-css.wasm (tailwindcss-moonbit v0.5.0) and margaui's light and dark themes, pinned (`just vendor-margaui`) |
 | `test/suite.mjs` | the vdom, lowering, value, path and component cases, written once for both test environments |
 | `test/jsdom.test.mjs` | the suite in Node against jsdom, with the js-string builtins and with the polyfills |
 | `test/parity.test.mjs` | random vnode trees, frames and semantic trees, against tutuca's own runtime, compared step by step |
-| `test/browser.test.mjs` | the suite in Chromium, through Playwright, and a smoke test of the demos page |
+| `test/tcd-web.test.mjs` | tcd in wasm-gc, in Node: builds the module the native tcd does, diagnostics, stubs, uses |
+| `test/browser.test.mjs` | the suite in Chromium, through Playwright, and smoke tests of the demos page and the playground |
 | `demos/` | the demos page (`just demos`) |
-| `scripts/serve.mjs` | the static server for the demos and the browser tests |
+| `playground/` | the playground (`just playground`): `playground.js` the page, `compiler.worker.js` tcd in a worker, `examples.js` the examples, `editor.src.js` the editor, bundled with CodeMirror into `deps/editor.js` (committed; `just vendor-editor`) |
+| `scripts/serve.mjs` | the static server for the demos, the playground and the browser tests |
 | `wax-mb-usage-feedback.md` | what writing this taught about wax-mb: bugs, diagnostics, friction |
 
 ## Modules, assembled

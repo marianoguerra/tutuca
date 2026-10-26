@@ -13,20 +13,23 @@ const TYPES = {
 	".css": "text/css",
 	".wasm": "application/wasm",
 	".wax": "text/plain; charset=utf-8",
+	".tcd": "text/plain; charset=utf-8",
+	".json": "application/json",
 	".wat": "text/plain; charset=utf-8",
 };
 
 // A server for root's files; routes maps a path to a page served as HTML.
 export function createStaticServer(routes = {}) {
 	return createServer(async (req, res) => {
-		const path = decodeURIComponent(new URL(req.url, "http://x").pathname);
+		const url = new URL(req.url, "http://x");
+		const path = decodeURIComponent(url.pathname);
 		const headers = { "cache-control": "no-store" };
 		if (path in routes) {
 			res.writeHead(200, { ...headers, "content-type": TYPES[".html"] }).end(routes[path]);
 			return;
 		}
 		if (path.endsWith("/")) {
-			res.writeHead(302, { ...headers, location: `${path}index.html` }).end();
+			res.writeHead(302, { ...headers, location: `${path}index.html${url.search}` }).end();
 			return;
 		}
 		const file = normalize(join(root, path));
