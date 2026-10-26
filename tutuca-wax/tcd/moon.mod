@@ -5,6 +5,7 @@ version = "0.1.0"
 import {
   "marianoguerra/wax@0.3.1",
   "moonbitlang/x@0.5.5",
+  "marianoguerra/error-report@0.1.1",
 }
 
 readme = "README.md"

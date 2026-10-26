@@ -13,6 +13,7 @@ pub(all) struct Io {
   write_bytes : (String, Bytes) -> Bool
   out : (String) -> Unit
   err : (String) -> Unit
+  color : Bool
 }
 
 // Type aliases

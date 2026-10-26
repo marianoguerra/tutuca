@@ -9,6 +9,9 @@ extern "C" fn write_stdout(s : Bytes, len : Int32) = "tcd_write_stdout"
 extern "C" fn write_stderr(s : Bytes, len : Int32) = "tcd_write_stderr"
 
 ///|
+extern "C" fn stderr_is_tty() -> Int32 = "tcd_stderr_is_tty"
+
+///|
 fn out(s : String) -> Unit {
   let b = @utf8.encode(s)
   write_stdout(b, b.length())
@@ -48,6 +51,8 @@ fn main {
     },
     out,
     err,
+    // NO_COLOR (no-color.org) turns it off even on a terminal.
+    color: stderr_is_tty() == 1 && @env.get_env_vars().get("NO_COLOR") is None,
   }
   let args = @env.args()
   @sys.exit(@cli.run(args[1:].to_owned(), io))

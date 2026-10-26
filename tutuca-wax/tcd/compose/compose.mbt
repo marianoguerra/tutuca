@@ -480,11 +480,17 @@ pub fn build(
   }
   let wasm = checked.to_bytes(label_names=false) catch {
     e => {
-      let msg = match e.diagnostic() {
-        Some(d) => @message.to_plain_string(d.message)
-        None => "the module didn't lower to wasm"
-      }
-      diags.push(@diag.error("wax.lower", @diag.Span::none(glue_path), msg))
+      diags.push(
+        match e.diagnostic() {
+          Some(d) => { ..from_wax(d), code: "wax.lower", }
+          None =>
+            @diag.error(
+              "wax.lower",
+              @diag.Span::none(glue_path),
+              "the module didn't lower to wasm",
+            )
+        },
+      )
       return { wasm: None, abi_imports: imports, diags, }
     }
   }

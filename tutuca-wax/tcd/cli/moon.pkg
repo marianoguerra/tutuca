@@ -5,4 +5,7 @@ import {
   "tutuca/tcd/compose",
   "tutuca/tcd/export",
   "tutuca/tcd/api",
+  "marianoguerra/error-report" @report,
+  "marianoguerra/error-report/render",
+  "marianoguerra/error-report/style",
 }

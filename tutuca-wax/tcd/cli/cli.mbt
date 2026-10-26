@@ -10,14 +10,17 @@ pub(all) struct Io {
   write_bytes : (String, Bytes) -> Bool
   out : (String) -> Unit
   err : (String) -> Unit
+  /// Whether err is a terminal that takes color.
+  color : Bool
 }
 
 ///|
 let usage : String =
   #|tcd: a WIT-style component definition language for tutuca-wax.
   #|
-  #|  tcd check FILE.tcd [--json]
-  #|      Parse and check; report what's wrong (exit 1 on errors).
+  #|  tcd check FILE.tcd [--short | --json]
+  #|      Parse and check; report what's wrong (exit 1 on errors): with the
+  #|      source lines it's about, one line each with --short, or as JSON.
   #|  tcd explain FILE.tcd COMPONENT.FIELD | COMPONENT.MESSAGE.ARG
   #|      Say in words what a field or an argument may be.
   #|  tcd stub FILE.tcd [--missing IMPL.wax...] [-o OUT.wax]
@@ -52,7 +55,7 @@ fn parse_args(args : Array[String]) -> Args {
     let a = args[i]
     if a == "--missing" {
       in_rest = true
-    } else if a == "--json" {
+    } else if a == "--json" || a == "--short" {
       flags.push(a)
     } else if (a == "-o" || a == "--runtime" || a == "--gen") &&
       i + 1 < args.length() {
@@ -70,16 +73,19 @@ fn parse_args(args : Array[String]) -> Args {
 }
 
 ///|
-fn report(io : Io, diags : Array[@diag.Diagnostic], json : Bool) -> Unit {
+fn report(io : Io, a : Args, diags : Array[@diag.Diagnostic]) -> Unit {
   let sorted = @diag.sorted(diags)
-  if json {
+  if a.flags.contains("--json") {
     for d in sorted {
       (io.out)(d.to_json().stringify() + "\n")
     }
-  } else {
-    for d in sorted {
-      (io.err)(@diag.render(d))
+  } else if sorted.length() > 0 {
+    let format : @render.Format = if a.flags.contains("--short") {
+      Short
+    } else {
+      Rich
     }
+    (io.err)(render_diags(sorted, io.read, format, io.color))
   }
 }
 
@@ -115,10 +121,9 @@ pub fn run(args : Array[String], io : Io) -> Int32 {
     (io.err)("tcd: can't read \{file}\n")
     return 1
   }
-  let json = a.flags.contains("--json")
   match cmd {
     "check" => {
-      report(io, diags, json)
+      report(io, a, diags)
       if @diag.has_errors(diags) {
         1
       } else {
@@ -126,7 +131,7 @@ pub fn run(args : Array[String], io : Io) -> Int32 {
       }
     }
     "explain" => {
-      report(io, diags.filter(d => d.severity is Error), json)
+      report(io, a, diags.filter(d => d.severity is Error))
       guard a.positional is [_, _, what, ..] else {
         (io.err)("tcd explain FILE.tcd COMPONENT.FIELD\n")
         return 2
@@ -143,7 +148,7 @@ pub fn run(args : Array[String], io : Io) -> Int32 {
       }
     }
     _ => {
-      report(io, diags, json)
+      report(io, a, diags)
       if @diag.has_errors(diags) {
         return 1
       }
@@ -235,7 +240,7 @@ fn build(io : Io, a : Args, pkg : @check.Package, file : String) -> Int32 {
   ignore((io.write)(built.contract_path, built.generated.contract))
   ignore((io.write)(built.glue_path, built.generated.glue))
   ignore((io.write)(built.abi_path, built.abi_imports))
-  report(io, built.diags, a.flags.contains("--json"))
+  report(io, a, built.diags)
   match built.wasm {
     Some(bytes) => if (io.write_bytes)(out_path, bytes) { 0 } else { 1 }
     None => 1

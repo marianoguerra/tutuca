@@ -22,6 +22,13 @@ tcd explain counter.tcd tally.count            # a field's constraints in words
 moon test                                      # the tool's own tests
 ```
 
+Diagnostics go to stderr with the lines they're about underlined, and the
+places they relate to labeled
+([error-report](https://mooncakes.io/docs/marianoguerra/error-report)),
+in color on a terminal unless `NO_COLOR` is set. `--short` writes one
+`file:line:col: error[code]: message` line each, for editors and grep, and
+`--json` one JSON object each to stdout, the shape the playground reads.
+
 `scripts/build.mjs` builds tcd and runs it for the components that have a
 `tcd` entry, then wasm-opt as for the rest, and builds `web` for wasm-gc
 (`moon build --target wasm-gc --release`) into `dist/tcd/tcd.wasm`: tcd and
