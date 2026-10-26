@@ -166,8 +166,10 @@ pre code {
 	border-left: 3px solid var(--text);
 	font-size: 17px;
 }
-.quote blockquote p,
-.quote blockquote ol {
+/* A quote's p and ol are only inside its blockquote; one class and one element keeps these from
+   outranking the later list rules (.features p, .demos p). */
+.quote p,
+.quote ol {
 	margin: 4px 0;
 }
 .quote blockquote ol {

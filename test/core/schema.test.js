@@ -163,7 +163,10 @@ test("enum, record and oneOf check members, shape and alternatives", () => {
 });
 
 test("record and oneOf defaults meet the constraints of what they are made of", () => {
-	const three = types.number().min(1).where((v) => v === 3, "three");
+	const three = types
+		.number()
+		.min(1)
+		.where((v) => v === 3, "three");
 	const r = types.record({ n: three });
 	assert.throws(() => r.make(undefined, null), /n: has no default/);
 	assert.deepEqual(types.record({ n: three.default(3) }).make(undefined, null), { n: 3 });
