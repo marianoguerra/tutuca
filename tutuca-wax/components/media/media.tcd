@@ -1,0 +1,90 @@
+// The media module: views that aren't only HTML. Dot draws in SVG, Sum
+// writes a formula in MathML, Rating holds a custom element (tw-rating,
+// rating.js next to this file). media.wax has what each handler does.
+package tutuca:media@0.1.0;
+
+/// An SVG circle: click it to fill it, click − or + (SVG shapes too) to resize it.
+component dot {
+    field r: s32 where 10 <= r <= 40;
+    field filled: bool;
+
+    message grow() changes r ensures next.r >= r;
+    message shrink() changes r ensures next.r <= r;
+    message toggle() changes filled ensures next.filled == not filled;
+
+    view main = div(class: "flex flex-col items-center gap-2",
+        svg("viewBox": "0 0 100 100", width: "160", height: "160", class: "text-primary select-none",
+            circle(cx: "50", cy: "45", r: field(r), stroke: "currentColor", "stroke-width": "2",
+                fill: if(field(filled), "currentColor", "transparent"), class: "cursor-pointer",
+                on_click: send(toggle)),
+            g(class: "cursor-pointer", on_click: send(shrink),
+                rect(x: "2", y: "82", width: "16", height: "16", rx: "3", fill: "currentColor", "fill-opacity": "0.2"),
+                text(x: "10", y: "94", "text-anchor": "middle", "font-size": "12", fill: "currentColor", "−")),
+            g(class: "cursor-pointer", on_click: send(grow),
+                rect(x: "82", y: "82", width: "16", height: "16", rx: "3", fill: "currentColor", "fill-opacity": "0.2"),
+                text(x: "90", y: "94", "text-anchor": "middle", "font-size": "12", fill: "currentColor", "+"))),
+        p(class: "text-sm opacity-70", "r = ", field(r), if(field(filled), ", filled", ", outlined")));
+}
+
+/// The sum of 1 to n in MathML, its closed form with n put in, and its value:
+/// click the formula, or +, for one more term.
+component sum {
+    field n: s32 where 1 <= n <= 20;
+    get total: s32;
+
+    message inc() changes n ensures next.n >= n;
+    message dec() changes n ensures next.n <= n;
+
+    view main = div(class: "flex items-center gap-3",
+        button(class: "btn btn-sm", on_click: send(dec), "−"),
+        math(display: "block", class: "text-2xl cursor-pointer", on_click: send(inc),
+            munderover(mo("∑"), mrow(mi("i"), mo("="), mn("1")), mn(field(n))),
+            mi("i"),
+            mo("="),
+            mfrac(mrow(mn(field(n)), mo("("), mn(field(n)), mo("+"), mn("1"), mo(")")), mn("2")),
+            mo("="),
+            mn(field(total))),
+        button(class: "btn btn-sm", on_click: send(inc), "+"));
+}
+
+/// Stars from a custom element: tw-rating shows them in its shadow root and
+/// fires rating-change, a CustomEvent whose detail is the stars clicked; it
+/// shows what its stars property says, which comes from here.
+component rating {
+    field stars: s32 where 0 <= stars <= 5;
+
+    message rate(n: s32 where 0 <= n <= 5) changes stars ensures next.stars == n;
+    message clear() changes stars ensures next.stars == 0;
+
+    view main = div(class: "flex items-center gap-3",
+        el("tw-rating", stars: field(stars), "on_rating-change": send(rate, event(detail))),
+        span(class: "text-sm opacity-70 tabular-nums", field(stars), " of 5"),
+        button(class: "btn btn-sm btn-ghost", on_click: send(clear), "clear"));
+}
+
+register dot, sum, rating;
+
+example toggles_and_resizes for dot {
+    start { r: 20, filled: false }
+    send toggle();
+    expect filled;
+    send grow();
+    expect r == 25;
+    send shrink();
+    send shrink();
+    expect r == 15;
+}
+
+example sums for sum {
+    start { n: 3 }
+    send inc();
+    expect n == 4;
+}
+
+example rates for rating {
+    start { stars: 0 }
+    send rate(4);
+    expect stars == 4;
+    send clear();
+    expect stars == 0;
+}

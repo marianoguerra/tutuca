@@ -94,6 +94,8 @@ export const COMPONENTS = [
 	// For js/pbt.js's tests: a seeded bug, a message that can't be enabled.
 	{ name: "pbt", tcd: "components/pbt/pbt.tcd", impl: ["components/pbt/pbt.wax"] },
 	{ name: "json", tcd: "components/json/json.tcd", impl: ["components/json/json.wax"] },
+	// Dot, Sum and Rating: views in SVG, MathML and a custom element.
+	{ name: "media", tcd: "components/media/media.tcd", impl: ["components/media/media.wax"] },
 ];
 
 

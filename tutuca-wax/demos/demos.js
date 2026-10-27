@@ -8,6 +8,7 @@
 // by margaui-css.wasm (vendor/margaui): the page's own classes (UI) and the
 // ones each component module's views use, which loadComponent reports. Each
 // time a module brings new ones, the whole set is compiled again.
+import { defineRating } from "../components/media/rating.js";
 import { classStyles, loadCssCompiler } from "../js/css.js";
 import { fromJson as fromJsonIn } from "../js/json-example.js";
 import { load } from "../js/tutuca-rt.js";
@@ -84,7 +85,9 @@ const showStatus = () => {
 		`runtime and component modules loaded; js-string builtins: <b>${tw.builtins ? "native" : "polyfilled"}</b>; CSS compiled for <b>${styles.classes().length}</b> classes`;
 };
 const scope = runtime.scope();
-for (const name of ["counter", "todo_item", "todo_list", "json"]) await loadComponent(name, scope);
+for (const name of ["counter", "todo_item", "todo_list", "json", "media"]) await loadComponent(name, scope);
+// The custom element media's Rating holds.
+defineRating();
 showStatus();
 
 const el = (tag, attrs = {}, ...children) => {
@@ -321,6 +324,39 @@ demo({
 	actions: [
 		{ label: "edit", send: "setMode", args: ["edit"] },
 		{ label: "view", send: "setMode", args: ["view"] },
+	],
+});
+
+demo({
+	title: "SVG: a circle",
+	description:
+		"Dot's view is an svg: the vdom makes it and everything in it in the SVG namespace, and writes its props as attributes (viewBox keeps its case). Its shapes handle events like any element: click the circle to fill it, and − or + (each a g of a rect and a text, the handler on the g) to resize it.",
+	type: "Dot",
+	fields: { r: 20, filled: false },
+	inspect: (root) => ({ r: runtime.get(root, "r"), filled: runtime.get(root, "filled") }),
+	actions: [{ label: "grow", send: "grow" }, { label: "toggle", send: "toggle" }],
+});
+
+demo({
+	title: "MathML: a sum",
+	description:
+		"Sum's view has a math element: the sum of 1 to n, its closed form with n put in, and its value, a property computed in the .wax. Click the formula (its handler is on math) or + for one more term, − for one less.",
+	type: "Sum",
+	fields: { n: 3 },
+	inspect: (root) => ({ n: runtime.get(root, "n"), total: runtime.get(root, "total") }),
+	actions: [{ label: "inc", send: "inc" }, { label: "dec", send: "dec" }],
+});
+
+demo({
+	title: "Web component: a rating",
+	description:
+		"Rating holds tw-rating, a custom element (components/media/rating.js) with five stars in its shadow root. The view sets its stars property from the state, and handles rating-change, the CustomEvent it fires when a star is clicked, sending rate with the event's detail. rate 9 is outside rate's constraints: rejected, nothing changes.",
+	type: "Rating",
+	fields: { stars: 3 },
+	inspect: (root) => ({ stars: runtime.get(root, "stars") }),
+	actions: [
+		{ label: "rate 5", send: "rate", args: [5] },
+		{ label: "rate 9", send: "rate", args: [9], hint: "rejected: n must be within 0 and 5" },
 	],
 });
 

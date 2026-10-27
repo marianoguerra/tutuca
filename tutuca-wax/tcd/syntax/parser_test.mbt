@@ -58,3 +58,18 @@ test "attributes after children and syntax errors are reported, and parsing goes
   guard f.items[0] is Component(d) else { fail("not a component") }
   inspect(d.members.length(), content="2")
 }
+
+///|
+test "el's tag comes before its attributes" {
+  let (f, diags) = @syntax.parse(
+    "el.tcd", "component c { view main = el(\"my-widget\", class: \"x\", \"b\"); }",
+  )
+  debug_inspect(diags.map(d => d.code), content="[]")
+  guard f.items[0] is Component(d) &&
+    d.members[0] is View(v) &&
+    v.body is Call(_, attrs, childs, ..) else {
+    fail("not a view")
+  }
+  debug_inspect(attrs.map(a => a.key.text), content="[\"class\"]")
+  inspect(childs.length(), content="2")
+}

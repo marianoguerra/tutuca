@@ -6,6 +6,7 @@
 // Each case gets { vdom, window, document, container }: vdom is the loaded
 // module's API (js/tutuca-rt.js), container a detached <div>.
 import { classStyles, loadCssCompiler } from "../js/css.js";
+import { defineRating } from "../components/media/rating.js";
 import { examples, exhaust, fails, walk } from "../js/pbt.js";
 import * as assert from "./assert.mjs";
 
@@ -29,11 +30,11 @@ export const cases = [];
 // The component modules of dist/components/ every case's scope has.
 export const MODULES = ["counter", "todo_item", "todo_list"];
 // The ones cases load into scopes of their own: todo_card registers TodoItem
-// too, so it would take the name over in the shared scope; showcase's and
-// json's types are only for their own cases.
-const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json", "probe", "pbt"];
+// too, so it would take the name over in the shared scope; showcase's,
+// json's and media's types are only for their own cases.
+const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json", "media", "probe", "pbt"];
 // The modules defined in TCD, whose models (tcd model) js/pbt.js tests from.
-const TCD_MODULES = ["counter", "todo_item", "todo_list", "todo_card", "showcase", "json", "pbt"];
+const TCD_MODULES = ["counter", "todo_item", "todo_list", "todo_card", "showcase", "json", "media", "pbt"];
 const test = (name, fn) => cases.push({ name, fn });
 
 test("render mounts, then morphs in place from what the last render returned", ({ vdom, document, container }) => {
@@ -873,6 +874,100 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 	assert.equal(buttons(container, "show all").length, 1);
 });
 
+// ---- Views outside HTML, through components/media ------------------------
+// Dot draws in SVG, Sum writes MathML, Rating holds tw-rating, a custom
+// element (components/media/rating.js) that fires rating-change.
+
+const mountMedia = async ({ vdom, document, container, modules }, type, fields) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.media, scope);
+	return runtime.createHost(document, container, runtime.make(scope, type, fields)).mount();
+};
+
+test("media: an SVG view is made in the SVG namespace, and its shapes handle clicks", async (env) => {
+	const { vdom, window, container } = env;
+	const host = await mountMedia(env, "Dot", { r: 20, filled: false });
+	const svg = container.querySelector("svg");
+	const circle = svg.querySelector("circle");
+	assert.equal(svg.namespaceURI, SVG);
+	assert.equal(circle.namespaceURI, SVG);
+	assert.equal(svg.querySelector("text").namespaceURI, SVG);
+	// Attributes, not properties: viewBox keeps its case, r and fill are written as given.
+	assert.equal(svg.getAttribute("viewBox"), "0 0 100 100");
+	assert.equal(circle.getAttribute("r"), "20");
+	assert.equal(circle.getAttribute("fill"), "transparent");
+	click(window, circle);
+	assert.equal(circle.getAttribute("fill"), "currentColor");
+	// A click on the + text reaches the handler on the g around it.
+	const [minus, plus] = svg.querySelectorAll("text");
+	click(window, plus);
+	click(window, plus);
+	assert.equal(circle.getAttribute("r"), "30");
+	click(window, minus);
+	assert.equal(svg.querySelector("circle"), circle, "morphed in place");
+	assert.equal(circle.getAttribute("r"), "25");
+	assert.equal(container.querySelector("p").textContent, "r = 25, filled");
+	assert.deepEqual([vdom.runtime.get(host.root(), "r"), vdom.runtime.get(host.root(), "filled")], [25, true]);
+	assert.deepEqual(host.failures, []);
+});
+
+test("media: a MathML view is made in the MathML namespace, and the formula handles clicks", async (env) => {
+	const { vdom, window, container } = env;
+	const host = await mountMedia(env, "Sum", { n: 3 });
+	const math = container.querySelector("math");
+	assert.equal(math.namespaceURI, MATH);
+	assert.ok([...math.querySelectorAll("munderover, mfrac, mn")].every((e) => e.namespaceURI === MATH));
+	const numbers = () => [...math.querySelectorAll("mn")].map((e) => e.textContent);
+	// The bound, 1 to n, then n(n + 1) over 2, then the total.
+	assert.deepEqual(numbers(), ["1", "3", "3", "3", "1", "2", "6"]);
+	// A click on a number in the formula reaches the handler on math.
+	click(window, math.querySelector("mfrac mn"));
+	assert.deepEqual(numbers(), ["1", "4", "4", "4", "1", "2", "10"]);
+	click(window, buttons(container, "−")[0]);
+	click(window, buttons(container, "−")[0]);
+	assert.deepEqual(numbers(), ["1", "2", "2", "2", "1", "2", "3"]);
+	assert.equal(container.querySelector("math"), math, "morphed in place");
+	assert.equal(vdom.runtime.get(host.root(), "total"), 3);
+	assert.deepEqual(host.failures, []);
+});
+
+test("media: a custom element gets its property from the state, and its CustomEvent's detail reaches the handler", async (env) => {
+	const { vdom, window, container } = env;
+	defineRating(window);
+	const host = await mountMedia(env, "Rating", { stars: 2 });
+	const rating = container.querySelector("tw-rating");
+	const stars = () => [...rating.shadowRoot.querySelectorAll("button")].map((b) => b.textContent).join("");
+	assert.equal(rating.stars, 2);
+	assert.equal(stars(), "★★☆☆☆");
+	// The fourth star: rating-change with detail 4, and the component sets stars back.
+	click(window, rating.shadowRoot.querySelectorAll("button")[3]);
+	assert.equal(vdom.runtime.get(host.root(), "stars"), 4);
+	assert.equal(container.querySelector("tw-rating"), rating, "the same element");
+	assert.equal(stars(), "★★★★☆");
+	assert.equal(container.querySelector("span").textContent, "4 of 5");
+	click(window, buttons(container, "clear")[0]);
+	assert.equal(rating.stars, 0);
+	assert.equal(stars(), "☆☆☆☆☆");
+	// A detail outside the schema is rejected: nothing changes.
+	rating.dispatchEvent(new window.CustomEvent("rating-change", { detail: 9, bubbles: true }));
+	assert.equal(vdom.runtime.get(host.root(), "stars"), 0);
+	assert.equal(host.failures.length, 1);
+});
+
+test("media: the examples hold and random walks find nothing", async ({ vdom, modules, models }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.media, scope);
+	assert.deepEqual(
+		examples({ runtime, scope, model: models.media }).map((e) => [e.name, e.ok]),
+		[["toggles_and_resizes", true], ["sums", true], ["rates", true]],
+	);
+	for (const component of ["Dot", "Sum", "Rating"]) {
+		assert.deepEqual(walk({ runtime, scope, model: models.media, component, runs: 20, steps: 15, seed: 5 }), { ok: true, runs: 20 }, component);
+	}
+});
+
 // ---- Drag and drop, through components/showcase --------------------------
 // Shelf's books are draggable, data-dragtype "book", and each one is a drop
 // target; its notes element is one too, for drops on the Notes in it.
@@ -1523,7 +1618,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 4/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 5/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

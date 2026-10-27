@@ -484,7 +484,9 @@ fn Parser::view(self : Parser) -> ViewExpr raise ParseFailed {
       }
       ignore(self.next())
       let value = self.view()
-      if !childs.is_empty() {
+      // el's tag comes first: el("my-widget", class: "x", ...).
+      let tag_only = n.text == "el" && childs.length() == 1
+      if !childs.is_empty() && !tag_only {
         self.diags.push(
           @diag.error(
             "tcd.view.attr_after_child",

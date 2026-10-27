@@ -91,9 +91,10 @@ function domImports(late) {
 		is_owned: (node) => (owned.has(node) ? 1 : 0),
 		previous_sibling: (node) => node.previousSibling,
 		comment_data: (node) => (node.nodeType === 8 ? node.data : null),
+		// The attribute, not dataset: not every element has one (MathML in jsdom).
 		get_eid: (node) => {
-			const eid = node.dataset?.eid;
-			return eid === undefined ? -1 : Number.parseInt(eid, 10);
+			const eid = node.getAttribute?.("data-eid") ?? null;
+			return eid === null ? -1 : Number.parseInt(eid, 10);
 		},
 		// The element with the handler: checked for a checkbox, value otherwise.
 		target_value: (node) => late.toValue(node.type === "checkbox" ? node.checked : node.value),
@@ -160,8 +161,9 @@ const regexOf = (pattern) => {
 
 // The fields of a DOM event handlers read as ctx.event (and a view's
 // event(name) send argument): its type, the key and the modifier keys held,
-// the pointer's buttons, position, movement and kind, and a wheel's deltas;
-// only the ones the event has.
+// the pointer's buttons, position, movement and kind, a wheel's deltas, and
+// a CustomEvent's detail when it's a string, number or boolean; only the ones
+// the event has.
 const EVENT_FIELDS = [
 	"key",
 	"code",
@@ -194,6 +196,7 @@ const EVENT_FIELDS = [
 	"deltaY",
 	"deltaZ",
 	"deltaMode",
+	"detail",
 ];
 export const eventFields = (e) => {
 	const out = { type: e.type };

@@ -61,7 +61,7 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
 	await page.goto(`http://127.0.0.1:${server.address().port}/demos/`);
-	await page.waitForFunction(() => document.querySelectorAll(".demo").length === 6);
+	await page.waitForFunction(() => document.querySelectorAll(".demo").length === 9);
 	const board = page.locator(".demo").nth(1);
 	await board.locator(".stage button", { hasText: "add" }).click();
 	await board.locator(".stage button", { hasText: "add" }).click();
@@ -125,6 +125,17 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	if (jsonState.mode !== "edit" || JSON.stringify(jsonState.json) !== JSON.stringify(expected)) {
 		throw new Error(`unexpected json state: ${JSON.stringify(jsonState)}`);
 	}
+	// SVG, MathML and a custom element, clicked for real.
+	const demoState = async (i) => JSON.parse(await page.locator(".demo").nth(i).locator("pre").textContent());
+	const dot = page.locator(".demo").nth(5);
+	await dot.locator(".stage circle").click();
+	await dot.locator(".stage svg text", { hasText: "+" }).click();
+	if (JSON.stringify(await demoState(5)) !== JSON.stringify({ type: "Dot", r: 25, filled: true })) throw new Error(`unexpected dot: ${JSON.stringify(await demoState(5))}`);
+	await page.locator(".demo").nth(6).locator(".stage math").click();
+	if (JSON.stringify(await demoState(6)) !== JSON.stringify({ type: "Sum", n: 4, total: 10 })) throw new Error(`unexpected sum: ${JSON.stringify(await demoState(6))}`);
+	// Locators pierce tw-rating's open shadow root.
+	await page.locator(".demo").nth(7).locator(".stage tw-rating button[title='5 of 5']").click();
+	if (JSON.stringify(await demoState(7)) !== JSON.stringify({ type: "Rating", stars: 5 })) throw new Error(`unexpected rating: ${JSON.stringify(await demoState(7))}`);
 	if (!(await page.locator("#status").textContent()).includes("native")) throw new Error("not on the builtins");
 	if (errors.length > 0) throw new Error(errors.join("; "));
 	await page.close();
