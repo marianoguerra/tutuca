@@ -321,9 +321,14 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
     "// init: each field from fields when it's there and fits its schema, else its",
   )
   out.line(
-    "// default, with an issue saying why; a field without a default fails.",
+    "// default, with an issue saying why; a field without a default fails. A",
   )
-  out.line("fn \{cw}_vt_init: init_fn (fields: &value) -> &init_result {")
+  out.line(
+    "// make(name) default is made in ctx's scope, only when it's taken.",
+  )
+  out.line(
+    "fn \{cw}_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {",
+  )
   out.line("    let issues = list_empty();")
   out.line("    let schema = \{cw}_schema();")
   out.line("    let found: &?value = null;")
@@ -334,6 +339,15 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
     let missing = self.s("missing")
     let wrong = self.s("wrong type")
     let invalid = self.s("invalid")
+    // What a field that falls back to its default takes, besides the issue.
+    let fallback = f.make.map(m => {
+      "\{fw} = value_component(init_ctx_make(ctx, \{self.s(@check.pascal(m))}, map_empty()));"
+    })
+    let fall_back = (indent : String) => {
+      if fallback is Some(l) {
+        out.line(indent + l)
+      }
+    }
     out.line("    let \{fw}: \{wax_ty(f.ty)} = \{self.start_value(f)};")
     out.line("    found = field_value(fields, \{name});")
     out.line("    if !found {")
@@ -341,6 +355,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
       out.line("        return init_fail(issues, \{name}, \{missing});")
     } else {
       out.line("        issues = init_issue(issues, \{name}, \{missing});")
+      fall_back("        ")
     }
     out.line("    } else {")
     out.line(
@@ -351,6 +366,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
       out.line("            return init_fail(issues, \{name}, \{wrong});")
     } else {
       out.line("            issues = init_issue(issues, \{name}, \{wrong});")
+      fall_back("            ")
     }
     out.line("        } else {")
     out.line(
@@ -363,6 +379,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
       out.line(
         "                issues = init_issue(issues, \{name}, \{invalid});",
       )
+      fall_back("                ")
     }
     out.line("            } else {")
     out.line("                \{fw} = \{self.decode(f.ty, "found!")};")
@@ -375,7 +392,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
     .join(", ")
   out.line("    let state = {\{cw}_state| \{entries} };")
   if c.init_hook {
-    out.line("    init_ok(\{cw}_init(state), issues);")
+    out.line("    init_ok(\{cw}_init(state, ctx), issues);")
   } else {
     out.line("    init_ok(state, issues);")
   }

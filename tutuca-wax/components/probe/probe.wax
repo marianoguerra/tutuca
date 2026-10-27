@@ -215,7 +215,7 @@ fn probe_vtable() -> &vtable {
     {vtable| init: probe_init, handle: probe_handle, get: probe_get, set: probe_set };
 }
 
-fn probe_init: init_fn (fields: &value) -> &init_result {
+fn probe_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {
     let (count, i1) = init_int(fields, s_count, 0, list_empty());
     let (label, i2) = init_string(fields, s_label, s_empty, i1);
     init_ok({probe_state| count, label }, i2);
@@ -325,7 +325,7 @@ fn pretender_vtable() -> &vtable {
     };
 }
 
-fn pretender_init: init_fn (fields: &value) -> &init_result {
+fn pretender_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {
     init_ok({pretender_state| id: 0, text: s_pretender_text, done: 0 }, list_empty());
 }
 

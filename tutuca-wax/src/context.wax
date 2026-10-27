@@ -51,3 +51,9 @@ fn ctx_uuid(ctx: &context) -> &extern {
 fn ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
     scope_make_or_fail(ctx.scope, name, fields);
 }
+
+// A component of a type registered in the scope the component init is making
+// is being made in, e.g. the default of a field that holds a component.
+fn init_ctx_make(ctx: &init_context, name: &extern, fields: &value) -> &component {
+    scope_make_or_fail(ctx.scope, name, fields);
+}

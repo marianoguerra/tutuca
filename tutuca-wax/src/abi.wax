@@ -493,6 +493,11 @@ fn abi_ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
     ctx_make(ctx, name, fields);
 }
 
+#[export = "init_ctx_make"]
+fn abi_init_ctx_make(ctx: &init_context, name: &extern, fields: &value) -> &component {
+    init_ctx_make(ctx, name, fields);
+}
+
 // Helpers for writing component types (lib/author.wax).
 
 #[export = "values0"]

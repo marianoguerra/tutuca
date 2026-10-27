@@ -88,6 +88,9 @@ with `and`. It's normalized (an s32's exclusive bounds become inclusive),
 explained (`tcd explain`), and checked: a clause that can never hold, one
 implied by another, one that isn't a constraint, a literal of the wrong type,
 a default outside it. A field whose type's default breaks it is required.
+A field of a component type can default to `make(c)`: a `c` made with no
+fields, in the scope the component is made in, when init gets none (`c` must
+be of the field's type and need no fields).
 
 **Conditions** (`when`, `ensures`, `invariant`, `expect`) take `and`, `or`,
 `not`, comparisons, `+`, `-`, `len`, `keys`, `values`, `in`, `matches`,
@@ -131,7 +134,7 @@ signatures (`tcd stub` writes them; the build checks them):
 | `loop l { ... }` | `c_loop_l_prepare`, `_iter`, `_key`, `_filter`, `_enrich` (returns `&c_loop_l_binds`) |
 | `scope s { ... }` | `c_scope_s(state) -> &c_scope_s_binds` |
 | `check(p)` | `c_check_p(state[, v: T']) -> i32` |
-| `init;` | `c_init(state) -> &c_state` |
+| `init;` | `c_init(state, ctx: &init_context) -> &c_state` (`init_ctx_make(ctx, name, fields)` makes components in the scope it's made in) |
 | package `ask_handler a` | `<package>_answer_a(ctx, args...) -> &value` (`value_ok(...)` or `value_err(...)`) |
 
 `T'` is the Wax type: `i32` for bool, s32 and enums (with consts

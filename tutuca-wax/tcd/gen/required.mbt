@@ -214,7 +214,7 @@ pub fn required_of(
   if c.init_hook {
     out.push({
       name: "\{cw}_init",
-      params: [st],
+      params: [st, ("ctx", "&init_context")],
       result: state_t,
       what: "finishes a \{c.name} init made from its fields",
       notes: [],

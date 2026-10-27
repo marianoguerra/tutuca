@@ -55,6 +55,9 @@ test "every diagnostic code has a fixture that reports it" {
       "tcd.field.required", "component c { field x: string where len(x) >= 1; view main = p(); }",
     ),
     (
+      "tcd.field.make", "component c { field x: s32 = make(c); view main = p(); }",
+    ),
+    (
       "tcd.field.sync", "component c { field x: s32 @sync(cloud); view main = p(); }",
     ),
     (

@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 3;
+const tutuca_abi_version_current = 4;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -64,8 +64,8 @@ type template_array = [mut &?template];
 rec {
     // The functions a component type provides, one table per type.
     type vtable = { init: &init_fn, handle: &handle_fn, get: &get_fn, set: &set_fn };
-    // Makes an instance from a map of values.
-    type init_fn = fn(&value) -> &init_result;
+    // Makes an instance from a map of values, in an init context.
+    type init_fn = fn(&value, &init_context) -> &init_result;
     // Handles every message of the type, routing it however it likes.
     type handle_fn = fn(&eq, &message, &context) -> &message_result;
     // Reads a property: property_ok and the value, or an error code.
@@ -202,6 +202,10 @@ rec {
         // implement it.
         interfaces: mut &phm_map
     };
+
+    // What init gets besides its fields: the scope the component is being
+    // made in, to make the components it holds from.
+    type init_context = { scope: &scope };
 
     // What a message handler gets besides its arguments, the same for every
     // component. The host makes one per handled message.

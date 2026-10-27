@@ -480,7 +480,9 @@ vtable's function types: `components/counter/counter.wax` has the shortest one.
 
 **Scopes** (`scope.wax`) are a tree: `scope_register` puts a type's spec and
 vtable under a name, `scope_make` finds it here or in a parent, runs `init`
-and gives the component the scope that was asked. Ask handlers are
+and gives the component the scope that was asked. `init` gets an
+`init_context` holding that scope, so it can make the components it holds
+with `init_ctx_make` (tcd's `make(c)` field defaults do). Ask handlers are
 registered the same way; `scope_register_host_ask` answers through the
 host's `ask` import, later.
 

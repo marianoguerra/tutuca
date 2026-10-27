@@ -218,7 +218,14 @@ type MessageHandler = (Instance, Message, Context) -> MessageResult
 /// Makes an instance from a map of values. A missing or invalid value takes
 /// its default and is reported as an issue; Err is for what defaults can't
 /// fix, like a default that breaks its own constraints (JS's NoDefaultError).
-type Init = (Map[String, Value]) -> Result[(Instance, Array[InitIssue]), InitError]
+type Init = (Map[String, Value], InitContext) -> Result[(Instance, Array[InitIssue]), InitError]
+
+/// What init gets besides its values: the scope the component is being made
+/// in, so it can make the components it holds (InitContext::make, like
+/// Context::make) from the names that scope resolves.
+struct InitContext {
+  scope : Scope
+}
 
 enum InitError {
   NoDefault(field~ : String, problem~ : InitProblem)
@@ -318,7 +325,7 @@ fn Scope::make(
   guard self.lookup(name) is Some({ spec, vtable }) else {
     return Err(UnknownComponent(name))
   }
-  match (vtable.init)(fields) {
+  match (vtable.init)(fields, { scope: self }) {
     Ok((instance, issues)) => Ok(({ spec, instance, vtable, scope: self }, issues))
     Err(e) => Err(InitFailed(e))
   }

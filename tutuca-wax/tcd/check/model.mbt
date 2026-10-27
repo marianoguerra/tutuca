@@ -96,6 +96,9 @@ pub(all) struct FieldM {
   default : @syntax.Expr?
   /// No default meets the type and its constraints: init fails without it.
   required : Bool
+  /// The component type a `make(name)` default makes, through the init
+  /// context, when init gets none.
+  make : String?
   sync : SyncLevel
   doc : String?
   span : @diag.Span

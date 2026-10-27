@@ -121,6 +121,7 @@ pub(all) struct FieldM {
   norm : Norm
   default : @syntax.Expr?
   required : Bool
+  make : String?
   sync : SyncLevel
   doc : String?
   span : @diag.Span

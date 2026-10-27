@@ -177,8 +177,9 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|// init: each field from fields when it's there and fits its schema, else its
-      #|// default, with an issue saying why; a field without a default fails.
-      #|fn tally_vt_init: init_fn (fields: &value) -> &init_result {
+      #|// default, with an issue saying why; a field without a default fails. A
+      #|// make(name) default is made in ctx's scope, only when it's taken.
+      #|fn tally_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {
       #|    let issues = list_empty();
       #|    let schema = tally_schema();
       #|    let found: &?value = null;
@@ -348,6 +349,46 @@ test "the package's names claim their gs_ constants before view text" {
       #|  "const gs_notes_2: &extern;",
       #|  "#[import = \"Add note\"]",
       #|  "const gs_add_note: &extern;",
+      #|]
+    ),
+  )
+}
+
+///|
+/// A make(c) default is made through the init context when init falls back
+/// to it, and the init hook gets that context too.
+test "make defaults and the init hook take the init context" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component leaf { view main = p("x"); }
+      #|component holder {
+      #|    field child: leaf = make(leaf);
+      #|    init;
+      #|    view main = p("x");
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let glue = @gen.generate(pkg, "t.tcd").glue
+  let lines = glue
+    .split("\n")
+    .filter(l => {
+      l.contains("ctx") && !l.contains("//") && !l.contains("&context")
+    })
+    .map(l => l.trim().to_owned())
+    .collect()
+  debug_inspect(
+    lines,
+    content=(
+      #|[
+      #|  "fn leaf_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {",
+      #|  "fn holder_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {",
+      #|  "f_child = value_component(init_ctx_make(ctx, gs_leaf, map_empty()));",
+      #|  "f_child = value_component(init_ctx_make(ctx, gs_leaf, map_empty()));",
+      #|  "f_child = value_component(init_ctx_make(ctx, gs_leaf, map_empty()));",
+      #|  "init_ok(holder_init(state, ctx), issues);",
       #|]
     ),
   )

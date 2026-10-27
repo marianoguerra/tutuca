@@ -195,6 +195,10 @@ fn field_json(f : @check.FieldM) -> Json {
     "norm": norm_json(f.norm),
     "required": Json::boolean(f.required),
     "default": default,
+    "make": match f.make {
+      Some(m) => Json::string(@check.pascal(m))
+      None => Json::null()
+    },
   }
 }
 

@@ -86,7 +86,7 @@ fn scope_make(s: &scope, name: &extern, fields: &value) -> &make_result {
     if !!problem {
         return {make_result| component: null, issues: list_empty(), error: value_string(problem!) };
     }
-    let made = e.vtable.init(fields);
+    let made = e.vtable.init(fields, {init_context| scope: s });
     if !made.instance {
         return {make_result| component: null, issues: made.issues, error: made.error };
     }

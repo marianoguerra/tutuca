@@ -1011,6 +1011,21 @@ const input = (window, node, value) => {
 };
 const toggleText = (window, container) => toggle(window, container.querySelector("label"));
 
+test("json: a value init doesn't get is made through its init context", async ({ vdom, modules }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.json, scope);
+	const editor = runtime.make(scope, "JsonEditor", { mode: "edit" });
+	assert.equal(runtime.typeName(runtime.get(editor, "value")), "JsonNull");
+	assert.equal(runtime.get(editor, "json"), "null");
+	assert.deepEqual(runtime.issues(scope, "JsonEntry", { key: "k", value: 1 }), [{ field: "value", problem: "wrong type" }]);
+	const entry = runtime.make(scope, "JsonEntry", { key: "k" });
+	assert.equal(runtime.typeName(runtime.get(entry, "value")), "JsonSelector");
+	// A value that's given is kept.
+	const given = runtime.make(scope, "JsonEntry", { key: "k", value: runtime.make(scope, "JsonBool", { value: true }) });
+	assert.equal(runtime.typeName(runtime.get(given, "value")), "JsonBool");
+});
+
 test("json: the viewer renders a document read only, and its text as JSON.stringify writes it", async (env) => {
 	const { container } = env;
 	const host = await mountJson(env);
@@ -1508,7 +1523,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 3/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 4/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

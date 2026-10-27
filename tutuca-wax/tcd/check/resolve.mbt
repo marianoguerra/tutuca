@@ -311,15 +311,28 @@ fn Resolver::field(
   let norm = normalize(f.where_, f.name.text, ty, fields, self.diags)
   merge_norm(norm, extra)
   let mut required = false
+  let mut make = None
   if !is_get {
     match f.default {
+      Some(Call(n, [Path([t], ..)], ..)) if n.text == "make" =>
+        if !(ty is Comp(_)) {
+          self.error(
+            "tcd.field.make",
+            n.span,
+            "make(\{t.text}) makes a component, but \{f.name.text} is \{ty_text(ty)}",
+          )
+        } else if self.types.get(t.text) is Some("component") {
+          make = Some(t.text)
+        } else {
+          self.error("tcd.field.make", t.span, "no component \{t.text} to make")
+        }
       Some(e) => {
         let v = literal_val(e)
         if v is Unknown {
           self.error(
             "tcd.field.default",
             e.span(),
-            "a default is a literal: a number, a string, true, false, null, a list or a record of them",
+            "a default is a literal (a number, a string, true, false, null, a list or a record of them) or make(component)",
           )
         } else if !val_fits(v, ty) {
           self.error(
@@ -362,6 +375,7 @@ fn Resolver::field(
     norm,
     default: f.default,
     required,
+    make,
     sync: self.sync(f.sync),
     doc: f.doc,
     span: f.span,
@@ -385,6 +399,7 @@ fn Resolver::param(
     norm,
     default: None,
     required: false,
+    make: None,
     sync: Shared,
     doc: None,
     span: p.name.span,
@@ -416,6 +431,7 @@ fn Resolver::binds(
       norm: Norm::new(),
       default: None,
       required: false,
+      make: None,
       sync: Shared,
       doc: None,
       span: b.0.span,
@@ -919,6 +935,39 @@ fn combine(a : Norm, b : Norm) -> Norm {
 }
 
 ///|
+/// A `make(name)` default makes a component of the field's type, and with no
+/// fields, so the component it names can't need any.
+fn Resolver::make_defaults(
+  self : Resolver,
+  pkg : Package,
+  c : ComponentM,
+) -> Unit {
+  for f in c.fields {
+    guard f.make is Some(name) && pkg.component(name) is Some(made) else {
+      continue
+    }
+    guard f.ty is Comp(ns) else { continue }
+    if !ns.is_empty() &&
+      !ns.iter().any(n => n == name || made.implements.contains(n)) {
+      self.error(
+        "tcd.field.make",
+        f.span,
+        "make(\{name}) isn't a \{ty_text(f.ty)}, the type of \{f.name}",
+      )
+    }
+    for g in made.fields {
+      if g.required {
+        self.error(
+          "tcd.field.make",
+          f.span,
+          "make(\{name}) makes it with no fields, but \{name} needs \{g.name}",
+        )
+      }
+    }
+  }
+}
+
+///|
 /// The values of a component's fields when it's made with no arguments.
 fn initial_env(c : ComponentM) -> Map[String, Val] {
   let env : Map[String, Val] = Map([])
@@ -1366,6 +1415,7 @@ pub fn check(
   let components = components.mapi((i, c) => r.conditions(pkg, c, comp_decls[i]))
   let pkg = { ..pkg, components, }
   for i, c in pkg.components {
+    r.make_defaults(pkg, c)
     r.implements(pkg, c, comp_decls[i])
     check_views(pkg, c, r.diags)
   }

@@ -122,10 +122,10 @@ component json_array: json_value {
             span(class: "font-mono text-sm leading-6 opacity-50", "]")));
 }
 
-/// An object's entry: a key and its value.
+/// An object's entry: a key and its value, a selector until one is given.
 component json_entry {
     field key: string;
-    field value: json_value;
+    field value: json_value = make(json_selector);
 
     message set_key(key: string) changes key ensures next.key == key;
 
@@ -180,9 +180,10 @@ component json_object: json_value {
             span(class: "font-mono text-sm leading-6 opacity-50", "}")));
 }
 
-/// A JSON document, shown read only or edited in place, with its JSON text.
+/// A JSON document, shown read only or edited in place, with its JSON text;
+/// null until one is given.
 component json_editor {
-    field value: json_value;
+    field value: json_value = make(json_null);
     field mode: enum { view, edit };
     field show_text: bool;
     get is_edit: bool;

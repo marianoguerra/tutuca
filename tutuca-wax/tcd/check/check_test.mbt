@@ -78,6 +78,38 @@ test "where clauses: contradictions, redundancy, what isn't a constraint, defaul
 }
 
 ///|
+test "make(c) defaults: of the field's type, needing no fields" {
+  debug_inspect(
+    diags_of(
+      (
+        #|interface v { }
+        #|component leaf: v { view main = p("x"); }
+        #|component other { view main = p("x"); }
+        #|component needy: v { field n: string where len(n) >= 1; view main = p("x"); }
+        #|component c {
+        #|    field a: v = make(leaf);
+        #|    field b: s32 = make(leaf);
+        #|    field d: v = make(nope);
+        #|    field e: v = make(other);
+        #|    field f: v = make(needy);
+        #|    field g: component = make(other);
+        #|    view main = p("x");
+        #|}
+      ),
+    ),
+    content=(
+      #|[
+      #|  "tcd.field.required: n has no default that meets its constraints, so making a component needs it",
+      #|  "tcd.field.make: make(leaf) makes a component, but b is s32",
+      #|  "tcd.field.make: no component nope to make",
+      #|  "tcd.field.make: make(other) isn't a v, the type of e",
+      #|  "tcd.field.make: make(needy) makes it with no fields, but needy needs n",
+      #|]
+    ),
+  )
+}
+
+///|
 test "messages: guards that can't hold, ensures outside changes, unknown names" {
   debug_inspect(
     diags_of(
