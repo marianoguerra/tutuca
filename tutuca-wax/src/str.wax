@@ -36,3 +36,19 @@ fn str_hash(s: &extern) -> i32 {
     }
     h;
 }
+
+// Whether a sorts before b, by UTF-16 code units, as JS's < does.
+fn str_lt(a: &extern, b: &extern) -> i32 {
+    let na = js_string_length(a);
+    let nb = js_string_length(b);
+    let i = 0;
+    while (i <s na) & (i <s nb) {
+        let ca = js_string_char_code_at(a, i);
+        let cb = js_string_char_code_at(b, i);
+        if ca != cb {
+            return ca <s cb;
+        }
+        i += 1;
+    }
+    na <s nb;
+}

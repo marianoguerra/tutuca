@@ -393,3 +393,65 @@ test "make defaults and the init hook take the init context" {
     ),
   )
 }
+
+///|
+test "a swap handler swaps in a component or keeps its own, with changes checked when it keeps" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component other { view main = p("x"); }
+      #|component slot {
+      #|    field note: string;
+      #|    message become() -> swap changes note emits make other;
+      #|    view main = p(field(note));
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let out = @gen.generate(pkg, "t.tcd")
+  let pick = (text : String, keep : (String) -> Bool) => {
+    text
+    .split("\n")
+    .filter(l => keep(l.to_owned()))
+    .map(l => l.trim().to_owned())
+    .collect()
+  }
+  debug_inspect(
+    pick(out.contract, l => l.contains("swap") || l.contains("slot_keep")),
+    content=(
+      #|[
+      #|  "// What a swap handler gives: a component to swap in (slot_swap_to), or the",
+      #|  "// next state, keeping this component (slot_keep).",
+      #|  "type slot_swap_result = { component: &?component, state: &?slot_state };",
+      #|  "// swap this component for c.",
+      #|  "fn slot_swap_to(c: &component) -> &slot_swap_result {",
+      #|  "{slot_swap_result| component: c, state: null };",
+      #|  "fn slot_keep(state: &slot_state) -> &slot_swap_result {",
+      #|  "{slot_swap_result| component: null, state };",
+      #|]
+    ),
+  )
+  debug_inspect(
+    pick(out.glue, l => !l.contains("//") && (l.contains("r.") || l.contains("slot_on_become"))),
+    content=(
+      #|[
+      #|  "let r = slot_on_become(state, ctx);",
+      #|  "if !!r.component {",
+      #|  "return message_result_swapped(r.component!);",
+      #|  "return message_result_of(state, r.state!);",
+      #|]
+    ),
+  )
+  let stub = @gen.stub(pkg, "t.tcd")
+  debug_inspect(
+    pick(stub, l => l.contains("slot_on_become") || l.contains("slot_keep")),
+    content=(
+      #|[
+      #|  "// slot_on_become handles the message become.",
+      #|  "fn slot_on_become(state: &slot_state, ctx: &context) -> &slot_swap_result {",
+      #|  "slot_keep(state);",
+      #|]
+    ),
+  )
+}

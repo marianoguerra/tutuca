@@ -493,6 +493,16 @@ fn abi_ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
     ctx_make(ctx, name, fields);
 }
 
+#[export = "ctx_try_make"]
+fn abi_ctx_try_make(ctx: &context, name: &extern, fields: &value) -> &value {
+    ctx_try_make(ctx, name, fields);
+}
+
+#[export = "ctx_component_names"]
+fn abi_ctx_component_names(ctx: &context, walk: i32) -> &value {
+    ctx_component_names(ctx, walk);
+}
+
 #[export = "init_ctx_make"]
 fn abi_init_ctx_make(ctx: &init_context, name: &extern, fields: &value) -> &component {
     init_ctx_make(ctx, name, fields);

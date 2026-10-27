@@ -94,6 +94,28 @@ pub fn Gen::contract(self : Gen) -> String {
       out.line("}")
       out.line("")
     }
+    // What a swap handler returns: the component to swap in, or this one's
+    // next state, keeping it.
+    if c.messages.iter().any(m => m.swap) {
+      out.line(
+        "// What a swap handler gives: a component to swap in (\{cw}_swap_to), or the",
+      )
+      out.line("// next state, keeping this component (\{cw}_keep).")
+      out.line(
+        "type \{cw}_swap_result = { component: &?component, state: &?\{cw}_state };",
+      )
+      out.line("")
+      out.line("// swap this component for c.")
+      out.line("fn \{cw}_swap_to(c: &component) -> &\{cw}_swap_result {")
+      out.line("    {\{cw}_swap_result| component: c, state: null };")
+      out.line("}")
+      out.line("")
+      out.line("// keep this component, with state as its next state.")
+      out.line("fn \{cw}_keep(state: &\{cw}_state) -> &\{cw}_swap_result {")
+      out.line("    {\{cw}_swap_result| component: null, state };")
+      out.line("}")
+      out.line("")
+    }
     for n in c.notifies {
       let (lines, args) = self.args_array(n.params)
       out.line(

@@ -85,7 +85,7 @@ const showStatus = () => {
 		`runtime and component modules loaded; js-string builtins: <b>${tw.builtins ? "native" : "polyfilled"}</b>; CSS compiled for <b>${styles.classes().length}</b> classes`;
 };
 const scope = runtime.scope();
-for (const name of ["counter", "todo_item", "todo_list", "json", "media"]) await loadComponent(name, scope);
+for (const name of ["counter", "todo_item", "todo_list", "json", "media", "layout"]) await loadComponent(name, scope);
 // The custom element media's Rating holds.
 defineRating();
 showStatus();
@@ -358,6 +358,21 @@ demo({
 		{ label: "rate 5", send: "rate", args: [5] },
 		{ label: "rate 9", send: "rate", args: [9], hint: "rejected: n must be within 0 and 5" },
 	],
+});
+
+// What a Hole could become: the type names of its slot, as runtime.typeName gives them.
+const layoutState = (root) => {
+	const slots = ["items", "panels", "cells"].map((f) => runtime.get(root, f)).find(Array.isArray) ?? [];
+	return { slots: slots.map((c) => ({ type: runtime.typeName(c), ...layoutState(c) })) };
+};
+
+demo({
+	title: "Layouts: holes that ask what they can be",
+	description:
+		"Hbox, Vbox, Tabs and Grid hold components; + slot, + cell and the + tab add a Hole. A hole's + asks componentNames: the package's ask handler gets the asker's context, so it lists the types visible from the scope the hole was made in and its parents (ctx_component_names), sorted, each name once. Pick one and the hole swaps itself for it, made in its own scope: Counter and TodoItem come from the other modules loaded here, and a box picked holds holes of its own. A pick that can't be made (ctx_try_make's Err) keeps the hole, with why under the choices: its swap handler keeps its own state instead.",
+	type: "Vbox",
+	fields: { items: [runtime.make(scope, "Hole", {})] },
+	inspect: layoutState,
 });
 
 // The vdom on its own: a keyed list, re-rendered from JS, with the DOM

@@ -126,7 +126,7 @@ classes as constants, or `if`s of constants.
 | `prelude/*.wax` | what the runtime and component modules share: types and i32 consts, no code |
 | `src/*.wax` | the runtime, one concern per file; `src/abi.wax` is what component modules import |
 | `lib/*.wax` | helpers for writing component types, compiled into the runtime and imported |
-| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
+| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail), `layout` (Hbox, Vbox, Tabs and Grid holding Holes, which ask what their scope can make and swap themselves for the one picked); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
 | `tcd/` | the TCD tool, in MoonBit (its README has the language and the naming convention) |
 | `scripts/build.mjs` | assembles and compiles `dist/tutuca-rt.wasm` and `dist/components/<module>.wasm`, generating the prelude files components need, and optimizes them with wasm-opt |
 | `scripts/format.mjs` | `wax-mb format` over the sources (`npm run format`, `--check` in `npm test`) |
@@ -483,8 +483,11 @@ vtable under a name, `scope_make` finds it here or in a parent, runs `init`
 and gives the component the scope that was asked. `init` gets an
 `init_context` holding that scope, so it can make the components it holds
 with `init_ctx_make` (tcd's `make(c)` field defaults do). Ask handlers are
-registered the same way; `scope_register_host_ask` answers through the
-host's `ask` import, later.
+registered the same way and found the same way, from the asker's scope up;
+a handler gets the asker's context (not its instance), so `ctx.scope` is the
+scope the asker was made in, wherever the handler was registered.
+`scope_register_host_ask` answers through the host's `ask` import, later,
+with only the ask's name and arguments.
 
 **Paths** (`path.wax` for the types, `route.wax` for what they do): update
 paths read and write the state, through components' `get` and `set` and
@@ -497,7 +500,13 @@ path, the source key, the event, and an effects buffer that `ctx_notify`,
 `ctx_ask`, `ctx_send_at`, `ctx_forward_at`, `ctx_stop_next` and `ctx_log`
 add to; `ctx_now`, `ctx_random` and `ctx_uuid` read the world through the
 host's `env` import; `ctx_make` makes components in the handling component's
-scope (for a Swapped result).
+scope (for a Swapped result), failing the task when it can't, and
+`ctx_try_make` makes them as a result instead: Ok(the component), or
+Err({ error, issues }), error saying why in words and issues being init's.
+`ctx_component_names(ctx, walk)` lists the type names registered there,
+sorted (with `walk`, the parents' too, each name once, as `ctx_make` resolves
+them): `components/layout`'s Hole asks for them and swaps itself for the one
+picked, or stays, saying why, when it can't be made.
 
 **The host** (`host.wax`) runs one task per `host_step`, as one transaction:
 the handler runs on the component the route reaches, its effects become child

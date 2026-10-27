@@ -32,9 +32,9 @@ export const MODULES = ["counter", "todo_item", "todo_list"];
 // The ones cases load into scopes of their own: todo_card registers TodoItem
 // too, so it would take the name over in the shared scope; showcase's,
 // json's and media's types are only for their own cases.
-const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json", "media", "probe", "pbt"];
+const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json", "media", "probe", "pbt", "layout"];
 // The modules defined in TCD, whose models (tcd model) js/pbt.js tests from.
-const TCD_MODULES = ["counter", "todo_item", "todo_list", "todo_card", "showcase", "json", "media", "pbt"];
+const TCD_MODULES = ["counter", "todo_item", "todo_list", "todo_card", "showcase", "json", "media", "pbt", "layout"];
 const test = (name, fn) => cases.push({ name, fn });
 
 test("render mounts, then morphs in place from what the last render returned", ({ vdom, document, container }) => {
@@ -874,6 +874,99 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 	assert.equal(buttons(container, "show all").length, 1);
 });
 
+// Every example type makes with no fields: its fields have defaults, so a
+// Hole can become any of them.
+test("components: every example type registered by a TCD module makes with no fields", async ({ vdom, modules, models }) => {
+	const { runtime } = vdom;
+	for (const name of TCD_MODULES) {
+		const scope = runtime.scope();
+		// TodoItem's interface is declared in todo_list.
+		if (name !== "todo_list") await vdom.loadComponent(modules.todo_list, scope);
+		await vdom.loadComponent(modules[name], scope);
+		for (const { component, as } of models[name].registers) {
+			// make throws when a field has no default; issues would still list the defaulted ones as missing.
+			assert.equal(runtime.typeName(runtime.make(scope, as, {})), component, name);
+		}
+	}
+});
+
+// ---- Asking what a scope can make, through components/layout ------------
+// A Hole's + asks componentNames; the package's ask_handler gets the asker's
+// context, so it lists the names visible from the scope the hole was made in.
+
+test("layout: a hole lists the types its scope chain can make, and becomes the one picked", async ({ vdom, window, document, container, modules }) => {
+	const { runtime } = vdom;
+	const outer = runtime.scope();
+	await vdom.loadComponent(modules.counter, outer);
+	await vdom.loadComponent(modules.todo_item, outer);
+	const inner = runtime.enter(outer, "page");
+	await vdom.loadComponent(modules.layout, inner);
+	// todo_card registers as TodoItem here too: the name is listed once.
+	await vdom.loadComponent(modules.todo_card, inner);
+	const host = runtime.createHost(document, container, runtime.make(inner, "Vbox", {}), { dev: true });
+	host.mount();
+	click(window, buttons(container, "+ slot")[0]);
+	click(window, container.querySelector(".hole button"));
+	const choices = () => [...container.querySelectorAll(".choices button")].map((b) => b.textContent);
+	// Sorted, the outer scope's too, without Hole.
+	assert.deepEqual(choices(), ["Board", "Counter", "Grid", "Hbox", "Label", "Tabs", "TodoItem", "Vbox"]);
+	click(window, buttons(container, "cancel")[0]);
+	assert.deepEqual(choices(), []);
+	click(window, container.querySelector(".hole button"));
+	click(window, buttons(container, "Counter")[0]);
+	const items = runtime.get(host.root(), "items");
+	assert.deepEqual(items.map((c) => runtime.typeName(c)), ["Counter"]);
+	assert.equal(container.querySelectorAll(".hole").length, 0);
+	// A hole inside what a hole became: Tabs, then a tab of its own.
+	click(window, buttons(container, "+ slot")[0]);
+	click(window, container.querySelector(".hole button"));
+	click(window, buttons(container, "Tabs")[0]);
+	click(window, container.querySelector("[title='Add a tab']"));
+	assert.deepEqual([...container.querySelectorAll("[role=tab]")].map((b) => b.textContent), ["Tab 1"]);
+	assert.equal(container.querySelectorAll(".hole").length, 1);
+	assert.deepEqual(host.failures, []);
+	assert.deepEqual(host.issues, []);
+});
+
+test("layout: a hole that can't make the type picked stays, saying why, and the task commits", async ({ vdom, window, document, container, modules }) => {
+	const { runtime } = vdom;
+	// probe registers Pretender as TodoItem, which todo_list's interface then rejects.
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.probe, scope);
+	await vdom.loadComponent(modules.todo_list, scope);
+	await vdom.loadComponent(modules.layout, scope);
+	const host = runtime.createHost(document, container, runtime.make(scope, "Vbox", { items: [runtime.make(scope, "Hole", {})] }), { dev: true });
+	host.mount();
+	click(window, container.querySelector(".hole button"));
+	click(window, buttons(container, "TodoItem")[0]);
+	const hole = runtime.get(host.root(), "items")[0];
+	assert.equal(runtime.typeName(hole), "Hole");
+	assert.equal(
+		container.querySelector(".hole .error").textContent,
+		"Can't make a component of type TodoItem: Pretender can't be a TodoItem: it doesn't declare that it implements TodoItem",
+	);
+	assert.deepEqual(host.failures, []);
+	assert.deepEqual(host.issues, []);
+	// The choices are still up: another pick works, and clears nothing it shouldn't.
+	click(window, buttons(container, "Probe")[0]);
+	assert.deepEqual(runtime.get(host.root(), "items").map((c) => runtime.typeName(c)), ["Probe"]);
+	assert.deepEqual(host.failures, []);
+});
+
+test("layout: the examples hold and random walks find nothing", async ({ vdom, modules, models }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.layout, scope);
+	assert.deepEqual(
+		examples({ runtime, scope, model: models.layout }).map((e) => [e.name, e.ok]),
+		[["add_then_select", true], ["columns_stay_in_range", true]],
+	);
+	// Not Hole: a walk starts it with made-up choices, which no scope can make.
+	for (const component of ["Hbox", "Vbox", "Tabs", "Grid"]) {
+		assert.deepEqual(walk({ runtime, scope, model: models.layout, component, runs: 20, steps: 15, seed: 5 }), { ok: true, runs: 20 }, component);
+	}
+});
+
 // ---- Views outside HTML, through components/media ------------------------
 // Dot draws in SVG, Sum writes MathML, Rating holds tw-rating, a custom
 // element (components/media/rating.js) that fires rating-change.
@@ -1618,7 +1711,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 5/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 6/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

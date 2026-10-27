@@ -96,6 +96,8 @@ export const COMPONENTS = [
 	{ name: "json", tcd: "components/json/json.tcd", impl: ["components/json/json.wax"] },
 	// Dot, Sum and Rating: views in SVG, MathML and a custom element.
 	{ name: "media", tcd: "components/media/media.tcd", impl: ["components/media/media.wax"] },
+	// Hbox, Vbox, Tabs and Grid, and the Hole that turns into a type its scope lists.
+	{ name: "layout", tcd: "components/layout/layout.tcd", impl: ["components/layout/layout.wax"] },
 ];
 
 

@@ -61,7 +61,7 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
 	await page.goto(`http://127.0.0.1:${server.address().port}/demos/`);
-	await page.waitForFunction(() => document.querySelectorAll(".demo").length === 9);
+	await page.waitForFunction(() => document.querySelectorAll(".demo").length === 10);
 	const board = page.locator(".demo").nth(1);
 	await board.locator(".stage button", { hasText: "add" }).click();
 	await board.locator(".stage button", { hasText: "add" }).click();
@@ -85,6 +85,12 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	await todos.locator(".stage li").first().dragTo(todos.locator(".stage li").last());
 	const dragged = JSON.parse(await todos.locator("pre").textContent()).items.map((item) => item.text).join(",");
 	if (dragged !== "write a component,ship it,read the README") throw new Error(`unexpected order after a drag: ${dragged}`);
+	// A hole lists what its scope chain can make and becomes the one picked.
+	const layout = page.locator(".demo", { hasText: "Layouts: holes" });
+	await layout.locator(".stage .hole button").click();
+	await layout.locator(".stage .choices button", { hasText: "Counter" }).click();
+	const slots = JSON.parse(await layout.locator("pre").textContent()).slots.map((s) => s.type).join(",");
+	if (slots !== "Counter") throw new Error(`unexpected layout slots: ${slots}`);
 	// Loading modules at run time: TodoList first, which can't make a
 	// TodoItem until todo_item.wasm is loaded too.
 	const loading = page.locator(".demo").first();

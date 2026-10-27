@@ -128,14 +128,14 @@ signatures (`tcd stub` writes them; the build checks them):
 | declared | implement |
 |---|---|
 | `message m(a: A)` | `fn c_on_m(state: &c_state, ctx: &context, a: A') -> &c_state` (the same state: unchanged) |
-| `message m() -> swap` | `... -> &component` |
+| `message m() -> swap` | `... -> &c_swap_result`: `c_swap_to(component)` swaps it in, `c_keep(state)` keeps this component with that state (`changes` holds for a keep; `ensures` isn't allowed) |
 | `get g: T` | `fn c_get_g(state: &c_state) -> T'` |
 | `ask a() -> T` | `c_reply_a_ok(state, ctx, reply: T')`; `_err(state, ctx, error: &value)` and `_not_found(state, ctx)` optional |
 | `loop l { ... }` | `c_loop_l_prepare`, `_iter`, `_key`, `_filter`, `_enrich` (returns `&c_loop_l_binds`) |
 | `scope s { ... }` | `c_scope_s(state) -> &c_scope_s_binds` |
 | `check(p)` | `c_check_p(state[, v: T']) -> i32` |
 | `init;` | `c_init(state, ctx: &init_context) -> &c_state` (`init_ctx_make(ctx, name, fields)` makes components in the scope it's made in) |
-| package `ask_handler a` | `<package>_answer_a(ctx, args...) -> &value` (`value_ok(...)` or `value_err(...)`) |
+| package `ask_handler a` | `<package>_answer_a(ctx, args...) -> &value` (`value_ok(...)` or `value_err(...)`; `ctx` is the asker's, so `ctx_component_names(ctx, walk)` lists what its scope can make) |
 
 `T'` is the Wax type: `i32` for bool, s32 and enums (with consts
 `c_<field>_<member>`), `f64`, `&extern` for strings, `&value` for the rest.

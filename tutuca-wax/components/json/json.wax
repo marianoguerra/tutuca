@@ -85,7 +85,15 @@ fn json_selector_get_json(state: &json_selector_state) -> &extern {
 }
 
 // An empty value of the type picked: kind is set_to's enum, in order.
-fn json_selector_on_set_to(state: &json_selector_state, ctx: &context, kind: i32) -> &component {
+fn json_selector_on_set_to(
+    state: &json_selector_state,
+    ctx: &context,
+    kind: i32,
+) -> &json_selector_swap_result {
+    json_selector_swap_to(json_selector_empty_value(ctx, kind));
+}
+
+fn json_selector_empty_value(ctx: &context, kind: i32) -> &component {
     if kind == 1 {
         return json_selector_make_json_bool(ctx, 0);
     }

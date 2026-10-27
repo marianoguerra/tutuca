@@ -52,6 +52,20 @@ fn ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
     scope_make_or_fail(ctx.scope, name, fields);
 }
 
+// ctx_make's result instead of its failure: Ok(the component), or Err({
+// error, issues }) saying why it can't be made (scope_try_make), for a
+// handler to show instead of failing its task.
+fn ctx_try_make(ctx: &context, name: &extern, fields: &value) -> &value {
+    scope_try_make(ctx.scope, name, fields);
+}
+
+// The names of the types a handler can make: those registered in the
+// handling component's scope, and with walk in its parents too (scope_names).
+// An ask handler gets the asker's context, so these are the asker's.
+fn ctx_component_names(ctx: &context, walk: i32) -> &value {
+    scope_names(ctx.scope, walk);
+}
+
 // A component of a type registered in the scope the component init is making
 // is being made in, e.g. the default of a field that holds a component.
 fn init_ctx_make(ctx: &init_context, name: &extern, fields: &value) -> &component {

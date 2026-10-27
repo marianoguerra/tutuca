@@ -461,11 +461,11 @@ fn Resolver::message(
       Some(names.map(n => n.text))
     }
   }
-  if m.swap && (m.ensures is Some(_) || m.changes is Some(_)) {
+  if m.swap && m.ensures is Some(_) {
     self.error(
       "tcd.message.swap",
       m.name.span,
-      "\{m.name.text} swaps its component for another one, so there's no next state for changes or ensures to talk about",
+      "\{m.name.text} may swap its component for another one, so there may be no next state for ensures to talk about (changes says what it may change when it keeps it)",
     )
   }
   {

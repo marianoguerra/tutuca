@@ -64,7 +64,7 @@ test "every diagnostic code has a fixture that reports it" {
       "tcd.message.changes", "component c { message m() changes nope; view main = p(); }",
     ),
     (
-      "tcd.message.swap", "component c { message m() -> swap changes nothing; view main = p(); }",
+      "tcd.message.swap", "component c { field x: s32; message m() -> swap ensures next.x == 1; view main = p(); }",
     ),
     (
       "tcd.message.never", "component c { field x: s32 where x < 0; message m() when x > 5; view main = p(); }",

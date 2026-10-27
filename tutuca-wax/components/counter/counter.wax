@@ -45,8 +45,8 @@ fn counter_on_fetch(state: &counter_state, ctx: &context) -> &counter_state {
     state;
 }
 
-fn counter_on_to_label(state: &counter_state, ctx: &context) -> &component {
-    counter_make_label(ctx, js_string_concat(s_was, int_text(state.count)));
+fn counter_on_to_label(state: &counter_state, ctx: &context) -> &counter_swap_result {
+    counter_swap_to(counter_make_label(ctx, js_string_concat(s_was, int_text(state.count))));
 }
 
 fn counter_reply_load_count_ok(state: &counter_state, ctx: &context, reply: i32) -> &counter_state {

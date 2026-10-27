@@ -422,7 +422,11 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
     let call = "\{cw}_on_\{@check.wax(msg.name)}(state, ctx\{args})"
     out.line("    if str_eq(m.name, \{self.s(@check.camel(msg.name))}) {")
     if msg.swap {
-      out.line("        return message_result_swapped(\{call});")
+      out.line("        let r = \{call};")
+      out.line("        if !!r.component {")
+      out.line("            return message_result_swapped(r.component!);")
+      out.line("        }")
+      out.line("        return message_result_of(state, r.state!);")
     } else {
       out.line("        return message_result_of(state, \{call});")
     }

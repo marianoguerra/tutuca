@@ -1,0 +1,122 @@
+// The layout module's implementation (layout.tcd has the rest): what the
+// boxes, tabs and grid do to their lists of components, the hole turning into
+// the type picked, and the componentNames answer.
+
+import "'" {
+    #[import = "Tab "]
+    const s_tab: &extern;
+    #[import = "grid-template-columns: repeat("]
+    const s_grid_columns_open: &extern;
+    #[import = ", minmax(0, 1fr))"]
+    const s_grid_columns_close: &extern;
+    #[import = "error"]
+    const s_error: &extern;
+}
+
+// ---- Hole --------------------------------------------------------------------------
+
+// Asks the scope chain, not only the hole's own scope: types registered
+// around it can go here too.
+fn hole_on_show_choices(state: &hole_state, ctx: &context) -> &hole_state {
+    hole_ask_component_names(ctx, 1);
+    hole_with_error(state, gs_empty);
+}
+
+fn hole_on_hide_choices(state: &hole_state, ctx: &context) -> &hole_state {
+    {hole_state| choices: list_empty(), listing: 0, error: gs_empty };
+}
+
+// A component of the type picked, made in the hole's scope with no fields;
+// when it can't be, the hole stays, saying why, with the choices still up.
+fn hole_on_pick(state: &hole_state, ctx: &context, at: i32) -> &hole_swap_result {
+    let name = value_string_of(value_member(list_get(state.choices, at)!, gs_name))!;
+    let made = ctx_try_make(ctx, name, map_empty()) as &value_result;
+    if made.ok {
+        return hole_swap_to(value_as_component(made.value)!);
+    }
+    hole_keep(hole_with_error(state, value_string_of(value_member(made.value, s_error))!));
+}
+
+// The names, as { name } records, without Hole: a hole doesn't become a hole.
+fn hole_reply_component_names_ok(state: &hole_state, ctx: &context, reply: &value) -> &hole_state {
+    let choices = list_empty();
+    let i = 0;
+    while i <s list_count(reply) {
+        let name = list_get(reply, i)!;
+        if !str_eq(value_string_of(name), gs_hole) {
+            choices = list_push(choices, map_assoc(map_empty(), gs_name, name));
+        }
+        i += 1;
+    }
+    hole_with_listing(hole_with_choices(state, choices), 1);
+}
+
+// ---- Boxes -------------------------------------------------------------------------
+
+fn hbox_on_add(state: &hbox_state, ctx: &context) -> &hbox_state {
+    let hole = hbox_make_hole(ctx, list_empty(), 0, gs_empty);
+    hbox_with_items(state, list_push(state.items, value_component(hole)));
+}
+
+fn vbox_on_add(state: &vbox_state, ctx: &context) -> &vbox_state {
+    let hole = vbox_make_hole(ctx, list_empty(), 0, gs_empty);
+    vbox_with_items(state, list_push(state.items, value_component(hole)));
+}
+
+// ---- Tabs --------------------------------------------------------------------------
+
+// The new tab is the one shown.
+fn tabs_on_add(state: &tabs_state, ctx: &context) -> &tabs_state {
+    let hole = tabs_make_hole(ctx, list_empty(), 0, gs_empty);
+    let panels = list_push(state.panels, value_component(hole));
+    tabs_with_active(tabs_with_panels(state, panels), list_count(panels) - 1);
+}
+
+fn tabs_on_select(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state {
+    tabs_with_active(state, at);
+}
+
+fn tabs_loop_headers_enrich(
+    state: &tabs_state,
+    key: &value,
+    item: &value,
+) -> &tabs_loop_headers_binds {
+    let at = (key as &value_int).value;
+    {tabs_loop_headers_binds|
+        label: js_string_concat(s_tab, int_text(at + 1)),
+        is_active: at == state.active,
+    };
+}
+
+fn tabs_loop_shown_filter(state: &tabs_state, key: &value, item: &value) -> i32 {
+    (key as &value_int).value == state.active;
+}
+
+// ---- Grid --------------------------------------------------------------------------
+
+fn grid_on_add(state: &grid_state, ctx: &context) -> &grid_state {
+    let hole = grid_make_hole(ctx, list_empty(), 0, gs_empty);
+    grid_with_cells(state, list_push(state.cells, value_component(hole)));
+}
+
+fn grid_on_more_columns(state: &grid_state, ctx: &context) -> &grid_state {
+    grid_with_columns(state, state.columns + 1);
+}
+
+fn grid_on_fewer_columns(state: &grid_state, ctx: &context) -> &grid_state {
+    grid_with_columns(state, state.columns - 1);
+}
+
+fn grid_get_grid_style(state: &grid_state) -> &extern {
+    js_string_concat(
+        js_string_concat(s_grid_columns_open, int_text(state.columns)),
+        s_grid_columns_close,
+    );
+}
+
+// ---- The package -------------------------------------------------------------------
+
+// The asker's context: the names visible from the scope the hole is in.
+fn layout_answer_component_names(ctx: &context, walk: i32) -> &value {
+    value_ok(ctx_component_names(ctx, walk));
+}

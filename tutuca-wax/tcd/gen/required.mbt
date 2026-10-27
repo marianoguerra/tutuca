@@ -67,7 +67,7 @@ pub fn required_of(
       name: "\{cw}_on_\{@check.wax(m.name)}",
       params,
       result: if m.swap {
-        "&component"
+        "&\{cw}_swap_result"
       } else {
         state_t
       },

@@ -1,0 +1,119 @@
+// The layout component module: boxes, tabs and a grid that hold components,
+// and the Hole a slot starts as. A hole's + asks what it could become: the
+// names of the types visible from the scope the hole was made in, which the
+// package's ask_handler reads through the asker's context. Picking one swaps
+// the hole for a component of that type, made in the hole's scope, or keeps
+// the hole saying why when that type can't be made.
+package tutuca:layout@0.1.0;
+
+/// An empty slot. + lists the types it could become; picking one swaps it
+/// for a component of that type, made with no fields. A type that can't be
+/// made that way keeps the hole, with why in error.
+component hole {
+    field choices: list<record { name: string }>;
+    field listing: bool;
+    /// Why the last pick couldn't be made; empty when it could.
+    field error: string;
+
+    /// The type names visible from here; with walk, the parent scopes' too.
+    ask component_names(walk: bool) -> list<string>;
+
+    message show_choices() changes error emits ask component_names;
+    message hide_choices() changes choices, listing, error ensures not next.listing;
+    message pick(at: index<choices>) -> swap changes error;
+
+    view main = div(class: "hole flex min-h-16 min-w-24 flex-1 items-center justify-center rounded-box border-2 border-dashed border-base-300 p-2",
+        if(field(listing),
+            div(class: "flex flex-col items-center gap-1",
+                ul(class: "choices menu menu-sm bg-base-100 rounded-box border border-base-300",
+                    each(field(choices),
+                        li(button(on_click: send(pick, source_key()), field(name))))),
+                if(field(error), p(class: "error max-w-64 text-center text-xs text-error", field(error))),
+                button(class: "btn btn-xs btn-ghost", on_click: send(hide_choices), "cancel")),
+            button(class: "btn btn-sm btn-circle btn-ghost", title: "Put a component here", on_click: send(show_choices), "+")));
+}
+
+/// Components side by side, and a + to add a hole after them.
+component hbox {
+    field items: list<component>;
+
+    message add() changes items ensures len(next.items) == len(items) + 1 emits make hole;
+
+    view main = div(class: "hbox flex flex-row items-stretch gap-2 rounded-box border border-base-300 p-2",
+        render_each(field(items)),
+        button(class: "btn btn-xs btn-ghost self-center", title: "Add a slot", on_click: send(add), "+ slot"));
+}
+
+/// Components one under the other, and a + to add a hole below them.
+component vbox {
+    field items: list<component>;
+
+    message add() changes items ensures len(next.items) == len(items) + 1 emits make hole;
+
+    view main = div(class: "vbox flex flex-col items-stretch gap-2 rounded-box border border-base-300 p-2",
+        render_each(field(items)),
+        button(class: "btn btn-xs btn-ghost self-start", title: "Add a slot", on_click: send(add), "+ slot"));
+}
+
+/// Components as tabs, one shown at a time; + adds a tab holding a hole.
+component tabs {
+    field panels: list<component>;
+    field active: s32 where active >= 0;
+
+    invariant active_in_range: len(panels) == 0 or active < len(panels);
+
+    message add() changes panels, active ensures len(next.panels) == len(panels) + 1 emits make hole;
+    message select(at: index<panels>) changes active ensures next.active == at;
+
+    /// The tab headers: "Tab n", the active one marked.
+    loop headers { enrich { label: string, is_active: bool } }
+    /// The panels: only the active one.
+    loop shown { filter }
+
+    view main = div(class: "tabs-box flex flex-col gap-2 rounded-box border border-base-300 p-2",
+        div(role: "tablist", class: "tabs tabs-border",
+            each(loop: headers, field(panels),
+                button(role: "tab", class: if(bind(is_active), "tab tab-active", "tab"), on_click: send(select, source_key()), bind(label))),
+            button(class: "tab", title: "Add a tab", on_click: send(add), "+")),
+        render_each(loop: shown, field(panels)));
+}
+
+/// Components in a grid of columns; + adds a cell, the column count changes
+/// with - and +.
+component grid {
+    field cells: list<component>;
+    field columns: s32 = 2 where 1 <= columns <= 6;
+    get grid_style: string;
+
+    message add() changes cells ensures len(next.cells) == len(cells) + 1 emits make hole;
+    message more_columns() when columns < 6 changes columns ensures next.columns == columns + 1;
+    message fewer_columns() when columns > 1 changes columns ensures next.columns == columns - 1;
+
+    view main = div(class: "grid-box flex flex-col gap-2 rounded-box border border-base-300 p-2",
+        div(class: "flex items-center gap-1 text-xs",
+            button(class: "btn btn-xs", on_click: send(fewer_columns), "-"),
+            span(class: "tabular-nums", field(columns), " columns"),
+            button(class: "btn btn-xs", on_click: send(more_columns), "+"),
+            button(class: "btn btn-xs btn-ghost", title: "Add a cell", on_click: send(add), "+ cell")),
+        div(class: "grid gap-2", style: field(grid_style), render_each(field(cells))));
+}
+
+register hole, hbox, vbox, tabs, grid;
+
+/// componentNames: the type names the asker's scope can make.
+ask_handler component_names(walk: bool) -> list<string>;
+
+example add_then_select for tabs {
+    start { }
+    send add();
+    send add();
+    expect len(panels) == 2;
+    send select(1);
+    expect active == 1;
+}
+
+example columns_stay_in_range for grid {
+    start { columns: 6 }
+    send fewer_columns();
+    expect columns == 5;
+}

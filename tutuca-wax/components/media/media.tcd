@@ -5,7 +5,7 @@ package tutuca:media@0.1.0;
 
 /// An SVG circle: click it to fill it, click − or + (SVG shapes too) to resize it.
 component dot {
-    field r: s32 where 10 <= r <= 40;
+    field r: s32 = 20 where 10 <= r <= 40;
     field filled: bool;
 
     message grow() changes r ensures next.r >= r;
@@ -29,7 +29,7 @@ component dot {
 /// The sum of 1 to n in MathML, its closed form with n put in, and its value:
 /// click the formula, or +, for one more term.
 component sum {
-    field n: s32 where 1 <= n <= 20;
+    field n: s32 = 3 where 1 <= n <= 20;
     get total: s32;
 
     message inc() changes n ensures next.n >= n;

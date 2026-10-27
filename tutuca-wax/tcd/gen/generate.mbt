@@ -45,6 +45,10 @@ pub fn generate(
 fn stub_body(r : Required, state_type : String) -> String {
   if r.result == state_type || r.result.has_suffix("_state") {
     "    state;"
+  } else if r.result.has_suffix("_swap_result") {
+    // Keeps the component until it's written.
+    let cw = r.result[1:r.result.length() - "_swap_result".length()].to_owned()
+    "    \{cw}_keep(state);"
   } else {
     "    unreachable;"
   }

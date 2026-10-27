@@ -52,6 +52,55 @@ fn scope_lookup(s: &scope, name: &extern) -> &?scope_entry {
     null;
 }
 
+// The names of the types registered here, sorted; with walk, those in the
+// parents too, each once: an inner registration hides an outer one, as
+// scope_lookup resolves them. A list value of strings.
+fn scope_names(s: &scope, walk: i32) -> &value {
+    let acc = {map_entries_acc| keys: pv_empty(), values: pv_empty() };
+    let from: &?scope = s;
+    while !!from {
+        phm_each((from!).entries, acc, map_entries_visit);
+        from = walk?(from!).parent:null;
+    }
+    // Kept sorted as they come, inner ones first: there are few.
+    let names = ext_buf_new(pv_count(acc.keys));
+    let i = 0;
+    while i <s pv_count(acc.keys) {
+        let (_, key) = pv_get(acc.keys, i);
+        let name = (key! as &value_string).value;
+        // Where name goes: the first slot not before it.
+        let at = 0;
+        let placed = 0;
+        let seen = 0;
+        while (at <s names.len) & !placed {
+            let here = ext_buf_at(names, at);
+            if str_lt(here, name) {
+                at += 1;
+            } else {
+                placed = 1;
+                seen = str_eq(here, name);
+            }
+        }
+        if !seen {
+            ext_buf_push(names, name);
+            let j = names.len - 1;
+            while j >s at {
+                names.items[j] = names.items[j - 1];
+                j -= 1;
+            }
+            names.items[at] = name;
+        }
+        i += 1;
+    }
+    let out = list_empty();
+    let j = 0;
+    while j <s names.len {
+        out = list_push(out, value_string(ext_buf_at(names, j)));
+        j += 1;
+    }
+    out;
+}
+
 fn scope_register_ask(s: &scope, name: &extern, handler: &ask_fn) {
     s.ask_handlers = smap_assoc(s.ask_handlers, name, {ask_handler| handler });
 }
@@ -94,19 +143,35 @@ fn scope_make(s: &scope, name: &extern, fields: &value) -> &make_result {
     {make_result| component: c, issues: made.issues, error: null };
 }
 
+// Why making a component of type name failed, in words.
+fn make_failure_text(name: &extern, made: &make_result) -> &extern {
+    let text = js_string_concat(s_err_cant_make, name);
+    if !!made.error {
+        text = js_string_concat(js_string_concat(text, s_colon_space), reason_text(made.error!));
+    }
+    text;
+}
+
 // Makes a component by name, failing the task when it can't.
 fn scope_make_or_fail(s: &scope, name: &extern, fields: &value) -> &component {
     let made = scope_make(s, name, fields);
     if !made.component {
-        let text = js_string_concat(s_err_cant_make, name);
-        if !!made.error {
-            text =
-                js_string_concat(js_string_concat(text, s_colon_space), reason_text(made.error!));
-        }
-        host_fail(text);
+        host_fail(make_failure_text(name, made));
         unreachable;
     }
     made.component!;
+}
+
+// Makes a component by name, as a result: Ok(the component), or Err({ error,
+// issues }) when it can't: error says why in words, issues are init's
+// ({ field, problem } each).
+fn scope_try_make(s: &scope, name: &extern, fields: &value) -> &value {
+    let made = scope_make(s, name, fields);
+    if !!made.component {
+        return value_ok(value_component(made.component!));
+    }
+    let why = map_assoc(map_empty(), s_error, value_string(make_failure_text(name, made)));
+    value_err(map_assoc(why, s_issues, made.issues));
 }
 
 // Answers asks of this name through the host's ask import, later
