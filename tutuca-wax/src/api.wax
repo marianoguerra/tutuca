@@ -9,7 +9,7 @@ fn api_str_array_new(n: i32) -> &str_array {
 }
 
 #[export = "str_array_set"]
-fn api_str_array_set(a: &str_array, i: i32, s: &extern) {
+fn api_str_array_set(a: &str_array, i: i32, s: js_string) {
     a[i] = s;
 }
 
@@ -63,7 +63,7 @@ fn api_value_float_get(v: &value) -> f64 {
 }
 
 #[export = "value_string_get"]
-fn api_value_string_get(v: &value) -> &extern {
+fn api_value_string_get(v: &value) -> js_string {
     (v as &value_string).value;
 }
 
@@ -80,8 +80,8 @@ fn api_value_result_value(v: &value) -> &value {
 
 #[export = "shape_new"]
 fn api_shape_new(
-    tag_name: &extern,
-    ns: &?extern,
+    tag_name: js_string,
+    ns: js_string_opt,
     static_names: &str_array,
     static_values: &value_array,
     names: &str_array,
@@ -90,12 +90,12 @@ fn api_shape_new(
 }
 
 #[export = "vnode_text"]
-fn api_vnode_text(text: &extern) -> &vnode {
+fn api_vnode_text(text: js_string) -> &vnode {
     vnode_text(text);
 }
 
 #[export = "vnode_comment"]
-fn api_vnode_comment(text: &extern) -> &vnode {
+fn api_vnode_comment(text: js_string) -> &vnode {
     vnode_comment(text);
 }
 
@@ -104,18 +104,18 @@ fn api_vnode_elem(
     shape: &shape,
     values: &value_array,
     childs: &vnode_array,
-    key: &?extern,
+    key: js_string_opt,
 ) -> &vnode {
     vnode_elem(shape, values, childs, key);
 }
 
 #[export = "vnode_frag"]
-fn api_vnode_frag(childs: &vnode_array, key: &?extern) -> &vnode {
+fn api_vnode_frag(childs: &vnode_array, key: js_string_opt) -> &vnode {
     vnode_frag(childs, key);
 }
 
 #[export = "render"]
-fn api_render(doc: &extern, container: &extern, childs: &vnode_array, prev: &?vnode_array) {
+fn api_render(doc: dom_document, container: dom_node, childs: &vnode_array, prev: &?vnode_array) {
     render(doc, container, childs, prev);
 }
 
@@ -132,7 +132,7 @@ fn api_path_key_array_set(a: &path_key_array, i: i32, key: &path_key) {
 }
 
 #[export = "provider_new"]
-fn api_provider_new(name: &extern, depth: i32, keys: &path_key_array) -> &provider {
+fn api_provider_new(name: js_string, depth: i32, keys: &path_key_array) -> &provider {
     {provider| name, depth, keys };
 }
 
@@ -147,7 +147,7 @@ fn api_frame_new(
 }
 
 #[export = "frame_meta_text"]
-fn api_frame_meta_text(f: &frame) -> &extern {
+fn api_frame_meta_text(f: &frame) -> js_string {
     meta_frame_text(f);
 }
 
@@ -162,7 +162,7 @@ fn api_arg_array_set(a: &arg_array, i: i32, value: &arg) {
 }
 
 #[export = "on_attr_new"]
-fn api_on_attr_new(event: &extern, name: &extern, args: &arg_array) -> &on_attr {
+fn api_on_attr_new(event: js_string, name: js_string, args: &arg_array) -> &on_attr {
     on_attr_new(event, name, args);
 }
 
@@ -187,7 +187,7 @@ fn api_snode_array_set(a: &snode_array, i: i32, node: &snode) {
 }
 
 #[export = "entry_new"]
-fn api_entry_new(key: &?extern, frame: &frame, body: &snode_array) -> &entry {
+fn api_entry_new(key: js_string_opt, frame: &frame, body: &snode_array) -> &entry {
     {entry| key, frame, body };
 }
 
@@ -222,14 +222,14 @@ fn api_scope_root() -> &scope {
 }
 
 #[export = "scope_enter"]
-fn api_scope_enter(s: &scope, name: &extern) -> &scope {
+fn api_scope_enter(s: &scope, name: js_string) -> &scope {
     scope_enter(s, name);
 }
 
 // Makes a component by name: an ok result holding it, or an err result
 // holding why. fields is a map value.
 #[export = "scope_make"]
-fn api_scope_make(s: &scope, name: &extern, fields: &value) -> &value {
+fn api_scope_make(s: &scope, name: js_string, fields: &value) -> &value {
     let made = scope_make(s, name, fields);
     if !made.component {
         return value_err(made.error!);
@@ -239,7 +239,7 @@ fn api_scope_make(s: &scope, name: &extern, fields: &value) -> &value {
 
 // The issues init reported making a component by name: a list value.
 #[export = "scope_make_issues"]
-fn api_scope_make_issues(s: &scope, name: &extern, fields: &value) -> &value {
+fn api_scope_make_issues(s: &scope, name: js_string, fields: &value) -> &value {
     scope_make(s, name, fields).issues;
 }
 
@@ -266,7 +266,7 @@ fn values_to_list(args: &value_array) -> &value {
 
 // Answers asks of this name through the host's ask import: now, later (the
 // host calls host_settle with the id it returned) or not at all.
-fn host_ask_handler: ask_fn (name: &extern, args: &value_array, ctx: &context) -> &ask_result {
+fn host_ask_handler: ask_fn (name: js_string, args: &value_array, ctx: &context) -> &ask_result {
     let answer = host_ask(name, values_to_list(args) as &extern);
     if answer.kind == value_kind_result {
         return ask_result_reply(answer);
@@ -279,7 +279,7 @@ fn host_ask_handler: ask_fn (name: &extern, args: &value_array, ctx: &context) -
 
 // The name of a component value's type.
 #[export = "component_type_name"]
-fn api_component_type_name(v: &value) -> &extern {
+fn api_component_type_name(v: &value) -> js_string {
     (value_as_component(v)!).spec.name;
 }
 
@@ -300,13 +300,13 @@ fn api_scope_name_of(s: &scope, v: &value) -> &value {
 
 // A component value's property, through its vtable's get.
 #[export = "component_get"]
-fn api_component_get(v: &value, name: &extern) -> &value {
+fn api_component_get(v: &value, name: js_string) -> &value {
     get_key(v, path_key_name(name));
 }
 
 // A host rendering into container in doc; headless when both are null.
 #[export = "host_new"]
-fn api_host_new(doc: &?extern, container: &?extern, root: &value) -> &host {
+fn api_host_new(doc: dom_document_opt, container: dom_node_opt, root: &value) -> &host {
     host_new(doc, container, root);
 }
 
@@ -332,7 +332,7 @@ fn api_component_schema(v: &value) -> &value {
 // Why the component v can't take the message name with args (a list value)
 // now, as a string value, or null when it can.
 #[export = "component_message_problem"]
-fn api_component_message_problem(v: &value, name: &extern, args: &value) -> &value {
+fn api_component_message_problem(v: &value, name: js_string, args: &value) -> &value {
     let c = value_as_component(v);
     if !c {
         return VALUE_NULL;
@@ -346,7 +346,7 @@ fn api_component_message_problem(v: &value, name: &extern, args: &value) -> &val
 
 // The interface registered as name, visible from s, as a value, or null.
 #[export = "scope_interface"]
-fn api_scope_interface(s: &scope, name: &extern) -> &value {
+fn api_scope_interface(s: &scope, name: js_string) -> &value {
     let iface = scope_lookup_interface(s, name);
     if !iface {
         return VALUE_NULL;
@@ -361,7 +361,7 @@ fn api_host_root(h: &host) -> &value {
 
 // A message to the root component; args is a list value.
 #[export = "host_send"]
-fn api_host_send(h: &host, name: &extern, args: &value) {
+fn api_host_send(h: &host, name: js_string, args: &value) {
     host_send(h, name, list_to_values(args));
 }
 
@@ -405,9 +405,9 @@ fn api_host_render(h: &host) -> i32 {
 #[export = "host_dispatch_event"]
 fn api_host_dispatch_event(
     h: &host,
-    e: &extern,
-    target: &extern,
-    kind: &extern,
+    e: dom_event,
+    target: dom_node,
+    kind: js_string,
     event: &value,
 ) -> i32 {
     host_dispatch_event(h, e, target, kind, event);

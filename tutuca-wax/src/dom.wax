@@ -2,7 +2,7 @@
 // morphChildren and render of tutuca's src/vdom.js. `ns` is the namespace
 // children inherit from their parent, null for HTML.
 
-fn is_namespaced(node: &extern) -> i32 {
+fn is_namespaced(node: dom_node) -> i32 {
     let ns = dom_namespace_uri(node);
     if !ns {
         return 0;
@@ -10,7 +10,7 @@ fn is_namespaced(node: &extern) -> i32 {
     !str_eq(ns, s_html_ns);
 }
 
-fn child_ns(shape: &shape, ns: &?extern) -> &?extern {
+fn child_ns(shape: &shape, ns: js_string_opt) -> js_string_opt {
     if str_eq(ns, s_svg_ns) {
         if str_eq_ascii_lower(shape.tag_name, s_foreign_object_lower) {
             return null;
@@ -20,7 +20,7 @@ fn child_ns(shape: &shape, ns: &?extern) -> &?extern {
 }
 
 // The element's own namespace, or the one it inherits.
-fn el_ns(shape: &shape, ns: &?extern) -> &?extern {
+fn el_ns(shape: &shape, ns: js_string_opt) -> js_string_opt {
     if !shape.ns {
         ns;
     } else {
@@ -29,7 +29,7 @@ fn el_ns(shape: &shape, ns: &?extern) -> &?extern {
 }
 
 // DOM properties that must be set as attributes.
-fn never_assign(name: &extern) -> i32 {
+fn never_assign(name: js_string) -> i32 {
     str_eq(name, s_width) | str_eq(name, s_height) | str_eq(name, s_href) | str_eq(name, s_list)
         | str_eq(name, s_form) | str_eq(name, s_tab_index) | str_eq(name, s_download)
         | str_eq(name, s_row_span) | str_eq(name, s_col_span) | str_eq(name, s_role)
@@ -37,7 +37,7 @@ fn never_assign(name: &extern) -> i32 {
 }
 
 // The attribute a property reflects to.
-fn prop_attr_name(name: &extern) -> &extern {
+fn prop_attr_name(name: js_string) -> js_string {
     if str_eq(name, s_class_name) {
         return s_class;
     }
@@ -48,7 +48,7 @@ fn prop_attr_name(name: &extern) -> &extern {
 }
 
 // name[4] === "-": data-* and aria-* keep false as the string "false".
-fn is_prefixed_attr(name: &extern) -> i32 {
+fn is_prefixed_attr(name: js_string) -> i32 {
     if js_string_length(name) <=s 4 {
         return 0;
     }
@@ -58,7 +58,7 @@ fn is_prefixed_attr(name: &extern) -> i32 {
 // node[name] = value; 0 when it threw. Scalars go as JS strings, numbers and
 // booleans; lists, maps, results and components as the opaque objects they
 // are, as JS sets an object prop.
-fn set_property(node: &extern, name: &extern, value: &value) -> i32 {
+fn set_property(node: dom_node, name: js_string, value: &value) -> i32 {
     let kind = value.kind;
     if kind == value_kind_string {
         return dom_set_string_property(node, name, (value as &value_string).value);
@@ -73,7 +73,7 @@ fn set_property(node: &extern, name: &extern, value: &value) -> i32 {
 }
 
 // setAttribute(name, value), which writes String(value).
-fn set_attribute(node: &extern, name: &extern, value: &value) {
+fn set_attribute(node: dom_node, name: js_string, value: &value) {
     let kind = value.kind;
     if kind == value_kind_string {
         dom_set_attribute_string(node, name, (value as &value_string).value);
@@ -92,7 +92,7 @@ fn set_attribute(node: &extern, name: &extern, value: &value) {
 
 // dangerouslySetInnerHTML's markup: the "__html" string of a map
 // ({ __html } in JS), "" for anything else.
-fn inner_html_of(value: &value) -> &extern {
+fn inner_html_of(value: &value) -> js_string {
     if value.kind == value_kind_map {
         let html = map_get(value, s_html_key);
         if !!html {
@@ -105,7 +105,7 @@ fn inner_html_of(value: &value) -> &extern {
     s_empty;
 }
 
-fn set_prop(node: &extern, name: &extern, value: &value, namespaced: i32) {
+fn set_prop(node: dom_node, name: js_string, value: &value, namespaced: i32) {
     if str_eq(name, s_dangerously_set_inner_html) {
         if value_is_null(value) {
             dom_replace_children(node);
@@ -142,7 +142,7 @@ fn set_prop(node: &extern, name: &extern, value: &value, namespaced: i32) {
     }
 }
 
-fn apply_value_last(node: &extern, value: &value) {
+fn apply_value_last(node: dom_node, value: &value) {
     let zero = 0;
     if value_is_number(value) {
         zero = value_to_f64(value) == 0.0;
@@ -154,12 +154,12 @@ fn apply_value_last(node: &extern, value: &value) {
     }
 }
 
-fn own(node: &extern) -> &extern {
+fn own(node: dom_node) -> dom_node {
     dom_own(node);
     node;
 }
 
-fn owned_child_nodes(parent: &extern) -> &ext_buf {
+fn owned_child_nodes(parent: dom_node) -> &ext_buf {
     let out = ext_buf_new(8);
     let at = dom_first_child(parent);
     while !!at {
@@ -172,7 +172,7 @@ fn owned_child_nodes(parent: &extern) -> &ext_buf {
     out;
 }
 
-fn next_owned_sibling(node: &extern) -> &?extern {
+fn next_owned_sibling(node: dom_node) -> dom_node_opt {
     let next = dom_next_sibling(node);
     while !!next {
         if dom_is_owned(next!) {
@@ -184,7 +184,7 @@ fn next_owned_sibling(node: &extern) -> &?extern {
 }
 
 // Node identity, null included.
-fn same_node(a: &?extern, b: &?extern) -> i32 {
+fn same_node(a: dom_node_opt, b: dom_node_opt) -> i32 {
     if !a {
         return !b;
     }
@@ -194,7 +194,7 @@ fn same_node(a: &?extern, b: &?extern) -> i32 {
     dom_is_same_node(a!, b!);
 }
 
-fn to_dom(node: &vnode, doc: &extern, ns: &?extern) -> &extern {
+fn to_dom(node: &vnode, doc: dom_document, ns: js_string_opt) -> dom_node {
     match node {
         f: &vnode_frag => {
             let out = dom_create_fragment(doc);
@@ -217,11 +217,11 @@ fn to_dom(node: &vnode, doc: &extern, ns: &?extern) -> &extern {
     unreachable;
 }
 
-fn elem_to_dom(e: &vnode_elem, doc: &extern, ns: &?extern) -> &extern {
+fn elem_to_dom(e: &vnode_elem, doc: dom_document, ns: js_string_opt) -> dom_node {
     let shape = e.shape;
     let values = e.values;
     let own_ns = el_ns(shape, ns);
-    let is_attr: &?extern = null;
+    let is_attr: js_string_opt = null;
     if shape.is_idx != -1 {
         is_attr = value_string_of(values[shape.is_idx]!);
     }
@@ -256,7 +256,12 @@ fn elem_to_dom(e: &vnode_elem, doc: &extern, ns: &?extern) -> &extern {
     out;
 }
 
-fn append_child_nodes(parent: &extern, childs: &vnode_array, doc: &extern, ns: &?extern) {
+fn append_child_nodes(
+    parent: dom_node,
+    childs: &vnode_array,
+    doc: dom_document,
+    ns: js_string_opt,
+) {
     let i = 0;
     while i <s childs.length() {
         dom_append_child(parent, to_dom(vnode_at(childs, i), doc, ns));
@@ -266,12 +271,12 @@ fn append_child_nodes(parent: &extern, childs: &vnode_array, doc: &extern, ns: &
 
 // A shared vnode skips by identity, an equal one by the cheaper vnode walk.
 fn morph_node(
-    dom_node: &extern,
+    dom_node: dom_node,
     source: &vnode,
     target: &vnode,
-    doc: &extern,
-    ns: &?extern,
-) -> &extern {
+    doc: dom_document,
+    ns: js_string_opt,
+) -> dom_node {
     if vnode_equal(source, target) {
         return dom_node;
     }
@@ -299,7 +304,13 @@ fn morph_node(
     out;
 }
 
-fn morph_elem(dom_node: &extern, s: &vnode_elem, t: &vnode_elem, doc: &extern, ns: &?extern) {
+fn morph_elem(
+    dom_node: dom_node,
+    s: &vnode_elem,
+    t: &vnode_elem,
+    doc: dom_document,
+    ns: js_string_opt,
+) {
     let shape = t.shape;
     let a = s.values;
     let b = t.values;
@@ -350,11 +361,11 @@ fn morph_elem(dom_node: &extern, s: &vnode_elem, t: &vnode_elem, doc: &extern, n
 }
 
 fn mount_before(
-    parent: &extern,
+    parent: dom_node,
     node: &vnode,
-    doc: &extern,
-    ns: &?extern,
-    before: &?extern,
+    doc: dom_document,
+    ns: js_string_opt,
+    before: dom_node_opt,
 ) -> &ext_buf {
     let dom = to_dom(node, doc, ns);
     let nodes = ext_buf_new(1);
@@ -371,7 +382,7 @@ fn mount_before(
     nodes;
 }
 
-fn remove_all(parent: &extern, nodes: &ext_buf) {
+fn remove_all(parent: dom_node, nodes: &ext_buf) {
     let i = 0;
     while i <s nodes.len {
         dom_remove_child(parent, ext_buf_at(nodes, i));
@@ -379,7 +390,7 @@ fn remove_all(parent: &extern, nodes: &ext_buf) {
     }
 }
 
-fn fail_duplicate_key(key: &extern) {
+fn fail_duplicate_key(key: js_string) {
     host_fail(js_string_concat(s_duplicate_key, key));
 }
 
@@ -389,13 +400,13 @@ fn fail_duplicate_key(key: &extern) {
 // virtual indices need not equal DOM indices, since a fragment makes as many
 // nodes as its children do, including none. Returns the nodes new_childs made.
 fn morph_children(
-    parent: &extern,
+    parent: dom_node,
     old_childs: &vnode_array,
     new_childs: &vnode_array,
-    doc: &extern,
-    ns: &?extern,
+    doc: dom_document,
+    ns: js_string_opt,
     dom_nodes: &ext_buf,
-    before: &?extern,
+    before: dom_node_opt,
 ) -> &ext_buf {
     let old_n = old_childs.length();
     let new_n = new_childs.length();
@@ -499,14 +510,14 @@ fn morph_children(
 // or mounting it when it matched none, or when one of the two is a fragment
 // and the other isn't, or when the old child's nodes are gone.
 fn place(
-    parent: &extern,
+    parent: dom_node,
     old_childs: &vnode_array,
     old_groups: &ext_bufs,
     index: i32,
     target: &vnode,
-    doc: &extern,
-    ns: &?extern,
-    before: &?extern,
+    doc: dom_document,
+    ns: js_string_opt,
+    before: dom_node_opt,
 ) -> &ext_buf {
     if index == -1 {
         return mount_before(parent, target, doc, ns, before);
@@ -543,7 +554,7 @@ fn place(
 
 // Renders childs into container, morphing from prev, the childs of the last
 // render, when there is one.
-fn render(doc: &extern, container: &extern, childs: &vnode_array, prev: &?vnode_array) {
+fn render(doc: dom_document, container: dom_node, childs: &vnode_array, prev: &?vnode_array) {
     if !prev {
         dom_replace_children(container);
         append_child_nodes(container, childs, doc, null);

@@ -10,19 +10,25 @@
 // being copied. The builtins take nullable externrefs: an engine rejects the
 // module if they are declared `&extern`.
 
+// A JS string, and an optional one. Aliases name what an externref holds and
+// compile to the externref itself; a plain `&extern` is any JS value
+// (src/buf.wax), and src/imports.wax names the DOM's.
+type js_string = &extern;
+type js_string_opt = &?extern;
+
 // UTF-16 code units, for building strings (text.wax): fromCharCodeArray
 // takes exactly this array type.
 type u16_array = [mut i16];
 
 import "wasm:js-string" {
     #[import = "equals"]
-    fn js_string_equals(a: &?extern, b: &?extern) -> i32;
+    fn js_string_equals(a: js_string_opt, b: js_string_opt) -> i32;
     #[import = "length"]
-    fn js_string_length(s: &?extern) -> i32;
+    fn js_string_length(s: js_string_opt) -> i32;
     #[import = "charCodeAt"]
-    fn js_string_char_code_at(s: &?extern, i: i32) -> i32;
+    fn js_string_char_code_at(s: js_string_opt, i: i32) -> i32;
     #[import = "concat"]
-    fn js_string_concat(a: &?extern, b: &?extern) -> &extern;
+    fn js_string_concat(a: js_string_opt, b: js_string_opt) -> js_string;
     #[import = "fromCharCodeArray"]
-    fn js_string_from_char_code_array(units: &?u16_array, start: i32, end: i32) -> &extern;
+    fn js_string_from_char_code_array(units: &?u16_array, start: i32, end: i32) -> js_string;
 }

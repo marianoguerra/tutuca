@@ -1,634 +1,647 @@
 // What the runtime imports from its host, besides the js-string builtins
 // (prelude/js_string.wax).
 //
-// Strings are JS strings: an `&extern` passed through as it is, so a string
-// crosses the boundary without being copied. Optional strings are `&?extern`.
+// Strings are JS strings: a `js_string` (prelude/js_string.wax), an externref
+// passed through as it is, so a string crosses the boundary without being
+// copied. Optional strings are `js_string_opt`.
 
 // String constants (imported string constants, the "'" module): each global
 // is the JS string its import name spells.
 import "'" {
     #[import = "value"]
-    const s_value: &extern;
+    const s_value: js_string;
     #[import = "checked"]
-    const s_checked: &extern;
+    const s_checked: js_string;
     #[import = "is"]
-    const s_is: &extern;
+    const s_is: js_string;
     #[import = "dangerouslySetInnerHTML"]
-    const s_dangerously_set_inner_html: &extern;
+    const s_dangerously_set_inner_html: js_string;
     #[import = ""]
-    const s_empty: &extern;
+    const s_empty: js_string;
     #[import = "PROGRESS"]
-    const s_progress_tag: &extern;
+    const s_progress_tag: js_string;
     #[import = "SELECT"]
-    const s_select_tag: &extern;
+    const s_select_tag: js_string;
     #[import = "svg"]
-    const s_svg: &extern;
+    const s_svg: js_string;
     #[import = "math"]
-    const s_math: &extern;
+    const s_math: js_string;
     #[import = "foreignobject"]
-    const s_foreign_object_lower: &extern;
+    const s_foreign_object_lower: js_string;
     #[import = "http://www.w3.org/1999/xhtml"]
-    const s_html_ns: &extern;
+    const s_html_ns: js_string;
     #[import = "http://www.w3.org/2000/svg"]
-    const s_svg_ns: &extern;
+    const s_svg_ns: js_string;
     #[import = "http://www.w3.org/1998/Math/MathML"]
-    const s_math_ns: &extern;
+    const s_math_ns: js_string;
     #[import = "className"]
-    const s_class_name: &extern;
+    const s_class_name: js_string;
     #[import = "class"]
-    const s_class: &extern;
+    const s_class: js_string;
     #[import = "htmlFor"]
-    const s_html_for: &extern;
+    const s_html_for: js_string;
     #[import = "for"]
-    const s_for: &extern;
+    const s_for: js_string;
     // DOM properties that must be set as attributes.
     #[import = "width"]
-    const s_width: &extern;
+    const s_width: js_string;
     #[import = "height"]
-    const s_height: &extern;
+    const s_height: js_string;
     #[import = "href"]
-    const s_href: &extern;
+    const s_href: js_string;
     #[import = "list"]
-    const s_list: &extern;
+    const s_list: js_string;
     #[import = "form"]
-    const s_form: &extern;
+    const s_form: js_string;
     #[import = "tabIndex"]
-    const s_tab_index: &extern;
+    const s_tab_index: js_string;
     #[import = "download"]
-    const s_download: &extern;
+    const s_download: js_string;
     #[import = "rowSpan"]
-    const s_row_span: &extern;
+    const s_row_span: js_string;
     #[import = "colSpan"]
-    const s_col_span: &extern;
+    const s_col_span: js_string;
     #[import = "role"]
-    const s_role: &extern;
+    const s_role: js_string;
     #[import = "popover"]
-    const s_popover: &extern;
+    const s_popover: js_string;
     #[import = "data-eid"]
-    const s_data_eid: &extern;
+    const s_data_eid: js_string;
     #[import = "null"]
-    const s_null: &extern;
+    const s_null: js_string;
     #[import = "__html"]
-    const s_html_key: &extern;
+    const s_html_key: js_string;
     #[import = "key"]
-    const s_key: &extern;
+    const s_key: js_string;
     // Views (eval.wax).
     #[import = "main"]
-    const s_main: &extern;
+    const s_main: js_string;
     #[import = "true"]
-    const s_true: &extern;
+    const s_true: js_string;
     #[import = "false"]
-    const s_false: &extern;
+    const s_false: js_string;
     #[import = "[object Object]"]
-    const s_object_object: &extern;
+    const s_object_object: js_string;
     #[import = ","]
-    const s_comma: &extern;
+    const s_comma: js_string;
     // The pieces of the metadata comments (meta.wax).
     #[import = "§{\"t\":\"component\"}§"]
-    const s_meta_component: &extern;
+    const s_meta_component: js_string;
     #[import = "§/§"]
-    const s_meta_close: &extern;
+    const s_meta_close: js_string;
     #[import = "§{\"t\":\"frame\",\"p\":"]
-    const s_meta_frame_open: &extern;
+    const s_meta_frame_open: js_string;
     #[import = "{\"v\":"]
-    const s_meta_provider_open: &extern;
+    const s_meta_provider_open: js_string;
     #[import = ",\"d\":"]
-    const s_meta_depth: &extern;
+    const s_meta_depth: js_string;
     #[import = ",\"k\":"]
-    const s_meta_keys: &extern;
+    const s_meta_keys: js_string;
     #[import = ",\"i\":"]
-    const s_meta_item: &extern;
+    const s_meta_item: js_string;
     #[import = "}§"]
-    const s_meta_frame_close: &extern;
+    const s_meta_frame_close: js_string;
     // Metadata JSON field names and values (decode.wax).
     #[import = "t"]
-    const s_t: &extern;
+    const s_t: js_string;
     #[import = "p"]
-    const s_p: &extern;
+    const s_p: js_string;
     #[import = "k"]
-    const s_k: &extern;
+    const s_k: js_string;
     #[import = "i"]
-    const s_i: &extern;
+    const s_i: js_string;
     #[import = "v"]
-    const s_v: &extern;
+    const s_v: js_string;
     #[import = "d"]
-    const s_d: &extern;
+    const s_d: js_string;
     #[import = "component"]
-    const s_component: &extern;
+    const s_component: js_string;
     #[import = "frame"]
-    const s_frame: &extern;
+    const s_frame: js_string;
     // Reply message suffixes (host.wax).
     #[import = "_reply_ok"]
-    const s_reply_ok: &extern;
+    const s_reply_ok: js_string;
     #[import = "_reply_error"]
-    const s_reply_error: &extern;
+    const s_reply_error: js_string;
     #[import = "_handler_not_found"]
-    const s_handler_not_found: &extern;
+    const s_handler_not_found: js_string;
     // Drag and drop (collect.wax, host.wax).
     #[import = "drop"]
-    const s_drop: &extern;
+    const s_drop: js_string;
     #[import = "dragstart"]
-    const s_dragstart: &extern;
+    const s_dragstart: js_string;
     #[import = "dragend"]
-    const s_dragend: &extern;
+    const s_dragend: js_string;
     #[import = "dragenter"]
-    const s_dragenter: &extern;
+    const s_dragenter: js_string;
     #[import = "dragover"]
-    const s_dragover: &extern;
+    const s_dragover: js_string;
     #[import = "dragleave"]
-    const s_dragleave: &extern;
+    const s_dragleave: js_string;
     #[import = "dragtype"]
-    const s_dragtype: &extern;
+    const s_dragtype: js_string;
     #[import = "dragging"]
-    const s_dragging: &extern;
+    const s_dragging: js_string;
     #[import = "draggingover"]
-    const s_draggingover: &extern;
+    const s_draggingover: js_string;
     #[import = "external"]
-    const s_external: &extern;
+    const s_external: js_string;
     #[import = "type"]
-    const s_type: &extern;
+    const s_type: js_string;
     // Schemas (schema.wax): type names, problems, interfaces, schemas as values.
     #[import = "A record type's names and types must align"]
-    const s_err_record_shape: &extern;
+    const s_err_record_shape: js_string;
     #[import = ", "]
-    const s_comma_space: &extern;
+    const s_comma_space: js_string;
     #[import = ": "]
-    const s_colon_space: &extern;
+    const s_colon_space: js_string;
     #[import = " | "]
-    const s_or_space: &extern;
+    const s_or_space: js_string;
     #[import = "any"]
-    const s_t_any: &extern;
+    const s_t_any: js_string;
     #[import = "bool"]
-    const s_t_bool: &extern;
+    const s_t_bool: js_string;
     #[import = "s32"]
-    const s_t_s32: &extern;
+    const s_t_s32: js_string;
     #[import = "f64"]
-    const s_t_f64: &extern;
+    const s_t_f64: js_string;
     #[import = "string"]
-    const s_t_string: &extern;
+    const s_t_string: js_string;
     #[import = "enum { "]
-    const s_t_enum_open: &extern;
+    const s_t_enum_open: js_string;
     #[import = " }"]
-    const s_t_brace_close: &extern;
+    const s_t_brace_close: js_string;
     #[import = "option"]
-    const s_t_option: &extern;
+    const s_t_option: js_string;
     #[import = "list"]
-    const s_t_list: &extern;
+    const s_t_list: js_string;
     #[import = "map"]
-    const s_t_map: &extern;
+    const s_t_map: js_string;
     #[import = "record { "]
-    const s_t_record_open: &extern;
+    const s_t_record_open: js_string;
     #[import = "one_of"]
-    const s_t_one_of: &extern;
+    const s_t_one_of: js_string;
     #[import = "result"]
-    const s_t_result: &extern;
+    const s_t_result: js_string;
     #[import = "a list of "]
-    const s_v_list_of: &extern;
+    const s_v_list_of: js_string;
     #[import = " items"]
-    const s_v_items: &extern;
+    const s_v_items: js_string;
     #[import = "a map of "]
-    const s_v_map_of: &extern;
+    const s_v_map_of: js_string;
     #[import = " keys"]
-    const s_v_keys: &extern;
+    const s_v_keys: js_string;
     #[import = "a result"]
-    const s_v_result: &extern;
+    const s_v_result: js_string;
     #[import = "a "]
-    const s_v_a: &extern;
+    const s_v_a: js_string;
     #[import = "item "]
-    const s_p_item: &extern;
+    const s_p_item: js_string;
     #[import = "missing"]
-    const s_p_missing: &extern;
+    const s_p_missing: js_string;
     #[import = "not a key of the record"]
-    const s_p_not_in_record: &extern;
+    const s_p_not_in_record: js_string;
     #[import = "expected "]
-    const s_p_expected: &extern;
+    const s_p_expected: js_string;
     #[import = ", got "]
-    const s_p_got: &extern;
+    const s_p_got: js_string;
     #[import = "key "]
-    const s_p_key: &extern;
+    const s_p_key: js_string;
     #[import = "must be at least "]
-    const s_p_at_least: &extern;
+    const s_p_at_least: js_string;
     #[import = "must be above "]
-    const s_p_above: &extern;
+    const s_p_above: js_string;
     #[import = "must be below "]
-    const s_p_below: &extern;
+    const s_p_below: js_string;
     #[import = "must be at most "]
-    const s_p_at_most: &extern;
+    const s_p_at_most: js_string;
     #[import = "must have at least "]
-    const s_p_len_at_least: &extern;
+    const s_p_len_at_least: js_string;
     #[import = "must have at most "]
-    const s_p_len_at_most: &extern;
+    const s_p_len_at_most: js_string;
     #[import = " characters"]
-    const s_p_characters: &extern;
+    const s_p_characters: js_string;
     #[import = " items"]
-    const s_p_items: &extern;
+    const s_p_items: js_string;
     #[import = "must be one of "]
-    const s_p_one_of: &extern;
+    const s_p_one_of: js_string;
     #[import = "must not be one of "]
-    const s_p_none_of: &extern;
+    const s_p_none_of: js_string;
     #[import = "must be a key of "]
-    const s_p_key_of: &extern;
+    const s_p_key_of: js_string;
     #[import = "must match /"]
-    const s_p_matching: &extern;
+    const s_p_matching: js_string;
     #[import = "must satisfy "]
-    const s_p_satisfying: &extern;
+    const s_p_satisfying: js_string;
     #[import = "its "]
-    const s_i_its: &extern;
+    const s_i_its: js_string;
     #[import = " is "]
-    const s_i_is: &extern;
+    const s_i_is: js_string;
     #[import = "'s is "]
-    const s_i_s_is: &extern;
+    const s_i_s_is: js_string;
     #[import = "it has no "]
-    const s_i_it_has_no: &extern;
+    const s_i_it_has_no: js_string;
     #[import = "it has no schema"]
-    const s_i_no_schema: &extern;
+    const s_i_no_schema: js_string;
     #[import = "it doesn't declare that it implements "]
-    const s_i_doesnt_declare: &extern;
+    const s_i_doesnt_declare: js_string;
     #[import = "field "]
-    const s_i_field: &extern;
+    const s_i_field: js_string;
     #[import = "message "]
-    const s_i_message: &extern;
+    const s_i_message: js_string;
     #[import = " takes "]
-    const s_i_takes: &extern;
+    const s_i_takes: js_string;
     #[import = " arguments, "]
-    const s_i_arguments: &extern;
+    const s_i_arguments: js_string;
     #[import = "'s takes "]
-    const s_i_s_takes: &extern;
+    const s_i_s_takes: js_string;
     #[import = " argument "]
-    const s_i_argument: &extern;
+    const s_i_argument: js_string;
     #[import = " can't be a "]
-    const s_i_cant_be: &extern;
+    const s_i_cant_be: js_string;
     #[import = "> "]
-    const s_c_gt: &extern;
+    const s_c_gt: js_string;
     #[import = ">= "]
-    const s_c_ge: &extern;
+    const s_c_ge: js_string;
     #[import = "< "]
-    const s_c_lt: &extern;
+    const s_c_lt: js_string;
     #[import = "<= "]
-    const s_c_le: &extern;
+    const s_c_le: js_string;
     #[import = "len >= "]
-    const s_c_len_ge: &extern;
+    const s_c_len_ge: js_string;
     #[import = "len <= "]
-    const s_c_len_le: &extern;
+    const s_c_len_le: js_string;
     #[import = "in ["]
-    const s_c_in: &extern;
+    const s_c_in: js_string;
     #[import = "not in ["]
-    const s_c_not_in: &extern;
+    const s_c_not_in: js_string;
     #[import = "in keys("]
-    const s_c_in_keys: &extern;
+    const s_c_in_keys: js_string;
     #[import = "matches "]
-    const s_c_matches: &extern;
+    const s_c_matches: js_string;
     #[import = "check("]
-    const s_c_check: &extern;
+    const s_c_check: js_string;
     #[import = "shared"]
-    const s_sync_shared: &extern;
+    const s_sync_shared: js_string;
     #[import = "local"]
-    const s_sync_local: &extern;
+    const s_sync_local: js_string;
     #[import = "none"]
-    const s_sync_none: &extern;
+    const s_sync_none: js_string;
     #[import = "name"]
-    const s_name: &extern;
+    const s_name: js_string;
     #[import = "constraints"]
-    const s_constraints: &extern;
+    const s_constraints: js_string;
     #[import = "sync"]
-    const s_sync: &extern;
+    const s_sync: js_string;
     #[import = "args"]
-    const s_args: &extern;
+    const s_args: js_string;
     #[import = "sourceKey"]
-    const s_source_key_name: &extern;
+    const s_source_key_name: js_string;
     #[import = "pre"]
-    const s_pre: &extern;
+    const s_pre: js_string;
     #[import = "post"]
-    const s_post: &extern;
+    const s_post: js_string;
     #[import = "changes"]
-    const s_changes: &extern;
+    const s_changes: js_string;
     #[import = "emits"]
-    const s_emits: &extern;
+    const s_emits: js_string;
     #[import = "kind"]
-    const s_kind: &extern;
+    const s_kind: js_string;
     #[import = "fields"]
-    const s_fields: &extern;
+    const s_fields: js_string;
     #[import = "gets"]
-    const s_gets: &extern;
+    const s_gets: js_string;
     #[import = "messages"]
-    const s_messages: &extern;
+    const s_messages: js_string;
     #[import = "invariants"]
-    const s_invariants: &extern;
+    const s_invariants: js_string;
     #[import = "interfaces"]
-    const s_interfaces: &extern;
+    const s_interfaces: js_string;
     #[import = "notify"]
-    const s_e_notify: &extern;
+    const s_e_notify: js_string;
     #[import = "ask"]
-    const s_e_ask: &extern;
+    const s_e_ask: js_string;
     #[import = "sendAt"]
-    const s_e_send_at: &extern;
+    const s_e_send_at: js_string;
     // Event modifiers (sem.wax).
     #[import = "enter"]
-    const s_mod_enter: &extern;
+    const s_mod_enter: js_string;
     #[import = "escape"]
-    const s_mod_escape: &extern;
+    const s_mod_escape: js_string;
     #[import = "esc"]
-    const s_mod_esc: &extern;
+    const s_mod_esc: js_string;
     #[import = "tab"]
-    const s_mod_tab: &extern;
+    const s_mod_tab: js_string;
     #[import = "space"]
-    const s_mod_space: &extern;
+    const s_mod_space: js_string;
     #[import = "up"]
-    const s_mod_up: &extern;
+    const s_mod_up: js_string;
     #[import = "down"]
-    const s_mod_down: &extern;
+    const s_mod_down: js_string;
     #[import = "left"]
-    const s_mod_left: &extern;
+    const s_mod_left: js_string;
     #[import = "right"]
-    const s_mod_right: &extern;
+    const s_mod_right: js_string;
     #[import = "delete"]
-    const s_mod_delete: &extern;
+    const s_mod_delete: js_string;
     #[import = "backspace"]
-    const s_mod_backspace: &extern;
+    const s_mod_backspace: js_string;
     #[import = "ctrl"]
-    const s_mod_ctrl: &extern;
+    const s_mod_ctrl: js_string;
     #[import = "alt"]
-    const s_mod_alt: &extern;
+    const s_mod_alt: js_string;
     #[import = "shift"]
-    const s_mod_shift: &extern;
+    const s_mod_shift: js_string;
     #[import = "meta"]
-    const s_mod_meta: &extern;
+    const s_mod_meta: js_string;
     #[import = "prevent"]
-    const s_mod_prevent: &extern;
+    const s_mod_prevent: js_string;
     #[import = "stop"]
-    const s_mod_stop: &extern;
+    const s_mod_stop: js_string;
     #[import = "Enter"]
-    const s_key_enter: &extern;
+    const s_key_enter: js_string;
     #[import = "Escape"]
-    const s_key_escape: &extern;
+    const s_key_escape: js_string;
     #[import = "Tab"]
-    const s_key_tab: &extern;
+    const s_key_tab: js_string;
     #[import = " "]
-    const s_key_space: &extern;
+    const s_key_space: js_string;
     #[import = "ArrowUp"]
-    const s_key_up: &extern;
+    const s_key_up: js_string;
     #[import = "ArrowDown"]
-    const s_key_down: &extern;
+    const s_key_down: js_string;
     #[import = "ArrowLeft"]
-    const s_key_left: &extern;
+    const s_key_left: js_string;
     #[import = "ArrowRight"]
-    const s_key_right: &extern;
+    const s_key_right: js_string;
     #[import = "Delete"]
-    const s_key_delete: &extern;
+    const s_key_delete: js_string;
     #[import = "Backspace"]
-    const s_key_backspace: &extern;
+    const s_key_backspace: js_string;
     #[import = "ctrlKey"]
-    const s_ctrl_key: &extern;
+    const s_ctrl_key: js_string;
     #[import = "altKey"]
-    const s_alt_key: &extern;
+    const s_alt_key: js_string;
     #[import = "shiftKey"]
-    const s_shift_key: &extern;
+    const s_shift_key: js_string;
     #[import = "metaKey"]
-    const s_meta_key: &extern;
+    const s_meta_key: js_string;
     #[import = "Unknown event modifier "]
-    const s_err_event_mod: &extern;
+    const s_err_event_mod: js_string;
     #[import = " in on:"]
-    const s_err_event_mod_in: &extern;
+    const s_err_event_mod_in: js_string;
     // Checks and rejections (check.wax).
     #[import = "message"]
-    const s_message: &extern;
+    const s_message: js_string;
     #[import = "reason"]
-    const s_reason: &extern;
+    const s_reason: js_string;
     #[import = "index"]
-    const s_index: &extern;
+    const s_index: js_string;
     #[import = "detail"]
-    const s_detail: &extern;
+    const s_detail: js_string;
     #[import = "wrongArity"]
-    const s_r_wrong_arity: &extern;
+    const s_r_wrong_arity: js_string;
     #[import = "wrongArgType"]
-    const s_r_wrong_arg_type: &extern;
+    const s_r_wrong_arg_type: js_string;
     #[import = "invalidArg"]
-    const s_r_invalid_arg: &extern;
+    const s_r_invalid_arg: js_string;
     #[import = "failed"]
-    const s_r_failed: &extern;
+    const s_r_failed: js_string;
     #[import = "it takes "]
-    const s_r_takes: &extern;
+    const s_r_takes: js_string;
     #[import = " arguments, got "]
-    const s_r_arguments_got: &extern;
+    const s_r_arguments_got: js_string;
     #[import = " argument, got "]
-    const s_r_argument_got: &extern;
+    const s_r_argument_got: js_string;
     #[import = "the invariant "]
-    const s_r_the_invariant: &extern;
+    const s_r_the_invariant: js_string;
     #[import = " doesn't hold"]
-    const s_r_doesnt_hold: &extern;
+    const s_r_doesnt_hold: js_string;
     #[import = "argument "]
-    const s_r_argument: &extern;
+    const s_r_argument: js_string;
     #[import = " ("]
-    const s_r_paren_open: &extern;
+    const s_r_paren_open: js_string;
     #[import = "has the wrong type"]
-    const s_r_wrong_type: &extern;
+    const s_r_wrong_type: js_string;
     #[import = "emits:"]
-    const s_r_emits: &extern;
+    const s_r_emits: js_string;
     #[import = ":"]
-    const s_colon: &extern;
+    const s_colon: js_string;
     #[import = "changes:"]
-    const s_r_changes: &extern;
+    const s_r_changes: js_string;
     #[import = "issues"]
-    const s_issues: &extern;
+    const s_issues: js_string;
     #[import = "error"]
-    const s_error: &extern;
+    const s_error: js_string;
     #[import = "path"]
-    const s_path: &extern;
+    const s_path: js_string;
     #[import = "invalid"]
-    const s_invalid: &extern;
+    const s_invalid: js_string;
     #[import = "invariant:"]
-    const s_r_invariant: &extern;
+    const s_r_invariant: js_string;
     #[import = "task"]
-    const s_task: &extern;
+    const s_task: js_string;
     #[import = "settled"]
-    const s_settled: &extern;
+    const s_settled: js_string;
     #[import = "stateInvalid"]
-    const s_state_invalid: &extern;
+    const s_state_invalid: js_string;
     #[import = "messageInvalid"]
-    const s_message_invalid: &extern;
+    const s_message_invalid: js_string;
     // init's issues (author.wax).
     #[import = "field"]
-    const s_field: &extern;
+    const s_field: js_string;
     #[import = "problem"]
-    const s_problem: &extern;
+    const s_problem: js_string;
     #[import = "missing"]
-    const s_missing: &extern;
+    const s_missing: js_string;
     #[import = "wrong type"]
-    const s_wrong_type: &extern;
+    const s_wrong_type: js_string;
     // Error messages.
     #[import = "Duplicate sibling key: "]
-    const s_duplicate_key: &extern;
+    const s_duplicate_key: js_string;
     #[import = " must be a dynamic attr"]
-    const s_must_be_dynamic: &extern;
+    const s_must_be_dynamic: js_string;
     #[import = "Can't read or write the property at key "]
-    const s_err_property: &extern;
+    const s_err_property: js_string;
     #[import = "Can't read below something that isn't a component, map or list, at key "]
-    const s_err_not_a_container: &extern;
+    const s_err_not_a_container: js_string;
     #[import = "An item key must be a string, an int or null"]
-    const s_err_bad_item_key: &extern;
+    const s_err_bad_item_key: js_string;
     #[import = "No component type is registered as "]
-    const s_err_unknown_component: &extern;
+    const s_err_unknown_component: js_string;
     #[import = "Can't make a component of type "]
-    const s_err_cant_make: &extern;
+    const s_err_cant_make: js_string;
     #[import = "Only a component can be rendered"]
-    const s_err_render_not_component: &extern;
+    const s_err_render_not_component: js_string;
     #[import = "No component where this task goes: "]
-    const s_err_not_a_component: &extern;
+    const s_err_not_a_component: js_string;
     #[import = "The component rejected the message "]
-    const s_err_rejected: &extern;
+    const s_err_rejected: js_string;
     #[import = "A view element belongs to the views of one component type"]
-    const s_err_view_shared: &extern;
+    const s_err_view_shared: js_string;
     #[import = "A component type needs a main view: "]
-    const s_err_no_main_view: &extern;
+    const s_err_no_main_view: js_string;
     #[import = "A component type's view names and views must align: "]
-    const s_err_view_names: &extern;
+    const s_err_view_names: js_string;
     #[import = "A view element renders only once its component type's spec_new collected it"]
-    const s_err_view_not_collected: &extern;
+    const s_err_view_not_collected: js_string;
     #[import = "Only a constant, field, seqItem, provided, lookupBind or an if of them has a value"]
-    const s_err_not_a_value: &extern;
+    const s_err_not_a_value: js_string;
     #[import = "A render or loop source must be a field, seqItem or provided"]
-    const s_err_not_a_source: &extern;
+    const s_err_not_a_source: js_string;
     #[import = "No ancestor provides "]
-    const s_err_no_provider: &extern;
+    const s_err_no_provider: js_string;
     #[import = "No loop named "]
-    const s_err_unknown_loop: &extern;
+    const s_err_unknown_loop: js_string;
     #[import = "No scope named "]
-    const s_err_unknown_scope: &extern;
+    const s_err_unknown_scope: js_string;
     #[import = "A component in a view renders through render, not as a child"]
-    const s_err_component_child: &extern;
+    const s_err_component_child: js_string;
     #[import = "A loop's iter must return a list of [key, value] lists"]
-    const s_err_bad_iter: &extern;
+    const s_err_bad_iter: js_string;
     #[import = "An ask handler only answers, it can't send: "]
-    const s_err_ask_sends: &extern;
+    const s_err_ask_sends: js_string;
     #[import = "A loop source must be a list or a map"]
-    const s_err_not_iterable: &extern;
+    const s_err_not_iterable: js_string;
     #[import = "A view name must be a string"]
-    const s_err_view_name: &extern;
+    const s_err_view_name: js_string;
 }
 
 // The DOM, as the host gives it: the DomNode trait of tutuca-mb's
 // vdom/dom.mbt, flattened so that nothing but nodes, strings, numbers and
 // booleans crosses the boundary (NOTES.md has the mapping).
+//
+// What its externrefs hold, as js_string names strings: a node (an element,
+// text, comment or fragment), the document nodes are made in, an event. A
+// Value the host is given or gives back crosses as an externref too, a
+// `value_extern`: `v as &extern` going out, `as &any as &value` coming back.
+type dom_node = &extern;
+type dom_node_opt = &?extern;
+type dom_document = &extern;
+type dom_document_opt = &?extern;
+type dom_event = &extern;
+type value_extern = &extern;
+
 import "dom" {
     #[import = "create_element"]
-    fn dom_create_element(doc: &extern, tag_name: &extern, ns: &?extern, is_attr: &?extern) -> &extern;
+    fn dom_create_element(doc: dom_document, tag_name: js_string, ns: js_string_opt, is_attr: js_string_opt) -> dom_node;
     #[import = "create_text"]
-    fn dom_create_text(doc: &extern, text: &extern) -> &extern;
+    fn dom_create_text(doc: dom_document, text: js_string) -> dom_node;
     #[import = "create_comment"]
-    fn dom_create_comment(doc: &extern, text: &extern) -> &extern;
+    fn dom_create_comment(doc: dom_document, text: js_string) -> dom_node;
     #[import = "create_fragment"]
-    fn dom_create_fragment(doc: &extern) -> &extern;
+    fn dom_create_fragment(doc: dom_document) -> dom_node;
 
     #[import = "append_child"]
-    fn dom_append_child(parent: &extern, child: &extern);
+    fn dom_append_child(parent: dom_node, child: dom_node);
     // Appends when ref_node is null.
     #[import = "insert_before"]
-    fn dom_insert_before(parent: &extern, node: &extern, ref_node: &?extern);
+    fn dom_insert_before(parent: dom_node, node: dom_node, ref_node: dom_node_opt);
     #[import = "remove_child"]
-    fn dom_remove_child(parent: &extern, child: &extern);
+    fn dom_remove_child(parent: dom_node, child: dom_node);
     #[import = "replace_child"]
-    fn dom_replace_child(parent: &extern, node: &extern, old: &extern);
+    fn dom_replace_child(parent: dom_node, node: dom_node, old: dom_node);
     // replaceChildren() with no arguments: removes every child.
     #[import = "replace_children"]
-    fn dom_replace_children(node: &extern);
+    fn dom_replace_children(node: dom_node);
     #[import = "parent_node"]
-    fn dom_parent_node(node: &extern) -> &?extern;
+    fn dom_parent_node(node: dom_node) -> dom_node_opt;
     #[import = "previous_sibling"]
-    fn dom_previous_sibling(node: &extern) -> &?extern;
+    fn dom_previous_sibling(node: dom_node) -> dom_node_opt;
     // A comment's text, or null for any other node.
     #[import = "comment_data"]
-    fn dom_comment_data(node: &extern) -> &?extern;
+    fn dom_comment_data(node: dom_node) -> js_string_opt;
     // An element's data-eid as a number, -1 when it has none.
     #[import = "get_eid"]
-    fn dom_get_eid(node: &extern) -> i32;
+    fn dom_get_eid(node: dom_node) -> i32;
     // The value of the element with a handler, as a Value (a wasm value the
     // host made through the exports): checked for a checkbox, value otherwise.
     #[import = "target_value"]
-    fn dom_target_value(node: &extern) -> &extern;
+    fn dom_target_value(node: dom_node) -> value_extern;
     #[import = "first_child"]
-    fn dom_first_child(node: &extern) -> &?extern;
+    fn dom_first_child(node: dom_node) -> dom_node_opt;
     #[import = "next_sibling"]
-    fn dom_next_sibling(node: &extern) -> &?extern;
+    fn dom_next_sibling(node: dom_node) -> dom_node_opt;
     // Identity: externrefs can't be compared inside wasm.
     #[import = "is_same_node"]
-    fn dom_is_same_node(a: &extern, b: &extern) -> i32;
+    fn dom_is_same_node(a: dom_node, b: dom_node) -> i32;
 
     #[import = "set_attribute_string"]
-    fn dom_set_attribute_string(node: &extern, name: &extern, value: &extern);
+    fn dom_set_attribute_string(node: dom_node, name: js_string, value: js_string);
     #[import = "set_attribute_number"]
-    fn dom_set_attribute_number(node: &extern, name: &extern, value: f64);
+    fn dom_set_attribute_number(node: dom_node, name: js_string, value: f64);
     #[import = "set_attribute_bool"]
-    fn dom_set_attribute_bool(node: &extern, name: &extern, value: i32);
+    fn dom_set_attribute_bool(node: dom_node, name: js_string, value: i32);
     // setAttribute with an opaque object: String(value).
     #[import = "set_attribute_ref"]
-    fn dom_set_attribute_ref(node: &extern, name: &extern, value: &extern);
+    fn dom_set_attribute_ref(node: dom_node, name: js_string, value: value_extern);
     #[import = "remove_attribute"]
-    fn dom_remove_attribute(node: &extern, name: &extern);
+    fn dom_remove_attribute(node: dom_node, name: js_string);
     // `name in node`: whether a prop is set as a property or an attribute.
     #[import = "has_property"]
-    fn dom_has_property(node: &extern, name: &extern) -> i32;
+    fn dom_has_property(node: dom_node, name: js_string) -> i32;
     // node[name] = value; 0 when the assignment threw.
     #[import = "set_string_property"]
-    fn dom_set_string_property(node: &extern, name: &extern, value: &extern) -> i32;
+    fn dom_set_string_property(node: dom_node, name: js_string, value: js_string) -> i32;
     #[import = "set_number_property"]
-    fn dom_set_number_property(node: &extern, name: &extern, value: f64) -> i32;
+    fn dom_set_number_property(node: dom_node, name: js_string, value: f64) -> i32;
     #[import = "set_bool_property"]
-    fn dom_set_bool_property(node: &extern, name: &extern, value: i32) -> i32;
+    fn dom_set_bool_property(node: dom_node, name: js_string, value: i32) -> i32;
     // A list, map, result or component, as the opaque object it is.
     #[import = "set_ref_property"]
-    fn dom_set_ref_property(node: &extern, name: &extern, value: &extern) -> i32;
+    fn dom_set_ref_property(node: dom_node, name: js_string, value: value_extern) -> i32;
     #[import = "get_inner_html"]
-    fn dom_get_inner_html(node: &extern) -> &extern;
+    fn dom_get_inner_html(node: dom_node) -> js_string;
     #[import = "set_inner_html"]
-    fn dom_set_inner_html(node: &extern, html: &extern);
+    fn dom_set_inner_html(node: dom_node, html: js_string);
     // Text and comment character data.
     #[import = "set_data"]
-    fn dom_set_data(node: &extern, text: &extern);
+    fn dom_set_data(node: dom_node, text: js_string);
     // Uppercase for HTML elements, as in the DOM.
     #[import = "tag_name"]
-    fn dom_tag_name(node: &extern) -> &extern;
+    fn dom_tag_name(node: dom_node) -> js_string;
     // null for nodes without one.
     #[import = "namespace_uri"]
-    fn dom_namespace_uri(node: &extern) -> &?extern;
+    fn dom_namespace_uri(node: dom_node) -> js_string_opt;
 
     // The nodes render made (a WeakSet on the host). Morphing matches vnodes
     // to these only, so nodes other code put in a rendered element don't
     // shift the match, and stay.
     #[import = "own"]
-    fn dom_own(node: &extern);
+    fn dom_own(node: dom_node);
     #[import = "is_owned"]
-    fn dom_is_owned(node: &extern) -> i32;
+    fn dom_is_owned(node: dom_node) -> i32;
 
     // Drag and drop: the closest element with draggable="true", or null;
     // node.dataset[name], or null when unset; setting and deleting it.
     #[import = "closest_draggable"]
-    fn dom_closest_draggable(node: &extern) -> &?extern;
+    fn dom_closest_draggable(node: dom_node) -> dom_node_opt;
     #[import = "dataset_get"]
-    fn dom_dataset_get(node: &extern, name: &extern) -> &?extern;
+    fn dom_dataset_get(node: dom_node, name: js_string) -> js_string_opt;
     #[import = "dataset_set"]
-    fn dom_dataset_set(node: &extern, name: &extern, value: &extern);
+    fn dom_dataset_set(node: dom_node, name: js_string, value: js_string);
     #[import = "dataset_delete"]
-    fn dom_dataset_delete(node: &extern, name: &extern);
+    fn dom_dataset_delete(node: dom_node, name: js_string);
     // Whether node is container or inside it; 0 for null.
     #[import = "contains"]
-    fn dom_contains(container: &extern, node: &?extern) -> i32;
+    fn dom_contains(container: dom_node, node: dom_node_opt) -> i32;
     // The event's: preventDefault(), its relatedTarget, and its dataTransfer
     // (when it has one) set up for a move: data, so Firefox starts the drag,
     // and the effect allowed at dragstart; the drop effect over a target.
     #[import = "prevent_default"]
-    fn dom_prevent_default(e: &extern);
+    fn dom_prevent_default(e: dom_event);
     #[import = "stop_propagation"]
-    fn dom_stop_propagation(e: &extern);
+    fn dom_stop_propagation(e: dom_event);
     #[import = "related_target"]
-    fn dom_related_target(e: &extern) -> &?extern;
+    fn dom_related_target(e: dom_event) -> dom_node_opt;
     #[import = "drag_start"]
-    fn dom_drag_start(e: &extern);
+    fn dom_drag_start(e: dom_event);
     #[import = "drop_effect_move"]
-    fn dom_drop_effect_move(e: &extern);
+    fn dom_drop_effect_move(e: dom_event);
 
     // Throws a JS Error with this message; never returns.
     #[import = "fail"]
-    fn host_fail(message: &extern);
+    fn host_fail(message: js_string);
 }
 
 // The world, as the host gives it (MessageContext's now, random and uuid), so
@@ -639,37 +652,37 @@ import "env" {
     #[import = "random"]
     fn env_random() -> f64;
     #[import = "uuid"]
-    fn env_uuid() -> &extern;
+    fn env_uuid() -> js_string;
 }
 
 // What the host is told while it runs tasks, and asks it answers.
 import "host" {
     // A handler's log: a Value, as an externref.
     #[import = "observe_log"]
-    fn observe_log(v: &extern);
+    fn observe_log(v: value_extern);
     // A message the component has no handler for: it stays as it was.
     #[import = "observe_unhandled"]
-    fn observe_unhandled(name: &extern);
+    fn observe_unhandled(name: js_string);
     // An ask the host answers (see scope_register_host_ask): its name and its
     // arguments as a list Value. Returns its answer: a result value when it
     // answers now, an int, the id host_settle gets back, when it answers
     // later, or null when the host has no answer for it.
     #[import = "ask"]
-    fn host_ask(name: &extern, args: &extern) -> &value;
+    fn host_ask(name: js_string, args: value_extern) -> &value;
     // A float as JS's String(n) writes it, for rendering it as text.
     #[import = "number_text"]
-    fn host_number_text(n: f64) -> &extern;
+    fn host_number_text(n: f64) -> js_string;
     // Whether s matches the regular expression pattern (a pattern constraint).
     #[import = "regex_test"]
-    fn host_regex_test(pattern: &extern, s: &extern) -> i32;
+    fn host_regex_test(pattern: js_string, s: js_string) -> i32;
     // Throws a JS Error with this message whose rejection is info (a Value):
     // a message a component rejected, with why; never returns.
     #[import = "reject"]
-    fn host_reject(message: &extern, info: &extern);
+    fn host_reject(message: js_string, info: value_extern);
     // What dev mode found: kind is stateInvalid or messageInvalid, info a Value.
     #[import = "observe_issue"]
-    fn observe_issue(kind: &extern, info: &extern);
+    fn observe_issue(kind: js_string, info: value_extern);
     // Text as JS's Number(text) reads it, NaN for blank text.
     #[import = "parse_number"]
-    fn host_parse_number(text: &extern) -> f64;
+    fn host_parse_number(text: js_string) -> f64;
 }

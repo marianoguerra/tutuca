@@ -95,7 +95,7 @@ pub fn Strings::imports(self : Strings) -> String {
   sb.write_string("import \"'\" {\n")
   for t in self.order {
     sb.write_string("    #[import = \{wax_string(t)}]\n")
-    sb.write_string("    const \{self.by_text[t]}: &extern;\n")
+    sb.write_string("    const \{self.by_text[t]}: js_string;\n")
   }
   sb.write_string("}\n")
   sb.to_string()

@@ -152,7 +152,7 @@ signatures (`tcd stub` writes them; the build checks them):
 | package `ask_handler a` | `<package>_answer_a(ctx, args...) -> &value` (`value_ok(...)` or `value_err(...)`; `ctx` is the asker's, so `ctx_component_names(ctx, walk)` lists what its scope can make) |
 
 `T'` is the Wax type: `i32` for bool, s32 and enums (with consts
-`c_<field>_<member>`), `f64`, `&extern` for strings, `&value` for the rest.
+`c_<field>_<member>`), `f64`, `js_string` (an alias of `&extern`) for strings, `&value` for the rest.
 The generated contract gives the implementation the state struct,
 `c_with_<field>(state, v)`, `c_notify_<n>(ctx, ...)`, `c_ask_<n>(ctx, ...)`,
 `<type>_send_<m>(ctx, selector, ...)`, `c_make_<type>(ctx, fields...) ->

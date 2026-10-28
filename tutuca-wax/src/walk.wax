@@ -35,7 +35,7 @@ rec {
         handler: mut &handler_fn
     };
     type visit_fn = fn(&walker, &view);
-    type attr_fn = fn(&walker, &view_el, &extern, &view);
+    type attr_fn = fn(&walker, &view_el, js_string, &view);
     type child_fn = fn(&walker, &view_el, &view);
     type handler_fn = fn(&walker, &view_el, &view_on);
 }
@@ -225,7 +225,7 @@ fn walk_element_default: visit_fn (w: &walker, n: &view) {
     }
 }
 
-fn walk_attr_default: attr_fn (w: &walker, e: &view_el, name: &extern, value: &view) {
+fn walk_attr_default: attr_fn (w: &walker, e: &view_el, name: js_string, value: &view) {
     walk(w, value);
 }
 

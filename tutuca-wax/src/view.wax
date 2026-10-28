@@ -6,22 +6,22 @@ fn view_const(value: &value) -> &view {
     out;
 }
 
-fn view_field(name: &extern) -> &view {
+fn view_field(name: js_string) -> &view {
     let out: &view_field = { kind: view_kind_field, name };
     out;
 }
 
-fn view_seq_item(seq_name: &extern, key_name: &extern) -> &view {
+fn view_seq_item(seq_name: js_string, key_name: js_string) -> &view {
     let out: &view_seq_item = { kind: view_kind_seq_item, seq_name, key_name };
     out;
 }
 
-fn view_provided(name: &extern) -> &view {
+fn view_provided(name: js_string) -> &view {
     let out: &view_provided = { kind: view_kind_provided, name };
     out;
 }
 
-fn view_lookup_bind(name: &extern) -> &view {
+fn view_lookup_bind(name: js_string) -> &view {
     let out: &view_lookup_bind = { kind: view_kind_lookup_bind, name };
     out;
 }
@@ -32,8 +32,8 @@ fn view_if(test: &view, then: &view, otherwise: &view) -> &view {
 }
 
 fn view_el(
-    tag_name: &extern,
-    ns: &?extern,
+    tag_name: js_string,
+    ns: js_string_opt,
     attr_names: &str_array,
     attr_values: &view_array,
     key: &?view,
@@ -60,27 +60,27 @@ fn view_frag(childs: &view_array) -> &view {
     out;
 }
 
-fn view_render(source: &view, view_name: &?extern) -> &view {
+fn view_render(source: &view, view_name: js_string_opt) -> &view {
     let out: &view_render = { kind: view_kind_render, source, view_name };
     out;
 }
 
-fn view_each(source: &view, body: &view, loop_name: &?extern) -> &view {
+fn view_each(source: &view, body: &view, loop_name: js_string_opt) -> &view {
     let out: &view_each = { kind: view_kind_each, source, body, loop_name };
     out;
 }
 
-fn view_render_each(source: &view, loop_name: &?extern) -> &view {
+fn view_render_each(source: &view, loop_name: js_string_opt) -> &view {
     let out: &view_render_each = { kind: view_kind_render_each, source, loop_name };
     out;
 }
 
-fn view_render_it(view_name: &?extern) -> &view {
+fn view_render_it(view_name: js_string_opt) -> &view {
     let out: &view_render_it = { kind: view_kind_render_it, view_name };
     out;
 }
 
-fn view_scope(scope_name: &extern, body: &view) -> &view {
+fn view_scope(scope_name: js_string, body: &view) -> &view {
     let out: &view_scope = { kind: view_kind_scope, scope_name, body };
     out;
 }
@@ -91,10 +91,10 @@ fn view_push_view(view_name: &view, body: &view) -> &view {
 }
 
 // send(name, ...args), for on:<event>.
-fn view_action(name: &extern, args: &arg_array) -> &action {
+fn view_action(name: js_string, args: &arg_array) -> &action {
     {action| name, args };
 }
 
-fn view_on(event: &extern, action: &action) -> &view_on {
+fn view_on(event: js_string, action: &action) -> &view_on {
     {view_on| event, action };
 }

@@ -369,7 +369,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
   out.line("    let issues = list_empty();")
   out.line("    let schema = \{cw}_schema();")
   out.line("    let found: &?value = null;")
-  out.line("    let problem: &?extern = null;")
+  out.line("    let problem: js_string_opt = null;")
   for i, f in c.fields {
     let fw = "f_\{@check.wax(f.name)}"
     let name = self.s(f.name)
@@ -536,7 +536,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
   let cw = @check.wax(c.name)
   let out = Out::new()
   out.line(
-    "fn \{cw}_vt_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {",
+    "fn \{cw}_vt_get: get_fn (instance: &eq, name: js_string) -> (i32, &?value) {",
   )
   out.line("    let state = instance as &\{cw}_state;")
   for f in c.fields {
@@ -560,7 +560,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
     "// set: a field, when the value fits its schema; a property is read only.",
   )
   out.line(
-    "fn \{cw}_vt_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {",
+    "fn \{cw}_vt_set: set_fn (instance: &eq, name: js_string, v: &value) -> (i32, &?eq) {",
   )
   out.line("    let state = instance as &\{cw}_state;")
   if !c.fields.is_empty() {
@@ -634,7 +634,7 @@ fn Gen::answer_fn(self : Gen, a : @check.SignalM) -> String {
     .join("")
   let out = Out::new()
   out.line(
-    "fn \{pw}_answer_\{aw}_t: ask_fn (name: &extern, args: &value_array, ctx: &context) -> &ask_result {",
+    "fn \{pw}_answer_\{aw}_t: ask_fn (name: js_string, args: &value_array, ctx: &context) -> &ask_result {",
   )
   out.line("    if args.length() != \{a.params.length()} {")
   out.line(

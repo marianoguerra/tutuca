@@ -3,7 +3,7 @@
 // dispatch paths and their frames, selectors and targets. A failure fails the
 // task it happens in (host_fail throws), so nothing it did is committed.
 
-fn fail_at_key(message: &extern, key: &path_key) {
+fn fail_at_key(message: js_string, key: &path_key) {
     let b = text_builder_new();
     text_push(b, message);
     text_push_path_key(b, key);

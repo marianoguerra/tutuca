@@ -7,14 +7,14 @@ const path_key_kind_name = 0;
 const path_key_kind_index = 1;
 
 type path_key = open { kind: i32 };
-type path_key_name: path_key = { .., name: &extern };
+type path_key_name: path_key = { .., name: js_string };
 type path_key_index: path_key = { .., index: i32 };
 
 type path_key_array = [mut &?path_key];
 
 // Where a provider captured the value a frame starts from: the frame at
 // depth, then these keys. Frames without one start where the previous ended.
-type provider = { name: &extern, depth: i32, keys: &path_key_array };
+type provider = { name: js_string, depth: i32, keys: &path_key_array };
 
 // One step of rendered ancestry: a render source, or a loop item entered.
 type frame = {
@@ -41,11 +41,11 @@ const selector_step_kind_seq_item = 2;
 
 type selector_step = open { kind: i32 };
 // b.field(name)
-type selector_step_field: selector_step = { .., name: &extern };
+type selector_step_field: selector_step = { .., name: js_string };
 // b.item(name, key)
-type selector_step_item: selector_step = { .., name: &extern, key: &path_key };
+type selector_step_item: selector_step = { .., name: js_string, key: &path_key };
 // b.seqItem(name, key_field): the item whose key another field holds.
-type selector_step_seq_item: selector_step = { .., name: &extern, key_field: &extern };
+type selector_step_seq_item: selector_step = { .., name: js_string, key_field: js_string };
 
 type selector_step_array = [mut &?selector_step];
 

@@ -3,12 +3,12 @@
 
 // Attrs read when the element is created or after its children, so never
 // static: value, checked, is, dangerouslySetInnerHTML.
-fn is_dynamic_only(name: &extern) -> i32 {
+fn is_dynamic_only(name: js_string) -> i32 {
     str_eq(name, s_value) | str_eq(name, s_checked) | str_eq(name, s_is)
         | str_eq(name, s_dangerously_set_inner_html);
 }
 
-fn str_array_index(names: &str_array, name: &extern) -> i32 {
+fn str_array_index(names: &str_array, name: js_string) -> i32 {
     let i = 0;
     while i <s names.length() {
         if str_eq(names[i], name) {
@@ -22,8 +22,8 @@ fn str_array_index(names: &str_array, name: &extern) -> i32 {
 // new Shape(tag, namespace, staticAttrs, names): with no namespace, svg and
 // math are detected case-insensitively and set their own.
 fn shape_new(
-    tag_name: &extern,
-    ns: &?extern,
+    tag_name: js_string,
+    ns: js_string_opt,
     static_names: &str_array,
     static_values: &value_array,
     names: &str_array,
@@ -71,41 +71,46 @@ const vnode_kind_frag = 3;
 
 rec {
     type vnode = open { kind: i32 };
-    type vnode_text: vnode = { .., text: &extern };
-    type vnode_comment: vnode = { .., text: &extern };
+    type vnode_text: vnode = { .., text: js_string };
+    type vnode_comment: vnode = { .., text: js_string };
     type vnode_elem: vnode = {
         ..,
         shape: &shape,
         values: &value_array, // aligned with shape.names
         childs: &vnode_array,
-        key: &?extern
+        key: js_string_opt
     };
     // An explicit fragment is a sibling key scope, even without a key.
-    type vnode_frag: vnode = { .., childs: &vnode_array, key: &?extern };
+    type vnode_frag: vnode = { .., childs: &vnode_array, key: js_string_opt };
     type vnode_array = [mut &?vnode];
 }
 
-fn vnode_text(text: &extern) -> &vnode {
+fn vnode_text(text: js_string) -> &vnode {
     let out: &vnode_text = { kind: vnode_kind_text, text };
     out;
 }
 
-fn vnode_comment(text: &extern) -> &vnode {
+fn vnode_comment(text: js_string) -> &vnode {
     let out: &vnode_comment = { kind: vnode_kind_comment, text };
     out;
 }
 
-fn vnode_elem(shape: &shape, values: &value_array, childs: &vnode_array, key: &?extern) -> &vnode {
+fn vnode_elem(
+    shape: &shape,
+    values: &value_array,
+    childs: &vnode_array,
+    key: js_string_opt,
+) -> &vnode {
     let out: &vnode_elem = { kind: vnode_kind_elem, shape, values, childs, key };
     out;
 }
 
-fn vnode_frag(childs: &vnode_array, key: &?extern) -> &vnode {
+fn vnode_frag(childs: &vnode_array, key: js_string_opt) -> &vnode {
     let out: &vnode_frag = { kind: vnode_kind_frag, childs, key };
     out;
 }
 
-fn vnode_key(node: &vnode) -> &?extern {
+fn vnode_key(node: &vnode) -> js_string_opt {
     match node {
         e: &vnode_elem => {
             return e.key;

@@ -6,91 +6,91 @@
 
 import "'" {
     #[import = "Probe"]
-    const s_probe_type: &extern;
+    const s_probe_type: js_string;
     #[import = "TodoItem"]
-    const s_todo_item_type: &extern;
+    const s_todo_item_type: js_string;
     #[import = "Pretender"]
-    const s_pretender_type: &extern;
+    const s_pretender_type: js_string;
     #[import = "Impostor"]
-    const s_impostor_type: &extern;
+    const s_impostor_type: js_string;
     #[import = "count"]
-    const s_count: &extern;
+    const s_count: js_string;
     #[import = "label"]
-    const s_label: &extern;
+    const s_label: js_string;
     #[import = "id"]
-    const s_id: &extern;
+    const s_id: js_string;
     #[import = "text"]
-    const s_text: &extern;
+    const s_text: js_string;
     #[import = "done"]
-    const s_done: &extern;
+    const s_done: js_string;
     #[import = "n"]
-    const s_n: &extern;
+    const s_n: js_string;
     #[import = "x"]
-    const s_x: &extern;
+    const s_x: js_string;
     #[import = "y"]
-    const s_y: &extern;
+    const s_y: js_string;
     #[import = "shift"]
-    const s_shift: &extern;
+    const s_shift: js_string;
     #[import = "even"]
-    const s_even: &extern;
+    const s_even: js_string;
     #[import = "bump"]
-    const s_bump: &extern;
+    const s_bump: js_string;
     #[import = "rename"]
-    const s_rename: &extern;
+    const s_rename: js_string;
     #[import = "shout"]
-    const s_shout: &extern;
+    const s_shout: js_string;
     #[import = "shouted"]
-    const s_shouted: &extern;
+    const s_shouted: js_string;
     #[import = "fail"]
-    const s_fail: &extern;
+    const s_fail: js_string;
     #[import = "press"]
-    const s_press: &extern;
+    const s_press: js_string;
     #[import = "ctrlClick"]
-    const s_ctrl_click: &extern;
+    const s_ctrl_click: js_string;
     #[import = "inner"]
-    const s_inner: &extern;
+    const s_inner: js_string;
     #[import = "out of luck"]
-    const s_out_of_luck: &extern;
+    const s_out_of_luck: js_string;
     #[import = "ctrl"]
-    const s_ctrl: &extern;
+    const s_ctrl: js_string;
     #[import = "div"]
-    const s_div: &extern;
+    const s_div: js_string;
     #[import = "span"]
-    const s_span: &extern;
+    const s_span: js_string;
     #[import = "button"]
-    const s_button: &extern;
+    const s_button: js_string;
     #[import = "class"]
-    const s_class: &extern;
+    const s_class: js_string;
     #[import = "probe"]
-    const s_probe_class: &extern;
+    const s_probe_class: js_string;
     #[import = "pad"]
-    const s_pad_class: &extern;
+    const s_pad_class: js_string;
     #[import = "with-ctrl"]
-    const s_ctrl_class: &extern;
+    const s_ctrl_class: js_string;
     #[import = "stopper"]
-    const s_stop_class: &extern;
+    const s_stop_class: js_string;
     #[import = "click+ctrl"]
-    const s_click_ctrl: &extern;
+    const s_click_ctrl: js_string;
     #[import = "click+stop"]
-    const s_click_stop: &extern;
+    const s_click_stop: js_string;
     #[import = "mousedown"]
-    const s_mousedown: &extern;
+    const s_mousedown: js_string;
     #[import = "clientX"]
-    const s_client_x: &extern;
+    const s_client_x: js_string;
     #[import = "clientY"]
-    const s_client_y: &extern;
+    const s_client_y: js_string;
     #[import = "shiftKey"]
-    const s_shift_key: &extern;
+    const s_shift_key: js_string;
     #[import = "stop"]
-    const s_stop: &extern;
+    const s_stop: js_string;
     #[import = "pretender"]
-    const s_pretender_text: &extern;
+    const s_pretender_text: js_string;
     #[import = ""]
-    const s_empty: &extern;
+    const s_empty: js_string;
     #[import = "ghost"]
-    const s_ghost: &extern;
+    const s_ghost: js_string;
     #[import = "click"]
-    const s_click: &extern;
+    const s_click: js_string;
 }
 
 // ---- Probe -----------------------------------------------------------------------
@@ -115,11 +115,11 @@ import "'" {
 //   message press(x: f64, y: f64, shift: bool) changes nothing;
 //   message ctrl_click() changes nothing;  message inner() changes nothing;
 
-type probe_state = { count: i32, label: &extern };
+type probe_state = { count: i32, label: js_string };
 
 let probe_spec_made: &?component_spec = null;
 
-fn probe_button(class: &extern, event: &extern, message: &extern, label: &extern) -> &view {
+fn probe_button(class: js_string, event: js_string, message: js_string, label: js_string) -> &view {
     el_class_on(s_button, class, views1(text(label)), view_ons1(event, message, args0()));
 }
 
@@ -266,7 +266,7 @@ fn probe_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &messa
     message_result_rejected(message_error_unknown_message());
 }
 
-fn probe_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+fn probe_get: get_fn (instance: &eq, name: js_string) -> (i32, &?value) {
     let s = instance as &probe_state;
     if str_eq(name, s_count) {
         return (property_ok, value_int(s.count));
@@ -277,7 +277,7 @@ fn probe_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
     (property_no_such_property, null);
 }
 
-fn probe_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+fn probe_set: set_fn (instance: &eq, name: js_string, v: &value) -> (i32, &?eq) {
     (property_not_writable, null);
 }
 
@@ -286,7 +286,7 @@ fn probe_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
 // <span>{text}</span>, with TodoItem's fields. Pretender doesn't say it
 // implements TodoItem; Impostor does, with done an s32.
 
-type pretender_state = { id: i32, text: &extern, done: i32 };
+type pretender_state = { id: i32, text: js_string, done: i32 };
 
 let pretender_spec_made: &?component_spec = null;
 let impostor_spec_made: &?component_spec = null;
@@ -339,7 +339,7 @@ fn pretender_handle: handle_fn (instance: &eq, m: &message, ctx: &context) -> &m
     message_result_rejected(message_error_unknown_message());
 }
 
-fn pretender_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+fn pretender_get: get_fn (instance: &eq, name: js_string) -> (i32, &?value) {
     let s = instance as &pretender_state;
     if str_eq(name, s_id) {
         return (property_ok, value_int(s.id));
@@ -353,7 +353,7 @@ fn pretender_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
     (property_no_such_property, null);
 }
 
-fn pretender_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+fn pretender_set: set_fn (instance: &eq, name: js_string, v: &value) -> (i32, &?eq) {
     (property_not_writable, null);
 }
 

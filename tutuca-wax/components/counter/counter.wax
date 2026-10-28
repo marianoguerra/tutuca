@@ -3,7 +3,7 @@
 
 import "'" {
     #[import = "was "]
-    const s_was: &extern;
+    const s_was: js_string;
 }
 
 // ---- Counter -----------------------------------------------------------------------
@@ -18,7 +18,7 @@ fn counter_on_add(state: &counter_state, ctx: &context, n: i32) -> &counter_stat
 }
 
 // Not a number yet: keep the count.
-fn counter_on_set(state: &counter_state, ctx: &context, text: &extern) -> &counter_state {
+fn counter_on_set(state: &counter_state, ctx: &context, text: js_string) -> &counter_state {
     let (ok, n) = parse_int(text);
     if !ok {
         return state;

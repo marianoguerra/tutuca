@@ -29,7 +29,7 @@ fn render_context_enter_frame(ctx: &render_context, entered: &value) -> &render_
 }
 
 // pushView: name first among the views the components below prefer.
-fn render_context_push_view(ctx: &render_context, name: &extern) -> &render_context {
+fn render_context_push_view(ctx: &render_context, name: js_string) -> &render_context {
     let n = ctx.views.length();
     let views = [str_array|null; n + 1];
     views[0] = name;
@@ -38,7 +38,7 @@ fn render_context_push_view(ctx: &render_context, name: &extern) -> &render_cont
 }
 
 // The value an ancestor provides under name, or null.
-fn render_context_provided(ctx: &render_context, name: &extern) -> &?provided {
+fn render_context_provided(ctx: &render_context, name: js_string) -> &?provided {
     let found = smap_get(ctx.provided, name);
     if !found {
         return null;
@@ -47,7 +47,7 @@ fn render_context_provided(ctx: &render_context, name: &extern) -> &?provided {
 }
 
 // The frame a provided source enters: a jump to where it was captured.
-fn render_context_provided_frame(ctx: &render_context, name: &extern) -> &?frame {
+fn render_context_provided_frame(ctx: &render_context, name: js_string) -> &?frame {
     let p = render_context_provided(ctx, name);
     if !p {
         return null;
@@ -58,13 +58,13 @@ fn render_context_provided_frame(ctx: &render_context, name: &extern) -> &?frame
 
 // renderView: a component's view (the one named, the first of ctx.views it
 // has, or its main view) inside its component wrapper.
-fn render_view(c: &component, view: &?extern, ctx: &render_context) -> &snode {
+fn render_view(c: &component, view: js_string_opt, ctx: &render_context) -> &snode {
     snode_component(c.spec.name, view_eval_component(c, view, ctx));
 }
 
 // A child component rendered at a frame, the way the spec's x-render does:
 // the frame's wrapper around the child's view, rendered one frame deeper.
-fn render_child(f: &frame, child: &value, view: &?extern, ctx: &render_context) -> &snode {
+fn render_child(f: &frame, child: &value, view: js_string_opt, ctx: &render_context) -> &snode {
     let c = value_as_component(child);
     if !c {
         host_fail(s_err_render_not_component);

@@ -24,7 +24,7 @@ type value_bool: value = { .., value: i32 };
 // Whole numbers.
 type value_int: value = { .., value: i32 };
 type value_float: value = { .., value: f64 };
-type value_string: value = { .., value: &extern };
+type value_string: value = { .., value: js_string };
 // The persistent vector of vendor/wax-mb, holding &value.
 type value_list: value = { .., value: &pv_vector };
 // The persistent hash map of vendor/wax-mb: &value_string keys, &value values.

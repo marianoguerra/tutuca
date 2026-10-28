@@ -25,7 +25,7 @@ fn arg_drag_key() -> &arg {
     ARG_DRAG_KEY;
 }
 
-fn arg_event(name: &extern) -> &arg {
+fn arg_event(name: js_string) -> &arg {
     let out: &arg_event = { kind: arg_kind_event, name };
     out;
 }
@@ -38,7 +38,7 @@ fn arg_event(name: &extern) -> &arg {
 // it when it does (prevent: preventDefault(), stop: stopPropagation()).
 
 // s split at each '+'.
-fn str_split_plus(s: &extern) -> &ext_buf {
+fn str_split_plus(s: js_string) -> &ext_buf {
     let parts = ext_buf_new(2);
     let b = text_builder_new();
     let i = 0;
@@ -57,7 +57,7 @@ fn str_split_plus(s: &extern) -> &ext_buf {
 }
 
 // The KeyboardEvent.key a key modifier names, or null.
-fn event_mod_key(m: &extern) -> &?extern {
+fn event_mod_key(m: js_string) -> js_string_opt {
     if str_eq(m, s_mod_enter) {
         return s_key_enter;
     }
@@ -92,7 +92,7 @@ fn event_mod_key(m: &extern) -> &?extern {
 }
 
 // The flag a modifier sets, 0 for none.
-fn event_mod_flag(m: &extern) -> i32 {
+fn event_mod_flag(m: js_string) -> i32 {
     if str_eq(m, s_mod_ctrl) {
         return event_mod_ctrl;
     }
@@ -115,9 +115,9 @@ fn event_mod_flag(m: &extern) -> i32 {
 }
 
 // The handler of on:<spec>: spec is the event's type and its modifiers.
-fn on_attr_new(spec: &extern, name: &extern, args: &arg_array) -> &on_attr {
+fn on_attr_new(spec: js_string, name: js_string, args: &arg_array) -> &on_attr {
     let parts = str_split_plus(spec);
-    let key: &?extern = null;
+    let key: js_string_opt = null;
     let mods = 0;
     let i = 1;
     while i <s parts.len {
@@ -143,11 +143,11 @@ fn on_attr_new(spec: &extern, name: &extern, args: &arg_array) -> &on_attr {
 }
 
 // The event type of on:<spec>, without its modifiers.
-fn event_type_of(spec: &extern) -> &extern {
+fn event_type_of(spec: js_string) -> js_string {
     ext_buf_at(str_split_plus(spec), 0);
 }
 
-fn event_flag_held(event: &value, flag: i32, mods: i32, name: &extern) -> i32 {
+fn event_flag_held(event: &value, flag: i32, mods: i32, name: js_string) -> i32 {
     if !(mods & flag) {
         return 1;
     }
@@ -189,8 +189,8 @@ fn arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {
 
 fn template_new(
     tid: i32,
-    tag_name: &extern,
-    ns: &?extern,
+    tag_name: js_string,
+    ns: js_string_opt,
     static_names: &str_array,
     static_values: &value_array,
     names: &str_array,
@@ -213,29 +213,29 @@ fn template_new(
 fn snode_el(
     template: &template,
     values: &value_array,
-    key: &?extern,
+    key: js_string_opt,
     childs: &snode_array,
 ) -> &snode {
     let out: &snode_el = { kind: snode_kind_el, template, values, key, childs };
     out;
 }
 
-fn snode_text(text: &extern) -> &snode {
+fn snode_text(text: js_string) -> &snode {
     let out: &snode_text = { kind: snode_kind_text, text };
     out;
 }
 
-fn snode_comment(text: &extern) -> &snode {
+fn snode_comment(text: js_string) -> &snode {
     let out: &snode_comment = { kind: snode_kind_comment, text };
     out;
 }
 
-fn snode_group(key: &?extern, childs: &snode_array) -> &snode {
+fn snode_group(key: js_string_opt, childs: &snode_array) -> &snode {
     let out: &snode_group = { kind: snode_kind_group, key, childs };
     out;
 }
 
-fn snode_component(name: &extern, childs: &snode_array) -> &snode {
+fn snode_component(name: js_string, childs: &snode_array) -> &snode {
     let out: &snode_component = { kind: snode_kind_component, name, childs };
     out;
 }

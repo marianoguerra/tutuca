@@ -2,12 +2,12 @@
 
 import "'" {
     #[import = " chars · #"]
-    const s_chars_label: &extern;
+    const s_chars_label: js_string;
     #[import = " char · #"]
-    const s_char_label: &extern;
+    const s_char_label: js_string;
 }
 
-fn todo_card_get_meta(state: &todo_card_state) -> &extern {
+fn todo_card_get_meta(state: &todo_card_state) -> js_string {
     let n = js_string_length(state.text);
     let unit = n == 1?s_char_label:s_chars_label;
     js_string_concat(js_string_concat(int_text(n), unit), int_text(state.id));

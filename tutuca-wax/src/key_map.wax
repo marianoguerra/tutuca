@@ -12,7 +12,7 @@ fn key_map_new(expected: i32) -> &key_map {
 }
 
 // The slot that holds key, or the empty slot where it would go.
-fn key_map_slot(map: &key_map, key: &extern) -> i32 {
+fn key_map_slot(map: &key_map, key: js_string) -> i32 {
     let mask = map.keys.length() - 1;
     let i = str_hash(key) & mask;
     while 1 {
@@ -28,7 +28,7 @@ fn key_map_slot(map: &key_map, key: &extern) -> i32 {
     unreachable;
 }
 
-fn key_map_get(map: &key_map, key: &extern) -> (i32, i32) {
+fn key_map_get(map: &key_map, key: js_string) -> (i32, i32) {
     let i = key_map_slot(map, key);
     if !map.keys[i] {
         return (0, 0);
@@ -36,11 +36,11 @@ fn key_map_get(map: &key_map, key: &extern) -> (i32, i32) {
     (1, map.values[i]);
 }
 
-fn key_map_has(map: &key_map, key: &extern) -> i32 {
+fn key_map_has(map: &key_map, key: js_string) -> i32 {
     !!map.keys[key_map_slot(map, key)];
 }
 
-fn key_map_set(map: &key_map, key: &extern, value: i32) {
+fn key_map_set(map: &key_map, key: js_string, value: i32) {
     let i = key_map_slot(map, key);
     if !map.keys[i] {
         if (map.count + 1) * 2 >s map.keys.length() {

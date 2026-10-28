@@ -123,7 +123,7 @@ fn views_collect_templates(views: &view_array) -> &template_array {
 
 type collect_events_state = { seen: mut &phm_map, names: &ext_buf };
 
-fn collect_events_add(s: &collect_events_state, name: &extern) {
+fn collect_events_add(s: &collect_events_state, name: js_string) {
     if !!smap_get(s.seen, name) {
         return;
     }
@@ -164,7 +164,7 @@ fn views_collect_event_names(views: &view_array) -> &str_array {
 
 type collect_classes_state = { in_class: mut i32, seen: mut &phm_map, names: mut &value };
 
-fn collect_classes_attr: attr_fn (w: &walker, e: &view_el, name: &extern, value: &view) {
+fn collect_classes_attr: attr_fn (w: &walker, e: &view_el, name: js_string, value: &view) {
     let s = w.state as &collect_classes_state;
     let outer = s.in_class;
     s.in_class = str_eq(name, s_class);

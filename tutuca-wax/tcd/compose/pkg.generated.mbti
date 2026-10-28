@@ -16,7 +16,7 @@ pub fn abi_imports(String, Array[String]) -> String
 
 pub fn build(Runtime, @check.Package, @gen.Output, String, String, Array[Source], String) -> Built
 
-pub fn check_convention(@check.Package, Array[@gen.Required], Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]], Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]]) -> Array[@diag.Diagnostic]
+pub fn check_convention(@check.Package, Array[@gen.Required], Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]], Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]], prelude? : Array[Array[@basic.Annotated[@ast.ModuleField[@basic.Location], @basic.Location]]]) -> Array[@diag.Diagnostic]
 
 pub let collection_files : Array[String]
 

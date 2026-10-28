@@ -93,7 +93,7 @@ pub fn wax_ty(t : @check.Ty) -> String {
   match t {
     Bool | S32 | Enum(_) => "i32"
     F64 => "f64"
-    Str => "&extern"
+    Str => "js_string"
     _ => "&value"
   }
 }
@@ -328,7 +328,7 @@ fn Gen::field_schemas(
 fn Gen::enum_helpers(self : Gen) -> String {
   let out = Out::new()
   for i, ms in self.enums {
-    out.line("fn tcd_enum_\{i}_name(i: i32) -> &extern {")
+    out.line("fn tcd_enum_\{i}_name(i: i32) -> js_string {")
     for j, m in ms {
       out.line("    if i == \{j} {")
       out.line("        return \{self.s(m)};")
@@ -337,7 +337,7 @@ fn Gen::enum_helpers(self : Gen) -> String {
     out.line("    \{self.s(ms[0])};")
     out.line("}")
     out.line("")
-    out.line("fn tcd_enum_\{i}_index(s: &extern) -> i32 {")
+    out.line("fn tcd_enum_\{i}_index(s: js_string) -> i32 {")
     for j, m in ms {
       out.line("    if str_eq(s, \{self.s(m)}) {")
       out.line("        return \{j};")

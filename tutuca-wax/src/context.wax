@@ -3,17 +3,17 @@
 // handler returns; reads the world through the host, so a run can be
 // repeated; and makes components in the handling component's scope.
 
-fn ctx_notify(ctx: &context, name: &extern, args: &value_array) {
+fn ctx_notify(ctx: &context, name: js_string, args: &value_array) {
     let e: &effect_notify = { kind: effect_kind_notify, name, args };
     effect_buf_push(ctx.effects, e);
 }
 
-fn ctx_ask(ctx: &context, name: &extern, args: &value_array) {
+fn ctx_ask(ctx: &context, name: js_string, args: &value_array) {
     let e: &effect_ask = { kind: effect_kind_ask, name, args };
     effect_buf_push(ctx.effects, e);
 }
 
-fn ctx_send_at(ctx: &context, name: &extern, args: &value_array, selector: &selector) {
+fn ctx_send_at(ctx: &context, name: js_string, args: &value_array, selector: &selector) {
     let e: &effect_send_at = { kind: effect_kind_send_at, name, args, selector };
     effect_buf_push(ctx.effects, e);
 }
@@ -42,20 +42,20 @@ fn ctx_random(ctx: &context) -> f64 {
     env_random();
 }
 
-fn ctx_uuid(ctx: &context) -> &extern {
+fn ctx_uuid(ctx: &context) -> js_string {
     env_uuid();
 }
 
 // A component of a type registered in the handling component's scope, e.g.
 // the one a handler returns in Swapped.
-fn ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
+fn ctx_make(ctx: &context, name: js_string, fields: &value) -> &component {
     scope_make_or_fail(ctx.scope, name, fields);
 }
 
 // ctx_make's result instead of its failure: Ok(the component), or Err({
 // error, issues }) saying why it can't be made (scope_try_make), for a
 // handler to show instead of failing its task.
-fn ctx_try_make(ctx: &context, name: &extern, fields: &value) -> &value {
+fn ctx_try_make(ctx: &context, name: js_string, fields: &value) -> &value {
     scope_try_make(ctx.scope, name, fields);
 }
 
@@ -68,6 +68,6 @@ fn ctx_component_names(ctx: &context, walk: i32) -> &value {
 
 // A component of a type registered in the scope the component init is making
 // is being made in, e.g. the default of a field that holds a component.
-fn init_ctx_make(ctx: &init_context, name: &extern, fields: &value) -> &component {
+fn init_ctx_make(ctx: &init_context, name: js_string, fields: &value) -> &component {
     scope_make_or_fail(ctx.scope, name, fields);
 }

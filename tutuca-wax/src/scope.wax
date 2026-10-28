@@ -1,7 +1,7 @@
 // Scopes (NOTES.md; tutuca's src/scope.js): the names component types are
 // registered under, nested into a tree, and making components through them.
 
-fn scope_new(name: &extern, parent: &?scope) -> &scope {
+fn scope_new(name: js_string, parent: &?scope) -> &scope {
     {scope|
         name,
         parent,
@@ -17,7 +17,7 @@ fn scope_root() -> &scope {
 }
 
 // The child scope named so, made on first use.
-fn scope_enter(s: &scope, name: &extern) -> &scope {
+fn scope_enter(s: &scope, name: js_string) -> &scope {
     let child = smap_get(s.children, name);
     if !!child {
         return child! as &scope;
@@ -31,7 +31,7 @@ fn scope_enter(s: &scope, name: &extern) -> &scope {
 // it, and so must a type that declares interfaces visible here; registering
 // one that doesn't fails. Interfaces registered later are checked when a
 // component is made.
-fn scope_register(s: &scope, name: &extern, spec: &component_spec, vtable: &vtable) {
+fn scope_register(s: &scope, name: js_string, spec: &component_spec, vtable: &vtable) {
     let problem = scope_entry_problem(s, name, spec);
     if !!problem {
         host_fail(problem!);
@@ -40,7 +40,7 @@ fn scope_register(s: &scope, name: &extern, spec: &component_spec, vtable: &vtab
 }
 
 // Here first, then in the parents: inner registrations win.
-fn scope_lookup(s: &scope, name: &extern) -> &?scope_entry {
+fn scope_lookup(s: &scope, name: js_string) -> &?scope_entry {
     let at: &?scope = s;
     while !!at {
         let found = smap_get((at!).entries, name);
@@ -105,7 +105,7 @@ fn scope_names(s: &scope, walk: i32) -> &value {
 // under here or in a parent that no inner registration hides. null when
 // there's none, e.g. for a type loaded elsewhere or registered under a
 // renamed name in another scope.
-fn scope_name_of(s: &scope, spec: &component_spec) -> &?extern {
+fn scope_name_of(s: &scope, spec: &component_spec) -> js_string_opt {
     let from: &?scope = s;
     while !!from {
         let acc = {map_entries_acc| keys: pv_empty(), values: pv_empty() };
@@ -128,11 +128,11 @@ fn scope_name_of(s: &scope, spec: &component_spec) -> &?extern {
     null;
 }
 
-fn scope_register_ask(s: &scope, name: &extern, handler: &ask_fn) {
+fn scope_register_ask(s: &scope, name: js_string, handler: &ask_fn) {
     s.ask_handlers = smap_assoc(s.ask_handlers, name, {ask_handler| handler });
 }
 
-fn scope_lookup_ask(s: &scope, name: &extern) -> &?ask_handler {
+fn scope_lookup_ask(s: &scope, name: js_string) -> &?ask_handler {
     let at: &?scope = s;
     while !!at {
         let found = smap_get((at!).ask_handlers, name);
@@ -151,7 +151,7 @@ type make_result = { component: &?component, issues: &value, error: &?value };
 // Makes a component by name. It gets the scope that was asked, not the parent
 // the entry was found in, so the names it asks for resolve from where it was
 // made.
-fn scope_make(s: &scope, name: &extern, fields: &value) -> &make_result {
+fn scope_make(s: &scope, name: js_string, fields: &value) -> &make_result {
     let entry = scope_lookup(s, name);
     if !entry {
         let message = value_string(js_string_concat(s_err_unknown_component, name));
@@ -171,7 +171,7 @@ fn scope_make(s: &scope, name: &extern, fields: &value) -> &make_result {
 }
 
 // Why making a component of type name failed, in words.
-fn make_failure_text(name: &extern, made: &make_result) -> &extern {
+fn make_failure_text(name: js_string, made: &make_result) -> js_string {
     let text = js_string_concat(s_err_cant_make, name);
     if !!made.error {
         text = js_string_concat(js_string_concat(text, s_colon_space), reason_text(made.error!));
@@ -180,7 +180,7 @@ fn make_failure_text(name: &extern, made: &make_result) -> &extern {
 }
 
 // Makes a component by name, failing the task when it can't.
-fn scope_make_or_fail(s: &scope, name: &extern, fields: &value) -> &component {
+fn scope_make_or_fail(s: &scope, name: js_string, fields: &value) -> &component {
     let made = scope_make(s, name, fields);
     if !made.component {
         host_fail(make_failure_text(name, made));
@@ -192,7 +192,7 @@ fn scope_make_or_fail(s: &scope, name: &extern, fields: &value) -> &component {
 // Makes a component by name, as a result: Ok(the component), or Err({ error,
 // issues }) when it can't: error says why in words, issues are init's
 // ({ field, problem } each).
-fn scope_try_make(s: &scope, name: &extern, fields: &value) -> &value {
+fn scope_try_make(s: &scope, name: js_string, fields: &value) -> &value {
     let made = scope_make(s, name, fields);
     if !!made.component {
         return value_ok(value_component(made.component!));
@@ -203,6 +203,6 @@ fn scope_try_make(s: &scope, name: &extern, fields: &value) -> &value {
 
 // Answers asks of this name through the host's ask import, later
 // (host_ask_handler, api.wax).
-fn scope_register_host_ask(s: &scope, name: &extern) {
+fn scope_register_host_ask(s: &scope, name: js_string) {
     scope_register_ask(s, name, host_ask_handler);
 }

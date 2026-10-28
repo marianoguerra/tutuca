@@ -3,7 +3,7 @@
 // its metadata comment records. prelude/path.wax has the types components
 // share; these are their constructors and the runtime's own path types.
 
-fn path_key_name(name: &extern) -> &path_key {
+fn path_key_name(name: js_string) -> &path_key {
     let out: &path_key_name = { kind: path_key_kind_name, name };
     out;
 }
@@ -22,17 +22,17 @@ type path_key_array_array = [mut &?path_key_array];
 // goes through it and nothing else does.
 type update_path = { keys: &path_key_array };
 
-fn selector_step_field(name: &extern) -> &selector_step {
+fn selector_step_field(name: js_string) -> &selector_step {
     let out: &selector_step_field = { kind: selector_step_kind_field, name };
     out;
 }
 
-fn selector_step_item(name: &extern, key: &path_key) -> &selector_step {
+fn selector_step_item(name: js_string, key: &path_key) -> &selector_step {
     let out: &selector_step_item = { kind: selector_step_kind_item, name, key };
     out;
 }
 
-fn selector_step_seq_item(name: &extern, key_field: &extern) -> &selector_step {
+fn selector_step_seq_item(name: js_string, key_field: js_string) -> &selector_step {
     let out: &selector_step_seq_item = { kind: selector_step_kind_seq_item, name, key_field };
     out;
 }

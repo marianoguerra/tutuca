@@ -17,11 +17,11 @@ const task_kind_event = 3; // an event on a rendered element
 
 // The element being dragged: where it was rendered, its data-dragtype and
 // the value there when the drag started.
-type drag = { path: &dispatch_path, drag_type: &?extern, node: &extern, value: &value };
+type drag = { path: &dispatch_path, drag_type: js_string_opt, node: dom_node, value: &value };
 
 type task = {
     kind: i32,
-    name: &extern,
+    name: js_string,
     args: &value_array,
     // The dispatch path of the component that sent it.
     source: &dispatch_path,
@@ -36,7 +36,7 @@ type task = {
     event: &value,
     drag: &?drag,
     action_args: &?arg_array,
-    node: &?extern
+    node: dom_node_opt
 };
 
 type task_array = [mut &?task];
@@ -76,13 +76,13 @@ fn task_queue_pop(q: &task_queue) -> &?task {
 }
 
 // An ask whose reply hasn't arrived: the reply goes to the asker.
-type pending_reply = { id: i32, name: &extern, source: &dispatch_path };
+type pending_reply = { id: i32, name: js_string, source: &dispatch_path };
 
 // A host renders into container, in doc; a headless host has neither, and
 // only runs tasks (for tests and tools).
 type host = {
-    doc: &?extern,
-    container: &?extern,
+    doc: dom_document_opt,
+    container: dom_node_opt,
     root: mut &value,
     queue: &task_queue,
     // The pending_replies of asks answered later.
@@ -93,7 +93,7 @@ type host = {
     // The element being dragged, from dragstart to dragend, and the drop
     // target marked with data-draggingover.
     drag: mut &?drag,
-    drag_over: mut &?extern,
+    drag_over: mut dom_node_opt,
     // The event names host_new_event_names gave, as keys.
     listening: mut &phm_map,
     // Dev mode: check the state against its schemas after each task, and
@@ -112,7 +112,7 @@ fn empty_args() -> &value_array {
     [value_array|null; 0];
 }
 
-fn host_new(doc: &?extern, container: &?extern, root: &value) -> &host {
+fn host_new(doc: dom_document_opt, container: dom_node_opt, root: &value) -> &host {
     {host|
         doc,
         container,
@@ -132,7 +132,7 @@ fn host_new(doc: &?extern, container: &?extern, root: &value) -> &host {
 // A task to target, with no route yet.
 fn task_new(
     kind: i32,
-    name: &extern,
+    name: js_string,
     args: &value_array,
     source: &dispatch_path,
     target: &target,
@@ -176,7 +176,7 @@ fn host_push(h: &host, t: &task) {
 }
 
 // A message to the root component, from outside it.
-fn host_send(h: &host, name: &extern, args: &value_array) {
+fn host_send(h: &host, name: js_string, args: &value_array) {
     let root_path = {dispatch_path| frames: [frame_array|null; 0] };
     host_push(
         h,
@@ -455,7 +455,7 @@ fn effect_tasks(t: &task, args: &value_array, ctx: &context, tx: &transaction) -
 // Send arguments, evaluated on dispatch against the message context:
 // literals, the value of the element with the handler, the source key, or
 // conditionals of those.
-fn eval_args(args: &arg_array, ctx: &context, node: &?extern) -> &value_array {
+fn eval_args(args: &arg_array, ctx: &context, node: dom_node_opt) -> &value_array {
     let out = [value_array|null; args.length()];
     let i = 0;
     while i <s args.length() {
@@ -465,7 +465,7 @@ fn eval_args(args: &arg_array, ctx: &context, node: &?extern) -> &value_array {
     out;
 }
 
-fn eval_arg(a: &arg, ctx: &context, node: &?extern) -> &value {
+fn eval_arg(a: &arg, ctx: &context, node: dom_node_opt) -> &value {
     let kind = a.kind;
     if kind == arg_kind_value {
         return (a as &arg_value).value;
@@ -509,7 +509,13 @@ fn eval_arg(a: &arg, ctx: &context, node: &?extern) -> &value {
 // enclosing component that handles them, so a drop on a child's elements
 // gets to the parent's on:drop; before that, the drag they're about is
 // tracked from dragstart to dragend.
-fn host_dispatch_event(h: &host, e: &extern, target: &extern, kind: &extern, event: &value) -> i32 {
+fn host_dispatch_event(
+    h: &host,
+    e: dom_event,
+    target: dom_node,
+    kind: js_string,
+    event: &value,
+) -> i32 {
     if !h.container {
         return 0;
     }
@@ -558,7 +564,7 @@ fn host_dispatch_event(h: &host, e: &extern, target: &extern, kind: &extern, eve
 
 // ---- Drag and drop (tutuca's src/drag.js and its Host's drag methods) --------
 
-fn is_drop_event(kind: &extern) -> i32 {
+fn is_drop_event(kind: js_string) -> i32 {
     if str_eq(kind, s_dragenter) | str_eq(kind, s_dragover) {
         return 1;
     }
@@ -567,7 +573,7 @@ fn is_drop_event(kind: &extern) -> i32 {
 
 // Remembers what is dragged: the closest draggable element, where it was
 // rendered and its value.
-fn host_start_drag(h: &host, container: &extern, e: &extern, target: &extern) {
+fn host_start_drag(h: &host, container: dom_node, e: dom_event, target: dom_node) {
     let node = dom_closest_draggable(target);
     if !node {
         return;
@@ -589,10 +595,10 @@ fn host_start_drag(h: &host, container: &extern, e: &extern, target: &extern) {
 // not-allowed one elsewhere.
 fn host_drag_over(
     h: &host,
-    container: &extern,
-    e: &extern,
-    target: &extern,
-    kind: &extern,
+    container: dom_node,
+    e: dom_event,
+    target: dom_node,
+    kind: js_string,
     event: &value,
 ) {
     if str_eq(kind, s_drop) {
@@ -618,7 +624,7 @@ fn host_drag_over(
 
 // data-draggingover on the drop target node (none when null): the dragged
 // element's data-dragtype, or "external".
-fn host_mark_drag_over(h: &host, node: &?extern) {
+fn host_mark_drag_over(h: &host, node: dom_node_opt) {
     if !node {
         if !h.drag_over {
             return;

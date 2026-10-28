@@ -2,15 +2,15 @@
 
 import "'" {
     #[import = " books"]
-    const s_books_label: &extern;
+    const s_books_label: js_string;
     #[import = " ("]
-    const s_open_paren: &extern;
+    const s_open_paren: js_string;
     #[import = ")"]
-    const s_close_paren: &extern;
+    const s_close_paren: js_string;
     #[import = " of "]
-    const s_of: &extern;
+    const s_of: js_string;
     #[import = " read"]
-    const s_read: &extern;
+    const s_read: js_string;
 }
 
 // ---- Shelf --------------------------------------------------------------------------
@@ -40,7 +40,7 @@ fn shelf_get_share(state: &shelf_state) -> f64 {
     shelf_read_count(state) as f64_s / n as f64_s;
 }
 
-fn shelf_get_read_text(state: &shelf_state) -> &extern {
+fn shelf_get_read_text(state: &shelf_state) -> js_string {
     let read = int_text(shelf_read_count(state));
     let n = int_text(list_count(state.books));
     js_string_concat(js_string_concat(js_string_concat(read, s_of), n), s_read);
@@ -114,7 +114,7 @@ fn shelf_scope_header(state: &shelf_state) -> &shelf_scope_header_binds {
     {shelf_scope_header_binds| heading: js_string_concat(int_text(n), s_books_label) };
 }
 
-fn shelf_loop_books_key(state: &shelf_state, key: &value, item: &value) -> &extern {
+fn shelf_loop_books_key(state: &shelf_state, key: &value, item: &value) -> js_string {
     value_string_of(value_member(item, gs_title))!;
 }
 
@@ -185,6 +185,6 @@ fn shelf_loop_by_year_iter(state: &shelf_state, books: &value, order: &value) ->
 
 // ---- Note ---------------------------------------------------------------------------
 
-fn note_on_set_text(state: &note_state, ctx: &context, text: &extern) -> &note_state {
+fn note_on_set_text(state: &note_state, ctx: &context, text: js_string) -> &note_state {
     note_with_text(state, text);
 }

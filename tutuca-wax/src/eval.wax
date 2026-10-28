@@ -8,7 +8,7 @@
 // A component type's spec: its views (one of them "main"), the templates and
 // event names collected from them, the hooks they name and what it provides.
 fn spec_new(
-    name: &extern,
+    name: js_string,
     view_names: &str_array,
     views: &view_array,
     loops: &loop_def_array,
@@ -38,7 +38,7 @@ fn spec_new(
     spec;
 }
 
-fn spec_view_named(spec: &component_spec, name: &extern) -> &?view {
+fn spec_view_named(spec: &component_spec, name: js_string) -> &?view {
     let i = 0;
     while i <s spec.view_names.length() {
         if str_eq(spec.view_names[i], name) {
@@ -51,7 +51,7 @@ fn spec_view_named(spec: &component_spec, name: &extern) -> &?view {
 
 // getBestViewFor: the view named, else the first of the views pushed that
 // the spec has, else its main view.
-fn spec_best_view(spec: &component_spec, name: &?extern, ctx: &render_context) -> &view {
+fn spec_best_view(spec: &component_spec, name: js_string_opt, ctx: &render_context) -> &view {
     if !!name {
         let named = spec_view_named(spec, name!);
         if !!named {
@@ -69,7 +69,7 @@ fn spec_best_view(spec: &component_spec, name: &?extern, ctx: &render_context) -
     spec_view_named(spec, s_main)!;
 }
 
-fn spec_loop(spec: &component_spec, name: &extern) -> &loop_def {
+fn spec_loop(spec: &component_spec, name: js_string) -> &loop_def {
     let i = 0;
     while i <s spec.loops.length() {
         let l = spec.loops[i]!;
@@ -82,7 +82,7 @@ fn spec_loop(spec: &component_spec, name: &extern) -> &loop_def {
     unreachable;
 }
 
-fn spec_scope(spec: &component_spec, name: &extern) -> &scope_def {
+fn spec_scope(spec: &component_spec, name: js_string) -> &scope_def {
     let i = 0;
     while i <s spec.scopes.length() {
         let s = spec.scopes[i]!;
@@ -139,7 +139,7 @@ fn entry_buf_push(buf: &entry_buf, e: &entry) {
 }
 
 // A component's view, as the children of its component wrapper.
-fn view_eval_component(c: &component, name: &?extern, rc: &render_context) -> &snode_array {
+fn view_eval_component(c: &component, name: js_string_opt, rc: &render_context) -> &snode_array {
     let v = spec_best_view(c.spec, name, rc);
     let e = {eval_ctx| rc, it: value_component(c), component: c, binds: map_empty() };
     let out = snode_buf_new();
@@ -217,7 +217,7 @@ fn view_frame(v: &view, e: &eval_ctx) -> &frame {
 
 // String(v), as JS writes a value: a list its items joined by commas (null
 // ones empty), a map, result or component "[object Object]".
-fn value_js_text(v: &value) -> &extern {
+fn value_js_text(v: &value) -> js_string {
     let kind = v.kind;
     if kind == value_kind_null {
         return s_null;
@@ -256,14 +256,14 @@ fn value_js_text(v: &value) -> &extern {
 }
 
 // The text a key renders as, String(key) as in tutuca's JS; null none.
-fn key_text(v: &value) -> &?extern {
+fn key_text(v: &value) -> js_string_opt {
     if v.kind == value_kind_null {
         return null;
     }
     value_js_text(v);
 }
 
-fn view_name_of(v: &value) -> &extern {
+fn view_name_of(v: &value) -> js_string {
     let name = value_string_of(v);
     if !name {
         host_fail(s_err_view_name);
@@ -382,7 +382,7 @@ fn view_eval_el(n: &view_el, e: &eval_ctx) -> &snode {
         }
         i += 1;
     }
-    let key: &?extern = null;
+    let key: js_string_opt = null;
     if !!n.key {
         key = key_text(view_value(n.key!, e));
     }
@@ -413,7 +413,13 @@ fn map_merge(a: &value, b: &value) -> &value {
 // item is keyed by its key hook or its key. A body renders with the item as
 // it and binds value, key and what enrich adds; without a body, the item, a
 // component, renders with the loop's view.
-fn view_eval_loop(out: &snode_buf, source: &view, body: &?view, loop_name: &?extern, e: &eval_ctx) {
+fn view_eval_loop(
+    out: &snode_buf,
+    source: &view,
+    body: &?view,
+    loop_name: js_string_opt,
+    e: &eval_ctx,
+) {
     let def: &?loop_def = null;
     if !!loop_name {
         def = spec_loop(e.component.spec, loop_name!);
@@ -522,7 +528,7 @@ fn loop_entry(p: &loop_pass, key: &value, item: &value) {
         if !c {
             host_fail(s_err_render_not_component);
         }
-        let view: &?extern = null;
+        let view: js_string_opt = null;
         if !!p.def {
             view = (p.def!).view;
         }

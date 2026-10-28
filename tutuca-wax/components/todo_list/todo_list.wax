@@ -74,7 +74,7 @@ fn todo_list_get_count(state: &todo_list_state) -> i32 {
 fn todo_list_on_set_draft(
     state: &todo_list_state,
     ctx: &context,
-    text: &extern,
+    text: js_string,
 ) -> &todo_list_state {
     todo_list_with_draft(state, text);
 }

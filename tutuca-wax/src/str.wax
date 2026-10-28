@@ -1,12 +1,12 @@
 // String helpers over JS strings.
 
 // JS ===: null equals null, and nothing else.
-fn str_eq(a: &?extern, b: &?extern) -> i32 {
+fn str_eq(a: js_string_opt, b: js_string_opt) -> i32 {
     js_string_equals(a, b);
 }
 
 // Whether s, lowercased in ASCII, is lower (which is already lowercase).
-fn str_eq_ascii_lower(s: &extern, lower: &extern) -> i32 {
+fn str_eq_ascii_lower(s: js_string, lower: js_string) -> i32 {
     let n = js_string_length(s);
     if n != js_string_length(lower) {
         return 0;
@@ -26,7 +26,7 @@ fn str_eq_ascii_lower(s: &extern, lower: &extern) -> i32 {
 }
 
 // FNV-1a over the UTF-16 code units.
-fn str_hash(s: &extern) -> i32 {
+fn str_hash(s: js_string) -> i32 {
     let h = 0x811c9dc5;
     let n = js_string_length(s);
     let i = 0;
@@ -38,7 +38,7 @@ fn str_hash(s: &extern) -> i32 {
 }
 
 // Whether a sorts before b, by UTF-16 code units, as JS's < does.
-fn str_lt(a: &extern, b: &extern) -> i32 {
+fn str_lt(a: js_string, b: js_string) -> i32 {
     let na = js_string_length(a);
     let nb = js_string_length(b);
     let i = 0;

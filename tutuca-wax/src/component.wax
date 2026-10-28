@@ -12,12 +12,12 @@ const effect_kind_stop_next = 4;
 const effect_kind_log = 5;
 
 // To the parent, bubbling up until a handler stops it.
-type effect_notify: effect = { .., name: &extern, args: &value_array };
+type effect_notify: effect = { .., name: js_string, args: &value_array };
 // To the scope's ask handler; the reply comes back as name_reply_ok or
 // name_reply_error, or name_handler_not_found.
-type effect_ask: effect = { .., name: &extern, args: &value_array };
+type effect_ask: effect = { .., name: js_string, args: &value_array };
 // To a component below, by selector.
-type effect_send_at: effect = { .., name: &extern, args: &value_array, selector: &selector };
+type effect_send_at: effect = { .., name: js_string, args: &value_array, selector: &selector };
 // The message being handled, to a component below.
 type effect_forward_at: effect = { .., selector: &selector };
 // Stops the notify being handled from bubbling further up.

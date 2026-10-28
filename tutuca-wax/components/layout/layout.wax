@@ -5,13 +5,13 @@
 
 import "'" {
     #[import = "Tab "]
-    const s_tab: &extern;
+    const s_tab: js_string;
     #[import = "grid-template-columns: repeat("]
-    const s_grid_columns_open: &extern;
+    const s_grid_columns_open: js_string;
     #[import = ", minmax(0, 1fr))"]
-    const s_grid_columns_close: &extern;
+    const s_grid_columns_close: js_string;
     #[import = "error"]
-    const s_error: &extern;
+    const s_error: js_string;
 }
 
 // items without the one at at.
@@ -35,7 +35,7 @@ fn screen_on_toggle_editing(state: &screen_state, ctx: &context) -> &screen_stat
 
 // While editing, layout_edit above the content; main, which every component
 // has, otherwise.
-fn screen_get_pushed(state: &screen_state) -> &extern {
+fn screen_get_pushed(state: &screen_state) -> js_string {
     state.editing?gs_layout_edit:gs_main;
 }
 
@@ -118,7 +118,7 @@ fn tabs_labels_for(labels: &value, n: i32) -> &value {
     out;
 }
 
-fn tabs_on_rename(state: &tabs_state, ctx: &context, at: i32, label: &extern) -> &tabs_state {
+fn tabs_on_rename(state: &tabs_state, ctx: &context, at: i32, label: js_string) -> &tabs_state {
     let labels = tabs_labels_for(state.labels, list_count(state.panels));
     tabs_with_labels(state, list_assoc(labels, at, value_string(label)));
 }
@@ -212,7 +212,7 @@ fn grid_on_fewer_columns(state: &grid_state, ctx: &context) -> &grid_state {
     grid_with_columns(state, state.columns - 1);
 }
 
-fn grid_get_grid_style(state: &grid_state) -> &extern {
+fn grid_get_grid_style(state: &grid_state) -> js_string {
     js_string_concat(
         js_string_concat(s_grid_columns_open, int_text(state.columns)),
         s_grid_columns_close,

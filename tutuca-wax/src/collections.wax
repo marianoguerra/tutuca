@@ -61,7 +61,7 @@ fn map_count(map: &value) -> i32 {
 }
 
 // The value under key, or null when there's none.
-fn map_get(map: &value, key: &extern) -> &?value {
+fn map_get(map: &value, key: js_string) -> &?value {
     let (found, item) = phm_get((map as &value_map).value, value_string(key));
     if found == 0 {
         return null;
@@ -69,11 +69,11 @@ fn map_get(map: &value, key: &extern) -> &?value {
     item! as &value;
 }
 
-fn map_assoc(map: &value, key: &extern, item: &value) -> &value {
+fn map_assoc(map: &value, key: js_string, item: &value) -> &value {
     value_map(phm_assoc((map as &value_map).value, value_string(key), item));
 }
 
-fn map_dissoc(map: &value, key: &extern) -> &value {
+fn map_dissoc(map: &value, key: js_string) -> &value {
     value_map(phm_dissoc((map as &value_map).value, value_string(key)));
 }
 
@@ -109,7 +109,7 @@ fn smap_empty() -> &phm_map {
     phm_empty(value_key_hash, value_key_equal);
 }
 
-fn smap_get(map: &phm_map, key: &extern) -> &?eq {
+fn smap_get(map: &phm_map, key: js_string) -> &?eq {
     let (found, item) = phm_get(map, value_string(key));
     if found == 0 {
         return null;
@@ -117,6 +117,6 @@ fn smap_get(map: &phm_map, key: &extern) -> &?eq {
     item;
 }
 
-fn smap_assoc(map: &phm_map, key: &extern, item: &eq) -> &phm_map {
+fn smap_assoc(map: &phm_map, key: js_string, item: &eq) -> &phm_map {
     phm_assoc(map, value_string(key), item);
 }

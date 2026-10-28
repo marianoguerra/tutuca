@@ -36,7 +36,7 @@ fn value_float(value: f64) -> &value {
     out;
 }
 
-fn value_string(value: &extern) -> &value {
+fn value_string(value: js_string) -> &value {
     let out: &value_string = { kind: value_kind_string, value };
     out;
 }
@@ -91,7 +91,7 @@ fn value_to_f64(v: &value) -> f64 {
 }
 
 // The string, or null for any other case.
-fn value_string_of(v: &value) -> &?extern {
+fn value_string_of(v: &value) -> js_string_opt {
     if v.kind == value_kind_string {
         return (v as &value_string).value;
     }

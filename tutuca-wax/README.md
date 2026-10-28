@@ -343,7 +343,7 @@ const e_kind_b = 1;
 
 type e = open { kind: i32 };
 type e_a: e = { .. };
-type e_b: e = { .., value: &extern };
+type e_b: e = { .., value: js_string };
 
 const E_A: &e = {e_a| kind: e_kind_a };
 
@@ -351,7 +351,7 @@ fn e_a() -> &e {
     E_A;
 }
 
-fn e_b(value: &extern) -> &e {
+fn e_b(value: js_string) -> &e {
     let out: &e_b = { kind: e_kind_b, value };
     out;
 }
@@ -406,7 +406,8 @@ need to be of the same case (`if a.kind != b.kind { return 0; }`).
 
 ### Strings
 
-A string is a JS string: `&extern`, or `&?extern` when it may be absent. It
+A string is a JS string: `js_string`, or `js_string_opt` when it may be
+absent, aliases (`prelude/js_string.wax`) of `&extern` and `&?extern`. It
 crosses the boundary as it is, and the runtime reads it with the [js-string
 builtins](https://github.com/WebAssembly/js-string-builtins) (`imports.wax`,
 module `wasm:js-string`; they take `&?extern`, an engine refuses the module
@@ -414,6 +415,13 @@ otherwise). The strings the runtime needs are imported string constants,
 module `"'"`, whose import names are the strings themselves (`s_value` is
 `"value"`). V8 (Chromium, Node 24) supplies both; `js/tutuca-rt.js` polyfills them
 for engines that don't, and reports which happened in `vdom.builtins`.
+
+The other externrefs are named the same way, in `imports.wax`: `dom_node`
+(`dom_node_opt`), `dom_document`, `dom_event`, and `value_extern`, a Value
+handed to the host as an externref. A plain `&extern` is any of them (the
+buffers of `buf.wax` hold strings and nodes). An alias names a value type, `&`
+included: `js_string`, never `&js_string`. Aliases document, they don't
+check: all of them are `&extern` to the compiler.
 
 ### Booleans and arrays
 

@@ -58,9 +58,9 @@ type constraint = open { kind: i32 };
 type constraint_bound: constraint = { .., bound: f64, exclusive: i32 };
 type constraint_len: constraint = { .., n: i32 };
 type constraint_values: constraint = { .., values: &value };
-type constraint_key_of: constraint = { .., field: &extern };
-type constraint_pattern: constraint = { .., pattern: &extern };
-type constraint_check: constraint = { .., name: &extern, check: &check_fn };
+type constraint_key_of: constraint = { .., field: js_string };
+type constraint_pattern: constraint = { .., pattern: js_string };
+type constraint_check: constraint = { .., name: js_string, check: &check_fn };
 type constraint_array = [mut &?constraint];
 
 // How far a field's state goes, from most to least (tutuca's SYNC_LEVELS):
@@ -71,7 +71,7 @@ const sync_none = 2;
 
 // A field, a computed property or a message argument: its name, type,
 // constraints and sync level.
-type field_schema = { name: &extern, vtype: &vtype, constraints: &constraint_array, sync: i32 };
+type field_schema = { name: js_string, vtype: &vtype, constraints: &constraint_array, sync: i32 };
 type field_schema_array = [mut &?field_schema];
 
 // An effect a message may emit (MessageSpec's emits): a notify, an ask, or a
@@ -80,5 +80,5 @@ const emit_kind_notify = 0;
 const emit_kind_ask = 1;
 const emit_kind_send_at = 2;
 
-type emit_spec = { kind: i32, name: &extern };
+type emit_spec = { kind: i32, name: js_string };
 type emit_array = [mut &?emit_spec];

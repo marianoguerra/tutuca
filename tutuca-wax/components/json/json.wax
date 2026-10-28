@@ -4,31 +4,31 @@
 
 import "'" {
     #[import = "null"]
-    const s_null: &extern;
+    const s_null: js_string;
     #[import = "true"]
-    const s_true: &extern;
+    const s_true: js_string;
     #[import = "false"]
-    const s_false: &extern;
+    const s_false: js_string;
     #[import = "["]
-    const s_open_bracket: &extern;
+    const s_open_bracket: js_string;
     #[import = "]"]
-    const s_close_bracket: &extern;
+    const s_close_bracket: js_string;
     #[import = "{"]
-    const s_open_brace: &extern;
+    const s_open_brace: js_string;
     #[import = "}"]
-    const s_close_brace: &extern;
+    const s_close_brace: js_string;
     #[import = ","]
-    const s_comma: &extern;
+    const s_comma: js_string;
     #[import = ":"]
-    const s_colon: &extern;
+    const s_colon: js_string;
     #[import = "0"]
-    const s_zero: &extern;
+    const s_zero: js_string;
     #[import = ""]
-    const s_empty: &extern;
+    const s_empty: js_string;
 }
 
 // A value's JSON text, through its json property.
-fn json_of(v: &value) -> &extern {
+fn json_of(v: &value) -> js_string {
     let text = value_string_of(value_member(v, gs_json));
     if !text {
         return s_null;
@@ -38,7 +38,7 @@ fn json_of(v: &value) -> &extern {
 
 // ---- Scalars -----------------------------------------------------------------------
 
-fn json_null_get_json(state: &json_null_state) -> &extern {
+fn json_null_get_json(state: &json_null_state) -> js_string {
     s_null;
 }
 
@@ -46,14 +46,14 @@ fn json_bool_on_toggle(state: &json_bool_state, ctx: &context) -> &json_bool_sta
     json_bool_with_value(state, !state.value);
 }
 
-fn json_bool_get_json(state: &json_bool_state) -> &extern {
+fn json_bool_get_json(state: &json_bool_state) -> js_string {
     state.value?s_true:s_false;
 }
 
 fn json_number_on_set_text(
     state: &json_number_state,
     ctx: &context,
-    text: &extern,
+    text: js_string,
 ) -> &json_number_state {
     let (ok, n) = parse_number(text);
     {json_number_state| value: ok?n:state.value, text };
@@ -64,23 +64,23 @@ fn json_number_get_valid(state: &json_number_state) -> i32 {
     ok;
 }
 
-fn json_number_get_json(state: &json_number_state) -> &extern {
+fn json_number_get_json(state: &json_number_state) -> js_string {
     number_text(state.value);
 }
 
 fn json_string_on_set_value(
     state: &json_string_state,
     ctx: &context,
-    value: &extern,
+    value: js_string,
 ) -> &json_string_state {
     json_string_with_value(state, value);
 }
 
-fn json_string_get_json(state: &json_string_state) -> &extern {
+fn json_string_get_json(state: &json_string_state) -> js_string {
     json_string(state.value);
 }
 
-fn json_selector_get_json(state: &json_selector_state) -> &extern {
+fn json_selector_get_json(state: &json_selector_state) -> js_string {
     s_null;
 }
 
@@ -136,7 +136,7 @@ fn json_move_up(items: &value, at: i32) -> &value {
 }
 
 // "," after every item but the last.
-fn json_comma(key: &value, last: i32) -> &extern {
+fn json_comma(key: &value, last: i32) -> js_string {
     if (key.kind == value_kind_int) & ((key as &value_int).value == last) {
         return s_empty;
     }
@@ -162,7 +162,7 @@ fn json_array_get_is_empty(state: &json_array_state) -> i32 {
     list_count(state.items) == 0;
 }
 
-fn json_array_get_json(state: &json_array_state) -> &extern {
+fn json_array_get_json(state: &json_array_state) -> js_string {
     let out = s_open_bracket;
     let i = 0;
     while i <s list_count(state.items) {
@@ -191,7 +191,7 @@ fn json_array_loop_items_enrich(
 fn json_entry_on_set_key(
     state: &json_entry_state,
     ctx: &context,
-    key: &extern,
+    key: js_string,
 ) -> &json_entry_state {
     json_entry_with_key(state, key);
 }
@@ -223,7 +223,7 @@ fn json_object_get_is_empty(state: &json_object_state) -> i32 {
     list_count(state.entries) == 0;
 }
 
-fn json_entry_key(entry: &value) -> &extern {
+fn json_entry_key(entry: &value) -> js_string {
     let key = value_string_of(value_member(entry, gs_key));
     if !key {
         return s_empty;
@@ -233,7 +233,7 @@ fn json_entry_key(entry: &value) -> &extern {
 
 // As JSON.parse would read it back: a key's first entry places it, its last
 // entry gives its value.
-fn json_object_get_json(state: &json_object_state) -> &extern {
+fn json_object_get_json(state: &json_object_state) -> js_string {
     let entries = state.entries;
     let n = list_count(entries);
     let out = s_open_brace;
@@ -305,10 +305,10 @@ fn json_editor_get_is_edit(state: &json_editor_state) -> i32 {
     state.mode == json_editor_mode_edit;
 }
 
-fn json_editor_get_json(state: &json_editor_state) -> &extern {
+fn json_editor_get_json(state: &json_editor_state) -> js_string {
     json_of(state.value);
 }
 
-fn json_editor_get_text(state: &json_editor_state) -> &extern {
+fn json_editor_get_text(state: &json_editor_state) -> js_string {
     json_indent(json_of(state.value));
 }

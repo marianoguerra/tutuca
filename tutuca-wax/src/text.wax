@@ -23,7 +23,7 @@ fn text_push_unit(b: &text_builder, unit: i32) {
     b.len = len + 1;
 }
 
-fn text_push(b: &text_builder, s: &extern) {
+fn text_push(b: &text_builder, s: js_string) {
     let n = js_string_length(s);
     let i = 0;
     while i <s n {
@@ -32,7 +32,7 @@ fn text_push(b: &text_builder, s: &extern) {
     }
 }
 
-fn text_finish(b: &text_builder) -> &extern {
+fn text_finish(b: &text_builder) -> js_string {
     js_string_from_char_code_array(b.units, 0, b.len);
 }
 
@@ -82,7 +82,7 @@ fn is_low_surrogate(unit: i32) -> i32 {
 // s as a JSON string, the way JSON.stringify writes it: quotes, backslash and
 // the control characters escaped (\b \f \n \r \t, \u00xx for the others),
 // lone surrogates as \udxxx, everything else as it is.
-fn text_push_json_string(b: &text_builder, s: &extern) {
+fn text_push_json_string(b: &text_builder, s: js_string) {
     text_push_unit(b, UNIT_QUOTE);
     let n = js_string_length(s);
     let i = 0;

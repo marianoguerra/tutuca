@@ -115,17 +115,17 @@ fn constraint_none_of(values: &value) -> &constraint {
     out;
 }
 
-fn constraint_key_of(field: &extern) -> &constraint {
+fn constraint_key_of(field: js_string) -> &constraint {
     let out: &constraint_key_of = { kind: constraint_kind_key_of, field };
     out;
 }
 
-fn constraint_pattern(pattern: &extern) -> &constraint {
+fn constraint_pattern(pattern: js_string) -> &constraint {
     let out: &constraint_pattern = { kind: constraint_kind_pattern, pattern };
     out;
 }
 
-fn constraint_check(name: &extern, check: &check_fn) -> &constraint {
+fn constraint_check(name: js_string, check: &check_fn) -> &constraint {
     let out: &constraint_check = { kind: constraint_kind_check, name, check };
     out;
 }
@@ -135,7 +135,7 @@ fn constraint_array_new(n: i32) -> &constraint_array {
 }
 
 fn field_schema_new(
-    name: &extern,
+    name: js_string,
     vtype: &vtype,
     constraints: &constraint_array,
     sync: i32,
@@ -148,7 +148,7 @@ fn field_schema_array_new(n: i32) -> &field_schema_array {
 }
 
 fn message_schema_new(
-    name: &extern,
+    name: js_string,
     args: &field_schema_array,
     source_key: &?field_schema,
     pre: &?pre_fn,
@@ -163,7 +163,7 @@ fn message_schema_array_new(n: i32) -> &message_schema_array {
     [message_schema_array|null; n];
 }
 
-fn emit_spec_new(kind: i32, name: &extern) -> &emit_spec {
+fn emit_spec_new(kind: i32, name: js_string) -> &emit_spec {
     {emit_spec| kind, name };
 }
 
@@ -171,7 +171,7 @@ fn emit_array_new(n: i32) -> &emit_array {
     [emit_array|null; n];
 }
 
-fn invariant_new(name: &extern, holds: &invariant_fn) -> &invariant {
+fn invariant_new(name: js_string, holds: &invariant_fn) -> &invariant {
     {invariant| name, holds };
 }
 
@@ -180,7 +180,7 @@ fn invariant_array_new(n: i32) -> &invariant_array {
 }
 
 fn interface_schema_new(
-    name: &extern,
+    name: js_string,
     fields: &field_schema_array,
     gets: &field_schema_array,
     messages: &message_schema_array,
@@ -204,7 +204,7 @@ fn spec_set_schema(spec: &component_spec, schema: &component_schema) {
 
 // ---- Looking schemas up ------------------------------------------------------------
 
-fn field_schema_named(fields: &field_schema_array, name: &extern) -> &?field_schema {
+fn field_schema_named(fields: &field_schema_array, name: js_string) -> &?field_schema {
     let i = 0;
     while i <s fields.length() {
         let f = fields[i]!;
@@ -216,7 +216,7 @@ fn field_schema_named(fields: &field_schema_array, name: &extern) -> &?field_sch
     null;
 }
 
-fn message_schema_named(messages: &message_schema_array, name: &extern) -> &?message_schema {
+fn message_schema_named(messages: &message_schema_array, name: js_string) -> &?message_schema {
     let i = 0;
     while i <s messages.length() {
         let m = messages[i]!;
@@ -228,14 +228,14 @@ fn message_schema_named(messages: &message_schema_array, name: &extern) -> &?mes
     null;
 }
 
-fn spec_message_schema(spec: &component_spec, name: &extern) -> &?message_schema {
+fn spec_message_schema(spec: &component_spec, name: js_string) -> &?message_schema {
     if !spec.schema {
         return null;
     }
     message_schema_named((spec.schema!).messages, name);
 }
 
-fn str_array_has(names: &str_array, name: &extern) -> i32 {
+fn str_array_has(names: &str_array, name: js_string) -> i32 {
     let i = 0;
     while i <s names.length() {
         if str_eq(names[i], name) {
@@ -249,7 +249,7 @@ fn str_array_has(names: &str_array, name: &extern) -> i32 {
 // Whether c is of the named type (the name it has, or one its scope makes it
 // by, as tutuca's JS checks by lookup: a type loaded under another name is of
 // that name), or of a type that implements the named interface.
-fn component_is(c: &component, name: &extern) -> i32 {
+fn component_is(c: &component, name: js_string) -> i32 {
     if str_eq(c.spec.name, name) {
         return 1;
     }
@@ -381,7 +381,7 @@ fn text_push_vtype(b: &text_builder, t: &vtype) {
     text_push_unit(b, '>');
 }
 
-fn vtype_text(t: &vtype) -> &extern {
+fn vtype_text(t: &vtype) -> js_string {
     let b = text_builder_new();
     text_push_vtype(b, t);
     text_finish(b);
@@ -431,7 +431,7 @@ fn text_push_value_short(b: &text_builder, v: &value) {
     text_push(b, (value_as_component(v)!).spec.name);
 }
 
-fn value_short(v: &value) -> &extern {
+fn value_short(v: &value) -> js_string {
     let b = text_builder_new();
     text_push_value_short(b, v);
     text_finish(b);
@@ -445,7 +445,7 @@ fn is_finite(n: f64) -> i32 {
 
 // Why v isn't of type t, or null when it is: "expected s32, got "a"", "item
 // 2: expected string, got 1", "key "b": expected bool, got null".
-fn vtype_problem(t: &vtype, v: &value) -> &?extern {
+fn vtype_problem(t: &vtype, v: &value) -> js_string_opt {
     let kind = t.kind;
     let vk = v.kind;
     if kind == vtype_kind_any {
@@ -578,7 +578,7 @@ fn vtype_problem(t: &vtype, v: &value) -> &?extern {
     text_finish(b);
 }
 
-fn key_problem(key: &extern, problem: &extern) -> &extern {
+fn key_problem(key: js_string, problem: js_string) -> js_string {
     let b = text_builder_new();
     text_push(b, s_p_key);
     text_push_json_string(b, key);
@@ -625,14 +625,14 @@ fn text_push_values(b: &text_builder, values: &value) {
 }
 
 // what, then "got v": "must be at least 1, got 0".
-fn problem_got(what: &text_builder, v: &value) -> &extern {
+fn problem_got(what: &text_builder, v: &value) -> js_string {
     text_push(what, s_p_got);
     text_push_value_short(what, v);
     text_finish(what);
 }
 
 // The owner's field a key_of constraint names, or null.
-fn owner_field(owner: &component, name: &extern) -> &?value {
+fn owner_field(owner: &component, name: js_string) -> &?value {
     let (code, got) = owner.vtable.get(owner.instance, name);
     if code != property_ok {
         return null;
@@ -643,7 +643,7 @@ fn owner_field(owner: &component, name: &extern) -> &?value {
 // Why v, of the right type, breaks one of constraints, or null. owner is the
 // component the value belongs to (the field's component, the message's
 // receiver): key_of and check constraints read it, and are skipped without one.
-fn constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> &?extern {
+fn constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> js_string_opt {
     let i = 0;
     while i <s cs.length() {
         let problem = constraint_problem(cs[i]!, v, owner);
@@ -655,7 +655,7 @@ fn constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> 
     null;
 }
 
-fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> &?extern {
+fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> js_string_opt {
     let kind = c.kind;
     let b = text_builder_new();
     // A constraint on a value of a kind it isn't about breaks it, as in the
@@ -776,7 +776,7 @@ fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> &?extern
 // Why v doesn't fit field (its type, then its constraints), or null. A null
 // its type takes (an option's) meets the constraints, which are about the
 // value it's an option of.
-fn field_problem(f: &field_schema, v: &value, owner: &?component) -> &?extern {
+fn field_problem(f: &field_schema, v: &value, owner: &?component) -> js_string_opt {
     let problem = vtype_problem(f.vtype, v);
     if !!problem {
         return problem;
@@ -850,12 +850,12 @@ fn vtype_equal(a: &vtype, b: &vtype) -> i32 {
 
 // "its field done is s32, TodoItem's is bool".
 fn mismatch_problem(
-    what: &extern,
-    name: &extern,
+    what: js_string,
+    name: js_string,
     theirs: &vtype,
     iface: &interface_schema,
     ours: &vtype,
-) -> &extern {
+) -> js_string {
     let b = text_builder_new();
     text_push(b, s_i_its);
     text_push(b, what);
@@ -869,14 +869,14 @@ fn mismatch_problem(
     text_finish(b);
 }
 
-fn missing_problem(what: &extern, name: &extern) -> &extern {
+fn missing_problem(what: js_string, name: js_string) -> js_string {
     js_string_concat(js_string_concat(s_i_it_has_no, what), name);
 }
 
 // Why spec doesn't implement iface, or null when it does: it declares it,
 // and has each of its fields and properties (as a field or a property), and
 // each of its messages, of the same types.
-fn interface_problem(spec: &component_spec, iface: &interface_schema) -> &?extern {
+fn interface_problem(spec: &component_spec, iface: &interface_schema) -> js_string_opt {
     if !spec.schema {
         return s_i_no_schema;
     }
@@ -950,7 +950,7 @@ fn scope_register_interface(s: &scope, iface: &interface_schema) {
 }
 
 // Here first, then in the parents.
-fn scope_lookup_interface(s: &scope, name: &extern) -> &?interface_schema {
+fn scope_lookup_interface(s: &scope, name: js_string) -> &?interface_schema {
     let at: &?scope = s;
     while !!at {
         let found = smap_get((at!).interfaces, name);
@@ -963,7 +963,7 @@ fn scope_lookup_interface(s: &scope, name: &extern) -> &?interface_schema {
 }
 
 // "TodoCard can't be a TodoItem: its field done is s32, TodoItem's is bool".
-fn interface_error(spec: &component_spec, name: &extern, problem: &extern) -> &extern {
+fn interface_error(spec: &component_spec, name: js_string, problem: js_string) -> js_string {
     let b = text_builder_new();
     text_push(b, spec.name);
     text_push(b, s_i_cant_be);
@@ -973,7 +973,7 @@ fn interface_error(spec: &component_spec, name: &extern, problem: &extern) -> &e
     text_finish(b);
 }
 
-fn scope_interface_problem(s: &scope, name: &extern, spec: &component_spec) -> &?extern {
+fn scope_interface_problem(s: &scope, name: js_string, spec: &component_spec) -> js_string_opt {
     let iface = scope_lookup_interface(s, name);
     if !iface {
         return null;
@@ -989,7 +989,7 @@ fn scope_interface_problem(s: &scope, name: &extern, spec: &component_spec) -> &
 // interface of that name, or one spec declares it implements, is visible
 // there and spec doesn't implement it. Interfaces registered after a type
 // are checked when it's made.
-fn scope_entry_problem(s: &scope, name: &extern, spec: &component_spec) -> &?extern {
+fn scope_entry_problem(s: &scope, name: js_string, spec: &component_spec) -> js_string_opt {
     let problem = scope_interface_problem(s, name, spec);
     if !!problem {
         return problem;
@@ -1011,7 +1011,7 @@ fn scope_entry_problem(s: &scope, name: &extern, spec: &component_spec) -> &?ext
 
 // ---- A schema as a value, for tools ------------------------------------------------------
 
-fn constraint_text(c: &constraint) -> &extern {
+fn constraint_text(c: &constraint) -> js_string {
     let kind = c.kind;
     let b = text_builder_new();
     if (kind == constraint_kind_min) | (kind == constraint_kind_max) {
@@ -1052,7 +1052,7 @@ fn constraint_text(c: &constraint) -> &extern {
     text_finish(b);
 }
 
-fn sync_name(sync: i32) -> &extern {
+fn sync_name(sync: i32) -> js_string {
     if sync == sync_local {
         return s_sync_local;
     }
@@ -1096,7 +1096,7 @@ fn strs_value(names: &str_array) -> &value {
     out;
 }
 
-fn emit_kind_name(kind: i32) -> &extern {
+fn emit_kind_name(kind: i32) -> js_string {
     if kind == emit_kind_ask {
         return s_e_ask;
     }

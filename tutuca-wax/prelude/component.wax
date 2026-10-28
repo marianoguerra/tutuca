@@ -27,7 +27,7 @@ type effect_buf = { items: mut &effect_array, len: mut i32 };
 
 // ---- Messages ---------------------------------------------------------------
 
-type message = { name: &extern, args: &value_array };
+type message = { name: js_string, args: &value_array };
 
 // Why a message can't be handled.
 const message_error_kind_unknown_message = 0;
@@ -69,10 +69,10 @@ rec {
     // Handles every message of the type, routing it however it likes.
     type handle_fn = fn(&eq, &message, &context) -> &message_result;
     // Reads a property: property_ok and the value, or an error code.
-    type get_fn = fn(&eq, &extern) -> (i32, &?value);
+    type get_fn = fn(&eq, js_string) -> (i32, &?value);
     // Sets a property: property_ok and the new instance (the same reference
     // when the value didn't change it), or an error code.
-    type set_fn = fn(&eq, &extern, &value) -> (i32, &?eq);
+    type set_fn = fn(&eq, js_string, &value) -> (i32, &?eq);
 
     // A loop's hooks (loops[name] in tutuca's component()), each given the
     // instance whose view has the loop. prepare(items) makes the state the
@@ -83,13 +83,13 @@ rec {
     // enrich(key, value, state) the binds its body sees besides value and
     // key (a map value); view is the view a renderEach renders the items with.
     type loop_def = {
-        name: &extern,
+        name: js_string,
         prepare: &?loop_prepare_fn,
         iter: &?loop_iter_fn,
         key: &?loop_key_fn,
         filter: &?loop_filter_fn,
         enrich: &?loop_enrich_fn,
-        view: &?extern
+        view: js_string_opt
     };
     type loop_prepare_fn = fn(&eq, &value) -> &value;
     type loop_iter_fn = fn(&eq, &value, &value) -> &value;
@@ -98,7 +98,7 @@ rec {
     type loop_enrich_fn = fn(&eq, &value, &value, &value) -> &value;
     type loop_def_array = [mut &?loop_def];
     // scopes[name].bind: the binds a scope's body sees, as a map value.
-    type scope_def = { name: &extern, bind: &scope_bind_fn };
+    type scope_def = { name: js_string, bind: &scope_bind_fn };
     type scope_bind_fn = fn(&eq) -> &value;
     type scope_def_array = [mut &?scope_def];
 
@@ -112,7 +112,7 @@ rec {
     // events, when one is drop). spec_new makes one, collecting the
     // templates and the event names.
     type component_spec = {
-        name: &extern,
+        name: js_string,
         view_names: &str_array,
         views: &view_array,
         templates: &template_array,
@@ -134,7 +134,7 @@ rec {
     // any). The runtime rejects arguments that don't fit; the rest is checked
     // in dev mode.
     type message_schema = {
-        name: &extern,
+        name: js_string,
         args: &field_schema_array,
         source_key: &?field_schema,
         pre: &?pre_fn,
@@ -147,14 +147,14 @@ rec {
     type post_fn = fn(&eq, &eq, &value_array, &context) -> i32;
 
     // A predicate over one state, checked in dev mode once the queue settles.
-    type invariant = { name: &extern, holds: &invariant_fn };
+    type invariant = { name: js_string, holds: &invariant_fn };
     type invariant_fn = fn(&eq) -> i32;
     type invariant_array = [mut &?invariant];
 
     // What a component type must have to be made under the interface's name:
     // fields, computed properties and messages, each of the same type.
     type interface_schema = {
-        name: &extern,
+        name: js_string,
         fields: &field_schema_array,
         gets: &field_schema_array,
         messages: &message_schema_array
@@ -185,7 +185,7 @@ rec {
     type scope_entry = { spec: &component_spec, vtable: &vtable };
 
     // Answers an ask by name, with its arguments.
-    type ask_fn = fn(&extern, &value_array, &context) -> &ask_result;
+    type ask_fn = fn(js_string, &value_array, &context) -> &ask_result;
     type ask_handler = { handler: &ask_fn };
 
     // The names component types are registered under, nested into a tree. A
@@ -193,7 +193,7 @@ rec {
     // ask_handlers are string-keyed maps (smap_*) of scopes, scope entries and
     // ask handlers; interfaces, of interface schemas.
     type scope = {
-        name: &extern,
+        name: js_string,
         parent: &?scope,
         children: mut &phm_map,
         entries: mut &phm_map,

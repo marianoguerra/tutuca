@@ -24,7 +24,7 @@ For a component `C`, with `c` its name in snake_case (`CheckItem` is `check_item
 | package `ask_handler a(x: X) -> T` | `fn <package>_answer_a(ctx: &context, x: X') -> &value`, returning `value_ok(...)` or `value_err(...)`; it only answers: it can read `ctx` (its scope) and log, not send |
 
 `T'`, the Wax type of a TCD type: `i32` for `bool` (0 or 1), `s32` and enums;
-`f64` for `f64`; `&extern` for `string`; `&value` for everything else (lists,
+`f64` for `f64`; `js_string` for `string`; `&value` for everything else (lists,
 maps, records, options, components, `any`).
 
 Generated for you to use (in the contract):
@@ -48,7 +48,7 @@ Generated for you to use (in the contract):
 ```wax
 import "'" {
     #[import = "was "]
-    const s_was: &extern;
+    const s_was: js_string;
 }
 ```
 
@@ -75,7 +75,8 @@ fn checklist_get_left(state: &checklist_state) -> i32 {
 ```
 
 - Types: `i32`, `i64`, `f64`, `&T` a reference to a struct, `&?T` one that
-  may be null, `&extern` a JS string. Literals: `1`, `-1`, `2.5`, `0.0` (an
+  may be null, `js_string` a JS string (`js_string_opt` when it may be
+  null; aliases of `&extern` and `&?extern`, either spelling works). Literals: `1`, `-1`, `2.5`, `0.0` (an
   f64 needs the dot).
 - i32 comparisons are signed or unsigned: `<s`, `<=s`, `>s`, `>=s` (signed,
   what you want for counts and indexes), `==`, `!=`. f64 uses `<`, `<=`, `>`,
@@ -109,7 +110,7 @@ one: `(v as &value_int).value`, `(v as &value_float).value`,
   `list_push(l, v)`, `list_assoc(l, i, v)` (replace the item at i).
 - Maps with string keys: `map_empty()`, `map_get(m, k) -> &?value`,
   `map_assoc(m, k, v)`, `map_keys(m)`, `map_values(m)`.
-- Read: `value_truthy(v) -> i32`, `value_string_of(v) -> &?extern` (null when
+- Read: `value_truthy(v) -> i32`, `value_string_of(v) -> js_string_opt` (null when
   it isn't a string), `value_member(v, gs_name) -> &value` (a component's
   field or property, or a map's entry, by its runtime name).
 - A child component's notify arrives as the parent's message of the same
@@ -119,15 +120,15 @@ one: `(v as &value_int).value`, `(v as &value_float).value`,
 ## Strings and numbers
 
 `js_string_length(s)`, `js_string_concat(a, b)`, `js_string_char_code_at(s,
-i)`, `str_eq(a, b) -> i32`, `int_text(i) -> &extern`, `number_text(f) ->
-&extern`, `parse_int(s) -> (i32, i32)` and `parse_number(s) -> (i32, f64)`
+i)`, `str_eq(a, b) -> i32`, `int_text(i) -> js_string`, `number_text(f) ->
+js_string`, `parse_int(s) -> (i32, i32)` and `parse_number(s) -> (i32, f64)`
 (ok first; ok is 0 when it isn't a number).
 
 ## The context
 
 A handler's `ctx: &context` does what it asks for besides the next state:
 `ctx_log(ctx, v)` logs a value, `ctx_now(ctx) -> f64` is the time in ms,
-`ctx_random(ctx) -> f64` a number in [0, 1), `ctx_uuid(ctx) -> &extern`.
+`ctx_random(ctx) -> f64` a number in [0, 1), `ctx_uuid(ctx) -> js_string`.
 `ctx.source_key` (a `&?path_key`), `ctx.event` and `ctx.drag` (values) say
 where the message came from. Prefer the generated `c_notify_*`, `c_ask_*`,
 `c_make_*` and `*_send_*` helpers over the raw `ctx_*` functions.

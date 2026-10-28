@@ -24,13 +24,13 @@ rec {
     // A literal.
     type view_const: view = { .., value: &value };
     // ctx.it[name].
-    type view_field: view = { .., name: &extern };
+    type view_field: view = { .., name: js_string };
     // ctx.it[seq_name][ctx.it[key_name]].
-    type view_seq_item: view = { .., seq_name: &extern, key_name: &extern };
+    type view_seq_item: view = { .., seq_name: js_string, key_name: js_string };
     // The value an ancestor provides under name.
-    type view_provided: view = { .., name: &extern };
+    type view_provided: view = { .., name: js_string };
     // A loop or scope bind.
-    type view_lookup_bind: view = { .., name: &extern };
+    type view_lookup_bind: view = { .., name: js_string };
     // $if: both branches stay in the view.
     type view_if: view = { .., test: &view, then: &view, otherwise: &view };
     // h(tag, attrs, ...childs). attr_values align with attr_names. template is
@@ -38,8 +38,8 @@ rec {
     // (views_collect_templates), which makes it once and numbers its tid.
     type view_el: view = {
         ..,
-        tag_name: &extern,
-        ns: &?extern,
+        tag_name: js_string,
+        ns: js_string_opt,
         attr_names: &str_array,
         attr_values: &view_array,
         key: &?view,
@@ -50,15 +50,15 @@ rec {
     // Several roots.
     type view_frag: view = { .., childs: &view_array };
     // render(source, view_name).
-    type view_render: view = { .., source: &view, view_name: &?extern };
+    type view_render: view = { .., source: &view, view_name: js_string_opt };
     // each(source, body, loop_name): body once, for every item.
-    type view_each: view = { .., source: &view, body: &view, loop_name: &?extern };
+    type view_each: view = { .., source: &view, body: &view, loop_name: js_string_opt };
     // renderEach(source, loop_name).
-    type view_render_each: view = { .., source: &view, loop_name: &?extern };
+    type view_render_each: view = { .., source: &view, loop_name: js_string_opt };
     // renderIt(view_name), inside an each body.
-    type view_render_it: view = { .., view_name: &?extern };
+    type view_render_it: view = { .., view_name: js_string_opt };
     // scope(scope_name, body).
-    type view_scope: view = { .., scope_name: &extern, body: &view };
+    type view_scope: view = { .., scope_name: js_string, body: &view };
     // pushView(view_name, body).
     type view_push_view: view = { .., view_name: &view, body: &view };
     // on:<event>: send(name, ...args), with the arguments as the handler
@@ -66,7 +66,7 @@ rec {
     // value, the source key, the drag key, a field of the event, or an if
     // of those), not views: they're evaluated against the message context
     // when the task runs, never rendered.
-    type view_on = { event: &extern, action: &action };
+    type view_on = { event: js_string, action: &action };
     type view_array = [mut &?view];
     type view_on_array = [mut &?view_on];
 }

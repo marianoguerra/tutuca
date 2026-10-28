@@ -17,20 +17,20 @@ fn strs0() -> &str_array {
     [str_array|null; 0];
 }
 
-fn strs1(a: &extern) -> &str_array {
+fn strs1(a: js_string) -> &str_array {
     let out = [str_array|null; 1];
     out[0] = a;
     out;
 }
 
-fn strs2(a: &extern, b: &extern) -> &str_array {
+fn strs2(a: js_string, b: js_string) -> &str_array {
     let out = [str_array|null; 2];
     out[0] = a;
     out[1] = b;
     out;
 }
 
-fn strs3(a: &extern, b: &extern, c: &extern) -> &str_array {
+fn strs3(a: js_string, b: js_string, c: js_string) -> &str_array {
     let out = [str_array|null; 3];
     out[0] = a;
     out[1] = b;
@@ -39,14 +39,14 @@ fn strs3(a: &extern, b: &extern, c: &extern) -> &str_array {
 }
 
 // b.item(name, key): the component at key in the field name.
-fn selector_item(name: &extern, key: &path_key) -> &selector {
+fn selector_item(name: js_string, key: &path_key) -> &selector {
     let steps = [selector_step_array|null; 1];
     steps[0] = selector_step_item(name, key);
     {selector| steps };
 }
 
 // b.field(name)
-fn selector_field(name: &extern) -> &selector {
+fn selector_field(name: js_string) -> &selector {
     let steps = [selector_step_array|null; 1];
     steps[0] = selector_step_field(name);
     {selector| steps };
@@ -101,18 +101,18 @@ fn views5(a: &view, b: &view, c: &view, d: &view, e: &view) -> &view_array {
 }
 
 // A string constant, as an attr value or a text child.
-fn text(s: &extern) -> &view {
+fn text(s: js_string) -> &view {
     view_const(value_string(s));
 }
 
 // An element without attrs or handlers.
-fn el(tag_name: &extern, childs: &view_array) -> &view {
+fn el(tag_name: js_string, childs: &view_array) -> &view {
     view_el(tag_name, null, strs0(), views0(), null, childs, view_ons0());
 }
 
 // An element with attrs (names aligned with values) and no handlers.
 fn el_attrs(
-    tag_name: &extern,
+    tag_name: js_string,
     names: &str_array,
     values: &view_array,
     childs: &view_array,
@@ -121,14 +121,14 @@ fn el_attrs(
 }
 
 // An element whose only attr is a constant class.
-fn el_class(tag_name: &extern, class: &extern, childs: &view_array) -> &view {
+fn el_class(tag_name: js_string, class: js_string, childs: &view_array) -> &view {
     view_el(tag_name, null, strs1(s_class), views1(text(class)), null, childs, view_ons0());
 }
 
 // The same, with handlers.
 fn el_class_on(
-    tag_name: &extern,
-    class: &extern,
+    tag_name: js_string,
+    class: js_string,
     childs: &view_array,
     ons: &view_on_array,
 ) -> &view {
@@ -137,7 +137,7 @@ fn el_class_on(
 
 // An element with attrs and handlers.
 fn el_on(
-    tag_name: &extern,
+    tag_name: js_string,
     names: &str_array,
     values: &view_array,
     childs: &view_array,
@@ -147,7 +147,7 @@ fn el_on(
 }
 
 // A component type with only a main view, no scopes and no provides.
-fn spec_main(name: &extern, main: &view, loops: &loop_def_array) -> &component_spec {
+fn spec_main(name: js_string, main: &view, loops: &loop_def_array) -> &component_spec {
     spec_new(name, strs1(s_main), views1(main), loops, no_scopes(), strs0(), no_provides());
 }
 
@@ -183,14 +183,14 @@ fn view_ons0() -> &view_on_array {
 }
 
 // One handler: on `event`, send `name` with `args`.
-fn view_ons1(event: &extern, name: &extern, args: &arg_array) -> &view_on_array {
+fn view_ons1(event: js_string, name: js_string, args: &arg_array) -> &view_on_array {
     let out = [view_on_array|null; 1];
     out[0] = view_on(event, view_action(name, args));
     out;
 }
 
 // init's issues: a list of { field, problem } maps.
-fn init_issue(issues: &value, field: &extern, problem: &extern) -> &value {
+fn init_issue(issues: &value, field: js_string, problem: js_string) -> &value {
     let issue =
         map_assoc(
             map_assoc(map_empty(), s_field, value_string(field)),
@@ -206,7 +206,7 @@ fn init_ok(instance: &eq, issues: &value) -> &init_result {
 
 // The field name of init's fields when it's an int; else default, with an
 // issue saying why: missing, or the wrong type.
-fn init_int(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+fn init_int(fields: &value, name: js_string, default: i32, issues: &value) -> (i32, &value) {
     let found = fields.kind == value_kind_map?map_get(fields, name):null;
     if !found {
         return (default, init_issue(issues, name, s_missing));
@@ -218,7 +218,7 @@ fn init_int(fields: &value, name: &extern, default: i32, issues: &value) -> (i32
 }
 
 // The same for a list.
-fn init_list(fields: &value, name: &extern, issues: &value) -> (&value, &value) {
+fn init_list(fields: &value, name: js_string, issues: &value) -> (&value, &value) {
     let found = fields.kind == value_kind_map?map_get(fields, name):null;
     if !found {
         return (list_empty(), init_issue(issues, name, s_missing));
@@ -232,10 +232,10 @@ fn init_list(fields: &value, name: &extern, issues: &value) -> (&value, &value) 
 // The same for a string.
 fn init_string(
     fields: &value,
-    name: &extern,
-    default: &extern,
+    name: js_string,
+    default: js_string,
     issues: &value,
-) -> (&extern, &value) {
+) -> (js_string, &value) {
     let found = fields.kind == value_kind_map?map_get(fields, name):null;
     if !found {
         return (default, init_issue(issues, name, s_missing));
@@ -248,7 +248,7 @@ fn init_string(
 }
 
 // The same for a bool.
-fn init_bool(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+fn init_bool(fields: &value, name: js_string, default: i32, issues: &value) -> (i32, &value) {
     let found = fields.kind == value_kind_map?map_get(fields, name):null;
     if !found {
         return (default, init_issue(issues, name, s_missing));
@@ -284,7 +284,7 @@ fn arg_bool(args: &value_array, i: i32) -> (i32, i32) {
 }
 
 // n in decimal, as a JS string.
-fn int_text(n: i32) -> &extern {
+fn int_text(n: i32) -> js_string {
     let b = text_builder_new();
     text_push_int(b, n);
     text_finish(b);
@@ -292,7 +292,7 @@ fn int_text(n: i32) -> &extern {
 
 // A string of decimal digits (an optional leading '-') as an int: (1, n), or
 // (0, 0) when it isn't one.
-fn parse_int(s: &extern) -> (i32, i32) {
+fn parse_int(s: js_string) -> (i32, i32) {
     let r = {json_reader| text: s, pos: 0, end: js_string_length(s), ok: 1 };
     let n = jr_int(r);
     if !r.ok | (r.pos != r.end) {
@@ -302,13 +302,13 @@ fn parse_int(s: &extern) -> (i32, i32) {
 }
 
 // n as JS's String(n) writes it.
-fn number_text(n: f64) -> &extern {
+fn number_text(n: f64) -> js_string {
     host_number_text(n);
 }
 
 // s as a number, the way JS's Number(s) reads it, blank text not being one:
 // (1, n), or (0, 0) when it isn't a finite number.
-fn parse_number(s: &extern) -> (i32, f64) {
+fn parse_number(s: js_string) -> (i32, f64) {
     let n = host_parse_number(s);
     if (n == n) & (n - n == 0.0) {
         return (1, n);
@@ -317,7 +317,7 @@ fn parse_number(s: &extern) -> (i32, f64) {
 }
 
 // s as a JSON string, quoted and escaped as JSON.stringify writes it.
-fn json_string(s: &extern) -> &extern {
+fn json_string(s: js_string) -> js_string {
     let b = text_builder_new();
     text_push_json_string(b, s);
     text_finish(b);
@@ -326,7 +326,7 @@ fn json_string(s: &extern) -> &extern {
 // Compact JSON text (no whitespace outside strings) indented as
 // JSON.stringify(v, null, 2) writes it: an item or entry per line, two
 // spaces a level, ": " after a key, empty arrays and objects as [] and {}.
-fn json_indent(text: &extern) -> &extern {
+fn json_indent(text: js_string) -> js_string {
     let b = text_builder_new();
     let n = js_string_length(text);
     let depth = 0;
@@ -403,18 +403,18 @@ fn json_indent_line(b: &text_builder, depth: i32) {
 // their types and constraints, messages, and a component type's schema.
 
 // A field or an argument: its name and type, no constraints, shared.
-fn fs(name: &extern, vt: &vtype) -> &field_schema {
+fn fs(name: js_string, vt: &vtype) -> &field_schema {
     field_schema_new(name, vt, [constraint_array|null; 0], sync_shared);
 }
 
 // The same, with one constraint, or two.
-fn fs1(name: &extern, vt: &vtype, c: &constraint) -> &field_schema {
+fn fs1(name: js_string, vt: &vtype, c: &constraint) -> &field_schema {
     let cs = [constraint_array|null; 1];
     cs[0] = c;
     field_schema_new(name, vt, cs, sync_shared);
 }
 
-fn fs2(name: &extern, vt: &vtype, c1: &constraint, c2: &constraint) -> &field_schema {
+fn fs2(name: js_string, vt: &vtype, c1: &constraint, c2: &constraint) -> &field_schema {
     let cs = [constraint_array|null; 2];
     cs[0] = c1;
     cs[1] = c2;
@@ -447,12 +447,12 @@ fn fields3(a: &field_schema, b: &field_schema, c: &field_schema) -> &field_schem
 }
 
 // A message without a contract: its arguments only.
-fn msg(name: &extern, args: &field_schema_array) -> &message_schema {
+fn msg(name: js_string, args: &field_schema_array) -> &message_schema {
     message_schema_new(name, args, null, null, null, null, null);
 }
 
 // What a message may emit: one effect, or none.
-fn emits1(kind: i32, name: &extern) -> &emit_array {
+fn emits1(kind: i32, name: js_string) -> &emit_array {
     let out = [emit_array|null; 1];
     out[0] = emit_spec_new(kind, name);
     out;
@@ -473,7 +473,7 @@ fn no_invariants() -> &invariant_array {
 // handler's result by reference, and what compiled conditions evaluate with.
 
 // The field name of init's fields, or null when it's missing or fields isn't a map.
-fn field_value(fields: &value, name: &extern) -> &?value {
+fn field_value(fields: &value, name: js_string) -> &?value {
     if fields.kind != value_kind_map {
         return null;
     }
@@ -482,7 +482,7 @@ fn field_value(fields: &value, name: &extern) -> &?value {
 
 // Init that can't make an instance: field is missing or invalid, and has no
 // default (problem says how).
-fn init_fail(issues: &value, field: &extern, problem: &extern) -> &init_result {
+fn init_fail(issues: &value, field: js_string, problem: js_string) -> &init_result {
     let message = js_string_concat(js_string_concat(field, s_colon_space), problem);
     {init_result|
         instance: null,
@@ -688,7 +688,7 @@ fn cond_in(x: &value, xs: &value) -> i32 {
 }
 
 // s matches the regular expression pattern.
-fn cond_matches(s: &value, pattern: &extern) -> i32 {
+fn cond_matches(s: &value, pattern: js_string) -> i32 {
     if s.kind != value_kind_string {
         return 0;
     }
@@ -696,7 +696,7 @@ fn cond_matches(s: &value, pattern: &extern) -> i32 {
 }
 
 // v.name: a component's property, a map's key; null when it has none.
-fn value_member(v: &value, name: &extern) -> &value {
+fn value_member(v: &value, name: js_string) -> &value {
     if v.kind == value_kind_map {
         let found = map_get(v, name);
         if !found {

@@ -39,7 +39,7 @@ fn abi_value_float(v: f64) -> &value {
 }
 
 #[export = "value_string"]
-fn abi_value_string(v: &extern) -> &value {
+fn abi_value_string(v: js_string) -> &value {
     value_string(v);
 }
 
@@ -69,7 +69,7 @@ fn abi_value_truthy(v: &value) -> i32 {
 }
 
 #[export = "value_string_of"]
-fn abi_value_string_of(v: &value) -> &?extern {
+fn abi_value_string_of(v: &value) -> js_string_opt {
     value_string_of(v);
 }
 
@@ -79,7 +79,7 @@ fn abi_value_as_component(v: &value) -> &?component {
 }
 
 #[export = "str_eq"]
-fn abi_str_eq(a: &?extern, b: &?extern) -> i32 {
+fn abi_str_eq(a: js_string_opt, b: js_string_opt) -> i32 {
     str_eq(a, b);
 }
 
@@ -127,17 +127,17 @@ fn abi_map_count(map: &value) -> i32 {
 }
 
 #[export = "map_get"]
-fn abi_map_get(map: &value, key: &extern) -> &?value {
+fn abi_map_get(map: &value, key: js_string) -> &?value {
     map_get(map, key);
 }
 
 #[export = "map_assoc"]
-fn abi_map_assoc(map: &value, key: &extern, item: &value) -> &value {
+fn abi_map_assoc(map: &value, key: js_string, item: &value) -> &value {
     map_assoc(map, key, item);
 }
 
 #[export = "map_dissoc"]
-fn abi_map_dissoc(map: &value, key: &extern) -> &value {
+fn abi_map_dissoc(map: &value, key: js_string) -> &value {
     map_dissoc(map, key);
 }
 
@@ -154,7 +154,7 @@ fn abi_map_values(map: &value) -> &value {
 // Path keys (path.wax).
 
 #[export = "path_key_name"]
-fn abi_path_key_name(name: &extern) -> &path_key {
+fn abi_path_key_name(name: js_string) -> &path_key {
     path_key_name(name);
 }
 
@@ -168,8 +168,8 @@ fn abi_path_key_index(index: i32) -> &path_key {
 #[export = "template_new"]
 fn abi_template_new(
     tid: i32,
-    tag_name: &extern,
-    ns: &?extern,
+    tag_name: js_string,
+    ns: js_string_opt,
     static_names: &str_array,
     static_values: &value_array,
     names: &str_array,
@@ -207,29 +207,29 @@ fn abi_arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {
 fn abi_snode_el(
     template: &template,
     values: &value_array,
-    key: &?extern,
+    key: js_string_opt,
     childs: &snode_array,
 ) -> &snode {
     snode_el(template, values, key, childs);
 }
 
 #[export = "snode_text"]
-fn abi_snode_text(text: &extern) -> &snode {
+fn abi_snode_text(text: js_string) -> &snode {
     snode_text(text);
 }
 
 #[export = "snode_comment"]
-fn abi_snode_comment(text: &extern) -> &snode {
+fn abi_snode_comment(text: js_string) -> &snode {
     snode_comment(text);
 }
 
 #[export = "snode_group"]
-fn abi_snode_group(key: &?extern, childs: &snode_array) -> &snode {
+fn abi_snode_group(key: js_string_opt, childs: &snode_array) -> &snode {
     snode_group(key, childs);
 }
 
 #[export = "snode_component"]
-fn abi_snode_component(name: &extern, childs: &snode_array) -> &snode {
+fn abi_snode_component(name: js_string, childs: &snode_array) -> &snode {
     snode_component(name, childs);
 }
 
@@ -252,22 +252,22 @@ fn abi_view_const(value: &value) -> &view {
 }
 
 #[export = "view_field"]
-fn abi_view_field(name: &extern) -> &view {
+fn abi_view_field(name: js_string) -> &view {
     view_field(name);
 }
 
 #[export = "view_seq_item"]
-fn abi_view_seq_item(seq_name: &extern, key_name: &extern) -> &view {
+fn abi_view_seq_item(seq_name: js_string, key_name: js_string) -> &view {
     view_seq_item(seq_name, key_name);
 }
 
 #[export = "view_provided"]
-fn abi_view_provided(name: &extern) -> &view {
+fn abi_view_provided(name: js_string) -> &view {
     view_provided(name);
 }
 
 #[export = "view_lookup_bind"]
-fn abi_view_lookup_bind(name: &extern) -> &view {
+fn abi_view_lookup_bind(name: js_string) -> &view {
     view_lookup_bind(name);
 }
 
@@ -278,8 +278,8 @@ fn abi_view_if(test: &view, then: &view, otherwise: &view) -> &view {
 
 #[export = "view_el"]
 fn abi_view_el(
-    tag_name: &extern,
-    ns: &?extern,
+    tag_name: js_string,
+    ns: js_string_opt,
     attr_names: &str_array,
     attr_values: &view_array,
     key: &?view,
@@ -295,27 +295,27 @@ fn abi_view_frag(childs: &view_array) -> &view {
 }
 
 #[export = "view_render"]
-fn abi_view_render(source: &view, view_name: &?extern) -> &view {
+fn abi_view_render(source: &view, view_name: js_string_opt) -> &view {
     view_render(source, view_name);
 }
 
 #[export = "view_each"]
-fn abi_view_each(source: &view, body: &view, loop_name: &?extern) -> &view {
+fn abi_view_each(source: &view, body: &view, loop_name: js_string_opt) -> &view {
     view_each(source, body, loop_name);
 }
 
 #[export = "view_render_each"]
-fn abi_view_render_each(source: &view, loop_name: &?extern) -> &view {
+fn abi_view_render_each(source: &view, loop_name: js_string_opt) -> &view {
     view_render_each(source, loop_name);
 }
 
 #[export = "view_render_it"]
-fn abi_view_render_it(view_name: &?extern) -> &view {
+fn abi_view_render_it(view_name: js_string_opt) -> &view {
     view_render_it(view_name);
 }
 
 #[export = "view_scope"]
-fn abi_view_scope(scope_name: &extern, body: &view) -> &view {
+fn abi_view_scope(scope_name: js_string, body: &view) -> &view {
     view_scope(scope_name, body);
 }
 
@@ -325,18 +325,18 @@ fn abi_view_push_view(view_name: &view, body: &view) -> &view {
 }
 
 #[export = "view_action"]
-fn abi_view_action(name: &extern, args: &arg_array) -> &action {
+fn abi_view_action(name: js_string, args: &arg_array) -> &action {
     view_action(name, args);
 }
 
 #[export = "view_on"]
-fn abi_view_on(event: &extern, action: &action) -> &view_on {
+fn abi_view_on(event: js_string, action: &action) -> &view_on {
     view_on(event, action);
 }
 
 #[export = "spec_new"]
 fn abi_spec_new(
-    name: &extern,
+    name: js_string,
     view_names: &str_array,
     views: &view_array,
     loops: &loop_def_array,
@@ -419,34 +419,34 @@ fn abi_component_new(
 }
 
 #[export = "scope_register"]
-fn abi_scope_register(s: &scope, name: &extern, spec: &component_spec, vtable: &vtable) {
+fn abi_scope_register(s: &scope, name: js_string, spec: &component_spec, vtable: &vtable) {
     scope_register(s, name, spec, vtable);
 }
 
 #[export = "scope_register_ask"]
-fn abi_scope_register_ask(s: &scope, name: &extern, handler: &ask_fn) {
+fn abi_scope_register_ask(s: &scope, name: js_string, handler: &ask_fn) {
     scope_register_ask(s, name, handler);
 }
 
 #[export = "scope_register_host_ask"]
-fn abi_scope_register_host_ask(s: &scope, name: &extern) {
+fn abi_scope_register_host_ask(s: &scope, name: js_string) {
     scope_register_host_ask(s, name);
 }
 
 // What a handler does through its context (context.wax).
 
 #[export = "ctx_notify"]
-fn abi_ctx_notify(ctx: &context, name: &extern, args: &value_array) {
+fn abi_ctx_notify(ctx: &context, name: js_string, args: &value_array) {
     ctx_notify(ctx, name, args);
 }
 
 #[export = "ctx_ask"]
-fn abi_ctx_ask(ctx: &context, name: &extern, args: &value_array) {
+fn abi_ctx_ask(ctx: &context, name: js_string, args: &value_array) {
     ctx_ask(ctx, name, args);
 }
 
 #[export = "ctx_send_at"]
-fn abi_ctx_send_at(ctx: &context, name: &extern, args: &value_array, selector: &selector) {
+fn abi_ctx_send_at(ctx: &context, name: js_string, args: &value_array, selector: &selector) {
     ctx_send_at(ctx, name, args, selector);
 }
 
@@ -476,17 +476,17 @@ fn abi_ctx_random(ctx: &context) -> f64 {
 }
 
 #[export = "ctx_uuid"]
-fn abi_ctx_uuid(ctx: &context) -> &extern {
+fn abi_ctx_uuid(ctx: &context) -> js_string {
     ctx_uuid(ctx);
 }
 
 #[export = "ctx_make"]
-fn abi_ctx_make(ctx: &context, name: &extern, fields: &value) -> &component {
+fn abi_ctx_make(ctx: &context, name: js_string, fields: &value) -> &component {
     ctx_make(ctx, name, fields);
 }
 
 #[export = "ctx_try_make"]
-fn abi_ctx_try_make(ctx: &context, name: &extern, fields: &value) -> &value {
+fn abi_ctx_try_make(ctx: &context, name: js_string, fields: &value) -> &value {
     ctx_try_make(ctx, name, fields);
 }
 
@@ -496,7 +496,7 @@ fn abi_ctx_component_names(ctx: &context, walk: i32) -> &value {
 }
 
 #[export = "init_ctx_make"]
-fn abi_init_ctx_make(ctx: &init_context, name: &extern, fields: &value) -> &component {
+fn abi_init_ctx_make(ctx: &init_context, name: js_string, fields: &value) -> &component {
     init_ctx_make(ctx, name, fields);
 }
 
@@ -518,17 +518,17 @@ fn abi_strs0() -> &str_array {
 }
 
 #[export = "strs1"]
-fn abi_strs1(a: &extern) -> &str_array {
+fn abi_strs1(a: js_string) -> &str_array {
     strs1(a);
 }
 
 #[export = "selector_item"]
-fn abi_selector_item(name: &extern, key: &path_key) -> &selector {
+fn abi_selector_item(name: js_string, key: &path_key) -> &selector {
     selector_item(name, key);
 }
 
 #[export = "selector_field"]
-fn abi_selector_field(name: &extern) -> &selector {
+fn abi_selector_field(name: js_string) -> &selector {
     selector_field(name);
 }
 
@@ -573,12 +573,12 @@ fn abi_view_ons0() -> &view_on_array {
 }
 
 #[export = "view_ons1"]
-fn abi_view_ons1(event: &extern, name: &extern, args: &arg_array) -> &view_on_array {
+fn abi_view_ons1(event: js_string, name: js_string, args: &arg_array) -> &view_on_array {
     view_ons1(event, name, args);
 }
 
 #[export = "strs2"]
-fn abi_strs2(a: &extern, b: &extern) -> &str_array {
+fn abi_strs2(a: js_string, b: js_string) -> &str_array {
     strs2(a, b);
 }
 
@@ -593,18 +593,18 @@ fn abi_views5(a: &view, b: &view, c: &view, d: &view, e: &view) -> &view_array {
 }
 
 #[export = "text"]
-fn abi_text(s: &extern) -> &view {
+fn abi_text(s: js_string) -> &view {
     text(s);
 }
 
 #[export = "el"]
-fn abi_el(tag_name: &extern, childs: &view_array) -> &view {
+fn abi_el(tag_name: js_string, childs: &view_array) -> &view {
     el(tag_name, childs);
 }
 
 #[export = "el_attrs"]
 fn abi_el_attrs(
-    tag_name: &extern,
+    tag_name: js_string,
     names: &str_array,
     values: &view_array,
     childs: &view_array,
@@ -614,7 +614,7 @@ fn abi_el_attrs(
 
 #[export = "el_on"]
 fn abi_el_on(
-    tag_name: &extern,
+    tag_name: js_string,
     names: &str_array,
     values: &view_array,
     childs: &view_array,
@@ -624,19 +624,19 @@ fn abi_el_on(
 }
 
 #[export = "strs3"]
-fn abi_strs3(a: &extern, b: &extern, c: &extern) -> &str_array {
+fn abi_strs3(a: js_string, b: js_string, c: js_string) -> &str_array {
     strs3(a, b, c);
 }
 
 #[export = "el_class"]
-fn abi_el_class(tag_name: &extern, class: &extern, childs: &view_array) -> &view {
+fn abi_el_class(tag_name: js_string, class: js_string, childs: &view_array) -> &view {
     el_class(tag_name, class, childs);
 }
 
 #[export = "el_class_on"]
 fn abi_el_class_on(
-    tag_name: &extern,
-    class: &extern,
+    tag_name: js_string,
+    class: js_string,
     childs: &view_array,
     ons: &view_on_array,
 ) -> &view {
@@ -644,7 +644,7 @@ fn abi_el_class_on(
 }
 
 #[export = "spec_main"]
-fn abi_spec_main(name: &extern, main: &view, loops: &loop_def_array) -> &component_spec {
+fn abi_spec_main(name: js_string, main: &view, loops: &loop_def_array) -> &component_spec {
     spec_main(name, main, loops);
 }
 
@@ -669,27 +669,27 @@ fn abi_init_ok(instance: &eq, issues: &value) -> &init_result {
 }
 
 #[export = "init_int"]
-fn abi_init_int(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+fn abi_init_int(fields: &value, name: js_string, default: i32, issues: &value) -> (i32, &value) {
     init_int(fields, name, default, issues);
 }
 
 #[export = "init_bool"]
-fn abi_init_bool(fields: &value, name: &extern, default: i32, issues: &value) -> (i32, &value) {
+fn abi_init_bool(fields: &value, name: js_string, default: i32, issues: &value) -> (i32, &value) {
     init_bool(fields, name, default, issues);
 }
 
 #[export = "init_list"]
-fn abi_init_list(fields: &value, name: &extern, issues: &value) -> (&value, &value) {
+fn abi_init_list(fields: &value, name: js_string, issues: &value) -> (&value, &value) {
     init_list(fields, name, issues);
 }
 
 #[export = "init_string"]
 fn abi_init_string(
     fields: &value,
-    name: &extern,
-    default: &extern,
+    name: js_string,
+    default: js_string,
     issues: &value,
-) -> (&extern, &value) {
+) -> (js_string, &value) {
     init_string(fields, name, default, issues);
 }
 
@@ -704,32 +704,32 @@ fn abi_arg_bool(args: &value_array, i: i32) -> (i32, i32) {
 }
 
 #[export = "int_text"]
-fn abi_int_text(n: i32) -> &extern {
+fn abi_int_text(n: i32) -> js_string {
     int_text(n);
 }
 
 #[export = "parse_int"]
-fn abi_parse_int(s: &extern) -> (i32, i32) {
+fn abi_parse_int(s: js_string) -> (i32, i32) {
     parse_int(s);
 }
 
 #[export = "number_text"]
-fn abi_number_text(n: f64) -> &extern {
+fn abi_number_text(n: f64) -> js_string {
     number_text(n);
 }
 
 #[export = "parse_number"]
-fn abi_parse_number(s: &extern) -> (i32, f64) {
+fn abi_parse_number(s: js_string) -> (i32, f64) {
     parse_number(s);
 }
 
 #[export = "json_string"]
-fn abi_json_string(s: &extern) -> &extern {
+fn abi_json_string(s: js_string) -> js_string {
     json_string(s);
 }
 
 #[export = "json_indent"]
-fn abi_json_indent(text: &extern) -> &extern {
+fn abi_json_indent(text: js_string) -> js_string {
     json_indent(text);
 }
 
@@ -838,23 +838,23 @@ fn abi_constraint_none_of(values: &value) -> &constraint {
 }
 
 #[export = "constraint_key_of"]
-fn abi_constraint_key_of(field: &extern) -> &constraint {
+fn abi_constraint_key_of(field: js_string) -> &constraint {
     constraint_key_of(field);
 }
 
 #[export = "constraint_pattern"]
-fn abi_constraint_pattern(pattern: &extern) -> &constraint {
+fn abi_constraint_pattern(pattern: js_string) -> &constraint {
     constraint_pattern(pattern);
 }
 
 #[export = "constraint_check"]
-fn abi_constraint_check(name: &extern, check: &check_fn) -> &constraint {
+fn abi_constraint_check(name: js_string, check: &check_fn) -> &constraint {
     constraint_check(name, check);
 }
 
 #[export = "field_schema_new"]
 fn abi_field_schema_new(
-    name: &extern,
+    name: js_string,
     vtype: &vtype,
     constraints: &constraint_array,
     sync: i32,
@@ -864,7 +864,7 @@ fn abi_field_schema_new(
 
 #[export = "message_schema_new"]
 fn abi_message_schema_new(
-    name: &extern,
+    name: js_string,
     args: &field_schema_array,
     source_key: &?field_schema,
     pre: &?pre_fn,
@@ -876,18 +876,18 @@ fn abi_message_schema_new(
 }
 
 #[export = "emit_spec_new"]
-fn abi_emit_spec_new(kind: i32, name: &extern) -> &emit_spec {
+fn abi_emit_spec_new(kind: i32, name: js_string) -> &emit_spec {
     emit_spec_new(kind, name);
 }
 
 #[export = "invariant_new"]
-fn abi_invariant_new(name: &extern, holds: &invariant_fn) -> &invariant {
+fn abi_invariant_new(name: js_string, holds: &invariant_fn) -> &invariant {
     invariant_new(name, holds);
 }
 
 #[export = "interface_schema_new"]
 fn abi_interface_schema_new(
-    name: &extern,
+    name: js_string,
     fields: &field_schema_array,
     gets: &field_schema_array,
     messages: &message_schema_array,
@@ -922,24 +922,24 @@ fn abi_message_error_invalid_arg(index: i32, reason: &value) -> &message_error {
 }
 
 #[export = "arg_event"]
-fn abi_arg_event(name: &extern) -> &arg {
+fn abi_arg_event(name: js_string) -> &arg {
     arg_event(name);
 }
 
 // Schema helpers (lib/author.wax).
 
 #[export = "fs"]
-fn abi_fs(name: &extern, vt: &vtype) -> &field_schema {
+fn abi_fs(name: js_string, vt: &vtype) -> &field_schema {
     fs(name, vt);
 }
 
 #[export = "fs1"]
-fn abi_fs1(name: &extern, vt: &vtype, c: &constraint) -> &field_schema {
+fn abi_fs1(name: js_string, vt: &vtype, c: &constraint) -> &field_schema {
     fs1(name, vt, c);
 }
 
 #[export = "fs2"]
-fn abi_fs2(name: &extern, vt: &vtype, c1: &constraint, c2: &constraint) -> &field_schema {
+fn abi_fs2(name: js_string, vt: &vtype, c1: &constraint, c2: &constraint) -> &field_schema {
     fs2(name, vt, c1, c2);
 }
 
@@ -964,12 +964,12 @@ fn abi_fields3(a: &field_schema, b: &field_schema, c: &field_schema) -> &field_s
 }
 
 #[export = "msg"]
-fn abi_msg(name: &extern, args: &field_schema_array) -> &message_schema {
+fn abi_msg(name: js_string, args: &field_schema_array) -> &message_schema {
     msg(name, args);
 }
 
 #[export = "emits1"]
-fn abi_emits1(kind: i32, name: &extern) -> &emit_array {
+fn abi_emits1(kind: i32, name: js_string) -> &emit_array {
     emits1(kind, name);
 }
 
@@ -991,27 +991,27 @@ fn abi_value_to_f64(v: &value) -> f64 {
 }
 
 #[export = "vtype_problem"]
-fn abi_vtype_problem(t: &vtype, v: &value) -> &?extern {
+fn abi_vtype_problem(t: &vtype, v: &value) -> js_string_opt {
     vtype_problem(t, v);
 }
 
 #[export = "constraints_problem"]
-fn abi_constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> &?extern {
+fn abi_constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> js_string_opt {
     constraints_problem(cs, v, owner);
 }
 
 #[export = "field_value"]
-fn abi_field_value(fields: &value, name: &extern) -> &?value {
+fn abi_field_value(fields: &value, name: js_string) -> &?value {
     field_value(fields, name);
 }
 
 #[export = "init_issue"]
-fn abi_init_issue(issues: &value, field: &extern, problem: &extern) -> &value {
+fn abi_init_issue(issues: &value, field: js_string, problem: js_string) -> &value {
     init_issue(issues, field, problem);
 }
 
 #[export = "init_fail"]
-fn abi_init_fail(issues: &value, field: &extern, problem: &extern) -> &init_result {
+fn abi_init_fail(issues: &value, field: js_string, problem: js_string) -> &init_result {
     init_fail(issues, field, problem);
 }
 
@@ -1086,12 +1086,12 @@ fn abi_cond_in(x: &value, xs: &value) -> i32 {
 }
 
 #[export = "cond_matches"]
-fn abi_cond_matches(s: &value, pattern: &extern) -> i32 {
+fn abi_cond_matches(s: &value, pattern: js_string) -> i32 {
     cond_matches(s, pattern);
 }
 
 #[export = "value_member"]
-fn abi_value_member(v: &value, name: &extern) -> &value {
+fn abi_value_member(v: &value, name: js_string) -> &value {
     value_member(v, name);
 }
 
@@ -1099,6 +1099,6 @@ fn abi_value_member(v: &value, name: &extern) -> &value {
 // do, so the task commits nothing.
 
 #[export = "tutuca_fail"]
-fn abi_tutuca_fail(message: &extern) {
+fn abi_tutuca_fail(message: js_string) {
     host_fail(message);
 }

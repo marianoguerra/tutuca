@@ -2,14 +2,14 @@
 // shapes its elements point at: what a component's render returns. src/sem.wax
 // has the constructors; src/vnode.wax what shapes are for.
 
-type str_array = [mut &?extern];
+type str_array = [mut js_string_opt];
 
 // What every render of one template shares: tag, namespace, the attrs that
 // never change and the names of the ones that do. Same-shape vnodes diff by
 // index; different shapes replace. Shapes are compared by reference.
 type shape = {
-    tag_name: &extern,
-    ns: &?extern, // null: the element inherits its parent's
+    tag_name: js_string,
+    ns: js_string_opt, // null: the element inherits its parent's
     static_names: &str_array, // set when the element is created, never diffed
     static_values: &value_array,
     names: &str_array, // the dynamic attrs, aligned with an element's values
@@ -37,14 +37,14 @@ rec {
     // The item key of the receiver's child the dragged element is in.
     type arg_drag_key: arg = { .. };
     // A field of the event (its key, clientX, ctrlKey, ...), null when it has none.
-    type arg_event: arg = { .., name: &extern };
+    type arg_event: arg = { .., name: js_string };
     type arg_if: arg = { .., test: &arg, then: &arg, otherwise: &arg };
 }
 
 type arg_array = [mut &?arg];
 
 // What an event sends: (send name arg ...).
-type action = { name: &extern, args: &arg_array };
+type action = { name: js_string, args: &arg_array };
 
 // What an on:<event>+<modifier>... attr requires of the event besides its
 // type, and what it does to it: modifier keys held, flags; and a key, the
@@ -57,7 +57,7 @@ const event_mod_prevent = 16; // preventDefault() when it handles the event
 const event_mod_stop = 32; // stopPropagation() when it handles the event
 
 // on:<event>[+modifier...]: event is the type alone.
-type on_attr = { event: &extern, key: &?extern, mods: i32, action: &action };
+type on_attr = { event: js_string, key: js_string_opt, mods: i32, action: &action };
 type on_attr_array = [mut &?on_attr];
 
 // A template: one element of a component type's views, made once when the
@@ -83,22 +83,22 @@ rec {
         ..,
         template: &template,
         values: &value_array,
-        key: &?extern,
+        key: js_string_opt,
         childs: &snode_array
     };
-    type snode_text: snode = { .., text: &extern };
+    type snode_text: snode = { .., text: js_string };
     // A comment the view itself writes.
-    type snode_comment: snode = { .., text: &extern };
+    type snode_comment: snode = { .., text: js_string };
     // An explicit fragment: a sibling key scope.
-    type snode_group: snode = { .., key: &?extern, childs: &snode_array };
+    type snode_group: snode = { .., key: js_string_opt, childs: &snode_array };
     // The render of an instance of the named component type.
-    type snode_component: snode = { .., name: &extern, childs: &snode_array };
+    type snode_component: snode = { .., name: js_string, childs: &snode_array };
     // Rendered at a frame: a field, the selected item of a field, a provided value.
     type snode_enter: snode = { .., frame: &frame, childs: &snode_array };
     // A loop, one entry per item.
     type snode_items: snode = { .., entries: &entry_array };
     type snode_array = [mut &?snode];
     // A loop item: its key, its frame and its body.
-    type entry = { key: &?extern, frame: &frame, body: &snode_array };
+    type entry = { key: js_string_opt, frame: &frame, body: &snode_array };
     type entry_array = [mut &?entry];
 }

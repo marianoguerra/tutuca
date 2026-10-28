@@ -38,7 +38,7 @@ fn text_push_path_keys(b: &text_builder, keys: &path_key_array) {
 }
 
 // The opening comment's text for a frame wrapper.
-fn meta_frame_text(f: &frame) -> &extern {
+fn meta_frame_text(f: &frame) -> js_string {
     let b = text_builder_new();
     text_push(b, s_meta_frame_open);
     if !f.provider {

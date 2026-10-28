@@ -25,37 +25,37 @@ test "generated contract and glue of a small component" {
       #|
       #|import "'" {
       #|    #[import = "Tally"]
-      #|    const gs_tally: &extern;
+      #|    const gs_tally: js_string;
       #|    #[import = "count"]
-      #|    const gs_count: &extern;
+      #|    const gs_count: js_string;
       #|    #[import = "mode"]
-      #|    const gs_mode: &extern;
+      #|    const gs_mode: js_string;
       #|    #[import = "bump"]
-      #|    const gs_bump: &extern;
+      #|    const gs_bump: js_string;
       #|    #[import = "changed"]
-      #|    const gs_changed: &extern;
+      #|    const gs_changed: js_string;
       #|    #[import = "class"]
-      #|    const gs_class: &extern;
+      #|    const gs_class: js_string;
       #|    #[import = "btn"]
-      #|    const gs_btn: &extern;
+      #|    const gs_btn: js_string;
       #|    #[import = "click"]
-      #|    const gs_click: &extern;
+      #|    const gs_click: js_string;
       #|    #[import = "button"]
-      #|    const gs_button: &extern;
+      #|    const gs_button: js_string;
       #|    #[import = "up"]
-      #|    const gs_up: &extern;
+      #|    const gs_up: js_string;
       #|    #[import = "down"]
-      #|    const gs_down: &extern;
+      #|    const gs_down: js_string;
       #|    #[import = "n"]
-      #|    const gs_n: &extern;
+      #|    const gs_n: js_string;
       #|    #[import = "main"]
-      #|    const gs_main: &extern;
+      #|    const gs_main: js_string;
       #|    #[import = "missing"]
-      #|    const gs_missing: &extern;
+      #|    const gs_missing: js_string;
       #|    #[import = "wrong type"]
-      #|    const gs_wrong_type: &extern;
+      #|    const gs_wrong_type: js_string;
       #|    #[import = "invalid"]
-      #|    const gs_invalid: &extern;
+      #|    const gs_invalid: js_string;
       #|}
       #|
       #|// ---- Tally ---------------------------------------------------------------------
@@ -183,7 +183,7 @@ test "generated contract and glue of a small component" {
       #|    let issues = list_empty();
       #|    let schema = tally_schema();
       #|    let found: &?value = null;
-      #|    let problem: &?extern = null;
+      #|    let problem: js_string_opt = null;
       #|    let f_count: i32 = 0;
       #|    found = field_value(fields, gs_count);
       #|    if !found {
@@ -232,7 +232,7 @@ test "generated contract and glue of a small component" {
       #|    message_result_rejected(message_error_unknown_message());
       #|}
       #|
-      #|fn tally_vt_get: get_fn (instance: &eq, name: &extern) -> (i32, &?value) {
+      #|fn tally_vt_get: get_fn (instance: &eq, name: js_string) -> (i32, &?value) {
       #|    let state = instance as &tally_state;
       #|    if str_eq(name, gs_count) {
       #|        return (property_ok, value_int(state.count));
@@ -244,7 +244,7 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|// set: a field, when the value fits its schema; a property is read only.
-      #|fn tally_vt_set: set_fn (instance: &eq, name: &extern, v: &value) -> (i32, &?eq) {
+      #|fn tally_vt_set: set_fn (instance: &eq, name: js_string, v: &value) -> (i32, &?eq) {
       #|    let state = instance as &tally_state;
       #|    let schema = tally_schema();
       #|    if str_eq(name, gs_count) {
@@ -284,7 +284,7 @@ test "generated contract and glue of a small component" {
       #|    scope_register(s, gs_tally, tally_spec(), tally_vtable());
       #|}
       #|
-      #|fn tcd_enum_0_name(i: i32) -> &extern {
+      #|fn tcd_enum_0_name(i: i32) -> js_string {
       #|    if i == 0 {
       #|        return gs_up;
       #|    }
@@ -294,7 +294,7 @@ test "generated contract and glue of a small component" {
       #|    gs_up;
       #|}
       #|
-      #|fn tcd_enum_0_index(s: &extern) -> i32 {
+      #|fn tcd_enum_0_index(s: js_string) -> i32 {
       #|    if str_eq(s, gs_up) {
       #|        return 0;
       #|    }
@@ -342,13 +342,13 @@ test "the package's names claim their gs_ constants before view text" {
     content=(
       #|[
       #|  "#[import = \"notes\"]",
-      #|  "const gs_notes: &extern;",
+      #|  "const gs_notes: js_string;",
       #|  "#[import = \"add_note\"]",
-      #|  "const gs_add_note: &extern;",
+      #|  "const gs_add_note: js_string;",
       #|  "#[import = \"Notes\"]",
-      #|  "const gs_notes_2: &extern;",
+      #|  "const gs_notes_2: js_string;",
       #|  "#[import = \"Add note\"]",
-      #|  "const gs_add_note_2: &extern;",
+      #|  "const gs_add_note_2: js_string;",
       #|]
     ),
   )
@@ -485,9 +485,9 @@ test "only the empty text is gs_empty" {
     consts.filter(l => l.contains("gs_empty") || l.contains("gs_text")),
     content=(
       #|[
-      #|  "#[import = \"+\"] const gs_text: &extern;",
-      #|  "#[import = \"×\"] const gs_text_2: &extern;",
-      #|  "#[import = \"\"] const gs_empty: &extern;",
+      #|  "#[import = \"+\"] const gs_text: js_string;",
+      #|  "#[import = \"×\"] const gs_text_2: js_string;",
+      #|  "#[import = \"\"] const gs_empty: js_string;",
       #|]
     ),
   )
@@ -527,7 +527,7 @@ test "view names are kept as written" {
   debug_inspect(
     pick(out.contract, l => l.contains("compact") || l.contains("Compact")),
     content=(
-      #|["#[import = \"compact_row\"]", "const gs_compact_row: &extern;"]
+      #|["#[import = \"compact_row\"]", "const gs_compact_row: js_string;"]
     ),
   )
   debug_inspect(

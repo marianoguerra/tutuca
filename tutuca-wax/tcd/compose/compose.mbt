@@ -260,7 +260,33 @@ fn funcs_of(m : @ast.LocModule) -> Array[FuncSig] {
 }
 
 ///|
-fn vt_json(t : @ast.ValType) -> String {
+/// The value-type aliases the modules define (`type js_string = &extern;`), by
+/// name.
+fn aliases_of(modules : Array[@ast.LocModule]) -> Map[String, @ast.ValType] {
+  let out : Map[String, @ast.ValType] = Map([])
+  for m in modules {
+    for f in m {
+      if f.desc is TypeAlias(name~, typ~) {
+        out[name.name] = typ
+      }
+    }
+  }
+  out
+}
+
+///|
+/// t as JSON, with the aliases it names expanded: an implementation may write
+/// a parameter the convention calls `js_string` as `&extern`, or the other way
+/// around. A name with no alias stays as written, and so does a cyclic one,
+/// after as many steps as there are aliases.
+fn vt_json(t : @ast.ValType, aliases : Map[String, @ast.ValType]) -> String {
+  let mut t = t
+  let mut steps = aliases.length()
+  while steps > 0 {
+    guard t is Alias(a) && aliases.get(a.name) is Some(u) else { break }
+    t = u
+    steps -= 1
+  }
   @ast.valtype_json(t).stringify()
 }
 
@@ -295,14 +321,17 @@ fn sign_text(params : Array[(String, String)], result : String) -> String {
 ///|
 /// Holds the implementation to the convention: what's missing, what has the
 /// wrong signature, what looks like a handler for something undeclared, and
-/// what the generated code defines already.
+/// what the generated code defines already. Types compare up to the aliases
+/// prelude, the generated code and the implementation define.
 pub fn check_convention(
   pkg : @check.Package,
   reqs : Array[@gen.Required],
   impl_modules : Array[@ast.LocModule],
   generated : Array[@ast.LocModule],
+  prelude~ : Array[@ast.LocModule] = [],
 ) -> Array[@diag.Diagnostic] {
   let diags = []
+  let aliases = aliases_of([..prelude, ..generated, ..impl_modules])
   let funcs = []
   for m in impl_modules {
     funcs.append(funcs_of(m))
@@ -353,7 +382,7 @@ pub fn check_convention(
         for i, p in have.params {
           let (_, have_t) = p.desc
           let (_, want_t) = want.params[i].desc
-          if vt_json(have_t) != vt_json(want_t) {
+          if vt_json(have_t, aliases) != vt_json(want_t, aliases) {
             diags.push(
               @diag.error(
                 "tcd.impl.signature",
@@ -363,8 +392,8 @@ pub fn check_convention(
             )
           }
         }
-        let have_r = have.results.map(vt_json)
-        let want_r = want.results.map(vt_json)
+        let have_r = have.results.map(t => vt_json(t, aliases))
+        let want_r = want.results.map(t => vt_json(t, aliases))
         if have_r != want_r {
           diags.push(
             @diag.error(
@@ -461,7 +490,9 @@ pub fn build(
   if @diag.has_errors(diags) {
     return { wasm: None, abi_imports: imports, diags, }
   }
-  let conv = check_convention(pkg, out.required, impls, [contract, glue])
+  let conv = check_convention(pkg, out.required, impls, [contract, glue], prelude=[
+    module_,
+  ])
   diags.append(conv)
   if @diag.has_errors(conv) {
     return { wasm: None, abi_imports: imports, diags, }

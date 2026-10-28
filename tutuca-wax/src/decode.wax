@@ -11,7 +11,7 @@
 // A JSON reader for what meta.wax writes. Anything else, a look-alike comment
 // from unmanaged DOM included, reads as no metadata.
 
-type json_reader = { text: &extern, pos: mut i32, end: i32, ok: mut i32 };
+type json_reader = { text: js_string, pos: mut i32, end: i32, ok: mut i32 };
 
 fn jr_peek(r: &json_reader) -> i32 {
     if r.pos <s r.end {
@@ -41,7 +41,7 @@ fn jr_hex(unit: i32) -> i32 {
     -1;
 }
 
-fn jr_string(r: &json_reader) -> &extern {
+fn jr_string(r: &json_reader) -> js_string {
     jr_expect(r, UNIT_QUOTE);
     let b = text_builder_new();
     'done: do {
@@ -223,7 +223,7 @@ const meta_kind_component = 1;
 const meta_kind_frame = 2;
 
 // Whether text looks like an opening metadata comment: §{...}§.
-fn is_meta_open(text: &extern) -> i32 {
+fn is_meta_open(text: js_string) -> i32 {
     let n = js_string_length(text);
     if n <s 3 {
         return 0;
@@ -235,7 +235,7 @@ fn is_meta_open(text: &extern) -> i32 {
 // What an opening comment says: meta_kind_none for anything that isn't
 // metadata, a component boundary, or a frame (without its component flag:
 // the boundary that follows restores it).
-fn parse_meta(text: &extern) -> (i32, &?frame) {
+fn parse_meta(text: js_string) -> (i32, &?frame) {
     if !is_meta_open(text) {
         return (meta_kind_none, null);
     }
@@ -294,12 +294,12 @@ type component_mark = { };
 
 const COMPONENT_MARK: &component_mark = {component_mark| };
 
-type event_info = { handler: &on_attr, route: &route, node: &extern };
+type event_info = { handler: &on_attr, route: &route, node: dom_node };
 
 // The metadata enclosing node: its previous siblings, nearest first. Each
 // closing comment hides one opening comment; other comments are skipped.
 // Pushes frames and component marks to metas; returns how many components.
-fn enclosing_meta(node: &extern, metas: &pv_vector) -> (i32, &pv_vector) {
+fn enclosing_meta(node: dom_node, metas: &pv_vector) -> (i32, &pv_vector) {
     let out = metas;
     let components = 0;
     let closed = 0;
@@ -401,13 +401,13 @@ type walk_up = {
 };
 
 // null when node is outside container.
-fn walk_up(container: &extern, node: &extern) -> &?walk_up {
+fn walk_up(container: dom_node, node: dom_node) -> &?walk_up {
     let metas = pv_empty();
     let components = 0;
     let eids = [i32_array|0; 4];
     let levels = [i32_array|0; 4];
     let nodes = ext_buf_new(4);
-    let at: &?extern = node;
+    let at: dom_node_opt = node;
     'walk: do {
         while 1 {
             if !at {
@@ -442,7 +442,7 @@ fn walk_up(container: &extern, node: &extern) -> &?walk_up {
 
 // The path of the component, and the loop items in it, node was rendered in
 // (pathOf in tutuca's src/events.js); null outside container or any component.
-fn path_of(container: &extern, node: &extern) -> &?dispatch_path {
+fn path_of(container: dom_node, node: dom_node) -> &?dispatch_path {
     let found = walk_up(container, node);
     if !found {
         return null;
@@ -463,9 +463,9 @@ fn path_of(container: &extern, node: &extern) -> &?dispatch_path {
 // if that one has none, and so on out. null when target is outside
 // container, in no component, or no element there handles the event.
 fn decode_event(
-    container: &extern,
-    target: &extern,
-    kind: &extern,
+    container: dom_node,
+    target: dom_node,
+    kind: js_string,
     root: &value,
     bubbles: i32,
     event: &value,
@@ -493,7 +493,7 @@ fn decode_event(
 // The handler for kind among the elements at level, in their component.
 fn decode_at_level(
     w: &walk_up,
-    kind: &extern,
+    kind: js_string,
     root: &value,
     level: i32,
     event: &value,

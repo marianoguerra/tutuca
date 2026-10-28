@@ -9,7 +9,7 @@
 // ---- Rejections ------------------------------------------------------------------
 
 // The text a rejection's reason reads as: a string as it is, anything else short.
-fn reason_text(v: &value) -> &extern {
+fn reason_text(v: &value) -> js_string {
     let s = value_string_of(v);
     if !!s {
         return s!;
@@ -23,10 +23,10 @@ fn reason_text(v: &value) -> &extern {
 // reason, when it gave one. JS gets them all as the error's rejection.
 fn reject_with(
     c: &component,
-    name: &extern,
-    reason: &extern,
+    name: js_string,
+    reason: js_string,
     index: i32,
-    problem: &extern,
+    problem: js_string,
     detail: &?value,
 ) {
     let info = map_assoc(map_empty(), s_message, value_string(name));
@@ -47,7 +47,7 @@ fn reject_with(
     host_reject(text, info as &extern);
 }
 
-fn arity_problem(expected: i32, got: i32) -> &extern {
+fn arity_problem(expected: i32, got: i32) -> js_string {
     let b = text_builder_new();
     text_push(b, s_r_takes);
     text_push_int(b, expected);
@@ -57,7 +57,7 @@ fn arity_problem(expected: i32, got: i32) -> &extern {
 }
 
 // "argument 0 (n): must be at least 0, got -1"; name is null when unknown.
-fn arg_problem(index: i32, name: &?extern, problem: &extern) -> &extern {
+fn arg_problem(index: i32, name: js_string_opt, problem: js_string) -> js_string {
     let b = text_builder_new();
     text_push(b, s_r_argument);
     text_push_int(b, index);
@@ -72,7 +72,7 @@ fn arg_problem(index: i32, name: &?extern, problem: &extern) -> &extern {
 }
 
 // A handler's rejection, as a structured one.
-fn reject_message(c: &component, name: &extern, e: &message_error) {
+fn reject_message(c: &component, name: js_string, e: &message_error) {
     let kind = e.kind;
     if kind == message_error_kind_wrong_arity {
         let a = e as &message_error_wrong_arity;
@@ -146,7 +146,7 @@ fn check_message_args(c: &component, ms: &message_schema, args: &value_array) {
 
 // ---- Message contracts (dev mode) ---------------------------------------------------
 
-fn emits_has(emits: &emit_array, kind: i32, name: &extern) -> i32 {
+fn emits_has(emits: &emit_array, kind: i32, name: js_string) -> i32 {
     let i = 0;
     while i <s emits.length() {
         let e = emits[i]!;
@@ -159,7 +159,7 @@ fn emits_has(emits: &emit_array, kind: i32, name: &extern) -> i32 {
 }
 
 // "emits:notify:remove_me" when the message may not emit it.
-fn emit_issue(issues: &value, emits: &emit_array, kind: i32, name: &extern) -> &value {
+fn emit_issue(issues: &value, emits: &emit_array, kind: i32, name: js_string) -> &value {
     if emits_has(emits, kind, name) {
         return issues;
     }
@@ -265,8 +265,8 @@ fn invalid_issue(
     c: &component,
     field: &value,
     v: &value,
-    reason: &extern,
-    problem: &extern,
+    reason: js_string,
+    problem: js_string,
 ) {
     let m = map_assoc(map_empty(), s_path, path);
     m = map_assoc(m, s_component, value_string(c.spec.name));
@@ -377,7 +377,7 @@ fn find_invalid_in(root: &value, prev: &?value, fields: i32, invariants: i32) ->
 }
 
 // stateInvalid, with what the walk found and where it happened.
-fn report_state(issues: &value, key: &extern, at: &value) {
+fn report_state(issues: &value, key: js_string, at: &value) {
     if list_count(issues) == 0 {
         return;
     }
@@ -423,7 +423,7 @@ fn host_check(h: &host) {
 // when it can: the arguments don't fit its schema, or its guard (when)
 // doesn't hold on c's state. A runner generating messages only sends the
 // ones c can take. No schema, or no such message: null (the vtable decides).
-fn message_problem(c: &component, name: &extern, args: &value_array) -> &?extern {
+fn message_problem(c: &component, name: js_string, args: &value_array) -> js_string_opt {
     let ms = spec_message_schema(c.spec, name);
     if !ms {
         return null;

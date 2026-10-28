@@ -60,3 +60,58 @@ test "missing, wrong, undeclared and generated functions" {
     ),
   )
 }
+
+///|
+/// The convention spells a string `js_string`, the prelude's alias of
+/// `&extern`: an implementation may write either.
+fn note_convention(impl_src : String) -> Array[String] {
+  let (f, _) = @syntax.parse(
+    "n.tcd",
+    (
+      #|component Note {
+      #|    field text: string;
+      #|    message set(text: string) changes text;
+      #|    view main = p(field(text));
+      #|}
+    ),
+  )
+  let (pkg, _) = @check.check(f, Map([]))
+  let out = @gen.generate(pkg, "n.tcd")
+  let parse = (src : String, name : String) => {
+    @wax.parse_string(src, fname=name).module_.unwrap_or([])
+  }
+  let prelude = parse(
+    "type js_string = &extern;\ntype js_string_opt = &?extern;\n", "js_string.wax",
+  )
+  @compose.check_convention(
+    pkg,
+    out.required,
+    [parse(impl_src, "impl.wax")],
+    [parse(out.contract, "contract.wax"), parse(out.glue, "glue.wax")],
+    prelude=[prelude],
+  ).map(d => "\{d.code}: \{d.message}")
+}
+
+///|
+test "a string parameter, as the alias or as the type it stands for" {
+  debug_inspect(
+    note_convention(
+      "fn note_on_set(state: &note_state, ctx: &context, text: js_string) -> &note_state { state; }",
+    ),
+    content="[]",
+  )
+  debug_inspect(
+    note_convention(
+      "fn note_on_set(state: &note_state, ctx: &context, text: &extern) -> &note_state { state; }",
+    ),
+    content="[]",
+  )
+  debug_inspect(
+    note_convention(
+      "fn note_on_set(state: &note_state, ctx: &context, text: &?extern) -> &note_state { state; }",
+    ),
+    content=(
+      #|["tcd.impl.signature: parameter 3 of note_on_set (text) must be js_string: the convention calls it as fn note_on_set(state: &note_state, ctx: &context, text: js_string) -> &note_state"]
+    ),
+  )
+}
