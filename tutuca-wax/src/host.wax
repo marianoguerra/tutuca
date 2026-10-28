@@ -266,22 +266,28 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     if !!t.action_args {
         args = eval_args(t.action_args!, ctx, t.node);
     }
-    // The message's schema: arguments that don't fit it are rejected before
-    // the handler sees them; in dev mode, its contract is checked around it.
+    // The message the component handles: the task's, or for an ask the reply
+    // the ask's handler gives (none while it's pending).
+    let msg: &?message = {message| name: t.name, args };
+    if t.kind == task_kind_ask {
+        msg = ask_reply(comp, t, args, ctx, tx);
+    }
+    // Its schema: arguments that don't fit it are rejected before the handler
+    // sees them; in dev mode, its contract is checked around it.
     let ms: &?message_schema = null;
     let pre_held = 1;
-    if t.kind != task_kind_ask {
-        ms = spec_message_schema(comp.spec, t.name);
+    let result = MESSAGE_RESULT_UNCHANGED;
+    if !!msg {
+        let m = msg!;
+        ms = spec_message_schema(comp.spec, m.name);
         if !!ms {
-            check_message_args(comp, ms!, args);
+            check_message_args(comp, ms!, m.args);
             if h.dev & !!(ms!).pre {
-                pre_held = ((ms!).pre!)(comp.instance, args, ctx);
+                pre_held = ((ms!).pre!)(comp.instance, m.args, ctx);
             }
         }
+        result = comp.vtable.handle(comp.instance, m, ctx);
     }
-    let result =
-        t.kind == task_kind_ask?run_ask(comp, t, args, ctx, tx)
-            :comp.vtable.handle(comp.instance, {message| name: t.name, args }, ctx);
     // Effects first, so the logs of a handler that rejects its message are
     // observed, as a throwing handler's are.
     let stop = effect_tasks(t, args, ctx, tx);
@@ -299,7 +305,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
             // As JS warns and keeps next: the component stays as it was.
             observe_unhandled(t.name);
         } else {
-            reject_message(comp, t.name, error);
+            reject_message(comp, (msg!).name, error);
             unreachable;
         }
     }
@@ -308,7 +314,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         if !!leaf {
             next = value_as_component(leaf!)!;
         }
-        check_message_contract(tx, t, comp, next, ms!, args, ctx, pre_held);
+        check_message_contract(tx, t, msg!, comp, next, ms!, ctx, pre_held);
     }
     if (t.kind == task_kind_notify) & !dispatch_path_is_root(path) & !stop {
         let parent = {target| base: dispatch_path_to_parent(path), selector: empty_selector() };
@@ -328,31 +334,30 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
 }
 
 // An ask runs the scope's ask handler and gives the asker the reply as a
-// message: NameReplyOk, NameReplyError or NameHandlerNotFound. A pending
-// answer leaves the asker as it is until the reply arrives.
-fn run_ask(
+// message: NameReplyOk, NameReplyError or NameHandlerNotFound, checked as any
+// message is. A pending answer gives none: the asker stays as it is until the
+// reply arrives.
+fn ask_reply(
     c: &component,
     t: &task,
     args: &value_array,
     ctx: &context,
     tx: &transaction,
-) -> &message_result {
+) -> &?message {
     let found = scope_lookup_ask(c.scope, t.name);
     if !found {
-        let name = js_string_concat(t.name, s_handler_not_found);
-        return c.vtable.handle(c.instance, {message| name, args: empty_args() }, ctx);
+        return {message| name: js_string_concat(t.name, s_handler_not_found), args: empty_args() };
     }
     let answer = (found!).handler(t.name, args, ctx);
     if answer.kind == ask_result_kind_pending {
         let handle = (answer as &ask_result_pending).handle;
         tx.pending = pv_push(tx.pending, {pending_reply| handle, name: t.name, source: t.source });
-        return MESSAGE_RESULT_UNCHANGED;
+        return null;
     }
     let result = (answer as &ask_result_reply).result as &value_result;
     let reply = [value_array|null; 1];
     reply[0] = result.value;
-    let name = js_string_concat(t.name, result.ok?s_reply_ok:s_reply_error);
-    c.vtable.handle(c.instance, {message| name, args: reply }, ctx);
+    {message| name: js_string_concat(t.name, result.ok?s_reply_ok:s_reply_error), args: reply };
 }
 
 // The handler's effects, in order, as child tasks; whether it stopped a

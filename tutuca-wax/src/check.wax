@@ -175,16 +175,19 @@ fn emit_issue(issues: &value, emits: &emit_array, kind: i32, name: &extern) -> &
 // contract (messageIssues in JS): "pre", "post", "sourceKey",
 // "changes:<field>" (a field outside changes isn't the same value),
 // "emits:<kind>:<name>". Kept in the transaction, reported once it commits.
+// The contract of the message m the task t had handled, on prev becoming
+// next.
 fn check_message_contract(
     tx: &transaction,
     t: &task,
+    m: &message,
     prev: &component,
     next: &component,
     ms: &message_schema,
-    args: &value_array,
     ctx: &context,
     pre_held: i32,
 ) {
+    let args = m.args;
     let issues = list_empty();
     if !pre_held {
         issues = list_push(issues, value_string(s_pre));
@@ -244,7 +247,7 @@ fn check_message_contract(
     if list_count(issues) == 0 {
         return;
     }
-    let info = map_assoc(map_empty(), s_message, value_string(t.name));
+    let info = map_assoc(map_empty(), s_message, value_string(m.name));
     info = map_assoc(info, s_component, value_string(prev.spec.name));
     tx.issues = list_push(tx.issues, map_assoc(info, s_issues, issues));
 }

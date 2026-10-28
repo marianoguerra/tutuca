@@ -644,7 +644,10 @@ constraints in normal form (`constraint_min`, `_max`, `_min_len`,
 a named predicate), its messages (arguments, source key, `pre` and `post`
 predicates, the fields it `changes`, what it `emits`), its invariants, and
 the interfaces it implements. With one, the host rejects a message whose
-arguments don't fit before the handler sees them, and every rejection
+arguments don't fit before the handler sees them (a reply to an ask too,
+whether it arrives in the ask's own task or later: tcd gives `NameReplyOk`,
+and `NameReplyError` and `NameHandlerNotFound` when they're handled, schemas
+of their own), and every rejection
 (those and a handler's own, `message_error_failed(reason)` or
 `message_error_invalid_arg(i, reason)`) aborts the task with a structured
 reason JS reads as `error.rejection`: `{ message, component, reason:

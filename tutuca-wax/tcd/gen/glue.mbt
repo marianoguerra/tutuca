@@ -61,6 +61,51 @@ fn Gen::message_schema(
 }
 
 ///|
+/// The schemas of the replies to c's asks, the messages the runtime gives it
+/// as an ask settles: NameReplyOk with the reply, and NameReplyError with the
+/// error and NameHandlerNotFound with nothing when c handles them. The
+/// runtime checks their arguments as any message's, so the handlers decode
+/// what they're declared to get.
+fn Gen::reply_schemas(
+  self : Gen,
+  b : Block,
+  c : @check.ComponentM,
+  owner : String,
+) -> Array[String] {
+  let cw = @check.wax(c.name)
+  let out = []
+  let reply = (name : String, params : Array[@check.FieldM]) => {
+    let args = self.field_schemas(b, params, owner)
+    "message_schema_new(\{self.s(name)}, \{args}, null, null, null, null, null)"
+  }
+  fn param(name : String, ty : @check.Ty) -> @check.FieldM {
+    {
+      name,
+      ty,
+      norm: @check.Norm::new(),
+      default: None,
+      required: true,
+      make: None,
+      sync: Local,
+      doc: None,
+      span: c.span,
+    }
+  }
+  for a in c.asks {
+    let aw = @check.wax(a.name)
+    let ac = @check.camel(a.name)
+    out.push(reply(ac + "ReplyOk", [param("value", a.result.unwrap_or(Any))]))
+    if self.has("\{cw}_reply_\{aw}_err") {
+      out.push(reply(ac + "ReplyError", [param("error", Any)]))
+    }
+    if self.has("\{cw}_reply_\{aw}_not_found") {
+      out.push(reply(ac + "HandlerNotFound", []))
+    }
+  }
+  out
+}
+
+///|
 fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
   let cw = @check.wax(c.name)
   let b = Block::new()
@@ -68,7 +113,8 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
   let gets = self.field_schemas(b, c.gets, cw)
   let messages = b.array(
     "message_schema_array",
-    c.messages.map(m => self.message_schema(b, Some(c), m, cw)),
+    c.messages.map(m => self.message_schema(b, Some(c), m, cw)) +
+    self.reply_schemas(b, c, cw),
   )
   let invariants = b.array(
     "invariant_array",
@@ -436,33 +482,13 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
     let aw = @check.wax(a.name)
     let ac = @check.camel(a.name)
     let result = a.result.unwrap_or(Any)
-    let b = Block::new()
-    let vt = self.vtype(b, result)
     out.line("    if str_eq(m.name, \{self.s(ac + "ReplyOk")}) {")
-    out.line("        if m.args.length() != 1 {")
-    out.line(
-      "            return message_result_rejected(message_error_wrong_arity(1, m.args.length()));",
-    )
-    out.line("        }")
-    if !b.lines.is_empty() {
-      out.line(b.render("        "))
-    }
-    out.line("        if !!vtype_problem(\{vt}, m.args[0]!) {")
-    out.line(
-      "            return message_result_rejected(message_error_wrong_arg_type(0));",
-    )
-    out.line("        }")
     out.line(
       "        return message_result_of(state, \{cw}_reply_\{aw}_ok(state, ctx, \{self.decode(result, "m.args[0]!")}));",
     )
     out.line("    }")
     if self.has("\{cw}_reply_\{aw}_err") {
       out.line("    if str_eq(m.name, \{self.s(ac + "ReplyError")}) {")
-      out.line("        if m.args.length() != 1 {")
-      out.line(
-        "            return message_result_rejected(message_error_wrong_arity(1, m.args.length()));",
-      )
-      out.line("        }")
       out.line(
         "        return message_result_of(state, \{cw}_reply_\{aw}_err(state, ctx, m.args[0]!));",
       )

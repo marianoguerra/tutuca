@@ -652,6 +652,29 @@ test("components: an ask the host answers later replies when it settles", async 
 	assert.deepEqual(failing.host.unhandled, ["fetchCountReplyError"]);
 });
 
+// A reply is a message: its schema says what it takes, and the runtime checks
+// it however it arrives, in the ask's own task or when the host settles it.
+test("components: replies have schemas, and a reply that doesn't fit is rejected", async (env) => {
+	const { runtime } = env.vdom;
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: async () => "seven" } });
+	const replies = runtime.schema(host.root()).messages.filter((m) => /Reply|NotFound/.test(m.name));
+	assert.deepEqual(
+		replies.map((m) => [m.name, m.args.map((a) => a.type)]),
+		[
+			["loadCountReplyOk", ["s32"]],
+			["loadCountReplyError", ["any"]],
+			["fetchCountReplyOk", ["s32"]],
+		],
+	);
+	host.send("fetch");
+	await host.settled();
+	assert.deepEqual(
+		host.failures.map((e) => e.rejection),
+		[{ message: "fetchCountReplyOk", component: "Counter", reason: "wrongArgType", index: 0, problem: 'argument 0 (value): expected s32, got "seven"' }],
+	);
+	assert.deepEqual(counts(env.container), ["1"]);
+});
+
 test("components: a handler can swap its component for one of another type", (env) => {
 	const { vdom, container } = env;
 	const { host } = mountRoot(env, "Counter", { count: 3 });
