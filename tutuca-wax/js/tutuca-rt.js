@@ -229,8 +229,8 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			uuid: () => late.host?.env.uuid() ?? crypto.randomUUID(),
 		},
 		host: {
-			observe_log: (v) => late.host?.logs.push(late.fromValue(v)),
-			observe_unhandled: (name) => late.host?.unhandled.push(name),
+			observe_log: (v) => late.host?.report("log", { value: late.fromValue(v) }),
+			observe_unhandled: (name) => late.host?.report("unhandled", { message: name }),
 			ask: (name, args) => late.host.ask(name, late.fromValue(args)),
 			number_text: (n) => String(n),
 			parse_number: (s) => (s.trim() === "" ? Number.NaN : Number(s)),
@@ -240,7 +240,7 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 				error.rejection = late.fromValue(info);
 				throw error;
 			},
-			observe_issue: (kind, info) => late.host?.issues.push({ kind, ...late.fromValue(info) }),
+			observe_issue: (type, info) => late.host?.report(type, late.fromValue(info)),
 		},
 	});
 	late.exports = instance.exports;
@@ -698,10 +698,13 @@ function makeRuntime(w, api, late) {
 	// asks answers the asks registered with registerHostAsk, by name, with a
 	// value or a promise of one (an error is replied as its message, since a
 	// value can't hold a JS object); dev checks the state against the schemas of
-	// its components and messages against their contracts, into issues. One
-	// module instance drives one host.
+	// its components and messages against their contracts. What happens goes
+	// to host.reports as { type, ...info }, with tutuca's Host.notify types,
+	// and to onReport(type, info) as it happens. One module instance drives
+	// one host.
 	const errorText = (error) => String(error?.message ?? error);
-	const createHost = (document, container, root, { env = {}, asks = {}, dev = false } = {}) => {
+	const ISSUES = new Set(["stateInvalid", "messageInvalid"]);
+	const createHost = (document, container, root, { env = {}, asks = {}, dev = false, onReport = null } = {}) => {
 		const h = w.host_new(document, container, root);
 		const inflight = new Set();
 		let nextAsk = 0; // The id of the next ask answered later.
@@ -716,12 +719,30 @@ function makeRuntime(w, api, late) {
 				host.run();
 			}, 0);
 		};
+		const reportsOf = (pick) => host.reports.filter((r) => pick(r.type));
 		const host = {
-			logs: [],
-			unhandled: [],
-			failures: [],
-			// What dev mode found: { kind: "stateInvalid" | "messageInvalid", ... }.
-			issues: [],
+			// What happened, in order: log { value }, unhandled { message },
+			// taskFailed { error }, renderFailed { error }, render, and in dev
+			// mode stateInvalid and messageInvalid { message, component, ... }.
+			reports: [],
+			report(type, info = {}) {
+				const r = { type, ...info };
+				host.reports.push(r);
+				onReport?.(type, r);
+			},
+			// Views of reports, by type.
+			get logs() {
+				return reportsOf((t) => t === "log").map((r) => r.value);
+			},
+			get unhandled() {
+				return reportsOf((t) => t === "unhandled").map((r) => r.message);
+			},
+			get failures() {
+				return reportsOf((t) => t === "taskFailed" || t === "renderFailed").map((r) => r.error);
+			},
+			get issues() {
+				return reportsOf((t) => ISSUES.has(t));
+			},
 			headless: container === null,
 			env: {
 				now: env.now ?? (() => Date.now()),
@@ -748,15 +769,15 @@ function makeRuntime(w, api, late) {
 						try {
 							w.host_step(h);
 						} catch (error) {
-							host.failures.push(error);
+							host.report("taskFailed", { error });
 							w.host_after_failure(h);
 						}
 						if (Date.now() - start > 16) break;
 					}
 					try {
-						w.host_render(h);
+						if (w.host_render(h)) host.report("render");
 					} catch (error) {
-						host.failures.push(error);
+						host.report("renderFailed", { error });
 					}
 					host.listen();
 				} finally {

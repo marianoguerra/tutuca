@@ -569,8 +569,14 @@ by selector), a notify that wasn't stopped bubbles, the new root is set
 through the update path, and the children's targets freeze against it. A
 failure throws (the host's `fail`) or traps out of `host_step` before
 anything is committed: the root stays and the children are dropped. The JS
-side calls `host_step` once per task and collects what failed
-(`host.failures`), so the host goes on with the next task. Asks run the
+side calls `host_step` once per task and reports what failed, so the host
+goes on with the next task. What a host reports is one list,
+`host.reports`, of `{ type, ...info }` with the types tutuca's JS
+`Host.notify` uses (and the spec's observations): `log`, `unhandled`,
+`taskFailed`, `renderFailed`, `render`, and in dev mode `stateInvalid` and
+`messageInvalid`; `createHost`'s `onReport(type, info)` gets each as it
+happens, and `host.logs`, `.unhandled`, `.failures` and `.issues` are views
+of the list. Asks run the
 scope's handler: a reply now becomes `name_reply_ok` / `name_reply_error` in the
 same transaction, no handler `name_handler_not_found`, and a pending one is
 answered by `host_settle` later. After the
@@ -676,8 +682,8 @@ skipped), the message's contract (`pre`, `post`, `sourceKey`,
 `changes:<field>` for a field outside its changes that isn't the same value,
 `emits:<kind>:<name>`), and once the queue is empty, the invariants of what
 changed since it last was, since a task can leave them broken for the tasks
-it queued. What fails goes to `host.issues`, as JS's `stateInvalid` and
-`messageInvalid` reports; the tasks still commit.
+it queued. What fails is reported as `stateInvalid` and `messageInvalid`, as
+in tutuca's JS (`host.issues` is those reports); the tasks still commit.
 
 **Interfaces**: an `interface_schema` (fields, properties and messages, each
 of its type) registered in a scope by name (`scope_register_interface`)

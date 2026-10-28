@@ -545,3 +545,27 @@ test("targetValue reads the element with the handler, not the child that was cli
 	assert.equal(host.rootComponent.tab, "b");
 	assert.deepEqual(failures, []);
 });
+
+test("a render that throws is reported, and the host goes on", () => {
+	const Boom = component({
+		name: "Boom",
+		fields: { n: t.number() },
+		views: {
+			main: h("button", { "on:click": send("inc") }, $if(field("n"), render(field("n")), "ok")),
+		},
+		on: {
+			inc(next) {
+				next.n++;
+			},
+		},
+	});
+	const reports = [];
+	const { host, rootNode, C, click } = setupHost(
+		{ Boom },
+		{ sync: true, onReport: (type) => reports.push(type) },
+	);
+	host.start(C.Boom());
+	click(rootNode.querySelector("button"));
+	assert.equal(host.rootComponent.n, 1);
+	assert.ok(reports.includes("renderFailed"), reports.join());
+});

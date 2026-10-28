@@ -396,7 +396,7 @@ fn api_host_after_failure(h: &host) {
 }
 
 #[export = "host_render"]
-fn api_host_render(h: &host) {
+fn api_host_render(h: &host) -> i32 {
     host_render(h);
 }
 

@@ -742,6 +742,25 @@ test("components: unknown messages are observed and change nothing; logs are obs
 	assert.deepEqual(host.logs, ["boom"]);
 });
 
+// What a host reports is one list, { type, ...info } with tutuca's Host.notify
+// types, also given to onReport as it happens; logs, unhandled, failures and
+// issues are views of it.
+test("components: what happens is reported as one list of typed reports", (env) => {
+	const seen = [];
+	const { host } = mountRoot(env, "Counter", { count: 3 }, { dev: true, onReport: (type) => seen.push(type) });
+	host.send("nope");
+	host.send("load_count_reply_error", ["boom"]);
+	host.send("add", ["x"]);
+	host.send("add", [1]);
+	const types = host.reports.map((r) => r.type);
+	assert.deepEqual(types, ["render", "unhandled", "log", "taskFailed", "render"]);
+	assert.deepEqual(seen, types);
+	assert.deepEqual(host.reports[1], { type: "unhandled", message: "nope" });
+	assert.deepEqual(host.reports[2], { type: "log", value: "boom" });
+	assert.equal(host.failures[0], host.reports[3].error);
+	assert.deepEqual([host.unhandled, host.logs, host.issues], [["nope"], ["boom"], []]);
+});
+
 // ---- Composition, through components/todo_list and todo_item ----------------
 
 const todoTexts = (container) => [...container.querySelectorAll("li span")].map((s) => s.textContent);
@@ -1472,11 +1491,11 @@ test("dev: messages are checked against their contracts, fields after each task,
 	assert.deepEqual(host.issues, [], "a valid start");
 	assert.deepEqual(step("bump", [2]), []);
 	// bump(3) adds 4: its post doesn't hold.
-	assert.deepEqual(step("bump", [3]), [{ kind: "messageInvalid", message: "bump", component: "Probe", issues: ["post"] }]);
+	assert.deepEqual(step("bump", [3]), [{ type: "messageInvalid", message: "bump", component: "Probe", issues: ["post"] }]);
 	// 7 is odd: the invariant is checked once the queue is empty.
 	assert.deepEqual(step("bump", [1]), [
 		{
-			kind: "stateInvalid",
+			type: "stateInvalid",
 			settled: true,
 			issues: [{ path: [], component: "Probe", field: null, reason: "invariant:even", problem: "the invariant even doesn't hold" }],
 		},
@@ -1484,7 +1503,7 @@ test("dev: messages are checked against their contracts, fields after each task,
 	// Past 10: the field's constraint.
 	assert.deepEqual(step("bump", [5]), [
 		{
-			kind: "stateInvalid",
+			type: "stateInvalid",
 			task: "bump",
 			issues: [{ path: ["count"], component: "Probe", field: "count", value: 12, reason: "invalid", problem: "must be at most 10, got 12" }],
 		},
@@ -1493,7 +1512,7 @@ test("dev: messages are checked against their contracts, fields after each task,
 	// It still runs (dev mode reports, it doesn't reject): 13 is past 10, and odd.
 	const atTwelve = step("bump", [1]);
 	assert.deepEqual(
-		atTwelve.map((i) => [i.kind, i.issues.map((x) => (typeof x === "string" ? x : x.reason))]),
+		atTwelve.map((i) => [i.type, i.issues.map((x) => (typeof x === "string" ? x : x.reason))]),
 		[
 			["messageInvalid", ["pre"]],
 			["stateInvalid", ["invalid"]],
@@ -1502,15 +1521,15 @@ test("dev: messages are checked against their contracts, fields after each task,
 	);
 	// rename changes count too, outside its changes, and the label is too long.
 	assert.deepEqual(step("rename", ["toolong"]), [
-		{ kind: "messageInvalid", message: "rename", component: "Probe", issues: ["changes:count"] },
+		{ type: "messageInvalid", message: "rename", component: "Probe", issues: ["changes:count"] },
 		{
-			kind: "stateInvalid",
+			type: "stateInvalid",
 			task: "rename",
 			issues: [{ path: ["label"], component: "Probe", field: "label", value: "toolong", reason: "invalid", problem: "must have at most 5 characters, got 7" }],
 		},
 	]);
 	// shout may emit nothing, and notifies.
-	assert.deepEqual(step("shout"), [{ kind: "messageInvalid", message: "shout", component: "Probe", issues: ["emits:notify:shouted"] }]);
+	assert.deepEqual(step("shout"), [{ type: "messageInvalid", message: "shout", component: "Probe", issues: ["emits:notify:shouted"] }]);
 	assert.deepEqual(host.failures, []);
 });
 
@@ -1519,7 +1538,7 @@ test("dev: a host checks the whole state when it starts", async (env) => {
 	const scope = await probeScope(env);
 	const host = runtime.createHost(null, null, runtime.make(scope, "Probe", { count: 11, label: "" }), { dev: true });
 	assert.deepEqual(
-		host.issues.map((i) => [i.kind, i.task, i.issues.map((x) => x.problem)]),
+		host.issues.map((i) => [i.type, i.task, i.issues.map((x) => x.problem)]),
 		[["stateInvalid", null, ["must be at most 10, got 11", "the invariant even doesn't hold"]]],
 	);
 });
@@ -1626,7 +1645,7 @@ test("pbt: random walks find a broken ensures and shrink it to the messages that
 	assert.equal(found.ok, false);
 	const last = found.trace.at(-1);
 	assert.deepEqual([last.name, last.args], ["add", [4]], JSON.stringify(found.trace));
-	assert.deepEqual(found.issues[0], { kind: "messageInvalid", message: "add", component: "Tally", issues: ["post"] });
+	assert.deepEqual(found.issues[0], { type: "messageInvalid", message: "add", component: "Tally", issues: ["post"] });
 	// Shrunk: it fails, and without any one of its steps it doesn't.
 	const run = (trace) => fails({ runtime, scope, model: env.models.pbt, component: "Tally", start: found.start, trace });
 	assert.ok(run(found.trace));

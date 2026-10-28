@@ -251,6 +251,9 @@ export class Host {
 		} finally {
 			try {
 				if (oldRootComponent !== this.rootComponent) this.render();
+			} catch (error) {
+				// Reported as a failed task is, instead of escaping the tick that rendered.
+				this.notify("renderFailed", { error });
 			} finally {
 				this._handlingTasks = false;
 				if (this.tasks.length > 0) this.scheduleNextTaskTick();

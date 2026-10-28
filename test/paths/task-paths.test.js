@@ -266,14 +266,14 @@ for (const renderThrows of [false, true]) {
 			assert.equal(scheduled, 0);
 			if (renderThrows) throw error;
 		};
-		if (renderThrows) {
-			assert.throws(
-				() => host.handleTasks(),
-				(thrown) => thrown === error,
-			);
-		} else {
-			host.handleTasks();
-		}
+		// A render that throws is reported as renderFailed, not thrown out of the tick.
+		const reported = [];
+		const notify = host.notify;
+		host.notify = (type, info) =>
+			type === "renderFailed" ? reported.push(info.error) : notify.call(host, type, info);
+		host.handleTasks();
+		host.notify = notify;
+		assert.deepEqual(reported, renderThrows ? [error] : []);
 		assert.equal(host._handlingTasks, false);
 		assert.equal(scheduled, 1);
 		host.render = render;

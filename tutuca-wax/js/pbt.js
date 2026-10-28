@@ -514,9 +514,12 @@ export const examples = ({ runtime, scope, model }) => {
 		}
 		for (const step of ex.steps) {
 			if ("send" in step) {
+				const seen = host.reports.length;
 				host.send(step.send, step.args);
-				for (const e of host.failures.splice(0)) failures.push(`${step.send}: ${e.message}`);
-				for (const i of host.issues.splice(0)) failures.push(`${step.send}: ${JSON.stringify(i)}`);
+				for (const r of host.reports.slice(seen)) {
+					if (r.type === "taskFailed") failures.push(`${step.send}: ${r.error.message}`);
+					if (r.type === "stateInvalid" || r.type === "messageInvalid") failures.push(`${step.send}: ${JSON.stringify(r)}`);
+				}
 			} else if (!evalCond(step.expect, snapshot(runtime, host.root()))) {
 				failures.push(`expected ${condText(step.expect)}`);
 			}

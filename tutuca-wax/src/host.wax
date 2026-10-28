@@ -790,17 +790,19 @@ fn host_settle(h: &host, id: i32, result: &value) -> i32 {
 // Renders the root if it changed since the last render: lowers its view and
 // morphs the DOM from what the last render rendered.
 // A headless host renders nothing.
-fn host_render(h: &host) {
+// Renders the root if it isn't the one rendered last; whether it did.
+fn host_render(h: &host) -> i32 {
     if !h.container | !h.doc {
-        return;
+        return 0;
     }
     if !!h.rendered_root {
         if h.rendered_root! == h.root {
-            return;
+            return 0;
         }
     }
     let vnodes = lower_all(render_root(h.root));
     render(h.doc!, h.container!, vnodes, h.rendered);
     h.rendered = vnodes;
     h.rendered_root = h.root;
+    1;
 }

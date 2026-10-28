@@ -262,7 +262,7 @@ fn gauge_answer_count(ctx: &context) -> &value {
 	host.send("spoil");
 	assert.deepEqual(host.failures.map((e) => e.rejection?.message), ["count_reply_ok"]);
 	assert.deepEqual(
-		host.issues.map((i) => [i.kind, i.settled, i.issues.map((x) => x.reason)]),
+		host.issues.map((i) => [i.type, i.settled, i.issues.map((x) => x.reason)]),
 		[["stateInvalid", true, ["invariant:fine"]]],
 	);
 });
