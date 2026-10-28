@@ -28,6 +28,12 @@ fn layout_remove_at(items: &value, at: i32) -> &value {
     out;
 }
 
+// A list holding a hole made in the scope a box is being made in: what an
+// empty box starts with.
+fn layout_one_hole(ctx: &init_context) -> &value {
+    list_push(list_empty(), value_component(init_ctx_make(ctx, gs_hole, map_empty())));
+}
+
 // ---- Screen ------------------------------------------------------------------------
 
 fn screen_on_toggle_editing(state: &screen_state, ctx: &context) -> &screen_state {
@@ -106,6 +112,13 @@ fn hole_reply_component_names_ok(state: &hole_state, ctx: &context, reply: &valu
 
 // ---- Boxes -------------------------------------------------------------------------
 
+fn hbox_init(state: &hbox_state, ctx: &init_context) -> &hbox_state {
+    if list_count(state.items) != 0 {
+        return state;
+    }
+    hbox_with_items(state, layout_one_hole(ctx));
+}
+
 fn hbox_on_add(state: &hbox_state, ctx: &context) -> &hbox_state {
     let hole = hbox_make_hole(ctx, list_empty(), 0, gs_empty);
     hbox_with_items(state, list_push(state.items, value_component(hole)));
@@ -139,12 +152,28 @@ fn vbox_on_remove_at(state: &vbox_state, ctx: &context, at: i32) -> &vbox_state 
     vbox_with_items(state, layout_remove_at(state.items, at));
 }
 
+fn vbox_init(state: &vbox_state, ctx: &init_context) -> &vbox_state {
+    if list_count(state.items) != 0 {
+        return state;
+    }
+    vbox_with_items(state, layout_one_hole(ctx));
+}
+
 fn vbox_on_add(state: &vbox_state, ctx: &context) -> &vbox_state {
     let hole = vbox_make_hole(ctx, list_empty(), 0, gs_empty);
     vbox_with_items(state, list_push(state.items, value_component(hole)));
 }
 
 // ---- Tabs --------------------------------------------------------------------------
+
+// One tab, unnamed, holding a hole, and shown.
+fn tabs_init(state: &tabs_state, ctx: &init_context) -> &tabs_state {
+    if list_count(state.panels) != 0 {
+        return state;
+    }
+    let panels = layout_one_hole(ctx);
+    {tabs_state| panels, labels: tabs_labels_for(state.labels, 1), active: 0 };
+}
 
 // The new tab is the one shown, named "Tab n" until it's renamed.
 fn tabs_on_add(state: &tabs_state, ctx: &context) -> &tabs_state {
@@ -218,6 +247,13 @@ fn tabs_loop_shown_filter(state: &tabs_state, key: &value, item: &value) -> i32 
 }
 
 // ---- Grid --------------------------------------------------------------------------
+
+fn grid_init(state: &grid_state, ctx: &init_context) -> &grid_state {
+    if list_count(state.cells) != 0 {
+        return state;
+    }
+    grid_with_cells(state, layout_one_hole(ctx));
+}
 
 fn grid_on_add(state: &grid_state, ctx: &context) -> &grid_state {
     let hole = grid_make_hole(ctx, list_empty(), 0, gs_empty);

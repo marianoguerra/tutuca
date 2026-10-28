@@ -989,7 +989,7 @@ test("layout: a hole lists the types its scope chain can make, and becomes the o
 	await vdom.loadComponent(modules.todo_card, inner);
 	const host = runtime.createHost(document, container, editedScreen(runtime, inner, runtime.make(inner, "Vbox", {})), { dev: true });
 	host.mount();
-	click(window, buttons(container, "+ slot")[0]);
+	// A Vbox starts with a hole.
 	click(window, container.querySelector(".hole button"));
 	const choices = () => [...container.querySelectorAll(".choices button")].map((b) => b.textContent);
 	// Sorted, the outer scope's too, without Hole and Screen.
@@ -1001,11 +1001,10 @@ test("layout: a hole lists the types its scope chain can make, and becomes the o
 	const items = runtime.get(contentOf(runtime, host), "items");
 	assert.deepEqual(items.map((c) => runtime.typeName(c)), ["Counter"]);
 	assert.equal(container.querySelectorAll(".hole").length, 0);
-	// A hole inside what a hole became: Tabs, then a tab of its own.
-	click(window, buttons(container, "+ slot")[0]);
+	// A hole inside what a hole became: Tabs, which start with a tab of their own.
+	click(window, container.querySelector("[title='Add a slot below']"));
 	click(window, container.querySelectorAll(".hole button")[0]);
 	click(window, buttons(container, "Tabs")[0]);
-	click(window, container.querySelector("[title='Add a tab']"));
 	assert.deepEqual(tabNames(container), ["Tab 1"]);
 	assert.equal(container.querySelectorAll(".hole").length, 1);
 	assert.deepEqual(host.failures, []);
@@ -1022,9 +1021,9 @@ test("layout: a screen shows its layout without the editing chrome, and toggles 
 	const toggle = () => click(window, container.querySelector(".screen-toggle"));
 	// Used: the counter works, and there's nothing to edit with.
 	assert.equal(container.querySelectorAll(".hole, .slot-remove").length, 0);
-	assert.equal(buttons(container, "+ slot").length, 0);
+	assert.equal(container.querySelectorAll(".slot-add").length, 0);
 	assert.equal(container.querySelector(".screen-toggle").getAttribute("aria-pressed"), "false");
-	// Edited: each slot removable, the hole's +, + slot.
+	// Edited: each slot removable, the hole's +, the + below the slots.
 	toggle();
 	assert.equal(container.querySelector(".screen-toggle").getAttribute("aria-pressed"), "true");
 	assert.equal(container.querySelectorAll(".slot-remove").length, 2);
@@ -1032,7 +1031,6 @@ test("layout: a screen shows its layout without the editing chrome, and toggles 
 	// The hole becomes Tabs; its tabs are added, renamed and removed.
 	click(window, container.querySelector(".hole button"));
 	click(window, buttons(container, "Tabs")[0]);
-	click(window, container.querySelector("[title='Add a tab']"));
 	click(window, container.querySelector("[title='Add a tab']"));
 	const names = container.querySelectorAll(".tab-name");
 	names[0].value = "Notes";
@@ -1058,9 +1056,14 @@ test("layout: a grid's rows and columns grow and shrink while it's edited", asyn
 	await vdom.loadComponent(modules.layout, scope);
 	const host = runtime.createHost(document, container, editedScreen(runtime, scope, runtime.make(scope, "Grid", { columns: 3 })), { dev: true }).mount();
 	const grid = () => contentOf(runtime, host);
-	click(window, container.querySelector("[title='Add a row']"));
+	// It starts with a cell, a hole; + after the last cell adds another.
+	assert.deepEqual([runtime.get(grid(), "cells").length, runtime.get(grid(), "rows")], [1, 1]);
 	click(window, container.querySelector("[title='Add a cell']"));
-	assert.deepEqual([runtime.get(grid(), "cells").length, runtime.get(grid(), "rows")], [4, 2]);
+	click(window, container.querySelector("[title='Add a row']"));
+	assert.deepEqual([runtime.get(grid(), "cells").length, runtime.get(grid(), "rows")], [5, 2]);
+	click(window, container.querySelector("[title='Remove the last row']"));
+	assert.deepEqual([runtime.get(grid(), "cells").length, runtime.get(grid(), "rows")], [3, 1]);
+	click(window, container.querySelector("[title='Add a cell']"));
 	click(window, container.querySelector("[title='Fewer columns']"));
 	assert.equal(runtime.get(grid(), "rows"), 2);
 	// Engines write the style back differently (0 or 0px): the count is what matters.

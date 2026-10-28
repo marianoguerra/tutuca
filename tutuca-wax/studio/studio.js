@@ -308,10 +308,13 @@ app.append(bar, main);
 
 // ---- Screens -------------------------------------------------------------------------------
 
-// A screen starts as a Vbox holding a hole, in a Screen to toggle editing it.
-const DEFAULT_LAYOUT = { $make: "Screen", fields: { content: { $make: "Vbox", fields: { items: [{ $make: "Hole" }] } } } };
-// The layout made in the studio: its Screen offers new components and ✎.
-const forStudio = (layout) => (layout?.$make === "Screen" ? { ...layout, fields: { ...layout.fields, studio: true } } : layout);
+// A screen starts as a Screen, to toggle editing it, around a Vbox, which
+// starts with a hole.
+const DEFAULT_LAYOUT = { $make: "Screen" };
+// The layout made in the studio: its Screen offers new components and ✎, and
+// with editing starts edited, as a new screen does.
+const forStudio = (layout, editing = false) =>
+	layout?.$make === "Screen" ? { ...layout, fields: { ...layout.fields, studio: true, ...(editing && { editing: true }) } } : layout;
 
 const ACTIVE_KEY = "tutuca-wax-studio:screen";
 const remembered = () => {
@@ -379,8 +382,8 @@ const unmount = async () => {
 
 // The screen's scope chain made from scratch, each scope's registrations
 // loaded into it, and its layout mounted there on a dev host that answers
-// the layout's asks for new components and edits.
-async function openScreen(screen) {
+// the layout's asks for new components and edits; with editing, edited.
+async function openScreen(screen, editing = false) {
 	await unmount();
 	eventList.textContent = "";
 	events = 0;
@@ -388,7 +391,7 @@ async function openScreen(screen) {
 	const scopeRecord = lib.scopes.get(screen.scope);
 	const scope = await loadChain(tw, scopeRecord, (message) => note("failed", message));
 	try {
-		const host = runtime.createHost(document, stage, hydrate(runtime, scope, forStudio(screen.layout)), {
+		const host = runtime.createHost(document, stage, hydrate(runtime, scope, forStudio(screen.layout, editing)), {
 			dev: true,
 			asks: { create_component: () => createComponent(), edit_component: (item) => editComponent(item) },
 			onReport: (type, r) => {
@@ -406,13 +409,13 @@ async function openScreen(screen) {
 	}
 }
 
-async function showScreen(screen) {
+async function showScreen(screen, editing = false) {
 	active = screen;
 	if (screen) remember(screen.id);
 	renderTabs();
 	screenPane.hidden = !screen;
 	emptyPane.hidden = !!screen;
-	if (screen) await openScreen(screen);
+	if (screen) await openScreen(screen, editing);
 	else await unmount();
 }
 
@@ -504,7 +507,7 @@ function pickScope() {
 		const screen = { id: newId(), name: name.value.trim() || name.placeholder, scope: selected.id, layout: structuredClone(DEFAULT_LAYOUT), created: Date.now() };
 		await save("screens", screen);
 		picker.close();
-		await showScreen(screen);
+		await showScreen(screen, true);
 	});
 	name.addEventListener("keydown", (e) => e.key === "Enter" && create.click());
 	picker.replaceChildren(

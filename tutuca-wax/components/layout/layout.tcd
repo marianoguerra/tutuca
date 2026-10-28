@@ -1,7 +1,7 @@
 // The layout component module: boxes, tabs and a grid that hold components,
 // the Hole a slot starts as, and the Screen a layout is shown in. Each has a
 // main view, the layout as it's used, and a layout_edit view with what edits
-// it: + slot, remove, the tabs' names, the grid's rows and columns, and the
+// it: the +s that add a slot, remove, the tabs' names, the grid's rows and columns, and the
 // holes' +. A Screen pushes layout_edit above its content while editing, so
 // every component below it that has that view shows it (a component of any
 // module can, by declaring a layout_edit view) and the rest keep main.
@@ -76,7 +76,7 @@ component Hole {
     message pick(at: index<choices>) -> swap changes error;
 
     view main = div(class: "hole-empty min-h-4 flex-1");
-    view layout_edit = div(class: "hole flex min-h-16 min-w-24 flex-1 items-center justify-center rounded-box border-2 border-dashed border-base-300 p-2",
+    view layout_edit = div(class: "hole flex min-h-16 min-w-24 flex-1 items-center justify-center outline-1 outline-dashed -outline-offset-1 outline-primary/70 p-2",
         if(field(listing),
             div(class: "flex flex-col items-center gap-1",
                 ul(class: "choices menu menu-sm bg-base-100 rounded-box border border-base-300",
@@ -89,10 +89,13 @@ component Hole {
             button(class: "btn btn-sm btn-circle btn-ghost", title: "Put a component here", on_click: send(show_choices), "+")));
 }
 
-/// Components side by side; edited, each can be removed and + slot adds a
-/// hole after them.
+/// Components side by side, starting with a hole; edited, each can be
+/// removed and the + to their right adds a hole after them.
 component Hbox {
     field items: list<component>;
+
+    /// With no items, a hole: a box put in a layout has a slot to fill.
+    init;
 
     /// The component in a slot, edited in the host.
     ask edit_component(item: component) -> bool;
@@ -102,19 +105,22 @@ component Hbox {
     message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
     view main = div(class: "hbox flex flex-row items-stretch gap-2", render_each(field(items)));
-    view layout_edit = div(class: "hbox flex flex-row items-stretch gap-2 rounded-box border border-dashed border-base-300 p-2",
+    view layout_edit = div(class: "hbox flex flex-row items-stretch gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         each(field(items),
             div(class: "slot relative flex flex-1",
                 render_it(),
                 if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                 button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this slot", on_click: send(remove_at, source_key()), "×"))),
-        button(class: "btn btn-xs btn-ghost self-center", title: "Add a slot", on_click: send(add), "+ slot"));
+        button(class: "slot-add btn btn-xs btn-circle btn-ghost self-center", title: "Add a slot to the right", on_click: send(add), "+"));
 }
 
-/// Components one under the other; edited, each can be removed and + slot
-/// adds a hole below them.
+/// Components one under the other, starting with a hole; edited, each can
+/// be removed and the + below them adds a hole there.
 component Vbox {
     field items: list<component>;
+
+    /// With no items, a hole.
+    init;
 
     /// The component in a slot, edited in the host.
     ask edit_component(item: component) -> bool;
@@ -124,23 +130,26 @@ component Vbox {
     message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
     view main = div(class: "vbox flex flex-col items-stretch gap-2", render_each(field(items)));
-    view layout_edit = div(class: "vbox flex flex-col items-stretch gap-2 rounded-box border border-dashed border-base-300 p-2",
+    view layout_edit = div(class: "vbox flex flex-col items-stretch gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         each(field(items),
             div(class: "slot relative flex flex-col",
                 render_it(),
                 if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                 button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this slot", on_click: send(remove_at, source_key()), "×"))),
-        button(class: "btn btn-xs btn-ghost self-start", title: "Add a slot", on_click: send(add), "+ slot"));
+        button(class: "slot-add btn btn-xs btn-circle btn-ghost self-center", title: "Add a slot below", on_click: send(add), "+"));
 }
 
 /// Components as tabs, one shown at a time, each with a name ("Tab n" until
-/// it's given one); edited, tabs are renamed and removed, and + adds one
-/// holding a hole.
+/// it's given one), starting with one holding a hole; edited, tabs are
+/// renamed and removed, and the + after the last adds one holding a hole.
 component Tabs {
     field panels: list<component>;
     /// The tabs' names, by panel; a missing or empty one shows as "Tab n".
     field labels: list<string>;
     field active: s32 where active >= 0;
+
+    /// With no panels, one holding a hole.
+    init;
 
     /// The component in a tab, edited in the host.
     ask edit_component(item: component) -> bool;
@@ -163,7 +172,7 @@ component Tabs {
             each(loop: headers, field(panels),
                 button(role: "tab", class: if(bind(is_active), "tab tab-active", "tab"), on_click: send(select, source_key()), bind(label)))),
         render_each(loop: shown, field(panels)));
-    view layout_edit = div(class: "tabs-box flex flex-col gap-2 rounded-box border border-dashed border-base-300 p-2",
+    view layout_edit = div(class: "tabs-box flex flex-col gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         div(role: "tablist", class: "tabs tabs-border",
             each(loop: headers, field(panels),
                 div(role: "tab", class: if(bind(is_active), "tab tab-active gap-1", "tab gap-1"), on_click: send(select, source_key()),
@@ -172,15 +181,19 @@ component Tabs {
                     if(provided(studio),
                         button(class: "tab-edit btn btn-xs btn-circle btn-ghost", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                     button(class: "tab-remove btn btn-xs btn-circle btn-ghost text-error", title: "Remove this tab", on_click: send(remove_at, source_key()), "×"))),
-            button(class: "tab", title: "Add a tab", on_click: send(add), "+")),
+            button(class: "tab-add tab", title: "Add a tab", on_click: send(add), "+")),
         render_each(loop: shown, field(panels)));
 }
 
-/// Components in a grid; edited, cells are removed, + cell adds one, and the
-/// columns and rows grow and shrink with - and +.
+/// Components in a grid, starting with a hole; edited, cells are removed,
+/// the + after the last adds one, and the columns and rows grow and shrink
+/// with - and +.
 component Grid {
     field cells: list<component>;
     field columns: s32 = 2 where 1 <= columns <= 6;
+
+    /// With no cells, a hole.
+    init;
     get grid_style: string;
     /// Rows, the last one maybe not full.
     get rows: s32;
@@ -199,21 +212,21 @@ component Grid {
     message remove_row() when len(cells) > 0 changes cells ensures len(next.cells) < len(cells);
 
     view main = div(class: "grid-box grid gap-2", style: field(grid_style), render_each(field(cells)));
-    view layout_edit = div(class: "grid-box flex flex-col gap-2 rounded-box border border-dashed border-base-300 p-2",
+    view layout_edit = div(class: "grid-box flex flex-col gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         div(class: "flex flex-wrap items-center gap-1 text-xs",
             button(class: "btn btn-xs", title: "Fewer columns", on_click: send(fewer_columns), "-"),
             span(class: "tabular-nums", field(columns), " columns"),
             button(class: "btn btn-xs", title: "More columns", on_click: send(more_columns), "+"),
             button(class: "btn btn-xs", title: "Remove the last row", on_click: send(remove_row), "-"),
             span(class: "tabular-nums", field(rows), " rows"),
-            button(class: "btn btn-xs", title: "Add a row", on_click: send(add_row), "+"),
-            button(class: "btn btn-xs btn-ghost", title: "Add a cell", on_click: send(add), "+ cell")),
+            button(class: "btn btn-xs", title: "Add a row", on_click: send(add_row), "+")),
         div(class: "grid gap-2", style: field(grid_style),
             each(field(cells),
                 div(class: "slot relative flex",
                     render_it(),
                     if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
-                    button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this cell", on_click: send(remove_at, source_key()), "×")))));
+                    button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this cell", on_click: send(remove_at, source_key()), "×"))),
+            button(class: "slot-add btn btn-xs btn-circle btn-ghost self-center justify-self-start", title: "Add a cell", on_click: send(add), "+")));
 }
 
 register Screen, Hole, Hbox, Vbox, Tabs, Grid;
@@ -227,7 +240,6 @@ host_ask edit_component;
 example add_then_select for Tabs {
     start { }
     send add();
-    send add();
     expect len(panels) == 2;
     send select(1);
     expect active == 1;
@@ -236,7 +248,6 @@ example add_then_select for Tabs {
 example remove_keeps_a_tab_shown for Tabs {
     start { }
     send add();
-    send add();
     send remove_at(1);
     expect len(panels) == 1 and active == 0;
 }
@@ -244,7 +255,6 @@ example remove_keeps_a_tab_shown for Tabs {
 example rows_follow_the_columns for Grid {
     start { columns: 3 }
     send add_row();
-    send add();
     expect len(cells) == 4;
     send remove_row();
     expect len(cells) == 3;

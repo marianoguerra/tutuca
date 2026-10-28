@@ -203,8 +203,8 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	// No screens yet; a first one, in a new scope a under the root.
 	await page.locator("button", { hasText: "+ New screen" }).waitFor();
 	await newStudioScreen(page, { scope: "a", name: "home" });
-	// Edited: the hole offers a new component; used, nothing of the studio's.
-	await stage.locator(".screen-toggle").click();
+	// New, it's edited: the hole offers a new component; used, nothing of the studio's.
+	await stage.locator(".screen-toggle[aria-pressed=true]").waitFor();
 	await newStudioComponent(page);
 	// Served as files only: no API, so no assistant.
 	if (await page.locator("button", { hasText: "Assistant" }).isVisible()) throw new Error("an assistant without a server");
@@ -247,7 +247,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await stage.locator("li", { hasText: "first" }).waitFor();
 	await stage.locator(".screen-toggle").click();
 	// A layout's own component doesn't open: only the ones made here.
-	await stage.locator("button", { hasText: "+ slot" }).click();
+	await stage.locator("[title='Add a slot below']").click();
 	await stage.locator(".hole button").click();
 	await stage.locator(".choices button", { hasText: /^Tabs$/ }).click();
 	await stage.locator(".slot-edit").nth(1).click();
@@ -256,7 +256,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	const reopen = async () => {
 		await stage.locator("li", { hasText: "first" }).waitFor();
 		if ((await stage.locator(".hole, .slot-edit, .hole-new").count()) !== 0) throw new Error("a reopened screen shows its editing chrome");
-		if ((await stage.locator("[role=tab]").count()) !== 0) throw new Error("the empty tabs show tabs");
+		if ((await stage.locator("[role=tab]").count()) !== 1) throw new Error("the new tabs don't show their one tab");
 	};
 	await page.waitForTimeout(500);
 	await page.reload();
@@ -327,7 +327,6 @@ fn clicker_on_double(state: &clicker_state, ctx: &context) -> &clicker_state {
 		await page.goto(`http://127.0.0.1:${studio.address().port}/studio/`);
 		await page.locator(".st-assistant", { hasText: "assistant: 1 model" }).waitFor();
 		await newStudioScreen(page, { scope: "a", name: "home" });
-		await page.locator(".st-stage .screen-toggle").click();
 		await newStudioComponent(page);
 		await page.locator("button", { hasText: "Assistant" }).click();
 		if ((await page.locator(".st-model").inputValue()) !== "faux/faux-coder") throw new Error("the model offered isn't the faux one");
