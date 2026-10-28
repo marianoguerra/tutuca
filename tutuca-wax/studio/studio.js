@@ -73,6 +73,10 @@ const PREBUILT_PREFIX = "prebuilt:";
 // shows the model a working module too.
 const text = async (path) => new TextDecoder().decode(await readBytes(new URL(path, import.meta.url)));
 const STARTER = { name: "tasks", tcd: await text("./assistant/examples/tasks.tcd"), wax: await text("./assistant/examples/tasks.wax") };
+// What the editor can start from instead: the examples the build lists
+// (dist/examples.json: the assistant's and the component modules'), each a
+// .tcd and its .wax, fetched when picked.
+const EXAMPLES = new Map(JSON.parse(await text("../dist/examples.json")).map((e) => [e.name, e]));
 
 // ---- The library ---------------------------------------------------------------------------
 
@@ -125,12 +129,13 @@ const hex = (buffer) => [...new Uint8Array(buffer)].map((b) => b.toString(16).pa
 let tcdVersion = null;
 const version = async () => (tcdVersion ??= (await compiler("version", {})).version);
 
-// The files a component's .tcd uses ("name.tcd": another component of the
-// library, or a prebuilt module's), and what they use, by the path written.
+// The files a component's .tcd uses ("name.tcd", or a path ending in it as
+// the component modules write them: another component of the library, or a
+// prebuilt module's), and what they use, by the path written.
 async function usedFiles(tcd, files = {}) {
 	for (const [, path] of tcd.matchAll(/\buse\s+"([^"]+)"/g)) {
 		if (path in files) continue;
-		const name = path.replace(/\.tcd$/, "");
+		const name = path.split("/").pop().replace(/\.tcd$/, "");
 		const own = [...lib.components.values()].find((c) => c.name === name);
 		const source = own ? own.tcd : prebuilt.has(name) ? await prebuiltTcd(name) : null;
 		if (source === null) continue; // tcd reports it
@@ -536,6 +541,14 @@ Object.assign(asks, {
 		}
 		return "saved";
 	},
+	// An example's sources, asked first when they'd replace changed ones; a
+	// new component takes a free name after it.
+	example: async (name, replacing) => {
+		if (replacing && !confirm(`Replace ${editing.draft.name}'s sources with ${name}'s?`)) return { ok: false, name: "", tcd: "", wax: "" };
+		const example = EXAMPLES.get(name);
+		const [tcd, wax] = await Promise.all([text(`../${example.tcd}`), text(`../${example.wax}`)]);
+		return { ok: true, name: freeName(name), tcd, wax };
+	},
 	leave_editor: (creating) => {
 		closeEditing(creating ? "" : false);
 		return true;
@@ -645,7 +658,6 @@ const byProvider = [...Map.groupBy(models, (m) => m.provider)].map(([provider, l
 }));
 const values = models.map((m) => `${m.provider}/${m.id}`);
 const model = values.includes(rememberedModel()) ? rememberedModel() : (values[0] ?? "");
-const badge = models.length > 0 ? `assistant: ${models.length} model${models.length === 1 ? "" : "s"}` : "";
 // Where a report came from: the preview's components are the editor's to
 // show (at editor.preview), the rest the studio's, with where they are.
 const fromPreview = (path) => path?.[0] === "editor" && path[1] === "preview";
@@ -653,7 +665,7 @@ const where = (path) => (path?.length ? ` (at ${path.join(".")})` : "");
 studioHost = runtime.createHost(
 	document,
 	studioRoot,
-	runtime.make(studioScope, "Studio", { scopes: scopeRows(), screens: screenRows(), assistant: badge, models: byProvider, model }),
+	runtime.make(studioScope, "Studio", { scopes: scopeRows(), screens: screenRows(), models: byProvider, model, examples: [...EXAMPLES.keys()].map((name) => ({ name })) }),
 	{
 		dev: true,
 		asks,

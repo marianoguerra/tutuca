@@ -487,6 +487,7 @@ fn studio_on_open_editor(
     fields = map_assoc(fields, gs_assistant, value_bool(list_count(state.models) >s 0));
     fields = map_assoc(fields, gs_models, state.models);
     fields = map_assoc(fields, gs_model, value_string(state.model));
+    fields = map_assoc(fields, gs_examples, state.examples);
     fields = map_assoc(fields, gs_transcript, chat);
     let editor = ctx_make(ctx, gs_Editor, fields);
     editor_send_build(ctx, selector_field(gs_editor));
@@ -518,6 +519,25 @@ fn editor_on_show_file(state: &editor_state, ctx: &context, file: js_string) -> 
 // The host checks the name when it's saved.
 fn editor_on_rename(state: &editor_state, ctx: &context, name: js_string) -> &editor_state {
     editor_with_name(state, name);
+}
+
+// Asked first, by the page, when the sources changed since they were opened.
+fn editor_on_load_example(state: &editor_state, ctx: &context, name: js_string) -> &editor_state {
+    editor_ask_example(ctx, name, editor_get_changed(state));
+    state;
+}
+
+// The example's sources, its name too for a new component, shown from the
+// .tcd and built.
+fn editor_reply_example_ok(state: &editor_state, ctx: &context, reply: &value) -> &editor_state {
+    if !editor_example_reply_ok(reply) {
+        return state;
+    }
+    let next = editor_with_wax(editor_with_tcd(state, editor_example_reply_tcd(reply)), editor_example_reply_wax(reply));
+    if state.creating {
+        next = editor_with_name(next, editor_example_reply_name(reply));
+    }
+    editor_building(editor_with_current(next, gs_tcd), ctx);
 }
 
 fn editor_building(state: &editor_state, ctx: &context) -> &editor_state {

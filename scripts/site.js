@@ -50,6 +50,7 @@ if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
 		"vendor/margaui/themes",
 		"dist/tutuca-rt.wasm",
 		"dist/tcd/tcd.wasm",
+		"dist/examples.json",
 	]) {
 		cpSync(`${wax}/${path}`, `${out}/wax/${path}`, {
 			recursive: true,

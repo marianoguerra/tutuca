@@ -21,7 +21,7 @@
 //   types, since the functions are the runtime's);
 // - the import block of the component ABI, read from src/abi.wax.
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -297,9 +297,27 @@ export function buildTcdWeb() {
 	return out;
 }
 
+// What the studio's editor can start from (dist/examples.json): each .tcd in
+// studio/assistant/examples/ with its .wax, then each module of COMPONENTS
+// defined in a .tcd under components/, as { name, tcd, wax }, paths from the
+// root.
+export function writeExamples() {
+	const dir = "studio/assistant/examples";
+	const assistant = readdirSync(join(root, dir))
+		.filter((f) => f.endsWith(".tcd"))
+		.sort()
+		.map((f) => f.slice(0, -".tcd".length))
+		.filter((name) => existsSync(join(root, dir, `${name}.wax`)))
+		.map((name) => ({ name, tcd: `${dir}/${name}.tcd`, wax: `${dir}/${name}.wax` }));
+	const modules = COMPONENTS.filter(({ tcd, impl }) => tcd?.startsWith("components/") && impl?.length === 1).map(({ name, tcd, impl }) => ({ name, tcd, wax: impl[0] }));
+	const out = "dist/examples.json";
+	writeFileSync(join(root, out), `${JSON.stringify([...assistant, ...modules], null, "\t")}\n`);
+	return out;
+}
+
 export function build() {
 	generatePrelude();
-	return [...TARGETS.map(buildTarget), buildTcdWeb()];
+	return [...TARGETS.map(buildTarget), buildTcdWeb(), writeExamples()];
 }
 
 // A component module defined in TCD: tcd generates its contract and glue

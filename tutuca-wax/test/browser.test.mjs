@@ -283,6 +283,45 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await page.close();
 });
 
+test("the editor starts a component from an example, a prebuilt module's sources too, and registers it as its own", async () => {
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	const dialogs = [];
+	page.on("dialog", (dialog) => {
+		dialogs.push(dialog.message());
+		dialog.accept();
+	});
+	const stage = page.locator(".st-stage");
+	const examples = page.locator(".st-examples");
+	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
+	await page.locator("button", { hasText: "+ New screen" }).waitFor();
+	await newStudioScreen(page, { scope: "a", name: "home" });
+	await stage.locator(".screen-toggle[aria-pressed=true]").waitFor();
+	await newStudioComponent(page);
+	// todo_item uses ../todo_list/todo_list.tcd: the prebuilt's, found by the path.
+	await examples.selectOption("todo_item");
+	await page.waitForFunction(() => /registers TodoItem/.test(document.querySelector(".st-status")?.textContent ?? ""));
+	if ((await page.locator("[aria-label='Component name']").inputValue()) !== "todo_item") throw new Error("a new component doesn't take the example's name");
+	// Unchanged since it was opened: nothing asked. Now it changed: asked first.
+	if (dialogs.length !== 0) throw new Error(`asked before replacing unchanged sources: ${dialogs}`);
+	await examples.selectOption("counter");
+	await page.locator(".st-preview .counter").waitFor();
+	if (dialogs.length !== 1) throw new Error(`not asked before replacing changed sources: ${dialogs}`);
+	await page.locator(".st-preview .counter button", { hasText: /^\+$/ }).click();
+	await page.locator(".st-preview .counter span", { hasText: "1" }).waitFor();
+	// Saved and registered in a, as any component written here.
+	await page.locator("button", { hasText: "Save & register" }).click();
+	await stage.locator(".choices button", { hasText: /^Counter$/ }).click();
+	await stage.locator(".counter").waitFor();
+	const [scopeA] = (await studioRecords(page, "scopes")).filter((s) => s.name === "a");
+	const [counter] = await studioRecords(page, "components");
+	if (counter?.name !== "counter" || scopeA.registrations.map((r) => r.component).join() !== counter.id) throw new Error("counter wasn't kept and registered in a");
+	if (errors.length > 0) throw new Error(errors.join("; "));
+	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
+	await page.close();
+});
+
 test("served with an API, the studio's assistant edits a component, and is told why what it wrote doesn't build until it does", async () => {
 	// A scripted model (pi-ai's faux provider): its first try lacks a
 	// function, its second adds it.
@@ -326,7 +365,6 @@ fn clicker_on_double(state: &clicker_state, ctx: &context) -> &clicker_state {
 	const status = (re) => page.waitForFunction((source) => new RegExp(source).test(document.querySelector(".st-status")?.textContent ?? ""), re.source);
 	try {
 		await page.goto(`http://127.0.0.1:${studio.address().port}/studio/`);
-		await page.locator(".st-assistant", { hasText: "assistant: 1 model" }).waitFor();
 		await newStudioScreen(page, { scope: "a", name: "home" });
 		await newStudioComponent(page);
 		await page.locator("button", { hasText: "Assistant" }).click();

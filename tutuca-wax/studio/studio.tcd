@@ -135,6 +135,9 @@ component Editor {
     field chat_note: string;
     field show_prompt: bool;
     field prompt_text: string;
+    /// The examples whose sources can replace these (the assistant's and
+    /// the prebuilt modules), by name.
+    field examples: list<record { name: string }>;
 
     get changed: bool;
     get tcd_file: string;
@@ -170,6 +173,10 @@ component Editor {
     ask remember_model(model: string) -> bool;
     /// The conversation kept with the component, once it's in the library.
     ask keep_chat(id: string, messages: list<any>) -> bool;
+    /// An example's sources, and the name a new component takes for them;
+    /// ok is false when the user, asked first because these changed, keeps
+    /// them.
+    ask example(name: string, replacing: bool) -> record { ok: bool, name: string, tcd: string, wax: string } emits ask build;
     /// To the studio: done, saved or not.
     notify close_editor();
 
@@ -177,6 +184,8 @@ component Editor {
     message set_wax(text: string) changes wax ensures next.wax == text;
     message show_file(file: string) changes current;
     message rename(name: string) changes name;
+    /// The sources replaced by an example's, then built.
+    message load_example(name: string) changes nothing emits ask example;
     message build() changes building, status emits ask build;
     message pick_type(type: string) changes preview_type, preview emits ask preview;
     message inspect(tab: string) changes inspecting ensures next.inspecting == tab;
@@ -203,6 +212,10 @@ component Editor {
             input(class: "input input-sm font-mono w-48", "aria-label": "Component name", value: field(name),
                 on_change: send(rename, target_value())),
             button(class: "btn btn-sm", title: "Ctrl/Cmd-Enter", on_click: send(build), "Build"),
+            select(class: "st-examples select select-sm w-40", "aria-label": "Start from an example", value: "",
+                on_change: send(load_example, target_value()),
+                option(value: "", disabled: "disabled", "Start from…"),
+                each(field(examples), option(value: field(name), field(name)))),
             if(field(assistant),
                 button(class: if(field(chat_open), "btn btn-sm btn-primary", "btn btn-sm"), title: "Ask a model to change this component",
                     on_click: send(toggle_chat), "Assistant")),
@@ -314,11 +327,11 @@ component Studio {
     /// The editor, while a component is written: the page is it then.
     field editor: option<Editor> @sync(none);
     field status: string @sync(none);
-    /// The assistant's badge ("assistant: 2 models"), "" without one; the
-    /// models it offers, and the one last picked.
-    field assistant: string;
+    /// The models the assistant offers, and the one last picked.
     field models: list<record { provider: string, models: list<record { value: string, name: string }> }>;
     field model: string;
+    /// The examples an editor can start from, by name.
+    field examples: list<record { name: string }>;
     /// What the components reported, the newest first.
     field events: list<record { kind: string, text: string }> where len(events) <= 200 @sync(none);
     get events_label: string;
@@ -371,7 +384,6 @@ component Studio {
     view main = div(class: "st-studio h-screen flex flex-col",
         if(field(editor), render(field(editor)), frag(
         header(class: "st-bar flex items-center gap-2 border-b border-base-300 bg-base-100 px-2 py-1",
-            span(class: "text-sm font-bold opacity-70 px-1", "studio"),
             nav(class: "st-tabs flex items-center gap-1 overflow-x-auto min-w-0", role: "tablist",
                 each(loop: tabs, field(screens),
                     div(class: if(bind(is_active), "st-tab group flex items-center rounded-btn bg-base-200 font-semibold", "st-tab group flex items-center rounded-btn hover:bg-base-200"),
@@ -387,7 +399,6 @@ component Studio {
             button(class: "st-new-screen btn btn-sm btn-ghost btn-square", title: "New screen", "aria-label": "New screen", on_click: send(open_picker), "+"),
             span(class: "flex-1"),
             span(class: "st-status text-xs opacity-70 truncate max-w-[40%]", title: field(status), field(status)),
-            if(field(assistant), span(class: "st-assistant badge badge-ghost badge-sm", title: "Served with an LLM assistant: open it from the editor", field(assistant))),
             div(class: "st-menu dropdown dropdown-end",
                 div(class: "btn btn-sm btn-ghost btn-square", role: "button", tabindex: "0", title: "More", "aria-label": "More", "⋯"),
                 ul(class: "menu menu-sm dropdown-content z-20 w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow", tabindex: "0",
@@ -436,6 +447,7 @@ host_ask stub;
 host_ask prompt;
 host_ask remember_model;
 host_ask keep_chat;
+host_ask example;
 
 example rename_a_tab for Studio {
     start { screens: [{ id: "a", name: "home", scope: "root", created: 1 }] }

@@ -84,11 +84,15 @@ turns the page into the editor: the `.tcd` and `.wax`, a preview of what
 they build (made in the screen's scope chain, on the studio's own host),
 the diagnostics, what it registers, the preview's state and events, and the
 assistant when there is one. A new component starts from the assistant's
-tasks example. Save & register keeps it in IndexedDB with its last build
+tasks example; "Start from…" replaces its sources with another example's
+(asking first when they changed): the ones the build lists in
+`dist/examples.json`, the assistant's and the component modules', so a
+prebuilt module can be made a component of the library. Save & register keeps it in IndexedDB with its last build
 (built again only when its sources or tcd change) and registers it in the
 screen's scope, where the hole's list, still open, now has it; saving an
-edited one makes the screen again with it. A `use "x.tcd"` reads another
-component of the library or a prebuilt module's `.tcd`. The layout keeps
+edited one makes the screen again with it. A `use "x.tcd"` (or a path ending
+in it, `"../x/x.tcd"`) reads another component of the library or a
+prebuilt module's `.tcd`. The layout keeps
 itself as it changes, as `js/hydrate.js`'s `capture` writes it: each
 component by the name it's made by in that scope and its fields, those that
 sync at no level left out. The ⋯ menu shows the layout as JSON, and Export
