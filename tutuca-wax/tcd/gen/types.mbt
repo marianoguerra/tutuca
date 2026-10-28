@@ -27,7 +27,8 @@ pub fn Gen::new(pkg : @check.Package, have? : Array[String]) -> Gen {
 /// record has a field text). Names are every one the package declares: its
 /// types and their members, the arguments of messages and asks, the binds
 /// of loops and scopes, and the names inside types (a record's fields, an
-/// enum's members).
+/// enum's members). Types come last: a type's name isn't its gs_ name as
+/// written (Editor is gs_editor), so a field editor keeps gs_editor.
 fn names_first(pkg : @check.Package) -> Strings {
   let strings = Strings::new()
   let claim = (name : String) => ignore(strings.get(name))
@@ -73,12 +74,6 @@ fn names_first(pkg : @check.Package) -> Strings {
     }
   }
   for c in pkg.components {
-    claim(c.name)
-  }
-  for i in pkg.interfaces {
-    claim(i.name)
-  }
-  for c in pkg.components {
     members(c.fields)
     members(c.gets)
     messages(c.messages)
@@ -105,6 +100,12 @@ fn names_first(pkg : @check.Package) -> Strings {
     signals(i.notifies)
   }
   signals(pkg.ask_handlers)
+  for c in pkg.components {
+    claim(c.name)
+  }
+  for i in pkg.interfaces {
+    claim(i.name)
+  }
   strings
 }
 

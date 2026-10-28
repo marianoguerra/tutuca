@@ -24,8 +24,6 @@ test "generated contract and glue of a small component" {
       #|// Don't edit it: change t.tcd and run tcd again.
       #|
       #|import "'" {
-      #|    #[import = "Tally"]
-      #|    const gs_tally: js_string;
       #|    #[import = "count"]
       #|    const gs_count: js_string;
       #|    #[import = "mode"]
@@ -40,6 +38,8 @@ test "generated contract and glue of a small component" {
       #|    const gs_n: js_string;
       #|    #[import = "changed"]
       #|    const gs_changed: js_string;
+      #|    #[import = "Tally"]
+      #|    const gs_tally: js_string;
       #|    #[import = "class"]
       #|    const gs_class: js_string;
       #|    #[import = "btn"]
@@ -83,6 +83,7 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|
+
 
     ),
   )
@@ -531,6 +532,44 @@ test "names inside types and arguments claim their gs_ first" {
       #|  "#[import = \"?\"] const gs_text_2: js_string;",
       #|  "#[import = \"Open\"] const gs_open_2: js_string;",
       #|  "#[import = \"To!\"] const gs_to_2: js_string;",
+      #|]
+    ),
+  )
+}
+
+///|
+/// A field named as a type is, lowercased, keeps gs_<field>: the type,
+/// whose name isn't its gs_ name as written, takes the next one.
+test "a field keeps its gs_ over a type of the same name" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component Editor {
+      #|    field n: s32;
+      #|    view main = div(field(n));
+      #|}
+      #|component Studio {
+      #|    field editor: list<Editor>;
+      #|    view main = div(render_each(field(editor)));
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let contract = @gen.generate(pkg, "t.tcd").contract
+  let lines = contract.split("\n").map(l => l.trim().to_owned()).collect()
+  let consts = []
+  for i, l in lines {
+    if l.has_prefix("const gs_editor") && i > 0 && lines[i - 1].contains("#[import") {
+      consts.push(lines[i - 1] + " " + l)
+    }
+  }
+  debug_inspect(
+    consts,
+    content=(
+      #|[
+      #|  "#[import = \"editor\"] const gs_editor: js_string;",
+      #|  "#[import = \"Editor\"] const gs_editor_2: js_string;",
       #|]
     ),
   )
