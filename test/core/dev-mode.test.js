@@ -150,3 +150,40 @@ test("dev mode reports messages that break their spec", () => {
 	click("p");
 	assert.deepEqual(reports.at(-1).issues, ["pre"]);
 });
+
+// An ask handler gets the asker's context; what it emits is its own, not part of the reply's
+// contract, which counts only what the reply's handler emits.
+test("dev mode checks a reply's emits against what the reply's handler emits", () => {
+	const reports = [];
+	const onReport = (type, info) => type === "messageInvalid" && reports.push(info);
+	const Asker = component({
+		name: "Asker",
+		fields: { got: t.number() },
+		view: h("p", { "on:click": send("go") }, "go"),
+		on: {
+			go: {
+				emits: { ask: ["load"] },
+				run(_next, _args, ctx) {
+					ctx.ask("load");
+				},
+			},
+			loadReplyOk: {
+				emits: {},
+				run(next, [n]) {
+					next.got = n;
+				},
+			},
+		},
+	});
+	const { host, rootNode, C } = setupHost({ Asker }, { dev: true, sync: true, onReport });
+	host.scope.registerAskHandlers({
+		load(_args, ctx) {
+			ctx.notify("loading");
+			return 7;
+		},
+	});
+	host.start(C.Asker());
+	rootNode.querySelector("p").click();
+	assert.equal(host.rootComponent.got, 7);
+	assert.deepEqual(reports, []);
+});

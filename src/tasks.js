@@ -3,8 +3,11 @@ import { routeFor, selectorFrom, Target } from "./paths.js";
 import { scopeOf, specOf } from "./schema.js";
 
 // A handler returns a replacement for the component, or undefined to keep next.
+// The handler's contract counts what it emits, not what ran before it in the task (an ask
+// handler, before the reply's).
 const call = (message, instance, next, args, ctx) => {
 	ctx.handled = { message, args };
+	ctx.emitted = [];
 	const result = message.run.call(instance, next, args, ctx);
 	return result === undefined ? next : result;
 };
