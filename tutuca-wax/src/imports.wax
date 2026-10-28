@@ -478,8 +478,6 @@ import "'" {
     const s_err_rejected: &extern;
     #[import = "A view element belongs to the views of one component type"]
     const s_err_view_shared: &extern;
-    #[import = "A send argument must be a constant, targetValue, sourceKey, dragKey, event or an if of them"]
-    const s_err_action_arg: &extern;
     #[import = "A component type needs a main view: "]
     const s_err_no_main_view: &extern;
     #[import = "A component type's view names and views must align: "]
@@ -496,8 +494,6 @@ import "'" {
     const s_err_unknown_loop: &extern;
     #[import = "No scope named "]
     const s_err_unknown_scope: &extern;
-    #[import = "An action, targetValue, sourceKey, dragKey or event can only be a send argument"]
-    const s_err_not_renderable: &extern;
     #[import = "A component in a view renders through render, not as a child"]
     const s_err_component_child: &extern;
     #[import = "A loop's iter must return a list of [key, value] lists"]

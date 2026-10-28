@@ -107,8 +107,8 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|fn tally_view_main() -> &view {
-      #|    let t0 = [view_array|null; 1];
-      #|    t0[0] = view_const(value_int(1));
+      #|    let t0 = [arg_array|null; 1];
+      #|    t0[0] = arg_value(value_int(1));
       #|    let t1 = [str_array|null; 1];
       #|    t1[0] = gs_class;
       #|    let t2 = [view_array|null; 1];
@@ -305,6 +305,7 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|
+
     ),
   )
   debug_inspect(

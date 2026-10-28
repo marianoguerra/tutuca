@@ -583,9 +583,11 @@ module loaded later brings its events with it.
 
 **Views** (`view.wax`) are data, the spec's `view.rkt` expressions: constants,
 fields, seq items, provided values, binds, `if`, elements, fragments,
-`render`, `each`, `renderEach`, `renderIt`, `scope`, `pushView`, and the send
-actions on elements, whose arguments can also be `targetValue`, `sourceKey`
-and `dragKey`. Computed text is a property: `get` answers names that
+`render`, `each`, `renderEach`, `renderIt`, `scope` and `pushView`; an
+element's handlers send actions whose arguments are the handler table's own
+(`prelude/sem.wax`'s `arg`: a literal, `targetValue`, `sourceKey`, `dragKey`,
+a field of the event, or an `if` of those), not views, since they're
+evaluated against the message context, never rendered. Computed text is a property: `get` answers names that
 aren't fields (TodoList's `remaining` and `count`, TodoCard's `meta`).
 `spec_new` collects a type's templates from its views (`collect.wax`): every
 element gets one, numbered in walk order, constant attrs static and the rest

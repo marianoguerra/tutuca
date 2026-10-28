@@ -18,11 +18,6 @@ const view_kind_render_each = 10;
 const view_kind_render_it = 11;
 const view_kind_scope = 12;
 const view_kind_push_view = 13;
-const view_kind_action = 14;
-const view_kind_target_value = 15;
-const view_kind_source_key = 16;
-const view_kind_drag_key = 17;
-const view_kind_event = 18;
 
 rec {
     type view = open { kind: i32 };
@@ -66,19 +61,12 @@ rec {
     type view_scope: view = { .., scope_name: &extern, body: &view };
     // pushView(view_name, body).
     type view_push_view: view = { .., view_name: &view, body: &view };
-    // send(name, ...args), what on:<event> holds.
-    type view_action: view = { .., name: &extern, args: &view_array };
-    // The value of the element with the handler, as a send argument.
-    type view_target_value: view = { .. };
-    // The item key of the child a message arrived from, as a send argument.
-    type view_source_key: view = { .. };
-    // The item key of the child the dragged element is in, as a send
-    // argument; null when nothing, or something from elsewhere, is dragged.
-    type view_drag_key: view = { .. };
-    // A field of the event (key, clientX, ctrlKey, ...), as a send argument.
-    type view_event: view = { .., name: &extern };
-    // on:<event>.
-    type view_on = { event: &extern, action: &view_action };
+    // on:<event>: send(name, ...args), with the arguments as the handler
+    // table keeps them (prelude/sem.wax's arg: a literal, the target's
+    // value, the source key, the drag key, a field of the event, or an if
+    // of those), not views: they're evaluated against the message context
+    // when the task runs, never rendered.
+    type view_on = { event: &extern, action: &action };
     type view_array = [mut &?view];
     type view_on_array = [mut &?view_on];
 }

@@ -109,25 +109,27 @@ fn Gen::views(self : Gen, b : Block, vs : Array[@syntax.ViewExpr]) -> String {
 }
 
 ///|
-/// A send argument's view.
+/// A send argument, as the handler table keeps it (the check allows only
+/// these: tcd.view.send_arg).
 fn Gen::send_arg(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
   match v {
-    Call({ text: "target_value", .. }, _, _, ..) => "view_target_value()"
-    Call({ text: "source_key", .. }, _, _, ..) => "view_source_key()"
-    Call({ text: "drag_key", .. }, _, _, ..) => "view_drag_key()"
+    Call({ text: "target_value", .. }, _, _, ..) => "arg_target_value()"
+    Call({ text: "source_key", .. }, _, _, ..) => "arg_source_key()"
+    Call({ text: "drag_key", .. }, _, _, ..) => "arg_drag_key()"
     Call({ text: "event", .. }, _, [arg], ..) =>
-      "view_event(\{self.s(@check.camel(name_of(arg)))})"
+      "arg_event(\{self.s(@check.camel(name_of(arg)))})"
     Call({ text: "if", .. }, _, args, ..) => {
       let cond_v = self.send_arg(b, args[0])
       let then_v = self.send_arg(b, args[1])
       let otherwise = if args.length() > 2 {
         self.send_arg(b, args[2])
       } else {
-        "view_const(value_null())"
+        "arg_value(value_null())"
       }
-      b.bind("view_if(\{cond_v}, \{then_v}, \{otherwise})")
+      b.bind("arg_if(\{cond_v}, \{then_v}, \{otherwise})")
     }
-    other => self.view(b, other)
+    Lit(l, ..) => "arg_value(\{self.lit(l)})"
+    _ => abort("tcd.view.send_arg lets only send arguments through")
   }
 }
 
@@ -156,7 +158,7 @@ fn Gen::element(
       guard a.value is Call(_, _, sargs, ..) else { continue }
       let msg = @check.camel(name_of(sargs[0]))
       let args = b.array(
-        "view_array",
+        "arg_array",
         sargs[1:].to_owned().map(x => self.send_arg(b, x)),
       )
       let spec = if mods.is_empty() {

@@ -808,7 +808,9 @@ test("todos: items made outside the list compose the same", (env) => {
 
 // ---- Views as data, and walking them ----------------------------------------
 
-test("walk: every kind in tutuca's Walker order, element by attrs, key, children, handlers", ({ vdom }) => {
+// A handler's arguments aren't views (they're the handler table's send
+// arguments, evaluated against the message context), so the walk skips them.
+test("walk: every kind in tutuca's Walker order, element by attrs, key, children", ({ vdom }) => {
 	const { view: v } = vdom;
 	const tree = v.h(
 		"li",
@@ -826,7 +828,6 @@ test("walk: every kind in tutuca's Walker order, element by attrs, key, children
 		...["each", "field", "renderIt"],
 		...["renderEach", "field"],
 		...["scope", "pushView", "const", "const"],
-		...["action", "targetValue", "sourceKey", "dragKey"],
 	]);
 });
 
@@ -1906,7 +1907,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 8/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 9/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

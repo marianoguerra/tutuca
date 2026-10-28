@@ -325,27 +325,12 @@ fn abi_view_push_view(view_name: &view, body: &view) -> &view {
 }
 
 #[export = "view_action"]
-fn abi_view_action(name: &extern, args: &view_array) -> &view_action {
+fn abi_view_action(name: &extern, args: &arg_array) -> &action {
     view_action(name, args);
 }
 
-#[export = "view_target_value"]
-fn abi_view_target_value() -> &view {
-    view_target_value();
-}
-
-#[export = "view_source_key"]
-fn abi_view_source_key() -> &view {
-    view_source_key();
-}
-
-#[export = "view_drag_key"]
-fn abi_view_drag_key() -> &view {
-    view_drag_key();
-}
-
 #[export = "view_on"]
-fn abi_view_on(event: &extern, action: &view_action) -> &view_on {
+fn abi_view_on(event: &extern, action: &action) -> &view_on {
     view_on(event, action);
 }
 
@@ -560,13 +545,23 @@ fn abi_views3(a: &view, b: &view, c: &view) -> &view_array {
     views3(a, b, c);
 }
 
+#[export = "args0"]
+fn abi_args0() -> &arg_array {
+    args0();
+}
+
+#[export = "args3"]
+fn abi_args3(a: &arg, b: &arg, c: &arg) -> &arg_array {
+    args3(a, b, c);
+}
+
 #[export = "view_ons0"]
 fn abi_view_ons0() -> &view_on_array {
     view_ons0();
 }
 
 #[export = "view_ons1"]
-fn abi_view_ons1(event: &extern, name: &extern, args: &view_array) -> &view_on_array {
+fn abi_view_ons1(event: &extern, name: &extern, args: &arg_array) -> &view_on_array {
     view_ons1(event, name, args);
 }
 
@@ -912,11 +907,6 @@ fn abi_scope_register_interface(s: &scope, iface: &interface_schema) {
 #[export = "message_error_invalid_arg"]
 fn abi_message_error_invalid_arg(index: i32, reason: &value) -> &message_error {
     message_error_invalid_arg(index, reason);
-}
-
-#[export = "view_event"]
-fn abi_view_event(name: &extern) -> &view {
-    view_event(name);
 }
 
 #[export = "arg_event"]

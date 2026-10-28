@@ -567,6 +567,19 @@ function makeApi(w) {
 	};
 	const toView = (v) => (v !== null && typeof v === "object" && viewNodes.has(v) ? v : viewNode(w.view_const(toValue(v))));
 	const viewArray = (items) => arrayOf(w.view_array_new, w.view_array_set, items.flat(Infinity), toView);
+	// Send arguments, as sem's arg describes them; a view is none.
+	const sendArgs = new WeakSet();
+	const sendArg = (a) => {
+		sendArgs.add(a);
+		return a;
+	};
+	const isSendArg = (a) => a !== null && typeof a === "object" && sendArgs.has(a);
+	const toSendArg = (a) => {
+		if (a !== null && typeof a === "object" && viewNodes.has(a)) {
+			throw new Error("A send argument must be a constant, targetValue, sourceKey, dragKey, event or an if of them");
+		}
+		return arg(a);
+	};
 	const view = {
 		// The kinds' names, by view_kind_* number.
 		KINDS: [
@@ -584,18 +597,17 @@ function makeApi(w) {
 			"renderIt",
 			"scope",
 			"pushView",
-			"action",
-			"targetValue",
-			"sourceKey",
-			"dragKey",
-			"event",
 		],
 		constant: (v) => viewNode(w.view_const(toValue(v))),
 		field: (name) => viewNode(w.view_field(name)),
 		seqItem: (seqName, keyName) => viewNode(w.view_seq_item(seqName, keyName)),
 		provided: (name) => viewNode(w.view_provided(name)),
 		lookupBind: (name) => viewNode(w.view_lookup_bind(name)),
-		if: (test, then, otherwise) => viewNode(w.view_if(toView(test), toView(then), toView(otherwise))),
+		// An if of send arguments, when a branch is one, is a send argument too.
+		if: (test, then, otherwise) =>
+			[test, then, otherwise].some(isSendArg)
+				? sendArg({ if: [test, then, otherwise] })
+				: viewNode(w.view_if(toView(test), toView(then), toView(otherwise))),
 		// h(tag, { key, namespace, "on:event": send(...), ...attrs }, ...childs)
 		h: (tag, attrs = {}, ...childs) => {
 			const { key = null, namespace = null, ...rest } = attrs;
@@ -622,13 +634,14 @@ function makeApi(w) {
 		renderIt: (viewName = null) => viewNode(w.view_render_it(viewName)),
 		scope: (name, body) => viewNode(w.view_scope(name, toView(body))),
 		pushView: (viewName, body) => viewNode(w.view_push_view(toView(viewName), toView(body))),
-		// An action, for an "on:event" attr; not a view child.
-		send: (name, ...args) => w.view_action(name, viewArray(args)),
-		targetValue: () => viewNode(w.view_target_value()),
-		sourceKey: () => viewNode(w.view_source_key()),
-		dragKey: () => viewNode(w.view_drag_key()),
+		// An action, for an "on:event" attr; not a view child. Its arguments
+		// are the handler table's (sem's arg), not views.
+		send: (name, ...args) => w.view_action(name, arrayOf(w.arg_array_new, w.arg_array_set, args, toSendArg)),
+		targetValue: () => sendArg({ targetValue: true }),
+		sourceKey: () => sendArg({ sourceKey: true }),
+		dragKey: () => sendArg({ dragKey: true }),
 		// A field of the event (key, clientX, ctrlKey, ...), as a send argument.
-		event: (name) => viewNode(w.view_event(name)),
+		event: (name) => sendArg({ event: name }),
 		// The templates of views (src/collect.wax), setting each element's.
 		templates(views) {
 			const ts = w.views_collect_templates(viewArray(views));

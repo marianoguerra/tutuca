@@ -302,12 +302,6 @@ fn view_eval_all(out: &snode_buf, nodes: &view_array, e: &eval_ctx) {
 }
 
 fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
-    // An action and the send arguments (targetValue, sourceKey, dragKey,
-    // event) only go in on:<event> attrs.
-    if (v.kind >=s view_kind_action) & (v.kind <=s view_kind_event) {
-        host_fail(s_err_not_renderable);
-        return;
-    }
     match v {
         n: &view_el => {
             snode_buf_push(out, view_eval_el(n, e));

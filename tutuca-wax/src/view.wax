@@ -90,30 +90,11 @@ fn view_push_view(view_name: &view, body: &view) -> &view {
     out;
 }
 
-fn view_action(name: &extern, args: &view_array) -> &view_action {
-    {view_action| kind: view_kind_action, name, args };
+// send(name, ...args), for on:<event>.
+fn view_action(name: &extern, args: &arg_array) -> &action {
+    {action| name, args };
 }
 
-fn view_target_value() -> &view {
-    let out: &view_target_value = { kind: view_kind_target_value };
-    out;
-}
-
-fn view_source_key() -> &view {
-    let out: &view_source_key = { kind: view_kind_source_key };
-    out;
-}
-
-fn view_drag_key() -> &view {
-    let out: &view_drag_key = { kind: view_kind_drag_key };
-    out;
-}
-
-fn view_event(name: &extern) -> &view {
-    let out: &view_event = { kind: view_kind_event, name };
-    out;
-}
-
-fn view_on(event: &extern, action: &view_action) -> &view_on {
+fn view_on(event: &extern, action: &action) -> &view_on {
     {view_on| event, action };
 }

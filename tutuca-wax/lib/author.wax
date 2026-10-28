@@ -165,12 +165,25 @@ fn no_scopes() -> &scope_def_array {
     [scope_def_array|null; 0];
 }
 
+// Send arguments.
+fn args0() -> &arg_array {
+    [arg_array|null; 0];
+}
+
+fn args3(a: &arg, b: &arg, c: &arg) -> &arg_array {
+    let out = [arg_array|null; 3];
+    out[0] = a;
+    out[1] = b;
+    out[2] = c;
+    out;
+}
+
 fn view_ons0() -> &view_on_array {
     [view_on_array|null; 0];
 }
 
 // One handler: on `event`, send `name` with `args`.
-fn view_ons1(event: &extern, name: &extern, args: &view_array) -> &view_on_array {
+fn view_ons1(event: &extern, name: &extern, args: &arg_array) -> &view_on_array {
     let out = [view_on_array|null; 1];
     out[0] = view_on(event, view_action(name, args));
     out;

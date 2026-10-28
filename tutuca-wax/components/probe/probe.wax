@@ -120,7 +120,7 @@ type probe_state = { count: i32, label: &extern };
 let probe_spec_made: &?component_spec = null;
 
 fn probe_button(class: &extern, event: &extern, message: &extern, label: &extern) -> &view {
-    el_class_on(s_button, class, views1(text(label)), view_ons1(event, message, views0()));
+    el_class_on(s_button, class, views1(text(label)), view_ons1(event, message, args0()));
 }
 
 fn probe_spec() -> &component_spec {
@@ -135,7 +135,7 @@ fn probe_spec() -> &component_spec {
             view_ons1(
                 s_mousedown,
                 s_press,
-                views3(view_event(s_client_x), view_event(s_client_y), view_event(s_shift_key)),
+                args3(arg_event(s_client_x), arg_event(s_client_y), arg_event(s_shift_key)),
             ),
         );
     let main =

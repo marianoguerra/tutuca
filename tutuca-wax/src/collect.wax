@@ -35,44 +35,8 @@ fn collect_templates_push(s: &collect_templates_state, t: &template) {
     s.len = len + 1;
 }
 
-// A send argument as its handler table keeps it: what it evaluates to on
-// dispatch, against the message context.
-fn view_to_arg(v: &view) -> &arg {
-    match v {
-        c: &view_const => {
-            return arg_value(c.value);
-        }
-        t: &view_target_value => {
-            return arg_target_value();
-        }
-        k: &view_source_key => {
-            return arg_source_key();
-        }
-        d: &view_drag_key => {
-            return arg_drag_key();
-        }
-        v: &view_event => {
-            return arg_event(v.name);
-        }
-        c: &view_if => {
-            return arg_if(view_to_arg(c.test), view_to_arg(c.then), view_to_arg(c.otherwise));
-        }
-        _ => {
-            host_fail(s_err_action_arg);
-            unreachable;
-        }
-    }
-}
-
 fn view_to_on_attr(h: &view_on) -> &on_attr {
-    let args = h.action.args;
-    let out = [arg_array|null; args.length()];
-    let i = 0;
-    while i <s args.length() {
-        out[i] = view_to_arg(args[i]!);
-        i += 1;
-    }
-    on_attr_new(h.event, h.action.name, out);
+    on_attr_new(h.event, h.action.name, h.action.args);
 }
 
 // Whether attribute i of e is static: a constant, but not one the vdom sets
