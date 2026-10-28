@@ -163,6 +163,23 @@ test("a click runs the handler on a draft and re-renders the produced state", ()
 	assert.equal(rootNode.textContent, "2");
 });
 
+test("an element outside HTML and SVG routes its events too", () => {
+	const Formula = component({
+		name: "Formula",
+		fields: { count: t.number() },
+		views: { main: h("math", { "on:click": send("inc") }, h("mn", {}, field("count"))) },
+		on: {
+			inc(next) {
+				next.count++;
+			},
+		},
+	});
+	const { host, rootNode, C, click } = setup({ Formula });
+	host.start(C.Formula());
+	click(rootNode.querySelector("mn"));
+	assert.equal(host.rootComponent.count, 1);
+});
+
 test("targetValue reads values and checkbox state", () => {
 	const Form = component({
 		name: "Form",

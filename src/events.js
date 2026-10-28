@@ -36,8 +36,9 @@ const walkUp = (node, rootNode) => {
 	const components = [];
 	const eids = [];
 	while (node && node !== rootNode) {
-		const eid = node.dataset?.eid;
-		if (eid !== undefined) eids.push({ eid: parseInt(eid, 10), node, level: components.length });
+		// The attribute, not dataset, which elements outside HTML and SVG (MathML in jsdom) lack.
+		const eid = node.getAttribute?.("data-eid");
+		if (eid != null) eids.push({ eid: parseInt(eid, 10), node, level: components.length });
 		for (const meta of enclosingNodeMeta(node)) {
 			if (meta.t === "component") components.push(metas.length);
 			metas.push(meta);

@@ -96,8 +96,8 @@ export class Host {
 		if (path === null) return;
 		this.endDrag();
 		const value = path.resolve().getIn(this.rootComponent);
-		this.drag = new Drag(path, node.dataset.dragtype ?? null, node, value);
-		node.dataset.dragging = "";
+		this.drag = new Drag(path, node.getAttribute("data-dragtype"), node, value);
+		node.setAttribute("data-dragging", "");
 		if (e.dataTransfer) {
 			e.dataTransfer.setData("text/plain", ""); // Firefox starts no drag without data.
 			e.dataTransfer.effectAllowed = "move";
@@ -122,13 +122,13 @@ export class Host {
 	}
 	markDragOver(node) {
 		if (node === this._dragOver) return;
-		if (this._dragOver !== null) delete this._dragOver.dataset.draggingover;
+		if (this._dragOver !== null) this._dragOver.removeAttribute("data-draggingover");
 		this._dragOver = node;
-		if (node !== null) node.dataset.draggingover = this.drag?.type ?? "external";
+		if (node !== null) node.setAttribute("data-draggingover", this.drag?.type ?? "external");
 	}
 	endDrag() {
 		this.markDragOver(null);
-		if (this.drag !== null) delete this.drag.node.dataset.dragging;
+		if (this.drag !== null) this.drag.node.removeAttribute("data-dragging");
 		this.drag = null;
 	}
 	addEventListeners(eventNames) {
