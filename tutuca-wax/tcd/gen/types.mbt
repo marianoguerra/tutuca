@@ -23,42 +23,88 @@ pub fn Gen::new(pkg : @check.Package, have? : Array[String]) -> Gen {
 /// The strings, with the package's names claimed first, in the order they're
 /// declared: an implementation's gs_<name> is that name's, whatever text a
 /// view has that reads the same (a "Notes" label takes gs_notes_2, not the
-/// field notes's gs_notes).
+/// field notes's gs_notes; a "?" button, of only symbols, gs_text_2 when a
+/// record has a field text). Names are every one the package declares: its
+/// types and their members, the arguments of messages and asks, the binds
+/// of loops and scopes, and the names inside types (a record's fields, an
+/// enum's members).
 fn names_first(pkg : @check.Package) -> Strings {
   let strings = Strings::new()
+  let claim = (name : String) => ignore(strings.get(name))
+  fn claim_ty(ty : @check.Ty) -> Unit {
+    match ty {
+      Enum(members) => members.each(claim)
+      Option(t) | List(t) | Map(t) => claim_ty(t)
+      Record(entries) =>
+        for entry in entries {
+          claim(entry.0)
+          claim_ty(entry.1)
+        }
+      OneOf(ts) => ts.each(claim_ty)
+      Result(ok, err) => {
+        claim_ty(ok)
+        claim_ty(err)
+      }
+      Bool | S32 | F64 | Str | Any | Null | Comp(_) => ()
+    }
+  }
   let members = (fields : Array[@check.FieldM]) => {
     for f in fields {
-      ignore(strings.get(f.name))
+      claim(f.name)
+      claim_ty(f.ty)
+    }
+  }
+  let signals = (ss : Array[@check.SignalM]) => {
+    for s in ss {
+      claim(s.name)
+      members(s.params)
+      if s.result is Some(t) {
+        claim_ty(t)
+      }
+    }
+  }
+  let messages = (ms : Array[@check.MessageM]) => {
+    for m in ms {
+      claim(m.name)
+      members(m.params)
+      if m.source_key is Some(k) {
+        members([k])
+      }
     }
   }
   for c in pkg.components {
-    ignore(strings.get(c.name))
+    claim(c.name)
   }
   for i in pkg.interfaces {
-    ignore(strings.get(i.name))
+    claim(i.name)
   }
   for c in pkg.components {
     members(c.fields)
     members(c.gets)
-    for m in c.messages {
-      ignore(strings.get(m.name))
-    }
-    for n in c.notifies {
-      ignore(strings.get(n.name))
-    }
-    for a in c.asks {
-      ignore(strings.get(a.name))
-    }
+    messages(c.messages)
+    signals(c.notifies)
+    signals(c.asks)
     for l in c.loops {
-      ignore(strings.get(l.name))
+      claim(l.name)
+      if l.enrich is Some(binds) {
+        members(binds)
+      }
     }
     for sc in c.scopes {
-      ignore(strings.get(sc.name))
+      claim(sc.name)
+      members(sc.binds)
     }
     for pr in c.provides {
-      ignore(strings.get(pr.name))
+      claim(pr.name)
     }
   }
+  for i in pkg.interfaces {
+    members(i.fields)
+    members(i.gets)
+    messages(i.messages)
+    signals(i.notifies)
+  }
+  signals(pkg.ask_handlers)
   strings
 }
 

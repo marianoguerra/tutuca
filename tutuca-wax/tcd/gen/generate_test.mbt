@@ -30,8 +30,14 @@ test "generated contract and glue of a small component" {
       #|    const gs_count: js_string;
       #|    #[import = "mode"]
       #|    const gs_mode: js_string;
+      #|    #[import = "up"]
+      #|    const gs_up: js_string;
+      #|    #[import = "down"]
+      #|    const gs_down: js_string;
       #|    #[import = "bump"]
       #|    const gs_bump: js_string;
+      #|    #[import = "n"]
+      #|    const gs_n: js_string;
       #|    #[import = "changed"]
       #|    const gs_changed: js_string;
       #|    #[import = "class"]
@@ -42,12 +48,6 @@ test "generated contract and glue of a small component" {
       #|    const gs_click: js_string;
       #|    #[import = "button"]
       #|    const gs_button: js_string;
-      #|    #[import = "up"]
-      #|    const gs_up: js_string;
-      #|    #[import = "down"]
-      #|    const gs_down: js_string;
-      #|    #[import = "n"]
-      #|    const gs_n: js_string;
       #|    #[import = "main"]
       #|    const gs_main: js_string;
       #|    #[import = "missing"]
@@ -83,6 +83,7 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|
+
     ),
   )
   inspect(
@@ -488,6 +489,48 @@ test "only the empty text is gs_empty" {
       #|  "#[import = \"+\"] const gs_text: js_string;",
       #|  "#[import = \"×\"] const gs_text_2: js_string;",
       #|  "#[import = \"\"] const gs_empty: js_string;",
+      #|]
+    ),
+  )
+}
+
+///|
+/// The names inside types and arguments are claimed before any view text:
+/// a "?" before the record field text, an "Open" before the enum member
+/// open, a "to" label before the argument to, leave the implementation's
+/// gs_text, gs_open and gs_to theirs.
+test "names inside types and arguments claim their gs_ first" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component C {
+      #|    field items: list<record { text: string }>;
+      #|    field show: enum { all, open };
+      #|    message go(to: string) changes nothing;
+      #|    view main = div(button(on_click: send(go, "x"), "?"), span("Open"), span("To!"));
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let contract = @gen.generate(pkg, "t.tcd").contract
+  let lines = contract.split("\n").map(l => l.trim().to_owned()).collect()
+  let consts = []
+  for i, l in lines {
+    if l.has_prefix("const gs_") && i > 0 && lines[i - 1].contains("#[import") {
+      consts.push(lines[i - 1] + " " + l)
+    }
+  }
+  debug_inspect(
+    consts.filter(l => l.contains("gs_text") || l.contains("gs_open") || l.contains("gs_to")),
+    content=(
+      #|[
+      #|  "#[import = \"text\"] const gs_text: js_string;",
+      #|  "#[import = \"open\"] const gs_open: js_string;",
+      #|  "#[import = \"to\"] const gs_to: js_string;",
+      #|  "#[import = \"?\"] const gs_text_2: js_string;",
+      #|  "#[import = \"Open\"] const gs_open_2: js_string;",
+      #|  "#[import = \"To!\"] const gs_to_2: js_string;",
       #|]
     ),
   )
