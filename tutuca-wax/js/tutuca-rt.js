@@ -730,9 +730,12 @@ function makeRuntime(w, api, late) {
 			// What happened, in order: log { value }, unhandled { message },
 			// taskFailed { error }, renderFailed { error }, render, and in dev
 			// mode stateInvalid and messageInvalid { message, component, ... }.
+			// Each but render says where it came from: path, the keys from the
+			// root to the component the task was for (["items", 2]), null for
+			// what a render reports.
 			reports: [],
 			report(type, info = {}) {
-				const r = { type, ...info };
+				const r = type === "render" ? { type, ...info } : { type, ...info, path: values.to(w.host_task_path(h)) };
 				host.reports.push(r);
 				onReport?.(type, r);
 			},

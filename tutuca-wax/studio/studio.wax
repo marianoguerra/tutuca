@@ -1,5 +1,7 @@
-// studio.tcd has the rest. Scopes and screens are records, map values with
-// their fields as entries: made with map_assoc, read with value_member.
+// studio.tcd has the rest. The records the components hold are read and made
+// with the helpers tcd generates for them (studio_screens_id(screen),
+// scope_picker_tree_new(...)); the assistant's transcript is pi's JSON,
+// read with value_member and made with map_assoc.
 
 import "'" {
     #[import = "margin-left: "]
@@ -42,26 +44,106 @@ import "'" {
     const s_without_saving: js_string;
     #[import = "can't preview it: "]
     const s_cant_preview: js_string;
+    // The assistant: pi's message fields and what it's told.
+    #[import = "role"]
+    const s_role: js_string;
+    #[import = "user"]
+    const s_user: js_string;
+    #[import = "assistant"]
+    const s_assistant: js_string;
+    #[import = "toolResult"]
+    const s_tool_result: js_string;
+    #[import = "content"]
+    const s_content: js_string;
+    #[import = "type"]
+    const s_type: js_string;
+    #[import = "text"]
+    const s_text: js_string;
+    #[import = "toolCall"]
+    const s_tool_call: js_string;
+    #[import = "arguments"]
+    const s_arguments: js_string;
+    #[import = "toolCallId"]
+    const s_tool_call_id: js_string;
+    #[import = "toolName"]
+    const s_tool_name: js_string;
+    #[import = "isError"]
+    const s_is_error: js_string;
+    #[import = "timestamp"]
+    const s_timestamp: js_string;
+    #[import = "stopReason"]
+    const s_stop_reason: js_string;
+    #[import = "errorMessage"]
+    const s_error_message: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "aborted"]
+    const s_aborted: js_string;
+    #[import = "write_component"]
+    const s_write_component: js_string;
+    #[import = "tcd"]
+    const s_tcd: js_string;
+    #[import = "wax"]
+    const s_wax: js_string;
+    #[import = "tool"]
+    const s_tool: js_string;
+    #[import = "ok"]
+    const s_ok: js_string;
+    #[import = "failed"]
+    const s_failed: js_string;
+    #[import = "\n"]
+    const s_newline: js_string;
+    #[import = ", "]
+    const s_comma: js_string;
+    #[import = " and "]
+    const s_and: js_string;
+    #[import = "."]
+    const s_dot: js_string;
+    #[import = "✎ wrote "]
+    const s_wrote: js_string;
+    #[import = "nothing"]
+    const s_nothing: js_string;
+    #[import = "✓ "]
+    const s_check_mark: js_string;
+    #[import = "✗ it didn't build; the model was told why"]
+    const s_didnt_build_told: js_string;
+    #[import = "thinking…"]
+    const s_thinking: js_string;
+    #[import = "building what it wrote…"]
+    const s_building_what_it_wrote: js_string;
+    #[import = "fixing what didn't build ("]
+    const s_fixing_open: js_string;
+    #[import = " of 3)…"]
+    const s_fixing_close: js_string;
+    #[import = "It built: "]
+    const s_it_built: js_string;
+    #[import = " registers "]
+    const s_registers_word: js_string;
+    #[import = "\nWarnings:\n"]
+    const s_warnings: js_string;
+    #[import = "It didn't build. tcd's diagnostics:\n"]
+    const s_didnt_build: js_string;
+    #[import = "\n\nThe functions the .wax is missing, with the signatures it must have:\n"]
+    const s_missing_functions: js_string;
+    #[import = "The compiler failed; nothing was built."]
+    const s_compiler_failed: js_string;
+    #[import = "There's no tool "]
+    const s_no_tool: js_string;
+    #[import = ": use write_component."]
+    const s_use_write_component: js_string;
+    #[import = "Still not building after 4 tries: the diagnostics are in the editor. Say how to go on."]
+    const s_still_not_building: js_string;
 }
 
-// A scope or a screen, as a record.
-type studio_record = &value;
 // A screen's or a scope's id.
 type studio_id = js_string;
 
-fn studio_text_of(record: studio_record, key: js_string) -> js_string {
-    value_string_of(value_member(record, key))!;
-}
-
-fn studio_id_of(record: studio_record) -> studio_id {
-    studio_text_of(record, gs_id);
-}
-
-// The index of the record with id in records, or -1.
+// The index of the record with id in records (screens or scopes: id first),
+// or -1.
 fn studio_index_of(records: &value, id: studio_id) -> i32 {
     let i = 0;
     while i <s list_count(records) {
-        if str_eq(studio_id_of(list_get(records, i)!), id) {
+        if str_eq(studio_screens_id(list_get(records, i)!), id) {
             return i;
         }
         i += 1;
@@ -69,24 +151,32 @@ fn studio_index_of(records: &value, id: studio_id) -> i32 {
     -1;
 }
 
-fn studio_one(c: &value) -> &value {
-    list_push(list_empty(), c);
+// items' texts, sep between them.
+fn studio_join(items: &value, sep: js_string) -> js_string {
+    let out = gs_empty;
+    let i = 0;
+    while i <s list_count(items) {
+        if i >s 0 {
+            out = js_string_concat(out, sep);
+        }
+        out = js_string_concat(out, value_string_of(list_get(items, i)!)!);
+        i += 1;
+    }
+    out;
+}
+
+// list with item at the front, the rest after it, up to max items.
+fn studio_prepend(list: &value, item: &value, max: i32) -> &value {
+    let out = list_push(list_empty(), item);
+    let i = 0;
+    while (i <s list_count(list)) & (i <s max - 1) {
+        out = list_push(out, list_get(list, i)!);
+        i += 1;
+    }
+    out;
 }
 
 // ---- ScopePicker -------------------------------------------------------------------
-
-// A row of the tree: the scope, how deep it is, and what's marked on it.
-fn scope_picker_row(state: &scope_picker_state, scope: studio_record, depth: i32) -> &value {
-    let id = studio_id_of(scope);
-    let name = studio_text_of(scope, gs_name);
-    let row = map_assoc(map_empty(), gs_id, value_string(id));
-    row = map_assoc(row, gs_name, value_string(name));
-    row = map_assoc(row, gs_on, value_bool(str_eq(id, state.selected)));
-    row = map_assoc(row, gs_adding, value_bool(str_eq(id, state.adding)));
-    row = map_assoc(row, gs_indent, value_string(scope_picker_indent(depth)));
-    row = map_assoc(row, gs_child_indent, value_string(scope_picker_indent(depth + 1)));
-    map_assoc(row, gs_add_label, value_string(js_string_concat(s_add_a_scope_in, name)));
-}
 
 // A rem per level: "margin-left: 2rem".
 fn scope_picker_indent(depth: i32) -> js_string {
@@ -99,9 +189,19 @@ fn scope_picker_walk(state: &scope_picker_state, rows: &value, parent: studio_id
     let i = 0;
     while i <s list_count(state.scopes) {
         let scope = list_get(state.scopes, i)!;
-        if str_eq(studio_text_of(scope, gs_parent), parent) {
-            out = list_push(out, scope_picker_row(state, scope, depth));
-            out = scope_picker_walk(state, out, studio_id_of(scope), depth + 1);
+        if str_eq(scope_picker_scopes_parent(scope), parent) {
+            let id = scope_picker_scopes_id(scope);
+            let name = scope_picker_scopes_name(scope);
+            out = list_push(out, scope_picker_tree_new(
+                id,
+                name,
+                str_eq(id, state.selected),
+                str_eq(id, state.adding),
+                scope_picker_indent(depth),
+                scope_picker_indent(depth + 1),
+                js_string_concat(s_add_a_scope_in, name),
+            ));
+            out = scope_picker_walk(state, out, id, depth + 1);
         }
         i += 1;
     }
@@ -112,25 +212,12 @@ fn scope_picker_get_tree(state: &scope_picker_state) -> &value {
     scope_picker_walk(state, list_empty(), gs_empty, 0);
 }
 
-// The id of the scope at row at of the tree.
-fn scope_picker_id_at(state: &scope_picker_state, at: i32) -> studio_id {
-    let row = list_get(scope_picker_get_tree(state), at);
-    if !row {
-        return gs_empty;
-    }
-    studio_id_of(row!);
-}
-
-fn scope_picker_on_pick(state: &scope_picker_state, ctx: &context, at: i32) -> &scope_picker_state {
-    let id = scope_picker_id_at(state, at);
-    if js_string_length(id) == 0 {
-        return state;
-    }
+fn scope_picker_on_pick(state: &scope_picker_state, ctx: &context, id: js_string) -> &scope_picker_state {
     scope_picker_with_selected(state, id);
 }
 
-fn scope_picker_on_start_adding(state: &scope_picker_state, ctx: &context, at: i32) -> &scope_picker_state {
-    scope_picker_with_adding(state, scope_picker_id_at(state, at));
+fn scope_picker_on_start_adding(state: &scope_picker_state, ctx: &context, id: js_string) -> &scope_picker_state {
+    scope_picker_with_adding(state, id);
 }
 
 fn scope_picker_on_cancel_adding(state: &scope_picker_state, ctx: &context) -> &scope_picker_state {
@@ -140,25 +227,23 @@ fn scope_picker_on_cancel_adding(state: &scope_picker_state, ctx: &context) -> &
 // A new scope under the one being added under, picked, saved by the host
 // and told to the studio.
 fn scope_picker_on_add_scope(state: &scope_picker_state, ctx: &context, name: js_string) -> &scope_picker_state {
+    if js_string_length(state.adding) == 0 {
+        return state;
+    }
     let id = ctx_uuid(ctx);
     let named = name;
     if js_string_length(named) == 0 {
         named = gs_scope;
     }
-    let scope = map_assoc(map_assoc(map_assoc(map_empty(), gs_id, value_string(id)), gs_name, value_string(named)), gs_parent, value_string(state.adding));
     scope_picker_ask_save_scope(ctx, id, named, state.adding);
     scope_picker_notify_scope_added(ctx, id, named, state.adding);
     {scope_picker_state|
-        scopes: list_push(state.scopes, scope),
+        scopes: list_push(state.scopes, scope_picker_scopes_new(id, named, state.adding)),
         selected: id,
         adding: gs_empty,
         name: state.name,
         placeholder: state.placeholder,
     };
-}
-
-fn scope_picker_reply_save_scope_ok(state: &scope_picker_state, ctx: &context, reply: i32) -> &scope_picker_state {
-    state;
 }
 
 fn scope_picker_on_set_name(state: &scope_picker_state, ctx: &context, name: js_string) -> &scope_picker_state {
@@ -187,28 +272,12 @@ fn studio_showing(state: &studio_state, ctx: &context, id: studio_id) -> &studio
     if js_string_length(id) >s 0 {
         studio_ask_open_screen(ctx, id);
     }
-    {studio_state|
-        scopes: state.scopes,
-        screens: state.screens,
-        active: id,
-        shown: list_empty(),
-        shown_id: gs_empty,
-        renaming: gs_empty,
-        deleting: state.deleting,
-        picker: state.picker,
-        editor: state.editor,
-        status: state.status,
-        assistant: state.assistant,
-        events: state.events,
-    };
+    let next = studio_with_shown_id(studio_with_shown(studio_with_active(state, id), value_null()), gs_empty);
+    studio_with_renaming(next, gs_empty);
 }
 
 fn studio_on_show_screen(state: &studio_state, ctx: &context, id: js_string) -> &studio_state {
     studio_showing(state, ctx, id);
-}
-
-fn studio_on_show_at(state: &studio_state, ctx: &context, at: i32) -> &studio_state {
-    studio_showing(state, ctx, studio_id_of(list_get(state.screens, at)!));
 }
 
 fn studio_on_reopen(state: &studio_state, ctx: &context) -> &studio_state {
@@ -216,24 +285,24 @@ fn studio_on_reopen(state: &studio_state, ctx: &context) -> &studio_state {
         return state;
     }
     studio_ask_open_screen(ctx, state.active);
-    studio_with_shown_id(studio_with_shown(state, list_empty()), gs_empty);
+    studio_with_shown_id(studio_with_shown(state, value_null()), gs_empty);
 }
 
 // The screen's component, unless another was asked for since.
 fn studio_reply_open_screen_ok(state: &studio_state, ctx: &context, reply: &value) -> &studio_state {
-    let id = studio_id_of(reply);
+    let id = studio_open_screen_reply_id(reply);
     if !str_eq(id, state.active) {
         return state;
     }
-    studio_with_shown_id(studio_with_shown(state, studio_one(value_member(reply, gs_screen))), id);
+    studio_with_shown_id(studio_with_shown(state, studio_open_screen_reply_screen(reply)), id);
 }
 
 fn studio_reply_open_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
     studio_with_status(state, value_string_of(error)!);
 }
 
-fn studio_on_start_rename(state: &studio_state, ctx: &context, at: i32) -> &studio_state {
-    studio_with_renaming(state, studio_id_of(list_get(state.screens, at)!));
+fn studio_on_start_rename(state: &studio_state, ctx: &context, id: js_string) -> &studio_state {
+    studio_with_renaming(state, id);
 }
 
 fn studio_on_cancel_rename(state: &studio_state, ctx: &context) -> &studio_state {
@@ -241,19 +310,21 @@ fn studio_on_cancel_rename(state: &studio_state, ctx: &context) -> &studio_state
 }
 
 // An empty name keeps the one it had.
-fn studio_on_rename(state: &studio_state, ctx: &context, at: i32, name: js_string) -> &studio_state {
+fn studio_on_rename(state: &studio_state, ctx: &context, id: js_string, name: js_string) -> &studio_state {
+    let at = studio_index_of(state.screens, id);
+    if at <s 0 {
+        return studio_with_renaming(state, gs_empty);
+    }
     let screen = list_get(state.screens, at)!;
     let named = name;
     if js_string_length(named) == 0 {
-        named = studio_text_of(screen, gs_name);
+        named = studio_screens_name(screen);
     }
-    let next = map_assoc(screen, gs_name, value_string(named));
-    studio_ask_save_screen(ctx, studio_id_of(screen), named, studio_text_of(screen, gs_scope), value_to_f64(value_member(screen, gs_created)));
-    studio_with_renaming(studio_with_screens(state, list_assoc(state.screens, at, next)), gs_empty);
-}
-
-fn studio_reply_save_screen_ok(state: &studio_state, ctx: &context, reply: i32) -> &studio_state {
-    state;
+    let scope = studio_screens_scope(screen);
+    let created = studio_screens_created(screen);
+    studio_ask_save_screen(ctx, id, named, scope, created);
+    let screens = list_assoc(state.screens, at, studio_screens_new(id, named, scope, created));
+    studio_with_renaming(studio_with_screens(state, screens), gs_empty);
 }
 
 fn studio_reply_save_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
@@ -261,11 +332,14 @@ fn studio_reply_save_screen_err(state: &studio_state, ctx: &context, error: &val
 }
 
 // Asked first; studio_reply_confirm_ok deletes it.
-fn studio_on_delete_at(state: &studio_state, ctx: &context, at: i32) -> &studio_state {
-    let screen = list_get(state.screens, at)!;
-    let question = js_string_concat(js_string_concat(s_delete_the_screen, studio_text_of(screen, gs_name)), s_question);
-    studio_ask_confirm(ctx, question);
-    studio_with_deleting(state, studio_id_of(screen));
+fn studio_on_remove_screen(state: &studio_state, ctx: &context, id: js_string) -> &studio_state {
+    let at = studio_index_of(state.screens, id);
+    if at <s 0 {
+        return state;
+    }
+    let name = studio_screens_name(list_get(state.screens, at)!);
+    studio_ask_confirm(ctx, js_string_concat(js_string_concat(s_delete_the_screen, name), s_question));
+    studio_with_deleting(state, id);
 }
 
 // Deleted when confirmed; when it was the one shown, the last one left is.
@@ -291,33 +365,21 @@ fn studio_reply_confirm_ok(state: &studio_state, ctx: &context, reply: i32) -> &
     }
     let last = gs_empty;
     if list_count(screens) >s 0 {
-        last = studio_id_of(list_get(screens, list_count(screens) - 1)!);
+        last = studio_screens_id(list_get(screens, list_count(screens) - 1)!);
     }
     studio_showing(next, ctx, last);
-}
-
-fn studio_reply_delete_screen_ok(state: &studio_state, ctx: &context, reply: i32) -> &studio_state {
-    state;
 }
 
 fn studio_reply_delete_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
     studio_with_status(state, value_string_of(error)!);
 }
 
-fn studio_get_has_screen(state: &studio_state) -> i32 {
-    js_string_length(state.active) >s 0;
-}
-
-fn studio_get_has_editor(state: &studio_state) -> i32 {
-    list_count(state.editor) >s 0;
-}
-
 fn studio_loop_tabs_enrich(state: &studio_state, key: &value, item: &value) -> &studio_loop_tabs_binds {
-    let id = studio_id_of(item);
+    let id = studio_screens_id(item);
     {studio_loop_tabs_binds|
         is_active: str_eq(id, state.active),
         is_renaming: str_eq(id, state.renaming),
-        close_label: js_string_concat(s_delete, studio_text_of(item, gs_name)),
+        close_label: js_string_concat(s_delete, studio_screens_name(item)),
     };
 }
 
@@ -329,33 +391,28 @@ fn studio_on_open_picker(state: &studio_state, ctx: &context) -> &studio_state {
     let selected = s_root;
     let at = studio_index_of(state.screens, state.active);
     if at >=s 0 {
-        selected = studio_text_of(list_get(state.screens, at)!, gs_scope);
+        selected = studio_screens_scope(list_get(state.screens, at)!);
     }
     let placeholder = js_string_concat(s_screen, int_text(list_count(state.screens) + 1));
     let picker = studio_make_scope_picker(ctx, state.scopes, selected, gs_empty, gs_empty, placeholder);
-    studio_with_picker(state, studio_one(value_component(picker)));
+    studio_with_picker(state, value_component(picker));
 }
 
 fn studio_on_close_picker(state: &studio_state, ctx: &context) -> &studio_state {
-    studio_with_picker(state, list_empty());
+    studio_with_picker(state, value_null());
 }
 
 // A new screen in scope, saved by the host and shown.
 fn studio_on_create_screen(state: &studio_state, ctx: &context, scope: js_string, name: js_string) -> &studio_state {
     let id = ctx_uuid(ctx);
     let created = ctx_now(ctx);
-    let screen = map_assoc(map_empty(), gs_id, value_string(id));
-    screen = map_assoc(screen, gs_name, value_string(name));
-    screen = map_assoc(screen, gs_scope, value_string(scope));
-    screen = map_assoc(screen, gs_created, value_float(created));
     studio_ask_save_screen(ctx, id, name, scope, created);
-    let next = studio_with_picker(studio_with_screens(state, list_push(state.screens, screen)), list_empty());
-    studio_showing(next, ctx, id);
+    let screens = list_push(state.screens, studio_screens_new(id, name, scope, created));
+    studio_showing(studio_with_picker(studio_with_screens(state, screens), value_null()), ctx, id);
 }
 
 fn studio_on_scope_added(state: &studio_state, ctx: &context, id: js_string, name: js_string, parent: js_string) -> &studio_state {
-    let scope = map_assoc(map_assoc(map_assoc(map_empty(), gs_id, value_string(id)), gs_name, value_string(name)), gs_parent, value_string(parent));
-    studio_with_scopes(state, list_push(state.scopes, scope));
+    studio_with_scopes(state, list_push(state.scopes, studio_scopes_new(id, name, parent)));
 }
 
 // ---- Studio: what the host tells it ------------------------------------------------
@@ -366,31 +423,14 @@ fn studio_on_say(state: &studio_state, ctx: &context, text: js_string) -> &studi
 
 // The newest first, up to 200.
 fn studio_on_note(state: &studio_state, ctx: &context, kind: js_string, text: js_string) -> &studio_state {
-    let events = list_push(list_empty(), map_assoc(map_assoc(map_empty(), gs_kind, value_string(kind)), gs_text, value_string(text)));
-    let i = 0;
-    while (i <s list_count(state.events)) & (i <s 199) {
-        events = list_push(events, list_get(state.events, i)!);
-        i += 1;
-    }
-    studio_with_events(state, events);
+    studio_with_events(state, studio_prepend(state.events, studio_events_new(kind, text), 200));
 }
 
 // A new library: the screen shown is dropped until the host shows one.
 fn studio_on_set_library(state: &studio_state, ctx: &context, scopes: &value, screens: &value) -> &studio_state {
-    {studio_state|
-        scopes,
-        screens,
-        active: gs_empty,
-        shown: list_empty(),
-        shown_id: gs_empty,
-        renaming: gs_empty,
-        deleting: gs_empty,
-        picker: list_empty(),
-        editor: state.editor,
-        status: state.status,
-        assistant: state.assistant,
-        events: state.events,
-    };
+    let next = studio_with_screens(studio_with_scopes(state, scopes), screens);
+    next = studio_with_picker(studio_with_deleting(next, gs_empty), value_null());
+    studio_showing(next, ctx, gs_empty);
 }
 
 fn studio_get_events_label(state: &studio_state) -> js_string {
@@ -408,16 +448,8 @@ fn studio_on_export_all(state: &studio_state, ctx: &context) -> &studio_state {
     state;
 }
 
-fn studio_reply_export_library_ok(state: &studio_state, ctx: &context, reply: i32) -> &studio_state {
-    state;
-}
-
 fn studio_on_import_all(state: &studio_state, ctx: &context) -> &studio_state {
     studio_ask_import_library(ctx);
-    state;
-}
-
-fn studio_reply_import_library_ok(state: &studio_state, ctx: &context, reply: i32) -> &studio_state {
     state;
 }
 
@@ -426,56 +458,43 @@ fn studio_reply_import_library_err(state: &studio_state, ctx: &context, error: &
 }
 
 fn studio_on_layout_json(state: &studio_state, ctx: &context) -> &studio_state {
-    studio_ask_edit_layout_json(ctx, state.active);
-    state;
-}
-
-fn studio_reply_edit_layout_json_ok(state: &studio_state, ctx: &context, reply: i32) -> &studio_state {
+    if js_string_length(state.active) >s 0 {
+        studio_ask_edit_layout_json(ctx, state.active);
+    }
     state;
 }
 
 // ---- Studio: the editor ------------------------------------------------------------
 
-// The editor, on the sources given, built as soon as it's there.
-fn studio_on_open_editor(state: &studio_state, ctx: &context, creating: i32, id: js_string, name: js_string, tcd: js_string, wax: js_string) -> &studio_state {
-    let saved = map_assoc(map_assoc(map_assoc(map_empty(), gs_name, value_string(name)), gs_tcd, value_string(tcd)), gs_wax, value_string(wax));
-    let editor = studio_make_editor(
-        ctx, creating, id, name, tcd, wax, saved, gs_tcd, gs_empty, 0,
-        list_empty(), list_empty(), list_empty(), gs_empty, list_empty(), gs_empty, list_empty(),
-        gs_diagnostics, js_string_length(state.assistant) >s 0, 0, gs_empty, 0,
-    );
-    editor_send_build(ctx, studio_the_editor());
-    studio_with_editor(state, studio_one(value_component(editor)));
-}
-
-// The editor, as a send's target.
-fn studio_the_editor() -> &selector {
-    selector_item(gs_editor, path_key_index(0));
+// The editor, on the sources given (its other fields their defaults), built
+// as soon as it's there.
+fn studio_on_open_editor(
+    state: &studio_state,
+    ctx: &context,
+    creating: i32,
+    id: js_string,
+    name: js_string,
+    tcd: js_string,
+    wax: js_string,
+    chat: &value,
+) -> &studio_state {
+    let fields = map_assoc(map_empty(), gs_creating, value_bool(creating));
+    fields = map_assoc(fields, gs_id, value_string(id));
+    fields = map_assoc(fields, gs_name, value_string(name));
+    fields = map_assoc(fields, gs_tcd, value_string(tcd));
+    fields = map_assoc(fields, gs_wax, value_string(wax));
+    fields = map_assoc(fields, gs_saved, editor_saved_new(name, tcd, wax));
+    fields = map_assoc(fields, gs_assistant, value_bool(list_count(state.models) >s 0));
+    fields = map_assoc(fields, gs_models, state.models);
+    fields = map_assoc(fields, gs_model, value_string(state.model));
+    fields = map_assoc(fields, gs_transcript, chat);
+    let editor = ctx_make(ctx, gs_Editor, fields);
+    editor_send_build(ctx, selector_field(gs_editor));
+    studio_with_editor(state, value_component(editor));
 }
 
 fn studio_on_close_editor(state: &studio_state, ctx: &context) -> &studio_state {
-    studio_with_editor(state, list_empty());
-}
-
-fn studio_on_editor_write(state: &studio_state, ctx: &context, tcd: js_string, wax: js_string) -> &studio_state {
-    if list_count(state.editor) >s 0 {
-        editor_send_write(ctx, studio_the_editor(), tcd, wax);
-    }
-    state;
-}
-
-fn studio_on_editor_state(state: &studio_state, ctx: &context, text: js_string) -> &studio_state {
-    if list_count(state.editor) >s 0 {
-        editor_send_set_state(ctx, studio_the_editor(), text);
-    }
-    state;
-}
-
-fn studio_on_editor_note(state: &studio_state, ctx: &context, kind: js_string, text: js_string) -> &studio_state {
-    if list_count(state.editor) >s 0 {
-        editor_send_note(ctx, studio_the_editor(), kind, text);
-    }
-    state;
+    studio_with_editor(state, value_null());
 }
 
 // ---- Editor ------------------------------------------------------------------------
@@ -511,74 +530,63 @@ fn editor_on_build(state: &editor_state, ctx: &context) -> &editor_state {
     editor_building(state, ctx);
 }
 
-fn editor_on_write(state: &editor_state, ctx: &context, tcd: js_string, wax: js_string) -> &editor_state {
-    editor_building(editor_with_wax(editor_with_tcd(state, tcd), wax), ctx);
-}
-
 // What it says, with the diagnostics shown when it didn't build; then the
-// preview of the type picked, or of the first one a hole can make.
+// preview of the type picked, or of the first one a hole can make. And when
+// it's what the assistant wrote, the model is told.
 fn editor_reply_build_ok(state: &editor_state, ctx: &context, reply: &value) -> &editor_state {
-    let ok = value_truthy(value_member(reply, gs_ok));
-    let makeable = value_member(reply, gs_makeable);
-    let inspecting = state.inspecting;
-    if !ok {
-        inspecting = gs_diagnostics;
-    }
+    let ok = editor_build_reply_ok(reply);
+    let makeable = editor_build_reply_makeable(reply);
     let type_ = gs_empty;
     let i = 0;
     while i <s list_count(makeable) {
-        let name = value_string_of(value_member(list_get(makeable, i)!, gs_name))!;
+        let name = editor_makeable_name(list_get(makeable, i)!);
         if (i == 0) | str_eq(name, state.preview_type) {
             type_ = name;
         }
         i += 1;
     }
-    let preview = state.preview;
+    let next = editor_with_status(editor_with_building(state, 0), editor_build_reply_status(reply));
+    next = editor_with_registers(editor_with_diagnostics(next, editor_build_reply_diagnostics(reply)), editor_build_reply_registers(reply));
+    next = editor_with_preview_type(editor_with_makeable(next, makeable), type_);
+    if !ok {
+        next = editor_with_inspecting(next, gs_diagnostics);
+    }
     if ok & (js_string_length(type_) >s 0) {
         editor_ask_preview(ctx, state.id, type_);
     } else {
-        preview = list_empty();
+        next = editor_with_preview(next, value_null());
     }
-    {editor_state|
-        creating: state.creating,
-        id: state.id,
-        name: state.name,
-        tcd: state.tcd,
-        wax: state.wax,
-        saved: state.saved,
-        current: state.current,
-        status: value_string_of(value_member(reply, gs_status))!,
-        building: 0,
-        diagnostics: value_member(reply, gs_diagnostics),
-        registers: value_member(reply, gs_registers),
-        makeable,
-        preview_type: type_,
-        preview,
-        state_text: state.state_text,
-        events: state.events,
-        inspecting,
-        assistant: state.assistant,
-        chat: state.chat,
-        goto_at: state.goto_at,
-        jumps: state.jumps,
-    };
+    if list_count(state.calls) == 0 {
+        return next;
+    }
+    // The assistant's: what it built tells the model; when it didn't
+    // build, with the functions still missing, once stub answers.
+    if ok {
+        return editor_answer_calls(next, ctx, editor_built_text(next), 0);
+    }
+    editor_ask_stub(ctx, state.id, state.name, state.tcd, state.wax);
+    editor_with_check_text(next, editor_failed_text(next));
 }
 
 fn editor_reply_build_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
-    editor_with_status(editor_with_building(state, 0), value_string_of(error)!);
+    let next = editor_with_status(editor_with_building(state, 0), value_string_of(error)!);
+    if list_count(state.calls) == 0 {
+        return next;
+    }
+    editor_answer_calls(next, ctx, s_compiler_failed, 1);
 }
 
 fn editor_on_pick_type(state: &editor_state, ctx: &context, type_: js_string) -> &editor_state {
     editor_ask_preview(ctx, state.id, type_);
-    editor_with_preview(editor_with_preview_type(state, type_), list_empty());
+    editor_with_preview(editor_with_preview_type(state, type_), value_null());
 }
 
 fn editor_reply_preview_ok(state: &editor_state, ctx: &context, reply: &value) -> &editor_state {
-    editor_with_preview(state, studio_one(reply));
+    editor_with_preview(state, reply);
 }
 
 fn editor_reply_preview_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
-    editor_with_status(editor_with_preview(state, list_empty()), js_string_concat(s_cant_preview, value_string_of(error)!));
+    editor_with_status(editor_with_preview(state, value_null()), js_string_concat(s_cant_preview, value_string_of(error)!));
 }
 
 fn editor_on_inspect(state: &editor_state, ctx: &context, tab: js_string) -> &editor_state {
@@ -586,24 +594,21 @@ fn editor_on_inspect(state: &editor_state, ctx: &context, tab: js_string) -> &ed
 }
 
 // The file it's in shown, and the code editor sent there: "wax:12:5".
-fn editor_on_goto_diagnostic(state: &editor_state, ctx: &context, at: i32) -> &editor_state {
-    let d = list_get(state.diagnostics, at)!;
-    let file = gs_tcd;
-    if str_eq(studio_text_of(d, gs_file), editor_get_wax_file(state)) {
-        file = gs_wax;
+fn editor_on_goto(state: &editor_state, ctx: &context, file: js_string, line: i32, col: i32) -> &editor_state {
+    let kind = gs_tcd;
+    if str_eq(file, editor_get_wax_file(state)) {
+        kind = gs_wax;
     }
-    let line = int_text((value_member(d, gs_line) as &value_int).value);
-    let col = int_text((value_member(d, gs_col) as &value_int).value);
-    let goto_at = js_string_concat(js_string_concat(js_string_concat(js_string_concat(file, s_colon), line), s_colon), col);
-    editor_with_jumps(editor_with_goto_at(editor_with_current(state, file), goto_at), state.jumps + 1);
+    let goto_at = js_string_concat(js_string_concat(js_string_concat(js_string_concat(kind, s_colon), int_text(line)), s_colon), int_text(col));
+    editor_with_jumps(editor_with_goto_at(editor_with_current(state, kind), goto_at), state.jumps + 1);
 }
 
 fn editor_on_toggle_chat(state: &editor_state, ctx: &context) -> &editor_state {
-    editor_with_chat(state, !state.chat);
+    editor_with_chat_open(state, !state.chat_open);
 }
 
 fn editor_on_save(state: &editor_state, ctx: &context) -> &editor_state {
-    editor_ask_save_component(ctx, state.creating, state.id, state.name, state.tcd, state.wax);
+    editor_ask_save_component(ctx, state.creating, state.id, state.name, state.tcd, state.wax, state.transcript);
     editor_with_status(state, s_saving);
 }
 
@@ -644,19 +649,13 @@ fn editor_on_set_state(state: &editor_state, ctx: &context, text: js_string) -> 
 
 // The newest first, up to 200.
 fn editor_on_note(state: &editor_state, ctx: &context, kind: js_string, text: js_string) -> &editor_state {
-    let events = list_push(list_empty(), map_assoc(map_assoc(map_empty(), gs_kind, value_string(kind)), gs_text, value_string(text)));
-    let i = 0;
-    while (i <s list_count(state.events)) & (i <s 199) {
-        events = list_push(events, list_get(state.events, i)!);
-        i += 1;
-    }
-    editor_with_events(state, events);
+    editor_with_events(state, studio_prepend(state.events, editor_events_new(kind, text), 200));
 }
 
 fn editor_get_changed(state: &editor_state) -> i32 {
-    !str_eq(state.name, studio_text_of(state.saved, gs_name))
-        | !str_eq(state.tcd, studio_text_of(state.saved, gs_tcd))
-        | !str_eq(state.wax, studio_text_of(state.saved, gs_wax));
+    !str_eq(state.name, editor_saved_name(state.saved))
+        | !str_eq(state.tcd, editor_saved_tcd(state.saved))
+        | !str_eq(state.wax, editor_saved_wax(state.saved));
 }
 
 fn editor_get_tcd_file(state: &editor_state) -> js_string {
@@ -667,26 +666,299 @@ fn editor_get_wax_file(state: &editor_state) -> js_string {
     js_string_concat(state.name, s_dot_wax);
 }
 
-fn editor_get_on_tcd(state: &editor_state) -> i32 {
-    !str_eq(state.current, gs_wax);
-}
-
 fn editor_get_several_types(state: &editor_state) -> i32 {
     list_count(state.makeable) >s 1;
 }
 
-fn editor_get_on_diagnostics(state: &editor_state) -> i32 {
-    str_eq(state.inspecting, gs_diagnostics);
+fn editor_get_sending(state: &editor_state) -> i32 {
+    js_string_length(state.busy) >s 0;
 }
 
-fn editor_get_on_registers(state: &editor_state) -> i32 {
-    str_eq(state.inspecting, gs_registers);
+// ---- Editor: the assistant ---------------------------------------------------------
+
+fn editor_on_set_model(state: &editor_state, ctx: &context, model: js_string) -> &editor_state {
+    editor_ask_remember_model(ctx, model);
+    editor_with_model(state, model);
 }
 
-fn editor_get_on_state(state: &editor_state) -> i32 {
-    str_eq(state.inspecting, gt_state);
+fn editor_on_set_draft(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+    editor_with_draft(state, text);
 }
 
-fn editor_get_on_events(state: &editor_state) -> i32 {
-    str_eq(state.inspecting, gs_events);
+// The model asked for its turn, told the conversation and the sources as
+// they are now; the conversation kept.
+fn editor_asking(state: &editor_state, ctx: &context, transcript: &value, busy: js_string) -> &editor_state {
+    editor_ask_chat(ctx, state.model, transcript, state.name, state.tcd, state.wax);
+    editor_ask_keep_chat(ctx, state.id, transcript);
+    editor_with_busy(editor_with_transcript(state, transcript), busy);
+}
+
+fn editor_on_send_chat(state: &editor_state, ctx: &context) -> &editor_state {
+    if (js_string_length(state.busy) >s 0) | (js_string_length(state.draft) == 0) {
+        return state;
+    }
+    let message = map_assoc(map_empty(), s_role, value_string(s_user));
+    message = map_assoc(message, s_content, value_string(state.draft));
+    message = map_assoc(message, s_timestamp, value_float(ctx_now(ctx)));
+    let next = editor_with_chat_note(editor_with_round(editor_with_draft(state, gs_empty), 0), gs_empty);
+    editor_asking(next, ctx, list_push(state.transcript, message), s_thinking);
+}
+
+fn editor_on_stop_chat(state: &editor_state, ctx: &context) -> &editor_state {
+    editor_ask_stop_chat(ctx);
+    state;
+}
+
+fn editor_on_clear_chat(state: &editor_state, ctx: &context) -> &editor_state {
+    if js_string_length(state.busy) >s 0 {
+        return state;
+    }
+    editor_ask_keep_chat(ctx, state.id, list_empty());
+    editor_with_chat_note(editor_with_transcript(state, list_empty()), gs_empty);
+}
+
+fn editor_on_toggle_prompt(state: &editor_state, ctx: &context) -> &editor_state {
+    if !state.show_prompt {
+        editor_ask_prompt(ctx, state.name, state.tcd, state.wax);
+    }
+    editor_with_show_prompt(state, !state.show_prompt);
+}
+
+fn editor_reply_prompt_ok(state: &editor_state, ctx: &context, reply: js_string) -> &editor_state {
+    editor_with_prompt_text(state, reply);
+}
+
+fn editor_reply_prompt_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+    editor_with_prompt_text(state, value_string_of(error)!);
+}
+
+// The model's message: kept, then what it asks for done. Its
+// write_component calls write the sources, which are built (the build's
+// reply tells it what came of them); another tool is answered that it
+// isn't one; none, and the conversation waits for the user.
+fn editor_reply_chat_ok(state: &editor_state, ctx: &context, reply: &value) -> &editor_state {
+    let transcript = list_push(state.transcript, reply);
+    editor_ask_keep_chat(ctx, state.id, transcript);
+    let next = editor_with_transcript(state, transcript);
+    if editor_is(reply, s_stop_reason, s_error) | editor_is(reply, s_stop_reason, s_aborted) {
+        return editor_with_busy(next, gs_empty);
+    }
+    let calls = list_empty();
+    let tcd = state.tcd;
+    let wax = state.wax;
+    let writes = 0;
+    let content = value_member(reply, s_content);
+    let i = 0;
+    while (content.kind == value_kind_list) & (i <s list_count(content)) {
+        let block = list_get(content, i)!;
+        if editor_is(block, s_type, s_tool_call) {
+            let name = value_string_of(value_member(block, gs_name))!;
+            calls = list_push(calls, editor_calls_new(value_string_of(value_member(block, gs_id))!, name));
+            if str_eq(name, s_write_component) {
+                let args = value_member(block, s_arguments);
+                let t = value_string_of(value_member(args, s_tcd));
+                if !!t {
+                    tcd = t!;
+                }
+                let w = value_string_of(value_member(args, s_wax));
+                if !!w {
+                    wax = w!;
+                }
+                writes += 1;
+            }
+        }
+        i += 1;
+    }
+    if list_count(calls) == 0 {
+        return editor_with_busy(next, gs_empty);
+    }
+    next = editor_with_calls(next, calls);
+    if writes == 0 {
+        return editor_answer_calls(next, ctx, gs_empty, 1);
+    }
+    next = editor_with_busy(editor_with_wax(editor_with_tcd(next, tcd), wax), s_building_what_it_wrote);
+    editor_building(next, ctx);
+}
+
+// Stopped (the host answers "aborted"), or failed, saying why.
+fn editor_reply_chat_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+    let text = value_string_of(error)!;
+    let next = editor_with_calls(editor_with_busy(state, gs_empty), list_empty());
+    if str_eq(text, s_aborted) {
+        return next;
+    }
+    editor_with_chat_note(next, text);
+}
+
+fn editor_reply_stub_ok(state: &editor_state, ctx: &context, reply: js_string) -> &editor_state {
+    let text = state.check_text;
+    if js_string_length(reply) >s 0 {
+        text = js_string_concat(js_string_concat(text, s_missing_functions), reply);
+    }
+    editor_answer_calls(state, ctx, text, 1);
+}
+
+fn editor_reply_stub_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+    editor_answer_calls(state, ctx, state.check_text, 1);
+}
+
+// "It built: tasks registers Tasks." and the warnings, as the model reads
+// them.
+fn editor_built_text(state: &editor_state) -> js_string {
+    let types = list_empty();
+    let i = 0;
+    while i <s list_count(state.registers) {
+        types = list_push(types, value_string(editor_registers_name(list_get(state.registers, i)!)));
+        i += 1;
+    }
+    let text = js_string_concat(js_string_concat(js_string_concat(js_string_concat(s_it_built, state.name), s_registers_word), studio_join(types, s_comma)), s_dot);
+    let warnings = list_empty();
+    i = 0;
+    while i <s list_count(state.diagnostics) {
+        let d = list_get(state.diagnostics, i)!;
+        if !str_eq(editor_diagnostics_severity(d), s_error) {
+            warnings = list_push(warnings, value_string(editor_diagnostics_text(d)));
+        }
+        i += 1;
+    }
+    if list_count(warnings) >s 0 {
+        text = js_string_concat(js_string_concat(text, s_warnings), studio_join(warnings, s_newline));
+    }
+    text;
+}
+
+// tcd's diagnostics, as the model reads them.
+fn editor_failed_text(state: &editor_state) -> js_string {
+    let texts = list_empty();
+    let i = 0;
+    while i <s list_count(state.diagnostics) {
+        texts = list_push(texts, value_string(editor_diagnostics_text(list_get(state.diagnostics, i)!)));
+        i += 1;
+    }
+    js_string_concat(s_didnt_build, studio_join(texts, s_newline));
+}
+
+// Each of the model's calls answered: a write_component with text (failed
+// when it didn't build), another tool that there's none. Then its next turn
+// when it failed and it has tries left, or the conversation waits.
+fn editor_answer_calls(state: &editor_state, ctx: &context, text: js_string, failed: i32) -> &editor_state {
+    let transcript = state.transcript;
+    let i = 0;
+    while i <s list_count(state.calls) {
+        let call = list_get(state.calls, i)!;
+        let name = editor_calls_name(call);
+        let answer = text;
+        let error = failed;
+        if !str_eq(name, s_write_component) {
+            answer = js_string_concat(js_string_concat(s_no_tool, name), s_use_write_component);
+            error = 1;
+        }
+        let block = map_assoc(map_assoc(map_empty(), s_type, value_string(s_text)), s_text, value_string(answer));
+        let result = map_assoc(map_empty(), s_role, value_string(s_tool_result));
+        result = map_assoc(result, s_tool_call_id, value_string(editor_calls_id(call)));
+        result = map_assoc(result, s_tool_name, value_string(name));
+        result = map_assoc(result, s_content, list_push(list_empty(), block));
+        result = map_assoc(result, s_is_error, value_bool(error));
+        result = map_assoc(result, s_timestamp, value_float(ctx_now(ctx)));
+        transcript = list_push(transcript, result);
+        i += 1;
+    }
+    let next = editor_with_check_text(editor_with_calls(state, list_empty()), gs_empty);
+    if !failed {
+        editor_ask_keep_chat(ctx, state.id, transcript);
+        return editor_with_busy(editor_with_transcript(next, transcript), gs_empty);
+    }
+    if state.round >=s 3 {
+        editor_ask_keep_chat(ctx, state.id, transcript);
+        next = editor_with_chat_note(editor_with_transcript(next, transcript), s_still_not_building);
+        return editor_with_busy(next, gs_empty);
+    }
+    let round = state.round + 1;
+    let busy = js_string_concat(js_string_concat(s_fixing_open, int_text(round)), s_fixing_close);
+    editor_asking(editor_with_round(next, round), ctx, transcript, busy);
+}
+
+// Whether v's key is the string s.
+fn editor_is(v: &value, key: js_string, s: js_string) -> i32 {
+    let found = value_string_of(value_member(v, key));
+    if !found {
+        return 0;
+    }
+    str_eq(found!, s);
+}
+
+// A message's content as text: itself, or its text blocks joined.
+fn editor_text_of(content: &value) -> js_string {
+    let s = value_string_of(content);
+    if !!s {
+        return s!;
+    }
+    let texts = list_empty();
+    let i = 0;
+    while (content.kind == value_kind_list) & (i <s list_count(content)) {
+        let block = list_get(content, i)!;
+        if editor_is(block, s_type, s_text) {
+            texts = list_push(texts, value_member(block, s_text));
+        }
+        i += 1;
+    }
+    studio_join(texts, s_newline);
+}
+
+// "✎ wrote tasks.tcd and tasks.wax", for a write_component's arguments.
+fn editor_wrote_text(state: &editor_state, args: &value) -> js_string {
+    let files = list_empty();
+    if !!value_string_of(value_member(args, s_tcd)) {
+        files = list_push(files, value_string(editor_get_tcd_file(state)));
+    }
+    if !!value_string_of(value_member(args, s_wax)) {
+        files = list_push(files, value_string(editor_get_wax_file(state)));
+    }
+    if list_count(files) == 0 {
+        return js_string_concat(s_wrote, s_nothing);
+    }
+    js_string_concat(s_wrote, studio_join(files, s_and));
+}
+
+fn editor_get_bubbles(state: &editor_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.transcript) {
+        let m = list_get(state.transcript, i)!;
+        let content = value_member(m, s_content);
+        if editor_is(m, s_role, s_user) {
+            out = list_push(out, editor_bubbles_new(s_user, editor_text_of(content), gs_empty));
+        }
+        if editor_is(m, s_role, s_assistant) {
+            let text = editor_text_of(content);
+            if js_string_length(text) >s 0 {
+                out = list_push(out, editor_bubbles_new(s_assistant, text, gs_empty));
+            }
+            let j = 0;
+            while (content.kind == value_kind_list) & (j <s list_count(content)) {
+                let block = list_get(content, j)!;
+                if editor_is(block, s_type, s_tool_call) {
+                    out = list_push(out, editor_bubbles_new(s_tool, editor_wrote_text(state, value_member(block, s_arguments)), gs_empty));
+                }
+                j += 1;
+            }
+            if editor_is(m, s_stop_reason, s_error) | editor_is(m, s_stop_reason, s_aborted) {
+                let why = value_string_of(value_member(m, s_error_message));
+                if !why {
+                    why = value_string_of(value_member(m, s_stop_reason));
+                }
+                out = list_push(out, editor_bubbles_new(s_error, why!, gs_empty));
+            }
+        }
+        if editor_is(m, s_role, s_tool_result) {
+            let text = editor_text_of(content);
+            if value_truthy(value_member(m, s_is_error)) {
+                out = list_push(out, editor_bubbles_new(s_failed, s_didnt_build_told, text));
+            } else {
+                out = list_push(out, editor_bubbles_new(s_ok, js_string_concat(s_check_mark, text), gs_empty));
+            }
+        }
+        i += 1;
+    }
+    out;
 }

@@ -45,8 +45,12 @@ fn tasks_on_set_draft(state: &tasks_state, ctx: &context, text: js_string) -> &t
     tasks_with_draft(state, text);
 }
 
-// A new open item, low priority, with the draft's text.
+// A new open item, low priority, with the draft's text. add's when says the
+// draft isn't empty; a button can still send it, so it's checked here too.
 fn tasks_on_add(state: &tasks_state, ctx: &context) -> &tasks_state {
+    if js_string_length(state.draft) == 0 {
+        return state;
+    }
     let item = tasks_items_new(state.draft, 0, 0);
     {tasks_state| title: state.title, items: list_push(state.items, item), draft: gs_empty, show: state.show };
 }

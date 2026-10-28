@@ -1,16 +1,17 @@
 // The studio's own components, in tutuca-wax: the screens as tabs, the
 // screen shown, the menu, the picker a new screen's scope is chosen in, and
-// the editor a component is written in. What only the page can do is the
-// host's (studio.js), asked for: keeping the library (save_screen,
-// save_scope, delete_screen, save_component), making a screen or a preview
-// in its scope chain (open_screen, preview, which answer with the component
-// made, rendered here), building (build), confirming, and moving the library
-// in and out. The host tells the studio what happens outside it by sending
-// it messages: show_screen at the start, open_editor when a hole asks for a
-// new component or a slot's ✎ for one to edit, reopen when a component a
-// screen uses changed, say and note for the status line and the events,
-// editor_write, editor_state and editor_note for the editor, set_library
-// after an import.
+// the editor a component is written in, with its assistant. What only the
+// page can do is the host's (studio.js), asked for: keeping the library
+// (save_screen, save_scope, delete_screen, save_component, keep_chat),
+// making a screen or a preview in its scope chain (open_screen, preview,
+// which answer with the component made, rendered here), building (build,
+// stub), the model's turn (chat, stop_chat, prompt), confirming, and moving
+// the library in and out. The host tells the studio what happens outside it
+// by sending it messages: show_screen at the start, open_editor when a hole
+// asks for a new component or a slot's ✎ for one to edit, reopen when a
+// component a screen uses changed, say and note for the status line and the
+// events, set_library after an import; and the editor (host.sendAt, at
+// editor) the preview's state and what its components reported.
 package tutuca:studio@0.1.0;
 
 /// The tree a new screen's scope is picked from, a child scope added under
@@ -35,14 +36,11 @@ component ScopePicker {
     notify scope_added(id: string, name: string, parent: string);
     ask save_scope(id: string, name: string, parent: string) -> bool;
 
-    /// at is a row of the tree.
-    message pick(at: s32) changes selected;
-    message start_adding(at: s32) changes adding;
+    message pick(id: string) changes selected ensures next.selected == id;
+    message start_adding(id: string) changes adding ensures next.adding == id;
     message cancel_adding() changes adding ensures len(next.adding) == 0;
     /// A child of the scope being added under, picked; saved by the host.
-    message add_scope(name: string) when len(adding) > 0 changes scopes, selected, adding
-        ensures len(next.scopes) == len(scopes) + 1
-        emits ask save_scope, notify scope_added;
+    message add_scope(name: string) changes scopes, selected, adding emits ask save_scope, notify scope_added;
     message set_name(name: string where len(name) <= 60) changes name ensures next.name == name;
     message create() changes nothing emits notify create_screen;
     message cancel() changes nothing emits notify close_picker;
@@ -57,9 +55,9 @@ component ScopePicker {
                         div(class: "flex items-center gap-1", style: field(indent),
                             button(class: if(field(on), "st-scope btn btn-sm btn-active flex-1 justify-start font-mono", "st-scope btn btn-sm btn-ghost flex-1 justify-start font-mono"),
                                 role: "treeitem", "aria-selected": if(field(on), "true", "false"),
-                                on_click: send(pick, source_key()), field(name)),
+                                on_click: send(pick, field(id)), field(name)),
                             button(class: "btn btn-xs btn-ghost", title: field(add_label), "aria-label": field(add_label),
-                                on_click: send(start_adding, source_key()), "+")),
+                                on_click: send(start_adding, field(id)), "+")),
                         if(field(adding),
                             div(class: "flex items-center gap-1", style: field(child_indent),
                                 input(class: "input input-sm", placeholder: "scope's name", "aria-label": "New scope's name", autofocus: "autofocus",
@@ -76,8 +74,10 @@ component ScopePicker {
 
 /// A component being written or edited: its .tcd and .wax in a code editor
 /// (tw-code-editor, code-editor.js), built by the host as they change, what
-/// the build says, and a preview of one of the types it registers, made in
-/// the screen's scope chain; the assistant beside it when there is one.
+/// the build says, a preview of one of the types it registers, made in the
+/// screen's scope chain, and the assistant: a model that edits the
+/// component through one tool, write_component, told what each build of
+/// what it wrote says until it builds, up to four tries.
 component Editor {
     /// A new component, registered in the screen's scope when it's saved,
     /// or one of the library's.
@@ -92,35 +92,58 @@ component Editor {
     field current: string = "tcd";
     field status: string;
     field building: bool;
-    /// What the last build said: tcd's diagnostics, each type it registers
-    /// and whether a hole can make it, and the ones that can.
-    field diagnostics: list<record { file: string, line: s32, col: s32, end_line: s32, end_col: s32, severity: string, message: string, error: bool, warning: bool }>;
+    /// What the last build said: tcd's diagnostics (text: as the model reads
+    /// them), each type it registers and whether a hole can make it, and the
+    /// ones that can.
+    field diagnostics: list<record { file: string, line: s32, col: s32, end_line: s32, end_col: s32, severity: string, message: string, text: string }>;
     field registers: list<record { name: string, ok: bool, note: string }>;
     field makeable: list<record { name: string }>;
     field preview_type: string;
     /// The preview, as the host made it (sync none: made again from the build).
-    field preview: list<component> @sync(none);
-    /// The preview's state, as JSON text, and what its host reported.
+    field preview: option<component> @sync(none);
+    /// The preview's state, as JSON text, and what its components reported.
     field state_text: string;
     field events: list<record { kind: string, text: string }> where len(events) <= 200;
     /// The inspector shown: "diagnostics", "registers", "state" or "events".
     field inspecting: string = "diagnostics";
-    /// Whether there's an assistant, and whether it's open.
-    field assistant: bool;
-    field chat: bool;
     /// Where the code editor jumps: "file:line:col", and a count that makes
     /// each jump a new value.
     field goto_at: string;
     field jumps: s32;
+
+    /// Whether there's an assistant, and whether its panel is open.
+    field assistant: bool;
+    field chat_open: bool;
+    /// The models offered, by provider ("provider/id" values), and the one
+    /// picked.
+    field models: list<record { provider: string, models: list<record { value: string, name: string }> }>;
+    field model: string;
+    /// The conversation, in pi's format (scripts/studio-server.mjs): the
+    /// user's messages, the model's, and the results of its tool calls.
+    field transcript: list<any>;
+    field draft: string;
+    /// What the assistant is doing, "" when it's idle.
+    field busy: string;
+    /// The tries since the user's last message (0 for the first).
+    field round: s32;
+    /// The tool calls of the model's last message, while what they wrote is
+    /// built; and what that build says, while the missing functions are
+    /// asked for.
+    field calls: list<record { id: string, name: string }>;
+    field check_text: string;
+    /// Why the conversation stopped, shown after it; "" when it didn't.
+    field chat_note: string;
+    field show_prompt: bool;
+    field prompt_text: string;
+
     get changed: bool;
     get tcd_file: string;
     get wax_file: string;
-    get on_tcd: bool;
     get several_types: bool;
-    get on_diagnostics: bool;
-    get on_registers: bool;
-    get on_state: bool;
-    get on_events: bool;
+    get sending: bool;
+    /// The transcript as what it shows: user, assistant, tool, ok, failed
+    /// (text the summary, details what the model was told) or error.
+    get bubbles: list<record { kind: string, text: string, details: string }>;
 
     /// The sources built: what tcd says, and what it registers.
     ask build(id: string, name: string, tcd: string, wax: string) -> record {
@@ -128,15 +151,25 @@ component Editor {
         status: string,
         makeable: list<record { name: string }>,
         registers: list<record { name: string, ok: bool, note: string }>,
-        diagnostics: list<record { file: string, line: s32, col: s32, end_line: s32, end_col: s32, severity: string, message: string, error: bool, warning: bool }>
-    };
+        diagnostics: list<record { file: string, line: s32, col: s32, end_line: s32, end_col: s32, severity: string, message: string, text: string }>
+    } emits ask preview, ask stub, ask chat, ask keep_chat;
     /// One of its types, made with no fields where the screen's holes make.
     ask preview(id: string, type: string) -> component;
     /// Kept in the library (and registered in the screen's scope when it's
-    /// new): what to say, or why it can't be.
-    ask save_component(creating: bool, id: string, name: string, tcd: string, wax: string) -> string;
-    ask leave_editor(creating: bool) -> bool;
-    ask confirm(text: string) -> bool;
+    /// new), its conversation too: what to say, or why it can't be.
+    ask save_component(creating: bool, id: string, name: string, tcd: string, wax: string, chat: list<any>) -> string emits notify close_editor;
+    ask leave_editor(creating: bool) -> bool emits notify close_editor;
+    ask confirm(text: string) -> bool emits ask leave_editor;
+    /// The model's next message, told the conversation and the component.
+    ask chat(model: string, messages: list<any>, name: string, tcd: string, wax: string) -> any emits ask build, ask chat, ask keep_chat;
+    ask stop_chat() -> bool;
+    /// The functions the .wax lacks, with the signatures tcd expects.
+    ask stub(id: string, name: string, tcd: string, wax: string) -> string emits ask chat, ask keep_chat;
+    /// What the model is told: the reference, the examples, the component.
+    ask prompt(name: string, tcd: string, wax: string) -> string;
+    ask remember_model(model: string) -> bool;
+    /// The conversation kept with the component, once it's in the library.
+    ask keep_chat(id: string, messages: list<any>) -> bool;
     /// To the studio: done, saved or not.
     notify close_editor();
 
@@ -147,14 +180,22 @@ component Editor {
     message build() changes building, status emits ask build;
     message pick_type(type: string) changes preview_type, preview emits ask preview;
     message inspect(tab: string) changes inspecting ensures next.inspecting == tab;
-    message goto_diagnostic(at: index<diagnostics>) changes current, goto_at, jumps;
-    message toggle_chat() when assistant changes chat ensures next.chat == not chat;
+    /// The code editor sent to a diagnostic's place.
+    message goto(file: string, line: s32, col: s32) changes current, goto_at, jumps;
+    message toggle_chat() when assistant changes chat_open ensures next.chat_open == not chat_open;
     message save() changes status emits ask save_component;
     message back() changes nothing emits ask confirm, ask leave_editor;
-    /// From the host: what the assistant wrote, built.
-    message write(tcd: string, wax: string) changes tcd, wax, building, status emits ask build;
+    /// From the host: the preview's state, what its components reported.
     message set_state(text: string) changes state_text ensures next.state_text == text;
     message note(kind: string, text: string) changes events;
+
+    message set_model(model: string) changes model ensures next.model == model emits ask remember_model;
+    message set_draft(text: string) changes draft ensures next.draft == text;
+    /// The draft to the model; nothing while it's answering.
+    message send_chat() changes transcript, draft, busy, round, chat_note emits ask chat, ask keep_chat;
+    message stop_chat() changes nothing emits ask stop_chat;
+    message clear_chat() changes transcript, chat_note emits ask keep_chat;
+    message toggle_prompt() changes show_prompt, prompt_text emits ask prompt;
 
     view main = section(class: "flex-1 min-h-0 flex flex-col",
         div(class: "st-editor-bar flex flex-wrap items-center gap-2 border-b border-base-300 bg-base-100 px-2 py-1",
@@ -163,19 +204,19 @@ component Editor {
                 on_change: send(rename, target_value())),
             button(class: "btn btn-sm", title: "Ctrl/Cmd-Enter", on_click: send(build), "Build"),
             if(field(assistant),
-                button(class: if(field(chat), "btn btn-sm btn-primary", "btn btn-sm"), title: "Ask a model to change this component",
+                button(class: if(field(chat_open), "btn btn-sm btn-primary", "btn btn-sm"), title: "Ask a model to change this component",
                     on_click: send(toggle_chat), "Assistant")),
             span(class: "flex-1"),
             span(class: "st-status text-xs opacity-70 truncate max-w-[40%]", title: field(status), field(status)),
             button(class: "btn btn-sm btn-primary", title: "Keep it and register it in the screen's scope", on_click: send(save),
                 if(field(creating), "Save & register", "Save"))),
-        div(class: if(field(chat),
+        div(class: if(field(chat_open),
                 "st-work flex-1 min-h-0 grid gap-2 p-2 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24rem]",
                 "st-work flex-1 min-h-0 grid gap-2 p-2 grid-cols-1 lg:grid-cols-2"),
             section(class: "card card-border bg-base-100 min-h-0 min-w-0 flex flex-col gap-2 p-2",
                 div(class: "flex flex-wrap gap-1",
-                    button(class: if(field(on_tcd), "btn btn-xs btn-active font-mono", "btn btn-xs btn-ghost font-mono"), on_click: send(show_file, "tcd"), field(tcd_file)),
-                    button(class: if(field(on_tcd), "btn btn-xs btn-ghost font-mono", "btn btn-xs btn-active font-mono"), on_click: send(show_file, "wax"), field(wax_file))),
+                    button(class: if(field(current) == "wax", "btn btn-xs btn-ghost font-mono", "btn btn-xs btn-active font-mono"), on_click: send(show_file, "tcd"), field(tcd_file)),
+                    button(class: if(field(current) == "wax", "btn btn-xs btn-active font-mono", "btn btn-xs btn-ghost font-mono"), on_click: send(show_file, "wax"), field(wax_file))),
                 el("tw-code-editor", class: "st-editor block flex-1 min-h-0 border border-base-300 rounded-box overflow-hidden",
                     name: field(name), tcd: field(tcd), wax: field(wax), current: field(current),
                     diagnostics: field(diagnostics), goto: field(goto_at), jumps: field(jumps),
@@ -190,32 +231,71 @@ component Editor {
                             on_change: send(pick_type, target_value()),
                             each(field(makeable), option(value: field(name), field(name)))))),
                 div(class: "st-preview min-h-40 max-h-[50%] overflow-auto rounded-box border border-dashed border-base-300 p-3",
-                    render_each(field(preview))),
+                    if(field(preview), render(field(preview)),
+                        span(class: "opacity-70", if(field(building), "building…", "nothing to preview: see the diagnostics")))),
                 div(class: "tabs tabs-border tabs-sm", role: "tablist",
-                    button(class: if(field(on_diagnostics), "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "diagnostics"), "Diagnostics"),
-                    button(class: if(field(on_registers), "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "registers"), "Registers"),
-                    button(class: if(field(on_state), "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "state"), "State"),
-                    button(class: if(field(on_events), "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "events"), "Events")),
+                    button(class: if(field(inspecting) == "diagnostics", "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "diagnostics"), "Diagnostics"),
+                    button(class: if(field(inspecting) == "registers", "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "registers"), "Registers"),
+                    button(class: if(field(inspecting) == "state", "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "state"), "State"),
+                    button(class: if(field(inspecting) == "events", "st-inspector-tab tab tab-active", "st-inspector-tab tab"), role: "tab", on_click: send(inspect, "events"), "Events")),
                 div(class: "st-inspector flex-1 min-h-0 overflow-auto",
-                    if(field(on_diagnostics),
+                    if(field(inspecting) == "diagnostics",
                         div(class: "st-diagnostics font-mono text-xs flex flex-col",
                             each(field(diagnostics),
-                                button(class: "text-left px-2 py-1 border-b border-base-300 hover:bg-base-200 cursor-pointer", on_click: send(goto_diagnostic, source_key()),
-                                    span(class: if(field(error), "text-error font-semibold", if(field(warning), "text-warning font-semibold", "text-info font-semibold")), field(severity), " "),
+                                button(class: "text-left px-2 py-1 border-b border-base-300 hover:bg-base-200 cursor-pointer",
+                                    on_click: send(goto, field(file), field(line), field(col)),
+                                    span(class: if(field(severity) == "error", "text-error font-semibold", if(field(severity) == "warning", "text-warning font-semibold", "text-info font-semibold")), field(severity), " "),
                                     field(file), ":", field(line), ":", field(col), " ", field(message))))),
-                    if(field(on_registers),
+                    if(field(inspecting) == "registers",
                         table(class: "table table-sm",
                             tbody(each(field(registers),
                                 tr(td(class: "font-mono", field(name)), td(class: if(field(ok), "text-success", "text-error"), field(note))))))),
-                    if(field(on_state), pre(class: "st-state font-mono text-xs whitespace-pre-wrap", field(state_text))),
-                    if(field(on_events),
+                    if(field(inspecting) == "state", pre(class: "st-state font-mono text-xs whitespace-pre-wrap", field(state_text))),
+                    if(field(inspecting) == "events",
                         div(class: "st-events font-mono text-xs flex flex-col",
-                            each(field(events), div(class: "py-0.5 border-b border-base-300", field(kind), ": ", field(text))))))),
-            if(field(chat), el("tw-slot", class: "flex flex-col min-h-0", name: "assistant"))));
+                            each(field(events),
+                                div(class: if(field(kind) == "failed", "py-0.5 border-b border-base-300 text-error", if(field(kind) == "issue", "py-0.5 border-b border-base-300 text-warning", "py-0.5 border-b border-base-300")),
+                                    field(kind), ": ", field(text))))))),
+            if(field(chat_open),
+                aside(class: "st-chat flex flex-col gap-2 min-h-0 rounded-box border border-base-300 bg-base-100 p-2",
+                    div(class: "flex flex-wrap items-center gap-2",
+                        span(class: "text-xs uppercase tracking-wide opacity-60", "assistant"),
+                        select(class: "st-model select select-sm", "aria-label": "Model", value: field(model),
+                            on_change: send(set_model, target_value()),
+                            each(field(models),
+                                optgroup(label: field(provider),
+                                    each(field(models), option(value: field(value), field(name))))))),
+                    div(class: "st-chat-log flex flex-col gap-2 overflow-auto flex-1 min-h-24 text-sm", "aria-live": "polite",
+                        each(field(bubbles),
+                            if(field(kind) == "user", div(class: "st-chat-user self-end max-w-[90%] rounded-box bg-primary/10 px-3 py-2 whitespace-pre-wrap", field(text)),
+                            if(field(kind) == "assistant", div(class: "st-chat-assistant max-w-[90%] rounded-box bg-base-200 px-3 py-2 whitespace-pre-wrap", field(text)),
+                            if(field(kind) == "tool", div(class: "st-chat-tool text-xs font-mono opacity-70", field(text)),
+                            if(field(kind) == "ok", div(class: "st-chat-ok text-xs text-success", field(text)),
+                            if(field(kind) == "failed",
+                                div(class: "st-chat-error text-xs text-error",
+                                    details(summary(field(text)), pre(class: "whitespace-pre-wrap", field(details)))),
+                                div(class: "st-chat-error text-xs text-error", field(text)))))))),
+                        if(field(busy),
+                            div(class: "st-chat-thinking flex items-center gap-2 self-start rounded-box bg-base-200 px-3 py-2 text-sm opacity-80", role: "status",
+                                span(class: "loading loading-dots loading-sm"), field(busy))),
+                        if(field(chat_note), div(class: "st-chat-error text-xs text-error", field(chat_note)))),
+                    textarea(class: "st-chat-input textarea textarea-sm w-full h-20", placeholder: "Ask for a change (Ctrl/Cmd-Enter sends)",
+                        "aria-label": "Message to the assistant", value: field(draft), autofocus: "autofocus",
+                        on_input: send(set_draft, target_value()),
+                        "on_keydown+enter+ctrl+prevent": send(send_chat),
+                        "on_keydown+enter+meta+prevent": send(send_chat)),
+                    div(class: "flex flex-wrap items-center gap-2",
+                        button(class: "btn btn-sm btn-primary", disabled: field(sending), on_click: send(send_chat), "Send"),
+                        if(field(sending), button(class: "btn btn-sm", on_click: send(stop_chat), "Stop")),
+                        button(class: "btn btn-sm", title: "Start the conversation over", on_click: send(clear_chat), "Clear")),
+                    button(class: "btn btn-xs btn-ghost self-start text-xs uppercase tracking-wide opacity-60", on_click: send(toggle_prompt),
+                        if(field(show_prompt), "hide what the model is told", "what the model is told")),
+                    if(field(show_prompt), pre(class: "font-mono text-xs whitespace-pre-wrap max-h-64 overflow-auto", field(prompt_text)))))));
 }
 
 /// The studio: a tab per screen and the one shown, the picker while a new
-/// screen is being made, the status line, the events, and the menu.
+/// screen is being made, the editor while a component is written, the
+/// status line, the events, and the menu.
 component Studio {
     field scopes: list<record { id: string, name: string, parent: string }>;
     /// The screens, in the order they were made.
@@ -224,76 +304,72 @@ component Studio {
     field active: string;
     /// The shown screen's component, as the host made it, and its id: none
     /// until it answers (sync none: the host keeps the layout).
-    field shown: list<component> @sync(none);
+    field shown: option<component> @sync(none);
     field shown_id: string @sync(none);
     /// The screen whose tab is being renamed, and the one asked about
     /// deleting, by id; "" when none is.
     field renaming: string @sync(none);
     field deleting: string @sync(none);
-    /// The picker, while a new screen is being made.
-    field picker: list<ScopePicker> @sync(none);
+    field picker: option<ScopePicker> @sync(none);
     /// The editor, while a component is written: the page is it then.
-    field editor: list<Editor> @sync(none);
+    field editor: option<Editor> @sync(none);
     field status: string @sync(none);
-    /// The assistant's badge ("assistant: 2 models"), "" without one.
+    /// The assistant's badge ("assistant: 2 models"), "" without one; the
+    /// models it offers, and the one last picked.
     field assistant: string;
-    /// What the hosts reported, the newest first.
+    field models: list<record { provider: string, models: list<record { value: string, name: string }> }>;
+    field model: string;
+    /// What the components reported, the newest first.
     field events: list<record { kind: string, text: string }> where len(events) <= 200 @sync(none);
-    get has_screen: bool;
-    get has_editor: bool;
     get events_label: string;
 
     /// The screen's component, made in its scope chain, with its id.
     ask open_screen(id: string) -> record { id: string, screen: component };
     ask save_screen(id: string, name: string, scope: string, created: f64) -> bool;
     ask delete_screen(id: string) -> bool;
-    ask confirm(text: string) -> bool;
+    /// Whether to delete the screen being deleted.
+    ask confirm(text: string) -> bool emits ask delete_screen, ask open_screen;
     ask export_library() -> bool;
     ask import_library() -> bool;
     ask edit_layout_json(id: string) -> bool;
 
-    /// From the host, at the start and after an import.
+    /// From the host at the start and after an import, and a tab's click.
     message show_screen(id: string) changes active, shown, shown_id, renaming emits ask open_screen;
-    message show_at(at: index<screens>) changes active, shown, shown_id, renaming emits ask open_screen;
     /// From the host: a component the screen uses changed, so it's made again.
     message reopen() changes shown, shown_id emits ask open_screen;
-    message start_rename(at: index<screens>) changes renaming;
-    message rename(at: index<screens>, name: string) changes screens, renaming
+    message start_rename(id: string) changes renaming ensures next.renaming == id;
+    message rename(id: string, name: string) changes screens, renaming
         ensures len(next.screens) == len(screens) emits ask save_screen;
     message cancel_rename() changes renaming ensures len(next.renaming) == 0;
-    message delete_at(at: index<screens>) changes deleting emits ask confirm;
-    message open_picker() when len(picker) == 0 changes picker ensures len(next.picker) == 1 emits make ScopePicker;
-    message close_picker() source_key: index<picker> changes picker ensures len(next.picker) == 0;
-    message create_screen(scope: string, name: string) source_key: index<picker>
+    /// Asked first: confirm's reply deletes it.
+    message remove_screen(id: string) changes deleting emits ask confirm;
+    message open_picker() changes picker emits make ScopePicker;
+    message close_picker() changes picker;
+    message create_screen(scope: string, name: string)
         changes picker, screens, active, shown, shown_id
         ensures len(next.screens) == len(screens) + 1
         emits ask save_screen, ask open_screen;
-    message scope_added(id: string, name: string, parent: string) source_key: index<picker>
+    message scope_added(id: string, name: string, parent: string)
         changes scopes ensures len(next.scopes) == len(scopes) + 1;
     message say(text: string) changes status ensures next.status == text;
     message note(kind: string, text: string) changes events;
     message set_library(scopes: list<record { id: string, name: string, parent: string }>,
         screens: list<record { id: string, name: string, scope: string, created: f64 }>)
-        changes scopes, screens, active, shown, shown_id;
+        changes scopes, screens, active, shown, shown_id, renaming, deleting, picker;
     /// From the host: a hole asked for a new component, or a slot's ✎ for
     /// one of the library's; the editor opens on it and builds it.
-    message open_editor(creating: bool, id: string, name: string, tcd: string, wax: string) when len(editor) == 0
-        changes editor ensures len(next.editor) == 1 emits make Editor, send Editor.build;
-    message close_editor() source_key: index<editor> changes editor ensures len(next.editor) == 0;
-    /// From the host, for the editor: the assistant's files, the preview's
-    /// state, what its host reported.
-    message editor_write(tcd: string, wax: string) changes nothing emits send Editor.write;
-    message editor_state(text: string) changes nothing emits send Editor.set_state;
-    message editor_note(kind: string, text: string) changes nothing emits send Editor.note;
+    message open_editor(creating: bool, id: string, name: string, tcd: string, wax: string, chat: list<any>)
+        changes editor emits make Editor, send Editor.build;
+    message close_editor() changes editor;
     message export_all() changes nothing emits ask export_library;
     message import_all() changes nothing emits ask import_library;
-    message layout_json() when len(active) > 0 changes nothing emits ask edit_layout_json;
+    message layout_json() changes nothing emits ask edit_layout_json;
 
     /// The tabs: each screen, marked when it's shown or being renamed.
     loop tabs { enrich { is_active: bool, is_renaming: bool, close_label: string } }
 
     view main = div(class: "st-studio h-screen flex flex-col",
-        if(field(has_editor), render_each(field(editor)), frag(
+        if(field(editor), render(field(editor)), frag(
         header(class: "st-bar flex items-center gap-2 border-b border-base-300 bg-base-100 px-2 py-1",
             span(class: "text-sm font-bold opacity-70 px-1", "studio"),
             nav(class: "st-tabs flex items-center gap-1 overflow-x-auto min-w-0", role: "tablist",
@@ -301,13 +377,13 @@ component Studio {
                     div(class: if(bind(is_active), "st-tab group flex items-center rounded-btn bg-base-200 font-semibold", "st-tab group flex items-center rounded-btn hover:bg-base-200"),
                         if(bind(is_renaming),
                             input(class: "input input-xs w-32", "aria-label": "Screen name", value: field(name), autofocus: "autofocus",
-                                on_change: send(rename, source_key(), target_value()),
+                                on_change: send(rename, field(id), target_value()),
                                 "on_keydown+escape+prevent": send(cancel_rename)),
                             button(class: "px-3 py-1 text-sm whitespace-nowrap", role: "tab", "aria-selected": if(bind(is_active), "true", "false"),
                                 title: "Double-click to rename",
-                                on_click: send(show_at, source_key()), on_dblclick: send(start_rename, source_key()), field(name))),
+                                on_click: send(show_screen, field(id)), on_dblclick: send(start_rename, field(id)), field(name))),
                         button(class: "btn btn-xs btn-ghost btn-square opacity-0 group-hover:opacity-60 hover:opacity-100",
-                            title: bind(close_label), "aria-label": bind(close_label), on_click: send(delete_at, source_key()), "×")))),
+                            title: bind(close_label), "aria-label": bind(close_label), on_click: send(remove_screen, field(id)), "×")))),
             button(class: "st-new-screen btn btn-sm btn-ghost btn-square", title: "New screen", "aria-label": "New screen", on_click: send(open_picker), "+"),
             span(class: "flex-1"),
             span(class: "st-status text-xs opacity-70 truncate max-w-[40%]", title: field(status), field(status)),
@@ -320,26 +396,28 @@ component Studio {
                     li(button(title: "Add a bundle's components, scopes and screens", on_click: send(import_all), "Import")),
                     li(a(href: "../playground/", "Playground")),
                     li(a(href: "../demos/", "Demos"))))),
-        if(field(has_screen),
+        if(field(active) != "",
             main(class: "flex-1 min-h-0 flex flex-col",
-                div(class: "st-stage flex-1 min-h-0 overflow-auto p-4", render_each(field(shown))),
+                div(class: "st-stage flex-1 min-h-0 overflow-auto p-4", render(field(shown))),
                 details(class: "st-events-box border-t border-base-300 bg-base-100 text-xs",
                     summary(class: "cursor-pointer px-3 py-1 opacity-70", field(events_label)),
                     div(class: "st-events font-mono max-h-40 overflow-auto flex flex-col px-3 pb-2",
                         each(field(events),
-                            div(class: "py-0.5 border-b border-base-300", field(kind), ": ", field(text)))))),
+                            div(class: if(field(kind) == "failed", "py-0.5 border-b border-base-300 text-error", if(field(kind) == "issue", "py-0.5 border-b border-base-300 text-warning", if(field(kind) == "log", "py-0.5 border-b border-base-300 text-success", "py-0.5 border-b border-base-300"))),
+                                field(kind), ": ", field(text)))))),
             main(class: "flex-1 flex flex-col items-center justify-center gap-3",
                 p(class: "text-sm opacity-70 max-w-prose text-center",
                     "A screen is a layout made in a scope: fill its holes with the components that scope can make, or write new ones. Everything stays in this browser; export a bundle to take it elsewhere."),
                 button(class: "btn btn-primary", on_click: send(open_picker), "+ New screen"))),
-        render_each(field(picker)))));
+        render(field(picker)))));
 }
 
 register ScopePicker, Editor, Studio;
 
 /// The page's: open_screen, save_screen, save_scope, delete_screen,
 /// confirm, export_library, import_library and edit_layout_json for the
-/// studio; build, preview, save_component and leave_editor for the editor.
+/// studio; build, preview, save_component, leave_editor, chat, stop_chat,
+/// stub, prompt, remember_model and keep_chat for the editor.
 host_ask open_screen;
 host_ask save_screen;
 host_ask save_scope;
@@ -352,24 +430,24 @@ host_ask build;
 host_ask preview;
 host_ask save_component;
 host_ask leave_editor;
+host_ask chat;
+host_ask stop_chat;
+host_ask stub;
+host_ask prompt;
+host_ask remember_model;
+host_ask keep_chat;
 
 example rename_a_tab for Studio {
     start { screens: [{ id: "a", name: "home", scope: "root", created: 1 }] }
-    send start_rename(0);
+    send start_rename("a");
     expect renaming == "a";
-    send rename(0, "start");
+    send rename("a", "start");
     expect renaming == "" and len(screens) == 1;
-}
-
-example a_picker_at_a_time for Studio {
-    start { }
-    send open_picker();
-    expect len(picker) == 1;
 }
 
 example adding_a_scope_picks_it for ScopePicker {
     start { scopes: [{ id: "root", name: "root", parent: "" }], selected: "root" }
-    send start_adding(0);
+    send start_adding("root");
     expect adding == "root";
     send add_scope("a");
     expect len(scopes) == 2 and adding == "";
@@ -381,4 +459,10 @@ example typing_and_switching_files for Editor {
     expect tcd == "c";
     send show_file("wax");
     expect current == "wax";
+}
+
+example a_message_to_the_model for Editor {
+    start { assistant: true, model: "faux/m", draft: "make it blue" }
+    send send_chat();
+    expect len(transcript) == 1 and draft == "" and busy != "";
 }

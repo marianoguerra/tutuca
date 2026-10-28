@@ -1,5 +1,5 @@
-// The custom elements studio.tcd's Editor holds. Their DOM is their own: the
-// renderer morphs only the nodes it made, so what they add inside stays.
+// The custom element studio.tcd's Editor holds. Its DOM is its own: the
+// renderer morphs only the nodes it made, so what it adds inside stays.
 //
 // tw-code-editor: a component's .tcd and .wax in CodeMirror (the playground's
 // editor). Its properties say what to show: name (the files are name.tcd and
@@ -9,17 +9,10 @@
 // severity, message }), and goto ("wax:12:5"), jumped to whenever jumps
 // changes. It fires tcd-change and wax-change, CustomEvents whose detail is
 // the file's text, as it's edited, and run on Ctrl/Cmd-Enter.
-//
-// tw-slot: holds the node the page provided under its name (provideSlot),
-// for a part of the page that isn't a component yet.
+
 import { createEditor } from "../playground/deps/editor.js";
 
-const slots = new Map(); // name -> { node, onShow }
-
-// node goes in the tw-slot named so, and onShow() runs each time it's shown.
-export const provideSlot = (name, node, { onShow = () => {} } = {}) => slots.set(name, { node, onShow });
-
-// Defines both in win's registry, once.
+// Defines tw-code-editor in win's registry, once.
 export function defineStudioElements(win = globalThis) {
 	if (win.customElements.get("tw-code-editor")) return;
 
@@ -116,23 +109,5 @@ export function defineStudioElements(win = globalThis) {
 		}
 	}
 
-	class Slot extends win.HTMLElement {
-		#name = "";
-		set name(name) {
-			this.#name = name;
-			this.#attach();
-		}
-		connectedCallback() {
-			this.#attach();
-		}
-		#attach() {
-			const slot = slots.get(this.#name);
-			if (!slot || !this.isConnected) return;
-			if (slot.node.parentNode !== this) this.append(slot.node);
-			slot.onShow();
-		}
-	}
-
 	win.customElements.define("tw-code-editor", CodeEditor);
-	win.customElements.define("tw-slot", Slot);
 }

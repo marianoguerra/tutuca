@@ -630,6 +630,9 @@ test("components: a host sends a message to a component below the root, by its s
 	host.sendAt([["counters", 1]], "reset");
 	assert.deepEqual(counts(container), ["0", "0"]);
 	assert.deepEqual(host.failures, []);
+	// A report says which component it came from.
+	host.sendAt([["counters", 0]], "nope");
+	assert.deepEqual(host.reports.at(-1), { type: "unhandled", message: "nope", path: ["counters", 0] });
 });
 
 test("components: a click on an element without handlers in a component goes nowhere", async (env) => {
@@ -786,8 +789,9 @@ test("components: what happens is reported as one list of typed reports", (env) 
 	const types = host.reports.map((r) => r.type);
 	assert.deepEqual(types, ["render", "unhandled", "log", "taskFailed", "render"]);
 	assert.deepEqual(seen, types);
-	assert.deepEqual(host.reports[1], { type: "unhandled", message: "nope" });
-	assert.deepEqual(host.reports[2], { type: "log", value: "boom" });
+	// Each says where it came from: here, the root.
+	assert.deepEqual(host.reports[1], { type: "unhandled", message: "nope", path: [] });
+	assert.deepEqual(host.reports[2], { type: "log", value: "boom", path: [] });
 	assert.equal(host.failures[0], host.reports[3].error);
 	assert.deepEqual([host.unhandled, host.logs, host.issues], [["nope"], ["boom"], []]);
 });
@@ -1525,11 +1529,11 @@ test("dev: messages are checked against their contracts, fields after each task,
 	assert.deepEqual(host.issues, [], "a valid start");
 	assert.deepEqual(step("bump", [2]), []);
 	// bump(3) adds 4: its post doesn't hold.
-	assert.deepEqual(step("bump", [3]), [{ type: "messageInvalid", message: "bump", component: "Probe", issues: ["post"] }]);
+	assert.deepEqual(step("bump", [3]), [{ type: "messageInvalid", message: "bump", component: "Probe", issues: ["post"], path: [] }]);
 	// 7 is odd: the invariant is checked once the queue is empty.
 	assert.deepEqual(step("bump", [1]), [
 		{
-			type: "stateInvalid",
+			type: "stateInvalid", path: [],
 			settled: true,
 			issues: [{ path: [], component: "Probe", field: null, reason: "invariant:even", problem: "the invariant even doesn't hold" }],
 		},
@@ -1537,7 +1541,7 @@ test("dev: messages are checked against their contracts, fields after each task,
 	// Past 10: the field's constraint.
 	assert.deepEqual(step("bump", [5]), [
 		{
-			type: "stateInvalid",
+			type: "stateInvalid", path: [],
 			task: "bump",
 			issues: [{ path: ["count"], component: "Probe", field: "count", value: 12, reason: "invalid", problem: "must be at most 10, got 12" }],
 		},
@@ -1555,15 +1559,15 @@ test("dev: messages are checked against their contracts, fields after each task,
 	);
 	// rename changes count too, outside its changes, and the label is too long.
 	assert.deepEqual(step("rename", ["toolong"]), [
-		{ type: "messageInvalid", message: "rename", component: "Probe", issues: ["changes:count"] },
+		{ type: "messageInvalid", message: "rename", component: "Probe", issues: ["changes:count"], path: [] },
 		{
-			type: "stateInvalid",
+			type: "stateInvalid", path: [],
 			task: "rename",
 			issues: [{ path: ["label"], component: "Probe", field: "label", value: "toolong", reason: "invalid", problem: "must have at most 5 characters, got 7" }],
 		},
 	]);
 	// shout may emit nothing, and notifies.
-	assert.deepEqual(step("shout"), [{ type: "messageInvalid", message: "shout", component: "Probe", issues: ["emits:notify:shouted"] }]);
+	assert.deepEqual(step("shout"), [{ type: "messageInvalid", message: "shout", component: "Probe", issues: ["emits:notify:shouted"], path: [] }]);
 	assert.deepEqual(host.failures, []);
 });
 
@@ -1679,7 +1683,7 @@ test("pbt: random walks find a broken ensures and shrink it to the messages that
 	assert.equal(found.ok, false);
 	const last = found.trace.at(-1);
 	assert.deepEqual([last.name, last.args], ["add", [4]], JSON.stringify(found.trace));
-	assert.deepEqual(found.issues[0], { type: "messageInvalid", message: "add", component: "Tally", issues: ["post"] });
+	assert.deepEqual(found.issues[0], { type: "messageInvalid", message: "add", component: "Tally", issues: ["post"], path: [] });
 	// Shrunk: it fails, and without any one of its steps it doesn't.
 	const run = (trace) => fails({ runtime, scope, model: env.models.pbt, component: "Tally", start: found.start, trace });
 	assert.ok(run(found.trace));

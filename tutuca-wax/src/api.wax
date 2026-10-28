@@ -370,6 +370,13 @@ fn api_host_send(h: &host, name: js_string, args: &value) {
     host_send(h, name, list_to_values(args));
 }
 
+// The path of the component the task running, or the last one run, is for
+// (null while rendering): where what's reported came from.
+#[export = "host_task_path"]
+fn api_host_task_path(h: &host) -> &value {
+    h.at;
+}
+
 #[export = "host_send_at"]
 fn api_host_send_at(h: &host, name: js_string, args: &value, sel: &selector) {
     host_send_at(h, name, list_to_values(args), sel);

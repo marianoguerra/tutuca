@@ -10,17 +10,16 @@
 // (code-editor.js, around CodeMirror), and saving registers the component in
 // the screen's scope, where the hole can make it. A screen is kept as what
 // to make (js/hydrate.js's capture), saved as it changes. Served with an API
-// (scripts/studio-server.mjs), the editor also has an assistant
-// (assistant.js, in the editor's tw-slot until it's a component too): a
-// model that edits the component, its changes built and its errors sent back
-// to it.
+// (scripts/studio-server.mjs), the editor also has an assistant: a model
+// that edits the component (the conversation is the editor's; the page asks
+// the server for the model's turns, assistant.js).
 import { defineRating } from "../components/media/rating.js";
 import { capture, hydrate } from "../js/hydrate.js";
 import { compilerClient, el, pageStyles } from "../js/page.js";
 import { snapshot } from "../js/pbt.js";
 import { load, readBytes } from "../js/tutuca-rt.js";
-import { assistantPanel, checkServer, diagnosticText } from "./assistant.js";
-import { defineStudioElements, provideSlot } from "./code-editor.js";
+import { askChat, askPrompt, checkServer, diagnosticText, rememberModel, rememberedModel } from "./assistant.js";
+import { defineStudioElements } from "./code-editor.js";
 import { fromBundle, openStore, toBundle } from "./store.js";
 
 const UI = {
@@ -38,18 +37,6 @@ const UI = {
 	dialogTitle: "text-lg font-bold",
 	dialogActions: "modal-action mt-0",
 	layoutJson: "st-layout textarea textarea-sm font-mono text-xs w-full h-80",
-	// The assistant (assistant.js).
-	chat: "st-chat flex flex-col gap-2 min-h-0 rounded-box border border-base-300 bg-base-100 p-2",
-	chatLog: "st-chat-log flex flex-col gap-2 overflow-auto flex-1 min-h-24 text-sm",
-	chatInput: "st-chat-input textarea textarea-sm w-full h-20",
-	chatPrompt: "font-mono text-xs whitespace-pre-wrap max-h-64 overflow-auto",
-	chatUser: "st-chat-user self-end max-w-[90%] rounded-box bg-primary/10 px-3 py-2 whitespace-pre-wrap",
-	chatAssistant: "st-chat-assistant max-w-[90%] rounded-box bg-base-200 px-3 py-2 whitespace-pre-wrap",
-	chatTool: "st-chat-tool text-xs font-mono opacity-70",
-	chatOk: "st-chat-ok text-xs text-success",
-	chatError: "st-chat-error text-xs text-error",
-	chatThinking: "st-chat-thinking flex items-center gap-2 self-start rounded-box bg-base-200 px-3 py-2 text-sm opacity-80",
-	chatDots: "loading loading-dots loading-sm",
 };
 
 const styles = await pageStyles(Object.values(UI));
@@ -266,6 +253,8 @@ let studioHost = null;
 // Messages to the studio, sent once what's running now is done: an ask's
 // handler or a report doesn't send in the middle of a task.
 const tell = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args));
+// The same, to the editor (studio.tcd's Studio holds it in its field editor).
+const tellEditor = (name, ...args) => queueMicrotask(() => studioHost?.sendAt(["editor"], name, args));
 const say = (message) => tell("say", message);
 const note = (kind, message) => tell("note", kind, message);
 
@@ -285,7 +274,7 @@ async function keepLayout() {
 	pendingSave = null;
 	if (!mounted || !studioHost) return;
 	const root = studioHost.root();
-	const [made] = runtime.get(root, "shown");
+	const made = runtime.get(root, "shown");
 	const screen = lib.screens.get(mounted.id);
 	if (!made || !screen || runtime.get(root, "shown_id") !== mounted.id) return;
 	let layout;
@@ -426,13 +415,12 @@ const freeName = (base) => {
 	return name;
 };
 let editing = null;
-let built = []; // what waits for the next build: the assistant's check
 
 function openEditor(creating, c) {
 	return new Promise((resolve) => {
 		const scope = lib.scopes.get(lib.screens.get(mounted.id).scope);
 		editing = { creating, resolve, scope, draft: { ...c, chat: [...(c.chat ?? [])] }, state: "" };
-		tell("open_editor", creating, c.id, c.name, c.tcd, c.wax);
+		tell("open_editor", creating, c.id, c.name, c.tcd, c.wax, c.chat ?? []);
 	});
 }
 function closeEditing(answer) {
@@ -480,8 +468,7 @@ const diagnosticRow = (d) => ({
 	end_col: d.span.end.col,
 	severity: d.severity,
 	message: d.hint ? `${d.message} (${d.hint})` : d.message,
-	error: d.severity === "error",
-	warning: d.severity === "warning",
+	text: diagnosticText(d),
 });
 
 // The draft, as the editor has it now.
@@ -494,12 +481,7 @@ const draftAs = (id, name, tcd, wax) => {
 Object.assign(asks, {
 	build: async (id, name, tcd, wax) => {
 		const draft = draftAs(id, name, tcd, wax);
-		let b = null;
-		try {
-			b = await buildOf(draft);
-		} finally {
-			for (const done of built.splice(0)) done(b);
-		}
+		const b = await buildOf(draft);
 		const registers = await registersOf(b);
 		return {
 			ok: b.ok,
@@ -517,14 +499,14 @@ Object.assign(asks, {
 		const under = child("preview");
 		if (editing.preview) runtime.leave(base, editing.preview);
 		editing.preview = under.name;
-		const around = await loadChain(tw, scopeRecord, (message) => tell("editor_note", "failed", message), under.scope);
+		const around = await loadChain(tw, scopeRecord, (message) => tellEditor("note", "failed", message), under.scope);
 		const scope = runtime.enter(around, "preview");
 		styles.add((await tw.loadComponent(draft.build.wasm.slice(), scope)).classes);
 		return runtime.make(scope, type, {});
 	},
 	// Kept, and registered in the screen's scope when it's new; an edited
 	// one's screen is made again with it.
-	save_component: async (creating, id, name, tcd, wax) => {
+	save_component: async (creating, id, name, tcd, wax, chat) => {
 		if (!NAME.test(name) || [...lib.components.values()].some((c) => c.id !== id && c.name === name)) {
 			throw new Error(`a name is snake_case and unique in the library: ${name} isn't`);
 		}
@@ -538,7 +520,7 @@ Object.assign(asks, {
 			const which = taken.map((r) => `${r.name} (${componentLabel(r.ref)}${r.scope === scope ? "" : `, from ${r.scope.name}`})`).join(", ");
 			throw new Error(`${which} already made in this scope: rename the component in ${name}.tcd`);
 		}
-		await save("components", { id, name, tcd, wax, build: b, chat: draft.chat });
+		await save("components", { id, name, tcd, wax, build: b, chat });
 		if (creating) {
 			scope.registrations.push({ component: id });
 			await save("scopes", scope);
@@ -558,13 +540,48 @@ Object.assign(asks, {
 		closeEditing(creating ? "" : false);
 		return true;
 	},
+	// The assistant's: the model's turn, from the server (stop_chat aborts
+	// it: answered "aborted"), and what it's told of a build that failed.
+	chat: async (model, messages, name, tcd, wax) => {
+		chatting?.abort();
+		chatting = new AbortController();
+		try {
+			return await askChat(model, messages, { name, tcd, wax }, chatting.signal);
+		} catch (error) {
+			if (error.name === "AbortError") throw new Error("aborted");
+			throw error;
+		} finally {
+			chatting = null;
+		}
+	},
+	stop_chat: () => {
+		chatting?.abort();
+		return true;
+	},
+	stub: async (id, name, tcd, wax) => {
+		const res = await compiler("stub", await requestFor(draftAs(id, name, tcd, wax)));
+		return res.ok ? res.stub.trim() : "";
+	},
+	prompt: (name, tcd, wax) => askPrompt({ name, tcd, wax }),
+	remember_model: (model) => {
+		rememberModel(model);
+		return true;
+	},
+	// The conversation kept with the component once it's in the library.
+	keep_chat: async (id, messages) => {
+		if (editing?.draft.id === id) editing.draft.chat = messages;
+		const c = lib.components.get(id);
+		if (c) await save("components", { ...c, chat: messages });
+		return true;
+	},
 });
+let chatting = null; // the AbortController of the model's turn in flight
 
 // The preview's state, told to the editor when it changed.
 function tellPreviewState() {
-	const [editor] = runtime.get(studioHost.root(), "editor");
+	const editor = runtime.get(studioHost.root(), "editor");
 	if (!editing || !editor) return;
-	const [preview] = runtime.get(editor, "preview");
+	const preview = runtime.get(editor, "preview");
 	let state = "";
 	try {
 		state = preview ? JSON.stringify(snapshot(runtime, preview), null, 2) : "";
@@ -573,50 +590,10 @@ function tellPreviewState() {
 	}
 	if (state === editing.state) return;
 	editing.state = state;
-	tell("editor_state", state);
+	tellEditor("set_state", state);
 }
 
-// The assistant (assistant.js), in the editor's tw-slot until it's a
-// component too: it reads the sources from the editor, writes them back
-// through it, and is told what the build that follows says.
-const editorSources = () => {
-	const [editor] = runtime.get(studioHost.root(), "editor");
-	const field = (name) => runtime.get(editor, name);
-	return { id: field("id"), name: field("name"), tcd: field("tcd"), wax: field("wax") };
-};
-const assistant = server?.assistant
-	? assistantPanel({
-			server,
-			UI,
-			// The chat is the draft's, which the transcript is pushed onto.
-			component: () => (editing ? { ...editorSources(), chat: editing.draft.chat } : null),
-			write: async ({ tcd, wax }) => {
-				const now = editorSources();
-				tell("editor_write", typeof tcd === "string" ? tcd : now.tcd, typeof wax === "string" ? wax : now.wax);
-			},
-			// What the model is told of the build its write starts: the types it
-			// registers, or tcd's diagnostics and the signatures still missing.
-			check: async () => {
-				const b = await new Promise((resolve) => built.push(resolve));
-				if (!b) return { ok: false, text: "The compiler failed; nothing was built." };
-				const { name } = editing.draft;
-				const warnings = b.diags.filter((d) => d.severity !== "error").map(diagnosticText);
-				if (b.ok) {
-					const notes = warnings.length > 0 ? `\nWarnings:\n${warnings.join("\n")}` : "";
-					return { ok: true, text: `It built: ${name} registers ${b.types.join(", ")}.${notes}` };
-				}
-				let text = `It didn't build. tcd's diagnostics:\n${b.diags.map(diagnosticText).join("\n")}`;
-				try {
-					const stub = await compiler("stub", await requestFor(editing.draft));
-					if (stub.ok && stub.stub.trim()) text += `\n\nThe functions the .wax is missing, with the signatures it must have:\n${stub.stub}`;
-				} catch {}
-				return { ok: false, text };
-			},
-			// The chat is kept with the component once it's in the library.
-			keep: (c) => (lib.components.has(c.id) ? save("components", { ...lib.components.get(c.id), chat: c.chat }) : undefined),
-		})
-	: null;
-if (assistant) provideSlot("assistant", assistant.root, { onShow: () => assistant.show() });
+
 
 // ---- Export and import ---------------------------------------------------------------------
 
@@ -660,23 +637,39 @@ importInput.addEventListener("change", async () => {
 
 // ---- The studio ----------------------------------------------------------------------------
 
-const badge = server?.assistant ? `assistant: ${server.models.length} model${server.models.length === 1 ? "" : "s"}` : "";
-studioHost = runtime.createHost(document, studioRoot, runtime.make(studioScope, "Studio", { scopes: scopeRows(), screens: screenRows(), assistant: badge }), {
-	dev: true,
-	asks,
-	// While the editor is open, what's reported is the preview's.
-	onReport: (type, r) => {
-		if (type === "render") {
-			autofocus();
-			tellPreviewState();
-			return keepLayoutSoon();
-		}
-		const line = reportLine(tw, type, r);
-		if (!line) return;
-		if (runtime.get(studioHost.root(), "editor").length > 0) tell("editor_note", line.kind, line.text);
-		else note(line.kind, line.text);
+// The models the server offers, by provider, and the one picked last.
+const models = server?.assistant ? server.models : [];
+const byProvider = [...Map.groupBy(models, (m) => m.provider)].map(([provider, list]) => ({
+	provider,
+	models: list.map((m) => ({ value: `${m.provider}/${m.id}`, name: m.name })),
+}));
+const values = models.map((m) => `${m.provider}/${m.id}`);
+const model = values.includes(rememberedModel()) ? rememberedModel() : (values[0] ?? "");
+const badge = models.length > 0 ? `assistant: ${models.length} model${models.length === 1 ? "" : "s"}` : "";
+// Where a report came from: the preview's components are the editor's to
+// show (at editor.preview), the rest the studio's, with where they are.
+const fromPreview = (path) => path?.[0] === "editor" && path[1] === "preview";
+const where = (path) => (path?.length ? ` (at ${path.join(".")})` : "");
+studioHost = runtime.createHost(
+	document,
+	studioRoot,
+	runtime.make(studioScope, "Studio", { scopes: scopeRows(), screens: screenRows(), assistant: badge, models: byProvider, model }),
+	{
+		dev: true,
+		asks,
+		onReport: (type, r) => {
+			if (type === "render") {
+				autofocus();
+				tellPreviewState();
+				return keepLayoutSoon();
+			}
+			const line = reportLine(tw, type, r);
+			if (!line) return;
+			if (fromPreview(r.path)) tellEditor("note", line.kind, line.text);
+			else note(line.kind, `${line.text}${where(r.path)}`);
+		},
 	},
-});
+);
 studioHost.mount();
 const first = lib.screens.get(remembered()) ?? screensInOrder()[0];
 if (first) tell("show_screen", first.id);

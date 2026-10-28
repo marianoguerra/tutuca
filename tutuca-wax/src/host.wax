@@ -101,7 +101,11 @@ type host = {
     // as of the last time it did; and messages against their contracts.
     // What fails is reported through observe_issue.
     dev: mut i32,
-    settled_root: mut &value
+    settled_root: mut &value,
+    // The path from the root of the component the task running (or the last
+    // one run) is for, as a list of keys (names and indices); null while
+    // rendering. What's reported, a log, an issue, a failure, came from there.
+    at: mut &value
 };
 
 fn empty_selector() -> &selector {
@@ -126,6 +130,7 @@ fn host_new(doc: dom_document_opt, container: dom_node_opt, root: &value) -> &ho
         listening: smap_empty(),
         dev: 0,
         settled_root: root,
+        at: VALUE_NULL,
     };
 }
 
@@ -264,6 +269,7 @@ fn transaction_push(tx: &transaction, t: &task) {
 
 fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     let r = t.route!;
+    h.at = update_path_value(r.update_path);
     let c = value_as_component(update_path_get_in(r.update_path, h.root));
     if !c {
         host_fail(js_string_concat(s_err_not_a_component, t.name));
@@ -820,7 +826,19 @@ fn host_settle(h: &host, id: i32, result: &value) -> i32 {
 // morphs the DOM from what the last render rendered.
 // A headless host renders nothing.
 // Renders the root if it isn't the one rendered last; whether it did.
+// An update path as a list of its keys: names and indices.
+fn update_path_value(p: &update_path) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s p.keys.length() {
+        out = list_push(out, value_from_key(p.keys[i]!));
+        i += 1;
+    }
+    out;
+}
+
 fn host_render(h: &host) -> i32 {
+    h.at = VALUE_NULL;
     if !h.container | !h.doc {
         return 0;
     }
