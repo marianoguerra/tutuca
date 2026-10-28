@@ -428,6 +428,38 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
     .map(f => "\{@check.wax(f.name)}: f_\{@check.wax(f.name)}")
     .join(", ")
   out.line("    let state = {\{cw}_state| \{entries} };")
+  // The constraints that read the component, a key of another field
+  // (key_of) or a check of it, hold against it once it has its fields.
+  let reading = c.fields
+    .mapi((i, f) => (i, f))
+    .filter(p => !p.1.norm.key_of.is_empty() || !p.1.norm.checks.is_empty())
+  if !reading.is_empty() {
+    out.line(
+      "    let owner = component_new(\{cw}_spec(), state, \{cw}_vtable(), ctx.scope);",
+    )
+  }
+  for p in reading {
+    let (i, f) = p
+    let fw = @check.wax(f.name)
+    let name = self.s(f.name)
+    let invalid = self.s("invalid")
+    out.line(
+      "    problem = constraints_problem((schema.fields[\{i}]!).constraints, \{self.encode(f.ty, "state.\{fw}")}, owner);",
+    )
+    out.line("    if !!problem {")
+    if f.required {
+      out.line("        return init_fail(issues, \{name}, \{invalid});")
+    } else {
+      out.line("        issues = init_issue(issues, \{name}, \{invalid});")
+      let start = match f.make {
+        Some(m) =>
+          "value_component(init_ctx_make(ctx, \{self.s(m)}, map_empty()))"
+        None => self.start_value(f)
+      }
+      out.line("        state = \{cw}_with_\{fw}(state, \{start});")
+    }
+    out.line("    }")
+  }
   if c.init_hook {
     out.line("    init_ok(\{cw}_init(state, ctx), issues);")
   } else {

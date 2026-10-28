@@ -406,6 +406,18 @@ fn abi_ask_result_reply(result: &value) -> &ask_result {
 
 // Scopes (scope.wax): what a component module's tutuca_register calls.
 
+// A component of spec, with instance, made in s: what a generated init
+// checks the constraints that read the component (key_of, check) against.
+#[export = "component_new"]
+fn abi_component_new(
+    spec: &component_spec,
+    instance: &eq,
+    vtable: &vtable,
+    s: &scope,
+) -> &component {
+    component_new(spec, instance, vtable, s);
+}
+
 #[export = "scope_register"]
 fn abi_scope_register(s: &scope, name: &extern, spec: &component_spec, vtable: &vtable) {
     scope_register(s, name, spec, vtable);

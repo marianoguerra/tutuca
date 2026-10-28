@@ -361,3 +361,33 @@ test("tcd and the runtime know the same event modifiers", async () => {
 	assert.ok(runtimeMods.length > 0);
 	assert.deepEqual(tcdMods, runtimeMods);
 });
+
+// The constraints that read the component, a key of another field or a
+// check of it, are checked when it's made too, once it has its fields: a
+// required field that breaks one fails, another takes its default.
+test("a key of another field, and a check, are checked when a component is made", async () => {
+	const main = "picks.tcd";
+	const files = {
+		[main]: `package tutuca:picks@0.1.0;
+component Pick {
+    field items: list<string>;
+    field selected: index<items>;
+    field n: s32 = 2 where check(even);
+    view main = p(field(n));
+}
+`,
+	};
+	const wax = `fn pick_check_even(state: &pick_state, v: i32) -> i32 {
+    (v %s 2) == 0;
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "picks.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags.filter((d) => d.severity === "error"), []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	assert.deepEqual(tw.runtime.issues(scope, "Pick", { items: ["a", "b"], selected: 1, n: 4 }), []);
+	assert.throws(() => tw.runtime.make(scope, "Pick", { items: ["a", "b"], selected: 2 }), /selected/);
+	assert.deepEqual(tw.runtime.issues(scope, "Pick", { items: ["a"], selected: 0, n: 3 }), [{ field: "n", problem: "invalid" }]);
+	assert.equal(tw.runtime.get(tw.runtime.make(scope, "Pick", { items: ["a"], selected: 0, n: 3 }), "n"), 2);
+});

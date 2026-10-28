@@ -86,7 +86,9 @@ example toggles for TodoCard { start { done: false } send toggle(); expect done;
 `one_of<A, B>`, `result<T, E>`, a component or interface name, `component`.
 An optional value is `option<T>` (`one_of<null, T>` gets a warning saying so).
 `index<f>` isn't a type: it's `f`'s key type (s32 for a list, string for a
-map) with the constraint `in keys(f)`.
+map) with the constraint `in keys(f)`. That constraint and `check(p)` read
+the component, so init checks them once it has all its fields: a required
+field that breaks one fails the make, another takes its default.
 
 **`where`** (fields, properties, arguments) is written like a condition but
 only takes what a schema can hold: comparisons of the subject with literals
