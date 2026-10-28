@@ -4,6 +4,7 @@ import {
 	$if,
 	AstNode,
 	component,
+	DispatchPath,
 	each,
 	field,
 	Host,
@@ -15,6 +16,8 @@ import {
 	scope,
 	send,
 	seqItem,
+	Target,
+	Task,
 	t,
 	targetValue,
 	Walker,
@@ -178,6 +181,40 @@ test("an element outside HTML and SVG routes its events too", () => {
 	host.start(C.Formula());
 	click(rootNode.querySelector("mn"));
 	assert.equal(host.rootComponent.count, 1);
+});
+
+test("an event whose message has no handler fails; a sent message with none is reported", () => {
+	const Mute = component({
+		name: "Mute",
+		fields: { n: t.number() },
+		views: { main: h("button", { "on:click": send("nope") }, "x") },
+	});
+	const reports = [];
+	const { host, rootNode, C, click, failures, drain } = setupHost(
+		{ Mute },
+		{ sync: true, onReport: (type, info) => reports.push([type, info.message]) },
+	);
+	host.start(C.Mute());
+	click(rootNode.querySelector("button"));
+	assert.deepEqual(
+		failures.map((e) => e.message),
+		["Mute has no handler for nope, which its view sends"],
+	);
+	const warn = console.warn;
+	console.warn = () => {};
+	try {
+		const root = new DispatchPath();
+		const task = new Task("missing", [], root, new Target(root), null);
+		host.prepareTask(task, host.rootComponent);
+		host.pushTask(task);
+		drain();
+	} finally {
+		console.warn = warn;
+	}
+	assert.deepEqual(
+		reports.filter(([type]) => type === "unhandled"),
+		[["unhandled", "missing"]],
+	);
 });
 
 test("targetValue reads values and checkbox state", () => {

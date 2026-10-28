@@ -65,7 +65,7 @@
   (evt ::= (event fname addr value))
   ;; Dev-mode reports: stateInvalid with findInvalidFields's issues, and
   ;; messageInvalid with the message's contract issues.
-  (obs ::= (log value) (failed fname) rendered
+  (obs ::= (log value) (failed fname) (unhandled fname) rendered
            (state-invalid any ...) (message-invalid fname issue ...))
   (outcome ::= (ok value (tsk ...) (tsk ...) (obs ...)) (failed (obs ...)))
   (cfg ::= (host registry (ask-def ...) value (tsk ...) (tsk ...)
@@ -138,9 +138,10 @@
 (define (find-handler reg instance name)
   (handler-of (term (class-def-of ,reg ,instance)) name))
 
-;; run(): a missing handler warns and keeps next.
+;; run(): a missing handler keeps next, and is observed (Host.notify("unhandled")).
 (define (run reg instance name args ctx)
-  (if (find-handler reg instance name) (call reg instance name args ctx) (list instance '() #f)))
+  (cond [(find-handler reg instance name) (call reg instance name args ctx)]
+        [else (emit! ctx `(unhandled ,name)) (list instance '() #f)]))
 
 (define (suffixed name suffix) (string->symbol (format "~a~a" name suffix)))
 
@@ -368,6 +369,11 @@
               (term (render (lower-root ,(second c1) (comp Counter (n 2))))))
   (test-equal (map second (filter (λ (d) (eq? (first d) 'element)) (cfg-dom c1)))
               (map second (filter (λ (d) (eq? (first d) 'element)) (cfg-dom c0))))
+
+  ;; A message with no handler keeps the instance, and is observed.
+  (test-equal (term (handle-task ,(second c0) () (comp Counter (n 0))
+                                 (task plain nope () () (at () ()) (() ()))))
+              '(ok (comp Counter (n 0)) () () ((unhandled nope))))
 
   ;; Events that hit nothing are dropped.
   (test-equal (cfg-queue (deliver (start counter '(comp Counter (n 0)) #:events '((event input (1) 0)))))

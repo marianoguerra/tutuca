@@ -284,6 +284,7 @@ export class Host {
 		for (const child of children) this.pushTask(child);
 		// The replies of asks answered later, routed when made, arrive as tasks of their own.
 		for (const reply of ctx.later) reply.then((task) => this.pushTask(task));
+		for (const message of ctx.unhandled) this.notify("unhandled", { task, message });
 		this.checkState(task, curRoot);
 		this.checkMessage(task, ctx, instance, path.getIn(newRoot));
 		this.notify("taskHandled", { task, path, instance, curRoot, newRoot });

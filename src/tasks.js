@@ -11,10 +11,12 @@ const call = (message, instance, next, args, ctx) => {
 	const result = message.run.call(instance, next, args, ctx);
 	return result === undefined ? next : result;
 };
+// A message the component has no handler for keeps it as it was, and is reported (unhandled).
 const run = (instance, next, handlerName, args, ctx) => {
 	const handler = specOf(instance).on[handlerName];
 	if (handler !== undefined) return call(handler, instance, next, args, ctx);
 	console.warn("handler", handlerName, "not found on", instance, { args, ctx });
+	ctx.unhandled.push(handlerName);
 	return next;
 };
 export class MessageContext {
@@ -32,6 +34,7 @@ export class MessageContext {
 		this.handled = null; // { message, args } once a handler runs.
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
 		this.later = []; // Promises of the replies of asks answered later, queued on commit.
+		this.unhandled = []; // The messages it had no handler for.
 	}
 	// The world, as the host's env gives it, so a Driver's runs repeat. Handlers use these
 	// instead of Date.now(), Math.random() and crypto.randomUUID().
@@ -132,8 +135,14 @@ export class EventTask extends Task {
 		this.handler = handler;
 		this.route = route;
 	}
+	// An event's handler sends a message of the component's: one it doesn't handle is a bug in
+	// the view (lint's unknown-handler), so it fails the task.
 	run(instance, next, ctx) {
+		const spec = specOf(instance);
+		const message = spec.on[this.name];
+		if (message === undefined)
+			throw new Error(`${spec.name} has no handler for ${this.name}, which its view sends`);
 		this.args = this.handler.action.args.map((arg) => arg.eval(ctx));
-		return call(specOf(instance).on[this.name], instance, next, this.args, ctx);
+		return call(message, instance, next, this.args, ctx);
 	}
 }

@@ -87,6 +87,10 @@ import "'" {
     const s_pretender_text: &extern;
     #[import = ""]
     const s_empty: &extern;
+    #[import = "ghost"]
+    const s_ghost: &extern;
+    #[import = "click"]
+    const s_click: &extern;
 }
 
 // ---- Probe -----------------------------------------------------------------------
@@ -96,6 +100,7 @@ import "'" {
 //   <button class="with-ctrl" on:click+ctrl="ctrlClick">ctrl</button>
 //   <div class="pad" on:mousedown="press(event(clientX), event(clientY), event(shiftKey))"></div>
 //   <button class="stopper" on:click+stop="inner">stop</button>
+//   <button class="ghost" on:click="ghost">ghost</button>  (no such message)
 // </div>
 //
 // What a TCD file would declare, and what the handlers break:
@@ -137,11 +142,12 @@ fn probe_spec() -> &component_spec {
         el_class(
             s_div,
             s_probe_class,
-            views4(
+            views5(
                 el(s_span, views1(view_field(s_count))),
                 probe_button(s_ctrl_class, s_click_ctrl, s_ctrl_click, s_ctrl),
                 pad,
                 probe_button(s_stop_class, s_click_stop, s_inner, s_stop),
+                probe_button(s_ghost, s_click, s_ghost, s_ghost),
             ),
         );
     let spec = spec_main(s_probe_type, main, no_loops());

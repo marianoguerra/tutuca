@@ -240,7 +240,7 @@ As TLA+: a configuration is the state, and `host->` is `Next`, with six actions:
 One transaction (`handle-task`) does the following:
 1. Resolve the update path.
 2. Run the task by kind, stepping the handler with `act`:
-   - plain: a missing handler is a no-op.
+   - plain: a missing handler keeps the instance and is observed, `(unhandled name)`.
    - notify: bubbles to the parent unless at the root or after `stop`.
    - ask: `ok` runs `<n>ReplyOk`, `error` runs `<n>ReplyError`, a missing handler runs
      `<n>HandlerNotFound`, and `async` adds a pending reply routed to the asker's path.
@@ -309,8 +309,8 @@ Two of these are equivalent only when other code doesn't edit or remove the node
 - `null` and `undefined` are one value; an absent field is undefined.
 - JS coercions of property keys and values.
 - Malformed frame comments: the model skips any comment that is not a well-formed frame.
-- `Host.notify` (reports are observations instead), `Host.stop`, `clearTasks`, listener
-  registration.
+- `Host.notify` (reports are observations instead: `unhandled` is `(unhandled name)`),
+  `Host.stop`, `clearTasks`, listener registration.
 - The host env: `ctx.now()`, `ctx.random()`, `ctx.uuid()`. Also `ctx.event`, `ctx.node` and
   `task.parent`.
 - Of a drag, everything but where it started and `dragKey`: its `data-dragtype` and the value
