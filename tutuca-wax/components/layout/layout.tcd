@@ -104,10 +104,15 @@ component Hbox {
     message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
     message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
-    view main = div(class: "hbox flex flex-row items-stretch gap-2", render_each(field(items)));
+    // Each slot a grid in both views: what's in it fills it, as wide as the
+    // others and as tall as the tallest; one that sets its own width or
+    // height (w-fit, h-fit) keeps it, centered (the full width and height
+    // have no specificity, so a component's own classes win).
+    view main = div(class: "hbox flex flex-row items-stretch gap-2",
+        each(field(items), div(class: "slot grid min-w-0 flex-1 place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full", render_it())));
     view layout_edit = div(class: "hbox flex flex-row items-stretch gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         each(field(items),
-            div(class: "slot relative flex flex-1",
+            div(class: "slot relative grid min-w-0 flex-1 place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full",
                 render_it(),
                 if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                 button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this slot", on_click: send(remove_at, source_key()), "×"))),
@@ -129,10 +134,13 @@ component Vbox {
     message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
     message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
-    view main = div(class: "vbox flex flex-col items-stretch gap-2", render_each(field(items)));
+    // Each slot a grid in both views: what's in it fills its width, or is
+    // centered when it sets its own (as in Hbox).
+    view main = div(class: "vbox flex flex-col items-stretch gap-2",
+        each(field(items), div(class: "slot grid place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full", render_it())));
     view layout_edit = div(class: "vbox flex flex-col items-stretch gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         each(field(items),
-            div(class: "slot relative flex flex-col",
+            div(class: "slot relative grid place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full",
                 render_it(),
                 if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                 button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this slot", on_click: send(remove_at, source_key()), "×"))),
@@ -171,7 +179,7 @@ component Tabs {
         div(role: "tablist", class: "tabs tabs-border",
             each(loop: headers, field(panels),
                 button(role: "tab", class: if(bind(is_active), "tab tab-active", "tab"), on_click: send(select, source_key()), bind(label)))),
-        render_each(loop: shown, field(panels)));
+        each(loop: shown, field(panels), div(class: "slot grid place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full", render_it())));
     view layout_edit = div(class: "tabs-box flex flex-col gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         div(role: "tablist", class: "tabs tabs-border",
             each(loop: headers, field(panels),
@@ -182,7 +190,7 @@ component Tabs {
                         button(class: "tab-edit btn btn-xs btn-circle btn-ghost", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                     button(class: "tab-remove btn btn-xs btn-circle btn-ghost text-error", title: "Remove this tab", on_click: send(remove_at, source_key()), "×"))),
             button(class: "tab-add tab", title: "Add a tab", on_click: send(add), "+")),
-        render_each(loop: shown, field(panels)));
+        each(loop: shown, field(panels), div(class: "slot grid place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full", render_it())));
 }
 
 /// Components in a grid, starting with a hole; edited, cells are removed,
@@ -211,7 +219,8 @@ component Grid {
     /// The last row's cells, removed.
     message remove_row() when len(cells) > 0 changes cells ensures len(next.cells) < len(cells);
 
-    view main = div(class: "grid-box grid gap-2", style: field(grid_style), render_each(field(cells)));
+    view main = div(class: "grid-box grid gap-2", style: field(grid_style), 
+        each(field(cells), div(class: "slot grid min-w-0 place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full", render_it())));
     view layout_edit = div(class: "grid-box flex flex-col gap-2 outline-1 outline-dashed -outline-offset-1 outline-base-content/50 p-2",
         div(class: "flex flex-wrap items-center gap-1 text-xs",
             button(class: "btn btn-xs", title: "Fewer columns", on_click: send(fewer_columns), "-"),
@@ -222,7 +231,7 @@ component Grid {
             button(class: "btn btn-xs", title: "Add a row", on_click: send(add_row), "+")),
         div(class: "grid gap-2", style: field(grid_style),
             each(field(cells),
-                div(class: "slot relative flex",
+                div(class: "slot relative grid place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full",
                     render_it(),
                     if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                     button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this cell", on_click: send(remove_at, source_key()), "×"))),

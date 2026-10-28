@@ -24,7 +24,8 @@ component Note {
                 on_input: send(set_title, target_value()),
                 "on_keydown+escape": send(set_title, "Untitled")),
             button(class: "btn btn-xs btn-ghost", on_click: send(toggle_pin), if(field(pinned), "unpin", "pin"))),
-        textarea(class: "textarea textarea-sm w-full", "aria-label": "Body", value: field(body),
+        // flex-1: the body takes the height the card has left.
+        textarea(class: "textarea textarea-sm w-full flex-1", "aria-label": "Body", value: field(body),
             on_input: send(set_body, target_value())),
         div(class: "flex items-center justify-between text-xs",
             span(class: "opacity-70 tabular-nums", field(left), " left"),

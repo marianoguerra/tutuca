@@ -26,7 +26,7 @@ component Counter {
     /// Swaps itself for a Label saying what the count was.
     message to_label() -> swap emits make Label;
 
-    view main = div(class: "counter card card-border bg-base-100 w-fit flex-row items-center gap-2 p-2",
+    view main = div(class: "counter card card-border bg-base-100 w-fit h-fit flex-row items-center gap-2 p-2",
         button(class: "btn btn-sm", on_click: send(inc), "+"),
         span(class: "min-w-10 text-center font-semibold tabular-nums", field(count)),
         button(class: "btn btn-sm", on_click: send(add, 10), "+10"),
