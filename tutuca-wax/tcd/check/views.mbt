@@ -469,14 +469,6 @@ fn ViewCtx::element(
       self.handler(a.key, a.value)
       continue
     }
-    if (k == "value" || k == "checked") && a.value is Lit(_, ..) {
-      self.err(
-        "tcd.view.static_value",
-        a.key.span,
-        "\{k} can't be a constant: the vdom sets it as a property, from a field",
-        hint="\{k}: field(name)",
-      )
-    }
     if k == "class" && !is_constant_class(a.value) {
       self.diags.push(
         @diag.warning(

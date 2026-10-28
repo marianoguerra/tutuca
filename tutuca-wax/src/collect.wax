@@ -75,12 +75,19 @@ fn view_to_on_attr(h: &view_on) -> &on_attr {
     on_attr_new(h.event, h.action.name, out);
 }
 
+// Whether attribute i of e is static: a constant, but not one the vdom sets
+// as a property each render (value, checked, is, dangerouslySetInnerHTML),
+// which stays dynamic, as optimize.js does.
+fn view_el_attr_static(e: &view_el, i: i32) -> i32 {
+    ((e.attr_values[i]!).kind == view_kind_const) & !is_dynamic_only(e.attr_names[i]!);
+}
+
 fn view_el_template(e: &view_el, tid: i32) -> &template {
     let n = e.attr_names.length();
     let statics = 0;
     let i = 0;
     while i <s n {
-        if (e.attr_values[i]!).kind == view_kind_const {
+        if view_el_attr_static(e, i) {
             statics += 1;
         }
         i += 1;
@@ -93,7 +100,7 @@ fn view_el_template(e: &view_el, tid: i32) -> &template {
     i = 0;
     while i <s n {
         let v = e.attr_values[i]!;
-        if v.kind == view_kind_const {
+        if view_el_attr_static(e, i) {
             static_names[si] = e.attr_names[i];
             static_values[si] = (v as &view_const).value;
             si += 1;

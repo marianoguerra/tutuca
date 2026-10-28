@@ -382,7 +382,7 @@ fn view_eval_el(n: &view_el, e: &eval_ctx) -> &snode {
     let i = 0;
     while i <s n.attr_values.length() {
         let attr = n.attr_values[i]!;
-        if attr.kind != view_kind_const {
+        if !view_el_attr_static(n, i) {
             values[vi] = view_value(attr, e);
             vi += 1;
         }

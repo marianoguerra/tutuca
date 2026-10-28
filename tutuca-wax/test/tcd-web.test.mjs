@@ -175,3 +175,26 @@ component texts {
 	const nulls = tw.runtime.createHost(window.document, window.document.createElement("div"), make(null, null)).mount();
 	assert.deepEqual(nulls.failures.map((e) => e.message), ["A loop source must be a list or a map"]);
 });
+
+// A constant value or checked is set as the property the vdom sets them as,
+// each render, as optimize.js keeps them dynamic.
+test("a constant value or checked is set as a property", async () => {
+	const main = "inputs.tcd";
+	const files = {
+		[main]: `package tutuca:inputs@0.1.0;
+component inputs { view main = div(input(value: "draft"), input(type: "checkbox", checked: true)); }
+`,
+	};
+	const res = tcd.build({ main, files, impls: [{ path: "inputs.wax", text: "" }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	const host = tw.runtime.createHost(window.document, container, tw.runtime.make(scope, "Inputs", {})).mount();
+	const [text, box] = container.querySelectorAll("input");
+	assert.equal(text.value, "draft");
+	assert.equal(box.checked, true);
+	assert.deepEqual(host.failures, []);
+});
