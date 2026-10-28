@@ -140,3 +140,38 @@ component row {
 	assert.deepEqual([...container.querySelectorAll("li")].map((li) => li.textContent), ["Cell1", "Cell2"]);
 	assert.deepEqual(host.failures, []);
 });
+
+// What isn't a node renders as String writes it, as in tutuca's JS: a map as
+// "[object Object]", a key of any kind as its text; a loop needs something to
+// loop over, so null fails as Object.entries(null) throws.
+test("values render and key as String writes them, and a loop over null fails", async () => {
+	const main = "texts.tcd";
+	const files = {
+		[main]: `package tutuca:texts@0.1.0;
+component texts {
+    field v: any;
+    field xs: any;
+    loop keyed { key: any }
+    view main = div(p(field(v)), ul(each(loop: keyed, field(xs), li(bind(value)))));
+}
+`,
+	};
+	const wax = `fn texts_loop_keyed_key(state: &texts_state, key: &value, item: &value) -> &value {
+    item;
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "texts.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	const make = (v, xs) => tw.runtime.make(scope, "Texts", { v, xs });
+	const host = tw.runtime.createHost(window.document, container, make({ a: 1 }, [true, 1.5, [1, null, 2]]), { dev: true }).mount();
+	assert.equal(container.querySelector("p").textContent, "[object Object]");
+	assert.deepEqual([...container.querySelectorAll("li")].map((li) => li.textContent), ["true", "1.5", "12"]);
+	assert.deepEqual(host.failures, []);
+	const nulls = tw.runtime.createHost(window.document, window.document.createElement("div"), make(null, null)).mount();
+	assert.deepEqual(nulls.failures.map((e) => e.message), ["A loop source must be a list or a map"]);
+});

@@ -79,6 +79,10 @@ import "'" {
     const s_true: &extern;
     #[import = "false"]
     const s_false: &extern;
+    #[import = "[object Object]"]
+    const s_object_object: &extern;
+    #[import = ","]
+    const s_comma: &extern;
     // The pieces of the metadata comments (meta.wax).
     #[import = "§{\"t\":\"component\"}§"]
     const s_meta_component: &extern;
@@ -498,7 +502,7 @@ import "'" {
     const s_err_component_child: &extern;
     #[import = "A loop's iter must return a list of [key, value] lists"]
     const s_err_bad_iter: &extern;
-    #[import = "A loop source must be a list, a map or null"]
+    #[import = "A loop source must be a list or a map"]
     const s_err_not_iterable: &extern;
     #[import = "A view name must be a string"]
     const s_err_view_name: &extern;

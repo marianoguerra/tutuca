@@ -215,16 +215,52 @@ fn view_frame(v: &view, e: &eval_ctx) -> &frame {
     }
 }
 
-// The text a key renders as: a string as it is, an int in decimal, null none.
+// String(v), as JS writes a value: a list its items joined by commas (null
+// ones empty), a map, result or component "[object Object]".
+fn value_js_text(v: &value) -> &extern {
+    let kind = v.kind;
+    if kind == value_kind_null {
+        return s_null;
+    }
+    if kind == value_kind_string {
+        return (v as &value_string).value;
+    }
+    if kind == value_kind_int {
+        return int_text((v as &value_int).value);
+    }
+    if kind == value_kind_float {
+        return host_number_text((v as &value_float).value);
+    }
+    if kind == value_kind_bool {
+        if (v as &value_bool).value {
+            return s_true;
+        }
+        return s_false;
+    }
+    if kind == value_kind_list {
+        let b = text_builder_new();
+        let i = 0;
+        while i <s list_count(v) {
+            if i != 0 {
+                text_push(b, s_comma);
+            }
+            let item = list_get(v, i)!;
+            if item.kind != value_kind_null {
+                text_push(b, value_js_text(item));
+            }
+            i += 1;
+        }
+        return text_finish(b);
+    }
+    s_object_object;
+}
+
+// The text a key renders as, String(key) as in tutuca's JS; null none.
 fn key_text(v: &value) -> &?extern {
-    let key = key_from_value(v);
-    if !key {
+    if v.kind == value_kind_null {
         return null;
     }
-    if (key!).kind == path_key_kind_name {
-        return (key! as &path_key_name).name;
-    }
-    int_text((key! as &path_key_index).index);
+    value_js_text(v);
 }
 
 fn view_name_of(v: &value) -> &extern {
@@ -235,24 +271,12 @@ fn view_name_of(v: &value) -> &extern {
     name!;
 }
 
-// A value as children: null renders nothing, a list its items, a map or a
-// result nothing, anything else as text.
+// A value as children: null renders nothing, a list its items, a component
+// fails, anything else is text, as String writes it (a map "[object
+// Object]", as in tutuca's JS).
 fn value_eval_into(out: &snode_buf, v: &value) {
     let kind = v.kind;
-    if kind == value_kind_string {
-        snode_buf_push(out, snode_text((v as &value_string).value));
-        return;
-    }
-    if kind == value_kind_int {
-        snode_buf_push(out, snode_text(int_text((v as &value_int).value)));
-        return;
-    }
-    if kind == value_kind_float {
-        snode_buf_push(out, snode_text(host_number_text((v as &value_float).value)));
-        return;
-    }
-    if kind == value_kind_bool {
-        snode_buf_push(out, snode_text((v as &value_bool).value?s_true:s_false));
+    if kind == value_kind_null {
         return;
     }
     if kind == value_kind_list {
@@ -266,6 +290,7 @@ fn value_eval_into(out: &snode_buf, v: &value) {
     if kind == value_kind_component {
         host_fail(s_err_component_child);
     }
+    snode_buf_push(out, snode_text(value_js_text(v)));
 }
 
 fn view_eval_all(out: &snode_buf, nodes: &view_array, e: &eval_ctx) {
@@ -413,10 +438,6 @@ fn view_eval_loop(out: &snode_buf, source: &view, body: &?view, loop_name: &?ext
         filter = d.filter;
     }
     let entries = {entry_buf| items: [entry_array|null; 4], len: 0 };
-    if !iter & (items.kind == value_kind_null) {
-        snode_buf_push(out, snode_items([entry_array|null; 0]));
-        return;
-    }
     let p = {loop_pass| entries, source_frame: view_frame(source, e), def, state, body, e };
     if !!iter {
         let pairs = (iter!)(instance, items, state);
