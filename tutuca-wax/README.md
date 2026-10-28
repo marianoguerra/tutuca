@@ -685,7 +685,9 @@ implements it, must have all of it, of the same types; registering or
 making one that doesn't fails, saying what's missing ("Impostor can't be a
 TodoItem: its field done is s32, TodoItem's is bool"). TodoList registers
 TodoItem's; todo_item and todo_card implement it. `vtype_component` accepts
-a component of a named type or of a type implementing a named interface.
+a component of a named type (by its name, or one its scope makes it by, as
+tutuca's JS checks by lookup, so a type loaded under another name is of
+that name) or of a type implementing a named interface.
 
 **Headless hosts**: `host_new` with a null document and container, or
 `createHost(null, null, root)`, runs tasks and renders nothing, for tests

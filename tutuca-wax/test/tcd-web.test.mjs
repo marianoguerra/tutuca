@@ -326,3 +326,27 @@ fn oracle_answer_bad(ctx: &context) -> &value {
 	assert.deepEqual(host.logs, ["x"]);
 	assert.deepEqual(host.failures.map((e) => e.message), ["An ask handler only answers, it can't send: bad"]);
 });
+
+// A component type is checked as tutuca's JS checks it, by the name the scope
+// makes it by: where a Counter is loaded as Tally, a field of type Tally
+// takes it.
+test("a type loaded under another name is of that name", async () => {
+	const main = "boxes.tcd";
+	const files = {
+		[main]: `package tutuca:boxes@0.1.0;
+component tally { field count: s32; view main = p(field(count)); }
+component box { field item: tally; view main = div(render(field(item))); }
+`,
+	};
+	const res = tcd.build({ main, files, impls: [{ path: "boxes.wax", text: "" }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope, { names: { Tally: null } });
+	await tw.loadComponent(await readFile(new URL("dist/components/counter.wasm", root)), scope, { names: { Counter: "Tally" } });
+	const item = tw.runtime.make(scope, "Tally", { count: 3 });
+	assert.deepEqual(tw.runtime.issues(scope, "Box", { item }), []);
+	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Box", { item }), { dev: true });
+	assert.deepEqual(host.issues, []);
+	assert.equal(tw.runtime.typeName(tw.runtime.get(host.root(), "item")), "Counter");
+});

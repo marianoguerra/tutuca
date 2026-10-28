@@ -246,11 +246,18 @@ fn str_array_has(names: &str_array, name: &extern) -> i32 {
     0;
 }
 
-// Whether c is of the named type, or of a type that implements the named
-// interface.
+// Whether c is of the named type (the name it has, or one its scope makes it
+// by, as tutuca's JS checks by lookup: a type loaded under another name is of
+// that name), or of a type that implements the named interface.
 fn component_is(c: &component, name: &extern) -> i32 {
     if str_eq(c.spec.name, name) {
         return 1;
+    }
+    let entry = scope_lookup(c.scope, name);
+    if !!entry {
+        if (entry!).spec == c.spec {
+            return 1;
+        }
     }
     if !c.spec.schema {
         return 0;
