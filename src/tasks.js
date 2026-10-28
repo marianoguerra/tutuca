@@ -66,6 +66,19 @@ export class MessageContext {
 	forwardAt(pathBuilderFn) {
 		this.sendAt(this.task.name, this.task.args, pathBuilderFn);
 	}
+	// What an ask handler gets: the asker's scope (to list or make the components it can),
+	// path, source key and the world, and nothing to send with, so nothing it does outlives
+	// the ask's task.
+	readOnly() {
+		return Object.freeze({
+			scope: this.scope,
+			path: this.path,
+			sourceKey: this.sourceKey,
+			now: () => this.now(),
+			random: () => this.random(),
+			uuid: () => this.uuid(),
+		});
+	}
 	push(TaskClass, name, args, target) {
 		this.pushTask(new TaskClass(name, args, this.path, target, this.task));
 	}
@@ -101,10 +114,10 @@ export class AskTask extends Task {
 		}
 		const okName = `${this.name}ReplyOk`;
 		const errName = `${this.name}ReplyError`;
-		// An ask handler only answers, from the ask's arguments: it gets no context to send from.
+		// An ask handler only answers: it reads the asker's context, but can't send from it.
 		let result;
 		try {
-			result = handler(this.args);
+			result = handler(this.args, ctx.readOnly());
 		} catch (err) {
 			return run(instance, next, errName, [err], ctx);
 		}

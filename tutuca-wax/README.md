@@ -126,7 +126,7 @@ await tw.loadComponent(new URL("./dist/components/counter.wasm", import.meta.url
 const root = tw.runtime.make(scope, "Board", { counters: [], total: 0 });
 const host = tw.runtime.createHost(document, container, root).mount();
 // Clicks in container now reach the components' handlers.
-host.send("addCounter"); // a message to the root, from outside
+host.send("add_counter"); // a message to the root, from outside
 
 // The vdom alone.
 const { h } = tw;
@@ -323,8 +323,8 @@ modules compose through the scope: `todo_list`'s TodoList makes a `TodoItem`
 by name, which works once some module registered one there, and fails the
 task (committing nothing) until then. Which module that is doesn't matter
 to TodoList as long as it implements TodoItem's interface (init's `id`,
-`text` and `done`; the `id` and `done` properties; `setDone(bool)`; a
-`removeMe` notify): `todo_item` and `todo_card` both do, with different
+`text` and `done`; the `id` and `done` properties; `set_done(bool)`; a
+`remove_me` notify): `todo_item` and `todo_card` both do, with different
 layouts and state. Registering a name again takes it over for the components
 made after; the ones made before keep their own vtable, so one list can hold
 both.
@@ -527,13 +527,14 @@ with `init_ctx_make` (tcd's `make(c)` field defaults do). Ask handlers are
 registered the same way and found the same way, from the asker's scope up;
 a handler gets the asker's context (not its instance), so `ctx.scope` is the
 scope the asker was made in, wherever the handler was registered. It only
-answers, as tutuca's JS ask handlers (which get no context) and the spec's
-do: it can read the context and log, and sending from it fails the ask.
+answers, as tutuca's JS ask handlers (which get the context read only) and
+the spec's do: it can read the context and log, and sending from it fails
+the ask.
 `scope_register_host_ask` answers through the host's `ask` import, with
 only the ask's name and arguments: `createHost`'s `asks[name]` replies now
-with a value, later with a promise, with `NameReplyError` when it throws or
+with a value, later with a promise, with `name_reply_error` when it throws or
 rejects (the error's message: a value can't hold a JS object), and with
-`NameHandlerNotFound` when `asks` has no such name, as tutuca's JS does.
+`name_handler_not_found` when `asks` has no such name, as tutuca's JS does.
 From JS, `loadComponent(bytes, scope, { names })` registers a module's types
 under other names (`{ Counter: "Tally", Label: null }` renames one and leaves
 one out), checked as any registration, and `runtime.nameIn(scope, c)` is the
@@ -570,8 +571,8 @@ failure throws (the host's `fail`) or traps out of `host_step` before
 anything is committed: the root stays and the children are dropped. The JS
 side calls `host_step` once per task and collects what failed
 (`host.failures`), so the host goes on with the next task. Asks run the
-scope's handler: a reply now becomes `NameReplyOk` / `NameReplyError` in the
-same transaction, no handler `NameHandlerNotFound`, and a pending one is
+scope's handler: a reply now becomes `name_reply_ok` / `name_reply_error` in the
+same transaction, no handler `name_handler_not_found`, and a pending one is
 answered by `host_settle` later. After the
 queue drains, `host_render` renders the root if it isn't the same reference
 as the last one rendered. The JS side runs tasks for up to 16ms, as
@@ -655,8 +656,8 @@ a named predicate), its messages (arguments, source key, `pre` and `post`
 predicates, the fields it `changes`, what it `emits`), its invariants, and
 the interfaces it implements. With one, the host rejects a message whose
 arguments don't fit before the handler sees them (a reply to an ask too,
-whether it arrives in the ask's own task or later: tcd gives `NameReplyOk`,
-and `NameReplyError` and `NameHandlerNotFound` when they're handled, schemas
+whether it arrives in the ask's own task or later: tcd gives `name_reply_ok`,
+and `name_reply_error` and `name_handler_not_found` when they're handled, schemas
 of their own), and every rejection
 (those and a handler's own, `message_error_failed(reason)` or
 `message_error_invalid_arg(i, reason)`) aborts the task with a structured

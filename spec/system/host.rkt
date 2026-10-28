@@ -57,7 +57,8 @@
   (target ::= (at dpath sel))
   (route? ::= route none)
   ;; Ask handlers, registered on a scope: args -> result, or a promise. They
-  ;; only answer: they get no context to send tasks from, in the runtime either.
+  ;; only answer: the runtime gives them the asker's context to read (its
+  ;; scope), with nothing to send tasks from, and the model leaves it out.
   (ask-def ::= (fname ask-result))
   (ask-result ::= (ok hx) (error hx) (async (ok hx)) (async (error hx)))
   ;; type, target, and the value of the element with the handler (targetValue

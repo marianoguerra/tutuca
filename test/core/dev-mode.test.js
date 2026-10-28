@@ -151,9 +151,10 @@ test("dev mode reports messages that break their spec", () => {
 	assert.deepEqual(reports.at(-1).issues, ["pre"]);
 });
 
-// An ask handler only answers, from the ask's arguments: it gets no context, so a reply's
-// contract counts what the reply's handler emits, and nothing else.
-test("an ask handler gets only the ask's arguments, and the reply's contract is its own", () => {
+// An ask handler only answers: it reads the asker's context (its scope, to list the
+// components it can make) but has nothing to send with, so a reply's contract counts what the
+// reply's handler emits, and nothing else.
+test("an ask handler reads the asker's context, can't send, and the reply's contract is its own", () => {
 	const reports = [];
 	const onReport = (type, info) => type === "messageInvalid" && reports.push(info);
 	const Asker = component({
@@ -176,16 +177,21 @@ test("an ask handler gets only the ask's arguments, and the reply's contract is 
 		},
 	});
 	const { host, rootNode, C } = setupHost({ Asker }, { dev: true, sync: true, onReport });
-	const calls = [];
+	const seen = [];
 	host.scope.registerAskHandlers({
-		load(...params) {
-			calls.push(params);
-			return params[0][0] + 1;
+		load([n], ctx) {
+			seen.push([
+				ctx.scope === host.scope,
+				ctx.path.isRootPath,
+				typeof ctx.notify,
+				Object.isFrozen(ctx),
+			]);
+			return n + 1;
 		},
 	});
 	host.start(C.Asker());
 	rootNode.querySelector("p").click();
-	assert.deepEqual(calls, [[[6]]]);
+	assert.deepEqual(seen, [[true, true, "undefined", true]]);
 	assert.equal(host.rootComponent.got, 7);
 	assert.deepEqual(reports, []);
 });
