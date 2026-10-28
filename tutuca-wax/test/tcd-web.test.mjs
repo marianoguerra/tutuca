@@ -221,3 +221,48 @@ component shapes { view main = g(namespace: "http://www.w3.org/2000/svg", circle
 	assert.equal(container.querySelector("circle").namespaceURI, svg);
 	assert.equal(container.querySelector("g").hasAttribute("namespace"), false);
 });
+
+// A task can leave an invariant broken for the tasks it queued; when the last
+// of them fails, the queue is empty all the same, and the settled state is
+// checked, as tutuca's JS checks it whenever the queue empties.
+test("invariants are checked when the queue empties after a task that failed", async () => {
+	const main = "gauge.tcd";
+	const files = {
+		[main]: `package tutuca:gauge@0.1.0;
+component gauge {
+    field ok: bool = true;
+    invariant fine: ok;
+    ask count() -> s32;
+    message spoil() changes ok emits ask count;
+    view main = p("x");
+}
+ask_handler count() -> s32;
+`,
+	};
+	const wax = `fn gauge_on_spoil(state: &gauge_state, ctx: &context) -> &gauge_state {
+    gauge_ask_count(ctx);
+    gauge_with_ok(state, 0);
+}
+
+fn gauge_reply_count_ok(state: &gauge_state, ctx: &context, reply: i32) -> &gauge_state {
+    state;
+}
+
+// Not the s32 it's declared to reply with: the reply is rejected.
+fn gauge_answer_count(ctx: &context) -> &value {
+    value_ok(value_string(gs_x));
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "gauge.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Gauge", {}), { dev: true });
+	host.send("spoil");
+	assert.deepEqual(host.failures.map((e) => e.rejection?.message), ["countReplyOk"]);
+	assert.deepEqual(
+		host.issues.map((i) => [i.kind, i.settled, i.issues.map((x) => x.reason)]),
+		[["stateInvalid", true, ["invariant:fine"]]],
+	);
+});

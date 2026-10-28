@@ -368,6 +368,15 @@ fn api_host_step(h: &host) -> i32 {
     host_step(h);
 }
 
+// After a task failed: a dev host whose queue that emptied checks the
+// invariants of the settled state, as it does after a task that committed.
+#[export = "host_after_failure"]
+fn api_host_after_failure(h: &host) {
+    if h.dev & !host_has_tasks(h) {
+        host_check_settled(h);
+    }
+}
+
 #[export = "host_render"]
 fn api_host_render(h: &host) {
     host_render(h);

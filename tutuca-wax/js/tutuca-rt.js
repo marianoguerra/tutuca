@@ -733,6 +733,7 @@ function makeRuntime(w, api, late) {
 							w.host_step(h);
 						} catch (error) {
 							host.failures.push(error);
+							w.host_after_failure(h);
 						}
 						if (Date.now() - start > 16) break;
 					}
