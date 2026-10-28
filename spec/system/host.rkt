@@ -44,7 +44,8 @@
 
 (define-extended-language Tasks Bound
   (lbl ::= natural)
-  (ldom ::= (element lbl ns tag (prop ...) (ldom ...)) (text lbl string) (comment lbl string))
+  (ldom ::= (element lbl ns tag (prop ...) (ldom ...)) (text lbl string) (comment lbl string)
+            (foreign lbl any))
   (kind ::= plain notify ask (event action value))  ; an event task: its action and target value
   ;; name, args, the sender's dispatch path, the target (a dispatch path and a
   ;; selector below it), and the route: fixed for events and replies, frozen at

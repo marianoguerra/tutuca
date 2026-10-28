@@ -4,19 +4,29 @@
 ;; a label when the runtime keeps the node (patching it in place, possibly
 ;; moving it) and mints a fresh one when the runtime creates a node.
 ;;
+;; Nodes other code puts in a rendered element (an extension, a third-party
+;; widget) are foreign: render didn't make them, so morphing matches vnodes to
+;; the nodes render made only (the owned WeakSet in vdom.js), and the foreign
+;; ones stay. Where a foreign node ends up among the rendered ones is not part
+;; of the meaning; the model keeps each after the rendered node it followed,
+;; and the ones whose node went at the end.
+;;
 ;; Erased optimizations: skipping a node when source === target or
 ;; source.isEqualTo(target), writing only props whose value changed, and the
 ;; childNodes snapshot taken before editing. Patching every prop of a node gives the same DOM, so the
-;; model patches everything. It assumes, like those skips, that only the
-;; runtime mutates the managed DOM.
+;; model patches everything. Like those skips, it assumes other code leaves
+;; the nodes render made as they are: it may add nodes, not edit or remove
+;; rendered ones.
 (require redex/reduction-semantics "vnode.rkt" "dom.rkt" "keys.rkt")
 (provide el-ns split-groups morph-seq morph-one
-         Morph mount mount-all morph-children morph-node dom-width erase erase-all)
+         Morph mount mount-all morph-children morph-node dom-width erase erase-all
+         owned keep-foreign erase-owned erase-owned-all)
 
 (define-extended-language Morph Keyed
   (lbl ::= natural)
   (dom ::= (element ns tag (prop ...) (dom ...)) (text string) (comment string))  ; as in dom.rkt
-  (ldom ::= (element lbl ns tag (prop ...) (ldom ...)) (text lbl string) (comment lbl string))
+  (ldom ::= (element lbl ns tag (prop ...) (ldom ...)) (text lbl string) (comment lbl string)
+            (foreign lbl dom))           ; a node other code put there
   (lgroups ::= ((ldom ...) ...))
   (out ::= ((ldom ...) lbl)))              ; nodes, and the next fresh label
 
@@ -74,15 +84,45 @@
           (morph-children (ldom ...) (node_s ...) (node ...) (child-ns tag ns_n) lbl))]
   [(morph-node ldom node_s node_t ns lbl) (mount node_t ns lbl)])
 
-;; Each target takes its matched source. Fragment meets fragment: recurse into
-;; the owned DOM range. Node meets node: morph-node. Otherwise mount the target
-;; and drop the source's nodes. Unmatched sources are removed.
+;; Each target takes its matched source, among the nodes render made. Fragment
+;; meets fragment: recurse into the owned DOM range. Node meets node:
+;; morph-node. Otherwise mount the target and drop the source's nodes.
+;; Unmatched sources are removed; foreign nodes stay (keep-foreign).
 (define-metafunction Morph
   morph-children : (ldom ...) (node ...) (node ...) ns lbl -> out
   [(morph-children (ldom ...) (node_old ...) (node_new ...) ns lbl)
-   (morph-seq (split-groups (ldom ...) (node_old ...)) (node_old ...) (node_new ...)
-              (match-result ...) ns lbl)
-   (where (match-result ...) (match-siblings (node_old ...) (node_new ...)))])
+   ((keep-foreign (ldom ...) (ldom_new ...)) lbl_next)
+   (where (match-result ...) (match-siblings (node_old ...) (node_new ...)))
+   (where ((ldom_new ...) lbl_next)
+          (morph-seq (split-groups (owned (ldom ...)) (node_old ...)) (node_old ...) (node_new ...)
+                     (match-result ...) ns lbl))])
+
+;; The nodes render made, without the foreign ones (ownedChildNodes).
+(define-metafunction Morph
+  owned : (ldom ...) -> (ldom ...)
+  [(owned (ldom ...)) ,(filter (λ (d) (not (eq? (first d) 'foreign))) (term (ldom ...)))])
+
+;; The new children, with the old ones' foreign nodes: the ones before any
+;; rendered node first, each other run after the rendered node it followed,
+;; and the runs whose node is gone at the end.
+(define-metafunction Morph
+  keep-foreign : (ldom ...) (ldom ...) -> (ldom ...)
+  [(keep-foreign (ldom_old ...) (ldom_new ...))
+   ,(let-values ([(lead runs) (foreign-runs (term (ldom_old ...)))])
+      (define kept (map second (term (ldom_new ...))))
+      (append lead
+              (append* (for/list ([d (term (ldom_new ...))])
+                         (cons d (hash-ref runs (second d) '()))))
+              (append* (for/list ([(l run) runs] #:unless (member l kept)) run))))])
+
+;; The foreign nodes before the first rendered one, and the run after each
+;; rendered node, by its label.
+(define (foreign-runs ldoms)
+  (for/fold ([lead '()] [runs (hash)] [at #f] #:result (values (reverse lead) runs))
+            ([d ldoms])
+    (cond [(not (eq? (first d) 'foreign)) (values lead runs (second d))]
+          [at (values lead (hash-update runs at (λ (r) (append r (list d))) '()) at)]
+          [else (values (cons d lead) runs at)])))
 
 (define-metafunction Morph
   morph-seq : lgroups (node ...) (node ...) (match-result ...) ns lbl -> out
@@ -110,17 +150,50 @@
   erase : ldom -> dom
   [(erase (text lbl string)) (text string)]
   [(erase (comment lbl string)) (comment string)]
+  [(erase (foreign lbl dom)) dom]
   [(erase (element lbl ns tag (prop ...) (ldom ...))) (element ns tag (prop ...) ((erase ldom) ...))])
 
 (define-metafunction Morph
   erase-all : (ldom ...) -> (dom ...)
   [(erase-all (ldom ...)) ((erase ldom) ...)])
 
+;; The DOM render made, without the foreign nodes: what render(new) is.
+(define-metafunction Morph
+  erase-owned : ldom -> dom
+  [(erase-owned (text lbl string)) (text string)]
+  [(erase-owned (comment lbl string)) (comment string)]
+  [(erase-owned (element lbl ns tag (prop ...) (ldom ...)))
+   (element ns tag (prop ...) (erase-owned-all (ldom ...)))])
+
+(define-metafunction Morph
+  erase-owned-all : (ldom ...) -> (dom ...)
+  [(erase-owned-all (ldom ...)) ,(map (λ (d) (term (erase-owned ,d))) (term (owned (ldom ...))))])
+
 (define (labels ldoms)
   (append* (for/list ([d ldoms])
              (match d
                [(list 'element l _ _ _ kids) (cons l (labels kids))]
                [(list _ l _) (list l)]))))
+
+;; ldoms with foreign nodes put in at random, in it and in its elements, the
+;; labels from next on: (values ldoms next).
+(define (sprinkle ldoms next)
+  (for/fold ([out '()] [next next] #:result (values (reverse out) next))
+            ([d (append ldoms '(end))])
+    (define-values (d* next*)
+      (match d
+        ['end (values #f next)]
+        [(list 'element l ns tag props kids)
+         (define-values (kids* n) (sprinkle kids next))
+         (values (list 'element l ns tag props kids*) n)]
+        [_ (values d next)]))
+    (define out* (if d* (cons d* out) out))
+    (if (zero? (random 3))
+        (values (cons `(foreign ,next*  (comment "ext")) out*) (add1 next*))
+        (values out* next*))))
+
+(define (foreign-labels ldoms)
+  (for/list ([d ldoms] #:when (eq? (first d) 'foreign)) (second d)))
 
 ;; A random vnode sequence over a small alphabet, so that independently drawn
 ;; trees share templates and keys. Sibling keys are unique.
@@ -195,6 +268,16 @@
                               ((element ,SVG-NS "rect" () ())
                                (element ,SVG-NS "foreignObject" () ((element ,H "b" () ()))))))))
 
+  ;; Foreign nodes don't shift the match: the rendered nodes are patched as if
+  ;; they weren't there, and the foreign ones stay where they were.
+  (define ext (term (foreign 9 (comment "ext"))))
+  (test-equal (term (morph-children ((text 0 "a") ,ext (text 1 "b"))
+                                    ((text "a") (text "b")) ((text "x") (text "y")) ,H 2))
+              (term (((text 0 "x") ,ext (text 1 "y")) 2)))
+  (test-equal (term (morph-children (,ext (element 0 ,H "p" () ()))
+                                    ((el 0 "p" none none () ())) () ,H 1))
+              (term ((,ext) 1)))
+
   ;; Correctness: morphing a mounted tree yields the DOM of the new tree.
   (for ([_ 500])
     (define old (random-nodes 3))
@@ -204,6 +287,18 @@
   (for ([_ 300])
     (define t (random-nodes 3))
     (test-equal (morph* t t) (mount* t)))
+  ;; With foreign nodes anywhere: the nodes render made are the new tree's, the
+  ;; foreign ones in the container stay, and a tree morphed into itself keeps
+  ;; every node where it was.
+  (for ([_ 300])
+    (define old (random-nodes 3))
+    (define new (random-nodes 3))
+    (match-define (list doms next) (mount* old))
+    (define-values (sprinkled next*) (sprinkle doms next))
+    (match-define (list result _) (term (morph-children ,sprinkled ,old ,new ,H ,next*)))
+    (test-equal (term (erase-owned-all ,result)) (term (render ,new)))
+    (test-equal (sort (foreign-labels result) <) (sort (foreign-labels sprinkled) <))
+    (test-equal (term (morph-children ,sprinkled ,old ,old ,H ,next*)) (list sprinkled next*)))
   ;; Every label in the result is either kept from the old DOM or fresh, and
   ;; none is used twice.
   (for ([_ 300])

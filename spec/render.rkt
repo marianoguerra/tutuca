@@ -631,15 +631,19 @@
       "morphNode keeps a node when the leaf kind matches or, for elements, when the "
       "template and key match; it then patches every prop and morphs the children. "
       "Otherwise it mounts a replacement. morphChildren reuses each matched source's DOM "
-      "range and mounts the rest.")
+      "range and mounts the rest. It matches against the nodes render made only: foreign "
+      "nodes, which other code put in a rendered element, don't shift the match and stay.")
      (figure "morphNode: same leaf kind, or same template and key, keeps the node."
              (part "morph-node" (mf morph-node)))
      (figure "morphChildren: matched targets reuse their source's DOM; the rest mount."
              (part "morph-children" (mf morph-children))
              (part "morph-seq" (mf morph-seq))
              (part "morph-one" (mf morph-one))
+             (part "owned: the nodes render made" (mf owned))
+             (part "keep-foreign: foreign nodes stay" (mf keep-foreign))
              (part "erase: forget identities" (mf erase))
-             (note "Checked: erase(morph(mount(old), old, new)) = render(new); morph(x, x) keeps every label."))))))
+             (part "erase-owned: what render made" (mf erase-owned))
+             (note "Checked: erase(morph(mount(old), old, new)) = render(new); morph(x, x) keeps every label; with foreign nodes anywhere, erase-owned(morph(...)) = render(new) and the foreign nodes stay."))))))
 
 ;; ---- layout -----------------------------------------------------------------
 ;; A block is a pict in the page flow. break? starts a new page; tocs are the

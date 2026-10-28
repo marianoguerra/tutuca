@@ -32,7 +32,7 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | `vdom/` (Appendix A) | `vnode.rkt` | normalized vnodes; comments are plain text | `VText`, `VComment`, `VNode`, `VFragment`, `Shape` |
 | | `dom.rkt` | `toDom`, namespaces | `vdom.js` |
 | | `keys.rkt` | sibling matching | `morphChildren`, first half |
-| | `morph.rkt` | reconciliation over labeled DOM nodes | `morphNode`, `morphChildren`, `mountBefore` |
+| | `morph.rkt` | reconciliation over labeled DOM nodes, among the ones render made | `morphNode`, `morphChildren`, `mountBefore`, `owned` |
 | `component/` | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toComponentPath`, `sourceKeyIn`, freezing | `UpdatePath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
 | | `expr.rkt` | the expression language user functions are written in | the functions passed to `component()` |
 | | `types.rkt` | field types, `valid`, defaults, `make` | `t.*`, `AnyType` and its subclasses in `schema.js` |
@@ -268,7 +268,15 @@ These do not change the meaning, so the model does not include them:
 - `_handlingTasks` and the staging of children until commit. Transactions are atomic, so
   reentrant draining cannot be observed.
 
-Two of these are equivalent only when nothing but the runtime mutates the managed DOM:
+Other code may add nodes to a rendered element (an extension, a third-party widget): render
+didn't make them, so they're foreign (`(foreign lbl dom)` in `morph.rkt`). Morphing matches
+vnodes to the nodes render made only, as the runtime's `owned` WeakSet does, and leaves the
+foreign ones in place. The vdom theorem is about the nodes render made:
+`erase-owned(morph(…)) = render(new)`, and the foreign nodes of the container are all still
+there. Where one lands among the rendered nodes is not part of the meaning; the model keeps it
+after the rendered node it followed.
+
+Two of these are equivalent only when other code doesn't edit or remove the nodes render made:
 - The identity skip leaves externally edited nodes alone. The model would overwrite them.
 - Comparing the root by reference (`oldRootComponent !== this.rootComponent`) is modeled as
   structural inequality. The same holds for `findInvalidFields`'s `value === prev` skip.
@@ -300,6 +308,8 @@ Two of these are equivalent only when nothing but the runtime mutates the manage
 
 - **Virtual DOM:** `erase(morph(mount(old), old, new)) = render(new)` on random tree pairs.
   Morphing a tree into itself keeps every label. Labels are unique and either kept or fresh.
+  With foreign nodes put in anywhere, the nodes render made are `render(new)`, the container's
+  foreign nodes stay, and morphing into itself keeps every node in place.
 - **Normalize:** idempotent (`redex-check`).
 - **Types:** `make` keeps valid arguments, otherwise yields the default, and always yields a
   valid value when every `.default(v)` has its type (`redex-check`). A record's default makes
