@@ -362,6 +362,22 @@ test("values: JS values round-trip through Value", ({ vdom }) => {
 	assert.equal(values.kind(values.ok(null)), "result");
 });
 
+// A constraint holds of the values it's about, as in the spec: a bound of
+// numbers, a length of strings, lists and maps, a pattern of strings. tcd
+// only lets one be written where it can hold; on a value of another kind (a
+// schema written by hand) it's broken, not skipped.
+test("schemas: a constraint on a value of a kind it isn't about is broken", ({ vdom }) => {
+	const { exports: w, values } = vdom;
+	const problem = (c, v) => values.to(w.constraint_problem(c, values.from(v)));
+	assert.equal(problem(w.constraint_min(1, 0), 2), null);
+	assert.equal(problem(w.constraint_min(1, 0), "b"), 'must be at least 1, got "b"');
+	assert.equal(problem(w.constraint_max(1, 0), true), "must be at most 1, got true");
+	assert.equal(problem(w.constraint_min_len(2), "ab"), null);
+	assert.equal(problem(w.constraint_min_len(2), 5), "must have at least 2 items, got 5");
+	assert.equal(problem(w.constraint_pattern("x"), "x"), null);
+	assert.equal(problem(w.constraint_pattern("x"), 3), "must match /x/, got 3");
+});
+
 test("values: same is JS ===, truthy is JS truthiness", ({ vdom }) => {
 	const { values } = vdom;
 	const list = values.from([1]);

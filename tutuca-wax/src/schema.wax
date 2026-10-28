@@ -658,19 +658,23 @@ fn constraints_problem(cs: &constraint_array, v: &value, owner: &?component) -> 
 fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> &?extern {
     let kind = c.kind;
     let b = text_builder_new();
+    // A constraint on a value of a kind it isn't about breaks it, as in the
+    // spec: a bound holds of numbers only, a length of strings, lists and
+    // maps, a pattern of strings.
     if (kind == constraint_kind_min) | (kind == constraint_kind_max) {
-        if (v.kind != value_kind_int) & (v.kind != value_kind_float) {
-            return null;
-        }
         let bound = c as &constraint_bound;
-        let n = value_to_f64(v);
         let ok = 0;
         let what = s_p_at_least;
+        let is_number = value_is_number(v);
+        let n = 0.0;
+        if is_number {
+            n = value_to_f64(v);
+        }
         if kind == constraint_kind_min {
-            ok = bound.exclusive?n > bound.bound:n >= bound.bound;
+            ok = is_number & (bound.exclusive?n > bound.bound:n >= bound.bound);
             what = bound.exclusive?s_p_above:s_p_at_least;
         } else {
-            ok = bound.exclusive?n < bound.bound:n <= bound.bound;
+            ok = is_number & (bound.exclusive?n < bound.bound:n <= bound.bound);
             what = bound.exclusive?s_p_below:s_p_at_most;
         }
         if ok {
@@ -682,10 +686,13 @@ fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> &?extern
     }
     if (kind == constraint_kind_min_len) | (kind == constraint_kind_max_len) {
         let len = value_length(v);
-        if len <s 0 {
-            return null;
-        }
         let n = (c as &constraint_len).n;
+        if len <s 0 {
+            text_push(b, kind == constraint_kind_min_len?s_p_len_at_least:s_p_len_at_most);
+            text_push_int(b, n);
+            text_push(b, s_p_items);
+            return problem_got(b, v);
+        }
         if (kind == constraint_kind_min_len) & (len >=s n) {
             return null;
         }
@@ -743,12 +750,11 @@ fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> &?extern
         return problem_got(b, v);
     }
     if kind == constraint_kind_pattern {
-        if v.kind != value_kind_string {
-            return null;
-        }
         let pattern = (c as &constraint_pattern).pattern;
-        if host_regex_test(pattern, (v as &value_string).value) {
-            return null;
+        if v.kind == value_kind_string {
+            if host_regex_test(pattern, (v as &value_string).value) {
+                return null;
+            }
         }
         text_push(b, s_p_matching);
         text_push(b, pattern);

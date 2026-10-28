@@ -375,6 +375,17 @@ fn api_host_step(h: &host) -> i32 {
     host_step(h);
 }
 
+// Why v breaks constraint c, as a string value, or null: for tools and tests
+// that check values the way a schema does, without an owner.
+#[export = "constraint_problem"]
+fn api_constraint_problem(c: &constraint, v: &value) -> &value {
+    let problem = constraint_problem(c, v, null);
+    if !problem {
+        return VALUE_NULL;
+    }
+    value_string(problem!);
+}
+
 // After a task failed: a dev host whose queue that emptied checks the
 // invariants of the settled state, as it does after a task that committed.
 #[export = "host_after_failure"]
