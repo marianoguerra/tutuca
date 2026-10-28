@@ -302,7 +302,7 @@
   (define sound-classes
     (term ((component Leaf (views ("main" (h 1 "button" ((on click (send hit))) (field id)))))
            (component Box
-             (views ("main" (h 2 "div" ()
+             (views ("main" (h 2 "div" ((on drop (send dropped (drag-key))))
                                (h 3 "button" ((on click (send hit))) (field id))
                                (each (field kids) (render-it none) none)
                                (if (field child) (x-render (field child) none) null)))))
@@ -332,7 +332,7 @@
   (for ([_ 60])
     (define root (random-instance 3))
     (define dom (term (render (lower-root ,sound-registry ,root))))
-    (for ([a (addresses dom (λ (d) (assq 'data-eid (fourth d))))])
+    (for ([a (addresses dom (λ (d) (equal? (third d) "button")))])
       (match-define `(element ,_ ,_ ,_ ((text ,shown))) (term (node-at ,dom ,a)))
       (match (term (event-info ,sound-registry ,root ,dom click ,a))
         [`((on click (send hit)) (,path ,update-path))
@@ -341,17 +341,18 @@
 
   ;; ---- the binding theorem -----------------------------------------------------
   ;; Decoding the lowered DOM agrees with routing on the semantic tree: for
-  ;; every element, in document order, both pick the same handler and route.
+  ;; every element, in document order, both pick the same handler and route,
+  ;; for drop events too, which bubble to the nearest Box above.
   ;; With the vdom's erase(morph(mount(old), old, new)) = render(new), the same
   ;; holds on every DOM the host morphs into.
   (for ([_ 60])
     (define root (random-instance 3))
-    (define sites (term (sites-of (render-root ,sound-registry ,root) () () #f)))
+    (define sites (term (sites-of (render-root ,sound-registry ,root) () () () #f)))
     (define dom (term (render (lower-root ,sound-registry ,root))))
     (define elements (addresses dom (λ (_) #t)))
     (test-equal (length elements) (length sites))
     (for ([a elements] [s sites])
-      (for ([type '(click input)])
+      (for ([type '(click input drop)])
         (test-equal (term (event-info ,sound-registry ,root ,dom ,type ,a))
                     (term (site-info ,s ,type))))))
 
@@ -360,7 +361,7 @@
   ;; formed. With a hit handler in every class they are, and then every click
   ;; on every element runs without the host's "no handler" failure.
   (test-equal (wf? sound-registry) #f)
-  (define wf-classes (for/list ([c sound-classes]) (append c '((on (hit () (step)))))))
+  (define wf-classes (for/list ([c sound-classes]) (append c '((on (hit () (step)) (dropped (k) (step)))))))
   (test-equal (wf? (term (register-components ,wf-classes))) #t)
   (for ([_ 20])
     (define c0 (start wf-classes (random-instance 3)))

@@ -36,7 +36,7 @@
          "../vdom/morph.rkt" "../component/paths.rkt" "../component/expr.rkt"
          "../component/class.rkt" "../component/action.rkt" "../view/view.rkt"
          "../bind/lower.rkt" "../bind/decode.rkt")
-(provide route-event task-name
+(provide route-event task-name drag-key-in drag-from drag-after
          Tasks host-> start handle-task eval-arg step-by drain deliver resolve-ask settle-reports
          cfg-root cfg-obs cfg-queue cfg-pending cfg-dom logs)
 
@@ -46,7 +46,10 @@
   (lbl ::= natural)
   (ldom ::= (element lbl ns tag (prop ...) (ldom ...)) (text lbl string) (comment lbl string)
             (foreign lbl any))
-  (kind ::= plain notify ask (event action value))  ; an event task: its action and target value
+  ;; an event task: its action, the target value and the drag as of the event
+  (kind ::= plain notify ask (event action value drag?))
+  ;; Host.drag, from dragstart to dragend: where the dragged element was rendered.
+  (drag? ::= (drag dpath) none)
   ;; name, args, the sender's dispatch path, the target (a dispatch path and a
   ;; selector below it), and the route: fixed for events and replies, frozen at
   ;; commit for every other task.
@@ -66,17 +69,29 @@
            (state-invalid any ...) (message-invalid fname issue ...))
   (outcome ::= (ok value (tsk ...) (tsk ...) (obs ...)) (failed (obs ...)))
   (cfg ::= (host registry (ask-def ...) value (tsk ...) (tsk ...)
-                 (ldom ...) (node ...) value (evt ...) (obs ...) lbl value)))
+                 (ldom ...) (node ...) value (evt ...) (obs ...) lbl value drag?)))
 
-;; Send arguments, against the message context.
+;; Send arguments, against the message context: the target value, the source
+;; key and the drag key.
 (define-metafunction Tasks
-  eval-arg : arg value any -> value
-  [(eval-arg (target-value) value_tv any) value_tv]
-  [(eval-arg (source-key) value_tv any) any]
-  [(eval-arg (if arg_c arg_t arg_e) value_tv any) (eval-arg arg_t value_tv any)
-   (side-condition (truthy? (term (eval-arg arg_c value_tv any))))]
-  [(eval-arg (if arg_c arg_t arg_e) value_tv any) (eval-arg arg_e value_tv any)]
-  [(eval-arg value value_tv any) value])
+  eval-arg : arg value any any -> value
+  [(eval-arg (target-value) value_tv any any_d) value_tv]
+  [(eval-arg (source-key) value_tv any any_d) any]
+  [(eval-arg (drag-key) value_tv any any_d) any_d]
+  [(eval-arg (if arg_c arg_t arg_e) value_tv any any_d) (eval-arg arg_t value_tv any any_d)
+   (side-condition (truthy? (term (eval-arg arg_c value_tv any any_d))))]
+  [(eval-arg (if arg_c arg_t arg_e) value_tv any any_d) (eval-arg arg_e value_tv any any_d)]
+  [(eval-arg value value_tv any any_d) value])
+
+;; Drag.keyIn: the key of the receiver's child the drag started in, as
+;; source-key-in is for a message's sender; null with no drag or one from
+;; outside the receiver.
+(define-metafunction Tasks
+  drag-key-in : drag? dpath -> any
+  [(drag-key-in none dpath) null]
+  [(drag-key-in (drag (dframe_r ... dframe_0 dframe ...)) (dframe_r ...))
+   (source-key-in (dframe_r ... dframe_0 dframe ...) (dframe_r ...))]
+  [(drag-key-in drag? dpath) null])
 
 ;; ---- the message context ---------------------------------------------------
 ;; What one transaction accumulates: the observations, the handler that ran
@@ -154,8 +169,9 @@
         (match-define (list n v) (reply (if (eq? result 'ok) "ReplyOk" "ReplyError") hx))
         (list instance '() #f
               (list `(task plain ,n (,v) ,source (at ,source ()) ,(term (route-for ,source)))))])]
-    [`(event (send ,_ ,arg-terms ...) ,tv)
-     (define args (for/list ([a arg-terms]) (term (eval-arg ,a ,tv ,(mctx-source-key ctx)))))
+    [`(event (send ,_ ,arg-terms ...) ,tv ,drag)
+     (define drag-key (term (drag-key-in ,drag ,(mctx-path ctx))))
+     (define args (for/list ([a arg-terms]) (term (eval-arg ,a ,tv ,(mctx-source-key ctx) ,drag-key))))
      (unless (find-handler reg instance name) (error 'event "no handler ~a" name)) ; lint guarantees it exists
      ;; EventTask.run sets this.args before the handler runs, so forwardAt sends them.
      (match-define `(task ,k ,n ,_ ,rest ...) task)
@@ -206,13 +222,35 @@
         `(ok ,new-root ,children ,replies ,(append (reverse (unbox obs)) reports))))])
 
 (define-metafunction Tasks
-  route-event : registry value (ldom ...) evt -> (tsk ...)
-  [(route-event registry value (ldom ...) (event fname addr value_tv))
+  route-event : registry value (ldom ...) evt drag? -> (tsk ...)
+  [(route-event registry value (ldom ...) (event fname addr value_tv) drag?)
    ,(match (with-handlers ([exn:fail? (λ (_) 'none)])
              (term (event-info registry value (erase-all (ldom ...)) fname addr)))
       ['none '()]
       [(list (list 'on _ action) (and route (list path _)))
-       (list `(task (event ,action ,(term value_tv)) ,(second action) () ,path (at ,path ()) ,route))])])
+       (list `(task (event ,action ,(term value_tv) ,(term drag?)) ,(second action) () ,path (at ,path ()) ,route))])])
+
+;; startDrag on dragstart: the closest draggable="true" element, the target or
+;; an ancestor, rendered in a component, is what's dragged; otherwise the drag
+;; stays as it was.
+(define-metafunction Tasks
+  drag-from : (ldom ...) evt drag? -> drag?
+  [(drag-from (ldom ...) (event dragstart addr value) drag?)
+   ,(let* ([doms (term (erase-all (ldom ...)))]
+           [a (for/first ([n (in-range (length (term addr)) 0 -1)]
+                          #:when (match (term (node-at ,doms ,(take (term addr) n)))
+                                   [`(element ,_ ,_ ,props ,_) (equal? (assq 'draggable props) '(draggable "true"))]
+                                   [_ #f]))
+                (take (term addr) n))]
+           [path (and a (term (path-of ,doms ,a)))])
+      (if (and path (not (eq? path 'none))) `(drag ,path) (term drag?)))]
+  [(drag-from (ldom ...) evt drag?) drag?])
+
+;; endDrag, after dragend is handled.
+(define-metafunction Tasks
+  drag-after : evt drag? -> drag?
+  [(drag-after (event dragend addr value) drag?) none]
+  [(drag-after evt drag?) drag?])
 
 (define-metafunction Tasks
   task-name : tsk -> fname
@@ -228,47 +266,50 @@
 (define host->
   (reduction-relation
    Tasks #:domain cfg
-   ;; handleEvent: route against the current DOM and root; the route is fixed now.
+   ;; handleEvent: route against the current DOM and root; the route is fixed
+   ;; now, and so is the drag the handler's dragKey reads (a dragstart starts
+   ;; it first, a dragend ends it after).
    (--> (host registry any_a value (tsk ...) any_p (ldom ...) any_v any_r
-              (evt_0 evt ...) any_o lbl any_s)
+              (evt_0 evt ...) any_o lbl any_s drag?)
         (host registry any_a value (tsk ... tsk_e ...) any_p (ldom ...) any_v any_r
-              (evt ...) any_o lbl any_s)
-        (where (tsk_e ...) (route-event registry value (ldom ...) evt_0))
+              (evt ...) any_o lbl any_s (drag-after evt_0 drag?_now))
+        (where drag?_now (drag-from (ldom ...) evt_0 drag?))
+        (where (tsk_e ...) (route-event registry value (ldom ...) evt_0 drag?_now))
         event)
    ;; A committed transaction: the new root, then its children, in order.
    (--> (host registry (ask-def ...) value (tsk_0 tsk ...) (tsk_p ...) any_d any_v any_r
-              any_e (obs ...) lbl any_s)
+              any_e (obs ...) lbl any_s any_g)
         (host registry (ask-def ...) value_new (tsk ... tsk_c ...) (tsk_p ... tsk_r ...) any_d any_v any_r
-              any_e (obs ... obs_new ...) lbl any_s)
+              any_e (obs ... obs_new ...) lbl any_s any_g)
         (where (ok value_new (tsk_c ...) (tsk_r ...) (obs_new ...))
                (handle-task registry (ask-def ...) value tsk_0))
         run)
    ;; An aborted transaction: nothing but its observations survives.
    (--> (host registry (ask-def ...) value (tsk_0 tsk ...) any_p any_d any_v any_r
-              any_e (obs ...) lbl any_s)
+              any_e (obs ...) lbl any_s any_g)
         (host registry (ask-def ...) value (tsk ...) any_p any_d any_v any_r
-              any_e (obs ... obs_new ... (failed (task-name tsk_0))) lbl any_s)
+              any_e (obs ... obs_new ... (failed (task-name tsk_0))) lbl any_s any_g)
         (where (failed (obs_new ...)) (handle-task registry (ask-def ...) value tsk_0))
         fail)
    ;; A pending async ask settles, in any order: its reply joins the queue.
    (--> (host registry any_a value (tsk ...) (tsk_1 ... tsk_r tsk_2 ...) any_d any_v any_r
-              any_e any_o lbl any_s)
+              any_e any_o lbl any_s any_g)
         (host registry any_a value (tsk ... tsk_r) (tsk_1 ... tsk_2 ...) any_d any_v any_r
-              any_e any_o lbl any_s)
+              any_e any_o lbl any_s any_g)
         resolve)
    ;; Host.render: morph the DOM from the last vnodes to the root's.
    (--> (host registry any_a value any_q any_p (ldom ...) (node_old ...) value_r
-              any_e (obs ...) lbl any_s)
+              any_e (obs ...) lbl any_s any_g)
         (host registry any_a value any_q any_p (ldom_new ...) (node_new ...) value
-              any_e (obs ... rendered) lbl_new any_s)
+              any_e (obs ... rendered) lbl_new any_s any_g)
         (side-condition (not (equal? (term value) (term value_r))))
         (where (node_new ...) (lower-root registry value))
         (where ((ldom_new ...) lbl_new)
                (morph-children (ldom ...) (node_old ...) (node_new ...) ,HTML-NS lbl))
         render)
    ;; checkSettled: the queue is empty and the root changed since it last was.
-   (--> (host registry any_a value () any_p any_d any_v any_r any_e (obs ...) lbl value_s)
-        (host registry any_a value () any_p any_d any_v any_r any_e (obs ... obs_new ...) lbl value)
+   (--> (host registry any_a value () any_p any_d any_v any_r any_e (obs ...) lbl value_s any_g)
+        (host registry any_a value () any_p any_d any_v any_r any_e (obs ... obs_new ...) lbl value any_g)
         (side-condition (not (equal? (term value) (term value_s))))
         (where (obs_new ...) (settle-reports registry value value_s))
         settle)))
@@ -281,7 +322,7 @@
   (define issues (term (invalid-in (classes-of ,reg) ,root null (fields invariants))))
   (define reports (if (null? issues) '() (list `(state-invalid ,@issues))))
   (match-define (list doms next) (term (mount-all ,vdom ,HTML-NS 0)))
-  `(host ,reg ,asks ,root () () ,doms ,vdom ,root ,events ,reports ,next ,root))
+  `(host ,reg ,asks ,root () () ,doms ,vdom ,root ,events ,reports ,next ,root none))
 
 (define (cfg-root c) (fourth c))
 (define (cfg-queue c) (fifth c))
@@ -340,8 +381,29 @@
              (on (go () (step (next (n) 1) (log "before") (send-at go () ()) (fail "boom"))))))))
   (define cf (drain `(host ,(term (register-components ,failing)) () (comp Root (n 0))
                            ((task plain go () () (at () ()) (() ()))) () () () (comp Root (n 0)) () () 0
-                           (comp Root (n 0)))))
+                           (comp Root (n 0)) none)))
   (test-equal (cfg-root cf) '(comp Root (n 0)))
+  ;; A drag: dragstart on a draggable item remembers where it was rendered, the
+  ;; drop on another item bubbles to the list (no item handles it) and reads
+  ;; the dragged item's key with dragKey, and dragend forgets the drag.
+  (define drag-classes
+    '((component Item (views ("main" (h 1 "li" ((draggable "true")) "x"))))
+      (component List
+        (views ("main" (h 2 "ul" ((on drop (send moved (drag-key) (source-key))))
+                          (each (field items) (render-it none) none))))
+        (on (moved (from to) (step (next (got) (mk-arr from to))))))))
+  (define drag-root '(comp List (got null) (items (arr (comp Item) (comp Item) (comp Item)))))
+  (define items
+    (addresses (term (erase-all ,(cfg-dom (start drag-classes drag-root))))
+               (λ (d) (equal? (third d) "li"))))
+  (define d1 (drain (deliver (start drag-classes drag-root
+                                    #:events `((event dragstart ,(first items) null)
+                                               (event drop ,(third items) null)
+                                               (event dragend ,(first items) null)))
+                             3)))
+  (test-equal (cfg-obs d1) '(rendered))
+  (test-equal (cfg-root d1) '(comp List (got (arr 0 2)) (items (arr (comp Item) (comp Item) (comp Item)))))
+  (test-equal (list-ref d1 13) 'none)
   (test-equal (cfg-obs cf) '((log "before") (failed go)))
   (test-equal (cfg-queue cf) '())
 

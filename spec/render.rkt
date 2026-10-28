@@ -450,10 +450,13 @@
       "Which handler an event on an element runs, and where. An element's dispatch path is "
       "the frames of the wrappers above it, a component wrapper making the frame before it "
       "a component frame. Its candidate handlers are its own, then those of the elements "
-      "above it up to the nearest component wrapper; the first for the event's type wins.")
+      "above it up to the nearest component wrapper; the first for the event's type wins. "
+      "Drop events bubble: without a handler there, the next enclosing component's are tried, "
+      "at the frame of the child the event came through.")
      (figure "Sites: each element with its handler chain and dispatch path."
              (part "sites-of" (mf sites-of))
              (part "sites-in" (mf sites-in))
+             (part "outside: the enclosing component's route" (mf outside))
              (part "site-info" (mf site-info))))
     (sect
      "Well-formed views"
@@ -507,15 +510,16 @@
       "first component boundary, and reads the metadata enclosing each ancestor to rebuild "
       "the dispatch path; closing comments hide openings and look-alikes are skipped. The "
       "handler is the first one for the event type, innermost eid first, in the table of "
-      "the class the path reaches.")
+      "the class the path reaches; a drop event tries each enclosing component in turn.")
      (figure "From the event target back to a handler and its component's path."
              (lang Routing #:nts '(addr info))
              (part "enclosing-meta" (mf enclosing-meta))
              (part "scan: closing comments hide openings; look-alikes are skipped" (mf scan))
-             (part "walk: eids stop at the first component boundary" (mf walk)))
+             (part "walk: eids with the component level they're at" (mf walk)))
      (figure "Rebuilding the path and choosing the handler."
              (part "frames-of" (mf frames-of))
              (part "event-info" (mf event-info))
+             (part "path-of: where a dragged element was rendered" (mf path-of))
              (note "Checked: event-info(render(lower-root(r, root)), a_i) = site-info(site_i)"
                    "for the i-th element, on random component trees."))))
 
@@ -538,7 +542,10 @@
      (figure "Host configurations."
              (lang Tasks #:nts '(kind tsk target route? ask-def ask-result evt obs outcome cfg))
              (part "eval-arg: send arguments in the message context" (mf eval-arg))
-             (part "route-event" (mf route-event))))
+             (part "route-event" (mf route-event))
+             (part "drag-key-in: Drag.keyIn" (mf drag-key-in))
+             (part "drag-from: dragstart starts a drag" (mf drag-from))
+             (part "drag-after: dragend ends it" (mf drag-after))))
     (sect
      "The task queue"
      (string-append

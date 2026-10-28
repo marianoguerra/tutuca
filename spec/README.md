@@ -153,6 +153,7 @@ These expressions map directly to the runtime:
 | `(send name arg ...)` | `send` |
 | `(target-value)` | `targetValue` |
 | `(source-key)` | `sourceKey` |
+| `(drag-key)` | `dragKey` |
 
 Three forms differ from the runtime:
 - A plain value is a `Const`.
@@ -172,6 +173,10 @@ Other points:
 - **Routing on the tree:** an element's dispatch path is the frames of the wrappers above it,
   and a component wrapper makes the frame before it a component frame. Its candidate handlers
   are its own, then those of the elements above it up to the nearest component wrapper.
+- **Drop events bubble:** `dragenter`, `dragover`, `dragleave` and `drop` reach the nearest
+  enclosing component that handles them. When the nearest one doesn't, the elements of the next
+  one above it are tried, routed at the frame of the child the event came through (not a
+  component frame), so the route is that component's and the source key the child's.
 
 ## Paths
 
@@ -208,7 +213,8 @@ loop becomes an unkeyed group of keyed item groups, and an element with handlers
 `data-eid`.
 
 `event-info` decodes the way `getEventInfoFor` does:
-- It collects eids from the target up to the first component boundary.
+- It collects eids from the target up to the first component boundary, or for a drop event,
+  the eids of each enclosing component in turn, nearest first.
 - It reads enclosing metadata by scanning previous siblings. Each closing comment hides one
   opening comment, and look-alike comments are skipped.
 - The handler is the first one matching the event type, trying the eids innermost first, in
@@ -217,7 +223,11 @@ loop becomes an unkeyed group of keyed item groups, and an element with handlers
 ## The host
 
 As TLA+: a configuration is the state, and `host->` is `Next`, with six actions:
-- `event` decodes against the current DOM and root, and fixes the route.
+- `event` decodes against the current DOM and root, and fixes the route. A `dragstart`
+  first starts a drag: the closest `draggable="true"` element (the target or an ancestor)
+  rendered in a component, remembered by its dispatch path. A `dragend` ends it after it's
+  handled. An event task keeps the drag as of its event, and `(drag-key)` reads the key of the
+  handling component's child the drag started in (`Drag.keyIn`), or null.
 - `run` commits one transaction.
 - `fail` aborts one transaction.
 - `resolve` settles a pending async ask, in any order.
@@ -300,6 +310,9 @@ Two of these are equivalent only when other code doesn't edit or remove the node
   registration.
 - The host env: `ctx.now()`, `ctx.random()`, `ctx.uuid()`. Also `ctx.event`, `ctx.node` and
   `task.parent`.
+- Of a drag, everything but where it started and `dragKey`: its `data-dragtype` and the value
+  it had (`ctx.drag`), the `data-dragging` and `data-draggingover` marks, and
+  `preventDefault`/`dropEffect` over a drop target.
 - Sync engines (`src/sync/`).
 - `src/tag.js`, `src/dev/`, `src/css/`, `src/embed/`, `src/playground/`, the storybook, the
   test driver and pbt, and the lint modules (beyond `wf.rkt`).
@@ -322,7 +335,7 @@ Two of these are equivalent only when other code doesn't edit or remove the node
 - **Routing soundness:** on random component trees, every element with handlers routes to
   the instance that rendered it.
 - **Binding theorem:** on the same trees, decoding agrees with routing on the semantic tree,
-  for every element and event type.
+  for every element and event type, drop events included.
 - **Well-formedness:** on random trees of well-formed components, every click runs without
   a missing-handler failure.
 - **Render invariant:** after every simulated click and drain, the DOM is the render of the

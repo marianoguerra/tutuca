@@ -21,11 +21,12 @@
   (prop-value ::= value snode (frag prop-value ...))
   (prop ::= (prop-name prop-value))
   ;; "on:<event>": action. Send arguments are evaluated on dispatch, against the
-  ;; message context: literals, the event target's value, the source key, or
-  ;; conditionals of those. Lint rejects state reads and render binds there.
+  ;; message context: literals, the event target's value, the source key, the
+  ;; drag key (dragKey), or conditionals of those. Lint rejects state reads and
+  ;; render binds there.
   (on-attr ::= (on fname action))
   (action ::= (send fname arg ...))
-  (arg ::= value (target-value) (source-key) (if arg arg arg))
+  (arg ::= value (target-value) (source-key) (drag-key) (if arg arg arg))
   (snode ::= (el tid tag ns? key? (prop ...) (on-attr ...) (snode ...))
              (text string)
              (comment string)                   ; a comment the view itself writes

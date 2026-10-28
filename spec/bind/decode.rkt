@@ -5,14 +5,15 @@
 ;; The rendered DOM carries no component references. Each element with
 ;; handlers has data-eid, and metadata comments mark where the semantic tree's
 ;; wrappers begin and end. Decoding walks from the target up to the container,
-;; collects the eids met before the innermost component boundary, and reads the
-;; metadata enclosing each ancestor to rebuild the path. view/route.rkt says
+;; collects the eids met before the innermost component boundary (before any
+;; enclosing one for a drop event, which bubbles), and reads the metadata
+;; enclosing each ancestor to rebuild the path. view/route.rkt says
 ;; what the answer means on the semantic tree; the binding theorem
 ;; (system/tutuca.rkt) checks that decoding the lowered DOM gives it.
 (require redex/reduction-semantics "../data.rkt" "../vdom/vnode.rkt" "../vdom/dom.rkt"
-         "../component/paths.rkt" "../view/view.rkt" "meta.rkt" "lower.rkt")
+         "../component/paths.rkt" "../view/view.rkt" "../view/route.rkt" "meta.rkt" "lower.rkt")
 (provide siblings-before scan eid-of walk frames-of
-         Routing node-at enclosing-meta event-info addresses)
+         Routing node-at enclosing-meta event-info path-of addresses)
 
 (define-union-language View+Meta View Meta)
 
@@ -62,19 +63,21 @@
   [(eid-of (element ns tag (any_1 ... (data-eid natural) any_2 ...) (dom ...))) natural]
   [(eid-of dom) #f])
 
-;; The walk to the container: eids until the first component metadata (an
-;; element's own eid counts even when its own enclosing metadata is the
-;; component's), and every enclosing metadata, innermost first.
+;; The walk to the container: every element's eid with its level, the number
+;; of component boundaries met below it (an element's own eid counts at the
+;; level below its own enclosing metadata), and every enclosing metadata,
+;; innermost first.
 (define-metafunction Routing
-  walk : (dom ...) addr boolean (natural ...) (meta ...) -> (boolean (natural ...) (meta ...))
-  [(walk (dom ...) () boolean (natural ...) (meta ...)) (boolean (natural ...) (meta ...))]
-  [(walk (dom ...) (natural_a ... natural_last) boolean (natural ...) (meta ...))
-   (walk (dom ...) (natural_a ...) boolean_next (natural ... natural_new ...) (meta ... meta_here ...))
+  walk : (dom ...) addr ((natural natural) ...) (meta ...) -> (((natural natural) ...) (meta ...))
+  [(walk (dom ...) () any_e (meta ...)) (any_e (meta ...))]
+  [(walk (dom ...) (natural_a ... natural_last) ((natural_e natural_l) ...) (meta ...))
+   (walk (dom ...) (natural_a ...) ((natural_e natural_l) ... any_new ...) (meta ... meta_here ...))
    (where addr (natural_a ... natural_last))
-   (where (natural_new ...) ,(let ([eid (term (eid-of (node-at (dom ...) addr)))])
-                               (if (and (not (term boolean)) eid) (list eid) '())))
-   (where (meta_here ...) (enclosing-meta (dom ...) addr))
-   (where boolean_next ,(or (term boolean) (and (memq 'component (term (meta_here ...))) #t)))])
+   (where (any_new ...) ,(let ([eid (term (eid-of (node-at (dom ...) addr)))])
+                           (if eid (list (list eid (count-components (term (meta ...))))) '())))
+   (where (meta_here ...) (enclosing-meta (dom ...) addr))])
+
+(define (count-components metas) (count (λ (m) (eq? m 'component)) metas))
 
 ;; Outermost first: each frame metadata is a frame; a component boundary
 ;; makes the frame before it a component frame.
@@ -84,23 +87,36 @@
   [(frames-of (component meta ...) dpath) (frames-of (meta ...) (promote dpath))]
   [(frames-of (meta_0 meta ...) (dframe ...)) (frames-of (meta ...) (dframe ... (meta-frame meta_0)))])
 
-;; The first handler for the event's type, over the eids innermost first, in
-;; the table of the class of the instance the update path reaches.
+;; The first handler for the event's type, over the eids of the nearest
+;; component innermost first, in the table of the class of the instance the
+;; update path reaches. A drop event bubbles: a level with no handler for it
+;; leaves it to the next, whose path is the metadata outside the component
+;; below, so its last frame is the child the event came through.
 (define-metafunction Routing
   event-info : registry value (dom ...) fname addr -> info
-  [(event-info registry value (dom ...) fname addr) none
-   (where (boolean (natural ...) (meta ...)) (walk (dom ...) addr #f () ()))
-   (side-condition (or (not (term boolean)) (null? (term (natural ...)))))]
   [(event-info registry value (dom ...) fname addr)
-   ,(or (for*/first ([eid (term (natural ...))]
-                     [h (term (handlers-for registry (comp-class value_inst) ,eid))]
-                     #:when (eq? (second h) (term fname)))
-          (list h (term (dpath upath))))
-        'none)
-   (where (#t (natural ...) (meta ...)) (walk (dom ...) addr #f () ()))
-   (where dpath (frames-of ,(reverse (term (meta ...))) ()))
-   (where upath (to-update-path dpath))
-   (where value_inst (get-in upath value))])
+   ,(let* ([metas (term (meta ...))]
+           [ends (for/list ([m metas] [i (in-naturals)] #:when (eq? m 'component)) i)]
+           [levels (if (drop-event? (term fname)) (length ends) (min 1 (length ends)))])
+      (or (for*/first ([level levels]
+                       [dpath (in-value (term (frames-of ,(reverse (drop metas (if (zero? level) 0 (add1 (list-ref ends (sub1 level))))))
+                                                         ())))]
+                       [upath (in-value (term (to-update-path ,dpath)))]
+                       [eid (for/list ([e (term ((natural_e natural_l) ...))] #:when (= (second e) level))
+                              (first e))]
+                       [h (term (handlers-for registry (comp-class (get-in ,upath value)) ,eid))]
+                       #:when (eq? (second h) (term fname)))
+            (list h (list dpath upath)))
+          'none))
+   (where (((natural_e natural_l) ...) (meta ...)) (walk (dom ...) addr () ()))])
+
+;; pathOf: the dispatch path of the component (and the loop items in it) the
+;; node at addr was rendered in; none outside any component.
+(define-metafunction Routing
+  path-of : (dom ...) addr -> any
+  [(path-of (dom ...) addr)
+   ,(if (memq 'component (term (meta ...))) (term (frames-of ,(reverse (term (meta ...))) ())) 'none)
+   (where (any_e (meta ...)) (walk (dom ...) addr () ()))])
 
 ;; Addresses of the elements satisfying pred, in document order.
 (define (addresses doms pred [prefix '()])
@@ -152,6 +168,20 @@
                 (term (event-info ,lreg (comp Root (xs (arr 1 2))) ,ldom click ,a)))
               (term (((on click (send pick (source-key))) (((frame none ("xs") 0 #f)) ()))
                      ((on click (send pick (source-key))) (((frame none ("xs") 1 #f)) ())))))
+
+  ;; A drop on a child with no handler for it bubbles to the parent's list, at
+  ;; the frame of the child it came through; a click doesn't.
+  (define drop-classes
+    (term ((component Child (views ("main" (h 1 "span" () "x"))))
+           (component Root (views ("main" (h 2 "ul" ((on drop (send dropped)))
+                                             (each (field kids) (render-it none) none))))))))
+  (define drop-root '(comp Root (kids (arr (comp Child) (comp Child)))))
+  (define-values (dreg ddom) (dom-of drop-classes drop-root))
+  (match-define (list _ span1) (addresses ddom (tag=? "span")))
+  (test-equal (term (event-info ,dreg ,drop-root ,ddom drop ,span1))
+              (term ((on drop (send dropped)) (((frame none ("kids") 1 #f)) ()))))
+  (test-equal (term (event-info ,dreg ,drop-root ,ddom click ,span1)) 'none)
+  (test-equal (term (path-of ,ddom ,span1)) (term ((frame none ("kids") 1 #t))))
 
   ;; An element outside any managed component is not routed.
   (define unmanaged (append ldom (term ((element ,HTML-NS "button" ((data-eid 1)) ())))))
