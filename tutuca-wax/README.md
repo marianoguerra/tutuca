@@ -527,8 +527,11 @@ with `init_ctx_make` (tcd's `make(c)` field defaults do). Ask handlers are
 registered the same way and found the same way, from the asker's scope up;
 a handler gets the asker's context (not its instance), so `ctx.scope` is the
 scope the asker was made in, wherever the handler was registered.
-`scope_register_host_ask` answers through the host's `ask` import, later,
-with only the ask's name and arguments.
+`scope_register_host_ask` answers through the host's `ask` import, with
+only the ask's name and arguments: `createHost`'s `asks[name]` replies now
+with a value, later with a promise, with `NameReplyError` when it throws or
+rejects (the error's message: a value can't hold a JS object), and with
+`NameHandlerNotFound` when `asks` has no such name, as tutuca's JS does.
 From JS, `loadComponent(bytes, scope, { names })` registers a module's types
 under other names (`{ Counter: "Tally", Label: null }` renames one and leaves
 one out), checked as any registration, and `runtime.nameIn(scope, c)` is the
@@ -566,7 +569,8 @@ anything is committed: the root stays and the children are dropped. The JS
 side calls `host_step` once per task and collects what failed
 (`host.failures`), so the host goes on with the next task. Asks run the
 scope's handler: a reply now becomes `NameReplyOk` / `NameReplyError` in the
-same transaction, a pending one is answered by `host_settle` later. After the
+same transaction, no handler `NameHandlerNotFound`, and a pending one is
+answered by `host_settle` later. After the
 queue drains, `host_render` renders the root if it isn't the same reference
 as the last one rendered. The JS side runs tasks for up to 16ms, as
 tutuca's JS host does, then renders and leaves the rest for the next tick

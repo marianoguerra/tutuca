@@ -653,9 +653,11 @@ import "host" {
     #[import = "observe_unhandled"]
     fn observe_unhandled(name: &extern);
     // An ask the host answers (see scope_register_host_ask): its name and its
-    // arguments as a list Value. Returns the handle host_settle gets back.
+    // arguments as a list Value. Returns its answer: a result value when it
+    // answers now, an int, the id host_settle gets back, when it answers
+    // later, or null when the host has no answer for it.
     #[import = "ask"]
-    fn host_ask(name: &extern, args: &extern) -> &extern;
+    fn host_ask(name: &extern, args: &extern) -> &value;
     // A float as JS's String(n) writes it, for rendering it as text.
     #[import = "number_text"]
     fn host_number_text(n: f64) -> &extern;

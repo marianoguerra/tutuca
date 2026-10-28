@@ -101,8 +101,13 @@ fn ask_result_reply(result: &value) -> &ask_result {
     out;
 }
 
-fn ask_result_pending(handle: &extern) -> &ask_result {
-    let out: &ask_result_pending = { kind: ask_result_kind_pending, handle };
+fn ask_result_pending(id: i32) -> &ask_result {
+    let out: &ask_result_pending = { kind: ask_result_kind_pending, id };
+    out;
+}
+
+fn ask_result_not_found() -> &ask_result {
+    let out: &ask_result_not_found = { kind: ask_result_kind_not_found };
     out;
 }
 

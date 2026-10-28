@@ -419,11 +419,6 @@ fn abi_ask_result_reply(result: &value) -> &ask_result {
     ask_result_reply(result);
 }
 
-#[export = "ask_result_pending"]
-fn abi_ask_result_pending(handle: &extern) -> &ask_result {
-    ask_result_pending(handle);
-}
-
 // Scopes (scope.wax): what a component module's tutuca_register calls.
 
 #[export = "scope_register"]

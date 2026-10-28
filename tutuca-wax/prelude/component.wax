@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 6;
+const tutuca_abi_version_current = 7;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -237,11 +237,14 @@ rec {
     type message_result_swapped: message_result = { .., component: &component };
     type message_result_rejected: message_result = { .., error: &message_error };
 
-    // What an ask handler answers with: a reply now (a result value), or one
-    // the host settles later (host_settle with this handle).
+    // What an ask handler answers with: a reply now (a result value). The
+    // runtime's handler for the asks the host answers can also answer with
+    // one the host settles later (host_settle with this id), or with none,
+    // when the host has no answer for it.
     type ask_result = open { kind: i32 };
     type ask_result_reply: ask_result = { .., result: &value };
-    type ask_result_pending: ask_result = { .., handle: &extern };
+    type ask_result_pending: ask_result = { .., id: i32 };
+    type ask_result_not_found: ask_result = { .. };
 }
 
 const message_result_kind_unchanged = 0;
@@ -251,3 +254,4 @@ const message_result_kind_rejected = 3;
 
 const ask_result_kind_reply = 0;
 const ask_result_kind_pending = 1;
+const ask_result_kind_not_found = 2;

@@ -683,12 +683,15 @@ function makeRuntime(w, api, late) {
 	// A host for root, rendering into container, in document; a headless
 	// one, with both null, only runs tasks. env gives now, random and uuid;
 	// asks answers the asks registered with registerHostAsk, by name, with a
-	// value or a promise of one; dev checks the state against the schemas of
+	// value or a promise of one (an error is replied as its message, since a
+	// value can't hold a JS object); dev checks the state against the schemas of
 	// its components and messages against their contracts, into issues. One
 	// module instance drives one host.
+	const errorText = (error) => String(error?.message ?? error);
 	const createHost = (document, container, root, { env = {}, asks = {}, dev = false } = {}) => {
 		const h = w.host_new(document, container, root);
 		const inflight = new Set();
+		let nextAsk = 0; // The id of the next ask answered later.
 		const listener = (e) => host.dispatch(e);
 		let running = false;
 		let stopped = false; // Unmounted: it renders and listens no more.
@@ -791,21 +794,33 @@ function makeRuntime(w, api, late) {
 					else await new Promise((resolve) => setTimeout(resolve, 0));
 				}
 			},
-			// The ask import: answers through asks[name], later.
+			// The ask import: answers through asks[name], as tutuca's JS does:
+			// a value replies now, a promise later (with the id host_settle
+			// gets back), a throw or a rejection with ReplyError, and a name
+			// asks lacks with HandlerNotFound.
 			ask(name, args) {
-				const handle = {};
-				const answer = (async () => asks[name](...args))().then(
-					(v) => w.value_ok(values.from(v)),
-					(error) => w.value_err(values.from(String(error?.message ?? error))),
-				);
-				const done = answer.then((result) => {
-					late.host = host;
-					w.host_settle(h, handle, result);
-					host.run();
-				});
+				if (!Object.hasOwn(asks, name)) return values.from(null);
+				let answer;
+				try {
+					answer = asks[name](...args);
+				} catch (error) {
+					return w.value_err(values.from(errorText(error)));
+				}
+				if (typeof answer?.then !== "function") return w.value_ok(values.from(answer));
+				const id = nextAsk++;
+				const done = Promise.resolve(answer)
+					.then(
+						(v) => w.value_ok(values.from(v)),
+						(error) => w.value_err(values.from(errorText(error))),
+					)
+					.then((result) => {
+						late.host = host;
+						w.host_settle(h, id, result);
+						host.run();
+					});
 				inflight.add(done);
 				done.finally(() => inflight.delete(done));
-				return handle;
+				return values.from(id);
 			},
 		};
 		if (dev) {

@@ -264,10 +264,17 @@ fn values_to_list(args: &value_array) -> &value {
     out;
 }
 
-// Answers asks of this name through the host's ask import, later: the host
-// calls host_settle with the handle it returned.
+// Answers asks of this name through the host's ask import: now, later (the
+// host calls host_settle with the id it returned) or not at all.
 fn host_ask_handler: ask_fn (name: &extern, args: &value_array, ctx: &context) -> &ask_result {
-    ask_result_pending(host_ask(name, values_to_list(args) as &extern));
+    let answer = host_ask(name, values_to_list(args) as &extern);
+    if answer.kind == value_kind_result {
+        return ask_result_reply(answer);
+    }
+    if answer.kind == value_kind_int {
+        return ask_result_pending((answer as &value_int).value);
+    }
+    ask_result_not_found();
 }
 
 // The name of a component value's type.
@@ -402,8 +409,8 @@ fn api_host_new_event_names(h: &host) -> &value {
 }
 
 #[export = "host_settle"]
-fn api_host_settle(h: &host, handle: &extern, result: &value) -> i32 {
-    host_settle(h, handle, result);
+fn api_host_settle(h: &host, id: i32, result: &value) -> i32 {
+    host_settle(h, id, result);
 }
 
 // Paths, for testing them against the spec's component/paths.rkt cases: a

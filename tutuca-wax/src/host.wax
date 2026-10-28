@@ -76,7 +76,7 @@ fn task_queue_pop(q: &task_queue) -> &?task {
 }
 
 // An ask whose reply hasn't arrived: the reply goes to the asker.
-type pending_reply = { handle: &extern, name: &extern, source: &dispatch_path };
+type pending_reply = { id: i32, name: &extern, source: &dispatch_path };
 
 // A host renders into container, in doc; a headless host has neither, and
 // only runs tasks (for tests and tools).
@@ -303,7 +303,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         let error = (result as &message_result_rejected).error;
         if error.kind == message_error_kind_unknown_message {
             // As JS warns and keeps next: the component stays as it was.
-            observe_unhandled(t.name);
+            observe_unhandled((msg!).name);
         } else {
             reject_message(comp, (msg!).name, error);
             unreachable;
@@ -345,13 +345,16 @@ fn ask_reply(
     tx: &transaction,
 ) -> &?message {
     let found = scope_lookup_ask(c.scope, t.name);
-    if !found {
+    let answer = ask_result_not_found();
+    if !!found {
+        answer = (found!).handler(t.name, args, ctx);
+    }
+    if answer.kind == ask_result_kind_not_found {
         return {message| name: js_string_concat(t.name, s_handler_not_found), args: empty_args() };
     }
-    let answer = (found!).handler(t.name, args, ctx);
     if answer.kind == ask_result_kind_pending {
-        let handle = (answer as &ask_result_pending).handle;
-        tx.pending = pv_push(tx.pending, {pending_reply| handle, name: t.name, source: t.source });
+        let id = (answer as &ask_result_pending).id;
+        tx.pending = pv_push(tx.pending, {pending_reply| id, name: t.name, source: t.source });
         return null;
     }
     let result = (answer as &ask_result_reply).result as &value_result;
@@ -712,13 +715,13 @@ fn event_names_child_visit(context: &?eq, key: &?eq, item: &?eq) {
 }
 
 // An ask answered later settled: its reply joins the queue, routed to the
-// asker. result is a result value. 0 when the handle isn't pending.
-fn host_settle(h: &host, handle: &extern, result: &value) -> i32 {
+// asker. result is a result value. 0 when the id isn't pending.
+fn host_settle(h: &host, id: i32, result: &value) -> i32 {
     let n = pv_count(h.pending);
     let i = 0;
     while i <s n {
         let p = pv_at(h.pending, i)! as &pending_reply;
-        if dom_is_same_node(p.handle, handle) {
+        if p.id == id {
             let rest = pv_empty();
             let j = 0;
             while j <s n {

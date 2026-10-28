@@ -654,6 +654,23 @@ test("components: an ask the host answers later replies when it settles", async 
 	assert.deepEqual(failing.host.unhandled, ["fetchCountReplyError"]);
 });
 
+// The host answers as tutuca's JS's ask handlers do: a value replies in the
+// ask's own run, a throw with ReplyError, and an ask it has no answer for
+// with HandlerNotFound.
+test("components: an ask the host answers now replies in the same run; one it can't answer isn't found", (env) => {
+	const { container } = env;
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: () => 5 } });
+	host.send("fetch");
+	assert.deepEqual(counts(container), ["5"]);
+	const throwing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: () => { throw new Error("offline"); } } });
+	throwing.host.send("fetch");
+	assert.deepEqual(throwing.host.unhandled, ["fetchCountReplyError"]);
+	const missing = mountRoot(env, "Counter", { count: 1 });
+	missing.host.send("fetch");
+	assert.deepEqual(missing.host.unhandled, ["fetchCountHandlerNotFound"]);
+	assert.deepEqual([...host.failures, ...throwing.host.failures, ...missing.host.failures], []);
+});
+
 // A reply is a message: its schema says what it takes, and the runtime checks
 // it however it arrives, in the ask's own task or when the host settles it.
 test("components: replies have schemas, and a reply that doesn't fit is rejected", async (env) => {
@@ -1874,7 +1891,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 6/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 7/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,
