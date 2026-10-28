@@ -1,6 +1,6 @@
 // The layout module's implementation (layout.tcd has the rest): the view a
 // screen pushes, what the boxes, tabs and grid do to their lists of
-// components, the hole turning into the type picked, and the componentNames
+// components, the hole turning into the type picked, and the component_names
 // answer.
 
 import "'" {

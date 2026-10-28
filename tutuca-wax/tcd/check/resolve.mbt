@@ -33,6 +33,41 @@ fn Resolver::snake(self : Resolver, n : @syntax.Name, what : String) -> Unit {
 }
 
 ///|
+fn Resolver::pascal(self : Resolver, n : @syntax.Name, what : String) -> Unit {
+  if !is_pascal_case(n.text) {
+    let message = "\{what} names are PascalCase: an uppercase letter, then letters and digits, with no two uppercase letters in a row; \{n.text} isn't"
+    if is_snake_case(n.text) {
+      self.error(
+        "tcd.name.case",
+        n.span,
+        message,
+        hint="write it \{pascal_of(n.text)}",
+      )
+    } else {
+      self.error("tcd.name.case", n.span, message)
+    }
+  }
+}
+
+///|
+/// json_number -> JsonNumber, for a hint.
+fn pascal_of(s : String) -> String {
+  let sb = StringBuilder()
+  let mut up = true
+  for c in s {
+    if c == '_' {
+      up = true
+    } else if up {
+      sb.write_char(c.to_ascii_uppercase())
+      up = false
+    } else {
+      sb.write_char(c)
+    }
+  }
+  sb.to_string()
+}
+
+///|
 fn Resolver::unique(
   self : Resolver,
   names : Array[@syntax.Name],
@@ -601,7 +636,7 @@ fn Resolver::interface_decl(
   d : @syntax.Decl,
   here : Bool,
 ) -> InterfaceM {
-  self.snake(d.name, "interface")
+  self.pascal(d.name, "interface")
   self.check_unique_members(d.members)
   let ftys = self.field_types(d.members)
   let fields = []
@@ -651,7 +686,7 @@ fn member_span(m : @syntax.Member) -> @diag.Span {
 
 ///|
 fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
-  self.snake(d.name, "component")
+  self.pascal(d.name, "component")
   self.check_unique_members(d.members)
   let ftys = self.field_types(d.members)
   let fields = []

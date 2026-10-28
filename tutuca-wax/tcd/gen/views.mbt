@@ -19,7 +19,7 @@ fn opt_attr(attrs : Array[@syntax.Attr], key : String) -> @syntax.ViewExpr? {
 ///|
 fn Gen::opt_name(self : Gen, v : @syntax.ViewExpr?) -> String {
   match v {
-    Some(x) => self.s(@check.camel(name_of(x)))
+    Some(x) => self.s(name_of(x))
     None => "null"
   }
 }
@@ -41,11 +41,11 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
     Name(_) => "view_const(value_null())"
     Call(n, attrs, args, ..) =>
       match n.text {
-        "field" => "view_field(\{self.s(@check.camel(name_of(args[0])))})"
+        "field" => "view_field(\{self.s(name_of(args[0]))})"
         "seq_item" =>
-          "view_seq_item(\{self.s(@check.camel(name_of(args[0])))}, \{self.s(@check.camel(name_of(args[1])))})"
-        "provided" => "view_provided(\{self.s(@check.camel(name_of(args[0])))})"
-        "bind" => "view_lookup_bind(\{self.s(@check.camel(name_of(args[0])))})"
+          "view_seq_item(\{self.s(name_of(args[0]))}, \{self.s(name_of(args[1]))})"
+        "provided" => "view_provided(\{self.s(name_of(args[0]))})"
+        "bind" => "view_lookup_bind(\{self.s(name_of(args[0]))})"
         "if" => {
           let cond_v = self.view(b, args[0])
           let then_v = self.view(b, args[1])
@@ -80,17 +80,16 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
           )
         }
         "render_it" =>
-          b.bind("view_render_it(\{self.opt_view_name(opt_attr(attrs, "view"))})")
+          b.bind(
+            "view_render_it(\{self.opt_view_name(opt_attr(attrs, "view"))})",
+          )
         "scope" => {
           let body = self.view(b, args[1])
-          b.bind(
-            "view_scope(\{self.s(@check.camel(name_of(args[0])))}, \{body})",
-          )
+          b.bind("view_scope(\{self.s(name_of(args[0]))}, \{body})")
         }
         "push_view" => {
           let name = match args[0] {
-            Lit(Str(s), ..) =>
-              "view_const(value_string(\{self.s(s)}))"
+            Lit(Str(s), ..) => "view_const(value_string(\{self.s(s)}))"
             other => self.view(b, other)
           }
           let body = self.view(b, args[1])
@@ -117,7 +116,7 @@ fn Gen::send_arg(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
     Call({ text: "source_key", .. }, _, _, ..) => "arg_source_key()"
     Call({ text: "drag_key", .. }, _, _, ..) => "arg_drag_key()"
     Call({ text: "event", .. }, _, [arg], ..) =>
-      "arg_event(\{self.s(@check.camel(name_of(arg)))})"
+      "arg_event(\{self.s(name_of(arg))})"
     Call({ text: "if", .. }, _, args, ..) => {
       let cond_v = self.send_arg(b, args[0])
       let then_v = self.send_arg(b, args[1])
@@ -156,7 +155,7 @@ fn Gen::element(
       ns = self.s(uri)
     } else if @check.event_of_key(k) is Some((event, mods)) {
       guard a.value is Call(_, _, sargs, ..) else { continue }
-      let msg = @check.camel(name_of(sargs[0]))
+      let msg = name_of(sargs[0])
       let args = b.array(
         "arg_array",
         sargs[1:].to_owned().map(x => self.send_arg(b, x)),

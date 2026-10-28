@@ -3,14 +3,14 @@ let sample : String =
   #|package tutuca:todos@0.1.0;
   #|
   #|/// What the list needs of an item.
-  #|interface todo_item {
+  #|interface TodoItem {
   #|    field id: s32 where id >= 0;
   #|    field done: bool;
   #|    message set_done(done: bool) changes done ensures next.done == done;
   #|}
   #|
-  #|component todo_list {
-  #|    field items: list<todo_item> where len(items) <= 500;
+  #|component TodoList {
+  #|    field items: list<TodoItem> where len(items) <= 500;
   #|    field next_id: s32 = 0 where 0 <= next_id < 1000;
   #|    message move_item(from: option<index<items>>, to: index<items>) changes items;
   #|    message remove_me() source_key: index<items> changes items emits nothing;
@@ -18,7 +18,7 @@ let sample : String =
   #|    loop items { key: s32 }
   #|    view main = ul(class: "list", "on_keydown+enter": send(add_todo), render_each(loop: items, field(items)));
   #|}
-  #|register todo_list;
+  #|register TodoList;
   #|
 
 ///|
@@ -49,7 +49,7 @@ test "parse a file with every kind of item" {
 ///|
 test "attributes after children and syntax errors are reported, and parsing goes on" {
   let (f, diags) = @syntax.parse(
-    "bad.tcd", "component c { field x: s32 = ; view main = p(\"a\", class: \"b\"); field y: bool; }",
+    "bad.tcd", "component C { field x: s32 = ; view main = p(\"a\", class: \"b\"); field y: bool; }",
   )
   debug_inspect(
     diags.map(d => d.code),
@@ -62,7 +62,7 @@ test "attributes after children and syntax errors are reported, and parsing goes
 ///|
 test "el's tag comes before its attributes" {
   let (f, diags) = @syntax.parse(
-    "el.tcd", "component c { view main = el(\"my-widget\", class: \"x\", \"b\"); }",
+    "el.tcd", "component C { view main = el(\"my-widget\", class: \"x\", \"b\"); }",
   )
   debug_inspect(diags.map(d => d.code), content="[]")
   guard f.items[0] is Component(d) &&

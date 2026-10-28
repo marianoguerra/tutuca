@@ -1,6 +1,7 @@
-// One name, three spellings: snake_case in TCD and in Wax (with keywords
-// escaped), camelCase for the runtime strings members go by (what events
-// send, property names), PascalCase for type names.
+// Names reach the runtime as the .tcd writes them: members and views in
+// snake_case, types in PascalCase. Only Wax spells them differently: every
+// identifier there is snake_case (a type's too, TodoItem's todo_item), with
+// keywords escaped.
 
 ///|
 pub fn is_snake_case(s : String) -> Bool {
@@ -19,33 +20,43 @@ pub fn is_snake_case(s : String) -> Bool {
 }
 
 ///|
-/// set_text -> setText.
-pub fn camel(s : String) -> String {
+/// A type name: PascalCase, an uppercase letter then letters and digits, no
+/// two uppercase letters in a row (Json, not JSON), so snake(s) reads it back.
+pub fn is_pascal_case(s : String) -> Bool {
+  if s.is_empty() {
+    return false
+  }
+  let mut prev_upper = false
+  for i, c in s.to_array() {
+    let upper = c >= 'A' && c <= 'Z'
+    let ok = if i == 0 {
+      upper
+    } else {
+      upper || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+    }
+    if !ok || (upper && prev_upper) {
+      return false
+    }
+    prev_upper = upper
+  }
+  true
+}
+
+///|
+/// TodoItem -> todo_item; a snake_case name is itself.
+pub fn snake(s : String) -> String {
   let sb = StringBuilder()
-  let mut up = false
-  for c in s {
-    if c == '_' {
-      up = true
-    } else if up {
-      sb.write_char(c.to_ascii_uppercase())
-      up = false
+  for i, c in s.to_array() {
+    if c >= 'A' && c <= 'Z' {
+      if i > 0 {
+        sb.write_char('_')
+      }
+      sb.write_char(c.to_ascii_lowercase())
     } else {
       sb.write_char(c)
     }
   }
   sb.to_string()
-}
-
-///|
-/// json_number -> JsonNumber.
-pub fn pascal(s : String) -> String {
-  let c = camel(s)
-  if c.is_empty() {
-    return c
-  }
-  let chars = c.to_array()
-  chars[0] = chars[0].to_ascii_uppercase()
-  String::from_array(chars)
 }
 
 ///|
@@ -56,8 +67,9 @@ let wax_keywords : Array[String] = [
 ]
 
 ///|
-/// A TCD name as a Wax identifier: itself, unless it's a Wax keyword.
+/// A TCD name as a Wax identifier: snake_case, with a Wax keyword escaped.
 pub fn wax(s : String) -> String {
+  let s = snake(s)
   if wax_keywords.contains(s) {
     s + "_"
   } else {

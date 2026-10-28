@@ -125,7 +125,7 @@ pub fn Gen::contract(self : Gen) -> String {
         "fn \{cw}_notify_\{@check.wax(n.name)}(ctx: &context\{param_list(n.params)}) {",
       )
       lines.each(l => out.line(l))
-      out.line("    ctx_notify(ctx, \{self.s(@check.camel(n.name))}, \{args});")
+      out.line("    ctx_notify(ctx, \{self.s(n.name)}, \{args});")
       out.line("}")
       out.line("")
     }
@@ -138,7 +138,7 @@ pub fn Gen::contract(self : Gen) -> String {
         "fn \{cw}_ask_\{@check.wax(a.name)}(ctx: &context\{param_list(a.params)}) {",
       )
       lines.each(l => out.line(l))
-      out.line("    ctx_ask(ctx, \{self.s(@check.camel(a.name))}, \{args});")
+      out.line("    ctx_ask(ctx, \{self.s(a.name)}, \{args});")
       out.line("}")
       out.line("")
     }
@@ -170,9 +170,7 @@ pub fn Gen::contract(self : Gen) -> String {
               "fn \{@check.wax(t)}_send_\{@check.wax(e.name)}(ctx: &context, at: &selector\{param_list(params)}) {",
             )
             lines.each(l => out.line(l))
-            out.line(
-              "    ctx_send_at(ctx, \{self.s(@check.camel(e.name))}, \{args}, at);",
-            )
+            out.line("    ctx_send_at(ctx, \{self.s(e.name)}, \{args}, at);")
             out.line("}")
             out.line("")
           }
@@ -190,11 +188,9 @@ pub fn Gen::contract(self : Gen) -> String {
             )
             let mut map = "map_empty()"
             for f in fs {
-              map = "map_assoc(\{map}, \{self.s(@check.camel(f.name))}, \{self.encode(f.ty, @check.wax(f.name))})"
+              map = "map_assoc(\{map}, \{self.s(f.name)}, \{self.encode(f.ty, @check.wax(f.name))})"
             }
-            out.line(
-              "    ctx_make(ctx, \{self.s(@check.pascal(e.name))}, \{map});",
-            )
+            out.line("    ctx_make(ctx, \{self.s(e.name)}, \{map});")
             out.line("}")
             out.line("")
           }

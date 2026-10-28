@@ -4,7 +4,7 @@
 package tutuca:media@0.1.0;
 
 /// An SVG circle: click it to fill it, click − or + (SVG shapes too) to resize it.
-component dot {
+component Dot {
     field r: s32 = 20 where 10 <= r <= 40;
     field filled: bool;
 
@@ -28,7 +28,7 @@ component dot {
 
 /// The sum of 1 to n in MathML, its closed form with n put in, and its value:
 /// click the formula, or +, for one more term.
-component sum {
+component Sum {
     field n: s32 = 3 where 1 <= n <= 20;
     get total: s32;
 
@@ -50,7 +50,7 @@ component sum {
 /// Stars from a custom element: tw-rating shows them in its shadow root and
 /// fires rating-change, a CustomEvent whose detail is the stars clicked; it
 /// shows what its stars property says, which comes from here.
-component rating {
+component Rating {
     field stars: s32 where 0 <= stars <= 5;
 
     message rate(n: s32 where 0 <= n <= 5) changes stars ensures next.stars == n;
@@ -62,9 +62,9 @@ component rating {
         button(class: "btn btn-sm btn-ghost", on_click: send(clear), "clear"));
 }
 
-register dot, sum, rating;
+register Dot, Sum, Rating;
 
-example toggles_and_resizes for dot {
+example toggles_and_resizes for Dot {
     start { r: 20, filled: false }
     send toggle();
     expect filled;
@@ -75,13 +75,13 @@ example toggles_and_resizes for dot {
     expect r == 15;
 }
 
-example sums for sum {
+example sums for Sum {
     start { n: 3 }
     send inc();
     expect n == 4;
 }
 
-example rates for rating {
+example rates for Rating {
     start { stars: 0 }
     send rate(4);
     expect stars == 4;

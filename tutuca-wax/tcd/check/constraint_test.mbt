@@ -4,7 +4,7 @@
 fn norm_of(w : String, ty : @check.Ty) -> String {
   let (f, _) = @syntax.parse(
     "t.tcd",
-    "component c { field x: s32 where \{w}; view main = p(); }",
+    "component C { field x: s32 where \{w}; view main = p(); }",
   )
   guard f.items[0] is Component(d) && d.members[0] is Field(field) else {
     return "not parsed"
@@ -103,25 +103,31 @@ test "where clauses that can't be, or say twice, or aren't constraints" {
       #|  "x in keys(nope) => anything of its type tcd.where.unknown_field",
       #|  "x in keys(m) => anything of its type tcd.where.type",
       #|]
-
     ),
   )
 }
 
 ///|
-test "names in three spellings" {
+test "names as Wax identifiers" {
   debug_inspect(
     [
-      (
-        @check.camel("set_text"),
-        @check.pascal("json_number"),
-        @check.wax("type"),
-      ),
-      (@check.camel("x"), @check.pascal("a_b_c"), @check.wax("count")),
+      @check.wax("type"),
+      @check.wax("count"),
+      @check.wax("JsonNumber"),
+      @check.wax("A1"),
     ],
     content=(
-      #|[("setText", "JsonNumber", "type_"), ("x", "ABC", "count")]
+      #|["type_", "count", "json_number", "a1"]
     ),
+  )
+  debug_inspect(
+    [
+      @check.is_pascal_case("JsonNumber"),
+      @check.is_pascal_case("A1"),
+      @check.is_pascal_case("JSON"),
+      @check.is_pascal_case("json_number"),
+    ],
+    content="[true, true, false, false]",
   )
   debug_inspect(
     [

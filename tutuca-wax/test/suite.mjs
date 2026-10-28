@@ -641,33 +641,33 @@ test("components: an ask the scope answers now replies in the same run", (env) =
 test("components: an ask the host answers later replies when it settles", async (env) => {
 	const { container } = env;
 	let answer = 7;
-	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: async () => answer } });
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => answer } });
 	host.send("fetch");
 	assert.deepEqual(counts(container), ["1"]);
 	await host.settled();
 	assert.deepEqual(counts(container), ["7"]);
-	// A failed answer replies with ReplyError, which Counter doesn't handle.
+	// A failed answer replies with _reply_error, which Counter doesn't handle.
 	answer = null;
-	const failing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: async () => Promise.reject(new Error("offline")) } });
+	const failing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => Promise.reject(new Error("offline")) } });
 	failing.host.send("fetch");
 	await failing.host.settled();
-	assert.deepEqual(failing.host.unhandled, ["fetchCountReplyError"]);
+	assert.deepEqual(failing.host.unhandled, ["fetch_count_reply_error"]);
 });
 
 // The host answers as tutuca's JS's ask handlers do: a value replies in the
-// ask's own run, a throw with ReplyError, and an ask it has no answer for
-// with HandlerNotFound.
+// ask's own run, a throw with _reply_error, and an ask it has no answer for
+// with _handler_not_found.
 test("components: an ask the host answers now replies in the same run; one it can't answer isn't found", (env) => {
 	const { container } = env;
-	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: () => 5 } });
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: () => 5 } });
 	host.send("fetch");
 	assert.deepEqual(counts(container), ["5"]);
-	const throwing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: () => { throw new Error("offline"); } } });
+	const throwing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: () => { throw new Error("offline"); } } });
 	throwing.host.send("fetch");
-	assert.deepEqual(throwing.host.unhandled, ["fetchCountReplyError"]);
+	assert.deepEqual(throwing.host.unhandled, ["fetch_count_reply_error"]);
 	const missing = mountRoot(env, "Counter", { count: 1 });
 	missing.host.send("fetch");
-	assert.deepEqual(missing.host.unhandled, ["fetchCountHandlerNotFound"]);
+	assert.deepEqual(missing.host.unhandled, ["fetch_count_handler_not_found"]);
 	assert.deepEqual([...host.failures, ...throwing.host.failures, ...missing.host.failures], []);
 });
 
@@ -675,21 +675,21 @@ test("components: an ask the host answers now replies in the same run; one it ca
 // it however it arrives, in the ask's own task or when the host settles it.
 test("components: replies have schemas, and a reply that doesn't fit is rejected", async (env) => {
 	const { runtime } = env.vdom;
-	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetchCount: async () => "seven" } });
-	const replies = runtime.schema(host.root()).messages.filter((m) => /Reply|NotFound/.test(m.name));
+	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => "seven" } });
+	const replies = runtime.schema(host.root()).messages.filter((m) => /_reply_|_not_found$/.test(m.name));
 	assert.deepEqual(
 		replies.map((m) => [m.name, m.args.map((a) => a.type)]),
 		[
-			["loadCountReplyOk", ["s32"]],
-			["loadCountReplyError", ["any"]],
-			["fetchCountReplyOk", ["s32"]],
+			["load_count_reply_ok", ["s32"]],
+			["load_count_reply_error", ["any"]],
+			["fetch_count_reply_ok", ["s32"]],
 		],
 	);
 	host.send("fetch");
 	await host.settled();
 	assert.deepEqual(
 		host.failures.map((e) => e.rejection),
-		[{ message: "fetchCountReplyOk", component: "Counter", reason: "wrongArgType", index: 0, problem: 'argument 0 (value): expected s32, got "seven"' }],
+		[{ message: "fetch_count_reply_ok", component: "Counter", reason: "wrongArgType", index: 0, problem: 'argument 0 (value): expected s32, got "seven"' }],
 	);
 	assert.deepEqual(counts(env.container), ["1"]);
 });
@@ -697,7 +697,7 @@ test("components: replies have schemas, and a reply that doesn't fit is rejected
 test("components: a handler can swap its component for one of another type", (env) => {
 	const { vdom, container } = env;
 	const { host } = mountRoot(env, "Counter", { count: 3 });
-	host.send("toLabel");
+	host.send("to_label");
 	assert.equal(vdom.runtime.typeName(host.root()), "Label");
 	assert.equal(container.innerHTML, '<!--§{"t":"component"}§--><p class="text-sm italic opacity-70">was 3</p><!--§/§-->');
 });
@@ -722,7 +722,7 @@ test("components: unknown messages are observed and change nothing; logs are obs
 	host.send("nope");
 	assert.deepEqual(host.unhandled, ["nope"]);
 	assert.equal(host.root(), before);
-	host.send("loadCountReplyError", ["boom"]);
+	host.send("load_count_reply_error", ["boom"]);
 	assert.deepEqual(host.logs, ["boom"]);
 });
 
@@ -783,7 +783,7 @@ test("todos: an item asks the list to remove it; keyed by id, the others keep th
 	assert.equal(container.querySelectorAll("li")[1], third);
 });
 
-test("todos: the list sends every item setDone, then drops the done ones", (env) => {
+test("todos: the list sends every item set_done, then drops the done ones", (env) => {
 	const { window, container } = env;
 	mountRoot(env, "TodoList", {});
 	addTodos(env, "a", "b", "c");
@@ -799,7 +799,7 @@ test("todos: items made outside the list compose the same", (env) => {
 	const { vdom, container, scope } = env;
 	const { runtime } = vdom;
 	const items = ["x", "y"].map((text, id) => runtime.make(scope, "TodoItem", { id, text, done: id === 1 }));
-	const root = runtime.make(scope, "TodoList", { items, nextId: 2 });
+	const root = runtime.make(scope, "TodoList", { items, next_id: 2 });
 	runtime.createHost(env.document, container, root).mount();
 	assert.deepEqual(todoTexts(container), ["x", "y"]);
 	assert.equal(footerText(container), "1 of 2 left");
@@ -891,7 +891,7 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 		{ title: "Emma", year: 1815, read: false },
 		{ title: "Ulysses", year: 1922, read: false },
 	];
-	const fields = { books, onlyUnread: false, tags: ["a", "b", "c"], current: 1, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
+	const fields = { books, only_unread: false, tags: ["a", "b", "c"], current: 1, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
 	runtime.createHost(document, container, runtime.make(scope, "Shelf", fields)).mount();
 	const texts = (selector) => [...container.querySelectorAll(selector)].map((e) => e.textContent);
 	// A scope's binds.
@@ -908,7 +908,7 @@ test("views: scopes, loop hooks, seq items, floats, provided values, pushView an
 	assert.equal(container.querySelector("small").textContent, "pinned");
 	// renderIt: each note in its main view.
 	assert.deepEqual(texts(".notes p.note"), ["x", "y"]);
-	// byYear: its prepare sorts the indexes by year, its iter gives the books in that order.
+	// by_year: its prepare sorts the indexes by year, its iter gives the books in that order.
 	assert.deepEqual(texts(".by-year span"), ["Emma", "Ulysses", "Dune"]);
 	// The filter drops the read ones; keyed by title, Emma keeps its node.
 	const emma = container.querySelectorAll("li")[1];
@@ -935,7 +935,7 @@ test("components: every example type registered by a TCD module makes with no fi
 });
 
 // ---- Asking what a scope can make, through components/layout ------------
-// A Hole's + asks componentNames; the package's ask_handler gets the asker's
+// A Hole's + asks component_names; the package's ask_handler gets the asker's
 // context, so it lists the names visible from the scope the hole was made in.
 
 // A Screen holding content, being edited: its layout_edit views are shown.
@@ -1190,7 +1190,7 @@ const mountShelf = async ({ vdom, document, container, modules }) => {
 	const scope = runtime.scope();
 	await vdom.loadComponent(modules.showcase, scope);
 	const note = (text) => runtime.make(scope, "Note", { text });
-	const fields = { books: BOOKS, onlyUnread: false, tags: ["a"], current: 0, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
+	const fields = { books: BOOKS, only_unread: false, tags: ["a"], current: 0, theme: "dark", note: note("pinned"), notes: [note("x"), note("y")] };
 	return runtime.createHost(document, container, runtime.make(scope, "Shelf", fields)).mount();
 };
 // A drag event of type on node, cancelable, with init's fields (relatedTarget).
@@ -1223,7 +1223,7 @@ test("drag and drop: a book dropped on another moves there, with what's dragged 
 	dragEvent(window, "dragover", ulysses);
 	assert.equal(dragEvent(window, "drop", ulysses).defaultPrevented, true);
 	dragEvent(window, "dragend", dune);
-	// moveBook(dragKey, sourceKey): Dune, at 0, to Ulysses' place, 2.
+	// move_book(drag_key, source_key): Dune, at 0, to Ulysses' place, 2.
 	assert.deepEqual(
 		shelfBooks(container).map((li) => li.textContent),
 		["Emma (1815)", "Ulysses (1922)", "Dune (1965)"],
@@ -1249,7 +1249,7 @@ test("drag and drop: drop events reach the nearest enclosing component that hand
 	assert.equal(notes.dataset.draggingover, "book");
 	dragEvent(window, "drop", x);
 	dragEvent(window, "dragend", emma);
-	// noteBook(dragKey, sourceKey): Emma, at 1, to the note at 0, by sendAt.
+	// note_book(drag_key, source_key): Emma, at 1, to the note at 0, by sendAt.
 	assert.deepEqual([...notes.querySelectorAll("p.note")].map((p) => p.textContent), ["Emma", "y"]);
 	assert.equal(notes.dataset.draggingover, undefined);
 	assert.deepEqual(host.failures, []);
@@ -1304,7 +1304,7 @@ const mountJson = async ({ vdom, document, container, modules }, doc = DOC) => {
 	const { runtime } = vdom;
 	const scope = runtime.scope();
 	await vdom.loadComponent(modules.json, scope);
-	const root = runtime.make(scope, "JsonEditor", { value: fromJson(runtime, scope, doc), mode: "view", showText: true });
+	const root = runtime.make(scope, "JsonEditor", { value: fromJson(runtime, scope, doc), mode: "view", show_text: true });
 	return runtime.createHost(document, container, root).mount();
 };
 const jsonText = (container) => container.querySelector("pre").textContent;
@@ -1419,11 +1419,11 @@ test("schemas: a component type's schema reads as data, types as TCD writes them
 	assert.deepEqual(counter.messages.find((m) => m.name === "inc").emits, [{ kind: "notify", name: "changed" }]);
 	const list = runtime.schema(runtime.make(scope, "TodoList", {}));
 	assert.equal(list.fields[0].type, "list<TodoItem>");
-	assert.deepEqual(list.messages.find((m) => m.name === "moveItem").args.map((a) => [a.type, a.constraints]), [
+	assert.deepEqual(list.messages.find((m) => m.name === "move_item").args.map((a) => [a.type, a.constraints]), [
 		["option<s32>", ["in keys(items)"]],
 		["option<s32>", ["in keys(items)"]],
 	]);
-	assert.deepEqual(list.invariants, ["idsBelowNextId"]);
+	assert.deepEqual(list.invariants, ["ids_below_next_id"]);
 	assert.deepEqual(runtime.schema(runtime.make(scope, "TodoItem", { id: 0, text: "a", done: false })).interfaces, ["TodoItem"]);
 	assert.deepEqual(runtime.interface(scope, "TodoItem").fields.map((f) => `${f.name}: ${f.type}`), ["id: s32", "text: string", "done: bool"]);
 	assert.equal(runtime.interface(scope, "Nope"), null);
@@ -1677,7 +1677,7 @@ test("hosts run tasks for up to 16ms, render, and run the rest on the next tick"
 	for (let i = 0; i < 3; i++) click(window, buttons(container, "add")[0]);
 	click(window, buttons(container, "+")[0]);
 	assert.deepEqual(counts(container), ["1", "1", "2"]);
-	// A clock that moves 10ms each time it's read: resetAll runs, then the
+	// A clock that moves 10ms each time it's read: reset_all runs, then the
 	// first counter's reset, and the run is past 16ms.
 	const now = Date.now;
 	let t = 0;
@@ -1810,7 +1810,7 @@ test("modules: TodoList works with another implementation of TodoItem's interfac
 	assert.equal(marks(cardButton(cards(container)[1], "star"), "star", "on"), "star on");
 	const items = runtime.get(host.root(), "items");
 	assert.deepEqual(items.map((c) => runtime.get(c, "starred")), [false, true, false]);
-	// The rest of the interface: removeMe, setDone, done.
+	// The rest of the interface: remove_me, set_done, done.
 	click(window, cardButton(cards(container)[2], "remove"));
 	assert.deepEqual(cardTexts(container), ["milk", "a"]);
 	click(window, buttons(container, "all done")[0]);
@@ -1906,7 +1906,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 9/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 10/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

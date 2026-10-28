@@ -809,8 +809,8 @@ function makeRuntime(w, api, late) {
 			},
 			// The ask import: answers through asks[name], as tutuca's JS does:
 			// a value replies now, a promise later (with the id host_settle
-			// gets back), a throw or a rejection with ReplyError, and a name
-			// asks lacks with HandlerNotFound.
+			// gets back), a throw or a rejection with _reply_error, and a name
+			// asks lacks with _handler_not_found.
 			ask(name, args) {
 				if (!Object.hasOwn(asks, name)) return values.from(null);
 				let answer;

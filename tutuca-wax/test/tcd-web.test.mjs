@@ -61,7 +61,7 @@ test("a type error in the .wax comes back as a diagnostic at its line", () => {
 });
 
 test("errors in the .tcd stop before compiling; check reports them with the types", () => {
-	const text = counter.files[COUNTER].replace("component board {", "component board {\n    field broken: nope;");
+	const text = counter.files[COUNTER].replace("component Board {", "component Board {\n    field broken: nope;");
 	const res = tcd.check({ ...counter, files: { [COUNTER]: text } });
 	assert.equal(res.ok, false);
 	assert.ok(res.diags.some((d) => d.severity === "error" && d.span.file === COUNTER && /nope/.test(d.message)));
@@ -116,9 +116,9 @@ test("a scope can't bind value over the item renderIt renders", async () => {
 	const main = "binds.tcd";
 	const files = {
 		[main]: `package tutuca:binds@0.1.0;
-component cell { field n: s32; view main = span(field(n)); }
-component row {
-    field cells: list<cell>;
+component Cell { field n: s32; view main = span(field(n)); }
+component Row {
+    field cells: list<Cell>;
     scope extra { value: string, label: string }
     view main = ul(each(field(cells), scope(extra, li(bind(label), render_it()))));
 }
@@ -148,7 +148,7 @@ test("values render and key as String writes them, and a loop over null fails", 
 	const main = "texts.tcd";
 	const files = {
 		[main]: `package tutuca:texts@0.1.0;
-component texts {
+component Texts {
     field v: any;
     field xs: any;
     loop keyed { key: any }
@@ -182,7 +182,7 @@ test("a constant value or checked is set as a property", async () => {
 	const main = "inputs.tcd";
 	const files = {
 		[main]: `package tutuca:inputs@0.1.0;
-component inputs { view main = div(input(value: "draft"), input(type: "checkbox", checked: true)); }
+component Inputs { view main = div(input(value: "draft"), input(type: "checkbox", checked: true)); }
 `,
 	};
 	const res = tcd.build({ main, files, impls: [{ path: "inputs.wax", text: "" }], runtime });
@@ -205,7 +205,7 @@ test("an element's namespace attribute makes it in that namespace", async () => 
 	const main = "shapes.tcd";
 	const files = {
 		[main]: `package tutuca:shapes@0.1.0;
-component shapes { view main = g(namespace: "http://www.w3.org/2000/svg", circle(r: "1")); }
+component Shapes { view main = g(namespace: "http://www.w3.org/2000/svg", circle(r: "1")); }
 `,
 	};
 	const res = tcd.build({ main, files, impls: [{ path: "shapes.wax", text: "" }], runtime });
@@ -229,7 +229,7 @@ test("invariants are checked when the queue empties after a task that failed", a
 	const main = "gauge.tcd";
 	const files = {
 		[main]: `package tutuca:gauge@0.1.0;
-component gauge {
+component Gauge {
     field ok: bool = true;
     invariant fine: ok;
     ask count() -> s32;
@@ -260,7 +260,7 @@ fn gauge_answer_count(ctx: &context) -> &value {
 	await tw.loadComponent(res.wasm, scope);
 	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Gauge", {}), { dev: true });
 	host.send("spoil");
-	assert.deepEqual(host.failures.map((e) => e.rejection?.message), ["countReplyOk"]);
+	assert.deepEqual(host.failures.map((e) => e.rejection?.message), ["count_reply_ok"]);
 	assert.deepEqual(
 		host.issues.map((i) => [i.kind, i.settled, i.issues.map((x) => x.reason)]),
 		[["stateInvalid", true, ["invariant:fine"]]],
@@ -274,7 +274,7 @@ test("an ask handler answers and logs, and can't send", async () => {
 	const main = "oracle.tcd";
 	const files = {
 		[main]: `package tutuca:oracle@0.1.0;
-component oracle {
+component Oracle {
     field got: s32;
     ask good() -> s32;
     ask bad() -> s32;
@@ -320,8 +320,8 @@ fn oracle_answer_bad(ctx: &context) -> &value {
 	const scope = tw.runtime.scope();
 	await tw.loadComponent(res.wasm, scope);
 	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Oracle", {}));
-	host.send("askGood");
-	host.send("askBad");
+	host.send("ask_good");
+	host.send("ask_bad");
 	assert.equal(tw.runtime.get(host.root(), "got"), 1);
 	assert.deepEqual(host.logs, ["x"]);
 	assert.deepEqual(host.failures.map((e) => e.message), ["An ask handler only answers, it can't send: bad"]);
@@ -334,8 +334,8 @@ test("a type loaded under another name is of that name", async () => {
 	const main = "boxes.tcd";
 	const files = {
 		[main]: `package tutuca:boxes@0.1.0;
-component tally { field count: s32; view main = p(field(count)); }
-component box { field item: tally; view main = div(render(field(item))); }
+component Tally { field count: s32; view main = p(field(count)); }
+component Box { field item: Tally; view main = div(render(field(item))); }
 `,
 	};
 	const res = tcd.build({ main, files, impls: [{ path: "boxes.wax", text: "" }], runtime });

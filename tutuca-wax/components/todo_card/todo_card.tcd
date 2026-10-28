@@ -5,9 +5,9 @@
 // already, it takes the name over for the items made from then on.
 package tutuca:todo-card@0.1.0;
 
-use "../todo_list/todo_list.tcd".{ todo_item };
+use "../todo_list/todo_list.tcd".{ TodoItem };
 
-component todo_card: todo_item {
+component TodoCard: TodoItem {
     field id: s32 where id >= 0;
     field text: string;
     field done: bool;
@@ -42,4 +42,4 @@ component todo_card: todo_item {
             button(class: "remove btn btn-xs btn-ghost text-error", on_click: send(remove), "remove")));
 }
 
-register todo_card as todo_item;
+register TodoCard as TodoItem;

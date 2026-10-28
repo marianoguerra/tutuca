@@ -37,27 +37,31 @@ build byte-identical modules.
 
 ## The language
 
-Every name is snake_case; the runtime gets camelCase for members (`set_text`
-is the message `setText`) and PascalCase for types (`json_number` is
-`JsonNumber`), and Wax gets the snake_case name. View names are the
-exception: the runtime gets them as written (`view layout_edit` is the view
-`"layout_edit"`), so a `push_view` of a name a field or property holds finds
-the view the same way a literal one does.
+Types (components and interfaces) are PascalCase, every other name
+snake_case, and the runtime gets each name as written: the message
+`set_text` is `"set_text"`, the type `JsonNumber` is `"JsonNumber"`, the view
+`layout_edit` is `"layout_edit"`, so a `push_view` of a name a field holds
+finds the view as a literal one does. Only Wax spells a type differently:
+its identifiers are snake_case, so `JsonNumber`'s state is `json_number_state`
+(a type name has no two uppercase letters in a row, `Json` not `JSON`, so
+that reads back). An ask's replies are the ask's name with `_reply_ok`,
+`_reply_error` and `_handler_not_found`, and `event(name)` reads the event's
+field by its DOM name, `event(clientX)`.
 
 ```wit
 package tutuca:todos@0.1.0;
 
-use "../todo_list/todo_list.tcd".{ todo_item };   // interfaces from another file
+use "../todo_list/todo_list.tcd".{ TodoItem };   // interfaces from another file
 
 /// What a list needs of its items.
-interface todo_item {
+interface TodoItem {
     field id: s32;
     field done: bool;
     message set_done(done: bool);
     notify remove_me();
 }
 
-component todo_card: todo_item {           // implements it, checked
+component TodoCard: TodoItem {           // implements it, checked
     field id: s32 where id >= 0;
     field done: bool;
     field starred: bool;
@@ -73,8 +77,8 @@ component todo_card: todo_item {           // implements it, checked
         button(on_click: send(toggle), "toggle"));
 }
 
-register todo_card as todo_item;          // default: every component, as itself
-example toggles for todo_card { start { done: false } send toggle(); expect done; }
+register TodoCard as TodoItem;          // default: every component, as itself
+example toggles for TodoCard { start { done: false } send toggle(); expect done; }
 ```
 
 **Types**: `bool`, `s32`, `f64`, `string`, `any`, `enum { a, b }`,

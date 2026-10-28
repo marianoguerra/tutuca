@@ -10,14 +10,14 @@ package tutuca:showcase@0.1.0;
 /// books in that order. A book dropped on another moves there; dropped on a
 /// note, which handles no drop, it reaches the notes' on_drop, which sends
 /// that note the book's title.
-component shelf {
+component Shelf {
     field books: list<record { title: string, year: s32, read: bool }>;
     field only_unread: bool;
     field tags: list<string>;
     field current: s32;
     field theme: string;
-    field note: option<note>;
-    field notes: list<note>;
+    field note: option<Note>;
+    field notes: list<Note>;
     /// The share of the books read.
     get share: f64 where 0 <= share <= 1;
     /// "1 of 3 read".
@@ -32,7 +32,7 @@ component shelf {
         ensures len(next.books) == len(books);
     /// A book dropped on a note writes its title there.
     message note_book(book: option<index<books>>, note: option<index<notes>>) changes nothing
-        emits send note.set_text;
+        emits send Note.set_text;
 
     scope header { heading: string }
     loop books { key: string; filter; enrich { label: string } }
@@ -73,7 +73,7 @@ component shelf {
 }
 
 /// A note: its text, in a paragraph, or small in the provided theme.
-component note {
+component Note {
     field text: string;
 
     message set_text(text: string) changes text ensures next.text == text;

@@ -335,7 +335,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
 }
 
 // An ask runs the scope's ask handler and gives the asker the reply as a
-// message: NameReplyOk, NameReplyError or NameHandlerNotFound, checked as any
+// message: name_reply_ok, name_reply_error or name_handler_not_found, checked as any
 // message is. A pending answer gives none: the asker stays as it is until the
 // reply arrives.
 fn ask_reply(

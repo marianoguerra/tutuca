@@ -21,14 +21,19 @@ test "paths a use names resolve to one key" {
 ///|
 test "load reads the files a use names through the read function" {
   let files : Map[String, String] = Map::from_array([
-    ("lib/i.tcd", "interface item { field id: s32; }"),
+    ("lib/i.tcd", "interface Item { field id: s32; }"),
     (
-      "app/c.tcd", "use \"../lib/i.tcd\".{ item }; component c: item { field id: s32; view main = p(); }",
+      "app/c.tcd", "use \"../lib/i.tcd\".{ Item }; component C: Item { field id: s32; view main = p(); }",
     ),
   ])
   guard @api.load(p => files.get(p), "app/c.tcd") is Some((pkg, diags)) else {
     fail("not loaded")
   }
   debug_inspect(diags.map(d => d.message), content="[]")
-  debug_inspect(pkg.interfaces.map(i => i.name), content="[\"item\"]")
+  debug_inspect(
+    pkg.interfaces.map(i => i.name),
+    content=(
+      #|["Item"]
+    ),
+  )
 }

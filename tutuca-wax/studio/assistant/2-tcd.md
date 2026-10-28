@@ -1,24 +1,25 @@
 # The .tcd language
 
-A `.tcd` file is a package of components. Every name in it is snake_case; the
-runtime sees members in camelCase (the message `set_text` is `setText`) and
-types in PascalCase (`check_item` is `CheckItem`), and Wax sees the
-snake_case names. View names are kept as written: `push_view` takes the
-name the view is declared with (`"layout_edit"`), literal or computed.
+A `.tcd` file is a package of components. Type names (components and
+interfaces) are PascalCase, with no two uppercase letters in a row
+(`CheckItem`, `Json`); every other name is snake_case. The runtime sees every
+name as written (the message `set_text` is `"set_text"`, `push_view` takes
+the view's declared name, literal or computed); Wax sees a type's name in
+snake_case (`CheckItem`'s state is `check_item_state`).
 
 ```wit
 package tutuca:shop@0.1.0;           // first line: the package, its last part is the package name (shop)
 
-use "other.tcd".{ priced };          // interfaces declared in another file of the library
+use "other.tcd".{ Priced };          // interfaces declared in another file of the library
 
 /// What a cart needs of its lines.  (an interface: what implementing types must have)
-interface priced {
+interface Priced {
     field price: f64;
     message set_qty(qty: s32);
 }
 
 /// A line of the cart.
-component cart_line: priced {        // implements priced; checked
+component CartLine: Priced {        // implements priced; checked
     field name: string;
     field price: f64 where price >= 0;
     field qty: s32 = 1 where 1 <= qty <= 99;
@@ -27,7 +28,7 @@ component cart_line: priced {        // implements priced; checked
     view main = li(field(name), " × ", field(qty), " = ", field(total));
 }
 
-register cart_line;                   // optional; by default every component, under its own name
+register CartLine;                   // optional; by default every component, under its own name
 ```
 
 ## Types

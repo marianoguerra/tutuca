@@ -573,8 +573,8 @@ fn Target::freeze(self : Target, root : Value) -> DispatchPath raise PathError {
 enum Effect {
   /// To the parent, bubbling up until a handler stops it.
   Notify(String, Array[Value])
-  /// To the scope's ask handler; the reply comes back as NameReplyOk or
-  /// NameReplyError, or NameHandlerNotFound.
+  /// To the scope's ask handler; the reply comes back as name_reply_ok or
+  /// name_reply_error, or name_handler_not_found.
   Ask(String, Array[Value])
   /// To a component below, by selector.
   SendAt(String, Array[Value], Selector)
@@ -838,7 +838,7 @@ fn Host::transaction(self : Host, task : Task) -> (Value, Array[Task]) raise {
 }
 
 /// An ask runs the scope's ask handler and gives the asker the reply as a
-/// message: NameReplyOk, NameReplyError or NameHandlerNotFound. A pending
+/// message: name_reply_ok, name_reply_error or name_handler_not_found. A pending
 /// answer leaves the asker as it is until the reply arrives.
 fn Host::run_ask(self : Host, c : Component, task : Task, ctx : Context) -> MessageResult {
   let reply = (name, args) => (c.vtable.handle)(c.instance, { name, args }, ctx)

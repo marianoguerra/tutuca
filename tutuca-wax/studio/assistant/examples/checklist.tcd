@@ -5,7 +5,7 @@
 package tutuca:checklist@0.1.0;
 
 /// One thing to check.
-component check_item {
+component CheckItem {
     field text: string;
     field done: bool;
 
@@ -22,14 +22,14 @@ component check_item {
 }
 
 /// Things to check, and whether to show the checked ones.
-component checklist {
-    field items: list<check_item> where len(items) <= 50;
+component Checklist {
+    field items: list<CheckItem> where len(items) <= 50;
     field draft: string;
     field hide_done: bool;
     get left: s32 where left >= 0;
 
     message set_draft(text: string) changes draft ensures next.draft == text;
-    message add() when len(draft) > 0 changes items, draft emits make check_item;
+    message add() when len(draft) > 0 changes items, draft emits make CheckItem;
     message set_hide_done(hide: bool) changes hide_done ensures next.hide_done == hide;
     /// An item's notify: the source key says which one.
     message remove_me() source_key: index<items> changes items
@@ -51,9 +51,9 @@ component checklist {
             "hide checked · ", field(left), " left"));
 }
 
-register check_item, checklist;
+register CheckItem, Checklist;
 
-example add_one for checklist {
+example add_one for Checklist {
     start { draft: "milk" }
     send add();
     expect len(items) == 1 and draft == "";

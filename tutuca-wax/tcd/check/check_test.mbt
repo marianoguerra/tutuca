@@ -10,12 +10,12 @@ fn diags_of(src : String) -> Array[String] {
 ///|
 let valid : String =
   #|package tutuca:todos@0.1.0;
-  #|interface todo_item {
+  #|interface TodoItem {
   #|    field id: s32 where id >= 0;
   #|    field done: bool;
   #|    message set_done(done: bool) changes done ensures next.done == done;
   #|}
-  #|component item: todo_item {
+  #|component Item: TodoItem {
   #|    field id: s32 where id >= 0;
   #|    field done: bool;
   #|    field text: string where len(text) <= 200;
@@ -23,17 +23,17 @@ let valid : String =
   #|    message toggle() changes done;
   #|    view main = li(class: if(field(done), "done", "todo"), "on_click": send(toggle), field(text));
   #|}
-  #|component todo_list {
-  #|    field items: list<todo_item> where len(items) <= 500;
+  #|component TodoList {
+  #|    field items: list<TodoItem> where len(items) <= 500;
   #|    field draft: string;
   #|    field next_id: s32 = 0 where next_id >= 0;
   #|    get remaining: s32 where remaining >= 0;
   #|    invariant ids_below: all(items, it.id < next_id);
   #|    message set_draft(text: string) changes draft ensures next.draft == text;
-  #|    message add_todo() when len(draft) > 0 changes items, draft, next_id emits make todo_item;
+  #|    message add_todo() when len(draft) > 0 changes items, draft, next_id emits make TodoItem;
   #|    message move_item(from: option<index<items>>, to: option<index<items>>) changes items;
   #|    message remove_me() source_key: index<items> changes items;
-  #|    message complete_all() changes nothing emits send todo_item.set_done;
+  #|    message complete_all() changes nothing emits send TodoItem.set_done;
   #|    loop items { key: s32 }
   #|    view main = section(
   #|        input(value: field(draft), on_input: send(set_draft, target_value()), "on_keydown+enter+prevent": send(add_todo)),
@@ -52,7 +52,7 @@ test "where clauses: contradictions, redundancy, what isn't a constraint, defaul
   debug_inspect(
     diags_of(
       (
-        #|component c {
+        #|component C {
         #|    field a: s32 where a > 10 and a < 5;
         #|    field b: s32 where b > 0 and b > 5;
         #|    field c: s32 where c > 0 or c < -5;
@@ -72,7 +72,6 @@ test "where clauses: contradictions, redundancy, what isn't a constraint, defaul
       #|  "tcd.field.required: e has no default that meets its constraints, so making a component needs it",
       #|  "tcd.where.type: > compares numbers, but f is bool",
       #|]
-
     ),
   )
 }
@@ -82,17 +81,17 @@ test "make(c) defaults: of the field's type, needing no fields" {
   debug_inspect(
     diags_of(
       (
-        #|interface v { }
-        #|component leaf: v { view main = p("x"); }
-        #|component other { view main = p("x"); }
-        #|component needy: v { field n: string where len(n) >= 1; view main = p("x"); }
-        #|component c {
-        #|    field a: v = make(leaf);
-        #|    field b: s32 = make(leaf);
-        #|    field d: v = make(nope);
-        #|    field e: v = make(other);
-        #|    field f: v = make(needy);
-        #|    field g: component = make(other);
+        #|interface V { }
+        #|component Leaf: V { view main = p("x"); }
+        #|component Other { view main = p("x"); }
+        #|component Needy: V { field n: string where len(n) >= 1; view main = p("x"); }
+        #|component C {
+        #|    field a: V = make(Leaf);
+        #|    field b: s32 = make(Leaf);
+        #|    field d: V = make(nope);
+        #|    field e: V = make(Other);
+        #|    field f: V = make(Needy);
+        #|    field g: component = make(Other);
         #|    view main = p("x");
         #|}
       ),
@@ -100,10 +99,10 @@ test "make(c) defaults: of the field's type, needing no fields" {
     content=(
       #|[
       #|  "tcd.field.required: n has no default that meets its constraints, so making a component needs it",
-      #|  "tcd.field.make: make(leaf) makes a component, but b is s32",
+      #|  "tcd.field.make: make(Leaf) makes a component, but b is s32",
       #|  "tcd.field.make: no component nope to make",
-      #|  "tcd.field.make: make(other) isn't a v, the type of e",
-      #|  "tcd.field.make: make(needy) makes it with no fields, but needy needs n",
+      #|  "tcd.field.make: make(Other) isn't a V, the type of e",
+      #|  "tcd.field.make: make(Needy) makes it with no fields, but Needy needs n",
       #|]
     ),
   )
@@ -114,7 +113,7 @@ test "messages: guards that can't hold, ensures outside changes, unknown names" 
   debug_inspect(
     diags_of(
       (
-        #|component c {
+        #|component C {
         #|    field draft: string where len(draft) <= 0;
         #|    field n: s32;
         #|    message add() when len(draft) > 0;
@@ -130,7 +129,7 @@ test "messages: guards that can't hold, ensures outside changes, unknown names" 
       #|  "tcd.message.ensures_changes: the ensures of bump says how next.n relates to the state, but bump doesn't change n",
       #|  "tcd.cond.type: in the when of go: no argument, field or property cuont",
       #|  "tcd.view.send_arity: bump takes 0 arguments, this sends 1",
-      #|  "tcd.view.field: c has no field or property nn; did you mean n?",
+      #|  "tcd.view.field: C has no field or property nn; did you mean n?",
       #|]
     ),
   )
@@ -143,7 +142,7 @@ test "a bounded number with no default starts inside its bounds" {
   let (f, _) = @syntax.parse(
     "t.tcd",
     (
-      #|component c {
+      #|component C {
       #|    field a: s32 where a >= 1;
       #|    field b: s32 where b > 2;
       #|    field c: s32 where c < -3;

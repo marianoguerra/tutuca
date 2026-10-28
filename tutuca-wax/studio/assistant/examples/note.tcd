@@ -4,7 +4,7 @@
 package tutuca:note@0.1.0;
 
 /// A short note that can be pinned.
-component note {
+component Note {
     field title: string = "Untitled" where len(title) <= 60;
     field body: string where len(body) <= 280;
     field pinned: bool;
@@ -31,14 +31,14 @@ component note {
             button(class: "btn btn-xs", on_click: send(clear), "clear")));
 }
 
-example pin_twice for note {
+example pin_twice for Note {
     start { }
     send toggle_pin();
     send toggle_pin();
     expect not pinned;
 }
 
-example clear_empties for note {
+example clear_empties for Note {
     start { body: "hello" }
     send clear();
     expect len(body) == 0;

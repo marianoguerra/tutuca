@@ -158,7 +158,7 @@ fn emits_has(emits: &emit_array, kind: i32, name: &extern) -> i32 {
     0;
 }
 
-// "emits:notify:removeMe" when the message may not emit it.
+// "emits:notify:remove_me" when the message may not emit it.
 fn emit_issue(issues: &value, emits: &emit_array, kind: i32, name: &extern) -> &value {
     if emits_has(emits, kind, name) {
         return issues;

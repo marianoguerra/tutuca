@@ -7,18 +7,18 @@
 package tutuca:json@0.1.0;
 
 /// What every value is: its JSON text.
-interface json_value {
+interface JsonValue {
     get json: string;
 }
 
 /// null.
-component json_null: json_value {
+component JsonNull: JsonValue {
     get json: string;
     view main = span(class: "font-mono text-sm leading-6 text-warning", "null");
 }
 
 /// true or false; edit toggles it.
-component json_bool: json_value {
+component JsonBool: JsonValue {
     field value: bool;
     get json: string;
 
@@ -33,7 +33,7 @@ component json_bool: json_value {
 
 /// A number. text is what the user typed; value follows it whenever it
 /// reads as a number.
-component json_number: json_value {
+component JsonNumber: JsonValue {
     field value: f64;
     field text: string = "0";
     /// Whether text reads as a number.
@@ -52,7 +52,7 @@ component json_number: json_value {
 }
 
 /// A string.
-component json_string: json_value {
+component JsonString: JsonValue {
     field value: string;
     get json: string;
 
@@ -68,11 +68,11 @@ component json_string: json_value {
 
 /// A value still to be chosen, in a new array item or object entry: set_to
 /// replaces it with an empty value of the type picked.
-component json_selector: json_value {
+component JsonSelector: JsonValue {
     get json: string;
 
     message set_to(kind: enum { null, bool, number, string, array, object }) -> swap
-        emits make json_null, make json_bool, make json_number, make json_string, make json_array, make json_object;
+        emits make JsonNull, make JsonBool, make JsonNumber, make JsonString, make JsonArray, make JsonObject;
 
     view main = span(class: "font-mono text-sm leading-6 italic opacity-40", "…");
     view edit = span(class: "inline-flex flex-wrap items-center gap-1", role: "group", "aria-label": "Pick a type",
@@ -85,12 +85,12 @@ component json_selector: json_value {
 }
 
 /// A list of values.
-component json_array: json_value {
-    field items: list<json_value>;
+component JsonArray: JsonValue {
+    field items: list<JsonValue>;
     get is_empty: bool;
     get json: string;
 
-    message add() changes items ensures len(next.items) == len(items) + 1 emits make json_selector;
+    message add() changes items ensures len(next.items) == len(items) + 1 emits make JsonSelector;
     message remove_at(key: index<items>) changes items ensures len(next.items) == len(items) - 1;
     message move_up(key: index<items>) changes items ensures len(next.items) == len(items);
 
@@ -123,9 +123,9 @@ component json_array: json_value {
 }
 
 /// An object's entry: a key and its value, a selector until one is given.
-component json_entry {
+component JsonEntry {
     field key: string;
-    field value: json_value = make(json_selector);
+    field value: JsonValue = make(JsonSelector);
 
     message set_key(key: string) changes key ensures next.key == key;
 
@@ -143,13 +143,13 @@ component json_entry {
 }
 
 /// Keys and values. Later entries win, as in JSON.parse.
-component json_object: json_value {
-    field entries: list<json_entry>;
+component JsonObject: JsonValue {
+    field entries: list<JsonEntry>;
     get is_empty: bool;
     get json: string;
 
     message add() changes entries ensures len(next.entries) == len(entries) + 1
-        emits make json_entry, make json_selector;
+        emits make JsonEntry, make JsonSelector;
     message remove_at(key: index<entries>) changes entries ensures len(next.entries) == len(entries) - 1;
     message move_up(key: index<entries>) changes entries ensures len(next.entries) == len(entries);
 
@@ -182,8 +182,8 @@ component json_object: json_value {
 
 /// A JSON document, shown read only or edited in place, with its JSON text;
 /// null until one is given.
-component json_editor {
-    field value: json_value = make(json_null);
+component JsonEditor {
+    field value: JsonValue = make(JsonNull);
     field mode: enum { view, edit };
     field show_text: bool;
     get is_edit: bool;

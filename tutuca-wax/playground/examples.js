@@ -8,7 +8,7 @@ const CLICKER_TCD = `// Your own component: edit it, compile (Ctrl/Cmd-Enter), a
 package tutuca:mine@0.1.0;
 
 /// A counter that remembers its best.
-component clicker {
+component Clicker {
     field count: s32 where count >= 0;
     field best: s32 where best >= 0;
 
@@ -24,7 +24,7 @@ component clicker {
 }
 
 // Test runs these, and random walks of the messages checking the contracts.
-example best_stays for clicker {
+example best_stays for Clicker {
     start { count: 0, best: 0 }
     send click(); send click(); send reset(); send click();
     expect count == 1 and best == 2;
@@ -53,7 +53,7 @@ const TODOS = {
 		{ $make: "TodoItem", fields: { id: 0, text: "write a component", done: true } },
 		{ $make: "TodoItem", fields: { id: 1, text: "compile it in the browser", done: false } },
 	],
-	nextId: 2,
+	next_id: 2,
 };
 
 const BOOKS = [
@@ -81,7 +81,7 @@ export const EXAMPLES = [
 		impl: "components/counter/counter.wax",
 		root: "Board",
 		fields: { counters: [], total: 0 },
-		asks: { fetchCount: () => new Promise((resolve) => setTimeout(() => resolve(7), 500)) },
+		asks: { fetch_count: () => new Promise((resolve) => setTimeout(() => resolve(7), 500)) },
 	},
 	{
 		id: "todo_list",
@@ -124,7 +124,7 @@ export const EXAMPLES = [
 		root: "Shelf",
 		fields: {
 			books: BOOKS,
-			onlyUnread: false,
+			only_unread: false,
 			tags: ["classic", "novel"],
 			current: 1,
 			theme: "badge badge-secondary",
@@ -145,7 +145,7 @@ export const EXAMPLES = [
 		fields: {
 			value: { $json: { name: "tutuca-wax", version: 3, wasm: true, tags: ["wax", "tcd"], deps: {} } },
 			mode: "edit",
-			showText: true,
+			show_text: true,
 		},
 	},
 	{

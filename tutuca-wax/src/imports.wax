@@ -118,11 +118,11 @@ import "'" {
     #[import = "frame"]
     const s_frame: &extern;
     // Reply message suffixes (host.wax).
-    #[import = "ReplyOk"]
+    #[import = "_reply_ok"]
     const s_reply_ok: &extern;
-    #[import = "ReplyError"]
+    #[import = "_reply_error"]
     const s_reply_error: &extern;
-    #[import = "HandlerNotFound"]
+    #[import = "_handler_not_found"]
     const s_handler_not_found: &extern;
     // Drag and drop (collect.wax, host.wax).
     #[import = "drop"]

@@ -18,7 +18,7 @@ fn run_on(files : Map[String, String], args : Array[String]) -> (String, Int32) 
 let twice : String =
   #|package demo;
   #|
-  #|component box {
+  #|component Box {
   #|    field size: s32;
   #|    field size: s32;
   #|    view main = p(field(sise));
@@ -34,7 +34,7 @@ test "check shows the lines a diagnostic is about, with its related spans" {
       #|error[tcd.name.duplicate]: there's already a field or property named size
       #|  ╭─[ demo.tcd:5:11 ]
       #|  │
-      #|3 │ component box {
+      #|3 │ component Box {
       #|4 │     field size: s32;
       #|  │           ─┬──
       #|  │            ╰─ the first one
@@ -42,7 +42,7 @@ test "check shows the lines a diagnostic is about, with its related spans" {
       #|  │           ────
       #|6 │     view main = p(field(sise));
       #|  ╰─
-      #|error[tcd.view.field]: box has no field or property sise; did you mean size?
+      #|error[tcd.view.field]: Box has no field or property sise; did you mean size?
       #|  ╭─[ demo.tcd:6:25 ]
       #|  │
       #|5 │     field size: s32;
@@ -62,7 +62,7 @@ test "check --short writes one line per diagnostic" {
     err,
     content=(
       #|demo.tcd:5:11: error[tcd.name.duplicate]: there's already a field or property named size
-      #|demo.tcd:6:25: error[tcd.view.field]: box has no field or property sise; did you mean size?
+      #|demo.tcd:6:25: error[tcd.view.field]: Box has no field or property sise; did you mean size?
       #|
     ),
   )
@@ -75,7 +75,7 @@ test "a clean check prints nothing" {
       "demo.tcd": (
         #|package demo;
         #|
-        #|component box {
+        #|component Box {
         #|    field size: s32;
         #|    view main = p(field(size));
         #|}

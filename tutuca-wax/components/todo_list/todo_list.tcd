@@ -5,7 +5,7 @@
 package tutuca:todo-list@0.1.0;
 
 /// What TodoList needs of the items it makes by name.
-interface todo_item {
+interface TodoItem {
     field id: s32;
     field text: string;
     field done: bool;
@@ -14,8 +14,8 @@ interface todo_item {
     notify remove_me();
 }
 
-component todo_list {
-    field items: list<todo_item>;
+component TodoList {
+    field items: list<TodoItem>;
     field draft: string;
     field next_id: s32 where next_id >= 0;
     get remaining: s32 where remaining >= 0;
@@ -25,8 +25,8 @@ component todo_list {
     invariant ids_below_next_id: all(items, it.id < next_id);
 
     message set_draft(text: string) changes draft ensures next.draft == text;
-    message add_todo() changes items, draft, next_id emits make todo_item;
-    message complete_all() changes nothing emits send todo_item.set_done;
+    message add_todo() changes items, draft, next_id emits make TodoItem;
+    message complete_all() changes nothing emits send TodoItem.set_done;
     message clear_done() changes items;
     /// The item dragged from from, dropped on the one at to, takes its place;
     /// something dragged from elsewhere has no key.

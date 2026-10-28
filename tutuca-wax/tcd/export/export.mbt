@@ -1,5 +1,4 @@
-// The model as JSON, in the runtime's names (types PascalCase, members
-// camelCase): what a test runner generates states and messages from (types,
+// The model as JSON, its names as the .tcd writes them: what a test runner generates states and messages from (types,
 // constraints in normal form, which fields depend on which), and checks
 // them by (guards, frames, relations, emits, invariants, examples).
 
@@ -21,9 +20,7 @@ fn ty_json(t : @check.Ty) -> Json {
         "kind": "record",
         "fields": Json::array(
           fs.map(f => {
-            (
-              { "name": Json::string(@check.camel(f.0)), "type": ty_json(f.1) } :
-              Json)
+            ({ "name": Json::string(f.0), "type": ty_json(f.1) } : Json)
           }),
         ),
       }
@@ -31,7 +28,7 @@ fn ty_json(t : @check.Ty) -> Json {
     Comp(ns) =>
       {
         "kind": "component",
-        "names": Json::array(ns.map(n => Json::string(@check.pascal(n)))),
+        "names": Json::array(ns.map(n => Json::string(n))),
       }
     Result(o, e) => { "kind": "result", "ok": ty_json(o), "err": ty_json(e) }
   }
@@ -59,7 +56,7 @@ fn val_json(v : @check.Val) -> Json {
     VMap(entries) => {
       let m : Map[String, Json] = Map([])
       for e in entries {
-        m[@check.camel(e.0)] = val_json(e.1)
+        m[e.0] = val_json(e.1)
       }
       Json::object(m)
     }
@@ -99,8 +96,8 @@ fn norm_json(n : @check.Norm) -> Json {
     },
     "noneOf": Json::array(n.none_of.map(lit_json)),
     "patterns": Json::array(n.patterns.map(Json::string)),
-    "keyOf": Json::array(n.key_of.map(f => Json::string(@check.camel(f)))),
-    "memberOf": Json::array(n.member_of.map(f => Json::string(@check.camel(f)))),
+    "keyOf": Json::array(n.key_of.map(f => Json::string(f))),
+    "memberOf": Json::array(n.member_of.map(f => Json::string(f))),
     "checks": Json::array(n.checks.map(Json::string)),
   }
 }
@@ -136,7 +133,7 @@ pub fn cond_json(e : @syntax.Expr) -> Json {
               if p.text == "next" || p.text == "it" {
                 p.text
               } else {
-                @check.camel(p.text)
+                p.text
               },
             )
           }),
@@ -159,7 +156,7 @@ pub fn cond_json(e : @syntax.Expr) -> Json {
     Record(entries, ..) => {
       let m : Map[String, Json] = Map([])
       for en in entries {
-        m[@check.camel(en.0.text)] = cond_json(en.1)
+        m[en.0.text] = cond_json(en.1)
       }
       { "record": Json::object(m) }
     }
@@ -190,13 +187,13 @@ fn field_json(f : @check.FieldM) -> Json {
       }
   }
   {
-    "name": Json::string(@check.camel(f.name)),
+    "name": Json::string(f.name),
     "type": ty_json(f.ty),
     "norm": norm_json(f.norm),
     "required": Json::boolean(f.required),
     "default": default,
     "make": match f.make {
-      Some(m) => Json::string(@check.pascal(m))
+      Some(m) => Json::string(m)
       None => Json::null()
     },
   }
@@ -212,20 +209,14 @@ fn emit_json(e : @check.EmitM) -> Json {
   }
   {
     "kind": Json::string(kind),
-    "name": Json::string(
-      if e.kind is Make {
-        @check.pascal(e.name)
-      } else {
-        @check.camel(e.name)
-      },
-    ),
+    "name": Json::string(if e.kind is Make { e.name } else { e.name }),
   }
 }
 
 ///|
 fn message_json(m : @check.MessageM) -> Json {
   {
-    "name": Json::string(@check.camel(m.name)),
+    "name": Json::string(m.name),
     "params": Json::array(m.params.map(field_json)),
     "swap": Json::boolean(m.swap),
     "sourceKey": match m.source_key {
@@ -234,7 +225,7 @@ fn message_json(m : @check.MessageM) -> Json {
     },
     "when": opt_cond(m.when_),
     "changes": match m.changes {
-      Some(ch) => Json::array(ch.map(c => Json::string(@check.camel(c))))
+      Some(ch) => Json::array(ch.map(c => Json::string(c)))
       None => Json::null()
     },
     "ensures": opt_cond(m.ensures),
@@ -272,29 +263,23 @@ fn field_order(c : @check.ComponentM) -> Array[String] {
   for f in c.fields {
     visit(f.name)
   }
-  out.map(@check.camel)
+  out
 }
 
 ///|
 fn component_json(c : @check.ComponentM) -> Json {
   {
-    "name": Json::string(@check.pascal(c.name)),
+    "name": Json::string(c.name),
     "fields": Json::array(c.fields.map(field_json)),
     "fieldOrder": Json::array(field_order(c).map(Json::string)),
     "gets": Json::array(c.gets.map(field_json)),
     "messages": Json::array(c.messages.map(message_json)),
     "invariants": Json::array(
       c.invariants.map(i => {
-        (
-          {
-            "name": Json::string(@check.camel(i.name)),
-            "cond": cond_json(i.cond),
-          } : Json)
+        ({ "name": Json::string(i.name), "cond": cond_json(i.cond) } : Json)
       }),
     ),
-    "implements": Json::array(
-      c.implements.map(i => Json::string(@check.pascal(i))),
-    ),
+    "implements": Json::array(c.implements.map(i => Json::string(i))),
   }
 }
 
@@ -302,11 +287,11 @@ fn component_json(c : @check.ComponentM) -> Json {
 fn example_json(ex : @check.ExampleM) -> Json {
   let start : Map[String, Json] = Map([])
   for s in ex.start {
-    start[@check.camel(s.0)] = val_json(@check.literal_val(s.1))
+    start[s.0] = val_json(@check.literal_val(s.1))
   }
   {
     "name": Json::string(ex.name),
-    "component": Json::string(@check.pascal(ex.component)),
+    "component": Json::string(ex.component),
     "start": Json::object(start),
     "steps": Json::array(
       ex.steps.map(s => {
@@ -314,7 +299,7 @@ fn example_json(ex : @check.ExampleM) -> Json {
           Send(m, args) =>
             (
               {
-                "send": Json::string(@check.camel(m)),
+                "send": Json::string(m),
                 "args": Json::array(
                   args.map(a => val_json(@check.literal_val(a))),
                 ),
@@ -336,7 +321,7 @@ pub fn model(pkg : @check.Package) -> Json {
       pkg.interfaces.map(i => {
         (
           {
-            "name": Json::string(@check.pascal(i.name)),
+            "name": Json::string(i.name),
             "fields": Json::array(i.fields.map(field_json)),
             "gets": Json::array(i.gets.map(field_json)),
             "messages": Json::array(i.messages.map(message_json)),
@@ -346,10 +331,8 @@ pub fn model(pkg : @check.Package) -> Json {
     "registers": Json::array(
       pkg.registers.map(r => {
         (
-          {
-            "component": Json::string(@check.pascal(r.component)),
-            "as": Json::string(@check.pascal(r.as_)),
-          } : Json)
+          { "component": Json::string(r.component), "as": Json::string(r.as_) } :
+          Json)
       }),
     ),
     "examples": Json::array(pkg.examples.map(example_json)),

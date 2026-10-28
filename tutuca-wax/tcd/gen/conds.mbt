@@ -87,7 +87,7 @@ fn CondGen::term(self : CondGen, e : @syntax.Expr) -> String {
         }
       }
       for m in rest {
-        v = "value_member(\{v}, \{self.g.s(@check.camel(m.text))})"
+        v = "value_member(\{v}, \{self.g.s(m.text)})"
       }
       v
     }
@@ -101,7 +101,7 @@ fn CondGen::term(self : CondGen, e : @syntax.Expr) -> String {
     Record(entries, ..) => {
       let mut v = "map_empty()"
       for en in entries {
-        v = "map_assoc(\{v}, \{self.g.s(@check.camel(en.0.text))}, \{self.term(en.1)})"
+        v = "map_assoc(\{v}, \{self.g.s(en.0.text)}, \{self.term(en.1)})"
       }
       v
     }

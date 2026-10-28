@@ -8,8 +8,6 @@ import {
 }
 
 // Values
-pub fn camel(String) -> String
-
 pub fn check(@syntax.File, Map[String, @syntax.File]) -> (Package, Array[@diag.Diagnostic])
 
 pub fn check_views(Package, ComponentM, Array[@diag.Diagnostic]) -> Unit
@@ -34,6 +32,8 @@ pub fn has_length(Ty) -> Bool
 
 pub fn is_numeric(Ty) -> Bool
 
+pub fn is_pascal_case(String) -> Bool
+
 pub fn is_snake_case(String) -> Bool
 
 pub fn lit_fits_ty(@syntax.Lit, Ty) -> Bool
@@ -52,7 +52,7 @@ pub fn norm_text(Norm) -> String
 
 pub fn normalize(@syntax.Expr?, String, Ty, Map[String, Ty], Array[@diag.Diagnostic]) -> Norm
 
-pub fn pascal(String) -> String
+pub fn snake(String) -> String
 
 pub fn ty_text(Ty) -> String
 

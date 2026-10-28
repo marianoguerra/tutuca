@@ -4,7 +4,7 @@ package tutuca:pbt@0.1.0;
 
 /// A tally, with a bug seeded in its implementation: add(4) once the count is
 /// past 8 adds 5, so its ensures doesn't hold.
-component tally {
+component Tally {
     field count: s32 where 0 <= count <= 20;
     field marks: list<s32> where len(marks) <= 6;
 
@@ -19,7 +19,7 @@ component tally {
 
 /// A lamp that breaks and can't be repaired: repair needs parts no message
 /// adds, and once broken nothing else is enabled.
-component lamp {
+component Lamp {
     field mode: enum { off, on, broken };
     field parts: list<s32>;
 
@@ -30,7 +30,7 @@ component lamp {
     view main = p(field(mode));
 }
 
-example adds for tally {
+example adds for Tally {
     start { count: 1 }
     send add(2);
     expect count == 3;
@@ -38,7 +38,7 @@ example adds for tally {
     expect count == 4 and len(marks) == 0;
 }
 
-example wrong_on_purpose for tally {
+example wrong_on_purpose for Tally {
     start { count: 2 }
     send inc();
     expect count == 4;

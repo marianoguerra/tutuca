@@ -90,7 +90,7 @@ fn prepare(
 
 ///|
 fn types_of(pkg : @check.Package) -> Json {
-  Json::array(pkg.registers.map(r => Json::string(@check.pascal(r.as_))))
+  Json::array(pkg.registers.map(r => Json::string(r.as_)))
 }
 
 ///|

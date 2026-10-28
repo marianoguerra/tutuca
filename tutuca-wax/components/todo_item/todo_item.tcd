@@ -3,9 +3,9 @@
 // TodoList's TodoItem interface, so the list can make it by that name.
 package tutuca:todo-item@0.1.0;
 
-use "../todo_list/todo_list.tcd".{ todo_item };
+use "../todo_list/todo_list.tcd".{ TodoItem };
 
-component todo_item: todo_item {
+component TodoItem: TodoItem {
     field id: s32 where id >= 0;
     field text: string;
     field done: bool;

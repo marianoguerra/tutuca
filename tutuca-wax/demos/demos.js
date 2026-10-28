@@ -198,7 +198,7 @@ const todoState = (root) => ({
 	const c = card({
 		title: "Loading components at runtime",
 		description:
-			"The page loaded the runtime, dist/tutuca-rt.wasm. Each component module is a .wasm of its own that imports the runtime's functions (module tutuca), exports tutuca_register and tutuca_abi_version, and shares the runtime's types by being built from the same prelude. This scope starts empty: load todo_list.wasm and TodoList mounts;  type a todo and add it, and it fails, since no module has registered TodoItem here. Load todo_item.wasm (a checkbox) or todo_card.wasm (a card with buttons, the text's length and a star) and add again: the modules compose through the scope, no remount needed. Both implement TodoItem's interface (init's id, text and done; the id and done properties; setDone; the removeMe notify), so TodoList works with either; load the other one too and it takes the name over: new items use it, the old ones keep theirs, and all done reaches them all.",
+			"The page loaded the runtime, dist/tutuca-rt.wasm. Each component module is a .wasm of its own that imports the runtime's functions (module tutuca), exports tutuca_register and tutuca_abi_version, and shares the runtime's types by being built from the same prelude. This scope starts empty: load todo_list.wasm and TodoList mounts;  type a todo and add it, and it fails, since no module has registered TodoItem here. Load todo_item.wasm (a checkbox) or todo_card.wasm (a card with buttons, the text's length and a star) and add again: the modules compose through the scope, no remount needed. Both implement TodoItem's interface (init's id, text and done; the id and done properties; set_done; the remove_me notify), so TodoList works with either; load the other one too and it takes the name over: new items use it, the old ones keep theirs, and all done reaches them all.",
 	});
 	let cardScope;
 	let host;
@@ -272,18 +272,18 @@ demo({
 demo({
 	title: "Todos: a list of item components",
 	description:
-		"Composition: TodoList holds TodoItem components in its items field and renders each in a keyed loop. An item handles its own checkbox (toggle) and asks the list to remove it (x notifies removeMe; the list finds which by the source key). The list reads each item's done through the item's vtable to count what's left, makes new items through the scope, and sends every item setDone(true) by selector for all done. Drag an item onto another to move it there: items are draggable but handle no drop, so the drop reaches the list's on:drop, which reads the dragged item's key (dragKey) and the one dropped on (sourceKey).",
+		"Composition: TodoList holds TodoItem components in its items field and renders each in a keyed loop. An item handles its own checkbox (toggle) and asks the list to remove it (x notifies remove_me; the list finds which by the source key). The list reads each item's done through the item's vtable to count what's left, makes new items through the scope, and sends every item set_done(true) by selector for all done. Drag an item onto another to move it there: items are draggable but handle no drop, so the drop reaches the list's on:drop, which reads the dragged item's key (dragKey) and the one dropped on (sourceKey).",
 	type: "TodoList",
 	fields: {
 		items: ["read the README", "write a component", "compose two"].map((text, id) =>
 			runtime.make(scope, "TodoItem", { id, text, done: id === 0 }),
 		),
-		nextId: 3,
+		next_id: 3,
 	},
 	inspect: todoState,
 	actions: [
-		{ label: "all done", send: "completeAll", hint: "the list sends setDone(true) to each item" },
-		{ label: "setDraft + addTodo", send: "setDraft", args: ["from outside"], hint: "sets the draft; click add to make the item" },
+		{ label: "all done", send: "complete_all", hint: "the list sends set_done(true) to each item" },
+		{ label: "set_draft + add_todo", send: "set_draft", args: ["from outside"], hint: "sets the draft; click add to make the item" },
 	],
 });
 
@@ -295,14 +295,14 @@ demo({
 	fields: { count: 1 },
 	inspect: counterState,
 	asks: {
-		fetchCount: () => new Promise((resolve) => setTimeout(() => resolve(Math.floor(Math.random() * 100)), 1000)),
+		fetch_count: () => new Promise((resolve) => setTimeout(() => resolve(Math.floor(Math.random() * 100)), 1000)),
 	},
 	actions: [
-		{ label: "load", send: "load", hint: "ctx_ask loadCount: the scope's handler replies now" },
-		{ label: "fetch (1s)", send: "fetch", hint: "ctx_ask fetchCount: the host replies later" },
+		{ label: "load", send: "load", hint: "ctx_ask load_count: the scope's handler replies now" },
+		{ label: "fetch (1s)", send: "fetch", hint: "ctx_ask fetch_count: the host replies later" },
 		{ label: "reset", send: "reset" },
 		{ label: "add 5", send: "add", args: [5] },
-		{ label: "to label", send: "toLabel", hint: "returns Swapped: the root becomes a Label" },
+		{ label: "to label", send: "to_label", hint: "returns Swapped: the root becomes a Label" },
 		{ label: 'add "x"', send: "add", args: ["x"], hint: "rejected: the transaction aborts" },
 		{ label: "nope", send: "nope", hint: "no handler: observed as unhandled" },
 	],
@@ -318,12 +318,12 @@ demo({
 	fields: {
 		value: fromJson({ name: "tutuca-wax", version: 2, wasm: true, tags: ["wax", "wasm-gc"], author: null, deps: {} }),
 		mode: "view",
-		showText: true,
+		show_text: true,
 	},
 	inspect: (root) => ({ mode: runtime.get(root, "mode"), json: JSON.parse(runtime.get(root, "json")) }),
 	actions: [
-		{ label: "edit", send: "setMode", args: ["edit"] },
-		{ label: "view", send: "setMode", args: ["view"] },
+		{ label: "edit", send: "set_mode", args: ["edit"] },
+		{ label: "view", send: "set_mode", args: ["view"] },
 	],
 });
 
@@ -369,7 +369,7 @@ const layoutState = (root) => {
 demo({
 	title: "Layouts: holes that ask what they can be",
 	description:
-		"A Screen holds a layout and toggles, with the icon at its corner, between using it (each component's main view, no editing chrome) and editing it: it pushes the layout_edit view above its content, so every component below that has one shows it, and a component of any module opts in by declaring one. Edited, Hbox, Vbox, Tabs and Grid remove their slots and add holes (+ slot, + cell, the + tab), tabs are renamed and removed, and the grid's columns and rows grow and shrink. A hole's + asks componentNames: the package's ask handler gets the asker's context, so it lists the types visible from the scope the hole was made in and its parents (ctx_component_names). Pick one and the hole swaps itself for it, made in its own scope; a type that needs fields can't be made, and the hole stays, saying why.",
+		"A Screen holds a layout and toggles, with the icon at its corner, between using it (each component's main view, no editing chrome) and editing it: it pushes the layout_edit view above its content, so every component below that has one shows it, and a component of any module opts in by declaring one. Edited, Hbox, Vbox, Tabs and Grid remove their slots and add holes (+ slot, + cell, the + tab), tabs are renamed and removed, and the grid's columns and rows grow and shrink. A hole's + asks component_names: the package's ask handler gets the asker's context, so it lists the types visible from the scope the hole was made in and its parents (ctx_component_names). Pick one and the hole swaps itself for it, made in its own scope; a type that needs fields can't be made, and the hole stays, saying why.",
 	type: "Screen",
 	fields: { content: runtime.make(scope, "Vbox", { items: [runtime.make(scope, "Hole", {})] }), editing: true },
 	inspect: (root) => ({ editing: runtime.get(root, "editing"), ...layoutState(runtime.get(root, "content")) }),

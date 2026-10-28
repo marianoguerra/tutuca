@@ -7,7 +7,7 @@ signature.
 
 ## The naming convention
 
-For a component `c` (snake_case, `c_state` its state struct), implement:
+For a component `C`, with `c` its name in snake_case (`CheckItem` is `check_item`, `c_state` its state struct), implement:
 
 | the .tcd declares | the .wax implements |
 |---|---|

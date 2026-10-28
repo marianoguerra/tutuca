@@ -15,8 +15,8 @@ package tutuca:layout@0.1.0;
 
 /// What a layout is shown in: its content, and a toggle between using it
 /// (main) and editing it (layout_edit, pushed above the content).
-component screen {
-    field content: component = make(vbox);
+component Screen {
+    field content: component = make(Vbox);
     /// Whether the layout is being edited: a mode, not part of the layout.
     field editing: bool @sync(none);
     /// The view pushed above the content: layout_edit while editing.
@@ -45,7 +45,7 @@ component screen {
 /// lists the types it could become, and picking one swaps it for a component
 /// of that type, made with no fields. A type that can't be made that way
 /// keeps the hole, with why in error.
-component hole {
+component Hole {
     /// The types listed while + is open; like listing and error, an open
     /// menu, not part of a layout that's kept (sync none).
     field choices: list<record { name: string }> @sync(none);
@@ -74,10 +74,10 @@ component hole {
 
 /// Components side by side; edited, each can be removed and + slot adds a
 /// hole after them.
-component hbox {
+component Hbox {
     field items: list<component>;
 
-    message add() changes items ensures len(next.items) == len(items) + 1 emits make hole;
+    message add() changes items ensures len(next.items) == len(items) + 1 emits make Hole;
     message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
 
     view main = div(class: "hbox flex flex-row items-stretch gap-2", render_each(field(items)));
@@ -91,10 +91,10 @@ component hbox {
 
 /// Components one under the other; edited, each can be removed and + slot
 /// adds a hole below them.
-component vbox {
+component Vbox {
     field items: list<component>;
 
-    message add() changes items ensures len(next.items) == len(items) + 1 emits make hole;
+    message add() changes items ensures len(next.items) == len(items) + 1 emits make Hole;
     message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
 
     view main = div(class: "vbox flex flex-col items-stretch gap-2", render_each(field(items)));
@@ -109,7 +109,7 @@ component vbox {
 /// Components as tabs, one shown at a time, each with a name ("Tab n" until
 /// it's given one); edited, tabs are renamed and removed, and + adds one
 /// holding a hole.
-component tabs {
+component Tabs {
     field panels: list<component>;
     /// The tabs' names, by panel; a missing or empty one shows as "Tab n".
     field labels: list<string>;
@@ -117,7 +117,7 @@ component tabs {
 
     invariant active_in_range: len(panels) == 0 or active < len(panels);
 
-    message add() changes panels, labels, active ensures len(next.panels) == len(panels) + 1 emits make hole;
+    message add() changes panels, labels, active ensures len(next.panels) == len(panels) + 1 emits make Hole;
     message select(at: index<panels>) changes active ensures next.active == at;
     message rename(at: index<panels>, label: string) changes labels;
     message remove_at(at: index<panels>) changes panels, labels, active ensures len(next.panels) == len(panels) - 1;
@@ -145,19 +145,19 @@ component tabs {
 
 /// Components in a grid; edited, cells are removed, + cell adds one, and the
 /// columns and rows grow and shrink with - and +.
-component grid {
+component Grid {
     field cells: list<component>;
     field columns: s32 = 2 where 1 <= columns <= 6;
     get grid_style: string;
     /// Rows, the last one maybe not full.
     get rows: s32;
 
-    message add() changes cells ensures len(next.cells) == len(cells) + 1 emits make hole;
+    message add() changes cells ensures len(next.cells) == len(cells) + 1 emits make Hole;
     message remove_at(at: index<cells>) changes cells ensures len(next.cells) == len(cells) - 1;
     message more_columns() when columns < 6 changes columns ensures next.columns == columns + 1;
     message fewer_columns() when columns > 1 changes columns ensures next.columns == columns - 1;
     /// A row of holes below the others.
-    message add_row() changes cells ensures len(next.cells) == len(cells) + columns emits make hole;
+    message add_row() changes cells ensures len(next.cells) == len(cells) + columns emits make Hole;
     /// The last row's cells, removed.
     message remove_row() when len(cells) > 0 changes cells ensures len(next.cells) < len(cells);
 
@@ -178,12 +178,12 @@ component grid {
                     button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this cell", on_click: send(remove_at, source_key()), "×")))));
 }
 
-register screen, hole, hbox, vbox, tabs, grid;
+register Screen, Hole, Hbox, Vbox, Tabs, Grid;
 
-/// componentNames: the type names the asker's scope can make.
+/// component_names: the type names the asker's scope can make.
 ask_handler component_names(walk: bool) -> list<string>;
 
-example add_then_select for tabs {
+example add_then_select for Tabs {
     start { }
     send add();
     send add();
@@ -192,7 +192,7 @@ example add_then_select for tabs {
     expect active == 1;
 }
 
-example remove_keeps_a_tab_shown for tabs {
+example remove_keeps_a_tab_shown for Tabs {
     start { }
     send add();
     send add();
@@ -200,7 +200,7 @@ example remove_keeps_a_tab_shown for tabs {
     expect len(panels) == 1 and active == 0;
 }
 
-example rows_follow_the_columns for grid {
+example rows_follow_the_columns for Grid {
     start { columns: 3 }
     send add_row();
     send add();
@@ -209,7 +209,7 @@ example rows_follow_the_columns for grid {
     expect len(cells) == 3;
 }
 
-example columns_stay_in_range for grid {
+example columns_stay_in_range for Grid {
     start { columns: 6 }
     send fewer_columns();
     expect columns == 5;

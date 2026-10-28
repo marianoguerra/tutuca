@@ -28,35 +28,35 @@ fn names_first(pkg : @check.Package) -> Strings {
   let strings = Strings::new()
   let members = (fields : Array[@check.FieldM]) => {
     for f in fields {
-      ignore(strings.get(@check.camel(f.name)))
+      ignore(strings.get(f.name))
     }
   }
   for c in pkg.components {
-    ignore(strings.get(@check.pascal(c.name)))
+    ignore(strings.get(c.name))
   }
   for i in pkg.interfaces {
-    ignore(strings.get(@check.pascal(i.name)))
+    ignore(strings.get(i.name))
   }
   for c in pkg.components {
     members(c.fields)
     members(c.gets)
     for m in c.messages {
-      ignore(strings.get(@check.camel(m.name)))
+      ignore(strings.get(m.name))
     }
     for n in c.notifies {
-      ignore(strings.get(@check.camel(n.name)))
+      ignore(strings.get(n.name))
     }
     for a in c.asks {
-      ignore(strings.get(@check.camel(a.name)))
+      ignore(strings.get(a.name))
     }
     for l in c.loops {
-      ignore(strings.get(@check.camel(l.name)))
+      ignore(strings.get(l.name))
     }
     for sc in c.scopes {
-      ignore(strings.get(@check.camel(sc.name)))
+      ignore(strings.get(sc.name))
     }
     for pr in c.provides {
-      ignore(strings.get(@check.camel(pr.name)))
+      ignore(strings.get(pr.name))
     }
   }
   strings
@@ -158,7 +158,7 @@ fn Gen::val(self : Gen, v : @check.Val) -> String {
     VMap(entries) => {
       let mut e = "map_empty()"
       for en in entries {
-        e = "map_assoc(\{e}, \{self.s(@check.camel(en.0))}, \{self.val(en.1)})"
+        e = "map_assoc(\{e}, \{self.s(en.0)}, \{self.val(en.1)})"
       }
       e
     }
@@ -221,14 +221,14 @@ fn Gen::vtype(self : Gen, b : Block, t : @check.Ty) -> String {
     List(i) => "vtype_list(\{self.vtype(b, i)})"
     Map(i) => "vtype_map(\{self.vtype(b, i)})"
     Record(fs) => {
-      let names = b.array("str_array", fs.map(f => self.s(@check.camel(f.0))))
+      let names = b.array("str_array", fs.map(f => self.s(f.0)))
       let types = b.array("vtype_array", fs.map(f => self.vtype(b, f.1)))
       "vtype_record(\{names}, \{types})"
     }
     OneOf(ts) =>
       "vtype_one_of(\{b.array("vtype_array", ts.map(t => self.vtype(b, t)))})"
     Comp(ns) =>
-      "vtype_component(\{b.array("str_array", ns.map(n => self.s(@check.pascal(n))))})"
+      "vtype_component(\{b.array("str_array", ns.map(n => self.s(n)))})"
     Result(o, e) => "vtype_result(\{self.vtype(b, o)}, \{self.vtype(b, e)})"
   }
 }
@@ -276,7 +276,7 @@ fn Gen::constraints(
     cs.push("constraint_pattern(\{self.s(p)})")
   }
   for f in n.key_of {
-    cs.push("constraint_key_of(\{self.s(@check.camel(f))})")
+    cs.push("constraint_key_of(\{self.s(f)})")
   }
   for f in n.member_of {
     cs.push(
@@ -310,7 +310,7 @@ fn Gen::field_schema(
 ) -> String {
   let vt = self.vtype(b, f.ty)
   let cs = self.constraints(b, f.norm, owner, f.name)
-  "field_schema_new(\{self.s(@check.camel(f.name))}, \{vt}, \{cs}, \{sync_const(f.sync)})"
+  "field_schema_new(\{self.s(f.name)}, \{vt}, \{cs}, \{sync_const(f.sync)})"
 }
 
 ///|

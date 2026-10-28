@@ -3,7 +3,7 @@
 package tutuca:counter@0.1.0;
 
 /// A count, with buttons to change it and an input to type it.
-component counter {
+component Counter {
     field count: s32;
 
     /// To the parent, with the new count, when + was clicked.
@@ -24,7 +24,7 @@ component counter {
     message load() changes nothing emits ask load_count;
     message fetch() changes nothing emits ask fetch_count;
     /// Swaps itself for a Label saying what the count was.
-    message to_label() -> swap emits make label;
+    message to_label() -> swap emits make Label;
 
     view main = div(class: "counter card card-border bg-base-100 w-fit flex-row items-center gap-2 p-2",
         button(class: "btn btn-sm", on_click: send(inc), "+"),
@@ -35,18 +35,18 @@ component counter {
 }
 
 /// What a counter swaps itself for.
-component label {
+component Label {
     field text: string;
     view main = p(class: "text-sm italic opacity-70", field(text));
 }
 
 /// The root: a list of counters, and how many times they were incremented.
-component board {
-    field counters: list<counter>;
+component Board {
+    field counters: list<Counter>;
     field total: s32;
 
-    message add_counter() changes counters emits make counter;
-    message reset_all() changes nothing emits send counter.reset;
+    message add_counter() changes counters emits make Counter;
+    message reset_all() changes nothing emits send Counter.reset;
     /// A counter's notify: one more increment.
     message changed(count: s32) changes total ensures next.total == total + 1;
     /// A counter's notify: the source key says which wants to go.
@@ -61,14 +61,14 @@ component board {
         render_each(field(counters)));
 }
 
-register counter, label, board;
+register Counter, Label, Board;
 
-/// loadCount: answered now, with 42.
+/// load_count: answered now, with 42.
 ask_handler load_count() -> s32;
-/// fetchCount: answered by the host, later.
+/// fetch_count: answered by the host, later.
 host_ask fetch_count;
 
-example add_then_reset for counter {
+example add_then_reset for Counter {
     start { count: 1 }
     send add(5);
     expect count == 6;

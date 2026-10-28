@@ -5,7 +5,7 @@
 package tutuca:stat@0.1.0;
 
 /// A number with a label, as a dashboard shows it.
-component stat {
+component Stat {
     field label: string = "Visitors";
     field value: f64;
     field unit: string;
@@ -29,7 +29,7 @@ component stat {
         input(class: "input input-xs", "aria-label": "Unit", placeholder: "unit", value: field(unit), on_input: send(set_unit, target_value())));
 }
 
-example bump_up for stat {
+example bump_up for Stat {
     start { }
     send bump(2);
     expect value == 2;

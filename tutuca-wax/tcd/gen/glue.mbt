@@ -38,7 +38,7 @@ fn Gen::message_schema(
     None => ("null", "null")
   }
   let changes = match m.changes {
-    Some(ch) => b.array("str_array", ch.map(f => self.s(@check.camel(f))))
+    Some(ch) => b.array("str_array", ch.map(f => self.s(f)))
     None => "null"
   }
   let emits = match m.emits {
@@ -51,19 +51,19 @@ fn Gen::message_schema(
           SendAt => "emit_kind_send_at"
           Make => continue
         }
-        items.push("emit_spec_new(\{kind}, \{self.s(@check.camel(e.name))})")
+        items.push("emit_spec_new(\{kind}, \{self.s(e.name)})")
       }
       b.array("emit_array", items)
     }
     None => "null"
   }
-  "message_schema_new(\{self.s(@check.camel(m.name))}, \{args}, \{key}, \{pre}, \{post}, \{changes}, \{emits})"
+  "message_schema_new(\{self.s(m.name)}, \{args}, \{key}, \{pre}, \{post}, \{changes}, \{emits})"
 }
 
 ///|
 /// The schemas of the replies to c's asks, the messages the runtime gives it
-/// as an ask settles: NameReplyOk with the reply, and NameReplyError with the
-/// error and NameHandlerNotFound with nothing when c handles them. The
+/// as an ask settles: name_reply_ok with the reply, and name_reply_error with the
+/// error and name_handler_not_found with nothing when c handles them. The
 /// runtime checks their arguments as any message's, so the handlers decode
 /// what they're declared to get.
 fn Gen::reply_schemas(
@@ -93,13 +93,13 @@ fn Gen::reply_schemas(
   }
   for a in c.asks {
     let aw = @check.wax(a.name)
-    let ac = @check.camel(a.name)
-    out.push(reply(ac + "ReplyOk", [param("value", a.result.unwrap_or(Any))]))
+    let ac = a.name
+    out.push(reply(ac + "_reply_ok", [param("value", a.result.unwrap_or(Any))]))
     if self.has("\{cw}_reply_\{aw}_err") {
-      out.push(reply(ac + "ReplyError", [param("error", Any)]))
+      out.push(reply(ac + "_reply_error", [param("error", Any)]))
     }
     if self.has("\{cw}_reply_\{aw}_not_found") {
-      out.push(reply(ac + "HandlerNotFound", []))
+      out.push(reply(ac + "_handler_not_found", []))
     }
   }
   out
@@ -119,13 +119,10 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
   let invariants = b.array(
     "invariant_array",
     c.invariants.map(i => {
-      "invariant_new(\{self.s(@check.camel(i.name))}, \{cw}_inv_\{@check.wax(i.name)})"
+      "invariant_new(\{self.s(i.name)}, \{cw}_inv_\{@check.wax(i.name)})"
     }),
   )
-  let interfaces = b.array(
-    "str_array",
-    c.implements.map(i => self.s(@check.pascal(i))),
-  )
+  let interfaces = b.array("str_array", c.implements.map(i => self.s(i)))
   let out = Out::new()
   out.line("let \{cw}_schema_made: &?component_schema = null;")
   out.line("")
@@ -151,10 +148,7 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
 fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
   let cw = @check.wax(c.name)
   let b = Block::new()
-  let names = b.array(
-    "str_array",
-    c.views.map(v => self.s(v.name)),
-  )
+  let names = b.array("str_array", c.views.map(v => self.s(v.name)))
   let views = b.array(
     "view_array",
     c.views.map(v => "\{cw}_view_\{@check.wax(v.name)}()"),
@@ -174,22 +168,19 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
         Some(v) => self.s(v)
         None => "null"
       }
-      "{loop_def| name: \{self.s(@check.camel(l.name))}, prepare: \{hook(l.prepare is Some(_), "prepare")}, iter: \{hook(l.iter, "iter")}, key: \{hook(l.key is Some(_), "key")}, filter: \{hook(l.filter, "filter")}, enrich: \{hook(l.enrich is Some(_), "enrich")}, view: \{view} }"
+      "{loop_def| name: \{self.s(l.name)}, prepare: \{hook(l.prepare is Some(_), "prepare")}, iter: \{hook(l.iter, "iter")}, key: \{hook(l.key is Some(_), "key")}, filter: \{hook(l.filter, "filter")}, enrich: \{hook(l.enrich is Some(_), "enrich")}, view: \{view} }"
     }),
   )
   let scopes = b.array(
     "scope_def_array",
     c.scopes.map(s => {
-      "{scope_def| name: \{self.s(@check.camel(s.name))}, bind: \{cw}_scope_\{@check.wax(s.name)}_t }"
+      "{scope_def| name: \{self.s(s.name)}, bind: \{cw}_scope_\{@check.wax(s.name)}_t }"
     }),
   )
-  let pnames = b.array(
-    "str_array",
-    c.provides.map(p => self.s(@check.camel(p.name))),
-  )
+  let pnames = b.array("str_array", c.provides.map(p => self.s(p.name)))
   let selectors = b.array(
     "selector_array",
-    c.provides.map(p => "selector_field(\{self.s(@check.camel(p.field))})"),
+    c.provides.map(p => "selector_field(\{self.s(p.field)})"),
   )
   let out = Out::new()
   out.line("let \{cw}_spec_made: &?component_spec = null;")
@@ -200,7 +191,7 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
   out.line("    }")
   out.line(b.render("    "))
   out.line(
-    "    let spec = spec_new(\{self.s(@check.pascal(c.name))}, \{names}, \{views}, \{loops}, \{scopes}, \{pnames}, \{selectors});",
+    "    let spec = spec_new(\{self.s(c.name)}, \{names}, \{views}, \{loops}, \{scopes}, \{pnames}, \{selectors});",
   )
   out.line("    spec_set_schema(spec, \{cw}_schema());")
   out.line("    \{cw}_spec_made = spec;")
@@ -238,7 +229,7 @@ fn Gen::binds_map(
 ) -> String {
   let mut m = "map_empty()"
   for f in binds {
-    m = "map_assoc(\{m}, \{self.s(@check.camel(f.name))}, \{self.encode(f.ty, "\{holder}.\{@check.wax(f.name)}")})"
+    m = "map_assoc(\{m}, \{self.s(f.name)}, \{self.encode(f.ty, "\{holder}.\{@check.wax(f.name)}")})"
   }
   m
 }
@@ -381,13 +372,13 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
   out.line("    let problem: &?extern = null;")
   for i, f in c.fields {
     let fw = "f_\{@check.wax(f.name)}"
-    let name = self.s(@check.camel(f.name))
+    let name = self.s(f.name)
     let missing = self.s("missing")
     let wrong = self.s("wrong type")
     let invalid = self.s("invalid")
     // What a field that falls back to its default takes, besides the issue.
     let fallback = f.make.map(m => {
-      "\{fw} = value_component(init_ctx_make(ctx, \{self.s(@check.pascal(m))}, map_empty()));"
+      "\{fw} = value_component(init_ctx_make(ctx, \{self.s(m)}, map_empty()));"
     })
     let fall_back = (indent : String) => {
       if fallback is Some(l) {
@@ -466,7 +457,7 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
       .mapi((i, p) => ", \{self.decode(p.ty, "m.args[\{i}]!")}")
       .join("")
     let call = "\{cw}_on_\{@check.wax(msg.name)}(state, ctx\{args})"
-    out.line("    if str_eq(m.name, \{self.s(@check.camel(msg.name))}) {")
+    out.line("    if str_eq(m.name, \{self.s(msg.name)}) {")
     if msg.swap {
       out.line("        let r = \{call};")
       out.line("        if !!r.component {")
@@ -480,22 +471,22 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
   }
   for a in c.asks {
     let aw = @check.wax(a.name)
-    let ac = @check.camel(a.name)
+    let ac = a.name
     let result = a.result.unwrap_or(Any)
-    out.line("    if str_eq(m.name, \{self.s(ac + "ReplyOk")}) {")
+    out.line("    if str_eq(m.name, \{self.s(ac + "_reply_ok")}) {")
     out.line(
       "        return message_result_of(state, \{cw}_reply_\{aw}_ok(state, ctx, \{self.decode(result, "m.args[0]!")}));",
     )
     out.line("    }")
     if self.has("\{cw}_reply_\{aw}_err") {
-      out.line("    if str_eq(m.name, \{self.s(ac + "ReplyError")}) {")
+      out.line("    if str_eq(m.name, \{self.s(ac + "_reply_error")}) {")
       out.line(
         "        return message_result_of(state, \{cw}_reply_\{aw}_err(state, ctx, m.args[0]!));",
       )
       out.line("    }")
     }
     if self.has("\{cw}_reply_\{aw}_not_found") {
-      out.line("    if str_eq(m.name, \{self.s(ac + "HandlerNotFound")}) {")
+      out.line("    if str_eq(m.name, \{self.s(ac + "_handler_not_found")}) {")
       out.line(
         "        return message_result_of(state, \{cw}_reply_\{aw}_not_found(state, ctx));",
       )
@@ -517,14 +508,14 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
   )
   out.line("    let state = instance as &\{cw}_state;")
   for f in c.fields {
-    out.line("    if str_eq(name, \{self.s(@check.camel(f.name))}) {")
+    out.line("    if str_eq(name, \{self.s(f.name)}) {")
     out.line(
       "        return (property_ok, \{self.encode(f.ty, "state.\{@check.wax(f.name)}")});",
     )
     out.line("    }")
   }
   for g in c.gets {
-    out.line("    if str_eq(name, \{self.s(@check.camel(g.name))}) {")
+    out.line("    if str_eq(name, \{self.s(g.name)}) {")
     out.line(
       "        return (property_ok, \{self.encode(g.ty, "\{cw}_get_\{@check.wax(g.name)}(state)")});",
     )
@@ -544,7 +535,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
     out.line("    let schema = \{cw}_schema();")
   }
   for i, f in c.fields {
-    out.line("    if str_eq(name, \{self.s(@check.camel(f.name))}) {")
+    out.line("    if str_eq(name, \{self.s(f.name)}) {")
     out.line("        if !!vtype_problem((schema.fields[\{i}]!).vtype, v) {")
     out.line("            return (property_wrong_type, null);")
     out.line("        }")
@@ -559,7 +550,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
     out.line("    }")
   }
   for g in c.gets {
-    out.line("    if str_eq(name, \{self.s(@check.camel(g.name))}) {")
+    out.line("    if str_eq(name, \{self.s(g.name)}) {")
     out.line("        return (property_not_writable, null);")
     out.line("    }")
   }
@@ -590,7 +581,7 @@ fn Gen::interface_fn(self : Gen, i : @check.InterfaceM) -> String {
   out.line("fn \{iw}_interface() -> &interface_schema {")
   out.line(b.render("    "))
   out.line(
-    "    interface_schema_new(\{self.s(@check.pascal(i.name))}, \{fields}, \{gets}, \{messages});",
+    "    interface_schema_new(\{self.s(i.name)}, \{fields}, \{gets}, \{messages});",
   )
   out.line("}")
   out.line("")
@@ -672,16 +663,16 @@ pub fn Gen::glue(self : Gen) -> String {
   for r in self.pkg.registers {
     let cw = @check.wax(r.component)
     out.line(
-      "    scope_register(s, \{self.s(@check.pascal(r.as_))}, \{cw}_spec(), \{cw}_vtable());",
+      "    scope_register(s, \{self.s(r.as_)}, \{cw}_spec(), \{cw}_vtable());",
     )
   }
   for a in self.pkg.ask_handlers {
     out.line(
-      "    scope_register_ask(s, \{self.s(@check.camel(a.name))}, \{@check.wax(self.pkg.name)}_answer_\{@check.wax(a.name)}_t);",
+      "    scope_register_ask(s, \{self.s(a.name)}, \{@check.wax(self.pkg.name)}_answer_\{@check.wax(a.name)}_t);",
     )
   }
   for h in self.pkg.host_asks {
-    out.line("    scope_register_host_ask(s, \{self.s(@check.camel(h))});")
+    out.line("    scope_register_host_ask(s, \{self.s(h)});")
   }
   out.line("}")
   out.line("")
