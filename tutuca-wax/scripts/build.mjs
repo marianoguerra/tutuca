@@ -21,7 +21,7 @@
 //   types, since the functions are the runtime's);
 // - the import block of the component ABI, read from src/abi.wax.
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -215,13 +215,13 @@ const findWasmOpt = () => {
 	return "wasm-opt";
 };
 
-// Optimizes input into output, dropping the name section. It keeps the types
-// a component module shares with the runtime as they are (it doesn't run in
-// closed-world mode), so optimized modules link with each other, and with
-// unoptimized ones.
-const optimize = (input, output) => {
+// Optimizes input into output, dropping the name section. By default it keeps
+// the types a component module shares with the runtime as they are (it
+// doesn't run in closed-world mode), so optimized modules link with each
+// other, and with unoptimized ones.
+const optimize = (input, output, passes = ["-O2"]) => {
 	const wasmOpt = findWasmOpt();
-	const result = spawnSync(wasmOpt, [...WASM_OPT_FEATURES, "-O2", input, "-o", output], { cwd: root, encoding: "utf8" });
+	const result = spawnSync(wasmOpt, [...WASM_OPT_FEATURES, ...passes, input, "-o", output], { cwd: root, encoding: "utf8" });
 	if (result.error) {
 		throw new Error(`could not run ${wasmOpt} (${result.error.message}); run \`npm install\` or set WASM_OPT`);
 	}
@@ -293,7 +293,10 @@ export function buildTcdWeb() {
 	}
 	const out = "dist/tcd/tcd.wasm";
 	mkdirSync(join(root, "dist/tcd"), { recursive: true });
-	copyFileSync(join(root, "tcd/_build/wasm-gc/release/build/tutuca/tcd/web/web.wasm"), join(root, out));
+	// Closed world: tcd shares no types with another module (it takes and
+	// gives strings and JSON), so wasm-opt may refine and merge them all,
+	// a fifth smaller and faster than -O2 alone.
+	optimize("tcd/_build/wasm-gc/release/build/tutuca/tcd/web/web.wasm", out, ["--closed-world", "-O2", "--type-ssa", "--gufa", "-O2"]);
 	return out;
 }
 
