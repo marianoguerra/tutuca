@@ -123,11 +123,12 @@ fn value_truthy(v: &value) -> i32 {
 // holds them (so NaN differs from itself), strings by content, and lists,
 // maps, results and components by reference.
 fn value_same(a: &value, b: &value) -> i32 {
-    if a == b {
-        return 1;
-    }
+    // Numbers first, so one NaN value isn't the same as itself either.
     if value_is_number(a) & value_is_number(b) {
         return value_to_f64(a) == value_to_f64(b);
+    }
+    if a == b {
+        return 1;
     }
     if (a.kind == value_kind_string) & (b.kind == value_kind_string) {
         return str_eq((a as &value_string).value, (b as &value_string).value);

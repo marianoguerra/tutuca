@@ -365,11 +365,13 @@ test("values: JS values round-trip through Value", ({ vdom }) => {
 test("values: same is JS ===, truthy is JS truthiness", ({ vdom }) => {
 	const { values } = vdom;
 	const list = values.from([1]);
+	const nan = values.from(Number.NaN);
 	const same = [
 		[1, 1, true],
 		[1, 1.0, true],
 		[0.5, 0.5, true],
 		[Number.NaN, Number.NaN, false],
+		[nan, nan, false],
 		["a", "a", true],
 		["a", "b", false],
 		[null, null, true],
