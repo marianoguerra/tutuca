@@ -211,7 +211,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await page.locator("button", { hasText: "+ New screen" }).waitFor();
 	await newStudioScreen(page, { scope: "a", name: "home" });
 	// New, it's edited: the hole offers a new component; used, nothing of the studio's.
-	await stage.locator(".screen-toggle[aria-pressed=true]").waitFor();
+	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
 	await newStudioComponent(page);
 	// Served as files only: no API, so no assistant.
 	if (await page.locator("button", { hasText: "Assistant" }).isVisible()) throw new Error("an assistant without a server");
@@ -225,7 +225,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await stage.locator(".choices button", { hasText: /^Tasks$/ }).click();
 	// Being edited, it shows its layout_edit view; used, its main.
 	await stage.locator("[aria-label=Title]").waitFor();
-	await stage.locator(".screen-toggle").click();
+	await page.locator(".st-bar .screen-toggle").click();
 	await stage.locator("[aria-label='New task']").fill("first");
 	await stage.locator("[aria-label='New task']").press("Enter");
 	await stage.locator("li", { hasText: "first" }).waitFor();
@@ -242,7 +242,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 		throw new Error(`unexpected layout: ${JSON.stringify(layout)}`);
 	}
 	// ✎ on its slot: edited, saved, and the screen made again with it.
-	await stage.locator(".screen-toggle").click();
+	await page.locator(".st-bar .screen-toggle").click();
 	await clickSlotButton(stage.locator(".slot-edit").first());
 	await page.locator(".st-editor-bar").waitFor();
 	const tcd = await page.evaluate(async () => (await fetch("/studio/assistant/examples/tasks.tcd")).text());
@@ -250,10 +250,13 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await page.keyboard.press("ControlOrMeta+a");
 	await page.keyboard.insertText(tcd.replace('placeholder: "Something to do"', 'placeholder: "What next?"'));
 	await page.locator(".st-editor-bar button", { hasText: "Save" }).click();
-	// Made again, it's used, not edited.
+	// Made again, it's used, not edited, and the ✎'s ask reached its slot.
 	await stage.locator("[placeholder='What next?']").waitFor();
+	await page.waitForTimeout(300);
+	const failed = await page.locator(".st-events div", { hasText: /^failed/ }).allTextContents();
+	if (failed.length > 0) throw new Error(failed.join("; "));
 	await stage.locator("li", { hasText: "first" }).waitFor();
-	await stage.locator(".screen-toggle").click();
+	await page.locator(".st-bar .screen-toggle").click();
 	// A layout's own component doesn't open: only the ones made here.
 	await stage.locator("[title='Add a slot below']").click();
 	await stage.locator(".hole button").click();
@@ -294,13 +297,17 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	const page = await browser.newPage();
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
-	page.on("dialog", (dialog) => dialog.accept());
+	const dialogs = [];
+	page.on("dialog", (dialog) => {
+		dialogs.push(dialog.message());
+		dialog.accept();
+	});
 	const stage = page.locator(".st-stage");
 	const status = (re) => page.waitForFunction((source) => new RegExp(source).test(document.querySelector(".st-status")?.textContent ?? ""), re.source);
 	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
 	await page.locator("button", { hasText: "+ New screen" }).waitFor();
 	await newStudioScreen(page, { scope: "a", name: "mine" });
-	await stage.locator(".screen-toggle[aria-pressed=true]").waitFor();
+	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
 	await stage.locator(".hole button").click();
 	await stage.locator(".choices button", { hasText: /^Hbox$/ }).click();
 	// layout, from the example, saved in a: its names hide root's there.
@@ -313,8 +320,8 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	await page.locator(".st-editor-bar").waitFor({ state: "detached" });
 	if ((await studioRecords(page, "scopes")).find((s) => s.name === "a").registrations.length !== 1) throw new Error("layout wasn't registered in a");
 	// The screen made again with a's layout: used, the Hbox kept.
-	await stage.locator(".screen-toggle[aria-pressed=false]").waitFor();
-	await stage.locator(".screen-toggle").click();
+	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
+	await page.locator(".st-bar .screen-toggle").click();
 	// Only the hovered slot's buttons show: none until then, and the Hbox's
 	// at its corner, where the hole's ✎ inside it stays hidden.
 	const shown = () => stage.locator(".slot-edit").evaluateAll((bs) => bs.map((b) => getComputedStyle(b).opacity).join());
@@ -332,6 +339,11 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	await page.keyboard.insertText(tcd.replace('view main = div(class: "hbox flex', 'view main = div(class: "hbox hbox-mine flex'));
 	await page.locator(".st-editor-bar button", { hasText: "Save" }).click();
 	await stage.locator(".hbox-mine").waitFor();
+	// The ✎'s ask, answered by the save, reaches the Hbox though the screen
+	// is made again: nothing failed.
+	await page.waitForTimeout(300);
+	const failed = await page.locator(".st-events div", { hasText: /^failed/ }).allTextContents();
+	if (failed.length > 0) throw new Error(failed.join("; "));
 	// A screen in root: root's Hbox, as it comes.
 	await page.locator(".st-new-screen").click();
 	await page.locator(".st-scope", { hasText: /^root/ }).click();
@@ -341,18 +353,29 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	await page.locator(".st-tab [role=tab][aria-selected=true]", { hasText: "theirs" }).waitFor();
 	await stage.locator(".hole button").click();
 	await stage.locator(".choices button", { hasText: /^Hbox$/ }).click();
-	await stage.locator(".screen-toggle").click();
+	await page.locator(".st-bar .screen-toggle").click();
 	await stage.locator(".hbox").waitFor();
 	if ((await stage.locator(".hbox-mine").count()) !== 0) throw new Error("a screen in root uses a's Hbox");
-	// In root, where layout is already, the same names can't be given again.
-	await stage.locator(".screen-toggle").click();
+	// In root, where layout is already, the same names can't be given again:
+	// asked, the screen gets a scope of its own under root, and the copy is
+	// registered there.
+	await page.locator(".st-bar .screen-toggle").click();
 	await stage.locator(".hbox .hole button").click();
 	await stage.locator(".hole-new").click();
 	await page.locator(".st-preview h3", { hasText: "Tasks" }).waitFor();
 	await page.locator(".st-examples").selectOption("layout");
 	await status(/registers Screen, Hole, Hbox/);
 	await page.locator("button", { hasText: "Save & register" }).click();
-	await status(/already made in root/);
+	await page.locator(".st-editor-bar").waitFor({ state: "detached" });
+	if (!dialogs.some((d) => /Give theirs a scope of its own, under root/.test(d))) throw new Error(`not asked to give theirs a scope: ${dialogs}`);
+	const scopes = await studioRecords(page, "scopes");
+	const own = scopes.find((s) => s.name === "theirs");
+	const rootScope = scopes.find((s) => s.name === "root");
+	if (own?.parent !== rootScope.id || own.registrations.length !== 1 || rootScope.registrations.length !== 1) throw new Error(`unexpected scopes: ${JSON.stringify(scopes)}`);
+	if ((await studioRecords(page, "screens")).find((s) => s.name === "theirs").scope !== own.id) throw new Error("theirs wasn't moved to its scope");
+	// Made again there, its Hbox kept, and the bar's toggle says it's used.
+	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
+	await stage.locator(".hbox").waitFor();
 	if (errors.length > 0) throw new Error(errors.join("; "));
 	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
 	await page.close();
@@ -372,7 +395,7 @@ test("the editor starts a component from an example, a prebuilt module's sources
 	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
 	await page.locator("button", { hasText: "+ New screen" }).waitFor();
 	await newStudioScreen(page, { scope: "a", name: "home" });
-	await stage.locator(".screen-toggle[aria-pressed=true]").waitFor();
+	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
 	await newStudioComponent(page);
 	// todo_item uses ../todo_list/todo_list.tcd: the prebuilt's, found by the path.
 	await examples.selectOption("todo_item");

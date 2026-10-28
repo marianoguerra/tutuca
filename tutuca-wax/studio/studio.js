@@ -330,9 +330,16 @@ const asks = {
 			remember(id);
 			say(`${screen.name}, in ${chainOf(scopeRecord).map((s) => s.name).join(" / ")}`);
 		}
-		return { id, screen: made };
+		return { id, screen: made, editing };
 	},
 	// A new screen starts with the default layout, opened edited.
+	// The bar's toggle: sent to the screen shown, answered with what it'll be.
+	toggle_screen: () => {
+		const screen = runtime.get(studioHost.root(), "shown");
+		if (!screen) return false;
+		studioHost.sendAt(["shown"], "toggle_editing");
+		return !runtime.get(screen, "editing");
+	},
 	save_screen: async (id, name, scope, created) => {
 		const existing = lib.screens.get(id);
 		if (!existing) fresh.add(id);
@@ -518,16 +525,28 @@ Object.assign(asks, {
 		const draft = draftAs(id, name, tcd, wax);
 		const b = await buildOf(draft);
 		if (!b.ok) throw new Error("it doesn't build yet: fix what the diagnostics say first");
-		const { scope } = editing;
+		let { scope } = editing;
 		// A name another registration of this scope gives can't be given again;
 		// one a parent scope gives is hidden here (an inner registration hides
 		// an outer one), so a screen's scope can have its own Hbox while the
-		// others keep root's.
+		// others keep root's. A new one that would give one again can have a
+		// scope made for the screen, under its own, and the screen moved there.
 		const taken = scope.registrations
 			.filter((r) => r.component !== id)
 			.flatMap((r) => (typesOf(r.component) ?? []).filter((t) => b.types.includes(t)).map((t) => `${t} (${componentLabel(r.component)})`));
 		if (taken.length > 0) {
-			throw new Error(`${taken.join(", ")} already made in ${scope.name}: rename the component in ${name}.tcd, or make it in a scope of its own, where it hides ${scope.name}'s`);
+			const screen = lib.screens.get(mounted.id);
+			const ask = `${taken.join(", ")} already made in ${scope.name}, for all its screens. Give ${screen.name} a scope of its own, under ${scope.name}, and register ${name} there?`;
+			if (!creating || !confirm(ask)) {
+				throw new Error(`${taken.join(", ")} already made in ${scope.name}: rename the component in ${name}.tcd, or make it in a scope of its own, where it hides ${scope.name}'s`);
+			}
+			await keepLayout();
+			const own = { id: newId(), name: screen.name, parent: scope.id, registrations: [] };
+			await save("scopes", own);
+			await save("screens", { ...lib.screens.get(screen.id), scope: own.id });
+			tell("scope_added", own.id, own.name, own.parent);
+			tell("screen_moved", screen.id, own.id);
+			scope = editing.scope = own;
 		}
 		await save("components", { id, name, tcd, wax, build: b, chat });
 		if (creating) {

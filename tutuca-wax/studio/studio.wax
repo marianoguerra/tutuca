@@ -280,12 +280,15 @@ fn studio_on_show_screen(state: &studio_state, ctx: &context, id: js_string) -> 
     studio_showing(state, ctx, id);
 }
 
+// The screen made again: the one shown stays until it arrives, so a reply
+// to what's in it (the ask of the ✎ that opened the editor) still reaches
+// it; shown_id empty says it's no longer the one the page keeps.
 fn studio_on_reopen(state: &studio_state, ctx: &context) -> &studio_state {
     if js_string_length(state.active) == 0 {
         return state;
     }
     studio_ask_open_screen(ctx, state.active);
-    studio_with_shown_id(studio_with_shown(state, value_null()), gs_empty);
+    studio_with_shown_id(state, gs_empty);
 }
 
 // The screen's component, unless another was asked for since.
@@ -294,7 +297,17 @@ fn studio_reply_open_screen_ok(state: &studio_state, ctx: &context, reply: &valu
     if !str_eq(id, state.active) {
         return state;
     }
-    studio_with_shown_id(studio_with_shown(state, studio_open_screen_reply_screen(reply)), id);
+    let next = studio_with_shown_id(studio_with_shown(state, studio_open_screen_reply_screen(reply)), id);
+    studio_with_editing(next, studio_open_screen_reply_editing(reply));
+}
+
+fn studio_on_toggle_editing(state: &studio_state, ctx: &context) -> &studio_state {
+    studio_ask_toggle_screen(ctx);
+    state;
+}
+
+fn studio_reply_toggle_screen_ok(state: &studio_state, ctx: &context, reply: i32) -> &studio_state {
+    studio_with_editing(state, reply);
 }
 
 fn studio_reply_open_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
@@ -325,6 +338,16 @@ fn studio_on_rename(state: &studio_state, ctx: &context, id: js_string, name: js
     studio_ask_save_screen(ctx, id, named, scope, created);
     let screens = list_assoc(state.screens, at, studio_screens_new(id, named, scope, created));
     studio_with_renaming(studio_with_screens(state, screens), gs_empty);
+}
+
+fn studio_on_screen_moved(state: &studio_state, ctx: &context, id: js_string, scope: js_string) -> &studio_state {
+    let at = studio_index_of(state.screens, id);
+    if at <s 0 {
+        return state;
+    }
+    let screen = list_get(state.screens, at)!;
+    let moved = studio_screens_new(id, studio_screens_name(screen), scope, studio_screens_created(screen));
+    studio_with_screens(state, list_assoc(state.screens, at, moved));
 }
 
 fn studio_reply_save_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
