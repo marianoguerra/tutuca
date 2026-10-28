@@ -109,3 +109,34 @@ test("the assistant's examples build without diagnostics, and their examples hol
 		assert.deepEqual(ran.filter((e) => !e.ok).map((e) => e.name), [], name);
 	}
 });
+
+// A scope's binds join the ones in place, but not value: renderIt still
+// renders the loop's item, as in tutuca's JS, which drops value from them.
+test("a scope can't bind value over the item renderIt renders", async () => {
+	const main = "binds.tcd";
+	const files = {
+		[main]: `package tutuca:binds@0.1.0;
+component cell { field n: s32; view main = span(field(n)); }
+component row {
+    field cells: list<cell>;
+    scope extra { value: string, label: string }
+    view main = ul(each(field(cells), scope(extra, li(bind(label), render_it()))));
+}
+`,
+	};
+	const wax = `fn row_scope_extra(state: &row_state) -> &row_scope_extra_binds {
+    {row_scope_extra_binds| value: gs_value, label: gs_cell };
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "binds.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	const cells = [tw.runtime.make(scope, "Cell", { n: 1 }), tw.runtime.make(scope, "Cell", { n: 2 })];
+	const host = tw.runtime.createHost(window.document, container, tw.runtime.make(scope, "Row", { cells }), { dev: true }).mount();
+	assert.deepEqual([...container.querySelectorAll("li")].map((li) => li.textContent), ["Cell1", "Cell2"]);
+	assert.deepEqual(host.failures, []);
+});

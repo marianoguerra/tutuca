@@ -320,7 +320,8 @@ fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
         }
         s: &view_scope => {
             let def = spec_scope(e.component.spec, s.scope_name);
-            let binds = map_merge(e.binds, def.bind(e.component.instance));
+            // As tutuca's JS: a scope can't bind value, which renderIt reads.
+            let binds = map_merge(e.binds, map_dissoc(def.bind(e.component.instance), s_value));
             view_eval_into(
                 out,
                 s.body,
