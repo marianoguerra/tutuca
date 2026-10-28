@@ -302,12 +302,8 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     if result.kind == message_result_kind_rejected {
         let error = (result as &message_result_rejected).error;
         if error.kind == message_error_kind_unknown_message {
-            // An event's handler sends one of the component's messages: one
-            // it doesn't handle is a bug in the view, and fails the task.
-            if t.kind == task_kind_event {
-                host_fail(js_string_concat(s_err_event_unhandled, (msg!).name));
-            }
-            // Any other is reported and keeps the component as it was.
+            // A message the component doesn't handle, from an event or not:
+            // reported, and the component stays as it was.
             observe_unhandled((msg!).name);
         } else {
             reject_message(comp, (msg!).name, error);

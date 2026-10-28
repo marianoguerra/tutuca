@@ -174,11 +174,12 @@
     [`(event (send ,_ ,arg-terms ...) ,tv ,drag)
      (define drag-key (term (drag-key-in ,drag ,(mctx-path ctx))))
      (define args (for/list ([a arg-terms]) (term (eval-arg ,a ,tv ,(mctx-source-key ctx) ,drag-key))))
-     (unless (find-handler reg instance name) (error 'event "no handler ~a" name)) ; lint guarantees it exists
      ;; EventTask.run sets this.args before the handler runs, so forwardAt sends them.
      (match-define `(task ,k ,n ,_ ,rest ...) task)
      (define ctx/args (struct-copy mctx ctx [task `(task ,k ,n ,args ,@rest)]))
-     (append (call reg instance name args ctx/args) '(()))]))
+     ;; A missing handler is a no-op that's observed, as for any message; for
+     ;; well-formed views (wf.rkt) it never happens.
+     (append (run reg instance name args ctx/args) '(()))]))
 
 ;; prepareTask: a task without a route freezes its selector against the value
 ;; its base resolves to in the root; the frozen frames extend the base.

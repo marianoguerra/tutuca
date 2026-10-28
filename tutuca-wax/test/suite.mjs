@@ -1559,18 +1559,17 @@ test("events: modifiers pick the events a handler takes, and prevent or stop the
 	assert.deepEqual(host.failures, []);
 });
 
-// An event's handler sends one of the component's messages: one it doesn't
-// handle is a bug in the view, and fails the task, as in tutuca's JS and the
-// spec; a message sent otherwise that it doesn't handle is only reported.
-test("events: a message an event sends that the component doesn't handle fails", async (env) => {
+// Components compose dynamically, so a view can send a message its component
+// doesn't handle: like any such message, it's reported and changes nothing.
+test("events: a message an event sends that the component doesn't handle is reported", async (env) => {
 	const { window, document, vdom } = env;
 	const scope = await probeScope(env);
 	const container = document.createElement("div");
 	const host = vdom.runtime.createHost(document, container, vdom.runtime.make(scope, "Probe", {})).mount();
+	const before = host.root();
 	container.querySelector(".ghost").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-	assert.deepEqual(host.failures.map((e) => e.message), ["No handler for the message an event sends: ghost"]);
-	assert.deepEqual(host.unhandled, []);
-	host.send("ghost");
+	assert.deepEqual(host.failures, []);
+	assert.equal(host.root(), before);
 	assert.deepEqual(host.unhandled, ["ghost"]);
 });
 

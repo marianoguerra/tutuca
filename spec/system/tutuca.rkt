@@ -358,13 +358,21 @@
 
   ;; ---- well-formed views route to existing handlers ----------------------------
   ;; The classes above send hit but none handles it, so they are not well
-  ;; formed. With a hit handler in every class they are, and then every click
-  ;; on every element runs without the host's "no handler" failure.
+  ;; formed: a click is a no-op that's observed as unhandled, and nothing fails.
+  ;; With a hit handler in every class they are, and then every click on every
+  ;; element finds its handler.
+  (define (unhandled c) (filter (λ (o) (and (pair? o) (eq? (car o) 'unhandled))) (cfg-obs c)))
   (test-equal (wf? sound-registry) #f)
+  (let* ([c0 (start sound-classes (random-instance 1))]
+         [c (drain (queue-events c0 (first (addrs-where c0 (λ (d) (assq 'data-eid (fourth d)))))))])
+    (test-equal (failures c) '())
+    (test-equal (unhandled c) '((unhandled hit))))
   (define wf-classes (for/list ([c sound-classes]) (append c '((on (hit () (step)) (dropped (k) (step)))))))
   (test-equal (wf? (term (register-components ,wf-classes))) #t)
   (for ([_ 20])
     (define c0 (start wf-classes (random-instance 3)))
     (for ([a (addrs-where c0 (λ (d) (assq 'data-eid (fourth d))))])
-      (test-equal (failures (drain (queue-events c0 a))) '())))
+      (define c (drain (queue-events c0 a)))
+      (test-equal (failures c) '())
+      (test-equal (unhandled c) '())))
   (test-results))

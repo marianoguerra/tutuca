@@ -245,8 +245,8 @@ One transaction (`handle-task`) does the following:
    - ask: `ok` runs `<n>ReplyOk`, `error` runs `<n>ReplyError`, a missing handler runs
      `<n>HandlerNotFound`, and `async` adds a pending reply routed to the asker's path.
    - event: evaluates the action arguments in the message context and makes them the task's
-     arguments, so `forward-at` forwards them. A missing handler fails; for well-formed views
-     it never happens.
+     arguments, so `forward-at` forwards them. A missing handler is a no-op that's observed, as
+     for a plain task; for well-formed views it never happens.
 3. Set the new leaf.
 4. Freeze each child task's selector against the new root.
 5. Report invalid fields and contract issues.

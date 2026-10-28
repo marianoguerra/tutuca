@@ -148,14 +148,10 @@ export class EventTask extends Task {
 		this.handler = handler;
 		this.route = route;
 	}
-	// An event's handler sends a message of the component's: one it doesn't handle is a bug in
-	// the view (lint's unknown-handler), so it fails the task.
+	// A message the component doesn't handle keeps it as it was and is reported, as any other
+	// (components compose dynamically, so a view can send one its component lacks).
 	run(instance, next, ctx) {
-		const spec = specOf(instance);
-		const message = spec.on[this.name];
-		if (message === undefined)
-			throw new Error(`${spec.name} has no handler for ${this.name}, which its view sends`);
 		this.args = this.handler.action.args.map((arg) => arg.eval(ctx));
-		return call(message, instance, next, this.args, ctx);
+		return run(instance, next, this.name, this.args, ctx);
 	}
 }

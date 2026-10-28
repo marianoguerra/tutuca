@@ -183,7 +183,7 @@ test("an element outside HTML and SVG routes its events too", () => {
 	assert.equal(host.rootComponent.count, 1);
 });
 
-test("an event whose message has no handler fails; a sent message with none is reported", () => {
+test("a message with no handler, sent by an event or otherwise, is a no-op that's reported", () => {
 	const Mute = component({
 		name: "Mute",
 		fields: { n: t.number() },
@@ -195,14 +195,11 @@ test("an event whose message has no handler fails; a sent message with none is r
 		{ sync: true, onReport: (type, info) => reports.push([type, info.message]) },
 	);
 	host.start(C.Mute());
-	click(rootNode.querySelector("button"));
-	assert.deepEqual(
-		failures.map((e) => e.message),
-		["Mute has no handler for nope, which its view sends"],
-	);
+	const before = host.rootComponent;
 	const warn = console.warn;
 	console.warn = () => {};
 	try {
+		click(rootNode.querySelector("button"));
 		const root = new DispatchPath();
 		const task = new Task("missing", [], root, new Target(root), null);
 		host.prepareTask(task, host.rootComponent);
@@ -211,9 +208,14 @@ test("an event whose message has no handler fails; a sent message with none is r
 	} finally {
 		console.warn = warn;
 	}
+	assert.deepEqual(failures, []);
+	assert.equal(host.rootComponent, before);
 	assert.deepEqual(
 		reports.filter(([type]) => type === "unhandled"),
-		[["unhandled", "missing"]],
+		[
+			["unhandled", "nope"],
+			["unhandled", "missing"],
+		],
 	);
 });
 
@@ -287,14 +289,23 @@ test("a throwing handler keeps the state and reports taskFailed", () => {
 	);
 });
 
-test("only own message handlers run", () => {
+test("only own message handlers run: an inherited name is unhandled", () => {
 	const Root = component({ name: "Root", view: h("button", { "on:click": send("toString") }) });
-	const { host, rootNode, failures, C } = setup({ Root });
+	const unhandled = [];
+	const onReport = (type, info) => type === "unhandled" && unhandled.push(info.message);
+	const { host, rootNode, failures, C } = setupHost({ Root }, { sync: true, onReport });
 	const root = C.Root();
 	host.start(root);
-	rootNode.querySelector("button").click();
+	const warn = console.warn;
+	console.warn = () => {};
+	try {
+		rootNode.querySelector("button").click();
+	} finally {
+		console.warn = warn;
+	}
 	assert.equal(host.rootComponent, root);
-	assert.equal(failures.length, 1);
+	assert.deepEqual(failures, []);
+	assert.deepEqual(unhandled, ["toString"]);
 });
 
 test("events on the host, unmanaged children and unknown IDs are ignored", () => {
