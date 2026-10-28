@@ -183,6 +183,13 @@ async function newStudioScreen(page, { scope, name }) {
 	await page.locator(".st-tab [role=tab][aria-selected=true]", { hasText: name }).waitFor();
 }
 
+// A slot's ✎ or ×, clicked as a person would: its slot hovered first, at its
+// corner (outside the slots inside it), which shows the slot's buttons.
+async function clickSlotButton(button) {
+	await button.locator("xpath=..").hover({ position: { x: 2, y: 2 } });
+	await button.click();
+}
+
 // From a screen being edited, the editor on a new component (the hole's
 // + new component), built and previewed.
 async function newStudioComponent(page) {
@@ -236,7 +243,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	}
 	// ✎ on its slot: edited, saved, and the screen made again with it.
 	await stage.locator(".screen-toggle").click();
-	await stage.locator(".slot-edit").first().click();
+	await clickSlotButton(stage.locator(".slot-edit").first());
 	await page.locator(".st-editor-bar").waitFor();
 	const tcd = await page.evaluate(async () => (await fetch("/studio/assistant/examples/tasks.tcd")).text());
 	await page.locator(".st-editor .cm-content").click();
@@ -251,7 +258,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await stage.locator("[title='Add a slot below']").click();
 	await stage.locator(".hole button").click();
 	await stage.locator(".choices button", { hasText: /^Tabs$/ }).click();
-	await stage.locator(".slot-edit").nth(1).click();
+	await clickSlotButton(stage.locator(".slot-edit").nth(1));
 	await page.waitForFunction(() => /comes with the studio/.test(document.querySelector(".st-status")?.textContent ?? ""));
 	// Reloaded: from IndexedDB, the tab open again, used, not edited.
 	const reopen = async () => {
@@ -308,9 +315,15 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	// The screen made again with a's layout: used, the Hbox kept.
 	await stage.locator(".screen-toggle[aria-pressed=false]").waitFor();
 	await stage.locator(".screen-toggle").click();
-	// The Hbox's ✎ opens the copy, now the one a's screens make (the
-	// hole's ✎ inside it sits over it).
-	await stage.locator(".slot-edit").first().dispatchEvent("click");
+	// Only the hovered slot's buttons show: none until then, and the Hbox's
+	// at its corner, where the hole's ✎ inside it stays hidden.
+	const shown = () => stage.locator(".slot-edit").evaluateAll((bs) => bs.map((b) => getComputedStyle(b).opacity).join());
+	await page.mouse.move(0, 0);
+	if ((await shown()) !== "0,0") throw new Error(`slot buttons show without a hover: ${await shown()}`);
+	await stage.locator(".slot-edit").first().locator("xpath=..").hover({ position: { x: 2, y: 2 } });
+	if ((await shown()) !== "1,0") throw new Error(`hovering the Hbox's slot shows ${await shown()}`);
+	// The Hbox's ✎ opens the copy, now the one a's screens make.
+	await clickSlotButton(stage.locator(".slot-edit").first());
 	await page.locator(".st-editor-bar").waitFor();
 	if ((await page.locator("[aria-label='Component name']").inputValue()) !== "layout") throw new Error("the Hbox's ✎ didn't open a's layout");
 	const tcd = await page.evaluate(async () => (await fetch("/components/layout/layout.tcd")).text());
