@@ -36,6 +36,7 @@ test "every diagnostic code has a fixture that reports it" {
     (
       "tcd.where.contradiction", "component c { field x: s32 where x > 1 and x < 0; view main = p(); }",
     ),
+    ("tcd.type.option", "component c { field x: one_of<null, s32>; view main = p(); }"),
     (
       "tcd.where.redundant", "component c { field x: s32 where x > 1 and x > 2; view main = p(); }",
     ),

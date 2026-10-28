@@ -80,6 +80,7 @@ example toggles for todo_card { start { done: false } send toggle(); expect done
 **Types**: `bool`, `s32`, `f64`, `string`, `any`, `enum { a, b }`,
 `option<T>`, `list<T>`, `map<T>` (string keys), `record { a: T, .. }`,
 `one_of<A, B>`, `result<T, E>`, a component or interface name, `component`.
+An optional value is `option<T>` (`one_of<null, T>` gets a warning saying so).
 `index<f>` isn't a type: it's `f`'s key type (s32 for a list, string for a
 map) with the constraint `in keys(f)`.
 

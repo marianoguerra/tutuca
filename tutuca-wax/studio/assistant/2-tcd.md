@@ -35,7 +35,8 @@ register cart_line;                   // optional; by default every component, u
 `bool`, `s32`, `f64`, `string`, `any`, `null`, `enum { a, b }`, `option<T>`,
 `list<T>`, `map<T>` (string keys), `record { a: T, b: U }`, `one_of<A, B>`,
 `result<T, E>`, a component or interface name (a component of that type),
-`component` (any component). `index<f>` is not a type but `f`'s key type (s32
+`component` (any component); an optional value is `option<T>`, not
+`one_of<null, T>`. `index<f>` is not a type but `f`'s key type (s32
 for a list, string for a map) with the constraint that it's a key of `f`.
 
 ## Members of a component

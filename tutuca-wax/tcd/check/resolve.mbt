@@ -130,7 +130,20 @@ fn Resolver::ty(
           if args.length() < 2 {
             self.error("tcd.type.arity", span, "one_of takes two types or more")
           }
-          OneOf(args.map(a => self.ty(a, fields, extra)))
+          let ts = args.map(a => self.ty(a, fields, extra))
+          // An optional value has one spelling.
+          if ts.length() == 2 && ts.contains(Null) {
+            let other = if ts[0] == Null { ts[1] } else { ts[0] }
+            self.diags.push(
+              @diag.warning(
+                "tcd.type.option",
+                span,
+                "one_of<null, \{ty_text(other)}> is option<\{ty_text(other)}>",
+                hint="option<\{ty_text(other)}>",
+              ),
+            )
+          }
+          OneOf(ts)
         }
         _ => {
           guard args[0] is Named(f) else {
