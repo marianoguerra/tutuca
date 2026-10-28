@@ -350,3 +350,14 @@ component box { field item: tally; view main = div(render(field(item))); }
 	assert.deepEqual(host.issues, []);
 	assert.equal(tw.runtime.typeName(tw.runtime.get(host.root(), "item")), "Counter");
 });
+
+// tcd checks the event modifiers a view may write, and the runtime parses
+// them: two lists, in two languages, that must name the same ones.
+test("tcd and the runtime know the same event modifiers", async () => {
+	const tcdList = (await read("tcd/check/views.mbt")).match(/pub let event_modifiers : Array\[String\] = \[([^\]]*)\]/)[1];
+	const tcdMods = [...tcdList.matchAll(/"([a-z]+)"/g)].map((m) => m[1]).sort();
+	const imports = await read("src/imports.wax");
+	const runtimeMods = [...imports.matchAll(/#\[import = "([a-z]+)"\]\s*const s_mod_\w+: &extern;/g)].map((m) => m[1]).sort();
+	assert.ok(runtimeMods.length > 0);
+	assert.deepEqual(tcdMods, runtimeMods);
+});
