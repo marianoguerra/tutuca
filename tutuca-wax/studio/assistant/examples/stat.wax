@@ -3,24 +3,27 @@
 
 import "'" {
     #[import = "→"]
-    const s_flat: &extern;
+    const s_flat: js_string;
     #[import = "↑"]
-    const s_up: &extern;
+    const s_up: js_string;
     #[import = "↓"]
-    const s_down: &extern;
+    const s_down: js_string;
 }
 
-fn stat_on_set_label(state: &stat_state, ctx: &context, label: &extern) -> &stat_state {
+// The trend field's value: one of the stat_trend_* consts.
+type stat_trend = i32;
+
+fn stat_on_set_label(state: &stat_state, ctx: &context, label: js_string) -> &stat_state {
     stat_with_label(state, label);
 }
 
-fn stat_on_set_unit(state: &stat_state, ctx: &context, unit: &extern) -> &stat_state {
+fn stat_on_set_unit(state: &stat_state, ctx: &context, unit: js_string) -> &stat_state {
     stat_with_unit(state, unit);
 }
 
 // The trend follows the last change.
 fn stat_on_bump(state: &stat_state, ctx: &context, by: f64) -> &stat_state {
-    let trend = stat_trend_flat;
+    let trend: stat_trend = stat_trend_flat;
     if by > 0.0 {
         trend = stat_trend_up;
     }
@@ -30,11 +33,15 @@ fn stat_on_bump(state: &stat_state, ctx: &context, by: f64) -> &stat_state {
     {stat_state| label: state.label, value: state.value + by, unit: state.unit, trend };
 }
 
-fn stat_get_arrow(state: &stat_state) -> &extern {
-    if state.trend == stat_trend_up {
+fn stat_get_arrow(state: &stat_state) -> js_string {
+    stat_arrow_of(state.trend);
+}
+
+fn stat_arrow_of(trend: stat_trend) -> js_string {
+    if trend == stat_trend_up {
         return s_up;
     }
-    if state.trend == stat_trend_down {
+    if trend == stat_trend_down {
         return s_down;
     }
     s_flat;

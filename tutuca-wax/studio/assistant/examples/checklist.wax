@@ -18,7 +18,7 @@ fn checklist_item_done(item: &value) -> i32 {
 fn checklist_on_set_draft(
     state: &checklist_state,
     ctx: &context,
-    text: &extern,
+    text: js_string,
 ) -> &checklist_state {
     checklist_with_draft(state, text);
 }

@@ -36,6 +36,10 @@ into a WebAssembly module and mounts it.
   views, so a class computed from the state at run time gets no CSS.
 - Comment as the examples do: a `///` doc line on each component, field,
   property and message that isn't obvious, short `//` comments in the `.wax`.
+- In the `.wax`, write types by what they mean: `js_string` for strings
+  (never `&extern`), and a type alias of your own for an `i32` or `f64` that
+  stands for something (an enum's value, a unit, an index), used in the
+  signatures of the functions that take or return it.
 - Prefer declaring things in the `.tcd` (constraints in `where`, guards in
   `when`, `changes`, `ensures`, `emits`) over checking them by hand in the
   `.wax`: the runtime checks them, and the studio's tests use them.

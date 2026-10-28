@@ -9,4 +9,4 @@ Complete modules that build, each a `.tcd` and its `.wax` (the files in
   a child's `notify` handled by the parent through `source_key`, a loop
   `filter`, reading each child's property with `value_member`.
 - stat: an enum field and its consts, an f64, a computed property, a struct
-  literal, string constants of the `.wax`'s own, and a `layout_edit` view.
+  literal, string constants of the `.wax`'s own, a type alias for the enum's value, and a `layout_edit` view.

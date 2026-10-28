@@ -25,7 +25,9 @@ For a component `C`, with `c` its name in snake_case (`CheckItem` is `check_item
 
 `T'`, the Wax type of a TCD type: `i32` for `bool` (0 or 1), `s32` and enums;
 `f64` for `f64`; `js_string` for `string`; `&value` for everything else (lists,
-maps, records, options, components, `any`).
+maps, records, options, components, `any`). Where the table says `T'` you may
+write an alias of it instead (see Type aliases below): tcd compares signatures
+up to aliases.
 
 Generated for you to use (in the contract):
 - `{c_state| f: v, g: w }` the state struct, one field per `.tcd` field, in
@@ -75,9 +77,9 @@ fn checklist_get_left(state: &checklist_state) -> i32 {
 ```
 
 - Types: `i32`, `i64`, `f64`, `&T` a reference to a struct, `&?T` one that
-  may be null, `js_string` a JS string (`js_string_opt` when it may be
-  null; aliases of `&extern` and `&?extern`, either spelling works). Literals: `1`, `-1`, `2.5`, `0.0` (an
-  f64 needs the dot).
+  may be null, `js_string` a JS string and `js_string_opt` one that may be
+  null. Literals: `1`, `-1`, `2.5`, `0.0` (an f64 needs the dot).
+- `let x: T = e;` gives a local a type (`let` alone infers it).
 - i32 comparisons are signed or unsigned: `<s`, `<=s`, `>s`, `>=s` (signed,
   what you want for counts and indexes), `==`, `!=`. f64 uses `<`, `<=`, `>`,
   `>=`. Arithmetic: `+ - *`, `/s` and `%s` for signed i32 division and
@@ -93,6 +95,39 @@ fn checklist_get_left(state: &checklist_state) -> i32 {
 - A struct literal names its type: `{note_state| title: t, body: b, pinned: 0 }`;
   `{T| a, b }` takes the locals named a and b. Every field is given.
 - `let (ok, n) = parse_int(text);` destructures a tuple result.
+
+## Type aliases
+
+`type name = T;` names a value type: `name` is then written wherever `T`
+would be, and compiles to `T`. Use aliases to say what a value means where
+the bare type doesn't:
+
+- Strings are `js_string` and `js_string_opt`, aliases of `&extern` and
+  `&?extern` the runtime defines. Always write the alias, never `&extern`.
+- Define your own, at the top of the `.wax` after the string constants, when
+  an `i32`, `f64` or reference stands for something: an enum field's value
+  (`type stat_trend = i32;`, which takes the `stat_trend_*` consts), a unit
+  (`type cents = i32;`, `type ms = f64;`), an id or index into a list
+  (`type check_item_index = i32;`). Then use it in your helpers' signatures
+  and typed `let`s, and in the convention's functions where it fits.
+
+```wax
+// An enum field's value: one of the stat_trend_* consts.
+type stat_trend = i32;
+
+fn stat_arrow_of(trend: stat_trend) -> js_string {
+    ...
+}
+```
+
+- An alias names a value type, `&` included: `type stat_label = js_string;`,
+  `type checklist_entry = &value;`, then `stat_label`, `checklist_entry`,
+  never `&stat_label`.
+- Prefix your aliases with the component's snake_case name (`stat_trend`,
+  not `trend`) so they don't clash with the runtime's or the generated
+  names, and don't redefine `js_string`.
+- Aliases document, they don't check: a `stat_trend` is an `i32` to the
+  compiler, and any `i32` can be passed for it.
 
 ## Values
 

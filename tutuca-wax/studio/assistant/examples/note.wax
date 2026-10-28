@@ -1,10 +1,10 @@
 // note.tcd has the rest: what each message does, and the computed property.
 
-fn note_on_set_title(state: &note_state, ctx: &context, title: &extern) -> &note_state {
+fn note_on_set_title(state: &note_state, ctx: &context, title: js_string) -> &note_state {
     note_with_title(state, title);
 }
 
-fn note_on_set_body(state: &note_state, ctx: &context, text: &extern) -> &note_state {
+fn note_on_set_body(state: &note_state, ctx: &context, text: js_string) -> &note_state {
     note_with_body(state, text);
 }
 
