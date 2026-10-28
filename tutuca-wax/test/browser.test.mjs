@@ -267,7 +267,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await tabTo("home");
 	await reopen();
 	// Exported, the library dropped, imported again.
-	await page.locator(".st-menu summary").click();
+	await page.locator(".st-menu [role=button]").click();
 	const [download] = await Promise.all([page.waitForEvent("download"), page.locator(".st-menu button", { hasText: "Export" }).click()]);
 	const bundle = await download.path();
 	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));

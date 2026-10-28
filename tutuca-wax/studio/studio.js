@@ -1,15 +1,16 @@
-// The studio: screens, each a tab, made in a scope of a tree of scopes and
-// composed by filling a layout's holes with what that scope can make. A
-// hole's list also offers a new component, and a slot's ✎ edits the one in
-// it: the page turns into an editor (the code, a live preview, what the
-// build says and the assistant), and saving registers the component in the
-// screen's scope, where the hole can make it. Components, scopes and screens
-// stay in IndexedDB (store.js); a screen is kept as what to make
-// (js/hydrate.js's capture), saved as it changes. Opening a screen makes its
-// scope chain from scratch, loads each scope's registrations into it (built
-// again only when the sources or tcd changed), and mounts the layout on a dev
-// host. Served with an API (scripts/studio-server.mjs), the editor also has
-// an assistant (assistant.js): a model that edits the component, its changes
+// The studio's page: the host of studio.tcd's Studio, which has the screens
+// as tabs, the picker a new screen's scope is chosen in, and the menu, and
+// which asks the page for what only it can do: keep the library in IndexedDB
+// (store.js), make a screen in its scope chain (answered with the screen's
+// component, which Studio renders), confirm, move the library in and out.
+// A screen is composed by filling a layout's holes with what its scope can
+// make; a hole's list also offers a new component, and a slot's ✎ edits the
+// one in it: the page turns into the editor, still written here (the code, a
+// live preview, what the build says and the assistant), and saving registers
+// the component in the screen's scope, where the hole can make it. A screen
+// is kept as what to make (js/hydrate.js's capture), saved as it changes.
+// Served with an API (scripts/studio-server.mjs), the editor also has an
+// assistant (assistant.js): a model that edits the component, its changes
 // built and its errors sent back to it.
 import { defineRating } from "../components/media/rating.js";
 import { capture, hydrate } from "../js/hydrate.js";
@@ -23,51 +24,27 @@ import { fromBundle, openStore, toBundle } from "./store.js";
 const UI = {
 	body: "bg-base-200 text-base-content",
 	app: "h-screen flex flex-col",
-	bar: "st-bar flex items-center gap-2 border-b border-base-300 bg-base-100 px-2 py-1",
-	brand: "text-sm font-bold opacity-70 px-1",
-	tabs: "st-tabs flex items-center gap-1 overflow-x-auto min-w-0",
-	tab: "st-tab group flex items-center rounded-btn hover:bg-base-200",
-	tabOn: "st-tab group flex items-center rounded-btn bg-base-200 font-semibold",
-	tabLabel: "px-3 py-1 text-sm whitespace-nowrap",
-	tabClose: "btn btn-xs btn-ghost btn-square opacity-0 group-hover:opacity-60 hover:opacity-100",
-	tabName: "input input-xs w-32",
-	plus: "st-new-screen btn btn-sm btn-ghost btn-square",
 	spacer: "flex-1",
 	status: "st-status text-xs opacity-70 truncate max-w-[40%]",
-	badge: "st-assistant badge badge-ghost badge-sm",
-	menu: "st-menu dropdown dropdown-end",
-	menuButton: "btn btn-sm btn-ghost btn-square",
-	menuList: "menu menu-sm dropdown-content z-20 w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow",
 	main: "flex-1 min-h-0 flex flex-col",
-	empty: "flex-1 flex flex-col items-center justify-center gap-3",
-	lead: "text-sm opacity-70 max-w-prose text-center",
 	button: "btn btn-sm",
 	primary: "btn btn-sm btn-primary",
-	big: "btn btn-primary",
 	ghost: "btn btn-sm btn-ghost",
-	small: "btn btn-xs btn-ghost",
 	input: "input input-sm",
 	select: "select select-sm",
 	label: "text-xs uppercase tracking-wide opacity-60",
 	row: "flex flex-wrap items-center gap-2",
 	info: "opacity-70",
-	// A screen.
-	stage: "st-stage flex-1 min-h-0 overflow-auto p-4",
-	events: "st-events-box border-t border-base-300 bg-base-100 text-xs",
-	eventsSummary: "cursor-pointer px-3 py-1 opacity-70",
+	// The preview's events.
 	eventList: "st-events font-mono max-h-40 overflow-auto flex flex-col px-3 pb-2",
 	event: "py-0.5 border-b border-base-300",
 	log: "text-success",
 	issue: "text-warning",
 	failed: "st-failed text-error",
-	// The scope picker.
+	// The layout JSON dialog.
 	dialog: "modal",
 	dialogBox: "modal-box flex flex-col gap-3",
 	dialogTitle: "text-lg font-bold",
-	tree: "st-tree flex flex-col gap-0.5 max-h-80 overflow-auto rounded-box border border-base-300 p-1",
-	treeRow: "flex items-center gap-1",
-	scope: "st-scope btn btn-sm btn-ghost flex-1 justify-start font-mono",
-	scopeOn: "st-scope btn btn-sm btn-active flex-1 justify-start font-mono",
 	dialogActions: "modal-action mt-0",
 	layoutJson: "st-layout textarea textarea-sm font-mono text-xs w-full h-80",
 	// The editor.
@@ -232,12 +209,13 @@ const wasmOf = async (ref) => {
 };
 
 // The scope's chain made from scratch in a runtime instance (t: the screen's
-// or the preview's), each scope's registrations loaded into it; the innermost
-// scope. What can't be registered goes to fail(text).
-async function loadChain(t, scopeRecord, fail) {
+// or the preview's), from first (a new root scope unless given), each scope's
+// registrations loaded into it; the innermost scope. What can't be registered
+// goes to fail(text).
+async function loadChain(t, scopeRecord, fail, first = t.runtime.scope()) {
 	let scope = null;
 	for (const s of chainOf(scopeRecord)) {
-		scope = scope === null ? t.runtime.scope() : t.runtime.enter(scope, s.id);
+		scope = scope === null ? first : t.runtime.enter(scope, s.id);
 		for (const reg of s.registrations) {
 			try {
 				const loaded = await t.loadComponent((await wasmOf(reg.component)).slice(), scope);
@@ -263,48 +241,19 @@ const eventItem = ({ kind, text }) => el("div", { class: `${UI.event} ${UI[kind]
 
 // ---- The page ------------------------------------------------------------------------------
 
+// The studio's tabs, picker and menu are studio.tcd's Studio, rendered into
+// studioRoot; the editor, still the page's, takes its place while a
+// component is written.
 const app = document.querySelector("#app");
 app.className = UI.app;
 app.textContent = "";
-const status = el("span", { class: UI.status });
-const say = (message) => {
-	status.textContent = message;
-	status.title = message;
-};
-const tabBar = el("nav", { class: UI.tabs, role: "tablist" });
-const newScreenButton = el("button", { class: UI.plus, title: "New screen", "aria-label": "New screen" }, "+");
+const studioRoot = el("div");
+const main = el("main", { class: UI.main });
+main.hidden = true;
+const dialog = el("dialog", { class: UI.dialog, "aria-label": "Layout" });
 const importInput = el("input", { type: "file", accept: ".json,application/json", "aria-label": "Import a bundle" });
 importInput.hidden = true;
-const menuItem = (label, title, onclick) => el("li", {}, el("button", { title, onclick }, label));
-const menu = el(
-	"details",
-	{ class: UI.menu },
-	el("summary", { class: UI.menuButton, title: "More", "aria-label": "More" }, "⋯"),
-	el(
-		"ul",
-		{ class: UI.menuList },
-		menuItem("Layout JSON", "The screen's layout as it's kept", () => showLayoutJson()),
-		menuItem("Export", "Download the library as a bundle", () => exportBundle()),
-		menuItem("Import", "Add a bundle's components, scopes and screens", () => importInput.click()),
-		el("li", {}, el("a", { href: "../playground/" }, "Playground")),
-		el("li", {}, el("a", { href: "../demos/" }, "Demos")),
-	),
-);
-const closeMenu = () => menu.removeAttribute("open");
-const bar = el(
-	"header",
-	{ class: UI.bar },
-	el("span", { class: UI.brand }, "studio"),
-	tabBar,
-	newScreenButton,
-	el("span", { class: UI.spacer }),
-	status,
-	server?.assistant ? el("span", { class: UI.badge, title: "Served with an LLM assistant: open it from the editor" }, `assistant: ${server.models.length} model${server.models.length === 1 ? "" : "s"}`) : null,
-	menu,
-	importInput,
-);
-const main = el("main", { class: UI.main });
-app.append(bar, main);
+app.append(studioRoot, main, dialog, importInput);
 
 // ---- Screens -------------------------------------------------------------------------------
 
@@ -330,36 +279,44 @@ const remember = (id) => {
 	} catch {}
 };
 
-const stage = el("div", { class: UI.stage });
-const eventList = el("div", { class: UI.eventList });
-const eventsSummary = el("summary", { class: UI.eventsSummary }, "events");
-const screenPane = el("section", { class: UI.main }, stage, el("details", { class: UI.events }, eventsSummary, eventList));
-const emptyPane = el(
-	"section",
-	{ class: UI.empty },
-	el("p", { class: UI.lead }, "A screen is a layout made in a scope: fill its holes with the components that scope can make, or write new ones. Everything stays in this browser; export a bundle to take it elsewhere."),
-	el("button", { class: UI.big, onclick: () => pickScope() }, "+ New screen"),
-);
-main.append(screenPane, emptyPane);
+// Every scope chain the host makes hangs from base: the host listens for the
+// events of the types in its root's scope tree, so a screen's types are
+// heard too. The studio's own module is in a child of its own, which no
+// screen's chain goes through: a hole never lists Studio. Each screen opened
+// gets a child of base, so it's made from scratch.
+const base = runtime.scope();
+const studioScope = runtime.enter(base, "studio");
+styles.add((await tw.loadComponent(new URL("../dist/components/studio.wasm", import.meta.url), studioScope)).classes);
+let opened = 0;
 
-let active = null; // the screen shown
-let mounted = null; // { screen, scope, host }
-let events = 0;
-const note = (kind, message) => {
-	eventList.prepend(eventItem({ kind, text: message }));
-	eventsSummary.textContent = `events (${++events})`;
-};
+// The library's scopes and screens, as the studio holds them.
+const scopeRows = () => [...lib.scopes.values()].map(({ id, name, parent }) => ({ id, name, parent: parent ?? "" }));
+const screenRows = () => screensInOrder().map(({ id, name, scope, created }) => ({ id, name, scope, created }));
 
-// The layout as it is now, kept when it changed.
+let studioHost = null;
+// Messages to the studio, sent once what's running now is done: an ask's
+// handler or a report doesn't send in the middle of a task.
+const tell = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args));
+const say = (message) => tell("say", message);
+const note = (kind, message) => tell("note", kind, message);
+
+let mounted = null; // the screen the studio shows: { id, scope }
+let wanted = null; // the screen asked for last
+const fresh = new Set(); // screens made but not opened yet, which open edited
+
+// The layout the studio shows, kept when it changed.
 let pendingSave = null;
 async function keepLayout() {
 	clearTimeout(pendingSave);
 	pendingSave = null;
-	if (!mounted) return;
-	const { screen, scope, host } = mounted;
+	if (!mounted || !studioHost) return;
+	const root = studioHost.root();
+	const [made] = runtime.get(root, "shown");
+	const screen = lib.screens.get(mounted.id);
+	if (!made || !screen || runtime.get(root, "shown_id") !== mounted.id) return;
 	let layout;
 	try {
-		layout = capture(runtime, scope, host.root());
+		layout = capture(runtime, mounted.scope, made);
 	} catch (error) {
 		say(`can't keep ${screen.name}'s layout: ${error.message}`);
 		return;
@@ -373,191 +330,106 @@ const keepLayoutSoon = () => {
 	pendingSave = setTimeout(keepLayout, 300);
 };
 
-const unmount = async () => {
-	await keepLayout();
-	mounted?.host.unmount();
-	mounted = null;
-	stage.replaceChildren();
+// An element with autofocus that the studio renders gets the focus once.
+const focused = new WeakSet();
+const autofocus = () => {
+	for (const node of studioRoot.querySelectorAll("[autofocus]")) {
+		if (focused.has(node)) continue;
+		focused.add(node);
+		node.focus();
+	}
 };
 
-// The screen's scope chain made from scratch, each scope's registrations
-// loaded into it, and its layout mounted there on a dev host that answers
-// the layout's asks for new components and edits; with editing, edited.
-async function openScreen(screen, editing = false) {
-	await unmount();
-	eventList.textContent = "";
-	events = 0;
-	eventsSummary.textContent = "events";
-	const scopeRecord = lib.scopes.get(screen.scope);
-	const scope = await loadChain(tw, scopeRecord, (message) => note("failed", message));
-	try {
-		const host = runtime.createHost(document, stage, hydrate(runtime, scope, forStudio(screen.layout, editing)), {
-			dev: true,
-			asks: { create_component: () => createComponent(), edit_component: (item) => editComponent(item) },
-			onReport: (type, r) => {
-				if (type === "render") return keepLayoutSoon();
-				const line = reportLine(tw, type, r);
-				if (line) note(line.kind, line.text);
-			},
-		});
-		mounted = { screen, scope, host };
-		host.mount();
-		say(`${screen.name}, in ${chainOf(scopeRecord).map((s) => s.name).join(" / ")}`);
-	} catch (error) {
-		note("failed", `can't make ${screen.name}'s layout: ${error.message}`);
-		say(`can't make ${screen.name}'s layout: see the events`);
-	}
-}
-
-async function showScreen(screen, editing = false) {
-	active = screen;
-	if (screen) remember(screen.id);
-	renderTabs();
-	screenPane.hidden = !screen;
-	emptyPane.hidden = !!screen;
-	if (screen) await openScreen(screen, editing);
-	else await unmount();
-}
-
-function renderTabs() {
-	tabBar.textContent = "";
-	for (const screen of screensInOrder()) {
-		const label = el("button", { class: UI.tabLabel, role: "tab", "aria-selected": String(screen === active), title: "Double-click to rename" }, screen.name);
-		label.addEventListener("click", () => screen !== active && showScreen(screen));
-		label.addEventListener("dblclick", () => {
-			const input = el("input", { class: UI.tabName, value: screen.name, "aria-label": "Screen name" });
-			const done = async () => {
-				screen.name = input.value.trim() || screen.name;
-				await save("screens", screen);
-				renderTabs();
-			};
-			input.addEventListener("change", done);
-			input.addEventListener("blur", done);
-			input.addEventListener("keydown", (e) => e.key === "Escape" && renderTabs());
-			label.replaceWith(input);
-			input.select();
-		});
-		const close = el("button", { class: UI.tabClose, title: `Delete ${screen.name}`, "aria-label": `Delete ${screen.name}` }, "×");
-		close.addEventListener("click", async () => {
-			if (!confirm(`Delete the screen ${screen.name}?`)) return;
-			if (screen === active) {
-				mounted?.host.unmount();
-				mounted = null;
-			}
-			await remove("screens", screen.id);
-			if (screen === active) await showScreen(screensInOrder().at(-1) ?? null);
-			else renderTabs();
-		});
-		tabBar.append(el("div", { class: screen === active ? UI.tabOn : UI.tab }, label, close));
-	}
-}
-
-// ---- The scope picker ----------------------------------------------------------------------
-
-const picker = el("dialog", { class: UI.dialog, "aria-label": "New screen" });
-app.append(picker);
-
-// A new screen: the scope it's made in, picked from the tree (where a child
-// scope can be added), and its name.
-function pickScope() {
-	let selected = lib.scopes.get(active?.scope) ?? lib.scopes.get(ROOT);
-	let adding = null; // the scope a child is being added under
-	const tree = el("div", { class: UI.tree, role: "tree" });
-	const name = el("input", { class: UI.input, placeholder: `screen ${lib.screens.size + 1}`, "aria-label": "New screen's name" });
-	const renderTree = () => {
-		tree.textContent = "";
-		const walk = (s, depth) => {
-			const pad = `margin-left: ${depth * 1.25}rem`;
-			const pick = el("button", { class: s === selected ? UI.scopeOn : UI.scope, role: "treeitem", "aria-selected": String(s === selected) }, s.name);
-			pick.addEventListener("click", () => {
-				selected = s;
-				renderTree();
-			});
-			const add = el("button", { class: UI.small, title: `Add a scope in ${s.name}`, "aria-label": `Add a scope in ${s.name}` }, "+");
-			add.addEventListener("click", () => {
-				adding = s;
-				renderTree();
-			});
-			tree.append(el("div", { class: UI.treeRow, style: pad }, pick, add));
-			if (adding === s) {
-				const input = el("input", { class: UI.input, placeholder: "scope's name", "aria-label": "New scope's name" });
-				input.addEventListener("keydown", async (e) => {
-					if (e.key === "Escape") {
-						e.preventDefault();
-						adding = null;
-						renderTree();
-					}
-					if (e.key !== "Enter") return;
-					e.preventDefault();
-					const child = { id: newId(), name: input.value.trim() || "scope", parent: s.id, registrations: [] };
-					await save("scopes", child);
-					selected = child;
-					adding = null;
-					renderTree();
-				});
-				tree.append(el("div", { class: UI.treeRow, style: `margin-left: ${(depth + 1) * 1.25}rem` }, input));
-				queueMicrotask(() => input.focus());
-			}
-			for (const child of [...lib.scopes.values()].filter((c) => c.parent === s.id)) walk(child, depth + 1);
-		};
-		walk(lib.scopes.get(ROOT), 0);
-	};
-	const create = el("button", { class: UI.primary }, "Create");
-	create.addEventListener("click", async () => {
-		const screen = { id: newId(), name: name.value.trim() || name.placeholder, scope: selected.id, layout: structuredClone(DEFAULT_LAYOUT), created: Date.now() };
-		await save("screens", screen);
-		picker.close();
-		await showScreen(screen, true);
-	});
-	name.addEventListener("keydown", (e) => e.key === "Enter" && create.click());
-	picker.replaceChildren(
-		el(
-			"div",
-			{ class: UI.dialogBox },
-			el("h3", { class: UI.dialogTitle }, "New screen"),
-			el("p", { class: UI.label }, "the scope it's made in"),
-			tree,
-			el("p", { class: UI.label }, "its name"),
-			name,
-			el("div", { class: UI.dialogActions }, el("button", { class: UI.ghost, onclick: () => picker.close() }, "Cancel"), create),
-		),
-	);
-	renderTree();
-	picker.showModal();
-}
-newScreenButton.addEventListener("click", () => pickScope());
+// What the studio and the screens it shows ask the page for.
+const asks = {
+	// The screen's scope chain made from scratch, each scope's registrations
+	// loaded into it, and its layout made there.
+	open_screen: async (id) => {
+		await keepLayout();
+		wanted = id;
+		const screen = lib.screens.get(id);
+		if (!screen) throw new Error(`there's no screen ${id}`);
+		const editing = fresh.delete(id);
+		const scopeRecord = lib.scopes.get(screen.scope);
+		const scope = await loadChain(tw, scopeRecord, (message) => note("failed", message), runtime.enter(base, `screen ${opened++}`));
+		const made = hydrate(runtime, scope, forStudio(screen.layout, editing));
+		if (wanted === id) {
+			mounted = { id, scope };
+			remember(id);
+			say(`${screen.name}, in ${chainOf(scopeRecord).map((s) => s.name).join(" / ")}`);
+		}
+		return { id, screen: made };
+	},
+	// A new screen starts with the default layout, opened edited.
+	save_screen: async (id, name, scope, created) => {
+		const existing = lib.screens.get(id);
+		if (!existing) fresh.add(id);
+		await save("screens", { layout: structuredClone(DEFAULT_LAYOUT), ...existing, id, name, scope, created });
+		return true;
+	},
+	delete_screen: async (id) => {
+		if (mounted?.id === id) {
+			clearTimeout(pendingSave);
+			mounted = null;
+		}
+		await remove("screens", id);
+		return true;
+	},
+	save_scope: async (id, name, parent) => {
+		await save("scopes", { id, name, parent, registrations: [] });
+		return true;
+	},
+	confirm: (text) => confirm(text),
+	export_library: async () => {
+		await keepLayout();
+		exportBundle();
+		return true;
+	},
+	import_library: () =>
+		new Promise((resolve) => {
+			importing = resolve;
+			importInput.click();
+		}),
+	edit_layout_json: (id) => {
+		showLayoutJson(id);
+		return true;
+	},
+	// The layout's: a hole's new component, a slot's ✎.
+	create_component: () => createComponent(),
+	edit_component: (item) => editComponent(item),
+};
 
 // The screen's layout as it's kept, to read or change by hand.
-function showLayoutJson() {
-	closeMenu();
-	if (!active) return say("no screen open");
+async function showLayoutJson(id) {
+	await keepLayout();
+	const screen = lib.screens.get(id);
 	const box = el("textarea", { class: UI.layoutJson, spellcheck: "false", "aria-label": "Layout (JSON)" });
-	box.value = JSON.stringify(active.layout, null, 2);
+	box.value = JSON.stringify(screen.layout, null, 2);
 	const apply = el("button", { class: UI.primary }, "Apply");
 	apply.addEventListener("click", async () => {
 		try {
-			active.layout = JSON.parse(box.value);
+			screen.layout = JSON.parse(box.value);
 		} catch (error) {
 			say(`not JSON: ${error.message}`);
 			return;
 		}
-		await save("screens", active);
+		await save("screens", screen);
 		// Not kept over what was just applied: what it shows is older.
-		mounted?.host.unmount();
+		clearTimeout(pendingSave);
 		mounted = null;
-		picker.close();
-		await openScreen(active);
+		dialog.close();
+		tell("reopen");
 	});
-	picker.replaceChildren(
+	dialog.replaceChildren(
 		el(
 			"div",
 			{ class: `${UI.dialogBox} max-w-3xl` },
-			el("h3", { class: UI.dialogTitle }, `${active.name}'s layout`),
+			el("h3", { class: UI.dialogTitle }, `${screen.name}'s layout`),
 			box,
-			el("div", { class: UI.dialogActions }, el("button", { class: UI.ghost, onclick: () => picker.close() }, "Close"), apply),
+			el("div", { class: UI.dialogActions }, el("button", { class: UI.ghost, onclick: () => dialog.close() }, "Close"), apply),
 		),
 	);
-	picker.showModal();
+	dialog.showModal();
 }
 
 // ---- The editor ----------------------------------------------------------------------------
@@ -601,7 +473,6 @@ const editorPane = el(
 	el("div", { class: UI.editorBar }, backButton, nameInput, buildButton, assistantButton, el("span", { class: UI.spacer }), editorStatus, saveButton),
 	work,
 );
-editorPane.hidden = true;
 main.append(editorPane);
 
 const INSPECTORS = { diagnostics: ["Diagnostics", diagList], registers: ["Registers", typesBox], state: ["State", stateBox], events: ["Events", previewEvents] };
@@ -844,10 +715,10 @@ if (assistant) {
 // Opens the editor on a copy of c; resolves with what the ask is answered.
 function openEditor(kind, c) {
 	return new Promise((resolve) => {
-		session = { kind, copy: { ...c, chat: [...(c.chat ?? [])] }, saved: { name: c.name, tcd: c.tcd, wax: c.wax }, scope: lib.scopes.get(mounted.screen.scope), resolve };
-		bar.hidden = true;
-		screenPane.hidden = true;
-		editorPane.hidden = false;
+		const scope = lib.scopes.get(lib.screens.get(mounted.id).scope);
+		session = { kind, copy: { ...c, chat: [...(c.chat ?? [])] }, saved: { name: c.name, tcd: c.tcd, wax: c.wax }, scope, resolve };
+		studioRoot.hidden = true;
+		main.hidden = false;
 		nameInput.value = c.name;
 		saveButton.textContent = kind === "create" ? "Save & register" : "Save";
 		openFiles(session.copy);
@@ -862,9 +733,8 @@ function closeEditor(answer) {
 	session = null;
 	previewHost?.unmount();
 	previewHost = null;
-	editorPane.hidden = true;
-	bar.hidden = false;
-	screenPane.hidden = false;
+	main.hidden = true;
+	studioRoot.hidden = false;
 	resolve(answer);
 }
 
@@ -878,7 +748,7 @@ function createComponent() {
 // the library's components open; true once it's saved, false otherwise.
 function editComponent(item) {
 	const name = runtime.nameIn(mounted.scope, item);
-	const found = resolvesIn(lib.scopes.get(mounted.screen.scope)).find((r) => r.name === name);
+	const found = resolvesIn(lib.scopes.get(lib.screens.get(mounted.id).scope)).find((r) => r.name === name);
 	if (!found || found.ref.startsWith(PREBUILT_PREFIX)) {
 		say(`${name ?? "that"} comes with the studio: only components you made open in the editor`);
 		return false;
@@ -930,37 +800,65 @@ saveButton.addEventListener("click", async () => {
 	say(`${copy.name} saved`);
 	closeEditor(true);
 	// Made again, with the new module.
-	await openScreen(active);
+	await keepLayout();
+	tell("reopen");
 });
 
 // ---- Export and import ---------------------------------------------------------------------
 
 function exportBundle() {
-	closeMenu();
 	const blob = new Blob([JSON.stringify(toBundle(lib), null, 2)], { type: "application/json" });
 	const a = el("a", { href: URL.createObjectURL(blob), download: "tutuca-wax-studio.json" });
 	a.click();
 	URL.revokeObjectURL(a.href);
 }
+// The import ask's answer, while the file is being picked.
+let importing = null;
+const imported = (ok) => {
+	importing?.(ok);
+	importing = null;
+};
+importInput.addEventListener("cancel", () => imported(false));
 importInput.addEventListener("change", async () => {
-	closeMenu();
 	const file = importInput.files[0];
 	importInput.value = "";
-	if (!file) return;
+	if (!file) return imported(false);
 	let records;
 	try {
 		records = fromBundle(JSON.parse(await file.text()));
 	} catch (error) {
 		say(`can't import ${file.name}: ${error.message}`);
-		return;
+		return imported(false);
 	}
 	const replaced = Object.entries(records).flatMap(([kind, rs]) => rs.filter((r) => lib[kind].has(r.id) && kind !== "scopes").map((r) => r.name));
-	if (replaced.length > 0 && !confirm(`Importing replaces ${replaced.join(", ")}. Go on?`)) return;
-	await unmount();
+	if (replaced.length > 0 && !confirm(`Importing replaces ${replaced.join(", ")}. Go on?`)) return imported(false);
+	await keepLayout();
+	const shown = mounted?.id;
+	mounted = null;
 	for (const [kind, rs] of Object.entries(records)) for (const r of rs) await store.put(kind, r);
 	lib = await store.load();
-	await showScreen(lib.screens.get(active?.id) ?? screensInOrder()[0] ?? null);
+	tell("set_library", scopeRows(), screenRows());
+	const next = lib.screens.get(shown) ?? screensInOrder()[0];
+	if (next) tell("show_screen", next.id);
 	say(`imported ${Object.values(records).reduce((n, rs) => n + rs.length, 0)} records from ${file.name}`);
+	imported(true);
 });
 
-await showScreen(lib.screens.get(remembered()) ?? screensInOrder()[0] ?? null);
+// ---- The studio ----------------------------------------------------------------------------
+
+const badge = server?.assistant ? `assistant: ${server.models.length} model${server.models.length === 1 ? "" : "s"}` : "";
+studioHost = runtime.createHost(document, studioRoot, runtime.make(studioScope, "Studio", { scopes: scopeRows(), screens: screenRows(), assistant: badge }), {
+	dev: true,
+	asks,
+	onReport: (type, r) => {
+		if (type === "render") {
+			autofocus();
+			return keepLayoutSoon();
+		}
+		const line = reportLine(tw, type, r);
+		if (line) note(line.kind, line.text);
+	},
+});
+studioHost.mount();
+const first = lib.screens.get(remembered()) ?? screensInOrder()[0];
+if (first) tell("show_screen", first.id);

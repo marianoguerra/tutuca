@@ -91,15 +91,17 @@ test("a use resolves relative to the main file, and a missing file is a diagnost
 	assert.equal(tcd.check({ main: "nowhere.tcd", files }).diags[0].message, "the request has no file nowhere.tcd");
 });
 
-// The studio assistant's examples (studio/assistant/examples/), which its
-// system prompt shows the model as modules that build: they do, cleanly, and
-// their examples hold.
-test("the assistant's examples build without diagnostics, and their examples hold", async () => {
-	const dir = "studio/assistant/examples/";
+// Modules whose examples are run here: the studio assistant's examples
+// (studio/assistant/examples/), which its system prompt shows the model as
+// modules that build, and the studio's own components (studio/studio.tcd).
+// They build cleanly, and their examples hold.
+test("the assistant's examples and the studio's module build without diagnostics, and their examples hold", async () => {
 	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
-	for (const name of ["note", "checklist", "stat", "tasks"]) {
+	const modules = [...["note", "checklist", "stat", "tasks"].map((name) => `studio/assistant/examples/${name}`), "studio/studio"];
+	for (const path of modules) {
+		const name = path.split("/").pop();
 		const main = `${name}.tcd`;
-		const res = tcd.build({ main, files: { [main]: await read(dir + main) }, impls: [{ path: `${name}.wax`, text: await read(`${dir}${name}.wax`) }], runtime });
+		const res = tcd.build({ main, files: { [main]: await read(`${path}.tcd`) }, impls: [{ path: `${name}.wax`, text: await read(`${path}.wax`) }], runtime });
 		assert.deepEqual(res.diags, [], name);
 		assert.equal(res.ok, true, name);
 		const scope = tw.runtime.scope();

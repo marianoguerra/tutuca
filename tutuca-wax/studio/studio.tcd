@@ -1,0 +1,213 @@
+// The studio's own components, in tutuca-wax: the screens as tabs, the
+// screen shown, the menu, and the picker a new screen's scope is chosen in.
+// What only the page can do is the host's (studio.js), asked for: keeping
+// the library (save_screen, save_scope, delete_screen), making a screen in
+// its scope chain (open_screen, which answers with the screen's component,
+// rendered here), confirming, and moving the library in and out. The host
+// tells the studio what happens outside it by sending it messages: show_screen
+// at the start, reopen when a component a screen uses changed, say and note
+// for the status line and the events, set_library after an import.
+package tutuca:studio@0.1.0;
+
+/// The tree a new screen's scope is picked from, a child scope added under
+/// any of them, and the screen's name.
+component ScopePicker {
+    /// The library's scopes; the root's parent is "".
+    field scopes: list<record { id: string, name: string, parent: string }>;
+    /// The scope picked, by id.
+    field selected: string;
+    /// The scope a child is being added under, by id; "" while none is.
+    field adding: string;
+    field name: string where len(name) <= 60;
+    /// The name it gets when none is written.
+    field placeholder: string = "screen 1";
+    /// The scopes in the tree's order, each with what its row shows.
+    get tree: list<record { id: string, name: string, on: bool, adding: bool, indent: string, child_indent: string, add_label: string }>;
+
+    /// To the studio: make a screen in scope, named name.
+    notify create_screen(scope: string, name: string);
+    notify close_picker();
+    /// To the studio: a scope was added, so its list has it.
+    notify scope_added(id: string, name: string, parent: string);
+    ask save_scope(id: string, name: string, parent: string) -> bool;
+
+    /// at is a row of the tree.
+    message pick(at: s32) changes selected;
+    message start_adding(at: s32) changes adding;
+    message cancel_adding() changes adding ensures len(next.adding) == 0;
+    /// A child of the scope being added under, picked; saved by the host.
+    message add_scope(name: string) when len(adding) > 0 changes scopes, selected, adding
+        ensures len(next.scopes) == len(scopes) + 1
+        emits ask save_scope, notify scope_added;
+    message set_name(name: string where len(name) <= 60) changes name ensures next.name == name;
+    message create() changes nothing emits notify create_screen;
+    message cancel() changes nothing emits notify close_picker;
+
+    view main = dialog(class: "modal modal-open", open: "open", "aria-label": "New screen",
+        div(class: "modal-box flex flex-col gap-3",
+            h3(class: "text-lg font-bold", "New screen"),
+            p(class: "text-xs uppercase tracking-wide opacity-60", "the scope it's made in"),
+            div(class: "st-tree flex flex-col gap-0.5 max-h-80 overflow-auto rounded-box border border-base-300 p-1", role: "tree",
+                each(field(tree),
+                    div(class: "flex flex-col gap-0.5",
+                        div(class: "flex items-center gap-1", style: field(indent),
+                            button(class: if(field(on), "st-scope btn btn-sm btn-active flex-1 justify-start font-mono", "st-scope btn btn-sm btn-ghost flex-1 justify-start font-mono"),
+                                role: "treeitem", "aria-selected": if(field(on), "true", "false"),
+                                on_click: send(pick, source_key()), field(name)),
+                            button(class: "btn btn-xs btn-ghost", title: field(add_label), "aria-label": field(add_label),
+                                on_click: send(start_adding, source_key()), "+")),
+                        if(field(adding),
+                            div(class: "flex items-center gap-1", style: field(child_indent),
+                                input(class: "input input-sm", placeholder: "scope's name", "aria-label": "New scope's name", autofocus: "autofocus",
+                                    "on_keydown+enter+prevent": send(add_scope, target_value()),
+                                    "on_keydown+escape+prevent": send(cancel_adding))))))),
+            p(class: "text-xs uppercase tracking-wide opacity-60", "its name"),
+            input(class: "input input-sm", placeholder: field(placeholder), "aria-label": "New screen's name", value: field(name),
+                on_input: send(set_name, target_value()),
+                "on_keydown+enter+prevent": send(create)),
+            div(class: "modal-action mt-0",
+                button(class: "btn btn-sm btn-ghost", on_click: send(cancel), "Cancel"),
+                button(class: "btn btn-sm btn-primary", on_click: send(create), "Create"))));
+}
+
+/// The studio: a tab per screen and the one shown, the picker while a new
+/// screen is being made, the status line, the events, and the menu.
+component Studio {
+    field scopes: list<record { id: string, name: string, parent: string }>;
+    /// The screens, in the order they were made.
+    field screens: list<record { id: string, name: string, scope: string, created: f64 }>;
+    /// The screen shown, by id; "" when none is.
+    field active: string;
+    /// The shown screen's component, as the host made it, and its id: none
+    /// until it answers (sync none: the host keeps the layout).
+    field shown: list<component> @sync(none);
+    field shown_id: string @sync(none);
+    /// The screen whose tab is being renamed, and the one asked about
+    /// deleting, by id; "" when none is.
+    field renaming: string @sync(none);
+    field deleting: string @sync(none);
+    /// The picker, while a new screen is being made.
+    field picker: list<ScopePicker> @sync(none);
+    field status: string @sync(none);
+    /// The assistant's badge ("assistant: 2 models"), "" without one.
+    field assistant: string;
+    /// What the hosts reported, the newest first.
+    field events: list<record { kind: string, text: string }> where len(events) <= 200 @sync(none);
+    get has_screen: bool;
+    get events_label: string;
+
+    /// The screen's component, made in its scope chain, with its id.
+    ask open_screen(id: string) -> record { id: string, screen: component };
+    ask save_screen(id: string, name: string, scope: string, created: f64) -> bool;
+    ask delete_screen(id: string) -> bool;
+    ask confirm(text: string) -> bool;
+    ask export_library() -> bool;
+    ask import_library() -> bool;
+    ask edit_layout_json(id: string) -> bool;
+
+    /// From the host, at the start and after an import.
+    message show_screen(id: string) changes active, shown, shown_id, renaming emits ask open_screen;
+    message show_at(at: index<screens>) changes active, shown, shown_id, renaming emits ask open_screen;
+    /// From the host: a component the screen uses changed, so it's made again.
+    message reopen() changes shown, shown_id emits ask open_screen;
+    message start_rename(at: index<screens>) changes renaming;
+    message rename(at: index<screens>, name: string) changes screens, renaming
+        ensures len(next.screens) == len(screens) emits ask save_screen;
+    message cancel_rename() changes renaming ensures len(next.renaming) == 0;
+    message delete_at(at: index<screens>) changes deleting emits ask confirm;
+    message open_picker() when len(picker) == 0 changes picker ensures len(next.picker) == 1 emits make ScopePicker;
+    message close_picker() source_key: index<picker> changes picker ensures len(next.picker) == 0;
+    message create_screen(scope: string, name: string) source_key: index<picker>
+        changes picker, screens, active, shown, shown_id
+        ensures len(next.screens) == len(screens) + 1
+        emits ask save_screen, ask open_screen;
+    message scope_added(id: string, name: string, parent: string) source_key: index<picker>
+        changes scopes ensures len(next.scopes) == len(scopes) + 1;
+    message say(text: string) changes status ensures next.status == text;
+    message note(kind: string, text: string) changes events;
+    message set_library(scopes: list<record { id: string, name: string, parent: string }>,
+        screens: list<record { id: string, name: string, scope: string, created: f64 }>)
+        changes scopes, screens, active, shown, shown_id;
+    message export_all() changes nothing emits ask export_library;
+    message import_all() changes nothing emits ask import_library;
+    message layout_json() when len(active) > 0 changes nothing emits ask edit_layout_json;
+
+    /// The tabs: each screen, marked when it's shown or being renamed.
+    loop tabs { enrich { is_active: bool, is_renaming: bool, close_label: string } }
+
+    view main = div(class: "st-studio h-screen flex flex-col",
+        header(class: "st-bar flex items-center gap-2 border-b border-base-300 bg-base-100 px-2 py-1",
+            span(class: "text-sm font-bold opacity-70 px-1", "studio"),
+            nav(class: "st-tabs flex items-center gap-1 overflow-x-auto min-w-0", role: "tablist",
+                each(loop: tabs, field(screens),
+                    div(class: if(bind(is_active), "st-tab group flex items-center rounded-btn bg-base-200 font-semibold", "st-tab group flex items-center rounded-btn hover:bg-base-200"),
+                        if(bind(is_renaming),
+                            input(class: "input input-xs w-32", "aria-label": "Screen name", value: field(name), autofocus: "autofocus",
+                                on_change: send(rename, source_key(), target_value()),
+                                "on_keydown+escape+prevent": send(cancel_rename)),
+                            button(class: "px-3 py-1 text-sm whitespace-nowrap", role: "tab", "aria-selected": if(bind(is_active), "true", "false"),
+                                title: "Double-click to rename",
+                                on_click: send(show_at, source_key()), on_dblclick: send(start_rename, source_key()), field(name))),
+                        button(class: "btn btn-xs btn-ghost btn-square opacity-0 group-hover:opacity-60 hover:opacity-100",
+                            title: bind(close_label), "aria-label": bind(close_label), on_click: send(delete_at, source_key()), "×")))),
+            button(class: "st-new-screen btn btn-sm btn-ghost btn-square", title: "New screen", "aria-label": "New screen", on_click: send(open_picker), "+"),
+            span(class: "flex-1"),
+            span(class: "st-status text-xs opacity-70 truncate max-w-[40%]", title: field(status), field(status)),
+            if(field(assistant), span(class: "st-assistant badge badge-ghost badge-sm", title: "Served with an LLM assistant: open it from the editor", field(assistant))),
+            div(class: "st-menu dropdown dropdown-end",
+                div(class: "btn btn-sm btn-ghost btn-square", role: "button", tabindex: "0", title: "More", "aria-label": "More", "⋯"),
+                ul(class: "menu menu-sm dropdown-content z-20 w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow", tabindex: "0",
+                    li(button(title: "The screen's layout as it's kept", on_click: send(layout_json), "Layout JSON")),
+                    li(button(title: "Download the library as a bundle", on_click: send(export_all), "Export")),
+                    li(button(title: "Add a bundle's components, scopes and screens", on_click: send(import_all), "Import")),
+                    li(a(href: "../playground/", "Playground")),
+                    li(a(href: "../demos/", "Demos"))))),
+        if(field(has_screen),
+            main(class: "flex-1 min-h-0 flex flex-col",
+                div(class: "st-stage flex-1 min-h-0 overflow-auto p-4", render_each(field(shown))),
+                details(class: "st-events-box border-t border-base-300 bg-base-100 text-xs",
+                    summary(class: "cursor-pointer px-3 py-1 opacity-70", field(events_label)),
+                    div(class: "st-events font-mono max-h-40 overflow-auto flex flex-col px-3 pb-2",
+                        each(field(events),
+                            div(class: "py-0.5 border-b border-base-300", field(kind), ": ", field(text)))))),
+            main(class: "flex-1 flex flex-col items-center justify-center gap-3",
+                p(class: "text-sm opacity-70 max-w-prose text-center",
+                    "A screen is a layout made in a scope: fill its holes with the components that scope can make, or write new ones. Everything stays in this browser; export a bundle to take it elsewhere."),
+                button(class: "btn btn-primary", on_click: send(open_picker), "+ New screen"))),
+        render_each(field(picker)));
+}
+
+register ScopePicker, Studio;
+
+/// open_screen, save_screen, save_scope, delete_screen, confirm,
+/// export_library, import_library and edit_layout_json: the page's.
+host_ask open_screen;
+host_ask save_screen;
+host_ask save_scope;
+host_ask delete_screen;
+host_ask confirm;
+host_ask export_library;
+host_ask import_library;
+host_ask edit_layout_json;
+
+example rename_a_tab for Studio {
+    start { screens: [{ id: "a", name: "home", scope: "root", created: 1 }] }
+    send start_rename(0);
+    expect renaming == "a";
+    send rename(0, "start");
+    expect renaming == "" and len(screens) == 1;
+}
+
+example a_picker_at_a_time for Studio {
+    start { }
+    send open_picker();
+    expect len(picker) == 1;
+}
+
+example adding_a_scope_picks_it for ScopePicker {
+    start { scopes: [{ id: "root", name: "root", parent: "" }], selected: "root" }
+    send start_adding(0);
+    expect adding == "root";
+    send add_scope("a");
+    expect len(scopes) == 2 and adding == "";
+}

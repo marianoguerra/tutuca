@@ -98,6 +98,8 @@ export const COMPONENTS = [
 	{ name: "media", tcd: "components/media/media.tcd", impl: ["components/media/media.wax"] },
 	// Hbox, Vbox, Tabs and Grid, and the Hole that turns into a type its scope lists.
 	{ name: "layout", tcd: "components/layout/layout.tcd", impl: ["components/layout/layout.wax"] },
+	// The studio's own tabs, scope picker and menu (studio/studio.js hosts them).
+	{ name: "studio", tcd: "studio/studio.tcd", impl: ["studio/studio.wax"] },
 ];
 
 
