@@ -31,6 +31,7 @@ export class MessageContext {
 		this.isStopNextSet = false;
 		this.handled = null; // { message, args } once a handler runs.
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
+		this.later = []; // Promises of the replies of asks answered later, queued on commit.
 	}
 	// The world, as the host's env gives it, so a Driver's runs repeat. Handlers use these
 	// instead of Date.now(), Math.random() and crypto.randomUUID().
@@ -97,15 +98,20 @@ export class AskTask extends Task {
 		}
 		const okName = `${this.name}ReplyOk`;
 		const errName = `${this.name}ReplyError`;
+		// An ask handler only answers, from the ask's arguments: it gets no context to send from.
 		let result;
 		try {
-			result = handler(this.args, ctx);
+			result = handler(this.args);
 		} catch (err) {
 			return run(instance, next, errName, [err], ctx);
 		}
 		if (result instanceof Promise) {
-			const reply = (name, args) => ctx.pushTask(this.makeReply(name, args));
-			result.then((r) => reply(okName, [r])).catch((error) => reply(errName, [error]));
+			ctx.later.push(
+				result.then(
+					(r) => this.makeReply(okName, [r]),
+					(error) => this.makeReply(errName, [error]),
+				),
+			);
 			return next;
 		}
 		// Outside the try: a throwing ReplyOk fails the task instead of running ReplyError.

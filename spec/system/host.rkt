@@ -56,8 +56,8 @@
   (tsk ::= (task kind fname (value ...) dpath target route?))
   (target ::= (at dpath sel))
   (route? ::= route none)
-  ;; Ask handlers, registered on a scope: args -> result, or a promise. The
-  ;; runtime also passes ctx, so an ask handler can send tasks; the model does not.
+  ;; Ask handlers, registered on a scope: args -> result, or a promise. They
+  ;; only answer: they get no context to send tasks from, in the runtime either.
   (ask-def ::= (fname ask-result))
   (ask-result ::= (ok hx) (error hx) (async (ok hx)) (async (error hx)))
   ;; type, target, and the value of the element with the handler (targetValue

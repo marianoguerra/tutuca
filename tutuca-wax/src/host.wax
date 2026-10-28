@@ -347,7 +347,28 @@ fn ask_reply(
     let found = scope_lookup_ask(c.scope, t.name);
     let answer = ask_result_not_found();
     if !!found {
-        answer = (found!).handler(t.name, args, ctx);
+        // An ask handler only answers: its context is the asker's, to read
+        // (its scope, to list or make components), with effects of its own,
+        // where only logs are allowed.
+        let own =
+            {context|
+                scope: ctx.scope,
+                path: ctx.path,
+                source_key: ctx.source_key,
+                event: ctx.event,
+                drag: ctx.drag,
+                effects: effect_buf_new(),
+            };
+        answer = (found!).handler(t.name, args, own);
+        let i = 0;
+        while i <s own.effects.len {
+            let e = own.effects.items[i]!;
+            if e.kind != effect_kind_log {
+                host_fail(js_string_concat(s_err_ask_sends, t.name));
+            }
+            observe_log((e as &effect_log).value as &extern);
+            i += 1;
+        }
     }
     if answer.kind == ask_result_kind_not_found {
         return {message| name: js_string_concat(t.name, s_handler_not_found), args: empty_args() };

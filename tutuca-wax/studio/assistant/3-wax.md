@@ -21,7 +21,7 @@ For a component `c` (snake_case, `c_state` its state struct), implement:
 | `loop l { prepare: T }` | `fn c_loop_l_prepare(state: &c_state, items: &value) -> T'`; the other hooks then take a last `prepared: T'` |
 | `check(p)` | `fn c_check_p(state: &c_state) -> i32` |
 | `init;` | `fn c_init(state: &c_state, ctx: &init_context) -> &c_state` |
-| package `ask_handler a(x: X) -> T` | `fn <package>_answer_a(ctx: &context, x: X') -> &value`, returning `value_ok(...)` or `value_err(...)` |
+| package `ask_handler a(x: X) -> T` | `fn <package>_answer_a(ctx: &context, x: X') -> &value`, returning `value_ok(...)` or `value_err(...)`; it only answers: it can read `ctx` (its scope) and log, not send |
 
 `T'`, the Wax type of a TCD type: `i32` for `bool` (0 or 1), `s32` and enums;
 `f64` for `f64`; `&extern` for `string`; `&value` for everything else (lists,

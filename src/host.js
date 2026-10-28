@@ -267,40 +267,23 @@ export class Host {
 		const { route } = task;
 		const path = route.updatePath;
 		const instance = path.getIn(curRoot);
+		// Staged until the commit: a task that fails sends nothing.
 		const children = [];
-		let status = "pending";
-		// The context can outlive this transaction (e.g. an ask reply). Only pending
-		// children are staged; later messages enqueue normally after a successful commit.
-		const pushTask = (child) => {
-			if (status === "pending") children.push(child);
-			else if (status === "committed") {
-				this.prepareTask(child, this.rootComponent);
-				this.pushTask(child);
-			}
-		};
-		let newRoot;
+		const pushTask = (child) => children.push(child);
 		let ctx;
-		let commit;
-		try {
-			newRoot = produce(curRoot, (rootDraft) => {
-				const leafDraft = path.getIn(rootDraft);
-				ctx = new MessageContext(task, route.path, pushTask, this.env, scopeOf(instance));
-				const newLeaf = task.run(instance, leafDraft, ctx);
-				return path.setIn(rootDraft, newLeaf);
-			});
-			for (const child of children) this.prepareTask(child, newRoot);
-			commit = this.prepareEngines(curRoot, newRoot, task);
-		} catch (error) {
-			status = "failed";
-			// pushTask can outlive the transaction in an async ask's ctx: drop what it staged.
-			children.length = 0;
-			throw error;
-		}
+		const newRoot = produce(curRoot, (rootDraft) => {
+			const leafDraft = path.getIn(rootDraft);
+			ctx = new MessageContext(task, route.path, pushTask, this.env, scopeOf(instance));
+			const newLeaf = task.run(instance, leafDraft, ctx);
+			return path.setIn(rootDraft, newLeaf);
+		});
+		for (const child of children) this.prepareTask(child, newRoot);
+		const commit = this.prepareEngines(curRoot, newRoot, task);
 		this.rootComponent = newRoot;
 		commit();
-		status = "committed";
 		for (const child of children) this.pushTask(child);
-		children.length = 0;
+		// The replies of asks answered later, routed when made, arrive as tasks of their own.
+		for (const reply of ctx.later) reply.then((task) => this.pushTask(task));
 		this.checkState(task, curRoot);
 		this.checkMessage(task, ctx, instance, path.getIn(newRoot));
 		this.notify("taskHandled", { task, path, instance, curRoot, newRoot });

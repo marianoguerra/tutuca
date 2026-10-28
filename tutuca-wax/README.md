@@ -526,7 +526,9 @@ and gives the component the scope that was asked. `init` gets an
 with `init_ctx_make` (tcd's `make(c)` field defaults do). Ask handlers are
 registered the same way and found the same way, from the asker's scope up;
 a handler gets the asker's context (not its instance), so `ctx.scope` is the
-scope the asker was made in, wherever the handler was registered.
+scope the asker was made in, wherever the handler was registered. It only
+answers, as tutuca's JS ask handlers (which get no context) and the spec's
+do: it can read the context and log, and sending from it fails the ask.
 `scope_register_host_ask` answers through the host's `ask` import, with
 only the ask's name and arguments: `createHost`'s `asks[name]` replies now
 with a value, later with a promise, with `NameReplyError` when it throws or

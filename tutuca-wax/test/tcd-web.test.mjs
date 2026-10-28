@@ -266,3 +266,63 @@ fn gauge_answer_count(ctx: &context) -> &value {
 		[["stateInvalid", true, ["invariant:fine"]]],
 	);
 });
+
+// An ask handler only answers: it reads the asker's context (its scope), and
+// can log, but sending from it fails the ask, as tutuca's JS ask handlers get
+// no context to send from.
+test("an ask handler answers and logs, and can't send", async () => {
+	const main = "oracle.tcd";
+	const files = {
+		[main]: `package tutuca:oracle@0.1.0;
+component oracle {
+    field got: s32;
+    ask good() -> s32;
+    ask bad() -> s32;
+    message ask_good() changes nothing emits ask good;
+    message ask_bad() changes nothing emits ask bad;
+    view main = p("x");
+}
+ask_handler good() -> s32;
+ask_handler bad() -> s32;
+`,
+	};
+	const wax = `fn oracle_on_ask_good(state: &oracle_state, ctx: &context) -> &oracle_state {
+    oracle_ask_good(ctx);
+    state;
+}
+
+fn oracle_on_ask_bad(state: &oracle_state, ctx: &context) -> &oracle_state {
+    oracle_ask_bad(ctx);
+    state;
+}
+
+fn oracle_reply_good_ok(state: &oracle_state, ctx: &context, reply: i32) -> &oracle_state {
+    oracle_with_got(state, reply);
+}
+
+fn oracle_reply_bad_ok(state: &oracle_state, ctx: &context, reply: i32) -> &oracle_state {
+    oracle_with_got(state, reply);
+}
+
+fn oracle_answer_good(ctx: &context) -> &value {
+    ctx_log(ctx, value_string(gs_x));
+    value_ok(value_int(1));
+}
+
+fn oracle_answer_bad(ctx: &context) -> &value {
+    ctx_stop_next(ctx);
+    value_ok(value_int(2));
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "oracle.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Oracle", {}));
+	host.send("askGood");
+	host.send("askBad");
+	assert.equal(tw.runtime.get(host.root(), "got"), 1);
+	assert.deepEqual(host.logs, ["x"]);
+	assert.deepEqual(host.failures.map((e) => e.message), ["An ask handler only answers, it can't send: bad"]);
+});

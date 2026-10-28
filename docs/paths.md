@@ -209,7 +209,7 @@ equivalence.
 | `sendAt` / `forwardAt` | `ctx.path` | `ctx.path` and the selector | at the producer's commit |
 | `notify` | `ctx.path` | `ctx.path.toParentPath()` | at commit, and again at each bubble |
 | `ask` | `ctx.path` | `ctx.path` | at commit |
-| ask reply (async) | the ask's `sourcePath` | the same path | when the reply is created |
+| ask reply (async) | the ask's `sourcePath` | the same path | at the ask's commit: it's the ask's own route back |
 
 Two timing rules decide which state a path reads:
 

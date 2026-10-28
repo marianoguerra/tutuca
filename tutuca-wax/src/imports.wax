@@ -502,6 +502,8 @@ import "'" {
     const s_err_component_child: &extern;
     #[import = "A loop's iter must return a list of [key, value] lists"]
     const s_err_bad_iter: &extern;
+    #[import = "An ask handler only answers, it can't send: "]
+    const s_err_ask_sends: &extern;
     #[import = "A loop source must be a list or a map"]
     const s_err_not_iterable: &extern;
     #[import = "A view name must be a string"]
