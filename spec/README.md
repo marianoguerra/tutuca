@@ -180,14 +180,17 @@ Other points:
 
 ## Paths
 
-There are four kinds, one per job:
+There are four kinds, one per job, as in `docs/paths.md`:
 
 | Kind | Model | Runtime | Used for |
 |---|---|---|---|
 | update path | `upath`: property keys | `UpdatePath` | `getIn`/`setIn`, nothing else |
-| dispatch path | `dpath`: frames | `DispatchPath` of `Frame`s | rendered ancestry: notify bubbling, `sourceKey` |
-| selector | `sel`: builder calls | `Selector` (from `PathBuilder`) | `sendAt` targets; freezes at commit |
-| route | `(dpath upath)` | `{ path, updatePath }` | where a task runs |
+| dispatch path | `dpath`: frames | `DispatchPath` of `Frame`s | rendered ancestry: metadata, event routing, notify bubbling, `sourceKey` |
+| selector | `sel`: builder calls | `Selector` (from `PathBuilder`) | `sendAt` targets, frozen at commit; `provides`, frozen at render |
+| target | `(at dpath sel)` | `Target` | where a task goes, before its route is fixed |
+
+A route pairs a dispatch path with its update path, `(dpath upath)` here and
+`{ path, updatePath }` in the runtime: where a task runs.
 
 Paths sit in `component/` because a route is where a message is delivered, and selectors
 freeze into frames.
