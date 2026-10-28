@@ -121,7 +121,9 @@ src, body)`, `render_it(view: v)`, `scope`, `push_view`, `el("tag", ...)`;
 `"on_keydown+enter+prevent"`), whose arguments are literals,
 `target_value()`, `source_key()`, `drag_key()`, `event(name)` or an `if` of
 them, checked against the message's types and constraints. Inside an `each`
-body, `field(x)` reads the item.
+body, `field(x)` reads the item. Two attributes aren't attributes: `key:`
+keys the element among its siblings, and `namespace:`, a constant URI, makes
+it (and what's in it) in that namespace (`svg` and `math` set theirs).
 
 ## The naming convention
 

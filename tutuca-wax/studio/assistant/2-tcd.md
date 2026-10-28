@@ -103,7 +103,9 @@ the subject with literals (`0 <= count < 100`), `len(x) <= 10`, `x in [..]`,
 A view is a call tree: an element is `tag(attributes..., children...)`, with
 every attribute (`name: value`) before every child, never mixed. Text is
 always quoted; a bare name is a name (`field(count)` reads the field `count`).
-Attribute names with dashes are quoted (`"aria-label": "Close"`).
+Attribute names with dashes are quoted (`"aria-label": "Close"`). `key:`
+keys an element among its siblings; `namespace: "uri"` (a constant) makes it
+in that namespace (`svg(...)` and `math(...)` set theirs).
 
 - `field(f)` a field or property's value; inside an `each` body, the item's.
 - `if(c, then, else)` / `if(c, then)`: `c` is `field(x)` or `bind(x)`; truthy

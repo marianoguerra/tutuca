@@ -140,6 +140,9 @@ test "every diagnostic code has a fixture that reports it" {
       "tcd.view.send_arity", "component c { message m(); view main = p(on_click: send(m, 1)); }",
     ),
     (
+      "tcd.view.namespace", "component c { field x: string; view main = g(namespace: field(x)); }",
+    ),
+    (
       "tcd.view.class", "component c { field x: string; view main = p(class: field(x)); }",
     ),
     ("tcd.view.source", "component c { view main = p(render(\"x\")); }"),

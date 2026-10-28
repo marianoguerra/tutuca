@@ -198,3 +198,26 @@ component inputs { view main = div(input(value: "draft"), input(type: "checkbox"
 	assert.equal(box.checked, true);
 	assert.deepEqual(host.failures, []);
 });
+
+// namespace: makes the element, and what's in it, in that namespace, as
+// tutuca's JS does: an SVG shape outside an svg element.
+test("an element's namespace attribute makes it in that namespace", async () => {
+	const main = "shapes.tcd";
+	const files = {
+		[main]: `package tutuca:shapes@0.1.0;
+component shapes { view main = g(namespace: "http://www.w3.org/2000/svg", circle(r: "1")); }
+`,
+	};
+	const res = tcd.build({ main, files, impls: [{ path: "shapes.wax", text: "" }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	tw.runtime.createHost(window.document, container, tw.runtime.make(scope, "Shapes", {})).mount();
+	const svg = "http://www.w3.org/2000/svg";
+	assert.equal(container.querySelector("g").namespaceURI, svg);
+	assert.equal(container.querySelector("circle").namespaceURI, svg);
+	assert.equal(container.querySelector("g").hasAttribute("namespace"), false);
+});

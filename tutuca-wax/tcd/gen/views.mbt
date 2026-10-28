@@ -143,10 +143,15 @@ fn Gen::element(
   let values = []
   let ons = []
   let mut key = "null"
+  let mut ns = "null"
   for a in attrs {
     let k = a.key.text
     if k == "key" {
       key = self.view(b, a.value)
+    } else if k == "namespace" {
+      // The element's own namespace, a constant (tcd.view.namespace).
+      guard a.value is Lit(Str(uri), ..) else { continue }
+      ns = self.s(uri)
     } else if @check.event_of_key(k) is Some((event, mods)) {
       guard a.value is Call(_, _, sargs, ..) else { continue }
       let msg = @check.camel(name_of(sargs[0]))
@@ -170,6 +175,6 @@ fn Gen::element(
   let child_arr = self.views(b, childs)
   let on_arr = b.array("view_on_array", ons)
   b.bind(
-    "view_el(\{self.s(tag)}, null, \{name_arr}, \{value_arr}, \{key}, \{child_arr}, \{on_arr})",
+    "view_el(\{self.s(tag)}, \{ns}, \{name_arr}, \{value_arr}, \{key}, \{child_arr}, \{on_arr})",
   )
 }

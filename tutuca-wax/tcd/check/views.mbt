@@ -469,6 +469,14 @@ fn ViewCtx::element(
       self.handler(a.key, a.value)
       continue
     }
+    if k == "namespace" && !(a.value is Lit(Str(_), ..)) {
+      self.err(
+        "tcd.view.namespace",
+        a.value.span(),
+        "an element's namespace is a constant: the namespace URI it's made in",
+        hint="namespace: \"http://www.w3.org/2000/svg\"",
+      )
+    }
     if k == "class" && !is_constant_class(a.value) {
       self.diags.push(
         @diag.warning(
