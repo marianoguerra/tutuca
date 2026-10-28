@@ -44,7 +44,8 @@ for a list, string for a map) with the constraint that it's a key of `f`.
   a literal (number, string, `true`, `false`, `null`, list, record) or, for a
   component type, `make(c)`: a `c` made with no fields. Without one it starts
   as its type's default (`0`, `0.0`, `""`, `false`, the first enum member, an
-  empty list or map); a field whose type's default breaks its `where` is
+  empty list or map), a number pulled into its bounds (`s32 where >= 1`
+  starts at 1); a field whose type's default still breaks its `where` is
   required. `@sync(none)` marks transient state (an open menu, a hover) that a
   saved layout leaves out; `local` and `shared` (the default) are kept.
 - `get name: T [where c];` A computed, read-only property, written in Wax.

@@ -90,7 +90,9 @@ only takes what a schema can hold: comparisons of the subject with literals
 with `and`. It's normalized (an s32's exclusive bounds become inclusive),
 explained (`tcd explain`), and checked: a clause that can never hold, one
 implied by another, one that isn't a constraint, a literal of the wrong type,
-a default outside it. A field whose type's default breaks it is required.
+a default outside it. A number with no default starts at 0 pulled into its
+bounds, as tutuca's `t.number().min(1)` does (`s32 where >= 1` starts at 1);
+a field whose type's default still breaks it is required.
 A field of a component type can default to `make(c)`: a `c` made with no
 fields, in the scope the component is made in, when init gets none (`c` must
 be of the field's type and need no fields).

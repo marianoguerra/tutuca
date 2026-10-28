@@ -201,7 +201,7 @@ fn Gen::wax_val(self : Gen, t : @check.Ty, v : @check.Val) -> String {
 fn Gen::start_value(self : Gen, f : @check.FieldM) -> String {
   let v = match f.default {
     Some(e) => @check.literal_val(e)
-    None => @check.type_default(f.ty).unwrap_or(Unknown)
+    None => @check.field_default(f.ty, f.norm).unwrap_or(Unknown)
   }
   self.wax_val(f.ty, v)
 }

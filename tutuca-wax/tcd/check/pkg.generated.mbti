@@ -28,6 +28,8 @@ pub fn event_of_key(String) -> (String, Array[String])?
 
 pub fn expr_text(@syntax.Expr) -> String
 
+pub fn field_default(Ty, Norm) -> Val?
+
 pub fn has_length(Ty) -> Bool
 
 pub fn is_numeric(Ty) -> Bool

@@ -184,7 +184,7 @@ fn field_json(f : @check.FieldM) -> Json {
   let default = match f.default {
     Some(e) => val_json(@check.literal_val(e))
     None =>
-      match @check.type_default(f.ty) {
+      match @check.field_default(f.ty, f.norm) {
         Some(v) if !f.required => val_json(v)
         _ => Json::null()
       }

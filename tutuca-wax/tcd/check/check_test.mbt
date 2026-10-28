@@ -67,12 +67,12 @@ test "where clauses: contradictions, redundancy, what isn't a constraint, defaul
       #|[
       #|  "tcd.where.contradiction: a can never be valid: it must be at least 11 and at most 4",
       #|  "tcd.where.redundant: b > 0 is implied by b > 5",
-      #|  "tcd.field.required: b has no default that meets its constraints, so making a component needs it",
       #|  "tcd.where.not_a_constraint: c > 0 or c < -5 isn't a constraint a schema can hold",
       #|  "tcd.field.default: the default of d, 20, doesn't meet its constraints: it must be at most 10",
       #|  "tcd.field.required: e has no default that meets its constraints, so making a component needs it",
       #|  "tcd.where.type: > compares numbers, but f is bool",
       #|]
+
     ),
   )
 }
@@ -131,6 +131,39 @@ test "messages: guards that can't hold, ensures outside changes, unknown names" 
       #|  "tcd.cond.type: in the when of go: no argument, field or property cuont",
       #|  "tcd.view.send_arity: bump takes 0 arguments, this sends 1",
       #|  "tcd.view.field: c has no field or property nn; did you mean n?",
+      #|]
+    ),
+  )
+}
+
+///|
+/// A number with no default starts at 0 pulled into its bounds, as tutuca's
+/// t.number().min(1) does: the nearest integer inside for an s32.
+test "a bounded number with no default starts inside its bounds" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component c {
+      #|    field a: s32 where a >= 1;
+      #|    field b: s32 where b > 2;
+      #|    field c: s32 where c < -3;
+      #|    field d: f64 where d >= 0.5;
+      #|    field e: f64 where e > 0.5;
+      #|    view main = p("x");
+      #|}
+    ),
+  )
+  let (pkg, _) = check(f, Map([]))
+  let c = pkg.components[0]
+  debug_inspect(
+    c.fields.map(f => (f.name, field_default(f.ty, f.norm), f.required)),
+    content=(
+      #|[
+      #|  ("a", Some(VNum(1)), false),
+      #|  ("b", Some(VNum(3)), false),
+      #|  ("c", Some(VNum(-4)), false),
+      #|  ("d", Some(VNum(0.5)), false),
+      #|  ("e", Some(VNum(0)), true),
       #|]
     ),
   )

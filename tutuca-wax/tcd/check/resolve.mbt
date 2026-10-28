@@ -207,6 +207,34 @@ pub fn type_default(t : Ty) -> Val? {
 }
 
 ///|
+/// The value a field of type t with constraints n starts with when it has no
+/// default: its type's, with a number's 0 pulled into its bounds, as
+/// tutuca's t.number().min(1) starts at 1 (an s32 to the nearest integer
+/// inside; an f64 with an exclusive bound past 0 keeps 0, so it has none).
+pub fn field_default(t : Ty, n : Norm) -> Val? {
+  guard type_default(t) is Some(VNum(zero)) && (t is S32 || t is F64) else {
+    return type_default(t)
+  }
+  let int = t is S32
+  let mut v = zero
+  if n.lo is Some(lo) && (v < lo.value || (lo.exclusive && v == lo.value)) {
+    if !lo.exclusive {
+      v = if int { lo.value.ceil() } else { lo.value }
+    } else if int {
+      v = lo.value.floor() + 1.0
+    }
+  }
+  if n.hi is Some(hi) && (v > hi.value || (hi.exclusive && v == hi.value)) {
+    if !hi.exclusive {
+      v = if int { hi.value.floor() } else { hi.value }
+    } else if int {
+      v = hi.value.ceil() - 1.0
+    }
+  }
+  Some(VNum(v))
+}
+
+///|
 /// Whether a known value is of type t.
 pub fn val_fits(v : Val, t : Ty) -> Bool {
   match (v, t) {
@@ -349,7 +377,7 @@ fn Resolver::field(
         }
       }
       None =>
-        match type_default(ty) {
+        match field_default(ty, norm) {
           None => required = true
           Some(v) =>
             if !val_meets(v, norm) {
@@ -978,7 +1006,7 @@ fn initial_env(c : ComponentM) -> Map[String, Val] {
         if f.required {
           Unknown
         } else {
-          type_default(f.ty).unwrap_or(Unknown)
+          field_default(f.ty, f.norm).unwrap_or(Unknown)
         }
     }
   }
