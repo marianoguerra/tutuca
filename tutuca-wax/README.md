@@ -67,6 +67,43 @@ issues the dev checks report. Add missing functions appends `tcd stub
 walks (`js/pbt.js`). Edits are kept per example in localStorage. It needs the
 js-string builtins (Chrome 131, Firefox 134 and later).
 
+`just studio` serves `studio/`, which keeps what you write. Components are
+written as in the playground (from its examples as starters) and kept in
+IndexedDB with their last build, built again only when their sources or tcd
+change. A `use "x.tcd"` reads another component of the library or a prebuilt
+module's `.tcd`. Scopes are a tree, from a root that registers the layouts:
+each registers library components or prebuilt modules under names picked
+there (`loadComponent`'s `names`), or leaves types out, and lists what its
+holes will offer. A screen is a scope and a layout: opening it makes the
+scope chain from scratch, loads each scope's registrations and mounts the
+layout, a `Screen` whose toggle switches between using it and editing it.
+Save layout keeps the tree as `js/hydrate.js`'s `capture` writes it: each
+component by the name it's made by in that scope and its fields, those that
+sync at no level left out. Export and Import move the library as a JSON
+bundle, without the builds.
+
+`just studio-server` serves the same studio with an LLM assistant
+(`scripts/studio-server.mjs`, over [pi-ai](https://www.npmjs.com/package/@earendil-works/pi-ai)):
+copy `.env.example` to `.env` and set the API keys you have, and the studio
+finds `/api/check`, which lists the models of every provider with a key
+that `scripts/studio-models.mjs`'s rules pick (GPT 6 and 5.6, Claude 5 and
+5.5, and the latest small, middle and large DeepSeek, Muse, GLM, Kimi K3,
+Qwen, MiMo and Grok, from whichever provider carries them), and
+shows an Assistant button in the editor (served as files only, as on GitHub
+Pages, there's no API and no button). A message is sent with the
+transcript, kept in pi's format with the component, and the component as it
+is now; the server adds the system prompt and asks the model chosen. The
+model edits through one tool, `write_component`, with the whole new `.tcd`
+or `.wax`; the studio builds what it wrote and answers with the tool's
+result, which says what it registers or gives tcd's diagnostics and the
+signatures of the functions still missing, and asks again, up to four tries.
+The system prompt is read from `studio/assistant/` on every request: the
+`*.md` files in order (the role, the `.tcd` language, Wax and the naming
+convention, the examples), the example modules in `examples/` (which
+`test/tcd-web.test.mjs` builds and runs), and the runtime functions a `.wax`
+can call, from `src/abi.wax`. "What the model is told" in the panel shows
+it.
+
 ```js
 import { loadRuntimeFiles, loadTcd } from "./js/tcd-web.js";
 
@@ -126,7 +163,7 @@ classes as constants, or `if`s of constants.
 | `prelude/*.wax` | what the runtime and component modules share: types and i32 consts, no code |
 | `src/*.wax` | the runtime, one concern per file; `src/abi.wax` is what component modules import |
 | `lib/*.wax` | helpers for writing component types, compiled into the runtime and imported |
-| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail), `layout` (Hbox, Vbox, Tabs and Grid holding Holes, which ask what their scope can make and swap themselves for the one picked); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
+| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail), `layout` (Hbox, Vbox, Tabs and Grid holding Holes, which ask what their scope can make and swap themselves for the one picked, and a Screen toggling between using a layout, each component's main view, and editing it, by pushing the `layout_edit` view that any component can declare to opt in); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
 | `tcd/` | the TCD tool, in MoonBit (its README has the language and the naming convention) |
 | `scripts/build.mjs` | assembles and compiles `dist/tutuca-rt.wasm` and `dist/components/<module>.wasm`, generating the prelude files components need, and optimizes them with wasm-opt |
 | `scripts/format.mjs` | `wax-mb format` over the sources (`npm run format`, `--check` in `npm test`) |
@@ -135,16 +172,20 @@ classes as constants, or `if`s of constants.
 | `js/pbt.js` | testing components from their TCD model (`dist/components/*.model.json`): random walks of enabled messages on a headless dev host, shrunk to a 1-minimal failing trace; exhaustive exploration of small state spaces; example blocks |
 | `js/tcd-web.js` | loads `dist/tcd/tcd.wasm` (tcd compiled to wasm-gc) and the runtime sources it builds components with |
 | `js/json-example.js` | components/json's tree for a JSON value, shared by the demos and the playground |
+| `js/hydrate.js` | `hydrate` makes components from `{ $make, fields }` / `{ $json }` JSON in a scope, `capture` writes a component tree that way |
+| `js/page.js` | what the playground and the studio share: elements, margaui's themes and CSS, the compiler worker |
 | `js/css.js` | CSS for collected classes: loads margaui-css.wasm, compiles the set of classes loaded modules use into a `<style>` |
 | `vendor/margaui/` | margaui-css.wasm (tailwindcss-moonbit v0.5.0) and margaui's light and dark themes, pinned (`just vendor-margaui`) |
 | `test/suite.mjs` | the vdom, lowering, value, path and component cases, written once for both test environments |
 | `test/jsdom.test.mjs` | the suite in Node against jsdom, with the js-string builtins and with the polyfills |
 | `test/parity.test.mjs` | random vnode trees, frames and semantic trees, against tutuca's own runtime, compared step by step |
 | `test/tcd-web.test.mjs` | tcd in wasm-gc, in Node: builds the module the native tcd does, diagnostics, stubs, uses |
-| `test/browser.test.mjs` | the suite in Chromium, through Playwright, and smoke tests of the demos page and the playground |
+| `test/browser.test.mjs` | the suite in Chromium, through Playwright, and smoke tests of the demos page, the playground and the studio |
 | `demos/` | the demos page (`just demos`) |
 | `playground/` | the playground (`just playground`): `playground.js` the page, `compiler.worker.js` tcd in a worker, `examples.js` the examples, `editor.src.js` the editor, bundled with CodeMirror into `deps/editor.js` (committed; `just vendor-editor`) |
-| `scripts/serve.mjs` | the static server for the demos, the playground and the browser tests |
+| `studio/` | the studio (`just studio`): `studio.js` the page, `store.js` the library in IndexedDB and its bundles, `assistant.js` the assistant's panel, `assistant/` what its model is told (the reference and example modules) |
+| `scripts/studio-server.mjs` | the studio with its assistant's API (`just studio-server`): `/api/check`, `/api/chat`, `/api/prompt`, keys from `.env` |
+| `scripts/serve.mjs` | the static server for the demos, the playground, the studio and the browser tests |
 | `wax-mb-usage-feedback.md` | what writing this taught about wax-mb: bugs, diagnostics, friction |
 
 ## Modules, assembled
@@ -488,6 +529,13 @@ a handler gets the asker's context (not its instance), so `ctx.scope` is the
 scope the asker was made in, wherever the handler was registered.
 `scope_register_host_ask` answers through the host's `ask` import, later,
 with only the ask's name and arguments.
+From JS, `loadComponent(bytes, scope, { names })` registers a module's types
+under other names (`{ Counter: "Tally", Label: null }` renames one and leaves
+one out), checked as any registration, and `runtime.nameIn(scope, c)` is the
+name `c`'s type is made by from `scope` (`scope_name_of`), which a rename
+makes other than its `typeName`. Components make each other by name (a
+Tabs makes a `"Hole"`), so renaming or leaving out a type another one makes
+breaks that make in that scope, unless something else is registered as it.
 
 **Paths** (`path.wax` for the types, `route.wax` for what they do): update
 paths read and write the state, through components' `get` and `set` and

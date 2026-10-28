@@ -1,0 +1,21 @@
+// note.tcd has the rest: what each message does, and the computed property.
+
+fn note_on_set_title(state: &note_state, ctx: &context, title: &extern) -> &note_state {
+    note_with_title(state, title);
+}
+
+fn note_on_set_body(state: &note_state, ctx: &context, text: &extern) -> &note_state {
+    note_with_body(state, text);
+}
+
+fn note_on_toggle_pin(state: &note_state, ctx: &context) -> &note_state {
+    note_with_pinned(state, !state.pinned);
+}
+
+fn note_on_clear(state: &note_state, ctx: &context) -> &note_state {
+    note_with_body(state, gs_empty);
+}
+
+fn note_get_left(state: &note_state) -> i32 {
+    280 - js_string_length(state.body);
+}

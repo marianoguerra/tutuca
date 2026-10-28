@@ -1,0 +1,60 @@
+// Example: a component holding others. check_item notifies its parent; the
+// checklist makes items by name (emits make), finds which one notified by the
+// source key, filters what it renders with a loop hook, and reads a property
+// of each item.
+package tutuca:checklist@0.1.0;
+
+/// One thing to check.
+component check_item {
+    field text: string;
+    field done: bool;
+
+    /// To the parent, asking to be removed.
+    notify remove_me();
+
+    message toggle() changes done ensures next.done == not done;
+    message remove() changes nothing emits notify remove_me;
+
+    view main = li(class: "flex items-center gap-2",
+        input(type: "checkbox", class: "checkbox checkbox-sm", checked: field(done), on_change: send(toggle)),
+        span(class: if(field(done), "flex-1 line-through opacity-50", "flex-1"), field(text)),
+        button(class: "btn btn-xs btn-ghost", title: "Remove", on_click: send(remove), "×"));
+}
+
+/// Things to check, and whether to show the checked ones.
+component checklist {
+    field items: list<check_item> where len(items) <= 50;
+    field draft: string;
+    field hide_done: bool;
+    get left: s32 where left >= 0;
+
+    message set_draft(text: string) changes draft ensures next.draft == text;
+    message add() when len(draft) > 0 changes items, draft emits make check_item;
+    message set_hide_done(hide: bool) changes hide_done ensures next.hide_done == hide;
+    /// An item's notify: the source key says which one.
+    message remove_me() source_key: index<items> changes items
+        ensures len(next.items) == len(items) - 1;
+
+    /// The items rendered: all of them, or the unchecked ones.
+    loop shown { filter }
+
+    view main = section(class: "flex flex-col gap-2",
+        div(class: "join",
+            input(class: "input input-sm join-item", placeholder: "Something to check", value: field(draft),
+                on_input: send(set_draft, target_value()),
+                "on_keydown+enter+prevent": send(add)),
+            button(class: "btn btn-sm btn-primary join-item", on_click: send(add), "add")),
+        ul(class: "flex flex-col gap-1", render_each(loop: shown, field(items))),
+        label(class: "flex items-center gap-2 text-sm",
+            input(type: "checkbox", class: "toggle toggle-sm", checked: field(hide_done),
+                on_change: send(set_hide_done, target_value())),
+            "hide checked · ", field(left), " left"));
+}
+
+register check_item, checklist;
+
+example add_one for checklist {
+    start { draft: "milk" }
+    send add();
+    expect len(items) == 1 and draft == "";
+}

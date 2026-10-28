@@ -151,11 +151,11 @@ export const EXAMPLES = [
 	{
 		id: "layout",
 		title: "Layouts and holes",
-		description: "Hbox, Vbox, Tabs and Grid hold Holes; a hole's + asks what its scope can make and swaps itself for the one picked.",
+		description: "A Screen toggles between using a layout and editing it (its layout_edit views); edited, Hbox, Vbox, Tabs and Grid hold Holes, and a hole's + asks what its scope can make and swaps itself for the one picked.",
 		main: "components/layout/layout.tcd",
 		impl: "components/layout/layout.wax",
 		deps: ["counter"],
-		root: "Vbox",
-		fields: { items: [{ $make: "Hole", fields: {} }] },
+		root: "Screen",
+		fields: { content: { $make: "Vbox", fields: { items: [{ $make: "Hole", fields: {} }] } }, editing: true },
 	},
 ];

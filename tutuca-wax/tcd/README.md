@@ -39,7 +39,10 @@ build byte-identical modules.
 
 Every name is snake_case; the runtime gets camelCase for members (`set_text`
 is the message `setText`) and PascalCase for types (`json_number` is
-`JsonNumber`), and Wax gets the snake_case name.
+`JsonNumber`), and Wax gets the snake_case name. View names are the
+exception: the runtime gets them as written (`view layout_edit` is the view
+`"layout_edit"`), so a `push_view` of a name a field or property holds finds
+the view the same way a literal one does.
 
 ```wit
 package tutuca:todos@0.1.0;

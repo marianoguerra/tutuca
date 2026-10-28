@@ -8,3 +8,5 @@
 # tcd's build (moon) and fetched dependencies.
 /tcd/_build/
 /tcd/.mooncakes/
+# API keys for the studio's assistant (scripts/studio-server.mjs; see .env.example).
+/.env

@@ -369,10 +369,10 @@ const layoutState = (root) => {
 demo({
 	title: "Layouts: holes that ask what they can be",
 	description:
-		"Hbox, Vbox, Tabs and Grid hold components; + slot, + cell and the + tab add a Hole. A hole's + asks componentNames: the package's ask handler gets the asker's context, so it lists the types visible from the scope the hole was made in and its parents (ctx_component_names), sorted, each name once. Pick one and the hole swaps itself for it, made in its own scope: Counter and TodoItem come from the other modules loaded here, and a box picked holds holes of its own. A pick that can't be made (ctx_try_make's Err) keeps the hole, with why under the choices: its swap handler keeps its own state instead.",
-	type: "Vbox",
-	fields: { items: [runtime.make(scope, "Hole", {})] },
-	inspect: layoutState,
+		"A Screen holds a layout and toggles, with the icon at its corner, between using it (each component's main view, no editing chrome) and editing it: it pushes the layout_edit view above its content, so every component below that has one shows it, and a component of any module opts in by declaring one. Edited, Hbox, Vbox, Tabs and Grid remove their slots and add holes (+ slot, + cell, the + tab), tabs are renamed and removed, and the grid's columns and rows grow and shrink. A hole's + asks componentNames: the package's ask handler gets the asker's context, so it lists the types visible from the scope the hole was made in and its parents (ctx_component_names). Pick one and the hole swaps itself for it, made in its own scope; a type that needs fields can't be made, and the hole stays, saying why.",
+	type: "Screen",
+	fields: { content: runtime.make(scope, "Vbox", { items: [runtime.make(scope, "Hole", {})] }), editing: true },
+	inspect: (root) => ({ editing: runtime.get(root, "editing"), ...layoutState(runtime.get(root, "content")) }),
 });
 
 // The vdom on its own: a keyed list, re-rendered from JS, with the DOM

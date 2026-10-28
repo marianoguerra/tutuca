@@ -256,7 +256,9 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 	// the types it declares when it links them. Resolves with what the module
 	// is: its size, imports and exports, and the constant class names the
 	// views of the types it registered use (classes), to compile CSS for.
-	api.loadComponent = async (source, scope) => {
+	// names maps the names the module registers its types as to the names to
+	// register them as here, null skipping one; the others keep theirs.
+	api.loadComponent = async (source, scope, { names = {} } = {}) => {
 		const bytes = source instanceof URL ? await readBytes(source) : source;
 		const component = await compileModule(bytes, builtins);
 		const foreign = [...new Set(component.imports.map((i) => i.module).filter((m) => !COMPONENT_IMPORTS.has(m)))];
@@ -269,10 +271,17 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			if (typeof instance.exports[name] !== "function") throw new Error(`The runtime has no ${name} for the component module to import`);
 			tutuca[name] = instance.exports[name];
 		}
-		// The specs it registers, as it registers them.
+		// The specs it registers, as it registers them, and under which names.
 		const specs = [];
+		const registered = [];
+		// Set while a dry run into a throwaway scope lists the names.
+		let listing = null;
 		if (tutuca.scope_register) {
-			tutuca.scope_register = (s, name, spec, vtable) => {
+			tutuca.scope_register = (s, as, spec, vtable) => {
+				if (listing) return void listing.push(as);
+				const name = Object.hasOwn(names, as) ? names[as] : as;
+				registered.push({ as, name });
+				if (name === null) return;
 				specs.push(spec);
 				instance.exports.scope_register(s, name, spec, vtable);
 			};
@@ -288,6 +297,14 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			throw new Error(`The component module is for ABI version ${version ?? "(none)"}, the runtime's is ${expected}`);
 		}
 		if (typeof exports.tutuca_register !== "function") throw new Error("The component module doesn't export tutuca_register");
+		// Checked before registering anything: a name it doesn't register is a mistake.
+		if (Object.keys(names).length > 0) {
+			listing = [];
+			exports.tutuca_register(instance.exports.scope_root());
+			const unknown = Object.keys(names).filter((as) => !listing.includes(as));
+			listing = null;
+			if (unknown.length > 0) throw new Error(`The component module registers no ${unknown.join(", ")} to rename`);
+		}
 		exports.tutuca_register(scope);
 		const classes = new Set(specs.flatMap((spec) => api.values.to(instance.exports.spec_classes(spec))));
 		return {
@@ -295,6 +312,7 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			classes: [...classes],
 			imports: component.imports.map(({ module: from, name }) => ({ module: from, name })),
 			exports: Object.keys(exports),
+			registered,
 		};
 	};
 	return api;
@@ -803,6 +821,9 @@ function makeRuntime(w, api, late) {
 		// init's issues making a component: [{ field, problem }].
 		issues: (scope, name, fields = {}) => values.to(w.scope_make_issues(scope, name, values.from(fields))),
 		typeName: (component) => w.component_type_name(component),
+		// The name component's type is made by from scope, which a rename at
+		// loadComponent may make other than its typeName; null when none is.
+		nameIn: (scope, component) => values.to(w.scope_name_of(scope, component)),
 		// A component's type's schema: { name, fields, gets, messages,
 		// invariants, interfaces }, types written as TCD writes them; null
 		// for a type without one.

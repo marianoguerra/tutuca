@@ -8,16 +8,21 @@
 		"build": "node scripts/build.mjs",
 		"format": "node scripts/format.mjs",
 		"format:check": "node scripts/format.mjs --check",
-		"test": "npm run format:check && npm run build && npm run test:jsdom && npm run test:tcd-web && npm run test:parity && npm run test:browser",
+		"test": "npm run format:check && npm run build && npm run test:jsdom && npm run test:tcd-web && npm run test:studio-server && npm run test:parity && npm run test:browser",
 		"test:jsdom": "node --test test/jsdom.test.mjs",
 		"test:tcd-web": "node --test test/tcd-web.test.mjs",
+		"test:studio-server": "node --test test/studio-server.test.mjs",
 		"test:parity": "node --test test/parity.test.mjs",
 		"test:browser": "node --test test/browser.test.mjs",
-		"demos": "node scripts/build.mjs && node scripts/serve.mjs"
+		"demos": "node scripts/build.mjs && node scripts/serve.mjs",
+		"studio": "node scripts/build.mjs && node scripts/studio-server.mjs"
 	},
 	"devDependencies": {
 		"binaryen": "132.0.0",
 		"jsdom": "^30.1.3",
 		"playwright": "1.63.0"
+	},
+	"dependencies": {
+		"@earendil-works/pi-ai": "1.4.0"
 	}
 }

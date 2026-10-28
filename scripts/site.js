@@ -31,7 +31,7 @@ if (existsSync(spec)) {
 	console.warn(`warning: ${spec} is missing, the site links to it: run just spec`);
 }
 
-// The tutuca-wax demos and playground, in wax/: their pages with the files they load, at the same
+// The tutuca-wax demos, playground and studio, in wax/: their pages with the files they load, at the same
 // relative paths. dist/ is built by tutuca-wax's build (wax-mb, moon and wasm-opt); CI builds it
 // first. Only the optimized modules: not the .debug.wasm copies, the assembled .wax or the
 // generated prelude. The playground compiles in the browser with dist/tcd/tcd.wasm, from the
@@ -41,6 +41,7 @@ if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
 	for (const path of [
 		"demos",
 		"playground",
+		"studio",
 		"js",
 		"prelude",
 		"src/abi.wax",
@@ -58,7 +59,9 @@ if (existsSync(`${wax}/dist/tutuca-rt.wasm`)) {
 	}
 	for (const file of [
 		...globSync(`${wax}/dist/components/*.wasm`),
-		...globSync(`${wax}/components/*/*.{tcd,wax}`),
+		// The sources the playground and the studio compile and use, and the
+		// scripts components need (media's rating.js).
+		...globSync(`${wax}/components/*/*.{tcd,wax,js}`),
 	]) {
 		if (!file.endsWith(".debug.wasm")) cpSync(file, `${out}/wax/${file.slice(wax.length + 1)}`);
 	}

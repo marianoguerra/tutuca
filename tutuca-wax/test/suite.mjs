@@ -7,6 +7,7 @@
 // module's API (js/tutuca-rt.js), container a detached <div>.
 import { classStyles, loadCssCompiler } from "../js/css.js";
 import { defineRating } from "../components/media/rating.js";
+import { capture, hydrate } from "../js/hydrate.js";
 import { examples, exhaust, fails, walk } from "../js/pbt.js";
 import * as assert from "./assert.mjs";
 
@@ -894,6 +895,11 @@ test("components: every example type registered by a TCD module makes with no fi
 // A Hole's + asks componentNames; the package's ask_handler gets the asker's
 // context, so it lists the names visible from the scope the hole was made in.
 
+// A Screen holding content, being edited: its layout_edit views are shown.
+const editedScreen = (runtime, scope, content) => runtime.make(scope, "Screen", { content, editing: true });
+const contentOf = (runtime, host) => runtime.get(host.root(), "content");
+const tabNames = (container) => [...container.querySelectorAll(".tab-name")].map((i) => i.value);
+
 test("layout: a hole lists the types its scope chain can make, and becomes the one picked", async ({ vdom, window, document, container, modules }) => {
 	const { runtime } = vdom;
 	const outer = runtime.scope();
@@ -903,27 +909,88 @@ test("layout: a hole lists the types its scope chain can make, and becomes the o
 	await vdom.loadComponent(modules.layout, inner);
 	// todo_card registers as TodoItem here too: the name is listed once.
 	await vdom.loadComponent(modules.todo_card, inner);
-	const host = runtime.createHost(document, container, runtime.make(inner, "Vbox", {}), { dev: true });
+	const host = runtime.createHost(document, container, editedScreen(runtime, inner, runtime.make(inner, "Vbox", {})), { dev: true });
 	host.mount();
 	click(window, buttons(container, "+ slot")[0]);
 	click(window, container.querySelector(".hole button"));
 	const choices = () => [...container.querySelectorAll(".choices button")].map((b) => b.textContent);
-	// Sorted, the outer scope's too, without Hole.
+	// Sorted, the outer scope's too, without Hole and Screen.
 	assert.deepEqual(choices(), ["Board", "Counter", "Grid", "Hbox", "Label", "Tabs", "TodoItem", "Vbox"]);
 	click(window, buttons(container, "cancel")[0]);
 	assert.deepEqual(choices(), []);
 	click(window, container.querySelector(".hole button"));
 	click(window, buttons(container, "Counter")[0]);
-	const items = runtime.get(host.root(), "items");
+	const items = runtime.get(contentOf(runtime, host), "items");
 	assert.deepEqual(items.map((c) => runtime.typeName(c)), ["Counter"]);
 	assert.equal(container.querySelectorAll(".hole").length, 0);
 	// A hole inside what a hole became: Tabs, then a tab of its own.
 	click(window, buttons(container, "+ slot")[0]);
+	click(window, container.querySelectorAll(".hole button")[0]);
+	click(window, buttons(container, "Tabs")[0]);
+	click(window, container.querySelector("[title='Add a tab']"));
+	assert.deepEqual(tabNames(container), ["Tab 1"]);
+	assert.equal(container.querySelectorAll(".hole").length, 1);
+	assert.deepEqual(host.failures, []);
+	assert.deepEqual(host.issues, []);
+});
+
+test("layout: a screen shows its layout without the editing chrome, and toggles to edit it", async ({ vdom, window, document, container, modules }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.counter, scope);
+	await vdom.loadComponent(modules.layout, scope);
+	const content = runtime.make(scope, "Vbox", { items: [runtime.make(scope, "Counter", { count: 1 }), runtime.make(scope, "Hole", {})] });
+	const host = runtime.createHost(document, container, runtime.make(scope, "Screen", { content }), { dev: true }).mount();
+	const toggle = () => click(window, container.querySelector(".screen-toggle"));
+	// Used: the counter works, and there's nothing to edit with.
+	assert.equal(container.querySelectorAll(".hole, .slot-remove").length, 0);
+	assert.equal(buttons(container, "+ slot").length, 0);
+	assert.equal(container.querySelector(".screen-toggle").getAttribute("aria-pressed"), "false");
+	// Edited: each slot removable, the hole's +, + slot.
+	toggle();
+	assert.equal(container.querySelector(".screen-toggle").getAttribute("aria-pressed"), "true");
+	assert.equal(container.querySelectorAll(".slot-remove").length, 2);
+	assert.equal(container.querySelectorAll(".hole").length, 1);
+	// The hole becomes Tabs; its tabs are added, renamed and removed.
 	click(window, container.querySelector(".hole button"));
 	click(window, buttons(container, "Tabs")[0]);
 	click(window, container.querySelector("[title='Add a tab']"));
-	assert.deepEqual([...container.querySelectorAll("[role=tab]")].map((b) => b.textContent), ["Tab 1"]);
-	assert.equal(container.querySelectorAll(".hole").length, 1);
+	click(window, container.querySelector("[title='Add a tab']"));
+	const names = container.querySelectorAll(".tab-name");
+	names[0].value = "Notes";
+	names[0].dispatchEvent(new window.Event("input", { bubbles: true }));
+	assert.deepEqual(tabNames(container), ["Notes", "Tab 2"]);
+	click(window, container.querySelectorAll(".tab-remove")[1]);
+	assert.deepEqual(tabNames(container), ["Notes"]);
+	// The counter's slot removed: the Tabs are what's left.
+	click(window, container.querySelectorAll(".slot-remove")[0]);
+	const items = () => runtime.get(contentOf(runtime, host), "items");
+	assert.deepEqual(items().map((c) => runtime.typeName(c)), ["Tabs"]);
+	// Back to using it: a tab named Notes, no inputs, no holes shown.
+	toggle();
+	assert.deepEqual([...container.querySelectorAll("[role=tab]")].map((t) => t.textContent), ["Notes"]);
+	assert.equal(container.querySelectorAll("input, .hole, .slot-remove").length, 0);
+	assert.deepEqual(host.failures, []);
+	assert.deepEqual(host.issues, []);
+});
+
+test("layout: a grid's rows and columns grow and shrink while it's edited", async ({ vdom, window, document, container, modules }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.layout, scope);
+	const host = runtime.createHost(document, container, editedScreen(runtime, scope, runtime.make(scope, "Grid", { columns: 3 })), { dev: true }).mount();
+	const grid = () => contentOf(runtime, host);
+	click(window, container.querySelector("[title='Add a row']"));
+	click(window, container.querySelector("[title='Add a cell']"));
+	assert.deepEqual([runtime.get(grid(), "cells").length, runtime.get(grid(), "rows")], [4, 2]);
+	click(window, container.querySelector("[title='Fewer columns']"));
+	assert.equal(runtime.get(grid(), "rows"), 2);
+	// Engines write the style back differently (0 or 0px): the count is what matters.
+	assert.ok(/repeat\(2,/.test(container.querySelector(".grid-box .grid").getAttribute("style")));
+	click(window, container.querySelector("[title='Remove the last row']"));
+	assert.equal(runtime.get(grid(), "cells").length, 2);
+	click(window, container.querySelectorAll(".slot-remove")[0]);
+	assert.equal(runtime.get(grid(), "cells").length, 1);
 	assert.deepEqual(host.failures, []);
 	assert.deepEqual(host.issues, []);
 });
@@ -935,11 +1002,11 @@ test("layout: a hole that can't make the type picked stays, saying why, and the 
 	await vdom.loadComponent(modules.probe, scope);
 	await vdom.loadComponent(modules.todo_list, scope);
 	await vdom.loadComponent(modules.layout, scope);
-	const host = runtime.createHost(document, container, runtime.make(scope, "Vbox", { items: [runtime.make(scope, "Hole", {})] }), { dev: true });
+	const host = runtime.createHost(document, container, editedScreen(runtime, scope, runtime.make(scope, "Vbox", { items: [runtime.make(scope, "Hole", {})] })), { dev: true });
 	host.mount();
 	click(window, container.querySelector(".hole button"));
 	click(window, buttons(container, "TodoItem")[0]);
-	const hole = runtime.get(host.root(), "items")[0];
+	const hole = runtime.get(contentOf(runtime, host), "items")[0];
 	assert.equal(runtime.typeName(hole), "Hole");
 	assert.equal(
 		container.querySelector(".hole .error").textContent,
@@ -949,7 +1016,7 @@ test("layout: a hole that can't make the type picked stays, saying why, and the 
 	assert.deepEqual(host.issues, []);
 	// The choices are still up: another pick works, and clears nothing it shouldn't.
 	click(window, buttons(container, "Probe")[0]);
-	assert.deepEqual(runtime.get(host.root(), "items").map((c) => runtime.typeName(c)), ["Probe"]);
+	assert.deepEqual(runtime.get(contentOf(runtime, host), "items").map((c) => runtime.typeName(c)), ["Probe"]);
 	assert.deepEqual(host.failures, []);
 });
 
@@ -959,10 +1026,15 @@ test("layout: the examples hold and random walks find nothing", async ({ vdom, m
 	await vdom.loadComponent(modules.layout, scope);
 	assert.deepEqual(
 		examples({ runtime, scope, model: models.layout }).map((e) => [e.name, e.ok]),
-		[["add_then_select", true], ["columns_stay_in_range", true]],
+		[
+			["add_then_select", true],
+			["remove_keeps_a_tab_shown", true],
+			["rows_follow_the_columns", true],
+			["columns_stay_in_range", true],
+		],
 	);
 	// Not Hole: a walk starts it with made-up choices, which no scope can make.
-	for (const component of ["Hbox", "Vbox", "Tabs", "Grid"]) {
+	for (const component of ["Screen", "Hbox", "Vbox", "Tabs", "Grid"]) {
 		assert.deepEqual(walk({ runtime, scope, model: models.layout, component, runs: 20, steps: 15, seed: 5 }), { ok: true, runs: 20 }, component);
 	}
 });
@@ -1705,6 +1777,72 @@ test("modules: another implementation loaded later takes the name over for the i
 	click(window, buttons(container, "all done")[0]);
 	assert.deepEqual([...container.querySelectorAll("li")].map((li) => marks(li, "todo", "todo-card", "done")), ["todo done", "todo-card done"]);
 	assert.equal(footerText(container), "0 of 2 left");
+});
+
+test("modules: a module's types can be registered under other names, or not at all", async ({ vdom, modules }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	const loaded = await vdom.loadComponent(modules.counter, scope, { names: { Counter: "Tally", Label: null } });
+	assert.deepEqual(loaded.registered, [
+		{ as: "Counter", name: "Tally" },
+		{ as: "Label", name: null },
+		{ as: "Board", name: "Board" },
+	]);
+	const tally = runtime.make(scope, "Tally", { count: 2 });
+	assert.equal(runtime.typeName(tally), "Counter");
+	assert.equal(runtime.nameIn(scope, tally), "Tally");
+	assert.throws(() => runtime.make(scope, "Counter"), /No component type is registered as Counter/);
+	assert.throws(() => runtime.make(scope, "Label"), /No component type is registered as Label/);
+	// A name the module doesn't register: nothing is registered.
+	const other = runtime.scope();
+	await assert.rejects(vdom.loadComponent(modules.counter, other, { names: { Countr: "X" } }), /registers no Countr to rename/);
+	assert.throws(() => runtime.make(other, "Board"), /No component type is registered as Board/);
+	// The same bytes in sibling scopes, under different names.
+	const a = runtime.enter(scope, "a");
+	const b = runtime.enter(scope, "b");
+	await vdom.loadComponent(modules.counter, a, { names: { Counter: "A" } });
+	await vdom.loadComponent(modules.counter, b, { names: { Counter: "B" } });
+	assert.equal(runtime.nameIn(a, runtime.make(a, "A", {})), "A");
+	assert.throws(() => runtime.make(b, "A"), /No component type is registered as A/);
+	// Outside the chain it was registered in, no name makes it.
+	assert.equal(runtime.nameIn(b, runtime.make(a, "A", {})), null);
+	// The parent's Tally reaches the children, unless one hides it.
+	assert.equal(runtime.nameIn(a, tally), "Tally");
+	// A rename onto an interface's name is checked as any registration.
+	const todos = runtime.scope();
+	await vdom.loadComponent(modules.todo_list, todos);
+	await assert.rejects(vdom.loadComponent(modules.counter, todos, { names: { Counter: "TodoItem" } }), /Counter can't be a TodoItem/);
+});
+
+test("modules: capture describes a component tree as hydrate makes it, by the names it's made by", async ({ vdom, modules }) => {
+	const { runtime } = vdom;
+	const scope = runtime.scope();
+	await vdom.loadComponent(modules.layout, scope);
+	const page = runtime.enter(scope, "page");
+	await vdom.loadComponent(modules.counter, page, { names: { Counter: "Tally" } });
+	// A hole with its menu up and an error: none of it is kept.
+	const hole = runtime.make(page, "Hole", { choices: [{ name: "Tally" }], listing: true, error: "no" });
+	const tabs = runtime.make(page, "Tabs", { panels: [runtime.make(page, "Tally", { count: 3 }), hole], active: 1 });
+	const root = runtime.make(page, "Vbox", { items: [tabs] });
+	const kept = {
+		$make: "Vbox",
+		fields: {
+			items: [
+				{
+					$make: "Tabs",
+					fields: { panels: [{ $make: "Tally", fields: { count: 3 } }, { $make: "Hole", fields: {} }], labels: [], active: 1 },
+				},
+			],
+		},
+	};
+	assert.deepEqual(capture(runtime, page, root), kept);
+	// JSON and back: the same tree, the hole closed.
+	const again = hydrate(runtime, page, JSON.parse(JSON.stringify(kept)));
+	assert.deepEqual(capture(runtime, page, again), kept);
+	const panels = runtime.get(runtime.get(again, "items")[0], "panels");
+	assert.equal(runtime.get(panels[1], "listing"), false);
+	// From a scope where Tally isn't a name, it can't be described.
+	assert.throws(() => capture(runtime, scope, root), /No name makes a Counter from this scope/);
 });
 
 test("modules: the loader takes only modules that import the ABI, of the runtime's version", async ({ vdom, modules }) => {

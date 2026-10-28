@@ -107,7 +107,7 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
   let b = Block::new()
   let names = b.array(
     "str_array",
-    c.views.map(v => self.s(@check.camel(v.name))),
+    c.views.map(v => self.s(v.name)),
   )
   let views = b.array(
     "view_array",
@@ -125,7 +125,7 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
         }
       }
       let view = match l.view {
-        Some(v) => self.s(@check.camel(v))
+        Some(v) => self.s(v)
         None => "null"
       }
       "{loop_def| name: \{self.s(@check.camel(l.name))}, prepare: \{hook(l.prepare is Some(_), "prepare")}, iter: \{hook(l.iter, "iter")}, key: \{hook(l.key is Some(_), "key")}, filter: \{hook(l.filter, "filter")}, enrich: \{hook(l.enrich is Some(_), "enrich")}, view: \{view} }"

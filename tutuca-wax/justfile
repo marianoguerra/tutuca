@@ -49,6 +49,15 @@ playground port="8002": build
     @echo "http://127.0.0.1:{{port}}/playground/"
     node scripts/serve.mjs {{port}}
 
+# Build, then serve the studio at http://127.0.0.1:{{port}}/studio/ (Ctrl-C stops it).
+studio port="8002": build
+    @echo "http://127.0.0.1:{{port}}/studio/"
+    node scripts/serve.mjs {{port}}
+
+# Build, then serve the studio with its LLM assistant at http://127.0.0.1:{{port}}/studio/: API keys from .env (.env.example).
+studio-server port="8003": build
+    node scripts/studio-server.mjs {{port}}
+
 # Bundle the playground's editor (playground/editor.src.js and CodeMirror) into playground/deps/editor.js.
 vendor-editor:
     node scripts/vendor-editor.mjs
@@ -70,7 +79,7 @@ fmt-check:
 # --- Test ------------------------------------------------------------------------------------
 
 # Everything `npm test` runs: format check, build, then jsdom, tcd in wasm-gc, parity and the browser.
-test: fmt-check build test-jsdom test-tcd-web test-parity test-browser
+test: fmt-check build test-jsdom test-tcd-web test-studio-server test-parity test-browser
 
 # The fast gate: format check, build, and the suite in jsdom.
 check: fmt-check build test-jsdom
@@ -82,6 +91,10 @@ test-jsdom:
 # tcd compiled to wasm-gc (dist/tcd/tcd.wasm, what the playground compiles with), in Node.
 test-tcd-web:
     node --test test/tcd-web.test.mjs
+
+# The studio's server: the models it offers and its system prompt.
+test-studio-server:
+    node --test test/studio-server.test.mjs
 
 # Random trees and frames against tutuca's own runtime (../src), step by step.
 test-parity:

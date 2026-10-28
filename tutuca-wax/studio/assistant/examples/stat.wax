@@ -1,0 +1,41 @@
+// stat.tcd has the rest. An enum field is an i32 in Wax, with a const per
+// member: stat_trend_flat, stat_trend_up, stat_trend_down.
+
+import "'" {
+    #[import = "→"]
+    const s_flat: &extern;
+    #[import = "↑"]
+    const s_up: &extern;
+    #[import = "↓"]
+    const s_down: &extern;
+}
+
+fn stat_on_set_label(state: &stat_state, ctx: &context, label: &extern) -> &stat_state {
+    stat_with_label(state, label);
+}
+
+fn stat_on_set_unit(state: &stat_state, ctx: &context, unit: &extern) -> &stat_state {
+    stat_with_unit(state, unit);
+}
+
+// The trend follows the last change.
+fn stat_on_bump(state: &stat_state, ctx: &context, by: f64) -> &stat_state {
+    let trend = stat_trend_flat;
+    if by > 0.0 {
+        trend = stat_trend_up;
+    }
+    if by < 0.0 {
+        trend = stat_trend_down;
+    }
+    {stat_state| label: state.label, value: state.value + by, unit: state.unit, trend };
+}
+
+fn stat_get_arrow(state: &stat_state) -> &extern {
+    if state.trend == stat_trend_up {
+        return s_up;
+    }
+    if state.trend == stat_trend_down {
+        return s_down;
+    }
+    s_flat;
+}

@@ -1,0 +1,36 @@
+// Example: an enum field, an f64, a computed property, and a component that
+// opts in to layout editing. In a studio screen being edited, the Screen
+// pushes the layout_edit view, so stat shows inputs for its label and unit;
+// while the screen is used it shows main.
+package tutuca:stat@0.1.0;
+
+/// A number with a label, as a dashboard shows it.
+component stat {
+    field label: string = "Visitors";
+    field value: f64;
+    field unit: string;
+    field trend: enum { flat, up, down };
+    /// The trend as an arrow.
+    get arrow: string;
+
+    message set_label(label: string) changes label ensures next.label == label;
+    message set_unit(unit: string) changes unit ensures next.unit == unit;
+    message bump(by: f64) changes value, trend ensures next.value == value + by;
+
+    view main = div(class: "stat",
+        div(class: "stat-title", field(label)),
+        div(class: "stat-value tabular-nums", field(value), " ", field(unit)),
+        div(class: "stat-actions flex gap-1",
+            button(class: "btn btn-xs", on_click: send(bump, -1), "-1"),
+            button(class: "btn btn-xs", on_click: send(bump, 1), "+1"),
+            span(class: "stat-desc", field(arrow))));
+    view layout_edit = div(class: "stat rounded-box border border-dashed border-base-300 gap-1",
+        input(class: "input input-xs", "aria-label": "Label", value: field(label), on_input: send(set_label, target_value())),
+        input(class: "input input-xs", "aria-label": "Unit", placeholder: "unit", value: field(unit), on_input: send(set_unit, target_value())));
+}
+
+example bump_up for stat {
+    start { }
+    send bump(2);
+    expect value == 2;
+}

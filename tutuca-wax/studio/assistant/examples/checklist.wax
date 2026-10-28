@@ -1,0 +1,76 @@
+// checklist.tcd has the rest.
+
+fn check_item_on_toggle(state: &check_item_state, ctx: &context) -> &check_item_state {
+    check_item_with_done(state, !state.done);
+}
+
+// The parent decides: this only asks.
+fn check_item_on_remove(state: &check_item_state, ctx: &context) -> &check_item_state {
+    check_item_notify_remove_me(ctx);
+    state;
+}
+
+// An item's done, read through its vtable (it's a component in a list).
+fn checklist_item_done(item: &value) -> i32 {
+    value_truthy(value_member(item, gs_done));
+}
+
+fn checklist_on_set_draft(
+    state: &checklist_state,
+    ctx: &context,
+    text: &extern,
+) -> &checklist_state {
+    checklist_with_draft(state, text);
+}
+
+// A new unchecked item with the draft's text; the draft starts over.
+fn checklist_on_add(state: &checklist_state, ctx: &context) -> &checklist_state {
+    let item = checklist_make_check_item(ctx, state.draft, 0);
+    {checklist_state|
+        items: list_push(state.items, value_component(item)),
+        draft: gs_empty,
+        hide_done: state.hide_done,
+    };
+}
+
+fn checklist_on_set_hide_done(
+    state: &checklist_state,
+    ctx: &context,
+    hide: i32,
+) -> &checklist_state {
+    checklist_with_hide_done(state, hide);
+}
+
+// The item the notify came from, by its index in items.
+fn checklist_on_remove_me(state: &checklist_state, ctx: &context) -> &checklist_state {
+    let key = ctx.source_key;
+    if !key {
+        return state;
+    }
+    let at = (key! as &path_key_index).index;
+    let items = list_empty();
+    let i = 0;
+    while i <s list_count(state.items) {
+        if i != at {
+            items = list_push(items, list_get(state.items, i)!);
+        }
+        i += 1;
+    }
+    checklist_with_items(state, items);
+}
+
+fn checklist_get_left(state: &checklist_state) -> i32 {
+    let n = 0;
+    let i = 0;
+    while i <s list_count(state.items) {
+        if !checklist_item_done(list_get(state.items, i)!) {
+            n += 1;
+        }
+        i += 1;
+    }
+    n;
+}
+
+fn checklist_loop_shown_filter(state: &checklist_state, key: &value, item: &value) -> i32 {
+    !(state.hide_done & checklist_item_done(item));
+}

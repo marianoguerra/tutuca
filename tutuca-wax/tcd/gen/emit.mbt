@@ -49,8 +49,16 @@ pub fn Strings::get(self : Strings, text : String) -> String {
   match self.by_text.get(text) {
     Some(n) => n
     None => {
-      let base = "gs_" + sanitize(text)
-      let mut name = if base == "gs_" { "gs_empty" } else { base }
+      // Only the empty text is gs_empty: text of only symbols ("+", "×")
+      // is gs_text, so an implementation's gs_empty is always "".
+      let base = if text == "" {
+        "gs_empty"
+      } else if sanitize(text) == "" {
+        "gs_text"
+      } else {
+        "gs_" + sanitize(text)
+      }
+      let mut name = base
       let mut i = 2
       while self.by_text.values().any(n => n == name) {
         name = base + "_" + i.to_string()

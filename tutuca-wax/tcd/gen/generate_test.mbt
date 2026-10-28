@@ -433,7 +433,9 @@ test "a swap handler swaps in a component or keeps its own, with changes checked
     ),
   )
   debug_inspect(
-    pick(out.glue, l => !l.contains("//") && (l.contains("r.") || l.contains("slot_on_become"))),
+    pick(out.glue, l => {
+      !l.contains("//") && (l.contains("r.") || l.contains("slot_on_become"))
+    }),
     content=(
       #|[
       #|  "let r = slot_on_become(state, ctx);",
@@ -451,6 +453,92 @@ test "a swap handler swaps in a component or keeps its own, with changes checked
       #|  "// slot_on_become handles the message become.",
       #|  "fn slot_on_become(state: &slot_state, ctx: &context) -> &slot_swap_result {",
       #|  "slot_keep(state);",
+      #|]
+    ),
+  )
+}
+
+///|
+/// gs_empty is the empty text whatever comes first: text of only symbols
+/// gets names of its own.
+test "only the empty text is gs_empty" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component c {
+      #|    field note: string;
+      #|    view main = div(button("+"), button("×"), field(note));
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let contract = @gen.generate(pkg, "t.tcd").contract
+  let lines = contract.split("\n").map(l => l.trim().to_owned()).collect()
+  let consts = []
+  for i, l in lines {
+    if l.has_prefix("const gs_") && i > 0 && lines[i - 1].contains("#[import") {
+      consts.push(lines[i - 1] + " " + l)
+    }
+  }
+  debug_inspect(
+    consts.filter(l => l.contains("gs_empty") || l.contains("gs_text")),
+    content=(
+      #|[
+      #|  "#[import = \"+\"] const gs_text: &extern;",
+      #|  "#[import = \"×\"] const gs_text_2: &extern;",
+      #|  "#[import = \"\"] const gs_empty: &extern;",
+      #|]
+    ),
+  )
+}
+
+///|
+/// A view's name reaches the runtime as written, wherever it's named: so a
+/// push_view of a name a property holds finds it as a literal one does.
+test "view names are kept as written" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component row {
+      #|    field mode: string;
+      #|    view main = p("x");
+      #|    view compact_row = p("y");
+      #|}
+      #|component board {
+      #|    field mode: string;
+      #|    field child: row;
+      #|    view main = div(
+      #|        push_view("compact_row", render(field(child))),
+      #|        push_view(field(mode), render(field(child), view: compact_row)));
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let out = @gen.generate(pkg, "t.tcd")
+  let pick = (text : String, keep : (String) -> Bool) => {
+    text
+    .split("\n")
+    .filter(l => keep(l.to_owned()))
+    .map(l => l.trim().to_owned())
+    .collect()
+  }
+  debug_inspect(
+    pick(out.contract, l => l.contains("compact") || l.contains("Compact")),
+    content=(
+      #|["#[import = \"compact_row\"]", "const gs_compact_row: &extern;"]
+    ),
+  )
+  debug_inspect(
+    pick(out.glue, l => l.contains("compact") || l.contains("Compact")),
+    content=(
+      #|[
+      #|  "fn row_view_compact_row() -> &view {",
+      #|  "t0[1] = gs_compact_row;",
+      #|  "t1[1] = row_view_compact_row();",
+      #|  "let t3 = view_push_view(view_const(value_string(gs_compact_row)), t2);",
+      #|  "let t4 = view_render(view_field(gs_child), gs_compact_row);",
       #|]
     ),
   )

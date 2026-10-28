@@ -276,6 +276,21 @@ fn api_component_type_name(v: &value) -> &extern {
     (value_as_component(v)!).spec.name;
 }
 
+// The name a component value's type is made by from s (scope_name_of), as a
+// string value, or null.
+#[export = "scope_name_of"]
+fn api_scope_name_of(s: &scope, v: &value) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return VALUE_NULL;
+    }
+    let name = scope_name_of(s, (c!).spec);
+    if !name {
+        return VALUE_NULL;
+    }
+    value_string(name!);
+}
+
 // A component value's property, through its vtable's get.
 #[export = "component_get"]
 fn api_component_get(v: &value, name: &extern) -> &value {

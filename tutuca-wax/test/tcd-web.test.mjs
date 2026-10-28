@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 import { before, test } from "node:test";
 import { JSDOM } from "jsdom";
 import { loadRuntimeFiles, loadTcd } from "../js/tcd-web.js";
+import { examples } from "../js/pbt.js";
 import { load } from "../js/tutuca-rt.js";
 
 const root = new URL("../", import.meta.url);
@@ -88,4 +89,23 @@ test("a use resolves relative to the main file, and a missing file is a diagnost
 	const res = tcd.check({ main, files: { [main]: files[main] } });
 	assert.ok(res.diags.some((d) => /can't read \.\.\/todo_list\/todo_list\.tcd/.test(d.message)));
 	assert.equal(tcd.check({ main: "nowhere.tcd", files }).diags[0].message, "the request has no file nowhere.tcd");
+});
+
+// The studio assistant's examples (studio/assistant/examples/), which its
+// system prompt shows the model as modules that build: they do, cleanly, and
+// their examples hold.
+test("the assistant's examples build without diagnostics, and their examples hold", async () => {
+	const dir = "studio/assistant/examples/";
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	for (const name of ["note", "checklist", "stat"]) {
+		const main = `${name}.tcd`;
+		const res = tcd.build({ main, files: { [main]: await read(dir + main) }, impls: [{ path: `${name}.wax`, text: await read(`${dir}${name}.wax`) }], runtime });
+		assert.deepEqual(res.diags, [], name);
+		assert.equal(res.ok, true, name);
+		const scope = tw.runtime.scope();
+		await tw.loadComponent(res.wasm, scope);
+		const ran = examples({ runtime: tw.runtime, scope, model: res.model });
+		assert.ok(ran.length > 0, name);
+		assert.deepEqual(ran.filter((e) => !e.ok).map((e) => e.name), [], name);
+	}
 });

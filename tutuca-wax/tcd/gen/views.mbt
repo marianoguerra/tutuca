@@ -25,6 +25,15 @@ fn Gen::opt_name(self : Gen, v : @syntax.ViewExpr?) -> String {
 }
 
 ///|
+/// A view's name, which the runtime gets as the .tcd writes it.
+fn Gen::opt_view_name(self : Gen, v : @syntax.ViewExpr?) -> String {
+  match v {
+    Some(x) => self.s(name_of(x))
+    None => "null"
+  }
+}
+
+///|
 /// A view expression's view; may write statements to b first.
 fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
   match v {
@@ -54,7 +63,7 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
         "render" => {
           let src = self.view(b, args[0])
           b.bind(
-            "view_render(\{src}, \{self.opt_name(opt_attr(attrs, "view"))})",
+            "view_render(\{src}, \{self.opt_view_name(opt_attr(attrs, "view"))})",
           )
         }
         "render_each" => {
@@ -71,7 +80,7 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
           )
         }
         "render_it" =>
-          b.bind("view_render_it(\{self.opt_name(opt_attr(attrs, "view"))})")
+          b.bind("view_render_it(\{self.opt_view_name(opt_attr(attrs, "view"))})")
         "scope" => {
           let body = self.view(b, args[1])
           b.bind(
@@ -81,7 +90,7 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
         "push_view" => {
           let name = match args[0] {
             Lit(Str(s), ..) =>
-              "view_const(value_string(\{self.s(@check.camel(s))}))"
+              "view_const(value_string(\{self.s(s)}))"
             other => self.view(b, other)
           }
           let body = self.view(b, args[1])

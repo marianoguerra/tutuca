@@ -18,9 +18,12 @@ const TYPES = {
 	".wat": "text/plain; charset=utf-8",
 };
 
-// A server for root's files; routes maps a path to a page served as HTML.
-export function createStaticServer(routes = {}) {
+// A server for root's files; routes maps a path to a page served as HTML,
+// and handle(req, res), when given, answers first, resolving true when it did
+// (the studio's API, scripts/studio-server.mjs).
+export function createStaticServer(routes = {}, handle = null) {
 	return createServer(async (req, res) => {
+		if (handle && (await handle(req, res))) return;
 		const url = new URL(req.url, "http://x");
 		const path = decodeURIComponent(url.pathname);
 		const headers = { "cache-control": "no-store" };

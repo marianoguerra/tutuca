@@ -101,6 +101,33 @@ fn scope_names(s: &scope, walk: i32) -> &value {
     out;
 }
 
+// A name that makes a component of spec's type from s: one it's registered
+// under here or in a parent that no inner registration hides. null when
+// there's none, e.g. for a type loaded elsewhere or registered under a
+// renamed name in another scope.
+fn scope_name_of(s: &scope, spec: &component_spec) -> &?extern {
+    let from: &?scope = s;
+    while !!from {
+        let acc = {map_entries_acc| keys: pv_empty(), values: pv_empty() };
+        phm_each((from!).entries, acc, map_entries_visit);
+        let i = 0;
+        while i <s pv_count(acc.keys) {
+            let (_, key) = pv_get(acc.keys, i);
+            let (_, entry) = pv_get(acc.values, i);
+            let name = (key! as &value_string).value;
+            if (entry! as &scope_entry).spec == spec {
+                let found = scope_lookup(s, name);
+                if !!found & ((found!).spec == spec) {
+                    return name;
+                }
+            }
+            i += 1;
+        }
+        from = (from!).parent;
+    }
+    null;
+}
+
 fn scope_register_ask(s: &scope, name: &extern, handler: &ask_fn) {
     s.ask_handlers = smap_assoc(s.ask_handlers, name, {ask_handler| handler });
 }

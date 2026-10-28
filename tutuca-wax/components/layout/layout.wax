@@ -1,6 +1,7 @@
-// The layout module's implementation (layout.tcd has the rest): what the
-// boxes, tabs and grid do to their lists of components, the hole turning into
-// the type picked, and the componentNames answer.
+// The layout module's implementation (layout.tcd has the rest): the view a
+// screen pushes, what the boxes, tabs and grid do to their lists of
+// components, the hole turning into the type picked, and the componentNames
+// answer.
 
 import "'" {
     #[import = "Tab "]
@@ -11,6 +12,31 @@ import "'" {
     const s_grid_columns_close: &extern;
     #[import = "error"]
     const s_error: &extern;
+}
+
+// items without the one at at.
+fn layout_remove_at(items: &value, at: i32) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(items) {
+        if i != at {
+            out = list_push(out, list_get(items, i)!);
+        }
+        i += 1;
+    }
+    out;
+}
+
+// ---- Screen ------------------------------------------------------------------------
+
+fn screen_on_toggle_editing(state: &screen_state, ctx: &context) -> &screen_state {
+    screen_with_editing(state, !state.editing);
+}
+
+// While editing, layout_edit above the content; main, which every component
+// has, otherwise.
+fn screen_get_pushed(state: &screen_state) -> &extern {
+    state.editing?gs_layout_edit:gs_main;
 }
 
 // ---- Hole --------------------------------------------------------------------------
@@ -37,13 +63,15 @@ fn hole_on_pick(state: &hole_state, ctx: &context, at: i32) -> &hole_swap_result
     hole_keep(hole_with_error(state, value_string_of(value_member(made.value, s_error))!));
 }
 
-// The names, as { name } records, without Hole: a hole doesn't become a hole.
+// The names, as { name } records, without Hole and Screen: a hole doesn't
+// become a hole, and a screen is what a layout is shown in, not part of it.
 fn hole_reply_component_names_ok(state: &hole_state, ctx: &context, reply: &value) -> &hole_state {
     let choices = list_empty();
     let i = 0;
     while i <s list_count(reply) {
         let name = list_get(reply, i)!;
-        if !str_eq(value_string_of(name), gs_hole) {
+        let text = value_string_of(name);
+        if !str_eq(text, gs_hole) & !str_eq(text, gs_screen) {
             choices = list_push(choices, map_assoc(map_empty(), gs_name, name));
         }
         i += 1;
@@ -58,6 +86,14 @@ fn hbox_on_add(state: &hbox_state, ctx: &context) -> &hbox_state {
     hbox_with_items(state, list_push(state.items, value_component(hole)));
 }
 
+fn hbox_on_remove_at(state: &hbox_state, ctx: &context, at: i32) -> &hbox_state {
+    hbox_with_items(state, layout_remove_at(state.items, at));
+}
+
+fn vbox_on_remove_at(state: &vbox_state, ctx: &context, at: i32) -> &vbox_state {
+    vbox_with_items(state, layout_remove_at(state.items, at));
+}
+
 fn vbox_on_add(state: &vbox_state, ctx: &context) -> &vbox_state {
     let hole = vbox_make_hole(ctx, list_empty(), 0, gs_empty);
     vbox_with_items(state, list_push(state.items, value_component(hole)));
@@ -65,11 +101,41 @@ fn vbox_on_add(state: &vbox_state, ctx: &context) -> &vbox_state {
 
 // ---- Tabs --------------------------------------------------------------------------
 
-// The new tab is the one shown.
+// The new tab is the one shown, named "Tab n" until it's renamed.
 fn tabs_on_add(state: &tabs_state, ctx: &context) -> &tabs_state {
     let hole = tabs_make_hole(ctx, list_empty(), 0, gs_empty);
     let panels = list_push(state.panels, value_component(hole));
-    tabs_with_active(tabs_with_panels(state, panels), list_count(panels) - 1);
+    let labels = tabs_labels_for(state.labels, list_count(panels));
+    {tabs_state| panels, labels, active: list_count(panels) - 1 };
+}
+
+// labels with an empty name for each panel up to n that has none.
+fn tabs_labels_for(labels: &value, n: i32) -> &value {
+    let out = labels;
+    while list_count(out) <s n {
+        out = list_push(out, value_string(gs_empty));
+    }
+    out;
+}
+
+fn tabs_on_rename(state: &tabs_state, ctx: &context, at: i32, label: &extern) -> &tabs_state {
+    let labels = tabs_labels_for(state.labels, list_count(state.panels));
+    tabs_with_labels(state, list_assoc(labels, at, value_string(label)));
+}
+
+// The tab shown stays the one shown, or the one before the removed one when
+// it was the last.
+fn tabs_on_remove_at(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state {
+    let panels = layout_remove_at(state.panels, at);
+    let labels = layout_remove_at(tabs_labels_for(state.labels, list_count(state.panels)), at);
+    let active = state.active;
+    if (at <s active) | (active >=s list_count(panels)) {
+        active = active - 1;
+    }
+    if active <s 0 {
+        active = 0;
+    }
+    {tabs_state| panels, labels, active };
 }
 
 fn tabs_on_select(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state {
@@ -82,10 +148,15 @@ fn tabs_loop_headers_enrich(
     item: &value,
 ) -> &tabs_loop_headers_binds {
     let at = (key as &value_int).value;
-    {tabs_loop_headers_binds|
-        label: js_string_concat(s_tab, int_text(at + 1)),
-        is_active: at == state.active,
-    };
+    let label = js_string_concat(s_tab, int_text(at + 1));
+    let named = list_get(state.labels, at);
+    if !!named {
+        let text = value_string_of(named!);
+        if !!text & (js_string_length(text!) >s 0) {
+            label = text!;
+        }
+    }
+    {tabs_loop_headers_binds| label, is_active: at == state.active };
 }
 
 fn tabs_loop_shown_filter(state: &tabs_state, key: &value, item: &value) -> i32 {
@@ -97,6 +168,40 @@ fn tabs_loop_shown_filter(state: &tabs_state, key: &value, item: &value) -> i32 
 fn grid_on_add(state: &grid_state, ctx: &context) -> &grid_state {
     let hole = grid_make_hole(ctx, list_empty(), 0, gs_empty);
     grid_with_cells(state, list_push(state.cells, value_component(hole)));
+}
+
+fn grid_on_remove_at(state: &grid_state, ctx: &context, at: i32) -> &grid_state {
+    grid_with_cells(state, layout_remove_at(state.cells, at));
+}
+
+fn grid_on_add_row(state: &grid_state, ctx: &context) -> &grid_state {
+    let cells = state.cells;
+    let i = 0;
+    while i <s state.columns {
+        cells = list_push(cells, value_component(grid_make_hole(ctx, list_empty(), 0, gs_empty)));
+        i += 1;
+    }
+    grid_with_cells(state, cells);
+}
+
+// The last row: the cells past the last full one, or a full row.
+fn grid_on_remove_row(state: &grid_state, ctx: &context) -> &grid_state {
+    let n = list_count(state.cells);
+    let last = n %s state.columns;
+    if last == 0 {
+        last = state.columns;
+    }
+    let cells = list_empty();
+    let i = 0;
+    while i <s n - last {
+        cells = list_push(cells, list_get(state.cells, i)!);
+        i += 1;
+    }
+    grid_with_cells(state, cells);
+}
+
+fn grid_get_rows(state: &grid_state) -> i32 {
+    (list_count(state.cells) + state.columns - 1) /s state.columns;
 }
 
 fn grid_on_more_columns(state: &grid_state, ctx: &context) -> &grid_state {

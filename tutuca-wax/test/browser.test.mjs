@@ -3,8 +3,11 @@
 // every case against the page's own DOM. One node:test test per case. Then a
 // smoke test of the demos page.
 import test, { after, before } from "node:test";
+import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import { chromium } from "playwright";
+import { EXAMPLES } from "../playground/examples.js";
 import { createStaticServer } from "../scripts/serve.mjs";
+import { createStudioServer } from "../scripts/studio-server.mjs";
 import { cases } from "./suite.mjs";
 
 const PAGE = `<!doctype html>
@@ -91,6 +94,10 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	await layout.locator(".stage .choices button", { hasText: "Counter" }).click();
 	const slots = JSON.parse(await layout.locator("pre").textContent()).slots.map((s) => s.type).join(",");
 	if (slots !== "Counter") throw new Error(`unexpected layout slots: ${slots}`);
+	// Used, not edited: no remove buttons, the counter still there.
+	await layout.locator(".stage .screen-toggle").click();
+	if ((await layout.locator(".stage .slot-remove").count()) !== 0) throw new Error("the layout's editing chrome shows while it's used");
+	if (JSON.parse(await layout.locator("pre").textContent()).editing !== false) throw new Error("the screen didn't toggle to use");
 	// Loading modules at run time: TodoList first, which can't make a
 	// TodoItem until todo_item.wasm is loaded too.
 	const loading = page.locator(".demo").first();
@@ -145,6 +152,156 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	if (!(await page.locator("#status").textContent()).includes("native")) throw new Error("not on the builtins");
 	if (errors.length > 0) throw new Error(errors.join("; "));
 	await page.close();
+});
+
+test("the studio keeps components, registers them in scopes under other names, and keeps screens composed in them", async () => {
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	const status = (re) => page.waitForFunction((source) => new RegExp(source).test(document.querySelector(".st-status")?.textContent ?? ""), re.source);
+	const tabTo = (label) => page.locator(".st-tab", { hasText: label }).click();
+	const stage = page.locator(".st-stage");
+	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
+	// A component from the clicker starter, built.
+	await page.locator("button", { hasText: "New component" }).click();
+	await status(/clicker built/);
+	// Served as files only: no API, so no assistant.
+	if (await page.locator("button", { hasText: "Assistant" }).isVisible()) throw new Error("an assistant without a server");
+	// Scope a, under the root (which has the layouts), registering it as Thing.
+	await tabTo("Scopes");
+	await page.locator("[aria-label='Child scope name']").fill("a");
+	await page.locator("button", { hasText: "Add child" }).click();
+	await page.locator("[aria-label='Component to register']").selectOption({ label: "clicker" });
+	await page.locator("button", { hasText: "Register" }).click();
+	await page.locator("[aria-label=\"Clicker's name here\"]").fill("Thing");
+	await page.locator("[aria-label=\"Clicker's name here\"]").press("Tab");
+	await page.locator(".st-resolves td", { hasText: /^Thing$/ }).waitFor();
+	// A screen in a: edited, its hole becomes a Thing, a slot below it Tabs.
+	await tabTo("Screens");
+	await page.locator("[aria-label='Screen name']").first().fill("home");
+	await page.locator("button", { hasText: "New screen" }).click();
+	await page.locator("[aria-label=Scope]").selectOption({ label: "root / a" });
+	await status(/home open in root \/ a/);
+	await stage.locator(".screen-toggle").click();
+	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: "Thing" }).click();
+	await stage.locator("button", { hasText: "click" }).click();
+	await stage.locator("button", { hasText: "+ slot" }).click();
+	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: "Tabs" }).click();
+	await stage.locator("[title='Add a tab']").click();
+	await page.locator("button", { hasText: "Save layout" }).click();
+	await status(/home's layout saved/);
+	const kept = async () => JSON.parse(await page.locator("[aria-label='Layout (JSON)']").inputValue());
+	const layout = await kept();
+	const items = layout.fields.content.fields.items;
+	if (layout.$make !== "Screen" || "editing" in layout.fields || items.map((i) => i.$make).join() !== "Thing,Tabs" || items[0].fields.count !== 1) {
+		throw new Error(`unexpected layout: ${JSON.stringify(layout)}`);
+	}
+	// Reloaded: from IndexedDB, used, not edited.
+	const reopen = async () => {
+		await tabTo("Screens");
+		await page.locator(".st-item", { hasText: "home" }).click();
+		await status(/home open/);
+		await stage.locator("button", { hasText: "click" }).waitFor();
+		if ((await stage.locator(".hole, .slot-remove").count()) !== 0) throw new Error("a reopened screen shows its editing chrome");
+		if ((await stage.locator("[role=tab]").count()) !== 1) throw new Error("the tabs weren't kept");
+	};
+	await page.reload();
+	await reopen();
+	// Exported, the library dropped, imported again.
+	const [download] = await Promise.all([page.waitForEvent("download"), page.locator("button", { hasText: "Export" }).click()]);
+	const bundle = await download.path();
+	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
+	await page.reload();
+	await tabTo("Screens");
+	if ((await page.locator(".st-item", { hasText: "home" }).count()) !== 0) throw new Error("the library wasn't dropped");
+	await page.locator("[aria-label='Import a bundle']").setInputFiles(bundle);
+	await status(/imported/);
+	await reopen();
+	if (errors.length > 0) throw new Error(errors.join("; "));
+	await page.close();
+});
+
+test("served with an API, the studio's assistant edits a component, and is told why what it wrote doesn't build until it does", async () => {
+	// A scripted model (pi-ai's faux provider): its first try lacks a
+	// function, its second adds it.
+	const models = createModels();
+	const faux = fauxProvider({ provider: "faux", models: [{ id: "faux-coder", name: "Faux coder" }] });
+	models.setProvider(faux.provider);
+	const clicker = EXAMPLES.find((e) => e.id === "clicker");
+	const tcd = clicker.sources[clicker.main]
+		.replace("    message reset()", "    message double() changes count, best;\n    message reset()")
+		.replace('button(class: "btn btn-sm btn-ghost", on_click: send(reset), "reset")', 'button(class: "btn btn-sm", on_click: send(double), "×2"),\n        button(class: "btn btn-sm btn-ghost", on_click: send(reset), "reset")');
+	const wax = `${clicker.sources[clicker.impl]}
+fn clicker_on_double(state: &clicker_state, ctx: &context) -> &clicker_state {
+    let count = state.count * 2;
+    let best = state.best;
+    if count >s best {
+        best = count;
+    }
+    {clicker_state| count, best };
+}
+`;
+	const told = [];
+	const system = (context) => context.messages.find((m) => m.role === "system");
+	const textOf = (m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text ?? "").join(""));
+	faux.setResponses([
+		(context) => {
+			told.push({ prompt: textOf(system(context)), tools: (system(context).toolsAdded ?? []).map((t) => t.name) });
+			return fauxAssistantMessage([fauxText("Adding a ×2 button."), fauxToolCall("write_component", { tcd })], { stopReason: "toolUse" });
+		},
+		(context) => {
+			const last = context.messages.at(-1);
+			told.push({ result: last.role === "toolResult" && last.isError ? textOf(last) : null });
+			return fauxAssistantMessage([fauxText("And its handler."), fauxToolCall("write_component", { wax })], { stopReason: "toolUse" });
+		},
+	]);
+	// The faux model isn't one studio-models.mjs offers: offer it anyway.
+	const studio = createStudioServer({ models, offer: () => true });
+	await new Promise((resolve) => studio.listen(0, "127.0.0.1", resolve));
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	const status = (re) => page.waitForFunction((source) => new RegExp(source).test(document.querySelector(".st-status")?.textContent ?? ""), re.source);
+	try {
+		await page.goto(`http://127.0.0.1:${studio.address().port}/studio/`);
+		await page.locator(".st-assistant", { hasText: "assistant: 1 model" }).waitFor();
+		await page.locator("button", { hasText: "New component" }).click();
+		await status(/clicker built/);
+		await page.locator("button", { hasText: "Assistant" }).click();
+		if ((await page.locator(".st-model").inputValue()) !== "faux/faux-coder") throw new Error("the model offered isn't the faux one");
+		await page.locator(".st-chat-input").fill("Add a button that doubles the count");
+		await page.locator(".st-chat button", { hasText: "Send" }).click();
+		await page.locator(".st-chat-ok", { hasText: "It built: clicker registers Clicker" }).waitFor();
+		// What the model was told: the reference, the examples, the module as
+		// it was, the tool; then why its first try didn't build.
+		const [first, second] = told;
+		for (const part of ["# The .tcd language", "## Example: checklist", "fn list_push(", "# The module you're editing: clicker", "message click()"]) {
+			if (!first.prompt.includes(part)) throw new Error(`the system prompt lacks ${part}`);
+		}
+		if (first.tools.join() !== "write_component") throw new Error(`tools: ${first.tools}`);
+		if (!/clicker_on_double/.test(second.result ?? "")) throw new Error(`the failed build's result: ${second.result}`);
+		// The transcript shows both tries, and the module has the button and works.
+		if ((await page.locator(".st-chat-error", { hasText: "it didn't build" }).count()) !== 1) throw new Error("the failed try isn't shown");
+		await status(/clicker built/);
+		const kept = await page.evaluate(
+			() =>
+				new Promise((resolve) => {
+					const open = indexedDB.open("tutuca-wax-studio");
+					open.onsuccess = () => {
+						const all = open.result.transaction("components").objectStore("components").getAll();
+						all.onsuccess = () => resolve(all.result[0]);
+					};
+				}),
+		);
+		if (!kept.tcd.includes("message double()") || !kept.wax.includes("fn clicker_on_double") || !kept.build.ok) throw new Error("the component wasn't kept as the model left it");
+		if (kept.chat.map((m) => m.role).join() !== "user,assistant,toolResult,assistant,toolResult") throw new Error(`the transcript: ${kept.chat.map((m) => m.role)}`);
+		if (errors.length > 0) throw new Error(errors.join("; "));
+	} finally {
+		await page.close();
+		studio.close();
+	}
 });
 
 test("the playground compiles components in the browser, reports errors, adds missing functions, and composes with prebuilt modules", async () => {

@@ -3,8 +3,8 @@
 // the module loaded into a fresh scope next to the prebuilt modules it
 // composes with, its root mounted on a dev host in the side panel, with its
 // state, what the host reported, and test runs from its model (js/pbt.js).
-import { classStyles, loadCssCompiler } from "../js/css.js";
-import { fromJson } from "../js/json-example.js";
+import { hydrate } from "../js/hydrate.js";
+import { compilerClient, el, pageStyles } from "../js/page.js";
 import { examples as runExamples, snapshot, walk } from "../js/pbt.js";
 import { load, readBytes } from "../js/tutuca-rt.js";
 import { createEditor } from "./deps/editor.js";
@@ -49,53 +49,13 @@ const UI = {
 	info: "pg-info opacity-70",
 };
 
-const el = (tag, attrs = {}, ...children) => {
-	const node = document.createElement(tag);
-	for (const [k, v] of Object.entries(attrs)) {
-		if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
-		else node.setAttribute(k, v);
-	}
-	node.append(...children.filter((c) => c != null));
-	return node;
-};
+// ---- Theme and CSS, the runtime and the compiler ------------------------------------
 
-// ---- Theme and CSS ----------------------------------------------------------------
-
-const vendor = (path) => new URL(`../vendor/margaui/${path}`, import.meta.url);
-const themes = await Promise.all(["light", "dark"].map(async (t) => (await fetch(vendor(`themes/${t}.css`))).text()));
-document.querySelector("#themes").textContent = themes.join("\n");
-const dark = matchMedia("(prefers-color-scheme: dark)");
-const followTheme = () => {
-	document.documentElement.dataset.theme = dark.matches ? "dark" : "light";
-};
-followTheme();
-dark.addEventListener("change", followTheme);
-const styles = classStyles(await loadCssCompiler(vendor("margaui-css.wasm")), document.querySelector("#classes"), Object.values(UI));
+const styles = await pageStyles(Object.values(UI));
 document.body.className = UI.body;
-
-// ---- The runtime and the compiler ---------------------------------------------------
-
 const tw = await load(new URL("../dist/tutuca-rt.wasm", import.meta.url));
 const { runtime } = tw;
-const worker = new Worker(new URL("./compiler.worker.js", import.meta.url), { type: "module" });
-let nextId = 0;
-const pending = new Map();
-worker.onmessage = ({ data: { id, response, error } }) => {
-	const p = pending.get(id);
-	pending.delete(id);
-	if (error) p.reject(new Error(error));
-	else p.resolve(response);
-};
-worker.onerror = (e) => {
-	for (const p of pending.values()) p.reject(new Error(e.message || "the compiler worker failed"));
-	pending.clear();
-};
-const compiler = (action, request) =>
-	new Promise((resolve, reject) => {
-		const id = nextId++;
-		pending.set(id, { resolve, reject });
-		worker.postMessage({ id, action, request });
-	});
+const compiler = compilerClient();
 
 // Prebuilt component modules, by name, fetched once.
 const prebuilt = new Map();
@@ -123,6 +83,7 @@ app.append(
 		{ class: UI.header },
 		el("h1", { class: UI.title }, "tutuca-wax playground"),
 		el("a", { class: UI.link, href: "../demos/" }, "demos"),
+		el("a", { class: UI.link, href: "../studio/" }, "studio"),
 		el("a", { class: UI.link, href: "https://github.com/marianoguerra/tutuca/tree/main/tutuca-wax/tcd" }, "the TCD language"),
 	),
 	el(
@@ -329,17 +290,6 @@ async function compile() {
 	await mount();
 }
 
-// Fields JSON with { $make, fields } and { $json } made into components.
-const hydrate = (scope, v) => {
-	if (Array.isArray(v)) return v.map((x) => hydrate(scope, x));
-	if (v !== null && typeof v === "object") {
-		if ("$make" in v) return runtime.make(scope, v.$make, hydrate(scope, v.fields ?? {}));
-		if ("$json" in v) return fromJson(runtime, scope, v.$json);
-		return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, hydrate(scope, x)]));
-	}
-	return v;
-};
-
 const note = (kind, text) => events.prepend(el("div", { class: `${UI.event} ${UI[kind] ?? ""}` }, `${new Date().toLocaleTimeString()} ${kind}: ${text}`));
 
 // A fresh scope with the prebuilt modules the example composes with, then
@@ -354,7 +304,7 @@ async function mount() {
 		const scope = runtime.scope();
 		for (const dep of example.deps ?? []) styles.add((await tw.loadComponent(await prebuiltBytes(dep), scope)).classes);
 		styles.add((await tw.loadComponent(lastBuild.wasm.slice(), scope)).classes);
-		const fields = hydrate(scope, JSON.parse(fieldsBox.value || "{}"));
+		const fields = hydrate(runtime, scope, JSON.parse(fieldsBox.value || "{}"));
 		const root = runtime.make(scope, rootSelect.value, fields);
 		const host = runtime.createHost(document, stage, root, { dev: true, asks: example.asks ?? {} });
 		const seen = { logs: 0, unhandled: 0, failures: 0, issues: 0 };
