@@ -11,8 +11,11 @@ Complete modules that build, each a `.tcd` and its `.wax` (the files in
 - stat: an enum field and its consts, an f64, a computed property, a struct
   literal, string constants of the `.wax`'s own, a type alias for the enum's value, and a `layout_edit` view.
 - tasks: what a new component starts from. A list of records edited in place
-  (made with `map_assoc`, read with `value_member`, replaced with
-  `list_assoc`), messages taking an `index<items>` from `source_key()`, a loop
+  (made with the generated `tasks_items_new`, read with `tasks_items_text`,
+  `_done` and `_priority`, replaced with `list_assoc`), messages taking an `index<items>` from `source_key()`, a loop
   with `filter` and `enrich` binds, an enum set from a select, an
-  `invariant`, an ask answered by the package's own `ask_handler`, type
-  aliases, and a `layout_edit` view.
+  `invariant`, an ask answered by the package's own `ask_handler` with a
+  record (read with `tasks_suggest_reply_idea`) whose reply asks again
+  (`emits ask suggest`), a view comparing a field with a literal
+  (`field(show) != "all"`), a button sending an item's field (`send(set_draft,
+  field(text))`), type aliases, and a `layout_edit` view.

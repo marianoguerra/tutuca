@@ -40,7 +40,7 @@ test("the rules offer the generations asked for, from any provider, and nothing 
 
 test("the system prompt has the reference, the examples, the runtime's functions and the component", async () => {
 	const prompt = await systemPrompt({ name: "mine", tcd: "package tutuca:mine@0.1.0;", wax: "// nothing" });
-	for (const part of ["# You are the tutuca-wax studio's assistant", "# The .tcd language", "## Example: note", "fn list_push(list: &value, item: &value) -> &value;", "# The module you're editing: mine", "package tutuca:mine@0.1.0;"]) {
+	for (const part of ["# You are the tutuca-wax studio's assistant", "# The .tcd language", "## Example: note", "fn list_push(list: &value, item: &value) -> &value;", "fn value_member(v: &value, name: js_string) -> &value;", "# The module you're editing: mine", "package tutuca:mine@0.1.0;"]) {
 		assert.ok(prompt.includes(part), part);
 	}
 });

@@ -112,6 +112,39 @@ test("the assistant's examples and the studio's module build without diagnostics
 	}
 });
 
+// The tasks starter shows the model a reply that asks again (emits ask
+// suggest), a view comparing a field with a literal, and a send of an item's
+// field; here they run, rendered.
+test("the tasks example asks again for an idea already in the list, and its views compare and send fields", async () => {
+	const path = "studio/assistant/examples/tasks";
+	const res = tcd.build({ main: "tasks.tcd", files: { "tasks.tcd": await read(`${path}.tcd`) }, impls: [{ path: "tasks.wax", text: await read(`${path}.wax`) }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	const host = tw.runtime.createHost(window.document, container, tw.runtime.make(scope, "Tasks", {}), { dev: true }).mount();
+	const draft = () => tw.runtime.get(host.root(), "draft");
+	// One item: taken 1 is "answer the email".
+	host.send("set_draft", ["answer the email"]);
+	host.send("add");
+	host.send("suggest_one");
+	await host.settled();
+	assert.equal(draft(), "take a walk");
+	host.send("set_draft", [""]);
+	const again = [...container.querySelectorAll("button")].find((b) => b.textContent === "again");
+	again.dispatchEvent(new window.Event("click", { bubbles: true }));
+	await host.settled();
+	assert.equal(draft(), "answer the email");
+	assert.ok(!container.textContent.includes("some hidden"));
+	host.send("set_show", ["open"]);
+	await host.settled();
+	assert.ok(container.textContent.includes("some hidden"));
+	assert.deepEqual(host.issues, []);
+	assert.deepEqual(host.failures, []);
+});
+
 // JS gives an integral number as an int: made with one, or sent one, where
 // the type says f64 (here inside records in a list), a component holds a
 // float, which its .wax reads as one.

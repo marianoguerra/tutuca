@@ -4,8 +4,9 @@
 // index into the list and an argument with its own constraint, a loop that
 // filters the rows and enriches each with what it shows, computed
 // properties, an invariant, an ask answered by the package's own
-// ask_handler, an enum, examples, and a layout_edit view for a screen being
-// edited.
+// ask_handler (whose reply is a record, and may ask again), an enum, views
+// comparing a field with a literal and sending an item's field, examples,
+// and a layout_edit view for a screen being edited.
 package tutuca:tasks@0.1.0;
 
 /// Things to do, each with a priority, filtered by whether they're done.
@@ -24,8 +25,10 @@ component Tasks {
     invariant left_counts_items: left <= len(items);
 
     /// Something to do, picked by the package's ask_handler; taken says how
-    /// many items there are, so the pick changes as the list grows.
-    ask suggest(taken: s32) -> string;
+    /// many items there are, so the pick changes as the list grows. The
+    /// reply says which taken it answers, and an idea already in the list is
+    /// asked again with the next one.
+    ask suggest(taken: s32) -> record { idea: string, taken: s32 } emits ask suggest;
 
     message set_title(title: string where len(title) <= 40) changes title ensures next.title == title;
     message set_draft(text: string where len(text) <= 80) changes draft ensures next.draft == text;
@@ -62,6 +65,9 @@ component Tasks {
                     input(type: "checkbox", class: "checkbox checkbox-sm", checked: field(done),
                         on_change: send(toggle, source_key())),
                     span(class: if(field(done), "flex-1 line-through opacity-50", "flex-1"), field(text)),
+                    // field(text): the item's, read when the button is clicked.
+                    button(class: "btn btn-xs btn-ghost", title: "Again: put this in the draft",
+                        on_click: send(set_draft, field(text)), "again"),
                     button(class: "btn btn-xs btn-ghost tabular-nums", title: "Change the priority",
                         on_click: send(bump, source_key()), bind(badge)),
                     button(class: "btn btn-xs btn-ghost text-error", title: "Remove",
@@ -72,6 +78,7 @@ component Tasks {
                 option(value: "all", "all"),
                 option(value: "open", "open"),
                 option(value: "done", "done")),
+            if(field(show) != "all", span(class: "opacity-70", "some hidden")),
             button(class: "btn btn-xs btn-ghost ml-auto", on_click: send(clear_done), "clear done")));
     // While a studio screen is edited: only the title, to name it there.
     view layout_edit = section(class: "card border border-dashed border-base-300 gap-1 p-2",
@@ -83,7 +90,7 @@ component Tasks {
 register Tasks;
 
 /// suggest: answered here, from the scope the asker is in.
-ask_handler suggest(taken: s32) -> string;
+ask_handler suggest(taken: s32) -> record { idea: string, taken: s32 };
 
 example add_then_finish for Tasks {
     start { draft: "write the docs" }

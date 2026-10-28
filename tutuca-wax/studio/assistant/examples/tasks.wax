@@ -114,8 +114,27 @@ fn tasks_on_suggest_one(state: &tasks_state, ctx: &context) -> &tasks_state {
     state;
 }
 
-fn tasks_reply_suggest_ok(state: &tasks_state, ctx: &context, reply: js_string) -> &tasks_state {
-    tasks_with_draft(state, reply);
+fn tasks_has_text(state: &tasks_state, text: js_string) -> i32 {
+    let i = 0;
+    while i <s list_count(state.items) {
+        if str_eq(tasks_items_text(tasks_item_at(state, i)), text) {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+// An idea already in the list asks for the next one (the ask's emits says it
+// may), up to the four there are; the reply's helpers read the record.
+fn tasks_reply_suggest_ok(state: &tasks_state, ctx: &context, reply: &value) -> &tasks_state {
+    let idea = tasks_suggest_reply_idea(reply);
+    let taken = tasks_suggest_reply_taken(reply);
+    if tasks_has_text(state, idea) & (taken <s list_count(state.items) + 3) {
+        tasks_ask_suggest(ctx, taken + 1);
+        return state;
+    }
+    tasks_with_draft(state, idea);
 }
 
 fn tasks_get_left(state: &tasks_state) -> i32 {
@@ -173,5 +192,5 @@ fn tasks_answer_suggest(ctx: &context, taken: i32) -> &value {
     if pick == 3 {
         idea = s_idea_3;
     }
-    value_ok(value_string(idea));
+    value_ok(tasks_suggest_reply_new(idea, taken));
 }

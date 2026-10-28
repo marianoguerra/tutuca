@@ -48,10 +48,13 @@ export const TOOLS = [
 // ---- The system prompt ------------------------------------------------------------------
 
 // The runtime functions a component module can call, from src/abi.wax: the
-// sections a component's own code uses, as `fn name(params) -> result`.
+// sections a component's own code uses, and the few functions of other
+// sections it uses too (listed after them), as `fn name(params) -> result`.
 const ABI_SECTIONS = ["Values", "List and Map", "Path keys", "What a handler does", "Helpers for writing component types"];
+const ABI_ALSO = ["value_to_f64", "value_member"];
 export function runtimeFunctions(abi) {
 	const out = [];
+	const also = [];
 	let section = null;
 	let keep = false;
 	const lines = abi.split("\n");
@@ -63,11 +66,14 @@ export function runtimeFunctions(abi) {
 			if (keep) out.push("", `// ${section.replace(/\s*\(.*$/, "")}`);
 			continue;
 		}
-		if (!keep || !line.startsWith("fn abi_")) continue;
+		if (!line.startsWith("fn abi_")) continue;
+		const extra = ABI_ALSO.includes(line.match(/^fn abi_(\w+)/)[1]);
+		if (!keep && !extra) continue;
 		let signature = line;
 		while (!signature.trimEnd().endsWith("{") && i + 1 < lines.length) signature += ` ${lines[++i].trim()}`;
-		out.push(`${signature.replace(/^fn abi_/, "fn ").replace(/\s*\{\s*$/, "").replace(/\(\s+/, "(").replace(/,\s*\)/, ")")};`);
+		(keep ? out : also).push(`${signature.replace(/^fn abi_/, "fn ").replace(/\s*\{\s*$/, "").replace(/\(\s+/, "(").replace(/,\s*\)/, ")")};`);
 	}
+	if (also.length) out.push("", "// Reading values", ...also);
 	return out.join("\n").trim();
 }
 
