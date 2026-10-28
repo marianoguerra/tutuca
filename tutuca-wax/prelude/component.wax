@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 7;
+const tutuca_abi_version_current = 8;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -80,8 +80,8 @@ rec {
     // entries to render, a list of [key, value] lists, in place of the
     // source's own (filter doesn't apply then); key(key, value, state) is
     // the item's sibling key, filter(key, value, state) whether it renders,
-    // enrich(binds, state) the binds its body sees besides value and key (a
-    // map value); view is the view a renderEach renders the items with.
+    // enrich(key, value, state) the binds its body sees besides value and
+    // key (a map value); view is the view a renderEach renders the items with.
     type loop_def = {
         name: &extern,
         prepare: &?loop_prepare_fn,
@@ -95,7 +95,7 @@ rec {
     type loop_iter_fn = fn(&eq, &value, &value) -> &value;
     type loop_key_fn = fn(&eq, &value, &value, &value) -> &value;
     type loop_filter_fn = fn(&eq, &value, &value, &value) -> i32;
-    type loop_enrich_fn = fn(&eq, &value, &value) -> &value;
+    type loop_enrich_fn = fn(&eq, &value, &value, &value) -> &value;
     type loop_def_array = [mut &?loop_def];
     // scopes[name].bind: the binds a scope's body sees, as a map value.
     type scope_def = { name: &extern, bind: &scope_bind_fn };

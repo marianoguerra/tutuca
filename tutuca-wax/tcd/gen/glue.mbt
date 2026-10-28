@@ -292,10 +292,10 @@ fn Gen::hooks(self : Gen, c : @check.ComponentM) -> String {
     }
     if l.enrich is Some(bs) {
       out.line(
-        "fn \{lw}_enrich_t: loop_enrich_fn (instance: &eq, binds: &value, prepared: &value) -> &value {",
+        "fn \{lw}_enrich_t: loop_enrich_fn (instance: &eq, key: &value, item: &value, prepared: &value) -> &value {",
       )
       out.line(
-        "    let b = \{lw}_enrich(instance as \{st}, map_get(binds, \{self.s("key")})!, map_get(binds, \{self.s("value")})!\{prepared});",
+        "    let b = \{lw}_enrich(instance as \{st}, key, item\{prepared});",
       )
       out.line("    \{self.binds_map(bs, "b")};")
       out.line("}")

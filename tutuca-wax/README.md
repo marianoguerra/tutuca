@@ -608,7 +608,9 @@ hooks are tutuca's: `prepare(items)` makes the state the others get last;
 `iter(items, state)` gives the items as `[key, value]` lists, else they're the
 source's that `filter(key, value, state)` keeps; an item is keyed by
 `key(key, value, state)` or its key, and its body sees the item, `value`,
-`key` and what `enrich(binds, state)` adds.
+`key` and what `enrich(key, value, state)` adds (tutuca's JS passes
+`{ value, key }` and the state: a record is the JS way to take them, two
+arguments the Wax one, as the other hooks take them).
 
 **Events** (`decode.wax`): the host routes a DOM event the way
 `getEventInfoFor` does: from the target up to the container, the `data-eid`s

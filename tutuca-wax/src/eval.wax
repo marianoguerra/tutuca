@@ -508,17 +508,17 @@ fn loop_entry(p: &loop_pass, key: &value, item: &value) {
     let e = p.e;
     let instance = e.component.instance;
     let fragment_key = key;
-    let binds = map_assoc(map_assoc(map_empty(), s_value, item), s_key, key);
+    let binds = map_empty();
     if !!p.def {
         let d = p.def!;
         if !!d.key {
             fragment_key = (d.key!)(instance, key, item, p.state);
         }
         if !!d.enrich {
-            let extra = (d.enrich!)(instance, binds, p.state);
-            binds = map_assoc(map_assoc(map_merge(map_empty(), extra), s_value, item), s_key, key);
+            binds = (d.enrich!)(instance, key, item, p.state);
         }
     }
+    binds = map_assoc(map_assoc(binds, s_value, item), s_key, key);
     let rc = render_context_enter_frame(e.rc, item);
     let nodes = snode_buf_new();
     if !!p.body {
