@@ -724,3 +724,31 @@ and namespaces. Where they differ, on purpose:
   here they're an error when the vnode is built.
 - An int and a float holding the same number are the same prop, as in JS,
   where there's only one kind of number.
+- A prop can't hold vnodes (the spec's `prop-value` can be a node or an
+  iterable of them, and tutuca's JS passes an element through as is).
+
+## Differences from tutuca's JS runtime
+
+Beyond the vdom, where this and tutuca's JS (and the spec in `../spec/`)
+mean different things, on purpose or for now:
+
+- Numbers are an i32 `int` or an f64 `float`: an integer past i32's range
+  arrives as a float, which an `s32` field rejects (`t.number().int()` takes
+  it).
+- A map is a HAMT, so its keys come in hash order: a loop over a map, and
+  a map turned back into JSON, don't keep the order the keys were added in.
+- A message's arguments are checked always, not only in dev mode, before the
+  handler sees them, and arguments that don't fit abort the task instead of
+  being reported after it commits.
+- A predicate (`when`, `ensures`, a `where` check, an invariant) that traps
+  aborts the task, or the check, instead of counting as broken: wasm can't
+  catch a trap.
+- Dev mode can't report undeclared fields (an instance is opaque to the
+  runtime), and doesn't check inside a component without a schema.
+- An error a host ask throws or rejects with is replied as its message: a
+  value can't hold a JS object.
+- What only this has: interfaces, a message's `changes`, an init hook with an
+  init context, typed computed properties, results as values, `ctx_make`,
+  `ctx_try_make` and `ctx_component_names`, event modifiers
+  (`on_keydown+enter`), `event(name)` send arguments, and `ctx.event` as a
+  map of the event's fields.

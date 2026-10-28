@@ -1411,19 +1411,23 @@ types above:
   rather than adapted in place: the adapter types them over `&value`, and the
   map's key policy is fixed to string keys, stored as the `value_string`
   holding the JS string, since the HAMT needs keys in the eq hierarchy. The
-  Component case holds an empty open struct until the component runtime
-  exists, and will hold its subtype.
+  Component case holds the component runtime's `component`.
 - The component runtime is implemented (README.md, "The component runtime",
   has how it came out). Departures from the types above: the instance is any
   `&eq`; property access returns an `i32` result code (`property_ok`, ...)
   with the value or instance, and `init` an `init_result` whose issues are a
   list of `{ field, problem }` map values; `ComponentSpec` has the templates
-  (the handlers table) and provides, but not yet the properties, messages and
-  init schemas, which only the dev checks would read; `Env` is the host's
-  `env` import rather than a struct of functions; a failing task throws out of
-  the transaction instead of returning an error, and the JS side, which runs
-  one task per call, reports it; event arguments are evaluated when the task
-  runs, as JS does, rather than when the event is routed.
+  (the handlers table), the provides, and its schema as data (fields,
+  properties, messages with their contracts, invariants, interfaces), which
+  the host checks arguments against and dev mode the state; `MessageError`
+  also has `InvalidArg(index, reason)`; an `AskHandler` gets the ask's name
+  too, `(name, args, ctx)`, and can answer `NotFound` (the host's, when its
+  `asks` has none); a pending ask is an int id, not a handle; `Env` is the
+  host's `env` import rather than a struct of functions, so `Context` has no
+  `env`; a failing task throws out of the transaction instead of returning
+  an error, and the JS side, which runs one task per call, reports it; event
+  arguments are evaluated when the task runs, as JS does, rather than when the
+  event is routed (`Event` above).
 - Component modules are implemented (README.md, "Modules: prelude, runtime,
   ABI, components"): the types this note describes are shared by building the
   runtime and each component module with the same prelude (types and i32

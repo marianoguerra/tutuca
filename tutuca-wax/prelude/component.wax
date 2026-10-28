@@ -55,7 +55,7 @@ const property_invalid = 5;
 
 // What init made: the instance, or null and the error when it couldn't make
 // one. issues is a list of { field, problem } maps for the values it fixed by
-// taking a default (missing, unknown, wrong type, invalid).
+// taking a default (missing, wrong type, invalid).
 type init_result = { instance: &?eq, issues: &value, error: &?value };
 
 type selector_array = [mut &?selector];
