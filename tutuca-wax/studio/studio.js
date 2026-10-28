@@ -519,19 +519,32 @@ Object.assign(asks, {
 		const b = await buildOf(draft);
 		if (!b.ok) throw new Error("it doesn't build yet: fix what the diagnostics say first");
 		const { scope } = editing;
-		// Another registration giving one of its names would hide it, or it them.
-		const taken = resolvesIn(scope).filter((r) => r.ref !== id && b.types.includes(r.name));
+		// A name another registration of this scope gives can't be given again;
+		// one a parent scope gives is hidden here (an inner registration hides
+		// an outer one), so a screen's scope can have its own Hbox while the
+		// others keep root's.
+		const taken = scope.registrations
+			.filter((r) => r.component !== id)
+			.flatMap((r) => (typesOf(r.component) ?? []).filter((t) => b.types.includes(t)).map((t) => `${t} (${componentLabel(r.component)})`));
 		if (taken.length > 0) {
-			const which = taken.map((r) => `${r.name} (${componentLabel(r.ref)}${r.scope === scope ? "" : `, from ${r.scope.name}`})`).join(", ");
-			throw new Error(`${which} already made in this scope: rename the component in ${name}.tcd`);
+			throw new Error(`${taken.join(", ")} already made in ${scope.name}: rename the component in ${name}.tcd, or make it in a scope of its own, where it hides ${scope.name}'s`);
 		}
 		await save("components", { id, name, tcd, wax, build: b, chat });
 		if (creating) {
+			// One that hides a name of a parent scope changes what the screen's
+			// components are made from: the screen is kept and made again with it.
+			const hides = resolvesIn(scope).some((r) => b.types.includes(r.name));
+			if (hides) await keepLayout();
 			scope.registrations.push({ component: id });
 			await save("scopes", scope);
+			say(`${name} registered in ${scope.name}: ${b.types.join(", ")}`);
+			if (hides) {
+				closeEditing(name);
+				tell("reopen");
+				return "saved";
+			}
 			// Registered in the shown screen's scope too, for the hole to make.
 			styles.add((await tw.loadComponent(b.wasm.slice(), mounted.scope)).classes);
-			say(`${name} registered in ${scope.name}: ${b.types.join(", ")}`);
 			closeEditing(name);
 		} else {
 			say(`${name} saved`);

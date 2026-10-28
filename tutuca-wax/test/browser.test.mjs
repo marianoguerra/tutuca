@@ -283,6 +283,68 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await page.close();
 });
 
+test("a copy of the layout in a screen's scope hides root's there, and the other screens keep root's", async () => {
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	page.on("dialog", (dialog) => dialog.accept());
+	const stage = page.locator(".st-stage");
+	const status = (re) => page.waitForFunction((source) => new RegExp(source).test(document.querySelector(".st-status")?.textContent ?? ""), re.source);
+	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
+	await page.locator("button", { hasText: "+ New screen" }).waitFor();
+	await newStudioScreen(page, { scope: "a", name: "mine" });
+	await stage.locator(".screen-toggle[aria-pressed=true]").waitFor();
+	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: /^Hbox$/ }).click();
+	// layout, from the example, saved in a: its names hide root's there.
+	await stage.locator(".hbox .hole button").click();
+	await stage.locator(".hole-new").click();
+	await page.locator(".st-preview h3", { hasText: "Tasks" }).waitFor();
+	await page.locator(".st-examples").selectOption("layout");
+	await status(/registers Screen, Hole, Hbox/);
+	await page.locator("button", { hasText: "Save & register" }).click();
+	await page.locator(".st-editor-bar").waitFor({ state: "detached" });
+	if ((await studioRecords(page, "scopes")).find((s) => s.name === "a").registrations.length !== 1) throw new Error("layout wasn't registered in a");
+	// The screen made again with a's layout: used, the Hbox kept.
+	await stage.locator(".screen-toggle[aria-pressed=false]").waitFor();
+	await stage.locator(".screen-toggle").click();
+	// The Hbox's ✎ opens the copy, now the one a's screens make (the
+	// hole's ✎ inside it sits over it).
+	await stage.locator(".slot-edit").first().dispatchEvent("click");
+	await page.locator(".st-editor-bar").waitFor();
+	if ((await page.locator("[aria-label='Component name']").inputValue()) !== "layout") throw new Error("the Hbox's ✎ didn't open a's layout");
+	const tcd = await page.evaluate(async () => (await fetch("/components/layout/layout.tcd")).text());
+	await page.locator(".st-editor .cm-content").click();
+	await page.keyboard.press("ControlOrMeta+a");
+	await page.keyboard.insertText(tcd.replace('view main = div(class: "hbox flex', 'view main = div(class: "hbox hbox-mine flex'));
+	await page.locator(".st-editor-bar button", { hasText: "Save" }).click();
+	await stage.locator(".hbox-mine").waitFor();
+	// A screen in root: root's Hbox, as it comes.
+	await page.locator(".st-new-screen").click();
+	await page.locator(".st-scope", { hasText: /^root/ }).click();
+	await page.locator(".st-scope[aria-selected=true]", { hasText: /^root/ }).waitFor();
+	await page.locator("[aria-label=\"New screen's name\"]").fill("theirs");
+	await page.locator("dialog button", { hasText: "Create" }).click();
+	await page.locator(".st-tab [role=tab][aria-selected=true]", { hasText: "theirs" }).waitFor();
+	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: /^Hbox$/ }).click();
+	await stage.locator(".screen-toggle").click();
+	await stage.locator(".hbox").waitFor();
+	if ((await stage.locator(".hbox-mine").count()) !== 0) throw new Error("a screen in root uses a's Hbox");
+	// In root, where layout is already, the same names can't be given again.
+	await stage.locator(".screen-toggle").click();
+	await stage.locator(".hbox .hole button").click();
+	await stage.locator(".hole-new").click();
+	await page.locator(".st-preview h3", { hasText: "Tasks" }).waitFor();
+	await page.locator(".st-examples").selectOption("layout");
+	await status(/registers Screen, Hole, Hbox/);
+	await page.locator("button", { hasText: "Save & register" }).click();
+	await status(/already made in root/);
+	if (errors.length > 0) throw new Error(errors.join("; "));
+	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
+	await page.close();
+});
+
 test("the editor starts a component from an example, a prebuilt module's sources too, and registers it as its own", async () => {
 	const page = await browser.newPage();
 	const errors = [];

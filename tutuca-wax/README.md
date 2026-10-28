@@ -90,7 +90,12 @@ tasks example; "Start from…" replaces its sources with another example's
 prebuilt module can be made a component of the library. Save & register keeps it in IndexedDB with its last build
 (built again only when its sources or tcd change) and registers it in the
 screen's scope, where the hole's list, still open, now has it; saving an
-edited one makes the screen again with it. A `use "x.tcd"` (or a path ending
+edited one makes the screen again with it. A name a registration of the
+same scope gives can't be given again, but one a parent scope gives can:
+the inner one hides it there, and the screen is made again with it. So a
+copy of `layout` saved in a screen's scope gives that scope's screens a
+Screen, Hbox, ... of their own, edited with ✎, while the others keep
+root's. A `use "x.tcd"` (or a path ending
 in it, `"../x/x.tcd"`) reads another component of the library or a
 prebuilt module's `.tcd`. The layout keeps
 itself as it changes, as `js/hydrate.js`'s `capture` writes it: each
