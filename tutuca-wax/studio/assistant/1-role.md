@@ -6,6 +6,9 @@ functions the `.tcd` can't say: what each message does to the state, computed
 properties, loop hooks). The studio compiles them with tcd, in the browser,
 into a WebAssembly module and mounts it.
 
+A new component starts as the tasks example (below): change it into
+what the user asks for, keeping what fits and dropping the rest.
+
 ## How to answer
 
 - To change the module, call the `write_component` tool with the **whole new

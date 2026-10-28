@@ -1,0 +1,105 @@
+// Example: what a new component in the studio starts from. One component
+// that a layout's hole can make with no fields, keeping a list of records
+// (not of components) and editing them in place: messages that take an
+// index into the list and an argument with its own constraint, a loop that
+// filters the rows and enriches each with what it shows, computed
+// properties, an invariant, an ask answered by the package's own
+// ask_handler, an enum, examples, and a layout_edit view for a screen being
+// edited.
+package tutuca:tasks@0.1.0;
+
+/// Things to do, each with a priority, filtered by whether they're done.
+component Tasks {
+    field title: string = "Tasks" where len(title) <= 40;
+    field items: list<record { text: string, done: bool, priority: s32 }> where len(items) <= 50;
+    /// What's being typed for the next item.
+    field draft: string where len(draft) <= 80;
+    /// Which items are shown.
+    field show: enum { all, open, done };
+    /// How many aren't done.
+    get left: s32 where left >= 0;
+    /// "2 of 5 left", or "nothing yet".
+    get summary: string;
+
+    invariant left_counts_items: left <= len(items);
+
+    /// Something to do, picked by the package's ask_handler; taken says how
+    /// many items there are, so the pick changes as the list grows.
+    ask suggest(taken: s32) -> string;
+
+    message set_title(title: string where len(title) <= 40) changes title ensures next.title == title;
+    message set_draft(text: string where len(text) <= 80) changes draft ensures next.draft == text;
+    // when: only with something typed; the draft starts over.
+    message add() when len(draft) > 0 changes items, draft
+        ensures len(next.items) == len(items) + 1 and len(next.draft) == 0;
+    message toggle(at: index<items>) changes items ensures len(next.items) == len(items);
+    /// Priority goes 0, 1, 2 and back to 0.
+    message bump(at: index<items>) changes items ensures len(next.items) == len(items);
+    message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    /// to is a member's name, as the select's options give it.
+    message set_show(to: string) changes show;
+    message clear_done() when left < len(items) changes items ensures len(next.items) == left;
+    message suggest_one() changes nothing emits ask suggest;
+
+    /// The rows shown: the items the filter lets through, each with its
+    /// priority as a badge, and hot when it's urgent and not done.
+    loop shown { filter; enrich { badge: string, hot: bool } }
+
+    view main = section(class: "card card-border bg-base-100 gap-2 p-3",
+        div(class: "flex items-center justify-between gap-2",
+            h3(class: "font-semibold", field(title)),
+            span(class: "text-xs opacity-70 tabular-nums", field(summary))),
+        div(class: "join",
+            input(class: "input input-sm join-item flex-1", placeholder: "Something to do", "aria-label": "New task",
+                value: field(draft),
+                on_input: send(set_draft, target_value()),
+                "on_keydown+enter+prevent": send(add)),
+            button(class: "btn btn-sm join-item", title: "Suggest one", on_click: send(suggest_one), "idea"),
+            button(class: "btn btn-sm btn-primary join-item", on_click: send(add), "add")),
+        ul(class: "flex flex-col gap-1",
+            each(loop: shown, field(items),
+                li(class: if(bind(hot), "flex items-center gap-2 rounded-box bg-error/10 px-1", "flex items-center gap-2 px-1"),
+                    input(type: "checkbox", class: "checkbox checkbox-sm", checked: field(done),
+                        on_change: send(toggle, source_key())),
+                    span(class: if(field(done), "flex-1 line-through opacity-50", "flex-1"), field(text)),
+                    button(class: "btn btn-xs btn-ghost tabular-nums", title: "Change the priority",
+                        on_click: send(bump, source_key()), bind(badge)),
+                    button(class: "btn btn-xs btn-ghost text-error", title: "Remove",
+                        on_click: send(remove_at, source_key()), "×")))),
+        div(class: "flex flex-wrap items-center gap-1 text-xs",
+            select(class: "select select-xs w-24", "aria-label": "Show", value: field(show),
+                on_change: send(set_show, target_value()),
+                option(value: "all", "all"),
+                option(value: "open", "open"),
+                option(value: "done", "done")),
+            button(class: "btn btn-xs btn-ghost ml-auto", on_click: send(clear_done), "clear done")));
+    // While a studio screen is edited: only the title, to name it there.
+    view layout_edit = section(class: "card border border-dashed border-base-300 gap-1 p-2",
+        input(class: "input input-xs", "aria-label": "Title", value: field(title),
+            on_input: send(set_title, target_value())),
+        span(class: "text-xs opacity-70", field(summary)));
+}
+
+register Tasks;
+
+/// suggest: answered here, from the scope the asker is in.
+ask_handler suggest(taken: s32) -> string;
+
+example add_then_finish for Tasks {
+    start { draft: "write the docs" }
+    send add();
+    expect len(items) == 1 and draft == "" and left == 1;
+    send toggle(0);
+    expect left == 0;
+    send clear_done();
+    expect len(items) == 0;
+}
+
+example priority_wraps for Tasks {
+    start { draft: "ship it" }
+    send add();
+    send bump(0);
+    send bump(0);
+    send bump(0);
+    expect len(items) == 1;
+}

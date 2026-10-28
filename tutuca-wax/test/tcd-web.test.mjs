@@ -97,7 +97,7 @@ test("a use resolves relative to the main file, and a missing file is a diagnost
 test("the assistant's examples build without diagnostics, and their examples hold", async () => {
 	const dir = "studio/assistant/examples/";
 	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
-	for (const name of ["note", "checklist", "stat"]) {
+	for (const name of ["note", "checklist", "stat", "tasks"]) {
 		const main = `${name}.tcd`;
 		const res = tcd.build({ main, files: { [main]: await read(dir + main) }, impls: [{ path: `${name}.wax`, text: await read(`${dir}${name}.wax`) }], runtime });
 		assert.deepEqual(res.diags, [], name);

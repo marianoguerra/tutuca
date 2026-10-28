@@ -11,6 +11,12 @@
 // through the asker's context. Picking one swaps the hole for a component of
 // that type, made in the hole's scope, or keeps the hole saying why when that
 // type can't be made.
+//
+// A Screen made with studio set (the studio's, which writes components)
+// provides it to what's below: the hole's list then offers a new component,
+// and each slot a ✎ that edits the component in it, both asks the host
+// answers (create_component, edit_component). Other hosts leave it unset and
+// show neither.
 package tutuca:layout@0.1.0;
 
 /// What a layout is shown in: its content, and a toggle between using it
@@ -19,10 +25,15 @@ component Screen {
     field content: component = make(Vbox);
     /// Whether the layout is being edited: a mode, not part of the layout.
     field editing: bool @sync(none);
+    /// Whether the host makes and edits components (the studio): set when
+    /// it makes the screen, never kept.
+    field studio: bool @sync(none);
     /// The view pushed above the content: layout_edit while editing.
     get pushed: string;
 
     message toggle_editing() changes editing ensures next.editing == not editing;
+
+    provide studio = field(studio);
 
     view main = div(class: "screen relative flex flex-col",
         button(type: "button",
@@ -55,8 +66,12 @@ component Hole {
 
     /// The type names visible from here; with walk, the parent scopes' too.
     ask component_names(walk: bool) -> list<string>;
+    /// A new component, written in the host and registered where the hole
+    /// can make it: its name, or "" when it wasn't.
+    ask create_component() -> string;
 
     message show_choices() changes error emits ask component_names;
+    message create() changes error emits ask create_component;
     message hide_choices() changes choices, listing, error ensures not next.listing;
     message pick(at: index<choices>) -> swap changes error;
 
@@ -66,7 +81,9 @@ component Hole {
             div(class: "flex flex-col items-center gap-1",
                 ul(class: "choices menu menu-sm bg-base-100 rounded-box border border-base-300",
                     each(field(choices),
-                        li(button(on_click: send(pick, source_key()), field(name))))),
+                        li(button(on_click: send(pick, source_key()), field(name)))),
+                    if(provided(studio),
+                        li(button(class: "hole-new text-primary", on_click: send(create), "+ new component")))),
                 if(field(error), p(class: "error max-w-64 text-center text-xs text-error", field(error))),
                 button(class: "btn btn-xs btn-ghost", on_click: send(hide_choices), "cancel")),
             button(class: "btn btn-sm btn-circle btn-ghost", title: "Put a component here", on_click: send(show_choices), "+")));
@@ -77,14 +94,19 @@ component Hole {
 component Hbox {
     field items: list<component>;
 
+    /// The component in a slot, edited in the host.
+    ask edit_component(item: component) -> bool;
+
     message add() changes items ensures len(next.items) == len(items) + 1 emits make Hole;
     message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
     view main = div(class: "hbox flex flex-row items-stretch gap-2", render_each(field(items)));
     view layout_edit = div(class: "hbox flex flex-row items-stretch gap-2 rounded-box border border-dashed border-base-300 p-2",
         each(field(items),
             div(class: "slot relative flex flex-1",
                 render_it(),
+                if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                 button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this slot", on_click: send(remove_at, source_key()), "×"))),
         button(class: "btn btn-xs btn-ghost self-center", title: "Add a slot", on_click: send(add), "+ slot"));
 }
@@ -94,14 +116,19 @@ component Hbox {
 component Vbox {
     field items: list<component>;
 
+    /// The component in a slot, edited in the host.
+    ask edit_component(item: component) -> bool;
+
     message add() changes items ensures len(next.items) == len(items) + 1 emits make Hole;
     message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
     view main = div(class: "vbox flex flex-col items-stretch gap-2", render_each(field(items)));
     view layout_edit = div(class: "vbox flex flex-col items-stretch gap-2 rounded-box border border-dashed border-base-300 p-2",
         each(field(items),
             div(class: "slot relative flex flex-col",
                 render_it(),
+                if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                 button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this slot", on_click: send(remove_at, source_key()), "×"))),
         button(class: "btn btn-xs btn-ghost self-start", title: "Add a slot", on_click: send(add), "+ slot"));
 }
@@ -115,10 +142,14 @@ component Tabs {
     field labels: list<string>;
     field active: s32 where active >= 0;
 
+    /// The component in a tab, edited in the host.
+    ask edit_component(item: component) -> bool;
+
     invariant active_in_range: len(panels) == 0 or active < len(panels);
 
     message add() changes panels, labels, active ensures len(next.panels) == len(panels) + 1 emits make Hole;
     message select(at: index<panels>) changes active ensures next.active == at;
+    message edit_at(at: index<panels>) changes nothing emits ask edit_component;
     message rename(at: index<panels>, label: string) changes labels;
     message remove_at(at: index<panels>) changes panels, labels, active ensures len(next.panels) == len(panels) - 1;
 
@@ -138,6 +169,8 @@ component Tabs {
                 div(role: "tab", class: if(bind(is_active), "tab tab-active gap-1", "tab gap-1"), on_click: send(select, source_key()),
                     input(class: "tab-name input input-ghost input-xs w-24", "aria-label": "Tab name", value: bind(label),
                         on_input: send(rename, source_key(), target_value())),
+                    if(provided(studio),
+                        button(class: "tab-edit btn btn-xs btn-circle btn-ghost", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                     button(class: "tab-remove btn btn-xs btn-circle btn-ghost text-error", title: "Remove this tab", on_click: send(remove_at, source_key()), "×"))),
             button(class: "tab", title: "Add a tab", on_click: send(add), "+")),
         render_each(loop: shown, field(panels)));
@@ -152,8 +185,12 @@ component Grid {
     /// Rows, the last one maybe not full.
     get rows: s32;
 
+    /// The component in a cell, edited in the host.
+    ask edit_component(item: component) -> bool;
+
     message add() changes cells ensures len(next.cells) == len(cells) + 1 emits make Hole;
     message remove_at(at: index<cells>) changes cells ensures len(next.cells) == len(cells) - 1;
+    message edit_at(at: index<cells>) changes nothing emits ask edit_component;
     message more_columns() when columns < 6 changes columns ensures next.columns == columns + 1;
     message fewer_columns() when columns > 1 changes columns ensures next.columns == columns - 1;
     /// A row of holes below the others.
@@ -175,6 +212,7 @@ component Grid {
             each(field(cells),
                 div(class: "slot relative flex",
                     render_it(),
+                    if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                     button(class: "slot-remove btn btn-xs btn-circle btn-ghost absolute -right-1 -top-1 text-error", title: "Remove this cell", on_click: send(remove_at, source_key()), "×")))));
 }
 
@@ -182,6 +220,9 @@ register Screen, Hole, Hbox, Vbox, Tabs, Grid;
 
 /// component_names: the type names the asker's scope can make.
 ask_handler component_names(walk: bool) -> list<string>;
+/// create_component and edit_component: answered by the studio, later.
+host_ask create_component;
+host_ask edit_component;
 
 example add_then_select for Tabs {
     start { }

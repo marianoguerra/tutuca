@@ -76,7 +76,10 @@ export function assistantPanel({ server, UI, component, write, check, keep }) {
 	const stopButton = el("button", { class: UI.button }, "Stop");
 	stopButton.hidden = true;
 	const clearButton = el("button", { class: UI.button, title: "Start the conversation over" }, "Clear");
-	const busy = el("span", { class: UI.status });
+	// What the model is doing while a request is in flight, as the last bubble
+	// of the transcript, right under the message it answers.
+	const busy = el("span");
+	const thinking = el("div", { class: UI.chatThinking, role: "status" }, el("span", { class: UI.chatDots }), busy);
 	const promptBox = el("pre", { class: UI.chatPrompt });
 	const promptDetails = el("details", {}, el("summary", { class: UI.label }, "what the model is told"), promptBox);
 	promptDetails.addEventListener("toggle", async () => {
@@ -93,7 +96,7 @@ export function assistantPanel({ server, UI, component, write, check, keep }) {
 		el("div", { class: UI.row }, el("span", { class: UI.label }, "assistant"), modelSelect),
 		log,
 		input,
-		el("div", { class: UI.row }, sendButton, stopButton, clearButton, busy),
+		el("div", { class: UI.row }, sendButton, stopButton, clearButton),
 		promptDetails,
 	);
 
@@ -125,6 +128,7 @@ export function assistantPanel({ server, UI, component, write, check, keep }) {
 				else bubble("chatOk", `✓ ${text}`);
 			}
 		}
+		if (busy.textContent) log.append(thinking);
 		log.scrollTop = log.scrollHeight;
 	};
 
@@ -132,6 +136,9 @@ export function assistantPanel({ server, UI, component, write, check, keep }) {
 
 	const setBusy = (text) => {
 		busy.textContent = text;
+		if (text) log.append(thinking);
+		else thinking.remove();
+		log.scrollTop = log.scrollHeight;
 		sendButton.disabled = text !== "";
 		stopButton.hidden = text === "";
 	};

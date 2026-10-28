@@ -1,0 +1,188 @@
+// tasks.tcd has the rest. An item is a record, a map value with its fields
+// as entries (gs_text, gs_done, gs_priority): made with map_assoc, read with
+// value_member, and replaced in the list with list_assoc.
+
+import "'" {
+    #[import = " of "]
+    const s_of: js_string;
+    #[import = " left"]
+    const s_left: js_string;
+    #[import = "nothing yet"]
+    const s_nothing_yet: js_string;
+    #[import = "·"]
+    const s_low: js_string;
+    #[import = "!"]
+    const s_mid: js_string;
+    #[import = "!!"]
+    const s_high: js_string;
+    #[import = "water the plants"]
+    const s_idea_0: js_string;
+    #[import = "answer the email"]
+    const s_idea_1: js_string;
+    #[import = "take a walk"]
+    const s_idea_2: js_string;
+    #[import = "read a chapter"]
+    const s_idea_3: js_string;
+}
+
+// The show field's value: one of the tasks_show_* consts.
+type tasks_show = i32;
+// An item of items: a record { text, done, priority }.
+type tasks_item = &value;
+// A priority: 0 low, 1 mid, 2 high.
+type tasks_priority = i32;
+
+fn tasks_item_new(text: js_string, done: i32, priority: tasks_priority) -> tasks_item {
+    map_assoc(map_assoc(map_assoc(map_empty(), gs_text, value_string(text)), gs_done, value_bool(done)), gs_priority, value_int(priority));
+}
+
+fn tasks_item_at(state: &tasks_state, at: i32) -> tasks_item {
+    list_get(state.items, at)!;
+}
+
+fn tasks_item_text(item: tasks_item) -> js_string {
+    value_string_of(value_member(item, gs_text))!;
+}
+
+fn tasks_item_done(item: tasks_item) -> i32 {
+    value_truthy(value_member(item, gs_done));
+}
+
+fn tasks_item_priority(item: tasks_item) -> tasks_priority {
+    (value_member(item, gs_priority) as &value_int).value;
+}
+
+fn tasks_on_set_title(state: &tasks_state, ctx: &context, title: js_string) -> &tasks_state {
+    tasks_with_title(state, title);
+}
+
+fn tasks_on_set_draft(state: &tasks_state, ctx: &context, text: js_string) -> &tasks_state {
+    tasks_with_draft(state, text);
+}
+
+// A new open item, low priority, with the draft's text.
+fn tasks_on_add(state: &tasks_state, ctx: &context) -> &tasks_state {
+    let item = tasks_item_new(state.draft, 0, 0);
+    {tasks_state| title: state.title, items: list_push(state.items, item), draft: gs_empty, show: state.show };
+}
+
+fn tasks_on_toggle(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
+    let item = tasks_item_at(state, at);
+    let next = tasks_item_new(tasks_item_text(item), !tasks_item_done(item), tasks_item_priority(item));
+    tasks_with_items(state, list_assoc(state.items, at, next));
+}
+
+fn tasks_on_bump(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
+    let item = tasks_item_at(state, at);
+    let priority: tasks_priority = (tasks_item_priority(item) + 1) %s 3;
+    let next = tasks_item_new(tasks_item_text(item), tasks_item_done(item), priority);
+    tasks_with_items(state, list_assoc(state.items, at, next));
+}
+
+fn tasks_on_remove_at(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
+    let items = list_empty();
+    let i = 0;
+    while i <s list_count(state.items) {
+        if i != at {
+            items = list_push(items, tasks_item_at(state, i));
+        }
+        i += 1;
+    }
+    tasks_with_items(state, items);
+}
+
+// A name that isn't a member's leaves show as it is.
+fn tasks_on_set_show(state: &tasks_state, ctx: &context, to: js_string) -> &tasks_state {
+    let show: tasks_show = state.show;
+    if str_eq(to, gs_all) {
+        show = tasks_show_all;
+    }
+    if str_eq(to, gs_open) {
+        show = tasks_show_open;
+    }
+    if str_eq(to, gs_done) {
+        show = tasks_show_done;
+    }
+    tasks_with_show(state, show);
+}
+
+fn tasks_on_clear_done(state: &tasks_state, ctx: &context) -> &tasks_state {
+    let items = list_empty();
+    let i = 0;
+    while i <s list_count(state.items) {
+        let item = tasks_item_at(state, i);
+        if !tasks_item_done(item) {
+            items = list_push(items, item);
+        }
+        i += 1;
+    }
+    tasks_with_items(state, items);
+}
+
+// The answer comes back to tasks_reply_suggest_ok.
+fn tasks_on_suggest_one(state: &tasks_state, ctx: &context) -> &tasks_state {
+    tasks_ask_suggest(ctx, list_count(state.items));
+    state;
+}
+
+fn tasks_reply_suggest_ok(state: &tasks_state, ctx: &context, reply: js_string) -> &tasks_state {
+    tasks_with_draft(state, reply);
+}
+
+fn tasks_get_left(state: &tasks_state) -> i32 {
+    let left = 0;
+    let i = 0;
+    while i <s list_count(state.items) {
+        if !tasks_item_done(tasks_item_at(state, i)) {
+            left += 1;
+        }
+        i += 1;
+    }
+    left;
+}
+
+fn tasks_get_summary(state: &tasks_state) -> js_string {
+    let n = list_count(state.items);
+    if n == 0 {
+        return s_nothing_yet;
+    }
+    js_string_concat(js_string_concat(js_string_concat(int_text(tasks_get_left(state)), s_of), int_text(n)), s_left);
+}
+
+fn tasks_loop_shown_filter(state: &tasks_state, key: &value, item: &value) -> i32 {
+    if state.show == tasks_show_open {
+        return !tasks_item_done(item);
+    }
+    if state.show == tasks_show_done {
+        return tasks_item_done(item);
+    }
+    1;
+}
+
+fn tasks_loop_shown_enrich(state: &tasks_state, key: &value, item: &value) -> &tasks_loop_shown_binds {
+    let priority = tasks_item_priority(item);
+    let badge = s_low;
+    if priority == 1 {
+        badge = s_mid;
+    }
+    if priority == 2 {
+        badge = s_high;
+    }
+    {tasks_loop_shown_binds| badge, hot: (priority == 2) & !tasks_item_done(item) };
+}
+
+// One of a few ideas, by how many items there are.
+fn tasks_answer_suggest(ctx: &context, taken: i32) -> &value {
+    let pick = taken %s 4;
+    let idea = s_idea_0;
+    if pick == 1 {
+        idea = s_idea_1;
+    }
+    if pick == 2 {
+        idea = s_idea_2;
+    }
+    if pick == 3 {
+        idea = s_idea_3;
+    }
+    value_ok(value_string(idea));
+}

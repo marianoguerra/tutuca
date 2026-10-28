@@ -67,20 +67,29 @@ issues the dev checks report. Add missing functions appends `tcd stub
 walks (`js/pbt.js`). Edits are kept per example in localStorage. It needs the
 js-string builtins (Chrome 131, Firefox 134 and later).
 
-`just studio` serves `studio/`, which keeps what you write. Components are
-written as in the playground (from its examples as starters) and kept in
-IndexedDB with their last build, built again only when their sources or tcd
-change. A `use "x.tcd"` reads another component of the library or a prebuilt
-module's `.tcd`. Scopes are a tree, from a root that registers the layouts:
-each registers library components or prebuilt modules under names picked
-there (`loadComponent`'s `names`), or leaves types out, and lists what its
-holes will offer. A screen is a scope and a layout: opening it makes the
-scope chain from scratch, loads each scope's registrations and mounts the
-layout, a `Screen` whose toggle switches between using it and editing it.
-Save layout keeps the tree as `js/hydrate.js`'s `capture` writes it: each
+`just studio` serves `studio/`, which keeps what you write. It's a set of
+screens, one tab each, and the tab bar's + makes another: pick the scope it's
+made in from the tree of scopes, or add one there. Scopes are a tree, from a
+root that registers the layouts, each registering library components or
+prebuilt modules. Opening a screen makes its scope chain from scratch, loads
+each scope's registrations and mounts the layout, a `Screen` whose toggle
+switches between using it and editing it. The studio makes it with `studio`
+set, which the `Screen` provides to what's below: a hole's list then offers
+a new component, and each slot a ✎, asks the studio answers
+(`create_component`, `edit_component`) and other hosts leave out. Either
+turns the page into the editor: the `.tcd` and `.wax`, a preview of what
+they build (in a runtime instance of its own, in the screen's scope chain),
+the diagnostics, what it registers, the preview's state and events, and the
+assistant when there is one. A new component starts from the assistant's
+tasks example. Save & register keeps it in IndexedDB with its last build
+(built again only when its sources or tcd change) and registers it in the
+screen's scope, where the hole's list, still open, now has it; saving an
+edited one makes the screen again with it. A `use "x.tcd"` reads another
+component of the library or a prebuilt module's `.tcd`. The layout keeps
+itself as it changes, as `js/hydrate.js`'s `capture` writes it: each
 component by the name it's made by in that scope and its fields, those that
-sync at no level left out. Export and Import move the library as a JSON
-bundle, without the builds.
+sync at no level left out. The ⋯ menu shows the layout as JSON, and Export
+and Import move the library as a JSON bundle, without the builds.
 
 `just studio-server` serves the same studio with an LLM assistant
 (`scripts/studio-server.mjs`, over [pi-ai](https://www.npmjs.com/package/@earendil-works/pi-ai)):
@@ -89,7 +98,7 @@ finds `/api/check`, which lists the models of every provider with a key
 that `scripts/studio-models.mjs`'s rules pick (GPT 6 and 5.6, Claude 5 and
 5.5, and the latest small, middle and large DeepSeek, Muse, GLM, Kimi K3,
 Qwen, MiMo and Grok, from whichever provider carries them), and
-shows an Assistant button in the editor (served as files only, as on GitHub
+shows an Assistant toggle in the editor (served as files only, as on GitHub
 Pages, there's no API and no button). A message is sent with the
 transcript, kept in pi's format with the component, and the component as it
 is now; the server adds the system prompt and asks the model chosen. The

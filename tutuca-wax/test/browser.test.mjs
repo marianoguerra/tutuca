@@ -91,6 +91,8 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	// A hole lists what its scope chain can make and becomes the one picked.
 	const layout = page.locator(".demo", { hasText: "Layouts: holes" });
 	await layout.locator(".stage .hole button").click();
+	// Not a studio: no new component in the list, no ✎ on the slots.
+	if ((await layout.locator(".stage .hole-new, .stage .slot-edit").count()) !== 0) throw new Error("the demo's layout offers the studio's new component or edit");
 	await layout.locator(".stage .choices button", { hasText: "Counter" }).click();
 	const slots = JSON.parse(await layout.locator("pre").textContent()).slots.map((s) => s.type).join(",");
 	if (slots !== "Counter") throw new Error(`unexpected layout slots: ${slots}`);
@@ -154,72 +156,129 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	await page.close();
 });
 
-test("the studio keeps components, registers them in scopes under other names, and keeps screens composed in them", async () => {
+// The studio's library as kept in IndexedDB, by kind.
+const studioRecords = (page, kind) =>
+	page.evaluate(
+		(kind) =>
+			new Promise((resolve) => {
+				const open = indexedDB.open("tutuca-wax-studio");
+				open.onsuccess = () => {
+					const all = open.result.transaction(kind).objectStore(kind).getAll();
+					all.onsuccess = () => resolve(all.result);
+				};
+			}),
+		kind,
+	);
+
+// A new screen from the tab bar's +: a scope added in the picker's tree
+// under the root, and the screen made in it.
+async function newStudioScreen(page, { scope, name }) {
+	await page.locator(".st-new-screen").click();
+	await page.locator("[aria-label='Add a scope in root']").click();
+	await page.locator("[aria-label=\"New scope's name\"]").fill(scope);
+	await page.locator("[aria-label=\"New scope's name\"]").press("Enter");
+	await page.locator(".st-scope[aria-selected=true]", { hasText: scope }).waitFor();
+	await page.locator("[aria-label=\"New screen's name\"]").fill(name);
+	await page.locator("dialog button", { hasText: "Create" }).click();
+	await page.locator(".st-tab [role=tab][aria-selected=true]", { hasText: name }).waitFor();
+}
+
+// From a screen being edited, the editor on a new component (the hole's
+// + new component), built and previewed.
+async function newStudioComponent(page) {
+	const stage = page.locator(".st-stage");
+	await stage.locator(".hole button").click();
+	await stage.locator(".hole-new").click();
+	await page.locator(".st-editor-bar").waitFor();
+	await page.locator(".st-preview h3", { hasText: "Tasks" }).waitFor();
+}
+
+test("the studio makes screens in scopes, writes components from a hole, registers them there, edits them in place, and keeps it all", async () => {
 	const page = await browser.newPage();
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
-	const status = (re) => page.waitForFunction((source) => new RegExp(source).test(document.querySelector(".st-status")?.textContent ?? ""), re.source);
-	const tabTo = (label) => page.locator(".st-tab", { hasText: label }).click();
 	const stage = page.locator(".st-stage");
+	const tabTo = (name) => page.locator(".st-tab [role=tab]", { hasText: name }).click();
 	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
-	// A component from the clicker starter, built.
-	await page.locator("button", { hasText: "New component" }).click();
-	await status(/clicker built/);
+	// No screens yet; a first one, in a new scope a under the root.
+	await page.locator("button", { hasText: "+ New screen" }).waitFor();
+	await newStudioScreen(page, { scope: "a", name: "home" });
+	// Edited: the hole offers a new component; used, nothing of the studio's.
+	await stage.locator(".screen-toggle").click();
+	await newStudioComponent(page);
 	// Served as files only: no API, so no assistant.
 	if (await page.locator("button", { hasText: "Assistant" }).isVisible()) throw new Error("an assistant without a server");
-	// Scope a, under the root (which has the layouts), registering it as Thing.
-	await tabTo("Scopes");
-	await page.locator("[aria-label='Child scope name']").fill("a");
-	await page.locator("button", { hasText: "Add child" }).click();
-	await page.locator("[aria-label='Component to register']").selectOption({ label: "clicker" });
-	await page.locator("button", { hasText: "Register" }).click();
-	await page.locator("[aria-label=\"Clicker's name here\"]").fill("Thing");
-	await page.locator("[aria-label=\"Clicker's name here\"]").press("Tab");
-	await page.locator(".st-resolves td", { hasText: /^Thing$/ }).waitFor();
-	// A screen in a: edited, its hole becomes a Thing, a slot below it Tabs.
-	await tabTo("Screens");
-	await page.locator("[aria-label='Screen name']").first().fill("home");
-	await page.locator("button", { hasText: "New screen" }).click();
-	await page.locator("[aria-label=Scope]").selectOption({ label: "root / a" });
-	await status(/home open in root \/ a/);
+	// The preview works, and the inspectors show its state.
+	await page.locator(".st-preview [aria-label='New task']").fill("try it");
+	await page.locator(".st-preview button", { hasText: "add" }).click();
+	await page.locator(".st-inspector-tab", { hasText: "State" }).click();
+	await page.locator(".st-state", { hasText: "try it" }).waitFor();
+	// Saved and registered in a: back on the screen, the hole's list has it.
+	await page.locator("button", { hasText: "Save & register" }).click();
+	await stage.locator(".choices button", { hasText: /^Tasks$/ }).click();
+	// Being edited, it shows its layout_edit view; used, its main.
+	await stage.locator("[aria-label=Title]").waitFor();
 	await stage.locator(".screen-toggle").click();
-	await stage.locator(".hole button").click();
-	await stage.locator(".choices button", { hasText: "Thing" }).click();
-	await stage.locator("button", { hasText: "click" }).click();
-	await stage.locator("button", { hasText: "+ slot" }).click();
-	await stage.locator(".hole button").click();
-	await stage.locator(".choices button", { hasText: "Tabs" }).click();
-	await stage.locator("[title='Add a tab']").click();
-	await page.locator("button", { hasText: "Save layout" }).click();
-	await status(/home's layout saved/);
-	const kept = async () => JSON.parse(await page.locator("[aria-label='Layout (JSON)']").inputValue());
-	const layout = await kept();
-	const items = layout.fields.content.fields.items;
-	if (layout.$make !== "Screen" || "editing" in layout.fields || items.map((i) => i.$make).join() !== "Thing,Tabs" || items[0].fields.count !== 1) {
+	await stage.locator("[aria-label='New task']").fill("first");
+	await stage.locator("[aria-label='New task']").press("Enter");
+	await stage.locator("li", { hasText: "first" }).waitFor();
+	const [scopeA] = (await studioRecords(page, "scopes")).filter((s) => s.name === "a");
+	const [tasks] = await studioRecords(page, "components");
+	if (tasks?.name !== "tasks" || scopeA.registrations.map((r) => r.component).join() !== tasks.id) throw new Error("tasks wasn't kept and registered in a");
+	// The layout saves itself as it changes.
+	const layoutOf = async () => (await studioRecords(page, "screens")).find((s) => s.name === "home").layout;
+	for (let i = 0; i < 50 && (await layoutOf()).fields.content.fields.items[0].$make !== "Tasks"; i++) await page.waitForTimeout(100);
+	const layout = await layoutOf();
+	const item = layout.fields.content.fields.items[0];
+	if (item.$make !== "Tasks" || item.fields.items[0].text !== "first" || "studio" in layout.fields || "editing" in layout.fields) {
 		throw new Error(`unexpected layout: ${JSON.stringify(layout)}`);
 	}
-	// Reloaded: from IndexedDB, used, not edited.
+	// ✎ on its slot: edited, saved, and the screen made again with it.
+	await stage.locator(".screen-toggle").click();
+	await stage.locator(".slot-edit").first().click();
+	await page.locator(".st-editor-bar").waitFor();
+	const tcd = await page.evaluate(async () => (await fetch("/studio/assistant/examples/tasks.tcd")).text());
+	await page.locator(".st-editor .cm-content").click();
+	await page.keyboard.press("ControlOrMeta+a");
+	await page.keyboard.insertText(tcd.replace('placeholder: "Something to do"', 'placeholder: "What next?"'));
+	await page.locator(".st-editor-bar button", { hasText: "Save" }).click();
+	// Made again, it's used, not edited.
+	await stage.locator("[placeholder='What next?']").waitFor();
+	await stage.locator("li", { hasText: "first" }).waitFor();
+	await stage.locator(".screen-toggle").click();
+	// A layout's own component doesn't open: only the ones made here.
+	await stage.locator("button", { hasText: "+ slot" }).click();
+	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: /^Tabs$/ }).click();
+	await stage.locator(".slot-edit").nth(1).click();
+	await page.waitForFunction(() => /comes with the studio/.test(document.querySelector(".st-status")?.textContent ?? ""));
+	// Reloaded: from IndexedDB, the tab open again, used, not edited.
 	const reopen = async () => {
-		await tabTo("Screens");
-		await page.locator(".st-item", { hasText: "home" }).click();
-		await status(/home open/);
-		await stage.locator("button", { hasText: "click" }).waitFor();
-		if ((await stage.locator(".hole, .slot-remove").count()) !== 0) throw new Error("a reopened screen shows its editing chrome");
-		if ((await stage.locator("[role=tab]").count()) !== 1) throw new Error("the tabs weren't kept");
+		await stage.locator("li", { hasText: "first" }).waitFor();
+		if ((await stage.locator(".hole, .slot-edit, .hole-new").count()) !== 0) throw new Error("a reopened screen shows its editing chrome");
+		if ((await stage.locator("[role=tab]").count()) !== 0) throw new Error("the empty tabs show tabs");
 	};
+	await page.waitForTimeout(500);
 	await page.reload();
 	await reopen();
+	// A second screen, then back to the first.
+	await newStudioScreen(page, { scope: "b", name: "other" });
+	if ((await stage.locator("li", { hasText: "first" }).count()) !== 0) throw new Error("the second screen shows the first's");
+	await tabTo("home");
+	await reopen();
 	// Exported, the library dropped, imported again.
-	const [download] = await Promise.all([page.waitForEvent("download"), page.locator("button", { hasText: "Export" }).click()]);
+	await page.locator(".st-menu summary").click();
+	const [download] = await Promise.all([page.waitForEvent("download"), page.locator(".st-menu button", { hasText: "Export" }).click()]);
 	const bundle = await download.path();
 	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
 	await page.reload();
-	await tabTo("Screens");
-	if ((await page.locator(".st-item", { hasText: "home" }).count()) !== 0) throw new Error("the library wasn't dropped");
+	await page.locator("button", { hasText: "+ New screen" }).waitFor();
 	await page.locator("[aria-label='Import a bundle']").setInputFiles(bundle);
-	await status(/imported/);
+	await page.waitForFunction(() => /imported/.test(document.querySelector(".st-status")?.textContent ?? ""));
+	await tabTo("home");
 	await reopen();
 	if (errors.length > 0) throw new Error(errors.join("; "));
+	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
 	await page.close();
 });
 
@@ -267,34 +326,32 @@ fn clicker_on_double(state: &clicker_state, ctx: &context) -> &clicker_state {
 	try {
 		await page.goto(`http://127.0.0.1:${studio.address().port}/studio/`);
 		await page.locator(".st-assistant", { hasText: "assistant: 1 model" }).waitFor();
-		await page.locator("button", { hasText: "New component" }).click();
-		await status(/clicker built/);
+		await newStudioScreen(page, { scope: "a", name: "home" });
+		await page.locator(".st-stage .screen-toggle").click();
+		await newStudioComponent(page);
 		await page.locator("button", { hasText: "Assistant" }).click();
 		if ((await page.locator(".st-model").inputValue()) !== "faux/faux-coder") throw new Error("the model offered isn't the faux one");
 		await page.locator(".st-chat-input").fill("Add a button that doubles the count");
 		await page.locator(".st-chat button", { hasText: "Send" }).click();
-		await page.locator(".st-chat-ok", { hasText: "It built: clicker registers Clicker" }).waitFor();
+		await page.locator(".st-chat-ok", { hasText: "It built: tasks registers Clicker" }).waitFor();
+		// Done: no bubble saying it's still thinking.
+		await page.locator(".st-chat-thinking").waitFor({ state: "detached" });
 		// What the model was told: the reference, the examples, the module as
 		// it was, the tool; then why its first try didn't build.
 		const [first, second] = told;
-		for (const part of ["# The .tcd language", "## Example: checklist", "fn list_push(", "# The module you're editing: clicker", "message click()"]) {
+		for (const part of ["# The .tcd language", "## Example: checklist", "## Example: tasks", "fn list_push(", "# The module you're editing: tasks", "message bump(at: index<items>)"]) {
 			if (!first.prompt.includes(part)) throw new Error(`the system prompt lacks ${part}`);
 		}
 		if (first.tools.join() !== "write_component") throw new Error(`tools: ${first.tools}`);
 		if (!/clicker_on_double/.test(second.result ?? "")) throw new Error(`the failed build's result: ${second.result}`);
-		// The transcript shows both tries, and the module has the button and works.
+		// The transcript shows both tries, and the preview has the button.
 		if ((await page.locator(".st-chat-error", { hasText: "it didn't build" }).count()) !== 1) throw new Error("the failed try isn't shown");
-		await status(/clicker built/);
-		const kept = await page.evaluate(
-			() =>
-				new Promise((resolve) => {
-					const open = indexedDB.open("tutuca-wax-studio");
-					open.onsuccess = () => {
-						const all = open.result.transaction("components").objectStore("components").getAll();
-						all.onsuccess = () => resolve(all.result[0]);
-					};
-				}),
-		);
+		await page.locator(".st-preview button", { hasText: "×2" }).waitFor();
+		// Kept, chat and all, once it's saved.
+		if ((await studioRecords(page, "components")).length !== 0) throw new Error("a new component was kept before it was saved");
+		await page.locator("button", { hasText: "Save & register" }).click();
+		await status(/tasks registered in a/);
+		const [kept] = await studioRecords(page, "components");
 		if (!kept.tcd.includes("message double()") || !kept.wax.includes("fn clicker_on_double") || !kept.build.ok) throw new Error("the component wasn't kept as the model left it");
 		if (kept.chat.map((m) => m.role).join() !== "user,assistant,toolResult,assistant,toolResult") throw new Error(`the transcript: ${kept.chat.map((m) => m.role)}`);
 		if (errors.length > 0) throw new Error(errors.join("; "));

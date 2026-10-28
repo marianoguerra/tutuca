@@ -1,7 +1,8 @@
 // The layout module's implementation (layout.tcd has the rest): the view a
 // screen pushes, what the boxes, tabs and grid do to their lists of
-// components, the hole turning into the type picked, and the component_names
-// answer.
+// components, the hole turning into the type picked, the component_names
+// answer, and the asks a studio answers: a new component for a hole, the
+// component in a slot to edit.
 
 import "'" {
     #[import = "Tab "]
@@ -63,6 +64,30 @@ fn hole_on_pick(state: &hole_state, ctx: &context, at: i32) -> &hole_swap_result
     hole_keep(hole_with_error(state, value_string_of(value_member(made.value, s_error))!));
 }
 
+// The host writes a new component and registers it; the list, still up, is
+// asked for again, so it has it.
+fn hole_on_create(state: &hole_state, ctx: &context) -> &hole_state {
+    hole_ask_create_component(ctx);
+    hole_with_error(state, gs_empty);
+}
+
+fn hole_reply_create_component_ok(
+    state: &hole_state,
+    ctx: &context,
+    reply: js_string,
+) -> &hole_state {
+    hole_ask_component_names(ctx, 1);
+    state;
+}
+
+fn hole_reply_create_component_err(
+    state: &hole_state,
+    ctx: &context,
+    error: &value,
+) -> &hole_state {
+    hole_with_error(state, value_string_of(error)!);
+}
+
 // The names, as { name } records, without Hole and Screen: a hole doesn't
 // become a hole, and a screen is what a layout is shown in, not part of it.
 fn hole_reply_component_names_ok(state: &hole_state, ctx: &context, reply: &value) -> &hole_state {
@@ -88,6 +113,26 @@ fn hbox_on_add(state: &hbox_state, ctx: &context) -> &hbox_state {
 
 fn hbox_on_remove_at(state: &hbox_state, ctx: &context, at: i32) -> &hbox_state {
     hbox_with_items(state, layout_remove_at(state.items, at));
+}
+
+// The host edits the component in the slot, and makes the screen again
+// with it: nothing to do with the answer here.
+fn hbox_on_edit_at(state: &hbox_state, ctx: &context, at: i32) -> &hbox_state {
+    hbox_ask_edit_component(ctx, list_get(state.items, at)!);
+    state;
+}
+
+fn hbox_reply_edit_component_ok(state: &hbox_state, ctx: &context, reply: i32) -> &hbox_state {
+    state;
+}
+
+fn vbox_on_edit_at(state: &vbox_state, ctx: &context, at: i32) -> &vbox_state {
+    vbox_ask_edit_component(ctx, list_get(state.items, at)!);
+    state;
+}
+
+fn vbox_reply_edit_component_ok(state: &vbox_state, ctx: &context, reply: i32) -> &vbox_state {
+    state;
 }
 
 fn vbox_on_remove_at(state: &vbox_state, ctx: &context, at: i32) -> &vbox_state {
@@ -138,6 +183,15 @@ fn tabs_on_remove_at(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state 
     {tabs_state| panels, labels, active };
 }
 
+fn tabs_on_edit_at(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state {
+    tabs_ask_edit_component(ctx, list_get(state.panels, at)!);
+    state;
+}
+
+fn tabs_reply_edit_component_ok(state: &tabs_state, ctx: &context, reply: i32) -> &tabs_state {
+    state;
+}
+
 fn tabs_on_select(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state {
     tabs_with_active(state, at);
 }
@@ -172,6 +226,15 @@ fn grid_on_add(state: &grid_state, ctx: &context) -> &grid_state {
 
 fn grid_on_remove_at(state: &grid_state, ctx: &context, at: i32) -> &grid_state {
     grid_with_cells(state, layout_remove_at(state.cells, at));
+}
+
+fn grid_on_edit_at(state: &grid_state, ctx: &context, at: i32) -> &grid_state {
+    grid_ask_edit_component(ctx, list_get(state.cells, at)!);
+    state;
+}
+
+fn grid_reply_edit_component_ok(state: &grid_state, ctx: &context, reply: i32) -> &grid_state {
+    state;
 }
 
 fn grid_on_add_row(state: &grid_state, ctx: &context) -> &grid_state {
