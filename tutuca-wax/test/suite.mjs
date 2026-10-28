@@ -587,6 +587,25 @@ test("components: scopes resolve names here first, then in their parents", ({ vd
 	assert.equal(runtime.typeName(runtime.make(inner, "Counter", { count: 1 })), "Counter");
 });
 
+test("components: a scope left is dropped from its parent; what was made in it goes on working", async ({ vdom, window, document, container, modules }) => {
+	const { runtime } = vdom;
+	const root = runtime.scope();
+	const page = runtime.enter(root, "page");
+	await vdom.loadComponent(modules.counter, page);
+	// A Board, which makes Counters through its scope, made before leaving it.
+	const board = runtime.make(page, "Board", { counters: [], total: 0 });
+	runtime.leave(root, "page");
+	const again = runtime.enter(root, "page");
+	assert.notEqual(again, page, "entering the name again makes a new scope");
+	assert.throws(() => runtime.make(again, "Counter", { count: 0 }), /No component type is registered as Counter/);
+	const host = runtime.createHost(document, container, board, { dev: true });
+	host.mount();
+	click(window, buttons(container, "add")[0]);
+	assert.deepEqual(counts(container), ["0"]);
+	assert.deepEqual(host.failures, []);
+	host.unmount();
+});
+
 test("components: a click runs the handler of the element it hits, in its component", (env) => {
 	const { vdom, window, container } = env;
 	const { host } = mountRoot(env, "Board", { counters: [], total: 0 });

@@ -27,6 +27,15 @@ fn scope_enter(s: &scope, name: js_string) -> &scope {
     made;
 }
 
+// The child scope named so dropped from the tree. Nothing reads a scope
+// through its parent but scope_enter and the hosts' event names: what was
+// made in it holds it and looks up through its parents, so it goes on
+// working; entering the name again makes a new one; and its types' events
+// are no longer collected for listeners added later.
+fn scope_leave(s: &scope, name: js_string) {
+    s.children = smap_dissoc(s.children, name);
+}
+
 // A type registered under an interface's name visible here must implement
 // it, and so must a type that declares interfaces visible here; registering
 // one that doesn't fails. Interfaces registered later are checked when a

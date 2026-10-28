@@ -226,6 +226,11 @@ fn api_scope_enter(s: &scope, name: js_string) -> &scope {
     scope_enter(s, name);
 }
 
+#[export = "scope_leave"]
+fn api_scope_leave(s: &scope, name: js_string) {
+    scope_leave(s, name);
+}
+
 // Makes a component by name: an ok result holding it, or an err result
 // holding why. fields is a map value.
 #[export = "scope_make"]

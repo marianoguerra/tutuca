@@ -120,3 +120,7 @@ fn smap_get(map: &phm_map, key: js_string) -> &?eq {
 fn smap_assoc(map: &phm_map, key: js_string, item: &eq) -> &phm_map {
     phm_assoc(map, value_string(key), item);
 }
+
+fn smap_dissoc(map: &phm_map, key: js_string) -> &phm_map {
+    phm_dissoc(map, value_string(key));
+}

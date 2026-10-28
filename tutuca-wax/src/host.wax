@@ -701,7 +701,9 @@ fn drag_value(d: &?drag, receiver: &dispatch_path) -> &value {
 // The event names the component types the root's scope tree registers handle
 // that this host hasn't given before: the ones to start listening to. The
 // tree is the whole one, from its root scope, since a component can make
-// types registered anywhere above it and the root can be swapped.
+// types registered anywhere above it and the root can be swapped; and the
+// root's own scope's, with the ones it goes up through, which a scope left
+// (scope_leave) is no longer in.
 type event_names_acc = { listening: mut &phm_map, out: mut &value };
 
 fn host_new_event_names(h: &host) -> &value {
@@ -709,11 +711,13 @@ fn host_new_event_names(h: &host) -> &value {
     if !c {
         return list_empty();
     }
+    let acc = {event_names_acc| listening: h.listening, out: list_empty() };
     let s = (c!).scope;
+    scope_collect_event_names(acc, s);
     while !!s.parent {
         s = s.parent!;
+        phm_each(s.entries, acc, event_names_entry_visit);
     }
-    let acc = {event_names_acc| listening: h.listening, out: list_empty() };
     scope_collect_event_names(acc, s);
     h.listening = acc.listening;
     acc.out;

@@ -866,6 +866,9 @@ function makeRuntime(w, api, late) {
 	return {
 		scope: () => w.scope_root(),
 		enter: (scope, name) => w.scope_enter(scope, name),
+		// Drops the child named so: what was made in it goes on working, and
+		// entering the name again makes a new one.
+		leave: (scope, name) => w.scope_leave(scope, name),
 		registerHostAsk: (scope, name) => w.scope_register_host_ask(scope, name),
 		make,
 		// init's issues making a component: [{ field, problem }].
