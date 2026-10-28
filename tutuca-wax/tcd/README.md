@@ -177,7 +177,10 @@ says (a view's "Notes" is `gt_notes`, a "+" `gt_text`), and "" is `gs_empty`.
 view data, schema with compiled predicates, spec, `init` with defaults and
 issues, `get`, `set` validated against the schema, `handle` routing each
 message to its `c_on_m`, loop and scope trampolines, registration) and
-`<package>.abi.wax` (the runtime functions it imports). The runtime rejects
+`<package>.abi.wax` (the runtime functions it imports). The module carries
+a `tutuca` custom section (`api/meta.mbt`) with its sources, what it
+registers and what it needs from a scope, for a page given only the
+`.wasm`. The runtime rejects
 arguments that don't fit a message's schema before `handle` runs; in dev
 mode it checks `when`, `ensures`, `changes`, `emits`, fields and invariants.
 

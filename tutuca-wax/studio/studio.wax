@@ -471,6 +471,11 @@ fn studio_on_export_all(state: &studio_state, ctx: &context) -> &studio_state {
     state;
 }
 
+fn studio_on_export_components(state: &studio_state, ctx: &context) -> &studio_state {
+    studio_ask_export_components(ctx);
+    state;
+}
+
 fn studio_on_import_all(state: &studio_state, ctx: &context) -> &studio_state {
     studio_ask_import_library(ctx);
     state;

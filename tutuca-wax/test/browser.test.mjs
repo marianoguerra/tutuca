@@ -2,6 +2,7 @@
 // in Chromium with Playwright, loads the module there with fetch, and runs
 // every case against the page's own DOM. One node:test test per case. Then a
 // smoke test of the demos page.
+import { readFileSync } from "node:fs";
 import test, { after, before } from "node:test";
 import { createModels, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
 import { chromium } from "playwright";
@@ -279,12 +280,12 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	await reopen();
 	// Exported, the library dropped, imported again.
 	await page.locator(".st-menu [role=button]").click();
-	const [download] = await Promise.all([page.waitForEvent("download"), page.locator(".st-menu button", { hasText: "Export" }).click()]);
+	const [download] = await Promise.all([page.waitForEvent("download"), page.locator(".st-menu button", { hasText: /^Export$/ }).click()]);
 	const bundle = await download.path();
 	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
 	await page.reload();
 	await page.locator("button", { hasText: "+ New screen" }).waitFor();
-	await page.locator("[aria-label='Import a bundle']").setInputFiles(bundle);
+	await page.locator("[aria-label='Import a bundle or components']").setInputFiles(bundle);
 	await page.waitForFunction(() => /imported/.test(document.querySelector(".st-status")?.textContent ?? ""));
 	await tabTo("home");
 	await reopen();
@@ -415,6 +416,68 @@ test("the editor starts a component from an example, a prebuilt module's sources
 	const [scopeA] = (await studioRecords(page, "scopes")).filter((s) => s.name === "a");
 	const [counter] = await studioRecords(page, "components");
 	if (counter?.name !== "counter" || scopeA.registrations.map((r) => r.component).join() !== counter.id) throw new Error("counter wasn't kept and registered in a");
+	if (errors.length > 0) throw new Error(errors.join("; "));
+	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
+	await page.close();
+});
+
+test("a component exported as its .wasm carries its sources, and dropped on another library's screen is a component of it, registered in that screen's scope", async () => {
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	page.on("dialog", (dialog) => dialog.accept());
+	const stage = page.locator(".st-stage");
+	const status = (re) => page.waitForFunction((source) => new RegExp(source).test(document.querySelector(".st-status")?.textContent ?? ""), re.source);
+	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
+	await page.locator("button", { hasText: "+ New screen" }).waitFor();
+	await newStudioScreen(page, { scope: "a", name: "home" });
+	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
+	await newStudioComponent(page);
+	await page.locator(".st-examples").selectOption("todo_list");
+	await status(/registers TodoList/);
+	await page.locator("button", { hasText: "Save & register" }).click();
+	await stage.locator(".choices button", { hasText: /^TodoList$/ }).waitFor();
+	// Exported: a's own component, as its .wasm, its sources in it.
+	await page.locator(".st-menu [role=button]").click();
+	const [download] = await Promise.all([page.waitForEvent("download"), page.locator(".st-menu button", { hasText: "Export components" }).click()]);
+	if (download.suggestedFilename() !== "todo_list.wasm") throw new Error(`exported ${download.suggestedFilename()}`);
+	const bytes = [...readFileSync(await download.path())];
+	// Another library: dropped on a screen of scope b, it's registered there.
+	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
+	await page.reload();
+	await page.locator("button", { hasText: "+ New screen" }).waitFor();
+	await newStudioScreen(page, { scope: "b", name: "away" });
+	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
+	await page.evaluate((bytes) => {
+		const files = new DataTransfer();
+		files.items.add(new File([new Uint8Array(bytes)], "todo_list.wasm", { type: "application/wasm" }));
+		const target = document.querySelector(".st-stage");
+		target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: files }));
+		target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: files }));
+	}, bytes);
+	await status(/imported into b: todo_list \(TodoList\)/);
+	// b gives no TodoItem for it to make: said so.
+	await page.locator(".st-events div", { hasText: "todo_list needs a TodoItem to make, which b doesn't give" }).waitFor({ state: "attached" });
+	const [todoList] = await studioRecords(page, "components");
+	const tcd = await page.evaluate(async () => (await fetch("/components/todo_list/todo_list.tcd")).text());
+	if (todoList?.name !== "todo_list" || todoList.tcd !== tcd || !todoList.wax.includes("todo_list_on_add_todo")) throw new Error("todo_list wasn't kept with its sources");
+	const scopeB = (await studioRecords(page, "scopes")).find((s) => s.name === "b");
+	if (scopeB.registrations.map((r) => r.component).join() !== todoList.id) throw new Error("todo_list wasn't registered in b");
+	// Made again with it, used: edited, a hole there makes it. A prebuilt
+	// module's .wasm imports too, from the menu.
+	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
+	await page.locator(".st-bar .screen-toggle").click();
+	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: /^TodoList$/ }).click();
+	await stage.locator(".todos").waitFor();
+	await page.locator("[aria-label='Import a bundle or components']").setInputFiles(new URL("../dist/components/todo_item.wasm", import.meta.url).pathname);
+	await status(/imported into b: todo_item \(TodoItem\)/);
+	await page.locator(".st-bar .screen-toggle").click();
+	await stage.locator("input[placeholder='What needs doing?']").fill("dropped");
+	await stage.locator("input[placeholder='What needs doing?']").press("Enter");
+	await stage.locator("li", { hasText: "dropped" }).waitFor();
+	const failed = await page.locator(".st-events div", { hasText: /^failed/ }).allTextContents();
+	if (failed.length > 0) throw new Error(failed.join("; "));
 	if (errors.length > 0) throw new Error(errors.join("; "));
 	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
 	await page.close();

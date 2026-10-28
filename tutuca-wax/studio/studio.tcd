@@ -348,6 +348,9 @@ component Studio {
     /// Whether to delete the screen being deleted.
     ask confirm(text: string) -> bool emits ask delete_screen, ask open_screen;
     ask export_library() -> bool;
+    /// The library's components the shown screen's scopes register, each
+    /// downloaded as its .wasm, which carries its sources.
+    ask export_components() -> bool;
     ask import_library() -> bool;
     ask edit_layout_json(id: string) -> bool;
 
@@ -384,6 +387,7 @@ component Studio {
         changes editor emits make Editor, send Editor.build;
     message close_editor() changes editor;
     message export_all() changes nothing emits ask export_library;
+    message export_components() changes nothing emits ask export_components;
     message import_all() changes nothing emits ask import_library;
     message layout_json() changes nothing emits ask edit_layout_json;
 
@@ -426,7 +430,9 @@ component Studio {
                 ul(class: "menu menu-sm dropdown-content z-20 w-48 rounded-box border border-base-300 bg-base-100 p-1 shadow", tabindex: "0",
                     li(button(title: "The screen's layout as it's kept", on_click: send(layout_json), "Layout JSON")),
                     li(button(title: "Download the library as a bundle", on_click: send(export_all), "Export")),
-                    li(button(title: "Add a bundle's components, scopes and screens", on_click: send(import_all), "Import")),
+                    if(field(shown_id) != "",
+                        li(button(title: "Download the components this screen's scopes register, each as its .wasm", on_click: send(export_components), "Export components"))),
+                    li(button(title: "Add a bundle's components, scopes and screens, or components' .wasm files to this screen's scope (or drop them on it)", on_click: send(import_all), "Import")),
                     li(a(href: "../playground/", "Playground")),
                     li(a(href: "../demos/", "Demos"))))),
         if(field(active) != "",
@@ -448,7 +454,7 @@ component Studio {
 register ScopePicker, Editor, Studio;
 
 /// The page's: open_screen, save_screen, save_scope, delete_screen,
-/// confirm, export_library, import_library and edit_layout_json for the
+/// confirm, export_library, export_components, import_library and edit_layout_json for the
 /// studio; build, preview, save_component, leave_editor, chat, stop_chat,
 /// stub, prompt, remember_model and keep_chat for the editor.
 host_ask open_screen;
@@ -458,6 +464,7 @@ host_ask save_scope;
 host_ask delete_screen;
 host_ask confirm;
 host_ask export_library;
+host_ask export_components;
 host_ask import_library;
 host_ask edit_layout_json;
 host_ask build;

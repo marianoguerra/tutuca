@@ -101,7 +101,15 @@ prebuilt module's `.tcd`. The layout keeps
 itself as it changes, as `js/hydrate.js`'s `capture` writes it: each
 component by the name it's made by in that scope and its fields, those that
 sync at no level left out. The ⋯ menu shows the layout as JSON, and Export
-and Import move the library as a JSON bundle, without the builds.
+and Import move the library as a JSON bundle, without the builds. Export
+components downloads each of the library's components the shown screen's
+scopes register as its `.wasm`, which carries its sources (tcd's `tutuca`
+section, below); a `.wasm` dropped on a screen, or given to Import, is kept
+as a component of the library with those sources, its `.wasm` as its build,
+and registered in that screen's scope like one made there, as a prebuilt
+module's `dist/components/*.wasm` can be too. What it needs that the scope
+doesn't give (a type it makes, an interface it implements, a host ask the
+studio doesn't answer) is said in the events.
 
 `just studio-server` serves the same studio with an LLM assistant
 (`scripts/studio-server.mjs`, over [pi-ai](https://www.npmjs.com/package/@earendil-works/pi-ai)):
@@ -335,7 +343,13 @@ and `rec` items into `dist/prelude/collections_types.wax` for components.
   constants): no DOM, env or host, which only the runtime talks to;
 - exports `tutuca_abi_version() -> i32`, returning
   `tutuca_abi_version_current`, and `tutuca_register(s: &scope)`, which
-  registers its component types (and ask handlers) in `s`.
+  registers its component types (and ask handlers) in `s`;
+- carries, when tcd built it, a custom section named `tutuca`: JSON with
+  its sources (`tcd`, the `uses` it reads by the paths written, `impls`),
+  the `types` it registers, the `interfaces` it declares, what it `needs`
+  from a scope (`types` it makes or holds, `interfaces` it implements or
+  holds) and its `host_asks`. The runtime ignores it; `componentMeta(bytes)`
+  (`js/tutuca-rt.js`) reads it without compiling the module.
 
 `loadComponent` checks the first two, links the module's `"tutuca"` imports
 to the runtime instance's exports (the engine checks their types against the

@@ -236,7 +236,7 @@ fn build(io : Io, a : Args, pkg : @check.Package, file : String) -> Int32 {
     }
   }
   let gen_dir = a.options.get("--gen").unwrap_or(@api.dir_of(out_path))
-  let built = @api.build(pkg, file, runtime, impls, gen_dir)
+  let built = @api.build(pkg, file, runtime, impls, gen_dir, read=io.read)
   ignore((io.write)(built.contract_path, built.generated.contract))
   ignore((io.write)(built.glue_path, built.generated.glue))
   ignore((io.write)(built.abi_path, built.abi_imports))

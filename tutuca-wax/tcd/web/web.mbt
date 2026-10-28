@@ -157,7 +157,15 @@ pub fn tcd_build(req : String) -> String {
           return failure("the request's runtime has no \{missing}")
       }
       let main = str_field(j, "main")
-      let built = @api.build(pkg, main, runtime, impls_of(j), @api.dir_of(main))
+      let files = files_of(j, "files")
+      let built = @api.build(
+        pkg,
+        main,
+        runtime,
+        impls_of(j),
+        @api.dir_of(main),
+        read=p => files.get(p),
+      )
       diags.append(built.diags)
       let extra : Map[String, Json] = Map::from_array([
         ("contract", Json::string(built.generated.contract)),

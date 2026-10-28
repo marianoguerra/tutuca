@@ -17,7 +17,7 @@ import { defineRating } from "../components/media/rating.js";
 import { capture, hydrate } from "../js/hydrate.js";
 import { compilerClient, el, pageStyles } from "../js/page.js";
 import { snapshot } from "../js/pbt.js";
-import { load, readBytes } from "../js/tutuca-rt.js";
+import { componentMeta, load, readBytes } from "../js/tutuca-rt.js";
 import { askChat, askPrompt, checkServer, diagnosticText, rememberModel, rememberedModel } from "./assistant.js";
 import { defineStudioElements } from "./code-editor.js";
 import { fromBundle, openStore, toBundle } from "./store.js";
@@ -37,6 +37,8 @@ const UI = {
 	dialogTitle: "text-lg font-bold",
 	dialogActions: "modal-action mt-0",
 	layoutJson: "st-layout textarea textarea-sm font-mono text-xs w-full h-80",
+	// The studio while .wasm files are dragged over it.
+	dropping: "outline-2 outline-dashed outline-primary -outline-offset-4",
 };
 
 const styles = await pageStyles(Object.values(UI));
@@ -54,19 +56,18 @@ const server = await checkServer();
 // ---- Prebuilt modules ---------------------------------------------------------------------
 
 // The modules of dist/components/ a scope can register, with the names they
-// register and their .tcd (for a component's use of their interfaces).
+// register and their .tcd (for a component's use of their interfaces), as
+// their tutuca section says.
 const PREBUILT = ["layout", "counter", "todo_list", "todo_item", "todo_card", "json", "media", "showcase"];
 const prebuilt = new Map(
 	await Promise.all(
 		PREBUILT.map(async (name) => {
-			const wasm = await readBytes(new URL(`../dist/components/${name}.wasm`, import.meta.url));
-			// A dry run in a scope of its own: what it registers.
-			const { registered } = await tw.loadComponent(wasm.slice(), runtime.scope());
-			return [name, { wasm, types: registered.map((r) => r.as) }];
+			const wasm = new Uint8Array(await readBytes(new URL(`../dist/components/${name}.wasm`, import.meta.url)));
+			const { types, tcd } = componentMeta(wasm);
+			return [name, { wasm, types, tcd }];
 		}),
 	),
 );
-const prebuiltTcd = async (name) => new TextDecoder().decode(await readBytes(new URL(`../components/${name}/${name}.tcd`, import.meta.url)));
 const PREBUILT_PREFIX = "prebuilt:";
 
 // What a new component starts from: the assistant's tasks example, which
@@ -131,22 +132,23 @@ const version = async () => (tcdVersion ??= (await compiler("version", {})).vers
 
 // The files a component's .tcd uses ("name.tcd", or a path ending in it as
 // the component modules write them: another component of the library, or a
-// prebuilt module's), and what they use, by the path written.
-async function usedFiles(tcd, files = {}) {
+// prebuilt module's, else the one an imported module came with, in kept),
+// and what they use, by the path written.
+function usedFiles(tcd, kept = {}, files = {}) {
 	for (const [, path] of tcd.matchAll(/\buse\s+"([^"]+)"/g)) {
 		if (path in files) continue;
 		const name = path.split("/").pop().replace(/\.tcd$/, "");
 		const own = [...lib.components.values()].find((c) => c.name === name);
-		const source = own ? own.tcd : prebuilt.has(name) ? await prebuiltTcd(name) : null;
+		const source = own?.tcd ?? prebuilt.get(name)?.tcd ?? kept[path] ?? null;
 		if (source === null) continue; // tcd reports it
 		files[path] = source;
-		await usedFiles(source, files);
+		usedFiles(source, kept, files);
 	}
 	return files;
 }
 const requestFor = async (c) => {
 	const main = `${c.name}.tcd`;
-	return { main, files: { ...(await usedFiles(c.tcd)), [main]: c.tcd }, impls: [{ path: `${c.name}.wax`, text: c.wax }] };
+	return { main, files: { ...usedFiles(c.tcd, c.uses), [main]: c.tcd }, impls: [{ path: `${c.name}.wax`, text: c.wax }] };
 };
 
 // The component's build, built again only when what it's built from (the
@@ -207,7 +209,7 @@ app.className = UI.app;
 app.textContent = "";
 const studioRoot = el("div");
 const dialog = el("dialog", { class: UI.dialog, "aria-label": "Layout" });
-const importInput = el("input", { type: "file", accept: ".json,application/json", "aria-label": "Import a bundle" });
+const importInput = el("input", { type: "file", multiple: "", accept: ".json,application/json,.wasm,application/wasm", "aria-label": "Import a bundle or components" });
 importInput.hidden = true;
 app.append(studioRoot, dialog, importInput);
 
@@ -364,6 +366,7 @@ const asks = {
 		exportBundle();
 		return true;
 	},
+	export_components: () => exportComponents(),
 	import_library: () =>
 		new Promise((resolve) => {
 			importing = resolve;
@@ -548,7 +551,7 @@ Object.assign(asks, {
 			tell("screen_moved", screen.id, own.id);
 			scope = editing.scope = own;
 		}
-		await save("components", { id, name, tcd, wax, build: b, chat });
+		await save("components", { id, name, tcd, wax, uses: draft.uses, build: b, chat });
 		if (creating) {
 			// One that hides a name of a parent scope changes what the screen's
 			// components are made from: the screen is kept and made again with it.
@@ -656,8 +659,10 @@ const imported = (ok) => {
 };
 importInput.addEventListener("cancel", () => imported(false));
 importInput.addEventListener("change", async () => {
-	const file = importInput.files[0];
+	const files = [...importInput.files];
 	importInput.value = "";
+	if (files.some((f) => f.name.endsWith(".wasm"))) return imported(await importModules(files));
+	const file = files[0];
 	if (!file) return imported(false);
 	let records;
 	try {
@@ -678,6 +683,129 @@ importInput.addEventListener("change", async () => {
 	if (next) tell("show_screen", next.id);
 	say(`imported ${Object.values(records).reduce((n, rs) => n + rs.length, 0)} records from ${file.name}`);
 	imported(true);
+});
+
+// ---- Components as .wasm --------------------------------------------------------------------
+
+// A component module carries what it's made from and what it is (tcd's
+// tutuca section, componentMeta), so one exported from a library is a
+// component of another once imported: kept with its sources, built as it was
+// (its .wasm is its build, checked against the runtime's ABI), registered in
+// the shown screen's scope like one made there.
+
+const download = (name, bytes, type) => {
+	const a = el("a", { href: URL.createObjectURL(new Blob([bytes], { type })), download: name });
+	a.click();
+	URL.revokeObjectURL(a.href);
+};
+// The library's components the shown screen's scope chain registers, each
+// as its .wasm, built first when it isn't.
+async function exportComponents() {
+	if (!mounted) return false;
+	const refs = chainOf(lib.scopes.get(lib.screens.get(mounted.id).scope)).flatMap((s) => s.registrations.map((r) => r.component));
+	const own = [...new Set(refs)].filter((ref) => !ref.startsWith(PREBUILT_PREFIX));
+	if (own.length === 0) {
+		say("this screen's scopes register none of your components: only those export");
+		return false;
+	}
+	const done = [];
+	for (const ref of own) {
+		const c = lib.components.get(ref);
+		try {
+			download(`${c.name}.wasm`, await wasmOf(ref), "application/wasm");
+			done.push(c.name);
+		} catch (error) {
+			note("failed", `can't export ${c.name}: ${error.message}`);
+		}
+	}
+	say(done.length > 0 ? `exported ${done.map((n) => `${n}.wasm`).join(", ")}` : "nothing exported: see the events");
+	return done.length > 0;
+}
+
+// What a .wasm file is as a component of the library, or why it can't be.
+async function componentOf(file) {
+	const wasm = new Uint8Array(await file.arrayBuffer());
+	const meta = componentMeta(wasm);
+	if (!meta) throw new Error("it isn't a component module tcd built (it has no tutuca section)");
+	if (meta.format !== 1) throw new Error(`its tutuca section is format ${meta.format}, this studio reads 1`);
+	// Refused here when it's for another ABI or doesn't load.
+	await tw.loadComponent(wasm.slice(), runtime.scope());
+	const wax = meta.impls.map((i) => i.text).join("\n");
+	const same = [...lib.components.values()].find((c) => c.tcd === meta.tcd && c.wax === wax);
+	const c = same ?? { id: newId(), name: freeName(meta.name), tcd: meta.tcd, wax, uses: meta.uses, chat: [] };
+	const key = hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([await version(), await requestFor(c)]))));
+	return { meta, c: { ...c, build: { key, ok: true, wasm, types: meta.types, diags: [] } }, existed: !!same };
+}
+
+// The .wasm files, kept and registered in the shown screen's scope, which
+// is made again with them; then what they need that it doesn't give.
+async function importModules(files) {
+	if (!mounted) {
+		say("open a screen first: imported components are registered in its scope");
+		return false;
+	}
+	const scope = lib.scopes.get(lib.screens.get(mounted.id).scope);
+	const added = [];
+	for (const file of files.filter((f) => f.name.endsWith(".wasm"))) {
+		let found;
+		try {
+			found = await componentOf(file);
+		} catch (error) {
+			note("failed", `can't import ${file.name}: ${error.message}`);
+			continue;
+		}
+		const { meta, c } = found;
+		const registered = scope.registrations.some((r) => r.component === c.id);
+		const taken = scope.registrations
+			.filter((r) => r.component !== c.id)
+			.flatMap((r) => (typesOf(r.component) ?? []).filter((t) => meta.types.includes(t)).map((t) => `${t} (${componentLabel(r.component)})`));
+		if (taken.length > 0) {
+			note("failed", `can't import ${file.name}: ${taken.join(", ")} already made in ${scope.name}; import it in a scope of its own, where it hides ${scope.name}'s`);
+			continue;
+		}
+		await save("components", c);
+		if (!registered) scope.registrations.push({ component: c.id });
+		added.push({ file, meta, c });
+	}
+	if (added.length === 0) {
+		say("nothing imported: see the events");
+		return false;
+	}
+	await keepLayout();
+	await save("scopes", scope);
+	// What the scope gives now, made apart, to tell what's still missing.
+	const made = await loadChain(tw, scope, () => {}, runtime.scope());
+	const gives = new Set(resolvesIn(scope).map((r) => r.name));
+	for (const { meta, c } of added) {
+		const missing = [
+			...meta.needs.types.filter((t) => !gives.has(t)).map((t) => `a ${t} to make`),
+			...meta.needs.interfaces.filter((i) => runtime.interface(made, i) === null).map((i) => `the ${i} interface`),
+			...meta.host_asks.filter((a) => !(a in asks)).map((a) => `an answer to its ${a} host ask`),
+		];
+		if (missing.length > 0) note("issue", `${c.name} needs ${missing.join(", ")}, which ${scope.name} doesn't give`);
+	}
+	say(`imported into ${scope.name}: ${added.map(({ c, meta }) => `${c.name} (${meta.types.join(", ")})`).join(", ")}`);
+	tell("reopen");
+	return true;
+}
+
+// .wasm files dropped on the studio are imported into the shown screen's
+// scope; a drag from inside the page (a layout's) carries no files.
+const dragsFiles = (e) => mounted && !editing && e.dataTransfer?.types.includes("Files");
+studioRoot.addEventListener("dragover", (e) => {
+	if (!dragsFiles(e)) return;
+	e.preventDefault();
+	e.dataTransfer.dropEffect = "copy";
+	studioRoot.classList.add(...UI.dropping.split(" "));
+});
+studioRoot.addEventListener("dragleave", (e) => {
+	if (!studioRoot.contains(e.relatedTarget)) studioRoot.classList.remove(...UI.dropping.split(" "));
+});
+studioRoot.addEventListener("drop", (e) => {
+	studioRoot.classList.remove(...UI.dropping.split(" "));
+	if (!dragsFiles(e)) return;
+	e.preventDefault();
+	importModules([...e.dataTransfer.files]);
 });
 
 // ---- The studio ----------------------------------------------------------------------------

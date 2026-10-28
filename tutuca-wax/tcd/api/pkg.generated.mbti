@@ -9,7 +9,7 @@ import {
 }
 
 // Values
-pub fn build(@check.Package, String, @compose.Runtime, Array[@compose.Source], String) -> Built
+pub fn build(@check.Package, String, @compose.Runtime, Array[@compose.Source], String, read~ : (String) -> String?) -> Built
 
 pub fn defined_functions(Array[@compose.Source]) -> Array[String]
 
@@ -19,11 +19,17 @@ pub fn join_path(String, String) -> String
 
 pub fn load((String) -> String?, String) -> (@check.Package, Array[@diag.Diagnostic])?
 
+pub fn meta(@check.Package, String, (String) -> String?, Array[@compose.Source]) -> Json
+
+pub let meta_section : String
+
 pub fn normalize_path(String) -> String
 
 pub fn read_runtime((String) -> String?) -> Result[@compose.Runtime, String]
 
 pub fn stub(@check.Package, String, Array[@compose.Source]) -> String
+
+pub fn with_custom_section(Bytes, String, String) -> Bytes
 
 // Errors
 

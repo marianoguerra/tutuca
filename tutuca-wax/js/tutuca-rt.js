@@ -152,6 +152,37 @@ export async function readBytes(url) {
 	return response.arrayBuffer();
 }
 
+// What a component module tcd built says about itself: the JSON of its
+// "tutuca" custom section (tcd/api/meta.mbt: its sources, the types it
+// registers, the interfaces it declares, what it needs from a scope, its
+// host asks), or null when it has none. Read from the bytes (a buffer or a
+// view), without compiling them.
+export function componentMeta(source) {
+	const bytes = ArrayBuffer.isView(source) ? new Uint8Array(source.buffer, source.byteOffset, source.byteLength) : new Uint8Array(source);
+	let at = 8;
+	const leb = () => {
+		let n = 0;
+		for (let shift = 0; ; shift += 7) {
+			const b = bytes[at++];
+			n += (b & 0x7f) * 2 ** shift;
+			if ((b & 0x80) === 0) return n;
+		}
+	};
+	if (bytes.length < 8 || bytes[0] !== 0 || bytes[1] !== 0x61 || bytes[2] !== 0x73 || bytes[3] !== 0x6d) return null;
+	while (at < bytes.length) {
+		const id = bytes[at++];
+		const size = leb();
+		const end = at + size;
+		if (id === 0) {
+			const length = leb();
+			const name = new TextDecoder().decode(bytes.subarray(at, at + length));
+			if (name === "tutuca") return JSON.parse(new TextDecoder().decode(bytes.subarray(at + length, end)));
+		}
+		at = end;
+	}
+	return null;
+}
+
 // A pattern constraint's regular expression, compiled once.
 const regexes = new Map();
 const regexOf = (pattern) => {

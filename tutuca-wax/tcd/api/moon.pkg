@@ -5,6 +5,7 @@ import {
   "tutuca/tcd/gen",
   "tutuca/tcd/compose",
   "marianoguerra/wax",
+  "moonbitlang/core/encoding/utf8",
 }
 
 import {

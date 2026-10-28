@@ -156,6 +156,7 @@ pub fn build(
   runtime : @compose.Runtime,
   impls : Array[@compose.Source],
   gen_dir : String,
+  read~ : (String) -> String?,
 ) -> Built {
   // The optional functions the implementation lacks aren't called.
   let generated = @gen.generate(pkg, file, have=defined_functions(impls))
@@ -171,7 +172,13 @@ pub fn build(
     glue_path,
     abi_path,
     abi_imports: built.abi_imports,
-    wasm: built.wasm,
+    wasm: built.wasm.map(w => {
+      with_custom_section(
+        w,
+        meta_section,
+        meta(pkg, file, read, impls).stringify(),
+      )
+    }),
     diags: built.diags,
   }
 }
