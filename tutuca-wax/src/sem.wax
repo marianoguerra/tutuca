@@ -30,6 +30,16 @@ fn arg_event(name: js_string) -> &arg {
     out;
 }
 
+fn arg_field(name: js_string) -> &arg {
+    let out: &arg_field = { kind: arg_kind_field, name };
+    out;
+}
+
+fn arg_item_field(seq: js_string, name: js_string) -> &arg {
+    let out: &arg_item_field = { kind: arg_kind_item_field, seq, name };
+    out;
+}
+
 // ---- Event handlers: on:<event>[+modifier...] ---------------------------------
 //
 // Modifiers are what the event must also be for the handler to take it (a

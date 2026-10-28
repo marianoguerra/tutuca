@@ -66,6 +66,8 @@ pub fn val_meets(Val, Norm) -> Bool
 
 pub fn wax(String) -> String
 
+pub fn wax_part(String) -> String
+
 // Errors
 
 // Types and methods
@@ -220,6 +222,7 @@ pub(all) struct SignalM {
   name : String
   params : Array[FieldM]
   result : Ty?
+  emits : Array[EmitM]?
   doc : String?
   span : @diag.Span
 } derive(ToJson, @debug.Debug)

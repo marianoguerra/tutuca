@@ -684,7 +684,7 @@ fn editor_get_on_registers(state: &editor_state) -> i32 {
 }
 
 fn editor_get_on_state(state: &editor_state) -> i32 {
-    str_eq(state.inspecting, gs_state);
+    str_eq(state.inspecting, gt_state);
 }
 
 fn editor_get_on_events(state: &editor_state) -> i32 {

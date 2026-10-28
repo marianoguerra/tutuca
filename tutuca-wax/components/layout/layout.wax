@@ -31,7 +31,7 @@ fn layout_remove_at(items: &value, at: i32) -> &value {
 // A list holding a hole made in the scope a box is being made in: what an
 // empty box starts with.
 fn layout_one_hole(ctx: &init_context) -> &value {
-    list_push(list_empty(), value_component(init_ctx_make(ctx, gs_hole, map_empty())));
+    list_push(list_empty(), value_component(init_ctx_make(ctx, gs_Hole, map_empty())));
 }
 
 // ---- Screen ------------------------------------------------------------------------
@@ -102,7 +102,7 @@ fn hole_reply_component_names_ok(state: &hole_state, ctx: &context, reply: &valu
     while i <s list_count(reply) {
         let name = list_get(reply, i)!;
         let text = value_string_of(name);
-        if !str_eq(text, gs_hole) & !str_eq(text, gs_screen) {
+        if !str_eq(text, gs_Hole) & !str_eq(text, gs_Screen) {
             choices = list_push(choices, map_assoc(map_empty(), gs_name, name));
         }
         i += 1;

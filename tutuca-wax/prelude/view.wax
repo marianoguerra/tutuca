@@ -18,6 +18,7 @@ const view_kind_render_each = 10;
 const view_kind_render_it = 11;
 const view_kind_scope = 12;
 const view_kind_push_view = 13;
+const view_kind_eq = 14;
 
 rec {
     type view = open { kind: i32 };
@@ -61,6 +62,9 @@ rec {
     type view_scope: view = { .., scope_name: js_string, body: &view };
     // pushView(view_name, body).
     type view_push_view: view = { .., view_name: &view, body: &view };
+    // left == value (left != value with negate): a bool, as a condition
+    // compares (cond_eq).
+    type view_eq: view = { .., left: &view, value: &value, negate: i32 };
     // on:<event>: send(name, ...args), with the arguments as the handler
     // table keeps them (prelude/sem.wax's arg: a literal, the target's
     // value, the source key, the drag key, a field of the event, or an if

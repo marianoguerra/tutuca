@@ -12,26 +12,26 @@ pub(all) struct Gen {
   /// The functions the implementation defines, when known: the optional ones
   /// it lacks aren't called.
   have : Array[String]?
+  /// The list or map fields of the each bodies being generated, innermost
+  /// last ("" for one whose source isn't a field): what a send's field(x)
+  /// reads the item of.
+  each_seqs : Array[String]
 }
 
 ///|
 pub fn Gen::new(pkg : @check.Package, have? : Array[String]) -> Gen {
-  { pkg, strings: names_first(pkg), enums: [], have, }
+  { pkg, strings: names_first(pkg), enums: [], have, each_seqs: [], }
 }
 
 ///|
-/// The strings, with the package's names claimed first, in the order they're
-/// declared: an implementation's gs_<name> is that name's, whatever text a
-/// view has that reads the same (a "Notes" label takes gs_notes_2, not the
-/// field notes's gs_notes; a "?" button, of only symbols, gs_text_2 when a
-/// record has a field text). Names are every one the package declares: its
-/// types and their members, the arguments of messages and asks, the binds
-/// of loops and scopes, and the names inside types (a record's fields, an
-/// enum's members). Types come last: a type's name isn't its gs_ name as
-/// written (Editor is gs_editor), so a field editor keeps gs_editor.
+/// The strings, with the package's names claimed first (Strings): its
+/// types, the members of each and their arguments, the binds of loops and
+/// scopes, its views, the names inside types (a record's fields, an enum's
+/// members, the types they hold), its ask handlers and host asks, and the
+/// names it registers types under.
 fn names_first(pkg : @check.Package) -> Strings {
   let strings = Strings::new()
-  let claim = (name : String) => ignore(strings.get(name))
+  let claim = (name : String) => strings.name(name)
   fn claim_ty(ty : @check.Ty) -> Unit {
     match ty {
       Enum(members) => members.each(claim)
@@ -46,7 +46,8 @@ fn names_first(pkg : @check.Package) -> Strings {
         claim_ty(ok)
         claim_ty(err)
       }
-      Bool | S32 | F64 | Str | Any | Null | Comp(_) => ()
+      Comp(names) => names.each(claim)
+      Bool | S32 | F64 | Str | Any | Null => ()
     }
   }
   let members = (fields : Array[@check.FieldM]) => {
@@ -74,6 +75,15 @@ fn names_first(pkg : @check.Package) -> Strings {
     }
   }
   for c in pkg.components {
+    claim(c.name)
+  }
+  for i in pkg.interfaces {
+    claim(i.name)
+  }
+  for r in pkg.registers {
+    claim(r.as_)
+  }
+  for c in pkg.components {
     members(c.fields)
     members(c.gets)
     messages(c.messages)
@@ -92,6 +102,9 @@ fn names_first(pkg : @check.Package) -> Strings {
     for pr in c.provides {
       claim(pr.name)
     }
+    for v in c.views {
+      claim(v.name)
+    }
   }
   for i in pkg.interfaces {
     members(i.fields)
@@ -100,12 +113,7 @@ fn names_first(pkg : @check.Package) -> Strings {
     signals(i.notifies)
   }
   signals(pkg.ask_handlers)
-  for c in pkg.components {
-    claim(c.name)
-  }
-  for i in pkg.interfaces {
-    claim(i.name)
-  }
+  pkg.host_asks.each(claim)
   strings
 }
 
@@ -327,12 +335,12 @@ fn Gen::constraints(
   }
   for f in n.member_of {
     cs.push(
-      "constraint_check(\{self.s("in values(" + f + ")")}, \{owner}_member_of_\{@check.wax(f)})",
+      "constraint_check(\{self.s("in values(" + f + ")")}, \{owner}_member_of_\{@check.wax_part(f)})",
     )
   }
   for p in n.checks {
     cs.push(
-      "constraint_check(\{self.s(p)}, \{owner}_check_\{p}_\{@check.wax(subject)}_t)",
+      "constraint_check(\{self.s(p)}, \{owner}_check_\{p}_\{@check.wax_part(subject)}_t)",
     )
   }
   b.array("constraint_array", cs)

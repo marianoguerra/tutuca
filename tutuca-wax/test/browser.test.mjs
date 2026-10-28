@@ -227,7 +227,8 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	if (tasks?.name !== "tasks" || scopeA.registrations.map((r) => r.component).join() !== tasks.id) throw new Error("tasks wasn't kept and registered in a");
 	// The layout saves itself as it changes.
 	const layoutOf = async () => (await studioRecords(page, "screens")).find((s) => s.name === "home").layout;
-	for (let i = 0; i < 50 && (await layoutOf()).fields.content.fields.items[0].$make !== "Tasks"; i++) await page.waitForTimeout(100);
+	// A new screen's layout is { $make: "Screen" } until it's first kept.
+	for (let i = 0; i < 50 && (await layoutOf()).fields?.content?.fields?.items?.[0]?.$make !== "Tasks"; i++) await page.waitForTimeout(100);
 	const layout = await layoutOf();
 	const item = layout.fields.content.fields.items[0];
 	if (item.$make !== "Tasks" || item.fields.items[0].text !== "first" || "studio" in layout.fields || "editing" in layout.fields) {

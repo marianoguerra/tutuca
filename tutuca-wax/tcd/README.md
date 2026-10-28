@@ -113,7 +113,8 @@ field outside `changes`, an invariant the defaults break: reported.
 
 **Members**: `field`, `get`, `message name(args) [-> swap] [source_key: T]
 [when c] [changes a, b | nothing] [ensures c] [emits notify x, ask x, send
-type.msg, make type | nothing]`, `notify`, `ask name(args) -> T`,
+type.msg, make type | nothing]`, `notify`, `ask name(args) -> T [emits ...]`
+(what its reply's handlers may emit),
 `invariant name: c`, `init;`, `loop name { prepare: T; iter; key: T; filter;
 enrich { b: T } ; view: v }`, `scope name { b: T }`, `provide name =
 field(f);`, `view name = ...;`. Package level: `interface`, `component c:
@@ -128,9 +129,12 @@ is always quoted. Constructs: `field`, `seq_item`, `provided`, `bind`, `if`,
 src, body)`, `render_it(view: v)`, `scope`, `push_view`, `el("tag", ...)`;
 `send(msg, args)` in `on_<event>` attributes (quoted for modifiers:
 `"on_keydown+enter+prevent"`), whose arguments are literals,
-`target_value()`, `source_key()`, `drag_key()`, `event(name)` or an `if` of
-them, checked against the message's types and constraints. Inside an `each`
-body, `field(x)` reads the item. Two attributes aren't attributes: `key:`
+`target_value()`, `source_key()`, `drag_key()`, `event(name)`, `field(name)`
+(read when the event is handled) or an `if` of them, checked against the
+message's types and constraints. Inside an `each` body, `field(x)` reads the
+item, a send's too (the item at the event's source key, in the list or map
+field the `each` goes over). A value read compares with a literal:
+`if(field(show) == "all", ...)`, `"aria-pressed": field(id) != "a"`. Two attributes aren't attributes: `key:`
 keys the element among its siblings, and `namespace:`, a constant URI, makes
 it (and what's in it) in that namespace (`svg` and `math` set theirs).
 
@@ -156,11 +160,15 @@ signatures (`tcd stub` writes them; the build checks them):
 The generated contract gives the implementation the state struct,
 `c_with_<field>(state, v)`, `c_notify_<n>(ctx, ...)`, `c_ask_<n>(ctx, ...)`,
 `<type>_send_<m>(ctx, selector, ...)`, `c_make_<type>(ctx, fields...) ->
-&component`, and a `gs_...` string constant for every string the `.tcd` uses.
-The package's names (types, then each component's fields, properties,
-messages, notifies, asks, loops, scopes, provides) claim theirs first, so
-`gs_notes` is the field `notes` even when a view also says "Notes", which gets
-`gs_notes_2`.
+&component`, for each record a field, property or ask reply holds
+`c_<field>_new(members...)` and a reader per member, `c_<field>_<member>(r)`, and a string constant for every string the `.tcd` uses. A name
+the package declares (its types, the names they register as, each
+component's fields, properties, messages, notifies, asks and their
+arguments, loops and their binds, scopes, provides and views, the fields of
+its records and the members of its enums, its ask handlers and host asks) is
+`gs_` and the name as written, a type keeping its case (`gs_TodoItem`), so
+`gs_notes` is always the field `notes`; any other text is `gt_` and what it
+says (a view's "Notes" is `gt_notes`, a "+" `gt_text`), and "" is `gs_empty`.
 
 ## What's generated
 

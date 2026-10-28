@@ -139,6 +139,7 @@ const root = tw.runtime.make(scope, "Board", { counters: [], total: 0 });
 const host = tw.runtime.createHost(document, container, root).mount();
 // Clicks in container now reach the components' handlers.
 host.send("add_counter"); // a message to the root, from outside
+host.sendAt([["counters", 0]], "reset"); // to the component steps reach from the root
 
 // The vdom alone.
 const { h } = tw;
@@ -605,8 +606,9 @@ as the last one rendered. The JS side runs tasks for up to 16ms, as
 tutuca's JS host does, then renders and leaves the rest for the next tick
 (`host.settled()` waits for them too). After each run it listens on the
 container for the events it doesn't yet: `host_new_event_names` gives the
-ones the types registered anywhere in the root's scope tree handle, so a
-module loaded later brings its events with it.
+ones the types registered so far in any scope of the module instance handle
+(a component can be made in one scope and held by a component of another),
+so a module loaded later brings its events with it.
 
 **Views** (`view.wax`) are data, the spec's `view.rkt` expressions: constants,
 fields, seq items, provided values, binds, `if`, elements, fragments,

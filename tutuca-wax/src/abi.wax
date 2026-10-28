@@ -203,6 +203,16 @@ fn abi_arg_if(test: &arg, then: &arg, otherwise: &arg) -> &arg {
     arg_if(test, then, otherwise);
 }
 
+#[export = "arg_field"]
+fn abi_arg_field(name: js_string) -> &arg {
+    arg_field(name);
+}
+
+#[export = "arg_item_field"]
+fn abi_arg_item_field(seq: js_string, name: js_string) -> &arg {
+    arg_item_field(seq, name);
+}
+
 #[export = "snode_el"]
 fn abi_snode_el(
     template: &template,
@@ -274,6 +284,11 @@ fn abi_view_lookup_bind(name: js_string) -> &view {
 #[export = "view_if"]
 fn abi_view_if(test: &view, then: &view, otherwise: &view) -> &view {
     view_if(test, then, otherwise);
+}
+
+#[export = "view_eq"]
+fn abi_view_eq(left: &view, value: &value, negate: i32) -> &view {
+    view_eq(left, value, negate);
 }
 
 #[export = "view_el"]

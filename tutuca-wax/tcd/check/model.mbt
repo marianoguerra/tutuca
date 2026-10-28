@@ -136,11 +136,13 @@ pub(all) struct MessageM {
 } derive(Debug, ToJson)
 
 ///|
-/// A notify the component sends, or an ask it makes (with the reply's type).
+/// A notify the component sends, or an ask it makes (with the reply's type,
+/// and what the handlers of its reply may emit: None when it doesn't say).
 pub(all) struct SignalM {
   name : String
   params : Array[FieldM]
   result : Ty?
+  emits : Array[EmitM]?
   doc : String?
   span : @diag.Span
 } derive(Debug, ToJson)

@@ -1,6 +1,7 @@
-// tasks.tcd has the rest. An item is a record, a map value with its fields
-// as entries (gs_text, gs_done, gs_priority): made with map_assoc, read with
-// value_member, and replaced in the list with list_assoc.
+// tasks.tcd has the rest. An item is a record: tcd makes tasks_items_new to
+// make one and tasks_items_text, _done and _priority to read its fields (a
+// record's helpers are named after the field holding it); list_assoc
+// replaces one in the list.
 
 import "'" {
     #[import = " of "]
@@ -32,24 +33,8 @@ type tasks_item = &value;
 // A priority: 0 low, 1 mid, 2 high.
 type tasks_priority = i32;
 
-fn tasks_item_new(text: js_string, done: i32, priority: tasks_priority) -> tasks_item {
-    map_assoc(map_assoc(map_assoc(map_empty(), gs_text, value_string(text)), gs_done, value_bool(done)), gs_priority, value_int(priority));
-}
-
 fn tasks_item_at(state: &tasks_state, at: i32) -> tasks_item {
     list_get(state.items, at)!;
-}
-
-fn tasks_item_text(item: tasks_item) -> js_string {
-    value_string_of(value_member(item, gs_text))!;
-}
-
-fn tasks_item_done(item: tasks_item) -> i32 {
-    value_truthy(value_member(item, gs_done));
-}
-
-fn tasks_item_priority(item: tasks_item) -> tasks_priority {
-    (value_member(item, gs_priority) as &value_int).value;
 }
 
 fn tasks_on_set_title(state: &tasks_state, ctx: &context, title: js_string) -> &tasks_state {
@@ -62,20 +47,20 @@ fn tasks_on_set_draft(state: &tasks_state, ctx: &context, text: js_string) -> &t
 
 // A new open item, low priority, with the draft's text.
 fn tasks_on_add(state: &tasks_state, ctx: &context) -> &tasks_state {
-    let item = tasks_item_new(state.draft, 0, 0);
+    let item = tasks_items_new(state.draft, 0, 0);
     {tasks_state| title: state.title, items: list_push(state.items, item), draft: gs_empty, show: state.show };
 }
 
 fn tasks_on_toggle(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
     let item = tasks_item_at(state, at);
-    let next = tasks_item_new(tasks_item_text(item), !tasks_item_done(item), tasks_item_priority(item));
+    let next = tasks_items_new(tasks_items_text(item), !tasks_items_done(item), tasks_items_priority(item));
     tasks_with_items(state, list_assoc(state.items, at, next));
 }
 
 fn tasks_on_bump(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
     let item = tasks_item_at(state, at);
-    let priority: tasks_priority = (tasks_item_priority(item) + 1) %s 3;
-    let next = tasks_item_new(tasks_item_text(item), tasks_item_done(item), priority);
+    let priority: tasks_priority = (tasks_items_priority(item) + 1) %s 3;
+    let next = tasks_items_new(tasks_items_text(item), tasks_items_done(item), priority);
     tasks_with_items(state, list_assoc(state.items, at, next));
 }
 
@@ -111,7 +96,7 @@ fn tasks_on_clear_done(state: &tasks_state, ctx: &context) -> &tasks_state {
     let i = 0;
     while i <s list_count(state.items) {
         let item = tasks_item_at(state, i);
-        if !tasks_item_done(item) {
+        if !tasks_items_done(item) {
             items = list_push(items, item);
         }
         i += 1;
@@ -133,7 +118,7 @@ fn tasks_get_left(state: &tasks_state) -> i32 {
     let left = 0;
     let i = 0;
     while i <s list_count(state.items) {
-        if !tasks_item_done(tasks_item_at(state, i)) {
+        if !tasks_items_done(tasks_item_at(state, i)) {
             left += 1;
         }
         i += 1;
@@ -151,16 +136,16 @@ fn tasks_get_summary(state: &tasks_state) -> js_string {
 
 fn tasks_loop_shown_filter(state: &tasks_state, key: &value, item: &value) -> i32 {
     if state.show == tasks_show_open {
-        return !tasks_item_done(item);
+        return !tasks_items_done(item);
     }
     if state.show == tasks_show_done {
-        return tasks_item_done(item);
+        return tasks_items_done(item);
     }
     1;
 }
 
 fn tasks_loop_shown_enrich(state: &tasks_state, key: &value, item: &value) -> &tasks_loop_shown_binds {
-    let priority = tasks_item_priority(item);
+    let priority = tasks_items_priority(item);
     let badge = s_low;
     if priority == 1 {
         badge = s_mid;
@@ -168,7 +153,7 @@ fn tasks_loop_shown_enrich(state: &tasks_state, key: &value, item: &value) -> &t
     if priority == 2 {
         badge = s_high;
     }
-    {tasks_loop_shown_binds| badge, hot: (priority == 2) & !tasks_item_done(item) };
+    {tasks_loop_shown_binds| badge, hot: (priority == 2) & !tasks_items_done(item) };
 }
 
 // One of a few ideas, by how many items there are.

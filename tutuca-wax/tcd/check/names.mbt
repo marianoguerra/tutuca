@@ -60,14 +60,27 @@ pub fn snake(s : String) -> String {
 }
 
 ///|
+/// Wax's keywords (wax-mb's lib/syntax/lexer/tables.mbt), and a few more
+/// kept out of the way.
 let wax_keywords : Array[String] = [
   "as", "br", "const", "do", "else", "export", "fn", "if", "import", "let", "loop",
   "match", "mut", "null", "open", "rec", "return", "struct", "type", "unreachable",
   "while", "tag", "try", "catch", "throw", "self", "true", "false", "nop", "dispatch",
+  "inf", "nan", "is", "become", "br_if", "br_table", "br_on_null", "br_on_non_null",
+  "br_on_cast", "br_on_cast_fail", "try_legacy", "throw_ref", "cont", "suspend",
+  "on", "memory", "pagesize", "shared", "descriptor", "describes",
 ]
 
 ///|
-/// A TCD name as a Wax identifier: snake_case, with a Wax keyword escaped.
+/// A TCD name as part of a longer Wax identifier (c_on_open): snake_case.
+pub fn wax_part(s : String) -> String {
+  snake(s)
+}
+
+///|
+/// s as a Wax identifier of its own (a parameter, a struct field, a local):
+/// snake_case, with _ after a keyword (type_). Part of a longer name
+/// (c_on_open), it's wax_part's, which needs no escaping.
 pub fn wax(s : String) -> String {
   let s = snake(s)
   if wax_keywords.contains(s) {

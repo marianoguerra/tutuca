@@ -190,6 +190,24 @@ fn host_send(h: &host, name: js_string, args: &value_array) {
     );
 }
 
+// A message to the component the selector reaches from the root, from
+// outside it.
+fn host_send_at(h: &host, name: js_string, args: &value_array, sel: &selector) {
+    let root_path = {dispatch_path| frames: [frame_array|null; 0] };
+    host_push(
+        h,
+        task_new(task_kind_plain, name, args, root_path, {target| base: root_path, selector: sel }),
+    );
+}
+
+// a's steps, then b's.
+fn selector_join(a: &selector, b: &selector) -> &selector {
+    let steps = [selector_step_array|null; a.steps.length() + b.steps.length()];
+    steps.copy(0, a.steps, 0, a.steps.length());
+    steps.copy(a.steps.length(), b.steps, 0, b.steps.length());
+    {selector| steps };
+}
+
 fn host_has_tasks(h: &host) -> i32 {
     h.queue.head != h.queue.len;
 }
@@ -264,7 +282,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         };
     let args = t.args;
     if !!t.action_args {
-        args = eval_args(t.action_args!, ctx, t.node);
+        args = eval_args(t.action_args!, ctx, t.node, comp);
     }
     // The message the component handles: the task's, or for an ask the reply
     // the ask's handler gives (none while it's pending).
@@ -452,20 +470,26 @@ fn effect_tasks(t: &task, args: &value_array, ctx: &context, tx: &transaction) -
     stop;
 }
 
-// Send arguments, evaluated on dispatch against the message context:
-// literals, the value of the element with the handler, the source key, or
+// Send arguments, evaluated on dispatch against the message context and the
+// receiver: literals, the value of the element with the handler, the source
+// key, a field of the receiver or of the item at the source key, or
 // conditionals of those.
-fn eval_args(args: &arg_array, ctx: &context, node: dom_node_opt) -> &value_array {
+fn eval_args(
+    args: &arg_array,
+    ctx: &context,
+    node: dom_node_opt,
+    receiver: &component,
+) -> &value_array {
     let out = [value_array|null; args.length()];
     let i = 0;
     while i <s args.length() {
-        out[i] = eval_arg(args[i]!, ctx, node);
+        out[i] = eval_arg(args[i]!, ctx, node, receiver);
         i += 1;
     }
     out;
 }
 
-fn eval_arg(a: &arg, ctx: &context, node: dom_node_opt) -> &value {
+fn eval_arg(a: &arg, ctx: &context, node: dom_node_opt, receiver: &component) -> &value {
     let kind = a.kind;
     if kind == arg_kind_value {
         return (a as &arg_value).value;
@@ -498,9 +522,27 @@ fn eval_arg(a: &arg, ctx: &context, node: dom_node_opt) -> &value {
         }
         return map_get(ctx.drag, s_key)!;
     }
+    if kind == arg_kind_field {
+        let found = owner_field(receiver, (a as &arg_field).name);
+        if !found {
+            return VALUE_NULL;
+        }
+        return found!;
+    }
+    if kind == arg_kind_item_field {
+        let f = a as &arg_item_field;
+        let seq = owner_field(receiver, f.seq);
+        if !seq | !ctx.source_key {
+            return VALUE_NULL;
+        }
+        let item = get_key(seq!, ctx.source_key!);
+        return get_key(item, path_key_name(f.name));
+    }
     let c = a as &arg_if;
-    value_truthy(eval_arg(c.test, ctx, node))?eval_arg(c.then, ctx, node)
-        :eval_arg(c.otherwise, ctx, node);
+    if value_truthy(eval_arg(c.test, ctx, node, receiver)) {
+        return eval_arg(c.then, ctx, node, receiver);
+    }
+    eval_arg(c.otherwise, ctx, node, receiver);
 }
 
 // Routes a DOM event, e, of type kind on target: queues the task of the
@@ -698,52 +740,29 @@ fn drag_value(d: &?drag, receiver: &dispatch_path) -> &value {
 
 // ---- Listening --------------------------------------------------------------
 
-// The event names the component types the root's scope tree registers handle
-// that this host hasn't given before: the ones to start listening to. The
-// tree is the whole one, from its root scope, since a component can make
-// types registered anywhere above it and the root can be swapped; and the
-// root's own scope's, with the ones it goes up through, which a scope left
-// (scope_leave) is no longer in.
+// The event names the types registered so far handle (in any scope:
+// registered_event_names) that this host hasn't given before: the ones to
+// start listening to. An event no component it renders handles finds no
+// handler, and goes nowhere.
 type event_names_acc = { listening: mut &phm_map, out: mut &value };
 
 fn host_new_event_names(h: &host) -> &value {
-    let c = value_as_component(h.root);
-    if !c {
+    if !registered_event_names {
         return list_empty();
     }
     let acc = {event_names_acc| listening: h.listening, out: list_empty() };
-    let s = (c!).scope;
-    scope_collect_event_names(acc, s);
-    while !!s.parent {
-        s = s.parent!;
-        phm_each(s.entries, acc, event_names_entry_visit);
-    }
-    scope_collect_event_names(acc, s);
+    phm_each(registered_event_names!, acc, event_names_visit);
     h.listening = acc.listening;
     acc.out;
 }
 
-fn scope_collect_event_names(acc: &event_names_acc, s: &scope) {
-    phm_each(s.entries, acc, event_names_entry_visit);
-    phm_each(s.children, acc, event_names_child_visit);
-}
-
-fn event_names_entry_visit(context: &?eq, key: &?eq, item: &?eq) {
+fn event_names_visit(context: &?eq, key: &?eq, item: &?eq) {
     let acc = context! as &event_names_acc;
-    let names = (item! as &scope_entry).spec.event_names;
-    let i = 0;
-    while i <s names.length() {
-        let name = names[i]!;
-        if !smap_get(acc.listening, name) {
-            acc.listening = smap_assoc(acc.listening, name, value_null());
-            acc.out = list_push(acc.out, value_string(name));
-        }
-        i += 1;
+    let name = (key! as &value_string).value;
+    if !smap_get(acc.listening, name) {
+        acc.listening = smap_assoc(acc.listening, name, value_null());
+        acc.out = list_push(acc.out, value_string(name));
     }
-}
-
-fn event_names_child_visit(context: &?eq, key: &?eq, item: &?eq) {
-    scope_collect_event_names(context! as &event_names_acc, item! as &scope);
 }
 
 // An ask answered later settled: its reply joins the queue, routed to the

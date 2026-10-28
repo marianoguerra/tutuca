@@ -61,8 +61,10 @@ for a list, string for a map) with the constraint that it's a key of `f`.
   from a child (a notify), and the handler reads which in `ctx.source_key`.
 - `notify name(args);` A message to the parent component, which handles a
   message of the same name.
-- `ask name(args) -> T;` A question answered later (by a package
-  `ask_handler`, or the host); the reply arrives in `c_reply_name_ok`.
+- `ask name(args) -> T [emits ...];` A question answered later (by a package
+  `ask_handler`, or the host); the reply arrives in `c_reply_name_ok`, which
+  may be left out when the answer changes nothing. `emits` lists what the
+  reply's handlers may do, as a message's does.
 - `invariant name: c;` A condition every state must meet, checked in dev mode.
 - `init;` Run `c_init` after init makes the state from its fields.
 - `loop name { prepare: T; iter; key: T; filter; enrich { b: T, ... } }` Hooks
@@ -111,12 +113,15 @@ keys an element among its siblings; `namespace: "uri"` (a constant) makes it
 in that namespace (`svg(...)` and `math(...)` set theirs).
 
 - `field(f)` a field or property's value; inside an `each` body, the item's.
-- `if(c, then, else)` / `if(c, then)`: `c` is `field(x)` or `bind(x)`; truthy
-  is true, a non-empty string, a non-zero number, a non-empty list.
+- `if(c, then, else)` / `if(c, then)`: `c` is `field(x)` or `bind(x)`, or one
+  compared with a literal (`field(show) == "all"`, `bind(kind) != "x"`, also
+  usable as an attribute's value); truthy is true, a non-empty string, a
+  non-zero number, a non-empty list.
 - `each(field(items), body)` / `each(loop: l, field(items), body)`: the body
   for each item; `render_it()` renders the item itself when it's a component,
   `bind(b)` reads the loop's enrich binds, `source_key()` is the item's key.
-- `render(field(child))` renders a component field; `render_each(field(items))`
+- `render(field(child))` renders a component field (an `option<T>` of a
+  component renders nothing while it's empty); `render_each(field(items))`
   / `render_each(loop: l, field(items))` renders each component of a list.
 - `push_view("name", body)` renders the components in body with their view
   `name` when they have one. `frag(a, b)` groups children without an element.
@@ -126,8 +131,10 @@ in that namespace (`svg(...)` and `math(...)` set theirs).
   send(inc)`, `on_input: send(set_text, target_value())`, `on_change:
   send(set_done, target_value())` (a checkbox's target value is a bool).
   Arguments are literals, `target_value()`, `source_key()`, `drag_key()`,
-  `event("key")`, or an `if` of them; they're checked against the message's
-  types. Modifiers go in a quoted name: `"on_keydown+enter+prevent":
+  `event("key")`, `field(x)`, or an `if` of them; they're checked against the
+  message's types. `field(x)` is read when the event is handled: the
+  component's field, or in an `each` body the item's (`each(field(items),
+  button(on_click: send(pick, field(id)), field(label)))`). Modifiers go in a quoted name: `"on_keydown+enter+prevent":
   send(add)`, `"on_keydown+escape": send(cancel)`.
 - Attributes: `class`, `style`, `value`, `checked`, `placeholder`, `title`,
   `type`, `role`, ... take a constant, `field(x)`, `bind(x)` or an `if` of

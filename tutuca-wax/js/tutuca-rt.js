@@ -482,13 +482,16 @@ function makeApi(w) {
 			isComponent ? 1 : 0,
 		);
 	// A send argument: a literal, { targetValue: true }, { sourceKey: true },
-	// { dragKey: true }, { event: name }, or { if: [test, then, otherwise] }.
+	// { dragKey: true }, { event: name }, { field: name } (the receiver's),
+	// { field: name, of: seq } (the item at the source key of the receiver's
+	// seq), or { if: [test, then, otherwise] }.
 	const arg = (a) => {
 		if (a !== null && typeof a === "object") {
 			if (a.targetValue) return w.arg_target_value();
 			if (a.sourceKey) return w.arg_source_key();
 			if (a.dragKey) return w.arg_drag_key();
 			if (typeof a.event === "string") return w.arg_event(a.event);
+			if (typeof a.field === "string") return typeof a.of === "string" ? w.arg_item_field(a.of, a.field) : w.arg_field(a.field);
 			if (Array.isArray(a.if)) return w.arg_if(arg(a.if[0]), arg(a.if[1]), arg(a.if[2]));
 		}
 		return w.arg_value(toValue(a));
@@ -597,12 +600,15 @@ function makeApi(w) {
 			"renderIt",
 			"scope",
 			"pushView",
+			"eq",
 		],
 		constant: (v) => viewNode(w.view_const(toValue(v))),
 		field: (name) => viewNode(w.view_field(name)),
 		seqItem: (seqName, keyName) => viewNode(w.view_seq_item(seqName, keyName)),
 		provided: (name) => viewNode(w.view_provided(name)),
 		lookupBind: (name) => viewNode(w.view_lookup_bind(name)),
+		// left == value, or != with negate: a bool, as conditions compare.
+		eq: (left, value, negate = false) => viewNode(w.view_eq(toView(left), toValue(value), negate ? 1 : 0)),
 		// An if of send arguments, when a branch is one, is a send argument too.
 		if: (test, then, otherwise) =>
 			[test, then, otherwise].some(isSendArg)
@@ -785,8 +791,8 @@ function makeRuntime(w, api, late) {
 					if (w.host_has_tasks(h)) schedule();
 				}
 			},
-			// Listens on the container for the events the types in the root's
-			// scope tree handle, the ones loaded since included.
+			// Listens on the container for the events the types registered
+			// so far handle, in any scope, the ones loaded since included.
 			listen() {
 				if (host.headless) return;
 				for (const type of values.to(w.host_new_event_names(h))) {
@@ -807,6 +813,16 @@ function makeRuntime(w, api, late) {
 			send(name, args = []) {
 				late.host = host;
 				w.host_send(h, name, values.from(args));
+				host.run();
+			},
+			// A message to the component steps reach from the root: each step
+			// a field ("child") or an item of a list or map field
+			// (["items", 0], ["byId", "a"]).
+			sendAt(steps, name, args = []) {
+				const key = (k) => (typeof k === "number" ? w.path_key_index(k) : w.path_key_name(k));
+				const step = (s) => (Array.isArray(s) ? w.selector_item(s[0], key(s[1])) : w.selector_field(s));
+				late.host = host;
+				w.host_send_at(h, name, values.from(args), steps.map(step).reduce((a, b) => w.selector_join(a, b)));
 				host.run();
 			},
 			// Routes a DOM event to the handler it reaches, if any, and runs.

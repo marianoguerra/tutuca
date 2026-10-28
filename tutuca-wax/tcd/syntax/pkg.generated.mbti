@@ -187,6 +187,7 @@ pub(all) struct Signal {
   name : Name
   params : Array[Param]
   result : TypeExpr?
+  emits : Array[Emit]?
   span : @diag.Span
 } derive(Eq, ToJson, @debug.Debug)
 

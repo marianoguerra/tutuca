@@ -46,6 +46,15 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
           "view_seq_item(\{self.s(name_of(args[0]))}, \{self.s(name_of(args[1]))})"
         "provided" => "view_provided(\{self.s(name_of(args[0]))})"
         "bind" => "view_lookup_bind(\{self.s(name_of(args[0]))})"
+        "==" | "!=" => {
+          let left = self.view(b, args[0])
+          let right = match args[1] {
+            Lit(l, ..) => self.lit(l)
+            _ => "value_null()"
+          }
+          let negate = if n.text == "!=" { "1" } else { "0" }
+          b.bind("view_eq(\{left}, \{right}, \{negate})")
+        }
         "if" => {
           let cond_v = self.view(b, args[0])
           let then_v = self.view(b, args[1])
@@ -74,7 +83,14 @@ fn Gen::view(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
         }
         "each" => {
           let src = self.view(b, args[0])
+          self.each_seqs.push(
+            match args[0] {
+              Call({ text: "field", .. }, _, [seq], ..) => name_of(seq)
+              _ => ""
+            },
+          )
           let body = self.view(b, args[1])
+          ignore(self.each_seqs.pop())
           b.bind(
             "view_each(\{src}, \{body}, \{self.opt_name(opt_attr(attrs, "loop"))})",
           )
@@ -117,6 +133,12 @@ fn Gen::send_arg(self : Gen, b : Block, v : @syntax.ViewExpr) -> String {
     Call({ text: "drag_key", .. }, _, _, ..) => "arg_drag_key()"
     Call({ text: "event", .. }, _, [arg], ..) =>
       "arg_event(\{self.s(name_of(arg))})"
+    // The receiver's field, or in an each body its item's.
+    Call({ text: "field", .. }, _, [arg], ..) =>
+      match self.each_seqs.last() {
+        Some(seq) => "arg_item_field(\{self.s(seq)}, \{self.s(name_of(arg))})"
+        None => "arg_field(\{self.s(name_of(arg))})"
+      }
     Call({ text: "if", .. }, _, args, ..) => {
       let cond_v = self.send_arg(b, args[0])
       let then_v = self.send_arg(b, args[1])

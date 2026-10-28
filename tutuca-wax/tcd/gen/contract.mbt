@@ -47,7 +47,7 @@ pub fn Gen::contract(self : Gen) -> String {
   let out = Out::new()
   let sends : Array[String] = []
   for c in self.pkg.components {
-    let cw = @check.wax(c.name)
+    let cw = @check.wax_part(c.name)
     out.line(
       "// ---- \{c.name} " + "-".repeat(@cmp.maximum(4, 74 - c.name.length())),
     )
@@ -58,24 +58,45 @@ pub fn Gen::contract(self : Gen) -> String {
     for f in c.fields {
       if f.ty is Enum(ms) {
         for i, m in ms {
-          out.line("const \{cw}_\{@check.wax(f.name)}_\{m} = \{i};")
+          out.line("const \{cw}_\{@check.wax_part(f.name)}_\{m} = \{i};")
         }
         out.line("")
       }
     }
+    // The records its fields, properties and asks' replies hold.
+    let seen : Array[String] = []
+    for f in c.fields {
+      self.record_helpers(out, seen, "\{cw}_\{@check.wax_part(f.name)}", f.ty)
+    }
+    for g in c.gets {
+      self.record_helpers(out, seen, "\{cw}_\{@check.wax_part(g.name)}", g.ty)
+    }
+    for a in c.asks {
+      if a.result is Some(t) {
+        self.record_helpers(
+          out,
+          seen,
+          "\{cw}_\{@check.wax_part(a.name)}_reply",
+          t,
+        )
+      }
+    }
     for l in c.loops {
       if l.enrich is Some(bs) {
-        out.line(struct_type("\{cw}_loop_\{@check.wax(l.name)}_binds", bs))
+        out.line(struct_type("\{cw}_loop_\{@check.wax_part(l.name)}_binds", bs))
         out.line("")
       }
     }
+
     for s in c.scopes {
-      out.line(struct_type("\{cw}_scope_\{@check.wax(s.name)}_binds", s.binds))
+      out.line(
+        struct_type("\{cw}_scope_\{@check.wax_part(s.name)}_binds", s.binds),
+      )
       out.line("")
     }
     // Functional updates.
     for f in c.fields {
-      let fw = @check.wax(f.name)
+      let fw = @check.wax_part(f.name)
       let entries = c.fields
         .map(g => {
           let gw = @check.wax(g.name)
@@ -122,7 +143,7 @@ pub fn Gen::contract(self : Gen) -> String {
         "// notify \{n.name}: to the parent, bubbling until a handler stops it.",
       )
       out.line(
-        "fn \{cw}_notify_\{@check.wax(n.name)}(ctx: &context\{param_list(n.params)}) {",
+        "fn \{cw}_notify_\{@check.wax_part(n.name)}(ctx: &context\{param_list(n.params)}) {",
       )
       lines.each(l => out.line(l))
       out.line("    ctx_notify(ctx, \{self.s(n.name)}, \{args});")
@@ -132,10 +153,10 @@ pub fn Gen::contract(self : Gen) -> String {
     for a in c.asks {
       let (lines, args) = self.args_array(a.params)
       out.line(
-        "// ask \{a.name}: the reply comes back to \{cw}_reply_\{@check.wax(a.name)}_ok, _err or _not_found.",
+        "// ask \{a.name}: the reply comes back to \{cw}_reply_\{@check.wax_part(a.name)}_ok, _err or _not_found.",
       )
       out.line(
-        "fn \{cw}_ask_\{@check.wax(a.name)}(ctx: &context\{param_list(a.params)}) {",
+        "fn \{cw}_ask_\{@check.wax_part(a.name)}(ctx: &context\{param_list(a.params)}) {",
       )
       lines.each(l => out.line(l))
       out.line("    ctx_ask(ctx, \{self.s(a.name)}, \{args});")
@@ -167,7 +188,7 @@ pub fn Gen::contract(self : Gen) -> String {
               "// send \{t}.\{e.name} to the components below that at selects.",
             )
             out.line(
-              "fn \{@check.wax(t)}_send_\{@check.wax(e.name)}(ctx: &context, at: &selector\{param_list(params)}) {",
+              "fn \{@check.wax_part(t)}_send_\{@check.wax_part(e.name)}(ctx: &context, at: &selector\{param_list(params)}) {",
             )
             lines.each(l => out.line(l))
             out.line("    ctx_send_at(ctx, \{self.s(e.name)}, \{args}, at);")
@@ -184,7 +205,7 @@ pub fn Gen::contract(self : Gen) -> String {
               "// make a \{e.name}, by name, in the handling component's scope.",
             )
             out.line(
-              "fn \{cw}_make_\{@check.wax(e.name)}(ctx: &context\{param_list(fs)}) -> &component {",
+              "fn \{cw}_make_\{@check.wax_part(e.name)}(ctx: &context\{param_list(fs)}) -> &component {",
             )
             let mut map = "map_empty()"
             for f in fs {
@@ -200,4 +221,59 @@ pub fn Gen::contract(self : Gen) -> String {
     }
   }
   out.to_string()
+}
+
+///|
+/// The record a type holds: itself, or what a list, a map or an option of it
+/// holds.
+fn record_in(t : @check.Ty) -> Array[(String, @check.Ty)]? {
+  match t {
+    Record(entries) => Some(entries)
+    List(i) | Map(i) | Option(i) => record_in(i)
+    _ => None
+  }
+}
+
+///|
+/// For a record t holds (a field's, a property's, an ask reply's, or one
+/// inside them), prefix_new making one from its members and prefix_<member>
+/// reading each, in their Wax types; and the same for the records inside it,
+/// prefix_<member>_... A name made twice is made once.
+fn Gen::record_helpers(
+  self : Gen,
+  out : Out,
+  seen : Array[String],
+  prefix : String,
+  t : @check.Ty,
+) -> Unit {
+  guard record_in(t) is Some(entries) else { return }
+  if !seen.contains(prefix + "_new") {
+    seen.push(prefix + "_new")
+    let params = entries
+      .map(e => "\{@check.wax(e.0)}: \{wax_ty(e.1)}")
+      .join(", ")
+    let mut map = "map_empty()"
+    for e in entries {
+      map = "map_assoc(\{map}, \{self.s(e.0)}, \{self.encode(e.1, @check.wax(e.0))})"
+    }
+    out.line(
+      "// A record of \{prefix}'s type: \{entries.map(e => e.0).join(", ")}.",
+    )
+    out.line("fn \{prefix}_new(\{params}) -> &value {")
+    out.line("    \{map};")
+    out.line("}")
+    out.line("")
+  }
+  for e in entries {
+    let name = "\{prefix}_\{@check.wax_part(e.0)}"
+    if !seen.contains(name) {
+      seen.push(name)
+      out.line("// A \{prefix} record's \{e.0}.")
+      out.line("fn \{name}(r: &value) -> \{wax_ty(e.1)} {")
+      out.line("    \{self.decode(e.1, "value_member(r, \{self.s(e.0)})")};")
+      out.line("}")
+      out.line("")
+    }
+    self.record_helpers(out, seen, name, e.1)
+  }
 }

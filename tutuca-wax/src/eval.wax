@@ -180,6 +180,10 @@ fn view_value(v: &view, e: &eval_ctx) -> &value {
         c: &view_if => {
             return view_value(value_truthy(view_value(c.test, e))?c.then:c.otherwise, e);
         }
+        q: &view_eq => {
+            let same = cond_eq(view_value(q.left, e), q.value);
+            return value_bool(q.negate?!same:same);
+        }
         _ => {
             host_fail(s_err_not_a_value);
             unreachable;
@@ -317,6 +321,10 @@ fn view_eval_into(out: &snode_buf, v: &view, e: &eval_ctx) {
         }
         r: &view_render => {
             let child = view_value(r.source, e);
+            // An empty option<component> renders nothing.
+            if child.kind == value_kind_null {
+                return;
+            }
             snode_buf_push(out, render_child(view_frame(r.source, e), child, r.view_name, e.rc));
             return;
         }

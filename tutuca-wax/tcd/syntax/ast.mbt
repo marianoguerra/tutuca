@@ -158,12 +158,15 @@ pub(all) struct Message {
 } derive(Eq, Debug, ToJson)
 
 ///|
-/// `notify name(params)`, `ask name(params) -> T`, `ask_handler name(params) -> T`.
+/// `notify name(params)`, `ask name(params) -> T [emits ...]`,
+/// `ask_handler name(params) -> T`. An ask's emits are what the handlers of
+/// its reply may do.
 pub(all) struct Signal {
   doc : String?
   name : Name
   params : Array[Param]
   result : TypeExpr?
+  emits : Array[Emit]?
   span : @diag.Span
 } derive(Eq, Debug, ToJson)
 

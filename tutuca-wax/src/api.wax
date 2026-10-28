@@ -370,6 +370,16 @@ fn api_host_send(h: &host, name: js_string, args: &value) {
     host_send(h, name, list_to_values(args));
 }
 
+#[export = "host_send_at"]
+fn api_host_send_at(h: &host, name: js_string, args: &value, sel: &selector) {
+    host_send_at(h, name, list_to_values(args), sel);
+}
+
+#[export = "selector_join"]
+fn api_selector_join(a: &selector, b: &selector) -> &selector {
+    selector_join(a, b);
+}
+
 #[export = "host_has_tasks"]
 fn api_host_has_tasks(h: &host) -> i32 {
     host_has_tasks(h);

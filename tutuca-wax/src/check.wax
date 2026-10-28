@@ -109,7 +109,8 @@ fn reject_message(c: &component, name: js_string, e: &message_error) {
 
 // Rejects args that don't fit the message's schema: their number, then each
 // one's type, then its constraints, against c's state for the ones that read
-// it (a key of one of its fields).
+// it (a key of one of its fields). The ones that fit are coerced to their
+// types (vtype_coerce), in place.
 fn check_message_args(c: &component, ms: &message_schema, args: &value_array) {
     if args.length() != ms.args.length() {
         reject_with(
@@ -140,6 +141,7 @@ fn check_message_args(c: &component, ms: &message_schema, args: &value_array) {
             reject_with(c, ms.name, s_r_invalid_arg, i, arg_problem(i, f.name, problem!), null);
             return;
         }
+        args[i] = vtype_coerce(f.vtype, arg);
         i += 1;
     }
 }

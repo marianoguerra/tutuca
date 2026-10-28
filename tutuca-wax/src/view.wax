@@ -26,6 +26,11 @@ fn view_lookup_bind(name: js_string) -> &view {
     out;
 }
 
+fn view_eq(left: &view, value: &value, negate: i32) -> &view {
+    let out: &view_eq = { kind: view_kind_eq, left, value, negate };
+    out;
+}
+
 fn view_if(test: &view, then: &view, otherwise: &view) -> &view {
     let out: &view_if = { kind: view_kind_if, test, then, otherwise };
     out;

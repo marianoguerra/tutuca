@@ -36,7 +36,7 @@ pub fn required_of(
   pkg : @check.Package,
   c : @check.ComponentM,
 ) -> Array[Required] {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let st = ("state", "&\{cw}_state")
   let ctx = ("ctx", "&context")
   let state_t = "&\{cw}_state"
@@ -64,7 +64,7 @@ pub fn required_of(
     let params = [st, ctx]
     params.append(typed_params(m.params))
     out.push({
-      name: "\{cw}_on_\{@check.wax(m.name)}",
+      name: "\{cw}_on_\{@check.wax_part(m.name)}",
       params,
       result: if m.swap {
         "&\{cw}_swap_result"
@@ -79,7 +79,7 @@ pub fn required_of(
   }
   for g in c.gets {
     out.push({
-      name: "\{cw}_get_\{@check.wax(g.name)}",
+      name: "\{cw}_get_\{@check.wax_part(g.name)}",
       params: [st],
       result: wax_ty(g.ty),
       what: "computes the property \{g.name}: \{@check.ty_text(g.ty)}",
@@ -89,16 +89,16 @@ pub fn required_of(
     })
   }
   for a in c.asks {
-    let aw = @check.wax(a.name)
+    let aw = @check.wax_part(a.name)
     let result = a.result.unwrap_or(Any)
     out.push({
       name: "\{cw}_reply_\{aw}_ok",
       params: [st, ctx, ("reply", wax_ty(result))],
       result: state_t,
-      what: "takes the answer to the ask \{a.name}",
+      what: "takes the answer to the ask \{a.name} (optional: without it, the answer changes nothing)",
       notes: [],
       span: a.span,
-      optional: false,
+      optional: true,
     })
     out.push({
       name: "\{cw}_reply_\{aw}_err",
@@ -120,7 +120,7 @@ pub fn required_of(
     })
   }
   for l in c.loops {
-    let lw = "\{cw}_loop_\{@check.wax(l.name)}"
+    let lw = "\{cw}_loop_\{@check.wax_part(l.name)}"
     let extra = match l.prepare {
       Some(t) => [("prepared", wax_ty(t))]
       None => []
@@ -187,9 +187,9 @@ pub fn required_of(
   }
   for s in c.scopes {
     out.push({
-      name: "\{cw}_scope_\{@check.wax(s.name)}",
+      name: "\{cw}_scope_\{@check.wax_part(s.name)}",
       params: [st],
-      result: "&\{cw}_scope_\{@check.wax(s.name)}_binds",
+      result: "&\{cw}_scope_\{@check.wax_part(s.name)}_binds",
       what: "gives the binds the scope \{s.name} sees",
       notes: [],
       span: s.span,
@@ -233,7 +233,7 @@ pub fn required_of_package(pkg : @check.Package) -> Array[Required] {
     let params = [("ctx", "&context")]
     params.append(typed_params(a.params))
     {
-      name: "\{@check.wax(pkg.name)}_answer_\{@check.wax(a.name)}",
+      name: "\{@check.wax_part(pkg.name)}_answer_\{@check.wax_part(a.name)}",
       params,
       result: "&value",
       what: "answers the ask \{a.name}, now, with value_ok(...) or value_err(...)",

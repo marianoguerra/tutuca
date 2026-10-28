@@ -28,10 +28,9 @@ fn scope_enter(s: &scope, name: js_string) -> &scope {
 }
 
 // The child scope named so dropped from the tree. Nothing reads a scope
-// through its parent but scope_enter and the hosts' event names: what was
-// made in it holds it and looks up through its parents, so it goes on
-// working; entering the name again makes a new one; and its types' events
-// are no longer collected for listeners added later.
+// through its parent but scope_enter: what was made in it holds it and looks
+// up through its parents, so it goes on working, and entering the name again
+// makes a new one.
 fn scope_leave(s: &scope, name: js_string) {
     s.children = smap_dissoc(s.children, name);
 }
@@ -46,7 +45,24 @@ fn scope_register(s: &scope, name: js_string, spec: &component_spec, vtable: &vt
         host_fail(problem!);
     }
     s.entries = smap_assoc(s.entries, name, {scope_entry| spec, vtable });
+    let i = 0;
+    while i <s spec.event_names.length() {
+        let event = spec.event_names[i]!;
+        if !registered_event_names {
+            registered_event_names = smap_empty();
+        }
+        if !smap_get(registered_event_names!, event) {
+            registered_event_names = smap_assoc(registered_event_names!, event, value_null());
+        }
+        i += 1;
+    }
 }
+
+// The event names of every type registered in any scope of this module
+// instance (null until one is), which hosts listen to: a component can be
+// made in any scope and held by any other, so a host can't know from its
+// root's scopes which types it will render.
+let registered_event_names: &?phm_map = null;
 
 // Here first, then in the parents: inner registrations win.
 fn scope_lookup(s: &scope, name: js_string) -> &?scope_entry {
@@ -171,7 +187,7 @@ fn scope_make(s: &scope, name: js_string, fields: &value) -> &make_result {
     if !!problem {
         return {make_result| component: null, issues: list_empty(), error: value_string(problem!) };
     }
-    let made = e.vtable.init(fields, {init_context| scope: s });
+    let made = e.vtable.init(fields_coerce(e.spec.schema, fields), {init_context| scope: s });
     if !made.instance {
         return {make_result| component: null, issues: made.issues, error: made.error };
     }

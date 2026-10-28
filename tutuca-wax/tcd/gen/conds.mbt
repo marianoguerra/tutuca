@@ -26,7 +26,7 @@ priv struct CondGen {
 
 ///|
 fn CondGen::state_type(self : CondGen) -> String {
-  "&\{@check.wax(self.c.name)}_state"
+  "&\{@check.wax_part(self.c.name)}_state"
 }
 
 ///|
@@ -46,12 +46,13 @@ fn CondGen::env_params(self : CondGen) -> (String, String) {
 
 ///|
 fn CondGen::read(self : CondGen, state : String, name : String) -> String {
-  let c = @check.wax(self.c.name)
+  let c = @check.wax_part(self.c.name)
   match self.c.field(name) {
     Some(f) => self.g.encode(f.ty, "\{state}.\{@check.wax(name)}")
     None =>
       match self.c.gets.iter().find_first(g => g.name == name) {
-        Some(g) => self.g.encode(g.ty, "\{c}_get_\{name}(\{state})")
+        Some(g) =>
+          self.g.encode(g.ty, "\{c}_get_\{@check.wax_part(name)}(\{state})")
         None => "value_null()"
       }
   }
@@ -131,7 +132,7 @@ fn CondGen::cond(self : CondGen, e : @syntax.Expr) -> String {
     Bin(NotIn, l, r, ..) => "!cond_in(\{self.term(l)}, \{self.term(r)})"
     Matches(l, p, ..) => "cond_matches(\{self.term(l)}, \{self.g.s(p)})"
     Call({ text: "check", .. }, [Path([p], ..)], ..) =>
-      "\{@check.wax(self.c.name)}_check_\{p.text}(\{self.state_var()})"
+      "\{@check.wax_part(self.c.name)}_check_\{p.text}(\{self.state_var()})"
     Call({ text: "all" | "any" as which, .. }, [xs, body], ..) => {
       let name = "\{self.prefix}_\{which}_\{self.next}"
       self.next += 1
@@ -166,12 +167,12 @@ fn CondGen::cond(self : CondGen, e : @syntax.Expr) -> String {
 /// The when of m as a pre_fn, its ensures as a post_fn, and the invariants
 /// as invariant_fns; the helpers they use come first.
 fn Gen::predicates(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let st = "&\{cw}_state"
   let helpers = Out::new()
   let preds = Out::new()
   for m in c.messages {
-    let mw = @check.wax(m.name)
+    let mw = @check.wax_part(m.name)
     if m.when_ is Some(w) {
       let cg = {
         g: self,
@@ -215,7 +216,7 @@ fn Gen::predicates(self : Gen, c : @check.ComponentM) -> String {
     }
   }
   for inv in c.invariants {
-    let iw = @check.wax(inv.name)
+    let iw = @check.wax_part(inv.name)
     let cg = {
       g: self,
       c,

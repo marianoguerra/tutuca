@@ -409,7 +409,7 @@ pub fn check_convention(
   // Handlers and properties for things the TCD file doesn't declare.
   let req_names = reqs.map(r => r.name)
   for c in pkg.components {
-    let cw = @check.wax(c.name)
+    let cw = @check.wax_part(c.name)
     for kind in ["_on_", "_get_", "_reply_", "_check_"] {
       let prefix = cw + kind
       for f in funcs {

@@ -773,6 +773,108 @@ fn constraint_problem(c: &constraint, v: &value, owner: &?component) -> js_strin
     problem_got(b, v);
 }
 
+// v with an int made a float wherever t (or what it holds: an option's
+// value, a list's or a map's items, a record's fields, a one_of without an
+// int) is f64, so code reading a float field reads a float: JS gives an
+// integral number as an int. v itself when nothing changes; a value that
+// doesn't fit t is left as it is, for vtype_problem to say why.
+fn vtype_coerce(t: &vtype, v: &value) -> &value {
+    let kind = t.kind;
+    let vk = v.kind;
+    if (kind == vtype_kind_float) & (vk == value_kind_int) {
+        return value_float((v as &value_int).value as f64_s);
+    }
+    if (kind == vtype_kind_option) & (vk != value_kind_null) {
+        return vtype_coerce((t as &vtype_of).item, v);
+    }
+    if (kind == vtype_kind_one_of) & (vk == value_kind_int) {
+        let types = (t as &vtype_one_of).types;
+        let float = 0;
+        let i = 0;
+        while i <s types.length() {
+            if (types[i]!).kind == vtype_kind_int {
+                return v;
+            }
+            float = float | ((types[i]!).kind == vtype_kind_float);
+            i += 1;
+        }
+        if float {
+            return value_float((v as &value_int).value as f64_s);
+        }
+        return v;
+    }
+    if (kind == vtype_kind_list) & (vk == value_kind_list) {
+        let item = (t as &vtype_of).item;
+        let out = v;
+        let i = 0;
+        while i <s list_count(v) {
+            let was = list_get(v, i)!;
+            let now = vtype_coerce(item, was);
+            if now != was {
+                out = list_assoc(out, i, now);
+            }
+            i += 1;
+        }
+        return out;
+    }
+    if (kind == vtype_kind_map) & (vk == value_kind_map) {
+        let item = (t as &vtype_of).item;
+        let out = v;
+        let keys = map_keys(v);
+        let i = 0;
+        while i <s list_count(keys) {
+            let key = (list_get(keys, i)! as &value_string).value;
+            let was = map_get(v, key)!;
+            let now = vtype_coerce(item, was);
+            if now != was {
+                out = map_assoc(out, key, now);
+            }
+            i += 1;
+        }
+        return out;
+    }
+    if (kind == vtype_kind_record) & (vk == value_kind_map) {
+        let r = t as &vtype_record;
+        let out = v;
+        let i = 0;
+        while i <s r.names.length() {
+            let found = map_get(v, r.names[i]!);
+            if !!found {
+                let now = vtype_coerce(r.types[i]!, found!);
+                if now != found! {
+                    out = map_assoc(out, r.names[i]!, now);
+                }
+            }
+            i += 1;
+        }
+        return out;
+    }
+    v;
+}
+
+// fields (a map, as make gets them) with each one schema has coerced to its
+// field's type (vtype_coerce).
+fn fields_coerce(schema: &?component_schema, fields: &value) -> &value {
+    if !schema | (fields.kind != value_kind_map) {
+        return fields;
+    }
+    let fs = (schema!).fields;
+    let out = fields;
+    let i = 0;
+    while i <s fs.length() {
+        let f = fs[i]!;
+        let found = map_get(fields, f.name);
+        if !!found {
+            let now = vtype_coerce(f.vtype, found!);
+            if now != found! {
+                out = map_assoc(out, f.name, now);
+            }
+        }
+        i += 1;
+    }
+    out;
+}
+
 // Why v doesn't fit field (its type, then its constraints), or null. A null
 // its type takes (an option's) meets the constraints, which are about the
 // value it's an option of.

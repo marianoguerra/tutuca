@@ -243,12 +243,11 @@ const remember = (id) => {
 	} catch {}
 };
 
-// Every scope chain the host makes hangs from base: the host listens for the
-// events of the types in its root's scope tree, so a screen's types are
-// heard too. The studio's own module is in a child of its own, which no
-// screen's chain goes through: a hole never lists Studio. Each screen opened
-// and each preview made gets a child of base, so it's made from scratch,
-// left once another takes its place.
+// Every scope chain the studio makes hangs from base. The studio's own
+// module is in a child of its own, which no screen's chain goes through: a
+// hole never lists Studio. Each screen opened and each preview made gets a
+// child of base, so it's made from scratch, left once another takes its
+// place.
 const base = runtime.scope();
 const studioScope = runtime.enter(base, "studio");
 styles.add((await tw.loadComponent(new URL("../dist/components/studio.wasm", import.meta.url), studioScope)).classes);

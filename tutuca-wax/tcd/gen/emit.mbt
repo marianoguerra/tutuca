@@ -4,9 +4,12 @@
 // spelling of types, values and schemas.
 
 ///|
-/// The string constants a package's generated code uses: each runtime
-/// string gets one const, `gs_<what it says>`, which the implementation may
-/// use too.
+/// The string constants a package's generated code uses, one per runtime
+/// string, which the implementation may use too. A name the package declares
+/// is gs_<name> as written (gs_done, gs_set_text; a type keeps its case:
+/// gs_TodoItem), claimed before any other text (names_first), so a name's
+/// const is never taken; any other text, a view's or a literal's, is
+/// gt_<what it says> (gt_add, gt_text for symbols only), and "" is gs_empty.
 pub(all) struct Strings {
   by_text : Map[String, String]
   order : Array[String]
@@ -44,29 +47,58 @@ fn sanitize(s : String) -> String {
 }
 
 ///|
-/// The const holding text.
+/// Whether s is letters, digits and _ only: a name as written.
+fn is_word(s : String) -> Bool {
+  s != "" &&
+  s
+  .iter()
+  .all(c => {
+    (c >= 'a' && c <= 'z') ||
+    (c >= 'A' && c <= 'Z') ||
+    (c >= '0' && c <= '9') ||
+    c == '_'
+  })
+}
+
+///|
+/// text's const as base, or base_2, base_3... when it's taken.
+fn Strings::add(self : Strings, text : String, base : String) -> String {
+  let mut name = base
+  let mut i = 2
+  while self.by_text.values().any(n => n == name) {
+    name = base + "_" + i.to_string()
+    i += 1
+  }
+  self.by_text[text] = name
+  self.order.push(text)
+  name
+}
+
+///|
+/// Claims a name the package declares: gs_<name>, as written.
+pub fn Strings::name(self : Strings, name : String) -> Unit {
+  if name == "" || self.by_text.contains(name) {
+    return
+  }
+  ignore(
+    self.add(name, "gs_" + (if is_word(name) { name } else { sanitize(name) })),
+  )
+}
+
+///|
+/// The const holding text: a name's gs_, or the text's gt_.
 pub fn Strings::get(self : Strings, text : String) -> String {
   match self.by_text.get(text) {
     Some(n) => n
     None => {
-      // Only the empty text is gs_empty: text of only symbols ("+", "×")
-      // is gs_text, so an implementation's gs_empty is always "".
       let base = if text == "" {
         "gs_empty"
       } else if sanitize(text) == "" {
-        "gs_text"
+        "gt_text"
       } else {
-        "gs_" + sanitize(text)
+        "gt_" + sanitize(text)
       }
-      let mut name = base
-      let mut i = 2
-      while self.by_text.values().any(n => n == name) {
-        name = base + "_" + i.to_string()
-        i += 1
-      }
-      self.by_text[text] = name
-      self.order.push(text)
-      name
+      self.add(text, base)
     }
   }
 }

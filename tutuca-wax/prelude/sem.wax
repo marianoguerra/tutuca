@@ -27,6 +27,8 @@ const arg_kind_source_key = 2;
 const arg_kind_if = 3;
 const arg_kind_drag_key = 4;
 const arg_kind_event = 5;
+const arg_kind_field = 6;
+const arg_kind_item_field = 7;
 
 rec {
     type arg = open { kind: i32 };
@@ -39,6 +41,11 @@ rec {
     // A field of the event (its key, clientX, ctrlKey, ...), null when it has none.
     type arg_event: arg = { .., name: js_string };
     type arg_if: arg = { .., test: &arg, then: &arg, otherwise: &arg };
+    // A field (or property) of the receiver.
+    type arg_field: arg = { .., name: js_string };
+    // A field of the item at the source key of the receiver's seq (a list or
+    // map field or property): what an each body's field(name) reads.
+    type arg_item_field: arg = { .., seq: js_string, name: js_string };
 }
 
 type arg_array = [mut &?arg];

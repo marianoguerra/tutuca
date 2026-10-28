@@ -20,8 +20,8 @@ fn Gen::message_schema(
   }
   let (pre, post) = match c {
     Some(c) => {
-      let cw = @check.wax(c.name)
-      let mw = @check.wax(m.name)
+      let cw = @check.wax_part(c.name)
+      let mw = @check.wax_part(m.name)
       (
         if m.when_ is Some(_) {
           "\{cw}_when_\{mw}"
@@ -41,7 +41,19 @@ fn Gen::message_schema(
     Some(ch) => b.array("str_array", ch.map(f => self.s(f)))
     None => "null"
   }
-  let emits = match m.emits {
+  let emits = self.emit_array(b, m.emits)
+  "message_schema_new(\{self.s(m.name)}, \{args}, \{key}, \{pre}, \{post}, \{changes}, \{emits})"
+}
+
+///|
+/// What a handler may emit, as the runtime checks it: null when it doesn't
+/// say (unchecked).
+fn Gen::emit_array(
+  self : Gen,
+  b : Block,
+  emits : Array[@check.EmitM]?,
+) -> String {
+  match emits {
     Some(es) => {
       let items = []
       for e in es {
@@ -57,7 +69,6 @@ fn Gen::message_schema(
     }
     None => "null"
   }
-  "message_schema_new(\{self.s(m.name)}, \{args}, \{key}, \{pre}, \{post}, \{changes}, \{emits})"
 }
 
 ///|
@@ -72,11 +83,16 @@ fn Gen::reply_schemas(
   c : @check.ComponentM,
   owner : String,
 ) -> Array[String] {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let out = []
-  let reply = (name : String, params : Array[@check.FieldM]) => {
+  // What a reply's handler may emit is its ask's emits.
+  let reply = (
+    name : String,
+    params : Array[@check.FieldM],
+    emits : Array[@check.EmitM]?,
+  ) => {
     let args = self.field_schemas(b, params, owner)
-    "message_schema_new(\{self.s(name)}, \{args}, null, null, null, null, null)"
+    "message_schema_new(\{self.s(name)}, \{args}, null, null, null, null, \{self.emit_array(b, emits)})"
   }
   fn param(name : String, ty : @check.Ty) -> @check.FieldM {
     {
@@ -92,14 +108,20 @@ fn Gen::reply_schemas(
     }
   }
   for a in c.asks {
-    let aw = @check.wax(a.name)
+    let aw = @check.wax_part(a.name)
     let ac = a.name
-    out.push(reply(ac + "_reply_ok", [param("value", a.result.unwrap_or(Any))]))
+    out.push(
+      reply(
+        ac + "_reply_ok",
+        [param("value", a.result.unwrap_or(Any))],
+        a.emits,
+      ),
+    )
     if self.has("\{cw}_reply_\{aw}_err") {
-      out.push(reply(ac + "_reply_error", [param("error", Any)]))
+      out.push(reply(ac + "_reply_error", [param("error", Any)], a.emits))
     }
     if self.has("\{cw}_reply_\{aw}_not_found") {
-      out.push(reply(ac + "_handler_not_found", []))
+      out.push(reply(ac + "_handler_not_found", [], a.emits))
     }
   }
   out
@@ -107,7 +129,7 @@ fn Gen::reply_schemas(
 
 ///|
 fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let b = Block::new()
   let fields = self.field_schemas(b, c.fields, cw)
   let gets = self.field_schemas(b, c.gets, cw)
@@ -119,7 +141,7 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
   let invariants = b.array(
     "invariant_array",
     c.invariants.map(i => {
-      "invariant_new(\{self.s(i.name)}, \{cw}_inv_\{@check.wax(i.name)})"
+      "invariant_new(\{self.s(i.name)}, \{cw}_inv_\{@check.wax_part(i.name)})"
     }),
   )
   let interfaces = b.array("str_array", c.implements.map(i => self.s(i)))
@@ -146,17 +168,17 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
 
 ///|
 fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let b = Block::new()
   let names = b.array("str_array", c.views.map(v => self.s(v.name)))
   let views = b.array(
     "view_array",
-    c.views.map(v => "\{cw}_view_\{@check.wax(v.name)}()"),
+    c.views.map(v => "\{cw}_view_\{@check.wax_part(v.name)}()"),
   )
   let loops = b.array(
     "loop_def_array",
     c.loops.map(l => {
-      let lw = "\{cw}_loop_\{@check.wax(l.name)}"
+      let lw = "\{cw}_loop_\{@check.wax_part(l.name)}"
       let hook = (on : Bool, name : String) => {
         if on {
           "\{lw}_\{name}_t"
@@ -174,7 +196,7 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
   let scopes = b.array(
     "scope_def_array",
     c.scopes.map(s => {
-      "{scope_def| name: \{self.s(s.name)}, bind: \{cw}_scope_\{@check.wax(s.name)}_t }"
+      "{scope_def| name: \{self.s(s.name)}, bind: \{cw}_scope_\{@check.wax_part(s.name)}_t }"
     }),
   )
   let pnames = b.array("str_array", c.provides.map(p => self.s(p.name)))
@@ -203,13 +225,13 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
 
 ///|
 fn Gen::view_fns(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let out = Out::new()
   for v in c.views {
     let b = Block::new()
     let e = self.view(b, v.body)
     out.write(doc_lines(v.doc))
-    out.line("fn \{cw}_view_\{@check.wax(v.name)}() -> &view {")
+    out.line("fn \{cw}_view_\{@check.wax_part(v.name)}() -> &view {")
     if !b.lines.is_empty() {
       out.line(b.render("    "))
     }
@@ -236,11 +258,11 @@ fn Gen::binds_map(
 
 ///|
 fn Gen::hooks(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let st = "&\{cw}_state"
   let out = Out::new()
   for l in c.loops {
-    let lw = "\{cw}_loop_\{@check.wax(l.name)}"
+    let lw = "\{cw}_loop_\{@check.wax_part(l.name)}"
     let prepared = match l.prepare {
       Some(t) => ", \{self.decode(t, "prepared")}"
       None => ""
@@ -294,7 +316,7 @@ fn Gen::hooks(self : Gen, c : @check.ComponentM) -> String {
     }
   }
   for s in c.scopes {
-    let sw = "\{cw}_scope_\{@check.wax(s.name)}"
+    let sw = "\{cw}_scope_\{@check.wax_part(s.name)}"
     out.line("fn \{sw}_t: scope_bind_fn (instance: &eq) -> &value {")
     out.line("    let b = \{sw}(instance as \{st});")
     out.line("    \{self.binds_map(s.binds, "b")};")
@@ -318,7 +340,7 @@ fn Gen::hooks(self : Gen, c : @check.ComponentM) -> String {
   let done : Array[String] = []
   for f in subjects {
     for p in f.norm.checks {
-      let name = "\{cw}_check_\{p}_\{@check.wax(f.name)}_t"
+      let name = "\{cw}_check_\{p}_\{@check.wax_part(f.name)}_t"
       if done.contains(name) {
         continue
       }
@@ -331,7 +353,7 @@ fn Gen::hooks(self : Gen, c : @check.ComponentM) -> String {
       out.line("")
     }
     for g in f.norm.member_of {
-      let name = "\{cw}_member_of_\{@check.wax(g)}"
+      let name = "\{cw}_member_of_\{@check.wax_part(g)}"
       if done.contains(name) {
         continue
       }
@@ -352,7 +374,7 @@ fn Gen::hooks(self : Gen, c : @check.ComponentM) -> String {
 
 ///|
 fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let out = Out::new()
   out.line(
     "// init: each field from fields when it's there and fits its schema, else its",
@@ -371,7 +393,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
   out.line("    let found: &?value = null;")
   out.line("    let problem: js_string_opt = null;")
   for i, f in c.fields {
-    let fw = "f_\{@check.wax(f.name)}"
+    let fw = "f_\{@check.wax_part(f.name)}"
     let name = self.s(f.name)
     let missing = self.s("missing")
     let wrong = self.s("wrong type")
@@ -425,7 +447,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
     out.line("    }")
   }
   let entries = c.fields
-    .map(f => "\{@check.wax(f.name)}: f_\{@check.wax(f.name)}")
+    .map(f => "\{@check.wax(f.name)}: f_\{@check.wax_part(f.name)}")
     .join(", ")
   out.line("    let state = {\{cw}_state| \{entries} };")
   // The constraints that read the component, a key of another field
@@ -472,7 +494,7 @@ fn Gen::init_fn(self : Gen, c : @check.ComponentM) -> String {
 
 ///|
 fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let out = Out::new()
   out.line(
     "// handle: routes a message to its handler. The runtime checked its arguments",
@@ -488,7 +510,7 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
     let args = msg.params
       .mapi((i, p) => ", \{self.decode(p.ty, "m.args[\{i}]!")}")
       .join("")
-    let call = "\{cw}_on_\{@check.wax(msg.name)}(state, ctx\{args})"
+    let call = "\{cw}_on_\{@check.wax_part(msg.name)}(state, ctx\{args})"
     out.line("    if str_eq(m.name, \{self.s(msg.name)}) {")
     if msg.swap {
       out.line("        let r = \{call};")
@@ -502,13 +524,18 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
     out.line("    }")
   }
   for a in c.asks {
-    let aw = @check.wax(a.name)
+    let aw = @check.wax_part(a.name)
     let ac = a.name
     let result = a.result.unwrap_or(Any)
+    // Without a handler, the answer is taken and changes nothing.
     out.line("    if str_eq(m.name, \{self.s(ac + "_reply_ok")}) {")
-    out.line(
-      "        return message_result_of(state, \{cw}_reply_\{aw}_ok(state, ctx, \{self.decode(result, "m.args[0]!")}));",
-    )
+    if self.has("\{cw}_reply_\{aw}_ok") {
+      out.line(
+        "        return message_result_of(state, \{cw}_reply_\{aw}_ok(state, ctx, \{self.decode(result, "m.args[0]!")}));",
+      )
+    } else {
+      out.line("        return message_result_of(state, state);")
+    }
     out.line("    }")
     if self.has("\{cw}_reply_\{aw}_err") {
       out.line("    if str_eq(m.name, \{self.s(ac + "_reply_error")}) {")
@@ -533,7 +560,7 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
 
 ///|
 fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
-  let cw = @check.wax(c.name)
+  let cw = @check.wax_part(c.name)
   let out = Out::new()
   out.line(
     "fn \{cw}_vt_get: get_fn (instance: &eq, name: js_string) -> (i32, &?value) {",
@@ -549,7 +576,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
   for g in c.gets {
     out.line("    if str_eq(name, \{self.s(g.name)}) {")
     out.line(
-      "        return (property_ok, \{self.encode(g.ty, "\{cw}_get_\{@check.wax(g.name)}(state)")});",
+      "        return (property_ok, \{self.encode(g.ty, "\{cw}_get_\{@check.wax_part(g.name)}(state)")});",
     )
     out.line("    }")
   }
@@ -577,7 +604,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
     out.line("            return (property_invalid, null);")
     out.line("        }")
     out.line(
-      "        return (property_ok, \{cw}_with_\{@check.wax(f.name)}(state, \{self.decode(f.ty, "v")}));",
+      "        return (property_ok, \{cw}_with_\{@check.wax_part(f.name)}(state, \{self.decode(f.ty, "v")}));",
     )
     out.line("    }")
   }
@@ -600,7 +627,7 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
 
 ///|
 fn Gen::interface_fn(self : Gen, i : @check.InterfaceM) -> String {
-  let iw = @check.wax(i.name)
+  let iw = @check.wax_part(i.name)
   let b = Block::new()
   let fields = self.field_schemas(b, i.fields, iw)
   let gets = self.field_schemas(b, i.gets, iw)
@@ -622,8 +649,8 @@ fn Gen::interface_fn(self : Gen, i : @check.InterfaceM) -> String {
 
 ///|
 fn Gen::answer_fn(self : Gen, a : @check.SignalM) -> String {
-  let pw = @check.wax(self.pkg.name)
-  let aw = @check.wax(a.name)
+  let pw = @check.wax_part(self.pkg.name)
+  let aw = @check.wax_part(a.name)
   let b = Block::new()
   let checks = a.params.mapi((i, p) => {
     let vt = self.vtype(b, p.ty)
@@ -688,19 +715,19 @@ pub fn Gen::glue(self : Gen) -> String {
   for i in self.pkg.interfaces {
     if i.declared_here {
       out.line(
-        "    scope_register_interface(s, \{@check.wax(i.name)}_interface());",
+        "    scope_register_interface(s, \{@check.wax_part(i.name)}_interface());",
       )
     }
   }
   for r in self.pkg.registers {
-    let cw = @check.wax(r.component)
+    let cw = @check.wax_part(r.component)
     out.line(
       "    scope_register(s, \{self.s(r.as_)}, \{cw}_spec(), \{cw}_vtable());",
     )
   }
   for a in self.pkg.ask_handlers {
     out.line(
-      "    scope_register_ask(s, \{self.s(a.name)}, \{@check.wax(self.pkg.name)}_answer_\{@check.wax(a.name)}_t);",
+      "    scope_register_ask(s, \{self.s(a.name)}, \{@check.wax_part(self.pkg.name)}_answer_\{@check.wax_part(a.name)}_t);",
     )
   }
   for h in self.pkg.host_asks {

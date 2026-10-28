@@ -73,3 +73,17 @@ test "el's tag comes before its attributes" {
   debug_inspect(attrs.map(a => a.key.text), content="[\"class\"]")
   inspect(childs.length(), content="2")
 }
+
+///|
+/// A field's where and @sync come in either order.
+test "a field's where and @sync in either order" {
+  for
+    src in [
+      "component C { field n: s32 where n >= 0 @sync(none); view main = div(); }",
+      "component C { field n: s32 @sync(none) where n >= 0; view main = div(); }",
+    ] {
+    let (f, diags) = @syntax.parse("t.tcd", src)
+    debug_inspect(diags.length(), content="0")
+    ignore(f)
+  }
+}

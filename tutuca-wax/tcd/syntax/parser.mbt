@@ -462,7 +462,27 @@ fn Parser::params(self : Parser) -> Array[Param] raise ParseFailed {
 // ---- Views ----------------------------------------------------------------------
 
 ///|
+/// A view, or a comparison of a view with a literal: field(show) == "all",
+/// read as a call of == (or !=) on the two.
 fn Parser::view(self : Parser) -> ViewExpr raise ParseFailed {
+  let left = self.view_operand()
+  for op in ["==", "!="] {
+    if self.is_punct(op) {
+      let at = self.next().span
+      let right = self.view_operand()
+      return Call(
+        { text: op, span: at, },
+        [],
+        [left, right],
+        span=left.span().merge(right.span()),
+      )
+    }
+  }
+  left
+}
+
+///|
+fn Parser::view_operand(self : Parser) -> ViewExpr raise ParseFailed {
   if self.literal() is Some((l, span)) {
     return Lit(l, span~)
   }
@@ -529,7 +549,8 @@ fn Parser::field(
   } else {
     None
   }
-  let where_ = self.where_clause()
+  // where and @sync(...) in either order.
+  let mut where_ = self.where_clause()
   let sync = if !is_get && self.eat_punct("@") {
     self.expect_word("sync")
     ignore(self.expect_punct("("))
@@ -538,6 +559,9 @@ fn Parser::field(
     Some(level)
   } else {
     None
+  }
+  if where_ is None {
+    where_ = self.where_clause()
   }
   let end = self.end_member()
   { doc, name, ty, default, where_, sync, span: start.merge(end), }
@@ -649,8 +673,13 @@ fn Parser::signal(
   } else {
     None
   }
+  let emits = if has_result && self.eat_word("emits") {
+    Some(self.emits())
+  } else {
+    None
+  }
   let end = self.end_member()
-  { doc, name, params, result, span: start.merge(end), }
+  { doc, name, params, result, emits, span: start.merge(end), }
 }
 
 ///|

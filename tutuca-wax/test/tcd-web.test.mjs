@@ -112,6 +112,209 @@ test("the assistant's examples and the studio's module build without diagnostics
 	}
 });
 
+// JS gives an integral number as an int: made with one, or sent one, where
+// the type says f64 (here inside records in a list), a component holds a
+// float, which its .wax reads as one.
+test("an int where the type says f64 is held as a float, at any depth", async () => {
+	const main = "points.tcd";
+	const files = {
+		[main]: `package tutuca:points@0.1.0;
+component Points {
+    field points: list<record { x: f64 }>;
+    get total: f64;
+    message add(p: record { x: f64 }) changes points;
+    view main = span(field(total));
+}
+register Points;
+example sums for Points {
+    start { points: [{ x: 1 }] }
+    send add({ x: 2 });
+    expect total == 3;
+}
+`,
+	};
+	const wax = `fn points_get_total(state: &points_state) -> f64 {
+    let total = 0.0;
+    let i = 0;
+    while i <s list_count(state.points) {
+        total = total + (value_member(list_get(state.points, i)!, gs_x) as &value_float).value;
+        i += 1;
+    }
+    total;
+}
+
+fn points_on_add(state: &points_state, ctx: &context, p: &value) -> &points_state {
+    points_with_points(state, list_push(state.points, p));
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "points.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	assert.equal(tw.runtime.get(tw.runtime.make(scope, "Points", { points: [{ x: 1 }, { x: 2 }] }), "total"), 3);
+	assert.deepEqual(
+		examples({ runtime: tw.runtime, scope, model: res.model }).map((e) => [e.name, e.ok, e.failures]),
+		[["sums", true, []]],
+	);
+});
+
+// An ask's emits are what the handlers of its reply may do, checked in dev
+// mode as a message's are; a reply without a handler is taken and changes
+// nothing; an ask handler only answers.
+test("an ask says what its reply's handlers may emit, and a reply needs no handler", async () => {
+	const main = "asker.tcd";
+	const source = (askHandlerEmits) => `package tutuca:asker@0.1.0;
+component Asker {
+    field n: s32;
+    notify done();
+    ask count() -> s32 emits nothing;
+    ask ping() -> bool;
+    message go() changes nothing emits ask count, ask ping;
+    view main = p(field(n));
+}
+register Asker;
+host_ask count;
+host_ask ping;
+${askHandlerEmits ? "ask_handler other() -> s32 emits nothing;" : ""}
+`;
+	const wax = `fn asker_on_go(state: &asker_state, ctx: &context) -> &asker_state {
+    asker_ask_count(ctx);
+    asker_ask_ping(ctx);
+    state;
+}
+
+// Notifies, which its ask's emits nothing doesn't let it.
+fn asker_reply_count_ok(state: &asker_state, ctx: &context, reply: i32) -> &asker_state {
+    asker_notify_done(ctx);
+    asker_with_n(state, reply);
+}
+`;
+	assert.deepEqual(
+		tcd.check({ main, files: { [main]: source(true) } }).diags.map((d) => d.code),
+		["tcd.ask_handler.emits"],
+	);
+	const res = tcd.build({ main, files: { [main]: source(false) }, impls: [{ path: "asker.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Asker", {}), { dev: true, asks: { count: () => 3, ping: () => true } });
+	host.send("go");
+	assert.equal(tw.runtime.get(host.root(), "n"), 3);
+	assert.deepEqual(host.unhandled, []);
+	assert.deepEqual(
+		host.issues.map((i) => [i.type, i.message, i.issues]),
+		[["messageInvalid", "count_reply_ok", ["emits:notify:done"]]],
+	);
+});
+
+// A view compares a value with a literal (field(x) == "a"); a send sends a
+// field, the receiver's or, in an each body, the item's at the event's
+// source key.
+test("views compare a value with a literal, and sends send fields", async () => {
+	const main = "picker.tcd";
+	const files = {
+		[main]: `package tutuca:picker@0.1.0;
+component Picker {
+    field items: list<record { id: string, label: string }>;
+    field picked: string;
+    field title: string = "fruit";
+    field said: string;
+    message pick(id: string) changes picked ensures next.picked == id;
+    message say(text: string) changes said ensures next.said == text;
+    view main = div(
+        each(field(items),
+            button(class: if(field(id) == "b", "is-b", "not-b"), "aria-pressed": field(id) != "a", on_click: send(pick, field(id)), field(label))),
+        button(class: "say", on_click: send(say, field(title)), "say"),
+        if(field(picked) == "b", span(class: "picked-b", "b!")));
+}
+register Picker;
+`,
+	};
+	const wax = `fn picker_on_pick(state: &picker_state, ctx: &context, id: js_string) -> &picker_state {
+    picker_with_picked(state, id);
+}
+
+fn picker_on_say(state: &picker_state, ctx: &context, text: js_string) -> &picker_state {
+    picker_with_said(state, text);
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "picker.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	assert.deepEqual(
+		tcd
+			.check({ main, files: { [main]: files[main].replace('field(id) == "b"', 'field(id) == 3').replace("send(say, field(title))", "send(say, field(nope))") } })
+			.diags.map((d) => d.code),
+		["tcd.view.compare", "tcd.view.field"],
+	);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	window.document.body.append(container);
+	const items = [
+		{ id: "a", label: "Apple" },
+		{ id: "b", label: "Banana" },
+	];
+	const host = tw.runtime.createHost(window.document, container, tw.runtime.make(scope, "Picker", { items }), { dev: true }).mount();
+	const buttons = () => [...container.querySelectorAll("button")];
+	assert.deepEqual(
+		buttons().slice(0, 2).map((b) => [b.className, b.getAttribute("aria-pressed")]),
+		[
+			["not-b", "false"],
+			["is-b", "true"],
+		],
+	);
+	buttons()[1].dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+	assert.equal(tw.runtime.get(host.root(), "picked"), "b");
+	assert.ok(container.querySelector(".picked-b"));
+	container.querySelector(".say").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+	assert.equal(tw.runtime.get(host.root(), "said"), "fruit");
+	assert.deepEqual(host.issues, []);
+});
+
+// An option of a component: render renders nothing while it's empty.
+test("an empty option<component> renders nothing", async () => {
+	const main = "opt.tcd";
+	const files = {
+		[main]: `package tutuca:opt@0.1.0;
+component Child { field n: s32; view main = span(class: "child", field(n)); }
+component Holder {
+    field child: option<Child>;
+    message open() changes child emits make Child;
+    message close() changes child;
+    view main = div(render(field(child)), if(field(child), p("has"), p("none")));
+}
+register Child, Holder;
+`,
+	};
+	const wax = `fn holder_on_open(state: &holder_state, ctx: &context) -> &holder_state {
+    holder_with_child(state, value_component(holder_make_child(ctx, 1)));
+}
+
+fn holder_on_close(state: &holder_state, ctx: &context) -> &holder_state {
+    holder_with_child(state, value_null());
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "opt.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags, []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	const host = tw.runtime.createHost(window.document, container, tw.runtime.make(scope, "Holder", {}), { dev: true }).mount();
+	const shown = () => container.textContent;
+	assert.equal(shown(), "none");
+	host.send("open");
+	assert.equal(shown(), "1has");
+	host.send("close");
+	assert.equal(shown(), "none");
+	assert.deepEqual(host.failures, []);
+});
+
 // A scope's binds join the ones in place, but not value: renderIt still
 // renders the loop's item, as in tutuca's JS, which drops value from them.
 test("a scope can't bind value over the item renderIt renders", async () => {
@@ -127,7 +330,7 @@ component Row {
 `,
 	};
 	const wax = `fn row_scope_extra(state: &row_state) -> &row_scope_extra_binds {
-    {row_scope_extra_binds| value: gs_value, label: gs_cell };
+    {row_scope_extra_binds| value: gs_value, label: gs_Cell };
 }
 `;
 	const res = tcd.build({ main, files, impls: [{ path: "binds.wax", text: wax }], runtime });
@@ -252,7 +455,7 @@ fn gauge_reply_count_ok(state: &gauge_state, ctx: &context, reply: i32) -> &gaug
 
 // Not the s32 it's declared to reply with: the reply is rejected.
 fn gauge_answer_count(ctx: &context) -> &value {
-    value_ok(value_string(gs_x));
+    value_ok(value_string(gt_x));
 }
 `;
 	const res = tcd.build({ main, files, impls: [{ path: "gauge.wax", text: wax }], runtime });
@@ -307,7 +510,7 @@ fn oracle_reply_bad_ok(state: &oracle_state, ctx: &context, reply: i32) -> &orac
 }
 
 fn oracle_answer_good(ctx: &context) -> &value {
-    ctx_log(ctx, value_string(gs_x));
+    ctx_log(ctx, value_string(gt_x));
     value_ok(value_int(1));
 }
 

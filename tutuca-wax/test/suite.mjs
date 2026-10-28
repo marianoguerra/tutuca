@@ -620,6 +620,18 @@ test("components: a click runs the handler of the element it hits, in its compon
 	assert.deepEqual(host.failures, []);
 });
 
+test("components: a host sends a message to a component below the root, by its steps", (env) => {
+	const { window, container } = env;
+	const { host } = mountRoot(env, "Board", { counters: [], total: 0 });
+	click(window, buttons(container, "add")[0]);
+	click(window, buttons(container, "add")[0]);
+	click(window, buttons(container, "+")[1]);
+	assert.deepEqual(counts(container), ["0", "2"]);
+	host.sendAt([["counters", 1]], "reset");
+	assert.deepEqual(counts(container), ["0", "0"]);
+	assert.deepEqual(host.failures, []);
+});
+
 test("components: a click on an element without handlers in a component goes nowhere", async (env) => {
 	const { window, container } = env;
 	const { host } = mountRoot(env, "Board", { counters: [], total: 0 });
@@ -1709,7 +1721,7 @@ test("pbt: example blocks run, and say which expect didn't hold", async (env) =>
 
 // ---- Hosts: what they listen to, and how long a run takes ------------------
 
-test("hosts listen to the events the types in their scope tree handle, the drag events with drop", async ({ vdom, document, container, modules }) => {
+test("hosts listen to the events every type registered so far handles, in any scope, the drag events with drop", async ({ vdom, document, container, modules }) => {
 	const { runtime } = vdom;
 	const scope = runtime.scope();
 	await vdom.loadComponent(modules.showcase, scope);
@@ -1721,11 +1733,17 @@ test("hosts listen to the events the types in their scope tree handle, the drag 
 	};
 	// The root, a Note, handles nothing; Shelf, registered next to it, does.
 	const host = runtime.createHost(document, container, runtime.make(scope, "Note", { text: "x" })).mount();
-	assert.deepEqual(listened, ["click", "drop", "dragstart", "dragend", "dragenter", "dragover", "dragleave"]);
-	// Types loaded later, in a child scope too, once the host runs again: only the new events.
-	await vdom.loadComponent(modules.counter, runtime.enter(scope, "inner"));
+	for (const type of ["click", "drop", "dragstart", "dragend", "dragenter", "dragover", "dragleave"]) assert.ok(listened.includes(type), type);
+	assert.equal(new Set(listened).size, listened.length, "each once");
+	// A type with an event no type had, loaded later in a scope of another
+	// tree: listened to once the host runs again.
+	const before = listened.length;
+	const other = runtime.scope();
+	await vdom.loadComponent(modules.media, runtime.enter(other, "inner"));
 	host.send("nope");
-	assert.deepEqual(listened.slice(7), ["input"]);
+	assert.ok(listened.includes("rating-change"));
+	assert.equal(new Set(listened).size, listened.length, "each once");
+	assert.ok(listened.length >= before);
 });
 
 test("hosts run tasks for up to 16ms, render, and run the rest on the next tick", async (env) => {
@@ -1963,7 +1981,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 10/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 11/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

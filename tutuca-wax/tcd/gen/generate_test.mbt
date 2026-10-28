@@ -24,6 +24,8 @@ test "generated contract and glue of a small component" {
       #|// Don't edit it: change t.tcd and run tcd again.
       #|
       #|import "'" {
+      #|    #[import = "Tally"]
+      #|    const gs_Tally: js_string;
       #|    #[import = "count"]
       #|    const gs_count: js_string;
       #|    #[import = "mode"]
@@ -38,24 +40,22 @@ test "generated contract and glue of a small component" {
       #|    const gs_n: js_string;
       #|    #[import = "changed"]
       #|    const gs_changed: js_string;
-      #|    #[import = "Tally"]
-      #|    const gs_tally: js_string;
-      #|    #[import = "class"]
-      #|    const gs_class: js_string;
-      #|    #[import = "btn"]
-      #|    const gs_btn: js_string;
-      #|    #[import = "click"]
-      #|    const gs_click: js_string;
-      #|    #[import = "button"]
-      #|    const gs_button: js_string;
       #|    #[import = "main"]
       #|    const gs_main: js_string;
+      #|    #[import = "class"]
+      #|    const gt_class: js_string;
+      #|    #[import = "btn"]
+      #|    const gt_btn: js_string;
+      #|    #[import = "click"]
+      #|    const gt_click: js_string;
+      #|    #[import = "button"]
+      #|    const gt_button: js_string;
       #|    #[import = "missing"]
-      #|    const gs_missing: js_string;
+      #|    const gt_missing: js_string;
       #|    #[import = "wrong type"]
-      #|    const gs_wrong_type: js_string;
+      #|    const gt_wrong_type: js_string;
       #|    #[import = "invalid"]
-      #|    const gs_invalid: js_string;
+      #|    const gt_invalid: js_string;
       #|}
       #|
       #|// ---- Tally ---------------------------------------------------------------------
@@ -83,8 +83,6 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|
-
-
     ),
   )
   inspect(
@@ -112,14 +110,14 @@ test "generated contract and glue of a small component" {
       #|    let t0 = [arg_array|null; 1];
       #|    t0[0] = arg_value(value_int(1));
       #|    let t1 = [str_array|null; 1];
-      #|    t1[0] = gs_class;
+      #|    t1[0] = gt_class;
       #|    let t2 = [view_array|null; 1];
-      #|    t2[0] = view_const(value_string(gs_btn));
+      #|    t2[0] = view_const(value_string(gt_btn));
       #|    let t3 = [view_array|null; 1];
       #|    t3[0] = view_field(gs_count);
       #|    let t4 = [view_on_array|null; 1];
-      #|    t4[0] = view_on(gs_click, view_action(gs_bump, t0));
-      #|    let t5 = view_el(gs_button, null, t1, t2, null, t3, t4);
+      #|    t4[0] = view_on(gt_click, view_action(gs_bump, t0));
+      #|    let t5 = view_el(gt_button, null, t1, t2, null, t3, t4);
       #|    t5;
       #|}
       #|
@@ -172,7 +170,7 @@ test "generated contract and glue of a small component" {
       #|    let t3 = [scope_def_array|null; 0];
       #|    let t4 = [str_array|null; 0];
       #|    let t5 = [selector_array|null; 0];
-      #|    let spec = spec_new(gs_tally, t0, t1, t2, t3, t4, t5);
+      #|    let spec = spec_new(gs_Tally, t0, t1, t2, t3, t4, t5);
       #|    spec_set_schema(spec, tally_schema());
       #|    tally_spec_made = spec;
       #|    spec;
@@ -189,15 +187,15 @@ test "generated contract and glue of a small component" {
       #|    let f_count: i32 = 0;
       #|    found = field_value(fields, gs_count);
       #|    if !found {
-      #|        issues = init_issue(issues, gs_count, gs_missing);
+      #|        issues = init_issue(issues, gs_count, gt_missing);
       #|    } else {
       #|        problem = vtype_problem((schema.fields[0]!).vtype, found!);
       #|        if !!problem {
-      #|            issues = init_issue(issues, gs_count, gs_wrong_type);
+      #|            issues = init_issue(issues, gs_count, gt_wrong_type);
       #|        } else {
       #|            problem = constraints_problem((schema.fields[0]!).constraints, found!, null);
       #|            if !!problem {
-      #|                issues = init_issue(issues, gs_count, gs_invalid);
+      #|                issues = init_issue(issues, gs_count, gt_invalid);
       #|            } else {
       #|                f_count = (found! as &value_int).value;
       #|            }
@@ -206,15 +204,15 @@ test "generated contract and glue of a small component" {
       #|    let f_mode: i32 = 0;
       #|    found = field_value(fields, gs_mode);
       #|    if !found {
-      #|        issues = init_issue(issues, gs_mode, gs_missing);
+      #|        issues = init_issue(issues, gs_mode, gt_missing);
       #|    } else {
       #|        problem = vtype_problem((schema.fields[1]!).vtype, found!);
       #|        if !!problem {
-      #|            issues = init_issue(issues, gs_mode, gs_wrong_type);
+      #|            issues = init_issue(issues, gs_mode, gt_wrong_type);
       #|        } else {
       #|            problem = constraints_problem((schema.fields[1]!).constraints, found!, null);
       #|            if !!problem {
-      #|                issues = init_issue(issues, gs_mode, gs_invalid);
+      #|                issues = init_issue(issues, gs_mode, gt_invalid);
       #|            } else {
       #|                f_mode = tcd_enum_0_index(value_string_of(found!)!);
       #|            }
@@ -283,7 +281,7 @@ test "generated contract and glue of a small component" {
       #|
       #|#[export = "tutuca_register"]
       #|fn tutuca_register(s: &scope) {
-      #|    scope_register(s, gs_tally, tally_spec(), tally_vtable());
+      #|    scope_register(s, gs_Tally, tally_spec(), tally_vtable());
       #|}
       #|
       #|fn tcd_enum_0_name(i: i32) -> js_string {
@@ -336,7 +334,7 @@ test "the package's names claim their gs_ constants before view text" {
   let contract = @gen.generate(pkg, "t.tcd").contract
   let consts = contract
     .split("\n")
-    .filter(l => l.contains("#[import = ") || l.contains("const gs_"))
+    .filter(l => l.contains("#[import = ") || l.contains("const g"))
     .map(l => l.trim().to_owned())
     .collect()
   debug_inspect(
@@ -348,9 +346,9 @@ test "the package's names claim their gs_ constants before view text" {
       #|  "#[import = \"add_note\"]",
       #|  "const gs_add_note: js_string;",
       #|  "#[import = \"Notes\"]",
-      #|  "const gs_notes_2: js_string;",
+      #|  "const gt_notes: js_string;",
       #|  "#[import = \"Add note\"]",
-      #|  "const gs_add_note_2: js_string;",
+      #|  "const gt_add_note: js_string;",
       #|]
     ),
   )
@@ -387,9 +385,9 @@ test "make defaults and the init hook take the init context" {
       #|[
       #|  "fn leaf_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {",
       #|  "fn holder_vt_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {",
-      #|  "f_child = value_component(init_ctx_make(ctx, gs_leaf, map_empty()));",
-      #|  "f_child = value_component(init_ctx_make(ctx, gs_leaf, map_empty()));",
-      #|  "f_child = value_component(init_ctx_make(ctx, gs_leaf, map_empty()));",
+      #|  "f_child = value_component(init_ctx_make(ctx, gs_Leaf, map_empty()));",
+      #|  "f_child = value_component(init_ctx_make(ctx, gs_Leaf, map_empty()));",
+      #|  "f_child = value_component(init_ctx_make(ctx, gs_Leaf, map_empty()));",
       #|  "init_ok(holder_init(state, ctx), issues);",
       #|]
     ),
@@ -462,7 +460,7 @@ test "a swap handler swaps in a component or keeps its own, with changes checked
 
 ///|
 /// gs_empty is the empty text whatever comes first: text of only symbols
-/// gets names of its own.
+/// is gt_text, and the next gt_text_2.
 test "only the empty text is gs_empty" {
   let (f, _) = @syntax.parse(
     "t.tcd",
@@ -479,16 +477,16 @@ test "only the empty text is gs_empty" {
   let lines = contract.split("\n").map(l => l.trim().to_owned()).collect()
   let consts = []
   for i, l in lines {
-    if l.has_prefix("const gs_") && i > 0 && lines[i - 1].contains("#[import") {
+    if l.has_prefix("const g") && i > 0 && lines[i - 1].contains("#[import") {
       consts.push(lines[i - 1] + " " + l)
     }
   }
   debug_inspect(
-    consts.filter(l => l.contains("gs_empty") || l.contains("gs_text")),
+    consts.filter(l => l.contains("gs_empty") || l.contains("gt_text")),
     content=(
       #|[
-      #|  "#[import = \"+\"] const gs_text: js_string;",
-      #|  "#[import = \"×\"] const gs_text_2: js_string;",
+      #|  "#[import = \"+\"] const gt_text: js_string;",
+      #|  "#[import = \"×\"] const gt_text_2: js_string;",
       #|  "#[import = \"\"] const gs_empty: js_string;",
       #|]
     ),
@@ -496,10 +494,9 @@ test "only the empty text is gs_empty" {
 }
 
 ///|
-/// The names inside types and arguments are claimed before any view text:
-/// a "?" before the record field text, an "Open" before the enum member
-/// open, a "to" label before the argument to, leave the implementation's
-/// gs_text, gs_open and gs_to theirs.
+/// The names inside types and arguments are gs_, view text gt_: a "?", an
+/// "Open" and a "To!" never take the record field text's gs_text, the enum
+/// member open's gs_open or the argument to's gs_to.
 test "names inside types and arguments claim their gs_ first" {
   let (f, _) = @syntax.parse(
     "t.tcd",
@@ -518,28 +515,33 @@ test "names inside types and arguments claim their gs_ first" {
   let lines = contract.split("\n").map(l => l.trim().to_owned()).collect()
   let consts = []
   for i, l in lines {
-    if l.has_prefix("const gs_") && i > 0 && lines[i - 1].contains("#[import") {
+    if l.has_prefix("const g") && i > 0 && lines[i - 1].contains("#[import") {
       consts.push(lines[i - 1] + " " + l)
     }
   }
   debug_inspect(
-    consts.filter(l => l.contains("gs_text") || l.contains("gs_open") || l.contains("gs_to")),
+    consts.filter(l => {
+      l.contains("_text") ||
+      l.contains("_open") ||
+      l.contains(" gs_to") ||
+      l.contains("gt_to")
+    }),
     content=(
       #|[
       #|  "#[import = \"text\"] const gs_text: js_string;",
       #|  "#[import = \"open\"] const gs_open: js_string;",
       #|  "#[import = \"to\"] const gs_to: js_string;",
-      #|  "#[import = \"?\"] const gs_text_2: js_string;",
-      #|  "#[import = \"Open\"] const gs_open_2: js_string;",
-      #|  "#[import = \"To!\"] const gs_to_2: js_string;",
+      #|  "#[import = \"?\"] const gt_text: js_string;",
+      #|  "#[import = \"Open\"] const gt_open: js_string;",
+      #|  "#[import = \"To!\"] const gt_to: js_string;",
       #|]
     ),
   )
 }
 
 ///|
-/// A field named as a type is, lowercased, keeps gs_<field>: the type,
-/// whose name isn't its gs_ name as written, takes the next one.
+/// A type's gs_ keeps its case: a field editor and a type Editor are
+/// gs_editor and gs_Editor.
 test "a field keeps its gs_ over a type of the same name" {
   let (f, _) = @syntax.parse(
     "t.tcd",
@@ -560,7 +562,10 @@ test "a field keeps its gs_ over a type of the same name" {
   let lines = contract.split("\n").map(l => l.trim().to_owned()).collect()
   let consts = []
   for i, l in lines {
-    if l.has_prefix("const gs_editor") && i > 0 && lines[i - 1].contains("#[import") {
+    if l.has_prefix("const gs_") &&
+      l.contains("ditor") &&
+      i > 0 &&
+      lines[i - 1].contains("#[import") {
       consts.push(lines[i - 1] + " " + l)
     }
   }
@@ -568,8 +573,8 @@ test "a field keeps its gs_ over a type of the same name" {
     consts,
     content=(
       #|[
+      #|  "#[import = \"Editor\"] const gs_Editor: js_string;",
       #|  "#[import = \"editor\"] const gs_editor: js_string;",
-      #|  "#[import = \"Editor\"] const gs_editor_2: js_string;",
       #|]
     ),
   )
@@ -622,6 +627,34 @@ test "view names are kept as written" {
       #|  "let t3 = view_push_view(view_const(value_string(gs_compact_row)), t2);",
       #|  "let t4 = view_render(view_field(gs_child), gs_compact_row);",
       #|]
+    ),
+  )
+}
+
+///|
+/// A name that's a Wax keyword is escaped where it stands alone (a
+/// parameter: type_), not inside a longer name (c_ask_open).
+test "a keyword is escaped only where it stands alone" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component C {
+      #|    ask open(type: string) -> bool;
+      #|    view main = div();
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let contract = @gen.generate(pkg, "t.tcd").contract
+  debug_inspect(
+    contract
+    .split("\n")
+    .filter(l => l.has_prefix("fn c_ask_"))
+    .map(l => l.to_owned())
+    .collect(),
+    content=(
+      #|["fn c_ask_open(ctx: &context, type_: js_string) {"]
     ),
   )
 }

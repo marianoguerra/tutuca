@@ -28,6 +28,7 @@ pub(all) struct Gen {
   strings : Strings
   enums : Array[Array[String]]
   have : Array[String]?
+  each_seqs : Array[String]
 }
 pub fn Gen::contract(Self) -> String
 pub fn Gen::glue(Self) -> String
@@ -56,6 +57,7 @@ pub(all) struct Strings {
 }
 pub fn Strings::get(Self, String) -> String
 pub fn Strings::imports(Self) -> String
+pub fn Strings::name(Self, String) -> Unit
 pub fn Strings::new() -> Self
 
 // Type aliases

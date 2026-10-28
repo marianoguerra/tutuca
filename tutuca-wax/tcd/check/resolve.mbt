@@ -569,6 +569,7 @@ fn Resolver::signal(
     name: s.name.text,
     params: self.params(s.params, fields),
     result: s.result.map(t => self.ty(t, fields, Norm::new())),
+    emits: None,
     doc: s.doc,
     span: s.span,
   }
@@ -805,9 +806,9 @@ fn Resolver::emits(
   self : Resolver,
   pkg : Package,
   c : ComponentM,
-  m : @syntax.Message,
+  emits : Array[@syntax.Emit]?,
 ) -> Array[EmitM]? {
-  guard m.emits is Some(emits) else { return None }
+  guard emits is Some(emits) else { return None }
   let out = []
   for e in emits {
     let first = e.target[0]
@@ -1114,7 +1115,7 @@ fn Resolver::conditions(
       }
     }
     self.guard_satisfiable(c, m)
-    messages.push({ ..m, emits: self.emits(pkg, c, src), })
+    messages.push({ ..m, emits: self.emits(pkg, c, src.emits), })
     ignore(i)
   }
   let init = initial_env(c)
@@ -1165,7 +1166,15 @@ fn Resolver::conditions(
   for p in checks {
     add(p, None)
   }
-  { ..c, messages, checks: all_checks, }
+  // What the handlers of each ask's reply may emit.
+  let asks = c.asks.map(a => {
+    match
+      decl.members.iter().find_first(x => x is Ask(y) && y.name.text == a.name) {
+      Some(Ask(src)) => { ..a, emits: self.emits(pkg, c, src.emits), }
+      _ => a
+    }
+  })
+  { ..c, messages, asks, checks: all_checks, }
 }
 
 ///|
@@ -1453,7 +1462,16 @@ pub fn check(
           })
         }
       }
-      AskHandler(s) => ask_handlers.push(r.signal(s, {}))
+      AskHandler(s) => {
+        if s.emits is Some(_) {
+          r.error(
+            "tcd.ask_handler.emits",
+            s.name.span,
+            "an ask handler only answers: it can't emit",
+          )
+        }
+        ask_handlers.push(r.signal(s, {}))
+      }
       HostAsk(n) => {
         r.snake(n, "ask")
         host_asks.push(n.text)

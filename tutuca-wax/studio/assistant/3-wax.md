@@ -14,7 +14,7 @@ For a component `C`, with `c` its name in snake_case (`CheckItem` is `check_item
 | `message m(a: A)` | `fn c_on_m(state: &c_state, ctx: &context, a: A') -> &c_state` (return `state` itself for no change) |
 | `message m() -> swap` | `fn c_on_m(state: &c_state, ctx: &context) -> &c_swap_result`: `c_swap_to(component)` or `c_keep(state)` |
 | `get g: T` | `fn c_get_g(state: &c_state) -> T'` |
-| `ask a(...) -> T` | `fn c_reply_a_ok(state: &c_state, ctx: &context, reply: T') -> &c_state`; optional `c_reply_a_err(state, ctx, error: &value)` and `c_reply_a_not_found(state, ctx)` |
+| `ask a(...) -> T` | `fn c_reply_a_ok(state: &c_state, ctx: &context, reply: T') -> &c_state` (optional: without it the answer changes nothing); optional `c_reply_a_err(state, ctx, error: &value)` and `c_reply_a_not_found(state, ctx)` |
 | `loop l { filter }` | `fn c_loop_l_filter(state: &c_state, key: &value, item: &value) -> i32` |
 | `loop l { enrich { b: T } }` | `fn c_loop_l_enrich(state: &c_state, key: &value, item: &value) -> &c_loop_l_binds` |
 | `loop l { key: T }` | `fn c_loop_l_key(state: &c_state, key: &value, item: &value) -> T'` |
@@ -33,6 +33,13 @@ Generated for you to use (in the contract):
 - `{c_state| f: v, g: w }` the state struct, one field per `.tcd` field, in
   the Wax type; `state.f` reads one.
 - `c_with_f(state, v) -> &c_state` the state with one field changed.
+- For a record a field `f` holds (`f: record {...}`, or a list, map or option
+  of one), `c_f_new(members...) -> &value` makes one and `c_f_<member>(r)`
+  reads a member, both in the members' Wax types (`tasks_items_new(text, 0,
+  0)`, `tasks_items_text(item) -> js_string`); a record inside it has
+  `c_f_<member>_<sub>` too. An ask's reply that is or holds a record gets
+  `c_<ask>_reply_new` and `c_<ask>_reply_<member>`. Prefer them over
+  `map_assoc` and `value_member`.
 - `c_f_member` an i32 const per enum member (`stat_trend_up`), for an enum
   field `f`.
 - `c_notify_n(ctx, args...)`, `c_ask_a(ctx, args...)` for its notifies and asks.
@@ -43,8 +50,12 @@ Generated for you to use (in the contract):
   `selector_item(gs_items, path_key_index(i))` (the item at i of the field
   items) or `selector_field(gs_child)`.
 - `c_swap_to(component)` and `c_keep(state)` for a swap message.
-- `gs_<text>` a string constant for every name and string the `.tcd` uses:
-  `gs_done` is "done", `gs_empty` is "". A string the `.tcd` doesn't have is
+- A string constant for every name and string the `.tcd` uses. A name it
+  declares is `gs_` and the name as written: `gs_done` is the field "done",
+  `gs_set_text` the message, `gs_TodoItem` the type (types keep their case).
+  Any other text (a view's, a literal argument's) is `gt_` and what it says:
+  `gt_add` is "add", `gt_text` a text of only symbols ("+"), with `_2`, `_3`
+  after one taken. `gs_empty` is "". A string the `.tcd` doesn't have is
   declared at the top of the `.wax`:
 
 ```wax
@@ -145,8 +156,9 @@ one: `(v as &value_int).value`, `(v as &value_float).value`,
   `list_push(l, v)`, `list_assoc(l, i, v)` (replace the item at i).
 - Maps with string keys: `map_empty()`, `map_get(m, k) -> &?value`,
   `map_assoc(m, k, v)`, `map_keys(m)`, `map_values(m)`.
-- Read: `value_truthy(v) -> i32`, `value_string_of(v) -> js_string_opt` (null when
-  it isn't a string), `value_member(v, gs_name) -> &value` (a component's
+- Read: `value_truthy(v) -> i32`, `value_to_f64(v) -> f64` (an int or a float as
+  a float; a value typed f64 in the `.tcd` is always a float, at any depth),
+  `value_string_of(v) -> js_string_opt` (null when it isn't a string), `value_member(v, gs_name) -> &value` (a component's
   field or property, or a map's entry, by its runtime name).
 - A child component's notify arrives as the parent's message of the same
   name; `ctx.source_key` is the child's key: `(key! as &path_key_index).index`

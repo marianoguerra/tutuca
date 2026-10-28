@@ -25,6 +25,9 @@ priv struct ViewCtx {
   in_each : Bool
   /// What field(x) reads inside an each body: the item, of this type.
   it : Ty?
+  /// The list or map field an each body's items come from, when its source
+  /// is one (each(field(items), ...)): what a send's field(x) reads in.
+  each_seq : String?
 }
 
 ///|
@@ -201,6 +204,35 @@ fn ViewCtx::value_ty(self : ViewCtx, v : @syntax.ViewExpr) -> Ty? {
       }
       Some(Any)
     }
+    "==" | "!=" => {
+      // A value read compared with a literal of its type: a bool.
+      match args[1] {
+        Lit(l, span~) =>
+          match self.value_ty(args[0]) {
+            None =>
+              self.err(
+                "tcd.view.compare",
+                args[0].span(),
+                "\{n.text} compares a value read (field(x), seq_item(s, k), provided(x), bind(x)) with a literal",
+              )
+            Some(t) =>
+              if t != Any && !lit_fits_ty(l, unoption(t)) && !(l is Null) {
+                self.err(
+                  "tcd.view.compare",
+                  span,
+                  "\{lit_text(l)} isn't a value of \{ty_text(t)}, so it never equals it",
+                )
+              }
+          }
+        other =>
+          self.err(
+            "tcd.view.compare",
+            other.span(),
+            "\{n.text} compares a value read with a literal: field(show) == \"all\"",
+          )
+      }
+      Some(Bool)
+    }
     "bind" => {
       self.only_attrs(n, attrs, [])
       guard self.arity(n, args, 1, 1, span) else { return Some(Any) }
@@ -277,7 +309,7 @@ fn ViewCtx::attr_value(self : ViewCtx, v : @syntax.ViewExpr) -> Unit {
         self.err(
           "tcd.view.attr_value",
           v.span(),
-          "an attribute's value is a literal, field(x), seq_item(s, k), provided(x), bind(x) or an if of them",
+          "an attribute's value is a literal, field(x), seq_item(s, k), provided(x), bind(x), a comparison of one with a literal (field(x) == \"a\") or an if of them",
         )
       }
   }
@@ -377,6 +409,26 @@ fn ViewCtx::send_arg(
             ignore(self.name_arg(args[0], "the event's field"))
           }
         }
+        "field" => {
+          // Read when the event is handled: the receiver's field, or in an
+          // each body the item's, at the source key of the field iterated.
+          if self.in_each && self.each_seq is None {
+            self.err(
+              "tcd.view.send_arg", span, "in an each body, field(x) sends the item's x, read at the event's source key in the list or map field the each goes over: each(field(items), ...)",
+            )
+          }
+          match self.value_ty(v) {
+            Some(t) =>
+              if !ty_fits_param(t, ty) {
+                self.err(
+                  "tcd.view.send_arg",
+                  span,
+                  "\{name_text(args)} is \{ty_text(t)}, but \{pname} is \{ty_text(ty)}",
+                )
+              }
+            None => ()
+          }
+        }
         "if" => {
           self.only_attrs(n, attrs, [])
           if self.arity(n, args, 2, 3, span) {
@@ -388,14 +440,15 @@ fn ViewCtx::send_arg(
         }
         _ =>
           self.err(
-            "tcd.view.send_arg", span, "a send argument is a literal, target_value(), source_key(), drag_key(), event(name) or an if of them: it's read from the event, not the state",
+            "tcd.view.send_arg", span, "a send argument is a literal, target_value(), source_key(), drag_key(), event(name), field(name) or an if of them",
           )
       }
     Name(nm) =>
       self.err(
         "tcd.view.send_arg",
         nm.span,
-        "\{nm.text} is a bare name; a send argument is a literal, target_value(), source_key(), drag_key(), event(name) or an if of them",
+        "\{nm.text} is a bare name; a send argument is a literal, target_value(), source_key(), drag_key(), event(name), field(name) or an if of them",
+        hint="field(\{nm.text})",
       )
   }
 }
@@ -584,7 +637,8 @@ fn ViewCtx::child(self : ViewCtx, v : @syntax.ViewExpr) -> Unit {
       )
     Call(n, attrs, args, span~) =>
       match n.text {
-        "field" | "seq_item" | "provided" | "bind" => ignore(self.value_ty(v))
+        "field" | "seq_item" | "provided" | "bind" | "==" | "!=" =>
+          ignore(self.value_ty(v))
         "if" => {
           self.only_attrs(n, attrs, [])
           if self.arity(n, args, 2, 3, span) {
@@ -627,7 +681,13 @@ fn ViewCtx::child(self : ViewCtx, v : @syntax.ViewExpr) -> Unit {
               Some(List(i)) | Some(Map(i)) => i
               _ => Any
             }
-            { ..self, binds, in_each: true, it: Some(item), }.child(args[1])
+            let each_seq = match args[0] {
+              Call({ text: "field", .. }, _, [Name(f)], ..) => Some(f.text)
+              _ => None
+            }
+            { ..self, binds, in_each: true, it: Some(item), each_seq, }.child(
+              args[1],
+            )
           }
         }
         "render_it" => {
@@ -695,7 +755,15 @@ pub fn check_views(
   c : ComponentM,
   diags : Array[@diag.Diagnostic],
 ) -> Unit {
-  let ctx = { pkg, comp: c, diags, binds: [], in_each: false, it: None, }
+  let ctx = {
+    pkg,
+    comp: c,
+    diags,
+    binds: [],
+    in_each: false,
+    it: None,
+    each_seq: None,
+  }
   for v in c.views {
     ctx.child(v.body)
   }
@@ -712,4 +780,27 @@ pub fn check_views(
     }
   }
   ignore(constructs)
+}
+
+///|
+/// Whether a value of type t can be sent as a parameter of type p: the same
+/// type, an option of it, an enum as a string, an s32 as an f64, or Any on
+/// either side.
+fn ty_fits_param(t : Ty, p : Ty) -> Bool {
+  match (t, p) {
+    (Any, _) | (_, Any) => true
+    (_, Option(i)) => t == p || ty_fits_param(unoption(t), i)
+    (Enum(_), Str) => true
+    (S32, F64) => true
+    _ => t == p
+  }
+}
+
+///|
+/// field(x)'s x, for a message.
+fn name_text(args : Array[@syntax.ViewExpr]) -> String {
+  match args {
+    [Name(n), ..] => "field(\{n.text})"
+    _ => "field(...)"
+  }
 }
