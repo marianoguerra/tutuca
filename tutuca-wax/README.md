@@ -68,7 +68,7 @@ walks (`js/pbt.js`). Edits are kept per example in localStorage. It needs the
 js-string builtins (Chrome 131, Firefox 134 and later).
 
 `just studio` serves `studio/`, which keeps what you write. The studio is
-built with itself where it can: its tabs, scope picker and menu are a
+built with itself where it can: its tabs, scope picker, menu and editor are a
 tutuca-wax module (`studio/studio.tcd`, `dist/components/studio.wasm`) that
 `studio.js` hosts, answering its asks for what only the page can do. It's a
 set of screens, one tab each, and the tab bar's + makes another: pick the scope it's
@@ -81,7 +81,7 @@ set, which the `Screen` provides to what's below: a hole's list then offers
 a new component, and each slot a ✎, asks the studio answers
 (`create_component`, `edit_component`) and other hosts leave out. Either
 turns the page into the editor: the `.tcd` and `.wax`, a preview of what
-they build (in a runtime instance of its own, in the screen's scope chain),
+they build (made in the screen's scope chain, on the studio's own host),
 the diagnostics, what it registers, the preview's state and events, and the
 assistant when there is one. A new component starts from the assistant's
 tasks example. Save & register keeps it in IndexedDB with its last build
@@ -195,7 +195,7 @@ classes as constants, or `if`s of constants.
 | `test/browser.test.mjs` | the suite in Chromium, through Playwright, and smoke tests of the demos page, the playground and the studio |
 | `demos/` | the demos page (`just demos`) |
 | `playground/` | the playground (`just playground`): `playground.js` the page, `compiler.worker.js` tcd in a worker, `examples.js` the examples, `editor.src.js` the editor, bundled with CodeMirror into `deps/editor.js` (committed; `just vendor-editor`) |
-| `studio/` | the studio (`just studio`): `studio.tcd`/`studio.wax` its tabs, scope picker and menu, `studio.js` the page that hosts them (and the editor), `store.js` the library in IndexedDB and its bundles, `assistant.js` the assistant's panel, `assistant/` what its model is told (the reference and example modules) |
+| `studio/` | the studio (`just studio`): `studio.tcd`/`studio.wax` its tabs, scope picker, menu and editor, `studio.js` the page that hosts them, `code-editor.js` the editor's custom elements (`tw-code-editor` around CodeMirror, `tw-slot`), `store.js` the library in IndexedDB and its bundles, `assistant.js` the assistant's panel, `assistant/` what its model is told (the reference and example modules) |
 | `scripts/studio-server.mjs` | the studio with its assistant's API (`just studio-server`): `/api/check`, `/api/chat`, `/api/prompt`, keys from `.env` |
 | `scripts/serve.mjs` | the static server for the demos, the playground, the studio and the browser tests |
 | `wax-mb-usage-feedback.md` | what writing this taught about wax-mb: bugs, diagnostics, friction |

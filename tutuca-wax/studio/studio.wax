@@ -24,6 +24,24 @@ import "'" {
     const s_close: js_string;
     #[import = "root"]
     const s_root: js_string;
+    #[import = ".tcd"]
+    const s_dot_tcd: js_string;
+    #[import = ".wax"]
+    const s_dot_wax: js_string;
+    #[import = ":"]
+    const s_colon: js_string;
+    #[import = "building "]
+    const s_building: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+    #[import = "saving…"]
+    const s_saving: js_string;
+    #[import = "Leave "]
+    const s_leave: js_string;
+    #[import = " without saving?"]
+    const s_without_saving: js_string;
+    #[import = "can't preview it: "]
+    const s_cant_preview: js_string;
 }
 
 // A scope or a screen, as a record.
@@ -178,6 +196,7 @@ fn studio_showing(state: &studio_state, ctx: &context, id: studio_id) -> &studio
         renaming: gs_empty,
         deleting: state.deleting,
         picker: state.picker,
+        editor: state.editor,
         status: state.status,
         assistant: state.assistant,
         events: state.events,
@@ -289,6 +308,10 @@ fn studio_get_has_screen(state: &studio_state) -> i32 {
     js_string_length(state.active) >s 0;
 }
 
+fn studio_get_has_editor(state: &studio_state) -> i32 {
+    list_count(state.editor) >s 0;
+}
+
 fn studio_loop_tabs_enrich(state: &studio_state, key: &value, item: &value) -> &studio_loop_tabs_binds {
     let id = studio_id_of(item);
     {studio_loop_tabs_binds|
@@ -363,6 +386,7 @@ fn studio_on_set_library(state: &studio_state, ctx: &context, scopes: &value, sc
         renaming: gs_empty,
         deleting: gs_empty,
         picker: list_empty(),
+        editor: state.editor,
         status: state.status,
         assistant: state.assistant,
         events: state.events,
@@ -408,4 +432,261 @@ fn studio_on_layout_json(state: &studio_state, ctx: &context) -> &studio_state {
 
 fn studio_reply_edit_layout_json_ok(state: &studio_state, ctx: &context, reply: i32) -> &studio_state {
     state;
+}
+
+// ---- Studio: the editor ------------------------------------------------------------
+
+// The editor, on the sources given, built as soon as it's there.
+fn studio_on_open_editor(state: &studio_state, ctx: &context, creating: i32, id: js_string, name: js_string, tcd: js_string, wax: js_string) -> &studio_state {
+    let saved = map_assoc(map_assoc(map_assoc(map_empty(), gs_name, value_string(name)), gs_tcd, value_string(tcd)), gs_wax, value_string(wax));
+    let editor = studio_make_editor(
+        ctx, creating, id, name, tcd, wax, saved, gs_tcd, gs_empty, 0,
+        list_empty(), list_empty(), list_empty(), gs_empty, list_empty(), gs_empty, list_empty(),
+        gs_diagnostics, js_string_length(state.assistant) >s 0, 0, gs_empty, 0,
+    );
+    editor_send_build(ctx, studio_the_editor());
+    studio_with_editor(state, studio_one(value_component(editor)));
+}
+
+// The editor, as a send's target.
+fn studio_the_editor() -> &selector {
+    selector_item(gs_editor, path_key_index(0));
+}
+
+fn studio_on_close_editor(state: &studio_state, ctx: &context) -> &studio_state {
+    studio_with_editor(state, list_empty());
+}
+
+fn studio_on_editor_write(state: &studio_state, ctx: &context, tcd: js_string, wax: js_string) -> &studio_state {
+    if list_count(state.editor) >s 0 {
+        editor_send_write(ctx, studio_the_editor(), tcd, wax);
+    }
+    state;
+}
+
+fn studio_on_editor_state(state: &studio_state, ctx: &context, text: js_string) -> &studio_state {
+    if list_count(state.editor) >s 0 {
+        editor_send_set_state(ctx, studio_the_editor(), text);
+    }
+    state;
+}
+
+fn studio_on_editor_note(state: &studio_state, ctx: &context, kind: js_string, text: js_string) -> &studio_state {
+    if list_count(state.editor) >s 0 {
+        editor_send_note(ctx, studio_the_editor(), kind, text);
+    }
+    state;
+}
+
+// ---- Editor ------------------------------------------------------------------------
+
+fn editor_on_set_tcd(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+    editor_with_tcd(state, text);
+}
+
+fn editor_on_set_wax(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+    editor_with_wax(state, text);
+}
+
+// Only "tcd" and "wax" are files.
+fn editor_on_show_file(state: &editor_state, ctx: &context, file: js_string) -> &editor_state {
+    if str_eq(file, gs_tcd) | str_eq(file, gs_wax) {
+        return editor_with_current(state, file);
+    }
+    state;
+}
+
+// The host checks the name when it's saved.
+fn editor_on_rename(state: &editor_state, ctx: &context, name: js_string) -> &editor_state {
+    editor_with_name(state, name);
+}
+
+fn editor_building(state: &editor_state, ctx: &context) -> &editor_state {
+    editor_ask_build(ctx, state.id, state.name, state.tcd, state.wax);
+    let status = js_string_concat(js_string_concat(s_building, state.name), s_ellipsis);
+    editor_with_status(editor_with_building(state, 1), status);
+}
+
+fn editor_on_build(state: &editor_state, ctx: &context) -> &editor_state {
+    editor_building(state, ctx);
+}
+
+fn editor_on_write(state: &editor_state, ctx: &context, tcd: js_string, wax: js_string) -> &editor_state {
+    editor_building(editor_with_wax(editor_with_tcd(state, tcd), wax), ctx);
+}
+
+// What it says, with the diagnostics shown when it didn't build; then the
+// preview of the type picked, or of the first one a hole can make.
+fn editor_reply_build_ok(state: &editor_state, ctx: &context, reply: &value) -> &editor_state {
+    let ok = value_truthy(value_member(reply, gs_ok));
+    let makeable = value_member(reply, gs_makeable);
+    let inspecting = state.inspecting;
+    if !ok {
+        inspecting = gs_diagnostics;
+    }
+    let type_ = gs_empty;
+    let i = 0;
+    while i <s list_count(makeable) {
+        let name = value_string_of(value_member(list_get(makeable, i)!, gs_name))!;
+        if (i == 0) | str_eq(name, state.preview_type) {
+            type_ = name;
+        }
+        i += 1;
+    }
+    let preview = state.preview;
+    if ok & (js_string_length(type_) >s 0) {
+        editor_ask_preview(ctx, state.id, type_);
+    } else {
+        preview = list_empty();
+    }
+    {editor_state|
+        creating: state.creating,
+        id: state.id,
+        name: state.name,
+        tcd: state.tcd,
+        wax: state.wax,
+        saved: state.saved,
+        current: state.current,
+        status: value_string_of(value_member(reply, gs_status))!,
+        building: 0,
+        diagnostics: value_member(reply, gs_diagnostics),
+        registers: value_member(reply, gs_registers),
+        makeable,
+        preview_type: type_,
+        preview,
+        state_text: state.state_text,
+        events: state.events,
+        inspecting,
+        assistant: state.assistant,
+        chat: state.chat,
+        goto_at: state.goto_at,
+        jumps: state.jumps,
+    };
+}
+
+fn editor_reply_build_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+    editor_with_status(editor_with_building(state, 0), value_string_of(error)!);
+}
+
+fn editor_on_pick_type(state: &editor_state, ctx: &context, type_: js_string) -> &editor_state {
+    editor_ask_preview(ctx, state.id, type_);
+    editor_with_preview(editor_with_preview_type(state, type_), list_empty());
+}
+
+fn editor_reply_preview_ok(state: &editor_state, ctx: &context, reply: &value) -> &editor_state {
+    editor_with_preview(state, studio_one(reply));
+}
+
+fn editor_reply_preview_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+    editor_with_status(editor_with_preview(state, list_empty()), js_string_concat(s_cant_preview, value_string_of(error)!));
+}
+
+fn editor_on_inspect(state: &editor_state, ctx: &context, tab: js_string) -> &editor_state {
+    editor_with_inspecting(state, tab);
+}
+
+// The file it's in shown, and the code editor sent there: "wax:12:5".
+fn editor_on_goto_diagnostic(state: &editor_state, ctx: &context, at: i32) -> &editor_state {
+    let d = list_get(state.diagnostics, at)!;
+    let file = gs_tcd;
+    if str_eq(studio_text_of(d, gs_file), editor_get_wax_file(state)) {
+        file = gs_wax;
+    }
+    let line = int_text((value_member(d, gs_line) as &value_int).value);
+    let col = int_text((value_member(d, gs_col) as &value_int).value);
+    let goto_at = js_string_concat(js_string_concat(js_string_concat(js_string_concat(file, s_colon), line), s_colon), col);
+    editor_with_jumps(editor_with_goto_at(editor_with_current(state, file), goto_at), state.jumps + 1);
+}
+
+fn editor_on_toggle_chat(state: &editor_state, ctx: &context) -> &editor_state {
+    editor_with_chat(state, !state.chat);
+}
+
+fn editor_on_save(state: &editor_state, ctx: &context) -> &editor_state {
+    editor_ask_save_component(ctx, state.creating, state.id, state.name, state.tcd, state.wax);
+    editor_with_status(state, s_saving);
+}
+
+fn editor_reply_save_component_ok(state: &editor_state, ctx: &context, reply: js_string) -> &editor_state {
+    editor_notify_close_editor(ctx);
+    state;
+}
+
+fn editor_reply_save_component_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+    editor_with_status(state, value_string_of(error)!);
+}
+
+// Asked first when it changed.
+fn editor_on_back(state: &editor_state, ctx: &context) -> &editor_state {
+    if editor_get_changed(state) {
+        editor_ask_confirm(ctx, js_string_concat(js_string_concat(s_leave, state.name), s_without_saving));
+    } else {
+        editor_ask_leave_editor(ctx, state.creating);
+    }
+    state;
+}
+
+fn editor_reply_confirm_ok(state: &editor_state, ctx: &context, reply: i32) -> &editor_state {
+    if reply {
+        editor_ask_leave_editor(ctx, state.creating);
+    }
+    state;
+}
+
+fn editor_reply_leave_editor_ok(state: &editor_state, ctx: &context, reply: i32) -> &editor_state {
+    editor_notify_close_editor(ctx);
+    state;
+}
+
+fn editor_on_set_state(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+    editor_with_state_text(state, text);
+}
+
+// The newest first, up to 200.
+fn editor_on_note(state: &editor_state, ctx: &context, kind: js_string, text: js_string) -> &editor_state {
+    let events = list_push(list_empty(), map_assoc(map_assoc(map_empty(), gs_kind, value_string(kind)), gs_text, value_string(text)));
+    let i = 0;
+    while (i <s list_count(state.events)) & (i <s 199) {
+        events = list_push(events, list_get(state.events, i)!);
+        i += 1;
+    }
+    editor_with_events(state, events);
+}
+
+fn editor_get_changed(state: &editor_state) -> i32 {
+    !str_eq(state.name, studio_text_of(state.saved, gs_name))
+        | !str_eq(state.tcd, studio_text_of(state.saved, gs_tcd))
+        | !str_eq(state.wax, studio_text_of(state.saved, gs_wax));
+}
+
+fn editor_get_tcd_file(state: &editor_state) -> js_string {
+    js_string_concat(state.name, s_dot_tcd);
+}
+
+fn editor_get_wax_file(state: &editor_state) -> js_string {
+    js_string_concat(state.name, s_dot_wax);
+}
+
+fn editor_get_on_tcd(state: &editor_state) -> i32 {
+    !str_eq(state.current, gs_wax);
+}
+
+fn editor_get_several_types(state: &editor_state) -> i32 {
+    list_count(state.makeable) >s 1;
+}
+
+fn editor_get_on_diagnostics(state: &editor_state) -> i32 {
+    str_eq(state.inspecting, gs_diagnostics);
+}
+
+fn editor_get_on_registers(state: &editor_state) -> i32 {
+    str_eq(state.inspecting, gs_registers);
+}
+
+fn editor_get_on_state(state: &editor_state) -> i32 {
+    str_eq(state.inspecting, gs_state);
+}
+
+fn editor_get_on_events(state: &editor_state) -> i32 {
+    str_eq(state.inspecting, gs_events);
 }

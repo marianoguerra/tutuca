@@ -1,75 +1,43 @@
 // The studio's page: the host of studio.tcd's Studio, which has the screens
-// as tabs, the picker a new screen's scope is chosen in, and the menu, and
-// which asks the page for what only it can do: keep the library in IndexedDB
-// (store.js), make a screen in its scope chain (answered with the screen's
-// component, which Studio renders), confirm, move the library in and out.
-// A screen is composed by filling a layout's holes with what its scope can
-// make; a hole's list also offers a new component, and a slot's ✎ edits the
-// one in it: the page turns into the editor, still written here (the code, a
-// live preview, what the build says and the assistant), and saving registers
-// the component in the screen's scope, where the hole can make it. A screen
-// is kept as what to make (js/hydrate.js's capture), saved as it changes.
-// Served with an API (scripts/studio-server.mjs), the editor also has an
-// assistant (assistant.js): a model that edits the component, its changes
-// built and its errors sent back to it.
+// as tabs, the picker a new screen's scope is chosen in, the menu and the
+// editor, and which asks the page for what only it can do: keep the library
+// in IndexedDB (store.js), make a screen or a preview in its scope chain
+// (answered with the component made, which Studio renders), build with tcd
+// (the compiler worker), confirm, move the library in and out. A screen is
+// composed by filling a layout's holes with what its scope can make; a
+// hole's list also offers a new component, and a slot's ✎ edits the one in
+// it: the studio turns into the editor, its code in tw-code-editor
+// (code-editor.js, around CodeMirror), and saving registers the component in
+// the screen's scope, where the hole can make it. A screen is kept as what
+// to make (js/hydrate.js's capture), saved as it changes. Served with an API
+// (scripts/studio-server.mjs), the editor also has an assistant
+// (assistant.js, in the editor's tw-slot until it's a component too): a
+// model that edits the component, its changes built and its errors sent back
+// to it.
 import { defineRating } from "../components/media/rating.js";
 import { capture, hydrate } from "../js/hydrate.js";
 import { compilerClient, el, pageStyles } from "../js/page.js";
 import { snapshot } from "../js/pbt.js";
 import { load, readBytes } from "../js/tutuca-rt.js";
-import { createEditor } from "../playground/deps/editor.js";
 import { assistantPanel, checkServer, diagnosticText } from "./assistant.js";
+import { defineStudioElements, provideSlot } from "./code-editor.js";
 import { fromBundle, openStore, toBundle } from "./store.js";
 
 const UI = {
 	body: "bg-base-200 text-base-content",
 	app: "h-screen flex flex-col",
-	spacer: "flex-1",
-	status: "st-status text-xs opacity-70 truncate max-w-[40%]",
-	main: "flex-1 min-h-0 flex flex-col",
 	button: "btn btn-sm",
 	primary: "btn btn-sm btn-primary",
 	ghost: "btn btn-sm btn-ghost",
-	input: "input input-sm",
 	select: "select select-sm",
 	label: "text-xs uppercase tracking-wide opacity-60",
 	row: "flex flex-wrap items-center gap-2",
-	info: "opacity-70",
-	// The preview's events.
-	eventList: "st-events font-mono max-h-40 overflow-auto flex flex-col px-3 pb-2",
-	event: "py-0.5 border-b border-base-300",
-	log: "text-success",
-	issue: "text-warning",
-	failed: "st-failed text-error",
 	// The layout JSON dialog.
 	dialog: "modal",
 	dialogBox: "modal-box flex flex-col gap-3",
 	dialogTitle: "text-lg font-bold",
 	dialogActions: "modal-action mt-0",
 	layoutJson: "st-layout textarea textarea-sm font-mono text-xs w-full h-80",
-	// The editor.
-	editorBar: "st-editor-bar flex flex-wrap items-center gap-2 border-b border-base-300 bg-base-100 px-2 py-1",
-	work: "st-work flex-1 min-h-0 grid gap-2 p-2 grid-cols-1 lg:grid-cols-2",
-	workChat: "st-work flex-1 min-h-0 grid gap-2 p-2 grid-cols-1 lg:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_24rem]",
-	pane: "card card-border bg-base-100 min-h-0 min-w-0 flex flex-col gap-2 p-2",
-	fileTabs: "flex flex-wrap gap-1",
-	fileTab: "btn btn-xs btn-ghost font-mono",
-	fileTabOn: "btn btn-xs btn-active font-mono",
-	editor: "st-editor flex-1 min-h-0 border border-base-300 rounded-box overflow-hidden",
-	preview: "st-preview min-h-40 max-h-[50%] overflow-auto rounded-box border border-dashed border-base-300 p-3",
-	inspectorTabs: "tabs tabs-border tabs-sm",
-	inspectorTab: "st-inspector-tab tab",
-	inspectorTabOn: "st-inspector-tab tab tab-active",
-	inspector: "st-inspector flex-1 min-h-0 overflow-auto",
-	diags: "st-diagnostics font-mono text-xs flex flex-col",
-	diag: "text-left px-2 py-1 border-b border-base-300 hover:bg-base-200 cursor-pointer",
-	error: "text-error font-semibold",
-	warning: "text-warning font-semibold",
-	note: "text-info font-semibold",
-	table: "table table-sm",
-	ok: "text-success",
-	bad: "text-error",
-	state: "st-state font-mono text-xs whitespace-pre-wrap",
 	// The assistant (assistant.js).
 	chat: "st-chat flex flex-col gap-2 min-h-0 rounded-box border border-base-300 bg-base-100 p-2",
 	chatLog: "st-chat-log flex flex-col gap-2 overflow-auto flex-1 min-h-24 text-sm",
@@ -87,6 +55,7 @@ const UI = {
 const styles = await pageStyles(Object.values(UI));
 document.body.className = UI.body;
 defineRating();
+defineStudioElements();
 const RUNTIME = new URL("../dist/tutuca-rt.wasm", import.meta.url);
 const tw = await load(RUNTIME);
 const { runtime } = tw;
@@ -237,23 +206,18 @@ const reportLine = (t, type, r) => {
 	if (type === "stateInvalid" || type === "messageInvalid") return line("issue", JSON.stringify(r));
 	return null;
 };
-const eventItem = ({ kind, text }) => el("div", { class: `${UI.event} ${UI[kind] ?? ""}` }, `${new Date().toLocaleTimeString()} ${kind}: ${text}`);
 
 // ---- The page ------------------------------------------------------------------------------
 
-// The studio's tabs, picker and menu are studio.tcd's Studio, rendered into
-// studioRoot; the editor, still the page's, takes its place while a
-// component is written.
+// The studio is studio.tcd's Studio, rendered into studioRoot.
 const app = document.querySelector("#app");
 app.className = UI.app;
 app.textContent = "";
 const studioRoot = el("div");
-const main = el("main", { class: UI.main });
-main.hidden = true;
 const dialog = el("dialog", { class: UI.dialog, "aria-label": "Layout" });
 const importInput = el("input", { type: "file", accept: ".json,application/json", "aria-label": "Import a bundle" });
 importInput.hidden = true;
-app.append(studioRoot, main, dialog, importInput);
+app.append(studioRoot, dialog, importInput);
 
 // ---- Screens -------------------------------------------------------------------------------
 
@@ -283,11 +247,17 @@ const remember = (id) => {
 // events of the types in its root's scope tree, so a screen's types are
 // heard too. The studio's own module is in a child of its own, which no
 // screen's chain goes through: a hole never lists Studio. Each screen opened
-// gets a child of base, so it's made from scratch.
+// and each preview made gets a child of base, so it's made from scratch,
+// left once another takes its place.
 const base = runtime.scope();
 const studioScope = runtime.enter(base, "studio");
 styles.add((await tw.loadComponent(new URL("../dist/components/studio.wasm", import.meta.url), studioScope)).classes);
 let opened = 0;
+// A new child of base: { name, scope }.
+const child = (kind) => {
+	const name = `${kind} ${opened++}`;
+	return { name, scope: runtime.enter(base, name) };
+};
 
 // The library's scopes and screens, as the studio holds them.
 const scopeRows = () => [...lib.scopes.values()].map(({ id, name, parent }) => ({ id, name, parent: parent ?? "" }));
@@ -300,9 +270,14 @@ const tell = (name, ...args) => queueMicrotask(() => studioHost?.send(name, args
 const say = (message) => tell("say", message);
 const note = (kind, message) => tell("note", kind, message);
 
-let mounted = null; // the screen the studio shows: { id, scope }
+let mounted = null; // the screen the studio shows: { id, scope, child (its child of base) }
 let wanted = null; // the screen asked for last
 const fresh = new Set(); // screens made but not opened yet, which open edited
+// The screen shown no longer is: its child of base is left.
+const unmount = () => {
+	if (mounted) runtime.leave(base, mounted.child);
+	mounted = null;
+};
 
 // The layout the studio shows, kept when it changed.
 let pendingSave = null;
@@ -351,10 +326,14 @@ const asks = {
 		if (!screen) throw new Error(`there's no screen ${id}`);
 		const editing = fresh.delete(id);
 		const scopeRecord = lib.scopes.get(screen.scope);
-		const scope = await loadChain(tw, scopeRecord, (message) => note("failed", message), runtime.enter(base, `screen ${opened++}`));
+		const under = child("screen");
+		const scope = await loadChain(tw, scopeRecord, (message) => note("failed", message), under.scope);
 		const made = hydrate(runtime, scope, forStudio(screen.layout, editing));
-		if (wanted === id) {
-			mounted = { id, scope };
+		// One asked for after it won't be shown: nothing will be made there.
+		if (wanted !== id) runtime.leave(base, under.name);
+		else {
+			unmount();
+			mounted = { id, scope, child: under.name };
 			remember(id);
 			say(`${screen.name}, in ${chainOf(scopeRecord).map((s) => s.name).join(" / ")}`);
 		}
@@ -370,7 +349,7 @@ const asks = {
 	delete_screen: async (id) => {
 		if (mounted?.id === id) {
 			clearTimeout(pendingSave);
-			mounted = null;
+			unmount();
 		}
 		await remove("screens", id);
 		return true;
@@ -416,7 +395,7 @@ async function showLayoutJson(id) {
 		await save("screens", screen);
 		// Not kept over what was just applied: what it shows is older.
 		clearTimeout(pendingSave);
-		mounted = null;
+		unmount();
 		dialog.close();
 		tell("reopen");
 	});
@@ -432,10 +411,14 @@ async function showLayoutJson(id) {
 	dialog.showModal();
 }
 
-// ---- The editor ----------------------------------------------------------------------------
+// ---- The editor ---------------------------------------------------------------------------
 
-// While a component is written or edited, the page is the editor: the
-// screen's host stays mounted, hidden, waiting for the answer to its ask.
+// While a component is written or edited, studio.tcd's Editor is the page;
+// the screen stays in the studio's state, its hole or slot waiting for the
+// answer to its ask. editing: { creating, resolve (that answer), scope (the
+// screen's scope record), draft ({ id, name, tcd, wax, build, chat }: what
+// the last build was made from), state (the preview's, as last told),
+// preview (the last preview's child of base) }.
 const NAME = /^[a-z][a-z0-9_]*$/;
 const freeName = (base) => {
 	const taken = new Set([...lib.components.values()].map((c) => c.name));
@@ -443,307 +426,26 @@ const freeName = (base) => {
 	for (let i = 2; taken.has(name); i++) name = `${base}_${i}`;
 	return name;
 };
+let editing = null;
+let built = []; // what waits for the next build: the assistant's check
 
-const backButton = el("button", { class: UI.ghost, title: "Back to the screen, without saving" }, "← Back");
-const nameInput = el("input", { class: `${UI.input} font-mono w-48`, "aria-label": "Component name" });
-const buildButton = el("button", { class: UI.button, title: "Ctrl/Cmd-Enter" }, "Build");
-const assistantButton = el("button", { class: UI.button, title: "Ask a model to change this component" }, "Assistant");
-assistantButton.hidden = !server?.assistant;
-const saveButton = el("button", { class: UI.primary, title: "Keep it and register it in the screen's scope" }, "Save & register");
-const editorStatus = el("span", { class: UI.status });
-const fileTabs = el("div", { class: UI.fileTabs });
-const editorBox = el("div", { class: UI.editor });
-const preview = el("div", { class: UI.preview });
-const previewType = el("select", { class: `${UI.select} st-preview-type`, "aria-label": "Type to preview" });
-const inspectorTabs = el("div", { class: UI.inspectorTabs, role: "tablist" });
-const inspector = el("div", { class: UI.inspector });
-const diagList = el("div", { class: UI.diags });
-const typesBox = el("div");
-const stateBox = el("pre", { class: UI.state });
-const previewEvents = el("div", { class: UI.eventList });
-const work = el(
-	"div",
-	{ class: UI.work },
-	el("section", { class: UI.pane }, fileTabs, editorBox),
-	el("section", { class: UI.pane }, el("div", { class: UI.row }, el("span", { class: UI.label }, "preview"), previewType), preview, inspectorTabs, inspector),
-);
-const editorPane = el(
-	"section",
-	{ class: UI.main },
-	el("div", { class: UI.editorBar }, backButton, nameInput, buildButton, assistantButton, el("span", { class: UI.spacer }), editorStatus, saveButton),
-	work,
-);
-main.append(editorPane);
-
-const INSPECTORS = { diagnostics: ["Diagnostics", diagList], registers: ["Registers", typesBox], state: ["State", stateBox], events: ["Events", previewEvents] };
-let inspecting = "diagnostics";
-const renderInspector = () => {
-	inspectorTabs.textContent = "";
-	for (const [id, [label]] of Object.entries(INSPECTORS)) {
-		const on = id === inspecting;
-		inspectorTabs.append(
-			el(
-				"button",
-				{
-					class: on ? UI.inspectorTabOn : UI.inspectorTab,
-					role: "tab",
-					"aria-selected": String(on),
-					onclick: () => {
-						inspecting = id;
-						renderInspector();
-					},
-				},
-				label,
-			),
-		);
-	}
-	inspector.replaceChildren(INSPECTORS[inspecting][1]);
-};
-
-// The session: { kind: "create" | "edit", copy, scope (the screen's scope
-// record), resolve (the ask's answer), saved (the sources as they were) }.
-let session = null;
-const editor = createEditor(editorBox, {
-	onRun: () => build(),
-	onChange: () => keepSources(),
-});
-const keepSources = () => {
-	if (!session) return;
-	session.copy.tcd = editor.text(`${session.copy.name}.tcd`);
-	session.copy.wax = editor.text(`${session.copy.name}.wax`);
-};
-const changed = () => session && (session.copy.tcd !== session.saved.tcd || session.copy.wax !== session.saved.wax || session.copy.name !== session.saved.name);
-const renderFileTabs = () => {
-	fileTabs.textContent = "";
-	for (const name of editor.names()) {
-		const on = editor.current() === name;
-		fileTabs.append(
-			el(
-				"button",
-				{
-					class: on ? UI.fileTabOn : UI.fileTab,
-					onclick: () => {
-						editor.show(name);
-						renderFileTabs();
-					},
-				},
-				name,
-			),
-		);
-	}
-};
-const openFiles = (c) => {
-	const current = editor.current();
-	for (const name of editor.names()) editor.remove(name);
-	editor.open(`${c.name}.tcd`, c.tcd, { lang: "tcd" });
-	editor.open(`${c.name}.wax`, c.wax, { lang: "wax" });
-	editor.show(current?.endsWith(".wax") ? `${c.name}.wax` : `${c.name}.tcd`);
-	renderFileTabs();
-};
-const renderDiagnostics = (diags) => {
-	diagList.textContent = "";
-	const byFile = {};
-	for (const d of diags) {
-		const where = d.span.file;
-		(byFile[where] ??= []).push({
-			line: d.span.start.line,
-			col: d.span.start.col,
-			endLine: d.span.end.line,
-			endCol: d.span.end.col,
-			severity: d.severity === "note" ? "info" : d.severity,
-			message: d.hint ? `${d.message}\n${d.hint}` : d.message,
-		});
-		const go = () => {
-			if (editor.has(where)) {
-				editor.goto(where, d.span.start.line, d.span.start.col);
-				renderFileTabs();
-			}
-		};
-		diagList.append(el("button", { class: UI.diag, onclick: go }, el("span", { class: UI[d.severity] ?? UI.note }, `${d.severity} `), `${where}:${d.span.start.line}:${d.span.start.col} ${d.message}`));
-	}
-	if (diags.length === 0) diagList.append(el("span", { class: UI.info }, "nothing to report"));
-	editor.setDiagnostics(byFile);
-};
-// Each type it registers, and whether a hole can make it: made with no
-// fields, in a scope with only this module.
-const renderTypes = async (b) => {
-	typesBox.textContent = "";
-	if (!b?.ok) {
-		typesBox.append(el("span", { class: UI.info }, b ? "it doesn't build" : "not built yet"));
-		return [];
-	}
-	const scope = runtime.scope();
-	await tw.loadComponent(b.wasm.slice(), scope);
-	const makeable = [];
-	const rows = b.types.map((t) => {
-		let made = "a hole can make it";
-		let ok = true;
-		try {
-			runtime.make(scope, t, {});
-			makeable.push(t);
-		} catch (error) {
-			made = `a hole can't make it alone: ${error.message}`;
-			ok = false;
-		}
-		return el("tr", {}, el("td", { class: "font-mono" }, t), el("td", { class: ok ? UI.ok : UI.bad }, made));
-	});
-	typesBox.append(el("table", { class: UI.table }, el("tbody", {}, ...rows)));
-	return makeable;
-};
-
-// The preview: in a runtime instance of its own (one instance drives one
-// host, and the screen's is still mounted), the screen's scope chain and,
-// in a scope inside it, the module as just built, hiding a version of it
-// registered around; one of its types made there with no fields.
-let previewTw = null;
-let previewHost = null;
-const previewNote = (line) => previewEvents.prepend(eventItem(line));
-const showState = () => {
-	try {
-		stateBox.textContent = previewHost ? JSON.stringify(snapshot(previewTw.runtime, previewHost.root()), null, 2) : "";
-	} catch (error) {
-		stateBox.textContent = error.message;
-	}
-};
-async function renderPreview(b, makeable) {
-	previewHost?.unmount();
-	previewHost = null;
-	preview.replaceChildren();
-	previewEvents.textContent = "";
-	if (!b?.ok) {
-		preview.append(el("span", { class: UI.info }, "it doesn't build: see the diagnostics"));
-		return;
-	}
-	const wanted = previewType.value;
-	previewType.textContent = "";
-	for (const t of makeable) previewType.append(el("option", { value: t }, t));
-	previewType.hidden = makeable.length < 2;
-	if (makeable.length === 0) {
-		preview.append(el("span", { class: UI.info }, "none of its types can be made with no fields"));
-		return;
-	}
-	previewType.value = makeable.includes(wanted) ? wanted : makeable[0];
-	previewTw ??= await load(RUNTIME);
-	if (!session) return;
-	const around = await loadChain(previewTw, session.scope, (message) => previewNote({ kind: "failed", text: message }));
-	if (!session) return;
-	const scope = previewTw.runtime.enter(around, "preview");
-	try {
-		const loaded = await previewTw.loadComponent(b.wasm.slice(), scope);
-		styles.add(loaded.classes);
-		previewHost = previewTw.runtime.createHost(document, preview, previewTw.runtime.make(scope, previewType.value, {}), {
-			dev: true,
-			onReport: (type, r) => {
-				if (type === "render") return showState();
-				const line = reportLine(previewTw, type, r);
-				if (line) previewNote(line);
-			},
-		});
-		previewHost.mount();
-		showState();
-	} catch (error) {
-		preview.append(el("span", { class: UI.bad }, `can't preview it: ${error.message}`));
-	}
-}
-previewType.addEventListener("change", () => session && renderPreview(session.copy.build, [...previewType.options].map((o) => o.value)));
-
-async function build() {
-	if (!session) return null;
-	keepSources();
-	const c = session.copy;
-	editorStatus.textContent = `building ${c.name}…`;
-	try {
-		const b = await buildOf(c);
-		editorStatus.textContent = b.ok ? `built: registers ${b.types.join(", ")}` : "it didn't build: see the diagnostics";
-		if (session?.copy !== c) return b;
-		renderDiagnostics(b.diags);
-		if (!b.ok && inspecting !== "diagnostics") {
-			inspecting = "diagnostics";
-			renderInspector();
-		}
-		await renderPreview(b, await renderTypes(b));
-		return b;
-	} catch (error) {
-		editorStatus.textContent = `the compiler failed: ${error.message}`;
-		return null;
-	}
-}
-
-// What the assistant is told of a build: the types it registers, or tcd's
-// diagnostics and the signatures of the functions still missing.
-async function check() {
-	const c = session.copy;
-	const b = await build();
-	if (!b) return { ok: false, text: "The compiler failed; nothing was built." };
-	const warnings = b.diags.filter((d) => d.severity !== "error").map(diagnosticText);
-	if (b.ok) {
-		const notes = warnings.length > 0 ? `\nWarnings:\n${warnings.join("\n")}` : "";
-		return { ok: true, text: `It built: ${c.name} registers ${b.types.join(", ")}.${notes}` };
-	}
-	let message = `It didn't build. tcd's diagnostics:\n${b.diags.map(diagnosticText).join("\n")}`;
-	try {
-		const stub = await compiler("stub", await requestFor(c));
-		if (stub.ok && stub.stub.trim()) message += `\n\nThe functions the .wax is missing, with the signatures it must have:\n${stub.stub}`;
-	} catch {}
-	return { ok: false, text: message };
-}
-const assistant = server?.assistant
-	? assistantPanel({
-			server,
-			UI,
-			component: () => session?.copy ?? null,
-			write: async ({ tcd, wax }) => {
-				if (!session) return;
-				if (typeof tcd === "string") session.copy.tcd = tcd;
-				if (typeof wax === "string") session.copy.wax = wax;
-				openFiles(session.copy);
-			},
-			check,
-			// The chat is kept with the component once it's in the library.
-			keep: (c) => (lib.components.has(c.id) ? save("components", { ...lib.components.get(c.id), chat: c.chat }) : undefined),
-		})
-	: null;
-if (assistant) {
-	work.append(assistant.root);
-	assistantButton.addEventListener("click", () => {
-		const open = assistant.toggle();
-		assistantButton.className = open ? UI.primary : UI.button;
-		work.className = open ? UI.workChat : UI.work;
-	});
-}
-
-// Opens the editor on a copy of c; resolves with what the ask is answered.
-function openEditor(kind, c) {
+function openEditor(creating, c) {
 	return new Promise((resolve) => {
 		const scope = lib.scopes.get(lib.screens.get(mounted.id).scope);
-		session = { kind, copy: { ...c, chat: [...(c.chat ?? [])] }, saved: { name: c.name, tcd: c.tcd, wax: c.wax }, scope, resolve };
-		studioRoot.hidden = true;
-		main.hidden = false;
-		nameInput.value = c.name;
-		saveButton.textContent = kind === "create" ? "Save & register" : "Save";
-		openFiles(session.copy);
-		inspecting = "diagnostics";
-		renderInspector();
-		assistant?.render();
-		build();
+		editing = { creating, resolve, scope, draft: { ...c, chat: [...(c.chat ?? [])] }, state: "" };
+		tell("open_editor", creating, c.id, c.name, c.tcd, c.wax);
 	});
 }
-function closeEditor(answer) {
-	const { resolve } = session;
-	session = null;
-	previewHost?.unmount();
-	previewHost = null;
-	main.hidden = true;
-	studioRoot.hidden = false;
+function closeEditing(answer) {
+	const { resolve, preview } = editing;
+	if (preview) runtime.leave(base, preview);
+	editing = null;
 	resolve(answer);
 }
 
 // The hole's ask: a new component, from the starter. Answered with its name
 // once it's registered, or "" when the editor is left without saving.
-function createComponent() {
-	const c = { id: newId(), name: freeName(STARTER.name), tcd: STARTER.tcd, wax: STARTER.wax };
-	return openEditor("create", c);
-}
+const createComponent = () => openEditor(true, { id: newId(), name: freeName(STARTER.name), tcd: STARTER.tcd, wax: STARTER.wax });
 // A slot's ask: the component in it, by the name it's made by here. Only
 // the library's components open; true once it's saved, false otherwise.
 function editComponent(item) {
@@ -753,56 +455,169 @@ function editComponent(item) {
 		say(`${name ?? "that"} comes with the studio: only components you made open in the editor`);
 		return false;
 	}
-	return openEditor("edit", lib.components.get(found.ref));
+	return openEditor(false, lib.components.get(found.ref));
 }
 
-backButton.addEventListener("click", () => {
-	if (changed() && !confirm(`Leave ${session.copy.name} without saving?`)) return;
-	closeEditor(session.kind === "create" ? "" : false);
+// Each type it registers, and whether a hole can make it: made with no
+// fields, in a scope with only this module.
+async function registersOf(b) {
+	if (!b.ok) return [];
+	const scope = runtime.scope();
+	await tw.loadComponent(b.wasm.slice(), scope);
+	return b.types.map((name) => {
+		try {
+			runtime.make(scope, name, {});
+			return { name, ok: true, note: "a hole can make it" };
+		} catch (error) {
+			return { name, ok: false, note: `a hole can't make it alone: ${error.message}` };
+		}
+	});
+}
+const diagnosticRow = (d) => ({
+	file: d.span.file,
+	line: d.span.start.line,
+	col: d.span.start.col,
+	end_line: d.span.end.line,
+	end_col: d.span.end.col,
+	severity: d.severity,
+	message: d.hint ? `${d.message} (${d.hint})` : d.message,
+	error: d.severity === "error",
+	warning: d.severity === "warning",
 });
-buildButton.addEventListener("click", () => build());
-nameInput.addEventListener("change", () => {
-	const name = nameInput.value.trim();
-	if (!NAME.test(name) || [...lib.components.values()].some((c) => c.id !== session.copy.id && c.name === name)) {
-		editorStatus.textContent = `a name is snake_case and unique in the library: ${name} isn't`;
-		nameInput.value = session.copy.name;
-		return;
-	}
-	keepSources();
-	session.copy.name = name;
-	openFiles(session.copy);
+
+// The draft, as the editor has it now.
+const draftAs = (id, name, tcd, wax) => {
+	if (editing?.draft.id !== id) throw new Error("that component isn't being edited");
+	return Object.assign(editing.draft, { name, tcd, wax });
+};
+
+// What the editor asks the page for.
+Object.assign(asks, {
+	build: async (id, name, tcd, wax) => {
+		const draft = draftAs(id, name, tcd, wax);
+		let b = null;
+		try {
+			b = await buildOf(draft);
+		} finally {
+			for (const done of built.splice(0)) done(b);
+		}
+		const registers = await registersOf(b);
+		return {
+			ok: b.ok,
+			status: b.ok ? `built: registers ${b.types.join(", ")}` : "it didn't build: see the diagnostics",
+			makeable: registers.filter((r) => r.ok).map(({ name }) => ({ name })),
+			registers,
+			diagnostics: b.diags.map(diagnosticRow),
+		};
+	},
+	// In a scope inside the screen's chain, the module as last built, hiding
+	// a version of it registered around; the type made there with no fields.
+	preview: async (id, type) => {
+		const { draft, scope: scopeRecord } = editing ?? {};
+		if (draft?.id !== id || !draft.build?.ok) throw new Error("it doesn't build");
+		const under = child("preview");
+		if (editing.preview) runtime.leave(base, editing.preview);
+		editing.preview = under.name;
+		const around = await loadChain(tw, scopeRecord, (message) => tell("editor_note", "failed", message), under.scope);
+		const scope = runtime.enter(around, "preview");
+		styles.add((await tw.loadComponent(draft.build.wasm.slice(), scope)).classes);
+		return runtime.make(scope, type, {});
+	},
+	// Kept, and registered in the screen's scope when it's new; an edited
+	// one's screen is made again with it.
+	save_component: async (creating, id, name, tcd, wax) => {
+		if (!NAME.test(name) || [...lib.components.values()].some((c) => c.id !== id && c.name === name)) {
+			throw new Error(`a name is snake_case and unique in the library: ${name} isn't`);
+		}
+		const draft = draftAs(id, name, tcd, wax);
+		const b = await buildOf(draft);
+		if (!b.ok) throw new Error("it doesn't build yet: fix what the diagnostics say first");
+		const { scope } = editing;
+		// Another registration giving one of its names would hide it, or it them.
+		const taken = resolvesIn(scope).filter((r) => r.ref !== id && b.types.includes(r.name));
+		if (taken.length > 0) {
+			const which = taken.map((r) => `${r.name} (${componentLabel(r.ref)}${r.scope === scope ? "" : `, from ${r.scope.name}`})`).join(", ");
+			throw new Error(`${which} already made in this scope: rename the component in ${name}.tcd`);
+		}
+		await save("components", { id, name, tcd, wax, build: b, chat: draft.chat });
+		if (creating) {
+			scope.registrations.push({ component: id });
+			await save("scopes", scope);
+			// Registered in the shown screen's scope too, for the hole to make.
+			styles.add((await tw.loadComponent(b.wasm.slice(), mounted.scope)).classes);
+			say(`${name} registered in ${scope.name}: ${b.types.join(", ")}`);
+			closeEditing(name);
+		} else {
+			say(`${name} saved`);
+			closeEditing(true);
+			await keepLayout();
+			tell("reopen");
+		}
+		return "saved";
+	},
+	leave_editor: (creating) => {
+		closeEditing(creating ? "" : false);
+		return true;
+	},
 });
-saveButton.addEventListener("click", async () => {
-	const { kind, copy, scope } = session;
-	const b = await build();
-	if (!b?.ok) {
-		editorStatus.textContent = "it doesn't build yet: fix what the diagnostics say first";
-		return;
+
+// The preview's state, told to the editor when it changed.
+function tellPreviewState() {
+	const [editor] = runtime.get(studioHost.root(), "editor");
+	if (!editing || !editor) return;
+	const [preview] = runtime.get(editor, "preview");
+	let state = "";
+	try {
+		state = preview ? JSON.stringify(snapshot(runtime, preview), null, 2) : "";
+	} catch (error) {
+		state = error.message;
 	}
-	// Another registration giving one of its names would hide it, or it them.
-	const taken = resolvesIn(scope).filter((r) => r.ref !== copy.id && b.types.includes(r.name));
-	if (taken.length > 0) {
-		const which = taken.map((r) => `${r.name} (${componentLabel(r.ref)}${r.scope === scope ? "" : `, from ${r.scope.name}`})`).join(", ");
-		editorStatus.textContent = `${which} already made in this scope: rename the component in ${copy.name}.tcd`;
-		return;
-	}
-	await save("components", copy);
-	if (kind === "create") {
-		scope.registrations.push({ component: copy.id });
-		await save("scopes", scope);
-		// Registered in the mounted screen's scope too, for the hole to make.
-		const loaded = await tw.loadComponent(b.wasm.slice(), mounted.scope);
-		styles.add(loaded.classes);
-		say(`${copy.name} registered in ${scope.name}: ${b.types.join(", ")}`);
-		closeEditor(copy.name);
-		return;
-	}
-	say(`${copy.name} saved`);
-	closeEditor(true);
-	// Made again, with the new module.
-	await keepLayout();
-	tell("reopen");
-});
+	if (state === editing.state) return;
+	editing.state = state;
+	tell("editor_state", state);
+}
+
+// The assistant (assistant.js), in the editor's tw-slot until it's a
+// component too: it reads the sources from the editor, writes them back
+// through it, and is told what the build that follows says.
+const editorSources = () => {
+	const [editor] = runtime.get(studioHost.root(), "editor");
+	const field = (name) => runtime.get(editor, name);
+	return { id: field("id"), name: field("name"), tcd: field("tcd"), wax: field("wax") };
+};
+const assistant = server?.assistant
+	? assistantPanel({
+			server,
+			UI,
+			// The chat is the draft's, which the transcript is pushed onto.
+			component: () => (editing ? { ...editorSources(), chat: editing.draft.chat } : null),
+			write: async ({ tcd, wax }) => {
+				const now = editorSources();
+				tell("editor_write", typeof tcd === "string" ? tcd : now.tcd, typeof wax === "string" ? wax : now.wax);
+			},
+			// What the model is told of the build its write starts: the types it
+			// registers, or tcd's diagnostics and the signatures still missing.
+			check: async () => {
+				const b = await new Promise((resolve) => built.push(resolve));
+				if (!b) return { ok: false, text: "The compiler failed; nothing was built." };
+				const { name } = editing.draft;
+				const warnings = b.diags.filter((d) => d.severity !== "error").map(diagnosticText);
+				if (b.ok) {
+					const notes = warnings.length > 0 ? `\nWarnings:\n${warnings.join("\n")}` : "";
+					return { ok: true, text: `It built: ${name} registers ${b.types.join(", ")}.${notes}` };
+				}
+				let text = `It didn't build. tcd's diagnostics:\n${b.diags.map(diagnosticText).join("\n")}`;
+				try {
+					const stub = await compiler("stub", await requestFor(editing.draft));
+					if (stub.ok && stub.stub.trim()) text += `\n\nThe functions the .wax is missing, with the signatures it must have:\n${stub.stub}`;
+				} catch {}
+				return { ok: false, text };
+			},
+			// The chat is kept with the component once it's in the library.
+			keep: (c) => (lib.components.has(c.id) ? save("components", { ...lib.components.get(c.id), chat: c.chat }) : undefined),
+		})
+	: null;
+if (assistant) provideSlot("assistant", assistant.root, { onShow: () => assistant.show() });
 
 // ---- Export and import ---------------------------------------------------------------------
 
@@ -834,7 +649,7 @@ importInput.addEventListener("change", async () => {
 	if (replaced.length > 0 && !confirm(`Importing replaces ${replaced.join(", ")}. Go on?`)) return imported(false);
 	await keepLayout();
 	const shown = mounted?.id;
-	mounted = null;
+	unmount();
 	for (const [kind, rs] of Object.entries(records)) for (const r of rs) await store.put(kind, r);
 	lib = await store.load();
 	tell("set_library", scopeRows(), screenRows());
@@ -850,13 +665,17 @@ const badge = server?.assistant ? `assistant: ${server.models.length} model${ser
 studioHost = runtime.createHost(document, studioRoot, runtime.make(studioScope, "Studio", { scopes: scopeRows(), screens: screenRows(), assistant: badge }), {
 	dev: true,
 	asks,
+	// While the editor is open, what's reported is the preview's.
 	onReport: (type, r) => {
 		if (type === "render") {
 			autofocus();
+			tellPreviewState();
 			return keepLayoutSoon();
 		}
 		const line = reportLine(tw, type, r);
-		if (line) note(line.kind, line.text);
+		if (!line) return;
+		if (runtime.get(studioHost.root(), "editor").length > 0) tell("editor_note", line.kind, line.text);
+		else note(line.kind, line.text);
 	},
 });
 studioHost.mount();

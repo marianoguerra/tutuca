@@ -210,13 +210,11 @@ export function assistantPanel({ server, UI, component, write, check, keep }) {
 	return {
 		root,
 		render,
-		toggle: () => {
-			root.hidden = !root.hidden;
-			if (!root.hidden) {
-				render();
-				input.focus();
-			}
-			return !root.hidden;
+		// Shown: the transcript of the component as it is now, the input focused.
+		show: () => {
+			root.hidden = false;
+			render();
+			input.focus();
 		},
 	};
 }
