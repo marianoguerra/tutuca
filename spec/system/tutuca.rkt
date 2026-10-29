@@ -363,8 +363,11 @@
   ;; element finds its handler.
   (define (unhandled c) (filter (λ (o) (and (pair? o) (eq? (car o) 'unhandled))) (cfg-obs c)))
   (test-equal (wf? sound-registry) #f)
+  ;; A button: every class's first one sends hit on click, where a Box's
+  ;; div, the first element with handlers when the root is a Box, handles
+  ;; only drop.
   (let* ([c0 (start sound-classes (random-instance 1))]
-         [c (drain (queue-events c0 (first (addrs-where c0 (λ (d) (assq 'data-eid (fourth d)))))))])
+         [c (drain (queue-events c0 (first (addrs-where c0 (by-tag "button")))))])
     (test-equal (failures c) '())
     (test-equal (unhandled c) '((unhandled hit))))
   (define wf-classes (for/list ([c sound-classes]) (append c '((on (hit () (step)) (dropped (k) (step)))))))
