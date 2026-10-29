@@ -723,6 +723,26 @@ fn abi_int_text(n: i32) -> js_string {
     int_text(n);
 }
 
+#[export = "int_min"]
+fn abi_int_min(a: i32, b: i32) -> i32 {
+    int_min(a, b);
+}
+
+#[export = "int_max"]
+fn abi_int_max(a: i32, b: i32) -> i32 {
+    int_max(a, b);
+}
+
+#[export = "int_abs"]
+fn abi_int_abs(n: i32) -> i32 {
+    int_abs(n);
+}
+
+#[export = "int_clamp"]
+fn abi_int_clamp(n: i32, lo: i32, hi: i32) -> i32 {
+    int_clamp(n, lo, hi);
+}
+
 #[export = "parse_int"]
 fn abi_parse_int(s: js_string) -> (i32, i32) {
     parse_int(s);

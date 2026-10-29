@@ -290,6 +290,33 @@ fn int_text(n: i32) -> js_string {
     text_finish(b);
 }
 
+// The smaller, the larger, the absolute value of i32s, and n kept within
+// [lo, hi]: what a component writes as an if otherwise.
+fn int_min(a: i32, b: i32) -> i32 {
+    if a <s b {
+        return a;
+    }
+    b;
+}
+
+fn int_max(a: i32, b: i32) -> i32 {
+    if a >s b {
+        return a;
+    }
+    b;
+}
+
+fn int_abs(n: i32) -> i32 {
+    if n <s 0 {
+        return 0 - n;
+    }
+    n;
+}
+
+fn int_clamp(n: i32, lo: i32, hi: i32) -> i32 {
+    int_min(int_max(n, lo), hi);
+}
+
 // A string of decimal digits (an optional leading '-') as an int: (1, n), or
 // (0, 0) when it isn't one.
 fn parse_int(s: js_string) -> (i32, i32) {
