@@ -641,6 +641,58 @@ fn clicker_on_double(state: &clicker_state, ctx: &context) -> &clicker_state {
 	}
 });
 
+test("the studio's assistant is shown the line each error points at, told when an error survived its change, and stopped when two tries leave the same errors", async () => {
+	// A scripted model that writes the same mistake three times: an i32
+	// compared with >=.
+	const models = createModels();
+	const faux = fauxProvider({ provider: "faux", models: [{ id: "faux-coder", name: "Faux coder" }] });
+	models.setProvider(faux.provider);
+	const clicker = EXAMPLES.find((e) => e.id === "clicker");
+	const wax = `${clicker.sources[clicker.impl]}
+fn clicker_capped(state: &clicker_state) -> i32 {
+    if state.count >= 10 {
+        return 10;
+    }
+    state.count;
+}
+`;
+	const results = [];
+	const textOf = (m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text ?? "").join(""));
+	const write = (context) => {
+		const last = context.messages.at(-1);
+		if (last.role === "toolResult") results.push(textOf(last));
+		return fauxAssistantMessage([fauxText("Capping the count."), fauxToolCall("write_component", { tcd: clicker.sources[clicker.main], wax })], { stopReason: "toolUse" });
+	};
+	faux.setResponses([write, write, write, write]);
+	const studio = createStudioServer({ models, offer: () => true });
+	await new Promise((resolve) => studio.listen(0, "127.0.0.1", resolve));
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	try {
+		await page.goto(`http://127.0.0.1:${studio.address().port}/studio/`);
+		await newStudioScreen(page, { scope: "a", name: "home" });
+		await newStudioComponent(page);
+		await page.locator("button", { hasText: "Assistant" }).click();
+		await page.locator(".st-chat-input").fill("Cap the count at 10");
+		await page.locator(".st-chat button", { hasText: "Send" }).click();
+		await page.locator(".st-chat", { hasText: "Stopped: the last two tries left the same errors" }).waitFor();
+		await page.locator(".st-chat-thinking").waitFor({ state: "detached" });
+		// Asked three times: told twice why, then stopped without a fourth try.
+		if (results.length !== 2) throw new Error(`the model was told ${results.length} times`);
+		const [first, second] = results;
+		// The line the error points at, with carets under the operator, and the hint.
+		if (!first.includes("|     if state.count >= 10 {") || !/\|\s+\^\^/.test(first)) throw new Error(`no excerpt: ${first}`);
+		if (!first.includes("compare with <s <=s >s >=s")) throw new Error(`no hint: ${first}`);
+		if (first.includes("there after your last change too")) throw new Error("the first try's error is marked as a repeat");
+		if (!second.includes("there after your last change too")) throw new Error(`the repeat isn't marked: ${second}`);
+		if (errors.length > 0) throw new Error(errors.join("; "));
+	} finally {
+		await page.close();
+		studio.close();
+	}
+});
+
 test("the playground compiles components in the browser, reports errors, adds missing functions, and composes with prebuilt modules", async () => {
 	const page = await browser.newPage();
 	const errors = [];

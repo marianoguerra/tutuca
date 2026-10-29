@@ -97,7 +97,7 @@ test("a use resolves relative to the main file, and a missing file is a diagnost
 // They build cleanly, and their examples hold.
 test("the assistant's examples and the studio's module build without diagnostics, and their examples hold", async () => {
 	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
-	const modules = [...["note", "checklist", "stat", "tasks"].map((name) => `studio/assistant/examples/${name}`), "studio/studio"];
+	const modules = [...["note", "checklist", "score", "stat", "tasks"].map((name) => `studio/assistant/examples/${name}`), "studio/studio"];
 	for (const path of modules) {
 		const name = path.split("/").pop();
 		const main = `${name}.tcd`;
@@ -628,4 +628,76 @@ component Pick {
 	assert.throws(() => tw.runtime.make(scope, "Pick", { items: ["a", "b"], selected: 2 }), /selected/);
 	assert.deepEqual(tw.runtime.issues(scope, "Pick", { items: ["a"], selected: 0, n: 3 }), [{ field: "n", problem: "invalid" }]);
 	assert.equal(tw.runtime.get(tw.runtime.make(scope, "Pick", { items: ["a"], selected: 0, n: 3 }), "n"), 2);
+});
+
+// What a model writes in Wax when it writes another language's, each with
+// the diagnostic it gets and the hint tcd adds (compose/hints.mbt), which
+// says what to write instead: the studio's assistant reads them.
+test("Wax's diagnostics for another language's habits come with a hint saying what to write", async () => {
+	const main = "score.tcd";
+	const files = {
+		[main]: `package tutuca:score@0.1.0;
+component Score {
+    field ours: s32;
+    field theirs: s32;
+    get left: s32;
+    view main = p(field(left));
+}
+`,
+	};
+	const get = (body) => `fn score_get_left(state: &score_state) -> i32 {\n    ${body}\n}\n`;
+	const cases = [
+		["an i32 compared with >=", get("if state.ours >= 30 { return 0; }\n    30 - state.ours;"), /'i32' and 'number'/, /compare with <s <=s >s >=s/],
+		["an i32 divided with /", get("state.ours / 2;"), /'i32' and 'number'/, /divide with \/s/],
+		["%", get("state.ours % 2;"), /Unexpected character '%'/, /%s/],
+		["&&", get("if (state.ours == 1) && (state.theirs == 2) { return 1; }\n    0;"), /Expecting an expression/, /& and \|/],
+		["||", get("if (state.ours == 1) || (state.theirs == 2) { return 1; }\n    0;"), /Expecting an expression/, /& and \|/],
+		["else if", get("if state.ours == 1 { return 1; } else if state.ours == 2 { return 2; }\n    0;"), /Expecting a block/, /no else if/],
+		["true", get("true;"), /'true' is not bound/, /1 for true/],
+		["max", get("max(state.ours, state.theirs);"), /'max' is not bound/, /did you mean int_max/],
+		["a typo", get("int_txt(state.ours);\n    0;"), /'int_txt' is not bound/, /did you mean int_text\?/],
+		["a gs_ the .tcd doesn't have", get("js_string_length(gs_nothing);"), /'gs_nothing' is not bound/, /declare a string of your own/],
+		["as i32", get("let x = 1.5;\n    x as i32;"), /cannot be cast/, /x as i32_s/],
+		["an f64 where an i32 goes", get("state.ours as f64_s * 1.5;"), /'f64' but is expected to have type 'i32'/, /as i32_s/],
+		["&local", get("let n = state.ours;\n    &n;"), /expecting '}'/, /no address-of/],
+	];
+	for (const [what, wax, message, hint] of cases) {
+		const res = tcd.build({ main, files, impls: [{ path: "score.wax", text: wax }], runtime });
+		const errors = res.diags.filter((d) => d.severity === "error");
+		assert.equal(res.ok, false, what);
+		assert.ok(
+			errors.some((d) => message.test(d.message) && hint.test(d.hint ?? "")),
+			`${what}: ${errors.map((d) => `${d.message} (${d.hint})`).join("; ")}`,
+		);
+	}
+	// Two i32s compared with > pass Wax 0.4.1's type check and fail lowering
+	// without a place: tcd says what's likely, and where the .wax uses an f64
+	// operator. (A wax-mb that checks them as its reference does says
+	// 'i32' and 'i32' at the operator, which the first hint covers.)
+	const res = tcd.build({ main, files, impls: [{ path: "score.wax", text: get("if state.ours > state.theirs { return 1; }\n    0;") }], runtime });
+	const [lowered] = res.diags.filter((d) => d.severity === "error");
+	assert.match(lowered.hint ?? "", /<s <=s >s >=s/);
+	if (lowered.code === "wax.lower") assert.deepEqual(lowered.related.map((r) => [r.span.file, r.span.start.line, r.span.start.col]), [["score.wax", 2, 19]]);
+});
+
+// The score example's arithmetic, run: tallies of 5 (/s and %s), the leader,
+// a percent rounded up through f64, and points kept within the target.
+test("the score example tallies, rounds and keeps points within the target", async () => {
+	const path = "studio/assistant/examples/score";
+	const res = tcd.build({ main: "score.tcd", files: { "score.tcd": await read(`${path}.tcd`) }, impls: [{ path: "score.wax", text: await read(`${path}.wax`) }], runtime });
+	assert.equal(res.ok, true);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const score = tw.runtime.make(scope, "Score", { ours: 13, theirs: 7 });
+	const get = (name) => tw.runtime.get(score, name);
+	assert.equal(get("ours_tally"), "▣▣ +3");
+	assert.equal(get("theirs_tally"), "▣ +2");
+	assert.equal(get("status"), "Us leads by 6");
+	assert.equal(get("left"), 17);
+	assert.equal(get("percent"), 44);
+	assert.equal(get("over"), false);
+	const won = tw.runtime.make(scope, "Score", { ours: 30, theirs: 30, target: 30 });
+	assert.equal(tw.runtime.get(won, "status"), "Tied");
+	assert.equal(tw.runtime.get(tw.runtime.make(scope, "Score", { ours: 30, theirs: 2 }), "status"), "Us won");
 });

@@ -57,3 +57,21 @@ export const rememberModel = (value) => {
 
 // A diagnostic as the model reads it: file:line:col: severity code: message (hint).
 export const diagnosticText = (d) => `${d.span.file}:${d.span.start.line}:${d.span.start.col}: ${d.severity} ${d.code}: ${d.message}${d.hint ? ` (${d.hint})` : ""}`;
+
+// The line of source a span points at, with carets under it, "" when it
+// isn't one of sources (a file name to its text): the model can't count
+// columns in what it wrote.
+export const spanExcerpt = (span, sources) => {
+	const line = sources[span.file]?.split("\n")[span.start.line - 1];
+	if (line === undefined || span.start.line < 1) return "";
+	const n = String(span.start.line);
+	const width = span.end.line === span.start.line ? Math.max(1, span.end.col - span.start.col) : 1;
+	return `\n  ${n} | ${line}\n  ${" ".repeat(n.length)} | ${" ".repeat(Math.max(0, span.start.col - 1))}${"^".repeat(width)}`;
+};
+
+// A diagnostic as the model reads it, with the lines it points at, its
+// related places' too.
+export const diagnosticReport = (d, sources) =>
+	diagnosticText(d) +
+	spanExcerpt(d.span, sources) +
+	(d.related ?? []).map((r) => `\n  at ${r.span.file}:${r.span.start.line}:${r.span.start.col}: ${r.message}${spanExcerpt(r.span, sources)}`).join("");

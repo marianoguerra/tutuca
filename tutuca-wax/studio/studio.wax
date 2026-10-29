@@ -131,6 +131,8 @@ import "'" {
     const s_no_tool: js_string;
     #[import = ": use write_component."]
     const s_use_write_component: js_string;
+    #[import = "Stopped: the last two tries left the same errors where they were. The diagnostics are in the editor; say how to go on."]
+    const s_no_progress: js_string;
     #[import = "Still not building after 4 tries: the diagnostics are in the editor. Say how to go on."]
     const s_still_not_building: js_string;
 }
@@ -595,6 +597,7 @@ fn editor_reply_build_ok(state: &editor_state, ctx: &context, reply: &value) -> 
     }
     let next = editor_with_status(editor_with_building(state, 0), editor_build_reply_status(reply));
     next = editor_with_registers(editor_with_diagnostics(next, editor_build_reply_diagnostics(reply)), editor_build_reply_registers(reply));
+    next = editor_with_stuck(next, editor_build_reply_stuck(reply));
     next = editor_with_preview_type(editor_with_makeable(next, makeable), type_);
     if !ok {
         next = editor_with_inspecting(next, gs_diagnostics);
@@ -916,9 +919,16 @@ fn editor_answer_calls(state: &editor_state, ctx: &context, text: js_string, fai
         editor_ask_keep_chat(ctx, state.id, transcript);
         return editor_with_busy(editor_with_transcript(next, transcript), gs_empty);
     }
-    if state.round >=s 3 {
+    // Four tries, or two in a row that left the same errors (in this turn:
+    // a new message gets one try at least).
+    let no_progress = (state.stuck >=s 2) & (state.round >=s 1);
+    if (state.round >=s 3) | no_progress {
         editor_ask_keep_chat(ctx, state.id, transcript);
-        next = editor_with_chat_note(editor_with_transcript(next, transcript), s_still_not_building);
+        let note = s_still_not_building;
+        if no_progress {
+            note = s_no_progress;
+        }
+        next = editor_with_chat_note(editor_with_transcript(next, transcript), note);
         return editor_with_busy(next, gs_empty);
     }
     let round = state.round + 1;

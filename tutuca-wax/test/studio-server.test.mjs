@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import { modelRule, MODEL_RULES, normalizedId } from "../scripts/studio-models.mjs";
 import { systemPrompt } from "../scripts/studio-server.mjs";
+import { diagnosticReport, spanExcerpt } from "../studio/assistant.js";
 
 const catalog = builtinModels();
 const all = catalog.getProviders().flatMap((p) => catalog.getModels(p.id).map((m) => ({ provider: p.id, id: m.id })));
@@ -40,7 +41,21 @@ test("the rules offer the generations asked for, from any provider, and nothing 
 
 test("the system prompt has the reference, the examples, the runtime's functions and the component", async () => {
 	const prompt = await systemPrompt({ name: "mine", tcd: "package tutuca:mine@0.1.0;", wax: "// nothing" });
-	for (const part of ["# You are the tutuca-wax studio's assistant", "# The .tcd language", "## Example: note", "fn list_push(list: &value, item: &value) -> &value;", "fn value_member(v: &value, name: js_string) -> &value;", "# The module you're editing: mine", "package tutuca:mine@0.1.0;"]) {
+	for (const part of ["# You are the tutuca-wax studio's assistant", "# The .tcd language", "## Example: note", "fn list_push(list: &value, item: &value) -> &value;", "fn value_member(v: &value, name: js_string) -> &value;", "# The module you're editing: mine", "package tutuca:mine@0.1.0;", "### Operators: i32 and f64 differ", "### What Wax doesn't have", "## When it doesn't build", "## Example: score", "fn int_max(a: i32, b: i32) -> i32;", "fn int_clamp(n: i32, lo: i32, hi: i32) -> i32;"]) {
 		assert.ok(prompt.includes(part), part);
 	}
+});
+
+// What the model reads of a diagnostic: the line it points at, with carets
+// under the place, and its related places' lines too.
+test("a diagnostic as the model reads it shows the line it points at, and its related places", () => {
+	const sources = { "s.wax": "fn f() -> i32 {\n    if a >= 30 { return 1; }\n    0;\n}\n" };
+	const at = (line, col, end = col) => ({ file: "s.wax", start: { line, col }, end: { line, col: end } });
+	assert.equal(spanExcerpt(at(2, 10, 12), sources), "\n  2 |     if a >= 30 { return 1; }\n    |          ^^");
+	assert.equal(spanExcerpt(at(2, 10), { other: "" }), "");
+	const d = { span: at(2, 10, 12), severity: "error", code: "wax", message: "Nope.", hint: "write >=s", related: [{ span: at(3, 5, 6), message: "and here" }] };
+	assert.equal(
+		diagnosticReport(d, sources),
+		"s.wax:2:10: error wax: Nope. (write >=s)\n  2 |     if a >= 30 { return 1; }\n    |          ^^\n  at s.wax:3:5: and here\n  3 |     0;\n    |     ^",
+	);
 });

@@ -18,7 +18,7 @@ import { capture, hydrate } from "../js/hydrate.js";
 import { compilerClient, el, pageStyles } from "../js/page.js";
 import { snapshot } from "../js/pbt.js";
 import { componentMeta, load, readBytes } from "../js/tutuca-rt.js";
-import { askChat, askPrompt, checkServer, diagnosticText, rememberModel, rememberedModel } from "./assistant.js";
+import { askChat, askPrompt, checkServer, diagnosticReport, rememberModel, rememberedModel } from "./assistant.js";
 import { defineStudioElements } from "./code-editor.js";
 import { fromBundle, openStore, toBundle } from "./store.js";
 
@@ -503,7 +503,12 @@ async function registersOf(b) {
 		}
 	});
 }
-const diagnosticRow = (d) => ({
+// A diagnostic as the editor lists it; text is what the model reads, the
+// lines it points at in sources (the draft's files by name) included, and
+// whether it was there after the last build too (in seen, its key's).
+const REPEATED = "\n  (this was there after your last change too, at the same line: what you changed didn't fix it; change what the line above shows)";
+const diagnosticKey = (d, sources) => `${d.code}|${d.message}|${sources[d.span.file]?.split("\n")[d.span.start.line - 1]?.trim() ?? ""}`;
+const diagnosticRow = (d, sources, seen) => ({
 	file: d.span.file,
 	line: d.span.start.line,
 	col: d.span.start.col,
@@ -511,7 +516,7 @@ const diagnosticRow = (d) => ({
 	end_col: d.span.end.col,
 	severity: d.severity,
 	message: d.hint ? `${d.message} (${d.hint})` : d.message,
-	text: diagnosticText(d),
+	text: diagnosticReport(d, sources) + (d.severity === "error" && seen.has(diagnosticKey(d, sources)) ? REPEATED : ""),
 });
 
 // The draft, as the editor has it now.
@@ -526,12 +531,21 @@ Object.assign(asks, {
 		const draft = draftAs(id, name, tcd, wax);
 		const b = await buildOf(draft);
 		const registers = await registersOf(b);
+		// The errors of the build before, to tell the ones still there, and
+		// how many builds in a row had only the same ones (stuck).
+		const sources = { [`${name}.tcd`]: tcd, [`${name}.wax`]: wax };
+		const seen = editing.errors ?? new Set();
+		const errors = new Set(b.diags.filter((d) => d.severity === "error").map((d) => diagnosticKey(d, sources)));
+		const same = errors.size > 0 && errors.size === seen.size && [...errors].every((k) => seen.has(k));
+		editing.stuck = same ? (editing.stuck ?? 0) + 1 : 0;
+		editing.errors = errors;
 		return {
 			ok: b.ok,
 			status: b.ok ? `built: registers ${b.types.join(", ")}` : "it didn't build: see the diagnostics",
 			makeable: registers.filter((r) => r.ok).map(({ name }) => ({ name })),
 			registers,
-			diagnostics: b.diags.map(diagnosticRow),
+			diagnostics: b.diags.map((d) => diagnosticRow(d, sources, seen)),
+			stuck: editing.stuck,
 		};
 	},
 	// In a scope inside the screen's chain, the module as last built, hiding

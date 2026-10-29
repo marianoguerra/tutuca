@@ -97,6 +97,9 @@ component Editor {
     /// ones that can.
     field diagnostics: list<record { file: string, line: s32, col: s32, end_line: s32, end_col: s32, severity: string, message: string, text: string }>;
     field registers: list<record { name: string, ok: bool, note: string }>;
+    /// How many builds in a row failed with only the errors of the one
+    /// before: the assistant stops fixing at 2, as it's making no progress.
+    field stuck: s32 where stuck >= 0;
     field makeable: list<record { name: string }>;
     field preview_type: string;
     /// The preview, as the host made it (sync none: made again from the build).
@@ -154,7 +157,9 @@ component Editor {
         status: string,
         makeable: list<record { name: string }>,
         registers: list<record { name: string, ok: bool, note: string }>,
-        diagnostics: list<record { file: string, line: s32, col: s32, end_line: s32, end_col: s32, severity: string, message: string, text: string }>
+        diagnostics: list<record { file: string, line: s32, col: s32, end_line: s32, end_col: s32, severity: string, message: string, text: string }>,
+        /// How many builds in a row failed with only the errors of the one before.
+        stuck: s32
     } emits ask preview, ask stub, ask chat, ask keep_chat;
     /// One of its types, made with no fields where the screen's holes make.
     ask preview(id: string, type: string) -> component;

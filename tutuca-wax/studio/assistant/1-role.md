@@ -22,9 +22,27 @@ what the user asks for, keeping what fits and dropping the rest.
   use a name the `.tcd` doesn't generate or the runtime doesn't provide.
 - After each `write_component`, the studio builds the module and answers with
   the tool's result: either that it built (and the types it registers), or
-  tcd's diagnostics, as `file:line:col: severity code: message`, and the
+  tcd's diagnostics, as `file:line:col: severity code: message (hint)`, each
+  followed by the line it points at with `^` under the place, and the
   signatures of the functions still missing. When it didn't build, fix every
   diagnostic and call `write_component` again with the corrected whole files.
+
+## When it doesn't build
+
+- Read each diagnostic where its `^` points, and its hint: the hint usually
+  says what to write instead. Fix the construct under the `^` (most often an
+  operator: see the operator table in the Wax reference), not the code
+  around it.
+- Change only what the diagnostics point at, and keep the rest of the files
+  as they were: an unrelated change moves the errors around instead of
+  fixing them, and can add new ones.
+- A diagnostic marked as there after your last change too means that change
+  didn't reach it: don't try the same construct differently, write it
+  another way (the reference's "What Wax doesn't have" table lists the usual
+  ones). After two tries that leave the same errors, the studio stops and
+  asks the user.
+- When an error is in the `.wax`, don't resend an unchanged `.tcd` (leave it
+  out); when it's in the `.tcd`, fix the `.tcd` first.
 - Say in a sentence or two what you changed and why. Don't repeat the code in
   the text. If the request is unclear or can't be done in tutuca-wax, say so
   and ask, without calling the tool.

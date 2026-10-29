@@ -91,11 +91,49 @@ fn checklist_get_left(state: &checklist_state) -> i32 {
   may be null, `js_string` a JS string and `js_string_opt` one that may be
   null. Literals: `1`, `-1`, `2.5`, `0.0` (an f64 needs the dot).
 - `let x: T = e;` gives a local a type (`let` alone infers it).
-- i32 comparisons are signed or unsigned: `<s`, `<=s`, `>s`, `>=s` (signed,
-  what you want for counts and indexes), `==`, `!=`. f64 uses `<`, `<=`, `>`,
-  `>=`. Arithmetic: `+ - *`, `/s` and `%s` for signed i32 division and
-  remainder, `/` for f64. Booleans are i32: `!x`, `a & b`, `a | b` (both
-  sides are evaluated).
+
+### Operators: i32 and f64 differ
+
+Counts, indexes, `s32` fields and `bool`s are `i32`s, and most of their
+operators carry an `s` (signed). Writing the f64 one on an i32 is the most
+common reason a `.wax` doesn't build: Wax then says the operator "cannot be
+applied to operands of types 'i32' and 'number'", which is about the
+operator, not the literal.
+
+| | on `i32` | on `f64` |
+|---|---|---|
+| compare | `<s` `<=s` `>s` `>=s`, `==` `!=` | `<` `<=` `>` `>=`, `==` `!=` |
+| arithmetic | `+` `-` `*`, `/s` (divide), `%s` (remainder) | `+` `-` `*` `/` |
+| booleans (0 or 1) | `!x`, `a & b`, `a \| b` (both sides are evaluated) | |
+| convert | `n as f64_s` | `x as i32_s` (truncates, saturating) |
+| round, ... | `int_min(a, b)`, `int_max(a, b)`, `int_abs(n)`, `int_clamp(n, lo, hi)` | `x.floor()`, `x.ceil()`, `x.nearest()`, `x.trunc()`, `x.abs()`, `x.sqrt()`, `x.min(y)`, `x.max(y)` |
+
+```wax
+// 30 points win; the leader by how many, and a half rounded up.
+fn score_left(state: &score_state) -> i32 {
+    if state.ours >=s 30 {
+        return 0;
+    }
+    30 - state.ours;
+}
+fn score_half_up(n: i32) -> i32 {
+    (n as f64_s / 2.0).ceil() as i32_s;
+}
+```
+
+### What Wax doesn't have
+
+| don't write | write |
+|---|---|
+| `a && b`, `a \|\| b` | `a & b`, `a \| b` (on i32s; parenthesize comparisons: `(a == 1) & (b >s 2)`) |
+| `n % 2`, `n / 2` on i32s | `n %s 2`, `n /s 2` |
+| `x < y` on i32s | `x <s y` |
+| `} else if c {` | an `if` that `return`s, then the next `if`; or `else { if c { ... } }` |
+| `true`, `false` | `1`, `0` |
+| `&x` (address-of) | `x`: a struct literal already is a reference |
+| `x as i32` | `x as i32_s` (and `n as f64_s`) |
+| `max(a, b)`, `abs(n)` | `int_max(a, b)`, `int_abs(n)` (i32s), `x.max(y)`, `x.abs()` (f64s) |
+| `c ? f() : g()` with calls or casts | `if c { f(); } else { g(); }` (`?:` evaluates both sides) |
 - `if c { ... }` and `if c { ... } else { ... }`. There's no `else if`: chain
   ifs that `return`. `return x;` returns early. `while c { ... }` loops.
 - `c ? a : b` evaluates both `a` and `b`: only use it with plain values, never

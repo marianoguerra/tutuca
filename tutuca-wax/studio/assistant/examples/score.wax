@@ -1,0 +1,119 @@
+// Score's implementation (score.tcd has the rest): whole-number arithmetic
+// on its s32 fields, with the i32 operators (>=s, /s, %s; & and | for and
+// and or), the runtime's int_min, int_max and int_clamp, and an f64 detour
+// for a percent rounded up.
+
+import "'" {
+    #[import = " leads by "]
+    const s_leads_by: js_string;
+    #[import = " won"]
+    const s_won: js_string;
+    #[import = "Tied"]
+    const s_tied: js_string;
+    #[import = "▣"]
+    const s_box: js_string;
+    #[import = " +"]
+    const s_plus: js_string;
+    #[import = ""]
+    const s_empty: js_string;
+}
+
+// A team, as an add's or undo's team argument: its index in the enum.
+type score_team = i32;
+const score_team_ours: score_team = 0;
+
+// A number of points.
+type score_points = i32;
+
+fn score_lead(state: &score_state) -> score_points {
+    int_max(state.ours, state.theirs);
+}
+
+fn score_get_over(state: &score_state) -> i32 {
+    (state.ours >=s state.target) | (state.theirs >=s state.target);
+}
+
+fn score_get_left(state: &score_state) -> score_points {
+    int_max(state.target - score_lead(state), 0);
+}
+
+// In f64 to round up: 7 of 30 is 23.3%, shown as 24.
+fn score_get_percent(state: &score_state) -> i32 {
+    let share = score_lead(state) as f64_s * 100.0 / state.target as f64_s;
+    int_min(share.ceil() as i32_s, 100);
+}
+
+fn score_get_status(state: &score_state) -> js_string {
+    if state.ours == state.theirs {
+        return s_tied;
+    }
+    let leader = state.theirs_name;
+    if state.ours >s state.theirs {
+        leader = state.ours_name;
+    }
+    if score_get_over(state) {
+        return js_string_concat(leader, s_won);
+    }
+    js_string_concat(js_string_concat(leader, s_leads_by), int_text(int_abs(state.ours - state.theirs)));
+}
+
+// A box for every 5 points, then the rest: 13 is "▣▣ +3".
+fn score_tally(points: score_points) -> js_string {
+    let text = s_empty;
+    let boxes = points /s 5;
+    let i = 0;
+    while i <s boxes {
+        text = js_string_concat(text, s_box);
+        i += 1;
+    }
+    let rest = points %s 5;
+    if rest >s 0 {
+        text = js_string_concat(js_string_concat(text, s_plus), int_text(rest));
+    }
+    text;
+}
+
+fn score_get_ours_tally(state: &score_state) -> js_string {
+    score_tally(state.ours);
+}
+
+fn score_get_theirs_tally(state: &score_state) -> js_string {
+    score_tally(state.theirs);
+}
+
+// Never past the target: the last points of a game count up to it.
+fn score_on_add(state: &score_state, ctx: &context, team: score_team, points: score_points) -> &score_state {
+    if team == score_team_ours {
+        return score_with_ours(state, int_min(state.ours + points, state.target));
+    }
+    score_with_theirs(state, int_min(state.theirs + points, state.target));
+}
+
+fn score_on_undo(state: &score_state, ctx: &context, team: score_team) -> &score_state {
+    if team == score_team_ours {
+        return score_with_ours(state, int_max(state.ours - 1, 0));
+    }
+    score_with_theirs(state, int_max(state.theirs - 1, 0));
+}
+
+// A lower target brings the scores down to it.
+fn score_on_set_target(state: &score_state, ctx: &context, target: score_points) -> &score_state {
+    {score_state|
+        ours_name: state.ours_name,
+        theirs_name: state.theirs_name,
+        ours: int_clamp(state.ours, 0, target),
+        theirs: int_clamp(state.theirs, 0, target),
+        target,
+    };
+}
+
+fn score_on_rename(state: &score_state, ctx: &context, team: score_team, name: js_string) -> &score_state {
+    if team == score_team_ours {
+        return score_with_ours_name(state, name);
+    }
+    score_with_theirs_name(state, name);
+}
+
+fn score_on_reset(state: &score_state, ctx: &context) -> &score_state {
+    score_with_theirs(score_with_ours(state, 0), 0);
+}

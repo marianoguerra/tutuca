@@ -127,8 +127,11 @@ transcript, kept in pi's format with the component, and the component as it
 is now; the server adds the system prompt and asks the model chosen. The
 model edits through one tool, `write_component`, with the whole new `.tcd`
 or `.wax`; the studio builds what it wrote and answers with the tool's
-result, which says what it registers or gives tcd's diagnostics and the
-signatures of the functions still missing, and asks again, up to four tries.
+result, which says what it registers or gives tcd's diagnostics (each
+with tcd's hint, the line it points at and carets under the place, and
+marked when it was there after the model's last change too) and the
+signatures of the functions still missing, and asks again, up to four
+tries, stopping sooner when two tries in a row leave the same errors.
 The system prompt is read from `studio/assistant/` on every request: the
 `*.md` files in order (the role, the `.tcd` language, Wax and the naming
 convention, the examples), the example modules in `examples/` (which

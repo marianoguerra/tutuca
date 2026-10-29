@@ -1,0 +1,86 @@
+// Example: whole-number arithmetic and comparisons on s32 fields, the Wax
+// operators they take (>=s, /s, %s, &), converting to f64 and back, and the
+// runtime's int_ helpers. A scoreboard for two teams playing to a target, as
+// in truco: points are added, the leader and the gap are computed, and a game
+// is won once a team reaches the target.
+package tutuca:score@0.1.0;
+
+/// Two teams' points, up to target.
+component Score {
+    field ours_name: string = "Us";
+    field theirs_name: string = "Them";
+    field ours: s32 where 0 <= ours <= 99;
+    field theirs: s32 where 0 <= theirs <= 99;
+    /// Points that win a game: 15, 24 or 30.
+    field target: s32 = 30 where 1 <= target <= 99;
+    /// "Us leads by 3", "Tied", or "Them won".
+    get status: string;
+    /// The points still missing for the leader: target minus the higher score.
+    get left: s32 where left >= 0;
+    /// The higher score as a share of the target, rounded up to a percent.
+    get percent: s32 where 0 <= percent <= 100;
+    /// Whether a team has reached the target.
+    get over: bool;
+    /// Each team's points tallied as truco does, a box per 5 and the rest:
+    /// "▣▣ +3" for 13.
+    get ours_tally: string;
+    get theirs_tally: string;
+
+    /// Points for a team ("ours" or "theirs"), kept within the target; none
+    /// once the game is over.
+    message add(team: enum { ours, theirs }, points: s32 where 1 <= points <= 4) when not over changes ours, theirs;
+    /// Takes a point back from a team, never below 0.
+    message undo(team: enum { ours, theirs }) changes ours, theirs;
+    message set_target(target: s32 where 1 <= target <= 99) changes target, ours, theirs;
+    message rename(team: enum { ours, theirs }, name: string where len(name) <= 24) changes ours_name, theirs_name;
+    message reset() changes ours, theirs ensures next.ours == 0 and next.theirs == 0;
+
+    view main = div(class: "score card card-border bg-base-100 p-4 gap-3",
+        div(class: "grid grid-cols-2 gap-4 text-center",
+            div(class: "flex flex-col gap-1",
+                span(class: "text-sm opacity-70", field(ours_name)),
+                span(class: "score-ours text-4xl font-bold tabular-nums", field(ours)),
+                span(class: "score-tally text-sm opacity-70", field(ours_tally)),
+                div(class: "join justify-center",
+                    button(class: "btn btn-xs join-item", on_click: send(undo, "ours"), "−1"),
+                    button(class: "btn btn-xs join-item", on_click: send(add, "ours", 1), "+1"),
+                    button(class: "btn btn-xs join-item", on_click: send(add, "ours", 3), "+3"))),
+            div(class: "flex flex-col gap-1",
+                span(class: "text-sm opacity-70", field(theirs_name)),
+                span(class: "score-theirs text-4xl font-bold tabular-nums", field(theirs)),
+                span(class: "score-tally text-sm opacity-70", field(theirs_tally)),
+                div(class: "join justify-center",
+                    button(class: "btn btn-xs join-item", on_click: send(undo, "theirs"), "−1"),
+                    button(class: "btn btn-xs join-item", on_click: send(add, "theirs", 1), "+1"),
+                    button(class: "btn btn-xs join-item", on_click: send(add, "theirs", 3), "+3")))),
+        progress(class: "progress progress-primary w-full", max: "100", value: field(percent)),
+        div(class: "flex items-center gap-2 text-sm",
+            span(class: if(field(over), "score-status flex-1 font-semibold text-success", "score-status flex-1"), field(status)),
+            span(class: "opacity-60 tabular-nums", field(left), " left"),
+            button(class: "btn btn-xs btn-ghost", on_click: send(reset), "reset")));
+    view layout_edit = div(class: "score card card-border border-dashed bg-base-100 p-4 gap-2",
+        input(class: "input input-xs", "aria-label": "Our name", value: field(ours_name), on_input: send(rename, "ours", target_value())),
+        input(class: "input input-xs", "aria-label": "Their name", value: field(theirs_name), on_input: send(rename, "theirs", target_value())),
+        div(class: "flex items-center gap-2 text-sm",
+            span("Play to"),
+            div(class: "join",
+                button(class: if(field(target) == 15, "btn btn-xs join-item btn-active", "btn btn-xs join-item"), on_click: send(set_target, 15), "15"),
+                button(class: if(field(target) == 24, "btn btn-xs join-item btn-active", "btn btn-xs join-item"), on_click: send(set_target, 24), "24"),
+                button(class: if(field(target) == 30, "btn btn-xs join-item btn-active", "btn btn-xs join-item"), on_click: send(set_target, 30), "30"))));
+}
+
+example play_to_the_end for Score {
+    start { target: 15 }
+    send add("ours", 4);
+    send add("ours", 4);
+    send add("ours", 4);
+    send add("ours", 4);
+    expect ours == 15 and over;
+}
+
+example undo_stops_at_zero for Score {
+    start { ours: 1 }
+    send undo("ours");
+    send undo("ours");
+    expect ours == 0;
+}
