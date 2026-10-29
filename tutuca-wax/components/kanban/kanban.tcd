@@ -1,0 +1,94 @@
+// Kanban, a board of lanes holding cards: a card is dragged to another lane
+// or onto a card (to go before it), added to the first lane, tagged and
+// removed; a lane holding more cards than its limit says so. A module of its
+// own that needs nothing from its scope, to export from the studio as a
+// .wasm and drop on a screen elsewhere.
+package tutuca:kanban@0.1.0;
+
+/// The board. Its lanes tell it where a card was dropped; it takes the card
+/// out of the lane it was in and puts it in that one. It starts with three
+/// lanes (init) when it's made with none.
+component Kanban {
+    field title: string = "Board";
+    field lanes: list<KanbanLane>;
+    field draft: string where len(draft) <= 80;
+    /// Above every card's id: the next card's.
+    field next_id: s32 = 6 where next_id >= 0;
+    /// "2 of 5 done": the last lane's cards of all.
+    get progress: string;
+
+    init;
+
+    message set_draft(text: string where len(text) <= 80) changes draft ensures next.draft == text;
+    /// The draft as a card at the end of the first lane; an empty one adds nothing.
+    message add_card() changes draft, next_id emits send KanbanLane.add;
+    /// A lane's notify: the card with id was dropped on it, before the card
+    /// with before (-1: at the end).
+    message card_dropped(id: s32, before: s32) source_key: index<lanes> changes nothing
+        emits send KanbanLane.take, send KanbanLane.put;
+
+    view main = section(class: "kanban flex flex-col gap-3 p-3 h-full min-h-0",
+        header(class: "flex flex-wrap items-center gap-2",
+            h2(class: "text-lg font-bold flex-1", field(title)),
+            span(class: "kanban-progress text-sm opacity-70 tabular-nums", field(progress)),
+            div(class: "join",
+                input(class: "kanban-draft input input-sm join-item w-56", placeholder: "A new card", "aria-label": "New card", value: field(draft),
+                    on_input: send(set_draft, target_value()),
+                    "on_keydown+enter+prevent": send(add_card)),
+                button(class: "btn btn-sm btn-primary join-item", on_click: send(add_card), "add"))),
+        div(class: "kanban-lanes grid grid-flow-col auto-cols-[minmax(12rem,1fr)] gap-3 flex-1 min-h-0 overflow-x-auto",
+            render_each(field(lanes))));
+}
+
+/// A lane: its cards, each a record with the id the board gave it. limit is
+/// how many it should hold (0 for no limit).
+component KanbanLane {
+    field name: string;
+    field title: string;
+    field limit: s32 where limit >= 0;
+    field cards: list<record { id: s32, text: string, tag: enum { feature, bug, chore } }>;
+    /// "2" or, with a limit, "2/3".
+    get count: string;
+    /// Whether it holds more cards than its limit.
+    get over: bool;
+
+    /// To the board: the card with id was dropped here, before the card with
+    /// before (-1: at the end).
+    notify card_dropped(id: s32, before: s32);
+
+    /// What's dragged, dropped on the lane: at its end, when it's a card.
+    message drop_here() changes nothing emits notify card_dropped;
+    /// What's dragged, dropped on the card with before: before it.
+    message drop_before(before: s32) changes nothing emits notify card_dropped;
+    /// From the board: the card with id leaves this lane, if it's here.
+    message take(id: s32) changes cards;
+    /// From the board: card joins this lane, before the card with before (at
+    /// the end when there's none), out of wherever it was in it.
+    message put(card: record { id: s32, text: string, tag: enum { feature, bug, chore } }, before: s32) changes cards;
+    message add(id: s32, text: string) changes cards ensures len(next.cards) == len(cards) + 1;
+    message remove_card(id: s32) changes cards;
+    /// feature, then bug, then chore, then feature again.
+    message cycle_tag(id: s32) changes cards ensures len(next.cards) == len(cards);
+
+    view main = div(class: if(field(over),
+            "kanban-lane over flex flex-col gap-2 rounded-box border-2 border-error bg-base-300/60 p-2 min-h-40 transition-colors data-draggingover:bg-error/10",
+            "kanban-lane flex flex-col gap-2 rounded-box border-2 border-transparent bg-base-300/60 p-2 min-h-40 transition-colors data-draggingover:border-primary data-draggingover:bg-primary/10"),
+        "data-lane": field(name),
+        on_drop: send(drop_here),
+        div(class: "flex items-center justify-between px-1",
+            h3(class: "kanban-lane-title font-semibold", field(title)),
+            span(class: if(field(over), "kanban-count badge badge-sm badge-error tabular-nums", "kanban-count badge badge-sm badge-ghost tabular-nums"), field(count))),
+        ul(class: "flex flex-col gap-2",
+            each(field(cards),
+                li(class: "kanban-card group card card-border bg-base-100 shadow-sm cursor-grab p-2 gap-1 data-dragging:opacity-40 data-draggingover:ring-2 data-draggingover:ring-primary",
+                    draggable: "true",
+                    "data-dragtype": "card",
+                    on_drop: send(drop_before, field(id)),
+                    div(class: "flex items-start gap-2",
+                        span(class: "kanban-text flex-1 text-sm break-words", field(text)),
+                        button(class: "kanban-remove btn btn-xs btn-ghost btn-square opacity-0 group-hover:opacity-60 hover:opacity-100",
+                            title: "Remove", "aria-label": "Remove", on_click: send(remove_card, field(id)), "×")),
+                    button(class: if(field(tag) == "bug", "kanban-tag badge badge-sm badge-error w-fit cursor-pointer",
+                            if(field(tag) == "chore", "kanban-tag badge badge-sm badge-neutral w-fit cursor-pointer", "kanban-tag badge badge-sm badge-info w-fit cursor-pointer")),
+                        title: "Change the tag", on_click: send(cycle_tag, field(id)), field(tag))))));
+}

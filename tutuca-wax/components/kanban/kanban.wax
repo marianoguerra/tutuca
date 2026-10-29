@@ -1,0 +1,336 @@
+// Kanban's implementation (kanban.tcd has the rest): the lanes it starts
+// with, moving a card from lane to lane when one says it was dropped there,
+// and each lane's own cards: finding one by its id, taking it out, putting
+// it in before another.
+
+import "'" {
+    #[import = " of "]
+    const s_of: js_string;
+    #[import = " done"]
+    const s_done: js_string;
+    #[import = "/"]
+    const s_slash: js_string;
+    #[import = "value"]
+    const s_value: js_string;
+    #[import = "todo"]
+    const s_todo: js_string;
+    #[import = "To do"]
+    const s_to_do: js_string;
+    #[import = "doing"]
+    const s_doing: js_string;
+    #[import = "Doing"]
+    const s_doing_title: js_string;
+    #[import = "done"]
+    const s_done_name: js_string;
+    #[import = "Done"]
+    const s_done_title: js_string;
+    #[import = "Drop a .wasm on a screen"]
+    const s_card_1: js_string;
+    #[import = "Export the board"]
+    const s_card_2: js_string;
+    #[import = "Cards forget their lane"]
+    const s_card_3: js_string;
+    #[import = "Drag cards between lanes"]
+    const s_card_4: js_string;
+    #[import = "Write the .tcd"]
+    const s_card_5: js_string;
+}
+
+// A card's tag: its index in kanban.tcd's enum (feature, bug, chore).
+type kanban_tag = i32;
+// A card's id, which the board gives.
+type kanban_card_id = i32;
+// A card: kanban_lane_cards_new's record.
+type kanban_card = &value;
+
+// ---- The board -----------------------------------------------------------------------
+
+// A lane made with its fields, for init.
+fn kanban_lane_of(
+    ctx: &init_context,
+    name: js_string,
+    title: js_string,
+    limit: i32,
+    cards: &value,
+) -> &value {
+    let fields =
+        map_assoc(
+            map_assoc(
+                map_assoc(
+                    map_assoc(map_empty(), gs_name, value_string(name)),
+                    gs_title,
+                    value_string(title),
+                ),
+                gs_limit,
+                value_int(limit),
+            ),
+            gs_cards,
+            cards,
+        );
+    value_component(init_ctx_make(ctx, gs_KanbanLane, fields));
+}
+
+fn kanban_cards2(a: kanban_card, b: kanban_card) -> &value {
+    list_push(list_push(list_empty(), a), b);
+}
+
+// To do, Doing (at most 2) and Done, with a few cards, when made with no lanes.
+fn kanban_init(state: &kanban_state, ctx: &init_context) -> &kanban_state {
+    if list_count(state.lanes) != 0 {
+        return state;
+    }
+    let todo =
+        list_push(
+            kanban_cards2(
+                kanban_lane_cards_new(1, s_card_1, 0),
+                kanban_lane_cards_new(2, s_card_2, 2),
+            ),
+            kanban_lane_cards_new(3, s_card_3, 1),
+        );
+    let doing = list_push(list_empty(), kanban_lane_cards_new(4, s_card_4, 0));
+    let done = list_push(list_empty(), kanban_lane_cards_new(5, s_card_5, 2));
+    let lanes =
+        list_push(
+            list_push(
+                list_push(list_empty(), kanban_lane_of(ctx, s_todo, s_to_do, 0, todo)),
+                kanban_lane_of(ctx, s_doing, s_doing_title, 2, doing),
+            ),
+            kanban_lane_of(ctx, s_done_name, s_done_title, 0, done),
+        );
+    kanban_with_lanes(state, lanes);
+}
+
+fn kanban_lane_cards_of(lane: &value) -> &value {
+    value_member(lane, gs_cards);
+}
+
+fn kanban_get_progress(state: &kanban_state) -> js_string {
+    let total = 0;
+    let done = 0;
+    let n = list_count(state.lanes);
+    let i = 0;
+    while i <s n {
+        let count = list_count(kanban_lane_cards_of(list_get(state.lanes, i)!));
+        total += count;
+        if i == n - 1 {
+            done = count;
+        }
+        i += 1;
+    }
+    js_string_concat(
+        js_string_concat(js_string_concat(int_text(done), s_of), int_text(total)),
+        s_done,
+    );
+}
+
+fn kanban_on_set_draft(state: &kanban_state, ctx: &context, text: js_string) -> &kanban_state {
+    kanban_with_draft(state, text);
+}
+
+fn kanban_on_add_card(state: &kanban_state, ctx: &context) -> &kanban_state {
+    if (js_string_length(state.draft) == 0) | (list_count(state.lanes) == 0) {
+        return state;
+    }
+    kanban_lane_send_add(
+        ctx,
+        selector_item(gs_lanes, path_key_index(0)),
+        state.next_id,
+        state.draft,
+    );
+    {kanban_state|
+        title: state.title,
+        lanes: state.lanes,
+        draft: gs_empty,
+        next_id: state.next_id + 1,
+    };
+}
+
+// The card with id in any lane, or null: one dragged from another board isn't.
+fn kanban_find(state: &kanban_state, id: kanban_card_id) -> &?value {
+    let i = 0;
+    while i <s list_count(state.lanes) {
+        let found = kanban_lane_card_in(kanban_lane_cards_of(list_get(state.lanes, i)!), id);
+        if found >=s 0 {
+            return list_get(kanban_lane_cards_of(list_get(state.lanes, i)!), found);
+        }
+        i += 1;
+    }
+    null;
+}
+
+// The lane it was dropped on puts it in; every other lane takes it out. The
+// notify is the board's: it goes no further up.
+fn kanban_on_card_dropped(
+    state: &kanban_state,
+    ctx: &context,
+    id: kanban_card_id,
+    before: kanban_card_id,
+) -> &kanban_state {
+    ctx_stop_next(ctx);
+    let key = ctx.source_key;
+    let card = kanban_find(state, id);
+    if !key | !card {
+        return state;
+    }
+    let to = (key! as &path_key_index).index;
+    let i = 0;
+    while i <s list_count(state.lanes) {
+        let at = selector_item(gs_lanes, path_key_index(i));
+        if i == to {
+            kanban_lane_send_put(ctx, at, card!, before);
+        } else {
+            kanban_lane_send_take(ctx, at, id);
+        }
+        i += 1;
+    }
+    state;
+}
+
+// ---- A lane ------------------------------------------------------------------------
+
+// The index of the card with id in cards, or -1.
+fn kanban_lane_card_in(cards: &value, id: kanban_card_id) -> i32 {
+    let i = 0;
+    while i <s list_count(cards) {
+        if kanban_lane_cards_id(list_get(cards, i)!) == id {
+            return i;
+        }
+        i += 1;
+    }
+    -1;
+}
+
+// cards without the card with id.
+fn kanban_lane_without(cards: &value, id: kanban_card_id) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(cards) {
+        let card = list_get(cards, i)!;
+        if kanban_lane_cards_id(card) != id {
+            out = list_push(out, card);
+        }
+        i += 1;
+    }
+    out;
+}
+
+// The id of the card being dragged: (1, id), or (0, 0) when what's dragged
+// isn't a card (a drag from elsewhere).
+fn kanban_lane_dragged(ctx: &context) -> (i32, kanban_card_id) {
+    if ctx.drag.kind != value_kind_map {
+        return (0, 0);
+    }
+    let card = value_member(ctx.drag, s_value);
+    if card.kind != value_kind_map {
+        return (0, 0);
+    }
+    let id = value_member(card, gs_id);
+    if id.kind != value_kind_int {
+        return (0, 0);
+    }
+    (1, (id as &value_int).value);
+}
+
+fn kanban_lane_get_count(state: &kanban_lane_state) -> js_string {
+    let n = int_text(list_count(state.cards));
+    if state.limit == 0 {
+        return n;
+    }
+    js_string_concat(js_string_concat(n, s_slash), int_text(state.limit));
+}
+
+fn kanban_lane_get_over(state: &kanban_lane_state) -> i32 {
+    (state.limit >s 0) & (list_count(state.cards) >s state.limit);
+}
+
+fn kanban_lane_on_drop_here(state: &kanban_lane_state, ctx: &context) -> &kanban_lane_state {
+    let (ok, id) = kanban_lane_dragged(ctx);
+    if ok {
+        kanban_lane_notify_card_dropped(ctx, id, -1);
+    }
+    state;
+}
+
+fn kanban_lane_on_drop_before(
+    state: &kanban_lane_state,
+    ctx: &context,
+    before: kanban_card_id,
+) -> &kanban_lane_state {
+    let (ok, id) = kanban_lane_dragged(ctx);
+    if ok & (id != before) {
+        kanban_lane_notify_card_dropped(ctx, id, before);
+    }
+    state;
+}
+
+fn kanban_lane_on_take(
+    state: &kanban_lane_state,
+    ctx: &context,
+    id: kanban_card_id,
+) -> &kanban_lane_state {
+    if kanban_lane_card_in(state.cards, id) <s 0 {
+        return state;
+    }
+    kanban_lane_with_cards(state, kanban_lane_without(state.cards, id));
+}
+
+fn kanban_lane_on_put(
+    state: &kanban_lane_state,
+    ctx: &context,
+    card: kanban_card,
+    before: kanban_card_id,
+) -> &kanban_lane_state {
+    let cards = kanban_lane_without(state.cards, kanban_lane_cards_id(card));
+    let at = kanban_lane_card_in(cards, before);
+    if at <s 0 {
+        return kanban_lane_with_cards(state, list_push(cards, card));
+    }
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(cards) {
+        if i == at {
+            out = list_push(out, card);
+        }
+        out = list_push(out, list_get(cards, i)!);
+        i += 1;
+    }
+    kanban_lane_with_cards(state, out);
+}
+
+fn kanban_lane_on_add(
+    state: &kanban_lane_state,
+    ctx: &context,
+    id: kanban_card_id,
+    text: js_string,
+) -> &kanban_lane_state {
+    kanban_lane_with_cards(state, list_push(state.cards, kanban_lane_cards_new(id, text, 0)));
+}
+
+fn kanban_lane_on_remove_card(
+    state: &kanban_lane_state,
+    ctx: &context,
+    id: kanban_card_id,
+) -> &kanban_lane_state {
+    kanban_lane_on_take(state, ctx, id);
+}
+
+fn kanban_lane_on_cycle_tag(
+    state: &kanban_lane_state,
+    ctx: &context,
+    id: kanban_card_id,
+) -> &kanban_lane_state {
+    let at = kanban_lane_card_in(state.cards, id);
+    if at <s 0 {
+        return state;
+    }
+    let card = list_get(state.cards, at)!;
+    let next_tag: kanban_tag = (kanban_lane_cards_tag(card) + 1) %s 3;
+    kanban_lane_with_cards(
+        state,
+        list_assoc(
+            state.cards,
+            at,
+            kanban_lane_cards_new(id, kanban_lane_cards_text(card), next_tag),
+        ),
+    );
+}
