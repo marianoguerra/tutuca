@@ -4,7 +4,7 @@
 # at another wax-mb binary.
 set -eu
 REPO=https://github.com/marianoguerra/wax-mb
-COMMIT=bc9c769
+COMMIT=500910b
 DIR="$(dirname "$0")/../.tools/wax-mb"
 if [ ! -d "$DIR/.git" ]; then
 	git clone "$REPO" "$DIR"

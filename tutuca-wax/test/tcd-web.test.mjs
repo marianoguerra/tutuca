@@ -670,14 +670,13 @@ component Score {
 			`${what}: ${errors.map((d) => `${d.message} (${d.hint})`).join("; ")}`,
 		);
 	}
-	// Two i32s compared with > pass Wax 0.4.1's type check and fail lowering
-	// without a place: tcd says what's likely, and where the .wax uses an f64
-	// operator. (A wax-mb that checks them as its reference does says
-	// 'i32' and 'i32' at the operator, which the first hint covers.)
+	// Two i32s compared with >: Wax (0.4.2 on) says so at the operator.
 	const res = tcd.build({ main, files, impls: [{ path: "score.wax", text: get("if state.ours > state.theirs { return 1; }\n    0;") }], runtime });
-	const [lowered] = res.diags.filter((d) => d.severity === "error");
-	assert.match(lowered.hint ?? "", /<s <=s >s >=s/);
-	if (lowered.code === "wax.lower") assert.deepEqual(lowered.related.map((r) => [r.span.file, r.span.start.line, r.span.start.col]), [["score.wax", 2, 19]]);
+	const errors = res.diags.filter((d) => d.severity === "error");
+	assert.deepEqual(
+		errors.map((d) => [d.code, d.message, d.span.file, d.span.start.line, d.span.start.col, /<s <=s >s >=s/.test(d.hint ?? "")]),
+		[["wax", "This operator cannot be applied to operands of types 'i32' and 'i32'.", "score.wax", 2, 19, true]],
+	);
 });
 
 // The score example's arithmetic, run: tallies of 5 (/s and %s), the leader,

@@ -123,7 +123,7 @@ fn wax_hint(
   before : String,
   names : Array[String],
 ) -> String? {
-  // 'i32' and 'i32' once wax-mb checks two i32s as its reference does.
+  // 'i32' and 'i32': two i32s (Wax 0.4.2 on).
   if message.contains("'i32' and 'number'") ||
     message.contains("'number' and 'i32'") ||
     message.contains("'i32' and 'i32'") {
@@ -231,7 +231,7 @@ fn with_hints(
 ///|
 /// Where the implementation uses an operator that's f64's when it's written
 /// between spaces (< <= > >= / %): what to look at when the module didn't
-/// lower and Wax didn't say where (an i32 compared with < does that).
+/// lower and Wax didn't say where (Wax 0.4.1 let an i32 compared with < through).
 fn f64_operators(impls : Array[Source]) -> Array[@diag.Related] {
   let out = []
   for s in impls {

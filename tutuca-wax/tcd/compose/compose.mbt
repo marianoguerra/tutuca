@@ -545,7 +545,7 @@ fn build_module(
               "wax.lower",
               @diag.Span::none(glue_path),
               "the module didn't lower to wasm, and Wax didn't say where",
-              hint="it's often an i32 compared with < <= > >= or divided with /, which the type check lets through: those are f64's; on i32s write <s <=s >s >=s and /s",
+              hint="look first at the operators: < <= > >= and / are f64's; on i32s write <s <=s >s >=s and /s",
               related=f64_operators(impl_files),
             )
         },
