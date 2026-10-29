@@ -439,7 +439,37 @@ async function showLayoutJson(id) {
 			el("div", { class: UI.dialogActions }, el("button", { class: UI.ghost, onclick: () => dialog.close() }, "Close"), apply),
 		),
 	);
+	dialog.setAttribute("aria-label", "Layout");
 	dialog.showModal();
+}
+
+// One of choices ([value, label], the first the primary one), or null when
+// the dialog is left with Cancel or Escape.
+function choose(title, text, choices) {
+	return new Promise((resolve) => {
+		let chosen = null;
+		const pick = (value) => () => {
+			chosen = value;
+			dialog.close();
+		};
+		dialog.addEventListener("close", () => resolve(chosen), { once: true });
+		dialog.replaceChildren(
+			el(
+				"div",
+				{ class: UI.dialogBox },
+				el("h3", { class: UI.dialogTitle }, title),
+				el("p", {}, text),
+				el(
+					"div",
+					{ class: UI.dialogActions },
+					el("button", { class: UI.ghost, onclick: pick(null) }, "Cancel"),
+					...choices.toReversed().map(([value, label], i) => el("button", { class: i === choices.length - 1 ? UI.primary : UI.ghost, onclick: pick(value) }, label)),
+				),
+			),
+		);
+		dialog.setAttribute("aria-label", title);
+		dialog.showModal();
+	});
 }
 
 // ---- The editor ---------------------------------------------------------------------------
@@ -592,6 +622,35 @@ Object.assign(asks, {
 			tell("scope_added", own.id, own.name, own.parent);
 			tell("screen_moved", screen.id, own.id);
 			scope = editing.scope = own;
+		}
+		// An edited one other scopes register too changes for all of them, or
+		// is saved as a copy registered here in its place, the others keeping
+		// it as it was.
+		const others = creating || !scope.registrations.some((r) => r.component === id) ? [] : [...lib.scopes.values()].filter((s) => s !== scope && s.registrations.some((r) => r.component === id));
+		if (others.length > 0) {
+			const was = lib.components.get(id).name;
+			const where = others.map((s) => s.name).join(", ");
+			const choice = await choose(
+				`${was} is also in ${where}`,
+				`Saved for all, ${where} change${others.length === 1 ? "s" : ""} with ${scope.name}. Saved as a copy, only ${scope.name} changes, and ${where} keep${others.length === 1 ? "s" : ""} ${was} as it was.`,
+				[
+					["copy", `Only ${scope.name}`],
+					["all", "All of them"],
+				],
+			);
+			if (choice === null) throw new Error("not saved");
+			if (choice === "copy") {
+				const copy = { id: newId(), name: name === was ? freeName(name) : name, tcd, wax, uses: draft.uses, chat };
+				if (!(await buildOf(copy)).ok) throw new Error(`${copy.name}, the copy, doesn't build`);
+				await save("components", copy);
+				scope.registrations = scope.registrations.map((r) => (r.component === id ? { component: copy.id } : r));
+				await save("scopes", scope);
+				say(`${copy.name} saved, registered in ${scope.name} in place of ${was}`);
+				closeEditing(true);
+				await keepLayout();
+				tell("reopen");
+				return "saved";
+			}
 		}
 		await save("components", { id, name, tcd, wax, uses: draft.uses, build: b, chat });
 		if (creating) {
