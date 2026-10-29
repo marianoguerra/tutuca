@@ -107,9 +107,12 @@ scopes register as its `.wasm`, which carries its sources (tcd's `tutuca`
 section, below); a `.wasm` dropped on a screen, or given to Import, is kept
 as a component of the library with those sources, its `.wasm` as its build,
 and registered in that screen's scope like one made there, as a prebuilt
-module's `dist/components/*.wasm` can be too. What it needs that the scope
-doesn't give (a type it makes, an interface it implements, a host ask the
-studio doesn't answer) is said in the events.
+module's `dist/components/*.wasm` can be too. A toast says what was imported, what
+wasn't and why, and what an imported module needs that the scope doesn't
+give (a type it makes, an interface it implements, a host ask the studio
+doesn't answer); the events keep it, and the bar says what was imported.
+Files dropped anywhere are taken, never opened by the browser: with no
+screen shown, or the editor open, the toast says why nothing was imported.
 
 `just studio-server` serves the same studio with an LLM assistant
 (`scripts/studio-server.mjs`, over [pi-ai](https://www.npmjs.com/package/@earendil-works/pi-ai)):
@@ -193,7 +196,7 @@ classes as constants, or `if`s of constants.
 | `prelude/*.wax` | what the runtime and component modules share: types and i32 consts, no code |
 | `src/*.wax` | the runtime, one concern per file; `src/abi.wax` is what component modules import |
 | `lib/*.wax` | helpers for writing component types, compiled into the runtime and imported |
-| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail), `layout` (Hbox, Vbox, Tabs and Grid holding Holes, which ask what their scope can make and swap themselves for the one picked, and a Screen toggling between using a layout, each component's main view, and editing it, by pushing the `layout_edit` view that any component can declare to opt in); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
+| `components/<module>/` | the example component modules, each a `.tcd` and the `.wax` implementing what it can't say: `counter` (Board, Counter, Label), `todo_list` (and the TodoItem interface), two implementations of TodoItem, `todo_item` (a checkbox) and `todo_card` (a card with buttons), all three dragged to reorder, `showcase` (Shelf and Note: scopes, loop hooks, provided values, `push_view`, `render_it`, drag and drop), `json` (tutuca's JSON viewer and editor: a type per kind of value, JsonEditor above them), `media` (views outside HTML: Dot in SVG, Sum in MathML, Rating holding `tw-rating`, a custom element defined in its `rating.js`, through the CustomEvent's detail), `layout` (Hbox, Vbox, Tabs and Grid holding Holes, which ask what their scope can make and swap themselves for the one picked, and a Screen toggling between using a layout, each component's main view, and editing it, by pushing the `layout_edit` view that any component can declare to opt in); `kanban` (Kanban and KanbanLane: cards dragged between lanes, a lane's notify the board answers with `send`s, a limit per lane; it needs nothing from its scope, and the studio doesn't list it, to drop its `.wasm` on a screen); and for the tests `probe`, written by hand (Probe breaks its own schema; Pretender and Impostor fail TodoList's TodoItem interface), and `pbt` (a seeded bug and a dead end for `js/pbt.js` to find) |
 | `tcd/` | the TCD tool, in MoonBit (its README has the language and the naming convention) |
 | `scripts/build.mjs` | assembles and compiles `dist/tutuca-rt.wasm` and `dist/components/<module>.wasm`, generating the prelude files components need, and optimizes them with wasm-opt |
 | `scripts/format.mjs` | `wax-mb format` over the sources (`npm run format`, `--check` in `npm test`) |

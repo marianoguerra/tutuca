@@ -191,6 +191,20 @@ async function clickSlotButton(button) {
 	await button.click();
 }
 
+// Files dropped on selector, as a person drags them from the desktop: each
+// { name, bytes }.
+const dropFiles = (page, files, selector = ".st-stage") =>
+	page.evaluate(
+		({ files, selector }) => {
+			const data = new DataTransfer();
+			for (const { name, bytes } of files) data.items.add(new File([new Uint8Array(bytes)], name));
+			const target = document.querySelector(selector);
+			target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: data }));
+			target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: data }));
+		},
+		{ files, selector },
+	);
+
 // From a screen being edited, the editor on a new component (the hole's
 // + new component), built and previewed.
 async function newStudioComponent(page) {
@@ -448,16 +462,22 @@ test("a component exported as its .wasm carries its sources, and dropped on anot
 	await page.locator("button", { hasText: "+ New screen" }).waitFor();
 	await newStudioScreen(page, { scope: "b", name: "away" });
 	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
-	await page.evaluate((bytes) => {
-		const files = new DataTransfer();
-		files.items.add(new File([new Uint8Array(bytes)], "todo_list.wasm", { type: "application/wasm" }));
-		const target = document.querySelector(".st-stage");
-		target.dispatchEvent(new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: files }));
-		target.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: files }));
-	}, bytes);
-	await status(/imported into b: todo_list \(TodoList\)/);
-	// b gives no TodoItem for it to make: said so.
+	// A file that isn't a component's .wasm, dropped with it: refused, and said so.
+	await dropFiles(page, [
+		{ name: "todo_list.wasm", bytes },
+		{ name: "notes.txt", bytes: [...new TextEncoder().encode("hi")] },
+	]);
+	await page.locator(".st-toast-success", { hasText: "Imported into b" }).filter({ hasText: "todo_list: TodoList" }).waitFor();
+	await page.locator(".st-toast-error", { hasText: "1 not imported" }).filter({ hasText: "notes.txt: only components' .wasm files import here" }).waitFor();
+	// b gives no TodoItem for it to make: said so, in a toast and the events.
+	await page.locator(".st-toast-warning", { hasText: "todo_list needs a TodoItem to make, which b doesn't give" }).waitFor();
 	await page.locator(".st-events div", { hasText: "todo_list needs a TodoItem to make, which b doesn't give" }).waitFor({ state: "attached" });
+	// The bar still says what was imported once the screen is made again.
+	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
+	await status(/imported into b: todo_list \(TodoList\)/);
+	// A toast goes when clicked.
+	await page.locator(".st-toast-error").click();
+	await page.locator(".st-toast-error").waitFor({ state: "detached" });
 	const [todoList] = await studioRecords(page, "components");
 	const tcd = await page.evaluate(async () => (await fetch("/components/todo_list/todo_list.tcd")).text());
 	if (todoList?.name !== "todo_list" || todoList.tcd !== tcd || !todoList.wax.includes("todo_list_on_add_todo")) throw new Error("todo_list wasn't kept with its sources");
@@ -465,7 +485,6 @@ test("a component exported as its .wasm carries its sources, and dropped on anot
 	if (scopeB.registrations.map((r) => r.component).join() !== todoList.id) throw new Error("todo_list wasn't registered in b");
 	// Made again with it, used: edited, a hole there makes it. A prebuilt
 	// module's .wasm imports too, from the menu.
-	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
 	await page.locator(".st-bar .screen-toggle").click();
 	await stage.locator(".hole button").click();
 	await stage.locator(".choices button", { hasText: /^TodoList$/ }).click();
@@ -476,8 +495,61 @@ test("a component exported as its .wasm carries its sources, and dropped on anot
 	await stage.locator("input[placeholder='What needs doing?']").fill("dropped");
 	await stage.locator("input[placeholder='What needs doing?']").press("Enter");
 	await stage.locator("li", { hasText: "dropped" }).waitFor();
-	const failed = await page.locator(".st-events div", { hasText: /^failed/ }).allTextContents();
+	// Nothing failed but the text file, refused on purpose.
+	const failed = (await page.locator(".st-events div", { hasText: /^failed/ }).allTextContents()).filter((e) => !e.includes("notes.txt"));
 	if (failed.length > 0) throw new Error(failed.join("; "));
+	if (errors.length > 0) throw new Error(errors.join("; "));
+	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
+	await page.close();
+});
+
+test("kanban.wasm, dropped on a screen, is a board whose cards drag between lanes", async () => {
+	const page = await browser.newPage();
+	const errors = [];
+	page.on("pageerror", (error) => errors.push(error.message));
+	const stage = page.locator(".st-stage");
+	await page.goto(`http://127.0.0.1:${server.address().port}/studio/`);
+	await page.locator("button", { hasText: "+ New screen" }).waitFor();
+	const bytes = [...readFileSync(new URL("../dist/components/kanban.wasm", import.meta.url))];
+	// With no screen to register it in, the drop is taken and refused, and says why.
+	await dropFiles(page, [{ name: "kanban.wasm", bytes }], "main");
+	await page.locator(".st-toast-error", { hasText: "open a screen first" }).waitFor();
+	if ((await studioRecords(page, "components")).length !== 0) throw new Error("a drop with no screen imported something");
+	await newStudioScreen(page, { scope: "a", name: "board" });
+	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
+	await dropFiles(page, [{ name: "kanban.wasm", bytes }]);
+	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
+	await page.locator(".st-bar .screen-toggle").click();
+	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: /^Kanban$/ }).click();
+	await page.locator(".st-bar .screen-toggle").click();
+	const lanes = () => stage.locator(".kanban-lane").evaluateAll((ls) => ls.map((l) => [...l.querySelectorAll(".kanban-text")].map((t) => t.textContent).join("|")));
+	const expectLanes = async (want, what) => {
+		const got = await lanes();
+		if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`${what}: ${JSON.stringify(got)}`);
+	};
+	const card = (text) => stage.locator(".kanban-card", { hasText: text });
+	await card("Write the .tcd").waitFor();
+	// Onto a lane: at its end. Onto a card: before it, from another lane.
+	await card("Drop a .wasm").dragTo(stage.locator(".kanban-lane[data-lane=doing] h3"));
+	await card("Export the board").dragTo(card("Write the .tcd"));
+	await expectLanes(["Cards forget their lane", "Drag cards between lanes|Drop a .wasm on a screen", "Export the board|Write the .tcd"], "after the drags");
+	// Added to the first lane, then over Doing's limit of 2.
+	await stage.locator(".kanban-draft").fill("A new idea");
+	await stage.locator(".kanban-draft").press("Enter");
+	await card("A new idea").dragTo(card("Drag cards between"));
+	await expectLanes(["Cards forget their lane", "A new idea|Drag cards between lanes|Drop a .wasm on a screen", "Export the board|Write the .tcd"], "after adding");
+	if ((await stage.locator(".kanban-lane.over .kanban-count").textContent()) !== "3/2") throw new Error("Doing doesn't say it's over its limit");
+	// Tagged, removed, and the progress counts the last lane's.
+	await card("A new idea").locator(".kanban-tag").click();
+	await card("A new idea").locator(".kanban-tag", { hasText: "bug" }).waitFor();
+	await card("Cards forget").hover();
+	await card("Cards forget").locator(".kanban-remove").click();
+	await card("Cards forget").waitFor({ state: "detached" });
+	if ((await stage.locator(".kanban-progress").textContent()) !== "2 of 5 done") throw new Error(`progress: ${await stage.locator(".kanban-progress").textContent()}`);
+	// The board's notify stops there: nothing unhandled or failed.
+	const events = await page.locator(".st-events div").allTextContents();
+	if (events.some((e) => /^(failed|info: unhandled)/.test(e))) throw new Error(events.join("; "));
 	if (errors.length > 0) throw new Error(errors.join("; "));
 	await page.evaluate(() => indexedDB.deleteDatabase("tutuca-wax-studio"));
 	await page.close();

@@ -39,6 +39,15 @@ const UI = {
 	layoutJson: "st-layout textarea textarea-sm font-mono text-xs w-full h-80",
 	// The studio while .wasm files are dragged over it.
 	dropping: "outline-2 outline-dashed outline-primary -outline-offset-4",
+	// What an import did, for a few seconds, below the bar.
+	toasts: "st-toasts toast toast-top toast-end top-10 z-50",
+	toast: "st-toast alert shadow-lg cursor-pointer items-start text-sm max-w-md",
+	toastSuccess: "st-toast-success alert-success",
+	toastError: "st-toast-error alert-error",
+	toastWarning: "st-toast-warning alert-warning",
+	toastBody: "flex flex-col gap-0.5 min-w-0",
+	toastTitle: "font-semibold",
+	toastLine: "text-xs opacity-90 break-words",
 };
 
 const styles = await pageStyles(Object.values(UI));
@@ -211,7 +220,22 @@ const studioRoot = el("div");
 const dialog = el("dialog", { class: UI.dialog, "aria-label": "Layout" });
 const importInput = el("input", { type: "file", multiple: "", accept: ".json,application/json,.wasm,application/wasm", "aria-label": "Import a bundle or components" });
 importInput.hidden = true;
-app.append(studioRoot, dialog, importInput);
+const toasts = el("div", { class: UI.toasts, role: "status", "aria-live": "polite" });
+app.append(studioRoot, dialog, importInput, toasts);
+
+// A toast: kind (success, error or warning), a title and lines below it,
+// gone after a while or when clicked. The events say it too.
+const TOAST_KINDS = { success: UI.toastSuccess, error: UI.toastError, warning: UI.toastWarning };
+function toast(kind, title, lines = []) {
+	const node = el(
+		"div",
+		{ class: `${UI.toast} ${TOAST_KINDS[kind]}`, title: "Dismiss" },
+		el("div", { class: UI.toastBody }, el("span", { class: UI.toastTitle }, title), ...lines.map((line) => el("span", { class: UI.toastLine }, line))),
+	);
+	node.addEventListener("click", () => node.remove());
+	toasts.append(node);
+	setTimeout(() => node.remove(), kind === "success" ? 5000 : 10000);
+}
 
 // ---- Screens -------------------------------------------------------------------------------
 
@@ -266,6 +290,9 @@ const say = (message) => tell("say", message);
 const note = (kind, message) => tell("note", kind, message);
 
 let mounted = null; // the screen the studio shows: { id, scope, child (its child of base) }
+// What the bar says once the screen asked for opens, instead of where it
+// is: what made it again says what it did (an import).
+let sayOnOpen = null;
 let wanted = null; // the screen asked for last
 const fresh = new Set(); // screens made but not opened yet, which open edited
 // The screen shown no longer is: its child of base is left.
@@ -330,7 +357,8 @@ const asks = {
 			unmount();
 			mounted = { id, scope, child: under.name };
 			remember(id);
-			say(`${screen.name}, in ${chainOf(scopeRecord).map((s) => s.name).join(" / ")}`);
+			say(sayOnOpen ?? `${screen.name}, in ${chainOf(scopeRecord).map((s) => s.name).join(" / ")}`);
+			sayOnOpen = null;
 		}
 		return { id, screen: made, editing };
 	},
@@ -737,21 +765,40 @@ async function componentOf(file) {
 	return { meta, c: { ...c, build: { key, ok: true, wasm, types: meta.types, diags: [] } }, existed: !!same };
 }
 
+// Why .wasm files can't be imported now, or null when they can.
+const cantImport = () => {
+	if (editing) return "leave the editor first: imported components are registered in the screen's scope";
+	if (!mounted) return "open a screen first: imported components are registered in its scope";
+	return null;
+};
+
 // The .wasm files, kept and registered in the shown screen's scope, which
-// is made again with them; then what they need that it doesn't give.
+// is made again with them; then what they need that it doesn't give. Each
+// outcome is a toast and an event, and the bar keeps what was imported.
 async function importModules(files) {
-	if (!mounted) {
-		say("open a screen first: imported components are registered in its scope");
+	const why = cantImport();
+	if (why) {
+		toast("error", "Nothing imported", [why]);
+		say(why);
 		return false;
 	}
 	const scope = lib.scopes.get(lib.screens.get(mounted.id).scope);
 	const added = [];
-	for (const file of files.filter((f) => f.name.endsWith(".wasm"))) {
+	const failed = [];
+	const fail = (file, why) => {
+		failed.push(`${file.name}: ${why}`);
+		note("failed", `can't import ${file.name}: ${why}`);
+	};
+	for (const file of files) {
+		if (!file.name.endsWith(".wasm")) {
+			fail(file, "only components' .wasm files import here (a bundle's .json goes through ⋯ → Import)");
+			continue;
+		}
 		let found;
 		try {
 			found = await componentOf(file);
 		} catch (error) {
-			note("failed", `can't import ${file.name}: ${error.message}`);
+			fail(file, error.message);
 			continue;
 		}
 		const { meta, c } = found;
@@ -760,15 +807,17 @@ async function importModules(files) {
 			.filter((r) => r.component !== c.id)
 			.flatMap((r) => (typesOf(r.component) ?? []).filter((t) => meta.types.includes(t)).map((t) => `${t} (${componentLabel(r.component)})`));
 		if (taken.length > 0) {
-			note("failed", `can't import ${file.name}: ${taken.join(", ")} already made in ${scope.name}; import it in a scope of its own, where it hides ${scope.name}'s`);
+			fail(file, `${taken.join(", ")} already made in ${scope.name}; import it in a scope of its own, where it hides ${scope.name}'s`);
 			continue;
 		}
 		await save("components", c);
 		if (!registered) scope.registrations.push({ component: c.id });
 		added.push({ file, meta, c });
 	}
+	const failures = () => failed.length > 0 && toast("error", added.length === 0 ? "Nothing imported" : `${failed.length} not imported`, failed);
 	if (added.length === 0) {
-		say("nothing imported: see the events");
+		failures();
+		say(`nothing imported: ${failed.join("; ")}`);
 		return false;
 	}
 	await keepLayout();
@@ -776,35 +825,50 @@ async function importModules(files) {
 	// What the scope gives now, made apart, to tell what's still missing.
 	const made = await loadChain(tw, scope, () => {}, runtime.scope());
 	const gives = new Set(resolvesIn(scope).map((r) => r.name));
+	const needs = [];
 	for (const { meta, c } of added) {
 		const missing = [
 			...meta.needs.types.filter((t) => !gives.has(t)).map((t) => `a ${t} to make`),
 			...meta.needs.interfaces.filter((i) => runtime.interface(made, i) === null).map((i) => `the ${i} interface`),
 			...meta.host_asks.filter((a) => !(a in asks)).map((a) => `an answer to its ${a} host ask`),
 		];
-		if (missing.length > 0) note("issue", `${c.name} needs ${missing.join(", ")}, which ${scope.name} doesn't give`);
+		if (missing.length === 0) continue;
+		needs.push(`${c.name} needs ${missing.join(", ")}, which ${scope.name} doesn't give`);
+		note("issue", needs.at(-1));
 	}
-	say(`imported into ${scope.name}: ${added.map(({ c, meta }) => `${c.name} (${meta.types.join(", ")})`).join(", ")}`);
+	const lines = added.map(({ c, meta }) => `${c.name}: ${meta.types.join(", ")}`);
+	toast("success", `Imported into ${scope.name}`, lines);
+	if (needs.length > 0) toast("warning", "Missing from the scope", needs);
+	failures();
+	const said = `imported into ${scope.name}: ${added.map(({ c, meta }) => `${c.name} (${meta.types.join(", ")})`).join(", ")}`;
+	note("info", said);
+	sayOnOpen = said;
 	tell("reopen");
 	return true;
 }
 
-// .wasm files dropped on the studio are imported into the shown screen's
-// scope; a drag from inside the page (a layout's) carries no files.
-const dragsFiles = (e) => mounted && !editing && e.dataTransfer?.types.includes("Files");
-studioRoot.addEventListener("dragover", (e) => {
+// Files dropped anywhere on the page are taken, never opened by the browser:
+// imported into the shown screen's scope when they can be, a toast saying
+// why not otherwise. A drag from inside the page (a layout's) carries no
+// files.
+const dragsFiles = (e) => e.dataTransfer?.types.includes("Files");
+const markDropping = (on) => {
+	for (const c of UI.dropping.split(" ")) studioRoot.classList.toggle(c, on);
+};
+document.addEventListener("dragover", (e) => {
 	if (!dragsFiles(e)) return;
 	e.preventDefault();
+	// Still a copy when it can't import now: dropped, a toast says why.
 	e.dataTransfer.dropEffect = "copy";
-	studioRoot.classList.add(...UI.dropping.split(" "));
+	markDropping(!cantImport());
 });
-studioRoot.addEventListener("dragleave", (e) => {
-	if (!studioRoot.contains(e.relatedTarget)) studioRoot.classList.remove(...UI.dropping.split(" "));
+document.addEventListener("dragleave", (e) => {
+	if (dragsFiles(e) && !e.relatedTarget) markDropping(false);
 });
-studioRoot.addEventListener("drop", (e) => {
-	studioRoot.classList.remove(...UI.dropping.split(" "));
+document.addEventListener("drop", (e) => {
 	if (!dragsFiles(e)) return;
 	e.preventDefault();
+	markDropping(false);
 	importModules([...e.dataTransfer.files]);
 });
 
