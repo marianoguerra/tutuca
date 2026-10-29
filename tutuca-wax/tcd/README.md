@@ -202,7 +202,7 @@ is; `examples` runs the example blocks.
 | `syntax` | lexer, parser, syntax tree |
 | `check` | the model (`Package`), resolving, constraints (`where` normal forms, contradictions, redundancy), conditions (typing, an interpreter for initial states), views, names |
 | `gen` | the contract, the glue, the stub, the required functions |
-| `compose` | the convention check, assembling the module, checking and compiling it with wax-mb's library |
+| `compose` | the convention check, assembling the module, checking and compiling it with wax-mb's library, and hints on Wax's diagnostics where its message leaves the fix unsaid (`hints.mbt`: i32 operators, and/or, `else if`, casts, names that aren't there) |
 | `export` | the model as JSON |
 | `api` | the pipeline over files a read function gives: load (with `use`d files, paths normalized), stub, build |
 | `cli`, `cmd/tcd` | the command, over an `Io`; the native binary |

@@ -459,8 +459,34 @@ pub(all) struct Built {
 
 ///|
 /// Builds the component module of pkg: the runtime's prelude, the ABI it
-/// imports, the generated contract and glue, and the implementation.
+/// imports, the generated contract and glue, and the implementation. Wax's
+/// diagnostics come with tcd's hints where it has one (hints.mbt).
 pub fn build(
+  runtime : Runtime,
+  pkg : @check.Package,
+  out : @gen.Output,
+  contract_path : String,
+  glue_path : String,
+  impl_files : Array[Source],
+  abi_path : String,
+) -> Built {
+  let built = build_module(
+    runtime, pkg, out, contract_path, glue_path, impl_files, abi_path,
+  )
+  let sources = [
+    { path: abi_path, text: built.abi_imports, },
+    { path: contract_path, text: out.contract, },
+    { path: glue_path, text: out.glue, },
+  ]
+  sources.append(runtime.prelude)
+  sources.append(impl_files)
+  // For the names it exports, which the imports have only when used.
+  sources.push(runtime.abi)
+  { ..built, diags: with_hints(built.diags, sources), }
+}
+
+///|
+fn build_module(
   runtime : Runtime,
   pkg : @check.Package,
   out : @gen.Output,
@@ -518,7 +544,9 @@ pub fn build(
             @diag.error(
               "wax.lower",
               @diag.Span::none(glue_path),
-              "the module didn't lower to wasm",
+              "the module didn't lower to wasm, and Wax didn't say where",
+              hint="it's often an i32 compared with < <= > >= or divided with /, which the type check lets through: those are f64's; on i32s write <s <=s >s >=s and /s",
+              related=f64_operators(impl_files),
             )
         },
       )
