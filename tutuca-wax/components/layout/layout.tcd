@@ -190,11 +190,14 @@ component Tabs {
                 div(role: "tab", class: if(bind(is_active), "tab tab-active gap-1", "tab gap-1"), on_click: send(select, source_key()),
                     input(class: "tab-name input input-ghost input-xs w-24", "aria-label": "Tab name", value: bind(label),
                         on_input: send(rename, source_key(), target_value())),
-                    if(provided(studio),
-                        button(class: "tab-edit btn btn-xs btn-circle btn-ghost", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")),
                     button(class: "tab-remove btn btn-xs btn-circle btn-ghost text-error", title: "Remove this tab", on_click: send(remove_at, source_key()), "×"))),
             button(class: "tab-add tab", title: "Add a tab", on_click: send(add), "+")),
-        each(loop: shown, field(panels), div(class: "tab-panel grid place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full", render_it())));
+        // A slot, so hovering what it holds shows its ✎, not the one of the
+        // slot the tabs are in.
+        each(loop: shown, field(panels),
+            div(class: "tab-panel slot relative grid place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full",
+                render_it(),
+                if(provided(studio), button(class: "slot-edit btn btn-xs btn-circle btn-ghost absolute -left-1 -top-1 z-10 opacity-0 pointer-events-none focus-visible:opacity-100 [.slot:hover:not(:has(.slot:hover))>&]:opacity-100 [.slot:hover:not(:has(.slot:hover))>&]:pointer-events-auto", title: "Edit this component", on_click: send(edit_at, source_key()), "✎")))));
 }
 
 /// Components in a grid, starting with a hole; edited, cells are removed,

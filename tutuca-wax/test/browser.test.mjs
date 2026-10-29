@@ -503,7 +503,7 @@ test("a component exported as its .wasm carries its sources, and dropped on anot
 	await page.close();
 });
 
-test("kanban.wasm, dropped on a screen, is a board whose cards drag between lanes", async () => {
+test("kanban.wasm, dropped on a screen, is a board whose cards drag between lanes, and in a tab its panel's ✎ is the one shown", async () => {
 	const page = await browser.newPage();
 	const errors = [];
 	page.on("pageerror", (error) => errors.push(error.message));
@@ -520,8 +520,17 @@ test("kanban.wasm, dropped on a screen, is a board whose cards drag between lane
 	await dropFiles(page, [{ name: "kanban.wasm", bytes }]);
 	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
 	await page.locator(".st-bar .screen-toggle").click();
+	// In a tab: hovering the board shows only its panel's ✎, the nearest
+	// slot's, and the tabs' own slot shows its ✎ over their header.
 	await stage.locator(".hole button").click();
+	await stage.locator(".choices button", { hasText: /^Tabs$/ }).click();
+	await stage.locator(".tabs-box .hole button").click();
 	await stage.locator(".choices button", { hasText: /^Kanban$/ }).click();
+	const shown = () => stage.locator(".slot-edit").evaluateAll((bs) => bs.map((b) => `${b.closest(".tab-panel") ? "panel" : "tabs"} ${getComputedStyle(b).opacity}`).join(", "));
+	await stage.locator(".kanban-lane").first().hover();
+	if ((await shown()) !== "panel 1, tabs 0") throw new Error(`hovering the board shows ${await shown()}`);
+	await stage.locator(".tabs-box [role=tablist]").hover({ position: { x: 300, y: 10 } });
+	if ((await shown()) !== "panel 0, tabs 1") throw new Error(`hovering the tabs' header shows ${await shown()}`);
 	await page.locator(".st-bar .screen-toggle").click();
 	const lanes = () => stage.locator(".kanban-lane").evaluateAll((ls) => ls.map((l) => [...l.querySelectorAll(".kanban-text")].map((t) => t.textContent).join("|")));
 	const expectLanes = async (want, what) => {
