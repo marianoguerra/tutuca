@@ -18,6 +18,7 @@ pub fn generate(
   have? : Array[String],
 ) -> Output {
   let g = Gen::new(pkg, have?)
+  g.claim_enums()
   let glue = g.glue()
   let contract = g.contract()
   let header = (what : String) => {

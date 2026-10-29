@@ -658,3 +658,26 @@ test "a keyword is escaped only where it stands alone" {
     ),
   )
 }
+
+///|
+/// An enum only a record inside a list holds gets its helpers too: the
+/// contract's record helpers call them, though the glue never decodes it.
+test "an enum inside a list of records has its helpers" {
+  let (f, _) = @syntax.parse(
+    "t.tcd",
+    (
+      #|component C {
+      #|    field cards: list<record { id: s32, tag: enum { feature, bug } }>;
+      #|    view main = div("cards");
+      #|}
+    ),
+  )
+  let (pkg, diags) = @check.check(f, Map([]))
+  debug_inspect(diags.length(), content="0")
+  let out = @gen.generate(pkg, "t.tcd")
+  let uses = out.contract.contains("tcd_enum_0_name(tag_)") &&
+    out.contract.contains("tcd_enum_0_index(")
+  let defines = out.glue.contains("fn tcd_enum_0_name(i: i32) -> js_string {") &&
+    out.glue.contains("fn tcd_enum_0_index(s: js_string) -> i32 {")
+  debug_inspect((uses, defines), content="(true, true)")
+}

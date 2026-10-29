@@ -132,6 +132,60 @@ fn Gen::s(self : Gen, text : String) -> String {
 }
 
 ///|
+/// Every enum the package's types hold, at any depth, given its id before
+/// anything is generated: the glue writes the helpers, and the contract's
+/// record helpers reach enums inside records the glue never decodes.
+fn Gen::claim_enums(self : Gen) -> Unit {
+  fn ty(t : @check.Ty) -> Unit {
+    match t {
+      Enum(ms) => ignore(self.enum_id(ms))
+      Option(t) | List(t) | Map(t) => ty(t)
+      Record(entries) =>
+        for e in entries {
+          ty(e.1)
+        }
+      OneOf(ts) => ts.each(ty)
+      Result(ok, err) => {
+        ty(ok)
+        ty(err)
+      }
+      Comp(_) | Bool | S32 | F64 | Str | Any | Null => ()
+    }
+  }
+  let fields = (fs : Array[@check.FieldM]) => {
+    for f in fs {
+      ty(f.ty)
+    }
+  }
+  let signals = (ss : Array[@check.SignalM]) => {
+    for s in ss {
+      fields(s.params)
+      if s.result is Some(r) {
+        ty(r)
+      }
+    }
+  }
+  for c in self.pkg.components {
+    fields(c.fields)
+    fields(c.gets)
+    for m in c.messages {
+      fields(m.params)
+    }
+    signals(c.notifies)
+    signals(c.asks)
+  }
+  for i in self.pkg.interfaces {
+    fields(i.fields)
+    fields(i.gets)
+    for m in i.messages {
+      fields(m.params)
+    }
+    signals(i.notifies)
+  }
+  signals(self.pkg.ask_handlers)
+}
+
+///|
 fn Gen::enum_id(self : Gen, members : Array[String]) -> Int32 {
   for i, e in self.enums {
     if e == members {
