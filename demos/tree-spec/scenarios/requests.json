@@ -1,0 +1,528 @@
+{
+	"blurb": "The root asks the host twice. The host answers both at once, but the responses arrive in either order: arrivals are the model's only nondeterminism.",
+	"edges": [
+		{ "from": 0, "label": "event: go()", "rule": "env", "to": 1 },
+		{ "from": 1, "label": "run: request 1 a", "rule": "run", "to": 2 },
+		{ "from": 2, "label": "run: request 2 b", "rule": "run", "to": 3 },
+		{ "from": 2, "label": "response 1 to a arrives", "rule": "respond", "to": 4 },
+		{ "from": 3, "label": "response 1 to a arrives", "rule": "respond", "to": 5 },
+		{ "from": 3, "label": "response 2 to b arrives", "rule": "respond", "to": 6 },
+		{ "from": 4, "label": "run: request 2 b", "rule": "run", "to": 5 },
+		{ "from": 5, "label": "run: response 1 a", "rule": "run", "to": 7 },
+		{ "from": 5, "label": "response 2 to b arrives", "rule": "respond", "to": 8 },
+		{ "from": 6, "label": "run: response 2 b", "rule": "run", "to": 9 },
+		{ "from": 6, "label": "response 1 to a arrives", "rule": "respond", "to": 10 },
+		{ "from": 7, "label": "response 2 to b arrives", "rule": "respond", "to": 11 },
+		{ "from": 8, "label": "run: response 1 a", "rule": "run", "to": 11 },
+		{ "from": 9, "label": "response 1 to a arrives", "rule": "respond", "to": 12 },
+		{ "from": 10, "label": "run: response 2 b", "rule": "run", "to": 12 },
+		{ "from": 11, "label": "run: response 2 b", "rule": "run", "to": 13 },
+		{ "from": 12, "label": "run: response 1 a", "rule": "run", "to": 14 }
+	],
+	"gran": "turn",
+	"host": "(host\n ((on (request a) () ((answer ok 1)))\n  (on (request b) () ((answer ok 2)))))",
+	"kinds": [
+		"(kind\n Root\n (state)\n ()\n ((on (send go) () ((request a) (request b)))\n  (on (ok a) (x) ((log x)))\n  (on (ok b) (x) ((log x)))))"
+	],
+	"name": "requests",
+	"policy": "by-path",
+	"states": [
+		{
+			"inflight": [],
+			"obs": [],
+			"queue": [],
+			"quiescent": false,
+			"script": ["go()"],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": true,
+					"mode": "request",
+					"name": "a",
+					"request": 1,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				},
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": true,
+					"mode": "request",
+					"name": "b",
+					"request": 2,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": true,
+					"mode": "request",
+					"name": "b",
+					"request": 2,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				},
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "b",
+					"request": 2,
+					"result": { "kind": "ok", "value": "2" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": true,
+					"mode": "request",
+					"name": "b",
+					"request": 2,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				},
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "b",
+					"request": 2,
+					"result": { "kind": "ok", "value": "2" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "b",
+					"request": 2,
+					"result": { "kind": "ok", "value": "2" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "b",
+					"request": 2,
+					"result": { "kind": "ok", "value": "2" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 a delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 1" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				},
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "b",
+					"request": 2,
+					"result": { "kind": "ok", "value": "2" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 b delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 2" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "b",
+					"request": 2,
+					"result": { "kind": "ok", "value": "2" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				},
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 a delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "b",
+					"request": 2,
+					"result": { "kind": "ok", "value": "2" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 b delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 2" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "a",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 a delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 1" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 b delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 2" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 a visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 b visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 2" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 b delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 2" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 a delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 1" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		}
+	],
+	"tier": "M0",
+	"title": "Two requests, answered in any order"
+}

@@ -1,0 +1,310 @@
+{
+	"blurb": "The loader asks and moves to loading; it can be cancelled back to idle before the answer arrives. The answer reaches the right instance, in a state with no handler for it.",
+	"edges": [
+		{ "from": 0, "label": "event: load()", "rule": "env", "to": 1 },
+		{ "from": 1, "label": "run: request 1 fetch", "rule": "run", "to": 2 },
+		{ "from": 1, "label": "event: cancel()", "rule": "env", "to": 3 },
+		{ "from": 2, "label": "response 1 to fetch arrives", "rule": "respond", "to": 4 },
+		{ "from": 2, "label": "event: cancel()", "rule": "env", "to": 5 },
+		{ "from": 3, "label": "run: request 1 fetch", "rule": "run", "to": 6 },
+		{ "from": 4, "label": "run: response 1 fetch", "rule": "run", "to": 7 },
+		{ "from": 4, "label": "event: cancel()", "rule": "env", "to": 8 },
+		{ "from": 5, "label": "response 1 to fetch arrives", "rule": "respond", "to": 8 },
+		{ "from": 6, "label": "response 1 to fetch arrives", "rule": "respond", "to": 9 },
+		{ "from": 7, "label": "event: cancel()", "rule": "env", "to": 10 },
+		{ "from": 8, "label": "run: response 1 fetch", "rule": "run", "to": 11 },
+		{ "from": 9, "label": "run: response 1 fetch", "rule": "run", "to": 12 }
+	],
+	"gran": "turn",
+	"host": "(host ((on (request fetch) () ((answer ok 1)))))",
+	"kinds": [
+		"(kind\n Loader\n (state)\n ()\n ()\n (states\n  idle\n  (idle (on (send load) () ((request fetch) (goto loading))))\n  (loading\n   (on (ok fetch) (x) ((log x) (goto done)))\n   (on (send cancel) () ((goto idle))))\n  (done)))"
+	],
+	"name": "cancelled-load",
+	"policy": "by-path",
+	"states": [
+		{
+			"inflight": [],
+			"obs": [],
+			"queue": [],
+			"quiescent": false,
+			"script": ["load()", "cancel()"],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": true,
+					"mode": "request",
+					"name": "fetch",
+					"request": 1,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["cancel()"],
+			"tree": { "control": "loading", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["cancel()"],
+			"tree": { "control": "loading", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": true,
+					"mode": "request",
+					"name": "fetch",
+					"request": 1,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["cancel()"],
+			"tree": { "control": "loading", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 fetch delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 1" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["cancel()"],
+			"tree": { "control": "done", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 1,
+					"result": { "kind": "ok", "value": "1" },
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 fetch delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 1" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" },
+				{ "bad": false, "kind": "ignored", "text": "#0 has no handler for send cancel" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": { "control": "done", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 fetch delivered to #0" },
+				{ "bad": true, "kind": "ignored", "text": "#0 has no handler for response 1 fetch" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send load delivered to #0" },
+				{ "bad": false, "kind": "requested", "text": "request 1 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send cancel delivered to #0" },
+				{ "bad": false, "kind": "hop", "text": "request 1 fetch visits the host" },
+				{ "bad": false, "kind": "answered", "text": "request 1 answered: ok 1" },
+				{ "bad": false, "kind": "deliver", "text": "response 1 fetch delivered to #0" },
+				{ "bad": true, "kind": "ignored", "text": "#0 has no handler for response 1 fetch" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": { "control": "idle", "id": 0, "kind": "Loader", "locals": [], "slots": [] }
+		}
+	],
+	"tier": "M7",
+	"title": "A response to a state that moved on"
+}

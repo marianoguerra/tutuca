@@ -1,0 +1,79 @@
+[
+	{
+		"gran": "turn",
+		"name": "requests",
+		"policy": "by-path",
+		"tier": "M0",
+		"title": "Two requests, answered in any order"
+	},
+	{
+		"gran": "turn",
+		"name": "ping-pong",
+		"policy": "by-path",
+		"tier": "M0",
+		"title": "Replies go back and forth"
+	},
+	{
+		"gran": "turn",
+		"name": "hops",
+		"policy": "by-path",
+		"tier": "M1",
+		"title": "One notification, a reply from each hop"
+	},
+	{
+		"gran": "turn",
+		"name": "append-init",
+		"policy": "by-path",
+		"tier": "M2",
+		"title": "Append an item, then init it"
+	},
+	{
+		"gran": "per-hop",
+		"name": "lost-bubble",
+		"policy": "by-path",
+		"tier": "M3",
+		"title": "Hop by hop, a bubble can be lost"
+	},
+	{
+		"gran": "turn",
+		"name": "replace-by-path",
+		"policy": "by-path",
+		"tier": "M4",
+		"title": "Replaced while asking, by path"
+	},
+	{
+		"gran": "turn",
+		"name": "replace-by-identity",
+		"policy": "by-identity",
+		"tier": "M4",
+		"title": "Replaced while asking, by identity"
+	},
+	{
+		"gran": "turn",
+		"name": "reorder-anchored",
+		"policy": "anchored",
+		"tier": "M5",
+		"title": "Prepended while a send-at waits, anchored"
+	},
+	{
+		"gran": "turn",
+		"name": "reorder-by-identity",
+		"policy": "by-identity",
+		"tier": "M5",
+		"title": "Prepended while a send-at waits, by identity"
+	},
+	{
+		"gran": "turn",
+		"name": "swap-kind",
+		"policy": "by-path",
+		"tier": "M6",
+		"title": "Swapped for another kind while asking"
+	},
+	{
+		"gran": "turn",
+		"name": "cancelled-load",
+		"policy": "by-path",
+		"tier": "M7",
+		"title": "A response to a state that moved on"
+	}
+]

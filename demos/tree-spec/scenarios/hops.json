@@ -1,0 +1,1000 @@
+{
+	"blurb": "The counter notifies; the panel replies and passes it on, the app replies and stops it. The request passes the panel and the app answers it. All hops run in one turn; their replies wait in the queue.",
+	"edges": [
+		{ "from": 0, "label": "event: inc() at panel.c", "rule": "env", "to": 1 },
+		{ "from": 1, "label": "run: notify changed", "rule": "run", "to": 2 },
+		{ "from": 2, "label": "run: request 3 total", "rule": "run", "to": 3 },
+		{ "from": 3, "label": "run: send seen", "rule": "run", "to": 4 },
+		{ "from": 3, "label": "response 3 to total arrives", "rule": "respond", "to": 5 },
+		{ "from": 4, "label": "run: send seen", "rule": "run", "to": 6 },
+		{ "from": 4, "label": "response 3 to total arrives", "rule": "respond", "to": 7 },
+		{ "from": 5, "label": "run: send seen", "rule": "run", "to": 7 },
+		{ "from": 6, "label": "response 3 to total arrives", "rule": "respond", "to": 8 },
+		{ "from": 7, "label": "run: send seen", "rule": "run", "to": 8 },
+		{ "from": 8, "label": "run: response 3 total", "rule": "run", "to": 9 }
+	],
+	"gran": "turn",
+	"host": "(host ())",
+	"kinds": [
+		"(kind\n Counter\n (state (n 0))\n ()\n ((on\n   (send inc)\n   ()\n   ((set n (+ (get n) 1))\n    (notify changed (get n))\n    (request total (get n))))\n  (on (send seen) (who) ((log who)))\n  (on (ok total) (x) ((log x)))))",
+		"(kind\n Panel\n (state)\n ((c (new Counter)))\n ((on (notify changed) (x) ((reply seen \"panel\")))))",
+		"(kind\n App\n (state)\n ((panel (new Panel)))\n ((on (notify changed) (x) ((reply seen \"app\") stop))\n  (on (request total) (x) ((answer ok (+ x 1000))))))"
+	],
+	"name": "hops",
+	"policy": "by-path",
+	"states": [
+		{
+			"inflight": [],
+			"obs": [],
+			"queue": [],
+			"quiescent": false,
+			"script": ["inc() at panel.c"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "0" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" }
+			],
+			"queue": [
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"hop": true,
+					"mode": "notify",
+					"name": "changed",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				},
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"hop": true,
+					"mode": "request",
+					"name": "total",
+					"request": 3,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" }
+			],
+			"queue": [
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"hop": true,
+					"mode": "request",
+					"name": "total",
+					"request": 3,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				},
+				{
+					"args": ["\"panel\""],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "", "slot": "panel", "text": "panel" }]
+					},
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				},
+				{
+					"args": ["\"app\""],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "total",
+					"request": 3,
+					"result": { "kind": "ok", "value": "1001" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #1" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 3 answered: ok 1001" }
+			],
+			"queue": [
+				{
+					"args": ["\"panel\""],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "", "slot": "panel", "text": "panel" }]
+					},
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				},
+				{
+					"args": ["\"app\""],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "total",
+					"request": 3,
+					"result": { "kind": "ok", "value": "1001" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #1" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 3 answered: ok 1001" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"panel\"" }
+			],
+			"queue": [
+				{
+					"args": ["\"app\""],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #1" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 3 answered: ok 1001" }
+			],
+			"queue": [
+				{
+					"args": ["\"panel\""],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "", "slot": "panel", "text": "panel" }]
+					},
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				},
+				{
+					"args": ["\"app\""],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				},
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "total",
+					"request": 3,
+					"result": { "kind": "ok", "value": "1001" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "total",
+					"request": 3,
+					"result": { "kind": "ok", "value": "1001" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #1" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 3 answered: ok 1001" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"panel\"" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"app\"" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #1" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 3 answered: ok 1001" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"panel\"" }
+			],
+			"queue": [
+				{
+					"args": ["\"app\""],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "send",
+					"name": "seen",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				},
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "total",
+					"request": 3,
+					"result": { "kind": "ok", "value": "1001" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #1" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 3 answered: ok 1001" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"panel\"" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"app\"" }
+			],
+			"queue": [
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "total",
+					"request": 3,
+					"result": { "kind": "ok", "value": "1001" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "", "slot": "panel", "text": "panel" },
+							{ "key": "", "slot": "c", "text": "c" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send inc delivered to #2" },
+				{ "bad": false, "kind": "requested", "text": "request 3 sent" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify changed visits #0" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #1" },
+				{ "bad": false, "kind": "hop", "text": "request 3 total visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 3 answered: ok 1001" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"panel\"" },
+				{ "bad": false, "kind": "deliver", "text": "send seen delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log \"app\"" },
+				{ "bad": false, "kind": "deliver", "text": "response 3 total delivered to #2" },
+				{ "bad": false, "kind": "log", "text": "log 1001" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "App",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Panel",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Counter",
+														"locals": [{ "name": "n", "value": "1" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "c",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "panel",
+						"type": "field"
+					}
+				]
+			}
+		}
+	],
+	"tier": "M1",
+	"title": "One notification, a reply from each hop"
+}

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { inferSchema, schemaDocument } from "../../components/json-schema/infer.js";
 import { quadraticLabel } from "../../components/math/workbench.js";
@@ -15,6 +16,7 @@ import { notesComponents } from "../../demos/notes/notes.js";
 import { RELAY_URL, syncFromQuery } from "../../demos/sync/engines.js";
 import { start as startTracker } from "../../demos/thing-tracker/main.js";
 import { start as startTodo } from "../../demos/todo/main.js";
+import { start as startTreeSpec } from "../../demos/tree-spec/main.js";
 import { lint } from "../../src/lint/index.js";
 import { startSynced } from "../../src/sync/index.js";
 import { relay } from "../../src/sync/remote.js";
@@ -60,6 +62,16 @@ test("drawing demo: picks a tool", async () => {
 	assert.equal(app.state().shapes.length, 5);
 	app.fire("click", app.$('button[title="Rectangle (R)"]'));
 	assert.equal(app.state().tool, "rect");
+	await checkClean(app);
+});
+
+test("tree spec demo: steps through an exported scenario", async () => {
+	const scenario = JSON.parse(
+		readFileSync(new URL("../../demos/tree-spec/scenarios/requests.json", import.meta.url), "utf8"),
+	);
+	const app = mount(startTreeSpec, scenario);
+	app.fire("click", app.$("section button.btn-outline"));
+	assert.equal(app.state().trail.length, 1);
 	await checkClean(app);
 });
 

@@ -9,6 +9,7 @@ import langBook from "./components/lang/stories.js";
 import mathBook, { workbenchBook } from "./components/math/stories.js";
 import trackerBook from "./components/thing-tracker/stories.js";
 import todoBook from "./components/todo/stories.js";
+import treeSpecBook from "./components/tree-spec/stories.js";
 import devBook from "./components/tutuca-dev/stories.js";
 
 export const books = [
@@ -20,6 +21,7 @@ export const books = [
 	workbenchBook,
 	trackerBook,
 	todoBook,
+	treeSpecBook,
 	jsonBook,
 	jsonSchemaBook,
 	studioBook,

@@ -70,6 +70,15 @@ export const demos = [
 		sources: ["lang"],
 	},
 	{
+		dir: "tree-spec",
+		emoji: "🧭",
+		title: "Tree spec explorer",
+		blurb:
+			"Step through the PLT Redex model of a component tree: pick which event or response comes next and watch where each message's address leads.",
+		story: "Tree spec/Explorer/Ping and reply",
+		sources: ["tree-spec"],
+	},
+	{
 		dir: "notes",
 		emoji: "🔀",
 		title: "Notes",

@@ -1,0 +1,150 @@
+{
+	"blurb": "Every message carries its sender, so every handler can reply. The root and the host reply to each other until the count reaches 4.",
+	"edges": [
+		{ "from": 0, "label": "event: ping(0)", "rule": "env", "to": 1 },
+		{ "from": 1, "label": "run: send pong", "rule": "run", "to": 2 },
+		{ "from": 2, "label": "run: send ping", "rule": "run", "to": 3 },
+		{ "from": 3, "label": "run: send pong", "rule": "run", "to": 4 },
+		{ "from": 4, "label": "run: send ping", "rule": "run", "to": 5 }
+	],
+	"gran": "turn",
+	"host": "(host ((on (send pong) (x) ((reply ping (+ x 1))))))",
+	"kinds": [
+		"(kind\n Root\n (state)\n ()\n ((on\n   (send ping)\n   (x)\n   ((log x) (if (< x 4) ((reply pong (+ x 1))) ())))))"
+	],
+	"name": "ping-pong",
+	"policy": "by-path",
+	"states": [
+		{
+			"inflight": [],
+			"obs": [],
+			"queue": [],
+			"quiescent": false,
+			"script": ["ping(0)"],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 0" }
+			],
+			"queue": [
+				{
+					"args": ["1"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "send",
+					"name": "pong",
+					"request": null,
+					"result": null,
+					"to": { "host": true },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 0" },
+				{ "bad": false, "kind": "deliver", "text": "send pong delivered to the host" }
+			],
+			"queue": [
+				{
+					"args": ["2"],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "send",
+					"name": "ping",
+					"request": null,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 0" },
+				{ "bad": false, "kind": "deliver", "text": "send pong delivered to the host" },
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 2" }
+			],
+			"queue": [
+				{
+					"args": ["3"],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "send",
+					"name": "pong",
+					"request": null,
+					"result": null,
+					"to": { "host": true },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 0" },
+				{ "bad": false, "kind": "deliver", "text": "send pong delivered to the host" },
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 2" },
+				{ "bad": false, "kind": "deliver", "text": "send pong delivered to the host" }
+			],
+			"queue": [
+				{
+					"args": ["4"],
+					"expected": null,
+					"from": { "host": true },
+					"hop": false,
+					"mode": "send",
+					"name": "ping",
+					"request": null,
+					"result": null,
+					"to": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 0" },
+				{ "bad": false, "kind": "deliver", "text": "send pong delivered to the host" },
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 2" },
+				{ "bad": false, "kind": "deliver", "text": "send pong delivered to the host" },
+				{ "bad": false, "kind": "deliver", "text": "send ping delivered to #0" },
+				{ "bad": false, "kind": "log", "text": "log 4" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": { "control": "", "id": 0, "kind": "Root", "locals": [], "slots": [] }
+		}
+	],
+	"tier": "M0",
+	"title": "Replies go back and forth"
+}

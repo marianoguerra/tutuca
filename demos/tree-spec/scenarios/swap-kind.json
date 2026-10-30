@@ -1,0 +1,660 @@
+{
+	"blurb": "A card asks, then turns itself into a note. By path, the note gets the card's answer, and has no handler for it.",
+	"edges": [
+		{ "from": 0, "label": "event: push()", "rule": "env", "to": 1 },
+		{ "from": 1, "label": "event: go() at cards[0]", "rule": "env", "to": 2 },
+		{ "from": 2, "label": "run: request 2 fetch", "rule": "run", "to": 3 },
+		{ "from": 2, "label": "event: to-note() at cards[0]", "rule": "env", "to": 4 },
+		{ "from": 3, "label": "response 2 to fetch arrives", "rule": "respond", "to": 5 },
+		{ "from": 3, "label": "event: to-note() at cards[0]", "rule": "env", "to": 6 },
+		{ "from": 4, "label": "run: request 2 fetch", "rule": "run", "to": 7 },
+		{ "from": 5, "label": "run: response 2 fetch", "rule": "run", "to": 8 },
+		{ "from": 5, "label": "event: to-note() at cards[0]", "rule": "env", "to": 9 },
+		{ "from": 6, "label": "response 2 to fetch arrives", "rule": "respond", "to": 9 },
+		{ "from": 7, "label": "response 2 to fetch arrives", "rule": "respond", "to": 10 },
+		{ "from": 8, "label": "event: to-note() at cards[0]", "rule": "env", "to": 11 },
+		{ "from": 9, "label": "run: response 2 fetch", "rule": "run", "to": 12 },
+		{ "from": 10, "label": "run: response 2 fetch", "rule": "run", "to": 13 }
+	],
+	"gran": "turn",
+	"host": "(host ())",
+	"kinds": [
+		"(kind\n Card\n (state (label 10))\n ()\n ((on (send go) () ((request fetch)))\n  (on (ok fetch) (x) ((log (+ (get label) x))))\n  (on (send to-note) () ((swap (new Note))))))",
+		"(kind Note (state) () ())",
+		"(kind\n Deck\n (state)\n ((cards (list)))\n ((on (send push) () ((append cards (new Card))))\n  (on (request fetch) () ((answer ok 100)))))"
+	],
+	"name": "swap-kind",
+	"policy": "by-path",
+	"states": [
+		{
+			"inflight": [],
+			"obs": [],
+			"queue": [],
+			"quiescent": false,
+			"script": ["push()", "go() at cards[0]", "to-note() at cards[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [{ "items": [], "name": "cards", "type": "list" }]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" }],
+			"queue": [],
+			"quiescent": false,
+			"script": ["go() at cards[0]", "to-note() at cards[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Card",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"hop": true,
+					"mode": "request",
+					"name": "fetch",
+					"request": 2,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["to-note() at cards[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Card",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["to-note() at cards[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Card",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"hop": true,
+					"mode": "request",
+					"name": "fetch",
+					"request": 2,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["to-note() at cards[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Card",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 fetch delivered to #1" },
+				{ "bad": false, "kind": "log", "text": "log 110" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["to-note() at cards[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Card",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "cards", "text": "cards[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 fetch delivered to #1" },
+				{ "bad": false, "kind": "log", "text": "log 110" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" },
+				{
+					"bad": true,
+					"kind": "deliver",
+					"text": "response 2 fetch delivered to #3, meant for #1"
+				},
+				{ "bad": true, "kind": "ignored", "text": "#3 has no handler for response 2 fetch" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send to-note delivered to #1" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{
+					"bad": true,
+					"kind": "deliver",
+					"text": "response 2 fetch delivered to #3, meant for #1"
+				},
+				{ "bad": true, "kind": "ignored", "text": "#3 has no handler for response 2 fetch" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Deck",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": { "control": "", "id": 3, "kind": "Note", "locals": [], "slots": [] }
+							}
+						],
+						"name": "cards",
+						"type": "list"
+					}
+				]
+			}
+		}
+	],
+	"tier": "M6",
+	"title": "Swapped for another kind while asking"
+}

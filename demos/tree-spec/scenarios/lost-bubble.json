@@ -1,0 +1,491 @@
+{
+	"blurb": "Under per-hop granularity, the rest of a bubble waits in the queue after each hop. If the group it passed through is cleared meanwhile, the bubble is lost. Under the default, turn, it can't be.",
+	"edges": [
+		{ "from": 0, "label": "event: push()", "rule": "env", "to": 1 },
+		{ "from": 1, "label": "event: ping-me() at groups[0].item", "rule": "env", "to": 2 },
+		{ "from": 2, "label": "run: notify ping", "rule": "run", "to": 3 },
+		{ "from": 2, "label": "event: drop(0)", "rule": "env", "to": 4 },
+		{ "from": 3, "label": "run: notify ping", "rule": "run", "to": 5 },
+		{ "from": 3, "label": "event: drop(0)", "rule": "env", "to": 6 },
+		{ "from": 4, "label": "run: notify ping", "rule": "run", "to": 7 },
+		{ "from": 5, "label": "event: drop(0)", "rule": "env", "to": 8 },
+		{ "from": 6, "label": "run: notify ping", "rule": "run", "to": 9 }
+	],
+	"gran": "per-hop",
+	"host": "(host ())",
+	"kinds": [
+		"(kind\n Item\n (state (label 0))\n ()\n ((on (send ping-me) () ((notify ping)))))",
+		"(kind Group (state) ((item (new Item))) ())",
+		"(kind\n Board\n (state)\n ((groups (list)))\n ((on (send push) () ((append groups (new Group))))\n  (on (send drop) (i) ((clear groups i)))\n  (on (notify ping) () ((log \"ping\") stop))))"
+	],
+	"name": "lost-bubble",
+	"policy": "by-path",
+	"states": [
+		{
+			"inflight": [],
+			"obs": [],
+			"queue": [],
+			"quiescent": false,
+			"script": ["push()", "ping-me() at groups[0].item", "drop(0)"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [{ "items": [], "name": "groups", "type": "list" }]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" }],
+			"queue": [],
+			"quiescent": false,
+			"script": ["ping-me() at groups[0].item", "drop(0)"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Group",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Item",
+														"locals": [{ "name": "label", "value": "0" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "item",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "0", "slot": "groups", "text": "groups[0]" },
+							{ "key": "", "slot": "item", "text": "item" }
+						]
+					},
+					"hop": true,
+					"mode": "notify",
+					"name": "ping",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "0", "slot": "groups", "text": "groups[0]" },
+							{ "key": "", "slot": "item", "text": "item" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["drop(0)"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Group",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Item",
+														"locals": [{ "name": "label", "value": "0" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "item",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" },
+				{ "bad": false, "kind": "hop", "text": "notify ping visits #1" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": ["0", "host"],
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "0", "slot": "groups", "text": "groups[0]" },
+							{ "key": "", "slot": "item", "text": "item" }
+						]
+					},
+					"hop": true,
+					"mode": "notify",
+					"name": "ping",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "groups", "text": "groups[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["drop(0)"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Group",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Item",
+														"locals": [{ "name": "label", "value": "0" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "item",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" },
+				{ "bad": false, "kind": "deliver", "text": "send drop delivered to #0" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "0", "slot": "groups", "text": "groups[0]" },
+							{ "key": "", "slot": "item", "text": "item" }
+						]
+					},
+					"hop": true,
+					"mode": "notify",
+					"name": "ping",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "0", "slot": "groups", "text": "groups[0]" },
+							{ "key": "", "slot": "item", "text": "item" }
+						]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [{ "cleared": true, "key": "0", "node": null }],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" },
+				{ "bad": false, "kind": "hop", "text": "notify ping visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify ping visits #0" },
+				{ "bad": false, "kind": "log", "text": "log \"ping\"" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["drop(0)"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Group",
+									"locals": [],
+									"slots": [
+										{
+											"items": [
+												{
+													"cleared": false,
+													"key": "",
+													"node": {
+														"control": "",
+														"id": 2,
+														"kind": "Item",
+														"locals": [{ "name": "label", "value": "0" }],
+														"slots": []
+													}
+												}
+											],
+											"name": "item",
+											"type": "field"
+										}
+									]
+								}
+							}
+						],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" },
+				{ "bad": false, "kind": "hop", "text": "notify ping visits #1" },
+				{ "bad": false, "kind": "deliver", "text": "send drop delivered to #0" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": ["0", "host"],
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 2,
+						"path": [
+							{ "key": "0", "slot": "groups", "text": "groups[0]" },
+							{ "key": "", "slot": "item", "text": "item" }
+						]
+					},
+					"hop": true,
+					"mode": "notify",
+					"name": "ping",
+					"request": null,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "groups", "text": "groups[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [{ "cleared": true, "key": "0", "node": null }],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" },
+				{ "bad": false, "kind": "deliver", "text": "send drop delivered to #0" },
+				{ "bad": false, "kind": "orphaned", "text": "notify ping for #2 orphaned: it is gone" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [{ "cleared": true, "key": "0", "node": null }],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" },
+				{ "bad": false, "kind": "hop", "text": "notify ping visits #1" },
+				{ "bad": false, "kind": "hop", "text": "notify ping visits #0" },
+				{ "bad": false, "kind": "log", "text": "log \"ping\"" },
+				{ "bad": false, "kind": "deliver", "text": "send drop delivered to #0" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [{ "cleared": true, "key": "0", "node": null }],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send ping-me delivered to #2" },
+				{ "bad": false, "kind": "hop", "text": "notify ping visits #1" },
+				{ "bad": false, "kind": "deliver", "text": "send drop delivered to #0" },
+				{ "bad": true, "kind": "lost", "text": "notify ping lost on the way up, after #1" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Board",
+				"locals": [],
+				"slots": [
+					{
+						"items": [{ "cleared": true, "key": "0", "node": null }],
+						"name": "groups",
+						"type": "list"
+					}
+				]
+			}
+		}
+	],
+	"tier": "M3",
+	"title": "Hop by hop, a bubble can be lost"
+}

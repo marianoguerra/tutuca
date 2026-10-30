@@ -166,3 +166,20 @@ body.demo-fullscreen {
 	background: var(--color-base-100, #fff);
 	box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
 }
+/* The tree spec explorer's scenario links. */
+.tree-spec-scenarios {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
+	padding: 0.5rem 1.5rem;
+	font-size: 0.85rem;
+}
+.tree-spec-link {
+	color: inherit;
+	opacity: 0.7;
+	text-decoration: none;
+}
+.tree-spec-link[aria-current="page"] {
+	opacity: 1;
+	font-weight: bold;
+}
