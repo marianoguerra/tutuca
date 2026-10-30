@@ -453,6 +453,7 @@ fn message_problem(c: &component, name: js_string, args: &value_array) -> js_str
                 event: VALUE_NULL,
                 drag: VALUE_NULL,
                 effects: effect_buf_new(),
+                request: 0,
             };
         if !(m.pre!)(c.instance, args, ctx) {
             return s_pre;

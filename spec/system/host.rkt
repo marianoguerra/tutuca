@@ -36,7 +36,7 @@
          "../vdom/morph.rkt" "../component/paths.rkt" "../component/expr.rkt"
          "../component/class.rkt" "../component/action.rkt" "../view/view.rkt"
          "../bind/lower.rkt" "../bind/decode.rkt")
-(provide route-event task-name drag-key-in drag-from drag-after
+(provide without-ids id-of route-event task-name drag-key-in drag-from drag-after
          Tasks host-> start handle-task eval-arg step-by drain deliver resolve-ask settle-reports
          cfg-root cfg-obs cfg-queue cfg-pending cfg-dom logs)
 
@@ -47,7 +47,9 @@
   (ldom ::= (element lbl ns tag (prop ...) (ldom ...)) (text lbl string) (comment lbl string)
             (foreign lbl any))
   ;; an event task: its action, the target value and the drag as of the event
-  (kind ::= plain notify ask (event action value drag?))
+  ;; A notification carries whether a hop so far had a handler for it.
+  ;; An answer is to an ask, by its name and how it went.
+  (kind ::= plain (notify boolean) ask (answer fname answer-kind) (event action value drag?))
   ;; Host.drag, from dragstart to dragend: where the dragged element was rendered.
   (drag? ::= (drag dpath) none)
   ;; name, args, the sender's dispatch path, the target (a dispatch path and a
@@ -55,7 +57,9 @@
   ;; commit for every other task.
   (tsk ::= (task kind fname (value ...) dpath target route?))
   (target ::= (at dpath sel))
-  (route? ::= route none)
+  ;; A fixed route, with the identity of the component it reached when it was
+  ;; fixed (#f when it records none).
+  (route? ::= (dpath upath any) none)
   ;; Ask handlers, registered on a scope: args -> result, or a promise. They
   ;; only answer: the runtime gives them the asker's context to read (its
   ;; scope), with nothing to send tasks from, and the model leaves it out.
@@ -66,11 +70,51 @@
   (evt ::= (event fname addr value))
   ;; Dev-mode reports: stateInvalid with findInvalidFields's issues, and
   ;; messageInvalid with the message's contract issues.
-  (obs ::= (log value) (failed fname) (unhandled fname) rendered
+  (obs ::= (log value) (failed fname) (unhandled fname) (stale fname) rendered
            (state-invalid any ...) (message-invalid fname issue ...))
-  (outcome ::= (ok value (tsk ...) (tsk ...) (obs ...)) (failed (obs ...)))
+  ;; A committed transaction: the new root, a notification's next hop (none or
+  ;; one), the child tasks, the replies pending, what it observed, the next
+  ;; fresh identity.
+  (outcome ::= (ok value (tsk ...) (tsk ...) (tsk ...) (obs ...) natural) (failed (obs ...)))
+  ;; The last slot is the next fresh identity.
   (cfg ::= (host registry (ask-def ...) value (tsk ...) (tsk ...)
-                 (ldom ...) (node ...) value (evt ...) (obs ...) lbl value drag?)))
+                 (ldom ...) (node ...) value (evt ...) (obs ...) lbl value drag? natural)))
+
+;; ---- identity --------------------------------------------------------------
+;; A component's identity is its reserved field @: a number fresh for each
+;; instance, kept by its updates (next copies self), so a route can tell
+;; whether the component at its path is still the one it was for. A component
+;; value without one, one a handler made or returned, or one the root starts
+;; with, gets a fresh one when it enters the state.
+(define (id-of v)
+  (match v
+    [(list 'comp _ fs ...) (match (assq '@ fs) [(list _ i) i] [_ #f])]
+    [_ #f]))
+;; v with a fresh identity for each component without one; and the next.
+(define (identify v next)
+  (match v
+    [(list 'arr vs ...)
+     (define-values (out n) (identify-all vs next))
+     (values `(arr ,@out) n)]
+    [(list 'rec (list fs vs) ...)
+     (define-values (out n) (identify-all vs next))
+     (values `(rec ,@(map list fs out)) n)]
+    [(list 'comp cname (list fs vs) ...)
+     (define-values (out n) (identify-all vs next))
+     (define fields (map list fs out))
+     (if (assq '@ fields)
+         (values `(comp ,cname ,@fields) n)
+         (values `(comp ,cname (@ ,n) ,@fields) (add1 n)))]
+    [_ (values v next)]))
+(define (without-ids v)
+  (match v
+    [(list 'comp cname fs ...) `(comp ,cname ,@(for/list ([f fs] #:unless (eq? (car f) '@)) (without-ids f)))]
+    [(? list?) (map without-ids v)]
+    [_ v]))
+(define (identify-all vs next)
+  (for/fold ([out '()] [n next] #:result (values (reverse out) n)) ([v vs])
+    (define-values (v* n*) (identify v n))
+    (values (cons v* out) n*)))
 
 ;; Send arguments, against the message context: the target value, the source
 ;; key and the drag key.
@@ -97,7 +141,7 @@
 ;; ---- the message context ---------------------------------------------------
 ;; What one transaction accumulates: the observations, the handler that ran
 ;; (for its contract) and what it emitted.
-(struct mctx (path source-key task obs handled emitted) #:transparent)
+(struct mctx (path source-key task obs handled emitted run-next) #:transparent)
 
 (define (emit! ctx o) (set-box! (mctx-obs ctx) (cons o (unbox (mctx-obs ctx)))))
 
@@ -118,8 +162,10 @@
         [`(log ,v) (emit! ctx `(log ,v)) (values tasks stop)]
         [`(notify ,n ,vs ...)
          (emitted! 'notify n)
+         ;; The root has no ancestors: nobody can handle it.
+         (when (null? path) (emit! ctx `(unhandled ,n)))
          (values (if (null? path) tasks
-                     (append tasks (list (child-task ctx 'notify n vs (term (to-parent-path ,path)) '()))))
+                     (append tasks (list (child-task ctx '(notify #f) n vs (term (to-parent-path ,path)) '()))))
                  stop)]
         [`(ask ,n ,vs ...)
          (emitted! 'ask n)
@@ -140,37 +186,53 @@
   (handler-of (term (class-def-of ,reg ,instance)) name))
 
 ;; run(): a missing handler keeps next, and is observed (Host.notify("unhandled")).
-(define (run reg instance name args ctx)
-  (cond [(find-handler reg instance name) (call reg instance name args ctx)]
-        [else (emit! ctx `(unhandled ,name)) (list instance '() #f)]))
+(define (run reg instance key args ctx)
+  (cond [(find-handler reg instance key) (call reg instance key args ctx)]
+        [else (emit! ctx `(unhandled ,(key-name key))) (list instance '() #f)]))
 
-(define (suffixed name suffix) (string->symbol (format "~a~a" name suffix)))
 
 ;; task.run for each kind: (list leaf tasks stop? replies)
 (define (run-kind reg asks instance task ctx)
   (match-define `(task ,kind ,name ,args ,source ,_ ,_) task)
   (match kind
     ['plain (append (run reg instance name args ctx) '(()))]
-    ['notify
-     (match-define (list leaf tasks stop) (run reg instance name args ctx))
+    ;; An ancestor without a handler passes a notification on, silently. It
+    ;; ends at stop, or at the root, where it's observed unhandled, once, if no
+    ;; hop handled it.
+    [`(notify ,handled-before)
+     (define found (find-handler reg instance name))
+     (define handled (or handled-before (and found #t)))
+     (match-define (list leaf tasks stop)
+       (if found (call reg instance name args ctx) (list instance '() #f)))
      (define path (mctx-path ctx))
-     (define bubble (if (or (null? path) stop) '()
-                        (list `(task notify ,name ,args ,source (at ,(term (to-parent-path ,path)) ()) none))))
-     (list leaf (append tasks bubble) stop '())]
+     (when (and (null? path) (not stop) (not handled)) (emit! ctx `(unhandled ,name)))
+     ;; The next hop runs right after this one (run-next), before anything else queued: a
+     ;; bubble is one turn, so it visits the ancestors its sender had when it
+     ;; started, and what each hop sends waits until it ends.
+     (unless (or (null? path) stop)
+       (set-box! (mctx-run-next ctx)
+                 (list `(task (notify ,handled) ,name ,args ,source (at ,(term (to-parent-path ,path)) ()) none))))
+     (list leaf tasks stop '())]
+    ;; An ask runs no handler on the asker: it starts the scope's ask handler,
+    ;; and the answer comes back as a reply task of its own, routed to the asker
+    ;; (its path and identity): one answered now runs next, ahead of the queue,
+    ;; one answered later is pending. Either way a reply that fails fails only
+    ;; itself.
     ['ask
-     (define (reply suffix hx)
-       (define v (term (eval-hx ((args (arr ,@args))) ,hx)))
-       (list (suffixed name suffix) v))
+     (define (answer-task outcome args)
+       `(task (answer ,name ,outcome) ,(key-name `(answer ,name ,outcome)) ,args ,source (at ,source ())
+              (,@(term (route-for ,source)) ,(id-of instance))))
+     (define (value hx) (term (eval-hx ((args (arr ,@args))) ,hx)))
+     (define (now t) (set-box! (mctx-run-next ctx) (list t)) (list instance '() #f '()))
      (match (lookup-named asks name)
-       [#f (append (run reg instance (suffixed name "HandlerNotFound") '() ctx) '(()))]
-       [`(,_ (ok ,hx)) (match-let ([(list n v) (reply "ReplyOk" hx)])
-                         (append (run reg instance n (list v) ctx) '(())))]
-       [`(,_ (error ,hx)) (match-let ([(list n v) (reply "ReplyError" hx)])
-                            (append (run reg instance n (list v) ctx) '(())))]
+       [#f (now (answer-task 'unhandled '()))]
+       [`(,_ (ok ,hx)) (now (answer-task 'ok (list (value hx))))]
+       [`(,_ (error ,hx)) (now (answer-task 'error (list (value hx))))]
        [`(,_ (async (,result ,hx)))
-        (match-define (list n v) (reply (if (eq? result 'ok) "ReplyOk" "ReplyError") hx))
-        (list instance '() #f
-              (list `(task plain ,n (,v) ,source (at ,source ()) ,(term (route-for ,source)))))])]
+        (list instance '() #f (list (answer-task result (list (value hx)))))])]
+    ;; An answer goes to the handler in the asker's answers, never to a message
+    ;; in on: a send of the same name can't forge one.
+    [`(answer ,ask ,outcome) (append (run reg instance `(answer ,ask ,outcome) args ctx) '(()))]
     [`(event (send ,_ ,arg-terms ...) ,tv ,drag)
      (define drag-key (term (drag-key-in ,drag ,(mctx-path ctx))))
      (define args (for/list ([a arg-terms]) (term (eval-arg ,a ,tv ,(mctx-source-key ctx) ,drag-key))))
@@ -188,7 +250,8 @@
     [`(task ,kind ,name ,args ,source (at ,base ,sel) none)
      (define start (term (get-in (resolve ,base) ,root)))
      (define dispatch (append base (term (freeze-sel ,sel ,start))))
-     `(task ,kind ,name ,args ,source (at ,base ,sel) ,(term (route-for ,dispatch)))]
+     (match-define (list path upath) (term (route-for ,dispatch)))
+     `(task ,kind ,name ,args ,source (at ,base ,sel) (,path ,upath ,(id-of (term (get-in ,upath ,root)))))]
     [_ task]))
 
 ;; checkState and checkMessage after a commit: the changed fields, then the
@@ -203,26 +266,34 @@
          (term (message-issues (class-def-of ,reg ,instance) ,name ,instance
                                (get-in ,update-path ,new-root) ,args ,(mctx-source-key ctx)
                                ,(unbox (mctx-emitted ctx)))))
-       (if (null? issues) '() (list `(message-invalid ,name ,@issues)))]))
+       (if (null? issues) '() (list `(message-invalid ,(key-name name) ,@issues)))]))
   (append (if (null? fields) '() (list `(state-invalid ,@fields))) message))
 
 ;; Host.handleTask: one transaction.
 (define-metafunction Tasks
-  handle-task : registry (ask-def ...) value tsk -> outcome
-  [(handle-task registry (ask-def ...) value tsk)
+  handle-task : registry (ask-def ...) value tsk natural -> outcome
+  [(handle-task registry (ask-def ...) value tsk natural)
    ,(let ([obs (box '())])
       (with-handlers ([exn:fail? (λ (_) `(failed ,(reverse (unbox obs))))])
-        (match-define `(task ,_ ,_ ,_ ,source ,_ (,path ,update-path)) (term tsk))
+       (let/ec return
+        (match-define `(task ,_ ,name ,_ ,source ,_ (,path ,update-path ,id)) (term tsk))
         (define root (term value))
         (define instance (term (get-in ,update-path ,root)))
+        ;; Another component took its place (it was replaced, or a list
+        ;; shifted): the message was for the one before, so it's dropped and
+        ;; observed, not given to this one.
+        (when (and id (not (equal? (id-of instance) id)))
+          (return `(ok ,root () () () ((stale ,name)) ,(term natural))))
         (define cpath (term (to-component-path ,path)))
-        (define ctx (mctx cpath (term (source-key-in ,source ,cpath)) (term tsk) obs (box #f) (box '())))
+        (define ctx (mctx cpath (term (source-key-in ,source ,cpath)) (term tsk) obs (box #f) (box '()) (box '())))
         (match-define (list leaf tasks _ replies)
           (run-kind (term registry) (term (ask-def ...)) instance (term tsk) ctx))
-        (define new-root (term (set-in ,update-path ,root ,leaf)))
+        (define-values (new-root next)
+          (identify (term (set-in ,update-path ,root ,leaf)) (term natural)))
         (define children (for/list ([t tasks]) (prepare new-root t)))
+        (define hops (for/list ([t (unbox (mctx-run-next ctx))]) (prepare new-root t)))
         (define reports (checks (term registry) root new-root update-path instance ctx))
-        `(ok ,new-root ,children ,replies ,(append (reverse (unbox obs)) reports))))])
+        `(ok ,new-root ,hops ,children ,replies ,(append (reverse (unbox obs)) reports) ,next))))])
 
 (define-metafunction Tasks
   route-event : registry value (ldom ...) evt drag? -> (tsk ...)
@@ -230,7 +301,9 @@
    ,(match (with-handlers ([exn:fail? (λ (_) 'none)])
              (term (event-info registry value (erase-all (ldom ...)) fname addr)))
       ['none '()]
-      [(list (list 'on _ action) (and route (list path _)))
+      [(list (list 'on _ action) (list path upath))
+       ;; Fixed now, with the identity of the component the event reached.
+       (define route `(,path ,upath ,(id-of (term (get-in ,upath value)))))
        (list `(task (event ,action ,(term value_tv) ,(term drag?)) ,(second action) () ,path (at ,path ()) ,route))])])
 
 ;; startDrag on dragstart: the closest draggable="true" element, the target or
@@ -273,59 +346,61 @@
    ;; now, and so is the drag the handler's dragKey reads (a dragstart starts
    ;; it first, a dragend ends it after).
    (--> (host registry any_a value (tsk ...) any_p (ldom ...) any_v any_r
-              (evt_0 evt ...) any_o lbl any_s drag?)
+              (evt_0 evt ...) any_o lbl any_s drag? natural)
         (host registry any_a value (tsk ... tsk_e ...) any_p (ldom ...) any_v any_r
-              (evt ...) any_o lbl any_s (drag-after evt_0 drag?_now))
+              (evt ...) any_o lbl any_s (drag-after evt_0 drag?_now) natural)
         (where drag?_now (drag-from (ldom ...) evt_0 drag?))
         (where (tsk_e ...) (route-event registry value (ldom ...) evt_0 drag?_now))
         event)
-   ;; A committed transaction: the new root, then its children, in order.
+   ;; A committed transaction: the new root; a notification's next hop first,
+   ;; then the tasks queued before, then its children, in order.
    (--> (host registry (ask-def ...) value (tsk_0 tsk ...) (tsk_p ...) any_d any_v any_r
-              any_e (obs ...) lbl any_s any_g)
-        (host registry (ask-def ...) value_new (tsk ... tsk_c ...) (tsk_p ... tsk_r ...) any_d any_v any_r
-              any_e (obs ... obs_new ...) lbl any_s any_g)
-        (where (ok value_new (tsk_c ...) (tsk_r ...) (obs_new ...))
-               (handle-task registry (ask-def ...) value tsk_0))
+              any_e (obs ...) lbl any_s any_g natural)
+        (host registry (ask-def ...) value_new (tsk_h ... tsk ... tsk_c ...) (tsk_p ... tsk_r ...) any_d any_v any_r
+              any_e (obs ... obs_new ...) lbl any_s any_g natural_new)
+        (where (ok value_new (tsk_h ...) (tsk_c ...) (tsk_r ...) (obs_new ...) natural_new)
+               (handle-task registry (ask-def ...) value tsk_0 natural))
         run)
    ;; An aborted transaction: nothing but its observations survives.
    (--> (host registry (ask-def ...) value (tsk_0 tsk ...) any_p any_d any_v any_r
-              any_e (obs ...) lbl any_s any_g)
+              any_e (obs ...) lbl any_s any_g natural)
         (host registry (ask-def ...) value (tsk ...) any_p any_d any_v any_r
-              any_e (obs ... obs_new ... (failed (task-name tsk_0))) lbl any_s any_g)
-        (where (failed (obs_new ...)) (handle-task registry (ask-def ...) value tsk_0))
+              any_e (obs ... obs_new ... (failed (task-name tsk_0))) lbl any_s any_g natural)
+        (where (failed (obs_new ...)) (handle-task registry (ask-def ...) value tsk_0 natural))
         fail)
    ;; A pending async ask settles, in any order: its reply joins the queue.
    (--> (host registry any_a value (tsk ...) (tsk_1 ... tsk_r tsk_2 ...) any_d any_v any_r
-              any_e any_o lbl any_s any_g)
+              any_e any_o lbl any_s any_g natural)
         (host registry any_a value (tsk ... tsk_r) (tsk_1 ... tsk_2 ...) any_d any_v any_r
-              any_e any_o lbl any_s any_g)
+              any_e any_o lbl any_s any_g natural)
         resolve)
    ;; Host.render: morph the DOM from the last vnodes to the root's.
    (--> (host registry any_a value any_q any_p (ldom ...) (node_old ...) value_r
-              any_e (obs ...) lbl any_s any_g)
+              any_e (obs ...) lbl any_s any_g natural)
         (host registry any_a value any_q any_p (ldom_new ...) (node_new ...) value
-              any_e (obs ... rendered) lbl_new any_s any_g)
+              any_e (obs ... rendered) lbl_new any_s any_g natural)
         (side-condition (not (equal? (term value) (term value_r))))
         (where (node_new ...) (lower-root registry value))
         (where ((ldom_new ...) lbl_new)
                (morph-children (ldom ...) (node_old ...) (node_new ...) ,HTML-NS lbl))
         render)
    ;; checkSettled: the queue is empty and the root changed since it last was.
-   (--> (host registry any_a value () any_p any_d any_v any_r any_e (obs ...) lbl value_s any_g)
-        (host registry any_a value () any_p any_d any_v any_r any_e (obs ... obs_new ...) lbl value any_g)
+   (--> (host registry any_a value () any_p any_d any_v any_r any_e (obs ...) lbl value_s any_g natural)
+        (host registry any_a value () any_p any_d any_v any_r any_e (obs ... obs_new ...) lbl value any_g natural)
         (side-condition (not (equal? (term value) (term value_s))))
         (where (obs_new ...) (settle-reports registry value value_s))
         settle)))
 
 ;; Host.start: register the components, check the whole root, and mount its
 ;; first render.
-(define (start components root #:asks [asks '()] #:events [events '()])
+(define (start components root* #:asks [asks '()] #:events [events '()])
+  (define-values (root next-id) (identify root* 1))
   (define reg (term (register-components ,components)))
   (define vdom (term (lower-root ,reg ,root)))
   (define issues (term (invalid-in (classes-of ,reg) ,root null (fields invariants))))
   (define reports (if (null? issues) '() (list `(state-invalid ,@issues))))
   (match-define (list doms next) (term (mount-all ,vdom ,HTML-NS 0)))
-  `(host ,reg ,asks ,root () () ,doms ,vdom ,root ,events ,reports ,next ,root none))
+  `(host ,reg ,asks ,root () () ,doms ,vdom ,root ,events ,reports ,next ,root none ,next-id))
 
 (define (cfg-root c) (fourth c))
 (define (cfg-queue c) (fifth c))
@@ -365,17 +440,24 @@
   ;; An event routes to the button's handler; the task commits; render morphs
   ;; the same button node.
   (define c1 (drain (deliver c0)))
-  (test-equal (cfg-root c1) '(comp Counter (n 2)))
+  ;; The root has its identity, @, since start.
+  (test-equal (cfg-root c1) '(comp Counter (@ 1) (n 2)))
   (test-equal (logs c1) '(2))
   (test-equal (term (erase-all ,(cfg-dom c1)))
-              (term (render (lower-root ,(second c1) (comp Counter (n 2))))))
+              (term (render (lower-root ,(second c1) (comp Counter (@ 1) (n 2))))))
   (test-equal (map second (filter (λ (d) (eq? (first d) 'element)) (cfg-dom c1)))
               (map second (filter (λ (d) (eq? (first d) 'element)) (cfg-dom c0))))
 
   ;; A message with no handler keeps the instance, and is observed.
-  (test-equal (term (handle-task ,(second c0) () (comp Counter (n 0))
-                                 (task plain nope () () (at () ()) (() ()))))
-              '(ok (comp Counter (n 0)) () () ((unhandled nope))))
+  (test-equal (term (handle-task ,(second c0) () (comp Counter (@ 1) (n 0))
+                                 (task plain nope () () (at () ()) (() () 1)) 2))
+              '(ok (comp Counter (@ 1) (n 0)) () () () ((unhandled nope)) 2))
+
+  ;; A route records the identity of the component it was for: another one at
+  ;; its path doesn't get the message, which is observed stale.
+  (test-equal (term (handle-task ,(second c0) () (comp Counter (@ 7) (n 0))
+                                 (task plain inc (1) () (at () ()) (() () 1)) 8))
+              '(ok (comp Counter (@ 7) (n 0)) () () () ((stale inc)) 8))
 
   ;; Events that hit nothing are dropped.
   (test-equal (cfg-queue (deliver (start counter '(comp Counter (n 0)) #:events '((event input (1) 0)))))
@@ -388,8 +470,8 @@
              (views ("main" "x"))
              (on (go () (step (next (n) 1) (log "before") (send-at go () ()) (fail "boom"))))))))
   (define cf (drain `(host ,(term (register-components ,failing)) () (comp Root (n 0))
-                           ((task plain go () () (at () ()) (() ()))) () () () (comp Root (n 0)) () () 0
-                           (comp Root (n 0)) none)))
+                           ((task plain go () () (at () ()) (() () #f))) () () () (comp Root (n 0)) () () 0
+                           (comp Root (n 0)) none 1)))
   (test-equal (cfg-root cf) '(comp Root (n 0)))
   ;; A drag: dragstart on a draggable item remembers where it was rendered, the
   ;; drop on another item bubbles to the list (no item handles it) and reads
@@ -410,7 +492,7 @@
                                                (event dragend ,(first items) null)))
                              3)))
   (test-equal (cfg-obs d1) '(rendered))
-  (test-equal (cfg-root d1) '(comp List (got (arr 0 2)) (items (arr (comp Item) (comp Item) (comp Item)))))
+  (test-equal (without-ids (cfg-root d1)) '(comp List (got (arr 0 2)) (items (arr (comp Item) (comp Item) (comp Item)))))
   (test-equal (list-ref d1 13) 'none)
   (test-equal (cfg-obs cf) '((log "before") (failed go)))
   (test-equal (cfg-queue cf) '())
@@ -432,19 +514,19 @@
   (define (click-checked root)
     (drain (deliver (start checked root #:events '((event click (1) null))))))
   ;; Reported once at start: an undeclared field, and a broken invariant.
-  (test-equal (cfg-obs (start checked '(comp Counter (n 0) (pending #t) (extra 1))))
+  (test-equal (without-ids (cfg-obs (start checked '(comp Counter (n 0) (pending #t) (extra 1)))))
               '((state-invalid (("extra") Counter extra 1 "undeclared")
                                (() Counter null (comp Counter (n 0) (pending #t) (extra 1)) "invariant:settled"))))
   ;; inc adds its step twice, so post is broken. It leaves pending set for the
   ;; fix it queued; that is not reported, because once the queue is empty the
   ;; invariant holds again.
   (define fixed (click-checked '(comp Counter (n 0) (pending #f))))
-  (test-equal (cfg-root fixed) '(comp Counter (n 2) (pending #f)))
+  (test-equal (without-ids (cfg-root fixed)) '(comp Counter (n 2) (pending #f)))
   (test-equal (cfg-obs fixed) '((message-invalid inc "post") rendered))
   ;; From 2, n goes past max(3) and the fix has no step: the settled state
   ;; breaks the invariant.
   (define broken (click-checked '(comp Counter (n 2) (pending #f))))
-  (test-equal (cfg-obs broken)
+  (test-equal (without-ids (cfg-obs broken))
               '((state-invalid (("n") Counter n 4 "invalid"))
                 (message-invalid inc "post")
                 (failed fix)

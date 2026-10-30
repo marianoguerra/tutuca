@@ -225,12 +225,6 @@ export const Playground = component({
 				ctx.ask("playground", ["story", id]);
 			},
 		},
-		playgroundReplyOk() {},
-		playgroundReplyError(next, [error]) {
-			next.status = "failed";
-			next.error = String(error?.message ?? error);
-		},
-		playgroundHandlerNotFound() {},
 		setTab: {
 			args: [t.enum(...TABS)],
 			run(next, [tab]) {
@@ -253,6 +247,16 @@ export const Playground = component({
 				Object.assign(next.travel, { target: this.appKey, size, cursor, label, origin });
 			}
 			applyAppReport(this, next, detail);
+		},
+	},
+	answers: {
+		playground: {
+			ok() {},
+			error(next, [error]) {
+				next.status = "failed";
+				next.error = String(error?.message ?? error);
+			},
+			unhandled() {},
 		},
 	},
 });

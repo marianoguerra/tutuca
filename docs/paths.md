@@ -14,8 +14,8 @@ Tutuca has four kinds of path. Each has one job:
 | `Selector` | `PathBuilder` calls (`field`, `item`, `seqItem`) | addressing a component from code (`ctx.sendAt`, `provides`) |
 | `Target` | a `DispatchPath` plus a `Selector` below it | where a task goes, before its route is fixed |
 
-A **route** pairs a dispatch path with its update path: `{ path, updatePath }`. Every task
-runs with a route.
+A **route** pairs a dispatch path with its update path, and records the identity of the
+component it reached: `{ path, updatePath, id }`. Every task runs with a route.
 
 The formal model is in `spec/component/paths.rkt` (`upath`, `dframe`/`dpath`, `sel`, `route`). The task
 side is in `spec/system/host.rkt` (`(at base sel)`).
@@ -112,6 +112,14 @@ along rendered ancestry. For example, a child that a `Panel` renders through
 `provided("child")` notifies the `Panel`, then the `Panel`'s parent, even though the child's
 state lives elsewhere.
 
+A notify's hops run back to back: each hop's next one runs before anything else queued, so
+it visits the ancestors its sender had when it started, and what a hop sends (a `sendAt`,
+another notify) waits until the bubble ends. An ancestor without a handler for the notify
+passes it on, silently. It stops at a handler
+that calls `ctx.stopNext()`, or at the root. If no ancestor had a handler, it's reported once,
+as `unhandled`, when it reaches the root; a notify the root itself sends has no ancestors, and
+is reported the same way.
+
 ### Resolving: from frames to keys
 
 `resolve()` turns a dispatch path into an update path, going left to right:
@@ -132,7 +140,8 @@ component.
 `path.sourceKeyIn(receiver)` answers which item the message came through, from the
 receiver's point of view. It looks at the first frame past the receiver's own path, skipping
 non-component loop frames until the last one, and returns that frame's `item`. It returns
-`null` when the receiver itself or one of its ancestors sent the message.
+`null` when the receiver itself or one of its ancestors sent the message, or a component in
+another branch did (the sender's path doesn't go through the receiver).
 
 `sourceKey()` in a send, and `ctx.sourceKey` in a handler, are computed this way from the
 task's `sourcePath` and `ctx.path`:
@@ -207,9 +216,9 @@ equivalence.
 |---|---|---|---|
 | `EventTask` | the routed dispatch path | its base is the routed path | at event time, from the DOM |
 | `sendAt` / `forwardAt` | `ctx.path` | `ctx.path` and the selector | at the producer's commit |
-| `notify` | `ctx.path` | `ctx.path.toParentPath()` | at commit, and again at each bubble |
+| `notify` | `ctx.path` | `ctx.path.toParentPath()` | at commit, and again at each hop, which runs right after the one before |
 | `ask` | `ctx.path` | `ctx.path` | at commit |
-| ask reply (async) | the ask's `sourcePath` | the same path | at the ask's commit: it's the ask's own route back |
+| ask answer | the ask's `sourcePath` | the same path | when the ask starts: it's the ask's own route back, with the asker's identity |
 
 Two timing rules decide which state a path reads:
 
@@ -221,6 +230,56 @@ Two timing rules decide which state a path reads:
   including the producer's own changes. Tasks queued after it can't change where it goes. If
   freezing fails (for example, a selector below a missing field), the whole producer
   transaction is rolled back with its children.
+
+## Asks and their answers
+
+`ctx.ask(name, args)` asks the scope's ask handler for `name`, and returns the request's id.
+The answer doesn't come back as a message: it goes to a handler in the component's `answers`
+section, by the ask's name and how it went.
+
+```js
+answers: {
+	load: {
+		ok(next, [value], ctx) {},   // the handler answered value (now, or a promise resolved)
+		error(next, [error], ctx) {}, // it threw, or its promise rejected
+		unhandled(next, [], ctx) {},  // no scope has a handler for load
+	},
+},
+```
+
+Each entry is a handler or a message spec, as in `on`, so it has args, contracts and emits.
+`ctx.request` is the id `ctx.ask` returned, so with several asks of one name in flight, an
+answer says which it is. Answers aren't messages: a `send` or `sendAt` named `load.ok` reaches
+`on`, not `answers`. An answer with no handler is reported `unhandled`, named `load.ok`; lint
+warns when a message's `emits.ask` names an ask with no `answers` entry. Stories deliver one
+with `step.answer("load", "ok", value)`, tests with `driver.answer(path, "load", "ok", [value])`.
+
+An ask doesn't run in the transaction that asks: it's a task of its own, queued when that
+transaction commits, so an ask from a transaction that fails never starts. The ask task runs no
+handler on the asker. It starts the scope's ask handler, and the answer comes back as an answer
+task routed to the asker's path and identity. One given now runs next, ahead of the queue; a
+promise's joins the queue when it settles. An answer that throws fails only its own task, the
+same either way.
+
+## Identity: the component a route was for
+
+A path names a place, and a place can change hands between when a route is fixed and when its
+task runs: an item is replaced, or a list shifts (an `unshift`, a `splice`) and another item
+takes the index. So every component instance has an identity, a number given when it's made
+(`idOf(instance)`). An update keeps it: immer's copies of a component keep it. Making an
+instance, or a handler returning a new one, gives a new one.
+
+A route records the identity of the component it reached when it was fixed: at event time for
+an event, at the producer's commit for the rest, and an async reply records its asker's. When
+the task runs, the component at the route's update path must have that identity. If another
+component is there, the message was for the one before: it's dropped, and reported as `stale`
+(`{ task, path, id, found }`), instead of being given to that one. If no component is there,
+the task fails, saying where.
+
+The tree spec (`spec/tree/`) is where this comes from: routing by path alone delivers to the
+newcomer once items can be replaced or reordered (its M4 and M5); checking the identity turns
+those deliveries into `stale` reports. A message to a component that only moved is dropped
+too: following it to its new place would need an index from identities to paths.
 
 ## A walk through
 

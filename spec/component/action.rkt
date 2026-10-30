@@ -76,23 +76,23 @@
 ;; One message on one instance. The handler must exist; the host decides what
 ;; a missing handler means.
 (define-metafunction Action
-  act : class-def value fname (value ...) value -> stepped
-  [(act class-def value_self fname (value ...) value_sk)
-   ,(let* ([handler (handler-of (term class-def) (term fname))]
+  act : class-def value hkey (value ...) value -> stepped
+  [(act class-def value_self hkey (value ...) value_sk)
+   ,(let* ([handler (handler-of (term class-def) (term hkey))]
            [env (handler-env handler (term value_self) (term (value ...)) (term value_sk))])
       (match (with-handlers ([exn:fail? (λ (_) #f)]) (enabled-step env (body-of handler)))
         [#f '(aborted ())]
         [(list _ parts ...)
          (with-handlers ([exn:fail? (λ (_) '(aborted ()))])
            (run-step env (term value_self) parts))]))
-   (side-condition (handler-of (term class-def) (term fname)))])
+   (side-condition (handler-of (term class-def) (term hkey)))])
 
 ;; messageIssues: the ways a handled message broke its contract. emitted lists
 ;; what the handler sent, as (kind name); forwardAt counts as a send-at.
 (define-metafunction Action
-  message-issues : class-def fname value value (value ...) value ((emit-kind fname) ...) -> (issue ...)
-  [(message-issues class-def fname value_prev value_next (value ...) value_sk ((emit-kind fname_e) ...))
-   ,(let* ([handler (handler-of (term class-def) (term fname))]
+  message-issues : class-def hkey value value (value ...) value ((emit-kind fname) ...) -> (issue ...)
+  [(message-issues class-def hkey value_prev value_next (value ...) value_sk ((emit-kind fname_e) ...))
+   ,(let* ([handler (handler-of (term class-def) (term hkey))]
            [args (term (value ...))]
            [prev (term value_prev)]
            [env (handler-env handler prev args (term value_sk))]
@@ -141,10 +141,10 @@
      (define def (for/first ([d defs] #:when (eq? (def-name d) cname)) d))
      (define schema (and def (class-fields def)))
      (define fields? (memq 'fields check))
-     (define own (map list fs vs))
+     (define own (filter (λ (e) (not (eq? (car e) '@))) (map list fs vs)))
      (append
       (if (and schema fields?)
-          (for/list ([f fs] [v vs] #:unless (assq f schema))
+          (for/list ([f fs] [v vs] #:unless (or (assq f schema) (eq? f '@)))
             (list (append path (list (key f))) cname f v "undeclared"))
           '())
       (append*

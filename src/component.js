@@ -1,12 +1,13 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../deps/immer.js";
 import { DRAG_EVENTS } from "./drag.js";
-import { NoDefaultError, scopeSym, specSym, toMessages } from "./schema.js";
+import { idSym, NoDefaultError, scopeSym, specSym, toAnswers, toMessages } from "./schema.js";
 import { toExpr } from "./view.js";
 import { Collect } from "./walk.js";
 
+let nextId = 1;
 export class ComponentSpec {
-	constructor({ name, fields, methods, views, on, loops, scopes, provides, invariants }) {
+	constructor({ name, fields, methods, views, on, answers, loops, scopes, provides, invariants }) {
 		this.name = name;
 		this.fields = fields;
 		this.methods = methods;
@@ -15,6 +16,7 @@ export class ComponentSpec {
 		Object.assign(this.proto, { [immerable]: true, [specSym]: this });
 		this.views = views;
 		this.on = on;
+		this.answers = answers; // ask name -> outcome (ok, error, unhandled) -> its handler.
 		this.loops = loops;
 		this.scopes = scopes;
 		this.provides = provides;
@@ -28,6 +30,7 @@ export class ComponentSpec {
 	}
 	make(args = {}, scope = null) {
 		const state = Object.create(this.proto);
+		state[idSym] = nextId++;
 		if (scope !== null) state[scopeSym] = scope;
 		for (const key in this.fields) {
 			try {
@@ -54,6 +57,7 @@ export const component = (opts) => {
 		methods,
 		views: exprs,
 		on: toMessages(opts.on),
+		answers: toAnswers(opts.answers),
 		loops: ownEntries(opts.loops),
 		scopes: ownEntries(opts.scopes),
 		provides: ownEntries(opts.provides),

@@ -573,8 +573,8 @@ fn Target::freeze(self : Target, root : Value) -> DispatchPath raise PathError {
 enum Effect {
   /// To the parent, bubbling up until a handler stops it.
   Notify(String, Array[Value])
-  /// To the scope's ask handler; the reply comes back as name_reply_ok or
-  /// name_reply_error, or name_handler_not_found.
+  /// To the scope's ask handler; the answer comes back as name.ok or
+  /// name.error, or name.unhandled.
   Ask(String, Array[Value])
   /// To a component below, by selector.
   SendAt(String, Array[Value], Selector)
@@ -674,8 +674,9 @@ enum TaskKind {
   Notify
   /// Runs the scope's ask handler, then the reply message on the asker.
   Ask
-  /// An event on a rendered element. Its args were evaluated when the event
-  /// was routed, against the element's value and the source key.
+  /// An event on a rendered element. Its route was fixed when the event was
+  /// routed; its args are evaluated when the task runs, against the element's
+  /// value and the source key.
   Event(event~ : Value, drag~ : Value)
 }
 
@@ -760,8 +761,8 @@ fn Host::settle(self : Host, ask : PendingAsk, result : Result[Value, Value]) ->
   guard self.pending.search_by(p => physical_equal(p.ask, ask)) is Some(i) else { return }
   let { name, source, .. } = self.pending.remove(i)
   let (suffix, value) = match result {
-    Ok(v) => ("ReplyOk", v)
-    Err(e) => ("ReplyError", e)
+    Ok(v) => (".ok", v)
+    Err(e) => (".error", e)
   }
   self.queue.push({
     kind: Plain,
@@ -838,16 +839,16 @@ fn Host::transaction(self : Host, task : Task) -> (Value, Array[Task]) raise {
 }
 
 /// An ask runs the scope's ask handler and gives the asker the reply as a
-/// message: name_reply_ok, name_reply_error or name_handler_not_found. A pending
+/// message: name.ok, name.error or name.unhandled. A pending
 /// answer leaves the asker as it is until the reply arrives.
 fn Host::run_ask(self : Host, c : Component, task : Task, ctx : Context) -> MessageResult {
   let reply = (name, args) => (c.vtable.handle)(c.instance, { name, args }, ctx)
   match c.scope.lookup_ask_handler(task.name) {
-    None => reply(task.name + "HandlerNotFound", [])
+    None => reply(task.name + ".unhandled", [])
     Some(ask) =>
       match ask(task.args, ctx) {
-        Reply(Ok(v)) => reply(task.name + "ReplyOk", [v])
-        Reply(Err(e)) => reply(task.name + "ReplyError", [e])
+        Reply(Ok(v)) => reply(task.name + ".ok", [v])
+        Reply(Err(e)) => reply(task.name + ".error", [e])
         Pending(p) => {
           self.pending.push({ ask: p, name: task.name, source: task.source })
           Unchanged

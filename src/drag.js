@@ -6,8 +6,6 @@ export const DROP_EVENTS = new Set(["dragenter", "dragover", "dragleave", "drop"
 // What the host listens to once a component handles drop.
 export const DRAG_EVENTS = ["dragstart", "dragend", ...DROP_EVENTS];
 
-const frameText = (frame) => JSON.stringify(frame.toMeta());
-
 // The element being dragged: where it was rendered, its data-dragtype and the value there
 // when the drag started.
 export class Drag {
@@ -20,11 +18,6 @@ export class Drag {
 	// The key of the child of receiver the dragged element is in, as sourceKey is for a
 	// message; null when it was dragged from outside receiver.
 	keyIn(receiver) {
-		const { frames } = this.path;
-		if (receiver.frames.length >= frames.length) return null;
-		for (let i = 0; i < receiver.frames.length; i++) {
-			if (frameText(receiver.frames[i]) !== frameText(frames[i])) return null;
-		}
 		return this.path.sourceKeyIn(receiver);
 	}
 }

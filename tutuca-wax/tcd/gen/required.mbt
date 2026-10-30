@@ -101,7 +101,7 @@ pub fn required_of(
       optional: true,
     })
     out.push({
-      name: "\{cw}_reply_\{aw}_err",
+      name: "\{cw}_reply_\{aw}_error",
       params: [st, ctx, ("error", "&value")],
       result: state_t,
       what: "takes the error the ask \{a.name} was answered with (optional: without it, the error is unhandled)",
@@ -110,7 +110,7 @@ pub fn required_of(
       optional: true,
     })
     out.push({
-      name: "\{cw}_reply_\{aw}_not_found",
+      name: "\{cw}_reply_\{aw}_unhandled",
       params: [st, ctx],
       result: state_t,
       what: "is told no scope answers the ask \{a.name} (optional: without it, that's unhandled)",

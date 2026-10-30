@@ -96,7 +96,9 @@
    ,(for/list ([v (term (value ...))] [i (in-naturals)]) (list i v))]
   [(entries-of (rec (fname value) ...))
    ,(for/list ([f (term (fname ...))] [v (term (value ...))]) (list (symbol->string f) v))]
-  [(entries-of (comp cname any_f ...)) (entries-of (rec any_f ...))]
+  ;; A component's own fields: not its identity, the reserved field @ (system/host.rkt).
+  [(entries-of (comp cname any_f ...))
+   (entries-of (rec ,@(filter (λ (f) (not (eq? (car f) '@))) (term (any_f ...)))))]
   [(entries-of atom) ()])
 
 (define-metafunction Data

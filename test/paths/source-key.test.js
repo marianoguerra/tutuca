@@ -19,8 +19,8 @@ test("sourceKey is relative to the receiver for events, notifies, sends and repl
 				ctx.notify("ping");
 				ctx.ask("load");
 			},
-			loadReplyOk: record("leaf reply"),
 		},
+		answers: { load: { ok: record("leaf reply") } },
 	});
 	const Mid = component({
 		name: "Mid",
@@ -45,11 +45,12 @@ test("sourceKey is relative to the receiver for events, notifies, sends and repl
 	host.start(C.Top({ mids: [C.Mid(), mid] }));
 	click(rootNode.querySelectorAll("button")[2]);
 	assert.deepEqual(failures, []);
+	// The notification's hops run back to back, before the ask the click queued after it.
 	assert.deepEqual(seen, [
 		["leaf click", null],
 		["mid notify", 2],
-		["leaf reply", null],
 		["top notify", 1],
+		["leaf reply", null],
 		["mid notify", null],
 	]);
 });

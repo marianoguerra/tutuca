@@ -1,7 +1,7 @@
 // 4. Talking to the outside world: a component asks, a handler answers later. ctx.ask
-// names a handler registered next to the components; its result comes back as the
-// lookupReplyOk message, and a failure as lookupReplyError. Handlers are swappable:
-// these stories answer from a table, an app would call fetch.
+// names a handler registered next to the components; its result comes back to the
+// component's answers.lookup.ok, and a failure to answers.lookup.error. Handlers are
+// swappable: these stories answer from a table, an app would call fetch.
 import { $if, component, field, send, t, tag, targetValue } from "tutuca";
 import { step, stories } from "tutuca/storybook";
 
@@ -53,13 +53,17 @@ export const Weather = component({
 				ctx.ask("lookup", [this.city]);
 			},
 		},
-		lookupReplyOk(next, [report]) {
-			next.status = "done";
-			next.report = report;
-		},
-		lookupReplyError(next, [error]) {
-			next.status = "failed";
-			next.report = String(error?.message ?? error);
+	},
+	answers: {
+		lookup: {
+			ok(next, [report]) {
+				next.status = "done";
+				next.report = report;
+			},
+			error(next, [error]) {
+				next.status = "failed";
+				next.report = String(error?.message ?? error);
+			},
 		},
 	},
 });
@@ -87,12 +91,12 @@ export default stories({
 				"ask, then answer": [
 					step.event("submit", "form"),
 					step.check("loading", (s) => s.isLoading),
-					step.send("lookupReplyOk", ["Lisbon: ☀️ 24°C"]),
+					step.answer("lookup", "ok", "Lisbon: ☀️ 24°C"),
 					step.check("shows the forecast", (s) => s.report.includes("24°C")),
 				],
 				"ask, then fail": [
 					step.event("submit", "form"),
-					step.send("lookupReplyError", ["offline"]),
+					step.answer("lookup", "error", "offline"),
 					step.check("shows the error", (s) => s.status === "failed"),
 				],
 			},

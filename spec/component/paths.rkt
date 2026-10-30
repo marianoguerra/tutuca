@@ -98,10 +98,20 @@
 
 ;; Path.sourceKeyIn: the item key of the frame that leads out of the
 ;; receiver's view, or null when the receiver itself or an ancestor sent it.
+;; Whether prefix's frames start frames, ignoring whether a component follows
+;; each (a receiver's path is a component path).
+(define (frames-prefix? prefix frames)
+  (define (strip f) (match f [`(frame ,b ,ks ,i ,_) (list b ks i)]))
+  (and (<= (length prefix) (length frames))
+       (equal? (map strip prefix) (map strip (take frames (length prefix))))))
+
 (define-metafunction Paths
   source-key-in : dpath dpath -> any
+  ;; null unless the path goes through the receiver to one of its children: the
+  ;; receiver or an ancestor sent, or a component in another branch did.
   [(source-key-in (dframe ...) (dframe_r ...)) null
-   (side-condition (>= (length (term (dframe_r ...))) (length (term (dframe ...)))))]
+   (side-condition (or (>= (length (term (dframe_r ...))) (length (term (dframe ...))))
+                       (not (frames-prefix? (term (dframe_r ...)) (term (dframe ...))))))]
   [(source-key-in dpath (dframe_r ...)) (key-at dpath ,(length (term (dframe_r ...))))])
 
 (define-metafunction Paths

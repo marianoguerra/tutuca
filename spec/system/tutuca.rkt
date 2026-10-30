@@ -5,7 +5,8 @@
          "../data.rkt" "../vdom/vnode.rkt" "../vdom/dom.rkt" "../vdom/keys.rkt" "../vdom/morph.rkt"
          "../component/paths.rkt" "../component/expr.rkt"
          "../view/sem.rkt" "../view/normalize.rkt" "../view/view.rkt" "../view/route.rkt" "../view/wf.rkt"
-         "../bind/meta.rkt" "../bind/lower.rkt" "../bind/decode.rkt" "host.rkt")
+         "../bind/meta.rkt" "../bind/lower.rkt" "../bind/decode.rkt" "host.rkt"
+         (only-in "../explore.rkt" [counterexample explore-counterexample]))
 
 (module+ test
   (require rackunit)
@@ -15,6 +16,7 @@
   (define (with-root c root) (list-set c 3 root))
   (define (with-events c events) (list-set c 9 events))
   (define (failures c) (filter (λ (o) (and (pair? o) (eq? (car o) 'failed))) (cfg-obs c)))
+  (define (unhandled c) (filter (λ (o) (and (pair? o) (eq? (car o) 'unhandled))) (cfg-obs c)))
   ;; Click the given targets, routing each now, without running tasks.
   (define (queue-events c . addrs)
     (deliver (with-events c (for/list ([a addrs]) `(event click ,a null))) (length addrs)))
@@ -151,8 +153,8 @@
   (define source-key-classes
     (term ((component Leaf
              (views ("main" (h 1 "button" ((on click (send click))))))
-             (on (click () (step (log (mk-arr "leaf click" sourceKey)) (notify ping) (ask load)))
-                 (loadReplyOk (r) (step (log (mk-arr "leaf reply" sourceKey))))))
+             (on (click () (step (log (mk-arr "leaf click" sourceKey)) (notify ping) (ask load))))
+             (answers (load (ok (r) (step (log (mk-arr "leaf reply" sourceKey)))))))
            (component Mid
              (views ("main" (h 2 "div" () (each (field rows) (h 3 "p" () (each (field cells) (render-it none) none)) none))))
              (on (ping () (step (log (mk-arr "mid notify" sourceKey))))))
@@ -165,17 +167,102 @@
                     #:asks '((load (ok "loaded"))))]
          [c1 (click c0 (third (addrs-where c0 (by-tag "button"))))])
     (test-equal (failures c1) '())
-    (test-equal (logs c1) '((arr "leaf click" null) (arr "mid notify" 2) (arr "leaf reply" null)
-                            (arr "top notify" 1) (arr "mid notify" null))))
+    ;; The notification's hops run back to back, before the ask the click queued after it.
+    (test-equal (logs c1) '((arr "leaf click" null) (arr "mid notify" 2) (arr "top notify" 1)
+                            (arr "leaf reply" null) (arr "mid notify" null))))
+
+  ;; ---- events.test.js: notifications ----------------------------------------
+  ;; "a notification passes ancestors without a handler silently", "a notification
+  ;; nobody handles is reported once, when it reaches the root", "a notification
+  ;; from the root goes nowhere, and is reported unhandled"
+  (define (notify-classes top-handles?)
+    (term ((component Leaf
+             (views ("main" (h 1 "button" ((on click (send go))))))
+             (on (go () (step (notify ping)))))
+           (component Middle
+             (views ("main" (h 2 "div" () (x-render (field leaf) none)))))
+           (component Top
+             (views ("main" (h 3 "div" () (x-render (field middle) none))))
+             (on ,@(if top-handles? '((ping () (step (log "top")))) '()))))))
+  (define notify-root '(comp Top (middle (comp Middle (leaf (comp Leaf))))))
+  (let* ([c0 (start (notify-classes #t) notify-root)]
+         [c1 (click c0 (addr-of c0 (by-tag "button")))])
+    (test-equal (logs c1) '("top"))
+    (test-equal (unhandled c1) '()))
+  (let* ([c0 (start (notify-classes #f) notify-root)]
+         [c1 (click c0 (addr-of c0 (by-tag "button")))])
+    (test-equal (unhandled c1) '((unhandled ping))))
+  (let* ([c0 (start (notify-classes #f) '(comp Leaf))]
+         [c1 (click c0 (addr-of c0 (by-tag "button")))])
+    (test-equal (unhandled c1) '((unhandled ping))))
+
+  ;; ---- interleavings: the tree changes while a reply is pending ------------------
+  ;; Every interleaving of what can still happen is explored (../explore.rkt).
+  ;; An item asks for something answered later; meanwhile its list drops its
+  ;; first item, the asker. The reply is routed by the asker's path at ask time,
+  ;; items[0], and the item that moved into that index isn't the asker: routing
+  ;; by path alone gave it the reply (the tree spec's M4/M5 misdelivery). The
+  ;; route records the asker's identity, so in every interleaving the reply
+  ;; reaches the asker or, when the drop came first, is observed stale.
+  (define dropping-classes
+    (term ((component Item
+             (views ("main" (h 1 "button" ((id "ask") (on click (send go))) "ask")))
+             (on (go () (step (ask load))))
+             (answers (load (ok (r) (step (next (reply) r) (log (get self id)))))))
+           (component Root
+             (views ("main" (h 2 "div" ()
+                               (h 3 "button" ((id "drop") (on click (send drop))) "drop")
+                               (each (field items) (render-it none) none))))
+             (on (drop () (step (next (items) (mk-arr (at (get self items) 1))))))))))
+  (let* ([items '(arr (comp Item (id 1) (reply null)) (comp Item (id 2) (reply null)))]
+         [c0 (start dropping-classes `(comp Root (items ,items)) #:asks '((load (async (ok "loaded")))))]
+         ;; Item 1 asks, and its reply is pending; then drop is clicked.
+         [c1 (drain (queue-events c0 (first (addrs-where c0 (by-id "ask")))))]
+         [c2 (with-events c1 (list `(event click ,(addr-of c1 (by-id "drop")) null)))]
+         ;; The reply reaches the asker, item 1, whenever it's delivered.
+         [to-asker? (λ (c) (andmap (λ (v) (equal? v 1)) (logs c)))])
+    (test-equal (length (cfg-pending c1)) 1)
+    (test-equal (explore-counterexample host-> c2 to-asker?) #f)
+    (test-equal (and (explore-counterexample host-> c2 (λ (c) (not (member '(stale load.ok) (cfg-obs c))))) #t)
+                #t))
+
+  ;; A notification hops one queued task at a time, its next hop frozen at the
+  ;; last one's commit. A leaf in the first of two groups notifies; its list
+  ;; drops that group before the hop to it runs. By path alone the notification
+  ;; reached the other group (the tree spec's per-hop interleaving); the hop's
+  ;; route records its group's identity, so there it's observed stale instead.
+  (define hopping-classes
+    (term ((component Leaf
+             (views ("main" (h 1 "button" ((id "leaf") (on click (send go))) "go")))
+             (on (go () (step (notify ping)))))
+           (component Group
+             (views ("main" (h 2 "div" () (x-render (field leaf) none))))
+             (on (ping () (step (log (get self id))))))
+           (component Board
+             (views ("main" (h 3 "div" ()
+                               (h 4 "button" ((id "drop") (on click (send drop))) "drop")
+                               (each (field groups) (render-it none) none))))
+             (on (drop () (step (next (groups) (mk-arr (at (get self groups) 1)))))
+                 (ping () (step (log "board"))))))))
+  (let* ([group (λ (id) `(comp Group (id ,id) (leaf (comp Leaf))))]
+         [c0 (start hopping-classes `(comp Board (groups (arr ,(group 1) ,(group 2)))))]
+         ;; The leaf's click and the drop happen one after the other.
+         [c1 (with-events c0 (list `(event click ,(first (addrs-where c0 (by-id "leaf"))) null)
+                                   `(event click ,(addr-of c0 (by-id "drop")) null)))]
+         [via-own-group? (λ (c) (andmap (λ (v) (member v '(1 "board"))) (logs c)))])
+    (test-equal (explore-counterexample host-> c1 via-own-group?) #f)
+    (test-equal (and (explore-counterexample host-> c1 (λ (c) (not (member '(stale ping) (cfg-obs c))))) #t)
+                #t))
 
   ;; ---- task-paths.test.js ----------------------------------------------------
   (define (task-setup root-handlers [item-handlers '()] #:provided [use-provided #f]
-                      #:asks [asks '()] #:root [root #f])
+                      #:asks [asks '()] #:root [root #f] #:answers [answers '()])
     (define names (map first root-handlers))
     (define classes
       (term ((component Item
                (views ("main" (h 1 "button" ((id "item") (on click (send inc))) "inc")))
-               (on (inc () (step (next (count) (+ (get self count) 1)))) ,@item-handlers))
+               (on (inc () (step (next (count) (+ (get self count) 1)))) ,@item-handlers)
+               (answers ,@answers))
              (component Root
                (provides (selectedItem ((pb-seq-item items selected))))
                (views ("main" (h 2 "div" ()
@@ -187,8 +274,8 @@
                (on ,@root-handlers)))))
     ;; Later handlers shadow the default inc, as in {inc, ...itemHandlers}.
     (define fixed (match classes
-                    [`((component Item ,v (on ,hs ...)) ,r)
-                     `((component Item ,v (on ,@(reverse (remove-duplicates (reverse hs) #:key first)))) ,r)]))
+                    [`((component Item ,v (on ,hs ...) ,a) ,r)
+                     `((component Item ,v (on ,@(reverse (remove-duplicates (reverse hs) #:key first))) ,a) ,r)]))
     (define item '(comp Item (count 0) (selected 0) (children (arr)) (reply null)))
     (start fixed (or root `(comp Root (selected 0) (committed 0) (items (arr ,item ,item)))) #:asks asks))
   (define (queue-ids c . ids) (apply queue-events c (for/list ([id ids]) (addr-of c (by-id id)))))
@@ -236,9 +323,8 @@
     (define reply-handler '((r) (step (next (reply) r) (send-at inc () ()))))
     (define c0 (task-setup '((queue () (step (send-at request () ((pb-seq-item items selected))) (next (selected) 1)))
                              (change () (step (next (selected) 0))))
-                           `((request () (step (ask load)))
-                             (loadReplyOk ,@reply-handler)
-                             (loadReplyError ,@reply-handler))
+                           `((request () (step (ask load))))
+                           #:answers `((load (ok ,@reply-handler) (error ,@reply-handler)))
                            #:asks `((load (async (,result "result"))))))
     (define c1 (drain (queue-ids (drain (queue-ids c0 "queue")) "change")))
     (test-equal (length (cfg-pending c1)) 1)
@@ -252,16 +338,16 @@
     (test-equal (counts c3) '(0 1))
     (test-equal (failures c3) '()))
 
-  ;; "a throwing sync ReplyOk fails the ask instead of running ReplyError"
+  ;; "a throwing sync ok answer fails its own answer task, not the ask, and doesn't run error"
   (let ([c (drain (queue-ids (task-setup '((queue () (step (send-at request () ((pb-seq-item items selected))))))
-                                         '((request () (step (ask load)))
-                                           (loadReplyOk (r) (step (next (reply) "ok") (send-at inc () ()) (fail "reply failed")))
-                                           (loadReplyError (r) (step (next (reply) "error"))))
+                                         '((request () (step (ask load))))
+                                         #:answers '((load (ok (r) (step (next (reply) "ok") (send-at inc () ()) (fail "reply failed")))
+                                                           (error (r) (step (next (reply) "error")))))
                                          #:asks '((load (ok "result"))))
                              "queue"))])
     (test-equal (get c 'items 0 'reply) 'null)
     (test-equal (counts c) '(0 0))
-    (test-equal (failures c) '((failed load))))
+    (test-equal (failures c) '((failed load.ok))))
 
   ;; "dynamic selectors below provided frames capture commit and retain bubbling"
   (let* ([item (λ (sel kids) `(comp Item (count 0) (selected ,sel) (children ,kids) (reply null)))]
@@ -361,7 +447,6 @@
   ;; formed: a click is a no-op that's observed as unhandled, and nothing fails.
   ;; With a hit handler in every class they are, and then every click on every
   ;; element finds its handler.
-  (define (unhandled c) (filter (λ (o) (and (pair? o) (eq? (car o) 'unhandled))) (cfg-obs c)))
   (test-equal (wf? sound-registry) #f)
   ;; A button: every class's first one sends hit on click, where a Box's
   ;; div, the first element with handlers when the root is a Box, handles

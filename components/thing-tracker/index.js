@@ -635,13 +635,6 @@ export const TrackerApp = component({
 				ctx.ask("now");
 			},
 		},
-		nowReplyOk(next, [now]) {
-			if (!Number.isInteger(now) || now < 0) return;
-			next.now = now;
-			refresh(this, next);
-		},
-		nowReplyError() {},
-		nowHandlerNotFound() {},
 		setNow: {
 			args: [t.number().int().min(0)],
 			run(next, [now]) {
@@ -844,23 +837,6 @@ export const TrackerApp = component({
 				next.toast = null;
 			},
 		},
-		// A toast's timer ran out; the first log's is followed by a tip.
-		waitReplyOk(next, [id], ctx) {
-			if (this.toast?.id !== id) return;
-			next.toast = null;
-			if (!this.hintShown && this.toast.kind === "logged") {
-				next.hintShown = true;
-				toast(
-					next,
-					ctx,
-					"Tip",
-					"Press and hold a thing to log it at a different time, or a section header to collapse everything.",
-				);
-				ctx.ask("wait", [6000, next.toastSeq]);
-			}
-		},
-		waitReplyError() {},
-		waitHandlerNotFound() {},
 		// Insights.
 		setGranularity: {
 			args: [t.string()],
@@ -1130,27 +1106,6 @@ export const TrackerApp = component({
 				]);
 			},
 		},
-		saveFileReplyOk(next, [kind], ctx) {
-			if (kind !== "backup") {
-				toast(next, ctx, "Shared", "The pack is ready to send.");
-				return;
-			}
-			const times = this.events.map((e) => e.actualAt);
-			const range =
-				times.length === 0
-					? ""
-					: `${formatDate(Math.min(...times), this.tz, { weekday: false, now: 0 })} – ${formatDate(Math.max(...times), this.tz, { weekday: false, now: 0 })}`;
-			next.backup.lastAt = this.now;
-			next.backup.dismissedAt = 0;
-			next.backup.rangeText = range;
-			toast(next, ctx, "Backup ready", "");
-		},
-		saveFileReplyError(next, [error], ctx) {
-			toast(next, ctx, "Export failed", String(error?.message ?? error), { kind: "error" });
-		},
-		saveFileHandlerNotFound(next, _args, ctx) {
-			toast(next, ctx, "Export failed", "This page can't save files.", { kind: "error" });
-		},
 		// Imports: a file, pasted text or a bundle, previewed before anything changes.
 		setImportMode: {
 			args: [t.string()],
@@ -1178,15 +1133,6 @@ export const TrackerApp = component({
 				if (file !== undefined) ctx.ask("readText", [file]);
 			},
 		},
-		readTextReplyOk(next, [text], ctx) {
-			openImport(next, ctx, "", String(text));
-		},
-		readTextReplyError(next, [error], ctx) {
-			toast(next, ctx, "Couldn't read that file", String(error?.message ?? error), {
-				kind: "error",
-			});
-		},
-		readTextHandlerNotFound() {},
 		addBundle: {
 			args: [t.string()],
 			run(next, [id], ctx) {
@@ -1228,6 +1174,70 @@ export const TrackerApp = component({
 				toast(next, ctx, "Imported", importedText(plan));
 				refresh(this, next);
 			},
+		},
+	},
+	answers: {
+		now: {
+			ok(next, [now]) {
+				if (!Number.isInteger(now) || now < 0) return;
+				next.now = now;
+				refresh(this, next);
+			},
+			error() {},
+			unhandled() {},
+		},
+		// A toast's timer ran out; the first log's is followed by a tip.
+		wait: {
+			ok(next, [id], ctx) {
+				if (this.toast?.id !== id) return;
+				next.toast = null;
+				if (!this.hintShown && this.toast.kind === "logged") {
+					next.hintShown = true;
+					toast(
+						next,
+						ctx,
+						"Tip",
+						"Press and hold a thing to log it at a different time, or a section header to collapse everything.",
+					);
+					ctx.ask("wait", [6000, next.toastSeq]);
+				}
+			},
+			error() {},
+			unhandled() {},
+		},
+		saveFile: {
+			ok(next, [kind], ctx) {
+				if (kind !== "backup") {
+					toast(next, ctx, "Shared", "The pack is ready to send.");
+					return;
+				}
+				const times = this.events.map((e) => e.actualAt);
+				const range =
+					times.length === 0
+						? ""
+						: `${formatDate(Math.min(...times), this.tz, { weekday: false, now: 0 })} – ${formatDate(Math.max(...times), this.tz, { weekday: false, now: 0 })}`;
+				next.backup.lastAt = this.now;
+				next.backup.dismissedAt = 0;
+				next.backup.rangeText = range;
+				toast(next, ctx, "Backup ready", "");
+			},
+			error(next, [error], ctx) {
+				toast(next, ctx, "Export failed", String(error?.message ?? error), { kind: "error" });
+			},
+			unhandled(next, _args, ctx) {
+				toast(next, ctx, "Export failed", "This page can't save files.", { kind: "error" });
+			},
+		},
+		readText: {
+			ok(next, [text], ctx) {
+				openImport(next, ctx, "", String(text));
+			},
+			error(next, [error], ctx) {
+				toast(next, ctx, "Couldn't read that file", String(error?.message ?? error), {
+					kind: "error",
+				});
+			},
+			unhandled() {},
 		},
 	},
 });

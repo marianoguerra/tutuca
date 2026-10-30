@@ -22,6 +22,12 @@ racket spec/render.rkt     # typesets the rules into spec/semantics.pdf
 In `semantics.pdf`, the tutuca side and the binding are the main chapters, and the virtual
 DOM is Appendix A.
 
+`tree/` is a separate model that requires none of the layers below. It is a tower of tiers
+on a tree of components and asynchronous messages, and it shows how each routing policy
+holds up as the tree changes between a message and its response. `racket
+spec/tree/render.rkt` typesets it into `spec/tree/tree.pdf`. See
+[`tree/README.md`](tree/README.md). Both PDFs share their page layout, `layout.rkt`.
+
 ## Layers
 
 Each directory requires only the ones above it in this table, plus `data.rkt`.
@@ -237,13 +243,30 @@ As TLA+: a configuration is the state, and `host->` is `Next`, with six actions:
 - `render` morphs the DOM when the root changed.
 - `settle` checks invariants when the queue is empty and the root changed.
 
+Every component value has an identity, its reserved field `@`: a component without one gets a
+fresh one when it enters the state (at start, and at each commit, which covers what a handler
+made or returned), and an update keeps it. A route records the identity of the component it
+reached when it was fixed (an event's at event time, an async reply's its asker's, the rest at
+the producer's commit).
+
 One transaction (`handle-task`) does the following:
-1. Resolve the update path.
+1. Resolve the update path. If the component there isn't the one the route recorded, the task
+   is dropped and observed `(stale name)`.
 2. Run the task by kind, stepping the handler with `act`:
    - plain: a missing handler keeps the instance and is observed, `(unhandled name)`.
-   - notify: bubbles to the parent unless at the root or after `stop`.
-   - ask: `ok` runs `<n>ReplyOk`, `error` runs `<n>ReplyError`, a missing handler runs
-     `<n>HandlerNotFound`, and `async` adds a pending reply routed to the asker's path.
+   - notify: bubbles to the parent unless at the root or after `stop`. The next hop goes to the
+     front of the queue, so a bubble's hops run back to back, and what each hop sends waits
+     until the bubble ends. An ancestor without a
+     handler passes it on silently; one that reaches the root with no hop having handled it is
+     observed once, `(unhandled name)`, and so is a notify sent by the root itself.
+   - ask: runs no handler on the asker. It starts the scope's ask handler (the asker's
+     transaction has committed, so nothing undoes what it starts), and the answer comes back
+     as an answer task routed to the asker's path and identity, of kind `(answer n ok)`,
+     `(answer n error)` or, for a missing handler, `(answer n unhandled)`. One answered now
+     runs next, ahead of the queue; `async` adds it to the pending replies.
+   - answer: runs the asker's handler in its class's `answers` section, `(answers (n (ok (v)
+     …) (error (e) …) (unhandled () …)))`, never one in `on`, so a send can't forge an answer.
+     Observations name it `n.ok`, `n.error` or `n.unhandled`.
    - event: evaluates the action arguments in the message context and makes them the task's
      arguments, so `forward-at` forwards them. A missing handler is a no-op that's observed, as
      for a plain task; for well-formed views it never happens.
@@ -251,8 +274,9 @@ One transaction (`handle-task`) does the following:
 4. Freeze each child task's selector against the new root.
 5. Report invalid fields and contract issues.
 
-Any exception aborts the whole transaction: the root and the queue stay as they were. That
-includes a `<n>ReplyOk` that throws: it fails the ask, it does not run `<n>ReplyError`.
+Any exception aborts the whole transaction: the root and the queue stay as they were. A
+`ok` answer that throws fails its own answer task, whether the answer came now or later; it
+does not run the `error` one.
 Effects evaluated before the throw survive, so their logs are observed.
 
 ## Exceptions
@@ -311,7 +335,9 @@ Two of these are equivalent only when other code doesn't edit or remove the node
 - Malformed frame comments: the model skips any comment that is not a well-formed frame.
 - `Host.notify` (reports are observations instead, one per report type both runtimes use:
   `(log v)` is `log`, `(failed name)` `taskFailed`, `(unhandled name)` `unhandled`, `rendered`
-  `render`, `(state-invalid …)` `stateInvalid` and `(message-invalid …)` `messageInvalid`),
+  `render`, `(state-invalid …)` `stateInvalid` and `(message-invalid …)` `messageInvalid`;
+  `renderFailed` and `eventFailed` have none, since the model's renders don't throw and its DOM
+  is always the render of the root it routes against),
   `Host.stop`, `clearTasks`, listener registration.
 - The host env: `ctx.now()`, `ctx.random()`, `ctx.uuid()`. Also `ctx.event`, `ctx.node` and
   `task.parent`.
@@ -347,6 +373,12 @@ Two of these are equivalent only when other code doesn't edit or remove the node
   root.
 - **Dev checks:** undeclared fields and broken invariants at start; invalid fields and
   contract issues after a task; invariants deferred until the queue is empty.
+- **Interleavings:** every order in which what's left of a scenario can happen is explored
+  (`explore.rkt`, shared with `tree/`). Two scenarios change the tree while a message waits:
+  a pending reply whose asker is dropped from its list, and a notification whose next hop's
+  group is dropped. By path alone, as the tree spec predicts, each reached the instance that
+  moved into the index; with identities, in every interleaving each reaches the instance it was
+  for or is observed `(stale name)`.
 - **Ported scenarios:**
   - `test/core/view-semantics.test.js`: literals, truthiness, attributes, patching, meta
     comments, the main view

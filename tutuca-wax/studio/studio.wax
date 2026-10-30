@@ -237,7 +237,7 @@ fn scope_picker_on_add_scope(state: &scope_picker_state, ctx: &context, name: js
     if js_string_length(named) == 0 {
         named = gs_scope;
     }
-    scope_picker_ask_save_scope(ctx, id, named, state.adding);
+    let _ = scope_picker_ask_save_scope(ctx, id, named, state.adding);
     scope_picker_notify_scope_added(ctx, id, named, state.adding);
     {scope_picker_state|
         scopes: list_push(state.scopes, scope_picker_scopes_new(id, named, state.adding)),
@@ -272,7 +272,7 @@ fn scope_picker_on_cancel(state: &scope_picker_state, ctx: &context) -> &scope_p
 // The screen with id shown: asked for, the one shown until then dropped.
 fn studio_showing(state: &studio_state, ctx: &context, id: studio_id) -> &studio_state {
     if js_string_length(id) >s 0 {
-        studio_ask_open_screen(ctx, id);
+        let _ = studio_ask_open_screen(ctx, id);
     }
     let next = studio_with_shown_id(studio_with_shown(studio_with_active(state, id), value_null()), gs_empty);
     studio_with_renaming(next, gs_empty);
@@ -289,7 +289,7 @@ fn studio_on_reopen(state: &studio_state, ctx: &context) -> &studio_state {
     if js_string_length(state.active) == 0 {
         return state;
     }
-    studio_ask_open_screen(ctx, state.active);
+    let _ = studio_ask_open_screen(ctx, state.active);
     studio_with_shown_id(state, gs_empty);
 }
 
@@ -304,7 +304,7 @@ fn studio_reply_open_screen_ok(state: &studio_state, ctx: &context, reply: &valu
 }
 
 fn studio_on_toggle_editing(state: &studio_state, ctx: &context) -> &studio_state {
-    studio_ask_toggle_screen(ctx);
+    let _ = studio_ask_toggle_screen(ctx);
     state;
 }
 
@@ -312,7 +312,7 @@ fn studio_reply_toggle_screen_ok(state: &studio_state, ctx: &context, reply: i32
     studio_with_editing(state, reply);
 }
 
-fn studio_reply_open_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
+fn studio_reply_open_screen_error(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
     studio_with_status(state, value_string_of(error)!);
 }
 
@@ -337,7 +337,7 @@ fn studio_on_rename(state: &studio_state, ctx: &context, id: js_string, name: js
     }
     let scope = studio_screens_scope(screen);
     let created = studio_screens_created(screen);
-    studio_ask_save_screen(ctx, id, named, scope, created);
+    let _ = studio_ask_save_screen(ctx, id, named, scope, created);
     let screens = list_assoc(state.screens, at, studio_screens_new(id, named, scope, created));
     studio_with_renaming(studio_with_screens(state, screens), gs_empty);
 }
@@ -352,7 +352,7 @@ fn studio_on_screen_moved(state: &studio_state, ctx: &context, id: js_string, sc
     studio_with_screens(state, list_assoc(state.screens, at, moved));
 }
 
-fn studio_reply_save_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
+fn studio_reply_save_screen_error(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
     studio_with_status(state, value_string_of(error)!);
 }
 
@@ -363,7 +363,7 @@ fn studio_on_remove_screen(state: &studio_state, ctx: &context, id: js_string) -
         return state;
     }
     let name = studio_screens_name(list_get(state.screens, at)!);
-    studio_ask_confirm(ctx, js_string_concat(js_string_concat(s_delete_the_screen, name), s_question));
+    let _ = studio_ask_confirm(ctx, js_string_concat(js_string_concat(s_delete_the_screen, name), s_question));
     studio_with_deleting(state, id);
 }
 
@@ -375,7 +375,7 @@ fn studio_reply_confirm_ok(state: &studio_state, ctx: &context, reply: i32) -> &
     if !reply | (at <s 0) {
         return cleared;
     }
-    studio_ask_delete_screen(ctx, id);
+    let _ = studio_ask_delete_screen(ctx, id);
     let screens = list_empty();
     let i = 0;
     while i <s list_count(state.screens) {
@@ -395,7 +395,7 @@ fn studio_reply_confirm_ok(state: &studio_state, ctx: &context, reply: i32) -> &
     studio_showing(next, ctx, last);
 }
 
-fn studio_reply_delete_screen_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
+fn studio_reply_delete_screen_error(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
     studio_with_status(state, value_string_of(error)!);
 }
 
@@ -431,7 +431,7 @@ fn studio_on_close_picker(state: &studio_state, ctx: &context) -> &studio_state 
 fn studio_on_create_screen(state: &studio_state, ctx: &context, scope: js_string, name: js_string) -> &studio_state {
     let id = ctx_uuid(ctx);
     let created = ctx_now(ctx);
-    studio_ask_save_screen(ctx, id, name, scope, created);
+    let _ = studio_ask_save_screen(ctx, id, name, scope, created);
     let screens = list_push(state.screens, studio_screens_new(id, name, scope, created));
     studio_showing(studio_with_picker(studio_with_screens(state, screens), value_null()), ctx, id);
 }
@@ -469,27 +469,27 @@ fn studio_get_events_label(state: &studio_state) -> js_string {
 // ---- Studio: the menu --------------------------------------------------------------
 
 fn studio_on_export_all(state: &studio_state, ctx: &context) -> &studio_state {
-    studio_ask_export_library(ctx);
+    let _ = studio_ask_export_library(ctx);
     state;
 }
 
 fn studio_on_export_components(state: &studio_state, ctx: &context) -> &studio_state {
-    studio_ask_export_components(ctx);
+    let _ = studio_ask_export_components(ctx);
     state;
 }
 
 fn studio_on_import_all(state: &studio_state, ctx: &context) -> &studio_state {
-    studio_ask_import_library(ctx);
+    let _ = studio_ask_import_library(ctx);
     state;
 }
 
-fn studio_reply_import_library_err(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
+fn studio_reply_import_library_error(state: &studio_state, ctx: &context, error: &value) -> &studio_state {
     studio_with_status(state, value_string_of(error)!);
 }
 
 fn studio_on_layout_json(state: &studio_state, ctx: &context) -> &studio_state {
     if js_string_length(state.active) >s 0 {
-        studio_ask_edit_layout_json(ctx, state.active);
+        let _ = studio_ask_edit_layout_json(ctx, state.active);
     }
     state;
 }
@@ -553,7 +553,7 @@ fn editor_on_rename(state: &editor_state, ctx: &context, name: js_string) -> &ed
 
 // Asked first, by the page, when the sources changed since they were opened.
 fn editor_on_load_example(state: &editor_state, ctx: &context, name: js_string) -> &editor_state {
-    editor_ask_example(ctx, name, editor_get_changed(state));
+    let _ = editor_ask_example(ctx, name, editor_get_changed(state));
     state;
 }
 
@@ -571,7 +571,7 @@ fn editor_reply_example_ok(state: &editor_state, ctx: &context, reply: &value) -
 }
 
 fn editor_building(state: &editor_state, ctx: &context) -> &editor_state {
-    editor_ask_build(ctx, state.id, state.name, state.tcd, state.wax);
+    let _ = editor_ask_build(ctx, state.id, state.name, state.tcd, state.wax);
     let status = js_string_concat(js_string_concat(s_building, state.name), s_ellipsis);
     editor_with_status(editor_with_building(state, 1), status);
 }
@@ -603,7 +603,7 @@ fn editor_reply_build_ok(state: &editor_state, ctx: &context, reply: &value) -> 
         next = editor_with_inspecting(next, gs_diagnostics);
     }
     if ok & (js_string_length(type_) >s 0) {
-        editor_ask_preview(ctx, state.id, type_);
+        let _ = editor_ask_preview(ctx, state.id, type_);
     } else {
         next = editor_with_preview(next, value_null());
     }
@@ -615,11 +615,11 @@ fn editor_reply_build_ok(state: &editor_state, ctx: &context, reply: &value) -> 
     if ok {
         return editor_answer_calls(next, ctx, editor_built_text(next), 0);
     }
-    editor_ask_stub(ctx, state.id, state.name, state.tcd, state.wax);
+    let _ = editor_ask_stub(ctx, state.id, state.name, state.tcd, state.wax);
     editor_with_check_text(next, editor_failed_text(next));
 }
 
-fn editor_reply_build_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+fn editor_reply_build_error(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
     let next = editor_with_status(editor_with_building(state, 0), value_string_of(error)!);
     if list_count(state.calls) == 0 {
         return next;
@@ -628,7 +628,7 @@ fn editor_reply_build_err(state: &editor_state, ctx: &context, error: &value) ->
 }
 
 fn editor_on_pick_type(state: &editor_state, ctx: &context, type_: js_string) -> &editor_state {
-    editor_ask_preview(ctx, state.id, type_);
+    let _ = editor_ask_preview(ctx, state.id, type_);
     editor_with_preview(editor_with_preview_type(state, type_), value_null());
 }
 
@@ -636,7 +636,7 @@ fn editor_reply_preview_ok(state: &editor_state, ctx: &context, reply: &value) -
     editor_with_preview(state, reply);
 }
 
-fn editor_reply_preview_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+fn editor_reply_preview_error(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
     editor_with_status(editor_with_preview(state, value_null()), js_string_concat(s_cant_preview, value_string_of(error)!));
 }
 
@@ -659,7 +659,7 @@ fn editor_on_toggle_chat(state: &editor_state, ctx: &context) -> &editor_state {
 }
 
 fn editor_on_save(state: &editor_state, ctx: &context) -> &editor_state {
-    editor_ask_save_component(ctx, state.creating, state.id, state.name, state.tcd, state.wax, state.transcript);
+    let _ = editor_ask_save_component(ctx, state.creating, state.id, state.name, state.tcd, state.wax, state.transcript);
     editor_with_status(state, s_saving);
 }
 
@@ -668,23 +668,23 @@ fn editor_reply_save_component_ok(state: &editor_state, ctx: &context, reply: js
     state;
 }
 
-fn editor_reply_save_component_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+fn editor_reply_save_component_error(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
     editor_with_status(state, value_string_of(error)!);
 }
 
 // Asked first when it changed.
 fn editor_on_back(state: &editor_state, ctx: &context) -> &editor_state {
     if editor_get_changed(state) {
-        editor_ask_confirm(ctx, js_string_concat(js_string_concat(s_leave, state.name), s_without_saving));
+        let _ = editor_ask_confirm(ctx, js_string_concat(js_string_concat(s_leave, state.name), s_without_saving));
     } else {
-        editor_ask_leave_editor(ctx, state.creating);
+        let _ = editor_ask_leave_editor(ctx, state.creating);
     }
     state;
 }
 
 fn editor_reply_confirm_ok(state: &editor_state, ctx: &context, reply: i32) -> &editor_state {
     if reply {
-        editor_ask_leave_editor(ctx, state.creating);
+        let _ = editor_ask_leave_editor(ctx, state.creating);
     }
     state;
 }
@@ -728,7 +728,7 @@ fn editor_get_sending(state: &editor_state) -> i32 {
 // ---- Editor: the assistant ---------------------------------------------------------
 
 fn editor_on_set_model(state: &editor_state, ctx: &context, model: js_string) -> &editor_state {
-    editor_ask_remember_model(ctx, model);
+    let _ = editor_ask_remember_model(ctx, model);
     editor_with_model(state, model);
 }
 
@@ -739,8 +739,8 @@ fn editor_on_set_draft(state: &editor_state, ctx: &context, text: js_string) -> 
 // The model asked for its turn, told the conversation and the sources as
 // they are now; the conversation kept.
 fn editor_asking(state: &editor_state, ctx: &context, transcript: &value, busy: js_string) -> &editor_state {
-    editor_ask_chat(ctx, state.model, transcript, state.name, state.tcd, state.wax);
-    editor_ask_keep_chat(ctx, state.id, transcript);
+    let _ = editor_ask_chat(ctx, state.model, transcript, state.name, state.tcd, state.wax);
+    let _ = editor_ask_keep_chat(ctx, state.id, transcript);
     editor_with_busy(editor_with_transcript(state, transcript), busy);
 }
 
@@ -756,7 +756,7 @@ fn editor_on_send_chat(state: &editor_state, ctx: &context) -> &editor_state {
 }
 
 fn editor_on_stop_chat(state: &editor_state, ctx: &context) -> &editor_state {
-    editor_ask_stop_chat(ctx);
+    let _ = editor_ask_stop_chat(ctx);
     state;
 }
 
@@ -764,13 +764,13 @@ fn editor_on_clear_chat(state: &editor_state, ctx: &context) -> &editor_state {
     if js_string_length(state.busy) >s 0 {
         return state;
     }
-    editor_ask_keep_chat(ctx, state.id, list_empty());
+    let _ = editor_ask_keep_chat(ctx, state.id, list_empty());
     editor_with_chat_note(editor_with_transcript(state, list_empty()), gs_empty);
 }
 
 fn editor_on_toggle_prompt(state: &editor_state, ctx: &context) -> &editor_state {
     if !state.show_prompt {
-        editor_ask_prompt(ctx, state.name, state.tcd, state.wax);
+        let _ = editor_ask_prompt(ctx, state.name, state.tcd, state.wax);
     }
     editor_with_show_prompt(state, !state.show_prompt);
 }
@@ -779,7 +779,7 @@ fn editor_reply_prompt_ok(state: &editor_state, ctx: &context, reply: js_string)
     editor_with_prompt_text(state, reply);
 }
 
-fn editor_reply_prompt_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+fn editor_reply_prompt_error(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
     editor_with_prompt_text(state, value_string_of(error)!);
 }
 
@@ -789,7 +789,7 @@ fn editor_reply_prompt_err(state: &editor_state, ctx: &context, error: &value) -
 // isn't one; none, and the conversation waits for the user.
 fn editor_reply_chat_ok(state: &editor_state, ctx: &context, reply: &value) -> &editor_state {
     let transcript = list_push(state.transcript, reply);
-    editor_ask_keep_chat(ctx, state.id, transcript);
+    let _ = editor_ask_keep_chat(ctx, state.id, transcript);
     let next = editor_with_transcript(state, transcript);
     if editor_is(reply, s_stop_reason, s_error) | editor_is(reply, s_stop_reason, s_aborted) {
         return editor_with_busy(next, gs_empty);
@@ -832,7 +832,7 @@ fn editor_reply_chat_ok(state: &editor_state, ctx: &context, reply: &value) -> &
 }
 
 // Stopped (the host answers "aborted"), or failed, saying why.
-fn editor_reply_chat_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+fn editor_reply_chat_error(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
     let text = value_string_of(error)!;
     let next = editor_with_calls(editor_with_busy(state, gs_empty), list_empty());
     if str_eq(text, s_aborted) {
@@ -849,7 +849,7 @@ fn editor_reply_stub_ok(state: &editor_state, ctx: &context, reply: js_string) -
     editor_answer_calls(state, ctx, text, 1);
 }
 
-fn editor_reply_stub_err(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
+fn editor_reply_stub_error(state: &editor_state, ctx: &context, error: &value) -> &editor_state {
     editor_answer_calls(state, ctx, state.check_text, 1);
 }
 
@@ -916,14 +916,14 @@ fn editor_answer_calls(state: &editor_state, ctx: &context, text: js_string, fai
     }
     let next = editor_with_check_text(editor_with_calls(state, list_empty()), gs_empty);
     if !failed {
-        editor_ask_keep_chat(ctx, state.id, transcript);
+        let _ = editor_ask_keep_chat(ctx, state.id, transcript);
         return editor_with_busy(editor_with_transcript(next, transcript), gs_empty);
     }
     // Four tries, or two in a row that left the same errors (in this turn:
     // a new message gets one try at least).
     let no_progress = (state.stuck >=s 2) & (state.round >=s 1);
     if (state.round >=s 3) | no_progress {
-        editor_ask_keep_chat(ctx, state.id, transcript);
+        let _ = editor_ask_keep_chat(ctx, state.id, transcript);
         let note = s_still_not_building;
         if no_progress {
             note = s_no_progress;

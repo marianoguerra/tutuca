@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 11;
+const tutuca_abi_version_current = 12;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -178,7 +178,10 @@ rec {
         instance: &eq,
         vtable: &vtable,
         // Where it was made: resolving a type by name depends on it.
-        scope: &scope
+        scope: &scope,
+        // Its identity: fresh when it's made, kept by its updates, so a
+        // message routed to it isn't given to another one that took its place.
+        id: i32
     };
 
     // What a scope keeps for a component type registered under a name.
@@ -225,7 +228,10 @@ rec {
         // null when nothing is being dragged.
         drag: &value,
         // What the handler asked for, in order.
-        effects: &effect_buf
+        effects: &effect_buf,
+        // In an answer's handler, the id of the ask it answers (what ctx_ask
+        // returned); 0 elsewhere.
+        request: i32
     };
 
     // What handling a message did.

@@ -155,9 +155,13 @@ export const TimeTravel = component({
 				ctx.ask("history", [this.target, op, null]);
 			},
 		},
-		historyReplyOk() {},
-		historyReplyError(_next, [error]) {
-			console.error("time travel failed", error);
+	},
+	answers: {
+		history: {
+			ok() {},
+			error(_next, [error]) {
+				console.error("time travel failed", error);
+			},
 		},
 	},
 });

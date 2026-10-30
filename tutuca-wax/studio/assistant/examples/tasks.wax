@@ -110,7 +110,7 @@ fn tasks_on_clear_done(state: &tasks_state, ctx: &context) -> &tasks_state {
 
 // The answer comes back to tasks_reply_suggest_ok.
 fn tasks_on_suggest_one(state: &tasks_state, ctx: &context) -> &tasks_state {
-    tasks_ask_suggest(ctx, list_count(state.items));
+    let _ = tasks_ask_suggest(ctx, list_count(state.items));
     state;
 }
 
@@ -131,7 +131,7 @@ fn tasks_reply_suggest_ok(state: &tasks_state, ctx: &context, reply: &value) -> 
     let idea = tasks_suggest_reply_idea(reply);
     let taken = tasks_suggest_reply_taken(reply);
     if tasks_has_text(state, idea) & (taken <s list_count(state.items) + 3) {
-        tasks_ask_suggest(ctx, taken + 1);
+        let _ = tasks_ask_suggest(ctx, taken + 1);
         return state;
     }
     tasks_with_draft(state, idea);

@@ -118,13 +118,14 @@ import "'" {
     const s_component: js_string;
     #[import = "frame"]
     const s_frame: js_string;
-    // Reply message suffixes (host.wax).
-    #[import = "_reply_ok"]
-    const s_reply_ok: js_string;
-    #[import = "_reply_error"]
-    const s_reply_error: js_string;
-    #[import = "_handler_not_found"]
-    const s_handler_not_found: js_string;
+    // Answer name suffixes (host.wax): an ask's answer is name.ok,
+    // name.error or name.unhandled, a name no message can have.
+    #[import = ".ok"]
+    const s_answer_ok: js_string;
+    #[import = ".error"]
+    const s_answer_error: js_string;
+    #[import = ".unhandled"]
+    const s_answer_unhandled: js_string;
     // Drag and drop (collect.wax, host.wax).
     #[import = "drop"]
     const s_drop: js_string;
@@ -663,6 +664,9 @@ import "host" {
     // A message the component has no handler for: it stays as it was.
     #[import = "observe_unhandled"]
     fn observe_unhandled(name: js_string);
+
+    #[import = "observe_stale"]
+    fn observe_stale(name: js_string);
     // An ask the host answers (see scope_register_host_ask): its name and its
     // arguments as a list Value. Returns its answer: a result value when it
     // answers now, an int, the id host_settle gets back, when it answers

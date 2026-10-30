@@ -654,7 +654,7 @@ test "a keyword is escaped only where it stands alone" {
     .map(l => l.to_owned())
     .collect(),
     content=(
-      #|["fn c_ask_open(ctx: &context, type_: js_string) {"]
+      #|["fn c_ask_open(ctx: &context, type_: js_string) -> i32 {"]
     ),
   )
 }

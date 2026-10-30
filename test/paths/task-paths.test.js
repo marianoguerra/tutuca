@@ -3,7 +3,8 @@ import test from "node:test";
 import { component, h, provided, render, send, seqItem, t } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
-function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
+// itemHandlers holds Item's messages, and its replies under replies.
+function setup(rootHandlers, { answers = {}, ...itemHandlers } = {}, useProvided = false) {
 	const Item = component({
 		name: "Item",
 		fields: {
@@ -19,6 +20,7 @@ function setup(rootHandlers, itemHandlers = {}, useProvided = false) {
 			},
 			...itemHandlers,
 		},
+		answers,
 	});
 	const Root = component({
 		name: "Root",
@@ -149,7 +151,10 @@ test("child path preparation failure rolls back the producer and all its childre
 	assert.equal(host.tasks.length, 0);
 });
 
-test("a throwing sync ReplyOk fails the ask instead of running ReplyError", () => {
+// An ask starts after the transaction that asked commits, and its answer comes back as a
+// reply task of its own, now or later: a throwing ok reply fails only that reply, the same
+// whether the answer came now or later, and doesn't run the error one.
+test("a throwing sync ok reply fails its own reply task, not the ask, and doesn't run error", () => {
 	const error = new Error("reply failed");
 	const { host, notices, queueEvents, drain } = setup(
 		{
@@ -161,13 +166,17 @@ test("a throwing sync ReplyOk fails the ask instead of running ReplyError", () =
 			request(_next, _args, ctx) {
 				ctx.ask("load");
 			},
-			loadReplyOk(next, _args, ctx) {
-				next.reply = "ok";
-				ctx.sendAt("inc", [], (_pb) => {});
-				throw error;
-			},
-			loadReplyError(next) {
-				next.reply = "error";
+			answers: {
+				load: {
+					ok(next, _args, ctx) {
+						next.reply = "ok";
+						ctx.sendAt("inc", [], (_pb) => {});
+						throw error;
+					},
+					error(next) {
+						next.reply = "error";
+					},
+				},
 			},
 		},
 	);
@@ -176,7 +185,9 @@ test("a throwing sync ReplyOk fails the ask instead of running ReplyError", () =
 	drain();
 	assert.equal(host.rootComponent.items[0].reply, null);
 	assert.equal(host.rootComponent.items[0].count, 0);
-	assert.equal(notices.find(({ type }) => type === "taskFailed").error, error);
+	const failed = notices.find(({ type }) => type === "taskFailed");
+	assert.equal(failed.error, error);
+	assert.equal(failed.task.name, "load.ok");
 });
 
 for (const rejected of [false, true]) {
@@ -203,8 +214,7 @@ for (const rejected of [false, true]) {
 				request(_next, _args, ctx) {
 					ctx.ask("load");
 				},
-				loadReplyOk: replyHandler,
-				loadReplyError: replyHandler,
+				answers: { load: { ok: replyHandler, error: replyHandler } },
 			},
 		);
 		host.scope.registerAskHandlers({ load: () => pending });
@@ -321,4 +331,154 @@ test("dynamic selectors below provided frames capture commit and retain bubbling
 	);
 	assert.deepEqual(seen, ["item", "root"]);
 	assert.equal(notices.filter(({ type }) => type.endsWith("Failed")).length, 0);
+});
+
+// The tree spec's races (spec/tree, M4 and M5): a route records the identity of the
+// component it reaches, and a message whose path another component took meanwhile is dropped
+// as stale instead of reaching that one.
+test("a reply to an asker that a list shift replaced at its index is dropped as stale", async () => {
+	let settle;
+	const pending = new Promise((resolve) => {
+		settle = resolve;
+	});
+	const { host, notices, queueEvents, drain, C } = setup(
+		{
+			ask(_next, _args, ctx) {
+				ctx.sendAt("request", [], (pb) => pb.item("items", 0));
+			},
+			shift(next) {
+				next.items.unshift(C.Item({ count: 100 }));
+			},
+		},
+		{
+			request(_next, _args, ctx) {
+				ctx.ask("load");
+			},
+			answers: {
+				load: {
+					ok(next, [r]) {
+						next.reply = r;
+					},
+				},
+			},
+		},
+	);
+	host.scope.registerAskHandlers({ load: () => pending });
+	queueEvents("ask");
+	drain();
+	queueEvents("shift");
+	drain();
+	settle("result");
+	await pending;
+	await Promise.resolve();
+	drain();
+	const [newcomer, asker] = host.rootComponent.items;
+	assert.equal(newcomer.reply, null, "the item now at index 0 doesn't get it");
+	assert.equal(asker.reply, null, "by path, the moved asker isn't found either");
+	assert.deepEqual(
+		notices.filter(({ type }) => type === "stale").map(({ task }) => task.name),
+		["load.ok"],
+	);
+});
+
+test("a send queued to a component that is replaced before it runs is dropped as stale", () => {
+	const { host, notices, queueEvents, drain, C } = setup({
+		poke(_next, _args, ctx) {
+			ctx.sendAt("inc", [], (pb) => pb.item("items", 0));
+		},
+		renew(next) {
+			next.items[0] = C.Item({ count: 50 });
+		},
+	});
+	queueEvents("poke", "renew");
+	drain();
+	// renew's event ran after poke's, before the inc poke queued: the new item keeps its count.
+	assert.equal(host.rootComponent.items[0].count, 50);
+	assert.deepEqual(
+		notices.filter(({ type }) => type === "stale").map(({ task }) => task.name),
+		["inc"],
+	);
+});
+
+test("updating a component keeps its identity: a send queued before still reaches it", () => {
+	const { host, notices, queueEvents, drain } = setup({
+		poke(_next, _args, ctx) {
+			ctx.sendAt("inc", [], (pb) => pb.item("items", 0));
+		},
+		touch(next) {
+			next.items[0].selected = 1;
+		},
+	});
+	queueEvents("poke", "touch");
+	drain();
+	assert.equal(host.rootComponent.items[0].count, 1);
+	assert.deepEqual(
+		notices.filter(({ type }) => type === "stale"),
+		[],
+	);
+});
+
+test("an ask from a transaction that fails is never started", () => {
+	let started = 0;
+	const { host, queueEvents, drain } = setup({
+		queue(_next, _args, ctx) {
+			ctx.ask("load");
+			throw new Error("asker failed");
+		},
+	});
+	host.scope.registerAskHandlers({
+		load: () => {
+			started += 1;
+			return "result";
+		},
+	});
+	queueEvents("queue");
+	drain();
+	assert.equal(started, 0);
+});
+
+test("an answer handler reads the request it answers; a message named like it isn't an answer", () => {
+	const seen = [];
+	const { host, notices, queueEvents, drain } = setup(
+		{
+			queue(_next, _args, ctx) {
+				ctx.sendAt("request", [], (pb) => pb.item("items", 0));
+			},
+			fake(_next, _args, ctx) {
+				ctx.sendAt("load.ok", ["forged"], (pb) => pb.item("items", 0));
+			},
+		},
+		{
+			request(_next, _args, ctx) {
+				seen.push(["asked", ctx.ask("load"), ctx.ask("load")]);
+			},
+			answers: {
+				load: {
+					ok(next, [r], ctx) {
+						seen.push(["answered", ctx.request, r]);
+						next.reply = r;
+					},
+				},
+			},
+		},
+	);
+	host.scope.registerAskHandlers({ load: () => "result" });
+	queueEvents("queue");
+	drain();
+	const [[, first, second], ...answered] = seen;
+	assert.notEqual(first, second);
+	assert.deepEqual(answered, [
+		["answered", first, "result"],
+		["answered", second, "result"],
+	]);
+	const warn = console.warn;
+	console.warn = () => {};
+	try {
+		queueEvents("fake");
+		drain();
+	} finally {
+		console.warn = warn;
+	}
+	assert.equal(host.rootComponent.items[0].reply, "result");
+	assert.ok(notices.some(({ type, message }) => type === "unhandled" && message === "load.ok"));
 });

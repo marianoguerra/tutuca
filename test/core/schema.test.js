@@ -67,6 +67,9 @@ test("view becomes main next to named views", () => {
 	assert.equal(C.views.main.eval({}), "main");
 });
 
+// An instance's fields, without its identity and scope (symbol keys).
+const fieldsOf = (c) => Object.fromEntries(Object.entries(c));
+
 test("option fields accept null, and missing values take the default", () => {
 	const N = component({
 		name: "N",
@@ -83,10 +86,10 @@ test("option fields accept null, and missing values take the default", () => {
 	});
 	const filled = N.make({ s: null, n: null, b: null, a: null, m: null, strict: null });
 	const nulls = { s: null, n: null, b: null, a: null, m: null, none: null };
-	assert.deepEqual({ ...filled }, { ...nulls, strict: "d" });
+	assert.deepEqual(fieldsOf(filled), { ...nulls, strict: "d" });
 	const defaults = { s: "d", n: 1, b: true, a: [1], m: { k: 1 }, none: null, strict: "d" };
-	assert.deepEqual({ ...N.make() }, defaults);
-	assert.deepEqual({ ...N.make({ s: 1, n: "x", none: "v" }) }, { ...defaults, none: "v" });
+	assert.deepEqual(fieldsOf(N.make()), defaults);
+	assert.deepEqual(fieldsOf(N.make({ s: 1, n: "x", none: "v" })), { ...defaults, none: "v" });
 });
 
 test("types have zero defaults and default() returns a changed copy", () => {
@@ -95,7 +98,7 @@ test("types have zero defaults and default() returns a changed copy", () => {
 		fields: { s: t.string(), n: t.number(), b: t.boolean(), a: t.array(), m: t.map() },
 		view: "z",
 	});
-	assert.deepEqual({ ...Z.make() }, { s: "", n: 0, b: false, a: [], m: {} });
+	assert.deepEqual(fieldsOf(Z.make()), { s: "", n: 0, b: false, a: [], m: {} });
 	const base = types.number();
 	assert.equal(base.default(3).defaultValue, 3);
 	assert.equal(base.defaultValue, 0);

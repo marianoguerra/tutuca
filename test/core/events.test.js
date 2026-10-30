@@ -20,6 +20,7 @@ import {
 	Task,
 	t,
 	targetValue,
+	UpdatePath,
 	Walker,
 } from "../../src/tutuca.js";
 import { dom, setupHost } from "../helpers.js";
@@ -217,6 +218,207 @@ test("a message with no handler, sent by an event or otherwise, is a no-op that'
 			["unhandled", "missing"],
 		],
 	);
+});
+
+// A three-level tree: Leaf notifies "ping" through Middle (which has no handler) to Top.
+const notifyTree = (topHandles) => {
+	const Leaf = component({
+		name: "Leaf",
+		views: { main: h("button", { "on:click": send("go") }, "go") },
+		on: {
+			go(_next, _args, ctx) {
+				ctx.notify("ping");
+			},
+		},
+	});
+	const Middle = component({
+		name: "Middle",
+		fields: { leaf: t.component("Leaf") },
+		views: { main: render(field("leaf")) },
+	});
+	const Top = component({
+		name: "Top",
+		fields: { middle: t.component("Middle"), pings: t.number() },
+		views: { main: render(field("middle")) },
+		on: topHandles
+			? {
+					ping(next) {
+						next.pings += 1;
+					},
+				}
+			: {},
+	});
+	return { Leaf, Middle, Top };
+};
+const runNotify = (topHandles) => {
+	const reports = [];
+	const warnings = [];
+	const { host, rootNode, C, click } = setupHost(notifyTree(topHandles), {
+		sync: true,
+		onReport: (type, info) => type === "unhandled" && reports.push(info.message),
+	});
+	host.start(C.Top());
+	const warn = console.warn;
+	console.warn = (...args) => warnings.push(args);
+	try {
+		click(rootNode.querySelector("button"));
+	} finally {
+		console.warn = warn;
+	}
+	return { host, reports, warnings };
+};
+
+test("a notification passes ancestors without a handler silently", () => {
+	const { host, reports, warnings } = runNotify(true);
+	assert.equal(host.rootComponent.pings, 1);
+	assert.deepEqual(reports, []);
+	assert.deepEqual(warnings, []);
+});
+
+test("a notification nobody handles is reported once, when it reaches the root", () => {
+	const { reports, warnings } = runNotify(false);
+	assert.deepEqual(reports, ["ping"]);
+	assert.equal(warnings.length, 1);
+});
+
+test("a notification from the root goes nowhere, and is reported unhandled", () => {
+	const Lonely = component({
+		name: "Lonely",
+		views: { main: h("button", { "on:click": send("go") }, "go") },
+		on: {
+			go(_next, _args, ctx) {
+				ctx.notify("ping");
+			},
+		},
+	});
+	const reports = [];
+	const { host, rootNode, C, click } = setupHost(
+		{ Lonely },
+		{ sync: true, onReport: (type, info) => type === "unhandled" && reports.push(info.message) },
+	);
+	host.start(C.Lonely());
+	const warn = console.warn;
+	console.warn = () => {};
+	try {
+		click(rootNode.querySelector("button"));
+	} finally {
+		console.warn = warn;
+	}
+	assert.deepEqual(reports, ["ping"]);
+});
+
+test("a notification's hops run back to back; what a hop sends waits until the bubble ends", () => {
+	const seen = [];
+	const Leaf = component({
+		name: "Leaf",
+		views: { main: h("button", { "on:click": send("go") }, "go") },
+		on: {
+			go(_next, _args, ctx) {
+				ctx.notify("ping");
+			},
+		},
+	});
+	const Middle = component({
+		name: "Middle",
+		fields: { leaf: t.component("Leaf") },
+		views: { main: render(field("leaf")) },
+		on: {
+			ping(_next, _args, ctx) {
+				seen.push("middle");
+				ctx.sendAt("echo", [], () => {});
+			},
+			echo() {
+				seen.push("echo");
+			},
+		},
+	});
+	const Top = component({
+		name: "Top",
+		fields: { middle: t.component("Middle") },
+		views: { main: render(field("middle")) },
+		on: {
+			ping() {
+				seen.push("top");
+			},
+		},
+	});
+	const { host, rootNode, C, click } = setupHost({ Leaf, Middle, Top }, { sync: true });
+	host.start(C.Top());
+	click(rootNode.querySelector("button"));
+	assert.deepEqual(seen, ["middle", "top", "echo"]);
+});
+
+test("a task whose route reaches no component fails, saying where", () => {
+	const { Leaf, Middle, Top } = notifyTree(true);
+	const { host, C, failures, drain } = setupHost({ Leaf, Middle, Top }, { sync: true });
+	host.start(C.Top());
+	const root = new DispatchPath();
+	const task = new Task("go", [], root, new Target(root), null);
+	task.route = { path: root, updatePath: new UpdatePath(["middle", "gone"]) };
+	host.pushTask(task);
+	drain();
+	assert.equal(failures.length, 1);
+	assert.match(failures[0].message, /go: no component at \.middle\.gone/);
+});
+
+test("what went unhandled before a task failed is still reported", () => {
+	const Boom = component({
+		name: "Boom",
+		views: { main: h("button", { "on:click": send("go") }, "go") },
+		on: {
+			go(_next, _args, ctx) {
+				ctx.notify("ping");
+				throw new Error("boom");
+			},
+		},
+	});
+	const reports = [];
+	const { host, rootNode, C, click, failures } = setupHost(
+		{ Boom },
+		{ sync: true, onReport: (type, info) => reports.push([type, info.message]) },
+	);
+	host.start(C.Boom());
+	const warn = console.warn;
+	console.warn = () => {};
+	try {
+		click(rootNode.querySelector("button"));
+	} finally {
+		console.warn = warn;
+	}
+	assert.equal(failures.length, 1);
+	assert.deepEqual(
+		reports.filter(([type]) => type === "unhandled"),
+		[["unhandled", "ping"]],
+	);
+});
+
+test("a stopped host drops the tasks that arrive after, such as an ask's late reply", () => {
+	const { Leaf, Middle, Top } = notifyTree(true);
+	const { host, C, failures, drain } = setupHost({ Leaf, Middle, Top }, { sync: true });
+	host.start(C.Top());
+	host.stop();
+	const root = new DispatchPath();
+	const task = new Task("ping", [], root, new Target(root), null);
+	task.route = { path: root, updatePath: new UpdatePath([]) };
+	host.pushTask(task);
+	drain();
+	assert.deepEqual(failures, []);
+	assert.equal(host.tasks.length, 0);
+});
+
+test("an event the DOM can't route, as after a root replaced without rendering, is reported", () => {
+	const { Leaf, Middle, Top } = notifyTree(true);
+	const reports = [];
+	const { host, rootNode, C } = setupHost(
+		{ Leaf, Middle, Top },
+		{ sync: true, onReport: (type) => reports.push(type) },
+	);
+	host.start(C.Top());
+	host.rootComponent = C.Leaf();
+	rootNode
+		.querySelector("button")
+		.dispatchEvent(new rootNode.ownerDocument.defaultView.MouseEvent("click", { bubbles: true }));
+	assert.ok(reports.includes("eventFailed"));
 });
 
 test("targetValue reads values and checkbox state", () => {

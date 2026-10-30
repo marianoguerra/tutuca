@@ -14,13 +14,19 @@
 ;; (system/host.rkt): when events arrive, the order replies settle in, and when
 ;; renders happen.
 (require redex/reduction-semantics "expr.rkt" "types.rkt")
-(provide Class handler-of contract-of class-fields)
+(provide Class handler-of key-name contract-of class-fields)
 
 (define-extended-language Class Types
   (class-def ::= (class cname csection ...))
   (csection ::= (fields (fname ty) ...)     ; the schema; without it, fields are not checked
                 (invariants (fname hx) ...) ; predicates on self, checked when the queue is empty
-                (on handler ...))
+                (on handler ...)
+                ;; the answers to its asks, by the ask's name and how it went
+                (answers (fname answer-def ...) ...))
+  (answer-def ::= (answer-kind (x ...) contract ... body))
+  (answer-kind ::= ok error unhandled)
+  ;; What a task is handled by: a message's name, or an ask's answer.
+  (hkey ::= fname (answer fname answer-kind))
   ;; A message: its parameters, its contract, then its body.
   (handler ::= (fname (x ...) contract ... body))
   ;; MessageSpec: the types of the arguments and of the source key, a
@@ -41,7 +47,16 @@
            (log hx)                       ; an observable side effect
            (fail hx)))                    ; throw
 
-(define (handler-of def name) (lookup-named (def-section def 'on) name))
+(define (handler-of def key)
+  (match key
+    [`(answer ,ask ,outcome)
+     (match (lookup-named (def-section def 'answers) ask)
+       [(list _ outcomes ...) (lookup-named outcomes outcome)]
+       [#f #f])]
+    [name (lookup-named (def-section def 'on) name)]))
+;; How a task is named in observations: a message's name, or ask.outcome.
+(define (key-name key)
+  (match key [`(answer ,ask ,outcome) (string->symbol (format "~a.~a" ask outcome))] [name name]))
 
 ;; The handler's contract entries, by kind; #f for each one it does not give.
 (define (contract-of handler kind)

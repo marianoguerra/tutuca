@@ -50,7 +50,9 @@ fn get_key(v: &value, key: &path_key) -> &value {
 }
 
 // The value with key set to item, as a new value: a component through its
-// vtable's set, which keeps the component's spec, vtable and scope.
+// vtable's set, which keeps the component's spec, vtable and scope. Like JS's
+// v[key] = item, a missing map key is added and the index one past a list's
+// end appends, though get_key reads null there.
 fn set_key(v: &value, key: &path_key, item: &value) -> &value {
     let kind = v.kind;
     if key.kind == path_key_kind_name {
@@ -62,7 +64,7 @@ fn set_key(v: &value, key: &path_key, item: &value) -> &value {
                 fail_at_key(s_err_property, key);
                 unreachable;
             }
-            return value_component(component_new(c.spec, instance!, c.vtable, c.scope));
+            return value_component(component_updated(c, instance!));
         }
         if kind == value_kind_map {
             return map_assoc(v, name, item);
@@ -199,6 +201,14 @@ fn dispatch_path_source_key_in(p: &dispatch_path, receiver: &dispatch_path) -> &
     if i >=s n {
         return null;
     }
+    // null unless p goes through receiver: another branch's component sent.
+    let j = 0;
+    while j <s i {
+        if !str_eq(meta_frame_text(receiver.frames[j]!), meta_frame_text(p.frames[j]!)) {
+            return null;
+        }
+        j += 1;
+    }
     while i <s n - 1 {
         if (p.frames[i]!).is_component {
             return (p.frames[i]!).item;
@@ -209,7 +219,24 @@ fn dispatch_path_source_key_in(p: &dispatch_path, receiver: &dispatch_path) -> &
 }
 
 fn route_for(path: &dispatch_path) -> &route {
-    {route| path, update_path: dispatch_path_to_update(path) };
+    {route| path, update_path: dispatch_path_to_update(path), id: 0 };
+}
+
+// The route for path, recording the identity of the component it reaches in
+// root (0 when it reaches none).
+fn route_at(path: &dispatch_path, root: &value) -> &route {
+    let update_path = dispatch_path_to_update(path);
+    let c = value_as_component(update_path_get_in(update_path, root));
+    let id = 0;
+    if !!c {
+        id = (c!).id;
+    }
+    {route| path, update_path, id };
+}
+
+// r recording the identity id.
+fn route_with_id(r: &route, id: i32) -> &route {
+    {route| path: r.path, update_path: r.update_path, id };
 }
 
 // The frames a selector selects in value, one component frame per step. A

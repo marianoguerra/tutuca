@@ -671,6 +671,20 @@ test("components: a notify bubbles to the parent with the child's key as the sou
 	assert.deepEqual(counts(container), ["0", "2"]);
 });
 
+test("components: a notify an ancestor handles isn't reported; one from the root is, once", (env) => {
+	const { window, container } = env;
+	const { host } = mountRoot(env, "Board", { counters: [], total: 0 });
+	click(window, buttons(container, "add")[0]);
+	click(window, buttons(container, "+")[0]);
+	assert.deepEqual(host.unhandled, []);
+	host.unmount();
+	// A counter at the root: its changed notify has no ancestor to handle it.
+	const alone = mountRoot(env, "Counter", { count: 0 });
+	click(window, buttons(container, "+").at(-1));
+	assert.deepEqual(alone.host.unhandled, ["changed"]);
+	assert.deepEqual(alone.host.failures, []);
+});
+
 test("components: sendAt reaches children by selector, frozen against the new root", (env) => {
 	const { window, container } = env;
 	mountRoot(env, "Board", { counters: [], total: 0 });
@@ -696,17 +710,38 @@ test("components: an ask the host answers later replies when it settles", async 
 	assert.deepEqual(counts(container), ["1"]);
 	await host.settled();
 	assert.deepEqual(counts(container), ["7"]);
-	// A failed answer replies with _reply_error, which Counter doesn't handle.
+	// A failed answer is fetch_count.error, which Counter doesn't handle.
 	answer = null;
 	const failing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => Promise.reject(new Error("offline")) } });
 	failing.host.send("fetch");
 	await failing.host.settled();
-	assert.deepEqual(failing.host.unhandled, ["fetch_count_reply_error"]);
+	assert.deepEqual(failing.host.unhandled, ["fetch_count.error"]);
+});
+
+// The tree spec's race (spec/tree, M5): a route records the identity of the
+// component it reaches, so a reply whose asker was removed, and whose index
+// another counter took meanwhile, is dropped as stale instead of reaching it.
+test("components: a reply to an asker that was removed is dropped as stale, not given to its successor", async (env) => {
+	const { window, container } = env;
+	const { host } = mountRoot(env, "Board", { counters: [], total: 0 }, { asks: { fetch_count: async () => 7 } });
+	click(window, buttons(container, "add")[0]);
+	click(window, buttons(container, "add")[0]);
+	assert.deepEqual(counts(container), ["0", "1"]);
+	host.sendAt([["counters", 0]], "fetch");
+	// The asker goes; the other counter takes index 0 before the answer arrives.
+	click(window, buttons(container, "x")[0]);
+	await host.settled();
+	assert.deepEqual(counts(container), ["1"]);
+	assert.deepEqual(
+		host.reports.filter((r) => r.type === "stale").map((r) => r.message),
+		["fetch_count.ok"],
+	);
+	assert.deepEqual(host.failures, []);
 });
 
 // The host answers as tutuca's JS's ask handlers do: a value replies in the
-// ask's own run, a throw with _reply_error, and an ask it has no answer for
-// with _handler_not_found.
+// ask's own run, a throw with .error, and an ask it has no answer for with
+// .unhandled.
 test("components: an ask the host answers now replies in the same run; one it can't answer isn't found", (env) => {
 	const { container } = env;
 	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: () => 5 } });
@@ -714,10 +749,10 @@ test("components: an ask the host answers now replies in the same run; one it ca
 	assert.deepEqual(counts(container), ["5"]);
 	const throwing = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: () => { throw new Error("offline"); } } });
 	throwing.host.send("fetch");
-	assert.deepEqual(throwing.host.unhandled, ["fetch_count_reply_error"]);
+	assert.deepEqual(throwing.host.unhandled, ["fetch_count.error"]);
 	const missing = mountRoot(env, "Counter", { count: 1 });
 	missing.host.send("fetch");
-	assert.deepEqual(missing.host.unhandled, ["fetch_count_handler_not_found"]);
+	assert.deepEqual(missing.host.unhandled, ["fetch_count.unhandled"]);
 	assert.deepEqual([...host.failures, ...throwing.host.failures, ...missing.host.failures], []);
 });
 
@@ -726,20 +761,20 @@ test("components: an ask the host answers now replies in the same run; one it ca
 test("components: replies have schemas, and a reply that doesn't fit is rejected", async (env) => {
 	const { runtime } = env.vdom;
 	const { host } = mountRoot(env, "Counter", { count: 1 }, { asks: { fetch_count: async () => "seven" } });
-	const replies = runtime.schema(host.root()).messages.filter((m) => /_reply_|_not_found$/.test(m.name));
+	const replies = runtime.schema(host.root()).messages.filter((m) => /\.(ok|error|unhandled)$/.test(m.name));
 	assert.deepEqual(
 		replies.map((m) => [m.name, m.args.map((a) => a.type)]),
 		[
-			["load_count_reply_ok", ["s32"]],
-			["load_count_reply_error", ["any"]],
-			["fetch_count_reply_ok", ["s32"]],
+			["load_count.ok", ["s32"]],
+			["load_count.error", ["any"]],
+			["fetch_count.ok", ["s32"]],
 		],
 	);
 	host.send("fetch");
 	await host.settled();
 	assert.deepEqual(
 		host.failures.map((e) => e.rejection),
-		[{ message: "fetch_count_reply_ok", component: "Counter", reason: "wrongArgType", index: 0, problem: 'argument 0 (value): expected s32, got "seven"' }],
+		[{ message: "fetch_count.ok", component: "Counter", reason: "wrongArgType", index: 0, problem: 'argument 0 (value): expected s32, got "seven"' }],
 	);
 	assert.deepEqual(counts(env.container), ["1"]);
 });
@@ -766,14 +801,19 @@ test("components: a failing task commits nothing", async (env) => {
 	assert.deepEqual(counts(container), ["5"]);
 });
 
-test("components: unknown messages are observed and change nothing; logs are observed", (env) => {
+// An answer's name is the ask's with .ok, .error or .unhandled, which no
+// message can have: sent as a message, it's unhandled, and its handler doesn't
+// run (load_count.error would log).
+test("components: unknown messages are observed and change nothing; a send can't forge an answer", (env) => {
 	const { host } = mountRoot(env, "Counter", { count: 3 });
 	const before = host.root();
 	host.send("nope");
 	assert.deepEqual(host.unhandled, ["nope"]);
 	assert.equal(host.root(), before);
-	host.send("load_count_reply_error", ["boom"]);
-	assert.deepEqual(host.logs, ["boom"]);
+	host.send("load_count.error", ["boom"]);
+	assert.deepEqual(host.unhandled, ["nope", "load_count.error"]);
+	assert.deepEqual(host.logs, []);
+	assert.equal(host.root(), before);
 });
 
 // What a host reports is one list, { type, ...info } with tutuca's Host.notify
@@ -783,17 +823,17 @@ test("components: what happens is reported as one list of typed reports", (env) 
 	const seen = [];
 	const { host } = mountRoot(env, "Counter", { count: 3 }, { dev: true, onReport: (type) => seen.push(type) });
 	host.send("nope");
-	host.send("load_count_reply_error", ["boom"]);
+	host.send("load_count.error", ["boom"]);
 	host.send("add", ["x"]);
 	host.send("add", [1]);
 	const types = host.reports.map((r) => r.type);
-	assert.deepEqual(types, ["render", "unhandled", "log", "taskFailed", "render"]);
+	assert.deepEqual(types, ["render", "unhandled", "unhandled", "taskFailed", "render"]);
 	assert.deepEqual(seen, types);
 	// Each says where it came from: here, the root.
 	assert.deepEqual(host.reports[1], { type: "unhandled", message: "nope", path: [] });
-	assert.deepEqual(host.reports[2], { type: "log", value: "boom", path: [] });
+	assert.deepEqual(host.reports[2], { type: "unhandled", message: "load_count.error", path: [] });
 	assert.equal(host.failures[0], host.reports[3].error);
-	assert.deepEqual([host.unhandled, host.logs, host.issues], [["nope"], ["boom"], []]);
+	assert.deepEqual([host.unhandled, host.logs, host.issues], [["nope", "load_count.error"], [], []]);
 });
 
 // ---- Composition, through components/todo_list and todo_item ----------------
@@ -1985,7 +2025,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 11/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 12/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

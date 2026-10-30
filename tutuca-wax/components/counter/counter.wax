@@ -36,12 +36,12 @@ fn counter_on_remove(state: &counter_state, ctx: &context) -> &counter_state {
 }
 
 fn counter_on_load(state: &counter_state, ctx: &context) -> &counter_state {
-    counter_ask_load_count(ctx);
+    _ = counter_ask_load_count(ctx);
     state;
 }
 
 fn counter_on_fetch(state: &counter_state, ctx: &context) -> &counter_state {
-    counter_ask_fetch_count(ctx);
+    _ = counter_ask_fetch_count(ctx);
     state;
 }
 
@@ -54,7 +54,7 @@ fn counter_reply_load_count_ok(state: &counter_state, ctx: &context, reply: i32)
 }
 
 // The error, logged.
-fn counter_reply_load_count_err(
+fn counter_reply_load_count_error(
     state: &counter_state,
     ctx: &context,
     error: &value,

@@ -209,15 +209,19 @@ export const StressPanel = component({
 				ctx.notify("showSteps");
 			},
 		},
-		storyReplyOk(next, [result]) {
-			if (typeof result?.status === "string") applyStress(next, result);
-		},
-		storyReplyError(next, [error]) {
-			Object.assign(next, { ...STRESS_IDLE, status: "unavailable" });
-			next.error = String(error?.message ?? error);
-		},
-		storyHandlerNotFound(next) {
-			next.status = "unavailable";
+	},
+	answers: {
+		story: {
+			ok(next, [result]) {
+				if (typeof result?.status === "string") applyStress(next, result);
+			},
+			error(next, [error]) {
+				Object.assign(next, { ...STRESS_IDLE, status: "unavailable" });
+				next.error = String(error?.message ?? error);
+			},
+			unhandled(next) {
+				next.status = "unavailable";
+			},
 		},
 	},
 });

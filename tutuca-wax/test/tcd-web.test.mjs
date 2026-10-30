@@ -212,8 +212,8 @@ host_ask ping;
 ${askHandlerEmits ? "ask_handler other() -> s32 emits nothing;" : ""}
 `;
 	const wax = `fn asker_on_go(state: &asker_state, ctx: &context) -> &asker_state {
-    asker_ask_count(ctx);
-    asker_ask_ping(ctx);
+    let _ = asker_ask_count(ctx);
+    let _ = asker_ask_ping(ctx);
     state;
 }
 
@@ -235,10 +235,11 @@ fn asker_reply_count_ok(state: &asker_state, ctx: &context, reply: i32) -> &aske
 	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Asker", {}), { dev: true, asks: { count: () => 3, ping: () => true } });
 	host.send("go");
 	assert.equal(tw.runtime.get(host.root(), "n"), 3);
-	assert.deepEqual(host.unhandled, []);
+	// Asker is the root: its notify has no ancestor to handle it.
+	assert.deepEqual(host.unhandled, ["done"]);
 	assert.deepEqual(
 		host.issues.map((i) => [i.type, i.message, i.issues]),
-		[["messageInvalid", "count_reply_ok", ["emits:notify:done"]]],
+		[["messageInvalid", "count.ok", ["emits:notify:done"]]],
 	);
 });
 
@@ -478,7 +479,7 @@ ask_handler count() -> s32;
 `,
 	};
 	const wax = `fn gauge_on_spoil(state: &gauge_state, ctx: &context) -> &gauge_state {
-    gauge_ask_count(ctx);
+    let _ = gauge_ask_count(ctx);
     gauge_with_ok(state, 0);
 }
 
@@ -498,7 +499,7 @@ fn gauge_answer_count(ctx: &context) -> &value {
 	await tw.loadComponent(res.wasm, scope);
 	const host = tw.runtime.createHost(null, null, tw.runtime.make(scope, "Gauge", {}), { dev: true });
 	host.send("spoil");
-	assert.deepEqual(host.failures.map((e) => e.rejection?.message), ["count_reply_ok"]);
+	assert.deepEqual(host.failures.map((e) => e.rejection?.message), ["count.ok"]);
 	assert.deepEqual(
 		host.issues.map((i) => [i.type, i.settled, i.issues.map((x) => x.reason)]),
 		[["stateInvalid", true, ["invariant:fine"]]],
@@ -525,12 +526,12 @@ ask_handler bad() -> s32;
 `,
 	};
 	const wax = `fn oracle_on_ask_good(state: &oracle_state, ctx: &context) -> &oracle_state {
-    oracle_ask_good(ctx);
+    let _ = oracle_ask_good(ctx);
     state;
 }
 
 fn oracle_on_ask_bad(state: &oracle_state, ctx: &context) -> &oracle_state {
-    oracle_ask_bad(ctx);
+    let _ = oracle_ask_bad(ctx);
     state;
 }
 

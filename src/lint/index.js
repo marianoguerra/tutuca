@@ -1,4 +1,5 @@
 import {
+	ANSWER_OUTCOMES,
 	AnyType,
 	ArrayType,
 	AstNode,
@@ -109,8 +110,9 @@ export class Lint extends Walker {
 			}
 		}
 		for (const [name, message] of Object.entries(spec.on)) {
-			this.lintMessage(name, message);
+			this.lintMessage(`on.${name}`, message);
 		}
+		this.lintAnswers(spec);
 		for (const [name, scope] of Object.entries(spec.scopes)) {
 			if (typeof scope?.bind !== "function") {
 				this.report("error", "section-shape", null, `scopes.${name}.bind must be a function`);
@@ -159,8 +161,33 @@ export class Lint extends Walker {
 		}
 		for (const child of type.children()) this.lintFieldType(name, child, fields);
 	}
-	lintMessage(name, message) {
-		const bad = (what) => this.report("error", "section-shape", null, `on.${name}${what}`);
+	// answers: ask name -> { ok, error, unhandled }, each like an on entry. An ask a message
+	// says it emits with no answers here can't be answered.
+	lintAnswers(spec) {
+		for (const [ask, outcomes] of Object.entries(spec.answers)) {
+			if (!isRecord(outcomes)) {
+				const message = `answers.${ask} must map ok, error or unhandled to handlers`;
+				this.report("error", "section-shape", null, message);
+				continue;
+			}
+			for (const [outcome, message] of Object.entries(outcomes)) {
+				if (!ANSWER_OUTCOMES.includes(outcome)) {
+					const text = `answers.${ask}.${outcome}: an answer is ok, error or unhandled`;
+					this.report("error", "section-shape", null, text);
+				} else this.lintMessage(`answers.${ask}.${outcome}`, message);
+			}
+		}
+		for (const [name, message] of Object.entries(spec.on)) {
+			const asks = message instanceof MessageSpec ? message.emits?.ask : undefined;
+			for (const ask of Array.isArray(asks) ? asks : []) {
+				if (spec.answers[ask] !== undefined) continue;
+				const text = `on.${name} asks ${ask}, but answers has no ${ask}: its answer goes unhandled`;
+				this.report("warning", "unanswered-ask", null, text);
+			}
+		}
+	}
+	lintMessage(label, message) {
+		const bad = (what) => this.report("error", "section-shape", null, `${label}${what}`);
 		if (!(message instanceof MessageSpec)) return bad(" must be a function or a message spec");
 		const { run, args, sourceKey, pre, post, emits } = message;
 		if (typeof run !== "function") bad(".run must be a function");
@@ -181,14 +208,14 @@ export class Lint extends Walker {
 				bad(".emits must map notify, ask or sendAt to name arrays");
 			}
 		}
-		if (typeof run === "function") this.lintWorldReads(name, run);
+		if (typeof run === "function") this.lintWorldReads(label, run);
 	}
 	// A handler that reads the clock or randomness itself gives a Driver different runs.
-	lintWorldReads(name, run) {
+	lintWorldReads(label, run) {
 		const source = String(run);
 		for (const [pattern, call, instead] of WORLD_READS) {
 			if (!pattern.test(source)) continue;
-			const message = `on.${name}: ${call} changes between runs, use ${instead} so they repeat`;
+			const message = `${label}: ${call} changes between runs, use ${instead} so they repeat`;
 			this.report("warning", "nondeterministic-call", null, message);
 		}
 	}

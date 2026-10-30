@@ -72,11 +72,11 @@ fn Gen::emit_array(
 }
 
 ///|
-/// The schemas of the replies to c's asks, the messages the runtime gives it
-/// as an ask settles: name_reply_ok with the reply, and name_reply_error with the
-/// error and name_handler_not_found with nothing when c handles them. The
-/// runtime checks their arguments as any message's, so the handlers decode
-/// what they're declared to get.
+/// The schemas of the answers to c's asks, which the runtime gives it as an
+/// ask settles: name.ok with the answer, and name.error with the error and
+/// name.unhandled with nothing when c handles them. Answers aren't messages: no
+/// message can be named with a dot. The runtime checks their arguments as any
+/// message's, so the handlers decode what they're declared to get.
 fn Gen::reply_schemas(
   self : Gen,
   b : Block,
@@ -112,16 +112,16 @@ fn Gen::reply_schemas(
     let ac = a.name
     out.push(
       reply(
-        ac + "_reply_ok",
+        ac + ".ok",
         [param("value", a.result.unwrap_or(Any))],
         a.emits,
       ),
     )
-    if self.has("\{cw}_reply_\{aw}_err") {
-      out.push(reply(ac + "_reply_error", [param("error", Any)], a.emits))
+    if self.has("\{cw}_reply_\{aw}_error") {
+      out.push(reply(ac + ".error", [param("error", Any)], a.emits))
     }
-    if self.has("\{cw}_reply_\{aw}_not_found") {
-      out.push(reply(ac + "_handler_not_found", [], a.emits))
+    if self.has("\{cw}_reply_\{aw}_unhandled") {
+      out.push(reply(ac + ".unhandled", [], a.emits))
     }
   }
   out
@@ -528,7 +528,7 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
     let ac = a.name
     let result = a.result.unwrap_or(Any)
     // Without a handler, the answer is taken and changes nothing.
-    out.line("    if str_eq(m.name, \{self.s(ac + "_reply_ok")}) {")
+    out.line("    if str_eq(m.name, \{self.s(ac + ".ok")}) {")
     if self.has("\{cw}_reply_\{aw}_ok") {
       out.line(
         "        return message_result_of(state, \{cw}_reply_\{aw}_ok(state, ctx, \{self.decode(result, "m.args[0]!")}));",
@@ -537,17 +537,17 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
       out.line("        return message_result_of(state, state);")
     }
     out.line("    }")
-    if self.has("\{cw}_reply_\{aw}_err") {
-      out.line("    if str_eq(m.name, \{self.s(ac + "_reply_error")}) {")
+    if self.has("\{cw}_reply_\{aw}_error") {
+      out.line("    if str_eq(m.name, \{self.s(ac + ".error")}) {")
       out.line(
-        "        return message_result_of(state, \{cw}_reply_\{aw}_err(state, ctx, m.args[0]!));",
+        "        return message_result_of(state, \{cw}_reply_\{aw}_error(state, ctx, m.args[0]!));",
       )
       out.line("    }")
     }
-    if self.has("\{cw}_reply_\{aw}_not_found") {
-      out.line("    if str_eq(m.name, \{self.s(ac + "_handler_not_found")}) {")
+    if self.has("\{cw}_reply_\{aw}_unhandled") {
+      out.line("    if str_eq(m.name, \{self.s(ac + ".unhandled")}) {")
       out.line(
-        "        return message_result_of(state, \{cw}_reply_\{aw}_not_found(state, ctx));",
+        "        return message_result_of(state, \{cw}_reply_\{aw}_unhandled(state, ctx));",
       )
       out.line("    }")
     }

@@ -8,7 +8,15 @@ export { DispatchPath, Frame, Selector, selectorFrom, Target, UpdatePath } from 
 export * from "./schema.js";
 export { Scope } from "./scope.js";
 export * from "./tag.js";
-export { AskTask, EventTask, MessageContext, NotifyTask, Task } from "./tasks.js";
+export {
+	ANSWER_OUTCOMES,
+	AnswerTask,
+	AskTask,
+	EventTask,
+	MessageContext,
+	NotifyTask,
+	Task,
+} from "./tasks.js";
 export {
 	$if,
 	AstNode,

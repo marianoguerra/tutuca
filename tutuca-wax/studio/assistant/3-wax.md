@@ -14,7 +14,7 @@ For a component `C`, with `c` its name in snake_case (`CheckItem` is `check_item
 | `message m(a: A)` | `fn c_on_m(state: &c_state, ctx: &context, a: A') -> &c_state` (return `state` itself for no change) |
 | `message m() -> swap` | `fn c_on_m(state: &c_state, ctx: &context) -> &c_swap_result`: `c_swap_to(component)` or `c_keep(state)` |
 | `get g: T` | `fn c_get_g(state: &c_state) -> T'` |
-| `ask a(...) -> T` | `fn c_reply_a_ok(state: &c_state, ctx: &context, reply: T') -> &c_state` (optional: without it the answer changes nothing); optional `c_reply_a_err(state, ctx, error: &value)` and `c_reply_a_not_found(state, ctx)` |
+| `ask a(...) -> T` | `fn c_reply_a_ok(state: &c_state, ctx: &context, reply: T') -> &c_state` (optional: without it the answer changes nothing); optional `c_reply_a_error(state, ctx, error: &value)` and `c_reply_a_unhandled(state, ctx)`; each reads the ask's id as `ctx.request` |
 | `loop l { filter }` | `fn c_loop_l_filter(state: &c_state, key: &value, item: &value) -> i32` |
 | `loop l { enrich { b: T } }` | `fn c_loop_l_enrich(state: &c_state, key: &value, item: &value) -> &c_loop_l_binds` |
 | `loop l { key: T }` | `fn c_loop_l_key(state: &c_state, key: &value, item: &value) -> T'` |
@@ -42,7 +42,7 @@ Generated for you to use (in the contract):
   `map_assoc` and `value_member`.
 - `c_f_member` an i32 const per enum member (`stat_trend_up`), for an enum
   field `f`.
-- `c_notify_n(ctx, args...)`, `c_ask_a(ctx, args...)` for its notifies and asks.
+- `c_notify_n(ctx, args...)` for its notifies, and `c_ask_a(ctx, args...)` for its asks, which returns the request's id (`let _ = c_ask_a(ctx);` when it isn't kept).
 - `c_make_t(ctx, fields...) -> &component` for each `emits make t`: every
   field of `t`, in order, in Wax types; wrap the result with
   `value_component(...)` to put it in a list or field.

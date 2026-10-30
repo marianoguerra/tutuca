@@ -259,11 +259,15 @@ export const Studio = component({
 				]);
 			},
 		},
-		saveFileReplyOk() {},
-		saveFileReplyError(_next, [error]) {
-			console.error("saving the schema failed", error);
+	},
+	answers: {
+		saveFile: {
+			ok() {},
+			error(_next, [error]) {
+				console.error("saving the schema failed", error);
+			},
+			unhandled() {},
 		},
-		saveFileHandlerNotFound() {},
 	},
 });
 

@@ -20,7 +20,8 @@ tooling change a lot, so 0.x apps don't run on it without being ported. The 0.x 
   path to the value that owns it.
 - **Messages up, down and across.** A component handles its own events, can send messages to
   components found by a selector, and can raise a message that bubbles up to its parents. A
-  request with `Ok` / `Error` replies becomes `ask` with `ReplyOk` / `ReplyError`.
+  request with `Ok` / `Error` replies becomes `ask`, answered in the component's `answers`
+  section: `answers: { load: { ok, error, unhandled } }`.
 - **Values passed down without threading them through props.** 0.x's `provide` / `lookup` is
   now `provides` / `lookupBind`.
 - **Iteration with filters and loop state** (`each` and loops, which were `@each`, `@when` and

@@ -39,6 +39,18 @@ export const step = {
 		to,
 		label: label ?? `drag ${from} onto ${to}`,
 	}),
+	// The answer to an ask, delivered to the component at (the root without one): for its
+	// answers[ask][outcome], with value as the answer's argument (none for unhandled).
+	answer: (ask, outcome, value, { at, label } = {}) => ({
+		kind: "answer",
+		ask,
+		outcome,
+		args: outcome === "unhandled" ? [] : [value],
+		at,
+		label:
+			label ??
+			`${at ? selectorFrom(at) : "·"} ← ${ask}.${outcome}(${argsLabel(outcome === "unhandled" ? [] : [value])})`,
+	}),
 	check: (label, pred) => ({ kind: "check", label, pred }),
 	// A MessageCommand or EventCommand from pbt.js.
 	command: (cmd, label) => ({ kind: "command", cmd, label }),
@@ -89,6 +101,11 @@ export const runStep = (driver, s) => {
 				const path = s.path ?? (s.at ? selectorFrom(s.at) : new DispatchPath());
 				const from = s.fromFrames ?? (s.from ? selectorFrom(s.from) : []);
 				driver.send(path, s.name, s.args, from);
+				break;
+			}
+			case "answer": {
+				const path = s.at ? selectorFrom(s.at) : new DispatchPath();
+				driver.answer(path, s.ask, s.outcome, s.args);
 				break;
 			}
 			case "event": {

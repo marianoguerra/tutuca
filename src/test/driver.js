@@ -2,6 +2,7 @@
 // rendered, and keeps what it reports. Tests, stress runs and the live storybook drive apps
 // through it.
 import {
+	AnswerTask,
 	DispatchPath,
 	Frame,
 	Host,
@@ -77,6 +78,15 @@ export class Driver {
 		const fromFrames =
 			from instanceof Selector ? from.freeze(base.resolve().getIn(this.state)) : from;
 		const task = new Task(name, args, base.concat(fromFrames), new Target(base), null);
+		this.host.prepareTask(task, this.state);
+		this.host.pushTask(task);
+		this.drain();
+	}
+	// The answer to an ask, as if the scope's handler gave it: for path's answers[ask][outcome]
+	// (ok and error take the value or error as args[0]), with the request id ctx.request reads.
+	answer(path, ask, outcome, args = [], request = null) {
+		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
+		const task = new AnswerTask(ask, outcome, args, request, base, null);
 		this.host.prepareTask(task, this.state);
 		this.host.pushTask(task);
 		this.drain();

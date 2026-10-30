@@ -153,10 +153,10 @@ pub fn Gen::contract(self : Gen) -> String {
     for a in c.asks {
       let (lines, args) = self.args_array(a.params)
       out.line(
-        "// ask \{a.name}: the reply comes back to \{cw}_reply_\{@check.wax_part(a.name)}_ok, _err or _not_found.",
+        "// ask \{a.name}: the answer comes back to \{cw}_reply_\{@check.wax_part(a.name)}_ok, _error or _unhandled, which read its id as ctx.request.",
       )
       out.line(
-        "fn \{cw}_ask_\{@check.wax_part(a.name)}(ctx: &context\{param_list(a.params)}) {",
+        "fn \{cw}_ask_\{@check.wax_part(a.name)}(ctx: &context\{param_list(a.params)}) -> i32 {",
       )
       lines.each(l => out.line(l))
       out.line("    ctx_ask(ctx, \{self.s(a.name)}, \{args});")

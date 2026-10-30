@@ -15,9 +15,10 @@ export class UpdatePath {
 	constructor(keys = []) {
 		this.keys = keys;
 	}
+	// undefined past a missing key, instead of a TypeError on reading it.
 	getIn(root) {
 		let v = root;
-		for (const key of this.keys) v = v[key];
+		for (const key of this.keys) v = v?.[key];
 		return v;
 	}
 	setIn(root, v) {
@@ -25,6 +26,9 @@ export class UpdatePath {
 		const parent = new UpdatePath(this.keys.slice(0, -1)).getIn(root);
 		parent[this.keys.at(-1)] = v;
 		return root;
+	}
+	toString() {
+		return this.keys.map(keyText).join("") || "·";
 	}
 }
 export class Frame {
@@ -57,6 +61,7 @@ export class Frame {
 		return `${this.keys.map(keyText).join("")}${this.item === null ? "" : `[${jsonText(this.item)}]`}`;
 	}
 }
+const frameText = (frame) => JSON.stringify(frame.toMeta());
 export class DispatchPath {
 	constructor(frames = []) {
 		this.frames = frames;
@@ -91,9 +96,17 @@ export class DispatchPath {
 	toString() {
 		return this.frames.join("") || "·";
 	}
+	// Whether prefix's frames start this path's: it reached prefix on the way here.
+	startsWith(prefix) {
+		if (prefix.frames.length > this.frames.length) return false;
+		return prefix.frames.every((f, i) => frameText(f) === frameText(this.frames[i]));
+	}
+	// The key of the child of receiver this path goes through; null when it doesn't go through
+	// receiver to one of its children (the receiver itself or an ancestor of it sent, or a
+	// component in another branch).
 	sourceKeyIn(receiver) {
 		let i = receiver.frames.length;
-		if (i >= this.frames.length) return null;
+		if (i >= this.frames.length || !this.startsWith(receiver)) return null;
 		while (i < this.frames.length - 1 && !this.frames[i].isComponent) i++;
 		return this.frames[i].item;
 	}

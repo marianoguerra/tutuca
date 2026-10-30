@@ -582,9 +582,9 @@ the spec's do: it can read the context and log, and sending from it fails
 the ask.
 `scope_register_host_ask` answers through the host's `ask` import, with
 only the ask's name and arguments: `createHost`'s `asks[name]` replies now
-with a value, later with a promise, with `name_reply_error` when it throws or
+with a value, later with a promise, with `name.error` when it throws or
 rejects (the error's message: a value can't hold a JS object), and with
-`name_handler_not_found` when `asks` has no such name, as tutuca's JS does.
+`name.unhandled` when `asks` has no such name, as tutuca's JS does.
 From JS, `loadComponent(bytes, scope, { names })` registers a module's types
 under other names (`{ Counter: "Tally", Label: null }` renames one and leaves
 one out), checked as any registration, and `runtime.nameIn(scope, c)` is the
@@ -615,21 +615,33 @@ picked, or stays, saying why, when it can't be made.
 **The host** (`host.wax`) runs one task per `host_step`, as one transaction:
 the handler runs on the component the route reaches, its effects become child
 tasks (a notify to the parent, an ask to the asker, a send or forward below
-by selector), a notify that wasn't stopped bubbles, the new root is set
-through the update path, and the children's targets freeze against it. A
+by selector), a notify that wasn't stopped bubbles, its next hop running
+right after, before anything else queued (an ancestor without a
+handler passes it on silently; one no hop handled is reported `unhandled`
+once, at the root, as is a notify the root sends), the new root is set
+through the update path, and the children's targets freeze against it. Every
+component has an identity (`id`, fresh when it's made, kept by its updates),
+and a route records the identity of the component it reached when it was
+fixed: a task whose path another component took meanwhile (it was replaced,
+or a list shifted) is dropped and reported `stale`, as tutuca's JS does. A
 failure throws (the host's `fail`) or traps out of `host_step` before
 anything is committed: the root stays and the children are dropped. The JS
 side calls `host_step` once per task and reports what failed, so the host
 goes on with the next task. What a host reports is one list,
 `host.reports`, of `{ type, ...info }` with the types tutuca's JS
 `Host.notify` uses (and the spec's observations): `log`, `unhandled`,
-`taskFailed`, `renderFailed`, `render`, and in dev mode `stateInvalid` and
+`taskFailed`, `renderFailed`, `eventFailed`, `stale`, `render`, and in dev mode `stateInvalid` and
 `messageInvalid`; `createHost`'s `onReport(type, info)` gets each as it
 happens, and `host.logs`, `.unhandled`, `.failures` and `.issues` are views
-of the list. Asks run the
-scope's handler: a reply now becomes `name_reply_ok` / `name_reply_error` in the
-same transaction, no handler `name_handler_not_found`, and a pending one is
-answered by `host_settle` later. After the
+of the list. An ask runs no handler on the asker: once what asked has
+committed it starts the scope's handler, and the answer comes back as a reply
+task of its own, routed to the asker's path and identity: `name.ok` /
+`name.error`, or `name.unhandled` with no handler. Answers aren't messages:
+a dotted name only reaches a component as an ask's answer, never from a send.
+`ctx_ask` returns the request's id, which the answer's handler reads as
+`ctx.request`. One answered
+now runs next, ahead of the queue; a pending one is queued by `host_settle`
+when it's answered. A reply that fails fails only itself. After the
 queue drains, `host_render` renders the root if it isn't the same reference
 as the last one rendered. The JS side runs tasks for up to 16ms, as
 tutuca's JS host does, then renders and leaves the rest for the next tick
@@ -713,8 +725,8 @@ a named predicate), its messages (arguments, source key, `pre` and `post`
 predicates, the fields it `changes`, what it `emits`), its invariants, and
 the interfaces it implements. With one, the host rejects a message whose
 arguments don't fit before the handler sees them (a reply to an ask too,
-whether it arrives in the ask's own task or later: tcd gives `name_reply_ok`,
-and `name_reply_error` and `name_handler_not_found` when they're handled, schemas
+whether it arrives in the ask's own task or later: tcd gives `name.ok`,
+and `name.error` and `name.unhandled` when they're handled, schemas
 of their own), and every rejection
 (those and a handler's own, `message_error_failed(reason)` or
 `message_error_invalid_arg(i, reason)`) aborts the task with a structured

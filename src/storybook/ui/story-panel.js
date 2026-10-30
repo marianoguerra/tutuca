@@ -393,34 +393,40 @@ export const StoryPanel = component({
 				if (next.isPlaying) ctx.ask("delay", [400]);
 			},
 		},
-		delayReplyOk(next, _args, ctx) {
-			if (!this.isPlaying) return;
-			if (this.atEnd) {
+	},
+	answers: {
+		delay: {
+			ok(next, _args, ctx) {
+				if (!this.isPlaying) return;
+				if (this.atEnd) {
+					next.isPlaying = false;
+					return;
+				}
+				askStory(ctx, this, "forward");
+				ctx.ask("delay", [400]);
+			},
+			error(next) {
 				next.isPlaying = false;
-				return;
-			}
-			askStory(ctx, this, "forward");
-			ctx.ask("delay", [400]);
+			},
+			unhandled(next) {
+				next.isPlaying = false;
+			},
 		},
-		delayReplyError(next) {
-			next.isPlaying = false;
-		},
-		delayHandlerNotFound(next) {
-			next.isPlaying = false;
-		},
-		storyReplyOk(next, [result]) {
-			next.error = "";
-			if (typeof result?.argsJson === "string") next.argsJson = result.argsJson;
-			// forward returns false at a failing or missing step: stop playing there.
-			if (result === false) next.isPlaying = false;
-		},
-		storyReplyError(next, [error]) {
-			next.error = String(error?.message ?? error);
-			next.problems = [next.error];
-			next.isPlaying = false;
-		},
-		storyHandlerNotFound(next) {
-			next.problems = ["no story ask handler is registered"];
+		story: {
+			ok(next, [result]) {
+				next.error = "";
+				if (typeof result?.argsJson === "string") next.argsJson = result.argsJson;
+				// forward returns false at a failing or missing step: stop playing there.
+				if (result === false) next.isPlaying = false;
+			},
+			error(next, [error]) {
+				next.error = String(error?.message ?? error);
+				next.problems = [next.error];
+				next.isPlaying = false;
+			},
+			unhandled(next) {
+				next.problems = ["no story ask handler is registered"];
+			},
 		},
 	},
 });

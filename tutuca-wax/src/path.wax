@@ -41,4 +41,6 @@ fn selector_step_seq_item(name: js_string, key_field: js_string) -> &selector_st
 type target = { base: &dispatch_path, selector: &selector };
 
 // A dispatch path with its update path.
-type route = { path: &dispatch_path, update_path: &update_path };
+// id: the identity of the component it reached when it was fixed, 0 when it
+// records none.
+type route = { path: &dispatch_path, update_path: &update_path, id: i32 };

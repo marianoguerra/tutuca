@@ -168,10 +168,14 @@ test("an ask handler reads the asker's context, can't send, and the reply's cont
 					ctx.ask("load", [6]);
 				},
 			},
-			loadReplyOk: {
-				emits: {},
-				run(next, [n]) {
-					next.got = n;
+		},
+		answers: {
+			load: {
+				ok: {
+					emits: {},
+					run(next, [n]) {
+						next.got = n;
+					},
 				},
 			},
 		},

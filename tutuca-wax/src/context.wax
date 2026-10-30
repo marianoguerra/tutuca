@@ -8,9 +8,17 @@ fn ctx_notify(ctx: &context, name: js_string, args: &value_array) {
     effect_buf_push(ctx.effects, e);
 }
 
-fn ctx_ask(ctx: &context, name: js_string, args: &value_array) {
-    let e: &effect_ask = { kind: effect_kind_ask, name, args };
+// The id the next ask gets.
+let next_request: i32 = 1;
+
+// Asks the scope's ask handler, once the transaction commits; the request's id,
+// which the answer's handler reads as ctx.request.
+fn ctx_ask(ctx: &context, name: js_string, args: &value_array) -> i32 {
+    let request = next_request;
+    next_request = request + 1;
+    let e: &effect_ask = { kind: effect_kind_ask, name, args, request };
     effect_buf_push(ctx.effects, e);
+    request;
 }
 
 fn ctx_send_at(ctx: &context, name: js_string, args: &value_array, selector: &selector) {

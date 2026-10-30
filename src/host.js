@@ -4,9 +4,9 @@ import { DROP_EVENTS, Drag } from "./drag.js";
 import { browserEnv } from "./env.js";
 import { getEventInfoFor, pathOf } from "./events.js";
 import { routeFor } from "./paths.js";
-import { findInvalidFields, messageIssues, scopeOf } from "./schema.js";
+import { findInvalidFields, idOf, isComponent, messageIssues, scopeOf } from "./schema.js";
 import { Scope } from "./scope.js";
-import { EventTask, MessageContext } from "./tasks.js";
+import { AskTask, EventTask, MessageContext } from "./tasks.js";
 import { render as $render } from "./vdom.js";
 import { RenderContext, renderView, toVChilds } from "./view.js";
 
@@ -20,6 +20,8 @@ export class Host {
 		this.registrations = new Set();
 		this.componentNames = new Set(); // In any scope, aliases included.
 		this.tasks = [];
+		this._requests = 0; // The ids of the asks made, counted per host so runs repeat.
+		this.nextRequest = () => ++this._requests;
 		this.scope = new Scope((spec, name) => {
 			this.registrations.add(spec);
 			this.componentNames.add(name);
@@ -82,8 +84,17 @@ export class Host {
 		const bubbles = DROP_EVENTS.has(type);
 		if (type === "dragstart") this.startDrag(e);
 		else if (bubbles) this.dragOver(e);
-		const info = getEventInfoFor(e.target, type, this.rootNode, this.rootComponent, bubbles);
+		let info;
+		try {
+			info = getEventInfoFor(e.target, type, this.rootNode, this.rootComponent, bubbles);
+		} catch (error) {
+			// The DOM doesn't match the root it routes against (a render that failed): reported,
+			// as a failed task is, instead of escaping the listener.
+			info = null;
+			this.notify("eventFailed", { event: e, error });
+		}
 		if (info !== null) {
+			info.route.id = idOf(info.route.updatePath.getIn(this.rootComponent));
 			this.pushTask(new EventTask(e, info, this.drag));
 			this.handleTasks();
 		}
@@ -146,7 +157,8 @@ export class Host {
 		if (this._taskTickTimeoutId !== null) return;
 		this._taskTickTimeoutId = setTimeout(this.handleTasks, 0);
 	}
-	// Drops the queued tasks and the pending tick; an async ask reply in flight still arrives.
+	// Drops the queued tasks and the pending tick. An async ask reply in flight still arrives;
+	// a stopped host drops it.
 	clearTasks() {
 		this.tasks.length = 0;
 		this.cancelTick();
@@ -234,6 +246,7 @@ export class Host {
 	}
 	handleTasks() {
 		if (this._handlingTasks) return;
+		if (this.rootComponent === null) return this.clearTasks();
 		this._handlingTasks = true;
 		this.cancelTick();
 		const t1 = Date.now();
@@ -261,36 +274,88 @@ export class Host {
 			}
 		}
 	}
+	// A route records the identity of the component it reaches, so delivery can tell whether the
+	// one at its path is still that one.
 	prepareTask(task, root) {
 		if (task.route !== null) return;
-		task.route = routeFor(task.target.freeze(root));
+		const route = routeFor(task.target.freeze(root));
+		route.id = idOf(route.updatePath.getIn(root));
+		task.route = route;
 	}
 	handleTask(task) {
 		const curRoot = this.rootComponent;
 		const { route } = task;
 		const path = route.updatePath;
 		const instance = path.getIn(curRoot);
+		// The component may be gone since the route was fixed: the task fails, saying where.
+		if (!isComponent(instance)) throw new Error(`${task.name}: no component at ${path}`);
+		// Another component took its place (it was replaced, or a list shifted): the message was
+		// for the one before, so it's dropped and reported, not given to this one.
+		if (route.id !== undefined && idOf(instance) !== route.id) {
+			this.notify("stale", { task, path, id: route.id, found: idOf(instance) });
+			return;
+		}
+		if (task instanceof AskTask) return this.startAsk(task, instance);
 		// Staged until the commit: a task that fails sends nothing.
 		const children = [];
 		const pushTask = (child) => children.push(child);
 		let ctx;
-		const newRoot = produce(curRoot, (rootDraft) => {
-			const leafDraft = path.getIn(rootDraft);
-			ctx = new MessageContext(task, route.path, pushTask, this.env, scopeOf(instance));
-			const newLeaf = task.run(instance, leafDraft, ctx);
-			return path.setIn(rootDraft, newLeaf);
-		});
+		let newRoot;
+		try {
+			newRoot = produce(curRoot, (rootDraft) => {
+				const leafDraft = path.getIn(rootDraft);
+				ctx = new MessageContext(
+					task,
+					route.path,
+					pushTask,
+					this.env,
+					scopeOf(instance),
+					this.nextRequest,
+				);
+				const newLeaf = task.run(instance, leafDraft, ctx);
+				return path.setIn(rootDraft, newLeaf);
+			});
+		} catch (error) {
+			// What went unhandled before the failure is reported, as the spec and tutuca-wax do.
+			for (const message of ctx?.unhandled ?? []) this.notify("unhandled", { task, message });
+			throw error;
+		}
 		for (const child of children) this.prepareTask(child, newRoot);
+		if (ctx.nextHop !== null) this.prepareTask(ctx.nextHop, newRoot);
 		const commit = this.prepareEngines(curRoot, newRoot, task);
 		this.rootComponent = newRoot;
 		commit();
 		for (const child of children) this.pushTask(child);
-		// The replies of asks answered later, routed when made, arrive as tasks of their own.
-		for (const reply of ctx.later) reply.then((task) => this.pushTask(task));
+		// A bubble's hops run back to back; what each hop sends waits behind them.
+		if (ctx.nextHop !== null) this.tasks.unshift(ctx.nextHop);
 		for (const message of ctx.unhandled) this.notify("unhandled", { task, message });
 		this.checkState(task, curRoot);
 		this.checkMessage(task, ctx, instance, path.getIn(newRoot));
 		this.notify("taskHandled", { task, path, instance, curRoot, newRoot });
+	}
+	// An ask starts here, after what asked committed, outside any transaction: nothing can
+	// undo what its handler started. A reply now runs next, ahead of the queue; a later one
+	// joins the queue when it settles.
+	startAsk(task, instance) {
+		const ctx = new MessageContext(
+			task,
+			task.route.path,
+			() => {},
+			this.env,
+			scopeOf(instance),
+			this.nextRequest,
+		);
+		const { now, later } = task.start(instance, ctx);
+		if (now !== undefined) this.tasks.unshift(now);
+		if (later !== undefined) later.then((reply) => this.pushTask(reply));
+		const root = this.rootComponent;
+		this.notify("taskHandled", {
+			task,
+			path: task.route.updatePath,
+			instance,
+			curRoot: root,
+			newRoot: root,
+		});
 	}
 	notify(type, info) {
 		setTimeout(() => this.onNotify(type, info), 0);

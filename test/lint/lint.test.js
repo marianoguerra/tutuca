@@ -426,3 +426,29 @@ test("lint checks message specs and the sends that target them", () => {
 		"error send-arg-type Form.main > div > b > [on:click]",
 	]);
 });
+
+test("answers: a section of ok, error and unhandled handlers; an ask with none warns", () => {
+	const Asker = component({
+		name: "Asker",
+		on: {
+			go: {
+				emits: { ask: ["load", "save"] },
+				run(_next, _args, ctx) {
+					ctx.ask("load");
+					ctx.ask("save");
+				},
+			},
+		},
+		answers: {
+			load: { ok() {}, done() {}, error: 3 },
+			list: 1,
+		},
+		view: "asker",
+	});
+	assert.deepEqual(lintOf({ Asker }), [
+		"error section-shape Asker",
+		"error section-shape Asker",
+		"error section-shape Asker",
+		"warning unanswered-ask Asker",
+	]);
+});

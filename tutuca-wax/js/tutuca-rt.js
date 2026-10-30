@@ -262,6 +262,7 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 		host: {
 			observe_log: (v) => late.host?.report("log", { value: late.fromValue(v) }),
 			observe_unhandled: (name) => late.host?.report("unhandled", { message: name }),
+			observe_stale: (name) => late.host?.report("stale", { message: name }),
 			ask: (name, args) => late.host.ask(name, late.fromValue(args)),
 			number_text: (n) => String(n),
 			parse_number: (s) => (s.trim() === "" ? Number.NaN : Number(s)),
@@ -759,14 +760,17 @@ function makeRuntime(w, api, late) {
 		const reportsOf = (pick) => host.reports.filter((r) => pick(r.type));
 		const host = {
 			// What happened, in order: log { value }, unhandled { message },
-			// taskFailed { error }, renderFailed { error }, render, and in dev
+			// taskFailed { error }, renderFailed { error }, eventFailed
+			// { error } (an event the DOM couldn't route), stale { message }
+			// (one for a component another took the place of), render, and in dev
 			// mode stateInvalid and messageInvalid { message, component, ... }.
-			// Each but render says where it came from: path, the keys from the
-			// root to the component the task was for (["items", 2]), null for
-			// what a render reports.
+			// Each but render and eventFailed says where it came from: path,
+			// the keys from the root to the component the task was for
+			// (["items", 2]).
 			reports: [],
 			report(type, info = {}) {
-				const r = type === "render" ? { type, ...info } : { type, ...info, path: values.to(w.host_task_path(h)) };
+				const untasked = type === "render" || type === "eventFailed";
+				const r = untasked ? { type, ...info } : { type, ...info, path: values.to(w.host_task_path(h)) };
 				host.reports.push(r);
 				onReport?.(type, r);
 			},
@@ -778,7 +782,9 @@ function makeRuntime(w, api, late) {
 				return reportsOf((t) => t === "unhandled").map((r) => r.message);
 			},
 			get failures() {
-				return reportsOf((t) => t === "taskFailed" || t === "renderFailed").map((r) => r.error);
+				return reportsOf((t) => t === "taskFailed" || t === "renderFailed" || t === "eventFailed").map(
+					(r) => r.error,
+				);
 			},
 			get issues() {
 				return reportsOf((t) => ISSUES.has(t));
@@ -860,10 +866,18 @@ function makeRuntime(w, api, late) {
 				host.run();
 			},
 			// Routes a DOM event to the handler it reaches, if any, and runs.
+			// One the DOM can't route (it doesn't match the root, after a
+			// render failed) is reported, instead of escaping the listener.
 			dispatch(e) {
 				late.host = host;
-				const event = values.from(eventFields(e));
-				if (w.host_dispatch_event(h, e, e.target, e.type, event)) host.run();
+				let queued;
+				try {
+					queued = w.host_dispatch_event(h, e, e.target, e.type, values.from(eventFields(e)));
+				} catch (error) {
+					host.report("eventFailed", { error });
+					return;
+				}
+				if (queued) host.run();
 			},
 			// Renders, and listens to the events its components handle.
 			mount() {
@@ -880,8 +894,8 @@ function makeRuntime(w, api, late) {
 			},
 			// The ask import: answers through asks[name], as tutuca's JS does:
 			// a value replies now, a promise later (with the id host_settle
-			// gets back), a throw or a rejection with _reply_error, and a name
-			// asks lacks with _handler_not_found.
+			// gets back), a throw or a rejection with .error, and a name
+			// asks lacks with .unhandled.
 			ask(name, args) {
 				if (!Object.hasOwn(asks, name)) return values.from(null);
 				let answer;

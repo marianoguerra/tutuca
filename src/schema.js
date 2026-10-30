@@ -1,7 +1,11 @@
 // Field, invariant and message schemas of components, and the checks that use them.
 export const specSym = Symbol("TutucaSpec");
 export const scopeSym = Symbol("TutucaScope");
+// An instance's identity: a number fresh for each instance made, kept by the copies immer makes of
+// it, so updates keep it and only making an instance (or returning a new one) gives a new one.
+export const idSym = Symbol("TutucaId");
 export const specOf = (v) => v?.[specSym];
+export const idOf = (v) => v?.[idSym];
 // Whether fn returns truthy without throwing.
 function holds(fn) {
 	try {
@@ -403,6 +407,25 @@ export const toMessages = (on) => {
 		messages[key] = isSpec ? new MessageSpec(key, entry) : entry;
 	}
 	return messages;
+};
+// answers maps an ask's name to its outcomes' handlers, { ok, error, unhandled }, each an entry
+// as on's are; its MessageSpec is named "<ask>.<outcome>". Other shapes stay for lint.
+export const toAnswers = (answers) => {
+	const out = Object.create(null);
+	for (const ask in answers) {
+		const outcomes = answers[ask];
+		if (typeof outcomes !== "object" || outcomes === null) {
+			out[ask] = outcomes;
+			continue;
+		}
+		out[ask] = Object.create(null);
+		for (const outcome in outcomes) {
+			const entry = outcomes[outcome];
+			const isSpec = typeof entry === "function" || (typeof entry === "object" && entry !== null);
+			out[ask][outcome] = isSpec ? new MessageSpec(`${ask}.${outcome}`, entry) : entry;
+		}
+	}
+	return out;
 };
 // The ways a handled message broke its spec: "args", "arg:<i>", "sourceKey", "pre", "post"
 // and "emits:<kind>:<name>". prev and next are the component before and after the handler,

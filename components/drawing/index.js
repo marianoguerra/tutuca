@@ -625,9 +625,13 @@ export const Drawing = component({
 				ctx.ask("saveFile", ["drawing.svg", this.toSvg(), "image/svg+xml"]);
 			},
 		},
-		saveFileReplyOk() {},
-		saveFileReplyError() {},
-		saveFileHandlerNotFound() {},
+	},
+	answers: {
+		saveFile: {
+			ok() {},
+			error() {},
+			unhandled() {},
+		},
 	},
 });
 // Paint and width apply to the selection too, as one undoable change.

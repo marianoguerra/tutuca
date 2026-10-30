@@ -548,13 +548,17 @@ export const TodoApp = component({
 				ctx.ask("today");
 			},
 		},
-		todayReplyOk(next, [today]) {
-			if (!isIso(today)) return;
-			next.today = today;
-			for (const task of next.tasks) setDeep(task, "today", today);
+	},
+	answers: {
+		today: {
+			ok(next, [today]) {
+				if (!isIso(today)) return;
+				next.today = today;
+				for (const task of next.tasks) setDeep(task, "today", today);
+			},
+			error() {},
+			unhandled() {},
 		},
-		todayReplyError() {},
-		todayHandlerNotFound() {},
 	},
 });
 

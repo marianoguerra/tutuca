@@ -15,7 +15,8 @@ const effect_kind_log = 5;
 type effect_notify: effect = { .., name: js_string, args: &value_array };
 // To the scope's ask handler; the reply comes back as name_reply_ok or
 // name_reply_error, or name_handler_not_found.
-type effect_ask: effect = { .., name: js_string, args: &value_array };
+// request: its id, which the answer's handler reads as ctx.request.
+type effect_ask: effect = { .., name: js_string, args: &value_array, request: i32 };
 // To a component below, by selector.
 type effect_send_at: effect = { .., name: js_string, args: &value_array, selector: &selector };
 // The message being handled, to a component below.
@@ -111,13 +112,24 @@ fn ask_result_not_found() -> &ask_result {
     out;
 }
 
+// The next identity component_new gives.
+let next_component_id: i32 = 1;
+
+// A new component: a fresh identity.
 fn component_new(
     spec: &component_spec,
     instance: &eq,
     vtable: &vtable,
     scope: &scope,
 ) -> &component {
-    {component| spec, instance, vtable, scope };
+    let id = next_component_id;
+    next_component_id = id + 1;
+    {component| spec, instance, vtable, scope, id };
+}
+
+// c with a new state: the same component, so the same identity.
+fn component_updated(c: &component, instance: &eq) -> &component {
+    {component| spec: c.spec, instance, vtable: c.vtable, scope: c.scope, id: c.id };
 }
 
 // The component a value holds, or null when it holds something else.

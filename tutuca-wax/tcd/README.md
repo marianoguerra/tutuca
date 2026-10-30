@@ -44,8 +44,8 @@ snake_case, and the runtime gets each name as written: the message
 finds the view as a literal one does. Only Wax spells a type differently:
 its identifiers are snake_case, so `JsonNumber`'s state is `json_number_state`
 (a type name has no two uppercase letters in a row, `Json` not `JSON`, so
-that reads back). An ask's replies are the ask's name with `_reply_ok`,
-`_reply_error` and `_handler_not_found`, and `event(name)` reads the event's
+that reads back). An ask's answers reach the runtime as the ask's name with `.ok`,
+`.error` and `.unhandled`, names no message can have, and `event(name)` reads the event's
 field by its DOM name, `event(clientX)`.
 
 ```wit
@@ -148,7 +148,7 @@ signatures (`tcd stub` writes them; the build checks them):
 | `message m(a: A)` | `fn c_on_m(state: &c_state, ctx: &context, a: A') -> &c_state` (the same state: unchanged) |
 | `message m() -> swap` | `... -> &c_swap_result`: `c_swap_to(component)` swaps it in, `c_keep(state)` keeps this component with that state (`changes` holds for a keep; `ensures` isn't allowed) |
 | `get g: T` | `fn c_get_g(state: &c_state) -> T'` |
-| `ask a() -> T` | `c_reply_a_ok(state, ctx, reply: T')`; `_err(state, ctx, error: &value)` and `_not_found(state, ctx)` optional |
+| `ask a() -> T` | `c_reply_a_ok(state, ctx, reply: T')`; `_error(state, ctx, error: &value)` and `_unhandled(state, ctx)` optional; each reads the ask's id as `ctx.request`, which `c_ask_a(ctx)` returned |
 | `loop l { ... }` | `c_loop_l_prepare`, `_iter`, `_key`, `_filter`, `_enrich` (returns `&c_loop_l_binds`) |
 | `scope s { ... }` | `c_scope_s(state) -> &c_scope_s_binds` |
 | `check(p)` | `c_check_p(state[, v: T']) -> i32` |

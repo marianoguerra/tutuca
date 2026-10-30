@@ -146,9 +146,6 @@ export const Storybook = component({
 				ctx.ask("scrollToTop");
 			},
 		},
-		scrollToTopReplyOk() {},
-		scrollToTopReplyError() {},
-		scrollToTopHandlerNotFound() {},
 		setPanel: {
 			args: [t.enum("steps", "stress", "dev")],
 			run(next, [panel]) {
@@ -166,6 +163,13 @@ export const Storybook = component({
 		// Reports from the story's <tutuca-app>; only events carry them.
 		appReport(next, _args, ctx) {
 			applyAppReport(this, next, ctx.event?.detail);
+		},
+	},
+	answers: {
+		scrollToTop: {
+			ok() {},
+			error() {},
+			unhandled() {},
 		},
 	},
 });

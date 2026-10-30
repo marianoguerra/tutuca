@@ -58,12 +58,16 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 					ctx.ask("load");
 					ctx.notify("changed");
 				},
-				loadReplyOk(next, [value], ctx) {
-					next.result = value;
-					ctx.sendAt("inc", [], (b) => b.field("child"));
-				},
 				changed() {
 					seen.push("panel");
+				},
+			},
+			answers: {
+				load: {
+					ok(next, [value], ctx) {
+						next.result = value;
+						ctx.sendAt("inc", [], (b) => b.field("child"));
+					},
 				},
 			},
 		});

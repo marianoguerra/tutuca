@@ -456,7 +456,7 @@ fn abi_ctx_notify(ctx: &context, name: js_string, args: &value_array) {
 }
 
 #[export = "ctx_ask"]
-fn abi_ctx_ask(ctx: &context, name: js_string, args: &value_array) {
+fn abi_ctx_ask(ctx: &context, name: js_string, args: &value_array) -> i32 {
     ctx_ask(ctx, name, args);
 }
 

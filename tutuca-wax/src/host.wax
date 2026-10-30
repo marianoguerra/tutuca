@@ -10,10 +10,11 @@
 
 // What a task is: how it reaches its target and what it runs there. A
 // fieldless enum that is only compared, so an i32.
-const task_kind_plain = 0; // a send, a sendAt, a forwardAt, an async reply
+const task_kind_plain = 0; // a send, a sendAt, a forwardAt
 const task_kind_notify = 1; // handled, then sent on to the parent
-const task_kind_ask = 2; // the scope's ask handler, then the reply on the asker
+const task_kind_ask = 2; // starts the scope's ask handler; its answer is a task of its own
 const task_kind_event = 3; // an event on a rendered element
+const task_kind_answer = 4; // an ask's answer, name.ok/.error/.unhandled, to the asker
 
 // The element being dragged: where it was rendered, its data-dragtype and
 // the value there when the drag started.
@@ -36,7 +37,13 @@ type task = {
     event: &value,
     drag: &?drag,
     action_args: &?arg_array,
-    node: dom_node_opt
+    node: dom_node_opt,
+    // For notifications: whether a hop so far had a handler for it. One that
+    // reaches the root with none is reported unhandled, once.
+    handled: mut i32,
+    // For an ask and its answer: the request's id, which the answer's handler
+    // reads as ctx.request; 0 otherwise.
+    request: mut i32
 };
 
 type task_array = [mut &?task];
@@ -61,6 +68,22 @@ fn task_queue_push(q: &task_queue, t: &task) {
     q.len = q.len + 1;
 }
 
+// t first, before what's queued: a notification's next hop, so a bubble's
+// hops run back to back.
+fn task_queue_push_front(q: &task_queue, t: &task) {
+    if q.head == 0 {
+        let live = q.len;
+        let room = 16;
+        let bigger = [task_array|null; live + room * 2];
+        bigger.copy(room, q.items, 0, live);
+        q.items = bigger;
+        q.head = room;
+        q.len = room + live;
+    }
+    q.head = q.head - 1;
+    q.items[q.head] = t;
+}
+
 fn task_queue_pop(q: &task_queue) -> &?task {
     if q.head == q.len {
         return null;
@@ -76,7 +99,14 @@ fn task_queue_pop(q: &task_queue) -> &?task {
 }
 
 // An ask whose reply hasn't arrived: the reply goes to the asker.
-type pending_reply = { id: i32, name: js_string, source: &dispatch_path };
+// asker: the identity of the component that asked, for the reply's route.
+type pending_reply = {
+    id: i32,
+    name: js_string,
+    source: &dispatch_path,
+    asker: i32,
+    request: i32
+};
 
 // A host renders into container, in doc; a headless host has neither, and
 // only runs tasks (for tests and tools).
@@ -153,10 +183,20 @@ fn task_new(
         drag: null,
         action_args: null,
         node: null,
+        handled: 0,
+        request: 0,
     };
 }
 
 // The task with its route: frozen from its target against root unless fixed.
+// A notification's next hop: the same message from the same sender, to the
+// parent, remembering whether a hop so far handled it.
+fn task_notify_hop(t: &task, parent: &target, handled: i32) -> &task {
+    let next = task_new(task_kind_notify, t.name, t.args, t.source, parent);
+    next.handled = handled;
+    next;
+}
+
 fn task_prepare(t: &task, root: &value) -> &task {
     if !!t.route {
         return t;
@@ -167,11 +207,13 @@ fn task_prepare(t: &task, root: &value) -> &task {
         args: t.args,
         source: t.source,
         target: t.target,
-        route: route_for(target_freeze(t.target, root)),
+        route: route_at(target_freeze(t.target, root), root),
         event: t.event,
         drag: t.drag,
         action_args: t.action_args,
         node: t.node,
+        handled: t.handled,
+        request: t.request,
     };
 }
 
@@ -228,6 +270,7 @@ fn host_step(h: &host) -> i32 {
         {transaction|
             children: [task_array|null; 4],
             count: 0,
+            next_hop: null,
             pending: h.pending,
             issues: list_empty(),
         };
@@ -241,6 +284,10 @@ fn host_step(h: &host) -> i32 {
         task_queue_push(h.queue, tx.children[i]!);
         i += 1;
     }
+    // A bubble's hops run back to back; what each hop sends waits behind them.
+    if !!tx.next_hop {
+        task_queue_push_front(h.queue, tx.next_hop!);
+    }
     if h.dev {
         host_check_task(h, t!, prev, tx.issues);
     }
@@ -253,6 +300,8 @@ fn host_step(h: &host) -> i32 {
 type transaction = {
     children: mut &task_array,
     count: mut i32,
+    // A notification's next hop, which runs right after this task.
+    next_hop: mut &?task,
     pending: mut &pv_vector,
     issues: mut &value
 };
@@ -267,6 +316,19 @@ fn transaction_push(tx: &transaction, t: &task) {
     tx.count = tx.count + 1;
 }
 
+// Whether s has a dot: only an answer's name does.
+fn has_dot(s: js_string) -> i32 {
+    let i = 0;
+    let n = js_string_length(s);
+    while i <s n {
+        if js_string_char_code_at(s, i) == 46 {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
 fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     let r = t.route!;
     h.at = update_path_value(r.update_path);
@@ -276,7 +338,20 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         unreachable;
     }
     let comp = c!;
+    // Another component took its place (it was replaced, or a list shifted):
+    // the message was for the one before, so it's dropped and reported, not
+    // given to this one.
+    if (r.id != 0) & (comp.id != r.id) {
+        observe_stale(t.name);
+        return h.root;
+    }
     let path = dispatch_path_to_component(r.path);
+    // Only an ask's answer has a dotted name (name.ok): a message named so,
+    // from a send or from outside, can't forge one.
+    if (t.kind != task_kind_answer) & has_dot(t.name) {
+        observe_unhandled(t.name);
+        return h.root;
+    }
     let ctx =
         {context|
             scope: comp.scope,
@@ -285,6 +360,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
             event: t.event,
             drag: drag_value(t.drag, path),
             effects: effect_buf_new(),
+            request: t.request,
         };
     let args = t.args;
     if !!t.action_args {
@@ -318,17 +394,24 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     let leaf: &?value = null;
     if result.kind == message_result_kind_updated {
         let instance = (result as &message_result_updated).instance;
-        leaf = value_component(component_new(comp.spec, instance, comp.vtable, comp.scope));
+        leaf = value_component(component_updated(comp, instance));
     }
     if result.kind == message_result_kind_swapped {
         leaf = value_component((result as &message_result_swapped).component);
     }
+    // Whether this component had a handler for the message.
+    let handled = 1;
     if result.kind == message_result_kind_rejected {
         let error = (result as &message_result_rejected).error;
         if error.kind == message_error_kind_unknown_message {
             // A message the component doesn't handle, from an event or not:
-            // reported, and the component stays as it was.
-            observe_unhandled((msg!).name);
+            // the component stays as it was. A notification passes on
+            // silently, and is reported only if it reaches the root unhandled;
+            // any other message is reported here.
+            handled = 0;
+            if t.kind != task_kind_notify {
+                observe_unhandled((msg!).name);
+            }
         } else {
             reject_message(comp, (msg!).name, error);
             unreachable;
@@ -341,9 +424,16 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         }
         check_message_contract(tx, t, msg!, comp, next, ms!, ctx, pre_held);
     }
-    if (t.kind == task_kind_notify) & !dispatch_path_is_root(path) & !stop {
-        let parent = {target| base: dispatch_path_to_parent(path), selector: empty_selector() };
-        transaction_push(tx, task_new(task_kind_notify, t.name, t.args, t.source, parent));
+    if (t.kind == task_kind_notify) & !stop {
+        let any_handled = t.handled | handled;
+        if dispatch_path_is_root(path) {
+            if !any_handled {
+                observe_unhandled(t.name);
+            }
+        } else {
+            let parent = {target| base: dispatch_path_to_parent(path), selector: empty_selector() };
+            tx.next_hop = task_notify_hop(t, parent, any_handled);
+        }
     }
     // The same root when nothing changed, so nothing renders.
     let root = h.root;
@@ -355,13 +445,42 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         tx.children[i] = task_prepare(tx.children[i]!, root);
         i += 1;
     }
+    if !!tx.next_hop {
+        tx.next_hop = task_prepare(tx.next_hop!, root);
+    }
     root;
 }
 
-// An ask runs the scope's ask handler and gives the asker the reply as a
-// message: name_reply_ok, name_reply_error or name_handler_not_found, checked as any
-// message is. A pending answer gives none: the asker stays as it is until the
-// reply arrives.
+// A reply to an ask: a message to the asker, routed to its path and its
+// identity, so it reaches the asker or is dropped stale.
+fn reply_task(
+    name: js_string,
+    args: &value_array,
+    source: &dispatch_path,
+    asker: i32,
+    request: i32,
+) -> &task {
+    {task|
+        kind: task_kind_answer,
+        name,
+        args,
+        source,
+        target: {target| base: source, selector: empty_selector() },
+        route: route_with_id(route_for(source), asker),
+        event: VALUE_NULL,
+        drag: null,
+        action_args: null,
+        node: null,
+        handled: 0,
+        request,
+    };
+}
+
+// An ask runs no handler on the asker: what asked has committed, so it starts
+// the scope's ask handler, and the answer comes back as a reply task of its
+// own (name_reply_ok, name_reply_error or name_handler_not_found), which runs
+// next, ahead of the queue; a pending answer's comes when it settles. Either
+// way a reply that fails fails only itself. It gives no message to handle.
 fn ask_reply(
     c: &component,
     t: &task,
@@ -383,6 +502,7 @@ fn ask_reply(
                 event: ctx.event,
                 drag: ctx.drag,
                 effects: effect_buf_new(),
+                request: ctx.request,
             };
         answer = (found!).handler(t.name, args, own);
         let i = 0;
@@ -395,18 +515,33 @@ fn ask_reply(
             i += 1;
         }
     }
+    let asker = (t.route!).id;
     if answer.kind == ask_result_kind_not_found {
-        return {message| name: js_string_concat(t.name, s_handler_not_found), args: empty_args() };
+        tx.next_hop =
+            reply_task(
+                js_string_concat(t.name, s_answer_unhandled),
+                empty_args(),
+                t.source,
+                asker,
+                t.request,
+            );
+        return null;
     }
     if answer.kind == ask_result_kind_pending {
         let id = (answer as &ask_result_pending).id;
-        tx.pending = pv_push(tx.pending, {pending_reply| id, name: t.name, source: t.source });
+        tx.pending =
+            pv_push(
+                tx.pending,
+                {pending_reply| id, name: t.name, source: t.source, asker, request: t.request },
+            );
         return null;
     }
     let result = (answer as &ask_result_reply).result as &value_result;
     let reply = [value_array|null; 1];
     reply[0] = result.value;
-    {message| name: js_string_concat(t.name, result.ok?s_reply_ok:s_reply_error), args: reply };
+    let name = js_string_concat(t.name, result.ok?s_answer_ok:s_answer_error);
+    tx.next_hop = reply_task(name, reply, t.source, asker, t.request);
+    null;
 }
 
 // The handler's effects, in order, as child tasks; whether it stopped a
@@ -419,8 +554,11 @@ fn effect_tasks(t: &task, args: &value_array, ctx: &context, tx: &transaction) -
         let e = ctx.effects.items[i]!;
         let kind = e.kind;
         if kind == effect_kind_notify {
-            if !dispatch_path_is_root(here) {
-                let n = e as &effect_notify;
+            let n = e as &effect_notify;
+            if dispatch_path_is_root(here) {
+                // The root has no ancestors: nobody can handle it.
+                observe_unhandled(n.name);
+            } else {
                 let parent =
                     {target| base: dispatch_path_to_parent(here), selector: empty_selector() };
                 transaction_push(tx, task_new(task_kind_notify, n.name, n.args, here, parent));
@@ -428,16 +566,16 @@ fn effect_tasks(t: &task, args: &value_array, ctx: &context, tx: &transaction) -
         }
         if kind == effect_kind_ask {
             let a = e as &effect_ask;
-            transaction_push(
-                tx,
+            let ask =
                 task_new(
                     task_kind_ask,
                     a.name,
                     a.args,
                     here,
                     {target| base: here, selector: empty_selector() },
-                ),
-            );
+                );
+            ask.request = a.request;
+            transaction_push(tx, ask);
         }
         if kind == effect_kind_send_at {
             let s = e as &effect_send_at;
@@ -586,7 +724,7 @@ fn host_dispatch_event(
         if i.handler.mods & event_mod_stop {
             dom_stop_propagation(e);
         }
-        let r = i.route;
+        let r = route_at(i.route.path, h.root);
         task_queue_push(
             h.queue,
             {task|
@@ -600,6 +738,8 @@ fn host_dispatch_event(
                 drag: h.drag,
                 action_args: i.handler.action.args,
                 node: i.node,
+                handled: 0,
+                request: 0,
             },
         );
         queued = 1;
@@ -711,18 +851,6 @@ fn host_end_drag(h: &host) {
 // The key of receiver's child the dragged element is in, as the source key
 // is for a message; null when it was dragged from outside receiver.
 fn drag_key_in(d: &drag, receiver: &dispatch_path) -> &?path_key {
-    let frames = d.path.frames;
-    let n = receiver.frames.length();
-    if n >=s frames.length() {
-        return null;
-    }
-    let i = 0;
-    while i <s n {
-        if !str_eq(meta_frame_text(receiver.frames[i]!), meta_frame_text(frames[i]!)) {
-            return null;
-        }
-        i += 1;
-    }
     dispatch_path_source_key_in(d.path, receiver);
 }
 
@@ -791,30 +919,8 @@ fn host_settle(h: &host, id: i32, result: &value) -> i32 {
             let r = result as &value_result;
             let reply = [value_array|null; 1];
             reply[0] = r.value;
-            let name = js_string_concat(p.name, r.ok?s_reply_ok:s_reply_error);
-            let t =
-                task_new(
-                    task_kind_plain,
-                    name,
-                    reply,
-                    p.source,
-                    {target| base: p.source, selector: empty_selector() },
-                );
-            task_queue_push(
-                h.queue,
-                {task|
-                    kind: t.kind,
-                    name: t.name,
-                    args: t.args,
-                    source: t.source,
-                    target: t.target,
-                    route: route_for(p.source),
-                    event: VALUE_NULL,
-                    drag: null,
-                    action_args: null,
-                    node: null,
-                },
-            );
+            let name = js_string_concat(p.name, r.ok?s_answer_ok:s_answer_error);
+            task_queue_push(h.queue, reply_task(name, reply, p.source, p.asker, p.request));
             return 1;
         }
         i += 1;
@@ -822,10 +928,6 @@ fn host_settle(h: &host, id: i32, result: &value) -> i32 {
     0;
 }
 
-// Renders the root if it changed since the last render: lowers its view and
-// morphs the DOM from what the last render rendered.
-// A headless host renders nothing.
-// Renders the root if it isn't the one rendered last; whether it did.
 // An update path as a list of its keys: names and indices.
 fn update_path_value(p: &update_path) -> &value {
     let out = list_empty();
@@ -837,6 +939,9 @@ fn update_path_value(p: &update_path) -> &value {
     out;
 }
 
+// Renders the root if it changed since the last render: lowers its view and
+// morphs the DOM from what the last render rendered; whether it did. A
+// headless host renders nothing.
 fn host_render(h: &host) -> i32 {
     h.at = VALUE_NULL;
     if !h.container | !h.doc {
