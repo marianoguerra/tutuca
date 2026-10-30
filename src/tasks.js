@@ -13,7 +13,8 @@ const call = (message, instance, next, args, ctx) => {
 };
 // A message nobody handled: warned about and reported after the commit.
 const unhandled = (ctx, name, instance) => {
-	console.warn("handler", name, "not found on", instance, { ctx });
+	const on = instance === null ? "" : ` on ${specOf(instance)?.name ?? "?"}`;
+	console.warn(`handler ${name} not found${on} at ${ctx.path}`);
 	ctx.unhandled.push(name);
 };
 // A message the component has no handler for keeps it as it was, and is reported (unhandled).
