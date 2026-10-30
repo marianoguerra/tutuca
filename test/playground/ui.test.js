@@ -38,7 +38,7 @@ const start = () => {
 	host.start(makePlayground(host.scope.components));
 	const send = (name, args) => {
 		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-		host.prepareTask(task, host.rootComponent);
+		task.prepare(host.rootComponent);
 		host.pushTask(task);
 	};
 	const run = (books, wanted = "") => {

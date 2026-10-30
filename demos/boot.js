@@ -122,7 +122,7 @@ const setup = ({ components, askHandlers, document }) => {
 // Sends name(...args) to the root component, as if it came from outside the app.
 export const sendRoot = (host, name, args = []) => {
 	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-	host.prepareTask(task, host.rootComponent);
+	task.prepare(host.rootComponent);
 	host.pushTask(task);
 };
 

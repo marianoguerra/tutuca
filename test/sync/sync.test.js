@@ -60,7 +60,7 @@ const started = (args = {}) => {
 };
 const send = (host, name, args) => {
 	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-	host.prepareTask(task, host.rootComponent);
+	task.prepare(host.rootComponent);
 	host.pushTask(task);
 	while (host.tasks.length > 0) host.handleTasks();
 };

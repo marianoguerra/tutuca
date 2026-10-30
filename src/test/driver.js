@@ -81,7 +81,7 @@ export class Driver {
 			from instanceof Selector ? from.freeze(base.resolve().getIn(this.state)) : from;
 		const sender = fromFrames.length === 0 ? HOST : Address.at(base.concat(fromFrames), this.state);
 		const task = new Task(name, args, sender, new Target(base), null);
-		this.host.prepareTask(task, this.state);
+		task.prepare(this.state);
 		this.host.pushTask(task);
 		this.drain();
 	}
@@ -91,7 +91,6 @@ export class Driver {
 		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
 		const task = new AnswerTask(ask, outcome, args, request, HOST, null);
 		task.to = Address.at(base, this.state);
-		this.host.prepareTask(task, this.state);
 		this.host.pushTask(task);
 		this.drain();
 	}

@@ -282,10 +282,6 @@ export class Host {
 			}
 		}
 	}
-	// Fixes where a task made outside a handler goes, against root, before pushTask.
-	prepareTask(task, root) {
-		task.prepare(root);
-	}
 	handleTask(task) {
 		const curRoot = this.rootComponent;
 		// A notification starts from its sender, found as any address is, and visits the ancestors

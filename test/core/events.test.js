@@ -205,7 +205,7 @@ test("a message with no handler, sent by an event or otherwise, is a no-op that'
 		click(rootNode.querySelector("button"));
 		const root = new DispatchPath();
 		const task = new Task("missing", [], HOST, new Target(root), null);
-		host.prepareTask(task, host.rootComponent);
+		task.prepare(host.rootComponent);
 		host.pushTask(task);
 		drain();
 	} finally {

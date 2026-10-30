@@ -134,7 +134,7 @@ test("a DOM event runs ahead of the queue, after the events before it", () => {
 	const { host, C, rootNode, drain } = setup();
 	host.start(C.Top({ renew: null }));
 	const mark = new Task("mark", [], HOST, new Target(new DispatchPath()), null);
-	host.prepareTask(mark, host.rootComponent);
+	mark.prepare(host.rootComponent);
 	host.pushTask(mark);
 	const handleTasks = host.handleTasks;
 	host.handleTasks = () => {};

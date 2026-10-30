@@ -82,7 +82,7 @@ const setup = () => {
 	const element = rootNode.querySelector("tutuca-app");
 	const send = (name, args) => {
 		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-		host.prepareTask(task, host.rootComponent);
+		task.prepare(host.rootComponent);
 		host.pushTask(task);
 		host.handleTasks();
 	};
