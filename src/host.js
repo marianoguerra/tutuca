@@ -296,22 +296,12 @@ export class Host {
 			return;
 		}
 		if (task instanceof AskTask) return this.startAsk(task, instance);
-		// Staged until the commit: a task that fails sends nothing.
-		const children = [];
-		const pushTask = (child) => children.push(child);
 		let ctx;
 		let newRoot;
 		try {
 			newRoot = produce(curRoot, (rootDraft) => {
 				const leafDraft = path.getIn(rootDraft);
-				ctx = new MessageContext(
-					task,
-					route.path,
-					pushTask,
-					this.env,
-					scopeOf(instance),
-					this.nextRequest,
-				);
+				ctx = new MessageContext(task, route.path, this.env, scopeOf(instance), this.nextRequest);
 				const newLeaf = task.run(instance, leafDraft, ctx);
 				return path.setIn(rootDraft, newLeaf);
 			});
@@ -320,12 +310,12 @@ export class Host {
 			for (const message of ctx?.unhandled ?? []) this.notify("unhandled", { task, message });
 			throw error;
 		}
-		for (const child of children) this.prepareTask(child, newRoot);
+		for (const child of ctx.tasks) this.prepareTask(child, newRoot);
 		if (ctx.nextHop !== null) this.prepareTask(ctx.nextHop, newRoot);
 		const commit = this.prepareEngines(curRoot, newRoot, task);
 		this.rootComponent = newRoot;
 		commit();
-		for (const child of children) this.pushTask(child);
+		for (const child of ctx.tasks) this.pushTask(child);
 		// A bubble's hops run back to back; what each hop sends waits behind them.
 		if (ctx.nextHop !== null) this.tasks.unshift(ctx.nextHop);
 		for (const message of ctx.unhandled) this.notify("unhandled", { task, message });
@@ -340,7 +330,6 @@ export class Host {
 		const ctx = new MessageContext(
 			task,
 			task.route.path,
-			() => {},
 			this.env,
 			scopeOf(instance),
 			this.nextRequest,

@@ -28,7 +28,7 @@ const defaultNextRequest = () => ++requests;
 export class MessageContext {
 	// nextRequest gives the id of an ask made from here; the host's counts per host, so runs
 	// repeat.
-	constructor(task, path, pushTask, env, scope, nextRequest = defaultNextRequest) {
+	constructor(task, path, env, scope, nextRequest = defaultNextRequest) {
 		this.task = task;
 		this.env = env;
 		this.nextRequest = nextRequest;
@@ -37,7 +37,9 @@ export class MessageContext {
 		this.request = task.request ?? null;
 		this.scope = scope; // The handling component's scope, to make components from.
 		this.path = path.toComponentPath();
-		this.pushTask = pushTask;
+		// What the handler sends, staged: the host queues it once the task commits, so a task that
+		// fails sends nothing.
+		this.tasks = [];
 		this.event = task.event;
 		this.node = task.node ?? null; // The element whose handler an event task runs.
 		this.drag = task.drag ?? null; // What is being dragged, in drag events.
@@ -73,7 +75,7 @@ export class MessageContext {
 		const request = this.nextRequest();
 		const task = new AskTask(name, args, this.path, new Target(this.path), this.task);
 		task.request = request;
-		this.pushTask(task);
+		this.tasks.push(task);
 		return request;
 	}
 	// Stops the notification being handled from bubbling further. Anything else doesn't
@@ -102,7 +104,7 @@ export class MessageContext {
 		});
 	}
 	push(TaskClass, name, args, target) {
-		this.pushTask(new TaskClass(name, args, this.path, target, this.task));
+		this.tasks.push(new TaskClass(name, args, this.path, target, this.task));
 	}
 }
 export class Task {
