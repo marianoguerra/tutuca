@@ -197,6 +197,13 @@ fn tabs_on_rename(state: &tabs_state, ctx: &context, at: i32, label: js_string) 
     tabs_with_labels(state, list_assoc(labels, at, value_string(label)));
 }
 
+fn tabs_on_finish_rename(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state {
+    if js_string_length(tabs_name_at(state, at)) != 0 {
+        return state;
+    }
+    tabs_on_rename(state, ctx, at, tabs_default_label(at));
+}
+
 // The tab shown stays the one shown, or the one before the removed one when
 // it was the last.
 fn tabs_on_remove_at(state: &tabs_state, ctx: &context, at: i32) -> &tabs_state {
@@ -231,15 +238,29 @@ fn tabs_loop_headers_enrich(
     item: &value,
 ) -> &tabs_loop_headers_binds {
     let at = (key as &value_int).value;
-    let label = js_string_concat(s_tab, int_text(at + 1));
+    let default_label = tabs_default_label(at);
+    let name = tabs_name_at(state, at);
+    let label = name;
+    if js_string_length(name) == 0 {
+        label = default_label;
+    }
+    {tabs_loop_headers_binds| label, name, default_label, is_active: at == state.active };
+}
+
+fn tabs_default_label(at: i32) -> js_string {
+    js_string_concat(s_tab, int_text(at + 1));
+}
+
+// The name given to the tab at at, "" when it has none.
+fn tabs_name_at(state: &tabs_state, at: i32) -> js_string {
     let named = list_get(state.labels, at);
     if !!named {
         let text = value_string_of(named!);
-        if !!text & (js_string_length(text!) >s 0) {
-            label = text!;
+        if !!text {
+            return text!;
         }
     }
-    {tabs_loop_headers_binds| label, is_active: at == state.active };
+    gs_empty;
 }
 
 fn tabs_loop_shown_filter(state: &tabs_state, key: &value, item: &value) -> i32 {

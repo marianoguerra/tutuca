@@ -1051,7 +1051,8 @@ test("components: every example type registered by a TCD module makes with no fi
 // A Screen holding content, being edited: its layout_edit views are shown.
 const editedScreen = (runtime, scope, content) => runtime.make(scope, "Screen", { content, editing: true });
 const contentOf = (runtime, host) => runtime.get(host.root(), "content");
-const tabNames = (container) => [...container.querySelectorAll(".tab-name")].map((i) => i.value);
+// A tab's name as its input shows it: the one given, else the placeholder.
+const tabNames = (container) => [...container.querySelectorAll(".tab-name")].map((i) => i.value || i.placeholder);
 
 test("layout: a hole lists the types its scope chain can make, and becomes the one picked", async ({ vdom, window, document, container, modules }) => {
 	const { runtime } = vdom;
@@ -1111,6 +1112,14 @@ test("layout: a screen shows its layout without the editing chrome, and toggles 
 	names[0].value = "Notes";
 	names[0].dispatchEvent(new window.Event("input", { bubbles: true }));
 	assert.deepEqual(tabNames(container), ["Notes", "Tab 2"]);
+	// Cleared while typed, the input stays empty; left empty, it's named "Tab n".
+	names[0].value = "";
+	names[0].dispatchEvent(new window.Event("input", { bubbles: true }));
+	assert.equal(container.querySelectorAll(".tab-name")[0].value, "");
+	names[0].dispatchEvent(new window.Event("change", { bubbles: true }));
+	assert.equal(container.querySelectorAll(".tab-name")[0].value, "Tab 1");
+	names[0].value = "Notes";
+	names[0].dispatchEvent(new window.Event("input", { bubbles: true }));
 	click(window, container.querySelectorAll(".tab-remove")[1]);
 	assert.deepEqual(tabNames(container), ["Notes"]);
 	// The counter's slot removed: the Tabs are what's left.

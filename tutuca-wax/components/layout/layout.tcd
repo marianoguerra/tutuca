@@ -172,10 +172,13 @@ component Tabs {
     message select(at: index<panels>) changes active ensures next.active == at;
     message edit_at(at: index<panels>) changes nothing emits ask edit_component;
     message rename(at: index<panels>, label: string) changes labels;
+    /// A name left empty becomes "Tab n".
+    message finish_rename(at: index<panels>) changes labels;
     message remove_at(at: index<panels>) changes panels, labels, active ensures len(next.panels) == len(panels) - 1;
 
-    /// The tab headers: each one's name, the active one marked.
-    loop headers { enrich { label: string, is_active: bool } }
+    /// The tab headers: each one's name, the active one marked; name is
+    /// the one given, maybe empty, so it can be cleared while it's typed.
+    loop headers { enrich { label: string, name: string, default_label: string, is_active: bool } }
     /// The panels: only the active one.
     loop shown { filter }
 
@@ -188,8 +191,9 @@ component Tabs {
         div(role: "tablist", class: "tabs tabs-border",
             each(loop: headers, field(panels),
                 div(role: "tab", class: if(bind(is_active), "tab tab-active gap-1", "tab gap-1"), on_click: send(select, source_key()),
-                    input(class: "tab-name input input-ghost input-xs w-24", "aria-label": "Tab name", value: bind(label),
-                        on_input: send(rename, source_key(), target_value())),
+                    input(class: "tab-name input input-ghost input-xs w-24", "aria-label": "Tab name", value: bind(name), placeholder: bind(default_label),
+                        on_input: send(rename, source_key(), target_value()),
+                        on_change: send(finish_rename, source_key())),
                     button(class: "tab-remove btn btn-xs btn-circle btn-ghost text-error", title: "Remove this tab", on_click: send(remove_at, source_key()), "×"))),
             button(class: "tab-add tab", title: "Add a tab", on_click: send(add), "+")),
         // A slot, so hovering what it holds shows its ✎, not the one of the
