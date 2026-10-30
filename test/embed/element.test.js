@@ -6,6 +6,7 @@ import {
 	component,
 	DispatchPath,
 	field,
+	HOST,
 	Host,
 	h,
 	send,
@@ -80,7 +81,7 @@ const setup = () => {
 	host.start(host.scope.components.Outer());
 	const element = rootNode.querySelector("tutuca-app");
 	const send = (name, args) => {
-		const task = new Task(name, args, new DispatchPath(), new Target(new DispatchPath()), null);
+		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
 		host.prepareTask(task, host.rootComponent);
 		host.pushTask(task);
 		host.handleTasks();

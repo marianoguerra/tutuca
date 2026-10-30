@@ -2,9 +2,11 @@
 // rendered, and keeps what it reports. Tests, stress runs and the live storybook drive apps
 // through it.
 import {
+	Address,
 	AnswerTask,
 	DispatchPath,
 	Frame,
+	HOST,
 	Host,
 	isComponent,
 	Selector,
@@ -77,7 +79,8 @@ export class Driver {
 		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
 		const fromFrames =
 			from instanceof Selector ? from.freeze(base.resolve().getIn(this.state)) : from;
-		const task = new Task(name, args, base.concat(fromFrames), new Target(base), null);
+		const sender = fromFrames.length === 0 ? HOST : Address.at(base.concat(fromFrames), this.state);
+		const task = new Task(name, args, sender, new Target(base), null);
 		this.host.prepareTask(task, this.state);
 		this.host.pushTask(task);
 		this.drain();
@@ -86,7 +89,8 @@ export class Driver {
 	// (ok and error take the value or error as args[0]), with the request id ctx.request reads.
 	answer(path, ask, outcome, args = [], request = null) {
 		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
-		const task = new AnswerTask(ask, outcome, args, request, base, null);
+		const task = new AnswerTask(ask, outcome, args, request, HOST, null);
+		task.to = Address.at(base, this.state);
 		this.host.prepareTask(task, this.state);
 		this.host.pushTask(task);
 		this.drain();

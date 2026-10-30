@@ -7,7 +7,7 @@ import { playgroundComponents } from "../../src/playground/element.js";
 import { makePlayground, storyChoices } from "../../src/playground/ui/playground.js";
 import { StoryRegistry } from "../../src/storybook/index.js";
 import { storyAskHandlers } from "../../src/storybook/runner.js";
-import { DispatchPath, Host, Target, Task } from "../../src/tutuca.js";
+import { DispatchPath, HOST, Host, Target, Task } from "../../src/tutuca.js";
 import { dom, settle, testGenericProperties, testLintsClean } from "../helpers.js";
 
 testLintsClean("playground", playgroundComponents);
@@ -37,8 +37,7 @@ const start = () => {
 	};
 	host.start(makePlayground(host.scope.components));
 	const send = (name, args) => {
-		const path = new DispatchPath();
-		const task = new Task(name, args, path, new Target(path), null);
+		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
 		host.prepareTask(task, host.rootComponent);
 		host.pushTask(task);
 	};

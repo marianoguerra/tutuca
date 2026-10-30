@@ -1,5 +1,7 @@
 // Paths: where a component is in the state (UpdatePath), how a message got there (DispatchPath)
-// and where it goes (Selector, Target).
+// and where it goes (Selector, Target, Address).
+import { idOf, isComponent } from "./schema.js";
+
 export const jsonText = (v) => {
 	try {
 		return JSON.stringify(v) ?? String(v);
@@ -137,8 +139,47 @@ export class Target {
 	freeze(root) {
 		return this.base.concat(this.selector.freeze(this.base.resolve().getIn(root)));
 	}
+	address(root) {
+		return Address.at(this.freeze(root), root);
+	}
 }
-export const routeFor = (path) => ({ path, updatePath: path.toUpdatePath() });
+// Where a message goes or came from: a path, and the identity of the component it reached when
+// it was fixed (spec/tree's (at π ι)). Delivery checks the identity: a message whose path
+// another component took is stale, one whose path reaches no component is orphaned.
+export class Address {
+	constructor(path, id, isHost = false) {
+		this.path = path;
+		this.updatePath = path.toUpdatePath();
+		this.id = id;
+		this.isHost = isHost;
+	}
+	static at(path, root) {
+		return new Address(path, idOf(path.toUpdatePath().getIn(root)));
+	}
+	// { instance } when the component it recorded is at its path, { stale } with the identity
+	// of the one there instead, or { orphaned } when none is.
+	resolve(root) {
+		const instance = this.updatePath.getIn(root);
+		if (!isComponent(instance)) return { orphaned: true };
+		const found = idOf(instance);
+		return found === this.id ? { instance } : { stale: found };
+	}
+	// The component ancestors, nearest first, fixed against root: the hops of a notification
+	// from here, which a bubble visits in one turn.
+	ancestors(root) {
+		const hops = [];
+		for (let p = this.path.toComponentPath(); !p.isRootPath; ) {
+			p = p.toParentPath().toComponentPath();
+			hops.push(Address.at(p, root));
+		}
+		return hops;
+	}
+	toString() {
+		return this.isHost ? "host" : `${this.updatePath}#${this.id}`;
+	}
+}
+// The root's parent: what DOM events and ask answers come from. It has no handlers.
+export const HOST = new Address(new DispatchPath(), undefined, true);
 class PathBuilder {
 	constructor() {
 		this.ops = [];

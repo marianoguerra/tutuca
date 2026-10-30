@@ -2,11 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
 	$if,
+	Address,
 	AstNode,
 	component,
 	DispatchPath,
 	each,
+	Frame,
 	field,
+	HOST,
 	Host,
 	h,
 	pushView,
@@ -20,7 +23,6 @@ import {
 	Task,
 	t,
 	targetValue,
-	UpdatePath,
 	Walker,
 } from "../../src/tutuca.js";
 import { dom, setupHost } from "../helpers.js";
@@ -202,7 +204,7 @@ test("a message with no handler, sent by an event or otherwise, is a no-op that'
 	try {
 		click(rootNode.querySelector("button"));
 		const root = new DispatchPath();
-		const task = new Task("missing", [], root, new Target(root), null);
+		const task = new Task("missing", [], HOST, new Target(root), null);
 		host.prepareTask(task, host.rootComponent);
 		host.pushTask(task);
 		drain();
@@ -348,17 +350,23 @@ test("a notification's hops run back to back; what a hop sends waits until the b
 	assert.deepEqual(seen, ["middle", "top", "echo"]);
 });
 
-test("a task whose route reaches no component fails, saying where", () => {
+test("a task whose address reaches no component is dropped and reported orphaned", () => {
 	const { Leaf, Middle, Top } = notifyTree(true);
-	const { host, C, failures, drain } = setupHost({ Leaf, Middle, Top }, { sync: true });
+	const reports = [];
+	const { host, C, failures, drain } = setupHost(
+		{ Leaf, Middle, Top },
+		{ sync: true, onReport: (type, info) => reports.push([type, String(info.path)]) },
+	);
 	host.start(C.Top());
-	const root = new DispatchPath();
-	const task = new Task("go", [], root, new Target(root), null);
-	task.route = { path: root, updatePath: new UpdatePath(["middle", "gone"]) };
+	const task = new Task("go", [], HOST, null, null);
+	task.to = new Address(new DispatchPath([new Frame(["gone"], null, null, true)]), 1);
 	host.pushTask(task);
 	drain();
-	assert.equal(failures.length, 1);
-	assert.match(failures[0].message, /go: no component at \.middle\.gone/);
+	assert.deepEqual(failures, []);
+	assert.deepEqual(
+		reports.filter(([type]) => type === "orphaned"),
+		[["orphaned", ".gone"]],
+	);
 });
 
 test("what went unhandled before a task failed is still reported", () => {
@@ -397,9 +405,8 @@ test("a stopped host drops the tasks that arrive after, such as an ask's late re
 	const { host, C, failures, drain } = setupHost({ Leaf, Middle, Top }, { sync: true });
 	host.start(C.Top());
 	host.stop();
-	const root = new DispatchPath();
-	const task = new Task("ping", [], root, new Target(root), null);
-	task.route = { path: root, updatePath: new UpdatePath([]) };
+	const task = new Task("ping", [], HOST, null, null);
+	task.to = new Address(new DispatchPath(), 1);
 	host.pushTask(task);
 	drain();
 	assert.deepEqual(failures, []);

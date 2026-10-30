@@ -213,8 +213,9 @@ const summarizeUnsafe = (v) => {
 	if (v instanceof Frame) return { title: "frame", detail: frameWords(v).join(" → ") || "nothing" };
 	if (v instanceof Task) {
 		const [, kind] = taskWords(v);
-		const to = pathWords(v.target);
-		const from = pathWords(v.sourcePath);
+		const where = v.to?.path ?? v.target;
+		const to = where === null ? "the ancestors" : pathWords(where);
+		const from = v.from.isHost ? "the host" : pathWords(v.from.path);
 		return {
 			title: `${kind} ${quote(v.name)}`,
 			detail: from === to ? `to ${to}` : `from ${from} to ${to}`,

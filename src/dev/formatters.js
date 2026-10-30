@@ -292,16 +292,20 @@ const KINDS = [
 			"(",
 			...join(task.args.map((a) => [prim(a)])),
 			") ",
-			...pathParts(task.sourcePath),
+			...(task.from.isHost ? [span(S.muted, "host")] : pathParts(task.from.path)),
 			span(S.muted, " → "),
-			...targetParts(task.target),
+			...(task.to !== null
+				? pathParts(task.to.path)
+				: task.target !== null
+					? targetParts(task.target)
+					: [span(S.muted, "the ancestors")]),
 		],
 		rows(task) {
 			const rows = [
 				["args", ref(task.args)],
-				["sourcePath", ref(task.sourcePath)],
+				["from", ref(task.from)],
 				["target", ref(task.target)],
-				["route", ref(task.route)],
+				["to", ref(task.to)],
 			];
 			if (task.event !== null) rows.push(["event", ref(task.event)]);
 			if (task.parent !== null) rows.push(["parent", ref(task.parent)]);

@@ -4,7 +4,16 @@ export { ComponentSpec, component } from "./component.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
 export { browserEnv, testEnv } from "./env.js";
 export { Host } from "./host.js";
-export { DispatchPath, Frame, Selector, selectorFrom, Target, UpdatePath } from "./paths.js";
+export {
+	Address,
+	DispatchPath,
+	Frame,
+	HOST,
+	Selector,
+	selectorFrom,
+	Target,
+	UpdatePath,
+} from "./paths.js";
 export * from "./schema.js";
 export { Scope } from "./scope.js";
 export * from "./tag.js";

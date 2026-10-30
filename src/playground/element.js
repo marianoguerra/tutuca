@@ -12,7 +12,7 @@ import { defineTutucaApp, REQUEST } from "../embed/element.js";
 import { TimeTravel } from "../history/bar.js";
 import { StoryRegistry, storyAskHandlers } from "../storybook/runner.js";
 import { panelClassNames, panelComponents } from "../storybook/ui/panels.js";
-import { DispatchPath, Host, Target, Task } from "../tutuca.js";
+import { DispatchPath, HOST, Host, Target, Task } from "../tutuca.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
@@ -90,8 +90,7 @@ ${INHERIT_THEME}
 
 // Sends name(...args) to root's component from outside the app.
 const sendRoot = (host, name, args) => {
-	const path = new DispatchPath();
-	const task = new Task(name, args, path, new Target(path), null);
+	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
 	host.prepareTask(task, host.rootComponent);
 	host.pushTask(task);
 };

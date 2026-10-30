@@ -227,8 +227,7 @@ for (const rejected of [false, true]) {
 		await pending.catch(() => {});
 		await Promise.resolve();
 		assert.equal(host.tasks.length, 1);
-		assert.equal(host.tasks[0].sourcePath, ask.sourcePath);
-		assert.equal(host.tasks[0].target.base, ask.sourcePath);
+		assert.equal(host.tasks[0].to, ask.from);
 		drain();
 		assert.equal(host.rootComponent.items[1].reply, "result");
 		assert.equal(host.rootComponent.items[0].reply, null);

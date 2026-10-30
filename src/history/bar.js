@@ -10,6 +10,7 @@ import {
 	component,
 	DispatchPath,
 	field,
+	HOST,
 	Host,
 	send,
 	Target,
@@ -175,8 +176,7 @@ export const showArgs = ({ size, cursor, current }) => [
 ];
 // Sends name(...args) to host's root component from outside the app.
 const sendRoot = (host, name, args) => {
-	const path = new DispatchPath();
-	const task = new Task(name, args, path, new Target(path), null);
+	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
 	host.prepareTask(task, host.rootComponent);
 	host.pushTask(task);
 };

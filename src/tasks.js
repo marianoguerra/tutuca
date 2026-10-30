@@ -1,5 +1,5 @@
 // Tasks: the messages, notifications, asks and events the host runs, and their MessageContext.
-import { routeFor, selectorFrom, Target } from "./paths.js";
+import { Address, HOST, selectorFrom, Target } from "./paths.js";
 import { scopeOf, specOf } from "./schema.js";
 
 // A handler returns a replacement for the component, or undefined to keep next.
@@ -28,7 +28,7 @@ const defaultNextRequest = () => ++requests;
 export class MessageContext {
 	// nextRequest gives the id of an ask made from here; the host's counts per host, so runs
 	// repeat.
-	constructor(task, path, env, scope, nextRequest = defaultNextRequest) {
+	constructor(task, env, scope, nextRequest = defaultNextRequest) {
 		this.task = task;
 		this.env = env;
 		this.nextRequest = nextRequest;
@@ -36,14 +36,19 @@ export class MessageContext {
 		// elsewhere.
 		this.request = task.request ?? null;
 		this.scope = scope; // The handling component's scope, to make components from.
-		this.path = path.toComponentPath();
+		this.path = task.to.path.toComponentPath();
+		// The component the message reached: what the handler sends comes from here.
+		this.address = new Address(this.path, task.to.id);
 		// What the handler sends, staged: the host queues it once the task commits, so a task that
 		// fails sends nothing.
 		this.tasks = [];
 		this.event = task.event;
 		this.node = task.node ?? null; // The element whose handler an event task runs.
 		this.drag = task.drag ?? null; // What is being dragged, in drag events.
-		this.sourceKey = task.sourcePath.sourceKeyIn(this.path);
+		// The child the message came through; for one from the host, such as an event, the loop
+		// item it reached, below the component.
+		const through = task.from.isHost ? task.to : task.from;
+		this.sourceKey = through.path.sourceKeyIn(this.path);
 		this.isStopNextSet = false;
 		this.handled = null; // { message, args } once a handler runs.
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
@@ -66,14 +71,15 @@ export class MessageContext {
 	notify(name, args = []) {
 		this.emitted.push({ kind: "notify", name, args });
 		if (this.path.isRootPath) unhandled(this, name, null);
-		else this.push(NotifyTask, name, args, new Target(this.path.toParentPath()));
+		else this.push(NotifyTask, name, args, null);
 	}
 	// Asks the scope's ask handler; returns the request's id, which its reply's handler reads
 	// as ctx.request. The answer comes back to a handler in the component's answers.
 	ask(name, args = []) {
 		this.emitted.push({ kind: "ask", name, args });
 		const request = this.nextRequest();
-		const task = new AskTask(name, args, this.path, new Target(this.path), this.task);
+		const task = new AskTask(name, args, this.address, null, this.task);
+		task.to = this.address;
 		task.request = request;
 		this.tasks.push(task);
 		return request;
@@ -90,6 +96,17 @@ export class MessageContext {
 	forwardAt(pathBuilderFn) {
 		this.sendAt(this.task.name, this.task.args, pathBuilderFn);
 	}
+	// A message to the sender of the one being handled, where and as it was when it sent it: a
+	// sender another component replaced since is stale. A notification keeps its sender at every
+	// hop, so a reply from any hop reaches the component that notified. One to the host (from a
+	// DOM event's or an answer's handler) is unhandled: the host has no handlers.
+	reply(name, args = []) {
+		this.emitted.push({ kind: "reply", name, args });
+		if (this.task.from.isHost) return unhandled(this, name, null);
+		const task = new Task(name, args, this.address, null, this.task);
+		task.to = this.task.from;
+		this.tasks.push(task);
+	}
 	// What an ask handler gets: the asker's scope (to list or make the components it can),
 	// path, source key and the world, and nothing to send with, so nothing it does outlives
 	// the ask's task.
@@ -104,18 +121,23 @@ export class MessageContext {
 		});
 	}
 	push(TaskClass, name, args, target) {
-		this.tasks.push(new TaskClass(name, args, this.path, target, this.task));
+		this.tasks.push(new TaskClass(name, args, this.address, target, this.task));
 	}
 }
 export class Task {
-	constructor(name, args, sourcePath, target, parent) {
+	// from is the sender's Address; to, where it goes, is fixed from target once the sender
+	// commits, against the tree it committed.
+	constructor(name, args, from, target, parent) {
 		this.name = name;
 		this.args = args;
-		this.sourcePath = sourcePath;
+		this.from = from;
 		this.target = target;
 		this.parent = parent;
 		this.event = null;
-		this.route = null;
+		this.to = null;
+	}
+	prepare(root) {
+		this.to ??= this.target.address(root);
 	}
 	run(instance, next, ctx) {
 		return run(instance, next, this.name, this.args, ctx);
@@ -123,11 +145,20 @@ export class Task {
 }
 // A notification on its way up. An ancestor without a handler for it passes it on, silently;
 // handled says whether any hop so far had one. It stops at a handler that calls stopNext, or at
-// the root, where it's reported unhandled, once, if no hop handled it.
+// the root, where it's reported unhandled, once, if no hop handled it. The hops are its sender's
+// ancestors when it starts: a bubble is one turn, so they can't move while it runs.
 export class NotifyTask extends Task {
-	constructor(name, args, sourcePath, target, parent, handled = false) {
-		super(name, args, sourcePath, target, parent);
+	constructor(name, args, from, target, parent, handled = false, hops = null) {
+		super(name, args, from, target, parent);
 		this.handled = handled;
+		this.hops = hops;
+		this.to = hops?.[0] ?? null;
+	}
+	// Its hops are fixed when it starts, not when it's sent.
+	prepare() {}
+	start(root) {
+		this.hops = this.from.ancestors(root);
+		this.to = this.hops[0];
 	}
 	run(instance, next, ctx) {
 		const message = specOf(instance).on[this.name];
@@ -138,11 +169,9 @@ export class NotifyTask extends Task {
 			if (!handled) unhandled(ctx, this.name, instance);
 			return result;
 		}
-		// The next hop runs right after this one, before anything else queued: a bubble is one
-		// turn, so the ancestors it visits are the ones its sender had when it started.
-		const { name, args, sourcePath } = this;
-		const target = new Target(ctx.path.toParentPath());
-		ctx.nextHop = new NotifyTask(name, args, sourcePath, target, this, handled);
+		// The next hop runs right after this one, before anything else queued.
+		const { name, args, from, hops } = this;
+		ctx.nextHop = new NotifyTask(name, args, from, null, this, handled, hops.slice(1));
 		return result;
 	}
 }
@@ -172,9 +201,9 @@ export class AskTask extends Task {
 		return { now: this.makeAnswer("ok", [result]) };
 	}
 	makeAnswer(outcome, args) {
-		const answer = new AnswerTask(this.name, outcome, args, this.request, this.sourcePath, this);
-		// Back to the asker: its path, and its identity, as the ask's route recorded them.
-		answer.route = { ...routeFor(this.sourcePath), id: this.route?.id };
+		// The host answers, back to the asker as it was when it asked.
+		const answer = new AnswerTask(this.name, outcome, args, this.request, HOST, this);
+		answer.to = this.from;
 		return answer;
 	}
 }
@@ -183,8 +212,8 @@ export class AskTask extends Task {
 // messages: nothing but an ask's answer reaches these handlers.
 export const ANSWER_OUTCOMES = ["ok", "error", "unhandled"];
 export class AnswerTask extends Task {
-	constructor(ask, outcome, args, request, sourcePath, parent) {
-		super(`${ask}.${outcome}`, args, sourcePath, new Target(sourcePath), parent);
+	constructor(ask, outcome, args, request, from, parent) {
+		super(`${ask}.${outcome}`, args, from, null, parent);
 		this.ask = ask;
 		this.outcome = outcome;
 		this.request = request;
@@ -197,13 +226,14 @@ export class AnswerTask extends Task {
 	}
 }
 export class EventTask extends Task {
-	constructor(e, { handler, route, node = null }, drag = null) {
-		super(handler.action.name, [], route.path, new Target(route.path), null);
+	// An event comes from the host, to the component it reached when it happened.
+	constructor(e, { handler, to, node = null }, drag = null) {
+		super(handler.action.name, [], HOST, null, null);
 		this.event = e;
 		this.node = node;
 		this.drag = drag;
 		this.handler = handler;
-		this.route = route;
+		this.to = to;
 	}
 	// A message the component doesn't handle keeps it as it was and is reported, as any other
 	// (components compose dynamically, so a view can send one its component lacks).

@@ -7,7 +7,7 @@ import {
 } from "../../src/dev/panel.js";
 import { lint } from "../../src/lint/index.js";
 import { step, stories } from "../../src/storybook/index.js";
-import { DispatchPath, Frame, Scope, Target, Task } from "../../src/tutuca.js";
+import { Address, DispatchPath, Frame, Scope, Target, Task } from "../../src/tutuca.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { todoComponents } from "../todo/index.js";
 
@@ -16,7 +16,7 @@ const app = new Scope(() => {});
 app.register(jsonComponents);
 const doc = fromJson(app.components, [[1, true], "two"]);
 const path = new DispatchPath([new Frame(["items"], 1, null, true)]);
-const task = new Task("toggle", [], path, new Target(path), null);
+const task = new Task("toggle", [], new Address(path, 1), new Target(path), null);
 const specs = Object.values(jsonComponents);
 
 const opened = (node) => node.isOpen && node.rows.length > 0;

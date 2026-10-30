@@ -3,10 +3,9 @@ import { produce } from "../deps/immer.js";
 import { DROP_EVENTS, Drag } from "./drag.js";
 import { browserEnv } from "./env.js";
 import { getEventInfoFor, pathOf } from "./events.js";
-import { routeFor } from "./paths.js";
-import { findInvalidFields, idOf, isComponent, messageIssues, scopeOf } from "./schema.js";
+import { findInvalidFields, messageIssues, scopeOf } from "./schema.js";
 import { Scope } from "./scope.js";
-import { AskTask, EventTask, MessageContext } from "./tasks.js";
+import { AskTask, EventTask, MessageContext, NotifyTask } from "./tasks.js";
 import { render as $render } from "./vdom.js";
 import { RenderContext, renderView, toVChilds } from "./view.js";
 
@@ -94,8 +93,7 @@ export class Host {
 			this.notify("eventFailed", { event: e, error });
 		}
 		if (info !== null) {
-			info.route.id = idOf(info.route.updatePath.getIn(this.rootComponent));
-			this.pushTask(new EventTask(e, info, this.drag));
+			this.arrive(new EventTask(e, info, this.drag));
 			this.handleTasks();
 		}
 		if (type === "dragend") this.endDrag();
@@ -148,6 +146,16 @@ export class Host {
 			this._eventsAdded.add(eventName);
 			this.rootNode.addEventListener(eventName, this);
 		}
+	}
+	// An event runs at once, ahead of the queue, against the tree it happened on: after the events
+	// that came before it, and after the rest of a bubble under way, which is one turn.
+	arrive(task) {
+		const { tasks } = this;
+		let i = 0;
+		const ahead = (t) => t instanceof EventTask || (t instanceof NotifyTask && t.hops !== null);
+		while (i < tasks.length && ahead(tasks[i])) i++;
+		tasks.splice(i, 0, task);
+		if (!this._handlingTasks) this.scheduleNextTaskTick();
 	}
 	pushTask(task) {
 		this.tasks.push(task);
@@ -274,34 +282,29 @@ export class Host {
 			}
 		}
 	}
-	// A route records the identity of the component it reaches, so delivery can tell whether the
-	// one at its path is still that one.
+	// Fixes where a task made outside a handler goes, against root, before pushTask.
 	prepareTask(task, root) {
-		if (task.route !== null) return;
-		const route = routeFor(task.target.freeze(root));
-		route.id = idOf(route.updatePath.getIn(root));
-		task.route = route;
+		task.prepare(root);
 	}
 	handleTask(task) {
 		const curRoot = this.rootComponent;
-		const { route } = task;
-		const path = route.updatePath;
-		const instance = path.getIn(curRoot);
-		// The component may be gone since the route was fixed: the task fails, saying where.
-		if (!isComponent(instance)) throw new Error(`${task.name}: no component at ${path}`);
-		// Another component took its place (it was replaced, or a list shifted): the message was
-		// for the one before, so it's dropped and reported, not given to this one.
-		if (route.id !== undefined && idOf(instance) !== route.id) {
-			this.notify("stale", { task, path, id: route.id, found: idOf(instance) });
-			return;
+		// A notification starts from its sender, found as any address is, and visits the ancestors
+		// it has then.
+		if (task instanceof NotifyTask && task.hops === null) {
+			if (this.receiver(task, task.from, curRoot) === null) return;
+			task.start(curRoot);
 		}
+		const { to } = task;
+		const path = to.updatePath;
+		const instance = this.receiver(task, to, curRoot);
+		if (instance === null) return;
 		if (task instanceof AskTask) return this.startAsk(task, instance);
 		let ctx;
 		let newRoot;
 		try {
 			newRoot = produce(curRoot, (rootDraft) => {
 				const leafDraft = path.getIn(rootDraft);
-				ctx = new MessageContext(task, route.path, this.env, scopeOf(instance), this.nextRequest);
+				ctx = new MessageContext(task, this.env, scopeOf(instance), this.nextRequest);
 				const newLeaf = task.run(instance, leafDraft, ctx);
 				return path.setIn(rootDraft, newLeaf);
 			});
@@ -310,8 +313,8 @@ export class Host {
 			for (const message of ctx?.unhandled ?? []) this.notify("unhandled", { task, message });
 			throw error;
 		}
-		for (const child of ctx.tasks) this.prepareTask(child, newRoot);
-		if (ctx.nextHop !== null) this.prepareTask(ctx.nextHop, newRoot);
+		// Where what it sends goes is fixed against the tree it committed.
+		for (const child of ctx.tasks) child.prepare(newRoot);
 		const commit = this.prepareEngines(curRoot, newRoot, task);
 		this.rootComponent = newRoot;
 		commit();
@@ -323,24 +326,33 @@ export class Host {
 		this.checkMessage(task, ctx, instance, path.getIn(newRoot));
 		this.notify("taskHandled", { task, path, instance, curRoot, newRoot });
 	}
+	// The component address names in root, or null when there is none to deliver task to: the
+	// one it recorded is gone (orphaned), or another took its place (stale: it was replaced, or a
+	// list shifted), so the message, for the one before, is dropped and reported. A notification's
+	// hops can't move while it bubbles, so one that can't find its next hop is a bug (lost).
+	receiver(task, address, root) {
+		const path = address.updatePath;
+		const found = address.resolve(root);
+		if (found.instance !== undefined) return found.instance;
+		if (task instanceof NotifyTask && address === task.to) {
+			console.assert(false, "a notification lost its hop", task);
+			this.notify("lost", { task, path });
+		} else if (found.orphaned) this.notify("orphaned", { task, path });
+		else this.notify("stale", { task, path, id: address.id, found: found.stale });
+		return null;
+	}
 	// An ask starts here, after what asked committed, outside any transaction: nothing can
 	// undo what its handler started. A reply now runs next, ahead of the queue; a later one
 	// joins the queue when it settles.
 	startAsk(task, instance) {
-		const ctx = new MessageContext(
-			task,
-			task.route.path,
-			this.env,
-			scopeOf(instance),
-			this.nextRequest,
-		);
+		const ctx = new MessageContext(task, this.env, scopeOf(instance), this.nextRequest);
 		const { now, later } = task.start(instance, ctx);
 		if (now !== undefined) this.tasks.unshift(now);
 		if (later !== undefined) later.then((reply) => this.pushTask(reply));
 		const root = this.rootComponent;
 		this.notify("taskHandled", {
 			task,
-			path: task.route.updatePath,
+			path: task.to.updatePath,
 			instance,
 			curRoot: root,
 			newRoot: root,

@@ -9,7 +9,7 @@ import { readText, saveFile } from "../components/common/files.js";
 import { ClassCompiler, classNamesOf } from "../src/css/classes.js";
 import { mountTimeTravel, TimeTravel } from "../src/history/bar.js";
 import { startSynced } from "../src/sync/index.js";
-import { DispatchPath, Host, Target, Task } from "../src/tutuca.js";
+import { DispatchPath, HOST, Host, Target, Task } from "../src/tutuca.js";
 import { SYNC_MODES, syncFromQuery, syncModeOf } from "./sync/engines.js";
 
 export const boot = ({
@@ -121,8 +121,7 @@ const setup = ({ components, askHandlers, document }) => {
 
 // Sends name(...args) to the root component, as if it came from outside the app.
 export const sendRoot = (host, name, args = []) => {
-	const path = new DispatchPath();
-	const task = new Task(name, args, path, new Target(path), null);
+	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
 	host.prepareTask(task, host.rootComponent);
 	host.pushTask(task);
 };

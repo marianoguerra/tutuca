@@ -12,10 +12,13 @@ Tutuca has four kinds of path. Each has one job:
 | `UpdatePath` | the property keys from the root state to a value | reading and writing state (`getIn`, `setIn`) |
 | `DispatchPath` | a list of `Frame`s: how a component was reached while rendering | metadata comments, event routing, notify bubbling, `sourceKey` |
 | `Selector` | `PathBuilder` calls (`field`, `item`, `seqItem`) | addressing a component from code (`ctx.sendAt`, `provides`) |
-| `Target` | a `DispatchPath` plus a `Selector` below it | where a task goes, before its route is fixed |
+| `Target` | a `DispatchPath` plus a `Selector` below it | where a task goes, before its address is fixed |
+| `Address` | a `DispatchPath`, its update path, and the identity of the component it reached | where a task goes (`to`) and who sent it (`from`) |
 
-A **route** pairs a dispatch path with its update path, and records the identity of the
-component it reached: `{ path, updatePath, id }`. Every task runs with a route.
+An **address** is spec/tree's `(at π ι)`: a dispatch path with its update path, and the
+identity of the component it reached when it was fixed (`{ path, updatePath, id }`). Every
+task has a `from`, its sender's address, and runs with a `to`. `HOST`, the root's parent, is
+the `from` of DOM events and ask answers; it has no handlers.
 
 The formal model is in `spec/component/paths.rkt` (`upath`, `dframe`/`dpath`, `sel`, `route`). The task
 side is in `spec/system/host.rkt` (`(at base sel)`).
@@ -97,7 +100,7 @@ To route an event, the runtime walks from the event target up to the root node:
 2. For each ancestor, it scans the previous siblings for enclosing metadata. Each `§/§`
    hides one opening comment, and comments that only look like metadata are skipped.
 3. It reads the metadata from the outermost in to rebuild the `DispatchPath`.
-4. From the dispatch path it computes the route, and so the instance.
+4. From the dispatch path it fixes the address, and so the instance.
 5. The handler is the first one matching the event type, trying the eids innermost first,
    in that instance's class.
 
@@ -112,9 +115,11 @@ along rendered ancestry. For example, a child that a `Panel` renders through
 `provided("child")` notifies the `Panel`, then the `Panel`'s parent, even though the child's
 state lives elsewhere.
 
-A notify's hops run back to back: each hop's next one runs before anything else queued, so
-it visits the ancestors its sender had when it started, and what a hop sends (a `sendAt`,
-another notify) waits until the bubble ends. An ancestor without a handler for the notify
+A notify's hops are fixed when it starts: it finds its sender as any address is found (a
+sender replaced since it notified makes it `stale`), and visits the ancestors the sender has
+then. The hops run back to back: each hop's next one runs before anything else queued, and
+what a hop sends (a `sendAt`, another notify) waits until the bubble ends. A hop that can't be
+found, which can't happen while nothing else runs between hops, is reported `lost`. An ancestor without a handler for the notify
 passes it on, silently. It stops at a handler
 that calls `ctx.stopNext()`, or at the root. If no ancestor had a handler, it's reported once,
 as `unhandled`, when it reaches the root; a notify the root itself sends has no ancestors, and
@@ -128,8 +133,9 @@ is reported the same way.
   followed by the provider's `keys`.
 - Either way, the frame then appends its `accessKeys`.
 
-`toUpdatePath()` is `toComponentPath().resolve()`. The route of a dispatch path is
-`{ path, updatePath: path.toUpdatePath() }`.
+`toUpdatePath()` is `toComponentPath().resolve()`. `Address.at(path, root)` fixes a dispatch
+path's address: `{ path, updatePath: path.toUpdatePath(), id }`, `id` that of the component
+at the update path in `root`.
 
 Depth is what ties providers to frames. The root component is entered at depth 0 and every
 frame adds one, so "captured at depth d" and "the first d frames" refer to the same
@@ -144,7 +150,8 @@ non-component loop frames until the last one, and returns that frame's `item`. I
 another branch did (the sender's path doesn't go through the receiver).
 
 `sourceKey()` in a send, and `ctx.sourceKey` in a handler, are computed this way from the
-task's `sourcePath` and `ctx.path`:
+path of the task's `from` (or, for one from the host, such as an event, its `to`) and
+`ctx.path`:
 - For an event, the key is that of the loop item holding the clicked element.
 - For a notify, it is the slot of the child the notify came through.
 
@@ -154,7 +161,7 @@ Drag events use the same routing, with two differences.
 
 - **Drop events bubble.** `dragenter`, `dragover`, `dragleave` and `drop` go to the nearest
   enclosing component that handles them, not only to the component the event happened in. A
-  drop on a card's elements reaches the board's `on:drop` around it. The route then ends at
+  drop on a card's elements reaches the board's `on:drop` around it. The address then ends at
   the frame of the child the event came through, so `sourceKey()` is that child's key.
 - **The host keeps the drag.** On `dragstart` it finds the closest `draggable="true"`
   element and keeps a `Drag`: its full dispatch path (loop items included), its
@@ -204,7 +211,7 @@ the part still to be frozen. When the host prepares the task, it calls `target.f
 2. Freeze the selector against that value.
 3. Append the resulting frames to the base.
 
-The result is the task's dispatch path, and its route follows from that.
+The result is the task's dispatch path, and `target.address(root)` its address, `to`.
 
 Selector frames never contain provider jumps. So resolving the frozen path gives the same
 keys as resolving the base and appending the selector's keys. The spec checks this
@@ -212,19 +219,21 @@ equivalence.
 
 ## When each path is made
 
-| Task | `sourcePath` | `target` | Route fixed |
+| Task | `from` | `to` | Address fixed |
 |---|---|---|---|
-| `EventTask` | the routed dispatch path | its base is the routed path | at event time, from the DOM |
-| `sendAt` / `forwardAt` | `ctx.path` | `ctx.path` and the selector | at the producer's commit |
-| `notify` | `ctx.path` | `ctx.path.toParentPath()` | at commit, and again at each hop, which runs right after the one before |
-| `ask` | `ctx.path` | `ctx.path` | at commit |
-| ask answer | the ask's `sourcePath` | the same path | when the ask starts: it's the ask's own route back, with the asker's identity |
+| `EventTask` | `HOST` | the routed dispatch path | at event time, from the DOM |
+| `sendAt` / `forwardAt` | `ctx.address` | `ctx.path` and the selector | at the producer's commit |
+| `reply` | `ctx.address` | the `from` of the message being handled | when that message was sent |
+| `notify` | `ctx.address` | each of the sender's ancestors in turn | when the bubble starts |
+| `ask` | `ctx.address` | `ctx.address` | at the asker's handler |
+| ask answer | `HOST` | the ask's `from` | when the ask was made: the asker's address |
 
 Two timing rules decide which state a path reads:
 
-- **Events fix their route when they happen.** A click on the selected item goes to the item
-  that was selected when the user clicked, even if older queued tasks change `selected` in
-  the meantime.
+- **Events fix their address when they happen, and run ahead of the queue.** A click on the
+  selected item goes to the item that was selected when the user clicked. It runs before the
+  tasks already queued, after the events before it and the rest of a notify under way, as
+  spec/tree's environment events do.
 - **Programmatic targets freeze at their producer's commit.** A `sendAt` with
   `seqItem("items", "selected")` reads `selected` from the state the producer committed,
   including the producer's own changes. Tasks queued after it can't change where it goes. If
@@ -257,24 +266,31 @@ with `step.answer("load", "ok", value)`, tests with `driver.answer(path, "load",
 An ask doesn't run in the transaction that asks: it's a task of its own, queued when that
 transaction commits, so an ask from a transaction that fails never starts. The ask task runs no
 handler on the asker. It starts the scope's ask handler, and the answer comes back as an answer
-task routed to the asker's path and identity. One given now runs next, ahead of the queue; a
+task addressed to the asker's address. One given now runs next, ahead of the queue; a
 promise's joins the queue when it settles. An answer that throws fails only its own task, the
 same either way.
 
-## Identity: the component a route was for
+## Replies
 
-A path names a place, and a place can change hands between when a route is fixed and when its
-task runs: an item is replaced, or a list shifts (an `unshift`, a `splice`) and another item
+`ctx.reply(name, args)` sends `name` to the sender of the message being handled, at the
+address it sent from. A notify keeps its sender at every hop, so a reply from any hop reaches
+the component that notified, not the hop below. A reply to a sender replaced since it sent is
+`stale`; one to `HOST` (from an event's or an answer's handler) is reported `unhandled`.
+
+## Identity: the component an address was for
+
+A path names a place, and a place can change hands between when an address is fixed and when
+its task runs: an item is replaced, or a list shifts (an `unshift`, a `splice`) and another item
 takes the index. So every component instance has an identity, a number given when it's made
 (`idOf(instance)`). An update keeps it: immer's copies of a component keep it. Making an
 instance, or a handler returning a new one, gives a new one.
 
-A route records the identity of the component it reached when it was fixed: at event time for
-an event, at the producer's commit for the rest, and an async reply records its asker's. When
-the task runs, the component at the route's update path must have that identity. If another
-component is there, the message was for the one before: it's dropped, and reported as `stale`
-(`{ task, path, id, found }`), instead of being given to that one. If no component is there,
-the task fails, saying where.
+An address records the identity of the component it reached when it was fixed: at event time
+for an event, at the producer's commit for the rest, and an answer or a reply goes to its
+sender's. When the task runs, `to.resolve(root)` checks the component at the update path has
+that identity. If another component is there, the message was for the one before: it's
+dropped, and reported as `stale` (`{ task, path, id, found }`), instead of being given to that
+one. If no component is there, it's dropped and reported as `orphaned` (`{ task, path }`).
 
 The tree spec (`spec/tree/`) is where this comes from: routing by path alone delivers to the
 newcomer once items can be replaced or reordered (its M4 and M5); checking the identity turns

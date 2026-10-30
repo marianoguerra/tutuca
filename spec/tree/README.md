@@ -240,6 +240,22 @@ choices:
   back.
 - **Explicit pass:** an ancestor without a handler passes a notification on silently, and one
   nobody handled is reported `unhandled` once, at the root.
+- **One envelope:** every task carries `from` and `to`, each an `Address` (`src/paths.js`), a
+  path and an identity. `ctx.reply` sends to `from`; the host (`HOST`) is the `from` of DOM
+  events and ask answers. A route that reaches no component is `orphaned`, not a failure.
+- **Bubbles start from the sender:** a notification resolves its sender first (`stale` if it
+  swapped itself, as in M6), and fixes its hops to the ancestors the sender has then.
+- **Env events run ahead of the queue,** after earlier events and the rest of a bubble under
+  way.
+
+Where the JS still differs from `core.rkt`:
+
+- **`unhandled`:** the core reports a notification that reached the host without a `stop`; the
+  JS reports one that no hop had a handler for (the explicit pass above).
+- **Answer arrival:** an ask the scope answers synchronously runs ahead of the queue, as an
+  urgent response does; one answered by a promise is appended, as a normal one is.
+- **Requests don't bubble:** a scope ask handler is the host answering; components can't
+  `answer` on the way up.
 
 They were `by-path` with `per-hop` before, and the main spec's interleaving scenarios showed
 the M4/M5 misdelivery there. A swap (a handler returning a new instance) gives a new identity,

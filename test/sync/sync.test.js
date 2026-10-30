@@ -14,7 +14,16 @@ import {
 	textSplice,
 } from "../../src/sync/index.js";
 import { memoryRemote, relay, remoteEngine } from "../../src/sync/remote.js";
-import { component, DispatchPath, scopeOf, specOf, Target, Task, t } from "../../src/tutuca.js";
+import {
+	component,
+	DispatchPath,
+	HOST,
+	scopeOf,
+	specOf,
+	Target,
+	Task,
+	t,
+} from "../../src/tutuca.js";
 import { setupHost, tick } from "../helpers.js";
 
 const Item = component({
@@ -50,8 +59,7 @@ const started = (args = {}) => {
 	return s;
 };
 const send = (host, name, args) => {
-	const path = new DispatchPath();
-	const task = new Task(name, args, path, new Target(path), null);
+	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
 	host.prepareTask(task, host.rootComponent);
 	host.pushTask(task);
 	while (host.tasks.length > 0) host.handleTasks();

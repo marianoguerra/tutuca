@@ -1,6 +1,6 @@
 // DOM events: finds the component, path and handlers an event belongs to from the meta comments.
 import { isMetaOpen, META_CLOSE, parseMeta } from "./meta.js";
-import { DispatchPath, Frame, routeFor } from "./paths.js";
+import { Address, DispatchPath, Frame } from "./paths.js";
 import { specOf } from "./schema.js";
 
 const META_TYPES = new Set(["component", "frame"]);
@@ -61,7 +61,7 @@ export const pathOf = (node, rootNode) => {
 	const walk = walkUp(node, rootNode);
 	return walk === null || walk.components.length === 0 ? null : pathFrom(walk.metas);
 };
-// The handler for a type event on target, with the route to its component and its element.
+// The handler for a type event on target, with the address of its component and its element.
 // Only the component target is in handles it, unless bubbles: then the nearest enclosing
 // component with a handler for it does.
 export const getEventInfoFor = (target, type, rootNode, rootComponent, bubbles = false) => {
@@ -73,11 +73,11 @@ export const getEventInfoFor = (target, type, rootNode, rootComponent, bubbles =
 		if (eids.length === 0) continue;
 		// What is outside the component below: its frame is the child the event came through.
 		const start = level === 0 ? 0 : walk.components[level - 1] + 1;
-		const route = routeFor(pathFrom(walk.metas.slice(start)));
-		const { eventHandlers } = specOf(route.updatePath.getIn(rootComponent));
+		const to = Address.at(pathFrom(walk.metas.slice(start)), rootComponent);
+		const { eventHandlers } = specOf(to.updatePath.getIn(rootComponent));
 		for (const { eid, node } of eids) {
 			for (const handler of eventHandlers.get(eid) ?? []) {
-				if (handler.name === type) return { handler, route, node };
+				if (handler.name === type) return { handler, to, node };
 			}
 		}
 	}
