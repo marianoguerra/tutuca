@@ -1,9 +1,9 @@
 // Views: the AST nodes view builders make, how they evaluate to vnodes, and the render context.
 import { wrapMeta } from "./meta.js";
-import { planElement, reuseConstant } from "./optimize.js";
+import { planElement } from "./optimize.js";
 import { DispatchPath, Frame, selectorFrom } from "./paths.js";
 import { isComponent, specOf } from "./schema.js";
-import { VBase, VFragment, VNode, VText } from "./vdom.js";
+import { addChild, toVChilds, VFragment, VNode } from "./vdom.js";
 
 export const renderView = (instance, ctx, viewName) => {
 	const spec = specOf(instance);
@@ -67,19 +67,6 @@ export class Provided extends AstNode {
 }
 export const provided = (name) => new Provided(name);
 let nextEid = 0;
-// Any iterable is spliced into its parent, null and undefined render nothing, other values as text.
-function addChild(childs, child) {
-	if (child == null) return;
-	if (typeof child !== "string" && typeof child[Symbol.iterator] === "function") {
-		for (const c of child) addChild(childs, c);
-	} else if (child instanceof VBase) childs.push(child);
-	else childs.push(new VText(child));
-}
-export const toVChilds = (value) => {
-	const childs = [];
-	addChild(childs, value);
-	return childs;
-};
 export class DomNode extends AstNode {
 	static kind = "element";
 	constructor(tagName, attrs, childs, handlers) {
@@ -89,20 +76,18 @@ export class DomNode extends AstNode {
 		this.childs = childs;
 		this.handlers = handlers;
 		this.eid = handlers.length > 0 ? nextEid++ : null;
-		this.plan = planElement(this); // OPT: what every render shares (shape, constness, literal texts), see planElement.
-	}
-	eval(ctx) {
-		return reuseConstant(this, ctx); // OPT: a constant element builds once, see reuseConstant.
+		this.plan = planElement(this); // OPT: what every render shares (shape, constant parts), see planElement.
 	}
 	// A vnode of this element's shape, with the dynamic attrs and the children evaluated in ctx.
-	build(ctx) {
-		const { shape, valueExprs, keyExpr, texts } = this.plan;
+	eval(ctx) {
+		const { shape, valueExprs, keyExpr, childs, vnode } = this.plan;
+		if (vnode !== null) return vnode; // OPT: a constant element is prebuilt.
 		const values = valueExprs.map((v) => v.eval(ctx));
-		const childs = [];
+		const vchilds = [];
 		for (let i = 0; i < this.childs.length; i++) {
-			addChild(childs, texts[i] ?? this.childs[i].eval(ctx)); // OPT: prebuilt literal texts.
+			addChild(vchilds, childs[i] ?? this.childs[i].eval(ctx)); // OPT: prebuilt constant childs.
 		}
-		return new VNode(shape, values, childs, keyExpr?.eval(ctx));
+		return new VNode(shape, values, vchilds, keyExpr?.eval(ctx));
 	}
 	childNodes() {
 		const attrs = this.attrs.map(([, v]) => v);

@@ -8,7 +8,7 @@ import { JSDOM } from "jsdom";
 import { lint } from "../src/lint/index.js";
 import { arbitraries, Driver, specProperties } from "../src/test/pbt.js";
 import { Host, Scope, testEnv } from "../src/tutuca.js";
-import { Shape, VBase, VComment, VFragment, VNode, VText } from "../src/vdom.js";
+import { Shape, toVChilds, VComment, VFragment, VNode } from "../src/vdom.js";
 
 // --- documents, hosts and scopes ---------------------------------------------------------
 
@@ -123,21 +123,19 @@ export const testGenericProperties = (
 const shapes = new Map();
 const shapeFor = (tag, namespace, names) => {
 	const id = JSON.stringify([tag, namespace, names]);
-	if (!shapes.has(id)) shapes.set(id, new Shape(tag, namespace, {}, names));
+	if (!shapes.has(id))
+		shapes.set(
+			id,
+			new Shape(
+				tag,
+				namespace,
+				names.map((name) => [name, false]),
+			),
+		);
 	return shapes.get(id);
 };
 
-function addChild(childs, child) {
-	if (child == null) return;
-	if (typeof child !== "string" && typeof child[Symbol.iterator] === "function") {
-		for (const c of child) addChild(childs, c);
-	} else childs.push(child instanceof VBase ? child : new VText(child));
-}
-export const vchilds = (value) => {
-	const childs = [];
-	addChild(childs, value);
-	return childs;
-};
+export const vchilds = toVChilds;
 
 export function vh(tag, attrs = {}, children = null) {
 	const { key, namespace = null, ...rest } = attrs;

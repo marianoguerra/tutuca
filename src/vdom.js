@@ -23,10 +23,11 @@ export class VComment extends VBase {
 }
 // What every render of one template shares: tag, namespace, the attrs that never change and
 // the names of the ones that do. Same-shape vnodes diff by index; different shapes replace.
-// Attrs read when the element is created or after its children, so never part of a Shape.
-export const DYNAMIC_ONLY = new Set(["value", "checked", "is", "dangerouslySetInnerHTML"]);
+// Attrs read when the element is created or after its children, so never static.
+const DYNAMIC_ONLY = new Set(["value", "checked", "is", "dangerouslySetInnerHTML"]);
 export class Shape {
-	constructor(tag, namespace, staticAttrs, names) {
+	// attrs: [name, isStatic, value] entries. Static ones are kept, the rest named in order.
+	constructor(tag, namespace, attrs) {
 		if (namespace == null) {
 			const lower = tag.toLowerCase();
 			if (lower === "svg" || lower === "math") {
@@ -34,8 +35,11 @@ export class Shape {
 				tag = lower;
 			}
 		}
-		for (const name of DYNAMIC_ONLY) {
-			if (Object.hasOwn(staticAttrs, name)) throw new Error(`${name} must be a dynamic attr`);
+		const staticAttrs = {};
+		const names = [];
+		for (const [name, isStatic, value] of attrs) {
+			if (isStatic && !DYNAMIC_ONLY.has(name)) staticAttrs[name] = value;
+			else names.push(name);
 		}
 		this.tag = tag;
 		this.namespace = typeof namespace === "string" ? namespace : null;
@@ -100,6 +104,19 @@ export class VFragment extends VBase {
 		);
 	}
 }
+// Any iterable is spliced into its parent, null and undefined render nothing, other values as text.
+export function addChild(childs, child) {
+	if (child == null) return;
+	if (typeof child !== "string" && typeof child[Symbol.iterator] === "function") {
+		for (const c of child) addChild(childs, c);
+	} else if (child instanceof VBase) childs.push(child);
+	else childs.push(new VText(child));
+}
+export const toVChilds = (value) => {
+	const childs = [];
+	addChild(childs, value);
+	return childs;
+};
 const getKey = (child) => child.key;
 // A pure vnode walk: much cheaper than morphing, which has to read the DOM at every element.
 function childsEqual(a, b) {

@@ -6,8 +6,8 @@ import { getEventInfoFor, pathOf } from "./events.js";
 import { findInvalidFields, messageIssues, scopeOf } from "./schema.js";
 import { Scope } from "./scope.js";
 import { AskTask, EventTask, MessageContext, NotifyTask } from "./tasks.js";
-import { render as $render } from "./vdom.js";
-import { RenderContext, renderView, toVChilds } from "./view.js";
+import { render as $render, toVChilds } from "./vdom.js";
+import { RenderContext, renderView } from "./view.js";
 
 export class Host {
 	constructor({ document, rootNode, dev = false, env = browserEnv }) {

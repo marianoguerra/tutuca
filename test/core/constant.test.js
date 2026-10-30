@@ -164,3 +164,16 @@ test("literal text children of dynamic elements keep their vnode across renders"
 	assert.equal(p.childs[2], seven);
 	assert.equal(rootNode.querySelector("p").textContent, "Count: 17");
 });
+
+test("constant conditional children of dynamic elements keep their vnodes across renders", () => {
+	const Comp = component({
+		name: "Comp",
+		fields: { count: t.number() },
+		view: h("p", { title: field("count") }, $if(true, h("b", {}, "yes"), "no"), field("count")),
+	});
+	const { host, C } = setup(Comp);
+	const b = findVNode(host, "b");
+	host.rootComponent = C.Comp({ count: 1 });
+	host.render();
+	assert.equal(findVNode(host, "b"), b);
+});

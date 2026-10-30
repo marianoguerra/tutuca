@@ -1,7 +1,7 @@
 // Render optimizations. view.js says what a view evaluates to; this module makes evaluating it
 // cheaper without changing the result. Every call site in view.js is marked with `// OPT:`.
 // Nodes are told apart by their Walker kind, so this module needs nothing from view.js.
-import { DYNAMIC_ONLY, Shape, VText } from "./vdom.js";
+import { Shape, toVChilds, VNode } from "./vdom.js";
 
 // A constant node evaluates to the same value with any ctx, including null. Anything that reads
 // the ctx, runs user code or is unknown (custom AstNode subclasses) is not constant.
@@ -18,18 +18,16 @@ export function isConstant(node) {
 	}
 }
 
-const isText = (v) => typeof v === "string" || typeof v === "number";
-
 // What every render of a DomNode shares, computed once when it's built:
 // - constant: handlers don't count, actions are evaluated on dispatch, not on render.
 // - shape: constant attrs (and data-eid) are applied once on create and never diffed.
 // - valueExprs: the other attrs, evaluated per render in shape.names order.
-// - texts: literal text children as prebuilt vnodes, so morph skips them by identity.
+// - childs: constant children as prebuilt vnodes, so morph skips them by identity.
+// - vnode: a constant element, prebuilt, so morph skips the whole subtree by identity.
 export function planElement(node) {
 	const { tagName, attrs, childs, eid } = node;
-	const staticAttrs = {};
-	const names = [];
-	const valueExprs = [];
+	const shapeAttrs = [];
+	const exprs = new Map();
 	let namespace = null;
 	let keyExpr = null;
 	for (const [name, value] of attrs) {
@@ -37,31 +35,24 @@ export function planElement(node) {
 		else if (name === "namespace") {
 			if (!isConstant(value)) throw new Error(`<${tagName}> namespace must be a constant`);
 			namespace = value.eval(null);
-		} else if (isConstant(value) && !DYNAMIC_ONLY.has(name)) {
-			staticAttrs[name] = value.eval(null);
 		} else {
-			names.push(name);
-			valueExprs.push(value);
+			const isStatic = isConstant(value);
+			shapeAttrs.push([name, isStatic, isStatic ? value.eval(null) : undefined]);
+			exprs.set(name, value);
 		}
 	}
-	if (eid !== null) staticAttrs["data-eid"] = eid;
-	return {
-		constant: attrs.every(([, v]) => isConstant(v)) && childs.every(isConstant),
-		shape: new Shape(tagName, namespace, staticAttrs, names),
-		valueExprs,
-		keyExpr,
-		texts: childs.map((c) =>
-			c.constructor.kind === "constant" && isText(c.value) ? new VText(c.value) : null,
-		),
-		vnode: null,
-	};
-}
-
-// A constant element builds once without a ctx and returns that vnode from then on, so morph
-// skips the whole subtree by identity.
-export function reuseConstant(node, ctx) {
-	const { plan } = node;
-	if (!plan.constant) return node.build(ctx);
-	plan.vnode ??= node.build(null);
-	return plan.vnode;
+	if (eid !== null) shapeAttrs.push(["data-eid", true, eid]);
+	const shape = new Shape(tagName, namespace, shapeAttrs);
+	const valueExprs = shape.names.map((name) => exprs.get(name));
+	const constant = attrs.every(([, v]) => isConstant(v)) && childs.every(isConstant);
+	const prebuilt = childs.map((c) => (isConstant(c) ? toVChilds(c.eval(null)) : null));
+	const vnode = constant
+		? new VNode(
+				shape,
+				valueExprs.map((v) => v.eval(null)),
+				prebuilt.flat(),
+				keyExpr?.eval(null),
+			)
+		: null;
+	return { constant, shape, valueExprs, keyExpr, childs: prebuilt, vnode };
 }

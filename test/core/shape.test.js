@@ -44,7 +44,7 @@ test("value, checked, is and dangerouslySetInnerHTML stay dynamic even when cons
 	});
 	assert.deepEqual(node.plan.shape.staticAttrs, {});
 	assert.deepEqual(node.plan.shape.names, ["value", "checked", "is", "dangerouslySetInnerHTML"]);
-	assert.throws(() => new Shape("p", null, { value: 1 }, []), /value must be a dynamic attr/);
+	assert.deepEqual(new Shape("p", null, [["value", true, 1]]).names, ["value"]);
 });
 
 test("namespace must be a constant, and svg and math are detected once in the shape", () => {
