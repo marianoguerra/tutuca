@@ -15,7 +15,9 @@
 			"!dist",
 			"!_site",
 			"!tutuca-mb",
-			"!tutuca-wax"
+			"!tutuca-wax",
+			"!tdata/mbt/_build",
+			"!tdata/mbt/dist"
 		]
 	},
 	"formatter": {
@@ -60,10 +62,24 @@
 			}
 		},
 		{
-			"includes": ["test/**/*.js", "scripts/**/*.js"],
+			"includes": [
+				"test/**/*.js",
+				"scripts/**/*.js",
+				"tdata/*/test/**",
+				"tdata/*/scripts/**",
+				"tdata/mbt/load.mjs"
+			],
 			"linter": {
 				"rules": {
 					"correctness": { "noNodejsModules": "off" }
+				}
+			}
+		},
+		{
+			"includes": ["tdata/js/test/query.test.ts", "tdata/mbt/test/**"],
+			"linter": {
+				"rules": {
+					"correctness": { "useImportExtensions": "off" }
 				}
 			}
 		}
