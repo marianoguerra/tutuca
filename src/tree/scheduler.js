@@ -45,11 +45,16 @@ export class Scheduler {
 		this.transact = transact;
 		this.hooks = hooks;
 		this.tasks = [];
+		this.pending = 0; // The asks whose answers are on their way.
 		this.requests = 0; // The ids of the asks made, counted per scheduler so runs repeat.
 		this.nextRequest = () => ++this.requests;
 	}
 	get isEmpty() {
 		return this.tasks.length === 0;
+	}
+	// Nothing to run now, and no answer to come.
+	get isIdle() {
+		return this.tasks.length === 0 && this.pending === 0;
 	}
 	// An event runs at once, ahead of the queue, against the tree it happened on: after the events
 	// that came before it, and after the rest of a bubble under way, which is one turn.
@@ -143,7 +148,13 @@ export class Scheduler {
 		const handler = this.kinds.askHandler(instance, task.name);
 		const { now, later } = task.start(handler, ctx.readOnly());
 		if (now !== undefined) this.urgent(now);
-		if (later !== undefined) later.then((answer) => this.push(answer));
+		if (later !== undefined) {
+			this.pending++;
+			later.then((answer) => {
+				this.pending--;
+				this.push(answer);
+			});
+		}
 		const root = this.store.get();
 		const info = { task, path: task.to.keyPath, instance, curRoot: root, newRoot: root };
 		this.hooks.observe("taskHandled", info);

@@ -9,8 +9,8 @@ import {
 	ComponentType,
 	DispatchPath,
 	EnumType,
-	EventTask,
 	Frame,
+	HostTask,
 	IndexType,
 	KeyPath,
 	MapType,
@@ -169,13 +169,14 @@ const astDetail = (node) => {
 	}
 };
 // Each kind of task: the noun a summary titles it with and the verb a formatter shows.
+// A message from the host is an event when a DOM event sent it.
 const TASKS = [
-	[EventTask, "event", "event"],
-	[AskTask, "ask", "ask"],
-	[NotifyTask, "notification", "notify"],
-	[Task, "message", "send"],
+	[(task) => task instanceof HostTask && task.event !== null, "event", "event"],
+	[(task) => task instanceof AskTask, "ask", "ask"],
+	[(task) => task instanceof NotifyTask, "notification", "notify"],
+	[(task) => task instanceof Task, "message", "send"],
 ];
-const taskWords = (task) => TASKS.find(([Kind]) => task instanceof Kind);
+const taskWords = (task) => TASKS.find(([is]) => is(task));
 export const taskVerb = (task) => taskWords(task)[2];
 
 export const summarize = (v) => {

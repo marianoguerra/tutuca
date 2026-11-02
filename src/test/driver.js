@@ -6,7 +6,6 @@ import {
 	AnswerTask,
 	DispatchPath,
 	Frame,
-	HOST,
 	Host,
 	isComponent,
 	Selector,
@@ -63,7 +62,7 @@ export class Driver {
 		onReport = null,
 		env = testEnv(),
 	}) {
-		const node = rootNode ?? document?.createElement("main") ?? { addEventListener() {} };
+		const node = rootNode ?? document?.createElement("main") ?? null;
 		this.env = env; // Its clock moves with env.advance(ms).
 		this.host = new Host({ document, rootNode: node, dev: true, env });
 		this.reports = [];
@@ -73,11 +72,9 @@ export class Driver {
 			onReport?.(report);
 		};
 		if (!live) this.host.scheduleNextTaskTick = () => {};
-		if (document === null) this.host.render = () => {};
-		else
-			for (const spec of Object.values(scopeOf(root)?.allSpecs() ?? {})) {
-				this.host.addEventListeners(spec.eventNames);
-			}
+		for (const spec of Object.values(scopeOf(root)?.allSpecs() ?? {})) {
+			this.host.addEventListeners(spec.eventNames);
+		}
 		this.host.start(root);
 	}
 	get state() {
@@ -94,14 +91,19 @@ export class Driver {
 	problemsSince(before) {
 		return this.reports.slice(before).filter((r) => PROBLEMS.has(r.type));
 	}
-	// Send name to the component at path, a DispatchPath or a Selector from the root; from is
-	// the frames (or a Selector) from it to the child the message comes through, which sets
-	// ctx.sourceKey.
+	// Send name to the component at path, a DispatchPath or a Selector from the root, as the
+	// host does. from is the frames (or a Selector) from it to the child the message comes
+	// through, which sets ctx.sourceKey: then the child sends it, as a test can and the host
+	// can't.
 	send(path, name, args = [], from = []) {
+		if (from.length === 0 || (from instanceof Selector && from.ops.length === 0)) {
+			this.host.send(name, args, { to: path });
+			return this.drain();
+		}
 		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
 		const fromFrames =
 			from instanceof Selector ? from.freeze(base.toKeyPath().getIn(this.state)) : from;
-		const sender = fromFrames.length === 0 ? HOST : Address.at(base.concat(fromFrames), this.state);
+		const sender = Address.at(base.concat(fromFrames), this.state);
 		const task = new Task(name, args, sender, new Target(base), null);
 		task.prepare(this.state);
 		this.host.pushTask(task);

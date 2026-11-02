@@ -51,6 +51,9 @@ export const component = (opts) => {
 	const sources = view === undefined ? views : { ...views, main: view };
 	const exprs = ownEntries({});
 	for (const key in sources) exprs[key] = toExpr(sources[key]);
+	// A component with no views at all only handles messages (headless) and renders nothing;
+	// one with views needs a main one.
+	if (view === undefined && Object.keys(views).length === 0) exprs.main = toExpr("");
 	if (!("main" in exprs)) throw new Error(`Component ${name} has no main view`);
 	return new ComponentSpec({
 		name,

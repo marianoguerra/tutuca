@@ -52,7 +52,7 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | `bind/` | `meta.rkt` | metadata comment text | `wrapMeta`'s objects, `parseMeta` |
 | | `lower.rkt` | semantic tree → vnodes | `wrapMeta`, `planElement`'s `data-eid`, loop fragments |
 | | `decode.rkt` | `enclosingNodeMeta`, `getEventInfoFor` | `events.js` |
-| `system/` | `host.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling, dev checks | `Task`, `NotifyTask`, `AskTask`, `EventTask`, `Host` |
+| `system/` | `host.rkt` | `handleTask`, the task kinds, `MessageContext`, `Host` scheduling, dev checks | `Task`, `NotifyTask`, `AskTask`, `HostTask`, `Host` |
 | | `tutuca.rkt` | end-to-end scenarios, routing soundness, the binding theorem | |
 | | `render.rkt` | `semantics.pdf` | |
 

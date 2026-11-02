@@ -4,21 +4,7 @@
 // one, with a historyEngine, next to a live Host.
 
 import { ORIGINS } from "../storybook/ui/common.js";
-import {
-	$if,
-	button,
-	component,
-	DispatchPath,
-	field,
-	HOST,
-	Host,
-	send,
-	Target,
-	Task,
-	t,
-	tag,
-	targetValue,
-} from "../tutuca.js";
+import { $if, button, component, field, Host, send, t, tag, targetValue } from "../tutuca.js";
 import { historyEngine } from "./index.js";
 
 const { div, input, span } = tag;
@@ -174,20 +160,13 @@ export const showArgs = ({ size, cursor, current }) => [
 	current?.label ?? "",
 	current?.origin ?? "",
 ];
-// Sends name(...args) to host's root component from outside the app.
-const sendRoot = (host, name, args) => {
-	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-	task.prepare(host.root);
-	host.pushTask(task);
-};
-
 // Records host's timeline with a historyEngine of at most max states and shows a TimeTravel
 // bar for it in rootNode, on a Host of its own; returns { engine, bar, stop }.
 export const mountTimeTravel = ({ document, rootNode, host, max = 1000 }) => {
 	const bar = new Host({ document, rootNode });
 	bar.scope.register({ TimeTravel });
 	// A message, not a new root: travel runs while the bar handles its ask.
-	const show = (timeline) => sendRoot(bar, "show", showArgs(timeline));
+	const show = (timeline) => bar.send("show", showArgs(timeline));
 	const engine = historyEngine({ max, onChange: show });
 	bar.scope.registerAskHandlers({
 		history: ([_target, op, arg]) => (op === "goto" ? engine.travel(arg) : engine[op]()),

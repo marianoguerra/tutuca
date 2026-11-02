@@ -30,7 +30,19 @@ collaborators.
   `checkSettled`, `reportInvalid` and `checkMessage` are gone from `Host`.
 - **Tasks.** A task's fourth argument is where it goes: a `Target`, fixed by `prepare`, or an
   `Address`. `AnswerTask(ask, outcome, args, request, to, parent)` always comes from the host,
-  and `AskTask` takes its request id. `Task.event` is only on `EventTask`.
+  and `AskTask` takes its request id.
+- **Host input.** `EventTask` → `HostTask`, built by `host.send(name, args, { to, now, event,
+  node, drag })`, the one way into the tree: a DOM event is routed, its send's args are worked
+  out when it arrives (an arg that throws is reported as `eventFailed`, not `taskFailed`), and
+  it is sent with `now: true`: ahead of the queue, run before `send` returns. `Task.event` is only on `HostTask`. Build a
+  `Task` and call `pushTask` only for a sender other than the host.
+
+### Added
+
+- **Headless hosts.** `new Host()` needs no `document` or `rootNode`: it renders nothing and
+  listens to no events. A component with no views at all renders nothing.
+  `host.whenIdle()` resolves once no task is queued and no ask is waiting for its answer
+  (`scheduler.pending`, `scheduler.isIdle`).
 
 ## 1.0.0-beta.2
 

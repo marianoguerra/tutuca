@@ -1,5 +1,6 @@
 // What tutuca adds to the tree's messages: the context its handlers get (the world, the scope and
-// the DOM event), DOM events as tasks, and how a component's spec gives the tree its handlers.
+// the DOM event), messages from the host (DOM events among them), and how a component's spec
+// gives the tree its handlers.
 import { scopeOf, specOf } from "./schema.js";
 import { HOST, MessageContext, Task } from "./tree/index.js";
 
@@ -51,22 +52,20 @@ export class TutucaContext extends MessageContext {
 		};
 	}
 }
-export class EventTask extends Task {
-	// An event comes from the host, to the component it reached when it happened.
-	constructor(e, { handler, to, node = null }, drag = null) {
-		super(handler.action.name, [], HOST, to, null);
-		this.event = e;
+// A message from the host, the root's parent: what host.send makes, for a DOM event or for
+// anything outside the app (an agent, a test, a bar). Its args are values, worked out before it
+// is sent. One sent now (an environment event: spec/tree's env rule) runs ahead of the queue, and
+// the ones sent now after it wait behind it. event, node and drag are what its handler reads as
+// ctx.event, ctx.node and ctx.drag.
+export class HostTask extends Task {
+	constructor(name, args, to, { now = false, event = null, node = null, drag = null } = {}) {
+		super(name, args, HOST, to, null);
+		this.now = now;
+		this.event = event;
 		this.node = node;
 		this.drag = drag;
-		this.handler = handler;
 	}
 	get runsBeforeEnv() {
-		return true;
-	}
-	// A message the component doesn't handle keeps it as it was and is reported, as any other
-	// (components compose dynamically, so a view can send one its component lacks).
-	run(handler, instance, next, ctx) {
-		this.args = this.handler.action.args.map((arg) => arg.eval(ctx));
-		return super.run(handler, instance, next, ctx);
+		return this.now;
 	}
 }

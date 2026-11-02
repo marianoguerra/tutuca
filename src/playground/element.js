@@ -12,7 +12,7 @@ import { defineTutucaApp, REQUEST } from "../embed/element.js";
 import { TimeTravel } from "../history/bar.js";
 import { StoryRegistry, storyAskHandlers } from "../storybook/runner.js";
 import { panelClassNames, panelComponents } from "../storybook/ui/panels.js";
-import { DispatchPath, HOST, Host, Target, Task } from "../tutuca.js";
+import { Host } from "../tutuca.js";
 import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
@@ -87,13 +87,6 @@ ${INHERIT_THEME}
 	.pg.collapsed .pg-toggle .label { writing-mode: horizontal-tb; }
 }
 `;
-
-// Sends name(...args) to root's component from outside the app.
-const sendRoot = (host, name, args) => {
-	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-	task.prepare(host.root);
-	host.pushTask(task);
-};
 
 const errorText = (error) => String(error?.stack ?? error?.message ?? error);
 
@@ -199,7 +192,7 @@ export const definePlayground = (
 		// Shows examples ([{ id, title, src }]) in a selector; load one with loadExample.
 		setExamples(examples) {
 			this.examples = examples;
-			sendRoot(this.host, "setExamples", [examples.map(({ id, title }) => ({ id, title }))]);
+			this.host.send("setExamples", [examples.map(({ id, title }) => ({ id, title }))]);
 		}
 
 		loadExample(id, story = "") {
@@ -224,7 +217,7 @@ export const definePlayground = (
 
 		// Loads the files of the module at src and runs it, showing story when it has one.
 		async load(src, { example = "", story = "" } = {}) {
-			sendRoot(this.host, "loading", [example]);
+			this.host.send("loading", [example]);
 			this.example = example;
 			this.wantedStory = story;
 			try {
@@ -234,7 +227,7 @@ export const definePlayground = (
 					isExternal: isTutucaSource,
 				});
 			} catch (error) {
-				sendRoot(this.host, "failed", [errorText(error)]);
+				this.host.send("failed", [errorText(error)]);
 				return;
 			}
 			await this.reset();
@@ -336,10 +329,10 @@ export const definePlayground = (
 				const stories = storyChoices(books);
 				const wanted = stories.some((s) => s.id === this.wantedStory) ? this.wantedStory : "";
 				this.wantedStory = "";
-				sendRoot(this.host, "loaded", [stories, this.runs, wanted]);
+				this.host.send("loaded", [stories, this.runs, wanted]);
 			} catch (error) {
 				linked?.revoke();
-				sendRoot(this.host, "failed", [errorText(error)]);
+				this.host.send("failed", [errorText(error)]);
 			}
 		}
 

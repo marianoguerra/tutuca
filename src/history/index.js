@@ -3,7 +3,7 @@
 // elsewhere, so the other engines (storage, peers) follow.
 
 import { truncate } from "../dev/jsonml.js";
-import { EventTask } from "../tasks.js";
+import { HostTask } from "../tasks.js";
 import { jsonText } from "../tree/text.js";
 
 export const argsLabel = (args) => truncate(args.map(jsonText).join(", "), 80);
@@ -15,7 +15,7 @@ export const rootTask = (task) => {
 // A task as a timeline shows it, like "click → toggle()".
 export const taskLabel = (task) => {
 	const call = `${task.name}(${argsLabel(task.args)})`;
-	return task instanceof EventTask ? `${task.event.type} → ${call}` : call;
+	return task instanceof HostTask && task.event !== null ? `${task.event.type} → ${call}` : call;
 };
 
 // The left entry of the two closest in time, the one to drop to keep the rest spread out,

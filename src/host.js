@@ -1,4 +1,7 @@
 // The host: registers components in scopes, renders the root and runs tasks against its state.
+// Everything from outside the tree comes in through send: DOM events, and the messages of
+// whatever drives the app (an agent, a test, a bar). Without a document it is headless: it
+// renders nothing and listens to no events, and the tree runs the same.
 import { produce } from "../deps/immer.js";
 import { DevChecks } from "./checks.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
@@ -6,8 +9,8 @@ import { SyncEngines } from "./engines.js";
 import { getEventInfoFor } from "./events.js";
 import { scopeOf } from "./schema.js";
 import { Scope } from "./scope.js";
-import { componentKinds, EventTask, TutucaContext } from "./tasks.js";
-import { Scheduler } from "./tree/index.js";
+import { componentKinds, HostTask, TutucaContext } from "./tasks.js";
+import { Address, DispatchPath, Scheduler, Selector, selectorFrom, Target } from "./tree/index.js";
 import { render as $render, toVChilds } from "./vdom.js";
 import { RenderContext, renderView } from "./view.js";
 
@@ -21,7 +24,7 @@ export const browserEnv = {
 };
 
 export class Host {
-	constructor({ document, rootNode, dev = false, env = browserEnv }) {
+	constructor({ document = null, rootNode = null, dev = false, env = browserEnv } = {}) {
 		this.document = document;
 		this.rootNode = rootNode;
 		this.dev = dev;
@@ -64,6 +67,7 @@ export class Host {
 		this._taskTickTimeoutId = null;
 		this._handlingTasks = false;
 		this._eventsAdded = new Set();
+		this._idleWaiters = [];
 		this.drags = new DragTracker(rootNode);
 		this.engines = new SyncEngines((type, info) => this.notify(type, info));
 	}
@@ -77,6 +81,7 @@ export class Host {
 		this.render();
 	}
 	render() {
+		if (this.document === null) return;
 		const ctx = RenderContext.root(this.root);
 		const curVDom = this._curVDom;
 		const newVDom = toVChilds(renderView(this.root, ctx));
@@ -98,13 +103,53 @@ export class Host {
 			info = null;
 			this.notify("eventFailed", { event: e, error });
 		}
+		let args = null;
 		if (info !== null) {
-			this.scheduler.arrive(new EventTask(e, info, this.drag));
-			this.handleTasks();
+			try {
+				args = eventArgs(info, e, this.drag);
+			} catch (error) {
+				this.notify("eventFailed", { event: e, error });
+			}
+		}
+		if (args !== null) {
+			const { handler, to, node } = info;
+			this.send(handler.action.name, args, { to, now: true, event: e, node, drag: this.drag });
 		}
 		this.drags.afterEvent(e);
 	}
+	// Sends name(...args) from the host to the component at to: an Address, a DispatchPath, a
+	// Selector or a selector fn (as ctx.sendAt takes) from the root; the root by default. One
+	// sent now (as a DOM event is: spec/tree's env rule) has run when send returns: it goes ahead
+	// of the queue, behind the ones sent now before it and a bubble under way. Any other waits at
+	// the back of the queue for the next tick. event, node and drag are what the handler reads as
+	// ctx.event, ctx.node and ctx.drag. Returns the task.
+	send(
+		name,
+		args = [],
+		{ to = new DispatchPath(), now = false, event = null, node = null, drag = null } = {},
+	) {
+		const task = new HostTask(name, args, targetOf(to), { now, event, node, drag });
+		task.prepare(this.root);
+		if (now) {
+			this.scheduler.arrive(task);
+			this.handleTasks();
+		} else this.scheduler.push(task);
+		return task;
+	}
+	// Resolves once nothing is left to run: no task queued and no ask waiting for its answer.
+	whenIdle() {
+		if (this.root === null || this.scheduler.isIdle) return Promise.resolve();
+		return new Promise((resolve) => this._idleWaiters.push(resolve));
+	}
+	// A stopped host (force) runs nothing more, so whoever waits stops waiting.
+	resolveIdle(force = false) {
+		if (this._idleWaiters.length === 0 || !(force || this.scheduler.isIdle)) return;
+		const waiters = this._idleWaiters;
+		this._idleWaiters = [];
+		for (const resolve of waiters) resolve();
+	}
 	addEventListeners(eventNames) {
+		if (this.rootNode === null) return;
 		for (const eventName of eventNames) {
 			if (this._eventsAdded.has(eventName)) continue;
 			this._eventsAdded.add(eventName);
@@ -136,6 +181,7 @@ export class Host {
 		this.clearTasks();
 		this.detachSync();
 		this.root = null;
+		this.resolveIdle(true);
 	}
 	// Engines see every committed change and can apply changes from elsewhere (see engines.js).
 	attachSync(...engines) {
@@ -189,7 +235,10 @@ export class Host {
 			} finally {
 				this._handlingTasks = false;
 				if (this.tasks.length > 0) this.scheduleNextTaskTick();
-				else this.checks?.settled(this.root);
+				else {
+					this.checks?.settled(this.root);
+					this.resolveIdle();
+				}
 			}
 		}
 	}
@@ -197,3 +246,22 @@ export class Host {
 		setTimeout(() => this.onNotify(type, info), 0);
 	}
 }
+// Where a message from the host goes: to as it is, if it is an Address; otherwise a Target from
+// the root, fixed when it is sent.
+const targetOf = (to) => {
+	if (to instanceof Address) return to;
+	if (to instanceof DispatchPath) return new Target(to);
+	if (to instanceof Selector) return new Target(new DispatchPath(), to);
+	if (typeof to === "function") return new Target(new DispatchPath(), selectorFrom(to));
+	throw new Error(
+		`send needs an Address, DispatchPath, Selector or selector fn, got ${String(to)}`,
+	);
+};
+// The args of the send an event's handler names, as values, worked out when the event arrives:
+// its exprs read the event, the element with the handler, the drag and the key of the item the
+// event reached (targetValue, sourceKey, dragKey), as a handler's context would.
+const eventArgs = ({ handler, to, node }, event, drag) => {
+	const path = to.path.toComponentPath();
+	const ctx = { event, node, drag, path, sourceKey: to.path.sourceKeyIn(path) };
+	return handler.action.args.map((arg) => arg.eval(ctx));
+};

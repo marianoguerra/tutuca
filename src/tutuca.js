@@ -6,7 +6,7 @@ export { browserEnv, Host } from "./host.js";
 export * from "./schema.js";
 export { Scope } from "./scope.js";
 export * from "./tag.js";
-export { componentKinds, EventTask, TutucaContext } from "./tasks.js";
+export { componentKinds, HostTask, TutucaContext } from "./tasks.js";
 export {
 	Address,
 	ANSWER_OUTCOMES,

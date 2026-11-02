@@ -2,18 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { defineTutucaApp, mountTutucaApp, REQUEST } from "../../src/embed/element.js";
 import { lint } from "../../src/lint/index.js";
-import {
-	component,
-	DispatchPath,
-	field,
-	HOST,
-	Host,
-	h,
-	send,
-	Target,
-	Task,
-	t,
-} from "../../src/tutuca.js";
+import { component, field, Host, h, send, t } from "../../src/tutuca.js";
 import { dom } from "../helpers.js";
 
 const Counter = component({
@@ -80,12 +69,7 @@ const setup = () => {
 	host.scope.register({ Outer });
 	host.start(host.scope.components.Outer());
 	const element = rootNode.querySelector("tutuca-app");
-	const send = (name, args) => {
-		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-		task.prepare(host.root);
-		host.pushTask(task);
-		host.handleTasks();
-	};
+	const send = (name, args) => host.send(name, args, { now: true });
 	return { window, document, host, element, mounted, disposed, failures, send };
 };
 

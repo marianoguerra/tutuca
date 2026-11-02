@@ -221,7 +221,7 @@ equivalence.
 
 | Task | `from` | `to` | Address fixed |
 |---|---|---|---|
-| `EventTask` | `HOST` | the routed dispatch path | at event time, from the DOM |
+| `host.send` (a `HostTask`: a DOM event, or a message from outside) | `HOST` | an `Address` (an event's routed dispatch path) or a path from the root | when sent: at event time, from the DOM, for an event |
 | `sendAt` / `forwardAt` | `ctx.address` | `ctx.path` and the selector | at the producer's commit |
 | `reply` | `ctx.address` | the `from` of the message being handled | when that message was sent |
 | `notify` | `ctx.address` | each of the sender's ancestors in turn | when the bubble starts |
