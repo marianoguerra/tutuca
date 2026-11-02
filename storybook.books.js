@@ -1,6 +1,7 @@
 // Every book of stories the storybook shows and the tests check.
 
 import compositionBook from "./components/composition/stories.js";
+import dataViewsBook from "./components/data-views/stories.js";
 import drawingBook from "./components/drawing/stories.js";
 import jsonBook from "./components/json/stories.js";
 import jsonSchemaBook, { studioBook } from "./components/json-schema/stories.js";
@@ -25,5 +26,6 @@ export const books = [
 	jsonBook,
 	jsonSchemaBook,
 	studioBook,
+	dataViewsBook,
 	devBook,
 ];
