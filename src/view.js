@@ -287,31 +287,32 @@ export class Send extends AstNode {
 	}
 }
 export const send = (name, ...args) => new Send(name, args.map(toExpr));
-export class TargetValue extends AstNode {
-	static kind = "targetValue";
-	eval(ctx) {
-		// The element with the handler: the click may land on a child of it, like an icon.
+// What each event arg reads from the ctx eventArgs (host.js) makes when the event arrives.
+const EVENT_ARGS = {
+	// The element with the handler: the click may land on a child of it, like an icon.
+	targetValue(ctx) {
 		const target = ctx.node ?? ctx.event.target;
 		return target.type === "checkbox" ? target.checked : target.value;
+	},
+	sourceKey: (ctx) => ctx.sourceKey,
+	// The key of the child the dragged element is in, as sourceKey is for the event's element;
+	// null when nothing, or something from outside the component, is dragged.
+	dragKey: (ctx) => ctx.drag?.sourceKeyIn(ctx.path) ?? null,
+};
+// A send arg that reads the event, not the state: one of EVENT_ARGS, by name.
+export class EventArg extends AstNode {
+	static kind = "eventArg";
+	constructor(name) {
+		super();
+		this.name = name;
 	}
-}
-export const targetValue = () => new TargetValue();
-export class SourceKey extends AstNode {
-	static kind = "sourceKey";
 	eval(ctx) {
-		return ctx.sourceKey;
+		return EVENT_ARGS[this.name](ctx);
 	}
 }
-export const sourceKey = () => new SourceKey();
-// The key of the child the dragged element is in, as sourceKey is for the event's element;
-// null when nothing, or something from outside the component, is dragged.
-export class DragKey extends AstNode {
-	static kind = "dragKey";
-	eval(ctx) {
-		return ctx.drag?.sourceKeyIn(ctx.path) ?? null;
-	}
-}
-export const dragKey = () => new DragKey();
+export const targetValue = () => new EventArg("targetValue");
+export const sourceKey = () => new EventArg("sourceKey");
+export const dragKey = () => new EventArg("dragKey");
 export class LookupBind extends AstNode {
 	static kind = "lookupBind";
 	constructor(name) {

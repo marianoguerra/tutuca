@@ -31,6 +31,25 @@ const RENDER_KINDS = new Set([
 ]);
 const LOOP_HOOKS = ["prepare", "filter", "iter", "key", "enrich"];
 const EMIT_KINDS = new Set(["notify", "ask", "sendAt"]);
+// Per event arg: the prefix of its lint codes and where it can be used beyond send args.
+const EVENT_ARG_RULES = {
+	targetValue: { code: "target" },
+	// Events from outside any each body, in this view, always have a null source key.
+	sourceKey: {
+		code: "source-key",
+		check: (lint) =>
+			!lint.env.loop && ["source-key-outside-loop", "sourceKey is only set inside an each body"],
+	},
+	// Only drag events happen with something dragged.
+	dragKey: {
+		code: "drag-key",
+		check: (lint) =>
+			!DRAG_EVENTS.includes(lint.eventName) && [
+				"drag-key-outside-drag-event",
+				`dragKey is only set in drag events, not in on:${lint.eventName}`,
+			],
+	},
+};
 const labelOf = (node, kind) => {
 	switch (kind) {
 		case "element":
@@ -48,6 +67,8 @@ const labelOf = (node, kind) => {
 		case "send":
 		case "query":
 			return `${kind}(${node.name})`;
+		case "eventArg":
+			return node.name;
 		default:
 			return kind;
 	}
@@ -425,52 +446,16 @@ export class Lint extends Walker {
 		}
 		super.node(node);
 	}
-	targetValue(node) {
+	// Event args read the event, so they only make sense as send args; some only in some events.
+	eventArg(node) {
+		const { name } = node;
+		const { code, check } = EVENT_ARG_RULES[name] ?? {};
 		if (!this.inAction) {
-			this.report(
-				"error",
-				"target-outside-action",
-				node,
-				"targetValue is only valid in send arguments",
-			);
-		}
-		super.node(node);
-	}
-	// Events from outside any each body, in this view, always have a null source key.
-	sourceKey(node) {
-		if (!this.inAction) {
-			this.report(
-				"error",
-				"source-key-outside-action",
-				node,
-				"sourceKey is only valid in send arguments",
-			);
-		} else if (!this.env.loop) {
-			this.report(
-				"error",
-				"source-key-outside-loop",
-				node,
-				"sourceKey is only set inside an each body",
-			);
-		}
-		super.node(node);
-	}
-	// Only drag events happen with something dragged.
-	dragKey(node) {
-		if (!this.inAction) {
-			this.report(
-				"error",
-				"drag-key-outside-action",
-				node,
-				"dragKey is only valid in send arguments",
-			);
-		} else if (!DRAG_EVENTS.includes(this.eventName)) {
-			this.report(
-				"error",
-				"drag-key-outside-drag-event",
-				node,
-				`dragKey is only set in drag events, not in on:${this.eventName}`,
-			);
+			const text = `${name} is only valid in send arguments`;
+			this.report("error", `${code ?? name}-outside-action`, node, text);
+		} else {
+			const issue = check?.(this);
+			if (issue) this.report("error", issue[0], node, issue[1]);
 		}
 		super.node(node);
 	}

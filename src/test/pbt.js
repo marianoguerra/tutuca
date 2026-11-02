@@ -4,6 +4,7 @@ import {
 	AnyType,
 	ComponentType,
 	component,
+	EventArg,
 	Frame,
 	field,
 	findInvalidFields,
@@ -13,7 +14,6 @@ import {
 	render,
 	scopeOf,
 	specOf,
-	TargetValue,
 	t,
 	unwrapOption,
 } from "../tutuca.js";
@@ -223,7 +223,7 @@ const printCompactly = (spec) => {
 
 // What an event's target value can be: an input's text or a checkbox's checked.
 const eventValue = (fc) => fc.oneof(fc.string({ maxLength: 6 }), fc.boolean());
-const EVENT_ARG = { TargetValue: eventValue };
+const EVENT_ARG = { targetValue: eventValue };
 // Arbitraries of args for a message: its declared types, else the args of the sends in the
 // spec's views when every one is a constant or targetValue; null when it can't be driven.
 const argsFor = (A, spec, message) => {
@@ -236,7 +236,7 @@ const argsFor = (A, spec, message) => {
 	const tuples = [];
 	for (const { args } of sends) {
 		const arbs = args.map((arg) => {
-			if (arg instanceof TargetValue) return EVENT_ARG.TargetValue(fc);
+			if (arg instanceof EventArg) return EVENT_ARG[arg.name]?.(fc) ?? null;
 			return arg.constructor.kind === "constant" ? fc.constant(arg.value) : null;
 		});
 		if (!arbs.includes(null)) tuples.push(fc.tuple(...arbs));

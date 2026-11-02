@@ -12,7 +12,10 @@ collaborators.
   `XRenderIt` → `RenderIt`, `XPushView` → `PushView`, `DomNode` → `Element`, `Const` →
   `Constant`, `LookupBindName` → `LookupBind`. `Send`'s kind is `send` (was `action`), so a
   walker overrides `send(node)`. `RenderEach` no longer extends `Each`. `XScope` keeps its name
-  for now.
+  for now. `TargetValue`, `SourceKey` and `DragKey` are one `EventArg` node, whose `name` is
+  `"targetValue"`, `"sourceKey"` or `"dragKey"`; its kind is `eventArg`, so a walker overrides
+  `eventArg(node)` and switches on `node.name`. The `targetValue()`, `sourceKey()` and
+  `dragKey()` builders are unchanged.
 - **Walkers.** `Walker` only defines `node`, `element`, `attr`, `child` and `handler`. A kind a
   walker doesn't override is visited as a plain node (`renderIt` falls back to `render`,
   `renderEach` to `each`), so `super.field(node)` and the like become `super.node(node)`.

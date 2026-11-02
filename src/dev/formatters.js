@@ -91,11 +91,8 @@ class Printer extends Walker {
 	constant(node) {
 		this.emit(prim(node.value));
 	}
-	targetValue(_node) {
-		this.call("targetValue", []);
-	}
-	sourceKey(_node) {
-		this.call("sourceKey", []);
+	eventArg(node) {
+		this.call(node.name, []);
 	}
 	lookupBind(node) {
 		this.call("lookupBind", [node.name]);

@@ -108,6 +108,11 @@ const typeDetail = (type) => {
 	return parts.join(", ");
 };
 
+const EVENT_ARG_TITLES = {
+	targetValue: "the value of the event's target",
+	sourceKey: "the key the event came from",
+	dragKey: "the key the dragged element came from",
+};
 const sourceWords = (node) => (node instanceof AstNode ? astTitle(node) : brief(node));
 const astTitle = (node) => {
 	switch (node.constructor.kind) {
@@ -137,12 +142,8 @@ const astTitle = (node) => {
 			return `with the bindings of ${quote(node.scopeName)}`;
 		case "send":
 			return `sends ${quote(node.name)}`;
-		case "targetValue":
-			return "the value of the event's target";
-		case "sourceKey":
-			return "the key the event came from";
-		case "dragKey":
-			return "the key the dragged element came from";
+		case "eventArg":
+			return EVENT_ARG_TITLES[node.name];
 		case "lookupBind":
 			return `the binding ${quote(node.name)}`;
 		default:
