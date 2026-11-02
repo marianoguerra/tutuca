@@ -1,8 +1,0 @@
-import {
-  "marianoguerra/tutuca",
-  "marianoguerra/tutuca/vdom",
-  "marianoguerra/tutuca/dev",
-  "marianoguerra/tutuca/storybook",
-}
-
-warnings = "-79"

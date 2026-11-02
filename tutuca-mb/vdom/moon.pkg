@@ -1,2 +1,0 @@
-// Virtual DOM: vnodes, shapes, and building and morphing real nodes through the DomNode trait.
-// Backend-agnostic: no js or wasm code here.
