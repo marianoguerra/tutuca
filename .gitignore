@@ -6,3 +6,4 @@ _site
 demos/deps/
 site/deps/
 tutuca-core.*
+.env
