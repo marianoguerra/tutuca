@@ -35,6 +35,10 @@ export const TagEditor = component({
 		confirming: t.boolean(),
 	},
 	methods: {
+		confirmText: "Nothing has been saved yet.",
+		keepLabel: "Keep editing",
+	},
+	queries: {
 		get heading() {
 			return this.mode === "edit" ? "Edit tag" : "New tag";
 		},
@@ -56,8 +60,6 @@ export const TagEditor = component({
 		get confirmTitle() {
 			return this.isEdit ? "Discard changes?" : "Discard this tag?";
 		},
-		confirmText: "Nothing has been saved yet.",
-		keepLabel: "Keep editing",
 	},
 	loops: {
 		// Alphabetical, by relevance while searching; ticking never reorders.

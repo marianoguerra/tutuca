@@ -35,7 +35,7 @@ export const Thing = component({
 		lastText: t.string("never"),
 		tagsText: t.string("No tags"),
 	},
-	methods: {
+	queries: {
 		get hasMeasurements() {
 			return this.measurements.length > 0;
 		},
@@ -103,6 +103,36 @@ export const Thing = component({
 		),
 	},
 	on: {
+		// What the app derives from its events and tags.
+		setStats: {
+			pure: true,
+			args: [t.number().int().min(0), t.string(), t.string()],
+			run(next, [total, lastText, tagsText]) {
+				next.total = total;
+				next.lastText = lastText;
+				next.tagsText = tagsText;
+			},
+		},
+		// Logged once more, last at lastText.
+		logged: {
+			pure: true,
+			args: [t.string()],
+			run(next, [lastText]) {
+				next.total = this.total + 1;
+				next.lastText = lastText;
+			},
+		},
+		// What the thing editor edits.
+		edited: {
+			pure: true,
+			args: [t.string().len(1, 16), t.string().len(0, 120), t.string(), t.array(measureRef())],
+			run(next, [emoji, title, description, measurements]) {
+				next.emoji = emoji;
+				next.title = title;
+				next.description = description;
+				next.measurements = measurements;
+			},
+		},
 		tap: {
 			args: [],
 			emits: { notify: ["logThing"] },
@@ -141,7 +171,7 @@ export const Tag = component({
 		thingIds: t.array(t.string()),
 		bundleId: t.string(),
 	},
-	methods: {
+	queries: {
 		get countText() {
 			return plural(this.thingIds.length, "thing");
 		},
@@ -173,6 +203,24 @@ export const Tag = component({
 		),
 	},
 	on: {
+		// What the tag editor edits.
+		edited: {
+			pure: true,
+			args: [t.string().len(0, 120), t.string(), t.array(t.string())],
+			run(next, [title, emoji, thingIds]) {
+				next.title = title;
+				next.emoji = emoji;
+				next.thingIds = thingIds;
+			},
+		},
+		// The thing id is gone.
+		dropThing: {
+			pure: true,
+			args: [t.string()],
+			run(next, [id]) {
+				next.thingIds = this.thingIds.filter((x) => x !== id);
+			},
+		},
 		edit: {
 			args: [],
 			emits: { notify: ["editTag"] },
@@ -201,7 +249,7 @@ export const Section = component({
 		isOpen: t.boolean(true),
 		compact: t.boolean(),
 	},
-	methods: {
+	queries: {
 		get count() {
 			return this.memberIds.length;
 		},
@@ -256,6 +304,13 @@ export const Section = component({
 		),
 	),
 	on: {
+		setOpen: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [isOpen]) {
+				next.isOpen = isOpen;
+			},
+		},
 		toggle: {
 			args: [],
 			emits: { notify: ["toggleSection"] },
@@ -296,7 +351,7 @@ export const Bucket = component({
 			}),
 		),
 	},
-	methods: {
+	queries: {
 		get isGap() {
 			return this.gap > 0;
 		},

@@ -35,6 +35,11 @@ export const EntryList = component({
 		confirming: t.boolean(),
 	},
 	methods: {
+		confirmTitle: "",
+		confirmText: "",
+		keepLabel: "",
+	},
+	queries: {
 		get isEmpty() {
 			return this.rows.length === 0;
 		},
@@ -44,9 +49,6 @@ export const EntryList = component({
 		get moreText() {
 			return `Show ${Math.min(this.remaining, 200)} more (${this.remaining} left)`;
 		},
-		confirmTitle: "",
-		confirmText: "",
-		keepLabel: "",
 	},
 	view: panel({
 		title: field("heading"),
@@ -99,6 +101,16 @@ export const EntryList = component({
 	}),
 	on: {
 		...closing(() => false),
+		// The entries it shows, how many more there are and, unless null, its subtitle.
+		showRows: {
+			pure: true,
+			args: [t.array(entryRow()), t.number().int().min(0), t.option(t.string())],
+			run(next, [rows, remaining, subtitle]) {
+				next.rows = rows;
+				next.remaining = remaining;
+				if (subtitle !== null) next.subtitle = subtitle;
+			},
+		},
 		open: {
 			args: [t.index("rows")],
 			emits: { notify: ["editEntry"] },

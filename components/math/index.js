@@ -69,6 +69,11 @@ export const Quadratic = component({
 		c: coefficient(),
 	},
 	methods: {
+		f(x) {
+			return this.a * x * x + this.b * x + this.c;
+		},
+	},
+	queries: {
 		get discriminant() {
 			return this.b * this.b - 4 * this.a * this.c;
 		},
@@ -163,9 +168,6 @@ export const Quadratic = component({
 		},
 		get cText() {
 			return fmt(this.c);
-		},
-		f(x) {
-			return this.a * x * x + this.b * x + this.c;
 		},
 		// The parabola over x in [-10, 10], in plot coordinates (y up, clipped).
 		get curve() {
@@ -414,7 +416,7 @@ export const Matrix2 = component({
 		c: entry().default(1),
 		d: entry().default(3),
 	},
-	methods: {
+	queries: {
 		get det() {
 			return this.a * this.d - this.b * this.c;
 		},

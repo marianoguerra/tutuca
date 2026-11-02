@@ -13,7 +13,7 @@ export const TodoProject = component({
 		color: t.enum(...Object.keys(COLORS)),
 		isEditing: t.boolean(),
 	},
-	methods: {
+	queries: {
 		get dotClass() {
 			return `size-3 shrink-0 rounded-full ${COLORS[this.color]}`;
 		},

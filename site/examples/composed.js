@@ -13,7 +13,7 @@ export const Line = component({
 		price: t.number().min(0),
 		quantity: t.number(1).int().min(0),
 	},
-	methods: {
+	queries: {
 		get subtotal() {
 			return (this.price * this.quantity).toFixed(2);
 		},
@@ -57,7 +57,7 @@ export const Line = component({
 export const Cart = component({
 	name: "Cart",
 	fields: { lines: t.array(t.component("Line")) },
-	methods: {
+	queries: {
 		get total() {
 			return this.lines.reduce((sum, line) => sum + line.price * line.quantity, 0).toFixed(2);
 		},

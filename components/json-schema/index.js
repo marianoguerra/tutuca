@@ -7,7 +7,9 @@
 
 import {
 	$if,
+	apply,
 	button,
+	canApply,
 	component,
 	each,
 	field,
@@ -78,15 +80,21 @@ const KIDS = {
 };
 const kidsOf = (v) => (KIDS[specOf(v)?.name] ?? []).flatMap((k) => v[k]).filter(isComponent);
 const isOpenable = (v) => isComponent(v) && "open" in specOf(v).fields;
-// The nearest openable nodes below v; a property is see-through, as it owns no open state.
-const openablesBelow = (v) =>
-	kidsOf(v).flatMap((k) =>
-		specOf(k).name === "SchemaProperty" ? openablesBelow(k) : isOpenable(k) ? [k] : [],
-	);
-// Works on drafts too: it only reads specs and sets open.
-const openDeep = (v, open) => {
-	if (isOpenable(v)) v.open = open;
-	for (const k of kidsOf(v)) openDeep(k, open);
+// Applies the pure message name to the nodes right below next that have it, in place.
+const applyBelow = (next, name, ...args) => {
+	for (const key of KIDS[specOf(next)?.name] ?? []) {
+		const v = next[key];
+		if (Array.isArray(v)) {
+			v.forEach((k, i) => {
+				if (canApply(k, name)) v[i] = apply(k, name, ...args);
+			});
+		} else if (canApply(v, name)) next[key] = apply(v, name, ...args);
+	}
+};
+// next and every node below it; nodes apply it to their own kids.
+const openDeep = (next, open) => {
+	if (isOpenable(next)) next.open = open;
+	applyBelow(next, "setOpenDeep", open);
 };
 const nodesBelow = (v) => [v, ...kidsOf(v).flatMap(nodesBelow)];
 // The open state of v and every node below it, depth first.
@@ -96,16 +104,18 @@ export const allOpen = (v) =>
 		.map((n) => n.open);
 
 const setOpenDeep = {
+	pure: true,
 	args: [t.boolean()],
 	run(next, [open]) {
 		openDeep(next, open);
 	},
 };
-// Raised by a ctrl click below: the nearest container opens or closes all its nodes.
+// Raised by a ctrl click below: the nearest container opens or closes all its nodes; a
+// property passes it on to its schema.
 const openSiblings = {
 	args: [t.boolean()],
 	run(next, [open], ctx) {
-		for (const k of openablesBelow(next)) k.open = open;
+		applyBelow(next, "setOpen", open);
 		ctx.stopNext();
 	},
 };
@@ -124,6 +134,7 @@ const openableMessages = {
 		},
 	},
 	setOpen: {
+		pure: true,
 		args: [t.boolean()],
 		post: (_prev, next, [open]) => next.open === open,
 		run(next, [open]) {
@@ -150,6 +161,11 @@ export const SchemaPager = component({
 		},
 	},
 	methods: {
+		shows(key) {
+			return key >= this.page * this.perPage && key < (this.page + 1) * this.perPage;
+		},
+	},
+	queries: {
 		get lastPage() {
 			return Math.max(0, Math.ceil(this.total / this.perPage) - 1);
 		},
@@ -168,9 +184,6 @@ export const SchemaPager = component({
 		},
 		get atLast() {
 			return this.page >= this.lastPage;
-		},
-		shows(key) {
-			return key >= this.page * this.perPage && key < (this.page + 1) * this.perPage;
 		},
 	},
 	view: $if(
@@ -367,6 +380,8 @@ export const SchemaRoot = component({
 		toSchema() {
 			return this.node.toSchema();
 		},
+	},
+	queries: {
 		get isFormat() {
 			return this.view === "format";
 		},
@@ -425,9 +440,6 @@ export const SchemaObject = component({
 		pager: t.option(t.component("SchemaPager")),
 	},
 	methods: {
-		get caption() {
-			return `object (${this.properties.length})`;
-		},
 		toSchema() {
 			const out = putNotes(this, { type: "object" });
 			// A repeated name is one key in JSON: the last property with it wins, required too.
@@ -441,6 +453,11 @@ export const SchemaObject = component({
 			if (required.length > 0) out.required = required;
 			if (this.additional !== null) out.additionalProperties = this.additional.toSchema();
 			return out;
+		},
+	},
+	queries: {
+		get caption() {
+			return `object (${this.properties.length})`;
 		},
 	},
 	loops: { page: paged },
@@ -498,7 +515,7 @@ export const SchemaObject = component({
 export const SchemaProperty = component({
 	name: "SchemaProperty",
 	fields: { name: t.string(), required: t.boolean(), schema: schemaNode() },
-	methods: {
+	queries: {
 		get mark() {
 			return this.required ? "required" : "optional";
 		},
@@ -539,9 +556,10 @@ export const SchemaProperty = component({
 	},
 	on: {
 		setOpen: {
+			pure: true,
 			args: [t.boolean()],
 			run(next, [open]) {
-				if (isOpenable(next.schema)) next.schema.open = open;
+				if (isOpenable(next.schema)) next.schema = apply(next.schema, "setOpen", open);
 			},
 		},
 		setOpenDeep,
@@ -563,12 +581,6 @@ export const SchemaArray = component({
 		open: t.boolean(true),
 	},
 	methods: {
-		get minLabel() {
-			return `≥ ${this.minItems}`;
-		},
-		get maxLabel() {
-			return `≤ ${this.maxItems}`;
-		},
 		toSchema() {
 			const out = putNotes(this, { type: "array" });
 			if (this.items !== null) out.items = this.items.toSchema();
@@ -576,6 +588,14 @@ export const SchemaArray = component({
 				["minItems", "minItems"],
 				["maxItems", "maxItems"],
 			]);
+		},
+	},
+	queries: {
+		get minLabel() {
+			return `≥ ${this.minItems}`;
+		},
+		get maxLabel() {
+			return `≤ ${this.maxItems}`;
 		},
 	},
 	views: {
@@ -635,12 +655,6 @@ export const SchemaString = component({
 		maxLength: numText(),
 	},
 	methods: {
-		get minLabel() {
-			return `≥ ${this.minLength}`;
-		},
-		get maxLabel() {
-			return `≤ ${this.maxLength}`;
-		},
 		toSchema() {
 			const out = putNotes(this, { type: "string" });
 			if (this.format !== "") out.format = this.format;
@@ -649,6 +663,14 @@ export const SchemaString = component({
 				["minLength", "minLength"],
 				["maxLength", "maxLength"],
 			]);
+		},
+	},
+	queries: {
+		get minLabel() {
+			return `≥ ${this.minLength}`;
+		},
+		get maxLabel() {
+			return `≤ ${this.maxLength}`;
 		},
 	},
 	views: {
@@ -682,6 +704,15 @@ const numeric = (name, kind) =>
 			multipleOf: numText(),
 		},
 		methods: {
+			toSchema() {
+				return putNumbers(this, putNotes(this, { type: kind }), [
+					["minimum", "minimum"],
+					["maximum", "maximum"],
+					["multipleOf", "multipleOf"],
+				]);
+			},
+		},
+		queries: {
 			get minLabel() {
 				return `≥ ${this.minimum}`;
 			},
@@ -690,13 +721,6 @@ const numeric = (name, kind) =>
 			},
 			get stepLabel() {
 				return `× ${this.multipleOf}`;
-			},
-			toSchema() {
-				return putNumbers(this, putNotes(this, { type: kind }), [
-					["minimum", "minimum"],
-					["maximum", "maximum"],
-					["multipleOf", "multipleOf"],
-				]);
 			},
 		},
 		views: {
@@ -777,11 +801,13 @@ export const SchemaEnum = component({
 		pager: t.option(t.component("SchemaPager")),
 	},
 	methods: {
-		get caption() {
-			return `enum (${this.values.length})`;
-		},
 		toSchema() {
 			return putNotes(this, { enum: this.values.map((v) => v.toJson()) });
+		},
+	},
+	queries: {
+		get caption() {
+			return `enum (${this.values.length})`;
 		},
 	},
 	loops: { page: paged },
@@ -879,11 +905,13 @@ const combinator = (name, key, label) =>
 			pager: t.option(t.component("SchemaPager")),
 		},
 		methods: {
-			get caption() {
-				return `${key} (${this.branches.length})`;
-			},
 			toSchema() {
 				return putNotes(this, { [key]: this.branches.map((b) => b.toSchema()) });
+			},
+		},
+		queries: {
+			get caption() {
+				return `${key} (${this.branches.length})`;
 			},
 		},
 		loops: { page: paged },

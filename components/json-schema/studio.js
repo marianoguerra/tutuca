@@ -95,6 +95,15 @@ export const Studio = component({
 		pasteError: t.string(),
 	},
 	methods: {
+		// Infers the schema again from the editor's payload, keeping how it is read.
+		infer(next) {
+			const C = scopeOf(this).components;
+			const json = next.editor.toJson();
+			next.schema = schemaTree(C, schemaFor(json, next.title), { view: this.schema.view });
+			next.source = textOf(json);
+		},
+	},
+	queries: {
 		get json() {
 			return this.editor.toJson();
 		},
@@ -106,13 +115,6 @@ export const Studio = component({
 		},
 		get hasPasteError() {
 			return this.pasteError !== "";
-		},
-		// Infers the schema again from the editor's payload, keeping how it is read.
-		infer(next) {
-			const C = scopeOf(this).components;
-			const json = next.editor.toJson();
-			next.schema = schemaTree(C, schemaFor(json, next.title), { view: this.schema.view });
-			next.source = textOf(json);
 		},
 	},
 	view: div(

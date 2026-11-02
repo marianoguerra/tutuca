@@ -32,6 +32,9 @@ export const EventEditor = component({
 		confirming: t.boolean(),
 	},
 	methods: {
+		keepLabel: "Keep editing",
+	},
+	queries: {
 		get actualAt() {
 			return fromDatetimeLocal(this.when, this.tz);
 		},
@@ -50,7 +53,6 @@ export const EventEditor = component({
 		get confirmText() {
 			return this.isEdit ? "Your edits won't be saved." : "Nothing has been logged yet.";
 		},
-		keepLabel: "Keep editing",
 	},
 	loops: { fields: { view: "field" } },
 	view: panel({

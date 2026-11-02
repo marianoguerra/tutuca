@@ -6,6 +6,7 @@
 
 import {
 	$if,
+	apply,
 	button,
 	component,
 	each,
@@ -106,6 +107,13 @@ export const Drawing = component({
 		},
 	},
 	methods: {
+		// The drawing as a standalone SVG document.
+		toSvg() {
+			const body = this.shapes.map((s) => `  ${s.toSvg()}\n`).join("");
+			return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${this.viewBox}" width="${this.width}" height="${this.height}">\n${body}</svg>\n`;
+		},
+	},
+	queries: {
 		get viewBox() {
 			return `0 0 ${this.width} ${this.height}`;
 		},
@@ -191,11 +199,6 @@ export const Drawing = component({
 					: `${s.id} selected`;
 			const where = this.cursor === "" ? "" : ` · ${this.cursor}`;
 			return `${what} · ${this.shapes.length} ${this.shapes.length === 1 ? "shape" : "shapes"}${where}`;
-		},
-		// The drawing as a standalone SVG document.
-		toSvg() {
-			const body = this.shapes.map((s) => `  ${s.toSvg()}\n`).join("");
-			return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${this.viewBox}" width="${this.width}" height="${this.height}">\n${body}</svg>\n`;
 		},
 	},
 	loops: {
@@ -417,7 +420,7 @@ export const Drawing = component({
 				}
 				// A polyline being drawn takes another point; its last one follows the pointer.
 				if (this.current !== null && this.tool === "polyline") {
-					next.current.addPoint(x, y);
+					next.current = apply(next.current, "addPoint", x, y);
 					return;
 				}
 				const kind = TOOLS.find(([id]) => id === this.tool)[3];
@@ -435,10 +438,11 @@ export const Drawing = component({
 			args: [coord(), coord()],
 			run(next, [x, y]) {
 				next.cursor = `${Math.round(x)}, ${Math.round(y)}`;
-				if (next.current !== null) next.current.dragTo(x, y);
+				if (next.current !== null) next.current = apply(next.current, "dragTo", x, y);
 				else if (this.dragFrom !== null && this.selection !== null) {
 					const [x0, y0] = this.dragFrom;
-					next.shapes[this.selectedIndex].moveBy(x - x0, y - y0);
+					const i = this.selectedIndex;
+					next.shapes[i] = apply(next.shapes[i], "moveBy", x - x0, y - y0);
 					next.dragFrom = [x, y];
 				}
 			},
@@ -553,7 +557,8 @@ export const Drawing = component({
 				next.shapes.splice(at, 0, copy);
 				// Toward the side with room, so a copy at the edge still shows apart.
 				const nudge = (far) => (far + 10 <= COORD_MAX ? 10 : -10);
-				next.shapes[at].moveBy(nudge(s.left + s.boxWidth), nudge(s.top + s.boxHeight));
+				const [dx, dy] = [nudge(s.left + s.boxWidth), nudge(s.top + s.boxHeight)];
+				next.shapes[at] = apply(next.shapes[at], "moveBy", dx, dy);
 				next.selected = copy.id;
 			},
 		},
@@ -639,7 +644,9 @@ function restyle(self, next, changes) {
 	const i = self.selectedIndex;
 	if (i < 0) return;
 	remember(self, next);
-	Object.assign(next.shapes[i], changes);
+	const { fill, stroke, width } = self.shapes[i];
+	const style = [changes.fill ?? fill, changes.stroke ?? stroke, changes.width ?? width];
+	next.shapes[i] = apply(next.shapes[i], "setStyle", ...style);
 }
 function commit(self, next, shape) {
 	next.current = null;

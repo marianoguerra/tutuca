@@ -10,7 +10,7 @@ const { button, div, p, span } = tag;
 export const EmojiPicker = component({
 	name: "EmojiPicker",
 	fields: { current: t.string(), isPickerVisible: t.boolean() },
-	methods: {
+	queries: {
 		get hasEmoji() {
 			return this.current !== "";
 		},

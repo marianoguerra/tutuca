@@ -96,6 +96,18 @@ export const pointer = {
 		},
 	},
 };
+// What its drawing changes: its paint and width.
+const styleOn = {
+	setStyle: {
+		pure: true,
+		args: [paintType("none"), paintType("#000000"), t.enum(2, 1, 4, 8)],
+		run(next, [fill, stroke, width]) {
+			next.fill = fill;
+			next.stroke = stroke;
+			next.width = width;
+		},
+	},
+};
 const pointerEvents = {
 	"on:pointerdown": send("down"),
 	"on:pointermove": send("move"),
@@ -110,8 +122,9 @@ export const paint = {
 const attrs = (shape) =>
 	`fill="${shape.fill}" stroke="${shape.stroke}" stroke-width="${shape.width}"`;
 
-// Rectangles, ellipses and lines are drawn from one corner to the other.
-const corners = {
+// Rectangles, ellipses and lines are drawn from one corner to the other: what they read of
+// their corners, and how they move them.
+const cornerQueries = {
 	get left() {
 		return Math.min(this.x0, this.x1);
 	},
@@ -124,31 +137,50 @@ const corners = {
 	get boxHeight() {
 		return Math.abs(this.y1 - this.y0);
 	},
+};
+const cornerMethods = {
 	isEmpty() {
 		return this.boxWidth < 1 && this.boxHeight < 1;
 	},
-	dragTo(x, y) {
-		this.x1 = x;
-		this.y1 = y;
+};
+const cornerOn = {
+	...pointer,
+	...styleOn,
+	// While drawing, the far corner follows the pointer.
+	dragTo: {
+		pure: true,
+		args: [coord(), coord()],
+		run(next, [x, y]) {
+			next.x1 = x;
+			next.y1 = y;
+		},
 	},
 	// fit only absorbs rounding: moveInRange already keeps the shape in range.
-	moveBy(dx, dy) {
-		[dx, dy] = moveInRange(this, dx, dy);
-		this.x0 = fit(this.x0 + dx);
-		this.x1 = fit(this.x1 + dx);
-		this.y0 = fit(this.y0 + dy);
-		this.y1 = fit(this.y1 + dy);
+	moveBy: {
+		pure: true,
+		args: [t.number(), t.number()],
+		run(next, [dx, dy]) {
+			[dx, dy] = moveInRange(this, dx, dy);
+			next.x0 = fit(this.x0 + dx);
+			next.x1 = fit(this.x1 + dx);
+			next.y0 = fit(this.y0 + dy);
+			next.y1 = fit(this.y1 + dy);
+		},
 	},
 };
-// Getters stay getters: spreading would read them once.
-const withCorners = (methods) =>
-	Object.defineProperties(methods, Object.getOwnPropertyDescriptors(corners));
+// Objects merged by descriptor, so getters stay getters: spreading would read them once.
+const mix = (...objects) =>
+	Object.defineProperties(
+		{},
+		Object.assign({}, ...objects.map((o) => Object.getOwnPropertyDescriptors(o))),
+	);
 const cornerFields = () => ({ x0: coord(), y0: coord(), x1: coord(), y1: coord() });
 
 export const Rect = component({
 	name: "Rect",
 	fields: { ...shapeFields(), ...cornerFields() },
-	methods: withCorners({
+	queries: cornerQueries,
+	methods: mix(cornerMethods, {
 		toSvg() {
 			return `<rect x="${this.left}" y="${this.top}" width="${this.boxWidth}" height="${this.boxHeight}" ${attrs(this)}/>`;
 		},
@@ -161,13 +193,13 @@ export const Rect = component({
 		...paint,
 		...pointerEvents,
 	}),
-	on: pointer,
+	on: cornerOn,
 });
 
 export const Ellipse = component({
 	name: "Ellipse",
 	fields: { ...shapeFields(), ...cornerFields() },
-	methods: withCorners({
+	queries: mix(cornerQueries, {
 		get cx() {
 			return (this.x0 + this.x1) / 2;
 		},
@@ -180,6 +212,8 @@ export const Ellipse = component({
 		get ry() {
 			return this.boxHeight / 2;
 		},
+	}),
+	methods: mix(cornerMethods, {
 		toSvg() {
 			return `<ellipse cx="${this.cx}" cy="${this.cy}" rx="${this.rx}" ry="${this.ry}" ${attrs(this)}/>`;
 		},
@@ -192,13 +226,14 @@ export const Ellipse = component({
 		...paint,
 		...pointerEvents,
 	}),
-	on: pointer,
+	on: cornerOn,
 });
 
 export const Line = component({
 	name: "Line",
 	fields: { ...shapeFields(), ...cornerFields() },
-	methods: withCorners({
+	queries: cornerQueries,
+	methods: mix(cornerMethods, {
 		toSvg() {
 			return `<line x1="${this.x0}" y1="${this.y0}" x2="${this.x1}" y2="${this.y1}" ${attrs(this)} stroke-linecap="round"/>`;
 		},
@@ -212,7 +247,7 @@ export const Line = component({
 		"stroke-linecap": "round",
 		...pointerEvents,
 	}),
-	on: pointer,
+	on: cornerOn,
 });
 
 const pointsType = () =>
@@ -229,6 +264,14 @@ export const Polyline = component({
 	name: "Polyline",
 	fields: { ...shapeFields(), points: pointsType() },
 	methods: {
+		isEmpty() {
+			return this.points.length < 4 || (this.boxWidth < 1 && this.boxHeight < 1);
+		},
+		toSvg() {
+			return `<polyline points="${this.pointsAttr}" ${attrs(this)} stroke-linejoin="round"/>`;
+		},
+	},
+	queries: {
 		get pointsAttr() {
 			const pairs = [];
 			for (let i = 0; i + 1 < this.points.length; i += 2)
@@ -253,22 +296,6 @@ export const Polyline = component({
 		get boxHeight() {
 			return Math.max(...this.ys) - this.top;
 		},
-		isEmpty() {
-			return this.points.length < 4 || (this.boxWidth < 1 && this.boxHeight < 1);
-		},
-		dragTo(x, y) {
-			this.points.splice(-2, 2, x, y);
-		},
-		addPoint(x, y) {
-			this.points.push(x, y);
-		},
-		moveBy(dx, dy) {
-			[dx, dy] = moveInRange(this, dx, dy);
-			this.points = this.points.map((v, i) => fit(v + (i % 2 === 0 ? dx : dy)));
-		},
-		toSvg() {
-			return `<polyline points="${this.pointsAttr}" ${attrs(this)} stroke-linejoin="round"/>`;
-		},
 	},
 	view: polyline({
 		points: field("pointsAttr"),
@@ -276,7 +303,33 @@ export const Polyline = component({
 		"stroke-linejoin": "round",
 		...pointerEvents,
 	}),
-	on: pointer,
+	on: {
+		...pointer,
+		...styleOn,
+		// While drawing, the last point follows the pointer.
+		dragTo: {
+			pure: true,
+			args: [coord(), coord()],
+			run(next, [x, y]) {
+				next.points.splice(-2, 2, x, y);
+			},
+		},
+		addPoint: {
+			pure: true,
+			args: [coord(), coord()],
+			run(next, [x, y]) {
+				next.points.push(x, y);
+			},
+		},
+		moveBy: {
+			pure: true,
+			args: [t.number(), t.number()],
+			run(next, [dx, dy]) {
+				[dx, dy] = moveInRange(this, dx, dy);
+				next.points = this.points.map((v, i) => fit(v + (i % 2 === 0 ? dx : dy)));
+			},
+		},
+	},
 });
 
 export function capture(event) {

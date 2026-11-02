@@ -27,6 +27,11 @@ export const MeasurementWizard = component({
 		confirming: t.boolean(),
 	},
 	methods: {
+		confirmTitle: "Discard this entry?",
+		confirmText: "Nothing has been logged yet.",
+		keepLabel: "Keep going",
+	},
+	queries: {
 		get current() {
 			return this.prompts[this.step];
 		},
@@ -54,9 +59,6 @@ export const MeasurementWizard = component({
 		get primaryLabel() {
 			return this.isLast ? `Log ${this.current.formatted}` : "Next";
 		},
-		confirmTitle: "Discard this entry?",
-		confirmText: "Nothing has been logged yet.",
-		keepLabel: "Keep going",
 	},
 	view: panel({
 		title: field("heading"),

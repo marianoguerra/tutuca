@@ -1,13 +1,7 @@
-import {
-	devComponents,
-	devNode,
-	lintRecords,
-	makeDevPanel,
-	updateDevPanel,
-} from "../../src/dev/panel.js";
+import { devComponents, devNode, lintRecords, makeDevPanel } from "../../src/dev/panel.js";
 import { lint } from "../../src/lint/index.js";
 import { step, stories } from "../../src/storybook/index.js";
-import { Address, DispatchPath, Frame, Scope, Target, Task } from "../../src/tutuca.js";
+import { Address, apply, DispatchPath, Frame, Scope, Target, Task } from "../../src/tutuca.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { todoComponents } from "../todo/index.js";
 
@@ -92,19 +86,9 @@ export default stories({
 		},
 		"Panel/JSON app": {
 			make: (C) => {
-				const panel = makeDevPanel(C);
 				const issues = lint(specs, Object.keys(jsonComponents));
 				const data = { state: doc, tasks: [{ label: "", value: task }], specs, issues };
-				const sections = Object.fromEntries(
-					["state", "tasks", "specs", "lint"].map((k) => [k, { ...panel[k] }]),
-				);
-				updateDevPanel(C, sections, data);
-				return C.DevPanel({
-					state: C.DevSection(sections.state),
-					tasks: C.DevSection(sections.tasks),
-					specs: C.DevSection(sections.specs),
-					lint: C.DevLint(sections.lint),
-				});
+				return apply(makeDevPanel(C), "showApp", data);
 			},
 			sequences: {
 				"switch to code and back": [

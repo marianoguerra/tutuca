@@ -50,7 +50,7 @@ export const Workbench = component({
 			}),
 		),
 	},
-	methods: {
+	queries: {
 		get is_quadratic() {
 			return this.tab === "quadratic";
 		},

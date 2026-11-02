@@ -5,6 +5,7 @@
 
 import {
 	$if,
+	apply,
 	button,
 	component,
 	each,
@@ -84,12 +85,16 @@ const refresh = (self, next) => {
 	const tagsOf = new Map();
 	for (const g of next.groups)
 		for (const id of g.thingIds) tagsOf.set(id, [...(tagsOf.get(id) ?? []), g.title]);
-	for (const thing of next.things) {
+	next.things.forEach((thing, i) => {
 		const u = usage.get(thing.id);
-		thing.total = u?.total ?? 0;
-		thing.lastText = u === undefined ? "never" : formatRelative(u.lastAt, now, tz);
-		thing.tagsText = tagsOf.get(thing.id)?.join(" · ") ?? "No tags";
-	}
+		next.things[i] = apply(
+			thing,
+			"setStats",
+			u?.total ?? 0,
+			u === undefined ? "never" : formatRelative(u.lastAt, now, tz),
+			tagsOf.get(thing.id)?.join(" · ") ?? "No tags",
+		);
+	});
 	const visible = next.things.filter((thing) => !thing.archived);
 	const searching = next.query.trim() !== "";
 	const ordered = searching
@@ -162,9 +167,13 @@ const refreshList = (next, thingOf) => {
 		.sort((a, b) => b.actualAt - a.actualAt);
 	const shown = ctx.thingId === "" ? all.slice(0, next.shownEntries) : all;
 	const mixed = ctx.thingId === "";
-	next.panel.rows = shown.map((e) => entryLine(e, next.tz, mixed, thingOf.get(e.thingId)));
-	next.panel.remaining = all.length - shown.length;
-	if (mixed) next.panel.subtitle = `${shown.length} of ${all.length}, newest first`;
+	next.panel = apply(
+		next.panel,
+		"showRows",
+		shown.map((e) => entryLine(e, next.tz, mixed, thingOf.get(e.thingId))),
+		all.length - shown.length,
+		mixed ? `${shown.length} of ${all.length}, newest first` : null,
+	);
 };
 // Shows a toast, gone after a while unless another replaces it first.
 const toast = (next, ctx, title, text, { eventId = "", kind = "info" } = {}) => {
@@ -258,6 +267,8 @@ export const TrackerApp = component({
 		snapshot() {
 			return snapshotOf(this);
 		},
+	},
+	queries: {
 		get isTrack() {
 			return this.tab === "track";
 		},
@@ -951,14 +962,17 @@ export const TrackerApp = component({
 					next.things.push(C.Thing({ ...thing, id }));
 					next.order.push(id);
 				} else {
-					const local = next.things.find((x) => x.id === thing.id);
-					if (local !== undefined) {
-						Object.assign(local, {
-							emoji: thing.emoji,
-							title: thing.title,
-							description: thing.description,
-							measurements: thing.measurements,
-						});
+					const i = next.things.findIndex((x) => x.id === thing.id);
+					if (i !== -1) {
+						const { emoji, title, description, measurements } = thing;
+						next.things[i] = apply(
+							next.things[i],
+							"edited",
+							emoji,
+							title,
+							description,
+							measurements,
+						);
 					}
 				}
 				next.panel = null;
@@ -971,8 +985,9 @@ export const TrackerApp = component({
 			run(next, [id], ctx) {
 				ctx.stopNext();
 				next.events = next.events.filter((e) => e.thingId !== id);
-				for (const g of next.groups)
-					if (g.thingIds.includes(id)) g.thingIds = g.thingIds.filter((x) => x !== id);
+				next.groups.forEach((g, i) => {
+					if (g.thingIds.includes(id)) next.groups[i] = apply(g, "dropThing", id);
+				});
 				next.things = next.things.filter((x) => x.id !== id);
 				next.panel = null;
 				refresh(this, next);
@@ -1012,9 +1027,9 @@ export const TrackerApp = component({
 					const sortOrder = Math.max(-1, ...this.groups.map((g) => g.sortOrder)) + 1;
 					next.groups.push(C.Tag({ ...tag, id: newId(ctx, "tag"), sortOrder }));
 				} else {
-					const local = next.groups.find((g) => g.id === tag.id);
-					if (local !== undefined)
-						Object.assign(local, { title: tag.title, emoji: tag.emoji, thingIds: tag.thingIds });
+					const i = next.groups.findIndex((g) => g.id === tag.id);
+					if (i !== -1)
+						next.groups[i] = apply(next.groups[i], "edited", tag.title, tag.emoji, tag.thingIds);
 				}
 				next.panel = null;
 				refresh(this, next);

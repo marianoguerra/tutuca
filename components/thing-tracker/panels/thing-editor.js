@@ -36,6 +36,10 @@ export const ThingEditor = component({
 		confirming: t.boolean(),
 	},
 	methods: {
+		confirmText: "Nothing has been saved yet.",
+		keepLabel: "Keep editing",
+	},
+	queries: {
 		get heading() {
 			return this.mode === "edit" ? "Edit thing" : "New thing";
 		},
@@ -99,8 +103,6 @@ export const ThingEditor = component({
 		get confirmTitle() {
 			return this.isEdit ? "Discard changes?" : "Discard this thing?";
 		},
-		confirmText: "Nothing has been saved yet.",
-		keepLabel: "Keep editing",
 	},
 	view: panel({
 		title: field("heading"),

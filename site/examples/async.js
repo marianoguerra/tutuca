@@ -14,7 +14,7 @@ export const Weather = component({
 		status: t.enum("idle", "loading", "done", "failed"),
 		report: t.string(),
 	},
-	methods: {
+	queries: {
 		get isLoading() {
 			return this.status === "loading";
 		},

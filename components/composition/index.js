@@ -9,6 +9,7 @@
 import { notesComponents } from "../../demos/notes/notes.js";
 import {
 	$if,
+	apply,
 	component,
 	dragKey,
 	each,
@@ -74,8 +75,7 @@ export const TrackerCell = component({
 				ctx.stopNext();
 				const i = this.things.findIndex((thing) => thing.id === id);
 				if (i === -1) return;
-				next.things[i].total += 1;
-				next.things[i].lastText = formatTime(ctx.now(), this.tz);
+				next.things[i] = apply(next.things[i], "logged", formatTime(ctx.now(), this.tz));
 			},
 		},
 		backdateThing: {
@@ -88,14 +88,14 @@ export const TrackerCell = component({
 			args: [t.string()],
 			run(next, _args, ctx) {
 				ctx.stopNext();
-				next.section.isOpen = !this.section.isOpen;
+				next.section = apply(next.section, "setOpen", !this.section.isOpen);
 			},
 		},
 		toggleAllSections: {
 			args: [],
 			run(next, _args, ctx) {
 				ctx.stopNext();
-				next.section.isOpen = !this.section.isOpen;
+				next.section = apply(next.section, "setOpen", !this.section.isOpen);
 			},
 		},
 	},
@@ -151,7 +151,7 @@ const choice = (id, action, emoji, label, blurb) =>
 export const Picker = component({
 	name: "Picker",
 	fields: { step: t.enum("kind", "tracker") },
-	methods: {
+	queries: {
 		get isPickingKind() {
 			return this.step === "kind";
 		},
@@ -228,7 +228,7 @@ const CONTENT_LABELS = {
 export const Cell = component({
 	name: "Cell",
 	fields: { content: t.component(), collapsed: t.boolean() },
-	methods: {
+	queries: {
 		get label() {
 			const { name } = specOf(this.content);
 			if (name === "TrackerCell") return `📈 ${this.content.section.title}`;
@@ -279,6 +279,21 @@ export const Cell = component({
 				const collapsed = !this.collapsed;
 				if (ctx.event?.ctrlKey || ctx.event?.metaKey) ctx.notify("collapseAll", [collapsed]);
 				else next.collapsed = collapsed;
+			},
+		},
+		setCollapsed: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [collapsed]) {
+				next.collapsed = collapsed;
+			},
+		},
+		// Its content becomes content, a new component.
+		setContent: {
+			pure: true,
+			args: [t.component()],
+			run(next, [content]) {
+				next.content = content;
 			},
 		},
 		remove: {
@@ -405,7 +420,8 @@ export const Notebook = component({
 			args: [t.boolean()],
 			run(next, [collapsed], ctx) {
 				ctx.stopNext();
-				for (const key of this.order) next.entries[key].collapsed = collapsed;
+				for (const key of this.order)
+					next.entries[key] = apply(next.entries[key], "setCollapsed", collapsed);
 			},
 		},
 		// From the picker of the cell at ctx.sourceKey: the cell's content becomes kind.
@@ -414,12 +430,13 @@ export const Notebook = component({
 			sourceKey: t.index("entries"),
 			run(next, [kind, group], ctx) {
 				ctx.stopNext();
-				next.entries[ctx.sourceKey].content = makeContent(ctx.scope.components, kind, {
+				const content = makeContent(ctx.scope.components, kind, {
 					group: group ?? undefined,
 					now: ctx.now(),
 					tz: this.tz,
 					uuid: () => ctx.uuid(),
 				});
+				next.entries[ctx.sourceKey] = apply(next.entries[ctx.sourceKey], "setContent", content);
 			},
 		},
 	},

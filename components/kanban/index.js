@@ -5,6 +5,7 @@
 // dragged. The host marks the target under the drag with data-draggingover, which the styles
 // highlight.
 import {
+	apply,
 	component,
 	each,
 	field,
@@ -90,7 +91,7 @@ export const Column = component({
 			button({ class: "btn btn-sm join-item" }, "Add"),
 		),
 	),
-	methods: {
+	queries: {
 		get count() {
 			return this.cards.length;
 		},
@@ -110,6 +111,21 @@ export const Column = component({
 				if (title === "") return;
 				next.cards.push(ctx.scope.make("Card", { id: ctx.uuid(), title }));
 				next.text = "";
+			},
+		},
+		// What the board does to move a card: take it out, put it in at a position.
+		takeCard: {
+			pure: true,
+			args: [t.index("cards")],
+			run(next, [i]) {
+				next.cards.splice(i, 1);
+			},
+		},
+		putCard: {
+			pure: true,
+			args: [t.component("Card"), t.number().int().min(0)],
+			run(next, [card, at]) {
+				next.cards.splice(at, 0, card);
 			},
 		},
 		// From a card, which ctx.sourceKey points at.
@@ -143,8 +159,8 @@ const moveCard = (self, next, id, to, at) => {
 	const card = self.columns[from].cards[cardIndex];
 	// Its own place doesn't count once it's taken out.
 	const target = from === to && at > cardIndex ? at - 1 : at;
-	next.columns[from].cards.splice(cardIndex, 1);
-	next.columns[to].cards.splice(target, 0, card);
+	next.columns[from] = apply(next.columns[from], "takeCard", cardIndex);
+	next.columns[to] = apply(next.columns[to], "putCard", card, target);
 };
 // Where among the cards in node a drop at clientY goes: after every card whose middle is above
 // it. Without a position, as in tests, at the end.

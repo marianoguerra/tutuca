@@ -5,6 +5,7 @@
 // moves to the state it leads to. model.js turns the exported JSON into these.
 import {
 	$if,
+	apply,
 	button,
 	component,
 	each,
@@ -55,6 +56,13 @@ export const COLORS = {
 };
 const MODES = ["send", "notify", "request", "response", "misroute", "meant"];
 
+// Applies the pure message name to each component of items, in place.
+const applyEach = (items, name, ...args) => {
+	items.forEach((item, i) => {
+		items[i] = apply(item, name, ...args);
+	});
+};
+
 // ---- the tree, as SVG ---------------------------------------------------------------
 export const Instance = component({
 	name: "Instance",
@@ -68,7 +76,7 @@ export const Instance = component({
 		y: t.number(),
 		selected: t.boolean(),
 	},
-	methods: {
+	queries: {
 		get left() {
 			return this.x - NODE_W / 2;
 		},
@@ -215,6 +223,15 @@ export const Instance = component({
 				ctx.notify("picked", [this.id]);
 			},
 		},
+		// The World's selection is id: it and its subtree mark whether they are it.
+		markSelected: {
+			pure: true,
+			args: [t.number()],
+			run(next, [id]) {
+				next.selected = this.id === id;
+				applyEach(next.slots, "markSelected", id);
+			},
+		},
 	},
 	loops: {
 		edges: {
@@ -233,7 +250,7 @@ export const Slot = component({
 		type: t.enum("field", "list", "map", "none"),
 		items: t.array(t.component("Item")),
 	},
-	methods: {
+	queries: {
 		get count() {
 			return this.items.filter((item) => !item.cleared).length;
 		},
@@ -242,6 +259,15 @@ export const Slot = component({
 		},
 	},
 	view: g({}, each(field("items"), renderIt())),
+	on: {
+		markSelected: {
+			pure: true,
+			args: [t.number()],
+			run(next, [id]) {
+				applyEach(next.items, "markSelected", id);
+			},
+		},
+	},
 	views: {
 		summary: li(
 			{},
@@ -266,7 +292,7 @@ export const Item = component({
 		x: t.number(),
 		y: t.number(),
 	},
-	methods: {
+	queries: {
 		get left() {
 			return this.x - NODE_W / 4;
 		},
@@ -302,6 +328,15 @@ export const Item = component({
 		),
 		render(field("node")),
 	),
+	on: {
+		markSelected: {
+			pure: true,
+			args: [t.number()],
+			run(next, [id]) {
+				if (next.node) next.node = apply(next.node, "markSelected", id);
+			},
+		},
+	},
 });
 
 // ---- messages and observations, as HTML ---------------------------------------------
@@ -321,7 +356,7 @@ export const Message = component({
 		note: t.string(), // where its address leads under the policy
 		status: t.enum("ok", "host", "misroute", "stale", "orphaned"),
 	},
-	methods: {
+	queries: {
 		get color() {
 			return COLORS[this.mode];
 		},
@@ -430,7 +465,7 @@ export const World = component({
 		focused: t.number().int().min(-1).default(-1),
 		seen: t.number().int().min(0),
 	},
-	methods: {
+	queries: {
 		get viewBox() {
 			return `0 0 ${this.width} ${this.height}`;
 		},
@@ -602,18 +637,21 @@ export const World = component({
 		},
 	},
 	on: {
+		// How many of its observations are old news.
+		markSeen: {
+			pure: true,
+			args: [t.number().int().min(0)],
+			run(next, [seen]) {
+				next.seen = seen;
+			},
+		},
 		// From the instance clicked: select it, or unselect it when it was.
 		picked: {
 			args: [t.number()],
 			run(next, [id], ctx) {
 				ctx.stopNext();
 				next.selected = this.selected === id ? -1 : id;
-				const mark = (node) => {
-					node.selected = node.id === next.selected;
-					for (const slot of node.slots)
-						for (const item of slot.items) if (item.node) mark(item.node);
-				};
-				mark(next.tree);
+				next.tree = apply(next.tree, "markSelected", next.selected);
 			},
 		},
 		focused: {
@@ -671,7 +709,7 @@ export const Explorer = component({
 		current: t.index("states"),
 		trail: t.array(t.number().int().min(0)), // the states before this one, to go back
 	},
-	methods: {
+	queries: {
 		get choices() {
 			return this.edges.filter((e) => e.from === this.current);
 		},
@@ -754,7 +792,7 @@ export const Explorer = component({
 				next.trail.push(this.current);
 				next.current = to;
 				// What was observed before this step is old news in the next state.
-				next.states[to].seen = this.states[this.current].obs.length;
+				next.states[to] = apply(next.states[to], "markSeen", this.states[this.current].obs.length);
 			},
 		},
 		back: {

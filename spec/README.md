@@ -324,8 +324,8 @@ Two of these are equivalent only when other code doesn't edit or remove the node
   function-valued props, `dangerouslySetInnerHTML`, `is`, and applying `value`/`checked`
   after the children. The model also leaves out input state edited by the user.
 - Loop `prepare`/`iter` (arbitrary iteration protocols).
-- `methods` and getters: `field` reads only own fields. In the TLA+ reading they would be
-  operator definitions.
+- `methods` and `queries` (getters, computed properties): `field` reads only own fields. In the
+  TLA+ reading they would be operator definitions.
 - `.match()` (regular expressions), sync levels and pbt generators on types.
 - Scope chains, aliases and lifetimes. A `Component` type checks class names, not scope
   lookups, and has no default (the runtime makes one through the scope). Ask handlers live

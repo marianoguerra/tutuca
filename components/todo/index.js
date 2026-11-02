@@ -4,6 +4,7 @@
 
 import {
 	$if,
+	apply,
 	button,
 	component,
 	each,
@@ -19,7 +20,16 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { allTasks, COLORS, NAV, NAV_ACTIVE, neighbor, setDeep, swap, todayType } from "./common.js";
+import {
+	allTasks,
+	applyEach,
+	COLORS,
+	NAV,
+	NAV_ACTIVE,
+	neighbor,
+	swap,
+	todayType,
+} from "./common.js";
 import { addDays, dayHeader, isIso } from "./dates.js";
 import { TodoProject } from "./project.js";
 import { parseQuickAdd } from "./quickadd.js";
@@ -30,7 +40,7 @@ const { aside, div, form, h2, h3, input, label, main, p, span } = tag;
 export const QuickAdd = component({
 	name: "QuickAdd",
 	fields: { text: t.string() },
-	methods: {
+	queries: {
 		get parsed() {
 			return parseQuickAdd(this.text);
 		},
@@ -166,12 +176,6 @@ export const TodoApp = component({
 		},
 	},
 	methods: {
-		get currentProject() {
-			return this.projects[this.projectIndex];
-		},
-		get currentLabel() {
-			return this.labelIndex === null ? null : this.labels[this.labelIndex];
-		},
 		inView(task) {
 			if (!this.showCompleted && task.isCompleted) return false;
 			switch (this.view) {
@@ -191,9 +195,6 @@ export const TodoApp = component({
 		},
 		openCount(keep) {
 			return this.tasks.filter((task) => !task.isCompleted && keep(task)).length;
-		},
-		get isDated() {
-			return this.view === "today" || this.view === "upcoming";
 		},
 		groupOf(task) {
 			if (this.view === "upcoming") return dayHeader(task.due, this.today);
@@ -223,6 +224,17 @@ export const TodoApp = component({
 				upcomingClass: navClass(this.view === "upcoming"),
 				hasCompleted: this.tasks.some((task) => task.isCompleted),
 			};
+		},
+	},
+	queries: {
+		get currentProject() {
+			return this.projects[this.projectIndex];
+		},
+		get currentLabel() {
+			return this.labelIndex === null ? null : this.labels[this.labelIndex];
+		},
+		get isDated() {
+			return this.view === "today" || this.view === "upcoming";
 		},
 	},
 	scopes: {
@@ -474,8 +486,9 @@ export const TodoApp = component({
 				const key = ctx.sourceKey;
 				if (key === 0) return;
 				const { id } = this.projects[key];
-				for (const task of next.tasks)
-					if (task.projectId === id) setDeep(task, "projectId", "inbox");
+				next.tasks.forEach((task, i) => {
+					if (task.projectId === id) next.tasks[i] = apply(task, "setProject", "inbox");
+				});
 				next.projects.splice(key, 1);
 				next.projectIndex = 0;
 				if (this.view === "project") next.view = "inbox";
@@ -537,7 +550,7 @@ export const TodoApp = component({
 			args: [todayType()],
 			run(next, [today]) {
 				next.today = today;
-				for (const task of next.tasks) setDeep(task, "today", today);
+				applyEach(next.tasks, "setToday", today);
 			},
 		},
 		// Asks the host for the real date.
@@ -554,7 +567,7 @@ export const TodoApp = component({
 			ok(next, [today]) {
 				if (!isIso(today)) return;
 				next.today = today;
-				for (const task of next.tasks) setDeep(task, "today", today);
+				applyEach(next.tasks, "setToday", today);
 			},
 			error() {},
 			unhandled() {},

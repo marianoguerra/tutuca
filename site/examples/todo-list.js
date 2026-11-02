@@ -11,7 +11,7 @@ export const TodoList = component({
 		text: t.string(),
 		items: t.array(t.record({ title: t.string(), done: t.boolean() })),
 	},
-	methods: {
+	queries: {
 		get left() {
 			return this.items.filter((item) => !item.done).length;
 		},

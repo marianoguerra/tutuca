@@ -33,6 +33,17 @@ export const EmojiPicker = component({
 		paste: t.string(),
 	},
 	methods: {
+		cell(char) {
+			return {
+				char,
+				cls:
+					char === this.value
+						? "emoji aspect-square rounded-md text-xl bg-primary/15 ring-2 ring-primary"
+						: "emoji aspect-square rounded-md text-xl hover:bg-base-200",
+			};
+		},
+	},
+	queries: {
 		get isSearching() {
 			return this.query.trim() !== "";
 		},
@@ -72,15 +83,6 @@ export const EmojiPicker = component({
 			return this.matches
 				.slice(0, MAX_RESULTS)
 				.map((e) => ({ ...this.cell(e.char), name: e.name }));
-		},
-		cell(char) {
-			return {
-				char,
-				cls:
-					char === this.value
-						? "emoji aspect-square rounded-md text-xl bg-primary/15 ring-2 ring-primary"
-						: "emoji aspect-square rounded-md text-xl hover:bg-base-200",
-			};
 		},
 		get recentCells() {
 			return this.recent.map((char) => ({ ...this.cell(char), name: char }));

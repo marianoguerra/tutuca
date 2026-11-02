@@ -6,11 +6,13 @@
 
 import {
 	$if,
+	apply,
 	button,
 	component,
 	dragKey,
 	each,
 	field,
+	isComponent,
 	KeyPath,
 	lookupBind,
 	pushView,
@@ -109,6 +111,34 @@ const clear = {
 // A hole's placeNode on its way up to the editor: the nodes it passes leave it alone.
 const PLACE_ARGS = [t.array(t.any()), t.array(t.any()), t.boolean()];
 const placeNode = { args: PLACE_ARGS, run() {} };
+// node at keys below next: in a field of its own, or by the node the keys lead into.
+const putAt = (next, keys, node) => {
+	let holder = next;
+	for (const [i, key] of keys.entries()) {
+		const v = holder[key];
+		if (i === keys.length - 1) holder[key] = node;
+		else if (isComponent(v)) holder[key] = apply(v, "placeAt", keys.slice(i + 1), node);
+		else {
+			holder = v;
+			continue;
+		}
+		return;
+	}
+};
+// What the editor applies to move a node: it goes at keys below this one.
+const placeAt = {
+	pure: true,
+	args: [t.array(t.any()), t.component()],
+	// An expression, in place of one.
+	pre: (prev, [keys, node]) =>
+		keys.length > 0 &&
+		EXPR_NAMES.includes(specOf(keys.reduce((v, key) => v?.[key], prev))?.name) &&
+		EXPR_NAMES.includes(specOf(node)?.name),
+	run(next, [keys, node]) {
+		putAt(next, keys, node);
+	},
+};
+const placing = { placeNode, placeAt };
 
 export class LangError extends Error {}
 const typeOf = (v) =>
@@ -261,6 +291,8 @@ export const Num = component({
 		evaluate() {
 			return this.value;
 		},
+	},
+	queries: {
 		get textClass() {
 			return Number.isFinite(asNumber(this.text))
 				? `${TEXT.number} ${INLINE}`
@@ -292,7 +324,7 @@ export const Num = component({
 			},
 		},
 		clear,
-		placeNode,
+		...placing,
 	},
 });
 
@@ -333,7 +365,7 @@ export const Bool = component({
 			},
 		},
 		clear,
-		placeNode,
+		...placing,
 	},
 });
 
@@ -344,6 +376,8 @@ export const Str = component({
 		evaluate() {
 			return this.value;
 		},
+	},
+	queries: {
 		// JSON's escapes are close enough to Lisp's, Python's and JavaScript's.
 		get quoted() {
 			return JSON.stringify(this.value);
@@ -380,7 +414,7 @@ export const Str = component({
 			},
 		},
 		clear,
-		placeNode,
+		...placing,
 	},
 });
 
@@ -411,7 +445,7 @@ export const Var = component({
 	views: notations((_notation, edit) =>
 		edit ? node(edit, nameInput("variable")) : span({ class: TEXT.name }, field("name")),
 	),
-	on: { setName, clear, placeNode },
+	on: { setName, clear, ...placing },
 });
 
 // The operators of a kind of binary node, as each notation spells them.
@@ -467,6 +501,8 @@ const binary = (name, ops, apply) =>
 			evaluate(env) {
 				return apply(this.op, this.left, this.right, env);
 			},
+		},
+		queries: {
 			get lispOp() {
 				return ops[this.op].lisp;
 			},
@@ -490,7 +526,7 @@ const binary = (name, ops, apply) =>
 				},
 			},
 			clear,
-			placeNode,
+			...placing,
 		},
 	});
 
@@ -594,7 +630,7 @@ export const If = component({
 			keyword("THEN"),
 		);
 	}),
-	on: { clear, placeNode },
+	on: { clear, ...placing },
 });
 
 // The built-in functions: how many arguments they take and what they do.
@@ -674,7 +710,7 @@ export const Call = component({
 			},
 		},
 		clear,
-		placeNode,
+		...placing,
 	},
 });
 
@@ -697,7 +733,7 @@ export const Assign = component({
 			return span(keyword("let"), " ", name, " ", punct("="), " ", value, punct(";"));
 		return span(value, " ", keyword("VALUE"), " ", name);
 	}),
-	on: { setName, placeNode },
+	on: { setName, ...placing },
 });
 
 // Whether a drop landed on the lower half of the element that handles it; one without a
@@ -810,7 +846,7 @@ export const Program = component({
 				next.statements.splice(to, 0, statement);
 			},
 		},
-		placeNode,
+		...placing,
 		removeAt: {
 			args: [t.index("statements")],
 			post: (prev, next) => next.statements.length === prev.statements.length - 1,
@@ -830,7 +866,7 @@ export const Editor = component({
 		notation: t.enum(...Object.keys(NOTATIONS)).sync("local"),
 		program: t.component("Program"),
 	},
-	methods: {
+	queries: {
 		get viewName() {
 			return `${this.mode}${NOTATIONS[this.notation]}`;
 		},
@@ -946,9 +982,8 @@ export const Editor = component({
 				const nameAt = ({ keys }) => specOf(keys.reduce((v, key) => v?.[key], this))?.name;
 				const name = nameAt(source);
 				if (!EXPR_NAMES.includes(name) || name === "Hole" || nameAt(target) !== "Hole") return;
-				const value = source.getIn(this);
-				target.setIn(next, value);
-				if (!copy) source.setIn(next, ctx.scope.make("Hole", {}));
+				putAt(next, target.keys, source.getIn(this));
+				if (!copy) putAt(next, source.keys, ctx.scope.make("Hole", {}));
 			},
 		},
 		setNotation: {

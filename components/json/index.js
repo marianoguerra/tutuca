@@ -105,6 +105,8 @@ export const JsonNumber = component({
 		toJson() {
 			return this.value;
 		},
+	},
+	queries: {
 		get textClass() {
 			return Number.isFinite(asNumber(this.text))
 				? `${TEXT.number} ${INLINE}`
@@ -272,6 +274,8 @@ export const JsonArray = component({
 		toJson() {
 			return this.items.map((item) => item.toJson());
 		},
+	},
+	queries: {
 		get isEmpty() {
 			return this.items.length === 0;
 		},
@@ -351,6 +355,8 @@ export const JsonObject = component({
 		toJson() {
 			return Object.fromEntries(this.entries.map((e) => [e.key, e.value.toJson()]));
 		},
+	},
+	queries: {
 		get isEmpty() {
 			return this.entries.length === 0;
 		},
@@ -398,6 +404,8 @@ export const JsonEditor = component({
 		toJson() {
 			return this.value.toJson();
 		},
+	},
+	queries: {
 		get text() {
 			return JSON.stringify(this.toJson(), null, 2);
 		},

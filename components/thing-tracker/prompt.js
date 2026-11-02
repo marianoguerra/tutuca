@@ -39,7 +39,7 @@ export const Prompt = component({
 		text: t.string(),
 		history: t.array(t.number().min(0)),
 	},
-	methods: {
+	queries: {
 		get measurement() {
 			return findMeasurement(MEASUREMENTS, this.measurementId);
 		},

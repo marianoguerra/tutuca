@@ -14,7 +14,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { CHECKS, DUES, dueType, ICON_BTN, labelsOf, setDeep, swap, todayType } from "./common.js";
+import { applyEach, CHECKS, DUES, dueType, ICON_BTN, labelsOf, swap, todayType } from "./common.js";
 import { dueLabel, dueTone } from "./dates.js";
 
 const { div, form, input, option, p, select, span, textarea } = tag;
@@ -41,6 +41,8 @@ export const TodoTask = component({
 			const q = query.toLowerCase();
 			return `${this.title} ${this.description}`.toLowerCase().includes(q);
 		},
+	},
+	queries: {
 		get hasDue() {
 			return this.due !== "";
 		},
@@ -203,7 +205,28 @@ export const TodoTask = component({
 			run(next) {
 				// Completing a task completes its subtasks; reopening it leaves them.
 				if (this.isCompleted) next.isCompleted = false;
-				else setDeep(next, "isCompleted", true);
+				else {
+					next.isCompleted = true;
+					applyEach(next.subtasks, "complete");
+				}
+			},
+		},
+		// It and its subtasks are done.
+		complete: {
+			pure: true,
+			args: [],
+			run(next) {
+				next.isCompleted = true;
+				applyEach(next.subtasks, "complete");
+			},
+		},
+		// Its owner's today, which its subtasks share.
+		setToday: {
+			pure: true,
+			args: [todayType()],
+			run(next, [today]) {
+				next.today = today;
+				applyEach(next.subtasks, "setToday", today);
 			},
 		},
 		setTitle: {
@@ -239,10 +262,13 @@ export const TodoTask = component({
 				ctx.notify("labelsChanged", [[...next.labels]]);
 			},
 		},
+		// Its subtasks move with it.
 		setProject: {
+			pure: true,
 			args: [t.string()],
 			run(next, [projectId]) {
-				setDeep(next, "projectId", projectId);
+				next.projectId = projectId;
+				applyEach(next.subtasks, "setProject", projectId);
 			},
 		},
 		beginEdit: {

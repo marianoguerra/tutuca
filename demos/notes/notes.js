@@ -71,7 +71,7 @@ export const Notes = component({
 		filter: t.enum("all", "open", "done").sync("local"),
 		draft: t.string().sync("none"),
 	},
-	methods: {
+	queries: {
 		get summary() {
 			const open = this.notes.filter(FILTERS.open).length;
 			return `${open} open of ${this.notes.length}`;
