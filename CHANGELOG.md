@@ -32,8 +32,9 @@ collaborators.
   `startDrag`, `dragOver`, `markDragOver`, `endDrag`, `prepareEngines`, `checkState`,
   `checkSettled`, `reportInvalid` and `checkMessage` are gone from `Host`.
 - **Dev mode.** `new Host({ dev: true })` → `new Host({ checks: DevChecks })`, with `DevChecks`
-  from `tutuca/dev` (now `src/tutuca.dev.js`, also `dist/tutuca.dev.js`), so the core and
-  `dist/tutuca.js` no longer carry the checks. `host.dev` is gone. `tutuca/dev` still exports
+  from `tutuca/dev` (now `src/tutuca.dev.js`), so the core and `dist/tutuca.js` no longer
+  carry the checks. On a CDN, `dist/tutuca.dev.js` is the whole core plus dev mode in one file:
+  import everything from it instead of `dist/tutuca.js`. `host.dev` is gone. `tutuca/dev` still exports
   the DevTools formatters. `mountTutucaApp` and `startStorybook` keep their `dev` flag.
 - **Tasks.** A task's fourth argument is where it goes: a `Target`, fixed by `prepare`, or an
   `Address`. `AnswerTask(ask, outcome, args, request, to, parent)` always comes from the host,

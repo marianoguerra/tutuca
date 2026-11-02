@@ -1,7 +1,7 @@
 // Checks what gets published: every export imports by package name, the CDN bundles export
 // the same names as the source, and the tarball holds only what it should.
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const problems = [];
@@ -16,35 +16,29 @@ for (const sub of Object.keys(pkg.exports)) {
 	}
 }
 
-const names = (mod) => Object.keys(mod).sort().join(",");
+const names = (...mods) => [...new Set(mods.flatMap(Object.keys))].sort().join(",");
+// The dev bundle is the core plus dev mode.
+const core = await import(pkg.name);
 const bundles = [
-	{ src: pkg.name, files: ["dist/tutuca.js", "dist/tutuca.min.js"] },
-	{ src: `${pkg.name}/dev`, files: ["dist/tutuca.dev.js", "dist/tutuca.dev.min.js"] },
+	{ mods: [core], files: ["dist/tutuca.js", "dist/tutuca.min.js"] },
+	{
+		mods: [core, await import(`${pkg.name}/dev`)],
+		files: ["dist/tutuca.dev.js", "dist/tutuca.dev.min.js"],
+	},
 ];
-for (const { src, files } of bundles) {
-	const expected = names(await import(src));
+for (const { mods, files } of bundles) {
+	const expected = names(...mods);
 	for (const file of files) {
 		if (names(await import(`../${file}`)) !== expected)
 			problems.push(`${file}: exports differ from src`);
 	}
 }
-// The core bundles and what they import leave dev mode's checks to tutuca.dev.js.
-const importsOf = (file, seen = new Set()) => {
-	if (seen.has(file)) return seen;
-	seen.add(file);
-	const text = readFileSync(file, "utf8");
-	for (const [, rel] of text.matchAll(/from\s*"(\.[^"]+)"/g))
-		importsOf(
-			new URL(rel, `file://${process.cwd()}/${file}`).pathname.slice(process.cwd().length + 1),
-			seen,
-		);
-	return seen;
-};
-for (const entry of ["dist/tutuca.js", "dist/tutuca.min.js"]) {
-	for (const file of importsOf(entry)) {
-		if (/class DevChecks\b/.test(readFileSync(file, "utf8")))
-			problems.push(`${entry}: carries DevChecks (through ${file})`);
-	}
+// Every bundle is one file, and the core bundles leave dev mode's checks to tutuca.dev.js.
+for (const file of readdirSync("dist")) {
+	const text = readFileSync(`dist/${file}`, "utf8");
+	if (/^\s*import\b|\bfrom\s*"\./m.test(text)) problems.push(`dist/${file}: imports other files`);
+	if (!file.includes(".dev.") && /class DevChecks\b/.test(text))
+		problems.push(`dist/${file}: carries DevChecks`);
 }
 
 const [packed] = JSON.parse(
