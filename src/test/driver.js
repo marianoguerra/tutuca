@@ -1,6 +1,7 @@
 // The Driver: runs a component tree through a dev-mode Host with no timers, headless or
 // rendered, and keeps what it reports. Tests, stress runs and the live storybook drive apps
 // through it.
+import { DevChecks } from "../dev/checks.js";
 import {
 	Address,
 	AnswerTask,
@@ -64,7 +65,7 @@ export class Driver {
 	}) {
 		const node = rootNode ?? document?.createElement("main") ?? null;
 		this.env = env; // Its clock moves with env.advance(ms).
-		this.host = new Host({ document, rootNode: node, dev: true, env });
+		this.host = new Host({ document, rootNode: node, checks: DevChecks, env });
 		this.reports = [];
 		this.host.notify = (type, info) => {
 			const report = { type, ...info };

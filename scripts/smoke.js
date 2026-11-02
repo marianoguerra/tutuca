@@ -17,9 +17,34 @@ for (const sub of Object.keys(pkg.exports)) {
 }
 
 const names = (mod) => Object.keys(mod).sort().join(",");
-const core = names(await import(pkg.name));
-for (const file of ["dist/tutuca.js", "dist/tutuca.min.js"]) {
-	if (names(await import(`../${file}`)) !== core) problems.push(`${file}: exports differ from src`);
+const bundles = [
+	{ src: pkg.name, files: ["dist/tutuca.js", "dist/tutuca.min.js"] },
+	{ src: `${pkg.name}/dev`, files: ["dist/tutuca.dev.js", "dist/tutuca.dev.min.js"] },
+];
+for (const { src, files } of bundles) {
+	const expected = names(await import(src));
+	for (const file of files) {
+		if (names(await import(`../${file}`)) !== expected)
+			problems.push(`${file}: exports differ from src`);
+	}
+}
+// The core bundles and what they import leave dev mode's checks to tutuca.dev.js.
+const importsOf = (file, seen = new Set()) => {
+	if (seen.has(file)) return seen;
+	seen.add(file);
+	const text = readFileSync(file, "utf8");
+	for (const [, rel] of text.matchAll(/from\s*"(\.[^"]+)"/g))
+		importsOf(
+			new URL(rel, `file://${process.cwd()}/${file}`).pathname.slice(process.cwd().length + 1),
+			seen,
+		);
+	return seen;
+};
+for (const entry of ["dist/tutuca.js", "dist/tutuca.min.js"]) {
+	for (const file of importsOf(entry)) {
+		if (/class DevChecks\b/.test(readFileSync(file, "utf8")))
+			problems.push(`${entry}: carries DevChecks (through ${file})`);
+	}
 }
 
 const [packed] = JSON.parse(

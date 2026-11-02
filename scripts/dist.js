@@ -1,5 +1,7 @@
-// Builds the core as one ES module for CDN use: dist/tutuca.js and dist/tutuca.min.js.
-// npm consumers import src/ directly, so this is the only build step.
+// Builds the core and dev mode as ES modules for CDN use: dist/tutuca.js and dist/tutuca.dev.js,
+// and their .min.js. npm consumers import src/ directly, so this is the only build step. Both
+// import one shared chunk, so dev mode's checks see the core's components and applies (one copy
+// of each module) while dist/tutuca.js doesn't carry them.
 import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import * as esbuild from "esbuild";
 
@@ -19,8 +21,10 @@ const banner = [
 // Without charset the § render markers get \u-escaped.
 const common = {
 	banner: { js: banner },
-	entryPoints: ["src/tutuca.js"],
+	entryPoints: ["src/tutuca.js", "src/tutuca.dev.js"],
 	bundle: true,
+	splitting: true,
+	outdir: "dist",
 	format: "esm",
 	platform: "browser",
 	charset: "utf8",
@@ -30,11 +34,12 @@ const common = {
 
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist");
-await esbuild.build({ ...common, outfile: "dist/tutuca.js" });
+await esbuild.build({ ...common, chunkNames: "chunks/[name]-[hash]" });
 // Identifiers stay unmangled so component and class names survive into stack traces.
 await esbuild.build({
 	...common,
-	outfile: "dist/tutuca.min.js",
+	entryNames: "[name].min",
+	chunkNames: "chunks/[name]-[hash].min",
 	minifyWhitespace: true,
 	minifySyntax: true,
 	minifyIdentifiers: false,

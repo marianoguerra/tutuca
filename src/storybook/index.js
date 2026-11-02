@@ -5,6 +5,7 @@
 // fast-check is passed in, as in pbt.js.
 
 import { classNamesOf } from "../css/classes.js";
+import { DevChecks } from "../dev/checks.js";
 import { makeDevPanel } from "../dev/panel.js";
 import { Host } from "../tutuca.js";
 
@@ -65,7 +66,7 @@ export const startStorybook = ({
 	defineTutucaApp(document.defaultView);
 	const registry = new StoryRegistry({ fc, books, css, links, compile, known });
 	rootNode.addEventListener(REQUEST, (e) => registry.mount(e.detail));
-	const host = new Host({ document, rootNode, dev });
+	const host = new Host({ document, rootNode, checks: dev ? DevChecks : null });
 	host.scope.register(storybookComponents);
 	host.scope.registerAskHandlers({
 		...storyAskHandlers(() => registry),

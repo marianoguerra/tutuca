@@ -3,7 +3,6 @@
 // whatever drives the app (an agent, a test, a bar). Without a document it is headless: it
 // renders nothing and listens to no events, and the tree runs the same.
 import { current, isDraft, produce } from "../deps/immer.js";
-import { DevChecks } from "./checks.js";
 import { apply, query } from "./contract.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
 import { SyncEngines } from "./engines.js";
@@ -25,12 +24,13 @@ export const browserEnv = {
 };
 
 export class Host {
-	constructor({ document = null, rootNode = null, dev = false, env = browserEnv } = {}) {
+	// checks is what dev mode runs, made with notify: DevChecks from tutuca/dev (src/dev/checks.js)
+	// checks the state against the schemas on start and after each task. Null outside dev mode,
+	// so the core doesn't carry them.
+	constructor({ document = null, rootNode = null, checks = null, env = browserEnv } = {}) {
 		this.document = document;
 		this.rootNode = rootNode;
-		this.dev = dev;
-		// Dev mode checks the state against the schemas on start and after each task.
-		this.checks = dev ? new DevChecks((type, info) => this.notify(type, info)) : null;
+		this.checks = checks === null ? null : new checks((type, info) => this.notify(type, info));
 		this.env = env; // What handlers read from the world, through ctx.
 		this.root = null;
 		this.registrations = new Set();

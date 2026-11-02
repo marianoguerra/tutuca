@@ -2,6 +2,7 @@
 // applying one of its pure messages.
 import assert from "node:assert/strict";
 import test from "node:test";
+import { DevChecks } from "../../src/dev/checks.js";
 import { apply, component, Host, t } from "../../src/tutuca.js";
 
 const Leaf = component({
@@ -63,7 +64,7 @@ const Root = component({
 	},
 });
 const setup = () => {
-	const host = new Host({ dev: true });
+	const host = new Host({ checks: DevChecks });
 	const reports = [];
 	host.notify = (type, info) => reports.push({ type, ...info });
 	const { Root: R, Mid: M, Leaf: L } = host.scope.register({ Root, Mid, Leaf });
@@ -126,7 +127,7 @@ test("putting back a version of a child that was already there is the parent's w
 			},
 		},
 	});
-	const host = new Host({ dev: true });
+	const host = new Host({ checks: DevChecks });
 	const reports = [];
 	host.notify = (type, info) => reports.push({ type, ...info });
 	const { Keeper: K, Leaf: L } = host.scope.register({ Keeper, Leaf });

@@ -11,6 +11,7 @@
 //   Reports go out in a microtask, in order: a request answered during the outer render,
 //   or a call from an outer task, never reenters the outer Host.
 // The outer side calls the app through element.controller or its own registry by key.
+import { DevChecks } from "../dev/checks.js";
 import { Host } from "../tutuca.js";
 
 export const REQUEST = "tutucarequest";
@@ -96,7 +97,11 @@ export const defineTutucaApp = (window, tagName = "tutuca-app") => {
 // Mounts a plain Host for a request: register(scope) registers its components, make(C)
 // makes the root from them. Returns the controller, already passed to detail.mount.
 export const mountTutucaApp = (detail, { register, make, dev = false, onNotify }) => {
-	const host = new Host({ document: detail.document, rootNode: detail.rootNode, dev });
+	const host = new Host({
+		document: detail.document,
+		rootNode: detail.rootNode,
+		checks: dev ? DevChecks : null,
+	});
 	register(host.scope);
 	if (onNotify !== undefined) host.onNotify = onNotify;
 	host.start(make(host.scope.components));

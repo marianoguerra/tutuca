@@ -5,6 +5,7 @@ import test from "node:test";
 import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
+import { DevChecks } from "../src/dev/checks.js";
 import { lint } from "../src/lint/index.js";
 import { arbitraries, Driver, specProperties, testEnv } from "../src/test/pbt.js";
 import { Host, Scope } from "../src/tutuca.js";
@@ -22,7 +23,12 @@ export const { document } = dom();
 export const setupHost = (specs, { dev = false, sync = false, onReport = null } = {}) => {
 	const window = dom();
 	const rootNode = window.document.createElement("main");
-	const host = new Host({ document: window.document, rootNode, dev, env: testEnv() });
+	const host = new Host({
+		document: window.document,
+		rootNode,
+		checks: dev ? DevChecks : null,
+		env: testEnv(),
+	});
 	const failures = [];
 	if (sync) {
 		host.notify = (type, info) => {

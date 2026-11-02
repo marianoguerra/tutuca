@@ -51,7 +51,7 @@ host.start(host.scope.components.Counter());
 | Import | What |
 |---|---|
 | `tutuca` | components, views, schemas, the host, the `tag` and `button` element builders |
-| `tutuca/dev` | DevTools formatters |
+| `tutuca/dev` | Dev mode: the `DevChecks` a `Host` runs (`new Host({ checks: DevChecks })`) and DevTools formatters |
 | `tutuca/lint` | the linter |
 | `tutuca/classes` | `collectClasses`, `classNamesOf` and `ClassCompiler`, for CSS compilers that need class names listed |
 | `tutuca/pbt` | property-based testing and the headless driver (bring your own `fast-check`) |

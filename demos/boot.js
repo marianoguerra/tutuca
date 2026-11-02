@@ -9,6 +9,7 @@ import { readText, saveFile } from "../components/common/files.js";
 import { ClassCompiler, classNamesOf } from "../src/css/classes.js";
 import { mountTimeTravel, TimeTravel } from "../src/history/bar.js";
 import { startSynced } from "../src/sync/index.js";
+import { DevChecks } from "../src/tutuca.dev.js";
 import { DispatchPath, HOST, Host, Target, Task } from "../src/tutuca.js";
 import { SYNC_MODES, syncFromQuery, syncModeOf } from "./sync/engines.js";
 
@@ -98,7 +99,7 @@ const addSyncLog = (document) => {
 
 const setup = ({ components, askHandlers, document }) => {
 	const rootNode = document.getElementById("app");
-	const host = new Host({ document, rootNode, dev: true });
+	const host = new Host({ document, rootNode, checks: DevChecks });
 	host.scope.register(components);
 	host.scope.registerAskHandlers(askHandlers);
 	const styleNode = document.getElementById("margaui");

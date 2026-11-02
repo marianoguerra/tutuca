@@ -20,7 +20,7 @@ import {
 import { idOf } from "./tree/identity.js";
 
 // The ids of the components pure messages were applied to while fn ran, for the dev check that
-// a component's fields are only written by it (checks.js): [what fn returns, ids].
+// a component's fields are only written by it (dev/checks.js): [what fn returns, ids].
 let applied = null;
 export const trackApplies = (fn) => {
 	const outer = applied;
