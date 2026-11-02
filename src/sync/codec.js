@@ -23,7 +23,6 @@ const refOf = (v) => {
 	const ref = v.$;
 	return typeof ref === "string" ? ref : typeof ref?.val === "string" ? ref.val : null;
 };
-export const isRef = (v) => refOf(v) !== null;
 // A map or record type: its values' $ key is data, not a ref.
 const holdsData = (type, v) => {
 	const t = narrow(type, v);
@@ -49,18 +48,19 @@ export const narrow = (type, value, scope) => {
 	}
 	return type ?? ANY;
 };
+// The type of key in plain data of narrowed type t: an array's or map's value type, a record's
+// key type (undefined for a key outside its shape), ANY for anything else.
+const innerType = (t, key) =>
+	t instanceof ArrayType || t instanceof MapType
+		? t.valueType
+		: t instanceof RecordType
+			? t.shape[key]
+			: ANY;
 // The type of value[key] inside a value of type; null for a key the level doesn't see.
 export const keyType = (type, value, key, level, rootScope) => {
 	const component = componentOf(value, rootScope, type);
-	const t = component === null ? narrow(type, value, null) : null;
 	const child =
-		component !== null
-			? component.spec.fields[key]
-			: t instanceof ArrayType || t instanceof MapType
-				? t.valueType
-				: t instanceof RecordType
-					? t.shape[key]
-					: ANY;
+		component !== null ? component.spec.fields[key] : innerType(narrow(type, value, null), key);
 	if (child === undefined) return component === null ? ANY : null;
 	return syncsAt(child, level) ? child : null;
 };
@@ -98,17 +98,10 @@ export const project = (value, { level = "shared", type = ANY, leaf = null } = {
 	} else if (Object.hasOwn(value, "$") && !holdsData(type, value)) {
 		return fail(path, `a record with the reserved key $`);
 	}
-	const t = isComponent(value) ? null : narrow(type, value);
 	const fields = isComponent(value) ? specOf(value).fields : null;
+	const t = fields === null ? narrow(type, value) : null;
 	for (const key of Object.keys(value)) {
-		const child =
-			fields !== null
-				? fields[key]
-				: t instanceof MapType
-					? t.valueType
-					: t instanceof RecordType
-						? t.shape[key]
-						: ANY;
+		const child = fields !== null ? fields[key] : innerType(t, key);
 		if (child === undefined || !syncsAt(child, level)) continue;
 		setOwn(out, key, project(value[key], { level, type: child, leaf }, [...path, key]));
 	}

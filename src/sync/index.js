@@ -11,7 +11,7 @@ import { overlay, project } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyFitting, rebuild } from "./migrate.js";
 
-export { componentOf, hydrate, isRef, overlay, project, typeAt } from "./codec.js";
+export { componentOf, hydrate, overlay, project } from "./codec.js";
 export { diff, textSplice } from "./diff.js";
 export { applyFitting, carry, rebuild, specChanges, writeFitting } from "./migrate.js";
 export { applyOps, OpConflictError, opFits, opText } from "./ops.js";
@@ -30,7 +30,7 @@ export const opsOf = (change, level, scope) => {
 export const applyStateOps = (root, ops, scope, { level = "shared", onMigrate = null } = {}) => {
 	const report = { added: [], reset: [], dropped: [] };
 	for (const op of ops) root = applyFitting(root, op, scope, report, { level });
-	if (onMigrate !== null && migrated(report)) onMigrate(report);
+	reportMigration(report, onMigrate);
 	return root;
 };
 // Brings the fields level sees to what plain, an engine's whole copy of the state, means to
@@ -42,15 +42,16 @@ export const applyProjection = (
 	{ level = "shared", onMigrate = null, info = null },
 ) => {
 	const { scope } = link.host;
-	const { root, added, reset, dropped } = rebuild(plain, scope, { level });
-	const ops = diff(link.root(), root, { scope, level });
+	const rebuilt = rebuild(plain, scope, { level });
+	const ops = diff(link.root(), rebuilt.root, { scope, level });
 	if (ops.length > 0) link.apply((draft) => applyStateOps(draft, ops, scope, { level }), info);
-	const report = { added, reset, dropped };
-	if (onMigrate !== null && migrated(report)) onMigrate(report);
+	reportMigration(rebuilt, onMigrate);
 };
-// Whether a migration report changed anything.
-export const migrated = ({ added, reset, dropped }) =>
-	added.length + reset.length + dropped.length > 0;
+// Gives onMigrate what a migration changed, { added, reset, dropped }, if it changed anything.
+const reportMigration = ({ added, reset, dropped }, onMigrate) => {
+	if (onMigrate === null || added.length + reset.length + dropped.length === 0) return;
+	onMigrate({ added, reset, dropped });
+};
 
 // Starts host with the root its engines stored, or make(C) when none did: the "local" engines'
 // projections first, the "shared" ones on top. Then attaches the engines.
@@ -70,10 +71,9 @@ export const startSynced = async (host, { engines, make }) => {
 		const level = byLevel.some((e, i) => e.level === "local" && stored[i] !== null)
 			? "local"
 			: "shared";
-		const { root, added, reset, dropped } = rebuild(plain, host.scope, { level });
-		host.start(root);
-		const report = { added, reset, dropped };
-		if (migrated(report)) host.notify("stateMigrated", { engine: null, ...report });
+		const rebuilt = rebuild(plain, host.scope, { level });
+		host.start(rebuilt.root);
+		reportMigration(rebuilt, (report) => host.notify("stateMigrated", { engine: null, ...report }));
 	}
 	host.attachSync(...engines);
 	return host.root;

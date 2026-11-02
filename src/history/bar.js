@@ -12,6 +12,13 @@ const { div, input, span } = tag;
 const OPS = ["goto", "back", "forward", "toStart", "toEnd"];
 const BUTTON = "btn btn-xs btn-ghost font-mono";
 const KEYS = { ArrowLeft: "back", ArrowRight: "forward", Home: "toStart", End: "toEnd" };
+// The step buttons: [op, title, the query that disables it, glyph].
+const STEPS = [
+	["toStart", "First state", "atStart", "⏮"],
+	["back", "Back", "atStart", "◀"],
+	["forward", "Forward", "atEnd", "▶"],
+	["toEnd", "Last state", "atEnd", "⏭"],
+];
 
 export const TimeTravel = component({
 	name: "TimeTravel",
@@ -53,41 +60,11 @@ export const TimeTravel = component({
 				title: "Alt+← and Alt+→ step back and forward",
 				"on:keydown": send("key"),
 			},
-			button(
-				{
-					class: BUTTON,
-					title: "First state",
-					disabled: field("atStart"),
-					"on:click": send("op", "toStart"),
-				},
-				"⏮",
-			),
-			button(
-				{
-					class: BUTTON,
-					title: "Back",
-					disabled: field("atStart"),
-					"on:click": send("op", "back"),
-				},
-				"◀",
-			),
-			button(
-				{
-					class: BUTTON,
-					title: "Forward",
-					disabled: field("atEnd"),
-					"on:click": send("op", "forward"),
-				},
-				"▶",
-			),
-			button(
-				{
-					class: BUTTON,
-					title: "Last state",
-					disabled: field("atEnd"),
-					"on:click": send("op", "toEnd"),
-				},
-				"⏭",
+			STEPS.map(([op, title, disabled, glyph]) =>
+				button(
+					{ class: BUTTON, title, disabled: field(disabled), "on:click": send("op", op) },
+					glyph,
+				),
 			),
 			input({
 				type: "range",

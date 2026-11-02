@@ -8,12 +8,12 @@ import { jsonText } from "../tree/text.js";
 
 export const argsLabel = (args) => truncate(args.map(jsonText).join(", "), 80);
 // The task a task's chain started with: an event, or a message sent from outside.
-export const rootTask = (task) => {
+const rootTask = (task) => {
 	while (task.parent !== null) task = task.parent;
 	return task;
 };
 // A task as a timeline shows it, like "click → toggle()".
-export const taskLabel = (task) => {
+const taskLabel = (task) => {
 	const call = `${task.name}(${argsLabel(task.args)})`;
 	return task instanceof HostTask && task.event !== null ? `${task.event.type} → ${call}` : call;
 };
@@ -84,6 +84,14 @@ export class Timeline {
 		entry.tasks = [...(entry.tasks ?? []), task];
 		return true;
 	}
+	// Records the state task made: merged into the current entry when it continues its chain,
+	// else a new user entry labeled by the task the chain started with, extra added to it.
+	recordTask(task, state, extra = {}) {
+		if (this.merge(task, state)) return this.current;
+		const root = rootTask(task);
+		const label = taskLabel(root);
+		return this.record({ state, label, origin: "user", rootTask: root, tasks: [task], ...extra });
+	}
 	goto(i) {
 		this.cursor = Math.max(0, Math.min(Number(i), this.entries.length - 1));
 		return this.current;
@@ -133,11 +141,7 @@ export const historyEngine = ({ max = 1000, now = Date.now, onChange = () => {} 
 			seed(prev);
 			if (task === null) {
 				timeline.record({ state: next, label: "synced change", origin: "external" });
-			} else if (!timeline.merge(task, next)) {
-				const root = rootTask(task);
-				const label = taskLabel(root);
-				timeline.record({ state: next, label, origin: "user", rootTask: root, tasks: [task] });
-			}
+			} else timeline.recordTask(task, next);
 			onChange(timeline);
 		},
 		travel: (i) => travel(() => timeline.goto(i)),

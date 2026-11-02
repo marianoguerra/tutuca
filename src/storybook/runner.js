@@ -2,7 +2,7 @@
 // of states, and the StoryRegistry that answers the UI's "story" asks.
 
 import { ClassCompiler } from "../css/classes.js";
-import { argsLabel, rootTask, Timeline, taskLabel } from "../history/index.js";
+import { argsLabel, Timeline } from "../history/index.js";
 import { lint } from "../lint/index.js";
 import { diff } from "../sync/diff.js";
 import { carry, specChanges } from "../sync/migrate.js";
@@ -275,14 +275,8 @@ export class StoryRunner {
 		}
 		if (type !== "taskHandled") return;
 		const { task, newRoot } = report;
-		let entry = this.current;
-		if (!this.timeline.merge(task, newRoot)) {
-			const root = rootTask(task);
-			entry = { label: taskLabel(root), origin: "user", state: newRoot, problems: [] };
-			Object.assign(entry, { status: "ok", nextStep: this.nextStep, rootTask: root });
-			entry.tasks = [task];
-			entry = this.timeline.record(entry);
-		}
+		const extra = { problems: [], status: "ok", nextStep: this.nextStep };
+		const entry = this.timeline.recordTask(task, newRoot, extra);
 		this.tasks = [];
 		this.addProblems(entry);
 	}
