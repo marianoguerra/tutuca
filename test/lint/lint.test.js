@@ -452,3 +452,75 @@ test("answers: a section of ok, error and unhandled handlers; an ask with none w
 		"warning unanswered-ask Asker",
 	]);
 });
+
+test("pure messages get no ctx and emit nothing; queries read", async () => {
+	const { $query, iface } = await import("../../src/tutuca.js");
+	const Item = iface("Item", { queries: { label: {} } });
+	const Row = component({
+		name: "Row",
+		implements: [Item],
+		fields: { text: t.string() },
+		on: {
+			ok: {
+				pure: true,
+				args: [t.string()],
+				run(next, [x]) {
+					next.text = x;
+				},
+			},
+			withCtx: { pure: true, run: (_next, _args, ctx) => ctx.notify("x", []) },
+			emitting: { pure: true, emits: { notify: ["x"] }, run() {} },
+		},
+		queries: {
+			get label() {
+				return this.text;
+			},
+			has: {
+				args: [t.string()],
+				run(x) {
+					return this.text.includes(x);
+				},
+			},
+			writes() {
+				this.text = "";
+			},
+		},
+		view: h(
+			"p",
+			{},
+			field("label"),
+			$query("has", "a"),
+			$query("has"),
+			$query("label", 1),
+			$query("nope"),
+			$query("has", 3),
+		),
+	});
+	const List = component({ name: "List", fields: { rows: t.array(t.component("Item")) } });
+	assert.deepEqual(lintOf({ Row, List }), [
+		"error pure-uses-ctx Row",
+		"error pure-emits Row",
+		"error query-mutates-this Row",
+		"error query-arity Row.main > p > query(has)",
+		"error query-arity Row.main > p > query(label)",
+		"error unknown-query Row.main > p > query(nope)",
+		"error query-arg-type Row.main > p > query(has)",
+	]);
+});
+
+test("a getter in methods is a query", () => {
+	const Box = component({
+		name: "Box",
+		fields: { w: t.number() },
+		methods: {
+			get area() {
+				return this.w * this.w;
+			},
+			grow(next) {
+				next.w += 1;
+			},
+		},
+		view: field("area"),
+	});
+	assert.deepEqual(lintOf({ Box }), ["warning getter-in-methods Box"]);
+});

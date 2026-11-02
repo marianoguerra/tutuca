@@ -1,13 +1,34 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../deps/immer.js";
 import { DRAG_EVENTS } from "./drag.js";
-import { NoDefaultError, scopeSym, specSym, toAnswers, toMessages } from "./schema.js";
+import {
+	NoDefaultError,
+	QuerySpec,
+	scopeSym,
+	specSym,
+	toAnswers,
+	toMessages,
+	toQueries,
+} from "./schema.js";
 import { mint } from "./tree/identity.js";
 import { toExpr } from "./view.js";
 import { Collect } from "./walk.js";
 
 export class ComponentSpec {
-	constructor({ name, fields, methods, views, on, answers, loops, scopes, provides, invariants }) {
+	constructor({
+		name,
+		fields,
+		methods,
+		views,
+		on,
+		answers,
+		loops,
+		scopes,
+		provides,
+		invariants,
+		queries = Object.create(null),
+		implements: implemented = [],
+	}) {
 		this.name = name;
 		/** @type {Object<string, import("./schema.js").Type>} */
 		this.fields = fields;
@@ -15,6 +36,17 @@ export class ComponentSpec {
 		// Copy descriptors, not values, so getters in methods stay getters.
 		this.proto = Object.create(null, Object.getOwnPropertyDescriptors(methods));
 		Object.assign(this.proto, { [immerable]: true, [specSym]: this });
+		// Queries live on the prototype too, so handlers and views read them as this.name.
+		this.queries = queries; // name -> QuerySpec: the public reads, public fields among them.
+		for (const qname in queries) {
+			const q = queries[qname];
+			if (!(q instanceof QuerySpec) || q.kind === "field") continue;
+			const descriptor = q.kind === "get" ? { get: q.fn } : { value: q.fn, writable: true };
+			Object.defineProperty(this.proto, qname, { ...descriptor, configurable: true });
+		}
+		// The interfaces it says it implements: Interfaces, or names resolved in the scope it is
+		// registered in (scope.js checks them there).
+		this.implements = implemented;
 		/** @type {Object<string, import("./view.js").AstNode>} */
 		this.views = views;
 		this.on = on;
@@ -46,6 +78,19 @@ export class ComponentSpec {
 	}
 }
 const ownEntries = (record) => Object.assign(Object.create(null), record); // no toString &c in entries
+// A name is one thing: a field (a public one is also its query), a query, a method or a message.
+const collisions = (name, fields, queries, methods) => {
+	const found = [];
+	for (const q in queries) {
+		if (queries[q] instanceof QuerySpec && queries[q].kind === "field") continue;
+		if (q in fields) found.push(`query ${q} is also a field`);
+		if (Object.hasOwn(methods, q)) found.push(`query ${q} is also a method`);
+	}
+	for (const m of Object.keys(methods)) {
+		if (m in fields) found.push(`method ${m} is also a field`);
+	}
+	if (found.length > 0) throw new Error(`Component ${name}: ${found.join(", ")}`);
+};
 export const component = (opts) => {
 	const { name, fields = {}, methods = {}, view, views = {} } = opts;
 	const sources = view === undefined ? views : { ...views, main: view };
@@ -55,6 +100,8 @@ export const component = (opts) => {
 	// one with views needs a main one.
 	if (view === undefined && Object.keys(views).length === 0) exprs.main = toExpr("");
 	if (!("main" in exprs)) throw new Error(`Component ${name} has no main view`);
+	const queries = toQueries(opts.queries, fields);
+	collisions(name, fields, queries, methods);
 	return new ComponentSpec({
 		name,
 		fields,
@@ -66,5 +113,7 @@ export const component = (opts) => {
 		scopes: ownEntries(opts.scopes),
 		provides: ownEntries(opts.provides),
 		invariants: ownEntries(opts.invariants),
+		queries,
+		implements: [opts.implements ?? []].flat(),
 	});
 };

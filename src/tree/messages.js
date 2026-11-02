@@ -3,14 +3,24 @@
 // (send n), (notify n), (ok n), ...) and what it does with the handler the scheduler found for it.
 import { Address, HOST } from "./address.js";
 
-// A handler returns a replacement for the node, or undefined to keep next.
+// A handler returns a replacement for the node, or undefined to keep next. A pure one gets no
+// ctx: what it does depends on the node and the args alone.
 // The handler's contract counts what it emits, not what ran before it in the task (an ask
 // handler, before the reply's).
 export const call = (handler, instance, next, args, ctx) => {
 	ctx.ran = { message: handler, args };
 	ctx.emitted = [];
-	const result = handler.run.call(instance, next, args, ctx);
+	const result = handler.pure
+		? handler.run.call(instance, next, args)
+		: handler.run.call(instance, next, args, ctx);
 	return result === undefined ? next : result;
+};
+// Sets props on obj as non-enumerable: back-references (a task's parent, a DOM event's event
+// and node), so inspecting or deep-comparing a task doesn't walk into the tree or the document.
+export const hidden = (obj, props) => {
+	for (const key in props) {
+		Object.defineProperty(obj, key, { value: props[key], writable: true, configurable: true });
+	}
 };
 export class Task {
 	// from is the sender's Address. where is where it goes: an Address when that is known as it
@@ -30,7 +40,7 @@ export class Task {
 		this.target = fixed ? null : where;
 		/** @type {Address | null} */
 		this.to = fixed ? where : null;
-		this.parent = parent;
+		hidden(this, { parent });
 	}
 	get hkey() {
 		return { mode: "send", name: this.name };

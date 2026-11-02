@@ -6,8 +6,10 @@ import {
 	DRAG_EVENTS,
 	HandlerSpec,
 	IndexType,
+	Interface,
 	isRecord,
 	MapType,
+	QuerySpec,
 	Type,
 	unwrapOption,
 	Walker,
@@ -25,6 +27,7 @@ const RENDER_KINDS = new Set([
 	"renderEach",
 	"scope",
 	"element",
+	"query",
 ]);
 const LOOP_HOOKS = ["prepare", "filter", "iter", "key", "enrich"];
 const EMIT_KINDS = new Set(["notify", "ask", "sendAt"]);
@@ -43,7 +46,8 @@ const labelOf = (node, kind) => {
 		case "scope":
 			return `scope(${node.scopeName})`;
 		case "send":
-			return `send(${node.name})`;
+		case "query":
+			return `${kind}(${node.name})`;
 		default:
 			return kind;
 	}
@@ -73,6 +77,12 @@ export class Lint extends Walker {
 		this.componentNames = componentNames === null ? null : new Set(componentNames);
 		this.viewNames = new Set(this.registrations.flatMap((spec) => Object.keys(spec.views)));
 		this.providedNames = new Set(this.registrations.flatMap((spec) => Object.keys(spec.provides)));
+		// The interface names registrations say they implement, which fields can hold.
+		this.implementedNames = new Set(
+			this.registrations.flatMap((spec) =>
+				(spec.implements ?? []).map((it) => (it instanceof Interface ? it.name : it)),
+			),
+		);
 		this.spec = null;
 		this.viewName = null;
 		this.labels = [];
@@ -113,6 +123,13 @@ export class Lint extends Walker {
 			this.lintMessage(`on.${name}`, message);
 		}
 		this.lintAnswers(spec);
+		this.lintQueries(spec);
+		// A computed property is a query: methods are the component's own helpers.
+		for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(spec.methods ?? {}))) {
+			if (d.get === undefined) continue;
+			const text = `methods.${name} is a getter: move it to queries, where computed properties go`;
+			this.report("warning", "getter-in-methods", null, text);
+		}
 		for (const [name, scope] of Object.entries(spec.scopes)) {
 			if (typeof scope?.bind !== "function") {
 				this.report("error", "section-shape", null, `scopes.${name}.bind must be a function`);
@@ -133,7 +150,9 @@ export class Lint extends Walker {
 	lintFieldType(name, type, fields) {
 		if (type instanceof ComponentType) {
 			for (const componentName of type.names) {
+				if (componentName instanceof Interface) continue;
 				if (this.componentNames === null || this.componentNames.has(componentName)) continue;
+				if (this.implementedNames.has(componentName)) continue; // an interface's name
 				this.report(
 					"warning",
 					"unknown-component",
@@ -197,6 +216,7 @@ export class Lint extends Walker {
 		if (sourceKey !== undefined && !(sourceKey instanceof Type)) bad(".sourceKey must be a type");
 		for (const [hook, fn] of [
 			["pre", pre],
+			["why", message.why],
 			["post", post],
 		]) {
 			if (fn !== undefined && typeof fn !== "function") bad(`.${hook} must be a function`);
@@ -208,6 +228,38 @@ export class Lint extends Walker {
 			}
 		}
 		if (typeof run === "function") this.lintWorldReads(label, run);
+		if (message.pure) {
+			if (typeof run === "function" && (run.length > 2 || /\bctx\b/.test(String(run)))) {
+				const text = `${label} is pure: it gets no ctx, pass what it needs as args`;
+				this.report("error", "pure-uses-ctx", null, text);
+			}
+			if (emits !== undefined) {
+				this.report("error", "pure-emits", null, `${label} is pure: it can't emit`);
+			}
+		}
+	}
+	// queries: getters, functions, { get, returns } or { run, args, returns }. They read: one
+	// that assigns to this changes what it was asked about.
+	lintQueries(spec) {
+		for (const [name, q] of Object.entries(spec.queries ?? {})) {
+			const bad = (what) => this.report("error", "section-shape", null, `queries.${name}${what}`);
+			if (!(q instanceof QuerySpec)) {
+				bad(" must be a getter, a function, { get, returns } or { run, args, returns }");
+				continue;
+			}
+			if (q.kind === "call" && q.args !== undefined) {
+				if (!(Array.isArray(q.args) && q.args.every((a) => a instanceof Type))) {
+					bad(".args must be an array of types");
+				}
+			}
+			if (q.returns !== undefined && !(q.returns instanceof Type)) bad(".returns must be a type");
+			if (q.fn === null) continue;
+			this.lintWorldReads(`queries.${name}`, q.fn);
+			if (/\bthis\.[\w$]+(\[[^\]]*\])*\s*([-+*/%]|\?\?|\|\||&&)?=(?!=)/.test(String(q.fn))) {
+				const text = `queries.${name} assigns to this: a query reads, a pure message changes`;
+				this.report("error", "query-mutates-this", null, text);
+			}
+		}
 	}
 	// A handler that reads the clock or randomness itself gives a Driver different runs.
 	lintWorldReads(label, run) {
@@ -332,6 +384,29 @@ export class Lint extends Walker {
 	}
 	field(node) {
 		this.checkField(node, node.name);
+		super.node(node);
+	}
+	// $query(name, ...args): one of the component's queries that takes args.
+	query(node) {
+		const q = this.spec.queries?.[node.name];
+		if (!(q instanceof QuerySpec)) {
+			this.report("error", "unknown-query", node, `${this.spec.name} has no query "${node.name}"`);
+		} else if (q.kind !== "call") {
+			const text = `query "${node.name}" takes no args, read it with field("${node.name}")`;
+			this.report("error", "query-arity", node, text);
+		} else if (q.args !== undefined) {
+			if (node.args.length !== q.args.length) {
+				const text = `$query(${node.name}) passes ${node.args.length} args, queries.${node.name} takes ${q.args.length}`;
+				this.report("error", "query-arity", node, text);
+			} else {
+				node.args.forEach((arg, i) => {
+					if (kindOf(arg) === "constant" && !q.args[i].isValid(arg.value, null)) {
+						const text = `$query(${node.name}) arg ${i} doesn't match its type`;
+						this.report("error", "query-arg-type", node, text);
+					}
+				});
+			}
+		}
 		super.node(node);
 	}
 	seqItem(node) {

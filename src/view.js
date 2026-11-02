@@ -33,6 +33,23 @@ export class Field extends AstNode {
 	}
 }
 export const field = (name) => new Field(name);
+// One of the component's queries that takes args, called with them: $query("matches",
+// field("text")). A query without args reads as a field.
+export class Query extends AstNode {
+	static kind = "query";
+	constructor(name, args) {
+		super();
+		this.name = name;
+		this.args = args;
+	}
+	eval(ctx) {
+		return ctx.it[this.name](...this.args.map((a) => a.eval(ctx)));
+	}
+	childNodes() {
+		return this.args;
+	}
+}
+export const $query = (name, ...args) => new Query(name, args.map(toExpr));
 export class SeqItem extends AstNode {
 	static kind = "seqItem";
 	constructor(seqName, keyName) {

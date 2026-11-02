@@ -13,6 +13,7 @@ import {
 } from "../../src/test/pbt.js";
 import {
 	$if,
+	apply,
 	component,
 	DispatchPath,
 	Frame,
@@ -53,8 +54,9 @@ const Tabs = component({
 			sourceKey: t.index("tabs"),
 			post: (_prev, next, _args, { sourceKey }) => next.selectedTabIndex === sourceKey,
 			run(next, _args, ctx) {
-				next.tabs[this.selectedTabIndex].isSelected = false;
-				next.tabs[ctx.sourceKey].isSelected = true;
+				const i = this.selectedTabIndex;
+				next.tabs[i] = apply(next.tabs[i], "setSelected", false);
+				next.tabs[ctx.sourceKey] = apply(next.tabs[ctx.sourceKey], "setSelected", true);
 				next.selectedTabIndex = ctx.sourceKey;
 				ctx.stopNext();
 			},
@@ -74,6 +76,13 @@ const Tab = component({
 		),
 	},
 	on: {
+		setSelected: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [isSelected]) {
+				next.isSelected = isSelected;
+			},
+		},
 		selected: {
 			args: [],
 			emits: { notify: ["tabSelected"] },
@@ -186,7 +195,7 @@ test("a tab switch that forgets the old tab breaks the invariant", () => {
 			tabSelected: {
 				...tabSelected,
 				run(next, _args, ctx) {
-					next.tabs[ctx.sourceKey].isSelected = true;
+					next.tabs[ctx.sourceKey] = apply(next.tabs[ctx.sourceKey], "setSelected", true);
 					next.selectedTabIndex = ctx.sourceKey;
 					ctx.stopNext();
 				},

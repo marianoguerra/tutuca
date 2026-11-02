@@ -1,5 +1,7 @@
-// Scopes: the names components are registered under, nested into a tree, and the factories
-// that make components through them.
+// Scopes: the names components and interfaces are registered under, nested into a tree, and
+// the factories that make components through them.
+import { Interface, interfaceProblems, resolveImplements } from "./schema.js";
+
 // A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
 const refSep = "/";
 export class Scope {
@@ -12,6 +14,8 @@ export class Scope {
 		this.children = Object.create(null);
 		this.byName = Object.create(null);
 		this.askHandlers = Object.create(null);
+		this.interfaces = Object.create(null); // name -> Interface, looked up as components are.
+		this.implementsChecked = new WeakSet(); // Specs whose interfaces hold here, for make.
 		this.components = new Proxy(Object.create(null), {
 			get: (_target, name) => this.factory(name),
 		});
@@ -50,6 +54,7 @@ export class Scope {
 		const factories = {};
 		for (const name in comps) {
 			const spec = comps[name];
+			this.checkImplements(spec, name);
 			this.byName[name] = spec;
 			this.onRegister(spec, name);
 			factories[name] = this.factory(name);
@@ -77,6 +82,47 @@ export class Scope {
 	lookupByName(name) {
 		return this.lookup((scope) => scope.byName[name]);
 	}
+	// Interfaces by name, for components here and below to implement and fields to hold. One
+	// registered after a component is checked as the component is made.
+	registerInterfaces(ifaces) {
+		for (const name in ifaces) {
+			if (!(ifaces[name] instanceof Interface)) {
+				throw new Error(
+					`registerInterfaces needs Interfaces (iface()), got ${String(ifaces[name])} for ${name}`,
+				);
+			}
+			this.interfaces[name] = ifaces[name];
+		}
+		this.implementsChecked = new WeakSet(); // Here and below they may now resolve differently.
+		forEachScopeBelow(this, (s) => {
+			s.implementsChecked = new WeakSet();
+		});
+	}
+	lookupInterface(name) {
+		return this.lookup((scope) => scope.interfaces[name]);
+	}
+	// spec implements, resolved here, what it says it implements, and the interface name is
+	// under here if it is registered (or made) by one. Throws saying what's missing.
+	checkImplements(spec, name = null) {
+		const problems = [];
+		const resolved = resolveImplements(spec, this);
+		(spec.implements ?? []).forEach((it, i) => {
+			if (resolved[i] === null) problems.push(`it implements ${it}, which isn't an interface here`);
+		});
+		const ifaces = resolved.filter((it) => it !== null);
+		const under = name === null ? null : this.lookupInterface(name);
+		if (under !== null && !ifaces.includes(under)) ifaces.push(under);
+		for (const it of ifaces) {
+			for (const problem of interfaceProblems(spec, it)) problems.push(`${problem} (${it.name})`);
+		}
+		if (problems.length > 0) {
+			const as = under === null ? "" : ` as ${name}`;
+			throw new Error(
+				`${spec.name} can't be registered${as} in scope /${this.path.join(refSep)}: ${problems.join("; ")}`,
+			);
+		}
+		this.implementsChecked.add(spec);
+	}
 	// Every spec registered here or in a parent, by name; inner registrations win.
 	allSpecs() {
 		const specs = {};
@@ -88,6 +134,13 @@ export class Scope {
 	make(name, args) {
 		const spec = this.lookupByName(name);
 		if (spec === null) throw new Error(`Component ${String(name)} is not registered`);
+		if (!this.implementsChecked.has(spec)) this.checkImplements(spec, name);
 		return spec.make(args, this);
 	}
 }
+const forEachScopeBelow = (scope, fn) => {
+	for (const name in scope.children) {
+		fn(scope.children[name]);
+		forEachScopeBelow(scope.children[name], fn);
+	}
+};

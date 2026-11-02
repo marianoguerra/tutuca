@@ -1,6 +1,7 @@
 // The core: components, views, schemas, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
 export { ComponentSpec, component } from "./component.js";
+export { apply, canApply, canQuery, contractOf, query, supports } from "./contract.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
 export { browserEnv, Host } from "./host.js";
 export * from "./schema.js";
@@ -26,6 +27,7 @@ export {
 } from "./tree/index.js";
 export {
 	$if,
+	$query,
 	AstNode,
 	Cond,
 	Constant,
@@ -43,6 +45,7 @@ export {
 	PushView,
 	provided,
 	pushView,
+	Query,
 	Render,
 	RenderContext,
 	RenderEach,

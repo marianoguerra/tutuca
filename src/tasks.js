@@ -2,7 +2,7 @@
 // the DOM event), messages from the host (DOM events among them), and how a component's spec
 // gives the tree its handlers.
 import { scopeOf, specOf } from "./schema.js";
-import { HOST, MessageContext, Task } from "./tree/index.js";
+import { HOST, hidden, MessageContext, Task } from "./tree/index.js";
 
 // The handlers of a component: its spec's on (sends and notifications) and answers, and its
 // scope's ask handlers.
@@ -61,9 +61,7 @@ export class HostTask extends Task {
 	constructor(name, args, to, { now = false, event = null, node = null, drag = null } = {}) {
 		super(name, args, HOST, to, null);
 		this.now = now;
-		this.event = event;
-		this.node = node;
-		this.drag = drag;
+		hidden(this, { event, node, drag }); // back-references into the DOM
 	}
 	get runsBeforeEnv() {
 		return this.now;

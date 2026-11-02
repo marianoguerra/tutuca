@@ -2,12 +2,13 @@
 // Everything from outside the tree comes in through send: DOM events, and the messages of
 // whatever drives the app (an agent, a test, a bar). Without a document it is headless: it
 // renders nothing and listens to no events, and the tree runs the same.
-import { produce } from "../deps/immer.js";
+import { current, isDraft, produce } from "../deps/immer.js";
 import { DevChecks } from "./checks.js";
+import { apply, query } from "./contract.js";
 import { DROP_EVENTS, DragTracker } from "./drag.js";
 import { SyncEngines } from "./engines.js";
 import { getEventInfoFor } from "./events.js";
-import { scopeOf } from "./schema.js";
+import { brokenInvariants, ContractError, scopeOf, specOf } from "./schema.js";
 import { Scope } from "./scope.js";
 import { componentKinds, HostTask, TutucaContext } from "./tasks.js";
 import { Address, DispatchPath, Scheduler, Selector, selectorFrom, Target } from "./tree/index.js";
@@ -38,8 +39,11 @@ export class Host {
 		this.scheduler = new Scheduler({
 			kinds: componentKinds,
 			store: { get: () => this.root, set: (root) => (this.root = root) },
+			// Dev mode's also records who wrote what, for the checks.
 			transact: (root, path, fn) =>
-				produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft)))),
+				this.checks !== null
+					? this.checks.transact(root, path, fn)
+					: produce(root, (rootDraft) => path.setIn(rootDraft, fn(path.getIn(rootDraft)))),
 			hooks: {
 				context: (task, instance, nextRequest) =>
 					new TutucaContext(task, nextRequest, this.env, scopeOf(instance)),
@@ -136,6 +140,38 @@ export class Host {
 		} else this.scheduler.push(task);
 		return task;
 	}
+	// Applies the pure message name(...args) to the component at to (as send takes it) at once,
+	// as an external change: no task, no queue, rendered when it returns. Throws a ContractError
+	// if the component there doesn't support it.
+	// Nothing changes if it breaks the component's invariants.
+	apply(name, args = [], { to = new DispatchPath() } = {}) {
+		const at = this.keyPathOf(to);
+		const produceWith =
+			this.checks === null ? produce : (root, fn) => this.checks.applied(name, root, at, fn);
+		this.applyExternal(
+			(root) => {
+				const target = at.getIn(root);
+				const next = apply(target, name, ...args);
+				const broken = brokenInvariants(isDraft(next) ? current(next) : next);
+				if (broken.length > 0) {
+					const issues = broken.map((inv) => `invariant:${inv}`);
+					throw new ContractError(specOf(target).name, name, issues);
+				}
+				return at.setIn(root, next);
+			},
+			null,
+			null,
+			produceWith,
+		);
+	}
+	// What the query name(...args) of the component at to returns, read from the current root.
+	query(name, args = [], { to = new DispatchPath() } = {}) {
+		return query(this.keyPathOf(to).getIn(this.root), name, ...args);
+	}
+	keyPathOf(to) {
+		const where = targetOf(to);
+		return (where instanceof Address ? where : Address.of(where, this.root)).keyPath;
+	}
 	// Resolves once nothing is left to run: no task queued and no ask waiting for its answer.
 	whenIdle() {
 		if (this.root === null || this.scheduler.isIdle) return Promise.resolve();
@@ -199,11 +235,13 @@ export class Host {
 	// Applies a change made elsewhere (by source, an engine) as a producer on the root, at once,
 	// so it applies to the state it was made against. Renders unless a task run will. During
 	// the engines' commit it waits for them to finish, so every engine sees changes in order.
-	applyExternal(producer, source = null, info = null) {
-		if (this.engines.deferWhileCommitting(() => this.applyExternal(producer, source, info))) return;
+	// produceWith makes the new root (host.apply's records who wrote what in dev).
+	applyExternal(producer, source = null, info = null, produceWith = produce) {
+		const again = () => this.applyExternal(producer, source, info, produceWith);
+		if (this.engines.deferWhileCommitting(again)) return;
 		const curRoot = this.root;
 		if (curRoot === null) return;
-		const newRoot = produce(curRoot, producer);
+		const newRoot = produceWith(curRoot, producer);
 		if (newRoot === curRoot) return;
 		const commit = this.engines.prepare(curRoot, newRoot, null, source);
 		this.root = newRoot;

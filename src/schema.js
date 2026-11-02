@@ -15,7 +15,7 @@ function holds(fn) {
 export const scopeOf = (v) => v?.[scopeSym] ?? null;
 export const isComponent = (v) => specOf(v) !== undefined;
 // The names of the invariants instance breaks; a throwing invariant counts as broken.
-const brokenInvariants = (instance) => {
+export const brokenInvariants = (instance) => {
 	const { invariants } = specOf(instance);
 	return Object.keys(invariants).filter((name) => !holds(() => invariants[name].call(instance)));
 };
@@ -79,6 +79,7 @@ export class Type {
 		this.constraints = {};
 		this.generator = undefined; // (fc, A) => arbitrary, overrides the derived one in pbt.js.
 		this.syncLevel = "shared";
+		this.isPublic = false; // A public field is also a read-only query of the same name.
 	}
 	// Types are immutable: modifiers return a changed copy.
 	with(changes) {
@@ -116,6 +117,10 @@ export class Type {
 			throw new Error(`sync level must be one of ${SYNC_LEVELS.join(", ")}, got ${String(level)}`);
 		}
 		return this.with({ syncLevel: level });
+	}
+	// Fields are private: other components read a field only if it is public, as a query.
+	public() {
+		return this.with({ isPublic: true });
 	}
 	children() {
 		return [];
@@ -315,7 +320,8 @@ export class IndexType extends Type {
 	}
 }
 // A component registered under name, or one of names, in the scope the owner is made in, so
-// a scope can swap it. Without names any component is valid.
+// a scope can swap it. A name the scope has an interface under, or an Interface itself, takes
+// any component implementing it. Without names any component is valid.
 export class ComponentType extends Type {
 	static kind = "component";
 	constructor(names) {
@@ -326,6 +332,9 @@ export class ComponentType extends Type {
 		return this.names[0];
 	}
 	makeDefault(scope) {
+		if (this.name instanceof Interface) {
+			throw new NoDefaultError(`t.component(${this.name.name}) has no default, pass a component`);
+		}
 		if (this.name === undefined) {
 			throw new NoDefaultError(
 				"required t.component() has no default, pass a component or name it",
@@ -340,8 +349,14 @@ export class ComponentType extends Type {
 	}
 	isValidValue(value, scope) {
 		if (!isComponent(value)) return false;
-		if (this.names.length === 0 || scope === null) return true;
-		return this.names.some((name) => scope.lookupByName(name) === specOf(value));
+		if (this.names.length === 0) return true;
+		return this.names.some((name) => {
+			if (name instanceof Interface) return implementsIface(value, name);
+			if (scope === null) return true;
+			const iface = scope.lookupInterface(name);
+			if (iface !== null) return implementsIface(value, iface);
+			return scope.lookupByName(name) === specOf(value);
+		});
 	}
 }
 // The type an option wraps, or type itself.
@@ -350,7 +365,8 @@ export const unwrapOption = (type) =>
 const typeArgs = (t, text) => {
 	if (t instanceof EnumType) return t.members.map(text);
 	if (t instanceof IndexType) return [text(t.fieldName)];
-	if (t instanceof ComponentType) return t.names.map(text);
+	if (t instanceof ComponentType)
+		return t.names.map((n) => text(n instanceof Interface ? n.name : n));
 	if (t instanceof RecordType)
 		return Object.entries(t.shape).map(([k, v]) => `${k}: ${typeText(v)}`);
 	return t
@@ -392,10 +408,13 @@ export const t = {
 	index: ctor(IndexType),
 	component: ctor(ComponentType),
 };
-// An on entry is a handler function, or a handler spec { run, args, sourceKey, pre, post, emits }:
-// the handler, run, with its contract. args types the send/notify arguments, sourceKey the
-// child key it arrives from, pre and post are conditions on the instance, and emits lists what
-// it may send as { notify, ask, sendAt } name arrays.
+// An on entry is a handler function, or a handler spec { run, args, sourceKey, pre, why, post,
+// emits, pure }: the handler, run, with its contract. args types the send/notify arguments,
+// sourceKey the child key it arrives from, pre and post are conditions on the instance (why,
+// given self and args, says in words why pre doesn't hold), and emits lists what it may send
+// as { notify, ask, sendAt } name arrays. A pure one runs as run(next, args),
+// without a ctx: it can't send or read the world, so it can also be applied (contract.js) to a
+// component synchronously, in whatever transaction the caller is in.
 export class HandlerSpec {
 	constructor(name, entry) {
 		const spec = typeof entry === "function" ? { run: entry } : entry;
@@ -404,10 +423,154 @@ export class HandlerSpec {
 		this.args = spec.args;
 		this.sourceKey = spec.sourceKey;
 		this.pre = spec.pre;
+		this.why = spec.why;
 		this.post = spec.post;
 		this.emits = spec.emits;
+		this.pure = spec.pure === true;
 	}
 }
+// A query: a public read of a component, with no effects. A get one reads like a field (a
+// getter, a computed property; a public field is one too), a call one takes args. args and
+// returns type them, for checks and tools.
+export class QuerySpec {
+	constructor(name, { kind, fn = null, args = undefined, returns = undefined }) {
+		this.name = name;
+		this.kind = kind; // "get", "call" or "field"
+		this.fn = fn; // The getter or the function; null for a field.
+		this.args = kind === "call" ? args : [];
+		this.returns = returns;
+	}
+}
+// queries' entries: a getter (get), a function (call), { get, returns } or
+// { run, args, returns }. Fields marked public are get queries returning their type.
+// Other entries stay as they are for lint to report.
+export const toQueries = (queries, fields) => {
+	const out = Object.create(null);
+	for (const name in fields) {
+		if (fields[name]?.isPublic) {
+			out[name] = new QuerySpec(name, { kind: "field", returns: fields[name] });
+		}
+	}
+	for (const [name, d] of Object.entries(Object.getOwnPropertyDescriptors(queries ?? {}))) {
+		const v = d.value;
+		if (d.get !== undefined) out[name] = new QuerySpec(name, { kind: "get", fn: d.get });
+		else if (typeof v === "function") out[name] = new QuerySpec(name, { kind: "call", fn: v });
+		else if (typeof v?.get === "function")
+			out[name] = new QuerySpec(name, { kind: "get", fn: v.get, returns: v.returns });
+		else if (typeof v?.run === "function")
+			out[name] = new QuerySpec(name, {
+				kind: "call",
+				fn: v.run,
+				args: v.args,
+				returns: v.returns,
+			});
+		else out[name] = v;
+	}
+	return out;
+};
+// An interface: what a component offers other components, by name and type, and no state.
+// messages and pure map names to arg types; queries map names to { args, returns }, args
+// empty for a get one; notifies map names to arg types, of the messages it notifies up with.
+export class Interface {
+	constructor(name, { messages = {}, pure = {}, queries = {}, notifies = {} } = {}) {
+		this.name = name;
+		this.messages = messages;
+		this.pure = pure;
+		this.queries = queries;
+		this.notifies = notifies;
+	}
+}
+export const iface = (name, operations) => new Interface(name, operations);
+// A type as its signature: what it accepts, without its default.
+const sigText = (type) => typeText(type.with({ defaultValue: undefined }));
+const sameTypes = (want = [], got = undefined) =>
+	got !== undefined &&
+	want.length === got.length &&
+	want.every((t, i) => sigText(t) === sigText(got[i]));
+// What spec lacks to implement iface, as messages: each of iface's messages a handler with the
+// same arg types (a pure one does too), each pure message a pure one, each query one of the
+// same args and returns. Undeclared types only match no args. notifies aren't checked: a
+// handler need not declare what it emits.
+export const interfaceProblems = (spec, iface) => {
+	const problems = [];
+	const missing = (what, name) => problems.push(`its ${what} ${name} is missing`);
+	const mismatch = (what, name, detail) =>
+		problems.push(`its ${what} ${name} ${detail}, ${iface.name}'s doesn't`);
+	const checkMessage = (name, args, pure) => {
+		const h = spec.on[name];
+		if (!(h instanceof HandlerSpec)) return missing(pure ? "pure message" : "message", name);
+		if (pure && !h.pure) problems.push(`its message ${name} isn't pure, ${iface.name}'s is`);
+		if (!(args.length === 0 && h.args === undefined) && !sameTypes(args, h.args))
+			mismatch("message", name, `takes (${(h.args ?? []).map(sigText).join(", ")})`);
+	};
+	for (const name in iface.messages) checkMessage(name, iface.messages[name], false);
+	for (const name in iface.pure) checkMessage(name, iface.pure[name], true);
+	for (const name in iface.queries) {
+		const want = iface.queries[name];
+		const q = spec.queries?.[name];
+		if (!(q instanceof QuerySpec)) {
+			missing("query", name);
+			continue;
+		}
+		const wantArgs = want.args ?? [];
+		if (
+			wantArgs.length === 0 ? q.kind === "call" && q.args?.length > 0 : !sameTypes(wantArgs, q.args)
+		)
+			mismatch("query", name, `takes (${(q.args ?? []).map(sigText).join(", ")})`);
+		if (want.returns !== undefined) {
+			if (q.returns === undefined) problems.push(`its query ${name} doesn't say what it returns`);
+			else if (sigText(want.returns) !== sigText(q.returns))
+				mismatch("query", name, `returns ${sigText(q.returns)}`);
+		}
+	}
+	return problems;
+};
+// The interfaces spec says it implements, resolved in scope: an Interface as it is, a name as
+// the scope has it (null when it doesn't).
+export const resolveImplements = (spec, scope) =>
+	(spec.implements ?? []).map((it) =>
+		it instanceof Interface ? it : (scope?.lookupInterface(it) ?? null),
+	);
+// Whether value is a component implementing iface: it says so, in its scope, or its scope makes
+// it by the interface's name.
+export const implementsIface = (value, iface) => {
+	const spec = specOf(value);
+	if (spec === undefined) return false;
+	const scope = scopeOf(value);
+	if (resolveImplements(spec, scope).includes(iface)) return true;
+	if (scope === null) return false;
+	for (let s = scope; s !== null; s = s.parent) {
+		for (const name in s.interfaces) {
+			if (s.interfaces[name] === iface && scope.lookupByName(name) === spec) return true;
+		}
+	}
+	return false;
+};
+// Calling an interface operation a component doesn't support, or with what breaks its contract.
+// code is the first of issues: "unknown", "not-pure", "args", "arg:<i>", "pre", "post", "returns",
+// "invariant:<name>", or "not-component".
+export class ContractError extends Error {
+	constructor(component, name, issues, detail = "") {
+		const what = component === null ? "not a component" : `${component}.${name}`;
+		super(`${what}: ${issues.join(", ")}${detail === "" ? "" : ` (${detail})`}`);
+		this.name = "ContractError";
+		this.component = component;
+		this.operation = name;
+		this.issues = issues;
+		this.code = issues[0];
+		this.detail = detail; // In words, as a failed pre's why says it.
+	}
+}
+// The ways args don't match types: "args" for their count, "arg:<i>" for one's type.
+export const argIssues = (types, args, scope, owner) => {
+	if (types === undefined) return [];
+	if (args.length !== types.length) return ["args"];
+	const issues = [];
+	types.forEach((type, i) => {
+		if (!type.isValid(args[i], scope, owner)) issues.push(`arg:${i}`);
+	});
+	return issues;
+};
 // Other entries stay as they are for lint to report.
 export const toMessages = (on) => {
 	const messages = Object.create(null); // no toString &c in entries
@@ -441,16 +604,8 @@ export const toAnswers = (answers) => {
 // and "emits:<kind>:<name>". prev and next are the component before and after the handler,
 // info is { sourceKey, emitted } from the MessageContext it ran in.
 export const messageIssues = (message, prev, next, args, info) => {
-	const issues = [];
 	const scope = scopeOf(prev);
-	if (message.args !== undefined) {
-		if (args.length !== message.args.length) issues.push("args");
-		else {
-			message.args.forEach((type, i) => {
-				if (!type.isValid(args[i], scope, prev)) issues.push(`arg:${i}`);
-			});
-		}
-	}
+	const issues = argIssues(message.args, args, scope, prev);
 	const { sourceKey, emitted } = info;
 	if (message.sourceKey !== undefined && !message.sourceKey.isValid(sourceKey, scope, prev)) {
 		issues.push("sourceKey");
