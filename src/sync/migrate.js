@@ -3,14 +3,8 @@
 // hot reload), and ops from a peer on another version (fitOp). The rules are hydrate's: fields
 // a component doesn't declare are dropped, values their type rejects take its default; each
 // says what it changed.
-import {
-	findInvalidFields,
-	isComponent,
-	isRecord,
-	NoDefaultError,
-	specOf,
-	typeText,
-} from "../schema.js";
+import { isRecord, NoDefaultError, typeText } from "../schema.js";
+import { findInvalidFields, isComponent, specOf } from "../spec.js";
 import { componentOf, getIn, hydrate, keyType, project, rootOf, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyOps, opFits } from "./ops.js";

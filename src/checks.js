@@ -4,7 +4,7 @@
 // stateInvalid or messageInvalid.
 import { produce } from "../deps/immer.js";
 import { trackApplies } from "./contract.js";
-import { findInvalidFields, isComponent, messageIssues, specOf } from "./schema.js";
+import { findInvalidFields, isComponent, messageIssues, specOf } from "./spec.js";
 import { idOf } from "./tree/identity.js";
 import { keyText } from "./tree/text.js";
 

@@ -1,6 +1,6 @@
 // DOM events: finds the component, path and handlers an event belongs to from the meta comments.
 import { isMetaOpen, META_CLOSE, parseMeta } from "./meta.js";
-import { specOf } from "./schema.js";
+import { specOf } from "./spec.js";
 import { Address, DispatchPath, Frame } from "./tree/index.js";
 
 const META_TYPES = new Set(["component", "frame"]);

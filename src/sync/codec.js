@@ -3,17 +3,15 @@
 import {
 	AnyType,
 	ArrayType,
-	isComponent,
 	isRecord,
 	MapType,
 	NoDefaultError,
 	OneOfType,
 	OptionType,
 	RecordType,
-	scopeOf,
-	specOf,
 	syncsAt,
 } from "../schema.js";
+import { isComponent, scopeOf, specOf } from "../spec.js";
 import { setOwn } from "./ops.js";
 
 const ANY = new AnyType(null);

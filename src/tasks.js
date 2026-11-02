@@ -1,7 +1,7 @@
 // What tutuca adds to the tree's messages: the context its handlers get (the world, the scope and
 // the DOM event), messages from the host (DOM events among them), and how a component's spec
 // gives the tree its handlers.
-import { scopeOf, specOf } from "./schema.js";
+import { scopeOf, specOf } from "./spec.js";
 import { HOST, hidden, MessageContext, Task } from "./tree/index.js";
 
 // The handlers of a component: its spec's on (sends and notifications) and answers, and its

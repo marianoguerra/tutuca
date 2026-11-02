@@ -1,4 +1,4 @@
-// The core: components, views, schemas, paths, tasks and the host. Each lives in its own module;
+// The core: components, views, schemas, specs, paths, tasks and the host. Each lives in its own module;
 // this one is the public surface npm consumers and dist/ bundle.
 export { ComponentSpec, component } from "./component.js";
 export { apply, canApply, canQuery, contractOf, query, supports } from "./contract.js";
@@ -6,6 +6,30 @@ export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
 export { browserEnv, Host } from "./host.js";
 export * from "./schema.js";
 export { Scope } from "./scope.js";
+export {
+	argIssues,
+	brokenInvariants,
+	ContractError,
+	findInvalidFields,
+	HandlerSpec,
+	Interface,
+	idOf,
+	idSym,
+	iface,
+	implementsIface,
+	interfaceProblems,
+	isComponent,
+	messageIssues,
+	QuerySpec,
+	resolveImplements,
+	scopeOf,
+	scopeSym,
+	specOf,
+	specSym,
+	toAnswers,
+	toMessages,
+	toQueries,
+} from "./spec.js";
 export * from "./tag.js";
 export { componentKinds, HostTask, TutucaContext } from "./tasks.js";
 export {

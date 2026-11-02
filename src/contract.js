@@ -9,13 +9,14 @@ import {
 	brokenInvariants,
 	ContractError,
 	HandlerSpec,
+	holds,
 	Interface,
 	interfaceProblems,
 	QuerySpec,
 	resolveImplements,
 	scopeOf,
 	specOf,
-} from "./schema.js";
+} from "./spec.js";
 import { idOf } from "./tree/identity.js";
 
 // The ids of the components pure messages were applied to while fn ran, for the dev check that
@@ -39,13 +40,6 @@ const specOrThrow = (c, name) => {
 };
 const failIf = (spec, name, issues, detail) => {
 	if (issues.length > 0) throw new ContractError(spec.name, name, issues, detail);
-};
-const holds = (fn) => {
-	try {
-		return Boolean(fn());
-	} catch {
-		return false;
-	}
 };
 // The component c is after its pure message name(...args). On a draft (in a handler, or in a
 // pure message applying another) it changes the draft, in the caller's transaction, and

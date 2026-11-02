@@ -1,6 +1,6 @@
 // Scopes: the names components and interfaces are registered under, nested into a tree, and
 // the factories that make components through them.
-import { Interface, interfaceProblems, resolveImplements } from "./schema.js";
+import { Interface, interfaceProblems, resolveImplements } from "./spec.js";
 
 // A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
 const refSep = "/";

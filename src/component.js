@@ -1,15 +1,8 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../deps/immer.js";
 import { DRAG_EVENTS } from "./drag.js";
-import {
-	NoDefaultError,
-	QuerySpec,
-	scopeSym,
-	specSym,
-	toAnswers,
-	toMessages,
-	toQueries,
-} from "./schema.js";
+import { NoDefaultError } from "./schema.js";
+import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./spec.js";
 import { mint } from "./tree/identity.js";
 import { toExpr } from "./view.js";
 import { Collect } from "./walk.js";
