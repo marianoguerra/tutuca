@@ -31,10 +31,10 @@ type frame_array = [mut &?frame];
 
 // How a message got to a component: the frames of rendered ancestry, one per
 // render source or loop item entered. Notify bubbling and the source key
-// follow it, and it resolves to an update path.
+// follow it, and it resolves to a key path.
 type dispatch_path = { frames: &frame_array };
 
-// A step of a selector (JS's PathBuilder calls).
+// A step of a selector (JS's Selector calls: field, item, seqItem).
 const selector_step_kind_field = 0;
 const selector_step_kind_item = 1;
 const selector_step_kind_seq_item = 2;

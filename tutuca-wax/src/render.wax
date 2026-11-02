@@ -18,8 +18,8 @@ fn render_context_enter_frame(ctx: &render_context, entered: &value) -> &render_
         let i = 0;
         while i <s spec.provide_names.length() {
             let frames = selector_freeze(spec.provide_selectors[i]!, entered);
-            let keys = dispatch_path_resolve({dispatch_path| frames }).keys;
-            let v = update_path_get_in({update_path| keys }, entered);
+            let keys = dispatch_path_to_key_path({dispatch_path| frames }).keys;
+            let v = key_path_get_in({key_path| keys }, entered);
             provided =
                 smap_assoc(provided, spec.provide_names[i]!, {provided| value: v, depth, keys });
             i += 1;

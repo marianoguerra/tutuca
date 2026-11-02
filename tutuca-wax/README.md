@@ -15,7 +15,7 @@ has the design. Implemented so far:
 - the component runtime: components, their specs and vtables, scopes, paths,
   the handler context and its effects, the host's tasks and transactions,
   asks, rendering components, and routing DOM events back to their handlers,
-  from NOTES.md, tutuca's `src/host.js`, `src/tasks.js`, `src/paths.js`,
+  from NOTES.md, tutuca's `src/host.js`, `src/tasks.js`, `src/tree/`,
   `src/scope.js` and `src/events.js`, and the spec's `component/paths.rkt`,
   `bind/decode.rkt` and `system/host.rkt`;
 - component modules: a component type is a `.wasm` of its own, loaded at run
@@ -290,7 +290,7 @@ Every top-level name of a module shares one namespace, so names carry their
 file's prefix: `str_`, `ext_buf_`, `key_map_`, `value_`, `list_`, `map_`, `smap_`,
 `vnode_`, `path_key_`, `text_`, `meta_`, `snode_`, `lower_`, `view_`, `walk_`,
 `dispatch_path_`,
-`update_path_`, `selector_`, `scope_`, `ctx_`, `render_context_`, `host_`,
+`key_path_`, `selector_`, `scope_`, `ctx_`, `render_context_`, `host_`,
 `dom_` and `env_` for imports, `s_` for the string constants, `api_` for the
 exports' functions (the exports themselves are unprefixed). A component
 type's functions take its name (`counter_handle`). A component module has a
@@ -619,7 +619,7 @@ by selector), a notify that wasn't stopped bubbles, its next hop running
 right after, before anything else queued (an ancestor without a
 handler passes it on silently; one no hop handled is reported `unhandled`
 once, at the root, as is a notify the root sends), the new root is set
-through the update path, and the children's targets freeze against it. Every
+through the key path, and the children's targets freeze against it. Every
 component has an identity (`id`, fresh when it's made, kept by its updates),
 and a route records the identity of the component it reached when it was
 fixed: a task whose path another component took meanwhile (it was replaced,

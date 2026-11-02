@@ -469,7 +469,7 @@ fn keys_to_list(keys: &path_key_array) -> &value {
     out;
 }
 
-fn keys_from_list(list: &value) -> &update_path {
+fn keys_from_list(list: &value) -> &key_path {
     let n = list_count(list);
     let keys = [path_key_array|null; n];
     let i = 0;
@@ -477,17 +477,17 @@ fn keys_from_list(list: &value) -> &update_path {
         keys[i] = key_from_value(list_get(list, i)!);
         i += 1;
     }
-    {update_path| keys };
+    {key_path| keys };
 }
 
-#[export = "path_resolve"]
-fn api_path_resolve(frames: &frame_array) -> &value {
-    keys_to_list(dispatch_path_resolve({dispatch_path| frames }).keys);
+#[export = "path_to_key_path"]
+fn api_path_to_key_path(frames: &frame_array) -> &value {
+    keys_to_list(dispatch_path_to_key_path({dispatch_path| frames }).keys);
 }
 
-#[export = "path_to_update"]
-fn api_path_to_update(frames: &frame_array) -> &value {
-    keys_to_list(dispatch_path_to_update({dispatch_path| frames }).keys);
+#[export = "path_to_component_key_path"]
+fn api_path_to_component_key_path(frames: &frame_array) -> &value {
+    keys_to_list(dispatch_path_to_component_key_path({dispatch_path| frames }).keys);
 }
 
 #[export = "path_source_key_in"]
@@ -502,12 +502,12 @@ fn api_path_source_key_in(frames: &frame_array, receiver: &frame_array) -> &valu
 
 #[export = "path_get_in"]
 fn api_path_get_in(keys: &value, root: &value) -> &value {
-    update_path_get_in(keys_from_list(keys), root);
+    key_path_get_in(keys_from_list(keys), root);
 }
 
 #[export = "path_set_in"]
 fn api_path_set_in(keys: &value, root: &value, item: &value) -> &value {
-    update_path_set_in(keys_from_list(keys), root, item);
+    key_path_set_in(keys_from_list(keys), root, item);
 }
 
 // Views (view.wax) and walking them (walk.wax, collect.wax), for testing.

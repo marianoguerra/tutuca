@@ -12,7 +12,7 @@
 import test from "node:test";
 import { JSDOM } from "jsdom";
 import { wrapMeta } from "../../src/meta.js";
-import { Frame } from "../../src/paths.js";
+import { Frame } from "../../src/tree/path.js";
 import { Shape, VComment, VFragment, VNode, VText, render as jsRender } from "../../src/vdom.js";
 import { load } from "../js/tutuca-rt.js";
 import * as assert from "./assert.mjs";
@@ -59,7 +59,7 @@ const toJs = (node) => {
 	if (node.t === "frag") return new VFragment(node.childs.map(toJs), node.key);
 	const names = Object.keys(node.attrs);
 	const id = JSON.stringify([node.tag, names]);
-	if (!jsShapes.has(id)) jsShapes.set(id, new Shape(node.tag, null, {}, names));
+	if (!jsShapes.has(id)) jsShapes.set(id, new Shape(node.tag, null, names.map((name) => [name, false])));
 	return new VNode(jsShapes.get(id), Object.values(node.attrs), node.childs.map(toJs), node.key);
 };
 
@@ -195,7 +195,12 @@ const jsShapeOf = (tmpl) => {
 	if (!jsTemplates.has(tmpl.tid)) {
 		const staticAttrs = { ...tmpl.staticAttrs };
 		if (tmpl.handlers) staticAttrs["data-eid"] = tmpl.tid;
-		jsTemplates.set(tmpl.tid, new Shape(tmpl.tag, null, staticAttrs, tmpl.names));
+		// Shape takes [name, isStatic, value] entries: the static attrs, then the named ones.
+		const attrs = [
+			...Object.entries(staticAttrs).map(([name, value]) => [name, true, value]),
+			...tmpl.names.map((name) => [name, false]),
+		];
+		jsTemplates.set(tmpl.tid, new Shape(tmpl.tag, null, attrs));
 	}
 	return jsTemplates.get(tmpl.tid);
 };

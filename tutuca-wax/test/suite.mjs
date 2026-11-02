@@ -490,7 +490,7 @@ const pathOf = (vdom, frames) => {
 test("paths: frames resolve to keys; a provider jump restarts from the frame that captured it", ({ vdom }) => {
 	const w = vdom.exports;
 	const { values } = vdom;
-	const resolve = (frames) => values.to(w.path_resolve(pathOf(vdom, frames)));
+	const resolve = (frames) => values.to(w.path_to_key_path(pathOf(vdom, frames)));
 	const jump = { keys: [], provider: { name: "sel", depth: 0, keys: ["items", 1] }, isComponent: true };
 	assert.deepEqual(resolve([{ keys: ["child"], isComponent: true }, jump, { keys: ["kids"], item: 0, isComponent: true }]), ["items", 1, "kids", 0]);
 	assert.deepEqual(resolve([{ keys: ["child"], isComponent: true }, { ...jump, item: 0, isComponent: false }]), ["items", 1, 0]);
@@ -503,9 +503,9 @@ test("paths: frames resolve to keys; a provider jump restarts from the frame tha
 test("paths: loop items that aren't component frames belong to the enclosing component", ({ vdom }) => {
 	const w = vdom.exports;
 	const { values } = vdom;
-	const toUpdate = (frames) => values.to(w.path_to_update(pathOf(vdom, frames)));
-	assert.deepEqual(toUpdate([{ keys: ["a"], isComponent: true }, { keys: ["xs"], item: 0 }, { keys: [], item: 1 }]), ["a"]);
-	assert.deepEqual(toUpdate([{ keys: ["xs"], item: 0, isComponent: true }, { keys: ["ys"], item: 1 }]), ["xs", 0]);
+	const toComponentKeyPath = (frames) => values.to(w.path_to_component_key_path(pathOf(vdom, frames)));
+	assert.deepEqual(toComponentKeyPath([{ keys: ["a"], isComponent: true }, { keys: ["xs"], item: 0 }, { keys: [], item: 1 }]), ["a"]);
+	assert.deepEqual(toComponentKeyPath([{ keys: ["xs"], item: 0, isComponent: true }, { keys: ["ys"], item: 1 }]), ["xs", 0]);
 });
 
 test("paths: the source key is the item key leading out of the receiver's view", ({ vdom }) => {

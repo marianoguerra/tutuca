@@ -513,7 +513,7 @@ fn decode_at_level(
         return null;
     }
     let r = route_for(path_from_metas(w.metas, metas_start(w.metas, level)));
-    let c = value_as_component(update_path_get_in(r.update_path, root));
+    let c = value_as_component(key_path_get_in(r.key_path, root));
     if !c {
         return null;
     }

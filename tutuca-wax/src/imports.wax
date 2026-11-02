@@ -508,9 +508,8 @@ import "'" {
     const s_err_view_name: js_string;
 }
 
-// The DOM, as the host gives it: the DomNode trait of tutuca-mb's
-// vdom/dom.mbt, flattened so that nothing but nodes, strings, numbers and
-// booleans crosses the boundary (NOTES.md has the mapping).
+// The DOM, as the host gives it: the operations morph needs, flattened so
+// that nothing but nodes, strings, numbers and booleans crosses the boundary (NOTES.md has the mapping).
 //
 // What its externrefs hold, as js_string names strings: a node (an element,
 // text, comment or fragment), the document nodes are made in, an event. A

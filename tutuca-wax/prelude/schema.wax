@@ -74,7 +74,7 @@ const sync_none = 2;
 type field_schema = { name: js_string, vtype: &vtype, constraints: &constraint_array, sync: i32 };
 type field_schema_array = [mut &?field_schema];
 
-// An effect a message may emit (MessageSpec's emits): a notify, an ask, or a
+// An effect a message may emit (HandlerSpec's emits): a notify, an ask, or a
 // send below (sendAt, forwardAt), by message name.
 const emit_kind_notify = 0;
 const emit_kind_ask = 1;

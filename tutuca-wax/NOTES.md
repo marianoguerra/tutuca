@@ -332,19 +332,19 @@ fn Scope::make(
 }
 ```
 
-Paths and the handler context, following `src/paths.js` and `src/tasks.js`
+Paths and the handler context, following `src/tree/path.js` and `src/tree/context.js`
 (`MessageContext`) in tutuca js, and `spec/component/paths.rkt` and
 `spec/component/action.rkt` in the PLT Redex spec. A path is split by what it
 is for:
 
-- an update path: the keys from the root state to a component; reading and
+- a key path: the keys from the root state to a component; reading and
   writing the state goes through it and nothing else does.
 - a dispatch path: the frames of rendered ancestry, one per render source or
   loop item entered; notify bubbling and the source key follow it, and it
-  resolves to an update path.
+  resolves to a key path.
 - a selector: the steps a handler gives to send a message below it, read
   against the state when they freeze, at commit.
-- a route: a dispatch path with its update path.
+- a route: a dispatch path with its key path.
 
 ```moonbit
 /// A key in a path: a property of a component or a Map, or an index in a List.
@@ -354,7 +354,7 @@ enum PathKey {
 }
 
 /// The keys from the root state to a component.
-struct UpdatePath {
+struct KeyPath {
   keys : Array[PathKey]
 }
 
@@ -405,7 +405,7 @@ fn set_key(value : Value, key : PathKey, v : Value) -> Value raise PathError {
   }
 }
 
-fn UpdatePath::get_in(self : UpdatePath, root : Value) -> Value raise PathError {
+fn KeyPath::get_in(self : KeyPath, root : Value) -> Value raise PathError {
   let mut v = root
   for key in self.keys {
     v = get_key(v, key)
@@ -414,7 +414,7 @@ fn UpdatePath::get_in(self : UpdatePath, root : Value) -> Value raise PathError 
 }
 
 /// The root with the value at this path set to v, as a new root.
-fn UpdatePath::set_in(self : UpdatePath, root : Value, v : Value) -> Value raise PathError {
+fn KeyPath::set_in(self : KeyPath, root : Value, v : Value) -> Value raise PathError {
   fn go(value : Value, i : Int) -> Value raise PathError {
     if i == self.keys.length() {
       return v
@@ -477,7 +477,7 @@ fn DispatchPath::to_component_path(self : DispatchPath) -> DispatchPath {
 /// From frames to keys, left to right. A frame starts where the previous one
 /// ended or, with a provider, at the end of the first depth frames followed by
 /// the provider's keys.
-fn DispatchPath::resolve(self : DispatchPath) -> UpdatePath {
+fn DispatchPath::to_key_path(self : DispatchPath) -> KeyPath {
   let prefixes : Array[Array[PathKey]] = [[]]
   for frame in self.frames {
     let start = match frame.provider {
@@ -489,8 +489,8 @@ fn DispatchPath::resolve(self : DispatchPath) -> UpdatePath {
   { keys: prefixes[prefixes.length() - 1] }
 }
 
-fn DispatchPath::to_update_path(self : DispatchPath) -> UpdatePath {
-  self.to_component_path().resolve()
+fn DispatchPath::to_component_key_path(self : DispatchPath) -> KeyPath {
+  self.to_component_path().to_key_path()
 }
 
 /// The item key of the frame that leads out of the receiver's view, or None
@@ -506,14 +506,14 @@ fn DispatchPath::source_key_in(self : DispatchPath, receiver : DispatchPath) -> 
   self.frames[i].item
 }
 
-/// A dispatch path with its update path.
+/// A dispatch path with its key path.
 struct Route {
   path : DispatchPath
-  update_path : UpdatePath
+  key_path : KeyPath
 }
 
 fn route_for(path : DispatchPath) -> Route {
-  { path, update_path: path.to_update_path() }
+  { path, key_path: path.to_component_key_path() }
 }
 
 /// A step of a selector (JS's PathBuilder calls).
@@ -551,7 +551,7 @@ fn Selector::freeze(self : Selector, value : Value) -> Array[Frame] raise PathEr
     }
     let frame = { keys: [Name(name)], item, provider: None, is_component: true }
     frames.push(frame)
-    v = UpdatePath::{ keys: frame.access_keys() }.get_in(v)
+    v = KeyPath::{ keys: frame.access_keys() }.get_in(v)
   }
   frames
 }
@@ -563,7 +563,7 @@ struct Target {
 }
 
 fn Target::freeze(self : Target, root : Value) -> DispatchPath raise PathError {
-  let below = self.selector.freeze(self.base.resolve().get_in(root))
+  let below = self.selector.freeze(self.base.to_key_path().get_in(root))
   { frames: [..self.base.frames, ..below] }
 }
 
@@ -791,7 +791,7 @@ fn Host::handle_task(self : Host, task : Task) -> Unit {
 /// prepared against it. The host commits them only if nothing raised.
 fn Host::transaction(self : Host, task : Task) -> (Value, Array[Task]) raise {
   guard task.route is Some(route) else { abort("a task is prepared when it's queued") }
-  guard route.update_path.get_in(self.root) is Component(c) else { raise NotAComponent }
+  guard route.key_path.get_in(self.root) is Component(c) else { raise NotAComponent }
   let path = route.path.to_component_path()
   let (event, drag) = match task.kind {
     Event(event~, drag~) => (event, drag)
@@ -833,7 +833,7 @@ fn Host::transaction(self : Host, task : Task) -> (Value, Array[Task]) raise {
   let root = match leaf {
     // The same root: nothing changed, so nothing renders or syncs.
     None => self.root
-    Some(v) => route.update_path.set_in(self.root, v)
+    Some(v) => route.key_path.set_in(self.root, v)
   }
   (root, children.map(child => child.prepare(root)))
 }
@@ -1007,7 +1007,7 @@ fn RenderContext::enter_frame(self : RenderContext, value : Value) -> RenderCont
   let provided = self.provided.copy()
   if value is Component(c) {
     for name, selector in c.spec.provides {
-      let keys = route_for({ frames: selector.freeze(value) }).update_path
+      let keys = route_for({ frames: selector.freeze(value) }).key_path
       provided[name] = { value: keys.get_in(value), depth, keys: keys.keys }
     }
   }

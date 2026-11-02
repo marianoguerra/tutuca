@@ -40,7 +40,7 @@ type task = {
     node: dom_node_opt,
     // For notifications: whether a hop so far had a handler for it. One that
     // reaches the root with none is reported unhandled, once.
-    handled: mut i32,
+    any_hop_handled: mut i32,
     // For an ask and its answer: the request's id, which the answer's handler
     // reads as ctx.request; 0 otherwise.
     request: mut i32
@@ -183,7 +183,7 @@ fn task_new(
         drag: null,
         action_args: null,
         node: null,
-        handled: 0,
+        any_hop_handled: 0,
         request: 0,
     };
 }
@@ -191,9 +191,9 @@ fn task_new(
 // The task with its route: frozen from its target against root unless fixed.
 // A notification's next hop: the same message from the same sender, to the
 // parent, remembering whether a hop so far handled it.
-fn task_notify_hop(t: &task, parent: &target, handled: i32) -> &task {
+fn task_notify_hop(t: &task, parent: &target, any_hop_handled: i32) -> &task {
     let next = task_new(task_kind_notify, t.name, t.args, t.source, parent);
-    next.handled = handled;
+    next.any_hop_handled = any_hop_handled;
     next;
 }
 
@@ -212,7 +212,7 @@ fn task_prepare(t: &task, root: &value) -> &task {
         drag: t.drag,
         action_args: t.action_args,
         node: t.node,
-        handled: t.handled,
+        any_hop_handled: t.any_hop_handled,
         request: t.request,
     };
 }
@@ -331,8 +331,8 @@ fn has_dot(s: js_string) -> i32 {
 
 fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     let r = t.route!;
-    h.at = update_path_value(r.update_path);
-    let c = value_as_component(update_path_get_in(r.update_path, h.root));
+    h.at = key_path_value(r.key_path);
+    let c = value_as_component(key_path_get_in(r.key_path, h.root));
     if !c {
         host_fail(js_string_concat(s_err_not_a_component, t.name));
         unreachable;
@@ -425,7 +425,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
         check_message_contract(tx, t, msg!, comp, next, ms!, ctx, pre_held);
     }
     if (t.kind == task_kind_notify) & !stop {
-        let any_handled = t.handled | handled;
+        let any_handled = t.any_hop_handled | handled;
         if dispatch_path_is_root(path) {
             if !any_handled {
                 observe_unhandled(t.name);
@@ -438,7 +438,7 @@ fn host_transaction(h: &host, t: &task, tx: &transaction) -> &value {
     // The same root when nothing changed, so nothing renders.
     let root = h.root;
     if !!leaf {
-        root = update_path_set_in(r.update_path, h.root, leaf!);
+        root = key_path_set_in(r.key_path, h.root, leaf!);
     }
     let i = 0;
     while i <s tx.count {
@@ -471,7 +471,7 @@ fn reply_task(
         drag: null,
         action_args: null,
         node: null,
-        handled: 0,
+        any_hop_handled: 0,
         request,
     };
 }
@@ -738,7 +738,7 @@ fn host_dispatch_event(
                 drag: h.drag,
                 action_args: i.handler.action.args,
                 node: i.node,
-                handled: 0,
+                any_hop_handled: 0,
                 request: 0,
             },
         );
@@ -771,7 +771,7 @@ fn host_start_drag(h: &host, container: dom_node, e: dom_event, target: dom_node
         return;
     }
     host_end_drag(h);
-    let value = update_path_get_in(dispatch_path_resolve(path!), h.root);
+    let value = key_path_get_in(dispatch_path_to_key_path(path!), h.root);
     h.drag =
         {drag| path: path!, drag_type: dom_dataset_get(node!, s_dragtype), node: node!, value };
     dom_dataset_set(node!, s_dragging, s_empty);
@@ -928,8 +928,8 @@ fn host_settle(h: &host, id: i32, result: &value) -> i32 {
     0;
 }
 
-// An update path as a list of its keys: names and indices.
-fn update_path_value(p: &update_path) -> &value {
+// A key path as a list of its keys: names and indices.
+fn key_path_value(p: &key_path) -> &value {
     let out = list_empty();
     let i = 0;
     while i <s p.keys.length() {

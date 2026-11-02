@@ -127,7 +127,7 @@ rec {
         schema: mut &?component_schema
     };
 
-    // A message's schema (tutuca's MessageSpec): its arguments, the type of
+    // A message's schema (tutuca's HandlerSpec): its arguments, the type of
     // the source key it arrives with, its contract (pre on the state before
     // and the arguments, post relating the state before and after), the
     // fields it may change (null: any) and the effects it may emit (null:
