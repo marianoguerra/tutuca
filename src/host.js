@@ -1,13 +1,21 @@
 // The host: registers components in scopes, renders the root and runs tasks against its state.
 import { produce } from "../deps/immer.js";
 import { DROP_EVENTS, Drag } from "./drag.js";
-import { browserEnv } from "./env.js";
 import { getEventInfoFor, pathOf } from "./events.js";
 import { findInvalidFields, messageIssues, scopeOf } from "./schema.js";
 import { Scope } from "./scope.js";
 import { AskTask, EventTask, MessageContext, NotifyTask } from "./tasks.js";
 import { render as $render, toVChilds } from "./vdom.js";
 import { RenderContext, renderView } from "./view.js";
+
+// What handlers read from the world, through ctx.now(), ctx.random() and ctx.uuid(): the
+// clock in ms since the epoch, a number in [0, 1) and a new id. Each mirrors the global it
+// stands for, so a host can swap them for ones that repeat (testEnv in tutuca/pbt).
+export const browserEnv = {
+	now: () => Date.now(),
+	random: () => Math.random(),
+	uuid: () => globalThis.crypto.randomUUID(),
+};
 
 export class Host {
 	constructor({ document, rootNode, dev = false, env = browserEnv }) {

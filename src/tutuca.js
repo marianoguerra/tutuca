@@ -2,8 +2,7 @@
 // this one is the public surface npm consumers and dist/ bundle.
 export { ComponentSpec, component } from "./component.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
-export { browserEnv, testEnv } from "./env.js";
-export { Host } from "./host.js";
+export { browserEnv, Host } from "./host.js";
 export {
 	Address,
 	DispatchPath,

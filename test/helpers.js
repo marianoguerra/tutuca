@@ -6,8 +6,8 @@ import fc from "fast-check";
 // biome-ignore lint/correctness/noUnresolvedImports: jsdom uses conditional exports that Node resolves.
 import { JSDOM } from "jsdom";
 import { lint } from "../src/lint/index.js";
-import { arbitraries, Driver, specProperties } from "../src/test/pbt.js";
-import { Host, Scope, testEnv } from "../src/tutuca.js";
+import { arbitraries, Driver, specProperties, testEnv } from "../src/test/pbt.js";
+import { Host, Scope } from "../src/tutuca.js";
 import { Shape, toVChilds, VComment, VFragment, VNode } from "../src/vdom.js";
 
 // --- documents, hosts and scopes ---------------------------------------------------------

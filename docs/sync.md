@@ -138,7 +138,7 @@ result. Handlers read the world through `ctx` instead:
 | `crypto.randomUUID()` | `ctx.uuid()` | a random UUID | UUID-shaped ids counting up |
 
 Each `ctx` method mirrors the global it replaces, with the same result. The host takes them as
-`env`: `new Host({ env })`, `browserEnv` by default. `testEnv({ seed, start })` makes one whose runs
+`env`: `new Host({ env })`, `browserEnv` by default. `testEnv({ seed, start })` (`tutuca/pbt`) makes one whose runs
 repeat. `Driver` uses it, so pbt's determinism property holds for handlers that use `ctx`. Lint
 warns (`nondeterministic-call`) when a handler calls one of the globals.
 

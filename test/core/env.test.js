@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Driver } from "../../src/test/pbt.js";
-import { component, DispatchPath, t, testEnv } from "../../src/tutuca.js";
+import { Driver, testEnv } from "../../src/test/pbt.js";
+import { component, DispatchPath, t } from "../../src/tutuca.js";
 import { scopeWith } from "../helpers.js";
 
 const Stamp = component({

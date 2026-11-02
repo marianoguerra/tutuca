@@ -17,9 +17,9 @@ import {
 	t,
 	unwrapOption,
 } from "../tutuca.js";
-import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "./driver.js";
+import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot, testEnv } from "./driver.js";
 
-export { componentPaths, Driver, describeProblems, PROBLEMS, snapshot };
+export { componentPaths, Driver, describeProblems, PROBLEMS, snapshot, testEnv };
 
 const mapValues = (record, fn) =>
 	Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v, k)]));
