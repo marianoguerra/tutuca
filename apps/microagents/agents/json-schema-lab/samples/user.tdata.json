@@ -1,0 +1,50 @@
+{
+	"id": "user",
+	"kind": "json-schema-lab",
+	"messages": [
+		{
+			"id": "s1",
+			"kind": "json-schema",
+			"data": {
+				"$schema": "https://json-schema.org/draft/2020-12/schema",
+				"title": "User",
+				"type": "object",
+				"required": [["id", "name", "email"]],
+				"properties": {
+					"id": { "type": "integer", "minimum": 1 },
+					"name": { "type": "string", "minLength": 1 },
+					"email": { "type": "string", "format": "email" },
+					"age": { "type": "integer", "minimum": 0 }
+				},
+				"additionalProperties": false
+			}
+		},
+		{
+			"id": "e1",
+			"kind": "json-example",
+			"data": { "id": 1, "name": "Ada", "email": "ada@example.com", "age": 36 },
+			"meta": { "https://tutuca.dev/d/expect": { "outcome": "pass" } }
+		},
+		{
+			"id": "e2",
+			"kind": "json-example",
+			"data": { "id": 2, "name": "Grace" },
+			"meta": { "https://tutuca.dev/d/expect": { "outcome": "fail" } }
+		},
+		{
+			"id": "e3",
+			"kind": "json-example",
+			"data": { "id": 3, "name": "Linus", "email": "linus@example.com", "age": -3 },
+			"meta": { "https://tutuca.dev/d/expect": { "outcome": "fail" } }
+		},
+		{
+			"id": "e4",
+			"kind": "json-example",
+			"data": { "id": 4, "name": "Dee", "email": "dee@example.com", "nickname": "D" },
+			"meta": {
+				"https://tutuca.dev/d/expect": { "outcome": "pass" },
+				"x/notes": { "why": "users may have a nickname" }
+			}
+		}
+	]
+}

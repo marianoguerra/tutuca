@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { packAgent } from "../../components/microagents/core/pack.js";
-import { AgentRegistry } from "../../components/microagents/core/registry.js";
-import { hostEnv, runToolCall } from "../../components/microagents/core/tool-runner.js";
-import { toolsFor } from "../../components/microagents/core/tool-schema.js";
-import { makeKit } from "../../components/microagents/kit.js";
+import { packAgent } from "../../apps/microagents/core/pack.js";
+import { AgentRegistry } from "../../apps/microagents/core/registry.js";
+import { hostEnv, runToolCall } from "../../apps/microagents/core/tool-runner.js";
+import { toolsFor } from "../../apps/microagents/core/tool-schema.js";
+import { makeKit } from "../../apps/microagents/kit.js";
 import { ContractError, Selector } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 
-const AGENTS = new URL("../../components/microagents/agents/", import.meta.url);
+const AGENTS = new URL("../../apps/microagents/agents/", import.meta.url);
 const readText = (path) => readFile(new URL(path, AGENTS), "utf8");
 
 const setup = async () => {

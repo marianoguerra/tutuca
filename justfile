@@ -25,6 +25,18 @@ test-file name:
 watch:
     node --test --watch test/*/*.test.js
 
+# The micro-agents app with a model (API keys from .env): http://127.0.0.1:8004/ (storybook: /storybook.html)
+microagents port="8004":
+    node scripts/vendor.js --if-missing tdata ajv jq jsonpath picomatch vega echarts
+    node apps/microagents/server.js {{port}}
+
+# Pack the Agent Builder's examples into its samples (a test checks they're up to date).
+pack-agents:
+    node apps/microagents/pack-agent.js apps/microagents/agents/agent-builder/examples/starter apps/microagents/agents/agent-builder/samples/empty.tdata.json
+    node apps/microagents/pack-agent.js apps/microagents/agents/agent-builder/examples/logo apps/microagents/agents/agent-builder/samples/logo.tdata.json
+    cp apps/microagents/agents/agent-builder/samples/logo.tdata.json apps/microagents/samples/logo-agent.tdata.json
+    npx biome format --write apps/microagents/agents/agent-builder/samples apps/microagents/samples
+
 # Lint and check formatting; biome.json leaves out the vendored deps/ and build output.
 lint:
     npm run lint

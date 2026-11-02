@@ -1,0 +1,11 @@
+{
+	"id": "echarts-lab",
+	"title": "ECharts lab",
+	"description": "Write and fix an Apache ECharts option against your tables: see errors, warnings and the live chart.",
+	"needs": "an echarts part (an ECharts option) and, usually, table parts (rows) or csv parts its series read with datasetId",
+	"icon": "📈",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"echarts\"}] as $options | [.messages[] ~ {kind: (\"table\" | \"csv\")}] as $tables | ($options | length) > 0",
+	"skills": ["SKILL.md", "reference/series.md"],
+	"samples": ["empty", "temperatures", "sales"]
+}

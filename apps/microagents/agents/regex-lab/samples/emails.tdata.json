@@ -1,0 +1,35 @@
+{
+	"id": "emails",
+	"kind": "regex-lab",
+	"messages": [
+		{ "id": "r1", "kind": "regex", "data": { "pattern": "^\\S+@\\S+$", "flags": "" } },
+		{ "id": "r2", "kind": "regex", "data": { "pattern": "@example\\.(com|org)", "flags": "i" } },
+		{
+			"id": "t1",
+			"kind": "text",
+			"data": "ada@example.com",
+			"meta": { "https://tutuca.dev/d/expect": { "r1": "match", "r2": "match" } }
+		},
+		{
+			"id": "t2",
+			"kind": "text",
+			"data": "grace.hopper+navy@EXAMPLE.org",
+			"meta": { "https://tutuca.dev/d/expect": { "r1": "match", "r2": "match" } }
+		},
+		{
+			"id": "t3",
+			"kind": "text",
+			"data": "not an email",
+			"meta": { "https://tutuca.dev/d/expect": { "r1": "no-match" } }
+		},
+		{
+			"id": "t4",
+			"kind": "text",
+			"data": "two@@signs.com",
+			"meta": {
+				"https://tutuca.dev/d/expect": { "r1": "no-match" },
+				"x/notes": { "why": "a double @ must fail" }
+			}
+		}
+	]
+}

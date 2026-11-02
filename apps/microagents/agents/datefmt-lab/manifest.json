@@ -1,0 +1,11 @@
+{
+	"id": "datefmt-lab",
+	"title": "Date format lab",
+	"description": "Format instants with strftime patterns and Intl.DateTimeFormat options side by side, and check the outputs.",
+	"needs": "one or more instant parts (a tdata Instant or an ISO string) and one or more strftime ({format}) or intl ({locale, options}) parts",
+	"icon": "📅",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"instant\"}] as $instants | [.messages[] ~ {kind: \"strftime\"}] as $strftimes | [.messages[] ~ {kind: \"intl\"}] as $intls | ($instants | length) > 0 and (($strftimes | length) > 0 or ($intls | length) > 0)",
+	"skills": ["SKILL.md", "reference/intl-options.md"],
+	"samples": ["empty", "formats"]
+}

@@ -1,0 +1,20 @@
+{
+	"id": "agent-builder",
+	"title": "Agent Builder",
+	"description": "Make and edit micro-agents: their query, prompt, skills, tools, module and samples, checked as you go. Install them here or export them as TData.",
+	"needs": "a microagent message (an agent file)",
+	"icon": "🛠️",
+	"version": "1",
+	"query": ".kind == \"microagent\"",
+	"skills": {
+		"SKILL.md": "SKILL.md",
+		"contract.md": "../../../AGENTS.md",
+		"tq.md": "tq.md",
+		"examples/starter.js": "../examples/starter/agent.js",
+		"examples/logo.js": "../examples/logo/agent.js",
+		"examples/logo-tools.json": "../examples/logo/tools.json",
+		"examples/regex-lab.js": "../../regex-lab/agent.js",
+		"examples/regex-lab-tools.json": "../../regex-lab/tools.json"
+	},
+	"samples": ["empty", "logo"]
+}

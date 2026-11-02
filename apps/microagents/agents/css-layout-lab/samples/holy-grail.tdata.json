@@ -1,0 +1,40 @@
+{
+	"id": "holy-grail",
+	"kind": "css-layout",
+	"messages": [
+		{
+			"id": "page",
+			"kind": "css-container",
+			"data": {
+				"display": "grid",
+				"css": "grid-template-columns: 12rem 1fr 10rem;\ngrid-template-rows: auto 1fr auto;\ngrid-template-areas: \"header header header\" \"nav main aside\" \"footer footer footer\";\ngap: 0.5rem;\nmin-height: 20rem;"
+			}
+		},
+		{
+			"id": "header",
+			"kind": "css-item",
+			"data": { "label": "Header", "css": "grid-area: header;" }
+		},
+		{
+			"id": "nav",
+			"kind": "css-item",
+			"data": { "label": "Navigation", "css": "grid-area: nav;" }
+		},
+		{
+			"id": "main",
+			"kind": "css-item",
+			"data": { "label": "Main", "css": "grid-area: main;\npadding: 1rem;" }
+		},
+		{
+			"id": "aside",
+			"kind": "css-item",
+			"data": { "label": "Aside", "css": "grid-area: aside;\nalgin-self: start;" },
+			"meta": { "x/notes": { "todo": "a typo in align-self" } }
+		},
+		{
+			"id": "footer",
+			"kind": "css-item",
+			"data": { "label": "Footer", "css": "grid-area: footer;" }
+		}
+	]
+}

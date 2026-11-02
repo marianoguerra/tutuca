@@ -1,0 +1,5 @@
+{
+	"id": "logo",
+	"kind": "logo",
+	"messages": [{ "id": "program", "kind": "logo-program", "data": "" }]
+}

@@ -1,0 +1,5 @@
+{
+	"id": "square",
+	"kind": "logo",
+	"messages": [{ "id": "program", "kind": "logo-program", "data": "repeat 4 [ fd 100 rt 90 ]" }]
+}

@@ -1,0 +1,30 @@
+{
+	"id": "repo",
+	"kind": "glob-lab",
+	"messages": [
+		{
+			"id": "g1",
+			"kind": "glob",
+			"data": { "pattern": "src/**/*.{js,jsx}" },
+			"meta": {
+				"https://tutuca.dev/d/expect": {
+					"src/index.js": "match",
+					"src/components/Button.jsx": "match",
+					"src/components/Button.test.jsx": "no-match"
+				}
+			}
+		},
+		{ "id": "g2", "kind": "glob", "data": { "pattern": "**/*.md", "nocase": true } },
+		{
+			"id": "g3",
+			"kind": "glob",
+			"data": { "pattern": "*", "dot": true },
+			"meta": { "x/notes": { "why": "top-level files, dotfiles included" } }
+		},
+		{
+			"id": "paths",
+			"kind": "paths",
+			"data": "README.md\npackage.json\n.env\n.github/workflows/ci.yml\nsrc/index.js\nsrc/app.ts\nsrc/components/Button.jsx\nsrc/components/Button.test.jsx\nsrc/utils/format.js\ntest/index.test.js\ndocs/Guide.MD\nnode_modules/lodash/index.js\n"
+		}
+	]
+}

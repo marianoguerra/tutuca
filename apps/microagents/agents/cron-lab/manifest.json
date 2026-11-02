@@ -1,0 +1,11 @@
+{
+	"id": "cron-lab",
+	"title": "Cron lab",
+	"description": "Build cron expressions visually, read them in plain English and check when they run next.",
+	"needs": "one or more cron parts ({expression, timezone?})",
+	"icon": "⏰",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"cron\"}] as $crons | ($crons | length) > 0",
+	"skills": ["SKILL.md", "reference/syntax.md"],
+	"samples": ["empty", "schedules"]
+}

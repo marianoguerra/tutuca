@@ -1,0 +1,11 @@
+{
+	"id": "notes",
+	"kind": "notes",
+	"messages": [
+		{
+			"id": "n1",
+			"kind": "note",
+			"data": "No agent opens this file: it has no parts any agent needs."
+		}
+	]
+}

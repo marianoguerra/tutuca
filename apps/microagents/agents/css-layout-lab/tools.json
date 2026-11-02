@@ -1,0 +1,60 @@
+[
+	{
+		"name": "set_container_css",
+		"kind": "message",
+		"description": "Replace the container's CSS declarations (display is separate: use set_container_property).",
+		"params": ["css"],
+		"result": "css"
+	},
+	{
+		"name": "set_container_property",
+		"kind": "message",
+		"description": "Set one container property, display included; an empty value removes it.",
+		"params": ["property", "value"],
+		"result": "css"
+	},
+	{
+		"name": "set_item_css",
+		"kind": "message",
+		"description": "Replace an item's CSS declarations.",
+		"params": ["id", "css"],
+		"result": "css"
+	},
+	{
+		"name": "set_item_label",
+		"kind": "message",
+		"description": "Rename an item.",
+		"params": ["id", "label"]
+	},
+	{
+		"name": "add_item",
+		"kind": "message",
+		"description": "Add an item at the end; it gets the next free id (item-1, item-2, …).",
+		"params": ["label", "css"],
+		"result": "css"
+	},
+	{
+		"name": "remove_item",
+		"kind": "message",
+		"description": "Remove an item.",
+		"params": ["id"],
+		"result": "css"
+	},
+	{
+		"name": "reorder_items",
+		"kind": "message",
+		"description": "Move an item to index (0 is first): the order the preview lays items out in.",
+		"params": ["id", "index"],
+		"result": "css"
+	},
+	{
+		"name": "css",
+		"kind": "view",
+		"description": "The layout as a stylesheet: .container and one rule per item."
+	},
+	{
+		"name": "layout_summary",
+		"kind": "view",
+		"description": "The display, the container's declarations, its grid tracks or flex direction, each item's declarations and the warnings."
+	}
+]

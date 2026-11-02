@@ -13,6 +13,9 @@ const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name
 // they're missing.
 if (!existsSync("site/deps/codemirror.js")) await vendor("codemirror");
 if (!existsSync("demos/deps/automerge.js")) await vendor("automerge");
+for (const name of ["tdata", "ajv", "jq", "jsonpath", "picomatch", "vega", "echarts"]) {
+	if (!existsSync(`demos/deps/${name}.js`)) await vendor(name);
+}
 rmSync(out, { recursive: true, force: true });
 cpSync("site", out, { recursive: true });
 // What the storybook and demo pages load; storybook.html is written below, pointed at the CDN.

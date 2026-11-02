@@ -1,0 +1,11 @@
+{
+	"id": "vega-lite-lab",
+	"title": "Vega-Lite lab",
+	"description": "Write and fix a Vega-Lite chart spec against your tables: see compile errors, warnings and the live chart.",
+	"needs": "a vega-lite part (a Vega-Lite spec) and, usually, table parts (rows) or csv parts the spec names with {\"data\": {\"name\": id}}",
+	"icon": "📊",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"vega-lite\"}] as $specs | [.messages[] ~ {kind: (\"table\" | \"csv\")}] as $tables | ($specs | length) > 0",
+	"skills": ["SKILL.md", "reference/encoding.md"],
+	"samples": ["empty", "weather", "sales"]
+}

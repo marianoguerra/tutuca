@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { encodeMessage } from "../../components/microagents/core/tdata.js";
+import { encodeMessage } from "../../apps/microagents/core/tdata.js";
 import { Driver } from "../../src/test/driver.js";
 import { dispatchDrag } from "../../src/test/pbt.js";
 import { document } from "../helpers.js";
@@ -259,7 +259,7 @@ test("a failed patch_option says why, in the pointer's words", async () => {
 });
 
 test("a t.any() parameter says it takes JSON as itself, not encoded", async () => {
-	const { typeSchema } = await import("../../components/microagents/core/tool-schema.js");
+	const { typeSchema } = await import("../../apps/microagents/core/tool-schema.js");
 	const { t } = await import("../../src/tutuca.js");
 	const schema = typeSchema(t.any());
 	assert.match(schema.description, /Don't encode it as a JSON string/);

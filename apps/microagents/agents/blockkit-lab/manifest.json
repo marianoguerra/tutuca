@@ -1,0 +1,11 @@
+{
+	"id": "blockkit-lab",
+	"title": "Block Kit lab",
+	"description": "Build Slack Block Kit messages block by block, preview them as Slack shows them and check Slack's limits.",
+	"needs": "a blockkit part whose data is a Slack message payload ({blocks: [...]})",
+	"icon": "🧱",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"blockkit\", data: {blocks: _}}] as $payloads | ($payloads | length) > 0",
+	"skills": ["SKILL.md", "reference/blocks.md"],
+	"samples": ["empty", "incident"]
+}

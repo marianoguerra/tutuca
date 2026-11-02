@@ -1,0 +1,11 @@
+{
+	"id": "jsonpointer-lab",
+	"title": "JSON Pointer lab",
+	"description": "Write RFC 6901 JSON Pointers into a JSON document, see what each one reaches or why it reaches nothing, and pick nodes from the document to get their pointers.",
+	"needs": "one or more jsonpointer parts ({pointer}) and a json part (the document)",
+	"icon": "📍",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"jsonpointer\"}] as $pointers | [.messages[] ~ {kind: \"json\"}] as $docs | ($pointers | length) > 0 and ($docs | length) > 0",
+	"skills": ["SKILL.md", "reference/rfc6901.md"],
+	"samples": ["empty", "config"]
+}

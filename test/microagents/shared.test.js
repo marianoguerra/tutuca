@@ -1,22 +1,22 @@
 // The helpers and components the agents share (kit.lib, kit.ui) and the chat's tool call views.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { shellComponents } from "../../components/microagents/app.js";
-import { decodeMessage, encodeMessage } from "../../components/microagents/core/tdata.js";
-import { entriesFor } from "../../components/microagents/index.js";
-import * as expect from "../../components/microagents/lib/expect.js";
-import { grid } from "../../components/microagents/lib/grid.js";
-import { nodes, parse, pointer } from "../../components/microagents/lib/json.js";
-import { encodeParts, nextId, strOf, withData } from "../../components/microagents/lib/parts.js";
+import { shellComponents } from "../../apps/microagents/app.js";
+import { decodeMessage, encodeMessage } from "../../apps/microagents/core/tdata.js";
+import { entriesFor } from "../../apps/microagents/index.js";
+import * as expect from "../../apps/microagents/lib/expect.js";
+import { grid } from "../../apps/microagents/lib/grid.js";
+import { nodes, parse, pointer } from "../../apps/microagents/lib/json.js";
+import { encodeParts, nextId, strOf, withData } from "../../apps/microagents/lib/parts.js";
 import {
 	describe,
 	formatCsv,
 	parseCsv,
 	readPart,
 	writePart,
-} from "../../components/microagents/lib/table.js";
-import { parseIso } from "../../components/microagents/lib/time.js";
-import { jsonViewArgs, toolCallView } from "../../components/microagents/ui.js";
+} from "../../apps/microagents/lib/table.js";
+import { parseIso } from "../../apps/microagents/lib/time.js";
+import { jsonViewArgs, toolCallView } from "../../apps/microagents/ui.js";
 import { Driver } from "../../src/test/driver.js";
 import { apply, DispatchPath, render } from "../../src/tutuca.js";
 import { document, scopeWith } from "../helpers.js";
@@ -208,7 +208,7 @@ test("a tool call is one line that opens to its arguments and result", () => {
 });
 
 test("withPart replaces or adds one part; withData can drop empty values", async () => {
-	const { withPart } = await import("../../components/microagents/lib/parts.js");
+	const { withPart } = await import("../../apps/microagents/lib/parts.js");
 	const msg = decodeMessage(
 		'{"id":"m","kind":"k","messages":[{"id":"s","kind":"spec","data":{"a":"1"}}]}',
 	);
@@ -237,7 +237,7 @@ test("withPart replaces or adds one part; withData can drop empty values", async
 });
 
 test("plain-text JsonViews, headline options, fixed grid cells and synced views", async () => {
-	const { syncViews } = await import("../../components/microagents/ui.js");
+	const { syncViews } = await import("../../apps/microagents/ui.js");
 	const plain = C.JsonView(jsonViewArgs("a\nb", { editable: true, json: false }));
 	assert.equal(plain.error, "");
 	assert.equal(plain.showRawEditor, true);
@@ -262,12 +262,15 @@ test("plain-text JsonViews, headline options, fixed grid cells and synced views"
 });
 
 test("pointer edits on a scalar fail in words; a bad pointer keeps the tokens before it", () => {
-	assert.match(pointer.set(true, "/a", 1).error, /the document is a boolean, not an object or an array/);
+	assert.match(
+		pointer.set(true, "/a", 1).error,
+		/the document is a boolean, not an object or an array/,
+	);
 	assert.deepEqual(pointer.resolve({}, "/a/b~2").tokens, ["a"]);
 });
 
 test("withJsonPart writes one JSON part only when its text is JSON that changed", async () => {
-	const { withJsonPart } = await import("../../components/microagents/lib/parts.js");
+	const { withJsonPart } = await import("../../apps/microagents/lib/parts.js");
 	const msg = decodeMessage(
 		'{"id":"m","kind":"k","messages":[{"id":"d","kind":"json","data":{"a":1}}]}',
 	);
@@ -285,7 +288,7 @@ test("withJsonPart writes one JSON part only when its text is JSON that changed"
 
 test("a List reorders by drag and drop, removes, adds and pages; encode keeps the new order", async () => {
 	const { component, field, t, tag } = await import("../../src/tutuca.js");
-	const { components, listHandlers, listOf } = await import("../../components/microagents/ui.js");
+	const { components, listHandlers, listOf } = await import("../../apps/microagents/ui.js");
 	const { dispatchDrag } = await import("../../src/test/pbt.js");
 	const Item = component({ name: "Item", fields: { id: t.string() }, view: tag.span(field("id")) });
 	const Box = component({

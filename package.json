@@ -41,6 +41,7 @@
 		"LICENSE"
 	],
 	"scripts": {
+		"pretest": "node scripts/vendor.js --if-missing tdata ajv jq jsonpath picomatch vega echarts",
 		"test": "node --test test/*/*.test.js",
 		"lint": "biome check .",
 		"fmt": "biome check --write .",
@@ -69,13 +70,23 @@
 		"@biomejs/biome": "^2.5.15",
 		"@codemirror/lang-javascript": "^6.2.5",
 		"@codemirror/theme-one-dark": "^6.1.3",
+		"@earendil-works/pi-ai": "^1.4.0",
 		"acorn": "^8.19.0",
 		"acorn-walk": "^8.3.5",
+		"ajv": "^8.20.0",
+		"ajv-formats": "^3.0.1",
 		"codemirror": "^6.0.2",
+		"echarts": "^6.1.0",
 		"esbuild": "^0.28.2",
 		"fast-check": "^4.10.2",
 		"immer": "11.1.21",
+		"jq-wasm": "^3.0.0-jq-1.8.2",
 		"jsdom": "^30.1.3",
-		"margaui": "^0.5750.1"
+		"jsonpath-plus": "^11.2.2",
+		"margaui": "^0.5750.1",
+		"picomatch": "^4.0.7",
+		"vega": "^6.4.0",
+		"vega-embed": "^7.3.0",
+		"vega-lite": "^6.5.0"
 	}
 }

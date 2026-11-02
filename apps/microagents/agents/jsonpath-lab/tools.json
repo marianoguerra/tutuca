@@ -1,0 +1,45 @@
+[
+	{
+		"name": "set_path",
+		"kind": "message",
+		"description": "Change a path's JSONPath expression.",
+		"params": ["id", "path"],
+		"result": "summary"
+	},
+	{
+		"name": "add_path",
+		"kind": "message",
+		"description": "Add a JSONPath expression; it gets the next free id (p1, p2, …).",
+		"params": ["path"]
+	},
+	{ "name": "remove_path", "kind": "message", "description": "Remove a path.", "params": ["id"] },
+	{
+		"name": "reorder_paths",
+		"kind": "message",
+		"description": "Move a path to a position (0 is first).",
+		"params": ["id", "index"]
+	},
+	{
+		"name": "set_expected_count",
+		"kind": "message",
+		"description": "Say how many results a path should give, or -1 for no expectation.",
+		"params": ["id", "count"]
+	},
+	{
+		"name": "set_document",
+		"kind": "message",
+		"description": "Replace the JSON document the paths run against.",
+		"params": ["document"]
+	},
+	{
+		"name": "results",
+		"kind": "view",
+		"description": "What a path selects: its count, its expected count if any, and each result's JSON Pointer and value (at most 200).",
+		"params": [{ "name": "id", "type": "string" }]
+	},
+	{
+		"name": "document_paths",
+		"kind": "view",
+		"description": "The document's nodes as JSON Pointers with their types (at most 200), to learn its shape."
+	}
+]

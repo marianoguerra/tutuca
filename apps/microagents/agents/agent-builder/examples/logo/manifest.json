@@ -1,0 +1,11 @@
+{
+	"id": "logo",
+	"title": "Logo",
+	"description": "Write turtle programs and watch them draw: run them all at once or a move at a time.",
+	"needs": "a logo-program part (a string)",
+	"icon": "🐢",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"logo-program\"}] as $programs | ($programs | length) > 0",
+	"skills": ["SKILL.md"],
+	"samples": ["empty", "square", "spiral"]
+}

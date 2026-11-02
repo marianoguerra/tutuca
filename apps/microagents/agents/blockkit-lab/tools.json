@@ -1,0 +1,53 @@
+[
+	{
+		"name": "add_block",
+		"kind": "message",
+		"description": "Insert a block (Slack JSON) at index, or append it when index is null.",
+		"params": [
+			{
+				"name": "block",
+				"type": "object",
+				"description": "the block, e.g. {\"type\":\"divider\"}"
+			},
+			{
+				"name": "index",
+				"type": { "type": ["integer", "null"] },
+				"description": "where to insert it; null appends"
+			}
+		]
+	},
+	{
+		"name": "set_block",
+		"kind": "message",
+		"description": "Replace the block at index.",
+		"params": ["index", { "name": "block", "type": "object" }]
+	},
+	{
+		"name": "remove_block",
+		"kind": "message",
+		"description": "Remove the block at index.",
+		"params": ["index"]
+	},
+	{
+		"name": "move_block",
+		"kind": "message",
+		"description": "Move the block at from so it ends up at index to.",
+		"params": ["from", "to"],
+		"result": "preview_text"
+	},
+	{
+		"name": "payload",
+		"kind": "view",
+		"description": "The message payload as JSON, for Slack's Block Kit Builder."
+	},
+	{
+		"name": "problems",
+		"kind": "view",
+		"description": "What breaks Slack's limits: { index, path, message } per problem."
+	},
+	{
+		"name": "preview_text",
+		"kind": "view",
+		"description": "The message as plain text, one block after another."
+	}
+]

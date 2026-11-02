@@ -1,0 +1,75 @@
+[
+	{
+		"name": "set_query",
+		"kind": "message",
+		"description": "Change a query's tq text.",
+		"params": ["id", "query"],
+		"result": "grid"
+	},
+	{
+		"name": "add_query",
+		"kind": "message",
+		"description": "Add a query; it gets the next free id (q1, q2, …).",
+		"params": ["query"]
+	},
+	{
+		"name": "remove_query",
+		"kind": "message",
+		"description": "Remove a query and the expectations that name it.",
+		"params": ["id"]
+	},
+	{
+		"name": "reorder_queries",
+		"kind": "message",
+		"description": "Move a query to a position (0 is first).",
+		"params": ["id", "index"]
+	},
+	{
+		"name": "add_sample",
+		"kind": "message",
+		"description": "Add a sample message, written as tdata JSON (arrays as [[…]]); it gets the next free id (s1, s2, …).",
+		"params": ["message"]
+	},
+	{
+		"name": "set_sample",
+		"kind": "message",
+		"description": "Replace a sample's message, written as tdata JSON. The summary says if it doesn't decode.",
+		"params": ["id", "message"]
+	},
+	{
+		"name": "remove_sample",
+		"kind": "message",
+		"description": "Remove a sample.",
+		"params": ["id"]
+	},
+	{
+		"name": "reorder_samples",
+		"kind": "message",
+		"description": "Move a sample to a position (0 is first).",
+		"params": ["id", "index"]
+	},
+	{
+		"name": "set_expectation",
+		"kind": "message",
+		"description": "Say whether a query should match a sample: match, no-match, or none to clear it.",
+		"params": ["sample", "query", "outcome"],
+		"result": "grid"
+	},
+	{
+		"name": "grid",
+		"kind": "view",
+		"description": "Every sample × query: whether the query matches, what is expected and whether that passes."
+	},
+	{
+		"name": "run",
+		"kind": "view",
+		"description": "A query's solutions on a sample: each output (tdata JSON) and its bindings. query is a query id, or tq text to try without saving.",
+		"params": [{ "name": "query", "type": "string" }, { "name": "sample", "type": "string" }]
+	},
+	{
+		"name": "sample_shape",
+		"kind": "view",
+		"description": "The tq paths present in a sample's message, each with the kinds found there.",
+		"params": [{ "name": "sample", "type": "string" }]
+	}
+]

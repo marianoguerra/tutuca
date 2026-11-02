@@ -1,0 +1,99 @@
+{
+	"id": "agent/logo",
+	"kind": "microagent",
+	"messages": [
+		{
+			"id": "manifest",
+			"kind": "microagent/manifest",
+			"data": {
+				"id": "logo",
+				"title": "Logo",
+				"description": "Write turtle programs and watch them draw: run them all at once or a move at a time.",
+				"needs": "a logo-program part (a string)",
+				"icon": "🐢",
+				"version": "1",
+				"query": "[.messages[] ~ {kind: \"logo-program\"}] as $programs | ($programs | length) > 0"
+			}
+		},
+		{
+			"id": "prompt",
+			"kind": "microagent/prompt",
+			"data": "You are Logo, a turtle that draws. Help the user write Logo programs: explain commands, fix\nerrors, and write programs for the shapes they describe. Change the program with set_program,\nthen call bounds to check what it draws.\n"
+		},
+		{
+			"id": "skills",
+			"kind": "microagent/skills",
+			"data": {
+				"SKILL.md": "---\nname: logo\ndescription: The Logo commands this turtle knows and how it draws.\n---\n\nThe turtle starts at (0, 0) facing up, with its pen down.\n\n| command | does |\n|---|---|\n| `forward n`, `fd n` | moves n steps, drawing when the pen is down |\n| `back n`, `bk n` | moves back |\n| `right d`, `rt d` | turns d degrees clockwise |\n| `left d`, `lt d` | turns counterclockwise |\n| `penup`, `pu` / `pendown`, `pd` | stops / starts drawing |\n| `color name` | a CSS color for the next lines |\n| `repeat n [ … ]` | runs the commands n times |\n\nA regular polygon with k sides: `repeat k [ fd 50 rt 360/k ]` (write the number: `rt 72`).\n"
+			}
+		},
+		{
+			"id": "tools",
+			"kind": "microagent/tools",
+			"data": [
+				[
+					{
+						"name": "set_program",
+						"kind": "message",
+						"description": "Replace the program.",
+						"params": [["program"]],
+						"result": "bounds"
+					},
+					{ "name": "run", "kind": "message", "description": "Draw the whole program." },
+					{ "name": "step", "kind": "message", "description": "Draw one more line." },
+					{
+						"name": "bounds",
+						"kind": "view",
+						"description": "What the program draws: its viewBox, the number of lines, and the parse error if any."
+					}
+				]
+			]
+		},
+		{
+			"id": "module",
+			"kind": "microagent/module",
+			"data": "// logo: a turtle language. The program (part kind \"logo-program\", a string) moves a turtle that\n// draws as it goes: forward/fd n, back/bk n, right/rt deg, left/lt deg, penup/pu, pendown/pd,\n// color name, repeat n [ … ]. Run draws it all; step draws one more move at a time.\nexport default function define(kit) {\n\tconst { $if, button, component, each, field, send, t, tag, targetValue } = kit.tutuca;\n\tconst { div, h2, line, p, span, svg, textarea } = tag;\n\tconst MAX_MOVES = 5000;\n\n\t// The program as nested commands, or { error } saying where it went wrong.\n\tconst parse = (text) => {\n\t\tconst tokens = text\n\t\t\t.replace(/\\[/g, \" [ \")\n\t\t\t.replace(/\\]/g, \" ] \")\n\t\t\t.split(/\\s+/)\n\t\t\t.filter((w) => w !== \"\");\n\t\tlet at = 0;\n\t\tconst number = (name) => {\n\t\t\tconst n = Number(tokens[at++]);\n\t\t\tif (!Number.isFinite(n))\n\t\t\t\tthrow new Error(`${name} needs a number, got \"${tokens[at - 1] ?? \"nothing\"}\"`);\n\t\t\treturn n;\n\t\t};\n\t\tconst block = (closing) => {\n\t\t\tconst out = [];\n\t\t\twhile (at < tokens.length) {\n\t\t\t\tconst word = tokens[at++].toLowerCase();\n\t\t\t\tif (word === \"]\") {\n\t\t\t\t\tif (closing) return out;\n\t\t\t\t\tthrow new Error(\"a ] without its [\");\n\t\t\t\t}\n\t\t\t\tif (word === \"fd\" || word === \"forward\") out.push({ op: \"move\", by: number(word) });\n\t\t\t\telse if (word === \"bk\" || word === \"back\") out.push({ op: \"move\", by: -number(word) });\n\t\t\t\telse if (word === \"rt\" || word === \"right\") out.push({ op: \"turn\", by: number(word) });\n\t\t\t\telse if (word === \"lt\" || word === \"left\") out.push({ op: \"turn\", by: -number(word) });\n\t\t\t\telse if (word === \"pu\" || word === \"penup\") out.push({ op: \"pen\", down: false });\n\t\t\t\telse if (word === \"pd\" || word === \"pendown\") out.push({ op: \"pen\", down: true });\n\t\t\t\telse if (word === \"color\") out.push({ op: \"color\", color: tokens[at++] ?? \"black\" });\n\t\t\t\telse if (word === \"repeat\") {\n\t\t\t\t\tconst n = number(word);\n\t\t\t\t\tif (tokens[at++] !== \"[\") throw new Error(\"repeat needs [ after its count\");\n\t\t\t\t\tout.push({ op: \"repeat\", n, body: block(true) });\n\t\t\t\t} else throw new Error(`unknown command \"${word}\"`);\n\t\t\t}\n\t\t\tif (closing) throw new Error(\"a [ without its ]\");\n\t\t\treturn out;\n\t\t};\n\t\ttry {\n\t\t\treturn { commands: block(false) };\n\t\t} catch (error) {\n\t\t\treturn { error: error.message };\n\t\t}\n\t};\n\t// The segments the turtle draws, from (0,0) facing up.\n\tconst trace = (commands) => {\n\t\tconst segments = [];\n\t\tconst turtle = { x: 0, y: 0, heading: 0, down: true, color: \"black\" };\n\t\tlet moves = 0;\n\t\tconst run = (list) => {\n\t\t\tfor (const c of list) {\n\t\t\t\tif (moves >= MAX_MOVES) return;\n\t\t\t\tif (c.op === \"repeat\") for (let i = 0; i < c.n; i++) run(c.body);\n\t\t\t\telse if (c.op === \"turn\") turtle.heading += c.by;\n\t\t\t\telse if (c.op === \"pen\") turtle.down = c.down;\n\t\t\t\telse if (c.op === \"color\") turtle.color = c.color;\n\t\t\t\telse if (c.op === \"move\") {\n\t\t\t\t\tconst rad = (turtle.heading * Math.PI) / 180;\n\t\t\t\t\tconst x = turtle.x + c.by * Math.sin(rad);\n\t\t\t\t\tconst y = turtle.y - c.by * Math.cos(rad);\n\t\t\t\t\tif (turtle.down)\n\t\t\t\t\t\tsegments.push({ x1: turtle.x, y1: turtle.y, x2: x, y2: y, color: turtle.color });\n\t\t\t\t\tObject.assign(turtle, { x, y });\n\t\t\t\t\tmoves++;\n\t\t\t\t}\n\t\t\t}\n\t\t};\n\t\trun(commands);\n\t\treturn { segments, turtle, moves };\n\t};\n\tconst round = (n) => Math.round(n * 100) / 100;\n\n\tconst LogoLab = component({\n\t\tname: \"LogoLab\",\n\t\tfields: {\n\t\t\tprogram: t.string(),\n\t\t\tshown: t.number().int().min(-1), // How many moves are drawn; -1 for all.\n\t\t},\n\t\tmethods: {\n\t\t\ttoDomain() {\n\t\t\t\treturn { program: this.program };\n\t\t\t},\n\t\t},\n\t\tqueries: {\n\t\t\tget parsed() {\n\t\t\t\treturn parse(this.program);\n\t\t\t},\n\t\t\tget error() {\n\t\t\t\treturn this.parsed.error ?? \"\";\n\t\t\t},\n\t\t\tget hasError() {\n\t\t\t\treturn this.error !== \"\";\n\t\t\t},\n\t\t\tget drawing() {\n\t\t\t\treturn this.hasError ? { segments: [], moves: 0 } : trace(this.parsed.commands);\n\t\t\t},\n\t\t\tget visible() {\n\t\t\t\tconst all = this.drawing.segments;\n\t\t\t\treturn this.shown < 0 ? all : all.slice(0, this.shown);\n\t\t\t},\n\t\t\tget lines() {\n\t\t\t\treturn this.visible.map((s) => ({\n\t\t\t\t\t...s,\n\t\t\t\t\tx1: round(s.x1),\n\t\t\t\t\ty1: round(s.y1),\n\t\t\t\t\tx2: round(s.x2),\n\t\t\t\t\ty2: round(s.y2),\n\t\t\t\t}));\n\t\t\t},\n\t\t\tget viewBox() {\n\t\t\t\tconst xs = this.drawing.segments.flatMap((s) => [s.x1, s.x2]);\n\t\t\t\tconst ys = this.drawing.segments.flatMap((s) => [s.y1, s.y2]);\n\t\t\t\tif (xs.length === 0) return \"-100 -100 200 200\";\n\t\t\t\tconst [x0, x1, y0, y1] = [\n\t\t\t\t\tMath.min(...xs),\n\t\t\t\t\tMath.max(...xs),\n\t\t\t\t\tMath.min(...ys),\n\t\t\t\t\tMath.max(...ys),\n\t\t\t\t];\n\t\t\t\tconst pad = 10;\n\t\t\t\treturn `${round(x0 - pad)} ${round(y0 - pad)} ${round(x1 - x0 + 2 * pad)} ${round(y1 - y0 + 2 * pad)}`;\n\t\t\t},\n\t\t\tget status() {\n\t\t\t\tconst total = this.drawing.segments.length;\n\t\t\t\treturn `${this.visible.length} of ${total} lines drawn`;\n\t\t\t},\n\t\t\tget summary() {\n\t\t\t\treturn `Program:\\n${this.program}\\n${this.hasError ? `Error: ${this.error}` : `${this.drawing.segments.length} lines, the turtle ends at (${round(this.drawing.turtle.x)}, ${round(this.drawing.turtle.y)}) heading ${this.drawing.turtle.heading}°`}`;\n\t\t\t},\n\t\t\tget bounds() {\n\t\t\t\treturn { viewBox: this.viewBox, lines: this.drawing.segments.length, error: this.error };\n\t\t\t},\n\t\t},\n\t\tview: div(\n\t\t\t{ class: \"flex flex-col gap-3\" },\n\t\t\th2({ class: \"text-lg font-semibold\" }, \"🐢 Logo\"),\n\t\t\ttextarea({\n\t\t\t\tclass: \"textarea textarea-bordered font-mono text-sm\",\n\t\t\t\trows: 6,\n\t\t\t\t\"aria-label\": \"Program\",\n\t\t\t\tvalue: field(\"program\"),\n\t\t\t\t\"on:input\": send(\"set_program\", targetValue()),\n\t\t\t}),\n\t\t\t$if(field(\"hasError\"), p({ class: \"text-sm text-error\" }, field(\"error\")), \"\"),\n\t\t\tdiv(\n\t\t\t\t{ class: \"flex items-center gap-2\" },\n\t\t\t\tbutton({ class: \"btn btn-sm btn-primary\", \"on:click\": send(\"run\") }, \"Run\"),\n\t\t\t\tbutton({ class: \"btn btn-sm\", \"on:click\": send(\"step\") }, \"Step\"),\n\t\t\t\tbutton({ class: \"btn btn-sm btn-ghost\", \"on:click\": send(\"reset\") }, \"Clear\"),\n\t\t\t\tspan({ class: \"text-sm opacity-70\" }, field(\"status\")),\n\t\t\t),\n\t\t\tsvg(\n\t\t\t\t{\n\t\t\t\t\tviewBox: field(\"viewBox\"),\n\t\t\t\t\tclass: \"h-80 w-full rounded-box border border-base-300 bg-base-100\",\n\t\t\t\t},\n\t\t\t\teach(\n\t\t\t\t\tfield(\"lines\"),\n\t\t\t\t\tline({\n\t\t\t\t\t\tx1: field(\"x1\"),\n\t\t\t\t\t\ty1: field(\"y1\"),\n\t\t\t\t\t\tx2: field(\"x2\"),\n\t\t\t\t\t\ty2: field(\"y2\"),\n\t\t\t\t\t\tstroke: field(\"color\"),\n\t\t\t\t\t\t\"stroke-width\": 1.5,\n\t\t\t\t\t}),\n\t\t\t\t),\n\t\t\t),\n\t\t),\n\t\ton: {\n\t\t\tset_program: {\n\t\t\t\tpure: true,\n\t\t\t\targs: [t.string()],\n\t\t\t\trun(next, [program]) {\n\t\t\t\t\tnext.program = program;\n\t\t\t\t},\n\t\t\t},\n\t\t\trun: {\n\t\t\t\tpure: true,\n\t\t\t\targs: [],\n\t\t\t\trun(next) {\n\t\t\t\t\tnext.shown = -1;\n\t\t\t\t},\n\t\t\t},\n\t\t\tstep: {\n\t\t\t\tpure: true,\n\t\t\t\targs: [],\n\t\t\t\trun(next) {\n\t\t\t\t\tconst total = this.drawing.segments.length;\n\t\t\t\t\tnext.shown = this.shown < 0 || this.shown >= total ? 1 : this.shown + 1;\n\t\t\t\t},\n\t\t\t},\n\t\t\treset: {\n\t\t\t\tpure: true,\n\t\t\t\targs: [],\n\t\t\t\trun(next) {\n\t\t\t\t\tnext.shown = 0;\n\t\t\t\t},\n\t\t\t},\n\t\t},\n\t});\n\n\tconst programOf = (msg) => (msg.messages ?? []).find((m) => m.kind === \"logo-program\");\n\tconst decode = (C, bindings, msg) => {\n\t\tconst part = bindings.programs?.[0] ?? programOf(msg);\n\t\treturn C.LogoLab({ program: typeof part?.data === \"string\" ? part.data : \"\", shown: -1 });\n\t};\n\tconst encode = (root, msg) => {\n\t\tconst kids = msg.messages ?? [];\n\t\tconst at = kids.findIndex((m) => m.kind === \"logo-program\");\n\t\tif (at >= 0 && kids[at].data === root.program) return msg;\n\t\tconst part =\n\t\t\tat >= 0\n\t\t\t\t? { ...kids[at], data: root.program }\n\t\t\t\t: kit.tdata.message(\"program\", \"logo-program\", root.program);\n\t\tconst next = at >= 0 ? kids.map((m, i) => (i === at ? part : m)) : [...kids, part];\n\t\treturn { ...msg, messages: next };\n\t};\n\treturn { components: { LogoLab }, root: \"LogoLab\", decode, encode };\n}\n"
+		},
+		{
+			"id": "empty",
+			"kind": "microagent/sample",
+			"messages": [
+				{
+					"id": "logo",
+					"kind": "logo",
+					"messages": [{ "id": "program", "kind": "logo-program", "data": "" }]
+				}
+			]
+		},
+		{
+			"id": "square",
+			"kind": "microagent/sample",
+			"messages": [
+				{
+					"id": "square",
+					"kind": "logo",
+					"messages": [
+						{ "id": "program", "kind": "logo-program", "data": "repeat 4 [ fd 100 rt 90 ]" }
+					]
+				}
+			]
+		},
+		{
+			"id": "spiral",
+			"kind": "microagent/sample",
+			"messages": [
+				{
+					"id": "spiral",
+					"kind": "logo",
+					"messages": [
+						{
+							"id": "program",
+							"kind": "logo-program",
+							"data": "color teal\nrepeat 36 [ repeat 4 [ fd 60 rt 90 ] rt 10 ]"
+						}
+					]
+				}
+			]
+		}
+	]
+}

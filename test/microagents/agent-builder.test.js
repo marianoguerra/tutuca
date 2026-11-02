@@ -1,15 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import {
-	AGENTS_URL,
-	memoryStore,
-	shellComponents,
-	startApp,
-} from "../../components/microagents/app.js";
-import { scriptedClient } from "../../components/microagents/core/llm.js";
-import { decodeMessage, encodeMessage } from "../../components/microagents/core/tdata.js";
-import { packFolder } from "../../scripts/pack-agent.js";
+import { AGENTS_URL, memoryStore, shellComponents, startApp } from "../../apps/microagents/app.js";
+import { scriptedClient } from "../../apps/microagents/core/llm.js";
+import { decodeMessage, encodeMessage } from "../../apps/microagents/core/tdata.js";
+import { packFolder } from "../../apps/microagents/pack-agent.js";
 import { Driver } from "../../src/test/driver.js";
 import { dispatchDrag } from "../../src/test/pbt.js";
 import { Selector } from "../../src/tutuca.js";

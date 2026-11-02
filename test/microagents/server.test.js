@@ -2,7 +2,7 @@
 // (system prompt, tools, transcript) and gets back the one message to append.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createMicroagentsServer } from "../../scripts/microagents-server.js";
+import { createMicroagentsServer } from "../../apps/microagents/server.js";
 
 // pi-ai's models API, as much as the server uses, answering "seen N messages".
 const fakeModels = () => {
@@ -87,6 +87,23 @@ test("infer rejects a request that doesn't bring everything", async () => {
 		assert.equal(unknown.status, 400);
 		assert.match(unknown.body.error, /no model p\/x/);
 		assert.equal(models.calls.length, 0);
+	} finally {
+		await close();
+	}
+});
+
+test("the app is at / and its storybook at /storybook.html", async () => {
+	const { base, close } = await serve();
+	try {
+		for (const [path, title] of [
+			["/", "<title>Micro-agents</title>"],
+			["/storybook.html", "<title>Micro-agents Storybook</title>"],
+		]) {
+			const res = await fetch(new URL(path, base));
+			assert.equal(res.status, 200);
+			assert.match(res.headers.get("content-type"), /text\/html/);
+			assert.ok((await res.text()).includes(title));
+		}
 	} finally {
 		await close();
 	}

@@ -1,0 +1,38 @@
+{
+	"id": "orders",
+	"kind": "jq-lab",
+	"messages": [
+		{
+			"id": "f1",
+			"kind": "jq",
+			"data": { "filter": "[.orders[] | select(.status == \"paid\") | .id]" }
+		},
+		{ "id": "f2", "kind": "jq", "data": { "filter": ".orders | map(.total) | add" } },
+		{
+			"id": "i1",
+			"kind": "json",
+			"data": {
+				"customer": "ada",
+				"orders": [
+					[
+						{ "id": "o1", "status": "paid", "total": 30 },
+						{ "id": "o2", "status": "pending", "total": 12.5 },
+						{ "id": "o3", "status": "paid", "total": 7 }
+					]
+				]
+			}
+		},
+		{ "id": "i2", "kind": "json", "data": { "customer": "grace", "orders": [[]] } },
+		{
+			"id": "e1",
+			"kind": "jq-expected",
+			"data": { "filter": "f1", "input": "i1", "outputs": [[[["o1", "o3"]]]] }
+		},
+		{
+			"id": "e2",
+			"kind": "jq-expected",
+			"data": { "filter": "f2", "input": "i2", "output": 0 },
+			"meta": { "x/notes": { "why": "an empty order list totals 0, not null" } }
+		}
+	]
+}

@@ -3,8 +3,9 @@
 //   codemirror  site/deps/codemirror.js: the playground needs one copy of @codemirror/state.
 //   automerge   demos/deps/automerge.js: automerge-repo needs one initialized copy of automerge;
 //               the sync demo's importmap maps every @automerge package to it.
+//   tdata       demos/deps/tdata.js: tdata (TypeScript) and tq's JS engine, for the micro-agents.
 // Bump the packages in package.json, then run `just vendor <name>` (and the tests).
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import * as esbuild from "esbuild";
 
@@ -85,6 +86,69 @@ const TARGETS = {
 			minify: true,
 		},
 	},
+	// The micro-agents' engines, each loaded by kit.engines.<name>() in
+	// apps/microagents/kit.js.
+	ajv: {
+		out: "demos/deps/ajv.js",
+		title: () => versions(["ajv", "ajv-formats"]),
+		license: "node_modules/ajv/LICENSE",
+		build: {
+			...reexports([
+				'export { default as Ajv2020 } from "ajv/dist/2020.js";',
+				'export { default as addFormats } from "ajv-formats";',
+			]),
+			minify: true,
+		},
+	},
+	jq: {
+		out: "demos/deps/jq.js",
+		title: () => versions(["jq-wasm"]),
+		license: "node_modules/jq-wasm/LICENSE",
+		// The inline build carries jq.wasm as base64: one file, in Node and browsers alike.
+		build: { ...reexports(['export * from "jq-wasm/inline";']), minify: true },
+	},
+	jsonpath: {
+		out: "demos/deps/jsonpath.js",
+		title: () => versions(["jsonpath-plus"]),
+		license: "node_modules/jsonpath-plus/LICENSE",
+		build: { ...reexports(['export { JSONPath } from "jsonpath-plus";']), minify: true },
+	},
+	picomatch: {
+		out: "demos/deps/picomatch.js",
+		title: () => versions(["picomatch"]),
+		license: "node_modules/picomatch/LICENSE",
+		build: { ...reexports(['export { default } from "picomatch/posix";']), minify: true },
+	},
+	vega: {
+		out: "demos/deps/vega.js",
+		title: () => versions(["vega", "vega-lite", "vega-embed"]),
+		license: "node_modules/vega/LICENSE",
+		build: {
+			...reexports([
+				'export * as vega from "vega";',
+				'export { compile } from "vega-lite";',
+				'export { default as embed } from "vega-embed";',
+			]),
+			minify: true,
+		},
+	},
+	echarts: {
+		out: "demos/deps/echarts.js",
+		title: () => versions(["echarts"]),
+		license: "node_modules/echarts/LICENSE",
+		build: { ...reexports(['export * from "echarts";']), minify: true },
+	},
+	// tdata (TypeScript, erasable syntax) and tq's JS engine (the MoonBit build, tdata/mbt), one
+	// file the micro-agents demo and its components import by path.
+	tdata: {
+		out: "demos/deps/tdata.js",
+		title: () => "tdata + tq (tdata/js, tdata/mbt/dist/tq.js)",
+		license: "LICENSE",
+		build: reexports([
+			'export * from "./tdata/js/src/index.ts";',
+			'export * as tqEngine from "./tdata/mbt/dist/tq.js";',
+		]),
+	},
 };
 
 export const vendor = async (name) => {
@@ -114,8 +178,13 @@ export const vendor = async (name) => {
 };
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-	const names = process.argv.slice(2);
+	// --if-missing builds only the bundles that aren't there yet (npm test's pretest).
+	const ifMissing = process.argv.includes("--if-missing");
+	const names = process.argv.slice(2).filter((a) => a !== "--if-missing");
 	if (!names.length)
-		throw new Error(`usage: node scripts/vendor.js ${Object.keys(TARGETS).join("|")}...`);
-	for (const name of names) await vendor(name);
+		throw new Error(
+			`usage: node scripts/vendor.js [--if-missing] ${Object.keys(TARGETS).join("|")}...`,
+		);
+	for (const name of names)
+		if (!ifMissing || !existsSync(TARGETS[name]?.out ?? "")) await vendor(name);
 }

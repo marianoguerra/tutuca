@@ -1,0 +1,82 @@
+[
+	{
+		"name": "set_filter",
+		"kind": "message",
+		"description": "Change a filter's jq program.",
+		"params": ["id", "filter"],
+		"result": "outputs"
+	},
+	{
+		"name": "add_filter",
+		"kind": "message",
+		"description": "Add a filter; it gets the next free id (f1, f2, …).",
+		"params": ["filter"]
+	},
+	{
+		"name": "remove_filter",
+		"kind": "message",
+		"description": "Remove a filter and its expectations.",
+		"params": ["id"]
+	},
+	{
+		"name": "reorder_filters",
+		"kind": "message",
+		"description": "Move a filter to a position (0 is first).",
+		"params": ["id", "index"]
+	},
+	{
+		"name": "set_input",
+		"kind": "message",
+		"description": "Replace an input's JSON value.",
+		"params": ["id", "value"],
+		"result": "outputs"
+	},
+	{
+		"name": "add_input",
+		"kind": "message",
+		"description": "Add a JSON input; it gets the next free id (i1, i2, …).",
+		"params": ["value"]
+	},
+	{
+		"name": "remove_input",
+		"kind": "message",
+		"description": "Remove an input and its expectations.",
+		"params": ["id"]
+	},
+	{
+		"name": "reorder_inputs",
+		"kind": "message",
+		"description": "Move an input to a position (0 is first).",
+		"params": ["id", "index"]
+	},
+	{
+		"name": "set_expected",
+		"kind": "message",
+		"description": "Pin what a filter should output for an input: the list of every output, in order ([x] for a single output x).",
+		"params": ["filter", "input", "outputs"],
+		"result": "outputs"
+	},
+	{
+		"name": "clear_expected",
+		"kind": "message",
+		"description": "Remove the expectation of a filter for an input.",
+		"params": ["filter", "input"]
+	},
+	{
+		"name": "outputs",
+		"kind": "view",
+		"description": "Every filter × input: the outputs or the error, the expected outputs and whether they pass."
+	},
+	{
+		"name": "input_shape",
+		"kind": "view",
+		"description": "A compact type sketch of an input, like {a: number, items: [{id: string}]}.",
+		"params": [{ "name": "input", "type": "string" }]
+	},
+	{
+		"name": "get_input",
+		"kind": "view",
+		"description": "The part of an input at a JSON pointer: \"\" for all of it, \"/items/0\" for the first item.",
+		"params": [{ "name": "input", "type": "string" }, { "name": "pointer", "type": "string" }]
+	}
+]

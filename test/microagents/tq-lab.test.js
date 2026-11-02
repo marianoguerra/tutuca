@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { decodeMessage, encodeMessage } from "../../components/microagents/core/tdata.js";
+import { decodeMessage, encodeMessage } from "../../apps/microagents/core/tdata.js";
 import { Driver } from "../../src/test/driver.js";
 import { dispatchDrag } from "../../src/test/pbt.js";
 import { Selector } from "../../src/tutuca.js";

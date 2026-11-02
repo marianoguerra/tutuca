@@ -7,10 +7,10 @@ import {
 	memoryStore,
 	shellComponents,
 	startApp,
-} from "../../components/microagents/app.js";
-import { assistantMessage, scriptedClient } from "../../components/microagents/core/llm.js";
-import { agentMessage, packAgent, unpackAgent } from "../../components/microagents/core/pack.js";
-import { encodeMessage } from "../../components/microagents/core/tdata.js";
+} from "../../apps/microagents/app.js";
+import { assistantMessage, scriptedClient } from "../../apps/microagents/core/llm.js";
+import { agentMessage, packAgent, unpackAgent } from "../../apps/microagents/core/pack.js";
+import { encodeMessage } from "../../apps/microagents/core/tdata.js";
 import { Selector, specOf } from "../../src/tutuca.js";
 import { setupHost } from "../helpers.js";
 

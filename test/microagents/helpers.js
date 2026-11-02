@@ -1,11 +1,11 @@
 // What the micro-agent tests share: an agent packed from its folder and registered, its root
 // driven by messages, and its tools run as a model would run them.
 import { readFile } from "node:fs/promises";
-import { AGENTS_URL } from "../../components/microagents/app.js";
-import { packAgent } from "../../components/microagents/core/pack.js";
-import { AgentRegistry } from "../../components/microagents/core/registry.js";
-import { hostEnv, runToolCall } from "../../components/microagents/core/tool-runner.js";
-import { makeKit } from "../../components/microagents/kit.js";
+import { AGENTS_URL } from "../../apps/microagents/app.js";
+import { packAgent } from "../../apps/microagents/core/pack.js";
+import { AgentRegistry } from "../../apps/microagents/core/registry.js";
+import { hostEnv, runToolCall } from "../../apps/microagents/core/tool-runner.js";
+import { makeKit } from "../../apps/microagents/kit.js";
 import { lint } from "../../src/lint/index.js";
 import { Driver } from "../../src/test/driver.js";
 import { DispatchPath, Selector } from "../../src/tutuca.js";
@@ -14,7 +14,7 @@ import { document, scopeWith, setupHost } from "../helpers.js";
 export const ROOT = new DispatchPath();
 export const readAgentFile = (path) => readFile(new URL(path, AGENTS_URL), "utf8");
 
-// The registry with the agents ids (folders under components/microagents/agents/).
+// The registry with the agents ids (folders under apps/microagents/agents/).
 export const loadAgents = async (ids, scope = scopeWith({})) => {
 	const registry = new AgentRegistry({ scope, kit: makeKit() });
 	for (const id of ids)

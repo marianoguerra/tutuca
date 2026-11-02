@@ -3,10 +3,10 @@
 import assert from "node:assert/strict";
 import { readdirSync } from "node:fs";
 import test from "node:test";
-import { AGENTS_URL } from "../../components/microagents/app.js";
-import { checkAgent, reportText } from "../../components/microagents/core/check.js";
-import { packAgent } from "../../components/microagents/core/pack.js";
-import { makeKit } from "../../components/microagents/kit.js";
+import { AGENTS_URL } from "../../apps/microagents/app.js";
+import { checkAgent, reportText } from "../../apps/microagents/core/check.js";
+import { packAgent } from "../../apps/microagents/core/pack.js";
+import { makeKit } from "../../apps/microagents/kit.js";
 import { loadAgents, readAgentFile } from "./helpers.js";
 
 const IDS = readdirSync(AGENTS_URL, { withFileTypes: true })

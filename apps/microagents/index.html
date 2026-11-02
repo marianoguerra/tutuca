@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Micro-agents</title>
+    <script type="importmap">
+      { "imports": { "margaui": "/node_modules/margaui/dist/margaui.min.js" } }
+    </script>
+    <style id="margaui"></style>
+    <link rel="stylesheet" href="/node_modules/margaui/dist/themes/theme.css" />
+    <style>
+      body {
+        min-height: 100vh;
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: var(--color-base-200, #f4f4f5);
+        color: var(--color-base-content, #18181b);
+      }
+      #app {
+        padding: 1.5rem;
+      }
+    </style>
+    <script type="module" src="/apps/microagents/main.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>

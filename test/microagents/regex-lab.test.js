@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { packAgent, unpackAgent } from "../../components/microagents/core/pack.js";
-import { AgentRegistry } from "../../components/microagents/core/registry.js";
+import { packAgent, unpackAgent } from "../../apps/microagents/core/pack.js";
+import { AgentRegistry } from "../../apps/microagents/core/registry.js";
 import {
 	decodeMessage,
 	decodeMessageCbor,
 	encodeMessage,
 	encodeMessageCbor,
-} from "../../components/microagents/core/tdata.js";
-import { makeKit } from "../../components/microagents/kit.js";
+} from "../../apps/microagents/core/tdata.js";
+import { makeKit } from "../../apps/microagents/kit.js";
 import { lint } from "../../src/lint/index.js";
 import { Driver } from "../../src/test/driver.js";
 import { dispatchDrag } from "../../src/test/pbt.js";
@@ -18,7 +18,7 @@ import { document, scopeWith } from "../helpers.js";
 import { toolRunner } from "./helpers.js";
 
 const ROOT = new DispatchPath();
-const AGENTS = new URL("../../components/microagents/agents/", import.meta.url);
+const AGENTS = new URL("../../apps/microagents/agents/", import.meta.url);
 const readText = (path) => readFile(new URL(path, AGENTS), "utf8");
 
 const setup = async () => {

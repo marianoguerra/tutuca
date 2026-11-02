@@ -1,0 +1,11 @@
+{
+	"id": "my-agent",
+	"title": "My agent",
+	"description": "A starting point: one note part, edited in a textarea.",
+	"needs": "a note part (a string)",
+	"icon": "🧩",
+	"version": "1",
+	"query": "[.messages[] ~ {kind: \"note\"}] as $notes | ($notes | length) > 0",
+	"skills": ["SKILL.md"],
+	"samples": ["empty", "hello"]
+}

@@ -1,0 +1,80 @@
+{
+	"id": "notes",
+	"kind": "tq-lab",
+	"messages": [
+		{
+			"id": "q1",
+			"kind": "tq",
+			"data": { "query": ".kind == \"note\" and .data.author.name != \"bot\"" }
+		},
+		{
+			"id": "q2",
+			"kind": "tq",
+			"data": {
+				"query": ".. ~ {kind: \"note\", data: {title: $title, author: {name: $who}}} | select($who != \"bot\")"
+			}
+		},
+		{ "id": "q3", "kind": "tq", "data": { "query": ".data.pin ~ #\"app/point\" {x: $x, y: $y}" } },
+		{
+			"id": "q4",
+			"kind": "tq",
+			"data": { "query": ".data ~ <\"p\" {class: $cls} [$first, ..$rest]>" }
+		},
+		{
+			"id": "s1",
+			"kind": "tdata-sample",
+			"messages": [
+				{
+					"id": "n1",
+					"kind": "note",
+					"data": {
+						"title": "Launch",
+						"author": { "name": "ana" },
+						"pin": ["#", "app/point", { "x": 1, "y": 2.5 }],
+						"tags": [["release", "q4"]]
+					},
+					"meta": { "https://tutuca.dev/d/trace": { "at": ["inst", "1700000000000000000"] } }
+				}
+			],
+			"meta": { "https://tutuca.dev/d/expect": { "q1": "match", "q2": "match", "q4": "no-match" } }
+		},
+		{
+			"id": "s2",
+			"kind": "tdata-sample",
+			"messages": [
+				{
+					"id": "inbox",
+					"kind": "batch",
+					"messages": [
+						{
+							"id": "n2",
+							"kind": "note",
+							"data": { "title": "Ping", "author": { "name": "bot" } }
+						},
+						{
+							"id": "n3",
+							"kind": "note",
+							"data": { "title": "Retro", "author": { "name": "lin" } }
+						}
+					]
+				}
+			],
+			"meta": { "https://tutuca.dev/d/expect": { "q1": "no-match", "q2": "match" } }
+		},
+		{
+			"id": "s3",
+			"kind": "tdata-sample",
+			"messages": [
+				{
+					"id": "h1",
+					"kind": "html",
+					"data": ["node", "p", { "class": "lead" }, [["Hello ", ["node", "b", {}, [["world"]]]]]]
+				}
+			],
+			"meta": {
+				"https://tutuca.dev/d/expect": { "q4": "match" },
+				"x/notes": { "why": "a Node value: tag, attributes and children" }
+			}
+		}
+	]
+}

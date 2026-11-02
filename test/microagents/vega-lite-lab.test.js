@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { encodeMessage } from "../../components/microagents/core/tdata.js";
+import { encodeMessage } from "../../apps/microagents/core/tdata.js";
 import { Driver } from "../../src/test/driver.js";
 import { dispatchDrag } from "../../src/test/pbt.js";
 import { document } from "../helpers.js";
