@@ -79,6 +79,12 @@ site: spec
 loc:
     node scripts/loc.js
 
+# Draw the class diagram of the core into <out>/tutuca-core.svg (needs Graphviz), beside the .dot, .mmd and .json it comes from.
+class-diagram out=".":
+    node scripts/class-diagram.js src/tutuca.js {{out}}
+    dot -Tsvg {{out}}/tutuca-core.dot -o {{out}}/tutuca-core.svg
+    @echo "{{out}}/tutuca-core.svg"
+
 # Show what would be published, without publishing.
 publish-dry:
     npm publish --dry-run --tag latest

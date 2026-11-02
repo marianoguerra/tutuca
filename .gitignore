@@ -5,3 +5,4 @@ _site
 .playwright-mcp
 demos/deps/
 site/deps/
+tutuca-core.*
