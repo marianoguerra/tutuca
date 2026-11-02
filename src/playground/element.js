@@ -178,12 +178,11 @@ export const definePlayground = (
 				...storyAskHandlers(() => this.registry),
 				playground: ([op, id]) => this.onPick(op, id),
 			});
-			const uiClasses = new ClassCompiler(compile, playgroundClasses());
-			uiClasses.watch(rootNode, root.querySelector("style[data-ui-extra]"));
 			host.onNotify = (type, info) => {
-				if (type === "render") uiClasses.scan(rootNode);
 				if (type === "taskFailed" || type === "stateInvalid") console.error(type, info);
 			};
+			const uiClasses = new ClassCompiler(compile, playgroundClasses());
+			uiClasses.attach(host, rootNode, root.querySelector("style[data-ui-extra]"));
 			host.start(makePlayground(host.scope.components));
 			const src = this.getAttribute("src");
 			if (src !== null) void this.load(src, { story: this.getAttribute("story") ?? "" });

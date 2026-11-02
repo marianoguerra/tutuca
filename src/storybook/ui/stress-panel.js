@@ -11,9 +11,32 @@ import {
 	tag,
 	targetValue,
 } from "../../tutuca.js";
-import { askStory, card, STRESS_IDLE, smallButton, title } from "./common.js";
+import { STRESS_IDLE } from "../stress.js";
+import { askStory, card, smallButton, title } from "./common.js";
 
 const { div, h3, input, label, li, ol, option, pre, section, select, span } = tag;
+
+// What a stress run reports, as fields of the panel and showStress's arg.
+const resultFields = {
+	status: t.enum("idle", "running", "passed", "failed", "cancelled", "unavailable"),
+	done: t.number().int().min(0),
+	total: t.number().int().min(0),
+	error: t.string(),
+	commands: t.array(t.string()),
+	log: t.array(t.string()),
+};
+// A labeled number input for the numeric option name.
+const numberInput = (name, text) =>
+	label(
+		{ class: "flex flex-col gap-1 text-xs" },
+		text,
+		input({
+			type: "number",
+			class: "input input-sm input-bordered w-full",
+			value: field(name),
+			"on:input": send("setNumber", name, targetValue()),
+		}),
+	);
 
 export const StressPanel = component({
 	name: "StressPanel",
@@ -24,12 +47,7 @@ export const StressPanel = component({
 		seed: t.number(1).int(),
 		from: t.enum("story", "generated", "current"),
 		events: t.boolean(),
-		status: t.enum("idle", "running", "passed", "failed", "cancelled", "unavailable"),
-		done: t.number().int().min(0),
-		total: t.number().int().min(0),
-		error: t.string(),
-		commands: t.array(t.string()),
-		log: t.array(t.string()),
+		...resultFields,
 	},
 	queries: {
 		get isRunning() {
@@ -49,36 +67,9 @@ export const StressPanel = component({
 		{ class: card },
 		div(
 			{ class: "grid max-w-xl grid-cols-3 gap-3" },
-			label(
-				{ class: "flex flex-col gap-1 text-xs" },
-				"Runs",
-				input({
-					type: "number",
-					class: "input input-sm input-bordered w-full",
-					value: field("numRuns"),
-					"on:input": send("setNumber", "numRuns", targetValue()),
-				}),
-			),
-			label(
-				{ class: "flex flex-col gap-1 text-xs" },
-				"Max steps per run",
-				input({
-					type: "number",
-					class: "input input-sm input-bordered w-full",
-					value: field("maxCommands"),
-					"on:input": send("setNumber", "maxCommands", targetValue()),
-				}),
-			),
-			label(
-				{ class: "flex flex-col gap-1 text-xs" },
-				"Seed",
-				input({
-					type: "number",
-					class: "input input-sm input-bordered w-full",
-					value: field("seed"),
-					"on:input": send("setNumber", "seed", targetValue()),
-				}),
-			),
+			numberInput("numRuns", "Runs"),
+			numberInput("maxCommands", "Max steps per run"),
+			numberInput("seed", "Seed"),
 			label(
 				{ class: "col-span-2 flex flex-col gap-1 text-xs" },
 				"Start from",
@@ -166,16 +157,7 @@ export const StressPanel = component({
 		// A stress report of its app, as stressResult reads it.
 		showStress: {
 			pure: true,
-			args: [
-				t.record({
-					status: t.enum("idle", "running", "passed", "failed", "cancelled", "unavailable"),
-					done: t.number().int().min(0),
-					total: t.number().int().min(0),
-					error: t.string(),
-					commands: t.array(t.string()),
-					log: t.array(t.string()),
-				}),
-			],
+			args: [t.record(resultFields)],
 			run(next, [result]) {
 				Object.assign(next, result);
 			},
@@ -230,7 +212,7 @@ export const StressPanel = component({
 	answers: {
 		story: {
 			ok(next, [result]) {
-				if (typeof result?.status === "string") applyStress(next, result);
+				if (typeof result?.status === "string") Object.assign(next, stressResult(result));
 			},
 			error(next, [error]) {
 				Object.assign(next, { ...STRESS_IDLE, status: "unavailable" });
@@ -246,7 +228,4 @@ export const StressPanel = component({
 export const stressResult = (r) => {
 	const { status, done = 0, total = 0, error = "", commands = [], log = [] } = r;
 	return { status, done, total, error, commands: [...commands], log: [...log] };
-};
-export const applyStress = (next, r) => {
-	Object.assign(next, stressResult(r));
 };

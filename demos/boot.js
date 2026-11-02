@@ -103,18 +103,17 @@ const setup = ({ components, askHandlers, document }) => {
 	host.scope.register(components);
 	host.scope.registerAskHandlers(askHandlers);
 	const styleNode = document.getElementById("margaui");
-	// Classes computed in methods escape classNamesOf; the compiler adds them as they render.
-	const classes = styleNode === null ? null : new ClassCompiler(compile, []);
 	host.onNotify = (type, info) => {
-		if (type === "render") classes?.scan(rootNode);
 		if (type === "taskFailed" || type === "stateInvalid" || type === "syncFailed") {
 			console.error(type, info);
 		}
 	};
+	// Classes computed in methods escape classNamesOf; the compiler adds them as they render.
 	const watch = () => {
-		if (classes === null) return;
-		for (const c of classNamesOf([...Object.values(components), TimeTravel])) classes.seen.add(c);
-		classes.watch(rootNode, styleNode);
+		if (styleNode === null) return;
+		const known = classNamesOf([...Object.values(components), TimeTravel]);
+		const classes = new ClassCompiler(compile, known);
+		classes.attach(host, rootNode, styleNode);
 		classes.update().catch((error) => console.error("margaui compile failed", error));
 	};
 	return { host, watch };

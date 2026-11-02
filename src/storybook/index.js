@@ -4,9 +4,8 @@
 // single messages and stress tests it with generated message or event sequences.
 // fast-check is passed in, as in pbt.js.
 
-import { classNamesOf } from "../css/classes.js";
+import { ClassCompiler, classNamesOf } from "../css/classes.js";
 import { DevChecks } from "../dev/checks.js";
-import { makeDevPanel } from "../dev/panel.js";
 import { Host } from "../tutuca.js";
 
 export { StoryRegistry } from "./runner.js";
@@ -15,7 +14,7 @@ export { checkStory, prepareStory, step, stories, stressStory } from "./stories.
 import { defineTutucaApp, REQUEST } from "../embed/element.js";
 import { StoryRegistry, storyAskHandlers } from "./runner.js";
 import { StoryLink } from "./ui/link.js";
-import { panelClassNames, panelComponents } from "./ui/panels.js";
+import { makePanels, panelClassNames, panelComponents } from "./ui/panels.js";
 import { Storybook } from "./ui/storybook.js";
 
 export const storybookComponents = { Storybook, StoryLink, ...panelComponents };
@@ -39,14 +38,11 @@ const makeStorybook = (C, books, initialId = "") => {
 		),
 	);
 	const selected = links.find((l) => l.isSelected);
-	const appKey = `${selected?.id ?? ""}@0`;
 	return C.Storybook({
 		links,
 		selectedId: selected?.id ?? "",
 		isGenerated: selected?.isGenerated ?? false,
-		story: C.StoryPanel({ appKey }),
-		stress: C.StressPanel({ appKey }),
-		dev: makeDevPanel(C),
+		...makePanels(C, `${selected?.id ?? ""}@0`),
 	});
 };
 
@@ -78,4 +74,28 @@ export const startStorybook = ({
 	});
 	host.start(makeStorybook(host.scope.components, books, initialId));
 	return { host, registry };
+};
+
+// Opens the storybook for books on a page: compile (class names → css) styles its UI into
+// uiStyle and the stories in their shadow roots, the classes views compute as they render
+// included. Failed tasks and invalid states are logged.
+export const openStorybook = async ({
+	document,
+	rootNode,
+	uiStyle,
+	fc,
+	books,
+	compile,
+	initialId = "",
+}) => {
+	const known = classNamesOf(new Set(books.flatMap((book) => Object.values(book.components))));
+	const [uiCss, css] = await Promise.all([compile(storybookClasses()), compile(known)]);
+	uiStyle.textContent = uiCss;
+	const started = startStorybook({ document, rootNode, fc, books, css, compile, known, initialId });
+	started.host.onNotify = (type, info) => {
+		if (type === "taskFailed" || type === "stateInvalid") console.error(type, info);
+	};
+	const extraStyle = document.head.appendChild(document.createElement("style"));
+	new ClassCompiler(compile, storybookClasses()).attach(started.host, rootNode, extraStyle);
+	return started;
 };

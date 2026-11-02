@@ -1,21 +1,22 @@
 // Executes stress batches; the caller owns the timeline and any saved counterexample.
 import { stressProperty } from "./stories.js";
-import { STRESS_IDLE, STRESS_LOG_MAX } from "./ui/common.js";
 
+// A stress panel before any run, and the shape of a run's progress.
+export const STRESS_IDLE = { status: "idle", done: 0, total: 0, error: "", commands: [], log: [] };
+// Lines of the stress run log kept, the latest ones.
+const STRESS_LOG_MAX = 1000;
+
+// options are stressProperty's, but for document: createDocument() makes it.
 export async function runStress({
 	story,
 	fc,
-	A,
-	root,
-	from,
-	events,
-	maxCommands,
 	createDocument,
 	numRuns,
 	seed,
 	isCancelled,
 	onProgress,
 	onFailure,
+	...options
 }) {
 	const total = numRuns;
 	const log = [];
@@ -37,16 +38,7 @@ export async function runStress({
 	const result = (r) => ({ ...STRESS_IDLE, total, log: [...log], ...r });
 	let property;
 	try {
-		property = stressProperty(story, {
-			fc,
-			A,
-			root,
-			from,
-			events,
-			maxCommands,
-			document: createDocument(),
-			onRun,
-		});
+		property = stressProperty(story, { ...options, fc, document: createDocument(), onRun });
 	} catch (error) {
 		return result({ status: "unavailable", error: error.message });
 	}

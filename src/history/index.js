@@ -6,6 +6,8 @@ import { truncate } from "../dev/jsonml.js";
 import { HostTask } from "../tasks.js";
 import { jsonText } from "../tree/text.js";
 
+// The icon of each origin of a timeline entry.
+export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝", external: "⇅" };
 export const argsLabel = (args) => truncate(args.map(jsonText).join(", "), 80);
 // The task a task's chain started with: an event, or a message sent from outside.
 const rootTask = (task) => {

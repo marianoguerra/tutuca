@@ -1,4 +1,6 @@
 // The selected story: its sequences, timeline, targets and a form to send one message.
+
+import { ORIGINS } from "../../history/index.js";
 import {
 	$if,
 	component,
@@ -11,7 +13,7 @@ import {
 	tag,
 	targetValue,
 } from "../../tutuca.js";
-import { askStory, BADGES, card, ORIGINS, smallButton, title } from "./common.js";
+import { askStory, BADGES, card, smallButton, title } from "./common.js";
 
 const { button, div, h3, input, li, ol, option, pre, section, select, span, ul } = tag;
 
@@ -56,6 +58,13 @@ const summaryFields = () => ({
 	),
 });
 export const SUMMARY_KEYS = Object.keys(summaryFields());
+// The buttons that move through the timeline: [op, title, glyph].
+const TRANSPORT = [
+	["toStart", "Reset", "⏮"],
+	["back", "Back", "◀"],
+	["forward", "Step", "▶"],
+	["toEnd", "Run to end", "⏭"],
+];
 export const StoryPanel = component({
 	name: "StoryPanel",
 	fields: {
@@ -120,25 +129,11 @@ export const StoryPanel = component({
 					),
 					div(
 						{ class: "join" },
-						smallButton(
-							{ class: "btn btn-sm join-item", title: "Reset", "on:click": send("op", "reset") },
-							"⏮",
-						),
-						smallButton(
-							{ class: "btn btn-sm join-item", title: "Back", "on:click": send("op", "back") },
-							"◀",
-						),
-						smallButton(
-							{ class: "btn btn-sm join-item", title: "Step", "on:click": send("op", "forward") },
-							"▶",
-						),
-						smallButton(
-							{
-								class: "btn btn-sm join-item",
-								title: "Run to end",
-								"on:click": send("op", "toEnd"),
-							},
-							"⏭",
+						TRANSPORT.map(([op, title, glyph]) =>
+							smallButton(
+								{ class: "btn btn-sm join-item", title, "on:click": send("op", op) },
+								glyph,
+							),
 						),
 					),
 					smallButton(
@@ -316,7 +311,7 @@ export const StoryPanel = component({
 			},
 		},
 		op: {
-			args: [t.enum("reset", "back", "forward", "toEnd")],
+			args: [t.enum(...TRANSPORT.map(([op]) => op))],
 			emits: { ask: ["story"] },
 			run(_next, [op], ctx) {
 				askStory(ctx, this, op);

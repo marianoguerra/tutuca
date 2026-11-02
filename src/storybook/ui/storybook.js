@@ -13,7 +13,7 @@ import {
 	targetValue,
 } from "../../tutuca.js";
 import { smallButton, tabButton } from "./common.js";
-import { applyAppReport, resetPanels } from "./panels.js";
+import { applyAppReport, panelFields, resetPanels } from "./panels.js";
 
 const { aside, div, h1, h2, input, main, p, section, span, ul } = tag;
 const tutucaApp = tag["tutuca-app"];
@@ -28,9 +28,7 @@ export const Storybook = component({
 		isGenerated: t.boolean(),
 		seed: t.number().int().min(0),
 		panel: t.enum("steps", "stress", "dev"),
-		story: t.component("StoryPanel"),
-		stress: t.component("StressPanel"),
-		dev: t.component("DevPanel"),
+		...panelFields,
 	},
 	queries: {
 		get appKey() {
@@ -159,7 +157,7 @@ export const Storybook = component({
 		},
 		reroll(next) {
 			next.seed = this.seed + 1;
-			resetPanels(this, next, `${this.selectedId}@${this.seed + 1}`);
+			resetPanels(this, next);
 		},
 		// Reports from the story's <tutuca-app>; only events carry them.
 		appReport(next, _args, ctx) {
@@ -182,7 +180,7 @@ const syncCollapsed = (next) => {
 		next.links[i] = apply(link, "setCollapsed", isCollapsed);
 	});
 };
-export const selectStory = (self, next, id) => {
+const selectStory = (self, next, id) => {
 	const link = self.links.find((l) => l.id === id);
 	if (link === undefined) return;
 	next.selectedId = id;
@@ -190,5 +188,5 @@ export const selectStory = (self, next, id) => {
 	next.links.forEach((l, i) => {
 		next.links[i] = apply(l, "setSelected", self.links[i].id === id);
 	});
-	resetPanels(self, next, `${id}@${self.seed}`);
+	resetPanels(self, next);
 };

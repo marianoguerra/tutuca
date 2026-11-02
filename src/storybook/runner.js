@@ -146,7 +146,7 @@ export class StoryRunner {
 		this.act(() => this.driver.restart(this.current.state));
 		this.publish();
 	}
-	reset() {
+	toStart() {
 		this.goto(0);
 	}
 	back() {
@@ -227,23 +227,27 @@ export class StoryRunner {
 	}
 	// Runs the stress test in batches, yielding between them; resolves with the result for
 	// the stress panel and reports progress meanwhile.
-	async stress({ numRuns = 100, maxCommands = 20, seed = 1, from = "story", events = false }) {
+	async stress(options) {
 		const token = {};
 		this.stressToken = token;
 		const { fc, A } = this;
-		const root = from === "current" ? this.driver.state : this.timeline.entries[0].state;
+		const opts = {
+			numRuns: 100,
+			maxCommands: 20,
+			seed: 1,
+			from: "story",
+			events: false,
+			...options,
+		};
+		const root = opts.from === "current" ? this.driver.state : this.timeline.entries[0].state;
 		return await runStress({
+			...opts,
 			story: this.story,
 			fc,
 			A,
 			root,
-			from,
-			events,
-			maxCommands,
-			numRuns,
-			seed,
 			createDocument: () =>
-				events ? this.detail.document.implementation.createHTMLDocument("") : null,
+				opts.events ? this.detail.document.implementation.createHTMLDocument("") : null,
 			isCancelled: () => this.stressToken !== token,
 			onProgress: (progress) => this.detail?.emit("stress", progress),
 			onFailure: (failure) => {
@@ -357,26 +361,18 @@ export class StoryRunner {
 // A new prefix gives the same stories new keys, so their apps mount again.
 // The asks of the panels: "story" runs an op on the StoryRunner of an app of registryOf(),
 // "delay" waits.
-export const storyAskHandlers = (registryOf) => ({
-	story: ([key, op, ...args]) => {
+export const storyAskHandlers = (registryOf) => {
+	const call = (key, op, args) => {
 		const registry = registryOf();
 		if (registry === null) throw new Error("no stories loaded");
 		return registry.call(key, op, args);
-	},
-	delay: ([ms]) => new Promise((resolve) => setTimeout(resolve, ms)),
-	// The TimeTravel bar's ops, on the timeline of the StoryRunner of app key.
-	history: ([key, op, arg]) => {
-		const registry = registryOf();
-		if (registry === null) throw new Error("no stories loaded");
-		return registry.call(key, HISTORY_OPS[op], op === "goto" ? [arg] : []);
-	},
-});
-const HISTORY_OPS = {
-	goto: "goto",
-	back: "back",
-	forward: "forward",
-	toStart: "reset",
-	toEnd: "toEnd",
+	};
+	return {
+		story: ([key, op, ...args]) => call(key, op, args),
+		delay: ([ms]) => new Promise((resolve) => setTimeout(resolve, ms)),
+		// The TimeTravel bar's ops, on the timeline of the StoryRunner of app key.
+		history: ([key, op, arg]) => call(key, op, op === "goto" ? [arg] : []),
+	};
 };
 
 export class StoryRegistry {
@@ -433,7 +429,7 @@ export class StoryRegistry {
 const OPS = new Set([
 	"load",
 	"goto",
-	"reset",
+	"toStart",
 	"back",
 	"forward",
 	"toEnd",

@@ -9,7 +9,6 @@ export const BADGES = {
 	failed: "badge badge-sm badge-error",
 	skipped: "badge badge-sm badge-warning",
 };
-export const ORIGINS = { initial: "◆", reload: "↻", step: "▸", user: "☝", external: "⇅" };
 
 // Asks the StoryRunner of self's app to run op.
 export const askStory = (ctx, self, op, ...args) => ctx.ask("story", [self.appKey, op, ...args]);
@@ -30,8 +29,3 @@ export const tabButton = (message, name, label, ...childs) =>
 		label,
 		...childs,
 	);
-
-// A stress panel before any run, and the shape of a run's progress.
-export const STRESS_IDLE = { status: "idle", done: 0, total: 0, error: "", commands: [], log: [] };
-// Lines of the stress run log kept, the latest ones.
-export const STRESS_LOG_MAX = 1000;

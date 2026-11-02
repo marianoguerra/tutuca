@@ -3,9 +3,8 @@
 // [target, op, arg], op one of goto, back, forward, toStart and toEnd. mountTimeTravel puts
 // one, with a historyEngine, next to a live Host.
 
-import { ORIGINS } from "../storybook/ui/common.js";
 import { $if, button, component, field, Host, send, t, tag, targetValue } from "../tutuca.js";
-import { historyEngine } from "./index.js";
+import { historyEngine, ORIGINS } from "./index.js";
 
 const { div, input, span } = tag;
 

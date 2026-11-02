@@ -30,7 +30,7 @@ const { button, div, h3, li, p, section, span, ul } = tag;
 const refs = new Map();
 const ids = new WeakMap();
 let nextRef = 1;
-const idOf = (v) => {
+const refIdOf = (v) => {
 	if (!isObject(v)) return 0;
 	let id = ids.get(v);
 	if (id === undefined) {
@@ -122,12 +122,18 @@ const TONE_NAMES = Object.keys(TONES);
 export const devNode = (C, label, value) => {
 	const { tokens, rows } = inspect(value);
 	const { title, detail } = summarize(value);
-	return C.DevNode({ label, tokens, title, detail, ref: idOf(value), canOpen: rows.length > 0 });
+	return C.DevNode({ label, tokens, title, detail, ref: refIdOf(value), canOpen: rows.length > 0 });
 };
 // A row with nothing to expand reads the same either way.
 const leafNode = (C, label, tokens) =>
 	C.DevNode({ label, tokens, title: tokens.map((t) => t.text).join("") });
 
+// A node's rows, when it's open.
+const rowsView = $if(
+	field("showRows"),
+	div({ class: "ml-1.5 border-l border-base-300 pl-3" }, renderEach(field("rows"))),
+	"",
+);
 const expander = $if(
 	field("canOpen"),
 	button(
@@ -185,11 +191,7 @@ export const DevNode = component({
 					"",
 				),
 			),
-			$if(
-				field("showRows"),
-				div({ class: "ml-1.5 border-l border-base-300 pl-3" }, renderEach(field("rows"))),
-				"",
-			),
+			rowsView,
 		),
 		code: div(
 			{ class: "font-mono text-xs leading-5" },
@@ -202,11 +204,7 @@ export const DevNode = component({
 					each(field("tokens"), span({ class: lookupBind("tone") }, field("text")), "tokens"),
 				),
 			),
-			$if(
-				field("showRows"),
-				div({ class: "ml-1.5 border-l border-base-300 pl-3" }, renderEach(field("rows"))),
-				"",
-			),
+			rowsView,
 		),
 	},
 	on: {
@@ -410,7 +408,9 @@ export const makeDevPanel = (C) =>
 	});
 
 function sameRefs(nodes, values) {
-	return nodes.length === values.length && nodes.every((n, i) => n.ref === idOf(values[i].value));
+	return (
+		nodes.length === values.length && nodes.every((n, i) => n.ref === refIdOf(values[i].value))
+	);
 }
 
 export const devComponents = { DevNode, DevSection, DevLint, DevPanel };

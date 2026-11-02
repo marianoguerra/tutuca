@@ -51,6 +51,15 @@ export class ClassCompiler {
 		style.textContent = this.css;
 		this.scan(rootNode);
 	}
+	// Watches rootNode, and scans it again after each render of host (before its onNotify).
+	attach(host, rootNode, style) {
+		this.watch(rootNode, style);
+		const notify = host.onNotify;
+		host.onNotify = (type, info) => {
+			if (type === "render") this.scan(rootNode);
+			notify(type, info);
+		};
+	}
 	scan(rootNode) {
 		let added = false;
 		for (const el of rootNode.querySelectorAll("[class]")) {

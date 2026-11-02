@@ -1,10 +1,9 @@
 // The playground's side of a run: pick an example and a story, see it live in a <tutuca-app>
 // and look into it with the storybook's panels. The element runs the code and sends the
 // stories of each run here; a new run gives the app a new key, so it mounts again.
-import { makeDevPanel } from "../../dev/panel.js";
 import { showArgs } from "../../history/bar.js";
 import { tabButton } from "../../storybook/ui/common.js";
-import { applyAppReport, resetPanels } from "../../storybook/ui/panels.js";
+import { applyAppReport, makePanels, panelFields, resetPanels } from "../../storybook/ui/panels.js";
 import {
 	$if,
 	component,
@@ -45,9 +44,7 @@ export const Playground = component({
 		error: t.string(),
 		tab: t.enum(...TABS),
 		issueCount: t.number().int().min(0),
-		story: t.component("StoryPanel"),
-		stress: t.component("StressPanel"),
-		dev: t.component("DevPanel"),
+		...panelFields,
 		travel: t.component("TimeTravel"), // Under the preview, over the story's timeline.
 	},
 	queries: {
@@ -264,16 +261,14 @@ export const Playground = component({
 const showStory = (self, next, id) => {
 	next.selectedId = id;
 	next.issueCount = 0;
-	resetPanels(self, next, `r${next.run}/${id}@${self.seed}`);
+	resetPanels(self, next);
 	next.travel = scopeOf(self).components.TimeTravel();
 };
 
 export const makePlayground = (C) =>
 	C.Playground({
 		status: "loading",
-		story: C.StoryPanel({}),
-		stress: C.StressPanel({}),
-		dev: makeDevPanel(C),
+		...makePanels(C),
 		travel: C.TimeTravel(),
 	});
 
