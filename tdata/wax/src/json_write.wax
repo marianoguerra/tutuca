@@ -1,0 +1,301 @@
+// The JSON encoding (docs/spec.md §2), canonical text: no whitespace, maps in insertion order.
+
+fn json_string(t: &text_builder, s: js_string) {
+    if str_well_formed(s) == 0 {
+        fail(e_surrogate);
+    }
+    text_unit(t, UNIT_QUOTE);
+    let n = js_string_length(s);
+    let i = 0;
+    while i <s n {
+        let c = js_string_char_code_at(s, i);
+        let named = 0;
+        if c == UNIT_QUOTE {
+            named = UNIT_QUOTE;
+        }
+        if c == UNIT_BACKSLASH {
+            named = UNIT_BACKSLASH;
+        }
+        if c == 8 {
+            named = 'b';
+        }
+        if c == 9 {
+            named = 't';
+        }
+        if c == 10 {
+            named = 'n';
+        }
+        if c == 12 {
+            named = 'f';
+        }
+        if c == 13 {
+            named = 'r';
+        }
+        if named != 0 {
+            text_unit(t, UNIT_BACKSLASH);
+            text_unit(t, named);
+        } else {
+            if c <s 0x20 {
+                text_unit(t, UNIT_BACKSLASH);
+                text_unit(t, 'u');
+                text_unit(t, '0');
+                text_unit(t, '0');
+                text_unit(t, hex_digit(c >>u 4));
+                text_unit(t, hex_digit(c & 15));
+            } else {
+                text_unit(t, c);
+            }
+        }
+        i += 1;
+    }
+    text_unit(t, UNIT_QUOTE);
+}
+
+fn hex_digit(d: i32) -> i32 {
+    if d <s 10 {
+        return '0' + d;
+    }
+    'a' + d - 10;
+}
+
+// `["tag",` for a tagged form.
+fn json_tag_open(t: &text_builder, name: js_string) {
+    text_unit(t, '[');
+    json_string(t, name);
+    text_unit(t, ',');
+}
+
+fn json_double(t: &text_builder, x: f64) {
+    if x != x {
+        json_tag_open(t, s_num);
+        json_string(t, s_nan);
+        text_unit(t, ']');
+        return;
+    }
+    if x == inf {
+        json_tag_open(t, s_num);
+        json_string(t, s_infinity);
+        text_unit(t, ']');
+        return;
+    }
+    if x == -inf {
+        json_tag_open(t, s_num);
+        json_string(t, s_neg_infinity);
+        text_unit(t, ']');
+        return;
+    }
+    if (x == 0.0) & (x.to_bits() <s 0) {
+        json_tag_open(t, s_num);
+        json_string(t, s_neg_zero);
+        text_unit(t, ']');
+        return;
+    }
+    let s = host_double_to_text(x);
+    text_push(t, s);
+    let n = js_string_length(s);
+    let i = 0;
+    while i <s n {
+        let c = js_string_char_code_at(s, i);
+        if (c == '.') | (c == 'e') | (c == 'E') {
+            return;
+        }
+        i += 1;
+    }
+    text_unit(t, '.');
+    text_unit(t, '0');
+}
+
+fn json_list(t: &text_builder, l: &td_list) {
+    text_unit(t, '[');
+    let i = 0;
+    while i <s l.len {
+        if i >s 0 {
+            text_unit(t, ',');
+        }
+        json_value(t, list_at(l, i));
+        i += 1;
+    }
+    text_unit(t, ']');
+}
+
+fn json_object(t: &text_builder, m: &td_omap) {
+    text_unit(t, '{');
+    let i = 0;
+    while i <s m.len {
+        if i >s 0 {
+            text_unit(t, ',');
+        }
+        json_string(t, omap_key(m, i));
+        text_unit(t, ':');
+        json_value(t, omap_val(m, i));
+        i += 1;
+    }
+    text_unit(t, '}');
+}
+
+fn json_value(t: &text_builder, x: &td_value) {
+    let v = wire(x);
+    let k = v.kind;
+    if k == td_kind_null {
+        text_push(t, s_null);
+        return;
+    }
+    if k == td_kind_bool {
+        if (v as &td_bool).value {
+            text_push(t, s_true);
+        } else {
+            text_push(t, s_false);
+        }
+        return;
+    }
+    if k == td_kind_int {
+        text_i64(t, (v as &td_int).value);
+        return;
+    }
+    if k == td_kind_double {
+        json_double(t, (v as &td_double).value);
+        return;
+    }
+    if k == td_kind_string {
+        json_string(t, (v as &td_string).value);
+        return;
+    }
+    if k == td_kind_bytes {
+        json_tag_open(t, s_bytes);
+        text_unit(t, UNIT_QUOTE);
+        text_base64(t, (v as &td_bytes).value);
+        text_unit(t, UNIT_QUOTE);
+        text_unit(t, ']');
+        return;
+    }
+    if k == td_kind_instant {
+        json_tag_open(t, s_inst);
+        text_unit(t, UNIT_QUOTE);
+        text_i64(t, (v as &td_instant).ns);
+        text_unit(t, UNIT_QUOTE);
+        text_unit(t, ']');
+        return;
+    }
+    if k == td_kind_ref {
+        json_tag_open(t, s_ref);
+        json_string(t, (v as &td_ref).uri);
+        text_unit(t, ']');
+        return;
+    }
+    if k == td_kind_array {
+        text_unit(t, '[');
+        json_list(t, (v as &td_array).items);
+        text_unit(t, ']');
+        return;
+    }
+    if k == td_kind_object {
+        json_object(t, (v as &td_object).map);
+        return;
+    }
+    if k == td_kind_set {
+        json_tag_open(t, s_set);
+        text_unit(t, '[');
+        json_list(t, (v as &td_set).items);
+        text_unit(t, ']');
+        text_unit(t, ']');
+        return;
+    }
+    if k == td_kind_typed {
+        let ty = v as &td_typed;
+        if js_string_length(ty.type_id) == 0 {
+            fail(e_type_id);
+        }
+        json_tag_open(t, s_hash);
+        json_string(t, ty.type_id);
+        text_unit(t, ',');
+        json_value(t, ty.value);
+        text_unit(t, ']');
+        return;
+    }
+    if k == td_kind_node {
+        let n = v as &td_node;
+        json_tag_open(t, s_node);
+        json_string(t, n.name);
+        text_unit(t, ',');
+        json_object(t, n.attrs);
+        text_unit(t, ',');
+        text_unit(t, '[');
+        json_list(t, n.children);
+        text_unit(t, ']');
+        text_unit(t, ']');
+        return;
+    }
+    fail(e_native);
+}
+
+// `"key":`
+fn json_key(t: &text_builder, k: js_string) {
+    json_string(t, k);
+    text_unit(t, ':');
+}
+
+fn json_message(t: &text_builder, m: &td_message) {
+    text_unit(t, '{');
+    json_key(t, s_id);
+    json_string(t, m.id);
+    text_unit(t, ',');
+    json_key(t, s_kind);
+    json_string(t, m.kind);
+    text_unit(t, ',');
+    if m.children != null {
+        json_key(t, s_messages);
+        text_unit(t, '[');
+        let l = m.children!;
+        let i = 0;
+        while i <s l.len {
+            if i >s 0 {
+                text_unit(t, ',');
+            }
+            json_message(t, message_at(l, i));
+            i += 1;
+        }
+        text_unit(t, ']');
+    } else {
+        json_key(t, s_data);
+        json_value(t, m.value!);
+    }
+    if m.meta.len >s 0 {
+        text_unit(t, ',');
+        json_key(t, s_meta);
+        meta_check(m.meta);
+        json_object(t, m.meta);
+    }
+    text_unit(t, '}');
+}
+
+// Every dialect's headers are an Object of Scalars.
+fn meta_check(meta: &td_omap) {
+    let i = 0;
+    while i <s meta.len {
+        let headers = omap_val(meta, i);
+        if headers.kind != td_kind_object {
+            fail(e_header);
+        }
+        let h = (headers as &td_object).map;
+        let j = 0;
+        while j <s h.len {
+            if is_scalar(omap_val(h, j)) == 0 {
+                fail(e_header);
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+}
+
+fn json_encode_value(v: &td_value) -> js_string {
+    let t = text_new();
+    json_value(t, v);
+    text_finish(t);
+}
+
+fn json_encode_message(m: &td_message) -> js_string {
+    let t = text_new();
+    json_message(t, m);
+    text_finish(t);
+}

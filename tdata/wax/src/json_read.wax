@@ -1,0 +1,554 @@
+// The JSON decoding (docs/spec.md §2): a tokenizer that reads straight into values. A JSON
+// array is an escaped Array literal [[e…]] or a tagged form ["tag", args…]; anything else fails.
+
+type json_reader = { text: js_string, pos: mut i32, end: i32 };
+
+fn jr_new(text: js_string) -> &json_reader {
+    {json_reader| text, pos: 0, end: js_string_length(text) };
+}
+
+fn jr_ws(r: &json_reader) {
+    while r.pos <s r.end {
+        let c = js_string_char_code_at(r.text, r.pos);
+        if (c != 32) & (c != 9) & (c != 10) & (c != 13) {
+            return;
+        }
+        r.pos = r.pos + 1;
+    }
+}
+
+// The next non-space unit, or -1 at the end.
+fn jr_peek(r: &json_reader) -> i32 {
+    jr_ws(r);
+    if r.pos <s r.end {
+        return js_string_char_code_at(r.text, r.pos);
+    }
+    -1;
+}
+
+fn jr_expect(r: &json_reader, unit: i32) {
+    if jr_peek(r) != unit {
+        if r.pos >=s r.end {
+            fail(e_eof);
+        }
+        fail(e_char);
+    }
+    r.pos = r.pos + 1;
+}
+
+fn jr_eat(r: &json_reader, unit: i32) -> i32 {
+    if jr_peek(r) != unit {
+        return 0;
+    }
+    r.pos = r.pos + 1;
+    1;
+}
+
+fn jr_end(r: &json_reader) {
+    jr_ws(r);
+    if r.pos != r.end {
+        fail(e_trailing);
+    }
+}
+
+fn jr_word(r: &json_reader, w: js_string) {
+    let n = js_string_length(w);
+    if r.pos + n >s r.end {
+        fail(e_char);
+    }
+    let i = 0;
+    while i <s n {
+        if js_string_char_code_at(r.text, r.pos + i) != js_string_char_code_at(w, i) {
+            fail(e_char);
+        }
+        i += 1;
+    }
+    r.pos = r.pos + n;
+}
+
+fn is_digit(c: i32) -> i32 {
+    (c >=s '0') & (c <=s '9');
+}
+
+fn jr_unit(r: &json_reader) -> i32 {
+    if r.pos <s r.end {
+        return js_string_char_code_at(r.text, r.pos);
+    }
+    -1;
+}
+
+// Digits at pos, at least one.
+fn jr_digits(r: &json_reader) {
+    let start = r.pos;
+    while is_digit(jr_unit(r)) {
+        r.pos = r.pos + 1;
+    }
+    if r.pos == start {
+        fail(e_number);
+    }
+}
+
+// -?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?: an Int without fraction and exponent.
+fn jr_number(r: &json_reader) -> &td_value {
+    let start = r.pos;
+    let neg = 0;
+    if jr_unit(r) == '-' {
+        neg = 1;
+        r.pos = r.pos + 1;
+    }
+    if jr_unit(r) == '0' {
+        r.pos = r.pos + 1;
+    } else {
+        if is_digit(jr_unit(r)) == 0 {
+            fail(e_number);
+        }
+        jr_digits(r);
+    }
+    let int_end = r.pos;
+    let is_double = 0;
+    if jr_unit(r) == '.' {
+        r.pos = r.pos + 1;
+        jr_digits(r);
+        is_double = 1;
+    }
+    let e = jr_unit(r);
+    if (e == 'e') | (e == 'E') {
+        r.pos = r.pos + 1;
+        let sign = jr_unit(r);
+        if (sign == '+') | (sign == '-') {
+            r.pos = r.pos + 1;
+        }
+        jr_digits(r);
+        is_double = 1;
+    }
+    if is_double {
+        return td_double(host_text_to_double(js_string_substring(r.text, start, r.pos)));
+    }
+    td_int(parse_i64(r.text, start + neg, int_end, neg));
+}
+
+// The decimal digits text[start..end) as an i64, negated when neg; fails outside i64.
+fn parse_i64(text: js_string, start: i32, end: i32, neg: i32) -> i64 {
+    // Accumulate negatively: i64's minimum has no positive counterpart.
+    let min: i64 = 0x8000000000000000;
+    let acc: i64 = 0;
+    let i = start;
+    while i <s end {
+        let d = (js_string_char_code_at(text, i) - '0') as i64_u;
+        if acc <s min /s 10 {
+            fail(e_int_range);
+        }
+        acc = acc * 10;
+        if acc <s min + d {
+            fail(e_int_range);
+        }
+        acc = acc - d;
+        i += 1;
+    }
+    if neg {
+        return acc;
+    }
+    if acc == min {
+        fail(e_int_range);
+    }
+    0 - acc;
+}
+
+fn hex_value(c: i32) -> i32 {
+    if is_digit(c) {
+        return c - '0';
+    }
+    if (c >=s 'a') & (c <=s 'f') {
+        return c - 'a' + 10;
+    }
+    if (c >=s 'A') & (c <=s 'F') {
+        return c - 'A' + 10;
+    }
+    -1;
+}
+
+fn jr_string(r: &json_reader) -> js_string {
+    if jr_peek(r) != UNIT_QUOTE {
+        fail(e_char);
+    }
+    r.pos = r.pos + 1;
+    let t = text_new();
+    while 1 {
+        if r.pos >=s r.end {
+            fail(e_unterminated);
+        }
+        let c = js_string_char_code_at(r.text, r.pos);
+        r.pos = r.pos + 1;
+        if c == UNIT_QUOTE {
+            let s = text_finish(t);
+            if str_well_formed(s) == 0 {
+                fail(e_surrogate);
+            }
+            return s;
+        }
+        if c <s 0x20 {
+            fail(e_control);
+        }
+        if c == UNIT_BACKSLASH {
+            if r.pos >=s r.end {
+                fail(e_unterminated);
+            }
+            let e = js_string_char_code_at(r.text, r.pos);
+            r.pos = r.pos + 1;
+            let out = -1;
+            if (e == UNIT_QUOTE) | (e == UNIT_BACKSLASH) | (e == '/') {
+                out = e;
+            }
+            if e == 'b' {
+                out = 8;
+            }
+            if e == 'f' {
+                out = 12;
+            }
+            if e == 'n' {
+                out = 10;
+            }
+            if e == 'r' {
+                out = 13;
+            }
+            if e == 't' {
+                out = 9;
+            }
+            if e == 'u' {
+                if r.pos + 4 >s r.end {
+                    fail(e_escape);
+                }
+                out = 0;
+                let i = 0;
+                while i <s 4 {
+                    let h = hex_value(js_string_char_code_at(r.text, r.pos + i));
+                    if h <s 0 {
+                        fail(e_escape);
+                    }
+                    out = out << 4 | h;
+                    i += 1;
+                }
+                r.pos = r.pos + 4;
+            }
+            if out <s 0 {
+                fail(e_escape);
+            }
+            text_unit(t, out);
+        } else {
+            text_unit(t, c);
+        }
+    }
+    unreachable;
+}
+
+// The elements of an encoded Array, `[e…]`.
+fn jr_elements(r: &json_reader) -> &td_list {
+    jr_expect(r, '[');
+    let l = list_new();
+    if jr_eat(r, ']') {
+        return l;
+    }
+    list_push(l, jr_value(r));
+    while jr_eat(r, ',') {
+        list_push(l, jr_value(r));
+    }
+    jr_expect(r, ']');
+    l;
+}
+
+fn jr_object(r: &json_reader) -> &td_omap {
+    jr_expect(r, '{');
+    let m = omap_new();
+    if jr_eat(r, '}') {
+        return m;
+    }
+    while 1 {
+        let k = jr_string(r);
+        if omap_find(m, k) >=s 0 {
+            fail(e_duplicate);
+        }
+        jr_expect(r, ':');
+        omap_push(m, k, jr_value(r));
+        if jr_eat(r, ',') == 0 {
+            jr_expect(r, '}');
+            return m;
+        }
+    }
+    unreachable;
+}
+
+fn jr_value(r: &json_reader) -> &td_value {
+    let c = jr_peek(r);
+    if c == '{' {
+        return td_object(jr_object(r));
+    }
+    if c == '[' {
+        return jr_array_form(r);
+    }
+    if c == UNIT_QUOTE {
+        return td_string(jr_string(r));
+    }
+    if c == 't' {
+        jr_word(r, s_true);
+        return td_bool(1);
+    }
+    if c == 'f' {
+        jr_word(r, s_false);
+        return td_bool(0);
+    }
+    if c == 'n' {
+        jr_word(r, s_null);
+        return td_null();
+    }
+    if (c == '-') | is_digit(c) {
+        return jr_number(r);
+    }
+    if c <s 0 {
+        fail(e_eof);
+    }
+    fail(e_char);
+    unreachable;
+}
+
+// `,"…"`: a string argument.
+fn jr_string_arg(r: &json_reader) -> js_string {
+    if jr_eat(r, ',') == 0 {
+        fail(e_tag_args);
+    }
+    if jr_peek(r) != UNIT_QUOTE {
+        fail(e_tag_args);
+    }
+    jr_string(r);
+}
+
+// `,[[…]]`: an encoded Array argument.
+fn jr_list_arg(r: &json_reader) -> &td_list {
+    if jr_eat(r, ',') == 0 {
+        fail(e_tag_args);
+    }
+    jr_expect(r, '[');
+    if jr_peek(r) != '[' {
+        fail(e_tag_args);
+    }
+    let l = jr_elements(r);
+    jr_expect(r, ']');
+    l;
+}
+
+fn jr_array_form(r: &json_reader) -> &td_value {
+    jr_expect(r, '[');
+    let c = jr_peek(r);
+    if c == '[' {
+        let l = jr_elements(r);
+        jr_expect(r, ']');
+        return td_array(l);
+    }
+    if c != UNIT_QUOTE {
+        fail(e_array_form);
+    }
+    let name = jr_string(r);
+    let v = jr_tagged(r, name);
+    if jr_peek(r) != ']' {
+        fail(e_tag_args);
+    }
+    r.pos = r.pos + 1;
+    v;
+}
+
+fn jr_tagged(r: &json_reader, name: js_string) -> &td_value {
+    if js_string_equals(name, s_num) {
+        let s = jr_string_arg(r);
+        if js_string_equals(s, s_nan) {
+            return td_double(nan);
+        }
+        if js_string_equals(s, s_infinity) {
+            return td_double(inf);
+        }
+        if js_string_equals(s, s_neg_infinity) {
+            return td_double(-inf);
+        }
+        if js_string_equals(s, s_neg_zero) {
+            return td_double(-0.0);
+        }
+        fail(e_tag_args);
+    }
+    if js_string_equals(name, s_bytes) {
+        return td_bytes(base64_decode(jr_string_arg(r)));
+    }
+    if js_string_equals(name, s_inst) {
+        return td_instant(parse_decimal_i64(jr_string_arg(r)));
+    }
+    if js_string_equals(name, s_ref) {
+        return td_ref(jr_string_arg(r));
+    }
+    if js_string_equals(name, s_set) {
+        let l = jr_list_arg(r);
+        if list_has_duplicates(l) {
+            fail(e_set_dup);
+        }
+        return td_set(l);
+    }
+    if js_string_equals(name, s_hash) {
+        let type_id = jr_string_arg(r);
+        if js_string_length(type_id) == 0 {
+            fail(e_type_id);
+        }
+        if jr_eat(r, ',') == 0 {
+            fail(e_tag_args);
+        }
+        return decode_typed(type_id, jr_value(r));
+    }
+    if js_string_equals(name, s_node) {
+        let n = jr_string_arg(r);
+        if jr_eat(r, ',') == 0 {
+            fail(e_tag_args);
+        }
+        if jr_peek(r) != '{' {
+            fail(e_tag_args);
+        }
+        let attrs = jr_object(r);
+        return td_node(n, attrs, jr_list_arg(r));
+    }
+    fail(e_unknown_tag);
+    unreachable;
+}
+
+// -?(0|[1-9][0-9]*) within i64, the whole string: an Instant's text.
+fn parse_decimal_i64(s: js_string) -> i64 {
+    let n = js_string_length(s);
+    let neg = 0;
+    if n >s 0 {
+        if js_string_char_code_at(s, 0) == '-' {
+            neg = 1;
+        }
+    }
+    if n == neg {
+        fail(e_instant);
+    }
+    let i = neg;
+    while i <s n {
+        if is_digit(js_string_char_code_at(s, i)) == 0 {
+            fail(e_instant);
+        }
+        i += 1;
+    }
+    if (js_string_char_code_at(s, neg) == '0') & (n - neg >s 1) {
+        fail(e_instant);
+    }
+    parse_i64(s, neg, n, neg);
+}
+
+fn jr_message(r: &json_reader) -> &td_message {
+    jr_expect(r, '{');
+    let id = s_empty;
+    let has_id = 0;
+    let kind = s_empty;
+    let has_kind = 0;
+    let value: &?td_value = null;
+    let children: &?td_message_list = null;
+    let meta: &?td_omap = null;
+    'fields: do {
+        if jr_eat(r, '}') {
+            br 'fields;
+        }
+        while 1 {
+            let k = jr_string(r);
+            jr_expect(r, ':');
+            let known = 0;
+            if js_string_equals(k, s_id) {
+                if has_id {
+                    fail(e_duplicate);
+                }
+                if jr_peek(r) != UNIT_QUOTE {
+                    fail(e_message);
+                }
+                id = jr_string(r);
+                has_id = 1;
+                known = 1;
+            }
+            if js_string_equals(k, s_kind) {
+                if has_kind {
+                    fail(e_duplicate);
+                }
+                if jr_peek(r) != UNIT_QUOTE {
+                    fail(e_message);
+                }
+                kind = jr_string(r);
+                has_kind = 1;
+                known = 1;
+            }
+            if js_string_equals(k, s_data) {
+                if value != null {
+                    fail(e_duplicate);
+                }
+                value = jr_value(r);
+                known = 1;
+            }
+            if js_string_equals(k, s_messages) {
+                if children != null {
+                    fail(e_duplicate);
+                }
+                let l = message_list_new();
+                jr_expect(r, '[');
+                if jr_eat(r, ']') == 0 {
+                    message_list_push(l, jr_message(r));
+                    while jr_eat(r, ',') {
+                        message_list_push(l, jr_message(r));
+                    }
+                    jr_expect(r, ']');
+                }
+                children = l;
+                known = 1;
+            }
+            if js_string_equals(k, s_meta) {
+                if meta != null {
+                    fail(e_duplicate);
+                }
+                meta = jr_meta(r);
+                known = 1;
+            }
+            if known == 0 {
+                fail(e_message);
+            }
+            if jr_eat(r, ',') == 0 {
+                jr_expect(r, '}');
+                br 'fields;
+            }
+        }
+    }
+    message_make(has_id & has_kind, id, kind, value, children, meta);
+}
+
+// `{uri: {header: scalar}}`
+fn jr_meta(r: &json_reader) -> &td_omap {
+    if jr_peek(r) != '{' {
+        fail(e_message);
+    }
+    let m = jr_object(r);
+    meta_check(m);
+    m;
+}
+
+// A decoded message, after checking it has an id, a kind, and exactly one payload.
+fn message_make(
+    has_id_and_kind: i32,
+    id: js_string,
+    kind: js_string,
+    value: &?td_value,
+    children: &?td_message_list,
+    meta: &?td_omap,
+) -> &td_message {
+    if has_id_and_kind == 0 {
+        fail(e_message);
+    }
+    if (value == null) == (children == null) {
+        fail(e_message);
+    }
+    let m =
+        if meta == null {
+            omap_new();
+        } else {
+            meta!;
+        };
+    {td_message| id, kind, value, children, meta: m };
+}

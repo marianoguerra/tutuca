@@ -1,0 +1,23 @@
+// tq for the js target: the ffi functions, exported.
+import {
+  "marianoguerra/tdata/ffi",
+}
+
+supported_targets = "js"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "js": {
+      "exports": [
+        "tq_parse",
+        "tq_match",
+        "tq_match_all",
+        "tq_run",
+        "tq_canon",
+      ],
+      "format": "esm",
+    },
+  },
+)

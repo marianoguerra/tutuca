@@ -1,0 +1,44 @@
+// What tdata's Wax sources share: the js-string builtins, the host's number text, the string
+// constants, and the failure tag. Wax has no source imports, so scripts/build.mjs concatenates
+// the sources in order, this one first.
+
+// A JS string, and an optional one. The builtins take nullable externrefs.
+type js_string = &extern;
+type js_string_opt = &?extern;
+type u16_array = [mut i16];
+type js_strings = [mut js_string_opt];
+
+import "wasm:js-string" {
+    #[import = "equals"]
+    fn js_string_equals(a: js_string_opt, b: js_string_opt) -> i32;
+    #[import = "length"]
+    fn js_string_length(s: js_string_opt) -> i32;
+    #[import = "charCodeAt"]
+    fn js_string_char_code_at(s: js_string_opt, i: i32) -> i32;
+    #[import = "concat"]
+    fn js_string_concat(a: js_string_opt, b: js_string_opt) -> js_string;
+    #[import = "substring"]
+    fn js_string_substring(s: js_string_opt, start: i32, end: i32) -> js_string;
+    #[import = "fromCharCodeArray"]
+    fn js_string_from_char_code_array(units: &?u16_array, start: i32, end: i32) -> js_string;
+}
+
+// Double ↔ shortest round-trip text, as ECMAScript's Number::toString and Number() do: the
+// one piece of the JSON encoding left to the host in v1.
+import "tdata" {
+    #[import = "doubleToText"]
+    fn host_double_to_text(x: f64) -> js_string;
+    #[import = "textToDouble"]
+    fn host_text_to_double(s: js_string) -> f64;
+}
+
+// Decoding and encoding fail by throwing td_fail; the reason is kept in last_error, and
+// api.wax catches the failure at the boundary.
+tag td_fail();
+
+let last_error: js_string_opt = null;
+
+fn fail(reason: js_string) {
+    last_error = reason;
+    throw td_fail();
+}

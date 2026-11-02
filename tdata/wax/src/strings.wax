@@ -1,0 +1,242 @@
+// String constants: each global is the JS string its import name spells (imported string
+// constants, module "'").
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    // JSON tags and words.
+    #[import = "true"]
+    const s_true: js_string;
+    #[import = "false"]
+    const s_false: js_string;
+    #[import = "num"]
+    const s_num: js_string;
+    #[import = "bytes"]
+    const s_bytes: js_string;
+    #[import = "inst"]
+    const s_inst: js_string;
+    #[import = "ref"]
+    const s_ref: js_string;
+    #[import = "set"]
+    const s_set: js_string;
+    #[import = "#"]
+    const s_hash: js_string;
+    #[import = "node"]
+    const s_node: js_string;
+    #[import = "NaN"]
+    const s_nan: js_string;
+    #[import = "Infinity"]
+    const s_infinity: js_string;
+    #[import = "-Infinity"]
+    const s_neg_infinity: js_string;
+    #[import = "-0"]
+    const s_neg_zero: js_string;
+    // Message keys.
+    #[import = "id"]
+    const s_id: js_string;
+    #[import = "kind"]
+    const s_kind: js_string;
+    #[import = "data"]
+    const s_data: js_string;
+    #[import = "messages"]
+    const s_messages: js_string;
+    #[import = "meta"]
+    const s_meta: js_string;
+    // Specs: the prefix, form names, argument names.
+    #[import = "tdata.spec/"]
+    const s_spec_prefix: js_string;
+    #[import = "any"]
+    const s_any: js_string;
+    #[import = "null"]
+    const s_null: js_string;
+    #[import = "bool"]
+    const s_bool: js_string;
+    #[import = "int"]
+    const s_int: js_string;
+    #[import = "double"]
+    const s_double: js_string;
+    #[import = "number"]
+    const s_number: js_string;
+    #[import = "string"]
+    const s_string: js_string;
+    #[import = "instant"]
+    const s_instant: js_string;
+    #[import = "keys"]
+    const s_keys: js_string;
+    #[import = "map_of"]
+    const s_map_of: js_string;
+    #[import = "array"]
+    const s_array: js_string;
+    #[import = "tuple"]
+    const s_tuple: js_string;
+    #[import = "const"]
+    const s_const: js_string;
+    #[import = "enum"]
+    const s_enum: js_string;
+    #[import = "typed"]
+    const s_typed: js_string;
+    #[import = "message"]
+    const s_message: js_string;
+    #[import = "and"]
+    const s_and: js_string;
+    #[import = "or"]
+    const s_or: js_string;
+    #[import = "maybe"]
+    const s_maybe: js_string;
+    #[import = "not"]
+    const s_not: js_string;
+    #[import = "req"]
+    const s_req: js_string;
+    #[import = "opt"]
+    const s_opt: js_string;
+    #[import = "values"]
+    const s_values: js_string;
+    #[import = "of"]
+    const s_of: js_string;
+    #[import = "min"]
+    const s_min: js_string;
+    #[import = "max"]
+    const s_max: js_string;
+    #[import = "items"]
+    const s_items: js_string;
+    #[import = "min_len"]
+    const s_min_len: js_string;
+    #[import = "max_len"]
+    const s_max_len: js_string;
+    #[import = "prefix"]
+    const s_prefix: js_string;
+    #[import = "value"]
+    const s_value: js_string;
+    #[import = "type_id"]
+    const s_type_id: js_string;
+    #[import = "tag"]
+    const s_tag: js_string;
+    #[import = "attrs"]
+    const s_attrs: js_string;
+    #[import = "children"]
+    const s_children: js_string;
+    #[import = "every"]
+    const s_every: js_string;
+    #[import = "some"]
+    const s_some: js_string;
+    #[import = "alts"]
+    const s_alts: js_string;
+    // Check results.
+    #[import = "ok"]
+    const s_ok: js_string;
+    #[import = "picks"]
+    const s_picks: js_string;
+    #[import = "problems"]
+    const s_problems: js_string;
+    #[import = "path"]
+    const s_path: js_string;
+    #[import = "alt"]
+    const s_alt: js_string;
+    #[import = "reason"]
+    const s_reason: js_string;
+    // The demo codec (api.wax).
+    #[import = "app/point"]
+    const s_app_point: js_string;
+    #[import = "x"]
+    const s_x: js_string;
+    #[import = "y"]
+    const s_y: js_string;
+    // Decoding failures.
+    #[import = "unexpected end of input"]
+    const e_eof: js_string;
+    #[import = "unexpected character"]
+    const e_char: js_string;
+    #[import = "unexpected text after the value"]
+    const e_trailing: js_string;
+    #[import = "malformed number"]
+    const e_number: js_string;
+    #[import = "an integer outside the Int range (i64)"]
+    const e_int_range: js_string;
+    #[import = "unterminated string"]
+    const e_unterminated: js_string;
+    #[import = "a control character in a string"]
+    const e_control: js_string;
+    #[import = "a malformed escape"]
+    const e_escape: js_string;
+    #[import = "a lone surrogate in a string"]
+    const e_surrogate: js_string;
+    #[import = "a duplicate key"]
+    const e_duplicate: js_string;
+    #[import = "an array must be an escaped Array [[…]] or a tagged form [\"tag\", …]"]
+    const e_array_form: js_string;
+    #[import = "an unknown tag"]
+    const e_unknown_tag: js_string;
+    #[import = "a tagged form with the wrong arguments"]
+    const e_tag_args: js_string;
+    #[import = "malformed base64"]
+    const e_base64: js_string;
+    #[import = "a malformed Instant"]
+    const e_instant: js_string;
+    #[import = "a Set with two equal elements"]
+    const e_set_dup: js_string;
+    #[import = "an empty type_id"]
+    const e_type_id: js_string;
+    #[import = "a malformed message"]
+    const e_message: js_string;
+    #[import = "a header value is not a Scalar"]
+    const e_header: js_string;
+    #[import = "an indefinite length"]
+    const e_indefinite: js_string;
+    #[import = "a reserved additional-information value"]
+    const e_reserved: js_string;
+    #[import = "a length past the end of the input"]
+    const e_length: js_string;
+    #[import = "invalid UTF-8"]
+    const e_utf8: js_string;
+    #[import = "an unsupported simple value"]
+    const e_simple: js_string;
+    #[import = "an unexpected item"]
+    const e_item: js_string;
+    #[import = "a value no codec encodes"]
+    const e_native: js_string;
+    // Spec problems.
+    #[import = "unknown spec"]
+    const p_unknown_spec: js_string;
+    #[import = "not a spec"]
+    const p_not_spec: js_string;
+    #[import = "unknown spec form"]
+    const p_unknown_form: js_string;
+    #[import = "a malformed spec argument"]
+    const p_bad_arg: js_string;
+    #[import = "the value has the wrong kind"]
+    const p_kind: js_string;
+    #[import = "below the minimum"]
+    const p_below: js_string;
+    #[import = "above the maximum"]
+    const p_above: js_string;
+    #[import = "missing key"]
+    const p_missing_key: js_string;
+    #[import = "not the expected constant"]
+    const p_const: js_string;
+    #[import = "not one of the allowed values"]
+    const p_enum: js_string;
+    #[import = "the uri doesn't have the prefix"]
+    const p_prefix: js_string;
+    #[import = "another type"]
+    const p_type: js_string;
+    #[import = "another node tag"]
+    const p_tag: js_string;
+    #[import = "too few elements for the tuple"]
+    const p_tuple: js_string;
+    #[import = "expected data, the message has messages"]
+    const p_want_data: js_string;
+    #[import = "expected messages, the message has data"]
+    const p_want_messages: js_string;
+    #[import = "missing dialect"]
+    const p_dialect: js_string;
+    #[import = "no message matched \"some\""]
+    const p_some: js_string;
+    #[import = "no alt matched"]
+    const p_no_alt: js_string;
+    #[import = "matched a spec it must not match"]
+    const p_not: js_string;
+    #[import = "the spec nests too deeply (a spec that refers to itself?)"]
+    const p_depth: js_string;
+    #[import = "a message's \"messages\" takes a \"messages\" spec"]
+    const p_messages_spec: js_string;
+}

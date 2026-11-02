@@ -1,0 +1,65 @@
+// Codecs (docs/spec.md §1.3): a registry of type_id → codec. Decoding a Typed whose type_id has
+// no codec, or that the codec rejects, keeps the Typed. Equality, specs and the encoders see a
+// native through its wire view, Typed(type_id, encode(payload)).
+
+type td_codec_array = [mut &?td_codec];
+
+let codecs: &td_codec_array = [td_codec_array|null; 8];
+let codec_count: i32 = 0;
+
+fn codecs_register(c: &td_codec) {
+    let i = 0;
+    while i <s codec_count {
+        if js_string_equals((codecs[i]!).type_id, c.type_id) {
+            codecs[i] = c;
+            return;
+        }
+        i += 1;
+    }
+    if codec_count == codecs.length() {
+        let bigger = [td_codec_array|null; codec_count * 2];
+        bigger.copy(0, codecs, 0, codec_count);
+        codecs = bigger;
+    }
+    codecs[codec_count] = c;
+    codec_count = codec_count + 1;
+}
+
+fn codecs_clear() {
+    codec_count = 0;
+}
+
+fn codecs_get(type_id: js_string) -> &?td_codec {
+    let i = 0;
+    while i <s codec_count {
+        let c = codecs[i]!;
+        if js_string_equals(c.type_id, type_id) {
+            return c;
+        }
+        i += 1;
+    }
+    null;
+}
+
+// A decoded Typed as a native, or the Typed itself.
+fn decode_typed(type_id: js_string, v: &td_value) -> &td_value {
+    let c = codecs_get(type_id);
+    if c == null {
+        return td_typed(type_id, v);
+    }
+    let codec = c!;
+    let payload = codec.decode(v);
+    if payload == null {
+        return td_typed(type_id, v);
+    }
+    td_native(codec, payload!);
+}
+
+// v itself, or a native's wire view.
+fn wire(v: &td_value) -> &td_value {
+    if v.kind != td_kind_native {
+        return v;
+    }
+    let n = v as &td_native;
+    td_typed(n.codec.type_id, n.codec.encode(n.payload));
+}

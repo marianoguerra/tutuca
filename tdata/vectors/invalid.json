@@ -1,0 +1,241 @@
+[
+	{
+		"name": "plain JSON array",
+		"json": "[1,2]"
+	},
+	{
+		"name": "bare empty array",
+		"json": "[]"
+	},
+	{
+		"name": "array literal with two elements",
+		"json": "[[1],[2]]"
+	},
+	{
+		"name": "unknown tag",
+		"json": "[\"date\",1]"
+	},
+	{
+		"name": "reserved bigint tag",
+		"json": "[\"bigint\",\"1\"]"
+	},
+	{
+		"name": "tag without arguments",
+		"json": "[\"ref\"]"
+	},
+	{
+		"name": "tag with too many arguments",
+		"json": "[\"ref\",\"a\",\"b\"]"
+	},
+	{
+		"name": "num with a bad word",
+		"json": "[\"num\",\"nan\"]"
+	},
+	{
+		"name": "num with a number",
+		"json": "[\"num\",1]"
+	},
+	{
+		"name": "unpadded base64",
+		"json": "[\"bytes\",\"AQ\"]"
+	},
+	{
+		"name": "base64 with whitespace",
+		"json": "[\"bytes\",\"AQ ==\"]"
+	},
+	{
+		"name": "instant with a fraction",
+		"json": "[\"inst\",\"1.5\"]"
+	},
+	{
+		"name": "instant with a leading zero",
+		"json": "[\"inst\",\"01\"]"
+	},
+	{
+		"name": "instant out of range",
+		"json": "[\"inst\",\"9223372036854775808\"]"
+	},
+	{
+		"name": "set not escaped",
+		"json": "[\"set\",[1,2]]"
+	},
+	{
+		"name": "set with duplicates",
+		"json": "[\"set\",[[1,1]]]"
+	},
+	{
+		"name": "set with equal objects",
+		"json": "[\"set\",[[{\"a\":1,\"b\":2},{\"b\":2,\"a\":1}]]]"
+	},
+	{
+		"name": "typed with an empty type_id",
+		"json": "[\"#\",\"\",1]"
+	},
+	{
+		"name": "typed with one argument",
+		"json": "[\"#\",\"x/y\"]"
+	},
+	{
+		"name": "node with array attributes",
+		"json": "[\"node\",\"p\",[[]],[[]]]"
+	},
+	{
+		"name": "node with unescaped children",
+		"json": "[\"node\",\"p\",{},[]]"
+	},
+	{
+		"name": "int out of range",
+		"json": "9223372036854775808"
+	},
+	{
+		"name": "int below range",
+		"json": "-9223372036854775809"
+	},
+	{
+		"name": "leading zero",
+		"json": "01"
+	},
+	{
+		"name": "duplicate key",
+		"json": "{\"a\":1,\"a\":2}"
+	},
+	{
+		"name": "lone surrogate escape",
+		"json": "\"\\ud800\""
+	},
+	{
+		"name": "reversed surrogates",
+		"json": "\"\\udc00\\ud800\""
+	},
+	{
+		"name": "raw control character",
+		"json": "\"a\u0001b\""
+	},
+	{
+		"name": "trailing text",
+		"json": "1 2"
+	},
+	{
+		"name": "trailing comma",
+		"json": "{\"a\":1,}"
+	},
+	{
+		"name": "message without id",
+		"message": true,
+		"json": "{\"kind\":\"k\",\"data\":1}"
+	},
+	{
+		"name": "message with data and messages",
+		"message": true,
+		"json": "{\"id\":\"a\",\"kind\":\"k\",\"data\":1,\"messages\":[]}"
+	},
+	{
+		"name": "message with neither",
+		"message": true,
+		"json": "{\"id\":\"a\",\"kind\":\"k\"}"
+	},
+	{
+		"name": "message with an unknown key",
+		"message": true,
+		"json": "{\"id\":\"a\",\"kind\":\"k\",\"data\":1,\"extra\":2}"
+	},
+	{
+		"name": "message with a non-scalar header",
+		"message": true,
+		"json": "{\"id\":\"a\",\"kind\":\"k\",\"data\":1,\"meta\":{\"urn:d\":{\"h\":[[1]]}}}"
+	},
+	{
+		"name": "message with escaped messages",
+		"message": true,
+		"json": "{\"id\":\"a\",\"kind\":\"k\",\"messages\":[[]]}"
+	},
+	{
+		"name": "cbor undefined",
+		"cbor": "f7"
+	},
+	{
+		"name": "cbor simple value 16",
+		"cbor": "f0"
+	},
+	{
+		"name": "cbor indefinite array",
+		"cbor": "9f01ff"
+	},
+	{
+		"name": "cbor indefinite string",
+		"cbor": "7f6161ff"
+	},
+	{
+		"name": "cbor reserved info 28",
+		"cbor": "1c"
+	},
+	{
+		"name": "cbor unknown tag",
+		"cbor": "c11a514b67b0"
+	},
+	{
+		"name": "cbor bignum tag",
+		"cbor": "c249010000000000000000"
+	},
+	{
+		"name": "cbor uint past i64",
+		"cbor": "1b8000000000000000"
+	},
+	{
+		"name": "cbor nint past i64",
+		"cbor": "3b8000000000000000"
+	},
+	{
+		"name": "cbor integer map key",
+		"cbor": "a10102"
+	},
+	{
+		"name": "cbor duplicate key",
+		"cbor": "a2616101616102"
+	},
+	{
+		"name": "cbor invalid utf-8",
+		"cbor": "62c328"
+	},
+	{
+		"name": "cbor encoded surrogate",
+		"cbor": "63eda080"
+	},
+	{
+		"name": "cbor utf-8 sequence cut by the string's end",
+		"cbor": "62e282ac"
+	},
+	{
+		"name": "cbor overlong utf-8",
+		"cbor": "62c0af"
+	},
+	{
+		"name": "cbor trailing bytes",
+		"cbor": "0101"
+	},
+	{
+		"name": "cbor truncated",
+		"cbor": "1903"
+	},
+	{
+		"name": "cbor length past the end",
+		"cbor": "9a7fffffff"
+	},
+	{
+		"name": "cbor set with duplicates",
+		"cbor": "d90102820101"
+	},
+	{
+		"name": "cbor typed wrong arity",
+		"cbor": "d81b8163782f79"
+	},
+	{
+		"name": "cbor instant as float",
+		"cbor": "d99345f93c00"
+	},
+	{
+		"name": "cbor message with an unknown key",
+		"message": true,
+		"cbor": "a46269646161646b696e64616b646461746101617801"
+	}
+]

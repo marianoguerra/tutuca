@@ -1,0 +1,410 @@
+// The CBOR decoding (docs/spec.md §3.3): rejects indefinite lengths, simple values other than
+// false/true/null, integers outside i64, unknown tags, non-text keys, duplicate keys, invalid
+// UTF-8 and trailing bytes; accepts a leading self-describe tag.
+
+type cbor_reader = {
+    buf: &bytes,
+    pos: mut i32,
+    end: i32,
+    major: mut i32,
+    info: mut i32,
+    arg: mut i64
+};
+
+fn cr_new(buf: &bytes) -> &cbor_reader {
+    let r = {cbor_reader| buf, pos: 0, end: buf.length(), major: 0, info: 0, arg: 0 };
+    // The self-describe tag 55799, d9 d9 f7.
+    if r.end >=s 3 {
+        if (buf[0] as i32_u == 0xd9) & (buf[1] as i32_u == 0xd9) & (buf[2] as i32_u == 0xf7) {
+            r.pos = 3;
+        }
+    }
+    r;
+}
+
+fn cr_need(r: &cbor_reader, n: i32) {
+    if n >s r.end - r.pos {
+        fail(e_eof);
+    }
+}
+
+fn cr_end(r: &cbor_reader) {
+    if r.pos != r.end {
+        fail(e_trailing);
+    }
+}
+
+fn cr_be(r: &cbor_reader, n: i32) -> i64 {
+    cr_need(r, n);
+    let x: i64 = 0;
+    let i = 0;
+    while i <s n {
+        x = x << 8 | r.buf[r.pos + i] as i64_u;
+        i += 1;
+    }
+    r.pos = r.pos + n;
+    x;
+}
+
+// Reads a head into r.major, r.info and r.arg.
+fn cr_head(r: &cbor_reader) {
+    cr_need(r, 1);
+    let ib = r.buf[r.pos] as i32_u;
+    r.pos = r.pos + 1;
+    r.major = ib >>u 5;
+    let info = ib & 0x1f;
+    r.info = info;
+    if info <s 24 {
+        r.arg = info as i64_u;
+        return;
+    }
+    if info == 24 {
+        r.arg = cr_be(r, 1);
+        return;
+    }
+    if info == 25 {
+        r.arg = cr_be(r, 2);
+        return;
+    }
+    if info == 26 {
+        r.arg = cr_be(r, 4);
+        return;
+    }
+    if info == 27 {
+        r.arg = cr_be(r, 8);
+        return;
+    }
+    if info == 31 {
+        fail(e_indefinite);
+    }
+    fail(e_reserved);
+}
+
+// The head's argument as a count: every byte, element or entry takes at least a byte.
+fn cr_count(r: &cbor_reader) -> i32 {
+    if r.arg >u (r.end - r.pos) as i64_u {
+        fail(e_length);
+    }
+    r.arg as i32;
+}
+
+fn cr_int_arg(r: &cbor_reader) -> i64 {
+    // Beyond i64 when the top bit is set, for both signs.
+    if r.arg <s 0 {
+        fail(e_int_range);
+    }
+    if r.major == 0 {
+        return r.arg;
+    }
+    -1 - r.arg;
+}
+
+fn cr_text_after(r: &cbor_reader) -> js_string {
+    let n = cr_count(r);
+    let end = r.pos + n;
+    let t = text_new();
+    while r.pos <s end {
+        let b0 = r.buf[r.pos] as i32_u;
+        let cp = 0;
+        let extra = 0;
+        let min = 0;
+        if b0 <s 0x80 {
+            cp = b0;
+        } else {
+            if (b0 >=s 0xc2) & (b0 <=s 0xdf) {
+                cp = b0 & 0x1f;
+                extra = 1;
+                min = 0x80;
+            } else {
+                if (b0 >=s 0xe0) & (b0 <=s 0xef) {
+                    cp = b0 & 0x0f;
+                    extra = 2;
+                    min = 0x800;
+                } else {
+                    if (b0 >=s 0xf0) & (b0 <=s 0xf4) {
+                        cp = b0 & 0x07;
+                        extra = 3;
+                        min = 0x10000;
+                    } else {
+                        fail(e_utf8);
+                    }
+                }
+            }
+        }
+        // The continuation bytes must lie within the string.
+        if r.pos + extra >=s end {
+            if extra >s 0 {
+                fail(e_utf8);
+            }
+        }
+        let i = 1;
+        while i <=s extra {
+            let c = r.buf[r.pos + i] as i32_u;
+            if (c & 0xc0) != 0x80 {
+                fail(e_utf8);
+            }
+            cp = cp << 6 | c & 0x3f;
+            i += 1;
+        }
+        if cp <s min {
+            fail(e_utf8);
+        }
+        if (cp >=s 0xd800) & (cp <=s 0xdfff) {
+            fail(e_utf8);
+        }
+        if cp >s 0x10ffff {
+            fail(e_utf8);
+        }
+        if cp >=s 0x10000 {
+            let u = cp - 0x10000;
+            text_unit(t, 0xd800 + (u >>u 10));
+            text_unit(t, 0xdc00 + (u & 0x3ff));
+        } else {
+            text_unit(t, cp);
+        }
+        r.pos = r.pos + 1 + extra;
+    }
+    text_finish(t);
+}
+
+fn cr_text(r: &cbor_reader) -> js_string {
+    cr_head(r);
+    if r.major != 3 {
+        fail(e_item);
+    }
+    cr_text_after(r);
+}
+
+fn cr_map_after(r: &cbor_reader) -> &td_omap {
+    let n = cr_count(r);
+    let m = omap_new();
+    let i = 0;
+    while i <s n {
+        let k = cr_text(r);
+        if omap_find(m, k) >=s 0 {
+            fail(e_duplicate);
+        }
+        omap_push(m, k, cr_value(r));
+        i += 1;
+    }
+    m;
+}
+
+fn cr_list_after(r: &cbor_reader) -> &td_list {
+    let n = cr_count(r);
+    let l = list_new();
+    let i = 0;
+    while i <s n {
+        list_push(l, cr_value(r));
+        i += 1;
+    }
+    l;
+}
+
+fn cr_expect_array(r: &cbor_reader, n: i32) {
+    cr_head(r);
+    if (r.major != 4) | (r.arg != n as i64_u) {
+        fail(e_item);
+    }
+}
+
+fn half_to_f64(h: i32) -> f64 {
+    let exp = h >>u 10 & 0x1f;
+    let mant = h & 0x3ff;
+    let out = 0.0;
+    if exp == 0 {
+        // mant × 2^-24, exact in f64
+        out = mant as f64_u * 5.9604644775390625e-8;
+    } else {
+        if exp == 0x1f {
+            if mant == 0 {
+                out = inf;
+            } else {
+                out = nan;
+            }
+        } else {
+            // (1024 + mant) × 2^(exp - 25)
+            let bits: i64 = (exp - 15 + 1023) as i64_u << 52 | mant as i64_u << 42;
+            out = bits.from_bits();
+        }
+    }
+    if (h & 0x8000) != 0 {
+        return -out;
+    }
+    out;
+}
+
+fn cr_value(r: &cbor_reader) -> &td_value {
+    cr_head(r);
+    let major = r.major;
+    if (major == 0) | (major == 1) {
+        return td_int(cr_int_arg(r));
+    }
+    if major == 2 {
+        let n = cr_count(r);
+        let out = [bytes|0; n];
+        out.copy(0, r.buf, r.pos, n);
+        r.pos = r.pos + n;
+        return td_bytes(out);
+    }
+    if major == 3 {
+        return td_string(cr_text_after(r));
+    }
+    if major == 4 {
+        return td_array(cr_list_after(r));
+    }
+    if major == 5 {
+        return td_object(cr_map_after(r));
+    }
+    if major == 6 {
+        return cr_tagged(r, r.arg);
+    }
+    let info = r.info;
+    if info == 20 {
+        return td_bool(0);
+    }
+    if info == 21 {
+        return td_bool(1);
+    }
+    if info == 22 {
+        return td_null();
+    }
+    if info == 25 {
+        return td_double(half_to_f64(r.arg as i32));
+    }
+    if info == 26 {
+        return td_double((r.arg as i32).from_bits() as f64);
+    }
+    if info == 27 {
+        return td_double(r.arg.from_bits());
+    }
+    fail(e_simple);
+    unreachable;
+}
+
+fn cr_tagged(r: &cbor_reader, tag_number: i64) -> &td_value {
+    if tag_number == TAG_URI {
+        return td_ref(cr_text(r));
+    }
+    if tag_number == TAG_SET {
+        cr_head(r);
+        if r.major != 4 {
+            fail(e_item);
+        }
+        let l = cr_list_after(r);
+        if list_has_duplicates(l) {
+            fail(e_set_dup);
+        }
+        return td_set(l);
+    }
+    if tag_number == TAG_TYPED {
+        cr_expect_array(r, 2);
+        let type_id = cr_text(r);
+        if js_string_length(type_id) == 0 {
+            fail(e_type_id);
+        }
+        return decode_typed(type_id, cr_value(r));
+    }
+    if tag_number == TAG_NODE {
+        cr_expect_array(r, 3);
+        let n = cr_text(r);
+        cr_head(r);
+        if r.major != 5 {
+            fail(e_item);
+        }
+        let attrs = cr_map_after(r);
+        cr_head(r);
+        if r.major != 4 {
+            fail(e_item);
+        }
+        return td_node(n, attrs, cr_list_after(r));
+    }
+    if tag_number == TAG_INSTANT {
+        cr_head(r);
+        if (r.major != 0) & (r.major != 1) {
+            fail(e_item);
+        }
+        return td_instant(cr_int_arg(r));
+    }
+    fail(e_unknown_tag);
+    unreachable;
+}
+
+fn cr_message(r: &cbor_reader) -> &td_message {
+    cr_head(r);
+    if r.major != 5 {
+        fail(e_message);
+    }
+    let n = cr_count(r);
+    let id = s_empty;
+    let has_id = 0;
+    let kind = s_empty;
+    let has_kind = 0;
+    let value: &?td_value = null;
+    let children: &?td_message_list = null;
+    let meta: &?td_omap = null;
+    let i = 0;
+    while i <s n {
+        let k = cr_text(r);
+        let known = 0;
+        if js_string_equals(k, s_id) {
+            if has_id {
+                fail(e_duplicate);
+            }
+            id = cr_text(r);
+            has_id = 1;
+            known = 1;
+        }
+        if js_string_equals(k, s_kind) {
+            if has_kind {
+                fail(e_duplicate);
+            }
+            kind = cr_text(r);
+            has_kind = 1;
+            known = 1;
+        }
+        if js_string_equals(k, s_data) {
+            if value != null {
+                fail(e_duplicate);
+            }
+            value = cr_value(r);
+            known = 1;
+        }
+        if js_string_equals(k, s_messages) {
+            if children != null {
+                fail(e_duplicate);
+            }
+            cr_head(r);
+            if r.major != 4 {
+                fail(e_message);
+            }
+            let count = cr_count(r);
+            let l = message_list_new();
+            let j = 0;
+            while j <s count {
+                message_list_push(l, cr_message(r));
+                j += 1;
+            }
+            children = l;
+            known = 1;
+        }
+        if js_string_equals(k, s_meta) {
+            if meta != null {
+                fail(e_duplicate);
+            }
+            cr_head(r);
+            if r.major != 5 {
+                fail(e_message);
+            }
+            let m = cr_map_after(r);
+            meta_check(m);
+            meta = m;
+            known = 1;
+        }
+        if known == 0 {
+            fail(e_message);
+        }
+        i += 1;
+    }
+    message_make(has_id & has_kind, id, kind, value, children, meta);
+}

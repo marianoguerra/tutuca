@@ -1,0 +1,269 @@
+// Exports for the JS side: conversions between the encodings, specs, the router, and a demo
+// codec. Every export catches td_fail; the reason is then td_error()'s, and the export returns
+// null (or 0).
+
+#[export = "td_error"]
+fn api_error() -> js_string_opt {
+    last_error;
+}
+
+// ---- Bytes across the boundary ----------------------------------------------------------------
+
+#[export = "td_bytes_new"]
+fn api_bytes_new(n: i32) -> &bytes {
+    [bytes|0; n];
+}
+
+#[export = "td_bytes_set"]
+fn api_bytes_set(b: &bytes, i: i32, x: i32) {
+    b[i] = x;
+}
+
+#[export = "td_bytes_get"]
+fn api_bytes_get(b: &bytes, i: i32) -> i32 {
+    b[i] as i32_u;
+}
+
+#[export = "td_bytes_length"]
+fn api_bytes_length(b: &bytes) -> i32 {
+    b.length();
+}
+
+// ---- Decoding and encoding --------------------------------------------------------------------
+
+fn json_decode_value(text: js_string) -> &td_value {
+    let r = jr_new(text);
+    let v = jr_value(r);
+    jr_end(r);
+    v;
+}
+
+fn json_decode_message(text: js_string) -> &td_message {
+    let r = jr_new(text);
+    let m = jr_message(r);
+    jr_end(r);
+    m;
+}
+
+fn cbor_decode_value(b: &bytes) -> &td_value {
+    let r = cr_new(b);
+    let v = cr_value(r);
+    cr_end(r);
+    v;
+}
+
+fn cbor_decode_message(b: &bytes) -> &td_message {
+    let r = cr_new(b);
+    let m = cr_message(r);
+    cr_end(r);
+    m;
+}
+
+// The canonical JSON of a JSON text; message is 1 for a message, 0 for a value.
+#[export = "td_json_canon"]
+fn api_json_canon(text: js_string, message: i32) -> js_string_opt {
+    'failed: do {
+        let out = s_empty;
+        try {
+            if message {
+                out = json_encode_message(json_decode_message(text));
+            } else {
+                out = json_encode_value(json_decode_value(text));
+            }
+        } catch [ td_fail -> 'failed]
+        return out;
+    }
+    null;
+}
+
+#[export = "td_json_to_cbor"]
+fn api_json_to_cbor(text: js_string, message: i32) -> &?bytes {
+    'h: do {
+        let r: &?bytes = null;
+        try {
+            if message {
+                r = cbor_encode_message(json_decode_message(text));
+            } else {
+                r = cbor_encode_value(json_decode_value(text));
+            }
+        } catch [ td_fail -> 'h]
+        return r;
+    }
+    null;
+}
+
+#[export = "td_cbor_to_json"]
+fn api_cbor_to_json(b: &bytes, message: i32) -> js_string_opt {
+    'h: do {
+        let out = s_empty;
+        try {
+            if message {
+                out = json_encode_message(cbor_decode_message(b));
+            } else {
+                out = json_encode_value(cbor_decode_value(b));
+            }
+        } catch [ td_fail -> 'h]
+        return out;
+    }
+    null;
+}
+
+// ---- Specs and the router ---------------------------------------------------------------------
+
+#[export = "td_specs_reset"]
+fn api_specs_reset() {
+    spec_reset();
+    router_clear();
+}
+
+// Defines every name → spec of an Object's JSON text. 1 on success.
+#[export = "td_specs_load"]
+fn api_specs_load(text: js_string) -> i32 {
+    'h: do {
+        let v = td_null();
+        try {
+            v = json_decode_value(text);
+        } catch [ td_fail -> 'h]
+        if v.kind != td_kind_object {
+            return 0;
+        }
+        let m = (v as &td_object).map;
+        let i = 0;
+        while i <s m.len {
+            spec_define(omap_key(m, i), omap_val(m, i));
+            i += 1;
+        }
+        return 1;
+    }
+    0;
+}
+
+// The check result's JSON, {"ok":…,"picks"|"problems":…}, for a spec and a value or message.
+#[export = "td_check"]
+fn api_check(spec_text: js_string, x_text: js_string, message: i32) -> js_string_opt {
+    'h: do {
+        let out = s_empty;
+        try {
+            let s = json_decode_value(spec_text);
+            let x =
+                if message {
+                    td_message_value(json_decode_message(x_text));
+                } else {
+                    json_decode_value(x_text);
+                };
+            out = json_encode_value(spec_check(s, x));
+        } catch [ td_fail -> 'h]
+        return out;
+    }
+    null;
+}
+
+#[export = "td_route"]
+fn api_route(spec_text: js_string, id: i32) -> i32 {
+    'h: do {
+        let s = td_null();
+        try {
+            s = json_decode_value(spec_text);
+        } catch [ td_fail -> 'h]
+        router_add(s, id);
+        return 1;
+    }
+    0;
+}
+
+// The JSON Array of the ids of the routes matching a message.
+#[export = "td_dispatch"]
+fn api_dispatch(msg_text: js_string) -> js_string_opt {
+    'h: do {
+        let out = s_empty;
+        try {
+            out = json_encode_value(router_dispatch(json_decode_message(msg_text)));
+        } catch [ td_fail -> 'h]
+        return out;
+    }
+    null;
+}
+
+// ---- A demo codec: app/point ↔ a native struct of two f64s -------------------------------------
+
+type point = { x: f64, y: f64 };
+
+fn point_decode(v: &td_value) -> &?eq {
+    if v.kind != td_kind_object {
+        return null;
+    }
+    let m = (v as &td_object).map;
+    let x = omap_get(m, s_x);
+    let y = omap_get(m, s_y);
+    if (x == null) | (y == null) {
+        return null;
+    }
+    if ((x!).kind != td_kind_double) | ((y!).kind != td_kind_double) {
+        return null;
+    }
+    {point| x: (x! as &td_double).value, y: (y! as &td_double).value };
+}
+
+fn point_encode(p: &eq) -> &td_value {
+    let pt = p as &point;
+    let m = omap_new();
+    omap_push(m, s_x, td_double(pt.x));
+    omap_push(m, s_y, td_double(pt.y));
+    td_object(m);
+}
+
+#[export = "td_use_point_codec"]
+fn api_use_point_codec(enabled: i32) {
+    codecs_clear();
+    if enabled {
+        codecs_register(
+            {td_codec| type_id: s_app_point, decode: point_decode, encode: point_encode },
+        );
+    }
+}
+
+// How many natives decoding a JSON value made; -1 when it fails to decode.
+#[export = "td_count_natives"]
+fn api_count_natives(text: js_string) -> i32 {
+    'h: do {
+        let v = td_null();
+        try {
+            v = json_decode_value(text);
+        } catch [ td_fail -> 'h]
+        return count_natives(v);
+    }
+    -1;
+}
+
+fn count_natives(v: &td_value) -> i32 {
+    let k = v.kind;
+    if k == td_kind_native {
+        return 1;
+    }
+    let n = 0;
+    if (k == td_kind_array) | (k == td_kind_set) {
+        let l =
+            if k == td_kind_array {
+                (v as &td_array).items;
+            } else {
+                (v as &td_set).items;
+            };
+        let i = 0;
+        while i <s l.len {
+            n += count_natives(list_at(l, i));
+            i += 1;
+        }
+    }
+    if k == td_kind_object {
+        let m = (v as &td_object).map;
+        let i = 0;
+        while i <s m.len {
+            n += count_natives(omap_val(m, i));
+            i += 1;
+        }
+    }
+    if k == td_kind_typed {
+        n = count_natives((v as &td_typed).value);
+    }
+    n;
+}

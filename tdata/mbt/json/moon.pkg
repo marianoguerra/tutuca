@@ -1,0 +1,6 @@
+// The tdata JSON encoding (docs/spec.md §2): a strict reader and the canonical writer.
+import {
+  "marianoguerra/tdata/model",
+  "moonbitlang/core/string",
+  "moonbitlang/core/double",
+}

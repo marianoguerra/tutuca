@@ -1,0 +1,23 @@
+// tq for the wasm-gc target: the ffi functions, exported.
+import {
+  "marianoguerra/tdata/ffi",
+}
+
+supported_targets = "wasm-gc"
+
+pkgtype(kind: "executable")
+
+options(
+  link: {
+    "wasm-gc": {
+      "exports": [
+        "tq_parse",
+        "tq_match",
+        "tq_match_all",
+        "tq_run",
+        "tq_canon",
+      ],
+      "use-js-builtin-string": true,
+    },
+  },
+)

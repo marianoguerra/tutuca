@@ -1,0 +1,853 @@
+{
+	"messages": {
+		"note": "{\"id\":\"n1\",\"kind\":\"note\",\"data\":{\"title\":\"Hello\",\"count\":3,\"ratio\":1.5,\"one\":1.0,\"none\":null,\"off\":false,\"tags\":[\"set\",[[\"a\",\"b\"]]],\"items\":[[10,20,30]],\"p\":[\"#\",\"app/point\",{\"x\":1,\"y\":2.0}],\"body\":[\"node\",\"p\",{\"class\":\"lead\"},[[\"Hi \",[\"node\",\"b\",{},[[\"there\"]]]]]],\"link\":[\"ref\",\"https://tutuca.dev\"],\"at\":[\"inst\",\"1730540000000000000\"],\"author\":{\"name\":\"ana\",\"roles\":[[\"admin\",\"dev\"]]}},\"meta\":{\"https://tutuca.dev/d/trace\":{\"at\":[\"inst\",\"1730540000000000000\"],\"by\":\"ana\"}}}",
+		"small": "{\"id\":\"s\",\"kind\":\"k\",\"data\":{\"a\":1,\"b\":[[\"x\"]]}}",
+		"batch": "{\"id\":\"b\",\"kind\":\"batch\",\"messages\":[{\"id\":\"a\",\"kind\":\"note\",\"data\":{\"title\":\"one\",\"author\":{\"name\":\"ana\"}}},{\"id\":\"b2\",\"kind\":\"note\",\"data\":{\"title\":\"two\",\"author\":{\"name\":\"bot\"}}},{\"id\":\"c\",\"kind\":\"ping\",\"data\":null}]}"
+	},
+	"cases": [
+		{
+			"name": "type of the input",
+			"query": "type",
+			"message": "note",
+			"out": ["\"message\""]
+		},
+		{
+			"name": "message id",
+			"query": ".id",
+			"message": "note",
+			"out": ["\"n1\""]
+		},
+		{
+			"name": "message kind",
+			"query": ".kind",
+			"message": "note",
+			"out": ["\"note\""]
+		},
+		{
+			"name": "object key",
+			"query": ".data.title",
+			"message": "note",
+			"out": ["\"Hello\""]
+		},
+		{
+			"name": "quoted key",
+			"query": ".data.\"title\"",
+			"message": "note",
+			"out": ["\"Hello\""]
+		},
+		{
+			"name": "bracket key",
+			"query": ".data[\"title\"]",
+			"message": "note",
+			"out": ["\"Hello\""]
+		},
+		{
+			"name": "bracket key on the input",
+			"query": ".[\"data\"].title",
+			"message": "note",
+			"out": ["\"Hello\""]
+		},
+		{
+			"name": "absent key gives nothing",
+			"query": ".data.missing",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "present null is an output",
+			"query": ".data.none",
+			"message": "note",
+			"out": ["null"]
+		},
+		{
+			"name": "key on a string gives nothing",
+			"query": ".data.title.x",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "index",
+			"query": ".data.items[0]",
+			"message": "note",
+			"out": ["10"]
+		},
+		{
+			"name": "negative index",
+			"query": ".data.items[-1]",
+			"message": "note",
+			"out": ["30"]
+		},
+		{
+			"name": "index out of range",
+			"query": ".data.items[3]",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "index with a dot",
+			"query": ".data.items.[1]",
+			"message": "note",
+			"out": ["20"]
+		},
+		{
+			"name": "each element",
+			"query": ".data.items[]",
+			"message": "note",
+			"out": ["10", "20", "30"]
+		},
+		{
+			"name": "each set element",
+			"query": ".data.tags[]",
+			"message": "note",
+			"out": ["\"a\"", "\"b\""]
+		},
+		{
+			"name": "each object value",
+			"query": ".data.author[]",
+			"message": "note",
+			"out": ["\"ana\"", "[[\"admin\",\"dev\"]]"]
+		},
+		{
+			"name": "each on a string gives nothing",
+			"query": ".data.title[]",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "typed value",
+			"query": ".data.p.value.x",
+			"message": "note",
+			"out": ["1"]
+		},
+		{
+			"name": "type_id",
+			"query": ".data.p | type_id",
+			"message": "note",
+			"out": ["\"app/point\""]
+		},
+		{
+			"name": "node tag",
+			"query": ".data.body.tag",
+			"message": "note",
+			"out": ["\"p\""]
+		},
+		{
+			"name": "node attrs",
+			"query": ".data.body.attrs.class",
+			"message": "note",
+			"out": ["\"lead\""]
+		},
+		{
+			"name": "node children",
+			"query": ".data.body.children[1].children[0]",
+			"message": "note",
+			"out": ["\"there\""]
+		},
+		{
+			"name": "meta dialect header",
+			"query": ".meta[\"https://tutuca.dev/d/trace\"].by",
+			"message": "note",
+			"out": ["\"ana\""]
+		},
+		{
+			"name": "meta keys",
+			"query": ".meta | keys",
+			"message": "note",
+			"out": ["[[\"https://tutuca.dev/d/trace\"]]"]
+		},
+		{
+			"name": "message keys",
+			"query": "keys",
+			"message": "note",
+			"out": ["[[\"id\",\"kind\",\"data\",\"meta\"]]"]
+		},
+		{
+			"name": "object keys in order",
+			"query": ".data.author | keys",
+			"message": "note",
+			"out": ["[[\"name\",\"roles\"]]"]
+		},
+		{
+			"name": "messages of a data message",
+			"query": ".messages",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "data of a messages message",
+			"query": ".data",
+			"message": "batch",
+			"out": []
+		},
+		{
+			"name": "recursive descent",
+			"query": "..",
+			"message": "small",
+			"out": [
+				"[\"#\",\"tdata/message\",{\"id\":\"s\",\"kind\":\"k\",\"data\":{\"a\":1,\"b\":[[\"x\"]]}}]",
+				"\"s\"",
+				"\"k\"",
+				"{\"a\":1,\"b\":[[\"x\"]]}",
+				"1",
+				"[[\"x\"]]",
+				"\"x\"",
+				"{}"
+			]
+		},
+		{
+			"name": "types under recursive descent",
+			"query": "[.. | type]",
+			"message": "small",
+			"out": [
+				"[[\"message\",\"string\",\"string\",\"object\",\"int\",\"array\",\"string\",\"object\"]]"
+			]
+		},
+		{
+			"name": "types of the values",
+			"query": "[.data[] | type]",
+			"message": "note",
+			"out": [
+				"[[\"string\",\"int\",\"double\",\"double\",\"null\",\"bool\",\"set\",\"array\",\"typed\",\"node\",\"ref\",\"instant\",\"object\"]]"
+			]
+		},
+		{
+			"name": "equal",
+			"query": ".data.count == 3",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "an Int is not a Double",
+			"query": ".data.one == 1",
+			"message": "note",
+			"out": ["false"]
+		},
+		{
+			"name": "a Double equals a Double",
+			"query": ".data.one == 1.0",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "not equal",
+			"query": ".data.count != 3",
+			"message": "note",
+			"out": ["false"]
+		},
+		{
+			"name": "order across Int and Double",
+			"query": ".data.one >= 1, .data.ratio > 1, .data.count < 3.5",
+			"message": "note",
+			"out": ["true", "true", "true"]
+		},
+		{
+			"name": "string order",
+			"query": ".data.title < \"Hi\"",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "instant order",
+			"query": ".data.at < inst(\"1730540000000000001\")",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "ref literal",
+			"query": ".data.link == ref(\"https://tutuca.dev\")",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "set equality ignores order",
+			"query": ".data.tags == .data.tags",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "kinds that don't order compare false",
+			"query": ".data.title < 3, .data.title >= 3",
+			"message": "note",
+			"out": ["false", "false"]
+		},
+		{
+			"name": "comparison of each pair",
+			"query": ".data.items[] == 20",
+			"message": "note",
+			"out": ["false", "true", "false"]
+		},
+		{
+			"name": "comma",
+			"query": ".data.count, .data.ratio",
+			"message": "note",
+			"out": ["3", "1.5"]
+		},
+		{
+			"name": "alternative when absent",
+			"query": ".data.missing // \"default\"",
+			"message": "note",
+			"out": ["\"default\""]
+		},
+		{
+			"name": "alternative when false",
+			"query": ".data.off // \"default\"",
+			"message": "note",
+			"out": ["\"default\""]
+		},
+		{
+			"name": "alternative when present",
+			"query": ".data.title // \"default\"",
+			"message": "note",
+			"out": ["\"Hello\""]
+		},
+		{
+			"name": "alternative keeps only truthy outputs",
+			"query": "(.data.off, .data.count) // 0",
+			"message": "note",
+			"out": ["3"]
+		},
+		{
+			"name": "select",
+			"query": ".data.items[] | select(. > 15)",
+			"message": "note",
+			"out": ["20", "30"]
+		},
+		{
+			"name": "collect",
+			"query": "[.data.items[] | select(. > 15)]",
+			"message": "note",
+			"out": ["[[20,30]]"]
+		},
+		{
+			"name": "collect nothing",
+			"query": "[.data.missing]",
+			"message": "note",
+			"out": ["[[]]"]
+		},
+		{
+			"name": "empty array literal",
+			"query": "[]",
+			"message": "note",
+			"out": ["[[]]"]
+		},
+		{
+			"name": "length",
+			"query": ".data.items, .data.title, .data.author, .data.tags, .data.at | length",
+			"message": "note",
+			"out": ["3", "5", "2", "2"]
+		},
+		{
+			"name": "length counts code points",
+			"query": "\"a😀\" | length",
+			"message": "note",
+			"out": ["2"]
+		},
+		{
+			"name": "has",
+			"query": ".data | has(\"none\"), has(\"missing\")",
+			"message": "note",
+			"out": ["true", "false"]
+		},
+		{
+			"name": "has an index",
+			"query": ".data.items | has(2), has(3), has(-1)",
+			"message": "note",
+			"out": ["true", "false", "true"]
+		},
+		{
+			"name": "has on a message",
+			"query": "has(\"meta\"), has(\"messages\")",
+			"message": "note",
+			"out": ["true", "false"]
+		},
+		{
+			"name": "string tests",
+			"query": ".data.title | starts_with(\"He\"), ends_with(\"lo\"), contains(\"ell\"), contains(\"x\")",
+			"message": "note",
+			"out": ["true", "true", "true", "false"]
+		},
+		{
+			"name": "string tests on a number give nothing",
+			"query": ".data.count | starts_with(\"3\")",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "first",
+			"query": "first(.data.items[])",
+			"message": "note",
+			"out": ["10"]
+		},
+		{
+			"name": "first of nothing",
+			"query": "first(.data.missing)",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "any and all",
+			"query": "any(.data.items[] > 25), all(.data.items[] > 5), all(.data.items[] > 15), all(empty)",
+			"message": "note",
+			"out": ["true", "true", "false", "true"]
+		},
+		{
+			"name": "not",
+			"query": ".data.off, .data.none, .data.count | not",
+			"message": "note",
+			"out": ["true", "true", "false"]
+		},
+		{
+			"name": "empty",
+			"query": "empty",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "and",
+			"query": ".data.count == 3 and .data.title == \"Hello\"",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "and false",
+			"query": ".data.count == 4 and .data.title == \"Hello\"",
+			"message": "note",
+			"out": ["false"]
+		},
+		{
+			"name": "or",
+			"query": ".data.count == 4 or .data.title == \"Hello\"",
+			"message": "note",
+			"out": ["true"]
+		},
+		{
+			"name": "or false",
+			"query": ".data.count == 4 or .data.missing",
+			"message": "note",
+			"out": ["false"]
+		},
+		{
+			"name": "unbound variable gives nothing",
+			"query": "$nope",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "literals",
+			"query": "1, 1.0, -2, 2.5e3, \"s\", true, false, null",
+			"message": "note",
+			"out": ["1", "1.0", "-2", "2500.0", "\"s\"", "true", "false", "null"]
+		},
+		{
+			"name": "type_id of a non-typed value gives nothing",
+			"query": ".data.title | type_id",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "object pattern binds",
+			"query": ".data.author ~ {name: $who}",
+			"message": "note",
+			"out": ["{\"name\":\"ana\",\"roles\":[[\"admin\",\"dev\"]]}"],
+			"bindings": ["{\"who\":\"ana\"}"]
+		},
+		{
+			"name": "object pattern mismatch",
+			"query": ".data.author ~ {name: \"bob\"}",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "object pattern missing key",
+			"query": ".data.author ~ {age: $a}",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "object pattern quoted key",
+			"query": ".data.author ~ {\"name\": $who} | $who",
+			"message": "note",
+			"out": ["\"ana\""],
+			"bindings": ["{\"who\":\"ana\"}"]
+		},
+		{
+			"name": "open array pattern",
+			"query": ".data ~ {author: {roles: [$first, ..]}} | $first",
+			"message": "note",
+			"out": ["\"admin\""],
+			"bindings": ["{\"first\":\"admin\"}"]
+		},
+		{
+			"name": "exact array pattern, wrong length",
+			"query": ".data.author.roles ~ [$a]",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "exact array pattern",
+			"query": ".data.author.roles ~ [$a, $b]",
+			"message": "note",
+			"out": ["[[\"admin\",\"dev\"]]"],
+			"bindings": ["{\"a\":\"admin\",\"b\":\"dev\"}"]
+		},
+		{
+			"name": "array pattern on a set gives nothing",
+			"query": ".data.tags ~ [_, _]",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "rest binding",
+			"query": ".data.items ~ [$h, ..$t] | $t",
+			"message": "note",
+			"out": ["[[20,30]]"],
+			"bindings": ["{\"h\":10,\"t\":[[20,30]]}"]
+		},
+		{
+			"name": "empty rest",
+			"query": ".data.items ~ [_, _, _, ..$t] | $t",
+			"message": "note",
+			"out": ["[[]]"],
+			"bindings": ["{\"t\":[[]]}"]
+		},
+		{
+			"name": "typed pattern",
+			"query": ".data.p ~ #\"app/point\" {x: $x, y: $y} | [$x, $y]",
+			"message": "note",
+			"out": ["[[1,2.0]]"],
+			"bindings": ["{\"x\":1,\"y\":2.0}"]
+		},
+		{
+			"name": "typed pattern, other type",
+			"query": ".data.p ~ #\"app/other\" _",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "node pattern",
+			"query": ".data.body ~ <\"p\" {class: $c} [$first, ..]> | $c",
+			"message": "note",
+			"out": ["\"lead\""],
+			"bindings": ["{\"c\":\"lead\",\"first\":\"Hi \"}"]
+		},
+		{
+			"name": "node pattern binds the tag",
+			"query": ".data.body.children[1] ~ <$t _ _> | $t",
+			"message": "note",
+			"out": ["\"b\""],
+			"bindings": ["{\"t\":\"b\"}"]
+		},
+		{
+			"name": "unification fails",
+			"query": ".data ~ {title: $x, author: {name: $x}}",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "unification across the message",
+			"query": ". ~ {data: {author: {name: $who}}, meta: {\"https://tutuca.dev/d/trace\": {by: $who}}} | $who",
+			"message": "note",
+			"out": ["\"ana\""],
+			"bindings": ["{\"who\":\"ana\"}"]
+		},
+		{
+			"name": "bind and match",
+			"query": ".data.author ~ $a @ {name: \"ana\"} | $a.name",
+			"message": "note",
+			"out": ["\"ana\""],
+			"bindings": ["{\"a\":{\"name\":\"ana\",\"roles\":[[\"admin\",\"dev\"]]}}"]
+		},
+		{
+			"name": "alternatives in order",
+			"query": ".data ~ ({nope: $v} | {count: $v} | {ratio: $v}) | $v",
+			"message": "note",
+			"out": ["3", "1.5"],
+			"bindings": ["{\"v\":3}", "{\"v\":1.5}"]
+		},
+		{
+			"name": "literal patterns",
+			"query": ".data ~ {count: 3, one: 1.0, off: false, none: null} | .title",
+			"message": "note",
+			"out": ["\"Hello\""]
+		},
+		{
+			"name": "an Int pattern doesn't match a Double",
+			"query": ".data ~ {one: 1}",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "wildcard needs the key",
+			"query": ".data ~ {missing: _}",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "message pattern",
+			"query": ". ~ {kind: \"note\", id: $id} | $id",
+			"message": "note",
+			"out": ["\"n1\""],
+			"bindings": ["{\"id\":\"n1\"}"]
+		},
+		{
+			"name": "as binds for the body",
+			"query": ".data.author as {name: $n} | $n",
+			"message": "note",
+			"out": ["\"ana\""],
+			"bindings": ["{\"n\":\"ana\"}"]
+		},
+		{
+			"name": "as body runs on the input",
+			"query": ".data.author as {name: $n} | .id",
+			"message": "note",
+			"out": ["\"n1\""],
+			"bindings": ["{\"n\":\"ana\"}"]
+		},
+		{
+			"name": "as with a failing pattern",
+			"query": ".data as {nope: $n} | $n",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "as with a variable",
+			"query": ".data.count as $c | [$c, .id]",
+			"message": "note",
+			"out": ["[[3,\"n1\"]]"],
+			"bindings": ["{\"c\":3}"]
+		},
+		{
+			"name": "as unifies with earlier bindings",
+			"query": ".data.count as $c | .data.items as [$c, ..] | $c",
+			"message": "note",
+			"out": []
+		},
+		{
+			"name": "select keeps the bindings",
+			"query": "select(.data.author ~ {name: $who}) | $who",
+			"message": "note",
+			"out": ["\"ana\""],
+			"bindings": ["{\"who\":\"ana\"}"]
+		},
+		{
+			"name": "and keeps the bindings",
+			"query": ".data.count == 3 and (.data.author ~ {name: $who})",
+			"message": "note",
+			"out": ["true"],
+			"bindings": ["{\"who\":\"ana\"}"]
+		},
+		{
+			"name": "comma branches don't share bindings",
+			"query": ".data.count as $x | $x, $x",
+			"message": "note",
+			"out": ["3", "3"],
+			"bindings": ["{\"x\":3}", "{\"x\":3}"]
+		},
+		{
+			"name": "message list length",
+			"query": ".messages | length",
+			"message": "batch",
+			"out": ["3"]
+		},
+		{
+			"name": "message list type",
+			"query": ".messages | type",
+			"message": "batch",
+			"out": ["\"messages\""]
+		},
+		{
+			"name": "each message",
+			"query": ".messages[].id",
+			"message": "batch",
+			"out": ["\"a\"", "\"b2\"", "\"c\""]
+		},
+		{
+			"name": "last message",
+			"query": ".messages[-1].kind",
+			"message": "batch",
+			"out": ["\"ping\""]
+		},
+		{
+			"name": "collect kinds",
+			"query": "[.messages[].kind]",
+			"message": "batch",
+			"out": ["[[\"note\",\"note\",\"ping\"]]"]
+		},
+		{
+			"name": "a message is an output",
+			"query": ".messages[0]",
+			"message": "batch",
+			"out": [
+				"[\"#\",\"tdata/message\",{\"id\":\"a\",\"kind\":\"note\",\"data\":{\"title\":\"one\",\"author\":{\"name\":\"ana\"}}}]"
+			]
+		},
+		{
+			"name": "collected messages are typed values",
+			"query": "[.messages[0]]",
+			"message": "batch",
+			"out": [
+				"[[[\"#\",\"tdata/message\",{\"id\":\"a\",\"kind\":\"note\",\"data\":{\"title\":\"one\",\"author\":{\"name\":\"ana\"}}}]]]"
+			]
+		},
+		{
+			"name": "route by pattern",
+			"query": ".messages[] ~ {kind: \"note\", data: {author: {name: $who}}} | select($who != \"bot\") | .id",
+			"message": "batch",
+			"out": ["\"a\""],
+			"bindings": ["{\"who\":\"ana\"}"]
+		},
+		{
+			"name": "array pattern on messages",
+			"query": ".messages ~ [_, $second, ..] | $second.id",
+			"message": "batch",
+			"out": ["\"b2\""],
+			"bindings": [
+				"{\"second\":[\"#\",\"tdata/message\",{\"id\":\"b2\",\"kind\":\"note\",\"data\":{\"title\":\"two\",\"author\":{\"name\":\"bot\"}}}]}"
+			]
+		},
+		{
+			"name": "rest of the messages",
+			"query": ".messages ~ [_, ..$rest] | [$rest[].id]",
+			"message": "batch",
+			"out": ["[[\"b2\",\"c\"]]"],
+			"bindings": [
+				"{\"rest\":[[[\"#\",\"tdata/message\",{\"id\":\"b2\",\"kind\":\"note\",\"data\":{\"title\":\"two\",\"author\":{\"name\":\"bot\"}}}],[\"#\",\"tdata/message\",{\"id\":\"c\",\"kind\":\"ping\",\"data\":null}]]]}"
+			]
+		},
+		{
+			"name": "null data is present",
+			"query": ".messages[2] | .data, has(\"data\"), has(\"messages\")",
+			"message": "batch",
+			"out": ["null", "true", "false"]
+		},
+		{
+			"name": "first that matches",
+			"query": "first(.messages[] | select(.kind == \"ping\")) | .id",
+			"message": "batch",
+			"out": ["\"c\""]
+		},
+		{
+			"name": "messages compare by value",
+			"query": ".messages[0] == .messages[0], .messages[0] == .messages[1]",
+			"message": "batch",
+			"out": ["true", "false"]
+		},
+		{
+			"name": "only the truthy outputs match",
+			"query": ".messages[].kind == \"ping\"",
+			"message": "batch",
+			"out": ["false", "false", "true"]
+		},
+		{
+			"name": "nested message fields",
+			"query": ".messages[] | select(.data.title == \"two\") | .data.author.name",
+			"message": "batch",
+			"out": ["\"bot\""]
+		},
+		{
+			"name": "pipe without a right side",
+			"query": ".a |",
+			"error": true
+		},
+		{
+			"name": "comparison without a right side",
+			"query": ".a ==",
+			"error": true
+		},
+		{
+			"name": "unknown function",
+			"query": "foo",
+			"error": true
+		},
+		{
+			"name": "function without its argument",
+			"query": "select",
+			"error": true
+		},
+		{
+			"name": "argument to a function that takes none",
+			"query": "length(1)",
+			"error": true
+		},
+		{
+			"name": "match without a pattern",
+			"query": ".a ~",
+			"error": true
+		},
+		{
+			"name": "unclosed object pattern",
+			"query": ". ~ {a: $x",
+			"error": true
+		},
+		{
+			"name": "unclosed subscript",
+			"query": ".[",
+			"error": true
+		},
+		{
+			"name": "fractional index",
+			"query": ".a[1.5]",
+			"error": true
+		},
+		{
+			"name": "unterminated string",
+			"query": "\"abc",
+			"error": true
+		},
+		{
+			"name": "dollar without a name",
+			"query": "$",
+			"error": true
+		},
+		{
+			"name": "duplicate key in a pattern",
+			"query": ". ~ {x: $y, x: $z}",
+			"error": true
+		},
+		{
+			"name": "chained comparison",
+			"query": "1 == 2 == 3",
+			"error": true
+		},
+		{
+			"name": "rest not last",
+			"query": ". ~ [.., $x]",
+			"error": true
+		},
+		{
+			"name": "type_id not a string",
+			"query": ". ~ #app _",
+			"error": true
+		},
+		{
+			"name": "bad instant literal",
+			"query": "inst(\"x\")",
+			"error": true
+		},
+		{
+			"name": "stray character",
+			"query": ".a @ .b",
+			"error": true
+		},
+		{
+			"name": "node pattern with two parts",
+			"query": ". ~ <_ _>",
+			"error": true
+		},
+		{
+			"name": "empty alternative",
+			"query": ". ~ (_ |)",
+			"error": true
+		},
+		{
+			"name": "trailing text",
+			"query": ".a .b )",
+			"error": true
+		},
+		{
+			"name": "integer out of range",
+			"query": "9223372036854775808",
+			"error": true
+		}
+	]
+}

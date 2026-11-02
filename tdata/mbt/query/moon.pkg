@@ -1,0 +1,11 @@
+// tq, a jq-style query language for tdata messages (docs/spec.md §6): a parser, an evaluator
+// and destructuring patterns that bind names.
+import {
+  "marianoguerra/tdata/model",
+  "marianoguerra/tdata/json",
+}
+
+import {
+  "marianoguerra/tdata/json",
+  "marianoguerra/tdata/model",
+} for "test"

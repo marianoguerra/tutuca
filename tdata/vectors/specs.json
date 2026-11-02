@@ -1,0 +1,359 @@
+{
+	"registry": "{\"app/point\":[\"#\",\"tdata.spec/keys\",{\"req\":{\"x\":\"number\",\"y\":\"number\"}}],\"app/has-title\":[\"#\",\"tdata.spec/keys\",{\"req\":{\"title\":[\"#\",\"tdata.spec/string\",{\"min_len\":1}]}}],\"app/labelled\":[\"#\",\"tdata.spec/keys\",{\"opt\":{\"label\":\"string\"}}],\"app/labelled-point\":[\"#\",\"tdata.spec/and\",{\"of\":[[\"app/point\",\"app/labelled\"]]}],\"app/tree\":[\"#\",\"tdata.spec/or\",{\"alts\":{\"leaf\":\"int\",\"branch\":[\"#\",\"tdata.spec/array\",{\"of\":\"app/tree\"}]}}],\"app/note\":[\"#\",\"tdata.spec/message\",{\"kind\":[\"#\",\"tdata.spec/const\",{\"value\":\"note\"}],\"data\":\"app/has-title\"}],\"app/loop\":[\"#\",\"tdata.spec/and\",{\"of\":[[\"app/loop\"]]}]}",
+	"cases": [
+		{
+			"name": "any matches anything",
+			"spec": "\"any\"",
+			"value": "[\"#\",\"x/y\",[[1]]]",
+			"ok": true
+		},
+		{
+			"name": "int is not a double",
+			"spec": "\"int\"",
+			"value": "1.0",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "double is not an int",
+			"spec": "\"double\"",
+			"value": "1",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "number takes both",
+			"spec": "[\"#\",\"tdata.spec/and\",{\"of\":[[[\"#\",\"tdata.spec/number\",{\"min\":1,\"max\":2.5}],\"number\"]]}]",
+			"value": "2",
+			"ok": true
+		},
+		{
+			"name": "number bounds",
+			"spec": "[\"#\",\"tdata.spec/number\",{\"min\":1,\"max\":2.5}]",
+			"value": "2.6",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "int bound by a double",
+			"spec": "[\"#\",\"tdata.spec/int\",{\"max\":2.5}]",
+			"value": "2",
+			"ok": true
+		},
+		{
+			"name": "string length counts code points",
+			"spec": "[\"#\",\"tdata.spec/string\",{\"min_len\":2,\"max_len\":2}]",
+			"value": "\"𐅑ü\"",
+			"ok": true
+		},
+		{
+			"name": "keys ignores unknown keys",
+			"spec": "\"app/point\"",
+			"value": "{\"x\":1,\"y\":2.0,\"z\":\"extra\",\"label\":3}",
+			"ok": true
+		},
+		{
+			"name": "keys reports each problem",
+			"spec": "\"app/point\"",
+			"value": "{\"x\":\"1\"}",
+			"ok": false,
+			"problems": [["x"], []]
+		},
+		{
+			"name": "opt key checked when present",
+			"spec": "\"app/labelled\"",
+			"value": "{\"label\":1}",
+			"ok": false,
+			"problems": [["label"]]
+		},
+		{
+			"name": "opt key may be absent",
+			"spec": "\"app/labelled\"",
+			"value": "{}",
+			"ok": true
+		},
+		{
+			"name": "fragments compose with and",
+			"spec": "\"app/labelled-point\"",
+			"value": "{\"x\":1,\"y\":2,\"label\":\"p\"}",
+			"ok": true
+		},
+		{
+			"name": "composed fragment failure",
+			"spec": "\"app/labelled-point\"",
+			"value": "{\"x\":1,\"label\":2}",
+			"ok": false,
+			"problems": [[], ["label"]]
+		},
+		{
+			"name": "map_of",
+			"spec": "[\"#\",\"tdata.spec/map_of\",{\"values\":\"int\"}]",
+			"value": "{\"a\":1,\"b\":2.0}",
+			"ok": false,
+			"problems": [["b"]]
+		},
+		{
+			"name": "array of with bounds",
+			"spec": "[\"#\",\"tdata.spec/array\",{\"of\":\"int\",\"min\":1}]",
+			"value": "[[1,\"x\"]]",
+			"ok": false,
+			"problems": [[1]]
+		},
+		{
+			"name": "array too short",
+			"spec": "[\"#\",\"tdata.spec/array\",{\"min\":2}]",
+			"value": "[[1]]",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "set of",
+			"spec": "[\"#\",\"tdata.spec/set\",{\"of\":\"string\"}]",
+			"value": "[\"set\",[[\"a\",\"b\"]]]",
+			"ok": true
+		},
+		{
+			"name": "tuple ignores trailing elements",
+			"spec": "[\"#\",\"tdata.spec/tuple\",{\"items\":[[\"string\",\"int\"]]}]",
+			"value": "[[\"a\",1,null,true]]",
+			"ok": true
+		},
+		{
+			"name": "tuple too short",
+			"spec": "[\"#\",\"tdata.spec/tuple\",{\"items\":[[\"string\",\"int\"]]}]",
+			"value": "[[\"a\"]]",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "const uses equality",
+			"spec": "[\"#\",\"tdata.spec/const\",{\"value\":{\"a\":1,\"b\":2}}]",
+			"value": "{\"b\":2,\"a\":1}",
+			"ok": true
+		},
+		{
+			"name": "const int vs double",
+			"spec": "[\"#\",\"tdata.spec/const\",{\"value\":1}]",
+			"value": "1.0",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "enum",
+			"spec": "[\"#\",\"tdata.spec/enum\",{\"values\":[[\"a\",\"b\"]]}]",
+			"value": "\"b\"",
+			"ok": true
+		},
+		{
+			"name": "ref prefix",
+			"spec": "[\"#\",\"tdata.spec/ref\",{\"prefix\":\"https://\"}]",
+			"value": "[\"ref\",\"urn:x\"]",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "instant bounds",
+			"spec": "[\"#\",\"tdata.spec/instant\",{\"min\":[\"inst\",\"0\"]}]",
+			"value": "[\"inst\",\"-1\"]",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "bytes length",
+			"spec": "[\"#\",\"tdata.spec/bytes\",{\"max_len\":1}]",
+			"value": "[\"bytes\",\"AQI=\"]",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "typed with payload spec",
+			"spec": "[\"#\",\"tdata.spec/typed\",{\"type_id\":\"app/point\",\"value\":\"app/point\"}]",
+			"value": "[\"#\",\"app/point\",{\"x\":1.5,\"y\":2.0}]",
+			"ok": true
+		},
+		{
+			"name": "typed payload problem",
+			"spec": "[\"#\",\"tdata.spec/typed\",{\"type_id\":\"app/point\",\"value\":\"app/point\"}]",
+			"value": "[\"#\",\"app/point\",{\"x\":1.5}]",
+			"ok": false,
+			"problems": [["value"]]
+		},
+		{
+			"name": "typed other type",
+			"spec": "[\"#\",\"tdata.spec/typed\",{\"type_id\":\"app/point\"}]",
+			"value": "[\"#\",\"app/size\",{}]",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "node open attrs",
+			"spec": "[\"#\",\"tdata.spec/node\",{\"tag\":\"p\",\"attrs\":[\"#\",\"tdata.spec/keys\",{\"req\":{\"class\":\"string\"}}],\"children\":[\"#\",\"tdata.spec/array\",{\"of\":[\"#\",\"tdata.spec/or\",{\"alts\":{\"text\":\"string\",\"node\":[\"#\",\"tdata.spec/node\",{}]}}]}]}]",
+			"value": "[\"node\",\"p\",{\"class\":\"lead\",\"id\":\"x\"},[[\"Hi \",[\"node\",\"b\",{},[[]]]]]]",
+			"ok": true,
+			"picks": [
+				{
+					"path": ["children", 0],
+					"alt": "text"
+				},
+				{
+					"path": ["children", 1],
+					"alt": "node"
+				}
+			]
+		},
+		{
+			"name": "node wrong tag",
+			"spec": "[\"#\",\"tdata.spec/node\",{\"tag\":\"p\"}]",
+			"value": "[\"node\",\"div\",{},[[]]]",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "or picks the first match in order",
+			"spec": "[\"#\",\"tdata.spec/or\",{\"alts\":{\"num\":\"number\",\"int\":\"int\"}}]",
+			"value": "3",
+			"ok": true,
+			"picks": [
+				{
+					"path": [],
+					"alt": "num"
+				}
+			]
+		},
+		{
+			"name": "or with no match",
+			"spec": "[\"#\",\"tdata.spec/or\",{\"alts\":{\"s\":\"string\",\"b\":\"bool\"}}]",
+			"value": "1",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "recursive spec",
+			"spec": "\"app/tree\"",
+			"value": "[[1,[[2,[[]]]]]]",
+			"ok": true,
+			"picks": [
+				{
+					"path": [],
+					"alt": "branch"
+				},
+				{
+					"path": [0],
+					"alt": "leaf"
+				},
+				{
+					"path": [1],
+					"alt": "branch"
+				},
+				{
+					"path": [1, 0],
+					"alt": "leaf"
+				},
+				{
+					"path": [1, 1],
+					"alt": "branch"
+				}
+			]
+		},
+		{
+			"name": "maybe",
+			"spec": "[\"#\",\"tdata.spec/maybe\",{\"of\":\"int\"}]",
+			"value": "null",
+			"ok": true
+		},
+		{
+			"name": "not",
+			"spec": "[\"#\",\"tdata.spec/not\",{\"of\":\"string\"}]",
+			"value": "\"x\"",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "unknown name is a problem",
+			"spec": "\"app/nope\"",
+			"value": "1",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "unknown form is a problem",
+			"spec": "[\"#\",\"tdata.spec/frobnicate\",{}]",
+			"value": "1",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "a spec that refers to itself is a problem",
+			"spec": "\"app/loop\"",
+			"value": "1",
+			"ok": false,
+			"problems": [[]]
+		},
+		{
+			"name": "message ignores unknown dialects and data keys",
+			"spec": "[\"#\",\"tdata.spec/message\",{\"kind\":[\"#\",\"tdata.spec/const\",{\"value\":\"note\"}],\"data\":\"app/has-title\",\"meta\":{\"https://tutuca.dev/d/trace\":[\"#\",\"tdata.spec/keys\",{\"req\":{\"at\":\"instant\"}}]}}]",
+			"message": "{\"id\":\"m1\",\"kind\":\"note\",\"data\":{\"title\":\"Hi\",\"extra\":[\"#\",\"x/unknown\",[[1]]]},\"meta\":{\"https://tutuca.dev/d/trace\":{\"at\":[\"inst\",\"1730540000000000000\"],\"by\":\"ana\"},\"urn:other\":{\"z\":1}}}",
+			"ok": true
+		},
+		{
+			"name": "message by name",
+			"spec": "\"app/note\"",
+			"message": "{\"id\":\"m1\",\"kind\":\"note\",\"data\":{\"title\":\"Hi\",\"extra\":[\"#\",\"x/unknown\",[[1]]]},\"meta\":{\"https://tutuca.dev/d/trace\":{\"at\":[\"inst\",\"1730540000000000000\"],\"by\":\"ana\"},\"urn:other\":{\"z\":1}}}",
+			"ok": true
+		},
+		{
+			"name": "message missing dialect",
+			"spec": "[\"#\",\"tdata.spec/message\",{\"meta\":{\"urn:missing\":\"any\"}}]",
+			"message": "{\"id\":\"m1\",\"kind\":\"note\",\"data\":{\"title\":\"Hi\",\"extra\":[\"#\",\"x/unknown\",[[1]]]},\"meta\":{\"https://tutuca.dev/d/trace\":{\"at\":[\"inst\",\"1730540000000000000\"],\"by\":\"ana\"},\"urn:other\":{\"z\":1}}}",
+			"ok": false,
+			"problems": [["meta", "urn:missing"]]
+		},
+		{
+			"name": "message header problem",
+			"spec": "[\"#\",\"tdata.spec/message\",{\"meta\":{\"https://tutuca.dev/d/trace\":[\"#\",\"tdata.spec/keys\",{\"req\":{\"by\":\"int\"}}]}}]",
+			"message": "{\"id\":\"m1\",\"kind\":\"note\",\"data\":{\"title\":\"Hi\",\"extra\":[\"#\",\"x/unknown\",[[1]]]},\"meta\":{\"https://tutuca.dev/d/trace\":{\"at\":[\"inst\",\"1730540000000000000\"],\"by\":\"ana\"},\"urn:other\":{\"z\":1}}}",
+			"ok": false,
+			"problems": [["meta", "https://tutuca.dev/d/trace", "by"]]
+		},
+		{
+			"name": "message wrong kind",
+			"spec": "\"app/note\"",
+			"message": "{\"id\":\"m\",\"kind\":\"todo\",\"data\":{\"title\":\"x\"}}",
+			"ok": false,
+			"problems": [["kind"]]
+		},
+		{
+			"name": "message data expected",
+			"spec": "[\"#\",\"tdata.spec/message\",{\"data\":\"any\"}]",
+			"message": "{\"id\":\"p\",\"kind\":\"list\",\"messages\":[]}",
+			"ok": false,
+			"problems": [["data"]]
+		},
+		{
+			"name": "messages every",
+			"spec": "[\"#\",\"tdata.spec/message\",{\"messages\":[\"#\",\"tdata.spec/messages\",{\"every\":[\"#\",\"tdata.spec/message\",{\"id\":\"string\"}],\"min\":1}]}]",
+			"message": "{\"id\":\"p\",\"kind\":\"list\",\"messages\":[{\"id\":\"a\",\"kind\":\"item\",\"data\":1},{\"id\":\"b\",\"kind\":\"note\",\"data\":{\"title\":\"T\"}}]}",
+			"ok": true
+		},
+		{
+			"name": "messages some",
+			"spec": "[\"#\",\"tdata.spec/message\",{\"messages\":[\"#\",\"tdata.spec/messages\",{\"some\":\"app/note\"}]}]",
+			"message": "{\"id\":\"p\",\"kind\":\"list\",\"messages\":[{\"id\":\"a\",\"kind\":\"item\",\"data\":1},{\"id\":\"b\",\"kind\":\"note\",\"data\":{\"title\":\"T\"}}]}",
+			"ok": true
+		},
+		{
+			"name": "messages every fails",
+			"spec": "[\"#\",\"tdata.spec/message\",{\"messages\":[\"#\",\"tdata.spec/messages\",{\"every\":\"app/note\"}]}]",
+			"message": "{\"id\":\"p\",\"kind\":\"list\",\"messages\":[{\"id\":\"a\",\"kind\":\"item\",\"data\":1},{\"id\":\"b\",\"kind\":\"note\",\"data\":{\"title\":\"T\"}}]}",
+			"ok": false,
+			"problems": [["messages", 0, "kind"], ["messages", 0, "data"]]
+		},
+		{
+			"name": "value spec on a message",
+			"spec": "\"app/point\"",
+			"message": "{\"id\":\"m1\",\"kind\":\"note\",\"data\":{\"title\":\"Hi\",\"extra\":[\"#\",\"x/unknown\",[[1]]]},\"meta\":{\"https://tutuca.dev/d/trace\":{\"at\":[\"inst\",\"1730540000000000000\"],\"by\":\"ana\"},\"urn:other\":{\"z\":1}}}",
+			"ok": false,
+			"problems": [[]]
+		}
+	]
+}

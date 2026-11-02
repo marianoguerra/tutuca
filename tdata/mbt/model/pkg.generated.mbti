@@ -1,0 +1,60 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tdata/model"
+
+// Values
+pub fn compare(Value, Value) -> Int32?
+
+pub fn equal(Value, Value) -> Bool
+
+pub fn equal_maps(OMap, OMap) -> Bool
+
+pub fn equal_message_lists(Array[Message], Array[Message]) -> Bool
+
+pub fn equal_messages(Message, Message) -> Bool
+
+// Errors
+
+// Types and methods
+pub(all) struct Message {
+  id : String
+  kind : String
+  payload : Payload
+  meta : OMap
+}
+
+pub(all) struct OMap {
+  keys : Array[String]
+  vals : Array[Value]
+}
+pub fn OMap::find(Self, String) -> Int32?
+pub fn OMap::get(Self, String) -> Value?
+pub fn OMap::length(Self) -> Int32
+pub fn OMap::new() -> Self
+pub fn OMap::push(Self, String, Value) -> Unit
+
+pub(all) enum Payload {
+  Data(Value)
+  Messages(Array[Message])
+}
+
+pub(all) enum Value {
+  Null
+  Bool(Bool)
+  Int(Int64)
+  Double(Double)
+  String(String)
+  Bytes(Bytes)
+  Instant(Int64)
+  Ref(String)
+  Array(Array[Value])
+  Object(OMap)
+  Set(Array[Value])
+  Typed(String, Value)
+  Node(String, OMap, Array[Value])
+}
+pub fn Value::is_scalar(Self) -> Bool
+pub fn Value::kind_name(Self) -> String
+
+// Type aliases
+
+// Traits

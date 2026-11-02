@@ -1,0 +1,117 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tdata/query"
+
+import {
+  "marianoguerra/tdata/model",
+}
+
+// Values
+pub fn eval(Expr, Subject, Env, (Subject, Env) -> Bool) -> Bool
+
+pub fn match_all(Expr, Subject) -> Array[Solution]
+
+pub fn match_first(Expr, Subject) -> Solution?
+
+pub fn match_pattern(Pattern, Subject, Env, (Env) -> Bool) -> Bool
+
+pub let message_type_id : String
+
+pub fn message_value(@model.Message) -> @model.Value
+
+pub fn parse(String) -> Expr raise ParseError
+
+pub fn run(Expr, Subject) -> Array[Solution]
+
+// Errors
+pub(all) suberror ParseError {
+  ParseError(String)
+}
+pub fn ParseError::message(Self) -> String
+
+// Types and methods
+pub(all) enum Builtin {
+  Select
+  Not
+  Empty
+  Type
+  TypeId
+  Length
+  Keys
+  Has
+  StartsWith
+  EndsWith
+  Contains
+  First
+  Any
+  All
+}
+
+pub(all) enum CmpOp {
+  Eq
+  Ne
+  Lt
+  Le
+  Gt
+  Ge
+}
+
+pub(all) enum Env {
+  Nil
+  Cons(String, Subject, Env)
+}
+pub fn Env::lookup(Self, String) -> Subject?
+pub fn Env::to_array(Self) -> Array[(String, Subject)]
+
+pub(all) enum Expr {
+  Identity
+  Recurse
+  Field(Expr, String)
+  Index(Expr, Int64)
+  Each(Expr)
+  Literal(@model.Value)
+  Var(String)
+  Pipe(Expr, Expr)
+  Comma(Expr, Expr)
+  Alt(Expr, Expr)
+  And(Expr, Expr)
+  Or(Expr, Expr)
+  Compare(CmpOp, Expr, Expr)
+  Match(Expr, Pattern)
+  As(Expr, Pattern, Expr)
+  Collect(Expr)
+  Call(Builtin, Expr?)
+}
+
+pub(all) enum Pattern {
+  Bind(String)
+  Wild
+  Lit(@model.Value)
+  Obj(Array[(String, Pattern)])
+  Arr(Array[Pattern], Rest)
+  Typed(String, Pattern)
+  Node(Pattern, Pattern, Pattern)
+  At(String, Pattern)
+  Alts(Array[Pattern])
+}
+
+pub(all) enum Rest {
+  Exact
+  Open
+  RestBind(String)
+}
+
+pub(all) struct Solution {
+  value : Subject
+  bindings : Array[(String, Subject)]
+}
+
+pub(all) enum Subject {
+  V(@model.Value)
+  M(@model.Message)
+  L(Array[@model.Message])
+}
+pub fn Subject::to_value(Self) -> @model.Value
+
+// Type aliases
+
+// Traits

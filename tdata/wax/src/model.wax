@@ -1,0 +1,254 @@
+// The tdata data model (docs/spec.md §1), following tutuca-wax's enum convention: an open base
+// struct holding the case's kind, one subtype per case, a const per kind, a constructor per case.
+//
+// Collections are growable arrays (a slot array and a count). Objects, attributes and meta are
+// ordered maps: parallel key and value arrays, looked up linearly, which keeps insertion order for
+// free. A Message is not a Value; spec.wax wraps one in td_message_value to match it.
+
+const td_kind_null = 0;
+const td_kind_bool = 1;
+const td_kind_int = 2;
+const td_kind_double = 3;
+const td_kind_string = 4;
+const td_kind_bytes = 5;
+const td_kind_instant = 6;
+const td_kind_ref = 7;
+const td_kind_array = 8;
+const td_kind_object = 9;
+const td_kind_set = 10;
+const td_kind_typed = 11;
+const td_kind_node = 12;
+// A registered type's native value: a codec and its payload (codecs.wax).
+const td_kind_native = 13;
+// Only inside spec.wax: a message as the subject of a match.
+const td_kind_message = 14;
+
+type bytes = [mut i8];
+
+type td_value = open { kind: i32 };
+type td_values = [mut &?td_value];
+type td_list = { items: mut &td_values, len: mut i32 };
+type td_omap = { keys: mut &js_strings, vals: mut &td_values, len: mut i32 };
+
+type td_null: td_value = { .. };
+type td_bool: td_value = { .., value: i32 };
+type td_int: td_value = { .., value: i64 };
+type td_double: td_value = { .., value: f64 };
+type td_string: td_value = { .., value: js_string };
+type td_bytes: td_value = { .., value: &bytes };
+type td_instant: td_value = { .., ns: i64 };
+type td_ref: td_value = { .., uri: js_string };
+type td_array: td_value = { .., items: &td_list };
+type td_object: td_value = { .., map: &td_omap };
+type td_set: td_value = { .., items: &td_list };
+type td_typed: td_value = { .., type_id: js_string, value: &td_value };
+// `tag` is a Wax keyword, so a node's tag is its name.
+type td_node: td_value = { .., name: js_string, attrs: &td_omap, children: &td_list };
+
+// A codec binds a type_id to a native: decode returns null to reject a payload (the Typed is
+// kept), encode gives the payload back.
+type td_decode_fn = fn(&td_value) -> &?eq;
+type td_encode_fn = fn(&eq) -> &td_value;
+type td_codec = { type_id: js_string, decode: &td_decode_fn, encode: &td_encode_fn };
+type td_native: td_value = { .., codec: &td_codec, payload: &eq };
+
+// `data` is a Wax keyword: a Data payload is `value`, a Messages payload `children`; exactly
+// one of them is set. meta maps dialect URIs to td_object values holding the headers.
+rec {
+    type td_messages = [mut &?td_message];
+    type td_message_list = { items: mut &td_messages, len: mut i32 };
+    type td_message = {
+        id: js_string,
+        kind: js_string,
+        value: &?td_value,
+        children: &?td_message_list,
+        meta: &td_omap
+    };
+}
+type td_message_value: td_value = { .., msg: &td_message };
+
+const TD_NULL: &td_value = {td_null| kind: td_kind_null };
+const TD_FALSE: &td_value = {td_bool| kind: td_kind_bool, value: 0 };
+const TD_TRUE: &td_value = {td_bool| kind: td_kind_bool, value: 1 };
+
+fn td_null() -> &td_value {
+    TD_NULL;
+}
+
+fn td_bool(b: i32) -> &td_value {
+    if b == 0 {
+        return TD_FALSE;
+    }
+    TD_TRUE;
+}
+
+fn td_int(value: i64) -> &td_value {
+    let out: &td_int = { kind: td_kind_int, value };
+    out;
+}
+
+fn td_double(value: f64) -> &td_value {
+    let out: &td_double = { kind: td_kind_double, value };
+    out;
+}
+
+fn td_string(value: js_string) -> &td_value {
+    let out: &td_string = { kind: td_kind_string, value };
+    out;
+}
+
+fn td_bytes(value: &bytes) -> &td_value {
+    let out: &td_bytes = { kind: td_kind_bytes, value };
+    out;
+}
+
+fn td_instant(ns: i64) -> &td_value {
+    let out: &td_instant = { kind: td_kind_instant, ns };
+    out;
+}
+
+fn td_ref(uri: js_string) -> &td_value {
+    let out: &td_ref = { kind: td_kind_ref, uri };
+    out;
+}
+
+fn td_array(items: &td_list) -> &td_value {
+    let out: &td_array = { kind: td_kind_array, items };
+    out;
+}
+
+fn td_object(map: &td_omap) -> &td_value {
+    let out: &td_object = { kind: td_kind_object, map };
+    out;
+}
+
+fn td_set(items: &td_list) -> &td_value {
+    let out: &td_set = { kind: td_kind_set, items };
+    out;
+}
+
+fn td_typed(type_id: js_string, value: &td_value) -> &td_value {
+    let out: &td_typed = { kind: td_kind_typed, type_id, value };
+    out;
+}
+
+fn td_node(name: js_string, attrs: &td_omap, children: &td_list) -> &td_value {
+    let out: &td_node = { kind: td_kind_node, name, attrs, children };
+    out;
+}
+
+fn td_native(codec: &td_codec, payload: &eq) -> &td_value {
+    let out: &td_native = { kind: td_kind_native, codec, payload };
+    out;
+}
+
+fn td_message_value(msg: &td_message) -> &td_value {
+    let out: &td_message_value = { kind: td_kind_message, msg };
+    out;
+}
+
+// ---- Lists ------------------------------------------------------------------------------------
+
+fn list_new() -> &td_list {
+    {td_list| items: [td_values|null; 4], len: 0 };
+}
+
+fn list_push(l: &td_list, v: &td_value) {
+    let len = l.len;
+    if len == l.items.length() {
+        let bigger = [td_values|null; len * 2];
+        bigger.copy(0, l.items, 0, len);
+        l.items = bigger;
+    }
+    l.items[len] = v;
+    l.len = len + 1;
+}
+
+fn list_at(l: &td_list, i: i32) -> &td_value {
+    l.items[i]!;
+}
+
+// ---- Ordered maps -----------------------------------------------------------------------------
+
+fn omap_new() -> &td_omap {
+    {td_omap| keys: [js_strings|null; 4], vals: [td_values|null; 4], len: 0 };
+}
+
+// The index of key, or -1.
+fn omap_find(m: &td_omap, key: js_string) -> i32 {
+    let i = 0;
+    while i <s m.len {
+        if js_string_equals(m.keys[i], key) {
+            return i;
+        }
+        i += 1;
+    }
+    -1;
+}
+
+fn omap_get(m: &td_omap, key: js_string) -> &?td_value {
+    let i = omap_find(m, key);
+    if i <s 0 {
+        return null;
+    }
+    m.vals[i];
+}
+
+fn omap_key(m: &td_omap, i: i32) -> js_string {
+    m.keys[i]!;
+}
+
+fn omap_val(m: &td_omap, i: i32) -> &td_value {
+    m.vals[i]!;
+}
+
+// Appends an entry; the caller has checked the key is new.
+fn omap_push(m: &td_omap, key: js_string, v: &td_value) {
+    let len = m.len;
+    if len == m.keys.length() {
+        let keys = [js_strings|null; len * 2];
+        keys.copy(0, m.keys, 0, len);
+        m.keys = keys;
+        let vals = [td_values|null; len * 2];
+        vals.copy(0, m.vals, 0, len);
+        m.vals = vals;
+    }
+    m.keys[len] = key;
+    m.vals[len] = v;
+    m.len = len + 1;
+}
+
+// Sets key, appending it when it's new.
+fn omap_set(m: &td_omap, key: js_string, v: &td_value) {
+    let i = omap_find(m, key);
+    if i <s 0 {
+        omap_push(m, key, v);
+        return;
+    }
+    m.vals[i] = v;
+}
+
+// ---- Messages ---------------------------------------------------------------------------------
+
+fn message_list_new() -> &td_message_list {
+    {td_message_list| items: [td_messages|null; 4], len: 0 };
+}
+
+fn message_list_push(l: &td_message_list, m: &td_message) {
+    let len = l.len;
+    if len == l.items.length() {
+        let bigger = [td_messages|null; len * 2];
+        bigger.copy(0, l.items, 0, len);
+        l.items = bigger;
+    }
+    l.items[len] = m;
+    l.len = len + 1;
+}
+
+fn message_at(l: &td_message_list, i: i32) -> &td_message {
+    l.items[i]!;
+}
+
+fn is_scalar(v: &td_value) -> i32 {
+    v.kind <=s td_kind_ref;
+}

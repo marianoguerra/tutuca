@@ -1,0 +1,17 @@
+{
+	"name": "tdata",
+	"private": true,
+	"type": "module",
+	"description": "tdata: tutuca's message format, its JSON and CBOR encodings and its open specs",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"test": "node --test test/*.test.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/node": "^24.0.0",
+		"typescript": "^7.0.2"
+	}
+}

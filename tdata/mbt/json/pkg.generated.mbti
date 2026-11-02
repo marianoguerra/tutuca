@@ -1,0 +1,43 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "marianoguerra/tdata/json"
+
+import {
+  "marianoguerra/tdata/model",
+}
+
+// Values
+pub fn decode_message(String) -> @model.Message raise DecodeError
+
+pub fn decode_value(String) -> @model.Value raise DecodeError
+
+pub fn double_text(Double) -> String
+
+pub fn encode_message(@model.Message) -> String raise EncodeError
+
+pub fn encode_value(@model.Value) -> String raise EncodeError
+
+pub fn well_formed(String) -> Bool
+
+pub fn write_message(StringBuilder, @model.Message) -> Unit raise EncodeError
+
+pub fn write_object(StringBuilder, @model.OMap) -> Unit raise EncodeError
+
+pub fn write_string(StringBuilder, String) -> Unit raise EncodeError
+
+pub fn write_value(StringBuilder, @model.Value) -> Unit raise EncodeError
+
+// Errors
+pub(all) suberror DecodeError {
+  DecodeError(String)
+}
+pub fn DecodeError::message(Self) -> String
+
+pub(all) suberror EncodeError {
+  EncodeError(String)
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

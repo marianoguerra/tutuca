@@ -1,0 +1,166 @@
+// Structural equality (docs/spec.md §1.2): order doesn't count for Objects, attributes and Sets;
+// an Int never equals a Double; Doubles compare by bits, with every NaN equal.
+
+fn double_same(a: f64, b: f64) -> i32 {
+    if (a != a) & (b != b) {
+        return 1;
+    }
+    a.to_bits() == b.to_bits();
+}
+
+fn td_equal(x: &td_value, y: &td_value) -> i32 {
+    if x == y {
+        return 1;
+    }
+    let a = wire(x);
+    let b = wire(y);
+    let k = a.kind;
+    if k != b.kind {
+        return 0;
+    }
+    if k == td_kind_null {
+        return 1;
+    }
+    if k == td_kind_bool {
+        return (a as &td_bool).value == (b as &td_bool).value;
+    }
+    if k == td_kind_int {
+        return (a as &td_int).value == (b as &td_int).value;
+    }
+    if k == td_kind_double {
+        return double_same((a as &td_double).value, (b as &td_double).value);
+    }
+    if k == td_kind_string {
+        return js_string_equals((a as &td_string).value, (b as &td_string).value);
+    }
+    if k == td_kind_bytes {
+        return bytes_equal((a as &td_bytes).value, (b as &td_bytes).value);
+    }
+    if k == td_kind_instant {
+        return (a as &td_instant).ns == (b as &td_instant).ns;
+    }
+    if k == td_kind_ref {
+        return js_string_equals((a as &td_ref).uri, (b as &td_ref).uri);
+    }
+    if k == td_kind_array {
+        return list_equal((a as &td_array).items, (b as &td_array).items);
+    }
+    if k == td_kind_object {
+        return omap_equal((a as &td_object).map, (b as &td_object).map);
+    }
+    if k == td_kind_set {
+        return set_equal((a as &td_set).items, (b as &td_set).items);
+    }
+    if k == td_kind_typed {
+        let ta = a as &td_typed;
+        let tb = b as &td_typed;
+        if js_string_equals(ta.type_id, tb.type_id) == 0 {
+            return 0;
+        }
+        return td_equal(ta.value, tb.value);
+    }
+    if k == td_kind_node {
+        let na = a as &td_node;
+        let nb = b as &td_node;
+        if js_string_equals(na.name, nb.name) == 0 {
+            return 0;
+        }
+        if omap_equal(na.attrs, nb.attrs) == 0 {
+            return 0;
+        }
+        return list_equal(na.children, nb.children);
+    }
+    0;
+}
+
+fn bytes_equal(a: &bytes, b: &bytes) -> i32 {
+    let n = a.length();
+    if n != b.length() {
+        return 0;
+    }
+    let i = 0;
+    while i <s n {
+        if a[i] as i32_u != b[i] as i32_u {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+fn list_equal(a: &td_list, b: &td_list) -> i32 {
+    if a.len != b.len {
+        return 0;
+    }
+    let i = 0;
+    while i <s a.len {
+        if td_equal(list_at(a, i), list_at(b, i)) == 0 {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+fn omap_equal(a: &td_omap, b: &td_omap) -> i32 {
+    if a.len != b.len {
+        return 0;
+    }
+    let i = 0;
+    while i <s a.len {
+        let other = omap_get(b, omap_key(a, i));
+        if other == null {
+            return 0;
+        }
+        if td_equal(omap_val(a, i), other!) == 0 {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// Whether some element of l equals v.
+fn list_has(l: &td_list, v: &td_value) -> i32 {
+    let i = 0;
+    while i <s l.len {
+        if td_equal(list_at(l, i), v) {
+            return 1;
+        }
+        i += 1;
+    }
+    0;
+}
+
+fn set_equal(a: &td_list, b: &td_list) -> i32 {
+    if a.len != b.len {
+        return 0;
+    }
+    let i = 0;
+    while i <s a.len {
+        if list_has(b, list_at(a, i)) == 0 {
+            return 0;
+        }
+        if list_has(a, list_at(b, i)) == 0 {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// Whether two elements of l are equal (a Set must not have any).
+fn list_has_duplicates(l: &td_list) -> i32 {
+    let i = 1;
+    while i <s l.len {
+        let j = 0;
+        while j <s i {
+            if td_equal(list_at(l, i), list_at(l, j)) {
+                return 1;
+            }
+            j += 1;
+        }
+        i += 1;
+    }
+    0;
+}

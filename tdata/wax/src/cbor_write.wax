@@ -1,0 +1,303 @@
+// The CBOR encoding (docs/spec.md §3): definite lengths, shortest heads, shortest exact floats.
+// Integers are Ints and floats are Doubles, always.
+
+const TAG_TYPED: i64 = 27;
+const TAG_URI: i64 = 32;
+const TAG_SET: i64 = 258;
+const TAG_NODE: i64 = 37700;
+const TAG_INSTANT: i64 = 37701;
+
+// A head: the major type and its argument (an unsigned 64-bit value), in the shortest form.
+fn cbor_head(b: &byte_builder, major: i32, arg: i64) {
+    let mt = major << 5;
+    if arg <u 24 {
+        bytes_byte(b, mt | arg as i32);
+        return;
+    }
+    if arg <u 0x100 {
+        bytes_byte(b, mt | 24);
+        bytes_be(b, arg, 1);
+        return;
+    }
+    if arg <u 0x10000 {
+        bytes_byte(b, mt | 25);
+        bytes_be(b, arg, 2);
+        return;
+    }
+    if arg <u 0x100000000 {
+        bytes_byte(b, mt | 26);
+        bytes_be(b, arg, 4);
+        return;
+    }
+    bytes_byte(b, mt | 27);
+    bytes_be(b, arg, 8);
+}
+
+fn cbor_int(b: &byte_builder, n: i64) {
+    if n >=s 0 {
+        cbor_head(b, 0, n);
+        return;
+    }
+    cbor_head(b, 1, -1 - n);
+}
+
+// UTF-8 of a well-formed JS string.
+fn cbor_text(b: &byte_builder, s: js_string) {
+    if str_well_formed(s) == 0 {
+        fail(e_surrogate);
+    }
+    let n = js_string_length(s);
+    // The byte length first, for the head.
+    let len = 0;
+    let i = 0;
+    while i <s n {
+        let c = js_string_char_code_at(s, i);
+        if c <s 0x80 {
+            len += 1;
+        } else {
+            if c <s 0x800 {
+                len += 2;
+            } else {
+                if is_high_surrogate(c) {
+                    len += 4;
+                    i += 1;
+                } else {
+                    len += 3;
+                }
+            }
+        }
+        i += 1;
+    }
+    cbor_head(b, 3, len as i64_u);
+    bytes_room(b, len);
+    i = 0;
+    while i <s n {
+        let c = js_string_char_code_at(s, i);
+        if c <s 0x80 {
+            bytes_byte(b, c);
+        } else {
+            if c <s 0x800 {
+                bytes_byte(b, 0xc0 | c >>u 6);
+                bytes_byte(b, 0x80 | c & 0x3f);
+            } else {
+                if is_high_surrogate(c) {
+                    let cp =
+                        0x10000 + ((c - 0xd800) << 10)
+                            + (js_string_char_code_at(s, i + 1) - 0xdc00);
+                    bytes_byte(b, 0xf0 | cp >>u 18);
+                    bytes_byte(b, 0x80 | cp >>u 12 & 0x3f);
+                    bytes_byte(b, 0x80 | cp >>u 6 & 0x3f);
+                    bytes_byte(b, 0x80 | cp & 0x3f);
+                    i += 1;
+                } else {
+                    bytes_byte(b, 0xe0 | c >>u 12);
+                    bytes_byte(b, 0x80 | c >>u 6 & 0x3f);
+                    bytes_byte(b, 0x80 | c & 0x3f);
+                }
+            }
+        }
+        i += 1;
+    }
+}
+
+// The binary16 bits of x when it converts exactly, else -1 (NaN is the caller's).
+fn f64_to_half(x: f64) -> i32 {
+    let f = x as f32;
+    if f as f64 != x {
+        return -1;
+    }
+    let bits = f.to_bits();
+    let sign = bits >>u 16 & 0x8000;
+    let e8 = bits >>u 23 & 0xff;
+    let mant = bits & 0x7fffff;
+    if e8 == 0xff {
+        // ±Infinity (NaN never gets here)
+        return sign | 0x7c00;
+    }
+    if (e8 == 0) & (mant == 0) {
+        return sign;
+    }
+    let e = e8 - 127;
+    if e >s 15 {
+        return -1;
+    }
+    if e >=s -14 {
+        if (mant & 0x1fff) != 0 {
+            return -1;
+        }
+        return sign | (e + 15) << 10 | mant >>u 13;
+    }
+    if e <s -24 {
+        return -1;
+    }
+    // A subnormal half: m × 2^-24 with m = 1.mant × 2^(e + 24), exact only if no bits drop.
+    let full = mant | 0x800000;
+    let shift = 0 - e - 1;
+    if (full & (1 << shift) - 1) != 0 {
+        return -1;
+    }
+    sign | full >>u shift;
+}
+
+fn cbor_double(b: &byte_builder, x: f64) {
+    if x != x {
+        bytes_byte(b, 0xf9);
+        bytes_byte(b, 0x7e);
+        bytes_byte(b, 0x00);
+        return;
+    }
+    let half = f64_to_half(x);
+    if half >=s 0 {
+        bytes_byte(b, 0xf9);
+        bytes_be(b, half as i64_u, 2);
+        return;
+    }
+    let f = x as f32;
+    if f as f64 == x {
+        bytes_byte(b, 0xfa);
+        bytes_be(b, f.to_bits() as i64_u, 4);
+        return;
+    }
+    bytes_byte(b, 0xfb);
+    bytes_be(b, x.to_bits(), 8);
+}
+
+fn cbor_list(b: &byte_builder, l: &td_list) {
+    cbor_head(b, 4, l.len as i64_u);
+    let i = 0;
+    while i <s l.len {
+        cbor_value(b, list_at(l, i));
+        i += 1;
+    }
+}
+
+fn cbor_map(b: &byte_builder, m: &td_omap) {
+    cbor_head(b, 5, m.len as i64_u);
+    let i = 0;
+    while i <s m.len {
+        cbor_text(b, omap_key(m, i));
+        cbor_value(b, omap_val(m, i));
+        i += 1;
+    }
+}
+
+fn cbor_value(b: &byte_builder, x: &td_value) {
+    let v = wire(x);
+    let k = v.kind;
+    if k == td_kind_null {
+        bytes_byte(b, 0xf6);
+        return;
+    }
+    if k == td_kind_bool {
+        if (v as &td_bool).value {
+            bytes_byte(b, 0xf5);
+        } else {
+            bytes_byte(b, 0xf4);
+        }
+        return;
+    }
+    if k == td_kind_int {
+        cbor_int(b, (v as &td_int).value);
+        return;
+    }
+    if k == td_kind_double {
+        cbor_double(b, (v as &td_double).value);
+        return;
+    }
+    if k == td_kind_string {
+        cbor_text(b, (v as &td_string).value);
+        return;
+    }
+    if k == td_kind_bytes {
+        let bs = (v as &td_bytes).value;
+        cbor_head(b, 2, bs.length() as i64_u);
+        bytes_append(b, bs);
+        return;
+    }
+    if k == td_kind_instant {
+        cbor_head(b, 6, TAG_INSTANT);
+        cbor_int(b, (v as &td_instant).ns);
+        return;
+    }
+    if k == td_kind_ref {
+        cbor_head(b, 6, TAG_URI);
+        cbor_text(b, (v as &td_ref).uri);
+        return;
+    }
+    if k == td_kind_array {
+        cbor_list(b, (v as &td_array).items);
+        return;
+    }
+    if k == td_kind_object {
+        cbor_map(b, (v as &td_object).map);
+        return;
+    }
+    if k == td_kind_set {
+        cbor_head(b, 6, TAG_SET);
+        cbor_list(b, (v as &td_set).items);
+        return;
+    }
+    if k == td_kind_typed {
+        let t = v as &td_typed;
+        if js_string_length(t.type_id) == 0 {
+            fail(e_type_id);
+        }
+        cbor_head(b, 6, TAG_TYPED);
+        cbor_head(b, 4, 2);
+        cbor_text(b, t.type_id);
+        cbor_value(b, t.value);
+        return;
+    }
+    if k == td_kind_node {
+        let n = v as &td_node;
+        cbor_head(b, 6, TAG_NODE);
+        cbor_head(b, 4, 3);
+        cbor_text(b, n.name);
+        cbor_map(b, n.attrs);
+        cbor_list(b, n.children);
+        return;
+    }
+    fail(e_native);
+}
+
+fn cbor_message(b: &byte_builder, m: &td_message) {
+    let entries = 3;
+    if m.meta.len >s 0 {
+        entries = 4;
+    }
+    cbor_head(b, 5, entries as i64_u);
+    cbor_text(b, s_id);
+    cbor_text(b, m.id);
+    cbor_text(b, s_kind);
+    cbor_text(b, m.kind);
+    if m.children != null {
+        cbor_text(b, s_messages);
+        let l = m.children!;
+        cbor_head(b, 4, l.len as i64_u);
+        let i = 0;
+        while i <s l.len {
+            cbor_message(b, message_at(l, i));
+            i += 1;
+        }
+    } else {
+        cbor_text(b, s_data);
+        cbor_value(b, m.value!);
+    }
+    if m.meta.len >s 0 {
+        cbor_text(b, s_meta);
+        meta_check(m.meta);
+        cbor_map(b, m.meta);
+    }
+}
+
+fn cbor_encode_value(v: &td_value) -> &bytes {
+    let b = bytes_new_builder();
+    cbor_value(b, v);
+    bytes_finish(b);
+}
+
+fn cbor_encode_message(m: &td_message) -> &bytes {
+    let b = bytes_new_builder();
+    cbor_message(b, m);
+    bytes_finish(b);
+}

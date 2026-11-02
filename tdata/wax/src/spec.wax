@@ -1,0 +1,785 @@
+// Specs (docs/spec.md §4), the same semantics as tdata/js/src/spec.ts: a spec is a Value, a
+// String names a registered spec and a Typed "tdata.spec/<form>" carries a form's arguments in
+// an Object. Matching is open, and a malformed spec is a problem, never a trap.
+
+// A path, as a chain from the innermost segment out; segments are Strings or Ints.
+type path_node = { parent: &?path_node, seg: &td_value };
+
+type spec_ctx = { picks: &td_list, problems: &td_list, depth: mut i32 };
+
+const SPEC_MAX_DEPTH = 512;
+
+let spec_registry: &?td_omap = null;
+
+fn registry() -> &td_omap {
+    if spec_registry == null {
+        let m = omap_new();
+        spec_define_builtin(m, s_any);
+        spec_define_builtin(m, s_null);
+        spec_define_builtin(m, s_bool);
+        spec_define_builtin(m, s_int);
+        spec_define_builtin(m, s_double);
+        spec_define_builtin(m, s_number);
+        spec_define_builtin(m, s_string);
+        spec_define_builtin(m, s_bytes);
+        spec_define_builtin(m, s_instant);
+        spec_define_builtin(m, s_ref);
+        spec_registry = m;
+    }
+    spec_registry!;
+}
+
+fn spec_define_builtin(m: &td_omap, name: js_string) {
+    omap_push(m, name, td_typed(js_string_concat(s_spec_prefix, name), td_object(omap_new())));
+}
+
+fn spec_define(name: js_string, s: &td_value) {
+    omap_set(registry(), name, s);
+}
+
+fn spec_reset() {
+    spec_registry = null;
+}
+
+// ---- Paths and results ------------------------------------------------------------------------
+
+fn path_key(parent: &?path_node, key: js_string) -> &path_node {
+    {path_node| parent, seg: td_string(key) };
+}
+
+fn path_index(parent: &?path_node, i: i32) -> &path_node {
+    {path_node| parent, seg: td_int(i as i64_u) };
+}
+
+fn path_value(p: &?path_node) -> &td_value {
+    let n = 0;
+    let cur = p;
+    while cur != null {
+        n += 1;
+        cur = (cur!).parent;
+    }
+    let l = list_new();
+    let items = [td_values|null; n + 1];
+    let i = n - 1;
+    cur = p;
+    while cur != null {
+        items[i] = (cur!).seg;
+        i -= 1;
+        cur = (cur!).parent;
+    }
+    l.items = items;
+    l.len = n;
+    td_array(l);
+}
+
+fn ctx_new(depth: i32) -> &spec_ctx {
+    {spec_ctx| picks: list_new(), problems: list_new(), depth };
+}
+
+fn problem(c: &spec_ctx, path: &?path_node, reason: js_string) -> i32 {
+    let m = omap_new();
+    omap_push(m, s_path, path_value(path));
+    omap_push(m, s_reason, td_string(reason));
+    list_push(c.problems, td_object(m));
+    0;
+}
+
+fn pick(c: &spec_ctx, path: &?path_node, alt: js_string) {
+    let m = omap_new();
+    omap_push(m, s_path, path_value(path));
+    omap_push(m, s_alt, td_string(alt));
+    list_push(c.picks, td_object(m));
+}
+
+fn list_append(to: &td_list, from: &td_list) {
+    let i = 0;
+    while i <s from.len {
+        list_push(to, list_at(from, i));
+        i += 1;
+    }
+}
+
+// Matches in a scratch context; on success its picks join c's. Returns whether it matched.
+fn attempt(c: &spec_ctx, s: &td_value, x: &td_value, path: &?path_node) -> i32 {
+    let sc = ctx_new(c.depth);
+    let ok = spec_match(sc, s, x, path);
+    if ok & (sc.problems.len == 0) {
+        list_append(c.picks, sc.picks);
+        return 1;
+    }
+    0;
+}
+
+// The result Object: {"ok":true,"picks":[[…]]} or {"ok":false,"problems":[[…]]}.
+fn spec_check(s: &td_value, x: &td_value) -> &td_value {
+    let c = ctx_new(0);
+    let ok = spec_match(c, s, x, null);
+    let m = omap_new();
+    if ok & (c.problems.len == 0) {
+        omap_push(m, s_ok, td_bool(1));
+        omap_push(m, s_picks, td_array(c.picks));
+    } else {
+        omap_push(m, s_ok, td_bool(0));
+        omap_push(m, s_problems, td_array(c.problems));
+    }
+    td_object(m);
+}
+
+fn spec_valid(s: &td_value, x: &td_value) -> i32 {
+    let c = ctx_new(0);
+    spec_match(c, s, x, null) & (c.problems.len == 0);
+}
+
+// ---- Matching ---------------------------------------------------------------------------------
+
+fn spec_match(c: &spec_ctx, s: &td_value, x: &td_value, path: &?path_node) -> i32 {
+    if c.depth >=s SPEC_MAX_DEPTH {
+        return problem(c, path, p_depth);
+    }
+    c.depth = c.depth + 1;
+    let ok = spec_match_inner(c, s, wire(x), path);
+    c.depth = c.depth - 1;
+    ok;
+}
+
+fn spec_match_inner(c: &spec_ctx, s: &td_value, x: &td_value, path: &?path_node) -> i32 {
+    if s.kind == td_kind_string {
+        let named = omap_get(registry(), (s as &td_string).value);
+        if named == null {
+            return problem(c, path, p_unknown_spec);
+        }
+        return spec_match(c, named!, x, path);
+    }
+    if s.kind != td_kind_typed {
+        return problem(c, path, p_not_spec);
+    }
+    let t = s as &td_typed;
+    if str_starts_with(t.type_id, s_spec_prefix) == 0 {
+        return problem(c, path, p_not_spec);
+    }
+    let form =
+        js_string_substring(
+            t.type_id,
+            js_string_length(s_spec_prefix),
+            js_string_length(t.type_id),
+        );
+    if t.value.kind != td_kind_object {
+        return problem(c, path, p_bad_arg);
+    }
+    spec_form(c, form, (t.value as &td_object).map, x, path);
+}
+
+fn arg(args: &td_omap, name: js_string) -> &?td_value {
+    omap_get(args, name);
+}
+
+fn kind_is(c: &spec_ctx, x: &td_value, k: i32, path: &?path_node) -> i32 {
+    if x.kind == k {
+        return 1;
+    }
+    problem(c, path, p_kind);
+}
+
+// The sign of i - d (-1, 0, 1), exactly; 2 when d is NaN.
+fn cmp_int_double(i: i64, d: f64) -> i32 {
+    if d != d {
+        return 2;
+    }
+    if d >= 9.223372036854775808e18 {
+        return -1;
+    }
+    if d < -9.223372036854775808e18 {
+        return 1;
+    }
+    let fl = d.floor();
+    let bi = fl as i64_s;
+    if i <s bi {
+        return -1;
+    }
+    if i >s bi {
+        return 1;
+    }
+    if d == fl {
+        return 0;
+    }
+    -1;
+}
+
+// a < b for Ints and Doubles, mixed; NaN compares false.
+fn num_lt(a: &td_value, b: &td_value) -> i32 {
+    if (a.kind == td_kind_int) & (b.kind == td_kind_int) {
+        return (a as &td_int).value <s (b as &td_int).value;
+    }
+    if (a.kind == td_kind_double) & (b.kind == td_kind_double) {
+        return (a as &td_double).value < (b as &td_double).value;
+    }
+    if a.kind == td_kind_int {
+        return cmp_int_double((a as &td_int).value, (b as &td_double).value) == -1;
+    }
+    cmp_int_double((b as &td_int).value, (a as &td_double).value) == 1;
+}
+
+fn is_number(v: &td_value) -> i32 {
+    (v.kind == td_kind_int) | (v.kind == td_kind_double);
+}
+
+// min/max bounds on a number.
+fn num_bounds(c: &spec_ctx, args: &td_omap, n: &td_value, path: &?path_node) -> i32 {
+    let min = arg(args, s_min);
+    if min != null {
+        if is_number(min!) == 0 {
+            return problem(c, path, p_bad_arg);
+        }
+        if num_lt(n, min!) {
+            return problem(c, path, p_below);
+        }
+    }
+    let max = arg(args, s_max);
+    if max != null {
+        if is_number(max!) == 0 {
+            return problem(c, path, p_bad_arg);
+        }
+        if num_lt(max!, n) {
+            return problem(c, path, p_above);
+        }
+    }
+    1;
+}
+
+// min/max (or min_len/max_len) bounds on a count; the arguments must be Ints.
+fn count_bounds(
+    c: &spec_ctx,
+    args: &td_omap,
+    n: i32,
+    lo: js_string,
+    hi: js_string,
+    path: &?path_node,
+) -> i32 {
+    let ok = 1;
+    let min = arg(args, lo);
+    if min != null {
+        if (min!).kind != td_kind_int {
+            return problem(c, path, p_bad_arg);
+        }
+        if n as i64_u <s (min! as &td_int).value {
+            ok = problem(c, path, p_below);
+        }
+    }
+    let max = arg(args, hi);
+    if max != null {
+        if (max!).kind != td_kind_int {
+            return problem(c, path, p_bad_arg);
+        }
+        if n as i64_u >s (max! as &td_int).value {
+            ok = problem(c, path, p_above);
+        }
+    }
+    ok;
+}
+
+fn each_element(c: &spec_ctx, of: &?td_value, l: &td_list, path: &?path_node) -> i32 {
+    if of == null {
+        return 1;
+    }
+    let ok = 1;
+    let i = 0;
+    while i <s l.len {
+        if spec_match(c, of!, list_at(l, i), path_index(path, i)) == 0 {
+            ok = 0;
+        }
+        i += 1;
+    }
+    ok;
+}
+
+// An argument that must be a String, or absent.
+fn string_arg_ok(a: &?td_value) -> i32 {
+    if a == null {
+        return 1;
+    }
+    (a!).kind == td_kind_string;
+}
+
+fn keys_of(c: &spec_ctx, args: &td_omap, m: &td_omap, path: &?path_node) -> i32 {
+    let ok = 1;
+    let pass = 0;
+    while pass <s 2 {
+        let group = arg(args, s_req);
+        if pass == 1 {
+            group = arg(args, s_opt);
+        }
+        if group != null {
+            if (group!).kind != td_kind_object {
+                ok = problem(c, path, p_bad_arg);
+            } else {
+                let g = (group! as &td_object).map;
+                let i = 0;
+                while i <s g.len {
+                    let k = omap_key(g, i);
+                    let v = omap_get(m, k);
+                    if v == null {
+                        if pass == 0 {
+                            ok = problem(c, path, p_missing_key);
+                        }
+                    } else {
+                        if spec_match(c, omap_val(g, i), v!, path_key(path, k)) == 0 {
+                            ok = 0;
+                        }
+                    }
+                    i += 1;
+                }
+            }
+        }
+        pass += 1;
+    }
+    ok;
+}
+
+fn spec_form(
+    c: &spec_ctx,
+    form: js_string,
+    args: &td_omap,
+    x: &td_value,
+    path: &?path_node,
+) -> i32 {
+    let k = x.kind;
+    if js_string_equals(form, s_any) {
+        return 1;
+    }
+    if js_string_equals(form, s_null) {
+        return kind_is(c, x, td_kind_null, path);
+    }
+    if js_string_equals(form, s_bool) {
+        return kind_is(c, x, td_kind_bool, path);
+    }
+    if js_string_equals(form, s_int) {
+        if kind_is(c, x, td_kind_int, path) == 0 {
+            return 0;
+        }
+        return num_bounds(c, args, x, path);
+    }
+    if js_string_equals(form, s_double) {
+        if kind_is(c, x, td_kind_double, path) == 0 {
+            return 0;
+        }
+        return num_bounds(c, args, x, path);
+    }
+    if js_string_equals(form, s_number) {
+        if is_number(x) == 0 {
+            return problem(c, path, p_kind);
+        }
+        return num_bounds(c, args, x, path);
+    }
+    if js_string_equals(form, s_string) {
+        if kind_is(c, x, td_kind_string, path) == 0 {
+            return 0;
+        }
+        return
+            count_bounds(
+                c,
+                args,
+                str_code_points((x as &td_string).value),
+                s_min_len,
+                s_max_len,
+                path,
+            );
+    }
+    if js_string_equals(form, s_bytes) {
+        if kind_is(c, x, td_kind_bytes, path) == 0 {
+            return 0;
+        }
+        return count_bounds(c, args, (x as &td_bytes).value.length(), s_min_len, s_max_len, path);
+    }
+    if js_string_equals(form, s_instant) {
+        if kind_is(c, x, td_kind_instant, path) == 0 {
+            return 0;
+        }
+        let ns = (x as &td_instant).ns;
+        let min = arg(args, s_min);
+        if min != null {
+            if (min!).kind != td_kind_instant {
+                return problem(c, path, p_bad_arg);
+            }
+            if ns <s (min! as &td_instant).ns {
+                return problem(c, path, p_below);
+            }
+        }
+        let max = arg(args, s_max);
+        if max != null {
+            if (max!).kind != td_kind_instant {
+                return problem(c, path, p_bad_arg);
+            }
+            if ns >s (max! as &td_instant).ns {
+                return problem(c, path, p_above);
+            }
+        }
+        return 1;
+    }
+    if js_string_equals(form, s_ref) {
+        if kind_is(c, x, td_kind_ref, path) == 0 {
+            return 0;
+        }
+        let prefix = arg(args, s_prefix);
+        if string_arg_ok(prefix) == 0 {
+            return problem(c, path, p_bad_arg);
+        }
+        if prefix != null {
+            if str_starts_with((x as &td_ref).uri, (prefix! as &td_string).value) == 0 {
+                return problem(c, path, p_prefix);
+            }
+        }
+        return 1;
+    }
+    if js_string_equals(form, s_const) {
+        let v = arg(args, s_value);
+        if v == null {
+            return problem(c, path, p_bad_arg);
+        }
+        if td_equal(v!, x) {
+            return 1;
+        }
+        return problem(c, path, p_const);
+    }
+    if js_string_equals(form, s_enum) {
+        let vs = arg(args, s_values);
+        if vs == null {
+            return problem(c, path, p_bad_arg);
+        }
+        if (vs!).kind != td_kind_array {
+            return problem(c, path, p_bad_arg);
+        }
+        if list_has((vs! as &td_array).items, x) {
+            return 1;
+        }
+        return problem(c, path, p_enum);
+    }
+    if js_string_equals(form, s_keys) {
+        if kind_is(c, x, td_kind_object, path) == 0 {
+            return 0;
+        }
+        return keys_of(c, args, (x as &td_object).map, path);
+    }
+    if js_string_equals(form, s_map_of) {
+        if kind_is(c, x, td_kind_object, path) == 0 {
+            return 0;
+        }
+        let vs = arg(args, s_values);
+        if vs == null {
+            return problem(c, path, p_bad_arg);
+        }
+        let m = (x as &td_object).map;
+        let ok = 1;
+        let i = 0;
+        while i <s m.len {
+            if spec_match(c, vs!, omap_val(m, i), path_key(path, omap_key(m, i))) == 0 {
+                ok = 0;
+            }
+            i += 1;
+        }
+        return ok;
+    }
+    if js_string_equals(form, s_array) | js_string_equals(form, s_set) {
+        let want = td_kind_array;
+        if js_string_equals(form, s_set) {
+            want = td_kind_set;
+        }
+        if kind_is(c, x, want, path) == 0 {
+            return 0;
+        }
+        let items =
+            if want == td_kind_set {
+                (x as &td_set).items;
+            } else {
+                (x as &td_array).items;
+            };
+        let ok = count_bounds(c, args, items.len, s_min, s_max, path);
+        return each_element(c, arg(args, s_of), items, path) & ok;
+    }
+    if js_string_equals(form, s_tuple) {
+        if kind_is(c, x, td_kind_array, path) == 0 {
+            return 0;
+        }
+        let specs = arg(args, s_items);
+        if specs == null {
+            return problem(c, path, p_bad_arg);
+        }
+        if (specs!).kind != td_kind_array {
+            return problem(c, path, p_bad_arg);
+        }
+        let want = (specs! as &td_array).items;
+        let xs = (x as &td_array).items;
+        if xs.len <s want.len {
+            return problem(c, path, p_tuple);
+        }
+        let ok = 1;
+        let i = 0;
+        while i <s want.len {
+            if spec_match(c, list_at(want, i), list_at(xs, i), path_index(path, i)) == 0 {
+                ok = 0;
+            }
+            i += 1;
+        }
+        return ok;
+    }
+    if js_string_equals(form, s_typed) {
+        if kind_is(c, x, td_kind_typed, path) == 0 {
+            return 0;
+        }
+        let t = x as &td_typed;
+        let type_id = arg(args, s_type_id);
+        if type_id == null {
+            return problem(c, path, p_bad_arg);
+        }
+        if (type_id!).kind != td_kind_string {
+            return problem(c, path, p_bad_arg);
+        }
+        if js_string_equals(t.type_id, (type_id! as &td_string).value) == 0 {
+            return problem(c, path, p_type);
+        }
+        let vs = arg(args, s_value);
+        if vs == null {
+            return 1;
+        }
+        return spec_match(c, vs!, t.value, path_key(path, s_value));
+    }
+    if js_string_equals(form, s_node) {
+        if kind_is(c, x, td_kind_node, path) == 0 {
+            return 0;
+        }
+        let n = x as &td_node;
+        let name = arg(args, s_tag);
+        if string_arg_ok(name) == 0 {
+            return problem(c, path, p_bad_arg);
+        }
+        if name != null {
+            if js_string_equals(n.name, (name! as &td_string).value) == 0 {
+                return problem(c, path, p_tag);
+            }
+        }
+        let ok = 1;
+        let attrs = arg(args, s_attrs);
+        if attrs != null {
+            ok = spec_match(c, attrs!, td_object(n.attrs), path_key(path, s_attrs)) & ok;
+        }
+        let children = arg(args, s_children);
+        if children != null {
+            ok = spec_match(c, children!, td_array(n.children), path_key(path, s_children)) & ok;
+        }
+        return ok;
+    }
+    if js_string_equals(form, s_message) {
+        if k != td_kind_message {
+            return problem(c, path, p_kind);
+        }
+        return message_form(c, args, (x as &td_message_value).msg, path);
+    }
+    if js_string_equals(form, s_messages) {
+        return problem(c, path, p_messages_spec);
+    }
+    if js_string_equals(form, s_and) {
+        let of = arg(args, s_of);
+        if of == null {
+            return problem(c, path, p_bad_arg);
+        }
+        if (of!).kind != td_kind_array {
+            return problem(c, path, p_bad_arg);
+        }
+        let l = (of! as &td_array).items;
+        let ok = 1;
+        let i = 0;
+        while i <s l.len {
+            if spec_match(c, list_at(l, i), x, path) == 0 {
+                ok = 0;
+            }
+            i += 1;
+        }
+        return ok;
+    }
+    if js_string_equals(form, s_or) {
+        let alts = arg(args, s_alts);
+        if alts == null {
+            return problem(c, path, p_bad_arg);
+        }
+        if (alts!).kind != td_kind_object {
+            return problem(c, path, p_bad_arg);
+        }
+        let m = (alts! as &td_object).map;
+        let i = 0;
+        while i <s m.len {
+            let sc = ctx_new(c.depth);
+            let ok = spec_match(sc, omap_val(m, i), x, path);
+            if ok & (sc.problems.len == 0) {
+                pick(c, path, omap_key(m, i));
+                list_append(c.picks, sc.picks);
+                return 1;
+            }
+            i += 1;
+        }
+        return problem(c, path, p_no_alt);
+    }
+    if js_string_equals(form, s_maybe) {
+        if k == td_kind_null {
+            return 1;
+        }
+        let of = arg(args, s_of);
+        if of == null {
+            return problem(c, path, p_bad_arg);
+        }
+        return spec_match(c, of!, x, path);
+    }
+    if js_string_equals(form, s_not) {
+        let of = arg(args, s_of);
+        if of == null {
+            return problem(c, path, p_bad_arg);
+        }
+        if attempt(ctx_new(c.depth), of!, x, path) {
+            return problem(c, path, p_not);
+        }
+        return 1;
+    }
+    problem(c, path, p_unknown_form);
+}
+
+fn message_form(c: &spec_ctx, args: &td_omap, m: &td_message, path: &?path_node) -> i32 {
+    let ok = 1;
+    let id = arg(args, s_id);
+    if id != null {
+        ok = spec_match(c, id!, td_string(m.id), path_key(path, s_id)) & ok;
+    }
+    let kind = arg(args, s_kind);
+    if kind != null {
+        ok = spec_match(c, kind!, td_string(m.kind), path_key(path, s_kind)) & ok;
+    }
+    let value = arg(args, s_data);
+    if value != null {
+        if m.children != null {
+            ok = problem(c, path_key(path, s_data), p_want_data);
+        } else {
+            ok = spec_match(c, value!, m.value!, path_key(path, s_data)) & ok;
+        }
+    }
+    let msgs = arg(args, s_messages);
+    if msgs != null {
+        if m.children == null {
+            ok = problem(c, path_key(path, s_messages), p_want_messages);
+        } else {
+            ok = messages_match(c, msgs!, m.children!, path_key(path, s_messages)) & ok;
+        }
+    }
+    let meta = arg(args, s_meta);
+    if meta != null {
+        if (meta!).kind != td_kind_object {
+            return problem(c, path, p_bad_arg);
+        }
+        let want = (meta! as &td_object).map;
+        let i = 0;
+        while i <s want.len {
+            let uri = omap_key(want, i);
+            let at = path_key(path_key(path, s_meta), uri);
+            let headers = omap_get(m.meta, uri);
+            if headers == null {
+                ok = problem(c, at, p_dialect);
+            } else {
+                ok = spec_match(c, omap_val(want, i), headers!, at) & ok;
+            }
+            i += 1;
+        }
+    }
+    ok;
+}
+
+// A message's `messages`: a `messages` form (or a name for one), or `any`.
+fn messages_match(c: &spec_ctx, s: &td_value, l: &td_message_list, path: &?path_node) -> i32 {
+    let target = s;
+    let hops = 0;
+    while target.kind == td_kind_string {
+        let named = omap_get(registry(), (target as &td_string).value);
+        if named == null {
+            return problem(c, path, p_unknown_spec);
+        }
+        target = named!;
+        hops += 1;
+        if hops >s SPEC_MAX_DEPTH {
+            return problem(c, path, p_depth);
+        }
+    }
+    if target.kind != td_kind_typed {
+        return problem(c, path, p_messages_spec);
+    }
+    let t = target as &td_typed;
+    if js_string_equals(t.type_id, js_string_concat(s_spec_prefix, s_any)) {
+        return 1;
+    }
+    if js_string_equals(t.type_id, js_string_concat(s_spec_prefix, s_messages)) == 0 {
+        return problem(c, path, p_messages_spec);
+    }
+    if t.value.kind != td_kind_object {
+        return problem(c, path, p_bad_arg);
+    }
+    let args = (t.value as &td_object).map;
+    let ok = count_bounds(c, args, l.len, s_min, s_max, path);
+    let every = arg(args, s_every);
+    if every != null {
+        let i = 0;
+        while i <s l.len {
+            if spec_match(c, every!, td_message_value(message_at(l, i)), path_index(path, i)) == 0 {
+                ok = 0;
+            }
+            i += 1;
+        }
+    }
+    let some = arg(args, s_some);
+    if some != null {
+        let hit = 0;
+        let i = 0;
+        while (i <s l.len) & (hit == 0) {
+            hit = attempt(c, some!, td_message_value(message_at(l, i)), path_index(path, i));
+            i += 1;
+        }
+        if hit == 0 {
+            ok = problem(c, path, p_some);
+        }
+    }
+    ok;
+}
+
+// ---- The router: (spec, id) routes in registration order --------------------------------------
+
+type route = { spec: &td_value, id: i32 };
+type routes = [mut &?route];
+
+let router_routes: &?routes = null;
+let router_count: i32 = 0;
+
+fn router_add(s: &td_value, id: i32) {
+    if router_routes == null {
+        router_routes = [routes|null; 8];
+    }
+    let rs = router_routes!;
+    if router_count == rs.length() {
+        let bigger = [routes|null; router_count * 2];
+        bigger.copy(0, rs, 0, router_count);
+        router_routes = bigger;
+    }
+    (router_routes!)[router_count] = {route| spec: s, id };
+    router_count = router_count + 1;
+}
+
+fn router_clear() {
+    router_count = 0;
+}
+
+// The ids of every route whose spec matches m, in order, as an Array of Ints.
+fn router_dispatch(m: &td_message) -> &td_value {
+    let out = list_new();
+    let x = td_message_value(m);
+    let i = 0;
+    while i <s router_count {
+        let r = (router_routes!)[i]!;
+        if spec_valid(r.spec, x) {
+            list_push(out, td_int(r.id as i64_u));
+        }
+        i += 1;
+    }
+    td_array(out);
+}

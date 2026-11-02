@@ -1,0 +1,7 @@
+// The exported interface: strings in, canonical tdata JSON out. The js and wasm packages
+// re-export these functions for their targets.
+import {
+  "marianoguerra/tdata/model",
+  "marianoguerra/tdata/json",
+  "marianoguerra/tdata/query",
+}

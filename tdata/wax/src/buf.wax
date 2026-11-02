@@ -1,0 +1,292 @@
+// Growable buffers: UTF-16 code units for building JS strings, bytes for CBOR.
+
+const UNIT_QUOTE = 0x22;
+const UNIT_BACKSLASH = 0x5c;
+
+type text_builder = { units: mut &u16_array, len: mut i32 };
+
+fn text_new() -> &text_builder {
+    {text_builder| units: [u16_array|0; 64], len: 0 };
+}
+
+fn text_unit(b: &text_builder, unit: i32) {
+    let len = b.len;
+    if len == b.units.length() {
+        let bigger = [u16_array|0; len * 2];
+        bigger.copy(0, b.units, 0, len);
+        b.units = bigger;
+    }
+    b.units[len] = unit;
+    b.len = len + 1;
+}
+
+fn text_push(b: &text_builder, s: js_string) {
+    let n = js_string_length(s);
+    let i = 0;
+    while i <s n {
+        text_unit(b, js_string_char_code_at(s, i));
+        i += 1;
+    }
+}
+
+fn text_finish(b: &text_builder) -> js_string {
+    js_string_from_char_code_array(b.units, 0, b.len);
+}
+
+// n in decimal, as String(n) writes a bigint.
+fn text_i64(b: &text_builder, n: i64) {
+    if n == 0 {
+        text_unit(b, '0');
+        return;
+    }
+    // Accumulate negatively, so i64's minimum has a counterpart.
+    let m = n;
+    if n >s 0 {
+        m = 0 - n;
+    } else {
+        text_unit(b, '-');
+    }
+    let digits = [u16_array|0; 20];
+    let count = 0;
+    while m != 0 {
+        digits[count] = '0' - (m %s 10) as i32;
+        m = m /s 10;
+        count += 1;
+    }
+    while count >s 0 {
+        count -= 1;
+        text_unit(b, digits[count] as i32_u);
+    }
+}
+
+fn is_high_surrogate(unit: i32) -> i32 {
+    (unit >=s 0xd800) & (unit <=s 0xdbff);
+}
+
+fn is_low_surrogate(unit: i32) -> i32 {
+    (unit >=s 0xdc00) & (unit <=s 0xdfff);
+}
+
+// Whether s has no lone surrogate.
+fn str_well_formed(s: js_string) -> i32 {
+    let n = js_string_length(s);
+    let i = 0;
+    while i <s n {
+        let c = js_string_char_code_at(s, i);
+        if is_high_surrogate(c) {
+            if i + 1 >=s n {
+                return 0;
+            }
+            if is_low_surrogate(js_string_char_code_at(s, i + 1)) == 0 {
+                return 0;
+            }
+            i += 2;
+        } else {
+            if is_low_surrogate(c) {
+                return 0;
+            }
+            i += 1;
+        }
+    }
+    1;
+}
+
+// The length of s in code points (s is well formed).
+fn str_code_points(s: js_string) -> i32 {
+    let n = js_string_length(s);
+    let count = 0;
+    let i = 0;
+    while i <s n {
+        if is_low_surrogate(js_string_char_code_at(s, i)) == 0 {
+            count += 1;
+        }
+        i += 1;
+    }
+    count;
+}
+
+fn str_starts_with(s: js_string, prefix: js_string) -> i32 {
+    let n = js_string_length(prefix);
+    if js_string_length(s) <s n {
+        return 0;
+    }
+    let i = 0;
+    while i <s n {
+        if js_string_char_code_at(s, i) != js_string_char_code_at(prefix, i) {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+type byte_builder = { buf: mut &bytes, len: mut i32 };
+
+fn bytes_new_builder() -> &byte_builder {
+    {byte_builder| buf: [bytes|0; 256], len: 0 };
+}
+
+fn bytes_room(b: &byte_builder, n: i32) {
+    if b.len + n <=s b.buf.length() {
+        return;
+    }
+    let size = b.buf.length() * 2;
+    while size <s b.len + n {
+        size = size * 2;
+    }
+    let bigger = [bytes|0; size];
+    bigger.copy(0, b.buf, 0, b.len);
+    b.buf = bigger;
+}
+
+fn bytes_byte(b: &byte_builder, x: i32) {
+    bytes_room(b, 1);
+    b.buf[b.len] = x;
+    b.len = b.len + 1;
+}
+
+fn bytes_append(b: &byte_builder, src: &bytes) {
+    let n = src.length();
+    bytes_room(b, n);
+    b.buf.copy(b.len, src, 0, n);
+    b.len = b.len + n;
+}
+
+// The low n bytes of x, big-endian.
+fn bytes_be(b: &byte_builder, x: i64, n: i32) {
+    let shift = (n - 1) * 8;
+    while shift >=s 0 {
+        bytes_byte(b, (x >>u shift as i64_u) as i32 & 0xff);
+        shift -= 8;
+    }
+}
+
+fn bytes_finish(b: &byte_builder) -> &bytes {
+    let out = [bytes|0; b.len];
+    out.copy(0, b.buf, 0, b.len);
+    out;
+}
+
+// ---- Base64 (RFC 4648 §4, padded) -------------------------------------------------------------
+
+fn b64_char(x: i32) -> i32 {
+    if x <s 26 {
+        return 'A' + x;
+    }
+    if x <s 52 {
+        return 'a' + x - 26;
+    }
+    if x <s 62 {
+        return '0' + x - 52;
+    }
+    if x == 62 {
+        return '+';
+    }
+    '/';
+}
+
+// The 6-bit value of a base64 character, or -1.
+fn b64_value(c: i32) -> i32 {
+    if (c >=s 'A') & (c <=s 'Z') {
+        return c - 'A';
+    }
+    if (c >=s 'a') & (c <=s 'z') {
+        return c - 'a' + 26;
+    }
+    if (c >=s '0') & (c <=s '9') {
+        return c - '0' + 52;
+    }
+    if c == '+' {
+        return 62;
+    }
+    if c == '/' {
+        return 63;
+    }
+    -1;
+}
+
+fn text_base64(t: &text_builder, b: &bytes) {
+    let n = b.length();
+    let i = 0;
+    while i + 2 <s n {
+        let x = b[i] as i32_u << 16 | b[i + 1] as i32_u << 8 | b[i + 2] as i32_u;
+        text_unit(t, b64_char(x >>u 18 & 63));
+        text_unit(t, b64_char(x >>u 12 & 63));
+        text_unit(t, b64_char(x >>u 6 & 63));
+        text_unit(t, b64_char(x & 63));
+        i += 3;
+    }
+    let rest = n - i;
+    if rest == 1 {
+        let x = b[i] as i32_u << 16;
+        text_unit(t, b64_char(x >>u 18 & 63));
+        text_unit(t, b64_char(x >>u 12 & 63));
+        text_unit(t, '=');
+        text_unit(t, '=');
+    }
+    if rest == 2 {
+        let x = b[i] as i32_u << 16 | b[i + 1] as i32_u << 8;
+        text_unit(t, b64_char(x >>u 18 & 63));
+        text_unit(t, b64_char(x >>u 12 & 63));
+        text_unit(t, b64_char(x >>u 6 & 63));
+        text_unit(t, '=');
+    }
+}
+
+// Strict decoding: padded, no whitespace, unused bits zero (what re-encodes to the same text).
+fn base64_decode(s: js_string) -> &bytes {
+    let n = js_string_length(s);
+    if n %s 4 != 0 {
+        fail(e_base64);
+    }
+    let pad = 0;
+    if n >s 0 {
+        if js_string_char_code_at(s, n - 1) == '=' {
+            pad = 1;
+            if js_string_char_code_at(s, n - 2) == '=' {
+                pad = 2;
+            }
+        }
+    }
+    let out = [bytes|0; n /s 4 * 3 - pad];
+    let o = 0;
+    let i = 0;
+    while i <s n {
+        let x = 0;
+        let j = 0;
+        while j <s 4 {
+            let c = js_string_char_code_at(s, i + j);
+            let v = 0;
+            if (c == '=') & (i + 4 == n) & (j >=s 4 - pad) {
+                v = 0;
+            } else {
+                v = b64_value(c);
+                if v <s 0 {
+                    fail(e_base64);
+                }
+            }
+            x = x << 6 | v;
+            j += 1;
+        }
+        if (i + 4 == n) & (pad == 2) {
+            if (x & 0xffff) != 0 {
+                fail(e_base64);
+            }
+        }
+        if (i + 4 == n) & (pad == 1) {
+            if (x & 0xff) != 0 {
+                fail(e_base64);
+            }
+        }
+        out[o] = x >>u 16;
+        if o + 1 <s out.length() {
+            out[o + 1] = x >>u 8;
+        }
+        if o + 2 <s out.length() {
+            out[o + 2] = x;
+        }
+        o += 3;
+        i += 4;
+    }
+    out;
+}

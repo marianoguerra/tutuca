@@ -1,0 +1,48 @@
+# Tasks for tdata. `just` lists them.
+
+default:
+    @just --list
+
+# Install the JS dev dependencies (TypeScript, Node types).
+setup:
+    cd js && npm install
+
+# Run every test: the JS suite and type check, the Wax build and its suite, then tq (MoonBit).
+test: test-js test-wax test-mbt
+
+# The JS implementation: the shared vectors, codecs, specs, the router, tq through the MoonBit
+# build; then tsc.
+test-js: build-mbt
+    cd js && node --test test/*.test.ts
+    cd js && npx tsc --noEmit
+
+# Build dist/tdata.wasm with wax-mb (tutuca-wax's pinned build, or WAX_MB).
+build-wax:
+    node wax/scripts/build.mjs
+
+# The Wax implementation: the shared vectors, the router and codecs, and the cross-implementation
+# properties against the JS one.
+test-wax: build-wax
+    cd wax && node --test test/*.test.mjs
+
+# Build tq (mbt/, MoonBit) for both targets: mbt/dist/tq.js (ESM) and mbt/dist/tq.wasm (wasm-gc).
+build-mbt:
+    cd mbt && moon build --target js --release && moon build --target wasm-gc --release
+    mkdir -p mbt/dist
+    cp mbt/_build/js/release/build/js/js.js mbt/dist/tq.js
+    cp mbt/_build/wasm-gc/release/build/wasm/wasm.wasm mbt/dist/tq.wasm
+
+# tq: moon's unit tests, then the shared vectors against both builds.
+test-mbt: build-mbt
+    cd mbt && moon check --deny-warn && moon test
+    cd mbt && node --test test/*.test.mjs
+
+# Regenerate vectors/values.json and vectors/messages.json (invalid.json and specs.json are
+# hand-written).
+vectors:
+    cd js && node scripts/vectors.ts
+
+# Format the Wax sources (strings.wax is left alone: wax-mb's formatter moves comments inside
+# import blocks).
+fmt-wax:
+    ../tutuca-wax/.tools/wax-mb/_build/native/debug/build/marianoguerra/wax-cli/wax-mb/wax-mb.exe format -i $(ls wax/src/*.wax | grep -v strings.wax)
