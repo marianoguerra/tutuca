@@ -1,7 +1,7 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../deps/immer.js";
 import { DRAG_EVENTS } from "./drag.js";
-import { NoDefaultError } from "./schema.js";
+import { prefixed } from "./schema.js";
 import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./spec.js";
 import { mint } from "./tree/identity.js";
 import { toExpr } from "./view.js";
@@ -62,9 +62,7 @@ export class ComponentSpec {
 			try {
 				state[key] = this.fields[key].make(args[key], scope, state);
 			} catch (error) {
-				// Prefix the field, so nested failures read as a path: Root.child: Child.item: ...
-				const Wrapped = error instanceof NoDefaultError ? NoDefaultError : Error;
-				throw new Wrapped(`${this.name}.${key}: ${error.message}`, { cause: error });
+				throw prefixed(`${this.name}.${key}`, error);
 			}
 		}
 		return state;

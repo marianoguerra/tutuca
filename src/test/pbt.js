@@ -10,11 +10,11 @@ import {
 	findInvalidFields,
 	IndexType,
 	messageIssues,
-	NoDefaultError,
 	render,
 	scopeOf,
 	specOf,
 	t,
+	unlessNoDefault,
 	unwrapOption,
 } from "../tutuca.js";
 import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot, testEnv } from "./driver.js";
@@ -24,14 +24,11 @@ export { componentPaths, Driver, describeProblems, PROBLEMS, snapshot, testEnv }
 const mapValues = (record, fn) =>
 	Object.fromEntries(Object.entries(record).map(([k, v]) => [k, fn(v, k)]));
 // spec.make(args, scope), or undefined when the state can't be defaulted.
-const tryMake = (spec, args, scope) => {
-	try {
-		return spec.make(args, scope);
-	} catch (error) {
-		if (error instanceof NoDefaultError) return undefined;
-		throw error;
-	}
-};
+const tryMake = (spec, args, scope) =>
+	unlessNoDefault(
+		() => spec.make(args, scope),
+		() => undefined,
+	);
 
 // A key chosen in a collection that only exists once the owner does: n picks among its keys.
 class KeyRef {

@@ -16,6 +16,21 @@ const CHECKS = {
 };
 // make throws it for state it can't default: a missing value, not a bug in the component.
 export class NoDefaultError extends Error {}
+// error with prefix before its message, so nested failures read as a path (Root.child: Child.item:
+// ...); still a NoDefaultError if it was one.
+export const prefixed = (prefix, error) => {
+	const Wrapped = error instanceof NoDefaultError ? NoDefaultError : Error;
+	return new Wrapped(`${prefix}: ${error.message}`, { cause: error });
+};
+// What make() returns, or what otherwise() does when it throws a NoDefaultError.
+export const unlessNoDefault = (make, otherwise) => {
+	try {
+		return make();
+	} catch (error) {
+		if (error instanceof NoDefaultError) return otherwise(error);
+		throw error;
+	}
+};
 // How far a field's state goes, from most to least: replicated and persisted, persisted on this
 // device only, neither. A sync engine sees the fields up to its level.
 export const SYNC_LEVELS = ["shared", "local", "none"];
@@ -155,28 +170,30 @@ export class EnumType extends Type {
 		return this.members.includes(value);
 	}
 }
-// Null or a valid inner value; nullability is a type, not a flag on every type.
-export class OptionType extends Type {
-	static kind = "option";
-	constructor(valueType) {
-		super(null);
+// A type holding values of one inner type: an option, an array or a map.
+class ContainerType extends Type {
+	constructor(defaultValue, valueType = new AnyType(null)) {
+		super(defaultValue);
 		this.valueType = valueType;
 	}
 	children() {
 		return [this.valueType];
+	}
+}
+// Null or a valid inner value; nullability is a type, not a flag on every type.
+export class OptionType extends ContainerType {
+	static kind = "option";
+	constructor(valueType) {
+		super(null, valueType);
 	}
 	isValidValue(value, scope, owner) {
 		return value === null || this.valueType.isValid(value, scope, owner);
 	}
 }
-export class ArrayType extends Type {
+export class ArrayType extends ContainerType {
 	static kind = "array";
-	constructor(valueType = new AnyType(null)) {
-		super([]);
-		this.valueType = valueType;
-	}
-	children() {
-		return [this.valueType];
+	constructor(valueType) {
+		super([], valueType);
 	}
 	isValidValue(value, scope) {
 		return Array.isArray(value) && value.every((v) => this.valueType.isValid(v, scope));
@@ -184,14 +201,10 @@ export class ArrayType extends Type {
 }
 export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 // A record with arbitrary string keys and values of one type.
-export class MapType extends Type {
+export class MapType extends ContainerType {
 	static kind = "map";
-	constructor(valueType = new AnyType(null)) {
-		super({});
-		this.valueType = valueType;
-	}
-	children() {
-		return [this.valueType];
+	constructor(valueType) {
+		super({}, valueType);
 	}
 	isValidValue(value, scope) {
 		return isRecord(value) && Object.values(value).every((v) => this.valueType.isValid(v, scope));
@@ -214,8 +227,7 @@ export class RecordType extends Type {
 			try {
 				return [k, type.make(undefined, scope)];
 			} catch (error) {
-				const Wrapped = error instanceof NoDefaultError ? NoDefaultError : Error;
-				throw new Wrapped(`${k}: ${error.message}`, { cause: error });
+				throw prefixed(k, error);
 			}
 		});
 		return Object.fromEntries(entries);

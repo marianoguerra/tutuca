@@ -5,11 +5,11 @@ import {
 	ArrayType,
 	isRecord,
 	MapType,
-	NoDefaultError,
 	OneOfType,
 	OptionType,
 	RecordType,
 	syncsAt,
+	unlessNoDefault,
 } from "../schema.js";
 import { isComponent, scopeOf, specOf } from "../spec.js";
 import { setOwn } from "./ops.js";
@@ -24,10 +24,6 @@ const refOf = (v) => {
 	return typeof ref === "string" ? ref : typeof ref?.val === "string" ? ref.val : null;
 };
 export const isRef = (v) => refOf(v) !== null;
-export const rootOf = (scope) => {
-	while (scope.parent !== null) scope = scope.parent;
-	return scope;
-};
 // A map or record type: its values' $ key is data, not a ref.
 const holdsData = (type, v) => {
 	const t = narrow(type, v);
@@ -123,18 +119,16 @@ export const project = (value, { level = "shared", type = ANY, leaf = null } = {
 // the type rejects takes its default; one without a default is left for its container's type.
 const fitIn = (type, value, scope) => {
 	if (type === ANY) return value;
-	try {
-		return type.make(value, scope, undefined);
-	} catch (error) {
-		if (error instanceof NoDefaultError) return value;
-		throw error;
-	}
+	return unlessNoDefault(
+		() => type.make(value, scope, undefined),
+		() => value,
+	);
 };
 // The state plain projects: components made through their scopes with their fields, so the
 // fields the projection lacks take their defaults, and the values their types reject inside
 // arrays, maps and records take theirs. scope is any scope of the tree.
 export const hydrate = (plain, scope, type = ANY) => {
-	const rootScope = rootOf(scope);
+	const rootScope = scope.root;
 	const build = (v, t, s) => {
 		if (v === null || typeof v !== "object") return v;
 		if (Array.isArray(v)) {
@@ -166,7 +160,7 @@ export const hydrate = (plain, scope, type = ANY) => {
 // and maps. An array keeps base's items under over's only when both hold the same refs at the
 // same places; otherwise base's fields there are lost and take their defaults.
 export const overlay = (base, over, scope, level = "shared") => {
-	const rootScope = rootOf(scope);
+	const rootScope = scope.root;
 	const merge = (b, o, type) => {
 		if (Array.isArray(b) && Array.isArray(o)) {
 			if (b.length !== o.length || b.some((item, i) => refOf(item) !== refOf(o[i]))) return o;
@@ -190,7 +184,7 @@ export const overlay = (base, over, scope, level = "shared") => {
 
 // The type and scope at path in root, a state or a projection, walking through components.
 export const typeAt = (root, path, scope, level = "none") => {
-	const rootScope = rootOf(scope);
+	const rootScope = scope.root;
 	let type = ANY;
 	let value = root;
 	let at = scope;

@@ -186,7 +186,7 @@ export const implementsIface = (value, iface) => {
 	const scope = scopeOf(value);
 	if (resolveImplements(spec, scope).includes(iface)) return true;
 	if (scope === null) return false;
-	for (let s = scope; s !== null; s = s.parent) {
+	for (const s of scope.ancestors()) {
 		for (const name in s.interfaces) {
 			if (s.interfaces[name] === iface && scope.lookupByName(name) === spec) return true;
 		}
@@ -218,14 +218,14 @@ export const argIssues = (types, args, scope, owner) => {
 	});
 	return issues;
 };
-// Other entries stay as they are for lint to report.
+// An on or answers entry as a HandlerSpec; other entries stay as they are for lint to report.
+const toHandler = (name, entry) =>
+	typeof entry === "function" || (typeof entry === "object" && entry !== null)
+		? new HandlerSpec(name, entry)
+		: entry;
 export const toMessages = (on) => {
 	const messages = Object.create(null); // no toString &c in entries
-	for (const key in on) {
-		const entry = on[key];
-		const isSpec = typeof entry === "function" || (typeof entry === "object" && entry !== null);
-		messages[key] = isSpec ? new HandlerSpec(key, entry) : entry;
-	}
+	for (const key in on) messages[key] = toHandler(key, on[key]);
 	return messages;
 };
 // answers maps an ask's name to its outcomes' handlers, { ok, error, unhandled }, each an entry
@@ -240,13 +240,17 @@ export const toAnswers = (answers) => {
 		}
 		out[ask] = Object.create(null);
 		for (const outcome in outcomes) {
-			const entry = outcomes[outcome];
-			const isSpec = typeof entry === "function" || (typeof entry === "object" && entry !== null);
-			out[ask][outcome] = isSpec ? new HandlerSpec(`${ask}.${outcome}`, entry) : entry;
+			out[ask][outcome] = toHandler(`${ask}.${outcome}`, outcomes[outcome]);
 		}
 	}
 	return out;
 };
+// Whether a message's pre and post conditions hold; one it doesn't have holds. A throwing one
+// doesn't. info is what the handler's ctx says about the message ({} outside a handler).
+export const preHolds = (message, prev, args, info) =>
+	message.pre === undefined || holds(() => message.pre.call(prev, prev, args, info));
+export const postHolds = (message, prev, next, args, info) =>
+	message.post === undefined || holds(() => message.post.call(prev, prev, next, args, info));
 // The ways a handled message broke its spec: "args", "arg:<i>", "sourceKey", "pre", "post"
 // and "emits:<kind>:<name>". prev and next are the component before and after the handler,
 // info is { sourceKey, emitted } from the MessageContext it ran in.
@@ -257,12 +261,8 @@ export const messageIssues = (message, prev, next, args, info) => {
 	if (message.sourceKey !== undefined && !message.sourceKey.isValid(sourceKey, scope, prev)) {
 		issues.push("sourceKey");
 	}
-	if (message.pre !== undefined && !holds(() => message.pre.call(prev, prev, args, info))) {
-		issues.push("pre");
-	}
-	if (message.post !== undefined && !holds(() => message.post.call(prev, prev, next, args, info))) {
-		issues.push("post");
-	}
+	if (!preHolds(message, prev, args, info)) issues.push("pre");
+	if (!postHolds(message, prev, next, args, info)) issues.push("post");
 	if (message.emits !== undefined) {
 		for (const { kind, name } of emitted) {
 			if (!message.emits[kind]?.includes(name)) issues.push(`emits:${kind}:${name}`);

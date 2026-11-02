@@ -3,9 +3,9 @@
 // hot reload), and ops from a peer on another version (fitOp). The rules are hydrate's: fields
 // a component doesn't declare are dropped, values their type rejects take its default; each
 // says what it changed.
-import { isRecord, NoDefaultError, typeText } from "../schema.js";
+import { isRecord, typeText, unlessNoDefault } from "../schema.js";
 import { findInvalidFields, isComponent, specOf } from "../spec.js";
-import { componentOf, getIn, hydrate, keyType, project, rootOf, typeAt } from "./codec.js";
+import { componentOf, getIn, hydrate, keyType, project, typeAt } from "./codec.js";
 import { diff } from "./diff.js";
 import { applyOps, opFits } from "./ops.js";
 
@@ -27,7 +27,7 @@ export const rebuild = (plain, scope, { level = "none", type = undefined } = {})
 		if (op === "set" && isRecord(parent) && !Object.hasOwn(parent, key)) added.push(path);
 		else reset.push({ path, before: getIn(plain, path), after: getIn(after, path) });
 	}
-	const dropped = droppedFields(plain, type, rootOf(scope));
+	const dropped = droppedFields(plain, type, scope.root);
 	return { root, added, reset, dropped, broken: findInvalidFields(root, null) };
 };
 // The state prev holds, made again through scope's components: hot reload. rebuild of its
@@ -90,13 +90,12 @@ export const applyFitting = (root, op, scope, report, { level = "shared" } = {})
 		report.added.push(...rebuilt.added.map(under));
 		report.dropped.push(...rebuilt.dropped.map(under));
 		for (const r of rebuilt.reset) report.reset.push({ ...r, path: under(r.path) });
-		let made;
-		try {
-			made = type.make(rebuilt.root, owned, undefined);
-		} catch (error) {
-			if (error instanceof NoDefaultError) throw new Unfit(path);
-			throw error;
-		}
+		const made = unlessNoDefault(
+			() => type.make(rebuilt.root, owned, undefined),
+			() => {
+				throw new Unfit(path);
+			},
+		);
 		if (made !== rebuilt.root) {
 			report.reset.push({ path, before: value, after: project(made, { level, type }) });
 		}
@@ -150,8 +149,8 @@ export const writeFitting = (
 // reload did, not deciding it. { ref, field, change: "added" | "removed" | "changed", before,
 // after }, field null for a whole component, before and after typeText of the field.
 export const specChanges = (prevScope, scope) => {
-	const prevRefs = specsByRef(rootOf(prevScope));
-	const refs = specsByRef(rootOf(scope));
+	const prevRefs = prevScope.root.specsByRef();
+	const refs = scope.root.specsByRef();
 	const changes = [];
 	for (const ref of new Set([...prevRefs.keys(), ...refs.keys()])) {
 		const a = prevRefs.get(ref);
@@ -170,9 +169,4 @@ export const specChanges = (prevScope, scope) => {
 		}
 	}
 	return changes;
-};
-const specsByRef = (scope, out = new Map()) => {
-	for (const name in scope.byName) out.set([...scope.path, name].join("/"), scope.byName[name]);
-	for (const name in scope.children) specsByRef(scope.children[name], out);
-	return out;
 };

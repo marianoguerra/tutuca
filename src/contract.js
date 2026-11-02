@@ -9,9 +9,10 @@ import {
 	brokenInvariants,
 	ContractError,
 	HandlerSpec,
-	holds,
 	Interface,
 	interfaceProblems,
+	postHolds,
+	preHolds,
 	QuerySpec,
 	resolveImplements,
 	scopeOf,
@@ -53,7 +54,7 @@ export const apply = (c, name, ...args) => {
 	const scope = scopeOf(c);
 	const prev = isDraft(c) ? current(c) : c;
 	failIf(spec, name, argIssues(message.args, args, scope, prev));
-	if (message.pre !== undefined && !holds(() => message.pre.call(prev, prev, args, {}))) {
+	if (!preHolds(message, prev, args, {})) {
 		const why = message.why?.call(prev, prev, args) ?? "";
 		throw new ContractError(spec.name, name, ["pre"], why);
 	}
@@ -65,8 +66,7 @@ export const apply = (c, name, ...args) => {
 	} else {
 		next = produce(c, (draft) => message.run.call(prev, draft, args));
 	}
-	if (message.post !== undefined && !holds(() => message.post.call(prev, prev, next, args, {})))
-		throw new ContractError(spec.name, name, ["post"]);
+	if (!postHolds(message, prev, next, args, {})) throw new ContractError(spec.name, name, ["post"]);
 	if (!isDraft(next) && next !== c) {
 		failIf(
 			spec,

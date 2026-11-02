@@ -2,7 +2,7 @@
 // plain projections alike (an engine's stored copy), and skips subtrees the two share, so after
 // a task it only walks what the task changed.
 import { isRecord, StringType } from "../schema.js";
-import { componentOf, keysOf, keyType, narrow, project, rootOf } from "./codec.js";
+import { componentOf, keysOf, keyType, narrow, project } from "./codec.js";
 
 // Past this many cells an array's middle is replaced instead of matched item by item.
 const MAX_LCS_CELLS = 1_000_000;
@@ -90,7 +90,7 @@ export const diff = (
 	next,
 	{ level = "shared", scope, plain = null, leaf = (v) => v, isText = () => true },
 ) => {
-	const rootScope = rootOf(scope);
+	const rootScope = scope.root;
 	const toPlain = plain ?? ((value, type) => project(value, { level, type }));
 	const ops = [];
 	const set = (path, value, type) => ops.push({ op: "set", path, value: toPlain(value, type) });

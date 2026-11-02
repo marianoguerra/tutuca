@@ -119,7 +119,6 @@ export const toVChilds = (value) => {
 	addChild(childs, value);
 	return childs;
 };
-const getKey = (child) => child.key;
 // A pure vnode walk: much cheaper than morphing, which has to read the DOM at every element.
 function childsEqual(a, b) {
 	if (a.length !== b.length) return false;
@@ -279,7 +278,7 @@ function morphChildren(
 		const width = domWidth(oldChilds[i]);
 		oldGroups.push(domNodes.slice(offset, offset + width));
 		offset += width;
-		const key = getKey(oldChilds[i]);
+		const key = oldChilds[i].key;
 		if (key != null) {
 			if (oldKeyMap.has(key)) throw new Error(`Duplicate sibling key: ${key}`);
 			oldKeyMap.set(key, i);
@@ -289,7 +288,7 @@ function morphChildren(
 	let unkeyedCursor = 0;
 	// Match unkeyed children in forward order, independently of placement order.
 	const matches = newChilds.map((child) => {
-		const key = getKey(child);
+		const key = child.key;
 		let index = -1;
 		if (key != null) {
 			const previous = oldKeyMap.get(key);
@@ -302,7 +301,7 @@ function morphChildren(
 		} else {
 			while (unkeyedCursor < oldChilds.length) {
 				const candidate = unkeyedCursor++;
-				if (getKey(oldChilds[candidate]) == null) {
+				if (oldChilds[candidate].key == null) {
 					index = candidate;
 					break;
 				}

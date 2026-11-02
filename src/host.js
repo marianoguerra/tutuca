@@ -33,8 +33,6 @@ export class Host {
 		this.checks = checks === null ? null : new checks((type, info) => this.notify(type, info));
 		this.env = env; // What handlers read from the world, through ctx.
 		this.root = null;
-		this.registrations = new Set();
-		this.componentNames = new Set(); // In any scope, aliases included.
 		// Delivers the tasks against the root (src/tree): this host renders, listens and syncs.
 		this.scheduler = new Scheduler({
 			kinds: componentKinds,
@@ -59,11 +57,7 @@ export class Host {
 				},
 			},
 		});
-		this.scope = new Scope((spec, name) => {
-			this.registrations.add(spec);
-			this.componentNames.add(name);
-			this.addEventListeners(spec.eventNames);
-		});
+		this.scope = new Scope((spec) => this.addEventListeners(spec.eventNames));
 		this.onNotify = (_type, _info) => {};
 		this.pushTask = this.pushTask.bind(this);
 		this.handleTasks = this.handleTasks.bind(this);
@@ -74,6 +68,17 @@ export class Host {
 		this._idleWaiters = [];
 		this.drags = new DragTracker(rootNode);
 		this.engines = new SyncEngines((type, info) => this.notify(type, info));
+	}
+	// The specs registered in any scope, and the names they are registered under, aliases
+	// included: what lint checks.
+	get registrations() {
+		return new Set(this.registeredEntries().map(([, spec]) => spec));
+	}
+	get componentNames() {
+		return new Set(this.registeredEntries().map(([name]) => name));
+	}
+	registeredEntries() {
+		return [...this.scope.descendants()].flatMap((s) => Object.entries(s.byName));
 	}
 	// The element being dragged, from dragstart to dragend.
 	get drag() {
@@ -98,22 +103,15 @@ export class Host {
 		const { type } = e;
 		const bubbles = DROP_EVENTS.has(type);
 		this.drags.beforeEvent(e, this.root);
-		let info;
+		let info = null;
+		let args = null;
 		try {
 			info = getEventInfoFor(e.target, type, this.rootNode, this.root, bubbles);
+			if (info !== null) args = eventArgs(info, e, this.drag);
 		} catch (error) {
-			// The DOM doesn't match the root it routes against (a render that failed): reported,
-			// as a failed task is, instead of escaping the listener.
-			info = null;
+			// The DOM doesn't match the root it routes against (a render that failed), or an event
+			// arg failed: reported, as a failed task is, instead of escaping the listener.
 			this.notify("eventFailed", { event: e, error });
-		}
-		let args = null;
-		if (info !== null) {
-			try {
-				args = eventArgs(info, e, this.drag);
-			} catch (error) {
-				this.notify("eventFailed", { event: e, error });
-			}
 		}
 		if (args !== null) {
 			const { handler, to, node } = info;

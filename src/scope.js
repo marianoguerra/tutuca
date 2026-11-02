@@ -28,9 +28,23 @@ export class Scope {
 		this.children[name] ??= new Scope(this.onRegister, this, name);
 		return this.children[name];
 	}
+	// This scope and its parents, nearest first.
+	*ancestors() {
+		for (let s = this; s !== null; s = s.parent) yield s;
+	}
+	// This scope and every one below it, parents first.
+	*descendants() {
+		yield this;
+		for (const name in this.children) yield* this.children[name].descendants();
+	}
+	get root() {
+		let s = this;
+		while (s.parent !== null) s = s.parent;
+		return s;
+	}
 	// The ref of a component made in this scope: this path and a name it's looked up by here.
 	refFor(spec) {
-		for (let s = this; s !== null; s = s.parent) {
+		for (const s of this.ancestors()) {
 			for (const name in s.byName) {
 				if (s.byName[name] === spec && this.lookupByName(name) === spec) {
 					return [...this.path, name].join(refSep);
@@ -65,11 +79,9 @@ export class Scope {
 		return (args) => this.make(name, args);
 	}
 	lookup(getter) {
-		let scope = this;
-		while (scope !== null) {
+		for (const scope of this.ancestors()) {
 			const v = getter(scope);
 			if (v !== undefined) return v;
-			scope = scope.parent;
 		}
 		return null;
 	}
@@ -93,10 +105,8 @@ export class Scope {
 			}
 			this.interfaces[name] = ifaces[name];
 		}
-		this.implementsChecked = new WeakSet(); // Here and below they may now resolve differently.
-		forEachScopeBelow(this, (s) => {
-			s.implementsChecked = new WeakSet();
-		});
+		// Here and below they may now resolve differently.
+		for (const s of this.descendants()) s.implementsChecked = new WeakSet();
 	}
 	lookupInterface(name) {
 		return this.lookup((scope) => scope.interfaces[name]);
@@ -126,8 +136,16 @@ export class Scope {
 	// Every spec registered here or in a parent, by name; inner registrations win.
 	allSpecs() {
 		const specs = {};
-		for (let s = this; s !== null; s = s.parent) {
+		for (const s of this.ancestors()) {
 			for (const name in s.byName) specs[name] ??= s.byName[name];
+		}
+		return specs;
+	}
+	// Every spec registered here or below, by its ref.
+	specsByRef() {
+		const specs = new Map();
+		for (const s of this.descendants()) {
+			for (const name in s.byName) specs.set([...s.path, name].join(refSep), s.byName[name]);
 		}
 		return specs;
 	}
@@ -138,9 +156,3 @@ export class Scope {
 		return spec.make(args, this);
 	}
 }
-const forEachScopeBelow = (scope, fn) => {
-	for (const name in scope.children) {
-		fn(scope.children[name]);
-		forEachScopeBelow(scope.children[name], fn);
-	}
-};
