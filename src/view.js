@@ -195,6 +195,8 @@ export class Each extends AstNode {
 	}
 }
 export const each = (source, child, loopName) => new Each(toExpr(source), toExpr(child), loopName);
+const renderEachItem = (itemCtx, loop) =>
+	renderView(itemCtx.it, itemCtx.forItemView(itemCtx.it), loop.view);
 // A loop that renders each item, a component, with the loop's view.
 export class RenderEach extends AstNode {
 	static kind = "renderEach";
@@ -204,9 +206,7 @@ export class RenderEach extends AstNode {
 		this.loopName = loopName;
 	}
 	eval(ctx) {
-		return loopFragments(ctx, this.source, this.loopName, (itemCtx, loop) =>
-			renderView(itemCtx.it, itemCtx.forItemView(itemCtx.it), loop.view),
-		);
+		return loopFragments(ctx, this.source, this.loopName, renderEachItem);
 	}
 	childNodes() {
 		return [this.source];
