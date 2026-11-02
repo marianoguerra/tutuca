@@ -1,10 +1,10 @@
 // The panels of a story's app, shared by the storybook and the playground: the steps, the
 // stress test and the dev panel, fed by the reports of its <tutuca-app>.
-import { devClasses, devComponents, makeDevPanel, updateDevPanel } from "../../dev/panel.js";
-import { scopeOf } from "../../tutuca.js";
+import { devClasses, devComponents, makeDevPanel } from "../../dev/panel.js";
+import { apply, scopeOf } from "../../tutuca.js";
 import { BADGES } from "./common.js";
-import { StoryPanel, SUMMARY_KEYS, syncForm } from "./story-panel.js";
-import { applyStress, StressPanel } from "./stress-panel.js";
+import { StoryPanel, SUMMARY_KEYS } from "./story-panel.js";
+import { StressPanel, stressResult } from "./stress-panel.js";
 
 // The panels' components, and the class names they build at runtime.
 export const panelComponents = { StoryPanel, StressPanel, ...devComponents };
@@ -23,10 +23,10 @@ export const resetPanels = (self, next, appKey) => {
 export const applyAppReport = (self, next, detail) => {
 	if (detail?.key !== self.appKey) return;
 	if (detail.type === "state" && next.story.appKey === detail.key) {
-		for (const key of SUMMARY_KEYS) next.story[key] = detail.data[key];
-		syncForm(next.story);
-		if (detail.data.dev) updateDevPanel(scopeOf(self).components, next.dev, detail.data.dev);
+		const summary = Object.fromEntries(SUMMARY_KEYS.map((key) => [key, detail.data[key]]));
+		next.story = apply(next.story, "showSummary", summary);
+		if (detail.data.dev) next.dev = apply(next.dev, "showApp", detail.data.dev);
 	} else if (detail.type === "stress" && next.stress.status === "running") {
-		applyStress(next.stress, detail.data);
+		next.stress = apply(next.stress, "showStress", stressResult(detail.data));
 	}
 };

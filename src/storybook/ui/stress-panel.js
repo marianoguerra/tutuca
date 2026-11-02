@@ -31,7 +31,7 @@ export const StressPanel = component({
 		commands: t.array(t.string()),
 		log: t.array(t.string()),
 	},
-	methods: {
+	queries: {
 		get isRunning() {
 			return this.status === "running";
 		},
@@ -163,6 +163,23 @@ export const StressPanel = component({
 		),
 	),
 	on: {
+		// A stress report of its app, as stressResult reads it.
+		showStress: {
+			pure: true,
+			args: [
+				t.record({
+					status: t.enum("idle", "running", "passed", "failed", "cancelled", "unavailable"),
+					done: t.number().int().min(0),
+					total: t.number().int().min(0),
+					error: t.string(),
+					commands: t.array(t.string()),
+					log: t.array(t.string()),
+				}),
+			],
+			run(next, [result]) {
+				Object.assign(next, result);
+			},
+		},
 		setNumber: {
 			args: [t.enum("numRuns", "maxCommands", "seed"), t.string()],
 			run(next, [name, value]) {
@@ -225,7 +242,11 @@ export const StressPanel = component({
 		},
 	},
 });
-export const applyStress = (next, r) => {
+// What a panel shows of a stress report r.
+export const stressResult = (r) => {
 	const { status, done = 0, total = 0, error = "", commands = [], log = [] } = r;
-	Object.assign(next, { status, done, total, error, commands: [...commands], log: [...log] });
+	return { status, done, total, error, commands: [...commands], log: [...log] };
+};
+export const applyStress = (next, r) => {
+	Object.assign(next, stressResult(r));
 };

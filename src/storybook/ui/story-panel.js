@@ -26,19 +26,6 @@ const entryFields = () => ({
 	problemCount: t.number().int().min(0),
 	isCurrent: t.boolean(),
 });
-export const SUMMARY_KEYS = [
-	"sequences",
-	"sequence",
-	"steps",
-	"timeline",
-	"cursor",
-	"problems",
-	"error",
-	"stateJson",
-	"changes",
-	"reload",
-	"targets",
-];
 // Keeps the step form's choices among the current targets and their messages.
 export const syncForm = (next) => {
 	if (next.target >= next.targets.length) next.target = 0;
@@ -49,26 +36,31 @@ export const syncForm = (next) => {
 	if (!next.sourceKeys.includes(next.sourceKey)) next.sourceKey = next.sourceKeys[0] ?? "";
 };
 
+// What a state report of its app tells it.
+const summaryFields = () => ({
+	sequences: t.array(t.string()),
+	sequence: t.string(),
+	steps: t.array(t.record(stepFields())),
+	timeline: t.array(t.record(entryFields())),
+	cursor: t.number().int().min(0),
+	problems: t.array(t.string()),
+	error: t.string(),
+	stateJson: t.string(),
+	changes: t.array(t.string()),
+	reload: t.array(t.string()),
+	targets: t.array(
+		t.record({
+			label: t.string(),
+			messages: t.array(t.record({ name: t.string(), sourceKeys: t.array(t.string()) })),
+		}),
+	),
+});
+export const SUMMARY_KEYS = Object.keys(summaryFields());
 export const StoryPanel = component({
 	name: "StoryPanel",
 	fields: {
 		appKey: t.string(),
-		sequences: t.array(t.string()),
-		sequence: t.string(),
-		steps: t.array(t.record(stepFields())),
-		timeline: t.array(t.record(entryFields())),
-		cursor: t.number().int().min(0),
-		problems: t.array(t.string()),
-		error: t.string(),
-		stateJson: t.string(),
-		changes: t.array(t.string()),
-		reload: t.array(t.string()),
-		targets: t.array(
-			t.record({
-				label: t.string(),
-				messages: t.array(t.record({ name: t.string(), sourceKeys: t.array(t.string()) })),
-			}),
-		),
+		...summaryFields(),
 		target: t.number().int().min(0),
 		messages: t.array(t.string()),
 		message: t.string(),
@@ -78,7 +70,7 @@ export const StoryPanel = component({
 		argSeed: t.number(1).int(),
 		isPlaying: t.boolean(),
 	},
-	methods: {
+	queries: {
 		get hasSourceKeys() {
 			return this.sourceKeys.length > 0;
 		},
@@ -314,6 +306,15 @@ export const StoryPanel = component({
 		),
 	),
 	on: {
+		// A state report of its app.
+		showSummary: {
+			pure: true,
+			args: [t.record(summaryFields())],
+			run(next, [summary]) {
+				for (const key of SUMMARY_KEYS) next[key] = summary[key];
+				syncForm(next);
+			},
+		},
 		op: {
 			args: [t.enum("reset", "back", "forward", "toEnd")],
 			emits: { ask: ["story"] },

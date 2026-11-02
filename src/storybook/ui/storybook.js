@@ -2,6 +2,7 @@
 
 import {
 	$if,
+	apply,
 	component,
 	field,
 	render,
@@ -31,7 +32,7 @@ export const Storybook = component({
 		stress: t.component("StressPanel"),
 		dev: t.component("DevPanel"),
 	},
-	methods: {
+	queries: {
 		get appKey() {
 			return `${this.selectedId}@${this.seed}`;
 		},
@@ -176,8 +177,10 @@ export const Storybook = component({
 // A filter shows every match, collapsed or not.
 const syncCollapsed = (next) => {
 	const filtering = next.filterText.trim() !== "";
-	for (const link of next.links)
-		link.isCollapsed = !filtering && next.collapsed.includes(link.group);
+	next.links.forEach((link, i) => {
+		const isCollapsed = !filtering && next.collapsed.includes(link.group);
+		next.links[i] = apply(link, "setCollapsed", isCollapsed);
+	});
 };
 export const selectStory = (self, next, id) => {
 	const link = self.links.find((l) => l.id === id);
@@ -185,7 +188,7 @@ export const selectStory = (self, next, id) => {
 	next.selectedId = id;
 	next.isGenerated = link.isGenerated;
 	next.links.forEach((l, i) => {
-		l.isSelected = self.links[i].id === id;
+		next.links[i] = apply(l, "setSelected", self.links[i].id === id);
 	});
 	resetPanels(self, next, `${id}@${self.seed}`);
 };

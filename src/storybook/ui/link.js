@@ -21,6 +21,8 @@ export const StoryLink = component({
 		matches(text) {
 			return this.id.toLowerCase().includes(text.toLowerCase());
 		},
+	},
+	queries: {
 		// Characters, not a rotated one: no class to compile.
 		get chevron() {
 			return this.isCollapsed ? "▸" : "▾";
@@ -62,6 +64,21 @@ export const StoryLink = component({
 		),
 	),
 	on: {
+		// What its storybook changes.
+		setCollapsed: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [isCollapsed]) {
+				next.isCollapsed = isCollapsed;
+			},
+		},
+		setSelected: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [isSelected]) {
+				next.isSelected = isSelected;
+			},
+		},
 		toggleGroup: {
 			args: [],
 			emits: { notify: ["groupToggled"] },

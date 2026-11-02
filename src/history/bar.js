@@ -22,7 +22,7 @@ export const TimeTravel = component({
 		label: t.string(),
 		origin: t.string(),
 	},
-	methods: {
+	queries: {
 		// One state is not a history to travel through.
 		get isShown() {
 			return this.size > 1;

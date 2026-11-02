@@ -50,7 +50,7 @@ export const Playground = component({
 		dev: t.component("DevPanel"),
 		travel: t.component("TimeTravel"), // Under the preview, over the story's timeline.
 	},
-	methods: {
+	queries: {
 		get appKey() {
 			return `r${this.run}/${this.selectedId}@${this.seed}`;
 		},

@@ -5,6 +5,7 @@
 
 import {
 	$if,
+	apply,
 	ComponentSpec,
 	component,
 	each,
@@ -13,6 +14,7 @@ import {
 	pushView,
 	render,
 	renderEach,
+	scopeOf,
 	send,
 	t,
 	tag,
@@ -151,7 +153,7 @@ export const DevNode = component({
 		isOpen: t.boolean(),
 		rows: t.array(t.component("DevNode")),
 	},
-	methods: {
+	queries: {
 		get hasLabel() {
 			return this.label !== "";
 		},
@@ -237,9 +239,20 @@ export const DevSection = component({
 		emptyText: t.string("Nothing to show."),
 		nodes: t.array(t.component("DevNode")),
 	},
-	methods: {
+	queries: {
 		get isEmpty() {
 			return this.nodes.length === 0;
+		},
+	},
+	on: {
+		// Nodes for { label, value } items, made in its scope, unless it shows those values already.
+		showItems: {
+			pure: true,
+			run(next, [items]) {
+				if (sameRefs(this.nodes, items)) return;
+				const C = scopeOf(this).components;
+				next.nodes = items.map(({ label, value }) => devNode(C, label, value));
+			},
 		},
 	},
 	view: section(
@@ -268,9 +281,17 @@ export const DevLint = component({
 			}),
 		),
 	},
-	methods: {
+	queries: {
 		get isClean() {
 			return this.issues.length === 0;
+		},
+	},
+	on: {
+		setIssues: {
+			pure: true,
+			run(next, [issues]) {
+				next.issues = lintRecords(issues);
+			},
 		},
 	},
 	loops: {
@@ -323,7 +344,7 @@ export const DevPanel = component({
 		specs: t.component("DevSection"),
 		lint: t.component("DevLint"),
 	},
-	methods: {
+	queries: {
 		get isCode() {
 			return this.view === "code";
 		},
@@ -366,6 +387,17 @@ export const DevPanel = component({
 				next.view = view;
 			},
 		},
+		// data: { state, tasks: [{ label, value }], specs: [spec], issues }, a running app's.
+		showApp: {
+			pure: true,
+			run(next, [{ state, tasks, specs, issues }]) {
+				next.state = apply(next.state, "showItems", [{ label: "", value: state }]);
+				next.tasks = apply(next.tasks, "showItems", tasks);
+				const specItems = specs.map((spec) => ({ label: "", value: spec }));
+				next.specs = apply(next.specs, "showItems", specItems);
+				next.lint = apply(next.lint, "setIssues", issues);
+			},
+		},
 	},
 });
 
@@ -377,24 +409,9 @@ export const makeDevPanel = (C) =>
 		lint: C.DevLint(),
 	});
 
-const sameRefs = (nodes, values) =>
-	nodes.length === values.length && nodes.every((n, i) => n.ref === idOf(values[i].value));
-// Sets section's nodes to { label, value } items, unless they show the same values already.
-const updateSection = (C, section, items) => {
-	if (sameRefs(section.nodes, items)) return;
-	section.nodes = items.map(({ label, value }) => devNode(C, label, value));
-};
-// data: { state, tasks: [{ label, value }], specs: [spec], issues } for next, a DevPanel being updated.
-export const updateDevPanel = (C, next, { state, tasks, specs, issues }) => {
-	updateSection(C, next.state, [{ label: "", value: state }]);
-	updateSection(C, next.tasks, tasks);
-	updateSection(
-		C,
-		next.specs,
-		specs.map((spec) => ({ label: "", value: spec })),
-	);
-	next.lint.issues = lintRecords(issues);
-};
+function sameRefs(nodes, values) {
+	return nodes.length === values.length && nodes.every((n, i) => n.ref === idOf(values[i].value));
+}
 
 export const devComponents = { DevNode, DevSection, DevLint, DevPanel };
 export const devClasses = [...Object.values(TONES), ...Object.values(LEVELS)];
