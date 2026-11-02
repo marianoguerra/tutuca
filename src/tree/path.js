@@ -1,10 +1,10 @@
-// Paths: where a node is in the state (UpdatePath), how a message got there (DispatchPath), and
+// Paths: where a node is in the state (KeyPath), how a message got there (DispatchPath), and
 // where one goes before it is fixed (Selector, Target). spec/tree's path steps are (field f),
 // (index f i) and (key f κ), a frame here; a written path can also hold (sel f g), a seqItem op.
 import { jsonText, keyText } from "./text.js";
 
 // The keys from the root to a value.
-export class UpdatePath {
+export class KeyPath {
 	constructor(keys = []) {
 		this.keys = keys;
 	}
@@ -17,7 +17,7 @@ export class UpdatePath {
 	// Sets the value at the path in root, a mutable draft, and returns the root.
 	setIn(root, v) {
 		if (this.keys.length === 0) return v;
-		const parent = new UpdatePath(this.keys.slice(0, -1)).getIn(root);
+		const parent = new KeyPath(this.keys.slice(0, -1)).getIn(root);
 		parent[this.keys.at(-1)] = v;
 		return root;
 	}
@@ -63,6 +63,7 @@ export class Frame {
 const frameText = (frame) => JSON.stringify(frame.toMeta());
 // The frames a message went through from the root: spec/tree's π.
 export class DispatchPath {
+	/** @param {Frame[]} frames */
 	constructor(frames = []) {
 		this.frames = frames;
 	}
@@ -81,7 +82,8 @@ export class DispatchPath {
 		while (end > 0 && !this.frames[end - 1].isComponent) end--;
 		return new DispatchPath(this.frames.slice(0, end));
 	}
-	resolve() {
+	// The keys to where the last frame leads, its item included.
+	toKeyPath() {
 		const prefixes = [[]];
 		for (const frame of this.frames) {
 			const { provider } = frame;
@@ -89,10 +91,11 @@ export class DispatchPath {
 				provider === null ? prefixes.at(-1) : [...prefixes[provider.depth], ...provider.keys];
 			prefixes.push([...start, ...frame.accessKeys]);
 		}
-		return new UpdatePath(prefixes.at(-1));
+		return new KeyPath(prefixes.at(-1));
 	}
-	toUpdatePath() {
-		return this.toComponentPath().resolve();
+	// The keys to the node the path reaches: what an address checks.
+	toComponentKeyPath() {
+		return this.toComponentPath().toKeyPath();
 	}
 	toString() {
 		return this.frames.join("") || "·";
@@ -117,38 +120,11 @@ const opText = (op) =>
 	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
 // A written path, relative to a node: field (field f), item (index f i) or (key f κ), and
 // seqItem (sel f g), the item of f at the key in the node's g. freeze fixes it into frames
-// against the value it starts from.
+// against the value it starts from. item, field and seqItem add an op and return the selector,
+// so a selector fn writes one as sel.field("items").item("items", 3).
 export class Selector {
 	constructor(ops = []) {
 		this.ops = ops;
-	}
-	toString() {
-		return this.ops.map(opText).join("") || "·";
-	}
-	freeze(value) {
-		const frames = [];
-		for (const op of this.ops) {
-			const item = op.t === "item" ? op.key : op.t === "seqItem" ? value[op.keyName] : null;
-			const frame = new Frame([op.name], item ?? null, null, true);
-			frames.push(frame);
-			value = new UpdatePath(frame.accessKeys).getIn(value);
-		}
-		return frames;
-	}
-}
-// Where a message goes before it is sent: a selector from a base path.
-export class Target {
-	constructor(base, selector = new Selector()) {
-		this.base = base;
-		this.selector = selector;
-	}
-	freeze(root) {
-		return this.base.concat(this.selector.freeze(this.base.resolve().getIn(root)));
-	}
-}
-class PathBuilder {
-	constructor() {
-		this.ops = [];
 	}
 	item(name, key) {
 		return this.add({ t: "item", name, key });
@@ -163,10 +139,34 @@ class PathBuilder {
 		this.ops.push(op);
 		return this;
 	}
+	toString() {
+		return this.ops.map(opText).join("") || "·";
+	}
+	freeze(value) {
+		const frames = [];
+		for (const op of this.ops) {
+			const item = op.t === "item" ? op.key : op.t === "seqItem" ? value[op.keyName] : null;
+			const frame = new Frame([op.name], item ?? null, null, true);
+			frames.push(frame);
+			value = new KeyPath(frame.accessKeys).getIn(value);
+		}
+		return frames;
+	}
 }
-// The selector fn writes on a builder, called with self as this.
+// Where a message goes before it is sent: a selector from a base path.
+export class Target {
+	/** @param {DispatchPath} base @param {Selector} selector */
+	constructor(base, selector = new Selector()) {
+		this.base = base;
+		this.selector = selector;
+	}
+	freeze(root) {
+		return this.base.concat(this.selector.freeze(this.base.toKeyPath().getIn(root)));
+	}
+}
+// The selector fn writes, called with self as this.
 export const selectorFrom = (fn, self) => {
-	const pb = new PathBuilder();
-	fn.call(self, pb);
-	return new Selector(pb.ops);
+	const selector = new Selector();
+	fn.call(self, selector);
+	return selector;
 };

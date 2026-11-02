@@ -83,7 +83,7 @@ test("constant subtrees keep their vnode identity across renders", () => {
 	const header = findVNode(host, "header");
 	const span = findVNode(host, "span");
 	const h1Dom = rootNode.querySelector("h1");
-	host.rootComponent = C.Comp({ count: 1 });
+	host.root = C.Comp({ count: 1 });
 	host.render();
 	assert.equal(findVNode(host, "header"), header);
 	assert.notEqual(findVNode(host, "span"), span);
@@ -120,10 +120,10 @@ test("handlers inside constant elements still dispatch, also per loop item", () 
 	assert.ok(picks.every((n) => n === picks[0]));
 	rootNode.querySelector(".inc").click();
 	rootNode.querySelector(".inc").click();
-	assert.equal(host.rootComponent.count, 2);
+	assert.equal(host.root.count, 2);
 	assert.equal(rootNode.querySelector("output").textContent, "2");
 	rootNode.querySelectorAll(".pick")[1].click();
-	assert.equal(host.rootComponent.picked, "b");
+	assert.equal(host.root.picked, "b");
 });
 
 test("walkers still see the attrs of constant elements", () => {
@@ -143,7 +143,7 @@ test("meta closing comments are one shared vnode across positions and renders", 
 		[...allVNodes(host._curVDom)].filter((c) => c instanceof VComment && c.text === "§/§");
 	const [end] = ends();
 	assert.equal(ends().length, 3); // the component and each item
-	host.rootComponent = C.Comp({ items: ["a", "b", "c"] });
+	host.root = C.Comp({ items: ["a", "b", "c"] });
 	host.render();
 	assert.ok(ends().every((c) => c === end));
 });
@@ -156,7 +156,7 @@ test("literal text children of dynamic elements keep their vnode across renders"
 	});
 	const { host, rootNode, C } = setup(Comp);
 	const [label, , seven] = findVNode(host, "p").childs;
-	host.rootComponent = C.Comp({ count: 1 });
+	host.root = C.Comp({ count: 1 });
 	host.render();
 	const p = findVNode(host, "p");
 	assert.ok(p.childs.every((c) => c instanceof VBase));
@@ -173,7 +173,7 @@ test("constant conditional children of dynamic elements keep their vnodes across
 	});
 	const { host, C } = setup(Comp);
 	const b = findVNode(host, "b");
-	host.rootComponent = C.Comp({ count: 1 });
+	host.root = C.Comp({ count: 1 });
 	host.render();
 	assert.equal(findVNode(host, "b"), b);
 });

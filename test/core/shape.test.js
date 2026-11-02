@@ -10,13 +10,13 @@ function setup(Comp, args) {
 	const started = startHost(Comp, args);
 	const { host, C } = started;
 	const rerender = (next) => {
-		host.rootComponent = C.Comp(next);
+		host.root = C.Comp(next);
 		host.render();
 	};
 	return { ...started, rerender };
 }
 
-test("a DomNode splits its attrs into a shape once: static, dynamic, key and namespace", () => {
+test("a Element splits its attrs into a shape once: static, dynamic, key and namespace", () => {
 	const node = h(
 		"input",
 		{ class: "c", title: field("t"), value: "v", key: field("k"), "on:input": send("x") },

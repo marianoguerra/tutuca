@@ -81,12 +81,12 @@ export class Driver {
 		this.host.start(root);
 	}
 	get state() {
-		return this.host.rootComponent;
+		return this.host.root;
 	}
 	get rootNode() {
 		return this.host.rootNode;
 	}
-	// Problems reported since start: failed tasks, invalid state, broken message specs.
+	// Problems reported since start: failed tasks, invalid state, broken handler specs.
 	get problems() {
 		return this.reports.filter((r) => PROBLEMS.has(r.type));
 	}
@@ -100,7 +100,7 @@ export class Driver {
 	send(path, name, args = [], from = []) {
 		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
 		const fromFrames =
-			from instanceof Selector ? from.freeze(base.resolve().getIn(this.state)) : from;
+			from instanceof Selector ? from.freeze(base.toKeyPath().getIn(this.state)) : from;
 		const sender = fromFrames.length === 0 ? HOST : Address.at(base.concat(fromFrames), this.state);
 		const task = new Task(name, args, sender, new Target(base), null);
 		task.prepare(this.state);
@@ -111,8 +111,7 @@ export class Driver {
 	// (ok and error take the value or error as args[0]), with the request id ctx.request reads.
 	answer(path, ask, outcome, args = [], request = null) {
 		const base = path instanceof Selector ? new DispatchPath(path.freeze(this.state)) : path;
-		const task = new AnswerTask(ask, outcome, args, request, HOST, null);
-		task.to = Address.at(base, this.state);
+		const task = new AnswerTask(ask, outcome, args, request, Address.at(base, this.state), null);
 		this.host.pushTask(task);
 		this.drain();
 	}

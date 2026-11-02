@@ -3,6 +3,7 @@
 // A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
 const refSep = "/";
 export class Scope {
+	/** @param {Scope | null} parent */
 	constructor(onRegister, parent = null, name = null) {
 		this.onRegister = onRegister;
 		this.parent = parent;

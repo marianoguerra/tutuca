@@ -118,7 +118,7 @@ for (const placement of ["root", "field", "provided", "nested loops"]) {
 		await Promise.resolve();
 		drain();
 		assert.deepEqual(failures, []);
-		const root = host.rootComponent;
+		const root = host.root;
 		const updated =
 			placement === "root"
 				? root
@@ -161,6 +161,6 @@ test("forwardAt from an event handler forwards the sent message and keeps the DO
 	host.handleEvent({ type: "click", target: rootNode.querySelector("button") });
 	drain();
 	assert.deepEqual(failures, []);
-	assert.equal(host.rootComponent.causeType, "click");
-	assert.equal(host.rootComponent.child.got, 7);
+	assert.equal(host.root.causeType, "click");
+	assert.equal(host.root.child.got, 7);
 });

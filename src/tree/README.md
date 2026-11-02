@@ -10,7 +10,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | File | What it holds |
 |---|---|
 | `identity.js` | `idOf`, `isNode`, `mint`: a node's identity ι |
-| `path.js` | `UpdatePath` (keys into the state), `Frame` and `DispatchPath` (π, the frames a message went through), `Selector`/`selectorFrom` and `Target` (a written path, before it is fixed) |
+| `path.js` | `KeyPath` (keys into the state), `Frame` and `DispatchPath` (π, the frames a message went through), `Selector`/`selectorFrom` and `Target` (a written path, before it is fixed) |
 | `address.js` | `Address` (`(at π ι)`), `HOST` (`host`) |
 | `messages.js` | the envelope: `Task`, `NotifyTask`, `AskTask`, `AnswerTask` |
 | `context.js` | `MessageContext`: what a handler sends with |
@@ -58,7 +58,7 @@ new Scheduler({
 		askHandler(instance, name) {},     // what answers an ask made from instance, or null
 	},
 	store: { get() {}, set(root) {} },     // where the root lives
-	transact(root, updatePath, fn) {},     // a new root, with fn(draft of the leaf) at the path
+	transact(root, keyPath, fn) {},     // a new root, with fn(draft of the leaf) at the path
 	hooks: {
 		context(task, instance, nextRequest) {}, // a MessageContext, or a host's subclass
 		beforeCommit(prev, next, task) {},       // optional: returns what to call after commit

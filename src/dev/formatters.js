@@ -2,12 +2,12 @@
 
 import { isMetaOpen, META_CLOSE, parseMeta } from "../meta.js";
 import {
-	AnyType,
 	AstNode,
 	ComponentSpec,
 	DispatchPath,
-	DomNode,
+	Element,
 	Frame,
+	KeyPath,
 	MessageContext,
 	RenderContext,
 	Scope,
@@ -16,8 +16,8 @@ import {
 	specOf,
 	Target,
 	Task,
+	Type,
 	typeText,
-	UpdatePath,
 	Walker,
 } from "../tutuca.js";
 import { install, join, makeFormatter, objectRef, span, truncate } from "./jsonml.js";
@@ -121,7 +121,7 @@ class Printer extends Walker {
 	scope(node) {
 		this.call("scope", [node.scopeName, node.child]);
 	}
-	action(node) {
+	send(node) {
 		this.call("send", [node.name, ...node.args]);
 	}
 	element(node) {
@@ -172,7 +172,7 @@ const opParts = (op) => [
 ];
 const orRoot = (parts) => (parts.length === 0 ? [span(S.muted, "·")] : parts);
 const pathParts = (path) => orRoot(path.frames.flatMap(frameParts));
-const updatePathParts = (path) => orRoot(path.keys.flatMap(keyParts));
+const keyPathParts = (path) => orRoot(path.keys.flatMap(keyParts));
 const targetParts = (target) =>
 	orRoot([...target.base.frames.flatMap(frameParts), ...target.selector.ops.flatMap(opParts)]);
 
@@ -237,7 +237,7 @@ const KINDS = [
 		},
 	},
 	{
-		test: (v) => v instanceof AnyType,
+		test: (v) => v instanceof Type,
 		header: typeHeader,
 		rows: () => [],
 	},
@@ -245,7 +245,7 @@ const KINDS = [
 		test: (v) => v instanceof AstNode,
 		header: astHeader,
 		rows(node) {
-			if (!(node instanceof DomNode)) return node.childNodes().map((c) => [null, ref(c)]);
+			if (!(node instanceof Element)) return node.childNodes().map((c) => [null, ref(c)]);
 			return [
 				...node.attrs.map(([name, value]) => [name, ref(value)]),
 				...node.handlers.map((h) => [`on:${h.name}`, ref(h.action)]),
@@ -259,8 +259,8 @@ const KINDS = [
 		rows: (path) => path.frames.map((f) => [null, ref(f)]),
 	},
 	{
-		test: (v) => v instanceof UpdatePath,
-		header: (path) => [span(S.muted, "UpdatePath "), ...updatePathParts(path)],
+		test: (v) => v instanceof KeyPath,
+		header: (path) => [span(S.muted, "KeyPath "), ...keyPathParts(path)],
 		rows: () => [],
 	},
 	{
@@ -307,7 +307,7 @@ const KINDS = [
 				["target", ref(task.target)],
 				["to", ref(task.to)],
 			];
-			if (task.event !== null) rows.push(["event", ref(task.event)]);
+			if (task.event != null) rows.push(["event", ref(task.event)]);
 			if (task.parent !== null) rows.push(["parent", ref(task.parent)]);
 			return rows;
 		},

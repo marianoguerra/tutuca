@@ -129,7 +129,7 @@
   [(eval-arg (if arg_c arg_t arg_e) value_tv any any_d) (eval-arg arg_e value_tv any any_d)]
   [(eval-arg value value_tv any any_d) value])
 
-;; Drag.keyIn: the key of the receiver's child the drag started in, as
+;; Drag.sourceKeyIn: the key of the receiver's child the drag started in, as
 ;; source-key-in is for a message's sender; null with no drag or one from
 ;; outside the receiver.
 (define-metafunction Tasks
@@ -255,7 +255,7 @@
      `(task ,kind ,name ,args ,source (at ,base ,sel) (,path ,upath ,(id-of (term (get-in ,upath ,root)))))]
     [_ task]))
 
-;; checkState and checkMessage after a commit: the changed fields, then the
+;; DevChecks.state and DevChecks.message after a commit: the changed fields, then the
 ;; contract of the handler that ran, if one did.
 (define (checks reg old-root new-root update-path instance ctx)
   (define fields (term (invalid-in (classes-of ,reg) ,new-root ,old-root (fields))))
@@ -307,7 +307,7 @@
        (define route `(,path ,upath ,(id-of (term (get-in ,upath value)))))
        (list `(task (event ,action ,(term value_tv) ,(term drag?)) ,(second action) () ,path (at ,path ()) ,route))])])
 
-;; startDrag on dragstart: the closest draggable="true" element, the target or
+;; DragTracker.start on dragstart: the closest draggable="true" element, the target or
 ;; an ancestor, rendered in a component, is what's dragged; otherwise the drag
 ;; stays as it was.
 (define-metafunction Tasks
@@ -323,7 +323,7 @@
       (if (and path (not (eq? path 'none))) `(drag ,path) (term drag?)))]
   [(drag-from (ldom ...) evt drag?) drag?])
 
-;; endDrag, after dragend is handled.
+;; DragTracker.end, after dragend is handled.
 (define-metafunction Tasks
   drag-after : evt drag? -> drag?
   [(drag-after (event dragend addr value) drag?) none]
@@ -333,7 +333,7 @@
   task-name : tsk -> fname
   [(task-name (task kind fname any ...)) fname])
 
-;; checkSettled: the invariants of what changed since the queue was last empty.
+;; DevChecks.settled: the invariants of what changed since the queue was last empty.
 (define-metafunction Tasks
   settle-reports : registry value value -> (obs ...)
   [(settle-reports registry value value_s)
@@ -385,7 +385,7 @@
         (where ((ldom_new ...) lbl_new)
                (morph-children (ldom ...) (node_old ...) (node_new ...) ,HTML-NS lbl))
         render)
-   ;; checkSettled: the queue is empty and the root changed since it last was.
+   ;; DevChecks.settled: the queue is empty and the root changed since it last was.
    (--> (host registry any_a value () any_p any_d any_v any_r any_e (obs ...) lbl value_s any_g natural)
         (host registry any_a value () any_p any_d any_v any_r any_e (obs ... obs_new ...) lbl value any_g natural)
         (side-condition (not (equal? (term value) (term value_s))))

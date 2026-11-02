@@ -41,7 +41,7 @@ test("pick a story, step through it and rewind", async () => {
 	const app = rootNode.querySelector("tutuca-app");
 	assert.equal(app.getAttribute("app-key"), "JSON/Bool (edit)@0");
 	assert.match(app.shadowRoot.textContent, /false/);
-	const story = () => host.rootComponent.story;
+	const story = () => host.root.story;
 	assert.equal(story().sequence, "toggle");
 	assert.equal(story().steps.length, 4);
 	click(rootNode.querySelector('[title="Run to end"]'));
@@ -68,7 +68,7 @@ test("groups collapse, a filter shows their matches, and a pick scrolls to the t
 	click(byText("aside li button span.flex-1", "JSON").parentNode);
 	await settle();
 	assert.equal(visible().filter((id) => id.startsWith("JSON/")).length, 0);
-	assert.ok(host.rootComponent.collapsed.includes("JSON"));
+	assert.ok(host.root.collapsed.includes("JSON"));
 	const filter = rootNode.querySelector('[aria-label="Filter stories"]');
 	filter.value = "JSON/Bool (edit)";
 	filter.dispatchEvent(new window.Event("input", { bubbles: true }));
@@ -88,12 +88,12 @@ test("clicks in the story canvas show up in the timeline", async () => {
 	const app = rootNode.querySelector("tutuca-app");
 	click(app.shadowRoot.querySelector('[aria-label="boolean value"]'));
 	await settle();
-	const { timeline } = host.rootComponent.story;
+	const { timeline } = host.root.story;
 	assert.deepEqual(
 		timeline.map((e) => e.origin),
 		["initial", "user"],
 	);
-	assert.equal(host.rootComponent.story.cursor, 1);
+	assert.equal(host.root.story.cursor, 1);
 	assert.deepEqual(failures, []);
 });
 
@@ -112,10 +112,7 @@ test("send a message from the step form", async () => {
 	await settle();
 	const app = rootNode.querySelector("tutuca-app");
 	assert.match(app.shadowRoot.textContent, /x2−3x\+5=0/);
-	assert.equal(
-		host.rootComponent.story.timeline.at(-1).label,
-		'Quadratic at ·.setCoefficient("c", "5")',
-	);
+	assert.equal(host.root.story.timeline.at(-1).label, 'Quadratic at ·.setCoefficient("c", "5")');
 	assert.deepEqual(failures, []);
 });
 
@@ -126,21 +123,21 @@ test("the dev tab inspects the story's state, tasks, components and lint", async
 	await settle();
 	click(byText('[role="tab"]', "Dev"));
 	await settle();
-	const { dev } = host.rootComponent;
+	const { dev } = host.root;
 	assert.match(dev.state.nodes[0].tokens.map((t) => t.text).join(""), /^‹JsonEditor/);
 	assert.ok(dev.tasks.nodes.length > 0);
 	assert.ok(dev.specs.nodes.some((n) => n.tokens.some((t) => t.text === "JsonEditor")));
 	const stateNode = rootNode.querySelector('[aria-label="Expand"]');
 	click(stateNode);
 	await settle();
-	assert.equal(host.rootComponent.dev.state.nodes[0].isOpen, true);
+	assert.equal(host.root.dev.state.nodes[0].isOpen, true);
 	assert.match(rootNode.textContent, /showText/);
 	// Another step keeps the components section, open nodes included, as it is.
-	const specs = host.rootComponent.dev.specs;
+	const specs = host.root.dev.specs;
 	click(byText('[role="tab"]', "Steps"));
 	click(rootNode.querySelector('[title="Step"]'));
 	await settle();
-	assert.equal(host.rootComponent.dev.specs, specs);
+	assert.equal(host.root.dev.specs, specs);
 	assert.deepEqual(failures, []);
 });
 
@@ -154,9 +151,9 @@ test("a stress run from the UI reports its result", async () => {
 	numRuns.dispatchEvent(new numRuns.ownerDocument.defaultView.Event("input", { bubbles: true }));
 	await settle();
 	click(byText("button", "Run stress test"));
-	for (let i = 0; i < 50 && host.rootComponent.stress.status === "running"; i++) await tick(5);
+	for (let i = 0; i < 50 && host.root.stress.status === "running"; i++) await tick(5);
 	await settle();
-	const { stress } = host.rootComponent;
+	const { stress } = host.root;
 	assert.equal(stress.status, "passed");
 	assert.equal(stress.done, 15);
 	assert.deepEqual(failures, []);

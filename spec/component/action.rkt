@@ -1,5 +1,5 @@
 #lang racket
-;; Actions: what handling one message does to one instance (MessageSpec.run),
+;; Actions: what handling one message does to one instance (HandlerSpec.run),
 ;; and the checks of schema.js: message contracts (messageIssues) and invalid
 ;; state (findInvalidFields).
 ;;

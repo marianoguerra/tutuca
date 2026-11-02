@@ -64,7 +64,7 @@ export const pathOf = (node, rootNode) => {
 // The handler for a type event on target, with the address of its component and its element.
 // Only the component target is in handles it, unless bubbles: then the nearest enclosing
 // component with a handler for it does.
-export const getEventInfoFor = (target, type, rootNode, rootComponent, bubbles = false) => {
+export const getEventInfoFor = (target, type, rootNode, root, bubbles = false) => {
 	const walk = walkUp(target, rootNode);
 	if (walk === null) return null;
 	const levels = bubbles ? walk.components.length : Math.min(1, walk.components.length);
@@ -73,8 +73,8 @@ export const getEventInfoFor = (target, type, rootNode, rootComponent, bubbles =
 		if (eids.length === 0) continue;
 		// What is outside the component below: its frame is the child the event came through.
 		const start = level === 0 ? 0 : walk.components[level - 1] + 1;
-		const to = Address.at(pathFrom(walk.metas.slice(start)), rootComponent);
-		const { eventHandlers } = specOf(to.updatePath.getIn(rootComponent));
+		const to = Address.at(pathFrom(walk.metas.slice(start)), root);
+		const { eventHandlers } = specOf(to.keyPath.getIn(root));
 		for (const { eid, node } of eids) {
 			for (const handler of eventHandlers.get(eid) ?? []) {
 				if (handler.name === type) return { handler, to, node };

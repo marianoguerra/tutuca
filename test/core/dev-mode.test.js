@@ -80,7 +80,7 @@ test("dev mode checks the root on start and the state after each task", () => {
 	assert.equal(reports[1].task.name, "rename");
 	assert.deepEqual(summary(reports[1].issues), ["List extra undeclared", "List title invalid"]);
 	// Invalid states are reported, not rolled back.
-	assert.equal(host.rootComponent.items[0].count, "many");
+	assert.equal(host.root.items[0].count, "many");
 });
 
 test("dev mode reports an invalid root on start, and nothing runs without dev", () => {
@@ -145,7 +145,7 @@ test("dev mode reports messages that break their spec", () => {
 			["noisy", ["emits:notify:other", "emits:ask:load"]],
 		],
 	);
-	host.rootComponent = Object.assign(host.scope.components.Picker(), {});
+	host.root = Object.assign(host.scope.components.Picker(), {});
 	host.render();
 	click("p");
 	assert.deepEqual(reports.at(-1).issues, ["pre"]);
@@ -196,6 +196,6 @@ test("an ask handler reads the asker's context, can't send, and the reply's cont
 	host.start(C.Asker());
 	rootNode.querySelector("p").click();
 	assert.deepEqual(seen, [[true, true, "undefined", true]]);
-	assert.equal(host.rootComponent.got, 7);
+	assert.equal(host.root.got, 7);
 	assert.deepEqual(reports, []);
 });

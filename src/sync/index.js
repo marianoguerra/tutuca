@@ -76,7 +76,7 @@ export const startSynced = async (host, { engines, make }) => {
 		if (migrated(report)) host.notify("stateMigrated", { engine: null, ...report });
 	}
 	host.attachSync(...engines);
-	return host.rootComponent;
+	return host.root;
 };
 
 // The simplest engine: keeps the projection of every field but the "none" ones in storage (a

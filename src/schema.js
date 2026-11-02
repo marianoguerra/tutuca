@@ -70,8 +70,10 @@ export class NoDefaultError extends Error {}
 export const SYNC_LEVELS = ["shared", "local", "none"];
 export const syncsAt = (type, level) =>
 	SYNC_LEVELS.indexOf(type.syncLevel) <= SYNC_LEVELS.indexOf(level);
-export class AnyType {
-	static kind = "any"; // The t builder name, for tools that print or derive types.
+// What every field type shares: a default, constraints, a generator and a sync level, the
+// modifiers that change them, and make/isValid. Each kind of type extends it, and its static
+// kind is the t builder name, for tools that print or derive types.
+export class Type {
 	constructor(defaultValue) {
 		this.defaultValue = defaultValue;
 		this.constraints = {};
@@ -147,7 +149,11 @@ export class AnyType {
 		return true;
 	}
 }
-export class StringType extends AnyType {
+// Any value: t.any().
+export class AnyType extends Type {
+	static kind = "any";
+}
+export class StringType extends Type {
 	static kind = "string";
 	constructor(defaultValue = "") {
 		super(defaultValue);
@@ -156,7 +162,7 @@ export class StringType extends AnyType {
 		return typeof value === "string";
 	}
 }
-export class BooleanType extends AnyType {
+export class BooleanType extends Type {
 	static kind = "boolean";
 	constructor(defaultValue = false) {
 		super(defaultValue);
@@ -165,7 +171,7 @@ export class BooleanType extends AnyType {
 		return typeof value === "boolean";
 	}
 }
-export class NumberType extends AnyType {
+export class NumberType extends Type {
 	static kind = "number";
 	constructor(defaultValue = 0) {
 		super(defaultValue);
@@ -183,7 +189,7 @@ export class NumberType extends AnyType {
 		return Number.isFinite(value);
 	}
 }
-export class EnumType extends AnyType {
+export class EnumType extends Type {
 	static kind = "enum";
 	constructor(...members) {
 		super(members[0]);
@@ -194,7 +200,7 @@ export class EnumType extends AnyType {
 	}
 }
 // Null or a valid inner value; nullability is a type, not a flag on every type.
-export class OptionType extends AnyType {
+export class OptionType extends Type {
 	static kind = "option";
 	constructor(valueType) {
 		super(null);
@@ -207,7 +213,7 @@ export class OptionType extends AnyType {
 		return value === null || this.valueType.isValid(value, scope, owner);
 	}
 }
-export class ArrayType extends AnyType {
+export class ArrayType extends Type {
 	static kind = "array";
 	constructor(valueType = new AnyType(null)) {
 		super([]);
@@ -222,7 +228,7 @@ export class ArrayType extends AnyType {
 }
 export const isRecord = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
 // A record with arbitrary string keys and values of one type.
-export class MapType extends AnyType {
+export class MapType extends Type {
 	static kind = "map";
 	constructor(valueType = new AnyType(null)) {
 		super({});
@@ -236,7 +242,7 @@ export class MapType extends AnyType {
 	}
 }
 // A record with exactly the keys of shape, each of its own type.
-export class RecordType extends AnyType {
+export class RecordType extends Type {
 	static kind = "record";
 	constructor(shape) {
 		super(undefined); // Undefined builds the default from the shape's defaults.
@@ -264,7 +270,7 @@ export class RecordType extends AnyType {
 		return Object.entries(this.shape).every(([k, type]) => type.isValid(value[k], scope));
 	}
 }
-export class UnionType extends AnyType {
+export class OneOfType extends Type {
 	static kind = "oneOf";
 	constructor(...types) {
 		super(undefined); // Undefined makes the first alternative with no value.
@@ -282,7 +288,7 @@ export class UnionType extends AnyType {
 	}
 }
 // A key of the array or map in the owner's field, such as a selected index.
-export class IndexType extends AnyType {
+export class IndexType extends Type {
 	static kind = "index";
 	constructor(fieldName) {
 		super(undefined);
@@ -310,7 +316,7 @@ export class IndexType extends AnyType {
 }
 // A component registered under name, or one of names, in the scope the owner is made in, so
 // a scope can swap it. Without names any component is valid.
-export class ComponentType extends AnyType {
+export class ComponentType extends Type {
 	static kind = "component";
 	constructor(names) {
 		super(undefined);
@@ -382,18 +388,24 @@ export const t = {
 	array: ctor(ArrayType),
 	map: ctor(MapType),
 	record: ctor(RecordType),
-	oneOf: ctor(UnionType),
+	oneOf: ctor(OneOfType),
 	index: ctor(IndexType),
 	component: ctor(ComponentType),
 };
-// An on entry is a handler function, or a message spec { run, args, sourceKey, pre, post, emits }:
-// args types the send/notify arguments, sourceKey the child key it arrives from, pre and post
-// are its contract, and emits lists what it may send as { notify, ask, sendAt } name arrays.
-export class MessageSpec {
+// An on entry is a handler function, or a handler spec { run, args, sourceKey, pre, post, emits }:
+// the handler, run, with its contract. args types the send/notify arguments, sourceKey the
+// child key it arrives from, pre and post are conditions on the instance, and emits lists what
+// it may send as { notify, ask, sendAt } name arrays.
+export class HandlerSpec {
 	constructor(name, entry) {
 		const spec = typeof entry === "function" ? { run: entry } : entry;
-		const { run, args, sourceKey, pre, post, emits } = spec;
-		Object.assign(this, { name, run, args, sourceKey, pre, post, emits });
+		this.name = name;
+		this.run = spec.run;
+		this.args = spec.args;
+		this.sourceKey = spec.sourceKey;
+		this.pre = spec.pre;
+		this.post = spec.post;
+		this.emits = spec.emits;
 	}
 }
 // Other entries stay as they are for lint to report.
@@ -402,12 +414,12 @@ export const toMessages = (on) => {
 	for (const key in on) {
 		const entry = on[key];
 		const isSpec = typeof entry === "function" || (typeof entry === "object" && entry !== null);
-		messages[key] = isSpec ? new MessageSpec(key, entry) : entry;
+		messages[key] = isSpec ? new HandlerSpec(key, entry) : entry;
 	}
 	return messages;
 };
 // answers maps an ask's name to its outcomes' handlers, { ok, error, unhandled }, each an entry
-// as on's are; its MessageSpec is named "<ask>.<outcome>". Other shapes stay for lint.
+// as on's are; its HandlerSpec is named "<ask>.<outcome>". Other shapes stay for lint.
 export const toAnswers = (answers) => {
 	const out = Object.create(null);
 	for (const ask in answers) {
@@ -420,7 +432,7 @@ export const toAnswers = (answers) => {
 		for (const outcome in outcomes) {
 			const entry = outcomes[outcome];
 			const isSpec = typeof entry === "function" || (typeof entry === "object" && entry !== null);
-			out[ask][outcome] = isSpec ? new MessageSpec(`${ask}.${outcome}`, entry) : entry;
+			out[ask][outcome] = isSpec ? new HandlerSpec(`${ask}.${outcome}`, entry) : entry;
 		}
 	}
 	return out;

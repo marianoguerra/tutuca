@@ -116,7 +116,7 @@ for (const sourceName of ["field", "seqItem", "provided"]) {
 				host.start(C.Root({ panel, groups: sourceName === "provided" ? [items] : undefined }));
 				assert.equal(rootNode.querySelectorAll("button").length, 2);
 				click(host, rootNode, 1);
-				const root = host.rootComponent;
+				const root = host.root;
 				const key = object ? "b" : 1;
 				if (mode === "each" || mode === "iterWith") {
 					assert.equal(root.panel.picked, key);
@@ -200,7 +200,7 @@ test("nested provided collection jumps preserve provider depths and shadowing", 
 	const { host, rootNode, C } = setup({ Root, Group, OuterPanel, InnerPanel, Counter });
 	host.start(C.Root({ groups: [C.Group({ items: { a: C.Counter() } })] }));
 	click(host, rootNode);
-	assert.equal(host.rootComponent.groups[0].items.a.count, 1);
+	assert.equal(host.root.groups[0].items.a.count, 1);
 	assert.deepEqual(seen, ["inner", "group", "outer", "root"]);
 });
 
@@ -241,8 +241,8 @@ test("rendered SeqItem collection stays frozen while sendAt captures producer co
 	host.handleEvent({ type: "click", target: oldButton });
 	host.handleTasks = handleTasks;
 	host.handleTasks();
-	assert.equal(host.rootComponent.groups[0][0].count, 1);
-	assert.equal(host.rootComponent.groups[1][0].count, 1);
+	assert.equal(host.root.groups[0][0].count, 1);
+	assert.equal(host.root.groups[1][0].count, 1);
 });
 
 for (const depth of [0, 1, 2, 8]) {
@@ -277,7 +277,7 @@ for (const depth of [0, 1, 2, 8]) {
 		for (let i = depth - 1; i >= 0; i--) root = C.Node({ id: i, items: [root] });
 		host.start(root);
 		click(host, rootNode, depth);
-		let leaf = host.rootComponent;
+		let leaf = host.root;
 		for (let i = 0; i < depth; i++) leaf = leaf.items[0];
 		assert.equal(leaf.count, 1);
 		assert.deepEqual(
@@ -287,7 +287,7 @@ for (const depth of [0, 1, 2, 8]) {
 	});
 }
 
-test("PathBuilder item updates array and object items", () => {
+test("Selector item updates array and object items", () => {
 	const Item = component({
 		name: "Item",
 		fields: { count: t.number() },
@@ -312,6 +312,6 @@ test("PathBuilder item updates array and object items", () => {
 	const { host, rootNode, C } = setup({ Root, Item });
 	host.start(C.Root({ array: [C.Item()], object: { a: C.Item() } }));
 	click(host, rootNode);
-	assert.equal(host.rootComponent.array[0].count, 1);
-	assert.equal(host.rootComponent.object.a.count, 1);
+	assert.equal(host.root.array[0].count, 1);
+	assert.equal(host.root.object.a.count, 1);
 });

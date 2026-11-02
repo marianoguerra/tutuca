@@ -9,34 +9,34 @@ Tutuca has four kinds of path. Each has one job:
 
 | Kind | What it is | Used for |
 |---|---|---|
-| `UpdatePath` | the property keys from the root state to a value | reading and writing state (`getIn`, `setIn`) |
+| `KeyPath` | the property keys from the root state to a value | reading and writing state (`getIn`, `setIn`) |
 | `DispatchPath` | a list of `Frame`s: how a component was reached while rendering | metadata comments, event routing, notify bubbling, `sourceKey` |
-| `Selector` | `PathBuilder` calls (`field`, `item`, `seqItem`) | addressing a component from code (`ctx.sendAt`, `provides`) |
+| `Selector` | selector calls (`field`, `item`, `seqItem`) | addressing a component from code (`ctx.sendAt`, `provides`) |
 | `Target` | a `DispatchPath` plus a `Selector` below it | where a task goes, before its address is fixed |
-| `Address` | a `DispatchPath`, its update path, and the identity of the component it reached | where a task goes (`to`) and who sent it (`from`) |
+| `Address` | a `DispatchPath`, its key path, and the identity of the component it reached | where a task goes (`to`) and who sent it (`from`) |
 
-An **address** is spec/tree's `(at π ι)`: a dispatch path with its update path, and the
-identity of the component it reached when it was fixed (`{ path, updatePath, id }`). Every
+An **address** is spec/tree's `(at π ι)`: a dispatch path with its key path, and the
+identity of the component it reached when it was fixed (`{ path, keyPath, id }`). Every
 task has a `from`, its sender's address, and runs with a `to`. `HOST`, the root's parent, is
 the `from` of DOM events and ask answers; it has no handlers.
 
 The formal model is in `spec/component/paths.rkt` (`upath`, `dframe`/`dpath`, `sel`, `route`). The task
 side is in `spec/system/host.rkt` (`(at base sel)`).
 
-## Update paths: where a value is
+## Key paths: where a value is
 
-An `UpdatePath` is a list of keys: field names and collection keys.
+An `KeyPath` is a list of keys: field names and collection keys.
 
 ```js
-new UpdatePath(["tabs", 1, "child"]).getIn(root) // root.tabs[1].child
+new KeyPath(["tabs", 1, "child"]).getIn(root) // root.tabs[1].child
 ```
 
 `getIn` reads one key at a time. `setIn` writes into an immer draft by assigning into the
-parent. They are the only operations on an update path. The host uses one per task: it
+parent. They are the only operations on a key path. The host uses one per task: it
 reads the instance, runs the handler on a draft of it, and sets the result back into the
 root.
 
-An update path follows *ownership*: the fields and collections that actually contain the
+A key path follows *ownership*: the fields and collections that actually contain the
 component.
 
 ## Frames and dispatch paths: how a component was reached
@@ -127,15 +127,15 @@ is reported the same way.
 
 ### Resolving: from frames to keys
 
-`resolve()` turns a dispatch path into an update path, going left to right:
+`toKeyPath()` turns a dispatch path into a key path, going left to right:
 - An ordinary frame continues from where the previous frame ended.
 - A frame with a provider at depth `d` restarts from where the first `d` frames ended,
   followed by the provider's `keys`.
 - Either way, the frame then appends its `accessKeys`.
 
-`toUpdatePath()` is `toComponentPath().resolve()`. `Address.at(path, root)` fixes a dispatch
-path's address: `{ path, updatePath: path.toUpdatePath(), id }`, `id` that of the component
-at the update path in `root`.
+`toComponentKeyPath()` is `toComponentPath().toKeyPath()`. `Address.at(path, root)` fixes a dispatch
+path's address: `{ path, keyPath: path.toComponentKeyPath(), id }`, `id` that of the component
+at the key path in `root`.
 
 Depth is what ties providers to frames. The root component is entered at depth 0 and every
 frame adds one, so "captured at depth d" and "the first d frames" refer to the same
@@ -168,7 +168,7 @@ Drag events use the same routing, with two differences.
   `data-dragtype` and the value at that path. It keeps this until `dragend`. Handlers of drag
   events read it as `ctx.drag`.
 
-`dragKey()` in a send is `ctx.drag.keyIn(ctx.path)`, the drag's `sourceKey`. It
+`dragKey()` in a send is `ctx.drag.sourceKeyIn(ctx.path)`, the drag's `sourceKey`. It
 uses `sourceKeyIn` on the drag's path from the receiver's point of view, and is `null` when
 nothing is dragged or the drag started outside the receiver. A list that reorders itself
 sends `send("move", dragKey(), sourceKey())`. A drop across components, such as a card into
@@ -182,7 +182,7 @@ they are for styles only, and sync never sees them.
 
 ## Selectors: addressing from code
 
-Code builds selectors with a `PathBuilder` function:
+Code builds selectors with a selector function, which gets an empty `Selector` and adds ops to it:
 
 ```js
 ctx.sendAt("inc", [], (b) => b.seqItem("items", "selected"));
@@ -256,7 +256,7 @@ answers: {
 },
 ```
 
-Each entry is a handler or a message spec, as in `on`, so it has args, contracts and emits.
+Each entry is a handler or a handler spec, as in `on`, so it has args, contracts and emits.
 `ctx.request` is the id `ctx.ask` returned, so with several asks of one name in flight, an
 answer says which it is. Answers aren't messages: a `send` or `sendAt` named `load.ok` reaches
 `on`, not `answers`. An answer with no handler is reported `unhandled`, named `load.ok`; lint
@@ -287,7 +287,7 @@ instance, or a handler returning a new one, gives a new one.
 
 An address records the identity of the component it reached when it was fixed: at event time
 for an event, at the producer's commit for the rest, and an answer or a reply goes to its
-sender's. When the task runs, `to.resolve(root)` checks the component at the update path has
+sender's. When the task runs, `to.resolve(root)` checks the component at the key path has
 that identity. If another component is there, the message was for the one before: it's
 dropped, and reported as `stale` (`{ task, path, id, found }`), instead of being given to that
 one. If no component is there, it's dropped and reported as `orphaned` (`{ task, path }`).
@@ -311,7 +311,7 @@ renders `render(provided("cur"))`, and `b` renders a button.
 2. **Click.** Routing rebuilds the dispatch path from them. The path has two component
    frames: `[["panel"]]` and `[provider cur at depth 1, keys ["items",1]]`.
 3. **Resolve.** Frame 2 restarts from the end of frame 1 (`["panel"]`) and adds
-   `["items", 1]`, so the update path is `["panel", "items", 1]`, which reaches `b`.
+   `["items", 1]`, so the key path is `["panel", "items", 1]`, which reaches `b`.
 4. **Handle.** The handler runs on a draft of `b`, and `setIn` writes it back.
 5. **Notify.** If `b` notifies, the target is the dispatch path's parent, `[["panel"]]`. So
    the notify goes to `Panel`, then to `Root`. The `sourceKey` each receiver sees comes

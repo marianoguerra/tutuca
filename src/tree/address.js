@@ -5,14 +5,16 @@ import { idOf, isNode } from "./identity.js";
 import { DispatchPath } from "./path.js";
 
 export class Address {
+	/** @param {DispatchPath} path */
 	constructor(path, id, isHost = false) {
 		this.path = path;
-		this.updatePath = path.toUpdatePath();
+		/** @type {import("./path.js").KeyPath} */
+		this.keyPath = path.toComponentKeyPath();
 		this.id = id;
 		this.isHost = isHost;
 	}
 	static at(path, root) {
-		return new Address(path, idOf(path.toUpdatePath().getIn(root)));
+		return new Address(path, idOf(path.toComponentKeyPath().getIn(root)));
 	}
 	// The address target reaches in root.
 	static of(target, root) {
@@ -21,7 +23,7 @@ export class Address {
 	// { instance } when the node it recorded is at its path, { stale } with the identity of the
 	// one there instead, or { orphaned } when none is.
 	resolve(root) {
-		const instance = this.updatePath.getIn(root);
+		const instance = this.keyPath.getIn(root);
 		if (!isNode(instance)) return { orphaned: true };
 		const found = idOf(instance);
 		return found === this.id ? { instance } : { stale: found };
@@ -37,7 +39,7 @@ export class Address {
 		return hops;
 	}
 	toString() {
-		return this.isHost ? "host" : `${this.updatePath}#${this.id}`;
+		return this.isHost ? "host" : `${this.keyPath}#${this.id}`;
 	}
 }
 // The root's parent: what environment events and ask answers come from. It has no handlers.

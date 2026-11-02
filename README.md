@@ -65,7 +65,7 @@ host.start(host.scope.components.Counter());
 
 ## Docs
 
-- [`docs/paths.md`](docs/paths.md): how update paths, dispatch paths and selectors route messages.
+- [`docs/paths.md`](docs/paths.md): how key paths, dispatch paths and selectors route messages.
 - [`docs/sync.md`](docs/sync.md): persisting and syncing state with sync engines.
 - [`spec/README.md`](spec/README.md): the formal semantics in PLT Redex and how it maps to `src/`.
 

@@ -7,22 +7,30 @@ import { Address, HOST } from "./address.js";
 // The handler's contract counts what it emits, not what ran before it in the task (an ask
 // handler, before the reply's).
 export const call = (handler, instance, next, args, ctx) => {
-	ctx.handled = { message: handler, args };
+	ctx.ran = { message: handler, args };
 	ctx.emitted = [];
 	const result = handler.run.call(instance, next, args, ctx);
 	return result === undefined ? next : result;
 };
 export class Task {
-	// from is the sender's Address; to, where it goes, is fixed from target once the sender
-	// commits, against the tree it committed.
-	constructor(name, args, from, target, parent) {
+	// from is the sender's Address. where is where it goes: an Address when that is known as it
+	// is sent (a reply, an ask, an answer), or a Target, fixed into to once the sender commits,
+	// against the tree it committed (prepare).
+	/**
+	 * @param {Address} from
+	 * @param {Address | import("./path.js").Target | null} where
+	 * @param {Task | null} parent
+	 */
+	constructor(name, args, from, where, parent) {
 		this.name = name;
 		this.args = args;
 		this.from = from;
-		this.target = target;
+		const fixed = where instanceof Address;
+		/** @type {import("./path.js").Target | null} */
+		this.target = fixed ? null : where;
+		/** @type {Address | null} */
+		this.to = fixed ? where : null;
 		this.parent = parent;
-		this.event = null;
-		this.to = null;
 	}
 	get hkey() {
 		return { mode: "send", name: this.name };
@@ -43,13 +51,13 @@ export class Task {
 	}
 }
 // A notification on its way up. An ancestor without a handler for it passes it on, silently;
-// handled says whether any hop so far had one. It stops at a handler that calls stopNext, or at
+// anyHopHandled says whether any hop so far had one. It stops at a handler that calls stopNext, or at
 // the root, where it's reported unhandled, once, if no hop handled it. The hops are its sender's
 // ancestors when it starts: a bubble is one turn, so they can't move while it runs.
 export class NotifyTask extends Task {
-	constructor(name, args, from, target, parent, handled = false, hops = null) {
+	constructor(name, args, from, target, parent, anyHopHandled = false, hops = null) {
 		super(name, args, from, target, parent);
-		this.handled = handled;
+		this.anyHopHandled = anyHopHandled;
 		this.hops = hops;
 		this.to = hops?.[0] ?? null;
 	}
@@ -67,7 +75,7 @@ export class NotifyTask extends Task {
 		this.to = this.hops[0];
 	}
 	run(handler, instance, next, ctx) {
-		const handled = this.handled || handler !== undefined;
+		const handled = this.anyHopHandled || handler !== undefined;
 		const result = handler === undefined ? next : call(handler, instance, next, this.args, ctx);
 		if (ctx.isStopNextSet) return result;
 		if (ctx.path.isRootPath) {
@@ -84,6 +92,11 @@ export class NotifyTask extends Task {
 // and its answer comes back to the asker as an answer task, now or when it settles. An answer
 // that fails fails only itself, whether it came now or later.
 export class AskTask extends Task {
+	// request is the ask's id, which its answer's handler reads as ctx.request.
+	constructor(name, args, from, parent, request) {
+		super(name, args, from, from, parent);
+		this.request = request;
+	}
 	// handler, the one that answers the ask (null when none does), runs with what the asker's
 	// context lets it read: { now } an answer to run next (an urgent response), or { later } the
 	// promise of one (a normal response).
@@ -106,18 +119,16 @@ export class AskTask extends Task {
 	}
 	makeAnswer(outcome, args) {
 		// The host answers, back to the asker as it was when it asked.
-		const answer = new AnswerTask(this.name, outcome, args, this.request, HOST, this);
-		answer.to = this.from;
-		return answer;
+		return new AnswerTask(this.name, outcome, args, this.request, this.from, this);
 	}
 }
 // The answer to an ask, for the asker's handler for (outcome ask): ok with the value, error with
 // the error, unhandled (nobody answers the ask) with none. Answers aren't messages: nothing but
-// an ask's answer reaches these handlers.
+// an ask's answer reaches these handlers. The host sends every answer, to the asker's address.
 export const ANSWER_OUTCOMES = ["ok", "error", "unhandled"];
 export class AnswerTask extends Task {
-	constructor(ask, outcome, args, request, from, parent) {
-		super(`${ask}.${outcome}`, args, from, null, parent);
+	constructor(ask, outcome, args, request, to, parent) {
+		super(`${ask}.${outcome}`, args, HOST, to, parent);
 		this.ask = ask;
 		this.outcome = outcome;
 		this.request = request;

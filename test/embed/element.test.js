@@ -82,7 +82,7 @@ const setup = () => {
 	const element = rootNode.querySelector("tutuca-app");
 	const send = (name, args) => {
 		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-		task.prepare(host.rootComponent);
+		task.prepare(host.root);
 		host.pushTask(task);
 		host.handleTasks();
 	};
@@ -109,9 +109,9 @@ test("inner clicks reach the inner host, and the outer host only sees the elemen
 	const { window, element, host, failures } = setup();
 	click(window, innerButton(element));
 	assert.equal(innerButton(element).textContent, "2");
-	assert.equal(element.controller.host.rootComponent.count, 2);
+	assert.equal(element.controller.host.root.count, 2);
 	// The outer div's own click handler fires, as for any element inside it.
-	assert.equal(host.rootComponent.clicks, 1);
+	assert.equal(host.root.clicks, 1);
 	assert.deepEqual(failures, []);
 });
 
@@ -143,13 +143,13 @@ test("emit reaches an outer on:tutucareport handler; stale requests are dropped"
 	const { host, mounted, send } = setup();
 	const first = mounted[0];
 	first.emit("hello", 42);
-	assert.deepEqual(host.rootComponent.reports, []);
+	assert.deepEqual(host.root.reports, []);
 	await Promise.resolve();
-	assert.deepEqual(host.rootComponent.reports, [{ key: "a", type: "hello", data: 42 }]);
+	assert.deepEqual(host.root.reports, [{ key: "a", type: "hello", data: 42 }]);
 	first.emit("stale", 1);
 	send("setKey", ["b"]);
 	await Promise.resolve();
-	assert.equal(host.rootComponent.reports.length, 1);
+	assert.equal(host.root.reports.length, 1);
 });
 
 test("an element nobody answers says so", () => {

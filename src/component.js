@@ -9,11 +9,13 @@ import { Collect } from "./walk.js";
 export class ComponentSpec {
 	constructor({ name, fields, methods, views, on, answers, loops, scopes, provides, invariants }) {
 		this.name = name;
+		/** @type {Object<string, import("./schema.js").Type>} */
 		this.fields = fields;
 		this.methods = methods;
 		// Copy descriptors, not values, so getters in methods stay getters.
 		this.proto = Object.create(null, Object.getOwnPropertyDescriptors(methods));
 		Object.assign(this.proto, { [immerable]: true, [specSym]: this });
+		/** @type {Object<string, import("./view.js").AstNode>} */
 		this.views = views;
 		this.on = on;
 		this.answers = answers; // ask name -> outcome (ok, error, unhandled) -> its handler.

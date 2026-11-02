@@ -13,11 +13,12 @@ export const componentKinds = {
 	askHandler: (instance, name) => scopeOf(instance)?.lookupAskHandler(name) ?? null,
 };
 export class TutucaContext extends MessageContext {
+	/** @param {import("./scope.js").Scope | null} scope */
 	constructor(task, nextRequest, env, scope) {
 		super(task, nextRequest);
 		this.env = env;
 		this.scope = scope; // The handling component's scope, to make components from.
-		this.event = task.event;
+		this.event = task.event ?? null; // The DOM event, in event tasks.
 		this.node = task.node ?? null; // The element whose handler an event task runs.
 		this.drag = task.drag ?? null; // What is being dragged, in drag events.
 	}
@@ -53,12 +54,11 @@ export class TutucaContext extends MessageContext {
 export class EventTask extends Task {
 	// An event comes from the host, to the component it reached when it happened.
 	constructor(e, { handler, to, node = null }, drag = null) {
-		super(handler.action.name, [], HOST, null, null);
+		super(handler.action.name, [], HOST, to, null);
 		this.event = e;
 		this.node = node;
 		this.drag = drag;
 		this.handler = handler;
-		this.to = to;
 	}
 	get runsBeforeEnv() {
 		return true;

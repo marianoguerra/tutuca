@@ -102,7 +102,7 @@ for (const source of ["field", "seqItem", "provided"]) {
 		const child = C.Child();
 		host.start(C.Root({ panel: C.Panel({ child, items: [null, child] }) }));
 		click(rootNode.querySelector("span"));
-		const panel = host.rootComponent.panel;
+		const panel = host.root.panel;
 		assert.equal((source === "seqItem" ? panel.items[1] : panel.child).count, 1);
 		assert.deepEqual(seen, ["panel", "root"]);
 	});
@@ -130,13 +130,13 @@ test("top-level each routes every item after keyed reorder", () => {
 	const [a, b] = rootNode.querySelectorAll("button");
 	click(a);
 	click(b);
-	assert.deepEqual(host.rootComponent.picked, ["a", "b"]);
-	host.rootComponent = C.Root({ items: [...host.rootComponent.items].reverse() });
+	assert.deepEqual(host.root.picked, ["a", "b"]);
+	host.root = C.Root({ items: [...host.root.items].reverse() });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("button")], [b, a]);
 	click(b);
 	click(a);
-	assert.deepEqual(host.rootComponent.picked, ["b", "a"]);
+	assert.deepEqual(host.root.picked, ["b", "a"]);
 	assert.equal(rootNode.innerHTML.includes('"t":"it"'), false);
 });
 
@@ -177,12 +177,12 @@ test("nested multi-root loops retain paths across text, comments, empty scopes a
 	host.start(C.Root());
 	const buttons = [...rootNode.querySelectorAll("button")];
 	for (const button of buttons) click(button);
-	assert.deepEqual(host.rootComponent.picked, [1, 1, null]);
+	assert.deepEqual(host.root.picked, [1, 1, null]);
 	const unmanaged = rootNode.ownerDocument.createElement("button");
 	unmanaged.dataset.eid = String(Root.views.main.children[1].eid);
 	rootNode.append(unmanaged);
 	click(unmanaged);
-	assert.deepEqual(host.rootComponent.picked, [1, 1, null]);
+	assert.deepEqual(host.root.picked, [1, 1, null]);
 });
 
 test("renderIt promotes only its own scope and stops event lookup at its view", () => {
@@ -219,9 +219,9 @@ test("renderIt promotes only its own scope and stops event lookup at its view", 
 	const [child, sibling] = rootNode.querySelectorAll("button");
 	click(child);
 	click(rootNode.querySelector("i"));
-	assert.equal(host.rootComponent.items[0].count, 1);
-	assert.deepEqual(host.rootComponent.picked, []);
+	assert.equal(host.root.items[0].count, 1);
+	assert.deepEqual(host.root.picked, []);
 	click(sibling);
 	click(rootNode.querySelector("section"));
-	assert.deepEqual(host.rootComponent.picked, [0, 0]);
+	assert.deepEqual(host.root.picked, [0, 0]);
 });

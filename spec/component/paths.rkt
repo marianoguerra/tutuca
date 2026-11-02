@@ -7,7 +7,7 @@
 ;;   dpath   a dispatch path: the frames of rendered ancestry, one per
 ;;           render source or loop item entered. Notify bubbling and
 ;;           sourceKey follow it; resolve turns it into an update path.
-;;   sel     a selector: PathBuilder calls (field, item, seqItem) that read
+;;   sel     a selector: Selector calls (field, item, seqItem) that read
 ;;           the state when they freeze, at commit.
 ;;   route   a dispatch path with its update path.
 ;;
@@ -28,7 +28,7 @@
   (dpath ::= (dframe ...))
   (upath ::= (skey ...))
   (route ::= (dpath upath))
-  ;; PathBuilder calls: b.field(f), b.item(f, k), b.seqItem(f, kf)
+  ;; Selector calls: b.field(f), b.item(f, k), b.seqItem(f, kf)
   (pb-op ::= (pb-field fname) (pb-item fname skey) (pb-seq-item fname fname))
   (sel ::= (pb-op ...)))
 

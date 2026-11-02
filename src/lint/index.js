@@ -1,14 +1,14 @@
 import {
 	ANSWER_OUTCOMES,
-	AnyType,
 	ArrayType,
 	AstNode,
 	ComponentType,
 	DRAG_EVENTS,
+	HandlerSpec,
 	IndexType,
 	isRecord,
 	MapType,
-	MessageSpec,
+	Type,
 	unwrapOption,
 	Walker,
 } from "../tutuca.js";
@@ -42,7 +42,7 @@ const labelOf = (node, kind) => {
 			return `${kind}(${node.loopName ?? ""})`;
 		case "scope":
 			return `scope(${node.scopeName})`;
-		case "action":
+		case "send":
 			return `send(${node.name})`;
 		default:
 			return kind;
@@ -178,7 +178,7 @@ export class Lint extends Walker {
 			}
 		}
 		for (const [name, message] of Object.entries(spec.on)) {
-			const asks = message instanceof MessageSpec ? message.emits?.ask : undefined;
+			const asks = message instanceof HandlerSpec ? message.emits?.ask : undefined;
 			for (const ask of Array.isArray(asks) ? asks : []) {
 				if (spec.answers[ask] !== undefined) continue;
 				const text = `on.${name} asks ${ask}, but answers has no ${ask}: its answer goes unhandled`;
@@ -188,14 +188,13 @@ export class Lint extends Walker {
 	}
 	lintMessage(label, message) {
 		const bad = (what) => this.report("error", "section-shape", null, `${label}${what}`);
-		if (!(message instanceof MessageSpec)) return bad(" must be a function or a message spec");
+		if (!(message instanceof HandlerSpec)) return bad(" must be a function or a handler spec");
 		const { run, args, sourceKey, pre, post, emits } = message;
 		if (typeof run !== "function") bad(".run must be a function");
-		if (args !== undefined && !(Array.isArray(args) && args.every((a) => a instanceof AnyType))) {
+		if (args !== undefined && !(Array.isArray(args) && args.every((a) => a instanceof Type))) {
 			bad(".args must be an array of types");
 		}
-		if (sourceKey !== undefined && !(sourceKey instanceof AnyType))
-			bad(".sourceKey must be a type");
+		if (sourceKey !== undefined && !(sourceKey instanceof Type)) bad(".sourceKey must be a type");
 		for (const [hook, fn] of [
 			["pre", pre],
 			["post", post],
@@ -294,14 +293,14 @@ export class Lint extends Walker {
 	}
 	handler(_node, { name, action }) {
 		this.labels.push(`[on:${name}]`);
-		if (kindOf(action) !== "action") {
+		if (kindOf(action) !== "send") {
 			this.report("error", "event-needs-send", action, `on:${name} needs a send action`);
 		} else {
 			const message = this.spec.on[action.name];
 			if (typeof message?.run !== "function") {
 				this.report("error", "unknown-handler", action, `no own handler on.${action.name}`);
 			} else if (message.args !== undefined) this.checkSendArgs(action, message.args);
-			this.labels.push(labelOf(action, "action"));
+			this.labels.push(labelOf(action, "send"));
 			this.inAction = true;
 			this.eventName = name;
 			for (const arg of action.args) this.visit(arg);
@@ -328,17 +327,17 @@ export class Lint extends Walker {
 			}
 		});
 	}
-	action(node) {
+	send(node) {
 		this.report("error", "send-not-event", node, "send is only valid as an on:* value");
 	}
 	field(node) {
 		this.checkField(node, node.name);
-		super.field(node);
+		super.node(node);
 	}
 	seqItem(node) {
 		this.checkField(node, node.seqName);
 		this.checkField(node, node.keyName);
-		super.seqItem(node);
+		super.node(node);
 	}
 	provided(node) {
 		if (!this.providedNames.has(node.name)) {
@@ -349,7 +348,7 @@ export class Lint extends Walker {
 				`no registered component provides "${node.name}"`,
 			);
 		}
-		super.provided(node);
+		super.node(node);
 	}
 	targetValue(node) {
 		if (!this.inAction) {
@@ -360,7 +359,7 @@ export class Lint extends Walker {
 				"targetValue is only valid in send arguments",
 			);
 		}
-		super.targetValue(node);
+		super.node(node);
 	}
 	// Events from outside any each body, in this view, always have a null source key.
 	sourceKey(node) {
@@ -379,7 +378,7 @@ export class Lint extends Walker {
 				"sourceKey is only set inside an each body",
 			);
 		}
-		super.sourceKey(node);
+		super.node(node);
 	}
 	// Only drag events happen with something dragged.
 	dragKey(node) {
@@ -398,7 +397,7 @@ export class Lint extends Walker {
 				`dragKey is only set in drag events, not in on:${this.eventName}`,
 			);
 		}
-		super.dragKey(node);
+		super.node(node);
 	}
 	lookupBind(node) {
 		const { name } = node;
@@ -421,12 +420,12 @@ export class Lint extends Walker {
 				`no enclosing scope or enriching loop binds "${name}"`,
 			);
 		}
-		super.lookupBind(node);
+		super.node(node);
 	}
 	render(node) {
 		this.checkSource(node);
 		this.checkViewName(node, node.viewName);
-		super.render(node);
+		super.node(node);
 	}
 	renderIt(node) {
 		if (!this.env.loop) {
@@ -441,7 +440,7 @@ export class Lint extends Walker {
 	}
 	pushView(node) {
 		if (kindOf(node.viewNameVal) === "constant") this.checkViewName(node, node.viewNameVal.value);
-		super.pushView(node);
+		super.node(node);
 	}
 	each(node) {
 		let loop;
@@ -454,7 +453,7 @@ export class Lint extends Walker {
 		this.checkSource(node);
 		this.visit(node.source);
 		const body = { loop: true, open: loop?.enrich !== undefined };
-		if (node.child !== null) this.withEnv(body, () => this.visit(node.child));
+		if (kindOf(node) === "each") this.withEnv(body, () => this.visit(node.child));
 	}
 	scope(node) {
 		if (this.lookupSection("scopes", node.scopeName) === undefined) {

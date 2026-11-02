@@ -1,7 +1,6 @@
 // Plain language for tutuca values: what a node shows in its readable view, as
 // { title, detail }. The code view shows them as src/dev/formatters.js prints them.
 import {
-	AnyType,
 	ArrayType,
 	AskTask,
 	AstNode,
@@ -13,10 +12,12 @@ import {
 	EventTask,
 	Frame,
 	IndexType,
+	KeyPath,
 	MapType,
 	MessageContext,
 	NotifyTask,
 	NumberType,
+	OneOfType,
 	OptionType,
 	RecordType,
 	RenderContext,
@@ -26,8 +27,7 @@ import {
 	specOf,
 	Target,
 	Task,
-	UnionType,
-	UpdatePath,
+	Type,
 } from "../tutuca.js";
 import { truncate } from "./jsonml.js";
 
@@ -60,7 +60,7 @@ const opWords = (op) =>
 			? [op.name, String(op.key)]
 			: [op.name, `item at ${op.keyName}`];
 const pathWordList = (path) => {
-	if (path instanceof UpdatePath) return path.keys.map(String);
+	if (path instanceof KeyPath) return path.keys.map(String);
 	if (path instanceof Selector) return path.ops.flatMap(opWords);
 	if (path instanceof Target) return [...pathWordList(path.base), ...pathWordList(path.selector)];
 	return path.frames.flatMap(frameWords);
@@ -90,7 +90,7 @@ const typeWords = (type) => {
 	if (type instanceof ArrayType) return `list of ${typeWords(type.valueType)}`;
 	if (type instanceof MapType) return `map of ${typeWords(type.valueType)}`;
 	if (type instanceof RecordType) return `record of ${Object.keys(type.shape).join(", ")}`;
-	if (type instanceof UnionType) return `either ${type.types.map(typeWords).join(" or ")}`;
+	if (type instanceof OneOfType) return `either ${type.types.map(typeWords).join(" or ")}`;
 	if (type instanceof IndexType) return `a key of ${type.fieldName}`;
 	if (type instanceof ComponentType)
 		return type.names.length === 0 ? "any component" : `${type.names.join(" or ")} component`;
@@ -135,7 +135,7 @@ const astTitle = (node) => {
 			return `uses the view ${sourceWords(node.viewNameVal)} inside`;
 		case "scope":
 			return `with the bindings of ${quote(node.scopeName)}`;
-		case "action":
+		case "send":
 			return `sends ${quote(node.name)}`;
 		case "targetValue":
 			return "the value of the event's target";
@@ -162,7 +162,7 @@ const astDetail = (node) => {
 		case "each":
 		case "renderEach":
 			return node.loopName ? `with the loop ${quote(node.loopName)}` : "";
-		case "action":
+		case "send":
 			return node.args.length === 0 ? "" : `with ${plural(node.args.length, "argument")}`;
 		default:
 			return "";
@@ -204,9 +204,9 @@ const summarizeUnsafe = (v) => {
 		if (n(v.invariants) > 0) parts.push(plural(n(v.invariants), "invariant"));
 		return { title: `${v.name} component`, detail: parts.join(" · ") };
 	}
-	if (v instanceof AnyType) return { title: typeWords(v), detail: typeDetail(v) };
+	if (v instanceof Type) return { title: typeWords(v), detail: typeDetail(v) };
 	if (v instanceof AstNode) return { title: astTitle(v), detail: astDetail(v) };
-	if (v instanceof DispatchPath || v instanceof UpdatePath)
+	if (v instanceof DispatchPath || v instanceof KeyPath)
 		return { title: "path", detail: pathWords(v) };
 	if (v instanceof Selector) return { title: "selector", detail: pathWords(v) };
 	if (v instanceof Target) return { title: "target", detail: pathWords(v) };

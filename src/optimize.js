@@ -18,7 +18,7 @@ export function isConstant(node) {
 	}
 }
 
-// What every render of a DomNode shares, computed once when it's built:
+// What every render of a Element shares, computed once when it's built:
 // - constant: handlers don't count, actions are evaluated on dispatch, not on render.
 // - shape: constant attrs (and data-eid) are applied once on create and never diffed.
 // - valueExprs: the other attrs, evaluated per render in shape.names order.

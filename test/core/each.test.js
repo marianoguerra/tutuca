@@ -103,31 +103,31 @@ test("registration snapshots the loops", () => {
 	loops.items = { key: () => "missing" };
 	const [a, b, c] = rootNode.querySelectorAll("button");
 	assert.equal(rootNode.textContent, "ABC");
-	host.rootComponent = C.Comp({ items: [...ITEMS].reverse(), hidden: "b" });
+	host.root = C.Comp({ items: [...ITEMS].reverse(), hidden: "b" });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("button")], [c, a]);
 	assert.equal(b.parentNode, null);
 	c.click();
-	assert.equal(host.rootComponent.picked, "c");
+	assert.equal(host.root.picked, "c");
 });
 
-test("XEach keyWith preserves nodes and refreshes event index metadata after reorder/filter", () => {
+test("Each keyWith preserves nodes and refreshes event index metadata after reorder/filter", () => {
 	const { host, rootNode, C } = setup();
 	const [a, b, c] = rootNode.querySelectorAll("button");
-	host.rootComponent = C.Comp({ items: [...ITEMS].reverse() });
+	host.root = C.Comp({ items: [...ITEMS].reverse() });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("button")], [c, b, a]);
 	c.click();
-	assert.equal(host.rootComponent.picked, "c");
+	assert.equal(host.root.picked, "c");
 	// Event handling produces frozen state, so replace it for the next render.
-	host.rootComponent = C.Comp({ items: [...ITEMS].reverse(), hidden: "b" });
+	host.root = C.Comp({ items: [...ITEMS].reverse(), hidden: "b" });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("button")], [c, a]);
 	a.click();
-	assert.equal(host.rootComponent.picked, "a");
+	assert.equal(host.root.picked, "a");
 });
 
-test("adjacent keyed XEach loops have independent key scopes", () => {
+test("adjacent keyed Each loops have independent key scopes", () => {
 	const TwoLists = component({
 		...listOptions,
 		name: "TwoLists",
@@ -139,22 +139,22 @@ test("adjacent keyed XEach loops have independent key scopes", () => {
 	});
 	const { host, rootNode, C } = setup(TwoLists);
 	assert.equal(rootNode.querySelectorAll("i").length, 6);
-	host.rootComponent = C.Comp({ items: [...ITEMS].reverse() });
+	host.root = C.Comp({ items: [...ITEMS].reverse() });
 	host.render();
 	assert.equal(rootNode.querySelectorAll("i").length, 6);
 });
 
-test("XEach rejects duplicate compared keys", () => {
+test("Each rejects duplicate compared keys", () => {
 	const { host, rootNode, C } = setup();
 	const html = rootNode.innerHTML;
 	const duplicated = C.Comp();
 	duplicated.itemKey = () => "duplicate";
-	host.rootComponent = duplicated;
+	host.root = duplicated;
 	assert.throws(() => host.render(), /Duplicate sibling key/);
 	assert.equal(rootNode.innerHTML, html);
 });
 
-test("XEach supports object sources, text, conditional empty output and multiple roots", () => {
+test("Each supports object sources, text, conditional empty output and multiple roots", () => {
 	const Groups = component({
 		...listOptions,
 		name: "Groups",
@@ -173,16 +173,16 @@ test("XEach supports object sources, text, conditional empty output and multiple
 	const { host, rootNode, C } = setup(Groups);
 	const A = { id: "a", title: "A" };
 	const B = { id: "b", title: "B" };
-	host.rootComponent = C.Comp({ items: { a: A, b: B } });
+	host.root = C.Comp({ items: { a: A, b: B } });
 	host.render();
 	const [a, b] = rootNode.querySelectorAll("i");
-	host.rootComponent = C.Comp({ items: { b: B, a: A } });
+	host.root = C.Comp({ items: { b: B, a: A } });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("i")], [b, a]);
-	host.rootComponent = C.Comp({ items: { b: B, a: { ...A, title: "" } } });
+	host.root = C.Comp({ items: { b: B, a: { ...A, title: "" } } });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("i")], [b]);
-	host.rootComponent = C.Comp({ items: { b: B, a: A } });
+	host.root = C.Comp({ items: { b: B, a: A } });
 	host.render();
 	assert.equal(rootNode.querySelectorAll("i").length, 2);
 	// Each iteration has an opening and closing metadata boundary.
@@ -240,7 +240,7 @@ test("loops run on the component, not on the item, inside nested each", () => {
 	assert.equal(rootNode.textContent, ">a>b>c");
 });
 
-test("XEach defaults to source keys without keyWith", () => {
+test("Each defaults to source keys without keyWith", () => {
 	const DefaultKeys = component({
 		...listOptions,
 		name: "DefaultKeys",
@@ -252,7 +252,7 @@ test("XEach defaults to source keys without keyWith", () => {
 	});
 	const { host, rootNode, C } = setup(DefaultKeys);
 	const [a, b] = rootNode.querySelectorAll("i");
-	host.rootComponent = C.Comp({ items: { b: { title: "B" }, a: { title: "A" } } });
+	host.root = C.Comp({ items: { b: { title: "B" }, a: { title: "A" } } });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("i")], [b, a]);
 });

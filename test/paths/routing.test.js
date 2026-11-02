@@ -99,8 +99,8 @@ test("a reply from any hop of a notification reaches the component that notified
 	const { host, C, click, failures } = setup();
 	host.start(C.Top({ renew: null }));
 	click("go");
-	assert.deepEqual(host.rootComponent.log, ["hello"]);
-	assert.equal(host.rootComponent.middle.leaf.got, "from top");
+	assert.deepEqual(host.root.log, ["hello"]);
+	assert.equal(host.root.middle.leaf.got, "from top");
 	assert.deepEqual(failures, []);
 });
 
@@ -108,7 +108,7 @@ test("a reply to a sender replaced since it sent is dropped as stale (spec/tree 
 	const { host, C, click, of } = setup();
 	host.start(C.Top({ renew: "new" }));
 	click("go");
-	assert.equal(host.rootComponent.middle.leaf.got, "new", "the new leaf doesn't get it");
+	assert.equal(host.root.middle.leaf.got, "new", "the new leaf doesn't get it");
 	assert.deepEqual(of("stale"), ["hi"]);
 });
 
@@ -116,8 +116,8 @@ test("a notification whose sender replaced itself is stale before it bubbles (sp
 	const { host, C, click, of } = setup();
 	host.start(C.Top({ renew: null }));
 	click("swap");
-	assert.deepEqual(host.rootComponent.log, []);
-	assert.equal(host.rootComponent.middle.leaf.got, "swapped");
+	assert.deepEqual(host.root.log, []);
+	assert.equal(host.root.middle.leaf.got, "swapped");
 	assert.deepEqual(of("stale"), ["hello"]);
 });
 
@@ -125,7 +125,7 @@ test("a reply to the host, which has no handlers, is reported unhandled", () => 
 	const { host, C, click, of, failures } = setup();
 	host.start(C.Top({ renew: null }));
 	click("answer");
-	assert.equal(host.rootComponent.middle.leaf.got, null);
+	assert.equal(host.root.middle.leaf.got, null);
 	assert.deepEqual(of("unhandled"), ["hi"]);
 	assert.deepEqual(failures, []);
 });
@@ -134,7 +134,7 @@ test("a DOM event runs ahead of the queue, after the events before it", () => {
 	const { host, C, rootNode, drain } = setup();
 	host.start(C.Top({ renew: null }));
 	const mark = new Task("mark", [], HOST, new Target(new DispatchPath()), null);
-	mark.prepare(host.rootComponent);
+	mark.prepare(host.root);
 	host.pushTask(mark);
 	const handleTasks = host.handleTasks;
 	host.handleTasks = () => {};
@@ -143,5 +143,5 @@ test("a DOM event runs ahead of the queue, after the events before it", () => {
 	host.handleTasks = handleTasks;
 	drain();
 	// ev and go ran before mark; go's notification was queued behind mark.
-	assert.deepEqual(host.rootComponent.log, ["ev", "mark", "hello"]);
+	assert.deepEqual(host.root.log, ["ev", "mark", "hello"]);
 });

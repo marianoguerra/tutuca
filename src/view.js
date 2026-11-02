@@ -16,7 +16,7 @@ export class AstNode {
 		return [];
 	}
 	accept(walker) {
-		walker[this.constructor.kind](this);
+		walker.dispatch(this.constructor.kind, this);
 	}
 }
 export class Field extends AstNode {
@@ -67,7 +67,7 @@ export class Provided extends AstNode {
 }
 export const provided = (name) => new Provided(name);
 let nextEid = 0;
-export class DomNode extends AstNode {
+export class Element extends AstNode {
 	static kind = "element";
 	constructor(tagName, attrs, childs, handlers) {
 		super();
@@ -103,7 +103,7 @@ export const h = (tagName, attrs, ...childs) => {
 		if (key.startsWith("on:")) handlers.push({ name: key.slice(3), action: value });
 		else props.push([key, toExpr(value)]);
 	}
-	return new DomNode(tagName, props, childs.flat(Infinity).map(toExpr), handlers);
+	return new Element(tagName, props, childs.flat(Infinity).map(toExpr), handlers);
 };
 export class Cond extends AstNode {
 	static kind = "cond";
@@ -122,7 +122,7 @@ export class Cond extends AstNode {
 }
 export const $if = (source, thenVal, elseVal) =>
 	new Cond(toExpr(source), toExpr(thenVal), toExpr(elseVal));
-export class Const extends AstNode {
+export class Constant extends AstNode {
 	static kind = "constant";
 	constructor(value) {
 		super();
@@ -132,8 +132,8 @@ export class Const extends AstNode {
 		return this.value;
 	}
 }
-export const toExpr = (v) => (v instanceof AstNode ? v : new Const(v));
-export class XRender extends AstNode {
+export const toExpr = (v) => (v instanceof AstNode ? v : new Constant(v));
+export class Render extends AstNode {
 	static kind = "render";
 	constructor(source, viewName) {
 		super();
@@ -149,14 +149,37 @@ export class XRender extends AstNode {
 		return [this.source];
 	}
 }
-export const render = (source, viewName) => new XRender(toExpr(source), viewName);
+export const render = (source, viewName) => new Render(toExpr(source), viewName);
 const entriesOf = (items) => (Array.isArray(items) ? items.entries() : Object.entries(items));
 function* filteredEntries(self, filter, items, state) {
 	for (const entry of entriesOf(items)) {
 		if (filter === undefined || filter.call(self, entry[0], entry[1], state)) yield entry;
 	}
 }
-export class XEach extends AstNode {
+// The fragments a loop renders: one per entry of the source, with its key and frame, each
+// being what renderItem returns for the item's ctx. The loop's prepare, iter, filter, key and
+// enrich shape it.
+const loopFragments = (ctx, source, loopName, renderItem) => {
+	const loop = loopName === undefined ? {} : ctx.spec.loops[loopName];
+	const self = ctx.component;
+	const nodes = [];
+	const items = source.eval(ctx);
+	const state = loop.prepare === undefined ? null : loop.prepare.call(self, items);
+	const entries = loop.iter
+		? loop.iter.call(self, items, state)
+		: filteredEntries(self, loop.filter, items, state);
+	const sourceFrame = source.toFrame(ctx);
+	for (const [key, value] of entries) {
+		const frame = sourceFrame.forItem(key);
+		const fragmentKey = loop.key === undefined ? key : loop.key.call(self, key, value, state);
+		const base = { value, key };
+		const binds = loop.enrich ? { ...loop.enrich.call(self, base, state), value, key } : base;
+		const dom = renderItem(ctx.enterFrame(value, binds), loop);
+		nodes.push(new VFragment(toVChilds(wrapMeta(frame.toMeta(), dom)), fragmentKey));
+	}
+	return new VFragment(nodes);
+};
+export class Each extends AstNode {
 	static kind = "each";
 	constructor(source, child, loopName) {
 		super();
@@ -165,47 +188,32 @@ export class XEach extends AstNode {
 		this.loopName = loopName;
 	}
 	eval(ctx) {
-		const loop = this.loopName === undefined ? {} : ctx.spec.loops[this.loopName];
-		const self = ctx.component;
-		const nodes = [];
-		const items = this.source.eval(ctx);
-		const state = loop.prepare === undefined ? null : loop.prepare.call(self, items);
-		const entries = loop.iter
-			? loop.iter.call(self, items, state)
-			: filteredEntries(self, loop.filter, items, state);
-		const sourceFrame = this.source.toFrame(ctx);
-		for (const [key, value] of entries) {
-			const frame = sourceFrame.forItem(key);
-			const fragmentKey = loop.key === undefined ? key : loop.key.call(self, key, value, state);
-			const base = { value, key };
-			const binds = loop.enrich ? { ...loop.enrich.call(self, base, state), value, key } : base;
-			const dom = this.evalItem(ctx.enterFrame(value, binds), loop);
-			nodes.push(new VFragment(toVChilds(wrapMeta(frame.toMeta(), dom)), fragmentKey));
-		}
-		return new VFragment(nodes);
-	}
-	evalItem(ctx, _loop) {
-		return this.child.eval(ctx);
+		return loopFragments(ctx, this.source, this.loopName, (itemCtx) => this.child.eval(itemCtx));
 	}
 	childNodes() {
 		return [this.source, this.child];
 	}
 }
-export const each = (source, child, loopName) => new XEach(toExpr(source), toExpr(child), loopName);
-export class XRenderEach extends XEach {
+export const each = (source, child, loopName) => new Each(toExpr(source), toExpr(child), loopName);
+// A loop that renders each item, a component, with the loop's view.
+export class RenderEach extends AstNode {
 	static kind = "renderEach";
 	constructor(source, loopName) {
-		super(source, null, loopName);
+		super();
+		this.source = source;
+		this.loopName = loopName;
 	}
-	evalItem(ctx, loop) {
-		return renderView(ctx.it, ctx.forItemView(ctx.it), loop.view);
+	eval(ctx) {
+		return loopFragments(ctx, this.source, this.loopName, (itemCtx, loop) =>
+			renderView(itemCtx.it, itemCtx.forItemView(itemCtx.it), loop.view),
+		);
 	}
 	childNodes() {
 		return [this.source];
 	}
 }
-export const renderEach = (source, loopName) => new XRenderEach(toExpr(source), loopName);
-export class XRenderIt extends AstNode {
+export const renderEach = (source, loopName) => new RenderEach(toExpr(source), loopName);
+export class RenderIt extends AstNode {
 	static kind = "renderIt";
 	constructor(viewName) {
 		super();
@@ -216,7 +224,7 @@ export class XRenderIt extends AstNode {
 		return renderView(it, ctx.forItemView(it), this.viewName);
 	}
 }
-export const renderIt = (viewName) => new XRenderIt(viewName);
+export const renderIt = (viewName) => new RenderIt(viewName);
 export class XScope extends AstNode {
 	static kind = "scope";
 	constructor(scopeName, child) {
@@ -234,7 +242,7 @@ export class XScope extends AstNode {
 	}
 }
 export const scope = (scopeName, child) => new XScope(scopeName, toExpr(child));
-export class XPushView extends AstNode {
+export class PushView extends AstNode {
 	static kind = "pushView";
 	constructor(viewNameVal, child) {
 		super();
@@ -249,9 +257,9 @@ export class XPushView extends AstNode {
 		return [this.viewNameVal, this.child];
 	}
 }
-export const pushView = (source, child) => new XPushView(toExpr(source), toExpr(child));
+export const pushView = (source, child) => new PushView(toExpr(source), toExpr(child));
 export class Send extends AstNode {
-	static kind = "action";
+	static kind = "send";
 	constructor(name, args) {
 		super();
 		this.name = name;
@@ -283,11 +291,11 @@ export const sourceKey = () => new SourceKey();
 export class DragKey extends AstNode {
 	static kind = "dragKey";
 	eval(ctx) {
-		return ctx.drag?.keyIn(ctx.path) ?? null;
+		return ctx.drag?.sourceKeyIn(ctx.path) ?? null;
 	}
 }
 export const dragKey = () => new DragKey();
-export class LookupBindName extends AstNode {
+export class LookupBind extends AstNode {
 	static kind = "lookupBind";
 	constructor(name) {
 		super();
@@ -297,7 +305,7 @@ export class LookupBindName extends AstNode {
 		return ctx.lookupBind(this.name);
 	}
 }
-export const lookupBind = (name) => new LookupBindName(name);
+export const lookupBind = (name) => new LookupBind(name);
 export class RenderContext {
 	constructor({ it, binds, dynBinds, viewStack, depth, component }) {
 		this.it = it;
@@ -335,7 +343,7 @@ export class RenderContext {
 		const { provides } = specOf(it);
 		const newDynBinds = { ...this.dynBinds };
 		for (const key in provides) {
-			const suffix = new DispatchPath(selectorFrom(provides[key], it).freeze(it)).resolve();
+			const suffix = new DispatchPath(selectorFrom(provides[key], it).freeze(it)).toKeyPath();
 			newDynBinds[key] = { value: suffix.getIn(it), depth, keys: suffix.keys };
 		}
 		return newDynBinds;

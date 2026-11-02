@@ -60,17 +60,17 @@ test("the default walker walks parents first, attributes before children and han
 	const seen = [];
 	recordVisits(seen).visit(v);
 	assert.deepEqual(seen, [
-		"DomNode",
+		"Element",
 		"Cond",
 		"Field",
-		"Const",
-		"Const",
-		"XEach",
+		"Constant",
+		"Constant",
+		"Each",
 		"Field",
 		"XScope",
-		"XPushView",
-		"Const",
-		"DomNode",
+		"PushView",
+		"Constant",
+		"Element",
 		"Field",
 		"Send",
 		"Field",
@@ -90,7 +90,7 @@ test("Walker reads children of custom nodes through childNodes", () => {
 	class Opaque extends AstNode {}
 	const seen = [];
 	recordVisits(seen).visit(h("p", {}, new Listed(new Opaque()), new Listed(field("name"))));
-	assert.deepEqual(seen, ["DomNode", "Listed", "Opaque", "Listed", "Field"]);
+	assert.deepEqual(seen, ["Element", "Listed", "Opaque", "Listed", "Field"]);
 });
 
 test("elements with handlers get unique IDs, and the spec maps them without copying", () => {
@@ -163,9 +163,9 @@ test("a click runs the handler on a draft and re-renders the produced state", ()
 	host.start(before);
 	rootNode.querySelector("button").click();
 	rootNode.querySelector("button").click();
-	assert.equal(host.rootComponent.count, 2);
+	assert.equal(host.root.count, 2);
 	assert.equal(before.count, 0);
-	assert.ok(Object.isFrozen(host.rootComponent));
+	assert.ok(Object.isFrozen(host.root));
 	assert.equal(rootNode.textContent, "2");
 });
 
@@ -183,7 +183,7 @@ test("an element outside HTML and SVG routes its events too", () => {
 	const { host, rootNode, C, click } = setup({ Formula });
 	host.start(C.Formula());
 	click(rootNode.querySelector("mn"));
-	assert.equal(host.rootComponent.count, 1);
+	assert.equal(host.root.count, 1);
 });
 
 test("a message with no handler, sent by an event or otherwise, is a no-op that's reported", () => {
@@ -198,21 +198,21 @@ test("a message with no handler, sent by an event or otherwise, is a no-op that'
 		{ sync: true, onReport: (type, info) => reports.push([type, info.message]) },
 	);
 	host.start(C.Mute());
-	const before = host.rootComponent;
+	const before = host.root;
 	const warn = console.warn;
 	console.warn = () => {};
 	try {
 		click(rootNode.querySelector("button"));
 		const root = new DispatchPath();
 		const task = new Task("missing", [], HOST, new Target(root), null);
-		task.prepare(host.rootComponent);
+		task.prepare(host.root);
 		host.pushTask(task);
 		drain();
 	} finally {
 		console.warn = warn;
 	}
 	assert.deepEqual(failures, []);
-	assert.equal(host.rootComponent, before);
+	assert.equal(host.root, before);
 	assert.deepEqual(
 		reports.filter(([type]) => type === "unhandled"),
 		[
@@ -272,7 +272,7 @@ const runNotify = (topHandles) => {
 
 test("a notification passes ancestors without a handler silently", () => {
 	const { host, reports, warnings } = runNotify(true);
-	assert.equal(host.rootComponent.pings, 1);
+	assert.equal(host.root.pings, 1);
 	assert.deepEqual(reports, []);
 	assert.deepEqual(warnings, []);
 });
@@ -358,8 +358,8 @@ test("a task whose address reaches no component is dropped and reported orphaned
 		{ sync: true, onReport: (type, info) => reports.push([type, String(info.path)]) },
 	);
 	host.start(C.Top());
-	const task = new Task("go", [], HOST, null, null);
-	task.to = new Address(new DispatchPath([new Frame(["gone"], null, null, true)]), 1);
+	const gone = new Address(new DispatchPath([new Frame(["gone"], null, null, true)]), 1);
+	const task = new Task("go", [], HOST, gone, null);
 	host.pushTask(task);
 	drain();
 	assert.deepEqual(failures, []);
@@ -405,8 +405,7 @@ test("a stopped host drops the tasks that arrive after, such as an ask's late re
 	const { host, C, failures, drain } = setupHost({ Leaf, Middle, Top }, { sync: true });
 	host.start(C.Top());
 	host.stop();
-	const task = new Task("ping", [], HOST, null, null);
-	task.to = new Address(new DispatchPath(), 1);
+	const task = new Task("ping", [], HOST, new Address(new DispatchPath(), 1), null);
 	host.pushTask(task);
 	drain();
 	assert.deepEqual(failures, []);
@@ -421,7 +420,7 @@ test("an event the DOM can't route, as after a root replaced without rendering, 
 		{ sync: true, onReport: (type) => reports.push(type) },
 	);
 	host.start(C.Top());
-	host.rootComponent = C.Leaf();
+	host.root = C.Leaf();
 	rootNode
 		.querySelector("button")
 		.dispatchEvent(new rootNode.ownerDocument.defaultView.MouseEvent("click", { bubbles: true }));
@@ -454,8 +453,8 @@ test("targetValue reads values and checkbox state", () => {
 	text.dispatchEvent(new window.Event("input", { bubbles: true }));
 	check.checked = true;
 	check.dispatchEvent(new window.Event("input", { bubbles: true }));
-	assert.equal(host.rootComponent.name, "Ada");
-	assert.equal(host.rootComponent.done, true);
+	assert.equal(host.root.name, "Ada");
+	assert.equal(host.root.done, true);
 });
 
 test("a handler's return value replaces the component", () => {
@@ -472,7 +471,7 @@ test("a handler's return value replaces the component", () => {
 	const { host, rootNode, C } = setup({ Reset });
 	host.start(C.Reset());
 	rootNode.querySelector("button").click();
-	assert.equal(host.rootComponent.count, 0);
+	assert.equal(host.root.count, 0);
 });
 
 test("a throwing handler keeps the state and reports taskFailed", () => {
@@ -491,7 +490,7 @@ test("a throwing handler keeps the state and reports taskFailed", () => {
 	const root = C.Bad();
 	host.start(root);
 	rootNode.querySelector("button").click();
-	assert.equal(host.rootComponent, root);
+	assert.equal(host.root, root);
 	assert.deepEqual(
 		failures.map((e) => e.message),
 		["boom"],
@@ -512,7 +511,7 @@ test("only own message handlers run: an inherited name is unhandled", () => {
 	} finally {
 		console.warn = warn;
 	}
-	assert.equal(host.rootComponent, root);
+	assert.equal(host.root, root);
 	assert.deepEqual(failures, []);
 	assert.deepEqual(unhandled, ["toString"]);
 });
@@ -530,7 +529,7 @@ test("events on the host, unmanaged children and unknown IDs are ignored", () =>
 		button.dataset.eid = eid;
 		assert.doesNotThrow(() => host.handleEvent({ type: "click", target: button }));
 	}
-	assert.equal(host.rootComponent, root);
+	assert.equal(host.root, root);
 	assert.equal(host.tasks.length, 0);
 });
 
@@ -541,7 +540,7 @@ test("look-alike meta comments from unmanaged DOM are skipped", () => {
 	const foreign = rootNode.ownerDocument.createComment('§{"t":"other"}§');
 	button.before(foreign);
 	button.click();
-	assert.equal(host.rootComponent.count, 1);
+	assert.equal(host.root.count, 1);
 	// The re-render matches past the foreign comment and leaves it in place.
 	assert.equal(rootNode.querySelector("button").textContent, "1");
 	assert.equal(foreign.parentNode, button.parentNode);
@@ -583,7 +582,7 @@ test("all views of one instance render together and route to it", () => {
 	compact.click();
 	// Skip a nonmatching inner group, but still select the nearest matching group.
 	rootNode.querySelector("i").click();
-	assert.deepEqual(host.rootComponent.child.seen, ["main", "input", "compact", "outer"]);
+	assert.deepEqual(host.root.child.seen, ["main", "input", "compact", "outer"]);
 });
 
 for (const source of ["field", "seqItem"]) {
@@ -622,7 +621,7 @@ for (const source of ["field", "seqItem"]) {
 		const child = C.Child();
 		host.start(C.Root({ panel: C.Panel({ child, items: [null, child] }) }));
 		rootNode.querySelector("span").click();
-		const panel = host.rootComponent.panel;
+		const panel = host.root.panel;
 		assert.equal((source === "seqItem" ? panel.items[1] : panel.child).count, 1);
 		assert.equal((source === "seqItem" ? panel.child : panel.items[1]).count, 0);
 	});
@@ -645,13 +644,13 @@ for (const mode of ["renderEach", "renderIt", "deep renderIt"]) {
 		const [a, b] = rootNode.querySelectorAll("button");
 		a.click();
 		b.click();
-		host.rootComponent = C.Root({ items: [...host.rootComponent.items].reverse() });
+		host.root = C.Root({ items: [...host.root.items].reverse() });
 		host.render();
 		assert.deepEqual([...rootNode.querySelectorAll("button")], [b, a]);
 		b.click();
 		a.click();
 		assert.deepEqual(
-			host.rootComponent.items.map((item) => [item.id, item.count]),
+			host.root.items.map((item) => [item.id, item.count]),
 			[
 				["b", 2],
 				["a", 2],
@@ -694,11 +693,11 @@ test("renderIt stops event lookup at its view", () => {
 	const [child, sibling] = rootNode.querySelectorAll("button");
 	child.click();
 	rootNode.querySelector("i").click();
-	assert.equal(host.rootComponent.items[0].count, 1);
-	assert.equal(host.rootComponent.picked, 0);
+	assert.equal(host.root.items[0].count, 1);
+	assert.equal(host.root.picked, 0);
 	sibling.click();
 	rootNode.querySelector("section").click();
-	assert.equal(host.rootComponent.picked, 2);
+	assert.equal(host.root.picked, 2);
 });
 
 test("a child-scope registration after startup adds only its event listeners", (ctx) => {
@@ -726,10 +725,10 @@ test("a child-scope registration after startup adds only its event listeners", (
 	local.register({ Late });
 	local.register({ Alias: Late });
 	assert.deepEqual(names(), ["click", "dblclick"]);
-	host.rootComponent = local.components.Late();
+	host.root = local.components.Late();
 	host.render();
 	rootNode.querySelector("button").dispatchEvent(new window.Event("dblclick", { bubbles: true }));
-	assert.equal(host.rootComponent.count, 1);
+	assert.equal(host.root.count, 1);
 });
 
 test("targetValue reads the element with the handler, not the child that was clicked", () => {
@@ -751,7 +750,7 @@ test("targetValue reads the element with the handler, not the child that was cli
 	const { host, rootNode, window, failures, C } = setup({ Tabs });
 	host.start(C.Tabs());
 	rootNode.querySelector("span").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
-	assert.equal(host.rootComponent.tab, "b");
+	assert.equal(host.root.tab, "b");
 	assert.deepEqual(failures, []);
 });
 
@@ -775,6 +774,6 @@ test("a render that throws is reported, and the host goes on", () => {
 	);
 	host.start(C.Boom());
 	click(rootNode.querySelector("button"));
-	assert.equal(host.rootComponent.n, 1);
+	assert.equal(host.root.n, 1);
 	assert.ok(reports.includes("renderFailed"), reports.join());
 });

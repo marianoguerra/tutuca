@@ -13,7 +13,7 @@ import {
 } from "../test/pbt.js";
 import { DispatchPath, Scope, selectorFrom, specOf } from "../tutuca.js";
 
-// Steps of a sequence, as plain data. at and from are PathBuilder functions relative to
+// Steps of a sequence, as plain data. at and from are selector functions relative to
 // the story root, as in ctx.sendAt; from is the child the message comes through.
 export const step = {
 	send: (name, args = [], { at, from, label } = {}) => ({

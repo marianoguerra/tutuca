@@ -1,5 +1,37 @@
 # Changelog
 
+## Unreleased
+
+Each core concept now has one name: a view node's class, its walker kind and its builder
+match, paths are named after what they hold, and the host hands drag, sync and dev checks to
+collaborators.
+
+### Breaking
+
+- **View nodes.** `XEach` → `Each`, `XRender` → `Render`, `XRenderEach` → `RenderEach`,
+  `XRenderIt` → `RenderIt`, `XPushView` → `PushView`, `DomNode` → `Element`, `Const` →
+  `Constant`, `LookupBindName` → `LookupBind`. `Send`'s kind is `send` (was `action`), so a
+  walker overrides `send(node)`. `RenderEach` no longer extends `Each`. `XScope` keeps its name
+  for now.
+- **Walkers.** `Walker` only defines `node`, `element`, `attr`, `child` and `handler`. A kind a
+  walker doesn't override is visited as a plain node (`renderIt` falls back to `render`,
+  `renderEach` to `each`), so `super.field(node)` and the like become `super.node(node)`.
+- **Paths.** `UpdatePath` → `KeyPath`. `DispatchPath.resolve()` → `toKeyPath()`,
+  `toUpdatePath()` → `toComponentKeyPath()`, `Address.updatePath` → `Address.keyPath`,
+  `Drag.keyIn` → `Drag.sourceKeyIn`. `PathBuilder` is gone: a selector function gets a
+  `Selector`, which has `field`, `item` and `seqItem`.
+- **Types.** `Type` is the base of every field type, and `AnyType` is the one `t.any()` makes,
+  so `instanceof AnyType` becomes `instanceof Type`. `UnionType` → `OneOfType`.
+- **Handlers.** `MessageSpec` → `HandlerSpec`. `ctx.handled` → `ctx.ran`.
+- **Host.** `host.rootComponent` → `host.root`. Drag state lives in `host.drags` (a
+  `DragTracker`; `host.drag` still reads the current drag), sync engines in `host.engines` (a
+  `SyncEngines`), and dev mode's checks in `host.checks` (a `DevChecks`, null outside dev).
+  `startDrag`, `dragOver`, `markDragOver`, `endDrag`, `prepareEngines`, `checkState`,
+  `checkSettled`, `reportInvalid` and `checkMessage` are gone from `Host`.
+- **Tasks.** A task's fourth argument is where it goes: a `Target`, fixed by `prepare`, or an
+  `Address`. `AnswerTask(ask, outcome, args, request, to, parent)` always comes from the host,
+  and `AskTask` takes its request id. `Task.event` is only on `EventTask`.
+
 ## 1.0.0-beta.2
 
 Messages are delivered by identity as well as by path, following the tree model in

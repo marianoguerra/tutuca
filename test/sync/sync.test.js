@@ -60,7 +60,7 @@ const started = (args = {}) => {
 };
 const send = (host, name, args) => {
 	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-	task.prepare(host.rootComponent);
+	task.prepare(host.root);
 	host.pushTask(task);
 	while (host.tasks.length > 0) host.handleTasks();
 };
@@ -272,8 +272,8 @@ test("applyStateOps hydrates the components ops insert", () => {
 	const ops = diffOf(host, prev, edit(prev, { items: [C.Item({ label: "n" })] }));
 	host.start(prev);
 	host.applyExternal((next) => applyStateOps(next, ops, host.scope));
-	assert.equal(specOf(host.rootComponent.items[0]), Item);
-	assert.equal(host.rootComponent.items[0].label, "n");
+	assert.equal(specOf(host.root.items[0]), Item);
+	assert.equal(host.root.items[0].label, "n");
 });
 
 // --- the host seam -------------------------------------------------------------------------
@@ -301,9 +301,9 @@ test("a throwing prepare fails the task before any engine wrote it", () => {
 		commit: (change) => written.push(change),
 	};
 	host.attachSync(writer, failing);
-	const before = host.rootComponent;
+	const before = host.root;
 	send(host, "retitle", ["b"]);
-	assert.equal(host.rootComponent, before);
+	assert.equal(host.root, before);
 	assert.match(failures.at(-1).message, /can't store/);
 	assert.deepEqual(written, []);
 });
@@ -324,9 +324,9 @@ test("a throwing commit is reported and the change stands for every engine", () 
 	};
 	s.host.attachSync(failing, { level: "shared", commit: (change) => written.push(change.next) });
 	send(s.host, "retitle", ["c"]);
-	assert.equal(s.host.rootComponent.title, "c");
+	assert.equal(s.host.root.title, "c");
 	assert.deepEqual(s.failures, []);
-	assert.equal(written.at(-1), s.host.rootComponent);
+	assert.equal(written.at(-1), s.host.root);
 	const [, info] = reports.find(([type]) => type === "syncFailed");
 	assert.equal(info.engine, failing);
 	assert.match(info.error.message, /quota/);
@@ -350,8 +350,8 @@ test("a change an engine applies while engines commit waits until they all have"
 	const after = { level: "shared", commit: (change) => seen.push(["after", change.next.title]) };
 	host.attachSync(echo, after);
 	send(host, "retitle", ["t"]);
-	assert.equal(host.rootComponent.title, "t");
-	assert.equal(host.rootComponent.kind, "list");
+	assert.equal(host.root.title, "t");
+	assert.equal(host.root.kind, "list");
 	// after sees the task's change, then echo's, each once and in order.
 	assert.deepEqual(seen, [
 		["echo", "t"],
@@ -371,12 +371,12 @@ test("applyExternal keeps untouched subtrees and skips the engine it came from",
 	};
 	const other = { level: "shared", commit: () => commits.push("other") };
 	host.attachSync(source, other);
-	const before = host.rootComponent;
+	const before = host.root;
 	source.link.apply((next) => {
 		next.title = "remote";
 	});
-	assert.equal(host.rootComponent.title, "remote");
-	assert.equal(host.rootComponent.items, before.items);
+	assert.equal(host.root.title, "remote");
+	assert.equal(host.root.items, before.items);
 	assert.deepEqual(commits, ["other"]);
 });
 
@@ -397,12 +397,12 @@ test("remote clients converge through the relay", async () => {
 	send(a.host, "retitle", ["shared title"]);
 	send(a.host, "add", ["first"]);
 	await tick();
-	assert.equal(b.host.rootComponent.title, "shared title");
-	assert.equal(specOf(b.host.rootComponent.items[0]), Item);
+	assert.equal(b.host.root.title, "shared title");
+	assert.equal(specOf(b.host.root.items[0]), Item);
 	send(b.host, "add", ["second"]);
 	await tick();
-	assert.deepEqual(project(a.host.rootComponent), project(b.host.rootComponent));
-	assert.deepEqual(remote.relay.load().value, project(a.host.rootComponent));
+	assert.deepEqual(project(a.host.root), project(b.host.root));
+	assert.deepEqual(remote.relay.load().value, project(a.host.root));
 });
 
 test("a change made against an old version is rejected and reloads", async () => {
@@ -414,8 +414,8 @@ test("a change made against an old version is rejected and reloads", async () =>
 	send(b.host, "retitle", ["from b"]); // before b hears of a's change
 	await tick();
 	await tick();
-	assert.equal(a.host.rootComponent.title, "from a");
-	assert.equal(b.host.rootComponent.title, "from a");
+	assert.equal(a.host.root.title, "from a");
+	assert.equal(b.host.root.title, "from a");
 });
 
 test("a local engine restores local fields under the shared ones", async () => {
@@ -445,9 +445,9 @@ test("a local engine restores local fields under the shared ones", async () => {
 		make: (C) => C.Root(),
 		engines: [remoteEngine({ transport: remote.connect() }), local],
 	});
-	assert.equal(t.host.rootComponent.selected, 0);
-	assert.equal(t.host.rootComponent.open, false);
-	assert.equal(t.host.rootComponent.items[0].label, "x");
+	assert.equal(t.host.root.selected, 0);
+	assert.equal(t.host.root.open, false);
+	assert.equal(t.host.root.items[0].label, "x");
 });
 
 // A transport per client over r whose pushes wait until the test delivers them, by place in the
@@ -519,8 +519,8 @@ test("a client has one batch in flight, so none goes on a version it wasn't made
 	await tick();
 	assert.deepEqual(h.queue, []);
 	assert.equal(r.load().value.title, "Zabc");
-	assert.equal(a.host.rootComponent.title, "Zabc");
-	assert.equal(b.host.rootComponent.title, "Zabc");
+	assert.equal(a.host.root.title, "Zabc");
+	assert.equal(b.host.root.title, "Zabc");
 	const [rejected] = reportsOf(a, "syncRejected");
 	assert.equal(rejected.ops.length, 2);
 });
@@ -545,9 +545,9 @@ test("a resync keeps the fields the remote doesn't see", async () => {
 	h.deliver(); // b's, so a's is rejected
 	h.deliver();
 	await tick();
-	assert.equal(a.host.rootComponent.title, "from b");
-	assert.equal(a.host.rootComponent.selected, 0);
-	assert.equal(a.host.rootComponent.open, true);
+	assert.equal(a.host.root.title, "from b");
+	assert.equal(a.host.root.selected, 0);
+	assert.equal(a.host.root.open, true);
 });
 
 test("messages a client has seen don't make it resync", async () => {
@@ -565,7 +565,7 @@ test("messages a client has seen don't make it resync", async () => {
 	h.send(message);
 	await tick();
 	assert.equal(h.loads, loads);
-	assert.equal(a.host.rootComponent.title, "t");
+	assert.equal(a.host.root.title, "t");
 });
 
 test("a batch that arrives before a client pushed its own edits makes it resync", async () => {
@@ -583,8 +583,8 @@ test("a batch that arrives before a client pushed its own edits makes it resync"
 	h.deliver(); // before a pushed its edit, which was made against "abc"
 	await tick();
 	assert.deepEqual(h.queue, []);
-	assert.equal(a.host.rootComponent.title, "Yabc");
-	assert.deepEqual(project(a.host.rootComponent), r.load().value);
+	assert.equal(a.host.root.title, "Yabc");
+	assert.deepEqual(project(a.host.root), r.load().value);
 	assert.equal(reportsOf(a, "syncRejected").length, 1);
 });
 
@@ -615,7 +615,7 @@ test("a batch sent between a client's load and attach reaches it", async () => {
 	});
 	const loads = h.loads;
 	await tick();
-	assert.equal(s.host.rootComponent.title, "Yabc");
+	assert.equal(s.host.root.title, "Yabc");
 	assert.equal(h.loads, loads);
 });
 
@@ -629,7 +629,7 @@ test("a client whose copy doesn't take a batch resyncs to the remote", async () 
 	await tick();
 	assert.equal(h.loads, loads + 1);
 	assert.equal(reportsOf(a, "syncFailed").length, 1);
-	assert.deepEqual(project(a.host.rootComponent), r.load().value);
+	assert.deepEqual(project(a.host.root), r.load().value);
 });
 
 // Two versions of an app: the second adds a text field.
@@ -663,7 +663,7 @@ test("a field a newer version adds syncs through the relay, and older clients dr
 	await tick();
 	assert.deepEqual(r.load().value, { $: "Root", title: "t", body: "hi!" });
 	assert.equal(h.loads, loads);
-	assert.equal(project(old.host.rootComponent).body, undefined);
+	assert.equal(project(old.host.root).body, undefined);
 	assert.deepEqual(reportsOf(old, "stateMigrated").at(-1).dropped, [["body"]]);
 });
 
@@ -697,8 +697,8 @@ test("a field a newer version adds syncs through automerge, and older peers keep
 	ha.merge(hb.doc());
 	hb.merge(ha.doc());
 	assert.deepEqual(fromDoc(hb.doc()), { $: "Root", title: "title", body: "hi!" });
-	assert.equal(neu.rootComponent.title, "title");
-	assert.equal(old.rootComponent.title, "title");
+	assert.equal(neu.root.title, "title");
+	assert.equal(old.root.title, "title");
 	assert.deepEqual(failures, []);
 });
 
@@ -714,8 +714,8 @@ test("automerge brings a state that parted from its document back to it", async 
 	send(b.host, "retitle", ["t"]);
 	b.host.applyExternal((d) => void d.items.splice(0, 1));
 	ha.merge(hb.doc());
-	assert.deepEqual(project(a.host.rootComponent), fromDoc(ha.doc()));
-	assert.equal(a.host.rootComponent.title, "t");
+	assert.deepEqual(project(a.host.root), fromDoc(ha.doc()));
+	assert.equal(a.host.root.title, "t");
 });
 
 // --- automerge -----------------------------------------------------------------------------
@@ -743,8 +743,8 @@ test("automerge brings in what changed in the document between load and attach",
 		make: (C) => C.Root(),
 		engines: [automergeEngine({ handle }), between],
 	});
-	assert.equal(b.host.rootComponent.title, "between");
-	assert.deepEqual(project(b.host.rootComponent), fromDoc(handle.doc()));
+	assert.equal(b.host.root.title, "between");
+	assert.deepEqual(project(b.host.root), fromDoc(handle.doc()));
 });
 
 test("automerge keeps the projection in the document, text as text", async () => {
@@ -752,7 +752,7 @@ test("automerge keeps the projection in the document, text as text", async () =>
 	const a = await amClient(handle);
 	send(a.host, "retitle", ["doc"]);
 	send(a.host, "add", ["item"]);
-	assert.deepEqual(fromDoc(handle.doc()), project(a.host.rootComponent));
+	assert.deepEqual(fromDoc(handle.doc()), project(a.host.root));
 	assert.equal(typeof handle.doc().title, "string");
 	assert.notEqual(typeof handle.doc().kind, "string"); // an ImmutableString
 });
@@ -764,16 +764,16 @@ test("automerge peers merge concurrent edits", async () => {
 	send(a.host, "retitle", ["hello"]);
 	const hb = docHandle(clone(ha.doc()));
 	const b = await amClient(hb);
-	const itemsBefore = b.host.rootComponent.items;
+	const itemsBefore = b.host.root.items;
 	send(a.host, "retitle", ["hello world"]);
 	send(b.host, "retitle", ["oh hello"]);
 	send(b.host, "add", ["from b"]);
 	ha.merge(hb.doc());
 	hb.merge(ha.doc());
-	assert.equal(a.host.rootComponent.title, "oh hello world");
-	assert.deepEqual(project(a.host.rootComponent), project(b.host.rootComponent));
-	assert.notEqual(b.host.rootComponent.items, itemsBefore);
-	assert.equal(specOf(a.host.rootComponent.items[0]), Item);
+	assert.equal(a.host.root.title, "oh hello world");
+	assert.deepEqual(project(a.host.root), project(b.host.root));
+	assert.notEqual(b.host.root.items, itemsBefore);
+	assert.equal(specOf(a.host.root.items[0]), Item);
 });
 
 test("applying diff(a, b) to a gives b, for generated states", async () => {

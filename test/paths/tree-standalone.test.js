@@ -65,7 +65,7 @@ test("a message for a child another one replaced is stale", () => {
 	const { store, scheduler, observed, run } = setup(root);
 	const to = Address.at(childPath, root);
 	store.get().child = mint({ kind: "child" }); // a new identity at the same path
-	scheduler.push(Object.assign(new Task("poke", [], HOST, null, null), { to }));
+	scheduler.push(new Task("poke", [], HOST, to, null));
 	run();
 	assert.deepEqual(observed, ["stale"]);
 	assert.equal(store.get().seen, 0);

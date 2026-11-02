@@ -196,7 +196,7 @@ test("automerge: the document follows every generated edit", async () => {
 			const host = await peer(automergeEngine({ handle }));
 			for (const fn of fns) {
 				edit(host, fn);
-				assert.deepEqual(fromDoc(handle.doc()), project(host.rootComponent));
+				assert.deepEqual(fromDoc(handle.doc()), project(host.root));
 			}
 		}),
 		{ numRuns: 100 },
@@ -216,9 +216,9 @@ test("automerge: peers converge after concurrent generated edits", async () => {
 			for (const fn of fb) edit(b, fn);
 			ha.merge(hb.doc());
 			hb.merge(ha.doc());
-			assert.deepEqual(project(a.rootComponent), project(b.rootComponent));
-			assert.deepEqual(fromDoc(ha.doc()), project(a.rootComponent));
-			assert.deepEqual(fromDoc(hb.doc()), project(b.rootComponent));
+			assert.deepEqual(project(a.root), project(b.root));
+			assert.deepEqual(fromDoc(ha.doc()), project(a.root));
+			assert.deepEqual(fromDoc(hb.doc()), project(b.root));
 		}),
 		{ numRuns: 100 },
 	);
@@ -242,7 +242,7 @@ test("automerge: peers on two versions edit and merge, each holding what the doc
 			}
 			const check = () => {
 				for (const [i, host] of peers.entries()) {
-					assert.deepEqual(project(host.rootComponent), meaningIn(host, fromDoc(handles[i].doc())));
+					assert.deepEqual(project(host.root), meaningIn(host, fromDoc(handles[i].doc())));
 				}
 			};
 			for (const [i, fn1, fn2, merge] of steps) {
@@ -321,7 +321,7 @@ test("remote: clients on two versions converge on the relay, whatever order the 
 			await settled(s);
 			const { value } = remote.relay.load();
 			for (const host of peers) {
-				assert.deepEqual(project(host.rootComponent), meaningIn(host, value));
+				assert.deepEqual(project(host.root), meaningIn(host, value));
 				assert.deepEqual(host.syncFailures, []);
 			}
 		}),

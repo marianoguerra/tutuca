@@ -118,7 +118,7 @@ export const testGenericProperties = (
 
 // --- raw vnodes ----------------------------------------------------------------------------
 
-// Builds raw vnodes for vdom-level tests, the way tutuca's DomNode would: every attr is dynamic
+// Builds raw vnodes for vdom-level tests, the way tutuca's Element would: every attr is dynamic
 // and shapes are cached by tag, namespace and attr names, so equal templates share a shape.
 const shapes = new Map();
 const shapeFor = (tag, namespace, names) => {

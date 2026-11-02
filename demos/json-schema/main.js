@@ -12,7 +12,7 @@ export const start = (document = globalThis.document) => {
 	const notify = host.onNotify;
 	host.onNotify = (type, info) => {
 		notify(type, info);
-		if (type === "taskHandled" && host.rootComponent.isStale) {
+		if (type === "taskHandled" && host.root.isStale) {
 			sendRoot(host, "regenerate");
 		}
 	};

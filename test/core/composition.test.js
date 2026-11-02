@@ -190,7 +190,7 @@ test("loop key, filter, prepare and enrich are called on the component", () => {
 		["a/3", "c/3"],
 	);
 	// Keys move the DOM nodes instead of patching them in place.
-	host.rootComponent = C.Root({ items: [c, b, a] });
+	host.root = C.Root({ items: [c, b, a] });
 	host.render();
 	assert.deepEqual([...rootNode.querySelectorAll("p")], [ps[1], ps[0]]);
 });
@@ -230,7 +230,7 @@ test("t.component defaults to a fresh instance from the owner's scope", () => {
 	local.register({ Item: Other });
 	host.start(local.components.Root());
 	assert.equal(rootNode.textContent, "other");
-	assert.equal(scopeOf(host.rootComponent.child), local);
+	assert.equal(scopeOf(host.root.child), local);
 });
 
 test("t.component rejects values registered under a different name", () => {

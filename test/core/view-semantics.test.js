@@ -71,7 +71,7 @@ test("re-rendering patches the existing DOM", () => {
 	const { host, rootNode } = setup({ Str });
 	host.start(Str.make({ value: "a" }));
 	const span = rootNode.querySelector("span");
-	host.rootComponent = Str.make({ value: "b" });
+	host.root = Str.make({ value: "b" });
 	host.render();
 	assert.equal(rootNode.querySelector("span"), span);
 	assert.equal(span.textContent, "b");

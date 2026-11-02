@@ -305,7 +305,7 @@
    (eval registry (rctx value_it binds dyn (value_n value_v ...) integer value_c) e)
    (where value_n (eval registry (rctx value_it binds dyn (value_v ...) integer value_c) e_v))])
 
-;; XEach/XRenderEach: one item per entry, with its key and frame; the loop's
+;; Each/RenderEach: one item per entry, with its key and frame; the loop's
 ;; hooks pick entries, keys and extra binds.
 (define-metafunction View
   eval-each : registry ctx src any loop-name? -> result

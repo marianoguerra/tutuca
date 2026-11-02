@@ -52,6 +52,7 @@ export class Shape {
 	}
 }
 export class VNode extends VBase {
+	/** @param {Shape} shape @param {VBase[]} childs */
 	constructor(shape, values, childs, key) {
 		super();
 		this.shape = shape;
@@ -93,6 +94,7 @@ export class VNode extends VBase {
 }
 // Childs are already normalized: a flat array of vnodes.
 export class VFragment extends VBase {
+	/** @param {VBase[]} childs */
 	constructor(childs, key) {
 		super();
 		this.key = key != null ? String(key) : undefined;

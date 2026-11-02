@@ -74,10 +74,10 @@ test("generated paths capture producer commit before intervening tasks run", () 
 	queueEvents("queue", "change");
 	drain();
 	assert.deepEqual(
-		host.rootComponent.items.map((item) => item.count),
+		host.root.items.map((item) => item.count),
 		[0, 1],
 	);
-	assert.equal(host.rootComponent.selected, 0);
+	assert.equal(host.root.selected, 0);
 	assert.equal(notices.filter(({ type }) => type.endsWith("Failed")).length, 0);
 });
 
@@ -90,7 +90,7 @@ test("DOM event paths retain event-time selection behind older queued work", () 
 	queueEvents("change", "item");
 	drain();
 	assert.deepEqual(
-		host.rootComponent.items.map((item) => item.count),
+		host.root.items.map((item) => item.count),
 		[1, 0],
 	);
 });
@@ -109,10 +109,10 @@ test("failed producers discard drafts and children but preserve older tasks", ()
 	});
 	queueEvents("fail", "keep");
 	drain();
-	assert.equal(host.rootComponent.selected, 0);
-	assert.equal(host.rootComponent.committed, 1);
+	assert.equal(host.root.selected, 0);
+	assert.equal(host.root.committed, 1);
 	assert.deepEqual(
-		host.rootComponent.items.map((item) => item.count),
+		host.root.items.map((item) => item.count),
 		[0, 0],
 	);
 	assert.equal(notices.find(({ type }) => type === "taskFailed").error, error);
@@ -136,10 +136,10 @@ test("child path preparation failure rolls back the producer and all its childre
 	});
 	queueEvents("fail", "keep");
 	drain();
-	assert.equal(host.rootComponent.selected, 0);
-	assert.equal(host.rootComponent.committed, 1);
+	assert.equal(host.root.selected, 0);
+	assert.equal(host.root.committed, 1);
 	assert.deepEqual(
-		host.rootComponent.items.map((item) => item.count),
+		host.root.items.map((item) => item.count),
 		[0, 0],
 	);
 	assert.deepEqual(
@@ -183,8 +183,8 @@ test("a throwing sync ok reply fails its own reply task, not the ask, and doesn'
 	host.scope.registerAskHandlers({ load: () => "result" });
 	queueEvents("queue");
 	drain();
-	assert.equal(host.rootComponent.items[0].reply, null);
-	assert.equal(host.rootComponent.items[0].count, 0);
+	assert.equal(host.root.items[0].reply, null);
+	assert.equal(host.root.items[0].count, 0);
 	const failed = notices.find(({ type }) => type === "taskFailed");
 	assert.equal(failed.error, error);
 	assert.equal(failed.task.name, "load.ok");
@@ -229,10 +229,10 @@ for (const rejected of [false, true]) {
 		assert.equal(host.tasks.length, 1);
 		assert.equal(host.tasks[0].to, ask.from);
 		drain();
-		assert.equal(host.rootComponent.items[1].reply, "result");
-		assert.equal(host.rootComponent.items[0].reply, null);
+		assert.equal(host.root.items[1].reply, "result");
+		assert.equal(host.root.items[0].reply, null);
 		assert.deepEqual(
-			host.rootComponent.items.map((item) => item.count),
+			host.root.items.map((item) => item.count),
 			[0, 1],
 		);
 		assert.equal(notices.filter(({ type }) => type.endsWith("Failed")).length, 0);
@@ -250,7 +250,7 @@ test("reentrant draining cannot execute children before their producer commits",
 	queueEvents("queue");
 	drain();
 	assert.deepEqual(
-		host.rootComponent.items.map((item) => item.count),
+		host.root.items.map((item) => item.count),
 		[0, 1],
 	);
 });
@@ -270,7 +270,7 @@ for (const renderThrows of [false, true]) {
 		host.render = function () {
 			render.call(this);
 			rootNode.querySelector("#item").click();
-			assert.equal(this.rootComponent.items[0].count, 0);
+			assert.equal(this.root.items[0].count, 0);
 			assert.equal(this.tasks.length, 1);
 			assert.equal(scheduled, 0);
 			if (renderThrows) throw error;
@@ -287,7 +287,7 @@ for (const renderThrows of [false, true]) {
 		assert.equal(scheduled, 1);
 		host.render = render;
 		host.handleTasks();
-		assert.equal(host.rootComponent.items[0].count, 1);
+		assert.equal(host.root.items[0].count, 1);
 		assert.equal(host.tasks.length, 0);
 	});
 }
@@ -318,14 +318,14 @@ test("dynamic selectors below provided frames capture commit and retain bubbling
 		},
 		true,
 	);
-	host.rootComponent = C.Root({
+	host.root = C.Root({
 		items: [C.Item({ selected: 0, children: [C.Item(), C.Item()] }), C.Item()],
 	});
 	host.render();
 	queueEvents("item", "change");
 	drain();
 	assert.deepEqual(
-		host.rootComponent.items[0].children.map((child) => child.count),
+		host.root.items[0].children.map((child) => child.count),
 		[0, 1],
 	);
 	assert.deepEqual(seen, ["item", "root"]);
@@ -371,7 +371,7 @@ test("a reply to an asker that a list shift replaced at its index is dropped as 
 	await pending;
 	await Promise.resolve();
 	drain();
-	const [newcomer, asker] = host.rootComponent.items;
+	const [newcomer, asker] = host.root.items;
 	assert.equal(newcomer.reply, null, "the item now at index 0 doesn't get it");
 	assert.equal(asker.reply, null, "by path, the moved asker isn't found either");
 	assert.deepEqual(
@@ -392,7 +392,7 @@ test("a send queued to a component that is replaced before it runs is dropped as
 	queueEvents("poke", "renew");
 	drain();
 	// renew's event ran after poke's, before the inc poke queued: the new item keeps its count.
-	assert.equal(host.rootComponent.items[0].count, 50);
+	assert.equal(host.root.items[0].count, 50);
 	assert.deepEqual(
 		notices.filter(({ type }) => type === "stale").map(({ task }) => task.name),
 		["inc"],
@@ -410,7 +410,7 @@ test("updating a component keeps its identity: a send queued before still reache
 	});
 	queueEvents("poke", "touch");
 	drain();
-	assert.equal(host.rootComponent.items[0].count, 1);
+	assert.equal(host.root.items[0].count, 1);
 	assert.deepEqual(
 		notices.filter(({ type }) => type === "stale"),
 		[],
@@ -478,6 +478,6 @@ test("an answer handler reads the request it answers; a message named like it is
 	} finally {
 		console.warn = warn;
 	}
-	assert.equal(host.rootComponent.items[0].reply, "result");
+	assert.equal(host.root.items[0].reply, "result");
 	assert.ok(notices.some(({ type, message }) => type === "unhandled" && message === "load.ok"));
 });

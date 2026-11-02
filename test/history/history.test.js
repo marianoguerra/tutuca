@@ -100,13 +100,13 @@ test("the engine records labelled entries and travels by applying a past state",
 		],
 	);
 	engine.travel(0);
-	assert.equal(host.rootComponent.count, 0);
+	assert.equal(host.root.count, 0);
 	assert.equal(rootNode.querySelector("button").textContent, "0");
 	assert.equal(timeline.cursor, 0);
 	assert.equal(timeline.size, 3, "travelling records nothing");
 	assert.deepEqual(peer.seen, [1, 2, 0], "the other engines see the travel");
 	engine.forward();
-	assert.equal(host.rootComponent.count, 1);
+	assert.equal(host.root.count, 1);
 	click();
 	assert.deepEqual(
 		states(timeline).map((s) => s.count),
@@ -156,12 +156,12 @@ test("mountTimeTravel shows a bar once there are two states and travels from it"
 	const back = barNode.querySelector('button[title="Back"]');
 	back.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
 	drainBar();
-	assert.equal(host.rootComponent.count, 1);
+	assert.equal(host.root.count, 1);
 	assert.match(barNode.textContent, /state 2 of 3/);
 	const slider = barNode.querySelector('[aria-label="State"]');
 	slider.value = "0";
 	slider.dispatchEvent(new window.Event("input", { bubbles: true }));
 	drainBar();
-	assert.equal(host.rootComponent.count, 0);
+	assert.equal(host.root.count, 0);
 	assert.equal(scopeWith({ TimeTravel }).components.TimeTravel().isShown, false);
 });

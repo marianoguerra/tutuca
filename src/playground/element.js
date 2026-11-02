@@ -91,7 +91,7 @@ ${INHERIT_THEME}
 // Sends name(...args) to root's component from outside the app.
 const sendRoot = (host, name, args) => {
 	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-	task.prepare(host.rootComponent);
+	task.prepare(host.root);
 	host.pushTask(task);
 };
 

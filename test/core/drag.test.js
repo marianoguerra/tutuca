@@ -181,7 +181,7 @@ test("other events stay in the component they happen in", () => {
 	assert.equal(d.state.clicks, 0);
 });
 
-test("Drag.keyIn is the child of the receiver the drag came from, null from elsewhere", () => {
+test("Drag.sourceKeyIn is the child of the receiver the drag came from, null from elsewhere", () => {
 	const item = (keys, key, isComponent = true) => new Frame(keys, key, null, isComponent);
 	const drag = new Drag(
 		new DispatchPath([item(["columns"], 0), item(["cards"], 1)]),
@@ -189,9 +189,9 @@ test("Drag.keyIn is the child of the receiver the drag came from, null from else
 		null,
 		null,
 	);
-	assert.equal(drag.keyIn(new DispatchPath()), 0);
-	assert.equal(drag.keyIn(new DispatchPath([item(["columns"], 0)])), 1);
-	assert.equal(drag.keyIn(new DispatchPath([item(["columns"], 1)])), null);
+	assert.equal(drag.sourceKeyIn(new DispatchPath()), 0);
+	assert.equal(drag.sourceKeyIn(new DispatchPath([item(["columns"], 0)])), 1);
+	assert.equal(drag.sourceKeyIn(new DispatchPath([item(["columns"], 1)])), null);
 });
 
 test("generated drags keep the state valid and the patched DOM equal to a fresh render", () => {

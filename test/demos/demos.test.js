@@ -41,7 +41,7 @@ const mount = (start, ...args) => {
 		const Event = type === "click" ? window.MouseEvent : window.Event;
 		el.dispatchEvent(new Event(type, { bubbles: true, cancelable: true }));
 	};
-	return { host, rootNode, $, fire, problems, state: () => host.rootComponent };
+	return { host, rootNode, $, fire, problems, state: () => host.root };
 };
 
 const checkClean = async ({ host, rootNode, problems }) => {
@@ -279,7 +279,7 @@ const page = (query) =>
 		url: `http://localhost/demos/notes/${query}`,
 	});
 const started = async (host) => {
-	while (host.rootComponent === null) await settle();
+	while (host.root === null) await settle();
 	return host;
 };
 
@@ -297,7 +297,7 @@ test("boot syncs any demo from the query: ?sync=local keeps the state in this br
 	Object.defineProperty(again, "localStorage", { value: window.localStorage });
 	const other = await started(startNotes(again.document));
 	assert.deepEqual(
-		other.rootComponent.notes.map((n) => n.text),
+		other.root.notes.map((n) => n.text),
 		["buy milk"],
 	);
 	void host;
@@ -306,7 +306,7 @@ test("boot syncs any demo from the query: ?sync=local keeps the state in this br
 test("without ?sync a demo starts at once, its only engine the time travel history", () => {
 	const host = startNotes(page("").document);
 	assert.equal(host.engines.length, 1);
-	assert.notEqual(host.rootComponent, null);
+	assert.notEqual(host.root, null);
 	assert.equal(startNotes(page("?history=0").document).engines.length, 0);
 });
 
@@ -330,7 +330,7 @@ test("?sync=worker: tabs sync through the backend, and a new tab starts from it"
 	a.applyExternal((d) => void d.notes.push(a.scope.make("Note", { text: "buy milk" })));
 	await settle();
 	assert.deepEqual(
-		b.rootComponent.notes.map((n) => n.text),
+		b.root.notes.map((n) => n.text),
 		["buy milk"],
 	);
 	a.applyExternal((d) => {
@@ -338,9 +338,9 @@ test("?sync=worker: tabs sync through the backend, and a new tab starts from it"
 		d.draft = "unsaved";
 	});
 	const c = await open();
-	assert.equal(c.rootComponent.notes[0].text, "buy milk");
-	assert.equal(c.rootComponent.filter, "open"); // local: from this browser's storage
-	assert.equal(c.rootComponent.draft, ""); // none: not kept
+	assert.equal(c.root.notes[0].text, "buy milk");
+	assert.equal(c.root.filter, "open"); // local: from this browser's storage
+	assert.equal(c.root.draft, ""); // none: not kept
 	assert.deepEqual(backend.remote.load().value.notes, [
 		{ $: "Note", text: "buy milk", done: false },
 	]);
@@ -384,7 +384,7 @@ test("?sync=automerge: tabs on the same document merge", async () => {
 	handle.merge(other.doc());
 	other.merge(handle.doc());
 	for (const host of [a, b]) {
-		assert.equal(host.rootComponent.title, "Merged");
-		assert.equal(host.rootComponent.notes[0].text, "from a");
+		assert.equal(host.root.title, "Merged");
+		assert.equal(host.root.notes[0].text, "from a");
 	}
 });

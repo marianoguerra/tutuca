@@ -192,7 +192,7 @@
      "Classes and protocols"
      (string-append
       "A class: fields with their types, invariants on self, and handlers. A handler's "
-      "contract is MessageSpec: argument types, the source key's type, pre on self and the "
+      "contract is HandlerSpec: argument types, the source key's type, pre on self and the "
       "arguments, post relating self and next, and the messages it may emit. Its body is "
       "one step or cases, the first enabled one running. A step's updates assign into next, "
       "reading self only; a field no update names is unchanged. Its effects run in order "
@@ -393,7 +393,7 @@
              (lang Tasks #:nts '(kind tsk target route? ask-def ask-result evt obs outcome cfg))
              (part "eval-arg: send arguments in the message context" (mf eval-arg))
              (part "route-event" (mf route-event))
-             (part "drag-key-in: Drag.keyIn" (mf drag-key-in))
+             (part "drag-key-in: Drag.sourceKeyIn" (mf drag-key-in))
              (part "drag-from: dragstart starts a drag" (mf drag-from))
              (part "drag-after: dragend ends it" (mf drag-after))))
     (sect
@@ -414,7 +414,7 @@
     (sect
      "Settled states"
      (string-append
-      "checkSettled: when the queue is empty and the root changed since it last was, the "
+      "DevChecks.settled: when the queue is empty and the root changed since it last was, the "
       "invariants of what changed are reported.")
      (figure "Invariants hold of settled states."
              (part "settle-reports" (mf settle-reports)))))

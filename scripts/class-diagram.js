@@ -11,6 +11,10 @@
 //   visibility   #name or _name → private (-), otherwise public (+)
 //   inheritance  `extends X` (X outside the graph is drawn as an external stub)
 //   association  `this.<f> = new C(…)` where C is an in-graph class       → A --> C : f
+//                `this.<f> = p` where p is a constructor param typed `@param {C} p`, or the
+//                statement carries `/** @type {C} */`, C an in-graph class (also C[],
+//                import("./m.js").C, unions)                               → A --> C : f
+//   attribute+   `Object.assign(this, { a, b })` adds a and b
 //   dependency   any other reference to an in-graph class inside the body → A ..> C
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
@@ -27,7 +31,12 @@ while (queue.length) {
 	const file = queue.shift();
 	if (modules.has(file)) continue;
 	const src = readFileSync(file, "utf8");
-	const ast = acorn.parse(src, { ecmaVersion: "latest", sourceType: "module" });
+	const comments = [];
+	const ast = acorn.parse(src, {
+		ecmaVersion: "latest",
+		sourceType: "module",
+		onComment: comments,
+	});
 	const imports = new Map();
 	const deps = [];
 	for (const node of ast.body) {
@@ -41,7 +50,7 @@ while (queue.length) {
 			for (const s of node.specifiers)
 				imports.set(s.local.name, { from: target, imported: s.imported?.name ?? "default" });
 	}
-	modules.set(file, { ast, imports });
+	modules.set(file, { ast, imports, src, comments });
 	queue.push(...deps.sort());
 }
 
@@ -87,6 +96,30 @@ const resolveName = (file, name, seen = new Set()) => {
 	return imp && modules.has(imp.from) ? resolveName(imp.from, imp.imported, seen) : null;
 };
 
+// The JSDoc block right before node (only whitespace between), or "".
+const jsdocBefore = (file, node) => {
+	const { src, comments } = modules.get(file);
+	const c = comments.findLast((c) => c.type === "Block" && c.end <= node.start);
+	return c?.value.startsWith("*") && !src.slice(c.end, node.start).trim() ? c.value : "";
+};
+// The in-graph classes a JSDoc type expression names.
+const typeTargets = (file, type) => {
+	const out = new Set();
+	for (const [, from, name] of type.matchAll(/import\("([^"]+)"\)\.(\w+)/g)) {
+		const key = resolveName(resolve(dirname(file), from), name);
+		if (key) out.add(key);
+	}
+	for (const [name] of type.replace(/import\("[^"]+"\)\.\w+/g, "").matchAll(/\b[A-Z]\w*/g)) {
+		const key = resolveName(file, name);
+		if (key) out.add(key);
+	}
+	return out;
+};
+// The {type} after tag in a JSDoc block, by name for @param.
+const paramTypes = (doc) =>
+	new Map([...doc.matchAll(/@param\s+\{([^}]+)\}\s+\[?(\w+)/g)].map(([, t, n]) => [n, t]));
+const declaredType = (doc) => doc.match(/@type\s+\{([^}]+)\}/)?.[1] ?? null;
+
 const paramName = (p) =>
 	p.type === "Identifier"
 		? p.name
@@ -121,7 +154,39 @@ for (const info of classes.values()) {
 		}
 	}
 	const own = new Set([`${info.mod}:${info.name}`]);
+	const addAssoc = (target, field) => {
+		if (!info.assoc.has(target)) info.assoc.set(target, new Set());
+		info.assoc.get(target).add(field);
+	};
+	const ctor = cls.body.body.find((m) => m.kind === "constructor");
+	const params = ctor ? paramTypes(jsdocBefore(file, ctor)) : new Map();
 	walk.full(cls.body, (n) => {
+		if (n.type === "ExpressionStatement") {
+			const e = n.expression;
+			// Object.assign(this, { a, b }): a and b are attributes.
+			if (
+				e.type === "CallExpression" &&
+				e.callee.type === "MemberExpression" &&
+				e.callee.object.name === "Object" &&
+				e.callee.property.name === "assign" &&
+				e.arguments[0]?.type === "ThisExpression"
+			)
+				for (const arg of e.arguments.slice(1))
+					if (arg.type === "ObjectExpression")
+						for (const p of arg.properties) if (p.key) addAttr(keyName(p.key), false);
+			// A typed field: /** @type {C} */ on the statement, or a param typed in the ctor's JSDoc.
+			if (
+				e.type === "AssignmentExpression" &&
+				e.left.type === "MemberExpression" &&
+				e.left.object.type === "ThisExpression" &&
+				!e.left.computed
+			) {
+				const type =
+					declaredType(jsdocBefore(file, n)) ??
+					(e.right.type === "Identifier" ? params.get(e.right.name) : undefined);
+				if (type) for (const t of typeTargets(file, type)) addAssoc(t, keyName(e.left.property));
+			}
+		}
 		if (
 			n.type === "AssignmentExpression" &&
 			n.left.type === "MemberExpression" &&
@@ -132,10 +197,7 @@ for (const info of classes.values()) {
 			addAttr(field, false);
 			if (n.right.type === "NewExpression" && n.right.callee.type === "Identifier") {
 				const target = resolveName(file, n.right.callee.name);
-				if (target) {
-					if (!info.assoc.has(target)) info.assoc.set(target, new Set());
-					info.assoc.get(target).add(field);
-				}
+				if (target) addAssoc(target, field);
 			}
 		}
 		if (n.type === "Identifier") {

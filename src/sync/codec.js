@@ -7,12 +7,12 @@ import {
 	isRecord,
 	MapType,
 	NoDefaultError,
+	OneOfType,
 	OptionType,
 	RecordType,
 	scopeOf,
 	specOf,
 	syncsAt,
-	UnionType,
 } from "../schema.js";
 import { setOwn } from "./ops.js";
 
@@ -49,7 +49,7 @@ export const componentOf = (v, rootScope, type = ANY) => {
 export const narrow = (type, value, scope) => {
 	if (type instanceof OptionType)
 		return value === null ? type : narrow(type.valueType, value, scope);
-	if (type instanceof UnionType) {
+	if (type instanceof OneOfType) {
 		const alt = type.types.find((t) => t.isValid(value, scope));
 		return alt === undefined ? ANY : narrow(alt, value, scope);
 	}

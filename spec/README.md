@@ -39,10 +39,10 @@ Each directory requires only the ones above it in this table, plus `data.rkt`.
 | | `dom.rkt` | `toDom`, namespaces | `vdom.js` |
 | | `keys.rkt` | sibling matching | `morphChildren`, first half |
 | | `morph.rkt` | reconciliation over labeled DOM nodes, among the ones render made | `morphNode`, `morphChildren`, `mountBefore`, `owned` |
-| `component/` | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toComponentPath`, `sourceKeyIn`, freezing | `UpdatePath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
+| `component/` | `paths.rkt` | update paths, dispatch frames, selectors, routes: `getIn`/`setIn`, `resolve`, `toComponentPath`, `sourceKeyIn`, freezing | `KeyPath`, `Frame`, `DispatchPath`, `Selector`, `Target` |
 | | `expr.rkt` | the expression language user functions are written in | the functions passed to `component()` |
-| | `types.rkt` | field types, `valid`, defaults, `make` | `t.*`, `AnyType` and its subclasses in `schema.js` |
-| | `class.rkt` | classes: fields, invariants, handlers with contracts and actions | `fields`, `invariants`, `on`, `MessageSpec` |
+| | `types.rkt` | field types, `valid`, defaults, `make` | `t.*`, `Type` and its subclasses in `schema.js` |
+| | `class.rkt` | classes: fields, invariants, handlers with contracts and actions | `fields`, `invariants`, `on`, `HandlerSpec` |
 | | `action.rkt` | `act` (one message on one instance), `message-issues`, `invalid-in` | `call`/`run` in `tasks.js`, `messageIssues`, `findInvalidFields` |
 | `view/` | `sem.rkt` | the semantic tree | (what `renderView` means) |
 | | `normalize.rkt` | `addChild`/`toVChilds`, keys | `view.js` |
@@ -95,7 +95,7 @@ undeclared.
 
 ```racket
 (inc (by)
-     (args (Refine Number (min 0)))               ; MessageSpec.args
+     (args (Refine Number (min 0)))               ; HandlerSpec.args
      (pre (< by 5))                               ; pre(prev, args)
      (post (= (get next n) (+ (get self n) by)))  ; post(prev, next, args)
      (emits (notify changed))                     ; emits
@@ -162,7 +162,7 @@ These expressions map directly to the runtime:
 | `(drag-key)` | `dragKey` |
 
 Three forms differ from the runtime:
-- A plain value is a `Const`.
+- A plain value is a `Constant`.
 - `(frag e ...)` stands for a custom node that returns several roots, like the `Roots` node
   in the tests.
 - An attribute is one of `(name e)`, `(key e)`, `(namespace uri)` or `(on event (send name arg ...))`.
@@ -190,13 +190,13 @@ There are four kinds, one per job, as in `docs/paths.md`:
 
 | Kind | Model | Runtime | Used for |
 |---|---|---|---|
-| update path | `upath`: property keys | `UpdatePath` | `getIn`/`setIn`, nothing else |
+| update path | `upath`: property keys | `KeyPath` | `getIn`/`setIn`, nothing else |
 | dispatch path | `dpath`: frames | `DispatchPath` of `Frame`s | rendered ancestry: metadata, event routing, notify bubbling, `sourceKey` |
-| selector | `sel`: builder calls | `Selector` (from `PathBuilder`) | `sendAt` targets, frozen at commit; `provides`, frozen at render |
+| selector | `sel`: builder calls | `Selector` (built by its own calls) | `sendAt` targets, frozen at commit; `provides`, frozen at render |
 | target | `(at dpath sel)` | `Target` | where a task goes, before its route is fixed |
 
 A route pairs a dispatch path with its update path, `(dpath upath)` here and
-`{ path, updatePath }` in the runtime: where a task runs.
+`{ path, keyPath }` in the runtime: where a task runs.
 
 Paths sit in `component/` because a route is where a message is delivered, and selectors
 freeze into frames.
@@ -236,7 +236,7 @@ As TLA+: a configuration is the state, and `host->` is `Next`, with six actions:
   first starts a drag: the closest `draggable="true"` element (the target or an ancestor)
   rendered in a component, remembered by its dispatch path. A `dragend` ends it after it's
   handled. An event task keeps the drag as of its event, and `(drag-key)` reads the key of the
-  handling component's child the drag started in (`Drag.keyIn`), or null.
+  handling component's child the drag started in (`Drag.sourceKeyIn`), or null.
 - `run` commits one transaction.
 - `fail` aborts one transaction.
 - `resolve` settles a pending async ask, in any order.
@@ -315,7 +315,7 @@ after the rendered node it followed.
 
 Two of these are equivalent only when other code doesn't edit or remove the nodes render made:
 - The identity skip leaves externally edited nodes alone. The model would overwrite them.
-- Comparing the root by reference (`oldRootComponent !== this.rootComponent`) is modeled as
+- Comparing the root by reference (`oldRoot !== this.root`) is modeled as
   structural inequality. The same holds for `findInvalidFields`'s `value === prev` skip.
 
 ## Out of scope

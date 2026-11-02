@@ -177,7 +177,7 @@ export const showArgs = ({ size, cursor, current }) => [
 // Sends name(...args) to host's root component from outside the app.
 const sendRoot = (host, name, args) => {
 	const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-	task.prepare(host.rootComponent);
+	task.prepare(host.root);
 	host.pushTask(task);
 };
 

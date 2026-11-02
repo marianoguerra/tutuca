@@ -7,6 +7,7 @@ import { selectorFrom, Target } from "./path.js";
 export class MessageContext {
 	// nextRequest gives the id of an ask made from here; the scheduler's counts per scheduler, so
 	// runs repeat.
+	/** @param {Task} task */
 	constructor(task, nextRequest) {
 		this.task = task;
 		this.nextRequest = nextRequest;
@@ -24,7 +25,7 @@ export class MessageContext {
 		const through = task.from.isHost ? task.to : task.from;
 		this.sourceKey = through.path.sourceKeyIn(this.path);
 		this.isStopNextSet = false;
-		this.handled = null; // { message, args } once a handler runs.
+		this.ran = null; // { message, args } once a handler runs.
 		this.emitted = []; // { kind, name, args } the handler sent, for the message's emits.
 		this.unhandled = []; // The messages it had no handler for.
 		this.nextHop = null; // For a notification going on up: its next hop.
@@ -45,10 +46,7 @@ export class MessageContext {
 	ask(name, args = []) {
 		this.emitted.push({ kind: "ask", name, args });
 		const request = this.nextRequest();
-		const task = new AskTask(name, args, this.address, null, this.task);
-		task.to = this.address;
-		task.request = request;
-		this.tasks.push(task);
+		this.tasks.push(new AskTask(name, args, this.address, this.task, request));
 		return request;
 	}
 	// Stops the notification being handled from bubbling further. Anything else doesn't
@@ -57,12 +55,12 @@ export class MessageContext {
 		this.isStopNextSet = true;
 	}
 	// A message down the path the selector fn writes, relative to here (spec/tree's send-at).
-	sendAt(name, args, pathBuilderFn) {
+	sendAt(name, args, selectorFn) {
 		this.emitted.push({ kind: "sendAt", name, args });
-		this.push(Task, name, args, new Target(this.path, selectorFrom(pathBuilderFn)));
+		this.push(Task, name, args, new Target(this.path, selectorFrom(selectorFn)));
 	}
-	forwardAt(pathBuilderFn) {
-		this.sendAt(this.task.name, this.task.args, pathBuilderFn);
+	forwardAt(selectorFn) {
+		this.sendAt(this.task.name, this.task.args, selectorFn);
 	}
 	// A message to the sender of the one being handled, where and as it was when it sent it: a
 	// sender another node replaced since is stale. A notification keeps its sender at every
@@ -71,9 +69,7 @@ export class MessageContext {
 	reply(name, args = []) {
 		this.emitted.push({ kind: "reply", name, args });
 		if (this.task.from.isHost) return this.reportUnhandled(name, null);
-		const task = new Task(name, args, this.address, null, this.task);
-		task.to = this.task.from;
-		this.tasks.push(task);
+		this.tasks.push(new Task(name, args, this.address, this.task.from, this.task));
 	}
 	// What an ask's handler gets: what it can read, and nothing to send with, so nothing it does
 	// outlives the ask's task.

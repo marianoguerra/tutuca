@@ -38,7 +38,7 @@ const start = () => {
 	host.start(makePlayground(host.scope.components));
 	const send = (name, args) => {
 		const task = new Task(name, args, HOST, new Target(new DispatchPath()), null);
-		task.prepare(host.rootComponent);
+		task.prepare(host.root);
 		host.pushTask(task);
 	};
 	const run = (books, wanted = "") => {
@@ -69,11 +69,11 @@ test("a run shows its first story live, and the next run remounts it with the sa
 	select.value = "Math/Quadratic/Double root";
 	select.dispatchEvent(new window.Event("change", { bubbles: true }));
 	await settle();
-	assert.equal(host.rootComponent.selectedId, "Math/Quadratic/Double root");
+	assert.equal(host.root.selectedId, "Math/Quadratic/Double root");
 	run([mathBook]);
 	await settle();
 	assert.equal(app().getAttribute("app-key"), "r2/Math/Quadratic/Double root@0");
-	assert.equal(host.rootComponent.status, "ready");
+	assert.equal(host.root.status, "ready");
 	assert.deepEqual(failures, []);
 });
 
@@ -81,15 +81,15 @@ test("a run can ask for a story, and tabs show the steps and dev panels", async 
 	const { rootNode, host, failures, run, click, tab } = start();
 	run([mathBook, workbenchBook], "Math/Quadratic/Complex roots");
 	await settle();
-	assert.equal(host.rootComponent.selectedId, "Math/Quadratic/Complex roots");
-	assert.equal(host.rootComponent.story.sequence, "−1 ± 2i");
+	assert.equal(host.root.selectedId, "Math/Quadratic/Complex roots");
+	assert.equal(host.root.story.sequence, "−1 ± 2i");
 	click(tab("Steps"));
 	await settle();
-	assert.equal(host.rootComponent.tab, "steps");
+	assert.equal(host.root.tab, "steps");
 	click(rootNode.querySelector('[title="Run to end"]'));
 	await settle();
 	assert.deepEqual(
-		host.rootComponent.story.steps.map((s) => s.status),
+		host.root.story.steps.map((s) => s.status),
 		["ok"],
 	);
 	click(tab("Dev"));
@@ -117,10 +117,10 @@ test("a failed run shows its error; picks are asked of the element", async () =>
 	select.dispatchEvent(new window.Event("change", { bubbles: true }));
 	await settle();
 	assert.deepEqual(state.picks, [["example", "json"]]);
-	assert.equal(host.rootComponent.status, "loading");
+	assert.equal(host.root.status, "loading");
 	run([mathBook]);
 	await settle();
-	assert.equal(host.rootComponent.status, "ready");
+	assert.equal(host.root.status, "ready");
 	assert.deepEqual(failures, []);
 });
 
@@ -144,15 +144,15 @@ test("a time travel bar under the preview moves through the story's timeline", a
 	await settle();
 	click(tab("Preview"));
 	await settle();
-	const { size } = host.rootComponent.travel;
+	const { size } = host.root.travel;
 	assert.ok(size > 2);
 	assert.match(bar().textContent, new RegExp(`state ${size} of ${size}`));
 	click(bar().querySelector('button[title="Back"]'));
 	await settle();
-	assert.equal(host.rootComponent.story.cursor, size - 2);
+	assert.equal(host.root.story.cursor, size - 2);
 	click(bar().querySelector('button[title="First state"]'));
 	await settle();
-	assert.equal(host.rootComponent.story.cursor, 0);
+	assert.equal(host.root.story.cursor, 0);
 	assert.match(bar().textContent, /state 1 of \d+ · ◆ initial/);
 	assert.deepEqual(failures, []);
 });

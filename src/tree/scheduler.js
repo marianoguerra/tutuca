@@ -20,7 +20,7 @@ import { AskTask, NotifyTask } from "./messages.js";
  *
  * One transaction: a new root from root, with the value at path replaced by what fn returns for
  * a mutable draft of it (immer's produce, in tutuca).
- * @typedef {(root: object, path: import("./path.js").UpdatePath, fn: (leaf: object) => object) => object} Transact
+ * @typedef {(root: object, path: import("./path.js").KeyPath, fn: (leaf: object) => object) => object} Transact
  *
  * What the host hears and adds:
  * - context: the MessageContext a handler gets (a host's extends the tree's)
@@ -92,7 +92,7 @@ export class Scheduler {
 			task.start(curRoot);
 		}
 		const { to } = task;
-		const path = to.updatePath;
+		const path = to.keyPath;
 		const instance = this.receiver(task, to, curRoot);
 		if (instance === null) return;
 		if (task instanceof AskTask) return this.startAsk(task, instance);
@@ -124,7 +124,7 @@ export class Scheduler {
 	// shifted), so the message, for the one before, is dropped and reported. A notification's
 	// hops can't move while it bubbles, so one that can't find its next hop is a bug (lost).
 	receiver(task, address, root) {
-		const path = address.updatePath;
+		const path = address.keyPath;
 		const found = address.resolve(root);
 		if (found.instance !== undefined) return found.instance;
 		const { observe } = this.hooks;
@@ -145,7 +145,7 @@ export class Scheduler {
 		if (now !== undefined) this.urgent(now);
 		if (later !== undefined) later.then((answer) => this.push(answer));
 		const root = this.store.get();
-		const info = { task, path: task.to.updatePath, instance, curRoot: root, newRoot: root };
+		const info = { task, path: task.to.keyPath, instance, curRoot: root, newRoot: root };
 		this.hooks.observe("taskHandled", info);
 	}
 }

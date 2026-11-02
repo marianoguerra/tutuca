@@ -196,8 +196,8 @@ test("startSynced reports what a projection stored by another version lost", asy
 		"k",
 	);
 	await startSynced(s.host, { make: (C) => C.List(), engines: [engine] });
-	assert.equal(s.host.rootComponent.title, "old");
-	assert.equal(s.host.rootComponent.items[0].done, "open");
+	assert.equal(s.host.root.title, "old");
+	assert.equal(s.host.root.items[0].done, "open");
 	assert.deepEqual(reports, [
 		{
 			engine: null,

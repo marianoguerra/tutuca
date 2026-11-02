@@ -29,7 +29,7 @@
   (hkey ::= fname (answer fname answer-kind))
   ;; A message: its parameters, its contract, then its body.
   (handler ::= (fname (x ...) contract ... body))
-  ;; MessageSpec: the types of the arguments and of the source key, a
+  ;; HandlerSpec: the types of the arguments and of the source key, a
   ;; precondition on self and the arguments, a postcondition relating self and
   ;; next, and the messages the handler may emit.
   (contract ::= (args ty ...) (source-key ty) (pre hx) (post hx) (emits (emit-kind fname ...) ...))

@@ -11,6 +11,7 @@ import {
 	dragKey,
 	each,
 	field,
+	KeyPath,
 	lookupBind,
 	pushView,
 	render,
@@ -21,7 +22,6 @@ import {
 	t,
 	tag,
 	targetValue,
-	UpdatePath,
 } from "../../src/tutuca.js";
 
 const { div, input, option, pre, select, span } = tag;
@@ -229,8 +229,8 @@ export const Hole = component({
 			emits: { notify: ["placeNode"] },
 			run(_next, _args, ctx) {
 				if (ctx.drag?.type !== "node") return;
-				const from = ctx.drag.path.toComponentPath().resolve().keys;
-				const to = ctx.path.resolve().keys;
+				const from = ctx.drag.path.toComponentPath().toKeyPath().keys;
+				const to = ctx.path.toKeyPath().keys;
 				const copy = Boolean(ctx.event?.ctrlKey || ctx.event?.metaKey);
 				ctx.notify("placeNode", [from, to, copy]);
 			},
@@ -937,11 +937,11 @@ export const Editor = component({
 			args: PLACE_ARGS,
 			run(next, [from, to, copy], ctx) {
 				ctx.stopNext();
-				const base = ctx.path.resolve().keys;
+				const base = ctx.path.toKeyPath().keys;
 				const within = (keys) => base.every((key, i) => keys[i] === key);
 				if (!within(from) || !within(to)) return;
-				const source = new UpdatePath(from.slice(base.length));
-				const target = new UpdatePath(to.slice(base.length));
+				const source = new KeyPath(from.slice(base.length));
+				const target = new KeyPath(to.slice(base.length));
 				if (source.keys.every((key, i) => target.keys[i] === key)) return;
 				const nameAt = ({ keys }) => specOf(keys.reduce((v, key) => v?.[key], this))?.name;
 				const name = nameAt(source);

@@ -4,6 +4,6 @@ export { Address, HOST } from "./address.js";
 export { MessageContext } from "./context.js";
 export { idOf, idSym, isNode, mint } from "./identity.js";
 export { ANSWER_OUTCOMES, AnswerTask, AskTask, call, NotifyTask, Task } from "./messages.js";
-export { DispatchPath, Frame, Selector, selectorFrom, Target, UpdatePath } from "./path.js";
+export { DispatchPath, Frame, KeyPath, Selector, selectorFrom, Target } from "./path.js";
 export { Scheduler } from "./scheduler.js";
 export { jsonText, keyText } from "./text.js";
