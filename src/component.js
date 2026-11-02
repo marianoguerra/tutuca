@@ -1,11 +1,11 @@
 // Component specs: component() turns options into a ComponentSpec that makes instances.
 import { immerable } from "../deps/immer.js";
 import { DRAG_EVENTS } from "./drag.js";
-import { idSym, NoDefaultError, scopeSym, specSym, toAnswers, toMessages } from "./schema.js";
+import { NoDefaultError, scopeSym, specSym, toAnswers, toMessages } from "./schema.js";
+import { mint } from "./tree/identity.js";
 import { toExpr } from "./view.js";
 import { Collect } from "./walk.js";
 
-let nextId = 1;
 export class ComponentSpec {
 	constructor({ name, fields, methods, views, on, answers, loops, scopes, provides, invariants }) {
 		this.name = name;
@@ -29,8 +29,7 @@ export class ComponentSpec {
 		if (this.eventNames.has("drop")) for (const name of DRAG_EVENTS) this.eventNames.add(name);
 	}
 	make(args = {}, scope = null) {
-		const state = Object.create(this.proto);
-		state[idSym] = nextId++;
+		const state = mint(Object.create(this.proto));
 		if (scope !== null) state[scopeSym] = scope;
 		for (const key in this.fields) {
 			try {

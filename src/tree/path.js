@@ -1,18 +1,9 @@
-// Paths: where a component is in the state (UpdatePath), how a message got there (DispatchPath)
-// and where it goes (Selector, Target, Address).
-import { idOf, isComponent } from "./schema.js";
+// Paths: where a node is in the state (UpdatePath), how a message got there (DispatchPath), and
+// where one goes before it is fixed (Selector, Target). spec/tree's path steps are (field f),
+// (index f i) and (key f κ), a frame here; a written path can also hold (sel f g), a seqItem op.
+import { jsonText, keyText } from "./text.js";
 
-export const jsonText = (v) => {
-	try {
-		return JSON.stringify(v) ?? String(v);
-	} catch {
-		return String(v);
-	}
-};
-// Paths print as .key and [item], with · for the root, in labels and errors.
-const keyText = (key) => (typeof key === "string" ? `.${key}` : `[${jsonText(key)}]`);
-const opText = (op) =>
-	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
+// The keys from the root to a value.
 export class UpdatePath {
 	constructor(keys = []) {
 		this.keys = keys;
@@ -23,6 +14,7 @@ export class UpdatePath {
 		for (const key of this.keys) v = v?.[key];
 		return v;
 	}
+	// Sets the value at the path in root, a mutable draft, and returns the root.
 	setIn(root, v) {
 		if (this.keys.length === 0) return v;
 		const parent = new UpdatePath(this.keys.slice(0, -1)).getIn(root);
@@ -33,6 +25,10 @@ export class UpdatePath {
 		return this.keys.map(keyText).join("") || "·";
 	}
 }
+// One step of a DispatchPath: keys into the value, then the item of a collection there, if any.
+// A frame with a provider starts from the frame at the provider's depth, plus its keys, instead
+// of from the frame before it: what a node reads from an ancestor that provides it.
+// isComponent marks the frames that reach a node.
 export class Frame {
 	constructor(keys, item = null, provider = null, isComponent = false) {
 		this.keys = keys;
@@ -49,6 +45,7 @@ export class Frame {
 	forItem(key) {
 		return new Frame(this.accessKeys, key, this.provider, false);
 	}
+	// The short form the DOM's meta comments carry, and back.
 	toMeta() {
 		const { provider: p } = this;
 		const base = p === null ? null : { v: p.name, d: p.depth, k: p.keys };
@@ -64,6 +61,7 @@ export class Frame {
 	}
 }
 const frameText = (frame) => JSON.stringify(frame.toMeta());
+// The frames a message went through from the root: spec/tree's π.
 export class DispatchPath {
 	constructor(frames = []) {
 		this.frames = frames;
@@ -77,6 +75,7 @@ export class DispatchPath {
 	toParentPath() {
 		return new DispatchPath(this.frames.slice(0, -1));
 	}
+	// Up to the last frame that reaches a node.
 	toComponentPath() {
 		let end = this.frames.length;
 		while (end > 0 && !this.frames[end - 1].isComponent) end--;
@@ -113,6 +112,12 @@ export class DispatchPath {
 		return this.frames[i].item;
 	}
 }
+// Paths print their ops as .name, .name[item] or .name[keyName], with · for the root.
+const opText = (op) =>
+	`.${op.name}${op.t === "item" ? `[${jsonText(op.key)}]` : op.t === "seqItem" ? `[${op.keyName}]` : ""}`;
+// A written path, relative to a node: field (field f), item (index f i) or (key f κ), and
+// seqItem (sel f g), the item of f at the key in the node's g. freeze fixes it into frames
+// against the value it starts from.
 export class Selector {
 	constructor(ops = []) {
 		this.ops = ops;
@@ -131,6 +136,7 @@ export class Selector {
 		return frames;
 	}
 }
+// Where a message goes before it is sent: a selector from a base path.
 export class Target {
 	constructor(base, selector = new Selector()) {
 		this.base = base;
@@ -139,47 +145,7 @@ export class Target {
 	freeze(root) {
 		return this.base.concat(this.selector.freeze(this.base.resolve().getIn(root)));
 	}
-	address(root) {
-		return Address.at(this.freeze(root), root);
-	}
 }
-// Where a message goes or came from: a path, and the identity of the component it reached when
-// it was fixed (spec/tree's (at π ι)). Delivery checks the identity: a message whose path
-// another component took is stale, one whose path reaches no component is orphaned.
-export class Address {
-	constructor(path, id, isHost = false) {
-		this.path = path;
-		this.updatePath = path.toUpdatePath();
-		this.id = id;
-		this.isHost = isHost;
-	}
-	static at(path, root) {
-		return new Address(path, idOf(path.toUpdatePath().getIn(root)));
-	}
-	// { instance } when the component it recorded is at its path, { stale } with the identity
-	// of the one there instead, or { orphaned } when none is.
-	resolve(root) {
-		const instance = this.updatePath.getIn(root);
-		if (!isComponent(instance)) return { orphaned: true };
-		const found = idOf(instance);
-		return found === this.id ? { instance } : { stale: found };
-	}
-	// The component ancestors, nearest first, fixed against root: the hops of a notification
-	// from here, which a bubble visits in one turn.
-	ancestors(root) {
-		const hops = [];
-		for (let p = this.path.toComponentPath(); !p.isRootPath; ) {
-			p = p.toParentPath().toComponentPath();
-			hops.push(Address.at(p, root));
-		}
-		return hops;
-	}
-	toString() {
-		return this.isHost ? "host" : `${this.updatePath}#${this.id}`;
-	}
-}
-// The root's parent: what DOM events and ask answers come from. It has no handlers.
-export const HOST = new Address(new DispatchPath(), undefined, true);
 class PathBuilder {
 	constructor() {
 		this.ops = [];
@@ -198,6 +164,7 @@ class PathBuilder {
 		return this;
 	}
 }
+// The selector fn writes on a builder, called with self as this.
 export const selectorFrom = (fn, self) => {
 	const pb = new PathBuilder();
 	fn.call(self, pb);

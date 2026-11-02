@@ -17,6 +17,7 @@
 	"exports": {
 		".": "./src/tutuca.js",
 		"./vdom": "./src/vdom.js",
+		"./tree": "./src/tree/index.js",
 		"./dev": "./src/dev/formatters.js",
 		"./lint": "./src/lint/index.js",
 		"./classes": "./src/css/classes.js",

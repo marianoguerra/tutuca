@@ -1,11 +1,9 @@
 // Field, invariant and message schemas of components, and the checks that use them.
 export const specSym = Symbol("TutucaSpec");
 export const scopeSym = Symbol("TutucaScope");
-// An instance's identity: a number fresh for each instance made, kept by the copies immer makes of
-// it, so updates keep it and only making an instance (or returning a new one) gives a new one.
-export const idSym = Symbol("TutucaId");
+// An instance's identity is the tree's (tree/identity.js).
+export { idOf, idSym } from "./tree/identity.js";
 export const specOf = (v) => v?.[specSym];
-export const idOf = (v) => v?.[idSym];
 // Whether fn returns truthy without throwing.
 function holds(fn) {
 	try {

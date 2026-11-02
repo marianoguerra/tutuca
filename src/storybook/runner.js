@@ -4,12 +4,12 @@
 import { ClassCompiler } from "../css/classes.js";
 import { argsLabel, rootTask, Timeline, taskLabel } from "../history/index.js";
 import { lint } from "../lint/index.js";
-import { jsonText } from "../paths.js";
 import { diff } from "../sync/diff.js";
 import { carry, specChanges } from "../sync/migrate.js";
 import { opText } from "../sync/ops.js";
 import { componentPaths, Driver, describeProblems, PROBLEMS, snapshot } from "../test/driver.js";
 import { drivableMessages, messageCommand, resolveRefs, sourceFrames } from "../test/pbt.js";
+import { jsonText } from "../tree/text.js";
 import { specOf } from "../tutuca.js";
 import { prepareStory, runStep, step, stepText } from "./stories.js";
 import { runStress } from "./stress.js";

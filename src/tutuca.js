@@ -3,28 +3,27 @@
 export { ComponentSpec, component } from "./component.js";
 export { DRAG_EVENTS, DROP_EVENTS, Drag } from "./drag.js";
 export { browserEnv, Host } from "./host.js";
-export {
-	Address,
-	DispatchPath,
-	Frame,
-	HOST,
-	Selector,
-	selectorFrom,
-	Target,
-	UpdatePath,
-} from "./paths.js";
 export * from "./schema.js";
 export { Scope } from "./scope.js";
 export * from "./tag.js";
+export { componentKinds, EventTask, TutucaContext } from "./tasks.js";
 export {
+	Address,
 	ANSWER_OUTCOMES,
 	AnswerTask,
 	AskTask,
-	EventTask,
+	DispatchPath,
+	Frame,
+	HOST,
 	MessageContext,
 	NotifyTask,
+	Scheduler,
+	Selector,
+	selectorFrom,
+	Target,
 	Task,
-} from "./tasks.js";
+	UpdatePath,
+} from "./tree/index.js";
 export {
 	$if,
 	AstNode,

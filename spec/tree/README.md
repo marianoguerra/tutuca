@@ -240,7 +240,7 @@ choices:
   back.
 - **Explicit pass:** an ancestor without a handler passes a notification on silently, and one
   nobody handled is reported `unhandled` once, at the root.
-- **One envelope:** every task carries `from` and `to`, each an `Address` (`src/paths.js`), a
+- **One envelope:** every task carries `from` and `to`, each an `Address` (`src/tree/address.js`), a
   path and an identity. `ctx.reply` sends to `from`; the host (`HOST`) is the `from` of DOM
   events and ask answers. A route that reaches no component is `orphaned`, not a failure.
 - **Bubbles start from the sender:** a notification resolves its sender first (`stale` if it

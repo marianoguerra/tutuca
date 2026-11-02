@@ -1,6 +1,7 @@
 #lang racket
-;; The host: a reduction relation over the task queue (Host in host.js; Task,
-;; NotifyTask, AskTask, EventTask and MessageContext in tasks.js).
+;; The host: a reduction relation over the task queue (Scheduler, Task, NotifyTask,
+;; AskTask and MessageContext in src/tree/; Host, EventTask and TutucaContext in
+;; src/host.js and src/tasks.js).
 ;;
 ;; Read as a TLA+ specification, a configuration is the state and host-> is
 ;; Next: the disjunction of the actions event, run, fail, resolve, render and

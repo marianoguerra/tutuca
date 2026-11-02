@@ -3,8 +3,8 @@
 // elsewhere, so the other engines (storage, peers) follow.
 
 import { truncate } from "../dev/jsonml.js";
-import { jsonText } from "../paths.js";
 import { EventTask } from "../tasks.js";
+import { jsonText } from "../tree/text.js";
 
 export const argsLabel = (args) => truncate(args.map(jsonText).join(", "), 80);
 // The task a task's chain started with: an event, or a message sent from outside.
