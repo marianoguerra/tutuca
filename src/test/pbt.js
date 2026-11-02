@@ -11,7 +11,6 @@ import {
 	IndexType,
 	messageIssues,
 	render,
-	scopeOf,
 	specOf,
 	t,
 	unlessNoDefault,
@@ -404,33 +403,42 @@ export const dispatchDrag = (from, to) => {
 	for (const type of ["dragenter", "dragover", "drop"]) dispatchOn(to, type);
 	dispatchOn(from, "dragend");
 };
-// Dispatches an event on the target-th element with handlers in the current DOM, with a
-// generated value for targetValue, then checks the patched DOM equals a fresh render.
-export class EventCommand {
-	constructor(target, pick, value) {
-		Object.assign(this, { target, pick, value });
-	}
-	elements(driver) {
-		return [...driver.rootNode.querySelectorAll("[data-eid]")];
-	}
+// The elements with handlers in driver's DOM, and the handlers of one of them.
+const handlerElements = (driver) => [...driver.rootNode.querySelectorAll("[data-eid]")];
+const handlersOf = (driver, el) =>
+	driver.specs.flatMap((spec) => spec.eventHandlers.get(Number(el.dataset.eid)) ?? []);
+// A command that dispatches DOM events on the driver's DOM, then checks what they did.
+class DomCommand {
 	check() {
 		return true;
 	}
+	// Runs dispatch, described as description, and drains the tasks it made, then throws if they
+	// broke something or patched the DOM into something a fresh render doesn't make.
+	dispatchAndCheck(model, driver, description, dispatch) {
+		const before = driver.reports.length;
+		this.description = description;
+		dispatch();
+		driver.drain();
+		checkAfter(this, model, driver, before);
+	}
+}
+// Dispatches an event on the target-th element with handlers in the current DOM, with a
+// generated value for targetValue.
+class EventCommand extends DomCommand {
+	constructor(target, pick, value) {
+		super();
+		Object.assign(this, { target, pick, value });
+	}
 	run(model, driver) {
-		const elements = this.elements(driver);
+		const elements = handlerElements(driver);
 		if (elements.length === 0) return;
 		const el = elements[this.target % elements.length];
-		const eid = Number(el.dataset.eid);
-		const handlers = Object.values(scopeOf(driver.state)?.allSpecs() ?? {}).flatMap(
-			(spec) => spec.eventHandlers.get(eid) ?? [],
-		);
+		const handlers = handlersOf(driver, el);
 		if (handlers.length === 0) return;
 		const { name } = handlers[this.pick % handlers.length];
-		const before = driver.reports.length;
-		dispatchOn(el, name, this.value);
-		driver.drain();
-		this.description = `${name} on ${elementText(el)}`;
-		checkAfter(this, model, driver, before);
+		this.dispatchAndCheck(model, driver, `${name} on ${elementText(el)}`, () =>
+			dispatchOn(el, name, this.value),
+		);
 	}
 	toString() {
 		return this.description ?? `event#${this.target}.${this.pick}(${JSON.stringify(this.value)})`;
@@ -441,30 +449,22 @@ export class EventCommand {
 }
 
 // Drags the source-th draggable element in the current DOM onto the target-th drop target, an
-// element with a drop handler, then checks the patched DOM equals a fresh render.
-export class DragCommand {
+// element with a drop handler.
+class DragCommand extends DomCommand {
 	constructor(source, target) {
+		super();
 		Object.assign(this, { source, target });
-	}
-	check() {
-		return true;
 	}
 	run(model, driver) {
 		const sources = [...driver.rootNode.querySelectorAll('[draggable="true"]')];
-		const specs = Object.values(scopeOf(driver.state)?.allSpecs() ?? {});
-		const targets = [...driver.rootNode.querySelectorAll("[data-eid]")].filter((el) =>
-			specs.some((spec) =>
-				spec.eventHandlers.get(Number(el.dataset.eid))?.some((h) => h.name === "drop"),
-			),
+		const targets = handlerElements(driver).filter((el) =>
+			handlersOf(driver, el).some((h) => h.name === "drop"),
 		);
 		if (sources.length === 0 || targets.length === 0) return;
 		const from = sources[this.source % sources.length];
 		const to = targets[this.target % targets.length];
-		const before = driver.reports.length;
-		this.description = `drag <${from.tagName.toLowerCase()}>#${this.source % sources.length} onto ${elementText(to)}`;
-		dispatchDrag(from, to);
-		driver.drain();
-		checkAfter(this, model, driver, before);
+		const description = `drag <${from.tagName.toLowerCase()}>#${this.source % sources.length} onto ${elementText(to)}`;
+		this.dispatchAndCheck(model, driver, description, () => dispatchDrag(from, to));
 	}
 	toString() {
 		return this.description ?? `drag#${this.source}→${this.target}`;

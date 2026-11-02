@@ -29,7 +29,7 @@ const entryFields = () => ({
 	isCurrent: t.boolean(),
 });
 // Keeps the step form's choices among the current targets and their messages.
-export const syncForm = (next) => {
+const syncForm = (next) => {
 	if (next.target >= next.targets.length) next.target = 0;
 	const messages = next.targets[next.target]?.messages ?? [];
 	next.messages = messages.map((m) => m.name);

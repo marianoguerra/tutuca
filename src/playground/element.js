@@ -17,13 +17,12 @@ import { booksOf, linkSources, loadSources } from "./sources.js";
 import { makePlayground, Playground, storyChoices } from "./ui/playground.js";
 
 export const playgroundComponents = { Playground, TimeTravel, ...panelComponents };
-export const playgroundClasses = () =>
-	classNamesOf(Object.values(playgroundComponents), panelClassNames);
+const playgroundClasses = () => classNamesOf(Object.values(playgroundComponents), panelClassNames);
 
 // Files under src/ are tutuca itself: imported as they are, never edited, so every run
 // shares the page's copy.
 const SRC_ROOT = new URL("../", import.meta.url).href;
-export const isTutucaSource = (url) => url.startsWith(SRC_ROOT);
+const isTutucaSource = (url) => url.startsWith(SRC_ROOT);
 
 // What a margaui theme sets. The css compiled for an app defaults them on :host, so a story's
 // <tutuca-app> would always be light; inheriting them here keeps the page's theme.

@@ -372,7 +372,9 @@ export class Lint extends Walker {
 			const message = this.spec.on[action.name];
 			if (typeof message?.run !== "function") {
 				this.report("error", "unknown-handler", action, `no own handler on.${action.name}`);
-			} else if (message.args !== undefined) this.checkSendArgs(action, message.args);
+			} else if (message.args !== undefined) {
+				this.checkArgs(action, message.args, "send", `send(${action.name})`, `on.${action.name}`);
+			}
 			this.labels.push(labelOf(action, "send"));
 			this.inAction = true;
 			this.eventName = name;
@@ -382,21 +384,17 @@ export class Lint extends Walker {
 		}
 		this.labels.pop();
 	}
-	// Arity always, and constant arguments against their declared type.
-	checkSendArgs(action, types) {
-		if (action.args.length !== types.length) {
-			const message = `send(${action.name}) passes ${action.args.length} args, on.${action.name} takes ${types.length}`;
-			this.report("error", "send-arity", action, message);
+	// node's args (a send's or a $query's, as code prefixes them, written as call, to target):
+	// arity always, and constant ones against their declared type.
+	checkArgs(node, types, code, call, target) {
+		if (node.args.length !== types.length) {
+			const message = `${call} passes ${node.args.length} args, ${target} takes ${types.length}`;
+			this.report("error", `${code}-arity`, node, message);
 			return;
 		}
-		action.args.forEach((arg, i) => {
+		node.args.forEach((arg, i) => {
 			if (kindOf(arg) === "constant" && !types[i].isValid(arg.value, null)) {
-				this.report(
-					"error",
-					"send-arg-type",
-					action,
-					`send(${action.name}) arg ${i} doesn't match its type`,
-				);
+				this.report("error", `${code}-arg-type`, node, `${call} arg ${i} doesn't match its type`);
 			}
 		});
 	}
@@ -416,17 +414,7 @@ export class Lint extends Walker {
 			const text = `query "${node.name}" takes no args, read it with field("${node.name}")`;
 			this.report("error", "query-arity", node, text);
 		} else if (q.args !== undefined) {
-			if (node.args.length !== q.args.length) {
-				const text = `$query(${node.name}) passes ${node.args.length} args, queries.${node.name} takes ${q.args.length}`;
-				this.report("error", "query-arity", node, text);
-			} else {
-				node.args.forEach((arg, i) => {
-					if (kindOf(arg) === "constant" && !q.args[i].isValid(arg.value, null)) {
-						const text = `$query(${node.name}) arg ${i} doesn't match its type`;
-						this.report("error", "query-arg-type", node, text);
-					}
-				});
-			}
+			this.checkArgs(node, q.args, "query", `$query(${node.name})`, `queries.${node.name}`);
 		}
 		super.node(node);
 	}

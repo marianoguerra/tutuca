@@ -54,6 +54,7 @@ export const PROBLEMS = new Set(["taskFailed", "stateInvalid", "messageInvalid"]
 // timers. With a document it renders too; otherwise it is headless. Live keeps the timers,
 // for async ask replies and events from a user, and only keeps problems in reports;
 // onReport gets every report as it happens.
+const specsOf = (root) => Object.values(scopeOf(root)?.allSpecs() ?? {});
 export class Driver {
 	constructor({
 		root,
@@ -73,13 +74,15 @@ export class Driver {
 			onReport?.(report);
 		};
 		if (!live) this.host.scheduleNextTaskTick = () => {};
-		for (const spec of Object.values(scopeOf(root)?.allSpecs() ?? {})) {
-			this.host.addEventListeners(spec.eventNames);
-		}
+		for (const spec of specsOf(root)) this.host.addEventListeners(spec.eventNames);
 		this.host.start(root);
 	}
 	get state() {
 		return this.host.root;
+	}
+	// The specs the state's root can make, by name in its scope.
+	get specs() {
+		return specsOf(this.state);
 	}
 	get rootNode() {
 		return this.host.rootNode;

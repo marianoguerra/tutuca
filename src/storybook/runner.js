@@ -16,7 +16,7 @@ import { runStress } from "./stress.js";
 
 // Runs a story live in a <tutuca-app>: the controller passed to mount. Keeps a timeline of
 // states, one entry per step and per user interaction, to go back and forth through.
-export class StoryRunner {
+class StoryRunner {
 	constructor(story, { fc, seed = 0, css = "", links = [], classes = null, carried = null }) {
 		Object.assign(this, { story, fc, seed, css, links, classes, carried });
 		this.reload = []; // What carrying the last run's state did, when there was one.

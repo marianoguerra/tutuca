@@ -53,8 +53,10 @@ const inlineText = (node) => {
 		: null;
 };
 
-const vdomFormatter = (comment) => {
-	const commentParts = (node) => comment?.(node.text) ?? [span(S.muted, `<!--${node.text}-->`)];
+// How a comment vnode's text prints, when installFormatters gives it one (meta comments).
+let commentHook = null;
+const vdomFormatter = () => {
+	const commentParts = (node) => commentHook?.(node.text) ?? [span(S.muted, `<!--${node.text}-->`)];
 	const describe = (v) => {
 		if (v instanceof VNode) {
 			const text = inlineText(v);
@@ -95,8 +97,9 @@ const vdomFormatter = (comment) => {
 	});
 };
 
-const installed = new WeakMap(); // target → formatter, so installing twice is a no-op
+// One formatter, so installing twice is a no-op; a comment given later still applies.
+const formatter = vdomFormatter();
 export const installVdomFormatters = (target = globalThis, { comment } = {}) => {
-	if (!installed.has(target)) installed.set(target, install(target, vdomFormatter(comment)));
-	return installed.get(target);
+	if (comment !== undefined) commentHook = comment;
+	return install(target, formatter);
 };

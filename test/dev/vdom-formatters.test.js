@@ -85,3 +85,11 @@ test("comment hook", () => {
 	assert.equal(text(f.header(comment("x"))), "X");
 	assert.equal(text(f.header(comment("y"))), "<!--y-->");
 });
+
+test("installFormatters adds the meta comment hook after the vdom formatters were installed", async () => {
+	const { installFormatters } = await import("../../src/dev/formatters.js");
+	const target = {};
+	const f = installVdomFormatters(target);
+	installFormatters(target);
+	assert.equal(text(f.header(comment("§/§"))), "⟨/⟩");
+});
