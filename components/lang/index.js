@@ -109,7 +109,9 @@ const clear = {
 	},
 };
 // A hole's placeNode on its way up to the editor: the nodes it passes leave it alone.
-const PLACE_ARGS = [t.array(t.any()), t.array(t.any()), t.boolean()];
+// A key path's keys are field names and indices: other values can't name a property.
+const KEY_PATH = t.array(t.oneOf(t.string(), t.number().int().min(0)));
+const PLACE_ARGS = [KEY_PATH, KEY_PATH, t.boolean()];
 const placeNode = { args: PLACE_ARGS, run() {} };
 // node at keys below next: in a field of its own, or by the node the keys lead into.
 const putAt = (next, keys, node) => {
