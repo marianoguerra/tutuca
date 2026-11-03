@@ -349,6 +349,17 @@ fn api_component_message_problem(v: &value, name: js_string, args: &value) -> &v
     value_string(problem!);
 }
 
+// Runs the component v's query name with args (a list value): an ok result
+// with its value, or an error result saying why it couldn't.
+#[export = "component_query"]
+fn api_component_query(v: &value, name: js_string, args: &value) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return value_err(value_string(s_no_such_query));
+    }
+    component_query(c!, name, list_to_values(args));
+}
+
 // The interface registered as name, visible from s, as a value, or null.
 #[export = "scope_interface"]
 fn api_scope_interface(s: &scope, name: js_string) -> &value {

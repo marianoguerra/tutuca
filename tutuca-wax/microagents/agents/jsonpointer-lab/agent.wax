@@ -1,0 +1,753 @@
+// jsonpointer-lab's implementation (agent.tcd has the rest): RFC 6901
+// pointers parsed and resolved in a JSON value, the document as tree rows,
+// and the pointers' list.
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "/"]
+    const s_slash: js_string;
+    #[import = "~"]
+    const s_tilde: js_string;
+    #[import = "~0"]
+    const s_tilde0: js_string;
+    #[import = "~1"]
+    const s_tilde1: js_string;
+    #[import = "-"]
+    const s_dash: js_string;
+    #[import = "q"]
+    const s_q: js_string;
+    #[import = "(root)"]
+    const s_root: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " → "]
+    const s_arrow: js_string;
+    #[import = ", "]
+    const s_comma_sp: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+    #[import = "["]
+    const s_lbracket: js_string;
+    #[import = " items]"]
+    const s_items_close: js_string;
+    #[import = "{"]
+    const s_lbrace: js_string;
+    #[import = " keys}"]
+    const s_keys_close: js_string;
+    #[import = "padding-left: "]
+    const s_padding: js_string;
+    #[import = "rem"]
+    const s_rem: js_string;
+    #[import = "resolves"]
+    const s_resolves: js_string;
+    #[import = "no value"]
+    const s_no_value: js_string;
+    #[import = "tokens"]
+    const s_tokens: js_string;
+    #[import = "value"]
+    const s_value: js_string;
+    #[import = "segment"]
+    const s_segment: js_string;
+    #[import = "reason"]
+    const s_reason: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "count"]
+    const s_count: js_string;
+    #[import = "nodes"]
+    const s_nodes: js_string;
+    #[import = "type"]
+    const s_type: js_string;
+    #[import = "object"]
+    const s_object: js_string;
+    #[import = "array"]
+    const s_array: js_string;
+    #[import = "scalar"]
+    const s_scalar: js_string;
+    #[import = "segment "]
+    const s_segment_sp: js_string;
+    #[import = "a pointer is \"\" or starts with \"/\""]
+    const s_bad_start: js_string;
+    #[import = " has a ~ that isn't ~0 (for ~) or ~1 (for /)"]
+    const s_bad_tilde: js_string;
+    #[import = "\"-\" names the item after the last one, which doesn't exist"]
+    const s_dash_reason: js_string;
+    #[import = " isn't an array index (the array has "]
+    const s_not_index: js_string;
+    #[import = "index "]
+    const s_index_sp: js_string;
+    #[import = " is out of range (the array has "]
+    const s_out_of_range: js_string;
+    #[import = " items)"]
+    const s_items_paren: js_string;
+    #[import = "the object has no key "]
+    const s_no_key: js_string;
+    #[import = " (its keys: "]
+    const s_its_keys: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = "can't look up "]
+    const s_cant_look_up: js_string;
+    #[import = " in a "]
+    const s_in_a: js_string;
+    #[import = "null"]
+    const s_null: js_string;
+    #[import = "boolean"]
+    const s_boolean: js_string;
+    #[import = "number"]
+    const s_number: js_string;
+    #[import = "string"]
+    const s_string: js_string;
+    #[import = " pointers · "]
+    const s_pointers_dot: js_string;
+    #[import = " resolve · "]
+    const s_resolve_dot: js_string;
+    #[import = " don't"]
+    const s_dont: js_string;
+    #[import = " pointers: "]
+    const s_pointers_colon: js_string;
+    #[import = " resolve, "]
+    const s_resolve_comma: js_string;
+    #[import = " don't."]
+    const s_dont_dot: js_string;
+    #[import = "pointers:"]
+    const s_pointers_label: js_string;
+    #[import = "document: "]
+    const s_document_label: js_string;
+    #[import = "document: not JSON: "]
+    const s_document_bad: js_string;
+    #[import = "no pointer"]
+    const s_no_pointer: js_string;
+    #[import = " "]
+    const s_space: js_string;
+    #[import = "pointers"]
+    const s_pointers: js_string;
+    #[import = "document"]
+    const s_document: js_string;
+    #[import = "json_parse"]
+    const s_json_parse: js_string;
+}
+
+// The most tree rows the page shows, and the most nodes find answers with.
+const jp_max_rows = 1500;
+const jp_max_found = 50;
+const jp_clip_at = 80;
+
+// ---- Text --------------------------------------------------------------------------
+
+fn jp_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn jp_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+// text cut to at most n characters, with … when it was longer.
+fn jp_clip(text: js_string, n: i32) -> js_string {
+    if js_string_length(text) <=s n {
+        return text;
+    }
+    jp_cat(str_slice(text, 0, n - 1), s_ellipsis);
+}
+
+// A value as one line of JSON, clipped.
+fn jp_preview(v: &value) -> js_string {
+    jp_clip(value_json(v, 0), jp_clip_at);
+}
+
+// A key as a reference token: ~ written ~0 and / written ~1.
+fn jp_escape(key: js_string) -> js_string {
+    str_replace_all(str_replace_all(key, s_tilde, s_tilde0), s_slash, s_tilde1);
+}
+
+// What JSON calls the type of v.
+fn jp_type_of(v: &value) -> js_string {
+    let k = v.kind;
+    if k == value_kind_list {
+        return s_array;
+    }
+    if k == value_kind_map {
+        return s_object;
+    }
+    if k == value_kind_string {
+        return s_string;
+    }
+    if (k == value_kind_int) | (k == value_kind_float) {
+        return s_number;
+    }
+    if k == value_kind_bool {
+        return s_boolean;
+    }
+    s_null;
+}
+
+// Whether token is an array index: 0, or digits not starting with 0.
+fn jp_is_index(token: js_string) -> i32 {
+    let n = js_string_length(token);
+    if n == 0 {
+        return 0;
+    }
+    if (n >s 1) & (js_string_char_code_at(token, 0) == '0') {
+        return 0;
+    }
+    let i = 0;
+    while i <s n {
+        let c = js_string_char_code_at(token, i);
+        if (c <s '0') | (c >s '9') {
+            return 0;
+        }
+        i += 1;
+    }
+    1;
+}
+
+// Whether raw has a ~ not followed by 0 or 1.
+fn jp_bad_tilde(raw: js_string) -> i32 {
+    let n = js_string_length(raw);
+    let i = 0;
+    while i <s n {
+        if js_string_char_code_at(raw, i) == '~' {
+            if i + 1 >=s n {
+                return 1;
+            }
+            let next = js_string_char_code_at(raw, i + 1);
+            if (next != '0') & (next != '1') {
+                return 1;
+            }
+        }
+        i += 1;
+    }
+    0;
+}
+
+// ---- Pointers ----------------------------------------------------------------------
+
+// What resolving a pointer says: { resolves, tokens, value } or
+// { resolves, tokens, segment, reason }.
+fn jp_failed(tokens: &value, segment: i32, reason: js_string) -> &value {
+    let m = map_assoc(map_empty(), s_resolves, value_bool(0));
+    m = map_assoc(m, s_tokens, tokens);
+    m = map_assoc(m, s_segment, value_int(segment));
+    map_assoc(m, s_reason, value_string(reason));
+}
+
+fn jp_fail_at(tokens: &value, i: i32, reason: js_string) -> &value {
+    jp_failed(tokens, i + 1, jp_cat3(jp_cat(s_segment_sp, int_text(i + 1)), s_colon_sp, reason));
+}
+
+// Where pointer leads in doc.
+fn jp_resolve(doc: &value, pointer: js_string) -> &value {
+    let tokens = list_empty();
+    if js_string_length(pointer) != 0 {
+        if js_string_char_code_at(pointer, 0) != '/' {
+            return jp_failed(tokens, 0, s_bad_start);
+        }
+        let raws = str_split(str_slice(pointer, 1, js_string_length(pointer)), s_slash);
+        let i = 0;
+        while i <s list_count(raws) {
+            let raw = value_string_of(list_get(raws, i)!)!;
+            if jp_bad_tilde(raw) {
+                let why = jp_cat3(jp_cat(s_segment_sp, int_text(i + 1)), s_space, jp_cat(json_string(raw), s_bad_tilde));
+                return jp_failed(tokens, i + 1, why);
+            }
+            tokens = list_push(tokens, value_string(str_replace_all(str_replace_all(raw, s_tilde1, s_slash), s_tilde0, s_tilde)));
+            i += 1;
+        }
+    }
+    let at = doc;
+    let i = 0;
+    while i <s list_count(tokens) {
+        let token = value_string_of(list_get(tokens, i)!)!;
+        let done = 0;
+        if at.kind == value_kind_list {
+            let n = list_count(at);
+            let items = jp_cat3(int_text(n), s_items_paren, s_empty);
+            if js_string_equals(token, s_dash) {
+                return jp_fail_at(tokens, i, s_dash_reason);
+            }
+            if !jp_is_index(token) {
+                return jp_fail_at(tokens, i, jp_cat3(json_string(token), s_not_index, items));
+            }
+            let (ok, index) = parse_int(token);
+            if !ok | (index >=s n) {
+                return jp_fail_at(tokens, i, jp_cat3(jp_cat(s_index_sp, token), s_out_of_range, items));
+            }
+            at = list_get(at, index)!;
+            done = 1;
+        }
+        if !done & (at.kind == value_kind_map) {
+            let got = map_get(at, token);
+            if !got {
+                return jp_fail_at(tokens, i, jp_cat3(jp_cat(s_no_key, json_string(token)), s_its_keys, jp_cat(jp_some_keys(at), s_rparen)));
+            }
+            at = got!;
+            done = 1;
+        }
+        if !done {
+            return jp_fail_at(tokens, i, jp_cat3(jp_cat(s_cant_look_up, json_string(token)), s_in_a, jp_type_of(at)));
+        }
+        i += 1;
+    }
+    let m = map_assoc(map_empty(), s_resolves, value_bool(1));
+    m = map_assoc(m, s_tokens, tokens);
+    map_assoc(m, s_value, at);
+}
+
+// An object's first 8 keys, quoted, with … when it has more.
+fn jp_some_keys(map: &value) -> js_string {
+    let keys = map_keys(map);
+    let out = s_empty;
+    let i = 0;
+    while (i <s list_count(keys)) & (i <s 8) {
+        if i >s 0 {
+            out = jp_cat(out, s_comma_sp);
+        }
+        out = jp_cat(out, json_string(value_string_of(list_get(keys, i)!)!));
+        i += 1;
+    }
+    if list_count(keys) >s 8 {
+        out = jp_cat3(out, s_comma_sp, s_ellipsis);
+    }
+    out;
+}
+
+fn jp_resolves(r: &value) -> i32 {
+    value_truthy(value_member(r, s_resolves));
+}
+
+// What a resolution says in one line: the value's preview or why there's none.
+fn jp_outcome(r: &value) -> js_string {
+    if jp_resolves(r) {
+        return jp_preview(value_member(r, s_value));
+    }
+    jp_why(r);
+}
+
+// Why a resolution reaches nothing: its reason, or the document's error.
+fn jp_why(r: &value) -> js_string {
+    let why = value_member(r, s_reason);
+    if why.kind == value_kind_string {
+        return value_string_of(why)!;
+    }
+    value_string_of(value_member(r, s_error))!;
+}
+
+// ---- The tree ----------------------------------------------------------------------
+
+// Every node of v, depth first, as { pointer, depth, key, text, type, value }
+// maps, at most jp_max_rows.
+fn jp_nodes(v: &value, at: js_string, key: js_string, depth: i32, out: &value) -> &value {
+    if list_count(out) >=s jp_max_rows {
+        return out;
+    }
+    let shown = s_empty;
+    let k = v.kind;
+    let kids = list_empty();
+    let is_list = k == value_kind_list;
+    let is_map = k == value_kind_map;
+    if is_list {
+        shown = jp_cat3(s_lbracket, int_text(list_count(v)), s_items_close);
+    }
+    if is_map {
+        kids = map_keys(v);
+        shown = jp_cat3(s_lbrace, int_text(list_count(kids)), s_keys_close);
+    }
+    if !is_list & !is_map {
+        shown = value_json(v, 0);
+    }
+    let node = map_assoc(map_empty(), s_pointers, value_string(at));
+    node = map_assoc(node, s_segment, value_int(depth));
+    node = map_assoc(node, s_reason, value_string(key));
+    node = map_assoc(node, s_tokens, value_string(jp_clip(shown, jp_clip_at)));
+    node = map_assoc(node, s_type, value_string(jp_type_of(v)));
+    node = map_assoc(node, s_value, v);
+    out = list_push(out, node);
+    if is_list {
+        let i = 0;
+        while i <s list_count(v) {
+            out = jp_nodes(list_get(v, i)!, jp_cat3(at, s_slash, int_text(i)), int_text(i), depth + 1, out);
+            i += 1;
+        }
+    }
+    if is_map {
+        let i = 0;
+        while i <s list_count(kids) {
+            let name = value_string_of(list_get(kids, i)!)!;
+            out = jp_nodes(map_get(v, name)!, jp_cat3(at, s_slash, jp_escape(name)), json_string(name), depth + 1, out);
+            i += 1;
+        }
+    }
+    out;
+}
+
+fn jp_doc_nodes(state: &json_pointer_lab_state) -> &value {
+    if js_string_length(state.doc_error) != 0 {
+        return list_empty();
+    }
+    jp_nodes(state.document, s_empty, s_root, 0, list_empty());
+}
+
+fn jp_node_pointer(node: &value) -> js_string {
+    value_string_of(value_member(node, s_pointers))!;
+}
+
+// ---- The pointers ------------------------------------------------------------------
+
+fn jp_ptr_id(r: &value) -> js_string {
+    json_pointer_lab_pointers_id(r);
+}
+
+fn jp_ptr_pointer(r: &value) -> js_string {
+    json_pointer_lab_pointers_pointer(r);
+}
+
+// The index of the pointer with id, or -1.
+fn jp_index_of(pointers: &value, id: js_string) -> i32 {
+    let i = 0;
+    while i <s list_count(pointers) {
+        if js_string_equals(jp_ptr_id(list_get(pointers, i)!), id) {
+            return i;
+        }
+        i += 1;
+    }
+    -1;
+}
+
+// The focused pointer's index: focus's, or the first's (-1 with none).
+fn jp_focused(state: &json_pointer_lab_state) -> i32 {
+    let i = jp_index_of(state.pointers, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    if list_count(state.pointers) == 0 {
+        return -1;
+    }
+    0;
+}
+
+// The first of q1, q2, … no pointer has.
+fn jp_next_id(pointers: &value) -> js_string {
+    let n = list_count(pointers) + 1;
+    let id = jp_cat(s_q, int_text(n));
+    while jp_index_of(pointers, id) >=s 0 {
+        n += 1;
+        id = jp_cat(s_q, int_text(n));
+    }
+    id;
+}
+
+fn jp_without(items: &value, at: i32) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(items) {
+        if i != at {
+            out = list_push(out, list_get(items, i)!);
+        }
+        i += 1;
+    }
+    out;
+}
+
+fn jp_insert(items: &value, at: i32, item: &value) -> &value {
+    let out = list_empty();
+    let i = 0;
+    let n = list_count(items);
+    while i <s n {
+        if i == at {
+            out = list_push(out, item);
+        }
+        out = list_push(out, list_get(items, i)!);
+        i += 1;
+    }
+    if at >=s n {
+        out = list_push(out, item);
+    }
+    out;
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn json_pointer_lab_get_resolutions(state: &json_pointer_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.pointers) {
+        let row = list_get(state.pointers, i)!;
+        let r = json_pointer_lab_query_resolve(state, jp_ptr_pointer(row));
+        r = map_assoc(r, gs_id, value_string(jp_ptr_id(row)));
+        out = list_push(out, map_assoc(r, gs_pointer, value_string(jp_ptr_pointer(row))));
+        i += 1;
+    }
+    out;
+}
+
+fn jp_resolve_count(resolutions: &value) -> i32 {
+    let n = 0;
+    let i = 0;
+    while i <s list_count(resolutions) {
+        if jp_resolves(list_get(resolutions, i)!) {
+            n += 1;
+        }
+        i += 1;
+    }
+    n;
+}
+
+fn json_pointer_lab_get_resolution_rows(state: &json_pointer_lab_state) -> &value {
+    let rs = json_pointer_lab_get_resolutions(state);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(rs) {
+        let r = list_get(rs, i)!;
+        let ok = jp_resolves(r);
+        let status = if ok { s_resolves; } else { s_no_value; };
+        let id = value_string_of(value_member(r, gs_id))!;
+        out = list_push(out, json_pointer_lab_resolution_rows_new(id, ok, status, jp_outcome(r)));
+        i += 1;
+    }
+    out;
+}
+
+fn json_pointer_lab_get_headline(state: &json_pointer_lab_state) -> js_string {
+    let rs = json_pointer_lab_get_resolutions(state);
+    let ok = jp_resolve_count(rs);
+    let n = list_count(rs);
+    jp_cat3(jp_cat3(int_text(n), s_pointers_dot, int_text(ok)), s_resolve_dot, jp_cat(int_text(n - ok), s_dont));
+}
+
+fn json_pointer_lab_get_summary(state: &json_pointer_lab_state) -> js_string {
+    let rs = json_pointer_lab_get_resolutions(state);
+    let ok = jp_resolve_count(rs);
+    let n = list_count(rs);
+    let out = jp_cat3(jp_cat3(int_text(n), s_pointers_colon, int_text(ok)), s_resolve_comma, jp_cat(int_text(n - ok), s_dont_dot));
+    out = jp_cat3(out, s_nl, s_pointers_label);
+    let i = 0;
+    while i <s n {
+        let r = list_get(rs, i)!;
+        let line = jp_cat3(s_indent, value_string_of(value_member(r, gs_id))!, s_colon_sp);
+        line = jp_cat3(line, json_string(value_string_of(value_member(r, gs_pointer))!), s_arrow);
+        out = jp_cat3(out, s_nl, jp_cat(line, jp_outcome(r)));
+        i += 1;
+    }
+    let doc = if js_string_length(state.doc_error) != 0 {
+        jp_cat(s_document_bad, state.doc_error);
+    } else {
+        jp_cat(s_document_label, jp_clip(value_json(state.document, 0), 400));
+    };
+    jp_cat3(out, s_nl, doc);
+}
+
+fn json_pointer_lab_get_domain(state: &json_pointer_lab_state) -> &value {
+    json_pointer_lab_get_data(state);
+}
+
+// The JSON it opened, changed: { pointers, document }.
+fn json_pointer_lab_get_data(state: &json_pointer_lab_state) -> &value {
+    let m = map_assoc(map_empty(), s_pointers, state.pointers);
+    map_assoc(m, s_document, state.document);
+}
+
+fn json_pointer_lab_get_editor_text(state: &json_pointer_lab_state) -> js_string {
+    if js_string_length(state.doc_text) != 0 {
+        return state.doc_text;
+    }
+    value_json(state.document, 2);
+}
+
+fn json_pointer_lab_get_focus_label(state: &json_pointer_lab_state) -> js_string {
+    let i = jp_focused(state);
+    if i <s 0 {
+        return s_no_pointer;
+    }
+    let row = list_get(state.pointers, i)!;
+    jp_cat3(jp_ptr_id(row), s_space, jp_ptr_pointer(row));
+}
+
+fn json_pointer_lab_get_focus_value(state: &json_pointer_lab_state) -> js_string {
+    let i = jp_focused(state);
+    if i <s 0 {
+        return s_empty;
+    }
+    let r = json_pointer_lab_query_resolve(state, jp_ptr_pointer(list_get(state.pointers, i)!));
+    if jp_resolves(r) {
+        return value_json(value_member(r, s_value), 2);
+    }
+    jp_why(r);
+}
+
+fn json_pointer_lab_get_tree_rows(state: &json_pointer_lab_state) -> &value {
+    let nodes = jp_doc_nodes(state);
+    let target = s_empty;
+    let has_target = 0;
+    let f = jp_focused(state);
+    if f >=s 0 {
+        target = jp_ptr_pointer(list_get(state.pointers, f)!);
+        has_target = 1;
+    }
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(nodes) {
+        let n = list_get(nodes, i)!;
+        let p = jp_node_pointer(n);
+        let depth = value_to_f64(value_member(n, s_segment));
+        let style = jp_cat3(s_padding, number_text(depth * 1.25), s_rem);
+        let shown = if js_string_length(p) == 0 { s_root; } else { p; };
+        let lit = has_target & js_string_equals(p, target);
+        out = list_push(
+            out,
+            json_pointer_lab_tree_rows_new(
+                value_string_of(value_member(n, s_reason))!,
+                value_string_of(value_member(n, s_tokens))!,
+                shown,
+                style,
+                lit,
+            ),
+        );
+        i += 1;
+    }
+    out;
+}
+
+// ---- Queries -----------------------------------------------------------------------
+
+fn json_pointer_lab_query_resolve(state: &json_pointer_lab_state, pointer: js_string) -> &value {
+    if js_string_length(state.doc_error) != 0 {
+        let m = map_assoc(map_empty(), s_resolves, value_bool(0));
+        return map_assoc(m, s_error, value_string(jp_cat(s_document_bad, state.doc_error)));
+    }
+    jp_resolve(state.document, pointer);
+}
+
+fn json_pointer_lab_query_find(state: &json_pointer_lab_state, text: js_string) -> &value {
+    let needle = str_lower(text);
+    let nodes = jp_doc_nodes(state);
+    let found = list_empty();
+    let count = 0;
+    let i = 0;
+    while i <s list_count(nodes) {
+        let n = list_get(nodes, i)!;
+        let ty = value_string_of(value_member(n, s_type))!;
+        let key = str_lower(value_string_of(value_member(n, s_reason))!);
+        let hit = str_index_of(key, needle, 0) >=s 0;
+        let scalar = !js_string_equals(ty, s_object) & !js_string_equals(ty, s_array);
+        if !hit & scalar {
+            hit = str_index_of(str_lower(value_json(value_member(n, s_value), 0)), needle, 0) >=s 0;
+        }
+        if hit {
+            count += 1;
+            if list_count(found) <s jp_max_found {
+                let one = map_assoc(map_empty(), gs_pointer, value_string(jp_node_pointer(n)));
+                found = list_push(found, map_assoc(one, s_type, value_string(ty)));
+            }
+        }
+        i += 1;
+    }
+    let m = map_assoc(map_empty(), s_count, value_int(count));
+    map_assoc(m, s_nodes, found);
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn json_pointer_lab_on_set_pointer(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    id: js_string,
+    pointer: js_string,
+) -> &json_pointer_lab_state {
+    let i = jp_index_of(state.pointers, id);
+    if i <s 0 {
+        return state;
+    }
+    json_pointer_lab_with_pointers(state, list_assoc(state.pointers, i, json_pointer_lab_pointers_new(id, pointer)));
+}
+
+fn json_pointer_lab_on_add_pointer(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    pointer: js_string,
+) -> &json_pointer_lab_state {
+    let row = json_pointer_lab_pointers_new(jp_next_id(state.pointers), pointer);
+    json_pointer_lab_with_pointers(state, list_push(state.pointers, row));
+}
+
+fn json_pointer_lab_on_remove_pointer(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    id: js_string,
+) -> &json_pointer_lab_state {
+    let i = jp_index_of(state.pointers, id);
+    if i <s 0 {
+        return state;
+    }
+    let next = json_pointer_lab_with_pointers(state, jp_without(state.pointers, i));
+    if js_string_equals(state.focus, id) {
+        return json_pointer_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn json_pointer_lab_on_reorder_pointers(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    id: js_string,
+    index: i32,
+) -> &json_pointer_lab_state {
+    let i = jp_index_of(state.pointers, id);
+    if i <s 0 {
+        return state;
+    }
+    let row = list_get(state.pointers, i)!;
+    json_pointer_lab_with_pointers(state, jp_insert(jp_without(state.pointers, i), index, row));
+}
+
+fn json_pointer_lab_on_set_document(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    document: &value,
+) -> &json_pointer_lab_state {
+    json_pointer_lab_with_doc_error(json_pointer_lab_with_doc_text(json_pointer_lab_with_document(state, document), s_empty), s_empty);
+}
+
+fn json_pointer_lab_on_set_document_text(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    text: js_string,
+) -> &json_pointer_lab_state {
+    let parsed = host_call(s_json_parse, list_push(list_empty(), value_string(text)));
+    let r = parsed as &value_result;
+    if r.ok {
+        return json_pointer_lab_with_doc_error(json_pointer_lab_with_doc_text(json_pointer_lab_with_document(state, r.value), text), s_empty);
+    }
+    json_pointer_lab_with_doc_error(json_pointer_lab_with_doc_text(state, text), value_string_of(r.value)!);
+}
+
+fn json_pointer_lab_on_focus(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    id: js_string,
+) -> &json_pointer_lab_state {
+    json_pointer_lab_with_focus(state, id);
+}
+
+fn json_pointer_lab_on_pick_node(
+    state: &json_pointer_lab_state,
+    ctx: &context,
+    i: i32,
+) -> &json_pointer_lab_state {
+    let node = list_get(jp_doc_nodes(state), i);
+    if !node {
+        return state;
+    }
+    let pointer = jp_node_pointer(node!);
+    let f = jp_focused(state);
+    if f <s 0 {
+        return json_pointer_lab_on_add_pointer(state, ctx, pointer);
+    }
+    let id = jp_ptr_id(list_get(state.pointers, f)!);
+    json_pointer_lab_with_pointers(state, list_assoc(state.pointers, f, json_pointer_lab_pointers_new(id, pointer)));
+}

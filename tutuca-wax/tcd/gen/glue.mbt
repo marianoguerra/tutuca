@@ -111,11 +111,7 @@ fn Gen::reply_schemas(
     let aw = @check.wax_part(a.name)
     let ac = a.name
     out.push(
-      reply(
-        ac + ".ok",
-        [param("value", a.result.unwrap_or(Any))],
-        a.emits,
-      ),
+      reply(ac + ".ok", [param("value", a.result.unwrap_or(Any))], a.emits),
     )
     if self.has("\{cw}_reply_\{aw}_error") {
       out.push(reply(ac + ".error", [param("error", Any)], a.emits))
@@ -145,6 +141,19 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
     }),
   )
   let interfaces = b.array("str_array", c.implements.map(i => self.s(i)))
+  let queries = if c.queries.is_empty() {
+    None
+  } else {
+    Some(
+      b.array(
+        "message_schema_array",
+        c.queries.map(q => {
+          let args = self.field_schemas(b, q.params, cw)
+          "message_schema_new(\{self.s(q.name)}, \{args}, null, null, null, null, null)"
+        }),
+      ),
+    )
+  }
   let out = Out::new()
   out.line("let \{cw}_schema_made: &?component_schema = null;")
   out.line("")
@@ -159,6 +168,9 @@ fn Gen::schema_fn(self : Gen, c : @check.ComponentM) -> String {
   out.line(
     "    let schema = component_schema_new(\{fields}, \{gets}, \{messages}, \{invariants}, \{interfaces});",
   )
+  if queries is Some(qs) {
+    out.line("    component_schema_set_queries(schema, \{qs});")
+  }
   out.line("    \{cw}_schema_made = schema;")
   out.line("    schema;")
   out.line("}")
@@ -616,9 +628,35 @@ fn Gen::get_set_fns(self : Gen, c : @check.ComponentM) -> String {
   out.line("    (property_no_such_property, null);")
   out.line("}")
   out.line("")
+  let query = if c.queries.is_empty() {
+    "null"
+  } else {
+    out.line(
+      "// query: runs a query; the runtime checked args against its schema.",
+    )
+    out.line(
+      "fn \{cw}_vt_query: query_fn (instance: &eq, name: js_string, args: &value_array) -> (i32, &?value) {",
+    )
+    out.line("    let state = instance as &\{cw}_state;")
+    for q in c.queries {
+      let args = q.params
+        .mapi((i, p) => ", \{self.decode(p.ty, "args[\{i}]!")}")
+        .join("")
+      let call = "\{cw}_query_\{@check.wax_part(q.name)}(state\{args})"
+      out.line("    if str_eq(name, \{self.s(q.name)}) {")
+      out.line(
+        "        return (property_ok, \{self.encode(q.result.unwrap_or(Any), call)});",
+      )
+      out.line("    }")
+    }
+    out.line("    (property_no_such_property, null);")
+    out.line("}")
+    out.line("")
+    "\{cw}_vt_query"
+  }
   out.line("fn \{cw}_vtable() -> &vtable {")
   out.line(
-    "    {vtable| init: \{cw}_vt_init, handle: \{cw}_vt_handle, get: \{cw}_vt_get, set: \{cw}_vt_set };",
+    "    {vtable| init: \{cw}_vt_init, handle: \{cw}_vt_handle, get: \{cw}_vt_get, set: \{cw}_vt_set, query: \{query} };",
   )
   out.line("}")
   out.line("")

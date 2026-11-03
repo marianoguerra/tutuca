@@ -1,0 +1,525 @@
+// glob-lab's implementation (agent.tcd has the rest): what each glob
+// matches, its expectations, the tree, the rows. picomatch runs in the page,
+// through host_call (microagents/engines/glob.js).
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "g"]
+    const s_g: js_string;
+    #[import = "glob_paths"]
+    const s_glob_paths: js_string;
+    #[import = "glob_error"]
+    const s_glob_error: js_string;
+    #[import = "glob_test"]
+    const s_glob_test: js_string;
+    #[import = "glob_tree"]
+    const s_glob_tree: js_string;
+    #[import = "glob_explain"]
+    const s_glob_explain: js_string;
+    #[import = "match"]
+    const s_match: js_string;
+    #[import = "no-match"]
+    const s_no_match: js_string;
+    #[import = "none"]
+    const s_none: js_string;
+    #[import = "pass"]
+    const s_pass: js_string;
+    #[import = "fail"]
+    const s_fail: js_string;
+    #[import = "dir"]
+    const s_dir: js_string;
+    #[import = "hit"]
+    const s_hit: js_string;
+    #[import = "miss"]
+    const s_miss: js_string;
+    #[import = "depth"]
+    const s_depth: js_string;
+    #[import = "matched"]
+    const s_matched: js_string;
+    #[import = "unmatched"]
+    const s_unmatched: js_string;
+    #[import = "expected"]
+    const s_expected: js_string;
+    #[import = "expectations"]
+    const s_expectations: js_string;
+    #[import = "status"]
+    const s_status: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "padding-left: "]
+    const s_padding: js_string;
+    #[import = "rem"]
+    const s_rem: js_string;
+    #[import = "expected: "]
+    const s_expected_colon: js_string;
+    #[import = "; click to change"]
+    const s_click: js_string;
+    #[import = "no glob "]
+    const s_no_glob: js_string;
+    #[import = "/"]
+    const s_slash: js_string;
+    #[import = " matched · "]
+    const s_matched_dot: js_string;
+    #[import = " pass · "]
+    const s_pass_dot: js_string;
+    #[import = " fail"]
+    const s_fail_sp: js_string;
+    #[import = " globs, "]
+    const s_globs_comma: js_string;
+    #[import = " paths."]
+    const s_paths_dot: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "globs:"]
+    const s_globs_label: js_string;
+    #[import = "paths:"]
+    const s_paths_label: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " [dot, nocase]"]
+    const s_opts_both: js_string;
+    #[import = " [dot]"]
+    const s_opts_dot: js_string;
+    #[import = " [nocase]"]
+    const s_opts_nocase: js_string;
+    #[import = " (error: "]
+    const s_error_open: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = " matches "]
+    const s_matches_sp: js_string;
+    #[import = "; expectations "]
+    const s_expectations_sp: js_string;
+    #[import = " pass, "]
+    const s_pass_comma: js_string;
+    #[import = "  … and "]
+    const s_and: js_string;
+    #[import = " more"]
+    const s_more: js_string;
+    #[import = "globs"]
+    const s_globs: js_string;
+    #[import = "paths"]
+    const s_paths: js_string;
+}
+
+// ---- Text --------------------------------------------------------------------------
+
+fn gl_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn gl_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn gl_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+// ---- The page's picomatch ----------------------------------------------------------
+
+// What the host function name answered with args, or null when it failed.
+fn gl_call(name: js_string, args: &value) -> &?value {
+    let r = host_call(name, args) as &value_result;
+    if !r.ok {
+        return null;
+    }
+    r.value;
+}
+
+// [pattern, dot, nocase] of a glob row.
+fn gl_args(g: &value) -> &value {
+    let out = list_push(list_empty(), value_string(glob_lab_globs_pattern(g)));
+    list_push(list_push(out, value_bool(glob_lab_globs_dot(g))), value_bool(glob_lab_globs_nocase(g)));
+}
+
+// Why a glob doesn't compile; "" when it does.
+fn gl_error(g: &value) -> js_string {
+    let got = gl_call(s_glob_error, gl_args(g));
+    if !got {
+        return s_empty;
+    }
+    gl_str(got!);
+}
+
+// Whether a glob matches path: 1 or 0 (0 when it doesn't compile).
+fn gl_test(g: &value, path: js_string) -> i32 {
+    let got = gl_call(s_glob_test, list_push(gl_args(g), value_string(path)));
+    if !got {
+        return 0;
+    }
+    value_truthy(got!);
+}
+
+// The paths, one per line, trimmed, blank lines skipped.
+fn gl_path_list(state: &glob_lab_state) -> &value {
+    let got = gl_call(s_glob_paths, list_push(list_empty(), value_string(state.paths)));
+    if !got {
+        return list_empty();
+    }
+    got!;
+}
+
+// The tree rows of the paths, marked by g: [{ path, name, depth, dir, matched, note }].
+fn gl_tree_rows(state: &glob_lab_state, g: &value) -> &value {
+    let args = list_push(list_empty(), value_string(state.paths));
+    args = list_push(args, value_string(glob_lab_globs_pattern(g)));
+    args = list_push(list_push(args, value_bool(glob_lab_globs_dot(g))), value_bool(glob_lab_globs_nocase(g)));
+    let got = gl_call(s_glob_tree, args);
+    if !got {
+        return list_empty();
+    }
+    got!;
+}
+
+// ---- Rows --------------------------------------------------------------------------
+
+fn gl_id(r: &value) -> js_string {
+    gl_str(value_member(r, gs_id));
+}
+
+// The focused glob's index: focus's, or the first's.
+fn gl_focused(state: &glob_lab_state) -> i32 {
+    let i = list_find(state.globs, gs_id, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    0;
+}
+
+// What g expects of path: "match", "no-match" or "none".
+fn gl_expected(g: &value, path: js_string) -> js_string {
+    let got = map_get(glob_lab_globs_expect(g), path);
+    if !got {
+        return s_none;
+    }
+    gl_str(got!);
+}
+
+// pass, fail or none for an expectation and whether the glob matched.
+fn gl_status(expected: js_string, matched: i32) -> js_string {
+    if js_string_equals(expected, s_none) {
+        return s_none;
+    }
+    if js_string_equals(expected, s_match) == matched {
+        return s_pass;
+    }
+    s_fail;
+}
+
+// g with its expectation of path set to outcome ("none" clears it).
+fn gl_with_expectation(g: &value, path: js_string, outcome: js_string) -> &value {
+    let expect = glob_lab_globs_expect(g);
+    let next = if js_string_equals(outcome, s_none) { map_dissoc(expect, path); } else { map_assoc(expect, path, value_string(outcome)); };
+    glob_lab_globs_new(gl_id(g), glob_lab_globs_pattern(g), glob_lab_globs_dot(g), glob_lab_globs_nocase(g), next);
+}
+
+// none → match → no-match → none.
+fn gl_cycled(outcome: js_string) -> js_string {
+    if js_string_equals(outcome, s_none) {
+        return s_match;
+    }
+    if js_string_equals(outcome, s_match) {
+        return s_no_match;
+    }
+    s_none;
+}
+
+// state with the glob at i replaced by g.
+fn gl_with_glob(state: &glob_lab_state, i: i32, g: &value) -> &glob_lab_state {
+    glob_lab_with_globs(state, list_assoc(state.globs, i, g));
+}
+
+// ---- Reports -----------------------------------------------------------------------
+
+// The paths g matches, of paths.
+fn gl_matched(g: &value, paths: &value) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(paths) {
+        let path = gl_str(list_get(paths, i)!);
+        if gl_test(g, path) {
+            out = list_push(out, value_string(path));
+        }
+        i += 1;
+    }
+    out;
+}
+
+// g's expectations: ([{ path, expected, matched, status }], pass, fail).
+fn gl_expectations(g: &value) -> (&value, i32, i32) {
+    let keys = map_keys(glob_lab_globs_expect(g));
+    let out = list_empty();
+    let pass = 0;
+    let fail = 0;
+    let i = 0;
+    while i <s list_count(keys) {
+        let path = gl_str(list_get(keys, i)!);
+        let expected = gl_expected(g, path);
+        let matched = gl_test(g, path);
+        let status = gl_status(expected, matched);
+        if js_string_equals(status, s_pass) {
+            pass += 1;
+        }
+        if js_string_equals(status, s_fail) {
+            fail += 1;
+        }
+        let e = map_assoc(map_empty(), gs_path, value_string(path));
+        e = map_assoc(e, s_expected, value_string(expected));
+        e = map_assoc(e, s_matched, value_bool(matched));
+        out = list_push(out, map_assoc(e, s_status, value_string(status)));
+        i += 1;
+    }
+    (out, pass, fail);
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn glob_lab_get_glob_rows(state: &glob_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.globs) {
+        let g = list_get(state.globs, i)!;
+        out = list_push(out, glob_lab_glob_rows_new(gl_id(g), glob_lab_globs_pattern(g), glob_lab_globs_dot(g), glob_lab_globs_nocase(g), gl_error(g)));
+        i += 1;
+    }
+    out;
+}
+
+fn glob_lab_get_tree(state: &glob_lab_state) -> &value {
+    let g = list_get(state.globs, gl_focused(state))!;
+    let rows = gl_tree_rows(state, g);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(rows) {
+        let r = list_get(rows, i)!;
+        let path = gl_str(value_member(r, gs_path));
+        let style = gl_cat3(s_padding, number_text(value_to_f64(value_member(r, s_depth))), s_rem);
+        let name = gl_str(value_member(r, gs_name));
+        let note = gl_str(value_member(r, gs_note));
+        let row = if value_truthy(value_member(r, s_dir)) {
+            glob_lab_tree_new(path, name, style, s_dir, note, s_none, s_empty);
+        } else {
+            let matched = value_truthy(value_member(r, s_matched));
+            let expected = gl_expected(g, path);
+            let kind = if matched { s_hit; } else { s_miss; };
+            glob_lab_tree_new(path, name, style, kind, note, gl_status(expected, matched), gl_cat3(s_expected_colon, expected, s_click));
+        };
+        out = list_push(out, row);
+        i += 1;
+    }
+    out;
+}
+
+fn glob_lab_get_focus_label(state: &glob_lab_state) -> js_string {
+    let g = list_get(state.globs, gl_focused(state))!;
+    gl_cat3(gl_id(g), s_colon_sp, glob_lab_globs_pattern(g));
+}
+
+fn glob_lab_get_headline(state: &glob_lab_state) -> js_string {
+    let paths = gl_path_list(state);
+    let pass = 0;
+    let fail = 0;
+    let i = 0;
+    while i <s list_count(state.globs) {
+        let (_, p, f) = gl_expectations(list_get(state.globs, i)!);
+        pass += p;
+        fail += f;
+        i += 1;
+    }
+    let n = list_count(gl_matched(list_get(state.globs, gl_focused(state))!, paths));
+    let out = gl_cat3(int_text(n), s_slash, int_text(list_count(paths)));
+    out = gl_cat3(out, s_matched_dot, int_text(pass));
+    gl_cat3(out, s_pass_dot, gl_cat(int_text(fail), s_fail_sp));
+}
+
+fn glob_lab_get_summary(state: &glob_lab_state) -> js_string {
+    let paths = gl_path_list(state);
+    let total = list_count(paths);
+    let out = gl_cat3(int_text(list_count(state.globs)), s_globs_comma, gl_cat(int_text(total), s_paths_dot));
+    out = gl_cat3(out, s_nl, s_globs_label);
+    let i = 0;
+    while i <s list_count(state.globs) {
+        let g = list_get(state.globs, i)!;
+        let line = gl_cat3(s_indent, gl_id(g), s_colon_sp);
+        line = gl_cat(line, glob_lab_globs_pattern(g));
+        let dot = glob_lab_globs_dot(g);
+        let nocase = glob_lab_globs_nocase(g);
+        if dot & nocase {
+            line = gl_cat(line, s_opts_both);
+        }
+        if dot & !nocase {
+            line = gl_cat(line, s_opts_dot);
+        }
+        if !dot & nocase {
+            line = gl_cat(line, s_opts_nocase);
+        }
+        let error = gl_error(g);
+        if js_string_length(error) != 0 {
+            line = gl_cat3(line, s_error_open, gl_cat(error, s_rparen));
+        }
+        let (_, pass, fail) = gl_expectations(g);
+        line = gl_cat3(line, s_matches_sp, int_text(list_count(gl_matched(g, paths))));
+        line = gl_cat3(line, s_slash, int_text(total));
+        line = gl_cat3(line, s_expectations_sp, int_text(pass));
+        line = gl_cat3(line, s_pass_comma, gl_cat(int_text(fail), s_fail_sp));
+        out = gl_cat3(out, s_nl, line);
+        i += 1;
+    }
+    out = gl_cat3(out, s_nl, s_paths_label);
+    let j = 0;
+    while (j <s total) & (j <s 200) {
+        out = gl_cat3(out, s_nl, gl_cat(s_indent, gl_str(list_get(paths, j)!)));
+        j += 1;
+    }
+    if total >s 200 {
+        out = gl_cat3(out, s_nl, gl_cat3(s_and, int_text(total - 200), s_more));
+    }
+    out;
+}
+
+// The JSON it opened, changed: { globs, paths }.
+fn glob_lab_get_data(state: &glob_lab_state) -> &value {
+    map_assoc(map_assoc(map_empty(), s_globs, state.globs), s_paths, value_string(state.paths));
+}
+
+// The globs and the paths as a list.
+fn glob_lab_get_domain(state: &glob_lab_state) -> &value {
+    map_assoc(map_assoc(map_empty(), s_globs, state.globs), s_paths, gl_path_list(state));
+}
+
+// ---- Queries -----------------------------------------------------------------------
+
+fn gl_error_value(text: js_string) -> &value {
+    map_assoc(map_empty(), s_error, value_string(text));
+}
+
+fn glob_lab_query_matches(state: &glob_lab_state, glob: js_string) -> &value {
+    let i = list_find(state.globs, gs_id, glob);
+    if i <s 0 {
+        return gl_error_value(gl_cat(s_no_glob, glob));
+    }
+    let g = list_get(state.globs, i)!;
+    let error = gl_error(g);
+    if js_string_length(error) != 0 {
+        return gl_error_value(error);
+    }
+    let paths = gl_path_list(state);
+    let matched = list_empty();
+    let unmatched = list_empty();
+    let j = 0;
+    while j <s list_count(paths) {
+        let path = list_get(paths, j)!;
+        if gl_test(g, gl_str(path)) {
+            matched = list_push(matched, path);
+        } else {
+            unmatched = list_push(unmatched, path);
+        }
+        j += 1;
+    }
+    let (expectations, pass, fail) = gl_expectations(g);
+    let out = map_assoc(map_empty(), gs_pattern, value_string(glob_lab_globs_pattern(g)));
+    out = map_assoc(out, gs_dot, value_bool(glob_lab_globs_dot(g)));
+    out = map_assoc(out, gs_nocase, value_bool(glob_lab_globs_nocase(g)));
+    out = map_assoc(out, s_matched, matched);
+    out = map_assoc(out, s_unmatched, unmatched);
+    out = map_assoc(out, s_expectations, expectations);
+    out = map_assoc(out, s_pass, value_int(pass));
+    map_assoc(out, s_fail, value_int(fail));
+}
+
+fn glob_lab_query_explain(state: &glob_lab_state, glob: js_string) -> &value {
+    let i = list_find(state.globs, gs_id, glob);
+    if i <s 0 {
+        return gl_error_value(gl_cat(s_no_glob, glob));
+    }
+    let g = list_get(state.globs, i)!;
+    let error = gl_error(g);
+    if js_string_length(error) != 0 {
+        return gl_error_value(error);
+    }
+    let got = gl_call(s_glob_explain, gl_args(g));
+    if !got {
+        return gl_error_value(s_error);
+    }
+    map_assoc(got!, gs_pattern, value_string(glob_lab_globs_pattern(g)));
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn glob_lab_on_set_glob(state: &glob_lab_state, ctx: &context, id: js_string, pattern: js_string) -> &glob_lab_state {
+    let i = list_find(state.globs, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let g = list_get(state.globs, i)!;
+    gl_with_glob(state, i, glob_lab_globs_new(id, pattern, glob_lab_globs_dot(g), glob_lab_globs_nocase(g), glob_lab_globs_expect(g)));
+}
+
+fn glob_lab_on_set_glob_options(state: &glob_lab_state, ctx: &context, id: js_string, dot: i32, nocase: i32) -> &glob_lab_state {
+    let i = list_find(state.globs, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let g = list_get(state.globs, i)!;
+    gl_with_glob(state, i, glob_lab_globs_new(id, glob_lab_globs_pattern(g), dot, nocase, glob_lab_globs_expect(g)));
+}
+
+fn glob_lab_on_add_glob(state: &glob_lab_state, ctx: &context, pattern: js_string) -> &glob_lab_state {
+    let id = list_next_id(state.globs, gs_id, s_g);
+    glob_lab_with_globs(state, list_push(state.globs, glob_lab_globs_new(id, pattern, 0, 0, map_empty())));
+}
+
+fn glob_lab_on_remove_glob(state: &glob_lab_state, ctx: &context, id: js_string) -> &glob_lab_state {
+    let i = list_find(state.globs, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let next = glob_lab_with_globs(state, list_remove_at(state.globs, i));
+    if js_string_equals(state.focus, id) {
+        return glob_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn glob_lab_on_reorder_globs(state: &glob_lab_state, ctx: &context, id: js_string, index: i32) -> &glob_lab_state {
+    glob_lab_with_globs(state, list_move(state.globs, list_find(state.globs, gs_id, id), index));
+}
+
+fn glob_lab_on_set_paths(state: &glob_lab_state, ctx: &context, text: js_string) -> &glob_lab_state {
+    glob_lab_with_paths(state, text);
+}
+
+fn glob_lab_on_set_expectation(state: &glob_lab_state, ctx: &context, glob: js_string, path: js_string, outcome: js_string) -> &glob_lab_state {
+    let i = list_find(state.globs, gs_id, glob);
+    if i <s 0 {
+        return state;
+    }
+    gl_with_glob(state, i, gl_with_expectation(list_get(state.globs, i)!, path, outcome));
+}
+
+fn glob_lab_on_cycle_path(state: &glob_lab_state, ctx: &context, i: i32) -> &glob_lab_state {
+    let gi = gl_focused(state);
+    let g = list_get(state.globs, gi)!;
+    let rows = gl_tree_rows(state, g);
+    if i >=s list_count(rows) {
+        return state;
+    }
+    let r = list_get(rows, i)!;
+    if value_truthy(value_member(r, s_dir)) {
+        return state;
+    }
+    let path = gl_str(value_member(r, gs_path));
+    gl_with_glob(state, gi, gl_with_expectation(g, path, gl_cycled(gl_expected(g, path))));
+}
+
+fn glob_lab_on_focus(state: &glob_lab_state, ctx: &context, id: js_string) -> &glob_lab_state {
+    glob_lab_with_focus(state, id);
+}

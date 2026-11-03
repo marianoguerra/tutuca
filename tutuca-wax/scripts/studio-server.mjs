@@ -7,6 +7,10 @@
 //   POST /api/chat    { model: { provider, id }, messages, component: { name, tcd, wax } }
 //                     -> { message }: the model's next message
 //   POST /api/prompt  { component } -> { prompt }: the system prompt it would get
+//   POST /api/infer   { model: { provider, id }, systemPrompt, tools, transcript }
+//                     -> { message }: one step of a model with the tools the
+//                     page gives (the micro-agents', microagents/), keeping
+//                     nothing between requests
 //
 // The transcript is pi's (@earendil-works/pi-ai): user messages, the model's
 // assistant messages as it returned them, and the studio's tool results; pi
@@ -165,6 +169,20 @@ export function createStudioServer({ models = builtinModels(), offer } = {}) {
 			const message = await models.complete(model, context, { signal: controller.signal });
 			if (!res.writableEnded) json(res, 200, { message });
 		},
+		"POST /api/infer": async (req, res) => {
+			const { model: wanted, systemPrompt: system, tools, transcript } = await readJson(req);
+			if (typeof system !== "string") return json(res, 400, { error: "no systemPrompt" });
+			if (!Array.isArray(tools)) return json(res, 400, { error: "no tools" });
+			if (!Array.isArray(transcript) || transcript.length === 0) return json(res, 400, { error: "no transcript" });
+			const model = wanted && models.getModel(wanted.provider, wanted.id);
+			if (!model || !(await availableModels(models, offer)).some((m) => m.provider === wanted.provider && m.id === wanted.id)) {
+				return json(res, 400, { error: `no model ${wanted?.provider}/${wanted?.id} with credentials here` });
+			}
+			const controller = new AbortController();
+			res.on("close", () => controller.abort());
+			const message = await models.complete(model, { systemPrompt: system, messages: transcript, tools }, { signal: controller.signal });
+			if (!res.writableEnded) json(res, 200, { message });
+		},
 	};
 	return createStaticServer({}, async (req, res) => {
 		const handler = api[`${req.method} ${new URL(req.url, "http://x").pathname}`];
@@ -187,7 +205,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const models = builtinModels();
 	const available = await availableModels(models);
 	createStudioServer({ models }).listen(port, "127.0.0.1", () => {
-		console.log(`the studio at http://127.0.0.1:${port}/studio/`);
+		console.log(`the studio at http://127.0.0.1:${port}/studio/, the micro-agents at http://127.0.0.1:${port}/microagents/`);
 		const providers = [...new Set(available.map((m) => m.provider))];
 		console.log(providers.length > 0 ? `assistant models from ${providers.join(", ")} (${available.length})` : `no API keys found (${envFile} or the environment): the studio runs without its assistant`);
 	});

@@ -218,7 +218,7 @@ fn probe_even: invariant_fn (instance: &eq) -> i32 {
 }
 
 fn probe_vtable() -> &vtable {
-    {vtable| init: probe_init, handle: probe_handle, get: probe_get, set: probe_set };
+    {vtable| init: probe_init, handle: probe_handle, get: probe_get, set: probe_set, query: null };
 }
 
 fn probe_init: init_fn (fields: &value, ctx: &init_context) -> &init_result {
@@ -328,6 +328,7 @@ fn pretender_vtable() -> &vtable {
         handle: pretender_handle,
         get: pretender_get,
         set: pretender_set,
+        query: null,
     };
 }
 

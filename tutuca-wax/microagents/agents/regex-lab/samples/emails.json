@@ -1,0 +1,12 @@
+{
+	"regexes": [
+		{ "id": "r1", "pattern": "^\\S+@\\S+$", "flags": "" },
+		{ "id": "r2", "pattern": "@example\\.(com|org)", "flags": "i" }
+	],
+	"texts": [
+		{ "id": "t1", "text": "ada@example.com", "expect": { "r1": "match", "r2": "match" } },
+		{ "id": "t2", "text": "grace.hopper+navy@EXAMPLE.org", "expect": { "r1": "match", "r2": "match" } },
+		{ "id": "t3", "text": "not an email", "expect": { "r1": "no-match" } },
+		{ "id": "t4", "text": "two@@signs.com", "expect": { "r1": "no-match" } }
+	]
+}

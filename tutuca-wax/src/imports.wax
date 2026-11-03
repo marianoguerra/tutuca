@@ -312,6 +312,12 @@ import "'" {
     const s_fields: js_string;
     #[import = "gets"]
     const s_gets: js_string;
+    #[import = "queries"]
+    const s_queries: js_string;
+    #[import = "no such query"]
+    const s_no_such_query: js_string;
+    #[import = "the query failed"]
+    const s_query_failed: js_string;
     #[import = "messages"]
     const s_messages: js_string;
     #[import = "invariants"]
@@ -672,6 +678,33 @@ import "host" {
     // later, or null when the host has no answer for it.
     #[import = "ask"]
     fn host_ask(name: js_string, args: value_extern) -> &value;
+    // A function the page defines (runtime.defineHostFn), called now with
+    // its arguments as a list Value: its value in an ok result, or an error
+    // result saying why it failed (an error result too when there's none).
+    #[import = "call"]
+    fn host_call(name: js_string, args: value_extern) -> &value;
+    // A value as JSON text, as JSON.stringify writes it with indent spaces.
+    #[import = "value_json"]
+    fn host_value_json(v: value_extern, indent: i32) -> js_string;
+    // Text, as JS's string methods do it (abi.wax's str_*).
+    #[import = "str_slice"]
+    fn host_str_slice(s: js_string, start: i32, end: i32) -> js_string;
+    #[import = "str_index_of"]
+    fn host_str_index_of(s: js_string, needle: js_string, from: i32) -> i32;
+    #[import = "str_lower"]
+    fn host_str_lower(s: js_string) -> js_string;
+    #[import = "str_upper"]
+    fn host_str_upper(s: js_string) -> js_string;
+    #[import = "str_trim"]
+    fn host_str_trim(s: js_string) -> js_string;
+    #[import = "str_replace_all"]
+    fn host_str_replace_all(s: js_string, from: js_string, to: js_string) -> js_string;
+    // A list value of s's pieces between the occurrences of sep.
+    #[import = "str_split"]
+    fn host_str_split(s: js_string, sep: js_string) -> value_extern;
+    // The items of a list value, as strings, joined with sep.
+    #[import = "str_join"]
+    fn host_str_join(parts: value_extern, sep: js_string) -> js_string;
     // A float as JS's String(n) writes it, for rendering it as text.
     #[import = "number_text"]
     fn host_number_text(n: f64) -> js_string;

@@ -1,0 +1,29 @@
+{
+	"id": "datefmt-lab",
+	"title": "Date format lab",
+	"description": "Format instants with strftime patterns and Intl.DateTimeFormat options side by side, and check the outputs.",
+	"needs": "an object with instants ([{ id, iso }], at least one ISO time) and formats: strftimes ([{ id, format, expect }]) and intls ([{ id, locale, options, expect }]), where expect maps an instant id to the exact output",
+	"icon": "📅",
+	"version": "1",
+	"root": "DatefmtLab",
+	"hostFns": ["datefmt"],
+	"skills": ["SKILL.md", "reference/intl-options.md"],
+	"tools": [
+		{ "name": "set_strftime", "kind": "message", "result": "formatted" },
+		{ "name": "add_strftime", "kind": "message" },
+		{ "name": "add_intl", "kind": "message" },
+		{ "name": "set_locale", "kind": "message", "result": "formatted" },
+		{ "name": "set_intl_option", "kind": "message", "result": "formatted" },
+		{ "name": "remove_format", "kind": "message" },
+		{ "name": "add_instant", "kind": "message" },
+		{ "name": "set_instant", "kind": "message" },
+		{ "name": "remove_instant", "kind": "message" },
+		{ "name": "reorder_instants", "kind": "message" },
+		{ "name": "reorder_strftimes", "kind": "message" },
+		{ "name": "reorder_intls", "kind": "message" },
+		{ "name": "set_expectation", "kind": "message", "result": "formatted" },
+		{ "name": "formatted", "kind": "view" },
+		{ "name": "try_strftime", "kind": "view" },
+		{ "name": "directives", "kind": "view" }
+	]
+}

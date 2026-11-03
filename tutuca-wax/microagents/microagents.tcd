@@ -1,0 +1,191 @@
+// The micro-agents' shell, in tutuca-wax: the agents installed, the open
+// sessions as tabs, and each session's workspace (the agent's root, made by
+// the host in the agent's scope) beside its chat. What only the page can do
+// is the host's (microagents.js), asked for: opening a sample or a dropped
+// file with an agent (answered with the session it made), running the
+// model's turns and their tool calls, exporting, installing. The host tells
+// the shell what happens outside it by sending it messages: offer when a
+// dropped file fits several agents, say for the status line, add_agent when
+// one is installed, and a session's set_chat as its conversation goes on.
+package tutuca:microagents@0.1.0;
+
+/// An open agent: its workspace and its conversation with the model. The
+/// transcript is the host's; the session shows its lines.
+component Session {
+    field id: string;
+    field agent: string;
+    field title: string;
+    field icon: string;
+    /// The agent's root, as the host made it (sync none: the host makes it).
+    field workspace: option<component> @sync(none);
+    /// The conversation's lines, as the host writes them.
+    field chat: list<record { kind: enum { user, assistant, tool, note }, title: string, text: string, error: bool }> @sync(none);
+    field draft: string;
+    /// Whether the model is taking its turn.
+    field busy: bool;
+    /// Why the conversation stopped; "" when it didn't.
+    field stopped: string;
+    get can_send: bool;
+
+    /// To the host: the model's turn on what the user wrote.
+    ask infer(session: string, text: string) -> bool;
+    ask stop_infer(session: string) -> bool;
+    ask export_data(session: string) -> bool;
+
+    message set_draft(text: string) changes draft ensures next.draft == text;
+    message send_chat() changes draft, busy, stopped emits ask infer;
+    message stop() changes nothing emits ask stop_infer;
+    message export() changes nothing emits ask export_data;
+    /// From the host: the conversation's lines now, whether the model is
+    /// still at it, and why it stopped.
+    message set_chat(chat: list<record { kind: enum { user, assistant, tool, note }, title: string, text: string, error: bool }>, busy: bool, stopped: string)
+        changes chat, busy, stopped;
+    /// From the host: the workspace now (a tool call undone puts the one
+    /// before it back).
+    message set_workspace(workspace: component) changes workspace;
+
+    view main = div(class: "grid flex-1 min-h-0 gap-3 p-3 lg:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)]",
+        div(class: "min-h-0 overflow-auto rounded-box bg-base-100 p-4 shadow-sm",
+            if(field(workspace), render(field(workspace)), p(class: "opacity-60", "opening…"))),
+        aside(class: "flex min-h-0 flex-col gap-2 rounded-box bg-base-100 p-3 shadow-sm",
+            div(class: "flex items-center justify-between gap-2",
+                h2(class: "font-semibold", "Chat"),
+                button(class: "btn btn-xs btn-ghost", title: "Download the data as JSON", on_click: send(export), "Export")),
+            div(class: "ma-chat flex min-h-0 flex-1 flex-col gap-2 overflow-auto",
+                each(field(chat),
+                    if(field(kind) == "tool",
+                        details(class: if(field(error), "rounded-box border border-error/40 bg-error/5 px-2 py-1 text-xs", "rounded-box border border-base-300 bg-base-200 px-2 py-1 text-xs"),
+                            summary(class: "cursor-pointer font-mono", field(title)),
+                            pre(class: "mt-1 max-h-60 overflow-auto whitespace-pre-wrap break-words", field(text))),
+                        if(field(kind) == "user",
+                            div(class: "chat chat-end", div(class: "chat-bubble chat-bubble-primary whitespace-pre-wrap text-sm", field(text))),
+                            if(field(kind) == "note",
+                                p(class: "text-xs opacity-60", field(text)),
+                                div(class: "chat chat-start", div(class: "chat-bubble whitespace-pre-wrap text-sm", field(text)))))))),
+            if(field(stopped) != "", p(class: "text-xs text-warning", field(stopped))),
+            textarea(class: "textarea textarea-bordered w-full text-sm", rows: "3", placeholder: "Ask the agent…", "aria-label": "Message",
+                value: field(draft), on_input: send(set_draft, target_value()),
+                "on_keydown+enter+ctrl+prevent": send(send_chat)),
+            div(class: "flex justify-end gap-2",
+                if(field(busy),
+                    button(class: "btn btn-sm", on_click: send(stop), "Stop"),
+                    button(class: "btn btn-sm btn-primary", disabled: if(field(can_send), false, true), on_click: send(send_chat), "Send")))));
+}
+
+/// An agent, as the shell lists it: what it opens, its samples to open,
+/// and why it can't be used when it can't.
+component AgentCard {
+    field id: string;
+    field title: string;
+    field description: string;
+    field needs: string;
+    field icon: string;
+    field samples: list<record { name: string }>;
+    field problems: string;
+
+    notify open_sample(agent: string, sample: string);
+    notify remove_agent(agent: string);
+
+    message open(sample: string) changes nothing emits notify open_sample;
+    message remove() changes nothing emits notify remove_agent;
+
+    view main = div(class: "card card-border bg-base-100 shadow-sm",
+        div(class: "card-body gap-2 p-4",
+            h2(class: "card-title text-base", span(field(icon)), field(title)),
+            p(class: "text-sm", field(description)),
+            p(class: "text-xs opacity-60", "Opens: ", field(needs)),
+            if(field(problems) != "", p(class: "text-xs text-error", field(problems))),
+            div(class: "card-actions",
+                each(field(samples), button(class: "btn btn-xs", on_click: send(open, field(name)), field(name))),
+                button(class: "btn btn-xs btn-ghost", title: "Uninstall", on_click: send(remove), "Remove"))));
+}
+
+/// The shell: the agents, the sessions as tabs, the one shown.
+component MicroAgents {
+    field agents: list<AgentCard>;
+    field sessions: list<Session>;
+    /// The session shown, by id; "" for the agents.
+    field active: string;
+    field models: list<record { value: string, name: string }>;
+    field model: string;
+    /// The page's theme: "light" or "dark".
+    field theme: string = "light" where theme in ["light", "dark"];
+    /// The status line.
+    field status: string;
+    /// The agents a dropped file fits, to pick one; empty when none is offered.
+    field offers: list<record { id: string, title: string, icon: string }>;
+    get on_home: bool;
+    get has_offers: bool;
+    get no_agents: bool;
+    /// The sessions' tabs, the shown one on.
+    get tabs: list<record { id: string, title: string, icon: string, on: bool }>;
+
+    /// To the host: a session of agent on its sample; answers with the session made.
+    ask open_sample(agent: string, sample: string) -> Session;
+    /// To the host: a session of agent on the file dropped last.
+    ask open_dropped(agent: string) -> Session;
+    ask remember_model(model: string) -> bool;
+    /// To the host: show the page in theme, and remember it.
+    ask set_theme(theme: string) -> bool;
+    ask uninstall(agent: string) -> bool;
+
+    message show(id: string) changes active ensures next.active == id;
+    message close(id: string) changes sessions, active;
+    message open_sample(agent: string, sample: string) changes nothing emits ask open_sample;
+    message pick_offer(agent: string) changes offers emits ask open_dropped;
+    message dismiss_offers() changes offers;
+    /// Light to dark, or dark to light.
+    message toggle_theme() changes theme emits ask set_theme;
+    message set_model(model: string) changes model ensures next.model == model emits ask remember_model;
+    message remove_agent(agent: string) changes nothing emits ask uninstall;
+    /// From the host: the status line.
+    message say(text: string) changes status ensures next.status == text;
+    /// From the host: a session it opened (a file dropped that one agent opens).
+    message add_session(session: Session) changes sessions, active;
+    /// From the host: the agents a dropped file fits.
+    message offer(offers: list<record { id: string, title: string, icon: string }>) changes offers;
+    /// From the host: the agents now (one was installed or removed).
+    message set_agents(agents: list<AgentCard>) changes agents;
+
+    loop shown { filter; }
+
+    view main = div(class: "flex h-screen flex-col",
+        nav(class: "navbar min-h-0 gap-2 bg-base-100 px-3 py-1 shadow-sm",
+            span(class: "text-lg font-bold", "Micro-agents"),
+            div(class: "tabs tabs-box tabs-sm flex-1 flex-nowrap overflow-x-auto",
+                button(class: if(field(on_home), "tab tab-active", "tab"), on_click: send(show, ""), "Agents"),
+                each(field(tabs),
+                    div(class: "flex items-center",
+                        button(class: if(field(on), "tab tab-active", "tab"), on_click: send(show, field(id)),
+                            span(class: "mr-1", field(icon)), field(title)),
+                        button(class: "btn btn-ghost btn-xs", title: "Close", "aria-label": "Close", on_click: send(close, field(id)), "✕")))),
+            button(class: "btn btn-sm btn-ghost btn-square", title: "Switch between light and dark", "aria-label": "Switch theme",
+                on_click: send(toggle_theme), if(field(theme) == "dark", "☀", "☾")),
+            select(class: "select select-sm w-56", "aria-label": "Model", value: field(model), on_change: send(set_model, target_value()),
+                option(value: "", "no model"),
+                each(field(models), option(value: field(value), field(name))))),
+        if(field(status) != "", div(class: "bg-base-200 px-3 py-1 text-xs opacity-70", field(status))),
+        if(field(has_offers),
+            div(class: "alert m-3 flex flex-wrap",
+                span("This file opens with:"),
+                each(field(offers), button(class: "btn btn-sm", on_click: send(pick_offer, field(id)), span(field(icon)), field(title))),
+                button(class: "btn btn-sm btn-ghost", on_click: send(dismiss_offers), "Cancel"))),
+        if(field(on_home),
+            div(class: "grid gap-3 overflow-auto p-3 md:grid-cols-2 xl:grid-cols-3",
+                p(class: "text-sm opacity-70 md:col-span-2 xl:col-span-3", "Drop a JSON file to open it with an agent that fits it, or a .wasm agent to install it."),
+                if(field(no_agents), p(class: "text-sm opacity-70 md:col-span-2 xl:col-span-3",
+                    "No agents loaded yet: drop an agent's .wasm here (dist/agents/), or open the page with ?loadAgents=all.")),
+                render_each(field(agents)))),
+        render_each(loop: shown, field(sessions)));
+}
+
+register AgentCard, Session, MicroAgents;
+
+host_ask infer;
+host_ask stop_infer;
+host_ask export_data;
+host_ask open_sample;
+host_ask open_dropped;
+host_ask remember_model;
+host_ask set_theme;
+host_ask uninstall;

@@ -1,0 +1,108 @@
+// regex-lab: JavaScript regular expressions run against texts. Each text
+// says, per regex, whether it should match ("match") or not ("no-match");
+// the grid shows which expectations pass. The regexes run in the page
+// (host functions regex_*, microagents/engines/regex.js). The root's
+// messages are the agent's tools; the rows' inputs send the same messages.
+package tutuca:regex_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component RegexLab: MicroAgent {
+    /// The regexes, each with an id the model names it by (r1, r2, …).
+    field regexes: list<record { id: string, pattern: string, flags: string }> where len(regexes) >= 1;
+    /// The texts, each saying per regex id whether it should match ("match" or "no-match").
+    field texts: list<record { id: string, text: string, expect: map<string> }> where len(texts) >= 1;
+    /// The regex the texts highlight; "" for the first.
+    field focus: string;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    get focus_label: string;
+    /// The regexes as rows, with why each doesn't compile ("" when it does).
+    get regex_rows: list<record { id: string, pattern: string, flags: string, error: string }>;
+    /// Each text cut into pieces, the focused regex's matches hit.
+    get highlights: list<record { id: string, segments: list<record { text: string, hit: bool }> }>;
+    /// Every text × regex: whether the regex matches, what is expected and whether that passes.
+    get grid: any;
+    /// The grid laid out as one list for a CSS grid: a header row of regex ids, then per text its id and a cell per regex.
+    get grid_cells: list<record { label: string, title: string, status: string }>;
+    get grid_style: string;
+
+    /// Where a regex matches a text: each match's position, text and capture groups.
+    query explain_matches(regex: string, text: string) -> any;
+
+    /// Change a regex's pattern and flags.
+    message set_regex(id: string, pattern: string, flags: string) when any(regexes, it.id == id) changes regexes;
+    /// Add a regex; it gets the next free id (r1, r2, …).
+    message add_regex(pattern: string, flags: string) changes regexes ensures len(next.regexes) == len(regexes) + 1;
+    /// Remove a regex and the expectations that name it.
+    message remove_regex(id: string) when any(regexes, it.id == id) and len(regexes) > 1 changes regexes, texts, focus
+        ensures len(next.regexes) == len(regexes) - 1;
+    /// Move a regex to a position (0 is first).
+    message reorder_regexes(id: string, index: s32 where index >= 0) when any(regexes, it.id == id) changes regexes
+        ensures len(next.regexes) == len(regexes);
+    /// Add a text to test against; it gets the next free id (t1, t2, …).
+    message add_text(text: string) changes texts ensures len(next.texts) == len(texts) + 1;
+    /// Change a text.
+    message set_text(id: string, text: string) when any(texts, it.id == id) changes texts;
+    /// Remove a text.
+    message remove_text(id: string) when any(texts, it.id == id) and len(texts) > 1 changes texts
+        ensures len(next.texts) == len(texts) - 1;
+    /// Move a text to a position (0 is first).
+    message reorder_texts(id: string, index: s32 where index >= 0) when any(texts, it.id == id) changes texts
+        ensures len(next.texts) == len(texts);
+    /// Say whether a regex should match a text: match, no-match, or none to clear it.
+    message set_expectation(text: string, regex: string, outcome: string where outcome in ["match", "no-match", "none"])
+        when any(texts, it.id == text) and any(regexes, it.id == regex) changes texts;
+    /// From the grid: cycles the expectation of the cell at index i (none → match → no-match → none).
+    message cycle_cell(i: s32 where i >= 0) changes texts;
+    /// Which regex the texts highlight.
+    message focus(id: string) changes focus ensures next.focus == id;
+
+    view main = div(class: "flex flex-col gap-4",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "Regex lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Patterns"),
+        div(class: "flex flex-col gap-1",
+            each(field(regex_rows),
+                div(class: "flex flex-col gap-1",
+                    div(class: "join w-full",
+                        button(class: "btn btn-sm join-item font-mono", title: "Highlight this pattern", on_click: send(focus, field(id)), field(id)),
+                        span(class: "join-item flex items-center bg-base-200 px-2 font-mono", "/"),
+                        input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "Pattern",
+                            value: field(pattern), on_input: send(set_regex, field(id), target_value(), field(flags))),
+                        span(class: "join-item flex items-center bg-base-200 px-2 font-mono", "/"),
+                        input(class: "input input-sm input-bordered join-item w-20 font-mono", "aria-label": "Flags",
+                            value: field(flags), on_input: send(set_regex, field(id), field(pattern), target_value())),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove", on_click: send(remove_regex, field(id)), "✕")),
+                    if(field(error) != "", p(class: "text-xs text-error", field(error))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_regex, "", ""), "+ Pattern")),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Texts"),
+        div(class: "flex flex-col gap-1",
+            each(field(texts),
+                div(class: "flex items-start gap-1",
+                    span(class: "font-mono text-xs opacity-60 pt-2", field(id)),
+                    textarea(class: "textarea textarea-bordered w-full font-mono text-sm", rows: "2", "aria-label": "Text",
+                        value: field(text), on_input: send(set_text, field(id), target_value())),
+                    button(class: "btn btn-sm btn-ghost", title: "Remove", "aria-label": "Remove", on_click: send(remove_text, field(id)), "✕"))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_text, ""), "+ Text")),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Matches of ", span(class: "font-mono normal-case", field(focus_label))),
+        div(class: "flex flex-col gap-1",
+            each(field(highlights),
+                div(class: "flex gap-2 rounded-box border border-base-300 p-2",
+                    span(class: "font-mono text-xs opacity-60", field(id)),
+                    p(class: "whitespace-pre-wrap break-all font-mono text-sm",
+                        each(field(segments), span(class: if(field(hit), "rounded bg-warning/40 outline outline-1 outline-warning", ""), field(text))))))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Expectations"),
+        p(class: "text-xs opacity-60", "Click a cell to cycle its expectation: none → match → no match."),
+        div(class: "grid gap-1 overflow-x-auto", style: field(grid_style),
+            each(field(grid_cells),
+                button(class: if(field(status) == "pass", "badge badge-success",
+                        if(field(status) == "fail", "badge badge-error",
+                        if(field(status) == "invalid", "badge badge-warning",
+                        if(field(status) == "label", "font-mono text-xs opacity-70 text-left", "badge badge-ghost")))),
+                    title: field(title), on_click: send(cycle_cell, source_key()), field(label)))));
+}

@@ -603,6 +603,7 @@ fn member_names(
       Message(msg) => out.push(("a message", msg.name))
       Notify(s) => out.push(("a notify", s.name))
       Ask(s) => out.push(("an ask", s.name))
+      Query(s) => out.push(("a field or property", s.name))
       Invariant(i) => out.push(("an invariant", i.name))
       Loop(l) => out.push(("a loop", l.name))
       Scope(s) => out.push(("a scope", s.name))
@@ -675,7 +676,7 @@ fn member_span(m : @syntax.Member) -> @diag.Span {
   match m {
     Field(f) | Get(f) => f.span
     Message(msg) => msg.span
-    Notify(s) | Ask(s) => s.span
+    Notify(s) | Ask(s) | Query(s) => s.span
     Invariant(i) => i.span
     Init(span) => span
     Loop(l) => l.span
@@ -695,6 +696,7 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
   let messages = []
   let notifies = []
   let asks = []
+  let queries = []
   let invariants = []
   let mut init_hook = false
   let loops = []
@@ -708,6 +710,16 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
       Message(msg) => messages.push(self.message(msg, ftys))
       Notify(s) => notifies.push(self.signal(s, ftys))
       Ask(s) => asks.push(self.signal(s, ftys))
+      Query(s) => {
+        if s.emits is Some(_) {
+          self.error(
+            "tcd.query.emits",
+            s.span,
+            "a query only reads the state: it emits nothing",
+          )
+        }
+        queries.push(self.signal(s, ftys))
+      }
       Invariant(i) => {
         self.snake(i.name, "invariant")
         invariants.push({
@@ -787,6 +799,7 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
     messages,
     notifies,
     asks,
+    queries,
     invariants,
     init_hook,
     loops,

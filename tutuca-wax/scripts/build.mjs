@@ -21,9 +21,10 @@
 //   types, since the functions are the runtime's);
 // - the import block of the component ABI, read from src/abi.wax.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packAgentDir } from "./pack-agent.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -102,7 +103,61 @@ export const COMPONENTS = [
 	{ name: "kanban", tcd: "components/kanban/kanban.tcd", impl: ["components/kanban/kanban.wax"] },
 	// The studio's own tabs, scope picker and menu (studio/studio.js hosts them).
 	{ name: "studio", tcd: "studio/studio.tcd", impl: ["studio/studio.wax"] },
+	// The micro-agents' kit: the MicroAgent interface their roots implement.
+	{ name: "microagent_kit", tcd: "microagents/kit/kit.tcd", impl: ["microagents/kit/kit.wax"] },
+	// The micro-agents' shell: the agents, the sessions, the chat (microagents/main.js hosts it).
+	{ name: "microagents", tcd: "microagents/microagents.tcd", impl: ["microagents/microagents.wax"] },
 ];
+
+// The micro-agents (microagents/agents/<id>/): each built from its agent.tcd
+// and agent.wax, then packed with its folder's metadata
+// (scripts/pack-agent.mjs) into dist/agents/<id>.wasm.
+const AGENTS_DIR = "microagents/agents";
+export const agentIds = () =>
+	existsSync(join(root, AGENTS_DIR))
+		? readdirSync(join(root, AGENTS_DIR))
+				.filter((id) => existsSync(join(root, AGENTS_DIR, id, "agent.tcd")))
+				.sort()
+		: [];
+
+// The engines the micro-agents' host functions use (microagents/engines/):
+// the bundles tutuca's scripts/vendor.js makes in ../demos/deps/, copied to
+// dist/engines/ (made there first when they're missing). One that can't be
+// made is left out, with a warning: the agents that need it say so.
+export const ENGINES = ["ajv", "jq", "jsonpath", "picomatch", "vega", "echarts"];
+function copyEngines() {
+	const parent = join(root, "..");
+	const from = (name) => join(parent, "demos/deps", `${name}.js`);
+	const missing = ENGINES.filter((name) => !existsSync(from(name)));
+	if (missing.length > 0 && existsSync(join(parent, "scripts/vendor.js"))) {
+		const result = spawnSync("node", ["scripts/vendor.js", "--if-missing", ...missing], { cwd: parent, encoding: "utf8" });
+		if (result.status !== 0) process.stderr.write(`${result.stdout}${result.stderr}`);
+	}
+	mkdirSync(join(root, "dist/engines"), { recursive: true });
+	for (const name of ENGINES) {
+		if (existsSync(from(name))) copyFileSync(from(name), join(root, "dist/engines", `${name}.js`));
+		else process.stderr.write(`warning: no ${from(name)}: the agents that use ${name} won't load\n`);
+	}
+	return "dist/engines/";
+}
+
+// The built-in agents' ids, for the shell to load (dist/agents/index.json):
+// the ones built.
+function writeAgentIndex() {
+	const out = "dist/agents/index.json";
+	mkdirSync(join(root, "dist/agents"), { recursive: true });
+	const built = agentIds().filter((id) => existsSync(join(root, `dist/agents/${id}.wasm`)));
+	writeFileSync(join(root, out), `${JSON.stringify(built)}\n`);
+	return out;
+}
+
+function buildAgent(id) {
+	const dir = `${AGENTS_DIR}/${id}`;
+	const out = buildTcd({ name: `agents/${id}`, tcd: `${dir}/agent.tcd`, impl: [`${dir}/agent.wax`] });
+	const model = JSON.parse(readFileSync(join(root, `dist/agents/${id}.model.json`), "utf8"));
+	writeFileSync(join(root, `dist/agents/${id}.wasm`), packAgentDir(join(root, dir), readFileSync(join(root, `dist/agents/${id}.wasm`)), model));
+	return out;
+}
 
 
 const TARGETS = [
@@ -322,7 +377,7 @@ export function writeExamples() {
 
 export function build() {
 	generatePrelude();
-	return [...TARGETS.map(buildTarget), buildTcdWeb(), writeExamples()];
+	return [...TARGETS.map(buildTarget), ...agentIds().map(buildAgent), writeAgentIndex(), copyEngines(), buildTcdWeb(), writeExamples()];
 }
 
 // A component module defined in TCD: tcd generates its contract and glue
@@ -382,6 +437,13 @@ function buildTarget(target) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	try {
+		// `node scripts/build.mjs agent <id>...`: only those agents (the rest of
+		// dist/ must be built already), then the agents' index.
+		if (process.argv[2] === "agent") {
+			for (const id of process.argv.slice(3)) console.log(`built ${buildAgent(id)}`);
+			console.log(`built ${writeAgentIndex()}`);
+			process.exit(0);
+		}
 		for (const out of build()) console.log(`built ${out}`);
 	} catch (error) {
 		console.error(error.message);

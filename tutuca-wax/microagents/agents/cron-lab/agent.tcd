@@ -1,0 +1,94 @@
+// cron-lab: standard 5-field cron expressions (minute hour day month
+// weekday, or a macro), each described in English and run forward from its
+// reference time ("from") to show its next runs. A cron may say which first
+// run it expects (expect_next). Runs are computed in UTC, so the same data
+// always shows the same runs; the timezone only says how they read there.
+// Parsing, the English and the runs are the page's (host functions cron_*,
+// microagents/engines/cron.js). The root's messages are the agent's tools;
+// the rows' inputs and the builder's chips send the same messages.
+package tutuca:cron_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component CronLab: MicroAgent {
+    /// The cron expressions, each with an id the model names it by (c1, c2, …), a timezone label,
+    /// the ISO time its runs count from ("" for 2025-01-01T00:00:00Z) and the ISO time its first run should be ("" for none).
+    field crons: list<record { id: string, expression: string, timezone: string, from: string, expect_next: string }>
+        where len(crons) >= 1;
+    /// The cron the builder edits; "" for the first.
+    field focus: string;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    /// The crons as rows: why each doesn't parse, or its English and next 5 runs, and whether its expectation passes.
+    get cron_rows: list<record { id: string, expression: string, timezone: string, from: string, expect_next: string,
+        error: string, description: string, status: string, status_text: string, from_label: string,
+        runs: list<record { text: string }> }>;
+    get focus_label: string;
+    /// The builder of the focused cron: per field a label, then a chip per value, the ones it picks on.
+    get chips: list<record { label: string, status: string, title: string }>;
+
+    /// An expression's English description, each field's text and values, and its next 5 runs.
+    query explain(id: string) -> any;
+    /// The next count runs of an expression (at most 100), as UTC ISO times.
+    query next_runs(id: string, count: s32 where 1 <= count <= 100) -> any;
+
+    /// Replace an expression (5 fields or a macro such as @daily).
+    message set_expression(id: string, expression: string) when any(crons, it.id == id) changes crons;
+    /// Replace one field of an expression: minute, hour, day, month or weekday.
+    message set_field(id: string, name: string where name in ["minute", "hour", "day", "month", "weekday"], value: string)
+        when any(crons, it.id == id) changes crons;
+    /// Add an expression (timezone UTC); it gets the next free id (c1, c2, …).
+    message add_cron(expression: string) changes crons ensures len(next.crons) == len(crons) + 1;
+    /// Remove an expression.
+    message remove_cron(id: string) when any(crons, it.id == id) and len(crons) > 1 changes crons, focus
+        ensures len(next.crons) == len(crons) - 1;
+    /// Move an expression to a position (0 is first).
+    message reorder_crons(id: string, index: s32 where index >= 0) when any(crons, it.id == id) changes crons
+        ensures len(next.crons) == len(crons);
+    /// Change the timezone of an expression (an IANA name such as Europe/Berlin): its runs stay computed in UTC, and also read in that zone.
+    message set_timezone(id: string, timezone: string) when any(crons, it.id == id) changes crons;
+    /// Set the ISO time an expression's runs count from, or "" for the default (2025-01-01T00:00:00Z).
+    message set_from(id: string, iso: string)
+        when any(crons, it.id == id) and (iso == "" or iso matches "^[+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?$")
+        changes crons;
+    /// Set the ISO time an expression's first run should be, or "" to clear it.
+    message set_expected_next(id: string, iso: string)
+        when any(crons, it.id == id) and (iso == "" or iso matches "^[+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?$")
+        changes crons;
+    /// Which cron the builder edits.
+    message focus(id: string) changes focus ensures next.focus == id;
+    /// From the builder: the chip at index i turns its value on or off in the focused cron.
+    message toggle_chip(i: s32 where i >= 0) changes crons;
+
+    view main = div(class: "flex flex-col gap-3",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "Cron lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        div(class: "flex flex-col gap-2",
+            each(field(cron_rows),
+                div(class: "flex flex-col gap-1 rounded-box border border-base-300 p-2",
+                    div(class: "join w-full",
+                        button(class: "btn btn-sm join-item font-mono", title: "Edit in the builder", on_click: send(focus, field(id)), field(id)),
+                        input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "Expression",
+                            value: field(expression), on_input: send(set_expression, field(id), target_value())),
+                        input(class: "input input-sm input-bordered join-item w-40", "aria-label": "Timezone",
+                            value: field(timezone), on_input: send(set_timezone, field(id), target_value())),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove", on_click: send(remove_cron, field(id)), "✕")),
+                    if(field(error) != "", p(class: "text-sm text-error", field(error)), p(class: "text-sm font-semibold", field(description))),
+                    if(field(status) == "pass", span(class: "badge badge-success", field(status_text))),
+                    if(field(status) == "fail", span(class: "badge badge-error", field(status_text))),
+                    p(class: "text-xs opacity-60", field(from_label)),
+                    ul(class: "font-mono text-xs", each(field(runs), li(field(text)))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_cron, "* * * * *"), "+ Expression")),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Builder · ", span(class: "font-mono normal-case", field(focus_label))),
+        p(class: "text-xs opacity-60", "Click a value to add it to or remove it from the field."),
+        div(class: "flex flex-wrap items-center gap-0.5 text-xs",
+            each(field(chips),
+                button(class: if(field(status) == "on", "btn btn-xs min-h-0 h-6 px-1 font-mono btn-primary",
+                        if(field(status) == "off", "btn btn-xs min-h-0 h-6 px-1 font-mono btn-ghost opacity-60",
+                        "basis-full pt-1 text-left opacity-60")),
+                    title: field(title), on_click: send(toggle_chip, source_key()), field(label)))));
+}

@@ -1,0 +1,730 @@
+// datefmt-lab's implementation (agent.tcd has the rest): the table of
+// instants × formats and its expectations, the rows, the summary. The
+// formatting is the page's, through host_call (microagents/engines/datefmt.js).
+// The formats are the strftime ones, then the Intl ones: format k is
+// strftimes[k] when k < len(strftimes), else intls[k - len(strftimes)].
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "i"]
+    const s_i: js_string;
+    #[import = "f"]
+    const s_f: js_string;
+    #[import = "en-US"]
+    const s_en_us: js_string;
+    #[import = "dateStyle"]
+    const s_date_style: js_string;
+    #[import = "medium"]
+    const s_medium: js_string;
+    #[import = "datefmt_iso"]
+    const s_datefmt_iso: js_string;
+    #[import = "datefmt_strftime"]
+    const s_datefmt_strftime: js_string;
+    #[import = "datefmt_strftime_errors"]
+    const s_datefmt_strftime_errors: js_string;
+    #[import = "datefmt_intl"]
+    const s_datefmt_intl: js_string;
+    #[import = "datefmt_intl_info"]
+    const s_datefmt_intl_info: js_string;
+    #[import = "datefmt_parts"]
+    const s_datefmt_parts: js_string;
+    #[import = "datefmt_option_rows"]
+    const s_datefmt_option_rows: js_string;
+    #[import = "datefmt_directives"]
+    const s_datefmt_directives: js_string;
+    #[import = "text"]
+    const s_text: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "resolved"]
+    const s_resolved: js_string;
+    #[import = "type"]
+    const s_type: js_string;
+    #[import = "value"]
+    const s_value: js_string;
+    #[import = "name"]
+    const s_name: js_string;
+    #[import = "choices"]
+    const s_choices: js_string;
+    #[import = "head"]
+    const s_head: js_string;
+    #[import = "option"]
+    const s_option: js_string;
+    #[import = "output"]
+    const s_output: js_string;
+    #[import = "expected"]
+    const s_expected: js_string;
+    #[import = "status"]
+    const s_status: js_string;
+    #[import = "cells"]
+    const s_cells: js_string;
+    #[import = "instant"]
+    const s_instant: js_string;
+    #[import = "format"]
+    const s_format: js_string;
+    #[import = "iso"]
+    const s_iso: js_string;
+    #[import = "pass"]
+    const s_pass: js_string;
+    #[import = "fail"]
+    const s_fail: js_string;
+    #[import = "none"]
+    const s_none: js_string;
+    #[import = "label"]
+    const s_label: js_string;
+    #[import = " isn't an ISO time"]
+    const s_not_iso: js_string;
+    #[import = "expected: "]
+    const s_expected_colon: js_string;
+    #[import = "nothing"]
+    const s_nothing: js_string;
+    #[import = "; click to pin or clear"]
+    const s_click: js_string;
+    #[import = "grid-template-columns: max-content repeat("]
+    const s_grid_open: js_string;
+    #[import = ", max-content)"]
+    const s_grid_close: js_string;
+    #[import = " pass · "]
+    const s_pass_dot: js_string;
+    #[import = " fail · "]
+    const s_fail_dot: js_string;
+    #[import = " unset · "]
+    const s_unset_dot: js_string;
+    #[import = " error"]
+    const s_error_sp: js_string;
+    #[import = " instants, "]
+    const s_instants_comma: js_string;
+    #[import = " strftime formats, "]
+    const s_strftimes_comma: js_string;
+    #[import = " Intl formats: "]
+    const s_intls_colon: js_string;
+    #[import = " expectations pass, "]
+    const s_exp_pass: js_string;
+    #[import = " fail, "]
+    const s_fail_comma: js_string;
+    #[import = " cells error."]
+    const s_cells_error: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "instants:"]
+    const s_instants_label: js_string;
+    #[import = "formats:"]
+    const s_formats_label: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " (invalid)"]
+    const s_invalid_paren: js_string;
+    #[import = ": strftime "]
+    const s_colon_strftime: js_string;
+    #[import = ": Intl "]
+    const s_colon_intl: js_string;
+    #[import = " "]
+    const s_space: js_string;
+    #[import = " expects "]
+    const s_expects: js_string;
+    #[import = "instants"]
+    const s_instants: js_string;
+    #[import = "strftimes"]
+    const s_strftimes: js_string;
+    #[import = "intls"]
+    const s_intls: js_string;
+}
+
+// ---- Text --------------------------------------------------------------------------
+
+fn df_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn df_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn df_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn df_is_empty(s: js_string) -> i32 {
+    js_string_length(s) == 0;
+}
+
+fn df_map2(k1: js_string, v1: &value, k2: js_string, v2: &value) -> &value {
+    map_assoc(map_assoc(map_empty(), k1, v1), k2, v2);
+}
+
+// ---- The page's formatting ---------------------------------------------------------
+
+fn df_args1(a: &value) -> &value {
+    list_push(list_empty(), a);
+}
+
+fn df_args2(a: &value, b: &value) -> &value {
+    list_push(df_args1(a), b);
+}
+
+fn df_args3(a: &value, b: &value, c: &value) -> &value {
+    list_push(df_args2(a, b), c);
+}
+
+// What the host function name answered with args, or null when it failed.
+fn df_call(name: js_string, args: &value) -> &?value {
+    let r = host_call(name, args) as &value_result;
+    if !r.ok {
+        return null;
+    }
+    r.value;
+}
+
+// text as an ISO time (toISOString), or null when it isn't one.
+fn df_iso(text: js_string) -> js_string_opt {
+    let got = df_call(s_datefmt_iso, df_args1(value_string(text)));
+    if !got {
+        return null;
+    }
+    value_string_of(got!);
+}
+
+// Why a strftime pattern has errors; "" when it has none.
+fn df_strftime_errors(format: js_string) -> js_string {
+    let got = df_call(s_datefmt_strftime_errors, df_args1(value_string(format)));
+    if !got {
+        return s_empty;
+    }
+    df_str(got!);
+}
+
+// ---- Formats -----------------------------------------------------------------------
+
+fn df_id(r: &value) -> js_string {
+    df_str(value_member(r, gs_id));
+}
+
+fn df_format_count(state: &datefmt_lab_state) -> i32 {
+    list_count(state.strftimes) + list_count(state.intls);
+}
+
+fn df_is_strftime(state: &datefmt_lab_state, k: i32) -> i32 {
+    k <s list_count(state.strftimes);
+}
+
+fn df_format_at(state: &datefmt_lab_state, k: i32) -> &value {
+    if df_is_strftime(state, k) {
+        return list_get(state.strftimes, k)!;
+    }
+    list_get(state.intls, k - list_count(state.strftimes))!;
+}
+
+// The index k of the format with id, or -1.
+fn df_format_index(state: &datefmt_lab_state, id: js_string) -> i32 {
+    let s = list_find(state.strftimes, gs_id, id);
+    if s >=s 0 {
+        return s;
+    }
+    let i = list_find(state.intls, gs_id, id);
+    if i <s 0 {
+        return -1;
+    }
+    list_count(state.strftimes) + i;
+}
+
+fn df_expect_of(f: &value) -> &value {
+    value_member(f, gs_expect);
+}
+
+// The next free format id, across both kinds (f1, f2, …).
+fn df_next_format_id(state: &datefmt_lab_state) -> js_string {
+    let all = state.strftimes;
+    let i = 0;
+    while i <s list_count(state.intls) {
+        all = list_push(all, list_get(state.intls, i)!);
+        i += 1;
+    }
+    list_next_id(all, gs_id, s_f);
+}
+
+// state with format k's expectations replaced by expect.
+fn df_with_expect(state: &datefmt_lab_state, k: i32, expect: &value) -> &datefmt_lab_state {
+    let f = df_format_at(state, k);
+    if df_is_strftime(state, k) {
+        let next = datefmt_lab_strftimes_new(df_id(f), datefmt_lab_strftimes_format(f), expect);
+        return datefmt_lab_with_strftimes(state, list_assoc(state.strftimes, k, next));
+    }
+    let j = k - list_count(state.strftimes);
+    let next = datefmt_lab_intls_new(df_id(f), datefmt_lab_intls_locale(f), datefmt_lab_intls_options(f), expect);
+    datefmt_lab_with_intls(state, list_assoc(state.intls, j, next));
+}
+
+// Format k's expectation for instant id set to expected ("" clears it).
+fn df_with_expectation(state: &datefmt_lab_state, k: i32, instant: js_string, expected: js_string) -> &datefmt_lab_state {
+    let expect = df_expect_of(df_format_at(state, k));
+    let next = if df_is_empty(expected) { map_dissoc(expect, instant); } else { map_assoc(expect, instant, value_string(expected)); };
+    df_with_expect(state, k, next);
+}
+
+// Format k applied to the ISO time iso: { text, error }.
+fn df_render(state: &datefmt_lab_state, k: i32, iso: js_string) -> &value {
+    let f = df_format_at(state, k);
+    let got = if df_is_strftime(state, k) {
+        df_call(s_datefmt_strftime, df_args2(value_string(datefmt_lab_strftimes_format(f)), value_string(iso)));
+    } else {
+        df_call(s_datefmt_intl, df_args3(value_string(datefmt_lab_intls_locale(f)), datefmt_lab_intls_options(f), value_string(iso)));
+    };
+    if !got {
+        return df_map2(s_text, value_string(s_empty), s_error, value_string(df_cat(json_string(iso), s_not_iso)));
+    }
+    got!;
+}
+
+// One cell: { output, expected (a string or null), status: pass | fail | none | error, error }.
+fn df_cell(state: &datefmt_lab_state, instant: &value, k: i32) -> &value {
+    let got = map_get(df_expect_of(df_format_at(state, k)), df_id(instant));
+    let expected = if !got { value_null(); } else { got!; };
+    let raw = datefmt_lab_instants_iso(instant);
+    let iso = df_iso(raw);
+    let output = s_empty;
+    let error = df_cat(json_string(raw), s_not_iso);
+    if !!iso {
+        let r = df_render(state, k, iso!);
+        output = df_str(value_member(r, s_text));
+        error = df_str(value_member(r, s_error));
+    }
+    let status = s_error;
+    if df_is_empty(error) {
+        status = s_none;
+        if !!got {
+            status = if js_string_equals(df_str(got!), output) { s_pass; } else { s_fail; };
+        }
+    }
+    let out = df_map2(s_output, value_string(output), s_expected, expected);
+    out = map_assoc(out, s_status, value_string(status));
+    map_assoc(out, s_error, value_string(error));
+}
+
+fn df_cell_status(cell: &value) -> js_string {
+    df_str(value_member(cell, s_status));
+}
+
+// The instant's ISO time, or what it holds when it isn't one.
+fn df_instant_iso(instant: &value) -> js_string {
+    let raw = datefmt_lab_instants_iso(instant);
+    let iso = df_iso(raw);
+    if !iso {
+        return raw;
+    }
+    iso!;
+}
+
+// Counts of statuses over every cell: (pass, fail, none, error).
+fn df_counts(state: &datefmt_lab_state) -> (i32, i32, i32, i32) {
+    let pass = 0;
+    let fail = 0;
+    let none = 0;
+    let error = 0;
+    let ii = 0;
+    while ii <s list_count(state.instants) {
+        let instant = list_get(state.instants, ii)!;
+        let k = 0;
+        while k <s df_format_count(state) {
+            let st = df_cell_status(df_cell(state, instant, k));
+            if js_string_equals(st, s_pass) {
+                pass += 1;
+            }
+            if js_string_equals(st, s_fail) {
+                fail += 1;
+            }
+            if js_string_equals(st, s_none) {
+                none += 1;
+            }
+            if js_string_equals(st, s_error) {
+                error += 1;
+            }
+            k += 1;
+        }
+        ii += 1;
+    }
+    (pass, fail, none, error);
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn datefmt_lab_get_formatted(state: &datefmt_lab_state) -> &value {
+    let out = list_empty();
+    let ii = 0;
+    while ii <s list_count(state.instants) {
+        let instant = list_get(state.instants, ii)!;
+        let cells = list_empty();
+        let k = 0;
+        while k <s df_format_count(state) {
+            let cell = map_assoc(df_cell(state, instant, k), s_format, value_string(df_id(df_format_at(state, k))));
+            cells = list_push(cells, cell);
+            k += 1;
+        }
+        let row = df_map2(s_instant, value_string(df_id(instant)), s_iso, value_string(df_instant_iso(instant)));
+        out = list_push(out, map_assoc(row, s_cells, cells));
+        ii += 1;
+    }
+    out;
+}
+
+fn datefmt_lab_get_grid_cells(state: &datefmt_lab_state) -> &value {
+    let out = list_push(list_empty(), datefmt_lab_grid_cells_new(s_instant, s_empty, s_label));
+    let k = 0;
+    while k <s df_format_count(state) {
+        out = list_push(out, datefmt_lab_grid_cells_new(df_id(df_format_at(state, k)), s_empty, s_label));
+        k += 1;
+    }
+    let ii = 0;
+    while ii <s list_count(state.instants) {
+        let instant = list_get(state.instants, ii)!;
+        out = list_push(out, datefmt_lab_grid_cells_new(df_instant_iso(instant), df_id(instant), s_label));
+        let k = 0;
+        while k <s df_format_count(state) {
+            let cell = df_cell(state, instant, k);
+            let output = df_str(value_member(cell, s_output));
+            let error = df_str(value_member(cell, s_error));
+            let label = if df_is_empty(output) { s_error; } else { output; };
+            let expected = value_member(cell, s_expected);
+            let wanted = if expected.kind == value_kind_string { df_str(expected); } else { s_nothing; };
+            let title = if df_is_empty(error) { df_cat3(s_expected_colon, wanted, s_click); } else { error; };
+            out = list_push(out, datefmt_lab_grid_cells_new(label, title, df_cell_status(cell)));
+            k += 1;
+        }
+        ii += 1;
+    }
+    out;
+}
+
+fn datefmt_lab_get_grid_style(state: &datefmt_lab_state) -> js_string {
+    df_cat3(s_grid_open, int_text(df_format_count(state)), s_grid_close);
+}
+
+fn datefmt_lab_get_instant_rows(state: &datefmt_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.instants) {
+        let instant = list_get(state.instants, i)!;
+        let raw = datefmt_lab_instants_iso(instant);
+        let error = if !df_iso(raw) { df_cat(json_string(raw), s_not_iso); } else { s_empty; };
+        out = list_push(out, datefmt_lab_instant_rows_new(df_id(instant), raw, error));
+        i += 1;
+    }
+    out;
+}
+
+fn datefmt_lab_get_strftime_rows(state: &datefmt_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.strftimes) {
+        let f = list_get(state.strftimes, i)!;
+        let format = datefmt_lab_strftimes_format(f);
+        out = list_push(out, datefmt_lab_strftime_rows_new(df_id(f), format, df_strftime_errors(format)));
+        i += 1;
+    }
+    out;
+}
+
+fn datefmt_lab_get_intl_cells(state: &datefmt_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.intls) {
+        let f = list_get(state.intls, i)!;
+        let id = df_id(f);
+        let locale = datefmt_lab_intls_locale(f);
+        let options = datefmt_lab_intls_options(f);
+        let info = df_call(s_datefmt_intl_info, df_args2(value_string(locale), options));
+        let error = s_empty;
+        let resolved = list_empty();
+        if !!info {
+            error = df_str(value_member(info!, s_error));
+            let texts = value_member(info!, s_resolved);
+            let j = 0;
+            while j <s list_count(texts) {
+                resolved = list_push(resolved, datefmt_lab_intl_cells_resolved_new(df_str(list_get(texts, j)!)));
+                j += 1;
+            }
+        }
+        out = list_push(out, datefmt_lab_intl_cells_new(s_head, id, s_empty, locale, list_empty(), error, resolved));
+        let rows = df_call(s_datefmt_option_rows, df_args1(options));
+        if !!rows {
+            let j = 0;
+            while j <s list_count(rows!) {
+                let row = list_get(rows!, j)!;
+                out = list_push(out, datefmt_lab_intl_cells_new(s_option, id, df_str(value_member(row, s_name)),
+                    df_str(value_member(row, s_value)), value_member(row, s_choices), s_empty, list_empty()));
+                j += 1;
+            }
+        }
+        i += 1;
+    }
+    out;
+}
+
+fn datefmt_lab_get_part_rows(state: &datefmt_lab_state) -> &value {
+    let out = list_empty();
+    let first = s_empty;
+    let found = 0;
+    let ii = 0;
+    while (ii <s list_count(state.instants)) & !found {
+        let iso = df_iso(datefmt_lab_instants_iso(list_get(state.instants, ii)!));
+        if !!iso {
+            first = iso!;
+            found = 1;
+        }
+        ii += 1;
+    }
+    if !found {
+        return out;
+    }
+    let i = 0;
+    while i <s list_count(state.intls) {
+        let f = list_get(state.intls, i)!;
+        let args = df_args3(value_string(datefmt_lab_intls_locale(f)), datefmt_lab_intls_options(f), value_string(first));
+        let got = df_call(s_datefmt_parts, args);
+        let parts = list_empty();
+        if !!got {
+            let j = 0;
+            while j <s list_count(got!) {
+                let p = list_get(got!, j)!;
+                parts = list_push(parts, datefmt_lab_part_rows_parts_new(df_str(value_member(p, s_value)), df_str(value_member(p, s_type))));
+                j += 1;
+            }
+        }
+        out = list_push(out, datefmt_lab_part_rows_new(df_id(f), parts));
+        i += 1;
+    }
+    out;
+}
+
+fn datefmt_lab_get_directives(state: &datefmt_lab_state) -> &value {
+    let got = df_call(s_datefmt_directives, list_empty());
+    if !got {
+        return map_empty();
+    }
+    got!;
+}
+
+fn datefmt_lab_get_headline(state: &datefmt_lab_state) -> js_string {
+    let (pass, fail, none, error) = df_counts(state);
+    let out = df_cat3(int_text(pass), s_pass_dot, int_text(fail));
+    out = df_cat3(out, s_fail_dot, int_text(none));
+    df_cat3(out, s_unset_dot, df_cat(int_text(error), s_error_sp));
+}
+
+// " expects {…}" when f has expectations, else "".
+fn df_expects_text(f: &value) -> js_string {
+    let expect = df_expect_of(f);
+    if map_count(expect) == 0 {
+        return s_empty;
+    }
+    df_cat(s_expects, value_json(expect, 0));
+}
+
+fn datefmt_lab_get_summary(state: &datefmt_lab_state) -> js_string {
+    let (pass, fail, none, error) = df_counts(state);
+    let out = df_cat3(int_text(list_count(state.instants)), s_instants_comma, int_text(list_count(state.strftimes)));
+    out = df_cat3(out, s_strftimes_comma, int_text(list_count(state.intls)));
+    out = df_cat3(out, s_intls_colon, df_cat(int_text(pass), s_exp_pass));
+    out = df_cat3(out, int_text(fail), s_fail_comma);
+    out = df_cat3(out, int_text(error), s_cells_error);
+    out = df_cat3(out, s_nl, s_instants_label);
+    let i = 0;
+    while i <s list_count(state.instants) {
+        let instant = list_get(state.instants, i)!;
+        let line = df_cat3(s_indent, df_id(instant), s_colon_sp);
+        line = df_cat(line, df_instant_iso(instant));
+        if !df_iso(datefmt_lab_instants_iso(instant)) {
+            line = df_cat(line, s_invalid_paren);
+        }
+        out = df_cat3(out, s_nl, line);
+        i += 1;
+    }
+    out = df_cat3(out, s_nl, s_formats_label);
+    let j = 0;
+    while j <s list_count(state.strftimes) {
+        let f = list_get(state.strftimes, j)!;
+        let line = df_cat3(s_indent, df_id(f), s_colon_strftime);
+        line = df_cat3(line, json_string(datefmt_lab_strftimes_format(f)), df_expects_text(f));
+        out = df_cat3(out, s_nl, line);
+        j += 1;
+    }
+    let k = 0;
+    while k <s list_count(state.intls) {
+        let f = list_get(state.intls, k)!;
+        let locale = datefmt_lab_intls_locale(f);
+        let shown = if df_is_empty(locale) { s_en_us; } else { locale; };
+        let line = df_cat3(s_indent, df_id(f), s_colon_intl);
+        line = df_cat3(line, shown, s_space);
+        line = df_cat3(line, value_json(datefmt_lab_intls_options(f), 0), df_expects_text(f));
+        out = df_cat3(out, s_nl, line);
+        k += 1;
+    }
+    out;
+}
+
+// The JSON it opened, changed: { instants, strftimes, intls }.
+fn datefmt_lab_get_data(state: &datefmt_lab_state) -> &value {
+    let out = df_map2(s_instants, state.instants, s_strftimes, state.strftimes);
+    map_assoc(out, s_intls, state.intls);
+}
+
+fn datefmt_lab_get_domain(state: &datefmt_lab_state) -> &value {
+    datefmt_lab_get_data(state);
+}
+
+// ---- Queries -----------------------------------------------------------------------
+
+fn datefmt_lab_query_try_strftime(state: &datefmt_lab_state, format: js_string) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.instants) {
+        let instant = list_get(state.instants, i)!;
+        let raw = datefmt_lab_instants_iso(instant);
+        let got = df_call(s_datefmt_strftime, df_args2(value_string(format), value_string(raw)));
+        let r = if !got {
+            df_map2(s_text, value_string(s_empty), s_error, value_string(df_cat(json_string(raw), s_not_iso)));
+        } else {
+            got!;
+        };
+        out = list_push(out, map_assoc(r, s_instant, value_string(df_id(instant))));
+        i += 1;
+    }
+    out;
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn datefmt_lab_on_add_instant(state: &datefmt_lab_state, ctx: &context, iso: js_string) -> &datefmt_lab_state {
+    let id = list_next_id(state.instants, gs_id, s_i);
+    datefmt_lab_with_instants(state, list_push(state.instants, datefmt_lab_instants_new(id, iso)));
+}
+
+fn datefmt_lab_on_set_instant(state: &datefmt_lab_state, ctx: &context, id: js_string, iso: js_string) -> &datefmt_lab_state {
+    let i = list_find(state.instants, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    datefmt_lab_with_instants(state, list_assoc(state.instants, i, datefmt_lab_instants_new(id, iso)));
+}
+
+fn datefmt_lab_on_remove_instant(state: &datefmt_lab_state, ctx: &context, id: js_string) -> &datefmt_lab_state {
+    let i = list_find(state.instants, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let next = datefmt_lab_with_instants(state, list_remove_at(state.instants, i));
+    let k = 0;
+    while k <s df_format_count(next) {
+        if !!map_get(df_expect_of(df_format_at(next, k)), id) {
+            next = df_with_expectation(next, k, id, s_empty);
+        }
+        k += 1;
+    }
+    next;
+}
+
+fn datefmt_lab_on_reorder_instants(state: &datefmt_lab_state, ctx: &context, id: js_string, index: i32) -> &datefmt_lab_state {
+    datefmt_lab_with_instants(state, list_move(state.instants, list_find(state.instants, gs_id, id), index));
+}
+
+fn datefmt_lab_on_add_strftime(state: &datefmt_lab_state, ctx: &context, format: js_string) -> &datefmt_lab_state {
+    let f = datefmt_lab_strftimes_new(df_next_format_id(state), format, map_empty());
+    datefmt_lab_with_strftimes(state, list_push(state.strftimes, f));
+}
+
+fn datefmt_lab_on_set_strftime(state: &datefmt_lab_state, ctx: &context, id: js_string, format: js_string) -> &datefmt_lab_state {
+    let i = list_find(state.strftimes, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let old = list_get(state.strftimes, i)!;
+    let f = datefmt_lab_strftimes_new(id, format, df_expect_of(old));
+    datefmt_lab_with_strftimes(state, list_assoc(state.strftimes, i, f));
+}
+
+fn datefmt_lab_on_reorder_strftimes(state: &datefmt_lab_state, ctx: &context, id: js_string, index: i32) -> &datefmt_lab_state {
+    datefmt_lab_with_strftimes(state, list_move(state.strftimes, list_find(state.strftimes, gs_id, id), index));
+}
+
+fn datefmt_lab_on_add_intl(state: &datefmt_lab_state, ctx: &context, locale: js_string) -> &datefmt_lab_state {
+    let options = map_assoc(map_empty(), s_date_style, value_string(s_medium));
+    let f = datefmt_lab_intls_new(df_next_format_id(state), locale, options, map_empty());
+    datefmt_lab_with_intls(state, list_push(state.intls, f));
+}
+
+fn datefmt_lab_on_set_locale(state: &datefmt_lab_state, ctx: &context, id: js_string, locale: js_string) -> &datefmt_lab_state {
+    let i = list_find(state.intls, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let old = list_get(state.intls, i)!;
+    let f = datefmt_lab_intls_new(id, locale, datefmt_lab_intls_options(old), df_expect_of(old));
+    datefmt_lab_with_intls(state, list_assoc(state.intls, i, f));
+}
+
+fn datefmt_lab_on_set_intl_option(state: &datefmt_lab_state, ctx: &context, id: js_string, option: js_string, value: js_string) -> &datefmt_lab_state {
+    let i = list_find(state.intls, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let old = list_get(state.intls, i)!;
+    let options = datefmt_lab_intls_options(old);
+    let next = if df_is_empty(value) { map_dissoc(options, option); } else { map_assoc(options, option, value_string(value)); };
+    let f = datefmt_lab_intls_new(id, datefmt_lab_intls_locale(old), next, df_expect_of(old));
+    datefmt_lab_with_intls(state, list_assoc(state.intls, i, f));
+}
+
+fn datefmt_lab_on_reorder_intls(state: &datefmt_lab_state, ctx: &context, id: js_string, index: i32) -> &datefmt_lab_state {
+    datefmt_lab_with_intls(state, list_move(state.intls, list_find(state.intls, gs_id, id), index));
+}
+
+fn datefmt_lab_on_remove_format(state: &datefmt_lab_state, ctx: &context, id: js_string) -> &datefmt_lab_state {
+    let s = list_find(state.strftimes, gs_id, id);
+    if s >=s 0 {
+        return datefmt_lab_with_strftimes(state, list_remove_at(state.strftimes, s));
+    }
+    let i = list_find(state.intls, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    datefmt_lab_with_intls(state, list_remove_at(state.intls, i));
+}
+
+fn datefmt_lab_on_set_expectation(state: &datefmt_lab_state, ctx: &context, format: js_string, instant: js_string, expected: js_string) -> &datefmt_lab_state {
+    let k = df_format_index(state, format);
+    if k <s 0 {
+        return state;
+    }
+    df_with_expectation(state, k, instant, expected);
+}
+
+// Cell i of grid_cells: the header row has a corner and a cell per format,
+// then each instant's row has its label and a cell per format.
+fn datefmt_lab_on_pin_cell(state: &datefmt_lab_state, ctx: &context, i: i32) -> &datefmt_lab_state {
+    let width = df_format_count(state) + 1;
+    let row = i /s width - 1;
+    let col = i %s width - 1;
+    if (row <s 0) | (col <s 0) | (row >=s list_count(state.instants)) {
+        return state;
+    }
+    let instant = list_get(state.instants, row)!;
+    let iid = df_id(instant);
+    if !!map_get(df_expect_of(df_format_at(state, col)), iid) {
+        return df_with_expectation(state, col, iid, s_empty);
+    }
+    let cell = df_cell(state, instant, col);
+    if js_string_equals(df_cell_status(cell), s_error) {
+        return state;
+    }
+    let output = df_str(value_member(cell, s_output));
+    if df_is_empty(output) {
+        return state;
+    }
+    df_with_expectation(state, col, iid, output);
+}

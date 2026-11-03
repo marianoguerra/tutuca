@@ -1,0 +1,23 @@
+{
+	"id": "json-schema-lab",
+	"title": "JSON Schema lab",
+	"description": "Validate example documents against a JSON Schema, see which expectations hold and why, and fix the schema.",
+	"needs": "an object with a schema (a JSON Schema, draft 2020-12) and examples ([{ id, value, outcome: \"pass\" | \"fail\" }], at least one)",
+	"icon": "📐",
+	"version": "1",
+	"root": "JsonSchemaLab",
+	"hostFns": ["json_schema"],
+	"skills": ["SKILL.md", "reference/keywords.md"],
+	"tools": [
+		{ "name": "set_schema", "kind": "message", "result": "validation" },
+		{ "name": "patch_schema", "kind": "message", "result": "validation" },
+		{ "name": "remove_from_schema", "kind": "message", "result": "validation" },
+		{ "name": "add_example", "kind": "message" },
+		{ "name": "set_example", "kind": "message", "result": "validation" },
+		{ "name": "remove_example", "kind": "message" },
+		{ "name": "reorder_examples", "kind": "message" },
+		{ "name": "set_expectation", "kind": "message", "result": "validation" },
+		{ "name": "validation", "kind": "view" },
+		{ "name": "errors_for", "kind": "view" }
+	]
+}

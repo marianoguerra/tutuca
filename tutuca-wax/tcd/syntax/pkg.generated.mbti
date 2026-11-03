@@ -133,6 +133,7 @@ pub(all) enum Member {
   Message(Message)
   Notify(Signal)
   Ask(Signal)
+  Query(Signal)
   Invariant(Invariant)
   Init(@diag.Span)
   Loop(LoopDecl)

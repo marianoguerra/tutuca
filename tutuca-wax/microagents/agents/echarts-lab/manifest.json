@@ -1,0 +1,21 @@
+{
+	"id": "echarts-lab",
+	"title": "ECharts lab",
+	"description": "Write and fix an Apache ECharts option against your tables: see errors, warnings and the live chart.",
+	"needs": "an object with option (an ECharts option: an object with at least one key) and tables ([{ id, rows: [row objects] }] or [{ id, csv: CSV text, delimiter? }]) that its series read with datasetId",
+	"icon": "📈",
+	"version": "1",
+	"root": "EchartsLab",
+	"hostFns": ["echarts"],
+	"skills": ["SKILL.md", "reference/series.md"],
+	"tools": [
+		{ "name": "set_option", "kind": "message", "result": "edit_report" },
+		{ "name": "patch_option", "kind": "message", "result": "edit_report" },
+		{ "name": "remove_option_key", "kind": "message", "result": "edit_report" },
+		{ "name": "set_table", "kind": "message" },
+		{ "name": "remove_table", "kind": "message" },
+		{ "name": "reorder_tables", "kind": "message" },
+		{ "name": "compile_report", "kind": "view" },
+		{ "name": "describe_tables", "kind": "view" }
+	]
+}

@@ -1,0 +1,21 @@
+{
+	"id": "vega-lite-lab",
+	"title": "Vega-Lite lab",
+	"description": "Write and fix a Vega-Lite chart spec against your tables: see compile errors, warnings and the live chart.",
+	"needs": "an object with spec (a Vega-Lite spec: an object with at least one key) and tables ([{ id, rows: [row objects] }] or [{ id, csv: CSV text, delimiter? }]) that the spec names with {\"data\": {\"name\": id}}",
+	"icon": "📊",
+	"version": "1",
+	"root": "VegaLiteLab",
+	"hostFns": ["vega"],
+	"skills": ["SKILL.md", "reference/encoding.md"],
+	"tools": [
+		{ "name": "set_spec", "kind": "message", "result": "edit_report" },
+		{ "name": "patch_spec", "kind": "message", "result": "edit_report" },
+		{ "name": "remove_spec_key", "kind": "message", "result": "edit_report" },
+		{ "name": "set_table", "kind": "message" },
+		{ "name": "remove_table", "kind": "message" },
+		{ "name": "reorder_tables", "kind": "message" },
+		{ "name": "compile_report", "kind": "view" },
+		{ "name": "describe_tables", "kind": "view" }
+	]
+}

@@ -1,0 +1,108 @@
+// jsonpath-lab: JSONPath expressions run against one JSON document. A path
+// may say how many results it should give (expected_count, -1 when it
+// doesn't). The page shows each path's status, the document as a tree with
+// the focused path's matches highlighted, and its results. The document is
+// edited as JSON text, kept while it doesn't parse. The paths run in the
+// page (host functions jsonpath_*, microagents/engines/jsonpath.js, with
+// jsonpath-plus). The root's messages are the agent's tools; the rows'
+// inputs send the same messages.
+package tutuca:jsonpath_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component JsonPathLab: MicroAgent {
+    /// The paths, each with an id the model names it by (p1, p2, …), its JSONPath, and how many results it should give (-1: no expectation).
+    field paths: list<record { id: string, path: string, expected_count: s32 }> where len(paths) >= 1;
+    /// The JSON document the paths run against.
+    field document: any;
+    /// The document as the user edits it; "" until it's edited.
+    field doc_text: string;
+    /// Why doc_text isn't JSON; "" when it is (and document is its value).
+    field doc_error: string;
+    /// The path whose matches the tree highlights; "" for the first.
+    field focus: string;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    /// The document as JSON text, as the editor shows it.
+    get editor_text: string;
+    /// The paths as rows, with why each isn't a JSONPath ("" when it is).
+    get path_rows: list<record { id: string, path: string, problem: string }>;
+    /// Each path's status: pass, fail, none (no expected count) or invalid.
+    get info_rows: list<record { id: string, status: string, label: string }>;
+    get focus_label: string;
+    /// The focused path's results: each one's JSON Pointer and value.
+    get focused_results: list<record { pointer: string, value: string }>;
+    /// The document's nodes, the focused path's matches lit.
+    get tree_rows: list<record { key: string, text: string, style: string, hit: bool }>;
+    /// The document's nodes as JSON Pointers with their types (at most 200), to learn its shape.
+    get document_paths: any;
+
+    /// What a path selects: its count, its expected count if any, and each result's JSON Pointer and value (at most 200).
+    query results(id: string) -> any;
+
+    /// Change a path's JSONPath expression.
+    message set_path(id: string, path: string) when any(paths, it.id == id) changes paths;
+    /// Add a JSONPath expression; it gets the next free id (p1, p2, …).
+    message add_path(path: string) changes paths ensures len(next.paths) == len(paths) + 1;
+    /// Remove a path.
+    message remove_path(id: string) when any(paths, it.id == id) and len(paths) > 1 changes paths, focus
+        ensures len(next.paths) == len(paths) - 1;
+    /// Move a path to a position (0 is first).
+    message reorder_paths(id: string, index: s32 where index >= 0) when any(paths, it.id == id) changes paths
+        ensures len(next.paths) == len(paths);
+    /// Say how many results a path should give, or -1 for no expectation.
+    message set_expected_count(id: string, count: s32 where count >= -1) when any(paths, it.id == id) changes paths;
+    /// Replace the JSON document the paths run against.
+    message set_document(document: any) changes document, doc_text, doc_error;
+    /// The document's text, from its editor: kept while it isn't JSON.
+    message set_document_text(text: string) changes document, doc_text, doc_error;
+    /// Which path the tree highlights.
+    message focus(id: string) changes focus ensures next.focus == id;
+
+    view main = div(class: "flex flex-col gap-4",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "JSONPath lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Paths"),
+        div(class: "flex flex-col gap-1",
+            each(field(path_rows),
+                div(class: "flex flex-col gap-1",
+                    div(class: "join w-full",
+                        button(class: "btn btn-sm join-item font-mono", title: "Highlight this path's matches",
+                            on_click: send(focus, field(id)), field(id)),
+                        input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "JSONPath",
+                            value: field(path), on_input: send(set_path, field(id), target_value())),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove",
+                            on_click: send(remove_path, field(id)), "✕")),
+                    if(field(problem) != "", p(class: "text-xs text-error", field(problem))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_path, "$"), "+ Path")),
+        div(class: "flex flex-col gap-1",
+            each(field(info_rows),
+                div(class: "flex items-center gap-2 text-sm",
+                    span(class: "font-mono text-xs opacity-70", field(id)),
+                    span(class: if(field(status) == "pass", "badge badge-success",
+                            if(field(status) == "fail", "badge badge-error",
+                            if(field(status) == "invalid", "badge badge-warning", "badge badge-ghost"))), field(status)),
+                    span(field(label))))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Document, matches of ",
+            span(class: "font-mono normal-case", field(focus_label))),
+        div(class: "rounded-box border border-base-300 p-2 font-mono text-sm max-h-96 overflow-auto",
+            each(field(tree_rows),
+                div(style: field(style),
+                    span(class: if(field(hit), "flex gap-2 rounded bg-warning/40 outline outline-1 outline-warning", "flex gap-2"),
+                        span(class: "opacity-60", field(key)),
+                        span(field(text)))))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Results"),
+        div(class: "flex flex-col gap-0.5 rounded-box bg-base-200 p-2 font-mono text-xs max-h-60 overflow-auto",
+            each(field(focused_results),
+                div(class: "flex gap-2",
+                    span(class: "opacity-60", field(pointer)),
+                    span(class: "break-all", field(value))))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Document JSON"),
+        textarea(class: "textarea textarea-bordered w-full font-mono text-xs", rows: "8", "aria-label": "Document JSON",
+            value: field(editor_text), on_input: send(set_document_text, target_value())),
+        if(field(doc_error) != "", p(class: "text-xs text-error", field(doc_error))));
+}

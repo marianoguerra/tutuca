@@ -269,7 +269,7 @@ test "generated contract and glue of a small component" {
       #|}
       #|
       #|fn tally_vtable() -> &vtable {
-      #|    {vtable| init: tally_vt_init, handle: tally_vt_handle, get: tally_vt_get, set: tally_vt_set };
+      #|    {vtable| init: tally_vt_init, handle: tally_vt_handle, get: tally_vt_get, set: tally_vt_set, query: null };
       #|}
       #|
       #|// ---- The package ------------------------------------------------------------

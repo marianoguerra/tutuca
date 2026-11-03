@@ -1,0 +1,19 @@
+{
+	"option": {
+		"title": { "text": "Mean temperature (°C)" },
+		"legend": {},
+		"tooltip": { "trigger": "axis" },
+		"xAxis": { "type": "category" },
+		"yAxis": { "type": "value" },
+		"series": [
+			{ "type": "line", "name": "Tokyo", "datasetId": "climate", "encode": { "x": "month", "y": "tokyo" } },
+			{ "type": "line", "name": "London", "datasetId": "climate", "encode": { "x": "month", "y": "londn" } }
+		]
+	},
+	"tables": [
+		{
+			"id": "climate",
+			"csv": "month,tokyo,london\nJan,5.2,4.9\nFeb,5.7,5.1\nMar,8.7,7.0\nApr,13.9,9.3\nMay,18.2,12.5\nJun,21.4,15.6\nJul,25.0,17.9\nAug,26.4,17.6\nSep,22.8,15.0\nOct,17.5,11.4\nNov,12.1,7.6\nDec,7.6,5.3\n"
+		}
+	]
+}

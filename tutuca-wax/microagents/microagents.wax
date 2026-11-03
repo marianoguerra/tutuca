@@ -1,0 +1,225 @@
+// The shell's implementation (microagents.tcd has the rest): the tabs, the
+// session shown, and asking the host to open, infer, export and install.
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "can't open it: "]
+    const s_cant_open: js_string;
+    #[import = "the model failed: "]
+    const s_model_failed: js_string;
+    #[import = "light"]
+    const s_light: js_string;
+    #[import = "dark"]
+    const s_dark: js_string;
+    #[import = "nothing answers this"]
+    const s_unhandled: js_string;
+}
+
+// ---- Session -----------------------------------------------------------------------
+
+fn session_on_set_draft(state: &session_state, ctx: &context, text: js_string) -> &session_state {
+    session_with_draft(state, text);
+}
+
+fn session_get_can_send(state: &session_state) -> i32 {
+    !state.busy & (js_string_length(str_trim(state.draft)) >s 0);
+}
+
+fn session_on_send_chat(state: &session_state, ctx: &context) -> &session_state {
+    if !session_get_can_send(state) {
+        return state;
+    }
+    let _ = session_ask_infer(ctx, state.id, state.draft);
+    session_with_stopped(session_with_busy(session_with_draft(state, s_empty), 1), s_empty);
+}
+
+fn session_on_stop(state: &session_state, ctx: &context) -> &session_state {
+    let _ = session_ask_stop_infer(ctx, state.id);
+    state;
+}
+
+fn session_on_export(state: &session_state, ctx: &context) -> &session_state {
+    let _ = session_ask_export_data(ctx, state.id);
+    state;
+}
+
+fn session_on_set_chat(
+    state: &session_state,
+    ctx: &context,
+    chat: &value,
+    busy: i32,
+    stopped: js_string,
+) -> &session_state {
+    session_with_stopped(session_with_busy(session_with_chat(state, chat), busy), stopped);
+}
+
+fn session_on_set_workspace(state: &session_state, ctx: &context, workspace: &value) -> &session_state {
+    session_with_workspace(state, workspace);
+}
+
+// The turn is over when the host says so (set_chat); an error ends it here.
+fn session_reply_infer_error(state: &session_state, ctx: &context, error: &value) -> &session_state {
+    let why = value_string_of(error);
+    let text = if !why { s_unhandled; } else { why!; };
+    session_with_stopped(session_with_busy(state, 0), js_string_concat(s_model_failed, text));
+}
+
+fn session_reply_infer_unhandled(state: &session_state, ctx: &context) -> &session_state {
+    session_with_stopped(session_with_busy(state, 0), s_unhandled);
+}
+
+// ---- AgentCard ---------------------------------------------------------------------
+
+fn agent_card_on_open(state: &agent_card_state, ctx: &context, sample: js_string) -> &agent_card_state {
+    agent_card_notify_open_sample(ctx, state.id, sample);
+    state;
+}
+
+fn agent_card_on_remove(state: &agent_card_state, ctx: &context) -> &agent_card_state {
+    agent_card_notify_remove_agent(ctx, state.id);
+    state;
+}
+
+// ---- MicroAgents -------------------------------------------------------------------
+
+fn micro_agents_session_id(item: &value) -> js_string {
+    value_string_of(value_member(item, gs_id))!;
+}
+
+fn micro_agents_get_on_home(state: &micro_agents_state) -> i32 {
+    js_string_length(state.active) == 0;
+}
+
+fn micro_agents_get_no_agents(state: &micro_agents_state) -> i32 {
+    list_count(state.agents) == 0;
+}
+
+fn micro_agents_get_has_offers(state: &micro_agents_state) -> i32 {
+    list_count(state.offers) >s 0;
+}
+
+fn micro_agents_get_tabs(state: &micro_agents_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.sessions) {
+        let s = list_get(state.sessions, i)!;
+        let id = micro_agents_session_id(s);
+        out = list_push(
+            out,
+            micro_agents_tabs_new(
+                id,
+                value_string_of(value_member(s, gs_title))!,
+                value_string_of(value_member(s, gs_icon))!,
+                str_eq(id, state.active),
+            ),
+        );
+        i += 1;
+    }
+    out;
+}
+
+// Only the session shown renders.
+fn micro_agents_loop_shown_filter(state: &micro_agents_state, key: &value, item: &value) -> i32 {
+    str_eq(micro_agents_session_id(item), state.active);
+}
+
+fn micro_agents_on_show(state: &micro_agents_state, ctx: &context, id: js_string) -> &micro_agents_state {
+    micro_agents_with_active(state, id);
+}
+
+fn micro_agents_on_close(state: &micro_agents_state, ctx: &context, id: js_string) -> &micro_agents_state {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.sessions) {
+        let s = list_get(state.sessions, i)!;
+        if !str_eq(micro_agents_session_id(s), id) {
+            out = list_push(out, s);
+        }
+        i += 1;
+    }
+    let next = micro_agents_with_sessions(state, out);
+    if str_eq(state.active, id) {
+        return micro_agents_with_active(next, s_empty);
+    }
+    next;
+}
+
+fn micro_agents_on_open_sample(
+    state: &micro_agents_state,
+    ctx: &context,
+    agent: js_string,
+    sample: js_string,
+) -> &micro_agents_state {
+    let _ = micro_agents_ask_open_sample(ctx, agent, sample);
+    state;
+}
+
+fn micro_agents_on_pick_offer(state: &micro_agents_state, ctx: &context, agent: js_string) -> &micro_agents_state {
+    let _ = micro_agents_ask_open_dropped(ctx, agent);
+    micro_agents_with_offers(state, list_empty());
+}
+
+fn micro_agents_on_dismiss_offers(state: &micro_agents_state, ctx: &context) -> &micro_agents_state {
+    micro_agents_with_offers(state, list_empty());
+}
+
+fn micro_agents_on_toggle_theme(state: &micro_agents_state, ctx: &context) -> &micro_agents_state {
+    let theme = if str_eq(state.theme, s_dark) { s_light; } else { s_dark; };
+    let _ = micro_agents_ask_set_theme(ctx, theme);
+    micro_agents_with_theme(state, theme);
+}
+
+fn micro_agents_on_set_model(state: &micro_agents_state, ctx: &context, model: js_string) -> &micro_agents_state {
+    let _ = micro_agents_ask_remember_model(ctx, model);
+    micro_agents_with_model(state, model);
+}
+
+fn micro_agents_on_remove_agent(state: &micro_agents_state, ctx: &context, agent: js_string) -> &micro_agents_state {
+    let _ = micro_agents_ask_uninstall(ctx, agent);
+    state;
+}
+
+fn micro_agents_on_say(state: &micro_agents_state, ctx: &context, text: js_string) -> &micro_agents_state {
+    micro_agents_with_status(state, text);
+}
+
+fn micro_agents_on_offer(state: &micro_agents_state, ctx: &context, offers: &value) -> &micro_agents_state {
+    micro_agents_with_offers(state, offers);
+}
+
+fn micro_agents_on_set_agents(state: &micro_agents_state, ctx: &context, agents: &value) -> &micro_agents_state {
+    micro_agents_with_agents(state, agents);
+}
+
+// A session opened: it's added and shown.
+fn micro_agents_opened(state: &micro_agents_state, session: &value) -> &micro_agents_state {
+    let next = micro_agents_with_sessions(state, list_push(state.sessions, session));
+    micro_agents_with_active(next, micro_agents_session_id(session));
+}
+
+fn micro_agents_on_add_session(state: &micro_agents_state, ctx: &context, session: &value) -> &micro_agents_state {
+    micro_agents_opened(state, session);
+}
+
+fn micro_agents_reply_open_sample_ok(state: &micro_agents_state, ctx: &context, reply: &value) -> &micro_agents_state {
+    micro_agents_opened(state, reply);
+}
+
+fn micro_agents_reply_open_dropped_ok(state: &micro_agents_state, ctx: &context, reply: &value) -> &micro_agents_state {
+    micro_agents_opened(state, reply);
+}
+
+fn micro_agents_cant(state: &micro_agents_state, error: &value) -> &micro_agents_state {
+    let why = value_string_of(error);
+    let text = if !why { s_unhandled; } else { why!; };
+    micro_agents_with_status(state, js_string_concat(s_cant_open, text));
+}
+
+fn micro_agents_reply_open_sample_error(state: &micro_agents_state, ctx: &context, error: &value) -> &micro_agents_state {
+    micro_agents_cant(state, error);
+}
+
+fn micro_agents_reply_open_dropped_error(state: &micro_agents_state, ctx: &context, error: &value) -> &micro_agents_state {
+    micro_agents_cant(state, error);
+}

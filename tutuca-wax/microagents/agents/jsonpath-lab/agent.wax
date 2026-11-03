@@ -1,0 +1,582 @@
+// jsonpath-lab's implementation (agent.tcd has the rest): each path run on
+// the document in the page, through host_call (microagents/engines/
+// jsonpath.js, with jsonpath-plus), the expected counts, the document as
+// tree rows, and the paths' list.
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "p"]
+    const s_p: js_string;
+    #[import = "$"]
+    const s_dollar: js_string;
+    #[import = "/"]
+    const s_slash: js_string;
+    #[import = "~"]
+    const s_tilde: js_string;
+    #[import = "~0"]
+    const s_tilde0: js_string;
+    #[import = "~1"]
+    const s_tilde1: js_string;
+    #[import = "pass"]
+    const s_pass: js_string;
+    #[import = "fail"]
+    const s_fail: js_string;
+    #[import = "none"]
+    const s_none: js_string;
+    #[import = "invalid"]
+    const s_invalid: js_string;
+    #[import = "count"]
+    const s_count: js_string;
+    #[import = "results"]
+    const s_results: js_string;
+    #[import = "expected"]
+    const s_expected: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "depth"]
+    const s_depth: js_string;
+    #[import = "type"]
+    const s_type: js_string;
+    #[import = "nodes"]
+    const s_nodes: js_string;
+    #[import = "sample"]
+    const s_sample: js_string;
+    #[import = "object"]
+    const s_object: js_string;
+    #[import = "array"]
+    const s_array: js_string;
+    #[import = "null"]
+    const s_null: js_string;
+    #[import = "boolean"]
+    const s_boolean: js_string;
+    #[import = "number"]
+    const s_number: js_string;
+    #[import = "string"]
+    const s_string: js_string;
+    #[import = "jsonpath_run"]
+    const s_fn_run: js_string;
+    #[import = "jsonpath_problem"]
+    const s_fn_problem: js_string;
+    #[import = "json_parse"]
+    const s_json_parse: js_string;
+    #[import = "the document isn't usable: "]
+    const s_doc_unusable: js_string;
+    #[import = "no path "]
+    const s_no_path: js_string;
+    #[import = "no path"]
+    const s_no_path_label: js_string;
+    #[import = "(root)"]
+    const s_root: js_string;
+    #[import = " results"]
+    const s_results_word: js_string;
+    #[import = " (expected "]
+    const s_expected_paren: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = " paths · "]
+    const s_paths_dot: js_string;
+    #[import = " pass · "]
+    const s_pass_dot: js_string;
+    #[import = " fail · "]
+    const s_fail_dot: js_string;
+    #[import = " invalid"]
+    const s_invalid_word: js_string;
+    #[import = " paths: "]
+    const s_paths_colon: js_string;
+    #[import = " pass, "]
+    const s_pass_comma: js_string;
+    #[import = " fail, "]
+    const s_fail_comma: js_string;
+    #[import = " have no expected count, "]
+    const s_no_count_comma: js_string;
+    #[import = " invalid."]
+    const s_invalid_dot: js_string;
+    #[import = "paths:"]
+    const s_paths_label: js_string;
+    #[import = "document: "]
+    const s_document_label: js_string;
+    #[import = "document: not JSON: "]
+    const s_document_bad: js_string;
+    #[import = "error: "]
+    const s_error_colon: js_string;
+    #[import = ", expected "]
+    const s_comma_expected: js_string;
+    #[import = " ("]
+    const s_sp_lparen: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " → "]
+    const s_arrow: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+    #[import = "["]
+    const s_lbracket: js_string;
+    #[import = " items]"]
+    const s_items_close: js_string;
+    #[import = "{"]
+    const s_lbrace: js_string;
+    #[import = " keys}"]
+    const s_keys_close: js_string;
+    #[import = "padding-left: "]
+    const s_padding: js_string;
+    #[import = "rem"]
+    const s_rem: js_string;
+}
+
+// The most results a path answers with, and the most tree rows.
+const pl_max_results = 200;
+const pl_max_rows = 1500;
+const pl_clip_at = 80;
+
+// ---- Text --------------------------------------------------------------------------
+
+fn pl_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn pl_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn pl_clip(text: js_string, n: i32) -> js_string {
+    if js_string_length(text) <=s n {
+        return text;
+    }
+    pl_cat(str_slice(text, 0, n - 1), s_ellipsis);
+}
+
+fn pl_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn pl_is(a: js_string, b: js_string) -> i32 {
+    js_string_equals(a, b);
+}
+
+fn pl_escape(key: js_string) -> js_string {
+    str_replace_all(str_replace_all(key, s_tilde, s_tilde0), s_slash, s_tilde1);
+}
+
+fn pl_type_of(v: &value) -> js_string {
+    let k = v.kind;
+    if k == value_kind_list {
+        return s_array;
+    }
+    if k == value_kind_map {
+        return s_object;
+    }
+    if k == value_kind_string {
+        return s_string;
+    }
+    if (k == value_kind_int) | (k == value_kind_float) {
+        return s_number;
+    }
+    if k == value_kind_bool {
+        return s_boolean;
+    }
+    s_null;
+}
+
+// ---- Running a path ----------------------------------------------------------------
+
+// What path selects in the document: { error, count, results: [{ pointer, value }] }
+// (error "" when it ran; at most pl_max_results results).
+fn pl_run(state: &json_path_lab_state, path: js_string) -> &value {
+    let m = map_assoc(map_empty(), s_count, value_int(0));
+    m = map_assoc(m, s_results, list_empty());
+    if js_string_length(state.doc_error) != 0 {
+        return map_assoc(m, s_error, value_string(pl_cat(s_doc_unusable, state.doc_error)));
+    }
+    let args = list_push(list_push(list_push(list_empty(), value_string(path)), state.document), value_int(pl_max_results));
+    let r = host_call(s_fn_run, args) as &value_result;
+    if !r.ok {
+        return map_assoc(m, s_error, value_string(pl_str(r.value)));
+    }
+    map_assoc(r.value, s_error, value_string(s_empty));
+}
+
+fn pl_error(run: &value) -> js_string {
+    pl_str(value_member(run, s_error));
+}
+
+fn pl_count(run: &value) -> i32 {
+    let c = value_member(run, s_count);
+    if c.kind != value_kind_int {
+        return 0;
+    }
+    (c as &value_int).value;
+}
+
+// Why path isn't a JSONPath, "" when it is.
+fn pl_problem(path: js_string) -> js_string {
+    let r = host_call(s_fn_problem, list_push(list_empty(), value_string(path))) as &value_result;
+    pl_str(r.value);
+}
+
+// ---- Paths -------------------------------------------------------------------------
+
+fn pl_id(r: &value) -> js_string {
+    json_path_lab_paths_id(r);
+}
+
+fn pl_path(r: &value) -> js_string {
+    json_path_lab_paths_path(r);
+}
+
+fn pl_expected(r: &value) -> i32 {
+    json_path_lab_paths_expected_count(r);
+}
+
+// A path's status: pass, fail, none or invalid.
+fn pl_status(row: &value, run: &value) -> js_string {
+    if js_string_length(pl_error(run)) != 0 {
+        return s_invalid;
+    }
+    let e = pl_expected(row);
+    if e <s 0 {
+        return s_none;
+    }
+    if pl_count(run) == e {
+        return s_pass;
+    }
+    s_fail;
+}
+
+// The focused path's index: focus's, or the first's.
+fn pl_focused(state: &json_path_lab_state) -> i32 {
+    let i = list_find(state.paths, gs_id, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    if list_count(state.paths) == 0 {
+        return -1;
+    }
+    0;
+}
+
+// Counts of statuses: (pass, fail, none, invalid).
+fn pl_counts(state: &json_path_lab_state) -> (i32, i32, i32, i32) {
+    let pass = 0;
+    let fail = 0;
+    let none = 0;
+    let invalid = 0;
+    let i = 0;
+    while i <s list_count(state.paths) {
+        let row = list_get(state.paths, i)!;
+        let st = pl_status(row, pl_run(state, pl_path(row)));
+        if pl_is(st, s_pass) {
+            pass += 1;
+        }
+        if pl_is(st, s_fail) {
+            fail += 1;
+        }
+        if pl_is(st, s_none) {
+            none += 1;
+        }
+        if pl_is(st, s_invalid) {
+            invalid += 1;
+        }
+        i += 1;
+    }
+    (pass, fail, none, invalid);
+}
+
+// ---- The tree ----------------------------------------------------------------------
+
+// Every node of v, depth first, as { pointer, depth, key, text, type } maps,
+// at most pl_max_rows.
+fn pl_nodes(v: &value, at: js_string, key: js_string, depth: i32, out: &value) -> &value {
+    if list_count(out) >=s pl_max_rows {
+        return out;
+    }
+    let k = v.kind;
+    let is_list = k == value_kind_list;
+    let is_map = k == value_kind_map;
+    let kids = list_empty();
+    let shown = s_empty;
+    if is_list {
+        shown = pl_cat3(s_lbracket, int_text(list_count(v)), s_items_close);
+    }
+    if is_map {
+        kids = map_keys(v);
+        shown = pl_cat3(s_lbrace, int_text(list_count(kids)), s_keys_close);
+    }
+    if !is_list & !is_map {
+        shown = value_json(v, 0);
+    }
+    let node = map_assoc(map_empty(), gs_pointer, value_string(at));
+    node = map_assoc(node, s_depth, value_int(depth));
+    node = map_assoc(node, gs_key, value_string(key));
+    node = map_assoc(node, gs_text, value_string(pl_clip(shown, pl_clip_at)));
+    node = map_assoc(node, s_type, value_string(pl_type_of(v)));
+    out = list_push(out, node);
+    if is_list {
+        let i = 0;
+        while i <s list_count(v) {
+            out = pl_nodes(list_get(v, i)!, pl_cat3(at, s_slash, int_text(i)), int_text(i), depth + 1, out);
+            i += 1;
+        }
+    }
+    if is_map {
+        let i = 0;
+        while i <s list_count(kids) {
+            let name = value_string_of(list_get(kids, i)!)!;
+            out = pl_nodes(map_get(v, name)!, pl_cat3(at, s_slash, pl_escape(name)), json_string(name), depth + 1, out);
+            i += 1;
+        }
+    }
+    out;
+}
+
+fn pl_doc_nodes(state: &json_path_lab_state) -> &value {
+    if js_string_length(state.doc_error) != 0 {
+        return list_empty();
+    }
+    pl_nodes(state.document, s_empty, s_dollar, 0, list_empty());
+}
+
+fn pl_shown_pointer(p: js_string) -> js_string {
+    if js_string_length(p) == 0 {
+        return s_root;
+    }
+    p;
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn json_path_lab_get_headline(state: &json_path_lab_state) -> js_string {
+    let (pass, fail, none, invalid) = pl_counts(state);
+    let out = pl_cat3(int_text(list_count(state.paths)), s_paths_dot, pl_cat(int_text(pass), s_pass_dot));
+    pl_cat3(out, pl_cat(int_text(fail), s_fail_dot), pl_cat(int_text(invalid), s_invalid_word));
+}
+
+fn json_path_lab_get_summary(state: &json_path_lab_state) -> js_string {
+    let (pass, fail, none, invalid) = pl_counts(state);
+    let out = pl_cat3(int_text(list_count(state.paths)), s_paths_colon, pl_cat(int_text(pass), s_pass_comma));
+    out = pl_cat3(out, pl_cat(int_text(fail), s_fail_comma), pl_cat(int_text(none), s_no_count_comma));
+    out = pl_cat3(out, pl_cat(int_text(invalid), s_invalid_dot), pl_cat(s_nl, s_paths_label));
+    let i = 0;
+    while i <s list_count(state.paths) {
+        let row = list_get(state.paths, i)!;
+        let run = pl_run(state, pl_path(row));
+        let error = pl_error(run);
+        let line = pl_cat3(s_indent, pl_id(row), s_colon_sp);
+        line = pl_cat3(line, pl_path(row), s_arrow);
+        let got = if js_string_length(error) != 0 { pl_cat(s_error_colon, error); } else { pl_cat(int_text(pl_count(run)), s_results_word); };
+        line = pl_cat(line, got);
+        if pl_expected(row) >=s 0 {
+            line = pl_cat3(line, s_comma_expected, int_text(pl_expected(row)));
+            line = pl_cat3(line, s_sp_lparen, pl_cat(pl_status(row, run), s_rparen));
+        }
+        out = pl_cat3(out, s_nl, line);
+        i += 1;
+    }
+    let doc = if js_string_length(state.doc_error) != 0 {
+        pl_cat(s_document_bad, state.doc_error);
+    } else {
+        pl_cat(s_document_label, pl_clip(value_json(state.document, 0), 400));
+    };
+    pl_cat3(out, s_nl, doc);
+}
+
+// The JSON it opened, changed: { paths, document }.
+fn json_path_lab_get_data(state: &json_path_lab_state) -> &value {
+    map_assoc(map_assoc(map_empty(), gs_paths, state.paths), gs_document, state.document);
+}
+
+fn json_path_lab_get_domain(state: &json_path_lab_state) -> &value {
+    json_path_lab_get_data(state);
+}
+
+fn json_path_lab_get_editor_text(state: &json_path_lab_state) -> js_string {
+    if js_string_length(state.doc_text) != 0 {
+        return state.doc_text;
+    }
+    value_json(state.document, 2);
+}
+
+fn json_path_lab_get_path_rows(state: &json_path_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.paths) {
+        let row = list_get(state.paths, i)!;
+        out = list_push(out, json_path_lab_path_rows_new(pl_id(row), pl_path(row), pl_problem(pl_path(row))));
+        i += 1;
+    }
+    out;
+}
+
+fn json_path_lab_get_info_rows(state: &json_path_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.paths) {
+        let row = list_get(state.paths, i)!;
+        let run = pl_run(state, pl_path(row));
+        let error = pl_error(run);
+        let label = error;
+        if js_string_length(error) == 0 {
+            label = pl_cat(int_text(pl_count(run)), s_results_word);
+            if pl_expected(row) >=s 0 {
+                label = pl_cat3(label, s_expected_paren, pl_cat(int_text(pl_expected(row)), s_rparen));
+            }
+        }
+        out = list_push(out, json_path_lab_info_rows_new(pl_id(row), pl_status(row, run), label));
+        i += 1;
+    }
+    out;
+}
+
+fn json_path_lab_get_focus_label(state: &json_path_lab_state) -> js_string {
+    let f = pl_focused(state);
+    if f <s 0 {
+        return s_no_path_label;
+    }
+    pl_path(list_get(state.paths, f)!);
+}
+
+// The focused path's results ([] with none, or when it has an error).
+fn pl_focused_results(state: &json_path_lab_state) -> &value {
+    let f = pl_focused(state);
+    if f <s 0 {
+        return list_empty();
+    }
+    value_member(pl_run(state, pl_path(list_get(state.paths, f)!)), s_results);
+}
+
+fn json_path_lab_get_focused_results(state: &json_path_lab_state) -> &value {
+    let results = pl_focused_results(state);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(results) {
+        let r = list_get(results, i)!;
+        let p = pl_shown_pointer(pl_str(value_member(r, gs_pointer)));
+        out = list_push(out, json_path_lab_focused_results_new(p, pl_clip(value_json(value_member(r, gs_value), 0), pl_clip_at)));
+        i += 1;
+    }
+    out;
+}
+
+fn json_path_lab_get_tree_rows(state: &json_path_lab_state) -> &value {
+    let results = pl_focused_results(state);
+    let hits = map_empty();
+    let i = 0;
+    while i <s list_count(results) {
+        hits = map_assoc(hits, pl_str(value_member(list_get(results, i)!, gs_pointer)), value_bool(1));
+        i += 1;
+    }
+    let nodes = pl_doc_nodes(state);
+    let out = list_empty();
+    let j = 0;
+    while j <s list_count(nodes) {
+        let n = list_get(nodes, j)!;
+        let depth = value_to_f64(value_member(n, s_depth));
+        let style = pl_cat3(s_padding, number_text(depth * 1.25), s_rem);
+        let hit = !!map_get(hits, pl_str(value_member(n, gs_pointer)));
+        out = list_push(out, json_path_lab_tree_rows_new(pl_str(value_member(n, gs_key)), pl_str(value_member(n, gs_text)), style, hit));
+        j += 1;
+    }
+    out;
+}
+
+fn json_path_lab_get_document_paths(state: &json_path_lab_state) -> &value {
+    if js_string_length(state.doc_error) != 0 {
+        return map_assoc(map_empty(), s_error, value_string(state.doc_error));
+    }
+    let nodes = pl_doc_nodes(state);
+    let sample = list_empty();
+    let i = 0;
+    while (i <s list_count(nodes)) & (i <s pl_max_results) {
+        let n = list_get(nodes, i)!;
+        let p = pl_shown_pointer(pl_str(value_member(n, gs_pointer)));
+        sample = list_push(sample, value_string(pl_cat3(p, s_colon_sp, pl_str(value_member(n, s_type)))));
+        i += 1;
+    }
+    map_assoc(map_assoc(map_empty(), s_nodes, value_int(list_count(nodes))), s_sample, sample);
+}
+
+// ---- Queries -----------------------------------------------------------------------
+
+fn json_path_lab_query_results(state: &json_path_lab_state, id: js_string) -> &value {
+    let i = list_find(state.paths, gs_id, id);
+    if i <s 0 {
+        return map_assoc(map_empty(), s_error, value_string(pl_cat(s_no_path, id)));
+    }
+    let row = list_get(state.paths, i)!;
+    let run = pl_run(state, pl_path(row));
+    let error = pl_error(run);
+    if js_string_length(error) != 0 {
+        return map_assoc(map_empty(), s_error, value_string(error));
+    }
+    let m = map_assoc(map_empty(), gs_path, value_string(pl_path(row)));
+    m = map_assoc(m, s_count, value_int(pl_count(run)));
+    if pl_expected(row) >=s 0 {
+        m = map_assoc(m, s_expected, value_int(pl_expected(row)));
+    }
+    map_assoc(m, s_results, value_member(run, s_results));
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn pl_row(id: js_string, path: js_string, count: i32) -> &value {
+    json_path_lab_paths_new(id, path, count);
+}
+
+fn json_path_lab_on_set_path(state: &json_path_lab_state, ctx: &context, id: js_string, path: js_string) -> &json_path_lab_state {
+    let i = list_find(state.paths, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let old = list_get(state.paths, i)!;
+    json_path_lab_with_paths(state, list_assoc(state.paths, i, pl_row(id, path, pl_expected(old))));
+}
+
+fn json_path_lab_on_add_path(state: &json_path_lab_state, ctx: &context, path: js_string) -> &json_path_lab_state {
+    let id = list_next_id(state.paths, gs_id, s_p);
+    json_path_lab_with_paths(state, list_push(state.paths, pl_row(id, path, -1)));
+}
+
+fn json_path_lab_on_remove_path(state: &json_path_lab_state, ctx: &context, id: js_string) -> &json_path_lab_state {
+    let next = json_path_lab_with_paths(state, list_remove_at(state.paths, list_find(state.paths, gs_id, id)));
+    if pl_is(state.focus, id) {
+        return json_path_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn json_path_lab_on_reorder_paths(state: &json_path_lab_state, ctx: &context, id: js_string, index: i32) -> &json_path_lab_state {
+    json_path_lab_with_paths(state, list_move(state.paths, list_find(state.paths, gs_id, id), index));
+}
+
+fn json_path_lab_on_set_expected_count(state: &json_path_lab_state, ctx: &context, id: js_string, count: i32) -> &json_path_lab_state {
+    let i = list_find(state.paths, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let old = list_get(state.paths, i)!;
+    json_path_lab_with_paths(state, list_assoc(state.paths, i, pl_row(id, pl_path(old), count)));
+}
+
+fn json_path_lab_on_set_document(state: &json_path_lab_state, ctx: &context, document: &value) -> &json_path_lab_state {
+    json_path_lab_with_doc_error(json_path_lab_with_doc_text(json_path_lab_with_document(state, document), s_empty), s_empty);
+}
+
+fn json_path_lab_on_set_document_text(state: &json_path_lab_state, ctx: &context, text: js_string) -> &json_path_lab_state {
+    let r = host_call(s_json_parse, list_push(list_empty(), value_string(text))) as &value_result;
+    if r.ok {
+        return json_path_lab_with_doc_error(json_path_lab_with_doc_text(json_path_lab_with_document(state, r.value), text), s_empty);
+    }
+    json_path_lab_with_doc_error(json_path_lab_with_doc_text(state, text), pl_str(r.value));
+}
+
+fn json_path_lab_on_focus(state: &json_path_lab_state, ctx: &context, id: js_string) -> &json_path_lab_state {
+    json_path_lab_with_focus(state, id);
+}

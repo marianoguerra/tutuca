@@ -177,6 +177,14 @@ fn opt_cond(e : @syntax.Expr?) -> Json {
 }
 
 ///|
+fn doc_json(doc : String?) -> Json {
+  match doc {
+    Some(d) => Json::string(d)
+    None => Json::null()
+  }
+}
+
+///|
 fn field_json(f : @check.FieldM) -> Json {
   let default = match f.default {
     Some(e) => val_json(@check.literal_val(e))
@@ -196,6 +204,7 @@ fn field_json(f : @check.FieldM) -> Json {
       Some(m) => Json::string(m)
       None => Json::null()
     },
+    "doc": doc_json(f.doc),
   }
 }
 
@@ -233,6 +242,20 @@ fn message_json(m : @check.MessageM) -> Json {
       Some(es) => Json::array(es.map(emit_json))
       None => Json::null()
     },
+    "doc": doc_json(m.doc),
+  }
+}
+
+///|
+fn query_json(q : @check.SignalM) -> Json {
+  {
+    "name": Json::string(q.name),
+    "params": Json::array(q.params.map(field_json)),
+    "result": match q.result {
+      Some(t) => ty_json(t)
+      None => Json::null()
+    },
+    "doc": doc_json(q.doc),
   }
 }
 
@@ -274,6 +297,7 @@ fn component_json(c : @check.ComponentM) -> Json {
     "fieldOrder": Json::array(field_order(c).map(Json::string)),
     "gets": Json::array(c.gets.map(field_json)),
     "messages": Json::array(c.messages.map(message_json)),
+    "queries": Json::array(c.queries.map(query_json)),
     "invariants": Json::array(
       c.invariants.map(i => {
         ({ "name": Json::string(i.name), "cond": cond_json(i.cond) } : Json)

@@ -701,3 +701,80 @@ test("the score example tallies, rounds and keeps points within the target", asy
 	assert.equal(tw.runtime.get(won, "status"), "Tied");
 	assert.equal(tw.runtime.get(tw.runtime.make(scope, "Score", { ours: 30, theirs: 2 }), "status"), "Us won");
 });
+
+test("a query takes arguments: the runtime checks them against its schema, then runs it", async () => {
+	const QTCD = "q/q.tcd";
+	const QWAX = "q/q.wax";
+	const tcdText = `package tutuca:q@0.1.0;
+
+component Lookup {
+    field words: list<string>;
+    /// The word at i, or "" past the end.
+    query nth(i: s32 where i >= 0) -> string;
+    query plus(a: s32, b: s32) -> s32;
+    /// What the page's shout function makes of text.
+    query shout(text: string) -> any;
+    get count: s32;
+    view main = p(field(count));
+}
+`;
+	const waxText = `import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+}
+
+fn lookup_get_count(state: &lookup_state) -> i32 {
+    list_count(state.words);
+}
+
+fn lookup_query_nth(state: &lookup_state, i: i32) -> js_string {
+    let got = list_get(state.words, i);
+    if !got {
+        return s_empty;
+    }
+    let s = value_string_of(got!);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn lookup_query_plus(state: &lookup_state, a: i32, b: i32) -> i32 {
+    a + b;
+}
+
+fn lookup_query_shout(state: &lookup_state, text: js_string) -> &value {
+    host_call(gs_shout, list_push(list_empty(), value_string(text)));
+}
+`;
+	const res = tcd.build({ main: QTCD, files: { [QTCD]: tcdText }, impls: [{ path: QWAX, text: waxText }], runtime });
+	assert.deepEqual(
+		res.diags.filter((d) => d.severity === "error"),
+		[],
+	);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const c = tw.runtime.make(scope, "Lookup", { words: ["a", "b"] });
+	tw.runtime.defineHostFn("shout", (text) => {
+		if (text === "") throw new Error("nothing to shout");
+		return { loud: text.toUpperCase() };
+	});
+	assert.deepEqual(tw.runtime.query(c, "shout", ["hi"]), { ok: { ok: { loud: "HI" } } });
+	assert.deepEqual(tw.runtime.query(c, "shout", [""]), { ok: { err: "nothing to shout" } });
+	assert.deepEqual(tw.runtime.query(c, "nth", [1]), { ok: "b" });
+	assert.deepEqual(tw.runtime.query(c, "nth", [5]), { ok: "" });
+	assert.deepEqual(tw.runtime.query(c, "plus", [2, 3]), { ok: 5 });
+	assert.match(tw.runtime.query(c, "nth", [-1]).err, /i/);
+	assert.match(tw.runtime.query(c, "nth", []).err, /argument/);
+	assert.deepEqual(tw.runtime.query(c, "nope", []), { err: "no such query" });
+	const schema = tw.runtime.schema(c);
+	assert.deepEqual(
+		schema.queries.map((q) => [q.name, q.args.map((a) => a.name)]),
+		[
+			["nth", ["i"]],
+			["plus", ["a", "b"]],
+			["shout", ["text"]],
+		],
+	);
+});

@@ -1,0 +1,1 @@
+{ "instants": [{ "id": "i1", "iso": "2024-01-01T00:00:00Z" }], "strftimes": [{ "id": "f1", "format": "%Y-%m-%d %H:%M:%S", "expect": {} }], "intls": [] }

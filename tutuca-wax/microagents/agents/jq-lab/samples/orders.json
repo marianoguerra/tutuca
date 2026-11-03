@@ -1,0 +1,24 @@
+{
+	"filters": [
+		{ "id": "f1", "filter": "[.orders[] | select(.status == \"paid\") | .id]" },
+		{ "id": "f2", "filter": ".orders | map(.total) | add" }
+	],
+	"inputs": [
+		{
+			"id": "i1",
+			"value": {
+				"customer": "ada",
+				"orders": [
+					{ "id": "o1", "status": "paid", "total": 30 },
+					{ "id": "o2", "status": "pending", "total": 12.5 },
+					{ "id": "o3", "status": "paid", "total": 7 }
+				]
+			}
+		},
+		{ "id": "i2", "value": { "customer": "grace", "orders": [] } }
+	],
+	"expected": [
+		{ "filter": "f1", "input": "i1", "outputs": [["o1", "o3"]] },
+		{ "filter": "f2", "input": "i2", "outputs": [0] }
+	]
+}

@@ -195,7 +195,26 @@ fn component_schema_new(
     invariants: &invariant_array,
     interfaces: &str_array,
 ) -> &component_schema {
-    {component_schema| fields, gets, messages, invariants, interfaces };
+    {component_schema|
+        fields,
+        gets,
+        messages,
+        invariants,
+        interfaces,
+        queries: [message_schema_array|null; 0],
+    };
+}
+
+fn component_schema_set_queries(schema: &component_schema, queries: &message_schema_array) {
+    schema.queries = queries;
+}
+
+// The schema of spec's query name, or null when it has none.
+fn spec_query_schema(spec: &component_spec, name: js_string) -> &?message_schema {
+    if !spec.schema {
+        return null;
+    }
+    message_schema_named((spec.schema!).queries, name);
 }
 
 fn spec_set_schema(spec: &component_spec, schema: &component_schema) {
@@ -1268,6 +1287,7 @@ fn spec_schema_value(spec: &component_spec) -> &value {
     m = map_assoc(m, s_gets, field_schemas_value(schema.gets));
     m = map_assoc(m, s_messages, message_schemas_value(schema.messages));
     m = map_assoc(m, s_invariants, invariants);
+    m = map_assoc(m, s_queries, message_schemas_value(schema.queries));
     map_assoc(m, s_interfaces, strs_value(schema.interfaces));
 }
 

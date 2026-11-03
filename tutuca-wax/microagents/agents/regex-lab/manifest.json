@@ -1,0 +1,24 @@
+{
+	"id": "regex-lab",
+	"title": "Regex lab",
+	"description": "Run regular expressions against texts, see where they match and which expectations pass, and fix them.",
+	"needs": "an object with regexes ([{ id, pattern, flags }]) and texts ([{ id, text, expect: { regex id: \"match\" | \"no-match\" } }]), at least one of each",
+	"icon": "🔎",
+	"version": "1",
+	"root": "RegexLab",
+	"hostFns": ["regex"],
+	"skills": ["SKILL.md", "reference/flags.md"],
+	"tools": [
+		{ "name": "set_regex", "kind": "message", "result": "grid" },
+		{ "name": "add_regex", "kind": "message" },
+		{ "name": "remove_regex", "kind": "message" },
+		{ "name": "reorder_regexes", "kind": "message" },
+		{ "name": "add_text", "kind": "message" },
+		{ "name": "set_text", "kind": "message", "result": "grid" },
+		{ "name": "remove_text", "kind": "message" },
+		{ "name": "reorder_texts", "kind": "message" },
+		{ "name": "set_expectation", "kind": "message", "result": "grid" },
+		{ "name": "grid", "kind": "view" },
+		{ "name": "explain_matches", "kind": "view" }
+	]
+}

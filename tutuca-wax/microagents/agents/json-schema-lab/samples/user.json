@@ -1,0 +1,21 @@
+{
+	"schema": {
+		"$schema": "https://json-schema.org/draft/2020-12/schema",
+		"title": "User",
+		"type": "object",
+		"required": ["id", "name", "email"],
+		"properties": {
+			"id": { "type": "integer", "minimum": 1 },
+			"name": { "type": "string", "minLength": 1 },
+			"email": { "type": "string", "format": "email" },
+			"age": { "type": "integer", "minimum": 0 }
+		},
+		"additionalProperties": false
+	},
+	"examples": [
+		{ "id": "e1", "value": { "id": 1, "name": "Ada", "email": "ada@example.com", "age": 36 }, "outcome": "pass" },
+		{ "id": "e2", "value": { "id": 2, "name": "Grace" }, "outcome": "fail" },
+		{ "id": "e3", "value": { "id": 3, "name": "Linus", "email": "linus@example.com", "age": -3 }, "outcome": "fail" },
+		{ "id": "e4", "value": { "id": 4, "name": "Dee", "email": "dee@example.com", "nickname": "D" }, "outcome": "pass" }
+	]
+}

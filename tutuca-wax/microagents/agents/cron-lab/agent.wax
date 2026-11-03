@@ -1,0 +1,572 @@
+// cron-lab's implementation (agent.tcd has the rest): the rows, their
+// expectations, the builder's chips, the summary. Parsing, the English and
+// the runs are the page's, through host_call (microagents/engines/cron.js).
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "c"]
+    const s_c: js_string;
+    #[import = "UTC"]
+    const s_utc: js_string;
+    #[import = "2025-01-01T00:00:00Z"]
+    const s_default_from: js_string;
+    #[import = "cron_explain"]
+    const s_cron_explain: js_string;
+    #[import = "cron_next"]
+    const s_cron_next: js_string;
+    #[import = "cron_iso"]
+    const s_cron_iso: js_string;
+    #[import = "cron_with_field"]
+    const s_cron_with_field: js_string;
+    #[import = "cron_toggle"]
+    const s_cron_toggle: js_string;
+    #[import = "cron_chips"]
+    const s_cron_chips: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "field"]
+    const s_field: js_string;
+    #[import = "description"]
+    const s_description: js_string;
+    #[import = "fields"]
+    const s_fields: js_string;
+    #[import = "iso"]
+    const s_iso: js_string;
+    #[import = "local"]
+    const s_local: js_string;
+    #[import = "label"]
+    const s_label: js_string;
+    #[import = "status"]
+    const s_status: js_string;
+    #[import = "title"]
+    const s_title: js_string;
+    #[import = "next"]
+    const s_next: js_string;
+    #[import = "runs"]
+    const s_runs: js_string;
+    #[import = "pass"]
+    const s_pass: js_string;
+    #[import = "fail"]
+    const s_fail: js_string;
+    #[import = "none"]
+    const s_none: js_string;
+    #[import = "minute"]
+    const s_minute: js_string;
+    #[import = "hour"]
+    const s_hour: js_string;
+    #[import = "day"]
+    const s_day: js_string;
+    #[import = "month"]
+    const s_month: js_string;
+    #[import = "weekday"]
+    const s_weekday: js_string;
+    #[import = "no cron "]
+    const s_no_cron: js_string;
+    #[import = ": expects "]
+    const s_colon_expects: js_string;
+    #[import = "next runs after "]
+    const s_next_after: js_string;
+    #[import = " (computed in UTC)"]
+    const s_in_utc: js_string;
+    #[import = " (computed in UTC, also shown in "]
+    const s_in_utc_shown: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = " · "]
+    const s_dot: js_string;
+    #[import = " expressions · "]
+    const s_expressions_dot: js_string;
+    #[import = " invalid · "]
+    const s_invalid_dot: js_string;
+    #[import = " pass · "]
+    const s_pass_dot: js_string;
+    #[import = " fail"]
+    const s_fail_sp: js_string;
+    #[import = " cron expressions: "]
+    const s_cron_expressions: js_string;
+    #[import = " invalid, "]
+    const s_invalid_comma: js_string;
+    #[import = " expectations pass, "]
+    const s_exp_pass: js_string;
+    #[import = " fail."]
+    const s_fail_dot: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " ("]
+    const s_lparen_sp: js_string;
+    #[import = ") "]
+    const s_rparen_sp: js_string;
+    #[import = "error: "]
+    const s_error_colon: js_string;
+    #[import = "\""]
+    const s_quote: js_string;
+    #[import = "\", next "]
+    const s_next_quote: js_string;
+    #[import = "never"]
+    const s_never: js_string;
+    #[import = ", from "]
+    const s_from_comma: js_string;
+    #[import = ", expects next "]
+    const s_expects_next: js_string;
+    #[import = "crons"]
+    const s_crons: js_string;
+}
+
+// ---- Text --------------------------------------------------------------------------
+
+fn cl_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn cl_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn cl_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn cl_is_empty(s: js_string) -> i32 {
+    js_string_length(s) == 0;
+}
+
+fn cl_error_map(text: js_string) -> &value {
+    map_assoc(map_empty(), s_error, value_string(text));
+}
+
+// ---- The page's crons --------------------------------------------------------------
+
+fn cl_args1(a: js_string) -> &value {
+    list_push(list_empty(), value_string(a));
+}
+
+fn cl_args3(a: js_string, b: js_string, c: js_string) -> &value {
+    list_push(list_push(cl_args1(a), value_string(b)), value_string(c));
+}
+
+// What the host function name answered with args, or null when it failed.
+fn cl_call(name: js_string, args: &value) -> &?value {
+    let r = host_call(name, args) as &value_result;
+    if !r.ok {
+        return null;
+    }
+    r.value;
+}
+
+// { error, field, description, fields } of an expression.
+fn cl_explain(expression: js_string) -> &value {
+    let got = cl_call(s_cron_explain, cl_args1(expression));
+    if !got {
+        return cl_error_map(expression);
+    }
+    got!;
+}
+
+// Why an expression doesn't parse; "" when it does.
+fn cl_error(expression: js_string) -> js_string {
+    cl_str(value_member(cl_explain(expression), s_error));
+}
+
+// text as a normalized ISO time, or null when it isn't one.
+fn cl_iso(text: js_string) -> js_string_opt {
+    let got = cl_call(s_cron_iso, cl_args1(text));
+    if !got {
+        return null;
+    }
+    value_string_of(got!);
+}
+
+// ---- Rows --------------------------------------------------------------------------
+
+fn cl_id(c: &value) -> js_string {
+    cl_str(value_member(c, gs_id));
+}
+
+// The time c's runs count from, normalized: its from, or the default.
+fn cl_from(c: &value) -> js_string {
+    let raw = cron_lab_crons_from(c);
+    if cl_is_empty(raw) {
+        return cl_iso(s_default_from)!;
+    }
+    let iso = cl_iso(raw);
+    if !iso {
+        return cl_iso(s_default_from)!;
+    }
+    iso!;
+}
+
+// c's next n runs, [{ iso, local }], or null when it doesn't parse.
+fn cl_runs(c: &value, n: i32) -> &?value {
+    let args = list_push(cl_args3(cron_lab_crons_expression(c), cron_lab_crons_timezone(c), cl_from(c)), value_int(n));
+    cl_call(s_cron_next, args);
+}
+
+// The ISO time of c's first run, or "" when there's none.
+fn cl_first(c: &value) -> js_string {
+    let runs = cl_runs(c, 1);
+    if !runs {
+        return s_empty;
+    }
+    let first = list_get(runs!, 0);
+    if !first {
+        return s_empty;
+    }
+    cl_str(value_member(first!, s_iso));
+}
+
+// pass, fail or none: whether c's first run is the one it expects.
+fn cl_status(c: &value) -> js_string {
+    let expected = cron_lab_crons_expect_next(c);
+    if cl_is_empty(expected) {
+        return s_none;
+    }
+    let first = cl_first(c);
+    let iso = cl_iso(expected);
+    if !iso {
+        return s_fail;
+    }
+    if !cl_is_empty(first) & js_string_equals(first, iso!) {
+        return s_pass;
+    }
+    s_fail;
+}
+
+fn cl_with(c: &value, expression: js_string, timezone: js_string, start: js_string, expect_next: js_string) -> &value {
+    cron_lab_crons_new(cl_id(c), expression, timezone, start, expect_next);
+}
+
+fn cl_with_expression(c: &value, expression: js_string) -> &value {
+    cl_with(c, expression, cron_lab_crons_timezone(c), cron_lab_crons_from(c), cron_lab_crons_expect_next(c));
+}
+
+// state with the cron at i replaced by c.
+fn cl_put(state: &cron_lab_state, i: i32, c: &value) -> &cron_lab_state {
+    cron_lab_with_crons(state, list_assoc(state.crons, i, c));
+}
+
+// The focused cron's index: focus's, or the first's.
+fn cl_focused(state: &cron_lab_state) -> i32 {
+    let i = list_find(state.crons, gs_id, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    0;
+}
+
+// Counts over the crons: (invalid, pass, fail).
+fn cl_counts(state: &cron_lab_state) -> (i32, i32, i32) {
+    let invalid = 0;
+    let pass = 0;
+    let fail = 0;
+    let i = 0;
+    while i <s list_count(state.crons) {
+        let c = list_get(state.crons, i)!;
+        if !cl_is_empty(cl_error(cron_lab_crons_expression(c))) {
+            invalid += 1;
+        }
+        let st = cl_status(c);
+        if js_string_equals(st, s_pass) {
+            pass += 1;
+        }
+        if js_string_equals(st, s_fail) {
+            fail += 1;
+        }
+        i += 1;
+    }
+    (invalid, pass, fail);
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn cron_lab_get_cron_rows(state: &cron_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.crons) {
+        let c = list_get(state.crons, i)!;
+        let expression = cron_lab_crons_expression(c);
+        let timezone = cron_lab_crons_timezone(c);
+        let explained = cl_explain(expression);
+        let error = cl_str(value_member(explained, s_error));
+        let runs = list_empty();
+        let got = cl_runs(c, 5);
+        if !!got {
+            let j = 0;
+            while j <s list_count(got!) {
+                let run = list_get(got!, j)!;
+                let local = cl_str(value_member(run, s_local));
+                let text = cl_str(value_member(run, s_iso));
+                if !cl_is_empty(local) {
+                    text = cl_cat3(text, s_dot, local);
+                }
+                runs = list_push(runs, cron_lab_cron_rows_runs_new(text));
+                j += 1;
+            }
+        }
+        let tz_utc = cl_is_empty(timezone) | js_string_equals(timezone, s_utc);
+        let label = if tz_utc {
+            cl_cat3(s_next_after, cl_from(c), s_in_utc);
+        } else {
+            cl_cat3(cl_cat3(s_next_after, cl_from(c), s_in_utc_shown), timezone, s_rparen);
+        };
+        let status = cl_status(c);
+        let status_text = cl_cat3(status, s_colon_expects, cron_lab_crons_expect_next(c));
+        out = list_push(out, cron_lab_cron_rows_new(cl_id(c), expression, timezone, cron_lab_crons_from(c),
+            cron_lab_crons_expect_next(c), error, cl_str(value_member(explained, s_description)), status,
+            status_text, label, runs));
+        i += 1;
+    }
+    out;
+}
+
+fn cron_lab_get_focus_label(state: &cron_lab_state) -> js_string {
+    let c = list_get(state.crons, cl_focused(state))!;
+    cl_cat3(cl_id(c), s_colon_sp, cron_lab_crons_expression(c));
+}
+
+fn cron_lab_get_chips(state: &cron_lab_state) -> &value {
+    let c = list_get(state.crons, cl_focused(state))!;
+    let got = cl_call(s_cron_chips, cl_args1(cron_lab_crons_expression(c)));
+    let out = list_empty();
+    if !got {
+        return out;
+    }
+    let i = 0;
+    while i <s list_count(got!) {
+        let chip = list_get(got!, i)!;
+        out = list_push(out, cron_lab_chips_new(cl_str(value_member(chip, s_label)), cl_str(value_member(chip, s_status)),
+            cl_str(value_member(chip, s_title))));
+        i += 1;
+    }
+    out;
+}
+
+fn cron_lab_get_headline(state: &cron_lab_state) -> js_string {
+    let (invalid, pass, fail) = cl_counts(state);
+    let out = cl_cat3(int_text(list_count(state.crons)), s_expressions_dot, int_text(invalid));
+    out = cl_cat3(out, s_invalid_dot, int_text(pass));
+    cl_cat3(out, s_pass_dot, cl_cat(int_text(fail), s_fail_sp));
+}
+
+fn cron_lab_get_summary(state: &cron_lab_state) -> js_string {
+    let (invalid, pass, fail) = cl_counts(state);
+    let out = cl_cat3(int_text(list_count(state.crons)), s_cron_expressions, int_text(invalid));
+    out = cl_cat3(out, s_invalid_comma, int_text(pass));
+    out = cl_cat3(out, s_exp_pass, cl_cat(int_text(fail), s_fail_dot));
+    let i = 0;
+    while i <s list_count(state.crons) {
+        let c = list_get(state.crons, i)!;
+        let expression = cron_lab_crons_expression(c);
+        let line = cl_cat3(s_indent, cl_id(c), s_colon_sp);
+        line = cl_cat3(line, json_string(expression), s_lparen_sp);
+        line = cl_cat3(line, cron_lab_crons_timezone(c), s_rparen_sp);
+        let explained = cl_explain(expression);
+        let error = cl_str(value_member(explained, s_error));
+        if cl_is_empty(error) {
+            let first = cl_first(c);
+            let next = if cl_is_empty(first) { s_never; } else { first; };
+            line = cl_cat3(line, s_quote, cl_str(value_member(explained, s_description)));
+            line = cl_cat3(line, s_next_quote, next);
+        } else {
+            line = cl_cat3(line, s_error_colon, error);
+        }
+        if !cl_is_empty(cron_lab_crons_from(c)) {
+            line = cl_cat3(line, s_from_comma, cron_lab_crons_from(c));
+        }
+        let expected = cron_lab_crons_expect_next(c);
+        if !cl_is_empty(expected) {
+            line = cl_cat3(line, s_expects_next, expected);
+            line = cl_cat3(line, s_colon_sp, cl_status(c));
+        }
+        out = cl_cat3(out, s_nl, line);
+        i += 1;
+    }
+    out;
+}
+
+// The JSON it opened, changed: { crons }.
+fn cron_lab_get_data(state: &cron_lab_state) -> &value {
+    map_assoc(map_empty(), s_crons, state.crons);
+}
+
+fn cron_lab_get_domain(state: &cron_lab_state) -> &value {
+    cron_lab_get_data(state);
+}
+
+// ---- Queries -----------------------------------------------------------------------
+
+// The ISO times of a list of runs.
+fn cl_isos(runs: &value) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(runs) {
+        out = list_push(out, value_member(list_get(runs, i)!, s_iso));
+        i += 1;
+    }
+    out;
+}
+
+fn cron_lab_query_explain(state: &cron_lab_state, id: js_string) -> &value {
+    let i = list_find(state.crons, gs_id, id);
+    if i <s 0 {
+        return cl_error_map(cl_cat(s_no_cron, id));
+    }
+    let c = list_get(state.crons, i)!;
+    let explained = cl_explain(cron_lab_crons_expression(c));
+    let out = map_assoc(map_empty(), gs_id, value_string(id));
+    out = map_assoc(out, gs_expression, value_string(cron_lab_crons_expression(c)));
+    let error = cl_str(value_member(explained, s_error));
+    if !cl_is_empty(error) {
+        out = map_assoc(out, s_error, value_string(error));
+        return map_assoc(out, s_field, value_member(explained, s_field));
+    }
+    out = map_assoc(out, gs_timezone, value_string(cron_lab_crons_timezone(c)));
+    out = map_assoc(out, s_description, value_member(explained, s_description));
+    out = map_assoc(out, s_fields, value_member(explained, s_fields));
+    out = map_assoc(out, gs_from, value_string(cl_from(c)));
+    let runs = cl_runs(c, 5);
+    let next = if !runs { list_empty(); } else { cl_isos(runs!); };
+    out = map_assoc(out, s_next, next);
+    let expected = cron_lab_crons_expect_next(c);
+    let expect_value = if cl_is_empty(expected) { value_null(); } else { value_string(expected); };
+    out = map_assoc(out, gs_expect_next, expect_value);
+    map_assoc(out, s_status, value_string(cl_status(c)));
+}
+
+fn cron_lab_query_next_runs(state: &cron_lab_state, id: js_string, count: i32) -> &value {
+    let i = list_find(state.crons, gs_id, id);
+    if i <s 0 {
+        return cl_error_map(cl_cat(s_no_cron, id));
+    }
+    let c = list_get(state.crons, i)!;
+    let error = cl_error(cron_lab_crons_expression(c));
+    if !cl_is_empty(error) {
+        return cl_error_map(error);
+    }
+    let runs = cl_runs(c, count);
+    let isos = if !runs { list_empty(); } else { cl_isos(runs!); };
+    let out = map_assoc(map_empty(), gs_id, value_string(id));
+    out = map_assoc(out, gs_from, value_string(cl_from(c)));
+    map_assoc(out, s_runs, isos);
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn cron_lab_on_set_expression(state: &cron_lab_state, ctx: &context, id: js_string, expression: js_string) -> &cron_lab_state {
+    let i = list_find(state.crons, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    cl_put(state, i, cl_with_expression(list_get(state.crons, i)!, expression));
+}
+
+fn cron_lab_on_set_field(state: &cron_lab_state, ctx: &context, id: js_string, name: js_string, value: js_string) -> &cron_lab_state {
+    let i = list_find(state.crons, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let c = list_get(state.crons, i)!;
+    let got = cl_call(s_cron_with_field, cl_args3(cron_lab_crons_expression(c), name, value));
+    if !got {
+        return state;
+    }
+    cl_put(state, i, cl_with_expression(c, cl_str(got!)));
+}
+
+fn cron_lab_on_add_cron(state: &cron_lab_state, ctx: &context, expression: js_string) -> &cron_lab_state {
+    let id = list_next_id(state.crons, gs_id, s_c);
+    cron_lab_with_crons(state, list_push(state.crons, cron_lab_crons_new(id, expression, s_utc, s_empty, s_empty)));
+}
+
+fn cron_lab_on_remove_cron(state: &cron_lab_state, ctx: &context, id: js_string) -> &cron_lab_state {
+    let next = cron_lab_with_crons(state, list_remove_at(state.crons, list_find(state.crons, gs_id, id)));
+    if js_string_equals(state.focus, id) {
+        return cron_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn cron_lab_on_reorder_crons(state: &cron_lab_state, ctx: &context, id: js_string, index: i32) -> &cron_lab_state {
+    cron_lab_with_crons(state, list_move(state.crons, list_find(state.crons, gs_id, id), index));
+}
+
+fn cron_lab_on_set_timezone(state: &cron_lab_state, ctx: &context, id: js_string, timezone: js_string) -> &cron_lab_state {
+    let i = list_find(state.crons, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let c = list_get(state.crons, i)!;
+    cl_put(state, i, cl_with(c, cron_lab_crons_expression(c), timezone, cron_lab_crons_from(c), cron_lab_crons_expect_next(c)));
+}
+
+fn cron_lab_on_set_from(state: &cron_lab_state, ctx: &context, id: js_string, iso: js_string) -> &cron_lab_state {
+    let i = list_find(state.crons, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let c = list_get(state.crons, i)!;
+    cl_put(state, i, cl_with(c, cron_lab_crons_expression(c), cron_lab_crons_timezone(c), iso, cron_lab_crons_expect_next(c)));
+}
+
+fn cron_lab_on_set_expected_next(state: &cron_lab_state, ctx: &context, id: js_string, iso: js_string) -> &cron_lab_state {
+    let i = list_find(state.crons, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let c = list_get(state.crons, i)!;
+    cl_put(state, i, cl_with(c, cron_lab_crons_expression(c), cron_lab_crons_timezone(c), cron_lab_crons_from(c), iso));
+}
+
+fn cron_lab_on_focus(state: &cron_lab_state, ctx: &context, id: js_string) -> &cron_lab_state {
+    cron_lab_with_focus(state, id);
+}
+
+// The builder's fields, in order: (name, lowest value, how many values).
+fn cl_chip_field(k: i32) -> (js_string, i32, i32) {
+    if k == 0 {
+        return (s_minute, 0, 60);
+    }
+    if k == 1 {
+        return (s_hour, 0, 24);
+    }
+    if k == 2 {
+        return (s_day, 1, 31);
+    }
+    if k == 3 {
+        return (s_month, 1, 12);
+    }
+    (s_weekday, 0, 7);
+}
+
+// Chip i of chips: each field has its label, then a chip per value.
+fn cron_lab_on_toggle_chip(state: &cron_lab_state, ctx: &context, i: i32) -> &cron_lab_state {
+    let at = i;
+    let k = 0;
+    while k <s 5 {
+        let (name, low, count) = cl_chip_field(k);
+        if at == 0 {
+            return state;
+        }
+        if at <=s count {
+            let f = cl_focused(state);
+            let c = list_get(state.crons, f)!;
+            let args = list_push(list_push(cl_args1(cron_lab_crons_expression(c)), value_string(name)), value_int(low + at - 1));
+            let got = cl_call(s_cron_toggle, args);
+            if !got {
+                return state;
+            }
+            return cl_put(state, f, cl_with_expression(c, cl_str(got!)));
+        }
+        at -= count + 1;
+        k += 1;
+    }
+    state;
+}

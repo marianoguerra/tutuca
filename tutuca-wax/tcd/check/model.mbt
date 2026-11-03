@@ -200,6 +200,8 @@ pub(all) struct ComponentM {
   messages : Array[MessageM]
   notifies : Array[SignalM]
   asks : Array[SignalM]
+  /// Properties that take arguments: params and result, no emits.
+  queries : Array[SignalM]
   invariants : Array[InvariantM]
   init_hook : Bool
   loops : Array[LoopM]

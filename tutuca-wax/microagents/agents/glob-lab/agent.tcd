@@ -1,0 +1,95 @@
+// glob-lab: glob patterns (picomatch, posix) matched against a list of paths.
+// The paths are one string with a path per line; the workspace shows them as
+// a file tree, each file marked by whether the focused glob matches it. A
+// glob can say, per path, whether it should match it ("match" or
+// "no-match"), and explain shows the regex picomatch compiles it to. The
+// globs run in the page (host functions glob_*, microagents/engines/glob.js).
+// The root's messages are the agent's tools; the rows' inputs send the same
+// messages.
+package tutuca:glob_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component GlobLab: MicroAgent {
+    /// The globs, each with an id the model names it by (g1, g2, …), its options (dot: wildcards match dotfiles; nocase), and per path whether it should match ("match" or "no-match").
+    field globs: list<record { id: string, pattern: string, dot: bool, nocase: bool, expect: map<string> }> where len(globs) >= 1;
+    /// The paths: one string, one path per line.
+    field paths: string;
+    /// The glob the tree shows; "" for the first.
+    field focus: string;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    get focus_label: string;
+    /// The globs as rows, with why each doesn't compile ("" when it does).
+    get glob_rows: list<record { id: string, pattern: string, dot: bool, nocase: bool, error: string }>;
+    /// The paths as a file tree, each file marked by the focused glob: kind is dir, hit or miss; mark is pass, fail or none.
+    get tree: list<record { path: string, name: string, style: string, kind: string, note: string, mark: string, title: string }>;
+
+    /// The paths a glob matches and doesn't, and each of its expectations with pass or fail.
+    query matches(glob: string) -> any;
+    /// The regex picomatch compiles a glob to, with its base directory and whether it is a glob at all.
+    query explain(glob: string) -> any;
+
+    /// Change a glob's pattern.
+    message set_glob(id: string, pattern: string) when any(globs, it.id == id) changes globs;
+    /// Set a glob's options: dot (wildcards match dotfiles) and nocase.
+    message set_glob_options(id: string, dot: bool, nocase: bool) when any(globs, it.id == id) changes globs;
+    /// Add a glob; it gets the next free id (g1, g2, …).
+    message add_glob(pattern: string) changes globs ensures len(next.globs) == len(globs) + 1;
+    /// Remove a glob.
+    message remove_glob(id: string) when any(globs, it.id == id) and len(globs) > 1 changes globs, focus
+        ensures len(next.globs) == len(globs) - 1;
+    /// Move a glob to a position (0 is first).
+    message reorder_globs(id: string, index: s32 where index >= 0) when any(globs, it.id == id) changes globs
+        ensures len(next.globs) == len(globs);
+    /// Replace the paths: one string, one path per line.
+    message set_paths(text: string) changes paths ensures next.paths == text;
+    /// Say whether a glob should match a path: match, no-match, or none to clear it.
+    message set_expectation(glob: string, path: string, outcome: string where outcome in ["match", "no-match", "none"])
+        when any(globs, it.id == glob) changes globs;
+    /// From the tree: the file at row i cycles the focused glob's expectation for it (none → match → no-match → none).
+    message cycle_path(i: s32 where i >= 0) changes globs;
+    /// Which glob the tree shows.
+    message focus(id: string) changes focus ensures next.focus == id;
+
+    view main = div(class: "flex flex-col gap-4",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "Glob lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Globs"),
+        div(class: "flex flex-col gap-1",
+            each(field(glob_rows),
+                div(class: "flex flex-col gap-1",
+                    div(class: "join w-full items-center",
+                        button(class: "btn btn-sm join-item font-mono", title: "Show in the tree", on_click: send(focus, field(id)), field(id)),
+                        input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "Glob",
+                            value: field(pattern), on_input: send(set_glob, field(id), target_value())),
+                        label(class: "join-item flex items-center gap-1 bg-base-200 px-2 text-xs h-8",
+                            input(type: "checkbox", class: "checkbox checkbox-xs", checked: field(dot),
+                                on_change: send(set_glob_options, field(id), if(field(dot), false, true), field(nocase))),
+                            "dot"),
+                        label(class: "join-item flex items-center gap-1 bg-base-200 px-2 text-xs h-8",
+                            input(type: "checkbox", class: "checkbox checkbox-xs", checked: field(nocase),
+                                on_change: send(set_glob_options, field(id), field(dot), if(field(nocase), false, true))),
+                            "nocase"),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove", on_click: send(remove_glob, field(id)), "✕")),
+                    if(field(error) != "", p(class: "text-xs text-error", field(error))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_glob, "**/*"), "+ Glob")),
+        div(class: "grid gap-4 md:grid-cols-2",
+            div(class: "flex flex-col gap-1",
+                h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Paths, one per line"),
+                textarea(class: "textarea textarea-bordered w-full font-mono text-xs", rows: "14", "aria-label": "Paths, one per line",
+                    value: field(paths), on_input: send(set_paths, target_value()))),
+            div(class: "flex flex-col gap-1",
+                h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Tree for ", span(class: "font-mono normal-case", field(focus_label))),
+                p(class: "text-xs opacity-60", "Click a file to cycle its expectation: none → match → no match."),
+                each(field(tree),
+                    button(class: "flex items-center gap-2 text-left font-mono text-xs hover:bg-base-200",
+                        style: field(style), title: field(title), on_click: send(cycle_path, source_key()),
+                        span(class: if(field(kind) == "dir", "font-semibold opacity-70", if(field(kind) == "hit", "text-success", "opacity-50")), field(name)),
+                        span(class: "opacity-60", field(note)),
+                        span(class: if(field(mark) == "pass", "badge badge-success badge-xs", if(field(mark) == "fail", "badge badge-error badge-xs", "hidden")), ""))))));
+}

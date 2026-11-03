@@ -1,0 +1,26 @@
+{
+	"id": "jq-lab",
+	"title": "jq lab",
+	"description": "Write and fix jq filters against JSON inputs, see every output and which expected outputs pass.",
+	"needs": "an object with filters ([{ id, filter }]) and inputs ([{ id, value: any JSON }]), at least one of each, and optionally expected ([{ filter, input, outputs: [every output] }])",
+	"icon": "🧮",
+	"version": "1",
+	"root": "JqLab",
+	"hostFns": ["jq"],
+	"skills": ["SKILL.md", "reference/jq-cheatsheet.md"],
+	"tools": [
+		{ "name": "set_filter", "kind": "message", "result": "outputs" },
+		{ "name": "add_filter", "kind": "message" },
+		{ "name": "remove_filter", "kind": "message" },
+		{ "name": "reorder_filters", "kind": "message" },
+		{ "name": "set_input", "kind": "message", "result": "outputs" },
+		{ "name": "add_input", "kind": "message" },
+		{ "name": "remove_input", "kind": "message" },
+		{ "name": "reorder_inputs", "kind": "message" },
+		{ "name": "set_expected", "kind": "message", "result": "outputs" },
+		{ "name": "clear_expected", "kind": "message" },
+		{ "name": "outputs", "kind": "view" },
+		{ "name": "input_shape", "kind": "view" },
+		{ "name": "get_input", "kind": "view" }
+	]
+}

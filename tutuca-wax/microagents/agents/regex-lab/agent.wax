@@ -1,0 +1,531 @@
+// regex-lab's implementation (agent.tcd has the rest): the grid of texts ×
+// regexes and their expectations, the highlights, the rows. The regexes run
+// in the page, through host_call (microagents/engines/regex.js).
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "r"]
+    const s_r: js_string;
+    #[import = "t"]
+    const s_t: js_string;
+    #[import = "regex_error"]
+    const s_regex_error: js_string;
+    #[import = "regex_test"]
+    const s_regex_test: js_string;
+    #[import = "regex_matches"]
+    const s_regex_matches: js_string;
+    #[import = "regex_segments"]
+    const s_regex_segments: js_string;
+    #[import = "match"]
+    const s_match: js_string;
+    #[import = "no-match"]
+    const s_no_match: js_string;
+    #[import = "none"]
+    const s_none: js_string;
+    #[import = "pass"]
+    const s_pass: js_string;
+    #[import = "fail"]
+    const s_fail: js_string;
+    #[import = "invalid"]
+    const s_invalid: js_string;
+    #[import = "label"]
+    const s_label: js_string;
+    #[import = "matches"]
+    const s_matches: js_string;
+    #[import = "no match"]
+    const s_no_match_label: js_string;
+    #[import = "error"]
+    const s_error_label: js_string;
+    #[import = "matched"]
+    const s_matched: js_string;
+    #[import = "expected"]
+    const s_expected: js_string;
+    #[import = "status"]
+    const s_status: js_string;
+    #[import = "cells"]
+    const s_cells: js_string;
+    #[import = "regex"]
+    const s_regex: js_string;
+    #[import = "text"]
+    const s_text_key: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "no regex "]
+    const s_no_regex: js_string;
+    #[import = "no text "]
+    const s_no_text: js_string;
+    #[import = "expected: "]
+    const s_expected_colon: js_string;
+    #[import = "; click to change"]
+    const s_click: js_string;
+    #[import = "grid-template-columns: max-content repeat("]
+    const s_grid_open: js_string;
+    #[import = ", max-content)"]
+    const s_grid_close: js_string;
+    #[import = "no pattern"]
+    const s_no_pattern: js_string;
+    #[import = "/"]
+    const s_slash: js_string;
+    #[import = " pass · "]
+    const s_pass_dot: js_string;
+    #[import = " fail · "]
+    const s_fail_dot: js_string;
+    #[import = " unset"]
+    const s_unset: js_string;
+    #[import = " · "]
+    const s_dot: js_string;
+    #[import = " invalid"]
+    const s_invalid_sp: js_string;
+    #[import = " regexes, "]
+    const s_regexes_comma: js_string;
+    #[import = " texts: "]
+    const s_texts_colon: js_string;
+    #[import = " expectations pass, "]
+    const s_exp_pass: js_string;
+    #[import = " fail, "]
+    const s_fail_comma: js_string;
+    #[import = " cells have no expectation, "]
+    const s_no_exp: js_string;
+    #[import = " invalid."]
+    const s_invalid_dot: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "regexes:"]
+    const s_regexes_label: js_string;
+    #[import = "texts:"]
+    const s_texts_label: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " (error: "]
+    const s_error_open: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = " expects "]
+    const s_expects: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+    #[import = "regexes"]
+    const s_regexes: js_string;
+    #[import = "texts"]
+    const s_texts: js_string;
+}
+
+// ---- Text --------------------------------------------------------------------------
+
+fn rx_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn rx_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn rx_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+// ---- The page's regexes ------------------------------------------------------------
+
+fn rx_args2(a: js_string, b: js_string) -> &value {
+    list_push(list_push(list_empty(), value_string(a)), value_string(b));
+}
+
+fn rx_args3(a: js_string, b: js_string, c: js_string) -> &value {
+    list_push(rx_args2(a, b), value_string(c));
+}
+
+// What the host function name answered with args, or null when it failed.
+fn rx_call(name: js_string, args: &value) -> &?value {
+    let r = host_call(name, args) as &value_result;
+    if !r.ok {
+        return null;
+    }
+    r.value;
+}
+
+// Why pattern with flags doesn't compile; "" when it does.
+fn rx_error(pattern: js_string, flags: js_string) -> js_string {
+    let got = rx_call(s_regex_error, rx_args2(pattern, flags));
+    if !got {
+        return s_empty;
+    }
+    rx_str(got!);
+}
+
+// Whether pattern matches text: 1 or 0, -1 when it doesn't compile.
+fn rx_test(pattern: js_string, flags: js_string, text: js_string) -> i32 {
+    let got = rx_call(s_regex_test, rx_args3(pattern, flags, text));
+    if !got {
+        return -1;
+    }
+    value_truthy(got!);
+}
+
+// ---- Rows --------------------------------------------------------------------------
+
+fn rx_id(r: &value) -> js_string {
+    rx_str(value_member(r, gs_id));
+}
+
+fn rx_pattern(r: &value) -> js_string {
+    regex_lab_regexes_pattern(r);
+}
+
+fn rx_flags(r: &value) -> js_string {
+    regex_lab_regexes_flags(r);
+}
+
+// What text expects of the regex with id: "match", "no-match" or "none".
+fn rx_expected(text: &value, regex_id: js_string) -> js_string {
+    let got = map_get(regex_lab_texts_expect(text), regex_id);
+    if !got {
+        return s_none;
+    }
+    rx_str(got!);
+}
+
+// text with its expectation of regex_id set to outcome ("none" clears it).
+fn rx_with_expectation(text: &value, regex_id: js_string, outcome: js_string) -> &value {
+    let expect = regex_lab_texts_expect(text);
+    let next = if js_string_equals(outcome, s_none) { map_dissoc(expect, regex_id); } else { map_assoc(expect, regex_id, value_string(outcome)); };
+    regex_lab_texts_new(rx_id(text), regex_lab_texts_text(text), next);
+}
+
+// none → match → no-match → none.
+fn rx_cycled(outcome: js_string) -> js_string {
+    if js_string_equals(outcome, s_none) {
+        return s_match;
+    }
+    if js_string_equals(outcome, s_match) {
+        return s_no_match;
+    }
+    s_none;
+}
+
+// The focused regex's index: focus's, or the first's.
+fn rx_focused(state: &regex_lab_state) -> i32 {
+    let i = list_find(state.regexes, gs_id, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    0;
+}
+
+// ---- The grid ----------------------------------------------------------------------
+
+// A cell: { status, matched (bool or null), expected }.
+fn rx_cell(text: &value, regex: &value) -> &value {
+    let expected = rx_expected(text, rx_id(regex));
+    let m = rx_test(rx_pattern(regex), rx_flags(regex), regex_lab_texts_text(text));
+    let status = s_invalid;
+    let matched = value_null();
+    if m >=s 0 {
+        matched = value_bool(m);
+        status = s_none;
+        if !js_string_equals(expected, s_none) {
+            let wanted = js_string_equals(expected, s_match);
+            status = if wanted == m { s_pass; } else { s_fail; };
+        }
+    }
+    let out = map_assoc(map_empty(), s_status, value_string(status));
+    out = map_assoc(out, s_matched, matched);
+    map_assoc(out, s_expected, value_string(expected));
+}
+
+fn rx_cell_status(cell: &value) -> js_string {
+    rx_str(value_member(cell, s_status));
+}
+
+// Counts of statuses over every cell: (pass, fail, none, invalid).
+fn rx_counts(state: &regex_lab_state) -> (i32, i32, i32, i32) {
+    let pass = 0;
+    let fail = 0;
+    let none = 0;
+    let invalid = 0;
+    let ti = 0;
+    while ti <s list_count(state.texts) {
+        let text = list_get(state.texts, ti)!;
+        let ri = 0;
+        while ri <s list_count(state.regexes) {
+            let st = rx_cell_status(rx_cell(text, list_get(state.regexes, ri)!));
+            if js_string_equals(st, s_pass) {
+                pass += 1;
+            }
+            if js_string_equals(st, s_fail) {
+                fail += 1;
+            }
+            if js_string_equals(st, s_none) {
+                none += 1;
+            }
+            if js_string_equals(st, s_invalid) {
+                invalid += 1;
+            }
+            ri += 1;
+        }
+        ti += 1;
+    }
+    (pass, fail, none, invalid);
+}
+
+fn regex_lab_get_grid(state: &regex_lab_state) -> &value {
+    let out = list_empty();
+    let ti = 0;
+    while ti <s list_count(state.texts) {
+        let text = list_get(state.texts, ti)!;
+        let cells = list_empty();
+        let ri = 0;
+        while ri <s list_count(state.regexes) {
+            let regex = list_get(state.regexes, ri)!;
+            cells = list_push(cells, map_assoc(rx_cell(text, regex), s_regex, value_string(rx_id(regex))));
+            ri += 1;
+        }
+        let row = map_assoc(map_empty(), s_text_key, value_string(rx_id(text)));
+        out = list_push(out, map_assoc(row, s_cells, cells));
+        ti += 1;
+    }
+    out;
+}
+
+fn regex_lab_get_grid_cells(state: &regex_lab_state) -> &value {
+    let out = list_push(list_empty(), regex_lab_grid_cells_new(s_t, s_empty, s_label));
+    let ri = 0;
+    while ri <s list_count(state.regexes) {
+        out = list_push(out, regex_lab_grid_cells_new(rx_id(list_get(state.regexes, ri)!), s_empty, s_label));
+        ri += 1;
+    }
+    let ti = 0;
+    while ti <s list_count(state.texts) {
+        let text = list_get(state.texts, ti)!;
+        out = list_push(out, regex_lab_grid_cells_new(rx_id(text), s_empty, s_label));
+        let ri = 0;
+        while ri <s list_count(state.regexes) {
+            let cell = rx_cell(text, list_get(state.regexes, ri)!);
+            let st = rx_cell_status(cell);
+            let m = value_member(cell, s_matched);
+            let label = s_error_label;
+            if m.kind == value_kind_bool {
+                label = if value_truthy(m) { s_matches; } else { s_no_match_label; };
+            }
+            let title = rx_cat3(s_expected_colon, rx_str(value_member(cell, s_expected)), s_click);
+            out = list_push(out, regex_lab_grid_cells_new(label, title, st));
+            ri += 1;
+        }
+        ti += 1;
+    }
+    out;
+}
+
+fn regex_lab_get_grid_style(state: &regex_lab_state) -> js_string {
+    rx_cat3(s_grid_open, int_text(list_count(state.regexes)), s_grid_close);
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn regex_lab_get_regex_rows(state: &regex_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.regexes) {
+        let r = list_get(state.regexes, i)!;
+        out = list_push(out, regex_lab_regex_rows_new(rx_id(r), rx_pattern(r), rx_flags(r), rx_error(rx_pattern(r), rx_flags(r))));
+        i += 1;
+    }
+    out;
+}
+
+fn regex_lab_get_highlights(state: &regex_lab_state) -> &value {
+    let regex = list_get(state.regexes, rx_focused(state))!;
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.texts) {
+        let text = list_get(state.texts, i)!;
+        let body = regex_lab_texts_text(text);
+        let got = rx_call(s_regex_segments, rx_args3(rx_pattern(regex), rx_flags(regex), body));
+        let segments = if !got {
+            list_push(list_empty(), map_assoc(map_assoc(map_empty(), gs_text, value_string(body)), gs_hit, value_bool(0)));
+        } else {
+            got!;
+        };
+        out = list_push(out, regex_lab_highlights_new(rx_id(text), segments));
+        i += 1;
+    }
+    out;
+}
+
+fn regex_lab_get_focus_label(state: &regex_lab_state) -> js_string {
+    let r = list_get(state.regexes, rx_focused(state))!;
+    rx_cat3(rx_cat(s_slash, rx_pattern(r)), s_slash, rx_flags(r));
+}
+
+fn regex_lab_get_headline(state: &regex_lab_state) -> js_string {
+    let (pass, fail, none, invalid) = rx_counts(state);
+    let out = rx_cat3(rx_cat(int_text(pass), s_pass_dot), int_text(fail), s_fail_dot);
+    out = rx_cat3(out, int_text(none), s_unset);
+    if invalid >s 0 {
+        out = rx_cat3(out, s_dot, rx_cat(int_text(invalid), s_invalid_sp));
+    }
+    out;
+}
+
+fn rx_clip(text: js_string, n: i32) -> js_string {
+    if js_string_length(text) <=s n {
+        return text;
+    }
+    rx_cat(str_slice(text, 0, n), s_ellipsis);
+}
+
+fn regex_lab_get_summary(state: &regex_lab_state) -> js_string {
+    let (pass, fail, none, invalid) = rx_counts(state);
+    let out = rx_cat3(int_text(list_count(state.regexes)), s_regexes_comma, int_text(list_count(state.texts)));
+    out = rx_cat3(out, s_texts_colon, rx_cat(int_text(pass), s_exp_pass));
+    out = rx_cat3(out, int_text(fail), s_fail_comma);
+    out = rx_cat3(out, int_text(none), s_no_exp);
+    out = rx_cat3(out, int_text(invalid), s_invalid_dot);
+    out = rx_cat3(out, s_nl, s_regexes_label);
+    let i = 0;
+    while i <s list_count(state.regexes) {
+        let r = list_get(state.regexes, i)!;
+        let line = rx_cat3(s_indent, rx_id(r), s_colon_sp);
+        line = rx_cat3(line, rx_cat(s_slash, rx_pattern(r)), rx_cat(s_slash, rx_flags(r)));
+        let error = rx_error(rx_pattern(r), rx_flags(r));
+        if js_string_length(error) != 0 {
+            line = rx_cat3(line, s_error_open, rx_cat(error, s_rparen));
+        }
+        out = rx_cat3(out, s_nl, line);
+        i += 1;
+    }
+    out = rx_cat3(out, s_nl, s_texts_label);
+    let j = 0;
+    while j <s list_count(state.texts) {
+        let t = list_get(state.texts, j)!;
+        let line = rx_cat3(s_indent, rx_id(t), s_colon_sp);
+        line = rx_cat3(line, json_string(rx_clip(regex_lab_texts_text(t), 80)), s_expects);
+        out = rx_cat3(out, s_nl, rx_cat(line, value_json(regex_lab_texts_expect(t), 0)));
+        j += 1;
+    }
+    out;
+}
+
+// The JSON it opened, changed: { regexes, texts }.
+fn regex_lab_get_data(state: &regex_lab_state) -> &value {
+    map_assoc(map_assoc(map_empty(), s_regexes, state.regexes), s_texts, state.texts);
+}
+
+fn regex_lab_get_domain(state: &regex_lab_state) -> &value {
+    regex_lab_get_data(state);
+}
+
+// ---- Queries -----------------------------------------------------------------------
+
+fn regex_lab_query_explain_matches(state: &regex_lab_state, regex: js_string, text: js_string) -> &value {
+    let ri = list_find(state.regexes, gs_id, regex);
+    if ri <s 0 {
+        return map_assoc(map_empty(), s_error, value_string(rx_cat(s_no_regex, regex)));
+    }
+    let ti = list_find(state.texts, gs_id, text);
+    if ti <s 0 {
+        return map_assoc(map_empty(), s_error, value_string(rx_cat(s_no_text, text)));
+    }
+    let r = list_get(state.regexes, ri)!;
+    let error = rx_error(rx_pattern(r), rx_flags(r));
+    if js_string_length(error) != 0 {
+        return map_assoc(map_empty(), s_error, value_string(error));
+    }
+    let args = list_push(rx_args3(rx_pattern(r), rx_flags(r), regex_lab_texts_text(list_get(state.texts, ti)!)), value_int(500));
+    let got = rx_call(s_regex_matches, args);
+    let matches = if !got { list_empty(); } else { got!; };
+    map_assoc(map_empty(), s_matches, matches);
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn regex_lab_on_set_regex(state: &regex_lab_state, ctx: &context, id: js_string, pattern: js_string, flags: js_string) -> &regex_lab_state {
+    let i = list_find(state.regexes, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    regex_lab_with_regexes(state, list_assoc(state.regexes, i, regex_lab_regexes_new(id, pattern, flags)));
+}
+
+fn regex_lab_on_add_regex(state: &regex_lab_state, ctx: &context, pattern: js_string, flags: js_string) -> &regex_lab_state {
+    let id = list_next_id(state.regexes, gs_id, s_r);
+    regex_lab_with_regexes(state, list_push(state.regexes, regex_lab_regexes_new(id, pattern, flags)));
+}
+
+fn regex_lab_on_remove_regex(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
+    let i = list_find(state.regexes, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let texts = list_empty();
+    let j = 0;
+    while j <s list_count(state.texts) {
+        texts = list_push(texts, rx_with_expectation(list_get(state.texts, j)!, id, s_none));
+        j += 1;
+    }
+    let next = regex_lab_with_texts(regex_lab_with_regexes(state, list_remove_at(state.regexes, i)), texts);
+    if js_string_equals(state.focus, id) {
+        return regex_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn regex_lab_on_reorder_regexes(state: &regex_lab_state, ctx: &context, id: js_string, index: i32) -> &regex_lab_state {
+    regex_lab_with_regexes(state, list_move(state.regexes, list_find(state.regexes, gs_id, id), index));
+}
+
+fn regex_lab_on_add_text(state: &regex_lab_state, ctx: &context, text: js_string) -> &regex_lab_state {
+    let id = list_next_id(state.texts, gs_id, s_t);
+    regex_lab_with_texts(state, list_push(state.texts, regex_lab_texts_new(id, text, map_empty())));
+}
+
+fn regex_lab_on_set_text(state: &regex_lab_state, ctx: &context, id: js_string, text: js_string) -> &regex_lab_state {
+    let i = list_find(state.texts, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let old = list_get(state.texts, i)!;
+    regex_lab_with_texts(state, list_assoc(state.texts, i, regex_lab_texts_new(id, text, regex_lab_texts_expect(old))));
+}
+
+fn regex_lab_on_remove_text(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
+    regex_lab_with_texts(state, list_remove_at(state.texts, list_find(state.texts, gs_id, id)));
+}
+
+fn regex_lab_on_reorder_texts(state: &regex_lab_state, ctx: &context, id: js_string, index: i32) -> &regex_lab_state {
+    regex_lab_with_texts(state, list_move(state.texts, list_find(state.texts, gs_id, id), index));
+}
+
+fn regex_lab_on_set_expectation(state: &regex_lab_state, ctx: &context, text: js_string, regex: js_string, outcome: js_string) -> &regex_lab_state {
+    let i = list_find(state.texts, gs_id, text);
+    if i <s 0 {
+        return state;
+    }
+    let t = rx_with_expectation(list_get(state.texts, i)!, regex, outcome);
+    regex_lab_with_texts(state, list_assoc(state.texts, i, t));
+}
+
+// Cell i of grid_cells: the header row has a corner and a cell per regex,
+// then each text's row has its label and a cell per regex.
+fn regex_lab_on_cycle_cell(state: &regex_lab_state, ctx: &context, i: i32) -> &regex_lab_state {
+    let width = list_count(state.regexes) + 1;
+    let row = i /s width - 1;
+    let col = i %s width - 1;
+    if (row <s 0) | (col <s 0) | (row >=s list_count(state.texts)) {
+        return state;
+    }
+    let text = list_get(state.texts, row)!;
+    let regex_id = rx_id(list_get(state.regexes, col)!);
+    let t = rx_with_expectation(text, regex_id, rx_cycled(rx_expected(text, regex_id)));
+    regex_lab_with_texts(state, list_assoc(state.texts, row, t));
+}
+
+fn regex_lab_on_focus(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
+    regex_lab_with_focus(state, id);
+}

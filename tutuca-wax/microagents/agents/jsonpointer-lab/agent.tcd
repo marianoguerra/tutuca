@@ -1,0 +1,95 @@
+// jsonpointer-lab: RFC 6901 JSON Pointers resolved in one JSON document. For
+// each pointer the page shows the value it reaches or why it reaches
+// nothing, and the document as a tree: clicking a node puts its pointer in
+// the focused pointer. The document is edited as JSON text, kept while it
+// doesn't parse. The root's messages are the agent's tools; its rows' inputs
+// send the same messages.
+package tutuca:jsonpointer_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component JsonPointerLab: MicroAgent {
+    /// The pointers, each with an id the model names it by (q1, q2, …).
+    field pointers: list<record { id: string, pointer: string }> where len(pointers) >= 1;
+    /// The JSON document the pointers resolve in.
+    field document: any;
+    /// The document as the user edits it; "" until it's edited.
+    field doc_text: string;
+    /// Why doc_text isn't JSON; "" when it is (and document is its value).
+    field doc_error: string;
+    /// The pointer a click in the tree sets; "" for the first.
+    field focus: string;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    /// The document as JSON text, as the editor shows it.
+    get editor_text: string;
+    /// Every pointer's resolution.
+    get resolutions: any;
+    get resolution_rows: list<record { id: string, resolves: bool, status: string, text: string }>;
+    get headline: string;
+    get focus_label: string;
+    /// What the focused pointer reaches, as JSON text, or why it reaches nothing.
+    get focus_value: string;
+    get tree_rows: list<record { key: string, text: string, pointer: string, style: string, on: bool }>;
+
+    /// Where any pointer leads in the document: its unescaped tokens, and the value it reaches, or the segment where it fails and why.
+    query resolve(pointer: string) -> any;
+    /// The pointers of nodes whose key or (scalar) value contains a text, ignoring case (at most 50).
+    query find(text: string) -> any;
+
+    /// Change a pointer.
+    message set_pointer(id: string, pointer: string) when any(pointers, it.id == id) changes pointers;
+    /// Add a pointer; it gets the next free id (q1, q2, …).
+    message add_pointer(pointer: string) changes pointers ensures len(next.pointers) == len(pointers) + 1;
+    /// Remove a pointer.
+    message remove_pointer(id: string) when any(pointers, it.id == id) and len(pointers) > 1 changes pointers, focus
+        ensures len(next.pointers) == len(pointers) - 1;
+    /// Move a pointer to a position (0 is first).
+    message reorder_pointers(id: string, index: s32 where index >= 0) when any(pointers, it.id == id) changes pointers
+        ensures len(next.pointers) == len(pointers);
+    /// Replace the JSON document the pointers resolve in.
+    message set_document(document: any) changes document, doc_text, doc_error;
+    /// The document's text, from its editor: kept while it isn't JSON.
+    message set_document_text(text: string) changes document, doc_text, doc_error;
+    /// Which pointer a click in the tree sets.
+    message focus(id: string) changes focus ensures next.focus == id;
+    /// From the tree: the node at row i's pointer goes in the focused pointer.
+    message pick_node(i: s32 where i >= 0) changes pointers;
+
+    view main = div(class: "flex flex-col gap-4",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "JSON Pointer lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Pointers"),
+        div(class: "flex flex-col gap-1",
+            each(field(pointers),
+                div(class: "join w-full",
+                    button(class: "btn btn-sm join-item font-mono", title: "Focus: clicks in the tree set this pointer",
+                        on_click: send(focus, field(id)), field(id)),
+                    input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "JSON Pointer",
+                        value: field(pointer), on_input: send(set_pointer, field(id), target_value())),
+                    button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove",
+                        on_click: send(remove_pointer, field(id)), "✕"))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_pointer, ""), "+ Pointer")),
+        div(class: "flex flex-col gap-1",
+            each(field(resolution_rows),
+                div(class: "flex items-center gap-2 text-sm",
+                    span(class: "font-mono text-xs opacity-70", field(id)),
+                    span(class: if(field(resolves), "badge badge-success", "badge badge-error"), field(status)),
+                    span(class: "font-mono text-xs break-all", field(text))))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Value at ", field(focus_label)),
+        pre(class: "rounded-box bg-base-200 p-2 text-xs max-h-60 overflow-auto", field(focus_value)),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Document · click a node to set ", field(focus_label)),
+        div(class: "flex flex-col rounded-box border border-base-300 p-2 text-sm max-h-96 overflow-auto",
+            each(field(tree_rows),
+                div(style: field(style),
+                    button(class: if(field(on), "btn btn-xs btn-warning h-auto justify-start font-mono font-normal normal-case", "btn btn-xs btn-ghost h-auto justify-start font-mono font-normal normal-case"), title: field(pointer), on_click: send(pick_node, source_key()),
+                        span(class: "opacity-60", field(key)),
+                        span(field(text)))))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Document JSON"),
+        textarea(class: "textarea textarea-bordered w-full font-mono text-xs", rows: "8", "aria-label": "Document JSON",
+            value: field(editor_text), on_input: send(set_document_text, target_value())),
+        if(field(doc_error) != "", p(class: "text-xs text-error", field(doc_error))));
+}

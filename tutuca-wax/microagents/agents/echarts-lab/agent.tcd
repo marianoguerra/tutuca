@@ -1,0 +1,101 @@
+// echarts-lab: one Apache ECharts option drawn from tables bound by id. A
+// table is { id, rows } (an array of row objects) or { id, csv, delimiter? }
+// (CSV text). The lab puts every table first in the option's dataset as
+// { id, source: rows }; a series reads one with datasetId and picks its
+// columns with encode. ECharts draws the option to SVG in the page, without
+// a DOM (host functions echarts_*, microagents/engines/echarts.js), and the
+// view shows that SVG. The root's messages are the agent's tools; the editor
+// and the table list send the same messages.
+package tutuca:echarts_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component EchartsLab: MicroAgent {
+    /// The ECharts option, a JSON object; its series read a table with "datasetId": "<table id>" and encode.
+    field option: map<any> where len(option) >= 1;
+    /// The tables the option reads; the first is the default dataset, by id: rows (an array of objects) or CSV text with a header row (delimiter "," unless it says).
+    field tables: list<one_of<record { id: string, rows: list<map<any>> }, record { id: string, csv: string }, record { id: string, csv: string, delimiter: string }>>;
+    /// The option as the user edits it; "" until it's edited.
+    field option_text: string;
+    /// Why option_text isn't an option; "" when it is (and option is its value).
+    field option_error: string;
+    /// Why the last set_option, patch_option or remove_option_key changed nothing; "" when it worked.
+    field edit_error: string;
+    /// The table the preview shows; "" for the first.
+    field focus: string;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    /// Whether the option draws: errors, warnings, the tables, the series and the SVG's size.
+    get compile_report: any;
+    /// What an option edit answers with: compile_report, or { error } when the edit changed nothing.
+    get edit_report: any;
+    /// Every table's columns with type, min, max, distinct and null counts, and 3 sample rows.
+    get describe_tables: any;
+    get error_list: list<record { text: string }>;
+    get warning_list: list<record { text: string }>;
+    get can_render: bool;
+    /// The chart as SVG text, drawn 600 × 400; "" when the option doesn't draw.
+    get chart_svg: string;
+    /// The option as JSON text, as the editor shows it.
+    get editor_text: string;
+    get table_rows: list<record { id: string, label: string, on: bool }>;
+    get has_tables: bool;
+    get preview_title: string;
+    get preview_columns: list<record { name: string, type: string }>;
+    get preview_rows: list<record { cells: list<record { text: string }> }>;
+
+    /// Replace the whole ECharts option (a JSON object). Series read tables with datasetId and encode.
+    message set_option(option: map<any> where len(option) >= 1) changes option, option_text, option_error, edit_error;
+    /// The option's text, from its editor: kept while it isn't a JSON object.
+    message set_option_text(text: string) changes option, option_text, option_error, edit_error;
+    /// Set one value in the option at a JSON pointer such as /series/0/encode/y (/- appends to an array). The value is JSON as itself (an object, not its JSON text). The parent must exist: to style a series without lineStyle, set /series/0/lineStyle to {"color": "red"}, not /series/0/lineStyle/color.
+    message patch_option(pointer: string where pointer matches "^/", value: any) changes option, option_text, option_error, edit_error;
+    /// Remove the value at a JSON pointer from the option.
+    message remove_option_key(pointer: string where pointer matches "^/") changes option, option_text, option_error, edit_error;
+    /// Replace a table's rows, or add a table with this id; rows is an array of objects. A CSV table stays CSV.
+    message set_table(id: string where id matches "^[A-Za-z0-9_-]+$", rows: list<map<any>>) changes tables;
+    /// Remove a table.
+    message remove_table(id: string where check(table_id)) changes tables, focus
+        ensures len(next.tables) == len(tables) - 1;
+    /// Move a table to a position (0 is first): the first one is the option's default dataset.
+    message reorder_tables(id: string where check(table_id), index: s32 where index >= 0) changes tables
+        ensures len(next.tables) == len(tables);
+    /// Which table the preview shows.
+    message focus(id: string) changes focus ensures next.focus == id;
+
+    view main = div(class: "flex flex-col gap-4",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "ECharts lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        if(field(can_render),
+            el("ma-svg", class: "block w-full overflow-x-auto", svg: field(chart_svg)),
+            p(class: "text-sm opacity-60", "The chart shows once the option draws.")),
+        ul(class: "flex flex-col gap-1 text-sm text-error",
+            each(field(error_list), li(field(text)))),
+        ul(class: "flex flex-col gap-1 text-sm text-warning",
+            each(field(warning_list), li(field(text)))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Option"),
+        textarea(class: "textarea textarea-bordered w-full font-mono text-xs", rows: "16", "aria-label": "Option JSON",
+            value: field(editor_text), on_input: send(set_option_text, target_value())),
+        if(field(option_error) != "", p(class: "text-xs text-error", field(option_error))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Tables"),
+        if(field(has_tables),
+            div(class: "flex flex-col gap-1",
+                each(field(table_rows),
+                    div(class: "join w-full",
+                        button(class: if(field(on), "btn btn-sm btn-active join-item flex-1 justify-start font-mono", "btn btn-sm join-item flex-1 justify-start font-mono"),
+                            title: "Preview this table", on_click: send(focus, field(id)), field(label)),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove",
+                            on_click: send(remove_table, field(id)), "✕")))),
+            p(class: "text-sm opacity-60", "No tables yet: the model adds them with set_table.")),
+        if(field(has_tables),
+            div(class: "flex flex-col gap-1",
+                p(class: "text-xs opacity-60", field(preview_title)),
+                div(class: "overflow-x-auto rounded-box border border-base-300",
+                    table(class: "table table-xs",
+                        thead(tr(each(field(preview_columns), th(class: "font-mono", field(name), span(class: "opacity-50", " ", field(type)))))),
+                        tbody(each(field(preview_rows), tr(each(field(cells), td(field(text)))))))))));
+}

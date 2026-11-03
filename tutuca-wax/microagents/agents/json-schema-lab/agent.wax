@@ -1,0 +1,541 @@
+// json-schema-lab's implementation (agent.tcd has the rest): each example
+// validated against the schema in the page, through host_call
+// (microagents/engines/json_schema.js, with Ajv), the expectations, and the
+// schema and examples edited as JSON text.
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "e"]
+    const s_e: js_string;
+    #[import = "pass"]
+    const s_pass: js_string;
+    #[import = "fail"]
+    const s_fail: js_string;
+    #[import = "invalid"]
+    const s_invalid: js_string;
+    #[import = "valid"]
+    const s_valid: js_string;
+    #[import = "—"]
+    const s_dash: js_string;
+    #[import = "instancePath"]
+    const s_instance_path: js_string;
+    #[import = "keyword"]
+    const s_keyword: js_string;
+    #[import = "message"]
+    const s_message: js_string;
+    #[import = "schemaError"]
+    const s_schema_error_key: js_string;
+    #[import = "json_parse"]
+    const s_json_parse: js_string;
+    #[import = "json_schema_error"]
+    const s_fn_error: js_string;
+    #[import = "json_schema_validate"]
+    const s_fn_validate: js_string;
+    #[import = "json_schema_pointer_set"]
+    const s_fn_set: js_string;
+    #[import = "json_schema_pointer_remove"]
+    const s_fn_remove: js_string;
+    #[import = "should be valid"]
+    const s_should_valid: js_string;
+    #[import = "should be invalid"]
+    const s_should_invalid: js_string;
+    #[import = "the schema isn't JSON: "]
+    const s_schema_not_json: js_string;
+    #[import = "the schema is invalid: "]
+    const s_schema_bad: js_string;
+    #[import = "not JSON: "]
+    const s_not_json: js_string;
+    #[import = "no example "]
+    const s_no_example: js_string;
+    #[import = "(root)"]
+    const s_root: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = " · "]
+    const s_dot: js_string;
+    #[import = " pass · "]
+    const s_pass_dot: js_string;
+    #[import = " fail"]
+    const s_fail_word: js_string;
+    #[import = " can't run"]
+    const s_cant_run: js_string;
+    #[import = " examples: "]
+    const s_examples_colon: js_string;
+    #[import = " pass, "]
+    const s_pass_comma: js_string;
+    #[import = " fail, "]
+    const s_fail_comma: js_string;
+    #[import = " can't run."]
+    const s_cant_run_dot: js_string;
+    #[import = "schema"]
+    const s_schema_word: js_string;
+    #[import = " ("]
+    const s_sp_lparen: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = ":"]
+    const s_colon: js_string;
+    #[import = "  (not JSON: "]
+    const s_indent_not_json: js_string;
+    #[import = "examples:"]
+    const s_examples_label: js_string;
+    #[import = " expects "]
+    const s_expects: js_string;
+    #[import = ", "]
+    const s_comma_sp: js_string;
+    #[import = "invalid ("]
+    const s_invalid_paren: js_string;
+    #[import = " errors)"]
+    const s_errors_paren: js_string;
+    #[import = " → "]
+    const s_arrow: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+}
+
+// ---- Text --------------------------------------------------------------------------
+
+fn sl_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn sl_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+// text cut to at most n characters, with … when it was longer.
+fn sl_clip(text: js_string, n: i32) -> js_string {
+    if js_string_length(text) <=s n {
+        return text;
+    }
+    sl_cat(str_slice(text, 0, n - 1), s_ellipsis);
+}
+
+fn sl_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn sl_is(a: js_string, b: js_string) -> i32 {
+    js_string_equals(a, b);
+}
+
+// ---- Host functions ----------------------------------------------------------------
+
+// The result of a host function, or null when it threw (its message in why).
+fn sl_call(name: js_string, args: &value) -> &value_result {
+    host_call(name, args) as &value_result;
+}
+
+fn sl_args1(a: &value) -> &value {
+    list_push(list_empty(), a);
+}
+
+fn sl_args2(a: &value, b: &value) -> &value {
+    list_push(list_push(list_empty(), a), b);
+}
+
+fn sl_args3(a: &value, b: &value, c: &value) -> &value {
+    list_push(list_push(list_push(list_empty(), a), b), c);
+}
+
+// Why the schema can't be used: "" when it compiles.
+fn sl_schema_trouble(state: &json_schema_lab_state) -> js_string {
+    if js_string_length(state.schema_error) != 0 {
+        return sl_cat(s_schema_not_json, state.schema_error);
+    }
+    let r = sl_call(s_fn_error, sl_args1(state.schema));
+    if !r.ok {
+        return sl_cat(s_schema_bad, sl_str(r.value));
+    }
+    let why = sl_str(r.value);
+    if js_string_length(why) != 0 {
+        return sl_cat(s_schema_bad, why);
+    }
+    s_empty;
+}
+
+// ---- Examples ----------------------------------------------------------------------
+
+fn sl_id(r: &value) -> js_string {
+    json_schema_lab_examples_id(r);
+}
+
+fn sl_outcome(r: &value) -> js_string {
+    json_schema_lab_examples_outcome(r);
+}
+
+fn sl_wants_valid(r: &value) -> i32 {
+    !sl_is(sl_outcome(r), s_fail);
+}
+
+// Why example id's text isn't JSON, "" when it is.
+fn sl_text_error(state: &json_schema_lab_state, id: js_string) -> js_string {
+    let got = map_get(state.example_errors, id);
+    if !got {
+        return s_empty;
+    }
+    sl_str(got!);
+}
+
+// An example's result: { id, expected, valid (bool or null), status, errors, error }.
+// trouble is the schema's (sl_schema_trouble).
+fn sl_result(state: &json_schema_lab_state, trouble: js_string, ex: &value) -> &value {
+    let id = sl_id(ex);
+    let m = map_assoc(map_empty(), gs_id, value_string(id));
+    m = map_assoc(m, gs_expected, value_string(sl_outcome(ex)));
+    let error = trouble;
+    if js_string_length(error) == 0 {
+        let bad = sl_text_error(state, id);
+        if js_string_length(bad) != 0 {
+            error = sl_cat(s_not_json, bad);
+        }
+    }
+    let valid = value_null();
+    let errors = list_empty();
+    if js_string_length(error) == 0 {
+        let r = sl_call(s_fn_validate, sl_args2(state.schema, json_schema_lab_examples_value(ex)));
+        if r.ok {
+            valid = value_member(r.value, s_valid);
+            errors = value_member(r.value, gs_errors);
+        } else {
+            error = sl_cat(s_schema_bad, sl_str(r.value));
+        }
+    }
+    let status = s_invalid;
+    if js_string_length(error) == 0 {
+        status = if value_truthy(valid) == sl_wants_valid(ex) { s_pass; } else { s_fail; };
+    }
+    m = map_assoc(m, s_valid, valid);
+    m = map_assoc(m, gs_status, value_string(status));
+    m = map_assoc(m, gs_errors, errors);
+    map_assoc(m, gs_error, value_string(error));
+}
+
+fn sl_results(state: &json_schema_lab_state) -> &value {
+    let trouble = sl_schema_trouble(state);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.examples) {
+        out = list_push(out, sl_result(state, trouble, list_get(state.examples, i)!));
+        i += 1;
+    }
+    out;
+}
+
+fn sl_status(r: &value) -> js_string {
+    sl_str(value_member(r, gs_status));
+}
+
+// Counts of statuses: (pass, fail, invalid).
+fn sl_counts(results: &value) -> (i32, i32, i32) {
+    let pass = 0;
+    let fail = 0;
+    let invalid = 0;
+    let i = 0;
+    while i <s list_count(results) {
+        let st = sl_status(list_get(results, i)!);
+        if sl_is(st, s_pass) {
+            pass += 1;
+        }
+        if sl_is(st, s_fail) {
+            fail += 1;
+        }
+        if sl_is(st, s_invalid) {
+            invalid += 1;
+        }
+        i += 1;
+    }
+    (pass, fail, invalid);
+}
+
+// "valid", "invalid (n errors)" or the error that kept it from running.
+fn sl_verdict(r: &value) -> js_string {
+    let error = sl_str(value_member(r, gs_error));
+    if js_string_length(error) != 0 {
+        return error;
+    }
+    if value_truthy(value_member(r, s_valid)) {
+        return s_valid;
+    }
+    sl_cat3(s_invalid_paren, int_text(list_count(value_member(r, gs_errors))), s_errors_paren);
+}
+
+// The schema with value at pointer, or why it can't be (ok = 0).
+fn sl_set(state: &json_schema_lab_state, pointer: js_string, v: &value) -> &value_result {
+    sl_call(s_fn_set, sl_args3(state.schema, value_string(pointer), v));
+}
+
+fn sl_with_schema(state: &json_schema_lab_state, schema: &value) -> &json_schema_lab_state {
+    json_schema_lab_with_schema_error(json_schema_lab_with_schema_text(json_schema_lab_with_schema(state, schema), s_empty), s_empty);
+}
+
+fn sl_with_example(state: &json_schema_lab_state, i: i32, ex: &value) -> &json_schema_lab_state {
+    json_schema_lab_with_examples(state, list_assoc(state.examples, i, ex));
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn json_schema_lab_get_headline(state: &json_schema_lab_state) -> js_string {
+    let (pass, fail, invalid) = sl_counts(sl_results(state));
+    let out = sl_cat3(int_text(pass), s_pass_dot, sl_cat(int_text(fail), s_fail_word));
+    if invalid >s 0 {
+        out = sl_cat3(out, s_dot, sl_cat(int_text(invalid), s_cant_run));
+    }
+    out;
+}
+
+fn json_schema_lab_get_summary(state: &json_schema_lab_state) -> js_string {
+    let results = sl_results(state);
+    let (pass, fail, invalid) = sl_counts(results);
+    let out = sl_cat3(int_text(list_count(results)), s_examples_colon, sl_cat(int_text(pass), s_pass_comma));
+    out = sl_cat3(out, sl_cat(int_text(fail), s_fail_comma), sl_cat(int_text(invalid), s_cant_run_dot));
+    let trouble = sl_schema_trouble(state);
+    let head = s_schema_word;
+    if js_string_length(trouble) != 0 {
+        head = sl_cat3(head, s_sp_lparen, sl_cat(trouble, s_rparen));
+    }
+    out = sl_cat3(out, s_nl, sl_cat(head, s_colon));
+    let body = if js_string_length(state.schema_error) != 0 {
+        sl_cat3(s_indent_not_json, state.schema_error, s_rparen);
+    } else {
+        sl_cat(s_indent, sl_clip(value_json(state.schema, 0), 600));
+    };
+    out = sl_cat3(out, s_nl, body);
+    out = sl_cat3(out, s_nl, s_examples_label);
+    let i = 0;
+    while i <s list_count(results) {
+        let r = list_get(results, i)!;
+        let ex = list_get(state.examples, i)!;
+        let line = sl_cat3(s_indent, sl_id(ex), s_colon_sp);
+        line = sl_cat3(line, sl_clip(value_json(json_schema_lab_examples_value(ex), 0), 120), s_expects);
+        line = sl_cat3(line, sl_outcome(ex), s_comma_sp);
+        line = sl_cat3(line, sl_verdict(r), sl_cat(s_arrow, sl_status(r)));
+        out = sl_cat3(out, s_nl, line);
+        i += 1;
+    }
+    out;
+}
+
+// The JSON it opened, changed: { schema, examples }.
+fn json_schema_lab_get_data(state: &json_schema_lab_state) -> &value {
+    map_assoc(map_assoc(map_empty(), gs_schema, state.schema), gs_examples, state.examples);
+}
+
+fn json_schema_lab_get_domain(state: &json_schema_lab_state) -> &value {
+    json_schema_lab_get_data(state);
+}
+
+fn json_schema_lab_get_schema_editor_text(state: &json_schema_lab_state) -> js_string {
+    if js_string_length(state.schema_text) != 0 {
+        return state.schema_text;
+    }
+    value_json(state.schema, 2);
+}
+
+fn json_schema_lab_get_schema_problem(state: &json_schema_lab_state) -> js_string {
+    if js_string_length(state.schema_error) != 0 {
+        return s_empty;
+    }
+    sl_schema_trouble(state);
+}
+
+fn json_schema_lab_get_validation(state: &json_schema_lab_state) -> &value {
+    let results = sl_results(state);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(results) {
+        let r = list_get(results, i)!;
+        let m = map_assoc(map_empty(), gs_id, value_member(r, gs_id));
+        m = map_assoc(m, gs_expected, value_member(r, gs_expected));
+        m = map_assoc(m, s_valid, value_member(r, s_valid));
+        m = map_assoc(m, gs_status, value_member(r, gs_status));
+        m = map_assoc(m, gs_errors, value_int(list_count(value_member(r, gs_errors))));
+        let error = sl_str(value_member(r, gs_error));
+        if js_string_length(error) != 0 {
+            m = map_assoc(m, gs_error, value_string(error));
+        }
+        out = list_push(out, m);
+        i += 1;
+    }
+    let v = map_empty();
+    let trouble = sl_schema_trouble(state);
+    if js_string_length(trouble) != 0 {
+        v = map_assoc(v, s_schema_error_key, value_string(trouble));
+    }
+    map_assoc(v, gs_examples, out);
+}
+
+fn json_schema_lab_get_example_rows(state: &json_schema_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.examples) {
+        let ex = list_get(state.examples, i)!;
+        let id = sl_id(ex);
+        let draft = map_get(state.example_texts, id);
+        let text = if !draft { value_json(json_schema_lab_examples_value(ex), 2); } else { sl_str(draft!); };
+        let pass = sl_wants_valid(ex);
+        let label = if pass { s_should_valid; } else { s_should_invalid; };
+        out = list_push(out, json_schema_lab_example_rows_new(id, text, pass, label, sl_text_error(state, id)));
+        i += 1;
+    }
+    out;
+}
+
+fn json_schema_lab_get_result_rows(state: &json_schema_lab_state) -> &value {
+    let results = sl_results(state);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(results) {
+        let r = list_get(results, i)!;
+        let expected = if sl_is(sl_str(value_member(r, gs_expected)), s_fail) { s_invalid; } else { s_valid; };
+        let valid = value_member(r, s_valid);
+        let actual = s_dash;
+        if valid.kind == value_kind_bool {
+            actual = if value_truthy(valid) { s_valid; } else { s_invalid; };
+        }
+        let errors = sl_str(value_member(r, gs_error));
+        if js_string_length(errors) == 0 {
+            let es = value_member(r, gs_errors);
+            let j = 0;
+            while j <s list_count(es) {
+                let e = list_get(es, j)!;
+                let at = sl_str(value_member(e, s_instance_path));
+                if js_string_length(at) == 0 {
+                    at = s_root;
+                }
+                let line = sl_cat3(at, s_colon_sp, sl_str(value_member(e, s_message)));
+                errors = if j == 0 { line; } else { sl_cat3(errors, s_nl, line); };
+                j += 1;
+            }
+        }
+        out = list_push(out, json_schema_lab_result_rows_new(sl_str(value_member(r, gs_id)), expected, actual, sl_status(r), errors));
+        i += 1;
+    }
+    out;
+}
+
+// ---- Queries and checks ------------------------------------------------------------
+
+fn json_schema_lab_query_errors_for(state: &json_schema_lab_state, id: js_string) -> &value {
+    let i = list_find(state.examples, gs_id, id);
+    if i <s 0 {
+        return map_assoc(map_empty(), gs_error, value_string(sl_cat(s_no_example, id)));
+    }
+    let r = sl_result(state, sl_schema_trouble(state), list_get(state.examples, i)!);
+    let error = sl_str(value_member(r, gs_error));
+    if js_string_length(error) != 0 {
+        return map_assoc(map_empty(), gs_error, value_string(error));
+    }
+    let m = map_assoc(map_empty(), s_valid, value_member(r, s_valid));
+    m = map_assoc(m, gs_expected, value_member(r, gs_expected));
+    map_assoc(m, gs_errors, value_member(r, gs_errors));
+}
+
+// Whether a value can be set at pointer in the schema (the `when` says when
+// the schema isn't JSON).
+fn json_schema_lab_check_parent_in_schema(state: &json_schema_lab_state, v: js_string) -> i32 {
+    if js_string_length(state.schema_error) != 0 {
+        return 1;
+    }
+    sl_set(state, v, value_null()).ok;
+}
+
+fn json_schema_lab_check_in_schema(state: &json_schema_lab_state, v: js_string) -> i32 {
+    if js_string_length(state.schema_error) != 0 {
+        return 1;
+    }
+    sl_call(s_fn_remove, sl_args2(state.schema, value_string(v))).ok;
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn json_schema_lab_on_set_schema(state: &json_schema_lab_state, ctx: &context, schema: &value) -> &json_schema_lab_state {
+    sl_with_schema(state, schema);
+}
+
+fn json_schema_lab_on_set_schema_text(state: &json_schema_lab_state, ctx: &context, text: js_string) -> &json_schema_lab_state {
+    let r = sl_call(s_json_parse, sl_args1(value_string(text)));
+    if r.ok {
+        return json_schema_lab_with_schema_error(json_schema_lab_with_schema_text(json_schema_lab_with_schema(state, r.value), text), s_empty);
+    }
+    json_schema_lab_with_schema_error(json_schema_lab_with_schema_text(state, text), sl_str(r.value));
+}
+
+fn json_schema_lab_on_patch_schema(state: &json_schema_lab_state, ctx: &context, pointer: js_string, value: &value) -> &json_schema_lab_state {
+    let r = sl_set(state, pointer, value);
+    if !r.ok {
+        return state;
+    }
+    json_schema_lab_with_schema_text(json_schema_lab_with_schema(state, r.value), s_empty);
+}
+
+fn json_schema_lab_on_remove_from_schema(state: &json_schema_lab_state, ctx: &context, pointer: js_string) -> &json_schema_lab_state {
+    let r = sl_call(s_fn_remove, sl_args2(state.schema, value_string(pointer)));
+    if !r.ok {
+        return state;
+    }
+    json_schema_lab_with_schema_text(json_schema_lab_with_schema(state, r.value), s_empty);
+}
+
+fn json_schema_lab_on_add_example(state: &json_schema_lab_state, ctx: &context, value: &value, outcome: js_string) -> &json_schema_lab_state {
+    let id = list_next_id(state.examples, gs_id, s_e);
+    json_schema_lab_with_examples(state, list_push(state.examples, json_schema_lab_examples_new(id, value, outcome)));
+}
+
+fn json_schema_lab_on_add_blank_example(state: &json_schema_lab_state, ctx: &context) -> &json_schema_lab_state {
+    json_schema_lab_on_add_example(state, ctx, map_empty(), s_pass);
+}
+
+fn json_schema_lab_on_set_example(state: &json_schema_lab_state, ctx: &context, id: js_string, value: &value) -> &json_schema_lab_state {
+    let i = list_find(state.examples, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let ex = list_get(state.examples, i)!;
+    let next = sl_with_example(state, i, json_schema_lab_examples_new(id, value, sl_outcome(ex)));
+    next = json_schema_lab_with_example_texts(next, map_dissoc(state.example_texts, id));
+    json_schema_lab_with_example_errors(next, map_dissoc(state.example_errors, id));
+}
+
+fn json_schema_lab_on_set_example_text(state: &json_schema_lab_state, ctx: &context, id: js_string, text: js_string) -> &json_schema_lab_state {
+    let i = list_find(state.examples, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let next = json_schema_lab_with_example_texts(state, map_assoc(state.example_texts, id, value_string(text)));
+    let r = sl_call(s_json_parse, sl_args1(value_string(text)));
+    if !r.ok {
+        return json_schema_lab_with_example_errors(next, map_assoc(state.example_errors, id, value_string(sl_str(r.value))));
+    }
+    let ex = list_get(state.examples, i)!;
+    next = sl_with_example(next, i, json_schema_lab_examples_new(id, r.value, sl_outcome(ex)));
+    json_schema_lab_with_example_errors(next, map_dissoc(state.example_errors, id));
+}
+
+fn json_schema_lab_on_remove_example(state: &json_schema_lab_state, ctx: &context, id: js_string) -> &json_schema_lab_state {
+    let next = json_schema_lab_with_examples(state, list_remove_at(state.examples, list_find(state.examples, gs_id, id)));
+    next = json_schema_lab_with_example_texts(next, map_dissoc(state.example_texts, id));
+    json_schema_lab_with_example_errors(next, map_dissoc(state.example_errors, id));
+}
+
+fn json_schema_lab_on_reorder_examples(state: &json_schema_lab_state, ctx: &context, id: js_string, index: i32) -> &json_schema_lab_state {
+    json_schema_lab_with_examples(state, list_move(state.examples, list_find(state.examples, gs_id, id), index));
+}
+
+fn json_schema_lab_on_set_expectation(state: &json_schema_lab_state, ctx: &context, id: js_string, outcome: js_string) -> &json_schema_lab_state {
+    let i = list_find(state.examples, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let ex = list_get(state.examples, i)!;
+    sl_with_example(state, i, json_schema_lab_examples_new(id, json_schema_lab_examples_value(ex), outcome));
+}

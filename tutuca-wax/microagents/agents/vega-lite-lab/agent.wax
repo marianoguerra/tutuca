@@ -1,0 +1,488 @@
+// vega-lite-lab's implementation (agent.tcd has the rest): the report, the
+// summary, the tables' list and preview, and the edits. Vega-Lite runs in
+// the page, through host_call (microagents/engines/vega.js).
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "vega_check"]
+    const s_vega_check: js_string;
+    #[import = "vega_tables"]
+    const s_vega_tables: js_string;
+    #[import = "vega_describe"]
+    const s_vega_describe: js_string;
+    #[import = "vega_chart_spec"]
+    const s_vega_chart_spec: js_string;
+    #[import = "vega_patch"]
+    const s_vega_patch: js_string;
+    #[import = "vega_remove"]
+    const s_vega_remove: js_string;
+    #[import = "vega_format_csv"]
+    const s_vega_format_csv: js_string;
+    #[import = "json_parse"]
+    const s_json_parse: js_string;
+    #[import = "ok"]
+    const s_ok: js_string;
+    #[import = "errors"]
+    const s_errors: js_string;
+    #[import = "warnings"]
+    const s_warnings: js_string;
+    #[import = "marks"]
+    const s_marks: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "kind"]
+    const s_kind: js_string;
+    #[import = "count"]
+    const s_count: js_string;
+    #[import = "columns"]
+    const s_columns: js_string;
+    #[import = ","]
+    const s_comma: js_string;
+    #[import = ", "]
+    const s_comma_sp: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " · "]
+    const s_dot: js_string;
+    #[import = " rows"]
+    const s_rows_sp: js_string;
+    #[import = " (showing "]
+    const s_showing: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = " ("]
+    const s_lparen_sp: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+    #[import = "compiles · "]
+    const s_compiles: js_string;
+    #[import = " warnings"]
+    const s_warnings_sp: js_string;
+    #[import = " errors"]
+    const s_errors_sp: js_string;
+    #[import = "Vega-Lite spec: "]
+    const s_summary_head: js_string;
+    #[import = "."]
+    const s_period: js_string;
+    #[import = "tables ("]
+    const s_tables_open: js_string;
+    #[import = "):"]
+    const s_tables_close: js_string;
+    #[import = "error: "]
+    const s_error_colon: js_string;
+    #[import = "warning: "]
+    const s_warning_colon: js_string;
+    #[import = "spec:"]
+    const s_spec_colon: js_string;
+    #[import = "the editor's text isn't a spec yet (the spec is the last one that was): "]
+    const s_editor_bad: js_string;
+    #[import = "the spec must be a JSON object with at least one key"]
+    const s_not_object: js_string;
+    #[import = "that leaves the spec empty: replace it whole with set_spec instead"]
+    const s_left_empty: js_string;
+    #[import = "the page can't check specs: "]
+    const s_no_engine: js_string;
+}
+
+const vl_preview_rows = 8;
+const vl_clip_at = 1500;
+
+// ---- Text --------------------------------------------------------------------------
+
+fn vl_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn vl_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn vl_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn vl_clip(text: js_string, n: i32) -> js_string {
+    if js_string_length(text) <=s n {
+        return text;
+    }
+    vl_cat(str_slice(text, 0, n), s_ellipsis);
+}
+
+// A cell's value as text: a string as itself, null as "", the rest as JSON.
+fn vl_cell_text(v: &value) -> js_string {
+    if v.kind == value_kind_string {
+        return vl_str(v);
+    }
+    if v.kind == value_kind_null {
+        return s_empty;
+    }
+    value_json(v, 0);
+}
+
+// Whether v is an object with at least one key.
+fn vl_is_spec(v: &value) -> i32 {
+    if v.kind != value_kind_map {
+        return 0;
+    }
+    list_count(map_keys(v)) >s 0;
+}
+
+fn vl_list_count_of(v: &value) -> i32 {
+    if v.kind != value_kind_list {
+        return 0;
+    }
+    list_count(v);
+}
+
+// ---- The page's Vega-Lite ----------------------------------------------------------
+
+fn vl_args2(a: &value, b: &value) -> &value {
+    list_push(list_push(list_empty(), a), b);
+}
+
+fn vl_call(name: js_string, args: &value) -> &value_result {
+    host_call(name, args) as &value_result;
+}
+
+// { ok, errors, warnings, marks } for the spec and the tables.
+fn vl_report(state: &vega_lite_lab_state) -> &value {
+    let r = vl_call(s_vega_check, vl_args2(state.spec, state.tables));
+    if r.ok {
+        return r.value;
+    }
+    let out = map_assoc(map_empty(), s_ok, value_bool(0));
+    out = map_assoc(out, s_errors, list_push(list_empty(), value_string(vl_cat(s_no_engine, vl_str(r.value)))));
+    out = map_assoc(out, s_warnings, list_empty());
+    map_assoc(out, s_marks, list_empty());
+}
+
+fn vl_ok(report: &value) -> i32 {
+    value_truthy(value_member(report, s_ok));
+}
+
+fn vl_errors(report: &value) -> &value {
+    value_member(report, s_errors);
+}
+
+fn vl_warnings(report: &value) -> &value {
+    value_member(report, s_warnings);
+}
+
+// The tables as the page reads them: [{ id, kind, count, columns, rows }].
+fn vl_tables(state: &vega_lite_lab_state) -> &value {
+    let r = vl_call(s_vega_tables, list_push(list_empty(), state.tables));
+    if r.ok {
+        return r.value;
+    }
+    list_empty();
+}
+
+// The index of the table the preview shows: focus's, or the first's.
+fn vl_focused(state: &vega_lite_lab_state) -> i32 {
+    let i = list_find(state.tables, gs_id, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    0;
+}
+
+// "month: date, revenue: integer".
+fn vl_columns_text(info: &value) -> js_string {
+    let cols = value_member(info, s_columns);
+    let out = s_empty;
+    let i = 0;
+    while i <s vl_list_count_of(cols) {
+        let c = list_get(cols, i)!;
+        if i >s 0 {
+            out = vl_cat(out, s_comma_sp);
+        }
+        out = vl_cat3(out, vl_str(value_member(c, gs_name)), vl_cat(s_colon_sp, vl_str(value_member(c, gs_type))));
+        i += 1;
+    }
+    out;
+}
+
+// "sales · table · 8 rows".
+fn vl_table_label(info: &value) -> js_string {
+    let out = vl_cat3(vl_str(value_member(info, gs_id)), s_dot, vl_str(value_member(info, s_kind)));
+    vl_cat3(out, s_dot, vl_cat(int_text(vl_list_count_of(value_member(info, gs_rows))), s_rows_sp));
+}
+
+// A list of strings as records { text }.
+fn vl_texts(items: &value) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s vl_list_count_of(items) {
+        out = list_push(out, map_assoc(map_empty(), gs_text, list_get(items, i)!));
+        i += 1;
+    }
+    out;
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn vega_lite_lab_get_compile_report(state: &vega_lite_lab_state) -> &value {
+    let ids = list_empty();
+    let i = 0;
+    while i <s list_count(state.tables) {
+        ids = list_push(ids, value_member(list_get(state.tables, i)!, gs_id));
+        i += 1;
+    }
+    map_assoc(vl_report(state), gs_tables, ids);
+}
+
+fn vega_lite_lab_get_edit_report(state: &vega_lite_lab_state) -> &value {
+    if js_string_length(state.edit_error) != 0 {
+        return map_assoc(map_empty(), s_error, value_string(state.edit_error));
+    }
+    vega_lite_lab_get_compile_report(state);
+}
+
+fn vega_lite_lab_get_describe_tables(state: &vega_lite_lab_state) -> &value {
+    let r = vl_call(s_vega_describe, list_push(list_empty(), state.tables));
+    if r.ok {
+        return r.value;
+    }
+    map_assoc(map_empty(), s_error, r.value);
+}
+
+fn vega_lite_lab_get_error_list(state: &vega_lite_lab_state) -> &value {
+    vl_texts(vl_errors(vl_report(state)));
+}
+
+fn vega_lite_lab_get_warning_list(state: &vega_lite_lab_state) -> &value {
+    vl_texts(vl_warnings(vl_report(state)));
+}
+
+fn vega_lite_lab_get_can_render(state: &vega_lite_lab_state) -> i32 {
+    vl_ok(vl_report(state));
+}
+
+fn vega_lite_lab_get_chart_spec(state: &vega_lite_lab_state) -> js_string {
+    let r = vl_call(s_vega_chart_spec, vl_args2(state.spec, state.tables));
+    if r.ok {
+        return vl_str(r.value);
+    }
+    s_empty;
+}
+
+fn vega_lite_lab_get_editor_text(state: &vega_lite_lab_state) -> js_string {
+    if js_string_length(state.spec_text) != 0 {
+        return state.spec_text;
+    }
+    value_json(state.spec, 2);
+}
+
+fn vega_lite_lab_get_headline(state: &vega_lite_lab_state) -> js_string {
+    let report = vl_report(state);
+    if vl_ok(report) {
+        return vl_cat3(s_compiles, int_text(vl_list_count_of(vl_warnings(report))), s_warnings_sp);
+    }
+    vl_cat(int_text(vl_list_count_of(vl_errors(report))), s_errors_sp);
+}
+
+fn vega_lite_lab_get_table_rows(state: &vega_lite_lab_state) -> &value {
+    let infos = vl_tables(state);
+    let focused = vl_focused(state);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(infos) {
+        let info = list_get(infos, i)!;
+        let label = vl_cat3(vl_table_label(info), s_dot, vl_columns_text(info));
+        out = list_push(out, vega_lite_lab_table_rows_new(vl_str(value_member(info, gs_id)), label, i == focused));
+        i += 1;
+    }
+    out;
+}
+
+fn vega_lite_lab_get_has_tables(state: &vega_lite_lab_state) -> i32 {
+    list_count(state.tables) >s 0;
+}
+
+fn vega_lite_lab_get_preview_title(state: &vega_lite_lab_state) -> js_string {
+    let info = list_get(vl_tables(state), vl_focused(state));
+    if !info {
+        return s_empty;
+    }
+    let n = vl_list_count_of(value_member(info!, gs_rows));
+    let shown = if n <s vl_preview_rows { n; } else { vl_preview_rows; };
+    vl_cat3(vl_table_label(info!), s_showing, vl_cat(int_text(shown), s_rparen));
+}
+
+fn vega_lite_lab_get_preview_columns(state: &vega_lite_lab_state) -> &value {
+    let info = list_get(vl_tables(state), vl_focused(state));
+    if !info {
+        return list_empty();
+    }
+    value_member(info!, s_columns);
+}
+
+fn vega_lite_lab_get_preview_rows(state: &vega_lite_lab_state) -> &value {
+    let info = list_get(vl_tables(state), vl_focused(state));
+    if !info {
+        return list_empty();
+    }
+    let cols = value_member(info!, s_columns);
+    let rows = value_member(info!, gs_rows);
+    let out = list_empty();
+    let i = 0;
+    while (i <s vl_list_count_of(rows)) & (i <s vl_preview_rows) {
+        let row = list_get(rows, i)!;
+        let cells = list_empty();
+        let j = 0;
+        while j <s vl_list_count_of(cols) {
+            let name = vl_str(value_member(list_get(cols, j)!, gs_name));
+            cells = list_push(cells, map_assoc(map_empty(), gs_text, value_string(vl_cell_text(value_member(row, name)))));
+            j += 1;
+        }
+        out = list_push(out, map_assoc(map_empty(), gs_cells, cells));
+        i += 1;
+    }
+    out;
+}
+
+fn vega_lite_lab_get_summary(state: &vega_lite_lab_state) -> js_string {
+    let report = vl_report(state);
+    let out = vl_cat3(s_summary_head, vega_lite_lab_get_headline(state), s_period);
+    let infos = vl_tables(state);
+    out = vl_cat3(out, s_nl, vl_cat3(s_tables_open, int_text(list_count(infos)), s_tables_close));
+    let i = 0;
+    while i <s list_count(infos) {
+        let info = list_get(infos, i)!;
+        let line = vl_cat3(s_indent, vl_table_label(info), s_colon_sp);
+        out = vl_cat3(out, s_nl, vl_cat(line, vl_columns_text(info)));
+        i += 1;
+    }
+    let errors = vl_errors(report);
+    let e = 0;
+    while e <s vl_list_count_of(errors) {
+        out = vl_cat3(out, s_nl, vl_cat(s_error_colon, vl_str(list_get(errors, e)!)));
+        e += 1;
+    }
+    let warnings = vl_warnings(report);
+    let w = 0;
+    while w <s vl_list_count_of(warnings) {
+        out = vl_cat3(out, s_nl, vl_cat(s_warning_colon, vl_str(list_get(warnings, w)!)));
+        w += 1;
+    }
+    if js_string_length(state.spec_error) != 0 {
+        out = vl_cat3(out, s_nl, vl_cat(s_editor_bad, state.spec_error));
+    }
+    out = vl_cat3(out, s_nl, s_spec_colon);
+    vl_cat3(out, s_nl, vl_clip(value_json(state.spec, 2), vl_clip_at));
+}
+
+// The JSON it opened, changed: { spec, tables }.
+fn vega_lite_lab_get_data(state: &vega_lite_lab_state) -> &value {
+    map_assoc(map_assoc(map_empty(), gs_spec, state.spec), gs_tables, state.tables);
+}
+
+fn vega_lite_lab_get_domain(state: &vega_lite_lab_state) -> &value {
+    vega_lite_lab_get_data(state);
+}
+
+// ---- Checks ------------------------------------------------------------------------
+
+fn vega_lite_lab_check_table_id(state: &vega_lite_lab_state, v: js_string) -> i32 {
+    list_find(state.tables, gs_id, v) >=s 0;
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+// state with spec, the editor showing it and no errors.
+fn vl_with_spec(state: &vega_lite_lab_state, spec: &value) -> &vega_lite_lab_state {
+    let next = vega_lite_lab_with_spec_text(vega_lite_lab_with_spec(state, spec), s_empty);
+    vega_lite_lab_with_edit_error(vega_lite_lab_with_spec_error(next, s_empty), s_empty);
+}
+
+// state with what a spec edit gave: the new spec, or why there's none.
+fn vl_edited(state: &vega_lite_lab_state, r: &value_result, empty_why: js_string) -> &vega_lite_lab_state {
+    if !r.ok {
+        return vega_lite_lab_with_edit_error(state, vl_str(r.value));
+    }
+    if !vl_is_spec(r.value) {
+        return vega_lite_lab_with_edit_error(state, empty_why);
+    }
+    vl_with_spec(state, r.value);
+}
+
+fn vega_lite_lab_on_set_spec(state: &vega_lite_lab_state, ctx: &context, spec: &value) -> &vega_lite_lab_state {
+    if !vl_is_spec(spec) {
+        return vega_lite_lab_with_edit_error(state, s_not_object);
+    }
+    vl_with_spec(state, spec);
+}
+
+fn vega_lite_lab_on_set_spec_text(state: &vega_lite_lab_state, ctx: &context, text: js_string) -> &vega_lite_lab_state {
+    let r = vl_call(s_json_parse, list_push(list_empty(), value_string(text)));
+    let next = vega_lite_lab_with_edit_error(vega_lite_lab_with_spec_text(state, text), s_empty);
+    if !r.ok {
+        return vega_lite_lab_with_spec_error(next, vl_str(r.value));
+    }
+    if !vl_is_spec(r.value) {
+        return vega_lite_lab_with_spec_error(next, s_not_object);
+    }
+    vega_lite_lab_with_spec_error(vega_lite_lab_with_spec(next, r.value), s_empty);
+}
+
+fn vega_lite_lab_on_patch_spec(state: &vega_lite_lab_state, ctx: &context, pointer: js_string, value: &value) -> &vega_lite_lab_state {
+    let args = list_push(vl_args2(state.spec, value_string(pointer)), value);
+    vl_edited(state, vl_call(s_vega_patch, args), s_left_empty);
+}
+
+fn vega_lite_lab_on_remove_spec_key(state: &vega_lite_lab_state, ctx: &context, pointer: js_string) -> &vega_lite_lab_state {
+    vl_edited(state, vl_call(s_vega_remove, vl_args2(state.spec, value_string(pointer))), s_left_empty);
+}
+
+// A table with id and rows; a CSV table (old) stays CSV, with its delimiter.
+fn vl_table(id: js_string, rows: &value, old: &?value) -> &value {
+    let out = map_assoc(map_empty(), gs_id, value_string(id));
+    if !!old {
+        if value_member(old!, gs_csv).kind == value_kind_string {
+            let delimiter = value_member(old!, gs_delimiter);
+            let sep = if delimiter.kind == value_kind_string { delimiter; } else { value_string(s_comma); };
+            let r = vl_call(s_vega_format_csv, vl_args2(rows, sep));
+            if r.ok {
+                out = map_assoc(out, gs_csv, r.value);
+                if delimiter.kind == value_kind_string {
+                    out = map_assoc(out, gs_delimiter, delimiter);
+                }
+                return out;
+            }
+        }
+    }
+    map_assoc(out, gs_rows, rows);
+}
+
+fn vega_lite_lab_on_set_table(state: &vega_lite_lab_state, ctx: &context, id: js_string, rows: &value) -> &vega_lite_lab_state {
+    let i = list_find(state.tables, gs_id, id);
+    if i <s 0 {
+        return vega_lite_lab_with_tables(state, list_push(state.tables, vl_table(id, rows, null)));
+    }
+    vega_lite_lab_with_tables(state, list_assoc(state.tables, i, vl_table(id, rows, list_get(state.tables, i))));
+}
+
+fn vega_lite_lab_on_remove_table(state: &vega_lite_lab_state, ctx: &context, id: js_string) -> &vega_lite_lab_state {
+    let next = vega_lite_lab_with_tables(state, list_remove_at(state.tables, list_find(state.tables, gs_id, id)));
+    if js_string_equals(state.focus, id) {
+        return vega_lite_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn vega_lite_lab_on_reorder_tables(state: &vega_lite_lab_state, ctx: &context, id: js_string, index: i32) -> &vega_lite_lab_state {
+    vega_lite_lab_with_tables(state, list_move(state.tables, list_find(state.tables, gs_id, id), index));
+}
+
+fn vega_lite_lab_on_focus(state: &vega_lite_lab_state, ctx: &context, id: js_string) -> &vega_lite_lab_state {
+    vega_lite_lab_with_focus(state, id);
+}

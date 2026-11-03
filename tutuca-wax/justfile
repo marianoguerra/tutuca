@@ -54,6 +54,10 @@ studio port="8002": build
     @echo "http://127.0.0.1:{{port}}/studio/"
     node scripts/serve.mjs {{port}}
 
+# Build, then serve the micro-agents at http://127.0.0.1:{{port}}/microagents/, with the studio's server for the models: API keys from .env (.env.example).
+microagents port="8003": build
+    node scripts/studio-server.mjs {{port}}
+
 # Build, then serve the studio with its LLM assistant at http://127.0.0.1:{{port}}/studio/: API keys from .env (.env.example).
 studio-server port="8003": build
     node scripts/studio-server.mjs {{port}}
@@ -79,7 +83,7 @@ fmt-check:
 # --- Test ------------------------------------------------------------------------------------
 
 # Everything `npm test` runs: format check, build, then jsdom, tcd in wasm-gc, parity and the browser.
-test: fmt-check build test-jsdom test-tcd-web test-studio-server test-parity test-browser
+test: fmt-check build test-jsdom test-tcd-web test-studio-server test-microagents test-parity test-browser
 
 # The fast gate: format check, build, and the suite in jsdom.
 check: fmt-check build test-jsdom
@@ -91,6 +95,10 @@ test-jsdom:
 # tcd compiled to wasm-gc (dist/tcd/tcd.wasm, what the playground compiles with), in Node.
 test-tcd-web:
     node --test test/tcd-web.test.mjs
+
+# The micro-agents: each agent's contract, samples and tools, and the shell with a scripted model.
+test-microagents:
+    node --test test/microagents.test.mjs test/microagents/*.test.mjs
 
 # The studio's server: the models it offers and its system prompt.
 test-studio-server:

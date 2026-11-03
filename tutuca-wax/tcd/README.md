@@ -111,7 +111,10 @@ be of the field's type and need no fields).
 guard that the fields' constraints make impossible, an `ensures` about a
 field outside `changes`, an invariant the defaults break: reported.
 
-**Members**: `field`, `get`, `message name(args) [-> swap] [source_key: T]
+**Members**: `field`, `get`, `query name(args) -> T` (a property that
+takes arguments: the runtime checks them against their types and `where`s,
+then runs it; `runtime.query(component, name, args)` gives `{ ok }` or
+`{ err }`), `message name(args) [-> swap] [source_key: T]
 [when c] [changes a, b | nothing] [ensures c] [emits notify x, ask x, send
 type.msg, make type | nothing]`, `notify`, `ask name(args) -> T [emits ...]`
 (what its reply's handlers may emit),
@@ -148,6 +151,7 @@ signatures (`tcd stub` writes them; the build checks them):
 | `message m(a: A)` | `fn c_on_m(state: &c_state, ctx: &context, a: A') -> &c_state` (the same state: unchanged) |
 | `message m() -> swap` | `... -> &c_swap_result`: `c_swap_to(component)` swaps it in, `c_keep(state)` keeps this component with that state (`changes` holds for a keep; `ensures` isn't allowed) |
 | `get g: T` | `fn c_get_g(state: &c_state) -> T'` |
+| `query q(a: A) -> T` | `fn c_query_q(state: &c_state, a: A') -> T'` |
 | `ask a() -> T` | `c_reply_a_ok(state, ctx, reply: T')`; `_error(state, ctx, error: &value)` and `_unhandled(state, ctx)` optional; each reads the ask's id as `ctx.request`, which `c_ask_a(ctx)` returned |
 | `loop l { ... }` | `c_loop_l_prepare`, `_iter`, `_key`, `_filter`, `_enrich` (returns `&c_loop_l_binds`) |
 | `scope s { ... }` | `c_scope_s(state) -> &c_scope_s_binds` |

@@ -1,0 +1,156 @@
+// datefmt-lab: instants (ISO times) formatted by strftime patterns and by
+// Intl.DateTimeFormat settings, in a table of instant × format. A format may
+// say, per instant id, which output it expects. strftime runs in UTC; Intl
+// formats in UTC unless the options name a timeZone, and with "en-US" when
+// the locale is empty, so the output never depends on the machine. The
+// formatting is the page's (host functions datefmt_*,
+// microagents/engines/datefmt.js). The root's messages are the agent's
+// tools; the rows' inputs, the selects and the table send the same messages.
+package tutuca:datefmt_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component DatefmtLab: MicroAgent {
+    /// The instants, each an ISO time (UTC when it has no offset) with an id the model names it by (i1, i2, …).
+    field instants: list<record { id: string, iso: string }> where len(instants) >= 1;
+    /// The strftime formats, each with its pattern and the output it expects per instant id.
+    field strftimes: list<record { id: string, format: string, expect: map<string> }>;
+    /// The Intl formats, each with its locale, its Intl.DateTimeFormat options (as strings) and the output it expects per instant id.
+    field intls: list<record { id: string, locale: string, options: map<string>, expect: map<string> }>;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    /// The instants as rows, with why each isn't an ISO time ("" when it is).
+    get instant_rows: list<record { id: string, iso: string, error: string }>;
+    /// The strftime formats as rows, with why each pattern has errors ("" when it has none).
+    get strftime_rows: list<record { id: string, format: string, error: string }>;
+    /// The Intl formats laid out as one list: per format a head (locale, error, resolved options), then a cell per option.
+    get intl_cells: list<record { kind: string, id: string, name: string, value: string,
+        choices: list<record { value: string, label: string }>, error: string, resolved: list<record { text: string }> }>;
+    /// Every instant × format: the output, the expected output and whether it passes.
+    get formatted: any;
+    /// The table laid out as one list for a CSS grid: a header row of format ids, then per instant its time and a cell per format.
+    get grid_cells: list<record { label: string, title: string, status: string }>;
+    get grid_style: string;
+    /// The parts of the first valid instant per Intl format.
+    get part_rows: list<record { id: string, parts: list<record { text: string, label: string }> }>;
+    /// The strftime directives this lab supports.
+    get directives: any;
+
+    /// A strftime pattern applied to every instant, without saving it: [{ instant, text, error }].
+    query try_strftime(format: string) -> any;
+
+    /// Add an instant from an ISO time (UTC when it has no offset); it gets the next free id (i1, i2, …).
+    message add_instant(iso: string where iso matches "^[+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?$")
+        changes instants ensures len(next.instants) == len(instants) + 1;
+    /// Change an instant to an ISO time.
+    message set_instant(id: string, iso: string) when any(instants, it.id == id) changes instants;
+    /// Remove an instant, and the expectations that name it.
+    message remove_instant(id: string) when any(instants, it.id == id) and len(instants) > 1 changes instants, strftimes, intls
+        ensures len(next.instants) == len(instants) - 1;
+    /// Move an instant to a position (0 is first): the order of the table's rows.
+    message reorder_instants(id: string, index: s32 where index >= 0) when any(instants, it.id == id) changes instants
+        ensures len(next.instants) == len(instants);
+    /// Add a strftime format; it gets the next free id (f1, f2, …, shared with the Intl formats).
+    message add_strftime(format: string) changes strftimes ensures len(next.strftimes) == len(strftimes) + 1;
+    /// Change a strftime format's pattern.
+    message set_strftime(id: string, format: string) when any(strftimes, it.id == id) changes strftimes;
+    /// Move a strftime format to a position among the strftime formats (0 is first); they come before the Intl ones in the table's columns.
+    message reorder_strftimes(id: string, index: s32 where index >= 0) when any(strftimes, it.id == id) changes strftimes
+        ensures len(next.strftimes) == len(strftimes);
+    /// Add an Intl format for a locale (dateStyle medium); it gets the next free id (f1, f2, …, shared with the strftime formats).
+    message add_intl(locale: string) changes intls ensures len(next.intls) == len(intls) + 1;
+    /// Change an Intl format's locale (a BCP 47 tag such as en-US or de-DE).
+    message set_locale(id: string, locale: string) when any(intls, it.id == id) changes intls;
+    /// Set one option of an Intl format, or remove it with "". hour12 takes "true" or "false"; timeZone any IANA name.
+    message set_intl_option(id: string,
+        option: string where option in ["dateStyle", "timeStyle", "weekday", "era", "year", "month", "day", "hour", "minute", "second", "hour12", "timeZone", "timeZoneName"],
+        value: string)
+        when any(intls, it.id == id) and (value == "" or option == "timeZone"
+            or ((option == "dateStyle" or option == "timeStyle") and value in ["full", "long", "medium", "short"])
+            or ((option == "weekday" or option == "era") and value in ["long", "short", "narrow"])
+            or ((option == "year" or option == "day" or option == "hour" or option == "minute" or option == "second") and value in ["numeric", "2-digit"])
+            or (option == "month" and value in ["numeric", "2-digit", "long", "short", "narrow"])
+            or (option == "hour12" and value in ["true", "false"])
+            or (option == "timeZoneName" and value in ["short", "long", "shortOffset", "longOffset", "shortGeneric", "longGeneric"]))
+        changes intls;
+    /// Move an Intl format to a position among the Intl formats (0 is first).
+    message reorder_intls(id: string, index: s32 where index >= 0) when any(intls, it.id == id) changes intls
+        ensures len(next.intls) == len(intls);
+    /// Remove a strftime or Intl format.
+    message remove_format(id: string) when (any(strftimes, it.id == id) or any(intls, it.id == id)) and len(strftimes) + len(intls) > 1
+        changes strftimes, intls;
+    /// Set the output a format should give for an instant, or "" to clear it.
+    message set_expectation(format: string, instant: string, expected: string)
+        when (any(strftimes, it.id == format) or any(intls, it.id == format)) and any(instants, it.id == instant)
+        changes strftimes, intls;
+    /// From the table: the cell at index i pins its output as expected, or clears it.
+    message pin_cell(i: s32 where i >= 0) changes strftimes, intls;
+
+    view main = div(class: "flex flex-col gap-3",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "Date format lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Instants"),
+        div(class: "flex flex-col gap-1",
+            each(field(instant_rows),
+                div(class: "flex flex-col gap-1",
+                    div(class: "join w-full",
+                        span(class: "join-item flex items-center bg-base-200 px-2 font-mono text-sm", field(id)),
+                        input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "Instant",
+                            value: field(iso), on_input: send(set_instant, field(id), target_value())),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove", on_click: send(remove_instant, field(id)), "✕")),
+                    if(field(error) != "", p(class: "text-xs text-error", field(error))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_instant, "2024-01-01T00:00:00Z"), "+ Instant")),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Formats"),
+        div(class: "flex flex-col gap-1",
+            each(field(strftime_rows),
+                div(class: "flex flex-col gap-1",
+                    div(class: "join w-full",
+                        span(class: "join-item flex items-center bg-base-200 px-2 font-mono text-sm", field(id)),
+                        span(class: "join-item flex items-center bg-base-200 px-2 text-xs", "strftime"),
+                        input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "strftime format",
+                            value: field(format), on_input: send(set_strftime, field(id), target_value())),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove", on_click: send(remove_format, field(id)), "✕")),
+                    if(field(error) != "", p(class: "text-xs text-error", field(error))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_strftime, "%Y-%m-%d %H:%M:%S"), "+ strftime")),
+        div(class: "flex flex-wrap items-end gap-2",
+            each(field(intl_cells),
+                if(field(kind) == "head",
+                    div(class: "flex w-full flex-col gap-1 pt-2",
+                        div(class: "join w-full",
+                            span(class: "join-item flex items-center bg-base-200 px-2 font-mono text-sm", field(id)),
+                            span(class: "join-item flex items-center bg-base-200 px-2 text-xs", "Intl locale"),
+                            input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "Locale",
+                                value: field(value), on_input: send(set_locale, field(id), target_value())),
+                            button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove", on_click: send(remove_format, field(id)), "✕")),
+                        if(field(error) != "", p(class: "text-xs text-error", field(error))),
+                        div(class: "flex flex-wrap gap-1",
+                            each(field(resolved), span(class: "badge badge-ghost badge-sm font-mono", field(text))))),
+                    div(class: "flex flex-col text-xs",
+                        span(class: "opacity-60", field(name)),
+                        select(class: "select select-xs select-bordered", "aria-label": field(name), value: field(value),
+                            on_change: send(set_intl_option, field(id), field(name), target_value()),
+                            each(field(choices), option(value: field(value), field(label)))))))),
+        button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_intl, "en-US"), "+ Intl"),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Output"),
+        p(class: "text-xs opacity-60", "Click a cell to pin its output as expected, or to clear it."),
+        div(class: "grid gap-1 overflow-x-auto", style: field(grid_style),
+            each(field(grid_cells),
+                button(class: if(field(status) == "pass", "badge badge-success h-auto whitespace-pre-wrap font-mono",
+                        if(field(status) == "fail", "badge badge-error h-auto whitespace-pre-wrap font-mono",
+                        if(field(status) == "error", "badge badge-warning h-auto whitespace-pre-wrap font-mono",
+                        if(field(status) == "label", "font-mono text-xs opacity-70 text-left", "badge badge-ghost h-auto whitespace-pre-wrap font-mono")))),
+                    title: field(title), on_click: send(pin_cell, source_key()), field(label)))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Intl parts of the first instant"),
+        div(class: "flex flex-col gap-1",
+            each(field(part_rows),
+                div(class: "flex flex-wrap items-center gap-1",
+                    span(class: "font-mono text-xs opacity-60", field(id)),
+                    each(field(parts),
+                        span(class: "badge badge-outline h-auto gap-1 font-mono", title: field(label),
+                            field(text),
+                            span(class: "text-[10px] opacity-50", field(label))))))));
+}

@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 12;
+const tutuca_abi_version_current = 13;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -63,7 +63,13 @@ type template_array = [mut &?template];
 
 rec {
     // The functions a component type provides, one table per type.
-    type vtable = { init: &init_fn, handle: &handle_fn, get: &get_fn, set: &set_fn };
+    type vtable = {
+        init: &init_fn,
+        handle: &handle_fn,
+        get: &get_fn,
+        set: &set_fn,
+        query: &?query_fn
+    };
     // Makes an instance from a map of values, in an init context.
     type init_fn = fn(&value, &init_context) -> &init_result;
     // Handles every message of the type, routing it however it likes.
@@ -73,6 +79,10 @@ rec {
     // Sets a property: property_ok and the new instance (the same reference
     // when the value didn't change it), or an error code.
     type set_fn = fn(&eq, js_string, &value) -> (i32, &?eq);
+    // Runs a query (a computed property that takes arguments, which the
+    // runtime has checked against its schema): property_ok and the value,
+    // or an error code. null in a vtable for a type with no queries.
+    type query_fn = fn(&eq, js_string, &value_array) -> (i32, &?value);
 
     // A loop's hooks (loops[name] in tutuca's component()), each given the
     // instance whose view has the loop. prepare(items) makes the state the
@@ -166,7 +176,10 @@ rec {
         messages: &message_schema_array,
         invariants: &invariant_array,
         // The interfaces it implements, by name.
-        interfaces: &str_array
+        interfaces: &str_array,
+        // Its queries: computed properties that take arguments, each with
+        // the schema of its arguments (a message schema without a contract).
+        queries: mut &message_schema_array
     };
 
     // A component: the one type every component is, so any component

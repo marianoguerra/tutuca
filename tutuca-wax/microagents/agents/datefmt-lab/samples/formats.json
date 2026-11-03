@@ -1,0 +1,27 @@
+{
+	"instants": [
+		{ "id": "i1", "iso": "2024-03-05T14:07:09.123Z" },
+		{ "id": "i2", "iso": "1999-12-31T23:59:59Z" },
+		{ "id": "i3", "iso": "2021-01-03T08:05:00Z" }
+	],
+	"strftimes": [
+		{ "id": "f1", "format": "%Y-%m-%d %H:%M:%S", "expect": { "i1": "2024-03-05 14:07:09", "i2": "1999-12-31 23:59" } },
+		{ "id": "f2", "format": "%a, %d %b %Y %T %z", "expect": {} },
+		{ "id": "f3", "format": "%G-W%V-%u", "expect": { "i3": "2020-W53-7" } }
+	],
+	"intls": [
+		{ "id": "f4", "locale": "en-US", "options": { "dateStyle": "full", "timeStyle": "short" }, "expect": {} },
+		{
+			"id": "f5",
+			"locale": "de-DE",
+			"options": { "weekday": "long", "day": "numeric", "month": "long", "year": "numeric", "timeZone": "Europe/Berlin" },
+			"expect": {}
+		},
+		{
+			"id": "f6",
+			"locale": "ja-JP-u-ca-japanese",
+			"options": { "era": "long", "year": "numeric", "month": "long", "day": "numeric" },
+			"expect": { "i1": "令和6年3月5日" }
+		}
+	]
+}

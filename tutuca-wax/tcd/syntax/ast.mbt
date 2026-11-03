@@ -219,6 +219,8 @@ pub(all) enum Member {
   Message(Message)
   Notify(Signal)
   Ask(Signal)
+  /// `query name(params) -> T;`: a property that takes arguments.
+  Query(Signal)
   Invariant(Invariant)
   Init(@diag.Span)
   Loop(LoopDecl)

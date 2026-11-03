@@ -50,6 +50,85 @@ fn list_pop(list: &value) -> &value {
     value_list(pv_pop((list as &value_list).value));
 }
 
+// The list without the item at i (the same list when i is out of range).
+fn list_remove_at(list: &value, i: i32) -> &value {
+    let n = list_count(list);
+    if (i <s 0) | (i >=s n) {
+        return list;
+    }
+    let out = list_empty();
+    let j = 0;
+    while j <s n {
+        if j != i {
+            out = list_push(out, list_get(list, j)!);
+        }
+        j += 1;
+    }
+    out;
+}
+
+// The list with item before the one at i (at the end when i is past it).
+fn list_insert(list: &value, i: i32, item: &value) -> &value {
+    let n = list_count(list);
+    if i >=s n {
+        return list_push(list, item);
+    }
+    let out = list_empty();
+    let j = 0;
+    while j <s n {
+        if j == i {
+            out = list_push(out, item);
+        }
+        out = list_push(out, list_get(list, j)!);
+        j += 1;
+    }
+    out;
+}
+
+// The list with the item at from moved to index to (clamped to the list).
+fn list_move(list: &value, from: i32, to: i32) -> &value {
+    let item = list_get(list, from);
+    if !item {
+        return list;
+    }
+    list_insert(list_remove_at(list, from), int_clamp(to, 0, list_count(list) - 1), item!);
+}
+
+// The index of the first item (a map) whose member key is the string
+// value, or -1.
+fn list_find(list: &value, key: js_string, value: js_string) -> i32 {
+    let n = list_count(list);
+    let j = 0;
+    while j <s n {
+        let item = list_get(list, j)!;
+        if item.kind == value_kind_map {
+            let got = map_get(item, key);
+            if !!got {
+                let s = value_string_of(got!);
+                if !!s {
+                    if js_string_equals(s!, value) {
+                        return j;
+                    }
+                }
+            }
+        }
+        j += 1;
+    }
+    -1;
+}
+
+// The first of prefix1, prefix2, … that no item's member key is: the id
+// the next item of a list gets.
+fn list_next_id(list: &value, key: js_string, prefix: js_string) -> js_string {
+    let n = list_count(list) + 1;
+    let id = js_string_concat(prefix, int_text(n));
+    while list_find(list, key, id) >=s 0 {
+        n += 1;
+        id = js_string_concat(prefix, int_text(n));
+    }
+    id;
+}
+
 // ---- Map -----------------------------------------------------------------
 
 fn map_empty() -> &value {

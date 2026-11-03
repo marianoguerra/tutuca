@@ -1,0 +1,22 @@
+{
+	"id": "glob-lab",
+	"title": "Glob lab",
+	"description": "Write and fix glob patterns against a list of paths: see the matched files in a tree, which expectations pass, and the regex each glob becomes.",
+	"needs": "an object with globs ([{ id, pattern, dot, nocase, expect: { path: \"match\" | \"no-match\" } }], at least one) and paths (a string with one path per line)",
+	"icon": "🗂️",
+	"version": "1",
+	"root": "GlobLab",
+	"hostFns": ["glob"],
+	"skills": ["SKILL.md", "reference/glob-syntax.md"],
+	"tools": [
+		{ "name": "set_glob", "kind": "message" },
+		{ "name": "set_glob_options", "kind": "message" },
+		{ "name": "add_glob", "kind": "message" },
+		{ "name": "remove_glob", "kind": "message" },
+		{ "name": "reorder_globs", "kind": "message" },
+		{ "name": "set_paths", "kind": "message" },
+		{ "name": "set_expectation", "kind": "message" },
+		{ "name": "matches", "kind": "view" },
+		{ "name": "explain", "kind": "view" }
+	]
+}

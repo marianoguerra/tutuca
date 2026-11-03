@@ -1,0 +1,108 @@
+// json-schema-lab: a JSON Schema (draft 2020-12) validated against example
+// documents. Each example says whether it should be valid ("pass") or
+// invalid ("fail"); the results show which expectations hold and why. The
+// schema and the examples are edited as JSON text, kept while they don't
+// parse. Validation runs in the page (host functions json_schema_*,
+// microagents/engines/json_schema.js, with Ajv). The root's messages are
+// the agent's tools; the rows' inputs send the same messages.
+package tutuca:json_schema_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component JsonSchemaLab: MicroAgent {
+    /// The JSON Schema (draft 2020-12) the examples are validated against.
+    field schema: any;
+    /// The schema as the user edits it; "" until it's edited.
+    field schema_text: string;
+    /// Why schema_text isn't JSON; "" when it is (and schema is its value).
+    field schema_error: string;
+    /// The example documents, each with an id the model names it by (e1, e2, …), its value, and whether it should be valid ("pass") or invalid ("fail").
+    field examples: list<record { id: string, value: any, outcome: string }> where len(examples) >= 1;
+    /// Example id → its text as the user edits it, kept while it isn't JSON.
+    field example_texts: map<string>;
+    /// Example id → why its text isn't JSON.
+    field example_errors: map<string>;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    /// The schema as JSON text, as the editor shows it.
+    get schema_editor_text: string;
+    /// Why the schema doesn't compile, when it is JSON ("" when it compiles).
+    get schema_problem: string;
+    /// The schema's compile error if any, and for every example: expected outcome, whether it is valid, its status (pass, fail, or invalid when it can't run) and its error count.
+    get validation: any;
+    /// The examples as rows for their editors.
+    get example_rows: list<record { id: string, text: string, pass: bool, label: string, error: string }>;
+    /// The results table's rows.
+    get result_rows: list<record { id: string, expected: string, actual: string, status: string, errors: string }>;
+
+    /// The validation errors of one example: instancePath, keyword and message for each.
+    query errors_for(id: string) -> any;
+
+    /// Replace the whole schema with a JSON value.
+    message set_schema(schema: any) changes schema, schema_text, schema_error;
+    /// The schema's text, from its editor: kept while it isn't JSON.
+    message set_schema_text(text: string) changes schema, schema_text, schema_error;
+    /// Set the value at a JSON Pointer (RFC 6901) in the schema, e.g. "/properties/age/minimum". The value is JSON as itself (an object, not its JSON text). The parent must exist (set a missing object whole, e.g. /properties/age to {"type": "integer"}); in an array use an index or "-" to append; "" replaces the whole schema.
+    message patch_schema(pointer: string where check(parent_in_schema), value: any) when schema_error == ""
+        changes schema, schema_text;
+    /// Remove the value at a JSON Pointer (RFC 6901) in the schema, e.g. "/properties/age" or "/required/1".
+    message remove_from_schema(pointer: string where check(in_schema)) when schema_error == ""
+        changes schema, schema_text;
+    /// Add an example document; outcome is pass (should be valid) or fail (should be invalid). It gets the next free id (e1, e2, …).
+    message add_example(value: any, outcome: string where outcome in ["pass", "fail"]) changes examples
+        ensures len(next.examples) == len(examples) + 1;
+    /// From the page: an empty object that should be valid.
+    message add_blank_example() changes examples ensures len(next.examples) == len(examples) + 1;
+    /// Replace an example's document.
+    message set_example(id: string, value: any) when any(examples, it.id == id) changes examples, example_texts, example_errors;
+    /// An example's text, from its editor: kept while it isn't JSON.
+    message set_example_text(id: string, text: string) when any(examples, it.id == id) changes examples, example_texts, example_errors;
+    /// Remove an example.
+    message remove_example(id: string) when any(examples, it.id == id) and len(examples) > 1
+        changes examples, example_texts, example_errors ensures len(next.examples) == len(examples) - 1;
+    /// Move an example to a position (0 is first).
+    message reorder_examples(id: string, index: s32 where index >= 0) when any(examples, it.id == id) changes examples
+        ensures len(next.examples) == len(examples);
+    /// Say whether an example should be valid (pass) or invalid (fail).
+    message set_expectation(id: string, outcome: string where outcome in ["pass", "fail"]) when any(examples, it.id == id)
+        changes examples;
+
+    view main = div(class: "flex flex-col gap-4",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "JSON Schema lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Schema"),
+        textarea(class: "textarea textarea-bordered w-full font-mono text-xs", rows: "12", "aria-label": "Schema JSON",
+            value: field(schema_editor_text), on_input: send(set_schema_text, target_value())),
+        if(field(schema_error) != "", p(class: "text-xs text-error", field(schema_error))),
+        if(field(schema_problem) != "", p(class: "text-xs text-error", field(schema_problem))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Examples"),
+        div(class: "flex flex-col gap-2",
+            each(field(example_rows),
+                div(class: "flex flex-col gap-1 rounded-box border border-base-300 p-2",
+                    div(class: "flex items-center gap-2",
+                        span(class: "font-mono text-xs opacity-70", field(id)),
+                        button(class: if(field(pass), "btn btn-xs btn-success", "btn btn-xs btn-error"), title: "Click to flip the expectation",
+                            on_click: send(set_expectation, field(id), if(field(pass), "fail", "pass")), field(label)),
+                        button(class: "btn btn-xs btn-ghost ml-auto", title: "Remove", "aria-label": "Remove",
+                            on_click: send(remove_example, field(id)), "✕")),
+                    textarea(class: "textarea textarea-bordered w-full font-mono text-xs", rows: "3", "aria-label": "Example JSON",
+                        value: field(text), on_input: send(set_example_text, field(id), target_value())),
+                    if(field(error) != "", p(class: "text-xs text-error", field(error))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_blank_example), "+ Example")),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Results"),
+        table(class: "table table-sm",
+            thead(tr(th("example"), th("expected"), th("actual"), th(""), th("errors"))),
+            tbody(
+                each(field(result_rows),
+                    tr(
+                        td(class: "font-mono text-xs", field(id)),
+                        td(field(expected)),
+                        td(field(actual)),
+                        td(span(class: if(field(status) == "pass", "badge badge-success",
+                                if(field(status) == "fail", "badge badge-error", "badge badge-warning")), field(status))),
+                        td(class: "whitespace-pre-wrap font-mono text-xs", field(errors)))))));
+}

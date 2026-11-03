@@ -1,0 +1,32 @@
+{
+	"option": {
+		"title": { "text": "Targets by region" },
+		"tooltip": {},
+		"dataset": [
+			{
+				"id": "north",
+				"fromDatasetId": "sales",
+				"transform": { "type": "filter", "config": { "dimension": "region", "=": "North" } }
+			}
+		],
+		"xAxis": { "type": "category" },
+		"yAxis": {},
+		"series": [{ "type": "bar", "name": "target", "datasetId": "targets", "encode": { "x": "region", "y": "target" } }]
+	},
+	"tables": [
+		{
+			"id": "sales",
+			"rows": [
+				{ "month": "2024-01", "region": "North", "revenue": 120 },
+				{ "month": "2024-01", "region": "South", "revenue": 95 },
+				{ "month": "2024-02", "region": "North", "revenue": 135 },
+				{ "month": "2024-02", "region": "South", "revenue": 88 },
+				{ "month": "2024-03", "region": "North", "revenue": 150 },
+				{ "month": "2024-03", "region": "South", "revenue": 102 },
+				{ "month": "2024-04", "region": "North", "revenue": 141 },
+				{ "month": "2024-04", "region": "South", "revenue": 117 }
+			]
+		},
+		{ "id": "targets", "csv": "region,target\nNorth,520\nSouth,420\n" }
+	]
+}

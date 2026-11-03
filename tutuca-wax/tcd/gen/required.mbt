@@ -88,6 +88,20 @@ pub fn required_of(
       optional: false,
     })
   }
+  for q in c.queries {
+    let params = [st]
+    params.append(typed_params(q.params))
+    let result = q.result.unwrap_or(Any)
+    out.push({
+      name: "\{cw}_query_\{@check.wax_part(q.name)}",
+      params,
+      result: wax_ty(result),
+      what: "answers the query \{q.name}: \{@check.ty_text(result)}",
+      notes: q.doc.map(d => [d]).unwrap_or([]),
+      span: q.span,
+      optional: false,
+    })
+  }
   for a in c.asks {
     let aw = @check.wax_part(a.name)
     let result = a.result.unwrap_or(Any)

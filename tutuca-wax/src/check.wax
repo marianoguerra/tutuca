@@ -425,6 +425,43 @@ fn host_check(h: &host) {
 // when it can: the arguments don't fit its schema, or its guard (when)
 // doesn't hold on c's state. A runner generating messages only sends the
 // ones c can take. No schema, or no such message: null (the vtable decides).
+// Why c can't run the query name with args (no such query, or arguments
+// that don't fit its schema), or null when it can.
+fn query_problem(c: &component, name: js_string, args: &value_array) -> js_string_opt {
+    let qs = spec_query_schema(c.spec, name);
+    if !qs | !c.vtable.query {
+        return s_no_such_query;
+    }
+    let q = qs!;
+    if args.length() != q.args.length() {
+        return arity_problem(q.args.length(), args.length());
+    }
+    let i = 0;
+    while i <s args.length() {
+        let f = q.args[i]!;
+        let problem = field_problem(f, args[i]!, c);
+        if !!problem {
+            return arg_problem(i, f.name, problem!);
+        }
+        i += 1;
+    }
+    null;
+}
+
+// Runs c's query name with args: an ok result with its value, or an error
+// result saying why it couldn't run.
+fn component_query(c: &component, name: js_string, args: &value_array) -> &value {
+    let problem = query_problem(c, name, args);
+    if !!problem {
+        return value_err(value_string(problem!));
+    }
+    let (code, got) = (c.vtable.query!)(c.instance, name, args);
+    if code != (property_ok | !got) {
+        return value_err(value_string(s_query_failed));
+    }
+    value_ok(got!);
+}
+
 fn message_problem(c: &component, name: js_string, args: &value_array) -> js_string_opt {
     let ms = spec_message_schema(c.spec, name);
     if !ms {

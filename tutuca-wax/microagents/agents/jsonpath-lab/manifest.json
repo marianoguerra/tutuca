@@ -1,0 +1,21 @@
+{
+	"id": "jsonpath-lab",
+	"title": "JSONPath lab",
+	"description": "Write JSONPath expressions against a JSON document, see what each one selects highlighted in the document, and fix them.",
+	"needs": "an object with paths ([{ id, path, expected_count (-1 for none) }], at least one) and a document (any JSON)",
+	"icon": "🧭",
+	"version": "1",
+	"root": "JsonPathLab",
+	"hostFns": ["jsonpath"],
+	"skills": ["SKILL.md", "reference/syntax.md"],
+	"tools": [
+		{ "name": "set_path", "kind": "message" },
+		{ "name": "add_path", "kind": "message" },
+		{ "name": "remove_path", "kind": "message" },
+		{ "name": "reorder_paths", "kind": "message" },
+		{ "name": "set_expected_count", "kind": "message" },
+		{ "name": "set_document", "kind": "message" },
+		{ "name": "results", "kind": "view" },
+		{ "name": "document_paths", "kind": "view" }
+	]
+}

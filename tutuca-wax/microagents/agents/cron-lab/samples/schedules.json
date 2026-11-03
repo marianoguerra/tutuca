@@ -1,0 +1,9 @@
+{
+	"crons": [
+		{ "id": "standup", "expression": "30 9 * * MON-FRI", "timezone": "Europe/Berlin", "from": "2025-03-07T12:00:00Z", "expect_next": "2025-03-10T09:30:00Z" },
+		{ "id": "backup", "expression": "@daily", "timezone": "UTC", "from": "", "expect_next": "" },
+		{ "id": "poll", "expression": "*/15 8-18 * * *", "timezone": "UTC", "from": "", "expect_next": "2025-01-01T08:00:00Z" },
+		{ "id": "report", "expression": "0 6 1 JAN,APR,JUL,OCT *", "timezone": "UTC", "from": "", "expect_next": "" },
+		{ "id": "broken", "expression": "61 25 * * *", "timezone": "UTC", "from": "", "expect_next": "" }
+	]
+}

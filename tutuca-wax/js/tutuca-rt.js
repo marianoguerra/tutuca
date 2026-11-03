@@ -152,12 +152,10 @@ export async function readBytes(url) {
 	return response.arrayBuffer();
 }
 
-// What a component module tcd built says about itself: the JSON of its
-// "tutuca" custom section (tcd/api/meta.mbt: its sources, the types it
-// registers, the interfaces it declares, what it needs from a scope, its
-// host asks), or null when it has none. Read from the bytes (a buffer or a
-// view), without compiling them.
-export function componentMeta(source) {
+// The text of a module's custom section named name, or null when it has
+// none (or isn't a wasm module). Read from the bytes (a buffer or a view),
+// without compiling them.
+export function customSection(source, name) {
 	const bytes = ArrayBuffer.isView(source) ? new Uint8Array(source.buffer, source.byteOffset, source.byteLength) : new Uint8Array(source);
 	let at = 8;
 	const leb = () => {
@@ -175,12 +173,47 @@ export function componentMeta(source) {
 		const end = at + size;
 		if (id === 0) {
 			const length = leb();
-			const name = new TextDecoder().decode(bytes.subarray(at, at + length));
-			if (name === "tutuca") return JSON.parse(new TextDecoder().decode(bytes.subarray(at + length, end)));
+			if (new TextDecoder().decode(bytes.subarray(at, at + length)) === name) return new TextDecoder().decode(bytes.subarray(at + length, end));
 		}
 		at = end;
 	}
 	return null;
+}
+
+// The module's bytes with a custom section named name holding text (UTF-8)
+// at the end, as tcd/api/meta.mbt's with_custom_section writes one.
+export function withCustomSection(source, name, text) {
+	const bytes = ArrayBuffer.isView(source) ? new Uint8Array(source.buffer, source.byteOffset, source.byteLength) : new Uint8Array(source);
+	const leb = (n) => {
+		const out = [];
+		do {
+			let b = n & 0x7f;
+			n = Math.floor(n / 128);
+			if (n !== 0) b |= 0x80;
+			out.push(b);
+		} while (n !== 0);
+		return out;
+	};
+	const nameBytes = new TextEncoder().encode(name);
+	const payload = new TextEncoder().encode(text);
+	const content = [...leb(nameBytes.length), ...nameBytes];
+	const size = content.length + payload.length;
+	const head = [0, ...leb(size)];
+	const out = new Uint8Array(bytes.length + head.length + size);
+	out.set(bytes, 0);
+	out.set(head, bytes.length);
+	out.set(content, bytes.length + head.length);
+	out.set(payload, bytes.length + head.length + content.length);
+	return out;
+}
+
+// What a component module tcd built says about itself: the JSON of its
+// "tutuca" custom section (tcd/api/meta.mbt: its sources, the types it
+// registers, the interfaces it declares, what it needs from a scope, its
+// host asks), or null when it has none.
+export function componentMeta(source) {
+	const text = customSection(source, "tutuca");
+	return text === null ? null : JSON.parse(text);
 }
 
 // A pattern constraint's regular expression, compiled once.
@@ -248,7 +281,7 @@ const COMPONENT_IMPORTS = new Set(["tutuca", "wasm:js-string", "'"]);
 // it take the same path.
 export async function instantiate(bytes, { builtins = true } = {}) {
 	const { module, imports, strings } = await compileModule(bytes, builtins);
-	const late = { exports: null, fromValue: null, toValue: null, host: null };
+	const late = { exports: null, fromValue: null, toValue: null, host: null, fns: new Map() };
 	const instance = await WebAssembly.instantiate(module, {
 		"wasm:js-string": jsStringPolyfill(late),
 		"'": strings,
@@ -264,6 +297,25 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 			observe_unhandled: (name) => late.host?.report("unhandled", { message: name }),
 			observe_stale: (name) => late.host?.report("stale", { message: name }),
 			ask: (name, args) => late.host.ask(name, late.fromValue(args)),
+			call: (name, args) => {
+				const w = late.exports;
+				const fn = late.fns.get(name);
+				if (!fn) return w.value_err(w.value_string(`no host function ${name}`));
+				try {
+					return w.value_ok(late.toValue(fn(...late.fromValue(args))));
+				} catch (error) {
+					return w.value_err(w.value_string(String(error?.message ?? error)));
+				}
+			},
+			value_json: (v, indent) => JSON.stringify(late.fromValue(v), null, indent || undefined) ?? "null",
+			str_slice: (s, start, end) => s.slice(start, end),
+			str_index_of: (s, needle, from) => s.indexOf(needle, from),
+			str_lower: (s) => s.toLowerCase(),
+			str_upper: (s) => s.toUpperCase(),
+			str_trim: (s) => s.trim(),
+			str_replace_all: (s, from, to) => s.replaceAll(from, to),
+			str_split: (s, sep) => late.toValue(s.split(sep)),
+			str_join: (parts, sep) => late.fromValue(parts).map(String).join(sep),
 			number_text: (n) => String(n),
 			parse_number: (s) => (s.trim() === "" ? Number.NaN : Number(s)),
 			regex_test: (pattern, s) => (regexOf(pattern).test(s) ? 1 : 0),
@@ -280,6 +332,16 @@ export async function instantiate(bytes, { builtins = true } = {}) {
 	late.fromValue = api.values.to;
 	late.toValue = api.values.from;
 	api.runtime = makeRuntime(instance.exports, api, late);
+	// The page's functions components call now, by name (host_call): fn
+	// gets the arguments as JS values and returns one; what it throws is
+	// the error result's message.
+	api.runtime.defineHostFn = (name, fn) => {
+		late.fns.set(name, fn);
+	};
+	api.runtime.hostFns = () => [...late.fns.keys()];
+	// JSON text as a value (an object a map, an array a list), for
+	// components that edit JSON as text.
+	api.runtime.defineHostFn("json_parse", (text) => JSON.parse(text));
 	// Whether the engine supplied the js-string builtins and string constants.
 	api.builtins = !imports.some((i) => i.module === "wasm:js-string" || i.module === "'");
 	// Loads a component module (README.md has the convention) and registers
@@ -948,6 +1010,8 @@ function makeRuntime(w, api, late) {
 		// Why component can't take the message name with args now (they don't
 		// fit its schema, or its guard doesn't hold), or null when it can.
 		messageProblem: (component, name, args = []) => values.to(w.component_message_problem(component, name, values.from(args))),
+		// Runs component's query name with args: { ok: value } or { err: why }.
+		query: (component, name, args = []) => values.to(w.component_query(component, name, values.from(args))),
 		// The interface registered as name, visible from scope, or null.
 		interface: (scope, name) => values.to(w.scope_interface(scope, name)),
 		// A component's property, as a JS value.

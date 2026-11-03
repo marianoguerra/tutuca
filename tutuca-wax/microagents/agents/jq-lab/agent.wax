@@ -1,0 +1,710 @@
+// jq-lab's implementation (agent.tcd has the rest): the grid of filters ×
+// inputs and their pinned outputs, the shown outputs, the rows. jq runs in
+// the page, through host_call (microagents/engines/jq.js).
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "f"]
+    const s_f: js_string;
+    #[import = "i"]
+    const s_i: js_string;
+    #[import = "jq_error"]
+    const s_jq_error: js_string;
+    #[import = "jq_run"]
+    const s_jq_run: js_string;
+    #[import = "jq_same"]
+    const s_jq_same: js_string;
+    #[import = "jq_shape"]
+    const s_jq_shape: js_string;
+    #[import = "jq_pointer"]
+    const s_jq_pointer: js_string;
+    #[import = "jq_parse"]
+    const s_jq_parse: js_string;
+    #[import = "status"]
+    const s_status: js_string;
+    #[import = "outputs"]
+    const s_outputs: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "more"]
+    const s_more: js_string;
+    #[import = "expected"]
+    const s_expected: js_string;
+    #[import = "value"]
+    const s_value: js_string;
+    #[import = "shape"]
+    const s_shape: js_string;
+    #[import = "cells"]
+    const s_cells: js_string;
+    #[import = "pass"]
+    const s_pass: js_string;
+    #[import = "fail"]
+    const s_fail: js_string;
+    #[import = "none"]
+    const s_none: js_string;
+    #[import = "invalid"]
+    const s_invalid: js_string;
+    #[import = "label"]
+    const s_label: js_string;
+    #[import = "focused"]
+    const s_focused: js_string;
+    #[import = "filter \\ input"]
+    const s_corner: js_string;
+    #[import = "(no output)"]
+    const s_no_output: js_string;
+    #[import = "\n…"]
+    const s_more_mark: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+    #[import = "no expectation; click to pin these outputs"]
+    const s_no_exp_title: js_string;
+    #[import = "expected:\n"]
+    const s_expected_nl: js_string;
+    #[import = "\nclick to clear"]
+    const s_click_clear: js_string;
+    #[import = "grid-template-columns: max-content repeat("]
+    const s_grid_open: js_string;
+    #[import = ", minmax(8rem, 1fr))"]
+    const s_grid_close: js_string;
+    #[import = "the input isn't JSON: "]
+    const s_input_not_json: js_string;
+    #[import = " isn't JSON: "]
+    const s_isnt_json: js_string;
+    #[import = "no input "]
+    const s_no_input: js_string;
+    #[import = " outputs"]
+    const s_outputs_sp: js_string;
+    #[import = " expected"]
+    const s_expected_sp: js_string;
+    #[import = "ok"]
+    const s_ok: js_string;
+    #[import = "no filter"]
+    const s_no_filter: js_string;
+    #[import = " pass · "]
+    const s_pass_dot: js_string;
+    #[import = " fail · "]
+    const s_fail_dot: js_string;
+    #[import = " unset · "]
+    const s_unset_dot: js_string;
+    #[import = " errors"]
+    const s_errors: js_string;
+    #[import = " filters, "]
+    const s_filters_comma: js_string;
+    #[import = " inputs, "]
+    const s_inputs_comma: js_string;
+    #[import = " expectations: "]
+    const s_expectations_colon: js_string;
+    #[import = " pass, "]
+    const s_pass_comma: js_string;
+    #[import = " fail, "]
+    const s_fail_comma: js_string;
+    #[import = " cells unset, "]
+    const s_unset_comma: js_string;
+    #[import = " errors."]
+    const s_errors_dot: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "filters:"]
+    const s_filters_label: js_string;
+    #[import = "inputs (shapes):"]
+    const s_inputs_label: js_string;
+    #[import = "expected outputs:"]
+    const s_expected_label: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " on "]
+    const s_on: js_string;
+    #[import = " (error: "]
+    const s_error_open: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = "invalid JSON"]
+    const s_invalid_json: js_string;
+    #[import = "filters"]
+    const s_filters: js_string;
+    #[import = "inputs"]
+    const s_inputs: js_string;
+}
+
+// ---- Text --------------------------------------------------------------------------
+
+fn jq_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn jq_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn jq_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn jq_clip(text: js_string, n: i32) -> js_string {
+    if js_string_length(text) <=s n {
+        return text;
+    }
+    jq_cat(str_slice(text, 0, n), s_ellipsis);
+}
+
+// The first line of text.
+fn jq_first_line(text: js_string) -> js_string {
+    let at = str_index_of(text, s_nl, 0);
+    if at <s 0 {
+        return text;
+    }
+    str_slice(text, 0, at);
+}
+
+// Every output as JSON, one per line.
+fn jq_show(outputs: &value) -> js_string {
+    let out = s_empty;
+    let i = 0;
+    while i <s list_count(outputs) {
+        if i >s 0 {
+            out = jq_cat(out, s_nl);
+        }
+        out = jq_cat(out, value_json(list_get(outputs, i)!, 0));
+        i += 1;
+    }
+    out;
+}
+
+// ---- The page's jq -----------------------------------------------------------------
+
+fn jq_args1(a: &value) -> &value {
+    list_push(list_empty(), a);
+}
+
+fn jq_args2(a: &value, b: &value) -> &value {
+    list_push(jq_args1(a), b);
+}
+
+// What the host function name answered with args, or null when it failed.
+fn jq_call(name: js_string, args: &value) -> &?value {
+    let r = host_call(name, args) as &value_result;
+    if !r.ok {
+        return null;
+    }
+    r.value;
+}
+
+// Why filter doesn't compile; "" when it does.
+fn jq_compile_error(filter: js_string) -> js_string {
+    let got = jq_call(s_jq_error, jq_args1(value_string(filter)));
+    if !got {
+        return s_empty;
+    }
+    jq_str(got!);
+}
+
+// Whether two JSON values are equal, object keys in any order.
+fn jq_same(a: &value, b: &value) -> i32 {
+    let got = jq_call(s_jq_same, jq_args2(a, b));
+    if !got {
+        return 0;
+    }
+    value_truthy(got!);
+}
+
+// { outputs (list or null), error, more } of filter on value.
+fn jq_run(filter: js_string, input: &value) -> &value {
+    let got = jq_call(s_jq_run, list_push(jq_args2(value_string(filter), input), value_int(100)));
+    if !got {
+        return map_assoc(map_assoc(map_empty(), s_outputs, value_null()), s_error, value_string(s_error));
+    }
+    got!;
+}
+
+// ---- Rows --------------------------------------------------------------------------
+
+fn jq_id(r: &value) -> js_string {
+    jq_str(value_member(r, gs_id));
+}
+
+// Why the input with id's draft isn't JSON; "" when it is or there's none.
+fn jq_draft_error(state: &jq_lab_state, id: js_string) -> js_string {
+    let d = map_get(state.drafts, id);
+    if !d {
+        return s_empty;
+    }
+    jq_lab_drafts_error(d!);
+}
+
+// The index of the expectation of filter for input; -1 when there's none.
+fn jq_expected_index(state: &jq_lab_state, filter: js_string, input: js_string) -> i32 {
+    let i = 0;
+    while i <s list_count(state.expected) {
+        let e = list_get(state.expected, i)!;
+        if js_string_equals(jq_lab_expected_filter(e), filter) & js_string_equals(jq_lab_expected_input(e), input) {
+            return i;
+        }
+        i += 1;
+    }
+    -1;
+}
+
+// expected without the expectations whose key (filter or input) is id.
+fn jq_expected_without(expected: &value, key: js_string, id: js_string) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(expected) {
+        let e = list_get(expected, i)!;
+        if !js_string_equals(jq_str(value_member(e, key)), id) {
+            out = list_push(out, e);
+        }
+        i += 1;
+    }
+    out;
+}
+
+// The filter the outputs section shows: the focused one, or the first.
+fn jq_shown_index(state: &jq_lab_state) -> i32 {
+    let i = list_find(state.filters, gs_id, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    0;
+}
+
+// ---- Cells -------------------------------------------------------------------------
+
+// One cell: { status, outputs, error, more, expected }. status is pass or fail
+// when an expectation is pinned, else none, error (jq failed) or invalid (the
+// filter or the input doesn't parse).
+fn jq_cell(state: &jq_lab_state, filter: &value, input: &value) -> &value {
+    let program = jq_lab_filters_filter(filter);
+    let draft_error = jq_draft_error(state, jq_id(input));
+    let input_bad = js_string_length(draft_error) != 0;
+    let r = if input_bad {
+        map_assoc(map_assoc(map_assoc(map_empty(), s_outputs, value_null()), s_error, value_string(jq_cat(s_input_not_json, draft_error))), s_more, value_bool(0));
+    } else {
+        jq_run(program, jq_lab_inputs_value(input));
+    };
+    let outputs = value_member(r, s_outputs);
+    let has_outputs = outputs.kind == value_kind_list;
+    let ei = jq_expected_index(state, jq_id(filter), jq_id(input));
+    let expected = if ei >=s 0 { jq_lab_expected_outputs(list_get(state.expected, ei)!); } else { value_null(); };
+    let status = s_none;
+    if !has_outputs & (ei >=s 0) {
+        status = s_fail;
+    } else {
+        if input_bad | (js_string_length(jq_compile_error(program)) != 0) {
+            status = s_invalid;
+        } else {
+            if !has_outputs {
+                status = s_error;
+            } else {
+                if ei >=s 0 {
+                    status = if jq_same(outputs, expected) { s_pass; } else { s_fail; };
+                }
+            }
+        }
+    }
+    let out = map_assoc(map_empty(), s_status, value_string(status));
+    out = map_assoc(out, s_outputs, outputs);
+    out = map_assoc(out, s_error, value_member(r, s_error));
+    out = map_assoc(out, s_more, value_bool(value_truthy(value_member(r, s_more))));
+    map_assoc(out, s_expected, expected);
+}
+
+fn jq_cell_status(cell: &value) -> js_string {
+    jq_str(value_member(cell, s_status));
+}
+
+// A cell's outputs as text, or its error.
+fn jq_cell_text(cell: &value) -> js_string {
+    let outputs = value_member(cell, s_outputs);
+    if outputs.kind != value_kind_list {
+        return jq_str(value_member(cell, s_error));
+    }
+    let shown = if list_count(outputs) == 0 { s_no_output; } else { jq_show(outputs); };
+    if value_truthy(value_member(cell, s_more)) {
+        return jq_cat(shown, s_more_mark);
+    }
+    shown;
+}
+
+// Counts of statuses over every cell: (pass, fail, unset, errors).
+fn jq_counts(state: &jq_lab_state) -> (i32, i32, i32, i32) {
+    let pass = 0;
+    let fail = 0;
+    let none = 0;
+    let bad = 0;
+    let fi = 0;
+    while fi <s list_count(state.filters) {
+        let f = list_get(state.filters, fi)!;
+        let ii = 0;
+        while ii <s list_count(state.inputs) {
+            let st = jq_cell_status(jq_cell(state, f, list_get(state.inputs, ii)!));
+            if js_string_equals(st, s_pass) {
+                pass += 1;
+            }
+            if js_string_equals(st, s_fail) {
+                fail += 1;
+            }
+            if js_string_equals(st, s_none) {
+                none += 1;
+            }
+            if js_string_equals(st, s_error) | js_string_equals(st, s_invalid) {
+                bad += 1;
+            }
+            ii += 1;
+        }
+        fi += 1;
+    }
+    (pass, fail, none, bad);
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn jq_lab_get_outputs(state: &jq_lab_state) -> &value {
+    let out = list_empty();
+    let fi = 0;
+    while fi <s list_count(state.filters) {
+        let f = list_get(state.filters, fi)!;
+        let cells = list_empty();
+        let ii = 0;
+        while ii <s list_count(state.inputs) {
+            let x = list_get(state.inputs, ii)!;
+            let cell = map_assoc(map_empty(), gs_input, value_string(jq_id(x)));
+            let c = jq_cell(state, f, x);
+            cell = map_assoc(cell, s_status, value_member(c, s_status));
+            cell = map_assoc(cell, s_outputs, value_member(c, s_outputs));
+            cell = map_assoc(cell, s_error, value_member(c, s_error));
+            cell = map_assoc(cell, s_more, value_member(c, s_more));
+            cells = list_push(cells, map_assoc(cell, s_expected, value_member(c, s_expected)));
+            ii += 1;
+        }
+        let row = map_assoc(map_empty(), gs_filter, value_string(jq_id(f)));
+        out = list_push(out, map_assoc(row, s_cells, cells));
+        fi += 1;
+    }
+    out;
+}
+
+fn jq_lab_get_grid_cells(state: &jq_lab_state) -> &value {
+    let out = list_push(list_empty(), jq_lab_grid_cells_new(s_corner, s_empty, s_label));
+    let ii = 0;
+    while ii <s list_count(state.inputs) {
+        out = list_push(out, jq_lab_grid_cells_new(jq_id(list_get(state.inputs, ii)!), s_empty, s_label));
+        ii += 1;
+    }
+    let shown = jq_shown_index(state);
+    let fi = 0;
+    while fi <s list_count(state.filters) {
+        let f = list_get(state.filters, fi)!;
+        let row_status = if fi == shown { s_focused; } else { s_label; };
+        out = list_push(out, jq_lab_grid_cells_new(jq_id(f), jq_lab_filters_filter(f), row_status));
+        let ii = 0;
+        while ii <s list_count(state.inputs) {
+            let cell = jq_cell(state, f, list_get(state.inputs, ii)!);
+            let expected = value_member(cell, s_expected);
+            let title = if expected.kind == value_kind_list {
+                jq_cat3(s_expected_nl, jq_show(expected), s_click_clear);
+            } else {
+                s_no_exp_title;
+            };
+            out = list_push(out, jq_lab_grid_cells_new(jq_clip(jq_cell_text(cell), 400), title, jq_cell_status(cell)));
+            ii += 1;
+        }
+        fi += 1;
+    }
+    out;
+}
+
+fn jq_lab_get_grid_style(state: &jq_lab_state) -> js_string {
+    jq_cat3(s_grid_open, int_text(list_count(state.inputs)), s_grid_close);
+}
+
+fn jq_lab_get_filter_rows(state: &jq_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.filters) {
+        let f = list_get(state.filters, i)!;
+        let program = jq_lab_filters_filter(f);
+        out = list_push(out, jq_lab_filter_rows_new(jq_id(f), program, jq_compile_error(program)));
+        i += 1;
+    }
+    out;
+}
+
+fn jq_lab_get_input_rows(state: &jq_lab_state) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.inputs) {
+        let x = list_get(state.inputs, i)!;
+        let id = jq_id(x);
+        let d = map_get(state.drafts, id);
+        let row = if !d {
+            jq_lab_input_rows_new(id, value_json(jq_lab_inputs_value(x), 2), s_empty);
+        } else {
+            jq_lab_input_rows_new(id, jq_lab_drafts_text(d!), jq_lab_drafts_error(d!));
+        };
+        out = list_push(out, row);
+        i += 1;
+    }
+    out;
+}
+
+fn jq_lab_get_shown(state: &jq_lab_state) -> &value {
+    let f = list_get(state.filters, jq_shown_index(state))!;
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.inputs) {
+        let x = list_get(state.inputs, i)!;
+        let cell = jq_cell(state, f, x);
+        let outputs = value_member(cell, s_outputs);
+        let row = if outputs.kind == value_kind_list {
+            jq_lab_shown_new(jq_cat(jq_id(x), s_outputs_sp), value_json(outputs, 2), s_ok);
+        } else {
+            jq_lab_shown_new(jq_cat(jq_id(x), s_outputs_sp), jq_str(value_member(cell, s_error)), s_error);
+        };
+        out = list_push(out, row);
+        let expected = value_member(cell, s_expected);
+        if expected.kind == value_kind_list {
+            out = list_push(out, jq_lab_shown_new(jq_cat(jq_id(x), s_expected_sp), value_json(expected, 2), s_expected));
+        }
+        i += 1;
+    }
+    out;
+}
+
+fn jq_lab_get_focus_label(state: &jq_lab_state) -> js_string {
+    jq_id(list_get(state.filters, jq_shown_index(state))!);
+}
+
+fn jq_lab_get_headline(state: &jq_lab_state) -> js_string {
+    let (pass, fail, none, bad) = jq_counts(state);
+    let out = jq_cat3(jq_cat(int_text(pass), s_pass_dot), int_text(fail), s_fail_dot);
+    jq_cat3(jq_cat(out, int_text(none)), s_unset_dot, jq_cat(int_text(bad), s_errors));
+}
+
+fn jq_lab_get_summary(state: &jq_lab_state) -> js_string {
+    let (pass, fail, none, bad) = jq_counts(state);
+    let out = jq_cat3(int_text(list_count(state.filters)), s_filters_comma, int_text(list_count(state.inputs)));
+    out = jq_cat3(out, s_inputs_comma, jq_cat(int_text(list_count(state.expected)), s_expectations_colon));
+    out = jq_cat3(out, int_text(pass), s_pass_comma);
+    out = jq_cat3(out, int_text(fail), s_fail_comma);
+    out = jq_cat3(out, int_text(none), s_unset_comma);
+    out = jq_cat3(out, int_text(bad), s_errors_dot);
+    out = jq_cat3(out, s_nl, s_filters_label);
+    let i = 0;
+    while i <s list_count(state.filters) {
+        let f = list_get(state.filters, i)!;
+        let program = jq_lab_filters_filter(f);
+        let line = jq_cat3(s_indent, jq_id(f), s_colon_sp);
+        line = jq_cat(line, program);
+        let error = jq_compile_error(program);
+        if js_string_length(error) != 0 {
+            line = jq_cat3(line, s_error_open, jq_cat(jq_first_line(error), s_rparen));
+        }
+        out = jq_cat3(out, s_nl, line);
+        i += 1;
+    }
+    out = jq_cat3(out, s_nl, s_inputs_label);
+    let j = 0;
+    while j <s list_count(state.inputs) {
+        let x = list_get(state.inputs, j)!;
+        let shape = s_invalid_json;
+        if js_string_length(jq_draft_error(state, jq_id(x))) == 0 {
+            let got = jq_call(s_jq_shape, jq_args1(jq_lab_inputs_value(x)));
+            shape = if !got { s_empty; } else { jq_str(got!); };
+        }
+        out = jq_cat3(out, s_nl, jq_cat3(s_indent, jq_id(x), jq_cat(s_colon_sp, jq_clip(shape, 160))));
+        j += 1;
+    }
+    out = jq_cat3(out, s_nl, s_expected_label);
+    let k = 0;
+    while k <s list_count(state.expected) {
+        let e = list_get(state.expected, k)!;
+        let line = jq_cat3(s_indent, jq_lab_expected_filter(e), s_on);
+        line = jq_cat3(line, jq_lab_expected_input(e), s_colon_sp);
+        out = jq_cat3(out, s_nl, jq_cat(line, jq_clip(jq_show(jq_lab_expected_outputs(e)), 120)));
+        k += 1;
+    }
+    out;
+}
+
+// The JSON it opened, changed: { filters, inputs, expected }.
+fn jq_lab_get_data(state: &jq_lab_state) -> &value {
+    let out = map_assoc(map_empty(), s_filters, state.filters);
+    out = map_assoc(out, s_inputs, state.inputs);
+    map_assoc(out, s_expected, state.expected);
+}
+
+fn jq_lab_get_domain(state: &jq_lab_state) -> &value {
+    jq_lab_get_data(state);
+}
+
+// ---- Queries -----------------------------------------------------------------------
+
+// The value of the input with id: { value } or { error }.
+fn jq_input_value(state: &jq_lab_state, id: js_string) -> &value {
+    let i = list_find(state.inputs, gs_id, id);
+    if i <s 0 {
+        return map_assoc(map_empty(), s_error, value_string(jq_cat(s_no_input, id)));
+    }
+    let error = jq_draft_error(state, id);
+    if js_string_length(error) != 0 {
+        return map_assoc(map_empty(), s_error, value_string(jq_cat3(id, s_isnt_json, error)));
+    }
+    map_assoc(map_empty(), s_value, jq_lab_inputs_value(list_get(state.inputs, i)!));
+}
+
+fn jq_lab_query_input_shape(state: &jq_lab_state, input: js_string) -> &value {
+    let r = jq_input_value(state, input);
+    if !!map_get(r, s_error) {
+        return r;
+    }
+    let got = jq_call(s_jq_shape, jq_args1(value_member(r, s_value)));
+    let shape = if !got { value_string(s_empty); } else { got!; };
+    map_assoc(map_empty(), s_shape, shape);
+}
+
+fn jq_lab_query_get_input(state: &jq_lab_state, input: js_string, pointer: js_string) -> &value {
+    let r = jq_input_value(state, input);
+    if !!map_get(r, s_error) {
+        return r;
+    }
+    let got = jq_call(s_jq_pointer, jq_args2(value_member(r, s_value), value_string(pointer)));
+    if !got {
+        return map_assoc(map_empty(), s_error, value_string(s_error));
+    }
+    got!;
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+fn jq_lab_on_set_filter(state: &jq_lab_state, ctx: &context, id: js_string, filter: js_string) -> &jq_lab_state {
+    let i = list_find(state.filters, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    jq_lab_with_filters(state, list_assoc(state.filters, i, jq_lab_filters_new(id, filter)));
+}
+
+fn jq_lab_on_add_filter(state: &jq_lab_state, ctx: &context, filter: js_string) -> &jq_lab_state {
+    let id = list_next_id(state.filters, gs_id, s_f);
+    jq_lab_with_filters(state, list_push(state.filters, jq_lab_filters_new(id, filter)));
+}
+
+fn jq_lab_on_remove_filter(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
+    let i = list_find(state.filters, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let next = jq_lab_with_filters(state, list_remove_at(state.filters, i));
+    next = jq_lab_with_expected(next, jq_expected_without(state.expected, gs_filter, id));
+    if js_string_equals(state.focus, id) {
+        return jq_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn jq_lab_on_reorder_filters(state: &jq_lab_state, ctx: &context, id: js_string, index: i32) -> &jq_lab_state {
+    jq_lab_with_filters(state, list_move(state.filters, list_find(state.filters, gs_id, id), index));
+}
+
+fn jq_lab_on_set_input(state: &jq_lab_state, ctx: &context, id: js_string, value: &value) -> &jq_lab_state {
+    let i = list_find(state.inputs, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let next = jq_lab_with_inputs(state, list_assoc(state.inputs, i, jq_lab_inputs_new(id, value)));
+    jq_lab_with_drafts(next, map_dissoc(state.drafts, id));
+}
+
+fn jq_lab_on_set_input_text(state: &jq_lab_state, ctx: &context, id: js_string, text: js_string) -> &jq_lab_state {
+    let i = list_find(state.inputs, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let got = jq_call(s_jq_parse, jq_args1(value_string(text)));
+    if !got {
+        return state;
+    }
+    let parsed = got!;
+    let error = map_get(parsed, s_error);
+    if !!error {
+        return jq_lab_with_drafts(state, map_assoc(state.drafts, id, jq_lab_drafts_new(text, jq_str(error!))));
+    }
+    let next = jq_lab_with_inputs(state, list_assoc(state.inputs, i, jq_lab_inputs_new(id, value_member(parsed, s_value))));
+    jq_lab_with_drafts(next, map_assoc(state.drafts, id, jq_lab_drafts_new(text, s_empty)));
+}
+
+fn jq_lab_on_add_input(state: &jq_lab_state, ctx: &context, value: &value) -> &jq_lab_state {
+    let id = list_next_id(state.inputs, gs_id, s_i);
+    jq_lab_with_inputs(state, list_push(state.inputs, jq_lab_inputs_new(id, value)));
+}
+
+fn jq_lab_on_new_input(state: &jq_lab_state, ctx: &context) -> &jq_lab_state {
+    jq_lab_on_add_input(state, ctx, map_empty());
+}
+
+fn jq_lab_on_remove_input(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
+    let i = list_find(state.inputs, gs_id, id);
+    if i <s 0 {
+        return state;
+    }
+    let next = jq_lab_with_inputs(state, list_remove_at(state.inputs, i));
+    next = jq_lab_with_expected(next, jq_expected_without(state.expected, gs_input, id));
+    jq_lab_with_drafts(next, map_dissoc(state.drafts, id));
+}
+
+fn jq_lab_on_reorder_inputs(state: &jq_lab_state, ctx: &context, id: js_string, index: i32) -> &jq_lab_state {
+    jq_lab_with_inputs(state, list_move(state.inputs, list_find(state.inputs, gs_id, id), index));
+}
+
+fn jq_lab_on_set_expected(state: &jq_lab_state, ctx: &context, filter: js_string, input: js_string, outputs: &value) -> &jq_lab_state {
+    let e = jq_lab_expected_new(filter, input, outputs);
+    let i = jq_expected_index(state, filter, input);
+    if i >=s 0 {
+        return jq_lab_with_expected(state, list_assoc(state.expected, i, e));
+    }
+    jq_lab_with_expected(state, list_push(state.expected, e));
+}
+
+fn jq_lab_on_clear_expected(state: &jq_lab_state, ctx: &context, filter: js_string, input: js_string) -> &jq_lab_state {
+    let i = jq_expected_index(state, filter, input);
+    if i <s 0 {
+        return state;
+    }
+    jq_lab_with_expected(state, list_remove_at(state.expected, i));
+}
+
+// Cell i of grid_cells: the header row has a corner and a cell per input,
+// then each filter's row has its label and a cell per input.
+fn jq_lab_on_toggle_cell(state: &jq_lab_state, ctx: &context, i: i32) -> &jq_lab_state {
+    let width = list_count(state.inputs) + 1;
+    let row = i /s width - 1;
+    let col = i %s width - 1;
+    if (row <s 0) | (col <s 0) | (row >=s list_count(state.filters)) {
+        return state;
+    }
+    let f = list_get(state.filters, row)!;
+    let x = list_get(state.inputs, col)!;
+    let ei = jq_expected_index(state, jq_id(f), jq_id(x));
+    if ei >=s 0 {
+        return jq_lab_with_expected(state, list_remove_at(state.expected, ei));
+    }
+    let outputs = value_member(jq_cell(state, f, x), s_outputs);
+    if outputs.kind != value_kind_list {
+        return state;
+    }
+    jq_lab_with_expected(state, list_push(state.expected, jq_lab_expected_new(jq_id(f), jq_id(x), outputs)));
+}
+
+fn jq_lab_on_focus(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
+    if js_string_equals(state.focus, id) {
+        return jq_lab_with_focus(state, s_empty);
+    }
+    jq_lab_with_focus(state, id);
+}

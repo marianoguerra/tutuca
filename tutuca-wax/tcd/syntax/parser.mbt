@@ -754,7 +754,7 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
   guard t.tok is Ident(word) else {
     self.i -= 1
     raise self.fail(
-      "a member: field, get, message, notify, ask, invariant, init, loop, scope, provide or view",
+      "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide or view",
     )
   }
   match word {
@@ -763,6 +763,7 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
     "message" => Message(self.message(doc))
     "notify" => Notify(self.signal(doc, false))
     "ask" => Ask(self.signal(doc, true))
+    "query" => Query(self.signal(doc, true))
     "invariant" => {
       let name = self.name(what="an invariant name")
       ignore(self.expect_punct(":"))
@@ -795,7 +796,7 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
     _ => {
       self.i -= 1
       raise self.fail(
-        "a member: field, get, message, notify, ask, invariant, init, loop, scope, provide or view",
+        "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide or view",
       )
     }
   }

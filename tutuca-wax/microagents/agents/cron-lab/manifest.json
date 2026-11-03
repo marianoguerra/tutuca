@@ -1,0 +1,23 @@
+{
+	"id": "cron-lab",
+	"title": "Cron lab",
+	"description": "Build cron expressions visually, read them in plain English and check when they run next.",
+	"needs": "an object with crons ([{ id, expression, timezone, from, expect_next }]), at least one: from is the ISO time the runs count from (\"\" for 2025-01-01T00:00:00Z) and expect_next the ISO time the first run should be (\"\" for none)",
+	"icon": "⏰",
+	"version": "1",
+	"root": "CronLab",
+	"hostFns": ["cron"],
+	"skills": ["SKILL.md", "reference/syntax.md"],
+	"tools": [
+		{ "name": "set_expression", "kind": "message" },
+		{ "name": "set_field", "kind": "message" },
+		{ "name": "add_cron", "kind": "message" },
+		{ "name": "remove_cron", "kind": "message" },
+		{ "name": "reorder_crons", "kind": "message" },
+		{ "name": "set_timezone", "kind": "message" },
+		{ "name": "set_from", "kind": "message" },
+		{ "name": "set_expected_next", "kind": "message" },
+		{ "name": "explain", "kind": "view" },
+		{ "name": "next_runs", "kind": "view" }
+	]
+}

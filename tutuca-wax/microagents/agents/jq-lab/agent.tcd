@@ -1,0 +1,126 @@
+// jq-lab: jq filters run against JSON inputs. The grid shows each filter's
+// outputs on each input, and an expectation ({ filter, input, outputs })
+// pins what a filter should give for an input, so the grid says pass or
+// fail. jq runs in the page (host functions jq_*, microagents/engines/jq.js,
+// jq-wasm). The root's messages are the agent's tools; the rows' inputs send
+// the same messages.
+package tutuca:jq_lab@0.1.0;
+
+use "../../kit/kit.tcd".{ MicroAgent };
+
+component JqLab: MicroAgent {
+    /// The jq filters, each with an id the model names it by (f1, f2, …).
+    field filters: list<record { id: string, filter: string }> where len(filters) >= 1;
+    /// The JSON inputs, each with an id (i1, i2, …) and its value.
+    field inputs: list<record { id: string, value: any }> where len(inputs) >= 1;
+    /// The pinned outputs: what a filter should output for an input, every output in order.
+    field expected: list<record { filter: string, input: string, outputs: list<any> }>;
+    /// The inputs' text as the user edits it, by input id, and why it isn't JSON ("" when it is).
+    field drafts: map<record { text: string, error: string }>;
+    /// The filter whose outputs the outputs section shows; "" for the first.
+    field focus: string;
+
+    get summary: string;
+    get domain: any;
+    get data: any;
+    get headline: string;
+    get focus_label: string;
+    /// The filters as rows, with why each doesn't compile ("" when it does).
+    get filter_rows: list<record { id: string, filter: string, error: string }>;
+    /// The inputs as rows: the text the editor shows and why it isn't JSON ("" when it is).
+    get input_rows: list<record { id: string, text: string, error: string }>;
+    /// Every filter × input: the outputs or the error, the expected outputs and whether they pass.
+    get outputs: any;
+    /// The grid laid out as one list for a CSS grid: a header row of input ids, then per filter its id and a cell per input.
+    get grid_cells: list<record { label: string, title: string, status: string }>;
+    get grid_style: string;
+    /// The focused filter's outputs on each input, and the expected outputs where some are pinned.
+    get shown: list<record { label: string, text: string, status: string }>;
+
+    /// A compact type sketch of an input, like {a: number, items: [{id: string}]}.
+    query input_shape(input: string) -> any;
+    /// The part of an input at a JSON pointer: "" for all of it, "/items/0" for the first item.
+    query get_input(input: string, pointer: string) -> any;
+
+    /// Change a filter's jq program.
+    message set_filter(id: string, filter: string) when any(filters, it.id == id) changes filters;
+    /// Add a filter; it gets the next free id (f1, f2, …).
+    message add_filter(filter: string) changes filters ensures len(next.filters) == len(filters) + 1;
+    /// Remove a filter and its expectations.
+    message remove_filter(id: string) when any(filters, it.id == id) and len(filters) > 1 changes filters, expected, focus
+        ensures len(next.filters) == len(filters) - 1;
+    /// Move a filter to a position (0 is first).
+    message reorder_filters(id: string, index: s32 where index >= 0) when any(filters, it.id == id) changes filters
+        ensures len(next.filters) == len(filters);
+    /// Replace an input's JSON value.
+    message set_input(id: string, value: any) when any(inputs, it.id == id) changes inputs, drafts;
+    /// An input's text, from its editor: the value changes when it is JSON, the text is kept while it isn't.
+    message set_input_text(id: string, text: string) when any(inputs, it.id == id) changes inputs, drafts;
+    /// Add a JSON input; it gets the next free id (i1, i2, …).
+    message add_input(value: any) changes inputs ensures len(next.inputs) == len(inputs) + 1;
+    /// From the page: add an input holding {}.
+    message new_input() changes inputs ensures len(next.inputs) == len(inputs) + 1;
+    /// Remove an input and its expectations.
+    message remove_input(id: string) when any(inputs, it.id == id) and len(inputs) > 1 changes inputs, expected, drafts
+        ensures len(next.inputs) == len(inputs) - 1;
+    /// Move an input to a position (0 is first).
+    message reorder_inputs(id: string, index: s32 where index >= 0) when any(inputs, it.id == id) changes inputs
+        ensures len(next.inputs) == len(inputs);
+    /// Pin what a filter should output for an input: the list of every output, in order ([x] for a single output x).
+    message set_expected(filter: string, input: string, outputs: list<any>)
+        when any(filters, it.id == filter) and any(inputs, it.id == input) changes expected;
+    /// Remove the expectation of a filter for an input.
+    message clear_expected(filter: string, input: string)
+        when any(expected, it.filter == filter and it.input == input) changes expected
+        ensures len(next.expected) == len(expected) - 1;
+    /// From the grid: the cell at index i pins its outputs, or clears its pin.
+    message toggle_cell(i: s32 where i >= 0) changes expected;
+    /// Which filter the outputs section shows; the focused one again unfocuses it.
+    message focus(id: string) changes focus;
+
+    view main = div(class: "flex flex-col gap-4",
+        header(class: "flex items-baseline justify-between gap-2",
+            h2(class: "text-lg font-bold", "jq lab"),
+            span(class: "text-sm opacity-70", field(headline))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Filters"),
+        div(class: "flex flex-col gap-1",
+            each(field(filter_rows),
+                div(class: "flex flex-col gap-1",
+                    div(class: "join w-full",
+                        button(class: "btn btn-sm join-item font-mono", title: "Show its outputs", on_click: send(focus, field(id)), field(id)),
+                        input(class: "input input-sm input-bordered join-item flex-1 font-mono", "aria-label": "Filter",
+                            value: field(filter), on_input: send(set_filter, field(id), target_value())),
+                        button(class: "btn btn-sm join-item", title: "Remove", "aria-label": "Remove", on_click: send(remove_filter, field(id)), "✕")),
+                    if(field(error) != "", pre(class: "text-xs text-error whitespace-pre-wrap", field(error))))),
+            button(class: "btn btn-sm btn-ghost w-fit", on_click: send(add_filter, "."), "+ Filter")),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Inputs"),
+        div(class: "grid gap-2 md:grid-cols-2",
+            each(field(input_rows),
+                div(class: "flex flex-col gap-1",
+                    div(class: "flex items-center justify-between",
+                        span(class: "font-mono text-xs opacity-60", field(id)),
+                        button(class: "btn btn-xs btn-ghost", title: "Remove", "aria-label": "Remove", on_click: send(remove_input, field(id)), "✕")),
+                    textarea(class: "textarea textarea-bordered w-full font-mono text-xs", rows: "6", "aria-label": "Input JSON",
+                        value: field(text), on_input: send(set_input_text, field(id), target_value())),
+                    if(field(error) != "", p(class: "text-xs text-error", field(error)))))),
+        button(class: "btn btn-sm btn-ghost w-fit", on_click: send(new_input), "+ Input"),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Outputs"),
+        p(class: "text-xs opacity-60", "Green passes, red fails, grey has no expectation. Click a cell to pin its outputs as expected, again to clear."),
+        div(class: "grid gap-1 overflow-x-auto", style: field(grid_style),
+            each(field(grid_cells),
+                button(class: if(field(status) == "pass", "rounded-box border border-success bg-success/10 p-2 whitespace-pre-wrap break-all text-left font-mono text-xs",
+                        if(field(status) == "fail", "rounded-box border border-error bg-error/10 p-2 whitespace-pre-wrap break-all text-left font-mono text-xs",
+                        if(field(status) == "error", "rounded-box border border-warning bg-warning/10 p-2 whitespace-pre-wrap break-all text-left font-mono text-xs",
+                        if(field(status) == "invalid", "rounded-box border border-warning bg-warning/10 p-2 whitespace-pre-wrap break-all text-left font-mono text-xs",
+                        if(field(status) == "none", "rounded-box border border-base-300 p-2 whitespace-pre-wrap break-all text-left font-mono text-xs",
+                        if(field(status) == "focused", "font-mono text-xs text-primary font-bold text-left",
+                        "font-mono text-xs opacity-70 text-left")))))),
+                    title: field(title), on_click: send(toggle_cell, source_key()), field(label)))),
+        h3(class: "text-xs font-semibold uppercase tracking-wide opacity-60", "Outputs of ", span(class: "font-mono normal-case", field(focus_label))),
+        div(class: "grid gap-2 md:grid-cols-2",
+            each(field(shown),
+                div(class: "flex flex-col gap-1",
+                    span(class: "font-mono text-xs opacity-60", field(label)),
+                    pre(class: if(field(status) == "error", "rounded-box bg-base-200 p-2 text-xs text-error max-h-60 overflow-auto whitespace-pre-wrap",
+                        "rounded-box bg-base-200 p-2 text-xs max-h-60 overflow-auto"), field(text))))));
+}

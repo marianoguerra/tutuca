@@ -43,6 +43,13 @@ fn abi_value_string(v: js_string) -> &value {
     value_string(v);
 }
 
+// Calls the page's function name (runtime.defineHostFn) with args, a list
+// value, now: an ok result with what it returned, or an error result.
+#[export = "host_call"]
+fn abi_host_call(name: js_string, args: &value) -> &value {
+    host_call(name, args as &extern);
+}
+
 #[export = "value_ok"]
 fn abi_value_ok(v: &value) -> &value {
     value_ok(v);
@@ -78,6 +85,50 @@ fn abi_value_as_component(v: &value) -> &?component {
     value_as_component(v);
 }
 
+// Text, as JS's string methods do it: s.slice(start, end) (negative
+// indexes count from the end), s.indexOf(needle, from) (-1: nowhere),
+// toLowerCase, toUpperCase, trim, replaceAll, split (a list value of
+// strings) and join (of a list value's items, as strings).
+#[export = "str_slice"]
+fn abi_str_slice(s: js_string, start: i32, end: i32) -> js_string {
+    host_str_slice(s, start, end);
+}
+
+#[export = "str_index_of"]
+fn abi_str_index_of(s: js_string, needle: js_string, from: i32) -> i32 {
+    host_str_index_of(s, needle, from);
+}
+
+#[export = "str_lower"]
+fn abi_str_lower(s: js_string) -> js_string {
+    host_str_lower(s);
+}
+
+#[export = "str_upper"]
+fn abi_str_upper(s: js_string) -> js_string {
+    host_str_upper(s);
+}
+
+#[export = "str_trim"]
+fn abi_str_trim(s: js_string) -> js_string {
+    host_str_trim(s);
+}
+
+#[export = "str_replace_all"]
+fn abi_str_replace_all(s: js_string, from: js_string, to: js_string) -> js_string {
+    host_str_replace_all(s, from, to);
+}
+
+#[export = "str_split"]
+fn abi_str_split(s: js_string, sep: js_string) -> &value {
+    host_str_split(s, sep) as &any as &value;
+}
+
+#[export = "str_join"]
+fn abi_str_join(parts: &value, sep: js_string) -> js_string {
+    host_str_join(parts as &extern, sep);
+}
+
 #[export = "str_eq"]
 fn abi_str_eq(a: js_string_opt, b: js_string_opt) -> i32 {
     str_eq(a, b);
@@ -109,6 +160,33 @@ fn abi_list_push(list: &value, item: &value) -> &value {
 #[export = "list_assoc"]
 fn abi_list_assoc(list: &value, i: i32, item: &value) -> &value {
     list_assoc(list, i, item);
+}
+
+// Lists of records (maps): removing, inserting and moving items, finding
+// one by a member's string value, and the next free id (collections.wax).
+#[export = "list_remove_at"]
+fn abi_list_remove_at(list: &value, i: i32) -> &value {
+    list_remove_at(list, i);
+}
+
+#[export = "list_insert"]
+fn abi_list_insert(list: &value, i: i32, item: &value) -> &value {
+    list_insert(list, i, item);
+}
+
+#[export = "list_move"]
+fn abi_list_move(list: &value, from: i32, to: i32) -> &value {
+    list_move(list, from, to);
+}
+
+#[export = "list_find"]
+fn abi_list_find(list: &value, key: js_string, value: js_string) -> i32 {
+    list_find(list, key, value);
+}
+
+#[export = "list_next_id"]
+fn abi_list_next_id(list: &value, key: js_string, prefix: js_string) -> js_string {
+    list_next_id(list, key, prefix);
 }
 
 #[export = "list_pop"]
@@ -758,6 +836,13 @@ fn abi_parse_number(s: js_string) -> (i32, f64) {
     parse_number(s);
 }
 
+// A value as JSON text, as JSON.stringify writes it, indented by indent
+// spaces (0: on one line).
+#[export = "value_json"]
+fn abi_value_json(v: &value, indent: i32) -> js_string {
+    host_value_json(v as &extern, indent);
+}
+
 #[export = "json_string"]
 fn abi_json_string(s: js_string) -> js_string {
     json_string(s);
@@ -939,6 +1024,11 @@ fn abi_component_schema_new(
     interfaces: &str_array,
 ) -> &component_schema {
     component_schema_new(fields, gets, messages, invariants, interfaces);
+}
+
+#[export = "component_schema_set_queries"]
+fn abi_component_schema_set_queries(schema: &component_schema, queries: &message_schema_array) {
+    component_schema_set_queries(schema, queries);
 }
 
 #[export = "spec_set_schema"]

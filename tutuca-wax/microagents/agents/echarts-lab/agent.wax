@@ -1,0 +1,485 @@
+// echarts-lab's implementation (agent.tcd has the rest): the report, the
+// summary, the tables' list and preview, and the edits. ECharts draws in the
+// page, through host_call (microagents/engines/echarts.js).
+
+import "'" {
+    #[import = ""]
+    const s_empty: js_string;
+    #[import = "echarts_check"]
+    const s_echarts_check: js_string;
+    #[import = "echarts_tables"]
+    const s_echarts_tables: js_string;
+    #[import = "echarts_describe"]
+    const s_echarts_describe: js_string;
+    #[import = "svg"]
+    const s_svg: js_string;
+    #[import = "echarts_patch"]
+    const s_echarts_patch: js_string;
+    #[import = "echarts_remove"]
+    const s_echarts_remove: js_string;
+    #[import = "echarts_format_csv"]
+    const s_echarts_format_csv: js_string;
+    #[import = "json_parse"]
+    const s_json_parse: js_string;
+    #[import = "ok"]
+    const s_ok: js_string;
+    #[import = "errors"]
+    const s_errors: js_string;
+    #[import = "warnings"]
+    const s_warnings: js_string;
+    #[import = "series"]
+    const s_series: js_string;
+    #[import = "error"]
+    const s_error: js_string;
+    #[import = "kind"]
+    const s_kind: js_string;
+    #[import = "count"]
+    const s_count: js_string;
+    #[import = "columns"]
+    const s_columns: js_string;
+    #[import = ","]
+    const s_comma: js_string;
+    #[import = ", "]
+    const s_comma_sp: js_string;
+    #[import = ": "]
+    const s_colon_sp: js_string;
+    #[import = " · "]
+    const s_dot: js_string;
+    #[import = " rows"]
+    const s_rows_sp: js_string;
+    #[import = " (showing "]
+    const s_showing: js_string;
+    #[import = ")"]
+    const s_rparen: js_string;
+    #[import = " ("]
+    const s_lparen_sp: js_string;
+    #[import = "\n"]
+    const s_nl: js_string;
+    #[import = "  "]
+    const s_indent: js_string;
+    #[import = "…"]
+    const s_ellipsis: js_string;
+    #[import = "draws · "]
+    const s_compiles: js_string;
+    #[import = " warnings"]
+    const s_warnings_sp: js_string;
+    #[import = " errors"]
+    const s_errors_sp: js_string;
+    #[import = "ECharts option: "]
+    const s_summary_head: js_string;
+    #[import = "."]
+    const s_period: js_string;
+    #[import = "tables ("]
+    const s_tables_open: js_string;
+    #[import = "):"]
+    const s_tables_close: js_string;
+    #[import = "error: "]
+    const s_error_colon: js_string;
+    #[import = "warning: "]
+    const s_warning_colon: js_string;
+    #[import = "option:"]
+    const s_option_colon: js_string;
+    #[import = "the editor's text isn't an option yet (the option is the last one that was): "]
+    const s_editor_bad: js_string;
+    #[import = "the option must be a JSON object with at least one key"]
+    const s_not_object: js_string;
+    #[import = "that leaves the option empty: replace it whole with set_option instead"]
+    const s_left_empty: js_string;
+    #[import = "the page can't draw options: "]
+    const s_no_engine: js_string;
+}
+
+const ec_preview_rows = 8;
+const ec_clip_at = 1500;
+
+// ---- Text --------------------------------------------------------------------------
+
+fn ec_cat(a: js_string, b: js_string) -> js_string {
+    js_string_concat(a, b);
+}
+
+fn ec_cat3(a: js_string, b: js_string, c: js_string) -> js_string {
+    js_string_concat(js_string_concat(a, b), c);
+}
+
+fn ec_str(v: &value) -> js_string {
+    let s = value_string_of(v);
+    if !s {
+        return s_empty;
+    }
+    s!;
+}
+
+fn ec_clip(text: js_string, n: i32) -> js_string {
+    if js_string_length(text) <=s n {
+        return text;
+    }
+    ec_cat(str_slice(text, 0, n), s_ellipsis);
+}
+
+// A cell's value as text: a string as itself, null as "", the rest as JSON.
+fn ec_cell_text(v: &value) -> js_string {
+    if v.kind == value_kind_string {
+        return ec_str(v);
+    }
+    if v.kind == value_kind_null {
+        return s_empty;
+    }
+    value_json(v, 0);
+}
+
+// Whether v is an object with at least one key.
+fn ec_is_option(v: &value) -> i32 {
+    if v.kind != value_kind_map {
+        return 0;
+    }
+    list_count(map_keys(v)) >s 0;
+}
+
+fn ec_list_count_of(v: &value) -> i32 {
+    if v.kind != value_kind_list {
+        return 0;
+    }
+    list_count(v);
+}
+
+// ---- The page's ECharts ------------------------------------------------------------
+
+fn ec_args2(a: &value, b: &value) -> &value {
+    list_push(list_push(list_empty(), a), b);
+}
+
+fn ec_call(name: js_string, args: &value) -> &value_result {
+    host_call(name, args) as &value_result;
+}
+
+// { ok, errors, warnings, series, svgBytes, svg } for the option and the tables, drawn 600 × 400.
+fn ec_report(state: &echarts_lab_state) -> &value {
+    let r = ec_call(s_echarts_check, list_push(list_push(ec_args2(state.option, state.tables), value_int(600)), value_int(400)));
+    if r.ok {
+        return r.value;
+    }
+    let out = map_assoc(map_empty(), s_ok, value_bool(0));
+    out = map_assoc(out, s_errors, list_push(list_empty(), value_string(ec_cat(s_no_engine, ec_str(r.value)))));
+    out = map_assoc(out, s_warnings, list_empty());
+    out = map_assoc(out, s_series, list_empty());
+    map_assoc(out, s_svg, value_string(s_empty));
+}
+
+fn ec_ok(report: &value) -> i32 {
+    value_truthy(value_member(report, s_ok));
+}
+
+fn ec_errors(report: &value) -> &value {
+    value_member(report, s_errors);
+}
+
+fn ec_warnings(report: &value) -> &value {
+    value_member(report, s_warnings);
+}
+
+// The tables as the page reads them: [{ id, kind, count, columns, rows }].
+fn ec_tables(state: &echarts_lab_state) -> &value {
+    let r = ec_call(s_echarts_tables, list_push(list_empty(), state.tables));
+    if r.ok {
+        return r.value;
+    }
+    list_empty();
+}
+
+// The index of the table the preview shows: focus's, or the first's.
+fn ec_focused(state: &echarts_lab_state) -> i32 {
+    let i = list_find(state.tables, gs_id, state.focus);
+    if i >=s 0 {
+        return i;
+    }
+    0;
+}
+
+// "month: date, revenue: integer".
+fn ec_columns_text(info: &value) -> js_string {
+    let cols = value_member(info, s_columns);
+    let out = s_empty;
+    let i = 0;
+    while i <s ec_list_count_of(cols) {
+        let c = list_get(cols, i)!;
+        if i >s 0 {
+            out = ec_cat(out, s_comma_sp);
+        }
+        out = ec_cat3(out, ec_str(value_member(c, gs_name)), ec_cat(s_colon_sp, ec_str(value_member(c, gs_type))));
+        i += 1;
+    }
+    out;
+}
+
+// "sales · table · 8 rows".
+fn ec_table_label(info: &value) -> js_string {
+    let out = ec_cat3(ec_str(value_member(info, gs_id)), s_dot, ec_str(value_member(info, s_kind)));
+    ec_cat3(out, s_dot, ec_cat(int_text(ec_list_count_of(value_member(info, gs_rows))), s_rows_sp));
+}
+
+// A list of strings as records { text }.
+fn ec_texts(items: &value) -> &value {
+    let out = list_empty();
+    let i = 0;
+    while i <s ec_list_count_of(items) {
+        out = list_push(out, map_assoc(map_empty(), gs_text, list_get(items, i)!));
+        i += 1;
+    }
+    out;
+}
+
+// ---- Gets --------------------------------------------------------------------------
+
+fn echarts_lab_get_compile_report(state: &echarts_lab_state) -> &value {
+    let ids = list_empty();
+    let i = 0;
+    while i <s list_count(state.tables) {
+        ids = list_push(ids, value_member(list_get(state.tables, i)!, gs_id));
+        i += 1;
+    }
+    map_assoc(map_dissoc(ec_report(state), s_svg), gs_tables, ids);
+}
+
+fn echarts_lab_get_edit_report(state: &echarts_lab_state) -> &value {
+    if js_string_length(state.edit_error) != 0 {
+        return map_assoc(map_empty(), s_error, value_string(state.edit_error));
+    }
+    echarts_lab_get_compile_report(state);
+}
+
+fn echarts_lab_get_describe_tables(state: &echarts_lab_state) -> &value {
+    let r = ec_call(s_echarts_describe, list_push(list_empty(), state.tables));
+    if r.ok {
+        return r.value;
+    }
+    map_assoc(map_empty(), s_error, r.value);
+}
+
+fn echarts_lab_get_error_list(state: &echarts_lab_state) -> &value {
+    ec_texts(ec_errors(ec_report(state)));
+}
+
+fn echarts_lab_get_warning_list(state: &echarts_lab_state) -> &value {
+    ec_texts(ec_warnings(ec_report(state)));
+}
+
+fn echarts_lab_get_can_render(state: &echarts_lab_state) -> i32 {
+    ec_ok(ec_report(state));
+}
+
+fn echarts_lab_get_chart_svg(state: &echarts_lab_state) -> js_string {
+    ec_str(value_member(ec_report(state), s_svg));
+}
+
+fn echarts_lab_get_editor_text(state: &echarts_lab_state) -> js_string {
+    if js_string_length(state.option_text) != 0 {
+        return state.option_text;
+    }
+    value_json(state.option, 2);
+}
+
+fn echarts_lab_get_headline(state: &echarts_lab_state) -> js_string {
+    let report = ec_report(state);
+    if ec_ok(report) {
+        return ec_cat3(s_compiles, int_text(ec_list_count_of(ec_warnings(report))), s_warnings_sp);
+    }
+    ec_cat(int_text(ec_list_count_of(ec_errors(report))), s_errors_sp);
+}
+
+fn echarts_lab_get_table_rows(state: &echarts_lab_state) -> &value {
+    let infos = ec_tables(state);
+    let focused = ec_focused(state);
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(infos) {
+        let info = list_get(infos, i)!;
+        let label = ec_cat3(ec_table_label(info), s_dot, ec_columns_text(info));
+        out = list_push(out, echarts_lab_table_rows_new(ec_str(value_member(info, gs_id)), label, i == focused));
+        i += 1;
+    }
+    out;
+}
+
+fn echarts_lab_get_has_tables(state: &echarts_lab_state) -> i32 {
+    list_count(state.tables) >s 0;
+}
+
+fn echarts_lab_get_preview_title(state: &echarts_lab_state) -> js_string {
+    let info = list_get(ec_tables(state), ec_focused(state));
+    if !info {
+        return s_empty;
+    }
+    let n = ec_list_count_of(value_member(info!, gs_rows));
+    let shown = if n <s ec_preview_rows { n; } else { ec_preview_rows; };
+    ec_cat3(ec_table_label(info!), s_showing, ec_cat(int_text(shown), s_rparen));
+}
+
+fn echarts_lab_get_preview_columns(state: &echarts_lab_state) -> &value {
+    let info = list_get(ec_tables(state), ec_focused(state));
+    if !info {
+        return list_empty();
+    }
+    value_member(info!, s_columns);
+}
+
+fn echarts_lab_get_preview_rows(state: &echarts_lab_state) -> &value {
+    let info = list_get(ec_tables(state), ec_focused(state));
+    if !info {
+        return list_empty();
+    }
+    let cols = value_member(info!, s_columns);
+    let rows = value_member(info!, gs_rows);
+    let out = list_empty();
+    let i = 0;
+    while (i <s ec_list_count_of(rows)) & (i <s ec_preview_rows) {
+        let row = list_get(rows, i)!;
+        let cells = list_empty();
+        let j = 0;
+        while j <s ec_list_count_of(cols) {
+            let name = ec_str(value_member(list_get(cols, j)!, gs_name));
+            cells = list_push(cells, map_assoc(map_empty(), gs_text, value_string(ec_cell_text(value_member(row, name)))));
+            j += 1;
+        }
+        out = list_push(out, map_assoc(map_empty(), gs_cells, cells));
+        i += 1;
+    }
+    out;
+}
+
+fn echarts_lab_get_summary(state: &echarts_lab_state) -> js_string {
+    let report = ec_report(state);
+    let out = ec_cat3(s_summary_head, echarts_lab_get_headline(state), s_period);
+    let infos = ec_tables(state);
+    out = ec_cat3(out, s_nl, ec_cat3(s_tables_open, int_text(list_count(infos)), s_tables_close));
+    let i = 0;
+    while i <s list_count(infos) {
+        let info = list_get(infos, i)!;
+        let line = ec_cat3(s_indent, ec_table_label(info), s_colon_sp);
+        out = ec_cat3(out, s_nl, ec_cat(line, ec_columns_text(info)));
+        i += 1;
+    }
+    let errors = ec_errors(report);
+    let e = 0;
+    while e <s ec_list_count_of(errors) {
+        out = ec_cat3(out, s_nl, ec_cat(s_error_colon, ec_str(list_get(errors, e)!)));
+        e += 1;
+    }
+    let warnings = ec_warnings(report);
+    let w = 0;
+    while w <s ec_list_count_of(warnings) {
+        out = ec_cat3(out, s_nl, ec_cat(s_warning_colon, ec_str(list_get(warnings, w)!)));
+        w += 1;
+    }
+    if js_string_length(state.option_error) != 0 {
+        out = ec_cat3(out, s_nl, ec_cat(s_editor_bad, state.option_error));
+    }
+    out = ec_cat3(out, s_nl, s_option_colon);
+    ec_cat3(out, s_nl, ec_clip(value_json(state.option, 2), ec_clip_at));
+}
+
+// The JSON it opened, changed: { option, tables }.
+fn echarts_lab_get_data(state: &echarts_lab_state) -> &value {
+    map_assoc(map_assoc(map_empty(), gs_option, state.option), gs_tables, state.tables);
+}
+
+fn echarts_lab_get_domain(state: &echarts_lab_state) -> &value {
+    echarts_lab_get_data(state);
+}
+
+// ---- Checks ------------------------------------------------------------------------
+
+fn echarts_lab_check_table_id(state: &echarts_lab_state, v: js_string) -> i32 {
+    list_find(state.tables, gs_id, v) >=s 0;
+}
+
+// ---- Messages ----------------------------------------------------------------------
+
+// state with option, the editor showing it and no errors.
+fn ec_with_option(state: &echarts_lab_state, option: &value) -> &echarts_lab_state {
+    let next = echarts_lab_with_option_text(echarts_lab_with_option(state, option), s_empty);
+    echarts_lab_with_edit_error(echarts_lab_with_option_error(next, s_empty), s_empty);
+}
+
+// state with what an option edit gave: the new option, or why there's none.
+fn ec_edited(state: &echarts_lab_state, r: &value_result, empty_why: js_string) -> &echarts_lab_state {
+    if !r.ok {
+        return echarts_lab_with_edit_error(state, ec_str(r.value));
+    }
+    if !ec_is_option(r.value) {
+        return echarts_lab_with_edit_error(state, empty_why);
+    }
+    ec_with_option(state, r.value);
+}
+
+fn echarts_lab_on_set_option(state: &echarts_lab_state, ctx: &context, option: &value) -> &echarts_lab_state {
+    if !ec_is_option(option) {
+        return echarts_lab_with_edit_error(state, s_not_object);
+    }
+    ec_with_option(state, option);
+}
+
+fn echarts_lab_on_set_option_text(state: &echarts_lab_state, ctx: &context, text: js_string) -> &echarts_lab_state {
+    let r = ec_call(s_json_parse, list_push(list_empty(), value_string(text)));
+    let next = echarts_lab_with_edit_error(echarts_lab_with_option_text(state, text), s_empty);
+    if !r.ok {
+        return echarts_lab_with_option_error(next, ec_str(r.value));
+    }
+    if !ec_is_option(r.value) {
+        return echarts_lab_with_option_error(next, s_not_object);
+    }
+    echarts_lab_with_option_error(echarts_lab_with_option(next, r.value), s_empty);
+}
+
+fn echarts_lab_on_patch_option(state: &echarts_lab_state, ctx: &context, pointer: js_string, value: &value) -> &echarts_lab_state {
+    let args = list_push(ec_args2(state.option, value_string(pointer)), value);
+    ec_edited(state, ec_call(s_echarts_patch, args), s_left_empty);
+}
+
+fn echarts_lab_on_remove_option_key(state: &echarts_lab_state, ctx: &context, pointer: js_string) -> &echarts_lab_state {
+    ec_edited(state, ec_call(s_echarts_remove, ec_args2(state.option, value_string(pointer))), s_left_empty);
+}
+
+// A table with id and rows; a CSV table (old) stays CSV, with its delimiter.
+fn ec_table(id: js_string, rows: &value, old: &?value) -> &value {
+    let out = map_assoc(map_empty(), gs_id, value_string(id));
+    if !!old {
+        if value_member(old!, gs_csv).kind == value_kind_string {
+            let delimiter = value_member(old!, gs_delimiter);
+            let sep = if delimiter.kind == value_kind_string { delimiter; } else { value_string(s_comma); };
+            let r = ec_call(s_echarts_format_csv, ec_args2(rows, sep));
+            if r.ok {
+                out = map_assoc(out, gs_csv, r.value);
+                if delimiter.kind == value_kind_string {
+                    out = map_assoc(out, gs_delimiter, delimiter);
+                }
+                return out;
+            }
+        }
+    }
+    map_assoc(out, gs_rows, rows);
+}
+
+fn echarts_lab_on_set_table(state: &echarts_lab_state, ctx: &context, id: js_string, rows: &value) -> &echarts_lab_state {
+    let i = list_find(state.tables, gs_id, id);
+    if i <s 0 {
+        return echarts_lab_with_tables(state, list_push(state.tables, ec_table(id, rows, null)));
+    }
+    echarts_lab_with_tables(state, list_assoc(state.tables, i, ec_table(id, rows, list_get(state.tables, i))));
+}
+
+fn echarts_lab_on_remove_table(state: &echarts_lab_state, ctx: &context, id: js_string) -> &echarts_lab_state {
+    let next = echarts_lab_with_tables(state, list_remove_at(state.tables, list_find(state.tables, gs_id, id)));
+    if js_string_equals(state.focus, id) {
+        return echarts_lab_with_focus(next, s_empty);
+    }
+    next;
+}
+
+fn echarts_lab_on_reorder_tables(state: &echarts_lab_state, ctx: &context, id: js_string, index: i32) -> &echarts_lab_state {
+    echarts_lab_with_tables(state, list_move(state.tables, list_find(state.tables, gs_id, id), index));
+}
+
+fn echarts_lab_on_focus(state: &echarts_lab_state, ctx: &context, id: js_string) -> &echarts_lab_state {
+    echarts_lab_with_focus(state, id);
+}

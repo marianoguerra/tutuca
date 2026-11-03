@@ -89,6 +89,7 @@ fn names_first(pkg : @check.Package) -> Strings {
     messages(c.messages)
     signals(c.notifies)
     signals(c.asks)
+    signals(c.queries)
     for l in c.loops {
       claim(l.name)
       if l.enrich is Some(binds) {
@@ -173,6 +174,7 @@ fn Gen::claim_enums(self : Gen) -> Unit {
     }
     signals(c.notifies)
     signals(c.asks)
+    signals(c.queries)
   }
   for i in self.pkg.interfaces {
     fields(i.fields)

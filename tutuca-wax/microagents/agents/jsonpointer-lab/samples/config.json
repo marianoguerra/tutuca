@@ -1,0 +1,18 @@
+{
+	"pointers": [
+		{ "id": "q1", "pointer": "/servers/0/host" },
+		{ "id": "q2", "pointer": "/routes/~1api~1users/get" },
+		{ "id": "q3", "pointer": "/servers/2/port" },
+		{ "id": "q4", "pointer": "/a~0b" }
+	],
+	"document": {
+		"name": "billing",
+		"servers": [
+			{ "host": "a.example.com", "port": 8080 },
+			{ "host": "b.example.com", "port": 8081 }
+		],
+		"routes": { "/api/users": { "get": "listUsers", "post": "createUser" } },
+		"a~b": true,
+		"": "the empty key"
+	}
+}
