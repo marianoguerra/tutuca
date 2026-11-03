@@ -41,7 +41,6 @@
 		"LICENSE"
 	],
 	"scripts": {
-		"pretest": "node scripts/vendor.js --if-missing tdata ajv jq jsonpath picomatch vega echarts",
 		"test": "node --test test/*/*.test.js",
 		"lint": "biome check .",
 		"fmt": "biome check --write .",

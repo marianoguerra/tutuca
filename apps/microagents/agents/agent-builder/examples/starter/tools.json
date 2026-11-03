@@ -1,8 +1,0 @@
-[
-	{
-		"name": "set_text",
-		"kind": "message",
-		"description": "Replace the note's text.",
-		"params": ["text"]
-	}
-]

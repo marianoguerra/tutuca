@@ -65,8 +65,6 @@
 			"includes": [
 				"test/**/*.js",
 				"scripts/**/*.js",
-				"apps/microagents/server.js",
-				"apps/microagents/pack-agent.js",
 				"tdata/*/test/**",
 				"tdata/*/scripts/**",
 				"tdata/mbt/load.mjs"

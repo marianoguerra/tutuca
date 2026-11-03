@@ -1,6 +1,7 @@
 # Porting a micro-agent from apps/microagents to tutuca-wax
 
-Background: `apps/microagents/` (repo root `/home/mariano/src/tutuca`) is a JS
+Background: `apps/microagents/` (repo root `/home/mariano/src/tutuca`; removed
+once the port was done, so read it from git history: `git show 257cd94:apps/microagents/...`) was a JS
 tutuca app whose agents are ES modules (`agents/<id>/agent.js`) over TData.
 `tutuca-wax/microagents/` is its port. There an agent is **one `.wasm` module
 built by tcd** from `agent.tcd` + `agent.wax`, plus metadata packed into a

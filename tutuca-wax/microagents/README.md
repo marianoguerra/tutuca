@@ -1,9 +1,10 @@
 # Micro-agents in tutuca-wax
 
-A port of `apps/microagents` where **an agent is one `.wasm` component module**
+The micro-agents app, where **an agent is one `.wasm` component module**
 built by tcd. Its code and views are the module. Its manifest, prompt, skills,
 tools and samples are JSON in a custom section named `microagent`. The data an
-agent opens is plain JSON; TData and tq aren't used here.
+agent opens is plain JSON; TData and tq aren't used here. It replaced the JS app
+that was in `apps/microagents/` (still in git history, at 257cd94).
 
 ```
 just microagents        # build, then http://127.0.0.1:8003/microagents/ (models from .env)

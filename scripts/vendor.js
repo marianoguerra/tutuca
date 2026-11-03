@@ -3,7 +3,8 @@
 //   codemirror  site/deps/codemirror.js: the playground needs one copy of @codemirror/state.
 //   automerge   demos/deps/automerge.js: automerge-repo needs one initialized copy of automerge;
 //               the sync demo's importmap maps every @automerge package to it.
-//   tdata       demos/deps/tdata.js: tdata (TypeScript) and tq's JS engine, for the micro-agents.
+//   engines     demos/deps/{ajv,jq,jsonpath,picomatch,vega,echarts}.js: the micro-agents' engines,
+//               which tutuca-wax's build copies into its dist/engines/.
 // Bump the packages in package.json, then run `just vendor <name>` (and the tests).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -86,8 +87,8 @@ const TARGETS = {
 			minify: true,
 		},
 	},
-	// The micro-agents' engines, each loaded by kit.engines.<name>() in
-	// apps/microagents/kit.js.
+	// The micro-agents' engines: tutuca-wax's build copies them into its dist/engines/, where
+	// its microagents/engines/ modules load them.
 	ajv: {
 		out: "demos/deps/ajv.js",
 		title: () => versions(["ajv", "ajv-formats"]),
@@ -137,17 +138,6 @@ const TARGETS = {
 		title: () => versions(["echarts"]),
 		license: "node_modules/echarts/LICENSE",
 		build: { ...reexports(['export * from "echarts";']), minify: true },
-	},
-	// tdata (TypeScript, erasable syntax) and tq's JS engine (the MoonBit build, tdata/mbt), one
-	// file the micro-agents demo and its components import by path.
-	tdata: {
-		out: "demos/deps/tdata.js",
-		title: () => "tdata + tq (tdata/js, tdata/mbt/dist/tq.js)",
-		license: "LICENSE",
-		build: reexports([
-			'export * from "./tdata/js/src/index.ts";',
-			'export * as tqEngine from "./tdata/mbt/dist/tq.js";',
-		]),
 	},
 };
 

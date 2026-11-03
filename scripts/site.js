@@ -13,7 +13,9 @@ const cdn = (name, path) => `https://cdn.jsdelivr.net/npm/${name}@${version(name
 // they're missing.
 if (!existsSync("site/deps/codemirror.js")) await vendor("codemirror");
 if (!existsSync("demos/deps/automerge.js")) await vendor("automerge");
-for (const name of ["tdata", "ajv", "jq", "jsonpath", "picomatch", "vega", "echarts"]) {
+// tutuca-wax's micro-agents copy these engines into their dist/ (its build makes them when
+// they're missing too).
+for (const name of ["ajv", "jq", "jsonpath", "picomatch", "vega", "echarts"]) {
 	if (!existsSync(`demos/deps/${name}.js`)) await vendor(name);
 }
 rmSync(out, { recursive: true, force: true });
