@@ -264,8 +264,10 @@ export const Item = component({
 			args: [],
 			emits: { notify: ["pickUp"] },
 			run(_next, _args, ctx) {
+				// Checked before pressPoint captures the pointer: a captured press never clicks.
+				if (ctx.event?.target?.closest?.("button")) return;
 				const point = pressPoint(ctx.event);
-				if (point === null || ctx.event.target?.closest?.("button")) return;
+				if (point === null) return;
 				ctx.notify("pickUp", point);
 			},
 		},

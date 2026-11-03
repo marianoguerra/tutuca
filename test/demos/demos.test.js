@@ -132,10 +132,23 @@ test("canvas demo: a click adds a hole, which becomes what's picked; items move,
 	pointer("pointerup", bg, 210, 310);
 	assert.deepEqual([items()[2].x, items()[2].y], [200, 300]);
 	assert.equal(kinds().length, 3, "letting go of a drag adds no hole");
-	app.fire("click", lastItem().querySelector('[title="Collapse or expand"]'));
+	// A press on a header's button doesn't capture the pointer (a captured press never clicks
+	// in a browser), so the click that follows reaches the button.
+	let captures = 0;
+	app.$("svg").setPointerCapture = () => captures++;
+	const press = (el) => {
+		pointer("pointerdown", el, 0, 0);
+		pointer("pointerup", el, 0, 0);
+		app.fire("click", el);
+	};
+	press(lastItem().querySelector('[title="Collapse or expand"]'));
 	assert.equal(items()[2].collapsed, true);
-	app.fire("click", lastItem().querySelector('[title="Remove"]'));
+	press(lastItem().querySelector('[title="Remove"]'));
 	assert.deepEqual(kinds(), ["Hole", "Board"]);
+	assert.equal(captures, 0, "pressing a header's button captures nothing");
+	pointer("pointerdown", app.$("foreignObject header"), 58, 58);
+	pointer("pointerup", bg, 58, 58);
+	assert.equal(captures, 1, "pressing the header itself does");
 	await checkClean(app);
 });
 
