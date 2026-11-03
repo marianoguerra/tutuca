@@ -60,7 +60,7 @@ export const svgPoint = (event) => {
 	return [round(event.clientX - box.left), round(event.clientY - box.top)];
 };
 
-const shapeFields = () => ({
+export const shapeFields = () => ({
 	id: t.string(),
 	fill: paintType("none"),
 	stroke: paintType("#000000"),
@@ -97,7 +97,7 @@ export const pointer = {
 	},
 };
 // What its drawing changes: its paint and width.
-const styleOn = {
+export const styleOn = {
 	setStyle: {
 		pure: true,
 		args: [paintType("none"), paintType("#000000"), t.enum(2, 1, 4, 8)],
@@ -108,7 +108,7 @@ const styleOn = {
 		},
 	},
 };
-const pointerEvents = {
+export const pointerEvents = {
 	"on:pointerdown": send("down"),
 	"on:pointermove": send("move"),
 	"on:pointerup": send("up"),
@@ -124,7 +124,7 @@ const attrs = (shape) =>
 
 // Rectangles, ellipses and lines are drawn from one corner to the other: what they read of
 // their corners, and how they move them.
-const cornerQueries = {
+export const cornerQueries = {
 	get left() {
 		return Math.min(this.x0, this.x1);
 	},
@@ -138,12 +138,12 @@ const cornerQueries = {
 		return Math.abs(this.y1 - this.y0);
 	},
 };
-const cornerMethods = {
+export const cornerMethods = {
 	isEmpty() {
 		return this.boxWidth < 1 && this.boxHeight < 1;
 	},
 };
-const cornerOn = {
+export const cornerOn = {
 	...pointer,
 	...styleOn,
 	// While drawing, the far corner follows the pointer.
@@ -169,12 +169,12 @@ const cornerOn = {
 	},
 };
 // Objects merged by descriptor, so getters stay getters: spreading would read them once.
-const mix = (...objects) =>
+export const mix = (...objects) =>
 	Object.defineProperties(
 		{},
 		Object.assign({}, ...objects.map((o) => Object.getOwnPropertyDescriptors(o))),
 	);
-const cornerFields = () => ({ x0: coord(), y0: coord(), x1: coord(), y1: coord() });
+export const cornerFields = () => ({ x0: coord(), y0: coord(), x1: coord(), y1: coord() });
 
 export const Rect = component({
 	name: "Rect",

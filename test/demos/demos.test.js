@@ -5,6 +5,7 @@ import { inferSchema, schemaDocument } from "../../components/json-schema/infer.
 import { quadraticLabel } from "../../components/math/workbench.js";
 import { addDays } from "../../components/todo/dates.js";
 import { TODAY } from "../../components/todo/fixtures.js";
+import { start as startCanvas } from "../../demos/canvas/main.js";
 import { start as startComposition } from "../../demos/composition/main.js";
 import { start as startDrawing } from "../../demos/drawing/main.js";
 import { start as startStudio } from "../../demos/json-schema/main.js";
@@ -99,6 +100,110 @@ test("composition demo: a picker becomes the cell picked, and adds pickers aroun
 	app.fire("click", app.$('[title="Add a cell at the end"]'));
 	app.fire("click", app.$('[data-choice="kanban"]'));
 	assert.deepEqual(kinds(), ["TrackerCell", "Board"]);
+	await checkClean(app);
+});
+
+test("canvas demo: a click adds a hole, which becomes what's picked; items move, collapse and go", async () => {
+	const app = mount(startCanvas);
+	const { MouseEvent } = app.rootNode.ownerDocument.defaultView;
+	const pointer = (type, el, x, y) =>
+		el.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 }));
+	const items = () => app.state().order.map((key) => app.state().items[key]);
+	const kinds = () => items().map((item) => specOf(item.content).name);
+	assert.deepEqual(kinds(), ["Notes", "Hole"]);
+	const bg = app.$(".canvas-bg");
+	pointer("pointerdown", bg, 900, 500);
+	pointer("pointerup", bg, 901, 500);
+	assert.deepEqual(kinds(), ["Notes", "Hole", "Hole"]);
+	assert.deepEqual([items()[2].x, items()[2].y], [900, 500]);
+	assert.equal(app.rootNode.querySelectorAll("foreignObject").length, 3);
+	// A press dragged away isn't a click.
+	pointer("pointerdown", bg, 100, 900);
+	pointer("pointerup", bg, 300, 900);
+	assert.equal(kinds().length, 3);
+	const lastItem = () => app.rootNode.querySelectorAll("foreignObject")[2];
+	app.fire("click", lastItem().querySelector('[title="Put a component here"]'));
+	app.fire("click", lastItem().querySelector('[data-choice="kanban"]'));
+	assert.deepEqual(kinds(), ["Notes", "Hole", "Board"]);
+	// The notes, dragged by their header from 10px into it, come to the front where it's let go.
+	pointer("pointerdown", app.$("foreignObject header"), 58, 58);
+	assert.deepEqual(kinds(), ["Hole", "Board", "Notes"]);
+	pointer("pointermove", bg, 210, 310);
+	pointer("pointerup", bg, 210, 310);
+	assert.deepEqual([items()[2].x, items()[2].y], [200, 300]);
+	assert.equal(kinds().length, 3, "letting go of a drag adds no hole");
+	app.fire("click", lastItem().querySelector('[title="Collapse or expand"]'));
+	assert.equal(items()[2].collapsed, true);
+	app.fire("click", lastItem().querySelector('[title="Remove"]'));
+	assert.deepEqual(kinds(), ["Hole", "Board"]);
+	await checkClean(app);
+});
+
+test("canvas demo: items resize by their corner; shapes are drawn, styled, moved and deleted", async () => {
+	const app = mount(startCanvas);
+	const { MouseEvent, KeyboardEvent } = app.rootNode.ownerDocument.defaultView;
+	const pointer = (type, el, x, y, more = {}) =>
+		el.dispatchEvent(
+			new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0, ...more }),
+		);
+	const bg = app.$(".canvas-bg");
+	const notes = () => app.state().items["item-1"];
+	// The notes are at 48, 48 and 320 wide; jsdom shows them 0 tall.
+	pointer("pointerdown", app.$('[title="Drag to resize"]'), 368, 48);
+	pointer("pointermove", bg, 468, 348);
+	pointer("pointerup", bg, 468, 348);
+	assert.deepEqual([notes().width, notes().height], [420, 300]);
+	assert.match(
+		[...app.rootNode.querySelectorAll(".canvas-card")].at(-1).getAttribute("style"),
+		/height: ?300px/,
+	);
+	assert.deepEqual(app.state().order, ["item-2", "item-1"], "a resized item comes to the front");
+	const tool = (name) => app.fire("click", app.$(`[aria-label="Tools"] [value="${name}"]`));
+	const shapes = () => app.state().shapes;
+	const draw = (from, to, more) => {
+		pointer("pointerdown", bg, ...from);
+		pointer("pointermove", bg, ...to, more);
+		pointer("pointerup", bg, ...to, more);
+	};
+	tool("arrow");
+	app.fire("click", app.$('[aria-label="Stroke #ef4444"]'));
+	draw([600, 600], [800, 650]);
+	tool("rect");
+	app.fire("click", app.$('[aria-label="Fill #22c55e"]'));
+	draw([900, 600], [1000, 640], { shiftKey: true });
+	assert.deepEqual(
+		shapes().map((s) => [specOf(s).name, s.stroke, s.fill]),
+		[
+			["Arrow", "#ef4444", "none"],
+			["Rect", "#ef4444", "#22c55e"],
+		],
+	);
+	assert.deepEqual([shapes()[1].x1, shapes()[1].y1], [1000, 700], "shift draws a square");
+	assert.equal(app.state().selected, shapes()[1].id, "a drawn shape is selected");
+	assert.equal(app.state().order.length, 2, "drawing adds no hole");
+	// Text goes where it's clicked, selected, and edited in the toolbar.
+	tool("text");
+	pointer("pointerdown", bg, 100, 1000);
+	pointer("pointerup", bg, 100, 1000);
+	assert.equal(app.state().tool, "select");
+	app.fire("input", app.$('input[aria-label="Text"]'), "Hello");
+	assert.equal(shapes()[2].text, "Hello");
+	assert.equal(app.rootNode.querySelector("svg text").textContent, "Hello");
+	// Selecting the arrow by pressing it, then moving it.
+	const arrow = app.rootNode.querySelector("svg g g");
+	pointer("pointerdown", arrow, 700, 625);
+	pointer("pointermove", bg, 710, 645);
+	pointer("pointerup", bg, 710, 645);
+	assert.deepEqual([shapes()[0].x0, shapes()[0].y0], [610, 620]);
+	app.fire("click", app.$('[aria-label="Fill #3b82f6"]'));
+	assert.equal(shapes()[0].fill, "#3b82f6", "the selection takes the paint");
+	app.rootNode
+		.querySelector('[tabindex="0"]')
+		.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete", bubbles: true }));
+	assert.deepEqual(
+		shapes().map((s) => specOf(s).name),
+		["Rect", "Text"],
+	);
 	await checkClean(app);
 });
 

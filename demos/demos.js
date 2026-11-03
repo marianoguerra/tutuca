@@ -61,6 +61,15 @@ export const demos = [
 		sources: ["composition"],
 	},
 	{
+		dir: "canvas",
+		emoji: "🖼️",
+		title: "Canvas",
+		blurb:
+			"An SVG canvas of the other demos' components in foreignObjects, and shapes between them: put a hole, pick what it becomes, drag, resize and collapse it; draw lines, arrows, boxes and text.",
+		story: null,
+		sources: ["canvas"],
+	},
+	{
 		dir: "lang",
 		emoji: "🌳",
 		title: "AST notations",
