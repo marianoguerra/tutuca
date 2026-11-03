@@ -1,7 +1,7 @@
 // Component specs: the identity a component instance carries, the specs of its messages,
 // answers and queries, the interfaces it implements, and the checks of instances and handled
-// messages against them. Field types are in schema.js.
-import { typeText } from "./schema.js";
+// messages against them. Field types are in schema.js, which imports this module, so this one
+// reads a type's text through its text() method instead of importing schema.js.
 
 export const specSym = Symbol("TutucaSpec");
 export const scopeSym = Symbol("TutucaScope");
@@ -129,7 +129,7 @@ export class Interface {
 }
 export const iface = (name, operations) => new Interface(name, operations);
 // A type as its signature: what it accepts, without its default.
-const sigText = (type) => typeText(type.with({ defaultValue: undefined }));
+const sigText = (type) => type.with({ defaultValue: undefined }).text();
 const sameTypes = (want = [], got = undefined) =>
 	got !== undefined &&
 	want.length === got.length &&

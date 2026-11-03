@@ -47,6 +47,10 @@ export class Type {
 		this.syncLevel = "shared";
 		this.isPublic = false; // A public field is also a read-only query of the same name.
 	}
+	// The type as t's builders write it (typeText), for modules that can't import this one.
+	text() {
+		return typeText(this);
+	}
 	// Types are immutable: modifiers return a changed copy.
 	with(changes) {
 		return Object.assign(Object.create(Object.getPrototypeOf(this)), this, changes);

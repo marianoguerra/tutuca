@@ -17,7 +17,8 @@
 			"!tutuca-mb",
 			"!tutuca-wax",
 			"!tdata/mbt/_build",
-			"!tdata/mbt/dist"
+			"!tdata/mbt/dist",
+			"!tutuca-core.*"
 		]
 	},
 	"formatter": {
@@ -54,7 +55,7 @@
 	},
 	"overrides": [
 		{
-			"includes": ["site/examples/**/*.js"],
+			"includes": ["site/examples/**/*.js", "tdata/mbt/load.mjs"],
 			"linter": {
 				"rules": {
 					"correctness": { "noUnresolvedImports": "off" }
