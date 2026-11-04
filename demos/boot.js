@@ -16,10 +16,11 @@ import { SYNC_MODES, syncFromQuery, syncModeOf } from "./sync/engines.js";
 export const boot = ({
 	components,
 	askHandlers = browserHandlers,
+	metaSchemas = {},
 	make,
 	document = globalThis.document,
 }) => {
-	const { host, watch } = setup({ components, askHandlers, document });
+	const { host, watch } = setup({ components, askHandlers, metaSchemas, document });
 	const window = document.defaultView;
 	const mode = window === null ? null : syncModeOf(window);
 	addSyncSwitcher(document, mode);
@@ -137,9 +138,10 @@ const addSyncLog = (document) => {
 	return list;
 };
 
-const setup = ({ components, askHandlers, document }) => {
+const setup = ({ components, askHandlers, metaSchemas = {}, document }) => {
 	const rootNode = document.getElementById("app");
 	const host = new Host({ document, rootNode, checks: DevChecks });
+	host.scope.registerMetaSchemas(metaSchemas);
 	host.scope.register(components);
 	host.scope.registerAskHandlers(askHandlers);
 	const styleNode = document.getElementById("margaui");

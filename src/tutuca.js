@@ -20,6 +20,8 @@ export {
 	interfaceProblems,
 	isComponent,
 	messageIssues,
+	metaOf,
+	metaProblems,
 	QuerySpec,
 	resolveImplements,
 	scopeOf,

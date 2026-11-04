@@ -13,6 +13,7 @@ export const start = (document = globalThis.document, id = undefined) => {
 		document,
 		components: bundle.components,
 		askHandlers: { ...browserHandlers, ...bundle.askHandlers },
+		metaSchemas: bundle.metaSchemas,
 		make: bundle.make,
 	});
 };

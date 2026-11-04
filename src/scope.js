@@ -1,6 +1,7 @@
-// Scopes: the names components and interfaces are registered under, nested into a tree, and
-// the factories that make components through them.
-import { Interface, interfaceProblems, resolveImplements } from "./spec.js";
+// Scopes: the names components, interfaces and meta schemas are registered under, nested into
+// a tree, and the factories that make components through them.
+import { Type } from "./schema.js";
+import { Interface, interfaceProblems, metaProblems, resolveImplements } from "./spec.js";
 
 // A component ref is its scope's path and its name there: "Item" at the root, "editor/Item" below.
 const refSep = "/";
@@ -15,7 +16,8 @@ export class Scope {
 		this.byName = Object.create(null);
 		this.askHandlers = Object.create(null);
 		this.interfaces = Object.create(null); // name -> Interface, looked up as components are.
-		this.implementsChecked = new WeakSet(); // Specs whose interfaces hold here, for make.
+		this.metaSchemas = Object.create(null); // meta URI -> shape (key -> Type), looked up so too.
+		this.checked = new WeakSet(); // Specs whose interfaces and meta hold here, for make.
 		this.components = new Proxy(Object.create(null), {
 			get: (_target, name) => this.factory(name),
 		});
@@ -68,7 +70,7 @@ export class Scope {
 		const factories = {};
 		for (const name in comps) {
 			const spec = comps[name];
-			this.checkImplements(spec, name);
+			this.check(spec, name);
 			this.byName[name] = spec;
 			this.onRegister(spec, name);
 			factories[name] = this.factory(name);
@@ -105,15 +107,42 @@ export class Scope {
 			}
 			this.interfaces[name] = ifaces[name];
 		}
-		// Here and below they may now resolve differently.
-		for (const s of this.descendants()) s.implementsChecked = new WeakSet();
+		this.recheck();
 	}
 	lookupInterface(name) {
 		return this.lookup((scope) => scope.interfaces[name]);
 	}
+	// Schemas for meta namespaces, by URI: each a shape of field types the meta components here
+	// and below give under it is checked against, and metaOf fills defaults from. One registered
+	// after a component is checked as the component is made.
+	registerMetaSchemas(schemas) {
+		for (const uri in schemas) {
+			const shape = schemas[uri];
+			const ok =
+				URL.canParse(uri) &&
+				typeof shape === "object" &&
+				shape !== null &&
+				Object.values(shape).every((type) => type instanceof Type);
+			if (!ok) {
+				throw new Error(
+					`registerMetaSchemas needs URIs to shapes of types (key -> t.x()), got ${String(shape)} for ${uri}`,
+				);
+			}
+			this.metaSchemas[uri] = shape;
+		}
+		this.recheck();
+	}
+	lookupMetaSchema(uri) {
+		return this.lookup((scope) => scope.metaSchemas[uri]);
+	}
+	// Here and below, interfaces and meta schemas may now resolve differently.
+	recheck() {
+		for (const s of this.descendants()) s.checked = new WeakSet();
+	}
 	// spec implements, resolved here, what it says it implements, and the interface name is
-	// under here if it is registered (or made) by one. Throws saying what's missing.
-	checkImplements(spec, name = null) {
+	// under here if it is registered (or made) by one; its meta holds for the schemas here.
+	// Throws saying what's wrong.
+	check(spec, name = null) {
 		const problems = [];
 		const resolved = resolveImplements(spec, this);
 		(spec.implements ?? []).forEach((it, i) => {
@@ -125,13 +154,17 @@ export class Scope {
 		for (const it of ifaces) {
 			for (const problem of interfaceProblems(spec, it)) problems.push(`${problem} (${it.name})`);
 		}
+		for (const uri in spec.meta ?? {}) {
+			const shape = this.lookupMetaSchema(uri);
+			if (shape !== null) problems.push(...metaProblems(uri, spec.meta[uri], shape, this));
+		}
 		if (problems.length > 0) {
 			const as = under === null ? "" : ` as ${name}`;
 			throw new Error(
 				`${spec.name} can't be registered${as} in scope /${this.path.join(refSep)}: ${problems.join("; ")}`,
 			);
 		}
-		this.implementsChecked.add(spec);
+		this.checked.add(spec);
 	}
 	// Every spec registered here or in a parent, by name; inner registrations win.
 	allSpecs() {
@@ -152,7 +185,7 @@ export class Scope {
 	make(name, args) {
 		const spec = this.lookupByName(name);
 		if (spec === null) throw new Error(`Component ${String(name)} is not registered`);
-		if (!this.implementsChecked.has(spec)) this.checkImplements(spec, name);
+		if (!this.checked.has(spec)) this.check(spec, name);
 		return spec.make(args, this);
 	}
 }

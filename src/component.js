@@ -2,7 +2,7 @@
 import { immerable } from "../deps/immer.js";
 import { DRAG_EVENTS } from "./drag.js";
 import { prefixed } from "./schema.js";
-import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toQueries } from "./spec.js";
+import { QuerySpec, scopeSym, specSym, toAnswers, toMessages, toMeta, toQueries } from "./spec.js";
 import { mint } from "./tree/identity.js";
 import { toExpr } from "./view.js";
 import { Collect } from "./walk.js";
@@ -21,6 +21,7 @@ export class ComponentSpec {
 		invariants,
 		queries = Object.create(null),
 		implements: implemented = [],
+		meta = toMeta(name, undefined),
 	}) {
 		this.name = name;
 		/** @type {Object<string, import("./schema.js").Type>} */
@@ -40,6 +41,8 @@ export class ComponentSpec {
 		// The interfaces it says it implements: Interfaces, or names resolved in the scope it is
 		// registered in (scope.js checks them there).
 		this.implements = implemented;
+		// What it says about itself to hosts, by namespace URI (spec.js's toMeta), frozen.
+		this.meta = meta;
 		/** @type {Object<string, import("./view.js").AstNode>} */
 		this.views = views;
 		this.on = on;
@@ -106,5 +109,6 @@ export const component = (opts) => {
 		invariants: ownEntries(opts.invariants),
 		queries,
 		implements: [opts.implements ?? []].flat(),
+		meta: toMeta(name, opts.meta),
 	});
 };
