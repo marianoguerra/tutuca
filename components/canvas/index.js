@@ -511,7 +511,7 @@ export const Canvas = component({
 		),
 		p({ class: "text-xs opacity-60" }, field("hint")),
 		div(
-			{ class: "max-h-[75vh] overflow-auto rounded-box border border-base-300 bg-base-200" },
+			{ class: "overflow-auto rounded-box border border-base-300 bg-base-200" },
 			svg(
 				{
 					class: "block",
