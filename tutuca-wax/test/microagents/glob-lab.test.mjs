@@ -115,6 +115,16 @@ test("globs: added, reordered, removed; paths replaced", async () => {
 	assert.deepEqual(s.host.issues, []);
 });
 
+test("the row's ✕ on the last glob keeps it: `when` only reports, the handler guards", async () => {
+	const s = await session(await agent(ID), "empty");
+	const before = s.get("globs");
+	assert.equal(before.length, 1);
+	s.send("remove_glob", before[0].id);
+	assert.deepEqual(s.get("globs"), before);
+	assert.equal(s.get("focus_label"), `${before[0].id}: ${before[0].pattern}`);
+	assert.deepEqual(s.host.issues.map((i) => i.type), ["messageInvalid"]);
+});
+
 test("the empty sample opens with one glob and no paths", async () => {
 	const s = await session(await agent(ID), "empty");
 	assert.equal(s.get("headline"), "0/0 matched · 0 pass · 0 fail");
