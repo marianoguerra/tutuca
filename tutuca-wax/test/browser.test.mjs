@@ -94,7 +94,7 @@ test("the demos page loads its modules, and its Board and todos respond to input
 	await layout.locator(".stage .hole button").click();
 	// Not a studio: no new component in the list, no ✎ on the slots.
 	if ((await layout.locator(".stage .hole-new, .stage .slot-edit").count()) !== 0) throw new Error("the demo's layout offers the studio's new component or edit");
-	await layout.locator(".stage .choices button", { hasText: "Counter" }).click();
+	await layout.locator(".stage .choices button", { hasText: /^🔢 Counter$/ }).click();
 	const slots = JSON.parse(await layout.locator("pre").textContent()).slots.map((s) => s.type).join(",");
 	if (slots !== "Counter") throw new Error(`unexpected layout slots: ${slots}`);
 	// Used, not edited: no remove buttons, the counter still there.
@@ -275,7 +275,7 @@ test("the studio makes screens in scopes, writes components from a hole, registe
 	// A layout's own component doesn't open: only the ones made here.
 	await stage.locator("[title='Add a slot below']").click();
 	await stage.locator(".hole button").click();
-	await stage.locator(".choices button", { hasText: /^Tabs$/ }).click();
+	await stage.locator(".choices button", { hasText: /^🗂 Tabs$/ }).click();
 	await clickSlotButton(stage.locator(".slot-edit").nth(1));
 	await page.waitForFunction(() => /comes with the studio/.test(document.querySelector(".st-status")?.textContent ?? ""));
 	// Reloaded: from IndexedDB, the tab open again, used, not edited.
@@ -324,7 +324,7 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	await newStudioScreen(page, { scope: "a", name: "mine" });
 	await page.locator(".st-bar .screen-toggle[aria-pressed=true]").waitFor();
 	await stage.locator(".hole button").click();
-	await stage.locator(".choices button", { hasText: /^Hbox$/ }).click();
+	await stage.locator(".choices button", { hasText: /^➡️ Horizontal box$/ }).click();
 	// layout, from the example, saved in a: its names hide root's there.
 	await stage.locator(".hbox .hole button").click();
 	await stage.locator(".hole-new").click();
@@ -367,7 +367,7 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	await page.locator("dialog button", { hasText: "Create" }).click();
 	await page.locator(".st-tab [role=tab][aria-selected=true]", { hasText: "theirs" }).waitFor();
 	await stage.locator(".hole button").click();
-	await stage.locator(".choices button", { hasText: /^Hbox$/ }).click();
+	await stage.locator(".choices button", { hasText: /^➡️ Horizontal box$/ }).click();
 	await page.locator(".st-bar .screen-toggle").click();
 	await stage.locator(".hbox").waitFor();
 	if ((await stage.locator(".hbox-mine").count()) !== 0) throw new Error("a screen in root uses a's Hbox");
@@ -386,7 +386,7 @@ test("a copy of the layout in a screen's scope hides root's there, and the other
 	const scopes = await studioRecords(page, "scopes");
 	const own = scopes.find((s) => s.name === "theirs");
 	const rootScope = scopes.find((s) => s.name === "root");
-	if (own?.parent !== rootScope.id || own.registrations.length !== 1 || rootScope.registrations.length !== 1) throw new Error(`unexpected scopes: ${JSON.stringify(scopes)}`);
+	if (own?.parent !== rootScope.id || own.registrations.length !== 1 || rootScope.registrations.map((r) => r.component).join() !== "prebuilt:meta,prebuilt:layout") throw new Error(`unexpected scopes: ${JSON.stringify(scopes)}`);
 	if ((await studioRecords(page, "screens")).find((s) => s.name === "theirs").scope !== own.id) throw new Error("theirs wasn't moved to its scope");
 	// Made again there, its Hbox kept, and the bar's toggle says it's used.
 	await page.locator(".st-bar .screen-toggle[aria-pressed=false]").waitFor();
@@ -425,7 +425,7 @@ test("the editor starts a component from an example, a prebuilt module's sources
 	await page.locator(".st-preview .counter span", { hasText: "1" }).waitFor();
 	// Saved and registered in a, as any component written here.
 	await page.locator("button", { hasText: "Save & register" }).click();
-	await stage.locator(".choices button", { hasText: /^Counter$/ }).click();
+	await stage.locator(".choices button", { hasText: /^🔢 Counter$/ }).click();
 	await stage.locator(".counter").waitFor();
 	const [scopeA] = (await studioRecords(page, "scopes")).filter((s) => s.name === "a");
 	const [counter] = await studioRecords(page, "components");
@@ -450,7 +450,7 @@ test("a component exported as its .wasm carries its sources, and dropped on anot
 	await page.locator(".st-examples").selectOption("todo_list");
 	await status(/registers TodoList/);
 	await page.locator("button", { hasText: "Save & register" }).click();
-	await stage.locator(".choices button", { hasText: /^TodoList$/ }).waitFor();
+	await stage.locator(".choices button", { hasText: /^✅ Todos$/ }).waitFor();
 	// Exported: a's own component, as its .wasm, its sources in it.
 	await page.locator(".st-menu [role=button]").click();
 	const [download] = await Promise.all([page.waitForEvent("download"), page.locator(".st-menu button", { hasText: "Export components" }).click()]);
@@ -487,7 +487,7 @@ test("a component exported as its .wasm carries its sources, and dropped on anot
 	// module's .wasm imports too, from the menu.
 	await page.locator(".st-bar .screen-toggle").click();
 	await stage.locator(".hole button").click();
-	await stage.locator(".choices button", { hasText: /^TodoList$/ }).click();
+	await stage.locator(".choices button", { hasText: /^✅ Todos$/ }).click();
 	await stage.locator(".todos").waitFor();
 	await page.locator("[aria-label='Import a bundle or components']").setInputFiles(new URL("../dist/components/todo_item.wasm", import.meta.url).pathname);
 	await status(/imported into b: todo_item \(TodoItem\)/);
@@ -523,9 +523,9 @@ test("kanban.wasm, dropped on a screen, is a board whose cards drag between lane
 	// In a tab: hovering the board shows only its panel's ✎, the nearest
 	// slot's, and the tabs' own slot shows its ✎ over their header.
 	await stage.locator(".hole button").click();
-	await stage.locator(".choices button", { hasText: /^Tabs$/ }).click();
+	await stage.locator(".choices button", { hasText: /^🗂 Tabs$/ }).click();
 	await stage.locator(".tabs-box .hole button").click();
-	await stage.locator(".choices button", { hasText: /^Kanban$/ }).click();
+	await stage.locator(".choices button", { hasText: /^🗂️ Kanban board$/ }).click();
 	const shown = () => stage.locator(".slot-edit").evaluateAll((bs) => bs.map((b) => `${b.closest(".tab-panel") ? "panel" : "tabs"} ${getComputedStyle(b).opacity}`).join(", "));
 	await stage.locator(".kanban-lane").first().hover();
 	if ((await shown()) !== "panel 1, tabs 0") throw new Error(`hovering the board shows ${await shown()}`);

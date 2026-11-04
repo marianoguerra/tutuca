@@ -3,9 +3,9 @@
 // running it: its sources (the TCD file, the ones it uses and the
 // implementation, to build it again or use it from another), the types it
 // registers and the interfaces it declares, what it makes or implements that
-// a scope must give, the host asks it declares, and what its components say
-// about themselves to hosts (their meta, by component and URI). The runtime
-// ignores it.
+// a scope must give, the host asks it declares, the meta schemas it
+// registers (by URI), and what its components say about themselves to hosts
+// (their meta, by component and URI). The runtime ignores it.
 
 ///|
 /// The custom section's name.
@@ -194,6 +194,10 @@ pub fn meta(
         ),
       ),
       ("host_asks", strings(pkg.host_asks)),
+      (
+        "meta_schemas",
+        strings(pkg.meta_schemas.filter(m => m.declared_here).map(m => m.uri)),
+      ),
       ("meta", components_meta(pkg)),
     ]),
   )

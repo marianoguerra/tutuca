@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 13;
+const tutuca_abi_version_current = 14;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -134,7 +134,10 @@ rec {
         // Its fields', properties' and messages' types, its invariants and the
         // interfaces it implements; null for a type without one, which the
         // runtime then can't check.
-        schema: mut &?component_schema
+        schema: mut &?component_schema,
+        // What it says about itself to hosts (tutuca's component({ meta })):
+        // a map of URIs, each a namespace, to maps of what it says there.
+        meta: mut &value
     };
 
     // A message's schema (tutuca's HandlerSpec): its arguments, the type of
@@ -216,7 +219,10 @@ rec {
         ask_handlers: mut &phm_map,
         // Interface schemas by name: a type registered under one's name must
         // implement it.
-        interfaces: mut &phm_map
+        interfaces: mut &phm_map,
+        // Meta schemas by URI: what a type registered or made here says
+        // under one must fit it.
+        meta_schemas: mut &phm_map
     };
 
     // What init gets besides its fields: the scope the component is being

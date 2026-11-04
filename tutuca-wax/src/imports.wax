@@ -260,6 +260,15 @@ import "'" {
     const s_i_argument: js_string;
     #[import = " can't be a "]
     const s_i_cant_be: js_string;
+    // Meta (schema.wax).
+    #[import = "'s meta "]
+    const s_m_s_meta: js_string;
+    #[import = "it has no key "]
+    const s_m_no_key: js_string;
+    #[import = "it lacks "]
+    const s_m_lacks: js_string;
+    #[import = ", which has no default"]
+    const s_m_no_default: js_string;
     #[import = "> "]
     const s_c_gt: js_string;
     #[import = ">= "]
@@ -310,6 +319,10 @@ import "'" {
     const s_kind: js_string;
     #[import = "fields"]
     const s_fields: js_string;
+    #[import = "uri"]
+    const s_uri: js_string;
+    #[import = "defaults"]
+    const s_defaults: js_string;
     #[import = "gets"]
     const s_gets: js_string;
     #[import = "queries"]

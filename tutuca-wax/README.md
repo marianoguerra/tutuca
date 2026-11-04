@@ -354,7 +354,8 @@ and `rec` items into `dist/prelude/collections_types.wax` for components.
   its sources (`tcd`, the `uses` it reads by the paths written, `impls`),
   the `types` it registers, the `interfaces` it declares, what it `needs`
   from a scope (`types` it makes or holds, `interfaces` it implements or
-  holds), its `host_asks` and its components' `meta` (registered name →
+  holds), its `host_asks`, the `meta_schemas` it registers (by URI), and its
+  components' `meta` (registered name →
   URI → the record its `meta "uri" = {...};` gives, the same convention as
   tutuca's `component({ meta })`). The runtime ignores it; `componentMeta(bytes)`
   (`js/tutuca-rt.js`) reads it without compiling the module.
@@ -760,6 +761,26 @@ TodoItem's; todo_item and todo_card implement it. `vtype_component` accepts
 a component of a named type (by its name, or one its scope makes it by, as
 tutuca's JS checks by lookup, so a type loaded under another name is of
 that name) or of a type implementing a named interface.
+
+**Meta** (tutuca's `component({ meta })`, `registerMetaSchemas` and
+`metaOf`): what a type says about itself to hosts, a map of URIs (each a
+namespace, so conventions don't clash) to what it says there, set on its
+spec (`spec_set_meta`; tcd's `meta "uri" = {...};`). A `meta_schema` (a
+field per key, and the keys' defaults) registered in a scope by URI
+(`scope_register_meta_schema`; tcd's `meta_schema`) means a type registered
+or made there whose meta says something under that URI must fit it:
+registering or making one that doesn't fails, saying why ("Bad's meta
+urn:example:sizes: it has no key color"). URIs without a schema aren't
+checked. `ctx_meta_of(ctx, name, uri)` (a handler, or an ask handler for its
+asker) and `runtime.metaOf(component, uri)`, `runtime.typeMetaOf(scope,
+name, uri)` and `runtime.metaSchema(scope, uri)` (JS) read it over the
+schema's defaults. `components/meta` declares the well-known ones, as
+tutuca's JS has them: `Display` (`DISPLAY_META`, `title`, `icon`,
+`description`, for whoever shows components to people; `displayLabel` makes
+"➡️ Horizontal box" of it) and `Canvas` (`CANVAS_META`, `width`, `height`,
+`transparent`). The component modules say theirs; a layout's hole lists what
+it can become by their display meta, and the studio and the demos register
+`meta` first.
 
 **Headless hosts**: `host_new` with a null document and container, or
 `createHost(null, null, root)`, runs tasks and renders nothing, for tests

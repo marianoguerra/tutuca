@@ -85,7 +85,9 @@ const showStatus = () => {
 		`runtime and component modules loaded; js-string builtins: <b>${tw.builtins ? "native" : "polyfilled"}</b>; CSS compiled for <b>${styles.classes().length}</b> classes`;
 };
 const scope = runtime.scope();
-for (const name of ["counter", "todo_item", "todo_list", "json", "media", "layout"]) await loadComponent(name, scope);
+// meta first: its schemas check what the others say about themselves, and
+// fill in the defaults when a hole lists them.
+for (const name of ["meta", "counter", "todo_item", "todo_list", "json", "media", "layout"]) await loadComponent(name, scope);
 // The custom element media's Rating holds.
 defineRating();
 showStatus();

@@ -107,6 +107,16 @@ test "every diagnostic code has a fixture that reports it" {
     ),
     ("tcd.meta.record", "component C { meta \"urn:a\" = 3; view main = p(); }"),
     (
+      "tcd.meta.key", "meta_schema M \"urn:m\" { field w: s32 where w >= 0; field need: string where len(need) >= 1; } component C { meta \"urn:m\" = { need: \"x\", nope: 1 }; view main = p(); }",
+    ),
+    (
+      "tcd.meta.value", "meta_schema M \"urn:m\" { field w: s32 where w >= 0; field need: string where len(need) >= 1; } component C { meta \"urn:m\" = { need: \"x\", w: -1 }; view main = p(); }",
+    ),
+    (
+      "tcd.meta.required", "meta_schema M \"urn:m\" { field w: s32 where w >= 0; field need: string where len(need) >= 1; } component C { meta \"urn:m\" = { w: 1 }; view main = p(); }",
+    ),
+    ("tcd.meta_schema.member", "meta_schema M \"urn:m\" { view main = p(); }"),
+    (
       "tcd.meta.constant", "component C { field w: s32; meta \"urn:a\" = { width: w }; view main = p(); }",
     ),
     (

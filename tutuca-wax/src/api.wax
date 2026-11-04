@@ -370,6 +370,37 @@ fn api_scope_interface(s: &scope, name: js_string) -> &value {
     interface_schema_value(iface!);
 }
 
+// What the type registered as name, visible from s, says under uri, over
+// the defaults of s's schema for it (scope_meta_of); null for no such type.
+#[export = "scope_meta_of"]
+fn api_scope_meta_of(s: &scope, name: js_string, uri: js_string) -> &value {
+    scope_meta_of(s, name, uri);
+}
+
+// What a component value says under uri, read in the scope it was made in.
+#[export = "component_meta_of"]
+fn api_component_meta_of(v: &value, uri: js_string) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return VALUE_NULL;
+    }
+    spec_meta_in((c!).scope, (c!).spec, uri);
+}
+
+// The meta schema registered for uri, visible from s, as a value: { uri,
+// fields, defaults }, or null.
+#[export = "scope_meta_schema"]
+fn api_scope_meta_schema(s: &scope, uri: js_string) -> &value {
+    let schema = scope_lookup_meta_schema(s, uri);
+    if !schema {
+        return VALUE_NULL;
+    }
+    let m = map_empty();
+    m = map_assoc(m, s_uri, value_string((schema!).uri));
+    m = map_assoc(m, s_fields, field_schemas_value((schema!).fields));
+    map_assoc(m, s_defaults, (schema!).defaults);
+}
+
 #[export = "host_root"]
 fn api_host_root(h: &host) -> &value {
     h.root;

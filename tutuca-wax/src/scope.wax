@@ -9,6 +9,7 @@ fn scope_new(name: js_string, parent: &?scope) -> &scope {
         entries: smap_empty(),
         ask_handlers: smap_empty(),
         interfaces: smap_empty(),
+        meta_schemas: smap_empty(),
     };
 }
 

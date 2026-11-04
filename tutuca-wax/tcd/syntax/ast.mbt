@@ -246,6 +246,8 @@ pub(all) struct Decl {
   doc : String?
   name : Name
   implements : Array[Name]
+  /// A meta schema's URI, as written after its name.
+  uri : (String, @diag.Span)?
   members : Array[Member]
   span : @diag.Span
 } derive(Eq, Debug, ToJson)
@@ -284,6 +286,9 @@ pub(all) struct Use {
 ///|
 pub(all) enum Item {
   Interface(Decl)
+  /// `meta_schema Display "https://tutuca.dev/meta/display" { field title: option<string>; }`:
+  /// what components may say under a meta URI, a field per key.
+  MetaSchema(Decl)
   Component(Decl)
   Register(Array[Register], span~ : @diag.Span)
   AskHandler(Signal)

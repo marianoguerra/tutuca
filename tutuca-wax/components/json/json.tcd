@@ -6,6 +6,8 @@
 // collections compose and the editor indents.
 package tutuca:json@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
+
 /// What every value is: its JSON text.
 interface JsonValue {
     get json: string;
@@ -13,12 +15,14 @@ interface JsonValue {
 
 /// null.
 component JsonNull: JsonValue {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON null", icon: "∅", description: "null." };
     get json: string;
     view main = span(class: "font-mono text-sm leading-6 text-warning", "null");
 }
 
 /// true or false; edit toggles it.
 component JsonBool: JsonValue {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON boolean", icon: "⊤", description: "true or false." };
     field value: bool;
     get json: string;
 
@@ -34,6 +38,7 @@ component JsonBool: JsonValue {
 /// A number. text is what the user typed; value follows it whenever it
 /// reads as a number.
 component JsonNumber: JsonValue {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON number", icon: "#", description: "A number." };
     field value: f64;
     field text: string = "0";
     /// Whether text reads as a number.
@@ -53,6 +58,7 @@ component JsonNumber: JsonValue {
 
 /// A string.
 component JsonString: JsonValue {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON string", icon: "\"", description: "A string." };
     field value: string;
     get json: string;
 
@@ -69,6 +75,7 @@ component JsonString: JsonValue {
 /// A value still to be chosen, in a new array item or object entry: set_to
 /// replaces it with an empty value of the type picked.
 component JsonSelector: JsonValue {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON value", icon: "?", description: "A value still to be chosen." };
     get json: string;
 
     message set_to(kind: enum { null, bool, number, string, array, object }) -> swap
@@ -86,6 +93,7 @@ component JsonSelector: JsonValue {
 
 /// A list of values.
 component JsonArray: JsonValue {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON array", icon: "[]", description: "A list of values." };
     field items: list<JsonValue>;
     get is_empty: bool;
     get json: string;
@@ -124,6 +132,7 @@ component JsonArray: JsonValue {
 
 /// An object's entry: a key and its value, a selector until one is given.
 component JsonEntry {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON entry", icon: ":", description: "An object's entry: a key and its value." };
     field key: string;
     field value: JsonValue = make(JsonSelector);
 
@@ -144,6 +153,7 @@ component JsonEntry {
 
 /// Keys and values. Later entries win, as in JSON.parse.
 component JsonObject: JsonValue {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON object", icon: "{}", description: "Keys and values." };
     field entries: list<JsonEntry>;
     get is_empty: bool;
     get json: string;
@@ -183,6 +193,7 @@ component JsonObject: JsonValue {
 /// A JSON document, shown read only or edited in place, with its JSON text;
 /// null until one is given.
 component JsonEditor {
+    meta "https://tutuca.dev/meta/display" = { title: "JSON", icon: "{}", description: "A JSON value, viewed or edited in place, with its text." };
     field value: JsonValue = make(JsonNull);
     field mode: enum { view, edit };
     field show_text: bool;

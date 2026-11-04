@@ -19,9 +19,15 @@
 // show neither.
 package tutuca:layout@0.1.0;
 
+// What each type says about itself (meta/meta.tcd's well-known schemas): how
+// a picker shows it and, like tutuca's canvas layouts, that it's
+// see-through on a canvas.
+use "../meta/meta.tcd".{ Display, Canvas };
+
 /// What a layout is shown in: its content, and a toggle between using it
 /// (main) and editing it (layout_edit, pushed above the content).
 component Screen {
+    meta "https://tutuca.dev/meta/display" = { title: "Screen", icon: "🖥️", description: "A layout, used or edited." };
     field content: component = make(Vbox);
     /// Whether the layout is being edited: a mode, not part of the layout.
     field editing: bool @sync(none);
@@ -59,9 +65,12 @@ component Screen {
 /// of that type, made with no fields. A type that can't be made that way
 /// keeps the hole, with why in error.
 component Hole {
+    meta "https://tutuca.dev/meta/display" = { title: "Empty", icon: "", description: "An empty slot, to put a component in." };
+    meta "https://tutuca.dev/meta/canvas" = { width: 240, transparent: true };
     /// The types listed while + is open; like listing and error, an open
     /// menu, not part of a layout that's kept (sync none).
-    field choices: list<record { name: string }> @sync(none);
+    /// Each with its display label and description, as its type says them.
+    field choices: list<record { name: string, label: string, description: string }> @sync(none);
     field listing: bool @sync(none);
     /// Why the last pick couldn't be made; empty when it could.
     field error: string @sync(none);
@@ -83,7 +92,7 @@ component Hole {
             div(class: "flex flex-col items-center gap-1",
                 ul(class: "choices menu menu-sm bg-base-100 rounded-box border border-base-300",
                     each(field(choices),
-                        li(button(on_click: send(pick, source_key()), field(name)))),
+                        li(button(title: field(description), on_click: send(pick, source_key()), field(label)))),
                     if(provided(studio),
                         li(button(class: "hole-new text-primary", on_click: send(create), "+ new component")))),
                 if(field(error), p(class: "error max-w-64 text-center text-xs text-error", field(error))),
@@ -96,6 +105,8 @@ component Hole {
 /// × show while it's hovered and no slot inside it is, so a nested slot's
 /// don't cover its parent's.
 component Hbox {
+    meta "https://tutuca.dev/meta/display" = { title: "Horizontal box", icon: "➡️", description: "Components side by side." };
+    meta "https://tutuca.dev/meta/canvas" = { width: 560, transparent: true };
     field items: list<component>;
 
     /// With no items, a hole: a box put in a layout has a slot to fill.
@@ -126,6 +137,8 @@ component Hbox {
 /// Components one under the other, starting with a hole; edited, each can
 /// be removed and the + below them adds a hole there.
 component Vbox {
+    meta "https://tutuca.dev/meta/display" = { title: "Vertical box", icon: "⬇️", description: "Components one under the other." };
+    meta "https://tutuca.dev/meta/canvas" = { width: 320, transparent: true };
     field items: list<component>;
 
     /// With no items, a hole.
@@ -155,6 +168,8 @@ component Vbox {
 /// it's given one), starting with one holding a hole; edited, tabs are
 /// renamed and removed, and the + after the last adds one holding a hole.
 component Tabs {
+    meta "https://tutuca.dev/meta/display" = { title: "Tabs", icon: "🗂", description: "Components as tabs, one shown at a time." };
+    meta "https://tutuca.dev/meta/canvas" = { width: 480, transparent: true };
     field panels: list<component>;
     /// The tabs' names, by panel; a missing or empty one shows as "Tab n".
     field labels: list<string>;
@@ -208,6 +223,8 @@ component Tabs {
 /// the + after the last adds one, and the columns and rows grow and shrink
 /// with - and +.
 component Grid {
+    meta "https://tutuca.dev/meta/display" = { title: "Grid", icon: "▦", description: "Components in rows and columns." };
+    meta "https://tutuca.dev/meta/canvas" = { width: 560, transparent: true };
     field cells: list<component>;
     field columns: s32 = 2 where 1 <= columns <= 6;
 

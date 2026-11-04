@@ -182,6 +182,15 @@ pub(all) struct MetaM {
 } derive(ToJson, @debug.Debug)
 pub fn MetaM::json(Self) -> Json
 
+pub(all) struct MetaSchemaM {
+  name : String
+  uri : String
+  fields : Array[FieldM]
+  declared_here : Bool
+  doc : String?
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+
 pub(all) struct Norm {
   mut lo : Bound?
   mut hi : Bound?
@@ -202,6 +211,7 @@ pub(all) struct Package {
   name : String
   components : Array[ComponentM]
   interfaces : Array[InterfaceM]
+  meta_schemas : Array[MetaSchemaM]
   registers : Array[RegisterM]
   ask_handlers : Array[SignalM]
   host_asks : Array[String]
@@ -209,6 +219,7 @@ pub(all) struct Package {
 } derive(ToJson, @debug.Debug)
 pub fn Package::component(Self, String) -> ComponentM?
 pub fn Package::interface_named(Self, String) -> InterfaceM?
+pub fn Package::meta_schema_for(Self, String) -> MetaSchemaM?
 
 pub(all) struct ProvideM {
   name : String

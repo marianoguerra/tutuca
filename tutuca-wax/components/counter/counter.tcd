@@ -2,8 +2,11 @@
 // counters. counter.wax has what this can't say: the handlers' logic.
 package tutuca:counter@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
+
 /// A count, with buttons to change it and an input to type it.
 component Counter {
+    meta "https://tutuca.dev/meta/display" = { title: "Counter", icon: "🔢", description: "A count, with buttons to change it and an input to type it." };
     field count: s32;
 
     /// To the parent, with the new count, when + was clicked.
@@ -36,12 +39,14 @@ component Counter {
 
 /// What a counter swaps itself for.
 component Label {
+    meta "https://tutuca.dev/meta/display" = { title: "Label", icon: "🏷️", description: "What a counter swaps itself for." };
     field text: string;
     view main = p(class: "text-sm italic opacity-70", field(text));
 }
 
 /// The root: a list of counters, and how many times they were incremented.
 component Board {
+    meta "https://tutuca.dev/meta/display" = { title: "Counters", icon: "🧮", description: "A list of counters, and how many times they were incremented." };
     field counters: list<Counter>;
     field total: s32;
 

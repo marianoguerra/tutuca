@@ -3,9 +3,11 @@
 // TodoList's TodoItem interface, so the list can make it by that name.
 package tutuca:todo-item@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
 use "../todo_list/todo_list.tcd".{ TodoItem };
 
 component TodoItem: TodoItem {
+    meta "https://tutuca.dev/meta/display" = { title: "Todo", icon: "☑️", description: "One thing to do, done or not." };
     field id: s32 where id >= 0;
     field text: string;
     field done: bool;

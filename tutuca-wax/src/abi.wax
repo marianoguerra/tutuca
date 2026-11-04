@@ -588,6 +588,11 @@ fn abi_ctx_component_names(ctx: &context, walk: i32) -> &value {
     ctx_component_names(ctx, walk);
 }
 
+#[export = "ctx_meta_of"]
+fn abi_ctx_meta_of(ctx: &context, name: js_string, uri: js_string) -> &value {
+    ctx_meta_of(ctx, name, uri);
+}
+
 #[export = "init_ctx_make"]
 fn abi_init_ctx_make(ctx: &init_context, name: js_string, fields: &value) -> &component {
     init_ctx_make(ctx, name, fields);
@@ -1039,6 +1044,25 @@ fn abi_spec_set_schema(spec: &component_spec, schema: &component_schema) {
 #[export = "scope_register_interface"]
 fn abi_scope_register_interface(s: &scope, iface: &interface_schema) {
     scope_register_interface(s, iface);
+}
+
+#[export = "meta_schema_new"]
+fn abi_meta_schema_new(
+    uri: js_string,
+    fields: &field_schema_array,
+    defaults: &value,
+) -> &meta_schema {
+    meta_schema_new(uri, fields, defaults);
+}
+
+#[export = "spec_set_meta"]
+fn abi_spec_set_meta(spec: &component_spec, meta: &value) {
+    spec_set_meta(spec, meta);
+}
+
+#[export = "scope_register_meta_schema"]
+fn abi_scope_register_meta_schema(s: &scope, schema: &meta_schema) {
+    scope_register_meta_schema(s, schema);
 }
 
 #[export = "message_error_invalid_arg"]

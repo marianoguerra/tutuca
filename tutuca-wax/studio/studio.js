@@ -67,7 +67,7 @@ const server = await checkServer();
 // The modules of dist/components/ a scope can register, with the names they
 // register and their .tcd (for a component's use of their interfaces), as
 // their tutuca section says.
-const PREBUILT = ["layout", "counter", "todo_list", "todo_item", "todo_card", "json", "media", "showcase"];
+const PREBUILT = ["meta", "layout", "counter", "todo_list", "todo_item", "todo_card", "json", "media", "showcase"];
 const prebuilt = new Map(
 	await Promise.all(
 		PREBUILT.map(async (name) => {
@@ -92,9 +92,16 @@ const EXAMPLES = new Map(JSON.parse(await text("../dist/examples.json")).map((e)
 
 let lib = await store.load();
 const ROOT = "root";
-// A new library: a root scope with the layouts, so a first screen has holes.
+// A new library: a root scope with the well-known meta schemas, which check
+// what the components below say about themselves, and the layouts, so a
+// first screen has holes.
 if (!lib.scopes.has(ROOT)) {
-	const root = { id: ROOT, name: "root", parent: null, registrations: [{ component: `${PREBUILT_PREFIX}layout` }] };
+	const root = {
+		id: ROOT,
+		name: "root",
+		parent: null,
+		registrations: [{ component: `${PREBUILT_PREFIX}meta` }, { component: `${PREBUILT_PREFIX}layout` }],
+	};
 	await store.put("scopes", root);
 	lib.scopes.set(ROOT, root);
 }

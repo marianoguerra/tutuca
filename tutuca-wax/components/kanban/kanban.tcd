@@ -5,10 +5,13 @@
 // .wasm and drop on a screen elsewhere.
 package tutuca:kanban@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
+
 /// The board. Its lanes tell it where a card was dropped; it takes the card
 /// out of the lane it was in and puts it in that one. It starts with three
 /// lanes (init) when it's made with none.
 component Kanban {
+    meta "https://tutuca.dev/meta/display" = { title: "Kanban board", icon: "🗂️", description: "Cards you drag between columns." };
     field title: string = "Board";
     field lanes: list<KanbanLane>;
     field draft: string where len(draft) <= 80;
@@ -43,6 +46,7 @@ component Kanban {
 /// A lane: its cards, each a record with the id the board gave it. limit is
 /// how many it should hold (0 for no limit).
 component KanbanLane {
+    meta "https://tutuca.dev/meta/display" = { title: "Kanban lane", icon: "📋", description: "A column of cards, with how many it should hold." };
     field name: string;
     field title: string;
     field limit: s32 where limit >= 0;

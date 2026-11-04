@@ -4,6 +4,8 @@
 // can be made as TodoItem (todo_item and todo_card do).
 package tutuca:todo-list@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
+
 /// What TodoList needs of the items it makes by name.
 interface TodoItem {
     field id: s32;
@@ -15,6 +17,7 @@ interface TodoItem {
 }
 
 component TodoList {
+    meta "https://tutuca.dev/meta/display" = { title: "Todos", icon: "✅", description: "A list of things to do, added, checked off and removed." };
     field items: list<TodoItem>;
     field draft: string;
     field next_id: s32 where next_id >= 0;

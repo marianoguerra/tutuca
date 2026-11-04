@@ -74,6 +74,11 @@ const sync_none = 2;
 type field_schema = { name: js_string, vtype: &vtype, constraints: &constraint_array, sync: i32 };
 type field_schema_array = [mut &?field_schema];
 
+// A meta namespace's schema (tutuca's registerMetaSchemas): what a component
+// may say under uri, a field per key, and the keys' defaults (a map, without
+// the keys that have none), which reading a component's meta fills in.
+type meta_schema = { uri: js_string, fields: &field_schema_array, defaults: &value };
+
 // An effect a message may emit (HandlerSpec's emits): a notify, an ask, or a
 // send below (sendAt, forwardAt), by message name.
 const emit_kind_notify = 0;

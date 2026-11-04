@@ -4,6 +4,8 @@
 // value, push_view, render_it, and drag and drop.
 package tutuca:showcase@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
+
 /// A shelf of books. The books loop keeps only the unread ones when
 /// only_unread, keys them by title, and binds label as "title (year)"; the
 /// by_year loop's prepare sorts their indexes by year, and its iter gives the
@@ -11,6 +13,7 @@ package tutuca:showcase@0.1.0;
 /// note, which handles no drop, it reaches the notes' on_drop, which sends
 /// that note the book's title.
 component Shelf {
+    meta "https://tutuca.dev/meta/display" = { title: "Shelf", icon: "📚", description: "Books sorted by year, dragged to reorder, and notes about them." };
     field books: list<record { title: string, year: s32, read: bool }>;
     field only_unread: bool;
     field tags: list<string>;
@@ -74,6 +77,7 @@ component Shelf {
 
 /// A note: its text, in a paragraph, or small in the provided theme.
 component Note {
+    meta "https://tutuca.dev/meta/display" = { title: "Note", icon: "📝", description: "A note's text." };
     field text: string;
 
     message set_text(text: string) changes text ensures next.text == text;

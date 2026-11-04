@@ -904,6 +904,99 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
   }
 }
 
+///|
+fn Resolver::meta_schema_decl(
+  self : Resolver,
+  d : @syntax.Decl,
+  here : Bool,
+) -> MetaSchemaM {
+  self.pascal(d.name, "meta schema")
+  self.check_unique_members(d.members)
+  let (uri, uri_span) = d.uri.unwrap_or(("", d.name.span))
+  if !is_absolute_uri(uri) {
+    self.error(
+      "tcd.meta.uri",
+      uri_span,
+      "a meta schema's URI is absolute, so conventions don't clash, not \"\{uri}\"",
+      hint="like meta_schema \{d.name.text} \"https://tutuca.dev/meta/display\" { ... }",
+    )
+  }
+  let ftys = self.field_types(d.members)
+  let fields = []
+  for m in d.members {
+    match m {
+      Field(f) => fields.push(self.field(f, ftys, false))
+      other =>
+        self.error(
+          "tcd.meta_schema.member",
+          member_span(other),
+          "a meta schema declares fields: what components may say under its URI",
+        )
+    }
+  }
+  {
+    name: d.name.text,
+    uri,
+    fields,
+    declared_here: here,
+    doc: d.doc,
+    span: d.span,
+  }
+}
+
+///|
+/// What c's metas say under a URI pkg has a schema for, checked against it:
+/// each key one of its fields, each value of the field's type and meeting
+/// its constraints, and each field without a default given.
+fn Resolver::check_metas(
+  self : Resolver,
+  pkg : Package,
+  c : ComponentM,
+) -> Unit {
+  for m in c.metas {
+    guard pkg.meta_schema_for(m.uri) is Some(schema) &&
+      m.value is Record(entries, ..) else {
+      continue
+    }
+    for kv in entries {
+      let (key, e) = kv
+      match schema.fields.iter().find_first(f => f.name == key.text) {
+        None =>
+          self.error(
+            "tcd.meta.key",
+            key.span,
+            "\{schema.name} (\{m.uri}) has no key \{key.text}\{did_you_mean(key.text, schema.fields.map(f => f.name))}",
+          )
+        Some(f) => {
+          let v = literal_val(e)
+          if !val_fits(v, f.ty) {
+            self.error(
+              "tcd.meta.value",
+              e.span(),
+              "\{key.text} is \{ty_text(f.ty)} in \{schema.name}, not \{expr_text(e)}",
+            )
+          } else if !val_meets(v, f.norm) {
+            self.error(
+              "tcd.meta.value",
+              e.span(),
+              "\{key.text}, \{expr_text(e)}, must be \{norm_text(f.norm)} in \{schema.name}",
+            )
+          }
+        }
+      }
+    }
+    for f in schema.fields {
+      if f.required && !entries.iter().any(kv => kv.0.text == f.name) {
+        self.error(
+          "tcd.meta.required",
+          m.span,
+          "\{schema.name} (\{m.uri}) needs \{f.name}, which has no default",
+        )
+      }
+    }
+  }
+}
+
 // ---- Phase 2 ------------------------------------------------------------------------------
 
 ///|
@@ -1496,8 +1589,9 @@ pub fn check(
 ) -> (Package, Array[@diag.Diagnostic]) {
   let r = { diags: [], types: {}, }
   let (full_name, name) = package_name(file)
-  // The interfaces used from other files.
+  // The interfaces and meta schemas used from other files.
   let used_ifaces : Array[@syntax.Decl] = []
+  let used_schemas : Array[@syntax.Decl] = []
   for u in file.uses {
     guard used.get(u.path) is Some(other) else {
       r.error("tcd.use.file", u.span, "can't read \{u.path}")
@@ -1506,27 +1600,38 @@ pub fn check(
     for n in u.names {
       let found = other.items
         .iter()
-        .find_first(i => i is Interface(d) && d.name.text == n.text)
+        .find_first(i => {
+          match i {
+            Interface(d) | MetaSchema(d) => d.name.text == n.text
+            _ => false
+          }
+        })
       match found {
         Some(Interface(d)) => used_ifaces.push(d)
+        Some(MetaSchema(d)) => used_schemas.push(d)
         _ =>
           r.error(
             "tcd.use.name",
             n.span,
-            "\{u.path} declares no interface \{n.text}",
+            "\{u.path} declares no interface or meta schema \{n.text}",
           )
       }
     }
   }
   let comp_decls = []
   let iface_decls = []
+  let schema_decls = []
   for item in file.items {
     match item {
       Component(d) => comp_decls.push(d)
       Interface(d) => iface_decls.push(d)
+      MetaSchema(d) => schema_decls.push(d)
       _ => ()
     }
   }
+  let schema_names = schema_decls.map(d => d.name)
+  schema_names.append(used_schemas.map(d => d.name))
+  r.unique(schema_names, "a meta schema")
   let all_names = comp_decls.map(d => d.name)
   r.unique(all_names, "a component")
   let iface_names = iface_decls.map(d => d.name)
@@ -1545,6 +1650,19 @@ pub fn check(
   let interfaces = used_ifaces.map(d => r.interface_decl(d, false))
   interfaces.append(iface_decls.map(d => r.interface_decl(d, true)))
   let components = comp_decls.map(d => r.component_decl(d))
+  let meta_schemas = used_schemas.map(d => r.meta_schema_decl(d, false))
+  meta_schemas.append(schema_decls.map(d => r.meta_schema_decl(d, true)))
+  for i, m in meta_schemas {
+    for o in meta_schemas[:i] {
+      if o.uri == m.uri {
+        r.error(
+          "tcd.meta.duplicate",
+          m.span,
+          "\{m.name} and \{o.name} are both for \{m.uri}: one meta schema per URI",
+        )
+      }
+    }
+  }
   let registers = []
   let ask_handlers = []
   let host_asks = []
@@ -1605,6 +1723,7 @@ pub fn check(
     name,
     components,
     interfaces,
+    meta_schemas,
     registers,
     ask_handlers,
     host_asks,
@@ -1616,6 +1735,7 @@ pub fn check(
   for i, c in pkg.components {
     r.make_defaults(pkg, c)
     r.implements(pkg, c, comp_decls[i])
+    r.check_metas(pkg, c)
     check_views(pkg, c, r.diags)
   }
   let examples = []

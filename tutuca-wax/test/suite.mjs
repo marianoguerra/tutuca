@@ -33,9 +33,9 @@ export const MODULES = ["counter", "todo_item", "todo_list"];
 // The ones cases load into scopes of their own: todo_card registers TodoItem
 // too, so it would take the name over in the shared scope; showcase's,
 // json's and media's types are only for their own cases.
-const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json", "media", "probe", "pbt", "layout"];
+const OWN_SCOPE_MODULES = ["todo_card", "showcase", "json", "media", "probe", "pbt", "meta", "layout"];
 // The modules defined in TCD, whose models (tcd model) js/pbt.js tests from.
-const TCD_MODULES = ["counter", "todo_item", "todo_list", "todo_card", "showcase", "json", "media", "pbt", "layout"];
+const TCD_MODULES = ["counter", "todo_item", "todo_list", "todo_card", "showcase", "json", "media", "pbt", "meta", "layout"];
 const test = (name, fn) => cases.push({ name, fn });
 
 test("render mounts, then morphs in place from what the last render returned", ({ vdom, document, container }) => {
@@ -1068,19 +1068,21 @@ test("layout: a hole lists the types its scope chain can make, and becomes the o
 	// A Vbox starts with a hole.
 	click(window, container.querySelector(".hole button"));
 	const choices = () => [...container.querySelectorAll(".choices button")].map((b) => b.textContent);
-	// Sorted, the outer scope's too, without Hole and Screen.
-	assert.deepEqual(choices(), ["Board", "Counter", "Grid", "Hbox", "Label", "Tabs", "TodoItem", "Vbox"]);
+	// Sorted by name, the outer scope's too, without Hole and Screen, each
+	// shown by its display meta: TodoItem by todo_card's, registered here.
+	assert.deepEqual(choices(), ["🧮 Counters", "🔢 Counter", "▦ Grid", "➡️ Horizontal box", "🏷️ Label", "🗂 Tabs", "🗒️ Todo card", "⬇️ Vertical box"]);
+	assert.equal(buttons(container, "➡️ Horizontal box")[0].title, "Components side by side.");
 	click(window, buttons(container, "cancel")[0]);
 	assert.deepEqual(choices(), []);
 	click(window, container.querySelector(".hole button"));
-	click(window, buttons(container, "Counter")[0]);
+	click(window, buttons(container, "🔢 Counter")[0]);
 	const items = runtime.get(contentOf(runtime, host), "items");
 	assert.deepEqual(items.map((c) => runtime.typeName(c)), ["Counter"]);
 	assert.equal(container.querySelectorAll(".hole").length, 0);
 	// A hole inside what a hole became: Tabs, which start with a tab of their own.
 	click(window, container.querySelector("[title='Add a slot below']"));
 	click(window, container.querySelectorAll(".hole button")[0]);
-	click(window, buttons(container, "Tabs")[0]);
+	click(window, buttons(container, "🗂 Tabs")[0]);
 	assert.deepEqual(tabNames(container), ["Tab 1"]);
 	assert.equal(container.querySelectorAll(".hole").length, 1);
 	assert.deepEqual(host.failures, []);
@@ -1106,7 +1108,7 @@ test("layout: a screen shows its layout without the editing chrome, and toggles 
 	assert.equal(container.querySelectorAll(".hole").length, 1);
 	// The hole becomes Tabs; its tabs are added, renamed and removed.
 	click(window, container.querySelector(".hole button"));
-	click(window, buttons(container, "Tabs")[0]);
+	click(window, buttons(container, "🗂 Tabs")[0]);
 	click(window, container.querySelector("[title='Add a tab']"));
 	const names = container.querySelectorAll(".tab-name");
 	names[0].value = "Notes";
@@ -2034,7 +2036,7 @@ test("modules: the loader takes only modules that import the ABI, of the runtime
 	const scope = vdom.runtime.scope();
 	// The runtime itself imports the DOM and the host.
 	await assert.rejects(vdom.loadComponent(modules.runtime, scope), /imports only from tutuca, wasm:js-string and ', not from dom, env, host/);
-	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 13/);
+	await assert.rejects(vdom.loadComponent(OTHER_ABI, scope), /for ABI version 99, the runtime's is 14/);
 });
 
 // What every case gets besides its DOM, from the runtime vdom and bytesOf,

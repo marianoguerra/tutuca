@@ -3,8 +3,11 @@
 // rating.js next to this file). media.wax has what each handler does.
 package tutuca:media@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
+
 /// An SVG circle: click it to fill it, click − or + (SVG shapes too) to resize it.
 component Dot {
+    meta "https://tutuca.dev/meta/display" = { title: "Dot", icon: "⚪", description: "An SVG circle to fill and resize." };
     field r: s32 = 20 where 10 <= r <= 40;
     field filled: bool;
 
@@ -29,6 +32,7 @@ component Dot {
 /// The sum of 1 to n in MathML, its closed form with n put in, and its value:
 /// click the formula, or +, for one more term.
 component Sum {
+    meta "https://tutuca.dev/meta/display" = { title: "Sum", icon: "∑", description: "The sum of 1 to n in MathML, and its closed form." };
     field n: s32 = 3 where 1 <= n <= 20;
     get total: s32;
 
@@ -51,6 +55,7 @@ component Sum {
 /// fires rating-change, a CustomEvent whose detail is the stars clicked; it
 /// shows what its stars property says, which comes from here.
 component Rating {
+    meta "https://tutuca.dev/meta/display" = { title: "Rating", icon: "⭐", description: "Stars from a custom element." };
     field stars: s32 where 0 <= stars <= 5;
 
     message rate(n: s32 where 0 <= n <= 5) changes stars ensures next.stars == n;

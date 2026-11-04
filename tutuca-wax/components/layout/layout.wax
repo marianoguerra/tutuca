@@ -13,6 +13,16 @@ import "'" {
     const s_grid_columns_close: js_string;
     #[import = "error"]
     const s_error: js_string;
+    #[import = "https://tutuca.dev/meta/display"]
+    const s_display_meta: js_string;
+    #[import = "title"]
+    const s_title: js_string;
+    #[import = "icon"]
+    const s_icon: js_string;
+    #[import = "description"]
+    const s_description: js_string;
+    #[import = " "]
+    const s_space: js_string;
 }
 
 // items without the one at at.
@@ -94,8 +104,39 @@ fn hole_reply_create_component_error(
     hole_with_error(state, value_string_of(error)!);
 }
 
-// The names, as { name } records, without Hole and Screen: a hole doesn't
-// become a hole, and a screen is what a layout is shown in, not part of it.
+// A display meta's string under key, or "" when it says none.
+fn layout_display_text(display: &value, key: js_string) -> js_string {
+    if display.kind != value_kind_map {
+        return gs_empty;
+    }
+    let v = map_get(display, key);
+    if !v {
+        return gs_empty;
+    }
+    let text = value_string_of(v!);
+    if !text {
+        return gs_empty;
+    }
+    text!;
+}
+
+// How a picker shows the type registered as name: its display meta's icon
+// and title ("➡️ Horizontal box"), or its name when it gives no title.
+fn layout_display_label(display: &value, name: js_string) -> js_string {
+    let title = layout_display_text(display, s_title);
+    if str_eq(title, gs_empty) {
+        return name;
+    }
+    let icon = layout_display_text(display, s_icon);
+    if str_eq(icon, gs_empty) {
+        return title;
+    }
+    js_string_concat(js_string_concat(icon, s_space), title);
+}
+
+// The names, as { name, label, description } records, labeled and described
+// by their display meta, without Hole and Screen: a hole doesn't become a
+// hole, and a screen is what a layout is shown in, not part of it.
 fn hole_reply_component_names_ok(state: &hole_state, ctx: &context, reply: &value) -> &hole_state {
     let choices = list_empty();
     let i = 0;
@@ -103,7 +144,17 @@ fn hole_reply_component_names_ok(state: &hole_state, ctx: &context, reply: &valu
         let name = list_get(reply, i)!;
         let text = value_string_of(name);
         if !str_eq(text, gs_Hole) & !str_eq(text, gs_Screen) {
-            choices = list_push(choices, map_assoc(map_empty(), gs_name, name));
+            let display = ctx_meta_of(ctx, text!, s_display_meta);
+            let choice = map_assoc(map_empty(), gs_name, name);
+            choice =
+                map_assoc(choice, gs_label, value_string(layout_display_label(display, text!)));
+            choice =
+                map_assoc(
+                    choice,
+                    gs_description,
+                    value_string(layout_display_text(display, s_description)),
+                );
+            choices = list_push(choices, choice);
         }
         i += 1;
     }

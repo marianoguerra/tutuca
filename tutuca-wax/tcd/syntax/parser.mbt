@@ -818,12 +818,23 @@ fn Parser::decl(
   self : Parser,
   start : Token,
   implements_ok : Bool,
+  uri_ok~ : Bool = false,
 ) -> Decl raise ParseFailed {
   let name = self.name(what="a name")
   let implements = if implements_ok && self.eat_punct(":") {
     self.names()
   } else {
     []
+  }
+  let uri = if uri_ok {
+    let u = self.next()
+    guard u.tok is Str(text) else {
+      self.i -= 1
+      raise self.fail("the meta schema's URI, as a string")
+    }
+    Some((text, u.span))
+  } else {
+    None
   }
   ignore(self.expect_punct("{"))
   let members = []
@@ -840,7 +851,14 @@ fn Parser::decl(
     }
   }
   let end = self.expect_punct("}")
-  { doc: start.doc, name, implements, members, span: start.span.merge(end), }
+  {
+    doc: start.doc,
+    name,
+    implements,
+    uri,
+    members,
+    span: start.span.merge(end),
+  }
 }
 
 // ---- Items ------------------------------------------------------------------------
@@ -900,11 +918,12 @@ fn Parser::item(self : Parser, f : File) -> Unit raise ParseFailed {
   guard t.tok is Ident(word) else {
     self.i -= 1
     raise self.fail(
-      "an item: interface, component, register, ask_handler, host_ask, use or example",
+      "an item: interface, component, meta_schema, register, ask_handler, host_ask, use or example",
     )
   }
   match word {
     "interface" => f.items.push(Interface(self.decl(t, false)))
+    "meta_schema" => f.items.push(MetaSchema(self.decl(t, false, uri_ok=true)))
     "component" => f.items.push(Component(self.decl(t, true)))
     "register" => {
       let regs = []
@@ -942,7 +961,7 @@ fn Parser::item(self : Parser, f : File) -> Unit raise ParseFailed {
     _ => {
       self.i -= 1
       raise self.fail(
-        "an item: interface, component, register, ask_handler, host_ask, use or example",
+        "an item: interface, component, meta_schema, register, ask_handler, host_ask, use or example",
       )
     }
   }

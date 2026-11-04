@@ -9,12 +9,14 @@ import { before, test } from "node:test";
 import { JSDOM } from "jsdom";
 import { loadRuntimeFiles, loadTcd } from "../js/tcd-web.js";
 import { examples } from "../js/pbt.js";
-import { componentMeta, load } from "../js/tutuca-rt.js";
+import { CANVAS_META, componentMeta, DISPLAY_META, displayLabel, load } from "../js/tutuca-rt.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 const COUNTER = "components/counter/counter.tcd";
 const COUNTER_WAX = "components/counter/counter.wax";
+// The well-known meta schemas the component modules use.
+const META = "components/meta/meta.tcd";
 let tcd;
 let runtime;
 let counter;
@@ -22,7 +24,7 @@ let counter;
 before(async () => {
 	tcd = await loadTcd(new URL("dist/tcd/tcd.wasm", root));
 	runtime = await loadRuntimeFiles(root);
-	counter = { main: COUNTER, files: { [COUNTER]: await read(COUNTER) }, impls: [{ path: COUNTER_WAX, text: await read(COUNTER_WAX) }] };
+	counter = { main: COUNTER, files: { [COUNTER]: await read(COUNTER), [META]: await read(META) }, impls: [{ path: COUNTER_WAX, text: await read(COUNTER_WAX) }] };
 });
 
 test("tcd builds counter in wasm-gc, and the module behaves as the prebuilt one", async () => {
@@ -62,10 +64,10 @@ test("a type error in the .wax comes back as a diagnostic at its line", () => {
 
 test("errors in the .tcd stop before compiling; check reports them with the types", () => {
 	const text = counter.files[COUNTER].replace("component Board {", "component Board {\n    field broken: nope;");
-	const res = tcd.check({ ...counter, files: { [COUNTER]: text } });
+	const res = tcd.check({ ...counter, files: { ...counter.files, [COUNTER]: text } });
 	assert.equal(res.ok, false);
 	assert.ok(res.diags.some((d) => d.severity === "error" && d.span.file === COUNTER && /nope/.test(d.message)));
-	assert.equal(tcd.build({ ...counter, files: { [COUNTER]: text }, runtime }).contract, undefined);
+	assert.equal(tcd.build({ ...counter, files: { ...counter.files, [COUNTER]: text }, runtime }).contract, undefined);
 });
 
 test("stub lists the functions the implementation lacks; model is the package's model", () => {
@@ -84,9 +86,9 @@ test("stub lists the functions the implementation lacks; model is the package's 
 test("a use resolves relative to the main file, and a missing file is a diagnostic", async () => {
 	const main = "components/todo_card/todo_card.tcd";
 	const used = "components/todo_list/todo_list.tcd";
-	const files = { [main]: await read(main), [used]: await read(used) };
+	const files = { [main]: await read(main), [used]: await read(used), [META]: await read(META) };
 	assert.equal(tcd.check({ main, files }).ok, true);
-	const res = tcd.check({ main, files: { [main]: files[main] } });
+	const res = tcd.check({ main, files: { [main]: files[main], [META]: files[META] } });
 	assert.ok(res.diags.some((d) => /can't read \.\.\/todo_list\/todo_list\.tcd/.test(d.message)));
 	assert.equal(tcd.check({ main: "nowhere.tcd", files }).diags[0].message, "the request has no file nowhere.tcd");
 });
@@ -458,6 +460,80 @@ register Card;
 	});
 	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
 	await tw.loadComponent(res.wasm, tw.runtime.scope()); // The runtime ignores it.
+});
+
+// A meta schema a module declares is registered in the scope it's loaded in:
+// metaOf reads a type's meta over its defaults, and a type whose meta breaks
+// it can't be registered there (a module tcd can't check it against, since
+// it doesn't use the schema).
+test("meta schemas fill defaults and refuse a meta that breaks them", async () => {
+	const build = (main, text) => {
+		const res = tcd.build({ main, files: { [main]: text }, impls: [{ path: main.replace(".tcd", ".wax"), text: "" }], runtime });
+		assert.deepEqual(res.diags.filter((d) => d.severity === "error"), []);
+		return res.wasm;
+	};
+	const schemas = build(
+		"schemas.tcd",
+		`package tutuca:schemas@0.1.0;
+meta_schema Sizes "urn:example:sizes" {
+    field width: option<f64> where width >= 0;
+    field wide: bool = true;
+}
+`,
+	);
+	assert.deepEqual(componentMeta(schemas).meta_schemas, ["urn:example:sizes"]);
+	const card = build(
+		"card.tcd",
+		`package tutuca:card@0.1.0;
+component Card { meta "urn:example:sizes" = { width: 3 }; view main = p("card"); }
+component Bare { view main = p("bare"); }
+register Card, Bare;
+`,
+	);
+	const bad = build(
+		"bad.tcd",
+		`package tutuca:bad@0.1.0;
+component Bad { meta "urn:example:sizes" = { width: -1, color: "red" }; view main = p("bad"); }
+register Bad;
+`,
+	);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const rt = tw.runtime;
+	const scope = rt.scope();
+	await tw.loadComponent(schemas, scope);
+	await tw.loadComponent(card, scope);
+	assert.deepEqual(rt.metaSchema(scope, "urn:example:sizes").defaults, { width: null, wide: true });
+	assert.deepEqual(rt.typeMetaOf(scope, "Card", "urn:example:sizes"), { width: 3, wide: true });
+	assert.deepEqual(rt.typeMetaOf(scope, "Bare", "urn:example:sizes"), { width: null, wide: true });
+	assert.deepEqual(rt.typeMetaOf(scope, "Card", "urn:example:other"), {});
+	assert.equal(rt.typeMetaOf(scope, "Nope", "urn:example:sizes"), null);
+	assert.deepEqual(rt.metaOf(rt.make(scope, "Card", {}), "urn:example:sizes"), { width: 3, wide: true });
+	await assert.rejects(() => tw.loadComponent(bad, scope), /Bad's meta urn:example:sizes: it has no key color/);
+});
+
+// The layout's hole lists the types it can become by their display meta.
+test("a hole's choices are labeled and described by their display meta", async () => {
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const scope = tw.runtime.scope();
+	for (const name of ["meta", "layout"]) await tw.loadComponent(await readFile(new URL(`dist/components/${name}.wasm`, root)), scope);
+	assert.deepEqual(tw.runtime.typeMetaOf(scope, "Hbox", DISPLAY_META), {
+		title: "Horizontal box",
+		icon: "➡️",
+		description: "Components side by side.",
+	});
+	assert.deepEqual(tw.runtime.typeMetaOf(scope, "Hole", CANVAS_META), { width: 240, height: null, transparent: true });
+	assert.equal(displayLabel(tw.runtime.typeMetaOf(scope, "Vbox", DISPLAY_META)), "⬇️ Vertical box");
+	const { window } = new JSDOM("");
+	const container = window.document.createElement("div");
+	const host = tw.runtime.createHost(window.document, container, tw.runtime.make(scope, "Screen", { editing: true })).mount();
+	const click = (node) => node.dispatchEvent(new window.Event("click", { bubbles: true }));
+	click(container.querySelector(".hole button"));
+	await host.settle?.();
+	const choices = [...container.querySelectorAll(".choices button")];
+	const hbox = choices.find((b) => b.textContent === "➡️ Horizontal box");
+	assert.ok(hbox, `no Horizontal box among ${choices.map((b) => b.textContent)}`);
+	assert.equal(hbox.title, "Components side by side.");
+	assert.deepEqual(host.failures, []);
 });
 
 // namespace: makes the element, and what's in it, in that namespace, as

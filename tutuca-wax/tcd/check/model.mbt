@@ -207,6 +207,20 @@ fn const_json(e : @syntax.Expr) -> Json {
 }
 
 ///|
+/// What components may say under a meta URI (tutuca's registerMetaSchemas):
+/// a field per key, with its type, constraints and default. Declared here, a
+/// package registers it in the scope it's registered in.
+pub(all) struct MetaSchemaM {
+  name : String
+  uri : String
+  fields : Array[FieldM]
+  /// Declared in this package, or used from another.
+  declared_here : Bool
+  doc : String?
+  span : @diag.Span
+} derive(Debug, ToJson)
+
+///|
 pub(all) struct ProvideM {
   name : String
   /// The field it provides.
@@ -292,6 +306,9 @@ pub(all) struct Package {
   name : String
   components : Array[ComponentM]
   interfaces : Array[InterfaceM]
+  /// The meta schemas it declares or uses, which its components' metas are
+  /// checked against.
+  meta_schemas : Array[MetaSchemaM]
   registers : Array[RegisterM]
   ask_handlers : Array[SignalM]
   host_asks : Array[String]
@@ -306,6 +323,11 @@ pub fn Package::component(self : Package, name : String) -> ComponentM? {
 ///|
 pub fn Package::interface_named(self : Package, name : String) -> InterfaceM? {
   self.interfaces.iter().find_first(i => i.name == name)
+}
+
+///|
+pub fn Package::meta_schema_for(self : Package, uri : String) -> MetaSchemaM? {
+  self.meta_schemas.iter().find_first(m => m.uri == uri)
 }
 
 ///|

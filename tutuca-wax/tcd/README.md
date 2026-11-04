@@ -122,11 +122,16 @@ type.msg, make type | nothing]`, `notify`, `ask name(args) -> T [emits ...]`
 enrich { b: T } ; view: v }`, `scope name { b: T }`, `provide name =
 field(f);`, `meta "uri" = { key: value, ... };` (what the component says
 about itself to hosts, under an absolute URI that keeps conventions apart,
-like `"https://tutuca.dev/meta/canvas"` with `title`, `icon`, `width`,
-`height` and `transparent`: a record of literals, lists and records, one per
-URI, carried in the `tutuca` section), `view name = ...;`. Package level: `interface`, `component c:
-iface`, `register`, `ask_handler name(args) -> T;`, `host_ask name;`, `use`,
-`example`.
+like `"https://tutuca.dev/meta/display"` with `title`, `icon` and
+`description`: a record of literals, lists and records, one per URI, set on
+the type's spec and carried in the `tutuca` section), `view name = ...;`. Package level: `interface`, `component c:
+iface`, `meta_schema Name "uri" { field key: T [= default] [where c]; ... }`
+(what components may say under a meta URI: each meta the package's
+components give under it is checked as it's built, and the module registers
+it where it's registered, so the runtime checks the others and fills in the
+defaults; `use "x.tcd".{ Name }` takes one from another file, as
+`components/meta/meta.tcd`'s `Display` and `Canvas`), `register`,
+`ask_handler name(args) -> T;`, `host_ask name;`, `use`, `example`.
 
 **Views** are calls, attributes (named arguments) before children
 (positional), never interleaved: `div(class: "x", on_click: send(m),

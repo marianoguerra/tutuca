@@ -1,0 +1,28 @@
+// The well-known meta schemas, tutuca's (src/display.js, the canvas's
+// components/canvas/layout.js): what a component says about itself to the
+// hosts that show it, under URIs that keep each convention apart. A
+// component module uses the ones it says something under, which checks what
+// it says as it's built; registering this module in a scope checks every
+// type registered or made below it too, and fills in the defaults when a
+// host reads a type's meta (ctx_meta_of, runtime.metaOf).
+package tutuca:meta@0.1.0;
+
+/// How to show a component to people (a component picker, a catalog, a
+/// storybook, a canvas's item header): every key optional.
+meta_schema Display "https://tutuca.dev/meta/display" {
+    /// What people call it, short: "Notes", "Tool call".
+    field title: option<string>;
+    /// An emoji or a short symbol to show before the title.
+    field icon: option<string>;
+    /// A sentence on what it's for, for a picker's or a catalog's entry.
+    field description: option<string>;
+}
+
+/// What a component says to a canvas holding it: how big its item starts
+/// (null: the canvas's), and whether the item is see-through, without a
+/// background.
+meta_schema Canvas "https://tutuca.dev/meta/canvas" {
+    field width: option<s32> where 0 <= width <= 4000;
+    field height: option<s32> where 0 <= height <= 4000;
+    field transparent: bool;
+}

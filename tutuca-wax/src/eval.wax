@@ -31,6 +31,7 @@ fn spec_new(
             provide_selectors,
             event_names: views_collect_event_names(views),
             schema: null,
+            meta: map_empty(),
         };
     if !spec_view_named(spec, s_main) {
         host_fail(js_string_concat(s_err_no_main_view, name));

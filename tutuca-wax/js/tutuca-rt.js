@@ -207,6 +207,20 @@ export function withCustomSection(source, name, text) {
 	return out;
 }
 
+// The well-known meta URIs (components/meta/meta.tcd, tutuca's src/display.js
+// and the canvas's): how to show a component to people, and what it says to
+// a canvas holding it.
+export const DISPLAY_META = "https://tutuca.dev/meta/display";
+export const CANVAS_META = "https://tutuca.dev/meta/canvas";
+// A display meta's icon and title, as a label ("📝 Notes"), or null when it
+// has no title: tutuca's displayLabel.
+export function displayLabel(display) {
+	const title = display?.title;
+	if (typeof title !== "string" || title === "") return null;
+	const icon = display.icon;
+	return typeof icon === "string" && icon !== "" ? `${icon} ${title}` : title;
+}
+
 // What a component module tcd built says about itself: the JSON of its
 // "tutuca" custom section (tcd/api/meta.mbt: its sources, the types it
 // registers, the interfaces it declares, what it needs from a scope, its
@@ -1017,6 +1031,16 @@ function makeRuntime(w, api, late) {
 		interface: (scope, name) => values.to(w.scope_interface(scope, name)),
 		// A component's property, as a JS value.
 		get: (component, name) => values.to(w.component_get(component, name)),
+		// What a component says about itself under uri (a meta URI such as
+		// DISPLAY_META), over the defaults of the schema its scope has for
+		// it: tutuca's metaOf. {} for nothing said and no schema.
+		metaOf: (component, uri) => values.to(w.component_meta_of(component, uri)),
+		// The same for the type registered as name, visible from scope; null
+		// when none is.
+		typeMetaOf: (scope, name, uri) => values.to(w.scope_meta_of(scope, name, uri)),
+		// The meta schema registered for uri, visible from scope: { uri,
+		// fields, defaults }, or null.
+		metaSchema: (scope, uri) => values.to(w.scope_meta_schema(scope, uri)),
 		createHost,
 	};
 }

@@ -228,6 +228,13 @@ fn Gen::spec_fn(self : Gen, c : @check.ComponentM) -> String {
     "    let spec = spec_new(\{self.s(c.name)}, \{names}, \{views}, \{loops}, \{scopes}, \{pnames}, \{selectors});",
   )
   out.line("    spec_set_schema(spec, \{cw}_schema());")
+  if !c.metas.is_empty() {
+    let mut meta = "map_empty()"
+    for m in c.metas {
+      meta = "map_assoc(\{meta}, \{self.s(m.uri)}, \{self.val(@check.literal_val(m.value))})"
+    }
+    out.line("    spec_set_meta(spec, \{meta});")
+  }
   out.line("    \{cw}_spec_made = spec;")
   out.line("    spec;")
   out.line("}")
@@ -686,6 +693,41 @@ fn Gen::interface_fn(self : Gen, i : @check.InterfaceM) -> String {
 }
 
 ///|
+/// A value of t for v, a float when t is (or holds) f64: a meta schema's
+/// defaults are read as they are.
+fn Gen::typed_val(self : Gen, t : @check.Ty, v : @check.Val) -> String {
+  match (t, v) {
+    (F64, VNum(n)) | (Option(F64), VNum(n)) => "value_float(\{float_text(n)})"
+    _ => self.val(v)
+  }
+}
+
+///|
+fn Gen::meta_schema_fn(self : Gen, m : @check.MetaSchemaM) -> String {
+  let mw = @check.wax_part(m.name)
+  let b = Block::new()
+  let fields = self.field_schemas(b, m.fields, mw)
+  let mut defaults = "map_empty()"
+  for f in m.fields {
+    let v = match f.default {
+      Some(e) => Some(@check.literal_val(e))
+      None => if f.required { None } else { @check.field_default(f.ty, f.norm) }
+    }
+    if v is Some(v) {
+      defaults = "map_assoc(\{defaults}, \{self.s(f.name)}, \{self.typed_val(f.ty, v)})"
+    }
+  }
+  let out = Out::new()
+  out.write(doc_lines(m.doc))
+  out.line("fn \{mw}_meta_schema() -> &meta_schema {")
+  out.line(b.render("    "))
+  out.line("    meta_schema_new(\{self.s(m.uri)}, \{fields}, \{defaults});")
+  out.line("}")
+  out.line("")
+  out.to_string()
+}
+
+///|
 fn Gen::answer_fn(self : Gen, a : @check.SignalM) -> String {
   let pw = @check.wax_part(self.pkg.name)
   let aw = @check.wax_part(a.name)
@@ -740,6 +782,11 @@ pub fn Gen::glue(self : Gen) -> String {
       out.write(self.interface_fn(i))
     }
   }
+  for m in self.pkg.meta_schemas {
+    if m.declared_here {
+      out.write(self.meta_schema_fn(m))
+    }
+  }
   for a in self.pkg.ask_handlers {
     out.write(self.answer_fn(a))
   }
@@ -754,6 +801,13 @@ pub fn Gen::glue(self : Gen) -> String {
     if i.declared_here {
       out.line(
         "    scope_register_interface(s, \{@check.wax_part(i.name)}_interface());",
+      )
+    }
+  }
+  for m in self.pkg.meta_schemas {
+    if m.declared_here {
+      out.line(
+        "    scope_register_meta_schema(s, \{@check.wax_part(m.name)}_meta_schema());",
       )
     }
   }

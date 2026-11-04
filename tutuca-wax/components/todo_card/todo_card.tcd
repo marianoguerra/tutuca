@@ -5,9 +5,11 @@
 // already, it takes the name over for the items made from then on.
 package tutuca:todo-card@0.1.0;
 
+use "../meta/meta.tcd".{ Display };
 use "../todo_list/todo_list.tcd".{ TodoItem };
 
 component TodoCard: TodoItem {
+    meta "https://tutuca.dev/meta/display" = { title: "Todo card", icon: "🗒️", description: "One thing to do, as a card." };
     field id: s32 where id >= 0;
     field text: string;
     field done: bool;

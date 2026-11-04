@@ -1115,6 +1115,10 @@ fn scope_entry_problem(s: &scope, name: js_string, spec: &component_spec) -> js_
     if !!problem {
         return problem;
     }
+    let meta = scope_meta_problem(s, spec);
+    if !!meta {
+        return meta;
+    }
     if !spec.schema {
         return null;
     }
@@ -1128,6 +1132,145 @@ fn scope_entry_problem(s: &scope, name: js_string, spec: &component_spec) -> js_
         i += 1;
     }
     null;
+}
+
+// ---- Meta ---------------------------------------------------------------------------------
+
+// What a component says about itself to hosts (tutuca's spec.js metaOf and
+// scope.js registerMetaSchemas): its spec's meta maps URIs to what it says
+// there; a scope's meta schemas say what may be said under a URI, checked
+// as a type is registered or made, and fill in the defaults when it's read.
+
+fn meta_schema_new(uri: js_string, fields: &field_schema_array, defaults: &value) -> &meta_schema {
+    {meta_schema| uri, fields, defaults };
+}
+
+fn spec_set_meta(spec: &component_spec, meta: &value) {
+    spec.meta = meta;
+}
+
+// Types registered or made here and below are checked against it from now on.
+fn scope_register_meta_schema(s: &scope, schema: &meta_schema) {
+    s.meta_schemas = smap_assoc(s.meta_schemas, schema.uri, schema);
+}
+
+// Here first, then in the parents.
+fn scope_lookup_meta_schema(s: &scope, uri: js_string) -> &?meta_schema {
+    let at: &?scope = s;
+    while !!at {
+        let found = smap_get((at!).meta_schemas, uri);
+        if !!found {
+            return found! as &meta_schema;
+        }
+        at = (at!).parent;
+    }
+    null;
+}
+
+// Why given, what a meta says under schema's URI, doesn't fit it, or null:
+// a key it has no field for, a value its field doesn't take, or a key with
+// no default it lacks.
+fn meta_schema_problem(schema: &meta_schema, given: &value) -> js_string_opt {
+    let keys = map_keys(given);
+    let i = 0;
+    while i <s list_count(keys) {
+        let key = value_string_of(list_get(keys, i)!)!;
+        if !field_schema_named(schema.fields, key) {
+            return js_string_concat(s_m_no_key, key);
+        }
+        i += 1;
+    }
+    i = 0;
+    while i <s schema.fields.length() {
+        let f = schema.fields[i]!;
+        let v = map_get(given, f.name);
+        if !!v {
+            let problem = field_problem(f, vtype_coerce(f.vtype, v!), null);
+            if !!problem {
+                return key_problem(f.name, problem!);
+            }
+        }
+        if !v {
+            if !map_get(schema.defaults, f.name) {
+                return js_string_concat(js_string_concat(s_m_lacks, f.name), s_m_no_default);
+            }
+        }
+        i += 1;
+    }
+    null;
+}
+
+// Why spec's meta doesn't fit the meta schemas visible from s, or null: the
+// first URI it says something under whose schema it breaks. URIs without a
+// schema here aren't checked.
+fn scope_meta_problem(s: &scope, spec: &component_spec) -> js_string_opt {
+    let uris = map_keys(spec.meta);
+    let i = 0;
+    while i <s list_count(uris) {
+        let uri = value_string_of(list_get(uris, i)!)!;
+        let schema = scope_lookup_meta_schema(s, uri);
+        if !!schema {
+            let problem = meta_schema_problem(schema!, map_get(spec.meta, uri)!);
+            if !!problem {
+                let b = text_builder_new();
+                text_push(b, spec.name);
+                text_push(b, s_m_s_meta);
+                text_push(b, uri);
+                text_push(b, s_colon_space);
+                text_push(b, problem!);
+                return text_finish(b);
+            }
+        }
+        i += 1;
+    }
+    null;
+}
+
+// What spec says under uri, over the defaults of the schema s has for it: a
+// map with every key of a registered schema (those with a default), else
+// what spec says (an empty map for nothing).
+fn spec_meta_in(s: &scope, spec: &component_spec, uri: js_string) -> &value {
+    let given = map_get(spec.meta, uri);
+    let schema = scope_lookup_meta_schema(s, uri);
+    if !schema {
+        if !given {
+            return map_empty();
+        }
+        return given!;
+    }
+    let out = (schema!).defaults;
+    if !given {
+        return out;
+    }
+    let keys = map_keys(given!);
+    let i = 0;
+    while i <s list_count(keys) {
+        let key = value_string_of(list_get(keys, i)!)!;
+        let v = map_get(given!, key)!;
+        let f = field_schema_named((schema!).fields, key);
+        if !!f {
+            v = vtype_coerce((f!).vtype, v);
+        }
+        out = map_assoc(out, key, v);
+        i += 1;
+    }
+    out;
+}
+
+// What the type registered as name, visible from s, says under uri
+// (spec_meta_in), or null when no type is.
+fn scope_meta_of(s: &scope, name: js_string, uri: js_string) -> &value {
+    let entry = scope_lookup(s, name);
+    if !entry {
+        return VALUE_NULL;
+    }
+    spec_meta_in(s, (entry!).spec, uri);
+}
+
+// What a type the handling component's scope (or an asker's, in an ask
+// handler) can make says under uri, or null when it can't make it.
+fn ctx_meta_of(ctx: &context, name: js_string, uri: js_string) -> &value {
+    scope_meta_of(ctx.scope, name, uri);
 }
 
 // ---- A schema as a value, for tools ------------------------------------------------------
