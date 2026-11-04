@@ -65,10 +65,11 @@ export class DragTracker {
 			if (!this.rootNode.contains(e.relatedTarget ?? null)) this.mark(null);
 		} else {
 			const info = getEventInfoFor(e.target, "drop", this.rootNode, root, true);
-			// The browser shows a move cursor over a drop target, a not-allowed one elsewhere.
+			// The browser shows a move cursor over a drop target, a not-allowed one elsewhere. A
+			// drag from outside the page (a file) is copied: the browser forbids moving most.
 			if (info !== null) {
 				e.preventDefault();
-				if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+				if (e.dataTransfer) e.dataTransfer.dropEffect = this.drag === null ? "copy" : "move";
 			}
 			this.mark(info?.node ?? null);
 		}

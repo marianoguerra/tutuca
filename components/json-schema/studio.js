@@ -12,6 +12,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { droppedFiles } from "../common/files.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { schemaComponents } from "./index.js";
 import { inferSchema, schemaDocument } from "./infer.js";
@@ -93,6 +94,7 @@ export const Studio = component({
 		source: t.string(), // The payload the schema was inferred from, as JSON text.
 		pasteText: t.string(),
 		pasteError: t.string(),
+		dropName: t.string(), // The JSON file dropped last, while it's read.
 	},
 	methods: {
 		// Infers the schema again from the editor's payload, keeping how it is read.
@@ -101,6 +103,14 @@ export const Studio = component({
 			const json = next.editor.toJson();
 			next.schema = schemaTree(C, schemaFor(json, next.title), { view: this.schema.view });
 			next.source = textOf(json);
+		},
+		// Puts value in the editor, as the payload titled title, and infers its schema.
+		loadJson(next, C, value, title) {
+			next.editor = C.JsonEditor({ mode: "edit", value: fromJson(C, value) });
+			next.pasteText = "";
+			next.pasteError = "";
+			next.title = title;
+			this.infer(next);
 		},
 	},
 	queries: {
@@ -118,7 +128,11 @@ export const Studio = component({
 		},
 	},
 	view: div(
-		{ class: "flex flex-col gap-4 xl:flex-row xl:items-start" },
+		{
+			class:
+				"flex flex-col gap-4 rounded-box outline-2 outline-dashed outline-offset-4 outline-transparent xl:flex-row xl:items-start data-[draggingover=external]:outline-primary",
+			"on:drop": send("dropFile"),
+		},
 		card(
 			div(
 				{ class: "flex flex-wrap items-center justify-between gap-2" },
@@ -135,7 +149,7 @@ export const Studio = component({
 			),
 			p(
 				{ class: "text-sm opacity-70" },
-				"Edit values, add or remove fields and array items: the schema follows.",
+				"Edit values, add or remove fields and array items, or drop a .json file here: the schema follows.",
 			),
 			render(field("editor")),
 			details(
@@ -242,11 +256,25 @@ export const Studio = component({
 					next.pasteError = `Not JSON: ${error.message}`;
 					return;
 				}
-				const C = ctx.scope.components;
-				next.editor = C.JsonEditor({ mode: "edit", value: fromJson(C, value) });
-				next.pasteText = "";
-				next.title = "";
-				this.infer(next);
+				this.loadJson(next, ctx.scope.components, value, "");
+			},
+		},
+		// A file dropped from outside the page: the first JSON one is read, and loaded when the
+		// answer comes.
+		dropFile: {
+			args: [],
+			emits: { ask: ["readText"] },
+			run(next, _args, ctx) {
+				const files = droppedFiles(ctx.event);
+				if (files.length === 0) return;
+				const file = files.find(isJsonFile);
+				if (file === undefined) {
+					next.pasteError = `Not a JSON file: ${files[0].name}`;
+					return;
+				}
+				next.dropName = file.name;
+				next.pasteError = "";
+				ctx.ask("readText", [file]);
 			},
 		},
 		downloadSchema: {
@@ -263,6 +291,28 @@ export const Studio = component({
 		},
 	},
 	answers: {
+		// The dropped file's text: loaded when it's JSON, the error shown otherwise.
+		readText: {
+			ok(next, [text], ctx) {
+				const name = this.dropName;
+				next.dropName = "";
+				let value;
+				try {
+					value = JSON.parse(text);
+				} catch (error) {
+					next.pasteError = `${name || "The file"} is not JSON: ${error.message}`;
+					return;
+				}
+				this.loadJson(next, ctx.scope.components, value, name.replace(/(\.schema)?\.json$/i, ""));
+			},
+			error(next, [error]) {
+				next.pasteError = `Reading ${this.dropName || "the file"} failed: ${error?.message ?? error}`;
+				next.dropName = "";
+			},
+			unhandled(next) {
+				next.dropName = "";
+			},
+		},
 		saveFile: {
 			ok() {},
 			error(_next, [error]) {
@@ -272,6 +322,10 @@ export const Studio = component({
 		},
 	},
 });
+
+// A dropped file to read as JSON: by its type, or its extension when the OS gives none.
+const isJsonFile = (file) =>
+	/^application\/([\w.+-]+\+)?json$/.test(file.type) || /\.json$/i.test(file.name);
 
 export const studio = (C, id = "order") => {
 	const { title, value } = SAMPLES[id];

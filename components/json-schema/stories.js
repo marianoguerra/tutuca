@@ -235,6 +235,21 @@ export const studioBook = stories({
 					step.send("setTitle", ["Purchase"]),
 					step.check("the schema follows", (s) => JSON.parse(s.schemaText).title === "Purchase"),
 				],
+				"a dropped JSON file is loaded": [
+					step.answer("readText", "ok", '{ "sku": "MUG-01", "quantity": 2 }'),
+					step.check(
+						"the editor and schema follow",
+						(s) => s.json.sku === "MUG-01" && !s.isStale && !s.hasPasteError,
+					),
+					step.check("both fields in the schema", (s) =>
+						["sku", "quantity"].every((k) => k in JSON.parse(s.schemaText).properties),
+					),
+				],
+				"a dropped file that isn't JSON is refused": [
+					step.answer("readText", "ok", "not json"),
+					step.check("the error shown", (s) => s.hasPasteError),
+					step.check("the payload kept", (s) => s.json.orderId === "ord_9f2c"),
+				],
 			},
 		},
 	},

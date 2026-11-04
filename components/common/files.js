@@ -12,3 +12,6 @@ export const saveFile = ([filename, text, type = "application/json", kind = file
 	return kind;
 };
 export const readText = ([file]) => file.text();
+// The files a drop event carries, from outside the page: none for a drag of the page's own
+// elements.
+export const droppedFiles = (event) => [...(event?.dataTransfer?.files ?? [])];
