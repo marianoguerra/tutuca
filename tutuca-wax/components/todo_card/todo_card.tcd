@@ -22,7 +22,7 @@ component TodoCard: TodoItem {
 
     message toggle() changes done ensures next.done == not done;
     message star() changes starred ensures next.starred == not starred;
-    message set_done(done: bool) changes done ensures next.done == done;
+    pure message set_done(done: bool) changes done ensures next.done == done;
     message remove() changes nothing emits notify remove_me;
 
     view main = li(

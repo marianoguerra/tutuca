@@ -131,15 +131,10 @@ fn kanban_on_add_card(state: &kanban_state, ctx: &context) -> &kanban_state {
     if (js_string_length(state.draft) == 0) | (list_count(state.lanes) == 0) {
         return state;
     }
-    kanban_lane_send_add(
-        ctx,
-        selector_item(gs_lanes, path_key_index(0)),
-        state.next_id,
-        state.draft,
-    );
+    let first = kanban_lane_apply_add(list_get(state.lanes, 0)!, state.next_id, state.draft);
     {kanban_state|
         title: state.title,
-        lanes: state.lanes,
+        lanes: list_assoc(state.lanes, 0, first),
         draft: gs_empty,
         next_id: state.next_id + 1,
     };
@@ -158,8 +153,9 @@ fn kanban_find(state: &kanban_state, id: kanban_card_id) -> &?value {
     null;
 }
 
-// The lane it was dropped on puts it in; every other lane takes it out. The
-// notify is the board's: it goes no further up.
+// The lane it was dropped on puts it in; every other lane takes it out, both
+// applied in this task, so the card is never in two lanes or none. The notify
+// is the board's: it goes no further up.
 fn kanban_on_card_dropped(
     state: &kanban_state,
     ctx: &context,
@@ -173,17 +169,18 @@ fn kanban_on_card_dropped(
         return state;
     }
     let to = (key! as &path_key_index).index;
+    let lanes = list_empty();
     let i = 0;
     while i <s list_count(state.lanes) {
-        let at = selector_item(gs_lanes, path_key_index(i));
+        let lane = list_get(state.lanes, i)!;
         if i == to {
-            kanban_lane_send_put(ctx, at, card!, before);
+            lanes = list_push(lanes, kanban_lane_apply_put(lane, card!, before));
         } else {
-            kanban_lane_send_take(ctx, at, id);
+            lanes = list_push(lanes, kanban_lane_apply_take(lane, id));
         }
         i += 1;
     }
-    state;
+    kanban_with_lanes(state, lanes);
 }
 
 // ---- A lane ------------------------------------------------------------------------
@@ -263,11 +260,7 @@ fn kanban_lane_on_drop_before(
     state;
 }
 
-fn kanban_lane_on_take(
-    state: &kanban_lane_state,
-    ctx: &context,
-    id: kanban_card_id,
-) -> &kanban_lane_state {
+fn kanban_lane_on_take(state: &kanban_lane_state, id: kanban_card_id) -> &kanban_lane_state {
     if kanban_lane_card_in(state.cards, id) <s 0 {
         return state;
     }
@@ -276,7 +269,6 @@ fn kanban_lane_on_take(
 
 fn kanban_lane_on_put(
     state: &kanban_lane_state,
-    ctx: &context,
     card: kanban_card,
     before: kanban_card_id,
 ) -> &kanban_lane_state {
@@ -299,7 +291,6 @@ fn kanban_lane_on_put(
 
 fn kanban_lane_on_add(
     state: &kanban_lane_state,
-    ctx: &context,
     id: kanban_card_id,
     text: js_string,
 ) -> &kanban_lane_state {
@@ -311,7 +302,7 @@ fn kanban_lane_on_remove_card(
     ctx: &context,
     id: kanban_card_id,
 ) -> &kanban_lane_state {
-    kanban_lane_on_take(state, ctx, id);
+    kanban_lane_on_take(state, id);
 }
 
 fn kanban_lane_on_cycle_tag(

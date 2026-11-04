@@ -105,6 +105,15 @@ test "every diagnostic code has a fixture that reports it" {
     (
       "tcd.meta.duplicate", "component C { meta \"urn:a\" = {}; meta \"urn:a\" = {}; view main = p(); }",
     ),
+    (
+      "tcd.pure.source_key", "component C { field n: s32; pure message m() source_key: s32; view main = p(); }",
+    ),
+    (
+      "tcd.pure.emits", "component C { notify x(); pure message m() emits notify x; view main = p(); }",
+    ),
+    (
+      "tcd.interface.pure", "interface I { pure message m(); } component C: I { message m(); view main = p(); }",
+    ),
     ("tcd.meta.record", "component C { meta \"urn:a\" = 3; view main = p(); }"),
     (
       "tcd.meta.key", "meta_schema M \"urn:m\" { field w: s32 where w >= 0; field need: string where len(need) >= 1; } component C { meta \"urn:m\" = { need: \"x\", nope: 1 }; view main = p(); }",

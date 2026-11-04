@@ -536,6 +536,129 @@ test("a hole's choices are labeled and described by their display meta", async (
 	assert.deepEqual(host.failures, []);
 });
 
+// Pure messages (tutuca's pure: true and apply): a handler that takes no
+// context, which a holder applies to a component it holds, synchronously,
+// in its own task, through the helper tcd generates; and runtime.apply,
+// contractOf and supports from JS. A component with no views renders
+// nothing.
+test("pure messages are applied to held components, and break their contract with a code", async () => {
+	const main = "shelf.tcd";
+	const files = {
+		[main]: `package tutuca:shelf@0.1.0;
+interface Item {
+    pure message set_done(done: bool);
+    query label() -> string;
+}
+component Card: Item {
+    field text: string;
+    field done: bool;
+    field archived: bool;
+    pure message set_done(done: bool) when not archived why "it's archived" ensures next.done == done;
+    message archive() changes archived;
+    query label() -> string;
+    view main = p(field(text));
+}
+component Shelf {
+    field items: list<Item>;
+    message mark_all() changes items;
+    view main = div(render_each(field(items)));
+}
+component Tally {
+    field n: s32;
+    pure message add(k: s32) ensures next.n == n + k;
+}
+register Card, Shelf, Tally;
+`,
+	};
+	const wax = `
+fn card_on_set_done(state: &card_state, done: i32) -> &card_state {
+    card_with_done(state, done);
+}
+fn card_on_archive(state: &card_state, ctx: &context) -> &card_state {
+    card_with_archived(state, 1);
+}
+fn card_query_label(state: &card_state) -> js_string {
+    state.text;
+}
+fn shelf_on_mark_all(state: &shelf_state, ctx: &context) -> &shelf_state {
+    let out = list_empty();
+    let i = 0;
+    while i <s list_count(state.items) {
+        out = list_push(out, item_apply_set_done(list_get(state.items, i)!, 1));
+        i += 1;
+    }
+    shelf_with_items(state, out);
+}
+fn tally_on_add(state: &tally_state, k: i32) -> &tally_state {
+    tally_with_n(state, state.n + k);
+}
+`;
+	const res = tcd.build({ main, files, impls: [{ path: "shelf.wax", text: wax }], runtime });
+	assert.deepEqual(res.diags.filter((d) => d.severity === "error"), []);
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	const rt = tw.runtime;
+	const scope = rt.scope();
+	await tw.loadComponent(res.wasm, scope);
+	const card = rt.make(scope, "Card", { text: "a" });
+	const done = rt.apply(card, "set_done", [true]);
+	assert.equal(rt.get(done.ok, "done"), true);
+	assert.equal(rt.get(card, "done"), false, "applied outside a task, the component itself stays");
+	const archived = rt.make(scope, "Card", { text: "b", archived: true });
+	assert.deepEqual(rt.apply(archived, "set_done", [true]).err, {
+		code: "pre",
+		issues: ["pre"],
+		detail: "it's archived",
+		component: "Card",
+		message: "set_done",
+	});
+	assert.equal(rt.apply(card, "archive").err.code, "not-pure");
+	assert.equal(rt.apply(card, "nope").err.code, "unknown");
+	assert.equal(rt.apply(card, "set_done", ["yes"]).err.code, "arg:0");
+	assert.equal(rt.apply(card, "set_done", []).err.code, "args");
+	const contract = rt.contractOf(card);
+	assert.deepEqual(contract.implements, ["Item"]);
+	assert.deepEqual(
+		contract.messages.map((m) => [m.name, m.pure]),
+		[
+			["set_done", true],
+			["archive", false],
+		],
+	);
+	assert.deepEqual(contract.queries.map((q) => q.name), ["label"]);
+	assert.deepEqual(rt.supports(card, "Item"), []);
+	assert.deepEqual(rt.supports(rt.make(scope, "Tally", {}), "Item").length, 1);
+	assert.equal(rt.canApply(card, "set_done"), true);
+	assert.equal(rt.canApply(card, "archive"), false);
+	assert.equal(rt.canQuery(card, "label"), true);
+	// In a task: the shelf applies set_done to each card, in its own task.
+	const { window } = new JSDOM("");
+	const shelfOf = (items) => rt.make(scope, "Shelf", { items });
+	const container = window.document.createElement("div");
+	const host = rt.createHost(window.document, container, shelfOf([card, rt.make(scope, "Card", { text: "c" })]), { dev: true }).mount();
+	host.send("mark_all");
+	assert.deepEqual(
+		rt.get(host.root(), "items").map((c) => rt.get(c, "done")),
+		[true, true],
+	);
+	assert.deepEqual(host.failures, []);
+	assert.deepEqual(host.issues, []);
+	// A broken contract fails the task, saying why.
+	const other = rt.createHost(window.document, window.document.createElement("div"), shelfOf([card, archived])).mount();
+	other.send("mark_all");
+	assert.match(other.failures[0].message, /Card can't apply set_done: pre \(it's archived\)/);
+	assert.deepEqual(
+		rt.get(other.root(), "items").map((c) => rt.get(c, "done")),
+		[false, false],
+		"the failed task changed nothing",
+	);
+	// A component with no views handles messages and renders nothing.
+	const tally = rt.make(scope, "Tally", {});
+	assert.equal(rt.get(rt.apply(tally, "add", [3]).ok, "n"), 3);
+	const quiet = window.document.createElement("div");
+	rt.createHost(window.document, quiet, tally).mount();
+	assert.equal(quiet.textContent, "");
+});
+
 // namespace: makes the element, and what's in it, in that namespace, as
 // tutuca's JS does: an SVG shape outside an svg element.
 test("an element's namespace attribute makes it in that namespace", async () => {

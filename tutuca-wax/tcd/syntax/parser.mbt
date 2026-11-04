@@ -606,7 +606,11 @@ fn Parser::emits(self : Parser) -> Array[Emit] raise ParseFailed {
 }
 
 ///|
-fn Parser::message(self : Parser, doc : String?) -> Message raise ParseFailed {
+fn Parser::message(
+  self : Parser,
+  doc : String?,
+  pure_~ : Bool = false,
+) -> Message raise ParseFailed {
   let start = self.prev_span()
   let name = self.name(what="a message name")
   let params = self.params()
@@ -617,6 +621,7 @@ fn Parser::message(self : Parser, doc : String?) -> Message raise ParseFailed {
   }
   let mut source_key : Param? = None
   let mut when_ : Expr? = None
+  let mut why : String? = None
   let mut changes : Array[Name]? = None
   let mut ensures : Expr? = None
   let mut emits : Array[Emit]? = None
@@ -633,6 +638,14 @@ fn Parser::message(self : Parser, doc : String?) -> Message raise ParseFailed {
       })
     } else if self.eat_word("when") {
       when_ = Some(self.expr())
+      if self.eat_word("why") {
+        let w = self.next()
+        guard w.tok is Str(text) else {
+          self.i -= 1
+          raise self.fail("why the guard doesn't hold, as a string")
+        }
+        why = Some(text)
+      }
     } else if self.eat_word("changes") {
       changes = Some(if self.eat_word("nothing") { [] } else { self.names() })
     } else if self.eat_word("ensures") {
@@ -648,9 +661,11 @@ fn Parser::message(self : Parser, doc : String?) -> Message raise ParseFailed {
     doc,
     name,
     params,
+    pure_,
     swap,
     source_key,
     when_,
+    why,
     changes,
     ensures,
     emits,
@@ -754,13 +769,17 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
   guard t.tok is Ident(word) else {
     self.i -= 1
     raise self.fail(
-      "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide, meta or view",
+      "a member: field, get, query, message, pure message, notify, ask, invariant, init, loop, scope, provide, meta or view",
     )
   }
   match word {
     "field" => Field(self.field(doc, false))
     "get" => Get(self.field(doc, true))
     "message" => Message(self.message(doc))
+    "pure" => {
+      self.expect_word("message")
+      Message(self.message(doc, pure_=true))
+    }
     "notify" => Notify(self.signal(doc, false))
     "ask" => Ask(self.signal(doc, true))
     "query" => Query(self.signal(doc, true))
@@ -807,7 +826,7 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
     _ => {
       self.i -= 1
       raise self.fail(
-        "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide, meta or view",
+        "a member: field, get, query, message, pure message, notify, ask, invariant, init, loop, scope, provide, meta or view",
       )
     }
   }

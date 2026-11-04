@@ -4,7 +4,7 @@ fn todo_item_on_toggle(state: &todo_item_state, ctx: &context) -> &todo_item_sta
     todo_item_with_done(state, !state.done);
 }
 
-fn todo_item_on_set_done(state: &todo_item_state, ctx: &context, done: i32) -> &todo_item_state {
+fn todo_item_on_set_done(state: &todo_item_state, done: i32) -> &todo_item_state {
     todo_item_with_done(state, done);
 }
 

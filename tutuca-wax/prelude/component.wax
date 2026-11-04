@@ -17,7 +17,7 @@
 
 // The version of the interface between the runtime and component modules: a
 // component's tutuca_abi_version must return the runtime's.
-const tutuca_abi_version_current = 14;
+const tutuca_abi_version_current = 15;
 
 // What a handler asks for besides its next state: src/component.wax has the
 // cases, which only the runtime makes and reads.
@@ -153,7 +153,13 @@ rec {
         pre: &?pre_fn,
         post: &?post_fn,
         changes: &?str_array,
-        emits: &?emit_array
+        emits: &?emit_array,
+        // A pure message (tutuca's pure: true) takes no context: it changes
+        // only its own state, so a parent can apply it to a child
+        // synchronously (component_apply) as well as send it.
+        pure: mut i32,
+        // Why pre doesn't hold, in words, when it doesn't (tutuca's why).
+        why: mut js_string_opt
     };
     type message_schema_array = [mut &?message_schema];
     type pre_fn = fn(&eq, &value_array, &context) -> i32;
@@ -170,7 +176,10 @@ rec {
         name: js_string,
         fields: &field_schema_array,
         gets: &field_schema_array,
-        messages: &message_schema_array
+        messages: &message_schema_array,
+        // Its queries, each with the schema of its arguments: an implementing
+        // type has each, taking the same types.
+        queries: mut &message_schema_array
     };
 
     type component_schema = {

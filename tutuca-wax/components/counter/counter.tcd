@@ -22,7 +22,7 @@ component Counter {
     message add(n: s32) changes count ensures next.count == count + n emits nothing;
     /// From the input: the text typed, kept when it isn't a number yet.
     message set(text: string) changes count emits nothing;
-    message reset() changes count ensures next.count == 0 emits nothing;
+    pure message reset() changes count ensures next.count == 0;
     message remove() changes nothing emits notify remove_me;
     message load() changes nothing emits ask load_count;
     message fetch() changes nothing emits ask fetch_count;

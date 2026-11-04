@@ -360,6 +360,35 @@ fn api_component_query(v: &value, name: js_string, args: &value) -> &value {
     component_query(c!, name, list_to_values(args));
 }
 
+// The component v after its pure message name with args (a list value),
+// outside any task: Ok(the new component, v's when nothing changed) with its
+// invariants checked, or Err({ code, issues, detail, component, message }).
+#[export = "component_apply_js"]
+fn api_component_apply(v: &value, name: js_string, args: &value) -> &value {
+    value_try_apply(v, name, list_to_values(args), 1);
+}
+
+// What the component v offers (component_contract), or null.
+#[export = "component_contract"]
+fn api_component_contract(v: &value) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return VALUE_NULL;
+    }
+    component_contract(c!);
+}
+
+// What the component v lacks to implement the interface name, as a list of
+// problems, empty when it implements it.
+#[export = "component_supports"]
+fn api_component_supports(v: &value, name: js_string) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        return list_push(list_empty(), value_string(s_a_not_component));
+    }
+    component_supports(c!, name);
+}
+
 // The interface registered as name, visible from s, as a value, or null.
 #[export = "scope_interface"]
 fn api_scope_interface(s: &scope, name: js_string) -> &value {

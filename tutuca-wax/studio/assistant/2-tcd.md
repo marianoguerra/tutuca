@@ -51,9 +51,13 @@ for a list, string for a map) with the constraint that it's a key of `f`.
   required. `@sync(none)` marks transient state (an open menu, a hover) that a
   saved layout leaves out; `local` and `shared` (the default) are kept.
 - `get name: T [where c];` A computed, read-only property, written in Wax.
-- `message name(arg: T [where c], ...) [-> swap] [source_key: T] [when c]
-  [changes f, g | nothing] [ensures c] [emits ...];` What the component can be
-  sent. `when` is a guard on the state and arguments; `changes` lists the only
+- `[pure] message name(arg: T [where c], ...) [-> swap] [source_key: T] [when c
+  [why "text"]] [changes f, g | nothing] [ensures c] [emits ...];` What the
+  component can be sent. `when` is a guard on the state and arguments, `why`
+  says in words why it doesn't hold; `pure` makes a message whose handler
+  takes no `ctx` (no `source_key`, emits nothing): it changes only this state,
+  so a component holding this one can apply it, in its own handler, with
+  `t_apply_m(child, args...)`, as well as send it; `changes` lists the only
   fields it may change; `ensures` relates `next.field` to the state before;
   `emits` lists what it may do: `notify n`, `ask a`, `send type.message`,
   `make type`, or `nothing`. `-> swap` makes it return another component to
@@ -71,12 +75,18 @@ for a list, string for a map) with the constraint that it's a key of `f`.
   for rendering a list field (each part optional): `filter` decides which
   items render, `enrich` adds binds the body reads with `bind(b)`, `key` gives
   each item's sibling key, `prepare` computes something once for the others.
-- `view name = ...;` A view. `main` is required; others are pushed by name
-  (`layout_edit` is the one studio screens push while editing).
+- `meta "uri" = { key: value, ... };` What the component says about itself to
+  hosts, under a URI: `meta "https://tutuca.dev/meta/display" = { title:
+  "Tasks", icon: "📝", description: "..." };` is how pickers show it.
+- `view name = ...;` A view. A component with views needs `main`; others are
+  pushed by name (`layout_edit` is the one studio screens push while
+  editing). One with no views only handles messages and renders nothing.
 
 ## Package level
 
-`interface`, `component c: iface, ...`, `register a, b as c;` (registers `b`
+`interface` (fields, properties, messages, `pure message`s, queries and
+notifies an implementing component has), `component c: iface, ...`,
+`meta_schema Name "uri" { field ...; }`, `register a, b as c;` (registers `b`
 under the name `c`), `ask_handler name(args) -> T;` (answered in the `.wax` by
 `<package>_answer_name`), `host_ask name;` (answered by the host), `use`, and
 examples the studio's tests run:

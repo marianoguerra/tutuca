@@ -114,9 +114,12 @@ field outside `changes`, an invariant the defaults break: reported.
 **Members**: `field`, `get`, `query name(args) -> T` (a property that
 takes arguments: the runtime checks them against their types and `where`s,
 then runs it; `runtime.query(component, name, args)` gives `{ ok }` or
-`{ err }`), `message name(args) [-> swap] [source_key: T]
-[when c] [changes a, b | nothing] [ensures c] [emits notify x, ask x, send
-type.msg, make type | nothing]`, `notify`, `ask name(args) -> T [emits ...]`
+`{ err }`), `[pure] message name(args) [-> swap] [source_key: T]
+[when c [why "text"]] [changes a, b | nothing] [ensures c] [emits notify x,
+ask x, send type.msg, make type | nothing]` (a `pure` one's handler takes no
+context, so it has no `source_key` and emits nothing, and a holder applies it
+to a child it holds, in its own task, as well as sends it; `why` says in
+words why `when` doesn't hold, which a failed apply reports), `notify`, `ask name(args) -> T [emits ...]`
 (what its reply's handlers may emit),
 `invariant name: c`, `init;`, `loop name { prepare: T; iter; key: T; filter;
 enrich { b: T } ; view: v }`, `scope name { b: T }`, `provide name =
@@ -158,6 +161,7 @@ signatures (`tcd stub` writes them; the build checks them):
 | declared | implement |
 |---|---|
 | `message m(a: A)` | `fn c_on_m(state: &c_state, ctx: &context, a: A') -> &c_state` (the same state: unchanged) |
+| `pure message m(a: A)` | `fn c_on_m(state: &c_state, a: A') -> &c_state`: no context, so it changes only this state; a holder applies it with `<type>_apply_m(child, a)` |
 | `message m() -> swap` | `... -> &c_swap_result`: `c_swap_to(component)` swaps it in, `c_keep(state)` keeps this component with that state (`changes` holds for a keep; `ensures` isn't allowed) |
 | `get g: T` | `fn c_get_g(state: &c_state) -> T'` |
 | `query q(a: A) -> T` | `fn c_query_q(state: &c_state, a: A') -> T'` |
@@ -172,7 +176,10 @@ signatures (`tcd stub` writes them; the build checks them):
 `c_<field>_<member>`), `f64`, `js_string` (an alias of `&extern`) for strings, `&value` for the rest.
 The generated contract gives the implementation the state struct,
 `c_with_<field>(state, v)`, `c_notify_<n>(ctx, ...)`, `c_ask_<n>(ctx, ...)`,
-`<type>_send_<m>(ctx, selector, ...)`, `c_make_<type>(ctx, fields...) ->
+`<type>_send_<m>(ctx, selector, ...)`, `<type>_apply_<m>(c, ...) -> &value`
+for each pure message of the package's interfaces and components (the
+component `c` after it, applied in the caller's task; a broken contract
+fails the task), `c_make_<type>(ctx, fields...) ->
 &component`, for each record a field, property or ask reply holds
 `c_<field>_new(members...)` and a reader per member, `c_<field>_<member>(r)`, and a string constant for every string the `.tcd` uses. A name
 the package declares (its types, the names they register as, each

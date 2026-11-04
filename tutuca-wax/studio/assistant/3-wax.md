@@ -12,6 +12,7 @@ For a component `C`, with `c` its name in snake_case (`CheckItem` is `check_item
 | the .tcd declares | the .wax implements |
 |---|---|
 | `message m(a: A)` | `fn c_on_m(state: &c_state, ctx: &context, a: A') -> &c_state` (return `state` itself for no change) |
+| `pure message m(a: A)` | `fn c_on_m(state: &c_state, a: A') -> &c_state`: no `ctx` |
 | `message m() -> swap` | `fn c_on_m(state: &c_state, ctx: &context) -> &c_swap_result`: `c_swap_to(component)` or `c_keep(state)` |
 | `get g: T` | `fn c_get_g(state: &c_state) -> T'` |
 | `ask a(...) -> T` | `fn c_reply_a_ok(state: &c_state, ctx: &context, reply: T') -> &c_state` (optional: without it the answer changes nothing); optional `c_reply_a_error(state, ctx, error: &value)` and `c_reply_a_unhandled(state, ctx)`; each reads the ask's id as `ctx.request` |
@@ -49,6 +50,11 @@ Generated for you to use (in the contract):
 - `t_send_m(ctx, selector, args...)` for each `emits send t.m`; a selector is
   `selector_item(gs_items, path_key_index(i))` (the item at i of the field
   items) or `selector_field(gs_child)`.
+- `t_apply_m(c: &value, args...) -> &value` for each pure message `m` of an
+  interface or component `t` of the package: the component `c` (a child this
+  handler's state holds) after `m`, in this task; put it back in place of
+  `c`. A broken contract (its `when` doesn't hold, its args don't fit) fails
+  the task; `component_try_apply(c, name, args)` gives a result instead.
 - `c_swap_to(component)` and `c_keep(state)` for a swap message.
 - A string constant for every name and string the `.tcd` uses. A name it
   declares is `gs_` and the name as written: `gs_done` is the field "done",

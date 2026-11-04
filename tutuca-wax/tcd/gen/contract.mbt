@@ -43,9 +43,51 @@ fn Gen::make_fields(self : Gen, name : String) -> Array[@check.FieldM] {
 }
 
 ///|
+/// The typed helpers that apply a pure message to a component a handler
+/// holds: <type>_apply_<message>(c, args) -> the component after it (the
+/// task fails when it breaks the message's contract), one for each pure
+/// message of the package's interfaces and components.
+fn Gen::apply_helpers(self : Gen) -> String {
+  let out = Out::new()
+  let made : Array[String] = []
+  let helper = (t : String, m : @check.MessageM) => {
+    let fname = "\{@check.wax_part(t)}_apply_\{@check.wax_part(m.name)}"
+    if made.contains(fname) {
+      return
+    }
+    made.push(fname)
+    let (lines, args) = self.args_array(m.params)
+    out.line(
+      "// apply \{t}'s pure message \{m.name} to c: the component after it.",
+    )
+    out.line("fn \{fname}(c: &value\{param_list(m.params)}) -> &value {")
+    lines.each(l => out.line(l))
+    out.line("    component_apply(c, \{self.s(m.name)}, \{args});")
+    out.line("}")
+    out.line("")
+  }
+  for i in self.pkg.interfaces {
+    for m in i.messages {
+      if m.pure_ {
+        helper(i.name, m)
+      }
+    }
+  }
+  for c in self.pkg.components {
+    for m in c.messages {
+      if m.pure_ {
+        helper(c.name, m)
+      }
+    }
+  }
+  out.to_string()
+}
+
+///|
 pub fn Gen::contract(self : Gen) -> String {
   let out = Out::new()
   let sends : Array[String] = []
+  out.write(self.apply_helpers())
   for c in self.pkg.components {
     let cw = @check.wax_part(c.name)
     out.line(

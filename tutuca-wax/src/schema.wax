@@ -156,7 +156,20 @@ fn message_schema_new(
     changes: &?str_array,
     emits: &?emit_array,
 ) -> &message_schema {
-    {message_schema| name, args, source_key, pre, post, changes, emits };
+    {message_schema| name, args, source_key, pre, post, changes, emits, pure: 0, why: null };
+}
+
+// Marks ms pure: its handler takes no context, and component_apply runs it.
+// Both setters give ms back, so a schema is built in one expression.
+fn message_schema_set_pure(ms: &message_schema) -> &message_schema {
+    ms.pure = 1;
+    ms;
+}
+
+// Why ms's pre doesn't hold, in words, for when it doesn't.
+fn message_schema_set_why(ms: &message_schema, why: js_string) -> &message_schema {
+    ms.why = why;
+    ms;
 }
 
 fn message_schema_array_new(n: i32) -> &message_schema_array {
@@ -185,7 +198,11 @@ fn interface_schema_new(
     gets: &field_schema_array,
     messages: &message_schema_array,
 ) -> &interface_schema {
-    {interface_schema| name, fields, gets, messages };
+    {interface_schema| name, fields, gets, messages, queries: [message_schema_array|null; 0] };
+}
+
+fn interface_schema_set_queries(iface: &interface_schema, queries: &message_schema_array) {
+    iface.queries = queries;
 }
 
 fn component_schema_new(
@@ -995,8 +1012,9 @@ fn missing_problem(what: js_string, name: js_string) -> js_string {
 }
 
 // Why spec doesn't implement iface, or null when it does: it declares it,
-// and has each of its fields and properties (as a field or a property), and
-// each of its messages, of the same types.
+// and has each of its fields and properties (as a field or a property), each
+// of its messages (a pure one pure) and each of its queries, of the same
+// types.
 fn interface_problem(spec: &component_spec, iface: &interface_schema) -> js_string_opt {
     if !spec.schema {
         return s_i_no_schema;
@@ -1030,38 +1048,62 @@ fn interface_problem(spec: &component_spec, iface: &interface_schema) -> js_stri
         let m = iface.messages[i]!;
         let found = message_schema_named(schema.messages, m.name);
         if !found {
-            return missing_problem(s_i_message, m.name);
+            return missing_problem(m.pure?s_i_pure_message:s_i_message, m.name);
         }
-        let args = (found!).args;
-        if args.length() != m.args.length() {
-            let b = text_builder_new();
-            text_push(b, s_i_its);
-            text_push(b, s_i_message);
-            text_push(b, m.name);
-            text_push(b, s_i_takes);
-            text_push_int(b, args.length());
-            text_push(b, s_i_arguments);
-            text_push(b, iface.name);
-            text_push(b, s_i_s_takes);
-            text_push_int(b, m.args.length());
-            return text_finish(b);
+        if m.pure & !(found!).pure {
+            return js_string_concat(js_string_concat(s_i_its_message, m.name), s_i_isnt_pure);
         }
-        let j = 0;
-        while j <s args.length() {
-            if !vtype_equal((args[j]!).vtype, (m.args[j]!).vtype) {
-                let what = js_string_concat(js_string_concat(m.name, s_i_argument), int_text(j));
-                return
-                    mismatch_problem(
-                        s_i_message,
-                        what,
-                        (args[j]!).vtype,
-                        iface,
-                        (m.args[j]!).vtype,
-                    );
-            }
-            j += 1;
+        let problem = signature_problem(s_i_message, found!, m, iface);
+        if !!problem {
+            return problem;
         }
         i += 1;
+    }
+    i = 0;
+    while i <s iface.queries.length() {
+        let q = iface.queries[i]!;
+        let found = message_schema_named(schema.queries, q.name);
+        if !found {
+            return missing_problem(s_i_query, q.name);
+        }
+        let problem = signature_problem(s_i_query, found!, q, iface);
+        if !!problem {
+            return problem;
+        }
+        i += 1;
+    }
+    null;
+}
+
+// Why have, a message or a query (what) of a type, doesn't take the
+// arguments want, iface's, does, or null when it takes the same types.
+fn signature_problem(
+    what: js_string,
+    have: &message_schema,
+    want: &message_schema,
+    iface: &interface_schema,
+) -> js_string_opt {
+    let args = have.args;
+    if args.length() != want.args.length() {
+        let b = text_builder_new();
+        text_push(b, s_i_its);
+        text_push(b, what);
+        text_push(b, want.name);
+        text_push(b, s_i_takes);
+        text_push_int(b, args.length());
+        text_push(b, s_i_arguments);
+        text_push(b, iface.name);
+        text_push(b, s_i_s_takes);
+        text_push_int(b, want.args.length());
+        return text_finish(b);
+    }
+    let j = 0;
+    while j <s args.length() {
+        if !vtype_equal((args[j]!).vtype, (want.args[j]!).vtype) {
+            let arg = js_string_concat(js_string_concat(want.name, s_i_argument), int_text(j));
+            return mismatch_problem(what, arg, (args[j]!).vtype, iface, (want.args[j]!).vtype);
+        }
+        j += 1;
     }
     null;
 }

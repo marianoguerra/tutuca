@@ -89,14 +89,16 @@ fn todo_list_on_add_todo(state: &todo_list_state, ctx: &context) -> &todo_list_s
     {todo_list_state| items, draft: gs_empty, next_id: state.next_id + 1 };
 }
 
-// Each item changes itself: the list only addresses them.
+// Each item changes itself: the list applies their pure set_done, in this
+// task, and keeps what they become.
 fn todo_list_on_complete_all(state: &todo_list_state, ctx: &context) -> &todo_list_state {
+    let items = list_empty();
     let i = 0;
     while i <s list_count(state.items) {
-        todo_item_send_set_done(ctx, selector_item(gs_items, path_key_index(i)), 1);
+        items = list_push(items, todo_item_apply_set_done(list_get(state.items, i)!, 1));
         i += 1;
     }
-    state;
+    todo_list_with_items(state, items);
 }
 
 fn todo_list_on_clear_done(state: &todo_list_state, ctx: &context) -> &todo_list_state {

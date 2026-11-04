@@ -42,7 +42,14 @@ fn Gen::message_schema(
     None => "null"
   }
   let emits = self.emit_array(b, m.emits)
-  "message_schema_new(\{self.s(m.name)}, \{args}, \{key}, \{pre}, \{post}, \{changes}, \{emits})"
+  let mut ms = "message_schema_new(\{self.s(m.name)}, \{args}, \{key}, \{pre}, \{post}, \{changes}, \{emits})"
+  if m.pure_ {
+    ms = "message_schema_set_pure(\{ms})"
+  }
+  if m.why is Some(why) {
+    ms = "message_schema_set_why(\{ms}, \{self.s(why)})"
+  }
+  ms
 }
 
 ///|
@@ -529,7 +536,9 @@ fn Gen::handle_fn(self : Gen, c : @check.ComponentM) -> String {
     let args = msg.params
       .mapi((i, p) => ", \{self.decode(p.ty, "m.args[\{i}]!")}")
       .join("")
-    let call = "\{cw}_on_\{@check.wax_part(msg.name)}(state, ctx\{args})"
+    // A pure handler takes no context.
+    let ctx = if msg.pure_ { "" } else { ", ctx" }
+    let call = "\{cw}_on_\{@check.wax_part(msg.name)}(state\{ctx}\{args})"
     out.line("    if str_eq(m.name, \{self.s(msg.name)}) {")
     if msg.swap {
       out.line("        let r = \{call};")
@@ -682,11 +691,28 @@ fn Gen::interface_fn(self : Gen, i : @check.InterfaceM) -> String {
   )
   let out = Out::new()
   out.write(doc_lines(i.doc))
+  let queries = if i.queries.is_empty() {
+    None
+  } else {
+    Some(
+      b.array(
+        "message_schema_array",
+        i.queries.map(q => {
+          let args = self.field_schemas(b, q.params, iw)
+          "message_schema_new(\{self.s(q.name)}, \{args}, null, null, null, null, null)"
+        }),
+      ),
+    )
+  }
   out.line("fn \{iw}_interface() -> &interface_schema {")
   out.line(b.render("    "))
   out.line(
-    "    interface_schema_new(\{self.s(i.name)}, \{fields}, \{gets}, \{messages});",
+    "    let iface = interface_schema_new(\{self.s(i.name)}, \{fields}, \{gets}, \{messages});",
   )
+  if queries is Some(qs) {
+    out.line("    interface_schema_set_queries(iface, \{qs});")
+  }
+  out.line("    iface;")
   out.line("}")
   out.line("")
   out.to_string()

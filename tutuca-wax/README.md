@@ -782,6 +782,30 @@ tutuca's JS has them: `Display` (`DISPLAY_META`, `title`, `icon`,
 it can become by their display meta, and the studio and the demos register
 `meta` first.
 
+**Pure messages** (tutuca's `pure: true`, `apply`, `contractOf` and
+`supports`): a message whose schema is marked pure
+(`message_schema_set_pure`; tcd's `pure message`) has a handler that takes
+no context, so it can only change its own state, and a handler holding the
+component can apply it there and then: `component_apply(c, name, args)` (or
+tcd's typed `<type>_apply_<m>`) checks the arguments, the guard (failing
+with its `why`, `message_schema_set_why`), runs the handler and checks
+`ensures`, and gives the component it becomes, which the holder keeps in its
+next state, all in its task; a broken contract fails the task ("Card can't
+apply set_done: pre (it's archived)"), and `component_try_apply` gives an
+error result instead: `{ code, issues, detail }`, the codes tutuca's
+ContractError has (`unknown`, `not-pure`, `args`, `arg:<i>`, `pre`,
+`failed`, `post`, `invariant:<name>`). A pure message is sent like any
+other too. From JS, `runtime.apply(component, name, args)` applies one
+outside any task, checking invariants too, and `runtime.contractOf`,
+`runtime.supports`, `runtime.canApply` and `runtime.canQuery` say what a
+component offers. Interfaces declare pure messages and queries as well:
+an implementing type's must be pure, and take the same types. TodoList's
+complete_all and Kanban's moves apply their items' and lanes' pure messages.
+
+**Components without views** only handle messages: a spec with no views
+renders nothing (an empty main), as in tutuca's JS, and tcd takes a
+component with no `view`s.
+
 **Headless hosts**: `host_new` with a null document and container, or
 `createHost(null, null, root)`, runs tasks and renders nothing, for tests
 and tools.
@@ -848,7 +872,11 @@ mean different things, on purpose or for now:
   runtime), and doesn't check inside a component without a schema.
 - An error a host ask throws or rejects with is replied as its message: a
   value can't hold a JS object.
-- What only this has: interfaces, a message's `changes`, an init hook with an
+- A handler can't write another component's fields: a component keeps its
+  identity only through the runtime (its own handlers, and applying its pure
+  messages), so there's nothing for tutuca's dev-mode foreign-write check to
+  report.
+- What only this has: a message's `changes`, an init hook with an
   init context, typed computed properties, results as values, `ctx_make`,
   `ctx_try_make` and `ctx_component_names`, event modifiers
   (`on_keydown+enter`), `event(name)` send arguments, and `ctx.event` as a

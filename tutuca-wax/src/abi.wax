@@ -588,6 +588,20 @@ fn abi_ctx_component_names(ctx: &context, walk: i32) -> &value {
     ctx_component_names(ctx, walk);
 }
 
+// A pure message applied to a component a handler holds (tutuca's apply):
+// the component it is after it, or the task fails saying what broke.
+#[export = "component_apply"]
+fn abi_component_apply(c: &value, name: js_string, args: &value_array) -> &value {
+    component_apply(c, name, args);
+}
+
+// The same as a result: Ok(the component after it), or Err({ code, issues,
+// detail, component, message }) for the handler to show or work around.
+#[export = "component_try_apply"]
+fn abi_component_try_apply(c: &value, name: js_string, args: &value_array) -> &value {
+    value_try_apply(c, name, args, 0);
+}
+
 #[export = "ctx_meta_of"]
 fn abi_ctx_meta_of(ctx: &context, name: js_string, uri: js_string) -> &value {
     ctx_meta_of(ctx, name, uri);
@@ -1044,6 +1058,21 @@ fn abi_spec_set_schema(spec: &component_spec, schema: &component_schema) {
 #[export = "scope_register_interface"]
 fn abi_scope_register_interface(s: &scope, iface: &interface_schema) {
     scope_register_interface(s, iface);
+}
+
+#[export = "message_schema_set_pure"]
+fn abi_message_schema_set_pure(ms: &message_schema) -> &message_schema {
+    message_schema_set_pure(ms);
+}
+
+#[export = "message_schema_set_why"]
+fn abi_message_schema_set_why(ms: &message_schema, why: js_string) -> &message_schema {
+    message_schema_set_why(ms, why);
+}
+
+#[export = "interface_schema_set_queries"]
+fn abi_interface_schema_set_queries(iface: &interface_schema, queries: &message_schema_array) {
+    interface_schema_set_queries(iface, queries);
 }
 
 #[export = "meta_schema_new"]

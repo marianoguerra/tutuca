@@ -139,6 +139,7 @@ pub(all) struct InterfaceM {
   gets : Array[FieldM]
   messages : Array[MessageM]
   notifies : Array[SignalM]
+  queries : Array[SignalM]
   declared_here : Bool
   doc : String?
   span : @diag.Span
@@ -165,9 +166,11 @@ pub(all) struct LoopM {
 pub(all) struct MessageM {
   name : String
   params : Array[FieldM]
+  pure_ : Bool
   swap : Bool
   source_key : FieldM?
   when_ : @syntax.Expr?
+  why : String?
   changes : Array[String]?
   ensures : @syntax.Expr?
   emits : Array[EmitM]?

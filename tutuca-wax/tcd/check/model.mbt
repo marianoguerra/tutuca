@@ -125,9 +125,13 @@ pub(all) struct EmitM {
 pub(all) struct MessageM {
   name : String
   params : Array[FieldM]
+  /// Its handler takes no context: a parent can apply it to a child.
+  pure_ : Bool
   swap : Bool
   source_key : FieldM?
   when_ : @syntax.Expr?
+  /// Why when doesn't hold, in words.
+  why : String?
   changes : Array[String]?
   ensures : @syntax.Expr?
   emits : Array[EmitM]?
@@ -270,6 +274,8 @@ pub(all) struct InterfaceM {
   gets : Array[FieldM]
   messages : Array[MessageM]
   notifies : Array[SignalM]
+  /// The queries an implementing type answers: params and result.
+  queries : Array[SignalM]
   /// Declared in this package (registered with it), or used from another.
   declared_here : Bool
   doc : String?

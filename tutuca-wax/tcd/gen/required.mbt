@@ -61,8 +61,14 @@ pub fn required_of(
     if m.ensures is Some(e) {
       notes.push("ensures \{@check.expr_text(e)}")
     }
-    let params = [st, ctx]
+    // A pure handler takes no context: it can only change its own state.
+    let params = if m.pure_ { [st] } else { [st, ctx] }
     params.append(typed_params(m.params))
+    if m.pure_ {
+      notes.push(
+        "pure: applied without a context, so it only changes this state",
+      )
+    }
     out.push({
       name: "\{cw}_on_\{@check.wax_part(m.name)}",
       params,

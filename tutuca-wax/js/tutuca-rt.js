@@ -1027,6 +1027,23 @@ function makeRuntime(w, api, late) {
 		messageProblem: (component, name, args = []) => values.to(w.component_message_problem(component, name, values.from(args))),
 		// Runs component's query name with args: { ok: value } or { err: why }.
 		query: (component, name, args = []) => values.to(w.component_query(component, name, values.from(args))),
+		// Applies component's pure message name with args outside any task
+		// (tutuca's apply): { ok: the component after it } (the same one
+		// when nothing changed), its invariants checked, or { err: { code,
+		// issues, detail, component, message } }, code one of unknown,
+		// not-pure, args, arg:<i>, pre (detail: its why), failed, post,
+		// invariant:<name>.
+		apply: (component, name, args = []) => values.to(w.component_apply_js(component, name, values.from(args))),
+		// What component offers (tutuca's contractOf): { name, implements,
+		// messages: [{ name, pure, args }], queries: [{ name, args }] }, or
+		// null for a type without a schema.
+		contractOf: (component) => values.to(w.component_contract(component)),
+		// What component lacks to implement the interface registered as name
+		// in its scope: a list of problems, empty when it implements it.
+		supports: (component, name) => values.to(w.component_supports(component, name)),
+		// Whether component has the pure message name, or the query name.
+		canApply: (component, name) => values.to(w.component_contract(component))?.messages.some((m) => m.name === name && m.pure) ?? false,
+		canQuery: (component, name) => values.to(w.component_contract(component))?.queries.some((q) => q.name === name) ?? false,
 		// The interface registered as name, visible from scope, or null.
 		interface: (scope, name) => values.to(w.scope_interface(scope, name)),
 		// A component's property, as a JS value.

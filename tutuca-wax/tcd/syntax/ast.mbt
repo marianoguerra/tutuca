@@ -148,9 +148,14 @@ pub(all) struct Message {
   doc : String?
   name : Name
   params : Array[Param]
+  /// `pure message`: its handler takes no context, so a parent can apply it
+  /// to a child synchronously.
+  pure_ : Bool
   swap : Bool
   source_key : Param?
   when_ : Expr?
+  /// `when c why "text"`: why the guard doesn't hold, in words.
+  why : String?
   changes : Array[Name]?
   ensures : Expr?
   emits : Array[Emit]?

@@ -250,6 +250,14 @@ import "'" {
     const s_i_field: js_string;
     #[import = "message "]
     const s_i_message: js_string;
+    #[import = "pure message "]
+    const s_i_pure_message: js_string;
+    #[import = "query "]
+    const s_i_query: js_string;
+    #[import = "its message "]
+    const s_i_its_message: js_string;
+    #[import = " isn't pure"]
+    const s_i_isnt_pure: js_string;
     #[import = " takes "]
     const s_i_takes: js_string;
     #[import = " arguments, "]
@@ -260,6 +268,31 @@ import "'" {
     const s_i_argument: js_string;
     #[import = " can't be a "]
     const s_i_cant_be: js_string;
+    // Contracts (check.wax): applying pure messages, contractOf, supports.
+    #[import = "code"]
+    const s_code: js_string;
+    #[import = "pure"]
+    const s_pure: js_string;
+    #[import = "implements"]
+    const s_implements: js_string;
+    #[import = "unknown"]
+    const s_a_unknown: js_string;
+    #[import = "not-pure"]
+    const s_a_not_pure: js_string;
+    #[import = "arg:"]
+    const s_a_arg: js_string;
+    #[import = "failed"]
+    const s_a_failed: js_string;
+    #[import = "invariant:"]
+    const s_a_invariant: js_string;
+    #[import = "not-component"]
+    const s_a_not_component: js_string;
+    #[import = " can't apply "]
+    const s_a_cant_apply: js_string;
+    #[import = "no interface here named "]
+    const s_a_no_interface: js_string;
+    #[import = "Not a component, to apply "]
+    const s_err_apply_not_component: js_string;
     // Meta (schema.wax).
     #[import = "'s meta "]
     const s_m_s_meta: js_string;

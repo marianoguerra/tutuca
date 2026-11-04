@@ -462,6 +462,221 @@ fn component_query(c: &component, name: js_string, args: &value_array) -> &value
     value_ok(got!);
 }
 
+// ---- Contracts: applying pure messages ------------------------------------------------
+
+// A context for what runs outside a host's task: a message's pre and post
+// conditions, and a pure handler (which never reads it).
+fn detached_ctx(c: &component) -> &context {
+    {context|
+        scope: c.scope,
+        path: {dispatch_path| frames: [frame_array|null; 0] },
+        source_key: null,
+        event: VALUE_NULL,
+        drag: VALUE_NULL,
+        effects: effect_buf_new(),
+        request: 0,
+    };
+}
+
+// An error result of applying name to c (tutuca's ContractError): { code,
+// issues, detail, component, message }, code the first of issues.
+fn apply_error(c: &component, name: js_string, issues: &value, detail: js_string) -> &value {
+    let m = map_assoc(map_empty(), s_code, list_get(issues, 0)!);
+    m = map_assoc(m, s_issues, issues);
+    m = map_assoc(m, s_detail, value_string(detail));
+    m = map_assoc(m, s_component, value_string(c.spec.name));
+    value_err(map_assoc(m, s_message, value_string(name)));
+}
+
+fn apply_fail(c: &component, name: js_string, code: js_string, detail: js_string) -> &value {
+    apply_error(c, name, list_push(list_empty(), value_string(code)), detail);
+}
+
+// c after its pure message name(args) (tutuca's apply): an ok result with the
+// component it is now (c itself when nothing changed, another one when the
+// handler swapped it), or an error result saying what broke: "unknown" (no
+// such message, or c has no schema to say it's pure), "not-pure", "args",
+// "arg:<i>", "pre" (detail: its why), "failed" (the handler rejected it),
+// "post", and with invariants, "invariant:<name>". In a handler, applying to
+// a child it holds joins its task, whose dev checks see the invariants.
+fn component_try_apply(
+    c: &component,
+    name: js_string,
+    args: &value_array,
+    invariants: i32,
+) -> &value {
+    let found = spec_message_schema(c.spec, name);
+    if !found {
+        return apply_fail(c, name, s_a_unknown, s_empty);
+    }
+    let ms = found!;
+    if !ms.pure {
+        return apply_fail(c, name, s_a_not_pure, s_empty);
+    }
+    if args.length() != ms.args.length() {
+        return apply_fail(c, name, s_args, arity_problem(ms.args.length(), args.length()));
+    }
+    let coerced = [value_array|null; args.length()];
+    let i = 0;
+    while i <s args.length() {
+        let f = ms.args[i]!;
+        let problem = field_problem(f, vtype_coerce(f.vtype, args[i]!), c);
+        if !!problem {
+            return
+                apply_fail(
+                    c,
+                    name,
+                    js_string_concat(s_a_arg, int_text(i)),
+                    arg_problem(i, f.name, problem!),
+                );
+        }
+        coerced[i] = vtype_coerce(f.vtype, args[i]!);
+        i += 1;
+    }
+    let ctx = detached_ctx(c);
+    if !!ms.pre {
+        if !(ms.pre!)(c.instance, coerced, ctx) {
+            let why = s_empty;
+            if !!ms.why {
+                why = ms.why!;
+            }
+            return apply_fail(c, name, s_pre, why);
+        }
+    }
+    let result = c.vtable.handle(c.instance, {message| name, args: coerced }, ctx);
+    let next = c;
+    if result.kind == message_result_kind_updated {
+        next = component_updated(c, (result as &message_result_updated).instance);
+    }
+    if result.kind == message_result_kind_swapped {
+        next = (result as &message_result_swapped).component;
+    }
+    if result.kind == message_result_kind_rejected {
+        let error = (result as &message_result_rejected).error;
+        if error.kind == message_error_kind_unknown_message {
+            return apply_fail(c, name, s_a_unknown, s_empty);
+        }
+        let detail = s_empty;
+        if error.kind == message_error_kind_failed {
+            detail = reason_text((error as &message_error_failed).reason);
+        }
+        return apply_fail(c, name, s_a_failed, detail);
+    }
+    if !!ms.post & (next.spec == c.spec) {
+        if !(ms.post!)(c.instance, next.instance, coerced, ctx) {
+            return apply_fail(c, name, s_post, s_empty);
+        }
+    }
+    if invariants & (next != c) & !!next.spec.schema {
+        let issues = list_empty();
+        let invs = (next.spec.schema!).invariants;
+        i = 0;
+        while i <s invs.length() {
+            let inv = invs[i]!;
+            if !inv.holds(next.instance) {
+                issues = list_push(issues, value_string(js_string_concat(
+                                                             s_a_invariant,
+                                                             inv.name,
+                                                         )));
+            }
+            i += 1;
+        }
+        if list_count(issues) != 0 {
+            return apply_error(c, name, issues, s_empty);
+        }
+    }
+    value_ok(value_component(next));
+}
+
+// What a handler's component_apply gives: the component v holds after its
+// pure message name(args), or the task fails saying what broke ("TodoItem
+// can't apply set_done: pre (it's archived)").
+fn component_apply(v: &value, name: js_string, args: &value_array) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        host_fail(js_string_concat(s_err_apply_not_component, name));
+        unreachable;
+    }
+    let result = component_try_apply(c!, name, args, 0) as &value_result;
+    if result.ok {
+        return result.value;
+    }
+    let b = text_builder_new();
+    text_push(b, (c!).spec.name);
+    text_push(b, s_a_cant_apply);
+    text_push(b, name);
+    text_push(b, s_colon_space);
+    text_push(b, value_string_of(map_get(result.value, s_code)!)!);
+    let detail = value_string_of(map_get(result.value, s_detail)!)!;
+    if !str_eq(detail, s_empty) {
+        text_push(b, s_r_paren_open);
+        text_push(b, detail);
+        text_push_unit(b, ')');
+    }
+    host_fail(text_finish(b));
+    unreachable;
+}
+
+// component_try_apply for a value: an error result for one that isn't a
+// component.
+fn value_try_apply(v: &value, name: js_string, args: &value_array, invariants: i32) -> &value {
+    let c = value_as_component(v);
+    if !c {
+        let m = map_assoc(map_empty(), s_code, value_string(s_a_not_component));
+        m = map_assoc(m, s_issues, list_push(list_empty(), value_string(s_a_not_component)));
+        m = map_assoc(m, s_detail, value_string(s_empty));
+        return value_err(map_assoc(m, s_message, value_string(name)));
+    }
+    component_try_apply(c!, name, args, invariants);
+}
+
+// What c offers (tutuca's contractOf): { name, implements, messages: [{
+// name, pure, args }], queries: [{ name, args }] }, args as field schemas;
+// null for a type without a schema.
+fn component_contract(c: &component) -> &value {
+    if !c.spec.schema {
+        return VALUE_NULL;
+    }
+    let schema = c.spec.schema!;
+    let messages = list_empty();
+    let i = 0;
+    while i <s schema.messages.length() {
+        let ms = schema.messages[i]!;
+        if !has_dot(ms.name) {
+            let m = map_assoc(map_empty(), s_name, value_string(ms.name));
+            m = map_assoc(m, s_pure, value_bool(ms.pure));
+            messages = list_push(messages, map_assoc(m, s_args, field_schemas_value(ms.args)));
+        }
+        i += 1;
+    }
+    let queries = list_empty();
+    i = 0;
+    while i <s schema.queries.length() {
+        let qs = schema.queries[i]!;
+        let q = map_assoc(map_empty(), s_name, value_string(qs.name));
+        queries = list_push(queries, map_assoc(q, s_args, field_schemas_value(qs.args)));
+        i += 1;
+    }
+    let m = map_assoc(map_empty(), s_name, value_string(c.spec.name));
+    m = map_assoc(m, s_implements, strs_value(schema.interfaces));
+    m = map_assoc(m, s_messages, messages);
+    map_assoc(m, s_queries, queries);
+}
+
+// What c lacks to implement the interface registered as name in its scope,
+// as a list of problems (tutuca's supports): empty when it implements it.
+fn component_supports(c: &component, name: js_string) -> &value {
+    let iface = scope_lookup_interface(c.scope, name);
+    if !iface {
+        return list_push(list_empty(), value_string(js_string_concat(s_a_no_interface, name)));
+    }
+    let problem = interface_problem(c.spec, iface!);
+    if !problem {
+        return list_empty();
+    }
+    list_push(list_empty(), value_string(problem!));
+}
+
 fn message_problem(c: &component, name: js_string, args: &value_array) -> js_string_opt {
     let ms = spec_message_schema(c.spec, name);
     if !ms {

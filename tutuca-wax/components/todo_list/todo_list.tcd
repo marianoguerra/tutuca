@@ -11,7 +11,8 @@ interface TodoItem {
     field id: s32;
     field text: string;
     field done: bool;
-    message set_done(done: bool);
+    /// Pure: the list applies it to the items it holds.
+    pure message set_done(done: bool);
     /// To the list, asking to be removed.
     notify remove_me();
 }
@@ -29,7 +30,7 @@ component TodoList {
 
     message set_draft(text: string) changes draft ensures next.draft == text;
     message add_todo() changes items, draft, next_id emits make TodoItem;
-    message complete_all() changes nothing emits send TodoItem.set_done;
+    message complete_all() changes items;
     message clear_done() changes items;
     /// The item dragged from from, dropped on the one at to, takes its place;
     /// something dragged from elsewhere has no key.

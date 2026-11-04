@@ -21,7 +21,7 @@ fn todo_card_on_star(state: &todo_card_state, ctx: &context) -> &todo_card_state
     todo_card_with_starred(state, !state.starred);
 }
 
-fn todo_card_on_set_done(state: &todo_card_state, ctx: &context, done: i32) -> &todo_card_state {
+fn todo_card_on_set_done(state: &todo_card_state, done: i32) -> &todo_card_state {
     todo_card_with_done(state, done);
 }
 

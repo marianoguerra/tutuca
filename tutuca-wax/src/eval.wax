@@ -7,17 +7,25 @@
 
 // A component type's spec: its views (one of them "main"), the templates and
 // event names collected from them, the hooks they name and what it provides.
+// A type with no views at all only handles messages: its main view renders
+// nothing.
 fn spec_new(
     name: js_string,
-    view_names: &str_array,
-    views: &view_array,
+    names_given: &str_array,
+    views_given: &view_array,
     loops: &loop_def_array,
     scopes: &scope_def_array,
     provide_names: &str_array,
     provide_selectors: &selector_array,
 ) -> &component_spec {
-    if view_names.length() != views.length() {
+    if names_given.length() != views_given.length() {
         host_fail(js_string_concat(s_err_view_names, name));
+    }
+    let view_names = names_given;
+    let views = views_given;
+    if views.length() == 0 {
+        view_names = [str_array|s_main; 1];
+        views = [view_array|view_frag([view_array|null; 0]); 1];
     }
     let spec =
         {component_spec|

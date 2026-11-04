@@ -26,7 +26,7 @@ fn counter_on_set(state: &counter_state, ctx: &context, text: js_string) -> &cou
     counter_with_count(state, n);
 }
 
-fn counter_on_reset(state: &counter_state, ctx: &context) -> &counter_state {
+fn counter_on_reset(state: &counter_state) -> &counter_state {
     counter_with_count(state, 0);
 }
 

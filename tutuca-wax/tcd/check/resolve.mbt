@@ -537,6 +537,21 @@ fn Resolver::message(
       Some(names.map(n => n.text))
     }
   }
+  if m.pure_ && m.source_key is Some(k) {
+    self.error(
+      "tcd.pure.source_key",
+      k.name.span,
+      "\{m.name.text} is pure, so it's applied without a context, where no child key arrives",
+    )
+  }
+  if m.pure_ && m.emits is Some(es) && !es.is_empty() {
+    self.error(
+      "tcd.pure.emits",
+      m.name.span,
+      "\{m.name.text} is pure: it changes its own state and emits nothing",
+      hint="emits nothing, or make it a message",
+    )
+  }
   if m.swap && m.ensures is Some(_) {
     self.error(
       "tcd.message.swap",
@@ -547,9 +562,11 @@ fn Resolver::message(
   {
     name: m.name.text,
     params: self.params(m.params, fields),
+    pure_: m.pure_,
     swap: m.swap,
     source_key: m.source_key.map(p => self.param(p, fields)),
     when_: m.when_,
+    why: m.why,
     changes,
     ensures: m.ensures,
     emits: None,
@@ -645,17 +662,19 @@ fn Resolver::interface_decl(
   let gets = []
   let messages = []
   let notifies = []
+  let queries = []
   for m in d.members {
     match m {
       Field(f) => fields.push(self.field(f, ftys, false))
       Get(f) => gets.push(self.field(f, ftys, true))
       Message(msg) => messages.push(self.message(msg, ftys))
       Notify(s) => notifies.push(self.signal(s, ftys))
+      Query(s) => queries.push(self.signal(s, ftys))
       other =>
         self.error(
           "tcd.interface.member",
           member_span(other),
-          "an interface declares fields, properties, messages and notifies; the rest belongs to the components implementing it",
+          "an interface declares fields, properties, messages (pure or not), queries and notifies; the rest belongs to the components implementing it",
         )
     }
   }
@@ -665,6 +684,7 @@ fn Resolver::interface_decl(
     gets,
     messages,
     notifies,
+    queries,
     declared_here: here,
     doc: d.doc,
     span: d.span,
@@ -874,11 +894,13 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
       }
     }
   }
-  if !views.iter().any(v => v.name == "main") {
+  // A component with no views only handles messages and renders nothing; one
+  // with views renders main where none is asked for.
+  if !views.is_empty() && !views.iter().any(v => v.name == "main") {
     self.error(
       "tcd.view.main",
       d.name.span,
-      "\{d.name.text} has no main view: every component renders one",
+      "\{d.name.text} has views but no main one, which renders it where no view is asked for",
       hint="add view main = ...;",
     )
   }
@@ -1432,7 +1454,19 @@ fn Resolver::implements(
             "\{c.name} implements \{iface.name}, but has no message \{m.name}",
           )
         Some(have) =>
-          if have.params.map(p => p.ty) != m.params.map(p => p.ty) {
+          if m.pure_ && !have.pure_ {
+            self.diags.push(
+              @diag.error(
+                "tcd.interface.pure",
+                have.span,
+                "\{c.name}'s \{m.name} isn't pure, but \{iface.name}'s is: a holder may apply it",
+                hint="pure message \{m.name}(...)",
+                related=[
+                  { span: m.span, message: "\{iface.name}'s \{m.name}", },
+                ],
+              ),
+            )
+          } else if have.params.map(p => p.ty) != m.params.map(p => p.ty) {
             self.diags.push(
               @diag.error(
                 "tcd.interface.type",
@@ -1440,6 +1474,30 @@ fn Resolver::implements(
                 "\{c.name}'s \{m.name} takes (\{have.params.map(p => ty_text(p.ty)).join(", ")}), but \{iface.name}'s takes (\{m.params.map(p => ty_text(p.ty)).join(", ")})",
                 related=[
                   { span: m.span, message: "\{iface.name}'s \{m.name}", },
+                ],
+              ),
+            )
+          }
+      }
+    }
+    for q in iface.queries {
+      match c.queries.iter().find_first(x => x.name == q.name) {
+        None =>
+          self.error(
+            "tcd.interface.missing",
+            decl.name.span,
+            "\{c.name} implements \{iface.name}, but has no query \{q.name}",
+          )
+        Some(have) =>
+          if have.params.map(p => p.ty) != q.params.map(p => p.ty) ||
+            have.result != q.result {
+            self.diags.push(
+              @diag.error(
+                "tcd.interface.type",
+                have.span,
+                "\{c.name}'s query \{q.name} isn't \{iface.name}'s: (\{q.params.map(p => ty_text(p.ty)).join(", ")}) -> \{q.result.map(ty_text).unwrap_or("any")}",
+                related=[
+                  { span: q.span, message: "\{iface.name}'s \{q.name}", },
                 ],
               ),
             )

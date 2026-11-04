@@ -149,9 +149,11 @@ pub(all) struct Message {
   doc : String?
   name : Name
   params : Array[Param]
+  pure_ : Bool
   swap : Bool
   source_key : Param?
   when_ : Expr?
+  why : String?
   changes : Array[Name]?
   ensures : Expr?
   emits : Array[Emit]?
