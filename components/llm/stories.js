@@ -114,6 +114,14 @@ export default stories({
 						return name === "get_time" && id === "call_2";
 					}),
 				],
+				"drop a JSON file on its input": [
+					step.answer("readText", "ok", '{ "city": "Lima" }', {
+						at: (b) => b.field("content").field("input"),
+					}),
+					step.check("the dropped input", (s) =>
+						sameJson(s.content.toJson().input, { city: "Lima" }),
+					),
+				],
 			},
 		},
 		"Tool result": {

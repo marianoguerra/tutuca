@@ -691,5 +691,6 @@ export const fromJson = (C, v) => {
 	return C.JsonObject({ entries });
 };
 
-// A JsonRoot for a JSON value, made with C.
-export const jsonRoot = (C, v) => C.JsonRoot({ value: fromJson(C, v) });
+// A JsonRoot for a JSON value, made with C; allowDrop lets a dropped JSON file replace it.
+export const jsonRoot = (C, v, { allowDrop = false } = {}) =>
+	C.JsonRoot({ value: fromJson(C, v), allowDrop });

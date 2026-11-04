@@ -972,6 +972,9 @@ export const WEATHER = {
 	},
 };
 
+// The JSON a card holds: a dropped JSON file replaces it.
+const droppable = (C, v) => jsonRoot(C, v, { allowDrop: true });
+
 // Each part of the example, made with C.
 export const systemMessage = (C, text = WEATHER.system) => C.SystemMessage({ text });
 export const userMessage = (C, text = WEATHER.user) => C.UserMessage({ text });
@@ -979,14 +982,14 @@ export const assistantMessage = (C, text = WEATHER.assistant) => C.AssistantMess
 export const toolDefinition = (C, { name, description, parameters } = WEATHER.tool) =>
 	C.ToolDefinition({ name, description, parameters: schemaEditor(C, parameters) });
 export const toolCall = (C, { id, name, input } = WEATHER.call) =>
-	C.ToolCall({ id, name, input: jsonRoot(C, input) });
+	C.ToolCall({ id, name, input: droppable(C, input) });
 export const toolResult = (
 	C,
 	content = WEATHER.result,
 	{ callId = WEATHER.call.id, isError = false } = {},
-) => C.ToolResult({ callId, isError, content: jsonRoot(C, content) });
+) => C.ToolResult({ callId, isError, content: droppable(C, content) });
 export const structuredOutput = (C, { schema, value } = WEATHER.output) =>
-	C.StructuredOutput({ schema: schemaEditor(C, schema), output: jsonRoot(C, value) });
+	C.StructuredOutput({ schema: schemaEditor(C, schema), output: droppable(C, value) });
 
 // The first call of the example: the question, with the weather tool to answer it with.
 // messages makes the transcript, for the calls after it.
