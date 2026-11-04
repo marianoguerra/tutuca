@@ -19,9 +19,9 @@ component Counter {
     ask fetch_count() -> s32;
 
     message inc() changes count ensures next.count == count + 1 emits notify changed;
-    message add(n: s32) changes count ensures next.count == count + n emits nothing;
+    pure message add(n: s32) changes count ensures next.count == count + n;
     /// From the input: the text typed, kept when it isn't a number yet.
-    message set(text: string) changes count emits nothing;
+    pure message set(text: string) changes count;
     pure message reset() changes count ensures next.count == 0;
     message remove() changes nothing emits notify remove_me;
     message load() changes nothing emits ask load_count;
@@ -53,7 +53,7 @@ component Board {
     message add_counter() changes counters emits make Counter;
     message reset_all() changes nothing emits send Counter.reset;
     /// A counter's notify: one more increment.
-    message changed(count: s32) changes total ensures next.total == total + 1;
+    pure message changed(count: s32) changes total ensures next.total == total + 1;
     /// A counter's notify: the source key says which wants to go.
     message remove_me() source_key: index<counters> changes counters
         ensures len(next.counters) == len(counters) - 1;

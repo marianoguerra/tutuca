@@ -41,7 +41,15 @@ fn Gen::message_schema(
     Some(ch) => b.array("str_array", ch.map(f => self.s(f)))
     None => "null"
   }
-  let emits = self.emit_array(b, m.emits)
+  // A pure message emits nothing, said or not.
+  let emits = self.emit_array(
+    b,
+    if m.pure_ {
+      Some(m.emits.unwrap_or([]))
+    } else {
+      m.emits
+    },
+  )
   let mut ms = "message_schema_new(\{self.s(m.name)}, \{args}, \{key}, \{pre}, \{post}, \{changes}, \{emits})"
   if m.pure_ {
     ms = "message_schema_set_pure(\{ms})"

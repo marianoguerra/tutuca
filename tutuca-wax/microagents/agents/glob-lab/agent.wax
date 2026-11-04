@@ -454,7 +454,7 @@ fn glob_lab_query_explain(state: &glob_lab_state, glob: js_string) -> &value {
 
 // ---- Messages ----------------------------------------------------------------------
 
-fn glob_lab_on_set_glob(state: &glob_lab_state, ctx: &context, id: js_string, pattern: js_string) -> &glob_lab_state {
+fn glob_lab_on_set_glob(state: &glob_lab_state, id: js_string, pattern: js_string) -> &glob_lab_state {
     let i = list_find(state.globs, gs_id, id);
     if i <s 0 {
         return state;
@@ -463,7 +463,7 @@ fn glob_lab_on_set_glob(state: &glob_lab_state, ctx: &context, id: js_string, pa
     gl_with_glob(state, i, glob_lab_globs_new(id, pattern, glob_lab_globs_dot(g), glob_lab_globs_nocase(g), glob_lab_globs_expect(g)));
 }
 
-fn glob_lab_on_set_glob_options(state: &glob_lab_state, ctx: &context, id: js_string, dot: i32, nocase: i32) -> &glob_lab_state {
+fn glob_lab_on_set_glob_options(state: &glob_lab_state, id: js_string, dot: i32, nocase: i32) -> &glob_lab_state {
     let i = list_find(state.globs, gs_id, id);
     if i <s 0 {
         return state;
@@ -472,12 +472,12 @@ fn glob_lab_on_set_glob_options(state: &glob_lab_state, ctx: &context, id: js_st
     gl_with_glob(state, i, glob_lab_globs_new(id, glob_lab_globs_pattern(g), dot, nocase, glob_lab_globs_expect(g)));
 }
 
-fn glob_lab_on_add_glob(state: &glob_lab_state, ctx: &context, pattern: js_string) -> &glob_lab_state {
+fn glob_lab_on_add_glob(state: &glob_lab_state, pattern: js_string) -> &glob_lab_state {
     let id = list_next_id(state.globs, gs_id, s_g);
     glob_lab_with_globs(state, list_push(state.globs, glob_lab_globs_new(id, pattern, 0, 0, map_empty())));
 }
 
-fn glob_lab_on_remove_glob(state: &glob_lab_state, ctx: &context, id: js_string) -> &glob_lab_state {
+fn glob_lab_on_remove_glob(state: &glob_lab_state, id: js_string) -> &glob_lab_state {
     let i = list_find(state.globs, gs_id, id);
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last glob stays, since every get reads the focused one.
@@ -491,15 +491,15 @@ fn glob_lab_on_remove_glob(state: &glob_lab_state, ctx: &context, id: js_string)
     next;
 }
 
-fn glob_lab_on_reorder_globs(state: &glob_lab_state, ctx: &context, id: js_string, index: i32) -> &glob_lab_state {
+fn glob_lab_on_reorder_globs(state: &glob_lab_state, id: js_string, index: i32) -> &glob_lab_state {
     glob_lab_with_globs(state, list_move(state.globs, list_find(state.globs, gs_id, id), index));
 }
 
-fn glob_lab_on_set_paths(state: &glob_lab_state, ctx: &context, text: js_string) -> &glob_lab_state {
+fn glob_lab_on_set_paths(state: &glob_lab_state, text: js_string) -> &glob_lab_state {
     glob_lab_with_paths(state, text);
 }
 
-fn glob_lab_on_set_expectation(state: &glob_lab_state, ctx: &context, glob: js_string, path: js_string, outcome: js_string) -> &glob_lab_state {
+fn glob_lab_on_set_expectation(state: &glob_lab_state, glob: js_string, path: js_string, outcome: js_string) -> &glob_lab_state {
     let i = list_find(state.globs, gs_id, glob);
     if i <s 0 {
         return state;
@@ -507,7 +507,7 @@ fn glob_lab_on_set_expectation(state: &glob_lab_state, ctx: &context, glob: js_s
     gl_with_glob(state, i, gl_with_expectation(list_get(state.globs, i)!, path, outcome));
 }
 
-fn glob_lab_on_cycle_path(state: &glob_lab_state, ctx: &context, i: i32) -> &glob_lab_state {
+fn glob_lab_on_cycle_path(state: &glob_lab_state, i: i32) -> &glob_lab_state {
     let gi = gl_focused(state);
     let g = list_get(state.globs, gi)!;
     let rows = gl_tree_rows(state, g);
@@ -522,6 +522,6 @@ fn glob_lab_on_cycle_path(state: &glob_lab_state, ctx: &context, i: i32) -> &glo
     gl_with_glob(state, gi, gl_with_expectation(g, path, gl_cycled(gl_expected(g, path))));
 }
 
-fn glob_lab_on_focus(state: &glob_lab_state, ctx: &context, id: js_string) -> &glob_lab_state {
+fn glob_lab_on_focus(state: &glob_lab_state, id: js_string) -> &glob_lab_state {
     glob_lab_with_focus(state, id);
 }

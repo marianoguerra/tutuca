@@ -28,7 +28,7 @@ component Shelf {
 
     provide theme = field(theme);
 
-    message toggle_unread() changes only_unread ensures next.only_unread == not only_unread;
+    pure message toggle_unread() changes only_unread ensures next.only_unread == not only_unread;
     /// The book dragged from from, dropped on the one at to; a drag from
     /// elsewhere has no key, and nothing moves.
     message move_book(from: option<index<books>>, to: option<index<books>>) changes books
@@ -80,7 +80,7 @@ component Note {
     meta "https://tutuca.dev/meta/display" = { title: "Note", icon: "📝", description: "A note's text." };
     field text: string;
 
-    message set_text(text: string) changes text ensures next.text == text;
+    pure message set_text(text: string) changes text ensures next.text == text;
 
     view main = p(class: "note text-sm rounded-box border border-dashed border-base-300 px-2 py-1", field(text));
     view compact = small(class: provided(theme), field(text));

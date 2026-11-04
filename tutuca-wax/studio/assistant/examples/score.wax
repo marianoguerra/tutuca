@@ -82,7 +82,7 @@ fn score_get_theirs_tally(state: &score_state) -> js_string {
 }
 
 // Never past the target: the last points of a game count up to it.
-fn score_on_add(state: &score_state, ctx: &context, team: score_team, points: score_points) -> &score_state {
+fn score_on_add(state: &score_state, team: score_team, points: score_points) -> &score_state {
     // when is only checked in dev mode: the handler checks it too.
     if score_get_over(state) {
         return state;
@@ -93,7 +93,7 @@ fn score_on_add(state: &score_state, ctx: &context, team: score_team, points: sc
     score_with_theirs(state, int_min(state.theirs + points, state.target));
 }
 
-fn score_on_undo(state: &score_state, ctx: &context, team: score_team) -> &score_state {
+fn score_on_undo(state: &score_state, team: score_team) -> &score_state {
     if team == score_team_ours {
         return score_with_ours(state, int_max(state.ours - 1, 0));
     }
@@ -101,7 +101,7 @@ fn score_on_undo(state: &score_state, ctx: &context, team: score_team) -> &score
 }
 
 // A lower target brings the scores down to it.
-fn score_on_set_target(state: &score_state, ctx: &context, target: score_points) -> &score_state {
+fn score_on_set_target(state: &score_state, target: score_points) -> &score_state {
     {score_state|
         ours_name: state.ours_name,
         theirs_name: state.theirs_name,
@@ -111,13 +111,13 @@ fn score_on_set_target(state: &score_state, ctx: &context, target: score_points)
     };
 }
 
-fn score_on_rename(state: &score_state, ctx: &context, team: score_team, name: js_string) -> &score_state {
+fn score_on_rename(state: &score_state, team: score_team, name: js_string) -> &score_state {
     if team == score_team_ours {
         return score_with_ours_name(state, name);
     }
     score_with_theirs_name(state, name);
 }
 
-fn score_on_reset(state: &score_state, ctx: &context) -> &score_state {
+fn score_on_reset(state: &score_state) -> &score_state {
     score_with_theirs(score_with_ours(state, 0), 0);
 }

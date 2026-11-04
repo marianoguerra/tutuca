@@ -46,7 +46,7 @@ fn shelf_get_read_text(state: &shelf_state) -> js_string {
     js_string_concat(js_string_concat(js_string_concat(read, s_of), n), s_read);
 }
 
-fn shelf_on_toggle_unread(state: &shelf_state, ctx: &context) -> &shelf_state {
+fn shelf_on_toggle_unread(state: &shelf_state) -> &shelf_state {
     shelf_with_only_unread(state, !state.only_unread);
 }
 
@@ -185,6 +185,6 @@ fn shelf_loop_by_year_iter(state: &shelf_state, books: &value, order: &value) ->
 
 // ---- Note ---------------------------------------------------------------------------
 
-fn note_on_set_text(state: &note_state, ctx: &context, text: js_string) -> &note_state {
+fn note_on_set_text(state: &note_state, text: js_string) -> &note_state {
     note_with_text(state, text);
 }

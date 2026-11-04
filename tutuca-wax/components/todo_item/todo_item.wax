@@ -1,6 +1,6 @@
 // TodoItem's implementation (todo_item.tcd has the rest).
 
-fn todo_item_on_toggle(state: &todo_item_state, ctx: &context) -> &todo_item_state {
+fn todo_item_on_toggle(state: &todo_item_state) -> &todo_item_state {
     todo_item_with_done(state, !state.done);
 }
 

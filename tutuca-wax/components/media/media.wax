@@ -4,29 +4,29 @@
 // ---- Dot ---------------------------------------------------------------------------
 
 // Five at a time, kept within 10 and 40.
-fn dot_on_grow(state: &dot_state, ctx: &context) -> &dot_state {
+fn dot_on_grow(state: &dot_state) -> &dot_state {
     dot_with_r(state, state.r + 5 >s 40?40:state.r + 5);
 }
 
-fn dot_on_shrink(state: &dot_state, ctx: &context) -> &dot_state {
+fn dot_on_shrink(state: &dot_state) -> &dot_state {
     dot_with_r(state, state.r - 5 <s 10?10:state.r - 5);
 }
 
-fn dot_on_toggle(state: &dot_state, ctx: &context) -> &dot_state {
+fn dot_on_toggle(state: &dot_state) -> &dot_state {
     dot_with_filled(state, !state.filled);
 }
 
 // ---- Sum ---------------------------------------------------------------------------
 
 // One more term, up to 20.
-fn sum_on_inc(state: &sum_state, ctx: &context) -> &sum_state {
+fn sum_on_inc(state: &sum_state) -> &sum_state {
     if state.n >=s 20 {
         return state;
     }
     sum_with_n(state, state.n + 1);
 }
 
-fn sum_on_dec(state: &sum_state, ctx: &context) -> &sum_state {
+fn sum_on_dec(state: &sum_state) -> &sum_state {
     if state.n <=s 1 {
         return state;
     }
@@ -40,10 +40,10 @@ fn sum_get_total(state: &sum_state) -> i32 {
 // ---- Rating ------------------------------------------------------------------------
 
 // n is tw-rating's event detail, within 0 and 5: the runtime rejects the rest.
-fn rating_on_rate(state: &rating_state, ctx: &context, n: i32) -> &rating_state {
+fn rating_on_rate(state: &rating_state, n: i32) -> &rating_state {
     rating_with_stars(state, n);
 }
 
-fn rating_on_clear(state: &rating_state, ctx: &context) -> &rating_state {
+fn rating_on_clear(state: &rating_state) -> &rating_state {
     rating_with_stars(state, 0);
 }

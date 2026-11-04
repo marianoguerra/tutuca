@@ -40,23 +40,23 @@ component JsonPointerLab: MicroAgent {
     query find(text: string) -> any;
 
     /// Change a pointer.
-    message set_pointer(id: string, pointer: string) when any(pointers, it.id == id) changes pointers;
+    pure message set_pointer(id: string, pointer: string) when any(pointers, it.id == id) changes pointers;
     /// Add a pointer; it gets the next free id (q1, q2, …).
-    message add_pointer(pointer: string) changes pointers ensures len(next.pointers) == len(pointers) + 1;
+    pure message add_pointer(pointer: string) changes pointers ensures len(next.pointers) == len(pointers) + 1;
     /// Remove a pointer.
-    message remove_pointer(id: string) when any(pointers, it.id == id) and len(pointers) > 1 changes pointers, focus
+    pure message remove_pointer(id: string) when any(pointers, it.id == id) and len(pointers) > 1 changes pointers, focus
         ensures len(next.pointers) == len(pointers) - 1;
     /// Move a pointer to a position (0 is first).
-    message reorder_pointers(id: string, index: s32 where index >= 0) when any(pointers, it.id == id) changes pointers
+    pure message reorder_pointers(id: string, index: s32 where index >= 0) when any(pointers, it.id == id) changes pointers
         ensures len(next.pointers) == len(pointers);
     /// Replace the JSON document the pointers resolve in.
-    message set_document(document: any) changes document, doc_text, doc_error;
+    pure message set_document(document: any) changes document, doc_text, doc_error;
     /// The document's text, from its editor: kept while it isn't JSON.
-    message set_document_text(text: string) changes document, doc_text, doc_error;
+    pure message set_document_text(text: string) changes document, doc_text, doc_error;
     /// Which pointer a click in the tree sets.
-    message focus(id: string) changes focus ensures next.focus == id;
+    pure message focus(id: string) changes focus ensures next.focus == id;
     /// From the tree: the node at row i's pointer goes in the focused pointer.
-    message pick_node(i: s32 where i >= 0) changes pointers;
+    pure message pick_node(i: s32 where i >= 0) changes pointers;
 
     view main = div(class: "flex flex-col gap-4",
         header(class: "flex items-baseline justify-between gap-2",

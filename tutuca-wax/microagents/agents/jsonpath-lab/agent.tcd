@@ -44,23 +44,23 @@ component JsonPathLab: MicroAgent {
     query results(id: string) -> any;
 
     /// Change a path's JSONPath expression.
-    message set_path(id: string, path: string) when any(paths, it.id == id) changes paths;
+    pure message set_path(id: string, path: string) when any(paths, it.id == id) changes paths;
     /// Add a JSONPath expression; it gets the next free id (p1, p2, …).
-    message add_path(path: string) changes paths ensures len(next.paths) == len(paths) + 1;
+    pure message add_path(path: string) changes paths ensures len(next.paths) == len(paths) + 1;
     /// Remove a path.
-    message remove_path(id: string) when any(paths, it.id == id) and len(paths) > 1 changes paths, focus
+    pure message remove_path(id: string) when any(paths, it.id == id) and len(paths) > 1 changes paths, focus
         ensures len(next.paths) == len(paths) - 1;
     /// Move a path to a position (0 is first).
-    message reorder_paths(id: string, index: s32 where index >= 0) when any(paths, it.id == id) changes paths
+    pure message reorder_paths(id: string, index: s32 where index >= 0) when any(paths, it.id == id) changes paths
         ensures len(next.paths) == len(paths);
     /// Say how many results a path should give, or -1 for no expectation.
-    message set_expected_count(id: string, count: s32 where count >= -1) when any(paths, it.id == id) changes paths;
+    pure message set_expected_count(id: string, count: s32 where count >= -1) when any(paths, it.id == id) changes paths;
     /// Replace the JSON document the paths run against.
-    message set_document(document: any) changes document, doc_text, doc_error;
+    pure message set_document(document: any) changes document, doc_text, doc_error;
     /// The document's text, from its editor: kept while it isn't JSON.
-    message set_document_text(text: string) changes document, doc_text, doc_error;
+    pure message set_document_text(text: string) changes document, doc_text, doc_error;
     /// Which path the tree highlights.
-    message focus(id: string) changes focus ensures next.focus == id;
+    pure message focus(id: string) changes focus ensures next.focus == id;
 
     view main = div(class: "flex flex-col gap-4",
         header(class: "flex items-baseline justify-between gap-2",

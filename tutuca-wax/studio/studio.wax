@@ -214,15 +214,15 @@ fn scope_picker_get_tree(state: &scope_picker_state) -> &value {
     scope_picker_walk(state, list_empty(), gs_empty, 0);
 }
 
-fn scope_picker_on_pick(state: &scope_picker_state, ctx: &context, id: js_string) -> &scope_picker_state {
+fn scope_picker_on_pick(state: &scope_picker_state, id: js_string) -> &scope_picker_state {
     scope_picker_with_selected(state, id);
 }
 
-fn scope_picker_on_start_adding(state: &scope_picker_state, ctx: &context, id: js_string) -> &scope_picker_state {
+fn scope_picker_on_start_adding(state: &scope_picker_state, id: js_string) -> &scope_picker_state {
     scope_picker_with_adding(state, id);
 }
 
-fn scope_picker_on_cancel_adding(state: &scope_picker_state, ctx: &context) -> &scope_picker_state {
+fn scope_picker_on_cancel_adding(state: &scope_picker_state) -> &scope_picker_state {
     scope_picker_with_adding(state, gs_empty);
 }
 
@@ -248,7 +248,7 @@ fn scope_picker_on_add_scope(state: &scope_picker_state, ctx: &context, name: js
     };
 }
 
-fn scope_picker_on_set_name(state: &scope_picker_state, ctx: &context, name: js_string) -> &scope_picker_state {
+fn scope_picker_on_set_name(state: &scope_picker_state, name: js_string) -> &scope_picker_state {
     scope_picker_with_name(state, name);
 }
 
@@ -316,11 +316,11 @@ fn studio_reply_open_screen_error(state: &studio_state, ctx: &context, error: &v
     studio_with_status(state, value_string_of(error)!);
 }
 
-fn studio_on_start_rename(state: &studio_state, ctx: &context, id: js_string) -> &studio_state {
+fn studio_on_start_rename(state: &studio_state, id: js_string) -> &studio_state {
     studio_with_renaming(state, id);
 }
 
-fn studio_on_cancel_rename(state: &studio_state, ctx: &context) -> &studio_state {
+fn studio_on_cancel_rename(state: &studio_state) -> &studio_state {
     studio_with_renaming(state, gs_empty);
 }
 
@@ -342,7 +342,7 @@ fn studio_on_rename(state: &studio_state, ctx: &context, id: js_string, name: js
     studio_with_renaming(studio_with_screens(state, screens), gs_empty);
 }
 
-fn studio_on_screen_moved(state: &studio_state, ctx: &context, id: js_string, scope: js_string) -> &studio_state {
+fn studio_on_screen_moved(state: &studio_state, id: js_string, scope: js_string) -> &studio_state {
     let at = studio_index_of(state.screens, id);
     if at <s 0 {
         return state;
@@ -423,7 +423,7 @@ fn studio_on_open_picker(state: &studio_state, ctx: &context) -> &studio_state {
     studio_with_picker(state, value_component(picker));
 }
 
-fn studio_on_close_picker(state: &studio_state, ctx: &context) -> &studio_state {
+fn studio_on_close_picker(state: &studio_state) -> &studio_state {
     studio_with_picker(state, value_null());
 }
 
@@ -436,18 +436,18 @@ fn studio_on_create_screen(state: &studio_state, ctx: &context, scope: js_string
     studio_showing(studio_with_picker(studio_with_screens(state, screens), value_null()), ctx, id);
 }
 
-fn studio_on_scope_added(state: &studio_state, ctx: &context, id: js_string, name: js_string, parent: js_string) -> &studio_state {
+fn studio_on_scope_added(state: &studio_state, id: js_string, name: js_string, parent: js_string) -> &studio_state {
     studio_with_scopes(state, list_push(state.scopes, studio_scopes_new(id, name, parent)));
 }
 
 // ---- Studio: what the host tells it ------------------------------------------------
 
-fn studio_on_say(state: &studio_state, ctx: &context, text: js_string) -> &studio_state {
+fn studio_on_say(state: &studio_state, text: js_string) -> &studio_state {
     studio_with_status(state, text);
 }
 
 // The newest first, up to 200.
-fn studio_on_note(state: &studio_state, ctx: &context, kind: js_string, text: js_string) -> &studio_state {
+fn studio_on_note(state: &studio_state, kind: js_string, text: js_string) -> &studio_state {
     studio_with_events(state, studio_prepend(state.events, studio_events_new(kind, text), 200));
 }
 
@@ -524,22 +524,22 @@ fn studio_on_open_editor(
     studio_with_editor(state, value_component(editor));
 }
 
-fn studio_on_close_editor(state: &studio_state, ctx: &context) -> &studio_state {
+fn studio_on_close_editor(state: &studio_state) -> &studio_state {
     studio_with_editor(state, value_null());
 }
 
 // ---- Editor ------------------------------------------------------------------------
 
-fn editor_on_set_tcd(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+fn editor_on_set_tcd(state: &editor_state, text: js_string) -> &editor_state {
     editor_with_tcd(state, text);
 }
 
-fn editor_on_set_wax(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+fn editor_on_set_wax(state: &editor_state, text: js_string) -> &editor_state {
     editor_with_wax(state, text);
 }
 
 // Only "tcd" and "wax" are files.
-fn editor_on_show_file(state: &editor_state, ctx: &context, file: js_string) -> &editor_state {
+fn editor_on_show_file(state: &editor_state, file: js_string) -> &editor_state {
     if str_eq(file, gs_tcd) | str_eq(file, gs_wax) {
         return editor_with_current(state, file);
     }
@@ -547,7 +547,7 @@ fn editor_on_show_file(state: &editor_state, ctx: &context, file: js_string) -> 
 }
 
 // The host checks the name when it's saved.
-fn editor_on_rename(state: &editor_state, ctx: &context, name: js_string) -> &editor_state {
+fn editor_on_rename(state: &editor_state, name: js_string) -> &editor_state {
     editor_with_name(state, name);
 }
 
@@ -640,12 +640,12 @@ fn editor_reply_preview_error(state: &editor_state, ctx: &context, error: &value
     editor_with_status(editor_with_preview(state, value_null()), js_string_concat(s_cant_preview, value_string_of(error)!));
 }
 
-fn editor_on_inspect(state: &editor_state, ctx: &context, tab: js_string) -> &editor_state {
+fn editor_on_inspect(state: &editor_state, tab: js_string) -> &editor_state {
     editor_with_inspecting(state, tab);
 }
 
 // The file it's in shown, and the code editor sent there: "wax:12:5".
-fn editor_on_goto(state: &editor_state, ctx: &context, file: js_string, line: i32, col: i32) -> &editor_state {
+fn editor_on_goto(state: &editor_state, file: js_string, line: i32, col: i32) -> &editor_state {
     let kind = gs_tcd;
     if str_eq(file, editor_get_wax_file(state)) {
         kind = gs_wax;
@@ -654,7 +654,7 @@ fn editor_on_goto(state: &editor_state, ctx: &context, file: js_string, line: i3
     editor_with_jumps(editor_with_goto_at(editor_with_current(state, kind), goto_at), state.jumps + 1);
 }
 
-fn editor_on_toggle_chat(state: &editor_state, ctx: &context) -> &editor_state {
+fn editor_on_toggle_chat(state: &editor_state) -> &editor_state {
     // `when` is only checked in dev mode: no assistant, no chat to open.
     if !state.assistant {
         return state;
@@ -698,12 +698,12 @@ fn editor_reply_leave_editor_ok(state: &editor_state, ctx: &context, reply: i32)
     state;
 }
 
-fn editor_on_set_state(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+fn editor_on_set_state(state: &editor_state, text: js_string) -> &editor_state {
     editor_with_state_text(state, text);
 }
 
 // The newest first, up to 200.
-fn editor_on_note(state: &editor_state, ctx: &context, kind: js_string, text: js_string) -> &editor_state {
+fn editor_on_note(state: &editor_state, kind: js_string, text: js_string) -> &editor_state {
     editor_with_events(state, studio_prepend(state.events, editor_events_new(kind, text), 200));
 }
 
@@ -736,7 +736,7 @@ fn editor_on_set_model(state: &editor_state, ctx: &context, model: js_string) ->
     editor_with_model(state, model);
 }
 
-fn editor_on_set_draft(state: &editor_state, ctx: &context, text: js_string) -> &editor_state {
+fn editor_on_set_draft(state: &editor_state, text: js_string) -> &editor_state {
     editor_with_draft(state, text);
 }
 

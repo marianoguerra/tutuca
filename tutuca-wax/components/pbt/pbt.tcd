@@ -8,11 +8,11 @@ component Tally {
     field count: s32 where 0 <= count <= 20;
     field marks: list<s32> where len(marks) <= 6;
 
-    message inc() when count < 20 changes count ensures next.count == count + 1;
-    message add(n: s32 where 1 <= n <= 5) when count <= 15 changes count ensures next.count == count + n;
-    message mark() when len(marks) < 6 changes marks ensures len(next.marks) == len(marks) + 1;
-    message unmark(at: index<marks>) changes marks ensures len(next.marks) == len(marks) - 1;
-    message reset() changes count, marks ensures next.count == 0 and len(next.marks) == 0;
+    pure message inc() when count < 20 changes count ensures next.count == count + 1;
+    pure message add(n: s32 where 1 <= n <= 5) when count <= 15 changes count ensures next.count == count + n;
+    pure message mark() when len(marks) < 6 changes marks ensures len(next.marks) == len(marks) + 1;
+    pure message unmark(at: index<marks>) changes marks ensures len(next.marks) == len(marks) - 1;
+    pure message reset() changes count, marks ensures next.count == 0 and len(next.marks) == 0;
 
     view main = p(field(count));
 }
@@ -23,9 +23,9 @@ component Lamp {
     field mode: enum { off, on, broken };
     field parts: list<s32>;
 
-    message toggle() when mode != "broken" changes mode;
-    message break_it() when mode == "on" changes mode ensures next.mode == "broken";
-    message repair() when mode == "broken" and len(parts) > 3 changes mode ensures next.mode == "off";
+    pure message toggle() when mode != "broken" changes mode;
+    pure message break_it() when mode == "on" changes mode ensures next.mode == "broken";
+    pure message repair() when mode == "broken" and len(parts) > 3 changes mode ensures next.mode == "off";
 
     view main = p(field(mode));
 }

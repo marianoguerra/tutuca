@@ -14,8 +14,8 @@ component Clicker {
 
     invariant best_so_far: best >= count;
 
-    message click() changes count, best ensures next.count == count + 1;
-    message reset() changes count ensures next.count == 0;
+    pure message click() changes count, best ensures next.count == count + 1;
+    pure message reset() changes count ensures next.count == 0;
 
     view main = div(class: "flex items-center gap-2",
         button(class: "btn btn-sm btn-primary", on_click: send(click), "click"),
@@ -33,7 +33,7 @@ example best_stays for Clicker {
 
 const CLICKER_WAX = `// What clicker.tcd can't say: what each message does to the state.
 
-fn clicker_on_click(state: &clicker_state, ctx: &context) -> &clicker_state {
+fn clicker_on_click(state: &clicker_state) -> &clicker_state {
     let count = state.count + 1;
     let best = state.best;
     if count >s best {
@@ -42,7 +42,7 @@ fn clicker_on_click(state: &clicker_state, ctx: &context) -> &clicker_state {
     {clicker_state| count, best };
 }
 
-fn clicker_on_reset(state: &clicker_state, ctx: &context) -> &clicker_state {
+fn clicker_on_reset(state: &clicker_state) -> &clicker_state {
     clicker_with_count(state, 0);
 }
 `;

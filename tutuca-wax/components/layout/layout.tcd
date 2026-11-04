@@ -37,7 +37,7 @@ component Screen {
     /// The view pushed above the content: layout_edit while editing.
     get pushed: string;
 
-    message toggle_editing() changes editing ensures next.editing == not editing;
+    pure message toggle_editing() changes editing ensures next.editing == not editing;
 
     provide studio = field(studio);
 
@@ -83,7 +83,7 @@ component Hole {
 
     message show_choices() changes error emits ask component_names;
     message create() changes error emits ask create_component;
-    message hide_choices() changes choices, listing, error ensures not next.listing;
+    pure message hide_choices() changes choices, listing, error ensures not next.listing;
     message pick(at: index<choices>) -> swap changes error;
 
     view main = div(class: "hole-empty min-h-4 flex-1");
@@ -116,7 +116,7 @@ component Hbox {
     ask edit_component(item: component) -> bool;
 
     message add() changes items ensures len(next.items) == len(items) + 1 emits make Hole;
-    message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    pure message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
     message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
     // Each slot a grid in both views: what's in it fills it, as wide as the
@@ -148,7 +148,7 @@ component Vbox {
     ask edit_component(item: component) -> bool;
 
     message add() changes items ensures len(next.items) == len(items) + 1 emits make Hole;
-    message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    pure message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
     message edit_at(at: index<items>) changes nothing emits ask edit_component;
 
     // Each slot a grid in both views: what's in it fills its width, or is
@@ -184,12 +184,12 @@ component Tabs {
     invariant active_in_range: len(panels) == 0 or active < len(panels);
 
     message add() changes panels, labels, active ensures len(next.panels) == len(panels) + 1 emits make Hole;
-    message select(at: index<panels>) changes active ensures next.active == at;
+    pure message select(at: index<panels>) changes active ensures next.active == at;
     message edit_at(at: index<panels>) changes nothing emits ask edit_component;
-    message rename(at: index<panels>, label: string) changes labels;
+    pure message rename(at: index<panels>, label: string) changes labels;
     /// A name left empty becomes "Tab n".
-    message finish_rename(at: index<panels>) changes labels;
-    message remove_at(at: index<panels>) changes panels, labels, active ensures len(next.panels) == len(panels) - 1;
+    pure message finish_rename(at: index<panels>) changes labels;
+    pure message remove_at(at: index<panels>) changes panels, labels, active ensures len(next.panels) == len(panels) - 1;
 
     /// The tab headers: each one's name, the active one marked; name is
     /// the one given, maybe empty, so it can be cleared while it's typed.
@@ -238,14 +238,14 @@ component Grid {
     ask edit_component(item: component) -> bool;
 
     message add() changes cells ensures len(next.cells) == len(cells) + 1 emits make Hole;
-    message remove_at(at: index<cells>) changes cells ensures len(next.cells) == len(cells) - 1;
+    pure message remove_at(at: index<cells>) changes cells ensures len(next.cells) == len(cells) - 1;
     message edit_at(at: index<cells>) changes nothing emits ask edit_component;
-    message more_columns() when columns < 6 changes columns ensures next.columns == columns + 1;
-    message fewer_columns() when columns > 1 changes columns ensures next.columns == columns - 1;
+    pure message more_columns() when columns < 6 changes columns ensures next.columns == columns + 1;
+    pure message fewer_columns() when columns > 1 changes columns ensures next.columns == columns - 1;
     /// A row of holes below the others.
     message add_row() changes cells ensures len(next.cells) == len(cells) + columns emits make Hole;
     /// The last row's cells, removed.
-    message remove_row() when len(cells) > 0 changes cells ensures len(next.cells) < len(cells);
+    pure message remove_row() when len(cells) > 0 changes cells ensures len(next.cells) < len(cells);
 
     view main = div(class: "grid-box grid gap-2", style: field(grid_style), 
         each(field(cells), div(class: "slot grid min-w-0 place-items-center [:where(&)>*]:w-full [:where(&)>*]:h-full", render_it())));

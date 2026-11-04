@@ -37,17 +37,17 @@ fn tasks_item_at(state: &tasks_state, at: i32) -> tasks_item {
     list_get(state.items, at)!;
 }
 
-fn tasks_on_set_title(state: &tasks_state, ctx: &context, title: js_string) -> &tasks_state {
+fn tasks_on_set_title(state: &tasks_state, title: js_string) -> &tasks_state {
     tasks_with_title(state, title);
 }
 
-fn tasks_on_set_draft(state: &tasks_state, ctx: &context, text: js_string) -> &tasks_state {
+fn tasks_on_set_draft(state: &tasks_state, text: js_string) -> &tasks_state {
     tasks_with_draft(state, text);
 }
 
 // A new open item, low priority, with the draft's text. add's when says the
 // draft isn't empty; a button can still send it, so it's checked here too.
-fn tasks_on_add(state: &tasks_state, ctx: &context) -> &tasks_state {
+fn tasks_on_add(state: &tasks_state) -> &tasks_state {
     if js_string_length(state.draft) == 0 {
         return state;
     }
@@ -55,20 +55,20 @@ fn tasks_on_add(state: &tasks_state, ctx: &context) -> &tasks_state {
     {tasks_state| title: state.title, items: list_push(state.items, item), draft: gs_empty, show: state.show };
 }
 
-fn tasks_on_toggle(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
+fn tasks_on_toggle(state: &tasks_state, at: i32) -> &tasks_state {
     let item = tasks_item_at(state, at);
     let next = tasks_items_new(tasks_items_text(item), !tasks_items_done(item), tasks_items_priority(item));
     tasks_with_items(state, list_assoc(state.items, at, next));
 }
 
-fn tasks_on_bump(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
+fn tasks_on_bump(state: &tasks_state, at: i32) -> &tasks_state {
     let item = tasks_item_at(state, at);
     let priority: tasks_priority = (tasks_items_priority(item) + 1) %s 3;
     let next = tasks_items_new(tasks_items_text(item), tasks_items_done(item), priority);
     tasks_with_items(state, list_assoc(state.items, at, next));
 }
 
-fn tasks_on_remove_at(state: &tasks_state, ctx: &context, at: i32) -> &tasks_state {
+fn tasks_on_remove_at(state: &tasks_state, at: i32) -> &tasks_state {
     let items = list_empty();
     let i = 0;
     while i <s list_count(state.items) {
@@ -81,7 +81,7 @@ fn tasks_on_remove_at(state: &tasks_state, ctx: &context, at: i32) -> &tasks_sta
 }
 
 // A name that isn't a member's leaves show as it is.
-fn tasks_on_set_show(state: &tasks_state, ctx: &context, to: js_string) -> &tasks_state {
+fn tasks_on_set_show(state: &tasks_state, to: js_string) -> &tasks_state {
     let show: tasks_show = state.show;
     if str_eq(to, gs_all) {
         show = tasks_show_all;
@@ -95,7 +95,7 @@ fn tasks_on_set_show(state: &tasks_state, ctx: &context, to: js_string) -> &task
     tasks_with_show(state, show);
 }
 
-fn tasks_on_clear_done(state: &tasks_state, ctx: &context) -> &tasks_state {
+fn tasks_on_clear_done(state: &tasks_state) -> &tasks_state {
     let items = list_empty();
     let i = 0;
     while i <s list_count(state.items) {

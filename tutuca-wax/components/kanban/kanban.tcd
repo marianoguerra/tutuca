@@ -22,9 +22,9 @@ component Kanban {
 
     init;
 
-    message set_draft(text: string where len(text) <= 80) changes draft ensures next.draft == text;
+    pure message set_draft(text: string where len(text) <= 80) changes draft ensures next.draft == text;
     /// The draft as a card at the end of the first lane; an empty one adds nothing.
-    message add_card() changes lanes, draft, next_id;
+    pure message add_card() changes lanes, draft, next_id;
     /// A lane's notify: the card with id was dropped on it, before the card
     /// with before (-1: at the end).
     message card_dropped(id: s32, before: s32) source_key: index<lanes> changes lanes;
@@ -70,9 +70,9 @@ component KanbanLane {
     pure message put(card: record { id: s32, text: string, tag: enum { feature, bug, chore } }, before: s32) changes cards;
     /// Applied by the board: a new card at the end.
     pure message add(id: s32, text: string) changes cards ensures len(next.cards) == len(cards) + 1;
-    message remove_card(id: s32) changes cards;
+    pure message remove_card(id: s32) changes cards;
     /// feature, then bug, then chore, then feature again.
-    message cycle_tag(id: s32) changes cards ensures len(next.cards) == len(cards);
+    pure message cycle_tag(id: s32) changes cards ensures len(next.cards) == len(cards);
 
     view main = div(class: if(field(over),
             "kanban-lane over flex flex-col gap-2 rounded-box border-2 border-error bg-base-300/60 p-2 min-h-40 transition-colors data-draggingover:bg-error/10",

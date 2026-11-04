@@ -12,11 +12,11 @@ component Note {
     get left: s32 where left >= 0;
 
     // An argument that breaks its where is rejected before the handler runs.
-    message set_title(title: string where len(title) <= 60) changes title ensures next.title == title;
-    message set_body(text: string where len(text) <= 280) changes body ensures next.body == text;
-    message toggle_pin() changes pinned ensures next.pinned == not pinned;
+    pure message set_title(title: string where len(title) <= 60) changes title ensures next.title == title;
+    pure message set_body(text: string where len(text) <= 280) changes body ensures next.body == text;
+    pure message toggle_pin() changes pinned ensures next.pinned == not pinned;
     // when: only while there's something to clear.
-    message clear() when len(body) > 0 changes body ensures len(next.body) == 0;
+    pure message clear() when len(body) > 0 changes body ensures len(next.body) == 0;
 
     view main = div(class: if(field(pinned), "card card-border bg-warning/10 gap-2 p-3", "card card-border bg-base-100 gap-2 p-3"),
         div(class: "flex items-center gap-2",

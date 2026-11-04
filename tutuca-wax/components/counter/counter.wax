@@ -13,12 +13,12 @@ fn counter_on_inc(state: &counter_state, ctx: &context) -> &counter_state {
     counter_with_count(state, state.count + 1);
 }
 
-fn counter_on_add(state: &counter_state, ctx: &context, n: i32) -> &counter_state {
+fn counter_on_add(state: &counter_state, n: i32) -> &counter_state {
     counter_with_count(state, state.count + n);
 }
 
 // Not a number yet: keep the count.
-fn counter_on_set(state: &counter_state, ctx: &context, text: js_string) -> &counter_state {
+fn counter_on_set(state: &counter_state, text: js_string) -> &counter_state {
     let (ok, n) = parse_int(text);
     if !ok {
         return state;
@@ -87,7 +87,7 @@ fn board_on_reset_all(state: &board_state, ctx: &context) -> &board_state {
     state;
 }
 
-fn board_on_changed(state: &board_state, ctx: &context, count: i32) -> &board_state {
+fn board_on_changed(state: &board_state, count: i32) -> &board_state {
     board_with_total(state, state.total + 1);
 }
 

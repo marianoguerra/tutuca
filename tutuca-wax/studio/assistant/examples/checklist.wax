@@ -1,6 +1,6 @@
 // checklist.tcd has the rest.
 
-fn check_item_on_toggle(state: &check_item_state, ctx: &context) -> &check_item_state {
+fn check_item_on_toggle(state: &check_item_state) -> &check_item_state {
     check_item_with_done(state, !state.done);
 }
 
@@ -17,7 +17,6 @@ fn checklist_item_done(item: &value) -> i32 {
 
 fn checklist_on_set_draft(
     state: &checklist_state,
-    ctx: &context,
     text: js_string,
 ) -> &checklist_state {
     checklist_with_draft(state, text);
@@ -39,7 +38,6 @@ fn checklist_on_add(state: &checklist_state, ctx: &context) -> &checklist_state 
 
 fn checklist_on_set_hide_done(
     state: &checklist_state,
-    ctx: &context,
     hide: i32,
 ) -> &checklist_state {
     checklist_with_hide_done(state, hide);

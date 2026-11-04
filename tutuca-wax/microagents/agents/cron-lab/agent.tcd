@@ -36,32 +36,32 @@ component CronLab: MicroAgent {
     query next_runs(id: string, count: s32 where 1 <= count <= 100) -> any;
 
     /// Replace an expression (5 fields or a macro such as @daily).
-    message set_expression(id: string, expression: string) when any(crons, it.id == id) changes crons;
+    pure message set_expression(id: string, expression: string) when any(crons, it.id == id) changes crons;
     /// Replace one field of an expression: minute, hour, day, month or weekday.
-    message set_field(id: string, name: string where name in ["minute", "hour", "day", "month", "weekday"], value: string)
+    pure message set_field(id: string, name: string where name in ["minute", "hour", "day", "month", "weekday"], value: string)
         when any(crons, it.id == id) changes crons;
     /// Add an expression (timezone UTC); it gets the next free id (c1, c2, …).
-    message add_cron(expression: string) changes crons ensures len(next.crons) == len(crons) + 1;
+    pure message add_cron(expression: string) changes crons ensures len(next.crons) == len(crons) + 1;
     /// Remove an expression.
-    message remove_cron(id: string) when any(crons, it.id == id) and len(crons) > 1 changes crons, focus
+    pure message remove_cron(id: string) when any(crons, it.id == id) and len(crons) > 1 changes crons, focus
         ensures len(next.crons) == len(crons) - 1;
     /// Move an expression to a position (0 is first).
-    message reorder_crons(id: string, index: s32 where index >= 0) when any(crons, it.id == id) changes crons
+    pure message reorder_crons(id: string, index: s32 where index >= 0) when any(crons, it.id == id) changes crons
         ensures len(next.crons) == len(crons);
     /// Change the timezone of an expression (an IANA name such as Europe/Berlin): its runs stay computed in UTC, and also read in that zone.
-    message set_timezone(id: string, timezone: string) when any(crons, it.id == id) changes crons;
+    pure message set_timezone(id: string, timezone: string) when any(crons, it.id == id) changes crons;
     /// Set the ISO time an expression's runs count from, or "" for the default (2025-01-01T00:00:00Z).
-    message set_from(id: string, iso: string where iso matches "^([+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?)?$")
+    pure message set_from(id: string, iso: string where iso matches "^([+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?)?$")
         when any(crons, it.id == id)
         changes crons;
     /// Set the ISO time an expression's first run should be, or "" to clear it.
-    message set_expected_next(id: string, iso: string where iso matches "^([+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?)?$")
+    pure message set_expected_next(id: string, iso: string where iso matches "^([+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?)?$")
         when any(crons, it.id == id)
         changes crons;
     /// Which cron the builder edits.
-    message focus(id: string) changes focus ensures next.focus == id;
+    pure message focus(id: string) changes focus ensures next.focus == id;
     /// From the builder: the chip at index i turns its value on or off in the focused cron.
-    message toggle_chip(i: s32 where i >= 0) changes crons;
+    pure message toggle_chip(i: s32 where i >= 0) changes crons;
 
     view main = div(class: "flex flex-col gap-3",
         header(class: "flex items-baseline justify-between gap-2",

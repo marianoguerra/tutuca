@@ -14,7 +14,7 @@ component TodoItem: TodoItem {
 
     notify remove_me();
 
-    message toggle() changes done ensures next.done == not done;
+    pure message toggle() changes done ensures next.done == not done;
     /// Applied by the list: complete_all applies set_done(true) to every item.
     pure message set_done(done: bool) changes done ensures next.done == done;
     /// The list holds the items, so removing is the list's to do: ask it.

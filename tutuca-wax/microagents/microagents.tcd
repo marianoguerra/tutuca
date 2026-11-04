@@ -32,17 +32,17 @@ component Session {
     ask stop_infer(session: string) -> bool;
     ask export_data(session: string) -> bool;
 
-    message set_draft(text: string) changes draft ensures next.draft == text;
+    pure message set_draft(text: string) changes draft ensures next.draft == text;
     message send_chat() changes draft, busy, stopped emits ask infer;
     message stop() changes nothing emits ask stop_infer;
     message export() changes nothing emits ask export_data;
     /// From the host: the conversation's lines now, whether the model is
     /// still at it, and why it stopped.
-    message set_chat(chat: list<record { kind: enum { user, assistant, tool, note }, title: string, text: string, error: bool }>, busy: bool, stopped: string)
+    pure message set_chat(chat: list<record { kind: enum { user, assistant, tool, note }, title: string, text: string, error: bool }>, busy: bool, stopped: string)
         changes chat, busy, stopped;
     /// From the host: the workspace now (a tool call undone puts the one
     /// before it back).
-    message set_workspace(workspace: component) changes workspace;
+    pure message set_workspace(workspace: component) changes workspace;
 
     view main = div(class: "grid flex-1 min-h-0 gap-3 p-3 lg:grid-cols-[minmax(0,3fr)_minmax(20rem,2fr)]",
         div(class: "min-h-0 overflow-auto rounded-box bg-base-100 p-4 shadow-sm",
@@ -129,23 +129,23 @@ component MicroAgents {
     ask set_theme(theme: string) -> bool;
     ask uninstall(agent: string) -> bool;
 
-    message show(id: string) changes active ensures next.active == id;
-    message close(id: string) changes sessions, active;
+    pure message show(id: string) changes active ensures next.active == id;
+    pure message close(id: string) changes sessions, active;
     message open_sample(agent: string, sample: string) changes nothing emits ask open_sample;
     message pick_offer(agent: string) changes offers emits ask open_dropped;
-    message dismiss_offers() changes offers;
+    pure message dismiss_offers() changes offers;
     /// Light to dark, or dark to light.
     message toggle_theme() changes theme emits ask set_theme;
     message set_model(model: string) changes model ensures next.model == model emits ask remember_model;
     message remove_agent(agent: string) changes nothing emits ask uninstall;
     /// From the host: the status line.
-    message say(text: string) changes status ensures next.status == text;
+    pure message say(text: string) changes status ensures next.status == text;
     /// From the host: a session it opened (a file dropped that one agent opens).
-    message add_session(session: Session) changes sessions, active;
+    pure message add_session(session: Session) changes sessions, active;
     /// From the host: the agents a dropped file fits.
-    message offer(offers: list<record { id: string, title: string, icon: string }>) changes offers;
+    pure message offer(offers: list<record { id: string, title: string, icon: string }>) changes offers;
     /// From the host: the agents now (one was installed or removed).
-    message set_agents(agents: list<AgentCard>) changes agents;
+    pure message set_agents(agents: list<AgentCard>) changes agents;
 
     loop shown { filter; }
 

@@ -13,11 +13,11 @@ fn todo_card_get_meta(state: &todo_card_state) -> js_string {
     js_string_concat(js_string_concat(int_text(n), unit), int_text(state.id));
 }
 
-fn todo_card_on_toggle(state: &todo_card_state, ctx: &context) -> &todo_card_state {
+fn todo_card_on_toggle(state: &todo_card_state) -> &todo_card_state {
     todo_card_with_done(state, !state.done);
 }
 
-fn todo_card_on_star(state: &todo_card_state, ctx: &context) -> &todo_card_state {
+fn todo_card_on_star(state: &todo_card_state) -> &todo_card_state {
     todo_card_with_starred(state, !state.starred);
 }
 

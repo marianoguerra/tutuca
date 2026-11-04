@@ -600,12 +600,12 @@ fn datefmt_lab_query_try_strftime(state: &datefmt_lab_state, format: js_string) 
 
 // ---- Messages ----------------------------------------------------------------------
 
-fn datefmt_lab_on_add_instant(state: &datefmt_lab_state, ctx: &context, iso: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_add_instant(state: &datefmt_lab_state, iso: js_string) -> &datefmt_lab_state {
     let id = list_next_id(state.instants, gs_id, s_i);
     datefmt_lab_with_instants(state, list_push(state.instants, datefmt_lab_instants_new(id, iso)));
 }
 
-fn datefmt_lab_on_set_instant(state: &datefmt_lab_state, ctx: &context, id: js_string, iso: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_set_instant(state: &datefmt_lab_state, id: js_string, iso: js_string) -> &datefmt_lab_state {
     let i = list_find(state.instants, gs_id, id);
     if i <s 0 {
         return state;
@@ -613,7 +613,7 @@ fn datefmt_lab_on_set_instant(state: &datefmt_lab_state, ctx: &context, id: js_s
     datefmt_lab_with_instants(state, list_assoc(state.instants, i, datefmt_lab_instants_new(id, iso)));
 }
 
-fn datefmt_lab_on_remove_instant(state: &datefmt_lab_state, ctx: &context, id: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_remove_instant(state: &datefmt_lab_state, id: js_string) -> &datefmt_lab_state {
     let i = list_find(state.instants, gs_id, id);
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last instant stays.
@@ -631,16 +631,16 @@ fn datefmt_lab_on_remove_instant(state: &datefmt_lab_state, ctx: &context, id: j
     next;
 }
 
-fn datefmt_lab_on_reorder_instants(state: &datefmt_lab_state, ctx: &context, id: js_string, index: i32) -> &datefmt_lab_state {
+fn datefmt_lab_on_reorder_instants(state: &datefmt_lab_state, id: js_string, index: i32) -> &datefmt_lab_state {
     datefmt_lab_with_instants(state, list_move(state.instants, list_find(state.instants, gs_id, id), index));
 }
 
-fn datefmt_lab_on_add_strftime(state: &datefmt_lab_state, ctx: &context, format: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_add_strftime(state: &datefmt_lab_state, format: js_string) -> &datefmt_lab_state {
     let f = datefmt_lab_strftimes_new(df_next_format_id(state), format, map_empty());
     datefmt_lab_with_strftimes(state, list_push(state.strftimes, f));
 }
 
-fn datefmt_lab_on_set_strftime(state: &datefmt_lab_state, ctx: &context, id: js_string, format: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_set_strftime(state: &datefmt_lab_state, id: js_string, format: js_string) -> &datefmt_lab_state {
     let i = list_find(state.strftimes, gs_id, id);
     if i <s 0 {
         return state;
@@ -650,17 +650,17 @@ fn datefmt_lab_on_set_strftime(state: &datefmt_lab_state, ctx: &context, id: js_
     datefmt_lab_with_strftimes(state, list_assoc(state.strftimes, i, f));
 }
 
-fn datefmt_lab_on_reorder_strftimes(state: &datefmt_lab_state, ctx: &context, id: js_string, index: i32) -> &datefmt_lab_state {
+fn datefmt_lab_on_reorder_strftimes(state: &datefmt_lab_state, id: js_string, index: i32) -> &datefmt_lab_state {
     datefmt_lab_with_strftimes(state, list_move(state.strftimes, list_find(state.strftimes, gs_id, id), index));
 }
 
-fn datefmt_lab_on_add_intl(state: &datefmt_lab_state, ctx: &context, locale: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_add_intl(state: &datefmt_lab_state, locale: js_string) -> &datefmt_lab_state {
     let options = map_assoc(map_empty(), s_date_style, value_string(s_medium));
     let f = datefmt_lab_intls_new(df_next_format_id(state), locale, options, map_empty());
     datefmt_lab_with_intls(state, list_push(state.intls, f));
 }
 
-fn datefmt_lab_on_set_locale(state: &datefmt_lab_state, ctx: &context, id: js_string, locale: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_set_locale(state: &datefmt_lab_state, id: js_string, locale: js_string) -> &datefmt_lab_state {
     let i = list_find(state.intls, gs_id, id);
     if i <s 0 {
         return state;
@@ -670,7 +670,7 @@ fn datefmt_lab_on_set_locale(state: &datefmt_lab_state, ctx: &context, id: js_st
     datefmt_lab_with_intls(state, list_assoc(state.intls, i, f));
 }
 
-fn datefmt_lab_on_set_intl_option(state: &datefmt_lab_state, ctx: &context, id: js_string, option: js_string, value: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_set_intl_option(state: &datefmt_lab_state, id: js_string, option: js_string, value: js_string) -> &datefmt_lab_state {
     let i = list_find(state.intls, gs_id, id);
     if i <s 0 {
         return state;
@@ -682,11 +682,11 @@ fn datefmt_lab_on_set_intl_option(state: &datefmt_lab_state, ctx: &context, id: 
     datefmt_lab_with_intls(state, list_assoc(state.intls, i, f));
 }
 
-fn datefmt_lab_on_reorder_intls(state: &datefmt_lab_state, ctx: &context, id: js_string, index: i32) -> &datefmt_lab_state {
+fn datefmt_lab_on_reorder_intls(state: &datefmt_lab_state, id: js_string, index: i32) -> &datefmt_lab_state {
     datefmt_lab_with_intls(state, list_move(state.intls, list_find(state.intls, gs_id, id), index));
 }
 
-fn datefmt_lab_on_remove_format(state: &datefmt_lab_state, ctx: &context, id: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_remove_format(state: &datefmt_lab_state, id: js_string) -> &datefmt_lab_state {
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last format, strftime or Intl, stays.
     if list_count(state.strftimes) + list_count(state.intls) <=s 1 {
@@ -703,7 +703,7 @@ fn datefmt_lab_on_remove_format(state: &datefmt_lab_state, ctx: &context, id: js
     datefmt_lab_with_intls(state, list_remove_at(state.intls, i));
 }
 
-fn datefmt_lab_on_set_expectation(state: &datefmt_lab_state, ctx: &context, format: js_string, instant: js_string, expected: js_string) -> &datefmt_lab_state {
+fn datefmt_lab_on_set_expectation(state: &datefmt_lab_state, format: js_string, instant: js_string, expected: js_string) -> &datefmt_lab_state {
     let k = df_format_index(state, format);
     if k <s 0 {
         return state;
@@ -713,7 +713,7 @@ fn datefmt_lab_on_set_expectation(state: &datefmt_lab_state, ctx: &context, form
 
 // Cell i of grid_cells: the header row has a corner and a cell per format,
 // then each instant's row has its label and a cell per format.
-fn datefmt_lab_on_pin_cell(state: &datefmt_lab_state, ctx: &context, i: i32) -> &datefmt_lab_state {
+fn datefmt_lab_on_pin_cell(state: &datefmt_lab_state, i: i32) -> &datefmt_lab_state {
     let width = df_format_count(state) + 1;
     let row = i /s width - 1;
     let col = i %s width - 1;

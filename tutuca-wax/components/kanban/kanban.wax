@@ -123,11 +123,11 @@ fn kanban_get_progress(state: &kanban_state) -> js_string {
     );
 }
 
-fn kanban_on_set_draft(state: &kanban_state, ctx: &context, text: js_string) -> &kanban_state {
+fn kanban_on_set_draft(state: &kanban_state, text: js_string) -> &kanban_state {
     kanban_with_draft(state, text);
 }
 
-fn kanban_on_add_card(state: &kanban_state, ctx: &context) -> &kanban_state {
+fn kanban_on_add_card(state: &kanban_state) -> &kanban_state {
     if (js_string_length(state.draft) == 0) | (list_count(state.lanes) == 0) {
         return state;
     }
@@ -297,19 +297,11 @@ fn kanban_lane_on_add(
     kanban_lane_with_cards(state, list_push(state.cards, kanban_lane_cards_new(id, text, 0)));
 }
 
-fn kanban_lane_on_remove_card(
-    state: &kanban_lane_state,
-    ctx: &context,
-    id: kanban_card_id,
-) -> &kanban_lane_state {
+fn kanban_lane_on_remove_card(state: &kanban_lane_state, id: kanban_card_id) -> &kanban_lane_state {
     kanban_lane_on_take(state, id);
 }
 
-fn kanban_lane_on_cycle_tag(
-    state: &kanban_lane_state,
-    ctx: &context,
-    id: kanban_card_id,
-) -> &kanban_lane_state {
+fn kanban_lane_on_cycle_tag(state: &kanban_lane_state, id: kanban_card_id) -> &kanban_lane_state {
     let at = kanban_lane_card_in(state.cards, id);
     if at <s 0 {
         return state;

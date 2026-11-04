@@ -572,10 +572,10 @@ test("served with an API, the studio's assistant edits a component, and is told 
 	models.setProvider(faux.provider);
 	const clicker = EXAMPLES.find((e) => e.id === "clicker");
 	const tcd = clicker.sources[clicker.main]
-		.replace("    message reset()", "    message double() changes count, best;\n    message reset()")
+		.replace("    pure message reset()", "    pure message double() changes count, best;\n    pure message reset()")
 		.replace('button(class: "btn btn-sm btn-ghost", on_click: send(reset), "reset")', 'button(class: "btn btn-sm", on_click: send(double), "×2"),\n        button(class: "btn btn-sm btn-ghost", on_click: send(reset), "reset")');
 	const wax = `${clicker.sources[clicker.impl]}
-fn clicker_on_double(state: &clicker_state, ctx: &context) -> &clicker_state {
+fn clicker_on_double(state: &clicker_state) -> &clicker_state {
     let count = state.count * 2;
     let best = state.best;
     if count >s best {

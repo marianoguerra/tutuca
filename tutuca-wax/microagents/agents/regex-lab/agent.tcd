@@ -34,32 +34,32 @@ component RegexLab: MicroAgent {
     query explain_matches(regex: string, text: string) -> any;
 
     /// Change a regex's pattern and flags.
-    message set_regex(id: string, pattern: string, flags: string) when any(regexes, it.id == id) changes regexes;
+    pure message set_regex(id: string, pattern: string, flags: string) when any(regexes, it.id == id) changes regexes;
     /// Add a regex; it gets the next free id (r1, r2, …).
-    message add_regex(pattern: string, flags: string) changes regexes ensures len(next.regexes) == len(regexes) + 1;
+    pure message add_regex(pattern: string, flags: string) changes regexes ensures len(next.regexes) == len(regexes) + 1;
     /// Remove a regex and the expectations that name it.
-    message remove_regex(id: string) when any(regexes, it.id == id) and len(regexes) > 1 changes regexes, texts, focus
+    pure message remove_regex(id: string) when any(regexes, it.id == id) and len(regexes) > 1 changes regexes, texts, focus
         ensures len(next.regexes) == len(regexes) - 1;
     /// Move a regex to a position (0 is first).
-    message reorder_regexes(id: string, index: s32 where index >= 0) when any(regexes, it.id == id) changes regexes
+    pure message reorder_regexes(id: string, index: s32 where index >= 0) when any(regexes, it.id == id) changes regexes
         ensures len(next.regexes) == len(regexes);
     /// Add a text to test against; it gets the next free id (t1, t2, …).
-    message add_text(text: string) changes texts ensures len(next.texts) == len(texts) + 1;
+    pure message add_text(text: string) changes texts ensures len(next.texts) == len(texts) + 1;
     /// Change a text.
-    message set_text(id: string, text: string) when any(texts, it.id == id) changes texts;
+    pure message set_text(id: string, text: string) when any(texts, it.id == id) changes texts;
     /// Remove a text.
-    message remove_text(id: string) when any(texts, it.id == id) and len(texts) > 1 changes texts
+    pure message remove_text(id: string) when any(texts, it.id == id) and len(texts) > 1 changes texts
         ensures len(next.texts) == len(texts) - 1;
     /// Move a text to a position (0 is first).
-    message reorder_texts(id: string, index: s32 where index >= 0) when any(texts, it.id == id) changes texts
+    pure message reorder_texts(id: string, index: s32 where index >= 0) when any(texts, it.id == id) changes texts
         ensures len(next.texts) == len(texts);
     /// Say whether a regex should match a text: match, no-match, or none to clear it.
-    message set_expectation(text: string, regex: string, outcome: string where outcome in ["match", "no-match", "none"])
+    pure message set_expectation(text: string, regex: string, outcome: string where outcome in ["match", "no-match", "none"])
         when any(texts, it.id == text) and any(regexes, it.id == regex) changes texts;
     /// From the grid: cycles the expectation of the cell at index i (none → match → no-match → none).
-    message cycle_cell(i: s32 where i >= 0) changes texts;
+    pure message cycle_cell(i: s32 where i >= 0) changes texts;
     /// Which regex the texts highlight.
-    message focus(id: string) changes focus ensures next.focus == id;
+    pure message focus(id: string) changes focus ensures next.focus == id;
 
     view main = div(class: "flex flex-col gap-4",
         header(class: "flex items-baseline justify-between gap-2",

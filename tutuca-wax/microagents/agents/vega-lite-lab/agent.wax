@@ -415,14 +415,14 @@ fn vl_edited(state: &vega_lite_lab_state, r: &value_result, empty_why: js_string
     vl_with_spec(state, r.value);
 }
 
-fn vega_lite_lab_on_set_spec(state: &vega_lite_lab_state, ctx: &context, spec: &value) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_set_spec(state: &vega_lite_lab_state, spec: &value) -> &vega_lite_lab_state {
     if !vl_is_spec(spec) {
         return vega_lite_lab_with_edit_error(state, s_not_object);
     }
     vl_with_spec(state, spec);
 }
 
-fn vega_lite_lab_on_set_spec_text(state: &vega_lite_lab_state, ctx: &context, text: js_string) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_set_spec_text(state: &vega_lite_lab_state, text: js_string) -> &vega_lite_lab_state {
     let r = vl_call(s_json_parse, list_push(list_empty(), value_string(text)));
     let next = vega_lite_lab_with_edit_error(vega_lite_lab_with_spec_text(state, text), s_empty);
     if !r.ok {
@@ -434,12 +434,12 @@ fn vega_lite_lab_on_set_spec_text(state: &vega_lite_lab_state, ctx: &context, te
     vega_lite_lab_with_spec_error(vega_lite_lab_with_spec(next, r.value), s_empty);
 }
 
-fn vega_lite_lab_on_patch_spec(state: &vega_lite_lab_state, ctx: &context, pointer: js_string, value: &value) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_patch_spec(state: &vega_lite_lab_state, pointer: js_string, value: &value) -> &vega_lite_lab_state {
     let args = list_push(vl_args2(state.spec, value_string(pointer)), value);
     vl_edited(state, vl_call(s_vega_patch, args), s_left_empty);
 }
 
-fn vega_lite_lab_on_remove_spec_key(state: &vega_lite_lab_state, ctx: &context, pointer: js_string) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_remove_spec_key(state: &vega_lite_lab_state, pointer: js_string) -> &vega_lite_lab_state {
     vl_edited(state, vl_call(s_vega_remove, vl_args2(state.spec, value_string(pointer))), s_left_empty);
 }
 
@@ -463,7 +463,7 @@ fn vl_table(id: js_string, rows: &value, old: &?value) -> &value {
     map_assoc(out, gs_rows, rows);
 }
 
-fn vega_lite_lab_on_set_table(state: &vega_lite_lab_state, ctx: &context, id: js_string, rows: &value) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_set_table(state: &vega_lite_lab_state, id: js_string, rows: &value) -> &vega_lite_lab_state {
     let i = list_find(state.tables, gs_id, id);
     if i <s 0 {
         return vega_lite_lab_with_tables(state, list_push(state.tables, vl_table(id, rows, null)));
@@ -471,7 +471,7 @@ fn vega_lite_lab_on_set_table(state: &vega_lite_lab_state, ctx: &context, id: js
     vega_lite_lab_with_tables(state, list_assoc(state.tables, i, vl_table(id, rows, list_get(state.tables, i))));
 }
 
-fn vega_lite_lab_on_remove_table(state: &vega_lite_lab_state, ctx: &context, id: js_string) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_remove_table(state: &vega_lite_lab_state, id: js_string) -> &vega_lite_lab_state {
     let next = vega_lite_lab_with_tables(state, list_remove_at(state.tables, list_find(state.tables, gs_id, id)));
     if js_string_equals(state.focus, id) {
         return vega_lite_lab_with_focus(next, s_empty);
@@ -479,10 +479,10 @@ fn vega_lite_lab_on_remove_table(state: &vega_lite_lab_state, ctx: &context, id:
     next;
 }
 
-fn vega_lite_lab_on_reorder_tables(state: &vega_lite_lab_state, ctx: &context, id: js_string, index: i32) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_reorder_tables(state: &vega_lite_lab_state, id: js_string, index: i32) -> &vega_lite_lab_state {
     vega_lite_lab_with_tables(state, list_move(state.tables, list_find(state.tables, gs_id, id), index));
 }
 
-fn vega_lite_lab_on_focus(state: &vega_lite_lab_state, ctx: &context, id: js_string) -> &vega_lite_lab_state {
+fn vega_lite_lab_on_focus(state: &vega_lite_lab_state, id: js_string) -> &vega_lite_lab_state {
     vega_lite_lab_with_focus(state, id);
 }

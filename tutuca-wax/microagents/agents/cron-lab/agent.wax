@@ -460,7 +460,7 @@ fn cron_lab_query_next_runs(state: &cron_lab_state, id: js_string, count: i32) -
 
 // ---- Messages ----------------------------------------------------------------------
 
-fn cron_lab_on_set_expression(state: &cron_lab_state, ctx: &context, id: js_string, expression: js_string) -> &cron_lab_state {
+fn cron_lab_on_set_expression(state: &cron_lab_state, id: js_string, expression: js_string) -> &cron_lab_state {
     let i = list_find(state.crons, gs_id, id);
     if i <s 0 {
         return state;
@@ -468,7 +468,7 @@ fn cron_lab_on_set_expression(state: &cron_lab_state, ctx: &context, id: js_stri
     cl_put(state, i, cl_with_expression(list_get(state.crons, i)!, expression));
 }
 
-fn cron_lab_on_set_field(state: &cron_lab_state, ctx: &context, id: js_string, name: js_string, value: js_string) -> &cron_lab_state {
+fn cron_lab_on_set_field(state: &cron_lab_state, id: js_string, name: js_string, value: js_string) -> &cron_lab_state {
     let i = list_find(state.crons, gs_id, id);
     if i <s 0 {
         return state;
@@ -481,12 +481,12 @@ fn cron_lab_on_set_field(state: &cron_lab_state, ctx: &context, id: js_string, n
     cl_put(state, i, cl_with_expression(c, cl_str(got!)));
 }
 
-fn cron_lab_on_add_cron(state: &cron_lab_state, ctx: &context, expression: js_string) -> &cron_lab_state {
+fn cron_lab_on_add_cron(state: &cron_lab_state, expression: js_string) -> &cron_lab_state {
     let id = list_next_id(state.crons, gs_id, s_c);
     cron_lab_with_crons(state, list_push(state.crons, cron_lab_crons_new(id, expression, s_utc, s_empty, s_empty)));
 }
 
-fn cron_lab_on_remove_cron(state: &cron_lab_state, ctx: &context, id: js_string) -> &cron_lab_state {
+fn cron_lab_on_remove_cron(state: &cron_lab_state, id: js_string) -> &cron_lab_state {
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last cron stays.
     if list_count(state.crons) <=s 1 {
@@ -499,11 +499,11 @@ fn cron_lab_on_remove_cron(state: &cron_lab_state, ctx: &context, id: js_string)
     next;
 }
 
-fn cron_lab_on_reorder_crons(state: &cron_lab_state, ctx: &context, id: js_string, index: i32) -> &cron_lab_state {
+fn cron_lab_on_reorder_crons(state: &cron_lab_state, id: js_string, index: i32) -> &cron_lab_state {
     cron_lab_with_crons(state, list_move(state.crons, list_find(state.crons, gs_id, id), index));
 }
 
-fn cron_lab_on_set_timezone(state: &cron_lab_state, ctx: &context, id: js_string, timezone: js_string) -> &cron_lab_state {
+fn cron_lab_on_set_timezone(state: &cron_lab_state, id: js_string, timezone: js_string) -> &cron_lab_state {
     let i = list_find(state.crons, gs_id, id);
     if i <s 0 {
         return state;
@@ -512,7 +512,7 @@ fn cron_lab_on_set_timezone(state: &cron_lab_state, ctx: &context, id: js_string
     cl_put(state, i, cl_with(c, cron_lab_crons_expression(c), timezone, cron_lab_crons_from(c), cron_lab_crons_expect_next(c)));
 }
 
-fn cron_lab_on_set_from(state: &cron_lab_state, ctx: &context, id: js_string, iso: js_string) -> &cron_lab_state {
+fn cron_lab_on_set_from(state: &cron_lab_state, id: js_string, iso: js_string) -> &cron_lab_state {
     let i = list_find(state.crons, gs_id, id);
     if i <s 0 {
         return state;
@@ -521,7 +521,7 @@ fn cron_lab_on_set_from(state: &cron_lab_state, ctx: &context, id: js_string, is
     cl_put(state, i, cl_with(c, cron_lab_crons_expression(c), cron_lab_crons_timezone(c), iso, cron_lab_crons_expect_next(c)));
 }
 
-fn cron_lab_on_set_expected_next(state: &cron_lab_state, ctx: &context, id: js_string, iso: js_string) -> &cron_lab_state {
+fn cron_lab_on_set_expected_next(state: &cron_lab_state, id: js_string, iso: js_string) -> &cron_lab_state {
     let i = list_find(state.crons, gs_id, id);
     if i <s 0 {
         return state;
@@ -530,7 +530,7 @@ fn cron_lab_on_set_expected_next(state: &cron_lab_state, ctx: &context, id: js_s
     cl_put(state, i, cl_with(c, cron_lab_crons_expression(c), cron_lab_crons_timezone(c), cron_lab_crons_from(c), iso));
 }
 
-fn cron_lab_on_focus(state: &cron_lab_state, ctx: &context, id: js_string) -> &cron_lab_state {
+fn cron_lab_on_focus(state: &cron_lab_state, id: js_string) -> &cron_lab_state {
     cron_lab_with_focus(state, id);
 }
 
@@ -552,7 +552,7 @@ fn cl_chip_field(k: i32) -> (js_string, i32, i32) {
 }
 
 // Chip i of chips: each field has its label, then a chip per value.
-fn cron_lab_on_toggle_chip(state: &cron_lab_state, ctx: &context, i: i32) -> &cron_lab_state {
+fn cron_lab_on_toggle_chip(state: &cron_lab_state, i: i32) -> &cron_lab_state {
     let at = i;
     let k = 0;
     while k <s 5 {

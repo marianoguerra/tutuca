@@ -30,18 +30,18 @@ component Tasks {
     /// asked again with the next one.
     ask suggest(taken: s32) -> record { idea: string, taken: s32 } emits ask suggest;
 
-    message set_title(title: string where len(title) <= 40) changes title ensures next.title == title;
-    message set_draft(text: string where len(text) <= 80) changes draft ensures next.draft == text;
+    pure message set_title(title: string where len(title) <= 40) changes title ensures next.title == title;
+    pure message set_draft(text: string where len(text) <= 80) changes draft ensures next.draft == text;
     // when: only with something typed; the draft starts over.
-    message add() when len(draft) > 0 changes items, draft
+    pure message add() when len(draft) > 0 changes items, draft
         ensures len(next.items) == len(items) + 1 and len(next.draft) == 0;
-    message toggle(at: index<items>) changes items ensures len(next.items) == len(items);
+    pure message toggle(at: index<items>) changes items ensures len(next.items) == len(items);
     /// Priority goes 0, 1, 2 and back to 0.
-    message bump(at: index<items>) changes items ensures len(next.items) == len(items);
-    message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    pure message bump(at: index<items>) changes items ensures len(next.items) == len(items);
+    pure message remove_at(at: index<items>) changes items ensures len(next.items) == len(items) - 1;
     /// to is a member's name, as the select's options give it.
-    message set_show(to: string) changes show;
-    message clear_done() when left < len(items) changes items ensures len(next.items) == left;
+    pure message set_show(to: string) changes show;
+    pure message clear_done() when left < len(items) changes items ensures len(next.items) == left;
     message suggest_one() changes nothing emits ask suggest;
 
     /// The rows shown: the items the filter lets through, each with its

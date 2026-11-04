@@ -28,13 +28,13 @@ component TodoList {
     /// Every item's id is below next_id, so the next one made is new.
     invariant ids_below_next_id: all(items, it.id < next_id);
 
-    message set_draft(text: string) changes draft ensures next.draft == text;
+    pure message set_draft(text: string) changes draft ensures next.draft == text;
     message add_todo() changes items, draft, next_id emits make TodoItem;
-    message complete_all() changes items;
-    message clear_done() changes items;
+    pure message complete_all() changes items;
+    pure message clear_done() changes items;
     /// The item dragged from from, dropped on the one at to, takes its place;
     /// something dragged from elsewhere has no key.
-    message move_item(from: option<index<items>>, to: option<index<items>>) changes items
+    pure message move_item(from: option<index<items>>, to: option<index<items>>) changes items
         ensures len(next.items) == len(items);
     /// An item's notify: the source key says which wants to go.
     message remove_me() source_key: index<items> changes items;

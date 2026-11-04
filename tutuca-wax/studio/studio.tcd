@@ -36,12 +36,12 @@ component ScopePicker {
     notify scope_added(id: string, name: string, parent: string);
     ask save_scope(id: string, name: string, parent: string) -> bool;
 
-    message pick(id: string) changes selected ensures next.selected == id;
-    message start_adding(id: string) changes adding ensures next.adding == id;
-    message cancel_adding() changes adding ensures len(next.adding) == 0;
+    pure message pick(id: string) changes selected ensures next.selected == id;
+    pure message start_adding(id: string) changes adding ensures next.adding == id;
+    pure message cancel_adding() changes adding ensures len(next.adding) == 0;
     /// A child of the scope being added under, picked; saved by the host.
     message add_scope(name: string) changes scopes, selected, adding emits ask save_scope, notify scope_added;
-    message set_name(name: string where len(name) <= 60) changes name ensures next.name == name;
+    pure message set_name(name: string where len(name) <= 60) changes name ensures next.name == name;
     message create() changes nothing emits notify create_screen;
     message cancel() changes nothing emits notify close_picker;
 
@@ -185,26 +185,26 @@ component Editor {
     /// To the studio: done, saved or not.
     notify close_editor();
 
-    message set_tcd(text: string) changes tcd ensures next.tcd == text;
-    message set_wax(text: string) changes wax ensures next.wax == text;
-    message show_file(file: string) changes current;
-    message rename(name: string) changes name;
+    pure message set_tcd(text: string) changes tcd ensures next.tcd == text;
+    pure message set_wax(text: string) changes wax ensures next.wax == text;
+    pure message show_file(file: string) changes current;
+    pure message rename(name: string) changes name;
     /// The sources replaced by an example's, then built.
     message load_example(name: string) changes nothing emits ask example;
     message build() changes building, status emits ask build;
     message pick_type(type: string) changes preview_type, preview emits ask preview;
-    message inspect(tab: string) changes inspecting ensures next.inspecting == tab;
+    pure message inspect(tab: string) changes inspecting ensures next.inspecting == tab;
     /// The code editor sent to a diagnostic's place.
-    message goto(file: string, line: s32, col: s32) changes current, goto_at, jumps;
-    message toggle_chat() when assistant changes chat_open ensures next.chat_open == not chat_open;
+    pure message goto(file: string, line: s32, col: s32) changes current, goto_at, jumps;
+    pure message toggle_chat() when assistant changes chat_open ensures next.chat_open == not chat_open;
     message save() changes status emits ask save_component;
     message back() changes nothing emits ask confirm, ask leave_editor;
     /// From the host: the preview's state, what its components reported.
-    message set_state(text: string) changes state_text ensures next.state_text == text;
-    message note(kind: string, text: string) changes events;
+    pure message set_state(text: string) changes state_text ensures next.state_text == text;
+    pure message note(kind: string, text: string) changes events;
 
     message set_model(model: string) changes model ensures next.model == model emits ask remember_model;
-    message set_draft(text: string) changes draft ensures next.draft == text;
+    pure message set_draft(text: string) changes draft ensures next.draft == text;
     /// The draft to the model; nothing while it's answering.
     message send_chat() changes transcript, draft, busy, round, chat_note emits ask chat, ask keep_chat;
     message stop_chat() changes nothing emits ask stop_chat;
@@ -364,25 +364,25 @@ component Studio {
     /// From the host: a component the screen uses changed, so it's made again.
     message reopen() changes shown_id emits ask open_screen;
     message toggle_editing() changes nothing emits ask toggle_screen;
-    message start_rename(id: string) changes renaming ensures next.renaming == id;
+    pure message start_rename(id: string) changes renaming ensures next.renaming == id;
     message rename(id: string, name: string) changes screens, renaming
         ensures len(next.screens) == len(screens) emits ask save_screen;
-    message cancel_rename() changes renaming ensures len(next.renaming) == 0;
+    pure message cancel_rename() changes renaming ensures len(next.renaming) == 0;
     /// Asked first: confirm's reply deletes it.
     message remove_screen(id: string) changes deleting emits ask confirm;
     message open_picker() changes picker emits make ScopePicker;
-    message close_picker() changes picker;
+    pure message close_picker() changes picker;
     message create_screen(scope: string, name: string)
         changes picker, screens, active, shown, shown_id
         ensures len(next.screens) == len(screens) + 1
         emits ask save_screen, ask open_screen;
-    message scope_added(id: string, name: string, parent: string)
+    pure message scope_added(id: string, name: string, parent: string)
         changes scopes ensures len(next.scopes) == len(scopes) + 1;
     /// From the host: a screen moved to another scope (one made for it).
-    message screen_moved(id: string, scope: string)
+    pure message screen_moved(id: string, scope: string)
         changes screens ensures len(next.screens) == len(screens);
-    message say(text: string) changes status ensures next.status == text;
-    message note(kind: string, text: string) changes events;
+    pure message say(text: string) changes status ensures next.status == text;
+    pure message note(kind: string, text: string) changes events;
     message set_library(scopes: list<record { id: string, name: string, parent: string }>,
         screens: list<record { id: string, name: string, scope: string, created: f64 }>)
         changes scopes, screens, active, shown, shown_id, renaming, deleting, picker;
@@ -390,7 +390,7 @@ component Studio {
     /// one of the library's; the editor opens on it and builds it.
     message open_editor(creating: bool, id: string, name: string, tcd: string, wax: string, chat: list<any>)
         changes editor emits make Editor, send Editor.build;
-    message close_editor() changes editor;
+    pure message close_editor() changes editor;
     message export_all() changes nothing emits ask export_library;
     message export_components() changes nothing emits ask export_components;
     message import_all() changes nothing emits ask import_library;

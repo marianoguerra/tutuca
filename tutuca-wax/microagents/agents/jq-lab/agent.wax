@@ -583,7 +583,7 @@ fn jq_lab_query_get_input(state: &jq_lab_state, input: js_string, pointer: js_st
 
 // ---- Messages ----------------------------------------------------------------------
 
-fn jq_lab_on_set_filter(state: &jq_lab_state, ctx: &context, id: js_string, filter: js_string) -> &jq_lab_state {
+fn jq_lab_on_set_filter(state: &jq_lab_state, id: js_string, filter: js_string) -> &jq_lab_state {
     let i = list_find(state.filters, gs_id, id);
     if i <s 0 {
         return state;
@@ -591,12 +591,12 @@ fn jq_lab_on_set_filter(state: &jq_lab_state, ctx: &context, id: js_string, filt
     jq_lab_with_filters(state, list_assoc(state.filters, i, jq_lab_filters_new(id, filter)));
 }
 
-fn jq_lab_on_add_filter(state: &jq_lab_state, ctx: &context, filter: js_string) -> &jq_lab_state {
+fn jq_lab_on_add_filter(state: &jq_lab_state, filter: js_string) -> &jq_lab_state {
     let id = list_next_id(state.filters, gs_id, s_f);
     jq_lab_with_filters(state, list_push(state.filters, jq_lab_filters_new(id, filter)));
 }
 
-fn jq_lab_on_remove_filter(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
+fn jq_lab_on_remove_filter(state: &jq_lab_state, id: js_string) -> &jq_lab_state {
     let i = list_find(state.filters, gs_id, id);
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last filter stays.
@@ -611,11 +611,11 @@ fn jq_lab_on_remove_filter(state: &jq_lab_state, ctx: &context, id: js_string) -
     next;
 }
 
-fn jq_lab_on_reorder_filters(state: &jq_lab_state, ctx: &context, id: js_string, index: i32) -> &jq_lab_state {
+fn jq_lab_on_reorder_filters(state: &jq_lab_state, id: js_string, index: i32) -> &jq_lab_state {
     jq_lab_with_filters(state, list_move(state.filters, list_find(state.filters, gs_id, id), index));
 }
 
-fn jq_lab_on_set_input(state: &jq_lab_state, ctx: &context, id: js_string, value: &value) -> &jq_lab_state {
+fn jq_lab_on_set_input(state: &jq_lab_state, id: js_string, value: &value) -> &jq_lab_state {
     let i = list_find(state.inputs, gs_id, id);
     if i <s 0 {
         return state;
@@ -624,7 +624,7 @@ fn jq_lab_on_set_input(state: &jq_lab_state, ctx: &context, id: js_string, value
     jq_lab_with_drafts(next, map_dissoc(state.drafts, id));
 }
 
-fn jq_lab_on_set_input_text(state: &jq_lab_state, ctx: &context, id: js_string, text: js_string) -> &jq_lab_state {
+fn jq_lab_on_set_input_text(state: &jq_lab_state, id: js_string, text: js_string) -> &jq_lab_state {
     let i = list_find(state.inputs, gs_id, id);
     if i <s 0 {
         return state;
@@ -642,16 +642,16 @@ fn jq_lab_on_set_input_text(state: &jq_lab_state, ctx: &context, id: js_string, 
     jq_lab_with_drafts(next, map_assoc(state.drafts, id, jq_lab_drafts_new(text, s_empty)));
 }
 
-fn jq_lab_on_add_input(state: &jq_lab_state, ctx: &context, value: &value) -> &jq_lab_state {
+fn jq_lab_on_add_input(state: &jq_lab_state, value: &value) -> &jq_lab_state {
     let id = list_next_id(state.inputs, gs_id, s_i);
     jq_lab_with_inputs(state, list_push(state.inputs, jq_lab_inputs_new(id, value)));
 }
 
-fn jq_lab_on_new_input(state: &jq_lab_state, ctx: &context) -> &jq_lab_state {
-    jq_lab_on_add_input(state, ctx, map_empty());
+fn jq_lab_on_new_input(state: &jq_lab_state) -> &jq_lab_state {
+    jq_lab_on_add_input(state, map_empty());
 }
 
-fn jq_lab_on_remove_input(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
+fn jq_lab_on_remove_input(state: &jq_lab_state, id: js_string) -> &jq_lab_state {
     let i = list_find(state.inputs, gs_id, id);
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last input stays.
@@ -663,11 +663,11 @@ fn jq_lab_on_remove_input(state: &jq_lab_state, ctx: &context, id: js_string) ->
     jq_lab_with_drafts(next, map_dissoc(state.drafts, id));
 }
 
-fn jq_lab_on_reorder_inputs(state: &jq_lab_state, ctx: &context, id: js_string, index: i32) -> &jq_lab_state {
+fn jq_lab_on_reorder_inputs(state: &jq_lab_state, id: js_string, index: i32) -> &jq_lab_state {
     jq_lab_with_inputs(state, list_move(state.inputs, list_find(state.inputs, gs_id, id), index));
 }
 
-fn jq_lab_on_set_expected(state: &jq_lab_state, ctx: &context, filter: js_string, input: js_string, outputs: &value) -> &jq_lab_state {
+fn jq_lab_on_set_expected(state: &jq_lab_state, filter: js_string, input: js_string, outputs: &value) -> &jq_lab_state {
     let e = jq_lab_expected_new(filter, input, outputs);
     let i = jq_expected_index(state, filter, input);
     if i >=s 0 {
@@ -676,7 +676,7 @@ fn jq_lab_on_set_expected(state: &jq_lab_state, ctx: &context, filter: js_string
     jq_lab_with_expected(state, list_push(state.expected, e));
 }
 
-fn jq_lab_on_clear_expected(state: &jq_lab_state, ctx: &context, filter: js_string, input: js_string) -> &jq_lab_state {
+fn jq_lab_on_clear_expected(state: &jq_lab_state, filter: js_string, input: js_string) -> &jq_lab_state {
     let i = jq_expected_index(state, filter, input);
     if i <s 0 {
         return state;
@@ -686,7 +686,7 @@ fn jq_lab_on_clear_expected(state: &jq_lab_state, ctx: &context, filter: js_stri
 
 // Cell i of grid_cells: the header row has a corner and a cell per input,
 // then each filter's row has its label and a cell per input.
-fn jq_lab_on_toggle_cell(state: &jq_lab_state, ctx: &context, i: i32) -> &jq_lab_state {
+fn jq_lab_on_toggle_cell(state: &jq_lab_state, i: i32) -> &jq_lab_state {
     let width = list_count(state.inputs) + 1;
     let row = i /s width - 1;
     let col = i %s width - 1;
@@ -706,7 +706,7 @@ fn jq_lab_on_toggle_cell(state: &jq_lab_state, ctx: &context, i: i32) -> &jq_lab
     jq_lab_with_expected(state, list_push(state.expected, jq_lab_expected_new(jq_id(f), jq_id(x), outputs)));
 }
 
-fn jq_lab_on_focus(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
+fn jq_lab_on_focus(state: &jq_lab_state, id: js_string) -> &jq_lab_state {
     if js_string_equals(state.focus, id) {
         return jq_lab_with_focus(state, s_empty);
     }

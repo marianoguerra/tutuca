@@ -20,8 +20,8 @@ component TodoCard: TodoItem {
 
     notify remove_me();
 
-    message toggle() changes done ensures next.done == not done;
-    message star() changes starred ensures next.starred == not starred;
+    pure message toggle() changes done ensures next.done == not done;
+    pure message star() changes starred ensures next.starred == not starred;
     pure message set_done(done: bool) changes done ensures next.done == done;
     message remove() changes nothing emits notify remove_me;
 

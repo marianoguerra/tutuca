@@ -42,7 +42,7 @@ fn json_null_get_json(state: &json_null_state) -> js_string {
     s_null;
 }
 
-fn json_bool_on_toggle(state: &json_bool_state, ctx: &context) -> &json_bool_state {
+fn json_bool_on_toggle(state: &json_bool_state) -> &json_bool_state {
     json_bool_with_value(state, !state.value);
 }
 
@@ -50,11 +50,7 @@ fn json_bool_get_json(state: &json_bool_state) -> js_string {
     state.value?s_true:s_false;
 }
 
-fn json_number_on_set_text(
-    state: &json_number_state,
-    ctx: &context,
-    text: js_string,
-) -> &json_number_state {
+fn json_number_on_set_text(state: &json_number_state, text: js_string) -> &json_number_state {
     let (ok, n) = parse_number(text);
     {json_number_state| value: ok?n:state.value, text };
 }
@@ -68,11 +64,7 @@ fn json_number_get_json(state: &json_number_state) -> js_string {
     number_text(state.value);
 }
 
-fn json_string_on_set_value(
-    state: &json_string_state,
-    ctx: &context,
-    value: js_string,
-) -> &json_string_state {
+fn json_string_on_set_value(state: &json_string_state, value: js_string) -> &json_string_state {
     json_string_with_value(state, value);
 }
 
@@ -150,11 +142,11 @@ fn json_array_on_add(state: &json_array_state, ctx: &context) -> &json_array_sta
     );
 }
 
-fn json_array_on_remove_at(state: &json_array_state, ctx: &context, key: i32) -> &json_array_state {
+fn json_array_on_remove_at(state: &json_array_state, key: i32) -> &json_array_state {
     json_array_with_items(state, json_remove_at(state.items, key));
 }
 
-fn json_array_on_move_up(state: &json_array_state, ctx: &context, key: i32) -> &json_array_state {
+fn json_array_on_move_up(state: &json_array_state, key: i32) -> &json_array_state {
     json_array_with_items(state, json_move_up(state.items, key));
 }
 
@@ -188,11 +180,7 @@ fn json_array_loop_items_enrich(
     {json_array_loop_items_binds| comma: json_comma(key, prepared) };
 }
 
-fn json_entry_on_set_key(
-    state: &json_entry_state,
-    ctx: &context,
-    key: js_string,
-) -> &json_entry_state {
+fn json_entry_on_set_key(state: &json_entry_state, key: js_string) -> &json_entry_state {
     json_entry_with_key(state, key);
 }
 
@@ -203,19 +191,11 @@ fn json_object_on_add(state: &json_object_state, ctx: &context) -> &json_object_
     json_object_with_entries(state, list_push(state.entries, value_component(entry)));
 }
 
-fn json_object_on_remove_at(
-    state: &json_object_state,
-    ctx: &context,
-    key: i32,
-) -> &json_object_state {
+fn json_object_on_remove_at(state: &json_object_state, key: i32) -> &json_object_state {
     json_object_with_entries(state, json_remove_at(state.entries, key));
 }
 
-fn json_object_on_move_up(
-    state: &json_object_state,
-    ctx: &context,
-    key: i32,
-) -> &json_object_state {
+fn json_object_on_move_up(state: &json_object_state, key: i32) -> &json_object_state {
     json_object_with_entries(state, json_move_up(state.entries, key));
 }
 
@@ -285,19 +265,11 @@ fn json_object_loop_items_enrich(
 
 // ---- JsonEditor --------------------------------------------------------------------
 
-fn json_editor_on_set_mode(
-    state: &json_editor_state,
-    ctx: &context,
-    mode: i32,
-) -> &json_editor_state {
+fn json_editor_on_set_mode(state: &json_editor_state, mode: i32) -> &json_editor_state {
     json_editor_with_mode(state, mode);
 }
 
-fn json_editor_on_set_show_text(
-    state: &json_editor_state,
-    ctx: &context,
-    show_text: i32,
-) -> &json_editor_state {
+fn json_editor_on_set_show_text(state: &json_editor_state, show_text: i32) -> &json_editor_state {
     json_editor_with_show_text(state, show_text);
 }
 

@@ -11,9 +11,9 @@ component Dot {
     field r: s32 = 20 where 10 <= r <= 40;
     field filled: bool;
 
-    message grow() changes r ensures next.r >= r;
-    message shrink() changes r ensures next.r <= r;
-    message toggle() changes filled ensures next.filled == not filled;
+    pure message grow() changes r ensures next.r >= r;
+    pure message shrink() changes r ensures next.r <= r;
+    pure message toggle() changes filled ensures next.filled == not filled;
 
     view main = div(class: "flex flex-col items-center gap-2",
         svg("viewBox": "0 0 100 100", width: "160", height: "160", class: "text-primary select-none",
@@ -36,8 +36,8 @@ component Sum {
     field n: s32 = 3 where 1 <= n <= 20;
     get total: s32;
 
-    message inc() changes n ensures next.n >= n;
-    message dec() changes n ensures next.n <= n;
+    pure message inc() changes n ensures next.n >= n;
+    pure message dec() changes n ensures next.n <= n;
 
     view main = div(class: "flex items-center gap-3",
         button(class: "btn btn-sm", on_click: send(dec), "−"),
@@ -58,8 +58,8 @@ component Rating {
     meta "https://tutuca.dev/meta/display" = { title: "Rating", icon: "⭐", description: "Stars from a custom element." };
     field stars: s32 where 0 <= stars <= 5;
 
-    message rate(n: s32 where 0 <= n <= 5) changes stars ensures next.stars == n;
-    message clear() changes stars ensures next.stars == 0;
+    pure message rate(n: s32 where 0 <= n <= 5) changes stars ensures next.stars == n;
+    pure message clear() changes stars ensures next.stars == 0;
 
     view main = div(class: "flex items-center gap-3",
         el("tw-rating", stars: field(stars), "on_rating-change": send(rate, event(detail))),

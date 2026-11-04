@@ -412,14 +412,14 @@ fn ec_edited(state: &echarts_lab_state, r: &value_result, empty_why: js_string) 
     ec_with_option(state, r.value);
 }
 
-fn echarts_lab_on_set_option(state: &echarts_lab_state, ctx: &context, option: &value) -> &echarts_lab_state {
+fn echarts_lab_on_set_option(state: &echarts_lab_state, option: &value) -> &echarts_lab_state {
     if !ec_is_option(option) {
         return echarts_lab_with_edit_error(state, s_not_object);
     }
     ec_with_option(state, option);
 }
 
-fn echarts_lab_on_set_option_text(state: &echarts_lab_state, ctx: &context, text: js_string) -> &echarts_lab_state {
+fn echarts_lab_on_set_option_text(state: &echarts_lab_state, text: js_string) -> &echarts_lab_state {
     let r = ec_call(s_json_parse, list_push(list_empty(), value_string(text)));
     let next = echarts_lab_with_edit_error(echarts_lab_with_option_text(state, text), s_empty);
     if !r.ok {
@@ -431,12 +431,12 @@ fn echarts_lab_on_set_option_text(state: &echarts_lab_state, ctx: &context, text
     echarts_lab_with_option_error(echarts_lab_with_option(next, r.value), s_empty);
 }
 
-fn echarts_lab_on_patch_option(state: &echarts_lab_state, ctx: &context, pointer: js_string, value: &value) -> &echarts_lab_state {
+fn echarts_lab_on_patch_option(state: &echarts_lab_state, pointer: js_string, value: &value) -> &echarts_lab_state {
     let args = list_push(ec_args2(state.option, value_string(pointer)), value);
     ec_edited(state, ec_call(s_echarts_patch, args), s_left_empty);
 }
 
-fn echarts_lab_on_remove_option_key(state: &echarts_lab_state, ctx: &context, pointer: js_string) -> &echarts_lab_state {
+fn echarts_lab_on_remove_option_key(state: &echarts_lab_state, pointer: js_string) -> &echarts_lab_state {
     ec_edited(state, ec_call(s_echarts_remove, ec_args2(state.option, value_string(pointer))), s_left_empty);
 }
 
@@ -460,7 +460,7 @@ fn ec_table(id: js_string, rows: &value, old: &?value) -> &value {
     map_assoc(out, gs_rows, rows);
 }
 
-fn echarts_lab_on_set_table(state: &echarts_lab_state, ctx: &context, id: js_string, rows: &value) -> &echarts_lab_state {
+fn echarts_lab_on_set_table(state: &echarts_lab_state, id: js_string, rows: &value) -> &echarts_lab_state {
     let i = list_find(state.tables, gs_id, id);
     if i <s 0 {
         return echarts_lab_with_tables(state, list_push(state.tables, ec_table(id, rows, null)));
@@ -468,7 +468,7 @@ fn echarts_lab_on_set_table(state: &echarts_lab_state, ctx: &context, id: js_str
     echarts_lab_with_tables(state, list_assoc(state.tables, i, ec_table(id, rows, list_get(state.tables, i))));
 }
 
-fn echarts_lab_on_remove_table(state: &echarts_lab_state, ctx: &context, id: js_string) -> &echarts_lab_state {
+fn echarts_lab_on_remove_table(state: &echarts_lab_state, id: js_string) -> &echarts_lab_state {
     let next = echarts_lab_with_tables(state, list_remove_at(state.tables, list_find(state.tables, gs_id, id)));
     if js_string_equals(state.focus, id) {
         return echarts_lab_with_focus(next, s_empty);
@@ -476,10 +476,10 @@ fn echarts_lab_on_remove_table(state: &echarts_lab_state, ctx: &context, id: js_
     next;
 }
 
-fn echarts_lab_on_reorder_tables(state: &echarts_lab_state, ctx: &context, id: js_string, index: i32) -> &echarts_lab_state {
+fn echarts_lab_on_reorder_tables(state: &echarts_lab_state, id: js_string, index: i32) -> &echarts_lab_state {
     echarts_lab_with_tables(state, list_move(state.tables, list_find(state.tables, gs_id, id), index));
 }
 
-fn echarts_lab_on_focus(state: &echarts_lab_state, ctx: &context, id: js_string) -> &echarts_lab_state {
+fn echarts_lab_on_focus(state: &echarts_lab_state, id: js_string) -> &echarts_lab_state {
     echarts_lab_with_focus(state, id);
 }

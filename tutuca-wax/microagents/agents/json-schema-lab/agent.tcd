@@ -42,32 +42,32 @@ component JsonSchemaLab: MicroAgent {
     query errors_for(id: string) -> any;
 
     /// Replace the whole schema with a JSON value.
-    message set_schema(schema: any) changes schema, schema_text, schema_error;
+    pure message set_schema(schema: any) changes schema, schema_text, schema_error;
     /// The schema's text, from its editor: kept while it isn't JSON.
-    message set_schema_text(text: string) changes schema, schema_text, schema_error;
+    pure message set_schema_text(text: string) changes schema, schema_text, schema_error;
     /// Set the value at a JSON Pointer (RFC 6901) in the schema, e.g. "/properties/age/minimum". The value is JSON as itself (an object, not its JSON text). The parent must exist (set a missing object whole, e.g. /properties/age to {"type": "integer"}); in an array use an index or "-" to append; "" replaces the whole schema.
-    message patch_schema(pointer: string where check(parent_in_schema), value: any) when schema_error == ""
+    pure message patch_schema(pointer: string where check(parent_in_schema), value: any) when schema_error == ""
         changes schema, schema_text;
     /// Remove the value at a JSON Pointer (RFC 6901) in the schema, e.g. "/properties/age" or "/required/1".
-    message remove_from_schema(pointer: string where check(in_schema)) when schema_error == ""
+    pure message remove_from_schema(pointer: string where check(in_schema)) when schema_error == ""
         changes schema, schema_text;
     /// Add an example document; outcome is pass (should be valid) or fail (should be invalid). It gets the next free id (e1, e2, …).
-    message add_example(value: any, outcome: string where outcome in ["pass", "fail"]) changes examples
+    pure message add_example(value: any, outcome: string where outcome in ["pass", "fail"]) changes examples
         ensures len(next.examples) == len(examples) + 1;
     /// From the page: an empty object that should be valid.
-    message add_blank_example() changes examples ensures len(next.examples) == len(examples) + 1;
+    pure message add_blank_example() changes examples ensures len(next.examples) == len(examples) + 1;
     /// Replace an example's document.
-    message set_example(id: string, value: any) when any(examples, it.id == id) changes examples, example_texts, example_errors;
+    pure message set_example(id: string, value: any) when any(examples, it.id == id) changes examples, example_texts, example_errors;
     /// An example's text, from its editor: kept while it isn't JSON.
-    message set_example_text(id: string, text: string) when any(examples, it.id == id) changes examples, example_texts, example_errors;
+    pure message set_example_text(id: string, text: string) when any(examples, it.id == id) changes examples, example_texts, example_errors;
     /// Remove an example.
-    message remove_example(id: string) when any(examples, it.id == id) and len(examples) > 1
+    pure message remove_example(id: string) when any(examples, it.id == id) and len(examples) > 1
         changes examples, example_texts, example_errors ensures len(next.examples) == len(examples) - 1;
     /// Move an example to a position (0 is first).
-    message reorder_examples(id: string, index: s32 where index >= 0) when any(examples, it.id == id) changes examples
+    pure message reorder_examples(id: string, index: s32 where index >= 0) when any(examples, it.id == id) changes examples
         ensures len(next.examples) == len(examples);
     /// Say whether an example should be valid (pass) or invalid (fail).
-    message set_expectation(id: string, outcome: string where outcome in ["pass", "fail"]) when any(examples, it.id == id)
+    pure message set_expectation(id: string, outcome: string where outcome in ["pass", "fail"]) when any(examples, it.id == id)
         changes examples;
 
     view main = div(class: "flex flex-col gap-4",

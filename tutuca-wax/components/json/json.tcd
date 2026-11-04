@@ -26,7 +26,7 @@ component JsonBool: JsonValue {
     field value: bool;
     get json: string;
 
-    message toggle() changes value ensures next.value == not value;
+    pure message toggle() changes value ensures next.value == not value;
 
     view main = span(class: "font-mono text-sm leading-6 text-accent", if(field(value), "true", "false"));
     view edit = button(type: "button",
@@ -45,7 +45,7 @@ component JsonNumber: JsonValue {
     get valid: bool;
     get json: string;
 
-    message set_text(text: string) changes value, text ensures next.text == text;
+    pure message set_text(text: string) changes value, text ensures next.text == text;
 
     view main = span(class: "font-mono text-sm leading-6 text-info", field(value));
     view edit = input(
@@ -62,7 +62,7 @@ component JsonString: JsonValue {
     field value: string;
     get json: string;
 
-    message set_value(value: string) changes value ensures next.value == value;
+    pure message set_value(value: string) changes value ensures next.value == value;
 
     view main = span(class: "font-mono text-sm leading-6 text-success", "\"", field(value), "\"");
     view edit = span(class: "font-mono text-sm leading-6 text-success",
@@ -99,8 +99,8 @@ component JsonArray: JsonValue {
     get json: string;
 
     message add() changes items ensures len(next.items) == len(items) + 1 emits make JsonSelector;
-    message remove_at(key: index<items>) changes items ensures len(next.items) == len(items) - 1;
-    message move_up(key: index<items>) changes items ensures len(next.items) == len(items);
+    pure message remove_at(key: index<items>) changes items ensures len(next.items) == len(items) - 1;
+    pure message move_up(key: index<items>) changes items ensures len(next.items) == len(items);
 
     /// Commas after every item but the last.
     loop items { prepare: s32; enrich { comma: string } }
@@ -136,7 +136,7 @@ component JsonEntry {
     field key: string;
     field value: JsonValue = make(JsonSelector);
 
-    message set_key(key: string) changes key ensures next.key == key;
+    pure message set_key(key: string) changes key ensures next.key == key;
 
     view main = span(class: "inline-flex items-baseline gap-1",
         span(class: "font-mono text-sm leading-6 text-secondary", "\"", field(key), "\""),
@@ -160,8 +160,8 @@ component JsonObject: JsonValue {
 
     message add() changes entries ensures len(next.entries) == len(entries) + 1
         emits make JsonEntry, make JsonSelector;
-    message remove_at(key: index<entries>) changes entries ensures len(next.entries) == len(entries) - 1;
-    message move_up(key: index<entries>) changes entries ensures len(next.entries) == len(entries);
+    pure message remove_at(key: index<entries>) changes entries ensures len(next.entries) == len(entries) - 1;
+    pure message move_up(key: index<entries>) changes entries ensures len(next.entries) == len(entries);
 
     loop items { prepare: s32; enrich { comma: string } }
 
@@ -202,8 +202,8 @@ component JsonEditor {
     /// JSON.stringify(value, null, 2).
     get text: string;
 
-    message set_mode(mode: enum { view, edit }) changes mode ensures next.mode == mode;
-    message set_show_text(show_text: bool) changes show_text ensures next.show_text == show_text;
+    pure message set_mode(mode: enum { view, edit }) changes mode ensures next.mode == mode;
+    pure message set_show_text(show_text: bool) changes show_text ensures next.show_text == show_text;
 
     view main = div(class: "flex flex-col gap-3",
         div(class: "flex flex-wrap items-center gap-2",

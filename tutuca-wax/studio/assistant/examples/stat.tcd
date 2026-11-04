@@ -13,9 +13,9 @@ component Stat {
     /// The trend as an arrow.
     get arrow: string;
 
-    message set_label(label: string) changes label ensures next.label == label;
-    message set_unit(unit: string) changes unit ensures next.unit == unit;
-    message bump(by: f64) changes value, trend ensures next.value == value + by;
+    pure message set_label(label: string) changes label ensures next.label == label;
+    pure message set_unit(unit: string) changes unit ensures next.unit == unit;
+    pure message bump(by: f64) changes value, trend ensures next.value == value + by;
 
     view main = div(class: "stat",
         div(class: "stat-title", field(label)),

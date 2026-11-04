@@ -28,12 +28,12 @@ component Score {
 
     /// Points for a team ("ours" or "theirs"), kept within the target; none
     /// once the game is over.
-    message add(team: enum { ours, theirs }, points: s32 where 1 <= points <= 4) when not over changes ours, theirs;
+    pure message add(team: enum { ours, theirs }, points: s32 where 1 <= points <= 4) when not over changes ours, theirs;
     /// Takes a point back from a team, never below 0.
-    message undo(team: enum { ours, theirs }) changes ours, theirs;
-    message set_target(target: s32 where 1 <= target <= 99) changes target, ours, theirs;
-    message rename(team: enum { ours, theirs }, name: string where len(name) <= 24) changes ours_name, theirs_name;
-    message reset() changes ours, theirs ensures next.ours == 0 and next.theirs == 0;
+    pure message undo(team: enum { ours, theirs }) changes ours, theirs;
+    pure message set_target(target: s32 where 1 <= target <= 99) changes target, ours, theirs;
+    pure message rename(team: enum { ours, theirs }, name: string where len(name) <= 24) changes ours_name, theirs_name;
+    pure message reset() changes ours, theirs ensures next.ours == 0 and next.theirs == 0;
 
     view main = div(class: "score card card-border bg-base-100 p-4 gap-3",
         div(class: "grid grid-cols-2 gap-4 text-center",

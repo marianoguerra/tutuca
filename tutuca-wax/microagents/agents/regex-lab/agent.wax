@@ -445,7 +445,7 @@ fn regex_lab_query_explain_matches(state: &regex_lab_state, regex: js_string, te
 
 // ---- Messages ----------------------------------------------------------------------
 
-fn regex_lab_on_set_regex(state: &regex_lab_state, ctx: &context, id: js_string, pattern: js_string, flags: js_string) -> &regex_lab_state {
+fn regex_lab_on_set_regex(state: &regex_lab_state, id: js_string, pattern: js_string, flags: js_string) -> &regex_lab_state {
     let i = list_find(state.regexes, gs_id, id);
     if i <s 0 {
         return state;
@@ -453,12 +453,12 @@ fn regex_lab_on_set_regex(state: &regex_lab_state, ctx: &context, id: js_string,
     regex_lab_with_regexes(state, list_assoc(state.regexes, i, regex_lab_regexes_new(id, pattern, flags)));
 }
 
-fn regex_lab_on_add_regex(state: &regex_lab_state, ctx: &context, pattern: js_string, flags: js_string) -> &regex_lab_state {
+fn regex_lab_on_add_regex(state: &regex_lab_state, pattern: js_string, flags: js_string) -> &regex_lab_state {
     let id = list_next_id(state.regexes, gs_id, s_r);
     regex_lab_with_regexes(state, list_push(state.regexes, regex_lab_regexes_new(id, pattern, flags)));
 }
 
-fn regex_lab_on_remove_regex(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
+fn regex_lab_on_remove_regex(state: &regex_lab_state, id: js_string) -> &regex_lab_state {
     let i = list_find(state.regexes, gs_id, id);
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last regex stays.
@@ -478,16 +478,16 @@ fn regex_lab_on_remove_regex(state: &regex_lab_state, ctx: &context, id: js_stri
     next;
 }
 
-fn regex_lab_on_reorder_regexes(state: &regex_lab_state, ctx: &context, id: js_string, index: i32) -> &regex_lab_state {
+fn regex_lab_on_reorder_regexes(state: &regex_lab_state, id: js_string, index: i32) -> &regex_lab_state {
     regex_lab_with_regexes(state, list_move(state.regexes, list_find(state.regexes, gs_id, id), index));
 }
 
-fn regex_lab_on_add_text(state: &regex_lab_state, ctx: &context, text: js_string) -> &regex_lab_state {
+fn regex_lab_on_add_text(state: &regex_lab_state, text: js_string) -> &regex_lab_state {
     let id = list_next_id(state.texts, gs_id, s_t);
     regex_lab_with_texts(state, list_push(state.texts, regex_lab_texts_new(id, text, map_empty())));
 }
 
-fn regex_lab_on_set_text(state: &regex_lab_state, ctx: &context, id: js_string, text: js_string) -> &regex_lab_state {
+fn regex_lab_on_set_text(state: &regex_lab_state, id: js_string, text: js_string) -> &regex_lab_state {
     let i = list_find(state.texts, gs_id, id);
     if i <s 0 {
         return state;
@@ -496,7 +496,7 @@ fn regex_lab_on_set_text(state: &regex_lab_state, ctx: &context, id: js_string, 
     regex_lab_with_texts(state, list_assoc(state.texts, i, regex_lab_texts_new(id, text, regex_lab_texts_expect(old))));
 }
 
-fn regex_lab_on_remove_text(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
+fn regex_lab_on_remove_text(state: &regex_lab_state, id: js_string) -> &regex_lab_state {
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last text stays.
     if list_count(state.texts) <=s 1 {
@@ -505,11 +505,11 @@ fn regex_lab_on_remove_text(state: &regex_lab_state, ctx: &context, id: js_strin
     regex_lab_with_texts(state, list_remove_at(state.texts, list_find(state.texts, gs_id, id)));
 }
 
-fn regex_lab_on_reorder_texts(state: &regex_lab_state, ctx: &context, id: js_string, index: i32) -> &regex_lab_state {
+fn regex_lab_on_reorder_texts(state: &regex_lab_state, id: js_string, index: i32) -> &regex_lab_state {
     regex_lab_with_texts(state, list_move(state.texts, list_find(state.texts, gs_id, id), index));
 }
 
-fn regex_lab_on_set_expectation(state: &regex_lab_state, ctx: &context, text: js_string, regex: js_string, outcome: js_string) -> &regex_lab_state {
+fn regex_lab_on_set_expectation(state: &regex_lab_state, text: js_string, regex: js_string, outcome: js_string) -> &regex_lab_state {
     let i = list_find(state.texts, gs_id, text);
     if i <s 0 {
         return state;
@@ -520,7 +520,7 @@ fn regex_lab_on_set_expectation(state: &regex_lab_state, ctx: &context, text: js
 
 // Cell i of grid_cells: the header row has a corner and a cell per regex,
 // then each text's row has its label and a cell per regex.
-fn regex_lab_on_cycle_cell(state: &regex_lab_state, ctx: &context, i: i32) -> &regex_lab_state {
+fn regex_lab_on_cycle_cell(state: &regex_lab_state, i: i32) -> &regex_lab_state {
     let width = list_count(state.regexes) + 1;
     let row = i /s width - 1;
     let col = i %s width - 1;
@@ -533,6 +533,6 @@ fn regex_lab_on_cycle_cell(state: &regex_lab_state, ctx: &context, i: i32) -> &r
     regex_lab_with_texts(state, list_assoc(state.texts, row, t));
 }
 
-fn regex_lab_on_focus(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
+fn regex_lab_on_focus(state: &regex_lab_state, id: js_string) -> &regex_lab_state {
     regex_lab_with_focus(state, id);
 }

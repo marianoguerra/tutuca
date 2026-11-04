@@ -57,7 +57,8 @@ for a list, string for a map) with the constraint that it's a key of `f`.
   says in words why it doesn't hold; `pure` makes a message whose handler
   takes no `ctx` (no `source_key`, emits nothing): it changes only this state,
   so a component holding this one can apply it, in its own handler, with
-  `t_apply_m(child, args...)`, as well as send it; `changes` lists the only
+  `t_apply_m(child, args...)`, as well as send it (make every message whose
+  handler doesn't need `ctx` pure); `changes` lists the only
   fields it may change; `ensures` relates `next.field` to the state before;
   `emits` lists what it may do: `notify n`, `ask a`, `send type.message`,
   `make type`, or `nothing`. `-> swap` makes it return another component to

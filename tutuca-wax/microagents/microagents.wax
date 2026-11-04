@@ -18,7 +18,7 @@ import "'" {
 
 // ---- Session -----------------------------------------------------------------------
 
-fn session_on_set_draft(state: &session_state, ctx: &context, text: js_string) -> &session_state {
+fn session_on_set_draft(state: &session_state, text: js_string) -> &session_state {
     session_with_draft(state, text);
 }
 
@@ -46,7 +46,6 @@ fn session_on_export(state: &session_state, ctx: &context) -> &session_state {
 
 fn session_on_set_chat(
     state: &session_state,
-    ctx: &context,
     chat: &value,
     busy: i32,
     stopped: js_string,
@@ -54,7 +53,7 @@ fn session_on_set_chat(
     session_with_stopped(session_with_busy(session_with_chat(state, chat), busy), stopped);
 }
 
-fn session_on_set_workspace(state: &session_state, ctx: &context, workspace: &value) -> &session_state {
+fn session_on_set_workspace(state: &session_state, workspace: &value) -> &session_state {
     session_with_workspace(state, workspace);
 }
 
@@ -124,11 +123,11 @@ fn micro_agents_loop_shown_filter(state: &micro_agents_state, key: &value, item:
     str_eq(micro_agents_session_id(item), state.active);
 }
 
-fn micro_agents_on_show(state: &micro_agents_state, ctx: &context, id: js_string) -> &micro_agents_state {
+fn micro_agents_on_show(state: &micro_agents_state, id: js_string) -> &micro_agents_state {
     micro_agents_with_active(state, id);
 }
 
-fn micro_agents_on_close(state: &micro_agents_state, ctx: &context, id: js_string) -> &micro_agents_state {
+fn micro_agents_on_close(state: &micro_agents_state, id: js_string) -> &micro_agents_state {
     let out = list_empty();
     let i = 0;
     while i <s list_count(state.sessions) {
@@ -160,7 +159,7 @@ fn micro_agents_on_pick_offer(state: &micro_agents_state, ctx: &context, agent: 
     micro_agents_with_offers(state, list_empty());
 }
 
-fn micro_agents_on_dismiss_offers(state: &micro_agents_state, ctx: &context) -> &micro_agents_state {
+fn micro_agents_on_dismiss_offers(state: &micro_agents_state) -> &micro_agents_state {
     micro_agents_with_offers(state, list_empty());
 }
 
@@ -180,15 +179,15 @@ fn micro_agents_on_remove_agent(state: &micro_agents_state, ctx: &context, agent
     state;
 }
 
-fn micro_agents_on_say(state: &micro_agents_state, ctx: &context, text: js_string) -> &micro_agents_state {
+fn micro_agents_on_say(state: &micro_agents_state, text: js_string) -> &micro_agents_state {
     micro_agents_with_status(state, text);
 }
 
-fn micro_agents_on_offer(state: &micro_agents_state, ctx: &context, offers: &value) -> &micro_agents_state {
+fn micro_agents_on_offer(state: &micro_agents_state, offers: &value) -> &micro_agents_state {
     micro_agents_with_offers(state, offers);
 }
 
-fn micro_agents_on_set_agents(state: &micro_agents_state, ctx: &context, agents: &value) -> &micro_agents_state {
+fn micro_agents_on_set_agents(state: &micro_agents_state, agents: &value) -> &micro_agents_state {
     micro_agents_with_agents(state, agents);
 }
 
@@ -198,7 +197,7 @@ fn micro_agents_opened(state: &micro_agents_state, session: &value) -> &micro_ag
     micro_agents_with_active(next, micro_agents_session_id(session));
 }
 
-fn micro_agents_on_add_session(state: &micro_agents_state, ctx: &context, session: &value) -> &micro_agents_state {
+fn micro_agents_on_add_session(state: &micro_agents_state, session: &value) -> &micro_agents_state {
     micro_agents_opened(state, session);
 }
 

@@ -13,16 +13,16 @@ import "'" {
 // The trend field's value: one of the stat_trend_* consts.
 type stat_trend = i32;
 
-fn stat_on_set_label(state: &stat_state, ctx: &context, label: js_string) -> &stat_state {
+fn stat_on_set_label(state: &stat_state, label: js_string) -> &stat_state {
     stat_with_label(state, label);
 }
 
-fn stat_on_set_unit(state: &stat_state, ctx: &context, unit: js_string) -> &stat_state {
+fn stat_on_set_unit(state: &stat_state, unit: js_string) -> &stat_state {
     stat_with_unit(state, unit);
 }
 
 // The trend follows the last change.
-fn stat_on_bump(state: &stat_state, ctx: &context, by: f64) -> &stat_state {
+fn stat_on_bump(state: &stat_state, by: f64) -> &stat_state {
     let trend: stat_trend = stat_trend_flat;
     if by > 0.0 {
         trend = stat_trend_up;

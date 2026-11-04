@@ -12,7 +12,7 @@ component CheckItem {
     /// To the parent, asking to be removed.
     notify remove_me();
 
-    message toggle() changes done ensures next.done == not done;
+    pure message toggle() changes done ensures next.done == not done;
     message remove() changes nothing emits notify remove_me;
 
     view main = li(class: "flex items-center gap-2",
@@ -28,9 +28,9 @@ component Checklist {
     field hide_done: bool;
     get left: s32 where left >= 0;
 
-    message set_draft(text: string) changes draft ensures next.draft == text;
+    pure message set_draft(text: string) changes draft ensures next.draft == text;
     message add() when len(draft) > 0 changes items, draft emits make CheckItem;
-    message set_hide_done(hide: bool) changes hide_done ensures next.hide_done == hide;
+    pure message set_hide_done(hide: bool) changes hide_done ensures next.hide_done == hide;
     /// An item's notify: the source key says which one.
     message remove_me() source_key: index<items> changes items
         ensures len(next.items) == len(items) - 1;

@@ -43,40 +43,40 @@ component JqLab: MicroAgent {
     query get_input(input: string, pointer: string) -> any;
 
     /// Change a filter's jq program.
-    message set_filter(id: string, filter: string) when any(filters, it.id == id) changes filters;
+    pure message set_filter(id: string, filter: string) when any(filters, it.id == id) changes filters;
     /// Add a filter; it gets the next free id (f1, f2, …).
-    message add_filter(filter: string) changes filters ensures len(next.filters) == len(filters) + 1;
+    pure message add_filter(filter: string) changes filters ensures len(next.filters) == len(filters) + 1;
     /// Remove a filter and its expectations.
-    message remove_filter(id: string) when any(filters, it.id == id) and len(filters) > 1 changes filters, expected, focus
+    pure message remove_filter(id: string) when any(filters, it.id == id) and len(filters) > 1 changes filters, expected, focus
         ensures len(next.filters) == len(filters) - 1;
     /// Move a filter to a position (0 is first).
-    message reorder_filters(id: string, index: s32 where index >= 0) when any(filters, it.id == id) changes filters
+    pure message reorder_filters(id: string, index: s32 where index >= 0) when any(filters, it.id == id) changes filters
         ensures len(next.filters) == len(filters);
     /// Replace an input's JSON value.
-    message set_input(id: string, value: any) when any(inputs, it.id == id) changes inputs, drafts;
+    pure message set_input(id: string, value: any) when any(inputs, it.id == id) changes inputs, drafts;
     /// An input's text, from its editor: the value changes when it is JSON, the text is kept while it isn't.
-    message set_input_text(id: string, text: string) when any(inputs, it.id == id) changes inputs, drafts;
+    pure message set_input_text(id: string, text: string) when any(inputs, it.id == id) changes inputs, drafts;
     /// Add a JSON input; it gets the next free id (i1, i2, …).
-    message add_input(value: any) changes inputs ensures len(next.inputs) == len(inputs) + 1;
+    pure message add_input(value: any) changes inputs ensures len(next.inputs) == len(inputs) + 1;
     /// From the page: add an input holding {}.
-    message new_input() changes inputs ensures len(next.inputs) == len(inputs) + 1;
+    pure message new_input() changes inputs ensures len(next.inputs) == len(inputs) + 1;
     /// Remove an input and its expectations.
-    message remove_input(id: string) when any(inputs, it.id == id) and len(inputs) > 1 changes inputs, expected, drafts
+    pure message remove_input(id: string) when any(inputs, it.id == id) and len(inputs) > 1 changes inputs, expected, drafts
         ensures len(next.inputs) == len(inputs) - 1;
     /// Move an input to a position (0 is first).
-    message reorder_inputs(id: string, index: s32 where index >= 0) when any(inputs, it.id == id) changes inputs
+    pure message reorder_inputs(id: string, index: s32 where index >= 0) when any(inputs, it.id == id) changes inputs
         ensures len(next.inputs) == len(inputs);
     /// Pin what a filter should output for an input: the list of every output, in order ([x] for a single output x).
-    message set_expected(filter: string, input: string, outputs: list<any>)
+    pure message set_expected(filter: string, input: string, outputs: list<any>)
         when any(filters, it.id == filter) and any(inputs, it.id == input) changes expected;
     /// Remove the expectation of a filter for an input.
-    message clear_expected(filter: string, input: string)
+    pure message clear_expected(filter: string, input: string)
         when any(expected, it.filter == filter and it.input == input) changes expected
         ensures len(next.expected) == len(expected) - 1;
     /// From the grid: the cell at index i pins its outputs, or clears its pin.
-    message toggle_cell(i: s32 where i >= 0) changes expected;
+    pure message toggle_cell(i: s32 where i >= 0) changes expected;
     /// Which filter the outputs section shows; the focused one again unfocuses it.
-    message focus(id: string) changes focus;
+    pure message focus(id: string) changes focus;
 
     view main = div(class: "flex flex-col gap-4",
         header(class: "flex items-baseline justify-between gap-2",

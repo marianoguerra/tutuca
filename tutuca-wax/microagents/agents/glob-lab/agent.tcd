@@ -34,26 +34,26 @@ component GlobLab: MicroAgent {
     query explain(glob: string) -> any;
 
     /// Change a glob's pattern.
-    message set_glob(id: string, pattern: string) when any(globs, it.id == id) changes globs;
+    pure message set_glob(id: string, pattern: string) when any(globs, it.id == id) changes globs;
     /// Set a glob's options: dot (wildcards match dotfiles) and nocase.
-    message set_glob_options(id: string, dot: bool, nocase: bool) when any(globs, it.id == id) changes globs;
+    pure message set_glob_options(id: string, dot: bool, nocase: bool) when any(globs, it.id == id) changes globs;
     /// Add a glob; it gets the next free id (g1, g2, …).
-    message add_glob(pattern: string) changes globs ensures len(next.globs) == len(globs) + 1;
+    pure message add_glob(pattern: string) changes globs ensures len(next.globs) == len(globs) + 1;
     /// Remove a glob.
-    message remove_glob(id: string) when any(globs, it.id == id) and len(globs) > 1 changes globs, focus
+    pure message remove_glob(id: string) when any(globs, it.id == id) and len(globs) > 1 changes globs, focus
         ensures len(next.globs) == len(globs) - 1;
     /// Move a glob to a position (0 is first).
-    message reorder_globs(id: string, index: s32 where index >= 0) when any(globs, it.id == id) changes globs
+    pure message reorder_globs(id: string, index: s32 where index >= 0) when any(globs, it.id == id) changes globs
         ensures len(next.globs) == len(globs);
     /// Replace the paths: one string, one path per line.
-    message set_paths(text: string) changes paths ensures next.paths == text;
+    pure message set_paths(text: string) changes paths ensures next.paths == text;
     /// Say whether a glob should match a path: match, no-match, or none to clear it.
-    message set_expectation(glob: string, path: string, outcome: string where outcome in ["match", "no-match", "none"])
+    pure message set_expectation(glob: string, path: string, outcome: string where outcome in ["match", "no-match", "none"])
         when any(globs, it.id == glob) changes globs;
     /// From the tree: the file at row i cycles the focused glob's expectation for it (none → match → no-match → none).
-    message cycle_path(i: s32 where i >= 0) changes globs;
+    pure message cycle_path(i: s32 where i >= 0) changes globs;
     /// Which glob the tree shows.
-    message focus(id: string) changes focus ensures next.focus == id;
+    pure message focus(id: string) changes focus ensures next.focus == id;
 
     view main = div(class: "flex flex-col gap-4",
         header(class: "flex items-baseline justify-between gap-2",

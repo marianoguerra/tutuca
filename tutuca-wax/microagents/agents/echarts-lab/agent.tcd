@@ -48,23 +48,23 @@ component EchartsLab: MicroAgent {
     get preview_rows: list<record { cells: list<record { text: string }> }>;
 
     /// Replace the whole ECharts option (a JSON object). Series read tables with datasetId and encode.
-    message set_option(option: map<any> where len(option) >= 1) changes option, option_text, option_error, edit_error;
+    pure message set_option(option: map<any> where len(option) >= 1) changes option, option_text, option_error, edit_error;
     /// The option's text, from its editor: kept while it isn't a JSON object.
-    message set_option_text(text: string) changes option, option_text, option_error, edit_error;
+    pure message set_option_text(text: string) changes option, option_text, option_error, edit_error;
     /// Set one value in the option at a JSON pointer such as /series/0/encode/y (/- appends to an array). The value is JSON as itself (an object, not its JSON text). The parent must exist: to style a series without lineStyle, set /series/0/lineStyle to {"color": "red"}, not /series/0/lineStyle/color.
-    message patch_option(pointer: string where pointer matches "^/", value: any) changes option, option_text, option_error, edit_error;
+    pure message patch_option(pointer: string where pointer matches "^/", value: any) changes option, option_text, option_error, edit_error;
     /// Remove the value at a JSON pointer from the option.
-    message remove_option_key(pointer: string where pointer matches "^/") changes option, option_text, option_error, edit_error;
+    pure message remove_option_key(pointer: string where pointer matches "^/") changes option, option_text, option_error, edit_error;
     /// Replace a table's rows, or add a table with this id; rows is an array of objects. A CSV table stays CSV.
-    message set_table(id: string where id matches "^[A-Za-z0-9_-]+$", rows: list<map<any>>) changes tables;
+    pure message set_table(id: string where id matches "^[A-Za-z0-9_-]+$", rows: list<map<any>>) changes tables;
     /// Remove a table.
-    message remove_table(id: string where check(table_id)) changes tables, focus
+    pure message remove_table(id: string where check(table_id)) changes tables, focus
         ensures len(next.tables) == len(tables) - 1;
     /// Move a table to a position (0 is first): the first one is the option's default dataset.
-    message reorder_tables(id: string where check(table_id), index: s32 where index >= 0) changes tables
+    pure message reorder_tables(id: string where check(table_id), index: s32 where index >= 0) changes tables
         ensures len(next.tables) == len(tables);
     /// Which table the preview shows.
-    message focus(id: string) changes focus ensures next.focus == id;
+    pure message focus(id: string) changes focus ensures next.focus == id;
 
     view main = div(class: "flex flex-col gap-4",
         header(class: "flex items-baseline justify-between gap-2",

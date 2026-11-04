@@ -530,7 +530,7 @@ fn pl_row(id: js_string, path: js_string, count: i32) -> &value {
     json_path_lab_paths_new(id, path, count);
 }
 
-fn json_path_lab_on_set_path(state: &json_path_lab_state, ctx: &context, id: js_string, path: js_string) -> &json_path_lab_state {
+fn json_path_lab_on_set_path(state: &json_path_lab_state, id: js_string, path: js_string) -> &json_path_lab_state {
     let i = list_find(state.paths, gs_id, id);
     if i <s 0 {
         return state;
@@ -539,12 +539,12 @@ fn json_path_lab_on_set_path(state: &json_path_lab_state, ctx: &context, id: js_
     json_path_lab_with_paths(state, list_assoc(state.paths, i, pl_row(id, path, pl_expected(old))));
 }
 
-fn json_path_lab_on_add_path(state: &json_path_lab_state, ctx: &context, path: js_string) -> &json_path_lab_state {
+fn json_path_lab_on_add_path(state: &json_path_lab_state, path: js_string) -> &json_path_lab_state {
     let id = list_next_id(state.paths, gs_id, s_p);
     json_path_lab_with_paths(state, list_push(state.paths, pl_row(id, path, -1)));
 }
 
-fn json_path_lab_on_remove_path(state: &json_path_lab_state, ctx: &context, id: js_string) -> &json_path_lab_state {
+fn json_path_lab_on_remove_path(state: &json_path_lab_state, id: js_string) -> &json_path_lab_state {
     // `when` is only checked in dev mode, the handler runs regardless: the
     // last path stays.
     if list_count(state.paths) <=s 1 {
@@ -557,11 +557,11 @@ fn json_path_lab_on_remove_path(state: &json_path_lab_state, ctx: &context, id: 
     next;
 }
 
-fn json_path_lab_on_reorder_paths(state: &json_path_lab_state, ctx: &context, id: js_string, index: i32) -> &json_path_lab_state {
+fn json_path_lab_on_reorder_paths(state: &json_path_lab_state, id: js_string, index: i32) -> &json_path_lab_state {
     json_path_lab_with_paths(state, list_move(state.paths, list_find(state.paths, gs_id, id), index));
 }
 
-fn json_path_lab_on_set_expected_count(state: &json_path_lab_state, ctx: &context, id: js_string, count: i32) -> &json_path_lab_state {
+fn json_path_lab_on_set_expected_count(state: &json_path_lab_state, id: js_string, count: i32) -> &json_path_lab_state {
     let i = list_find(state.paths, gs_id, id);
     if i <s 0 {
         return state;
@@ -570,11 +570,11 @@ fn json_path_lab_on_set_expected_count(state: &json_path_lab_state, ctx: &contex
     json_path_lab_with_paths(state, list_assoc(state.paths, i, pl_row(id, pl_path(old), count)));
 }
 
-fn json_path_lab_on_set_document(state: &json_path_lab_state, ctx: &context, document: &value) -> &json_path_lab_state {
+fn json_path_lab_on_set_document(state: &json_path_lab_state, document: &value) -> &json_path_lab_state {
     json_path_lab_with_doc_error(json_path_lab_with_doc_text(json_path_lab_with_document(state, document), s_empty), s_empty);
 }
 
-fn json_path_lab_on_set_document_text(state: &json_path_lab_state, ctx: &context, text: js_string) -> &json_path_lab_state {
+fn json_path_lab_on_set_document_text(state: &json_path_lab_state, text: js_string) -> &json_path_lab_state {
     let r = host_call(s_json_parse, list_push(list_empty(), value_string(text))) as &value_result;
     if r.ok {
         return json_path_lab_with_doc_error(json_path_lab_with_doc_text(json_path_lab_with_document(state, r.value), text), s_empty);
@@ -582,6 +582,6 @@ fn json_path_lab_on_set_document_text(state: &json_path_lab_state, ctx: &context
     json_path_lab_with_doc_error(json_path_lab_with_doc_text(state, text), pl_str(r.value));
 }
 
-fn json_path_lab_on_focus(state: &json_path_lab_state, ctx: &context, id: js_string) -> &json_path_lab_state {
+fn json_path_lab_on_focus(state: &json_path_lab_state, id: js_string) -> &json_path_lab_state {
     json_path_lab_with_focus(state, id);
 }

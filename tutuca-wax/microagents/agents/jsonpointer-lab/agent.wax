@@ -655,7 +655,6 @@ fn json_pointer_lab_query_find(state: &json_pointer_lab_state, text: js_string) 
 
 fn json_pointer_lab_on_set_pointer(
     state: &json_pointer_lab_state,
-    ctx: &context,
     id: js_string,
     pointer: js_string,
 ) -> &json_pointer_lab_state {
@@ -668,7 +667,6 @@ fn json_pointer_lab_on_set_pointer(
 
 fn json_pointer_lab_on_add_pointer(
     state: &json_pointer_lab_state,
-    ctx: &context,
     pointer: js_string,
 ) -> &json_pointer_lab_state {
     let row = json_pointer_lab_pointers_new(jp_next_id(state.pointers), pointer);
@@ -677,7 +675,6 @@ fn json_pointer_lab_on_add_pointer(
 
 fn json_pointer_lab_on_remove_pointer(
     state: &json_pointer_lab_state,
-    ctx: &context,
     id: js_string,
 ) -> &json_pointer_lab_state {
     let i = jp_index_of(state.pointers, id);
@@ -695,7 +692,6 @@ fn json_pointer_lab_on_remove_pointer(
 
 fn json_pointer_lab_on_reorder_pointers(
     state: &json_pointer_lab_state,
-    ctx: &context,
     id: js_string,
     index: i32,
 ) -> &json_pointer_lab_state {
@@ -709,7 +705,6 @@ fn json_pointer_lab_on_reorder_pointers(
 
 fn json_pointer_lab_on_set_document(
     state: &json_pointer_lab_state,
-    ctx: &context,
     document: &value,
 ) -> &json_pointer_lab_state {
     json_pointer_lab_with_doc_error(json_pointer_lab_with_doc_text(json_pointer_lab_with_document(state, document), s_empty), s_empty);
@@ -717,7 +712,6 @@ fn json_pointer_lab_on_set_document(
 
 fn json_pointer_lab_on_set_document_text(
     state: &json_pointer_lab_state,
-    ctx: &context,
     text: js_string,
 ) -> &json_pointer_lab_state {
     let parsed = host_call(s_json_parse, list_push(list_empty(), value_string(text)));
@@ -730,7 +724,6 @@ fn json_pointer_lab_on_set_document_text(
 
 fn json_pointer_lab_on_focus(
     state: &json_pointer_lab_state,
-    ctx: &context,
     id: js_string,
 ) -> &json_pointer_lab_state {
     json_pointer_lab_with_focus(state, id);
@@ -738,7 +731,6 @@ fn json_pointer_lab_on_focus(
 
 fn json_pointer_lab_on_pick_node(
     state: &json_pointer_lab_state,
-    ctx: &context,
     i: i32,
 ) -> &json_pointer_lab_state {
     let node = list_get(jp_doc_nodes(state), i);
@@ -748,7 +740,7 @@ fn json_pointer_lab_on_pick_node(
     let pointer = jp_node_pointer(node!);
     let f = jp_focused(state);
     if f <s 0 {
-        return json_pointer_lab_on_add_pointer(state, ctx, pointer);
+        return json_pointer_lab_on_add_pointer(state, pointer);
     }
     let id = jp_ptr_id(list_get(state.pointers, f)!);
     json_pointer_lab_with_pointers(state, list_assoc(state.pointers, f, json_pointer_lab_pointers_new(id, pointer)));
