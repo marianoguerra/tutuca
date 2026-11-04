@@ -609,7 +609,7 @@ fn member_names(
       Scope(s) => out.push(("a scope", s.name))
       Provide(p) => out.push(("a provided value", p.name))
       View(v) => out.push(("a view", v.name))
-      Init(_) => ()
+      Init(_) | Meta(_) => ()
     }
   }
   out
@@ -682,8 +682,97 @@ fn member_span(m : @syntax.Member) -> @diag.Span {
     Loop(l) => l.span
     Scope(s) => s.span
     Provide(p) => p.span
+    Meta(m) => m.span
     View(v) => v.span
   }
+}
+
+///|
+/// Whether uri is absolute: a scheme (a letter, then letters, digits, +, -
+/// or .), a colon and something after it.
+fn is_absolute_uri(uri : String) -> Bool {
+  guard uri.find(":") is Some(colon) && colon > 0 && colon < uri.length() - 1 else {
+    return false
+  }
+  for i in 0..<colon {
+    let c = uri.unsafe_get(i).to_int()
+    let letter = (c >= 'a'.to_int() && c <= 'z'.to_int()) ||
+      (c >= 'A'.to_int() && c <= 'Z'.to_int())
+    let other = (c >= '0'.to_int() && c <= '9'.to_int()) ||
+      c == '+'.to_int() ||
+      c == '-'.to_int() ||
+      c == '.'.to_int()
+    if !(letter || (i > 0 && other)) {
+      return false
+    }
+  }
+  true
+}
+
+///|
+/// The first part of e that isn't a constant (a literal, or a list or record
+/// of constants), or None when e is one.
+fn not_constant(e : @syntax.Expr) -> @syntax.Expr? {
+  match e {
+    Lit(_, ..) => None
+    List(items, ..) => {
+      for it in items {
+        if not_constant(it) is Some(bad) {
+          return Some(bad)
+        }
+      }
+      None
+    }
+    Record(entries, ..) => {
+      for kv in entries {
+        if not_constant(kv.1) is Some(bad) {
+          return Some(bad)
+        }
+      }
+      None
+    }
+    other => Some(other)
+  }
+}
+
+///|
+fn Resolver::meta(
+  self : Resolver,
+  m : @syntax.MetaDecl,
+  metas : Array[MetaM],
+) -> Unit {
+  if !is_absolute_uri(m.uri) {
+    self.error(
+      "tcd.meta.uri",
+      m.uri_span,
+      "a meta's key is an absolute URI, so conventions don't clash, not \"\{m.uri}\"",
+      hint="like meta \"https://tutuca.dev/meta/canvas\" = { ... };",
+    )
+  }
+  if metas.iter().any(o => o.uri == m.uri) {
+    self.error(
+      "tcd.meta.duplicate",
+      m.uri_span,
+      "\"\{m.uri}\" is given twice: one meta per URI",
+    )
+  }
+  guard m.value is Record(_, ..) else {
+    self.error(
+      "tcd.meta.record",
+      m.value.span(),
+      "a meta is a record of what it says: { key: value, ... }",
+    )
+    return
+  }
+  if not_constant(m.value) is Some(bad) {
+    self.error(
+      "tcd.meta.constant",
+      bad.span(),
+      "a meta holds constants (literals, lists and records): hosts read it without running the component",
+    )
+    return
+  }
+  metas.push({ uri: m.uri, value: m.value, span: m.span, })
 }
 
 ///|
@@ -702,6 +791,7 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
   let loops = []
   let scopes = []
   let provides = []
+  let metas = []
   let views = []
   for m in d.members {
     match m {
@@ -772,6 +862,7 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
             )
         }
       }
+      Meta(meta) => self.meta(meta, metas)
       View(v) => {
         self.snake(v.name, "view")
         views.push({
@@ -805,6 +896,7 @@ fn Resolver::component_decl(self : Resolver, d : @syntax.Decl) -> ComponentM {
     loops,
     scopes,
     provides,
+    metas,
     views,
     checks: [],
     doc: d.doc,

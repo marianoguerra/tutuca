@@ -139,6 +139,7 @@ pub(all) enum Member {
   Loop(LoopDecl)
   Scope(ScopeDecl)
   Provide(Provide)
+  Meta(MetaDecl)
   View(ViewDecl)
 } derive(Eq, ToJson, @debug.Debug)
 
@@ -152,6 +153,13 @@ pub(all) struct Message {
   changes : Array[Name]?
   ensures : Expr?
   emits : Array[Emit]?
+  span : @diag.Span
+} derive(Eq, ToJson, @debug.Debug)
+
+pub(all) struct MetaDecl {
+  uri : String
+  uri_span : @diag.Span
+  value : Expr
   span : @diag.Span
 } derive(Eq, ToJson, @debug.Debug)
 

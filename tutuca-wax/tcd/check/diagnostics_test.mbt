@@ -100,6 +100,16 @@ test "every diagnostic code has a fixture that reports it" {
     ),
     ("tcd.interface.member", "interface I { view main = p(); }"),
     (
+      "tcd.meta.uri", "component C { meta \"canvas\" = { width: 1 }; view main = p(); }",
+    ),
+    (
+      "tcd.meta.duplicate", "component C { meta \"urn:a\" = {}; meta \"urn:a\" = {}; view main = p(); }",
+    ),
+    ("tcd.meta.record", "component C { meta \"urn:a\" = 3; view main = p(); }"),
+    (
+      "tcd.meta.constant", "component C { field w: s32; meta \"urn:a\" = { width: w }; view main = p(); }",
+    ),
+    (
       "tcd.provide.field", "component C { provide t = field(nope); view main = p(); }",
     ),
     ("tcd.provide.source", "component C { provide t = p(); view main = p(); }"),

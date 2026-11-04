@@ -754,7 +754,7 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
   guard t.tok is Ident(word) else {
     self.i -= 1
     raise self.fail(
-      "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide or view",
+      "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide, meta or view",
     )
   }
   match word {
@@ -786,6 +786,17 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
       let end = self.end_member()
       Provide({ name, source, span: t.span.merge(end), })
     }
+    "meta" => {
+      let u = self.next()
+      guard u.tok is Str(uri) else {
+        self.i -= 1
+        raise self.fail("the meta's URI, as a string")
+      }
+      ignore(self.expect_punct("="))
+      let value = self.expr()
+      let end = self.end_member()
+      Meta({ uri, uri_span: u.span, value, span: t.span.merge(end), })
+    }
     "view" => {
       let name = self.name(what="a view name")
       ignore(self.expect_punct("="))
@@ -796,7 +807,7 @@ fn Parser::one_member(self : Parser) -> Member raise ParseFailed {
     _ => {
       self.i -= 1
       raise self.fail(
-        "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide or view",
+        "a member: field, get, query, message, notify, ask, invariant, init, loop, scope, provide, meta or view",
       )
     }
   }

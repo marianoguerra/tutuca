@@ -3,7 +3,9 @@
 // running it: its sources (the TCD file, the ones it uses and the
 // implementation, to build it again or use it from another), the types it
 // registers and the interfaces it declares, what it makes or implements that
-// a scope must give, and the host asks it declares. The runtime ignores it.
+// a scope must give, the host asks it declares, and what its components say
+// about themselves to hosts (their meta, by component and URI). The runtime
+// ignores it.
 
 ///|
 /// The custom section's name.
@@ -118,6 +120,25 @@ fn needs_of(pkg : @check.Package) -> (Array[String], Array[String]) {
 }
 
 ///|
+/// What pkg's components say about themselves to hosts, by the name they're
+/// registered under (as types lists them) -> URI -> the record their meta
+/// gives there, for the ones that give any.
+fn components_meta(pkg : @check.Package) -> Json {
+  let out : Map[String, Json] = Map([])
+  for r in pkg.registers {
+    guard pkg.component(r.component) is Some(c) && !c.metas.is_empty() else {
+      continue
+    }
+    let by_uri : Map[String, Json] = Map([])
+    for m in c.metas {
+      by_uri[m.uri] = m.json()
+    }
+    out[r.as_] = Json::object(by_uri)
+  }
+  Json::object(out)
+}
+
+///|
 /// The section's JSON for pkg built from file (read with read, as are the
 /// files it uses, by the paths they're written as) and impls.
 pub fn meta(
@@ -173,6 +194,7 @@ pub fn meta(
         ),
       ),
       ("host_asks", strings(pkg.host_asks)),
+      ("meta", components_meta(pkg)),
     ]),
   )
 }

@@ -210,7 +210,8 @@ export function withCustomSection(source, name, text) {
 // What a component module tcd built says about itself: the JSON of its
 // "tutuca" custom section (tcd/api/meta.mbt: its sources, the types it
 // registers, the interfaces it declares, what it needs from a scope, its
-// host asks), or null when it has none.
+// host asks, and its components' meta: registered name -> URI -> record), or
+// null when it has none.
 export function componentMeta(source) {
 	const text = customSection(source, "tutuca");
 	return text === null ? null : JSON.parse(text);

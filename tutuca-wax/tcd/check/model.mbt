@@ -175,6 +175,38 @@ pub(all) struct ScopeM {
 } derive(Debug, ToJson)
 
 ///|
+/// What a component says about itself to hosts under a URI: a constant
+/// record, checked to hold only literals, lists and records.
+pub(all) struct MetaM {
+  uri : String
+  value : @syntax.Expr
+  span : @diag.Span
+} derive(Debug, ToJson)
+
+///|
+/// value as JSON: integers and floats as numbers, the rest as written.
+pub fn MetaM::json(self : MetaM) -> Json {
+  const_json(self.value)
+}
+
+///|
+fn const_json(e : @syntax.Expr) -> Json {
+  match e {
+    Lit(Int(n), ..) => Json::number(n.to_double())
+    Lit(Float(x), ..) => Json::number(x)
+    Lit(Str(s), ..) => Json::string(s)
+    Lit(Bool(b), ..) => Json::boolean(b)
+    Lit(Null, ..) => Json::null()
+    List(items, ..) => Json::array(items.map(const_json))
+    Record(entries, ..) =>
+      Json::object(
+        Map::from_array(entries.map(kv => (kv.0.text, const_json(kv.1)))),
+      )
+    _ => Json::null() // Not constant: the checker reported it.
+  }
+}
+
+///|
 pub(all) struct ProvideM {
   name : String
   /// The field it provides.
@@ -207,6 +239,8 @@ pub(all) struct ComponentM {
   loops : Array[LoopM]
   scopes : Array[ScopeM]
   provides : Array[ProvideM]
+  /// What it says about itself to hosts, by URI, in the order written.
+  metas : Array[MetaM]
   views : Array[ViewM]
   /// The `check(p)` predicates its where clauses and conditions use, with
   /// the type of what they check (None for conditions over the state).

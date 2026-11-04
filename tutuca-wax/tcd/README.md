@@ -120,7 +120,11 @@ type.msg, make type | nothing]`, `notify`, `ask name(args) -> T [emits ...]`
 (what its reply's handlers may emit),
 `invariant name: c`, `init;`, `loop name { prepare: T; iter; key: T; filter;
 enrich { b: T } ; view: v }`, `scope name { b: T }`, `provide name =
-field(f);`, `view name = ...;`. Package level: `interface`, `component c:
+field(f);`, `meta "uri" = { key: value, ... };` (what the component says
+about itself to hosts, under an absolute URI that keeps conventions apart,
+like `"https://tutuca.dev/meta/canvas"` with `title`, `icon`, `width`,
+`height` and `transparent`: a record of literals, lists and records, one per
+URI, carried in the `tutuca` section), `view name = ...;`. Package level: `interface`, `component c:
 iface`, `register`, `ask_handler name(args) -> T;`, `host_ask name;`, `use`,
 `example`.
 
@@ -183,8 +187,8 @@ issues, `get`, `set` validated against the schema, `handle` routing each
 message to its `c_on_m`, loop and scope trampolines, registration) and
 `<package>.abi.wax` (the runtime functions it imports). The module carries
 a `tutuca` custom section (`api/meta.mbt`) with its sources, what it
-registers and what it needs from a scope, for a page given only the
-`.wasm`. The runtime rejects
+registers, what it needs from a scope and its components' `meta`, for a
+page given only the `.wasm`. The runtime rejects
 arguments that don't fit a message's schema before `handle` runs; in dev
 mode it checks `when`, `ensures`, `changes`, `emits`, fields and invariants.
 

@@ -205,6 +205,17 @@ pub(all) struct Provide {
 } derive(Eq, Debug, ToJson)
 
 ///|
+/// `meta "https://tutuca.dev/meta/canvas" = { title: "Notes", width: 320 };`:
+/// what the component says about itself to hosts, under a URI that keeps
+/// conventions apart; the value is a constant record.
+pub(all) struct MetaDecl {
+  uri : String
+  uri_span : @diag.Span
+  value : Expr
+  span : @diag.Span
+} derive(Eq, Debug, ToJson)
+
+///|
 pub(all) struct ViewDecl {
   doc : String?
   name : Name
@@ -226,6 +237,7 @@ pub(all) enum Member {
   Loop(LoopDecl)
   Scope(ScopeDecl)
   Provide(Provide)
+  Meta(MetaDecl)
   View(ViewDecl)
 } derive(Eq, Debug, ToJson)
 

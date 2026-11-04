@@ -90,6 +90,7 @@ pub(all) struct ComponentM {
   loops : Array[LoopM]
   scopes : Array[ScopeM]
   provides : Array[ProvideM]
+  metas : Array[MetaM]
   views : Array[ViewM]
   checks : Array[(String, Ty?)]
   doc : String?
@@ -173,6 +174,13 @@ pub(all) struct MessageM {
   doc : String?
   span : @diag.Span
 } derive(ToJson, @debug.Debug)
+
+pub(all) struct MetaM {
+  uri : String
+  value : @syntax.Expr
+  span : @diag.Span
+} derive(ToJson, @debug.Debug)
+pub fn MetaM::json(Self) -> Json
 
 pub(all) struct Norm {
   mut lo : Bound?

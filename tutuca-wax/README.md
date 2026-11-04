@@ -354,7 +354,9 @@ and `rec` items into `dist/prelude/collections_types.wax` for components.
   its sources (`tcd`, the `uses` it reads by the paths written, `impls`),
   the `types` it registers, the `interfaces` it declares, what it `needs`
   from a scope (`types` it makes or holds, `interfaces` it implements or
-  holds) and its `host_asks`. The runtime ignores it; `componentMeta(bytes)`
+  holds), its `host_asks` and its components' `meta` (registered name →
+  URI → the record its `meta "uri" = {...};` gives, the same convention as
+  tutuca's `component({ meta })`). The runtime ignores it; `componentMeta(bytes)`
   (`js/tutuca-rt.js`) reads it without compiling the module.
 
 `loadComponent` checks the first two, links the module's `"tutuca"` imports

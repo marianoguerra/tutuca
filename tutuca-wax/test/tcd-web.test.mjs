@@ -9,7 +9,7 @@ import { before, test } from "node:test";
 import { JSDOM } from "jsdom";
 import { loadRuntimeFiles, loadTcd } from "../js/tcd-web.js";
 import { examples } from "../js/pbt.js";
-import { load } from "../js/tutuca-rt.js";
+import { componentMeta, load } from "../js/tutuca-rt.js";
 
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
@@ -436,6 +436,28 @@ component Inputs { view main = div(input(value: "draft"), input(type: "checkbox"
 	assert.equal(text.value, "draft");
 	assert.equal(box.checked, true);
 	assert.deepEqual(host.failures, []);
+});
+
+// A component's meta is what it says about itself to hosts, by URI, read from
+// the module's tutuca section without compiling it.
+test("a component's meta is in the module's tutuca section, by registered name and URI", async () => {
+	const main = "card.tcd";
+	const files = {
+		[main]: `package tutuca:card@0.1.0;
+component Card {
+    meta "https://tutuca.dev/meta/canvas" = { title: "Card", icon: "🃏", width: 320, transparent: true };
+    view main = p("card");
+}
+register Card;
+`,
+	};
+	const res = tcd.build({ main, files, impls: [{ path: "card.wax", text: "" }], runtime });
+	assert.deepEqual(res.diags, []);
+	assert.deepEqual(componentMeta(res.wasm).meta, {
+		Card: { "https://tutuca.dev/meta/canvas": { title: "Card", icon: "🃏", width: 320, transparent: true } },
+	});
+	const tw = await load(new URL("dist/tutuca-rt.wasm", root));
+	await tw.loadComponent(res.wasm, tw.runtime.scope()); // The runtime ignores it.
 });
 
 // namespace: makes the element, and what's in it, in that namespace, as
