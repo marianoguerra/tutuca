@@ -23,6 +23,7 @@ export const boot = ({
 	const window = document.defaultView;
 	const mode = window === null ? null : syncModeOf(window);
 	addSyncSwitcher(document, mode);
+	addBarToggle(document);
 	if (window !== null) addTimeTravel(document, host, historyOf(window));
 	if (mode === null) {
 		host.start(make(host.scope.components));
@@ -34,6 +35,45 @@ export const boot = ({
 		.then(watch)
 		.catch((error) => console.error("sync failed to start", error));
 	return host;
+};
+
+// A button at the start of the demo bar that collapses it, and the time travel bar under it, to
+// itself in the top left corner, so the demo has the whole window; pressed again, they're back.
+// The page remembers which it was.
+const COLLAPSED_KEY = "tutuca-demos:bar-collapsed";
+const addBarToggle = (document) => {
+	const bar = document.querySelector(".demo-bar");
+	if (bar === null) return;
+	const { body } = document;
+	const storage = storageOf(document.defaultView);
+	const button = document.createElement("button");
+	button.type = "button";
+	button.className = "demo-bar-toggle";
+	const show = (collapsed) => {
+		body.classList.toggle("demo-bar-collapsed", collapsed);
+		const label = collapsed ? "Show the demo bar" : "Hide the demo bar";
+		button.title = label;
+		button.setAttribute("aria-label", label);
+		button.setAttribute("aria-expanded", collapsed ? "false" : "true");
+		button.textContent = collapsed ? "☰" : "⤢";
+	};
+	show(storage?.getItem(COLLAPSED_KEY) === "true");
+	button.addEventListener("click", () => {
+		const collapsed = !body.classList.contains("demo-bar-collapsed");
+		show(collapsed);
+		try {
+			storage?.setItem(COLLAPSED_KEY, String(collapsed));
+		} catch {}
+	});
+	bar.prepend(button);
+};
+// The window's localStorage, or null where there's none (or it can't be read).
+const storageOf = (window) => {
+	try {
+		return window?.localStorage ?? null;
+	} catch {
+		return null;
+	}
 };
 
 // Links in the demo bar to reload the page with each sync mode.

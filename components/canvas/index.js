@@ -2,8 +2,10 @@
 // demos' HTML components live at a point of the canvas, and lines, arrows, rectangles, ellipses
 // and text drawn between them. With the hole tool, clicking the canvas puts a Hole there, the
 // empty slot of the studio's layouts: its + lists what it can become, and picking one swaps the
-// hole for that component. Every item has a header to drag it by, collapse it or remove it, and
-// a corner to resize it by.
+// hole for that component, maybe one of the layouts (layout.js) holding holes of their own.
+// Every item has a chrome, shown while the pointer is over it: a header to drag it by, collapse
+// it, toggle editing it or remove it, and a corner to resize it by. Editing pushes the edit view
+// above its content, so a layout in it (and every layout in that) shows what edits it.
 //
 // A foreignObject doesn't size to its content, so each one is as wide as its item and taller
 // than any of them, and lets the pointer through (pointer-events none) where its card isn't;
@@ -16,6 +18,7 @@ import {
 	component,
 	each,
 	field,
+	pushView,
 	render,
 	renderEach,
 	send,
@@ -24,19 +27,13 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
+import { compositionComponents } from "../composition/index.js";
 import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
+import { GROUP_IDS, KIND_NAMES, layoutComponents, makeHoleContent, SEE_THROUGH } from "./layout.js";
 import { Arrow, Text } from "./shapes.js";
 
-const { button, div, foreignObject, g, header, input, li, p, rect, span, svg, ul } = tag;
+const { button, div, foreignObject, g, header, input, p, rect, span, svg } = tag;
 
-// What a hole can become: the notebook's kinds, and a canvas inside this one.
-export const HOLE_KINDS = {
-	...KINDS,
-	canvas: ["Canvas", "🖼️", "A canvas of its own, inside this one."],
-};
-const KIND_NAMES = Object.keys(HOLE_KINDS);
-const GROUP_IDS = GROUPS.map((g) => g.id);
 // How wide an item is, by what it holds.
 const WIDTHS = {
 	Hole: 240,
@@ -47,87 +44,13 @@ const WIDTHS = {
 	TrackerCell: 380,
 	Notebook: 560,
 	Canvas: 720,
+	VBox: 320,
+	HBox: 560,
+	Grid: 560,
+	Tabs: 480,
 };
 // Taller than any item: the foreignObject's height, which the pointer goes through.
 const ROOM = 4000;
-
-const choice = (id, action, label) => li(button({ "data-choice": id, "on:click": action }, label));
-
-// An empty slot: + lists what it can become, picking one asks the canvas to make it.
-export const Hole = component({
-	name: "Hole",
-	fields: { step: t.enum("closed", "kind", "tracker").sync("none") },
-	queries: {
-		get isClosed() {
-			return this.step === "closed";
-		},
-		get isPickingKind() {
-			return this.step === "kind";
-		},
-	},
-	view: div(
-		{
-			class:
-				"flex min-h-24 items-center justify-center rounded-box border-2 border-dashed border-primary/60 bg-base-100/60 p-2",
-		},
-		$if(
-			field("isClosed"),
-			button(
-				{
-					class: "btn btn-circle btn-ghost btn-sm text-lg",
-					title: "Put a component here",
-					"on:click": send("open"),
-				},
-				"+",
-			),
-			div(
-				{ class: "flex w-full flex-col items-stretch gap-1" },
-				$if(
-					field("isPickingKind"),
-					ul(
-						{ class: "choices menu menu-sm w-full rounded-box border border-base-300 bg-base-100" },
-						Object.entries(HOLE_KINDS).map(([kind, [label, emoji]]) =>
-							choice(kind, send("pick", kind), `${emoji} ${label}`),
-						),
-					),
-					ul(
-						{
-							class:
-								"choices menu menu-sm max-h-64 w-full flex-nowrap overflow-y-auto rounded-box border border-base-300 bg-base-100",
-						},
-						GROUPS.map(({ id, emoji, title }) =>
-							choice(id, send("pickGroup", id), `${emoji} ${title}`),
-						),
-					),
-				),
-				button({ class: "btn btn-ghost btn-xs", "on:click": send("close") }, "cancel"),
-			),
-		),
-	),
-	on: {
-		open(next) {
-			next.step = "kind";
-		},
-		close(next) {
-			next.step = "closed";
-		},
-		pick: {
-			args: [t.enum(...KIND_NAMES)],
-			emits: { notify: ["become"] },
-			run(next, [kind], ctx) {
-				if (kind === "tracker") next.step = "tracker";
-				else ctx.notify("become", [kind, null]);
-			},
-		},
-		pickGroup: {
-			args: [t.enum(...GROUP_IDS)],
-			emits: { notify: ["become"] },
-			run(_next, [group], ctx) {
-				ctx.notify("become", ["tracker", group]);
-			},
-		},
-	},
-});
 
 // The label in an item's header, by what it holds.
 const LABELS = {
@@ -138,12 +61,37 @@ const LABELS = {
 	Drawing: "🎨 Drawing",
 	Notebook: "📓 Notebook",
 	Canvas: "🖼️ Canvas",
+	VBox: "⬇️ Vertical box",
+	HBox: "➡️ Horizontal box",
+	Grid: "▦ Grid",
+	Tabs: "🗂 Tabs",
 };
 const MIN_WIDTH = 160;
 const MIN_HEIGHT = 80;
 
-// One component on the canvas, at x, y: a header to drag it by, collapse it or remove it, and
-// a corner to resize it by. Its height is its content's until it's resized (0).
+// The chrome's parts are invisible until the pointer is over the item's card or something in it
+// has the focus; till then the card is transparent too, its content on the canvas. Collapsed,
+// there's no content to show where it is: its header and border stay, faded.
+const CHROME =
+	"opacity-0 [.canvas-card:hover>&]:opacity-100 [.canvas-card:focus-within>&]:opacity-100";
+const SHOWN =
+	"opacity-80 [.canvas-card:hover>&]:opacity-100 [.canvas-card:focus-within>&]:opacity-100";
+const HEADER =
+	"flex shrink-0 cursor-grab items-center gap-1 rounded-t-box border-b border-base-300 bg-base-200 px-2 py-1 transition-opacity select-none active:cursor-grabbing";
+const CARD =
+	"canvas-card relative flex flex-col rounded-box border transition-[background-color,border-color,box-shadow] hover:border-base-300 hover:bg-base-100 hover:shadow-md focus-within:border-base-300 focus-within:bg-base-100 focus-within:shadow-md";
+const CARD_OPEN = `${CARD} border-transparent bg-transparent`;
+// Holding anything but a layout or a hole, it keeps its background, or it'd blend into the
+// canvas.
+const CARD_BACKED = `${CARD} border-transparent bg-base-100`;
+const CARD_COLLAPSED = `${CARD} border-base-300/60 bg-transparent`;
+const HEADER_OPEN = `${HEADER} ${CHROME}`;
+const HEADER_COLLAPSED = `${HEADER} rounded-b-box border-b-0 ${SHOWN}`;
+
+// One component on the canvas, at x, y, with a chrome shown while the pointer is over it: a
+// header to drag it by, collapse it, toggle editing it or remove it, and a corner to resize it
+// by. Its height is its content's until it's resized (0). Editing, it pushes the edit view above
+// its content, for the components that have one (the layouts).
 export const Item = component({
 	name: "Item",
 	fields: {
@@ -153,8 +101,13 @@ export const Item = component({
 		width: t.number().int().min(MIN_WIDTH).max(4000).default(WIDTHS.Hole),
 		height: t.number().int().min(0).max(4000),
 		collapsed: t.boolean(),
+		// The name given in its header; empty, the header says what it holds.
+		title: t.string(),
+		// Whether its content shows its edit view: a mode, not part of what's on the canvas.
+		editing: t.boolean().sync("none"),
 	},
 	queries: {
+		// What the header says while the title is empty.
 		get label() {
 			const { name } = specOf(this.content);
 			if (name === "TrackerCell") return `📈 ${this.content.section.title}`;
@@ -163,8 +116,28 @@ export const Item = component({
 		get isOpen() {
 			return !this.collapsed;
 		},
+		get cardClass() {
+			if (this.collapsed) return CARD_COLLAPSED;
+			return SEE_THROUGH.has(specOf(this.content).name) ? CARD_OPEN : CARD_BACKED;
+		},
+		get headerClass() {
+			return this.collapsed ? HEADER_COLLAPSED : HEADER_OPEN;
+		},
 		get chevron() {
 			return this.collapsed ? "▸" : "▾";
+		},
+		// Whether its content has an edit view to toggle to.
+		get canEdit() {
+			return specOf(this.content).views.edit !== undefined;
+		},
+		get pushed() {
+			return this.editing && this.canEdit ? "edit" : "main";
+		},
+		get editLabel() {
+			return this.editing ? "Use it" : "Edit it";
+		},
+		get editIcon() {
+			return this.editing ? "👁" : "✎";
 		},
 		// Resized, the card keeps its height and its content scrolls; collapsed, it's the header.
 		get cardStyle() {
@@ -182,14 +155,12 @@ export const Item = component({
 		},
 		div(
 			{
-				class:
-					"canvas-card relative flex flex-col rounded-box border border-base-300 bg-base-100 shadow-md",
+				class: field("cardClass"),
 				style: field("cardStyle"),
 			},
 			header(
 				{
-					class:
-						"flex shrink-0 cursor-grab items-center gap-1 rounded-t-box border-b border-base-300 bg-base-200 px-2 py-1 select-none active:cursor-grabbing",
+					class: field("headerClass"),
 					style: "touch-action:none",
 					title: "Drag to move",
 					"on:pointerdown": send("grab"),
@@ -204,17 +175,42 @@ export const Item = component({
 					},
 					field("chevron"),
 				),
-				span({ class: "flex-1 truncate text-xs font-bold opacity-60" }, field("label")),
+				input({
+					class:
+						"input input-ghost input-xs min-w-0 flex-1 truncate px-1 text-xs font-bold opacity-60 focus:opacity-100",
+					"aria-label": "Title",
+					value: field("title"),
+					placeholder: field("label"),
+					"on:input": send("setTitle", targetValue()),
+				}),
+				$if(
+					field("canEdit"),
+					button(
+						{
+							class: "btn btn-ghost btn-xs w-6 px-0",
+							title: field("editLabel"),
+							"aria-label": field("editLabel"),
+							"aria-pressed": $if(field("editing"), "true", "false"),
+							"on:click": send("toggleEditing"),
+						},
+						field("editIcon"),
+					),
+					"",
+				),
 				button({ class: "btn btn-ghost btn-xs", title: "Remove", "on:click": send("remove") }, "✕"),
 			),
 			$if(
 				field("isOpen"),
-				div({ class: "min-h-0 flex-1 overflow-auto p-3" }, render(field("content"))),
+				// Main pushed too, so a nested item's content isn't edited with this one's.
+				div(
+					{ class: "min-h-0 flex-1 overflow-auto p-3" },
+					pushView(field("pushed"), render(field("content"))),
+				),
 				"",
 			),
 			div({
 				class:
-					"absolute right-0 bottom-0 size-4 cursor-nwse-resize rounded-br-box opacity-50 hover:opacity-100",
+					"absolute right-0 bottom-0 size-4 cursor-nwse-resize rounded-br-box opacity-0 transition-opacity [.canvas-card:focus-within>&]:opacity-50 [.canvas-card:hover>&]:opacity-50 [.canvas-card:hover>&:hover]:opacity-100",
 				style:
 					"touch-action:none;background:linear-gradient(135deg,transparent 50%,currentColor 50% 60%,transparent 60% 70%,currentColor 70% 80%,transparent 80%)",
 				title: "Drag to resize",
@@ -225,6 +221,15 @@ export const Item = component({
 	on: {
 		toggle(next) {
 			next.collapsed = !this.collapsed;
+		},
+		setTitle: {
+			args: [t.string()],
+			run(next, [title]) {
+				next.title = title;
+			},
+		},
+		toggleEditing(next) {
+			next.editing = !this.editing;
 		},
 		moveTo: {
 			pure: true,
@@ -248,6 +253,7 @@ export const Item = component({
 			args: [t.component()],
 			run(next, [content]) {
 				next.content = content;
+				next.editing = specOf(content).views.edit !== undefined; // A new layout, to fill.
 				next.width = WIDTHS[specOf(content).name] ?? this.width;
 				next.height = 0;
 			},
@@ -259,13 +265,13 @@ export const Item = component({
 				ctx.notify("removeItem");
 			},
 		},
-		// The header pressed, not one of its buttons: the canvas picks the item up.
+		// The header pressed, not one of its buttons or its title: the canvas picks the item up.
 		grab: {
 			args: [],
 			emits: { notify: ["pickUp"] },
 			run(_next, _args, ctx) {
 				// Checked before pressPoint captures the pointer: a captured press never clicks.
-				if (ctx.event?.target?.closest?.("button")) return;
+				if (ctx.event?.target?.closest?.("button, input")) return;
 				const point = pressPoint(ctx.event);
 				if (point === null) return;
 				ctx.notify("pickUp", point);
@@ -723,16 +729,7 @@ export const Canvas = component({
 			sourceKey: t.index("items"),
 			run(next, [kind, group], ctx) {
 				ctx.stopNext();
-				const C = ctx.scope.components;
-				const content =
-					kind === "canvas"
-						? C.Canvas({ width: 1200, height: 800 })
-						: makeContent(C, kind, {
-								group: group ?? undefined,
-								now: ctx.now(),
-								tz: -new Date(ctx.now()).getTimezoneOffset(),
-								uuid: () => ctx.uuid(),
-							});
+				const content = makeHoleContent(ctx, kind, group);
 				next.items[ctx.sourceKey] = apply(next.items[ctx.sourceKey], "setContent", content);
 			},
 		},
@@ -845,4 +842,11 @@ export const canvas = (C, items = [], fields = {}) => {
 	});
 };
 
-export const canvasComponents = { ...compositionComponents, Canvas, Item, Hole, Arrow, Text };
+export const canvasComponents = {
+	...compositionComponents,
+	...layoutComponents,
+	Canvas,
+	Item,
+	Arrow,
+	Text,
+};

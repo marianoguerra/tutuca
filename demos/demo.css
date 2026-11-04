@@ -43,6 +43,43 @@ body {
 .time-travel:not(:has([role="group"])) {
 	display: none;
 }
+/* Collapses the demo bar to itself, and back. */
+.demo-bar-toggle {
+	align-self: center;
+	width: 1.75rem;
+	height: 1.75rem;
+	padding: 0;
+	border: 1px solid var(--color-base-300, #e4e4e7);
+	border-radius: 0.375rem;
+	background: var(--color-base-100, #fff);
+	color: inherit;
+	font: inherit;
+	line-height: 1;
+	opacity: 0.7;
+	cursor: pointer;
+}
+.demo-bar-toggle:hover,
+.demo-bar-toggle:focus-visible {
+	opacity: 1;
+}
+/* Collapsed, the demo bar is its toggle, floating in the top left corner over the demo, and the
+   time travel bar is gone: the demo has the whole window. */
+.demo-bar-collapsed .demo-bar {
+	position: fixed;
+	top: 0.5rem;
+	left: 0.5rem;
+	z-index: 1000;
+	padding: 0;
+	border: 0;
+	background: none;
+}
+.demo-bar-collapsed .demo-bar > :not(.demo-bar-toggle),
+.demo-bar-collapsed .time-travel {
+	display: none;
+}
+.demo-bar-collapsed .demo-bar-toggle {
+	box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+}
 .demo-bar .demo-error {
 	color: var(--color-error, #dc2626);
 	opacity: 1;
@@ -182,4 +219,11 @@ body.demo-fullscreen {
 .tree-spec-link[aria-current="page"] {
 	opacity: 1;
 	font-weight: bold;
+}
+/* Collapsed, the demo keeps clear of the toggle above it, and fills the rest of the window. */
+.demo-bar-collapsed #app {
+	padding: 2.5rem 0.5rem 0.5rem;
+}
+.demo-bar-collapsed.demo-fullscreen #app {
+	padding: 2.5rem 0 0;
 }

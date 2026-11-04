@@ -220,6 +220,73 @@ test("canvas demo: items resize by their corner; shapes are drawn, styled, moved
 	await checkClean(app);
 });
 
+test("canvas demo: a hole becomes a layout, edited from its item's toggle", async () => {
+	const app = mount(startCanvas);
+	const item = () => app.state().items["item-2"];
+	const card = () => app.rootNode.querySelectorAll("foreignObject")[1];
+	const click = (selector, i = 0) => app.fire("click", card().querySelectorAll(selector)[i]);
+	assert.equal(card().querySelector('[title="Edit it"]'), null, "a hole has nothing to edit");
+	click('[title="Put a component here"]');
+	click('[data-choice="vbox"]');
+	assert.equal(specOf(item().content).name, "VBox");
+	assert.equal(item().editing, true, "a new layout starts edited");
+	click('[title="Add a slot below"]');
+	assert.equal(item().content.items.length, 2);
+	// The second slot's hole becomes a grid, edited with its parent.
+	click('[title="Put a component here"]', 1);
+	click('[data-choice="grid"]');
+	const grid = () => item().content.items[1];
+	assert.equal(specOf(grid()).name, "Grid");
+	click('[title="More columns"]');
+	assert.equal(grid().columns, 3);
+	click('[title="Remove this slot"]', 1); // The grid's first cell.
+	assert.equal(grid().items.length, 3);
+	click('[title="Put a component here"]');
+	click('[data-choice="notes"]');
+	assert.equal(specOf(item().content.items[0]).name, "Notes");
+	// Used, the layouts show no editing.
+	click('[title="Use it"]');
+	assert.equal(item().editing, false);
+	assert.equal(card().querySelector('[title="Remove this slot"]'), null);
+	assert.equal(card().querySelector('[title="More columns"]'), null);
+	click('[title="Edit it"]');
+	assert.ok(card().querySelector('[title="More columns"]'));
+	await checkClean(app);
+});
+
+test("canvas demo: tabs add, rename, select and remove; an item's title is edited", async () => {
+	const app = mount(startCanvas);
+	const item = () => app.state().items["item-2"];
+	const tabs = () => item().content;
+	const card = () => app.rootNode.querySelectorAll("foreignObject")[1];
+	const click = (selector, i = 0) => app.fire("click", card().querySelectorAll(selector)[i]);
+	click('[title="Put a component here"]');
+	click('[data-choice="tabs"]');
+	assert.equal(specOf(tabs()).name, "Tabs");
+	click('[title="Add a tab"]');
+	assert.deepEqual([tabs().items.length, tabs().active], [2, 1]);
+	app.fire("input", card().querySelectorAll('[aria-label="Tab name"]')[0], "First");
+	assert.deepEqual(tabs().labels, ["First", ""]);
+	// The shown tab's hole becomes notes.
+	click('[title="Put a component here"]');
+	click('[data-choice="notes"]');
+	assert.equal(specOf(tabs().items[1]).name, "Notes");
+	click('[title="Use it"]');
+	const headers = () => [...card().querySelectorAll('[role="tab"]')].map((t) => t.textContent);
+	assert.deepEqual(headers(), ["First", "Tab 2"]);
+	click('[role="tab"]');
+	assert.equal(tabs().active, 0);
+	click('[title="Edit it"]');
+	click('[title="Remove this tab"]', 0);
+	assert.deepEqual([tabs().items.length, tabs().labels, tabs().active], [1, [""], 0]);
+	// The title, typed in the header, takes the place of what it holds.
+	const title = () => card().querySelector('[aria-label="Title"]');
+	assert.equal(title().placeholder, "🗂 Tabs");
+	app.fire("input", title(), "My tabs");
+	assert.equal(item().title, "My tabs");
+	await checkClean(app);
+});
+
 test("lang demo: switches notation and edits the program", async () => {
 	const app = mount(startLang);
 	const output = () => app.$('[aria-label="Result"]').textContent;
