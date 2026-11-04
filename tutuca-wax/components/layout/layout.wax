@@ -307,6 +307,9 @@ fn grid_on_add_row(state: &grid_state, ctx: &context) -> &grid_state {
 // The last row: the cells past the last full one, or a full row.
 fn grid_on_remove_row(state: &grid_state, ctx: &context) -> &grid_state {
     let n = list_count(state.cells);
+    if n == 0 {
+        return state;
+    }
     let last = n %s state.columns;
     if last == 0 {
         last = state.columns;
@@ -324,12 +327,14 @@ fn grid_get_rows(state: &grid_state) -> i32 {
     (list_count(state.cells) + state.columns - 1) /s state.columns;
 }
 
+// `when` is only checked in dev mode, the handlers run regardless: columns
+// stays in 1..6 (at 0, rows and remove_row would divide by zero).
 fn grid_on_more_columns(state: &grid_state, ctx: &context) -> &grid_state {
-    grid_with_columns(state, state.columns + 1);
+    grid_with_columns(state, int_min(state.columns + 1, 6));
 }
 
 fn grid_on_fewer_columns(state: &grid_state, ctx: &context) -> &grid_state {
-    grid_with_columns(state, state.columns - 1);
+    grid_with_columns(state, int_max(state.columns - 1, 1));
 }
 
 fn grid_get_grid_style(state: &grid_state) -> js_string {

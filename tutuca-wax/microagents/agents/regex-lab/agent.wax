@@ -460,7 +460,9 @@ fn regex_lab_on_add_regex(state: &regex_lab_state, ctx: &context, pattern: js_st
 
 fn regex_lab_on_remove_regex(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
     let i = list_find(state.regexes, gs_id, id);
-    if i <s 0 {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last regex stays.
+    if (i <s 0) | (list_count(state.regexes) <=s 1) {
         return state;
     }
     let texts = list_empty();
@@ -495,6 +497,11 @@ fn regex_lab_on_set_text(state: &regex_lab_state, ctx: &context, id: js_string, 
 }
 
 fn regex_lab_on_remove_text(state: &regex_lab_state, ctx: &context, id: js_string) -> &regex_lab_state {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last text stays.
+    if list_count(state.texts) <=s 1 {
+        return state;
+    }
     regex_lab_with_texts(state, list_remove_at(state.texts, list_find(state.texts, gs_id, id)));
 }
 

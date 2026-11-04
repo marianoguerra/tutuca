@@ -487,6 +487,11 @@ fn cron_lab_on_add_cron(state: &cron_lab_state, ctx: &context, expression: js_st
 }
 
 fn cron_lab_on_remove_cron(state: &cron_lab_state, ctx: &context, id: js_string) -> &cron_lab_state {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last cron stays.
+    if list_count(state.crons) <=s 1 {
+        return state;
+    }
     let next = cron_lab_with_crons(state, list_remove_at(state.crons, list_find(state.crons, gs_id, id)));
     if js_string_equals(state.focus, id) {
         return cron_lab_with_focus(next, s_empty);

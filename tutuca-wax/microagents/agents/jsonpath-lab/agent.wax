@@ -545,6 +545,11 @@ fn json_path_lab_on_add_path(state: &json_path_lab_state, ctx: &context, path: j
 }
 
 fn json_path_lab_on_remove_path(state: &json_path_lab_state, ctx: &context, id: js_string) -> &json_path_lab_state {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last path stays.
+    if list_count(state.paths) <=s 1 {
+        return state;
+    }
     let next = json_path_lab_with_paths(state, list_remove_at(state.paths, list_find(state.paths, gs_id, id)));
     if pl_is(state.focus, id) {
         return json_path_lab_with_focus(next, s_empty);

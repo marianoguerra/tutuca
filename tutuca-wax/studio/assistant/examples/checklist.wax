@@ -25,6 +25,10 @@ fn checklist_on_set_draft(
 
 // A new unchecked item with the draft's text; the draft starts over.
 fn checklist_on_add(state: &checklist_state, ctx: &context) -> &checklist_state {
+    // when is only checked in dev mode: the handler checks it too.
+    if js_string_length(state.draft) == 0 {
+        return state;
+    }
     let item = checklist_make_check_item(ctx, state.draft, 0);
     {checklist_state|
         items: list_push(state.items, value_component(item)),

@@ -598,7 +598,9 @@ fn jq_lab_on_add_filter(state: &jq_lab_state, ctx: &context, filter: js_string) 
 
 fn jq_lab_on_remove_filter(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
     let i = list_find(state.filters, gs_id, id);
-    if i <s 0 {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last filter stays.
+    if (i <s 0) | (list_count(state.filters) <=s 1) {
         return state;
     }
     let next = jq_lab_with_filters(state, list_remove_at(state.filters, i));
@@ -651,7 +653,9 @@ fn jq_lab_on_new_input(state: &jq_lab_state, ctx: &context) -> &jq_lab_state {
 
 fn jq_lab_on_remove_input(state: &jq_lab_state, ctx: &context, id: js_string) -> &jq_lab_state {
     let i = list_find(state.inputs, gs_id, id);
-    if i <s 0 {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last input stays.
+    if (i <s 0) | (list_count(state.inputs) <=s 1) {
         return state;
     }
     let next = jq_lab_with_inputs(state, list_remove_at(state.inputs, i));

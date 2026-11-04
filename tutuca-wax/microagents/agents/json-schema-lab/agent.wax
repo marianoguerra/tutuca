@@ -471,6 +471,11 @@ fn json_schema_lab_on_set_schema_text(state: &json_schema_lab_state, ctx: &conte
 }
 
 fn json_schema_lab_on_patch_schema(state: &json_schema_lab_state, ctx: &context, pointer: js_string, value: &value) -> &json_schema_lab_state {
+    // `when` is only checked in dev mode, the handler runs regardless: while the
+    // schema's text isn't JSON, editing the last good schema would drop it.
+    if js_string_length(state.schema_error) != 0 {
+        return state;
+    }
     let r = sl_set(state, pointer, value);
     if !r.ok {
         return state;
@@ -479,6 +484,11 @@ fn json_schema_lab_on_patch_schema(state: &json_schema_lab_state, ctx: &context,
 }
 
 fn json_schema_lab_on_remove_from_schema(state: &json_schema_lab_state, ctx: &context, pointer: js_string) -> &json_schema_lab_state {
+    // `when` is only checked in dev mode, the handler runs regardless: while the
+    // schema's text isn't JSON, editing the last good schema would drop it.
+    if js_string_length(state.schema_error) != 0 {
+        return state;
+    }
     let r = sl_call(s_fn_remove, sl_args2(state.schema, value_string(pointer)));
     if !r.ok {
         return state;
@@ -522,6 +532,11 @@ fn json_schema_lab_on_set_example_text(state: &json_schema_lab_state, ctx: &cont
 }
 
 fn json_schema_lab_on_remove_example(state: &json_schema_lab_state, ctx: &context, id: js_string) -> &json_schema_lab_state {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last example stays.
+    if list_count(state.examples) <=s 1 {
+        return state;
+    }
     let next = json_schema_lab_with_examples(state, list_remove_at(state.examples, list_find(state.examples, gs_id, id)));
     next = json_schema_lab_with_example_texts(next, map_dissoc(state.example_texts, id));
     json_schema_lab_with_example_errors(next, map_dissoc(state.example_errors, id));

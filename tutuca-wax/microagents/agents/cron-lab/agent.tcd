@@ -51,12 +51,12 @@ component CronLab: MicroAgent {
     /// Change the timezone of an expression (an IANA name such as Europe/Berlin): its runs stay computed in UTC, and also read in that zone.
     message set_timezone(id: string, timezone: string) when any(crons, it.id == id) changes crons;
     /// Set the ISO time an expression's runs count from, or "" for the default (2025-01-01T00:00:00Z).
-    message set_from(id: string, iso: string)
-        when any(crons, it.id == id) and (iso == "" or iso matches "^[+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?$")
+    message set_from(id: string, iso: string where iso matches "^([+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?)?$")
+        when any(crons, it.id == id)
         changes crons;
     /// Set the ISO time an expression's first run should be, or "" to clear it.
-    message set_expected_next(id: string, iso: string)
-        when any(crons, it.id == id) and (iso == "" or iso matches "^[+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?$")
+    message set_expected_next(id: string, iso: string where iso matches "^([+-]?[0-9]{4,6}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]{1,9})?)?)? *([Zz]|[+-][0-9]{2}:?[0-9]{2})?)?$")
+        when any(crons, it.id == id)
         changes crons;
     /// Which cron the builder edits.
     message focus(id: string) changes focus ensures next.focus == id;

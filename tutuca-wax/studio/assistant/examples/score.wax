@@ -83,6 +83,10 @@ fn score_get_theirs_tally(state: &score_state) -> js_string {
 
 // Never past the target: the last points of a game count up to it.
 fn score_on_add(state: &score_state, ctx: &context, team: score_team, points: score_points) -> &score_state {
+    // when is only checked in dev mode: the handler checks it too.
+    if score_get_over(state) {
+        return state;
+    }
     if team == score_team_ours {
         return score_with_ours(state, int_min(state.ours + points, state.target));
     }

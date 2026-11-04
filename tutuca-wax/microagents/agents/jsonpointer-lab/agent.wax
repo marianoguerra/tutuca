@@ -681,7 +681,9 @@ fn json_pointer_lab_on_remove_pointer(
     id: js_string,
 ) -> &json_pointer_lab_state {
     let i = jp_index_of(state.pointers, id);
-    if i <s 0 {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last pointer stays.
+    if (i <s 0) | (list_count(state.pointers) <=s 1) {
         return state;
     }
     let next = json_pointer_lab_with_pointers(state, jp_without(state.pointers, i));

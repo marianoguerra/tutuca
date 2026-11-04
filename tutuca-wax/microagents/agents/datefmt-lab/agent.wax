@@ -615,7 +615,9 @@ fn datefmt_lab_on_set_instant(state: &datefmt_lab_state, ctx: &context, id: js_s
 
 fn datefmt_lab_on_remove_instant(state: &datefmt_lab_state, ctx: &context, id: js_string) -> &datefmt_lab_state {
     let i = list_find(state.instants, gs_id, id);
-    if i <s 0 {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last instant stays.
+    if (i <s 0) | (list_count(state.instants) <=s 1) {
         return state;
     }
     let next = datefmt_lab_with_instants(state, list_remove_at(state.instants, i));
@@ -685,6 +687,11 @@ fn datefmt_lab_on_reorder_intls(state: &datefmt_lab_state, ctx: &context, id: js
 }
 
 fn datefmt_lab_on_remove_format(state: &datefmt_lab_state, ctx: &context, id: js_string) -> &datefmt_lab_state {
+    // `when` is only checked in dev mode, the handler runs regardless: the
+    // last format, strftime or Intl, stays.
+    if list_count(state.strftimes) + list_count(state.intls) <=s 1 {
+        return state;
+    }
     let s = list_find(state.strftimes, gs_id, id);
     if s >=s 0 {
         return datefmt_lab_with_strftimes(state, list_remove_at(state.strftimes, s));

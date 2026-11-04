@@ -655,6 +655,10 @@ fn editor_on_goto(state: &editor_state, ctx: &context, file: js_string, line: i3
 }
 
 fn editor_on_toggle_chat(state: &editor_state, ctx: &context) -> &editor_state {
+    // `when` is only checked in dev mode: no assistant, no chat to open.
+    if !state.assistant {
+        return state;
+    }
     editor_with_chat_open(state, !state.chat_open);
 }
 
