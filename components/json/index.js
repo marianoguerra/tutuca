@@ -4,7 +4,9 @@
 
 import {
 	$if,
+	apply,
 	button,
+	canApply,
 	component,
 	DISPLAY_META,
 	each,
@@ -50,6 +52,25 @@ const BLOCK = "ml-1 flex flex-col border-l border-base-content/15 pl-4";
 
 const { div, input, label, pre, span } = tag;
 
+// The messages that change a value say so to what's above, with jsonEdited, once they ran: a
+// schema editor reads its schema again, and the editors around a value stop it.
+const edits = (on, names) => {
+	const out = { ...on };
+	for (const name of names) {
+		const h = on[name];
+		out[name] = {
+			...h,
+			emits: { notify: ["jsonEdited"] },
+			run(next, args, ctx) {
+				const result = h.run.call(this, next, args, ctx);
+				ctx.notify("jsonEdited");
+				return result;
+			},
+		};
+	}
+	return out;
+};
+
 export const JsonNull = component({
 	name: "JsonNull",
 	methods: {
@@ -80,15 +101,18 @@ export const JsonBool = component({
 			$if(field("value"), "true", "false"),
 		),
 	},
-	on: {
-		toggle: {
-			args: [],
-			post: (prev, next) => next.value === !prev.value,
-			run(next) {
-				next.value = !this.value;
+	on: edits(
+		{
+			toggle: {
+				args: [],
+				post: (prev, next) => next.value === !prev.value,
+				run(next) {
+					next.value = !this.value;
+				},
 			},
 		},
-	},
+		["toggle"],
+	),
 });
 
 // text is what the user typed; value follows it whenever it reads as a number.
@@ -125,17 +149,20 @@ export const JsonNumber = component({
 			"on:input": send("setText", targetValue()),
 		}),
 	},
-	on: {
-		setText: {
-			args: [t.string()],
-			post: (_prev, next, [text]) => next.text === text,
-			run(next, [text]) {
-				next.text = text;
-				const n = asNumber(text);
-				if (Number.isFinite(n)) next.value = n;
+	on: edits(
+		{
+			setText: {
+				args: [t.string()],
+				post: (_prev, next, [text]) => next.text === text,
+				run(next, [text]) {
+					next.text = text;
+					const n = asNumber(text);
+					if (Number.isFinite(n)) next.value = n;
+				},
 			},
 		},
-	},
+		["setText"],
+	),
 });
 
 export const JsonString = component({
@@ -160,15 +187,18 @@ export const JsonString = component({
 			'"',
 		),
 	},
-	on: {
-		setValue: {
-			args: [t.string()],
-			post: (_prev, next, [value]) => next.value === value,
-			run(next, [value]) {
-				next.value = value;
+	on: edits(
+		{
+			setValue: {
+				args: [t.string()],
+				post: (_prev, next, [value]) => next.value === value,
+				run(next, [value]) {
+					next.value = value;
+				},
 			},
 		},
-	},
+		["setValue"],
+	),
 });
 
 // A value still to be chosen, in a new array item or object entry.
@@ -207,16 +237,19 @@ export const JsonSelector = component({
 			),
 		),
 	},
-	on: {
-		// Replaces itself with an empty value of type.
-		setTo: {
-			args: [t.enum(...Object.keys(CHOICES))],
-			run(_next, [type], ctx) {
-				const [name] = CHOICES[type];
-				return ctx.scope.make(name, {});
+	on: edits(
+		{
+			// Replaces itself with an empty value of type.
+			setTo: {
+				args: [t.enum(...Object.keys(CHOICES))],
+				run(_next, [type], ctx) {
+					const [name] = CHOICES[type];
+					return ctx.scope.make(name, {});
+				},
 			},
 		},
-	},
+		["setTo"],
+	),
 });
 
 // Loop state for commas: an item is last when no other follows it.
@@ -245,6 +278,8 @@ const itemRow = (...extra) =>
 		span({ class: `${MONO} ${PUNCT}` }, lookupBind("comma")),
 		...extra,
 	);
+// The open bracket toggles the collection; closed, it reads as open…close and how many.
+const TOGGLE = `${MONO} ${PUNCT} cursor-pointer hover:opacity-100`;
 const collectionView = (open, close, itemsField, rowExtras, addLabel) =>
 	$if(
 		field("isEmpty"),
@@ -253,24 +288,86 @@ const collectionView = (open, close, itemsField, rowExtras, addLabel) =>
 			span({ class: `${MONO} ${PUNCT}` }, open + close),
 			...(addLabel ? [button({ class: ADD, "on:click": send("add") }, addLabel)] : []),
 		),
-		div(
-			{ class: "inline-flex flex-col" },
-			span({ class: `${MONO} ${PUNCT}` }, open),
+		$if(
+			field("open"),
 			div(
-				{ class: BLOCK },
-				each(field(itemsField), itemRow(...rowExtras), "items"),
-				...(addLabel ? [button({ class: ADD, "on:click": send("add") }, addLabel)] : []),
+				{ class: "inline-flex flex-col" },
+				button(
+					{
+						class: `${TOGGLE} self-start json-toggle`,
+						title: "Collapse",
+						"on:click": send("toggle"),
+					},
+					open,
+				),
+				div(
+					{ class: BLOCK },
+					each(field(itemsField), itemRow(...rowExtras), "items"),
+					...(addLabel ? [button({ class: ADD, "on:click": send("add") }, addLabel)] : []),
+				),
+				span({ class: `${MONO} ${PUNCT}` }, close),
 			),
-			span({ class: `${MONO} ${PUNCT}` }, close),
+			span(
+				{ class: "inline-flex items-baseline gap-1" },
+				button(
+					{ class: `${TOGGLE} json-toggle`, title: "Expand", "on:click": send("toggle") },
+					`${open}…${close}`,
+				),
+				span({ class: "font-mono text-xs opacity-40" }, field("summary")),
+			),
 		),
 	);
 const moveUp = (items, key) => {
 	if (key > 0) [items[key - 1], items[key]] = [items[key], items[key - 1]];
 };
 
+// Opening and closing: setOpenDeep reaches every collection below, through entries.
+const openBelow = (next, key, open) => {
+	const v = next[key];
+	if (Array.isArray(v)) {
+		v.forEach((k, i) => {
+			if (canApply(k, "setOpenDeep")) v[i] = apply(k, "setOpenDeep", open);
+		});
+	} else if (canApply(v, "setOpenDeep")) next[key] = apply(v, "setOpenDeep", open);
+};
+const passOpenDeep = (key) => ({
+	setOpenDeep: {
+		pure: true,
+		args: [t.boolean()],
+		run(next, [open]) {
+			openBelow(next, key, open);
+		},
+	},
+});
+const openable = (key) => ({
+	toggle: {
+		args: [],
+		run(next) {
+			next.open = !this.open;
+		},
+	},
+	setOpen: {
+		pure: true,
+		args: [t.boolean()],
+		post: (_prev, next, [open]) => next.open === open,
+		run(next, [open]) {
+			next.open = open;
+		},
+	},
+	setOpenDeep: {
+		pure: true,
+		args: [t.boolean()],
+		run(next, [open]) {
+			next.open = open;
+			openBelow(next, key, open);
+		},
+	},
+});
+const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
 export const JsonArray = component({
 	name: "JsonArray",
-	fields: { items: t.array(t.component(VALUE_NAMES)) },
+	fields: { items: t.array(t.component(VALUE_NAMES)), open: t.boolean(true) },
 	methods: {
 		toJson() {
 			return this.items.map((item) => item.toJson());
@@ -280,34 +377,41 @@ export const JsonArray = component({
 		get isEmpty() {
 			return this.items.length === 0;
 		},
+		get summary() {
+			return count(this.items.length, "item", "items");
+		},
 	},
 	loops: { items: commas },
 	views: {
 		main: collectionView("[", "]", "items", [], null),
 		edit: collectionView("[", "]", "items", [moveButton, removeButton], "+ item"),
 	},
-	on: {
-		add: {
-			args: [],
-			post: (prev, next) => next.items.length === prev.items.length + 1,
-			run(next, _args, ctx) {
-				next.items.push(ctx.scope.make("JsonSelector", {}));
+	on: edits(
+		{
+			...openable("items"),
+			add: {
+				args: [],
+				post: (prev, next) => next.items.length === prev.items.length + 1,
+				run(next, _args, ctx) {
+					next.items.push(ctx.scope.make("JsonSelector", {}));
+				},
+			},
+			removeAt: {
+				args: [t.index("items")],
+				post: (prev, next) => next.items.length === prev.items.length - 1,
+				run(next, [key]) {
+					next.items.splice(key, 1);
+				},
+			},
+			moveUp: {
+				args: [t.index("items")],
+				run(next, [key]) {
+					moveUp(next.items, key);
+				},
 			},
 		},
-		removeAt: {
-			args: [t.index("items")],
-			post: (prev, next) => next.items.length === prev.items.length - 1,
-			run(next, [key]) {
-				next.items.splice(key, 1);
-			},
-		},
-		moveUp: {
-			args: [t.index("items")],
-			run(next, [key]) {
-				moveUp(next.items, key);
-			},
-		},
-	},
+		["add", "removeAt", "moveUp"],
+	),
 });
 
 export const JsonEntry = component({
@@ -337,20 +441,24 @@ export const JsonEntry = component({
 			render(field("value")),
 		),
 	},
-	on: {
-		setKey: {
-			args: [t.string()],
-			post: (_prev, next, [key]) => next.key === key,
-			run(next, [key]) {
-				next.key = key;
+	on: edits(
+		{
+			...passOpenDeep("value"),
+			setKey: {
+				args: [t.string()],
+				post: (_prev, next, [key]) => next.key === key,
+				run(next, [key]) {
+					next.key = key;
+				},
 			},
 		},
-	},
+		["setKey"],
+	),
 });
 
 export const JsonObject = component({
 	name: "JsonObject",
-	fields: { entries: t.array(t.component("JsonEntry")) },
+	fields: { entries: t.array(t.component("JsonEntry")), open: t.boolean(true) },
 	methods: {
 		// Later entries win, as in JSON.parse.
 		toJson() {
@@ -361,35 +469,92 @@ export const JsonObject = component({
 		get isEmpty() {
 			return this.entries.length === 0;
 		},
+		get summary() {
+			return count(this.entries.length, "key", "keys");
+		},
 	},
 	loops: { items: commas },
 	views: {
 		main: collectionView("{", "}", "entries", [], null),
 		edit: collectionView("{", "}", "entries", [moveButton, removeButton], "+ entry"),
 	},
+	on: edits(
+		{
+			...openable("entries"),
+			add: {
+				args: [],
+				post: (prev, next) => next.entries.length === prev.entries.length + 1,
+				run(next, _args, ctx) {
+					const scope = ctx.scope;
+					const key = `key${this.entries.length + 1}`;
+					next.entries.push(
+						scope.make("JsonEntry", { key, value: scope.make("JsonSelector", {}) }),
+					);
+				},
+			},
+			removeAt: {
+				args: [t.index("entries")],
+				post: (prev, next) => next.entries.length === prev.entries.length - 1,
+				run(next, [key]) {
+					next.entries.splice(key, 1);
+				},
+			},
+			moveUp: {
+				args: [t.index("entries")],
+				run(next, [key]) {
+					moveUp(next.entries, key);
+				},
+			},
+		},
+		["add", "removeAt", "moveUp"],
+	),
+});
+
+// Expand all and collapse all, right aligned, for the value below.
+const OPEN_ALL = "btn btn-xs btn-ghost font-mono";
+const openAllButtons = () => [
+	button(
+		{ class: `${OPEN_ALL} ml-auto expand-all`, "on:click": send("setOpenDeep", true) },
+		"expand all",
+	),
+	button(
+		{ class: `${OPEN_ALL} collapse-all`, "on:click": send("setOpenDeep", false) },
+		"collapse all",
+	),
+];
+
+// A JSON value with expand all and collapse all above it. It renders its value in the view
+// pushed from above, so an edit view above edits the value.
+const jsonRootView = () =>
+	div(
+		{ class: "flex flex-col gap-1 json-root" },
+		$if(
+			field("isCollection"),
+			div({ class: "flex items-center gap-1 border-b border-base-300 pb-1" }, ...openAllButtons()),
+			null,
+		),
+		div({ class: "overflow-auto" }, render(field("value"))),
+	);
+export const JsonRoot = component({
+	name: "JsonRoot",
+	fields: { value: t.component(VALUE_NAMES) },
+	methods: {
+		toJson() {
+			return this.value.toJson();
+		},
+	},
+	queries: {
+		// Only arrays and objects open and close.
+		get isCollection() {
+			return canApply(this.value, "setOpen");
+		},
+	},
+	view: jsonRootView(),
+	views: { edit: jsonRootView() },
 	on: {
-		add: {
-			args: [],
-			post: (prev, next) => next.entries.length === prev.entries.length + 1,
-			run(next, _args, ctx) {
-				const scope = ctx.scope;
-				const key = `key${this.entries.length + 1}`;
-				next.entries.push(scope.make("JsonEntry", { key, value: scope.make("JsonSelector", {}) }));
-			},
-		},
-		removeAt: {
-			args: [t.index("entries")],
-			post: (prev, next) => next.entries.length === prev.entries.length - 1,
-			run(next, [key]) {
-				next.entries.splice(key, 1);
-			},
-		},
-		moveUp: {
-			args: [t.index("entries")],
-			run(next, [key]) {
-				moveUp(next.entries, key);
-			},
-		},
+		...passOpenDeep("value"),
+		// Passed on, to what holds the root.
+		jsonEdited: { args: [], run() {} },
 	},
 });
 
@@ -452,6 +617,7 @@ export const JsonEditor = component({
 				}),
 				"JSON text",
 			),
+			...openAllButtons(),
 		),
 		div({ class: "overflow-auto" }, pushView(field("mode"), render(field("value")))),
 		$if(
@@ -461,6 +627,14 @@ export const JsonEditor = component({
 		),
 	),
 	on: {
+		...passOpenDeep("value"),
+		// Its text follows by itself: nothing above needs to know.
+		jsonEdited: {
+			args: [],
+			run(_next, _args, ctx) {
+				ctx.stopNext();
+			},
+		},
 		setMode: {
 			args: [t.enum("view", "edit")],
 			run(next, [mode]) {
@@ -485,6 +659,7 @@ export const jsonComponents = {
 	JsonArray,
 	JsonEntry,
 	JsonObject,
+	JsonRoot,
 	JsonEditor,
 };
 
@@ -498,3 +673,6 @@ export const fromJson = (C, v) => {
 	const entries = Object.entries(v).map(([key, x]) => C.JsonEntry({ key, value: fromJson(C, x) }));
 	return C.JsonObject({ entries });
 };
+
+// A JsonRoot for a JSON value, made with C.
+export const jsonRoot = (C, v) => C.JsonRoot({ value: fromJson(C, v) });

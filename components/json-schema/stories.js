@@ -122,8 +122,8 @@ export default stories({
 				"read it as keywords": [
 					step.send("setView", ["format"]),
 					step.check("format", (s) => s.view === "format"),
-					step.event("click", ".view-semantic"),
-					step.check("semantic again", (s) => s.view === "main"),
+					step.event("click", ".view-compact"),
+					step.check("compact again", (s) => s.view === "main"),
 				],
 				"read the schema back": [step.check("same schema", roundTrips(sample))],
 			},

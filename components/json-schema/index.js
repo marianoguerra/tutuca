@@ -375,7 +375,11 @@ const viewButton = (view, label) =>
 // The entry point of a schema tree: a toolbar and one node.
 export const SchemaRoot = component({
 	name: "SchemaRoot",
-	fields: { node: schemaNode(), view: t.enum("main", "format") },
+	fields: {
+		node: schemaNode(),
+		view: t.enum("main", "format"),
+		bare: t.boolean(), // No toolbar: what holds it has its own.
+	},
 	methods: {
 		toSchema() {
 			return this.node.toSchema();
@@ -393,20 +397,27 @@ export const SchemaRoot = component({
 		{
 			class: "font-mono text-xs leading-5 bg-base-100 text-base-content p-3 rounded schema-root",
 		},
-		header(
-			{ class: "flex gap-1 items-center pb-2 mb-2 border-b border-base-300" },
-			span(
-				{ class: "join mr-2", role: "group", "aria-label": "Reading" },
-				viewButton("main", "semantic"),
-				viewButton("format", "format"),
-			),
-			button(
-				{ class: "btn btn-xs btn-ghost expand-all", "on:click": send("setOpenDeep", true) },
-				"expand all",
-			),
-			button(
-				{ class: "btn btn-xs btn-ghost collapse-all", "on:click": send("setOpenDeep", false) },
-				"collapse all",
+		$if(
+			field("bare"),
+			null,
+			header(
+				{ class: "flex gap-1 items-center pb-2 mb-2 border-b border-base-300" },
+				span(
+					{ class: "join mr-2", role: "group", "aria-label": "Reading" },
+					viewButton("main", "compact"),
+					viewButton("format", "format"),
+				),
+				button(
+					{
+						class: "btn btn-xs btn-ghost ml-auto expand-all",
+						"on:click": send("setOpenDeep", true),
+					},
+					"expand all",
+				),
+				button(
+					{ class: "btn btn-xs btn-ghost collapse-all", "on:click": send("setOpenDeep", false) },
+					"collapse all",
+				),
 			),
 		),
 		pushView(field("view"), div({ class: "schema-tree" }, render(field("node")))),

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fc from "fast-check";
-import { fromJson, jsonComponents } from "../../components/json/index.js";
+import { fromJson, jsonComponents, jsonRoot } from "../../components/json/index.js";
 import { arbitraries, Driver } from "../../src/test/pbt.js";
 import { document, scopeWith, testGenericProperties, testLintsClean, textOf } from "../helpers.js";
 
@@ -45,4 +45,41 @@ test("the edit view shows the same text, with inputs in place of values", () => 
 			["number value", "2"],
 		],
 	);
+});
+
+const click = (driver, selector, index = 0) => {
+	driver.rootNode
+		.querySelectorAll(selector)
+		[index].dispatchEvent(new document.defaultView.MouseEvent("click", { bubbles: true }));
+	driver.drain();
+};
+// Every collection's open state, depth first.
+const opens = (v) => {
+	const kids = v.items ?? v.entries?.map((e) => e.value) ?? [];
+	return [...("open" in v ? [v.open] : []), ...kids.flatMap(opens)];
+};
+
+test("a collection's open bracket collapses it to a summary, and opens it again", () => {
+	const { C } = setup();
+	const driver = new Driver({ root: fromJson(C, { a: [1, 2], b: {} }), document });
+	click(driver, ".json-toggle");
+	assert.equal(driver.state.open, false);
+	assert.match(textOf(driver.state), /^{…}2 ?keys$/);
+	click(driver, ".json-toggle");
+	assert.equal(textOf(driver.state), JSON.stringify({ a: [1, 2], b: {} }));
+});
+
+test("a root's expand all and collapse all reach every collection", () => {
+	const { C } = setup();
+	const driver = new Driver({ root: jsonRoot(C, { a: [1, { b: [] }], c: { d: [2] } }), document });
+	click(driver, ".collapse-all");
+	assert.ok(opens(driver.state.value).every((o) => !o));
+	click(driver, ".expand-all");
+	assert.ok(opens(driver.state.value).every((o) => o));
+});
+
+test("a root around a scalar has nothing to expand", () => {
+	const { C } = setup();
+	const driver = new Driver({ root: jsonRoot(C, "text"), document });
+	assert.equal(driver.rootNode.querySelector(".expand-all"), null);
 });

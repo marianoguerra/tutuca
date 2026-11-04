@@ -49,6 +49,16 @@ const Editable = component({
 
 const editable = (make) => (C) => C.Editable({ content: make(C) });
 const edit = step.event("click", '[title="Edit it"]');
+const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Adds name to the required list of the schema editor at: its JSON's third entry is required.
+const addRequired = (at, name) => {
+	const list = (b) => at(b).field("json").item("entries", 2).field("value");
+	return [
+		step.send("add", [], { at: list }),
+		step.send("setTo", ["string"], { at: (b) => list(b).item("items", 1) }),
+		step.send("setValue", [name], { at: (b) => list(b).item("items", 1) }),
+	];
+};
 const type = (label, value) => step.event("input", `[aria-label="${label}"]`, { value });
 
 export default stories({
@@ -78,19 +88,13 @@ export default stories({
 					edit,
 					type("Tool name", "get_forecast"),
 					step.check("renamed", (s) => s.content.toJson().name === "get_forecast"),
-					type("Schema JSON", '{"type": "object", "required": ['),
-					step.check("text that isn't JSON keeps the last schema", (s) => {
-						const { parameters } = s.content;
-						return parameters.hasError && parameters.toSchema().required.join() === "city";
-					}),
-					type(
-						"Schema JSON",
-						JSON.stringify({ ...WEATHER.tool.parameters, required: ["city", "unit"] }),
+					...addRequired((b) => b.field("content").field("parameters"), "unit"),
+					step.check("now both are required", (s) =>
+						sameJson(s.content.parameters.toSchema().required, ["city", "unit"]),
 					),
-					step.check("now both are required", (s) => {
-						const { parameters } = s.content;
-						return !parameters.hasError && parameters.toSchema().required.join() === "city,unit";
-					}),
+					step.check("the tree follows", (s) =>
+						sameJson(s.content.parameters.tree.toSchema().required, ["city", "unit"]),
+					),
 				],
 			},
 		},
@@ -129,13 +133,7 @@ export default stories({
 				"a schema the output doesn't follow": [
 					step.check("matches at first", (s) => s.content.isValid),
 					edit,
-					type(
-						"Schema JSON",
-						JSON.stringify({
-							...WEATHER.output.schema,
-							required: [...WEATHER.output.schema.required, "humidity"],
-						}),
-					),
+					...addRequired((b) => b.field("content").field("schema"), "humidity"),
 					step.check("humidity is missing", (s) =>
 						s.content.problems.some((p) => p.text === "$ is missing humidity"),
 					),
@@ -153,12 +151,15 @@ export default stories({
 		"JSON Schema editor": {
 			make: editable((C) => schemaEditor(C, WEATHER.output.schema)),
 			sequences: {
-				"a schema that's just true": [
+				"read as JSON, then edited as JSON": [
+					step.event("click", ".reading-json"),
+					step.check("the JSON reading", (s) => s.content.isJson),
+					step.event("click", ".collapse-all"),
+					step.check("collapsed", (s) => !s.content.json.open),
 					edit,
-					type("Schema JSON", "true"),
-					step.check("anything", (s) => s.content.toSchema() && !s.content.hasError),
-					type("Schema JSON", "[]"),
-					step.check("an array isn't a schema", (s) => s.content.hasError),
+					step.check("no tree while editing", (s) => s.content.isJson),
+					...addRequired((b) => b.field("content"), "wind"),
+					step.check("the schema follows", (s) => s.content.toSchema().required.includes("wind")),
 				],
 			},
 		},

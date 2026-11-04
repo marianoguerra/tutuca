@@ -1,8 +1,12 @@
-// A JSON Schema, shown as its tree (SchemaRoot) and edited as JSON text: its edit view, pushed
-// from above, has the text above the tree, which follows it as long as it reads as a schema.
-// The schema is the last text that did, as typed: the tree shows only what it reads of it.
+// A JSON Schema, read as its tree (SchemaRoot, compact) or as its JSON (the json components),
+// and edited as JSON: its edit view, pushed from above, edits the JSON in place (the json
+// components' edit views). The tree follows the JSON as long as it reads as a schema; the
+// schema is the last JSON that did.
 import {
 	$if,
+	apply,
+	button,
+	canApply,
 	component,
 	DISPLAY_META,
 	field,
@@ -10,17 +14,45 @@ import {
 	send,
 	t,
 	tag,
-	targetValue,
 } from "../../src/tutuca.js";
-import { jsonComponents } from "../json/index.js";
+import { fromJson, jsonComponents, VALUE_NAMES } from "../json/index.js";
 import { schemaComponents } from "./index.js";
-import { schemaTree } from "./read.js";
+import { fromSchema } from "./read.js";
 
-const { div, p, textarea } = tag;
+const { div, header, p, span } = tag;
 
 // A schema is an object or a boolean.
 const isSchema = (j) =>
 	typeof j === "boolean" || (typeof j === "object" && j !== null && !Array.isArray(j));
+
+const TOOLBAR = "flex items-center gap-1 border-b border-base-300 pb-2";
+const BUTTON = "btn btn-xs btn-ghost font-mono";
+const readingButton = (reading, active) =>
+	button(
+		{
+			class: $if(
+				field(active),
+				`${BUTTON} join-item btn-active reading-${reading}`,
+				`${BUTTON} join-item reading-${reading}`,
+			),
+			"aria-pressed": field(active),
+			"on:click": send("setReading", reading),
+		},
+		reading,
+	);
+const openAllButtons = [
+	button(
+		{ class: `${BUTTON} ml-auto expand-all`, "on:click": send("setOpenDeep", true) },
+		"expand all",
+	),
+	button(
+		{ class: `${BUTTON} collapse-all`, "on:click": send("setOpenDeep", false) },
+		"collapse all",
+	),
+];
+
+// The tree of a schema, without its toolbar.
+const bareTree = (C, schema) => C.SchemaRoot({ node: fromSchema(C, schema), bare: true });
 
 export const JsonSchemaEditor = component({
 	name: "JsonSchemaEditor",
@@ -28,14 +60,14 @@ export const JsonSchemaEditor = component({
 		[DISPLAY_META]: {
 			title: "JSON Schema",
 			icon: "📐",
-			description: "A JSON Schema, read as a tree and edited as JSON.",
+			description: "A JSON Schema, read as a tree or as JSON, and edited as JSON.",
 		},
 	},
 	fields: {
-		text: t.string(), // The schema as typed.
-		source: t.string(), // The last text that read as a schema.
-		tree: t.component("SchemaRoot"), // source, read.
-		error: t.string(), // Why the text doesn't read as one, empty when it does.
+		json: t.component(VALUE_NAMES), // The schema as edited.
+		source: t.string(), // The last JSON that read as a schema, as text.
+		tree: t.component("SchemaRoot"), // source, read, without its toolbar.
+		reading: t.enum("compact", "json"),
 	},
 	methods: {
 		toSchema() {
@@ -43,54 +75,85 @@ export const JsonSchemaEditor = component({
 		},
 	},
 	queries: {
+		// Why the JSON doesn't read as a schema, empty when it does.
+		get error() {
+			return isSchema(this.json.toJson()) ? "" : "A schema is an object or a boolean.";
+		},
 		get hasError() {
 			return this.error !== "";
 		},
+		get isCompact() {
+			return this.reading === "compact";
+		},
+		get isJson() {
+			return this.reading === "json";
+		},
 	},
-	view: div({ class: "json-schema-editor" }, render(field("tree"))),
+	view: div(
+		{ class: "json-schema-editor flex flex-col gap-2" },
+		header(
+			{ class: TOOLBAR },
+			span(
+				{ class: "join", role: "group", "aria-label": "Reading" },
+				readingButton("compact", "isCompact"),
+				readingButton("json", "isJson"),
+			),
+			...openAllButtons,
+		),
+		$if(
+			field("isCompact"),
+			render(field("tree")),
+			div({ class: "overflow-auto" }, render(field("json"))),
+		),
+	),
+	// Only the JSON: the tree can't be edited, so it isn't shown while editing.
 	views: {
 		edit: div(
 			{ class: "json-schema-editor flex flex-col gap-2" },
-			textarea({
-				class: "textarea textarea-bordered textarea-sm min-h-32 w-full font-mono text-xs",
-				"aria-label": "Schema JSON",
-				spellcheck: "false",
-				value: field("text"),
-				"on:input": send("setText", targetValue()),
-			}),
+			header({ class: TOOLBAR }, ...openAllButtons),
+			div({ class: "overflow-auto" }, render(field("json"))),
 			$if(field("hasError"), p({ class: "text-xs text-error" }, field("error")), ""),
-			render(field("tree")),
 		),
 	},
 	on: {
-		// The text, and the tree when it reads as a schema (keeping how the tree is read).
-		setText: {
-			args: [t.string()],
-			run(next, [text], ctx) {
-				next.text = text;
-				let json;
-				try {
-					json = JSON.parse(text);
-				} catch (error) {
-					next.error = `Not JSON: ${error.message}`;
-					return;
+		setReading: {
+			args: [t.enum("compact", "json")],
+			run(next, [reading]) {
+				next.reading = reading;
+			},
+		},
+		// Both readings open or close, so switching keeps what's shown.
+		setOpenDeep: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [open]) {
+				for (const key of ["tree", "json"]) {
+					if (canApply(next[key], "setOpenDeep")) next[key] = apply(next[key], "setOpenDeep", open);
 				}
-				if (!isSchema(json)) {
-					next.error = "A schema is an object or a boolean.";
-					return;
-				}
-				next.error = "";
-				next.source = text;
-				next.tree = schemaTree(ctx.scope.components, json, { view: this.tree.view });
+			},
+		},
+		// The JSON changed below: the tree reads it again when it's a schema.
+		jsonEdited: {
+			args: [],
+			run(next, _args, ctx) {
+				ctx.stopNext();
+				const json = this.json.toJson();
+				if (!isSchema(json)) return;
+				const source = JSON.stringify(json);
+				if (source === this.source) return;
+				next.source = source;
+				next.tree = bareTree(ctx.scope.components, json);
 			},
 		},
 	},
 });
 
 // An editor of schema, a JSON Schema, made with C.
-export const schemaEditor = (C, schema) => {
-	const text = JSON.stringify(schema, null, 2);
-	return C.JsonSchemaEditor({ text, source: text, tree: schemaTree(C, schema) });
-};
+export const schemaEditor = (C, schema) =>
+	C.JsonSchemaEditor({
+		json: fromJson(C, schema),
+		source: JSON.stringify(schema),
+		tree: bareTree(C, schema),
+	});
 
 export const schemaEditorComponents = { ...jsonComponents, ...schemaComponents, JsonSchemaEditor };

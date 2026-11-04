@@ -17,7 +17,7 @@ import {
 	targetValue,
 } from "../../src/tutuca.js";
 import { CANVAS_META } from "../canvas/layout.js";
-import { fromJson, VALUE_NAMES } from "../json/index.js";
+import { fromJson, jsonRoot } from "../json/index.js";
 import { schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
 import { validate } from "./validate.js";
 
@@ -34,13 +34,14 @@ const metaFor = (title, icon, description, width) => ({
 // English; a real tokenizer counts differently.
 export const approxTokens = (text) => (text === "" ? 0 : Math.max(1, Math.round(text.length / 4)));
 
-const CARD = "llm-card flex flex-col gap-2 rounded-box border-l-4 bg-base-100 p-3 text-sm";
-const BADGE = "badge badge-sm font-semibold uppercase tracking-wide";
+const CARD =
+	"llm-card flex flex-col gap-2 rounded-md border border-base-300 bg-base-100 p-3 text-sm";
+const BADGE = "badge badge-sm badge-soft font-semibold";
 const MONO = "font-mono text-sm";
 const TEXTAREA = "textarea textarea-bordered textarea-sm min-h-24 w-full text-sm";
 const INPUT = "input input-bordered input-sm w-full";
 const FIELD_LABEL = "flex flex-col gap-1 text-xs opacity-80";
-const PART = "text-xs font-semibold uppercase tracking-wide opacity-60";
+const PART = "text-xs font-semibold opacity-60";
 
 // A card's header: its badge (role) and what's beside it.
 const cardHeader = (badge, badgeClass, ...rest) =>
@@ -54,7 +55,7 @@ const tokens = () =>
 const labeled = (text, control) => label({ class: FIELD_LABEL }, text, control);
 
 // A message of role: its text, read in main and typed in edit.
-const message = (name, role, border, badgeClass, placeholder, meta) =>
+const message = (name, role, badge, badgeClass, placeholder, meta) =>
 	component({
 		name,
 		meta,
@@ -73,8 +74,8 @@ const message = (name, role, border, badgeClass, placeholder, meta) =>
 			},
 		},
 		view: div(
-			{ class: `${CARD} ${border} llm-${role}` },
-			cardHeader(role, badgeClass, tokens()),
+			{ class: `${CARD} llm-${role}` },
+			cardHeader(badge, badgeClass, tokens()),
 			$if(
 				field("isEmpty"),
 				p({ class: "italic opacity-50" }, placeholder),
@@ -83,8 +84,8 @@ const message = (name, role, border, badgeClass, placeholder, meta) =>
 		),
 		views: {
 			edit: div(
-				{ class: `${CARD} ${border} llm-${role}` },
-				cardHeader(role, badgeClass, tokens()),
+				{ class: `${CARD} llm-${role}` },
+				cardHeader(badge, badgeClass, tokens()),
 				textarea({
 					class: TEXTAREA,
 					"aria-label": `${role} message`,
@@ -107,7 +108,7 @@ const message = (name, role, border, badgeClass, placeholder, meta) =>
 export const SystemMessage = message(
 	"SystemMessage",
 	"system",
-	"border-warning",
+	"System",
 	"badge-warning",
 	"How the model should behave, before the conversation starts.",
 	metaFor("System message", "⚙️", "How the model should behave.", 420),
@@ -115,7 +116,7 @@ export const SystemMessage = message(
 export const UserMessage = message(
 	"UserMessage",
 	"user",
-	"border-primary",
+	"User",
 	"badge-primary",
 	"What the user asks.",
 	metaFor("User message", "👤", "What the user asks.", 420),
@@ -123,7 +124,7 @@ export const UserMessage = message(
 export const AssistantMessage = message(
 	"AssistantMessage",
 	"assistant",
-	"border-secondary",
+	"Assistant",
 	"badge-secondary",
 	"What the model answers.",
 	metaFor("Assistant message", "🤖", "What the model answers.", 420),
@@ -154,21 +155,21 @@ export const ToolDefinition = component({
 		},
 	},
 	view: div(
-		{ class: `${CARD} border-accent llm-tool-definition` },
+		{ class: `${CARD} llm-tool-definition` },
 		cardHeader(
-			"tool",
+			"Tool",
 			"badge-accent",
 			span({ class: `${MONO} font-bold` }, field("name")),
 			tokens(),
 		),
 		p({ class: "whitespace-pre-wrap opacity-80" }, field("description")),
-		span({ class: PART }, "Input schema"),
+		span({ class: PART }, "Input Schema"),
 		render(field("parameters")),
 	),
 	views: {
 		edit: div(
-			{ class: `${CARD} border-accent llm-tool-definition` },
-			cardHeader("tool", "badge-accent", tokens()),
+			{ class: `${CARD} llm-tool-definition` },
+			cardHeader("Tool", "badge-accent", tokens()),
 			labeled(
 				"Name",
 				input({
@@ -187,7 +188,7 @@ export const ToolDefinition = component({
 					"on:input": send("setDescription", targetValue()),
 				}),
 			),
-			span({ class: PART }, "Input schema"),
+			span({ class: PART }, "Input Schema"),
 			render(field("parameters")),
 		),
 	},
@@ -214,7 +215,7 @@ export const ToolCall = component({
 	fields: {
 		id: t.string(),
 		name: t.string(),
-		input: t.component(VALUE_NAMES),
+		input: t.component("JsonRoot"),
 	},
 	methods: {
 		toJson() {
@@ -227,20 +228,20 @@ export const ToolCall = component({
 		},
 	},
 	view: div(
-		{ class: `${CARD} border-info llm-tool-call` },
+		{ class: `${CARD} llm-tool-call` },
 		cardHeader(
-			"tool call",
+			"Tool Call",
 			"badge-info",
 			span({ class: `${MONO} font-bold` }, field("name")),
 			span({ class: "font-mono text-xs opacity-50" }, field("id")),
 			tokens(),
 		),
-		div({ class: "overflow-auto" }, render(field("input"))),
+		render(field("input")),
 	),
 	views: {
 		edit: div(
-			{ class: `${CARD} border-info llm-tool-call` },
-			cardHeader("tool call", "badge-info", tokens()),
+			{ class: `${CARD} llm-tool-call` },
+			cardHeader("Tool Call", "badge-info", tokens()),
 			div(
 				{ class: "grid grid-cols-2 gap-2" },
 				labeled(
@@ -263,7 +264,7 @@ export const ToolCall = component({
 				),
 			),
 			span({ class: PART }, "Input"),
-			div({ class: "overflow-auto" }, render(field("input"))),
+			render(field("input")),
 		),
 	},
 	on: {
@@ -289,7 +290,7 @@ export const ToolResult = component({
 	fields: {
 		callId: t.string(),
 		isError: t.boolean(),
-		content: t.component(VALUE_NAMES),
+		content: t.component("JsonRoot"),
 	},
 	methods: {
 		toJson() {
@@ -304,25 +305,22 @@ export const ToolResult = component({
 			return this.isError ? `${BADGE} badge-error` : `${BADGE} badge-success`;
 		},
 		get badge() {
-			return this.isError ? "tool error" : "tool result";
-		},
-		get cardClass() {
-			return `${CARD} ${this.isError ? "border-error" : "border-success"} llm-tool-result`;
+			return this.isError ? "Tool Error" : "Tool Result";
 		},
 	},
 	view: div(
-		{ class: field("cardClass") },
+		{ class: `${CARD} llm-tool-result` },
 		header(
 			{ class: "flex flex-wrap items-center gap-2" },
 			span({ class: field("badgeClass") }, field("badge")),
 			span({ class: "font-mono text-xs opacity-50" }, "for ", field("callId")),
 			tokens(),
 		),
-		div({ class: "overflow-auto" }, render(field("content"))),
+		render(field("content")),
 	),
 	views: {
 		edit: div(
-			{ class: field("cardClass") },
+			{ class: `${CARD} llm-tool-result` },
 			header(
 				{ class: "flex flex-wrap items-center gap-2" },
 				span({ class: field("badgeClass") }, field("badge")),
@@ -352,7 +350,7 @@ export const ToolResult = component({
 				),
 			),
 			span({ class: PART }, "Content"),
-			div({ class: "overflow-auto" }, render(field("content"))),
+			render(field("content")),
 		),
 	},
 	on: {
@@ -374,8 +372,8 @@ export const ToolResult = component({
 // How a structured output reads: its schema, its output and whether that matches.
 const structuredView = () =>
 	div(
-		{ class: `${CARD} border-neutral llm-structured-output` },
-		cardHeader("structured output", "badge-neutral", tokens()),
+		{ class: `${CARD} llm-structured-output` },
+		cardHeader("Structured Output", "badge-neutral", tokens()),
 		section(
 			{ class: "flex flex-col gap-1" },
 			h3({ class: PART }, "Schema"),
@@ -384,7 +382,7 @@ const structuredView = () =>
 		section(
 			{ class: "flex flex-col gap-1" },
 			h3({ class: PART }, "Output"),
-			div({ class: "overflow-auto" }, render(field("output"))),
+			render(field("output")),
 		),
 		$if(
 			field("isValid"),
@@ -411,7 +409,7 @@ export const StructuredOutput = component({
 	),
 	fields: {
 		schema: t.component("JsonSchemaEditor"),
-		output: t.component(VALUE_NAMES),
+		output: t.component("JsonRoot"),
 	},
 	methods: {
 		toJson() {
@@ -489,14 +487,14 @@ export const assistantMessage = (C, text = WEATHER.assistant) => C.AssistantMess
 export const toolDefinition = (C, { name, description, parameters } = WEATHER.tool) =>
 	C.ToolDefinition({ name, description, parameters: schemaEditor(C, parameters) });
 export const toolCall = (C, { id, name, input } = WEATHER.call) =>
-	C.ToolCall({ id, name, input: fromJson(C, input) });
+	C.ToolCall({ id, name, input: jsonRoot(C, input) });
 export const toolResult = (
 	C,
 	content = WEATHER.result,
 	{ callId = WEATHER.call.id, isError = false } = {},
-) => C.ToolResult({ callId, isError, content: fromJson(C, content) });
+) => C.ToolResult({ callId, isError, content: jsonRoot(C, content) });
 export const structuredOutput = (C, { schema, value } = WEATHER.output) =>
-	C.StructuredOutput({ schema: schemaEditor(C, schema), output: fromJson(C, value) });
+	C.StructuredOutput({ schema: schemaEditor(C, schema), output: jsonRoot(C, value) });
 
 // What a canvas hole can become, in the llm bundle: the parts above, a schema and a JSON value,
 // each making its component, which says what it is in its display meta. The JSON ones say

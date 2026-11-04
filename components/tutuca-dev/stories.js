@@ -24,13 +24,16 @@ export default stories({
 			sequences: {
 				"open the instance, then an item": [
 					step.send("toggle"),
-					step.check("shows the fields and spec", (s) => opened(s) && s.rows.length === 3),
+					step.check(
+						"shows the fields (items, open) and spec",
+						(s) => opened(s) && s.rows.length === 4,
+					),
 					step.send("toggle", [], { at: (b) => b.item("rows", 0) }),
 					step.check("the items array opens", (s) => opened(s.rows[0])),
 					step.send("toggle", [], { at: (b) => b.item("rows", 0).item("rows", 0) }),
 					step.check("an item opens", (s) => opened(s.rows[0].rows[0])),
 					step.send("toggle"),
-					step.check("closing keeps the rows", (s) => !s.isOpen && s.rows.length === 3),
+					step.check("closing keeps the rows", (s) => !s.isOpen && s.rows.length === 4),
 				],
 			},
 			pbt: { maxCommands: 8 },
