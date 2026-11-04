@@ -313,6 +313,10 @@ test("canvas demo, llm bundle: the parts of a request, and holes that become the
 	app.fire("click", hole().querySelector('[title="Put a component here"]'));
 	assert.equal(hole().querySelector('[data-choice="notes"]'), null);
 	assert.ok(hole().querySelector('[data-choice="vbox"]'));
+	// Labeled by what each kind's component says in its canvas meta, or by the kind's own.
+	assert.equal(hole().querySelector('[data-choice="toolResult"]').textContent, "📦 Tool result");
+	assert.equal(hole().querySelector('[data-choice="vbox"]').textContent, "⬇️ Vertical box");
+	assert.equal(hole().querySelector('[data-choice="json"]').textContent, "{} JSON");
 	app.fire("click", hole().querySelector('[data-choice="toolResult"]'));
 	assert.equal(kinds().at(-1), "ToolResult");
 	const made = app.state().items[app.state().order.at(-1)];

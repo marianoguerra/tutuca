@@ -10,15 +10,21 @@
 // notifies become with what's made, which the nearest layout or canvas puts in its place.
 // kindHandlers(kinds) answers both for a table of kinds, adding a canvas and the layouts.
 //
-// A kind is { label, emoji, blurb, make(C, env), width, choices }: make builds the component
-// with C, the asker's scope's components, and env { now, tz, uuid, choice }; width is how wide
-// an item holding it starts on the canvas (0 keeps the item's); choices, when given, are
-// [{ id, title }] to pick one of first, passed to make as env.choice.
+// A kind is a recipe, { component, blurb, make(C, env), choices }: make builds the component
+// with C, the asker's scope's components, and env { now, tz, uuid, choice }; choices, when
+// given, are [{ id, title }] to pick one of first, passed to make as env.choice. How the item
+// holding it is labeled and how wide it starts is what that component says in its canvas meta
+// (component names it, for listing the kinds before anything is made), unless the kind says
+// otherwise with its own title, icon and width.
+//
+// What a component says to the canvas is its meta under CANVAS_META (see canvasMetaSchemas):
+// a kind's width wins over the component's, and a see-through one shows the canvas through.
 import {
 	$if,
 	component,
 	each,
 	field,
+	metaOf,
 	renderIt,
 	send,
 	sourceKey,
@@ -29,43 +35,59 @@ import {
 
 const { button, div, input, li, p, span, ul } = tag;
 
-// The layouts, as kinds a hole can become.
+// The meta namespace of what a component says to a canvas holding it: its title and icon, as
+// the item's label when it's put on the canvas without one; its width and height, how big the
+// item starts (null: the canvas's); and whether the item is see-through, without a background.
+export const CANVAS_META = "https://tutuca.dev/meta/canvas";
+export const canvasMetaSchemas = {
+	[CANVAS_META]: {
+		title: t.option(t.string()),
+		icon: t.option(t.string()),
+		width: t.option(t.number().int().min(0).max(4000)),
+		height: t.option(t.number().int().min(0).max(4000)),
+		transparent: t.boolean(false),
+	},
+};
+// What c says to the canvas, with the defaults where the scope has the schema.
+export const canvasMetaOf = (c) => metaOf(c, CANVAS_META);
+// The label an item holding c starts with: its icon and title, or null when it has no title.
+export const metaLabel = (c) => {
+	const { title, icon } = canvasMetaOf(c);
+	if (typeof title !== "string" || title === "") return null;
+	return typeof icon === "string" && icon !== "" ? `${icon} ${title}` : title;
+};
+// What a layout says to the canvas: see-through, the canvas showing between its slots.
+const layoutMeta = (title, icon, width) => ({
+	[CANVAS_META]: { title, icon, width, transparent: true },
+});
+
+// The layouts, as kinds a hole can become: what they say of themselves is their meta.
 export const LAYOUT_KINDS = {
 	vbox: {
-		label: "Vertical box",
-		emoji: "⬇️",
+		component: "VBox",
 		blurb: "Components one under the other.",
-		width: 320,
 		make: (C) => C.VBox({ items: [C.Hole()] }),
 	},
 	hbox: {
-		label: "Horizontal box",
-		emoji: "➡️",
+		component: "HBox",
 		blurb: "Components side by side.",
-		width: 560,
 		make: (C) => C.HBox({ items: [C.Hole(), C.Hole()] }),
 	},
 	grid: {
-		label: "Grid",
-		emoji: "▦",
+		component: "Grid",
 		blurb: "Components in rows and columns.",
-		width: 560,
 		make: (C) => C.Grid({ items: [C.Hole(), C.Hole(), C.Hole(), C.Hole()] }),
 	},
 	tabs: {
-		label: "Tabs",
-		emoji: "🗂",
+		component: "Tabs",
 		blurb: "Components as tabs, one shown at a time.",
-		width: 480,
 		make: (C) => C.Tabs({ items: [C.Hole()], labels: [""] }),
 	},
 };
 // A canvas inside this one, as a kind.
 const CANVAS_KIND = {
-	label: "Canvas",
-	emoji: "🖼️",
+	component: "Canvas",
 	blurb: "A canvas of its own, inside this one.",
-	width: 720,
 	make: (C) => C.Canvas({ width: 1200, height: 800 }),
 };
 // kinds, then a canvas and the layouts.
@@ -76,18 +98,31 @@ export const kindEnv = (read, choice = null) => {
 	const now = read.now();
 	return { now, tz: -new Date(now).getTimezoneOffset(), uuid: () => read.uuid(), choice };
 };
-// The label of an item holding kind, made with the choice picked of it (or none).
-export const kindLabel = (kind, picked = null) => `${kind.emoji} ${picked?.title ?? kind.label}`;
+// How an item holding what kind makes starts: its label (icon and title) and width (0 keeps
+// the item's). The kind's title, icon and width win over meta, the canvas meta of what it
+// makes; the choice picked of it, if any, titles it.
+export const kindLook = (kind, meta, picked = null) => {
+	const title = picked?.title ?? kind.title ?? meta.title ?? kind.component ?? "";
+	const icon = kind.icon ?? meta.icon ?? null;
+	return { label: icon ? `${icon} ${title}` : title, width: kind.width ?? meta.width ?? 0 };
+};
+// The canvas meta of the component named name in scope, {} for none registered.
+const specMeta = (scope, name) => {
+	const spec = name === undefined ? null : scope.lookupByName(name);
+	return spec ? metaOf(spec, CANVAS_META, scope) : {};
+};
 
-// The ask handlers a hole needs, for a table of kinds and the builtins.
+// The ask handlers a hole needs, for a table of kinds and the builtins. A kind is a recipe:
+// { component, blurb, make, choices } and, to say more than its component's meta, title, icon
+// and width.
 export const kindHandlers = (kinds) => {
 	const all = withBuiltins(kinds);
 	return {
-		// [] → [{ id, label, blurb, choices }]
-		componentKinds: () =>
+		// [] → [{ id, label, blurb, choices }], labeled by the meta of the component each names.
+		componentKinds: (_args, read) =>
 			Object.entries(all).map(([id, kind]) => ({
 				id,
-				label: kindLabel(kind),
+				label: kindLook(kind, specMeta(read.scope, kind.component)).label,
 				blurb: kind.blurb ?? "",
 				choices: kind.choices ?? [],
 			})),
@@ -100,7 +135,7 @@ export const kindHandlers = (kinds) => {
 				throw new Error(`${id} needs one of its choices`);
 			}
 			const content = kind.make(read.scope.components, kindEnv(read, picked?.id ?? null));
-			return { content, label: kindLabel(kind, picked), width: kind.width ?? 0 };
+			return { content, ...kindLook(kind, canvasMetaOf(content), picked) };
 		},
 	};
 };
@@ -127,6 +162,7 @@ const isKind = (k) =>
 // choices, if it has them) asks for it to be made.
 export const Hole = component({
 	name: "Hole",
+	meta: layoutMeta("Empty", "", 240),
 	fields: {
 		// closed, kind while the kinds are listed, choice while the picked kind's choices are.
 		step: t.enum("closed", "kind", "choice").sync("none"),
@@ -342,6 +378,7 @@ const layoutHandlers = () => ({
 
 export const VBox = component({
 	name: "VBox",
+	meta: layoutMeta("Vertical box", "⬇️", 320),
 	fields: { items: t.array(t.component()) },
 	view: div({ class: "layout-root vbox flex flex-col items-stretch gap-2" }, slots("")),
 	views: {
@@ -356,6 +393,7 @@ export const VBox = component({
 
 export const HBox = component({
 	name: "HBox",
+	meta: layoutMeta("Horizontal box", "➡️", 560),
 	fields: { items: t.array(t.component()) },
 	view: div({ class: "layout-root hbox flex flex-row items-stretch gap-2" }, slots("flex-1")),
 	views: {
@@ -372,6 +410,7 @@ const MAX_COLUMNS = 6;
 
 export const Grid = component({
 	name: "Grid",
+	meta: layoutMeta("Grid", "▦", 560),
 	fields: {
 		items: t.array(t.component()),
 		columns: t.number().int().min(1).max(MAX_COLUMNS).default(2),
@@ -457,6 +496,7 @@ const PANEL = `tab-panel grid [:where(&)>*]:w-full [:where(&)>*]:h-full ${BACKED
 // edited, tabs are renamed and removed, and the + after the last adds one holding a hole.
 export const Tabs = component({
 	name: "Tabs",
+	meta: layoutMeta("Tabs", "🗂", 480),
 	fields: {
 		items: t.array(t.component()),
 		// The tabs' names, by item; a missing or empty one shows as "Tab n".
@@ -572,8 +612,5 @@ export const Tabs = component({
 		},
 	},
 });
-
-// The components that are see-through on the canvas: the layouts and the hole.
-export const SEE_THROUGH = new Set(["Hole", "VBox", "HBox", "Grid", "Tabs"]);
 
 export const layoutComponents = { Hole, VBox, HBox, Grid, Tabs };

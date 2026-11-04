@@ -33,11 +33,13 @@ import { compositionComponents, GROUPS, KINDS, makeContent } from "../compositio
 import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
 import {
 	BECOME_ARGS,
+	CANVAS_META,
+	canvasMetaOf,
 	kindEnv,
 	kindHandlers,
-	kindLabel,
+	kindLook,
 	layoutComponents,
-	SEE_THROUGH,
+	metaLabel,
 	withBuiltins,
 } from "./layout.js";
 import { Arrow, Text } from "./shapes.js";
@@ -95,7 +97,7 @@ export const Item = component({
 		},
 		get cardClass() {
 			if (this.collapsed) return CARD_COLLAPSED;
-			return SEE_THROUGH.has(specOf(this.content).name) ? CARD_OPEN : CARD_BACKED;
+			return canvasMetaOf(this.content).transparent ? CARD_OPEN : CARD_BACKED;
 		},
 		get headerClass() {
 			return this.collapsed ? HEADER_COLLAPSED : HEADER_OPEN;
@@ -336,6 +338,7 @@ const typing = (target) =>
 
 export const Canvas = component({
 	name: "Canvas",
+	meta: { [CANVAS_META]: { title: "Canvas", icon: "🖼️", width: 720 } },
 	fields: {
 		width: t.number().int().min(200).max(10000).default(2400),
 		height: t.number().int().min(200).max(10000).default(1600),
@@ -818,13 +821,16 @@ export const canvas = (C, items = [], fields = {}, kinds = COMPOSITION_KINDS) =>
 	const itemOf = ([x, y, what, label, width]) => {
 		if (typeof what !== "string") {
 			const name = specOf(what).name;
-			return C.Item({ x, y, content: what, label: label ?? name, ...(width ? { width } : {}) });
+			const w = width ?? canvasMetaOf(what).width;
+			const l = label ?? metaLabel(what) ?? name;
+			return C.Item({ x, y, content: what, label: l, ...(w ? { width: w } : {}) });
 		}
 		const kind = all[what];
 		if (kind === undefined) throw new Error(`no component kind ${what}`);
 		const content = kind.make(C, kindEnv(read));
-		const w = width ?? kind.width;
-		return C.Item({ x, y, content, label: label ?? kindLabel(kind), ...(w ? { width: w } : {}) });
+		const look = kindLook(kind, canvasMetaOf(content));
+		const w = width ?? look.width;
+		return C.Item({ x, y, content, label: label ?? look.label, ...(w ? { width: w } : {}) });
 	};
 	return C.Canvas({
 		...fields,
@@ -833,23 +839,26 @@ export const canvas = (C, items = [], fields = {}, kinds = COMPOSITION_KINDS) =>
 	});
 };
 
-// The notebook's kinds: what its pickers offer, a tracker picking its group first.
-const COMPOSITION_WIDTHS = {
-	notes: 320,
-	todos: 760,
-	kanban: 720,
-	drawing: 760,
-	tracker: 380,
-	notebook: 560,
+// The notebook's kinds: what its pickers offer, a tracker picking its group first. Their
+// components are the other demos', which say nothing to a canvas: the title and icon are the
+// notebook's picker's, and the width how wide each reads well.
+const COMPOSITION_LOOKS = {
+	notes: ["Notes", 320],
+	todos: ["TodoApp", 760],
+	kanban: ["Board", 720],
+	drawing: ["Drawing", 760],
+	tracker: ["TrackerCell", 380],
+	notebook: ["Notebook", 560],
 };
 export const COMPOSITION_KINDS = Object.fromEntries(
-	Object.entries(KINDS).map(([id, [label, emoji, blurb]]) => [
+	Object.entries(KINDS).map(([id, [title, icon, blurb]]) => [
 		id,
 		{
-			label,
-			emoji,
+			component: COMPOSITION_LOOKS[id][0],
+			title,
+			icon,
 			blurb,
-			width: COMPOSITION_WIDTHS[id],
+			width: COMPOSITION_LOOKS[id][1],
 			make: (C, { choice, now, tz, uuid }) =>
 				makeContent(C, id, { group: choice ?? undefined, now, tz, uuid }),
 			...(id === "tracker" ? { choices: GROUPS.map(({ id, title }) => ({ id, title })) } : {}),
@@ -863,3 +872,5 @@ export const canvasKitComponents = { ...layoutComponents, Canvas, Item, Arrow, T
 // The notebook's components on a canvas, and the handlers for its kinds.
 export const canvasComponents = { ...compositionComponents, ...canvasKitComponents };
 export const canvasAskHandlers = kindHandlers(COMPOSITION_KINDS);
+// The schemas of the meta the canvas reads, for whoever uses it to register.
+export { CANVAS_META, canvasMetaSchemas } from "./layout.js";
