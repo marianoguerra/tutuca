@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.0.0-beta.3
 
-Each core concept now has one name: a view node's class, its walker kind and its builder
-match, paths are named after what they hold, and the host hands drag, sync and dev checks to
-collaborators.
+Components have a public interface (pure messages, queries and interfaces), the routing core
+is a standalone package, and each core concept now has one name: a view node's class, its
+walker kind and its builder match, paths are named after what they hold, and the host hands
+drag, sync and dev checks to collaborators.
 
 ### Breaking
 
@@ -44,6 +45,11 @@ collaborators.
   out when it arrives (an arg that throws is reported as `eventFailed`, not `taskFailed`), and
   it is sent with `now: true`: ahead of the queue, run before `send` returns. `Task.event` is only on `HostTask`. Build a
   `Task` and call `pushTask` only for a sender other than the host.
+- **Names.** A field, a method and a query can't share a name: defining a component where one
+  does throws.
+- **Environments.** `testEnv` is exported from `tutuca/pbt` instead of `tutuca`; `browserEnv`
+  still comes from `tutuca`.
+- **pbt.** `EventCommand` and `DragCommand` are no longer exported.
 
 ### Added
 
@@ -51,6 +57,36 @@ collaborators.
   listens to no events. A component with no views at all renders nothing.
   `host.whenIdle()` resolves once no task is queued and no ask is waiting for its answer
   (`scheduler.pending`, `scheduler.isIdle`).
+- **Pure messages.** A handler marked `pure: true` takes no `ctx`: it's sent like any message
+  and can also be applied synchronously with `apply(c, name, ...args)`, joining the caller's
+  transaction on a draft or returning a new instance. A handler may give `why(self, args)` to
+  say why its precondition fails.
+- **Queries.** `queries` (getters and functions, installed on the prototype) are
+  side-effect-free reads: `query(c, name, ...args)` runs one on a frozen view, and views read
+  zero-arg ones with `field()` and others with `$query`. `t.x().public()` publishes a field
+  as a query.
+- **Interfaces.** `iface(name, operations)` declares pure messages, messages, queries and
+  notifies; scopes register them with `registerInterfaces`, and `implements: ["Counter"]` is
+  resolved where the component is registered and checked structurally. `t.component` accepts
+  interface names and instances. Failures throw `ContractError { code, issues, detail }`;
+  `contractOf`, `supports`, `canApply`, `canQuery` and `implementsIface` inspect a component,
+  and `host.apply` / `host.query` reach one by selector.
+- **Foreign writes.** In dev mode, a handler that writes another component's fields instead of
+  applying its pure messages is reported as `messageInvalid` `foreign-write:<Owner>.<field>`.
+- **Lint.** New rules: `pure-uses-ctx`, `pure-emits`, `query-mutates-this`, `unknown-query`,
+  `query-arity`, `query-arg-type` and `getter-in-methods`.
+- **`tutuca/tree`.** The routing core (identities, paths, addresses, the message envelope,
+  `MessageContext` and a `Scheduler`) is a standalone package that imports only its siblings.
+- **Storybook.** `openStorybook({ document, rootNode, uiStyle, fc, books, compile })` compiles
+  the storybook's and the stories' classes and starts it; `ClassCompiler.attach` keeps
+  compiling the classes views compute as they render.
+
+### Changes
+
+- A message nobody handled is warned about in one line (its name, the component's and the
+  path) instead of with the whole context.
+- A task's back references (`parent`, `event`, `node`, `drag`) are non-enumerable, so a failing
+  assertion doesn't print the whole DOM.
 
 ## 1.0.0-beta.2
 
