@@ -7,6 +7,7 @@
 import {
 	apply,
 	component,
+	DISPLAY_META,
 	each,
 	field,
 	renderEach,
@@ -175,6 +176,13 @@ const dropIndex = (node, clientY) => {
 
 export const Board = component({
 	name: "Board",
+	meta: {
+		[DISPLAY_META]: {
+			title: "Kanban board",
+			icon: "🗂️",
+			description: "Cards you drag between columns.",
+		},
+	},
 	fields: { columns: t.array(t.component("Column")) },
 	view: div(
 		{ class: "grid gap-4 sm:grid-cols-3" },

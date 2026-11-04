@@ -1,7 +1,17 @@
 // A JSON Schema, shown as its tree (SchemaRoot) and edited as JSON text: its edit view, pushed
 // from above, has the text above the tree, which follows it as long as it reads as a schema.
 // The schema is the last text that did, as typed: the tree shows only what it reads of it.
-import { $if, component, field, render, send, t, tag, targetValue } from "../../src/tutuca.js";
+import {
+	$if,
+	component,
+	DISPLAY_META,
+	field,
+	render,
+	send,
+	t,
+	tag,
+	targetValue,
+} from "../../src/tutuca.js";
 import { jsonComponents } from "../json/index.js";
 import { schemaComponents } from "./index.js";
 import { schemaTree } from "./read.js";
@@ -14,6 +24,13 @@ const isSchema = (j) =>
 
 export const JsonSchemaEditor = component({
 	name: "JsonSchemaEditor",
+	meta: {
+		[DISPLAY_META]: {
+			title: "JSON Schema",
+			icon: "📐",
+			description: "A JSON Schema, read as a tree and edited as JSON.",
+		},
+	},
 	fields: {
 		text: t.string(), // The schema as typed.
 		source: t.string(), // The last text that read as a schema.

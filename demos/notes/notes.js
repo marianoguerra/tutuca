@@ -4,6 +4,7 @@
 import {
 	$if,
 	component,
+	DISPLAY_META,
 	each,
 	field,
 	renderIt,
@@ -65,6 +66,13 @@ const FILTERS = { all: () => true, open: (n) => !n.done, done: (n) => n.done };
 
 export const Notes = component({
 	name: "Notes",
+	meta: {
+		[DISPLAY_META]: {
+			title: "Notes",
+			icon: "📝",
+			description: "A list of short notes to tick off.",
+		},
+	},
 	fields: {
 		title: t.string("Shared notes"),
 		notes: t.array(t.component("Note")),

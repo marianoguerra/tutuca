@@ -7,6 +7,7 @@
 import {
 	$if,
 	component,
+	DISPLAY_META,
 	each,
 	field,
 	render,
@@ -22,8 +23,12 @@ import { validate } from "./validate.js";
 
 const { div, h3, header, input, label, li, p, section, span, textarea, ul } = tag;
 
-// What each part says to a canvas holding it: its title, icon and how wide it starts.
-const onCanvas = (title, icon, width) => ({ [CANVAS_META]: { title, icon, width } });
+// What each part says of itself (its title, icon and what it's for) and how wide it starts on a
+// canvas.
+const metaFor = (title, icon, description, width) => ({
+	[DISPLAY_META]: { title, icon, description },
+	[CANVAS_META]: { width },
+});
 
 // About how many tokens text is: a rough rule of thumb of 4 characters to a token, for
 // English; a real tokenizer counts differently.
@@ -105,7 +110,7 @@ export const SystemMessage = message(
 	"border-warning",
 	"badge-warning",
 	"How the model should behave, before the conversation starts.",
-	onCanvas("System message", "⚙️", 420),
+	metaFor("System message", "⚙️", "How the model should behave.", 420),
 );
 export const UserMessage = message(
 	"UserMessage",
@@ -113,7 +118,7 @@ export const UserMessage = message(
 	"border-primary",
 	"badge-primary",
 	"What the user asks.",
-	onCanvas("User message", "👤", 420),
+	metaFor("User message", "👤", "What the user asks.", 420),
 );
 export const AssistantMessage = message(
 	"AssistantMessage",
@@ -121,13 +126,13 @@ export const AssistantMessage = message(
 	"border-secondary",
 	"badge-secondary",
 	"What the model answers.",
-	onCanvas("Assistant message", "🤖", 420),
+	metaFor("Assistant message", "🤖", "What the model answers.", 420),
 );
 
 // A tool the model may call: its name, what it does, and the schema its input follows.
 export const ToolDefinition = component({
 	name: "ToolDefinition",
-	meta: onCanvas("Tool definition", "🧰", 460),
+	meta: metaFor("Tool definition", "🧰", "A tool the model may call, and its input's schema.", 460),
 	fields: {
 		name: t.string(),
 		description: t.string(),
@@ -205,7 +210,7 @@ export const ToolDefinition = component({
 // The model asking to run a tool: which, with what input, and the id its result answers.
 export const ToolCall = component({
 	name: "ToolCall",
-	meta: onCanvas("Tool call", "📞", 420),
+	meta: metaFor("Tool call", "📞", "The model asking to run a tool.", 420),
 	fields: {
 		id: t.string(),
 		name: t.string(),
@@ -280,7 +285,7 @@ export const ToolCall = component({
 // What running a tool gave back, for the call with callId; isError when it failed.
 export const ToolResult = component({
 	name: "ToolResult",
-	meta: onCanvas("Tool result", "📦", 420),
+	meta: metaFor("Tool result", "📦", "What running the tool gave back.", 420),
 	fields: {
 		callId: t.string(),
 		isError: t.boolean(),
@@ -398,7 +403,12 @@ const structuredView = () =>
 // An answer constrained to a schema: the schema and the output, checked against it.
 export const StructuredOutput = component({
 	name: "StructuredOutput",
-	meta: onCanvas("Structured output", "🧾", 460),
+	meta: metaFor(
+		"Structured output",
+		"🧾",
+		"An answer that follows a schema, checked against it.",
+		460,
+	),
 	fields: {
 		schema: t.component("JsonSchemaEditor"),
 		output: t.component(VALUE_NAMES),
@@ -488,54 +498,25 @@ export const toolResult = (
 export const structuredOutput = (C, { schema, value } = WEATHER.output) =>
 	C.StructuredOutput({ schema: schemaEditor(C, schema), output: fromJson(C, value) });
 
-// What a canvas hole can become, in the llm bundle: the parts above, which say how they look
-// on a canvas in their meta, a schema and a JSON value, which don't.
+// What a canvas hole can become, in the llm bundle: the parts above, a schema and a JSON value,
+// each making its component, which says what it is in its display meta. The JSON ones say
+// nothing to a canvas: their kinds give their width.
 export const LLM_KINDS = {
-	system: {
-		component: "SystemMessage",
-		blurb: "How the model should behave.",
-		make: (C) => systemMessage(C),
-	},
-	user: { component: "UserMessage", blurb: "What the user asks.", make: (C) => userMessage(C) },
-	assistant: {
-		component: "AssistantMessage",
-		blurb: "What the model answers.",
-		make: (C) => assistantMessage(C),
-	},
-	toolDefinition: {
-		component: "ToolDefinition",
-		blurb: "A tool the model may call, and its input's schema.",
-		make: (C) => toolDefinition(C),
-	},
-	toolCall: {
-		component: "ToolCall",
-		blurb: "The model asking to run a tool.",
-		make: (C) => toolCall(C),
-	},
-	toolResult: {
-		component: "ToolResult",
-		blurb: "What running the tool gave back.",
-		make: (C) => toolResult(C),
-	},
-	structuredOutput: {
-		component: "StructuredOutput",
-		blurb: "An answer that follows a schema, checked against it.",
-		make: (C) => structuredOutput(C),
-	},
+	system: { component: "SystemMessage", make: (C) => systemMessage(C) },
+	user: { component: "UserMessage", make: (C) => userMessage(C) },
+	assistant: { component: "AssistantMessage", make: (C) => assistantMessage(C) },
+	toolDefinition: { component: "ToolDefinition", make: (C) => toolDefinition(C) },
+	toolCall: { component: "ToolCall", make: (C) => toolCall(C) },
+	toolResult: { component: "ToolResult", make: (C) => toolResult(C) },
+	structuredOutput: { component: "StructuredOutput", make: (C) => structuredOutput(C) },
 	jsonSchema: {
 		component: "JsonSchemaEditor",
-		title: "JSON Schema",
-		icon: "📐",
 		width: 420,
-		blurb: "A schema, read as a tree and edited as JSON.",
 		make: (C) => schemaEditor(C, WEATHER.tool.parameters),
 	},
 	json: {
 		component: "JsonEditor",
-		title: "JSON",
-		icon: "{}",
 		width: 420,
-		blurb: "A JSON value, viewed or edited in place.",
 		make: (C) => C.JsonEditor({ mode: "view", value: fromJson(C, WEATHER.call.input) }),
 	},
 };

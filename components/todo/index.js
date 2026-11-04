@@ -7,6 +7,7 @@ import {
 	apply,
 	button,
 	component,
+	DISPLAY_META,
 	each,
 	field,
 	lookupBind,
@@ -139,6 +140,13 @@ const EMPTY = {
 
 export const TodoApp = component({
 	name: "TodoApp",
+	meta: {
+		[DISPLAY_META]: {
+			title: "Todos",
+			icon: "✅",
+			description: "Projects, labels and due dates.",
+		},
+	},
 	fields: {
 		today: todayType(),
 		projects: t.array(t.component("TodoProject")).len(1),

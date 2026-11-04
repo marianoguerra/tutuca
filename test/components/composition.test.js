@@ -28,6 +28,24 @@ test("the libraries' components share one scope without name collisions", () => 
 	);
 });
 
+test("cells are labeled, and the picker lists kinds, by their components' display meta", () => {
+	const d = start();
+	const labels = [...d.rootNode.querySelectorAll("header")].map((h) => h.textContent);
+	for (const label of ["📝 Notes", "✅ Todos", "🗂️ Kanban board", "🎨 Drawing", "📓 Notebook"]) {
+		assert.ok(
+			labels.some((text) => text.includes(label)),
+			label,
+		);
+	}
+	const picker = start([]);
+	const choice = picker.rootNode.querySelector('[data-choice="kanban"]');
+	assert.match(choice.textContent, /🗂️ Kanban board/);
+	assert.match(choice.textContent, /Cards you drag between columns\./);
+	assert.ok(
+		[...picker.rootNode.querySelectorAll("header")].some((h) => h.textContent.includes("New cell")),
+	);
+});
+
 test("ctrl+click on a cell's toggle collapses every cell, and expands them again", () => {
 	const d = start();
 	const { MouseEvent } = document.defaultView;

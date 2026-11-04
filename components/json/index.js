@@ -6,6 +6,7 @@ import {
 	$if,
 	button,
 	component,
+	DISPLAY_META,
 	each,
 	field,
 	lookupBind,
@@ -395,6 +396,13 @@ export const JsonObject = component({
 // A JSON document, shown read only or edited in place, with its JSON text.
 export const JsonEditor = component({
 	name: "JsonEditor",
+	meta: {
+		[DISPLAY_META]: {
+			title: "JSON",
+			icon: "{}",
+			description: "A JSON value, viewed or edited in place, with its text.",
+		},
+	},
 	fields: {
 		value: t.component(VALUE_NAMES),
 		mode: t.enum("view", "edit"),

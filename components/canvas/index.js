@@ -18,6 +18,7 @@ import {
 	$if,
 	apply,
 	component,
+	DISPLAY_META,
 	each,
 	field,
 	pushView,
@@ -338,7 +339,14 @@ const typing = (target) =>
 
 export const Canvas = component({
 	name: "Canvas",
-	meta: { [CANVAS_META]: { title: "Canvas", icon: "🖼️", width: 720 } },
+	meta: {
+		[DISPLAY_META]: {
+			title: "Canvas",
+			icon: "🖼️",
+			description: "Components and the shapes drawn between them, laid out on an SVG canvas.",
+		},
+		[CANVAS_META]: { width: 720 },
+	},
 	fields: {
 		width: t.number().int().min(200).max(10000).default(2400),
 		height: t.number().int().min(200).max(10000).default(1600),
@@ -828,7 +836,7 @@ export const canvas = (C, items = [], fields = {}, kinds = COMPOSITION_KINDS) =>
 		const kind = all[what];
 		if (kind === undefined) throw new Error(`no component kind ${what}`);
 		const content = kind.make(C, kindEnv(read));
-		const look = kindLook(kind, canvasMetaOf(content));
+		const look = kindLook(kind, content);
 		const w = width ?? look.width;
 		return C.Item({ x, y, content, label: label ?? look.label, ...(w ? { width: w } : {}) });
 	};
@@ -840,25 +848,22 @@ export const canvas = (C, items = [], fields = {}, kinds = COMPOSITION_KINDS) =>
 };
 
 // The notebook's kinds: what its pickers offer, a tracker picking its group first. Their
-// components are the other demos', which say nothing to a canvas: the title and icon are the
-// notebook's picker's, and the width how wide each reads well.
-const COMPOSITION_LOOKS = {
-	notes: ["Notes", 320],
-	todos: ["TodoApp", 760],
-	kanban: ["Board", 720],
-	drawing: ["Drawing", 760],
-	tracker: ["TrackerCell", 380],
-	notebook: ["Notebook", 560],
+// components say what they are in their display meta; they say nothing to a canvas, so the
+// width, how wide each reads well, is the kind's.
+const COMPOSITION_WIDTHS = {
+	notes: 320,
+	todos: 760,
+	kanban: 720,
+	drawing: 760,
+	tracker: 380,
+	notebook: 560,
 };
 export const COMPOSITION_KINDS = Object.fromEntries(
-	Object.entries(KINDS).map(([id, [title, icon, blurb]]) => [
+	Object.entries(KINDS).map(([id, component]) => [
 		id,
 		{
-			component: COMPOSITION_LOOKS[id][0],
-			title,
-			icon,
-			blurb,
-			width: COMPOSITION_LOOKS[id][1],
+			component,
+			width: COMPOSITION_WIDTHS[id],
 			make: (C, { choice, now, tz, uuid }) =>
 				makeContent(C, id, { group: choice ?? undefined, now, tz, uuid }),
 			...(id === "tracker" ? { choices: GROUPS.map(({ id, title }) => ({ id, title })) } : {}),

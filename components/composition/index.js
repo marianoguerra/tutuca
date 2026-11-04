@@ -11,16 +11,21 @@ import {
 	$if,
 	apply,
 	component,
+	DISPLAY_META,
+	displayLabel,
+	displayOf,
 	dragKey,
 	each,
 	field,
 	render,
 	renderIt,
+	scopeOf,
 	send,
 	sourceKey,
 	specOf,
 	t,
 	tag,
+	targetValue,
 } from "../../src/tutuca.js";
 import { isoDay } from "../common/calendar.js";
 import { drawingComponents } from "../drawing/index.js";
@@ -33,14 +38,15 @@ import { todoApp, todoComponents } from "../todo/index.js";
 
 const { button, div, h2, header, p, span } = tag;
 
-// What a cell can be: its label, emoji and blurb in the picker.
+// What a cell can be, and the component each makes: the picker lists them by what those say of
+// themselves in their display meta.
 export const KINDS = {
-	notes: ["Notes", "📝", "A list of short notes to tick off."],
-	todos: ["Todos", "✅", "Projects, labels and due dates."],
-	kanban: ["Kanban board", "🗂️", "Cards you drag between columns."],
-	drawing: ["Drawing", "🎨", "Shapes you draw, move and layer."],
-	tracker: ["Tracker", "📈", "A group of things to log with a tap."],
-	notebook: ["Notebook", "📓", "A notebook of its own, inside this one."],
+	notes: "Notes",
+	todos: "TodoApp",
+	kanban: "Board",
+	drawing: "Drawing",
+	tracker: "TrackerCell",
+	notebook: "Notebook",
 };
 const KIND_NAMES = Object.keys(KINDS);
 // The groups of things a tracker can track, from every bundle of the thing tracker.
@@ -56,6 +62,13 @@ const GROUP_IDS = GROUPS.map((g) => g.id);
 // to the section, and what logging one does here instead of in the tracker app.
 export const TrackerCell = component({
 	name: "TrackerCell",
+	meta: {
+		[DISPLAY_META]: {
+			title: "Tracker",
+			icon: "📈",
+			description: "A group of things to log with a tap.",
+		},
+	},
 	fields: {
 		section: t.component("Section"),
 		things: t.array(t.component("Thing")),
@@ -136,10 +149,11 @@ export const makeContent = (C, kind, { group = GROUP_IDS[0], now, tz = 0, uuid }
 	}
 };
 
+const CHOICE = "btn h-auto flex-col items-start gap-0 py-2 text-left";
 const choice = (id, action, emoji, label, blurb) =>
 	button(
 		{
-			class: "btn h-auto flex-col items-start gap-0 py-2 text-left",
+			class: CHOICE,
 			"data-choice": id,
 			"on:click": action,
 		},
@@ -150,10 +164,29 @@ const choice = (id, action, emoji, label, blurb) =>
 // A new cell's content, until you pick what it becomes.
 export const Picker = component({
 	name: "Picker",
+	meta: {
+		[DISPLAY_META]: {
+			title: "New cell",
+			description: "Picks what a new cell becomes.",
+		},
+	},
 	fields: { step: t.enum("kind", "tracker") },
 	queries: {
 		get isPickingKind() {
 			return this.step === "kind";
+		},
+		// What a cell can be, as the components it'd make say in their display meta.
+		get kinds() {
+			const scope = scopeOf(this);
+			return Object.entries(KINDS).map(([id, name]) => {
+				const spec = scope?.lookupByName(name) ?? null;
+				const { title, icon, description } = spec ? displayOf(spec, scope) : {};
+				return {
+					id,
+					label: [icon, title ?? name].filter(Boolean).join(" "),
+					description: description ?? "",
+				};
+			});
 		},
 	},
 	view: div(
@@ -165,8 +198,18 @@ export const Picker = component({
 				p({ class: "text-sm opacity-70" }, "What do you want to add?"),
 				div(
 					{ class: "grid gap-2 sm:grid-cols-3" },
-					Object.entries(KINDS).map(([kind, [label, emoji, blurb]]) =>
-						choice(kind, send("pick", kind), emoji, label, blurb),
+					each(
+						field("kinds"),
+						button(
+							{
+								class: CHOICE,
+								"data-choice": field("id"),
+								value: field("id"),
+								"on:click": send("pick", targetValue()),
+							},
+							span({ class: "font-bold" }, field("label")),
+							span({ class: "text-xs font-normal opacity-70" }, field("description")),
+						),
 					),
 				),
 			),
@@ -214,25 +257,19 @@ export const Picker = component({
 	},
 });
 
-// The label of a cell, by what its content is.
-const CONTENT_LABELS = {
-	Picker: "New cell",
-	Notes: "📝 Notes",
-	TodoApp: "✅ Todos",
-	Board: "🗂️ Kanban board",
-	Drawing: "🎨 Drawing",
-	Notebook: "📓 Notebook",
-};
-
 // One cell of a notebook: a header to drag it by, collapse it or remove it, and its content.
 export const Cell = component({
 	name: "Cell",
 	fields: { content: t.component(), collapsed: t.boolean() },
 	queries: {
+		// What the content says it is in its display meta; a tracker, which group it tracks.
 		get label() {
 			const { name } = specOf(this.content);
-			if (name === "TrackerCell") return `📈 ${this.content.section.title}`;
-			return CONTENT_LABELS[name] ?? name;
+			if (name === "TrackerCell") {
+				const { icon } = displayOf(this.content);
+				return [icon, this.content.section.title].filter(Boolean).join(" ");
+			}
+			return displayLabel(this.content) ?? name;
 		},
 		get isOpen() {
 			return !this.collapsed;
@@ -333,6 +370,14 @@ const isOwnCell = (ctx) =>
 
 export const Notebook = component({
 	name: "Notebook",
+	meta: {
+		[DISPLAY_META]: {
+			title: "Notebook",
+			icon: "📓",
+			description:
+				"Cells of notes, todos, boards, drawings and trackers, in the order you add them.",
+		},
+	},
 	fields: {
 		title: t.string("Notebook"),
 		// An ordered map: cells by key, and the keys in order. Keys are uuids, so cells added

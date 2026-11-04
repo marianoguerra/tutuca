@@ -9,6 +9,7 @@ import {
 	apply,
 	button,
 	component,
+	DISPLAY_META,
 	each,
 	field,
 	render,
@@ -60,6 +61,13 @@ const newId = (ctx) => `s-${ctx.uuid()}`;
 
 export const Drawing = component({
 	name: "Drawing",
+	meta: {
+		[DISPLAY_META]: {
+			title: "Drawing",
+			icon: "🎨",
+			description: "Shapes you draw, move and layer.",
+		},
+	},
 	fields: {
 		width: t.number(640).int().min(16).max(4000),
 		height: t.number(400).int().min(16).max(4000),
