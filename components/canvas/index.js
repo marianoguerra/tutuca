@@ -52,6 +52,16 @@ const ROOM = 4000;
 const HOLE_WIDTH = 240;
 const MIN_WIDTH = 160;
 const MIN_HEIGHT = 80;
+// How tall an item grows with its content before its content scrolls; resizing it sets its
+// height, past this too.
+const MAX_AUTO_HEIGHT = 720;
+// How far the canvas reaches past what's on it, growing as items are moved or resized there.
+const GROW_MARGIN = 400;
+const MAX_SIZE = 10000;
+// How far the canvas zooms out and in, and how much each step does.
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 1.25;
 
 // The chrome's parts are invisible until the pointer is over the item's card or something in it
 // has the focus; till then the card is transparent too, its content on the canvas. Collapsed,
@@ -119,9 +129,15 @@ export const Item = component({
 		get editIcon() {
 			return this.editing ? "👁" : "✎";
 		},
-		// Resized, the card keeps its height and its content scrolls; collapsed, it's the header.
+		get shownTitle() {
+			return this.title === "" ? this.label : this.title;
+		},
+		// Resized, the card keeps its height and its content scrolls; till then it's as tall as
+		// its content, up to MAX_AUTO_HEIGHT; collapsed, it's the header.
 		get cardStyle() {
-			const height = this.height === 0 || this.collapsed ? "" : `height:${this.height}px;`;
+			if (this.collapsed) return "pointer-events:auto";
+			const height =
+				this.height === 0 ? `max-height:${MAX_AUTO_HEIGHT}px;` : `height:${this.height}px;`;
 			return `${height}pointer-events:auto`;
 		},
 	},
@@ -149,7 +165,7 @@ export const Item = component({
 				button(
 					{
 						class: "btn btn-ghost btn-xs w-6 px-0",
-						title: "Collapse or expand",
+						title: "Collapse or expand (Ctrl+click: every item)",
 						"aria-expanded": $if(field("isOpen"), "true", "false"),
 						"on:click": send("toggle"),
 					},
@@ -177,6 +193,15 @@ export const Item = component({
 					),
 					"",
 				),
+				button(
+					{
+						class: "btn btn-ghost btn-xs w-6 px-0",
+						title: "Maximize",
+						"aria-label": "Maximize",
+						"on:click": send("maximize"),
+					},
+					"⤢",
+				),
 				button({ class: "btn btn-ghost btn-xs", title: "Remove", "on:click": send("remove") }, "✕"),
 			),
 			$if(
@@ -198,9 +223,105 @@ export const Item = component({
 			}),
 		),
 	),
+	// Maximized: over the whole page, as tall as its content, which scrolls past the window.
+	views: {
+		full: div(
+			{
+				class: "canvas-maximized fixed inset-0 z-50 flex items-start bg-base-300/70 p-4 sm:p-8",
+				role: "dialog",
+				"on:keydown": send("fullKey"),
+				"aria-modal": "true",
+				"aria-label": field("shownTitle"),
+			},
+			div(
+				{
+					class:
+						"mx-auto flex max-h-full w-full max-w-5xl flex-col rounded-box border border-base-300 bg-base-100 shadow-xl",
+				},
+				header(
+					{
+						class:
+							"flex shrink-0 items-center gap-1 rounded-t-box border-b border-base-300 bg-base-200 px-2 py-1",
+					},
+					span(
+						{ class: "min-w-0 flex-1 truncate px-1 text-sm font-bold opacity-60" },
+						field("shownTitle"),
+					),
+					$if(
+						field("canEdit"),
+						button(
+							{
+								class: "btn btn-ghost btn-xs w-6 px-0",
+								title: field("editLabel"),
+								"aria-label": field("editLabel"),
+								"aria-pressed": $if(field("editing"), "true", "false"),
+								"on:click": send("toggleEditing"),
+							},
+							field("editIcon"),
+						),
+						"",
+					),
+					button(
+						{
+							class: "btn btn-ghost btn-xs",
+							title: "Restore (Esc)",
+							"aria-label": "Restore",
+							"on:click": send("restore"),
+						},
+						"⤡ Restore",
+					),
+				),
+				div(
+					{ class: "min-h-0 flex-1 overflow-auto p-4" },
+					pushView(field("pushed"), render(field("content"))),
+				),
+			),
+		),
+	},
 	on: {
-		toggle(next) {
-			next.collapsed = !this.collapsed;
+		// With Ctrl (⌘ on a Mac) held, every item on the canvas does the same.
+		toggle: {
+			args: [],
+			emits: { notify: ["collapseAll"] },
+			run(next, _args, ctx) {
+				const collapsed = !this.collapsed;
+				if (ctx.event?.ctrlKey || ctx.event?.metaKey) ctx.notify("collapseAll", [collapsed]);
+				else next.collapsed = collapsed;
+			},
+		},
+		setCollapsed: {
+			pure: true,
+			args: [t.boolean()],
+			run(next, [collapsed]) {
+				next.collapsed = collapsed;
+			},
+		},
+		// Maximized, the focus goes to its Restore button, so Esc reaches it.
+		maximize: {
+			args: [],
+			emits: { notify: ["maximizeItem"] },
+			run(_next, _args, ctx) {
+				ctx.notify("maximizeItem");
+				const root = ctx.event?.target?.closest?.(".canvas-root");
+				afterRender(() => root?.querySelector('.canvas-maximized [aria-label="Restore"]')?.focus());
+			},
+		},
+		fullKey: {
+			args: [],
+			emits: { notify: ["restoreItem"] },
+			run(_next, _args, ctx) {
+				const e = ctx.event;
+				if (e?.key !== "Escape" || e.defaultPrevented) return;
+				e.preventDefault();
+				ctx.notify("restoreItem");
+			},
+		},
+		restore: {
+			args: [],
+			emits: { notify: ["restoreItem"] },
+			run(_next, _args, ctx) {
+				ctx.notify("restoreItem");
+			},
 		},
 		setTitle: {
 			args: [t.string()],
@@ -348,8 +469,12 @@ export const Canvas = component({
 		[CANVAS_META]: { width: 720 },
 	},
 	fields: {
-		width: t.number().int().min(200).max(10000).default(2400),
-		height: t.number().int().min(200).max(10000).default(1600),
+		width: t.number().int().min(200).max(MAX_SIZE).default(2400),
+		height: t.number().int().min(200).max(MAX_SIZE).default(1600),
+		// How big it shows: 1 is a canvas pixel to a screen pixel.
+		zoom: t.number().min(MIN_ZOOM).max(MAX_ZOOM).default(1).sync("local"),
+		// The key of the item shown over the whole page, or "".
+		maximized: t.string().sync("none"),
 		// Items by key, and the keys from back to front; picking one up brings it to the front.
 		items: t.map(t.component("Item")),
 		order: t.array(t.string()),
@@ -380,6 +505,14 @@ export const Canvas = component({
 				return shape.id;
 			},
 		},
+		// The maximized item, if any, in its full view.
+		maximized: {
+			iter(items) {
+				const item = items[this.maximized];
+				return item === undefined ? [] : [[this.maximized, item]];
+			},
+			view: "full",
+		},
 	},
 	invariants: {
 		orderHasEveryItem() {
@@ -401,6 +534,23 @@ export const Canvas = component({
 	queries: {
 		get viewBox() {
 			return `0 0 ${this.width} ${this.height}`;
+		},
+		// The viewBox is the whole canvas; the svg is as big as it shows, zoomed, and its
+		// viewport scrolls.
+		get shownWidth() {
+			return String(Math.round(this.width * this.zoom));
+		},
+		get shownHeight() {
+			return String(Math.round(this.height * this.zoom));
+		},
+		get zoomLabel() {
+			return `${Math.round(this.zoom * 100)}%`;
+		},
+		get cantZoomOut() {
+			return this.zoom <= MIN_ZOOM;
+		},
+		get cantZoomIn() {
+			return this.zoom >= MAX_ZOOM;
 		},
 		get bgClass() {
 			if (this.drag !== "none") return "canvas-bg cursor-grabbing";
@@ -453,12 +603,12 @@ export const Canvas = component({
 		},
 		get hint() {
 			const tool = TOOLS.find(([id]) => id === this.tool)[2].replace(/ \(.\)$/, "");
-			return `${tool} · drag an item by its header, resize it by its corner`;
+			return `${tool} · drag an item by its header, resize it by its corner · Ctrl+wheel zooms`;
 		},
 	},
 	view: div(
 		{
-			class: "flex flex-col gap-2 outline-none",
+			class: "canvas-root flex flex-col gap-2 outline-none",
 			tabindex: "0",
 			"on:keydown": send("key"),
 		},
@@ -519,18 +669,62 @@ export const Canvas = component({
 				},
 				"Delete",
 			),
+			div(
+				{ class: "join ml-auto", role: "group", "aria-label": "Zoom" },
+				button(
+					{
+						class: OFF,
+						title: "Zoom out",
+						"aria-label": "Zoom out",
+						disabled: field("cantZoomOut"),
+						"on:click": send("zoomOut"),
+					},
+					"−",
+				),
+				button(
+					{
+						class: "btn btn-sm join-item w-16 tabular-nums",
+						title: "Actual size",
+						"aria-label": "Actual size",
+						"on:click": send("zoomReset"),
+					},
+					field("zoomLabel"),
+				),
+				button(
+					{
+						class: OFF,
+						title: "Zoom in",
+						"aria-label": "Zoom in",
+						disabled: field("cantZoomIn"),
+						"on:click": send("zoomIn"),
+					},
+					"+",
+				),
+				button(
+					{
+						class: "btn btn-sm join-item",
+						title: "Zoom to fit what's on the canvas",
+						"on:click": send("zoomToFit"),
+					},
+					"Fit",
+				),
+			),
 		),
 		p({ class: "text-xs opacity-60" }, field("hint")),
 		div(
-			{ class: "overflow-auto rounded-box border border-base-300 bg-base-200" },
+			{
+				class:
+					"canvas-viewport max-h-[80vh] overflow-auto rounded-box border border-base-300 bg-base-200",
+			},
 			svg(
 				{
-					class: "block",
+					class: "canvas-svg block",
 					viewBox: field("viewBox"),
-					width: field("width"),
-					height: field("height"),
+					width: field("shownWidth"),
+					height: field("shownHeight"),
 					style:
 						"background-image:radial-gradient(circle,rgb(0 0 0 / 0.15) 1px,transparent 1px);background-size:24px 24px",
+					"on:wheel": send("wheel"),
 					"on:pointermove": send("drag"),
 					"on:pointerup": send("release"),
 					"on:pointercancel": send("cancel"),
@@ -562,6 +756,7 @@ export const Canvas = component({
 				renderEach(field("items"), "ordered"),
 			),
 		),
+		renderEach(field("items"), "maximized"),
 	),
 	on: {
 		// A hole at x, y.
@@ -572,6 +767,77 @@ export const Canvas = component({
 				const C = ctx.scope.components;
 				next.items[key] = C.Item({ content: C.Hole(), x, y });
 				next.order.push(key);
+				growTo(this, next, x + HOLE_WIDTH, y + MIN_HEIGHT);
+			},
+		},
+		// Zooming by the buttons keeps the middle of what shows where it is.
+		zoomIn(next, _args, ctx) {
+			zoomAround(this, next, this.zoom * ZOOM_STEP, ctx.event);
+		},
+		zoomOut(next, _args, ctx) {
+			zoomAround(this, next, this.zoom / ZOOM_STEP, ctx.event);
+		},
+		zoomReset(next, _args, ctx) {
+			zoomAround(this, next, 1, ctx.event);
+		},
+		setZoom: {
+			pure: true,
+			args: [t.number()],
+			run(next, [zoom]) {
+				next.zoom = clampZoom(zoom);
+			},
+		},
+		// Ctrl+wheel (a pinch on a trackpad) zooms around the pointer; the wheel alone scrolls.
+		wheel(next, _args, ctx) {
+			const e = ctx.event;
+			if (!e || !(e.ctrlKey || e.metaKey)) return;
+			e.preventDefault();
+			zoomAround(this, next, this.zoom * Math.exp(-e.deltaY * 0.002), e, [e.clientX, e.clientY]);
+		},
+		// Zoomed, no further in than actual size, so everything on it shows, and scrolled to it.
+		zoomToFit(next, _args, ctx) {
+			const viewport = viewportOf(ctx.event);
+			const box = contentBox(this, viewport);
+			if (viewport === null || box === null) {
+				zoomAround(this, next, 1, ctx.event);
+				return;
+			}
+			const pad = 16;
+			const zoom = clampZoom(
+				Math.min(
+					1,
+					(viewport.clientWidth - 2 * pad) / box.width,
+					(viewport.clientHeight - 2 * pad) / box.height,
+				),
+			);
+			next.zoom = zoom;
+			afterRender(() => {
+				viewport.scrollLeft = box.left * zoom - pad;
+				viewport.scrollTop = box.top * zoom - pad;
+			});
+		},
+		// From an item's header, Ctrl+clicked: every item collapses or expands.
+		collapseAll: {
+			args: [t.boolean()],
+			run(next, [collapsed], ctx) {
+				ctx.stopNext();
+				for (const key of this.order)
+					next.items[key] = apply(next.items[key], "setCollapsed", collapsed);
+			},
+		},
+		maximizeItem: {
+			args: [],
+			sourceKey: t.index("items"),
+			run(next, _args, ctx) {
+				ctx.stopNext();
+				next.maximized = ctx.sourceKey;
+			},
+		},
+		restoreItem: {
+			args: [],
+			run(next, _args, ctx) {
+				ctx.stopNext();
+				next.maximized = "";
 			},
 		},
 		setTool: {
@@ -623,6 +889,7 @@ export const Canvas = component({
 			const key = e.key?.toLowerCase();
 			if (key === "delete" || key === "backspace") Canvas.on.removeShape.run.call(this, next);
 			else if (key === "escape") {
+				next.maximized = "";
 				next.selected = "";
 				next.current = null;
 				next.drag = "none";
@@ -682,6 +949,7 @@ export const Canvas = component({
 				delete next.items[ctx.sourceKey];
 				next.order = this.order.filter((k) => k !== ctx.sourceKey);
 				if (this.dragKey === ctx.sourceKey) next.drag = "none";
+				if (this.maximized === ctx.sourceKey) next.maximized = "";
 			},
 		},
 		// From a pressed shape: the drawing tools draw over it, the others pick it up.
@@ -781,10 +1049,13 @@ function dragTo(self, next, [x, y], square) {
 		const nx = clamp(Math.round(x - self.grabX), 0, self.width - 40);
 		const ny = clamp(Math.round(y - self.grabY), 0, self.height - 24);
 		next.items[key] = apply(item, "moveTo", nx, ny);
+		growTo(self, next, nx + item.width, ny + (item.height || MAX_AUTO_HEIGHT));
 	} else if (self.drag === "resize") {
 		const item = self.items[key];
-		if (item !== undefined)
-			next.items[key] = apply(item, "resizeTo", x - self.grabX, y - self.grabY);
+		if (item === undefined) return;
+		const resized = apply(item, "resizeTo", x - self.grabX, y - self.grabY);
+		next.items[key] = resized;
+		growTo(self, next, resized.x + resized.width, resized.y + resized.height);
 	} else if (self.drag === "shape") {
 		const i = self.shapes.findIndex((s) => s.id === key);
 		if (i < 0) return;
@@ -801,6 +1072,57 @@ function dragTo(self, next, [x, y], square) {
 		}
 		next.current = apply(self.current, "dragTo", x, y);
 	}
+}
+
+// The canvas grows to reach GROW_MARGIN past right and bottom, never shrinking.
+function growTo(self, next, right, bottom) {
+	const width = Math.min(MAX_SIZE, Math.ceil(right + GROW_MARGIN));
+	const height = Math.min(MAX_SIZE, Math.ceil(bottom + GROW_MARGIN));
+	if (width > self.width) next.width = width;
+	if (height > self.height) next.height = height;
+}
+
+const clampZoom = (zoom) => clamp(Math.round(zoom * 1000) / 1000, MIN_ZOOM, MAX_ZOOM);
+// The scrolling viewport of the canvas an event happened in, or null outside a browser.
+const viewportOf = (event) =>
+	event?.target?.closest?.(".canvas-root")?.querySelector(":scope > .canvas-viewport") ?? null;
+// Runs fn once the render the handler causes is done: scrolling has to wait for the new size.
+const afterRender = (fn) => {
+	if (typeof requestAnimationFrame === "function") requestAnimationFrame(fn);
+};
+// Zooms to zoom keeping the canvas point under at (client coordinates; the viewport's middle
+// without it) where it shows.
+function zoomAround(self, next, zoom, event, at = undefined) {
+	const to = clampZoom(zoom);
+	next.zoom = to;
+	const viewport = viewportOf(event);
+	if (viewport === null) return;
+	const rect = viewport.getBoundingClientRect();
+	const ox = (at?.[0] ?? rect.left + viewport.clientWidth / 2) - rect.left;
+	const oy = (at?.[1] ?? rect.top + viewport.clientHeight / 2) - rect.top;
+	const px = (viewport.scrollLeft + ox) / self.zoom;
+	const py = (viewport.scrollTop + oy) / self.zoom;
+	afterRender(() => {
+		viewport.scrollLeft = px * to - ox;
+		viewport.scrollTop = py * to - oy;
+	});
+}
+// The box around every item and shape, in canvas coordinates, or null when there's none. An
+// item as tall as its content is measured, as it shows in viewport.
+function contentBox(self, viewport) {
+	const cards = viewport?.querySelectorAll(":scope > svg > foreignObject > .canvas-card") ?? [];
+	const boxes = self.order.map((key, i) => {
+		const item = self.items[key];
+		const shown = cards[i]?.offsetHeight ?? 0;
+		return [item.x, item.y, item.width, item.height || shown || MIN_HEIGHT];
+	});
+	for (const s of self.shapes) boxes.push([s.left, s.top, s.boxWidth, s.boxHeight]);
+	if (boxes.length === 0) return null;
+	const left = Math.min(...boxes.map(([x]) => x));
+	const top = Math.min(...boxes.map(([, y]) => y));
+	const right = Math.max(...boxes.map(([x, , w]) => x + w));
+	const bottom = Math.max(...boxes.map(([, y, , h]) => y + h));
+	return { left, top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) };
 }
 
 // The selected shape takes the changed paint, keeping the rest of its style.

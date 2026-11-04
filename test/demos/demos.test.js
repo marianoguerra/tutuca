@@ -141,7 +141,7 @@ test("canvas demo: a click adds a hole, which becomes what's picked; items move,
 		pointer("pointerup", el, 0, 0);
 		app.fire("click", el);
 	};
-	press(lastItem().querySelector('[title="Collapse or expand"]'));
+	press(lastItem().querySelector('[title^="Collapse or expand"]'));
 	assert.equal(items()[2].collapsed, true);
 	press(lastItem().querySelector('[title="Remove"]'));
 	assert.deepEqual(kinds(), ["Hole", "Board"]);
@@ -149,6 +149,63 @@ test("canvas demo: a click adds a hole, which becomes what's picked; items move,
 	pointer("pointerdown", app.$("foreignObject header"), 58, 58);
 	pointer("pointerup", bg, 58, 58);
 	assert.equal(captures, 1, "pressing the header itself does");
+	await checkClean(app);
+});
+
+test("canvas demo: Ctrl+click collapses every item, an item maximizes, the canvas zooms and grows", async () => {
+	const app = mount(startCanvas);
+	const { MouseEvent, KeyboardEvent, WheelEvent } = app.rootNode.ownerDocument.defaultView;
+	const items = () => app.state().order.map((key) => app.state().items[key]);
+	const toggles = () => app.rootNode.querySelectorAll('svg [title^="Collapse or expand"]');
+	toggles()[0].dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+	assert.deepEqual(
+		items().map((item) => item.collapsed),
+		[true, true],
+		"every item collapses",
+	);
+	toggles()[1].dispatchEvent(new MouseEvent("click", { bubbles: true }));
+	assert.deepEqual(
+		items().map((item) => item.collapsed),
+		[true, false],
+		"a plain click, only its own",
+	);
+	// An item as tall as its content stops growing, and scrolls.
+	assert.match(
+		app.rootNode.querySelectorAll(".canvas-card")[1].getAttribute("style"),
+		/max-height: ?720px/,
+	);
+	// Maximized, it shows over the page, till it's restored or Esc is pressed.
+	assert.equal(app.$(".canvas-maximized"), null);
+	app.fire("click", app.$('svg [title="Maximize"]'));
+	assert.equal(app.state().maximized, app.state().order[0]);
+	assert.ok(app.$(".canvas-maximized"));
+	app.fire("click", app.$('.canvas-maximized [aria-label="Restore"]'));
+	assert.equal(app.$(".canvas-maximized"), null);
+	app.fire("click", app.$('svg [title="Maximize"]'));
+	app
+		.$(".canvas-root")
+		.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+	assert.equal(app.state().maximized, "");
+	// Zooming scales the svg, not the canvas; Ctrl+wheel zooms, the wheel alone doesn't.
+	const svg = () => app.$("svg.canvas-svg");
+	const { width, height } = app.state();
+	app.fire("click", app.$('[aria-label="Zoom out"]'));
+	assert.equal(app.state().zoom, 0.8);
+	assert.equal(svg().getAttribute("width"), String(Math.round(width * 0.8)));
+	assert.equal(svg().getAttribute("viewBox"), `0 0 ${width} ${height}`);
+	app.fire("click", app.$('[aria-label="Actual size"]'));
+	assert.equal(app.state().zoom, 1);
+	svg().dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: 100 }));
+	assert.equal(app.state().zoom, 1);
+	svg().dispatchEvent(new WheelEvent("wheel", { bubbles: true, deltaY: -100, ctrlKey: true }));
+	assert.ok(app.state().zoom > 1);
+	// A hole near the edge grows the canvas past it.
+	const bg = app.$(".canvas-bg");
+	const pointer = (type, x, y) =>
+		bg.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 }));
+	pointer("pointerdown", width - 10, 100);
+	pointer("pointerup", width - 10, 100);
+	assert.ok(app.state().width > width, "the canvas grows");
 	await checkClean(app);
 });
 

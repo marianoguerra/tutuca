@@ -6,6 +6,8 @@
 // json components' edit views) and the schemas as JSON text (JsonSchemaEditor).
 import {
 	$if,
+	apply,
+	canApply,
 	component,
 	DISPLAY_META,
 	each,
@@ -72,6 +74,82 @@ const cardHeader = (badge, badgeClass, ...rest) =>
 const tokens = () =>
 	span({ class: "ml-auto text-xs tabular-nums opacity-50" }, "≈ ", field("tokens"), " tokens");
 const labeled = (text, control) => label({ class: FIELD_LABEL }, text, control);
+
+// A card's sections: titled parts that collapse, each by its title. Clicking a title opens or
+// closes its section; with Ctrl (⌘ on a Mac), every section of the card does the same; with
+// Ctrl+Alt, every section, JSON value and schema below it too, in the cards it holds.
+// closed lists the sections that are closed; each name gets a query, nameOpen.
+const sectionFields = () => ({ closed: t.array(t.string()) });
+const openQuery = (name) => `${name}Open`;
+const sectionQueries = (names) =>
+	Object.fromEntries(
+		names.map((name) => [
+			openQuery(name),
+			{
+				get() {
+					return !this.closed.includes(name);
+				},
+			},
+		]),
+	);
+// What every section below, in the fields below, takes: setSectionsOpen goes into the cards,
+// setOpenDeep into the JSON values and schemas.
+const openBelow = (next, below, open) => {
+	const into = (v) => {
+		if (canApply(v, "setSectionsOpen")) return apply(v, "setSectionsOpen", open);
+		if (canApply(v, "setOpenDeep")) return apply(v, "setOpenDeep", open);
+		return v;
+	};
+	for (const key of below) {
+		const v = next[key];
+		if (Array.isArray(v)) {
+			for (let i = 0; i < v.length; i++) v[i] = into(v[i]);
+		} else if (v !== null) next[key] = into(v);
+	}
+};
+const sectionMessages = (names, below = []) => ({
+	toggleSection: {
+		args: [t.enum(...names)],
+		run(next, [name], ctx) {
+			const e = ctx.event;
+			const open = this.closed.includes(name);
+			if (e?.ctrlKey || e?.metaKey) {
+				next.closed = open ? [] : [...names];
+				if (e.altKey) openBelow(next, below, open);
+			} else next.closed = open ? this.closed.filter((n) => n !== name) : [...this.closed, name];
+		},
+	},
+	// Every section opens or closes, and every one below it.
+	setSectionsOpen: {
+		pure: true,
+		args: [t.boolean()],
+		run(next, [open]) {
+			next.closed = open ? [] : [...names];
+			openBelow(next, below, open);
+		},
+	},
+});
+const SECTION_TITLE = `${PART} flex cursor-pointer items-center gap-1 self-start hover:opacity-100`;
+const titled = (name, title, ...children) =>
+	section(
+		{ class: "llm-section flex flex-col gap-2" },
+		h3(
+			{ class: "contents" },
+			button(
+				{
+					class: SECTION_TITLE,
+					value: name,
+					title:
+						"Collapse or expand (Ctrl+click: every section; Ctrl+Alt+click: everything inside too)",
+					"aria-expanded": $if(field(openQuery(name)), "true", "false"),
+					"on:click": send("toggleSection", name),
+				},
+				span({ class: "w-3", "aria-hidden": "true" }, $if(field(openQuery(name)), "▾", "▸")),
+				title,
+			),
+		),
+		$if(field(openQuery(name)), div({ class: "flex flex-col gap-2" }, ...children), ""),
+	);
 
 // A message of role: its text, read in main and typed in edit.
 const message = (name, role, badge, badgeClass, placeholder, meta) =>
@@ -157,6 +235,7 @@ export const ToolDefinition = component({
 		name: t.string(),
 		description: t.string(),
 		parameters: t.component("JsonSchemaEditor"),
+		...sectionFields(),
 	},
 	methods: {
 		toJson() {
@@ -172,6 +251,7 @@ export const ToolDefinition = component({
 		get tokens() {
 			return approxTokens(JSON.stringify(this.toJson()));
 		},
+		...sectionQueries(["schema"]),
 	},
 	view: div(
 		{ class: `${CARD} llm-tool-definition` },
@@ -182,8 +262,7 @@ export const ToolDefinition = component({
 			tokens(),
 		),
 		p({ class: "whitespace-pre-wrap opacity-80" }, field("description")),
-		span({ class: PART }, "Input Schema"),
-		render(field("parameters")),
+		titled("schema", "Input Schema", render(field("parameters"))),
 	),
 	views: {
 		edit: div(
@@ -207,11 +286,11 @@ export const ToolDefinition = component({
 					"on:input": send("setDescription", targetValue()),
 				}),
 			),
-			span({ class: PART }, "Input Schema"),
-			render(field("parameters")),
+			titled("schema", "Input Schema", render(field("parameters"))),
 		),
 	},
 	on: {
+		...sectionMessages(["schema"], ["parameters"]),
 		setName: {
 			args: [t.string()],
 			run(next, [name]) {
@@ -235,6 +314,7 @@ export const ToolCall = component({
 		id: t.string(),
 		name: t.string(),
 		input: t.component("JsonRoot"),
+		...sectionFields(),
 	},
 	methods: {
 		toJson() {
@@ -245,6 +325,7 @@ export const ToolCall = component({
 		get tokens() {
 			return approxTokens(JSON.stringify(this.toJson()));
 		},
+		...sectionQueries(["input"]),
 	},
 	view: div(
 		{ class: `${CARD} llm-tool-call` },
@@ -282,11 +363,11 @@ export const ToolCall = component({
 					}),
 				),
 			),
-			span({ class: PART }, "Input"),
-			render(field("input")),
+			titled("input", "Input", render(field("input"))),
 		),
 	},
 	on: {
+		...sectionMessages(["input"], ["input"]),
 		setName: {
 			args: [t.string()],
 			run(next, [name]) {
@@ -310,6 +391,7 @@ export const ToolResult = component({
 		callId: t.string(),
 		isError: t.boolean(),
 		content: t.component("JsonRoot"),
+		...sectionFields(),
 	},
 	methods: {
 		toJson() {
@@ -326,6 +408,7 @@ export const ToolResult = component({
 		get badge() {
 			return this.isError ? "Tool Error" : "Tool Result";
 		},
+		...sectionQueries(["content"]),
 	},
 	view: div(
 		{ class: `${CARD} llm-tool-result` },
@@ -368,11 +451,11 @@ export const ToolResult = component({
 					"failed",
 				),
 			),
-			span({ class: PART }, "Content"),
-			render(field("content")),
+			titled("content", "Content", render(field("content"))),
 		),
 	},
 	on: {
+		...sectionMessages(["content"], ["content"]),
 		setCallId: {
 			args: [t.string()],
 			run(next, [callId]) {
@@ -393,16 +476,8 @@ const structuredView = () =>
 	div(
 		{ class: `${CARD} llm-structured-output` },
 		cardHeader("Structured Output", "badge-neutral", tokens()),
-		section(
-			{ class: "flex flex-col gap-1" },
-			h3({ class: PART }, "Schema"),
-			render(field("schema")),
-		),
-		section(
-			{ class: "flex flex-col gap-1" },
-			h3({ class: PART }, "Output"),
-			render(field("output")),
-		),
+		titled("schema", "Schema", render(field("schema"))),
+		titled("output", "Output", render(field("output"))),
 		$if(
 			field("isValid"),
 			p({ class: "llm-valid text-xs text-success" }, "✓ The output matches the schema."),
@@ -418,6 +493,7 @@ const structuredView = () =>
 	);
 
 // An answer constrained to a schema: the schema and the output, checked against it.
+const STRUCTURED_SECTIONS = ["schema", "output"];
 export const StructuredOutput = component({
 	name: "StructuredOutput",
 	meta: metaFor(
@@ -429,6 +505,7 @@ export const StructuredOutput = component({
 	fields: {
 		schema: t.component("JsonSchemaEditor"),
 		output: t.component("JsonRoot"),
+		...sectionFields(),
 	},
 	methods: {
 		toJson() {
@@ -447,10 +524,12 @@ export const StructuredOutput = component({
 		get tokens() {
 			return approxTokens(JSON.stringify(this.toJson()));
 		},
+		...sectionQueries(STRUCTURED_SECTIONS),
 	},
 	view: structuredView(),
 	// The same: what edits it are the schema's and the output's own edit views, pushed with it.
 	views: { edit: structuredView() },
+	on: sectionMessages(STRUCTURED_SECTIONS, ["schema", "output"]),
 });
 
 // A number typed in an input, or null when it isn't one (the field then keeps what it had).
@@ -487,8 +566,6 @@ const removable = (title, remove) =>
 		renderIt(),
 		button({ class: REMOVE, title, "on:click": send(remove, sourceKey()) }, "×"),
 	);
-const titled = (title, ...children) =>
-	section({ class: "flex flex-col gap-2" }, h3({ class: PART }, title), ...children);
 
 // pi-ai's transcript, from the cards: a tool call goes into the content of the assistant
 // message before it (or of a new one), as models give them back, and a tool result says the
@@ -537,6 +614,7 @@ const addPart = (kind, text) =>
 		`+ ${text.replace(/^an? /, "")}`,
 	);
 
+const REQUEST_SECTIONS = ["system", "transcript", "tools", "schema"];
 // What's sent to the model in one call: the system message, the whole conversation so far,
 // the tools it may call and, optionally, a schema its answer must follow. All of it is input:
 // every turn sends everything again.
@@ -556,6 +634,7 @@ export const InferenceRequest = component({
 		outputSchema: t.option(t.component("JsonSchemaEditor")),
 		temperature: t.number().min(0).max(2).default(1),
 		maxTokens: t.number().int().min(1).default(1024),
+		...sectionFields(),
 	},
 	methods: {
 		// pi-ai's Context ({ systemPrompt, messages, tools }), with the model, its options and,
@@ -596,6 +675,7 @@ export const InferenceRequest = component({
 				this.outputSchema === null ? 0 : approxTokens(JSON.stringify(this.outputSchema.toSchema()));
 			return parts.reduce((sum, part) => sum + part.tokens, schema);
 		},
+		...sectionQueries(REQUEST_SECTIONS),
 	},
 	view: div(
 		{ class: `${CARD} llm-request` },
@@ -618,10 +698,10 @@ export const InferenceRequest = component({
 				" tokens in",
 			),
 		),
-		$if(field("hasSystem"), titled("System", render(field("system"))), ""),
-		titled("Transcript", each(field("messages"), renderIt())),
-		$if(field("hasTools"), titled("Tools", each(field("tools"), renderIt())), ""),
-		$if(field("hasSchema"), titled("Answer Schema", render(field("outputSchema"))), ""),
+		$if(field("hasSystem"), titled("system", "System", render(field("system"))), ""),
+		titled("transcript", "Transcript", each(field("messages"), renderIt())),
+		$if(field("hasTools"), titled("tools", "Tools", each(field("tools"), renderIt())), ""),
+		$if(field("hasSchema"), titled("schema", "Answer Schema", render(field("outputSchema"))), ""),
 	),
 	views: {
 		edit: div(
@@ -650,12 +730,13 @@ export const InferenceRequest = component({
 				labeled("Temperature", numberInput("Temperature", "temperature", "setTemperature")),
 				labeled("Max tokens out", numberInput("Max tokens", "maxTokens", "setMaxTokens")),
 			),
-			$if(field("hasSystem"), titled("System", render(field("system"))), ""),
+			$if(field("hasSystem"), titled("system", "System", render(field("system"))), ""),
 			button(
 				{ class: `${SMALL_BUTTON} self-start`, "on:click": send("toggleSystem") },
 				field("systemToggle"),
 			),
 			titled(
+				"transcript",
 				"Transcript",
 				each(field("messages"), removable("Remove this message", "removeMessage")),
 				div(
@@ -667,6 +748,7 @@ export const InferenceRequest = component({
 				),
 			),
 			titled(
+				"tools",
 				"Tools",
 				each(field("tools"), removable("Remove this tool", "removeTool")),
 				button(
@@ -674,7 +756,7 @@ export const InferenceRequest = component({
 					"+ tool",
 				),
 			),
-			$if(field("hasSchema"), titled("Answer Schema", render(field("outputSchema"))), ""),
+			$if(field("hasSchema"), titled("schema", "Answer Schema", render(field("outputSchema"))), ""),
 			button(
 				{
 					class: `${SMALL_BUTTON} self-start`,
@@ -686,6 +768,7 @@ export const InferenceRequest = component({
 		),
 	},
 	on: {
+		...sectionMessages(REQUEST_SECTIONS, ["system", "messages", "tools", "outputSchema"]),
 		setModel: {
 			args: [t.string()],
 			run(next, [model]) {
@@ -757,6 +840,7 @@ const usageCell = (name, text) =>
 		span({ class: "font-mono tabular-nums" }, field(name)),
 	);
 
+const RESPONSE_SECTIONS = ["answer", "usage"];
 // What comes back from one call: a new assistant turn (its text, tool calls or structured
 // output), why the model stopped and how many tokens it took.
 export const InferenceResponse = component({
@@ -776,6 +860,7 @@ export const InferenceResponse = component({
 		output: t.number().int().min(0),
 		cacheRead: t.number().int().min(0),
 		cacheWrite: t.number().int().min(0),
+		...sectionFields(),
 	},
 	methods: {
 		// pi-ai's AssistantMessage, without what's only for bookkeeping (api, provider,
@@ -822,6 +907,7 @@ export const InferenceResponse = component({
 			const read = this.input + this.cacheRead + this.cacheWrite;
 			return read === 0 ? "0%" : `${Math.round((100 * this.cacheRead) / read)}%`;
 		},
+		...sectionQueries(RESPONSE_SECTIONS),
 	},
 	view: div(
 		{ class: `${CARD} llm-response` },
@@ -830,7 +916,7 @@ export const InferenceResponse = component({
 			"badge-secondary badge-outline",
 			span({ class: `${MONO} font-bold` }, field("model")),
 		),
-		each(field("content"), renderIt()),
+		titled("answer", "Answer", each(field("content"), renderIt())),
 		$if(field("failed"), p({ class: "llm-error text-error" }, field("errorMessage")), ""),
 		footer(
 			{ class: "flex flex-col gap-2 border-t border-base-300 pt-2" },
@@ -840,11 +926,15 @@ export const InferenceResponse = component({
 				span({ class: "font-mono text-xs opacity-50" }, field("stopReason")),
 				span({ class: "text-xs opacity-80" }, field("stopMeans")),
 			),
-			div(
-				{ class: "flex flex-wrap gap-4" },
-				...USAGE.map(([name, text]) => usageCell(name, text)),
-				usageCell("totalTokens", "Total"),
-				usageCell("cacheShare", "From cache"),
+			titled(
+				"usage",
+				"Usage",
+				div(
+					{ class: "flex flex-wrap gap-4" },
+					...USAGE.map(([name, text]) => usageCell(name, text)),
+					usageCell("totalTokens", "Total"),
+					usageCell("cacheShare", "From cache"),
+				),
 			),
 		),
 	),
@@ -861,7 +951,7 @@ export const InferenceResponse = component({
 					"on:input": send("setModel", targetValue()),
 				}),
 			),
-			each(field("content"), renderIt()),
+			titled("answer", "Answer", each(field("content"), renderIt())),
 			labeled(
 				"Stop reason",
 				select(
@@ -889,13 +979,18 @@ export const InferenceResponse = component({
 				),
 				"",
 			),
-			div(
-				{ class: "grid grid-cols-4 gap-2" },
-				...USAGE.map(([name, text, aria, set]) => labeled(text, numberInput(aria, name, set))),
+			titled(
+				"usage",
+				"Usage",
+				div(
+					{ class: "grid grid-cols-4 gap-2" },
+					...USAGE.map(([name, text, aria, set]) => labeled(text, numberInput(aria, name, set))),
+				),
 			),
 		),
 	},
 	on: {
+		...sectionMessages(RESPONSE_SECTIONS, ["content"]),
 		setModel: {
 			args: [t.string()],
 			run(next, [model]) {

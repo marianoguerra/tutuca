@@ -207,6 +207,32 @@ export default stories({
 				],
 			},
 		},
+		"Inference request/Sections": {
+			make: editable((C) => followUpRequest(C)),
+			sequences: {
+				"close a section, then open and close every one, deep": [
+					step.event("click", '.llm-request > section > h3 > button[value="transcript"]'),
+					step.check("the transcript is closed", (s) => !s.content.transcriptOpen),
+					step.check("the others stay open", (s) => s.content.systemOpen && s.content.toolsOpen),
+					step.event("click", '.llm-request > section > h3 > button[value="transcript"]'),
+					step.check("open again", (s) => s.content.transcriptOpen),
+					step.send("setSectionsOpen", [false], { at: (b) => b.field("content") }),
+					step.check("every section is closed", (s) =>
+						["system", "transcript", "tools"].every((n) => !s.content[`${n}Open`]),
+					),
+					step.check("and the ones in the cards it holds", (s) => {
+						const [, call, result] = s.content.messages;
+						return !call.inputOpen && !result.contentOpen && !s.content.tools[0].schemaOpen;
+					}),
+					step.check("and their JSON", (s) => !s.content.messages[1].input.value.open),
+					step.send("setSectionsOpen", [true], { at: (b) => b.field("content") }),
+					step.check("everything opens", (s) => {
+						const [, call] = s.content.messages;
+						return s.content.transcriptOpen && call.inputOpen && call.input.value.open;
+					}),
+				],
+			},
+		},
 		"Inference response": {
 			make: editable((C) => inferenceResponse(C)),
 			sequences: {
