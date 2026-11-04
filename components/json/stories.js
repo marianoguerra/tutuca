@@ -128,6 +128,35 @@ export default stories({
 			},
 			pbt: { events: true, maxCommands: 10 },
 		},
+		"Drop a JSON file": {
+			make: (C) => C.JsonRoot({ value: fromJson(C, { a: 1 }), allowDrop: true }),
+			sequences: {
+				"a dropped file replaces the value": [
+					step.answer("readText", "ok", '[1, { "b": true }]'),
+					step.check("the dropped JSON", toJsonIs([1, { b: true }])),
+					step.check("no error", (s) => !s.hasDropError),
+				],
+				"a dropped file that isn't JSON is refused": [
+					step.answer("readText", "ok", "not json"),
+					step.check("the error shown", (s) => s.hasDropError),
+					step.check("the value kept", toJsonIs({ a: 1 })),
+				],
+				"a failed read is shown": [
+					step.answer("readText", "error", new Error("gone")),
+					step.check("the error shown", (s) => s.hasDropError),
+				],
+			},
+		},
+		"Drop off by default": {
+			make: (C) => C.JsonRoot({ value: fromJson(C, { a: 1 }) }),
+			sequences: {
+				"a drop does nothing": [
+					step.send("dropFile", []),
+					step.check("not allowed", (s) => !s.allowDrop && !s.hasDropError),
+					step.check("the value kept", toJsonIs({ a: 1 })),
+				],
+			},
+		},
 		"Generated document": {
 			arbitrary: (A) => A.instance("JsonEditor"),
 			pbt: { include: valueMessages, maxCommands: 10 },

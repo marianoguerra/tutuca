@@ -17,13 +17,9 @@ import {
 } from "../../src/tutuca.js";
 import { fromJson, jsonComponents, VALUE_NAMES } from "../json/index.js";
 import { schemaComponents } from "./index.js";
-import { fromSchema } from "./read.js";
+import { fromSchema, isSchema } from "./read.js";
 
 const { div, header, p, span } = tag;
-
-// A schema is an object or a boolean.
-const isSchema = (j) =>
-	typeof j === "boolean" || (typeof j === "object" && j !== null && !Array.isArray(j));
 
 const TOOLBAR = "flex items-center gap-1 border-b border-base-300 pb-2";
 const BUTTON = "btn btn-xs btn-ghost font-mono";

@@ -1,8 +1,15 @@
 // Reading a schema: which kind of node a JSON Schema is, and the tree of nodes for it.
 import { fromJson } from "../json/index.js";
-import { DEFAULT_PER_PAGE, pagerFor } from "./index.js";
+
+// How many items a pager shows by default.
+export const DEFAULT_PER_PAGE = 50;
+// The pager for total items, or null when they fit in one page.
+export const pagerFor = (C, total, perPage) =>
+	total <= perPage ? null : C.SchemaPager({ total, perPage: Math.max(1, perPage) });
 
 export const isObject = (j) => typeof j === "object" && j !== null && !Array.isArray(j);
+// A schema is an object or a boolean.
+export const isSchema = (j) => typeof j === "boolean" || isObject(j);
 const arrayAt = (j, key) => (Array.isArray(j[key]) ? j[key] : []);
 // A keyword as text: a number or a string, else "".
 const scalar = (j, key) => {
@@ -114,8 +121,8 @@ export const fromSchema = (C, j, { open = true, perPage = DEFAULT_PER_PAGE } = {
 };
 
 // A whole schema under its root.
-export const schemaTree = (C, j, { view = "main", ...options } = {}) =>
-	C.SchemaRoot({ node: fromSchema(C, j, options), view });
+export const schemaTree = (C, j, { view = "main", allowDrop = false, ...options } = {}) =>
+	C.SchemaRoot({ node: fromSchema(C, j, options), view, allowDrop });
 
 // The schema a tree was built from, with node.toSchema(). Lossy by construction: keywords the
 // family doesn't model ($defs, if/then, vendor extensions) are not in the tree. So the round

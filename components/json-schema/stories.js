@@ -211,6 +211,26 @@ export default stories({
 			make: tree({ enum: Array.from({ length: 30 }, (_, i) => `v${i}`) }, { perPage: 8 }),
 			pbt: { events: true, maxCommands: 10 },
 		},
+		"Drop a schema file": {
+			make: tree({ type: "string" }, { allowDrop: true }),
+			sequences: {
+				"a dropped schema replaces the tree": [
+					step.answer("readText", "ok", '{ "type": "object", "properties": { "a": {} } }'),
+					step.check("the dropped schema", (s) => "a" in s.toSchema().properties),
+					step.check("no error", (s) => !s.hasDropError),
+				],
+				"a dropped file that isn't a schema is refused": [
+					step.answer("readText", "ok", "[1, 2]"),
+					step.check("the error shown", (s) => s.hasDropError),
+					step.check("the tree kept", (s) => s.toSchema().type === "string"),
+				],
+				"a dropped file that isn't JSON is refused": [
+					step.answer("readText", "ok", "nope"),
+					step.check("the error shown", (s) => s.hasDropError),
+					step.check("the tree kept", (s) => s.toSchema().type === "string"),
+				],
+			},
+		},
 		"Generated tree": {
 			arbitrary: (A) => A.instance("SchemaRoot"),
 			pbt: { include: messages, maxCommands: 10 },

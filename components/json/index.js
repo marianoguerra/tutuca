@@ -21,6 +21,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
+import { jsonDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
 
 export const VALUE_NAMES = [
 	"JsonNull",
@@ -525,19 +526,30 @@ const openAllButtons = () => [
 
 // A JSON value with expand all and collapse all above it. It renders its value in the view
 // pushed from above, so an edit view above edits the value.
+// With allowDrop on, a JSON file dropped on it replaces its value.
 const jsonRootView = () =>
-	div(
-		{ class: "flex flex-col gap-1 json-root" },
-		$if(
-			field("isCollection"),
-			div({ class: "flex items-center gap-1 border-b border-base-300 pb-1" }, ...openAllButtons()),
-			null,
+	jsonDropTarget(() =>
+		div(
+			{ class: "flex flex-col gap-1 json-root" },
+			$if(
+				field("isCollection"),
+				div(
+					{ class: "flex items-center gap-1 border-b border-base-300 pb-1" },
+					...openAllButtons(),
+				),
+				null,
+			),
+			div({ class: "overflow-auto" }, render(field("value"))),
 		),
-		div({ class: "overflow-auto" }, render(field("value"))),
 	);
+// Any JSON replaces the value, and says so like an edit.
+const rootDrop = jsonDrop((next, json, ctx) => {
+	next.value = fromJson(ctx.scope.components, json);
+	ctx.notify("jsonEdited");
+});
 export const JsonRoot = component({
 	name: "JsonRoot",
-	fields: { value: t.component(VALUE_NAMES) },
+	fields: { value: t.component(VALUE_NAMES), ...jsonDropFields() },
 	methods: {
 		toJson() {
 			return this.value.toJson();
@@ -548,6 +560,9 @@ export const JsonRoot = component({
 		get isCollection() {
 			return canApply(this.value, "setOpen");
 		},
+		get hasDropError() {
+			return this.dropError !== "";
+		},
 	},
 	view: jsonRootView(),
 	views: { edit: jsonRootView() },
@@ -555,7 +570,9 @@ export const JsonRoot = component({
 		...passOpenDeep("value"),
 		// Passed on, to what holds the root.
 		jsonEdited: { args: [], run() {} },
+		...rootDrop.on,
 	},
+	answers: rootDrop.answers,
 });
 
 // A JSON document, shown read only or edited in place, with its JSON text.

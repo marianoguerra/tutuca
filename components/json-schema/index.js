@@ -24,7 +24,9 @@ import {
 	t,
 	tag,
 } from "../../src/tutuca.js";
+import { jsonDrop, jsonDropFields, jsonDropTarget } from "../common/drop.js";
 import { VALUE_NAMES } from "../json/index.js";
+import { DEFAULT_PER_PAGE, fromSchema, isSchema } from "./read.js";
 
 const { div, header, section, span } = tag;
 
@@ -47,7 +49,6 @@ export const SCHEMA_NAMES = [
 	"SchemaAny",
 	"SchemaNever",
 ];
-export const DEFAULT_PER_PAGE = 50;
 
 const LINE = "flex items-baseline min-w-0 py-px";
 const BODY = "ml-2 pl-3 border-l border-base-300";
@@ -289,9 +290,6 @@ export const SchemaPager = component({
 	},
 });
 
-// The pager for total items, or null when they fit in one page.
-export const pagerFor = (C, total, perPage) =>
-	total <= perPage ? null : C.SchemaPager({ total, perPage: Math.max(1, perPage) });
 // Loop state for a paged list: only the items of the pager's page.
 const paged = {
 	filter(key) {
@@ -372,13 +370,21 @@ const viewButton = (view, label) =>
 		label,
 	);
 
-// The entry point of a schema tree: a toolbar and one node.
+// A JSON file that reads as a schema replaces the tree, read the way it is.
+const rootDrop = jsonDrop((next, json, ctx) => {
+	if (!isSchema(json)) return "is not a JSON Schema: a schema is an object or a boolean.";
+	next.node = fromSchema(ctx.scope.components, json);
+});
+
+// The entry point of a schema tree: a toolbar and one node. With allowDrop on, a JSON Schema
+// file dropped on it replaces the tree.
 export const SchemaRoot = component({
 	name: "SchemaRoot",
 	fields: {
 		node: schemaNode(),
 		view: t.enum("main", "format"),
 		bare: t.boolean(), // No toolbar: what holds it has its own.
+		...jsonDropFields(),
 	},
 	methods: {
 		toSchema() {
@@ -392,37 +398,43 @@ export const SchemaRoot = component({
 		get isMain() {
 			return this.view === "main";
 		},
-	},
-	view: section(
-		{
-			class: "font-mono text-xs leading-5 bg-base-100 text-base-content p-3 rounded schema-root",
+		get hasDropError() {
+			return this.dropError !== "";
 		},
-		$if(
-			field("bare"),
-			null,
-			header(
-				{ class: "flex gap-1 items-center pb-2 mb-2 border-b border-base-300" },
-				span(
-					{ class: "join mr-2", role: "group", "aria-label": "Reading" },
-					viewButton("main", "compact"),
-					viewButton("format", "format"),
-				),
-				button(
-					{
-						class: "btn btn-xs btn-ghost ml-auto expand-all",
-						"on:click": send("setOpenDeep", true),
-					},
-					"expand all",
-				),
-				button(
-					{ class: "btn btn-xs btn-ghost collapse-all", "on:click": send("setOpenDeep", false) },
-					"collapse all",
+	},
+	view: jsonDropTarget(() =>
+		section(
+			{
+				class: "font-mono text-xs leading-5 bg-base-100 text-base-content p-3 rounded schema-root",
+			},
+			$if(
+				field("bare"),
+				null,
+				header(
+					{ class: "flex gap-1 items-center pb-2 mb-2 border-b border-base-300" },
+					span(
+						{ class: "join mr-2", role: "group", "aria-label": "Reading" },
+						viewButton("main", "compact"),
+						viewButton("format", "format"),
+					),
+					button(
+						{
+							class: "btn btn-xs btn-ghost ml-auto expand-all",
+							"on:click": send("setOpenDeep", true),
+						},
+						"expand all",
+					),
+					button(
+						{ class: "btn btn-xs btn-ghost collapse-all", "on:click": send("setOpenDeep", false) },
+						"collapse all",
+					),
 				),
 			),
+			pushView(field("view"), div({ class: "schema-tree" }, render(field("node")))),
 		),
-		pushView(field("view"), div({ class: "schema-tree" }, render(field("node")))),
 	),
 	on: {
+		...rootDrop.on,
 		setView: {
 			args: [t.enum("main", "format")],
 			post: (_prev, next, [view]) => next.view === view,
@@ -436,6 +448,7 @@ export const SchemaRoot = component({
 		},
 		openSiblings,
 	},
+	answers: rootDrop.answers,
 });
 
 // -- objects ------------------------------------------------------------------------

@@ -12,7 +12,7 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { droppedFiles } from "../common/files.js";
+import { DROP_TARGET, droppedJsonFile } from "../common/files.js";
 import { fromJson, jsonComponents } from "../json/index.js";
 import { schemaComponents } from "./index.js";
 import { inferSchema, schemaDocument } from "./infer.js";
@@ -129,8 +129,7 @@ export const Studio = component({
 	},
 	view: div(
 		{
-			class:
-				"flex flex-col gap-4 rounded-box outline-2 outline-dashed outline-offset-4 outline-transparent xl:flex-row xl:items-start data-[draggingover=external]:outline-primary",
+			class: `flex flex-col gap-4 xl:flex-row xl:items-start ${DROP_TARGET}`,
 			"on:drop": send("dropFile"),
 		},
 		card(
@@ -265,16 +264,15 @@ export const Studio = component({
 			args: [],
 			emits: { ask: ["readText"] },
 			run(next, _args, ctx) {
-				const files = droppedFiles(ctx.event);
-				if (files.length === 0) return;
-				const file = files.find(isJsonFile);
-				if (file === undefined) {
-					next.pasteError = `Not a JSON file: ${files[0].name}`;
+				const dropped = droppedJsonFile(ctx.event);
+				if (dropped === null) return;
+				if (dropped.error !== undefined) {
+					next.pasteError = dropped.error;
 					return;
 				}
-				next.dropName = file.name;
+				next.dropName = dropped.file.name;
 				next.pasteError = "";
-				ctx.ask("readText", [file]);
+				ctx.ask("readText", [dropped.file]);
 			},
 		},
 		downloadSchema: {
@@ -322,10 +320,6 @@ export const Studio = component({
 		},
 	},
 });
-
-// A dropped file to read as JSON: by its type, or its extension when the OS gives none.
-const isJsonFile = (file) =>
-	/^application\/([\w.+-]+\+)?json$/.test(file.type) || /\.json$/i.test(file.name);
 
 export const studio = (C, id = "order") => {
 	const { title, value } = SAMPLES[id];
