@@ -3,6 +3,8 @@
 // and text drawn between them. With the hole tool, clicking the canvas puts a Hole there, the
 // empty slot of the studio's layouts: its + lists what it can become, and picking one swaps the
 // hole for that component, maybe one of the layouts (layout.js) holding holes of their own.
+// What a hole can become is up to the host: it asks (see layout.js), and kindHandlers(kinds)
+// answers for a table of kinds; canvasComponents and canvasAskHandlers are the notebook's.
 // Every item has a chrome, shown while the pointer is over it: a header to drag it by, collapse
 // it, toggle editing it or remove it, and a corner to resize it by. Editing pushes the edit view
 // above its content, so a layout in it (and every layout in that) shows what edits it.
@@ -27,45 +29,24 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { compositionComponents } from "../composition/index.js";
+import { compositionComponents, GROUPS, KINDS, makeContent } from "../composition/index.js";
 import { capture, coord, paintType, svgPoint } from "../drawing/shapes.js";
-import { GROUP_IDS, KIND_NAMES, layoutComponents, makeHoleContent, SEE_THROUGH } from "./layout.js";
+import {
+	BECOME_ARGS,
+	kindEnv,
+	kindHandlers,
+	kindLabel,
+	layoutComponents,
+	SEE_THROUGH,
+	withBuiltins,
+} from "./layout.js";
 import { Arrow, Text } from "./shapes.js";
 
 const { button, div, foreignObject, g, header, input, p, rect, span, svg } = tag;
 
-// How wide an item is, by what it holds.
-const WIDTHS = {
-	Hole: 240,
-	Notes: 320,
-	TodoApp: 760,
-	Board: 720,
-	Drawing: 760,
-	TrackerCell: 380,
-	Notebook: 560,
-	Canvas: 720,
-	VBox: 320,
-	HBox: 560,
-	Grid: 560,
-	Tabs: 480,
-};
 // Taller than any item: the foreignObject's height, which the pointer goes through.
 const ROOM = 4000;
-
-// The label in an item's header, by what it holds.
-const LABELS = {
-	Hole: "Empty",
-	Notes: "📝 Notes",
-	TodoApp: "✅ Todos",
-	Board: "🗂️ Kanban board",
-	Drawing: "🎨 Drawing",
-	Notebook: "📓 Notebook",
-	Canvas: "🖼️ Canvas",
-	VBox: "⬇️ Vertical box",
-	HBox: "➡️ Horizontal box",
-	Grid: "▦ Grid",
-	Tabs: "🗂 Tabs",
-};
+const HOLE_WIDTH = 240;
 const MIN_WIDTH = 160;
 const MIN_HEIGHT = 80;
 
@@ -98,21 +79,17 @@ export const Item = component({
 		content: t.component(),
 		x: coord(),
 		y: coord(),
-		width: t.number().int().min(MIN_WIDTH).max(4000).default(WIDTHS.Hole),
+		width: t.number().int().min(MIN_WIDTH).max(4000).default(HOLE_WIDTH),
 		height: t.number().int().min(0).max(4000),
 		collapsed: t.boolean(),
 		// The name given in its header; empty, the header says what it holds.
 		title: t.string(),
 		// Whether its content shows its edit view: a mode, not part of what's on the canvas.
 		editing: t.boolean().sync("none"),
+		// What the header says while the title is empty: what it holds.
+		label: t.string().default("Empty"),
 	},
 	queries: {
-		// What the header says while the title is empty.
-		get label() {
-			const { name } = specOf(this.content);
-			if (name === "TrackerCell") return `📈 ${this.content.section.title}`;
-			return LABELS[name] ?? name;
-		},
 		get isOpen() {
 			return !this.collapsed;
 		},
@@ -247,14 +224,16 @@ export const Item = component({
 				next.height = clamp(Math.round(height), MIN_HEIGHT, 4000);
 			},
 		},
-		// Its content becomes content, as wide as that needs and as tall as it is.
+		// Its content becomes content, labeled label, width wide (0 keeps its width) and as tall
+		// as it is; one with an edit view starts edited, to fill it in.
 		setContent: {
 			pure: true,
-			args: [t.component()],
-			run(next, [content]) {
+			args: BECOME_ARGS,
+			run(next, [content, label, width]) {
 				next.content = content;
-				next.editing = specOf(content).views.edit !== undefined; // A new layout, to fill.
-				next.width = WIDTHS[specOf(content).name] ?? this.width;
+				next.label = label;
+				next.editing = specOf(content).views.edit !== undefined;
+				if (width > 0) next.width = clamp(width, MIN_WIDTH, 4000);
 				next.height = 0;
 			},
 		},
@@ -289,7 +268,7 @@ export const Item = component({
 			},
 		},
 		// From the hole, on its way to the canvas, which makes what it becomes.
-		become: { args: [t.enum(...KIND_NAMES), t.option(t.enum(...GROUP_IDS))], run() {} },
+		become: { args: BECOME_ARGS, run() {} },
 	},
 });
 
@@ -723,14 +702,14 @@ export const Canvas = component({
 				releaseAt(this, next, null, ctx);
 			},
 		},
-		// From the hole of the item at ctx.sourceKey: it becomes kind.
+		// From the hole of the item at ctx.sourceKey: it becomes content.
 		become: {
-			args: [t.enum(...KIND_NAMES), t.option(t.enum(...GROUP_IDS))],
+			args: BECOME_ARGS,
 			sourceKey: t.index("items"),
-			run(next, [kind, group], ctx) {
+			run(next, [content, label, width], ctx) {
 				ctx.stopNext();
-				const content = makeHoleContent(ctx, kind, group);
-				next.items[ctx.sourceKey] = apply(next.items[ctx.sourceKey], "setContent", content);
+				const item = next.items[ctx.sourceKey];
+				next.items[ctx.sourceKey] = apply(item, "setContent", content, label, width);
 			},
 		},
 	},
@@ -828,25 +807,59 @@ function restyle(self, next, changes) {
 }
 
 // A canvas with items, each [x, y, content], and shapes; item keys are item-1, item-2…
-export const canvas = (C, items = [], fields = {}) => {
+// A canvas with items, each [x, y, what, label, width], and fields; item keys are item-1,
+// item-2… what is a kind's id, made as a hole picking it would, or a component, labeled label
+// (its component's name without one); width defaults to the kind's.
+export const canvas = (C, items = [], fields = {}, kinds = COMPOSITION_KINDS) => {
+	const all = withBuiltins(kinds);
+	let made = 0;
+	const read = { now: () => 0, uuid: () => `made-${++made}` };
 	const order = items.map((_, i) => `item-${i + 1}`);
+	const itemOf = ([x, y, what, label, width]) => {
+		if (typeof what !== "string") {
+			const name = specOf(what).name;
+			return C.Item({ x, y, content: what, label: label ?? name, ...(width ? { width } : {}) });
+		}
+		const kind = all[what];
+		if (kind === undefined) throw new Error(`no component kind ${what}`);
+		const content = kind.make(C, kindEnv(read));
+		const w = width ?? kind.width;
+		return C.Item({ x, y, content, label: label ?? kindLabel(kind), ...(w ? { width: w } : {}) });
+	};
 	return C.Canvas({
 		...fields,
 		order,
-		items: Object.fromEntries(
-			items.map(([x, y, content], i) => {
-				const width = WIDTHS[specOf(content).name];
-				return [order[i], C.Item({ x, y, content, ...(width ? { width } : {}) })];
-			}),
-		),
+		items: Object.fromEntries(items.map((item, i) => [order[i], itemOf(item)])),
 	});
 };
 
-export const canvasComponents = {
-	...compositionComponents,
-	...layoutComponents,
-	Canvas,
-	Item,
-	Arrow,
-	Text,
+// The notebook's kinds: what its pickers offer, a tracker picking its group first.
+const COMPOSITION_WIDTHS = {
+	notes: 320,
+	todos: 760,
+	kanban: 720,
+	drawing: 760,
+	tracker: 380,
+	notebook: 560,
 };
+export const COMPOSITION_KINDS = Object.fromEntries(
+	Object.entries(KINDS).map(([id, [label, emoji, blurb]]) => [
+		id,
+		{
+			label,
+			emoji,
+			blurb,
+			width: COMPOSITION_WIDTHS[id],
+			make: (C, { choice, now, tz, uuid }) =>
+				makeContent(C, id, { group: choice ?? undefined, now, tz, uuid }),
+			...(id === "tracker" ? { choices: GROUPS.map(({ id, title }) => ({ id, title })) } : {}),
+		},
+	]),
+);
+
+// The canvas's own components: its items, shapes, holes and layouts. Whoever uses it registers
+// these, the components its holes' kinds make, and kindHandlers(kinds) to answer the holes.
+export const canvasKitComponents = { ...layoutComponents, Canvas, Item, Arrow, Text };
+// The notebook's components on a canvas, and the handlers for its kinds.
+export const canvasComponents = { ...compositionComponents, ...canvasKitComponents };
+export const canvasAskHandlers = kindHandlers(COMPOSITION_KINDS);

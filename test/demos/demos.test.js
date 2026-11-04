@@ -287,6 +287,39 @@ test("canvas demo: tabs add, rename, select and remove; an item's title is edite
 	await checkClean(app);
 });
 
+test("canvas demo, llm bundle: the parts of a request, and holes that become them", async () => {
+	const app = mount(startCanvas, "llm");
+	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
+	assert.deepEqual(kinds(), [
+		"SystemMessage",
+		"UserMessage",
+		"ToolCall",
+		"ToolResult",
+		"AssistantMessage",
+		"ToolDefinition",
+		"StructuredOutput",
+	]);
+	assert.equal(app.state().items["item-1"].label, "⚙️ System message");
+	assert.ok(app.$(".llm-valid"), "the example's output matches its schema");
+	// A hole lists the bundle's kinds (and the canvas's), not the notebook's.
+	const bg = app.$(".canvas-bg");
+	const { MouseEvent } = app.rootNode.ownerDocument.defaultView;
+	for (const type of ["pointerdown", "pointerup"]) {
+		bg.dispatchEvent(
+			new MouseEvent(type, { bubbles: true, clientX: 600, clientY: 900, button: 0 }),
+		);
+	}
+	const hole = () => [...app.rootNode.querySelectorAll("foreignObject")].at(-1);
+	app.fire("click", hole().querySelector('[title="Put a component here"]'));
+	assert.equal(hole().querySelector('[data-choice="notes"]'), null);
+	assert.ok(hole().querySelector('[data-choice="vbox"]'));
+	app.fire("click", hole().querySelector('[data-choice="toolResult"]'));
+	assert.equal(kinds().at(-1), "ToolResult");
+	const made = app.state().items[app.state().order.at(-1)];
+	assert.deepEqual([made.label, made.width, made.editing], ["📦 Tool result", 420, true]);
+	await checkClean(app);
+});
+
 test("lang demo: switches notation and edits the program", async () => {
 	const app = mount(startLang);
 	const output = () => app.$('[aria-label="Result"]').textContent;

@@ -5,8 +5,15 @@
 // removes a slot, + adds a hole, and the grid's - and + change its columns. The Item a layout is
 // in pushes edit above it while its toggle is on, so every layout below it shows its edit view.
 //
-// A hole becomes what's picked there: its notification goes up to the nearest layout or canvas,
-// which swaps it for the new component.
+// A hole becomes what's picked there, asking the host what that can be: componentKinds lists
+// the kinds it can become, and makeComponent makes the one picked, in the hole's scope. It
+// notifies become with what's made, which the nearest layout or canvas puts in its place.
+// kindHandlers(kinds) answers both for a table of kinds, adding a canvas and the layouts.
+//
+// A kind is { label, emoji, blurb, make(C, env), width, choices }: make builds the component
+// with C, the asker's scope's components, and env { now, tz, uuid, choice }; width is how wide
+// an item holding it starts on the canvas (0 keeps the item's); choices, when given, are
+// [{ id, title }] to pick one of first, passed to make as env.choice.
 import {
 	$if,
 	component,
@@ -19,59 +26,127 @@ import {
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { GROUPS, KINDS, makeContent } from "../composition/index.js";
 
-const { button, div, input, li, span, ul } = tag;
+const { button, div, input, li, p, span, ul } = tag;
 
-// What a hole can become: the notebook's kinds, a canvas inside this one, and the layouts.
-export const HOLE_KINDS = {
-	...KINDS,
-	canvas: ["Canvas", "🖼️", "A canvas of its own, inside this one."],
-	vbox: ["Vertical box", "⬇️", "Components one under the other."],
-	hbox: ["Horizontal box", "➡️", "Components side by side."],
-	grid: ["Grid", "▦", "Components in rows and columns."],
-	tabs: ["Tabs", "🗂", "Components as tabs, one shown at a time."],
+// The layouts, as kinds a hole can become.
+export const LAYOUT_KINDS = {
+	vbox: {
+		label: "Vertical box",
+		emoji: "⬇️",
+		blurb: "Components one under the other.",
+		width: 320,
+		make: (C) => C.VBox({ items: [C.Hole()] }),
+	},
+	hbox: {
+		label: "Horizontal box",
+		emoji: "➡️",
+		blurb: "Components side by side.",
+		width: 560,
+		make: (C) => C.HBox({ items: [C.Hole(), C.Hole()] }),
+	},
+	grid: {
+		label: "Grid",
+		emoji: "▦",
+		blurb: "Components in rows and columns.",
+		width: 560,
+		make: (C) => C.Grid({ items: [C.Hole(), C.Hole(), C.Hole(), C.Hole()] }),
+	},
+	tabs: {
+		label: "Tabs",
+		emoji: "🗂",
+		blurb: "Components as tabs, one shown at a time.",
+		width: 480,
+		make: (C) => C.Tabs({ items: [C.Hole()], labels: [""] }),
+	},
 };
-export const KIND_NAMES = Object.keys(HOLE_KINDS);
-export const GROUP_IDS = GROUPS.map((g) => g.id);
+// A canvas inside this one, as a kind.
+const CANVAS_KIND = {
+	label: "Canvas",
+	emoji: "🖼️",
+	blurb: "A canvas of its own, inside this one.",
+	width: 720,
+	make: (C) => C.Canvas({ width: 1200, height: 800 }),
+};
+// kinds, then a canvas and the layouts.
+export const withBuiltins = (kinds) => ({ ...kinds, canvas: CANVAS_KIND, ...LAYOUT_KINDS });
 
-// What a hole becomes when kind is picked, made with ctx's components and clock; group is what
-// a tracker tracks.
-export const makeHoleContent = (ctx, kind, group) => {
-	const C = ctx.scope.components;
-	switch (kind) {
-		case "canvas":
-			return C.Canvas({ width: 1200, height: 800 });
-		case "vbox":
-			return C.VBox({ items: [C.Hole()] });
-		case "hbox":
-			return C.HBox({ items: [C.Hole(), C.Hole()] });
-		case "grid":
-			return C.Grid({ items: [C.Hole(), C.Hole(), C.Hole(), C.Hole()] });
-		case "tabs":
-			return C.Tabs({ items: [C.Hole()], labels: [""] });
-		default:
-			return makeContent(C, kind, {
-				group: group ?? undefined,
-				now: ctx.now(),
-				tz: -new Date(ctx.now()).getTimezoneOffset(),
-				uuid: () => ctx.uuid(),
-			});
-	}
+// What a kind's make gets besides the components: the clock, ids, and the choice picked.
+export const kindEnv = (read, choice = null) => {
+	const now = read.now();
+	return { now, tz: -new Date(now).getTimezoneOffset(), uuid: () => read.uuid(), choice };
+};
+// The label of an item holding kind, made with the choice picked of it (or none).
+export const kindLabel = (kind, picked = null) => `${kind.emoji} ${picked?.title ?? kind.label}`;
+
+// The ask handlers a hole needs, for a table of kinds and the builtins.
+export const kindHandlers = (kinds) => {
+	const all = withBuiltins(kinds);
+	return {
+		// [] → [{ id, label, blurb, choices }]
+		componentKinds: () =>
+			Object.entries(all).map(([id, kind]) => ({
+				id,
+				label: kindLabel(kind),
+				blurb: kind.blurb ?? "",
+				choices: kind.choices ?? [],
+			})),
+		// [id, choice] → { content, label, width }, made in the asker's scope.
+		makeComponent: ([id, choice], read) => {
+			const kind = all[id];
+			if (kind === undefined) throw new Error(`no component kind ${id}`);
+			const picked = kind.choices?.find((c) => c.id === choice) ?? null;
+			if (kind.choices !== undefined && picked === null) {
+				throw new Error(`${id} needs one of its choices`);
+			}
+			const content = kind.make(read.scope.components, kindEnv(read, picked?.id ?? null));
+			return { content, label: kindLabel(kind, picked), width: kind.width ?? 0 };
+		},
+	};
 };
 
-const choice = (id, action, label) => li(button({ "data-choice": id, "on:click": action }, label));
+// What a hole notifies its layout or canvas with: the component, its label and width.
+export const BECOME_ARGS = [t.component(), t.string(), t.number().int().min(0)];
 
-// An empty slot: + lists what it can become, picking one asks what it's in to make it.
+const MENU =
+	"choices menu menu-sm w-full flex-nowrap overflow-y-auto rounded-box border border-base-300 bg-base-100";
+const choiceType = t.record({ id: t.string(), title: t.string() });
+const kindType = t.record({
+	id: t.string(),
+	label: t.string(),
+	blurb: t.string(),
+	choices: t.array(choiceType),
+});
+const isKind = (k) =>
+	typeof k?.id === "string" &&
+	typeof k.label === "string" &&
+	Array.isArray(k.choices) &&
+	k.choices.every((c) => typeof c?.id === "string" && typeof c.title === "string");
+
+// An empty slot: + asks what it can become and lists it, picking one (and then one of its
+// choices, if it has them) asks for it to be made.
 export const Hole = component({
 	name: "Hole",
-	fields: { step: t.enum("closed", "kind", "tracker").sync("none") },
+	fields: {
+		// closed, kind while the kinds are listed, choice while the picked kind's choices are.
+		step: t.enum("closed", "kind", "choice").sync("none"),
+		// The host's answer to componentKinds, while the menu is open: not part of the layout.
+		kinds: t.array(kindType).sync("none"),
+		kindId: t.string().sync("none"), // The kind whose choices are listed.
+		error: t.string().sync("none"), // Why the last ask failed, empty when it didn't.
+	},
 	queries: {
 		get isClosed() {
 			return this.step === "closed";
 		},
 		get isPickingKind() {
 			return this.step === "kind";
+		},
+		get choiceList() {
+			return this.kinds.find((k) => k.id === this.kindId)?.choices ?? [];
+		},
+		get hasError() {
+			return this.error !== "";
 		},
 	},
 	view: div(
@@ -94,45 +169,109 @@ export const Hole = component({
 				$if(
 					field("isPickingKind"),
 					ul(
-						{ class: "choices menu menu-sm w-full rounded-box border border-base-300 bg-base-100" },
-						Object.entries(HOLE_KINDS).map(([kind, [label, emoji]]) =>
-							choice(kind, send("pick", kind), `${emoji} ${label}`),
+						{ class: `${MENU} max-h-80` },
+						each(
+							field("kinds"),
+							li(
+								button(
+									{
+										"data-choice": field("id"),
+										title: field("blurb"),
+										"on:click": send("pick", sourceKey()),
+									},
+									field("label"),
+								),
+							),
 						),
 					),
 					ul(
-						{
-							class:
-								"choices menu menu-sm max-h-64 w-full flex-nowrap overflow-y-auto rounded-box border border-base-300 bg-base-100",
-						},
-						GROUPS.map(({ id, emoji, title }) =>
-							choice(id, send("pickGroup", id), `${emoji} ${title}`),
+						{ class: `${MENU} max-h-64` },
+						each(
+							field("choiceList"),
+							li(
+								button(
+									{
+										"data-choice": field("id"),
+										value: field("id"),
+										"on:click": send("pickChoice", targetValue()),
+									},
+									field("title"),
+								),
+							),
 						),
 					),
 				),
+				$if(field("hasError"), p({ class: "text-center text-xs text-error" }, field("error")), ""),
 				button({ class: "btn btn-ghost btn-xs", "on:click": send("close") }, "cancel"),
 			),
 		),
 	),
 	on: {
-		open(next) {
-			next.step = "kind";
+		open: {
+			args: [],
+			emits: { ask: ["componentKinds"] },
+			run(next, _args, ctx) {
+				next.error = "";
+				ctx.ask("componentKinds");
+			},
 		},
 		close(next) {
 			next.step = "closed";
+			next.kinds = [];
+			next.error = "";
 		},
 		pick: {
-			args: [t.enum(...KIND_NAMES)],
-			emits: { notify: ["become"] },
-			run(next, [kind], ctx) {
-				if (kind === "tracker") next.step = "tracker";
-				else ctx.notify("become", [kind, null]);
+			args: [t.index("kinds")],
+			emits: { ask: ["makeComponent"] },
+			run(next, [at], ctx) {
+				const kind = this.kinds[at];
+				if (kind.choices.length > 0) {
+					next.step = "choice";
+					next.kindId = kind.id;
+				} else ctx.ask("makeComponent", [kind.id, null]);
 			},
 		},
-		pickGroup: {
-			args: [t.enum(...GROUP_IDS)],
-			emits: { notify: ["become"] },
-			run(_next, [group], ctx) {
-				ctx.notify("become", ["tracker", group]);
+		pickChoice: {
+			args: [t.string()],
+			emits: { ask: ["makeComponent"] },
+			run(_next, [id], ctx) {
+				if (this.choiceList.some((c) => c.id === id)) ctx.ask("makeComponent", [this.kindId, id]);
+			},
+		},
+	},
+	answers: {
+		componentKinds: {
+			ok(next, [kinds]) {
+				next.kinds = Array.isArray(kinds) ? kinds.filter(isKind) : [];
+				next.step = "kind";
+				if (next.kinds.length === 0) next.error = "Nothing can go here.";
+			},
+			error(next, [error]) {
+				next.step = "kind";
+				next.error = `What can go here couldn't be listed: ${error?.message ?? error}`;
+			},
+			unhandled(next) {
+				next.step = "kind";
+				next.error = "Nothing can go here: the host lists no component kinds.";
+			},
+		},
+		makeComponent: {
+			ok: {
+				emits: { notify: ["become"] },
+				run(next, [made], ctx) {
+					const { content, label, width } = made ?? {};
+					if (typeof label !== "string" || !Number.isInteger(width) || content === undefined) {
+						next.error = "The host made something that can't go here.";
+						return;
+					}
+					ctx.notify("become", [content, label, width]);
+				},
+			},
+			error(next, [error]) {
+				next.error = `It couldn't be made: ${error?.message ?? error}`;
+			},
+			unhandled(next) {
+				next.error = "Nothing can be made here: the host makes no components.";
 			},
 		},
 	},
@@ -192,11 +331,11 @@ const layoutHandlers = () => ({
 		},
 	},
 	become: {
-		args: [t.enum(...KIND_NAMES), t.option(t.enum(...GROUP_IDS))],
+		args: BECOME_ARGS,
 		sourceKey: t.index("items"),
-		run(next, [kind, group], ctx) {
+		run(next, [content], ctx) {
 			ctx.stopNext();
-			next.items[ctx.sourceKey] = makeHoleContent(ctx, kind, group);
+			next.items[ctx.sourceKey] = content;
 		},
 	},
 });
