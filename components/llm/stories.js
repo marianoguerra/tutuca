@@ -3,6 +3,10 @@ import { $if, component, field, pushView, render, send, t, tag } from "../../src
 import { schemaEditor } from "../json-schema/editor.js";
 import {
 	assistantMessage,
+	finalResponse,
+	followUpRequest,
+	inferenceRequest,
+	inferenceResponse,
 	llmComponents,
 	structuredOutput,
 	systemMessage,
@@ -147,6 +151,82 @@ export default stories({
 					value: { city: "Buenos Aires", temperature: "18", conditions: "foggy", wind: 12 },
 				}),
 			),
+		},
+		"Inference request": {
+			make: editable((C) => inferenceRequest(C)),
+			sequences: {
+				"its JSON is pi-ai's Context, and every part costs input tokens": [
+					step.check("system, one user message and the tool", (s) => {
+						const { systemPrompt, messages, tools } = s.content.toJson();
+						return systemPrompt === WEATHER.system && messages.length === 1 && tools.length === 1;
+					}),
+					step.check("the tokens add up", (s) => {
+						const { system, messages, tools } = s.content;
+						return s.content.tokens === system.tokens + messages[0].tokens + tools[0].tokens;
+					}),
+					edit,
+					type("Max tokens", "2048"),
+					type("Temperature", "5"),
+					step.check("max tokens set, a temperature out of range isn't", (s) => {
+						const { maxTokens, temperature } = s.content;
+						return maxTokens === 2048 && temperature === 1;
+					}),
+					step.event("click", '[title="Add an assistant message"]'),
+					step.check("the transcript grows", (s) => s.content.messages.length === 2),
+					step.event("click", '[title="Remove this tool"]'),
+					step.check("no tools, none in the JSON", (s) => !("tools" in s.content.toJson())),
+					step.event("click", '[title="Toggle the answer schema"]'),
+					step.check("an answer schema", (s) => "outputSchema" in s.content.toJson()),
+				],
+			},
+		},
+		"Inference request/Follow-up": {
+			make: editable((C) => followUpRequest(C)),
+			sequences: {
+				"the call goes in an assistant message, its result says the tool": [
+					step.check("user, assistant with the call, tool result", (s) => {
+						const [user, assistant, result] = s.content.toJson().messages;
+						return (
+							user.role === "user" &&
+							assistant.role === "assistant" &&
+							assistant.content[0].type === "toolCall" &&
+							assistant.content[0].name === WEATHER.call.name &&
+							result.role === "toolResult" &&
+							result.toolName === WEATHER.call.name &&
+							result.toolCallId === WEATHER.call.id
+						);
+					}),
+				],
+			},
+		},
+		"Inference response": {
+			make: editable((C) => inferenceResponse(C)),
+			sequences: {
+				"it was cut off, then it failed": [
+					step.check("wants a tool", (s) => s.content.toJson().stopReason === "toolUse"),
+					step.check("the total", (s) => s.content.totalTokens === 450),
+					edit,
+					step.event("change", '[aria-label="Stop reason"]', { value: "length" }),
+					step.check("cut off", (s) => s.content.stopLabel === "Cut off"),
+					type("Output tokens", "1024"),
+					step.check("the total follows", (s) => s.content.toJson().usage.totalTokens === 1436),
+					step.event("change", '[aria-label="Stop reason"]', { value: "error" }),
+					type("Error message", "Overloaded"),
+					step.check("why it failed", (s) => s.content.toJson().errorMessage === "Overloaded"),
+				],
+			},
+		},
+		"Inference response/Final": {
+			make: editable((C) => finalResponse(C)),
+			sequences: {
+				"the answer, mostly read from the cache": [
+					step.check("text, and done", (s) => {
+						const { content, stopReason } = s.content.toJson();
+						return stopReason === "stop" && content[0].text === WEATHER.assistant;
+					}),
+					step.check("87% from the cache", (s) => s.content.cacheShare === "87%"),
+				],
+			},
 		},
 		"JSON Schema editor": {
 			make: editable((C) => schemaEditor(C, WEATHER.output.schema)),
