@@ -4,7 +4,8 @@
 ;; blurb, the tier's relation and a configuration.
 (require (prefix-in m0: "core.rkt") (prefix-in m1: "fields.rkt") (prefix-in m2: "grow.rkt")
          (prefix-in m3: "clear.rkt") (prefix-in m4: "replace.rkt") (prefix-in m5: "reorder.rkt")
-         (prefix-in m6: "swap.rkt") (prefix-in m7: "fsm.rkt"))
+         (prefix-in m6: "swap.rkt") (prefix-in m7: "fsm.rkt")
+         (prefix-in m8: "copy.rkt"))
 (provide (struct-out scenario) scenarios)
 
 (struct scenario (name tier title blurb rel config))
@@ -114,6 +115,22 @@
                   (done)))))
 (define fetching-host '(host ((on (request fetch) () ((answer ok 1))))))
 
+;; ---- M8 ----------------------------------------------------------------------
+(define copying
+  '((kind Item (state (label 10))
+          ()
+          ((on (send go) () ((request fetch)))
+           (on (ok fetch) (x) ((log (+ (get label) x))))
+           (on (send rename) (l) ((set label l)))))
+    (kind Items (state)
+          ((items (list)))
+          ((on (send push) () ((append items (new Item))))
+           (on (send copy-first) () ((prepend items (copy ((index items 0))))))
+           (on (send share-first) () ((prepend items (share ((index items 0))))))
+           (on (request fetch) () ((answer ok 100)))))))
+(define (copy-race how)
+  `((ev () push) (ev ((index items 0)) go) (ev () ,how) (ev ((index items 0)) rename 20)))
+
 (define scenarios
   (list
    (scenario "requests" "M0" "Two requests, answered in any order"
@@ -175,4 +192,15 @@
                             "answer arrives. The answer reaches the right instance, in a state with no handler "
                             "for it.")
              m7:fsm-> (m7:make-config #:kinds loader #:root 'Loader #:host fetching-host
-                                      #:events '((ev () load) (ev () cancel))))))
+                                      #:events '((ev () load) (ev () cancel))))
+   (scenario "copy-shared" "M8" "A copy that shares its original's identity"
+             (string-append "An item asks, and the list puts the same instance first, identity and all, then "
+                            "renames it. Two instances have one identity, so checking it doesn't help: the "
+                            "answer can reach the share.")
+             m8:copy-> (m8:make-config #:kinds copying #:root 'Items #:policy 'by-path-checked
+                                       #:events (copy-race 'share-first)))
+   (scenario "copy-fresh" "M8" "A copy with identities of its own"
+             (string-append "The same race with a copy: every instance in it is new, so an answer that "
+                            "arrives after the copy took the asker's place is stale, not misdelivered.")
+             m8:copy-> (m8:make-config #:kinds copying #:root 'Items #:policy 'by-path-checked
+                                       #:events (copy-race 'copy-first)))))

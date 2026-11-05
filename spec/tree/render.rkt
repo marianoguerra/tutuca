@@ -7,7 +7,7 @@
 (require redex/pict pict racket/runtime-path "../layout.rkt"
          (prefix-in m0: "core.rkt") (prefix-in m1: "fields.rkt") (prefix-in m2: "grow.rkt")
          (prefix-in m3: "clear.rkt") (prefix-in m4: "replace.rkt") (prefix-in m5: "reorder.rkt")
-         (prefix-in m6: "swap.rkt") (prefix-in m7: "fsm.rkt"))
+         (prefix-in m6: "swap.rkt") (prefix-in m7: "fsm.rkt") (prefix-in m8: "copy.rkt"))
 
 (define-runtime-path out "tree.pdf")
 
@@ -42,9 +42,9 @@
     "changes between the moment the message is sent and the moment it, or its response, "
     "arrives.")
    (string-append
-    "The model is a tower of eight tiers. Each extends the previous one's language with one "
+    "The model is a tower of nine tiers. Each extends the previous one's language with one "
     "feature: fields, collections that only grow, clearing, replacing, reordering, a "
-    "component swapping itself, and control states. Each tier is checked against four "
+    "component swapping itself, control states, and copying. Each tier is checked against four "
     "routing policies: by path, by path with an identity check, by identity, and anchored "
     "to the sender. A bounded model checker explores every interleaving of each scenario "
     "and finds, as the shortest trace, the counterexample to each property a policy loses.")
@@ -341,6 +341,27 @@
              (part "acts" (own m7:own-clauses m7:acts)))))
 
    (chap
+    "Copying (M8)"
+    (string-append
+     "A new instance can be a copy of one in the tree. Routing trusts identities, so a copy "
+     "has to make new ones: a share, the same instance in a second place, breaks P1, and P3, "
+     "which compares identities, can't see the response that reaches the share.")
+    (sect
+     "Copies and shares"
+     (string-append
+      "copy reads the instance at a path relative to the receiver, in the receiver's draft, "
+      "and gives every instance in it a fresh identity, outermost first, keeping locals, keys, "
+      "tombstones and control states. share puts the same instance there. Either goes "
+      "wherever a new instance does.")
+     (figure "Copying."
+             (lang m8:Copy #:nts '(mk))
+             (part "make-new" (own m8:own-clauses m8:make-new))
+             (part "source" (own m8:own-clauses m8:source))
+             (part "fresh" (own m8:own-clauses m8:fresh))
+             (part "fresh-each" (own m8:own-clauses m8:fresh-each))
+             (part "fresh-entries" (own m8:own-clauses m8:fresh-entries)))))
+
+   (chap
     "What holds where"
     (string-append
      "The properties are invariants of every reachable configuration of bounded scenarios, "
@@ -365,7 +386,9 @@
                 ("M5" "P3 breaks" "holds, refuses movers" "holds, delivers" "send-at: new items[i]")
                 ("M6 same kind" "P3 breaks" "holds: stale" "holds: orphaned" "as by-identity")
                 ("M6 other kind" "P3, P6 break" "holds" "holds" "as by-identity")
-                ("M7" "P6 breaks" "P6 breaks" "P6 breaks" "P6 breaks")))
+                ("M7" "P6 breaks" "P6 breaks" "P6 breaks" "P6 breaks")
+                ("M8 share" "P1 breaks" "P1 breaks" "P1 breaks" "P1 breaks")
+                ("M8 copy" "P3 breaks" "holds: stale" "holds, delivers" "as by-identity")))
              (note "M7: P6 holds, under every policy, for kinds that are well-formed?."))))))
 
 (write-document out #:title doc-title #:subtitle doc-subtitle #:abstract abstract #:content content

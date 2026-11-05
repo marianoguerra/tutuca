@@ -75,5 +75,19 @@
 		"policy": "by-path",
 		"tier": "M7",
 		"title": "A response to a state that moved on"
+	},
+	{
+		"gran": "turn",
+		"name": "copy-shared",
+		"policy": "by-path-checked",
+		"tier": "M8",
+		"title": "A copy that shares its original's identity"
+	},
+	{
+		"gran": "turn",
+		"name": "copy-fresh",
+		"policy": "by-path-checked",
+		"tier": "M8",
+		"title": "A copy with identities of its own"
 	}
 ]

@@ -40,6 +40,7 @@ export {
 	ANSWER_OUTCOMES,
 	AnswerTask,
 	AskTask,
+	copy,
 	DispatchPath,
 	Frame,
 	HOST,

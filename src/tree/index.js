@@ -2,7 +2,7 @@
 // and the scheduler. It imports nothing from outside this directory; see README.md.
 export { Address, HOST } from "./address.js";
 export { MessageContext } from "./context.js";
-export { idOf, idSym, isNode, mint } from "./identity.js";
+export { copy, idOf, idSym, isNode, mint } from "./identity.js";
 export {
 	ANSWER_OUTCOMES,
 	AnswerTask,

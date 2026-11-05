@@ -6,7 +6,7 @@
 // What a hole can become is up to the host: it asks (see layout.js), and kindHandlers(kinds)
 // answers for a table of kinds; canvasComponents and canvasAskHandlers are the notebook's.
 // Every item has a chrome, shown while the pointer is over it: a header to drag it by, collapse
-// it, toggle editing it or remove it, and a corner to resize it by. Editing pushes the edit view
+// it, toggle editing it, clone it or remove it, and a corner to resize it by. Editing pushes the edit view
 // above its content, so a layout in it (and every layout in that) shows what edits it.
 //
 // A foreignObject doesn't size to its content, so each one is as wide as its item and taller
@@ -18,6 +18,7 @@ import {
 	$if,
 	apply,
 	component,
+	copy,
 	DISPLAY_META,
 	each,
 	field,
@@ -57,6 +58,8 @@ const MIN_HEIGHT = 80;
 const MAX_AUTO_HEIGHT = 720;
 // How far the canvas reaches past what's on it, growing as items are moved or resized there.
 const GROW_MARGIN = 400;
+// How far down and right of its item a clone goes.
+const CLONE_OFFSET = 24;
 const MAX_SIZE = 10000;
 // How far the canvas zooms out and in, and how much each step does.
 const MIN_ZOOM = 0.1;
@@ -83,8 +86,8 @@ const HEADER_OPEN = `${HEADER} ${CHROME}`;
 const HEADER_COLLAPSED = `${HEADER} rounded-b-box border-b-0 ${SHOWN}`;
 
 // One component on the canvas, at x, y, with a chrome shown while the pointer is over it: a
-// header to drag it by, collapse it, toggle editing it or remove it, and a corner to resize it
-// by. Its height is its content's until it's resized (0). Editing, it pushes the edit view above
+// header to drag it by, collapse it, toggle editing it, clone it or remove it, and a corner to
+// resize it by. Its height is its content's until it's resized (0). Editing, it pushes the edit view above
 // its content, for the components that have one (the layouts).
 export const Item = component({
 	name: "Item",
@@ -201,6 +204,15 @@ export const Item = component({
 						"on:click": send("maximize"),
 					},
 					"⤢",
+				),
+				button(
+					{
+						class: "btn btn-ghost btn-xs w-6 px-0",
+						title: "Clone",
+						"aria-label": "Clone",
+						"on:click": send("clone"),
+					},
+					"⧉",
 				),
 				button({ class: "btn btn-ghost btn-xs", title: "Remove", "on:click": send("remove") }, "✕"),
 			),
@@ -359,6 +371,13 @@ export const Item = component({
 				next.editing = specOf(content).views.edit !== undefined;
 				if (width > 0) next.width = clamp(width, MIN_WIDTH, 4000);
 				next.height = 0;
+			},
+		},
+		clone: {
+			args: [],
+			emits: { notify: ["cloneItem"] },
+			run(_next, _args, ctx) {
+				ctx.notify("cloneItem");
 			},
 		},
 		remove: {
@@ -939,6 +958,22 @@ export const Canvas = component({
 				ctx.stopNext();
 				const item = this.items[ctx.sourceKey];
 				grab(this, next, "resize", ctx.sourceKey, x - item.width, y - height);
+			},
+		},
+		// From an item's header: a copy of it, everything in it a new instance (copy), a little
+		// down and right of it, in front.
+		cloneItem: {
+			args: [],
+			sourceKey: t.index("items"),
+			run(next, _args, ctx) {
+				ctx.stopNext();
+				const item = this.items[ctx.sourceKey];
+				const key = ctx.uuid();
+				const x = item.x + CLONE_OFFSET;
+				const y = item.y + CLONE_OFFSET;
+				next.items[key] = apply(copy(item), "moveTo", x, y);
+				next.order.push(key);
+				growTo(this, next, x + item.width, y + (item.height || MIN_HEIGHT));
 			},
 		},
 		removeItem: {

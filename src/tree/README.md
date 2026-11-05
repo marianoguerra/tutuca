@@ -9,7 +9,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 
 | File | What it holds |
 |---|---|
-| `identity.js` | `idOf`, `isNode`, `mint`: a node's identity ι |
+| `identity.js` | `idOf`, `isNode`, `mint`: a node's identity ι; `copy`, a copy whose every node is new (M8) |
 | `path.js` | `KeyPath` (keys into the state), `Frame` and `DispatchPath` (π, the frames a message went through), `Selector`/`selectorFrom` and `Target` (a written path, before it is fixed) |
 | `address.js` | `Address` (`(at π ι)`), `HOST` (`host`) |
 | `messages.js` | the envelope: `Task`, `NotifyTask`, `AskTask`, `AnswerTask` |
@@ -22,6 +22,7 @@ the four interfaces in `scheduler.js`. It ships as `tutuca/tree`.
 | spec/tree | here |
 |---|---|
 | identity `ι` | `idOf(node)`, given once by `mint`; updates keep it |
+| `(copy pp)`, `(share pp)` | `copy(node)` (fresh identities); putting the same value in a second place (shared ones) |
 | path step `(field f)`, `(index f i)`, `(key f κ)` | a `Frame`: `keys` `[f]`, `item` `i` or `κ` |
 | written path `(sel f g)` | the selector op `seqItem(f, g)`, which `Selector.freeze` turns into an `item` |
 | address `(at π ι)` | `Address`: `path` (a `DispatchPath`) and `id` |

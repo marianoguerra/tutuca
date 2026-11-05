@@ -4,7 +4,7 @@ A standalone PLT Redex model, separate from the rest of `spec/`. It asks one que
 happens to a message's route when the tree changes between the moment the message is sent
 and the moment it, or its response, arrives?**
 
-The model is a tower of tiers, M0 to M7. Each tier extends the one before it with one
+The model is a tower of tiers, M0 to M8. Each tier extends the one before it with one
 feature. Each tier says which properties still hold for each routing policy. When a property
 breaks, the tests require Redex to find the counterexample.
 
@@ -88,6 +88,13 @@ hkey ::= (send n) | (notify n) | (request n) | (ok n) | (error n) | (unhandled n
 | `(prepend f mk)`, `(insert f e mk)` | M5 | shift the items after the new one |
 | `(swap mk)` | M6 | replace the receiver itself |
 | `(goto q)` | M7 | move to another control state |
+
+Wherever an action takes an `mk`, M8 adds two more besides `(new k (g e) ...)`:
+
+| `mk` | Tier | Meaning |
+|---|---|---|
+| `(copy pp)` | M8 | the instance at `pp`, relative to the receiver, as it is in its draft, with every instance in it given a fresh identity |
+| `(share pp)` | M8 | the same instance, identities and all: what copying an immutable tree gives without minting |
 
 **Effects are queued when the transaction commits,** in order, and are sent from the
 handler's address.
@@ -214,6 +221,7 @@ Two pieces of Racket are left:
 | M5 | `reorder.rkt` | prepend and insert, and the `anchored` policy |
 | M6 | `swap.rkt` | a component replacing itself, with the same kind or another |
 | M7 | `fsm.rkt` | control states, per-state handlers, and the protocol check `well-formed?` |
+| M8 | `copy.rkt` | a new instance copied from one in the tree, with fresh identities (`copy`) or with its own (`share`) |
 
 ### What holds where
 
@@ -228,6 +236,8 @@ The default granularity, `turn`, unless the cell says otherwise.
 | M6a (same kind) | **P3 breaks**: the new instance gets it | holds: `stale` | holds: `orphaned` | as `by-identity` |
 | M6b (another kind) | **P3 and P6 break**: the new kind ignores it | holds | holds | as `by-identity` |
 | M7 | **P6 breaks under every policy**, for a request answered after its sender moved to a state that doesn't handle the response. It holds for every kind that is `well-formed?` | same | same | same |
+| M8 `share` | **P1 breaks** as soon as it's made. P3 can't see it, since it compares identities: whatever moved into the index gets the response, the share included | **P1 breaks**; the share at the recorded path gets the response | **P1 breaks**; the share `locate` finds first gets it | as `by-identity` |
+| M8 `copy` | as M5 | holds: `stale` | holds: delivers to the original | as `by-identity` |
 
 ### What tutuca does
 
@@ -257,6 +267,10 @@ Where the JS still differs from `core.rkt`:
 - **Requests don't bubble:** a scope ask handler is the host answering; components can't
   `answer` on the way up.
 
+- **Copies are new instances:** `copy(value)` (`src/tree/identity.js`) is M8's `copy`, a deep
+  copy with a fresh identity for every node in it. Sharing a component value elsewhere in the
+  tree is M8's `share`. The canvas's clone uses `copy`.
+
 They were `by-path` with `per-hop` before, and the main spec's interleaving scenarios showed
 the M4/M5 misdelivery there. A swap (a handler returning a new instance) gives a new identity,
 as in M6.
@@ -273,6 +287,9 @@ as in M6.
 - **Hop atomicity.** It matters from M3 on. A turn can't lose a bubble; `per-hop` can.
 - **Swaps.** A swap is a new identity. Open question: should a swap forward the messages in
   flight to the old instance? That needs a policy that maps identities through swaps.
+- **Copies.** Identity is what routing trusts, so a copy has to make new ones. A share
+  breaks P1, and every property after it reads identities, so P3 passes while the response
+  goes to the share.
 - **State.** Routing can't fix a protocol: a response can reach the right instance in the
   wrong state. `well-formed?` is the static check that rules that out.
 

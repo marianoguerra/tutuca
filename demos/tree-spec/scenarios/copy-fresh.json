@@ -1,0 +1,1121 @@
+{
+	"blurb": "The same race with a copy: every instance in it is new, so an answer that arrives after the copy took the asker's place is stale, not misdelivered.",
+	"edges": [
+		{ "from": 0, "label": "event: push()", "rule": "env", "to": 1 },
+		{ "from": 1, "label": "event: go() at items[0]", "rule": "env", "to": 2 },
+		{ "from": 2, "label": "run: request 2 fetch", "rule": "run", "to": 3 },
+		{ "from": 2, "label": "event: copy-first()", "rule": "env", "to": 4 },
+		{ "from": 3, "label": "response 2 to fetch arrives", "rule": "respond", "to": 5 },
+		{ "from": 3, "label": "event: copy-first()", "rule": "env", "to": 6 },
+		{ "from": 4, "label": "run: request 2 fetch", "rule": "run", "to": 7 },
+		{ "from": 4, "label": "event: rename(20) at items[0]", "rule": "env", "to": 8 },
+		{ "from": 5, "label": "run: response 2 fetch", "rule": "run", "to": 9 },
+		{ "from": 5, "label": "event: copy-first()", "rule": "env", "to": 10 },
+		{ "from": 6, "label": "response 2 to fetch arrives", "rule": "respond", "to": 10 },
+		{ "from": 6, "label": "event: rename(20) at items[0]", "rule": "env", "to": 11 },
+		{ "from": 7, "label": "event: rename(20) at items[0]", "rule": "env", "to": 12 },
+		{ "from": 8, "label": "run: request 2 fetch", "rule": "run", "to": 13 },
+		{ "from": 9, "label": "event: copy-first()", "rule": "env", "to": 14 },
+		{ "from": 10, "label": "run: response 2 fetch", "rule": "run", "to": 15 },
+		{ "from": 10, "label": "event: rename(20) at items[0]", "rule": "env", "to": 16 },
+		{ "from": 11, "label": "response 2 to fetch arrives", "rule": "respond", "to": 16 },
+		{ "from": 14, "label": "event: rename(20) at items[0]", "rule": "env", "to": 17 },
+		{ "from": 15, "label": "event: rename(20) at items[0]", "rule": "env", "to": 18 },
+		{ "from": 16, "label": "run: response 2 fetch", "rule": "run", "to": 19 }
+	],
+	"gran": "turn",
+	"host": "(host ())",
+	"kinds": [
+		"(kind\n Item\n (state (label 10))\n ()\n ((on (send go) () ((request fetch)))\n  (on (ok fetch) (x) ((log (+ (get label) x))))\n  (on (send rename) (l) ((set label l)))))",
+		"(kind\n Items\n (state)\n ((items (list)))\n ((on (send push) () ((append items (new Item))))\n  (on (send copy-first) () ((prepend items (copy ((index items 0))))))\n  (on\n   (send share-first)\n   ()\n   ((prepend items (share ((index items 0))))))\n  (on (request fetch) () ((answer ok 100)))))"
+	],
+	"name": "copy-fresh",
+	"policy": "by-path-checked",
+	"states": [
+		{
+			"inflight": [],
+			"obs": [],
+			"queue": [],
+			"quiescent": false,
+			"script": ["push()", "go() at items[0]", "copy-first()", "rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [{ "items": [], "name": "items", "type": "list" }]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" }],
+			"queue": [],
+			"quiescent": false,
+			"script": ["go() at items[0]", "copy-first()", "rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"hop": true,
+					"mode": "request",
+					"name": "fetch",
+					"request": 2,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["copy-first()", "rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["copy-first()", "rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"hop": true,
+					"mode": "request",
+					"name": "fetch",
+					"request": 2,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["copy-first()", "rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "stale", "text": "request 2 fetch for #1 stale: #3 is there now" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"hop": true,
+					"mode": "request",
+					"name": "fetch",
+					"request": 2,
+					"result": null,
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 fetch delivered to #1" },
+				{ "bad": false, "kind": "log", "text": "log 110" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["copy-first()", "rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": ["rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "stale", "text": "request 2 fetch for #1 stale: #3 is there now" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" },
+				{ "bad": false, "kind": "stale", "text": "request 2 fetch for #1 stale: #3 is there now" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 fetch delivered to #1" },
+				{ "bad": false, "kind": "log", "text": "log 110" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "stale", "text": "response 2 fetch for #1 stale: #3 is there now" }
+			],
+			"queue": [],
+			"quiescent": false,
+			"script": ["rename(20) at items[0]"],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" }
+			],
+			"queue": [
+				{
+					"args": [],
+					"expected": null,
+					"from": { "anchor": null, "host": false, "id": 0, "path": [] },
+					"hop": false,
+					"mode": "response",
+					"name": "fetch",
+					"request": 2,
+					"result": { "kind": "ok", "value": "100" },
+					"to": {
+						"anchor": null,
+						"host": false,
+						"id": 1,
+						"path": [{ "key": "0", "slot": "items", "text": "items[0]" }]
+					},
+					"urgent": false
+				}
+			],
+			"quiescent": false,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "response 2 fetch delivered to #1" },
+				{ "bad": false, "kind": "log", "text": "log 110" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "stale", "text": "response 2 fetch for #1 stale: #3 is there now" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		},
+		{
+			"inflight": [],
+			"obs": [
+				{ "bad": false, "kind": "deliver", "text": "send push delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send go delivered to #1" },
+				{ "bad": false, "kind": "requested", "text": "request 2 sent" },
+				{ "bad": false, "kind": "hop", "text": "request 2 fetch visits #0" },
+				{ "bad": false, "kind": "answered", "text": "request 2 answered: ok 100" },
+				{ "bad": false, "kind": "deliver", "text": "send copy-first delivered to #0" },
+				{ "bad": false, "kind": "deliver", "text": "send rename delivered to #3" },
+				{ "bad": false, "kind": "stale", "text": "response 2 fetch for #1 stale: #3 is there now" }
+			],
+			"queue": [],
+			"quiescent": true,
+			"script": [],
+			"tree": {
+				"control": "",
+				"id": 0,
+				"kind": "Items",
+				"locals": [],
+				"slots": [
+					{
+						"items": [
+							{
+								"cleared": false,
+								"key": "0",
+								"node": {
+									"control": "",
+									"id": 3,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "20" }],
+									"slots": []
+								}
+							},
+							{
+								"cleared": false,
+								"key": "1",
+								"node": {
+									"control": "",
+									"id": 1,
+									"kind": "Item",
+									"locals": [{ "name": "label", "value": "10" }],
+									"slots": []
+								}
+							}
+						],
+						"name": "items",
+						"type": "list"
+					}
+				]
+			}
+		}
+	],
+	"tier": "M8",
+	"title": "A copy with identities of its own"
+}
