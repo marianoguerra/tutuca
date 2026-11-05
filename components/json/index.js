@@ -46,6 +46,9 @@ const TEXT = {
 // An input that looks like text: no box, sized to its content, a dashed underline on hover.
 const INLINE =
 	"min-w-[1ch] [field-sizing:content] bg-transparent p-0 outline-none border-0 border-b border-dashed border-transparent hover:border-base-content/30 focus:border-primary";
+// Quotes around an input stay on its line: an input is an atomic inline, so a shrunk row
+// would otherwise break before and after it.
+const QUOTED = "inline-flex items-baseline whitespace-nowrap";
 const ACTION =
 	"cursor-pointer rounded px-1 font-mono text-xs opacity-0 transition-opacity group-hover:opacity-60 hover:opacity-100 focus:opacity-100";
 const ADD = "cursor-pointer self-start rounded px-1 font-mono text-xs opacity-50 hover:opacity-100";
@@ -177,7 +180,7 @@ export const JsonString = component({
 	views: {
 		main: span({ class: TEXT.string }, '"', field("value"), '"'),
 		edit: span(
-			{ class: TEXT.string },
+			{ class: `${TEXT.string} ${QUOTED}` },
 			'"',
 			input({
 				class: INLINE,
@@ -428,7 +431,7 @@ export const JsonEntry = component({
 		edit: span(
 			{ class: "inline-flex items-baseline gap-1" },
 			span(
-				{ class: TEXT.key },
+				{ class: `${TEXT.key} ${QUOTED}` },
 				'"',
 				input({
 					class: INLINE,
