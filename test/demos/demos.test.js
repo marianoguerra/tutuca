@@ -235,6 +235,9 @@ test("canvas demo: items resize by their corner; shapes are drawn, styled, moved
 		pointer("pointermove", bg, ...to, more);
 		pointer("pointerup", bg, ...to, more);
 	};
+	// The drawing tools, fill and stroke show once the drawing toggle is on.
+	assert.equal(app.$('[aria-label="Tools"] [value="arrow"]'), null);
+	app.fire("click", app.$('[aria-label="Draw: lines, arrows, shapes and text"]'));
 	tool("arrow");
 	app.fire("click", app.$('[aria-label="Stroke #ef4444"]'));
 	draw([600, 600], [800, 650]);

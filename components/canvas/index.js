@@ -440,6 +440,8 @@ const TOOLS = [
 	["text", "T", "Text (T)", "Text"],
 ];
 const TOOL_IDS = TOOLS.map(([id]) => id);
+// Whether a tool draws a shape: the ones the ✏ button shows and hides.
+const isDrawingTool = (tool) => TOOLS.find(([id]) => id === tool)?.[3] != null;
 const TOOL_KEYS = {
 	h: "hole",
 	v: "select",
@@ -500,6 +502,9 @@ export const Canvas = component({
 		// Shapes from back to front, under the items.
 		shapes: t.array(t.component(SHAPES)),
 		tool: t.enum(...TOOL_IDS).sync("local"),
+		// Whether the drawing tools, fill and stroke show: picking one shows them, picking the
+		// hole or select tool hides them, and the ✏ button toggles them.
+		drawing: t.boolean().sync("local"),
 		fill: paintType("none"), // For new shapes, and the selected one.
 		stroke: paintType("#1f2937"),
 		selected: t.string().sync("none"), // The selected shape's id, or "".
@@ -575,13 +580,24 @@ export const Canvas = component({
 			if (this.drag !== "none") return "canvas-bg cursor-grabbing";
 			return `canvas-bg ${this.tool === "select" ? "cursor-default" : "cursor-crosshair"}`;
 		},
+		// The drawing tools show while drawing is on or one of them is picked.
+		get showsDrawing() {
+			return this.drawing || isDrawingTool(this.tool);
+		},
 		get toolButtons() {
-			return TOOLS.map(([id, icon, label]) => ({
-				id,
-				icon,
-				label,
-				cls: id === this.tool ? ON : OFF,
-			}));
+			return TOOLS.filter(([id]) => !isDrawingTool(id) || this.showsDrawing).map(
+				([id, icon, label]) => ({ id, icon, label, cls: id === this.tool ? ON : OFF }),
+			);
+		},
+		get drawingClass() {
+			return this.showsDrawing ? ON : OFF;
+		},
+		get drawingLabel() {
+			return this.showsDrawing ? "Hide the drawing tools" : "Draw: lines, arrows, shapes and text";
+		},
+		// Deleting a shape goes with selecting it or drawing it.
+		get showDelete() {
+			return this.showsDrawing || this.tool === "select";
 		},
 		get fillSwatches() {
 			return swatches(this.fill, "setFill", "Fill");
@@ -648,26 +664,43 @@ export const Canvas = component({
 						field("icon"),
 					),
 				),
+				button(
+					{
+						class: field("drawingClass"),
+						title: field("drawingLabel"),
+						"aria-label": field("drawingLabel"),
+						"aria-pressed": $if(field("showsDrawing"), "true", "false"),
+						"on:click": send("toggleDrawing"),
+					},
+					"✏",
+				),
 			),
-			...[
-				["Fill", "fillSwatches", "setFill"],
-				["Stroke", "strokeSwatches", "setStroke"],
-			].map(([label, swatchesField, message]) =>
+			$if(
+				field("showsDrawing"),
 				div(
-					{ class: "flex items-center gap-1 text-xs", role: "group", "aria-label": label },
-					span({ class: "w-10 opacity-70" }, label),
-					each(
-						field(swatchesField),
-						button({
-							class: field("cls"),
-							style: field("style"),
-							title: field("label"),
-							"aria-label": field("label"),
-							value: field("color"),
-							"on:click": send(message, targetValue()),
-						}),
+					{ class: "flex flex-wrap items-center gap-3" },
+					...[
+						["Fill", "fillSwatches", "setFill"],
+						["Stroke", "strokeSwatches", "setStroke"],
+					].map(([label, swatchesField, message]) =>
+						div(
+							{ class: "flex items-center gap-1 text-xs", role: "group", "aria-label": label },
+							span({ class: "w-10 opacity-70" }, label),
+							each(
+								field(swatchesField),
+								button({
+									class: field("cls"),
+									style: field("style"),
+									title: field("label"),
+									"aria-label": field("label"),
+									value: field("color"),
+									"on:click": send(message, targetValue()),
+								}),
+							),
+						),
 					),
 				),
+				"",
 			),
 			$if(
 				field("isTextSelected"),
@@ -679,14 +712,18 @@ export const Canvas = component({
 				}),
 				"",
 			),
-			button(
-				{
-					class: "btn btn-sm",
-					disabled: field("noSelection"),
-					title: "Delete the selected shape (Del)",
-					"on:click": send("removeShape"),
-				},
-				"Delete",
+			$if(
+				field("showDelete"),
+				button(
+					{
+						class: "btn btn-sm",
+						disabled: field("noSelection"),
+						title: "Delete the selected shape (Del)",
+						"on:click": send("removeShape"),
+					},
+					"Delete",
+				),
+				"",
 			),
 			div(
 				{ class: "join ml-auto", role: "group", "aria-label": "Zoom" },
@@ -864,10 +901,16 @@ export const Canvas = component({
 			run(next, [tool]) {
 				if (!TOOL_IDS.includes(tool)) return;
 				next.tool = tool;
+				next.drawing = isDrawingTool(tool);
 				next.selected = ""; // So paint picked for the new tool leaves the last shape as it is.
 				next.current = null;
 				next.drag = "none";
 			},
+		},
+		// Shows the drawing tools, or hides them, leaving a drawing tool for select.
+		toggleDrawing(next) {
+			next.drawing = !this.showsDrawing;
+			if (!next.drawing && isDrawingTool(this.tool)) next.tool = "select";
 		},
 		// The paint for new shapes, and the selected one's.
 		setFill: {
