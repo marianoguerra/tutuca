@@ -384,6 +384,42 @@ test("canvas demo, llm bundle: the parts of a request, and holes that become the
 	await checkClean(app);
 });
 
+test("canvas demo, http bundle: a request, its response, the operation and the exchange", async () => {
+	const app = mount(startCanvas, "http");
+	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
+	assert.deepEqual(kinds(), ["HttpRequest", "HttpResponse", "ApiOperation", "HttpExchange"]);
+	assert.equal(app.state().items["item-4"].label, "🔁 HTTP exchange");
+	assert.equal(app.state().items["item-4"].content.failures, 0, "the example checks out");
+	assert.ok(app.$(".http-exchange .http-ok"));
+	assert.equal(app.$(".http-exchange .http-fail"), null);
+	await checkClean(app);
+});
+
+test("canvas demo, music bundle: the circle, the chords, the intervals and a piano", async () => {
+	const app = mount(startCanvas, "music");
+	const kinds = () => app.state().order.map((key) => specOf(app.state().items[key].content).name);
+	assert.deepEqual(kinds(), [
+		"CircleOfFifths",
+		"ChordExplorer",
+		"IntervalPicker",
+		"Piano",
+		"OffsetExplorer",
+		"GuitarNeck",
+	]);
+	assert.equal(app.state().items["item-1"].label, "⭕ Circle of fifths");
+	const chords = () => app.state().items["item-2"].content;
+	assert.deepEqual(chords().piano.labels, ["E♭", "G", "B♭", "D"]);
+	app.fire("click", app.rootNode.querySelectorAll('.music-chords [aria-label="Root"] > button')[0]);
+	assert.deepEqual(chords().piano.labels, ["C", "E", "G", "B"]);
+	// The offset explorer marks its pick and where the offset moves it, on either instrument.
+	const offset = () => app.state().items["item-5"].content;
+	app.fire("click", app.rootNode.querySelectorAll('.music-offset [aria-label="Root"] > button')[0]);
+	assert.deepEqual(offset().piano.labels, ["C", "E", "G", "B", "D", "F♯"]);
+	app.fire("click", app.$('.music-offset [aria-label="Instrument"] > button:nth-of-type(2)'));
+	assert.ok(app.$(".music-offset .guitar-neck"));
+	await checkClean(app);
+});
+
 test("lang demo: switches notation and edits the program", async () => {
 	const app = mount(startLang);
 	const output = () => app.$('[aria-label="Result"]').textContent;

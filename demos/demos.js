@@ -65,9 +65,9 @@ export const demos = [
 		emoji: "🖼️",
 		title: "Canvas",
 		blurb:
-			"An SVG canvas of the other demos' components in foreignObjects, and shapes between them: put a hole, pick what it becomes, drag, resize and collapse it; draw lines, arrows, boxes and text. ?bundle=llm loads the parts of an LLM request instead, to explain inference with.",
+			"An SVG canvas of the other demos' components in foreignObjects, and shapes between them: put a hole, pick what it becomes, drag, resize and collapse it; draw lines, arrows, boxes and text. ?bundle=llm loads the parts of an LLM request instead, to explain inference with, ?bundle=http an HTTP exchange checked against its OpenAPI operation, and ?bundle=music the circle of fifths, intervals, chords and a piano.",
 		story: null,
-		sources: ["canvas", "llm"],
+		sources: ["canvas", "llm", "http", "music"],
 	},
 	{
 		dir: "lang",

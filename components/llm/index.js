@@ -6,150 +6,50 @@
 // json components' edit views) and the schemas as JSON text (JsonSchemaEditor).
 import {
 	$if,
-	apply,
-	canApply,
 	component,
-	DISPLAY_META,
 	each,
 	field,
 	render,
 	renderIt,
 	send,
-	sourceKey,
 	specOf,
 	t,
 	tag,
 	targetValue,
 } from "../../src/tutuca.js";
-import { CANVAS_META } from "../canvas/layout.js";
+import {
+	BADGE,
+	cardClass,
+	cardHeader,
+	INPUT,
+	isCount,
+	labeled,
+	MONO,
+	metaFor,
+	numberInput,
+	removable,
+	SMALL_BUTTON,
+	sectionFields,
+	sectionMessages,
+	sectionQueries,
+	setNumber,
+	TEXTAREA,
+	titled,
+} from "../common/card.js";
 import { fromJson, jsonRoot } from "../json/index.js";
 import { schemaEditor, schemaEditorComponents } from "../json-schema/editor.js";
 import { validate } from "./validate.js";
 
-const {
-	button,
-	div,
-	footer,
-	h3,
-	header,
-	input,
-	label,
-	li,
-	option,
-	p,
-	section,
-	select,
-	span,
-	textarea,
-	ul,
-} = tag;
-
-// What each part says of itself (its title, icon and what it's for) and how wide it starts on a
-// canvas.
-const metaFor = (title, icon, description, width) => ({
-	[DISPLAY_META]: { title, icon, description },
-	[CANVAS_META]: { width },
-});
+const { button, div, footer, header, input, label, li, option, p, select, span, textarea, ul } =
+	tag;
 
 // About how many tokens text is: a rough rule of thumb of 4 characters to a token, for
 // English; a real tokenizer counts differently.
 export const approxTokens = (text) => (text === "" ? 0 : Math.max(1, Math.round(text.length / 4)));
 
-const CARD =
-	"llm-card flex flex-col gap-2 rounded-md border border-base-300 bg-base-100 p-3 text-sm";
-const BADGE = "badge badge-sm badge-soft font-semibold";
-const MONO = "font-mono text-sm";
-const TEXTAREA = "textarea textarea-bordered textarea-sm min-h-24 w-full text-sm";
-const INPUT = "input input-bordered input-sm w-full";
-const FIELD_LABEL = "flex flex-col gap-1 text-xs opacity-80";
-const PART = "text-xs font-semibold opacity-60";
-
-// A card's header: its badge (role) and what's beside it.
-const cardHeader = (badge, badgeClass, ...rest) =>
-	header(
-		{ class: "flex flex-wrap items-center gap-2" },
-		span({ class: `${BADGE} ${badgeClass}` }, badge),
-		...rest,
-	);
+const CARD = cardClass("llm-card");
 const tokens = () =>
 	span({ class: "ml-auto text-xs tabular-nums opacity-50" }, "≈ ", field("tokens"), " tokens");
-const labeled = (text, control) => label({ class: FIELD_LABEL }, text, control);
-
-// A card's sections: titled parts that collapse, each by its title. Clicking a title opens or
-// closes its section; with Ctrl (⌘ on a Mac), every section of the card does the same; with
-// Ctrl+Alt, every section, JSON value and schema below it too, in the cards it holds.
-// closed lists the sections that are closed; each name gets a query, nameOpen.
-const sectionFields = () => ({ closed: t.array(t.string()) });
-const openQuery = (name) => `${name}Open`;
-const sectionQueries = (names) =>
-	Object.fromEntries(
-		names.map((name) => [
-			openQuery(name),
-			{
-				get() {
-					return !this.closed.includes(name);
-				},
-			},
-		]),
-	);
-// What every section below, in the fields below, takes: setSectionsOpen goes into the cards,
-// setOpenDeep into the JSON values and schemas.
-const openBelow = (next, below, open) => {
-	const into = (v) => {
-		if (canApply(v, "setSectionsOpen")) return apply(v, "setSectionsOpen", open);
-		if (canApply(v, "setOpenDeep")) return apply(v, "setOpenDeep", open);
-		return v;
-	};
-	for (const key of below) {
-		const v = next[key];
-		if (Array.isArray(v)) {
-			for (let i = 0; i < v.length; i++) v[i] = into(v[i]);
-		} else if (v !== null) next[key] = into(v);
-	}
-};
-const sectionMessages = (names, below = []) => ({
-	toggleSection: {
-		args: [t.enum(...names)],
-		run(next, [name], ctx) {
-			const e = ctx.event;
-			const open = this.closed.includes(name);
-			if (e?.ctrlKey || e?.metaKey) {
-				next.closed = open ? [] : [...names];
-				if (e.altKey) openBelow(next, below, open);
-			} else next.closed = open ? this.closed.filter((n) => n !== name) : [...this.closed, name];
-		},
-	},
-	// Every section opens or closes, and every one below it.
-	setSectionsOpen: {
-		pure: true,
-		args: [t.boolean()],
-		run(next, [open]) {
-			next.closed = open ? [] : [...names];
-			openBelow(next, below, open);
-		},
-	},
-});
-const SECTION_TITLE = `${PART} flex cursor-pointer items-center gap-1 self-start hover:opacity-100`;
-const titled = (name, title, ...children) =>
-	section(
-		{ class: "llm-section flex flex-col gap-2" },
-		h3(
-			{ class: "contents" },
-			button(
-				{
-					class: SECTION_TITLE,
-					value: name,
-					title:
-						"Collapse or expand (Ctrl+click: every section; Ctrl+Alt+click: everything inside too)",
-					"aria-expanded": $if(field(openQuery(name)), "true", "false"),
-					"on:click": send("toggleSection", name),
-				},
-				span({ class: "w-3", "aria-hidden": "true" }, $if(field(openQuery(name)), "▾", "▸")),
-				title,
-			),
-		),
-		$if(field(openQuery(name)), div({ class: "flex flex-col gap-2" }, ...children), ""),
-	);
 
 // A message of role: its text, read in main and typed in edit.
 const message = (name, role, badge, badgeClass, placeholder, meta) =>
@@ -531,41 +431,6 @@ export const StructuredOutput = component({
 	views: { edit: structuredView() },
 	on: sectionMessages(STRUCTURED_SECTIONS, ["schema", "output"]),
 });
-
-// A number typed in an input, or null when it isn't one (the field then keeps what it had).
-const typedNumber = (text) => {
-	const n = Number(text);
-	return text.trim() === "" || !Number.isFinite(n) ? null : n;
-};
-const numberInput = (ariaLabel, name, handler, cls = "") =>
-	input({
-		type: "number",
-		min: "0",
-		step: "any",
-		class: `${INPUT} tabular-nums ${cls}`,
-		"aria-label": ariaLabel,
-		value: field(name),
-		"on:input": send(handler, targetValue()),
-	});
-// A handler setting the number field name to what's typed, when it's a number ok takes.
-const setNumber = (name, ok) => ({
-	args: [t.string()],
-	run(next, [text]) {
-		const n = typedNumber(text);
-		if (n !== null && ok(n)) next[name] = n;
-	},
-});
-const isCount = (n) => Number.isInteger(n) && n >= 0;
-const SMALL_BUTTON = "btn btn-xs btn-ghost";
-const REMOVE =
-	"btn btn-xs btn-circle btn-ghost absolute -right-2 -top-2 z-10 text-error opacity-60 hover:opacity-100";
-// A part in a list, edited: the part and a × that sends remove with its index.
-const removable = (title, remove) =>
-	div(
-		{ class: "relative" },
-		renderIt(),
-		button({ class: REMOVE, title, "on:click": send(remove, sourceKey()) }, "×"),
-	);
 
 // pi-ai's transcript, from the cards: a tool call goes into the content of the assistant
 // message before it (or of a new one), as models give them back, and a tool result says the

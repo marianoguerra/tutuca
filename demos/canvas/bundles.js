@@ -1,7 +1,8 @@
 // The bundles the canvas demo can load, by ?bundle=: each is the components it registers, the
 // meta schemas it checks them against, the ask handlers that tell its holes what they can
 // become and make it, and the canvas it starts with. default is the notebook's components; llm
-// the parts of an LLM request and response.
+// the parts of an LLM request and response; http an HTTP exchange and the OpenAPI operation it
+// follows; music the circle of fifths, intervals, chords and a piano.
 import {
 	COMPOSITION_KINDS,
 	canvas,
@@ -11,7 +12,9 @@ import {
 	canvasMetaSchemas,
 } from "../../components/canvas/index.js";
 import { kindHandlers } from "../../components/canvas/layout.js";
+import { HTTP_KINDS, httpComponents } from "../../components/http/index.js";
 import { LLM_KINDS, llmComponents } from "../../components/llm/index.js";
+import { MUSIC_KINDS, musicComponents } from "../../components/music/index.js";
 
 export const BUNDLES = {
 	default: {
@@ -51,6 +54,48 @@ export const BUNDLES = {
 				],
 				{ width: 1800, height: 1200 },
 				LLM_KINDS,
+			),
+	},
+	// A web page reading a task from an API: the request, its response and the operation they
+	// follow, apart, and the exchange that checks them against it, to explain HTTP with.
+	http: {
+		title: "HTTP & OpenAPI",
+		components: { ...httpComponents, ...canvasKitComponents },
+		askHandlers: kindHandlers(HTTP_KINDS),
+		metaSchemas: canvasMetaSchemas,
+		make: (C) =>
+			canvas(
+				C,
+				[
+					[48, 40, "request"],
+					[48, 560, "response"],
+					[580, 40, "operation"],
+					[1150, 40, "exchange"],
+				],
+				{ width: 1800, height: 1400 },
+				HTTP_KINDS,
+			),
+	},
+	// The circle of fifths, an interval picker, a chord explorer, a piano and a guitar's neck to
+	// mark notes on, and an explorer of a note or chord moved by an interval offset.
+	music: {
+		title: "Music theory",
+		components: { ...musicComponents, ...canvasKitComponents },
+		askHandlers: kindHandlers(MUSIC_KINDS),
+		metaSchemas: canvasMetaSchemas,
+		make: (C) =>
+			canvas(
+				C,
+				[
+					[48, 40, "circle"],
+					[500, 40, "chords"],
+					[1080, 40, "intervals"],
+					[500, 620, "piano"],
+					[48, 900, "offsetExplorer"],
+					[700, 900, "guitar"],
+				],
+				{ width: 1700, height: 1600 },
+				MUSIC_KINDS,
 			),
 	},
 };
